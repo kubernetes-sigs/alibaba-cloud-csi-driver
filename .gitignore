@@ -1,0 +1,5 @@
+# binaries
+.idea
+csi-diskplugin
+csi-nasplugin
+csi-ossplugin

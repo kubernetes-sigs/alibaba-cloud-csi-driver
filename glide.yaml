@@ -1,0 +1,26 @@
+package: github.com/AliyunContainerService/csi-plugin
+import:
+- package: github.com/Sirupsen/logrus
+- package: github.com/container-storage-interface/spec
+  subpackages:
+  - lib/go/csi/v0
+- package: github.com/denverdino/aliyungo
+  subpackages:
+  - common
+  - ecs
+  - metadata
+- package: github.com/golang/glog
+- package: github.com/kubernetes-csi/drivers
+  subpackages:
+  - pkg/csi-common
+- package: golang.org/x/net
+  subpackages:
+  - context
+- package: google.golang.org/grpc
+  subpackages:
+  - codes
+  - status
+- package: k8s.io/kubernetes
+  subpackages:
+  - pkg/util/keymutex
+  - pkg/util/mount

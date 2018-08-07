@@ -1,0 +1,12 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: csi-disk
+provisioner: csi-diskplugin
+parameters:
+    zoneId: cn-beijing-b
+    regionId: cn-beijing
+    fsType: ext4
+    type: cloud_ssd
+    readOnly: "false"
+reclaimPolicy: Delete
