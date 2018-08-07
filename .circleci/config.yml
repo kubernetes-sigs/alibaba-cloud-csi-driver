@@ -6,5 +6,5 @@ jobs:
     working_directory: /go/src/github.com/AliyunContainerService/csi-plugin
     steps:
     - checkout
-    - run: go vet ./...
+    - run: go test ./...
     - run: go build
