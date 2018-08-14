@@ -95,6 +95,10 @@ spec:
                   fieldPath: spec.nodeName
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/plugins/csi-diskplugin/csi.sock
+            - name: ACCESS_KEY_ID
+              value: ""
+            - name: ACCESS_KEY_SECRET
+              value: ""
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: plugin-dir

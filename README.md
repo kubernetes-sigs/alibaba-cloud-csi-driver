@@ -75,6 +75,8 @@ If you want to use Flexvolume, set it to false again;
 ```
 
 #### Step 3: Create CSI Plugin
+If the cluster not in STS mode, you need to config AK info to plugin; Set ACCESS_KEY_ID, ACCESS_KEY_SECRET to environment;
+
 ```
 # kubectl create -f ./deploy/disk/diskplugin.yaml
 ```
