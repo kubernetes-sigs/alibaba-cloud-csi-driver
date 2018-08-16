@@ -9,8 +9,8 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 	options.Url = "1.1.1.1"
 	options.Bucket = "aliyun"
 
-	ok := checkOssOptions(options)
-	if !ok {
+	err := checkOssOptions(options)
+	if err != nil {
 		t.Fatal("Test Fail")
 	}
 

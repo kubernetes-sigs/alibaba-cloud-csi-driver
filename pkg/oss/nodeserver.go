@@ -65,40 +65,34 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	if !checkOssOptions(opt) {
-		return nil, errors.New("options is error")
+	if err := checkOssOptions(opt);  err != nil {
+		log.Error("Check oss input error: ", err.Error())
+		return nil, errors.New("Check oss input error: " + err.Error())
 	}
 
 	// check parameters
 	if mountPath == "" {
+		log.Error("Check oss input error: mountPath is empty")
 		return nil, errors.New("mountPath is empty")
 	}
-	if opt.Bucket == "" {
-		return nil, errors.New("bucket is empty, should input oss bucket")
-	}
-	if opt.Url == "" {
-		return nil, errors.New("url is empty, should input oss url")
-	}
-	if opt.AkId == "" {
-		return nil, errors.New("akId is empty")
-	}
-	if opt.AkSecret == "" {
-		return nil, errors.New("akSecret is empty")
-	}
+
 	argStr := "AkId: " + opt.AkId + ", Bucket: " + opt.Bucket + ", url: " + opt.Url + ", OtherOpts: " + opt.OtherOpts
 	log.Infof("Oss Plugin Mount: ", argStr)
 
 	if utils.IsMounted(mountPath) {
+		log.Infof("NodePublishVolume: The mountpoint is mounted: ", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	// Create Mount Path
 	if err := utils.CreateDest(mountPath); err != nil {
+		log.Error("Create Directory error: ", err.Error())
 		return nil, errors.New("Oss, Mount fail with create Path error: " + err.Error() + mountPath)
 	}
 
 	// Save ak file for ossfs
 	if err := saveOssCredential(opt); err != nil {
+		log.Error("Save oss ak error: ", err.Error())
 		return nil, errors.New("Oss, Save AK file fail: " + err.Error())
 	}
 
@@ -107,6 +101,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if out, err := utils.Run(mntCmd); err != nil {
 		out, err = utils.Run(mntCmd + " -f")
 		if err != nil {
+			log.Error("Ossfs mount error: ", err.Error())
 			return nil, errors.New("Create OSS volume fail: " + err.Error() + ", out: " + out)
 		}
 	}
@@ -147,9 +142,9 @@ func saveOssCredential(options *OssOptions) error {
 }
 
 // Check oss options
-func checkOssOptions(opt *OssOptions) bool {
+func checkOssOptions(opt *OssOptions) error {
 	if opt.Url == "" || opt.Bucket == "" {
-		return false
+		return errors.New("Oss Parametes error: Url/Bucket empty ")
 	}
 
 	// if not input ak from user, use the default ak value
@@ -159,10 +154,10 @@ func checkOssOptions(opt *OssOptions) bool {
 
 	if opt.OtherOpts != "" {
 		if !strings.HasPrefix(opt.OtherOpts, "-o ") {
-			return false
+			return errors.New("Oss OtherOpts error: start with -o ")
 		}
 	}
-	return true
+	return nil
 }
 
 func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
@@ -182,13 +177,16 @@ func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 
+	log.Info("Start Umount oss: %s", req.TargetPath)
 	mountPoint := req.TargetPath
 	if !utils.IsMounted(mountPoint) {
+		log.Info("Directory is not mounted: %s", mountPoint)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
 	umntCmd := fmt.Sprintf("umount -f %s", mountPoint)
 	if _, err := utils.Run(umntCmd); err != nil {
+		log.Errorf("Umount oss fail, with: ", err.Error())
 		return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
 	}
 
