@@ -152,8 +152,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		log.Errorf("NodeUnpublishVolume: umount error:", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	cnt--
-	if cnt != 0 {
+	if cnt > 1 {
 		log.Infof("Only Unmount, with device mount by others: refer num ", cnt)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
