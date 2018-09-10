@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/AliyunContainerService/csi-plugin/pkg/disk"
@@ -88,6 +89,11 @@ func createPersistentStorage(persistentStoragePath string) error {
 
 // rotate log file by 2M bytes
 func setLogAttribute() {
+	logType := os.Getenv("LOG_TYPE")
+	if strings.ToLower(logType) == "" || strings.ToLower(logType) == "stdout" {
+		return
+	}
+
 	driver := filepath.Base(os.Args[0])
 	os.MkdirAll(LOGFILE_PREFIX, os.FileMode(0755))
 

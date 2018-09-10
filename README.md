@@ -81,6 +81,12 @@ If the cluster not in STS mode, you need to config AK info to plugin; Set ACCESS
 # kubectl create -f ./deploy/disk/diskplugin.yaml
 ```
 
+> Note: The plugin log style can be configured by environment variable: LOG_TYPE.
+
+> "host": logs will be printed into files which save to host(/var/log/alicloud/csi-diskplugin.log);
+
+> "stdout": default option, logs will be printed to stdout, can be printed by docker logs or kubectl logs.
+
 #### Step 4: Create StorageClass
 ```
 # kubectl create -f ./deploy/disk/storageclass.yaml
@@ -189,6 +195,12 @@ Same as csi-diskplugin;
 # kubectl create -f ./deploy/nas/nasplugin.yaml
 ```
 
+> Note: The plugin log style can be configured by environment variable: LOG_TYPE.
+
+> "host": logs will be printed into files which save to host(/var/log/alicloud/csi-nasplugin.log);
+
+> "stdout": default option, logs will be printed to stdout, can be printed by docker logs or kubectl logs.
+
 #### Step 3: Create nginx deploy with csi
 ```
 # kubectl create -f ./deploy/nas/deploy.yaml
@@ -268,6 +280,12 @@ Same as csi-diskplugin;
 ```
 # kubectl create -f ./deploy/oss/ossplugin.yaml
 ```
+
+> Note: The plugin log style can be configured by environment variable: LOG_TYPE.
+
+> "host": logs will be printed into files which save to host(/var/log/alicloud/csi-ossplugin.log);
+
+> "stdout": default option, logs will be printed to stdout, can be printed by docker logs or kubectl logs.
 
 #### Step 3: Create nginx deploy with csi
 ```

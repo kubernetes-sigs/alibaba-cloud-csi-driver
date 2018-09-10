@@ -89,6 +89,8 @@ spec:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
           env:
+            - name: LOG_TYPE
+              value: ""
             - name: NODE_ID
               valueFrom:
                 fieldRef:

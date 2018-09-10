@@ -141,7 +141,7 @@ func (cs *controllerServer) initEcsClient() {
 }
 
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	log.Infof("DeleteVolume: Starting DeleteVolume volumeId: ", req.GetVolumeId())
+	log.Infof("DeleteVolume: Starting DeleteVolume volumeId: %v", req.GetVolumeId())
 
 	// Step 1: check inputs
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME); err != nil {
