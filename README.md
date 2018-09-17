@@ -38,6 +38,19 @@ To build a container:
 $ cd build && sh build-disk.sh
 ```
 
+#### nsenter compatibility
+
+Current, nsenter under build/disk/nsenter is tested under centos 7.3, 7.4. As nsenter is related to linux kernel, if the nsenter is not suitable to your environment, you can get source code and compile a new one; 
+
+According to your Linux Kernel Version, just like the below steps:
+
+```
+$ wget https://www.kernel.org/pub/linux/utils/util-linux/v2.24/util-linux-2.24.tar.gz
+$ tar -xzvf util-linux-2.24.tar.gz && cd util-linux-2.24/
+$ ./configure --without-ncurses
+$ make nsenter
+```
+
 ### Demo
 
 
