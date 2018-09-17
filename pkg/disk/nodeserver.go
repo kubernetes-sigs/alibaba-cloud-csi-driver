@@ -221,7 +221,7 @@ func (ns *nodeServer) initEcsClient() {
 	ns.EcsClient = newEcsClient(accessKeyID, accessSecret, accessToken)
 }
 
-// attach alicloud disk
+// attach alibaba cloud disk
 func (ns *nodeServer) attachDisk(ctx context.Context, req *csi.NodePublishVolumeRequest) (string, error) {
 	log.Infof("NodePublishVolume: Start to attachDisk")
 	// Step 1: init ecs client and parameters

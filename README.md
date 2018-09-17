@@ -1,4 +1,4 @@
-# AliCloud Kubernetes CSI Plugin
+# Alibaba Cloud Kubernetes CSI Plugin
 
 [![Build Status](https://travis-ci.org/AliyunContainerService/csi-plugin.svg?branch=master)](https://travis-ci.org/AliyunContainerService/csi-plugin)
 [![CircleCI](https://circleci.com/gh/AliyunContainerService/csi-plugin.svg?style=svg)](https://circleci.com/gh/AliyunContainerService/csi-plugin)
@@ -6,12 +6,12 @@
 
 ## Overview
 
-Alicloud CSI plugins implement an interface between CSI enabled Container
-Orchestrator and AliCloud Storage. It allows dynamically provision Disk
+Alibaba cloud CSI plugins implement an interface between CSI enabled Container
+Orchestrator and Alibaba Cloud Storage. It allows dynamically provision Disk
 volumes and attach it to workloads.
 Current implementation of CSI plugins was tested in Kubernetes environment (requires Kubernetes 1.10+).
 
-Current Support: ***Alicloud Disk, OSS, NAS***;
+Current Support: ***Alibaba cloud Disk, OSS, NAS***;
 
 ## Disk CSI Plugin
 
@@ -50,7 +50,7 @@ $ cd build && sh build-disk.sh
 
 ##### Get Kubernetes cluster
 
-You can create a Kubernetes Cluster on [Alicloud Container Service](https://help.aliyun.com/product/25972.html?spm=a2c4g.750001.2.3.A7g9FZ)
+You can create a Kubernetes Cluster on [Alibaba cloud Container Service](https://help.aliyun.com/product/25972.html?spm=a2c4g.750001.2.3.A7g9FZ)
 
 ##### Config Kubelet
 
@@ -60,7 +60,7 @@ Set --enable-controller-attach-detach=true for kubelet:
 # vi /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
 ```
 
-Kubernetes default to true if you use Kubeadm to create Cluster, Alicloud set it to false for the Flexvolume feature;
+Kubernetes default to true if you use Kubeadm to create Cluster, Alibaba cloud set it to false for the Flexvolume feature;
 If you want to use Flexvolume, set it to false again;
 
 

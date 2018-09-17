@@ -1,6 +1,6 @@
 FROM centos:7.4.1708
-LABEL maintainers="AliCloud Authors"
-LABEL description="AliCloud CSI DiskPlugin"
+LABEL maintainers="Alibaba Cloud Authors"
+LABEL description="Alibaba Cloud CSI DiskPlugin"
 
 RUN yum install -y e4fsprogs
 
