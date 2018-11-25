@@ -17,11 +17,11 @@ limitations under the License.
 package disk
 
 import (
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"os"
 	"path"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/container-storage-interface/spec/lib/go/csi/v0"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 )
 
@@ -44,18 +44,8 @@ type disk struct {
 
 var (
 	//diskDriver *disk
-	version = "0.2.0"
+	version = "1.0.0"
 )
-
-type diskVolume struct {
-	Type     string `json:"type"`
-	RegionId string `json:"regionId"`
-	ZoneId   string `json:"zoneId"`
-	FsType   string `json:"fsType"`
-	ReadOnly bool   `json:"readOnly"`
-}
-
-var diskVolumes map[string]diskVolume
 
 // Init checks for the persistent volume file and loads all found volumes
 // into a memory structure
@@ -80,6 +70,8 @@ func NewDriver(nodeID, endpoint string) *disk {
 	tmpdisk.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+		csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
+		csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
 	})
 
 	tmpdisk.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER})
