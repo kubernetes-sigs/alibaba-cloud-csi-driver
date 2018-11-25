@@ -23,7 +23,7 @@ spec:
       hostPID: true
       containers:
         - name: driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/driver-registrar:v0.2.0
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/driver-registrar:v0.3.0
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -43,7 +43,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-diskplugin:v1.10-7424d08
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-diskplugin:***
           args :
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"

@@ -96,7 +96,7 @@ spec:
       serviceAccount: csi-serviceaccount
       containers:
         - name: csi-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-provisioner:v0.2.0
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-provisioner:v0.3.0
           args:
             - "--provisioner=csi-diskplugin"
             - "--csi-address=$(ADDRESS)"
@@ -109,7 +109,7 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/kubelet/plugins/csi-diskplugin
         - name: csi-attacher
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-attacher:v0.2.0
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-attacher:v0.3.0
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"

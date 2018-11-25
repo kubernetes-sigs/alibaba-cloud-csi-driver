@@ -96,7 +96,7 @@ spec:
       serviceAccount: csi-attacher
       containers:
         - name: csi-attacher
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-attacher:v0.2.0
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-attacher:v0.3.0
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -109,7 +109,7 @@ spec:
               mountPath: /var/lib/csi/sockets/pluginproxy/
 
         - name: nfs
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-nasplugin:v1.10-a0e560a
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-nasplugin:***
           args :
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
