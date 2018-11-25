@@ -125,3 +125,5 @@ spec:
           hostPath:
             path: /var/lib/kubelet/plugins/csi-diskplugin
             type: DirectoryOrCreate
+  updateStrategy:
+    type: RollingUpdate

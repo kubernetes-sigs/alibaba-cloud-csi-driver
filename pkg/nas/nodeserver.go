@@ -27,7 +27,7 @@ import (
 
 	"github.com/AliyunContainerService/csi-plugin/pkg/utils"
 	log "github.com/Sirupsen/logrus"
-	"github.com/container-storage-interface/spec/lib/go/csi/v0"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -50,12 +50,12 @@ const (
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 
-	log.Infof("Nas Plugin Mount: %s", req.VolumeAttributes)
+	log.Infof("Nas Plugin Mount: %s", req.VolumeContext)
 
 	// parse parameters
 	mountPath := req.GetTargetPath()
 	opt := &NasOptions{}
-	for key, value := range req.VolumeAttributes {
+	for key, value := range req.VolumeContext {
 		if key == "host" {
 			opt.Server = value
 		} else if key == "path" {

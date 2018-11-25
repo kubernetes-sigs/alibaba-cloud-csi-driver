@@ -192,48 +192,48 @@ func execCommand(command string, args []string) ([]byte, error) {
 	return cmd.CombinedOutput()
 }
 
-func getDiskVolumeOptions(volOptions map[string]string) (*diskVolume, error) {
+func getDiskVolumeOptions(volOptions map[string]string) (*diskVolumeArgs, error) {
 	var ok bool
-	diskVol := &diskVolume{}
+	diskVolArgs := &diskVolumeArgs{}
 
 	// regionid
-	diskVol.ZoneId, ok = volOptions["zoneId"]
+	diskVolArgs.ZoneId, ok = volOptions["zoneId"]
 	if !ok {
-		diskVol.ZoneId = GetMetaData(ZONEID_TAG)
+		diskVolArgs.ZoneId = GetMetaData(ZONEID_TAG)
 	}
-	diskVol.RegionId, ok = volOptions["regionId"]
+	diskVolArgs.RegionId, ok = volOptions["regionId"]
 	if !ok {
-		diskVol.RegionId = GetMetaData(REGIONID_TAG)
+		diskVolArgs.RegionId = GetMetaData(REGIONID_TAG)
 	}
 
 	// fstype
-	diskVol.FsType, ok = volOptions["fsType"]
+	diskVolArgs.FsType, ok = volOptions["fsType"]
 	if !ok {
-		diskVol.FsType = "ext4"
+		diskVolArgs.FsType = "ext4"
 	}
-	if diskVol.FsType != "ext4" && diskVol.FsType != "ext3" {
+	if diskVolArgs.FsType != "ext4" && diskVolArgs.FsType != "ext3" {
 		return nil, fmt.Errorf("illegal required parameter fsType")
 	}
 
 	// disk Type
-	diskVol.Type, ok = volOptions["type"]
+	diskVolArgs.Type, ok = volOptions["type"]
 	if !ok {
-		diskVol.Type = DISK_HIGH_AVAIL
+		diskVolArgs.Type = DISK_HIGH_AVAIL
 	}
-	if diskVol.Type != DISK_HIGH_AVAIL && diskVol.Type != DISK_COMMON && diskVol.Type != DISK_EFFICIENCY && diskVol.Type != DISK_SSD {
-		return nil, fmt.Errorf("Illegal required parameter type" + diskVol.Type)
+	if diskVolArgs.Type != DISK_HIGH_AVAIL && diskVolArgs.Type != DISK_COMMON && diskVolArgs.Type != DISK_EFFICIENCY && diskVolArgs.Type != DISK_SSD {
+		return nil, fmt.Errorf("Illegal required parameter type" + diskVolArgs.Type)
 	}
 
 	// readonly
 	value, ok := volOptions["readOnly"]
 	if !ok {
-		diskVol.ReadOnly = false
+		diskVolArgs.ReadOnly = false
 	} else {
 		if value == "yes" || value == "true" || value == "1" {
-			diskVol.ReadOnly = true
+			diskVolArgs.ReadOnly = true
 		}
 	}
-	return diskVol, nil
+	return diskVolArgs, nil
 }
 
 func mountDisk(fsType, containerDest, partedDevice string) error {

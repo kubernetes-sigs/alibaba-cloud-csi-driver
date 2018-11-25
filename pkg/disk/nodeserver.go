@@ -25,7 +25,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/container-storage-interface/spec/lib/go/csi/v0"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/denverdino/aliyungo/common"
 	"github.com/denverdino/aliyungo/ecs"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
@@ -104,10 +104,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	fsType := req.GetVolumeCapability().GetMount().GetFsType()
 	readOnly := req.GetReadonly()
-	attrib := req.GetVolumeAttributes()
 	mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
 	log.Infof("NodePublishVolume: Starting Format and Mount: target %v\nfstype %v\ndevice %v\nreadonly %v\nattributes %v\n mountflags %v\n",
-		targetPath, fsType, devicePath, readOnly, attrib, mountFlags)
+		targetPath, fsType, devicePath, readOnly, mountFlags)
 
 	// Start to format and Mount
 	option := []string{}
