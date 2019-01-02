@@ -94,9 +94,12 @@ func NewIdentityServer(d *csicommon.CSIDriver) *identityServer {
 }
 
 func NewControllerServer(d *csicommon.CSIDriver) *controllerServer {
-	return &controllerServer{
+	c := &controllerServer{
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
 	}
+	c.InitEcsClient()
+
+	return c
 }
 
 func NewNodeServer(d *csicommon.CSIDriver) *nodeServer {

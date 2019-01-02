@@ -104,16 +104,12 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	// Step 2: umount target path
-	cnt := GetDeviceMountNum(targetPath)
 	err = mounter.Unmount(targetPath)
 	if err != nil {
 		log.Errorf("NodeUnpublishVolume: umount error:", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if cnt > 1 {
-		log.Warnf("Only Unmount, with device mount by others: refer num ", cnt)
-		return &csi.NodeUnpublishVolumeResponse{}, nil
-	}
+
 	log.Infof("NodeUnpublishVolume: Unpublish successful, target %v", targetPath)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }

@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 
 	"path/filepath"
 	"strconv"
@@ -152,11 +153,14 @@ func GetDeviceMountNum(targetPath string) int {
 	if err != nil {
 		return 0
 	}
+
+	deviceCmdOut = strings.TrimSuffix(deviceCmdOut, "\n")
 	deviceNumCmd := fmt.Sprintf("mount | grep \"%s \" | grep -v grep | wc -l", deviceCmdOut)
 	deviceNumOut, err := run(deviceNumCmd)
 	if err != nil {
 		return 0
 	}
+	deviceCmdOut = strings.TrimSuffix(deviceCmdOut, "\n")
 	if num, err := strconv.Atoi(deviceNumOut); err != nil {
 		return 0
 	} else {
