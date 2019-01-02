@@ -137,12 +137,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					}
 				} else {
 					log.Errorf("CreateVolume: fail to create disk: %v", err)
-					return nil, status.Error(codes.Internal, err.Error())
+					return nil, err
 				}
 			}
 		} else {
 			log.Errorf("CreateVolume: fail to create disk: %v", err)
-			return nil, status.Error(codes.Internal, err.Error())
+			return nil, err
 		}
 	}
 
@@ -172,7 +172,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	err := cs.EcsClient.DeleteDisk(volumeID)
 	if err != nil {
 		log.Warnf("DeleteVolume: Delete disk with error: %v", err)
-		return nil, status.Errorf(codes.Internal, "Delete disk with error: %v", err)
+		return nil, fmt.Errorf("Delete disk with error: %v", err)
 	}
 
 	log.Infof("DeleteVolume: Successfull deleting volume: %s", req.GetVolumeId())
@@ -190,6 +190,7 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 }
 
 // external-attacher: publish/unpublish disk
+// To enable retry, use error codes.Unavailable
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	log.Infof("ControllerUnpublishVolume: Start to detach disk %s from %s", req.GetVolumeId(), req.GetNodeId())
 
@@ -199,7 +200,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	disk, err := cs.getDisk(req.VolumeId)
 	if err != nil {
 		log.Errorf("ControllerUnpublishVolume: Failed to find disk %v ", err.Error())
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Unavailable, err.Error())
 	}
 	if disk == nil {
 		log.Warnf("ControllerUnpublishVolume: Can't find disk %s, no need to detach", req.VolumeId)
@@ -213,7 +214,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 			err = cs.EcsClient.DetachDisk(disk.InstanceId, disk.DiskId)
 			if err != nil {
 				log.Errorf("ControllerUnpublishVolume: fail to detach %s: %v ", disk.DiskId, err.Error())
-				return nil, status.Error(codes.Internal, "Detach error: "+err.Error())
+				return nil, status.Error(codes.Unavailable, "Detach error: "+err.Error())
 			}
 			log.Infof("ControllerUnpublishVolume: Success to detach disk %s from %s", req.GetVolumeId(), req.GetNodeId())
 		} else {
@@ -242,11 +243,25 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 
 	// This function will pending the caller, and the caller will do retries. This function should be re-entrance
 	// Step 1: Check attach history
-	if _, err := DefaultAttachEntry.Get(req.VolumeId); err == nil {
-		// Already attached
-		return &csi.ControllerPublishVolumeResponse{}, nil
+	disk, err := cs.getDisk(req.VolumeId)
+	if err != nil {
+		log.Errorf("ControllerPublishVolume: Failed to find disk: %v ", err.Error())
+		return nil, status.Error(codes.Unavailable, err.Error())
+	}
+	if disk == nil {
+		log.Warnf("ControllerPublishVolume: Can't find disk %s", req.VolumeId)
+		return nil, status.Errorf(codes.Internal, "Can't find disk %s", req.VolumeId)
 	}
 
+	instanceId := GetMetaData("instance-id")
+	if disk.InstanceId != "" {
+		if disk.InstanceId == instanceId {
+			return &csi.ControllerPublishVolumeResponse{}, nil
+		} else {
+			log.Errorf("ControllerPublishVolume: Disk %s is used by instance %s", req.VolumeId, disk.InstanceId)
+			return nil, status.Errorf(codes.Unavailable, "Disk %s is used by instance %s", req.VolumeId, disk.InstanceId)
+		}
+	}
 	// Step 2: begin to attach
 	attachRequest := &ecs.AttachDiskArgs{
 		InstanceId: GetMetaData("instance-id"),
@@ -257,7 +272,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 
 	if err := cs.EcsClient.AttachDisk(attachRequest); err != nil {
 		log.Errorf("ControllerPublishVolume: Fail to attach disk %s to %s", req.GetVolumeId(), req.GetNodeId())
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Unavailable, err.Error())
 	}
 
 	// Step 3: wait for attach
