@@ -17,11 +17,8 @@ limitations under the License.
 package disk
 
 import (
-	"errors"
-	"fmt"
-	"io/ioutil"
-	"os"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -32,314 +29,375 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/kubernetes/pkg/util/mount"
-)
-
-const (
-	nsenterPrefix = "/nsenter --mount=/proc/1/ns/mnt "
 )
 
 type nodeServer struct {
-	EcsClient *ecs.Client
 	region    common.Region
+	ecsClient *ecs.Client
 	*csicommon.DefaultNodeServer
+	attachMutex sync.RWMutex
+	canAttach   bool
+	mounter     Mounter
 }
 
-const (
-	VOLUME_NONE     = "notexist"
-	VOLUME_STARTING = "instarting"
-	VOLUME_INUSE    = "inuse"
-	VOLUMR_STOPPING = "stopping"
-)
+// NewNodeServer creates node server
+func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client, region common.Region) csi.NodeServer {
+	return &nodeServer{
+		ecsClient:         c,
+		region:            region,
+		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
+		mounter:           NewMounter(),
+		canAttach:         true,
+	}
+}
 
-// save volumes status
-var diskVolumeList = map[string]string{}
+func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
+	// currently there is a single NodeServer capability according to the spec
+	nscap := &csi.NodeServiceCapability{
+		Type: &csi.NodeServiceCapability_Rpc{
+			Rpc: &csi.NodeServiceCapability_RPC{
+				Type: csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
+			},
+		},
+	}
+
+	return &csi.NodeGetCapabilitiesResponse{
+		Capabilities: []*csi.NodeServiceCapability{
+			nscap,
+		},
+	}, nil
+}
 
 // csi disk driver: attach and mount
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// check target mount path
+	source := req.StagingTargetPath
 	targetPath := req.GetTargetPath()
-	log.Infof("NodePublishVolume: Starting with ", targetPath)
+	log.Infof("NodePublishVolume: Starting mount, source %s > target %s", source, targetPath)
 	if !strings.HasSuffix(targetPath, "/mount") {
-		return nil, fmt.Errorf("NodePublishVolume: malformed the value of target path: %s", targetPath)
+		return nil, status.Errorf(codes.InvalidArgument, "malformed the value of target path: %s", targetPath)
+	}
+	if req.VolumeId == "" {
+		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: Volume ID must be provided")
 	}
 
-	// check target mountpath is mounted
-	notMnt, err := mount.New("").IsLikelyNotMountPoint(targetPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			if err = os.MkdirAll(targetPath, 0750); err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-			notMnt = true
-		} else {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+	if req.StagingTargetPath == "" {
+		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: Staging Target Path must be provided")
 	}
-	if !notMnt {
+
+	if req.VolumeCapability == nil {
+		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: Volume Capability must be provided")
+	}
+
+	// check target path exits
+	if err := ns.mounter.EnsureFolder(targetPath); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	// check targetPath is mounted
+	mounted, err := ns.mounter.IsMounted(targetPath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	if mounted {
+		log.Infof("NodePublishVolume: %s is already mounted", targetPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	// cache the volume mount status
-	// TODO: volume status is not good enough now, update next release
-	if _, ok := diskVolumeList[targetPath]; ok {
-		if diskVolumeList[targetPath] == VOLUME_STARTING {
-			return nil, fmt.Errorf("NodePublishVolume: volume is mounting: %s", targetPath)
-		} else if diskVolumeList[targetPath] == VOLUMR_STOPPING {
-			return nil, fmt.Errorf("NodePublishVolume: volume is unmounting: %s", targetPath)
-		} else if diskVolumeList[targetPath] == VOLUME_INUSE {
-			return &csi.NodePublishVolumeResponse{}, nil
-		}
+	// begin to mount
+	mnt := req.VolumeCapability.GetMount()
+	options := append(mnt.MountFlags, "bind")
+	if req.Readonly {
+		options = append(options, "ro")
 	}
 
-	diskVolumeList[targetPath] = VOLUME_STARTING
-
-	// attach disk
-	devicePath, err := ns.attachDisk(ctx, req)
-	if err != nil {
-		diskVolumeList[targetPath] = VOLUME_NONE
-		log.Errorf("NodePublishVolume: volume attach error:", err.Error())
-		return nil, fmt.Errorf("NodePublishVolume: volume attach error: %s", err.Error())
+	fsType := "ext4"
+	if mnt.FsType != "" {
+		fsType = mnt.FsType
+	}
+	log.Infof("NodePublishVolume: Starting mount target %s with flags %v", targetPath, options)
+	if err = ns.mounter.Mount(source, targetPath, fsType, options...); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	fsType := req.GetVolumeCapability().GetMount().GetFsType()
-	readOnly := req.GetReadonly()
-	attrib := req.GetVolumeAttributes()
-	mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
-	log.Infof("NodePublishVolume: Starting Format and Mount: target %v\nfstype %v\ndevice %v\nreadonly %v\nattributes %v\n mountflags %v\n",
-		targetPath, fsType, devicePath, readOnly, attrib, mountFlags)
-
-	// Start to format and Mount
-	option := []string{}
-	if readOnly {
-		option = append(option, "ro")
-	}
-	diskMounter := &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: mount.NewOsExec()}
-	if err := diskMounter.FormatAndMount(devicePath, targetPath, fsType, option); err != nil {
-		diskVolumeList[targetPath] = VOLUME_NONE
-		log.Errorf("NodePublishVolume: FormatAndMount error:", err.Error())
-		return nil, err
-	}
-
-	diskVolumeList[targetPath] = VOLUME_INUSE
-	log.Infof("NodePublishVolume: Format and Mount Successful: target %v", targetPath)
+	log.Infof("NodePublishVolume: Mount Successful: target %v", targetPath)
 
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	targetPath := req.GetTargetPath()
-	diskVolumeList[targetPath] = VOLUMR_STOPPING
-	defer volumeStautsNone(targetPath)
-
 	log.Infof("NodeUnpublishVolume: Start to unpublish volume, target %v", targetPath)
 	// Step 1: check mount point
-	mounter := mount.New("")
-	notMnt, err := mounter.IsLikelyNotMountPoint(targetPath)
+	mounted, err := ns.mounter.IsMounted(targetPath)
 	if err != nil {
-		log.Errorf("NodeUnpublishVolume: ", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if notMnt {
-		log.Errorf("NodeUnpublishVolume: Volume not mounted")
-		return nil, status.Error(codes.NotFound, "Volume not mounted")
+
+	if !mounted {
+		log.Infof("NodePublishVolume: %s is  unmounted", targetPath)
+		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
 	// Step 2: umount target path
-	cnt := GetDeviceMountNum(targetPath)
-	err = mounter.Unmount(targetPath)
+	err = ns.mounter.Unmount(targetPath)
 	if err != nil {
 		log.Errorf("NodeUnpublishVolume: umount error:", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
-	}
-	if cnt > 1 {
-		log.Infof("Only Unmount, with device mount by others: refer num ", cnt)
-		return &csi.NodeUnpublishVolumeResponse{}, nil
-	}
-	log.Infof("NodeUnpublishVolume: Umount successful, target %v", targetPath)
-
-	// Step 3: init ecs client and parameters
-	ns.initEcsClient()
-	regionId := GetMetaData("region-id")
-	instanceId := GetMetaData("instance-id")
-
-	// Step 4: check disk
-	ns.EcsClient.SetUserAgent(KUBERNETES_ALICLOUD_DISK_DRIVER + "/" + instanceId)
-	describeDisksRequest := &ecs.DescribeDisksArgs{
-		RegionId: common.Region(regionId),
-		DiskIds:  []string{req.VolumeId},
-	}
-	disks, _, err := ns.EcsClient.DescribeDisks(describeDisksRequest)
-	if err != nil {
-		log.Errorf("NodeUnpublishVolume: Failed to list Volume ", err.Error())
-		return nil, status.Error(codes.Internal, err.Error())
-		//utils.FinishError("Failed to list Volume: " + volumeName + ", with error: " + err.Error())
-	}
-	if len(disks) == 0 {
-		log.Errorf("NodeUnpublishVolume: list volume with empty ")
-		return nil, status.Error(codes.Internal, "list volume with empty")
-	}
-
-	// Step 5: Detach disk
-	disk := disks[0]
-	if disk.InstanceId != "" {
-		// only detach disk on self instance
-		if disk.InstanceId != instanceId {
-			log.Info("Skip Detach, Volume: %s", req.VolumeId, " is attached on: %s", disk.InstanceId)
-			return &csi.NodeUnpublishVolumeResponse{}, nil
-		}
-		err = ns.EcsClient.DetachDisk(disk.InstanceId, disk.DiskId)
-		if err != nil {
-			log.Errorf("NodeUnpublishVolume: detach error ", disk.DiskId, err.Error())
-			return nil, status.Error(codes.Internal, "Detach error:"+err.Error())
-		}
 	}
 
 	log.Infof("NodeUnpublishVolume: Unpublish successful, target %v", targetPath)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
-func (ns *nodeServer) NodeStageVolume(
-	ctx context.Context,
-	req *csi.NodeStageVolumeRequest) (
-	*csi.NodeStageVolumeResponse, error) {
+// To work arround the issue of Alibaba cloud - can't get mounted entrypoint for DescribeDisks API,
+// We attach disk to instance in this NodeStageVolume function.
+func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	log.Infof("NodeStageVolume: stage disk %s, taget path: %s", req.GetVolumeId(), req.StagingTargetPath)
 
-	return nil, status.Error(codes.Unimplemented, "")
+	targetPath := req.StagingTargetPath
+	if req.VolumeId == "" {
+		return nil, status.Error(codes.InvalidArgument, "NodeStageVolume Volume ID must be provided")
+	}
+	// StagingTargetPath is like /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pvc-d461a919167111e9/globalmount
+	if targetPath == "" {
+		return nil, status.Error(codes.InvalidArgument, "NodeStageVolume Staging Target Path must be provided")
+	}
+
+	if req.VolumeCapability == nil {
+		return nil, status.Error(codes.InvalidArgument, "NodeStageVolume Volume Capability must be provided")
+	}
+
+	//Step 1 check target path exits
+	if err := ns.mounter.EnsureFolder(targetPath); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	//Step2 fast check
+	mounted, err := ns.mounter.IsMounted(targetPath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	if mounted {
+		log.Infof("NodeStageVolume: %s is already mounted", targetPath)
+		return &csi.NodeStageVolumeResponse{}, nil
+	}
+
+	//NodeStageVolume should be called by sequence
+	//In order no to block to caller, use boolean canAttach to check whether to
+	//continue.
+	ns.attachMutex.Lock()
+	if !ns.canAttach {
+		ns.attachMutex.Unlock()
+		return nil, status.Error(codes.Aborted, "NodeStageVolume: Previouse attach action is still in process")
+	}
+	ns.canAttach = false
+	ns.attachMutex.Unlock()
+	defer func() {
+		ns.attachMutex.Lock()
+		ns.canAttach = true
+		ns.attachMutex.Unlock()
+	}()
+
+	// Step 3 double check log pattern, check the path is mounted again
+	mounted, err = ns.mounter.IsMounted(targetPath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	if mounted {
+		log.Infof("NodeStageVolume: %s is already mounted", targetPath)
+		return &csi.NodeStageVolumeResponse{}, nil
+	}
+
+	// Step 4 Attach volume
+	device, err := ns.attachDisk(req.GetVolumeId())
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 5 Start to format
+	mnt := req.VolumeCapability.GetMount()
+	options := append(mnt.MountFlags, "shared")
+	fsType := "ext4"
+	if mnt.FsType != "" {
+		fsType = mnt.FsType
+	}
+
+	formatted, err := ns.mounter.IsFormatted(device)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if !formatted {
+		if err = ns.mounter.Format(device, fsType); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+
+	// Step 6 Mount
+	if err := ns.mounter.Mount(device, targetPath, fsType, options...); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	log.Infof("NodeStageVolume: Format and Mount Successful: target %v", targetPath)
+
+	return &csi.NodeStageVolumeResponse{}, nil
 }
 
 func (ns *nodeServer) NodeUnstageVolume(
 	ctx context.Context,
 	req *csi.NodeUnstageVolumeRequest) (
 	*csi.NodeUnstageVolumeResponse, error) {
-
-	return nil, status.Error(codes.Unimplemented, "")
-}
-
-// init ecs sdk client
-func (ns *nodeServer) initEcsClient() {
-	accessKeyID, accessSecret, accessToken := GetDefaultAK()
-	ns.EcsClient = newEcsClient(accessKeyID, accessSecret, accessToken)
-}
-
-// attach alibaba cloud disk
-func (ns *nodeServer) attachDisk(ctx context.Context, req *csi.NodePublishVolumeRequest) (string, error) {
-	log.Infof("NodePublishVolume: Start to attachDisk")
-	// Step 1: init ecs client and parameters
-	ns.initEcsClient()
-
-	regionId := GetMetaData("region-id")
-	instanceId := GetMetaData("instance-id")
-
-	//opt := opts.(*DiskOptions)
-	ns.EcsClient.SetUserAgent(KUBERNETES_ALICLOUD_DISK_DRIVER + "/" + instanceId)
-	attachRequest := &ecs.AttachDiskArgs{
-		InstanceId: instanceId,
-		DiskId:     req.VolumeId,
+	if req.VolumeId == "" {
+		return nil, status.Error(codes.InvalidArgument, "NodeUnstageVolume Volume ID must be provided")
 	}
 
-	// Step 2: Detach disk first
-	var devicePath string
+	if req.StagingTargetPath == "" {
+		return nil, status.Error(codes.InvalidArgument, "NodeUnstageVolume Staging Target Path must be provided")
+	}
+
+	targetPath := req.GetStagingTargetPath()
+	log.Infof("NodeUnstageVolume: Start to unpublish volume, target %v", targetPath)
+
+	// Step 1: check mount point
+	mounted, err := ns.mounter.IsMounted(targetPath)
+	if err != nil {
+		log.Errorf("NodeUnstageVolume: ", err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	if !mounted {
+		log.Infof("NodeUnstageVolume: %s is  unmounted", targetPath)
+		return &csi.NodeUnstageVolumeResponse{}, nil
+	}
+
+	// Step 2: untach disk from instance
 	describeDisksRequest := &ecs.DescribeDisksArgs{
 		DiskIds:  []string{req.VolumeId},
-		RegionId: common.Region(regionId),
+		RegionId: ns.region,
+	}
+	disks, _, err := ns.ecsClient.DescribeDisks(describeDisksRequest)
+	if err != nil {
+		// need caller to retry
+		return nil, status.Errorf(codes.Aborted, "NodeUnstageVolume: Can't get disk %s: %v", req.VolumeId, err)
+	}
+	if len(disks) == 0 || len(disks) > 1 {
+		return nil, status.Errorf(codes.Internal, "NodeUnstageVolume: Unexpected count %d for volume id %s", len(disks), req.VolumeId)
+	}
+	disk := disks[0]
+	instanceIDToBeDetached := GetMetaData(INSTANCE_ID)
+	if disk.InstanceId != "" {
+		if disk.InstanceId == instanceIDToBeDetached {
+			err = ns.ecsClient.DetachDisk(disk.InstanceId, disk.DiskId)
+			if err != nil {
+				log.Errorf("NodeUnstageVolume: fail to detach %s: %v ", disk.DiskId, err.Error())
+				// will retry
+				return nil, status.Error(codes.Aborted, "NodeUnpublishVolume: Detach error: "+err.Error())
+			}
+			log.Infof("NodeUnstageVolume: Success to detach disk %s from %s", req.GetVolumeId(), instanceIDToBeDetached)
+		} else {
+			log.Infof("NodeUnstageVolume: Skip Detach, disk %s is attached to %s", req.VolumeId, disk.InstanceId)
+		}
+	}
+	// Step 3: unmount path
+	err = ns.mounter.Unmount(targetPath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	// call detach to ensure work after node reboot
-	disks, _, err := ns.EcsClient.DescribeDisks(describeDisksRequest)
-	if err != nil {
-		return "", err
+	log.Infof("NodeUnstageVolume: unstage successful, target %v", targetPath)
+
+	return &csi.NodeUnstageVolumeResponse{}, nil
+}
+
+func (ns *nodeServer) attachDisk(volumeID string) (string, error) {
+	log.Infof("NodeStageVolume: Start to attachDisk")
+	// Step 1: check current disk status
+	describeDisksRequest := &ecs.DescribeDisksArgs{
+		DiskIds:  []string{volumeID},
+		RegionId: ns.region,
 	}
-	if len(disks) >= 1 && disks[0].Status == ecs.DiskStatusInUse {
-		err = ns.EcsClient.DetachDisk(disks[0].InstanceId, disks[0].DiskId)
+
+	disks, _, err := ns.ecsClient.DescribeDisks(describeDisksRequest)
+	if err != nil {
+		// need caller to retry
+		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Can't get disk %s: %v", volumeID, err)
+	}
+	if len(disks) == 0 || len(disks) > 1 {
+		return "", status.Errorf(codes.Internal, "NodeStageVolume: Unexpected count %d for volume id %s", len(disks), volumeID)
+	}
+
+	// Step 2
+	// Something error happened before, for example, attaching timeout, this time is a retry
+	if disks[0].Status == ecs.DiskStatusInUse || disks[0].Status == ecs.DiskStatusAttaching {
+		log.Infof("NodeStageVolume: disk %s is already attached to instance %s, will be detached", volumeID, disks[0].InstanceId)
+		err = ns.ecsClient.DetachDisk(disks[0].InstanceId, disks[0].DiskId)
 		if err != nil {
-			return "", err
+			return "", status.Errorf(codes.Aborted, "NodeStageVolume: Can't attach disk %s to instance %s: %v", volumeID, disks[0].InstanceId, err)
 		}
 	}
 
 	// Step 3: wait for Detach
-	var lastErr error
-	var retryDetachCount = 3
-	for {
-		retryDetachCount--
-		if retryDetachCount < 0 {
-			return "", errors.New("Detach disk timeout, failed more than 3 times")
-		}
-		time.Sleep(1000 * time.Millisecond)
-		disks, _, err := ns.EcsClient.DescribeDisks(describeDisksRequest)
-		if err != nil {
-			log.Errorf("NodePublishVolume: Could not describe Disk", req.VolumeId)
+	if disks[0].Status != ecs.DiskStatusAvailable {
+		log.Infof("NodeStageVolume: wait for disk %s is detached", volumeID)
+		if err := ns.waitForDiskInStatus(5, time.Second*1, volumeID, ecs.DiskStatusAvailable); err != nil {
 			return "", err
 		}
-		if len(disks) >= 1 && disks[0].Status == ecs.DiskStatusAvailable {
-			break
-		}
 	}
 
-	// Step 4: Attach Disk, list device before attach disk
-	var before []string
-	files, _ := ioutil.ReadDir("/dev")
-	for _, file := range files {
-		if !file.IsDir() && strings.Contains(file.Name(), "vd") {
-			before = append(before, file.Name())
-		}
+	// Step 4: begin to attach disk
+
+	instanceID := GetMetaData(INSTANCE_ID)
+	before := getDevices()
+	attachRequest := &ecs.AttachDiskArgs{
+		InstanceId: instanceID,
+		DiskId:     volumeID,
+	}
+	if err = ns.ecsClient.AttachDisk(attachRequest); err != nil {
+		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happends to attach disk %s to instance %s", volumeID, instanceID)
 	}
 
-	if err = ns.EcsClient.AttachDisk(attachRequest); err != nil {
+	// Step 5: wait for disk is attached
+	log.Infof("NodeStageVolume: wait for disk %s is attached", volumeID)
+	if err := ns.waitForDiskInStatus(5, time.Second*1, volumeID, ecs.DiskStatusInUse); err != nil {
 		return "", err
 	}
 
-	// Step 5: wait for attach
-	var retryAttachCount = 3
-	for {
-		retryAttachCount--
-		if retryAttachCount < 0 {
-			return "", lastErr
-		}
-		time.Sleep(1000 * time.Millisecond)
-		disks, _, err := ns.EcsClient.DescribeDisks(describeDisksRequest)
-		if err != nil {
-			return "", err
-		}
-		if len(disks) >= 1 && disks[0].Status == ecs.DiskStatusInUse {
-			break
-		}
-		lastErr = errors.New(fmt.Sprintf("%+v\n", disks))
-	}
-
 	// Step 6: Analysis attach device, list device after attach device
-	var after []string
-	files, _ = ioutil.ReadDir("/dev")
-	for _, file := range files {
-		if !file.IsDir() && strings.Contains(file.Name(), "vd") {
-			after = append(after, file.Name())
-		}
-	}
-	devicePaths := getDevicePath(before, after)
-	if len(devicePaths) == 2 && strings.HasPrefix(devicePaths[1], devicePaths[0]) {
-		devicePath = devicePaths[1]
-	} else if len(devicePaths) == 1 {
-		devicePath = devicePaths[0]
-	} else {
-		return "", errors.New("Get Device error")
+	after := getDevices()
+
+	devicePaths := calcNewDevices(before, after)
+	if len(devicePaths) == 1 {
+		return devicePaths[0], nil
 	}
 
-	devicePath = "/dev/" + devicePath
-	return devicePath, nil
+	//device count is not expected, should retry (later by detaching and attaching again)
+	return "", status.Error(codes.Aborted, "NodeStageVolume: after attaching to disk, but fail to get mounted device, will retry later")
 
 }
 
-func getDevicePath(before, after []string) []string {
-	var devicePaths []string
-	for _, d := range after {
-		var isNew = true
-		for _, a := range before {
-			if d == a {
-				isNew = false
-			}
+func (ns *nodeServer) waitForDiskInStatus(retryCount int, interval time.Duration, volumeID string, expectedStatus ecs.DiskStatus) error {
+	describeDisksRequest := &ecs.DescribeDisksArgs{
+		DiskIds:  []string{volumeID},
+		RegionId: ns.region,
+	}
+	for retryCount > 0 {
+		retryCount--
+		time.Sleep(interval)
+		disks, _, err := ns.ecsClient.DescribeDisks(describeDisksRequest)
+		if err != nil {
+			return status.Errorf(codes.Aborted, "NodeStageVolume: Could not describe Disk %s, %v", volumeID, err)
 		}
-		if isNew {
-			devicePaths = append(devicePaths, d)
+		if len(disks) == 0 || len(disks) > 1 {
+			return status.Errorf(codes.Internal, "NodeStageVolume: Unexpected count %d for volume id %s", len(disks), volumeID)
+		}
+
+		if disks[0].Status == expectedStatus {
+			return nil
 		}
 	}
-	return devicePaths
+
+	return status.Errorf(codes.Aborted, "NodeStageVolume: after %d times of check, disk %s is still not in expected status %v", retryCount, volumeID, expectedStatus)
 }

@@ -1,12 +1,11 @@
-FROM centos:7.4.1708
+FROM  ubuntu:18.10
+
 LABEL maintainers="Alibaba Cloud Authors"
 LABEL description="Alibaba Cloud CSI Plugin"
 
-RUN yum install -y e4fsprogs
+RUN apt update && apt install -y ca-certificates  file
 
-COPY nsenter /
 COPY csi-diskplugin /bin/csi-diskplugin
 RUN chmod +x /bin/csi-diskplugin
-RUN chmod 755 /nsenter
 
 ENTRYPOINT ["/bin/csi-diskplugin"]

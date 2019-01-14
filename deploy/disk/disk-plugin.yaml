@@ -78,6 +78,9 @@ spec:
               readOnly: true
             - mountPath: /var/log/alicloud
               name: host-log
+            - mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi/pv
+              name: pv-mount-dir
+              mountPropagation: "Bidirectional"
       volumes:
         - name: plugin-dir
           hostPath:
@@ -87,6 +90,10 @@ spec:
           hostPath:
             path: /var/lib/kubelet/pods
             type: Directory
+        - name: pv-mount-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/kubernetes.io/csi/pv
+            type: DirectoryOrCreate
         - name: socket-dir
           hostPath:
             path: /var/lib/kubelet/plugins/csi-diskplugin
