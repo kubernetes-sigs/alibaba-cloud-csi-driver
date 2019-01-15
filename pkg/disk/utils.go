@@ -214,3 +214,15 @@ func getDiskVolumeOptions(volOptions map[string]string) (*diskVolume, error) {
 func mountpoint(root, name string) string {
 	return filepath.Join(root, name)
 }
+
+// check file exist in volume driver;
+func IsFileExisting(filename string) bool {
+	_, err := os.Stat(filename)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
+}

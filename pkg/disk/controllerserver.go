@@ -190,9 +190,45 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 }
 
 // external-attacher: publish/unpublish disk
-// To enable retry, use error codes.Unavailable
+// To enable retry, use error codes.Aborted
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	log.Infof("ControllerUnpublishVolume: do nothing")
+	log.Infof("ControllerUnpublishVolume: detach volume %s from instance %s ", req.GetVolumeId(), req.GetNodeId())
+
+	describeDisksRequest := &ecs.DescribeDisksArgs{
+		DiskIds:  []string{req.VolumeId},
+		RegionId: cs.region,
+	}
+	disks, _, err := cs.ecsClient.DescribeDisks(describeDisksRequest)
+	if err != nil {
+		// need caller to retry
+		return nil, status.Errorf(codes.Aborted, "ControllerUnpublishVolume: Can't get disk %s: %v", req.VolumeId, err)
+	}
+
+	if len(disks) == 0 {
+		log.Infof("ControllerUnpublishVolume: volume %s doesn't exists, just ignored ", req.GetVolumeId())
+		return &csi.ControllerUnpublishVolumeResponse{}, nil
+	}
+
+	if len(disks) > 1 {
+		return nil, status.Errorf(codes.Internal, "ControllerUnpublishVolume: Unexpected count %d for volume id %s", len(disks), req.VolumeId)
+	}
+
+	disk := disks[0]
+	instanceIDToBeDetached := req.GetNodeId()
+	if disk.InstanceId != "" {
+		if disk.InstanceId == instanceIDToBeDetached {
+			err = cs.ecsClient.DetachDisk(disk.InstanceId, disk.DiskId)
+			if err != nil {
+				log.Errorf("ControllerUnpublishVolume: fail to detach %s: %v ", disk.DiskId, err.Error())
+				// will retry
+				return nil, status.Error(codes.Aborted, "ControllerUnpublishVolume: Detach error: "+err.Error())
+			}
+			log.Infof("ControllerUnpublishVolume: Success to detach disk %s from %s", req.GetVolumeId(), instanceIDToBeDetached)
+		} else {
+			log.Infof("ControllerUnpublishVolume: Skip Detach, disk %s is attached to %s", req.VolumeId, disk.InstanceId)
+		}
+	}
+
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 

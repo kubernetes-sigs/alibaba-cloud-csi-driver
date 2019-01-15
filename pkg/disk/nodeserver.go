@@ -129,7 +129,15 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	targetPath := req.GetTargetPath()
 	log.Infof("NodeUnpublishVolume: Start to unpublish volume, target %v", targetPath)
-	// Step 1: check mount point
+
+	// Step 1: check folder exists
+	if !IsFileExisting(targetPath) {
+		log.Infof("NodeUnpublishVolume: folder %s doesn't exsits", targetPath)
+		return &csi.NodeUnpublishVolumeResponse{}, nil
+
+	}
+
+	// Step 2: check mount point
 	mounted, err := ns.mounter.IsMounted(targetPath)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -140,7 +148,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
-	// Step 2: umount target path
+	// Step 3: umount target path
 	err = ns.mounter.Unmount(targetPath)
 	if err != nil {
 		log.Errorf("NodeUnpublishVolume: umount error:", err.Error())
@@ -246,6 +254,15 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
+//NodeGetId is used by controller to get node id
+func (ns *nodeServer) NodeGetId(ctx context.Context, req *csi.NodeGetIdRequest) (*csi.NodeGetIdResponse, error) {
+	id := GetMetaData(INSTANCE_ID)
+	log.Infof("NodeGetId: %s", id)
+	return &csi.NodeGetIdResponse{
+		NodeId: id,
+	}, nil
+}
+
 func (ns *nodeServer) NodeUnstageVolume(
 	ctx context.Context,
 	req *csi.NodeUnstageVolumeRequest) (
@@ -261,7 +278,14 @@ func (ns *nodeServer) NodeUnstageVolume(
 	targetPath := req.GetStagingTargetPath()
 	log.Infof("NodeUnstageVolume: Start to unpublish volume, target %v", targetPath)
 
-	// Step 1: check mount point
+	// Step 1: check folder exists
+	if !IsFileExisting(targetPath) {
+		log.Infof("NodeUnstageVolume: folder %s doesn't exsits", targetPath)
+		return &csi.NodeUnstageVolumeResponse{}, nil
+
+	}
+
+	// Step 2: check mount point
 	mounted, err := ns.mounter.IsMounted(targetPath)
 	if err != nil {
 		log.Errorf("NodeUnstageVolume: ", err.Error())
@@ -273,34 +297,6 @@ func (ns *nodeServer) NodeUnstageVolume(
 		return &csi.NodeUnstageVolumeResponse{}, nil
 	}
 
-	// Step 2: untach disk from instance
-	describeDisksRequest := &ecs.DescribeDisksArgs{
-		DiskIds:  []string{req.VolumeId},
-		RegionId: ns.region,
-	}
-	disks, _, err := ns.ecsClient.DescribeDisks(describeDisksRequest)
-	if err != nil {
-		// need caller to retry
-		return nil, status.Errorf(codes.Aborted, "NodeUnstageVolume: Can't get disk %s: %v", req.VolumeId, err)
-	}
-	if len(disks) == 0 || len(disks) > 1 {
-		return nil, status.Errorf(codes.Internal, "NodeUnstageVolume: Unexpected count %d for volume id %s", len(disks), req.VolumeId)
-	}
-	disk := disks[0]
-	instanceIDToBeDetached := GetMetaData(INSTANCE_ID)
-	if disk.InstanceId != "" {
-		if disk.InstanceId == instanceIDToBeDetached {
-			err = ns.ecsClient.DetachDisk(disk.InstanceId, disk.DiskId)
-			if err != nil {
-				log.Errorf("NodeUnstageVolume: fail to detach %s: %v ", disk.DiskId, err.Error())
-				// will retry
-				return nil, status.Error(codes.Aborted, "NodeUnpublishVolume: Detach error: "+err.Error())
-			}
-			log.Infof("NodeUnstageVolume: Success to detach disk %s from %s", req.GetVolumeId(), instanceIDToBeDetached)
-		} else {
-			log.Infof("NodeUnstageVolume: Skip Detach, disk %s is attached to %s", req.VolumeId, disk.InstanceId)
-		}
-	}
 	// Step 3: unmount path
 	err = ns.mounter.Unmount(targetPath)
 	if err != nil {
