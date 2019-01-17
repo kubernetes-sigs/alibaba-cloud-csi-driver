@@ -352,7 +352,7 @@ func (ns *nodeServer) attachDisk(volumeID string) (string, error) {
 		DiskId:     volumeID,
 	}
 	if err = ns.ecsClient.AttachDisk(attachRequest); err != nil {
-		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happends to attach disk %s to instance %s", volumeID, instanceID)
+		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happends to attach disk %s to instance %s, %v", volumeID, instanceID, err)
 	}
 
 	// Step 5: wait for disk is attached
