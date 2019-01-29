@@ -17,8 +17,16 @@ limitations under the License.
 package disk
 
 import (
+	"github.com/container-storage-interface/spec/lib/go/csi/v0"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 )
+
+// NewIdentityServer create identity server
+func NewIdentityServer(d *csicommon.CSIDriver) csi.IdentityServer {
+	return &identityServer{
+		csicommon.NewDefaultIdentityServer(d),
+	}
+}
 
 type identityServer struct {
 	*csicommon.DefaultIdentityServer

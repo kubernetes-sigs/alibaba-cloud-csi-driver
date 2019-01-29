@@ -22,6 +22,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/container-storage-interface/spec/lib/go/csi/v0"
+	"github.com/denverdino/aliyungo/common"
+	"github.com/denverdino/aliyungo/ecs"
+	"github.com/denverdino/aliyungo/metadata"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 )
 
@@ -34,9 +37,9 @@ const (
 type disk struct {
 	driver           *csicommon.CSIDriver
 	endpoint         string
-	idServer         *identityServer
-	nodeServer       *nodeServer
-	controllerServer *controllerServer
+	idServer         csi.IdentityServer
+	nodeServer       csi.NodeServer
+	controllerServer csi.ControllerServer
 
 	cap   []*csi.VolumeCapability_AccessMode
 	cscap []*csi.ControllerServiceCapability
@@ -84,34 +87,43 @@ func NewDriver(nodeID, endpoint string) *disk {
 
 	tmpdisk.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER})
 
+	region := getRegion()
+	c := newEcsClient(region)
+	// Create GRPC servers
+	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
+	tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, c, region)
+	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, c, region)
+
 	return tmpdisk
 }
 
-func NewIdentityServer(d *csicommon.CSIDriver) *identityServer {
-	return &identityServer{
-		DefaultIdentityServer: csicommon.NewDefaultIdentityServer(d),
+func getRegion() common.Region {
+	r := common.Region(DEFAULT_REGION)
+	m := metadata.NewMetaData(nil)
+	region, err := m.Region()
+	if err == nil {
+		r = common.Region(region)
 	}
+
+	return r
 }
 
-func NewControllerServer(d *csicommon.CSIDriver) *controllerServer {
-	return &controllerServer{
-		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
-	}
-}
+func newEcsClient(region common.Region) *ecs.Client {
+	accessKeyID, accessSecret, accessToken := GetDefaultAK()
 
-func NewNodeServer(d *csicommon.CSIDriver) *nodeServer {
-	return &nodeServer{
-		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
+	client := ecs.NewClient(accessKeyID, accessSecret)
+	if accessToken != "" {
+		client.SetSecurityToken(accessToken)
 	}
+
+	client.SetRegionID(region)
+	client.SetUserAgent(KUBERNETES_ALICLOUD_IDENTITY)
+
+	return client
 }
 
 func (disk *disk) Run() {
 	log.Infof("Driver: %v version: %v", driverName, version)
-
-	// Create GRPC servers
-	disk.idServer = NewIdentityServer(disk.driver)
-	disk.nodeServer = NewNodeServer(disk.driver)
-	disk.controllerServer = NewControllerServer(disk.driver)
 
 	s := csicommon.NewNonBlockingGRPCServer()
 	s.Start(disk.endpoint, disk.idServer, disk.controllerServer, disk.nodeServer)

@@ -17,11 +17,8 @@ limitations under the License.
 package disk
 
 import (
-	"fmt"
 	"strings"
-	"time"
 
-	"errors"
 	log "github.com/Sirupsen/logrus"
 	"github.com/container-storage-interface/spec/lib/go/csi/v0"
 	"github.com/denverdino/aliyungo/common"
@@ -33,148 +30,152 @@ import (
 )
 
 type controllerServer struct {
-	EcsClient   *ecs.Client
-	region      common.Region
-	diskVolumes map[string]*csi.Volume
+	ecsClient *ecs.Client
+	region    common.Region
 	*csicommon.DefaultControllerServer
 }
 
-var newVolumes = map[string]*csi.Volume{}
+// NewControllerServer is to create controller server
+func NewControllerServer(d *csicommon.CSIDriver, client *ecs.Client,
+	region common.Region) csi.ControllerServer {
+	c := &controllerServer{
+		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
+		region:                  region,
+		ecsClient:               client,
+	}
+	return c
+}
 
 // provisioner: create/delete disk
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	log.Infof("CreateVolume: Starting CreateVolume, ", req.GetParameters())
-
-	// Step 1: check volume is created
-	if value, ok := newVolumes[req.Name]; ok {
-		log.Infof("CreateVolume: Starting CreateVolume, ", req.GetParameters())
-		return &csi.CreateVolumeResponse{Volume: value}, nil
-	}
-
-	// Step 2: check parameters
+	log.Infof("CreateVolume: Starting CreateVolume, %v", req.GetParameters())
+	// Step 1: Check parameters
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME); err != nil {
-		log.Errorf("CreateVolume: invalid create volume req: %v, %v", req, err.Error())
+		log.Errorf("CreateVolume: invalid create volume req: %v, %v", req, err)
 		return nil, err
 	}
-	// Check sanity of request Name, Volume Capabilities
 	if len(req.Name) == 0 {
 		log.Errorf("CreateVolume: Volume Name cannot be empty")
 		return nil, status.Error(codes.InvalidArgument, "Volume Name cannot be empty")
 	}
+
 	if req.VolumeCapabilities == nil {
 		log.Errorf("CreateVolume: Volume Capabilities cannot be empty")
 		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
 	}
 	diskVol, err := getDiskVolumeOptions(req.GetParameters())
 	if err != nil {
-		log.Errorf("CreateVolume: error parameters from input, ", req.GetParameters())
-		return nil, err
+		log.Errorf("CreateVolume: error parameters from input: %v ", req.GetParameters())
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %v ", req.GetParameters())
 	}
 
 	if req.GetCapacityRange() == nil {
 		log.Errorf("CreateVolume: error Capacity from input")
-		return nil, errors.New("CreateVolume: error Capacity from input")
+		return nil, status.Error(codes.InvalidArgument, "CreateVolume: error Capacity from input")
 	}
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
-
-	// Step 3: init client
-	cs.initEcsClient()
-	if cs.EcsClient == nil {
-		log.Errorf("CreateVolume: init Ecs Client error")
-		return nil, fmt.Errorf("init ecs client error")
-	}
 	if diskVol.RegionId == "" || diskVol.ZoneId == "" {
-		return nil, fmt.Errorf("Get region_id, zone_id error: %s, %s ", diskVol.RegionId, diskVol.ZoneId)
+		return nil, status.Errorf(codes.Internal, "Get region_id, zone_id error: %s, %s ", diskVol.RegionId, diskVol.ZoneId)
 	}
+	// Step 2: Check whether volume is created
+	disks, err := cs.findDiskByTag(TAG_K8S_PV, req.GetName())
+	if err != nil {
+		// should be retried
+		return nil, status.Error(codes.Aborted, err.Error())
+	}
+	if len(disks) > 1 {
+		log.Errorf("CreateVolume: fatal issue: duplicate disk %s exists", req.Name)
+		return nil, status.Errorf(codes.Internal, "fatal issue: duplicate disk %s exists", req.Name)
+	} else if len(disks) == 1 {
+		log.Infof("CreateVolume: Volume %s is already created", req.GetName())
+		disk := disks[0]
+		if disk.Size != requestGB {
+			log.Errorf("CreateVolume: disk %s size is different with requested for disk", req.GetName())
+			return nil, status.Errorf(codes.Internal, "disk %s size is different with requested for disk", req.GetName())
+		}
+		tmpVol := &csi.Volume{Id: disk.DiskId,
+			CapacityBytes: int64(volSizeBytes),
+			Attributes:    req.GetParameters()}
+		return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
+	}
+
 	disktype := diskVol.Type
 	if DISK_HIGH_AVAIL == diskVol.Type {
 		disktype = DISK_EFFICIENCY
 	}
 
-	// Step 4: init Disk create args
+	// Step 3: Init Disk create args
 	volumeOptions := &ecs.CreateDiskArgs{
+		DiskName:     req.GetName(),
 		Size:         requestGB,
 		RegionId:     common.Region(diskVol.RegionId),
 		ZoneId:       diskVol.ZoneId,
 		DiskCategory: ecs.DiskCategory(disktype),
 	}
 
-	log.Infof("CreateVolume: Create Disk with: ", diskVol.RegionId, diskVol.ZoneId, disktype, requestGB)
+	log.Infof("CreateVolume: Create Disk with: %v, %v, %v, %v GB", diskVol.RegionId, diskVol.ZoneId, disktype, requestGB)
 
-	// Step 5: Create Disk
-	volumeId, err := cs.EcsClient.CreateDisk(volumeOptions)
+	// Step 4: Create Disk
+	volumeId, err := cs.ecsClient.CreateDisk(volumeOptions)
 	if err != nil {
 		// if available feature enable, try with ssd again
 		if diskVol.Type == DISK_HIGH_AVAIL && strings.Contains(err.Error(), DISK_NOTAVAILABLE) {
+			log.Warnf("CreateVolume: fall back to SSD %s", req.GetName())
 			disktype = DISK_SSD
 			volumeOptions.DiskCategory = ecs.DiskCategory(disktype)
-			volumeId, err = cs.EcsClient.CreateDisk(volumeOptions)
+			volumeId, err = cs.ecsClient.CreateDisk(volumeOptions)
 
 			if err != nil {
 				if strings.Contains(err.Error(), DISK_NOTAVAILABLE) {
+					// fall back to disk common
+					log.Warnf("CreateVolume: fall back to Common disk %s", req.GetName())
 					disktype = DISK_COMMON
 					volumeOptions.DiskCategory = ecs.DiskCategory(disktype)
-					volumeId, err = cs.EcsClient.CreateDisk(volumeOptions)
+					volumeId, err = cs.ecsClient.CreateDisk(volumeOptions)
 					if err != nil {
-						return nil, err
+						log.Errorf("CreateVolume: fail to create disk %s: %v", req.GetName(), err)
+						return nil, status.Error(codes.Internal, err.Error())
 					}
 				} else {
-					return nil, err
+					log.Errorf("CreateVolume: fail to create disk %s: %v", req.GetName(), err)
+					return nil, status.Error(codes.Internal, err.Error())
 				}
 			}
 		} else {
-			return nil, err
+			log.Errorf("CreateVolume: fail to create disk %s: %v", req.GetName(), err)
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 
-	log.Infof("CreateVolume: Successfully created Disk: %s, %s, %s, %s", volumeId, diskVol.RegionId, diskVol.ZoneId, disktype)
+	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s]", req.GetName(), volumeId, diskVol.ZoneId, disktype)
 	tmpVol := &csi.Volume{Id: volumeId, CapacityBytes: int64(volSizeBytes), Attributes: req.GetParameters()}
-	newVolumes[req.Name] = tmpVol
 
 	return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 }
 
-func (cs *controllerServer) initEcsClient() {
-	accessKeyID, accessSecret, accessToken := GetDefaultAK()
-	cs.EcsClient = newEcsClient(accessKeyID, accessSecret, accessToken)
-}
-
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	log.Infof("DeleteVolume: Starting DeleteVolume volumeId: %v", req.GetVolumeId())
+	log.Infof("DeleteVolume: Starting deleting volume %s", req.GetVolumeId())
 
 	// Step 1: check inputs
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME); err != nil {
 		log.Warningf("DeleteVolume: invalid delete volume req: %v", req)
-		return nil, err
+		return nil, status.Errorf(codes.InvalidArgument, "DeleteVolume: invalid delete volume req: %v", req)
 	}
 	// For now the image get unconditionally deleted, but here retention policy can be checked
 	volumeID := req.GetVolumeId()
 
 	// Step 2: Delete Disk
-	cs.initEcsClient()
-	if cs.EcsClient == nil {
-		log.Errorf("DeleteVolume: init ecs client error while delete")
-		return nil, fmt.Errorf("init ecs client error while delete")
-	}
-	err := cs.EcsClient.DeleteDisk(volumeID)
+	err := cs.ecsClient.DeleteDisk(volumeID)
 	if err != nil {
-		if strings.Contains(err.Error(), "IncorrectDiskStatus") {
-			for i := 0; i < 3; i++ {
-				time.Sleep(3000 * time.Millisecond)
-				err = cs.EcsClient.DeleteDisk(volumeID)
-				if err == nil {
-					break
-				} else if i == 2 {
-					log.Warnf("DeleteVolume: Delete disk 3 times, but error: %s", err.Error())
-					return nil, fmt.Errorf("Delete disk 3 times, but error: %s ", err.Error())
-				}
-			}
-		} else {
-			log.Warnf("DeleteVolume: Delete disk with error: %s", err.Error())
-			return nil, fmt.Errorf("Delete disk with error: %s ", err.Error())
+		log.Warnf("DeleteVolume: Delete disk with error: %v", err)
+		if strings.Contains(err.Error(), DISC_CREATING_SNAPSHOT) || strings.Contains(err.Error(), DISC_INCORRECT_STATUS) {
+			return nil, status.Errorf(codes.Aborted, "Delete disk with error: %v", err)
 		}
+		return nil, status.Errorf(codes.Internal, "Delete disk with error: %v", err)
 	}
+
+	log.Infof("DeleteVolume: Successfull deleting volume: %s", req.GetVolumeId())
 
 	return &csi.DeleteVolumeResponse{}, nil
 }
@@ -188,10 +189,61 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 	return &csi.ValidateVolumeCapabilitiesResponse{Supported: true, Message: ""}, nil
 }
 
+// external-attacher: publish/unpublish disk
+// To enable retry, use error codes.Aborted
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
+	log.Infof("ControllerUnpublishVolume: detach volume %s from instance %s ", req.GetVolumeId(), req.GetNodeId())
+
+	describeDisksRequest := &ecs.DescribeDisksArgs{
+		DiskIds:  []string{req.VolumeId},
+		RegionId: cs.region,
+	}
+	disks, _, err := cs.ecsClient.DescribeDisks(describeDisksRequest)
+	if err != nil {
+		// need caller to retry
+		return nil, status.Errorf(codes.Aborted, "ControllerUnpublishVolume: Can't get disk %s: %v", req.VolumeId, err)
+	}
+
+	if len(disks) == 0 {
+		log.Infof("ControllerUnpublishVolume: volume %s doesn't exists, just ignored ", req.GetVolumeId())
+		return &csi.ControllerUnpublishVolumeResponse{}, nil
+	}
+
+	if len(disks) > 1 {
+		return nil, status.Errorf(codes.Internal, "ControllerUnpublishVolume: Unexpected count %d for volume id %s", len(disks), req.VolumeId)
+	}
+
+	disk := disks[0]
+	instanceIDToBeDetached := req.GetNodeId()
+	if disk.InstanceId != "" {
+		if disk.InstanceId == instanceIDToBeDetached {
+			err = cs.ecsClient.DetachDisk(disk.InstanceId, disk.DiskId)
+			if err != nil {
+				log.Errorf("ControllerUnpublishVolume: fail to detach %s: %v ", disk.DiskId, err.Error())
+				// will retry
+				return nil, status.Error(codes.Aborted, "ControllerUnpublishVolume: Detach error: "+err.Error())
+			}
+			log.Infof("ControllerUnpublishVolume: Success to detach disk %s from %s", req.GetVolumeId(), instanceIDToBeDetached)
+		} else {
+			log.Infof("ControllerUnpublishVolume: Skip Detach, disk %s is attached to %s", req.VolumeId, disk.InstanceId)
+		}
+	}
+
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
+// See NodeStageVolume, it is impossible for controller to get the mound disk. This is caused by Alicloud disk attach information bug
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
+	log.Infof("ControllerPublishVolume is called, do nothing by now")
+
 	return &csi.ControllerPublishVolumeResponse{}, nil
+}
+
+func (cs *controllerServer) findDiskByTag(key, val string) ([]ecs.DiskItemType, error) {
+	describeDisksRequest := &ecs.DescribeDisksArgs{
+		Tag:      map[string]string{key: val},
+		RegionId: cs.region,
+	}
+	disks, _, err := cs.ecsClient.DescribeDisks(describeDisksRequest)
+	return disks, err
 }

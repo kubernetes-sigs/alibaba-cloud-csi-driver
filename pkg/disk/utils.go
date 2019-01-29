@@ -22,13 +22,14 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 
-	"github.com/denverdino/aliyungo/common"
-	"github.com/denverdino/aliyungo/ecs"
-	"github.com/denverdino/aliyungo/metadata"
-	"k8s.io/kubernetes/pkg/util/keymutex"
 	"path/filepath"
 	"strconv"
+
+	"github.com/denverdino/aliyungo/common"
+	"github.com/denverdino/aliyungo/metadata"
+	"k8s.io/kubernetes/pkg/util/keymutex"
 )
 
 const (
@@ -36,14 +37,19 @@ const (
 	METADATA_URL                    = "http://100.100.100.200/latest/meta-data/"
 	REGIONID_TAG                    = "region-id"
 	ZONEID_TAG                      = "zone-id"
+	INSTANCE_ID                     = "instance-id"
 	LOGFILE_PREFIX                  = "/var/log/alicloud/provisioner"
 	DISK_NOTAVAILABLE               = "InvalidDataDiskCategory.NotSupported"
+	DISK_CONFILICT                  = "InvalidOperation.Conflict"
+	DISC_INCORRECT_STATUS           = "IncorrectDiskStatus"
+	DISC_CREATING_SNAPSHOT          = "DiskCreatingSnapshot"
 	DISK_HIGH_AVAIL                 = "available"
 	DISK_COMMON                     = "cloud"
 	DISK_EFFICIENCY                 = "cloud_efficiency"
 	DISK_SSD                        = "cloud_ssd"
 	MB_SIZE                         = 1024 * 1024
 	DEFAULT_REGION                  = common.Hangzhou
+	TAG_K8S_PV                      = "k8s-pv"
 )
 
 var (
@@ -69,24 +75,6 @@ type DefaultOptions struct {
 		AccessKeySecret      string `json:"accessKeySecret"`
 		Region               string `json:"region"`
 	}
-}
-
-func newEcsClient(access_key_id, access_key_secret, access_token string) *ecs.Client {
-	m := metadata.NewMetaData(nil)
-	region, err := m.Region()
-	ecsRegion := common.Region(DEFAULT_REGION)
-	if err == nil {
-		ecsRegion = common.Region(region)
-	}
-
-	client := ecs.NewClient(access_key_id, access_key_secret)
-	if access_token != "" {
-		client.SetSecurityToken(access_token)
-	}
-
-	client.SetRegionID(ecsRegion)
-	client.SetUserAgent(KUBERNETES_ALICLOUD_IDENTITY)
-	return client
 }
 
 // read default ak from local file or from STS
@@ -145,38 +133,25 @@ func GetLocalAK() (string, string) {
 	return accessKeyID, accessSecret
 }
 
-func volumeStautsNone(targetPath string) {
-	diskVolumeList[targetPath] = VOLUME_NONE
-}
-
 func GetDeviceMountNum(targetPath string) int {
 	deviceCmd := fmt.Sprintf("mount | grep %s  | grep -v grep | awk '{print $1}'", targetPath)
 	deviceCmdOut, err := run(deviceCmd)
 	if err != nil {
 		return 0
 	}
+
+	deviceCmdOut = strings.TrimSuffix(deviceCmdOut, "\n")
 	deviceNumCmd := fmt.Sprintf("mount | grep \"%s \" | grep -v grep | wc -l", deviceCmdOut)
 	deviceNumOut, err := run(deviceNumCmd)
 	if err != nil {
 		return 0
 	}
+	deviceCmdOut = strings.TrimSuffix(deviceCmdOut, "\n")
 	if num, err := strconv.Atoi(deviceNumOut); err != nil {
 		return 0
 	} else {
 		return num
 	}
-}
-
-// check file exist in volume driver;
-func IsFileExisting(filename string) bool {
-	_, err := os.Stat(filename)
-	if err == nil {
-		return true
-	}
-	if os.IsNotExist(err) {
-		return false
-	}
-	return true
 }
 
 func run(cmd string) (string, error) {
@@ -236,35 +211,18 @@ func getDiskVolumeOptions(volOptions map[string]string) (*diskVolume, error) {
 	return diskVol, nil
 }
 
-func mountDisk(fsType, containerDest, partedDevice string) error {
-	cmd := fmt.Sprintf("%s mount -t %s %s %s", nsenterPrefix, fsType, partedDevice, containerDest)
-	_, err := run(cmd)
-	return err
-}
-
-func createDest(dest string) error {
-	fi, err := os.Lstat(dest)
-
-	if os.IsNotExist(err) {
-		if err := os.MkdirAll(dest, 0777); err != nil {
-			return err
-		}
-	} else if err != nil {
-		return err
-	}
-
-	if fi != nil && !fi.IsDir() {
-		return fmt.Errorf("%v already exist and it's not a directory", dest)
-	}
-	return nil
-}
-
 func mountpoint(root, name string) string {
 	return filepath.Join(root, name)
 }
 
-func hostMountpoint(hostMntPath, root, name string) string {
-	path := filepath.Join(hostMntPath, root)
-	path = filepath.Join(path, name)
-	return path
+// check file exist in volume driver;
+func IsFileExisting(filename string) bool {
+	_, err := os.Stat(filename)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
 }
