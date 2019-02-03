@@ -1,6 +1,3 @@
-# This YAML file contains driver-registrar & csi driver nodeplugin API objects,
-# which are necessary to run csi nodeplugin for disk.
-
 kind: DaemonSet
 apiVersion: apps/v1beta2
 metadata:
@@ -18,32 +15,41 @@ spec:
         - key: node-role.kubernetes.io/master
           operator: Exists
           effect: NoSchedule
-      serviceAccount: csi-serviceaccount
+      serviceAccount: alicloud-csi-plugin
       hostNetwork: true
       hostPID: true
       containers:
         - name: driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/driver-registrar:v0.2.0
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-node-driver-registrar:v1.0.1
+          imagePullPolicy: Always
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /registration/csi-diskplugin /registration/csi-diskplugin-reg.sock"]
           args:
             - "--v=5"
-            - "--csi-address=$(ADDRESS)"
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi-diskplugin/csi.sock"
           env:
-            - name: ADDRESS
-              value: /var/lib/kubelet/plugins/csi-diskplugin/csi.sock
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:
+                  apiVersion: v1
                   fieldPath: spec.nodeName
           volumeMounts:
-            - name: socket-dir
-              mountPath: /var/lib/kubelet/plugins/csi-diskplugin
+            - name: plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+
         - name: csi-diskplugin
           securityContext:
             privileged: true
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-diskplugin:v1.10-7424d08
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-diskplugin:v1.0.0-test
+          imagePullPolicy: "Always"
           args :
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -52,6 +58,7 @@ spec:
             - name: NODE_ID
               valueFrom:
                 fieldRef:
+                  apiVersion: v1
                   fieldPath: spec.nodeName
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/plugins/csi-diskplugin/csi.sock
@@ -59,7 +66,6 @@ spec:
               value: ""
             - name: ACCESS_KEY_SECRET
               value: ""
-          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: plugin-dir
               mountPath: /var/lib/kubelet/plugins/csi-diskplugin
@@ -67,6 +73,7 @@ spec:
               mountPath: /var/lib/kubelet/pods
               mountPropagation: "Bidirectional"
             - mountPath: /dev
+              mountPropagation: "HostToContainer"
               name: host-dev
             - mountPath: /sys
               name: host-sys
@@ -83,14 +90,14 @@ spec:
           hostPath:
             path: /var/lib/kubelet/plugins/csi-diskplugin
             type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: DirectoryOrCreate
         - name: pods-mount-dir
           hostPath:
             path: /var/lib/kubelet/pods
             type: Directory
-        - name: socket-dir
-          hostPath:
-            path: /var/lib/kubelet/plugins/csi-diskplugin
-            type: DirectoryOrCreate
         - name: host-dev
           hostPath:
             path: /dev

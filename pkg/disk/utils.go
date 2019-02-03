@@ -18,16 +18,17 @@ package disk
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/denverdino/aliyungo/common"
 	"github.com/denverdino/aliyungo/ecs"
 	"github.com/denverdino/aliyungo/metadata"
 	"k8s.io/kubernetes/pkg/util/keymutex"
-	"path/filepath"
 	"strconv"
 )
 
@@ -35,6 +36,11 @@ const (
 	KUBERNETES_ALICLOUD_DISK_DRIVER = "alicloud/disk"
 	METADATA_URL                    = "http://100.100.100.200/latest/meta-data/"
 	REGIONID_TAG                    = "region-id"
+	INSTANCE_ID                     = "instance-id"
+	DISK_CONFILICT                  = "InvalidOperation.Conflict"
+	DISC_INCORRECT_STATUS           = "IncorrectDiskStatus"
+	DISC_CREATING_SNAPSHOT          = "DiskCreatingSnapshot"
+	TAG_K8S_PV                      = "k8s-pv"
 	ZONEID_TAG                      = "zone-id"
 	LOGFILE_PREFIX                  = "/var/log/alicloud/provisioner"
 	DISK_NOTAVAILABLE               = "InvalidDataDiskCategory.NotSupported"
@@ -48,7 +54,7 @@ const (
 
 var (
 	// VERSION should be updated by hand at each release
-	VERSION = "v1.10.4"
+	VERSION = "v1.13.2"
 
 	// GITCOMMIT will be overwritten automatically by the build system
 	GITCOMMIT                    = "HEAD"
@@ -71,21 +77,26 @@ type DefaultOptions struct {
 	}
 }
 
-func newEcsClient(access_key_id, access_key_secret, access_token string) *ecs.Client {
-	m := metadata.NewMetaData(nil)
-	region, err := m.Region()
-	ecsRegion := common.Region(DEFAULT_REGION)
-	if err == nil {
-		ecsRegion = common.Region(region)
+func newEcsClient(region common.Region) *ecs.Client {
+	accessKeyID, accessSecret, accessToken := GetDefaultAK()
+
+	client := ecs.NewClient(accessKeyID, accessSecret)
+	if accessToken != "" {
+		client.SetSecurityToken(accessToken)
 	}
 
-	client := ecs.NewClient(access_key_id, access_key_secret)
-	if access_token != "" {
-		client.SetSecurityToken(access_token)
-	}
-
-	client.SetRegionID(ecsRegion)
+	client.SetRegionID(region)
 	client.SetUserAgent(KUBERNETES_ALICLOUD_IDENTITY)
+	return client
+}
+
+func updateEcsClent(client *ecs.Client) *ecs.Client {
+	accessKeyID, accessSecret, accessToken := GetDefaultAK()
+	if accessToken != "" {
+		client.SetAccessKeyId(accessKeyID)
+		client.SetAccessKeySecret(accessSecret)
+		client.SetSecurityToken(accessToken)
+	}
 	return client
 }
 
@@ -145,21 +156,19 @@ func GetLocalAK() (string, string) {
 	return accessKeyID, accessSecret
 }
 
-func volumeStautsNone(targetPath string) {
-	diskVolumeList[targetPath] = VOLUME_NONE
-}
-
 func GetDeviceMountNum(targetPath string) int {
 	deviceCmd := fmt.Sprintf("mount | grep %s  | grep -v grep | awk '{print $1}'", targetPath)
 	deviceCmdOut, err := run(deviceCmd)
 	if err != nil {
 		return 0
 	}
+	deviceCmdOut = strings.TrimSuffix(deviceCmdOut, "\n")
 	deviceNumCmd := fmt.Sprintf("mount | grep \"%s \" | grep -v grep | wc -l", deviceCmdOut)
 	deviceNumOut, err := run(deviceNumCmd)
 	if err != nil {
 		return 0
 	}
+	deviceCmdOut = strings.TrimSuffix(deviceCmdOut, "\n")
 	if num, err := strconv.Atoi(deviceNumOut); err != nil {
 		return 0
 	} else {
@@ -177,6 +186,22 @@ func IsFileExisting(filename string) bool {
 		return false
 	}
 	return true
+}
+
+func IsDirEmpty(name string) (bool, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	// read in ONLY one file
+	_, err = f.Readdir(1)
+	// and if the file is EOF... well, the dir is empty.
+	if err == io.EOF {
+		return true, nil
+	}
+	return false, err
 }
 
 func run(cmd string) (string, error) {
@@ -229,17 +254,12 @@ func getDiskVolumeOptions(volOptions map[string]string) (*diskVolumeArgs, error)
 	if !ok {
 		diskVolArgs.ReadOnly = false
 	} else {
+		value = strings.ToLower(value)
 		if value == "yes" || value == "true" || value == "1" {
 			diskVolArgs.ReadOnly = true
 		}
 	}
 	return diskVolArgs, nil
-}
-
-func mountDisk(fsType, containerDest, partedDevice string) error {
-	cmd := fmt.Sprintf("%s mount -t %s %s %s", nsenterPrefix, fsType, partedDevice, containerDest)
-	_, err := run(cmd)
-	return err
 }
 
 func createDest(dest string) error {
@@ -257,14 +277,4 @@ func createDest(dest string) error {
 		return fmt.Errorf("%v already exist and it's not a directory", dest)
 	}
 	return nil
-}
-
-func mountpoint(root, name string) string {
-	return filepath.Join(root, name)
-}
-
-func hostMountpoint(hostMntPath, root, name string) string {
-	path := filepath.Join(hostMntPath, root)
-	path = filepath.Join(path, name)
-	return path
 }

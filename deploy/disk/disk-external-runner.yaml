@@ -1,0 +1,81 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: csi-external-runner
+  labels:
+    app: csi-external-runner
+spec:
+  selector:
+    app: csi-external-runner
+  ports:
+    - name: dummy
+      port: 12345
+
+---
+kind: StatefulSet
+apiVersion: apps/v1beta1
+metadata:
+  name: csi-external-runner
+spec:
+  serviceName: "csi-external-runner"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: csi-external-runner
+    spec:
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        operator: Exists
+        key: node.cloudprovider.kubernetes.io/uninitialized
+      nodeSelector:
+         node-role.kubernetes.io/master: ""
+      serviceAccount: alicloud-csi-plugin
+      containers:
+        - name: csi-provisioner
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-provisioner:v1.0.0
+          args:
+            - "--provisioner=csi-diskplugin"
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+          env:
+            - name: ADDRESS
+              value: /var/lib/kubelet/plugins/csi-diskplugin/csi.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/kubelet/plugins/csi-diskplugin
+
+        - name: csi-snapshotter
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-snapshotter:v1.0.0
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--connection-timeout=15s"
+          env:
+            - name: ADDRESS
+              value: /var/lib/kubelet/plugins/csi-diskplugin/csi.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/kubelet/plugins/csi-diskplugin
+
+        - name: csi-attacher
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-attacher:v1.0.0
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /var/lib/kubelet/plugins/csi-diskplugin/csi.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/kubelet/plugins/csi-diskplugin
+      volumes:
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/csi-diskplugin
+            type: DirectoryOrCreate
