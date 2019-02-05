@@ -254,15 +254,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
-//NodeGetId is used by controller to get node id
-func (ns *nodeServer) NodeGetId(ctx context.Context, req *csi.NodeGetIdRequest) (*csi.NodeGetIdResponse, error) {
-	id := GetMetaData(INSTANCE_ID)
-	log.Infof("NodeGetId: %s", id)
-	return &csi.NodeGetIdResponse{
-		NodeId: id,
-	}, nil
-}
-
 func (ns *nodeServer) NodeUnstageVolume(
 	ctx context.Context,
 	req *csi.NodeUnstageVolumeRequest) (
