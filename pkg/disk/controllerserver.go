@@ -18,6 +18,8 @@ package disk
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +31,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/nightlyone/lockfile"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -254,13 +257,25 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		return nil, status.Error(codes.InvalidArgument, "SourceVolumeId missing in request")
 	}
 
+	// lock file is save at /tmp/*.lck
+	lockfileName := "lockfile-" + req.Name + ".lck"
+	lock, err := lockfile.New(filepath.Join(os.TempDir(), lockfileName))
+	if err != nil {
+		return nil, fmt.Errorf("New lockfile error: %s, %s ", lockfileName, err.Error())
+	}
+	err = lock.TryLock()
+	if err != nil {
+		return nil, fmt.Errorf("Try lock error: %s, %s ", lockfileName, err.Error())
+	}
+	defer lock.Unlock()
+
 	// Need to check for already existing snapshot name
 	cs.ecsClient = updateEcsClent(cs.ecsClient)
-	if exSnap, err := cs.getSnapshotByName(req.GetName()); err == nil {
+	if exSnap, err := cs.describeSnapshotByName(req.GetName()); err == nil && exSnap != nil {
 		// Since err is nil, it means the snapshot with the same name already exists need
 		// to check if the sourceVolumeId of existing snapshot is the same as in new request.
 		if exSnap.VolID == req.GetSourceVolumeId() {
-			// same snapshot has been created.
+			log.Infof("CreateSnapshot:: Snapshot already created: name[%s], sourceId[%s], status[%s]", req.Name, req.GetSourceVolumeId(), exSnap.ReadyToUse)
 			return &csi.CreateSnapshotResponse{
 				Snapshot: &csi.Snapshot{
 					SnapshotId:     exSnap.Id,
@@ -287,6 +302,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	createSnapshotRequest.SnapshotName = req.GetName()
 	snapshotResponse, err := cs.ecsClient.CreateSnapshot(createSnapshotRequest)
 	if err != nil {
+		log.Errorf("CreateSnapshot:: Snapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", req.Name, req.GetSourceVolumeId(), err.Error())
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed create snapshot: %v", err))
 	}
 	snapshotID := snapshotResponse.SnapshotId
@@ -297,6 +313,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	snapshot.CreationTime = *createAt
 	snapshot.ReadyToUse = false
 
+	log.Infof("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotID)
 	return &csi.CreateSnapshotResponse{
 		Snapshot: &csi.Snapshot{
 			SnapshotId:     snapshotID,
@@ -313,12 +330,11 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	if len(req.GetSnapshotId()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Snapshot ID missing in request")
 	}
-
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
 		return nil, err
 	}
 	snapshotID := req.GetSnapshotId()
-	log.Infof("deleting snapshot %s", snapshotID)
+	log.Infof("DeleteSnapshot:: deleting snapshot %s", snapshotID)
 
 	cs.ecsClient = updateEcsClent(cs.ecsClient)
 	deleteSnapshotRequest := ecs.CreateDeleteSnapshotRequest()
@@ -331,6 +347,7 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed create snapshot: %v", err))
 	}
 
+	log.Infof("DeleteSnapshot:: Successful delete snapshot %s, requestId: %s", snapshotID, response.RequestId)
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
@@ -361,7 +378,7 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 	}, nil
 }
 
-func (cs *controllerServer) getSnapshotByName(name string) (*diskSnapshot, error) {
+func (cs *controllerServer) describeSnapshotByName(name string) (*diskSnapshot, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = cs.region
 	describeSnapShotRequest.SnapshotName = name
