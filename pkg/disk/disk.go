@@ -21,7 +21,7 @@ import (
 	"path"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/container-storage-interface/spec/lib/go/csi/v0"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 )
 
@@ -29,33 +29,19 @@ import (
 const (
 	PluginFolder = "/var/lib/kubelet/plugins/csi-diskplugin"
 	driverName   = "csi-diskplugin"
+	csiVersion   = "1.0.0"
 )
 
 type disk struct {
 	driver           *csicommon.CSIDriver
 	endpoint         string
-	idServer         *identityServer
-	nodeServer       *nodeServer
-	controllerServer *controllerServer
+	idServer         csi.IdentityServer
+	nodeServer       csi.NodeServer
+	controllerServer csi.ControllerServer
 
 	cap   []*csi.VolumeCapability_AccessMode
 	cscap []*csi.ControllerServiceCapability
 }
-
-var (
-	//diskDriver *disk
-	version = "0.2.0"
-)
-
-type diskVolume struct {
-	Type     string `json:"type"`
-	RegionId string `json:"regionId"`
-	ZoneId   string `json:"zoneId"`
-	FsType   string `json:"fsType"`
-	ReadOnly bool   `json:"readOnly"`
-}
-
-var diskVolumes map[string]diskVolume
 
 // Init checks for the persistent volume file and loads all found volumes
 // into a memory structure
@@ -74,45 +60,36 @@ func NewDriver(nodeID, endpoint string) *disk {
 	tmpdisk := &disk{}
 	tmpdisk.endpoint = endpoint
 
-	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
+	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, nodeID)
 	tmpdisk.driver = csiDriver
-
 	tmpdisk.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+		csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
+		csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
 	})
-
 	tmpdisk.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER})
+
+	region := GetMetaData(REGIONID_TAG)
+	accessKeyID, accessSecret, accessToken := GetDefaultAK()
+	c := newEcsClient(accessKeyID, accessSecret, accessToken)
+	if accessToken == "" {
+		log.Infof("Starting csi-plugin without sts")
+	} else {
+		log.Infof("Starting csi-plugin with sts")
+	}
+
+
+	// Create GRPC servers
+	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
+	tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, c, region)
+	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, c, region)
 
 	return tmpdisk
 }
 
-func NewIdentityServer(d *csicommon.CSIDriver) *identityServer {
-	return &identityServer{
-		DefaultIdentityServer: csicommon.NewDefaultIdentityServer(d),
-	}
-}
-
-func NewControllerServer(d *csicommon.CSIDriver) *controllerServer {
-	return &controllerServer{
-		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
-	}
-}
-
-func NewNodeServer(d *csicommon.CSIDriver) *nodeServer {
-	return &nodeServer{
-		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
-	}
-}
-
 func (disk *disk) Run() {
-	log.Infof("Driver: %v version: %v", driverName, version)
-
-	// Create GRPC servers
-	disk.idServer = NewIdentityServer(disk.driver)
-	disk.nodeServer = NewNodeServer(disk.driver)
-	disk.controllerServer = NewControllerServer(disk.driver)
-
+	log.Infof("Starting csi-plugin Driver: %v version: %v", driverName, csiVersion)
 	s := csicommon.NewNonBlockingGRPCServer()
 	s.Start(disk.endpoint, disk.idServer, disk.controllerServer, disk.nodeServer)
 	s.Wait()

@@ -17,7 +17,7 @@ limitations under the License.
 package csicommon
 
 import (
-	"github.com/container-storage-interface/spec/lib/go/csi/v0"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -36,10 +36,10 @@ func (ns *DefaultNodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.N
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (ns *DefaultNodeServer) NodeGetId(ctx context.Context, req *csi.NodeGetIdRequest) (*csi.NodeGetIdResponse, error) {
-	glog.V(5).Infof("Using default NodeGetId")
+func (ns *DefaultNodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+	glog.V(5).Infof("Using default NodeGetInfo")
 
-	return &csi.NodeGetIdResponse{
+	return &csi.NodeGetInfoResponse{
 		NodeId: ns.Driver.nodeID,
 	}, nil
 }
@@ -58,4 +58,8 @@ func (ns *DefaultNodeServer) NodeGetCapabilities(ctx context.Context, req *csi.N
 			},
 		},
 	}, nil
+}
+
+func (ns *DefaultNodeServer) NodeGetVolumeStats(ctx context.Context, in *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
 }
