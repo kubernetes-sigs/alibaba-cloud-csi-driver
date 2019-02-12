@@ -18,23 +18,28 @@ package disk
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
-
-	"github.com/denverdino/aliyungo/common"
-	"github.com/denverdino/aliyungo/ecs"
-	"github.com/denverdino/aliyungo/metadata"
-	"k8s.io/kubernetes/pkg/util/keymutex"
-	"path/filepath"
 	"strconv"
+	"strings"
+
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
+	"k8s.io/kubernetes/pkg/util/keymutex"
 )
 
 const (
 	KUBERNETES_ALICLOUD_DISK_DRIVER = "alicloud/disk"
 	METADATA_URL                    = "http://100.100.100.200/latest/meta-data/"
 	REGIONID_TAG                    = "region-id"
+	INSTANCE_ID                     = "instance-id"
+	DISK_CONFILICT                  = "InvalidOperation.Conflict"
+	DISC_INCORRECT_STATUS           = "IncorrectDiskStatus"
+	DISC_CREATING_SNAPSHOT          = "DiskCreatingSnapshot"
+	TAG_K8S_PV                      = "k8s-pv"
 	ZONEID_TAG                      = "zone-id"
 	LOGFILE_PREFIX                  = "/var/log/alicloud/provisioner"
 	DISK_NOTAVAILABLE               = "InvalidDataDiskCategory.NotSupported"
@@ -43,12 +48,12 @@ const (
 	DISK_EFFICIENCY                 = "cloud_efficiency"
 	DISK_SSD                        = "cloud_ssd"
 	MB_SIZE                         = 1024 * 1024
-	DEFAULT_REGION                  = common.Hangzhou
+	DEFAULT_REGION                  = "cn-hangzhou"
 )
 
 var (
 	// VERSION should be updated by hand at each release
-	VERSION = "v1.10.4"
+	VERSION = "v1.13.2"
 
 	// GITCOMMIT will be overwritten automatically by the build system
 	GITCOMMIT                    = "HEAD"
@@ -72,20 +77,27 @@ type DefaultOptions struct {
 }
 
 func newEcsClient(access_key_id, access_key_secret, access_token string) *ecs.Client {
-	m := metadata.NewMetaData(nil)
-	region, err := m.Region()
-	ecsRegion := common.Region(DEFAULT_REGION)
-	if err == nil {
-		ecsRegion = common.Region(region)
+	ecsClient := &ecs.Client{}
+	var err error
+	if access_token == "" {
+		ecsClient, err = ecs.NewClientWithAccessKey(DEFAULT_REGION, access_key_id, access_key_secret)
+		if err != nil {
+			return nil
+		}
+	} else {
+		ecsClient, err = ecs.NewClientWithStsToken(DEFAULT_REGION, access_key_id, access_key_secret, access_token)
+		if err != nil {
+			return nil
+		}
 	}
+	return ecsClient
+}
 
-	client := ecs.NewClient(access_key_id, access_key_secret)
-	if access_token != "" {
-		client.SetSecurityToken(access_token)
+func updateEcsClent(client *ecs.Client) *ecs.Client {
+	accessKeyID, accessSecret, accessToken := GetDefaultAK()
+	if accessToken != "" {
+		client = newEcsClient(accessKeyID, accessSecret, accessToken)
 	}
-
-	client.SetRegionID(ecsRegion)
-	client.SetUserAgent(KUBERNETES_ALICLOUD_IDENTITY)
 	return client
 }
 
@@ -99,7 +111,6 @@ func GetDefaultAK() (string, string, string) {
 	}
 
 	return accessKeyID, accessSecret, accessToken
-
 }
 
 // get host regionid, zoneid
@@ -118,17 +129,17 @@ func GetMetaData(resource string) string {
 
 // get STS AK
 func GetSTSAK() (string, string, string) {
-	m := metadata.NewMetaData(nil)
-
-	rolename := ""
-	var err error
-	if rolename, err = m.Role(); err != nil {
-		return "", "", ""
-	}
-	role, err := m.RamRoleToken(rolename)
+	createAssumeRoleReq := sts.CreateAssumeRoleRequest()
+	client, err := sts.NewClient()
 	if err != nil {
 		return "", "", ""
 	}
+	response, err := client.AssumeRole(createAssumeRoleReq)
+	if err != nil {
+		return "", "", ""
+	}
+
+	role := response.Credentials
 	return role.AccessKeyId, role.AccessKeySecret, role.SecurityToken
 }
 
@@ -145,21 +156,19 @@ func GetLocalAK() (string, string) {
 	return accessKeyID, accessSecret
 }
 
-func volumeStautsNone(targetPath string) {
-	diskVolumeList[targetPath] = VOLUME_NONE
-}
-
 func GetDeviceMountNum(targetPath string) int {
 	deviceCmd := fmt.Sprintf("mount | grep %s  | grep -v grep | awk '{print $1}'", targetPath)
 	deviceCmdOut, err := run(deviceCmd)
 	if err != nil {
 		return 0
 	}
+	deviceCmdOut = strings.TrimSuffix(deviceCmdOut, "\n")
 	deviceNumCmd := fmt.Sprintf("mount | grep \"%s \" | grep -v grep | wc -l", deviceCmdOut)
 	deviceNumOut, err := run(deviceNumCmd)
 	if err != nil {
 		return 0
 	}
+	deviceCmdOut = strings.TrimSuffix(deviceCmdOut, "\n")
 	if num, err := strconv.Atoi(deviceNumOut); err != nil {
 		return 0
 	} else {
@@ -179,6 +188,22 @@ func IsFileExisting(filename string) bool {
 	return true
 }
 
+func IsDirEmpty(name string) (bool, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	// read in ONLY one file
+	_, err = f.Readdir(1)
+	// and if the file is EOF... well, the dir is empty.
+	if err == io.EOF {
+		return true, nil
+	}
+	return false, err
+}
+
 func run(cmd string) (string, error) {
 	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
 	if err != nil {
@@ -192,54 +217,64 @@ func execCommand(command string, args []string) ([]byte, error) {
 	return cmd.CombinedOutput()
 }
 
-func getDiskVolumeOptions(volOptions map[string]string) (*diskVolume, error) {
+func getDiskVolumeOptions(volOptions map[string]string) (*diskVolumeArgs, error) {
 	var ok bool
-	diskVol := &diskVolume{}
+	diskVolArgs := &diskVolumeArgs{}
 
 	// regionid
-	diskVol.ZoneId, ok = volOptions["zoneId"]
+	diskVolArgs.ZoneId, ok = volOptions["zoneId"]
 	if !ok {
-		diskVol.ZoneId = GetMetaData(ZONEID_TAG)
+		diskVolArgs.ZoneId = GetMetaData(ZONEID_TAG)
 	}
-	diskVol.RegionId, ok = volOptions["regionId"]
+	diskVolArgs.RegionId, ok = volOptions["regionId"]
 	if !ok {
-		diskVol.RegionId = GetMetaData(REGIONID_TAG)
+		diskVolArgs.RegionId = GetMetaData(REGIONID_TAG)
 	}
 
 	// fstype
-	diskVol.FsType, ok = volOptions["fsType"]
+	diskVolArgs.FsType, ok = volOptions["fsType"]
 	if !ok {
-		diskVol.FsType = "ext4"
+		diskVolArgs.FsType = "ext4"
 	}
-	if diskVol.FsType != "ext4" && diskVol.FsType != "ext3" {
+	if diskVolArgs.FsType != "ext4" && diskVolArgs.FsType != "ext3" {
 		return nil, fmt.Errorf("illegal required parameter fsType")
 	}
 
 	// disk Type
-	diskVol.Type, ok = volOptions["type"]
+	diskVolArgs.Type, ok = volOptions["type"]
 	if !ok {
-		diskVol.Type = DISK_HIGH_AVAIL
+		diskVolArgs.Type = DISK_HIGH_AVAIL
 	}
-	if diskVol.Type != DISK_HIGH_AVAIL && diskVol.Type != DISK_COMMON && diskVol.Type != DISK_EFFICIENCY && diskVol.Type != DISK_SSD {
-		return nil, fmt.Errorf("Illegal required parameter type" + diskVol.Type)
+	if diskVolArgs.Type != DISK_HIGH_AVAIL && diskVolArgs.Type != DISK_COMMON && diskVolArgs.Type != DISK_EFFICIENCY && diskVolArgs.Type != DISK_SSD {
+		return nil, fmt.Errorf("Illegal required parameter type" + diskVolArgs.Type)
 	}
 
 	// readonly
 	value, ok := volOptions["readOnly"]
 	if !ok {
-		diskVol.ReadOnly = false
+		diskVolArgs.ReadOnly = false
 	} else {
+		value = strings.ToLower(value)
 		if value == "yes" || value == "true" || value == "1" {
-			diskVol.ReadOnly = true
+			diskVolArgs.ReadOnly = true
+		} else {
+			diskVolArgs.ReadOnly = false
 		}
 	}
-	return diskVol, nil
-}
 
-func mountDisk(fsType, containerDest, partedDevice string) error {
-	cmd := fmt.Sprintf("%s mount -t %s %s %s", nsenterPrefix, fsType, partedDevice, containerDest)
-	_, err := run(cmd)
-	return err
+	// encrypted or not
+	value, ok = volOptions["encrypted"]
+	if !ok {
+		diskVolArgs.Encrypted = false
+	} else {
+		value = strings.ToLower(value)
+		if value == "yes" || value == "true" || value == "1" {
+			diskVolArgs.Encrypted = true
+		} else {
+			diskVolArgs.Encrypted = false
+		}
+	}
+	return diskVolArgs, nil
 }
 
 func createDest(dest string) error {
@@ -257,14 +292,4 @@ func createDest(dest string) error {
 		return fmt.Errorf("%v already exist and it's not a directory", dest)
 	}
 	return nil
-}
-
-func mountpoint(root, name string) string {
-	return filepath.Join(root, name)
-}
-
-func hostMountpoint(hostMntPath, root, name string) string {
-	path := filepath.Join(hostMntPath, root)
-	path = filepath.Join(path, name)
-	return path
 }

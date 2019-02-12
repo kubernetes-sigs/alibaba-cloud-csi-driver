@@ -12,38 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-REGISTRY_NAME = quay.io/k8scsi
-IMAGE_VERSION = v0.2.0
+REGISTRY_NAME=quay.io/k8scsi
+IMAGE_NAME=hostpathplugin
+IMAGE_VERSION=v1.0.0
+IMAGE_TAG=$(REGISTRY_NAME)/$(IMAGE_NAME):$(IMAGE_VERSION)
+REV=$(shell git describe --long --tags --dirty)
 
-.PHONY: all flexadapter nfs hostpath iscsi cinder clean
+.PHONY: all flexadapter nfs hostpath iscsi clean hostpath-container
 
-all: flexadapter nfs hostpath iscsi cinder
+all: flexadapter nfs hostpath iscsi
 
 test:
 	go test github.com/kubernetes-csi/drivers/pkg/... -cover
 	go vet github.com/kubernetes-csi/drivers/pkg/...
-
 flexadapter:
-	if [ ! -d ./vendor ]; then dep ensure; fi
+	if [ ! -d ./vendor ]; then dep ensure -vendor-only; fi
 	CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o _output/flexadapter ./app/flexadapter
 nfs:
-	if [ ! -d ./vendor ]; then dep ensure; fi
+	if [ ! -d ./vendor ]; then dep ensure -vendor-only; fi
 	CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o _output/nfsplugin ./app/nfsplugin
 hostpath:
-	if [ ! -d ./vendor ]; then dep ensure; fi
-	CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o _output/hostpathplugin ./app/hostpathplugin
-
+	if [ ! -d ./vendor ]; then dep ensure -vendor-only; fi
+	CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-X github.com/kubernetes-csi/drivers/pkg/hostpath.vendorVersion=$(REV) -extldflags "-static"' -o _output/hostpathplugin ./app/hostpathplugin
 hostpath-container: hostpath
-	cp _output/hostpathplugin pkg/hostpath/extras/docker 
-	docker build -t $(REGISTRY_NAME)/hostpathplugin:$(IMAGE_VERSION) ./pkg/hostpath/extras/docker
-
+	docker build -t $(IMAGE_TAG) -f ./app/hostpathplugin/Dockerfile .
+push: hostpath-container
+	docker push $(IMAGE_TAG)
 iscsi:
-	if [ ! -d ./vendor ]; then dep ensure; fi
+	if [ ! -d ./vendor ]; then dep ensure -vendor-only; fi
 	CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o _output/iscsiplugin ./app/iscsiplugin
-cinder:
-	if [ ! -d ./vendor ]; then dep ensure; fi
-	CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o _output/cinderplugin ./app/cinderplugin
-
 clean:
 	go clean -r -x
 	-rm -rf _output

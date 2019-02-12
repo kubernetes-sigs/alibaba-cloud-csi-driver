@@ -3,7 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/denverdino/aliyungo/metadata"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	log "github.com/golang/glog"
 	"io/ioutil"
 	"net/http"
@@ -240,18 +240,18 @@ func GetDefaultAK() (string, string, string) {
 
 // get STS AK
 func GetSTSAK() (string, string, string) {
-	m := metadata.NewMetaData(nil)
-
-	rolename := ""
-	var err error
-	if rolename, err = m.Role(); err != nil {
-		log.Fatal("Get role name error: ", err.Error())
-		return "", "", ""
-	}
-	role, err := m.RamRoleToken(rolename)
+	createAssumeRoleReq := sts.CreateAssumeRoleRequest()
+	client, err := sts.NewClient()
 	if err != nil {
-		log.Fatal("Get STS Token error, " + err.Error())
+		log.Infof("get sts token error with: %s", err.Error())
 		return "", "", ""
 	}
+	response, err := client.AssumeRole(createAssumeRoleReq)
+	if err != nil {
+		log.Infof("AssumeRole: Get sts token error with: %s", err.Error())
+		return "", "", ""
+	}
+
+	role := response.Credentials
 	return role.AccessKeyId, role.AccessKeySecret, role.SecurityToken
 }

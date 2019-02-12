@@ -78,7 +78,7 @@ spec:
 kind: StatefulSet
 apiVersion: apps/v1beta1
 metadata:
-  name: csi-attacher-nfsplugin
+  name: csi-attacher-ossplugin
 spec:
   serviceName: "csi-ossattacher"
   replicas: 1
@@ -102,7 +102,7 @@ spec:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
 
-        - name: nfs
+        - name: oss
           image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:v1.10-a0e560a
           args :
             - "--nodeid=$(NODE_ID)"

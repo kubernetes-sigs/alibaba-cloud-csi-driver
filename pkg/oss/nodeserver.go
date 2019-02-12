@@ -27,7 +27,7 @@ import (
 
 	"github.com/AliyunContainerService/csi-plugin/pkg/utils"
 	log "github.com/Sirupsen/logrus"
-	"github.com/container-storage-interface/spec/lib/go/csi/v0"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 )
 
@@ -51,7 +51,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// logout oss paras
 	mountPath := req.GetTargetPath()
 	opt := &OssOptions{}
-	for key, value := range req.VolumeAttributes {
+	for key, value := range req.VolumeContext {
 		if key == "bucket" {
 			opt.Bucket = value
 		} else if key == "url" {

@@ -15,7 +15,7 @@ package nas
 
 import (
 	log "github.com/Sirupsen/logrus"
-	"github.com/container-storage-interface/spec/lib/go/csi/v0"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 )
 
@@ -25,7 +25,7 @@ const (
 )
 
 var (
-	version = "0.2.0"
+	version = "1.0.0"
 )
 
 type nas struct {
