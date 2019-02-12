@@ -23,13 +23,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
-	"github.com/denverdino/aliyungo/common"
-	"github.com/denverdino/aliyungo/ecs"
-	"github.com/denverdino/aliyungo/metadata"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"k8s.io/kubernetes/pkg/util/keymutex"
-	"strconv"
 )
 
 const (
@@ -49,7 +48,7 @@ const (
 	DISK_EFFICIENCY                 = "cloud_efficiency"
 	DISK_SSD                        = "cloud_ssd"
 	MB_SIZE                         = 1024 * 1024
-	DEFAULT_REGION                  = common.Hangzhou
+	DEFAULT_REGION                  = "cn-hangzhou"
 )
 
 var (
@@ -77,25 +76,27 @@ type DefaultOptions struct {
 	}
 }
 
-func newEcsClient(region common.Region) *ecs.Client {
-	accessKeyID, accessSecret, accessToken := GetDefaultAK()
-
-	client := ecs.NewClient(accessKeyID, accessSecret)
-	if accessToken != "" {
-		client.SetSecurityToken(accessToken)
+func newEcsClient(access_key_id, access_key_secret, access_token string) *ecs.Client {
+	ecsClient := &ecs.Client{}
+	var err error
+	if access_token == "" {
+		ecsClient, err = ecs.NewClientWithAccessKey(DEFAULT_REGION, access_key_id, access_key_secret)
+		if err != nil {
+			return nil
+		}
+	} else {
+		ecsClient, err = ecs.NewClientWithStsToken(DEFAULT_REGION, access_key_id, access_key_secret, access_token)
+		if err != nil {
+			return nil
+		}
 	}
-
-	client.SetRegionID(region)
-	client.SetUserAgent(KUBERNETES_ALICLOUD_IDENTITY)
-	return client
+	return ecsClient
 }
 
 func updateEcsClent(client *ecs.Client) *ecs.Client {
 	accessKeyID, accessSecret, accessToken := GetDefaultAK()
 	if accessToken != "" {
-		client.SetAccessKeyId(accessKeyID)
-		client.SetAccessKeySecret(accessSecret)
-		client.SetSecurityToken(accessToken)
+		client = newEcsClient(accessKeyID, accessSecret, accessToken)
 	}
 	return client
 }
@@ -110,7 +111,6 @@ func GetDefaultAK() (string, string, string) {
 	}
 
 	return accessKeyID, accessSecret, accessToken
-
 }
 
 // get host regionid, zoneid
@@ -129,17 +129,17 @@ func GetMetaData(resource string) string {
 
 // get STS AK
 func GetSTSAK() (string, string, string) {
-	m := metadata.NewMetaData(nil)
-
-	rolename := ""
-	var err error
-	if rolename, err = m.Role(); err != nil {
-		return "", "", ""
-	}
-	role, err := m.RamRoleToken(rolename)
+	createAssumeRoleReq := sts.CreateAssumeRoleRequest()
+	client, err := sts.NewClient()
 	if err != nil {
 		return "", "", ""
 	}
+	response, err := client.AssumeRole(createAssumeRoleReq)
+	if err != nil {
+		return "", "", ""
+	}
+
+	role := response.Credentials
 	return role.AccessKeyId, role.AccessKeySecret, role.SecurityToken
 }
 
@@ -257,6 +257,21 @@ func getDiskVolumeOptions(volOptions map[string]string) (*diskVolumeArgs, error)
 		value = strings.ToLower(value)
 		if value == "yes" || value == "true" || value == "1" {
 			diskVolArgs.ReadOnly = true
+		} else {
+			diskVolArgs.ReadOnly = false
+		}
+	}
+
+	// encrypted or not
+	value, ok = volOptions["encrypted"]
+	if !ok {
+		diskVolArgs.Encrypted = false
+	} else {
+		value = strings.ToLower(value)
+		if value == "yes" || value == "true" || value == "1" {
+			diskVolArgs.Encrypted = true
+		} else {
+			diskVolArgs.Encrypted = false
 		}
 	}
 	return diskVolArgs, nil
