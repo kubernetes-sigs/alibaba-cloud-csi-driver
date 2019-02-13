@@ -51,15 +51,9 @@ spec:
           image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-diskplugin:v1.0.0
           imagePullPolicy: "Always"
           args :
-            - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
           env:
-            - name: NODE_ID
-              valueFrom:
-                fieldRef:
-                  apiVersion: v1
-                  fieldPath: spec.nodeName
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/plugins/csi-diskplugin/csi.sock
             - name: ACCESS_KEY_ID
