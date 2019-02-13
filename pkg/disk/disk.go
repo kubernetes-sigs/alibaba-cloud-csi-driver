@@ -76,7 +76,10 @@ func NewDriver(nodeID, endpoint string) *disk {
 	initDriver()
 	tmpdisk := &disk{}
 	tmpdisk.endpoint = endpoint
-
+	if nodeID == "" {
+		nodeID = GetMetaData(INSTANCE_ID)
+		log.Infof("Use node id : %s", nodeID)
+	}
 	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
 	tmpdisk.driver = csiDriver
 
