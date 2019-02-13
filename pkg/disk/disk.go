@@ -60,6 +60,10 @@ func NewDriver(nodeID, endpoint string) *disk {
 	tmpdisk := &disk{}
 	tmpdisk.endpoint = endpoint
 
+	if nodeID == "" {
+		nodeID = GetMetaData(INSTANCE_ID)
+		log.Infof("Use node id : %s", nodeID)
+	}
 	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, nodeID)
 	tmpdisk.driver = csiDriver
 	tmpdisk.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
