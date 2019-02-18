@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"encoding/json"
-	"github.com/denverdino/aliyungo/util"
 	"reflect"
+
+	"github.com/denverdino/aliyungo/util"
+	"os"
 )
 
 const (
@@ -42,7 +44,7 @@ const (
 	VSWITCH_CIDR_BLOCK = "vswitch-cidr-block"
 	VSWITCH_ID         = "vswitch-id"
 	ZONE               = "zone-id"
-	RAM_SECURITY       = "ram/security-credentials/"
+	RAM_SECURITY       = "Ram/security-credentials"
 )
 
 type IMetaDataRequest interface {
@@ -249,13 +251,14 @@ func (m *MetaData) Zone() (string, error) {
 	}
 	return zone.result[0], nil
 }
-func (m *MetaData) Role() (string, error) {
-	var role ResultList
-	err := m.New().Resource(RAM_SECURITY).Do(&role)
+
+func (m *MetaData) RoleName() (string, error) {
+	var roleName ResultList
+	err := m.New().Resource("ram/security-credentials/").Do(&roleName)
 	if err != nil {
 		return "", err
 	}
-	return role.result[0], nil
+	return roleName.result[0], nil
 }
 
 func (m *MetaData) RamRoleToken(role string) (RoleAuth, error) {
@@ -316,11 +319,15 @@ func (vpc *MetaDataRequest) Url() (string, error) {
 	if vpc.resource == "" {
 		return "", errors.New("the resource you want to visit must not be nil!")
 	}
-	r := fmt.Sprintf("%s/%s/%s/%s", ENDPOINT, vpc.version, vpc.resourceType, vpc.resource)
+	endpoint := os.Getenv("METADATA_ENDPOINT")
+	if endpoint == "" {
+		endpoint = ENDPOINT
+	}
+	r := fmt.Sprintf("%s/%s/%s/%s", endpoint, vpc.version, vpc.resourceType, vpc.resource)
 	if vpc.subResource == "" {
 		return r, nil
 	}
-	return fmt.Sprintf("%s/%s", strings.TrimSuffix(r, "/"), vpc.subResource), nil
+	return fmt.Sprintf("%s/%s", r, vpc.subResource), nil
 }
 
 func (vpc *MetaDataRequest) Do(api interface{}) (err error) {

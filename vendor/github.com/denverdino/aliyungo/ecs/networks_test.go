@@ -64,3 +64,41 @@ func testEipAddress(t *testing.T, client *Client, regionId common.Region, instan
 	}
 	return err
 }
+
+func TestClient_AllocateEipAddress(t *testing.T) {
+	client := NewVPCClientWithSecurityToken(TestAccessKeyId, TestAccessKeySecret, "", TestRegionID)
+	client.SetDebug(true)
+	args := &AllocateEipAddressArgs{
+		RegionId:           TestRegionID,
+		Bandwidth:          5,
+		InternetChargeType: common.PayByTraffic,
+		ISP:                "BGP_FinanceCloud",
+		ClientToken:        client.GenerateClientToken(),
+	}
+
+	eip, aid, err := client.AllocateEipAddress(args)
+	if err != nil {
+		t.Fatalf("Error %++v", err)
+	} else {
+		t.Logf("eip=%s,aid=%s", eip, aid)
+	}
+
+}
+
+func TestClient_DescribeEipAddresses(t *testing.T) {
+	client := NewVpcTestClientForDebug()
+	args := &DescribeEipAddressesArgs{
+		RegionId:               TestRegionID,
+		AssociatedInstanceType: AssociatedInstanceTypeNat,
+		AssociatedInstanceId:   TestInstanceId,
+	}
+
+	eips, _, err := client.DescribeEipAddresses(args)
+	if err != nil {
+		t.Fatalf("Error %++v", err)
+	} else {
+		for index, item := range eips {
+			t.Logf("eips[%d]=%++v", index, item)
+		}
+	}
+}

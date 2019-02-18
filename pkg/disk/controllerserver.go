@@ -79,7 +79,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Errorf(codes.Internal, "Get region_id, zone_id error: %s, %s ", diskVol.RegionId, diskVol.ZoneId)
 	}
 	// Step 2: Check whether volume is created
-	disks, err := cs.findDiskByTag(TAG_K8S_PV, req.GetName())
+	disks, err := cs.findDiskByName(req.GetName())
 	if err != nil {
 		// should be retried
 		return nil, status.Error(codes.Aborted, err.Error())
@@ -239,9 +239,9 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
-func (cs *controllerServer) findDiskByTag(key, val string) ([]ecs.DiskItemType, error) {
+func (cs *controllerServer) findDiskByName(name string) ([]ecs.DiskItemType, error) {
 	describeDisksRequest := &ecs.DescribeDisksArgs{
-		Tag:      map[string]string{key: val},
+		DiskName: name,
 		RegionId: cs.region,
 	}
 	disks, _, err := cs.ecsClient.DescribeDisks(describeDisksRequest)

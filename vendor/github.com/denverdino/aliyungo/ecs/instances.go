@@ -534,34 +534,43 @@ var (
 	IoOptimizedOptimized = IoOptimized("optimized")
 )
 
+type SecurityEnhancementStrategy string
+
+var (
+	InactiveSecurityEnhancementStrategy = SecurityEnhancementStrategy("Active")
+	DeactiveSecurityEnhancementStrategy = SecurityEnhancementStrategy("Deactive")
+)
+
 type CreateInstanceArgs struct {
-	RegionId                common.Region
-	ZoneId                  string
-	ImageId                 string
-	InstanceType            string
-	SecurityGroupId         string
-	InstanceName            string
-	Description             string
-	InternetChargeType      common.InternetChargeType
-	InternetMaxBandwidthIn  int
-	InternetMaxBandwidthOut int
-	HostName                string
-	Password                string
-	IoOptimized             IoOptimized
-	SystemDisk              SystemDiskType
-	DataDisk                []DataDiskType
-	VSwitchId               string
-	PrivateIpAddress        string
-	ClientToken             string
-	InstanceChargeType      common.InstanceChargeType
-	Period                  int
-	UserData                string
-	AutoRenew               bool
-	AutoRenewPeriod         int
-	SpotStrategy            SpotStrategyType
-	SpotPriceLimit          float64
-	KeyPairName             string
-	RamRoleName             string
+	RegionId                    common.Region
+	ZoneId                      string
+	ImageId                     string
+	InstanceType                string
+	SecurityGroupId             string
+	InstanceName                string
+	Description                 string
+	InternetChargeType          common.InternetChargeType
+	InternetMaxBandwidthIn      int
+	InternetMaxBandwidthOut     int
+	HostName                    string
+	Password                    string
+	IoOptimized                 IoOptimized
+	SystemDisk                  SystemDiskType
+	DataDisk                    []DataDiskType
+	VSwitchId                   string
+	PrivateIpAddress            string
+	ClientToken                 string
+	InstanceChargeType          common.InstanceChargeType
+	Period                      int
+	PeriodUnit                  common.TimeType
+	UserData                    string
+	AutoRenew                   bool
+	AutoRenewPeriod             int
+	SpotStrategy                SpotStrategyType
+	SpotPriceLimit              float64
+	KeyPairName                 string
+	RamRoleName                 string
+	SecurityEnhancementStrategy SecurityEnhancementStrategy
 }
 
 type CreateInstanceResponse struct {
@@ -703,4 +712,121 @@ func (client *Client) DescribeInstanceRamRole(args *AttachInstancesArgs) (resp *
 		return response, err
 	}
 	return response, nil
+}
+
+type ModifyInstanceSpecArgs struct {
+	InstanceId              string
+	InstanceType            string
+	InternetMaxBandwidthOut *int
+	InternetMaxBandwidthIn  *int
+	ClientToken             string
+}
+
+type ModifyInstanceSpecResponse struct {
+	common.Response
+}
+
+//ModifyInstanceSpec  modify instance specification
+//
+// Notice: 1. An instance that was successfully modified once cannot be modified again within 5 minutes.
+// 	   2. The API only can be used Pay-As-You-Go (PostPaid) instance
+//
+// You can read doc at https://www.alibabacloud.com/help/doc-detail/57633.htm
+func (client *Client) ModifyInstanceSpec(args *ModifyInstanceSpecArgs) error {
+	response := ModifyInstanceSpecResponse{}
+	return client.Invoke("ModifyInstanceSpec", args, &response)
+}
+
+type ModifyInstanceVpcAttributeArgs struct {
+	InstanceId       string
+	VSwitchId        string
+	PrivateIpAddress string
+}
+
+type ModifyInstanceVpcAttributeResponse struct {
+	common.Response
+}
+
+//ModifyInstanceVpcAttribute  modify instance vswitchID and private ip address
+//
+// You can read doc at https://www.alibabacloud.com/help/doc-detail/25504.htm
+func (client *Client) ModifyInstanceVpcAttribute(args *ModifyInstanceVpcAttributeArgs) error {
+	response := ModifyInstanceVpcAttributeResponse{}
+	return client.Invoke("ModifyInstanceVpcAttribute", args, &response)
+}
+
+type ModifyInstanceChargeTypeArgs struct {
+	InstanceIds      string
+	RegionId         common.Region
+	Period           int
+	PeriodUnit       common.TimeType
+	IncludeDataDisks bool
+	DryRun           bool
+	AutoPay          bool
+	ClientToken      string
+}
+
+type ModifyInstanceChargeTypeResponse struct {
+	common.Response
+	Order string
+}
+
+//ModifyInstanceChargeType  modify instance charge type
+//
+// You can read doc at https://www.alibabacloud.com/help/doc-detail/25504.htm
+func (client *Client) ModifyInstanceChargeType(args *ModifyInstanceChargeTypeArgs) (*ModifyInstanceChargeTypeResponse, error) {
+	response := &ModifyInstanceChargeTypeResponse{}
+	if err := client.Invoke("ModifyInstanceChargeType", args, response); err != nil {
+		return response, err
+	}
+	return response, nil
+}
+
+type RenewalStatus string
+
+const (
+	RenewAutoRenewal = RenewalStatus("AutoRenewal")
+	RenewNormal      = RenewalStatus("Normal")
+	RenewNotRenewal  = RenewalStatus("NotRenewal")
+)
+
+type ModifyInstanceAutoRenewAttributeArgs struct {
+	InstanceId    string
+	RegionId      common.Region
+	Duration      int
+	AutoRenew     bool
+	RenewalStatus RenewalStatus
+}
+
+// You can read doc at https://www.alibabacloud.com/help/doc-detail/52843.htm
+func (client *Client) ModifyInstanceAutoRenewAttribute(args *ModifyInstanceAutoRenewAttributeArgs) error {
+	response := &common.Response{}
+	return client.Invoke("ModifyInstanceAutoRenewAttribute", args, response)
+}
+
+type DescribeInstanceAutoRenewAttributeArgs struct {
+	InstanceId string
+	RegionId   common.Region
+}
+
+type InstanceRenewAttribute struct {
+	InstanceId       string
+	Duration         int
+	AutoRenewEnabled bool
+	PeriodUnit       string
+	RenewalStatus    RenewalStatus
+}
+
+type DescribeInstanceAutoRenewAttributeResponse struct {
+	common.Response
+	InstanceRenewAttributes struct {
+		InstanceRenewAttribute []InstanceRenewAttribute
+	}
+}
+
+// You can read doc at https://www.alibabacloud.com/help/doc-detail/52844.htm
+func (client *Client) DescribeInstanceAutoRenewAttribute(args *DescribeInstanceAutoRenewAttributeArgs) (*DescribeInstanceAutoRenewAttributeResponse, error) {
+	response := &DescribeInstanceAutoRenewAttributeResponse{}
+	err := client.Invoke("DescribeInstanceAutoRenewAttribute", args, response)
+	return response, err
 }
