@@ -49,7 +49,6 @@ const (
 	DISK_SSD                        = "cloud_ssd"
 	MB_SIZE                         = 1024 * 1024
 	DEFAULT_REGION                  = common.Hangzhou
-	TAG_K8S_PV                      = "k8s-pv"
 )
 
 var (
@@ -110,7 +109,7 @@ func GetSTSAK() (string, string, string) {
 
 	rolename := ""
 	var err error
-	if rolename, err = m.Role(); err != nil {
+	if rolename, err = m.RoleName(); err != nil {
 		return "", "", ""
 	}
 	role, err := m.RamRoleToken(rolename)

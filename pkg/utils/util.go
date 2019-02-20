@@ -3,14 +3,15 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/denverdino/aliyungo/metadata"
-	log "github.com/golang/glog"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
 	"reflect"
 	"strings"
+
+	"github.com/denverdino/aliyungo/metadata"
+	log "github.com/golang/glog"
 )
 
 // used for global ak
@@ -244,7 +245,7 @@ func GetSTSAK() (string, string, string) {
 
 	rolename := ""
 	var err error
-	if rolename, err = m.Role(); err != nil {
+	if rolename, err = m.RoleName(); err != nil {
 		log.Fatal("Get role name error: ", err.Error())
 		return "", "", ""
 	}
