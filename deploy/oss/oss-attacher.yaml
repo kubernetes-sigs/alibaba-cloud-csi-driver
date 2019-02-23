@@ -1,0 +1,69 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: csi-external-runner-oss
+  labels:
+    app: csi-external-runner-oss
+spec:
+  selector:
+    app: csi-external-runner-oss
+  ports:
+  - name: dummy
+    port: 12345
+
+---
+kind: StatefulSet
+apiVersion: apps/v1beta1
+metadata:
+  name: csi-external-runner-oss
+spec:
+  serviceName: "csi-external-runner-oss"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: csi-external-runner-oss
+    spec:
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        operator: Exists
+        key: node.cloudprovider.kubernetes.io/uninitialized
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      serviceAccount: alicloud-csi-plugin
+      containers:
+      - name: csi-attacher
+        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-attacher:v1.0.0
+        args:
+        - "--v=5"
+        - "--csi-address=$(ADDRESS)"
+        env:
+        - name: ADDRESS
+          value: /socketDir/csi.sock
+        imagePullPolicy: "Always"
+        volumeMounts:
+        - name: socket-dir
+          mountPath: /socketDir
+      - name: csi-ossplugin
+        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:v1.13-308aae1
+        args:
+        - "--nodeid=$(NODE_ID)"
+        - "--endpoint=$(CSI_ENDPOINT)"
+        env:
+        - name: NODE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: CSI_ENDPOINT
+          value: unix://socketDir/csi.sock
+        imagePullPolicy: "Always"
+        volumeMounts:
+        - name: socket-dir
+          mountPath: /socketDir
+
+      volumes:
+      - name: socket-dir
+        emptyDir:

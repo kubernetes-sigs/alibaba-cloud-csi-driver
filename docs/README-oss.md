@@ -5,6 +5,8 @@
 An OSS CSI plugin is available to help simplify storage management.
 You can create a pv with csi configuration, and the pvc, pod defines as usual.
 
+TODO: run oss on the node
+
 ## Configuration Requirements
 
 * Service Accounts with required RBAC permissions
@@ -28,12 +30,12 @@ Same as csi-diskplugin;
 
 ### Step 1: Create CSI Attacher
 ```
-# kubectl create -f ./deploy/oss/ossattacher.yaml
+# kubectl create -f ./deploy/oss/oss-attacher.yaml
 ```
 
 ### Step 2: Create CSI Plugin
 ```
-# kubectl create -f ./deploy/oss/ossplugin.yaml
+# kubectl create -f ./deploy/oss/oss-plugin.yaml
 ```
 
 > Note: The plugin log style can be configured by environment variable: LOG_TYPE.
