@@ -63,17 +63,6 @@ spec:
         - name: pods-mount-dir
           mountPath: /var/lib/kubelet/pods
           mountPropagation: "Bidirectional"
-        - mountPath: /dev
-          mountPropagation: "HostToContainer"
-          name: host-dev
-        - mountPath: /sys
-          name: host-sys
-        - mountPath: /lib/modules
-          name: lib-modules
-          readOnly: true
-        - mountPath: /run/dbus
-          name: host-run
-          readOnly: true
         - mountPath: /var/log/alicloud
           name: host-log
       volumes:
@@ -81,26 +70,14 @@ spec:
         hostPath:
           path: /var/lib/kubelet/plugins/csi-ossplugin
           type: DirectoryOrCreate
-      - name: registration-dir
-        hostPath:
-          path: /var/lib/kubelet/plugins_registry
-          type: DirectoryOrCreate
       - name: pods-mount-dir
         hostPath:
           path: /var/lib/kubelet/pods
           type: Directory
-      - name: host-dev
+      - name: registration-dir
         hostPath:
-          path: /dev
-      - name: host-run
-        hostPath:
-          path: /run/dbus
-      - name: host-sys
-        hostPath:
-          path: /sys
-      - name: lib-modules
-        hostPath:
-          path: /lib/modules
+          path: /var/lib/kubelet/plugins_registry
+          type: DirectoryOrCreate
       - name: host-log
         hostPath:
           path: /var/log/alicloud/
