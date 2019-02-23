@@ -3,3 +3,4 @@
 csi-diskplugin
 csi-nasplugin
 csi-ossplugin
+build/nsenter
