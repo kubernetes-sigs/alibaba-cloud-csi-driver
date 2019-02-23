@@ -13,7 +13,7 @@ mv csi-ossplugin ./build/
 
 if [ "$1" == "" ]; then
   cd ./build
-  version="v1.10"
+  version="v1.13"
   cp ./oss/Dockerfile ./
   cp ./oss/ossfs_1.80.3_centos7.0_x86_64.rpm ./
   docker build -t=registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:$version-$GIT_SHA ./
