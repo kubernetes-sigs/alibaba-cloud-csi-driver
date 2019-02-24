@@ -29,12 +29,12 @@ Same as csi-diskplugin;
 
 ### Step 1: Create CSI Attacher
 ```
-# kubectl create -f ./deploy/nas/nasattacher.yaml
+# kubectl create -f ./deploy/nas/nas-attacher.yaml
 ```
 
 ### Step 2: Create CSI Plugin
 ```
-# kubectl create -f ./deploy/nas/nasplugin.yaml
+# kubectl create -f ./deploy/nas/nas-plugin.yaml
 ```
 
 > Note: The plugin log style can be configured by environment variable: LOG_TYPE.
