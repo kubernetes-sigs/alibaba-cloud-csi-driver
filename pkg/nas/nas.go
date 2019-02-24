@@ -14,6 +14,7 @@ limitations under the License.
 package nas
 
 import (
+	"github.com/AliyunContainerService/csi-plugin/pkg/utils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
@@ -22,6 +23,7 @@ import (
 const (
 	PluginFolder = "/var/lib/kubelet/plugins/csi-nasplugin"
 	driverName   = "csi-nasplugin"
+	INSTANCE_ID  = "instance-id"
 )
 
 var (
@@ -43,9 +45,13 @@ func NewDriver(nodeID, endpoint string) *nas {
 
 	d := &nas{}
 	d.endpoint = endpoint
-
+	if nodeID == "" {
+		nodeID, _ = utils.GetMetaData(INSTANCE_ID)
+		log.Infof("Use node id : %s", nodeID)
+	}
 	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
 	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
+	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{csi.ControllerServiceCapability_RPC_UNKNOWN})
 
 	d.driver = csiDriver
 
