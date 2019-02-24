@@ -424,7 +424,7 @@ func (ns *nodeServer) findDiskByID(diskId string) (*ecs.Disk, error) {
 	}
 	disks := diskResponse.Disks.Disk
 	if len(disks) == 0 || len(disks) > 1 {
-		return nil, status.Errorf(codes.Internal, "NodeStageVolume: Unexpected count %d for volume id %s", len(disks), diskId)
+		return nil, status.Errorf(codes.Internal, "NodeStageVolume: Unexpected count %d for volume id %s, Get Response: %v, with Request: %v, %v", len(disks), diskId, diskResponse, describeDisksRequest.RegionId, describeDisksRequest.DiskIds)
 	}
 	return &disks[0], err
 }

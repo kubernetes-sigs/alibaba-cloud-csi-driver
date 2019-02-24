@@ -48,7 +48,7 @@ spec:
         - name: socket-dir
           mountPath: /socketDir
       - name: csi-nasplugin
-        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-nasplugin:v1.13-974eb64
+        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-nasplugin:v1.13-24758c3
         args:
         - "--nodeid=$(NODE_ID)"
         - "--endpoint=$(CSI_ENDPOINT)"

@@ -48,7 +48,7 @@ spec:
         - name: socket-dir
           mountPath: /socketDir
       - name: csi-ossplugin
-        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:v1.13-308aae1
+        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:v1.13-24758c3
         args:
         - "--nodeid=$(NODE_ID)"
         - "--endpoint=$(CSI_ENDPOINT)"

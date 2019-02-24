@@ -26,11 +26,11 @@ spec:
         lifecycle:
           preStop:
             exec:
-              command: ["/bin/sh", "-c", "rm -rf /registration/csi-nasplugin /registration/csi-nasplugin-reg.sock"]
+              command: ["/bin/sh", "-c", "rm -rf /registration/nasplugin.csi.aliyun.com /registration/nasplugin.csi.aliyun.com-reg.sock"]
         args:
         - "--v=5"
         - "--csi-address=/csi/csi.sock"
-        - "--kubelet-registration-path=/var/lib/kubelet/plugins/csi-nasplugin/csi.sock"
+        - "--kubelet-registration-path=/var/lib/kubelet/plugins/nasplugin.csi.aliyun.com/csi.sock"
         env:
         - name: KUBE_NODE_NAME
           valueFrom:
@@ -49,17 +49,17 @@ spec:
           capabilities:
             add: ["SYS_ADMIN"]
           allowPrivilegeEscalation: true
-        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-nasplugin:v1.13-974eb64
+        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-nasplugin:v1.13-24758c3
         imagePullPolicy: "Always"
         args:
         - "--endpoint=$(CSI_ENDPOINT)"
         - "--v=5"
         env:
         - name: CSI_ENDPOINT
-          value: unix://var/lib/kubelet/plugins/csi-nasplugin/csi.sock
+          value: unix://var/lib/kubelet/plugins/nasplugin.csi.aliyun.com/csi.sock
         volumeMounts:
         - name: plugin-dir
-          mountPath: /var/lib/kubelet/plugins/csi-nasplugin
+          mountPath: /var/lib/kubelet/plugins/nasplugin.csi.aliyun.com
         - name: pods-mount-dir
           mountPath: /var/lib/kubelet/pods
           mountPropagation: "Bidirectional"
@@ -68,7 +68,7 @@ spec:
       volumes:
       - name: plugin-dir
         hostPath:
-          path: /var/lib/kubelet/plugins/csi-nasplugin
+          path: /var/lib/kubelet/plugins/nasplugin.csi.aliyun.com
           type: DirectoryOrCreate
       - name: pods-mount-dir
         hostPath:

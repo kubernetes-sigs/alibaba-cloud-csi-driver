@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	PluginFolder = "/var/lib/kubelet/plugins/csi-nasplugin"
-	driverName   = "csi-nasplugin"
+	PluginFolder = "/var/lib/kubelet/plugins/nasplugin.csi.aliyun.com"
+	driverName   = "nasplugin.csi.aliyun.com"
 	INSTANCE_ID  = "instance-id"
 )
 

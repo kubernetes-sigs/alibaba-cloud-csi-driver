@@ -4,7 +4,7 @@ LABEL description="Alibaba Cloud CSI Plugin"
 
 RUN yum -y install nfs-utils && yum -y install epel-release && yum -y install jq && yum clean all
 
-COPY csi-nasplugin /bin/csi-nasplugin
-RUN chmod +x /bin/csi-nasplugin
+COPY nasplugin.csi.aliyun.com /bin/nasplugin.csi.aliyun.com
+RUN chmod +x /bin/nasplugin.csi.aliyun.com
 
-ENTRYPOINT ["/bin/csi-nasplugin"]
+ENTRYPOINT ["/bin/nasplugin.csi.aliyun.com"]
