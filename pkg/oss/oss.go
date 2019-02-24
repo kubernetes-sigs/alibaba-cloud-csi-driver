@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	PluginFolder = "/var/lib/kubelet/plugins/csi-ossplugin"
-	driverName   = "csi-ossplugin"
+	PluginFolder = "/var/lib/kubelet/plugins/ossplugin.csi.aliyun.com"
+	driverName   = "ossplugin.csi.aliyun.com"
 )
 
 var (

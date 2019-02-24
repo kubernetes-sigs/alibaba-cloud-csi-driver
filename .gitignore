@@ -1,6 +1,6 @@
 # binaries
 .idea
-csi-diskplugin
-csi-nasplugin
-csi-ossplugin
+diskplugin.csi.aliyun.com
+nasplugin.csi.aliyun.com
+ossplugin.csi.aliyun.com
 build/nsenter

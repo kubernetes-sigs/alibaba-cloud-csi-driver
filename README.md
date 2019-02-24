@@ -52,12 +52,12 @@ Create CRDs for csidriver、csinodeinfo:
 
 CSI v1.0.0 should be supported by below externals:
 
-```
-quay.io/k8scsi/csi-attacher:v1.0.0
-quay.io/k8scsi/csi-snapshotter:v1.0.0
-quay.io/k8scsi/csi-provisioner:v1.0.0
-quay.io/k8scsi/csi-node-driver-registrar:v1.0.1
-```
+| External Plugin Oversea Repo  | External Plugin Aliyun Repo |
+|-------- |---------------------|
+| quay.io/k8scsi/csi-attacher:v1.0.0 | registry.cn-hangzhou.aliyuncs.com/plugins/csi-attacher:v1.0.0 |
+| quay.io/k8scsi/csi-snapshotter:v1.0.0 | registry.cn-hangzhou.aliyuncs.com/plugins/csi-snapshotter:v1.0.0 |
+| quay.io/k8scsi/csi-provisioner:v1.0.0 | registry.cn-hangzhou.aliyuncs.com/plugins/csi-provisioner:v1.0.0 |
+| quay.io/k8scsi/csi-node-driver-registrar:v1.0.1 | registry.cn-hangzhou.aliyuncs.com/plugins/csi-node-driver-registrar:v1.0.1 |
 
 ## Disk CSI-Plugin
 

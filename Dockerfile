@@ -5,8 +5,8 @@ LABEL description="Alibaba Cloud CSI DiskPlugin"
 RUN yum install -y e4fsprogs
 
 COPY nsenter /
-COPY csi-diskplugin /bin/csi-diskplugin
-RUN chmod +x /bin/csi-diskplugin
+COPY diskplugin.csi.aliyun.com /bin/diskplugin.csi.aliyun.com
+RUN chmod +x /bin/diskplugin.csi.aliyun.com
 RUN chmod 755 /nsenter
 
-ENTRYPOINT ["/bin/csi-diskplugin"]
+ENTRYPOINT ["/bin/diskplugin.csi.aliyun.com"]
