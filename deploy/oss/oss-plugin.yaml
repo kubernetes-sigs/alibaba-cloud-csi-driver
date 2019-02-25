@@ -54,9 +54,14 @@ spec:
         args:
         - "--endpoint=$(CSI_ENDPOINT)"
         - "--v=5"
+        - "--nodeid=%(KUBE_NODE_NAME)"
         env:
         - name: CSI_ENDPOINT
           value: unix://var/lib/kubelet/plugins/csi-ossplugin/csi.sock
+         - name: KUBE_NODE_NAME
+           valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
         volumeMounts:
         - name: plugin-dir
           mountPath: /var/lib/kubelet/plugins/csi-ossplugin
