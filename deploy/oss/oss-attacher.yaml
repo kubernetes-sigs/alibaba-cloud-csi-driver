@@ -47,23 +47,8 @@ spec:
         volumeMounts:
         - name: socket-dir
           mountPath: /socketDir
-      - name: csi-ossplugin
-        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:v1.13-24758c3
-        args:
-        - "--nodeid=$(NODE_ID)"
-        - "--endpoint=$(CSI_ENDPOINT)"
-        env:
-        - name: NODE_ID
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: CSI_ENDPOINT
-          value: unix://socketDir/csi.sock
-        imagePullPolicy: "Always"
-        volumeMounts:
-        - name: socket-dir
-          mountPath: /socketDir
-
       volumes:
       - name: socket-dir
-        emptyDir:
+        hostPath:
+          path: /var/lib/kubelet/plugins/ossplugin.csi.aliyun.com
+          type: DirectoryOrCreate
