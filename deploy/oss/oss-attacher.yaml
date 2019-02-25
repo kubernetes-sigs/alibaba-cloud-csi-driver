@@ -50,5 +50,5 @@ spec:
       volumes:
       - name: socket-dir
         hostPath:
-          path: /var/lib/kubelet/plugins/csi-ossplugin/
+          path: /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com
           type: DirectoryOrCreate

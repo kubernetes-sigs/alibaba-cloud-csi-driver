@@ -1,12 +1,12 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: csi-external-runner
+  name: csi-external-runner-disk
   labels:
-    app: csi-external-runner
+    app: csi-external-runner-disk
 spec:
   selector:
-    app: csi-external-runner
+    app: csi-external-runner-disk
   ports:
     - name: dummy
       port: 12345
@@ -15,14 +15,14 @@ spec:
 kind: StatefulSet
 apiVersion: apps/v1beta1
 metadata:
-  name: csi-external-runner
+  name: csi-external-runner-disk
 spec:
   serviceName: "csi-external-runner"
   replicas: 1
   template:
     metadata:
       labels:
-        app: csi-external-runner
+        app: csi-external-runner-disk
     spec:
       tolerations:
       - effect: NoSchedule
@@ -38,16 +38,16 @@ spec:
         - name: csi-provisioner
           image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-provisioner:v1.0.0
           args:
-            - "--provisioner=csi-diskplugin"
+            - "--provisioner=diskplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
           env:
             - name: ADDRESS
-              value: /var/lib/kubelet/plugins/csi-diskplugin/csi.sock
+              value: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
-              mountPath: /var/lib/kubelet/plugins/csi-diskplugin
+              mountPath: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com
 
         - name: csi-attacher
           image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-attacher:v1.0.0
@@ -56,13 +56,13 @@ spec:
             - "--csi-address=$(ADDRESS)"
           env:
             - name: ADDRESS
-              value: /var/lib/kubelet/plugins/csi-diskplugin/csi.sock
+              value: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
-              mountPath: /var/lib/kubelet/plugins/csi-diskplugin
+              mountPath: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com
       volumes:
         - name: socket-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/csi-diskplugin
+            path: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com
             type: DirectoryOrCreate

@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx-deployment
+  name: deployment-oss
   labels:
     app: nginx
 spec:
@@ -48,7 +48,7 @@ spec:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   csi:
-    driver: csi-ossplugin
+    driver: ossplugin.csi.alibabacloud.com
     volumeHandle: data-id
     volumeAttributes:
       bucket: "python"
