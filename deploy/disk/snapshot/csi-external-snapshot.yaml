@@ -28,13 +28,13 @@ spec:
             - "--connection-timeout=15s"
           env:
             - name: ADDRESS
-              value: /var/lib/kubelet/plugins/csi-diskplugin/csi.sock
+              value: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
-              mountPath: /var/lib/kubelet/plugins/csi-diskplugin
+              mountPath: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com
       volumes:
         - name: socket-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/csi-diskplugin
+            path: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com
             type: DirectoryOrCreate

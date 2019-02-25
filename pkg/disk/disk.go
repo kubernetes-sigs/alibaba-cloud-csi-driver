@@ -27,8 +27,8 @@ import (
 
 // PluginFolder defines the location of diskplugin
 const (
-	PluginFolder = "/var/lib/kubelet/plugins/csi-diskplugin"
-	driverName   = "csi-diskplugin"
+	PluginFolder = "/var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com"
+	driverName   = "diskplugin.csi.alibabacloud.com"
 	csiVersion   = "1.0.0"
 )
 

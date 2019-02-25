@@ -5,7 +5,7 @@ LABEL description="Alibaba Cloud CSI Plugin"
 RUN apt update && apt install -y ca-certificates  file
 
 COPY ./zoneinfo.zip /usr/local/go/lib/time/zoneinfo.zip
-COPY csi-diskplugin /bin/csi-diskplugin
-RUN chmod +x /bin/csi-diskplugin
+COPY diskplugin.csi.alibabacloud.com /bin/diskplugin.csi.alibabacloud.com
+RUN chmod +x /bin/diskplugin.csi.alibabacloud.com
 
-ENTRYPOINT ["/bin/csi-diskplugin"]
+ENTRYPOINT ["/bin/diskplugin.csi.alibabacloud.com"]

@@ -11,14 +11,14 @@ CSI plugin supports disk snapshot now, you can refer to [disk-snapshot](./README
 ## Configuration Requirements
 
 * Secret object with the authentication key for Disk
-* StorageClass with diskplugin (default csi-diskplugin name) as a provisioner name and information about disk(zoneId, regionId, type)
+* StorageClass with diskplugin (default diskplugin.csi.alibabacloud.com name) as a provisioner name and information about disk(zoneId, regionId, type)
 * Service Accounts with required RBAC permissions
 
 ## Feature Status
 Alpha
 
 ## Compiling and Package
-csi-diskplugin can be compiled in a form of a container.
+diskplugin.csi.alibabacloud.com can be compiled in a form of a container.
 
 To build a container:
 ```
@@ -46,7 +46,7 @@ If the cluster not in STS mode, you need to config AK info to plugin; Set ACCESS
 
 > Note: The plugin log style can be configured by environment variable: LOG_TYPE.
 
-> "host": logs will be printed into files which save to host(/var/log/alicloud/csi-diskplugin.log);
+> "host": logs will be printed into files which save to host(/var/log/alicloud/diskplugin.csi.alibabacloud.com.log);
 
 > "stdout": default option, logs will be printed to stdout, can be printed by docker logs or kubectl logs.
 
@@ -74,7 +74,7 @@ NAME                    READY   STATUS    RESTARTS   AGE
 csi-diskplugin-2pm2k    2/2     Running   0          8m
 csi-diskplugin-4bvgz    2/2     Running   0          8m
 csi-diskplugin-w2n7s    2/2     Running   0          8m
-csi-external-runner-0   3/3     Running   0          8m
+csi-external-runner-disk-0   3/3     Running   0          8m
 ```
 
 ### Step 7: Create PVC & Deployments
@@ -99,8 +99,8 @@ pvc-64b3d1bd-96c0-11e8-89b1-00163e0c412f   25Gi       RWO            Delete     
 # kubectl describe pv pvc-64b3d1bd-96c0-11e8-89b1-00163e0c412f
 Name:            pvc-64b3d1bd-96c0-11e8-89b1-00163e0c412f
 Labels:          <none>
-Annotations:     pv.kubernetes.io/provisioned-by=csi-diskplugin
-Finalizers:      [kubernetes.io/pv-protection external-attacher/csi-diskplugin]
+Annotations:     pv.kubernetes.io/provisioned-by=diskplugin.csi.alibabacloud.com
+Finalizers:      [kubernetes.io/pv-protection external-attacher/diskplugin.csi.alibabacloud.com]
 StorageClass:    csi-disk
 Status:          Terminating (lasts 2m)
 Claim:           default/disk-pvc
@@ -111,7 +111,7 @@ Node Affinity:   <none>
 Message:
 Source:
     Type:          CSI (a Container Storage Interface (CSI) volume source)
-    Driver:        csi-diskplugin
+    Driver:        diskplugin.csi.alibabacloud.com
     VolumeHandle:  d-2ze47lce65lv5g7zsb4y
     ReadOnly:      false
 Events:            <none>
