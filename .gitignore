@@ -1,6 +1,6 @@
 # binaries
 .idea
-diskplugin.csi.aliyun.com
-nasplugin.csi.aliyun.com
-ossplugin.csi.aliyun.com
+diskplugin.csi.alibabacloud.com
+nasplugin.csi.alibabacloud.com
+ossplugin.csi.alibabacloud.com
 build/nsenter

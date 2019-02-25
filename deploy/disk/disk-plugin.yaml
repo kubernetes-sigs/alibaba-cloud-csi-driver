@@ -25,11 +25,11 @@ spec:
           lifecycle:
             preStop:
               exec:
-                command: ["/bin/sh", "-c", "rm -rf /registration/diskplugin.csi.aliyun.com /registration/diskplugin.csi.aliyun.com-reg.sock"]
+                command: ["/bin/sh", "-c", "rm -rf /registration/diskplugin.csi.alibabacloud.com /registration/diskplugin.csi.alibabacloud.com-reg.sock"]
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/diskplugin.csi.aliyun.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock"
           env:
             - name: KUBE_NODE_NAME
               valueFrom:
@@ -55,14 +55,14 @@ spec:
             - "--v=5"
           env:
             - name: CSI_ENDPOINT
-              value: unix://var/lib/kubelet/plugins/diskplugin.csi.aliyun.com/csi.sock
+              value: unix://var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
             - name: ACCESS_KEY_ID
               value: ""
             - name: ACCESS_KEY_SECRET
               value: ""
           volumeMounts:
             - name: plugin-dir
-              mountPath: /var/lib/kubelet/plugins/diskplugin.csi.aliyun.com
+              mountPath: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com
             - name: pods-mount-dir
               mountPath: /var/lib/kubelet/pods
               mountPropagation: "Bidirectional"
@@ -82,7 +82,7 @@ spec:
       volumes:
         - name: plugin-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/diskplugin.csi.aliyun.com
+            path: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com
             type: DirectoryOrCreate
         - name: registration-dir
           hostPath:

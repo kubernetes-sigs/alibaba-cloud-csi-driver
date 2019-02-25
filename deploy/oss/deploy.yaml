@@ -48,7 +48,7 @@ spec:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   csi:
-    driver: ossplugin.csi.aliyun.com
+    driver: ossplugin.csi.alibabacloud.com
     volumeHandle: data-id
     volumeAttributes:
       bucket: "python"

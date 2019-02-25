@@ -49,7 +49,7 @@ spec:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   csi:
-    driver: nasplugin.csi.aliyun.com
+    driver: nasplugin.csi.alibabacloud.com
     volumeHandle: data-id
     volumeAttributes:
       host: "***.cn-beijing.nas.aliyuncs.com"
