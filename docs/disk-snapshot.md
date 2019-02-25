@@ -20,7 +20,7 @@ volumesnapshots.snapshot.storage.k8s.io:        the claim of one snapshot, like:
 ## Requirements
 
 * CSI Snapshot external runner (registry.cn-hangzhou.aliyuncs.com/plugins/csi-snapshotter:v1.0.0).
-* Disk Snapshot plugin depends on csi-plugin (registry.cn-hangzhou.aliyuncs.com/plugins/diskplugin.csi.aliyun.com:v1.0.0).
+* Disk Snapshot plugin depends on csi-plugin (registry.cn-hangzhou.aliyuncs.com/plugins/csi-diskplugin).
 * Secret object with the authentication key for Disk
 * Service Accounts with required RBAC permissions
 

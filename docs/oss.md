@@ -15,7 +15,7 @@ TODO: run oss on the node
 Alpha
 
 ## Compiling and Package
-ossplugin.csi.aliyun.com can be compiled in a form of a container.
+ossplugin.csi.alibabacloud.com can be compiled in a form of a container.
 
 To build a container:
 ```
@@ -25,7 +25,7 @@ $ cd build && sh build-oss.sh
 ## Usage
 
 ### Prerequisite
-Same as diskplugin.csi.aliyun.com;
+Same as diskplugin.csi.alibabacloud.com;
 
 
 ### Step 1: Create CSI Attacher
@@ -40,7 +40,7 @@ Same as diskplugin.csi.aliyun.com;
 
 > Note: The plugin log style can be configured by environment variable: LOG_TYPE.
 
-> "host": logs will be printed into files which save to host(/var/log/alicloud/ossplugin.csi.aliyun.com.log);
+> "host": logs will be printed into files which save to host(/var/log/alicloud/ossplugin.csi.alibabacloud.com.log);
 
 > "stdout": default option, logs will be printed to stdout, can be printed by docker logs or kubectl logs.
 
@@ -78,7 +78,7 @@ Node Affinity:   <none>
 Message:
 Source:
     Type:          CSI (a Container Storage Interface (CSI) volume source)
-    Driver:        ossplugin.csi.aliyun.com
+    Driver:        ossplugin.csi.alibabacloud.com
     VolumeHandle:  data-id
     ReadOnly:      false
 Events:            <none>

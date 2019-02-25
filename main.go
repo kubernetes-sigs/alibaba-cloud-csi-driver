@@ -37,9 +37,9 @@ func init() {
 const (
 	LOGFILE_PREFIX   = "/var/log/alicloud/"
 	MB_SIZE          = 1024 * 1024
-	TYPE_PLUGIN_DISK = "diskplugin.csi.aliyun.com"
-	TYPE_PLUGIN_NAS  = "nasplugin.csi.aliyun.com"
-	TYPE_PLUGIN_OSS  = "ossplugin.csi.aliyun.com"
+	TYPE_PLUGIN_DISK = "diskplugin.csi.alibabacloud.com"
+	TYPE_PLUGIN_NAS  = "nasplugin.csi.alibabacloud.com"
+	TYPE_PLUGIN_OSS  = "ossplugin.csi.alibabacloud.com"
 )
 
 var (

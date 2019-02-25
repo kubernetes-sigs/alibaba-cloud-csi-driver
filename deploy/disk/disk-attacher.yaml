@@ -38,16 +38,16 @@ spec:
         - name: csi-provisioner
           image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-provisioner:v1.0.0
           args:
-            - "--provisioner=diskplugin.csi.aliyun.com"
+            - "--provisioner=diskplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
           env:
             - name: ADDRESS
-              value: /var/lib/kubelet/plugins/diskplugin.csi.aliyun.com/csi.sock
+              value: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
-              mountPath: /var/lib/kubelet/plugins/diskplugin.csi.aliyun.com
+              mountPath: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com
 
         - name: csi-attacher
           image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-attacher:v1.0.0
@@ -56,13 +56,13 @@ spec:
             - "--csi-address=$(ADDRESS)"
           env:
             - name: ADDRESS
-              value: /var/lib/kubelet/plugins/diskplugin.csi.aliyun.com/csi.sock
+              value: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
           imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
-              mountPath: /var/lib/kubelet/plugins/diskplugin.csi.aliyun.com
+              mountPath: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com
       volumes:
         - name: socket-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/diskplugin.csi.aliyun.com
+            path: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com
             type: DirectoryOrCreate

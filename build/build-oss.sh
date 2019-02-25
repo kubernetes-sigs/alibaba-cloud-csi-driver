@@ -8,8 +8,8 @@ GIT_SHA=`git rev-parse --short HEAD || echo "HEAD"`
 export GOARCH="amd64"
 export GOOS="linux"
 
-CGO_ENABLED=0 go build -o ossplugin.csi.aliyun.com
-mv ossplugin.csi.aliyun.com ./build/
+CGO_ENABLED=0 go build -o ossplugin.csi.alibabacloud.com
+mv ossplugin.csi.alibabacloud.com ./build/
 
 if [ "$1" == "" ]; then
   cd ./build

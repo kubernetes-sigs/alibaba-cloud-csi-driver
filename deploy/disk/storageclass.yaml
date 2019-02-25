@@ -2,7 +2,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
    name: csi-disk
-provisioner: diskplugin.csi.aliyun.com
+provisioner: diskplugin.csi.alibabacloud.com
 parameters:
     zoneId: cn-beijing-b
     regionId: cn-beijing
