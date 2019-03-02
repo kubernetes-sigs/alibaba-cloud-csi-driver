@@ -4,6 +4,8 @@
 [![CircleCI](https://circleci.com/gh/AliyunContainerService/csi-plugin.svg?style=svg)](https://circleci.com/gh/AliyunContainerService/csi-plugin)
 [![Go Report Card](https://goreportcard.com/badge/github.com/AliyunContainerService/csi-plugin)](https://goreportcard.com/report/github.com/AliyunContainerService/csi-plugin)
 
+English | [简体中文](./README-zh_CN.md)
+
 ## Overview
 
 Alibaba cloud CSI plugins implement an interface between CSI enabled Container
