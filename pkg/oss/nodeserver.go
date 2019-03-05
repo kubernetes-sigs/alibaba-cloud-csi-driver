@@ -44,7 +44,8 @@ type OssOptions struct {
 }
 
 const (
-	CredentialFile = "/etc/passwd-ossfs"
+	CredentialFile = "/host/etc/passwd-ossfs"
+	NSENTER_CMD    = "/nsenter --mount=/proc/1/ns/mnt"
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -65,7 +66,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	if err := checkOssOptions(opt);  err != nil {
+	if err := checkOssOptions(opt); err != nil {
 		log.Error("Check oss input error: ", err.Error())
 		return nil, errors.New("Check oss input error: " + err.Error())
 	}
@@ -97,7 +98,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// default use allow_other
-	mntCmd := fmt.Sprintf("ossfs %s %s -ourl=%s -o allow_other %s", opt.Bucket, mountPath, opt.Url, opt.OtherOpts)
+	mntCmd := fmt.Sprintf("%s -- systemd-run --scope -- ossfs %s %s -ourl=%s -o allow_other %s", NSENTER_CMD, opt.Bucket, mountPath, opt.Url, opt.OtherOpts)
 	if out, err := utils.Run(mntCmd); err != nil {
 		out, err = utils.Run(mntCmd + " -f")
 		if err != nil {
@@ -184,7 +185,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
-	umntCmd := fmt.Sprintf("umount -f %s", mountPoint)
+	umntCmd := fmt.Sprintf("%s umount -f %s", NSENTER_CMD, mountPoint)
 	if _, err := utils.Run(umntCmd); err != nil {
 		log.Errorf("Umount oss fail, with: ", err.Error())
 		return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
@@ -206,4 +207,13 @@ func (ns *nodeServer) NodeUnstageVolume(
 	req *csi.NodeUnstageVolumeRequest) (
 	*csi.NodeUnstageVolumeResponse, error) {
 	return &csi.NodeUnstageVolumeResponse{}, nil
+}
+
+func IsHostMounted(mountPath string) bool {
+	cmd := fmt.Sprintf("%s mount | grep \"%s type\" | grep -v grep", NSENTER_CMD, mountPath)
+	out, err := utils.Run(cmd)
+	if err != nil || out == "" {
+		return false
+	}
+	return true
 }
