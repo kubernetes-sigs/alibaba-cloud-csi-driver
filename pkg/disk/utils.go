@@ -27,7 +27,7 @@ import (
 	"strings"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/metadata"
 	"k8s.io/kubernetes/pkg/util/keymutex"
 )
 
@@ -54,7 +54,6 @@ const (
 var (
 	// VERSION should be updated by hand at each release
 	VERSION = "v1.13.2"
-
 	// GITCOMMIT will be overwritten automatically by the build system
 	GITCOMMIT                    = "HEAD"
 	KUBERNETES_ALICLOUD_IDENTITY = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", ProvisionVersion())
@@ -129,23 +128,21 @@ func GetMetaData(resource string) string {
 
 // get STS AK
 func GetSTSAK() (string, string, string) {
-	createAssumeRoleReq := sts.CreateAssumeRoleRequest()
-	client, err := sts.NewClient()
+	m := metadata.NewMetaData(nil)
+	rolename := ""
+	var err error
+	if rolename, err = m.Role(); err != nil {
+		return "", "", ""
+	}
+	role, err := m.RamRoleToken(rolename)
 	if err != nil {
 		return "", "", ""
 	}
-	response, err := client.AssumeRole(createAssumeRoleReq)
-	if err != nil {
-		return "", "", ""
-	}
-
-	role := response.Credentials
 	return role.AccessKeyId, role.AccessKeySecret, role.SecurityToken
 }
 
 func GetLocalAK() (string, string) {
 	var accessKeyID, accessSecret string
-
 	// first check if the environment setting
 	accessKeyID = os.Getenv("ACCESS_KEY_ID")
 	accessSecret = os.Getenv("ACCESS_KEY_SECRET")
