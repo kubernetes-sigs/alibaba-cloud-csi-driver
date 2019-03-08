@@ -1,12 +1,17 @@
 
-## Disk CSI Plugin
+## Disk CSI-Plugin
 
 An Disk CSI plugin is available to help simplify storage management.
 Once user creates PVC with the reference to a Disk storage class, disk and
 corresponding PV object gets dynamically created and becomes ready to be used by
 workloads.
 
-CSI plugin supports disk snapshot now, you can refer to [disk-snapshot](./disk-snapshot.md)
+## Features Support
+
+**Disk Snapshot:** [disk-snapshot](./disk-snapshot.md)
+
+**Block Volumes:** [disk-snapshot](./disk-snapshot.md)
+
 
 ## Configuration Requirements
 
@@ -14,8 +19,6 @@ CSI plugin supports disk snapshot now, you can refer to [disk-snapshot](./disk-s
 * StorageClass with diskplugin (default diskplugin.csi.alibabacloud.com name) as a provisioner name and information about disk(zoneId, regionId, type)
 * Service Accounts with required RBAC permissions
 
-## Feature Status
-Alpha
 
 ## Compiling and Package
 diskplugin.csi.alibabacloud.com can be compiled in a form of a container.
@@ -30,9 +33,9 @@ $ cd build && sh build-disk.sh
 [![](demo.png)](http://cloud.video.taobao.com/play/u/1962692024/p/1/e/6/t/1/50224108448.mp4)
 
 
-## Usage
+## How to Use
 
-### Prerequisite
+### Requirements
 
 You can create a Kubernetes Cluster on [Alibaba cloud Container Service](https://help.aliyun.com/product/25972.html?spm=a2c4g.750001.2.3.A7g9FZ)
 
