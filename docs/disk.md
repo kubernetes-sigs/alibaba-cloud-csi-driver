@@ -10,8 +10,9 @@ workloads.
 
 **Disk Snapshot:** [disk-snapshot](./disk-snapshot.md)
 
-**Block Volumes:** [disk-snapshot](./disk-snapshot.md)
+**Block Volumes:** [disk-block](./disk-block.md)
 
+**Shared Disk:** [disk-shared](./disk-shared.md)
 
 ## Configuration Requirements
 

@@ -30,7 +30,7 @@ CSI using with Kubrentes:
 
 ## Requirements
 
-### Kubernetes Configurations
+### 1. Kubernetes Configurations
 Enable Feature gates:
 
 	--feature-gates=VolumeSnapshotDataSource=true,CSINodeInfo=true,CSIDriverRegistry=true
@@ -46,11 +46,11 @@ Create CRDs for csidriver、csinodeinfo:
 	# kubectl create -f https://raw.githubusercontent.com/kubernetes/csi-api/ab0df28581235f5350f27ce9c27485850a3b2802/pkg/crd/testdata/csinodeinfo.yaml --validate=false 
 
 
-### RBAC
+### 2. RBAC
 
 	# kubectl create -f ./deploy/rbac.yaml
 
-### Plugin Dependencies
+### 3. Plugin Dependencies
 
 CSI v1.0.0 should be supported by below externals:
 
