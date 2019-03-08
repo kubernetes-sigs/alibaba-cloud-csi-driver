@@ -6,7 +6,7 @@ Once user creates PVC with the reference to a Disk storage class, disk and
 corresponding PV object gets dynamically created and becomes ready to be used by
 workloads.
 
-CSI plugin supports disk snapshot now, you can refer to [disk-snapshot](./README-disksnapshot.md)
+CSI plugin supports disk snapshot now, you can refer to [disk-snapshot](./disk-snapshot.md)
 
 ## Configuration Requirements
 
