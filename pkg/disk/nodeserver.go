@@ -45,9 +45,9 @@ type nodeServer struct {
 }
 
 const (
-	DiskStatusInUse     = "In_use"
-	DiskStatusAttaching = "Attaching"
-	DiskStatusAvailable = "Available"
+	DISK_STATUS_INUSE     = "In_use"
+	DISK_STATUS_ATTACHING = "Attaching"
+	DISK_STATUS_AVAILABLE = "Available"
 )
 
 // NewNodeServer creates node server
@@ -99,9 +99,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	source := req.StagingTargetPath
 	targetPath := req.GetTargetPath()
 	log.Infof("NodePublishVolume: Starting mount, source %s > target %s", source, targetPath)
-	if !strings.HasSuffix(targetPath, "/mount") {
-		return nil, status.Errorf(codes.InvalidArgument, "malformed the value of target path: %s", targetPath)
-	}
 	if req.VolumeId == "" {
 		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: Volume ID must be provided")
 	}
@@ -111,32 +108,46 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if req.VolumeCapability == nil {
 		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: Volume Capability must be provided")
 	}
+	// check if block volume
+	isBlock := req.GetVolumeCapability().GetBlock() != nil
+	if isBlock {
+		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		options := []string{"bind"}
+		if err := ns.mounter.MountBlock(source, targetPath, options...); err != nil {
+			return nil, err
+		}
 
-	// check target path
-	if err := ns.mounter.EnsureFolder(targetPath); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	mounted, err := ns.mounter.IsMounted(targetPath)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	if mounted {
-		log.Infof("NodePublishVolume: %s is already mounted", targetPath)
-	}
+	} else {
+		if !strings.HasSuffix(targetPath, "/mount") {
+			return nil, status.Errorf(codes.InvalidArgument, "malformed the value of target path: %s", targetPath)
+		}
+		if err := ns.mounter.EnsureFolder(targetPath); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		mounted, err := ns.mounter.IsMounted(targetPath)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		if mounted {
+			log.Infof("NodePublishVolume: %s is already mounted", targetPath)
+		}
 
-	// start to mount
-	mnt := req.VolumeCapability.GetMount()
-	options := append(mnt.MountFlags, "bind")
-	if req.Readonly {
-		options = append(options, "ro")
-	}
-	fsType := "ext4"
-	if mnt.FsType != "" {
-		fsType = mnt.FsType
-	}
-	log.Infof("NodePublishVolume: Starting mount source %s target %s with flags %v and fsType %s", source, targetPath, options, fsType)
-	if err = ns.mounter.Mount(source, targetPath, fsType, options...); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		// start to mount
+		mnt := req.VolumeCapability.GetMount()
+		options := append(mnt.MountFlags, "bind")
+		if req.Readonly {
+			options = append(options, "ro")
+		}
+		fsType := "ext4"
+		if mnt.FsType != "" {
+			fsType = mnt.FsType
+		}
+		log.Infof("NodePublishVolume: Starting mount source %s target %s with flags %v and fsType %s", source, targetPath, options, fsType)
+		if err = ns.mounter.Mount(source, targetPath, fsType, options...); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 
 	log.Infof("NodePublishVolume: Mount Successful: target %v", targetPath)
@@ -163,7 +174,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
 		log.Errorf("NodePublishVolume: %s is unmounted, but not empty dir", targetPath)
-		return nil, status.Error(codes.Internal, "NodePublishVolume: " + targetPath + " is unmounted, but not empty dir")
+		return nil, status.Error(codes.Internal, "NodePublishVolume: "+targetPath+" is unmounted, but not empty dir")
 	}
 
 	// Step 3: umount target path
@@ -191,8 +202,16 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	if req.VolumeCapability == nil {
 		return nil, status.Error(codes.InvalidArgument, "NodeStageVolume Volume Capability must be provided")
 	}
-	if err := ns.mounter.EnsureFolder(targetPath); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+
+	isBlock := req.GetVolumeCapability().GetBlock() != nil
+	if isBlock {
+		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	} else {
+		if err := ns.mounter.EnsureFolder(targetPath); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 
 	//Step 2: check target path mounted
@@ -236,6 +255,15 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return nil, err
 	}
 
+	// Block volume not need to format
+	if isBlock {
+		options := []string{"bind"}
+		if err := ns.mounter.MountBlock(device, targetPath, options...); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		log.Infof("NodeStageVolume: Successful Mount Device %s to %s with options: %v", device, targetPath, options)
+		return &csi.NodeStageVolumeResponse{}, nil
+	}
 	// Step 5 Start to format
 	mnt := req.VolumeCapability.GetMount()
 	options := append(mnt.MountFlags, "shared")
@@ -257,7 +285,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	if err := ns.mounter.Mount(device, targetPath, fsType, options...); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-
 	log.Infof("NodeStageVolume: Format and Mount Successful: volumeId: %s target %v, device: %s", req.VolumeId, targetPath, device)
 	return &csi.NodeStageVolumeResponse{}, nil
 }
@@ -341,7 +368,7 @@ func (ns *nodeServer) attachDisk(volumeID string) (string, error) {
 		return "", status.Errorf(codes.Internal, "NodeStageVolume: Unexpected count %s for volume id %s", volumeID, err)
 	}
 	// detach disk first if attached
-	if disk.Status == DiskStatusInUse || disk.Status == DiskStatusAttaching {
+	if disk.Status == DISK_STATUS_INUSE || disk.Status == DISK_STATUS_ATTACHING {
 		log.Infof("NodeStageVolume: disk %s is already attached to instance %s, will be detached", volumeID, disk.InstanceId)
 		detachRequest := ecs.CreateDetachDiskRequest()
 		detachRequest.InstanceId = disk.InstanceId
@@ -353,9 +380,9 @@ func (ns *nodeServer) attachDisk(volumeID string) (string, error) {
 	}
 
 	// Step 2: wait for Detach
-	if disk.Status != DiskStatusAvailable {
+	if disk.Status != DISK_STATUS_AVAILABLE {
 		log.Infof("NodeStageVolume: wait for disk %s is detached", volumeID)
-		if err := ns.waitForDiskInStatus(10, time.Second*3, volumeID, DiskStatusAvailable); err != nil {
+		if err := ns.waitForDiskInStatus(10, time.Second*3, volumeID, DISK_STATUS_AVAILABLE); err != nil {
 			return "", err
 		}
 	}
@@ -371,7 +398,7 @@ func (ns *nodeServer) attachDisk(volumeID string) (string, error) {
 
 	// Step 4: wait for disk attached
 	log.Infof("NodeStageVolume: wait for disk %s is attached", volumeID)
-	if err := ns.waitForDiskInStatus(10, time.Second*3, volumeID, DiskStatusInUse); err != nil {
+	if err := ns.waitForDiskInStatus(10, time.Second*3, volumeID, DISK_STATUS_INUSE); err != nil {
 		return "", err
 	}
 
