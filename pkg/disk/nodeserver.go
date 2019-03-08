@@ -26,6 +26,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"golang.org/x/net/context"
@@ -48,6 +49,9 @@ const (
 	DISK_STATUS_INUSE     = "In_use"
 	DISK_STATUS_ATTACHING = "Attaching"
 	DISK_STATUS_AVAILABLE = "Available"
+	DISK_STATUS_ATTACHED = "attached"
+	DISK_STATUS_DETACHED = "detached"
+	SHARED_ENABLE = "shared"
 )
 
 // NewNodeServer creates node server
@@ -250,7 +254,14 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 
 	// Step 4 Attach volume
-	device, err := ns.attachDisk(req.GetVolumeId())
+	isSharedDisk := false
+	if value, ok := req.VolumeContext[SHARED_ENABLE]; ok {
+		value = strings.ToLower(value)
+		if value == "enable" || value == "true" || value == "yes" {
+			isSharedDisk = true
+		}
+	}
+	device, err := ns.attachDisk(req.GetVolumeId(), isSharedDisk)
 	if err != nil {
 		return nil, err
 	}
@@ -328,11 +339,10 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		log.Errorf("NodeUnstageVolume: describe volume %s error: %s", req.GetVolumeId(), err.Error())
 		return nil, status.Error(codes.Aborted, err.Error())
 	}
-	instanceIDToBeDetached := ns.nodeId
 
 	// step 5: detach disk
 	if disk.InstanceId != "" {
-		if disk.InstanceId == instanceIDToBeDetached {
+		if disk.InstanceId == ns.nodeId {
 			detachDiskRequest := ecs.CreateDetachDiskRequest()
 			detachDiskRequest.DiskId = disk.DiskId
 			detachDiskRequest.InstanceId = disk.InstanceId
@@ -345,7 +355,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 				log.Errorf(errMsg)
 				return nil, status.Error(codes.Aborted, errMsg)
 			}
-			log.Infof("NodeUnstageVolume: Success to detach disk %s from %s", req.GetVolumeId(), instanceIDToBeDetached)
+			log.Infof("NodeUnstageVolume: Success to detach disk %s from %s", req.GetVolumeId(), ns.nodeId)
 		} else {
 			log.Infof("NodeUnstageVolume: Skip Detach, disk %s is attached to other instance: %s", req.VolumeId, disk.InstanceId)
 		}
@@ -358,7 +368,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 }
 
 // attach alibaba cloud disk
-func (ns *nodeServer) attachDisk(volumeID string) (string, error) {
+func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, error) {
 	log.Infof("NodeStageVolume: Start to attachDisk: %s, region: %v", volumeID, ns.region)
 
 	// Step 1: check disk status
@@ -367,23 +377,46 @@ func (ns *nodeServer) attachDisk(volumeID string) (string, error) {
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "NodeStageVolume: Unexpected count %s for volume id %s", volumeID, err)
 	}
-	// detach disk first if attached
-	if disk.Status == DISK_STATUS_INUSE || disk.Status == DISK_STATUS_ATTACHING {
-		log.Infof("NodeStageVolume: disk %s is already attached to instance %s, will be detached", volumeID, disk.InstanceId)
-		detachRequest := ecs.CreateDetachDiskRequest()
-		detachRequest.InstanceId = disk.InstanceId
-		detachRequest.DiskId = disk.DiskId
-		_, err = ns.ecsClient.DetachDisk(detachRequest)
-		if err != nil {
-			return "", status.Errorf(codes.Aborted, "NodeStageVolume: Can't attach disk %s to instance %s: %v", volumeID, disk.InstanceId, err)
-		}
-	}
 
-	// Step 2: wait for Detach
-	if disk.Status != DISK_STATUS_AVAILABLE {
-		log.Infof("NodeStageVolume: wait for disk %s is detached", volumeID)
-		if err := ns.waitForDiskInStatus(10, time.Second*3, volumeID, DISK_STATUS_AVAILABLE); err != nil {
-			return "", err
+	if isSharedDisk {
+		attachedToLocal := false
+		for _, instance := range disk.MountInstances.MountInstance {
+			if instance.InstanceId == ns.nodeId {
+				attachedToLocal=true
+				break
+			}
+		}
+		if attachedToLocal {
+			detachRequest := ecs.CreateDetachDiskRequest()
+			detachRequest.InstanceId = ns.nodeId
+			detachRequest.DiskId = volumeID
+			_, err = ns.ecsClient.DetachDisk(detachRequest)
+			if err != nil {
+				return "", status.Errorf(codes.Aborted, "NodeStageVolume: Can't attach disk %s to instance %s: %v", volumeID, disk.InstanceId, err)
+			}
+
+			if err := ns.waitForSharedDiskInStatus(10, time.Second*3, volumeID, DISK_STATUS_DETACHED); err != nil {
+				return "", err
+			}
+		}
+	} else {
+		// detach disk first if attached
+		if disk.Status == DISK_STATUS_INUSE || disk.Status == DISK_STATUS_ATTACHING {
+			log.Infof("NodeStageVolume: disk %s is already attached to instance %s, will be detached", volumeID, disk.InstanceId)
+			detachRequest := ecs.CreateDetachDiskRequest()
+			detachRequest.InstanceId = disk.InstanceId
+			detachRequest.DiskId = disk.DiskId
+			_, err = ns.ecsClient.DetachDisk(detachRequest)
+			if err != nil {
+				return "", status.Errorf(codes.Aborted, "NodeStageVolume: Can't attach disk %s to instance %s: %v", volumeID, disk.InstanceId, err)
+			}
+		}
+		// Step 2: wait for Detach
+		if disk.Status != DISK_STATUS_AVAILABLE {
+			log.Infof("NodeStageVolume: wait for disk %s is detached", volumeID)
+			if err := ns.waitForDiskInStatus(10, time.Second*3, volumeID, DISK_STATUS_AVAILABLE); err != nil {
+				return "", err
+			}
 		}
 	}
 
@@ -398,8 +431,14 @@ func (ns *nodeServer) attachDisk(volumeID string) (string, error) {
 
 	// Step 4: wait for disk attached
 	log.Infof("NodeStageVolume: wait for disk %s is attached", volumeID)
-	if err := ns.waitForDiskInStatus(10, time.Second*3, volumeID, DISK_STATUS_INUSE); err != nil {
-		return "", err
+	if isSharedDisk {
+		if err := ns.waitForSharedDiskInStatus(10, time.Second*3, volumeID, DISK_STATUS_ATTACHED); err != nil {
+			return "", err
+		}
+	} else {
+		if err := ns.waitForDiskInStatus(10, time.Second*3, volumeID, DISK_STATUS_INUSE); err != nil {
+			return "", err
+		}
 	}
 
 	// step 5: diff device with previous files under /dev
@@ -427,6 +466,28 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}, nil
 }
 
+func (ns *nodeServer) waitForSharedDiskInStatus(retryCount int, interval time.Duration, volumeID string, expectStatus string) error {
+	for i := 0; i < retryCount; i++ {
+		time.Sleep(interval)
+		disk, err := ns.findDiskByID(volumeID)
+		if err != nil {
+			return err
+		}
+		for _, instance := range disk.MountInstances.MountInstance {
+			if expectStatus == DISK_STATUS_ATTACHED {
+				if instance.InstanceId == ns.nodeId {
+					return nil
+				}
+			} else if expectStatus == DISK_STATUS_DETACHED {
+				if instance.InstanceId != ns.nodeId {
+					return nil
+				}
+			}
+		}
+	}
+	return status.Errorf(codes.Aborted, "NodeStageVolume: after %d times of check, disk %s is still not attached", retryCount, volumeID)
+}
+
 func (ns *nodeServer) waitForDiskInStatus(retryCount int, interval time.Duration, volumeID string, expectedStatus string) error {
 	for i := 0; i < retryCount; i++ {
 		time.Sleep(interval)
@@ -450,6 +511,15 @@ func (ns *nodeServer) findDiskByID(diskId string) (*ecs.Disk, error) {
 		return nil, status.Errorf(codes.Aborted, "Can't get disk %s: %v", diskId, err)
 	}
 	disks := diskResponse.Disks.Disk
+	// shared disk can not described if not set EnableShared
+	if len(disks) == 0 {
+		describeDisksRequest.EnableShared = requests.NewBoolean(true)
+		diskResponse, err = ns.ecsClient.DescribeDisks(describeDisksRequest)
+		if err != nil {
+			return nil, status.Errorf(codes.Aborted, "Can't get disk %s: %v", diskId, err)
+		}
+		disks = diskResponse.Disks.Disk
+	}
 	if len(disks) == 0 || len(disks) > 1 {
 		return nil, status.Errorf(codes.Internal, "NodeStageVolume: Unexpected count %d for volume id %s, Get Response: %v, with Request: %v, %v", len(disks), diskId, diskResponse, describeDisksRequest.RegionId, describeDisksRequest.DiskIds)
 	}

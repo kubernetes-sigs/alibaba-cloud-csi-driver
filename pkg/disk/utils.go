@@ -47,6 +47,8 @@ const (
 	DISK_COMMON                     = "cloud"
 	DISK_EFFICIENCY                 = "cloud_efficiency"
 	DISK_SSD                        = "cloud_ssd"
+	DISK_SHARED_SSD                 = "san_ssd"
+	DISK_SHARED_EFFICIENCY          = "san_efficiency"
 	MB_SIZE                         = 1024 * 1024
 	DEFAULT_REGION                  = "cn-hangzhou"
 )
@@ -242,7 +244,7 @@ func getDiskVolumeOptions(volOptions map[string]string) (*diskVolumeArgs, error)
 	if !ok {
 		diskVolArgs.Type = DISK_HIGH_AVAIL
 	}
-	if diskVolArgs.Type != DISK_HIGH_AVAIL && diskVolArgs.Type != DISK_COMMON && diskVolArgs.Type != DISK_EFFICIENCY && diskVolArgs.Type != DISK_SSD {
+	if diskVolArgs.Type != DISK_HIGH_AVAIL && diskVolArgs.Type != DISK_COMMON && diskVolArgs.Type != DISK_EFFICIENCY && diskVolArgs.Type != DISK_SSD && diskVolArgs.Type != DISK_SHARED_SSD && diskVolArgs.Type != DISK_SHARED_EFFICIENCY {
 		return nil, fmt.Errorf("Illegal required parameter type" + diskVolArgs.Type)
 	}
 

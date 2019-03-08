@@ -180,8 +180,13 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	volumeId := volumeResponse.DiskId
 
+	volumeContext := req.GetParameters()
+	if diskVol.Type == DISK_SHARED_EFFICIENCY || diskVol.Type == DISK_SHARED_SSD {
+		volumeContext[SHARED_ENABLE] = "enable"
+	}
+
 	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeId, diskVol.ZoneId, disktype, requestGB, volumeResponse.RequestId)
-	tmpVol := &csi.Volume{VolumeId: volumeId, CapacityBytes: int64(volSizeBytes), VolumeContext: req.GetParameters()}
+	tmpVol := &csi.Volume{VolumeId: volumeId, CapacityBytes: int64(volSizeBytes), VolumeContext: volumeContext}
 	return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 }
 
@@ -216,7 +221,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
 	for _, cap := range req.VolumeCapabilities {
-		if cap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
+		if cap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
 			return &csi.ValidateVolumeCapabilitiesResponse{Message: ""}, nil
 		}
 	}
@@ -239,11 +244,21 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 
 // return disk with the define name
 func (cs *controllerServer) findDiskByName(name string) ([]ecs.Disk, error) {
+	resDisks := []ecs.Disk{}
 	describeDisksRequest := ecs.CreateDescribeDisksRequest()
 	describeDisksRequest.RegionId = cs.region
 	describeDisksRequest.DiskName = name
 	diskResponse, err := cs.ecsClient.DescribeDisks(describeDisksRequest)
-	resDisks := []ecs.Disk{}
+	if err != nil {
+		return resDisks, err
+	}
+	if len(diskResponse.Disks.Disk) == 0 {
+		describeDisksRequest.EnableShared = requests.NewBoolean(true)
+		diskResponse, err = cs.ecsClient.DescribeDisks(describeDisksRequest)
+	}
+	if err != nil {
+		return resDisks, err
+	}
 	for _, disk := range diskResponse.Disks.Disk {
 		if disk.DiskName == name {
 			resDisks = append(resDisks, disk)

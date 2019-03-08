@@ -72,7 +72,7 @@ func NewDriver(nodeID, endpoint string) *disk {
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
 		csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
 	})
-	tmpdisk.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER})
+	tmpdisk.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
 
 	region := GetMetaData(REGIONID_TAG)
 	accessKeyID, accessSecret, accessToken := GetDefaultAK()
