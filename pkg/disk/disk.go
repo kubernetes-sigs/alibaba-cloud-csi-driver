@@ -27,9 +27,10 @@ import (
 
 // PluginFolder defines the location of diskplugin
 const (
-	PluginFolder = "/var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com"
-	driverName   = "diskplugin.csi.alibabacloud.com"
-	csiVersion   = "1.0.0"
+	PluginFolder    = "/var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com"
+	driverName      = "diskplugin.csi.alibabacloud.com"
+	csiVersion      = "1.0.0"
+	TopologyZoneKey = "topology." + driverName + "/zone"
 )
 
 type disk struct {
@@ -47,9 +48,9 @@ type disk struct {
 // into a memory structure
 func initDriver() {
 	if _, err := os.Stat(path.Join(PluginFolder, "controller")); os.IsNotExist(err) {
-		log.Infof("disk: folder %s not found. Creating... \n", path.Join(PluginFolder, "controller"))
+		log.Infof("disk: folder %s not found. Creating... ", path.Join(PluginFolder, "controller"))
 		if err := os.Mkdir(path.Join(PluginFolder, "controller"), 0755); err != nil {
-			log.Fatalf("Failed to create a controller's volumes folder with error: %v\n", err)
+			log.Fatalf("Failed to create a controller's volumes folder with error: %v", err)
 		}
 		return
 	}
@@ -83,10 +84,9 @@ func NewDriver(nodeID, endpoint string) *disk {
 		log.Infof("Starting csi-plugin with sts")
 	}
 
-
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
-	tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, c, region)
+	tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, c)
 	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, c, region)
 
 	return tmpdisk

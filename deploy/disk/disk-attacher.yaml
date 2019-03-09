@@ -40,6 +40,7 @@ spec:
           args:
             - "--provisioner=diskplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
+            - "--feature-gates=Topology=True"
             - "--v=5"
           env:
             - name: ADDRESS

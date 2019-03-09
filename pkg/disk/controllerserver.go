@@ -47,8 +47,6 @@ type controllerServer struct {
 // Alicloud disk parameters
 type diskVolumeArgs struct {
 	Type      string `json:"type"`
-	RegionId  string `json:"regionId"`
-	ZoneId    string `json:"zoneId"`
 	FsType    string `json:"fsType"`
 	ReadOnly  bool   `json:"readOnly"`
 	Encrypted bool   `json:"encrypted"`
@@ -96,8 +94,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
 	}
 
-	// TODO: support topoloy aware
-	// TODO: support multi zone
 	diskVol, err := getDiskVolumeOptions(req.GetParameters())
 	if err != nil {
 		log.Errorf("CreateVolume: error parameters from input: %s, with error: %s", req.GetParameters(), err.Error())
@@ -109,9 +105,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
-	if diskVol.RegionId == "" || diskVol.ZoneId == "" {
-		return nil, status.Errorf(codes.Internal, "Get region_id, zone_id error: %s, %s ", diskVol.RegionId, diskVol.ZoneId)
-	}
 
 	// Step 2: Check whether volume is created
 	cs.ecsClient = updateEcsClent(cs.ecsClient)
@@ -126,7 +119,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	} else if len(disks) == 1 {
 		disk := disks[0]
 		if disk.Size != requestGB {
-			log.Errorf("CreateVolume: exist disk %s size is different with requested for disk: exist size: %s, request size: %s", req.GetName(), disk.Size, requestGB)
+			log.Errorf("CreateVolume: exist disk %d size is different with requested for disk: exist size: %s, request size: %s", req.GetName(), disk.Size, requestGB)
 			return nil, status.Errorf(codes.Internal, "disk %s size is different with requested for disk", req.GetName())
 		}
 		log.Infof("CreateVolume: Volume %s is already created: %s, %s, %s, %d", req.GetName(), disk.DiskId, disk.RegionId, disk.ZoneId, disk.Size)
@@ -142,14 +135,20 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if DISK_HIGH_AVAIL == diskVol.Type {
 		disktype = DISK_EFFICIENCY
 	}
+
+	zone := pickZone(req.GetAccessibilityRequirements())
+	if zone == "" {
+		return nil, status.Error(codes.Internal, "CreateVolume: Can't get topology info")
+	}
+
 	createDiskRequest := ecs.CreateCreateDiskRequest()
 	createDiskRequest.DiskName = req.GetName()
 	createDiskRequest.Size = requests.NewInteger(requestGB)
-	createDiskRequest.RegionId = diskVol.RegionId
-	createDiskRequest.ZoneId = diskVol.ZoneId
+	createDiskRequest.RegionId = cs.region
+	createDiskRequest.ZoneId = zone
 	createDiskRequest.DiskCategory = disktype
 	createDiskRequest.Encrypted = requests.NewBoolean(diskVol.Encrypted)
-	log.Infof("CreateVolume: Create Disk with: %v, %v, %v, %v GB", diskVol.RegionId, diskVol.ZoneId, disktype, requestGB)
+	log.Infof("CreateVolume: Create Disk with: %v, %v, %v, %v GB", cs.region, zone, disktype, requestGB)
 
 	// Step 4: Create Disk
 	volumeResponse, err := cs.ecsClient.CreateDisk(createDiskRequest)
@@ -178,10 +177,21 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-	volumeId := volumeResponse.DiskId
 
-	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeId, diskVol.ZoneId, disktype, requestGB, volumeResponse.RequestId)
-	tmpVol := &csi.Volume{VolumeId: volumeId, CapacityBytes: int64(volSizeBytes), VolumeContext: req.GetParameters()}
+	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeResponse.DiskId, zone, disktype, requestGB, volumeResponse.RequestId)
+	tmpVol := &csi.Volume{
+		VolumeId:      volumeResponse.DiskId,
+		CapacityBytes: int64(volSizeBytes),
+		VolumeContext: req.GetParameters(),
+		AccessibleTopology: []*csi.Topology{
+			{
+				Segments: map[string]string{
+					TopologyZoneKey: zone,
+				},
+			},
+		},
+	}
+
 	return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 }
 
@@ -429,4 +439,25 @@ func convertSnapshot(snap diskSnapshot) *csi.ListSnapshotsResponse {
 		Entries: entries,
 	}
 	return rsp
+}
+
+// pickZone selects 1 zone given topology requirement.
+// if not found, empty string is returned.
+func pickZone(requirement *csi.TopologyRequirement) string {
+	if requirement == nil {
+		return ""
+	}
+	for _, topology := range requirement.GetPreferred() {
+		zone, exists := topology.GetSegments()[TopologyZoneKey]
+		if exists {
+			return zone
+		}
+	}
+	for _, topology := range requirement.GetRequisite() {
+		zone, exists := topology.GetSegments()[TopologyZoneKey]
+		if exists {
+			return zone
+		}
+	}
+	return ""
 }

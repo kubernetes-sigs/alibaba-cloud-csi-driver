@@ -4,8 +4,6 @@ metadata:
    name: csi-disk
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
-    zoneId: cn-beijing-b
-    regionId: cn-beijing
     fsType: ext4
     type: cloud_ssd
     readOnly: "false"
