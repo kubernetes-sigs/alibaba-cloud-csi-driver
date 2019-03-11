@@ -25,8 +25,8 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"golang.org/x/net/context"
@@ -37,6 +37,7 @@ import (
 type nodeServer struct {
 	ecsClient         *ecs.Client
 	region            string
+	zone              string
 	maxVolumesPerNode int64
 	nodeId            string
 	attachMutex       sync.RWMutex
@@ -49,32 +50,39 @@ const (
 	DISK_STATUS_INUSE     = "In_use"
 	DISK_STATUS_ATTACHING = "Attaching"
 	DISK_STATUS_AVAILABLE = "Available"
-	DISK_STATUS_ATTACHED = "attached"
-	DISK_STATUS_DETACHED = "detached"
-	SHARED_ENABLE = "shared"
+	DISK_STATUS_ATTACHED  = "attached"
+	DISK_STATUS_DETACHED  = "detached"
+	SHARED_ENABLE         = "shared"
 )
 
 // NewNodeServer creates node server
-func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client, region string) csi.NodeServer {
+func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	var maxVolumesNum int64 = 15
 	volumeNum := os.Getenv("MAX_VOLUMES_PERNODE")
 	if "" != volumeNum {
 		num, err := strconv.ParseInt(volumeNum, 10, 64)
 		if err != nil {
-			log.Errorf("NewNodeServer: MAX_VOLUMES_PERNODE must be int64, but get: %s", volumeNum)
+			log.Fatalf("NewNodeServer: MAX_VOLUMES_PERNODE must be int64, but get: %s", volumeNum)
 		} else {
 			if num < 0 || num > 15 {
-				log.Errorf("NewNodeServer: MAX_VOLUMES_PERNODE must between 0-15, but get: %s", volumeNum)
+				log.Fatalf("NewNodeServer: MAX_VOLUMES_PERNODE must between 0-15, but get: %s", volumeNum)
 			} else {
 				maxVolumesNum = num
 			}
 		}
 	}
+
+	doc, err := getInstanceDoc()
+	if err != nil {
+		log.Fatalf("Error happens to get node document: %v", err)
+	}
+
 	return &nodeServer{
 		ecsClient:         c,
-		region:            region,
+		region:            doc.RegionID,
+		zone:              doc.ZoneID,
 		maxVolumesPerNode: maxVolumesNum,
-		nodeId:            GetMetaData(INSTANCE_ID),
+		nodeId:            doc.InstanceID,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		mounter:           NewMounter(),
 		canAttach:         true,
@@ -178,7 +186,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
 		log.Errorf("NodePublishVolume: %s is unmounted, but not empty dir", targetPath)
-		return nil, status.Error(codes.Internal, "NodePublishVolume: "+targetPath+" is unmounted, but not empty dir")
+		return nil, status.Errorf(codes.Internal, "NodePublishVolume: %s is unmounted, but not empty dir", targetPath)
 	}
 
 	// Step 3: umount target path
@@ -382,7 +390,7 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 		attachedToLocal := false
 		for _, instance := range disk.MountInstances.MountInstance {
 			if instance.InstanceId == ns.nodeId {
-				attachedToLocal=true
+				attachedToLocal = true
 				break
 			}
 		}
@@ -463,6 +471,12 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	return &csi.NodeGetInfoResponse{
 		NodeId:            ns.nodeId,
 		MaxVolumesPerNode: ns.maxVolumesPerNode,
+		// make sure that the driver works on this particular zone only
+		AccessibleTopology: &csi.Topology{
+			Segments: map[string]string{
+				TopologyZoneKey: ns.zone,
+			},
+		},
 	}, nil
 }
 
