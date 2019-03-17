@@ -1,4 +1,4 @@
-                                kind: DaemonSet
+kind: DaemonSet
 apiVersion: apps/v1beta2
 metadata:
   name: csi-diskplugin
