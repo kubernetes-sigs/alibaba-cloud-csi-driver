@@ -17,8 +17,10 @@ limitations under the License.
 package disk
 
 import (
+	log "github.com/Sirupsen/logrus"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"golang.org/x/net/context"
 )
 
 type identityServer struct {
@@ -30,4 +32,28 @@ func NewIdentityServer(d *csicommon.CSIDriver) csi.IdentityServer {
 	return &identityServer{
 		csicommon.NewDefaultIdentityServer(d),
 	}
+}
+
+// GetPluginCapabilities returns available capabilities of the plugin
+func (iden *identityServer) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
+	log.Info("Identity:GetPluginCapabilities is called")
+	resp := &csi.GetPluginCapabilitiesResponse{
+		Capabilities: []*csi.PluginCapability{
+			{
+				Type: &csi.PluginCapability_Service_{
+					Service: &csi.PluginCapability_Service{
+						Type: csi.PluginCapability_Service_CONTROLLER_SERVICE,
+					},
+				},
+			},
+			{
+				Type: &csi.PluginCapability_Service_{
+					Service: &csi.PluginCapability_Service{
+						Type: csi.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS,
+					},
+				},
+			},
+		},
+	}
+	return resp, nil
 }

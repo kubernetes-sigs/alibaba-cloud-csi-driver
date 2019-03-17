@@ -48,7 +48,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-diskplugin:v1.13-b2442be9
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-diskplugin:v1.13-d38b1a44
           imagePullPolicy: "Always"
           args :
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -61,22 +61,12 @@ spec:
             - name: ACCESS_KEY_SECRET
               value: ""
           volumeMounts:
-            - name: plugin-dir
-              mountPath: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com
             - name: pods-mount-dir
-              mountPath: /var/lib/kubelet/pods
+              mountPath: /var/lib/kubelet
               mountPropagation: "Bidirectional"
             - mountPath: /dev
               mountPropagation: "HostToContainer"
               name: host-dev
-            - mountPath: /sys
-              name: host-sys
-            - mountPath: /lib/modules
-              name: lib-modules
-              readOnly: true
-            - mountPath: /run/dbus
-              name: host-run
-              readOnly: true
             - mountPath: /var/log/alicloud
               name: host-log
       volumes:
@@ -90,20 +80,11 @@ spec:
             type: DirectoryOrCreate
         - name: pods-mount-dir
           hostPath:
-            path: /var/lib/kubelet/pods
+            path: /var/lib/kubelet
             type: Directory
         - name: host-dev
           hostPath:
             path: /dev
-        - name: host-run
-          hostPath:
-            path: /run/dbus
-        - name: host-sys
-          hostPath:
-            path: /sys
-        - name: lib-modules
-          hostPath:
-            path: /lib/modules
         - name: host-log
           hostPath:
             path: /var/log/alicloud/
