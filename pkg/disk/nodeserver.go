@@ -19,6 +19,7 @@ package disk
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -108,7 +109,7 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 // csi disk driver: bind directory from global to pod.
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// check target mount path
-	source := req.StagingTargetPath
+	source := filepath.Join(req.StagingTargetPath, req.VolumeId)
 	targetPath := req.GetTargetPath()
 	log.Infof("NodePublishVolume: Starting mount, source %s > target %s", source, targetPath)
 	if req.VolumeId == "" {
@@ -195,6 +196,11 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		log.Errorf("NodeUnpublishVolume: umount %s error: %s", targetPath, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	err = ns.mounter.SafePathRemove(targetPath)
+	if err != nil {
+		log.Errorf("NodeUnpublishVolume: Remove targetPath failed, target %v", targetPath)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 	log.Infof("NodeUnpublishVolume: Unpublish successful, target %v", targetPath)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
@@ -217,6 +223,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 
 	isBlock := req.GetVolumeCapability().GetBlock() != nil
 	if isBlock {
+		targetPath = filepath.Join(targetPath, req.VolumeId)
 		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -309,7 +316,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 }
 
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	targetPath := req.GetStagingTargetPath()
+	targetPath := filepath.Join(req.GetStagingTargetPath(), req.VolumeId)
 	log.Infof("NodeUnstageVolume: Start to unpublish volume, target %v, volumeId: %s", targetPath, req.VolumeId)
 
 	if req.VolumeId == "" {
@@ -330,6 +337,11 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			err = ns.mounter.Unmount(targetPath)
 			if err != nil {
 				log.Errorf("NodeUnstageVolume: %s unmount failed: %v", targetPath, err)
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			ns.mounter.SafePathRemove(targetPath)
+			if err != nil {
+				log.Errorf("NodeUnstageVolume: Remove targetPath failed, target %v", targetPath)
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 		} else {

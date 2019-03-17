@@ -392,32 +392,32 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
-func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS); err != nil {
-		return nil, err
-	}
-
-	// case 1: SnapshotId is not empty, return snapshots that match the snapshot id.
-	if len(req.GetSnapshotId()) != 0 {
-		snapshotID := req.SnapshotId
-		if snapshot, ok := diskVolumeSnapshots[snapshotID]; ok {
-			return convertSnapshot(*snapshot), nil
-		}
-	}
-	// case 2: SourceVolumeId is not empty, return snapshots that match the source volume id.
-	if len(req.GetSourceVolumeId()) != 0 {
-		for _, snapshot := range diskVolumeSnapshots {
-			if snapshot.VolID == req.SourceVolumeId {
-				return convertSnapshot(*snapshot), nil
-			}
-		}
-	}
-
-	return &csi.ListSnapshotsResponse{
-		Entries:   nil,
-		NextToken: "",
-	}, nil
-}
+//func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
+//	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS); err != nil {
+//		return nil, err
+//	}
+//
+//	// case 1: SnapshotId is not empty, return snapshots that match the snapshot id.
+//	if len(req.GetSnapshotId()) != 0 {
+//		snapshotID := req.SnapshotId
+//		if snapshot, ok := diskVolumeSnapshots[snapshotID]; ok {
+//			return convertSnapshot(*snapshot), nil
+//		}
+//	}
+//	// case 2: SourceVolumeId is not empty, return snapshots that match the source volume id.
+//	if len(req.GetSourceVolumeId()) != 0 {
+//		for _, snapshot := range diskVolumeSnapshots {
+//			if snapshot.VolID == req.SourceVolumeId {
+//				return convertSnapshot(*snapshot), nil
+//			}
+//		}
+//	}
+//
+//	return &csi.ListSnapshotsResponse{
+//		Entries:   nil,
+//		NextToken: "",
+//	}, nil
+//}
 
 func (cs *controllerServer) describeSnapshotByName(name string) (*diskSnapshot, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
