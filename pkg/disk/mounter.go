@@ -46,6 +46,8 @@ type Mounter interface {
 	// propagated). It returns true if it's mounted. An error is returned in
 	// case of system errors or if it's mounted incorrectly.
 	IsMounted(target string) (bool, error)
+
+	SafePathRemove(target string) (error)
 }
 
 // TODO(arslan): this is Linux only for now. Refactor this into a package with
@@ -302,8 +304,37 @@ func (m *mounter) IsMounted(target string) (bool, error) {
 		// the mountpoint should match as well
 		if fs.Target == target {
 			targetFound = true
+			break
 		}
 	}
 
 	return targetFound, nil
+}
+
+func (m *mounter) SafePathRemove(targetPath string) (error) {
+	fo, err := os.Lstat(targetPath)
+	if err != nil {
+		return err
+	}
+	isMounted, err := m.IsMounted(targetPath)
+	if err != nil {
+		return err
+	}
+	if isMounted {
+		return errors.New("Path is mounted, not remove: " + targetPath)
+	}
+	if fo.IsDir() {
+		empty, err := IsDirEmpty(targetPath)
+		if err != nil {
+			return errors.New("Check path empty error: " + targetPath + err.Error())
+		}
+		if ! empty {
+			return errors.New("Cannot remove Path not empty: " + targetPath)
+		}
+	}
+	err = os.Remove(targetPath)
+	if err != nil {
+		return err
+	}
+	return nil
 }
