@@ -10,9 +10,11 @@ export GOOS="linux"
 
 CGO_ENABLED=0 go build -o ossplugin.csi.alibabacloud.com
 
+cd ${GOPATH}/src/github.com/AliyunContainerService/csi-plugin/build/oss/
+CGO_ENABLED=0 go build csiplugin-connector.go
+
 if [ "$1" == "" ]; then
-  mv ossplugin.csi.alibabacloud.com ./build/oss/
-  cd ./build/oss
+  mv ${GOPATH}/src/github.com/AliyunContainerService/csi-plugin/ossplugin.csi.alibabacloud.com ./
   version="v1.13"
   docker build -t=registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:$version-$GIT_SHA ./
   docker push registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:$version-$GIT_SHA
