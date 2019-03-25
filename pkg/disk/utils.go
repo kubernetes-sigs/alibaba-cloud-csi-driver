@@ -17,6 +17,7 @@ limitations under the License.
 package disk
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -34,6 +35,7 @@ import (
 const (
 	KUBERNETES_ALICLOUD_DISK_DRIVER = "alicloud/disk"
 	METADATA_URL                    = "http://100.100.100.200/latest/meta-data/"
+	DOCUMENT_URL                    = "http://100.100.100.200/latest/dynamic/instance-identity/document"
 	REGIONID_TAG                    = "region-id"
 	INSTANCE_ID                     = "instance-id"
 	DISK_CONFILICT                  = "InvalidOperation.Conflict"
@@ -47,6 +49,8 @@ const (
 	DISK_COMMON                     = "cloud"
 	DISK_EFFICIENCY                 = "cloud_efficiency"
 	DISK_SSD                        = "cloud_ssd"
+	DISK_SHARED_SSD                 = "san_ssd"
+	DISK_SHARED_EFFICIENCY          = "san_efficiency"
 	MB_SIZE                         = 1024 * 1024
 	DEFAULT_REGION                  = "cn-hangzhou"
 )
@@ -242,7 +246,7 @@ func getDiskVolumeOptions(volOptions map[string]string) (*diskVolumeArgs, error)
 	if !ok {
 		diskVolArgs.Type = DISK_HIGH_AVAIL
 	}
-	if diskVolArgs.Type != DISK_HIGH_AVAIL && diskVolArgs.Type != DISK_COMMON && diskVolArgs.Type != DISK_EFFICIENCY && diskVolArgs.Type != DISK_SSD {
+	if diskVolArgs.Type != DISK_HIGH_AVAIL && diskVolArgs.Type != DISK_COMMON && diskVolArgs.Type != DISK_EFFICIENCY && diskVolArgs.Type != DISK_SSD && diskVolArgs.Type != DISK_SHARED_SSD && diskVolArgs.Type != DISK_SHARED_EFFICIENCY {
 		return nil, fmt.Errorf("Illegal required parameter type" + diskVolArgs.Type)
 	}
 
@@ -289,4 +293,29 @@ func createDest(dest string) error {
 		return fmt.Errorf("%v already exist and it's not a directory", dest)
 	}
 	return nil
+}
+
+type instanceDocument struct {
+	RegionID   string `json:"region-id"`
+	InstanceID string `json:"instance-id"`
+	ZoneID     string `json:"zone-id"`
+}
+
+func getInstanceDoc() (*instanceDocument, error) {
+	resp, err := http.Get(DOCUMENT_URL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &instanceDocument{}
+	if err = json.Unmarshal(body, result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

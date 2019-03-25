@@ -96,8 +96,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
 	}
 
-	// TODO: support topoloy aware
-	// TODO: support multi zone
 	diskVol, err := getDiskVolumeOptions(req.GetParameters())
 	if err != nil {
 		log.Errorf("CreateVolume: error parameters from input: %s, with error: %s", req.GetParameters(), err.Error())
@@ -109,13 +107,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
-	if diskVol.RegionId == "" || diskVol.ZoneId == "" {
-		return nil, status.Errorf(codes.Internal, "Get region_id, zone_id error: %s, %s ", diskVol.RegionId, diskVol.ZoneId)
-	}
 
+	sharedDisk := diskVol.Type == DISK_SHARED_EFFICIENCY || diskVol.Type == DISK_SHARED_SSD
 	// Step 2: Check whether volume is created
 	cs.ecsClient = updateEcsClent(cs.ecsClient)
-	disks, err := cs.findDiskByName(req.GetName())
+	disks, err := cs.findDiskByName(req.GetName(), sharedDisk)
 	if err != nil {
 		log.Errorf("CreateVolume: describe volume error with: %s", err.Error())
 		return nil, status.Error(codes.Aborted, err.Error())
@@ -126,7 +122,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	} else if len(disks) == 1 {
 		disk := disks[0]
 		if disk.Size != requestGB {
-			log.Errorf("CreateVolume: exist disk %s size is different with requested for disk: exist size: %s, request size: %s", req.GetName(), disk.Size, requestGB)
+			log.Errorf("CreateVolume: exist disk %s size is different with requested for disk: existing size: %d, request size: %d", req.GetName(), disk.Size, requestGB)
 			return nil, status.Errorf(codes.Internal, "disk %s size is different with requested for disk", req.GetName())
 		}
 		log.Infof("CreateVolume: Volume %s is already created: %s, %s, %s, %d", req.GetName(), disk.DiskId, disk.RegionId, disk.ZoneId, disk.Size)
@@ -142,14 +138,23 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if DISK_HIGH_AVAIL == diskVol.Type {
 		disktype = DISK_EFFICIENCY
 	}
+
+	zone := diskVol.ZoneId
+	if zone == "" {
+		zone = pickZone(req.GetAccessibilityRequirements())
+	}
+	if zone == "" {
+		return nil, status.Error(codes.Internal, "CreateVolume: Can't get topology info , please check your setup or set zone ID in storage class")
+	}
+
 	createDiskRequest := ecs.CreateCreateDiskRequest()
 	createDiskRequest.DiskName = req.GetName()
 	createDiskRequest.Size = requests.NewInteger(requestGB)
-	createDiskRequest.RegionId = diskVol.RegionId
-	createDiskRequest.ZoneId = diskVol.ZoneId
+	createDiskRequest.RegionId = cs.region
+	createDiskRequest.ZoneId = zone
 	createDiskRequest.DiskCategory = disktype
 	createDiskRequest.Encrypted = requests.NewBoolean(diskVol.Encrypted)
-	log.Infof("CreateVolume: Create Disk with: %v, %v, %v, %v GB", diskVol.RegionId, diskVol.ZoneId, disktype, requestGB)
+	log.Infof("CreateVolume: Create Disk with: %v, %v, %v, %v GB", cs.region, zone, disktype, requestGB)
 
 	// Step 4: Create Disk
 	volumeResponse, err := cs.ecsClient.CreateDisk(createDiskRequest)
@@ -178,10 +183,26 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-	volumeId := volumeResponse.DiskId
 
-	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeId, diskVol.ZoneId, disktype, requestGB, volumeResponse.RequestId)
-	tmpVol := &csi.Volume{VolumeId: volumeId, CapacityBytes: int64(volSizeBytes), VolumeContext: req.GetParameters()}
+	volumeContext := req.GetParameters()
+	if sharedDisk {
+		volumeContext[SHARED_ENABLE] = "enable"
+	}
+
+	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeResponse.DiskId, zone, disktype, requestGB, volumeResponse.RequestId)
+	tmpVol := &csi.Volume{
+		VolumeId:      volumeResponse.DiskId,
+		CapacityBytes: int64(volSizeBytes),
+		VolumeContext: volumeContext,
+		AccessibleTopology: []*csi.Topology{
+			{
+				Segments: map[string]string{
+					TopologyZoneKey: zone,
+				},
+			},
+		},
+	}
+
 	return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 }
 
@@ -215,7 +236,16 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 }
 
 func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
-	return cs.DefaultControllerServer.ValidateVolumeCapabilities(ctx, req)
+	for _, cap := range req.VolumeCapabilities {
+		if cap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
+			return &csi.ValidateVolumeCapabilitiesResponse{Message: ""}, nil
+		}
+	}
+	return &csi.ValidateVolumeCapabilitiesResponse{
+		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
+			VolumeCapabilities: req.VolumeCapabilities,
+		},
+	}, nil
 }
 
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
@@ -229,12 +259,23 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 }
 
 // return disk with the define name
-func (cs *controllerServer) findDiskByName(name string) ([]ecs.Disk, error) {
+func (cs *controllerServer) findDiskByName(name string, sharedDisk bool) ([]ecs.Disk, error) {
+	resDisks := []ecs.Disk{}
 	describeDisksRequest := ecs.CreateDescribeDisksRequest()
 	describeDisksRequest.RegionId = cs.region
 	describeDisksRequest.DiskName = name
 	diskResponse, err := cs.ecsClient.DescribeDisks(describeDisksRequest)
-	resDisks := []ecs.Disk{}
+	if err != nil {
+		return resDisks, err
+	}
+	if sharedDisk && len(diskResponse.Disks.Disk) == 0 {
+		describeDisksRequest.EnableShared = requests.NewBoolean(true)
+		diskResponse, err = cs.ecsClient.DescribeDisks(describeDisksRequest)
+		if err != nil {
+			return resDisks, err
+		}
+	}
+
 	for _, disk := range diskResponse.Disks.Disk {
 		if disk.DiskName == name {
 			resDisks = append(resDisks, disk)
@@ -351,32 +392,32 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
-func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS); err != nil {
-		return nil, err
-	}
-
-	// case 1: SnapshotId is not empty, return snapshots that match the snapshot id.
-	if len(req.GetSnapshotId()) != 0 {
-		snapshotID := req.SnapshotId
-		if snapshot, ok := diskVolumeSnapshots[snapshotID]; ok {
-			return convertSnapshot(*snapshot), nil
-		}
-	}
-	// case 2: SourceVolumeId is not empty, return snapshots that match the source volume id.
-	if len(req.GetSourceVolumeId()) != 0 {
-		for _, snapshot := range diskVolumeSnapshots {
-			if snapshot.VolID == req.SourceVolumeId {
-				return convertSnapshot(*snapshot), nil
-			}
-		}
-	}
-
-	return &csi.ListSnapshotsResponse{
-		Entries:   nil,
-		NextToken: "",
-	}, nil
-}
+//func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
+//	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS); err != nil {
+//		return nil, err
+//	}
+//
+//	// case 1: SnapshotId is not empty, return snapshots that match the snapshot id.
+//	if len(req.GetSnapshotId()) != 0 {
+//		snapshotID := req.SnapshotId
+//		if snapshot, ok := diskVolumeSnapshots[snapshotID]; ok {
+//			return convertSnapshot(*snapshot), nil
+//		}
+//	}
+//	// case 2: SourceVolumeId is not empty, return snapshots that match the source volume id.
+//	if len(req.GetSourceVolumeId()) != 0 {
+//		for _, snapshot := range diskVolumeSnapshots {
+//			if snapshot.VolID == req.SourceVolumeId {
+//				return convertSnapshot(*snapshot), nil
+//			}
+//		}
+//	}
+//
+//	return &csi.ListSnapshotsResponse{
+//		Entries:   nil,
+//		NextToken: "",
+//	}, nil
+//}
 
 func (cs *controllerServer) describeSnapshotByName(name string) (*diskSnapshot, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
@@ -429,4 +470,25 @@ func convertSnapshot(snap diskSnapshot) *csi.ListSnapshotsResponse {
 		Entries: entries,
 	}
 	return rsp
+}
+
+// pickZone selects 1 zone given topology requirement.
+// if not found, empty string is returned.
+func pickZone(requirement *csi.TopologyRequirement) string {
+	if requirement == nil {
+		return ""
+	}
+	for _, topology := range requirement.GetPreferred() {
+		zone, exists := topology.GetSegments()[TopologyZoneKey]
+		if exists {
+			return zone
+		}
+	}
+	for _, topology := range requirement.GetRequisite() {
+		zone, exists := topology.GetSegments()[TopologyZoneKey]
+		if exists {
+			return zone
+		}
+	}
+	return ""
 }

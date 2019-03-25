@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/golang/glog"
 	"os"
 	"os/exec"
 	"strings"
-
-	"github.com/golang/glog"
 )
 
 type findmntResponse struct {
@@ -26,12 +25,16 @@ type fileSystem struct {
 type Mounter interface {
 	// If the folder doesn't exist, it will call 'mkdir -p'
 	EnsureFolder(target string) error
+	// If the block doesn't exist, create it
+	EnsureBlock(target string) error
 	// Format formats the source with the given filesystem type
 	Format(source, fsType string) error
 
 	// Mount mounts source to target with the given fstype and options.
 	Mount(source, target, fsType string, options ...string) error
 
+	// Mount mounts source to target for block file.
+	MountBlock(source, target string, options ...string) error
 	// Unmount unmounts the given target
 	Unmount(target string) error
 
@@ -43,6 +46,8 @@ type Mounter interface {
 	// propagated). It returns true if it's mounted. An error is returned in
 	// case of system errors or if it's mounted incorrectly.
 	IsMounted(target string) (bool, error)
+
+	SafePathRemove(target string) (error)
 }
 
 // TODO(arslan): this is Linux only for now. Refactor this into a package with
@@ -70,6 +75,26 @@ func (m *mounter) EnsureFolder(target string) error {
 	_, err = exec.Command(mdkirCmd, mkdirArgs...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("mkdir for folder error: %v", err)
+	}
+	return nil
+}
+
+func (m *mounter) EnsureBlock(target string) error {
+	fi, err := os.Lstat(target)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err == nil && fi.IsDir() {
+		os.Remove(target)
+	}
+	targetPathFile, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, 0750)
+	if err != nil {
+		glog.V(4).Infof("Failed to create block:%s with error: %v", target, err)
+		return fmt.Errorf("create block error: %v", err)
+	}
+	if err := targetPathFile.Close(); err != nil {
+		glog.V(4).Infof("Failed to close targetPath:%s with error: %v", target, err)
+		return fmt.Errorf("close block error: %v", err)
 	}
 	return nil
 }
@@ -104,6 +129,37 @@ func (m *mounter) Format(source, fsType string) error {
 			err, mkfsCmd, strings.Join(mkfsArgs, " "), string(out))
 	}
 
+	return nil
+}
+
+func (m *mounter) MountBlock(source, target string, opts ...string) error {
+	mountCmd := "mount"
+	mountArgs := []string{}
+
+	if source == "" {
+		return errors.New("source is not specified for mounting the volume")
+	}
+	if target == "" {
+		return errors.New("target is not specified for mounting the volume")
+	}
+
+	if len(opts) > 0 {
+		mountArgs = append(mountArgs, "-o", strings.Join(opts, ","))
+	}
+	mountArgs = append(mountArgs, source)
+	mountArgs = append(mountArgs, target)
+	// create target, os.Mkdirall is noop if it exists
+	_, err := os.Create(target)
+	if err != nil {
+		return err
+	}
+
+	glog.V(4).Infof("Mount %s to %s, the command is %s %v", source, target, mountCmd, mountArgs)
+	out, err := exec.Command(mountCmd, mountArgs...).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("mounting failed: %v cmd: '%s %s' output: %q",
+			err, mountCmd, strings.Join(mountArgs, " "), string(out))
+	}
 	return nil
 }
 
@@ -248,8 +304,37 @@ func (m *mounter) IsMounted(target string) (bool, error) {
 		// the mountpoint should match as well
 		if fs.Target == target {
 			targetFound = true
+			break
 		}
 	}
 
 	return targetFound, nil
+}
+
+func (m *mounter) SafePathRemove(targetPath string) (error) {
+	fo, err := os.Lstat(targetPath)
+	if err != nil {
+		return err
+	}
+	isMounted, err := m.IsMounted(targetPath)
+	if err != nil {
+		return err
+	}
+	if isMounted {
+		return errors.New("Path is mounted, not remove: " + targetPath)
+	}
+	if fo.IsDir() {
+		empty, err := IsDirEmpty(targetPath)
+		if err != nil {
+			return errors.New("Check path empty error: " + targetPath + err.Error())
+		}
+		if ! empty {
+			return errors.New("Cannot remove Path not empty: " + targetPath)
+		}
+	}
+	err = os.Remove(targetPath)
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -1,0 +1,27 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: ds
+  labels:
+    k8s-volume: nginx
+spec:
+  selector:
+    matchLabels:
+      name: nginx
+  template:
+    metadata:
+      labels:
+        name: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+        volumeDevices:
+          - name: disk-pvc
+            devicePath: /dev/sdc
+      volumes:
+        - name: disk-pvc
+          persistentVolumeClaim:
+            claimName: block-pvc
