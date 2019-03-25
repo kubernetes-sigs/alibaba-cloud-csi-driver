@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -46,6 +47,7 @@ type OssOptions struct {
 const (
 	CredentialFile = "/host/etc/passwd-ossfs"
 	NSENTER_CMD    = "/nsenter --mount=/proc/1/ns/mnt"
+	SOCKET_PATH    = "/host/usr/libexec/kubernetes/connector.sock"
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -98,9 +100,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// default use allow_other
-	mntCmd := fmt.Sprintf("%s -- systemd-run --scope -- ossfs %s %s -ourl=%s -o allow_other %s", NSENTER_CMD, opt.Bucket, mountPath, opt.Url, opt.OtherOpts)
-	if out, err := utils.Run(mntCmd); err != nil {
-		out, err = utils.Run(mntCmd + " -f")
+	mntCmd := fmt.Sprintf("systemd-run --scope -- ossfs %s %s -ourl=%s -o allow_other %s", opt.Bucket, mountPath, opt.Url, opt.OtherOpts)
+	if out, err := connectorRun(mntCmd); err != nil {
+		out, err = connectorRun(mntCmd + " -f")
 		if err != nil {
 			log.Error("Ossfs mount error: ", err.Error())
 			return nil, errors.New("Create OSS volume fail: " + err.Error() + ", out: " + out)
@@ -161,6 +163,31 @@ func checkOssOptions(opt *OssOptions) error {
 	return nil
 }
 
+// Run shell command with host connector
+// host connector is daemon running in host.
+func connectorRun(cmd string) (string, error) {
+	c, err := net.Dial("unix", SOCKET_PATH)
+	if err != nil {
+		return err.Error(), err
+	}
+	defer c.Close()
+
+	_, err = c.Write([]byte(cmd))
+	if err != nil {
+		log.Errorf("write error:", err)
+		return err.Error(), err
+	}
+
+	buf := make([]byte, 2048)
+	n, err := c.Read(buf[:])
+	response := string(buf[0:n])
+	if strings.HasPrefix(response, "Success") {
+		respstr := response[8:]
+		return respstr, nil
+	}
+	return response, errors.New("exec cmd err:" + response)
+}
+
 func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
 	c := make(chan struct{})
 	go func() {
@@ -185,7 +212,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
-	umntCmd := fmt.Sprintf("%s umount -f %s", NSENTER_CMD, mountPoint)
+	umntCmd := fmt.Sprintf("umount -f %s", mountPoint)
 	if _, err := utils.Run(umntCmd); err != nil {
 		log.Errorf("Umount oss fail, with: ", err.Error())
 		return nil, errors.New("Oss, Umount oss Fail: " + err.Error())

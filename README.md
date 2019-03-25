@@ -30,7 +30,7 @@ CSI using with Kubrentes:
 
 ## Requirements
 
-### Kubernetes Configurations
+### 1. Kubernetes Configurations
 Enable Feature gates:
 
 	--feature-gates=VolumeSnapshotDataSource=true,CSINodeInfo=true,CSIDriverRegistry=true
@@ -46,11 +46,11 @@ Create CRDs for csidriver、csinodeinfo:
 	# kubectl create -f https://raw.githubusercontent.com/kubernetes/csi-api/ab0df28581235f5350f27ce9c27485850a3b2802/pkg/crd/testdata/csinodeinfo.yaml --validate=false 
 
 
-### RBAC
+### 2. RBAC
 
 	# kubectl create -f ./deploy/rbac.yaml
 
-### Plugin Dependencies
+### 3. Plugin Dependencies
 
 CSI v1.0.0 should be supported by below externals:
 
@@ -65,20 +65,20 @@ CSI v1.0.0 should be supported by below externals:
 
 Disk csi-plugin support Alicloud disk provision and attachment. And alicloud disk is type of block storage, can only used as ReadWriteOnce mode. Only be attached to one node at the same time.
 
-More detail information pls refer to [Disk](./docs/README-disk.md).
+More detail information pls refer to [Disk](./docs/disk.md).
 
 ## NAS CSI-Plugin
 
 Nas csi-plugin can support alicloud nas mount, and does not support provision nas volume. Nas storage is type of network storage and can be mount by multi nodes at the same time.
 
-More detail information pls refer to [NAS](./docs/README-nas.md).
+More detail information pls refer to [NAS](./docs/nas.md).
 
 
 ## OSS CSI-Plugin
 
 OSS csi-plugin support Alicloud oss mount, and does not support provision volume.
 
-More detail information pls refer to [OSS](./docs/README-oss.md).
+More detail information pls refer to [OSS](./docs/oss.md).
 
 
 ## Troubleshooting

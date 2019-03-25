@@ -48,7 +48,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-diskplugin:v1.13-d38b1a44
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-diskplugin:v1.13-527379ec
           imagePullPolicy: "Always"
           args :
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -61,12 +61,25 @@ spec:
             - name: ACCESS_KEY_SECRET
               value: ""
           volumeMounts:
+            - name: plugin-dir
+              mountPath: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com
             - name: pods-mount-dir
-              mountPath: /var/lib/kubelet
+              mountPath: /var/lib/kubelet/pods
+              mountPropagation: "Bidirectional"
+            - name: plugin-mount-dir
+              mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/
               mountPropagation: "Bidirectional"
             - mountPath: /dev
               mountPropagation: "HostToContainer"
               name: host-dev
+            - mountPath: /sys
+              name: host-sys
+            - mountPath: /lib/modules
+              name: lib-modules
+              readOnly: true
+            - mountPath: /run/dbus
+              name: host-run
+              readOnly: true
             - mountPath: /var/log/alicloud
               name: host-log
       volumes:
@@ -74,17 +87,30 @@ spec:
           hostPath:
             path: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com
             type: DirectoryOrCreate
+        - name: plugin-mount-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/
+            type: DirectoryOrCreate
         - name: registration-dir
           hostPath:
             path: /var/lib/kubelet/plugins_registry
             type: DirectoryOrCreate
         - name: pods-mount-dir
           hostPath:
-            path: /var/lib/kubelet
+            path: /var/lib/kubelet/pods
             type: Directory
         - name: host-dev
           hostPath:
             path: /dev
+        - name: host-run
+          hostPath:
+            path: /run/dbus
+        - name: host-sys
+          hostPath:
+            path: /sys
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
         - name: host-log
           hostPath:
             path: /var/log/alicloud/
