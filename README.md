@@ -13,7 +13,7 @@ Orchestrator and Alibaba Cloud Storage. It allows dynamically provision Disk
 volumes and attach it to workloads.
 Current implementation of CSI plugins was tested in Kubernetes environment (requires Kubernetes 1.10+).
 
-Current Support: ***Alibaba cloud Disk, OSS, NAS***;
+Current Support: ***Alibaba cloud Disk, OSS, NAS, LVM***;
 
 ## CSI Version Support
 
@@ -80,6 +80,11 @@ OSS csi-plugin support Alicloud oss mount, and does not support provision volume
 
 More detail information pls refer to [OSS](./docs/oss.md).
 
+## LVM CSI-Plugin
+
+LVM csi-plugin support lvm create and mount. Lvm is not high availability.
+
+More detail information pls refer to [LVM](./docs/lvm.md).
 
 ## Troubleshooting
 

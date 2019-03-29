@@ -5,7 +5,6 @@
 An OSS CSI plugin is available to help simplify storage management.
 You can create a pv with csi configuration, and the pvc, pod defines as usual.
 
-TODO: run oss on the node
 
 ## Configuration Requirements
 
