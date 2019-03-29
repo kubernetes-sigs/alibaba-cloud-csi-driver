@@ -27,6 +27,7 @@ import (
 	"github.com/AliyunContainerService/csi-plugin/pkg/disk"
 	"github.com/AliyunContainerService/csi-plugin/pkg/nas"
 	"github.com/AliyunContainerService/csi-plugin/pkg/oss"
+	"github.com/AliyunContainerService/csi-plugin/pkg/lvm"
 	log "github.com/Sirupsen/logrus"
 )
 
@@ -40,6 +41,7 @@ const (
 	TYPE_PLUGIN_DISK = "diskplugin.csi.alibabacloud.com"
 	TYPE_PLUGIN_NAS  = "nasplugin.csi.alibabacloud.com"
 	TYPE_PLUGIN_OSS  = "ossplugin.csi.alibabacloud.com"
+	TYPE_PLUGIN_LVM  = "lvmplugin.csi.alibabacloud.com"
 )
 
 var (
@@ -77,6 +79,9 @@ func main() {
 		driver.Run()
 	} else if drivername == TYPE_PLUGIN_DISK {
 		driver := disk.NewDriver(*nodeId, *endpoint)
+		driver.Run()
+	} else if drivername == TYPE_PLUGIN_LVM {
+		driver := lvm.NewDriver(*nodeId, *endpoint)
 		driver.Run()
 	}
 
