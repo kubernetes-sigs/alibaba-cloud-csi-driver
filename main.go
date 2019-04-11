@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/AliyunContainerService/csi-plugin/pkg/disk"
+	"github.com/AliyunContainerService/csi-plugin/pkg/lvm"
 	"github.com/AliyunContainerService/csi-plugin/pkg/nas"
 	"github.com/AliyunContainerService/csi-plugin/pkg/oss"
-	"github.com/AliyunContainerService/csi-plugin/pkg/lvm"
 	log "github.com/Sirupsen/logrus"
 )
 
@@ -45,8 +45,9 @@ const (
 )
 
 var (
-	endpoint = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
-	nodeId   = flag.String("nodeid", "", "node id")
+	endpoint        = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
+	nodeId          = flag.String("nodeid", "", "node id")
+	runAsController = flag.Bool("run-as-controller", false, "Only run as controller service")
 )
 
 func init() {
@@ -78,7 +79,7 @@ func main() {
 		driver := oss.NewDriver(*nodeId, *endpoint)
 		driver.Run()
 	} else if drivername == TYPE_PLUGIN_DISK {
-		driver := disk.NewDriver(*nodeId, *endpoint)
+		driver := disk.NewDriver(*nodeId, *endpoint, *runAsController)
 		driver.Run()
 	} else if drivername == TYPE_PLUGIN_LVM {
 		driver := lvm.NewDriver(*nodeId, *endpoint)
