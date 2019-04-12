@@ -41,6 +41,7 @@ const (
 	DISK_CONFILICT                  = "InvalidOperation.Conflict"
 	DISC_INCORRECT_STATUS           = "IncorrectDiskStatus"
 	DISC_CREATING_SNAPSHOT          = "DiskCreatingSnapshot"
+	USER_NOT_IN_WHITE_LIST          = "UserNotInTheWhiteList"
 	TAG_K8S_PV                      = "k8s-pv"
 	ZONEID_TAG                      = "zone-id"
 	LOGFILE_PREFIX                  = "/var/log/alicloud/provisioner"
@@ -216,66 +217,6 @@ func run(cmd string) (string, error) {
 func execCommand(command string, args []string) ([]byte, error) {
 	cmd := exec.Command(command, args...)
 	return cmd.CombinedOutput()
-}
-
-func getDiskVolumeOptions(volOptions map[string]string) (*diskVolumeArgs, error) {
-	var ok bool
-	diskVolArgs := &diskVolumeArgs{}
-
-	// regionid
-	diskVolArgs.ZoneId, ok = volOptions["zoneId"]
-	if !ok {
-		diskVolArgs.ZoneId = GetMetaData(ZONEID_TAG)
-	}
-	diskVolArgs.RegionId, ok = volOptions["regionId"]
-	if !ok {
-		diskVolArgs.RegionId = GetMetaData(REGIONID_TAG)
-	}
-
-	// fstype
-	diskVolArgs.FsType, ok = volOptions["fsType"]
-	if !ok {
-		diskVolArgs.FsType = "ext4"
-	}
-	if diskVolArgs.FsType != "ext4" && diskVolArgs.FsType != "ext3" {
-		return nil, fmt.Errorf("illegal required parameter fsType")
-	}
-
-	// disk Type
-	diskVolArgs.Type, ok = volOptions["type"]
-	if !ok {
-		diskVolArgs.Type = DISK_HIGH_AVAIL
-	}
-	if diskVolArgs.Type != DISK_HIGH_AVAIL && diskVolArgs.Type != DISK_COMMON && diskVolArgs.Type != DISK_EFFICIENCY && diskVolArgs.Type != DISK_SSD && diskVolArgs.Type != DISK_SHARED_SSD && diskVolArgs.Type != DISK_SHARED_EFFICIENCY {
-		return nil, fmt.Errorf("Illegal required parameter type" + diskVolArgs.Type)
-	}
-
-	// readonly
-	value, ok := volOptions["readOnly"]
-	if !ok {
-		diskVolArgs.ReadOnly = false
-	} else {
-		value = strings.ToLower(value)
-		if value == "yes" || value == "true" || value == "1" {
-			diskVolArgs.ReadOnly = true
-		} else {
-			diskVolArgs.ReadOnly = false
-		}
-	}
-
-	// encrypted or not
-	value, ok = volOptions["encrypted"]
-	if !ok {
-		diskVolArgs.Encrypted = false
-	} else {
-		value = strings.ToLower(value)
-		if value == "yes" || value == "true" || value == "1" {
-			diskVolArgs.Encrypted = true
-		} else {
-			diskVolArgs.Encrypted = false
-		}
-	}
-	return diskVolArgs, nil
 }
 
 func createDest(dest string) error {
