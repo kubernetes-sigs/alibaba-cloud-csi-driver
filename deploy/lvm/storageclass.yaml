@@ -5,5 +5,4 @@ metadata:
 provisioner: lvmplugin.csi.alibabacloud.com
 parameters:
     vgName: volumegroup1
-    lvmSize: 2g
 reclaimPolicy: Delete
