@@ -56,7 +56,7 @@ func initDriver() {
 	}
 }
 
-func NewDriver(nodeID, endpoint string) *disk {
+func NewDriver(nodeID, endpoint string, runAsController bool) *disk {
 	initDriver()
 	tmpdisk := &disk{}
 	tmpdisk.endpoint = endpoint
@@ -75,7 +75,6 @@ func NewDriver(nodeID, endpoint string) *disk {
 	})
 	tmpdisk.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
 
-	region := GetMetaData(REGIONID_TAG)
 	accessKeyID, accessSecret, accessToken := GetDefaultAK()
 	c := newEcsClient(accessKeyID, accessSecret, accessToken)
 	if accessToken == "" {
@@ -84,10 +83,17 @@ func NewDriver(nodeID, endpoint string) *disk {
 		log.Infof("Starting csi-plugin with sts")
 	}
 
+	region := os.Getenv("REGION_ID")
+	if region == "" {
+		region = GetMetaData(REGIONID_TAG)
+	}
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
-	tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, c)
 	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, c, region)
+
+	if !runAsController {
+		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, c)
+	}
 
 	return tmpdisk
 }
