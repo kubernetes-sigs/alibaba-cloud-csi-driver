@@ -12,12 +12,14 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 const (
 	NSENTER_CMD = "/nsenter --mount=/proc/1/ns/mnt"
 	VG_NAME_TAG = "vgName"
-	LVM_SIZE    = "lvmSize"
 	DEFAULTFS   = "ext4"
 )
 
@@ -25,13 +27,30 @@ type nodeServer struct {
 	*csicommon.DefaultNodeServer
 	nodeID  string
 	mounter utils.Mounter
+	client  kubernetes.Interface
 }
 
+var (
+	masterURL  string
+	kubeconfig string
+)
+
 func NewNodeServer(d *csicommon.CSIDriver, nodeID string) csi.NodeServer {
+	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	if err != nil {
+		log.Fatalf("Error building kubeconfig: %s", err.Error())
+	}
+
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		nodeID:            nodeID,
 		mounter:           utils.NewMounter(),
+		client:            kubeClient,
 	}
 }
 
@@ -39,13 +58,18 @@ func (ns *nodeServer) GetNodeID() string {
 	return ns.nodeID
 }
 
-func (ns *nodeServer) createVolume(ctx context.Context, volumeId string, vgName string, size string) (error) {
+func (ns *nodeServer) createVolume(ctx context.Context, volumeId string, vgName string) (error) {
+	pv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeId, metav1.GetOptions{})
+
+	pvQuantity := pv.Spec.Capacity["storage"]
+	pvSize := pvQuantity.Value()
+	pvSize = pvSize / (1024 * 1024 * 1024)
 	ckCmd := fmt.Sprintf("%s vgck %s", NSENTER_CMD, vgName)
-	_, err := utils.Run(ckCmd)
+	_, err = utils.Run(ckCmd)
 	if err != nil {
 		return err
 	}
-	cmd := fmt.Sprintf("%s lvcreate -n %s -L %s %s", NSENTER_CMD, volumeId, size, vgName)
+	cmd := fmt.Sprintf("%s lvcreate -n %s -L %dg %s", NSENTER_CMD, volumeId, pvSize, vgName)
 	_, err = utils.Run(cmd)
 	if err != nil {
 		return err
@@ -66,19 +90,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if vgName == "" {
 		return nil, status.Error(codes.Internal, "error with input vgName is empty")
 	}
-
-	size := ""
-	if _, ok := req.VolumeContext[LVM_SIZE]; ok {
-		size = req.VolumeContext[LVM_SIZE]
-	}
-	if size == "" {
-		return nil, status.Error(codes.Internal, "error with input lvmSize is empty")
-	}
+	log.Infof("NodePublishVolume: Starting to mount lvm at: %s, with vg: %s, with volume: %s", targetPath, vgName, req.GetVolumeId())
 
 	volumeId := req.GetVolumeId()
 	devicePath := filepath.Join("/dev/", vgName, volumeId)
 	if _, err := os.Stat(devicePath); os.IsNotExist(err) {
-		err := ns.createVolume(ctx, volumeId, vgName, size)
+		err := ns.createVolume(ctx, volumeId, vgName)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -96,12 +113,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	log.Printf("Check Filesystem type at %v", devicePath)
 	exitFSType, err := checkFSType(devicePath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "check fs type err: %v", err)
 	}
-	log.Printf("Device: %s fstype is '%v'", devicePath, exitFSType)
 	if exitFSType == "" {
 		log.Printf("The device %v has no filesystem, format %v", devicePath, exitFSType)
 		if err := formatDevice(devicePath, DEFAULTFS); err != nil {
