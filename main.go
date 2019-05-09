@@ -71,7 +71,7 @@ func main() {
 	//nodeId := os.Getenv("NODE_ID")
 
 	drivername := filepath.Base(os.Args[0])
-	log.Infof("CSI Driver: ", drivername, *nodeId, *endpoint)
+	log.Infof("CSI Driver: %s, %s, %s", drivername, *nodeId, *endpoint)
 	if drivername == TYPE_PLUGIN_NAS {
 		driver := nas.NewDriver(*nodeId, *endpoint)
 		driver.Run()
