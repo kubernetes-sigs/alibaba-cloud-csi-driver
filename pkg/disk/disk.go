@@ -49,7 +49,7 @@ type disk struct {
 func initDriver() {
 	if _, err := os.Stat(path.Join(PluginFolder, "controller")); os.IsNotExist(err) {
 		log.Infof("disk: folder %s not found. Creating... ", path.Join(PluginFolder, "controller"))
-		if err := os.Mkdir(path.Join(PluginFolder, "controller"), 0755); err != nil {
+		if err := os.MkdirAll(path.Join(PluginFolder, "controller"), 0755); err != nil {
 			log.Fatalf("Failed to create a controller's volumes folder with error: %v", err)
 		}
 		return
