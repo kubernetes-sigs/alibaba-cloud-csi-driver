@@ -14,6 +14,8 @@ workloads.
 
 **Shared Disk:** [disk-shared](./disk-shared.md)
 
+**Volume Attach Limits:** [volume-attach-limits](./disk-volume-limits.md)
+
 ## Configuration Requirements
 
 * Secret object with the authentication key for Disk
