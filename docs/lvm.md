@@ -42,7 +42,9 @@ Same as diskplugin.csi.alibabacloud.com;
 
 > "host": logs will be printed into files which save to host(/var/log/alicloud/lvmplugin.csi.alibabacloud.com.log);
 
-> "stdout": default option, logs will be printed to stdout, can be printed by docker logs or kubectl logs.
+> "stdout": logs will be printed to stdout, can be printed by docker logs or kubectl logs.
+
+> "both": default option, log will be printed both to stdout and host file.
 
 ### Step 3: Create storageclass
 ```
