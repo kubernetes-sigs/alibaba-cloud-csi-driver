@@ -80,10 +80,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	argStr := "AkId: " + opt.AkId + ", Bucket: " + opt.Bucket + ", url: " + opt.Url + ", OtherOpts: " + opt.OtherOpts
-	log.Infof("Oss Plugin Mount: ", argStr)
+	log.Infof("Oss Plugin Mount: %s", argStr)
 
 	if utils.IsMounted(mountPath) {
-		log.Infof("NodePublishVolume: The mountpoint is mounted: ", mountPath)
+		log.Infof("NodePublishVolume: The mountpoint is mounted: %s", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -174,7 +174,7 @@ func connectorRun(cmd string) (string, error) {
 
 	_, err = c.Write([]byte(cmd))
 	if err != nil {
-		log.Errorf("write error:", err)
+		log.Errorf("write error: %s", err.Error())
 		return err.Error(), err
 	}
 
@@ -205,20 +205,20 @@ func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 
-	log.Info("Start Umount oss: %s", req.TargetPath)
+	log.Infof("Start Umount oss: %s", req.TargetPath)
 	mountPoint := req.TargetPath
 	if !utils.IsMounted(mountPoint) {
-		log.Info("Directory is not mounted: %s", mountPoint)
+		log.Infof("Directory is not mounted: %s", mountPoint)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
 	umntCmd := fmt.Sprintf("umount -f %s", mountPoint)
 	if _, err := utils.Run(umntCmd); err != nil {
-		log.Errorf("Umount oss fail, with: ", err.Error())
+		log.Errorf("Umount oss fail, with: %s", err.Error())
 		return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
 	}
 
-	log.Info("Umount oss Successful: %s", mountPoint)
+	log.Infof("Umount oss Successful: %s", mountPoint)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

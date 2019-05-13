@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -25,6 +26,7 @@ import (
 	"time"
 
 	"github.com/AliyunContainerService/csi-plugin/pkg/disk"
+	"github.com/AliyunContainerService/csi-plugin/pkg/lvm"
 	"github.com/AliyunContainerService/csi-plugin/pkg/nas"
 	"github.com/AliyunContainerService/csi-plugin/pkg/oss"
 	log "github.com/Sirupsen/logrus"
@@ -40,11 +42,18 @@ const (
 	TYPE_PLUGIN_DISK = "diskplugin.csi.alibabacloud.com"
 	TYPE_PLUGIN_NAS  = "nasplugin.csi.alibabacloud.com"
 	TYPE_PLUGIN_OSS  = "ossplugin.csi.alibabacloud.com"
+	TYPE_PLUGIN_LVM  = "lvmplugin.csi.alibabacloud.com"
 )
 
+var _BRANCH_ = ""
+var _VERSION_ = ""
+var _COMMITID_ = ""
+var _BUILDTIME_ = ""
+
 var (
-	endpoint = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
-	nodeId   = flag.String("nodeid", "", "node id")
+	endpoint        = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
+	nodeId          = flag.String("nodeid", "", "node id")
+	runAsController = flag.Bool("run-as-controller", false, "Only run as controller service")
 )
 
 func init() {
@@ -63,12 +72,10 @@ func main() {
 		log.Errorf("failed to create persistent storage for node: %v", err)
 		os.Exit(1)
 	}
-	//
-	//endpoint := os.Getenv("CSI_ENDPOINT")
-	//nodeId := os.Getenv("NODE_ID")
 
 	drivername := filepath.Base(os.Args[0])
-	log.Infof("CSI Driver: ", drivername, *nodeId, *endpoint)
+	log.Infof("CSI Driver Name: %s, %s, %s", drivername, *nodeId, *endpoint)
+	log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", _BRANCH_, _VERSION_, _BUILDTIME_)
 	if drivername == TYPE_PLUGIN_NAS {
 		driver := nas.NewDriver(*nodeId, *endpoint)
 		driver.Run()
@@ -76,7 +83,10 @@ func main() {
 		driver := oss.NewDriver(*nodeId, *endpoint)
 		driver.Run()
 	} else if drivername == TYPE_PLUGIN_DISK {
-		driver := disk.NewDriver(*nodeId, *endpoint)
+		driver := disk.NewDriver(*nodeId, *endpoint, *runAsController)
+		driver.Run()
+	} else if drivername == TYPE_PLUGIN_LVM {
+		driver := lvm.NewDriver(*nodeId, *endpoint)
 		driver.Run()
 	}
 
@@ -90,13 +100,16 @@ func createPersistentStorage(persistentStoragePath string) error {
 // rotate log file by 2M bytes
 func setLogAttribute() {
 	logType := os.Getenv("LOG_TYPE")
-	if strings.ToLower(logType) == "" || strings.ToLower(logType) == "stdout" {
+	logType = strings.ToLower(logType)
+	if logType != "stdout" && logType != "host" {
+		logType = "both"
+	}
+	if logType == "stdout" {
 		return
 	}
 
 	driver := filepath.Base(os.Args[0])
 	os.MkdirAll(LOGFILE_PREFIX, os.FileMode(0755))
-
 	logFile := LOGFILE_PREFIX + driver + ".log"
 	f, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
@@ -114,5 +127,10 @@ func setLogAttribute() {
 			os.Exit(1)
 		}
 	}
-	log.SetOutput(f)
+	if logType == "both" {
+		mw := io.MultiWriter(os.Stdout, f)
+		log.SetOutput(mw)
+	} else {
+		log.SetOutput(f)
+	}
 }

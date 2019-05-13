@@ -1,0 +1,8 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: csi-lvm
+provisioner: lvmplugin.csi.alibabacloud.com
+parameters:
+    vgName: volumegroup1
+reclaimPolicy: Delete

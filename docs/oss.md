@@ -5,7 +5,6 @@
 An OSS CSI plugin is available to help simplify storage management.
 You can create a pv with csi configuration, and the pvc, pod defines as usual.
 
-TODO: run oss on the node
 
 ## Configuration Requirements
 
@@ -42,7 +41,9 @@ Same as diskplugin.csi.alibabacloud.com;
 
 > "host": logs will be printed into files which save to host(/var/log/alicloud/ossplugin.csi.alibabacloud.com.log);
 
-> "stdout": default option, logs will be printed to stdout, can be printed by docker logs or kubectl logs.
+> "stdout": logs will be printed to stdout, can be printed by docker logs or kubectl logs.
+
+> "both": default option, log will be printed both to stdout and host file.
 
 ### Step 3: Create nginx deploy with csi
 ```

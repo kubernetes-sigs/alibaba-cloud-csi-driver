@@ -3,4 +3,7 @@
 diskplugin.csi.alibabacloud.com
 nasplugin.csi.alibabacloud.com
 ossplugin.csi.alibabacloud.com
+build/oss/csiplugin-connector
+build/lvm/lvmplugin.csi.alibabacloud.com
 build/nsenter
+build/Dockerfile
