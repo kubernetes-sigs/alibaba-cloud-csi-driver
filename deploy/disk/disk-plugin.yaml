@@ -60,6 +60,8 @@ spec:
               value: ""
             - name: ACCESS_KEY_SECRET
               value: ""
+            - name: MAX_VOLUMES_PERNODE
+              value: 5
           volumeMounts:
             - name: pods-mount-dir
               mountPath: /var/lib/kubelet
@@ -88,3 +90,5 @@ spec:
         - name: host-log
           hostPath:
             path: /var/log/alicloud/
+  updateStrategy:
+    type: RollingUpdate

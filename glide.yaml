@@ -1,18 +1,25 @@
 package: github.com/AliyunContainerService/csi-plugin
 import:
 - package: github.com/Sirupsen/logrus
+- package: github.com/aliyun/alibaba-cloud-sdk-go
+  subpackages:
+  - sdk/requests
+  - services/ecs
+  - services/metadata
+  - services/sts
 - package: github.com/container-storage-interface/spec
   subpackages:
-  - lib/go/csi/v0
-- package: github.com/denverdino/aliyungo
-  subpackages:
-  - common
-  - ecs
-  - metadata
+  - lib/go/csi
 - package: github.com/golang/glog
+- package: github.com/golang/protobuf
+  subpackages:
+  - ptypes
+  - ptypes/timestamp
 - package: github.com/kubernetes-csi/drivers
   subpackages:
   - pkg/csi-common
+- package: github.com/nightlyone/lockfile
+- package: github.com/sevlyar/go-daemon
 - package: golang.org/x/net
   subpackages:
   - context
@@ -20,7 +27,17 @@ import:
   subpackages:
   - codes
   - status
+- package: k8s.io/api
+  subpackages:
+  - core/v1
+- package: k8s.io/apimachinery
+  subpackages:
+  - pkg/apis/meta/v1
+- package: k8s.io/client-go
+  subpackages:
+  - kubernetes
+  - tools/clientcmd
+- package: k8s.io/klog
 - package: k8s.io/kubernetes
   subpackages:
   - pkg/util/keymutex
-  - pkg/util/mount

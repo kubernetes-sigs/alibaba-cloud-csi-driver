@@ -193,7 +193,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, errors.New("Nas, Umount nfs Fail: " + err.Error())
 	}
 
-	log.Info("Umount nfs Successful: %s", mountPoint)
+	log.Info("Umount nfs Successful: ", mountPoint)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

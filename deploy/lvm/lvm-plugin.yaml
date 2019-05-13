@@ -1,0 +1,86 @@
+kind: DaemonSet
+apiVersion: apps/v1beta2
+metadata:
+  name: csi-lvmplugin
+spec:
+  selector:
+    matchLabels:
+      app: csi-lvmplugin
+  template:
+    metadata:
+      labels:
+        app: csi-lvmplugin
+    spec:
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
+      serviceAccount: alicloud-csi-plugin
+      hostNetwork: true
+      hostPID: true
+      containers:
+        - name: driver-registrar
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-node-driver-registrar:v1.0.1
+          imagePullPolicy: Always
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /registration/lvmplugin.csi.alibabacloud.com /registration/lvmplugin.csi.alibabacloud.com-reg.sock"]
+          args:
+            - "--v=5"
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com/csi.sock"
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+
+        - name: csi-lvmplugin
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-lvmplugin:v1.13-51d7800d
+          imagePullPolicy: "Always"
+          args :
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v=5"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix://var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com/csi.sock
+          volumeMounts:
+            - name: pods-mount-dir
+              mountPath: /var/lib/kubelet
+              mountPropagation: "Bidirectional"
+            - mountPath: /dev
+              mountPropagation: "HostToContainer"
+              name: host-dev
+            - mountPath: /var/log/alicloud
+              name: host-log
+      volumes:
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com
+            type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: DirectoryOrCreate
+        - name: pods-mount-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: host-log
+          hostPath:
+            path: /var/log/alicloud/
