@@ -54,7 +54,9 @@ If the cluster not in STS mode, you need to config AK info to plugin; Set ACCESS
 
 > "host": logs will be printed into files which save to host(/var/log/alicloud/diskplugin.csi.alibabacloud.com.log);
 
-> "stdout": default option, logs will be printed to stdout, can be printed by docker logs or kubectl logs.
+> "stdout": logs will be printed to stdout, can be printed by docker logs or kubectl logs.
+
+> "both": default option, log will be printed both to stdout and host file.
 
 ### Step 2: Create CSI external runner
 ```
