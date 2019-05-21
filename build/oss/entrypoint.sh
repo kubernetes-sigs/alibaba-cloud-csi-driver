@@ -59,7 +59,7 @@ if [ "$updateConnectorInit" = "true" ]; then
     chmod 755 /host/usr/libexec/kubernetes/kubelet-plugins/volume/exec/alicloud~csiplugin-connector-init/csiplugin-connector-init
 fi
 
-/nsenter --mount=/proc/1/ns/mnt /usr/libexec/kubernetes/kubelet-plugins/volume/exec/alicloud~csiplugin-connector-init/csiplugin-connector-init init > /dev/null  2>&1
+#/nsenter --mount=/proc/1/ns/mnt /usr/libexec/kubernetes/kubelet-plugins/volume/exec/alicloud~csiplugin-connector-init/csiplugin-connector-init init > /dev/null  2>&1
 
 # start daemon
 /bin/ossplugin.csi.alibabacloud.com $@
