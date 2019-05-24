@@ -13,13 +13,13 @@ version="v1.13.2"
 commitId=$GIT_SHA
 buildTime=`date "+%Y-%m-%d-%H:%M:%S"`
 
-CGO_ENABLED=0 go build -ldflags "-X main._BRANCH_='$branch' -X main._VERSION_='$version-$commitId' -X main._BUILDTIME_='$buildTime'" -o ossplugin.csi.alibabacloud.com
+CGO_ENABLED=0 go build -ldflags "-X main._BRANCH_='$branch' -X main._VERSION_='$version-$commitId' -X main._BUILDTIME_='$buildTime'" -o plugin.csi.alibabacloud.com
 
 cd ${GOPATH}/src/github.com/AliyunContainerService/csi-plugin/build/oss/
 CGO_ENABLED=0 go build csiplugin-connector.go
 
 if [ "$1" == "" ]; then
-  mv ${GOPATH}/src/github.com/AliyunContainerService/csi-plugin/ossplugin.csi.alibabacloud.com ./
+  mv ${GOPATH}/src/github.com/AliyunContainerService/csi-plugin/plugin.csi.alibabacloud.com ./
   docker build -t=registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:$version-$GIT_SHA ./
   docker push registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:$version-$GIT_SHA
 fi

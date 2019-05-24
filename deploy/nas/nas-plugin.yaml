@@ -2,15 +2,15 @@
 kind: DaemonSet
 apiVersion: apps/v1beta2
 metadata:
-  name: csi-nasplugin
+  name: csi-nas-plugin
 spec:
   selector:
     matchLabels:
-      app: csi-nasplugin
+      app: csi-nas-plugin
   template:
     metadata:
       labels:
-        app: csi-nasplugin
+        app: csi-nas-plugin
     spec:
       tolerations:
       - key: node-role.kubernetes.io/master
@@ -49,11 +49,12 @@ spec:
           capabilities:
             add: ["SYS_ADMIN"]
           allowPrivilegeEscalation: true
-        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-nasplugin:v1.13.2-9937789e
+        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-nasplugin:v1.13.2-e0e57163
         imagePullPolicy: "Always"
         args:
         - "--endpoint=$(CSI_ENDPOINT)"
         - "--v=5"
+        - "--driver=nasplugin.csi.alibabacloud.com"
         env:
         - name: CSI_ENDPOINT
           value: unix://var/lib/kubelet/plugins/nasplugin.csi.alibabacloud.com/csi.sock
