@@ -1,15 +1,15 @@
 kind: DaemonSet
 apiVersion: apps/v1beta2
 metadata:
-  name: csi-diskplugin
+  name: csi-disk-plugin
 spec:
   selector:
     matchLabels:
-      app: csi-diskplugin
+      app: csi-disk-plugin
   template:
     metadata:
       labels:
-        app: csi-diskplugin
+        app: csi-disk-plugin
     spec:
       tolerations:
         - key: node-role.kubernetes.io/master
@@ -53,6 +53,7 @@ spec:
           args :
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
+            - "--driver=diskplugin.csi.alibabacloud.com"
           env:
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock

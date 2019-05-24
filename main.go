@@ -54,6 +54,7 @@ var (
 	endpoint        = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
 	nodeId          = flag.String("nodeid", "", "node id")
 	runAsController = flag.Bool("run-as-controller", false, "Only run as controller service")
+	driver          = flag.String("driver", TYPE_PLUGIN_DISK, "CSI Driver")
 )
 
 func init() {
@@ -73,7 +74,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	drivername := filepath.Base(os.Args[0])
+	drivername := *driver
 	log.Infof("CSI Driver Name: %s, %s, %s", drivername, *nodeId, *endpoint)
 	log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", _BRANCH_, _VERSION_, _BUILDTIME_)
 	if drivername == TYPE_PLUGIN_NAS {
@@ -88,6 +89,8 @@ func main() {
 	} else if drivername == TYPE_PLUGIN_LVM {
 		driver := lvm.NewDriver(*nodeId, *endpoint)
 		driver.Run()
+	} else {
+		log.Errorf("CSI start failed, not support driver: %s", drivername)
 	}
 
 	os.Exit(0)
@@ -98,6 +101,7 @@ func createPersistentStorage(persistentStoragePath string) error {
 }
 
 // rotate log file by 2M bytes
+// default print log to stdout and file both.
 func setLogAttribute() {
 	logType := os.Getenv("LOG_TYPE")
 	logType = strings.ToLower(logType)
