@@ -89,3 +89,8 @@ LVM CSI插件更多详细说明请参考[LVM](./docs/lvm.md)
 ## 问题反馈
 
 如您使用中遇到问题，可以提交到[Issues](https://github.com/AliyunContainerService/csi-plugin/issues)
+
+
+## 社区交流
+加入下面钉钉群，一起讨论您遇到的问题:
+![](./docs/ding_group.jpg)
