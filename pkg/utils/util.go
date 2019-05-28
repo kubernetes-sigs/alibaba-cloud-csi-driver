@@ -3,8 +3,8 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
-	log "github.com/golang/glog"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -105,9 +105,13 @@ func CreateDest(dest string) error {
 }
 
 func IsMounted(mountPath string) bool {
-	cmd := fmt.Sprintf("mount | grep \"%s type\" | grep -v grep", mountPath)
+	cmd := fmt.Sprintf("mount | grep %s | grep -v grep", mountPath)
 	out, err := Run(cmd)
-	if err != nil || out == "" {
+	if err != nil {
+		log.Infof("IsMounted: exec error: %s, %s", cmd, err.Error())
+		return false
+	}
+	if strings.TrimSpace(out) == "" {
 		return false
 	}
 	return true

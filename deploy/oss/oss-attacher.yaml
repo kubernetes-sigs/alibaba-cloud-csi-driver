@@ -1,12 +1,12 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: csi-external-runner-oss
+  name: csi-oss-attacher
   labels:
-    app: csi-external-runner-oss
+    app: csi-oss-attacher
 spec:
   selector:
-    app: csi-external-runner-oss
+    app: csi-oss-attacher
   ports:
   - name: dummy
     port: 12345
@@ -15,14 +15,14 @@ spec:
 kind: StatefulSet
 apiVersion: apps/v1beta1
 metadata:
-  name: csi-external-runner-oss
+  name: csi-oss-attacher
 spec:
-  serviceName: "csi-external-runner-oss"
+  serviceName: "csi-oss-attacher"
   replicas: 1
   template:
     metadata:
       labels:
-        app: csi-external-runner-oss
+        app: csi-oss-attacher
     spec:
       tolerations:
       - effect: NoSchedule
