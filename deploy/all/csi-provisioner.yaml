@@ -1,0 +1,84 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: csi-provisioner
+  labels:
+    app: csi-provisioner
+spec:
+  selector:
+    app: csi-provisioner
+  ports:
+    - name: dummy
+      port: 12345
+
+---
+kind: StatefulSet
+apiVersion: apps/v1beta1
+metadata:
+  name: csi-provisioner
+spec:
+  serviceName: "csi-provisioner"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: csi-provisioner
+    spec:
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        operator: Exists
+        key: node.cloudprovider.kubernetes.io/uninitialized
+      nodeSelector:
+         node-role.kubernetes.io/master: ""
+      serviceAccount: alicloud-csi-plugin
+      hostNetwork: true
+      containers:
+        - name: csi-external-provisioner
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-provisioner:v1.0.1
+          args:
+            - "--provisioner=diskplugin.csi.alibabacloud.com"
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+          env:
+            - name: ADDRESS
+              value: /socketDir/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: disk-provisioner-dir
+              mountPath: /socketDir
+        - name: csi-diskprovisioner
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-plugin:v1.13.2-e0e57163
+          imagePullPolicy: "Always"
+          args:
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v=5"
+            - "--driver=diskplugin.csi.alibabacloud.com"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix://socketDir/csi.sock
+            - name: ACCESS_KEY_ID
+              value: ""
+            - name: ACCESS_KEY_SECRET
+              value: ""
+            - name: MAX_VOLUMES_PERNODE
+              value: "5"
+          volumeMounts:
+            - mountPath: /var/log/alicloud
+              name: host-log
+            - mountPath: /socketDir/
+              name: disk-provisioner-dir
+
+      volumes:
+        - name: disk-provisioner-dir
+          emptyDir: {}
+        - name: host-log
+          hostPath:
+            path: /var/log/alicloud/

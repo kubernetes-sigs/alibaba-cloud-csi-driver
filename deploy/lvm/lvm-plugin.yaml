@@ -1,15 +1,15 @@
 kind: DaemonSet
 apiVersion: apps/v1beta2
 metadata:
-  name: csi-lvmplugin
+  name: csi-lvm-plugin
 spec:
   selector:
     matchLabels:
-      app: csi-lvmplugin
+      app: csi-lvm-plugin
   template:
     metadata:
       labels:
-        app: csi-lvmplugin
+        app: csi-lvm-plugin
     spec:
       tolerations:
         - key: node-role.kubernetes.io/master
@@ -48,11 +48,12 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-lvmplugin:v1.13-51d7800d
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-lvmplugin:v1.13.2-e0e57163
           imagePullPolicy: "Always"
           args :
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
+            - "--driver=lvmplugin.csi.alibabacloud.com"
           env:
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com/csi.sock

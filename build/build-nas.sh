@@ -13,8 +13,8 @@ version="v1.13.2"
 commitId=$GIT_SHA
 buildTime=`date "+%Y-%m-%d-%H:%M:%S"`
 
-CGO_ENABLED=0 go build -ldflags "-X main._BRANCH_='$branch' -X main._VERSION_='$version-$commitId' -X main._BUILDTIME_='$buildTime'" -o nasplugin.csi.alibabacloud.com
-mv nasplugin.csi.alibabacloud.com ./build/
+CGO_ENABLED=0 go build -ldflags "-X main._BRANCH_='$branch' -X main._VERSION_='$version-$commitId' -X main._BUILDTIME_='$buildTime'" -o plugin.csi.alibabacloud.com
+mv plugin.csi.alibabacloud.com ./build/
 
 if [ "$1" == "" ]; then
   cd ./build

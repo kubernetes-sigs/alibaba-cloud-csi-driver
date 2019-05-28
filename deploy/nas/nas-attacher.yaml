@@ -1,12 +1,12 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: csi-external-runner-nas
+  name: csi-nas-attacher
   labels:
-    app: csi-external-runner-nas
+    app: csi-nas-attacher
 spec:
   selector:
-    app: csi-external-runner-nas
+    app: csi-nas-attacher
   ports:
   - name: dummy
     port: 12345
@@ -15,14 +15,14 @@ spec:
 kind: StatefulSet
 apiVersion: apps/v1beta1
 metadata:
-  name: csi-external-runner-nas
+  name: csi-nas-attacher
 spec:
-  serviceName: "csi-external-runner-nas"
+  serviceName: "csi-nas-attacher"
   replicas: 1
   template:
     metadata:
       labels:
-        app: csi-external-runner-nas
+        app: csi-nas-attacher
     spec:
       tolerations:
       - effect: NoSchedule

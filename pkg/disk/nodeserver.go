@@ -201,11 +201,6 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		log.Errorf("NodeUnpublishVolume: umount %s error: %s", targetPath, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	err = ns.mounter.SafePathRemove(targetPath)
-	if err != nil {
-		log.Errorf("NodeUnpublishVolume: Remove targetPath failed, target %v", targetPath)
-		return nil, status.Error(codes.Internal, err.Error())
-	}
 	log.Infof("NodeUnpublishVolume: Unpublish successful, target %v", targetPath)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
