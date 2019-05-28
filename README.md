@@ -89,3 +89,7 @@ More detail information pls refer to [LVM](./docs/lvm.md).
 ## Troubleshooting
 
 Please submit an issue at: [Issues](https://github.com/AliyunContainerService/csi-plugin/issues)
+
+## Community
+Join DingTalk group by the QR code below:
+![](./docs/ding_group.jpg)
