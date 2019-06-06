@@ -49,7 +49,7 @@ spec:
           capabilities:
             add: ["SYS_ADMIN"]
           allowPrivilegeEscalation: true
-        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:v1.13.2-e0e57163
+        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:v1.13.2-43e62a8e
         imagePullPolicy: "Always"
         args:
         - "--endpoint=$(CSI_ENDPOINT)"
@@ -72,7 +72,7 @@ spec:
           mountPath: /host/etc
         - mountPath: /var/log/alicloud
           name: host-log
-        - mountPath: /host/usr/libexec/kubernetes
+        - mountPath: /host/usr/
           name: flexvolumedir
       volumes:
       - name: plugin-dir
@@ -92,7 +92,7 @@ spec:
           path: /etc
       - name: flexvolumedir
         hostPath:
-          path: /usr/libexec/kubernetes
+          path: /usr/
       - name: host-log
         hostPath:
           path: /var/log/alicloud/
