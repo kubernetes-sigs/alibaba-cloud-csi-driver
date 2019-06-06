@@ -35,13 +35,11 @@ Design:
 
 3. Csi-plugin communicate with daemon by unix socket;
 
-4. Daemon not be startup by csi-plugin or other pods, it is raised up by kubelet;
+4. Daemon not be startup by csi-plugin or other pods, it is raised up by systemd;
 
-5. Consider flexvolume init implementation. When csi-plugin startup, it install a flexvolume and the flexvolume "init" interface will be called.
+5. When oss csi plugin start up, use 'systemctl start' to setup dameon process.
 
-6. Flexvolume Init interface is to startup the daemon process.
-
-7. Daemon process runs ossfs command with "systemd-run --scope", which can continue the connection when daemon restart.
+6. Daemon process runs ossfs command with "systemd-run --scope", which can continue the connection when daemon restart.
 ```
 
 ![oss-upgrade.jpg](./oss-upgrade.jpg)

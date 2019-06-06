@@ -4,6 +4,7 @@ set -e
 cd ${GOPATH}/src/github.com/AliyunContainerService/csi-plugin/
 GIT_SHA=`git rev-parse --short HEAD || echo "HEAD"`
 
+rm -rf build/oss/csiplugin-connector build/oss/plugin.csi.alibabacloud.com
 
 export GOARCH="amd64"
 export GOOS="linux"
