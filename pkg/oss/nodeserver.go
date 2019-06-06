@@ -47,7 +47,7 @@ type OssOptions struct {
 const (
 	CredentialFile = "/host/etc/passwd-ossfs"
 	NSENTER_CMD    = "/nsenter --mount=/proc/1/ns/mnt"
-	SOCKET_PATH    = "/host/usr/libexec/kubernetes/connector.sock"
+	SOCKET_PATH    = "/host/etc/csi-tool/connector.sock"
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -100,7 +100,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// default use allow_other
-	mntCmd := fmt.Sprintf("systemd-run --scope -- ossfs %s %s -ourl=%s -o allow_other %s", opt.Bucket, mountPath, opt.Url, opt.OtherOpts)
+	mntCmd := fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s %s -ourl=%s -o allow_other %s", opt.Bucket, mountPath, opt.Url, opt.OtherOpts)
 	if out, err := connectorRun(mntCmd); err != nil {
 		out, err = connectorRun(mntCmd + " -f")
 		if err != nil {

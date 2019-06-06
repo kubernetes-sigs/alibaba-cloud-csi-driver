@@ -1,10 +1,9 @@
 package disk
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
+	log "github.com/Sirupsen/logrus"
 	"os"
 	"os/exec"
 	"strings"
@@ -71,7 +70,7 @@ func (m *mounter) EnsureFolder(target string) error {
 	}
 
 	mkdirArgs := []string{"-p", target}
-	glog.V(4).Infof("mkdir for folder, the command is %s %v", mdkirCmd, mkdirArgs)
+	log.Infof("mkdir for folder, the command is %s %v", mdkirCmd, mkdirArgs)
 	_, err = exec.Command(mdkirCmd, mkdirArgs...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("mkdir for folder error: %v", err)
@@ -89,11 +88,11 @@ func (m *mounter) EnsureBlock(target string) error {
 	}
 	targetPathFile, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, 0750)
 	if err != nil {
-		glog.V(4).Infof("Failed to create block:%s with error: %v", target, err)
+		log.Infof("Failed to create block:%s with error: %v", target, err)
 		return fmt.Errorf("create block error: %v", err)
 	}
 	if err := targetPathFile.Close(); err != nil {
-		glog.V(4).Infof("Failed to close targetPath:%s with error: %v", target, err)
+		log.Infof("Failed to close targetPath:%s with error: %v", target, err)
 		return fmt.Errorf("close block error: %v", err)
 	}
 	return nil
@@ -122,7 +121,7 @@ func (m *mounter) Format(source, fsType string) error {
 		mkfsArgs = []string{"-F", source}
 	}
 
-	glog.V(4).Infof("Format %s with fsType %s, the command is %s %v", source, fsType, mkfsCmd, mkfsArgs)
+	log.Infof("Format %s with fsType %s, the command is %s %v", source, fsType, mkfsCmd, mkfsArgs)
 	out, err := exec.Command(mkfsCmd, mkfsArgs...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("formatting disk failed: %v cmd: '%s %s' output: %q",
@@ -154,7 +153,7 @@ func (m *mounter) MountBlock(source, target string, opts ...string) error {
 		return err
 	}
 
-	glog.V(4).Infof("Mount %s to %s, the command is %s %v", source, target, mountCmd, mountArgs)
+	log.Infof("Mount %s to %s, the command is %s %v", source, target, mountCmd, mountArgs)
 	out, err := exec.Command(mountCmd, mountArgs...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("mounting failed: %v cmd: '%s %s' output: %q",
@@ -194,7 +193,7 @@ func (m *mounter) Mount(source, target, fsType string, opts ...string) error {
 		return err
 	}
 
-	glog.V(4).Infof("Mount %s to %s with fsType %s, the command is %s %v", source, target, fsType, mountCmd, mountArgs)
+	log.Infof("Mount %s to %s with fsType %s, the command is %s %v", source, target, fsType, mountCmd, mountArgs)
 
 	out, err := exec.Command(mountCmd, mountArgs...).CombinedOutput()
 	if err != nil {
@@ -213,7 +212,7 @@ func (m *mounter) Unmount(target string) error {
 
 	umountArgs := []string{target}
 
-	glog.V(4).Infof("Unmount %s, the command is %s %v", target, umountCmd, umountArgs)
+	log.Infof("Unmount %s, the command is %s %v", target, umountCmd, umountArgs)
 
 	out, err := exec.Command(umountCmd, umountArgs...).CombinedOutput()
 	if err != nil {
@@ -240,7 +239,7 @@ func (m *mounter) IsFormatted(source string) (bool, error) {
 
 	args := []string{"-sL", source}
 
-	glog.V(4).Infof("IsFormatted: %s, the command is %s %v", source, fileCmd, args)
+	log.Infof("IsFormatted: %s, the command is %s %v", source, fileCmd, args)
 	out, err := exec.Command(fileCmd, args...).CombinedOutput()
 	if err != nil {
 		return false, fmt.Errorf("checking formatting failed: %v cmd: %q output: %q",
@@ -259,56 +258,22 @@ func (m *mounter) IsMounted(target string) (bool, error) {
 	if target == "" {
 		return false, errors.New("target is not specified for checking the mount")
 	}
-
-	findmntCmd := "findmnt"
-	_, err := exec.LookPath(findmntCmd)
-	if err != nil {
-		if err == exec.ErrNotFound {
-			return false, fmt.Errorf("%q executable not found in $PATH", findmntCmd)
-		}
-		return false, err
-	}
-
-	findmntArgs := []string{"-o", "TARGET,PROPAGATION,FSTYPE,OPTIONS", "-M", target, "-J"}
-
-	glog.V(4).Infof("IsMounted: %s, the command is %s %v", target, findmntCmd, findmntArgs)
+	findmntCmd := "grep"
+	findmntArgs := []string{target, "/proc/mounts"}
 	out, err := exec.Command(findmntCmd, findmntArgs...).CombinedOutput()
+	outStr := strings.TrimSpace(string(out))
 	if err != nil {
-		// findmnt exits with non zero exit status if it couldn't find anything
-		if strings.TrimSpace(string(out)) == "" {
+		if outStr == "" {
+			log.Errorf("Check mount error: %s", err.Error())
 			return false, nil
 		}
-
 		return false, fmt.Errorf("checking mounted failed: %v cmd: %q output: %q",
-			err, findmntCmd, string(out))
+			err, findmntCmd, outStr)
 	}
-
-	// no response means there is no mount
-	if string(out) == "" {
-		return false, nil
+	if strings.Contains(outStr, target) {
+		return true, nil
 	}
-
-	var resp *findmntResponse
-	err = json.Unmarshal(out, &resp)
-	if err != nil {
-		return false, fmt.Errorf("couldn't unmarshal data: %q: %s", string(out), err)
-	}
-
-	targetFound := false
-	for _, fs := range resp.FileSystems {
-		// check if the mount is propagated correctly. It should be set to shared.
-		// if fs.Propagation != "shared" {
-		// 	return true, fmt.Errorf("mount propagation for target %q is not enabled", target)
-		// }
-
-		// the mountpoint should match as well
-		if fs.Target == target {
-			targetFound = true
-			break
-		}
-	}
-
-	return targetFound, nil
+	return false, nil
 }
 
 func (m *mounter) SafePathRemove(targetPath string) (error) {

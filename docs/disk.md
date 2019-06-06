@@ -60,7 +60,8 @@ If the cluster not in STS mode, you need to config AK info to plugin; Set ACCESS
 
 ### Step 2: Create CSI external runner
 ```
-# kubectl create -f ./deploy/disk/disk-external-runner.yaml
+# kubectl create -f ./deploy/disk/disk-attacher.yaml
+# kubectl create -f ./deploy/disk/disk-provisioner.yaml
 ```
 
 ### Step 3: Create StorageClass
@@ -79,10 +80,10 @@ The following output should be displayed:
 ```
 # kubectl get pod
 NAME                    READY   STATUS    RESTARTS   AGE
-csi-diskplugin-2pm2k    2/2     Running   0          8m
-csi-diskplugin-4bvgz    2/2     Running   0          8m
-csi-diskplugin-w2n7s    2/2     Running   0          8m
-csi-external-runner-disk-0   3/3     Running   0          8m
+csi-disk-attacher-0     1/1     Running   0          7s
+csi-disk-plugin-4hg7v   2/2     Running   0          3s
+csi-disk-plugin-rhjp9   2/2     Running   0          3s
+csi-disk-plugin-x229t   2/2     Running   0          3s
 ```
 
 ### Step 7: Create PVC & Deployments

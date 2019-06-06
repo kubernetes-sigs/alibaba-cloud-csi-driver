@@ -1,8 +1,8 @@
-FROM ubuntu:18.10
+FROM centos:7.4.1708
 LABEL maintainers="Alibaba Cloud Authors"
 LABEL description="Alibaba Cloud CSI Plugin"
 
-RUN apt update && apt upgrade -y && apt install -y ca-certificates file tzdata
+RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs
 
 COPY plugin.csi.alibabacloud.com /bin/plugin.csi.alibabacloud.com
 RUN chmod +x /bin/plugin.csi.alibabacloud.com
