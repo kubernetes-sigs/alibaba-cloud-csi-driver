@@ -55,7 +55,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-plugin:v1.13.2-e0e57163
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-plugin:v1.13.2-43e62a8e
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -75,10 +75,14 @@ spec:
               name: host-log
             - mountPath: /socketDir/
               name: disk-provisioner-dir
-
+            - name: etc
+              mountPath: /host/etc
       volumes:
         - name: disk-provisioner-dir
           emptyDir: {}
         - name: host-log
           hostPath:
             path: /var/log/alicloud/
+        - name: etc
+          hostPath:
+            path: /etc

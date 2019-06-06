@@ -15,7 +15,7 @@ const (
 	LOG_FILENAME = "/var/log/alicloud/csi_connector.log"
 	PID_FILENAME = "/var/log/alicloud/connector.pid"
 	WORK_PATH    = "./"
-	SOCKET_PATH  = "/usr/libexec/kubernetes/connector.sock"
+	SOCKET_PATH  = "/etc/csi-tool/connector.sock"
 )
 
 func main() {
@@ -37,7 +37,7 @@ func main() {
 		return
 	}
 	defer cntxt.Release()
-	log.Print("Daemon starting...")
+	log.Print("Daemon is starting...")
 
 	runOssProxy()
 }
