@@ -39,6 +39,10 @@ Enable Privileged：
 
 	enable kube-apiserver with --allow-privileged=true ...
 	enable kubelet with --allow-privileged=true ...
+	
+**Note**
+
+- Since `v1.15.0-alpha.3` , the `--allow-privileged` is removed from kubelet options.
 
 Create CRDs for csidriver、csinodeinfo:
 
