@@ -17,6 +17,7 @@ limitations under the License.
 package disk
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -356,6 +357,40 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	}
 
 	log.Infof("NodeUnstageVolume: Unstage successful, target %v, volumeId: %s", targetPath, req.VolumeId)
+
+	ns.ecsClient = updateEcsClent(ns.ecsClient)
+	disk, err := ns.findDiskByID(req.VolumeId)
+	if err != nil {
+		log.Errorf("NodeUnstageVolume: describe volume %s error: %s", req.GetVolumeId(), err.Error())
+		return nil, status.Error(codes.Aborted, err.Error())
+	}
+
+	if disk == nil {
+		return &csi.NodeUnstageVolumeResponse{}, nil
+	}
+
+	if disk.InstanceId != "" {
+		if disk.InstanceId == ns.nodeId {
+			detachDiskRequest := ecs.CreateDetachDiskRequest()
+			detachDiskRequest.DiskId = disk.DiskId
+			detachDiskRequest.InstanceId = disk.InstanceId
+			response, err := ns.ecsClient.DetachDisk(detachDiskRequest)
+			if err != nil {
+				errMsg := fmt.Sprintf("NodeUnstageVolume: fail to detach %s: %v", disk.DiskId, err.Error())
+				if response != nil {
+					errMsg = fmt.Sprintf("NodeUnstageVolume: fail to detach %s: %v, with requestId %s", disk.DiskId, err.Error(), response.RequestId)
+				}
+				log.Errorf(errMsg)
+				return nil, status.Error(codes.Aborted, errMsg)
+			}
+			log.Infof("NodeUnstageVolume: Success to detach disk %s from %s", req.GetVolumeId(), ns.nodeId)
+		} else {
+			log.Infof("NodeUnstageVolume: Skip Detach, disk %s is attached to other instance: %s", req.VolumeId, disk.InstanceId)
+		}
+	} else {
+		log.Infof("NodeUnstageVolume: Skip Detach, disk %s have not detachable instance", req.VolumeId)
+	}
+
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
