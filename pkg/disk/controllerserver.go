@@ -241,41 +241,7 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 }
 
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	log.Infof("ControllerUnpublishVolume: detach volume %s from instance %s ", req.GetVolumeId(), req.GetNodeId())
-
-	cs.ecsClient = updateEcsClent(cs.ecsClient)
-	disk, err := cs.findDiskByID(req.VolumeId)
-	if err != nil {
-		log.Errorf("ControllerUnpublishVolume: describe volume %s error: %s", req.GetVolumeId(), err.Error())
-		return nil, status.Error(codes.Aborted, err.Error())
-	}
-
-	if disk == nil {
-		return &csi.ControllerUnpublishVolumeResponse{}, nil
-	}
-
-	if disk.InstanceId != "" {
-		if disk.InstanceId == req.GetNodeId() {
-			detachDiskRequest := ecs.CreateDetachDiskRequest()
-			detachDiskRequest.DiskId = disk.DiskId
-			detachDiskRequest.InstanceId = disk.InstanceId
-			response, err := cs.ecsClient.DetachDisk(detachDiskRequest)
-			if err != nil {
-				errMsg := fmt.Sprintf("NodeUnstageVolume: fail to detach %s: %v", disk.DiskId, err.Error())
-				if response != nil {
-					errMsg = fmt.Sprintf("NodeUnstageVolume: fail to detach %s: %v, with requestId %s", disk.DiskId, err.Error(), response.RequestId)
-				}
-				log.Errorf(errMsg)
-				return nil, status.Error(codes.Aborted, errMsg)
-			}
-			log.Infof("NodeUnstageVolume: Success to detach disk %s from %s", req.GetVolumeId(), req.GetNodeId())
-		} else {
-			log.Infof("NodeUnstageVolume: Skip Detach, disk %s is attached to other instance: %s", req.VolumeId, disk.InstanceId)
-		}
-	} else {
-		log.Infof("NodeUnstageVolume: Skip Detach, disk %s have not detachable instance", req.VolumeId)
-	}
-
+	log.Infof("ControllerUnpublishVolume is called, do nothing by now")
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
