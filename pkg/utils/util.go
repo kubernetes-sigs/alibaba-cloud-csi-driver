@@ -105,13 +105,13 @@ func CreateDest(dest string) error {
 }
 
 func IsMounted(mountPath string) bool {
-	cmd := fmt.Sprintf("mount | grep %s | grep -v grep", mountPath)
+	cmd := fmt.Sprintf("mount | grep %s | grep -v grep | wc -l", mountPath)
 	out, err := Run(cmd)
 	if err != nil {
 		log.Infof("IsMounted: exec error: %s, %s", cmd, err.Error())
 		return false
 	}
-	if strings.TrimSpace(out) == "" {
+	if strings.TrimSpace(out) == "0" {
 		return false
 	}
 	return true
