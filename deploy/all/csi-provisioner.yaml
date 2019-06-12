@@ -55,7 +55,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-plugin:v1.13.2-43e62a8e
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-plugin:v1.13.2-0f7d17ad
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
