@@ -30,6 +30,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	utils "github.com/AliyunContainerService/csi-plugin/pkg/utils"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -43,7 +44,7 @@ type nodeServer struct {
 	nodeId            string
 	attachMutex       sync.RWMutex
 	canAttach         bool
-	mounter           Mounter
+	mounter           utils.Mounter
 	*csicommon.DefaultNodeServer
 }
 
@@ -88,7 +89,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		maxVolumesPerNode: maxVolumesNum,
 		nodeId:            doc.InstanceID,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
-		mounter:           NewMounter(),
+		mounter:           utils.NewMounter(),
 		canAttach:         true,
 	}
 }
