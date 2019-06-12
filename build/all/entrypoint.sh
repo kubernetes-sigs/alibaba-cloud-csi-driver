@@ -2,6 +2,8 @@
 
 run_oss="false"
 
+mkdir -p /var/log/alicloud/
+
 for item in $@;
 do
   if [ "$item" = "--driver=ossplugin.csi.alibabacloud.com" ]; then
