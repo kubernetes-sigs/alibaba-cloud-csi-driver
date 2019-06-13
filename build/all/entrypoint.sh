@@ -9,10 +9,13 @@ do
   if [ "$item" = "--driver=ossplugin.csi.alibabacloud.com" ]; then
       echo "Running oss plugin...."
       run_oss="true"
+      mkdir -p /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com
   elif [ "$item" = "--driver=diskplugin.csi.alibabacloud.com" ]; then
       echo "Running disk plugin...."
+      mkdir -p /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com
   elif [ "$item" = "--driver=nasplugin.csi.alibabacloud.com" ]; then
       echo "Running nas plugin...."
+      mkdir -p /var/lib/kubelet/plugins/nasplugin.csi.alibabacloud.com
   fi
 done
 
