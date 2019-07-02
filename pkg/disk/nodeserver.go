@@ -25,12 +25,12 @@ import (
 	"sync"
 	"time"
 
+	utils "github.com/AliyunContainerService/csi-plugin/pkg/utils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	utils "github.com/AliyunContainerService/csi-plugin/pkg/utils"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -44,6 +44,7 @@ type nodeServer struct {
 	nodeId            string
 	attachMutex       sync.RWMutex
 	canAttach         bool
+	tagDisk           string
 	mounter           utils.Mounter
 	*csicommon.DefaultNodeServer
 }
@@ -55,6 +56,9 @@ const (
 	DISK_STATUS_ATTACHED  = "attached"
 	DISK_STATUS_DETACHED  = "detached"
 	SHARED_ENABLE         = "shared"
+	DISK_TAGED_BY_PLUGIN  = "DISK_TAGED_BY_PLUGIN"
+	DISK_ATTACHED_KEY     = "k8s.aliyun.com"
+	DISK_ATTACHED_VALUE   = "true"
 )
 
 // NewNodeServer creates node server
@@ -82,6 +86,9 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		log.Fatalf("Error happens to get node document: %v", err)
 	}
 
+	// tag disk as k8s attached.
+	tagDiskConf := os.Getenv(DISK_TAGED_BY_PLUGIN)
+
 	return &nodeServer{
 		ecsClient:         c,
 		region:            doc.RegionID,
@@ -91,6 +98,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		mounter:           utils.NewMounter(),
 		canAttach:         true,
+		tagDisk:           strings.ToLower(tagDiskConf),
 	}
 }
 
@@ -406,6 +414,11 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 		return "", status.Errorf(codes.Internal, "NodeStageVolume: Unexpected count %s for volume id %s", volumeID, err)
 	}
 
+	// tag disk as k8s.aliyun.com=true
+	if ns.tagDisk == "true" {
+		ns.tagDiskAsK8sAttached(volumeID, ns.region)
+	}
+
 	if isSharedDisk {
 		attachedToLocal := false
 		for _, instance := range disk.MountInstances.MountInstance {
@@ -485,6 +498,54 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 
 	//device count is not expected, should retry (later by detaching and attaching again)
 	return "", status.Error(codes.Aborted, "NodeStageVolume: after attaching to disk, but fail to get mounted device, will retry later")
+}
+
+// tag disk with: k8s.aliyun.com=true
+func (ns *nodeServer) tagDiskAsK8sAttached(diskId string, regionId string) {
+
+	// Step 1: Describe disk, if tag exist, return;
+	describeDisksRequest := ecs.CreateDescribeDisksRequest()
+	describeDisksRequest.RegionId = regionId
+	describeDisksRequest.DiskIds = "[\"" + diskId + "\"]"
+	diskResponse, err := ns.ecsClient.DescribeDisks(describeDisksRequest)
+	if err != nil {
+		log.Warnf("tagAsK8sAttached: error with DescribeDisks: %s, %s", diskId, err.Error())
+		return
+	}
+	disks := diskResponse.Disks.Disk
+	if len(disks) == 0 {
+		log.Warnf("tagAsK8sAttached: no disk found: ", diskId)
+		return
+	}
+	for _, tag := range disks[0].Tags.Tag {
+		if tag.TagKey == DISK_ATTACHED_KEY && tag.TagValue == DISK_ATTACHED_VALUE {
+			return
+		}
+	}
+
+	// Step 2: Describe tag
+	describeTagRequest := ecs.CreateDescribeTagsRequest()
+	tag := ecs.DescribeTagsTag{Key: DISK_ATTACHED_KEY, Value: DISK_ATTACHED_VALUE}
+	describeTagRequest.Tag = &[]ecs.DescribeTagsTag{tag}
+	_, err = ns.ecsClient.DescribeTags(describeTagRequest)
+	if err != nil {
+		log.Warnf("tagAsK8sAttached: DescribeTags error: %s, %s", diskId, err.Error())
+		return
+	}
+
+	// Step 3: create & attach tag
+	addTagsRequest := ecs.CreateAddTagsRequest()
+	tmpTag := ecs.AddTagsTag{Key: DISK_ATTACHED_KEY, Value: DISK_ATTACHED_VALUE}
+	addTagsRequest.Tag = &[]ecs.AddTagsTag{tmpTag}
+	addTagsRequest.ResourceType = "disk"
+	addTagsRequest.ResourceId = diskId
+	addTagsRequest.RegionId = regionId
+	_, err = ns.ecsClient.AddTags(addTagsRequest)
+	if err != nil {
+		log.Warnf("tagAsK8sAttached: AddTags error: %s, %s", diskId, err.Error())
+		return
+	}
+	log.Infof("tagDiskAsK8sAttached:: add tag to disk: %s", diskId)
 }
 
 func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
