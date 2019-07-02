@@ -265,7 +265,6 @@ func (m *mounter) IsMounted(target string) (bool, error) {
 	outStr := strings.TrimSpace(string(out))
 	if err != nil {
 		if outStr == "" {
-			log.Errorf("Check mount error: %s", err.Error())
 			return false, nil
 		}
 		return false, fmt.Errorf("checking mounted failed: %v cmd: %q output: %q",
