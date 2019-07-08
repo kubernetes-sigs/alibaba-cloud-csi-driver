@@ -514,7 +514,7 @@ func (ns *nodeServer) tagDiskAsK8sAttached(diskId string, regionId string) {
 	}
 	disks := diskResponse.Disks.Disk
 	if len(disks) == 0 {
-		log.Warnf("tagAsK8sAttached: no disk found: ", diskId)
+		log.Warnf("tagAsK8sAttached: no disk found: %s", diskId)
 		return
 	}
 	for _, tag := range disks[0].Tags.Tag {
