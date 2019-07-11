@@ -48,6 +48,8 @@ const (
 	CredentialFile = "/host/etc/passwd-ossfs"
 	NSENTER_CMD    = "/nsenter --mount=/proc/1/ns/mnt"
 	SOCKET_PATH    = "/host/etc/csi-tool/connector.sock"
+	AK_ID          = "akId"
+	AK_SECRET      = "akSecret"
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -66,6 +68,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		} else if key == "akSecret" {
 			opt.AkSecret = value
 		}
+	}
+
+	// support set ak by secret
+	if opt.AkId == "" || opt.AkSecret == "" {
+		opt.AkId = req.Secrets[AK_ID]
+		opt.AkSecret = req.Secrets[AK_SECRET]
 	}
 
 	if err := checkOssOptions(opt); err != nil {
