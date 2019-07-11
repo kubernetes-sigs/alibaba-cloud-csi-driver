@@ -20,7 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -38,14 +40,16 @@ type nodeServer struct {
 }
 
 type NasOptions struct {
-	Server string `json:"host"`
-	Path   string `json:"path"`
-	Vers   string `json:"vers"`
-	Mode   string `json:"mode"`
+	Server  string `json:"host"`
+	Path    string `json:"path"`
+	Vers    string `json:"vers"`
+	Mode    string `json:"mode"`
+	Options string `json:"options"`
 }
 
 const (
 	NAS_TEMP_MNTPath = "/mnt/acs_mnt/k8s_nas/temp" // used for create sub directory;
+	NAS_PORTNUM      = "2049"
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -64,6 +68,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.Vers = value
 		} else if key == "mode" {
 			opt.Mode = value
+		} else if key == "options" {
+			opt.Options = value
 		}
 	}
 
@@ -74,6 +80,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if opt.Server == "" {
 		return nil, errors.New("host is empty, should input nas domain")
 	}
+	// check network connection
+	conn, err := net.DialTimeout("tcp", opt.Server+":"+NAS_PORTNUM, time.Second*time.Duration(3))
+	if err != nil {
+		log.Errorf("NAS: Cannot connect to nas host: %s", opt.Server)
+		return nil, errors.New("NAS: Cannot connect to nas host: " + opt.Server)
+	}
+	defer conn.Close()
+
 	if opt.Path == "" {
 		opt.Path = "/"
 	}
@@ -81,7 +95,21 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("the path format is illegal")
 	}
 	if opt.Vers == "" {
-		opt.Vers = "4.0"
+		opt.Vers = "3"
+	}
+	if opt.Vers == "3.0" {
+		opt.Vers = "3"
+	}
+
+	// check options
+	if opt.Options == "" {
+		if opt.Vers == "3" {
+			opt.Options = "noresvport,nolock,tcp"
+		} else {
+			opt.Options = "noresvport"
+		}
+	} else if strings.ToLower(opt.Options) == "none" {
+		opt.Options = ""
 	}
 
 	if utils.IsMounted(mountPath) {
@@ -96,17 +124,24 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// Do mount
 	mntCmd := fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", opt.Vers, opt.Server, opt.Path, mountPath)
-	_, err := utils.Run(mntCmd)
+	if opt.Options != "" {
+		mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s,%s %s:%s %s", opt.Vers, opt.Options, opt.Server, opt.Path, mountPath)
+	}
+	_, err = utils.Run(mntCmd)
 
 	// Mount to nfs Sub-directory
-	if err != nil && strings.Contains(err.Error(), "reason given by server: No such file or directory") && opt.Path != "/" {
-		ns.createNasSubDir(opt)
-		if _, err := utils.Run(mntCmd); err != nil {
-			return nil, errors.New("Nas, Mount Nfs sub directory fail: " + err.Error())
+	if err != nil && opt.Path != "/" {
+		if strings.Contains(err.Error(), "reason given by server: No such file or directory") || strings.Contains(err.Error(), "access denied by server while mounting") {
+			ns.createNasSubDir(opt, req.VolumeId)
+			if _, err := utils.Run(mntCmd); err != nil {
+				utils.FinishError("Nas, Mount Nfs sub directory fail: " + err.Error())
+			}
+		} else {
+			utils.FinishError("Nas, Mount Nfs fail with error: " + err.Error())
 		}
 		// mount error
 	} else if err != nil {
-		return nil, errors.New("Nas, Mount nfs fail: " + err.Error())
+		utils.FinishError("Nas, Mount nfs fail: " + err.Error())
 	}
 
 	// change the mode
@@ -153,31 +188,45 @@ func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
 
 }
 
-func (ns *nodeServer) createNasSubDir(opt *NasOptions) {
+func (ns *nodeServer) createNasSubDir(opt *NasOptions, volumeId string) {
 	// step 1: create mount path
-	if err := utils.CreateDest(NAS_TEMP_MNTPath); err != nil {
+	nasTmpPath := filepath.Join(NAS_TEMP_MNTPath, volumeId)
+	if err := utils.CreateDest(nasTmpPath); err != nil {
 		log.Infof("Create Nas temp Directory err: " + err.Error())
 		return
 	}
-	if utils.IsMounted(NAS_TEMP_MNTPath) {
-		utils.Umount(NAS_TEMP_MNTPath)
+	if utils.IsMounted(nasTmpPath) {
+		utils.Umount(nasTmpPath)
 	}
 
 	// step 2: do mount
-	mntCmd := fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", opt.Vers, opt.Server, "/", NAS_TEMP_MNTPath)
+	usePath := opt.Path
+	mntCmd := fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", opt.Vers, opt.Server, "/", nasTmpPath)
 	_, err := utils.Run(mntCmd)
 	if err != nil {
-		log.Infof("Nas, Mount to temp directory fail: " + err.Error())
-		return
+		if strings.Contains(err.Error(), "reason given by server: No such file or directory") || strings.Contains(err.Error(), "access denied by server while mounting") {
+			if strings.HasPrefix(opt.Path, "/share/") {
+				usePath = usePath[6:]
+				mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", opt.Vers, opt.Server, "/share", nasTmpPath)
+				_, err := utils.Run(mntCmd)
+				if err != nil {
+					utils.FinishError("Nas, Mount to temp directory(with /share) fail: " + err.Error())
+				}
+			} else {
+				utils.FinishError("Nas, maybe use fast nas, but path not startwith /share: " + err.Error())
+			}
+		} else {
+			utils.FinishError("Nas, Mount to temp directory fail: " + err.Error())
+		}
 	}
-	subPath := path.Join(NAS_TEMP_MNTPath, opt.Path)
+	subPath := path.Join(nasTmpPath, opt.Path)
 	if err := utils.CreateDest(subPath); err != nil {
 		log.Infof("Nas, Create Sub Directory err: " + err.Error())
 		return
 	}
 
 	// step 3: umount after create
-	utils.Umount(NAS_TEMP_MNTPath)
+	utils.Umount(nasTmpPath)
 	log.Info("Create Sub Directory success: ", opt.Path)
 }
 
@@ -188,7 +237,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
-	umntCmd := fmt.Sprintf("umount -f %s", mountPoint)
+	umntCmd := fmt.Sprintf("umount %s", mountPoint)
 	if _, err := utils.Run(umntCmd); err != nil {
 		return nil, errors.New("Nas, Umount nfs Fail: " + err.Error())
 	}
