@@ -52,25 +52,6 @@ func Fail(a ...interface{}) Result {
 	}
 }
 
-func Finish(result Result) {
-	code := 1
-	if result.Status == "Success" {
-		code = 0
-	}
-	res, err := json.Marshal(result)
-	if err != nil {
-		fmt.Println("{\"status\":\"Failure\",\"message\":", err.Error(), "}")
-	} else {
-		fmt.Println(string(res))
-	}
-	os.Exit(code)
-}
-
-func FinishError(message string) {
-	log.Info("Exit with Error: ", message)
-	Finish(Fail(message))
-}
-
 // Result
 type Result struct {
 	Status  string `json:"status"`
