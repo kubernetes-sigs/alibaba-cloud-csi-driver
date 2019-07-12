@@ -134,14 +134,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if strings.Contains(err.Error(), "reason given by server: No such file or directory") || strings.Contains(err.Error(), "access denied by server while mounting") {
 			ns.createNasSubDir(opt, req.VolumeId)
 			if _, err := utils.Run(mntCmd); err != nil {
-				utils.FinishError("Nas, Mount Nfs sub directory fail: " + err.Error())
+				log.Errorf("Nas, Mount Nfs sub directory fail: %s", err.Error())
 			}
 		} else {
-			utils.FinishError("Nas, Mount Nfs fail with error: " + err.Error())
+			log.Errorf("Nas, Mount Nfs fail with error: %s", err.Error())
 		}
 		// mount error
 	} else if err != nil {
-		utils.FinishError("Nas, Mount nfs fail: " + err.Error())
+		log.Errorf("Nas, Mount nfs fail: %s", err.Error())
 	}
 
 	// change the mode
@@ -210,13 +210,13 @@ func (ns *nodeServer) createNasSubDir(opt *NasOptions, volumeId string) {
 				mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", opt.Vers, opt.Server, "/share", nasTmpPath)
 				_, err := utils.Run(mntCmd)
 				if err != nil {
-					utils.FinishError("Nas, Mount to temp directory(with /share) fail: " + err.Error())
+					log.Errorf("Nas, Mount to temp directory(with /share) fail: %s", err.Error())
 				}
 			} else {
-				utils.FinishError("Nas, maybe use fast nas, but path not startwith /share: " + err.Error())
+				log.Errorf("Nas, maybe use fast nas, but path not startwith /share: %s", err.Error())
 			}
 		} else {
-			utils.FinishError("Nas, Mount to temp directory fail: " + err.Error())
+			log.Errorf("Nas, Mount to temp directory fail: %s", err.Error())
 		}
 	}
 	subPath := path.Join(nasTmpPath, opt.Path)
