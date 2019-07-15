@@ -19,15 +19,6 @@ reclaimPolicy: Retain
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: alicloud-disk-common
-provisioner: diskplugin.csi.alibabacloud.com
-parameters:
-    type: cloud
-reclaimPolicy: Retain
----
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
    name: alicloud-disk-ssd
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
@@ -80,10 +71,11 @@ spec:
       hostNetwork: true
       containers:
         - name: csi-external-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-provisioner:v1.0.1
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.2.0
           args:
             - "--provisioner=diskplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
+            - "--feature-gates=Topology=True"
             - "--v=5"
           env:
             - name: ADDRESS
@@ -98,7 +90,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-plugin:v1.14.3-189c388b
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.3-189c388b
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -130,4 +122,4 @@ spec:
           hostPath:
             path: /etc
   updateStrategy:
-    type: OnDelete
+    type: RollingUpdate

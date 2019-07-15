@@ -158,7 +158,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			volumeResponse, err = cs.ecsClient.CreateDisk(createDiskRequest)
 			if err != nil {
 				if strings.Contains(err.Error(), DISK_NOTAVAILABLE) {
-					disktype = DISK_COMMON
+					disktype = DISK_ESSD
 					createDiskRequest.DiskCategory = disktype
 					volumeResponse, err = cs.ecsClient.CreateDisk(createDiskRequest)
 					if err != nil {

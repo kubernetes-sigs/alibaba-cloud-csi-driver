@@ -50,6 +50,7 @@ const (
 	DISK_COMMON                     = "cloud"
 	DISK_EFFICIENCY                 = "cloud_efficiency"
 	DISK_SSD                        = "cloud_ssd"
+	DISK_ESSD                       = "cloud_essd"
 	DISK_SHARED_SSD                 = "san_ssd"
 	DISK_SHARED_EFFICIENCY          = "san_efficiency"
 	MB_SIZE                         = 1024 * 1024
