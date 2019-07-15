@@ -41,7 +41,7 @@ spec:
       hostPID: true
       containers:
         - name: disk-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-node-driver-registrar:v1.0.1
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.1.0
           imagePullPolicy: Always
           lifecycle:
             preStop:
@@ -69,7 +69,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-plugin:v1.14.3-189c388b
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.3-189c388b
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -97,7 +97,7 @@ spec:
               name: host-log
 
         - name: nas-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-node-driver-registrar:v1.0.1
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.1.0
           imagePullPolicy: Always
           lifecycle:
             preStop:
@@ -125,7 +125,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-plugin:v1.14.3-189c388b
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.3-189c388b
           imagePullPolicy: "Always"
           args:
           - "--endpoint=$(CSI_ENDPOINT)"
@@ -142,7 +142,7 @@ spec:
             name: host-log
 
         - name: oss-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-node-driver-registrar:v1.0.1
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.1.0
           imagePullPolicy: Always
           lifecycle:
             preStop:
@@ -170,7 +170,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-plugin:v1.14.3-189c388b
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.3-189c388b
           imagePullPolicy: "Always"
           args:
           - "--endpoint=$(CSI_ENDPOINT)"
