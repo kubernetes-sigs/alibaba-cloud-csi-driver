@@ -25,7 +25,7 @@ import (
 	"sync"
 	"time"
 
-	utils "github.com/AliyunContainerService/csi-plugin/pkg/utils"
+	"github.com/AliyunContainerService/csi-plugin/pkg/utils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
@@ -34,6 +34,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	k8smount "k8s.io/kubernetes/pkg/util/mount"
 )
 
 type nodeServer struct {
@@ -46,6 +47,7 @@ type nodeServer struct {
 	canAttach         bool
 	tagDisk           string
 	mounter           utils.Mounter
+	k8smounter        k8smount.Interface
 	*csicommon.DefaultNodeServer
 }
 
@@ -71,7 +73,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 			log.Fatalf("NewNodeServer: MAX_VOLUMES_PERNODE must be int64, but get: %s", volumeNum)
 		} else {
 			if num < 0 || num > 15 {
-				log.Fatalf("NewNodeServer: MAX_VOLUMES_PERNODE must between 0-15, but get: %s", volumeNum)
+				log.Errorf("NewNodeServer: MAX_VOLUMES_PERNODE must between 0-15, but get: %s", volumeNum)
 			} else {
 				maxVolumesNum = num
 				log.Infof("NewNodeServer: MAX_VOLUMES_PERNODE is set to(not default): %d", maxVolumesNum)
@@ -97,6 +99,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		nodeId:            doc.InstanceID,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		mounter:           utils.NewMounter(),
+		k8smounter:        k8smount.New(""),
 		canAttach:         true,
 		tagDisk:           strings.ToLower(tagDiskConf),
 	}
@@ -121,13 +124,13 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 // csi disk driver: bind directory from global to pod.
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// check target mount path
-	source := req.StagingTargetPath
+	sourcePath := req.StagingTargetPath
 	isBlock := req.GetVolumeCapability().GetBlock() != nil
 	if isBlock {
-		source = filepath.Join(req.StagingTargetPath, req.VolumeId)
+		sourcePath = filepath.Join(req.StagingTargetPath, req.VolumeId)
 	}
 	targetPath := req.GetTargetPath()
-	log.Infof("NodePublishVolume: Starting mount, source %s > target %s", source, targetPath)
+	log.Infof("NodePublishVolume: Starting mount, source %s > target %s", sourcePath, targetPath)
 	if req.VolumeId == "" {
 		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: Volume ID must be provided")
 	}
@@ -143,10 +146,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		options := []string{"bind"}
-		if err := ns.mounter.MountBlock(source, targetPath, options...); err != nil {
+		if err := ns.mounter.MountBlock(sourcePath, targetPath, options...); err != nil {
 			return nil, err
 		}
-
 	} else {
 		if !strings.HasSuffix(targetPath, "/mount") {
 			return nil, status.Errorf(codes.InvalidArgument, "malformed the value of target path: %s", targetPath)
@@ -154,11 +156,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err := ns.mounter.EnsureFolder(targetPath); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		mounted, err := ns.mounter.IsMounted(targetPath)
+		notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		if mounted {
+		if !notmounted {
 			log.Infof("NodePublishVolume: %s is already mounted", targetPath)
 		}
 
@@ -172,8 +174,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if mnt.FsType != "" {
 			fsType = mnt.FsType
 		}
-		log.Infof("NodePublishVolume: Starting mount source %s target %s with flags %v and fsType %s", source, targetPath, options, fsType)
-		if err = ns.mounter.Mount(source, targetPath, fsType, options...); err != nil {
+		log.Infof("NodePublishVolume: Starting mount source %s target %s with flags %v and fsType %s", sourcePath, targetPath, options, fsType)
+		if err = ns.k8smounter.Mount(sourcePath, targetPath, fsType, options); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -184,7 +186,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	targetPath := req.GetTargetPath()
-	log.Infof("NodeUnpublishVolume: Start to unpublish volume, target %v", targetPath)
+	log.Infof("NodeUnpublishVolume: Start to unmount volume, target %v", targetPath)
 	// Step 1: check folder exists
 	if !IsFileExisting(targetPath) {
 		log.Infof("NodeUnpublishVolume: folder %s doesn't exsits", targetPath)
@@ -192,11 +194,11 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	// Step 2: check mount point
-	mounted, err := ns.mounter.IsMounted(targetPath)
+	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if !mounted {
+	if notmounted {
 		if empty, _ := IsDirEmpty(targetPath); empty {
 			log.Infof("NodePublishVolume: %s is unmounted", targetPath)
 			return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -206,7 +208,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	// Step 3: umount target path
-	err = ns.mounter.Unmount(targetPath)
+	err = ns.k8smounter.Unmount(targetPath)
 	if err != nil {
 		log.Errorf("NodeUnpublishVolume: umount %s error: %s", targetPath, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
@@ -223,7 +225,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	if req.VolumeId == "" {
 		return nil, status.Error(codes.InvalidArgument, "NodeStageVolume Volume ID must be provided")
 	}
-	// StagingTargetPath is like /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pvc-20769dae-2616-11e9-b900-00163e0b8d64/globalmount
+	// targetPath is like /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pvc-20769dae-2616-11e9-b900-00163e0b8d64/globalmount
 	if targetPath == "" {
 		return nil, status.Error(codes.InvalidArgument, "NodeStageVolume Staging Target Path must be provided")
 	}
@@ -244,11 +246,11 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 
 	//Step 2: check target path mounted
-	mounted, err := ns.mounter.IsMounted(targetPath)
+	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if mounted {
+	if !notmounted {
 		log.Infof("NodeStageVolume: %s is already mounted, volumeId: %s", targetPath, req.VolumeId)
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
@@ -269,11 +271,11 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}()
 
 	// Step 3: double check log pattern, check the path is mounted again
-	mounted, err = ns.mounter.IsMounted(targetPath)
+	notmounted, err = ns.k8smounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if mounted {
+	if !notmounted {
 		log.Infof("NodeStageVolume: %s is already mounted", targetPath)
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
@@ -300,6 +302,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		log.Infof("NodeStageVolume: Successful Mount Device %s to %s with options: %v", device, targetPath, options)
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
+
 	// Step 5 Start to format
 	mnt := req.VolumeCapability.GetMount()
 	options := append(mnt.MountFlags, "shared")
@@ -311,16 +314,19 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
+	// do format-mount or mount
+	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: k8smount.NewOsExec()}
 	if !formatted {
-		if err = ns.mounter.Format(device, fsType); err != nil {
+		if err := diskMounter.FormatAndMount(device, targetPath, fsType, options); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	} else {
+		if err := diskMounter.Mount(device, targetPath, fsType, options); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 
-	// Step 6 Mount disk
-	if err := ns.mounter.Mount(device, targetPath, fsType, options...); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
 	log.Infof("NodeStageVolume: Format and Mount Successful: volumeId: %s target %v, device: %s", req.VolumeId, targetPath, device)
 	return &csi.NodeStageVolumeResponse{}, nil
 }
@@ -342,13 +348,13 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 
 	// Step 1: check folder exists and umount
 	if IsFileExisting(targetPath) {
-		mounted, err := ns.mounter.IsMounted(targetPath)
+		notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
 		if err != nil {
 			log.Errorf("NodeUnstageVolume: %v", err)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		if mounted {
-			err = ns.mounter.Unmount(targetPath)
+		if !notmounted {
+			err = ns.k8smounter.Unmount(targetPath)
 			if err != nil {
 				log.Errorf("NodeUnstageVolume: %s unmount failed: %v", targetPath, err)
 				return nil, status.Error(codes.Internal, err.Error())
