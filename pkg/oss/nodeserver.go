@@ -72,8 +72,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// support set ak by secret
 	if opt.AkId == "" || opt.AkSecret == "" {
-		opt.AkId = req.Secrets[AK_ID]
-		opt.AkSecret = req.Secrets[AK_SECRET]
+		if value, ok := req.Secrets[AK_ID]; ok {
+			opt.AkId = value
+		}
+		if value, ok := req.Secrets[AK_SECRET]; ok {
+			opt.AkSecret = value
+		}
 	}
 
 	if err := checkOssOptions(opt); err != nil {

@@ -117,6 +117,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
+	// if system not set nas, config it.
+	checkSystemNasConfig()
+
 	// Create Mount Path
 	if err := utils.CreateDest(mountPath); err != nil {
 		return nil, errors.New("Nas, Mount error with create Path fail: " + mountPath)
@@ -171,6 +174,36 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	log.Info("Mount success on: " + mountPath)
 
 	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+// check system config,
+// if tcp_slot_table_entries not set to 128, just config.
+func checkSystemNasConfig() {
+	updateNasConfig := false
+	sunRpcFile := "/etc/modprobe.d/sunrpc.conf"
+	if ! utils.IsFileExisting(sunRpcFile) {
+		updateNasConfig = true
+	} else {
+		chkCmd := fmt.Sprintf("cat %s | grep tcp_slot_table_entries | grep 128 | grep -v grep | wc -l", sunRpcFile)
+		out, err := utils.Run(chkCmd)
+		if err != nil {
+			log.Warnf("Update Nas system config check error: ", err.Error())
+			return
+		}
+		if strings.TrimSpace(out) == "0" {
+			updateNasConfig = true
+		}
+	}
+
+	if updateNasConfig {
+		upCmd := fmt.Sprintf("echo \"options sunrpc tcp_slot_table_entries=128\" >> %s && echo \"options sunrpc tcp_max_slot_table_entries=128\" >> %s && sysctl -w sunrpc.tcp_slot_table_entries=128", sunRpcFile, sunRpcFile)
+		_, err := utils.Run(upCmd)
+		if err != nil {
+			log.Warnf("Update Nas system config error: ", err.Error())
+			return
+		}
+		log.Warnf("Successful update Nas system config")
+	}
 }
 
 func waitTimeout(wg *sync.WaitGroup, timeout int) bool {

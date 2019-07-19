@@ -21,7 +21,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -57,18 +56,18 @@ var (
 	driver          = flag.String("driver", TYPE_PLUGIN_DISK, "CSI Driver")
 )
 
-func init() {
-	setLogAttribute()
-}
 
 // Nas CSI Plugin
 func main() {
 	flag.Parse()
+
+	// set log config
+	setLogAttribute(*driver)
+
 	if err := createPersistentStorage(path.Join(nas.PluginFolder, "controller")); err != nil {
 		log.Errorf("failed to create persistent storage for controller: %v", err)
 		os.Exit(1)
 	}
-
 	if err := createPersistentStorage(path.Join(nas.PluginFolder, "node")); err != nil {
 		log.Errorf("failed to create persistent storage for node: %v", err)
 		os.Exit(1)
@@ -102,7 +101,7 @@ func createPersistentStorage(persistentStoragePath string) error {
 
 // rotate log file by 2M bytes
 // default print log to stdout and file both.
-func setLogAttribute() {
+func setLogAttribute(driver string) {
 	logType := os.Getenv("LOG_TYPE")
 	logType = strings.ToLower(logType)
 	if logType != "stdout" && logType != "host" {
@@ -112,7 +111,6 @@ func setLogAttribute() {
 		return
 	}
 
-	driver := filepath.Base(os.Args[0])
 	os.MkdirAll(LOGFILE_PREFIX, os.FileMode(0755))
 	logFile := LOGFILE_PREFIX + driver + ".log"
 	f, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
