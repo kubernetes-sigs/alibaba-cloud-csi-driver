@@ -76,7 +76,7 @@ func NewControllerServer(d *csicommon.CSIDriver, client *ecs.Client, region stri
 }
 
 //var diskVolumes = map[string]*csi.Volume{}
-var diskVolumeSnapshots = map[string]*diskSnapshot{}
+//var diskVolumeSnapshots = map[string]*diskSnapshot{}
 
 // provisioner: create/delete disk
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
@@ -87,7 +87,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		log.Errorf("CreateVolume: driver not support Create volume: %v", err)
 		return nil, err
 	}
-	if len(req.Name) == 0 {
+	if req.Name == "" {
 		log.Errorf("CreateVolume: Volume Name cannot be empty")
 		return nil, status.Error(codes.InvalidArgument, "Volume Name cannot be empty")
 	}
@@ -98,17 +98,17 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	diskVol, err := cs.getDiskVolumeOptions(req)
 	if err != nil {
-		log.Errorf("CreateVolume: error parameters from input: %v, with error: %v", req, err)
-		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %v, with error: %v", req, err)
+		log.Errorf("CreateVolume: error parameters from input: %v, with error: %v", req.Name, err)
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %v, with error: %v", req.Name, err)
 	}
 	if req.GetCapacityRange() == nil {
-		log.Errorf("CreateVolume: error Capacity from input")
-		return nil, status.Error(codes.InvalidArgument, "CreateVolume: error Capacity from input")
+		log.Errorf("CreateVolume: error Capacity from input: %s", req.Name)
+		return nil, status.Errorf(codes.InvalidArgument, "CreateVolume: error Capacity from input: %v", req.Name)
 	}
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
-
 	sharedDisk := diskVol.Type == DISK_SHARED_EFFICIENCY || diskVol.Type == DISK_SHARED_SSD
+
 	// Step 2: Check whether volume is created
 	cs.ecsClient = updateEcsClent(cs.ecsClient)
 	disks, err := cs.findDiskByName(req.GetName(), sharedDisk)
@@ -117,11 +117,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.Aborted, err.Error())
 	}
 	if len(disks) > 1 {
-		log.Errorf("CreateVolume: fatal issue: duplicate disk %s exists", req.Name)
-		return nil, status.Errorf(codes.Internal, "fatal issue: duplicate disk %s exists", req.Name)
+		log.Errorf("CreateVolume: fatal issue: duplicate disk %s exists, with %v", req.Name, disks)
+		return nil, status.Errorf(codes.Internal, "fatal issue: duplicate disk %s exists, with %v", req.Name, disks)
 	} else if len(disks) == 1 {
 		disk := disks[0]
-		if disk.Size != requestGB {
+		if disk.Size != requestGB || disk.ZoneId != diskVol.ZoneId || disk.Encrypted != diskVol.Encrypted || disk.Type != diskVol.Type {
 			log.Errorf("CreateVolume: exist disk %s size is different with requested for disk: existing size: %d, request size: %d", req.GetName(), disk.Size, requestGB)
 			return nil, status.Errorf(codes.Internal, "disk %s size is different with requested for disk", req.GetName())
 		}
@@ -162,11 +162,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					createDiskRequest.DiskCategory = disktype
 					volumeResponse, err = cs.ecsClient.CreateDisk(createDiskRequest)
 					if err != nil {
-						log.Errorf("CreateVolume: fail to create disk %s: with %v", req.GetName(), err)
+						log.Errorf("CreateVolume: requestId[%s], fail to create disk %s: with %v", volumeResponse.RequestId, req.GetName(), err)
 						return nil, status.Error(codes.Internal, err.Error())
 					}
 				} else {
-					log.Errorf("CreateVolume: fail to create disk %s:  error: %v", req.GetName(), err)
+					log.Errorf("CreateVolume: requestId[%s], fail to create disk %s:  error: %v", volumeResponse.RequestId, req.GetName(), err)
 					return nil, status.Error(codes.Internal, err.Error())
 				}
 			}
@@ -229,7 +229,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
 	for _, cap := range req.VolumeCapabilities {
-		if cap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
+		if cap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
 			return &csi.ValidateVolumeCapabilitiesResponse{Message: ""}, nil
 		}
 	}
@@ -385,33 +385,6 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
-//func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-//	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS); err != nil {
-//		return nil, err
-//	}
-//
-//	// case 1: SnapshotId is not empty, return snapshots that match the snapshot id.
-//	if len(req.GetSnapshotId()) != 0 {
-//		snapshotID := req.SnapshotId
-//		if snapshot, ok := diskVolumeSnapshots[snapshotID]; ok {
-//			return convertSnapshot(*snapshot), nil
-//		}
-//	}
-//	// case 2: SourceVolumeId is not empty, return snapshots that match the source volume id.
-//	if len(req.GetSourceVolumeId()) != 0 {
-//		for _, snapshot := range diskVolumeSnapshots {
-//			if snapshot.VolID == req.SourceVolumeId {
-//				return convertSnapshot(*snapshot), nil
-//			}
-//		}
-//	}
-//
-//	return &csi.ListSnapshotsResponse{
-//		Entries:   nil,
-//		NextToken: "",
-//	}, nil
-//}
-
 func (cs *controllerServer) describeSnapshotByName(name string) (*diskSnapshot, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = cs.region
@@ -447,23 +420,6 @@ func (cs *controllerServer) describeSnapshotByName(name string) (*diskSnapshot, 
 	return resSnapshot, nil
 }
 
-func convertSnapshot(snap diskSnapshot) *csi.ListSnapshotsResponse {
-	entries := []*csi.ListSnapshotsResponse_Entry{
-		{
-			Snapshot: &csi.Snapshot{
-				SnapshotId:     snap.Id,
-				SourceVolumeId: snap.VolID,
-				CreationTime:   &snap.CreationTime,
-				SizeBytes:      snap.SizeBytes,
-				ReadyToUse:     snap.ReadyToUse,
-			},
-		},
-	}
-	rsp := &csi.ListSnapshotsResponse{
-		Entries: entries,
-	}
-	return rsp
-}
 
 // pickZone selects 1 zone given topology requirement.
 // if not found, empty string is returned.
@@ -524,9 +480,10 @@ func (cs *controllerServer) getDiskVolumeOptions(req *csi.CreateVolumeRequest) (
 
 	diskVolArgs.ZoneId, ok = volOptions["zoneId"]
 	if !ok {
+		// topology aware feature to get zoneid
 		diskVolArgs.ZoneId = pickZone(req.GetAccessibilityRequirements())
 		if diskVolArgs.ZoneId == "" {
-			log.Error("CreateVolume: Can't get topology info , please check your setup or set zone ID in storage class. Use zone from Meta service")
+			log.Errorf("CreateVolume: Can't get topology info , please check your setup or set zone ID in storage class. Use zone from Meta service: %s", req.Name)
 			diskVolArgs.ZoneId = GetMetaData(ZONEID_TAG)
 		}
 	}
@@ -545,7 +502,7 @@ func (cs *controllerServer) getDiskVolumeOptions(req *csi.CreateVolumeRequest) (
 		}
 	}
 	if diskVolArgs.FsType != "ext4" && diskVolArgs.FsType != "ext3" {
-		return nil, fmt.Errorf("illegal required parameter fsType")
+		return nil, fmt.Errorf("illegal required parameter fsType, only support ext3, ext4, the input is: %s", diskVolArgs.FsType)
 	}
 
 	// disk Type
@@ -553,12 +510,11 @@ func (cs *controllerServer) getDiskVolumeOptions(req *csi.CreateVolumeRequest) (
 	if !ok {
 		diskVolArgs.Type = DISK_HIGH_AVAIL
 	}
-
-	if diskVolArgs.Type != DISK_HIGH_AVAIL && diskVolArgs.Type != DISK_COMMON && diskVolArgs.Type != DISK_EFFICIENCY && diskVolArgs.Type != DISK_SSD && diskVolArgs.Type != DISK_SHARED_SSD && diskVolArgs.Type != DISK_SHARED_EFFICIENCY {
-		return nil, fmt.Errorf("Illegal required parameter type" + diskVolArgs.Type)
+	if diskVolArgs.Type != DISK_HIGH_AVAIL && diskVolArgs.Type != DISK_COMMON && diskVolArgs.Type != DISK_ESSD && diskVolArgs.Type != DISK_EFFICIENCY && diskVolArgs.Type != DISK_SSD && diskVolArgs.Type != DISK_SHARED_SSD && diskVolArgs.Type != DISK_SHARED_EFFICIENCY {
+		return nil, fmt.Errorf("Illegal required parameter type: " + diskVolArgs.Type)
 	}
 
-	// readonly
+	// readonly, default false
 	value, ok := volOptions["readOnly"]
 	if !ok {
 		diskVolArgs.ReadOnly = false
