@@ -24,9 +24,13 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/AliyunContainerService/csi-plugin/pkg/utils"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/metadata"
 	"k8s.io/kubernetes/pkg/util/keymutex"
@@ -260,4 +264,91 @@ func getInstanceDoc() (*instanceDocument, error) {
 	}
 
 	return result, nil
+}
+
+func GetDevicePath(volumeId string) (path string) {
+	devicePath := GetDevicePathById(volumeId)
+	if devicePath == "" {
+		devicePath = getVolumeConfig(volumeId)
+	}
+	return devicePath
+}
+
+func GetDevicePathById(volumeId string) (path string) {
+	devicePath := ""
+	volumeIdParts := strings.Split(volumeId, "-")
+	if len(volumeIdParts) < 2 {
+		return ""
+	}
+	volumeIdPrefix := volumeIdParts[1]
+
+	if utils.IsFileExisting("/dev/disk/by-id/") {
+		cmd1 := "ls /dev/disk/by-id/ | grep " + volumeIdPrefix
+		if out, err := utils.Run(cmd1); err != nil {
+			return ""
+		} else {
+			if strings.TrimSpace(out) == "" {
+				return ""
+			}
+			cmd2 := "readlink -f " + filepath.Join("/dev/disk/by-id/", strings.TrimSpace(out))
+			if out, err := utils.Run(cmd2); err != nil {
+				return ""
+			} else {
+				devicePath = strings.TrimSpace(out)
+				if !utils.IsFileExisting(devicePath) {
+					return ""
+				}
+			}
+		}
+	} else {
+		return ""
+	}
+	return devicePath
+}
+
+// get diskID
+func getVolumeConfig(volumeId string) string {
+	volumeFile := path.Join(VolumeDir, volumeId+".conf")
+	if !utils.IsFileExisting(volumeFile) {
+		return ""
+	}
+
+	value, err := ioutil.ReadFile(volumeFile)
+	if err != nil {
+		return ""
+	}
+	devicePath := strings.TrimSpace(string(value))
+	return devicePath
+}
+
+// save diskID and volume name
+func saveVolumeConfig(volumeId, devicePath string) error {
+	if err := utils.CreateDest(VolumeDir); err != nil {
+		return err
+	}
+	if err := utils.CreateDest(VolumeDirRemove); err != nil {
+		return err
+	}
+	if err := removeVolumeConfig(volumeId); err != nil {
+		return err
+	}
+
+	volumeFile := path.Join(VolumeDir, volumeId+".conf")
+	if err := ioutil.WriteFile(volumeFile, []byte(devicePath), 0644); err != nil {
+		return err
+	}
+	return nil
+}
+
+// move config file to remove dir
+func removeVolumeConfig(volumeId string) error {
+	volumeFile := path.Join(VolumeDir, volumeId+".conf")
+	if utils.IsFileExisting(volumeFile) {
+		timeStr := time.Now().Format("2006-01-02-15:04:05")
+		removeFile := path.Join(VolumeDirRemove, volumeId+"-"+timeStr+".conf")
+		if err := os.Rename(volumeFile, removeFile); err != nil {
+			return err
+		}
+	}
+	return nil
 }

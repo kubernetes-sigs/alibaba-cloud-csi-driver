@@ -235,12 +235,18 @@ func (ns *nodeServer) createNasSubDir(opt *NasOptions, volumeId string) {
 	// step 2: do mount
 	usePath := opt.Path
 	mntCmd := fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", opt.Vers, opt.Server, "/", nasTmpPath)
+	if opt.Options != "" {
+		mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s,%s %s:%s %s", opt.Vers, opt.Options, opt.Server, "/", nasTmpPath)
+	}
 	_, err := utils.Run(mntCmd)
 	if err != nil {
 		if strings.Contains(err.Error(), "reason given by server: No such file or directory") || strings.Contains(err.Error(), "access denied by server while mounting") {
 			if strings.HasPrefix(opt.Path, "/share/") {
 				usePath = usePath[6:]
 				mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", opt.Vers, opt.Server, "/share", nasTmpPath)
+				if opt.Options != "" {
+					mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s,%s %s:%s %s", opt.Vers, opt.Options, opt.Server, "/share", nasTmpPath)
+				}
 				_, err := utils.Run(mntCmd)
 				if err != nil {
 					log.Errorf("Nas, Mount to temp directory(with /share) fail: %s", err.Error())
@@ -290,5 +296,10 @@ func (ns *nodeServer) NodeUnstageVolume(
 	ctx context.Context,
 	req *csi.NodeUnstageVolumeRequest) (
 	*csi.NodeUnstageVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
+}
+
+func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (
+	*csi.NodeExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }

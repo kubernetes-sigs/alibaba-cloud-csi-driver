@@ -35,6 +35,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
+	"k8s.io/kubernetes/pkg/util/resizefs"
 )
 
 type nodeServer struct {
@@ -61,6 +62,8 @@ const (
 	DISK_TAGED_BY_PLUGIN  = "DISK_TAGED_BY_PLUGIN"
 	DISK_ATTACHED_KEY     = "k8s.aliyun.com"
 	DISK_ATTACHED_VALUE   = "true"
+	VolumeDir             = "/host/etc/kubernetes/volumes/disk/"
+	VolumeDirRemove       = "/host/etc/kubernetes/volumes/disk/remove"
 )
 
 // NewNodeServer creates node server
@@ -91,6 +94,10 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	// tag disk as k8s attached.
 	tagDiskConf := os.Getenv(DISK_TAGED_BY_PLUGIN)
 
+	// Create Directory
+	os.MkdirAll(VolumeDir, os.FileMode(0755))
+	os.MkdirAll(VolumeDirRemove, os.FileMode(0755))
+
 	return &nodeServer{
 		ecsClient:         c,
 		region:            doc.RegionID,
@@ -114,9 +121,16 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 			},
 		},
 	}
+	nscap2 := &csi.NodeServiceCapability{
+		Type: &csi.NodeServiceCapability_Rpc{
+			Rpc: &csi.NodeServiceCapability_RPC{
+				Type: csi.NodeServiceCapability_RPC_EXPAND_VOLUME,
+			},
+		},
+	}
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: []*csi.NodeServiceCapability{
-			nscap,
+			nscap, nscap2,
 		},
 	}, nil
 }
@@ -292,6 +306,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	if err != nil {
 		return nil, err
 	}
+	saveVolumeConfig(req.VolumeId, device)
 
 	// Block volume not need to format
 	if isBlock {
@@ -315,14 +330,25 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	if isBlock {
+		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	} else {
+		if err := ns.mounter.EnsureFolder(targetPath); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	// do format-mount or mount
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: k8smount.NewOsExec()}
 	if !formatted {
 		if err := diskMounter.FormatAndMount(device, targetPath, fsType, options); err != nil {
+			log.Errorf("NodeStageVolume: FormatAndMount error: %s", err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	} else {
 		if err := diskMounter.Mount(device, targetPath, fsType, options); err != nil {
+			log.Errorf("NodeStageVolume: Mount error: %s", err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -405,6 +431,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	} else {
 		log.Infof("NodeUnstageVolume: Skip Detach, disk %s have not detachable instance", req.VolumeId)
 	}
+	removeVolumeConfig(disk.DiskId)
 
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
@@ -625,4 +652,39 @@ func (ns *nodeServer) findDiskByID(diskId string) (*ecs.Disk, error) {
 		return nil, status.Errorf(codes.Internal, "NodeStageVolume: Unexpected count %d for volume id %s, Get Response: %v, with Request: %v, %v", len(disks), diskId, diskResponse, describeDisksRequest.RegionId, describeDisksRequest.DiskIds)
 	}
 	return &disks[0], err
+}
+
+func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (
+	*csi.NodeExpandVolumeResponse, error) {
+	log.Infof("NodeExpandVolume: node expand volume: %v", req)
+
+	if len(req.GetVolumeId()) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Volume ID is empty")
+	}
+	if len(req.GetVolumePath()) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Volume path is empty")
+	}
+
+	volumePath := req.GetVolumePath()
+	volumeId := req.GetVolumeId()
+	devicePath := GetDevicePath(volumeId)
+	if devicePath == "" {
+		log.Errorf("NodeExpandVolume:: can't get devicePath: %s", volumeId)
+	}
+	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, volumePath: %s", volumeId, devicePath, volumePath)
+
+	// use resizer to expand volume filesystem
+	realExec := k8smount.NewOsExec()
+	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: realExec})
+	ok, err := resizer.Resize(devicePath, volumePath)
+	if err != nil {
+		log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeId, devicePath, volumePath, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if !ok {
+		log.Errorf("NodeExpandVolume:: Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", volumeId, devicePath, volumePath)
+		return nil, status.Error(codes.Internal, "Fail to resize volume fs")
+	}
+	log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", volumeId, devicePath, volumePath)
+	return &csi.NodeExpandVolumeResponse{}, nil
 }
