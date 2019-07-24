@@ -20,6 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/codes"
 	"io/ioutil"
 	"net"
 	"strings"
@@ -255,4 +257,9 @@ func IsHostMounted(mountPath string) bool {
 		return false
 	}
 	return true
+}
+
+func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (
+	*csi.NodeExpandVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
 }

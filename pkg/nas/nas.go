@@ -68,7 +68,8 @@ func (d *nas) Run() {
 	s := csicommon.NewNonBlockingGRPCServer()
 	s.Start(d.endpoint,
 		csicommon.NewDefaultIdentityServer(d.driver),
-		csicommon.NewDefaultControllerServer(d.driver),
+		nil,
+//		csicommon.NewDefaultControllerServer(d.driver),
 		NewNodeServer(d))
 	s.Wait()
 }
