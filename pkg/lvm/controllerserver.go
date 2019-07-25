@@ -56,3 +56,9 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	log.Infof("ControllerPublishVolume is called, do nothing by now: %s", req.VolumeId)
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
+
+func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest,
+) (*csi.ControllerExpandVolumeResponse, error) {
+	log.Infof("Debug::: %v", req)
+	return nil, status.Error(codes.Unimplemented, "")
+}

@@ -1,0 +1,9 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: alicloud-disk-expand
+provisioner: diskplugin.csi.alibabacloud.com
+parameters:
+    type: cloud_efficiency
+reclaimPolicy: Retain
+allowVolumeExpansion: true
