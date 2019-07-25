@@ -63,10 +63,10 @@ const (
 
 var (
 	// VERSION should be updated by hand at each release
-	VERSION = "v1.13.2"
+	VERSION = "v1.14.3"
 	// GITCOMMIT will be overwritten automatically by the build system
 	GITCOMMIT                    = "HEAD"
-	KUBERNETES_ALICLOUD_IDENTITY = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", ProvisionVersion())
+	KUBERNETES_ALICLOUD_IDENTITY = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", VERSION)
 )
 
 func ProvisionVersion() string {
@@ -106,6 +106,9 @@ func updateEcsClent(client *ecs.Client) *ecs.Client {
 	accessKeyID, accessSecret, accessToken := GetDefaultAK()
 	if accessToken != "" {
 		client = newEcsClient(accessKeyID, accessSecret, accessToken)
+	}
+	if client.Client.GetConfig() != nil {
+		client.Client.GetConfig().UserAgent = KUBERNETES_ALICLOUD_IDENTITY
 	}
 	return client
 }
