@@ -541,3 +541,42 @@ func (cs *controllerServer) getDiskVolumeOptions(req *csi.CreateVolumeRequest) (
 	}
 	return diskVolArgs, nil
 }
+
+
+func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest,
+) (*csi.ControllerExpandVolumeResponse, error) {
+	log.Infof("ControllerExpandVolume:: Starting expand disk with: %v", req)
+
+	// check resize conditions
+	cs.ecsClient = updateEcsClent(cs.ecsClient)
+	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
+	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
+	diskId := req.VolumeId
+
+	disk, err := cs.findDiskByID(diskId)
+	if err != nil {
+		log.Errorf("ControllerExpandVolume:: expand disk with error: %s", err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
+	} else {
+		if requestGB == disk.Size {
+			log.Infof("ControllerExpandVolume:: expect size is same with current: %s, size: %dGi", req.VolumeId, requestGB)
+			return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes,	NodeExpansionRequired: true}, nil
+		} else if requestGB < disk.Size {
+			log.Errorf("ControllerExpandVolume:: expect size is less than current: %d, expected: %d", disk.Size, requestGB)
+			return nil, status.Errorf(codes.Internal, "configured disk size less than current size: %d, %d", disk.Size, requestGB)
+		}
+	}
+
+	// do resize
+	resizeDiskRequest:=ecs.CreateResizeDiskRequest()
+	resizeDiskRequest.RegionId = cs.region
+	resizeDiskRequest.DiskId = diskId
+	resizeDiskRequest.NewSize = requests.NewInteger(requestGB)
+	if _, err := cs.ecsClient.ResizeDisk(resizeDiskRequest); err != nil {
+		log.Errorf("ControllerExpandVolume:: resize got error: %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "resize disk %s get error: %s", diskId, err.Error())
+	}
+
+	log.Infof("ControllerExpandVolume:: Success to resize volume: %s from %dG to %dG", req.VolumeId, disk.Size, requestGB)
+	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes,	NodeExpansionRequired: true}, nil
+}

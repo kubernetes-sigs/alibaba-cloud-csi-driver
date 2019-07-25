@@ -95,6 +95,8 @@ spec:
               name: host-dev
             - mountPath: /var/log/
               name: host-log
+            - name: etc
+              mountPath: /host/etc
 
         - name: nas-driver-registrar
           image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.1.0

@@ -22,7 +22,7 @@ spec:
       serviceAccount: alicloud-csi-plugin
       containers:
         - name: csi-snapshotter
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-snapshotter:v1.0.0
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-snapshotter:v1.2.0
           args:
             - "--csi-address=$(ADDRESS)"
             - "--connection-timeout=15s"
