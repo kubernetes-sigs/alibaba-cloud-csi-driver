@@ -99,7 +99,7 @@ func IsMounted(mountPath string) bool {
 }
 
 func Umount(mountPath string) bool {
-	cmd := fmt.Sprintf("umount -f %s", mountPath)
+	cmd := fmt.Sprintf("umount %s", mountPath)
 	_, err := Run(cmd)
 	if err != nil {
 		return false
