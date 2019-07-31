@@ -227,6 +227,18 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		log.Errorf("NodeUnpublishVolume: umount %s error: %s", targetPath, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
+	// below directory can not be umounted by kubelet in ack
+	pathParts := strings.Split(targetPath, "/")
+	partsLen := len(pathParts)
+	if partsLen > 2 && pathParts[partsLen-1] == "mount" {
+		globalPath2 := filepath.Join("/var/lib/container/kubelet/plugins/kubernetes.io/csi/pv/", pathParts[partsLen-2], "/globalmount")
+		if utils.IsFileExisting(globalPath2) {
+			log.Infof("NodeUnpublishVolume: umount container path %s", globalPath2)
+			utils.Umount(globalPath2)
+		}
+	}
+
 	log.Infof("NodeUnpublishVolume: Unpublish successful, target %v", targetPath)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }

@@ -10,7 +10,7 @@ export GOARCH="amd64"
 export GOOS="linux"
 
 branch="v1.0.0"
-version="v1.13.2"
+version="v1.14.3"
 commitId=$GIT_SHA
 buildTime=`date "+%Y-%m-%d-%H:%M:%S"`
 
@@ -24,3 +24,5 @@ if [ "$1" == "" ]; then
   docker build -t=registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:$version-$GIT_SHA ./
   docker push registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:$version-$GIT_SHA
 fi
+
+rm -rf csiplugin-connector plugin.csi.alibabacloud.com
