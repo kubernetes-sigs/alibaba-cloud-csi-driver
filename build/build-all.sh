@@ -7,7 +7,6 @@ GIT_SHA=`git rev-parse --short HEAD || echo "HEAD"`
 rm -rf build/all/csiplugin-connector.go build/all/csiplugin-connector-svc build/all/csiplugin-connector
 
 cp build/oss/csiplugin-connector.go build/all/csiplugin-connector.go
-#cp build/oss/csiplugin-connector-svc build/all/csiplugin-connector-svc
 cp build/oss/csiplugin-connector.service build/all/csiplugin-connector.service
 cp build/oss/ossfs_1.80.3_centos7.0_x86_64.rpm build/all/ossfs_1.80.3_centos7.0_x86_64.rpm
 cp build/oss/nsenter build/all/nsenter
@@ -16,7 +15,7 @@ export GOARCH="amd64"
 export GOOS="linux"
 
 branch="v1.0.0"
-version="v1.13.2"
+version="v1.14.3"
 commitId=$GIT_SHA
 buildTime=`date "+%Y-%m-%d-%H:%M:%S"`
 
