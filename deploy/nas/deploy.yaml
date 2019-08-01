@@ -52,6 +52,6 @@ spec:
     driver: nasplugin.csi.alibabacloud.com
     volumeHandle: data-id
     volumeAttributes:
-      host: "***.cn-beijing.nas.aliyuncs.com"
+      server: "***.cn-beijing.nas.aliyuncs.com"
       path: "/k8s"
       vers: "4.0"

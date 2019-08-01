@@ -7,6 +7,8 @@ Type=forking
 ExecStart=/etc/csi-tool/csiplugin-connector
 ExecReload=/bin/kill -s HUP $MAINPID
 ExecStop=/bin/kill -s QUIT $MAINPID
+Restart=always
+RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target

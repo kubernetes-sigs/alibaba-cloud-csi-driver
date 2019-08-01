@@ -1,29 +1,29 @@
 #!/bin/sh
 
-echo "Starting deploy oss plugin...."
-ossfsVer="1.80.3"
 
+echo "Starting deploy oss csi-plugin...."
 
+ossfsVer="1.80.6"
 # install OSSFS
-mkdir -p /host/etc/csi-oss-tool/
+mkdir -p /host/etc/csi-tool/
 if [ ! `/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
     echo "First install ossfs...."
-    cp /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm /host/etc/csi-oss-tool/
-    /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-oss-tool/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
+    cp /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm /host/etc/csi-tool/
+    /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
 # update OSSFS
 else
-    echo "Prepare Upgrade ossfs...."
+    echo "Check ossfs Version...."
     oss_info=`/nsenter --mount=/proc/1/ns/mnt ossfs --version`
     vers_conut=`echo $oss_info | grep ${ossfsVer} | wc -l`
     if [ "$vers_conut" = "0" ]; then
         echo "Upgrade ossfs...."
         /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
-        cp /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm /host/etc/csi-oss-tool/
-        /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-oss-tool/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
+        cp /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm /host/etc/csi-tool/
+        /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
     fi
 fi
 
-
+## install/update csi connector
 updateConnector="true"
 if [ ! -f "/host/etc/csi-tool/csiplugin-connector" ];then
     mkdir -p /host/etc/csi-tool/
@@ -36,9 +36,11 @@ else
     else
         rm -rf /host/etc/csi-tool/
         rm -rf /host/etc/csi-tool/connector.sock
+        rm -rf /var/log/alicloud/connector.pid
         mkdir -p /host/etc/csi-tool/
     fi
 fi
+
 if [ "$updateConnector" = "true" ]; then
     echo "copy csiplugin-connector...."
     cp /bin/csiplugin-connector /host/etc/csi-tool/csiplugin-connector
@@ -46,10 +48,10 @@ if [ "$updateConnector" = "true" ]; then
 fi
 
 
-# install csiplugin connector service
+# install/update csiplugin connector service
 updateConnectorService="true"
 if [ -f "/host/usr/lib/systemd/system/csiplugin-connector.service" ];then
-    echo "prepare install csiplugin-connector.service...."
+    echo "check upgrade csiplugin-connector.service...."
     oldmd5=`md5sum /host/usr/lib/systemd/system/csiplugin-connector.service | awk '{print $1}'`
     newmd5=`md5sum /bin/csiplugin-connector.service | awk '{print $1}'`
     if [ "$oldmd5" = "$newmd5" ]; then
@@ -60,11 +62,11 @@ if [ -f "/host/usr/lib/systemd/system/csiplugin-connector.service" ];then
 fi
 
 if [ "$updateConnectorService" = "true" ]; then
-    echo "install csiplugin-connector...."
+    echo "install csiplugin connector service...."
     cp /bin/csiplugin-connector.service /host/usr/lib/systemd/system/csiplugin-connector.service
+    /nsenter --mount=/proc/1/ns/mnt systemctl daemon-reload
 fi
 
-#/nsenter --mount=/proc/1/ns/mnt service csiplugin-connector-svc restart
 rm -rf /var/log/alicloud/connector.pid
 /nsenter --mount=/proc/1/ns/mnt systemctl enable csiplugin-connector.service
 /nsenter --mount=/proc/1/ns/mnt systemctl restart csiplugin-connector.service

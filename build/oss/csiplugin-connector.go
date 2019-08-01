@@ -19,6 +19,7 @@ const (
 )
 
 func main() {
+	// log file is: /var/log/alicloud/csi_connector.log
 	cntxt := &daemon.Context{
 		PidFileName: PID_FILENAME,
 		PidFilePerm: 0644,
@@ -31,13 +32,13 @@ func main() {
 
 	d, err := cntxt.Reborn()
 	if err != nil {
-		log.Fatal("Unable to run connector: ", err)
+		log.Fatalf("Unable to run connector: %s", err.Error())
 	}
 	if d != nil {
 		return
 	}
 	defer cntxt.Release()
-	log.Print("Daemon is starting...")
+	log.Print("OSS Connector Daemon Is Starting...")
 
 	runOssProxy()
 }
@@ -52,10 +53,10 @@ func runOssProxy() {
 			os.MkdirAll(pathDir, os.ModePerm)
 		}
 	}
-	log.Print("Socket path is ready: ", SOCKET_PATH)
+	log.Printf("Socket path is ready: %s", SOCKET_PATH)
 	ln, err := net.Listen("unix", SOCKET_PATH)
 	if err != nil {
-		log.Print("Server Listen error: ", err.Error())
+		log.Fatalf("Server Listen error: %s", err.Error())
 	}
 	log.Print("Daemon Started ...")
 	defer ln.Close()
@@ -64,7 +65,7 @@ func runOssProxy() {
 	for {
 		fd, err := ln.Accept()
 		if err != nil {
-			log.Print("Server Accept error: ", err.Error())
+			log.Printf("Server Accept error: %s", err.Error())
 			continue
 		}
 		go echoServer(fd)
@@ -81,17 +82,17 @@ func echoServer(c net.Conn) {
 	}
 
 	cmd := string(buf[0:nr])
-	log.Print("Server Receive cmd:", cmd)
+	log.Printf("Server Receive OSS command: %s", cmd)
 
 	// run command
 	if out, err := run(cmd); err != nil {
-		reply := "Fail:" + cmd + ", error: " + err.Error()
+		reply := "Fail: " + cmd + ", error: " + err.Error()
 		_, err = c.Write([]byte(reply))
 		log.Print("Server Fail to run cmd:", reply)
 	} else {
 		out = "Success:" + out
 		_, err = c.Write([]byte(out))
-		log.Print("Success:", out)
+		log.Printf("Success: %s", out)
 	}
 }
 

@@ -144,7 +144,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		sourcePath = filepath.Join(req.StagingTargetPath, req.VolumeId)
 	}
 	targetPath := req.GetTargetPath()
-	log.Infof("NodePublishVolume: Starting mount, source %s > target %s", sourcePath, targetPath)
+	log.Infof("NodePublishVolume: Starting Mount Volume %s, source %s > target %s", req.VolumeId, sourcePath, targetPath)
 	if req.VolumeId == "" {
 		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: Volume ID must be provided")
 	}
@@ -188,22 +188,22 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if mnt.FsType != "" {
 			fsType = mnt.FsType
 		}
-		log.Infof("NodePublishVolume: Starting mount source %s target %s with flags %v and fsType %s", sourcePath, targetPath, options, fsType)
+		log.Infof("NodePublishVolume: Starting mount volume %s with flags %v and fsType %s", req.VolumeId,  options, fsType)
 		if err = ns.k8smounter.Mount(sourcePath, targetPath, fsType, options); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 
-	log.Infof("NodePublishVolume: Mount Successful: target %v", targetPath)
+	log.Infof("NodePublishVolume: Mount Successful Volume: %s, target %v", req.VolumeId, targetPath)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	targetPath := req.GetTargetPath()
-	log.Infof("NodeUnpublishVolume: Start to unmount volume, target %v", targetPath)
+	log.Infof("NodeUnpublishVolume: Starting to Unmount Volume %s, Target %v", req.VolumeId, targetPath)
 	// Step 1: check folder exists
 	if !IsFileExisting(targetPath) {
-		log.Infof("NodeUnpublishVolume: folder %s doesn't exsits", targetPath)
+		log.Infof("NodeUnpublishVolume: Volume %s folder %s doesn't exsits", req.VolumeId, targetPath)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
@@ -239,12 +239,12 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		}
 	}
 
-	log.Infof("NodeUnpublishVolume: Unpublish successful, target %v", targetPath)
+	log.Infof("NodeUnpublishVolume: Umount successful volume %s, target %v", req.VolumeId, targetPath)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	log.Infof("NodeStageVolume: stage disk %s, taget path: %s", req.GetVolumeId(), req.StagingTargetPath)
+	log.Infof("NodeStageVolume: Stage VolumeId: %s, Taget Path: %s", req.GetVolumeId(), req.StagingTargetPath)
 
 	// Step 1: check input parameters
 	targetPath := req.StagingTargetPath
@@ -319,6 +319,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return nil, err
 	}
 	saveVolumeConfig(req.VolumeId, device)
+	log.Infof("NodeStageVolume: Volume successful Attached: %s", req.GetVolumeId())
 
 	// Block volume not need to format
 	if isBlock {
@@ -340,6 +341,11 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	formatted, err := ns.mounter.IsFormatted(device)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if formatted {
+		log.Infof("NodeStageVolume:: volume %s(%s) Is Formatted.", req.GetVolumeId(), device)
+	} else {
+		log.Infof("NodeStageVolume:: volume %s(%s) Is Not Formatted.", req.GetVolumeId(), device)
 	}
 
 	if isBlock {
@@ -365,12 +371,12 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 	}
 
-	log.Infof("NodeStageVolume: Format and Mount Successful: volumeId: %s target %v, device: %s", req.VolumeId, targetPath, device)
+	log.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v, device: %s", req.VolumeId, targetPath, device)
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	log.Infof("NodeUnstageVolume is called")
+	log.Infof("NodeUnstageVolume::  Start to unpublish volume, volumeId: %s, target %v", req.VolumeId, req.StagingTargetPath)
 	if req.VolumeId == "" {
 		return nil, status.Error(codes.InvalidArgument, "NodeUnstageVolume Volume ID must be provided")
 	}
@@ -378,7 +384,6 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		return nil, status.Error(codes.InvalidArgument, "NodeUnstageVolume Staging Target Path must be provided")
 	}
 	targetPath := filepath.Join(req.GetStagingTargetPath(), req.VolumeId)
-	log.Infof("NodeUnstageVolume: Start to unpublish volume, target %v, volumeId: %s", targetPath, req.VolumeId)
 	if !IsFileExisting(targetPath) {
 		log.Infof("NodeUnstageVolume: folder %s doesn't exist. Start to unpublish volume, target %v, volumeId: %s", targetPath, req.GetStagingTargetPath(), req.VolumeId)
 		targetPath = req.GetStagingTargetPath()
@@ -408,8 +413,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	} else {
 		log.Infof("NodeUnstageVolume: folder %s doesn't exist, continue to detach", targetPath)
 	}
-
-	log.Infof("NodeUnstageVolume: Unstage successful, target %v, volumeId: %s", targetPath, req.VolumeId)
+	log.Infof("NodeUnstageVolume: Umount successful, target %v, volumeId: %s", targetPath, req.VolumeId)
 
 	ns.ecsClient = updateEcsClent(ns.ecsClient)
 	disk, err := ns.findDiskByID(req.VolumeId)
@@ -421,7 +425,6 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	if disk == nil {
 		return &csi.NodeUnstageVolumeResponse{}, nil
 	}
-
 	if disk.InstanceId != "" {
 		if disk.InstanceId == ns.nodeId {
 			detachDiskRequest := ecs.CreateDetachDiskRequest()
@@ -436,7 +439,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 				log.Errorf(errMsg)
 				return nil, status.Error(codes.Aborted, errMsg)
 			}
-			log.Infof("NodeUnstageVolume: Success to detach disk %s from %s", req.GetVolumeId(), ns.nodeId)
+			log.Infof("NodeUnstageVolume: Success to detach disk %s from %s Instance %s", req.GetVolumeId(), ns.nodeId, disk.InstanceId)
 		} else {
 			log.Infof("NodeUnstageVolume: Skip Detach, disk %s is attached to other instance: %s", req.VolumeId, disk.InstanceId)
 		}
@@ -450,7 +453,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 
 // attach alibaba cloud disk
 func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, error) {
-	log.Infof("NodeStageVolume: Start to attachDisk: %s, region: %v", volumeID, ns.region)
+	log.Infof("NodeStageVolume: Start to AttachDisk: %s, region: %v", volumeID, ns.region)
 
 	// Step 1: check disk status
 	ns.ecsClient = updateEcsClent(ns.ecsClient)
@@ -516,7 +519,7 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 	}
 
 	// Step 4: wait for disk attached
-	log.Infof("NodeStageVolume: wait for disk %s is attached", volumeID)
+	log.Infof("NodeStageVolume: Waiting for Disk %s is Attached", volumeID)
 	if isSharedDisk {
 		if err := ns.waitForSharedDiskInStatus(10, time.Second*3, volumeID, DISK_STATUS_ATTACHED); err != nil {
 			return "", err
