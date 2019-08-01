@@ -1,27 +1,34 @@
+apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: ossplugin.csi.alibabacloud.com
+spec:
+  attachRequired: false
+---
 # This YAML defines all API objects to create RBAC roles for csi node plugin.
 kind: DaemonSet
 apiVersion: apps/v1beta2
 metadata:
-  name: csi-oss-plugin
+  name: csi-ossplugin
+  namespace: kube-system
 spec:
   selector:
     matchLabels:
-      app: csi-oss-plugin
+      app: csi-ossplugin
   template:
     metadata:
       labels:
-        app: csi-oss-plugin
+        app: csi-ossplugin
     spec:
       tolerations:
-      - key: node-role.kubernetes.io/master
-        operator: Exists
-        effect: NoSchedule
+      - operator: Exists
+      priorityClassName: system-node-critical
       serviceAccount: alicloud-csi-plugin
       hostNetwork: true
       hostPID: true
       containers:
       - name: driver-registrar
-        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-node-driver-registrar:v1.0.1
+        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-node-driver-registrar:v1.1.0
         imagePullPolicy: Always
         lifecycle:
           preStop:
@@ -29,7 +36,7 @@ spec:
               command: ["/bin/sh", "-c", "rm -rf /registration/ossplugin.csi.alibabacloud.com /registration/ossplugin.csi.alibabacloud.com-reg.sock"]
         args:
         - "--v=5"
-        - "--csi-address=/csi/csi.sock"
+        - "--csi-address=/var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock"
         - "--kubelet-registration-path=/var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock"
         env:
         - name: KUBE_NODE_NAME
@@ -38,8 +45,8 @@ spec:
               apiVersion: v1
               fieldPath: spec.nodeName
         volumeMounts:
-        - name: plugin-dir
-          mountPath: /csi
+        - name: kubelet-dir
+          mountPath: /var/lib/kubelet/
         - name: registration-dir
           mountPath: /registration
 
@@ -49,7 +56,7 @@ spec:
           capabilities:
             add: ["SYS_ADMIN"]
           allowPrivilegeEscalation: true
-        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:v1.13.2-43e62a8e
+        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:v1.14.3-41ea73db
         imagePullPolicy: "Always"
         args:
         - "--endpoint=$(CSI_ENDPOINT)"
@@ -63,25 +70,19 @@ spec:
             fieldRef:
               fieldPath: spec.nodeName
         volumeMounts:
-        - name: plugin-dir
-          mountPath: /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com
-        - name: pods-mount-dir
-          mountPath: /var/lib/kubelet/pods
+        - name: kubelet-dir
+          mountPath: /var/lib/kubelet/
           mountPropagation: "Bidirectional"
         - name: etc
           mountPath: /host/etc
-        - mountPath: /var/log/alicloud
+        - mountPath: /var/log/
           name: host-log
         - mountPath: /host/usr/
           name: flexvolumedir
       volumes:
-      - name: plugin-dir
+      - name: kubelet-dir
         hostPath:
-          path: /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com
-          type: DirectoryOrCreate
-      - name: pods-mount-dir
-        hostPath:
-          path: /var/lib/kubelet/pods
+          path: /var/lib/kubelet/
           type: Directory
       - name: registration-dir
         hostPath:
@@ -95,4 +96,6 @@ spec:
           path: /usr/
       - name: host-log
         hostPath:
-          path: /var/log/alicloud/
+          path: /var/log/
+  updateStrategy:
+    type: RollingUpdate
