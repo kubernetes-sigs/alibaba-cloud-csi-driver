@@ -82,19 +82,18 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
+	// check parameters
 	if err := checkOssOptions(opt); err != nil {
-		log.Error("Check oss input error: ", err.Error())
+		log.Errorf("Check oss input error: %s", err.Error())
 		return nil, errors.New("Check oss input error: " + err.Error())
 	}
-
-	// check parameters
 	if mountPath == "" {
-		log.Error("Check oss input error: mountPath is empty")
+		log.Errorf("Check oss input error: mountPath is empty")
 		return nil, errors.New("mountPath is empty")
 	}
 
 	argStr := "AkId: " + opt.AkId + ", Bucket: " + opt.Bucket + ", url: " + opt.Url + ", OtherOpts: " + opt.OtherOpts
-	log.Infof("Oss Plugin Mount: %s", argStr)
+	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
 
 	if utils.IsMounted(mountPath) {
 		log.Infof("NodePublishVolume: The mountpoint is mounted: %s", mountPath)
@@ -103,28 +102,26 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// Create Mount Path
 	if err := utils.CreateDest(mountPath); err != nil {
-		log.Error("Create Directory error: ", err.Error())
+		log.Errorf("Create Directory error: %s", err.Error())
 		return nil, errors.New("Oss, Mount fail with create Path error: " + err.Error() + mountPath)
 	}
 
 	// Save ak file for ossfs
 	if err := saveOssCredential(opt); err != nil {
-		log.Error("Save oss ak error: ", err.Error())
+		log.Errorf("Save oss ak error: %s", err.Error())
 		return nil, errors.New("Oss, Save AK file fail: " + err.Error())
 	}
 
 	// default use allow_other
 	mntCmd := fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s %s -ourl=%s -o allow_other %s", opt.Bucket, mountPath, opt.Url, opt.OtherOpts)
 	if out, err := connectorRun(mntCmd); err != nil {
-		out, err = connectorRun(mntCmd + " -f")
 		if err != nil {
-			log.Error("Ossfs mount error: ", err.Error())
+			log.Errorf("Ossfs mount error: %s", err.Error())
 			return nil, errors.New("Create OSS volume fail: " + err.Error() + ", out: " + out)
 		}
 	}
 
-	log.Info("Mount Oss successful: ", mountPath)
-
+	log.Infof("NodePublishVolume:: Mount Oss successful: %s, with Command: %s", mountPath, mntCmd)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
@@ -168,6 +165,9 @@ func checkOssOptions(opt *OssOptions) error {
 	if opt.AkId == "" || opt.AkSecret == "" {
 		opt.AkId, opt.AkSecret = utils.GetLocalAK()
 	}
+	if opt.AkId == "" || opt.AkSecret == "" {
+		return errors.New("Oss Parametes error: AK is empty ")
+	}
 
 	if opt.OtherOpts != "" {
 		if !strings.HasPrefix(opt.OtherOpts, "-o ") {
@@ -182,13 +182,14 @@ func checkOssOptions(opt *OssOptions) error {
 func connectorRun(cmd string) (string, error) {
 	c, err := net.Dial("unix", SOCKET_PATH)
 	if err != nil {
+		log.Errorf("Oss connector Dial error: %s", err.Error())
 		return err.Error(), err
 	}
 	defer c.Close()
 
 	_, err = c.Write([]byte(cmd))
 	if err != nil {
-		log.Errorf("write error: %s", err.Error())
+		log.Errorf("Oss connector write error: %s", err.Error())
 		return err.Error(), err
 	}
 
@@ -199,7 +200,7 @@ func connectorRun(cmd string) (string, error) {
 		respstr := response[8:]
 		return respstr, nil
 	}
-	return response, errors.New("exec cmd err:" + response)
+	return response, errors.New("oss connector exec command error:" + response)
 }
 
 func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
@@ -219,7 +220,7 @@ func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 
-	log.Infof("Start Umount oss: %s", req.TargetPath)
+	log.Infof("NodeUnpublishVolume:: Starting Umount OSS: %s", req.TargetPath)
 	mountPoint := req.TargetPath
 	if !utils.IsMounted(mountPoint) {
 		log.Infof("Directory is not mounted: %s", mountPoint)
@@ -232,7 +233,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
 	}
 
-	log.Infof("Umount oss Successful: %s", mountPoint)
+	log.Infof("NodeUnpublishVolume:: Umount OSS Successful: %s", mountPoint)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

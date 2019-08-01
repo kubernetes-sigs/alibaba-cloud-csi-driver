@@ -270,13 +270,15 @@ func getInstanceDoc() (*instanceDocument, error) {
 }
 
 func GetDevicePath(volumeId string) (path string) {
-	devicePath := GetDevicePathById(volumeId)
+	//devicePath := GetDevicePathById(volumeId)
+	devicePath := ""
 	if devicePath == "" {
 		devicePath = getVolumeConfig(volumeId)
 	}
 	return devicePath
 }
 
+// DevicePathById is not ready now.
 func GetDevicePathById(volumeId string) (path string) {
 	devicePath := ""
 	volumeIdParts := strings.Split(volumeId, "-")

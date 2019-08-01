@@ -1,26 +1,33 @@
+apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: diskplugin.csi.alibabacloud.com
+spec:
+  attachRequired: false
+---
 kind: DaemonSet
 apiVersion: apps/v1beta2
 metadata:
-  name: csi-disk-plugin
+  name: csi-diskplugin
+  namespace: kube-system
 spec:
   selector:
     matchLabels:
-      app: csi-disk-plugin
+      app: csi-diskplugin
   template:
     metadata:
       labels:
-        app: csi-disk-plugin
+        app: csi-diskplugin
     spec:
       tolerations:
-        - key: node-role.kubernetes.io/master
-          operator: Exists
-          effect: NoSchedule
+      - operator: "Exists"
+      priorityClassName: system-node-critical
       serviceAccount: alicloud-csi-plugin
       hostNetwork: true
       hostPID: true
       containers:
         - name: driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-node-driver-registrar:v1.0.1
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-node-driver-registrar:v1.1.0
           imagePullPolicy: Always
           lifecycle:
             preStop:
@@ -28,7 +35,7 @@ spec:
                 command: ["/bin/sh", "-c", "rm -rf /registration/diskplugin.csi.alibabacloud.com /registration/diskplugin.csi.alibabacloud.com-reg.sock"]
           args:
             - "--v=5"
-            - "--csi-address=/csi/csi.sock"
+            - "--csi-address=/var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock"
             - "--kubelet-registration-path=/var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock"
           env:
             - name: KUBE_NODE_NAME
@@ -37,8 +44,8 @@ spec:
                   apiVersion: v1
                   fieldPath: spec.nodeName
           volumeMounts:
-            - name: plugin-dir
-              mountPath: /csi
+            - name: pods-mount-dir
+              mountPath: /var/lib/kubelet/
             - name: registration-dir
               mountPath: /registration
 
@@ -48,9 +55,9 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-diskplugin:v1.13.2-43e62a8e
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-diskplugin:v1.14.3-41ea73db
           imagePullPolicy: "Always"
-          args :
+          args:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
             - "--driver=diskplugin.csi.alibabacloud.com"
@@ -62,7 +69,9 @@ spec:
             - name: ACCESS_KEY_SECRET
               value: ""
             - name: MAX_VOLUMES_PERNODE
-              value: "5"
+              value: "15"
+            - name: DISK_TAGED_BY_PLUGIN
+              value: "true"
           volumeMounts:
             - name: pods-mount-dir
               mountPath: /var/lib/kubelet
@@ -70,13 +79,11 @@ spec:
             - mountPath: /dev
               mountPropagation: "HostToContainer"
               name: host-dev
-            - mountPath: /var/log/alicloud
+            - mountPath: /var/log/
               name: host-log
+            - name: etc
+              mountPath: /host/etc
       volumes:
-        - name: plugin-dir
-          hostPath:
-            path: /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com
-            type: DirectoryOrCreate
         - name: registration-dir
           hostPath:
             path: /var/lib/kubelet/plugins_registry
@@ -90,6 +97,9 @@ spec:
             path: /dev
         - name: host-log
           hostPath:
-            path: /var/log/alicloud/
+            path: /var/log/
+        - name: etc
+          hostPath:
+            path: /etc
   updateStrategy:
     type: RollingUpdate

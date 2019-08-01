@@ -8,3 +8,4 @@ parameters:
     type: cloud_ssd
     readOnly: "false"
 reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer

@@ -4,6 +4,7 @@ run_oss="false"
 
 mkdir -p /var/log/alicloud/
 
+## check which plugin is running
 for item in $@;
 do
   if [ "$item" = "--driver=ossplugin.csi.alibabacloud.com" ]; then
@@ -19,11 +20,12 @@ do
   fi
 done
 
-if [ "$run_oss" = "true" ]; then
-    echo "Starting deploy oss plugin...."
 
-    # Get System version
-    ossfsVer="1.80.3"
+## OSS plugin setup
+if [ "$run_oss" = "true" ]; then
+    echo "Starting deploy oss csi-plugin...."
+
+    ossfsVer="1.80.6"
     # install OSSFS
     mkdir -p /host/etc/csi-tool/
     if [ ! `/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
@@ -32,7 +34,7 @@ if [ "$run_oss" = "true" ]; then
         /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
     # update OSSFS
     else
-        echo "Prepare Upgrade ossfs...."
+        echo "Check ossfs Version...."
         oss_info=`/nsenter --mount=/proc/1/ns/mnt ossfs --version`
         vers_conut=`echo $oss_info | grep ${ossfsVer} | wc -l`
         if [ "$vers_conut" = "0" ]; then
@@ -43,6 +45,7 @@ if [ "$run_oss" = "true" ]; then
         fi
     fi
 
+    ## install/update csi connector
     updateConnector="true"
     if [ ! -f "/host/etc/csi-tool/csiplugin-connector" ];then
         mkdir -p /host/etc/csi-tool/
@@ -61,15 +64,16 @@ if [ "$run_oss" = "true" ]; then
     fi
 
     if [ "$updateConnector" = "true" ]; then
-        echo "copy csiplugin-connector...."
+        echo "Install csiplugin-connector...."
         cp /bin/csiplugin-connector /host/etc/csi-tool/csiplugin-connector
         chmod 755 /host/etc/csi-tool/csiplugin-connector
     fi
 
-    # install csiplugin connector service
+
+    # install/update csiplugin connector service
     updateConnectorService="true"
     if [ -f "/host/usr/lib/systemd/system/csiplugin-connector.service" ];then
-        echo "prepare install csiplugin-connector.service...."
+        echo "Check csiplugin-connector.service...."
         oldmd5=`md5sum /host/usr/lib/systemd/system/csiplugin-connector.service | awk '{print $1}'`
         newmd5=`md5sum /bin/csiplugin-connector.service | awk '{print $1}'`
         if [ "$oldmd5" = "$newmd5" ]; then
@@ -80,15 +84,17 @@ if [ "$run_oss" = "true" ]; then
     fi
 
     if [ "$updateConnectorService" = "true" ]; then
-        echo "install csiplugin-connector...."
+        echo "Install csiplugin connector service...."
         cp /bin/csiplugin-connector.service /host/usr/lib/systemd/system/csiplugin-connector.service
+        /nsenter --mount=/proc/1/ns/mnt systemctl daemon-reload
     fi
 
-    #/nsenter --mount=/proc/1/ns/mnt service csiplugin-connector-svc restart
     rm -rf /var/log/alicloud/connector.pid
     /nsenter --mount=/proc/1/ns/mnt systemctl enable csiplugin-connector.service
     /nsenter --mount=/proc/1/ns/mnt systemctl restart csiplugin-connector.service
 fi
+
+
 
 # start daemon
 /bin/plugin.csi.alibabacloud.com $@

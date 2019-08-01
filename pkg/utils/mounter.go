@@ -71,7 +71,7 @@ func (m *mounter) EnsureFolder(target string) error {
 	}
 
 	mkdirArgs := []string{"-p", target}
-	log.Infof("mkdir for folder, the command is %s %v", mdkirCmd, mkdirArgs)
+	//log.Infof("mkdir for folder, the command is %s %v", mdkirCmd, mkdirArgs)
 	_, err = exec.Command(mdkirCmd, mkdirArgs...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("mkdir for folder error: %v", err)
@@ -240,7 +240,6 @@ func (m *mounter) IsFormatted(source string) (bool, error) {
 
 	args := []string{"-sL", source}
 
-	log.Infof("IsFormatted: %s, the command is %s %v", source, fileCmd, args)
 	out, err := exec.Command(fileCmd, args...).CombinedOutput()
 	if err != nil {
 		return false, fmt.Errorf("checking formatting failed: %v cmd: %q output: %q",
