@@ -52,6 +52,7 @@ type diskVolumeArgs struct {
 	FsType    string `json:"fsType"`
 	ReadOnly  bool   `json:"readOnly"`
 	Encrypted bool   `json:"encrypted"`
+	KMSKeyId  string `json:kmsKeyId`
 }
 
 // Alicloud disk snapshot parameters
@@ -146,7 +147,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	createDiskRequest.ZoneId = diskVol.ZoneId
 	createDiskRequest.DiskCategory = disktype
 	createDiskRequest.Encrypted = requests.NewBoolean(diskVol.Encrypted)
-	log.Infof("CreateVolume: Create Disk with: %v, %v, %v, %v GB", cs.region, diskVol.ZoneId, disktype, requestGB)
+	if diskVol.Encrypted == true && diskVol.KMSKeyId != "" {
+		createDiskRequest.KMSKeyId = diskVol.KMSKeyId
+	}
+	log.Infof("CreateVolume: Create Disk with: %v, %v, %v, %v GB, %v, %v", cs.region, diskVol.ZoneId, disktype, requestGB, diskVol.Encrypted, diskVol.KMSKeyId)
 
 	// Step 4: Create Disk
 	volumeResponse, err := cs.ecsClient.CreateDisk(createDiskRequest)
@@ -538,6 +542,12 @@ func (cs *controllerServer) getDiskVolumeOptions(req *csi.CreateVolumeRequest) (
 		} else {
 			diskVolArgs.Encrypted = false
 		}
+	}
+
+	// kmsKeyId
+	diskVolArgs.KMSKeyId, ok = volOptions["kmsKeyId"]
+	if !ok {
+		diskVolArgs.KMSKeyId = ""
 	}
 	return diskVolArgs, nil
 }
