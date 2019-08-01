@@ -40,7 +40,7 @@ type nodeServer struct {
 }
 
 type NasOptions struct {
-	Server  string `json:"host"`
+	Server  string `json:"server"`
 	Path    string `json:"path"`
 	Vers    string `json:"vers"`
 	Mode    string `json:"mode"`
@@ -54,13 +54,13 @@ const (
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 
-	log.Infof("Nas Plugin Mount: %s", req.VolumeContext)
+	log.Infof("NodePublishVolume:: Nas Mount with: %s", req.VolumeContext)
 
 	// parse parameters
 	mountPath := req.GetTargetPath()
 	opt := &NasOptions{}
 	for key, value := range req.VolumeContext {
-		if key == "host" {
+		if key == "server" {
 			opt.Server = value
 		} else if key == "path" {
 			opt.Path = value
@@ -91,6 +91,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if opt.Path == "" {
 		opt.Path = "/"
 	}
+	if opt.Path == "/" && opt.Mode != "" {
+		return nil, errors.New("NAS: root directory cannot set mode: " + opt.Mode)
+	}
 	if !strings.HasPrefix(opt.Path, "/") {
 		return nil, errors.New("the path format is illegal")
 	}
@@ -99,6 +102,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if opt.Vers == "3.0" {
 		opt.Vers = "3"
+	} else if opt.Vers == "4" {
+		opt.Vers = "4.0"
 	}
 
 	// check options
@@ -138,14 +143,18 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			ns.createNasSubDir(opt, req.VolumeId)
 			if _, err := utils.Run(mntCmd); err != nil {
 				log.Errorf("Nas, Mount Nfs sub directory fail: %s", err.Error())
+				return nil, errors.New("Nas, Mount Nfs sub directory fail: %s" + err.Error())
 			}
 		} else {
 			log.Errorf("Nas, Mount Nfs fail with error: %s", err.Error())
+			return nil, errors.New("Nas, Mount Nfs fail with error: %s" + err.Error())
 		}
 		// mount error
 	} else if err != nil {
 		log.Errorf("Nas, Mount nfs fail: %s", err.Error())
+		return nil, errors.New("Nas, Mount nfs fail: %s" + err.Error())
 	}
+	log.Infof("NodePublishVolume:: Exec mount command: %s", mntCmd)
 
 	// change the mode
 	if opt.Mode != "" && opt.Path != "/" {
@@ -171,7 +180,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if !utils.IsMounted(mountPath) {
 		return nil, errors.New("Check mount fail after mount:" + mountPath)
 	}
-	log.Info("Mount success on: " + mountPath)
+	log.Infof("NodePublishVolume:: Mount success on mountpoint: %s", mountPath)
 
 	return &csi.NodePublishVolumeResponse{}, nil
 }
@@ -250,15 +259,18 @@ func (ns *nodeServer) createNasSubDir(opt *NasOptions, volumeId string) {
 				_, err := utils.Run(mntCmd)
 				if err != nil {
 					log.Errorf("Nas, Mount to temp directory(with /share) fail: %s", err.Error())
+					return
 				}
 			} else {
 				log.Errorf("Nas, maybe use fast nas, but path not startwith /share: %s", err.Error())
+				return
 			}
 		} else {
 			log.Errorf("Nas, Mount to temp directory fail: %s", err.Error())
+			return
 		}
 	}
-	subPath := path.Join(nasTmpPath, opt.Path)
+	subPath := path.Join(nasTmpPath, usePath)
 	if err := utils.CreateDest(subPath); err != nil {
 		log.Infof("Nas, Create Sub Directory err: " + err.Error())
 		return
@@ -266,11 +278,11 @@ func (ns *nodeServer) createNasSubDir(opt *NasOptions, volumeId string) {
 
 	// step 3: umount after create
 	utils.Umount(nasTmpPath)
-	log.Info("Create Sub Directory success: ", opt.Path)
+	log.Infof("Create Sub Directory successful: %s", opt.Path)
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-
+	log.Infof("NodeUnpublishVolume:: Starting Umount Nas: %s", req.TargetPath)
 	mountPoint := req.TargetPath
 	if !utils.IsMounted(mountPoint) {
 		return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -281,7 +293,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, errors.New("Nas, Umount nfs Fail: " + err.Error())
 	}
 
-	log.Info("Umount nfs Successful: ", mountPoint)
+	log.Infof("Umount Nas Successful on: %s", mountPoint)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

@@ -36,7 +36,7 @@ func NewIdentityServer(d *csicommon.CSIDriver) csi.IdentityServer {
 
 // GetPluginCapabilities returns available capabilities of the plugin
 func (iden *identityServer) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
-	log.Info("Identity:GetPluginCapabilities is called")
+	log.Infof("Identity:GetPluginCapabilities is called")
 	resp := &csi.GetPluginCapabilitiesResponse{
 		Capabilities: []*csi.PluginCapability{
 			{

@@ -52,6 +52,7 @@ type diskVolumeArgs struct {
 	FsType    string `json:"fsType"`
 	ReadOnly  bool   `json:"readOnly"`
 	Encrypted bool   `json:"encrypted"`
+	KMSKeyId  string `json:kmsKeyId`
 }
 
 // Alicloud disk snapshot parameters
@@ -146,7 +147,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	createDiskRequest.ZoneId = diskVol.ZoneId
 	createDiskRequest.DiskCategory = disktype
 	createDiskRequest.Encrypted = requests.NewBoolean(diskVol.Encrypted)
-	log.Infof("CreateVolume: Create Disk with: %v, %v, %v, %v GB", cs.region, diskVol.ZoneId, disktype, requestGB)
+	if diskVol.Encrypted == true && diskVol.KMSKeyId != "" {
+		createDiskRequest.KMSKeyId = diskVol.KMSKeyId
+	}
+	log.Infof("CreateVolume: Create Disk with: %v, %v, %v, %v GB, %v, %v", cs.region, diskVol.ZoneId, disktype, requestGB, diskVol.Encrypted, diskVol.KMSKeyId)
 
 	// Step 4: Create Disk
 	volumeResponse, err := cs.ecsClient.CreateDisk(createDiskRequest)
@@ -204,7 +208,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 	// Step 1: check inputs
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME); err != nil {
-		log.Warningf("DeleteVolume: invalid delete volume req: %v", req)
+		log.Warnf("DeleteVolume: invalid delete volume req: %v", req)
 		return nil, status.Errorf(codes.InvalidArgument, "DeleteVolume: invalid delete volume req: %v", req)
 	}
 	// For now the image get unconditionally deleted, but here retention policy can be checked
@@ -538,6 +542,12 @@ func (cs *controllerServer) getDiskVolumeOptions(req *csi.CreateVolumeRequest) (
 		} else {
 			diskVolArgs.Encrypted = false
 		}
+	}
+
+	// kmsKeyId
+	diskVolArgs.KMSKeyId, ok = volOptions["kmsKeyId"]
+	if !ok {
+		diskVolArgs.KMSKeyId = ""
 	}
 	return diskVolArgs, nil
 }
