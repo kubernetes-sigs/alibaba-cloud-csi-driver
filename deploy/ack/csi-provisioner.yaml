@@ -5,7 +5,7 @@ metadata:
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
     type: available
-reclaimPolicy: Retain
+reclaimPolicy: Delete
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -14,7 +14,7 @@ metadata:
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
     type: cloud_essd
-reclaimPolicy: Retain
+reclaimPolicy: Delete
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -23,7 +23,7 @@ metadata:
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
     type: cloud_ssd
-reclaimPolicy: Retain
+reclaimPolicy: Delete
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -32,7 +32,7 @@ metadata:
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
     type: cloud_efficiency
-reclaimPolicy: Retain
+reclaimPolicy: Delete
 ---
 kind: Service
 apiVersion: v1
@@ -91,7 +91,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.3-189c388b
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.3.27-49e4dda-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -113,6 +113,23 @@ spec:
               name: disk-provisioner-dir
             - name: etc
               mountPath: /host/etc
+        resources:
+          limits:
+            cpu: 100m
+            memory: 200Mi
+          requests:
+            memory: 100Mi
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - ps -ef | grep plugin.csi.alibabacloud.com | grep diskplugin.csi.alibabacloud.com | grep -v grep
+          failureThreshold: 8
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 15
       volumes:
         - name: disk-provisioner-dir
           emptyDir: {}
