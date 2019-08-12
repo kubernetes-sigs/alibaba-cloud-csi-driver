@@ -37,6 +37,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const (
+	PERFORMANCE_LEVEL_PL1 = "PL1"
+	PERFORMANCE_LEVEL_PL2 = "PL2"
+	PERFORMANCE_LEVEL_PL3 = "PL3"
+)
 // controller server try to create/delete volumes/snapshots
 type controllerServer struct {
 	ecsClient *ecs.Client
@@ -46,13 +51,14 @@ type controllerServer struct {
 
 // Alicloud disk parameters
 type diskVolumeArgs struct {
-	Type      string `json:"type"`
-	RegionId  string `json:"regionId"`
-	ZoneId    string `json:"zoneId"`
-	FsType    string `json:"fsType"`
-	ReadOnly  bool   `json:"readOnly"`
-	Encrypted bool   `json:"encrypted"`
-	KMSKeyId  string `json:kmsKeyId`
+	Type             string `json:"type"`
+	RegionId         string `json:"regionId"`
+	ZoneId           string `json:"zoneId"`
+	FsType           string `json:"fsType"`
+	ReadOnly         bool   `json:"readOnly"`
+	Encrypted        bool   `json:"encrypted"`
+	KMSKeyId         string `json:"kmsKeyId"`
+	PerformanceLevel string `json:"performanceLevel"`
 }
 
 // Alicloud disk snapshot parameters
@@ -150,6 +156,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if diskVol.Encrypted == true && diskVol.KMSKeyId != "" {
 		createDiskRequest.KMSKeyId = diskVol.KMSKeyId
 	}
+	if disktype == DISK_ESSD {
+		createDiskRequest.PerformanceLevel = diskVol.PerformanceLevel
+	}
 	log.Infof("CreateVolume: Create Disk with: %v, %v, %v, %v GB, %v, %v", cs.region, diskVol.ZoneId, disktype, requestGB, diskVol.Encrypted, diskVol.KMSKeyId)
 
 	// Step 4: Create Disk
@@ -163,6 +172,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			if err != nil {
 				if strings.Contains(err.Error(), DISK_NOTAVAILABLE) {
 					disktype = DISK_ESSD
+					createDiskRequest.PerformanceLevel = diskVol.PerformanceLevel
 					createDiskRequest.DiskCategory = disktype
 					volumeResponse, err = cs.ecsClient.CreateDisk(createDiskRequest)
 					if err != nil {
@@ -424,7 +434,6 @@ func (cs *controllerServer) describeSnapshotByName(name string) (*diskSnapshot, 
 	return resSnapshot, nil
 }
 
-
 // pickZone selects 1 zone given topology requirement.
 // if not found, empty string is returned.
 func pickZone(requirement *csi.TopologyRequirement) string {
@@ -496,6 +505,11 @@ func (cs *controllerServer) getDiskVolumeOptions(req *csi.CreateVolumeRequest) (
 		diskVolArgs.RegionId = cs.region
 	}
 
+	diskVolArgs.PerformanceLevel, ok = volOptions["performanceLevel"]
+	if !ok {
+		diskVolArgs.PerformanceLevel = PERFORMANCE_LEVEL_PL1
+	}
+
 	// fstype
 	// https://github.com/kubernetes-csi/external-provisioner/releases/tag/v1.0.1
 	diskVolArgs.FsType, ok = volOptions["csi.storage.k8s.io/fstype"]
@@ -552,7 +566,6 @@ func (cs *controllerServer) getDiskVolumeOptions(req *csi.CreateVolumeRequest) (
 	return diskVolArgs, nil
 }
 
-
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest,
 ) (*csi.ControllerExpandVolumeResponse, error) {
 	log.Infof("ControllerExpandVolume:: Starting expand disk with: %v", req)
@@ -570,7 +583,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	} else {
 		if requestGB == disk.Size {
 			log.Infof("ControllerExpandVolume:: expect size is same with current: %s, size: %dGi", req.VolumeId, requestGB)
-			return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes,	NodeExpansionRequired: true}, nil
+			return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
 		} else if requestGB < disk.Size {
 			log.Errorf("ControllerExpandVolume:: expect size is less than current: %d, expected: %d", disk.Size, requestGB)
 			return nil, status.Errorf(codes.Internal, "configured disk size less than current size: %d, %d", disk.Size, requestGB)
@@ -578,7 +591,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	}
 
 	// do resize
-	resizeDiskRequest:=ecs.CreateResizeDiskRequest()
+	resizeDiskRequest := ecs.CreateResizeDiskRequest()
 	resizeDiskRequest.RegionId = cs.region
 	resizeDiskRequest.DiskId = diskId
 	resizeDiskRequest.NewSize = requests.NewInteger(requestGB)
@@ -588,5 +601,5 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	}
 
 	log.Infof("ControllerExpandVolume:: Success to resize volume: %s from %dG to %dG", req.VolumeId, disk.Size, requestGB)
-	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes,	NodeExpansionRequired: true}, nil
+	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
 }
