@@ -97,7 +97,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.3.27-49e4dda-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.3.35-ee9735d-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -119,24 +119,24 @@ spec:
               name: disk-provisioner-dir
             - name: etc
               mountPath: /host/etc
-        resources:
-          limits:
-            cpu: 100m
-            memory: 100Mi
-          requests:
-            cpu: 100m
-            memory: 100Mi
-        livenessProbe:
-          exec:
-            command:
-            - sh
-            - -c
-            - ps -ef | grep plugin.csi.alibabacloud.com | grep diskplugin.csi.alibabacloud.com | grep -v grep
-          failureThreshold: 8
-          initialDelaySeconds: 15
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 15
+          resources:
+            limits:
+              cpu: 100m
+              memory: 100Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          livenessProbe:
+            exec:
+              command:
+              - sh
+              - -c
+              - ps -ef | grep plugin.csi.alibabacloud.com | grep diskplugin.csi.alibabacloud.com | grep -v grep
+            failureThreshold: 8
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 15
       volumes:
         - name: disk-provisioner-dir
           emptyDir: {}
