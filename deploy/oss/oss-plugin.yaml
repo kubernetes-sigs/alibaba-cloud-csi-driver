@@ -62,6 +62,7 @@ spec:
         - "--endpoint=$(CSI_ENDPOINT)"
         - "--v=5"
         - "--driver=ossplugin.csi.alibabacloud.com"
+        - "--nodeid=$(KUBE_NODE_NAME)"
         env:
         - name: CSI_ENDPOINT
           value: unix://var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
