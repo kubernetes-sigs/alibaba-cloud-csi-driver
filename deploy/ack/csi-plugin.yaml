@@ -90,6 +90,9 @@ spec:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet
               mountPropagation: "Bidirectional"
+            - name: container-dir
+              mountPath: /var/lib/container
+              mountPropagation: "Bidirectional"
             - mountPath: /dev
               mountPropagation: "HostToContainer"
               name: host-dev
@@ -189,13 +192,15 @@ spec:
             mountPath: /host/etc
           - mountPath: /var/log/
             name: host-log
-          - mountPath: /host/usr/libexec/kubernetes
-            name: flexvolumedir
 
       volumes:
         - name: registration-dir
           hostPath:
             path: /var/lib/kubelet/plugins_registry
+            type: DirectoryOrCreate
+        - name: container-dir
+          hostPath:
+            path: /var/lib/container
             type: DirectoryOrCreate
         - name: kubelet-dir
           hostPath:
@@ -210,8 +215,5 @@ spec:
         - name: etc
           hostPath:
             path: /etc
-        - name: flexvolumedir
-          hostPath:
-            path: /usr/libexec/kubernetes
   updateStrategy:
     type: RollingUpdate
