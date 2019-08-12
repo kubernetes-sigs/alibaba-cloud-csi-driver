@@ -188,7 +188,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if mnt.FsType != "" {
 			fsType = mnt.FsType
 		}
-		log.Infof("NodePublishVolume: Starting mount volume %s with flags %v and fsType %s", req.VolumeId,  options, fsType)
+		log.Infof("NodePublishVolume: Starting mount volume %s with flags %v and fsType %s", req.VolumeId, options, fsType)
 		if err = ns.k8smounter.Mount(sourcePath, targetPath, fsType, options); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -338,15 +338,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	if mnt.FsType != "" {
 		fsType = mnt.FsType
 	}
-	formatted, err := ns.mounter.IsFormatted(device)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	if formatted {
-		log.Infof("NodeStageVolume:: volume %s(%s) Is Formatted.", req.GetVolumeId(), device)
-	} else {
-		log.Infof("NodeStageVolume:: volume %s(%s) Is Not Formatted.", req.GetVolumeId(), device)
-	}
 
 	if isBlock {
 		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
@@ -359,16 +350,9 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 	// do format-mount or mount
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: k8smount.NewOsExec()}
-	if !formatted {
-		if err := diskMounter.FormatAndMount(device, targetPath, fsType, options); err != nil {
-			log.Errorf("NodeStageVolume: FormatAndMount error: %s", err.Error())
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-	} else {
-		if err := diskMounter.Mount(device, targetPath, fsType, options); err != nil {
-			log.Errorf("NodeStageVolume: Mount error: %s", err.Error())
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+	if err := diskMounter.FormatAndMount(device, targetPath, fsType, options); err != nil {
+		log.Errorf("NodeStageVolume: FormatAndMount error: %s", err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	log.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v, device: %s", req.VolumeId, targetPath, device)
