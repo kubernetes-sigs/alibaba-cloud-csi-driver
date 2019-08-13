@@ -1,7 +1,15 @@
+apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: lvmplugin.csi.alibabacloud.com
+spec:
+  attachRequired: false
+---
 kind: DaemonSet
 apiVersion: apps/v1beta2
 metadata:
   name: csi-lvm-plugin
+  namespace: kube-system
 spec:
   selector:
     matchLabels:
@@ -12,15 +20,14 @@ spec:
         app: csi-lvm-plugin
     spec:
       tolerations:
-        - key: node-role.kubernetes.io/master
-          operator: Exists
-          effect: NoSchedule
+        - operator: Exists
       serviceAccount: alicloud-csi-plugin
+      priorityClassName: system-node-critical
       hostNetwork: true
       hostPID: true
       containers:
         - name: driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-node-driver-registrar:v1.0.1
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-node-driver-registrar:v1.1.0
           imagePullPolicy: Always
           lifecycle:
             preStop:
@@ -48,7 +55,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-lvmplugin:v1.13.2-e0e57163
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-lvmplugin:v1.13-test-82b18e22
           imagePullPolicy: "Always"
           args :
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -64,7 +71,7 @@ spec:
             - mountPath: /dev
               mountPropagation: "HostToContainer"
               name: host-dev
-            - mountPath: /var/log/alicloud
+            - mountPath: /var/log/
               name: host-log
       volumes:
         - name: plugin-dir
@@ -84,4 +91,6 @@ spec:
             path: /dev
         - name: host-log
           hostPath:
-            path: /var/log/alicloud/
+            path: /var/log/
+  updateStrategy:
+    type: RollingUpdate
