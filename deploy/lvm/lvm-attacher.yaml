@@ -1,12 +1,13 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: csi-lvm-attacher
+  name: csi-lvm-provisioner
+  namespace: kube-system
   labels:
-    app: csi-lvm-attacher
+    app: csi-lvm-provisioner
 spec:
   selector:
-    app: csi-lvm-attacher
+    app: csi-lvm-provisioner
   ports:
     - name: dummy
       port: 12345
@@ -15,45 +16,29 @@ spec:
 kind: StatefulSet
 apiVersion: apps/v1beta1
 metadata:
-  name: csi-lvm-attacher
+  name: csi-lvm-provisioner
+  namespace: kube-system
 spec:
-  serviceName: "csi-lvm-attacher"
+  serviceName: "csi-lvm-provisioner"
   replicas: 1
   template:
     metadata:
       labels:
-        app: csi-lvm-attacher
+        app: csi-lvm-provisioner
     spec:
       tolerations:
-      - effect: NoSchedule
-        operator: Exists
-        key: node-role.kubernetes.io/master
-      - effect: NoSchedule
-        operator: Exists
-        key: node.cloudprovider.kubernetes.io/uninitialized
+      - operator: Exists
       nodeSelector:
          node-role.kubernetes.io/master: ""
+      priorityClassName: system-node-critical
       serviceAccount: alicloud-csi-plugin
       containers:
         - name: csi-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-provisioner:v1.0.1
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-provisioner:v1.2.0
           args:
             - "--provisioner=lvmplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
-          env:
-            - name: ADDRESS
-              value: /var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com/csi.sock
-          imagePullPolicy: "IfNotPresent"
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com
-
-        - name: csi-attacher
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-attacher:v1.0.0
-          args:
-            - "--v=5"
-            - "--csi-address=$(ADDRESS)"
           env:
             - name: ADDRESS
               value: /var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com/csi.sock
@@ -66,3 +51,5 @@ spec:
           hostPath:
             path: /var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com
             type: DirectoryOrCreate
+  updateStrategy:
+    type: RollingUpdate
