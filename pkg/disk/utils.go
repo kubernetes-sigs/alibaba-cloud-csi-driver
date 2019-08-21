@@ -166,6 +166,15 @@ func GetLocalAK() (string, string) {
 	return accessKeyID, accessSecret
 }
 
+func GetDeviceByMntPoint(targetPath string) string {
+	deviceCmd := fmt.Sprintf("mount | grep %s  | grep -v grep | awk '{print $1}'", targetPath)
+	deviceCmdOut, err := run(deviceCmd)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(deviceCmdOut)
+}
+
 func GetDeviceMountNum(targetPath string) int {
 	deviceCmd := fmt.Sprintf("mount | grep %s  | grep -v grep | awk '{print $1}'", targetPath)
 	deviceCmdOut, err := run(deviceCmd)
