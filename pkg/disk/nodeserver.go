@@ -18,6 +18,7 @@ package disk
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -188,6 +189,23 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if mnt.FsType != "" {
 			fsType = mnt.FsType
 		}
+
+		// check device name available
+		deviceName := getVolumeConfig(req.VolumeId)
+		realDevice := GetDeviceByMntPoint(sourcePath)
+		if realDevice == "" {
+			opts := append(mnt.MountFlags, "shared")
+			if err := ns.k8smounter.Mount(deviceName, sourcePath, fsType, opts); err != nil {
+				log.Errorf("NodePublishVolume: mount source error: %s, %s, %s", deviceName, sourcePath, err.Error())
+				return nil, status.Error(codes.Internal, "NodePublishVolume: mount source error: "+deviceName+", "+sourcePath+", "+err.Error())
+			}
+			realDevice = GetDeviceByMntPoint(sourcePath)
+		}
+		if deviceName != realDevice || realDevice == "" {
+			log.Errorf("NodePublishVolume: sourcePath: %s real Device: %s not same with Saved: %s", sourcePath, realDevice, deviceName)
+			return nil, status.Error(codes.Internal, "NodePublishVolume: sourcePath: "+sourcePath+" real Device: "+realDevice+" not same with Saved: "+deviceName)
+		}
+
 		log.Infof("NodePublishVolume: Starting mount volume %s with flags %v and fsType %s", req.VolumeId, options, fsType)
 		if err = ns.k8smounter.Mount(sourcePath, targetPath, fsType, options); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -319,7 +337,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return nil, err
 	}
 	saveVolumeConfig(req.VolumeId, device)
-	log.Infof("NodeStageVolume: Volume successful Attached: %s", req.GetVolumeId())
+	log.Infof("NodeStageVolume: Volume successful Attached: %s, Device: %s", req.GetVolumeId(), device)
 
 	// Block volume not need to format
 	if isBlock {
@@ -360,7 +378,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 }
 
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	log.Infof("NodeUnstageVolume::  Start to unpublish volume, volumeId: %s, target %v", req.VolumeId, req.StagingTargetPath)
+	log.Infof("NodeUnstageVolume::  Start to umount volume, volumeId: %s, target %v", req.VolumeId, req.StagingTargetPath)
 	if req.VolumeId == "" {
 		return nil, status.Error(codes.InvalidArgument, "NodeUnstageVolume Volume ID must be provided")
 	}
@@ -369,7 +387,6 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	}
 	targetPath := filepath.Join(req.GetStagingTargetPath(), req.VolumeId)
 	if !IsFileExisting(targetPath) {
-		log.Infof("NodeUnstageVolume: folder %s doesn't exist. Start to unpublish volume, target %v, volumeId: %s", targetPath, req.GetStagingTargetPath(), req.VolumeId)
 		targetPath = req.GetStagingTargetPath()
 	}
 
@@ -392,7 +409,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 		} else {
-			log.Infof("NodeUnstageVolume: %s is  unmounted, continue to detach", targetPath)
+			log.Infof("NodeUnstageVolume: volumeId: %s,  %s is unmounted, continue to detach", req.VolumeId, targetPath)
 		}
 	} else {
 		log.Infof("NodeUnstageVolume: folder %s doesn't exist, continue to detach", targetPath)
@@ -414,11 +431,27 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			detachDiskRequest := ecs.CreateDetachDiskRequest()
 			detachDiskRequest.DiskId = disk.DiskId
 			detachDiskRequest.InstanceId = disk.InstanceId
+
+			//NodeStageVolume/NodeUnstageVolume should be called by sequence
+			//In order no to block to caller, use boolean canAttach to check whether to continue.
+			ns.attachMutex.Lock()
+			if !ns.canAttach {
+				ns.attachMutex.Unlock()
+				return nil, status.Error(codes.Aborted, "NodeUnstageVolume: Previous attach/detach action is still in process")
+			}
+			ns.canAttach = false
+			ns.attachMutex.Unlock()
+			defer func() {
+				ns.attachMutex.Lock()
+				ns.canAttach = true
+				ns.attachMutex.Unlock()
+			}()
+
 			response, err := ns.ecsClient.DetachDisk(detachDiskRequest)
 			if err != nil {
-				errMsg := fmt.Sprintf("NodeUnstageVolume: fail to detach %s: %v", disk.DiskId, err.Error())
+				errMsg := fmt.Sprintf("NodeUnstageVolume: fail to detach %s: from: %s with error: %s", disk.DiskId, disk.InstanceId, err.Error())
 				if response != nil {
-					errMsg = fmt.Sprintf("NodeUnstageVolume: fail to detach %s: %v, with requestId %s", disk.DiskId, err.Error(), response.RequestId)
+					errMsg = fmt.Sprintf("NodeUnstageVolume: fail to detach %s: from: %s, with error: %v, with requestId %s", disk.DiskId, disk.InstanceId, err.Error(), response.RequestId)
 				}
 				log.Errorf(errMsg)
 				return nil, status.Error(codes.Aborted, errMsg)
@@ -475,6 +508,15 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 	} else {
 		// detach disk first if attached
 		if disk.Status == DISK_STATUS_INUSE || disk.Status == DISK_STATUS_ATTACHING {
+			if disk.InstanceId == ns.nodeId {
+				deviceName := getVolumeConfig(volumeID)
+				if deviceName != "" && IsFileExisting(deviceName) {
+					if used, err := IsDeviceUsedOthers(deviceName, volumeID); err == nil && used == false {
+						log.Infof("NodeStageVolume: disk %s is already attached to self Instance %s, and device is: %s", volumeID, disk.InstanceId, deviceName)
+						return deviceName, nil
+					}
+				}
+			}
 			log.Infof("NodeStageVolume: disk %s is already attached to instance %s, will be detached", volumeID, disk.InstanceId)
 			detachRequest := ecs.CreateDetachDiskRequest()
 			detachRequest.InstanceId = disk.InstanceId
@@ -498,12 +540,13 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 	attachRequest := ecs.CreateAttachDiskRequest()
 	attachRequest.InstanceId = ns.nodeId
 	attachRequest.DiskId = volumeID
-	if _, err = ns.ecsClient.AttachDisk(attachRequest); err != nil {
+	response, err := ns.ecsClient.AttachDisk(attachRequest)
+	if err != nil {
 		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happends to attach disk %s to instance %s, %v", volumeID, ns.nodeId, err)
 	}
 
 	// Step 4: wait for disk attached
-	log.Infof("NodeStageVolume: Waiting for Disk %s is Attached", volumeID)
+	log.Infof("NodeStageVolume: Waiting for Disk %s is Attached with RequestId: %s", volumeID, response.RequestId)
 	if isSharedDisk {
 		if err := ns.waitForSharedDiskInStatus(10, time.Second*3, volumeID, DISK_STATUS_ATTACHED); err != nil {
 			return "", err
@@ -530,6 +573,26 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 
 	//device count is not expected, should retry (later by detaching and attaching again)
 	return "", status.Error(codes.Aborted, "NodeStageVolume: after attaching to disk, but fail to get mounted device, will retry later")
+}
+
+func IsDeviceUsedOthers(deviceName, volumeID string) (bool, error) {
+	files, err := ioutil.ReadDir(VolumeDir)
+	if err != nil {
+		return true, err
+	}
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		} else {
+			if strings.HasSuffix(file.Name(), ".conf") {
+				tmpVolId := strings.Replace(file.Name(), ".conf", "", 1)
+				if tmpVolId != volumeID && getVolumeConfig(tmpVolId) == deviceName {
+					return true, nil
+				}
+			}
+        }
+    }
+	return false, nil
 }
 
 // tag disk with: k8s.aliyun.com=true
