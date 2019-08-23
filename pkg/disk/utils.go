@@ -366,3 +366,23 @@ func removeVolumeConfig(volumeId string) error {
 	}
 	return nil
 }
+
+func IsDeviceUsedOthers(deviceName, volumeID string) (bool, error) {
+	files, err := ioutil.ReadDir(VolumeDir)
+	if err != nil {
+		return true, err
+	}
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		} else {
+			if strings.HasSuffix(file.Name(), ".conf") {
+				tmpVolId := strings.Replace(file.Name(), ".conf", "", 1)
+				if tmpVolId != volumeID && getVolumeConfig(tmpVolId) == deviceName {
+					return true, nil
+				}
+			}
+        }
+    }
+	return false, nil
+}

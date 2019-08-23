@@ -113,7 +113,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// default use allow_other
-	mntCmd := fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s %s -ourl=%s -o allow_other %s", opt.Bucket, mountPath, opt.Url, opt.OtherOpts)
+	mntCmd := fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s %s -ourl=%s %s", opt.Bucket, mountPath, opt.Url, opt.OtherOpts)
 	if out, err := connectorRun(mntCmd); err != nil {
 		if err != nil {
 			log.Errorf("Ossfs mount error: %s", err.Error())
