@@ -48,6 +48,8 @@ type Mounter interface {
 	IsMounted(target string) (bool, error)
 
 	SafePathRemove(target string) error
+
+	HasMountRefs(mountPath string, mountRefs []string) bool
 }
 
 // TODO(arslan): this is Linux only for now. Refactor this into a package with
@@ -301,6 +303,28 @@ func (m *mounter) SafePathRemove(targetPath string) error {
 		return err
 	}
 	return nil
+}
+
+func (m *mounter) HasMountRefs(mountPath string, mountRefs []string) bool {
+	count := 0
+	for _, refPath := range mountRefs {
+		if !strings.Contains(refPath, mountPath) {
+			if strings.HasPrefix(mountPath, "/var/lib/kubelet/") {
+				mountPathSuffix := strings.Replace(mountPath, "/var/lib/kubelet/", "", 1)
+				refPathSuffix := strings.Replace(refPath, "/var/lib/container/kubelet/", "", 1)
+				if refPathSuffix != mountPathSuffix {
+					count = count + 1
+				}
+			} else if strings.HasPrefix(mountPath, "/var/lib/container/kubelet/") {
+				mountPathSuffix := strings.Replace(mountPath, "/var/lib/container/kubelet/", "", 1)
+				refPathSuffix := strings.Replace(refPath, "/var/lib/kubelet/", "", 1)
+				if refPathSuffix != mountPathSuffix {
+					count = count + 1
+				}
+			}
+		}
+	}
+	return count > 0
 }
 
 func IsDirEmpty(name string) (bool, error) {
