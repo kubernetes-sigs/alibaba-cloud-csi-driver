@@ -15,7 +15,7 @@ export GOARCH="amd64"
 export GOOS="linux"
 
 branch="v1.0.0"
-version="v1.14.3"
+version="v1.14.5"
 commitId=$GIT_SHA
 buildTime=`date "+%Y-%m-%d-%H:%M:%S"`
 
