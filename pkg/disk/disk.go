@@ -17,17 +17,14 @@ limitations under the License.
 package disk
 
 import (
-	"os"
-	"path"
-
 	log "github.com/Sirupsen/logrus"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"os"
 )
 
 // PluginFolder defines the location of diskplugin
 const (
-	PluginFolder    = "/var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com"
 	driverName      = "diskplugin.csi.alibabacloud.com"
 	csiVersion      = "1.0.0"
 	TopologyZoneKey = "topology." + driverName + "/zone"
@@ -47,13 +44,7 @@ type disk struct {
 // Init checks for the persistent volume file and loads all found volumes
 // into a memory structure
 func initDriver() {
-	if _, err := os.Stat(path.Join(PluginFolder, "controller")); os.IsNotExist(err) {
-		log.Infof("disk: folder %s not found. Creating... ", path.Join(PluginFolder, "controller"))
-		if err := os.MkdirAll(path.Join(PluginFolder, "controller"), 0755); err != nil {
-			log.Fatalf("Failed to create a controller's volumes folder with error: %v", err)
-		}
-		return
-	}
+
 }
 
 func NewDriver(nodeID, endpoint string, runAsController bool) *disk {
