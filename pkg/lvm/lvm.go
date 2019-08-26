@@ -4,8 +4,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"os"
-	"path"
 )
 
 type lvm struct {
@@ -20,7 +18,6 @@ type lvm struct {
 }
 
 const (
-	PluginFolder = "/var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com"
 	driverName   = "lvmplugin.csi.alibabacloud.com"
 	csiVersion   = "1.0.0"
 )
@@ -28,13 +25,6 @@ const (
 // Init checks for the persistent volume file and loads all found volumes
 // into a memory structure
 func initDriver() {
-	if _, err := os.Stat(path.Join(PluginFolder, "controller")); os.IsNotExist(err) {
-		log.Infof("lvm: folder %s not found. Creating... ", path.Join(PluginFolder, "controller"))
-		if err := os.Mkdir(path.Join(PluginFolder, "controller"), 0755); err != nil {
-			log.Fatalf("Failed to create a controller's volumes folder with error: %v", err)
-		}
-		return
-	}
 }
 
 func NewDriver(nodeID, endpoint string) *lvm {
