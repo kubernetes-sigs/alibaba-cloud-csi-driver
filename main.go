@@ -54,8 +54,8 @@ var (
 	nodeId          = flag.String("nodeid", "", "node id")
 	runAsController = flag.Bool("run-as-controller", false, "Only run as controller service")
 	driver          = flag.String("driver", TYPE_PLUGIN_DISK, "CSI Driver")
+	rootDir         = flag.String("rootdir", "/var/lib/kubelet", "Kubernetes root directory")
 )
-
 
 // Nas CSI Plugin
 func main() {
@@ -64,11 +64,35 @@ func main() {
 	// set log config
 	setLogAttribute(*driver)
 
-	if err := createPersistentStorage(path.Join(nas.PluginFolder, "controller")); err != nil {
+	if err := createPersistentStorage(path.Join(*rootDir, "plugins", TYPE_PLUGIN_DISK, "controller")); err != nil {
 		log.Errorf("failed to create persistent storage for controller: %v", err)
 		os.Exit(1)
 	}
-	if err := createPersistentStorage(path.Join(nas.PluginFolder, "node")); err != nil {
+	if err := createPersistentStorage(path.Join(*rootDir, "plugins", TYPE_PLUGIN_DISK, "node")); err != nil {
+		log.Errorf("failed to create persistent storage for node: %v", err)
+		os.Exit(1)
+	}
+	if err := createPersistentStorage(path.Join(*rootDir, "plugins", TYPE_PLUGIN_NAS, "controller")); err != nil {
+		log.Errorf("failed to create persistent storage for controller: %v", err)
+		os.Exit(1)
+	}
+	if err := createPersistentStorage(path.Join(*rootDir, "plugins", TYPE_PLUGIN_NAS, "node")); err != nil {
+		log.Errorf("failed to create persistent storage for node: %v", err)
+		os.Exit(1)
+	}
+	if err := createPersistentStorage(path.Join(*rootDir, "plugins", TYPE_PLUGIN_OSS, "controller")); err != nil {
+		log.Errorf("failed to create persistent storage for controller: %v", err)
+		os.Exit(1)
+	}
+	if err := createPersistentStorage(path.Join(*rootDir,  "plugins", TYPE_PLUGIN_OSS, "node")); err != nil {
+		log.Errorf("failed to create persistent storage for node: %v", err)
+		os.Exit(1)
+	}
+	if err := createPersistentStorage(path.Join(*rootDir, "plugins", TYPE_PLUGIN_LVM, "controller")); err != nil {
+		log.Errorf("failed to create persistent storage for controller: %v", err)
+		os.Exit(1)
+	}
+	if err := createPersistentStorage(path.Join(*rootDir,  "plugins", TYPE_PLUGIN_LVM, "node")); err != nil {
 		log.Errorf("failed to create persistent storage for node: %v", err)
 		os.Exit(1)
 	}

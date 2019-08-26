@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	PluginFolder = "/var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com"
 	driverName   = "ossplugin.csi.alibabacloud.com"
 )
 
