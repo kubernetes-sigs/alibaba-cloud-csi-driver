@@ -27,12 +27,7 @@ $ cd build && sh build-nas.sh
 Same as diskplugin.csi.alibabacloud.com;
 
 
-### Step 1: Create CSI Attacher
-```
-# kubectl create -f ./deploy/nas/nas-attacher.yaml
-```
-
-### Step 2: Create CSI Plugin
+### Step 1: Create CSI Plugin
 ```
 # kubectl create -f ./deploy/nas/nas-plugin.yaml
 ```
@@ -45,12 +40,12 @@ Same as diskplugin.csi.alibabacloud.com;
 
 > "both": default option, log will be printed both to stdout and host file.
 
-### Step 3: Create nginx deploy with csi
+### Step 2: Create nginx deploy with csi
 ```
-# kubectl create -f ./deploy/nas/deploy.yaml
+# kubectl create -f ./examples/nas/deploy.yaml
 ```
 
-### Step 4: Check status of PVC/PV
+### Step 3: Check status of PVC/PV
 ```
 # kubectl get pvc
 NAME      STATUS    VOLUME       CAPACITY   ACCESS MODES   STORAGECLASS   AGE
@@ -84,3 +79,7 @@ Source:
     ReadOnly:      false
 Events:            <none>
 ```
+
+## features
+
+**Nas Dynamic:** [dynamic volume](./nas-dynamic.md)
