@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	driverName   = "nasplugin.csi.alibabacloud.com"
-	INSTANCE_ID  = "instance-id"
+	driverName  = "nasplugin.csi.alibabacloud.com"
+	INSTANCE_ID = "instance-id"
 )
 
 var (
@@ -30,10 +30,11 @@ var (
 )
 
 type nas struct {
-	driver     *csicommon.CSIDriver
-	endpoint   string
-	idServer   *csicommon.DefaultIdentityServer
-	nodeServer *nodeServer
+	driver           *csicommon.CSIDriver
+	endpoint         string
+	idServer         *csicommon.DefaultIdentityServer
+	nodeServer       *nodeServer
+	controllerServer csi.ControllerServer
 
 	cap   []*csi.VolumeCapability_AccessMode
 	cscap []*csi.ControllerServiceCapability
@@ -50,9 +51,13 @@ func NewDriver(nodeID, endpoint string) *nas {
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
 	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
-	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{csi.ControllerServiceCapability_RPC_UNKNOWN})
+	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
+		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+		csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+	})
 
 	d.driver = csiDriver
+	d.controllerServer = NewControllerServer(d.driver)
 
 	return d
 }
@@ -67,8 +72,7 @@ func (d *nas) Run() {
 	s := csicommon.NewNonBlockingGRPCServer()
 	s.Start(d.endpoint,
 		csicommon.NewDefaultIdentityServer(d.driver),
-		nil,
-//		csicommon.NewDefaultControllerServer(d.driver),
+		d.controllerServer,
 		NewNodeServer(d))
 	s.Wait()
 }

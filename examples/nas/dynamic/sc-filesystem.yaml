@@ -1,0 +1,12 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: alicloud-nas
+mountOptions:
+- nolock,tcp,noresvport
+- vers=3
+parameters:
+  volumeAs: filesystem
+  nfsType: Performance
+provisioner: nasplugin.csi.alibabacloud.com
+reclaimPolicy: Delete
