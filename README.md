@@ -26,7 +26,7 @@ CSI using with Kubrentes:
 | v1.11 | v0.3   | Beta |
 | v1.12 | v0.3   | Beta |
 | v1.13 | v1.0.0 | GA |
-
+| v1.14 | v1.0.0 | GA |
 
 ## Requirements
 
@@ -34,6 +34,8 @@ CSI using with Kubrentes:
 Enable Feature gates:
 
 	--feature-gates=VolumeSnapshotDataSource=true,CSINodeInfo=true,CSIDriverRegistry=true
+
+In Kubernetes 1.14, CSINodeInfo, CSIDriverRegistry are in beta, and no need to enable;
 
 Enable Privileged：
 
@@ -44,7 +46,7 @@ Enable Privileged：
 
 - Since `v1.15.0-alpha.3` , the `--allow-privileged` is removed from kubelet options.
 
-Create CRDs for csidriver、csinodeinfo:
+Create CRDs for csidriver、csinodeinfo(Below 1.14 version):
 
 	# kubectl create -f https://raw.githubusercontent.com/kubernetes/csi-api/ab0df28581235f5350f27ce9c27485850a3b2802/pkg/crd/testdata/csidriver.yaml --validate=false 
 	# kubectl create -f https://raw.githubusercontent.com/kubernetes/csi-api/ab0df28581235f5350f27ce9c27485850a3b2802/pkg/crd/testdata/csinodeinfo.yaml --validate=false 
@@ -61,9 +63,9 @@ CSI v1.0.0 should be supported by below externals:
 | External Plugin Oversea Repo  | External Plugin Aliyun Repo |
 |-------- |---------------------|
 | quay.io/k8scsi/csi-attacher:v1.0.0 | registry.cn-hangzhou.aliyuncs.com/plugins/csi-attacher:v1.0.0 |
-| quay.io/k8scsi/csi-snapshotter:v1.0.0 | registry.cn-hangzhou.aliyuncs.com/plugins/csi-snapshotter:v1.0.0 |
-| quay.io/k8scsi/csi-provisioner:v1.0.0 | registry.cn-hangzhou.aliyuncs.com/plugins/csi-provisioner:v1.0.0 |
-| quay.io/k8scsi/csi-node-driver-registrar:v1.0.1 | registry.cn-hangzhou.aliyuncs.com/plugins/csi-node-driver-registrar:v1.0.1 |
+| quay.io/k8scsi/csi-snapshotter:v1.2.0 | registry.cn-hangzhou.aliyuncs.com/acs/csi-snapshotter:v1.2.0 |
+| quay.io/k8scsi/csi-provisioner:v1.2.0 | registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.2.0 |
+| quay.io/k8scsi/csi-node-driver-registrar:v1.1.0 | registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.1.0 |
 
 ## Disk CSI-Plugin
 
