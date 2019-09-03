@@ -1,5 +1,7 @@
 # Alibaba Cloud Kubernetes CSI Plugin
 
+English | [简体中文](./README-zh_CN.md)
+
 ## Introduction
 Alibaba cloud CSI plugins implement an interface between CSI enabled Container
 Orchestrator and Alibaba Cloud Storage. It allows dynamically provision Disk
@@ -39,7 +41,7 @@ More detail information pls refer to [LVM](./docs/lvm.md).
 
 Learn how to engage with the Kubernetes community on the [community page](https://kubernetes.io/community/).
 
-You can reach the maintainers of this project at the [Cluster Lifecycle SIG](https://github.com/kubernetes/community/tree/master/sig-cluster-lifecycle#cluster-lifecycle-sig).
+You can reach the maintainers of this project at the [Cloud Provider SIG](https://github.com/kubernetes/community/tree/master/sig-cloud-provider).
 
 
 ### Code of conduct
