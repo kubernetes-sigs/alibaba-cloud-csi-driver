@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/AliyunContainerService/csi-plugin/pkg/utils"
+	log "github.com/Sirupsen/logrus"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 )
 
@@ -70,8 +71,6 @@ func ProvisionVersion() string {
 	return VERSION
 }
 
-//var attachdetachMutex = keymutex.NewKeyMutex()
-
 // struct for access key
 type DefaultOptions struct {
 	Global struct {
@@ -80,6 +79,16 @@ type DefaultOptions struct {
 		AccessKeySecret      string `json:"accessKeySecret"`
 		Region               string `json:"region"`
 	}
+}
+
+// Define STS Token Response
+type RoleAuth struct {
+	AccessKeyId     string
+	AccessKeySecret string
+	Expiration      time.Time
+	SecurityToken   string
+	LastUpdated     time.Time
+	Code            string
 }
 
 func newEcsClient(access_key_id, access_key_secret, access_token string) *ecs.Client {
@@ -138,20 +147,27 @@ func GetMetaData(resource string) string {
 
 // get STS AK
 func GetSTSAK() (string, string, string) {
-	/*
-		m := metadata.NewMetaData(nil)
-		rolename := ""
-		var err error
-		if rolename, err = m.Role(); err != nil {
-			return "", "", ""
-		}
-		role, err := m.RamRoleToken(rolename)
-		if err != nil {
-			return "", "", ""
-		}
-		return role.AccessKeyId, role.AccessKeySecret, role.SecurityToken
-	*/
-	return "", "", ""
+	roleAuth := RoleAuth{}
+	subpath := "ram/security-credentials/"
+	roleName, err := utils.GetMetaData(subpath)
+	if err != nil {
+		log.Errorf("GetSTSToken: request roleName with error: %s", err.Error())
+		return "", "", ""
+	}
+
+	fullPath := filepath.Join(subpath, roleName)
+	roleInfo, err := utils.GetMetaData(fullPath)
+	if err != nil {
+		log.Errorf("GetSTSToken: request roleInfo with error: %s", err.Error())
+		return "", "", ""
+	}
+
+	err = json.Unmarshal([]byte(roleInfo), &roleAuth)
+	if err != nil {
+		log.Errorf("GetSTSToken: unmarshal roleInfo: %s, with error: %s", roleInfo, err.Error())
+		return "", "", ""
+	}
+	return roleAuth.AccessKeyId, roleAuth.AccessKeySecret, roleAuth.SecurityToken
 }
 
 func GetLocalAK() (string, string) {
