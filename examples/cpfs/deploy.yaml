@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-cpfs
+  labels:
+    app: nginx
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
+        volumeMounts:
+          - name: cpfs-pvc
+            mountPath: "/data"
+      volumes:
+        - name: cpfs-pvc
+          persistentVolumeClaim:
+            claimName: cpfs-pvc
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cpfs-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cpfs-csi-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: cpfsplugin.csi.alibabacloud.com
+    volumeHandle: cpfs-csi-pv
+    volumeAttributes:
+      server: "***.cn-beijing.nas.aliyuncs.com"
+      fileSystem: ""
+      subPath: "/k8s"
