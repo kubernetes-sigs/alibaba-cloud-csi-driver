@@ -48,6 +48,9 @@ type Disk struct {
 	IOPS                          int                           `json:"IOPS" xml:"IOPS"`
 	IOPSRead                      int                           `json:"IOPSRead" xml:"IOPSRead"`
 	IOPSWrite                     int                           `json:"IOPSWrite" xml:"IOPSWrite"`
+	KMSKeyId                      string                        `json:"KMSKeyId" xml:"KMSKeyId"`
+	PerformanceLevel              string                        `json:"PerformanceLevel" xml:"PerformanceLevel"`
+	BdfId                         string                        `json:"BdfId" xml:"BdfId"`
 	OperationLocks                OperationLocksInDescribeDisks `json:"OperationLocks" xml:"OperationLocks"`
 	MountInstances                MountInstances                `json:"MountInstances" xml:"MountInstances"`
 	Tags                          TagsInDescribeDisks           `json:"Tags" xml:"Tags"`
