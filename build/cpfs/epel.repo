@@ -1,0 +1,7 @@
+[epel]
+name=Extra Packages for Enterprise Linux 7 - $basearch
+enabled=1
+failovermethod=priority
+baseurl=http://mirrors.cloud.aliyuncs.com/epel/7/$basearch
+gpgcheck=0
+gpgkey=http://mirrors.cloud.aliyuncs.com/epel/RPM-GPG-KEY-EPEL-7

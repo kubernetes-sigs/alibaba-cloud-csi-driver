@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright 2019 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"github.com/AliyunContainerService/csi-plugin/pkg/cpfs"
 	"io"
 	"os"
 	"path"
@@ -41,6 +42,7 @@ const (
 	TYPE_PLUGIN_DISK = "diskplugin.csi.alibabacloud.com"
 	TYPE_PLUGIN_NAS  = "nasplugin.csi.alibabacloud.com"
 	TYPE_PLUGIN_OSS  = "ossplugin.csi.alibabacloud.com"
+	TYPE_PLUGIN_CPFS = "cpfsplugin.csi.alibabacloud.com"
 	TYPE_PLUGIN_LVM  = "lvmplugin.csi.alibabacloud.com"
 )
 
@@ -96,6 +98,14 @@ func main() {
 		log.Errorf("failed to create persistent storage for node: %v", err)
 		os.Exit(1)
 	}
+	if err := createPersistentStorage(path.Join(*rootDir, "plugins", TYPE_PLUGIN_CPFS, "controller")); err != nil {
+		log.Errorf("failed to create persistent storage for cpfs controller: %v", err)
+		os.Exit(1)
+	}
+	if err := createPersistentStorage(path.Join(*rootDir,  "plugins", TYPE_PLUGIN_CPFS, "node")); err != nil {
+		log.Errorf("failed to create persistent storage for cpfs node: %v", err)
+		os.Exit(1)
+	}
 
 	drivername := *driver
 	log.Infof("CSI Driver Name: %s, %s, %s", drivername, *nodeId, *endpoint)
@@ -111,6 +121,9 @@ func main() {
 		driver.Run()
 	} else if drivername == TYPE_PLUGIN_LVM {
 		driver := lvm.NewDriver(*nodeId, *endpoint)
+		driver.Run()
+	} else if drivername == TYPE_PLUGIN_CPFS {
+		driver := cpfs.NewDriver(*nodeId, *endpoint)
 		driver.Run()
 	} else {
 		log.Errorf("CSI start failed, not support driver: %s", drivername)
