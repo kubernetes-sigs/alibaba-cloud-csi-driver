@@ -32,8 +32,6 @@ import (
 
 	"github.com/AliyunContainerService/csi-plugin/pkg/utils"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/metadata"
-	"k8s.io/kubernetes/pkg/util/keymutex"
 )
 
 const (
@@ -73,7 +71,7 @@ func ProvisionVersion() string {
 	return VERSION
 }
 
-var attachdetachMutex = keymutex.NewKeyMutex()
+//var attachdetachMutex = keymutex.NewKeyMutex()
 
 // struct for access key
 type DefaultOptions struct {
@@ -141,17 +139,20 @@ func GetMetaData(resource string) string {
 
 // get STS AK
 func GetSTSAK() (string, string, string) {
-	m := metadata.NewMetaData(nil)
-	rolename := ""
-	var err error
-	if rolename, err = m.Role(); err != nil {
-		return "", "", ""
-	}
-	role, err := m.RamRoleToken(rolename)
-	if err != nil {
-		return "", "", ""
-	}
-	return role.AccessKeyId, role.AccessKeySecret, role.SecurityToken
+	/*
+		m := metadata.NewMetaData(nil)
+		rolename := ""
+		var err error
+		if rolename, err = m.Role(); err != nil {
+			return "", "", ""
+		}
+		role, err := m.RamRoleToken(rolename)
+		if err != nil {
+			return "", "", ""
+		}
+		return role.AccessKeyId, role.AccessKeySecret, role.SecurityToken
+	*/
+	return "", "", ""
 }
 
 func GetLocalAK() (string, string) {
@@ -382,7 +383,7 @@ func IsDeviceUsedOthers(deviceName, volumeID string) (bool, error) {
 					return true, nil
 				}
 			}
-        }
-    }
+		}
+	}
 	return false, nil
 }

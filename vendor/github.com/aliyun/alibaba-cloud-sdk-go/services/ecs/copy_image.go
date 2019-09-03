@@ -78,13 +78,14 @@ type CopyImageRequest struct {
 	*requests.RpcRequest
 	ResourceOwnerId        requests.Integer `position:"Query" name:"ResourceOwnerId"`
 	ImageId                string           `position:"Query" name:"ImageId"`
-	Encrypted              requests.Boolean `position:"Query" name:"Encrypted"`
 	ResourceOwnerAccount   string           `position:"Query" name:"ResourceOwnerAccount"`
 	DestinationImageName   string           `position:"Query" name:"DestinationImageName"`
 	DestinationRegionId    string           `position:"Query" name:"DestinationRegionId"`
 	OwnerAccount           string           `position:"Query" name:"OwnerAccount"`
-	Tag                    *[]CopyImageTag  `position:"Query" name:"Tag"  type:"Repeated"`
 	OwnerId                requests.Integer `position:"Query" name:"OwnerId"`
+	Encrypted              requests.Boolean `position:"Query" name:"Encrypted"`
+	Tag                    *[]CopyImageTag  `position:"Query" name:"Tag"  type:"Repeated"`
+	KMSKeyId               string           `position:"Query" name:"KMSKeyId"`
 	DestinationDescription string           `position:"Query" name:"DestinationDescription"`
 }
 
