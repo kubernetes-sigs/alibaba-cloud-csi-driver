@@ -1,0 +1,82 @@
+apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: cpfsplugin.csi.alibabacloud.com
+spec:
+  attachRequired: false
+---
+# This YAML defines all API objects to create RBAC roles for csi node plugin.
+kind: DaemonSet
+apiVersion: apps/v1beta2
+metadata:
+  name: csi-cpfsplugin
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: csi-cpfsplugin
+  template:
+    metadata:
+      labels:
+        app: csi-cpfsplugin
+    spec:
+      tolerations:
+      - operator: Exists
+      priorityClassName: system-node-critical
+      serviceAccount: alicloud-csi-plugin
+      hostNetwork: true
+      hostPID: true
+      containers:
+      - name: driver-registrar
+        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-node-driver-registrar:v1.1.0
+        imagePullPolicy: Always
+        args:
+        - "--v=5"
+        - "--csi-address=/var/lib/kubelet/plugins/cpfsplugin.csi.alibabacloud.com/csi.sock"
+        - "--kubelet-registration-path=/var/lib/kubelet/plugins/cpfsplugin.csi.alibabacloud.com/csi.sock"
+        volumeMounts:
+        - name: kubelet-dir
+          mountPath: /var/lib/kubelet/
+        - name: registration-dir
+          mountPath: /registration
+
+      - name: csi-cpfsplugin
+        securityContext:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN"]
+          allowPrivilegeEscalation: true
+        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-cpfsplugin:v1.14.5-c6f4500c
+        imagePullPolicy: "Always"
+        args:
+        - "--endpoint=$(CSI_ENDPOINT)"
+        - "--v=5"
+        - "--driver=cpfsplugin.csi.alibabacloud.com"
+        env:
+        - name: CSI_ENDPOINT
+          value: unix://var/lib/kubelet/plugins/cpfsplugin.csi.alibabacloud.com/csi.sock
+        volumeMounts:
+        - name: kubelet-dir
+          mountPath: /var/lib/kubelet/
+          mountPropagation: "Bidirectional"
+        - mountPath: /var/log/
+          name: host-log
+        - name: etc
+          mountPath: /host/etc
+      volumes:
+      - name: kubelet-dir
+        hostPath:
+          path: /var/lib/kubelet/
+          type: Directory
+      - name: registration-dir
+        hostPath:
+          path: /var/lib/kubelet/plugins_registry
+          type: DirectoryOrCreate
+      - name: host-log
+        hostPath:
+          path: /var/log/
+      - name: etc
+        hostPath:
+          path: /etc
+  updateStrategy:
+    type: RollingUpdate
