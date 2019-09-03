@@ -18,6 +18,7 @@ package ecs
 // DedicatedHost is a nested struct in ecs response
 type DedicatedHost struct {
 	DedicatedHostId               string                                                `json:"DedicatedHostId" xml:"DedicatedHostId"`
+	AutoPlacement                 string                                                `json:"AutoPlacement" xml:"AutoPlacement"`
 	RegionId                      string                                                `json:"RegionId" xml:"RegionId"`
 	ZoneId                        string                                                `json:"ZoneId" xml:"ZoneId"`
 	DedicatedHostName             string                                                `json:"DedicatedHostName" xml:"DedicatedHostName"`
@@ -26,6 +27,8 @@ type DedicatedHost struct {
 	DedicatedHostType             string                                                `json:"DedicatedHostType" xml:"DedicatedHostType"`
 	Sockets                       int                                                   `json:"Sockets" xml:"Sockets"`
 	Cores                         int                                                   `json:"Cores" xml:"Cores"`
+	PhysicalGpus                  int                                                   `json:"PhysicalGpus" xml:"PhysicalGpus"`
+	GPUSpec                       string                                                `json:"GPUSpec" xml:"GPUSpec"`
 	ActionOnMaintenance           string                                                `json:"ActionOnMaintenance" xml:"ActionOnMaintenance"`
 	Status                        string                                                `json:"Status" xml:"Status"`
 	CreationTime                  string                                                `json:"CreationTime" xml:"CreationTime"`
@@ -35,6 +38,7 @@ type DedicatedHost struct {
 	AutoReleaseTime               string                                                `json:"AutoReleaseTime" xml:"AutoReleaseTime"`
 	ResourceGroupId               string                                                `json:"ResourceGroupId" xml:"ResourceGroupId"`
 	SupportedInstanceTypeFamilies SupportedInstanceTypeFamiliesInDescribeDedicatedHosts `json:"SupportedInstanceTypeFamilies" xml:"SupportedInstanceTypeFamilies"`
+	SupportedInstanceTypesList    SupportedInstanceTypesListInDescribeDedicatedHosts    `json:"SupportedInstanceTypesList" xml:"SupportedInstanceTypesList"`
 	Capacity                      Capacity                                              `json:"Capacity" xml:"Capacity"`
 	NetworkAttributes             NetworkAttributes                                     `json:"NetworkAttributes" xml:"NetworkAttributes"`
 	Instances                     InstancesInDescribeDedicatedHosts                     `json:"Instances" xml:"Instances"`

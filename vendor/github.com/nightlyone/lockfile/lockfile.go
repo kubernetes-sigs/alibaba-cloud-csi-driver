@@ -88,9 +88,9 @@ func (l Lockfile) TryLock() error {
 
 	// This has been checked by New already. If we trigger here,
 	// the caller didn't use New and re-implemented it's functionality badly.
-	// that he might find this easily during testing.
+	// So panic, that he might find this easily during testing.
 	if !filepath.IsAbs(name) {
-		return ErrNeedAbsPath
+		panic(ErrNeedAbsPath)
 	}
 
 	tmplock, err := ioutil.TempFile(filepath.Dir(name), filepath.Base(name)+".")
