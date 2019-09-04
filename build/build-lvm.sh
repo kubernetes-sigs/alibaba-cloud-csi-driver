@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-cd ${GOPATH}/src/github.com/AliyunContainerService/csi-plugin/
+cd ${GOPATH}/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/
 GIT_SHA=`git rev-parse --short HEAD || echo "HEAD"`
 
 export GOARCH="amd64"
@@ -16,8 +16,8 @@ CGO_ENABLED=0 go build -ldflags "-X main._BRANCH_='$branch' -X main._VERSION_='$
 
 if [ "$1" == "" ]; then
   version="v1.13-test"
-  cd ${GOPATH}/src/github.com/AliyunContainerService/csi-plugin/build/lvm/
-  mv ${GOPATH}/src/github.com/AliyunContainerService/csi-plugin/plugin.csi.alibabacloud.com ./
+  cd ${GOPATH}/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/build/lvm/
+  mv ${GOPATH}/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/plugin.csi.alibabacloud.com ./
   docker build -t=registry.cn-hangzhou.aliyuncs.com/plugins/csi-lvmplugin:$version-$GIT_SHA ./
   docker push registry.cn-hangzhou.aliyuncs.com/plugins/csi-lvmplugin:$version-$GIT_SHA
 fi

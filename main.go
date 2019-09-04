@@ -18,17 +18,17 @@ package main
 
 import (
 	"flag"
-	"github.com/AliyunContainerService/csi-plugin/pkg/cpfs"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cpfs"
 	"io"
 	"os"
 	"path"
 	"strings"
 	"time"
 
-	"github.com/AliyunContainerService/csi-plugin/pkg/disk"
-	"github.com/AliyunContainerService/csi-plugin/pkg/lvm"
-	"github.com/AliyunContainerService/csi-plugin/pkg/nas"
-	"github.com/AliyunContainerService/csi-plugin/pkg/oss"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/lvm"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
 	log "github.com/Sirupsen/logrus"
 )
 

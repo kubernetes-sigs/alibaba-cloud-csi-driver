@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-cd ${GOPATH}/src/github.com/AliyunContainerService/csi-plugin/
+cd ${GOPATH}/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/
 GIT_SHA=`git rev-parse --short HEAD || echo "HEAD"`
 
 
@@ -16,7 +16,7 @@ buildTime=`date "+%Y-%m-%d-%H:%M:%S"`
 CGO_ENABLED=0 go build -ldflags "-X main._BRANCH_='$branch' -X main._VERSION_='$version-$commitId' -X main._BUILDTIME_='$buildTime'" -o plugin.csi.alibabacloud.com
 mv plugin.csi.alibabacloud.com ./build/disk/
 
-if [ "$1" == "" ]; then
+if [ "$1" == "" ]; thens
   cd ./build/disk
   docker build -t=registry.cn-hangzhou.aliyuncs.com/plugins/csi-diskplugin:$version-$GIT_SHA ./
   docker push registry.cn-hangzhou.aliyuncs.com/plugins/csi-diskplugin:$version-$GIT_SHA
