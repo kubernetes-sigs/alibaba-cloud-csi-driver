@@ -29,7 +29,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AliyunContainerService/csi-plugin/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 )

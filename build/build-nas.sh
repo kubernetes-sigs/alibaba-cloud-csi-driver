@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-cd ${GOPATH}/src/github.com/AliyunContainerService/csi-plugin/
+cd ${GOPATH}/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/
 GIT_SHA=`git rev-parse --short HEAD || echo "HEAD"`
 
 
