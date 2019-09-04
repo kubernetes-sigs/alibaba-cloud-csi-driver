@@ -27,15 +27,11 @@ $ cd build && sh build-oss.sh
 Same as diskplugin.csi.alibabacloud.com;
 
 
-### Step 1: Create CSI Attacher
-```
-# kubectl create -f ./deploy/oss/oss-attacher.yaml
-```
-
-### Step 2: Create CSI Plugin
+### Step 1: Create CSI Plugin
 ```
 # kubectl create -f ./deploy/oss/oss-plugin.yaml
 ```
+
 
 > Note: The plugin log style can be configured by environment variable: LOG_TYPE.
 
@@ -45,12 +41,12 @@ Same as diskplugin.csi.alibabacloud.com;
 
 > "both": default option, log will be printed both to stdout and host file.
 
-### Step 3: Create nginx deploy with csi
+### Step 2: Create nginx deploy with csi
 ```
-# kubectl create -f ./deploy/oss/deploy.yaml
+# kubectl create -f ./examples/oss/deploy.yaml
 ```
 
-### Step 4: Check status of PVC/PV
+### Step 3: Check status of PVC/PV
 ```
 # kubectl get pvc
 NAME      STATUS    VOLUME       CAPACITY   ACCESS MODES   STORAGECLASS   AGE
