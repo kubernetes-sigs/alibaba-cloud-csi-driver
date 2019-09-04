@@ -6,7 +6,7 @@ Access mountpoint will get error:
 
 	"transport endpoint is not connected"
 
-Issue Details: [https://github.com/AliyunContainerService/csi-plugin/issues/22](https://github.com/AliyunContainerService/csi-plugin/issues/22)
+Issue Details: [https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/issues/22](https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/issues/22)
 
 This is a common issue for FUSE type csi-plugin, and no good solution now.
 
