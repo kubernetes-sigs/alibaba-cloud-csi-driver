@@ -22,7 +22,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/AliyunContainerService/csi-plugin/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 func DoMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeId string) error {

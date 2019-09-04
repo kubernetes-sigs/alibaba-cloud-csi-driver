@@ -48,4 +48,4 @@ You can reach the maintainers of this project at the [Cloud Provider SIG](https:
 
 Participation in the Kubernetes community is governed by the [Kubernetes Code of Conduct](code-of-conduct.md).
 
-Please submit an issue at: [Issues](https://github.com/AliyunContainerService/csi-plugin/issues)
+Please submit an issue at: [Issues](https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/issues)

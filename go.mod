@@ -1,4 +1,4 @@
-module github.com/AliyunContainerService/csi-plugin
+module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 
 go 1.12
 
