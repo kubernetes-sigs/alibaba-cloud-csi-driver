@@ -34,12 +34,12 @@ Kubernetes cluster, api-server, kubelet configuration, please refer to [disk-plu
 ### 2. Deploy Resizer Runner
 
 ```
-# kubectl create -f ./deploy/resizer/csi-resizer.yaml
+# kubectl create -f ./deploy/disk/resizer/csi-resizer.yaml
 ```
 
 ### 3. Create storageclass
 ```
-# kubectl create -f ./deploy/resizer/storageclass.yaml
+# kubectl create -f ./examples/disk/resizer/storageclass.yaml
 ```
 
 ## Usage

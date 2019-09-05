@@ -44,12 +44,12 @@ Kubernetes cluster, api-server, kubelet configuration, please refer to [disk-plu
 ### 2. Deploy Snapshot Runner
 
 ```
-# kubectl create -f ./deploy/snapshot/csi-external-snapshot.yaml
+# kubectl create -f ./deploy/disk/snapshot/csi-external-snapshot.yaml
 ```
 
 ### 3. Create SnapshotClass
 ```
-# kubectl create -f ./deploy/snapshot/snapshotclass.yaml
+# kubectl create -f ./examples/disk/snapshot/snapshotclass.yaml
 
 # kubectl get volumesnapshotclasses.snapshot.storage.k8s.io
 NAME                AGE
@@ -80,7 +80,7 @@ pvc-disk   Bound    d-wz9hhnhxu66zs6r6yyyq   20Gi       RWO            alicloud-
 
 ### 2. Create Snapshot with pvc
 ```
-# kubectl create -f ./deploy/snapshot/snapshot.yaml
+# kubectl create -f ./examples/disk/snapshot/snapshot.yaml
 volumesnapshot.snapshot.storage.k8s.io/snapshot-test created
 
 # kubectl get volumesnapshots.snapshot.storage.k8s.io
