@@ -54,9 +54,9 @@ func createCpfsSubDir(cpfsOptions, cpfsServer, cpfsFileSystem, cpfsSubpath strin
 	}
 
 	// step 2: do mount
-	mntCmd := fmt.Sprintf("mount -t lustre %s:%s %s", cpfsServer, cpfsFileSystem, cpfsTmpPath)
+	mntCmd := fmt.Sprintf("mount -t lustre %s:/%s %s", cpfsServer, cpfsFileSystem, cpfsTmpPath)
 	if cpfsOptions != "" {
-		mntCmd = fmt.Sprintf("mount -t lustre -o %s %s:%s %s", cpfsOptions, cpfsServer, cpfsFileSystem, cpfsTmpPath)
+		mntCmd = fmt.Sprintf("mount -t lustre -o %s %s:/%s %s", cpfsOptions, cpfsServer, cpfsFileSystem, cpfsTmpPath)
 	}
 	_, err := utils.Run(mntCmd)
 	if err != nil {
