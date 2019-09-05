@@ -18,18 +18,18 @@ package main
 
 import (
 	"flag"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cpfs"
 	"io"
 	"os"
 	"path"
 	"strings"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cpfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/lvm"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
-	log "github.com/Sirupsen/logrus"
 )
 
 func init() {
@@ -66,44 +66,12 @@ func main() {
 	// set log config
 	setLogAttribute(*driver)
 
-	if err := createPersistentStorage(path.Join(*rootDir, "plugins", TYPE_PLUGIN_DISK, "controller")); err != nil {
+	if err := createPersistentStorage(path.Join(*rootDir, "plugins", *driver, "controller")); err != nil {
 		log.Errorf("failed to create persistent storage for controller: %v", err)
 		os.Exit(1)
 	}
-	if err := createPersistentStorage(path.Join(*rootDir, "plugins", TYPE_PLUGIN_DISK, "node")); err != nil {
+	if err := createPersistentStorage(path.Join(*rootDir, "plugins", *driver, "node")); err != nil {
 		log.Errorf("failed to create persistent storage for node: %v", err)
-		os.Exit(1)
-	}
-	if err := createPersistentStorage(path.Join(*rootDir, "plugins", TYPE_PLUGIN_NAS, "controller")); err != nil {
-		log.Errorf("failed to create persistent storage for controller: %v", err)
-		os.Exit(1)
-	}
-	if err := createPersistentStorage(path.Join(*rootDir, "plugins", TYPE_PLUGIN_NAS, "node")); err != nil {
-		log.Errorf("failed to create persistent storage for node: %v", err)
-		os.Exit(1)
-	}
-	if err := createPersistentStorage(path.Join(*rootDir, "plugins", TYPE_PLUGIN_OSS, "controller")); err != nil {
-		log.Errorf("failed to create persistent storage for controller: %v", err)
-		os.Exit(1)
-	}
-	if err := createPersistentStorage(path.Join(*rootDir,  "plugins", TYPE_PLUGIN_OSS, "node")); err != nil {
-		log.Errorf("failed to create persistent storage for node: %v", err)
-		os.Exit(1)
-	}
-	if err := createPersistentStorage(path.Join(*rootDir, "plugins", TYPE_PLUGIN_LVM, "controller")); err != nil {
-		log.Errorf("failed to create persistent storage for controller: %v", err)
-		os.Exit(1)
-	}
-	if err := createPersistentStorage(path.Join(*rootDir,  "plugins", TYPE_PLUGIN_LVM, "node")); err != nil {
-		log.Errorf("failed to create persistent storage for node: %v", err)
-		os.Exit(1)
-	}
-	if err := createPersistentStorage(path.Join(*rootDir, "plugins", TYPE_PLUGIN_CPFS, "controller")); err != nil {
-		log.Errorf("failed to create persistent storage for cpfs controller: %v", err)
-		os.Exit(1)
-	}
-	if err := createPersistentStorage(path.Join(*rootDir,  "plugins", TYPE_PLUGIN_CPFS, "node")); err != nil {
-		log.Errorf("failed to create persistent storage for cpfs node: %v", err)
 		os.Exit(1)
 	}
 
