@@ -58,15 +58,14 @@ If the cluster not in STS mode, you need to config AK info to plugin; Set ACCESS
 
 > "both": default option, log will be printed both to stdout and host file.
 
-### Step 2: Create CSI external runner
+### Step 2: Create CSI disk-provisioner
 ```
-# kubectl create -f ./deploy/disk/disk-attacher.yaml
 # kubectl create -f ./deploy/disk/disk-provisioner.yaml
 ```
 
 ### Step 3: Create StorageClass
 ```
-# kubectl create -f ./deploy/disk/storageclass.yaml
+# kubectl create -f ./examples/disk/storageclass.yaml
 ```
 **Important:** storageclass.yaml, must be customized to match your environment: zoneId, zoneId;
 
@@ -88,7 +87,7 @@ csi-disk-plugin-x229t   2/2     Running   0          3s
 
 ### Step 7: Create PVC & Deployments
 ```
-# kubectl create -f ./deploy/disk/deploy.yaml
+# kubectl create -f ./examples/disk/deploy.yaml
 ```
 
 ### Step 8: Check status of PVC/PV
