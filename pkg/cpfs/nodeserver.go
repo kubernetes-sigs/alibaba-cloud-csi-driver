@@ -26,6 +26,7 @@ import (
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"path/filepath"
 	"strings"
 )
 
@@ -45,45 +46,43 @@ const (
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-
 	log.Infof("NodePublishVolume:: CPFS Mount with: %s", req.VolumeContext)
 
 	// parse parameters
 	mountPath := req.GetTargetPath()
 	opt := &CpfsOptions{}
 	for key, value := range req.VolumeContext {
+		key = strings.ToLower(key)
 		if key == "server" {
 			opt.Server = value
-		} else if key == "fileSystem" {
+		} else if key == "filesystem" {
 			opt.FileSystem = value
-		} else if key == "subPath" {
+		} else if key == "subpath" {
 			opt.SubPath = value
 		} else if key == "options" {
 			opt.Options = value
 		}
 	}
-
-	// check parameters
 	if mountPath == "" {
 		return nil, errors.New("mountPath is empty")
 	}
 	if opt.Server == "" {
-		return nil, errors.New("host is empty, should input Cpfs domain")
+		return nil, errors.New("server is empty")
+	}
+	if opt.FileSystem == "" {
+		return nil, errors.New("FileSystem is empty")
 	}
 	if opt.SubPath == "" {
 		opt.SubPath = "/"
 	}
 	if !strings.HasPrefix(opt.SubPath, "/") {
-		return nil, errors.New("the path format is illegal")
+		opt.SubPath = filepath.Join("/", opt.SubPath)
 	}
 
 	if utils.IsMounted(mountPath) {
-		log.Infof("CPFS, Mount Path Already Mount, options: %s", mountPath)
+		log.Infof("CPFS, Mount Path Already Mount, path: %s", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
-
-	// if system not set cpfs, config it.
-	//checkSystemCpfsConfig()
 
 	// Create Mount Path
 	if err := utils.CreateDest(mountPath); err != nil {
@@ -96,39 +95,39 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		mntCmd = fmt.Sprintf("mount -t lustre -o %s %s:/%s%s %s", opt.Options, opt.Server, opt.FileSystem, opt.SubPath, mountPath)
 	}
 	_, err := utils.Run(mntCmd)
-
-	// Mount to cpfs Sub-directory
-	if err != nil && opt.SubPath != "/" {
-		if strings.Contains(err.Error(), "No such file or directory") || strings.Contains(err.Error(), "access denied by server while mounting") {
-			createCpfsSubDir(opt.Options, opt.Server, opt.FileSystem, opt.SubPath, req.VolumeId)
-			if _, err := utils.Run(mntCmd); err != nil {
-				log.Errorf("Cpfs, Mount Cpfs sub directory fail: %s", err.Error())
-				return nil, errors.New("Cpfs, Mount Cpfs sub directory fail: %s" + err.Error())
-			}
-		} else {
-			log.Errorf("Cpfs, Mount Cpfs fail with error: %s", err.Error())
-			return nil, errors.New("Cpfs, Mount Cpfs fail with error: %s" + err.Error())
+	if err != nil && opt.SubPath != "/" && strings.Contains(err.Error(), "No such file or directory") {
+		createCpfsSubDir(opt.Options, opt.Server, opt.FileSystem, opt.SubPath, req.VolumeId)
+		if _, err := utils.Run(mntCmd); err != nil {
+			log.Errorf("Cpfs, Mount Cpfs after create subDirectory fail: %s", err.Error())
+			return nil, errors.New("Cpfs, Mount Cpfs after create subDirectory fail: %s" + err.Error())
 		}
-		// mount error
 	} else if err != nil {
 		log.Errorf("Cpfs, Mount Cpfs fail: %s", err.Error())
 		return nil, errors.New("Cpfs, Mount Cpfs fail: %s" + err.Error())
 	}
-	log.Infof("NodePublishVolume:: Exec mount command: %s", mntCmd)
 
 	// check mount
 	if !utils.IsMounted(mountPath) {
-		return nil, errors.New("Check mount fail after mount:" + mountPath)
+		return nil, errors.New("Check mount fail after mount: " + mountPath)
 	}
-	log.Infof("NodePublishVolume:: Mount success on mountpoint: %s", mountPath)
+	log.Infof("NodePublishVolume:: Mount success on mountpoint: %s, with Command: %s", mountPath, mntCmd)
 
+	doCpfsConfig()
 	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func doCpfsConfig() {
+	configCmd := fmt.Sprintf("lctl set_param osc.*.max_rpcs_in_flight=256;lctl set_param osc.*.max_pages_per_rpc=1024;lctl set_param lov.*.target_obds.*osc*.max_rpcs_in_flight=256;lctl set_param mdc.*.max_rpcs_in_flight=256;lctl set_param lmv.*.target_obds.*.max_rpcs_in_flight=256")
+	if _, err := utils.Run(configCmd); err != nil {
+		log.Errorf("Cpfs, doCpfsConfig fail with error: %s", err.Error())
+	}
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	log.Infof("NodeUnpublishVolume:: Starting Umount Cpfs: %s", req.TargetPath)
 	mountPoint := req.TargetPath
 	if !utils.IsMounted(mountPoint) {
+		log.Infof("Path not mounted, skipped: %s", mountPoint)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
