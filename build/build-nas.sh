@@ -18,8 +18,8 @@ mv plugin.csi.alibabacloud.com ./build/nas/
 
 if [ "$1" == "" ]; then
   cd ./build/nas/
-  docker build -t=registry.cn-hangzhou.aliyuncs.com/plugins/csi-nasplugin:$version-$GIT_SHA ./
-  docker push registry.cn-hangzhou.aliyuncs.com/plugins/csi-nasplugin:$version-$GIT_SHA
+  docker build -t=registry.cn-hangzhou.aliyuncs.com/acs/csi-nasplugin:$version-$GIT_SHA ./
+  docker push registry.cn-hangzhou.aliyuncs.com/acs/csi-nasplugin:$version-$GIT_SHA
 fi
 
 rm -rf plugin.csi.alibabacloud.com
