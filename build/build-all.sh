@@ -26,8 +26,8 @@ CGO_ENABLED=0 go build csiplugin-connector.go
 
 if [ "$1" == "" ]; then
   mv ${GOPATH}/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/plugin.csi.alibabacloud.com ./
-  docker build -t=registry.cn-hangzhou.aliyuncs.com/plugins/csi-plugin:$version-$GIT_SHA ./
-  docker push registry.cn-hangzhou.aliyuncs.com/plugins/csi-plugin:$version-$GIT_SHA
+  docker build -t=registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:$version-$GIT_SHA ./
+  docker push registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:$version-$GIT_SHA
 fi
 
 

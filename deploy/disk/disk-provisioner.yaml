@@ -51,7 +51,7 @@ spec:
               mountPath: /socketDir
 
         - name: csi-diskplugin
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-diskplugin:v1.14.3-41ea73db
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-diskplugin:v1.14.5-3068245
           imagePullPolicy: "Always"
           args :
             - "--endpoint=$(CSI_ENDPOINT)"

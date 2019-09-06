@@ -1,0 +1,12 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: csi-disk
+provisioner: diskplugin.csi.alibabacloud.com
+parameters:
+    fsType: ext4
+    type: cloud_ssd
+    readOnly: "false"
+    encrypted: "true"
+    kmsKeyId: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+reclaimPolicy: Delete
