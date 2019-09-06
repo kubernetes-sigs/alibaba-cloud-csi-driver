@@ -18,8 +18,8 @@ mv plugin.csi.alibabacloud.com ./build/cpfs/
 
 if [ "$1" == "" ]; then
   cd ./build/cpfs/
-  docker build -t=registry.cn-hangzhou.aliyuncs.com/plugins/csi-cpfsplugin:$version-$GIT_SHA ./
-  docker push registry.cn-hangzhou.aliyuncs.com/plugins/csi-cpfsplugin:$version-$GIT_SHA
+  docker build -t=registry.cn-hangzhou.aliyuncs.com/acs/csi-cpfsplugin:$version-$GIT_SHA ./
+  docker push registry.cn-hangzhou.aliyuncs.com/acs/csi-cpfsplugin:$version-$GIT_SHA
 fi
 
 rm -rf plugin.csi.alibabacloud.com
