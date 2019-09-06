@@ -59,6 +59,7 @@ type diskVolumeArgs struct {
 	Encrypted        bool   `json:"encrypted"`
 	KMSKeyId         string `json:"kmsKeyId"`
 	PerformanceLevel string `json:"performanceLevel"`
+	ResourceGroupId  string `json:resourceGroupId`
 }
 
 // Alicloud disk snapshot parameters
@@ -118,7 +119,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	// Step 2: Check whether volume is created
 	cs.ecsClient = updateEcsClent(cs.ecsClient)
-	disks, err := cs.findDiskByName(req.GetName(), sharedDisk)
+	disks, err := cs.findDiskByName(req.GetName(), diskVol.ResourceGroupId, sharedDisk)
 	if err != nil {
 		log.Errorf("CreateVolume: describe volume error with: %s", err.Error())
 		return nil, status.Error(codes.Aborted, err.Error())
@@ -153,13 +154,14 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	createDiskRequest.ZoneId = diskVol.ZoneId
 	createDiskRequest.DiskCategory = disktype
 	createDiskRequest.Encrypted = requests.NewBoolean(diskVol.Encrypted)
+	createDiskRequest.ResourceGroupId = diskVol.ResourceGroupId
 	if diskVol.Encrypted == true && diskVol.KMSKeyId != "" {
 		createDiskRequest.KMSKeyId = diskVol.KMSKeyId
 	}
 	if disktype == DISK_ESSD {
 		createDiskRequest.PerformanceLevel = diskVol.PerformanceLevel
 	}
-	log.Infof("CreateVolume: Create Disk with: %v, %v, %v, %v GB, %v, %v", cs.region, diskVol.ZoneId, disktype, requestGB, diskVol.Encrypted, diskVol.KMSKeyId)
+	log.Infof("CreateVolume: Create Disk with: %v, %v, %v, %v GB, %v, %v, %v", cs.region, diskVol.ZoneId, disktype, requestGB, diskVol.Encrypted, diskVol.KMSKeyId, diskVol.ResourceGroupId)
 
 	// Step 4: Create Disk
 	volumeResponse, err := cs.ecsClient.CreateDisk(createDiskRequest)
@@ -265,7 +267,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 }
 
 // return disk with the define name
-func (cs *controllerServer) findDiskByName(name string, sharedDisk bool) ([]ecs.Disk, error) {
+func (cs *controllerServer) findDiskByName(name string, resourceGroupId string, sharedDisk bool) ([]ecs.Disk, error) {
 	resDisks := []ecs.Disk{}
 	describeDisksRequest := ecs.CreateDescribeDisksRequest()
 	describeDisksRequest.RegionId = cs.region
@@ -563,6 +565,13 @@ func (cs *controllerServer) getDiskVolumeOptions(req *csi.CreateVolumeRequest) (
 	if !ok {
 		diskVolArgs.KMSKeyId = ""
 	}
+
+	// resourceGroupId
+	diskVolArgs.ResourceGroupId, ok = volOptions["resourceGroupId"]
+	if !ok {
+		diskVolArgs.ResourceGroupId = ""
+	}
+
 	return diskVolArgs, nil
 }
 
