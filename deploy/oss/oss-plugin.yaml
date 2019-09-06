@@ -28,7 +28,7 @@ spec:
       hostPID: true
       containers:
       - name: driver-registrar
-        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-node-driver-registrar:v1.1.0
+        image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.1.0
         imagePullPolicy: Always
         lifecycle:
           preStop:
@@ -56,7 +56,7 @@ spec:
           capabilities:
             add: ["SYS_ADMIN"]
           allowPrivilegeEscalation: true
-        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-ossplugin:v1.14.3-41ea73db
+        image: registry.cn-hangzhou.aliyuncs.com/acs/csi-ossplugin:v1.14.3-41ea73db
         imagePullPolicy: "Always"
         args:
         - "--endpoint=$(CSI_ENDPOINT)"
