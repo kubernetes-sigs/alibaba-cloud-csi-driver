@@ -42,6 +42,7 @@ const (
 	PERFORMANCE_LEVEL_PL2 = "PL2"
 	PERFORMANCE_LEVEL_PL3 = "PL3"
 )
+
 // controller server try to create/delete volumes/snapshots
 type controllerServer struct {
 	ecsClient *ecs.Client
@@ -283,7 +284,7 @@ func (cs *controllerServer) findDiskByName(name string, resourceGroupId string, 
 		if err != nil {
 			return resDisks, err
 		}
-		if diskResponse == nil{
+		if diskResponse == nil {
 			return nil, status.Errorf(codes.Aborted, "Empty response when get disk %s", name)
 		}
 	}
@@ -479,7 +480,7 @@ func (cs *controllerServer) findDiskByID(diskId string) (*ecs.Disk, error) {
 			}
 			return nil, status.Errorf(codes.Aborted, "Can't get disk %s: %v", diskId, err)
 		}
-		if diskResponse == nil{
+		if diskResponse == nil {
 			return nil, status.Errorf(codes.Aborted, "Empty response when get disk %s", diskId)
 		}
 		disks = diskResponse.Disks.Disk
