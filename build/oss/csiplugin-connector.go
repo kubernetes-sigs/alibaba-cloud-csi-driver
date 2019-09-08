@@ -49,7 +49,7 @@ func runOssProxy() {
 		os.Remove(SOCKET_PATH)
 	} else {
 		pathDir := filepath.Dir(SOCKET_PATH)
-		if ! IsFileExisting(pathDir) {
+		if !IsFileExisting(pathDir) {
 			os.MkdirAll(pathDir, os.ModePerm)
 		}
 	}

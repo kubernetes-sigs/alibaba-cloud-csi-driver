@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-
 package lvm
 
 import (
@@ -35,8 +34,8 @@ type lvm struct {
 }
 
 const (
-	driverName   = "lvmplugin.csi.alibabacloud.com"
-	csiVersion   = "1.0.0"
+	driverName = "lvmplugin.csi.alibabacloud.com"
+	csiVersion = "1.0.0"
 )
 
 // Init checks for the persistent volume file and loads all found volumes
