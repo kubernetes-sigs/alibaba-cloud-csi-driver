@@ -707,6 +707,9 @@ func (ns *nodeServer) findDiskByID(diskId string) (*ecs.Disk, error) {
 		if err != nil {
 			return nil, status.Errorf(codes.Aborted, "Can't get disk %s: %v", diskId, err)
 		}
+		if diskResponse == nil{
+			return nil, status.Errorf(codes.Aborted, "Empty response when get disk %s", diskId)
+		}
 		disks = diskResponse.Disks.Disk
 	}
 	if len(disks) == 0 || len(disks) > 1 {
