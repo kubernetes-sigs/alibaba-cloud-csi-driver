@@ -283,6 +283,9 @@ func (cs *controllerServer) findDiskByName(name string, resourceGroupId string, 
 		if err != nil {
 			return resDisks, err
 		}
+		if diskResponse == nil{
+			return nil, status.Errorf(codes.Aborted, "Empty response when get disk %s", name)
+		}
 	}
 
 	for _, disk := range diskResponse.Disks.Disk {
@@ -475,6 +478,9 @@ func (cs *controllerServer) findDiskByID(diskId string) (*ecs.Disk, error) {
 				return nil, nil
 			}
 			return nil, status.Errorf(codes.Aborted, "Can't get disk %s: %v", diskId, err)
+		}
+		if diskResponse == nil{
+			return nil, status.Errorf(codes.Aborted, "Empty response when get disk %s", diskId)
 		}
 		disks = diskResponse.Disks.Disk
 	}
