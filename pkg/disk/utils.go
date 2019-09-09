@@ -91,8 +91,7 @@ type RoleAuth struct {
 	Code            string
 }
 
-func newEcsClient(access_key_id, access_key_secret, access_token string) *ecs.Client {
-	ecsClient := &ecs.Client{}
+func newEcsClient(access_key_id, access_key_secret, access_token string) (ecsClient *ecs.Client) {
 	var err error
 	if access_token == "" {
 		ecsClient, err = ecs.NewClientWithAccessKey(DEFAULT_REGION, access_key_id, access_key_secret)
@@ -105,7 +104,7 @@ func newEcsClient(access_key_id, access_key_secret, access_token string) *ecs.Cl
 			return nil
 		}
 	}
-	return ecsClient
+	return
 }
 
 func updateEcsClent(client *ecs.Client) *ecs.Client {
@@ -203,7 +202,7 @@ func GetDeviceMountNum(targetPath string) int {
 	if err != nil {
 		return 0
 	}
-	deviceCmdOut = strings.TrimSuffix(deviceCmdOut, "\n")
+	deviceNumOut = strings.TrimSuffix(deviceNumOut, "\n")
 	if num, err := strconv.Atoi(deviceNumOut); err != nil {
 		return 0
 	} else {

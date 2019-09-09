@@ -76,7 +76,10 @@ func (ns *nodeServer) GetNodeID() string {
 
 func (ns *nodeServer) createVolume(ctx context.Context, volumeId string, vgName string) error {
 	pv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeId, metav1.GetOptions{})
-
+	if err != nil {
+		log.Errorf("lvcreate: fail to get pv, err: %v", err)
+		return err
+	}
 	pvQuantity := pv.Spec.Capacity["storage"]
 	pvSize := pvQuantity.Value()
 	pvSize = pvSize / (1024 * 1024 * 1024)
@@ -138,7 +141,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err := formatDevice(devicePath, DEFAULTFS); err != nil {
 			return nil, status.Errorf(codes.Internal, "format fstype failed: err=%v", err)
 		}
-		exitFSType = DEFAULTFS
 	}
 
 	if !isMnt {
