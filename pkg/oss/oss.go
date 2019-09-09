@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	driverName   = "ossplugin.csi.alibabacloud.com"
+	driverName = "ossplugin.csi.alibabacloud.com"
 )
 
 var (
