@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-
 package disk
 
 import (
@@ -26,12 +25,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -236,7 +235,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
 		log.Errorf("NodePublishVolume: VolumeId: %s, Path %s is unmounted, but not empty dir", req.VolumeId, targetPath)
-		return nil, status.Errorf(codes.Internal, "NodePublishVolume: VolumeId: %s, Path %s is unmounted, but not empty dir",req.VolumeId, targetPath)
+		return nil, status.Errorf(codes.Internal, "NodePublishVolume: VolumeId: %s, Path %s is unmounted, but not empty dir", req.VolumeId, targetPath)
 	}
 
 	// Step 3: umount target path
@@ -256,10 +255,10 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 			notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(globalPath2)
 			if err == nil && !notmounted {
 				// check device is used by others
-				refs, err:=ns.k8smounter.GetMountRefs(globalPath2)
-				if err == nil && ! ns.mounter.HasMountRefs(globalPath2, refs) {
+				refs, err := ns.k8smounter.GetMountRefs(globalPath2)
+				if err == nil && !ns.mounter.HasMountRefs(globalPath2, refs) {
 					log.Infof("NodeUnpublishVolume: volumeId: %s, unmount global path %s for ack", req.VolumeId, globalPath2)
-					if ! utils.Umount(globalPath2) {
+					if !utils.Umount(globalPath2) {
 						log.Errorf("NodeUnpublishVolume: volumeId: %s, unmount global path %s failed", req.VolumeId, globalPath2)
 					}
 				}
@@ -453,7 +452,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			ns.attachMutex.Lock()
 			if !ns.canAttach {
 				ns.attachMutex.Unlock()
-				return nil, status.Error(codes.Aborted, "NodeUnstageVolume: Previous attach/detach action is still in process, volume: " + req.VolumeId)
+				return nil, status.Error(codes.Aborted, "NodeUnstageVolume: Previous attach/detach action is still in process, volume: "+req.VolumeId)
 			}
 			ns.canAttach = false
 			ns.attachMutex.Unlock()
@@ -707,7 +706,7 @@ func (ns *nodeServer) findDiskByID(diskId string) (*ecs.Disk, error) {
 		if err != nil {
 			return nil, status.Errorf(codes.Aborted, "Can't get disk %s: %v", diskId, err)
 		}
-		if diskResponse == nil{
+		if diskResponse == nil {
 			return nil, status.Errorf(codes.Aborted, "Empty response when get disk %s", diskId)
 		}
 		disks = diskResponse.Disks.Disk

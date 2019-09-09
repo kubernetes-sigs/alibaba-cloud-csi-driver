@@ -21,10 +21,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/Sirupsen/logrus"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -74,7 +74,7 @@ func (ns *nodeServer) GetNodeID() string {
 	return ns.nodeID
 }
 
-func (ns *nodeServer) createVolume(ctx context.Context, volumeId string, vgName string) (error) {
+func (ns *nodeServer) createVolume(ctx context.Context, volumeId string, vgName string) error {
 	pv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeId, metav1.GetOptions{})
 
 	pvQuantity := pv.Spec.Capacity["storage"]
