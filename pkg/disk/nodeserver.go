@@ -355,7 +355,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		if err := ns.mounter.MountBlock(device, targetPath, options...); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		log.Infof("NodeStageVolume: Successful Mount Device %s to %s with options: %v", device, targetPath, options)
+		log.Infof("NodeStageVolume: Successfully Mount Device %s to %s with options: %v", device, targetPath, options)
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
 
@@ -560,7 +560,7 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 	attachRequest.DiskId = volumeID
 	response, err := ns.ecsClient.AttachDisk(attachRequest)
 	if err != nil {
-		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happends to attach disk %s to instance %s, %v", volumeID, ns.nodeId, err)
+		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happens to attach disk %s to instance %s, %v", volumeID, ns.nodeId, err)
 	}
 
 	// Step 4: wait for disk attached
