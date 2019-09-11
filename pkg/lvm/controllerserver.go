@@ -59,7 +59,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 }
 
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	log.Infof("DeleteVolume: Successfull deleting volume: %s", req.GetVolumeId())
+	log.Infof("DeleteVolume: Successfully deleting volume: %s", req.GetVolumeId())
 	return &csi.DeleteVolumeResponse{}, nil
 }
 

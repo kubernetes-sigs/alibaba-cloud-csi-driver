@@ -240,7 +240,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		}
 		return nil, status.Errorf(codes.Internal, errMsg)
 	}
-	log.Infof("DeleteVolume: Successfull deleting volume: %s, with RequestId: %s", req.GetVolumeId(), response.RequestId)
+	log.Infof("DeleteVolume: Successfully deleting volume: %s, with RequestId: %s", req.GetVolumeId(), response.RequestId)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
@@ -421,6 +421,9 @@ func (cs *controllerServer) describeSnapshotByName(name string) (*diskSnapshot, 
 	}
 	existSnapshot := snapshots.Snapshots.Snapshot[0]
 	t, err := time.Parse(time.RFC3339, existSnapshot.CreationTime)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", existSnapshot.CreationTime)
+	}
 	timestamp := timestamp.Timestamp{Seconds: t.Unix()}
 	sizeGb, _ := strconv.ParseInt(existSnapshot.SourceDiskSize, 10, 64)
 	sizeBytes := sizeGb * 1024 * 1024
