@@ -18,29 +18,12 @@ package cpfs
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"path/filepath"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
-
-func CreateDest(dest string) error {
-	fi, err := os.Lstat(dest)
-	if os.IsNotExist(err) {
-		if err := os.MkdirAll(dest, 0777); err != nil {
-			return err
-		}
-	} else if err != nil {
-		return err
-	}
-
-	if fi != nil && !fi.IsDir() {
-		return fmt.Errorf("%v already exist but it's not a directory", dest)
-	}
-	return nil
-}
 
 func createCpfsSubDir(cpfsOptions, cpfsServer, cpfsFileSystem, cpfsSubpath string, volumeId string) error {
 	// step 1: create mount path

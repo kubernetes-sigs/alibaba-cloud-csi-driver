@@ -38,6 +38,7 @@ type nodeServer struct {
 	*csicommon.DefaultNodeServer
 }
 
+//OssOptions contains options for target oss
 type OssOptions struct {
 	Bucket    string `json:"bucket"`
 	Url       string `json:"url"`
@@ -47,6 +48,7 @@ type OssOptions struct {
 }
 
 const (
+	//CredentialFile is the path of oss ak credential file
 	CredentialFile = "/host/etc/passwd-ossfs"
 	NSENTER_CMD    = "/nsenter --mount=/proc/1/ns/mnt"
 	SOCKET_PATH    = "/host/etc/csi-tool/connector.sock"
