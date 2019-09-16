@@ -43,6 +43,7 @@ type nas struct {
 	cscap []*csi.ControllerServiceCapability
 }
 
+//NewDriver create the identity/node/controller server and disk driver
 func NewDriver(nodeID, endpoint string) *nas {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
@@ -65,6 +66,7 @@ func NewDriver(nodeID, endpoint string) *nas {
 	return d
 }
 
+//NewNodeServer create the csi node server
 func NewNodeServer(d *nas) *nodeServer {
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
