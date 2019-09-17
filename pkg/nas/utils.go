@@ -24,6 +24,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
+//DoMount execute the mount command for nas dir
 func DoMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeId string) error {
 	if !utils.IsFileExisting(mountPoint) {
 		CreateDest(mountPoint)
@@ -51,6 +52,7 @@ func DoMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeId str
 	return nil
 }
 
+//CheckNfsPathMounted check whether the given nfs path was mounted
 func CheckNfsPathMounted(mountpoint, server, path string) bool {
 	mntCmd := fmt.Sprintf("mount | grep %s | grep %s | grep %s | grep -v grep | wc -l", mountpoint, server, path)
 	if out, err := utils.Run(mntCmd); err == nil && strings.TrimSpace(out) != "0" {
@@ -59,6 +61,7 @@ func CheckNfsPathMounted(mountpoint, server, path string) bool {
 	return false
 }
 
+//CreateDest create the target
 func CreateDest(dest string) error {
 	fi, err := os.Lstat(dest)
 	if os.IsNotExist(err) {

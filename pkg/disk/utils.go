@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package disk
 
 import (
@@ -64,14 +65,11 @@ var (
 	VERSION = "v1.14.3"
 	// GITCOMMIT will be overwritten automatically by the build system
 	GITCOMMIT                    = "HEAD"
+	// KUBERNETES_ALICLOUD_IDENTITY is the system identity for ecs client request
 	KUBERNETES_ALICLOUD_IDENTITY = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", VERSION)
 )
 
-func ProvisionVersion() string {
-	return VERSION
-}
-
-// struct for access key
+// DefaultOptions is the struct for access key
 type DefaultOptions struct {
 	Global struct {
 		KubernetesClusterTag string
@@ -91,15 +89,15 @@ type RoleAuth struct {
 	Code            string
 }
 
-func newEcsClient(access_key_id, access_key_secret, access_token string) (ecsClient *ecs.Client) {
+func newEcsClient(accessKeyId, accessKeySecret, accessToken string) (ecsClient *ecs.Client) {
 	var err error
-	if access_token == "" {
-		ecsClient, err = ecs.NewClientWithAccessKey(DEFAULT_REGION, access_key_id, access_key_secret)
+	if accessToken == "" {
+		ecsClient, err = ecs.NewClientWithAccessKey(DEFAULT_REGION, accessKeyId, accessKeySecret)
 		if err != nil {
 			return nil
 		}
 	} else {
-		ecsClient, err = ecs.NewClientWithStsToken(DEFAULT_REGION, access_key_id, access_key_secret, access_token)
+		ecsClient, err = ecs.NewClientWithStsToken(DEFAULT_REGION, accessKeyId, accessKeySecret, accessToken)
 		if err != nil {
 			return nil
 		}
@@ -118,7 +116,7 @@ func updateEcsClent(client *ecs.Client) *ecs.Client {
 	return client
 }
 
-// read default ak from local file or from STS
+// GetDefaultAK read default ak from local file or from STS
 func GetDefaultAK() (string, string, string) {
 	accessKeyID, accessSecret := GetLocalAK()
 
@@ -130,7 +128,7 @@ func GetDefaultAK() (string, string, string) {
 	return accessKeyID, accessSecret, accessToken
 }
 
-// get host regionid, zoneid
+// GetMetaData get host regionid, zoneid
 func GetMetaData(resource string) string {
 	resp, err := http.Get(METADATA_URL + resource)
 	if err != nil {
@@ -144,7 +142,7 @@ func GetMetaData(resource string) string {
 	return string(body)
 }
 
-// get STS AK
+// GetSTSAK get STS AK and token from ecs meta server
 func GetSTSAK() (string, string, string) {
 	roleAuth := RoleAuth{}
 	subpath := "ram/security-credentials/"
@@ -169,6 +167,7 @@ func GetSTSAK() (string, string, string) {
 	return roleAuth.AccessKeyId, roleAuth.AccessKeySecret, roleAuth.SecurityToken
 }
 
+// GetLocalAK return if ak meta defined in env
 func GetLocalAK() (string, string) {
 	var accessKeyID, accessSecret string
 	// first check if the environment setting
@@ -181,6 +180,7 @@ func GetLocalAK() (string, string) {
 	return accessKeyID, accessSecret
 }
 
+// GetDeviceByMntPoint return the device info from given mount point
 func GetDeviceByMntPoint(targetPath string) string {
 	deviceCmd := fmt.Sprintf("mount | grep %s  | grep -v grep | awk '{print $1}'", targetPath)
 	deviceCmdOut, err := run(deviceCmd)
@@ -210,7 +210,7 @@ func GetDeviceMountNum(targetPath string) int {
 	}
 }
 
-// check file exist in volume driver;
+// IsFileExisting check file exist in volume driver
 func IsFileExisting(filename string) bool {
 	_, err := os.Stat(filename)
 	if err == nil {
@@ -222,6 +222,7 @@ func IsFileExisting(filename string) bool {
 	return true
 }
 
+// IsDirEmpty check whether the given directory is empty
 func IsDirEmpty(name string) (bool, error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -293,6 +294,7 @@ func getInstanceDoc() (*instanceDocument, error) {
 	return result, nil
 }
 
+// GetDevicePath return the file path of given device
 func GetDevicePath(volumeId string) (path string) {
 	//devicePath := GetDevicePathById(volumeId)
 	devicePath := ""
@@ -313,21 +315,21 @@ func GetDevicePathById(volumeId string) (path string) {
 
 	if utils.IsFileExisting("/dev/disk/by-id/") {
 		cmd1 := "ls /dev/disk/by-id/ | grep " + volumeIdPrefix
-		if out, err := utils.Run(cmd1); err != nil {
+		var out string
+		var err error
+		if out, err = utils.Run(cmd1); err != nil {
 			return ""
-		} else {
-			if strings.TrimSpace(out) == "" {
-				return ""
-			}
-			cmd2 := "readlink -f " + filepath.Join("/dev/disk/by-id/", strings.TrimSpace(out))
-			if out, err := utils.Run(cmd2); err != nil {
-				return ""
-			} else {
-				devicePath = strings.TrimSpace(out)
-				if !utils.IsFileExisting(devicePath) {
-					return ""
-				}
-			}
+		}
+		if strings.TrimSpace(out) == "" {
+			return ""
+		}
+		cmd2 := "readlink -f " + filepath.Join("/dev/disk/by-id/", strings.TrimSpace(out))
+		if out, err = utils.Run(cmd2); err != nil {
+			return ""
+		}
+		devicePath = strings.TrimSpace(out)
+		if !utils.IsFileExisting(devicePath) {
+			return ""
 		}
 	} else {
 		return ""
@@ -382,6 +384,7 @@ func removeVolumeConfig(volumeId string) error {
 	return nil
 }
 
+//IsDeviceUsedOthers check if the given device attached by other instance
 func IsDeviceUsedOthers(deviceName, volumeID string) (bool, error) {
 	files, err := ioutil.ReadDir(VolumeDir)
 	if err != nil {

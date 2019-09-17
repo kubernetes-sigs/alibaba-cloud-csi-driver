@@ -29,7 +29,7 @@ import (
 	"strings"
 )
 
-// used for global ak
+//DefaultOptions used for global ak
 type DefaultOptions struct {
 	Global struct {
 		KubernetesClusterTag string
@@ -148,7 +148,7 @@ func GetRegionAndInstanceId() (string, string, error) {
 	return regionId, instanceId, nil
 }
 
-// get metadata
+//GetMetaData get metadata from ecs meta-server
 func GetMetaData(resource string) (string, error) {
 	resp, err := http.Get(METADATA_URL + resource)
 	if err != nil {
@@ -201,7 +201,7 @@ func ReadJsonFile(file string) (map[string]string, error) {
 	return jsonObj, nil
 }
 
-// read ossfs ak from local or from secret file
+// GetLocalAK read ossfs ak from local or from secret file
 func GetLocalAK() (string, string) {
 	accessKeyID, accessSecret := "", ""
 	//accessKeyID, accessSecret = GetLocalAK()
@@ -226,7 +226,7 @@ func GetLocalAK() (string, string) {
 	return strings.TrimSpace(accessKeyID), strings.TrimSpace(accessSecret)
 }
 
-// read default ak from local file or from STS
+// GetDefaultAK read default ak from local file or from STS
 func GetDefaultAK() (string, string, string) {
 	accessKeyID, accessSecret := GetLocalAK()
 
@@ -239,7 +239,7 @@ func GetDefaultAK() (string, string, string) {
 
 }
 
-// get STS AK
+//GetSTSAK get STS AK
 func GetSTSAK() (string, string, string) {
 	createAssumeRoleReq := sts.CreateAssumeRoleRequest()
 	client, err := sts.NewClient()

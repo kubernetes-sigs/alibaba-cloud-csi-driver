@@ -43,6 +43,7 @@ const (
 func initDriver() {
 }
 
+//NewDriver create the identity/node/controller server and disk driver
 func NewDriver(nodeID, endpoint string) *lvm {
 	initDriver()
 	tmplvm := &lvm{}
