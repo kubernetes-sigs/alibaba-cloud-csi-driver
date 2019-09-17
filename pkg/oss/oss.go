@@ -40,6 +40,7 @@ type oss struct {
 	cscap []*csi.ControllerServiceCapability
 }
 
+//NewDriver init oss type of csi driver
 func NewDriver(nodeID, endpoint string) *oss {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
@@ -59,6 +60,7 @@ func NewDriver(nodeID, endpoint string) *oss {
 	return d
 }
 
+//NewDriver init oss type of csi nodeServer
 func NewNodeServer(d *oss) *nodeServer {
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),

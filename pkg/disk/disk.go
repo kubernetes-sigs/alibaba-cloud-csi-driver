@@ -47,6 +47,7 @@ func initDriver() {
 
 }
 
+//NewDriver create the identity/node/controller server and disk driver
 func NewDriver(nodeID, endpoint string, runAsController bool) *disk {
 	initDriver()
 	tmpdisk := &disk{}

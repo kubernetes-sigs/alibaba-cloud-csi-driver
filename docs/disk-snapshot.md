@@ -38,7 +38,7 @@ $ cd build && sh build-disk.sh
 ## Deploy
 
 ### 1. Requirements
-Kubernetes cluster, api-server, kubelet configuration, please refer to [disk-plugin](./README-disk.md)
+Kubernetes cluster, api-server, kubelet configuration, please refer to [disk-plugin](./disk.md)
 
 
 ### 2. Deploy Snapshot Runner
@@ -94,6 +94,6 @@ snapcontent-77a75b63-1987-11e9-a520-00163e024341   2m
 
 > snapshot.yaml define the data source pvc name, and snapshotClass name.
 
-> You can check disk snapshot in aliyun ecs console.
+> You can check disk snapshot in alibaba cloud ecs console.
 
 ## Troubleshooting
