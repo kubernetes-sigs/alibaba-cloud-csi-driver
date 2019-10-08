@@ -614,6 +614,9 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	resizeDiskRequest.RegionId = cs.region
 	resizeDiskRequest.DiskId = diskId
 	resizeDiskRequest.NewSize = requests.NewInteger(requestGB)
+	if disk.Category == DISK_SSD || disk.Category == DISK_EFFICIENCY || disk.Category == DISK_ESSD {
+		resizeDiskRequest.Type = "online"
+	}
 	if _, err := cs.ecsClient.ResizeDisk(resizeDiskRequest); err != nil {
 		log.Errorf("ControllerExpandVolume:: resize got error: %s", err.Error())
 		return nil, status.Errorf(codes.Internal, "resize disk %s get error: %s", diskId, err.Error())
