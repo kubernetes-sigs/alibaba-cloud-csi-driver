@@ -11,7 +11,7 @@ Aliyun EBS support to expand size of disk, this feature will show how to resize 
 * CSI resizer external runner (registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v0.1.0).
 * Disk resizer plugin depends on csi-plugin (registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin).
 * Service Accounts with required RBAC permissions.
-* Feature Gate Enable: ExpandCSIVolumes=true, Alpha feature in kubernetes 1.14;
+* Feature Gate Enable: ExpandCSIVolumes=true(kube-controller, kubelet), this is Alpha feature in kubernetes 1.14;
 
 
 ### Feature Status
@@ -30,8 +30,17 @@ $ cd build && sh build-all.sh
 ### 1. Requirements
 Kubernetes cluster, api-server, kubelet configuration, please refer to [disk-plugin](./README-disk.md)
 
+The resizer runner is working with CSI Plugin, so you should deploy the base plugin first. Please refer to [disk-plugin](./README-disk.md)
+
+The API Authority:
+
+The process of expand disk need to call aliyun ecs api, and your AK should have the ability to do it.
+
+If you use STS in the csi plugin, the RAM should have the Authority of ResizeDisk.
 
 ### 2. Deploy Resizer Runner
+
+You can use below command to deploy csi resizer.
 
 ```
 # kubectl create -f ./deploy/disk/resizer/csi-resizer.yaml
@@ -69,7 +78,7 @@ dynamic-create-6d5dc9bb7d-lvhgz   1/1     Running   0          23s
 /dev/vdd        20511312    45080  20449848   1% /data
 
 ```
-Expand pvc from 20G to 30G:
+### 3. Expand pvc from 20G to 30G:
 
 ```
 // expand pvc from 20G to 30G
@@ -100,7 +109,7 @@ Conditions:
   FileSystemResizePending   True    Mon, 01 Jan 0001 00:00:00 +0000   Tue, 23 Jul 2019 16:31:25 +0800           Waiting for user to (re-)start a pod to finish file system resize of volume on node.
 
 ```
-Expand FileSystem with restart pod:
+### 4. Expand FileSystem with restart pod:
 
 ```
 // phase2: restart Pod, expand filesystem;
