@@ -26,8 +26,14 @@ spec:
     spec:
       tolerations:
       - operator: "Exists"
-      nodeSelector:
-         node-role.kubernetes.io/master: ""
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
       priorityClassName: system-node-critical
       serviceAccount: admin
       hostNetwork: true
@@ -52,7 +58,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-diskplugin:v1.14.5-3068245
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.5.78-db04dd3-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
