@@ -1,0 +1,9 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: alicloud-lvm-expand
+provisioner: lvmplugin.csi.alibabacloud.com
+parameters:
+    vgName: vgtest
+reclaimPolicy: Delete
+allowVolumeExpansion: true

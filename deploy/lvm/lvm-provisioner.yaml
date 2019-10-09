@@ -28,8 +28,14 @@ spec:
     spec:
       tolerations:
       - operator: Exists
-      nodeSelector:
-         node-role.kubernetes.io/master: ""
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
       priorityClassName: system-node-critical
       serviceAccount: alicloud-csi-plugin
       containers:
@@ -38,6 +44,7 @@ spec:
           args:
             - "--provisioner=lvmplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
+            - "--volume-name-prefix=lvm"
             - "--v=5"
           env:
             - name: ADDRESS
