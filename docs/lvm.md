@@ -28,9 +28,9 @@ $ cd build && sh build-lvm.sh
 Same as diskplugin.csi.alibabacloud.com;
 
 
-### Step 1: Create CSI Attacher
+### Step 1: Create CSI Provisioner
 ```
-# kubectl create -f ./deploy/lvm/lvm-attacher.yaml
+# kubectl create -f ./deploy/lvm/lvm-provisioner.yaml
 ```
 
 ### Step 2: Create CSI Plugin

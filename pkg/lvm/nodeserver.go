@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -31,6 +33,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	k8smount "k8s.io/kubernetes/pkg/util/mount"
+	"k8s.io/kubernetes/pkg/util/resizefs"
 )
 
 const (
@@ -41,9 +45,10 @@ const (
 
 type nodeServer struct {
 	*csicommon.DefaultNodeServer
-	nodeID  string
-	mounter utils.Mounter
-	client  kubernetes.Interface
+	nodeID     string
+	mounter    utils.Mounter
+	client     kubernetes.Interface
+	k8smounter k8smount.Interface
 }
 
 var (
@@ -66,34 +71,13 @@ func NewNodeServer(d *csicommon.CSIDriver, nodeID string) csi.NodeServer {
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		nodeID:            nodeID,
 		mounter:           utils.NewMounter(),
+		k8smounter:        k8smount.New(""),
 		client:            kubeClient,
 	}
 }
 
 func (ns *nodeServer) GetNodeID() string {
 	return ns.nodeID
-}
-
-func (ns *nodeServer) createVolume(ctx context.Context, volumeId string, vgName string) error {
-	pv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeId, metav1.GetOptions{})
-	if err != nil {
-		log.Errorf("lvcreate: fail to get pv, err: %v", err)
-		return err
-	}
-	pvQuantity := pv.Spec.Capacity["storage"]
-	pvSize := pvQuantity.Value()
-	pvSize = pvSize / (1024 * 1024 * 1024)
-	ckCmd := fmt.Sprintf("%s vgck %s", NSENTER_CMD, vgName)
-	_, err = utils.Run(ckCmd)
-	if err != nil {
-		return err
-	}
-	cmd := fmt.Sprintf("%s lvcreate -n %s -L %dg %s", NSENTER_CMD, volumeId, pvSize, vgName)
-	_, err = utils.Run(cmd)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -111,9 +95,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	log.Infof("NodePublishVolume: Starting to mount lvm at: %s, with vg: %s, with volume: %s", targetPath, vgName, req.GetVolumeId())
 
+	volumeNewCreated := false
 	volumeId := req.GetVolumeId()
 	devicePath := filepath.Join("/dev/", vgName, volumeId)
 	if _, err := os.Stat(devicePath); os.IsNotExist(err) {
+		volumeNewCreated = true
 		err := ns.createVolume(ctx, volumeId, vgName)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -160,6 +146,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		log.Infof("NodePublishVolume:: mount successful devicePath: %s, targetPath: %s, options: %v", devicePath, targetPath, options)
 	}
 
+	// xfs filesystem works on targetpath.
+	if volumeNewCreated == false {
+		if err := ns.resizeVolume(ctx, volumeId, vgName, targetPath); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
@@ -193,7 +186,105 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
+func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
+	// currently there is a single NodeServer capability according to the spec
+	nscap := &csi.NodeServiceCapability{
+		Type: &csi.NodeServiceCapability_Rpc{
+			Rpc: &csi.NodeServiceCapability_RPC{
+				Type: csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
+			},
+		},
+	}
+	nscap2 := &csi.NodeServiceCapability{
+		Type: &csi.NodeServiceCapability_Rpc{
+			Rpc: &csi.NodeServiceCapability_RPC{
+				Type: csi.NodeServiceCapability_RPC_EXPAND_VOLUME,
+			},
+		},
+	}
+	return &csi.NodeGetCapabilitiesResponse{
+		Capabilities: []*csi.NodeServiceCapability{
+			nscap, nscap2,
+		},
+	}, nil
+}
+
 func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (
 	*csi.NodeExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("NodeExpandVolume: lvm node expand volume: %v", req)
+	return &csi.NodeExpandVolumeResponse{}, nil
+}
+
+func (ns *nodeServer) resizeVolume(ctx context.Context, volumeId, vgName, targetPath string) error {
+	pvSize := ns.getPvSize(volumeId)
+	devicePath := filepath.Join("/dev", vgName, volumeId)
+	sizeCmd := fmt.Sprintf("%s lvdisplay %s | grep 'LV Size' | awk '{print $3}'", NSENTER_CMD, devicePath)
+	sizeStr, err := utils.Run(sizeCmd)
+	if err != nil {
+		return err
+	}
+	if sizeStr == "" {
+		return status.Error(codes.Internal, "Get lvm size error")
+	}
+	sizeStr = strings.Split(sizeStr, ".")[0]
+	sizeInt, err := strconv.ParseInt(strings.TrimSpace(sizeStr), 10, 64)
+	if err != nil {
+		return err
+	}
+
+	// if lvmsize equal/bigger than pv size, no do expand.
+	if sizeInt >= pvSize {
+		return nil
+	}
+	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, from size: %d, to Size: %d", volumeId, devicePath, sizeInt, pvSize)
+
+	// resize lvm volume
+	// lvextend -L3G /dev/vgtest/lvm-5db74864-ea6b-11e9-a442-00163e07fb69
+	resizeCmd := fmt.Sprintf("%s lvextend -L%dG %s", NSENTER_CMD, pvSize, devicePath)
+	_, err = utils.Run(resizeCmd)
+	if err != nil {
+		return err
+	}
+
+	// use resizer to expand volume filesystem
+	realExec := k8smount.NewOsExec()
+	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: realExec})
+	ok, err := resizer.Resize(devicePath, targetPath)
+	if err != nil {
+		log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeId, devicePath, targetPath, err.Error())
+		return err
+	}
+	if !ok {
+		log.Errorf("NodeExpandVolume:: Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", volumeId, devicePath, targetPath)
+		return status.Error(codes.Internal, "Fail to resize volume fs")
+	}
+	log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", volumeId, devicePath, targetPath)
+	return nil
+}
+
+func (ns *nodeServer) getPvSize(volumeId string) int64 {
+	pv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeId, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("lvcreate: fail to get pv, err: %v", err)
+		return 0
+	}
+	pvQuantity := pv.Spec.Capacity["storage"]
+	pvSize := pvQuantity.Value()
+	pvSize = pvSize / (1024 * 1024 * 1024)
+	return pvSize
+}
+
+func (ns *nodeServer) createVolume(ctx context.Context, volumeId string, vgName string) error {
+	pvSize := ns.getPvSize(volumeId)
+	ckCmd := fmt.Sprintf("%s vgck %s", NSENTER_CMD, vgName)
+	_, err := utils.Run(ckCmd)
+	if err != nil {
+		return err
+	}
+	cmd := fmt.Sprintf("%s lvcreate -n %s -L %dg %s", NSENTER_CMD, volumeId, pvSize, vgName)
+	_, err = utils.Run(cmd)
+	if err != nil {
+		return err
+	}
+	return nil
 }
