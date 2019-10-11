@@ -5,4 +5,16 @@ metadata:
 provisioner: lvmplugin.csi.alibabacloud.com
 parameters:
     vgName: volumegroup1
+    fsType: ext4
 reclaimPolicy: Delete
+
+
+# vgName: Necessary,
+
+# pvType: localdisk, clouddisk
+#   localdisk: support auto create vg using localdisks, and localdisks should be clean.
+#   clouddisk: default, not support auto create vg, and vg should pre-created by hands.
+
+# lvmType: linear, striping
+#   linear: default
+#   striping: only support localdisk now, and the striped number is the localdisk number
