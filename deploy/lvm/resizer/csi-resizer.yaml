@@ -1,0 +1,59 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: csi-lvm-resizer
+  namespace: kube-system
+  labels:
+    app: csi-lvm-resizer
+spec:
+  selector:
+    app: csi-lvm-resizer
+  ports:
+    - name: dummy
+      port: 12345
+---
+kind: StatefulSet
+apiVersion: apps/v1beta1
+metadata:
+  name: csi-lvm-resizer
+  namespace: kube-system
+spec:
+  serviceName: "csi-lvm-resizer"
+  template:
+    metadata:
+      labels:
+        app: csi-lvm-resizer
+    spec:
+      tolerations:
+      - operator: "Exists"
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+      priorityClassName: system-node-critical
+      serviceAccount: admin
+      hostNetwork: true
+      containers:
+        - name: csi-lvm-resizer
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v0.1.0
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /socketDir/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /socketDir/
+      volumes:
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com
+            type: DirectoryOrCreate
+  updateStrategy:
+    type: RollingUpdate

@@ -17,11 +17,22 @@ limitations under the License.
 package cpfs
 
 import (
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"golang.org/x/net/context"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 // controller server try to create/delete volumes
@@ -47,7 +58,17 @@ var storageClassServerPos = map[string]int{}
 
 // NewControllerServer is to create controller server
 func NewControllerServer(d *csicommon.CSIDriver) csi.ControllerServer {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		log.Fatalf("NewControllerServer: Failed to create config: %v", err)
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("NewControllerServer: Failed to create client: %v", err)
+	}
+
 	c := &controllerServer{
+		client:                  clientset,
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
 	}
 	return c
@@ -55,13 +76,195 @@ func NewControllerServer(d *csicommon.CSIDriver) csi.ControllerServer {
 
 // provisioner: create/delete cpfs volume
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	log.Infof("CreateVolume: not support now", req.Name)
-	return &csi.CreateVolumeResponse{}, nil
+	log.Infof("CreateVolume: Starting to Create CPFS volume: %v", req)
+
+	// step1: check pvc is created or not.
+	pvcUid := string(req.Name)
+	if ok, value := pvcProcessSuccess[pvcUid]; ok && value == true {
+		log.Warnf("CreateVolume: CPFS Volume %s has Created Already", req.Name)
+		return nil, fmt.Errorf("CPFS Volume has created alreay " + req.Name)
+	}
+
+	// parse cpfs parameters
+	pvName := req.Name
+	cpfsOptions := []string{}
+	for _, volCap := range req.VolumeCapabilities {
+		volCapMount := ((*volCap).AccessType).(*csi.VolumeCapability_Mount)
+		for _, mountFlag := range volCapMount.Mount.MountFlags {
+			cpfsOptions = append(cpfsOptions, mountFlag)
+		}
+	}
+	cpfsOptionsStr := strings.Join(cpfsOptions, ",")
+	cpfsServerInputs, cpfsServer, cpfsFileSystem, cpfsPath := "", "", "", ""
+
+	// check provision mode
+	volumeAs := "subpath"
+	for k, v := range req.Parameters {
+		switch strings.ToLower(k) {
+		case VOLUMEAS:
+			volumeAs = strings.TrimSpace(v)
+		case SERVER:
+			cpfsServerInputs = strings.TrimSpace(v)
+		default:
+		}
+	}
+	if volumeAs == "filesystem" {
+		// TODO: support filesystem mode
+		// CreateVolumeWithFileSystem()
+		return nil, nil
+	}
+
+	// create pv with exist cpfs server
+	cpfsServer, cpfsFileSystem, cpfsPath = GetCpfsDetails(cpfsServerInputs)
+	if cpfsServer == "" || cpfsFileSystem == "" || cpfsPath == "" {
+		log.Errorf("CreateVolume: Input cpfs server format error: volume: %s, server: %s", req.Name, cpfsServerInputs)
+		return nil, fmt.Errorf("CreateVolume: Input cpfs server format error: volume: %s, server: %s", req.Name, cpfsServerInputs)
+	}
+	log.Infof("Create Volume: %s, with Exist cpfs Server: %s, cpfs filesystem: %s, Path: %s, Options: %s", req.Name, cpfsServer, cpfsFileSystem, cpfsPath, cpfsOptions)
+
+	// local mountpoint for one volume
+	mountPoint := filepath.Join(MNTROOTPATH, pvName)
+	if !utils.IsFileExisting(mountPoint) {
+		if err := os.MkdirAll(mountPoint, 0777); err != nil {
+			log.Errorf("CreateVolume: %s, Unable to create directory: %s, with error: %s", req.Name, mountPoint, err.Error())
+			return nil, errors.New("Provision: " + req.Name + ", Unable to create directory: " + mountPoint + " with error: " + err.Error())
+		}
+	}
+
+	// step5: Mount cpfs server to localpath
+	if err := DoMount(cpfsServer, cpfsFileSystem, cpfsPath, cpfsOptionsStr, mountPoint, req.Name); err != nil {
+		log.Errorf("CreateVolume: %s, Mount server: %s, cpfsPath: %s, cpfsVersion: %s, cpfsOptions: %s, mountPoint: %s, with error: %s", req.Name, cpfsServer, cpfsPath, cpfsOptionsStr, mountPoint, err.Error())
+		return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + cpfsServer + ", cpfsPath: " + cpfsPath + ", cpfsOptions: " + cpfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
+	}
+
+	// step6: create volume
+	fullPath := filepath.Join(mountPoint, pvName)
+	if err := os.MkdirAll(fullPath, 0777); err != nil {
+		log.Errorf("Provision: %s, creating path: %s, with error: %s", req.Name, fullPath, err.Error())
+		return nil, errors.New("Provision: " + req.Name + ", creating path: " + fullPath + ", with error: " + err.Error())
+	}
+	os.Chmod(fullPath, 0777)
+
+	// step7: Unmount cpfs server
+	if !utils.Umount(mountPoint) {
+		log.Errorf("Provision: %s, unmount cpfs mountpoint %s failed", req.Name, mountPoint)
+		return nil, errors.New("unable to unmount cpfs server: " + cpfsServer)
+	}
+
+	volumeContext := map[string]string{}
+	volumeContext["server"] = cpfsServer
+	volumeContext["fileSystem"] = cpfsFileSystem
+	volumeContext["subPath"] = filepath.Join(cpfsPath, pvName)
+	if value, ok := req.Parameters["options"]; ok && value != "" {
+		volumeContext["options"] = value
+	}
+
+	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
+	tmpVol := &csi.Volume{
+		VolumeId:      req.Name,
+		CapacityBytes: int64(volSizeBytes),
+		VolumeContext: volumeContext,
+	}
+	pvcProcessSuccess[pvcUid] = true
+
+	return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 }
 
-// call ecs api to delete disk
+//
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	log.Infof("DeleteVolume: not support now %s", req.GetVolumeId())
+	log.Infof("DeleteVolume: Starting to delete cpfs volume %s", req.GetVolumeId())
+	pvPath, cpfsPath, cpfsFileSystem, cpfsServer, cpfsOptions := "", "", "", "", ""
+
+	pvInfo, err := cs.client.CoreV1().PersistentVolumes().Get(req.VolumeId, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("DeleteVolume: Get Volume: %s from cluster error: %s", req.VolumeId, err.Error())
+	}
+	cpfsOptions = strings.Join(pvInfo.Spec.MountOptions, ",")
+	if pvInfo.Spec.CSI == nil {
+		return nil, fmt.Errorf("DeleteVolume: Volume Spec with CSI empty: %s, pv: %v", req.VolumeId, pvInfo)
+	}
+	if value, ok := pvInfo.Spec.CSI.VolumeAttributes["server"]; ok {
+		cpfsServer = value
+	} else {
+		return nil, fmt.Errorf("DeleteVolume: Volume Spec with cpfs server empty: %s, CSI: %v", req.VolumeId, pvInfo.Spec.CSI)
+	}
+	if value, ok := pvInfo.Spec.CSI.VolumeAttributes["fileSystem"]; ok {
+		cpfsFileSystem = value
+	} else {
+		return nil, fmt.Errorf("DeleteVolume: Volume Spec with cpfs filesystem empty: %s, CSI: %v", req.VolumeId, pvInfo.Spec.CSI)
+	}
+	if value, ok := pvInfo.Spec.CSI.VolumeAttributes["subPath"]; ok {
+		pvPath = value
+	} else {
+		return nil, fmt.Errorf("DeleteVolume: Volume Spec with cpfs path empty: %s, CSI: %v", req.VolumeId, pvInfo.Spec.CSI)
+	}
+
+	if pvInfo.Spec.StorageClassName == "" {
+		return nil, fmt.Errorf("DeleteVolume: Volume Spec with storageclass empty: %s, Spec: %v", req.VolumeId, pvInfo.Spec)
+	}
+	storageclass, err := cs.client.StorageV1().StorageClasses().Get(pvInfo.Spec.StorageClassName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("DeleteVolume: Volume: %s, reqeust storageclass error: %s", req.VolumeId, err.Error())
+	}
+
+	// parse cpfs mount point;
+	tmpPath := pvPath
+	strLen := len(pvPath)
+	if pvPath[strLen-1:] == "/" {
+		tmpPath = pvPath[0 : strLen-1]
+	}
+	pos := strings.LastIndex(tmpPath, "/")
+	cpfsPath = pvPath[0:pos]
+	if cpfsPath == "" {
+		cpfsPath = "/"
+	}
+
+	// set the local mountpoint
+	mountPoint := filepath.Join(MNTROOTPATH, req.VolumeId, "-delete")
+	if err := DoMount(cpfsServer, cpfsFileSystem, cpfsPath, cpfsOptions, mountPoint, req.VolumeId); err != nil {
+		log.Errorf("DeleteVolume: %s, Mount server: %s, cpfsPath: %s, cpfsVersion: %s, cpfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, cpfsServer, cpfsPath, cpfsFileSystem, cpfsOptions, mountPoint, err.Error())
+		return nil, fmt.Errorf("DeleteVolume: %s, Mount server: %s, cpfsPath: %s, cpfsVersion: %s, cpfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, cpfsServer, cpfsPath, cpfsFileSystem, cpfsOptions, mountPoint, err.Error())
+	}
+	defer utils.Umount(mountPoint)
+
+	// remove the pvc process mapping if exist
+	if ok, _ := pvcProcessSuccess[req.VolumeId]; ok {
+		delete(pvcProcessSuccess, req.VolumeId)
+	}
+
+	// pvName is same with volumeId
+	pvName := filepath.Base(pvPath)
+	deletePath := filepath.Join(mountPoint, pvName)
+	if _, err := os.Stat(deletePath); os.IsNotExist(err) {
+		log.Infof("Delete: Volume %s, Path %s does not exist, deletion skipped", req.VolumeId, deletePath)
+		return &csi.DeleteVolumeResponse{}, nil
+	}
+
+	// Determine if the "archiveOnDelete" parameter exists.
+	// If it exists and has a false value, delete the directory.
+	// Otherwise, archive it.
+	archiveOnDelete, exists := storageclass.Parameters["archiveOnDelete"]
+	if exists {
+		archiveBool, err := strconv.ParseBool(archiveOnDelete)
+		if err != nil {
+			return nil, errors.New("Check Mount cpfsserver fail " + cpfsServer + " error with: " + err.Error())
+		}
+		if !archiveBool {
+			if err := os.RemoveAll(deletePath); err != nil {
+				return nil, errors.New("Check Mount cpfsserver fail " + cpfsServer + " error with: " + err.Error())
+			}
+			log.Infof("Delete Successful: Volume %s, Removed path %s", req.VolumeId, deletePath)
+			return &csi.DeleteVolumeResponse{}, nil
+		}
+	}
+
+	archivePath := filepath.Join(mountPoint, "archived-"+pvName+time.Now().Format(".2006-01-02-15:04:05"))
+	if err := os.Rename(deletePath, archivePath); err != nil {
+		log.Errorf("Delete Failed: Volume %s, archiving path %s to %s with error: %s", req.VolumeId, deletePath, archivePath, err.Error())
+		return nil, errors.New("Check Mount cpfsserver fail " + cpfsServer + " error with: ")
+	}
+
+	log.Infof("Delete Successful: Volume %s, Archiving path %s to %s", req.VolumeId, deletePath, archivePath)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
