@@ -28,9 +28,9 @@ $ cd build && sh build-lvm.sh
 Same as diskplugin.csi.alibabacloud.com;
 
 
-### Step 1: Create CSI Attacher
+### Step 1: Create CSI Provisioner
 ```
-# kubectl create -f ./deploy/lvm/lvm-attacher.yaml
+# kubectl create -f ./deploy/lvm/lvm-provisioner.yaml
 ```
 
 ### Step 2: Create CSI Plugin
@@ -51,12 +51,41 @@ Same as diskplugin.csi.alibabacloud.com;
 # kubectl create -f ./deploy/lvm/storageclass.yaml
 ```
 
+```
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: csi-lvm-striping
+provisioner: lvmplugin.csi.alibabacloud.com
+parameters:
+    vgName: volumegroup1
+    fsType: ext4
+    pvType: clouddisk
+    lvmType: linear
+reclaimPolicy: Delete
+```
+Usage:
+
 > vgName: define the volume group name of the storageclass;
 >
-> lvmSize: define the lvm size, this should be removed next release;
+> fsType: default as ext4, define the lvm file system type, support ext4, ext3, xfs;
+>
+> pvType: optional, default as clouddisk. Define the used physics disk type, support clouddisk, localdisk;
+>
+> ----> clouddisk: default, not support auto create vg, and vg should pre-created by hands.
+>
+> ----> localdisk: support auto create vg using localdisks, and localdisks should not be inited.
+>
+> lvmType: optional, default as linear; Define the expect lvm type, supporting linear, striping;
+>
+> ----> linear: default, create linear lvm volume.
+>
+> ----> striping: only support pvType(localdisk) now, and the striped number is the localdisk number
 
-### Step 4: Create nginx deploy with csi
+
+### Step 4: Create nginx deploy with lvm
 ```
+# kubectl create -f ./deploy/lvm/pvc.yaml
 # kubectl create -f ./deploy/lvm/deploy.yaml
 ```
 

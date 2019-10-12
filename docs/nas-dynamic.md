@@ -37,7 +37,6 @@ mountOptions:
 parameters:
   volumeAs: subpath
   server: "2564f49129-ysu87.cn-shenzhen.nas.aliyuncs.com:/nasroot1/"
-  mode: "755"
   archiveOnDelete: "false"
 provisioner: nasplugin.csi.alibabacloud.com
 reclaimPolicy: Delete

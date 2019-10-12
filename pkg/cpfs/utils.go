@@ -18,8 +18,10 @@ package cpfs
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -55,5 +57,84 @@ func createCpfsSubDir(cpfsOptions, cpfsServer, cpfsFileSystem, cpfsSubpath strin
 	// step 3: umount after create
 	utils.Umount(cpfsTmpPath)
 	log.Infof("Create Sub Directory successful: %s", cpfsSubpath)
+	return nil
+}
+
+func GetCpfsDetails(cpfsServersString string) (string, string, string) {
+	cpfsServer, cpfsFileSystem, cpfsPath := "", "", ""
+	cpfsServerList := strings.Split(cpfsServersString, ",")
+	serverNum := len(cpfsServerList)
+
+	if _, ok := storageClassServerPos[cpfsServersString]; !ok {
+		storageClassServerPos[cpfsServersString] = 0
+	}
+	zoneIndex := storageClassServerPos[cpfsServersString] % serverNum
+	selectedServer := cpfsServerList[zoneIndex]
+	storageClassServerPos[cpfsServersString]++
+
+	serverParts := strings.Split(selectedServer, ":/")
+	if len(serverParts) == 2 {
+		cpfsServer = serverParts[0]
+		fsPath := serverParts[1]
+		fsPathList := strings.Split(fsPath, "/")
+		if len(fsPathList) == 1 {
+			cpfsFileSystem = fsPathList[0]
+			cpfsPath = "/"
+		} else if len(fsPathList) == 2 {
+			cpfsFileSystem = fsPathList[0]
+			cpfsPath = fsPathList[1]
+		} else {
+			cpfsServer = ""
+		}
+	} else {
+		cpfsServer = ""
+		cpfsFileSystem = ""
+		cpfsPath = ""
+	}
+	return cpfsServer, cpfsFileSystem, cpfsPath
+}
+
+//CreateDest create the target
+func CreateDest(dest string) error {
+	fi, err := os.Lstat(dest)
+	if os.IsNotExist(err) {
+		if err := os.MkdirAll(dest, 0777); err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
+
+	if fi != nil && !fi.IsDir() {
+		return fmt.Errorf("%v already exist but it's not a directory", dest)
+	}
+	return nil
+}
+
+//DoMount execute the mount command for cpfs dir
+func DoMount(cpfsServer, cpfsFileSystem, cpfsPath, mountOptions, mountPoint, volumeId string) error {
+	if !utils.IsFileExisting(mountPoint) {
+		CreateDest(mountPoint)
+	}
+	mntCmd := fmt.Sprintf("mount -t lustre %s:/%s%s %s", cpfsServer, cpfsFileSystem, cpfsPath, mountPoint)
+	if mountOptions != "" {
+		mntCmd = fmt.Sprintf("mount -t lustre -o %s %s:/%s%s %s", mountOptions, cpfsServer, cpfsFileSystem, cpfsPath, mountPoint)
+	}
+	_, err := utils.Run(mntCmd)
+	if err != nil && cpfsPath != "/" {
+		if strings.Contains(err.Error(), "No such file or directory") {
+			if err := createCpfsSubDir(mountOptions, cpfsServer, cpfsFileSystem, cpfsPath, volumeId); err != nil {
+				return err
+			}
+			if _, err := utils.Run(mntCmd); err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
+
 	return nil
 }

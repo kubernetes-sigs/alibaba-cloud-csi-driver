@@ -20,13 +20,15 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strings"
+	"time"
 )
 
 //DefaultOptions used for global ak
@@ -45,7 +47,20 @@ const (
 	METADATA_URL   = "http://100.100.100.200/latest/meta-data/"
 	REGIONID_TAG   = "region-id"
 	INSTANCEID_TAG = "instance-id"
+	DEFAULT_REGION = "cn-hangzhou"
 )
+
+var KUBERNETES_ALICLOUD_IDENTITY = fmt.Sprintf("Kubernetes.Alicloud/CsiPlugin")
+
+// Define STS Token Response
+type RoleAuth struct {
+	AccessKeyId     string
+	AccessKeySecret string
+	Expiration      time.Time
+	SecurityToken   string
+	LastUpdated     time.Time
+	Code            string
+}
 
 func Succeed(a ...interface{}) Result {
 	return Result{
@@ -239,20 +254,43 @@ func GetDefaultAK() (string, string, string) {
 
 }
 
-//GetSTSAK get STS AK
+// GetSTSAK get STS AK and token from ecs meta server
 func GetSTSAK() (string, string, string) {
-	createAssumeRoleReq := sts.CreateAssumeRoleRequest()
-	client, err := sts.NewClient()
+	roleAuth := RoleAuth{}
+	subpath := "ram/security-credentials/"
+	roleName, err := GetMetaData(subpath)
 	if err != nil {
-		log.Infof("get sts token error with: %s", err.Error())
-		return "", "", ""
-	}
-	response, err := client.AssumeRole(createAssumeRoleReq)
-	if err != nil {
-		log.Infof("AssumeRole: Get sts token error with: %s", err.Error())
+		log.Errorf("GetSTSToken: request roleName with error: %s", err.Error())
 		return "", "", ""
 	}
 
-	role := response.Credentials
-	return role.AccessKeyId, role.AccessKeySecret, role.SecurityToken
+	fullPath := filepath.Join(subpath, roleName)
+	roleInfo, err := GetMetaData(fullPath)
+	if err != nil {
+		log.Errorf("GetSTSToken: request roleInfo with error: %s", err.Error())
+		return "", "", ""
+	}
+
+	err = json.Unmarshal([]byte(roleInfo), &roleAuth)
+	if err != nil {
+		log.Errorf("GetSTSToken: unmarshal roleInfo: %s, with error: %s", roleInfo, err.Error())
+		return "", "", ""
+	}
+	return roleAuth.AccessKeyId, roleAuth.AccessKeySecret, roleAuth.SecurityToken
+}
+
+func NewEcsClient(accessKeyId, accessKeySecret, accessToken string) (ecsClient *ecs.Client) {
+	var err error
+	if accessToken == "" {
+		ecsClient, err = ecs.NewClientWithAccessKey(DEFAULT_REGION, accessKeyId, accessKeySecret)
+		if err != nil {
+			return nil
+		}
+	} else {
+		ecsClient, err = ecs.NewClientWithStsToken(DEFAULT_REGION, accessKeyId, accessKeySecret, accessToken)
+		if err != nil {
+			return nil
+		}
+	}
+	return
 }

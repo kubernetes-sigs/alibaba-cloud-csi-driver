@@ -1,0 +1,10 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: alicloud-cpfs
+parameters:
+  volumeAs: subpath
+  server: "cpfs-09ab7b80-5bh1.cn-zhangjiakou.cpfs.nas.aliyuncs.com@tcp:cpfs-09ab7b80-nu9b.cn-zhangjiakou.cpfs.nas.aliyuncs.com@tcp:/09ab7b80"
+  archiveOnDelete: "true"
+provisioner: cpfsplugin.csi.alibabacloud.com
+reclaimPolicy: Delete
