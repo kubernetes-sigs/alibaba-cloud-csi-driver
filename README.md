@@ -12,37 +12,37 @@ Current implementation of CSI plugins was tested in Kubernetes environment (requ
 Current Support: ***Alibaba cloud Disk, OSS, NAS, CPFS, LVM***;
 
 
-### Disk CSI-Plugin
+### Disk CSI Plugin
 
-Disk csi-plugin support Alicloud disk provision and attachment. And alicloud disk is type of block storage, can only used as ReadWriteOnce mode. Only be attached to one node at the same time.
+Disk CSI Plugin support Alicloud disk provision and attachment. And alicloud disk is type of block storage, can only used as ReadWriteOnce mode. Only be attached to one node at the same time.
 
 More detail information pls refer to [Disk](./docs/disk.md).
 
 
-### NAS CSI-Plugin
+### NAS CSI Plugin
 
-Nas csi-plugin can support alicloud nas volume provision and mount. Nas storage is type of network storage and can be mount by multi nodes at the same time.
+Nas CSI Plugin can support alicloud nas volume provision and mount. Nas storage is type of network storage and can be mount by multi nodes at the same time.
 
 More detail information pls refer to [NAS](./docs/nas.md).
 
 
-### CPFS CSI-Plugin
+### CPFS CSI Plugin
 
-CPFS csi-plugin can support alicloud cpfs volume provision and mount. CPFS storage is type of network storage and can be mount by multi nodes at the same time.
+CPFS CSI Plugin can support alicloud cpfs volume provision and mount. CPFS storage is type of network storage and can be mount by multi nodes at the same time.
 
 More detail information pls refer to [CPFS](./docs/cpfs.md).
 
 
-### OSS CSI-Plugin
+### OSS CSI Plugin
 
-OSS csi-plugin support Alicloud oss mount, and does not support provision volume. OSS storage is type of object storage and can be mount by multi nodes at the same time.
+OSS CSI Plugin support Alicloud oss mount, and does not support provision volume. OSS storage is type of object storage and can be mount by multi nodes at the same time.
 
 More detail information pls refer to [OSS](./docs/oss.md).
 
 
-### LVM CSI-Plugin
+### LVM CSI Plugin
 
-LVM csi-plugin support lvm volume provision and mount. Lvm volume is a type of local volume and not used as high availability scenario.
+LVM CSI Plugin support lvm volume provision and mount. Lvm volume is a type of local volume and not used as high availability scenario.
 
 More detail information pls refer to [LVM](./docs/lvm.md).
 
