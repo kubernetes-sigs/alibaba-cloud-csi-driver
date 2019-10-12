@@ -5,9 +5,9 @@
 
 ## 插件介绍
 
-阿里云CSI插件实现了Kubernetes平台使用阿里云云存储卷的生命周期管理，支持动态创建、挂载、使用云数据卷。 当前的CSI实现基于K8S 1.10以上的版本；
+阿里云CSI插件实现了Kubernetes平台使用阿里云云存储卷的生命周期管理，支持动态创建、挂载、使用云数据卷。 当前的CSI实现基于K8S 1.14以上的版本；
 
-支持的阿里云存储：***云盘、NAS、OSS、LVM***
+支持的阿里云存储：***云盘、NAS、OSS、CPFS、LVM***
 
 
 ### 云盘CSI插件
@@ -19,9 +19,16 @@
 
 ### NAS CSI插件
 
-NAS CSI插件支持为应用负载挂载阿里云NAS存储卷，目前不支持动态创建NAS卷。NAS存储是一种共享存储，可以同时被多个应用负载使用(ReadWriteMany)。
+NAS CSI插件支持为应用负载挂载阿里云NAS存储卷，也支持动态创建NAS卷。NAS存储是一种共享存储，可以同时被多个应用负载使用(ReadWriteMany)。
 
 NAS CSI插件更多详细说明请参考[NAS](./docs/nas.md)
+
+
+### CPFS CSI插件
+
+CPFS CSI插件支持为应用负载挂载阿里云CPFS存储卷，也支持动态创建CPFS卷。CPFS存储是一种共享存储，可以同时被多个应用负载使用(ReadWriteMany)。
+
+CPFS CSI插件更多详细说明请参考[CPFS](./docs/cpfs.md)
 
 
 ### OSS CSI插件
@@ -29,6 +36,7 @@ NAS CSI插件更多详细说明请参考[NAS](./docs/nas.md)
 OSS CSI插件支持为应用负载挂载阿里云OSS Bucket，目前不支持动态创建OSS Bucket。OSS存储是一种共享存储，可以同时被多个应用负载使用(ReadWriteMany)。
 
 OSS CSI插件更多详细说明请参考[OSS](./docs/oss.md)
+
 
 ### LVM CSI插件
 
@@ -42,6 +50,8 @@ LVM CSI插件更多详细说明请参考[LVM](./docs/lvm.md)
 可以到 [Kubernetes](https://kubernetes.io/community/) 社区学到如何获取支持；
 
 可以到 [Cloud Provider SIG](https://github.com/kubernetes/community/tree/master/sig-cloud-provider) 联系到项目管理者；
+
+可以加入[钉钉群](https://qr.dingtalk.com/action/joingroup?code=v1,k1,xxf5eqc7eMgILnXxj9Chab8KNZFoPtD00kaOtTKg/Rk=&_dt_no_comment=1&origin=11)和我们一起讨论遇到的问题；
 
 
 ### 行为准则
