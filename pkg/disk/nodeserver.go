@@ -415,7 +415,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 				log.Errorf("NodeUnstageVolume: VolumeId: %s, umount path: %s failed with: %v", req.VolumeId, targetPath, err)
 				return nil, status.Error(codes.Internal, err.Error())
 			}
-			ns.mounter.SafePathRemove(targetPath)
+			err = ns.mounter.SafePathRemove(targetPath)
 			if err != nil {
 				log.Errorf("NodeUnstageVolume: VolumeId: %s, Remove targetPath failed, target %v", req.VolumeId, targetPath)
 				return nil, status.Error(codes.Internal, err.Error())
