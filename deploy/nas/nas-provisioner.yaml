@@ -69,6 +69,10 @@ spec:
           env:
             - name: CSI_ENDPOINT
               value: unix://socketDir/csi-nas.sock
+            - name: ACCESS_KEY_ID
+              value: ""
+            - name: ACCESS_KEY_SECRET
+              value: ""
           volumeMounts:
             - mountPath: /var/log/
               name: host-log

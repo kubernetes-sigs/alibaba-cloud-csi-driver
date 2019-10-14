@@ -21,11 +21,13 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"os"
 )
 
 const (
-	driverName  = "nasplugin.csi.alibabacloud.com"
-	INSTANCE_ID = "instance-id"
+	driverName   = "nasplugin.csi.alibabacloud.com"
+	INSTANCE_ID  = "instance-id"
+	REGIONID_TAG = "region-id"
 )
 
 var (
@@ -61,7 +63,15 @@ func NewDriver(nodeID, endpoint string) *nas {
 	})
 
 	d.driver = csiDriver
-	d.controllerServer = NewControllerServer(d.driver)
+
+	accessKeyID, accessSecret, accessToken := GetDefaultAK()
+	c := newNasClient(accessKeyID, accessSecret, accessToken)
+
+	region := os.Getenv("REGION_ID")
+	if region == "" {
+		region = GetMetaData(REGIONID_TAG)
+	}
+	d.controllerServer = NewControllerServer(d.driver, c, region)
 
 	return d
 }

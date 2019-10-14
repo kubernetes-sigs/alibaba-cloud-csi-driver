@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/Sirupsen/logrus v0.0.0-00010101000000-000000000000
-	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20190703055746-de62006faf99
+	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20191010082856-e76f4c50e182
 	github.com/container-storage-interface/spec v1.1.0
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/protobuf v1.3.0
@@ -32,7 +32,7 @@ require (
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/klog v0.3.1 // indirect
 	k8s.io/kubernetes v1.15.0
-	k8s.io/utils v0.0.0-20190221042446-c2654d5206da
+	k8s.io/utils v0.0.0-20190221042446-c2654d5206da // indirect
 	sigs.k8s.io/yaml v1.1.0 // indirect
 )
 
