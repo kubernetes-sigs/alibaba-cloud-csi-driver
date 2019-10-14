@@ -1,12 +1,24 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: alicloud-nas
+  name: alicloud-nas-fs
 mountOptions:
 - nolock,tcp,noresvport
-- vers=3
+- vers=4
 parameters:
-  volumeAs: filesystem
-  nfsType: Performance
+  # volumeAs is optional, should be 'filesystem' or 'subpath', default value is 'filesystem'
+  #volumeAs: filesystem
+  # storageType is optional, should be 'Performance' or 'Capacity', default value is 'Performance'
+  #storageType: Performance
+  # zoneId is optional, default value is the kubernetes cluster's worker's zoneId
+  #zoneId: cn-hangzhou-f
+  # vpcId is reqiured
+  vpcId: "vpc-xxxxxxxx"
+  # vSwitchId is reqiured
+  vSwitchId: "vsw-xxxxxxxx"
+  # accessGroupName is optional, default value is 'DEFAULT_VPC_GROUP_NAME'
+  #accessGroupName: "DEFAULT_VPC_GROUP_NAME"
+  # mode is optional, default value is '755'
+  #mode: "755"
 provisioner: nasplugin.csi.alibabacloud.com
 reclaimPolicy: Delete
