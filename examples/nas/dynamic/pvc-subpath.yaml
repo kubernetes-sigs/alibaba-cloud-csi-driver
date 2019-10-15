@@ -1,0 +1,11 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: nas-csi-pvc-sp
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: alicloud-nas-sp
+  resources:
+    requests:
+      storage: 20Gi
