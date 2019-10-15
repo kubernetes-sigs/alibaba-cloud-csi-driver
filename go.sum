@@ -2,6 +2,8 @@ cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMT
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20190703055746-de62006faf99 h1:K5tKKpMj+5pKdMj4xVhoLHqnOCEbiDH1SVRTaOhjaCQ=
 github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20190703055746-de62006faf99/go.mod h1:myCDvQSzCW+wB1WAlocEru4wMGJxy+vlxHdhegi1CDQ=
+github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20191010082856-e76f4c50e182 h1:O5/THFCvYdMFc+CELQAnVMfzTjAFUgIi9SeV4L1RZm4=
+github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20191010082856-e76f4c50e182/go.mod h1:myCDvQSzCW+wB1WAlocEru4wMGJxy+vlxHdhegi1CDQ=
 github.com/aliyun/aliyun-oss-go-sdk v0.0.0-20190307165228-86c17b95fcd5/go.mod h1:T/Aws4fEfogEE9v+HPhhw+CntffsBHJ8nXQCwKr0/g8=
 github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f/go.mod h1:AuiFmCCPBSrqvVMvuqFuk0qogytodnVFVSN5CeJB8Gc=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=

@@ -64,7 +64,7 @@ var (
 	// VERSION should be updated by hand at each release
 	VERSION = "v1.14.3"
 	// GITCOMMIT will be overwritten automatically by the build system
-	GITCOMMIT                    = "HEAD"
+	GITCOMMIT = "HEAD"
 	// KUBERNETES_ALICLOUD_IDENTITY is the system identity for ecs client request
 	KUBERNETES_ALICLOUD_IDENTITY = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", VERSION)
 )
