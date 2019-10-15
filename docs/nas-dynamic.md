@@ -20,6 +20,10 @@
 > "both": default option, log will be printed both to stdout and host file.
 
 ### Step 3: Create StorageClass for nas csi
+
+#### 3.1 Create `subpath` type nas volume
+The `subpath` type nas volume require you to create a nas fileSystem and mountTarget firstly
+
 ```
 # kubectl create -f ./examples/nas/dynamic/sc-subpath.yaml
 ```
@@ -53,6 +57,51 @@ Parameters:
 > mode: Optional. Define the mount option in pv spec, which will be used after mount action.
 >
 > archiveOnDelete: Optional. decide how to process removal path, if reclaimPolicy defined as delete. If set 'true', the removal path will be archived and not removed really, and if set 'false', the removal path will be removed when pv is deleted.
+
+#### 3.2 Create `filesystem` type nas volume
+The `filesystem` type nas volume will create/delete a nas fileSystem and mountTarget automatically.
+
+```
+# kubectl create -f ./examples/nas/dynamic/sc-filesystem.yaml
+```
+
+Below is a storageclass example:
+
+```
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: alicloud-nas-fs
+mountOptions:
+- nolock,tcp,noresvport
+- vers=4
+parameters:
+  volumeAs: filesystem
+  #storageType: Performance
+  #zoneId: cn-hangzhou-f
+  vpcId: "vpc-xxxxxxxx"
+  vSwitchId: "vsw-xxxxxxxx"
+  #accessGroupName: "DEFAULT_VPC_GROUP_NAME"
+provisioner: nasplugin.csi.alibabacloud.com
+reclaimPolicy: Delete
+```
+
+Parameters:
+
+> mountOptions: optional. specify the options for nfs mount.
+>
+> volumeAs: optional. Default as 'subpath'; specify the provision type: 'subpath' means the provision volume use subpath of exist nfs filesystem as target. And 'filesystem' means the provision volume use new created nfs filesystem as target.
+>
+> storageType: storageType is optional, should be 'Performance' or 'Capacity', default value is 'Performance'.
+>
+> zoneId: zoneId is optional, default value is the kubernetes cluster's worker's zoneId
+>
+> vpcId: vpcId is reqiured, it is the node's vpc id you want to mount to
+>
+> vSwitchId: vSwitchId is reqiured, it is the node's vSwitchId id you want to mount to
+>
+> accessGroupName: accessGroupName is optional, default value is 'DEFAULT_VPC_GROUP_NAME'
+
 
 ### Step 4: Check status of PVC
 ```
