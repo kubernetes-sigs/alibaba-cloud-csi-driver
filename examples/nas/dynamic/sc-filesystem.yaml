@@ -6,8 +6,8 @@ mountOptions:
 - nolock,tcp,noresvport
 - vers=4
 parameters:
-  # volumeAs is optional, should be 'filesystem' or 'subpath', default value is 'filesystem'
-  #volumeAs: filesystem
+  # volumeAs is optional, should be 'filesystem' or 'subpath', default value is 'subpath'
+  volumeAs: filesystem
   # storageType is optional, should be 'Performance' or 'Capacity', default value is 'Performance'
   #storageType: Performance
   # zoneId is optional, default value is the kubernetes cluster's worker's zoneId
