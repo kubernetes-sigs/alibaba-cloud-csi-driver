@@ -18,7 +18,5 @@ parameters:
   vSwitchId: "vsw-xxxxxxxx"
   # accessGroupName is optional, default value is 'DEFAULT_VPC_GROUP_NAME'
   #accessGroupName: "DEFAULT_VPC_GROUP_NAME"
-  # mode is optional, default value is '755'
-  #mode: "755"
 provisioner: nasplugin.csi.alibabacloud.com
 reclaimPolicy: Delete
