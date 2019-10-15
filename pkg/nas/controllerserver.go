@@ -398,7 +398,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 	if volumeAs == "subpath" {
 		// set the local mountpoint
-		mountPoint := filepath.Join(MNTROOTPATH, req.VolumeId, "-delete")
+		mountPoint := filepath.Join(MNTROOTPATH, req.VolumeId + "-delete")
 		if err := DoMount(nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, req.VolumeId); err != nil {
 			log.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
 			return nil, fmt.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
@@ -413,6 +413,10 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		deletePath := filepath.Join(mountPoint, pvName)
 		if _, err := os.Stat(deletePath); os.IsNotExist(err) {
 			log.Infof("Delete: Volume %s, Path %s does not exist, deletion skipped", req.VolumeId, deletePath)
+			// remove the pvc process mapping if exist
+			if ok, _ := pvcProcessSuccess[req.VolumeId]; ok {
+				delete(pvcProcessSuccess, req.VolumeId)
+			}
 			return &csi.DeleteVolumeResponse{}, nil
 		}
 
@@ -430,6 +434,10 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 					return nil, errors.New("Check Mount nfsserver fail " + nfsServer + " error with: " + err.Error())
 				}
 				log.Infof("Delete Successful: Volume %s, Removed path %s", req.VolumeId, deletePath)
+				// remove the pvc process mapping if exist
+				if ok, _ := pvcProcessSuccess[req.VolumeId]; ok {
+					delete(pvcProcessSuccess, req.VolumeId)
+				}
 				return &csi.DeleteVolumeResponse{}, nil
 			}
 		}
