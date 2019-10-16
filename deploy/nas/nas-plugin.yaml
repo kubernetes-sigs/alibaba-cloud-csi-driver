@@ -23,7 +23,7 @@ spec:
       tolerations:
       - operator: Exists
       priorityClassName: system-node-critical
-      serviceAccount: alicloud-csi-plugin
+      serviceAccount: admin
       hostNetwork: true
       hostPID: true
       containers:
@@ -56,7 +56,7 @@ spec:
           capabilities:
             add: ["SYS_ADMIN"]
           allowPrivilegeEscalation: true
-        image: registry.cn-hangzhou.aliyuncs.com/acs/csi-nasplugin:v1.14.5.14-e846047-aliyun
+        image: registry.cn-hangzhou.aliyuncs.com/acs/csi-nasplugin:v1.14.5.17-80ba90f-aliyun
         imagePullPolicy: "Always"
         args:
         - "--endpoint=$(CSI_ENDPOINT)"

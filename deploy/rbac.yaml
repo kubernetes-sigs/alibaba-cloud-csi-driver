@@ -11,7 +11,7 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: alicloud-csi-plugin
+  name: admin
   # replace with non-default namespace name
   namespace: default
 
@@ -71,7 +71,7 @@ metadata:
   name: alicloud-csi-plugin
 subjects:
   - kind: ServiceAccount
-    name: alicloud-csi-plugin
+    name: admin
     namespace: default
 roleRef:
   kind: ClusterRole

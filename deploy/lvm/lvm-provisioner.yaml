@@ -37,7 +37,7 @@ spec:
               - key: node-role.kubernetes.io/master
                 operator: Exists
       priorityClassName: system-node-critical
-      serviceAccount: alicloud-csi-plugin
+      serviceAccount: admin
       containers:
         - name: csi-provisioner
           image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.2.0
