@@ -49,7 +49,7 @@ spec:
             - "--v=5"
           env:
             - name: ADDRESS
-              value: /socketDir/csi-nas.sock
+              value: /socketDir/csi.sock
           imagePullPolicy: "Always"
           volumeMounts:
             - name: provisioner-dir
@@ -60,7 +60,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.5.14-e846047-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.5.17-80ba90f-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -68,7 +68,7 @@ spec:
             - "--driver=nasplugin.csi.alibabacloud.com"
           env:
             - name: CSI_ENDPOINT
-              value: unix://socketDir/csi-nas.sock
+              value: unix://socketDir/csi.sock
             - name: ACCESS_KEY_ID
               value: ""
             - name: ACCESS_KEY_SECRET
