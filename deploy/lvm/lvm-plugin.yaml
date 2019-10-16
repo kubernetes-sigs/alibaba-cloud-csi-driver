@@ -21,7 +21,7 @@ spec:
     spec:
       tolerations:
         - operator: Exists
-      serviceAccount: alicloud-csi-plugin
+      serviceAccount: admin
       priorityClassName: system-node-critical
       hostNetwork: true
       hostPID: true
