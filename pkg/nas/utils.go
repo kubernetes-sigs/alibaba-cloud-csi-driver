@@ -18,17 +18,19 @@ package nas
 
 import (
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
+	"path"
+	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"encoding/json"
 	log "github.com/Sirupsen/logrus"
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"io/ioutil"
-	"net/http"
-	"path/filepath"
-	"time"
 )
 
 const (
@@ -38,7 +40,7 @@ const (
 
 var (
 	// VERSION should be updated by hand at each release
-	VERSION = "v1.14.3"
+	VERSION = "v1.14.6"
 	// GITCOMMIT will be overwritten automatically by the build system
 	GITCOMMIT = "HEAD"
 	// KUBERNETES_ALICLOUD_IDENTITY is the system identity for ecs client request
@@ -56,7 +58,7 @@ type RoleAuth struct {
 }
 
 //DoMount execute the mount command for nas dir
-func DoMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeId string) error {
+func DoNfsMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeId string) error {
 	if !utils.IsFileExisting(mountPoint) {
 		CreateDest(mountPoint)
 	}
@@ -227,4 +229,101 @@ func newNasClient(accessKeyId, accessKeySecret, accessToken string) (nasClient *
 		}
 	}
 	return
+}
+
+func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+	select {
+	case <-c:
+		return false
+	case <-time.After(time.Duration(timeout) * time.Second):
+		return true
+	}
+
+}
+
+func createNasSubDir(nfsServer, nfsPath, nfsVers, nfsOptions string, volumeId string) error {
+	// step 1: create mount path
+	nasTmpPath := filepath.Join(NAS_TEMP_MNTPath, volumeId)
+	if err := utils.CreateDest(nasTmpPath); err != nil {
+		log.Infof("Create Nas temp Directory err: " + err.Error())
+		return err
+	}
+	if utils.IsMounted(nasTmpPath) {
+		utils.Umount(nasTmpPath)
+	}
+
+	// step 2: do mount
+	usePath := nfsPath
+	mntCmd := fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", nfsVers, nfsServer, "/", nasTmpPath)
+	if nfsOptions != "" {
+		mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s,%s %s:%s %s", nfsVers, nfsOptions, nfsServer, "/", nasTmpPath)
+	}
+	_, err := utils.Run(mntCmd)
+	if err != nil {
+		if strings.Contains(err.Error(), "reason given by server: No such file or directory") || strings.Contains(err.Error(), "access denied by server while mounting") {
+			if strings.HasPrefix(nfsPath, "/share/") {
+				usePath = usePath[6:]
+				mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", nfsVers, nfsServer, "/share", nasTmpPath)
+				if nfsOptions != "" {
+					mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s,%s %s:%s %s", nfsVers, nfsOptions, nfsServer, "/share", nasTmpPath)
+				}
+				_, err := utils.Run(mntCmd)
+				if err != nil {
+					log.Errorf("Nas, Mount to temp directory(with /share) fail: %s", err.Error())
+					return err
+				}
+			} else {
+				log.Errorf("Nas, maybe use fast nas, but path not startwith /share: %s", err.Error())
+				return err
+			}
+		} else {
+			log.Errorf("Nas, Mount to temp directory fail: %s", err.Error())
+			return err
+		}
+	}
+	subPath := path.Join(nasTmpPath, usePath)
+	if err := utils.CreateDest(subPath); err != nil {
+		log.Infof("Nas, Create Sub Directory err: " + err.Error())
+		return err
+	}
+
+	// step 3: umount after create
+	utils.Umount(nasTmpPath)
+	log.Infof("Create Sub Directory successful: %s", nfsPath)
+	return nil
+}
+
+// check system config,
+// if tcp_slot_table_entries not set to 128, just config.
+func checkSystemNasConfig() {
+	updateNasConfig := false
+	sunRpcFile := "/etc/modprobe.d/sunrpc.conf"
+	if !utils.IsFileExisting(sunRpcFile) {
+		updateNasConfig = true
+	} else {
+		chkCmd := fmt.Sprintf("cat %s | grep tcp_slot_table_entries | grep 128 | grep -v grep | wc -l", sunRpcFile)
+		out, err := utils.Run(chkCmd)
+		if err != nil {
+			log.Warnf("Update Nas system config check error: %s", err.Error())
+			return
+		}
+		if strings.TrimSpace(out) == "0" {
+			updateNasConfig = true
+		}
+	}
+
+	if updateNasConfig {
+		upCmd := fmt.Sprintf("echo \"options sunrpc tcp_slot_table_entries=128\" >> %s && echo \"options sunrpc tcp_max_slot_table_entries=128\" >> %s && sysctl -w sunrpc.tcp_slot_table_entries=128", sunRpcFile, sunRpcFile)
+		_, err := utils.Run(upCmd)
+		if err != nil {
+			log.Warnf("Update Nas system config error: %s", err.Error())
+			return
+		}
+		log.Warnf("Successful update Nas system config")
+	}
 }
