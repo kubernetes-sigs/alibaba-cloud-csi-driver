@@ -62,7 +62,7 @@ const (
 
 var (
 	// VERSION should be updated by hand at each release
-	VERSION = "v1.14.3"
+	VERSION = "v1.14.6"
 	// GITCOMMIT will be overwritten automatically by the build system
 	GITCOMMIT = "HEAD"
 	// KUBERNETES_ALICLOUD_IDENTITY is the system identity for ecs client request

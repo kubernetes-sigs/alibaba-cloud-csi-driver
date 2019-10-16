@@ -56,6 +56,8 @@ Parameters:
 >
 > mode: Optional. Define the mount option in pv spec, which will be used after mount action.
 >
+> modeType: Optional. Default non-recursive. Define the Mode action behavior, recursive: chmod with -R and chanage all files mode under the mounted directory. non-recursive: chmod without -R and only chanage the directory mode.
+>
 > archiveOnDelete: Optional. decide how to process removal path, if reclaimPolicy defined as delete. If set 'true', the removal path will be archived and not removed really, and if set 'false', the removal path will be removed when pv is deleted.
 
 #### 3.2 Create `filesystem` type nas volume
