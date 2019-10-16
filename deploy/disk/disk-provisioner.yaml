@@ -31,7 +31,7 @@ spec:
       nodeSelector:
         node-role.kubernetes.io/master: ""
       priorityClassName: system-node-critical
-      serviceAccount: alicloud-csi-plugin
+      serviceAccount: admin
       hostNetwork: true
       containers:
         - name: csi-provisioner
