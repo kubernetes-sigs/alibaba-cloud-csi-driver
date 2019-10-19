@@ -2,40 +2,6 @@ module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 
 go 1.12
 
-require (
-	github.com/Sirupsen/logrus v0.0.0-00010101000000-000000000000
-	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20191010082856-e76f4c50e182
-	github.com/container-storage-interface/spec v1.1.0
-	github.com/gogo/protobuf v1.2.1 // indirect
-	github.com/golang/protobuf v1.3.0
-	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf // indirect
-	github.com/googleapis/gnostic v0.2.0 // indirect
-	github.com/imdario/mergo v0.3.7 // indirect
-	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
-	github.com/kubernetes-csi/csi-lib-utils v0.6.1 // indirect
-	github.com/kubernetes-csi/drivers v1.0.2
-	github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443
-	github.com/sevlyar/go-daemon v0.1.5
-	github.com/sirupsen/logrus v1.4.2 // indirect
-	github.com/spf13/afero v1.2.2 // indirect
-	github.com/spf13/pflag v1.0.3 // indirect
-	golang.org/x/crypto v0.0.0-20190228161510-8dd112bcdc25 // indirect
-	golang.org/x/net v0.0.0-20190301231341-16b79f2e4e95
-	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a // indirect
-	golang.org/x/sys v0.0.0-20190626221950-04f50cda93cb // indirect
-	google.golang.org/genproto v0.0.0-20190307195333-5fe7a883aa19 // indirect
-	google.golang.org/grpc v1.19.0
-	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v2 v2.2.2 // indirect
-	k8s.io/api v0.0.0-20190624085159-95846d7ef82a // indirect
-	k8s.io/apimachinery v0.0.0-20190624085041-961b39a1baa0
-	k8s.io/client-go v11.0.0+incompatible
-	k8s.io/klog v0.3.1 // indirect
-	k8s.io/kubernetes v1.15.0
-	k8s.io/utils v0.0.0-20190221042446-c2654d5206da // indirect
-	sigs.k8s.io/yaml v1.1.0 // indirect
-)
-
 replace (
 	cloud.google.com/go => cloud.google.com/go v0.34.0
 	contrib.go.opencensus.io/exporter/ocagent => contrib.go.opencensus.io/exporter/ocagent v0.2.0
@@ -48,7 +14,6 @@ replace (
 	github.com/GoogleCloudPlatform/k8s-cloud-provider => github.com/GoogleCloudPlatform/k8s-cloud-provider v0.0.0-20181220005116-f8e995905100
 	github.com/PuerkitoBio/purell => github.com/PuerkitoBio/purell v1.1.1
 	github.com/PuerkitoBio/urlesc => github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578
-	github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.2.0
 	github.com/alecthomas/template => github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc
 	github.com/alecthomas/units => github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf
 	github.com/aws/aws-sdk-go => github.com/aws/aws-sdk-go v1.16.26
@@ -191,4 +156,34 @@ replace (
 	k8s.io/utils => k8s.io/utils v0.0.0-20190221042446-c2654d5206da
 	sigs.k8s.io/kustomize => sigs.k8s.io/kustomize v2.0.3+incompatible
 	sigs.k8s.io/yaml => sigs.k8s.io/yaml v1.1.0
+)
+
+require (
+	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20191018104822-1a1989a8bf37
+	github.com/container-storage-interface/spec v0.0.0-00010101000000-000000000000
+	github.com/gogo/protobuf v0.0.0-00010101000000-000000000000 // indirect
+	github.com/golang/protobuf v1.2.0
+	github.com/google/gofuzz v0.0.0-00010101000000-000000000000 // indirect
+	github.com/googleapis/gnostic v0.0.0-00010101000000-000000000000 // indirect
+	github.com/imdario/mergo v0.0.0-00010101000000-000000000000 // indirect
+	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
+	github.com/kubernetes-csi/csi-lib-utils v0.6.1 // indirect
+	github.com/kubernetes-csi/drivers v1.0.2
+	github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443
+	github.com/sevlyar/go-daemon v0.1.5
+	github.com/sirupsen/logrus v1.4.2
+	github.com/spf13/afero v0.0.0-00010101000000-000000000000 // indirect
+	github.com/spf13/pflag v0.0.0-00010101000000-000000000000 // indirect
+	golang.org/x/crypto v0.0.0-00010101000000-000000000000 // indirect
+	golang.org/x/net v0.0.0-20190213061140-3a22650c66bd
+	google.golang.org/grpc v1.19.0
+	gopkg.in/inf.v0 v0.0.0-00010101000000-000000000000 // indirect
+	gopkg.in/yaml.v2 v2.0.0-00010101000000-000000000000 // indirect
+	k8s.io/api v0.0.0-00010101000000-000000000000 // indirect
+	k8s.io/apimachinery v0.0.0-00010101000000-000000000000
+	k8s.io/client-go v0.0.0-00010101000000-000000000000
+	k8s.io/klog v0.0.0-00010101000000-000000000000 // indirect
+	k8s.io/kubernetes v0.0.0-00010101000000-000000000000
+	k8s.io/utils v0.0.0-00010101000000-000000000000 // indirect
+	sigs.k8s.io/yaml v0.0.0-00010101000000-000000000000 // indirect
 )

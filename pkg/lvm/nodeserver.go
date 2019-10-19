@@ -23,10 +23,10 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -169,7 +169,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// xfs filesystem works on targetpath.
-	if volumeNewCreated == false {
+	if !volumeNewCreated {
 		if err := ns.resizeVolume(ctx, volumeId, vgName, targetPath); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -301,7 +301,7 @@ func (ns *nodeServer) createVolume(ctx context.Context, volumeId, vgName, pvType
 	pvSize := ns.getPvSize(volumeId)
 
 	pvNumber := 0
-	var err error = nil
+	var err error
 	// Create VG if vg not exist,
 	if pvType == LOCAL_DISK {
 		if pvNumber, err = createVG(vgName); err != nil {
