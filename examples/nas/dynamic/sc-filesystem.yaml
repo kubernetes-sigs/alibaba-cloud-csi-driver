@@ -18,5 +18,7 @@ parameters:
   vSwitchId: "vsw-xxxxxxxx"
   # accessGroupName is optional, default value is 'DEFAULT_VPC_GROUP_NAME'
   #accessGroupName: "DEFAULT_VPC_GROUP_NAME"
+  # deleteVolume is optional, should be 'true' or 'false', default value is 'true'
+  #deleteVolume: "true"
 provisioner: nasplugin.csi.alibabacloud.com
 reclaimPolicy: Delete

@@ -84,6 +84,7 @@ parameters:
   vpcId: "vpc-xxxxxxxx"
   vSwitchId: "vsw-xxxxxxxx"
   #accessGroupName: "DEFAULT_VPC_GROUP_NAME"
+  #deleteVolume: "true"
 provisioner: nasplugin.csi.alibabacloud.com
 reclaimPolicy: Delete
 ```
@@ -103,6 +104,8 @@ Parameters:
 > vSwitchId: vSwitchId is reqiured, it is the node's vSwitchId id you want to mount to
 >
 > accessGroupName: accessGroupName is optional, default value is 'DEFAULT_VPC_GROUP_NAME'
+>
+> deleteVolume: deleteVolume is optional, default value is 'true'
 
 
 ### Step 4: Check status of PVC
