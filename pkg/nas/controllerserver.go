@@ -347,9 +347,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 
 	if volumeAs == "filesystem" {
-		if deleteVolume == "false" {
-			log.Infof("DeleteVolume: Nas Volume %s Filesystem's deleteVolume is [false], skip delete mountTarget and fileSystem", req.VolumeId)
-		} else {
+		if deleteVolume == "true" {
 			log.Infof("DeleteVolume: Start delete mountTarget %s for volume %s", nfsServer, req.VolumeId)
 			if fileSystemId == "" {
 				return nil, fmt.Errorf("DeleteVolume: Volume: %s in filesystem mode, with filesystemId empty", req.VolumeId)
@@ -380,6 +378,8 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				delete(pvcFileSystemIdMap, req.VolumeId)
 			}
 			log.Infof("DeleteVolume: Volume %s Filesystem %s deleted successfully", req.VolumeId, fileSystemId)
+		} else {
+			log.Infof("DeleteVolume: Nas Volume %s Filesystem's deleteVolume is [false], skip delete mountTarget and fileSystem", req.VolumeId)
 		}
 
 	}
@@ -535,13 +535,13 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 		// deleteVolume
 		value, ok := volOptions[DELETE_VOLUME]
 		if !ok {
-			nasVolArgs.DeleteVolume = true
+			nasVolArgs.DeleteVolume = false
 		} else {
 			value = strings.ToLower(value)
-			if value == "false" {
-				nasVolArgs.DeleteVolume = false
-			} else {
+			if value == "true" {
 				nasVolArgs.DeleteVolume = true
+			} else {
+				nasVolArgs.DeleteVolume = false
 			}
 		}
 	} else if nasVolArgs.VolumeAs == "subpath" {
