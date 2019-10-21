@@ -4,7 +4,7 @@ metadata:
   name: alicloud-nas-fs
 mountOptions:
 - nolock,tcp,noresvport
-- vers=4
+- vers=3
 parameters:
   # volumeAs is optional, should be 'filesystem' or 'subpath', default value is 'subpath'
   volumeAs: filesystem
@@ -18,7 +18,7 @@ parameters:
   vSwitchId: "vsw-xxxxxxxx"
   # accessGroupName is optional, default value is 'DEFAULT_VPC_GROUP_NAME'
   #accessGroupName: "DEFAULT_VPC_GROUP_NAME"
-  # deleteVolume is optional, should be 'true' or 'false', default value is 'true'
-  #deleteVolume: "true"
+  # deleteVolume is optional, should be 'true' or 'false', default value is 'false'
+  #deleteVolume: "false"
 provisioner: nasplugin.csi.alibabacloud.com
-reclaimPolicy: Delete
+reclaimPolicy: Retain
