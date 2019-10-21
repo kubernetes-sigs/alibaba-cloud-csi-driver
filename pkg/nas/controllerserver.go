@@ -57,6 +57,7 @@ const (
 	VPC_ID           = "vpcId"
 	V_SWITCH_ID      = "vSwitchId"
 	ACCESSGROUP_NAME = "accessGroupName"
+	DELETE_VOLUME    = "deleteVolume"
 )
 
 // controller server try to create/delete volumes
@@ -81,6 +82,7 @@ type nasVolumeArgs struct {
 	Server          string `json:"server"`
 	Mode            string `json:"mode"`
 	ModeType        string `json:"modeType"`
+	DeleteVolume    bool   `json:"deleteVolume"`
 }
 
 // used by check pvc is processed
@@ -220,6 +222,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		volumeContext["server"] = mountTargetDomain
 		volumeContext["path"] = filepath.Join("/")
 		volumeContext["vers"] = nfsVersion
+		volumeContext["deleteVolume"] = strconv.FormatBool(nasVol.DeleteVolume)
 		if value, ok := req.Parameters["options"]; ok && value != "" {
 			volumeContext["options"] = value
 		}
@@ -308,7 +311,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		return nil, fmt.Errorf("DeleteVolume: Get Volume: %s from cluster error: %s", req.VolumeId, err.Error())
 	}
 
-	volumeAs, fileSystemId, pvPath, nfsPath, nfsServer, nfsOptions := "", "", "", "", "", ""
+	volumeAs, fileSystemId, deleteVolume, pvPath, nfsPath, nfsServer, nfsOptions := "", "", "", "", "", "", ""
 	nfsOptions = strings.Join(pvInfo.Spec.MountOptions, ",")
 	if pvInfo.Spec.CSI == nil {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with CSI empty: %s, pv: %v", req.VolumeId, pvInfo)
@@ -320,6 +323,9 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 	if value, ok := pvInfo.Spec.CSI.VolumeAttributes["fileSystemId"]; ok {
 		fileSystemId = value
+	}
+	if value, ok := pvInfo.Spec.CSI.VolumeAttributes["deleteVolume"]; ok {
+		deleteVolume = value
 	}
 	if value, ok := pvInfo.Spec.CSI.VolumeAttributes["server"]; ok {
 		nfsServer = value
@@ -341,36 +347,41 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 
 	if volumeAs == "filesystem" {
-		log.Infof("DeleteVolume: Start delete mountTarget %s for volume %s", nfsServer, req.VolumeId)
-		if fileSystemId == "" {
-			return nil, fmt.Errorf("DeleteVolume: Volume: %s in filesystem mode, with filesystemId empty", req.VolumeId)
-		}
-		deleteMountTargetRequest := aliNas.CreateDeleteMountTargetRequest()
-		deleteMountTargetRequest.FileSystemId = fileSystemId
-		deleteMountTargetRequest.MountTargetDomain = nfsServer
-		deleteMountTargetResponse, err := cs.nasClient.DeleteMountTarget(deleteMountTargetRequest)
-		if err != nil {
-			log.Errorf("DeleteVolume: requestId[%s], volume[%s], fail to delete nas mountTarget %s: with %v", deleteMountTargetResponse.RequestId, req.VolumeId, nfsServer, err)
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		// remove the pvc mountTarget mapping if exist
-		if _, ok := pvcMountTargetMap[req.VolumeId]; ok {
-			delete(pvcMountTargetMap, req.VolumeId)
-		}
-		log.Infof("DeleteVolume: Volume %s MountTarget %s deleted successfully and Start delete filesystem %s", req.VolumeId, nfsServer, fileSystemId)
+		if deleteVolume == "false" {
+			log.Infof("DeleteVolume: Nas Volume %s Filesystem's deleteVolume is [false], skip delete mountTarget and fileSystem", req.VolumeId)
+		} else {
+			log.Infof("DeleteVolume: Start delete mountTarget %s for volume %s", nfsServer, req.VolumeId)
+			if fileSystemId == "" {
+				return nil, fmt.Errorf("DeleteVolume: Volume: %s in filesystem mode, with filesystemId empty", req.VolumeId)
+			}
+			deleteMountTargetRequest := aliNas.CreateDeleteMountTargetRequest()
+			deleteMountTargetRequest.FileSystemId = fileSystemId
+			deleteMountTargetRequest.MountTargetDomain = nfsServer
+			deleteMountTargetResponse, err := cs.nasClient.DeleteMountTarget(deleteMountTargetRequest)
+			if err != nil {
+				log.Errorf("DeleteVolume: requestId[%s], volume[%s], fail to delete nas mountTarget %s: with %v", deleteMountTargetResponse.RequestId, req.VolumeId, nfsServer, err)
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			// remove the pvc mountTarget mapping if exist
+			if _, ok := pvcMountTargetMap[req.VolumeId]; ok {
+				delete(pvcMountTargetMap, req.VolumeId)
+			}
+			log.Infof("DeleteVolume: Volume %s MountTarget %s deleted successfully and Start delete filesystem %s", req.VolumeId, nfsServer, fileSystemId)
 
-		deleteFileSystemRequest := aliNas.CreateDeleteFileSystemRequest()
-		deleteFileSystemRequest.FileSystemId = fileSystemId
-		deleteFileSystemResponse, err := cs.nasClient.DeleteFileSystem(deleteFileSystemRequest)
-		if err != nil {
-			log.Errorf("DeleteVolume: requestId[%s], volume %s fail to delete nas filesystem %s: with %v", deleteFileSystemResponse.RequestId, req.VolumeId, fileSystemId, err)
-			return nil, status.Error(codes.Internal, err.Error())
+			deleteFileSystemRequest := aliNas.CreateDeleteFileSystemRequest()
+			deleteFileSystemRequest.FileSystemId = fileSystemId
+			deleteFileSystemResponse, err := cs.nasClient.DeleteFileSystem(deleteFileSystemRequest)
+			if err != nil {
+				log.Errorf("DeleteVolume: requestId[%s], volume %s fail to delete nas filesystem %s: with %v", deleteFileSystemResponse.RequestId, req.VolumeId, fileSystemId, err)
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			// remove the pvc filesystem mapping if exist
+			if _, ok := pvcFileSystemIdMap[req.VolumeId]; ok {
+				delete(pvcFileSystemIdMap, req.VolumeId)
+			}
+			log.Infof("DeleteVolume: Volume %s Filesystem %s deleted successfully", req.VolumeId, fileSystemId)
 		}
-		// remove the pvc filesystem mapping if exist
-		if _, ok := pvcFileSystemIdMap[req.VolumeId]; ok {
-			delete(pvcFileSystemIdMap, req.VolumeId)
-		}
-		log.Infof("DeleteVolume: Volume %s Filesystem %s deleted successfully", req.VolumeId, fileSystemId)
+
 	}
 
 	if volumeAs == "subpath" {
@@ -521,6 +532,18 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 			nasVolArgs.AccessGroupName = "DEFAULT_VPC_GROUP_NAME"
 		}
 
+		// deleteVolume
+		value, ok := volOptions[DELETE_VOLUME]
+		if !ok {
+			nasVolArgs.DeleteVolume = true
+		} else {
+			value = strings.ToLower(value)
+			if value == "false" {
+				nasVolArgs.DeleteVolume = false
+			} else {
+				nasVolArgs.DeleteVolume = true
+			}
+		}
 	} else if nasVolArgs.VolumeAs == "subpath" {
 		// server
 		if nasVolArgs.Server, ok = volOptions[SERVER]; !ok {
