@@ -56,7 +56,7 @@ spec:
           capabilities:
             add: ["SYS_ADMIN"]
           allowPrivilegeEscalation: true
-        image: registry.cn-hangzhou.aliyuncs.com/acs/csi-nasplugin:v1.14.6-7a74097
+        image: registry.cn-hangzhou.aliyuncs.com/acs/csi-nasplugin:v1.14.6-c770df3
         imagePullPolicy: "Always"
         args:
         - "--endpoint=$(CSI_ENDPOINT)"
