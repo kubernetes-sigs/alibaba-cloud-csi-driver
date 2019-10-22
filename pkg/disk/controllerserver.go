@@ -84,8 +84,15 @@ func NewControllerServer(d *csicommon.CSIDriver, client *ecs.Client, region stri
 	return c
 }
 
-//var diskVolumes = map[string]*csi.Volume{}
-//var diskVolumeSnapshots = map[string]*diskSnapshot{}
+// the map of req.Name and csi.Volume
+var createdVolumeMap = map[string]*csi.Volume{}
+
+// the map of multizone and index
+var storageClassZonePos = map[string]int{}
+
+// the map of diskId and pvName
+// diskId and pvName is not same under csi plugin
+var diskIdPVMap = map[string]string{}
 
 // provisioner: create/delete disk
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
@@ -103,6 +110,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if req.VolumeCapabilities == nil {
 		log.Errorf("CreateVolume: Volume Capabilities cannot be empty")
 		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
+	}
+	if value, ok := createdVolumeMap[req.Name]; ok {
+		log.Infof("CreateVolume: volume already be created pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, value.VolumeId, value.VolumeContext)
+		return &csi.CreateVolumeResponse{Volume: value}, nil
 	}
 
 	diskVol, err := cs.getDiskVolumeOptions(req)
@@ -130,8 +141,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Errorf(codes.Internal, "fatal issue: duplicate disk %s exists, with %v", req.Name, disks)
 	} else if len(disks) == 1 {
 		disk := disks[0]
-		if disk.Size != requestGB || disk.ZoneId != diskVol.ZoneId || disk.Encrypted != diskVol.Encrypted || disk.Type != diskVol.Type {
-			log.Errorf("CreateVolume: exist disk %s size is different with requested for disk: existing size: %d, request size: %d", req.GetName(), disk.Size, requestGB)
+		if disk.Size != requestGB || disk.ZoneId != diskVol.ZoneId || disk.Encrypted != diskVol.Encrypted || disk.Category != diskVol.Type {
+			log.Errorf("CreateVolume: exist disk %s size is different with requested for disk: existing size: %d, request size: %d", req.GetName(), disk.Size, requestGB, disk.ZoneId, diskVol.ZoneId, disk.Encrypted, diskVol.Encrypted, disk.Category, diskVol.Type)
 			return nil, status.Errorf(codes.Internal, "disk %s size is different with requested for disk", req.GetName())
 		}
 		log.Infof("CreateVolume: Volume %s is already created: %s, %s, %s, %d", req.GetName(), disk.DiskId, disk.RegionId, disk.ZoneId, disk.Size)
@@ -212,6 +223,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		},
 	}
 
+	diskIdPVMap[volumeResponse.DiskId] = req.Name
+	createdVolumeMap[req.Name] = tmpVol
 	return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 }
 
@@ -239,6 +252,11 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			return nil, status.Errorf(codes.Aborted, errMsg)
 		}
 		return nil, status.Errorf(codes.Internal, errMsg)
+	}
+
+	if value, ok := diskIdPVMap[req.VolumeId]; ok {
+		delete(createdVolumeMap, value)
+		delete(diskIdPVMap, req.VolumeId)
 	}
 	log.Infof("DeleteVolume: Successfully deleting volume: %s, with RequestId: %s", req.GetVolumeId(), response.RequestId)
 	return &csi.DeleteVolumeResponse{}, nil
@@ -511,6 +529,18 @@ func (cs *controllerServer) getDiskVolumeOptions(req *csi.CreateVolumeRequest) (
 			log.Errorf("CreateVolume: Can't get topology info , please check your setup or set zone ID in storage class. Use zone from Meta service: %s", req.Name)
 			diskVolArgs.ZoneId = GetMetaData(ZONEID_TAG)
 		}
+	}
+	// Support Multi zones if set;
+	zoneIdStr := diskVolArgs.ZoneId
+	zones := strings.Split(zoneIdStr, ",")
+	zoneNum := len(zones)
+	if zoneNum > 1 {
+		if _, ok := storageClassZonePos[zoneIdStr]; !ok {
+			storageClassZonePos[zoneIdStr] = 0
+		}
+		zoneIndex := storageClassZonePos[zoneIdStr] % zoneNum
+		diskVolArgs.ZoneId = zones[zoneIndex]
+		storageClassZonePos[zoneIdStr]++
 	}
 	diskVolArgs.RegionId, ok = volOptions["regionId"]
 	if !ok {

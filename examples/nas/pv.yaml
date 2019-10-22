@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nas-csi-pv
+  labels:
+    alicloud-pvname: nas-csi-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: nasplugin.csi.alibabacloud.com
+    # volumeHandle set same value as pvname
+    volumeHandle: nas-csi-pv
+    volumeAttributes:
+      server: "***.cn-beijing.nas.aliyuncs.com"
+      path: "/k8s"
+      vers: "4.0"
