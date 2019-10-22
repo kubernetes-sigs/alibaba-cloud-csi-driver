@@ -1,11 +1,9 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: csi-disk
+   name: alicloud-disk-topoloy
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
-    fsType: ext4
     type: cloud_ssd
-    readOnly: "false"
-reclaimPolicy: Delete
+reclaimPolicy: Retain
 volumeBindingMode: WaitForFirstConsumer
