@@ -9,4 +9,4 @@ parameters:
     fsType: ext4
     type: san_ssd
     readOnly: "false"
-reclaimPolicy: Delete
+reclaimPolicy: Retain

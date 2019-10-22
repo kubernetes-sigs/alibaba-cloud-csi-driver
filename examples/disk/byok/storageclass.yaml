@@ -9,4 +9,4 @@ parameters:
     readOnly: "false"
     encrypted: "true"
     kmsKeyId: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-reclaimPolicy: Delete
+reclaimPolicy: Retain
