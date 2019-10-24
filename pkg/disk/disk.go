@@ -54,7 +54,7 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *disk {
 	tmpdisk.endpoint = endpoint
 
 	if nodeID == "" {
-		nodeID = GetMetaData(INSTANCE_ID)
+		nodeID = GetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, nodeID)
@@ -78,7 +78,7 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *disk {
 
 	region := os.Getenv("REGION_ID")
 	if region == "" {
-		region = GetMetaData(REGIONID_TAG)
+		region = GetMetaData(RegionIDTag)
 	}
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)

@@ -41,23 +41,23 @@ import (
 // resourcemode is selected by: subpath/filesystem
 const (
 	MNTROOTPATH      = "/csi-persistentvolumes"
-	MB_SIZE          = 1024 * 1024
+	MBSize          = 1024 * 1024
 	DRIVER           = "driver"
 	SERVER           = "server"
 	MODE             = "mode"
-	MODE_TYPE        = "modeType"
-	VOLUMEAS         = "volumeAs"
+	ModeType        = "modeType"
+	VolumeAs         = "volumeAs"
 	PATH             = "path"
-	PROTOCAL_TYPE    = "protocalType"
-	STORAGE_TYPE     = "storageType"
-	ZONE_ID          = "zoneId"
+	ProtocolType    = "protocolType"
+	StorageType     = "storageType"
+	ZoneID          = "zoneId"
 	DESCRIPTION      = "description"
-	ZONEID_TAG       = "zone-id"
-	NETWORK_TYPE     = "networkType"
-	VPC_ID           = "vpcId"
-	V_SWITCH_ID      = "vSwitchId"
-	ACCESSGROUP_NAME = "accessGroupName"
-	DELETE_VOLUME    = "deleteVolume"
+	ZoneIDTag       = "zone-id"
+	NetworkType     = "networkType"
+	VpcID           = "vpcId"
+	VSwitchID      = "vSwitchId"
+	AccessGroupName = "accessGroupName"
+	DeleteVolume    = "deleteVolume"
 )
 
 // controller server try to create/delete volumes
@@ -71,13 +71,13 @@ type controllerServer struct {
 // Alibaba Cloud nas volume parameters
 type nasVolumeArgs struct {
 	VolumeAs        string `json:"volumeAs"`
-	ProtocalType    string `json:"protocalType"`
+	ProtocolType    string `json:"protocolType"`
 	StorageType     string `json:"storageType"`
-	ZoneId          string `json:"zoneId"`
+	ZoneID          string `json:"zoneId"`
 	Description     string `json:"description"`
 	NetworkType     string `json:"networkType"`
-	VpcId           string `json:"vpcId"`
-	VSwitchId       string `json:"vSwitchId"`
+	VpcID           string `json:"vpcId"`
+	VSwitchID       string `json:"vSwitchId"`
 	AccessGroupName string `json:"accessGroupName"`
 	Server          string `json:"server"`
 	Mode            string `json:"mode"`
@@ -88,7 +88,7 @@ type nasVolumeArgs struct {
 // used by check pvc is processed
 var pvcProcessSuccess = map[string]*csi.Volume{}
 var storageClassServerPos = map[string]int{}
-var pvcFileSystemIdMap = map[string]string{}
+var pvcFileSystemIDMap = map[string]string{}
 var pvcMountTargetMap = map[string]string{}
 
 // NewControllerServer is to create controller server
@@ -149,26 +149,26 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	csiTargetVol := &csi.Volume{}
 	if nasVol.VolumeAs == "filesystem" {
 		cs.nasClient = updateNasClient(cs.nasClient)
-		fileSystemId := ""
+		fileSystemID := ""
 		// if the pvc mapped fileSystem is already create, skip creating a filesystem
-		if value, ok := pvcFileSystemIdMap[pvName]; ok && value != "" {
+		if value, ok := pvcFileSystemIDMap[pvName]; ok && value != "" {
 			log.Warnf("CreateVolume: Nfs Volume(%s)'s filesystem %s has Created Already, try to create mountTarget", pvName, value)
-			fileSystemId = value
+			fileSystemID = value
 		} else {
 			createFileSystemsRequest := aliNas.CreateCreateFileSystemRequest()
-			createFileSystemsRequest.ProtocolType = nasVol.ProtocalType
+			createFileSystemsRequest.ProtocolType = nasVol.ProtocolType
 			createFileSystemsRequest.StorageType = nasVol.StorageType
-			createFileSystemsRequest.ZoneId = nasVol.ZoneId
+			createFileSystemsRequest.ZoneId = nasVol.ZoneID
 			createFileSystemsRequest.Description = nasVol.Description
-			log.Infof("CreateVolume: Volume: %s, Create Nas filesystem with: %v, %v, %v, %v, %v", pvName, cs.region, nasVol.ProtocalType, nasVol.StorageType, nasVol.ZoneId, nasVol.Description)
+			log.Infof("CreateVolume: Volume: %s, Create Nas filesystem with: %v, %v, %v, %v, %v", pvName, cs.region, nasVol.ProtocolType, nasVol.StorageType, nasVol.ZoneID, nasVol.Description)
 
 			createFileSystemsResponse, err := cs.nasClient.CreateFileSystem(createFileSystemsRequest)
 			if err != nil {
 				log.Errorf("CreateVolume: requestId[%s], fail to create nas filesystems %s: with %v", createFileSystemsResponse.RequestId, req.GetName(), err)
 				return nil, status.Error(codes.Internal, err.Error())
 			}
-			fileSystemId = createFileSystemsResponse.FileSystemId
-			pvcFileSystemIdMap[pvName] = fileSystemId
+			fileSystemID = createFileSystemsResponse.FileSystemId
+			pvcFileSystemIDMap[pvName] = fileSystemID
 		}
 
 		// if mountTarget is already created, skip create a mountTarget
@@ -178,14 +178,14 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			mountTargetDomain = value
 		} else {
 			createMountTargetRequest := aliNas.CreateCreateMountTargetRequest()
-			createMountTargetRequest.FileSystemId = fileSystemId
+			createMountTargetRequest.FileSystemId = fileSystemID
 			createMountTargetRequest.NetworkType = nasVol.NetworkType
 			if createMountTargetRequest.NetworkType == "vpc" {
-				createMountTargetRequest.VpcId = nasVol.VpcId
-				createMountTargetRequest.VSwitchId = nasVol.VSwitchId
+				createMountTargetRequest.VpcId = nasVol.VpcID
+				createMountTargetRequest.VSwitchId = nasVol.VSwitchID
 			}
 			createMountTargetRequest.AccessGroupName = nasVol.AccessGroupName
-			log.Infof("CreateVolume: Volume(%s), Create Nas mountTarget with: %v, %v, %v, %v, %v", pvName, fileSystemId, nasVol.NetworkType, nasVol.VpcId, nasVol.VSwitchId, nasVol.AccessGroupName)
+			log.Infof("CreateVolume: Volume(%s), Create Nas mountTarget with: %v, %v, %v, %v, %v", pvName, fileSystemID, nasVol.NetworkType, nasVol.VpcID, nasVol.VSwitchID, nasVol.AccessGroupName)
 
 			createMountTargetResponse, err := cs.nasClient.CreateMountTarget(createMountTargetRequest)
 			if err != nil {
@@ -197,7 +197,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 
 		describeMountTargetsRequest := aliNas.CreateDescribeMountTargetsRequest()
-		describeMountTargetsRequest.FileSystemId = fileSystemId
+		describeMountTargetsRequest.FileSystemId = fileSystemID
 		describeMountTargetsRequest.MountTargetDomain = mountTargetDomain
 		// describe mountTarget 3 times util its status is active
 		for i := 1; i <= 3; i++ {
@@ -218,7 +218,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 
 		volumeContext["volumeAs"] = nasVol.VolumeAs
-		volumeContext["fileSystemId"] = fileSystemId
+		volumeContext["fileSystemId"] = fileSystemID
 		volumeContext["server"] = mountTargetDomain
 		volumeContext["path"] = filepath.Join("/")
 		volumeContext["vers"] = nfsVersion
@@ -311,7 +311,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		return nil, fmt.Errorf("DeleteVolume: Get Volume: %s from cluster error: %s", req.VolumeId, err.Error())
 	}
 
-	volumeAs, fileSystemId, deleteVolume, pvPath, nfsPath, nfsServer, nfsOptions := "", "", "", "", "", "", ""
+	volumeAs, fileSystemID, deleteVolume, pvPath, nfsPath, nfsServer, nfsOptions := "", "", "", "", "", "", ""
 	nfsOptions = strings.Join(pvInfo.Spec.MountOptions, ",")
 	if pvInfo.Spec.CSI == nil {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with CSI empty: %s, pv: %v", req.VolumeId, pvInfo)
@@ -322,7 +322,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		volumeAs = value
 	}
 	if value, ok := pvInfo.Spec.CSI.VolumeAttributes["fileSystemId"]; ok {
-		fileSystemId = value
+		fileSystemID = value
 	}
 	if value, ok := pvInfo.Spec.CSI.VolumeAttributes["deleteVolume"]; ok {
 		deleteVolume = value
@@ -349,11 +349,11 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	if volumeAs == "filesystem" {
 		if deleteVolume == "true" {
 			log.Infof("DeleteVolume: Start delete mountTarget %s for volume %s", nfsServer, req.VolumeId)
-			if fileSystemId == "" {
+			if fileSystemID == "" {
 				return nil, fmt.Errorf("DeleteVolume: Volume: %s in filesystem mode, with filesystemId empty", req.VolumeId)
 			}
 			deleteMountTargetRequest := aliNas.CreateDeleteMountTargetRequest()
-			deleteMountTargetRequest.FileSystemId = fileSystemId
+			deleteMountTargetRequest.FileSystemId = fileSystemID
 			deleteMountTargetRequest.MountTargetDomain = nfsServer
 			deleteMountTargetResponse, err := cs.nasClient.DeleteMountTarget(deleteMountTargetRequest)
 			if err != nil {
@@ -364,20 +364,20 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			if _, ok := pvcMountTargetMap[req.VolumeId]; ok {
 				delete(pvcMountTargetMap, req.VolumeId)
 			}
-			log.Infof("DeleteVolume: Volume %s MountTarget %s deleted successfully and Start delete filesystem %s", req.VolumeId, nfsServer, fileSystemId)
+			log.Infof("DeleteVolume: Volume %s MountTarget %s deleted successfully and Start delete filesystem %s", req.VolumeId, nfsServer, fileSystemID)
 
 			deleteFileSystemRequest := aliNas.CreateDeleteFileSystemRequest()
-			deleteFileSystemRequest.FileSystemId = fileSystemId
+			deleteFileSystemRequest.FileSystemId = fileSystemID
 			deleteFileSystemResponse, err := cs.nasClient.DeleteFileSystem(deleteFileSystemRequest)
 			if err != nil {
-				log.Errorf("DeleteVolume: requestId[%s], volume %s fail to delete nas filesystem %s: with %v", deleteFileSystemResponse.RequestId, req.VolumeId, fileSystemId, err)
+				log.Errorf("DeleteVolume: requestId[%s], volume %s fail to delete nas filesystem %s: with %v", deleteFileSystemResponse.RequestId, req.VolumeId, fileSystemID, err)
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 			// remove the pvc filesystem mapping if exist
-			if _, ok := pvcFileSystemIdMap[req.VolumeId]; ok {
-				delete(pvcFileSystemIdMap, req.VolumeId)
+			if _, ok := pvcFileSystemIDMap[req.VolumeId]; ok {
+				delete(pvcFileSystemIDMap, req.VolumeId)
 			}
-			log.Infof("DeleteVolume: Volume %s Filesystem %s deleted successfully", req.VolumeId, fileSystemId)
+			log.Infof("DeleteVolume: Volume %s Filesystem %s deleted successfully", req.VolumeId, fileSystemID)
 		} else {
 			log.Infof("DeleteVolume: Nas Volume %s Filesystem's deleteVolume is [false], skip delete mountTarget and fileSystem", req.VolumeId)
 		}
@@ -475,30 +475,30 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 	nasVolArgs := &nasVolumeArgs{}
 	volOptions := req.GetParameters()
 
-	if nasVolArgs.VolumeAs, ok = volOptions[VOLUMEAS]; !ok {
+	if nasVolArgs.VolumeAs, ok = volOptions[VolumeAs]; !ok {
 		nasVolArgs.VolumeAs = "subpath"
 	} else if nasVolArgs.VolumeAs != "filesystem" && nasVolArgs.VolumeAs != "subpath" {
 		return nil, fmt.Errorf("Required parameter [parameter.volumeAs] must be [filesystem] or [subpath]")
 	}
 
 	if nasVolArgs.VolumeAs == "filesystem" {
-		// protocalType
-		if nasVolArgs.ProtocalType, ok = volOptions[PROTOCAL_TYPE]; !ok {
-			nasVolArgs.ProtocalType = "NFS"
-		} else if nasVolArgs.ProtocalType != "NFS" {
-			return nil, fmt.Errorf("Required parameter [parameter.protocalType] must be [NFS]")
+		// protocolType
+		if nasVolArgs.ProtocolType, ok = volOptions[ProtocolType]; !ok {
+			nasVolArgs.ProtocolType = "NFS"
+		} else if nasVolArgs.ProtocolType != "NFS" {
+			return nil, fmt.Errorf("Required parameter [parameter.protocolType] must be [NFS]")
 		}
 
 		// storageType
-		if nasVolArgs.StorageType, ok = volOptions[STORAGE_TYPE]; !ok {
+		if nasVolArgs.StorageType, ok = volOptions[StorageType]; !ok {
 			nasVolArgs.StorageType = "Performance"
 		} else if nasVolArgs.StorageType != "Performance" && nasVolArgs.StorageType != "Capacity" {
 			return nil, fmt.Errorf("Required parameter [parameter.storageType] must be [Performance] or [Capacity]")
 		}
 
 		// zoneId
-		if nasVolArgs.ZoneId, ok = volOptions[ZONE_ID]; !ok {
-			nasVolArgs.ZoneId = GetMetaData(ZONEID_TAG)
+		if nasVolArgs.ZoneID, ok = volOptions[ZoneID]; !ok {
+			nasVolArgs.ZoneID = GetMetaData(ZoneIDTag)
 		}
 
 		// description
@@ -507,33 +507,33 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 		}
 
 		// networkType
-		if nasVolArgs.NetworkType, ok = volOptions[NETWORK_TYPE]; !ok {
+		if nasVolArgs.NetworkType, ok = volOptions[NetworkType]; !ok {
 			nasVolArgs.NetworkType = "vpc"
 		} else if nasVolArgs.NetworkType != "vpc" && nasVolArgs.NetworkType != "classic" {
 			return nil, fmt.Errorf("Required parameter [parameter.networkType] must be [vpc] or [classic]")
 		}
 
 		// vpcId
-		if nasVolArgs.VpcId, ok = volOptions[VPC_ID]; !ok {
+		if nasVolArgs.VpcID, ok = volOptions[VpcID]; !ok {
 			if nasVolArgs.NetworkType == "vpc" {
 				return nil, fmt.Errorf("Required parameter [parameter.vpcId] must be set because [parameter.networkType] is [vpc]")
 			}
 		}
 
 		// vSwitchId
-		if nasVolArgs.VSwitchId, ok = volOptions[V_SWITCH_ID]; !ok {
+		if nasVolArgs.VSwitchID, ok = volOptions[VSwitchID]; !ok {
 			if nasVolArgs.NetworkType == "vpc" {
 				return nil, fmt.Errorf("Required parameter [parameter.vSwitchId] must be set because [parameter.networkType] is [vpc]")
 			}
 		}
 
 		// accessGroupName
-		if nasVolArgs.AccessGroupName, ok = volOptions[ACCESSGROUP_NAME]; !ok {
+		if nasVolArgs.AccessGroupName, ok = volOptions[AccessGroupName]; !ok {
 			nasVolArgs.AccessGroupName = "DEFAULT_VPC_GROUP_NAME"
 		}
 
 		// deleteVolume
-		value, ok := volOptions[DELETE_VOLUME]
+		value, ok := volOptions[DeleteVolume]
 		if !ok {
 			nasVolArgs.DeleteVolume = false
 		} else {
@@ -556,7 +556,7 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 		}
 
 		// modeType
-		if nasVolArgs.ModeType, ok = volOptions[MODE_TYPE]; !ok {
+		if nasVolArgs.ModeType, ok = volOptions[ModeType]; !ok {
 			nasVolArgs.Mode = "non-recursive"
 		}
 	}
