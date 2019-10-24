@@ -6,7 +6,7 @@ spec:
   attachRequired: false
 ---
 kind: DaemonSet
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 metadata:
   name: csi-lvm-plugin
   namespace: kube-system
