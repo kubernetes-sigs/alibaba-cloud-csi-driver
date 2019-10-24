@@ -42,19 +42,26 @@ type DefaultOptions struct {
 }
 
 const (
-	USER_AKID      = "/etc/.volumeak/akId"
-	USER_AKSECRET  = "/etc/.volumeak/akSecret"
-	METADATA_URL   = "http://100.100.100.200/latest/meta-data/"
-	REGIONID_TAG   = "region-id"
-	INSTANCEID_TAG = "instance-id"
-	DEFAULT_REGION = "cn-hangzhou"
+	// UserAKID is user AK ID
+	UserAKID      = "/etc/.volumeak/akId"
+	// UserAKSecret is user AK Secret
+	UserAKSecret  = "/etc/.volumeak/akSecret"
+	// MetadataURL is metadata url
+	MetadataURL   = "http://100.100.100.200/latest/meta-data/"
+	// RegionIDTag is region id
+	RegionIDTag   = "region-id"
+	// InstanceIDTag is instance id
+	InstanceIDTag = "instance-id"
+	// DefaultRegion is default region
+	DefaultRegion = "cn-hangzhou"
 )
 
-var KUBERNETES_ALICLOUD_IDENTITY = fmt.Sprintf("Kubernetes.Alicloud/CsiPlugin")
+// KubernetesAlicloudIdentity set a identity label
+var KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiPlugin")
 
-// Define STS Token Response
+// RoleAuth define STS Token Response
 type RoleAuth struct {
-	AccessKeyId     string
+	AccessKeyID     string
 	AccessKeySecret string
 	Expiration      time.Time
 	SecurityToken   string
@@ -62,6 +69,7 @@ type RoleAuth struct {
 	Code            string
 }
 
+// Succeed return a Succeed Result
 func Succeed(a ...interface{}) Result {
 	return Result{
 		Status:  "Success",
@@ -69,6 +77,7 @@ func Succeed(a ...interface{}) Result {
 	}
 }
 
+// NotSupport return a NotSupport Result
 func NotSupport(a ...interface{}) Result {
 	return Result{
 		Status:  "Not supported",
@@ -76,6 +85,7 @@ func NotSupport(a ...interface{}) Result {
 	}
 }
 
+// Fail return a Fail Result
 func Fail(a ...interface{}) Result {
 	return Result{
 		Status:  "Failure",
@@ -83,14 +93,14 @@ func Fail(a ...interface{}) Result {
 	}
 }
 
-// Result
+// Result struct definition
 type Result struct {
 	Status  string `json:"status"`
 	Message string `json:"message,omitempty"`
 	Device  string `json:"device,omitempty"`
 }
 
-// run shell command
+// Run run shell command
 func Run(cmd string) (string, error) {
 	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
 	if err != nil {
@@ -99,6 +109,7 @@ func Run(cmd string) (string, error) {
 	return string(out), nil
 }
 
+// CreateDest create de destination dir
 func CreateDest(dest string) error {
 	fi, err := os.Lstat(dest)
 
@@ -116,6 +127,7 @@ func CreateDest(dest string) error {
 	return nil
 }
 
+// IsMounted return status of mount operation
 func IsMounted(mountPath string) bool {
 	cmd := fmt.Sprintf("mount | grep %s | grep -v grep | wc -l", mountPath)
 	out, err := Run(cmd)
@@ -129,6 +141,7 @@ func IsMounted(mountPath string) bool {
 	return true
 }
 
+// Umount do an unmount operation
 func Umount(mountPath string) bool {
 	cmd := fmt.Sprintf("umount %s", mountPath)
 	_, err := Run(cmd)
@@ -138,7 +151,7 @@ func Umount(mountPath string) bool {
 	return true
 }
 
-// check file exist in volume driver;
+// IsFileExisting check file exist in volume driver or not
 func IsFileExisting(filename string) bool {
 	_, err := os.Stat(filename)
 	if err == nil {
@@ -150,22 +163,22 @@ func IsFileExisting(filename string) bool {
 	return true
 }
 
-// Get regionid instanceid;
-func GetRegionAndInstanceId() (string, string, error) {
-	regionId, err := GetMetaData(REGIONID_TAG)
+// GetRegionAndInstanceID get region and instanceID object
+func GetRegionAndInstanceID() (string, string, error) {
+	regionID, err := GetMetaData(RegionIDTag)
 	if err != nil {
 		return "", "", err
 	}
-	instanceId, err := GetMetaData(INSTANCEID_TAG)
+	instanceID, err := GetMetaData(InstanceIDTag)
 	if err != nil {
 		return "", "", err
 	}
-	return regionId, instanceId, nil
+	return regionID, instanceID, nil
 }
 
 //GetMetaData get metadata from ecs meta-server
 func GetMetaData(resource string) (string, error) {
-	resp, err := http.Get(METADATA_URL + resource)
+	resp, err := http.Get(MetadataURL + resource)
 	if err != nil {
 		return "", err
 	}
@@ -177,7 +190,8 @@ func GetMetaData(resource string) (string, error) {
 	return string(body), nil
 }
 
-func GetRegionIdAndInstanceId(nodeName string) (string, string, error) {
+// GetRegionIDAndInstanceID get regionID and instanceID object
+func GetRegionIDAndInstanceID(nodeName string) (string, string, error) {
 	strs := strings.SplitN(nodeName, ".", 2)
 	if len(strs) < 2 {
 		return "", "", fmt.Errorf("failed to get regionID and instanceId from nodeName")
@@ -185,8 +199,8 @@ func GetRegionIdAndInstanceId(nodeName string) (string, string, error) {
 	return strs[0], strs[1], nil
 }
 
-// save json data to file
-func WriteJosnFile(obj interface{}, file string) error {
+// WriteJSONFile write a json object
+func WriteJSONFile(obj interface{}, file string) error {
 	maps := make(map[string]interface{})
 	t := reflect.TypeOf(obj)
 	v := reflect.ValueOf(obj)
@@ -195,15 +209,15 @@ func WriteJosnFile(obj interface{}, file string) error {
 			maps[t.Field(i).Name] = v.Field(i).String()
 		}
 	}
-	rankingsJson, _ := json.Marshal(maps)
-	if err := ioutil.WriteFile(file, rankingsJson, 0644); err != nil {
+	rankingsJSON, _ := json.Marshal(maps)
+	if err := ioutil.WriteFile(file, rankingsJSON, 0644); err != nil {
 		return err
 	}
 	return nil
 }
 
-// parse json to struct
-func ReadJsonFile(file string) (map[string]string, error) {
+// ReadJSONFile return a json object
+func ReadJSONFile(file string) (map[string]string, error) {
 	jsonObj := map[string]string{}
 	raw, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -221,15 +235,15 @@ func GetLocalAK() (string, string) {
 	accessKeyID, accessSecret := "", ""
 	//accessKeyID, accessSecret = GetLocalAK()
 	//if accessKeyID == "" || accessSecret == "" {
-	if IsFileExisting(USER_AKID) && IsFileExisting(USER_AKSECRET) {
-		raw, err := ioutil.ReadFile(USER_AKID)
+	if IsFileExisting(UserAKID) && IsFileExisting(UserAKSecret) {
+		raw, err := ioutil.ReadFile(UserAKID)
 		if err != nil {
 			log.Errorf("Read User AK ID file error: %s", err.Error())
 			return "", ""
 		}
 		accessKeyID = string(raw)
 
-		raw, err = ioutil.ReadFile(USER_AKSECRET)
+		raw, err = ioutil.ReadFile(UserAKSecret)
 		if err != nil {
 			log.Errorf("Read User AK Secret file error: %s", err.Error())
 			return "", ""
@@ -276,18 +290,19 @@ func GetSTSAK() (string, string, string) {
 		log.Errorf("GetSTSToken: unmarshal roleInfo: %s, with error: %s", roleInfo, err.Error())
 		return "", "", ""
 	}
-	return roleAuth.AccessKeyId, roleAuth.AccessKeySecret, roleAuth.SecurityToken
+	return roleAuth.AccessKeyID, roleAuth.AccessKeySecret, roleAuth.SecurityToken
 }
 
-func NewEcsClient(accessKeyId, accessKeySecret, accessToken string) (ecsClient *ecs.Client) {
+// NewEcsClient create a ecsClient object
+func NewEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *ecs.Client) {
 	var err error
 	if accessToken == "" {
-		ecsClient, err = ecs.NewClientWithAccessKey(DEFAULT_REGION, accessKeyId, accessKeySecret)
+		ecsClient, err = ecs.NewClientWithAccessKey(DefaultRegion, accessKeyID, accessKeySecret)
 		if err != nil {
 			return nil
 		}
 	} else {
-		ecsClient, err = ecs.NewClientWithStsToken(DEFAULT_REGION, accessKeyId, accessKeySecret, accessToken)
+		ecsClient, err = ecs.NewClientWithStsToken(DefaultRegion, accessKeyID, accessKeySecret, accessToken)
 		if err != nil {
 			return nil
 		}

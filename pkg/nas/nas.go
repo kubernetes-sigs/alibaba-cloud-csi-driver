@@ -26,8 +26,8 @@ import (
 
 const (
 	driverName   = "nasplugin.csi.alibabacloud.com"
-	INSTANCE_ID  = "instance-id"
-	REGIONID_TAG = "region-id"
+	// InstanceID is instance id
+	InstanceID  = "instance-id"
 )
 
 var (
@@ -52,7 +52,7 @@ func NewDriver(nodeID, endpoint string) *nas {
 	d := &nas{}
 	d.endpoint = endpoint
 	if nodeID == "" {
-		nodeID, _ = utils.GetMetaData(INSTANCE_ID)
+		nodeID, _ = utils.GetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
@@ -69,7 +69,7 @@ func NewDriver(nodeID, endpoint string) *nas {
 
 	region := os.Getenv("REGION_ID")
 	if region == "" {
-		region = GetMetaData(REGIONID_TAG)
+		region = GetMetaData(RegionTag)
 	}
 	d.controllerServer = NewControllerServer(d.driver, c, region)
 

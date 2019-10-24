@@ -22,13 +22,15 @@ import (
 )
 
 const (
-	METADATA_URL = "http://100.100.100.200/latest/meta-data/"
-	INSTANCE_ID  = "instance-id"
+	// MetadataURL is metadata url
+	MetadataURL = "http://100.100.100.200/latest/meta-data/"
+	// InstanceID is instance ID
+	InstanceID  = "instance-id"
 )
 
-// get host regionid, zoneid
+// GetMetaData get host regionid, zoneid
 func GetMetaData(resource string) string {
-	resp, err := http.Get(METADATA_URL + resource)
+	resp, err := http.Get(MetadataURL + resource)
 	if err != nil {
 		return ""
 	}

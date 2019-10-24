@@ -343,6 +343,7 @@ func (m *mounter) HasMountRefs(mountPath string, mountRefs []string) bool {
 	return count > 0
 }
 
+// IsDirEmpty return status of dir empty or not
 func IsDirEmpty(name string) (bool, error) {
 	f, err := os.Open(name)
 	if err != nil {

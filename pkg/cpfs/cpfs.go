@@ -25,7 +25,8 @@ import (
 
 const (
 	driverName  = "cpfsplugin.csi.alibabacloud.com"
-	INSTANCE_ID = "instance-id"
+	// InstanceID is instance id tag
+	InstanceID = "instance-id"
 )
 
 var (
@@ -43,13 +44,14 @@ type cpfs struct {
 	cscap []*csi.ControllerServiceCapability
 }
 
+// NewDriver create a cpfs driver object
 func NewDriver(nodeID, endpoint string) *cpfs {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
 	d := &cpfs{}
 	d.endpoint = endpoint
 	if nodeID == "" {
-		nodeID, _ = utils.GetMetaData(INSTANCE_ID)
+		nodeID, _ = utils.GetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
@@ -65,6 +67,7 @@ func NewDriver(nodeID, endpoint string) *cpfs {
 	return d
 }
 
+// NewNodeServer create a NodeServer object
 func NewNodeServer(d *cpfs) *nodeServer {
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),

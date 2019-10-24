@@ -36,28 +36,50 @@ import (
 )
 
 const (
-	KUBERNETES_ALICLOUD_DISK_DRIVER = "alicloud/disk"
-	METADATA_URL                    = "http://100.100.100.200/latest/meta-data/"
-	DOCUMENT_URL                    = "http://100.100.100.200/latest/dynamic/instance-identity/document"
-	REGIONID_TAG                    = "region-id"
-	INSTANCE_ID                     = "instance-id"
-	DISK_CONFILICT                  = "InvalidOperation.Conflict"
-	DISC_INCORRECT_STATUS           = "IncorrectDiskStatus"
-	DISC_CREATING_SNAPSHOT          = "DiskCreatingSnapshot"
-	USER_NOT_IN_WHITE_LIST          = "UserNotInTheWhiteList"
-	TAG_K8S_PV                      = "k8s-pv"
-	ZONEID_TAG                      = "zone-id"
-	LOGFILE_PREFIX                  = "/var/log/alicloud/provisioner"
-	DISK_NOTAVAILABLE               = "InvalidDataDiskCategory.NotSupported"
-	DISK_HIGH_AVAIL                 = "available"
-	DISK_COMMON                     = "cloud"
-	DISK_EFFICIENCY                 = "cloud_efficiency"
-	DISK_SSD                        = "cloud_ssd"
-	DISK_ESSD                       = "cloud_essd"
-	DISK_SHARED_SSD                 = "san_ssd"
-	DISK_SHARED_EFFICIENCY          = "san_efficiency"
-	MB_SIZE                         = 1024 * 1024
-	DEFAULT_REGION                  = "cn-hangzhou"
+	// KubernetesAlicloudDiskDriver driver name
+	KubernetesAlicloudDiskDriver = "alicloud/disk"
+	// MetadataURL metadata URL
+	MetadataURL                    = "http://100.100.100.200/latest/meta-data/"
+	// DocumentURL document URL
+	DocumentURL                    = "http://100.100.100.200/latest/dynamic/instance-identity/document"
+	// RegionIDTag region ID
+	RegionIDTag                    = "region-id"
+	// InstanceID instance ID
+	InstanceID                     = "instance-id"
+	// DiskConflict invalid operation type
+	DiskConflict                 = "InvalidOperation.Conflict"
+	// IncorrectDiskStatus incorrect disk status
+	IncorrectDiskStatus           = "IncorrectDiskStatus"
+	// DiskCreatingSnapshot ...
+	DiskCreatingSnapshot          = "DiskCreatingSnapshot"
+	// UserNotInTheWhiteList tag
+	UserNotInTheWhiteList          = "UserNotInTheWhiteList"
+	// TagK8sPV tag
+	TagK8sPV                    = "k8s-pv"
+	// ZoneIDTag tag
+	ZoneIDTag                   = "zone-id"
+	// LogfilePrefix tag
+	LogfilePrefix                  = "/var/log/alicloud/provisioner"
+	// DiskNotAvailable tag
+	DiskNotAvailable              = "InvalidDataDiskCategory.NotSupported"
+	// DiskHighAvail tag
+	DiskHighAvail                 = "available"
+	// DiskCommon common disk type
+	DiskCommon                    = "cloud"
+	// DiskEfficiency efficiency disk type
+	DiskEfficiency                 = "cloud_efficiency"
+	// DiskSSD ssd disk type
+	DiskSSD                      = "cloud_ssd"
+	// DiskESSD essd disk type
+	DiskESSD                      = "cloud_essd"
+	// DiskSharedSSD shared sdd disk type
+	DiskSharedSSD                 = "san_ssd"
+	// DiskSharedEfficiency shared efficiency disk type
+	DiskSharedEfficiency          = "san_efficiency"
+	// MBSIZE tag
+	MBSIZE                         = 1024 * 1024
+	// DefaultRegion is the default region id
+	DefaultRegion                  = "cn-hangzhou"
 )
 
 var (
@@ -65,8 +87,8 @@ var (
 	VERSION = "v1.14.6"
 	// GITCOMMIT will be overwritten automatically by the build system
 	GITCOMMIT = "HEAD"
-	// KUBERNETES_ALICLOUD_IDENTITY is the system identity for ecs client request
-	KUBERNETES_ALICLOUD_IDENTITY = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", VERSION)
+	// KubernetesAlicloudIdentity is the system identity for ecs client request
+	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", VERSION)
 )
 
 // DefaultOptions is the struct for access key
@@ -79,9 +101,9 @@ type DefaultOptions struct {
 	}
 }
 
-// Define STS Token Response
+// RoleAuth define STS Token Response
 type RoleAuth struct {
-	AccessKeyId     string
+	AccessKeyID     string
 	AccessKeySecret string
 	Expiration      time.Time
 	SecurityToken   string
@@ -89,15 +111,15 @@ type RoleAuth struct {
 	Code            string
 }
 
-func newEcsClient(accessKeyId, accessKeySecret, accessToken string) (ecsClient *ecs.Client) {
+func newEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *ecs.Client) {
 	var err error
 	if accessToken == "" {
-		ecsClient, err = ecs.NewClientWithAccessKey(DEFAULT_REGION, accessKeyId, accessKeySecret)
+		ecsClient, err = ecs.NewClientWithAccessKey(DefaultRegion, accessKeyID, accessKeySecret)
 		if err != nil {
 			return nil
 		}
 	} else {
-		ecsClient, err = ecs.NewClientWithStsToken(DEFAULT_REGION, accessKeyId, accessKeySecret, accessToken)
+		ecsClient, err = ecs.NewClientWithStsToken(DefaultRegion, accessKeyID, accessKeySecret, accessToken)
 		if err != nil {
 			return nil
 		}
@@ -111,7 +133,7 @@ func updateEcsClent(client *ecs.Client) *ecs.Client {
 		client = newEcsClient(accessKeyID, accessSecret, accessToken)
 	}
 	if client.Client.GetConfig() != nil {
-		client.Client.GetConfig().UserAgent = KUBERNETES_ALICLOUD_IDENTITY
+		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
 	}
 	return client
 }
@@ -130,7 +152,7 @@ func GetDefaultAK() (string, string, string) {
 
 // GetMetaData get host regionid, zoneid
 func GetMetaData(resource string) string {
-	resp, err := http.Get(METADATA_URL + resource)
+	resp, err := http.Get(MetadataURL + resource)
 	if err != nil {
 		return ""
 	}
@@ -164,7 +186,7 @@ func GetSTSAK() (string, string, string) {
 		log.Errorf("GetSTSToken: unmarshal roleInfo: %s, with error: %s", roleInfo, err.Error())
 		return "", "", ""
 	}
-	return roleAuth.AccessKeyId, roleAuth.AccessKeySecret, roleAuth.SecurityToken
+	return roleAuth.AccessKeyID, roleAuth.AccessKeySecret, roleAuth.SecurityToken
 }
 
 // GetLocalAK return if ak meta defined in env
@@ -190,6 +212,7 @@ func GetDeviceByMntPoint(targetPath string) string {
 	return strings.TrimSpace(deviceCmdOut)
 }
 
+// GetDeviceMountNum get the device mount number
 func GetDeviceMountNum(targetPath string) int {
 	deviceCmd := fmt.Sprintf("mount | grep %s  | grep -v grep | awk '{print $1}'", targetPath)
 	deviceCmdOut, err := run(deviceCmd)
@@ -276,7 +299,7 @@ type instanceDocument struct {
 }
 
 func getInstanceDoc() (*instanceDocument, error) {
-	resp, err := http.Get(DOCUMENT_URL)
+	resp, err := http.Get(DocumentURL)
 	if err != nil {
 		return nil, err
 	}
@@ -295,26 +318,26 @@ func getInstanceDoc() (*instanceDocument, error) {
 }
 
 // GetDevicePath return the file path of given device
-func GetDevicePath(volumeId string) (path string) {
-	//devicePath := GetDevicePathById(volumeId)
+func GetDevicePath(volumeID string) (path string) {
+	//devicePath := GetDevicePathById(volumeID)
 	devicePath := ""
 	if devicePath == "" {
-		devicePath = getVolumeConfig(volumeId)
+		devicePath = getVolumeConfig(volumeID)
 	}
 	return devicePath
 }
 
-// DevicePathById is not ready now.
-func GetDevicePathById(volumeId string) (path string) {
+// GetDevicePathByID is not ready now.
+func GetDevicePathByID(volumeID string) (path string) {
 	devicePath := ""
-	volumeIdParts := strings.Split(volumeId, "-")
-	if len(volumeIdParts) < 2 {
+	volumeIDParts := strings.Split(volumeID, "-")
+	if len(volumeIDParts) < 2 {
 		return ""
 	}
-	volumeIdPrefix := volumeIdParts[1]
+	volumeIDPrefix := volumeIDParts[1]
 
 	if utils.IsFileExisting("/dev/disk/by-id/") {
-		cmd1 := "ls /dev/disk/by-id/ | grep " + volumeIdPrefix
+		cmd1 := "ls /dev/disk/by-id/ | grep " + volumeIDPrefix
 		var out string
 		var err error
 		if out, err = utils.Run(cmd1); err != nil {
@@ -338,8 +361,8 @@ func GetDevicePathById(volumeId string) (path string) {
 }
 
 // get diskID
-func getVolumeConfig(volumeId string) string {
-	volumeFile := path.Join(VolumeDir, volumeId+".conf")
+func getVolumeConfig(volumeID string) string {
+	volumeFile := path.Join(VolumeDir, volumeID+".conf")
 	if !utils.IsFileExisting(volumeFile) {
 		return ""
 	}
@@ -353,18 +376,18 @@ func getVolumeConfig(volumeId string) string {
 }
 
 // save diskID and volume name
-func saveVolumeConfig(volumeId, devicePath string) error {
+func saveVolumeConfig(volumeID, devicePath string) error {
 	if err := utils.CreateDest(VolumeDir); err != nil {
 		return err
 	}
 	if err := utils.CreateDest(VolumeDirRemove); err != nil {
 		return err
 	}
-	if err := removeVolumeConfig(volumeId); err != nil {
+	if err := removeVolumeConfig(volumeID); err != nil {
 		return err
 	}
 
-	volumeFile := path.Join(VolumeDir, volumeId+".conf")
+	volumeFile := path.Join(VolumeDir, volumeID+".conf")
 	if err := ioutil.WriteFile(volumeFile, []byte(devicePath), 0644); err != nil {
 		return err
 	}
@@ -372,11 +395,11 @@ func saveVolumeConfig(volumeId, devicePath string) error {
 }
 
 // move config file to remove dir
-func removeVolumeConfig(volumeId string) error {
-	volumeFile := path.Join(VolumeDir, volumeId+".conf")
+func removeVolumeConfig(volumeID string) error {
+	volumeFile := path.Join(VolumeDir, volumeID+".conf")
 	if utils.IsFileExisting(volumeFile) {
 		timeStr := time.Now().Format("2006-01-02-15:04:05")
-		removeFile := path.Join(VolumeDirRemove, volumeId+"-"+timeStr+".conf")
+		removeFile := path.Join(VolumeDirRemove, volumeID+"-"+timeStr+".conf")
 		if err := os.Rename(volumeFile, removeFile); err != nil {
 			return err
 		}
@@ -395,8 +418,8 @@ func IsDeviceUsedOthers(deviceName, volumeID string) (bool, error) {
 			continue
 		} else {
 			if strings.HasSuffix(file.Name(), ".conf") {
-				tmpVolId := strings.Replace(file.Name(), ".conf", "", 1)
-				if tmpVolId != volumeID && getVolumeConfig(tmpVolId) == deviceName {
+				tmpVolID := strings.Replace(file.Name(), ".conf", "", 1)
+				if tmpVolID != volumeID && getVolumeConfig(tmpVolID) == deviceName {
 					return true, nil
 				}
 			}

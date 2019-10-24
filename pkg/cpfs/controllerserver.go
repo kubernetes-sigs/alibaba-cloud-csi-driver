@@ -44,7 +44,7 @@ type controllerServer struct {
 // resourcemode is selected by: subpath/filesystem
 const (
 	MNTROOTPATH = "/csi-persistentvolumes"
-	MB_SIZE     = 1024 * 1024
+	MBSIZE     = 1024 * 1024
 	DRIVER      = "driver"
 	SERVER      = "server"
 	MODE        = "mode"
@@ -79,8 +79,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	log.Infof("CreateVolume: Starting to Create CPFS volume: %v", req)
 
 	// step1: check pvc is created or not.
-	pvcUid := string(req.Name)
-	if ok, value := pvcProcessSuccess[pvcUid]; ok && value == true {
+	pvcUID := string(req.Name)
+	if ok, value := pvcProcessSuccess[pvcUID]; ok && value == true {
 		log.Warnf("CreateVolume: CPFS Volume %s has Created Already", req.Name)
 		return nil, fmt.Errorf("CPFS Volume has created alreay " + req.Name)
 	}
@@ -165,7 +165,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		CapacityBytes: int64(volSizeBytes),
 		VolumeContext: volumeContext,
 	}
-	pvcProcessSuccess[pvcUid] = true
+	pvcProcessSuccess[pvcUID] = true
 
 	return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 }

@@ -34,8 +34,10 @@ import (
 )
 
 const (
-	METADATA_URL = "http://100.100.100.200/latest/meta-data/"
-	REGION_TAG   = "region-id"
+	// MetadataURL is metadata url
+	MetadataURL = "http://100.100.100.200/latest/meta-data/"
+	// RegionTag is region id
+	RegionTag   = "region-id"
 )
 
 var (
@@ -43,13 +45,13 @@ var (
 	VERSION = "v1.14.6"
 	// GITCOMMIT will be overwritten automatically by the build system
 	GITCOMMIT = "HEAD"
-	// KUBERNETES_ALICLOUD_IDENTITY is the system identity for ecs client request
-	KUBERNETES_ALICLOUD_IDENTITY = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Nas-%s", VERSION)
+	// KubernetesAlicloudIdentity is the system identity for ecs client request
+	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Nas-%s", VERSION)
 )
 
-// Define STS Token Response
+// RoleAuth define STS Token Response
 type RoleAuth struct {
-	AccessKeyId     string
+	AccessKeyID     string
 	AccessKeySecret string
 	Expiration      time.Time
 	SecurityToken   string
@@ -57,8 +59,8 @@ type RoleAuth struct {
 	Code            string
 }
 
-//DoMount execute the mount command for nas dir
-func DoNfsMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeId string) error {
+//DoNfsMount execute the mount command for nas dir
+func DoNfsMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID string) error {
 	if !utils.IsFileExisting(mountPoint) {
 		CreateDest(mountPoint)
 	}
@@ -69,7 +71,7 @@ func DoNfsMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeId 
 	_, err := utils.Run(mntCmd)
 	if err != nil && nfsPath != "/" {
 		if strings.Contains(err.Error(), "reason given by server: No such file or directory") || strings.Contains(err.Error(), "access denied by server while mounting") {
-			if err := createNasSubDir(nfsServer, nfsPath, nfsVers, mountOptions, volumeId); err != nil {
+			if err := createNasSubDir(nfsServer, nfsPath, nfsVers, mountOptions, volumeID); err != nil {
 				return err
 			}
 			if _, err := utils.Run(mntCmd); err != nil {
@@ -111,6 +113,7 @@ func CreateDest(dest string) error {
 	return nil
 }
 
+// GetNfsDetails get nfs server's details
 func GetNfsDetails(nfsServersString string) (string, string) {
 	nfsServer, nfsPath := "", ""
 	nfsServerList := strings.Split(nfsServersString, ",")
@@ -142,7 +145,7 @@ func GetNfsDetails(nfsServersString string) (string, string) {
 
 // GetMetaData get host regionid, zoneid
 func GetMetaData(resource string) string {
-	resp, err := http.Get(METADATA_URL + resource)
+	resp, err := http.Get(MetadataURL + resource)
 	if err != nil {
 		return ""
 	}
@@ -160,7 +163,7 @@ func updateNasClient(client *aliNas.Client) *aliNas.Client {
 		client = newNasClient(accessKeyID, accessSecret, accessToken)
 	}
 	if client.Client.GetConfig() != nil {
-		client.Client.GetConfig().UserAgent = KUBERNETES_ALICLOUD_IDENTITY
+		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
 	}
 	return client
 }
@@ -212,18 +215,18 @@ func GetSTSAK() (string, string, string) {
 		log.Errorf("GetSTSToken: unmarshal roleInfo: %s, with error: %s", roleInfo, err.Error())
 		return "", "", ""
 	}
-	return roleAuth.AccessKeyId, roleAuth.AccessKeySecret, roleAuth.SecurityToken
+	return roleAuth.AccessKeyID, roleAuth.AccessKeySecret, roleAuth.SecurityToken
 }
 
-func newNasClient(accessKeyId, accessKeySecret, accessToken string) (nasClient *aliNas.Client) {
+func newNasClient(accessKeyID, accessKeySecret, accessToken string) (nasClient *aliNas.Client) {
 	var err error
 	if accessToken == "" {
-		nasClient, err = aliNas.NewClientWithAccessKey(GetMetaData(REGION_TAG), accessKeyId, accessKeySecret)
+		nasClient, err = aliNas.NewClientWithAccessKey(GetMetaData(RegionTag), accessKeyID, accessKeySecret)
 		if err != nil {
 			return nil
 		}
 	} else {
-		nasClient, err = aliNas.NewClientWithStsToken(GetMetaData(REGION_TAG), accessKeyId, accessKeySecret, accessToken)
+		nasClient, err = aliNas.NewClientWithStsToken(GetMetaData(RegionTag), accessKeyID, accessKeySecret, accessToken)
 		if err != nil {
 			return nil
 		}
@@ -246,9 +249,9 @@ func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
 
 }
 
-func createNasSubDir(nfsServer, nfsPath, nfsVers, nfsOptions string, volumeId string) error {
+func createNasSubDir(nfsServer, nfsPath, nfsVers, nfsOptions string, volumeID string) error {
 	// step 1: create mount path
-	nasTmpPath := filepath.Join(NAS_TEMP_MNTPath, volumeId)
+	nasTmpPath := filepath.Join(NasTempMntPath, volumeID)
 	if err := utils.CreateDest(nasTmpPath); err != nil {
 		log.Infof("Create Nas temp Directory err: " + err.Error())
 		return err
@@ -302,11 +305,11 @@ func createNasSubDir(nfsServer, nfsPath, nfsVers, nfsOptions string, volumeId st
 // if tcp_slot_table_entries not set to 128, just config.
 func checkSystemNasConfig() {
 	updateNasConfig := false
-	sunRpcFile := "/etc/modprobe.d/sunrpc.conf"
-	if !utils.IsFileExisting(sunRpcFile) {
+	sunRPCFile := "/etc/modprobe.d/sunrpc.conf"
+	if !utils.IsFileExisting(sunRPCFile) {
 		updateNasConfig = true
 	} else {
-		chkCmd := fmt.Sprintf("cat %s | grep tcp_slot_table_entries | grep 128 | grep -v grep | wc -l", sunRpcFile)
+		chkCmd := fmt.Sprintf("cat %s | grep tcp_slot_table_entries | grep 128 | grep -v grep | wc -l", sunRPCFile)
 		out, err := utils.Run(chkCmd)
 		if err != nil {
 			log.Warnf("Update Nas system config check error: %s", err.Error())
@@ -318,7 +321,7 @@ func checkSystemNasConfig() {
 	}
 
 	if updateNasConfig {
-		upCmd := fmt.Sprintf("echo \"options sunrpc tcp_slot_table_entries=128\" >> %s && echo \"options sunrpc tcp_max_slot_table_entries=128\" >> %s && sysctl -w sunrpc.tcp_slot_table_entries=128", sunRpcFile, sunRpcFile)
+		upCmd := fmt.Sprintf("echo \"options sunrpc tcp_slot_table_entries=128\" >> %s && echo \"options sunrpc tcp_max_slot_table_entries=128\" >> %s && sysctl -w sunrpc.tcp_slot_table_entries=128", sunRPCFile, sunRPCFile)
 		_, err := utils.Run(upCmd)
 		if err != nil {
 			log.Warnf("Update Nas system config error: %s", err.Error())

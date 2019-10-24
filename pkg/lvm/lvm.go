@@ -50,7 +50,7 @@ func NewDriver(nodeID, endpoint string) *lvm {
 	tmplvm.endpoint = endpoint
 
 	if nodeID == "" {
-		nodeID = GetMetaData(INSTANCE_ID)
+		nodeID = GetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, nodeID)

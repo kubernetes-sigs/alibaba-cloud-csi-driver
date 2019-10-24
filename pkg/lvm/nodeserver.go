@@ -38,16 +38,26 @@ import (
 )
 
 const (
-	NSENTER_CMD   = "/nsenter --mount=/proc/1/ns/mnt"
-	VG_NAME_TAG   = "vgName"
-	PV_TYPE_TAG   = "pvType"
-	FS_TYPE_TAG   = "fsType"
-	LVM_TYPE_TYPE = "lvmType"
-	LOCAL_DISK    = "localdisk"
-	CLOUD_DISK    = "clouddisk"
-	LINEAR_TYPE   = "linear"
-	STRIPING_TYPE = "striping"
-	DEFAULT_FS    = "ext4"
+	// NsenterCmd is teh nsenter command
+	NsenterCmd   = "/nsenter --mount=/proc/1/ns/mnt"
+	// VgNameTag is the vg name tag
+	VgNameTag   = "vgName"
+	// PvTypeTag is the pv type tag
+	PvTypeTag   = "pvType"
+	// FsTypeTag is the fs type tag
+	FsTypeTag  = "fsType"
+	// LvmTypeTag is the lvm type tag
+	LvmTypeTag = "lvmType"
+	// LocalDisk local disk
+	LocalDisk    = "localdisk"
+	// CloudDisk cloud disk
+	CloudDisk    = "clouddisk"
+	// LinearType linear type
+	LinearType   = "linear"
+	// StripingType striping type
+	StripingType = "striping"
+	// DefaultFs default fs
+	DefaultFs   = "ext4"
 )
 
 type nodeServer struct {
@@ -61,9 +71,11 @@ type nodeServer struct {
 var (
 	masterURL    string
 	kubeconfig   string
-	DEVICE_CHARS = []string{"b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}
+	// DeviceChars is chars of a device
+	DeviceChars = []string{"b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}
 )
 
+// NewNodeServer create a NodeServer object
 func NewNodeServer(d *csicommon.CSIDriver, nodeID string) csi.NodeServer {
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
@@ -97,32 +109,32 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.Internal, "targetPath is empty")
 	}
 	vgName := ""
-	if _, ok := req.VolumeContext[VG_NAME_TAG]; ok {
-		vgName = req.VolumeContext[VG_NAME_TAG]
+	if _, ok := req.VolumeContext[VgNameTag]; ok {
+		vgName = req.VolumeContext[VgNameTag]
 	}
 	if vgName == "" {
 		return nil, status.Error(codes.Internal, "error with input vgName is empty")
 	}
-	pvType := CLOUD_DISK
-	if _, ok := req.VolumeContext[PV_TYPE_TAG]; ok {
-		pvType = req.VolumeContext[PV_TYPE_TAG]
+	pvType := CloudDisk
+	if _, ok := req.VolumeContext[PvTypeTag]; ok {
+		pvType = req.VolumeContext[PvTypeTag]
 	}
-	lvmType := LINEAR_TYPE
-	if _, ok := req.VolumeContext[LVM_TYPE_TYPE]; ok {
-		lvmType = req.VolumeContext[LVM_TYPE_TYPE]
+	lvmType := LinearType
+	if _, ok := req.VolumeContext[LvmTypeTag]; ok {
+		lvmType = req.VolumeContext[LvmTypeTag]
 	}
-	fsType := DEFAULT_FS
-	if _, ok := req.VolumeContext[FS_TYPE_TAG]; ok {
-		fsType = req.VolumeContext[FS_TYPE_TAG]
+	fsType := DefaultFs
+	if _, ok := req.VolumeContext[FsTypeTag]; ok {
+		fsType = req.VolumeContext[FsTypeTag]
 	}
 	log.Infof("NodePublishVolume: Starting to mount lvm at: %s, with vg: %s, with volume: %s, PV type: %s, LVM type: %s", targetPath, vgName, req.GetVolumeId(), pvType, lvmType)
 
 	volumeNewCreated := false
-	volumeId := req.GetVolumeId()
-	devicePath := filepath.Join("/dev/", vgName, volumeId)
+	volumeID := req.GetVolumeId()
+	devicePath := filepath.Join("/dev/", vgName, volumeID)
 	if _, err := os.Stat(devicePath); os.IsNotExist(err) {
 		volumeNewCreated = true
-		err := ns.createVolume(ctx, volumeId, vgName, pvType, lvmType)
+		err := ns.createVolume(ctx, volumeID, vgName, pvType, lvmType)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -170,7 +182,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// xfs filesystem works on targetpath.
 	if volumeNewCreated == false {
-		if err := ns.resizeVolume(ctx, volumeId, vgName, targetPath); err != nil {
+		if err := ns.resizeVolume(ctx, volumeID, vgName, targetPath); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -237,10 +249,10 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	return &csi.NodeExpandVolumeResponse{}, nil
 }
 
-func (ns *nodeServer) resizeVolume(ctx context.Context, volumeId, vgName, targetPath string) error {
-	pvSize := ns.getPvSize(volumeId)
-	devicePath := filepath.Join("/dev", vgName, volumeId)
-	sizeCmd := fmt.Sprintf("%s lvdisplay %s | grep 'LV Size' | awk '{print $3}'", NSENTER_CMD, devicePath)
+func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, targetPath string) error {
+	pvSize := ns.getPvSize(volumeID)
+	devicePath := filepath.Join("/dev", vgName, volumeID)
+	sizeCmd := fmt.Sprintf("%s lvdisplay %s | grep 'LV Size' | awk '{print $3}'", NsenterCmd, devicePath)
 	sizeStr, err := utils.Run(sizeCmd)
 	if err != nil {
 		return err
@@ -258,11 +270,11 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeId, vgName, target
 	if sizeInt >= pvSize {
 		return nil
 	}
-	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, from size: %d, to Size: %d", volumeId, devicePath, sizeInt, pvSize)
+	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, from size: %d, to Size: %d", volumeID, devicePath, sizeInt, pvSize)
 
 	// resize lvm volume
 	// lvextend -L3G /dev/vgtest/lvm-5db74864-ea6b-11e9-a442-00163e07fb69
-	resizeCmd := fmt.Sprintf("%s lvextend -L%dG %s", NSENTER_CMD, pvSize, devicePath)
+	resizeCmd := fmt.Sprintf("%s lvextend -L%dG %s", NsenterCmd, pvSize, devicePath)
 	_, err = utils.Run(resizeCmd)
 	if err != nil {
 		return err
@@ -273,19 +285,19 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeId, vgName, target
 	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: realExec})
 	ok, err := resizer.Resize(devicePath, targetPath)
 	if err != nil {
-		log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeId, devicePath, targetPath, err.Error())
+		log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeID, devicePath, targetPath, err.Error())
 		return err
 	}
 	if !ok {
-		log.Errorf("NodeExpandVolume:: Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", volumeId, devicePath, targetPath)
+		log.Errorf("NodeExpandVolume:: Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, targetPath)
 		return status.Error(codes.Internal, "Fail to resize volume fs")
 	}
-	log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", volumeId, devicePath, targetPath)
+	log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, targetPath)
 	return nil
 }
 
-func (ns *nodeServer) getPvSize(volumeId string) int64 {
-	pv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeId, metav1.GetOptions{})
+func (ns *nodeServer) getPvSize(volumeID string) int64 {
+	pv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("lvcreate: fail to get pv, err: %v", err)
 		return 0
@@ -297,20 +309,20 @@ func (ns *nodeServer) getPvSize(volumeId string) int64 {
 }
 
 // create lvm volume
-func (ns *nodeServer) createVolume(ctx context.Context, volumeId, vgName, pvType, lvmType string) error {
-	pvSize := ns.getPvSize(volumeId)
+func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType, lvmType string) error {
+	pvSize := ns.getPvSize(volumeID)
 
 	pvNumber := 0
-	var err error = nil
+	var err error
 	// Create VG if vg not exist,
-	if pvType == LOCAL_DISK {
+	if pvType == LocalDisk {
 		if pvNumber, err = createVG(vgName); err != nil {
 			return err
 		}
 	}
 
 	// check vg exist
-	ckCmd := fmt.Sprintf("%s vgck %s", NSENTER_CMD, vgName)
+	ckCmd := fmt.Sprintf("%s vgck %s", NsenterCmd, vgName)
 	_, err = utils.Run(ckCmd)
 	if err != nil {
 		log.Errorf("createVolume:: VG is not exist: %s", vgName)
@@ -318,20 +330,20 @@ func (ns *nodeServer) createVolume(ctx context.Context, volumeId, vgName, pvType
 	}
 
 	// Create lvm volume
-	if lvmType == STRIPING_TYPE {
-		cmd := fmt.Sprintf("%s lvcreate -i %d -n %s -L %dg %s", NSENTER_CMD, pvNumber, volumeId, pvSize, vgName)
+	if lvmType == StripingType {
+		cmd := fmt.Sprintf("%s lvcreate -i %d -n %s -L %dg %s", NsenterCmd, pvNumber, volumeID, pvSize, vgName)
 		_, err = utils.Run(cmd)
 		if err != nil {
 			return err
 		}
-		log.Infof("Successful Create Striping LVM volume: %s, Size: %d, vgName: %s, striped number: %d", volumeId, pvSize, vgName, pvNumber)
-	} else if lvmType == LINEAR_TYPE {
-		cmd := fmt.Sprintf("%s lvcreate -n %s -L %dg %s", NSENTER_CMD, volumeId, pvSize, vgName)
+		log.Infof("Successful Create Striping LVM volume: %s, Size: %d, vgName: %s, striped number: %d", volumeID, pvSize, vgName, pvNumber)
+	} else if lvmType == LinearType {
+		cmd := fmt.Sprintf("%s lvcreate -n %s -L %dg %s", NsenterCmd, volumeID, pvSize, vgName)
 		_, err = utils.Run(cmd)
 		if err != nil {
 			return err
 		}
-		log.Infof("Successful Create Linear LVM volume: %s, Size: %d, vgName: %s", volumeId, pvSize, vgName)
+		log.Infof("Successful Create Linear LVM volume: %s, Size: %d, vgName: %s", volumeID, pvSize, vgName)
 	}
 	return nil
 }

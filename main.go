@@ -37,13 +37,20 @@ func init() {
 }
 
 const (
-	LOGFILE_PREFIX   = "/var/log/alicloud/"
-	MB_SIZE          = 1024 * 1024
-	TYPE_PLUGIN_DISK = "diskplugin.csi.alibabacloud.com"
-	TYPE_PLUGIN_NAS  = "nasplugin.csi.alibabacloud.com"
-	TYPE_PLUGIN_OSS  = "ossplugin.csi.alibabacloud.com"
-	TYPE_PLUGIN_CPFS = "cpfsplugin.csi.alibabacloud.com"
-	TYPE_PLUGIN_LVM  = "lvmplugin.csi.alibabacloud.com"
+	// LogfilePrefix prefix of log file
+	LogfilePrefix   = "/var/log/alicloud/"
+	// MBSIZE MB size
+	MBSIZE          = 1024 * 1024
+	// TypePluginDISK DISK type plugin
+	TypePluginDISK  = "diskplugin.csi.alibabacloud.com"
+	// TypePluginNAS NAS type plugin
+	TypePluginNAS   = "nasplugin.csi.alibabacloud.com"
+	// TypePluginOSS OSS type plugin
+	TypePluginOSS   = "ossplugin.csi.alibabacloud.com"
+	// TypePluginCPFS CPFS type plugin
+	TypePluginCPFS  = "cpfsplugin.csi.alibabacloud.com"
+	// TypePluginLVM LVM type plugin
+	TypePluginLVM  = "lvmplugin.csi.alibabacloud.com"
 )
 
 var _BRANCH_ = ""
@@ -53,9 +60,9 @@ var _BUILDTIME_ = ""
 
 var (
 	endpoint        = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
-	nodeId          = flag.String("nodeid", "", "node id")
+	nodeID          = flag.String("nodeid", "", "node id")
 	runAsController = flag.Bool("run-as-controller", false, "Only run as controller service")
-	driver          = flag.String("driver", TYPE_PLUGIN_DISK, "CSI Driver")
+	driver          = flag.String("driver", TypePluginDISK, "CSI Driver")
 	rootDir         = flag.String("rootdir", "/var/lib/kubelet", "Kubernetes root directory")
 )
 
@@ -76,22 +83,22 @@ func main() {
 	}
 
 	drivername := *driver
-	log.Infof("CSI Driver Name: %s, %s, %s", drivername, *nodeId, *endpoint)
+	log.Infof("CSI Driver Name: %s, %s, %s", drivername, *nodeID, *endpoint)
 	log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", _BRANCH_, _VERSION_, _BUILDTIME_)
-	if drivername == TYPE_PLUGIN_NAS {
-		driver := nas.NewDriver(*nodeId, *endpoint)
+	if drivername == TypePluginNAS {
+		driver := nas.NewDriver(*nodeID, *endpoint)
 		driver.Run()
-	} else if drivername == TYPE_PLUGIN_OSS {
-		driver := oss.NewDriver(*nodeId, *endpoint)
+	} else if drivername == TypePluginOSS {
+		driver := oss.NewDriver(*nodeID, *endpoint)
 		driver.Run()
-	} else if drivername == TYPE_PLUGIN_DISK {
-		driver := disk.NewDriver(*nodeId, *endpoint, *runAsController)
+	} else if drivername == TypePluginDISK {
+		driver := disk.NewDriver(*nodeID, *endpoint, *runAsController)
 		driver.Run()
-	} else if drivername == TYPE_PLUGIN_LVM {
-		driver := lvm.NewDriver(*nodeId, *endpoint)
+	} else if drivername == TypePluginLVM {
+		driver := lvm.NewDriver(*nodeID, *endpoint)
 		driver.Run()
-	} else if drivername == TYPE_PLUGIN_CPFS {
-		driver := cpfs.NewDriver(*nodeId, *endpoint)
+	} else if drivername == TypePluginCPFS {
+		driver := cpfs.NewDriver(*nodeID, *endpoint)
 		driver.Run()
 	} else {
 		log.Errorf("CSI start failed, not support driver: %s", drivername)
@@ -116,18 +123,18 @@ func setLogAttribute(driver string) {
 		return
 	}
 
-	os.MkdirAll(LOGFILE_PREFIX, os.FileMode(0755))
-	logFile := LOGFILE_PREFIX + driver + ".log"
+	os.MkdirAll(LogfilePrefix, os.FileMode(0755))
+	logFile := LogfilePrefix + driver + ".log"
 	f, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		os.Exit(1)
 	}
 
 	// rotate the log file if too large
-	if fi, err := f.Stat(); err == nil && fi.Size() > 2*MB_SIZE {
+	if fi, err := f.Stat(); err == nil && fi.Size() > 2*MBSIZE {
 		f.Close()
 		timeStr := time.Now().Format("-2006-01-02-15:04:05")
-		timedLogfile := LOGFILE_PREFIX + driver + timeStr + ".log"
+		timedLogfile := LogfilePrefix + driver + timeStr + ".log"
 		os.Rename(logFile, timedLogfile)
 		f, err = os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
