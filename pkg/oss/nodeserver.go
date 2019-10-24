@@ -41,19 +41,23 @@ type nodeServer struct {
 //OssOptions contains options for target oss
 type OssOptions struct {
 	Bucket    string `json:"bucket"`
-	Url       string `json:"url"`
+	URL       string `json:"url"`
 	OtherOpts string `json:"otherOpts"`
-	AkId      string `json:"akId"`
+	AkID      string `json:"akId"`
 	AkSecret  string `json:"akSecret"`
 }
 
 const (
 	//CredentialFile is the path of oss ak credential file
 	CredentialFile = "/host/etc/passwd-ossfs"
-	NSENTER_CMD    = "/nsenter --mount=/proc/1/ns/mnt"
-	SOCKET_PATH    = "/host/etc/csi-tool/connector.sock"
-	AK_ID          = "akId"
-	AK_SECRET      = "akSecret"
+	// NsenterCmd is nsenter mount command
+	NsenterCmd    = "/nsenter --mount=/proc/1/ns/mnt"
+	// SocketPath is path of connector sock
+	SocketPath    = "/host/etc/csi-tool/connector.sock"
+	// AkID is Ak ID
+	AkID          = "akId"
+	// AkSecret is Ak Secret
+	AkSecret      = "akSecret"
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -64,22 +68,22 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if key == "bucket" {
 			opt.Bucket = value
 		} else if key == "url" {
-			opt.Url = value
+			opt.URL = value
 		} else if key == "otherOpts" {
 			opt.OtherOpts = value
 		} else if key == "akId" {
-			opt.AkId = value
+			opt.AkID = value
 		} else if key == "akSecret" {
 			opt.AkSecret = value
 		}
 	}
 
 	// support set ak by secret
-	if opt.AkId == "" || opt.AkSecret == "" {
-		if value, ok := req.Secrets[AK_ID]; ok {
-			opt.AkId = value
+	if opt.AkID == "" || opt.AkSecret == "" {
+		if value, ok := req.Secrets[AkID]; ok {
+			opt.AkID = value
 		}
-		if value, ok := req.Secrets[AK_SECRET]; ok {
+		if value, ok := req.Secrets[AkSecret]; ok {
 			opt.AkSecret = value
 		}
 	}
@@ -94,7 +98,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("mountPath is empty")
 	}
 
-	argStr := "AkId: " + opt.AkId + ", Bucket: " + opt.Bucket + ", url: " + opt.Url + ", OtherOpts: " + opt.OtherOpts
+	argStr := "AkId: " + opt.AkID + ", Bucket: " + opt.Bucket + ", url: " + opt.URL + ", OtherOpts: " + opt.OtherOpts
 	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
 
 	if utils.IsMounted(mountPath) {
@@ -115,7 +119,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// default use allow_other
-	mntCmd := fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s %s -ourl=%s %s", opt.Bucket, mountPath, opt.Url, opt.OtherOpts)
+	mntCmd := fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s %s -ourl=%s %s", opt.Bucket, mountPath, opt.URL, opt.OtherOpts)
 	if out, err := connectorRun(mntCmd); err != nil {
 		if err != nil {
 			log.Errorf("Ossfs mount error: %s", err.Error())
@@ -149,7 +153,7 @@ func saveOssCredential(options *OssOptions) error {
 		newContentStr += line + "\n"
 	}
 
-	newContentStr = options.Bucket + ":" + options.AkId + ":" + options.AkSecret + "\n" + newContentStr
+	newContentStr = options.Bucket + ":" + options.AkID + ":" + options.AkSecret + "\n" + newContentStr
 	if err := ioutil.WriteFile(CredentialFile, []byte(newContentStr), 0640); err != nil {
 		log.Errorf("Save Credential File failed, %s, %s", newContentStr, err)
 		return err
@@ -159,15 +163,15 @@ func saveOssCredential(options *OssOptions) error {
 
 // Check oss options
 func checkOssOptions(opt *OssOptions) error {
-	if opt.Url == "" || opt.Bucket == "" {
+	if opt.URL == "" || opt.Bucket == "" {
 		return errors.New("Oss Parametes error: Url/Bucket empty ")
 	}
 
 	// if not input ak from user, use the default ak value
-	if opt.AkId == "" || opt.AkSecret == "" {
-		opt.AkId, opt.AkSecret = utils.GetLocalAK()
+	if opt.AkID == "" || opt.AkSecret == "" {
+		opt.AkID, opt.AkSecret = utils.GetLocalAK()
 	}
-	if opt.AkId == "" || opt.AkSecret == "" {
+	if opt.AkID == "" || opt.AkSecret == "" {
 		return errors.New("Oss Parametes error: AK is empty ")
 	}
 
@@ -182,7 +186,7 @@ func checkOssOptions(opt *OssOptions) error {
 // Run shell command with host connector
 // host connector is daemon running in host.
 func connectorRun(cmd string) (string, error) {
-	c, err := net.Dial("unix", SOCKET_PATH)
+	c, err := net.Dial("unix", SocketPath)
 	if err != nil {
 		log.Errorf("Oss connector Dial error: %s", err.Error())
 		return err.Error(), err
@@ -253,8 +257,9 @@ func (ns *nodeServer) NodeUnstageVolume(
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
+// IsHostMounted return status of host mounted or not
 func IsHostMounted(mountPath string) bool {
-	cmd := fmt.Sprintf("%s mount | grep \"%s type\" | grep -v grep", NSENTER_CMD, mountPath)
+	cmd := fmt.Sprintf("%s mount | grep \"%s type\" | grep -v grep", NsenterCmd, mountPath)
 	out, err := utils.Run(cmd)
 	if err != nil || out == "" {
 		return false

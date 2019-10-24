@@ -11,21 +11,26 @@ import (
 )
 
 const (
-	MB_SIZE      = 1024 * 1024
-	LOG_FILENAME = "/var/log/alicloud/csi_connector.log"
-	PID_FILENAME = "/var/log/alicloud/connector.pid"
-	WORK_PATH    = "./"
-	SOCKET_PATH  = "/etc/csi-tool/connector.sock"
+	// MBSIZE metrics
+	MBSIZE = 1024 * 1024
+	// LogFilename name of log file
+	LogFilename = "/var/log/alicloud/csi_connector.log"
+	// PIDFilename name of pid file
+	PIDFilename = "/var/log/alicloud/connector.pid"
+	// WorkPath workspace
+	WorkPath = "./"
+	// SocketPath socket path
+	SocketPath = "/etc/csi-tool/connector.sock"
 )
 
 func main() {
 	// log file is: /var/log/alicloud/csi_connector.log
 	cntxt := &daemon.Context{
-		PidFileName: PID_FILENAME,
+		PidFileName: PIDFilename,
 		PidFilePerm: 0644,
-		LogFileName: LOG_FILENAME,
+		LogFileName: LogFilename,
 		LogFilePerm: 0640,
-		WorkDir:     WORK_PATH,
+		WorkDir:     WorkPath,
 		Umask:       027,
 		Args:        []string{"alibabacloud.csiplugin.connector"},
 	}
@@ -45,16 +50,16 @@ func main() {
 
 func runOssProxy() {
 
-	if IsFileExisting(SOCKET_PATH) {
-		os.Remove(SOCKET_PATH)
+	if IsFileExisting(SocketPath) {
+		os.Remove(SocketPath)
 	} else {
-		pathDir := filepath.Dir(SOCKET_PATH)
+		pathDir := filepath.Dir(SocketPath)
 		if !IsFileExisting(pathDir) {
 			os.MkdirAll(pathDir, os.ModePerm)
 		}
 	}
-	log.Printf("Socket path is ready: %s", SOCKET_PATH)
-	ln, err := net.Listen("unix", SOCKET_PATH)
+	log.Printf("Socket path is ready: %s", SocketPath)
+	ln, err := net.Listen("unix", SocketPath)
 	if err != nil {
 		log.Fatalf("Server Listen error: %s", err.Error())
 	}
@@ -104,7 +109,7 @@ func run(cmd string) (string, error) {
 	return string(out), nil
 }
 
-// check file exist in volume driver;
+// IsFileExisting checks file exist in volume driver or not
 func IsFileExisting(filename string) bool {
 	_, err := os.Stat(filename)
 	if err == nil {

@@ -40,7 +40,7 @@ type oss struct {
 	cscap []*csi.ControllerServiceCapability
 }
 
-//NewDriver init oss type of csi driver
+// NewDriver init oss type of csi driver
 func NewDriver(nodeID, endpoint string) *oss {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
@@ -48,7 +48,7 @@ func NewDriver(nodeID, endpoint string) *oss {
 	d.endpoint = endpoint
 
 	if nodeID == "" {
-		nodeID = GetMetaData(INSTANCE_ID)
+		nodeID = GetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
@@ -60,7 +60,7 @@ func NewDriver(nodeID, endpoint string) *oss {
 	return d
 }
 
-//NewDriver init oss type of csi nodeServer
+// NewNodeServer init oss type of csi nodeServer
 func NewNodeServer(d *oss) *nodeServer {
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),

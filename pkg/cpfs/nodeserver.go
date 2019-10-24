@@ -34,6 +34,7 @@ type nodeServer struct {
 	*csicommon.DefaultNodeServer
 }
 
+// CpfsOptions struct
 type CpfsOptions struct {
 	Server     string `json:"server"`
 	FileSystem string `json:"fileSystem"`
@@ -42,8 +43,8 @@ type CpfsOptions struct {
 }
 
 const (
-	// CPFS_TEMP_MNTPath used for create sub directory
-	CPFS_TEMP_MNTPath = "/mnt/acs_mnt/k8s_cpfs/temp"
+	// CPFSTempMntPath used for create sub directory
+	CPFSTempMntPath = "/mnt/acs_mnt/k8s_cpfs/temp"
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {

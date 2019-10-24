@@ -43,7 +43,7 @@ type nodeServer struct {
 	region            string
 	zone              string
 	maxVolumesPerNode int64
-	nodeId            string
+	nodeID            string
 	attachMutex       sync.RWMutex
 	canAttach         bool
 	tagDisk           string
@@ -53,16 +53,27 @@ type nodeServer struct {
 }
 
 const (
-	DISK_STATUS_INUSE     = "In_use"
-	DISK_STATUS_ATTACHING = "Attaching"
-	DISK_STATUS_AVAILABLE = "Available"
-	DISK_STATUS_ATTACHED  = "attached"
-	DISK_STATUS_DETACHED  = "detached"
-	SHARED_ENABLE         = "shared"
-	DISK_TAGED_BY_PLUGIN  = "DISK_TAGED_BY_PLUGIN"
-	DISK_ATTACHED_KEY     = "k8s.aliyun.com"
-	DISK_ATTACHED_VALUE   = "true"
+	// DiskStatusInuse disk inuse status
+	DiskStatusInuse      = "In_use"
+	// DiskStatusAttaching disk attaching status
+	DiskStatusAttaching  = "Attaching"
+	// DiskStatusAvailable disk available status
+	DiskStatusAvailable  = "Available"
+	// DiskStatusAttached disk attached status
+	DiskStatusAttached  = "attached"
+	// DiskStatusDetached disk detached status
+	DiskStatusDetached  = "detached"
+	// SharedEnable tag
+	SharedEnable          = "shared"
+	// DiskTagedByPlugin tag
+	DiskTagedByPlugin   = "DISK_TAGED_BY_PLUGIN"
+	// DiskAttachedKey attached key
+	DiskAttachedKey      = "k8s.aliyun.com"
+	// DiskAttachedValue attached value
+	DiskAttachedValue   = "true"
+	// VolumeDir volume dir
 	VolumeDir             = "/host/etc/kubernetes/volumes/disk/"
+	// VolumeDirRemove volume dir remove
 	VolumeDirRemove       = "/host/etc/kubernetes/volumes/disk/remove"
 )
 
@@ -92,7 +103,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	}
 
 	// tag disk as k8s attached.
-	tagDiskConf := os.Getenv(DISK_TAGED_BY_PLUGIN)
+	tagDiskConf := os.Getenv(DiskTagedByPlugin)
 
 	// Create Directory
 	os.MkdirAll(VolumeDir, os.FileMode(0755))
@@ -103,7 +114,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		region:            doc.RegionID,
 		zone:              doc.ZoneID,
 		maxVolumesPerNode: maxVolumesNum,
-		nodeId:            doc.InstanceID,
+		nodeID:            doc.InstanceID,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		mounter:           utils.NewMounter(),
 		k8smounter:        k8smount.New(""),
@@ -336,7 +347,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 
 	// Step 4 Attach volume
 	isSharedDisk := false
-	if value, ok := req.VolumeContext[SHARED_ENABLE]; ok {
+	if value, ok := req.VolumeContext[SharedEnable]; ok {
 		value = strings.ToLower(value)
 		if value == "enable" || value == "true" || value == "yes" {
 			isSharedDisk = true
@@ -446,7 +457,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		return &csi.NodeUnstageVolumeResponse{}, nil
 	}
 	if disk.InstanceId != "" {
-		if disk.InstanceId == ns.nodeId {
+		if disk.InstanceId == ns.nodeID {
 			//NodeStageVolume/NodeUnstageVolume should be called by sequence
 			//In order no to block to caller, use boolean canAttach to check whether to continue.
 			ns.attachMutex.Lock()
@@ -488,7 +499,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 
 // attach alibaba cloud disk
 func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, error) {
-	log.Infof("NodeStageVolume: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", volumeID, ns.nodeId, ns.region)
+	log.Infof("NodeStageVolume: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", volumeID, ns.nodeID, ns.region)
 
 	// Step 1: check disk status
 	ns.ecsClient = updateEcsClent(ns.ecsClient)
@@ -505,28 +516,28 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 	if isSharedDisk {
 		attachedToLocal := false
 		for _, instance := range disk.MountInstances.MountInstance {
-			if instance.InstanceId == ns.nodeId {
+			if instance.InstanceId == ns.nodeID {
 				attachedToLocal = true
 				break
 			}
 		}
 		if attachedToLocal {
 			detachRequest := ecs.CreateDetachDiskRequest()
-			detachRequest.InstanceId = ns.nodeId
+			detachRequest.InstanceId = ns.nodeID
 			detachRequest.DiskId = volumeID
 			_, err = ns.ecsClient.DetachDisk(detachRequest)
 			if err != nil {
 				return "", status.Errorf(codes.Aborted, "NodeStageVolume: Can't attach disk %s to instance %s: %v", volumeID, disk.InstanceId, err)
 			}
 
-			if err := ns.waitForSharedDiskInStatus(10, time.Second*3, volumeID, DISK_STATUS_DETACHED); err != nil {
+			if err := ns.waitForSharedDiskInStatus(10, time.Second*3, volumeID, DiskStatusDetached); err != nil {
 				return "", err
 			}
 		}
 	} else {
 		// detach disk first if attached
-		if disk.Status == DISK_STATUS_INUSE || disk.Status == DISK_STATUS_ATTACHING {
-			if disk.InstanceId == ns.nodeId {
+		if disk.Status == DiskStatusInuse || disk.Status == DiskStatusAttaching {
+			if disk.InstanceId == ns.nodeID {
 				deviceName := getVolumeConfig(volumeID)
 				if deviceName != "" && IsFileExisting(deviceName) {
 					if used, err := IsDeviceUsedOthers(deviceName, volumeID); err == nil && used == false {
@@ -545,9 +556,9 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 			}
 		}
 		// Step 2: wait for Detach
-		if disk.Status != DISK_STATUS_AVAILABLE {
+		if disk.Status != DiskStatusAvailable {
 			log.Infof("NodeStageVolume: Wait for disk %s is detached", volumeID)
-			if err := ns.waitForDiskInStatus(10, time.Second*3, volumeID, DISK_STATUS_AVAILABLE); err != nil {
+			if err := ns.waitForDiskInStatus(10, time.Second*3, volumeID, DiskStatusAvailable); err != nil {
 				return "", err
 			}
 		}
@@ -556,21 +567,21 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 	// Step 3: Attach Disk, list device before attach disk
 	before := getDevices()
 	attachRequest := ecs.CreateAttachDiskRequest()
-	attachRequest.InstanceId = ns.nodeId
+	attachRequest.InstanceId = ns.nodeID
 	attachRequest.DiskId = volumeID
 	response, err := ns.ecsClient.AttachDisk(attachRequest)
 	if err != nil {
-		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happens to attach disk %s to instance %s, %v", volumeID, ns.nodeId, err)
+		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happens to attach disk %s to instance %s, %v", volumeID, ns.nodeID, err)
 	}
 
 	// Step 4: wait for disk attached
 	log.Infof("NodeStageVolume: Waiting for Disk %s is Attached with RequestId: %s", volumeID, response.RequestId)
 	if isSharedDisk {
-		if err := ns.waitForSharedDiskInStatus(10, time.Second*3, volumeID, DISK_STATUS_ATTACHED); err != nil {
+		if err := ns.waitForSharedDiskInStatus(10, time.Second*3, volumeID, DiskStatusAttached); err != nil {
 			return "", err
 		}
 	} else {
-		if err := ns.waitForDiskInStatus(10, time.Second*3, volumeID, DISK_STATUS_INUSE); err != nil {
+		if err := ns.waitForDiskInStatus(10, time.Second*3, volumeID, DiskStatusInuse); err != nil {
 			return "", err
 		}
 	}
@@ -594,56 +605,56 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 }
 
 // tag disk with: k8s.aliyun.com=true
-func (ns *nodeServer) tagDiskAsK8sAttached(diskId string, regionId string) {
+func (ns *nodeServer) tagDiskAsK8sAttached(diskID string, regionID string) {
 
 	// Step 1: Describe disk, if tag exist, return;
 	describeDisksRequest := ecs.CreateDescribeDisksRequest()
-	describeDisksRequest.RegionId = regionId
-	describeDisksRequest.DiskIds = "[\"" + diskId + "\"]"
+	describeDisksRequest.RegionId = regionID
+	describeDisksRequest.DiskIds = "[\"" + diskID + "\"]"
 	diskResponse, err := ns.ecsClient.DescribeDisks(describeDisksRequest)
 	if err != nil {
-		log.Warnf("tagAsK8sAttached: error with DescribeDisks: %s, %s", diskId, err.Error())
+		log.Warnf("tagAsK8sAttached: error with DescribeDisks: %s, %s", diskID, err.Error())
 		return
 	}
 	disks := diskResponse.Disks.Disk
 	if len(disks) == 0 {
-		log.Warnf("tagAsK8sAttached: no disk found: %s", diskId)
+		log.Warnf("tagAsK8sAttached: no disk found: %s", diskID)
 		return
 	}
 	for _, tag := range disks[0].Tags.Tag {
-		if tag.TagKey == DISK_ATTACHED_KEY && tag.TagValue == DISK_ATTACHED_VALUE {
+		if tag.TagKey == DiskAttachedKey && tag.TagValue == DiskAttachedValue {
 			return
 		}
 	}
 
 	// Step 2: Describe tag
 	describeTagRequest := ecs.CreateDescribeTagsRequest()
-	tag := ecs.DescribeTagsTag{Key: DISK_ATTACHED_KEY, Value: DISK_ATTACHED_VALUE}
+	tag := ecs.DescribeTagsTag{Key: DiskAttachedKey, Value: DiskAttachedValue}
 	describeTagRequest.Tag = &[]ecs.DescribeTagsTag{tag}
 	_, err = ns.ecsClient.DescribeTags(describeTagRequest)
 	if err != nil {
-		log.Warnf("tagAsK8sAttached: DescribeTags error: %s, %s", diskId, err.Error())
+		log.Warnf("tagAsK8sAttached: DescribeTags error: %s, %s", diskID, err.Error())
 		return
 	}
 
 	// Step 3: create & attach tag
 	addTagsRequest := ecs.CreateAddTagsRequest()
-	tmpTag := ecs.AddTagsTag{Key: DISK_ATTACHED_KEY, Value: DISK_ATTACHED_VALUE}
+	tmpTag := ecs.AddTagsTag{Key: DiskAttachedKey, Value: DiskAttachedValue}
 	addTagsRequest.Tag = &[]ecs.AddTagsTag{tmpTag}
 	addTagsRequest.ResourceType = "disk"
-	addTagsRequest.ResourceId = diskId
-	addTagsRequest.RegionId = regionId
+	addTagsRequest.ResourceId = diskID
+	addTagsRequest.RegionId = regionID
 	_, err = ns.ecsClient.AddTags(addTagsRequest)
 	if err != nil {
-		log.Warnf("tagAsK8sAttached: AddTags error: %s, %s", diskId, err.Error())
+		log.Warnf("tagAsK8sAttached: AddTags error: %s, %s", diskID, err.Error())
 		return
 	}
-	log.Infof("tagDiskAsK8sAttached:: add tag to disk: %s", diskId)
+	log.Infof("tagDiskAsK8sAttached:: add tag to disk: %s", diskID)
 }
 
 func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	return &csi.NodeGetInfoResponse{
-		NodeId:            ns.nodeId,
+		NodeId:            ns.nodeID,
 		MaxVolumesPerNode: ns.maxVolumesPerNode,
 		// make sure that the driver works on this particular zone only
 		AccessibleTopology: &csi.Topology{
@@ -662,12 +673,12 @@ func (ns *nodeServer) waitForSharedDiskInStatus(retryCount int, interval time.Du
 			return err
 		}
 		for _, instance := range disk.MountInstances.MountInstance {
-			if expectStatus == DISK_STATUS_ATTACHED {
-				if instance.InstanceId == ns.nodeId {
+			if expectStatus == DiskStatusAttached {
+				if instance.InstanceId == ns.nodeID {
 					return nil
 				}
-			} else if expectStatus == DISK_STATUS_DETACHED {
-				if instance.InstanceId != ns.nodeId {
+			} else if expectStatus == DiskStatusDetached {
+				if instance.InstanceId != ns.nodeID {
 					return nil
 				}
 			}
@@ -690,13 +701,13 @@ func (ns *nodeServer) waitForDiskInStatus(retryCount int, interval time.Duration
 	return status.Errorf(codes.Aborted, "WaitForDiskInStatus: after %d times of check, disk %s is still not in expected status %v", retryCount, volumeID, expectedStatus)
 }
 
-func (ns *nodeServer) findDiskByID(diskId string) (*ecs.Disk, error) {
+func (ns *nodeServer) findDiskByID(diskID string) (*ecs.Disk, error) {
 	describeDisksRequest := ecs.CreateDescribeDisksRequest()
 	describeDisksRequest.RegionId = ns.region
-	describeDisksRequest.DiskIds = "[\"" + diskId + "\"]"
+	describeDisksRequest.DiskIds = "[\"" + diskID + "\"]"
 	diskResponse, err := ns.ecsClient.DescribeDisks(describeDisksRequest)
 	if err != nil {
-		return nil, status.Errorf(codes.Aborted, "Can't get disk %s: %v", diskId, err)
+		return nil, status.Errorf(codes.Aborted, "Can't get disk %s: %v", diskID, err)
 	}
 	disks := diskResponse.Disks.Disk
 	// shared disk can not described if not set EnableShared
@@ -704,15 +715,15 @@ func (ns *nodeServer) findDiskByID(diskId string) (*ecs.Disk, error) {
 		describeDisksRequest.EnableShared = requests.NewBoolean(true)
 		diskResponse, err = ns.ecsClient.DescribeDisks(describeDisksRequest)
 		if err != nil {
-			return nil, status.Errorf(codes.Aborted, "Can't get disk %s: %v", diskId, err)
+			return nil, status.Errorf(codes.Aborted, "Can't get disk %s: %v", diskID, err)
 		}
 		if diskResponse == nil {
-			return nil, status.Errorf(codes.Aborted, "Empty response when get disk %s", diskId)
+			return nil, status.Errorf(codes.Aborted, "Empty response when get disk %s", diskID)
 		}
 		disks = diskResponse.Disks.Disk
 	}
 	if len(disks) == 0 || len(disks) > 1 {
-		return nil, status.Errorf(codes.Internal, "FindDiskByID: Unexpected count %d for volume id %s, Get Response: %v, with Request: %v, %v", len(disks), diskId, diskResponse, describeDisksRequest.RegionId, describeDisksRequest.DiskIds)
+		return nil, status.Errorf(codes.Internal, "FindDiskByID: Unexpected count %d for volume id %s, Get Response: %v, with Request: %v, %v", len(disks), diskID, diskResponse, describeDisksRequest.RegionId, describeDisksRequest.DiskIds)
 	}
 	return &disks[0], err
 }
@@ -729,25 +740,25 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	}
 
 	volumePath := req.GetVolumePath()
-	volumeId := req.GetVolumeId()
-	devicePath := GetDevicePath(volumeId)
+	volumeID := req.GetVolumeId()
+	devicePath := GetDevicePath(volumeID)
 	if devicePath == "" {
-		log.Errorf("NodeExpandVolume:: can't get devicePath: %s", volumeId)
+		log.Errorf("NodeExpandVolume:: can't get devicePath: %s", volumeID)
 	}
-	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, volumePath: %s", volumeId, devicePath, volumePath)
+	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, volumePath)
 
 	// use resizer to expand volume filesystem
 	realExec := k8smount.NewOsExec()
 	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: realExec})
 	ok, err := resizer.Resize(devicePath, volumePath)
 	if err != nil {
-		log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeId, devicePath, volumePath, err.Error())
+		log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeID, devicePath, volumePath, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if !ok {
-		log.Errorf("NodeExpandVolume:: Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", volumeId, devicePath, volumePath)
+		log.Errorf("NodeExpandVolume:: Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, volumePath)
 		return nil, status.Error(codes.Internal, "Fail to resize volume fs")
 	}
-	log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", volumeId, devicePath, volumePath)
+	log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, volumePath)
 	return &csi.NodeExpandVolumeResponse{}, nil
 }
