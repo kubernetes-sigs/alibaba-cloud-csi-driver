@@ -14,11 +14,14 @@ spec:
 
 ---
 kind: StatefulSet
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 metadata:
   name: csi-lvm-provisioner
   namespace: kube-system
 spec:
+  selector:
+    matchLabels:
+      app: csi-lvm-provisioner
   serviceName: "csi-lvm-provisioner"
   replicas: 1
   template:
