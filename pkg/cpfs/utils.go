@@ -27,9 +27,9 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
-func createCpfsSubDir(cpfsOptions, cpfsServer, cpfsFileSystem, cpfsSubpath string, volumeId string) error {
+func createCpfsSubDir(cpfsOptions, cpfsServer, cpfsFileSystem, cpfsSubpath string, volumeID string) error {
 	// step 1: create mount path
-	cpfsTmpPath := filepath.Join(CPFS_TEMP_MNTPath, volumeId)
+	cpfsTmpPath := filepath.Join(CPFSTempMntPath, volumeID)
 	if err := utils.CreateDest(cpfsTmpPath); err != nil {
 		log.Infof("Create Cpfs temp Directory err: " + err.Error())
 		return err
@@ -60,6 +60,7 @@ func createCpfsSubDir(cpfsOptions, cpfsServer, cpfsFileSystem, cpfsSubpath strin
 	return nil
 }
 
+// GetCpfsDetails get cpfsServer cpfsFileSystem and cpfsPath object
 func GetCpfsDetails(cpfsServersString string) (string, string, string) {
 	cpfsServer, cpfsFileSystem, cpfsPath := "", "", ""
 	cpfsServerList := strings.Split(cpfsServersString, ",")
@@ -112,7 +113,7 @@ func CreateDest(dest string) error {
 }
 
 //DoMount execute the mount command for cpfs dir
-func DoMount(cpfsServer, cpfsFileSystem, cpfsPath, mountOptions, mountPoint, volumeId string) error {
+func DoMount(cpfsServer, cpfsFileSystem, cpfsPath, mountOptions, mountPoint, volumeID string) error {
 	if !utils.IsFileExisting(mountPoint) {
 		CreateDest(mountPoint)
 	}
@@ -123,7 +124,7 @@ func DoMount(cpfsServer, cpfsFileSystem, cpfsPath, mountOptions, mountPoint, vol
 	_, err := utils.Run(mntCmd)
 	if err != nil && cpfsPath != "/" {
 		if strings.Contains(err.Error(), "No such file or directory") {
-			if err := createCpfsSubDir(mountOptions, cpfsServer, cpfsFileSystem, cpfsPath, volumeId); err != nil {
+			if err := createCpfsSubDir(mountOptions, cpfsServer, cpfsFileSystem, cpfsPath, volumeID); err != nil {
 				return err
 			}
 			if _, err := utils.Run(mntCmd); err != nil {

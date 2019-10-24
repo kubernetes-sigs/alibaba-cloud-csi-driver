@@ -29,6 +29,7 @@ type controllerServer struct {
 	*csicommon.DefaultControllerServer
 }
 
+// NewControllerServer creates a controllerServer object
 func NewControllerServer(d *csicommon.CSIDriver) *controllerServer {
 	return &controllerServer{
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
@@ -46,15 +47,15 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if req.VolumeCapabilities == nil {
 		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
 	}
-	volumeId := req.GetName()
+	volumeID := req.GetName()
 	response := &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
-			VolumeId:      volumeId,
+			VolumeId:      volumeID,
 			CapacityBytes: req.GetCapacityRange().GetRequiredBytes(),
 			VolumeContext: req.GetParameters(),
 		},
 	}
-	log.Infof("Success create Volume: %s, Size: %d", volumeId, req.GetCapacityRange().GetRequiredBytes())
+	log.Infof("Success create Volume: %s, Size: %d", volumeID, req.GetCapacityRange().GetRequiredBytes())
 	return response, nil
 }
 
