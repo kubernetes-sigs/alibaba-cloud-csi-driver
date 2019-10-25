@@ -37,7 +37,7 @@ const (
 	// MetadataURL is metadata url
 	MetadataURL = "http://100.100.100.200/latest/meta-data/"
 	// RegionTag is region id
-	RegionTag   = "region-id"
+	RegionTag = "region-id"
 )
 
 var (

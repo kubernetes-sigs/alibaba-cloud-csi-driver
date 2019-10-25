@@ -43,13 +43,13 @@ type DefaultOptions struct {
 
 const (
 	// UserAKID is user AK ID
-	UserAKID      = "/etc/.volumeak/akId"
+	UserAKID = "/etc/.volumeak/akId"
 	// UserAKSecret is user AK Secret
-	UserAKSecret  = "/etc/.volumeak/akSecret"
+	UserAKSecret = "/etc/.volumeak/akSecret"
 	// MetadataURL is metadata url
-	MetadataURL   = "http://100.100.100.200/latest/meta-data/"
+	MetadataURL = "http://100.100.100.200/latest/meta-data/"
 	// RegionIDTag is region id
-	RegionIDTag   = "region-id"
+	RegionIDTag = "region-id"
 	// InstanceIDTag is instance id
 	InstanceIDTag = "instance-id"
 	// DefaultRegion is default region

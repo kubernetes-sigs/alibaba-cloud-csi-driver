@@ -632,14 +632,14 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	if err != nil {
 		log.Errorf("ControllerExpandVolume:: expand disk with error: %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
-	} else {
-		if requestGB == disk.Size {
-			log.Infof("ControllerExpandVolume:: expect size is same with current: %s, size: %dGi", req.VolumeId, requestGB)
-			return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
-		} else if requestGB < disk.Size {
-			log.Errorf("ControllerExpandVolume:: expect size is less than current: %d, expected: %d", disk.Size, requestGB)
-			return nil, status.Errorf(codes.Internal, "configured disk size less than current size: %d, %d", disk.Size, requestGB)
-		}
+	}
+	if requestGB == disk.Size {
+		log.Infof("ControllerExpandVolume:: expect size is same with current: %s, size: %dGi", req.VolumeId, requestGB)
+		return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
+	}
+	if requestGB < disk.Size {
+		log.Errorf("ControllerExpandVolume:: expect size is less than current: %d, expected: %d", disk.Size, requestGB)
+		return nil, status.Errorf(codes.Internal, "configured disk size less than current size: %d, %d", disk.Size, requestGB)
 	}
 
 	// do resize
