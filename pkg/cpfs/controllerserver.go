@@ -44,7 +44,7 @@ type controllerServer struct {
 // resourcemode is selected by: subpath/filesystem
 const (
 	MNTROOTPATH = "/csi-persistentvolumes"
-	MBSIZE     = 1024 * 1024
+	MBSIZE      = 1024 * 1024
 	DRIVER      = "driver"
 	SERVER      = "server"
 	MODE        = "mode"

@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	driverName  = "cpfsplugin.csi.alibabacloud.com"
+	driverName = "cpfsplugin.csi.alibabacloud.com"
 	// InstanceID is instance id tag
 	InstanceID = "instance-id"
 )

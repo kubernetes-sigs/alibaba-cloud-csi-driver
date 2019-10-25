@@ -37,7 +37,7 @@ const (
 	// MetadataURL is metadata server url
 	MetadataURL = "http://100.100.100.200/latest/meta-data/"
 	// InstanceID is the instance id tag
-	InstanceID  = "instance-id"
+	InstanceID = "instance-id"
 	// RegionIDTag is the region id tag
 	RegionIDTag = "region-id"
 )
@@ -169,7 +169,7 @@ func createVG(vgName string) (int, error) {
 		pvNumCmd := fmt.Sprintf("%s vgdisplay %s | grep 'Cur PV' | grep -v grep | awk '{print $3}'", NsenterCmd, vgName)
 		if pvNumStr, err := utils.Run(pvNumCmd); err != nil {
 			return 0, err
-		} else if pvNum, err = strconv.Atoi(strings.TrimSpace(pvNumStr)); err != nil{
+		} else if pvNum, err = strconv.Atoi(strings.TrimSpace(pvNumStr)); err != nil {
 			return 0, err
 		}
 		return pvNum, nil
