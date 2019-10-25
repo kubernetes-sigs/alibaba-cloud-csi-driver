@@ -1,5 +1,5 @@
 # 阿里云Kubernetes CSI插件
-
+[![GoReportCard Widget]][GoReportCardResult]
 
 [English](./README.md) | 简体中文
 
@@ -59,3 +59,7 @@ LVM CSI插件更多详细说明请参考[LVM](./docs/lvm.md)
 参与Kubernetes社区参考[Kubernetes行为准则](code-of-conduct.md)；
 
 可以向社区提交 [Issue](https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/issues)；
+
+
+[GoReportCard Widget]: https://goreportcard.com/badge/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
+[GoReportCardResult]: https://goreportcard.com/report/github.com/kubernetes-sigs/alibaba-cloud-csi-driver

@@ -1,5 +1,6 @@
 
 # Alibaba Cloud Kubernetes CSI Plugin
+[![GoReportCard Widget]][GoReportCardResult]
 
 English | [简体中文](./README-zh_CN.md)
 
@@ -60,3 +61,7 @@ You can join the DingDing Talking [Group](https://qr.dingtalk.com/action/joingro
 Participation in the Kubernetes community is governed by the [Kubernetes Code of Conduct](code-of-conduct.md).
 
 Please submit an issue at: [Issues](https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/issues)
+
+
+[GoReportCard Widget]: https://goreportcard.com/badge/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
+[GoReportCardResult]: https://goreportcard.com/report/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
