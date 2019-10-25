@@ -25,7 +25,7 @@ const (
 	// MetadataURL is metadata url
 	MetadataURL = "http://100.100.100.200/latest/meta-data/"
 	// InstanceID is instance ID
-	InstanceID  = "instance-id"
+	InstanceID = "instance-id"
 )
 
 // GetMetaData get host regionid, zoneid

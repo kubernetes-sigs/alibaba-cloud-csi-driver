@@ -40,22 +40,22 @@ import (
 
 // resourcemode is selected by: subpath/filesystem
 const (
-	MNTROOTPATH      = "/csi-persistentvolumes"
+	MNTROOTPATH     = "/csi-persistentvolumes"
 	MBSize          = 1024 * 1024
-	DRIVER           = "driver"
-	SERVER           = "server"
-	MODE             = "mode"
+	DRIVER          = "driver"
+	SERVER          = "server"
+	MODE            = "mode"
 	ModeType        = "modeType"
-	VolumeAs         = "volumeAs"
-	PATH             = "path"
+	VolumeAs        = "volumeAs"
+	PATH            = "path"
 	ProtocolType    = "protocolType"
 	StorageType     = "storageType"
 	ZoneID          = "zoneId"
-	DESCRIPTION      = "description"
+	DESCRIPTION     = "description"
 	ZoneIDTag       = "zone-id"
 	NetworkType     = "networkType"
 	VpcID           = "vpcId"
-	VSwitchID      = "vSwitchId"
+	VSwitchID       = "vSwitchId"
 	AccessGroupName = "accessGroupName"
 	DeleteVolume    = "deleteVolume"
 )

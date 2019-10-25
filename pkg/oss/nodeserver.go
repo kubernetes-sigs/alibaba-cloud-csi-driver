@@ -51,13 +51,13 @@ const (
 	//CredentialFile is the path of oss ak credential file
 	CredentialFile = "/host/etc/passwd-ossfs"
 	// NsenterCmd is nsenter mount command
-	NsenterCmd    = "/nsenter --mount=/proc/1/ns/mnt"
+	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
 	// SocketPath is path of connector sock
-	SocketPath    = "/host/etc/csi-tool/connector.sock"
+	SocketPath = "/host/etc/csi-tool/connector.sock"
 	// AkID is Ak ID
-	AkID          = "akId"
+	AkID = "akId"
 	// AkSecret is Ak Secret
-	AkSecret      = "akSecret"
+	AkSecret = "akSecret"
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
