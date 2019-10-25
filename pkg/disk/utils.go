@@ -39,47 +39,47 @@ const (
 	// KubernetesAlicloudDiskDriver driver name
 	KubernetesAlicloudDiskDriver = "alicloud/disk"
 	// MetadataURL metadata URL
-	MetadataURL                    = "http://100.100.100.200/latest/meta-data/"
+	MetadataURL = "http://100.100.100.200/latest/meta-data/"
 	// DocumentURL document URL
-	DocumentURL                    = "http://100.100.100.200/latest/dynamic/instance-identity/document"
+	DocumentURL = "http://100.100.100.200/latest/dynamic/instance-identity/document"
 	// RegionIDTag region ID
-	RegionIDTag                    = "region-id"
+	RegionIDTag = "region-id"
 	// InstanceID instance ID
-	InstanceID                     = "instance-id"
+	InstanceID = "instance-id"
 	// DiskConflict invalid operation type
-	DiskConflict                 = "InvalidOperation.Conflict"
+	DiskConflict = "InvalidOperation.Conflict"
 	// IncorrectDiskStatus incorrect disk status
-	IncorrectDiskStatus           = "IncorrectDiskStatus"
+	IncorrectDiskStatus = "IncorrectDiskStatus"
 	// DiskCreatingSnapshot ...
-	DiskCreatingSnapshot          = "DiskCreatingSnapshot"
+	DiskCreatingSnapshot = "DiskCreatingSnapshot"
 	// UserNotInTheWhiteList tag
-	UserNotInTheWhiteList          = "UserNotInTheWhiteList"
+	UserNotInTheWhiteList = "UserNotInTheWhiteList"
 	// TagK8sPV tag
-	TagK8sPV                    = "k8s-pv"
+	TagK8sPV = "k8s-pv"
 	// ZoneIDTag tag
-	ZoneIDTag                   = "zone-id"
+	ZoneIDTag = "zone-id"
 	// LogfilePrefix tag
-	LogfilePrefix                  = "/var/log/alicloud/provisioner"
+	LogfilePrefix = "/var/log/alicloud/provisioner"
 	// DiskNotAvailable tag
-	DiskNotAvailable              = "InvalidDataDiskCategory.NotSupported"
+	DiskNotAvailable = "InvalidDataDiskCategory.NotSupported"
 	// DiskHighAvail tag
-	DiskHighAvail                 = "available"
+	DiskHighAvail = "available"
 	// DiskCommon common disk type
-	DiskCommon                    = "cloud"
+	DiskCommon = "cloud"
 	// DiskEfficiency efficiency disk type
-	DiskEfficiency                 = "cloud_efficiency"
+	DiskEfficiency = "cloud_efficiency"
 	// DiskSSD ssd disk type
-	DiskSSD                      = "cloud_ssd"
+	DiskSSD = "cloud_ssd"
 	// DiskESSD essd disk type
-	DiskESSD                      = "cloud_essd"
+	DiskESSD = "cloud_essd"
 	// DiskSharedSSD shared sdd disk type
-	DiskSharedSSD                 = "san_ssd"
+	DiskSharedSSD = "san_ssd"
 	// DiskSharedEfficiency shared efficiency disk type
-	DiskSharedEfficiency          = "san_efficiency"
+	DiskSharedEfficiency = "san_efficiency"
 	// MBSIZE tag
-	MBSIZE                         = 1024 * 1024
+	MBSIZE = 1024 * 1024
 	// DefaultRegion is the default region id
-	DefaultRegion                  = "cn-hangzhou"
+	DefaultRegion = "cn-hangzhou"
 )
 
 var (
@@ -226,11 +226,11 @@ func GetDeviceMountNum(targetPath string) int {
 		return 0
 	}
 	deviceNumOut = strings.TrimSuffix(deviceNumOut, "\n")
-	if num, err := strconv.Atoi(deviceNumOut); err != nil {
+	num, err := strconv.Atoi(deviceNumOut)
+	if err != nil {
 		return 0
-	} else {
-		return num
 	}
+	return num
 }
 
 // IsFileExisting check file exist in volume driver

@@ -51,7 +51,7 @@ const (
 	// NasTempMntPath used for create sub directory
 	NasTempMntPath = "/mnt/acs_mnt/k8s_nas/temp"
 	// NasPortnum is nas port
-	NasPortnum      = "2049"
+	NasPortnum = "2049"
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -84,7 +84,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("host is empty, should input nas domain")
 	}
 	// check network connection
-	conn, err := net.DialTimeout("tcp", opt.Server+":" + NasPortnum, time.Second*time.Duration(3))
+	conn, err := net.DialTimeout("tcp", opt.Server+":"+NasPortnum, time.Second*time.Duration(3))
 	if err != nil {
 		log.Errorf("NAS: Cannot connect to nas host: %s", opt.Server)
 		return nil, errors.New("NAS: Cannot connect to nas host: " + opt.Server)

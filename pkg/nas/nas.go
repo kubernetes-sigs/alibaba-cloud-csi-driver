@@ -25,9 +25,9 @@ import (
 )
 
 const (
-	driverName   = "nasplugin.csi.alibabacloud.com"
+	driverName = "nasplugin.csi.alibabacloud.com"
 	// InstanceID is instance id
-	InstanceID  = "instance-id"
+	InstanceID = "instance-id"
 )
 
 var (

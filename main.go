@@ -38,19 +38,19 @@ func init() {
 
 const (
 	// LogfilePrefix prefix of log file
-	LogfilePrefix   = "/var/log/alicloud/"
+	LogfilePrefix = "/var/log/alicloud/"
 	// MBSIZE MB size
-	MBSIZE          = 1024 * 1024
+	MBSIZE = 1024 * 1024
 	// TypePluginDISK DISK type plugin
-	TypePluginDISK  = "diskplugin.csi.alibabacloud.com"
+	TypePluginDISK = "diskplugin.csi.alibabacloud.com"
 	// TypePluginNAS NAS type plugin
-	TypePluginNAS   = "nasplugin.csi.alibabacloud.com"
+	TypePluginNAS = "nasplugin.csi.alibabacloud.com"
 	// TypePluginOSS OSS type plugin
-	TypePluginOSS   = "ossplugin.csi.alibabacloud.com"
+	TypePluginOSS = "ossplugin.csi.alibabacloud.com"
 	// TypePluginCPFS CPFS type plugin
-	TypePluginCPFS  = "cpfsplugin.csi.alibabacloud.com"
+	TypePluginCPFS = "cpfsplugin.csi.alibabacloud.com"
 	// TypePluginLVM LVM type plugin
-	TypePluginLVM  = "lvmplugin.csi.alibabacloud.com"
+	TypePluginLVM = "lvmplugin.csi.alibabacloud.com"
 )
 
 var _BRANCH_ = ""

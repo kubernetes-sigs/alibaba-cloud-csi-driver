@@ -38,26 +38,26 @@ import (
 )
 
 const (
-	// NsenterCmd is teh nsenter command
-	NsenterCmd   = "/nsenter --mount=/proc/1/ns/mnt"
+	// NsenterCmd is the nsenter command
+	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
 	// VgNameTag is the vg name tag
-	VgNameTag   = "vgName"
+	VgNameTag = "vgName"
 	// PvTypeTag is the pv type tag
-	PvTypeTag   = "pvType"
+	PvTypeTag = "pvType"
 	// FsTypeTag is the fs type tag
-	FsTypeTag  = "fsType"
+	FsTypeTag = "fsType"
 	// LvmTypeTag is the lvm type tag
 	LvmTypeTag = "lvmType"
 	// LocalDisk local disk
-	LocalDisk    = "localdisk"
+	LocalDisk = "localdisk"
 	// CloudDisk cloud disk
-	CloudDisk    = "clouddisk"
+	CloudDisk = "clouddisk"
 	// LinearType linear type
-	LinearType   = "linear"
+	LinearType = "linear"
 	// StripingType striping type
 	StripingType = "striping"
 	// DefaultFs default fs
-	DefaultFs   = "ext4"
+	DefaultFs = "ext4"
 )
 
 type nodeServer struct {
@@ -69,8 +69,8 @@ type nodeServer struct {
 }
 
 var (
-	masterURL    string
-	kubeconfig   string
+	masterURL  string
+	kubeconfig string
 	// DeviceChars is chars of a device
 	DeviceChars = []string{"b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}
 )
@@ -196,9 +196,8 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err != nil {
 		if _, err := os.Stat(targetPath); os.IsNotExist(err) {
 			return nil, status.Error(codes.NotFound, "TargetPath not found")
-		} else {
-			return nil, status.Error(codes.Internal, err.Error())
 		}
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if !isMnt {
 		return &csi.NodeUnpublishVolumeResponse{}, nil

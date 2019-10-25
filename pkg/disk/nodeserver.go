@@ -54,27 +54,27 @@ type nodeServer struct {
 
 const (
 	// DiskStatusInuse disk inuse status
-	DiskStatusInuse      = "In_use"
+	DiskStatusInuse = "In_use"
 	// DiskStatusAttaching disk attaching status
-	DiskStatusAttaching  = "Attaching"
+	DiskStatusAttaching = "Attaching"
 	// DiskStatusAvailable disk available status
-	DiskStatusAvailable  = "Available"
+	DiskStatusAvailable = "Available"
 	// DiskStatusAttached disk attached status
-	DiskStatusAttached  = "attached"
+	DiskStatusAttached = "attached"
 	// DiskStatusDetached disk detached status
-	DiskStatusDetached  = "detached"
+	DiskStatusDetached = "detached"
 	// SharedEnable tag
-	SharedEnable          = "shared"
+	SharedEnable = "shared"
 	// DiskTagedByPlugin tag
-	DiskTagedByPlugin   = "DISK_TAGED_BY_PLUGIN"
+	DiskTagedByPlugin = "DISK_TAGED_BY_PLUGIN"
 	// DiskAttachedKey attached key
-	DiskAttachedKey      = "k8s.aliyun.com"
+	DiskAttachedKey = "k8s.aliyun.com"
 	// DiskAttachedValue attached value
-	DiskAttachedValue   = "true"
+	DiskAttachedValue = "true"
 	// VolumeDir volume dir
-	VolumeDir             = "/host/etc/kubernetes/volumes/disk/"
+	VolumeDir = "/host/etc/kubernetes/volumes/disk/"
 	// VolumeDirRemove volume dir remove
-	VolumeDirRemove       = "/host/etc/kubernetes/volumes/disk/remove"
+	VolumeDirRemove = "/host/etc/kubernetes/volumes/disk/remove"
 )
 
 // NewNodeServer creates node server
