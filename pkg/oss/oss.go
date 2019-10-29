@@ -30,7 +30,8 @@ var (
 	version = "1.0.0"
 )
 
-type oss struct {
+// OSS the OSS object
+type OSS struct {
 	driver     *csicommon.CSIDriver
 	endpoint   string
 	idServer   *csicommon.DefaultIdentityServer
@@ -41,10 +42,10 @@ type oss struct {
 }
 
 // NewDriver init oss type of csi driver
-func NewDriver(nodeID, endpoint string) *oss {
+func NewDriver(nodeID, endpoint string) *OSS {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
-	d := &oss{}
+	d := &OSS{}
 	d.endpoint = endpoint
 
 	if nodeID == "" {
@@ -60,19 +61,20 @@ func NewDriver(nodeID, endpoint string) *oss {
 	return d
 }
 
-// NewNodeServer init oss type of csi nodeServer
-func NewNodeServer(d *oss) *nodeServer {
+// newNodeServer init oss type of csi nodeServer
+func newNodeServer(d *OSS) *nodeServer {
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
 	}
 }
 
-func (d *oss) Run() {
+// Run start a newNodeServer
+func (d *OSS) Run() {
 	s := csicommon.NewNonBlockingGRPCServer()
 	s.Start(d.endpoint,
 		csicommon.NewDefaultIdentityServer(d.driver),
 		nil,
 		//csicommon.NewDefaultControllerServer(d.driver),
-		NewNodeServer(d))
+		newNodeServer(d))
 	s.Wait()
 }

@@ -34,8 +34,8 @@ type nodeServer struct {
 	*csicommon.DefaultNodeServer
 }
 
-// CpfsOptions struct
-type CpfsOptions struct {
+// Options struct
+type Options struct {
 	Server     string `json:"server"`
 	FileSystem string `json:"fileSystem"`
 	SubPath    string `json:"subPath"`
@@ -52,7 +52,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// parse parameters
 	mountPath := req.GetTargetPath()
-	opt := &CpfsOptions{}
+	opt := &Options{}
 	for key, value := range req.VolumeContext {
 		key = strings.ToLower(key)
 		if key == "server" {

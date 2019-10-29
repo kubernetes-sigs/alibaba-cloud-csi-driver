@@ -133,7 +133,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	// step5: Mount cpfs server to localpath
 	if err := DoMount(cpfsServer, cpfsFileSystem, cpfsPath, cpfsOptionsStr, mountPoint, req.Name); err != nil {
-		log.Errorf("CreateVolume: %s, Mount server: %s, cpfsPath: %s, cpfsVersion: %s, cpfsOptions: %s, mountPoint: %s, with error: %s", req.Name, cpfsServer, cpfsPath, cpfsOptionsStr, mountPoint, err.Error())
+		log.Errorf("CreateVolume: %s, Mount server: %s, cpfsPath: %s, cpfsOptions: %s, mountPoint: %s, with error: %s", req.Name, cpfsServer, cpfsPath, cpfsOptionsStr, mountPoint, err.Error())
 		return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + cpfsServer + ", cpfsPath: " + cpfsPath + ", cpfsOptions: " + cpfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
 	}
 

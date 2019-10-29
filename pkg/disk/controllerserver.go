@@ -63,7 +63,7 @@ type diskVolumeArgs struct {
 	Encrypted        bool   `json:"encrypted"`
 	KMSKeyID         string `json:"kmsKeyId"`
 	PerformanceLevel string `json:"performanceLevel"`
-	ResourceGroupID  string `json:resourceGroupId`
+	ResourceGroupID  string `json:"resourceGroupId"`
 }
 
 // Alicloud disk snapshot parameters
@@ -145,7 +145,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	} else if len(disks) == 1 {
 		disk := disks[0]
 		if disk.Size != requestGB || disk.ZoneId != diskVol.ZoneID || disk.Encrypted != diskVol.Encrypted || disk.Category != diskVol.Type {
-			log.Errorf("CreateVolume: exist disk %s size is different with requested for disk: existing size: %d, request size: %d", req.GetName(), disk.Size, requestGB, disk.ZoneId, diskVol.ZoneID, disk.Encrypted, diskVol.Encrypted, disk.Category, diskVol.Type)
+			log.Errorf("CreateVolume: exist disk %s size is different with requested for disk: existing size: %d, request size: %d", req.GetName(), disk.Size, requestGB)
 			return nil, status.Errorf(codes.Internal, "disk %s size is different with requested for disk", req.GetName())
 		}
 		log.Infof("CreateVolume: Volume %s is already created: %s, %s, %s, %d", req.GetName(), disk.DiskId, disk.RegionId, disk.ZoneId, disk.Size)

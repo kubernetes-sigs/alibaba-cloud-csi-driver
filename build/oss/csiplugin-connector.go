@@ -75,7 +75,6 @@ func runOssProxy() {
 		}
 		go echoServer(fd)
 	}
-	log.Print("Daemon Stoped ...")
 }
 
 func echoServer(c net.Conn) {

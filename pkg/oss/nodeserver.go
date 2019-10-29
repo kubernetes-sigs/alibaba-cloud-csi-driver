@@ -38,8 +38,8 @@ type nodeServer struct {
 	*csicommon.DefaultNodeServer
 }
 
-//OssOptions contains options for target oss
-type OssOptions struct {
+// Options contains options for target oss
+type Options struct {
 	Bucket    string `json:"bucket"`
 	URL       string `json:"url"`
 	OtherOpts string `json:"otherOpts"`
@@ -63,7 +63,7 @@ const (
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// logout oss paras
 	mountPath := req.GetTargetPath()
-	opt := &OssOptions{}
+	opt := &Options{}
 	for key, value := range req.VolumeContext {
 		if key == "bucket" {
 			opt.Bucket = value
@@ -132,7 +132,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 }
 
 // save ak file: bucket:ak_id:ak_secret
-func saveOssCredential(options *OssOptions) error {
+func saveOssCredential(options *Options) error {
 
 	oldContentByte := []byte{}
 	if utils.IsFileExisting(CredentialFile) {
@@ -162,7 +162,7 @@ func saveOssCredential(options *OssOptions) error {
 }
 
 // Check oss options
-func checkOssOptions(opt *OssOptions) error {
+func checkOssOptions(opt *Options) error {
 	if opt.URL == "" || opt.Bucket == "" {
 		return errors.New("Oss Parametes error: Url/Bucket empty ")
 	}

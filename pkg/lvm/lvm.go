@@ -22,7 +22,8 @@ import (
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 )
 
-type lvm struct {
+// LVM the LVM struct
+type LVM struct {
 	driver           *csicommon.CSIDriver
 	endpoint         string
 	idServer         *identityServer
@@ -43,10 +44,10 @@ const (
 func initDriver() {
 }
 
-//NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string) *lvm {
+// NewDriver create the identity/node/controller server and disk driver
+func NewDriver(nodeID, endpoint string) *LVM {
 	initDriver()
-	tmplvm := &lvm{}
+	tmplvm := &LVM{}
 	tmplvm.endpoint = endpoint
 
 	if nodeID == "" {
@@ -63,14 +64,15 @@ func NewDriver(nodeID, endpoint string) *lvm {
 	tmplvm.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
 
 	// Create GRPC servers
-	tmplvm.idServer = NewIdentityServer(tmplvm.driver)
+	tmplvm.idServer = newIdentityServer(tmplvm.driver)
 	tmplvm.nodeServer = NewNodeServer(tmplvm.driver, nodeID)
-	tmplvm.controllerServer = NewControllerServer(tmplvm.driver)
+	tmplvm.controllerServer = newControllerServer(tmplvm.driver)
 
 	return tmplvm
 }
 
-func (lvm *lvm) Run() {
+// Run start a new server
+func (lvm *LVM) Run() {
 	log.Infof("Driver: %v ", driverName)
 
 	server := csicommon.NewNonBlockingGRPCServer()

@@ -24,8 +24,8 @@ type identityServer struct {
 	*csicommon.DefaultIdentityServer
 }
 
-//NewIdentityServer create identity server
-func NewIdentityServer(d *csicommon.CSIDriver) *identityServer {
+// newIdentityServer create identity server
+func newIdentityServer(d *csicommon.CSIDriver) *identityServer {
 	return &identityServer{
 		DefaultIdentityServer: csicommon.NewDefaultIdentityServer(d),
 	}
