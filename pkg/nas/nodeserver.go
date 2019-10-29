@@ -37,8 +37,8 @@ type nodeServer struct {
 	*csicommon.DefaultNodeServer
 }
 
-// NasOptions struct definition
-type NasOptions struct {
+// Options struct definition
+type Options struct {
 	Server   string `json:"server"`
 	Path     string `json:"path"`
 	Vers     string `json:"vers"`
@@ -59,7 +59,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// parse parameters
 	mountPath := req.GetTargetPath()
-	opt := &NasOptions{}
+	opt := &Options{}
 	for key, value := range req.VolumeContext {
 		if key == "server" {
 			opt.Server = value
