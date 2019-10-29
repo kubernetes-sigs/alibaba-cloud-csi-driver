@@ -18,10 +18,10 @@ package oss
 import "testing"
 
 func TestGetDiskVolumeOptions(t *testing.T) {
-	options := &OssOptions{}
+	options := &Options{}
 	options.AkSecret = "11111"
-	options.AkId = "2222"
-	options.Url = "1.1.1.1"
+	options.AkID = "2222"
+	options.URL = "1.1.1.1"
 	options.Bucket = "aliyun"
 
 	err := checkOssOptions(options)

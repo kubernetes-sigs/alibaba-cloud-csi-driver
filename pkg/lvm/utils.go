@@ -42,6 +42,9 @@ const (
 	RegionIDTag = "region-id"
 )
 
+// ErrParse is an error that is returned when parse operation fails
+var ErrParse = errors.New("Cannot parse output of blkid")
+
 // GetMetaData get host regionid, zoneid
 func GetMetaData(resource string) string {
 	resp, err := http.Get(MetadataURL + resource)
@@ -82,18 +85,18 @@ func checkFSType(devicePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	parseErr := errors.New("Cannot parse output of blkid.")
+
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
 		fields := strings.Split(strings.TrimSpace(line), "=")
 		if len(fields) != 2 {
-			return "", parseErr
+			return "", ErrParse
 		}
 		if fields[0] == "TYPE" {
 			return fields[1], nil
 		}
 	}
-	return "", parseErr
+	return "", ErrParse
 }
 
 func isVgExist(vgName string) (bool, error) {

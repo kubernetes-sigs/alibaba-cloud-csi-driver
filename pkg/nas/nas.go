@@ -34,7 +34,8 @@ var (
 	version = "1.0.0"
 )
 
-type nas struct {
+// NAS the NAS object
+type NAS struct {
 	driver           *csicommon.CSIDriver
 	endpoint         string
 	idServer         *csicommon.DefaultIdentityServer
@@ -46,10 +47,10 @@ type nas struct {
 }
 
 //NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string) *nas {
+func NewDriver(nodeID, endpoint string) *NAS {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
-	d := &nas{}
+	d := &NAS{}
 	d.endpoint = endpoint
 	if nodeID == "" {
 		nodeID, _ = utils.GetMetaData(InstanceID)
@@ -76,18 +77,19 @@ func NewDriver(nodeID, endpoint string) *nas {
 	return d
 }
 
-//NewNodeServer create the csi node server
-func NewNodeServer(d *nas) *nodeServer {
+//newNodeServer create the csi node server
+func newNodeServer(d *NAS) *nodeServer {
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
 	}
 }
 
-func (d *nas) Run() {
+// Run start a new NodeServer
+func (d *NAS) Run() {
 	s := csicommon.NewNonBlockingGRPCServer()
 	s.Start(d.endpoint,
 		csicommon.NewDefaultIdentityServer(d.driver),
 		d.controllerServer,
-		NewNodeServer(d))
+		newNodeServer(d))
 	s.Wait()
 }
