@@ -53,10 +53,17 @@ const (
 	TypePluginLVM = "lvmplugin.csi.alibabacloud.com"
 )
 
-var _BRANCH_ = ""
-var _VERSION_ = ""
-var _COMMITID_ = ""
-var _BUILDTIME_ = ""
+// BRANCH is CSI Driver Branch
+var BRANCH = ""
+
+// VERSION is CSI Driver Version
+var VERSION = ""
+
+// COMMITID is CSI Driver CommitID
+var COMMITID = ""
+
+// BUILDTIME is CSI Driver Buildtime
+var BUILDTIME = ""
 
 var (
 	endpoint        = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
@@ -84,7 +91,7 @@ func main() {
 
 	drivername := *driver
 	log.Infof("CSI Driver Name: %s, %s, %s", drivername, *nodeID, *endpoint)
-	log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", _BRANCH_, _VERSION_, _BUILDTIME_)
+	log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", BRANCH, VERSION, BUILDTIME)
 	if drivername == TypePluginNAS {
 		driver := nas.NewDriver(*nodeID, *endpoint)
 		driver.Run()

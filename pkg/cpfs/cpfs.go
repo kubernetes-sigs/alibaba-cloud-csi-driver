@@ -33,7 +33,8 @@ var (
 	version = "1.0.0"
 )
 
-type cpfs struct {
+// CPFS the CPFS object
+type CPFS struct {
 	driver           *csicommon.CSIDriver
 	endpoint         string
 	idServer         *csicommon.DefaultIdentityServer
@@ -45,10 +46,10 @@ type cpfs struct {
 }
 
 // NewDriver create a cpfs driver object
-func NewDriver(nodeID, endpoint string) *cpfs {
+func NewDriver(nodeID, endpoint string) *CPFS {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
-	d := &cpfs{}
+	d := &CPFS{}
 	d.endpoint = endpoint
 	if nodeID == "" {
 		nodeID, _ = utils.GetMetaData(InstanceID)
@@ -67,18 +68,19 @@ func NewDriver(nodeID, endpoint string) *cpfs {
 	return d
 }
 
-// NewNodeServer create a NodeServer object
-func NewNodeServer(d *cpfs) *nodeServer {
+// newNodeServer create a NodeServer object
+func newNodeServer(d *CPFS) *nodeServer {
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
 	}
 }
 
-func (d *cpfs) Run() {
+// Run start a new NodeServer
+func (d *CPFS) Run() {
 	s := csicommon.NewNonBlockingGRPCServer()
 	s.Start(d.endpoint,
 		csicommon.NewDefaultIdentityServer(d.driver),
 		d.controllerServer,
-		NewNodeServer(d))
+		newNodeServer(d))
 	s.Wait()
 }

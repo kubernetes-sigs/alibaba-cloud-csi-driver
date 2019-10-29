@@ -30,7 +30,8 @@ const (
 	TopologyZoneKey = "topology." + driverName + "/zone"
 )
 
-type disk struct {
+// DISK the DISK object
+type DISK struct {
 	driver           *csicommon.CSIDriver
 	endpoint         string
 	idServer         csi.IdentityServer
@@ -48,9 +49,9 @@ func initDriver() {
 }
 
 //NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string, runAsController bool) *disk {
+func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	initDriver()
-	tmpdisk := &disk{}
+	tmpdisk := &DISK{}
 	tmpdisk.endpoint = endpoint
 
 	if nodeID == "" {
@@ -91,7 +92,8 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *disk {
 	return tmpdisk
 }
 
-func (disk *disk) Run() {
+// Run start a new NodeServer
+func (disk *DISK) Run() {
 	log.Infof("Starting csi-plugin Driver: %v version: %v", driverName, csiVersion)
 	s := csicommon.NewNonBlockingGRPCServer()
 	s.Start(disk.endpoint, disk.idServer, disk.controllerServer, disk.nodeServer)

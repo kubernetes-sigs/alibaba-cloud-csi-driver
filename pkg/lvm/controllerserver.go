@@ -29,8 +29,8 @@ type controllerServer struct {
 	*csicommon.DefaultControllerServer
 }
 
-// NewControllerServer creates a controllerServer object
-func NewControllerServer(d *csicommon.CSIDriver) *controllerServer {
+// newControllerServer creates a controllerServer object
+func newControllerServer(d *csicommon.CSIDriver) *controllerServer {
 	return &controllerServer{
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
 	}
