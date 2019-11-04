@@ -64,6 +64,7 @@ type diskVolumeArgs struct {
 	KMSKeyID         string `json:"kmsKeyId"`
 	PerformanceLevel string `json:"performanceLevel"`
 	ResourceGroupID  string `json:"resourceGroupId"`
+	DiskTags         string `json:"diskTags"`
 }
 
 // Alicloud disk snapshot parameters
@@ -170,6 +171,20 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	createDiskRequest.DiskCategory = disktype
 	createDiskRequest.Encrypted = requests.NewBoolean(diskVol.Encrypted)
 	createDiskRequest.ResourceGroupId = diskVol.ResourceGroupID
+	// set DiskTags if config
+	if diskVol.DiskTags != "" {
+		diskTags := []ecs.CreateDiskTag{}
+		for _, tag := range strings.Split(diskVol.DiskTags, ",") {
+			tagParts := strings.Split(tag, ":")
+			if len(tagParts) != 2 {
+				return nil, status.Errorf(codes.Internal, "diskTags format error: ", diskVol.DiskTags, req.GetName())
+			} else {
+				diskTagTmp := ecs.CreateDiskTag{Key: tagParts[0], Value: tagParts[1]}
+				diskTags = append(diskTags, diskTagTmp)
+			}
+		}
+		createDiskRequest.Tag = &diskTags
+	}
 	if diskVol.Encrypted == true && diskVol.KMSKeyID != "" {
 		createDiskRequest.KMSKeyId = diskVol.KMSKeyID
 	}
@@ -601,6 +616,12 @@ func (cs *controllerServer) getDiskVolumeOptions(req *csi.CreateVolumeRequest) (
 		} else {
 			diskVolArgs.Encrypted = false
 		}
+	}
+
+	// DiskTags
+	diskVolArgs.DiskTags, ok = volOptions["diskTags"]
+	if !ok {
+		diskVolArgs.DiskTags = ""
 	}
 
 	// kmsKeyId
