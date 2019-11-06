@@ -1,0 +1,15 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: csi-lvm
+provisioner: lvmplugin.csi.alibabacloud.com
+parameters:
+    vgName: volumegroup1
+    fsType: ext4
+    nodeAffinity: "false"
+reclaimPolicy: Delete
+
+
+# nodeAffinity: (Optional) true, false
+#   true: default, provision pv with nodeAffinity configuration;
+#   false: provision pv without nodeAffinity configuration;
