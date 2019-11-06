@@ -55,13 +55,19 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-lvmplugin:v1.14-c1367ddd
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-lvmplugin:v1.14-c4ca29ed4
           imagePullPolicy: "Always"
           args :
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=5"
+            - "--nodeid=$(KUBE_NODE_NAME)"
             - "--driver=lvmplugin.csi.alibabacloud.com"
           env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com/csi.sock
           volumeMounts:

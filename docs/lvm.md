@@ -62,6 +62,7 @@ parameters:
     fsType: ext4
     pvType: clouddisk
     lvmType: linear
+    nodeAffinity: "true"
 reclaimPolicy: Delete
 ```
 Usage:
@@ -81,6 +82,10 @@ Usage:
 > ----> linear: default, create linear lvm volume.
 >
 > ----> striping: only support pvType(localdisk) now, and the striped number is the localdisk number
+>
+> nodeAffinity: optional, default as true. Decide add nodeAffinity in PV or not.
+> ----> true: default, create PV with nodeAffinity configuration;
+> ----> false: create PV without nodeAffinity configuration, pod can be scheduled to any node
 
 
 ### Step 4: Create nginx deploy with lvm
