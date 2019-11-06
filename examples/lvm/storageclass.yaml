@@ -9,12 +9,16 @@ parameters:
 reclaimPolicy: Delete
 
 
-# vgName: Necessary,
+# vgName: Necessary, vg should be created by hands with clouddisk type, and can be auto-create with localdisk type;
 
-# pvType: localdisk, clouddisk
-#   localdisk: support auto create vg using localdisks, and localdisks should be clean.
+# pvType: (Optional) localdisk, clouddisk
 #   clouddisk: default, not support auto create vg, and vg should pre-created by hands.
+#   localdisk: support auto create vg using localdisks, and localdisks should be clean. And vgName is configured by "vgName";
 
-# lvmType: linear, striping
-#   linear: default
-#   striping: only support localdisk now, and the striped number is the localdisk number
+# lvmType: (Optional) linear, striping
+#   linear: default, generate linear type lvm volume;
+#   striping: generate striping type lvm volume; only support localdisk now, and the striped number is the localdisk number;
+
+# nodeAffinity: (Optional) true, false
+#   true: default, provision pv with nodeAffinity configuration;
+#   false: provision pv without nodeAffinity configuration;

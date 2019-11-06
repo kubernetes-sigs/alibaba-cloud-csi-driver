@@ -17,6 +17,7 @@ limitations under the License.
 package lvm
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,7 +31,10 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
@@ -48,6 +52,8 @@ const (
 	FsTypeTag = "fsType"
 	// LvmTypeTag is the lvm type tag
 	LvmTypeTag = "lvmType"
+	// NodeAffinity is the pv node schedule tag
+	NodeAffinity = "nodeAffinity"
 	// LocalDisk local disk
 	LocalDisk = "localdisk"
 	// CloudDisk cloud disk
@@ -58,6 +64,8 @@ const (
 	StripingType = "striping"
 	// DefaultFs default fs
 	DefaultFs = "ext4"
+	// DefaultNA default NodeAffinity
+	DefaultNA = "true"
 )
 
 type nodeServer struct {
@@ -127,6 +135,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if _, ok := req.VolumeContext[FsTypeTag]; ok {
 		fsType = req.VolumeContext[FsTypeTag]
 	}
+	nodeAffinity := DefaultNA
+	if _, ok := req.VolumeContext[NodeAffinity]; ok {
+		nodeAffinity = req.VolumeContext[NodeAffinity]
+	}
 	log.Infof("NodePublishVolume: Starting to mount lvm at: %s, with vg: %s, with volume: %s, PV type: %s, LVM type: %s", targetPath, vgName, req.GetVolumeId(), pvType, lvmType)
 
 	volumeNewCreated := false
@@ -184,6 +196,50 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if volumeNewCreated == false {
 		if err := ns.resizeVolume(ctx, volumeID, vgName, targetPath); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+
+	// upgrade PV with NodeAffinity
+	if nodeAffinity == "true" {
+		oldPv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
+		if err != nil {
+			log.Errorf("NodePublishVolume: Get Persistent Volume(%s) Error: %s", volumeID, err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		if oldPv.Spec.NodeAffinity == nil {
+			oldData, err := json.Marshal(oldPv)
+			if err != nil {
+				log.Errorf("NodePublishVolume: Marshal Persistent Volume(%s) Error: %s", volumeID, err.Error())
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			pvClone := oldPv.DeepCopy()
+
+			// construct new persistent volume data
+			values := []string{ns.nodeID}
+			nSR := v1.NodeSelectorRequirement{Key: "kubernetes.io/hostname", Operator: v1.NodeSelectorOpIn, Values: values}
+			matchExpress := []v1.NodeSelectorRequirement{nSR}
+			nodeSelectorTerm := v1.NodeSelectorTerm{MatchExpressions: matchExpress}
+			nodeSelectorTerms := []v1.NodeSelectorTerm{nodeSelectorTerm}
+			required := v1.NodeSelector{NodeSelectorTerms: nodeSelectorTerms}
+			pvClone.Spec.NodeAffinity = &v1.VolumeNodeAffinity{Required: &required}
+			newData, err := json.Marshal(pvClone)
+			if err != nil {
+				log.Errorf("NodePublishVolume: Marshal New Persistent Volume(%s) Error: %s", volumeID, err.Error())
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, pvClone)
+			if err != nil {
+				log.Errorf("NodePublishVolume: CreateTwoWayMergePatch Volume(%s) Error: %s", volumeID, err.Error())
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+
+			// Upgrade PersistentVolume with NodeAffinity
+			_, err = ns.client.CoreV1().PersistentVolumes().Patch(volumeID, types.StrategicMergePatchType, patchBytes)
+			if err != nil {
+				log.Errorf("NodePublishVolume: Patch Volume(%s) Error: %s", volumeID, err.Error())
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			log.Infof("NodePublishVolume: upgrade Persistent Volume(%s) with nodeAffinity: %s", volumeID, ns.nodeID)
 		}
 	}
 
