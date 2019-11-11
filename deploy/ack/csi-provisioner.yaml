@@ -6,6 +6,7 @@ provisioner: diskplugin.csi.alibabacloud.com
 parameters:
     type: available
 reclaimPolicy: Delete
+allowVolumeExpansion: true
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -15,6 +16,7 @@ provisioner: diskplugin.csi.alibabacloud.com
 parameters:
     type: cloud_essd
 reclaimPolicy: Delete
+allowVolumeExpansion: true
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -24,6 +26,7 @@ provisioner: diskplugin.csi.alibabacloud.com
 parameters:
     type: cloud_ssd
 reclaimPolicy: Delete
+allowVolumeExpansion: true
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -33,6 +36,7 @@ provisioner: diskplugin.csi.alibabacloud.com
 parameters:
     type: cloud_efficiency
 reclaimPolicy: Delete
+allowVolumeExpansion: true
 ---
 kind: Service
 apiVersion: v1
