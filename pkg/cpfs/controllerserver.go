@@ -50,10 +50,12 @@ const (
 	MODE        = "mode"
 	VOLUMEAS    = "volumeAs"
 	PATH        = "path"
+	SUBPATH     = "subpath"
+	FILESYSTEM  = "filesystem"
 )
 
 // used by check pvc is processed
-var pvcProcessSuccess = map[string]bool{}
+var pvcProcessSuccess = map[string]*csi.Volume{}
 var storageClassServerPos = map[string]int{}
 
 // NewControllerServer is to create controller server
@@ -80,9 +82,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	// step1: check pvc is created or not.
 	pvcUID := string(req.Name)
-	if ok, value := pvcProcessSuccess[pvcUID]; ok && value == true {
+	if value, ok := pvcProcessSuccess[pvcUID]; ok {
 		log.Warnf("CreateVolume: CPFS Volume %s has Created Already", req.Name)
-		return nil, fmt.Errorf("CPFS Volume has created alreay " + req.Name)
+		return &csi.CreateVolumeResponse{Volume: value}, nil
 	}
 
 	// parse cpfs parameters
@@ -155,6 +157,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	volumeContext["server"] = cpfsServer
 	volumeContext["fileSystem"] = cpfsFileSystem
 	volumeContext["subPath"] = filepath.Join(cpfsPath, pvName)
+	volumeContext[VOLUMEAS] = SUBPATH
 	if value, ok := req.Parameters["options"]; ok && value != "" {
 		volumeContext["options"] = value
 	}
@@ -165,15 +168,18 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		CapacityBytes: int64(volSizeBytes),
 		VolumeContext: volumeContext,
 	}
-	pvcProcessSuccess[pvcUID] = true
-
+	pvcProcessSuccess[pvcUID] = tmpVol
+	log.Infof("Create Volume Successful: %s, with PV: %v", req.Name, tmpVol)
 	return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 }
 
-//
+// Delete cpfs volume:
+// support delete cpfs subpath: remove all files / rename path name;
+// if stroageclass/archiveOnDelete: false, remove all files under the pv path;
+// if stroageclass/archiveOnDelete: true, rename the pv path and all files saved;
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	log.Infof("DeleteVolume: Starting to delete cpfs volume %s", req.GetVolumeId())
-	pvPath, cpfsPath, cpfsFileSystem, cpfsServer, cpfsOptions := "", "", "", "", ""
+	pvPath, cpfsPath, cpfsFileSystem, cpfsServer, cpfsOptions, volumeAs := "", "", "", "", "", ""
 
 	pvInfo, err := cs.client.CoreV1().PersistentVolumes().Get(req.VolumeId, metav1.GetOptions{})
 	if err != nil {
@@ -198,6 +204,14 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	} else {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with cpfs path empty: %s, CSI: %v", req.VolumeId, pvInfo.Spec.CSI)
 	}
+	if value, ok := pvInfo.Spec.CSI.VolumeAttributes[VOLUMEAS]; ok {
+		volumeAs = value
+	} else {
+		volumeAs = SUBPATH
+	}
+	if volumeAs != SUBPATH {
+		return nil, fmt.Errorf("DeleteVolume: dynamic PV only support subpath: %s", volumeAs)
+	}
 
 	if pvInfo.Spec.StorageClassName == "" {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with storageclass empty: %s, Spec: %v", req.VolumeId, pvInfo.Spec)
@@ -220,7 +234,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 
 	// set the local mountpoint
-	mountPoint := filepath.Join(MNTROOTPATH, req.VolumeId, "-delete")
+	mountPoint := filepath.Join(MNTROOTPATH, req.VolumeId+"-delete")
 	if err := DoMount(cpfsServer, cpfsFileSystem, cpfsPath, cpfsOptions, mountPoint, req.VolumeId); err != nil {
 		log.Errorf("DeleteVolume: %s, Mount server: %s, cpfsPath: %s, cpfsVersion: %s, cpfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, cpfsServer, cpfsPath, cpfsFileSystem, cpfsOptions, mountPoint, err.Error())
 		return nil, fmt.Errorf("DeleteVolume: %s, Mount server: %s, cpfsPath: %s, cpfsVersion: %s, cpfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, cpfsServer, cpfsPath, cpfsFileSystem, cpfsOptions, mountPoint, err.Error())
@@ -228,7 +242,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	defer utils.Umount(mountPoint)
 
 	// remove the pvc process mapping if exist
-	if ok, _ := pvcProcessSuccess[req.VolumeId]; ok {
+	if _, ok := pvcProcessSuccess[req.VolumeId]; ok {
 		delete(pvcProcessSuccess, req.VolumeId)
 	}
 
@@ -253,7 +267,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			if err := os.RemoveAll(deletePath); err != nil {
 				return nil, errors.New("Check Mount cpfsserver fail " + cpfsServer + " error with: " + err.Error())
 			}
-			log.Infof("Delete Successful: Volume %s, Removed path %s", req.VolumeId, deletePath)
+			log.Infof("Delete Successful: Volume %s, Removed all files in the path %s", req.VolumeId, deletePath)
 			return &csi.DeleteVolumeResponse{}, nil
 		}
 	}
