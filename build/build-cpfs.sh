@@ -8,8 +8,8 @@ GIT_SHA=`git rev-parse --short HEAD || echo "HEAD"`
 export GOARCH="amd64"
 export GOOS="linux"
 
-branch="v1.0.0"
-version="v1.14.5"
+branch="master"
+version="v1.14.6"
 commitId=$GIT_SHA
 buildTime=`date "+%Y-%m-%d-%H:%M:%S"`
 
