@@ -177,7 +177,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		for _, tag := range strings.Split(diskVol.DiskTags, ",") {
 			tagParts := strings.Split(tag, ":")
 			if len(tagParts) != 2 {
-				return nil, status.Errorf(codes.Internal, "diskTags format error: ", diskVol.DiskTags, req.GetName())
+				return nil, status.Errorf(codes.Internal, "Invalid diskTags format name: %s tags: %s", req.GetName(), diskVol.DiskTags)
 			} else {
 				diskTagTmp := ecs.CreateDiskTag{Key: tagParts[0], Value: tagParts[1]}
 				diskTags = append(diskTags, diskTagTmp)
