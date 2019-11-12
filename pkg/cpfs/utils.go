@@ -23,8 +23,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 func createCpfsSubDir(cpfsOptions, cpfsServer, cpfsFileSystem, cpfsSubpath string, volumeID string) error {
