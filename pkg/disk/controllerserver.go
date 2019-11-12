@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -32,6 +31,7 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/nightlyone/lockfile"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
