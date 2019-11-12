@@ -1,49 +1,49 @@
-
 # Alibaba Cloud Kubernetes CSI Plugin
 [![GoReportCard Widget]][GoReportCardResult]
 
 English | [简体中文](./README-zh_CN.md)
 
 ## Introduction
-Alibaba cloud CSI plugins implement an interface between CSI enabled Container
+Alibaba Cloud CSI plugins implement an interface between CSI enabled Container
 Orchestrator and Alibaba Cloud Storage. It allows dynamically provision Disk
 volumes and attach it to workloads.
-Current implementation of CSI plugins was tested in Kubernetes environment (requires Kubernetes 1.14+).
 
-Current Support: ***Alibaba cloud Disk, OSS, NAS, CPFS, LVM***;
+Current implementation of CSI plugins has been tested in Kubernetes environment (requires Kubernetes 1.14+).
+
+Current Support: ***Cloud Disk, NAS, CPFS, OSS, LVM***;
 
 
-### Disk CSI Plugin
+### Cloud Disk CSI Plugin
 
-Disk CSI Plugin support Alicloud disk provision and attachment. And alicloud disk is type of block storage, can only used as ReadWriteOnce mode. Only be attached to one node at the same time.
+Disk CSI Plugin support Cloud disk provision and attachment. And Cloud disk is type of block storage, can only used as ReadWriteOnce mode. Only be attached to one node at the same time.
 
-More detail information pls refer to [Disk](./docs/disk.md).
+More detail information please refer to [Cloud Disk](./docs/disk.md).
 
 
 ### NAS CSI Plugin
 
-Nas CSI Plugin can support alicloud nas volume provision and mount. Nas storage is type of network storage and can be mount by multi nodes at the same time.
+NAS CSI Plugin can support NAS volume provision and mount. Alibaba Cloud Network Attached Storage (NAS) storage is type of network storage which compatible with multiple standard protocols, such as NFS and SMB, and can be mount by multi nodes at the same time.
 
-More detail information pls refer to [NAS](./docs/nas.md).
+More detail information please refer to [NAS](./docs/nas.md).
 
 
 ### CPFS CSI Plugin
 
-CPFS CSI Plugin can support alicloud cpfs volume provision and mount. CPFS storage is type of network storage and can be mount by multi nodes at the same time.
+CPFS CSI Plugin can support CPFS volume provision and mount. Cloud Paralleled File System (CPFS) is a parallel file system, and can be mount by multi nodes at the same time.
 
 More detail information pls refer to [CPFS](./docs/cpfs.md).
 
 
 ### OSS CSI Plugin
 
-OSS CSI Plugin support Alicloud oss mount, and does not support provision volume. OSS storage is type of object storage and can be mount by multi nodes at the same time.
+OSS CSI Plugin support OSS bucket mount, but does not support provision volume. OSS storage is type of object storage and can be mount by multi nodes at the same time.
 
 More detail information pls refer to [OSS](./docs/oss.md).
 
 
 ### LVM CSI Plugin
 
-LVM CSI Plugin support lvm volume provision and mount. Lvm volume is a type of local volume and not used as high availability scenario.
+LVM CSI Plugin support LVM volume provision and mount. LVM volume is a type of local storage and should not be used in high availability scenario.
 
 More detail information pls refer to [LVM](./docs/lvm.md).
 
