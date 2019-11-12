@@ -28,9 +28,9 @@ import (
 	"time"
 
 	"encoding/json"
-	log "github.com/Sirupsen/logrus"
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 const (

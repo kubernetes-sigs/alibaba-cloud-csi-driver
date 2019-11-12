@@ -3,7 +3,6 @@ module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 go 1.12
 
 require (
-	github.com/Sirupsen/logrus v0.0.0-00010101000000-000000000000
 	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20191010082856-e76f4c50e182
 	github.com/container-storage-interface/spec v1.1.0
 	github.com/gogo/protobuf v1.2.1 // indirect
@@ -15,8 +14,9 @@ require (
 	github.com/kubernetes-csi/csi-lib-utils v0.6.1 // indirect
 	github.com/kubernetes-csi/drivers v1.0.2
 	github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443
+	github.com/onsi/gomega v0.0.0-00010101000000-000000000000 // indirect
 	github.com/sevlyar/go-daemon v0.1.5
-	github.com/sirupsen/logrus v1.4.2 // indirect
+	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
 	golang.org/x/crypto v0.0.0-20190228161510-8dd112bcdc25 // indirect
