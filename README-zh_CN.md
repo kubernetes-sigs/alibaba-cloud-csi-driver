@@ -5,9 +5,9 @@
 
 ## 插件介绍
 
-阿里云CSI插件实现了Kubernetes平台使用阿里云云存储卷的生命周期管理，支持动态创建、挂载、使用云数据卷。 当前的CSI实现基于K8S 1.14以上的版本；
+阿里云CSI插件实现了在Kubernetes中对阿里云云存储卷的生命周期管理，支持动态创建、挂载、使用云数据卷。 当前的CSI实现基于K8S 1.14以上的版本；
 
-支持的阿里云存储：***云盘、NAS、OSS、CPFS、LVM***
+支持的阿里云存储：***云盘、NAS、CPFS、OSS、LVM***
 
 
 ### 云盘CSI插件
@@ -26,7 +26,7 @@ NAS CSI插件更多详细说明请参考[NAS](./docs/nas.md)
 
 ### CPFS CSI插件
 
-CPFS CSI插件支持为应用负载挂载阿里云CPFS存储卷，也支持动态创建CPFS卷。CPFS存储是一种共享存储，可以同时被多个应用负载使用(ReadWriteMany)。
+CPFS CSI插件支持为应用负载挂载阿里云CPFS存储卷，也支持动态创建CPFS卷。CPFS是一种并行文件系统，提供共享存储，可以同时被多个应用负载使用(ReadWriteMany)。
 
 CPFS CSI插件更多详细说明请参考[CPFS](./docs/cpfs.md)
 
@@ -63,3 +63,4 @@ LVM CSI插件更多详细说明请参考[LVM](./docs/lvm.md)
 
 [GoReportCard Widget]: https://goreportcard.com/badge/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 [GoReportCardResult]: https://goreportcard.com/report/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
+
