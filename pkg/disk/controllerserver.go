@@ -160,7 +160,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	// Step 3: init Disk create args
 	disktype := diskVol.Type
 	if DiskHighAvail == diskVol.Type {
-		disktype = DiskEfficiency
+		disktype = DiskESSD
 	}
 
 	createDiskRequest := ecs.CreateCreateDiskRequest()
@@ -177,7 +177,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		for _, tag := range strings.Split(diskVol.DiskTags, ",") {
 			tagParts := strings.Split(tag, ":")
 			if len(tagParts) != 2 {
-				return nil, status.Errorf(codes.Internal, "Invalid diskTags format name: %s tags: %s", req.GetName(), diskVol.DiskTags)
+				return nil, status.Errorf(codes.Internal, "diskTags format error: ", diskVol.DiskTags, req.GetName())
 			} else {
 				diskTagTmp := ecs.CreateDiskTag{Key: tagParts[0], Value: tagParts[1]}
 				diskTags = append(diskTags, diskTagTmp)
@@ -203,8 +203,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			volumeResponse, err = cs.ecsClient.CreateDisk(createDiskRequest)
 			if err != nil {
 				if strings.Contains(err.Error(), DiskNotAvailable) {
-					disktype = DiskESSD
-					createDiskRequest.PerformanceLevel = diskVol.PerformanceLevel
+					disktype = DiskEfficiency
 					createDiskRequest.DiskCategory = disktype
 					volumeResponse, err = cs.ecsClient.CreateDisk(createDiskRequest)
 					if err != nil {
@@ -216,6 +215,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					return nil, status.Error(codes.Internal, err.Error())
 				}
 			}
+		} else if strings.Contains(err.Error(), DiskSizeNotAvailable) || strings.Contains(err.Error(), "The specified parameter \"Size\" is not valid") {
+			return nil, status.Error(codes.Internal, err.Error()+", PVC defined storage should equal/greater than 20Gi")
 		} else {
 			log.Errorf("CreateVolume: requestId[%s], fail to create disk %s, %v", volumeResponse.RequestId, req.GetName(), err)
 			return nil, status.Error(codes.Internal, err.Error())
