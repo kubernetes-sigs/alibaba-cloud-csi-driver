@@ -160,7 +160,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	// Step 3: init Disk create args
 	disktype := diskVol.Type
 	if DiskHighAvail == diskVol.Type {
-		disktype = DiskEfficiency
+		disktype = DiskESSD
 	}
 
 	createDiskRequest := ecs.CreateCreateDiskRequest()
@@ -203,7 +203,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			volumeResponse, err = cs.ecsClient.CreateDisk(createDiskRequest)
 			if err != nil {
 				if strings.Contains(err.Error(), DiskNotAvailable) {
-					disktype = DiskESSD
+					disktype = DiskEfficiency
 					createDiskRequest.PerformanceLevel = diskVol.PerformanceLevel
 					createDiskRequest.DiskCategory = disktype
 					volumeResponse, err = cs.ecsClient.CreateDisk(createDiskRequest)
@@ -216,6 +216,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					return nil, status.Error(codes.Internal, err.Error())
 				}
 			}
+		} else if strings.Contains(err.Error(), DiskSizeNotAvailable) || strings.Contains(err.Error(), "The specified parameter \"Size\" is not valid") {
+			return nil, status.Error(codes.Internal, err.Error()+", PVC defined storage should equal/greater than 20Gi")
 		} else {
 			log.Errorf("CreateVolume: requestId[%s], fail to create disk %s, %v", volumeResponse.RequestId, req.GetName(), err)
 			return nil, status.Error(codes.Internal, err.Error())
