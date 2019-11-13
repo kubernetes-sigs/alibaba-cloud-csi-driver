@@ -558,7 +558,7 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 		// Step 2: wait for Detach
 		if disk.Status != DiskStatusAvailable {
 			log.Infof("NodeStageVolume: Wait for disk %s is detached", volumeID)
-			if err := ns.waitForDiskInStatus(10, time.Second*3, volumeID, DiskStatusAvailable); err != nil {
+			if err := ns.waitForDiskInStatus(15, time.Second*3, volumeID, DiskStatusAvailable); err != nil {
 				return "", err
 			}
 		}
@@ -571,17 +571,22 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 	attachRequest.DiskId = volumeID
 	response, err := ns.ecsClient.AttachDisk(attachRequest)
 	if err != nil {
+		if strings.Contains(err.Error(), DiskLimitExceeded) {
+			return "", status.Error(codes.Internal, err.Error()+", Node("+ns.nodeID+")exceed the limit attachments of disk, which at most 16 disks.")
+		} else if strings.Contains(err.Error(), DiskNotPortable) {
+			return "", status.Error(codes.Internal, err.Error()+", Disk("+volumeID+") should be \"Pay by quantity\", not be \"Annual package\", please check and modify the charge type.")
+		}
 		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happens to attach disk %s to instance %s, %v", volumeID, ns.nodeID, err)
 	}
 
 	// Step 4: wait for disk attached
 	log.Infof("NodeStageVolume: Waiting for Disk %s is Attached with RequestId: %s", volumeID, response.RequestId)
 	if isSharedDisk {
-		if err := ns.waitForSharedDiskInStatus(10, time.Second*3, volumeID, DiskStatusAttached); err != nil {
+		if err := ns.waitForSharedDiskInStatus(20, time.Second*3, volumeID, DiskStatusAttached); err != nil {
 			return "", err
 		}
 	} else {
-		if err := ns.waitForDiskInStatus(10, time.Second*3, volumeID, DiskStatusInuse); err != nil {
+		if err := ns.waitForDiskInStatus(20, time.Second*3, volumeID, DiskStatusInuse); err != nil {
 			return "", err
 		}
 	}

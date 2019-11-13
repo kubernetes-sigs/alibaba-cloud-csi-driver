@@ -62,6 +62,12 @@ const (
 	LogfilePrefix = "/var/log/alicloud/provisioner"
 	// DiskNotAvailable tag
 	DiskNotAvailable = "InvalidDataDiskCategory.NotSupported"
+	// DiskSizeNotAvailable tag
+	DiskSizeNotAvailable = "InvalidDiskSize.NotSupported"
+	// DiskLimitExceeded tag
+	DiskLimitExceeded = "InstanceDiskLimitExceeded"
+	// DiskNotPortable tag
+	DiskNotPortable = "DiskNotPortable"
 	// DiskHighAvail tag
 	DiskHighAvail = "available"
 	// DiskCommon common disk type
