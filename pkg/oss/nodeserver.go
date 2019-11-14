@@ -98,7 +98,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("mountPath is empty")
 	}
 
-	argStr := "AkId: " + opt.AkID + ", Bucket: " + opt.Bucket + ", url: " + opt.URL + ", OtherOpts: " + opt.OtherOpts
+	argStr := "Bucket: " + opt.Bucket + ", url: " + opt.URL + ", OtherOpts: " + opt.OtherOpts
 	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
 
 	if utils.IsMounted(mountPath) {

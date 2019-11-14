@@ -17,4 +17,4 @@ spec:
     volumeAttributes:
       server: "***.cn-beijing.nas.aliyuncs.com"
       path: "/k8s"
-      vers: "4.0"
+      vers: "3"

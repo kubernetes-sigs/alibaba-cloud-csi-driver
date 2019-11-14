@@ -557,7 +557,7 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 
 		// modeType
 		if nasVolArgs.ModeType, ok = volOptions[ModeType]; !ok {
-			nasVolArgs.Mode = "non-recursive"
+			nasVolArgs.ModeType = "non-recursive"
 		}
 	}
 
