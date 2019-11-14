@@ -1,7 +1,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: alicloud-disk-topoloy
+   name: alicloud-disk-topology
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
     type: cloud_ssd
