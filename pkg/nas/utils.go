@@ -268,7 +268,7 @@ func createNasSubDir(nfsServer, nfsPath, nfsVers, nfsOptions string, volumeID st
 	}
 	_, err := utils.Run(mntCmd)
 	if err != nil {
-		if strings.Contains(err.Error(), "reason given by server: No such file or directory") || strings.Contains(err.Error(), "access denied by server while mounting") {
+		if strings.Contains(nfsServer, "extreme.nas.aliyuncs.com") {
 			if strings.HasPrefix(nfsPath, "/share/") {
 				usePath = usePath[6:]
 				mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", nfsVers, nfsServer, "/share", nasTmpPath)
