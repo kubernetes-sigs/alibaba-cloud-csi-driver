@@ -30,6 +30,7 @@ import (
 	"strings"
 	"time"
 
+	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -119,17 +120,22 @@ type RoleAuth struct {
 
 func newEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *ecs.Client) {
 	var err error
+	regionID := GetMetaData(RegionIDTag)
 	if accessToken == "" {
-		ecsClient, err = ecs.NewClientWithAccessKey(DefaultRegion, accessKeyID, accessKeySecret)
+		ecsClient, err = ecs.NewClientWithAccessKey(regionID, accessKeyID, accessKeySecret)
 		if err != nil {
 			return nil
 		}
 	} else {
-		ecsClient, err = ecs.NewClientWithStsToken(DefaultRegion, accessKeyID, accessKeySecret, accessToken)
+		ecsClient, err = ecs.NewClientWithStsToken(regionID, accessKeyID, accessKeySecret, accessToken)
 		if err != nil {
 			return nil
 		}
 	}
+
+	// Set Unitized Endpoint for hangzhou region
+	SetEcsEndPoint(regionID)
+
 	return
 }
 
@@ -142,6 +148,24 @@ func updateEcsClent(client *ecs.Client) *ecs.Client {
 		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
 	}
 	return client
+}
+
+// SetEcsEndPoint Set Endpoint for Ecs
+func SetEcsEndPoint(regionID string) {
+	// use unitized region endpoint for blew regions.
+	unitizedRegions := []string{"cn-hangzhou", "cn-hongkong", "ap-northeast-1", "ap-south-1", "eu-central-1", "us-west-1",
+		"us-east-1", "ap-southeast-1", "ap-southeast-2", "ap-southeast-3", "ap-southeast-5", "me-east-1"}
+	for _, tmpRegion := range unitizedRegions {
+		if regionID == tmpRegion {
+			aliyunep.AddEndpointMapping(regionID, "Ecs", "ecs."+regionID+".aliyuncs.com")
+			break
+		}
+	}
+
+	// use environment endpoint setting first;
+	if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
+		aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
+	}
 }
 
 // GetDefaultAK read default ak from local file or from STS
