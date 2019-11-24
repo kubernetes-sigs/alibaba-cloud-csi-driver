@@ -30,6 +30,7 @@ import (
 	"strings"
 	"time"
 
+	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -86,6 +87,8 @@ const (
 	MBSIZE = 1024 * 1024
 	// DefaultRegion is the default region id
 	DefaultRegion = "cn-hangzhou"
+	// Region Hangzhou
+	REGION_HANGZHOU = "cn-hangzhou"
 )
 
 var (
@@ -119,17 +122,22 @@ type RoleAuth struct {
 
 func newEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *ecs.Client) {
 	var err error
+	regionId := GetMetaData(RegionIDTag)
 	if accessToken == "" {
-		ecsClient, err = ecs.NewClientWithAccessKey(DefaultRegion, accessKeyID, accessKeySecret)
+		ecsClient, err = ecs.NewClientWithAccessKey(regionId, accessKeyID, accessKeySecret)
 		if err != nil {
 			return nil
 		}
 	} else {
-		ecsClient, err = ecs.NewClientWithStsToken(DefaultRegion, accessKeyID, accessKeySecret, accessToken)
+		ecsClient, err = ecs.NewClientWithStsToken(regionId, accessKeyID, accessKeySecret, accessToken)
 		if err != nil {
 			return nil
 		}
 	}
+
+	// Set Unitized Endpoint for hangzhou region
+	SetEcsEndPoint(regionId)
+
 	return
 }
 
@@ -142,6 +150,24 @@ func updateEcsClent(client *ecs.Client) *ecs.Client {
 		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
 	}
 	return client
+}
+
+// Set Endpoint for Ecs
+func SetEcsEndPoint(regionId string) {
+	// use unitized region endpoint for blew regions.
+	unitizedRegions := []string{"cn-hangzhou", "cn-hongkong", "ap-northeast-1", "ap-south-1", "eu-central-1", "us-west-1",
+		"us-east-1", "ap-southeast-1", "ap-southeast-2", "ap-southeast-3", "ap-southeast-5", "me-east-1"}
+	for _, tmpRegion := range unitizedRegions {
+		if regionId == tmpRegion {
+			aliyunep.AddEndpointMapping(regionId, "Ecs", "ecs."+regionId+".aliyuncs.com")
+			break
+		}
+	}
+
+	// use environment endpoint setting first;
+	if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
+		aliyunep.AddEndpointMapping(regionId, "Ecs", ep)
+	}
 }
 
 // GetDefaultAK read default ak from local file or from STS
