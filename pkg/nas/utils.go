@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"encoding/json"
+	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -220,18 +221,39 @@ func GetSTSAK() (string, string, string) {
 
 func newNasClient(accessKeyID, accessKeySecret, accessToken string) (nasClient *aliNas.Client) {
 	var err error
+	regionID := GetMetaData(RegionTag)
 	if accessToken == "" {
-		nasClient, err = aliNas.NewClientWithAccessKey(GetMetaData(RegionTag), accessKeyID, accessKeySecret)
+		nasClient, err = aliNas.NewClientWithAccessKey(regionID, accessKeyID, accessKeySecret)
 		if err != nil {
 			return nil
 		}
 	} else {
-		nasClient, err = aliNas.NewClientWithStsToken(GetMetaData(RegionTag), accessKeyID, accessKeySecret, accessToken)
+		nasClient, err = aliNas.NewClientWithStsToken(regionID, accessKeyID, accessKeySecret, accessToken)
 		if err != nil {
 			return nil
 		}
 	}
+
+	// Set Nas Endpoint
+	SetNasEndPoint(regionID)
 	return
+}
+
+// SetNasEndPoint Set Endpoint for Nas
+func SetNasEndPoint(regionID string) {
+	// use unitized region endpoint for blew regions.
+	unitizedRegions := []string{"cn-hangzhou"}
+	for _, tmpRegion := range unitizedRegions {
+		if regionID == tmpRegion {
+			aliyunep.AddEndpointMapping(regionID, "Nas", "nas-vpc."+regionID+".aliyuncs.com")
+			break
+		}
+	}
+
+	// use environment endpoint setting first;
+	if ep := os.Getenv("NAS_ENDPOINT"); ep != "" {
+		aliyunep.AddEndpointMapping(regionID, "Nas", ep)
+	}
 }
 
 func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
