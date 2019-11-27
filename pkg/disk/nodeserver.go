@@ -65,6 +65,8 @@ const (
 	DiskStatusDetached = "detached"
 	// SharedEnable tag
 	SharedEnable = "shared"
+	// MkfsOptions tag
+	MkfsOptions = "mkfsOptions"
 	// DiskTagedByPlugin tag
 	DiskTagedByPlugin = "DISK_TAGED_BY_PLUGIN"
 	// DiskAttachedKey attached key
@@ -387,11 +389,25 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
+
+	// Set mkfs options for ext3, ext4
+	mkfsOptions := make([]string, 0)
+	if value, ok := req.VolumeContext[MkfsOptions]; ok {
+		mkfsOptions = strings.Split(value, " ")
+	}
+
 	// do format-mount or mount
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: k8smount.NewOsExec()}
-	if err := diskMounter.FormatAndMount(device, targetPath, fsType, options); err != nil {
-		log.Errorf("NodeStageVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, device, err.Error())
-		return nil, status.Error(codes.Internal, err.Error())
+	if len(mkfsOptions) > 0 && (fsType == "ext4" || fsType == "ext3") {
+		if err := formatAndMount(diskMounter, device, targetPath, fsType, mkfsOptions, options); err != nil {
+			log.Errorf("Mountdevice: FormatAndMount fail with mkfsOptions %s, %s, %s, %s, %s with error: %s", device, targetPath, fsType, mkfsOptions, options, err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	} else {
+		if err := diskMounter.FormatAndMount(device, targetPath, fsType, options); err != nil {
+			log.Errorf("NodeStageVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, device, err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 
 	log.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v, device: %s", req.VolumeId, targetPath, device)

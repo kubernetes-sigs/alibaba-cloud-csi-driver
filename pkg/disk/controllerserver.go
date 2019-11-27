@@ -44,6 +44,14 @@ const (
 	PERFORMANCELEVELPL2 = "PL2"
 	// PERFORMANCELEVELPL3 pl3 tag
 	PERFORMANCELEVELPL3 = "PL3"
+	// DISKTAGKEY1 tag
+	DISKTAGKEY1 = "k8s.aliyun.com"
+	// DISKTAGVALUE1 value
+	DISKTAGVALUE1 = "true"
+	// DISKTAGKEY2 key
+	DISKTAGKEY2 = "createdby"
+	// DISKTAGVALUE2 value
+	DISKTAGVALUE2 = "alibabacloud-csi-plugin"
 )
 
 // controller server try to create/delete volumes/snapshots
@@ -171,9 +179,15 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	createDiskRequest.DiskCategory = disktype
 	createDiskRequest.Encrypted = requests.NewBoolean(diskVol.Encrypted)
 	createDiskRequest.ResourceGroupId = diskVol.ResourceGroupID
-	// set DiskTags if config
+
+	// Set Default DiskTags
+	diskTags := []ecs.CreateDiskTag{}
+	tag1 := ecs.CreateDiskTag{Key: DISKTAGKEY1, Value: DISKTAGVALUE1}
+	tag2 := ecs.CreateDiskTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
+	diskTags = append(diskTags, tag1)
+	diskTags = append(diskTags, tag2)
+	// Set Config DiskTags
 	if diskVol.DiskTags != "" {
-		diskTags := []ecs.CreateDiskTag{}
 		for _, tag := range strings.Split(diskVol.DiskTags, ",") {
 			tagParts := strings.Split(tag, ":")
 			if len(tagParts) != 2 {
@@ -182,8 +196,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			diskTagTmp := ecs.CreateDiskTag{Key: tagParts[0], Value: tagParts[1]}
 			diskTags = append(diskTags, diskTagTmp)
 		}
-		createDiskRequest.Tag = &diskTags
 	}
+	createDiskRequest.Tag = &diskTags
 	if diskVol.Encrypted == true && diskVol.KMSKeyID != "" {
 		createDiskRequest.KMSKeyId = diskVol.KMSKeyID
 	}
