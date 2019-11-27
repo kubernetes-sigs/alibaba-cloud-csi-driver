@@ -44,14 +44,14 @@ const (
 	PERFORMANCELEVELPL2 = "PL2"
 	// PERFORMANCELEVELPL3 pl3 tag
 	PERFORMANCELEVELPL3 = "PL3"
-	// DISK_TAG_KEY1 tag
-	DISK_TAG_KEY1 = "k8s.aliyun.com"
-	// DISK_TAG_VALUE1 value
-	DISK_TAG_VALUE1 = "true"
-	// DISK_TAG_KEY2 key
-	DISK_TAG_KEY2 = "createdby"
-	// DISK_TAG_VALUE2 value
-	DISK_TAG_VALUE2 = "alibabacloud-csi-plugin"
+	// DISKTAGKEY1 tag
+	DISKTAGKEY1 = "k8s.aliyun.com"
+	// DISKTAGVALUE1 value
+	DISKTAGVALUE1 = "true"
+	// DISKTAGKEY2 key
+	DISKTAGKEY2 = "createdby"
+	// DISKTAGVALUE2 value
+	DISKTAGVALUE2 = "alibabacloud-csi-plugin"
 )
 
 // controller server try to create/delete volumes/snapshots
@@ -182,8 +182,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	// Set Default DiskTags
 	diskTags := []ecs.CreateDiskTag{}
-	tag1 := ecs.CreateDiskTag{Key: DISK_TAG_KEY1, Value: DISK_TAG_VALUE1}
-	tag2 := ecs.CreateDiskTag{Key: DISK_TAG_KEY2, Value: DISK_TAG_VALUE2}
+	tag1 := ecs.CreateDiskTag{Key: DISKTAGKEY1, Value: DISKTAGVALUE1}
+	tag2 := ecs.CreateDiskTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
 	diskTags = append(diskTags, tag1)
 	diskTags = append(diskTags, tag2)
 	// Set Config DiskTags
