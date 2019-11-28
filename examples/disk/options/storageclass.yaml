@@ -1,0 +1,14 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: alicloud-disk-ssd-mkfsoptions
+provisioner: diskplugin.csi.alibabacloud.com
+mountOptions:
+- nodiratime
+- barrier=0
+parameters:
+    zoneId: cn-hangzhou-a
+    regionId: cn-hangzhou
+    type: cloud_ssd
+    mkfsOptions: "-q -L yunpan -J size=2048 -T largefile"
+reclaimPolicy: Retain
