@@ -12,8 +12,8 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: admin
-  # replace with non-default namespace name
-  namespace: default
+  # replace with the same namespace name with plugin
+  namespace: kube-system
 
 ---
 kind: ClusterRole
@@ -75,7 +75,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: admin
-    namespace: default
+    namespace: kube-system
 roleRef:
   kind: ClusterRole
   name: alicloud-csi-plugin
