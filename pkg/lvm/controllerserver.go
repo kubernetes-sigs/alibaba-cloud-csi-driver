@@ -89,15 +89,15 @@ func pickNodeID(requirement *csi.TopologyRequirement) string {
 		return ""
 	}
 	for _, topology := range requirement.GetPreferred() {
-		nodeIdD, exists := topology.GetSegments()[TopologyNodeKey]
+		nodeID, exists := topology.GetSegments()[TopologyNodeKey]
 		if exists {
-			return nodeIdD
+			return nodeID
 		}
 	}
 	for _, topology := range requirement.GetRequisite() {
-		nodeIdD, exists := topology.GetSegments()[TopologyNodeKey]
+		nodeID, exists := topology.GetSegments()[TopologyNodeKey]
 		if exists {
-			return nodeIdD
+			return nodeID
 		}
 	}
 	return ""
