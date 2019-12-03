@@ -47,16 +47,60 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if req.VolumeCapabilities == nil {
 		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
 	}
+
 	volumeID := req.GetName()
-	response := &csi.CreateVolumeResponse{
-		Volume: &csi.Volume{
-			VolumeId:      volumeID,
-			CapacityBytes: req.GetCapacityRange().GetRequiredBytes(),
-			VolumeContext: req.GetParameters(),
-		},
+	response := &csi.CreateVolumeResponse{}
+
+	// Get nodeID if pvc in topology mode.
+	nodeID := pickNodeID(req.GetAccessibilityRequirements())
+	if nodeID == "" {
+		response = &csi.CreateVolumeResponse{
+			Volume: &csi.Volume{
+				VolumeId:      volumeID,
+				CapacityBytes: req.GetCapacityRange().GetRequiredBytes(),
+				VolumeContext: req.GetParameters(),
+			},
+		}
+	} else {
+		response = &csi.CreateVolumeResponse{
+			Volume: &csi.Volume{
+				VolumeId:      volumeID,
+				CapacityBytes: req.GetCapacityRange().GetRequiredBytes(),
+				VolumeContext: req.GetParameters(),
+				AccessibleTopology: []*csi.Topology{
+					{
+						Segments: map[string]string{
+							TopologyNodeKey: nodeID,
+						},
+					},
+				},
+			},
+		}
 	}
+
 	log.Infof("Success create Volume: %s, Size: %d", volumeID, req.GetCapacityRange().GetRequiredBytes())
 	return response, nil
+}
+
+// pickNodeID selects node given topology requirement.
+// if not found, empty string is returned.
+func pickNodeID(requirement *csi.TopologyRequirement) string {
+	if requirement == nil {
+		return ""
+	}
+	for _, topology := range requirement.GetPreferred() {
+		nodeId, exists := topology.GetSegments()[TopologyNodeKey]
+		if exists {
+			return nodeId
+		}
+	}
+	for _, topology := range requirement.GetRequisite() {
+		nodeId, exists := topology.GetSegments()[TopologyNodeKey]
+		if exists {
+			return nodeId
+		}
+	}
+	return ""
 }
 
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
