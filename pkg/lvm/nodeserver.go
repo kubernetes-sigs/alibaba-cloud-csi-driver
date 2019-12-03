@@ -66,6 +66,8 @@ const (
 	DefaultFs = "ext4"
 	// DefaultNA default NodeAffinity
 	DefaultNA = "true"
+	// TopologyNodeKey tag
+	TopologyNodeKey = "topology.lvmplugin.csi.alibabacloud.com/hostname"
 )
 
 type nodeServer struct {
@@ -304,8 +306,20 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	return &csi.NodeExpandVolumeResponse{}, nil
 }
 
+func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+	return &csi.NodeGetInfoResponse{
+		NodeId: ns.nodeID,
+		// make sure that the driver works on this particular node only
+		AccessibleTopology: &csi.Topology{
+			Segments: map[string]string{
+				TopologyNodeKey: ns.nodeID,
+			},
+		},
+	}, nil
+}
+
 func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, targetPath string) error {
-	pvSize := ns.getPvSize(volumeID)
+	pvSize, unit := ns.getPvSize(volumeID)
 	devicePath := filepath.Join("/dev", vgName, volumeID)
 	sizeCmd := fmt.Sprintf("%s lvdisplay %s | grep 'LV Size' | awk '{print $3}'", NsenterCmd, devicePath)
 	sizeStr, err := utils.Run(sizeCmd)
@@ -325,11 +339,11 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, target
 	if sizeInt >= pvSize {
 		return nil
 	}
-	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, from size: %d, to Size: %d", volumeID, devicePath, sizeInt, pvSize)
+	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, from size: %d, to Size: %d%s", volumeID, devicePath, sizeInt, pvSize, unit)
 
 	// resize lvm volume
 	// lvextend -L3G /dev/vgtest/lvm-5db74864-ea6b-11e9-a442-00163e07fb69
-	resizeCmd := fmt.Sprintf("%s lvextend -L%dG %s", NsenterCmd, pvSize, devicePath)
+	resizeCmd := fmt.Sprintf("%s lvextend -L%d%s %s", NsenterCmd, pvSize, unit, devicePath)
 	_, err = utils.Run(resizeCmd)
 	if err != nil {
 		return err
@@ -351,21 +365,26 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, target
 	return nil
 }
 
-func (ns *nodeServer) getPvSize(volumeID string) int64 {
+func (ns *nodeServer) getPvSize(volumeID string) (int64, string) {
 	pv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("lvcreate: fail to get pv, err: %v", err)
-		return 0
+		return 0, ""
 	}
 	pvQuantity := pv.Spec.Capacity["storage"]
 	pvSize := pvQuantity.Value()
-	pvSize = pvSize / (1024 * 1024 * 1024)
-	return pvSize
+	pvSizeGB := pvSize / (1024 * 1024 * 1024)
+
+	if pvSizeGB == 0 {
+		pvSizeMB := pvSize / (1024 * 1024)
+		return pvSizeMB, "m"
+	}
+	return pvSizeGB, "g"
 }
 
 // create lvm volume
 func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType, lvmType string) error {
-	pvSize := ns.getPvSize(volumeID)
+	pvSize, unit := ns.getPvSize(volumeID)
 
 	pvNumber := 0
 	var err error
@@ -386,19 +405,19 @@ func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType
 
 	// Create lvm volume
 	if lvmType == StripingType {
-		cmd := fmt.Sprintf("%s lvcreate -i %d -n %s -L %dg %s", NsenterCmd, pvNumber, volumeID, pvSize, vgName)
+		cmd := fmt.Sprintf("%s lvcreate -i %d -n %s -L %d%s %s", NsenterCmd, pvNumber, volumeID, pvSize, unit, vgName)
 		_, err = utils.Run(cmd)
 		if err != nil {
 			return err
 		}
-		log.Infof("Successful Create Striping LVM volume: %s, Size: %d, vgName: %s, striped number: %d", volumeID, pvSize, vgName, pvNumber)
+		log.Infof("Successful Create Striping LVM volume: %s, Size: %d%s, vgName: %s, striped number: %d", volumeID, pvSize, unit, vgName, pvNumber)
 	} else if lvmType == LinearType {
-		cmd := fmt.Sprintf("%s lvcreate -n %s -L %dg %s", NsenterCmd, volumeID, pvSize, vgName)
+		cmd := fmt.Sprintf("%s lvcreate -n %s -L %d%s %s", NsenterCmd, volumeID, pvSize, unit, vgName)
 		_, err = utils.Run(cmd)
 		if err != nil {
 			return err
 		}
-		log.Infof("Successful Create Linear LVM volume: %s, Size: %d, vgName: %s", volumeID, pvSize, vgName)
+		log.Infof("Successful Create Linear LVM volume: %s, Size: %d%s, vgName: %s", volumeID, pvSize, unit, vgName)
 	}
 	return nil
 }
