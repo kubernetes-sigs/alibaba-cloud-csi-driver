@@ -66,7 +66,7 @@ const (
 	DefaultFs = "ext4"
 	// DefaultNA default NodeAffinity
 	DefaultNA = "true"
-	// TopologyZoneKey tag
+	// TopologyNodeKey tag
 	TopologyNodeKey = "topology.lvmplugin.csi.alibabacloud.com/hostname"
 )
 
