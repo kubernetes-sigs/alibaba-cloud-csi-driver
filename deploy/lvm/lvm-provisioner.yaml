@@ -43,11 +43,12 @@ spec:
       serviceAccount: admin
       containers:
         - name: csi-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.2.0
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.2.2
           args:
             - "--provisioner=lvmplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
             - "--volume-name-prefix=lvm"
+            - "--feature-gates=Topology=True"
             - "--v=5"
           env:
             - name: ADDRESS
