@@ -64,6 +64,7 @@ parameters:
     lvmType: linear
     nodeAffinity: "true"
 reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
 ```
 Usage:
 
@@ -86,7 +87,10 @@ Usage:
 > nodeAffinity: optional, default as true. Decide add nodeAffinity in PV or not.
 > ----> true: default, create PV with nodeAffinity configuration;
 > ----> false: create PV without nodeAffinity configuration, pod can be scheduled to any node
-
+>
+> volumeBindingMode: support Immediate/WaitForFirstConsumer
+> ----> Immediate: means volume will be provisioned while pvc is created, in this config nodeAffinity will be available;
+> ----> WaitForFirstConsumer: means volume will not be created until the related pod created; In the config, nodeAffinity will be unavailable;
 
 ### Step 4: Create nginx deploy with lvm
 ```
