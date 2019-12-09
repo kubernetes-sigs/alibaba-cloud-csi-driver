@@ -35,7 +35,7 @@ spec:
       hostNetwork: true
       containers:
         - name: csi-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.2.0
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.2.2-aliyun
           args:
             - "--provisioner=diskplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
