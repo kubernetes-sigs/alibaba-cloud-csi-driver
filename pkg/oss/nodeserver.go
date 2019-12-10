@@ -45,6 +45,7 @@ type Options struct {
 	OtherOpts string `json:"otherOpts"`
 	AkID      string `json:"akId"`
 	AkSecret  string `json:"akSecret"`
+	Path      string `json:"path"`
 }
 
 const (
@@ -65,17 +66,23 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	mountPath := req.GetTargetPath()
 	opt := &Options{}
 	for key, value := range req.VolumeContext {
+		key = strings.ToLower(key)
 		if key == "bucket" {
 			opt.Bucket = value
 		} else if key == "url" {
 			opt.URL = value
-		} else if key == "otherOpts" {
+		} else if key == "otheropts" {
 			opt.OtherOpts = value
-		} else if key == "akId" {
+		} else if key == "akid" {
 			opt.AkID = value
-		} else if key == "akSecret" {
+		} else if key == "aksecret" {
 			opt.AkSecret = value
+		} else if key == "path" {
+			opt.Path = value
 		}
+	}
+	if opt.Path == "" {
+		opt.Path = "/"
 	}
 
 	// support set ak by secret
@@ -98,7 +105,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("mountPath is empty")
 	}
 
-	argStr := "Bucket: " + opt.Bucket + ", url: " + opt.URL + ", OtherOpts: " + opt.OtherOpts
+	argStr := "Bucket: " + opt.Bucket + ", url: " + opt.URL + ", OtherOpts: " + opt.OtherOpts + ", Path: " + opt.Path
 	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
 
 	if utils.IsMounted(mountPath) {
@@ -119,7 +126,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// default use allow_other
-	mntCmd := fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s %s -ourl=%s %s", opt.Bucket, mountPath, opt.URL, opt.OtherOpts)
+	mntCmd := fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s", opt.Bucket, opt.Path, mountPath, opt.URL, opt.OtherOpts)
 	if out, err := connectorRun(mntCmd); err != nil {
 		if err != nil {
 			log.Errorf("Ossfs mount error: %s", err.Error())
@@ -180,6 +187,11 @@ func checkOssOptions(opt *Options) error {
 			return errors.New("Oss OtherOpts error: start with -o ")
 		}
 	}
+
+	if !strings.HasPrefix(opt.Path, "/") {
+		return errors.New("Oss path error: start with " + opt.Path + ", should start with / ")
+	}
+
 	return nil
 }
 
