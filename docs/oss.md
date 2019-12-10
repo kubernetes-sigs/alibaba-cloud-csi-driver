@@ -1,7 +1,6 @@
 
 ## OSS CSI Plugin
 
-
 An OSS CSI plugin is available to help simplify storage management.
 You can create a pv with csi configuration, and the pvc, pod defines as usual.
 
@@ -24,14 +23,24 @@ $ cd build && sh build-oss.sh
 ## Usage
 
 ### Prerequisite
+
 Same as diskplugin.csi.alibabacloud.com;
 
 
+### Features
+
+> Oss Plugin support to use Secret for Access Authorization;
+>
+> Oss Plugin support to mount remote subpath under oss bucket;
+>
+> Oss Plugin support to upgrade online;
+
+
 ### Step 1: Create CSI Plugin
+
 ```
 # kubectl create -f ./deploy/oss/oss-plugin.yaml
 ```
-
 
 > Note: The plugin log style can be configured by environment variable: LOG_TYPE.
 
@@ -42,6 +51,7 @@ Same as diskplugin.csi.alibabacloud.com;
 > "both": default option, log will be printed both to stdout and host file.
 
 ### Step 2: Create pv/pvc/deploy with csi
+
 ```
 # kubectl create -f ./examples/oss/pv.yaml
 # kubectl create -f ./examples/oss/pvc.yaml
@@ -49,6 +59,7 @@ Same as diskplugin.csi.alibabacloud.com;
 ```
 
 ### Step 3: Check status of PVC/PV
+
 ```
 # kubectl get pvc | grep oss
 oss-pvc    Bound    oss-csi-pv                                 5Gi        RWO                                5m18s
@@ -75,9 +86,9 @@ spec:
     volumeAttributes:
       akId: *
       akSecret: *
-      bucket: gene-shenzhen
+      bucket: oss-docker
       otherOpts: -o max_stat_cache_size=0 -o allow_other
-      path: /fastq
+      path: /docker
       url: oss-cn-shenzhen-internal.aliyuncs.com
     volumeHandle: oss-csi-pv
   persistentVolumeReclaimPolicy: Retain
