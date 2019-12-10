@@ -23,6 +23,7 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 	options.AkID = "2222"
 	options.URL = "1.1.1.1"
 	options.Bucket = "aliyun"
+	options.Path = "/path"
 
 	err := checkOssOptions(options)
 	if err != nil {

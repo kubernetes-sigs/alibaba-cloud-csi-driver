@@ -41,42 +41,45 @@ Same as diskplugin.csi.alibabacloud.com;
 
 > "both": default option, log will be printed both to stdout and host file.
 
-### Step 2: Create nginx deploy with csi
+### Step 2: Create pv/pvc/deploy with csi
 ```
+# kubectl create -f ./examples/oss/pv.yaml
+# kubectl create -f ./examples/oss/pvc.yaml
 # kubectl create -f ./examples/oss/deploy.yaml
 ```
 
 ### Step 3: Check status of PVC/PV
 ```
-# kubectl get pvc
-NAME      STATUS    VOLUME       CAPACITY   ACCESS MODES   STORAGECLASS   AGE
-oss-pvc   Bound     oss-csi-pv   5Gi        RWO                           1m
+# kubectl get pvc | grep oss
+oss-pvc    Bound    oss-csi-pv                                 5Gi        RWO                                5m18s
+
+# kubectl get pv | grep oss
+oss-csi-pv                                 5Gi        RWO            Retain           Bound    default/oss-pvc                                 5m21s
 ```
 
 ```
-# kubectl get pv
-NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS        CLAIM              STORAGECLASS   REASON    AGE
-oss-csi-pv                                 5Gi        RWO            Retain           Bound         default/oss-pvc                             1m
-```
+# kubectl get pv oss-csi-pv -o yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  labels:
+    alicloud-pvname: oss-csi-pv
+  name: oss-csi-pv
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 5Gi
+  csi:
+    driver: ossplugin.csi.alibabacloud.com
+    volumeAttributes:
+      akId: *
+      akSecret: *
+      bucket: gene-shenzhen
+      otherOpts: -o max_stat_cache_size=0 -o allow_other
+      path: /fastq
+      url: oss-cn-shenzhen-internal.aliyuncs.com
+    volumeHandle: oss-csi-pv
+  persistentVolumeReclaimPolicy: Retain
 
-```
-# kubectl describe pv oss-csi-pv
-Name:            oss-csi-pv
-Labels:          <none>
-Annotations:     pv.kubernetes.io/bound-by-controller=yes
-Finalizers:      [kubernetes.io/pv-protection]
-StorageClass:
-Status:          Bound
-Claim:           default/oss-pvc
-Reclaim Policy:  Retain
-Access Modes:    RWO
-Capacity:        5Gi
-Node Affinity:   <none>
-Message:
-Source:
-    Type:          CSI (a Container Storage Interface (CSI) volume source)
-    Driver:        ossplugin.csi.alibabacloud.com
-    VolumeHandle:  data-id
-    ReadOnly:      false
-Events:            <none>
 ```
