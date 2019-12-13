@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/sevlyar/go-daemon"
 	"log"
@@ -8,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -88,6 +90,14 @@ func echoServer(c net.Conn) {
 	cmd := string(buf[0:nr])
 	log.Printf("Server Receive OSS command: %s", cmd)
 
+	if err := checkOssfsCmd(cmd); err != nil {
+		out := "Fail: " + err.Error()
+		log.Printf("Check oss command error: %s", out)
+		if _, err := c.Write([]byte(out)); err != nil {
+			log.Printf("Check command write error: %s", err.Error())
+		}
+		return
+	}
 	// run command
 	if out, err := run(cmd); err != nil {
 		reply := "Fail: " + cmd + ", error: " + err.Error()
@@ -98,6 +108,71 @@ func echoServer(c net.Conn) {
 		_, err = c.Write([]byte(out))
 		log.Printf("Success: %s", out)
 	}
+}
+
+// systemd-run --scope -- /usr/local/bin/ossfs shenzhen
+// /var/lib/kubelet/pods/070d1a40-16a4-11ea-842e-00163e062fe1/volumes/kubernetes.io~csi/oss-csi-pv/mount
+// -ourl=oss-cn-shenzhen-internal.aliyuncs.com
+// -o max_stat_cache_size=0 -o allow_other
+func checkOssfsCmd(cmd string) error {
+	ossCmdPrefixList := []string{"systemd-run --scope -- /usr/local/bin/ossfs", "systemd-run --scope -- ossfs", "ossfs"}
+	ossCmdPrefix := ""
+	for _, cmdPrefix := range ossCmdPrefixList {
+		if strings.HasPrefix(cmd, cmdPrefix) {
+			ossCmdPrefix = cmdPrefix
+			break
+		}
+	}
+
+	// check oss command options
+	if ossCmdPrefix != "" {
+		cmdParametes := strings.TrimPrefix(cmd, ossCmdPrefix)
+		cmdParametes = strings.TrimSpace(cmdParametes)
+		cmdParametes = strings.Join(strings.Fields(cmdParametes), " ")
+
+		parameteList := strings.Split(cmdParametes, " ")
+		if len(parameteList) < 3 {
+			return errors.New("Oss Options: parameters less than 3: " + cmd)
+		}
+		if !IsFileExisting(parameteList[1]) {
+			return errors.New("Oss Options: mountpoint not exist " + parameteList[1])
+		}
+		if !strings.HasPrefix(parameteList[2], "-ourl=") {
+			return errors.New("Oss Options: url should start with -ourl: " + parameteList[2])
+		}
+		oFlag := false
+		for index, value := range parameteList {
+			if index < 3 {
+				continue
+			}
+			if value == "-s" || value == "-d" || value == "--debug" {
+				if oFlag {
+					return errors.New("Oss Options: no expect string follow -o " + value)
+				}
+				continue
+			}
+			if strings.HasPrefix(value, "-o") && len(value) > 2 {
+				if oFlag {
+					return errors.New("Oss Options: no expect string follow -o " + value)
+				}
+				continue
+			}
+			if value == "-o" {
+				if oFlag == true {
+					return errors.New("Oss Options: inputs must -o string, 2 -o now ")
+				}
+				oFlag = true
+				continue
+			}
+			if oFlag == true {
+				oFlag = false
+			} else {
+				return errors.New("Oss Options: inputs must -o string, 2 string now ")
+			}
+		}
+		return nil
+	}
+	return errors.New("Oss Options: options with error prefix: " + cmd)
 }
 
 func run(cmd string) (string, error) {
