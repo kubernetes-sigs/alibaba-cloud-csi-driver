@@ -68,17 +68,17 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	for key, value := range req.VolumeContext {
 		key = strings.ToLower(key)
 		if key == "bucket" {
-			opt.Bucket = value
+			opt.Bucket = strings.TrimSpace(value)
 		} else if key == "url" {
-			opt.URL = value
+			opt.URL = strings.TrimSpace(value)
 		} else if key == "otheropts" {
-			opt.OtherOpts = value
+			opt.OtherOpts = strings.TrimSpace(value)
 		} else if key == "akid" {
-			opt.AkID = value
+			opt.AkID = strings.TrimSpace(value)
 		} else if key == "aksecret" {
-			opt.AkSecret = value
+			opt.AkSecret = strings.TrimSpace(value)
 		} else if key == "path" {
-			opt.Path = value
+			opt.Path = strings.TrimSpace(value)
 		}
 	}
 	if opt.Path == "" {
