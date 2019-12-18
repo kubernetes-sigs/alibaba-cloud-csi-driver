@@ -137,7 +137,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	} else if strings.Contains(nfsOptionsStr, "vers=4.1") {
 		nfsVersion = "4.1"
 	}
-
+	pvMntOptionsVersSet := false
+	if strings.Contains(nfsOptionsStr, "vers=") {
+		pvMntOptionsVersSet = true
+	}
 	// get nasVol information
 	nasVol, err := cs.getNasVolumeOptions(req)
 	if err != nil {
@@ -221,7 +224,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		volumeContext["fileSystemId"] = fileSystemID
 		volumeContext["server"] = mountTargetDomain
 		volumeContext["path"] = filepath.Join("/")
-		volumeContext["vers"] = nfsVersion
+		if !pvMntOptionsVersSet {
+			volumeContext["vers"] = nfsVersion
+		}
 		volumeContext["deleteVolume"] = strconv.FormatBool(nasVol.DeleteVolume)
 		if value, ok := req.Parameters["options"]; ok && value != "" {
 			volumeContext["options"] = value
@@ -233,10 +238,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			CapacityBytes: int64(volSizeBytes),
 			VolumeContext: volumeContext,
 		}
-	}
-
-	// create pv with exist nfs server
-	if nasVol.VolumeAs == "subpath" {
+		// create pv with exist nfs server
+	} else if nasVol.VolumeAs == "subpath" {
 		nfsServerInputs := nasVol.Server
 		nfsServer, nfsPath := GetNfsDetails(nfsServerInputs)
 		if nfsServer == "" || nfsPath == "" {
@@ -280,7 +283,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		volumeContext["volumeAs"] = nasVol.VolumeAs
 		volumeContext["server"] = nfsServer
 		volumeContext["path"] = filepath.Join(nfsPath, pvName)
-		volumeContext["vers"] = nfsVersion
+		if !pvMntOptionsVersSet {
+			volumeContext["vers"] = nfsVersion
+		}
 		if nasVol.Mode != "" {
 			volumeContext["mode"] = nasVol.Mode
 			volumeContext["modeType"] = nasVol.ModeType
@@ -295,6 +300,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			CapacityBytes: int64(volSizeBytes),
 			VolumeContext: volumeContext,
 		}
+	} else {
+		log.Errorf("CreateVolume: volumeAs should be set as subpath/filesystem: %s", nasVol.VolumeAs)
+		return nil, errors.New("CreateVolume: volumeAs should be set as subpath/filesystem: " + nasVol.VolumeAs)
 	}
 
 	pvcProcessSuccess[pvName] = csiTargetVol
@@ -396,18 +404,17 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		// pvPath: the path value get from PV spec.
 		// nfsPath: the configured nfs path in storageclass in subPath mode.
 		tmpPath := pvPath
-		if tmpPath == "/" {
+		if pvPath == "/" || pvPath == "" {
+			log.Errorf("DeleteVolume: pvPath cannot be / or empty in subpath mode")
+			return nil, status.Error(codes.Internal, "pvPath cannot be / or empty in subpath mode")
+		}
+		if strings.HasSuffix(pvPath, "/") {
+			tmpPath = pvPath[0 : len(pvPath)-1]
+		}
+		pos := strings.LastIndex(tmpPath, "/")
+		nfsPath = pvPath[0:pos]
+		if nfsPath == "" {
 			nfsPath = "/"
-		} else {
-			strLen := len(pvPath)
-			if pvPath[strLen-1:] == "/" {
-				tmpPath = pvPath[0 : strLen-1]
-			}
-			pos := strings.LastIndex(tmpPath, "/")
-			nfsPath = pvPath[0:pos]
-			if nfsPath == "" {
-				nfsPath = "/"
-			}
 		}
 
 		// set the local mountpoint
@@ -509,8 +516,8 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 		// networkType
 		if nasVolArgs.NetworkType, ok = volOptions[NetworkType]; !ok {
 			nasVolArgs.NetworkType = "vpc"
-		} else if nasVolArgs.NetworkType != "vpc" && nasVolArgs.NetworkType != "classic" {
-			return nil, fmt.Errorf("Required parameter [parameter.networkType] must be [vpc] or [classic]")
+		} else if nasVolArgs.NetworkType != "vpc" {
+			return nil, fmt.Errorf("Required parameter [parameter.networkType] must be [vpc]")
 		}
 
 		// vpcId
