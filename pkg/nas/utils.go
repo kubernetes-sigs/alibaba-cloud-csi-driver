@@ -43,7 +43,7 @@ const (
 
 var (
 	// VERSION should be updated by hand at each release
-	VERSION = "v1.14.6"
+	VERSION = "v1.14.8"
 	// GITCOMMIT will be overwritten automatically by the build system
 	GITCOMMIT = "HEAD"
 	// KubernetesAlicloudIdentity is the system identity for ecs client request
@@ -65,17 +65,19 @@ func DoNfsMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID 
 	if !utils.IsFileExisting(mountPoint) {
 		CreateDest(mountPoint)
 	}
-	mntCmd := fmt.Sprintf("mount -t nfs %s:%s %s", nfsServer, nfsPath, mountPoint)
+	mntCmd := fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", nfsVers, nfsServer, nfsPath, mountPoint)
 	if mountOptions != "" {
-		mntCmd = fmt.Sprintf("mount -t nfs -o %s %s:%s %s", mountOptions, nfsServer, nfsPath, mountPoint)
+		mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s,%s %s:%s %s", nfsVers, mountOptions, nfsServer, nfsPath, mountPoint)
 	}
 	_, err := utils.Run(mntCmd)
 	if err != nil && nfsPath != "/" {
 		if strings.Contains(err.Error(), "reason given by server: No such file or directory") || strings.Contains(err.Error(), "access denied by server while mounting") {
 			if err := createNasSubDir(nfsServer, nfsPath, nfsVers, mountOptions, volumeID); err != nil {
+				log.Errorf("DoNfsMount: Create SubPath error: %s", err.Error())
 				return err
 			}
 			if _, err := utils.Run(mntCmd); err != nil {
+				log.Errorf("DoNfsMount, Mount Nfs sub directory fail: %s", err.Error())
 				return err
 			}
 		} else {
@@ -84,7 +86,7 @@ func DoNfsMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID 
 	} else if err != nil {
 		return err
 	}
-
+	log.Infof("DoNfsMount: mount nfs successful with command: %s", mntCmd)
 	return nil
 }
 
@@ -141,6 +143,12 @@ func GetNfsDetails(nfsServersString string) (string, string) {
 		nfsServer = ""
 		nfsPath = ""
 	}
+
+	// remove / if path end with /;
+	if nfsPath != "/" && strings.HasSuffix(nfsPath, "/") {
+		nfsPath = nfsPath[0 : len(nfsPath)-1]
+	}
+
 	return nfsServer, nfsPath
 }
 
@@ -351,4 +359,47 @@ func checkSystemNasConfig() {
 		}
 		log.Warnf("Successful update Nas system config")
 	}
+}
+
+// ParseMountFlags parse mountOptions
+func ParseMountFlags(mntOptions []string) (string, string) {
+	if len(mntOptions) > 0 {
+		mntOptionsStr := strings.Join(mntOptions, ",")
+		// mntOptions should re-split, as some like ["a,b,c", "d"]
+		mntOptionsList := strings.Split(mntOptionsStr, ",")
+		tmpOptionsList := []string{}
+
+		if strings.Contains(mntOptionsStr, "vers=3.0") {
+			for _, tmpOptions := range mntOptionsList {
+				if tmpOptions != "vers=3.0" {
+					tmpOptionsList = append(tmpOptionsList, tmpOptions)
+				}
+			}
+			return "3", strings.Join(tmpOptionsList, ",")
+		} else if strings.Contains(mntOptionsStr, "vers=3") {
+			for _, tmpOptions := range mntOptionsList {
+				if tmpOptions != "vers=3" {
+					tmpOptionsList = append(tmpOptionsList, tmpOptions)
+				}
+			}
+			return "3", strings.Join(tmpOptionsList, ",")
+		} else if strings.Contains(mntOptionsStr, "vers=4.0") {
+			for _, tmpOptions := range mntOptionsList {
+				if tmpOptions != "vers=4.0" {
+					tmpOptionsList = append(tmpOptionsList, tmpOptions)
+				}
+			}
+			return "4.0", strings.Join(tmpOptionsList, ",")
+		} else if strings.Contains(mntOptionsStr, "vers=4.1") {
+			for _, tmpOptions := range mntOptionsList {
+				if tmpOptions != "vers=4.1" {
+					tmpOptionsList = append(tmpOptionsList, tmpOptions)
+				}
+			}
+			return "4.1", strings.Join(tmpOptionsList, ",")
+		} else {
+			return "", strings.Join(mntOptions, ",")
+		}
+	}
+	return "", ""
 }
