@@ -76,6 +76,24 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
+	// version/options used first in mountOptions
+	if req.VolumeCapability != nil && req.VolumeCapability.GetMount() != nil {
+		mntOptions := req.VolumeCapability.GetMount().MountFlags
+		parseVers, parseOptions := ParseMountFlags(mntOptions)
+		if parseVers != "" {
+			if opt.Vers != "" {
+				log.Warnf("NodePublishVolume: Vers(%s) (in volumeAttributes) is ignored as Vers(%s) also configured in mountOptions", opt.Vers, parseVers)
+			}
+			opt.Vers = parseVers
+		}
+		if parseOptions != "" {
+			if opt.Options != "" {
+				log.Warnf("NodePublishVolume: Options(%s) (in volumeAttributes) is ignored as Options(%s) also configured in mountOptions", opt.Options, parseOptions)
+			}
+			opt.Options = parseOptions
+		}
+	}
+
 	// check parameters
 	if mountPath == "" {
 		return nil, errors.New("mountPath is empty")
@@ -94,6 +112,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if opt.Path == "" {
 		opt.Path = "/"
 	}
+	// remove / if path end with /;
+	if opt.Path != "/" && strings.HasSuffix(opt.Path, "/") {
+		opt.Path = opt.Path[0 : len(opt.Path)-1]
+	}
+
 	if opt.Path == "/" && opt.Mode != "" {
 		return nil, errors.New("NAS: root directory cannot set mode: " + opt.Mode)
 	}
@@ -134,27 +157,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// Do mount
-	mntCmd := fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", opt.Vers, opt.Server, opt.Path, mountPath)
-	if opt.Options != "" {
-		mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s,%s %s:%s %s", opt.Vers, opt.Options, opt.Server, opt.Path, mountPath)
+	if err := DoNfsMount(opt.Server, opt.Path, opt.Vers, opt.Options, mountPath, req.VolumeId); err != nil {
+		log.Errorf("Nas, Mount Nfs error: %s", err.Error())
+		return nil, errors.New("Nas, Mount Nfs error: %s" + err.Error())
 	}
-	_, err = utils.Run(mntCmd)
-	if err != nil && opt.Path != "/" {
-		if strings.Contains(err.Error(), "reason given by server: No such file or directory") || strings.Contains(err.Error(), "access denied by server while mounting") {
-			createNasSubDir(opt.Server, opt.Path, opt.Vers, opt.Options, req.VolumeId)
-			if _, err := utils.Run(mntCmd); err != nil {
-				log.Errorf("Nas, Mount Nfs sub directory fail: %s", err.Error())
-				return nil, errors.New("Nas, Mount Nfs sub directory fail: %s" + err.Error())
-			}
-		} else {
-			log.Errorf("Nas, Mount Nfs fail with error: %s", err.Error())
-			return nil, errors.New("Nas, Mount Nfs fail with error: %s" + err.Error())
-		}
-	} else if err != nil {
-		log.Errorf("Nas, Mount nfs fail: %s", err.Error())
-		return nil, errors.New("Nas, Mount nfs fail: %s" + err.Error())
-	}
-	log.Infof("NodePublishVolume:: Exec mount command: %s", mntCmd)
 
 	// change the mode
 	if opt.Mode != "" && opt.Path != "/" {
@@ -192,6 +198,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	log.Infof("NodeUnpublishVolume:: Starting Umount Nas Volume %s at path %s", req.VolumeId, req.TargetPath)
 	mountPoint := req.TargetPath
 	if !utils.IsMounted(mountPoint) {
+		log.Infof("Umount Nas: mountpoint not mounted, skipping: %s", mountPoint)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
