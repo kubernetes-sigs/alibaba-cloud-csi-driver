@@ -311,7 +311,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	if isBlock {
 		targetPath = filepath.Join(targetPath, req.VolumeId)
 		if utils.IsMounted(targetPath) {
-			log.Infof("NodeStageVolume: Block Already Mounted: volumeId: %s target %v, device: %s", req.VolumeId, targetPath)
+			log.Infof("NodeStageVolume: Block Already Mounted: volumeId: %s target %s", req.VolumeId, targetPath)
 			return &csi.NodeStageVolumeResponse{}, nil
 		}
 		if err := ns.mounter.EnsureBlock(targetPath); err != nil {

@@ -310,6 +310,7 @@ func NewEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *
 	return
 }
 
+// IsDir check file is directory
 func IsDir(path string) bool {
 	s, err := os.Stat(path)
 	if err != nil {

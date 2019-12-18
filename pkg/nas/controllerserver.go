@@ -407,15 +407,14 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		if pvPath == "/" || pvPath == "" {
 			log.Errorf("DeleteVolume: pvPath cannot be / or empty in subpath mode")
 			return nil, status.Error(codes.Internal, "pvPath cannot be / or empty in subpath mode")
-		} else {
-			if strings.HasSuffix(pvPath, "/") {
-				tmpPath = pvPath[0 : len(pvPath)-1]
-			}
-			pos := strings.LastIndex(tmpPath, "/")
-			nfsPath = pvPath[0:pos]
-			if nfsPath == "" {
-				nfsPath = "/"
-			}
+		}
+		if strings.HasSuffix(pvPath, "/") {
+			tmpPath = pvPath[0 : len(pvPath)-1]
+		}
+		pos := strings.LastIndex(tmpPath, "/")
+		nfsPath = pvPath[0:pos]
+		if nfsPath == "" {
+			nfsPath = "/"
 		}
 
 		// set the local mountpoint

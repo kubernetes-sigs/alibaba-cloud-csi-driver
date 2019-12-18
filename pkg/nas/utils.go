@@ -361,6 +361,7 @@ func checkSystemNasConfig() {
 	}
 }
 
+// ParseMountFlags parse mountOptions
 func ParseMountFlags(mntOptions []string) (string, string) {
 	if len(mntOptions) > 0 {
 		mntOptionsStr := strings.Join(mntOptions, ",")
