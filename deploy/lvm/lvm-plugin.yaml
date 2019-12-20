@@ -55,7 +55,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-lvmplugin:v1.14.8.18-cef5abe-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-lvmplugin:v1.14.8-c77e277b-aliyun
           imagePullPolicy: "Always"
           args :
             - "--endpoint=$(CSI_ENDPOINT)"
