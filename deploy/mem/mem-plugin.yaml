@@ -1,0 +1,102 @@
+apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: memplugin.csi.alibabacloud.com
+spec:
+  attachRequired: false
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: csi-mem-plugin
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: csi-mem-plugin
+  template:
+    metadata:
+      labels:
+        app: csi-mem-plugin
+    spec:
+      tolerations:
+        - operator: Exists
+      serviceAccount: admin
+      priorityClassName: system-node-critical
+      hostNetwork: true
+      hostPID: true
+      containers:
+        - name: driver-registrar
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.1.0
+          imagePullPolicy: Always
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /registration/memplugin.csi.alibabacloud.com /registration/memplugin.csi.alibabacloud.com-reg.sock"]
+          args:
+            - "--v=5"
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/memplugin.csi.alibabacloud.com/csi.sock"
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+
+        - name: csi-memplugin
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-memplugin:v1.14.8-a33709cad
+          imagePullPolicy: "Always"
+          args :
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v=5"
+            - "--nodeid=$(KUBE_NODE_NAME)"
+            - "--driver=memplugin.csi.alibabacloud.com"
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            - name: CSI_ENDPOINT
+              value: unix://var/lib/kubelet/plugins/memplugin.csi.alibabacloud.com/csi.sock
+          volumeMounts:
+            - name: pods-mount-dir
+              mountPath: /var/lib/kubelet
+              mountPropagation: "Bidirectional"
+            - mountPath: /dev
+              mountPropagation: "HostToContainer"
+              name: host-dev
+            - mountPath: /var/log/
+              name: host-log
+      volumes:
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/memplugin.csi.alibabacloud.com
+            type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: DirectoryOrCreate
+        - name: pods-mount-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: host-log
+          hostPath:
+            path: /var/log/
+  updateStrategy:
+    type: RollingUpdate
