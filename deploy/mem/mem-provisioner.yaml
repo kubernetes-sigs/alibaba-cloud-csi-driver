@@ -1,0 +1,66 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: csi-mem-provisioner
+  namespace: kube-system
+  labels:
+    app: csi-mem-provisioner
+spec:
+  selector:
+    app: csi-mem-provisioner
+  ports:
+    - name: dummy
+      port: 12345
+
+---
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: csi-mem-provisioner
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: csi-mem-provisioner
+  serviceName: "csi-mem-provisioner"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: csi-mem-provisioner
+    spec:
+      tolerations:
+      - operator: Exists
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+      priorityClassName: system-node-critical
+      serviceAccount: admin
+      containers:
+        - name: csi-provisioner
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.2.2-aliyun
+          args:
+            - "--provisioner=memplugin.csi.alibabacloud.com"
+            - "--csi-address=$(ADDRESS)"
+            - "--volume-name-prefix=mem"
+            - "--feature-gates=Topology=True"
+            - "--v=5"
+          env:
+            - name: ADDRESS
+              value: /var/lib/kubelet/plugins/memplugin.csi.alibabacloud.com/csi.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/kubelet/plugins/memplugin.csi.alibabacloud.com
+      volumes:
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/memplugin.csi.alibabacloud.com
+            type: DirectoryOrCreate
+  updateStrategy:
+    type: RollingUpdate
