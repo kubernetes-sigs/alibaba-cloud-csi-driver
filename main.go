@@ -27,6 +27,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cpfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/lvm"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mem"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
 	log "github.com/sirupsen/logrus"
@@ -51,6 +52,8 @@ const (
 	TypePluginCPFS = "cpfsplugin.csi.alibabacloud.com"
 	// TypePluginLVM LVM type plugin
 	TypePluginLVM = "lvmplugin.csi.alibabacloud.com"
+	// TypePluginMEM memory type plugin
+	TypePluginMEM = "memplugin.csi.alibabacloud.com"
 )
 
 // BRANCH is CSI Driver Branch
@@ -106,6 +109,9 @@ func main() {
 		driver.Run()
 	} else if drivername == TypePluginCPFS {
 		driver := cpfs.NewDriver(*nodeID, *endpoint)
+		driver.Run()
+	} else if drivername == TypePluginMEM {
+		driver := mem.NewDriver(*nodeID, *endpoint)
 		driver.Run()
 	} else {
 		log.Errorf("CSI start failed, not support driver: %s", drivername)
