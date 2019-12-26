@@ -10,6 +10,7 @@ cp build/oss/csiplugin-connector.go build/all/csiplugin-connector.go
 cp build/oss/csiplugin-connector.service build/all/csiplugin-connector.service
 cp build/oss/ossfs_1.80.6_centos7.0_x86_64.rpm build/all/ossfs_1.80.6_centos7.0_x86_64.rpm
 cp build/oss/nsenter build/all/nsenter
+cp build/oss/ossfs build/all/ossfs
 
 export GOARCH="amd64"
 export GOOS="linux"
@@ -31,4 +32,4 @@ if [ "$1" == "" ]; then
 fi
 
 
-rm -rf csiplugin-connector.go csiplugin-connector.service csiplugin-connector plugin.csi.alibabacloud.com ossfs_1.80.6_centos7.0_x86_64.rpm nsenter
+rm -rf csiplugin-connector.go csiplugin-connector.service csiplugin-connector plugin.csi.alibabacloud.com ossfs_1.80.6_centos7.0_x86_64.rpm nsenter ossfs

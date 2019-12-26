@@ -32,16 +32,17 @@ if [ "$run_oss" = "true" ]; then
         echo "First install ossfs...."
         cp /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm /host/etc/csi-tool/
         /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
+
+        rm -rf /host/usr/local/bin/ossfs
+        cp /bin/ossfs /host/usr/local/bin/ossfs
     # update OSSFS
     else
         echo "Check ossfs Version...."
-        oss_info=`/nsenter --mount=/proc/1/ns/mnt ossfs --version`
-        vers_conut=`echo $oss_info | grep ${ossfsVer} | wc -l`
-        if [ "$vers_conut" = "0" ]; then
-            echo "Upgrade ossfs...."
-            /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
-            cp /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm /host/etc/csi-tool/
-            /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
+        oldmd5=`md5sum /host/usr/local/bin/ossfs | awk '{print $1}'`
+        newmd5=`md5sum /bin/ossfs | awk '{print $1}'`
+        if [ "$oldmd5" != "$newmd5" ]; then
+            rm -rf /host/usr/local/bin/ossfs
+            cp /bin/ossfs /host/usr/local/bin/ossfs
         fi
     fi
 

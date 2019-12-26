@@ -24,6 +24,7 @@ import (
 	"google.golang.org/grpc/status"
 	"io/ioutil"
 	"net"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -40,12 +41,14 @@ type nodeServer struct {
 
 // Options contains options for target oss
 type Options struct {
-	Bucket    string `json:"bucket"`
-	URL       string `json:"url"`
-	OtherOpts string `json:"otherOpts"`
-	AkID      string `json:"akId"`
-	AkSecret  string `json:"akSecret"`
-	Path      string `json:"path"`
+	Bucket           string `json:"bucket"`
+	URL              string `json:"url"`
+	OtherOpts        string `json:"otherOpts"`
+	AkID             string `json:"akId"`
+	AkSecret         string `json:"akSecret"`
+	Path             string `json:"path"`
+	Accelerate       string `json:"accelerate"`
+	AccelerateVolume string `json:"accelerateVolume"`
 }
 
 const (
@@ -59,6 +62,10 @@ const (
 	AkID = "akId"
 	// AkSecret is Ak Secret
 	AkSecret = "akSecret"
+	// AccelerateTypeLvm tag
+	AccelerateTypeLvm = "lvm"
+	// AccelerateTypeMemory tag
+	AccelerateTypeMemory = "memory"
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -79,6 +86,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.AkSecret = strings.TrimSpace(value)
 		} else if key == "path" {
 			opt.Path = strings.TrimSpace(value)
+		} else if key == "accelerate" {
+			opt.Accelerate = strings.TrimSpace(value)
+		} else if key == "acceleratevolume" {
+			opt.AccelerateVolume = strings.TrimSpace(value)
 		}
 	}
 	if opt.Path == "" {
@@ -105,6 +116,32 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("mountPath is empty")
 	}
 
+	useCachePath := ""
+	if opt.Accelerate == AccelerateTypeLvm {
+		if opt.AccelerateVolume == "" {
+			log.Errorf("Check Oss Accelerate input error: lvmVolume should not be empty")
+			return nil, errors.New("Check Oss Accelerate input error: lvmVolume should not be empty ")
+		}
+		pathCmd := fmt.Sprintf("mount | grep %s | grep -v grep | awk 'NR==1{print $3}'", opt.AccelerateVolume)
+		if out, err := utils.Run(pathCmd); err != nil {
+			log.Errorf("Check lvm volume error: %s", err.Error())
+			return nil, errors.New("Check lvm volume error: " + err.Error())
+		} else {
+			mntPath := strings.TrimSpace(out)
+			if mntPath == "" {
+				log.Warnf("lvm volume mntPath empty: %s, %s", opt.AccelerateVolume, mntPath)
+				return nil, errors.New("lvm volume mntPath empty: " + opt.AccelerateVolume + mntPath)
+			}
+			useCachePath = filepath.Join(mntPath, "cache")
+			if err := utils.CreateDest(useCachePath); err != nil {
+				log.Errorf("lvm volume CreateDest error: %s", err.Error())
+				return nil, errors.New("lvm volume CreateDest error: " + err.Error())
+			}
+		}
+	} else if opt.Accelerate == AccelerateTypeMemory {
+
+	}
+
 	argStr := "Bucket: " + opt.Bucket + ", url: " + opt.URL + ", OtherOpts: " + opt.OtherOpts + ", Path: " + opt.Path
 	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
 
@@ -127,6 +164,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// default use allow_other
 	mntCmd := fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s", opt.Bucket, opt.Path, mountPath, opt.URL, opt.OtherOpts)
+	if opt.AccelerateVolume != "" {
+		cacheOption := "-o use_cache=" + useCachePath
+		log.Infof("OSS Volume: %s Set Accelerate with volume: %s", req.VolumeId, opt.AccelerateVolume)
+		mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s %s", opt.Bucket, opt.Path, mountPath, opt.URL, opt.OtherOpts, cacheOption)
+	}
+
 	if out, err := connectorRun(mntCmd); err != nil {
 		if err != nil {
 			log.Errorf("Ossfs mount error: %s", err.Error())
@@ -190,6 +233,10 @@ func checkOssOptions(opt *Options) error {
 
 	if !strings.HasPrefix(opt.Path, "/") {
 		return errors.New("Oss path error: start with " + opt.Path + ", should start with / ")
+	}
+
+	if opt.Accelerate != AccelerateTypeLvm && opt.Accelerate != AccelerateTypeMemory {
+		return errors.New("Oss accelerate type error, only support memory/lvm ")
 	}
 
 	return nil
