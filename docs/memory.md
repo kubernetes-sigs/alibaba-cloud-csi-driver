@@ -59,10 +59,10 @@ provisioner: memplugin.csi.alibabacloud.com
 reclaimPolicy: Delete
 ```
 
-### Step 4: Create nginx deploy with memory volume
+### Step 4: Create nginx deploy with memory volume see usage of memory volue [examples](https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/tree/master/examples/mem) 
 ```
-# kubectl create -f ./deploy/mem/pvc.yaml
-# kubectl create -f ./deploy/mem/deploy.yaml
+# kubectl create -f ./examples/mem/pvc.yaml
+# kubectl create -f ./examples/mem/deploy.yaml
 ```
 
 ### Step 5: Check status of PVC/PV
