@@ -17,8 +17,11 @@ limitations under the License.
 package oss
 
 import (
+	"fmt"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"io/ioutil"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -40,4 +43,28 @@ func GetMetaData(resource string) string {
 		return ""
 	}
 	return string(body)
+}
+
+// IsOssfsMounted return if oss mountPath is mounted
+func IsOssfsMounted(mountPath string) bool {
+	checkMountCountCmd := fmt.Sprintf("%s mount | grep %s | grep %s | grep -v grep | wc -l", NsenterCmd, mountPath, OssFsType)
+	out, err := utils.Run(checkMountCountCmd)
+	if err != nil {
+		return false
+	}
+	if strings.TrimSpace(out) == "0" {
+		return false
+	}
+	return true
+}
+
+// IsLastSharedVol return code status to help check if this oss volume uses UseSharedPath and is the last one
+func IsLastSharedVol(pvName string) (string, error) {
+	keyStr := fmt.Sprintf("volumes/kubernetes.io~csi/%s/mount", pvName)
+	checkMountCountCmd := fmt.Sprintf("%s mount | grep %s | grep %s | grep -v grep | wc -l", NsenterCmd, keyStr, OssFsType)
+	out, err := utils.Run(checkMountCountCmd)
+	if err != nil {
+		return "0", err
+	}
+	return strings.TrimSpace(out), nil
 }

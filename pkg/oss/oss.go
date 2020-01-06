@@ -20,6 +20,8 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	log "github.com/sirupsen/logrus"
+
+	k8smount "k8s.io/kubernetes/pkg/util/mount"
 )
 
 const (
@@ -64,6 +66,7 @@ func NewDriver(nodeID, endpoint string) *OSS {
 // newNodeServer init oss type of csi nodeServer
 func newNodeServer(d *OSS) *nodeServer {
 	return &nodeServer{
+		k8smounter:        k8smount.New(""),
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
 	}
 }
