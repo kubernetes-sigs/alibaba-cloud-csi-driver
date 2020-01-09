@@ -91,6 +91,8 @@ kubectl delete pv pv-nas
 
 if [ "$testRes" = "true" ]; then
     echo -e "****************************\n** Static Nas Test Successful\n****************************\n"
+    exit 0
 else
     echo -e "****************************\n** Static Nas Test Failed\n****************************\n"
+    exit 1
 fi
