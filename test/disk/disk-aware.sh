@@ -89,6 +89,8 @@ kubectl delete sc alicloud-disk-aware
 
 if [ "$testRes" = "true" ]; then
     echo -e "****************************\n** Aware Disk Test Successful\n****************************\n"
+    exit 0
 else
     echo -e "****************************\n** Aware Disk Test Failed\n****************************\n"
+    exit 1
 fi
