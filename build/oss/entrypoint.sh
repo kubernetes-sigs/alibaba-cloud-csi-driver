@@ -3,7 +3,7 @@
 
 echo "Starting deploy oss csi-plugin...."
 
-ossfsVer="1.80.6"
+ossfsVer="1.80.6.ack.1"
 # install OSSFS
 mkdir -p /host/etc/csi-tool/
 if [ ! `/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
@@ -13,9 +13,10 @@ if [ ! `/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
 # update OSSFS
 else
     echo "Check ossfs Version...."
-    oss_info=`/nsenter --mount=/proc/1/ns/mnt ossfs --version`
-    vers_conut=`echo $oss_info | grep ${ossfsVer} | wc -l`
-    if [ "$vers_conut" = "0" ]; then
+    oss_info=`/nsenter --mount=/proc/1/ns/mnt ossfs --version | grep -E -o "V[0-9.a-z]+" | cut -d"V" -f2`
+    #vers_conut=`echo $oss_info | grep ${ossfsVer} | wc -l`
+    #if [ "$vers_conut" = "0" ]; then
+    if [ "$oss_info" != "$ossfsVer" ]; then
         echo "Upgrade ossfs...."
         /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
         cp /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm /host/etc/csi-tool/
