@@ -1,7 +1,31 @@
 #! /bin/sh
 
-ossakid=$1
-ossaksec=$2
+kubectl="kubectl $1"
+curDir=`pwd`
+
+ossakid=$2
+ossaksec=$3
+region_id=$4
+bucket=acs-oss-test-`date +%s`
+endpoint_out=oss-${region_id}.aliyuncs.com
+endpoint=$endpoint_out
+if [[ "$region_id" == *"finance"* ]]; then
+    endpoint=oss-${region_id}-internal.aliyuncs.com
+fi
+
+## Create Oss Bucket
+num=`uname -a | grep Linux | wc -l`
+if [ "$num" = "1" ]; then
+  ossutil=ossutils-linux
+else
+  ossutil=ossutils-mac
+fi
+
+echo "$curDir/$ossutil mb oss://$bucket"
+$curDir/$ossutil config -e $endpoint_out -i $akId -k $akSecret
+$curDir/$ossutil mb oss://$bucket
+
+
 testRes="false"
 
 cat << EOF | kubectl create -f -
@@ -19,8 +43,8 @@ spec:
     driver: ossplugin.csi.alibabacloud.com
     volumeHandle: oss-pv
     volumeAttributes:
-      bucket: "test"
-      url: "oss-cn-hangzhou.aliyuncs.com"
+      bucket: "${bucket}"
+      url: "${endpoint}"
       otherOpts: "-o max_stat_cache_size=1 -o allow_other"
       akId: "$ossakid"
       akSecret: "$ossaksec"
@@ -86,8 +110,12 @@ kubectl delete deploy oss-deployment
 kubectl delete pvc oss-pvc
 kubectl delete pv oss-csi-pv
 
+$curDir/$ossutil rm -f oss://$bucket -bar
+
 if [ "$testRes" = "true" ]; then
     echo -e "****************************\n** Static OSS Test Successful\n****************************\n"
+    exit 0
 else
     echo -e "****************************\n** Static OSS Test Failed\n****************************\n"
+    exit 1
 fi
