@@ -74,6 +74,8 @@ kubectl delete pvc csi-pvc
 
 if [ "$testRes" = "true" ]; then
     echo -e "****************************\n** Dynamic Disk Test Successful\n****************************\n"
+    exit 0
 else
     echo -e "****************************\n** Dynamic Disk Test Failed\n****************************\n"
+    exit 1
 fi
