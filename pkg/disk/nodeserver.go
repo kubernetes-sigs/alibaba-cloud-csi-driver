@@ -205,19 +205,29 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 
 		// check device name available
-		expectName := getVolumeConfig(req.VolumeId)
-		realDevice := GetDeviceByMntPoint(sourcePath)
-		if realDevice == "" {
-			opts := append(mnt.MountFlags, "shared")
-			if err := ns.k8smounter.Mount(expectName, sourcePath, fsType, opts); err != nil {
-				log.Errorf("NodePublishVolume: mount source error: %s, %s, %s", expectName, sourcePath, err.Error())
-				return nil, status.Error(codes.Internal, "NodePublishVolume: mount source error: "+expectName+", "+sourcePath+", "+err.Error())
+		deviceByID, _ := GetDeviceByVolumeID(req.VolumeId)
+		if deviceByID != "" {
+			deviceByPath := GetDeviceByMntPoint(sourcePath)
+			if deviceByID != deviceByPath {
+				errMsg := fmt.Sprintf("NodePublishVolume: Check device path error: deviceByID %s not same as deviceByPath %s", deviceByID, deviceByPath)
+				log.Errorf(errMsg)
+				return nil, status.Error(codes.Internal, errMsg)
 			}
-			realDevice = GetDeviceByMntPoint(sourcePath)
-		}
-		if expectName != realDevice || realDevice == "" {
-			log.Errorf("NodePublishVolume: Volume: %s, sourcePath: %s real Device: %s not same with expected: %s", req.VolumeId, sourcePath, realDevice, expectName)
-			return nil, status.Error(codes.Internal, "NodePublishVolume: sourcePath: "+sourcePath+" real Device: "+realDevice+" not same with Saved: "+expectName)
+		} else {
+			expectName := getVolumeConfig(req.VolumeId)
+			realDevice := GetDeviceByMntPoint(sourcePath)
+			if realDevice == "" {
+				opts := append(mnt.MountFlags, "shared")
+				if err := ns.k8smounter.Mount(expectName, sourcePath, fsType, opts); err != nil {
+					log.Errorf("NodePublishVolume: mount source error: %s, %s, %s", expectName, sourcePath, err.Error())
+					return nil, status.Error(codes.Internal, "NodePublishVolume: mount source error: "+expectName+", "+sourcePath+", "+err.Error())
+				}
+				realDevice = GetDeviceByMntPoint(sourcePath)
+			}
+			if expectName != realDevice || realDevice == "" {
+				log.Errorf("NodePublishVolume: Volume: %s, sourcePath: %s real Device: %s not same with expected: %s", req.VolumeId, sourcePath, realDevice, expectName)
+				return nil, status.Error(codes.Internal, "NodePublishVolume: sourcePath: "+sourcePath+" real Device: "+realDevice+" not same with Saved: "+expectName)
+			}
 		}
 
 		log.Infof("NodePublishVolume: Starting mount volume %s with flags %v and fsType %s", req.VolumeId, options, fsType)
@@ -672,6 +682,18 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 		if err := ns.waitForDiskInStatus(20, time.Second*3, volumeID, DiskStatusInuse); err != nil {
 			return "", err
 		}
+	}
+
+	// step 5: Use device link file to find device
+	deviceFullPath, err := GetDeviceByVolumeID(volumeID)
+	if err != nil {
+		log.Infof("NodeStageVolume: device link file is not available with error: %s for volume: %s", err.Error(), volumeID)
+	} else {
+		if err := ns.checkDeviceAvailable(deviceFullPath); err == nil {
+			log.Infof("NodeStageVolume: Got device name %s by link file for volume: %s", deviceFullPath, volumeID)
+			return deviceFullPath, nil
+		}
+		log.Warnf("NodeStageVolume: Got device name %s by link file, but device is not available: %s with error: %s", deviceFullPath, volumeID, err.Error())
 	}
 
 	// step 5: diff device with previous files under /dev
