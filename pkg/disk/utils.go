@@ -364,37 +364,35 @@ func GetDevicePath(volumeID string) (path string) {
 	return devicePath
 }
 
-// GetDevicePathByID is not ready now.
-func GetDevicePathByID(volumeID string) (path string) {
-	devicePath := ""
-	volumeIDParts := strings.Split(volumeID, "-")
-	if len(volumeIDParts) < 2 {
-		return ""
+// Get device by volumeID, link file should be like:
+// /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
+func GetDeviceByVolumeID(volumeID string) (device string, err error) {
+	volumeLinkName := strings.Replace(volumeID, "d-", "virtio-", -1)
+	volumeLinPath := filepath.Join("/dev/disk/by-id/", volumeLinkName)
+	stat, err := os.Lstat(volumeLinPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			log.Infof("volumeID link path %q not found", volumeLinPath)
+			return "", fmt.Errorf("volumeID link path %q not found", volumeLinPath)
+		}
+		return "", fmt.Errorf("error getting stat of %q: %v", volumeLinPath, err)
 	}
-	volumeIDPrefix := volumeIDParts[1]
 
-	if utils.IsFileExisting("/dev/disk/by-id/") {
-		cmd1 := "ls /dev/disk/by-id/ | grep " + volumeIDPrefix
-		var out string
-		var err error
-		if out, err = utils.Run(cmd1); err != nil {
-			return ""
-		}
-		if strings.TrimSpace(out) == "" {
-			return ""
-		}
-		cmd2 := "readlink -f " + filepath.Join("/dev/disk/by-id/", strings.TrimSpace(out))
-		if out, err = utils.Run(cmd2); err != nil {
-			return ""
-		}
-		devicePath = strings.TrimSpace(out)
-		if !utils.IsFileExisting(devicePath) {
-			return ""
-		}
-	} else {
-		return ""
+	if stat.Mode()&os.ModeSymlink != os.ModeSymlink {
+		log.Warningf("volumeID link file %q found, but was not a symlink", volumeLinPath)
+		return "", fmt.Errorf("volumeID link file %q found, but was not a symlink", volumeLinPath)
 	}
-	return devicePath
+	// Find the target, resolving to an absolute path
+	// For example, /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
+	resolved, err := filepath.EvalSymlinks(volumeLinPath)
+	if err != nil {
+		return "", fmt.Errorf("error reading target of symlink %q: %v", volumeLinPath, err)
+	}
+	log.Infof("Device Link Info: %s link to %s", volumeLinPath, resolved)
+	if !strings.HasPrefix(resolved, "/dev") {
+		return "", fmt.Errorf("resolved symlink for %q was unexpected: %q", volumeLinPath, resolved)
+	}
+	return resolved, nil
 }
 
 // get diskID
