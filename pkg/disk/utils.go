@@ -364,7 +364,7 @@ func GetDevicePath(volumeID string) (path string) {
 	return devicePath
 }
 
-// Get device by volumeID, link file should be like:
+// GetDeviceByVolumeID Get device by volumeID, link file should be like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
 func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 	volumeLinkName := strings.Replace(volumeID, "d-", "virtio-", -1)
