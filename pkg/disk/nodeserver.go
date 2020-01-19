@@ -692,9 +692,8 @@ func (ns *nodeServer) attachDisk(volumeID string, isSharedDisk bool) (string, er
 		if err := ns.checkDeviceAvailable(deviceFullPath); err == nil {
 			log.Infof("NodeStageVolume: Got device name %s by link file for volume: %s", deviceFullPath, volumeID)
 			return deviceFullPath, nil
-		} else {
-			log.Warnf("NodeStageVolume: Got device name %s by link file, but device is not available: %s with error: %s", deviceFullPath, volumeID, err.Error())
 		}
+		log.Warnf("NodeStageVolume: Got device name %s by link file, but device is not available: %s with error: %s", deviceFullPath, volumeID, err.Error())
 	}
 
 	// step 5: diff device with previous files under /dev
