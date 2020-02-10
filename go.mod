@@ -13,8 +13,10 @@ require (
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/kubernetes-csi/csi-lib-utils v0.6.1 // indirect
 	github.com/kubernetes-csi/drivers v1.0.2
+	github.com/mesosphere/csilvm v0.2.0
 	github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443
 	github.com/onsi/gomega v0.0.0-00010101000000-000000000000 // indirect
+	github.com/pkg/errors v0.9.1
 	github.com/sevlyar/go-daemon v0.1.5
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/afero v1.2.2 // indirect
@@ -25,6 +27,7 @@ require (
 	golang.org/x/sys v0.0.0-20190626221950-04f50cda93cb // indirect
 	google.golang.org/genproto v0.0.0-20190307195333-5fe7a883aa19 // indirect
 	google.golang.org/grpc v1.19.0
+	gopkg.in/freddierice/go-losetup.v1 v1.0.0-20170407175016-fc9adea44124 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 	k8s.io/api v0.0.0-20190624085159-95846d7ef82a
@@ -32,7 +35,7 @@ require (
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/klog v0.3.1 // indirect
 	k8s.io/kube-openapi v0.0.0-00010101000000-000000000000 // indirect
-	k8s.io/kubernetes v1.15.0
+	k8s.io/kubernetes v1.17.2
 	k8s.io/utils v0.0.0-20190221042446-c2654d5206da
 	sigs.k8s.io/yaml v1.1.0 // indirect
 )

@@ -70,6 +70,8 @@ spec:
                   fieldPath: spec.nodeName
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/plugins/lvmplugin.csi.alibabacloud.com/csi.sock
+            - name: LVM_MONITOR
+              value: false
           volumeMounts:
             - name: pods-mount-dir
               mountPath: /var/lib/kubelet

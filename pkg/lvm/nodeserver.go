@@ -87,6 +87,13 @@ var (
 
 // NewNodeServer create a NodeServer object
 func NewNodeServer(d *csicommon.CSIDriver, nodeID string) csi.NodeServer {
+	// start a monitor to update node's status of vg capacity
+	lvmMonitor := os.Getenv("LVM_MONITOR")
+	if strings.ToLower(lvmMonitor) == "true" {
+		go Monitor()
+	}
+
+	// create a NodeServer object
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubeconfig: %s", err.Error())

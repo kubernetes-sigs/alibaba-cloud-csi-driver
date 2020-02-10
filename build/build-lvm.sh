@@ -18,8 +18,8 @@ if [ "$1" == "" ]; then
   version="v1.14"
   cd ${GOPATH}/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/build/lvm/
   mv ${GOPATH}/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/plugin.csi.alibabacloud.com ./
-  docker build -t=registry.cn-hangzhou.aliyuncs.com/acs/csi-lvmplugin:$version-$GIT_SHA ./
-  docker push registry.cn-hangzhou.aliyuncs.com/acs/csi-lvmplugin:$version-$GIT_SHA
+  docker build -t=registry.cn-hangzhou.aliyuncs.com/haoshuwei24/csi-lvmplugin:$version-$GIT_SHA ./
+  docker push registry.cn-hangzhou.aliyuncs.com/haoshuwei24/csi-lvmplugin:$version-$GIT_SHA
 fi
 
 rm -rf plugin.csi.alibabacloud.com

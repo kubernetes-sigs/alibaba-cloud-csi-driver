@@ -2,7 +2,7 @@ FROM ubuntu:18.10
 LABEL maintainers="Alibaba Cloud Authors"
 LABEL description="Alibaba Cloud CSI Plugin"
 
-RUN apt update && apt upgrade -y && apt install -y ca-certificates file tzdata
+RUN apt update && apt upgrade -y && apt install -y ca-certificates file tzdata lvm2
 COPY nsenter /nsenter
 
 COPY plugin.csi.alibabacloud.com /bin/plugin.csi.alibabacloud.com
