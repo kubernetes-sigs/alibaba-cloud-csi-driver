@@ -6,9 +6,11 @@ require (
 	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20191010082856-e76f4c50e182
 	github.com/container-storage-interface/spec v1.1.0
 	github.com/gogo/protobuf v1.2.1 // indirect
+	github.com/golang/groupcache v0.0.0-00010101000000-000000000000 // indirect
 	github.com/golang/protobuf v1.3.0
 	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf // indirect
 	github.com/googleapis/gnostic v0.2.0 // indirect
+	github.com/hashicorp/golang-lru v0.0.0-00010101000000-000000000000 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/kubernetes-csi/csi-lib-utils v0.6.1 // indirect
@@ -30,6 +32,7 @@ require (
 	k8s.io/api v0.0.0-20190624085159-95846d7ef82a
 	k8s.io/apimachinery v0.0.0-20190624085041-961b39a1baa0
 	k8s.io/client-go v11.0.0+incompatible
+	k8s.io/cloud-provider v0.0.0-00010101000000-000000000000 // indirect
 	k8s.io/klog v0.3.1 // indirect
 	k8s.io/kube-openapi v0.0.0-00010101000000-000000000000 // indirect
 	k8s.io/kubernetes v1.15.0
