@@ -20,7 +20,7 @@ spec:
   attachRequired: false
 ---
 kind: DaemonSet
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 metadata:
   name: csi-plugin
   namespace: kube-system
@@ -45,8 +45,8 @@ spec:
           imagePullPolicy: Always
           args:
             - "--v=5"
-            - "--csi-address=/var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock"
+            - "--csi-address=/var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/csi-plugins/plugins/diskplugin.csi.alibabacloud.com/csi.sock"
           volumeMounts:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet/
@@ -67,7 +67,7 @@ spec:
             - "--driver=diskplugin.csi.alibabacloud.com"
           env:
             - name: CSI_ENDPOINT
-              value: unix://var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
+              value: unix://var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock
             - name: ACCESS_KEY_ID
               value: ""
             - name: ACCESS_KEY_SECRET
@@ -96,8 +96,8 @@ spec:
           imagePullPolicy: Always
           args:
           - "--v=5"
-          - "--csi-address=/var/lib/kubelet/plugins/nasplugin.csi.alibabacloud.com/csi.sock"
-          - "--kubelet-registration-path=/var/lib/kubelet/plugins/nasplugin.csi.alibabacloud.com/csi.sock"
+          - "--csi-address=/var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock"
+          - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock"
           volumeMounts:
           - name: kubelet-dir
             mountPath: /var/lib/kubelet
@@ -118,7 +118,7 @@ spec:
           - "--driver=nasplugin.csi.alibabacloud.com"
           env:
           - name: CSI_ENDPOINT
-            value: unix://var/lib/kubelet/plugins/nasplugin.csi.alibabacloud.com/csi.sock
+            value: unix://var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock
           volumeMounts:
           - name: kubelet-dir
             mountPath: /var/lib/kubelet/
@@ -131,8 +131,8 @@ spec:
           imagePullPolicy: Always
           args:
           - "--v=5"
-          - "--csi-address=/var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock"
-          - "--kubelet-registration-path=/var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock"
+          - "--csi-address=/var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock"
+          - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock"
           volumeMounts:
           - name: kubelet-dir
             mountPath: /var/lib/kubelet/
@@ -153,7 +153,7 @@ spec:
           - "--driver=ossplugin.csi.alibabacloud.com"
           env:
           - name: CSI_ENDPOINT
-            value: unix://var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
+            value: unix://var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock
           volumeMounts:
           - name: kubelet-dir
             mountPath: /var/lib/kubelet/
