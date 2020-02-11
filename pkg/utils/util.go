@@ -20,10 +20,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8svol "k8s.io/kubernetes/pkg/volume"
+	"k8s.io/kubernetes/pkg/volume/util/fs"
 	"net/http"
 	"os"
+
 	"os/exec"
 	"path/filepath"
 	"reflect"
@@ -317,4 +325,71 @@ func IsDir(path string) bool {
 		return false
 	}
 	return s.IsDir()
+}
+
+// GetMetrics get path metric
+func GetMetrics(path string) (*csi.NodeGetVolumeStatsResponse, error) {
+	if path == "" {
+		return nil, fmt.Errorf("getMetrics No path given")
+	}
+	available, capacity, usage, inodes, inodesFree, inodesUsed, err := fs.FsInfo(path)
+	if err != nil {
+		return nil, err
+	}
+
+	metrics := &k8svol.Metrics{Time: metav1.Now()}
+	metrics.Available = resource.NewQuantity(available, resource.BinarySI)
+	metrics.Capacity = resource.NewQuantity(capacity, resource.BinarySI)
+	metrics.Used = resource.NewQuantity(usage, resource.BinarySI)
+	metrics.Inodes = resource.NewQuantity(inodes, resource.BinarySI)
+	metrics.InodesFree = resource.NewQuantity(inodesFree, resource.BinarySI)
+	metrics.InodesUsed = resource.NewQuantity(inodesUsed, resource.BinarySI)
+
+	metricAvailable, ok := (*(metrics.Available)).AsInt64()
+	if !ok {
+		log.Errorf("failed to fetch available bytes for target: %s", path)
+		return nil, status.Error(codes.Unknown, "failed to fetch available bytes")
+	}
+	metricCapacity, ok := (*(metrics.Capacity)).AsInt64()
+	if !ok {
+		log.Errorf("failed to fetch capacity bytes for target: %s", path)
+		return nil, status.Error(codes.Unknown, "failed to fetch capacity bytes")
+	}
+	metricUsed, ok := (*(metrics.Used)).AsInt64()
+	if !ok {
+		log.Errorf("failed to fetch used bytes for target %s", path)
+		return nil, status.Error(codes.Unknown, "failed to fetch used bytes")
+	}
+	metricInodes, ok := (*(metrics.Inodes)).AsInt64()
+	if !ok {
+		log.Errorf("failed to fetch available inodes for target %s", path)
+		return nil, status.Error(codes.Unknown, "failed to fetch available inodes")
+	}
+	metricInodesFree, ok := (*(metrics.InodesFree)).AsInt64()
+	if !ok {
+		log.Errorf("failed to fetch free inodes for target: %s", path)
+		return nil, status.Error(codes.Unknown, "failed to fetch free inodes")
+	}
+	metricInodesUsed, ok := (*(metrics.InodesUsed)).AsInt64()
+	if !ok {
+		log.Errorf("failed to fetch used inodes for target: %s", path)
+		return nil, status.Error(codes.Unknown, "failed to fetch used inodes")
+	}
+
+	return &csi.NodeGetVolumeStatsResponse{
+		Usage: []*csi.VolumeUsage{
+			{
+				Available: metricAvailable,
+				Total:     metricCapacity,
+				Used:      metricUsed,
+				Unit:      csi.VolumeUsage_BYTES,
+			},
+			{
+				Available: metricInodesFree,
+				Total:     metricInodes,
+				Used:      metricInodesUsed,
+				Unit:      csi.VolumeUsage_INODES,
+			},
+		},
+	}, nil
 }
