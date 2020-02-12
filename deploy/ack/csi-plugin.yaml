@@ -41,12 +41,12 @@ spec:
       hostPID: true
       containers:
         - name: disk-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.1.0
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
             - "--v=5"
             - "--csi-address=/var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock"
-            - "--kubelet-registration-path=/var/lib/csi-plugins/plugins/diskplugin.csi.alibabacloud.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock"
           volumeMounts:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet/
@@ -92,7 +92,7 @@ spec:
               mountPath: /host/etc
 
         - name: nas-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.1.0
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
           - "--v=5"
@@ -127,7 +127,7 @@ spec:
             name: host-log
 
         - name: oss-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.1.0
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
           - "--v=5"
