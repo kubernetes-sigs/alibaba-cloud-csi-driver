@@ -73,7 +73,7 @@ var (
 	nodeID          = flag.String("nodeid", "", "node id")
 	runAsController = flag.Bool("run-as-controller", false, "Only run as controller service")
 	driver          = flag.String("driver", TypePluginDISK, "CSI Driver")
-	rootDir         = flag.String("rootdir", "/var/lib/kubelet", "Kubernetes root directory")
+	rootDir         = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
 )
 
 // Nas CSI Plugin
@@ -83,11 +83,11 @@ func main() {
 	// set log config
 	setLogAttribute(*driver)
 
-	if err := createPersistentStorage(path.Join(*rootDir, "plugins", *driver, "controller")); err != nil {
+	if err := createPersistentStorage(path.Join(*rootDir, *driver, "controller")); err != nil {
 		log.Errorf("failed to create persistent storage for controller: %v", err)
 		os.Exit(1)
 	}
-	if err := createPersistentStorage(path.Join(*rootDir, "plugins", *driver, "node")); err != nil {
+	if err := createPersistentStorage(path.Join(*rootDir, *driver, "node")); err != nil {
 		log.Errorf("failed to create persistent storage for node: %v", err)
 		os.Exit(1)
 	}
@@ -121,6 +121,7 @@ func main() {
 }
 
 func createPersistentStorage(persistentStoragePath string) error {
+	log.Infof("Create Stroage Path: %s", persistentStoragePath)
 	return os.MkdirAll(persistentStoragePath, os.FileMode(0755))
 }
 
