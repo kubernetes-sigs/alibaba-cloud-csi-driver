@@ -95,7 +95,7 @@ spec:
       hostNetwork: true
       containers:
         - name: csi-external-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.2.2-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.4.0-aliyun
           args:
             - "--provisioner=diskplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
@@ -109,6 +109,19 @@ spec:
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /socketDir
+        - name: csi-resizer
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v0.3.0
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election"
+          env:
+            - name: ADDRESS
+              value: /socketDir/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: disk-provisioner-dir
+              mountPath: /socketDir/
         - name: csi-diskprovisioner
           securityContext:
             privileged: true
@@ -156,7 +169,7 @@ spec:
             successThreshold: 1
             timeoutSeconds: 15
         - name: csi-nas-external-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.2.2-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.4.0-aliyun
           args:
             - "--provisioner=nasplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"

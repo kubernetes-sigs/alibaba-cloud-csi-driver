@@ -19,6 +19,9 @@ metadata:
   namespace: kube-system
 spec:
   serviceName: "csi-resizer"
+  selector:
+    matchLabels:
+      app: csi-resizer
   template:
     metadata:
       labels:
