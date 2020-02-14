@@ -17,10 +17,13 @@ limitations under the License.
 package disk
 
 import (
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	log "github.com/sirupsen/logrus"
 	"os"
+	"strings"
+	"sync"
 )
 
 // PluginFolder defines the location of diskplugin
@@ -41,6 +44,19 @@ type DISK struct {
 	cap   []*csi.VolumeCapability_AccessMode
 	cscap []*csi.ControllerServiceCapability
 }
+
+// GlobalConfig save global values for plugin
+type GlobalConfig struct {
+	EcsClient      *ecs.Client
+	Region         string
+	AttachMutex    sync.RWMutex
+	CanAttach      bool
+	TagDisk        string
+	ADControllerEn bool
+}
+
+// GlobalConfigVar define global variable
+var GlobalConfigVar GlobalConfig
 
 // Init checks for the persistent volume file and loads all found volumes
 // into a memory structure
@@ -81,6 +97,30 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	if region == "" {
 		region = GetMetaData(RegionIDTag)
 	}
+
+	// Global Configs Set
+	tagDiskConf := os.Getenv(DiskTagedByPlugin)
+	aDControllerEn := IsDeviceMappedDiskIDEnabled()
+	if aDControllerEn {
+		log.Infof("Device/DiskId mapping is enabled, CSI Disk Plugin running in AD Controller mode.")
+	} else {
+		log.Infof("Device/DiskId mapping isn't enabled, CSI Disk Plugin running in kubelet mode.")
+	}
+	adEnable := os.Getenv(DiskAttachByController)
+	if adEnable == "true" || adEnable == "yes" {
+		aDControllerEn = true
+	} else if adEnable == "false" || adEnable == "no" {
+		aDControllerEn = false
+	}
+
+	GlobalConfigVar = GlobalConfig{
+		EcsClient:      c,
+		Region:         region,
+		CanAttach:      true,
+		ADControllerEn: aDControllerEn,
+		TagDisk:        strings.ToLower(tagDiskConf),
+	}
+
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
 	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, c, region)
