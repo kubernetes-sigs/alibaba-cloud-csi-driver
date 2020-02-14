@@ -33,8 +33,11 @@ import (
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	utilexec "k8s.io/utils/exec"
 )
@@ -395,6 +398,31 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 	return resolved, nil
 }
 
+// Device Mapping DiskID is in testing, not all user enable this feature
+// /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vda
+func IsDeviceMappedDiskIDEnabled() bool {
+	byIdPath := "/dev/disk/by-id"
+	if !IsFileExisting(byIdPath) {
+		return false
+	}
+	files, err := ioutil.ReadDir(byIdPath)
+	if err != nil {
+		return false
+	}
+
+	for _, f := range files {
+		volumeLinPath := filepath.Join(byIdPath, f.Name())
+		resolved, err := filepath.EvalSymlinks(volumeLinPath)
+		if err != nil {
+			return false
+		}
+		if resolved == "/dev/vda" {
+			return true
+		}
+	}
+	return false
+}
+
 // get diskID
 func getVolumeConfig(volumeID string) string {
 	volumeFile := path.Join(VolumeDir, volumeID+".conf")
@@ -550,4 +578,178 @@ func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 	}
 
 	return mountErr
+}
+
+// pickZone selects 1 zone given topology requirement.
+// if not found, empty string is returned.
+func pickZone(requirement *csi.TopologyRequirement) string {
+	if requirement == nil {
+		return ""
+	}
+	for _, topology := range requirement.GetPreferred() {
+		zone, exists := topology.GetSegments()[TopologyZoneKey]
+		if exists {
+			return zone
+		}
+	}
+	for _, topology := range requirement.GetRequisite() {
+		zone, exists := topology.GetSegments()[TopologyZoneKey]
+		if exists {
+			return zone
+		}
+	}
+	return ""
+}
+
+// getDiskVolumeOptions
+func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error) {
+	var ok bool
+	diskVolArgs := &diskVolumeArgs{}
+	volOptions := req.GetParameters()
+
+	diskVolArgs.ZoneID, ok = volOptions["zoneId"]
+	if !ok {
+		// topology aware feature to get zoneid
+		diskVolArgs.ZoneID = pickZone(req.GetAccessibilityRequirements())
+		if diskVolArgs.ZoneID == "" {
+			log.Errorf("CreateVolume: Can't get topology info , please check your setup or set zone ID in storage class. Use zone from Meta service: %s", req.Name)
+			diskVolArgs.ZoneID = GetMetaData(ZoneIDTag)
+		}
+	}
+	// Support Multi zones if set;
+	zoneIDStr := diskVolArgs.ZoneID
+	zones := strings.Split(zoneIDStr, ",")
+	zoneNum := len(zones)
+	if zoneNum > 1 {
+		if _, ok := storageClassZonePos[zoneIDStr]; !ok {
+			storageClassZonePos[zoneIDStr] = 0
+		}
+		zoneIndex := storageClassZonePos[zoneIDStr] % zoneNum
+		diskVolArgs.ZoneID = zones[zoneIndex]
+		storageClassZonePos[zoneIDStr]++
+	}
+	diskVolArgs.RegionID, ok = volOptions["regionId"]
+	if !ok {
+		diskVolArgs.RegionID = GlobalConfigVar.Region
+	}
+
+	diskVolArgs.PerformanceLevel, ok = volOptions["performanceLevel"]
+	if !ok {
+		diskVolArgs.PerformanceLevel = PERFORMANCELEVELPL1
+	}
+
+	// fstype
+	// https://github.com/kubernetes-csi/external-provisioner/releases/tag/v1.0.1
+	diskVolArgs.FsType, ok = volOptions["csi.storage.k8s.io/fstype"]
+	if !ok {
+		diskVolArgs.FsType, ok = volOptions["fsType"]
+		if !ok {
+			diskVolArgs.FsType = "ext4"
+		}
+	}
+	if diskVolArgs.FsType != "ext4" && diskVolArgs.FsType != "ext3" {
+		return nil, fmt.Errorf("illegal required parameter fsType, only support ext3, ext4, the input is: %s", diskVolArgs.FsType)
+	}
+
+	// disk Type
+	diskVolArgs.Type, ok = volOptions["type"]
+	if !ok {
+		diskVolArgs.Type = DiskHighAvail
+	}
+	if diskVolArgs.Type != DiskHighAvail && diskVolArgs.Type != DiskCommon && diskVolArgs.Type != DiskESSD && diskVolArgs.Type != DiskEfficiency && diskVolArgs.Type != DiskSSD && diskVolArgs.Type != DiskSharedSSD && diskVolArgs.Type != DiskSharedEfficiency {
+		return nil, fmt.Errorf("Illegal required parameter type: " + diskVolArgs.Type)
+	}
+
+	// readonly, default false
+	value, ok := volOptions["readOnly"]
+	if !ok {
+		diskVolArgs.ReadOnly = false
+	} else {
+		value = strings.ToLower(value)
+		if value == "yes" || value == "true" || value == "1" {
+			diskVolArgs.ReadOnly = true
+		} else {
+			diskVolArgs.ReadOnly = false
+		}
+	}
+
+	// encrypted or not
+	value, ok = volOptions["encrypted"]
+	if !ok {
+		diskVolArgs.Encrypted = false
+	} else {
+		value = strings.ToLower(value)
+		if value == "yes" || value == "true" || value == "1" {
+			diskVolArgs.Encrypted = true
+		} else {
+			diskVolArgs.Encrypted = false
+		}
+	}
+
+	// DiskTags
+	diskVolArgs.DiskTags, ok = volOptions["diskTags"]
+	if !ok {
+		diskVolArgs.DiskTags = ""
+	}
+
+	// kmsKeyId
+	diskVolArgs.KMSKeyID, ok = volOptions["kmsKeyId"]
+	if !ok {
+		diskVolArgs.KMSKeyID = ""
+	}
+
+	// resourceGroupId
+	diskVolArgs.ResourceGroupID, ok = volOptions["resourceGroupId"]
+	if !ok {
+		diskVolArgs.ResourceGroupID = ""
+	}
+
+	return diskVolArgs, nil
+}
+
+func checkDeviceAvailable(devicePath string) error {
+	if devicePath == "" {
+		msg := fmt.Sprintf("devicePath is empty, cannot used for Volume")
+		return status.Error(codes.Internal, msg)
+	}
+
+	// block volume
+	if devicePath == "devtmpfs" {
+		return nil
+	}
+
+	if !utils.IsFileExisting(devicePath) {
+		msg := fmt.Sprintf("devicePath(%s) is empty, cannot used for Volume", devicePath)
+		return status.Error(codes.Internal, msg)
+	}
+
+	// check the device is used for system
+	if devicePath == "/dev/vda" || devicePath == "/dev/vda1" {
+		msg := fmt.Sprintf("devicePath(%s) is system device, cannot used for Volume", devicePath)
+		return status.Error(codes.Internal, msg)
+	}
+
+	checkCmd := fmt.Sprintf("mount | grep \"%s on /var/lib/kubelet type\" | wc -l", devicePath)
+	if out, err := utils.Run(checkCmd); err != nil {
+		msg := fmt.Sprintf("devicePath(%s) is used to kubelet", devicePath)
+		return status.Error(codes.Internal, msg)
+	} else if strings.TrimSpace(out) != "0" {
+		msg := fmt.Sprintf("devicePath(%s) is used as DataDisk for kubelet, cannot used fo Volume", devicePath)
+		return status.Error(codes.Internal, msg)
+	}
+	return nil
+}
+
+// GetVolumeDeviceName
+func GetVolumeDeviceName(volumeId string) string {
+	if GlobalConfigVar.ADControllerEn {
+		deviceName, err := GetDeviceByVolumeID(volumeId)
+		if err != nil {
+			log.Errorf("ADControllerEnabled, Get Device Name by volumeID %s, error: %s", volumeId, err.Error())
+			return ""
+		}
+		return deviceName
+	} else {
+		return getVolumeConfig(volumeId)
+	}
 }
