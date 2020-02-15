@@ -21,8 +21,10 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"os"
-	"strings"
 	"sync"
 )
 
@@ -51,17 +53,20 @@ type GlobalConfig struct {
 	Region         string
 	AttachMutex    sync.RWMutex
 	CanAttach      bool
-	TagDisk        string
+	TagDisk        bool
 	ADControllerEn bool
 }
 
-// GlobalConfigVar define global variable
-var GlobalConfigVar GlobalConfig
+// define global variable
+var (
+	masterURL       string
+	kubeconfig      string
+	GlobalConfigVar GlobalConfig
+)
 
 // Init checks for the persistent volume file and loads all found volumes
 // into a memory structure
 func initDriver() {
-
 }
 
 //NewDriver create the identity/node/controller server and disk driver
@@ -85,48 +90,90 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	})
 	tmpdisk.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
 
+	// Init ECS Client
 	accessKeyID, accessSecret, accessToken := GetDefaultAK()
-	c := newEcsClient(accessKeyID, accessSecret, accessToken)
+	client := newEcsClient(accessKeyID, accessSecret, accessToken)
 	if accessToken == "" {
 		log.Infof("Starting csi-plugin without sts")
 	} else {
 		log.Infof("Starting csi-plugin with sts")
 	}
 
+	// Set Region ID
 	region := os.Getenv("REGION_ID")
 	if region == "" {
 		region = GetMetaData(RegionIDTag)
 	}
 
 	// Global Configs Set
-	tagDiskConf := os.Getenv(DiskTagedByPlugin)
-	aDControllerEn := IsDeviceMappedDiskIDEnabled()
-	if aDControllerEn {
-		log.Infof("Device/DiskId mapping is enabled, CSI Disk Plugin running in AD Controller mode.")
-	} else {
-		log.Infof("Device/DiskId mapping isn't enabled, CSI Disk Plugin running in kubelet mode.")
+	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	if err != nil {
+		log.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
-	adEnable := os.Getenv(DiskAttachByController)
-	if adEnable == "true" || adEnable == "yes" {
-		aDControllerEn = true
-	} else if adEnable == "false" || adEnable == "no" {
-		aDControllerEn = false
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
+	configMapName := "csi-plugin"
+	tagDiskConf := ""
+	aDControllerEnable := false
+	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(configMapName, metav1.GetOptions{})
+	if err != nil {
+		log.Infof("Not found configmap named as csi-plugin under kube-system")
+	} else {
+		if value, ok := configMap.Data["disk-adcontroller"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				log.Infof("AD-Controller is enabled by configMap(%s), CSI Disk Plugin running in AD Controller mode.", value)
+				aDControllerEnable = true
+			} else if value == "disable" || value == "no" || value == "false" {
+				log.Infof("AD-Controller is disable by configMap(%s), CSI Disk Plugin running in kubelet mode.", value)
+				aDControllerEnable = false
+			}
+		}
+		if value, ok := configMap.Data["patch-disk-tag"]; ok {
+			log.Infof("Patch Disk Tag is enabled by configMap(%s).", value)
+			tagDiskConf = value
+		}
+	}
+
+	// Env variables
+	adEnable := os.Getenv(DiskAttachByController)
+	if adEnable == "true" || adEnable == "yes" {
+		log.Infof("AD-Controller is enabled by Env(%s), CSI Disk Plugin running in AD Controller mode.", adEnable)
+		aDControllerEnable = true
+	} else if adEnable == "false" || adEnable == "no" {
+		log.Infof("AD-Controller is disabled by Env(%s), CSI Disk Plugin running in kubelet mode.", adEnable)
+		aDControllerEnable = false
+	}
+	if aDControllerEnable {
+		log.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
+	} else {
+		log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
+	}
+	tagDiskConf = os.Getenv(DiskTagedByPlugin)
+	tagDiskConfEn := false
+	if tagDiskConf == "true" || tagDiskConf == "yes" {
+		tagDiskConfEn = true
+	} else if tagDiskConf == "false" || tagDiskConf == "no" {
+		tagDiskConfEn = false
+	}
+
+	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
-		EcsClient:      c,
+		EcsClient:      client,
 		Region:         region,
 		CanAttach:      true,
-		ADControllerEn: aDControllerEn,
-		TagDisk:        strings.ToLower(tagDiskConf),
+		ADControllerEn: aDControllerEnable,
+		TagDisk:        tagDiskConfEn,
 	}
 
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
-	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, c, region)
+	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, client, region)
 
 	if !runAsController {
-		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, c)
+		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, client)
 	}
 
 	return tmpdisk

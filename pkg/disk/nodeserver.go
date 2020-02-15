@@ -38,7 +38,6 @@ type nodeServer struct {
 	zone              string
 	maxVolumesPerNode int64
 	nodeID            string
-	tagDisk           string
 	mounter           utils.Mounter
 	k8smounter        k8smount.Interface
 	*csicommon.DefaultNodeServer
@@ -62,7 +61,7 @@ const (
 	// DiskTagedByPlugin tag
 	DiskTagedByPlugin = "DISK_TAGED_BY_PLUGIN"
 	// DiskAttachByController
-	DiskAttachByController = "DISK_ATTACH_BY_CONTROLLER"
+	DiskAttachByController = "DISK_AD_CONTROLLER"
 	// DiskAttachedKey attached key
 	DiskAttachedKey = "k8s.aliyun.com"
 	// DiskAttachedValue attached value
@@ -98,9 +97,6 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		log.Fatalf("Error happens to get node document: %v", err)
 	}
 
-	// tag disk as k8s attached.
-	tagDiskConf := os.Getenv(DiskTagedByPlugin)
-
 	// Create Directory
 	os.MkdirAll(VolumeDir, os.FileMode(0755))
 	os.MkdirAll(VolumeDirRemove, os.FileMode(0755))
@@ -112,7 +108,6 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		mounter:           utils.NewMounter(),
 		k8smounter:        k8smount.New(""),
-		tagDisk:           strings.ToLower(tagDiskConf),
 	}
 }
 
