@@ -42,7 +42,7 @@ func attachDisk(volumeID, nodeId string, isSharedDisk, fromNode bool) (string, e
 	}
 
 	// tag disk as k8s.aliyun.com=true
-	if GlobalConfigVar.TagDisk == "true" {
+	if GlobalConfigVar.TagDisk {
 		tagDiskAsK8sAttached(volumeID, GlobalConfigVar.Region)
 	}
 

@@ -147,14 +147,22 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	} else if len(disks) == 1 {
 		disk := disks[0]
 		if disk.Size != requestGB || disk.ZoneId != diskVol.ZoneID || disk.Encrypted != diskVol.Encrypted || disk.Category != diskVol.Type {
-			log.Errorf("CreateVolume: exist disk %s size is different with requested for disk: existing size: %d, request size: %d", req.GetName(), disk.Size, requestGB)
-			return nil, status.Errorf(codes.Internal, "disk %s size is different with requested for disk", req.GetName())
+			log.Errorf("CreateVolume: exist disk %s is different with requested for disk: existing : %v", req.GetName(), disk)
+			return nil, status.Errorf(codes.Internal, "exist disk %s is different with requested for disk", req.GetName())
 		}
 		log.Infof("CreateVolume: Volume %s is already created: %s, %s, %s, %d", req.GetName(), disk.DiskId, disk.RegionId, disk.ZoneId, disk.Size)
 		tmpVol := &csi.Volume{
 			VolumeId:      disk.DiskId,
 			CapacityBytes: int64(volSizeBytes),
-			VolumeContext: req.GetParameters()}
+			VolumeContext: req.GetParameters(),
+			AccessibleTopology: []*csi.Topology{
+				{
+					Segments: map[string]string{
+						TopologyZoneKey: diskVol.ZoneID,
+					},
+				},
+			},
+		}
 		return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 	}
 
@@ -210,15 +218,14 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			if err != nil {
 				if strings.Contains(err.Error(), DiskNotAvailable) {
 					disktype = DiskEfficiency
-					createDiskRequest.PerformanceLevel = diskVol.PerformanceLevel
 					createDiskRequest.DiskCategory = disktype
 					volumeResponse, err = GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
 					if err != nil {
-						log.Errorf("CreateVolume: requestId[%s], fail to create disk %s: with %v", volumeResponse.RequestId, req.GetName(), err)
+						log.Errorf("CreateVolume: requestId[%s], fail to create disk %s with %v", volumeResponse.RequestId, req.GetName(), err)
 						return nil, status.Error(codes.Internal, err.Error())
 					}
 				} else {
-					log.Errorf("CreateVolume: requestId[%s], fail to create disk %s:  error: %v", volumeResponse.RequestId, req.GetName(), err)
+					log.Errorf("CreateVolume: requestId[%s], fail to create disk %s error: %v", volumeResponse.RequestId, req.GetName(), err)
 					return nil, status.Error(codes.Internal, err.Error())
 				}
 			}
@@ -303,12 +310,12 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 
 // ControllerPublishVolume do attach
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	log.Infof("ControllerPublishVolume: start attach disk: %s to node: %s", req.VolumeId, req.NodeId)
-
 	if !GlobalConfigVar.ADControllerEn {
+		log.Infof("ControllerPublishVolume: ADController Disable to attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 
+	log.Infof("ControllerPublishVolume: start attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 	isSharedDisk := false
 	if value, ok := req.VolumeContext[SharedEnable]; ok {
 		value = strings.ToLower(value)
@@ -316,6 +323,10 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 			isSharedDisk = true
 		}
 	}
+	if req.VolumeId == "" || req.NodeId == "" {
+		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume missing VolumeId/NodeId in request")
+	}
+
 	_, err := attachDisk(req.VolumeId, req.NodeId, isSharedDisk, false)
 	if err != nil {
 		log.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
@@ -327,11 +338,15 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 
 // ControllerUnpublishVolume do detach
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	log.Infof("ControllerUnpublishVolume: detach disk: %s from node: %s", req.VolumeId, req.NodeId)
 	if !GlobalConfigVar.ADControllerEn {
+		log.Infof("ControllerUnpublishVolume: ADController Disable to detach disk: %s from node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
+	log.Infof("ControllerUnpublishVolume: detach disk: %s from node: %s", req.VolumeId, req.NodeId)
+	if req.VolumeId == "" || req.NodeId == "" {
+		return nil, status.Error(codes.InvalidArgument, "ControllerUnpublishVolume missing VolumeId/NodeId in request")
+	}
 	err := detachDisk(req.VolumeId, req.NodeId, false)
 	if err != nil {
 		log.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
@@ -481,11 +496,12 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	if disk.Category == DiskSSD || disk.Category == DiskEfficiency || disk.Category == DiskESSD {
 		resizeDiskRequest.Type = "online"
 	}
-	if _, err := GlobalConfigVar.EcsClient.ResizeDisk(resizeDiskRequest); err != nil {
+	response, err := GlobalConfigVar.EcsClient.ResizeDisk(resizeDiskRequest)
+	if err != nil {
 		log.Errorf("ControllerExpandVolume:: resize got error: %s", err.Error())
 		return nil, status.Errorf(codes.Internal, "resize disk %s get error: %s", diskID, err.Error())
 	}
 
-	log.Infof("ControllerExpandVolume:: Success to resize volume: %s from %dG to %dG", req.VolumeId, disk.Size, requestGB)
+	log.Infof("ControllerExpandVolume:: Success to resize volume: %s from %dG to %dG, RequestID: %s", req.VolumeId, disk.Size, requestGB, response.RequestId)
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
 }
