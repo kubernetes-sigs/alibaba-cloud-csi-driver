@@ -21,6 +21,9 @@ import (
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"os"
 )
 
@@ -31,8 +34,19 @@ const (
 )
 
 var (
-	version = "1.0.0"
+	version         = "1.0.0"
+	masterURL       string
+	kubeconfig      string
+	GlobalConfigVar GlobalConfig
 )
+
+// GlobalConfig save global values for plugin
+type GlobalConfig struct {
+	Region             string
+	NasTagEnable       bool
+	ADControllerEnable bool
+	MetricEnable       bool
+}
 
 // NAS the NAS object
 type NAS struct {
@@ -63,11 +77,35 @@ func NewDriver(nodeID, endpoint string) *NAS {
 		csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
 	})
 
-	d.driver = csiDriver
+	// Global Configs Set
+	GlobalConfigSet()
 
+	//cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	//if err != nil {
+	//	log.Fatalf("Error building kubeconfig: %s", err.Error())
+	//}
+	//kubeClient, err := kubernetes.NewForConfig(cfg)
+	//if err != nil {
+	//	log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	//}
+	//configMapName := "csi-plugin"
+	//isNasMetricEnable := false
+	//configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(configMapName, metav1.GetOptions{})
+	//if err != nil {
+	//	log.Infof("Not found configmap named as csi-plugin under kube-system")
+	//} else {
+	//	if value, ok := configMap.Data["nas-metric-enable"]; ok {
+	//		if value == "enable" || value == "yes" || value == "true" {
+	//			log.Infof("Nas Metric is enabled by configMap(%s).", value)
+	//			isNasMetricEnable = true
+	//		}
+	//	}
+	//}
+	//GlobalConfigVar.MetricEnable = isNasMetricEnable
+
+	d.driver = csiDriver
 	accessKeyID, accessSecret, accessToken := GetDefaultAK()
 	c := newNasClient(accessKeyID, accessSecret, accessToken)
-
 	region := os.Getenv("REGION_ID")
 	if region == "" {
 		region = GetMetaData(RegionTag)
@@ -92,4 +130,40 @@ func (d *NAS) Run() {
 		d.controllerServer,
 		newNodeServer(d))
 	s.Wait()
+}
+
+func GlobalConfigSet() {
+	// Global Configs Set
+	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	if err != nil {
+		log.Fatalf("Error building kubeconfig: %s", err.Error())
+	}
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+
+	configMapName := "csi-plugin"
+	isNasMetricEnable := false
+
+	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(configMapName, metav1.GetOptions{})
+	if err != nil {
+		log.Infof("Not found configmap named as csi-plugin under kube-system")
+	} else {
+		if value, ok := configMap.Data["nas-metric-enable"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				log.Infof("Nas Metric is enabled by configMap(%s).", value)
+				isNasMetricEnable = true
+			}
+		}
+	}
+
+	metricNasConf := os.Getenv(NasMetricByPlugin)
+	if metricNasConf == "true" || metricNasConf == "yes" {
+		isNasMetricEnable = true
+	} else if metricNasConf == "false" || metricNasConf == "no" {
+		isNasMetricEnable = false
+	}
+
+	GlobalConfigVar.MetricEnable = isNasMetricEnable
 }

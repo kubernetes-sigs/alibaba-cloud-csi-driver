@@ -263,7 +263,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 // call ecs api to delete disk
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	log.Infof("DeleteVolume: Starting deleting volume %s", req.GetVolumeId())
+	log.Infof("DeleteVolume: Starting deleting volume %s", req.VolumeId)
 
 	// Step 1: check inputs
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME); err != nil {
@@ -310,7 +310,7 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 
 // ControllerPublishVolume do attach
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	if !GlobalConfigVar.ADControllerEn {
+	if !GlobalConfigVar.ADControllerEnable {
 		log.Infof("ControllerPublishVolume: ADController Disable to attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
@@ -327,7 +327,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume missing VolumeId/NodeId in request")
 	}
 
-	_, err := attachDisk(req.VolumeId, req.NodeId, isSharedDisk, false)
+	_, err := attachDisk(req.VolumeId, req.NodeId, isSharedDisk)
 	if err != nil {
 		log.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
@@ -338,7 +338,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 
 // ControllerUnpublishVolume do detach
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	if !GlobalConfigVar.ADControllerEn {
+	if !GlobalConfigVar.ADControllerEnable {
 		log.Infof("ControllerUnpublishVolume: ADController Disable to detach disk: %s from node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
@@ -347,7 +347,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	if req.VolumeId == "" || req.NodeId == "" {
 		return nil, status.Error(codes.InvalidArgument, "ControllerUnpublishVolume missing VolumeId/NodeId in request")
 	}
-	err := detachDisk(req.VolumeId, req.NodeId, false)
+	err := detachDisk(req.VolumeId, req.NodeId)
 	if err != nil {
 		log.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err

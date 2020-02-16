@@ -357,28 +357,36 @@ func getInstanceDoc() (*instanceDocument, error) {
 	return result, nil
 }
 
-// GetDevicePath return the file path of given device
-func GetDevicePath(volumeID string) (path string) {
-	//devicePath := GetDevicePathById(volumeID)
-	devicePath := ""
-	if devicePath == "" {
-		devicePath = getVolumeConfig(volumeID)
-	}
-	return devicePath
-}
-
 // GetDeviceByVolumeID Get device by volumeID, link file should be like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
 func GetDeviceByVolumeID(volumeID string) (device string, err error) {
+	byIdPath := "/dev/disk/by-id/"
 	volumeLinkName := strings.Replace(volumeID, "d-", "virtio-", -1)
-	volumeLinPath := filepath.Join("/dev/disk/by-id/", volumeLinkName)
+	volumeLinPath := filepath.Join(byIdPath, volumeLinkName)
+
 	stat, err := os.Lstat(volumeLinPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			log.Infof("volumeID link path %q not found", volumeLinPath)
-			return "", fmt.Errorf("volumeID link path %q not found", volumeLinPath)
+			// in some os, link file is not begin with virtio-,
+			// but diskPart will always be part of link file.
+			isSearched := false
+			files, _ := ioutil.ReadDir(byIdPath)
+			diskPart := strings.Replace(volumeID, "d-", "", -1)
+			for _, f := range files {
+				if strings.Contains(f.Name(), diskPart) {
+					volumeLinPath = filepath.Join(byIdPath, f.Name())
+					stat, _ = os.Lstat(volumeLinPath)
+					isSearched = true
+					break
+				}
+			}
+			if !isSearched {
+				log.Infof("volumeID link path %q not found", volumeLinPath)
+				return "", fmt.Errorf("volumeID link path %q not found", volumeLinPath)
+			}
+		} else {
+			return "", fmt.Errorf("error getting stat of %q: %v", volumeLinPath, err)
 		}
-		return "", fmt.Errorf("error getting stat of %q: %v", volumeLinPath, err)
 	}
 
 	if stat.Mode()&os.ModeSymlink != os.ModeSymlink {
@@ -391,10 +399,10 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 	if err != nil {
 		return "", fmt.Errorf("error reading target of symlink %q: %v", volumeLinPath, err)
 	}
-	log.Infof("Device Link Info: %s link to %s", volumeLinPath, resolved)
 	if !strings.HasPrefix(resolved, "/dev") {
 		return "", fmt.Errorf("resolved symlink for %q was unexpected: %q", volumeLinPath, resolved)
 	}
+	log.Infof("Device Link Info: %s link to %s", volumeLinPath, resolved)
 	return resolved, nil
 }
 
@@ -742,14 +750,20 @@ func checkDeviceAvailable(devicePath string) error {
 
 // GetVolumeDeviceName
 func GetVolumeDeviceName(volumeId string) string {
-	if GlobalConfigVar.ADControllerEn {
-		deviceName, err := GetDeviceByVolumeID(volumeId)
-		if err != nil {
-			log.Errorf("ADControllerEnabled, Get Device Name by volumeID %s, error: %s", volumeId, err.Error())
-			return ""
-		}
-		return deviceName
-	} else {
-		return getVolumeConfig(volumeId)
+	deviceName, err := GetDeviceByVolumeID(volumeId)
+	if err != nil {
+		deviceName = getVolumeConfig(volumeId)
+		log.Infof("GetVolumeDeviceName, Get Device Name by configFile %s, DeviceMap error: %s", deviceName, err.Error())
 	}
+	return deviceName
+	//if GlobalConfigVar.ADControllerEn {
+	//	deviceName, err := GetDeviceByVolumeID(volumeId)
+	//	if err != nil {
+	//		log.Errorf("ADControllerEnabled, Get Device Name by volumeID %s, error: %s", volumeId, err.Error())
+	//		return ""
+	//	}
+	//	return deviceName
+	//} else {
+	//	return getVolumeConfig(volumeId)
+	//}
 }
