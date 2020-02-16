@@ -31,8 +31,8 @@ import (
 )
 
 // attach alibaba cloud disk
-func attachDisk(volumeID, nodeId string, isSharedDisk bool) (string, error) {
-	log.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", volumeID, nodeId, GlobalConfigVar.Region)
+func attachDisk(volumeID, nodeID string, isSharedDisk bool) (string, error) {
+	log.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", volumeID, nodeID, GlobalConfigVar.Region)
 
 	// Step 1: check disk status
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
@@ -67,28 +67,28 @@ func attachDisk(volumeID, nodeId string, isSharedDisk bool) (string, error) {
 	if isSharedDisk {
 		attachedToLocal := false
 		for _, instance := range disk.MountInstances.MountInstance {
-			if instance.InstanceId == nodeId {
+			if instance.InstanceId == nodeID {
 				attachedToLocal = true
 				break
 			}
 		}
 		if attachedToLocal {
 			detachRequest := ecs.CreateDetachDiskRequest()
-			detachRequest.InstanceId = nodeId
+			detachRequest.InstanceId = nodeID
 			detachRequest.DiskId = volumeID
 			_, err = GlobalConfigVar.EcsClient.DetachDisk(detachRequest)
 			if err != nil {
 				return "", status.Errorf(codes.Aborted, "AttachDisk: Can't attach disk %s to instance %s: %v", volumeID, disk.InstanceId, err)
 			}
 
-			if err := waitForSharedDiskInStatus(10, time.Second*3, volumeID, nodeId, DiskStatusDetached); err != nil {
+			if err := waitForSharedDiskInStatus(10, time.Second*3, volumeID, nodeID, DiskStatusDetached); err != nil {
 				return "", err
 			}
 		}
 	} else {
 		// detach disk first if attached
 		if disk.Status == DiskStatusInuse {
-			if disk.InstanceId == nodeId {
+			if disk.InstanceId == nodeID {
 				if GlobalConfigVar.ADControllerEnable {
 					log.Infof("AttachDisk: Disk %s is already attached to Instance %s", volumeID, disk.InstanceId)
 					return "", nil
@@ -127,22 +127,22 @@ func attachDisk(volumeID, nodeId string, isSharedDisk bool) (string, error) {
 		before = getDevices()
 	}
 	attachRequest := ecs.CreateAttachDiskRequest()
-	attachRequest.InstanceId = nodeId
+	attachRequest.InstanceId = nodeID
 	attachRequest.DiskId = volumeID
 	response, err := GlobalConfigVar.EcsClient.AttachDisk(attachRequest)
 	if err != nil {
 		if strings.Contains(err.Error(), DiskLimitExceeded) {
-			return "", status.Error(codes.Internal, err.Error()+", Node("+nodeId+")exceed the limit attachments of disk, which at most 16 disks.")
+			return "", status.Error(codes.Internal, err.Error()+", Node("+nodeID+")exceed the limit attachments of disk, which at most 16 disks.")
 		} else if strings.Contains(err.Error(), DiskNotPortable) {
 			return "", status.Error(codes.Internal, err.Error()+", Disk("+volumeID+") should be \"Pay by quantity\", not be \"Annual package\", please check and modify the charge type.")
 		}
-		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happens to attach disk %s to instance %s, %v", volumeID, nodeId, err)
+		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happens to attach disk %s to instance %s, %v", volumeID, nodeID, err)
 	}
 
 	// Step 4: wait for disk attached
-	log.Infof("AttachDisk: Waiting for Disk %s is Attached to instance %s with RequestId: %s", volumeID, nodeId, response.RequestId)
+	log.Infof("AttachDisk: Waiting for Disk %s is Attached to instance %s with RequestId: %s", volumeID, nodeID, response.RequestId)
 	if isSharedDisk {
-		if err := waitForSharedDiskInStatus(20, time.Second*3, volumeID, nodeId, DiskStatusAttached); err != nil {
+		if err := waitForSharedDiskInStatus(20, time.Second*3, volumeID, nodeID, DiskStatusAttached); err != nil {
 			return "", err
 		}
 	} else {
@@ -155,7 +155,7 @@ func attachDisk(volumeID, nodeId string, isSharedDisk bool) (string, error) {
 	if !GlobalConfigVar.ADControllerEnable {
 		deviceName, err := GetDeviceByVolumeID(volumeID)
 		if err == nil && deviceName != "" {
-			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device mapping", volumeID, nodeId, deviceName)
+			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device mapping", volumeID, nodeID, deviceName)
 			return deviceName, nil
 		}
 		after := getDevices()
@@ -168,7 +168,7 @@ func attachDisk(volumeID, nodeId string, isSharedDisk bool) (string, error) {
 			}
 		}
 		if len(devicePaths) == 1 {
-			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by diff", volumeID, nodeId, devicePaths[0])
+			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by diff", volumeID, nodeID, devicePaths[0])
 			return devicePaths[0], nil
 		}
 		//device count is not expected, should retry (later by detaching and attaching again)
@@ -176,31 +176,31 @@ func attachDisk(volumeID, nodeId string, isSharedDisk bool) (string, error) {
 		return "", status.Error(codes.Aborted, "AttachDisk: after attaching to disk, but fail to get mounted device, will retry later")
 	}
 
-	log.Infof("AttachDisk: Successful attach disk %s to node %s", volumeID, nodeId)
+	log.Infof("AttachDisk: Successful attach disk %s to node %s", volumeID, nodeID)
 	return "", nil
 }
 
-func detachDisk(volumeId, nodeId string) error {
+func detachDisk(volumeID, nodeID string) error {
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
-	disk, err := findDiskByID(volumeId)
+	disk, err := findDiskByID(volumeID)
 	if err != nil {
-		log.Errorf("DetachDisk: Describe volume: %s error: %s", volumeId, err.Error())
+		log.Errorf("DetachDisk: Describe volume: %s error: %s", volumeID, err.Error())
 		return status.Error(codes.Aborted, err.Error())
 	}
 	if disk == nil {
-		log.Infof("DetachDisk: Detach Disk %s, describe with empty", volumeId)
+		log.Infof("DetachDisk: Detach Disk %s, describe with empty", volumeID)
 		return nil
 	}
 
 	if disk.InstanceId != "" {
-		if disk.InstanceId == nodeId {
+		if disk.InstanceId == nodeID {
 			//NodeStageVolume/NodeUnstageVolume should be called by sequence
 			//In order no to block to caller, use boolean canAttach to check whether to continue.
 			if !GlobalConfigVar.ADControllerEnable {
 				GlobalConfigVar.AttachMutex.Lock()
 				if !GlobalConfigVar.CanAttach {
 					GlobalConfigVar.AttachMutex.Unlock()
-					return status.Error(codes.Aborted, "DetachDisk: Previous attach/detach action is still in process, volume: "+volumeId)
+					return status.Error(codes.Aborted, "DetachDisk: Previous attach/detach action is still in process, volume: "+volumeID)
 				}
 				GlobalConfigVar.CanAttach = false
 				GlobalConfigVar.AttachMutex.Unlock()
@@ -226,12 +226,12 @@ func detachDisk(volumeId, nodeId string) error {
 				log.Errorf("DetachDisk: Detaching volume %s with timeout: %s", disk.DiskId, err.Error())
 				return err
 			}
-			log.Infof("DetachDisk: Volume: %s Success to detach disk %s from Instance %s, RequestId: %s", volumeId, disk.DiskId, disk.InstanceId, response.RequestId)
+			log.Infof("DetachDisk: Volume: %s Success to detach disk %s from Instance %s, RequestId: %s", volumeID, disk.DiskId, disk.InstanceId, response.RequestId)
 		} else {
-			log.Infof("DetachDisk: Skip Detach for volume: %s, disk %s is attached to other instance: %s", volumeId, disk.DiskId, disk.InstanceId)
+			log.Infof("DetachDisk: Skip Detach for volume: %s, disk %s is attached to other instance: %s", volumeID, disk.DiskId, disk.InstanceId)
 		}
 	} else {
-		log.Infof("DetachDisk: Skip Detach, disk %s have not detachable instance", volumeId)
+		log.Infof("DetachDisk: Skip Detach, disk %s have not detachable instance", volumeID)
 	}
 
 	return nil

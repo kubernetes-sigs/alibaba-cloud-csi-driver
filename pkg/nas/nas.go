@@ -34,9 +34,10 @@ const (
 )
 
 var (
-	version         = "1.0.0"
-	masterURL       string
-	kubeconfig      string
+	version    = "1.0.0"
+	masterURL  string
+	kubeconfig string
+	// GlobalConfigVar Global Config
 	GlobalConfigVar GlobalConfig
 )
 
@@ -80,29 +81,6 @@ func NewDriver(nodeID, endpoint string) *NAS {
 	// Global Configs Set
 	GlobalConfigSet()
 
-	//cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	//if err != nil {
-	//	log.Fatalf("Error building kubeconfig: %s", err.Error())
-	//}
-	//kubeClient, err := kubernetes.NewForConfig(cfg)
-	//if err != nil {
-	//	log.Fatalf("Error building kubernetes clientset: %s", err.Error())
-	//}
-	//configMapName := "csi-plugin"
-	//isNasMetricEnable := false
-	//configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(configMapName, metav1.GetOptions{})
-	//if err != nil {
-	//	log.Infof("Not found configmap named as csi-plugin under kube-system")
-	//} else {
-	//	if value, ok := configMap.Data["nas-metric-enable"]; ok {
-	//		if value == "enable" || value == "yes" || value == "true" {
-	//			log.Infof("Nas Metric is enabled by configMap(%s).", value)
-	//			isNasMetricEnable = true
-	//		}
-	//	}
-	//}
-	//GlobalConfigVar.MetricEnable = isNasMetricEnable
-
 	d.driver = csiDriver
 	accessKeyID, accessSecret, accessToken := GetDefaultAK()
 	c := newNasClient(accessKeyID, accessSecret, accessToken)
@@ -132,6 +110,7 @@ func (d *NAS) Run() {
 	s.Wait()
 }
 
+// GlobalConfigSet set global config
 func GlobalConfigSet() {
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
