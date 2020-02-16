@@ -153,6 +153,11 @@ func attachDisk(volumeID, nodeId string, isSharedDisk bool) (string, error) {
 
 	// step 5: diff device with previous files under /dev
 	if !GlobalConfigVar.ADControllerEnable {
+		deviceName, err := GetDeviceByVolumeID(volumeID)
+		if err == nil && deviceName != "" {
+			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device mapping", volumeID, nodeId, deviceName)
+			return deviceName, nil
+		}
 		after := getDevices()
 		devicePaths := calcNewDevices(before, after)
 		if len(devicePaths) == 2 {
@@ -163,6 +168,7 @@ func attachDisk(volumeID, nodeId string, isSharedDisk bool) (string, error) {
 			}
 		}
 		if len(devicePaths) == 1 {
+			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by diff", volumeID, nodeId, devicePaths[0])
 			return devicePaths[0], nil
 		}
 		//device count is not expected, should retry (later by detaching and attaching again)

@@ -381,7 +381,7 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 				}
 			}
 			if !isSearched {
-				log.Infof("volumeID link path %q not found", volumeLinPath)
+				log.Errorf("volumeID link path %q not found", volumeLinPath)
 				return "", fmt.Errorf("volumeID link path %q not found", volumeLinPath)
 			}
 		} else {
@@ -756,14 +756,4 @@ func GetVolumeDeviceName(volumeId string) string {
 		log.Infof("GetVolumeDeviceName, Get Device Name by configFile %s, DeviceMap error: %s", deviceName, err.Error())
 	}
 	return deviceName
-	//if GlobalConfigVar.ADControllerEn {
-	//	deviceName, err := GetDeviceByVolumeID(volumeId)
-	//	if err != nil {
-	//		log.Errorf("ADControllerEnabled, Get Device Name by volumeID %s, error: %s", volumeId, err.Error())
-	//		return ""
-	//	}
-	//	return deviceName
-	//} else {
-	//	return getVolumeConfig(volumeId)
-	//}
 }
