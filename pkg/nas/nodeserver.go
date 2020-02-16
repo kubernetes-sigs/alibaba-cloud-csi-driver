@@ -52,6 +52,8 @@ const (
 	NasTempMntPath = "/mnt/acs_mnt/k8s_nas/temp"
 	// NasPortnum is nas port
 	NasPortnum = "2049"
+	// NasMetricByPlugin tag
+	NasMetricByPlugin = "NAS_METRIC_BY_PLUGIN"
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -240,10 +242,15 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 			},
 		},
 	}
+
+	// Nas Metric enable config
+	nodeSvcCap := []*csi.NodeServiceCapability{}
+	if GlobalConfigVar.MetricEnable {
+		nodeSvcCap = []*csi.NodeServiceCapability{nscap}
+	}
+
 	return &csi.NodeGetCapabilitiesResponse{
-		Capabilities: []*csi.NodeServiceCapability{
-			nscap,
-		},
+		Capabilities: nodeSvcCap,
 	}, nil
 }
 

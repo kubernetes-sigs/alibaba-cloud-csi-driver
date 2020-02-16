@@ -49,12 +49,13 @@ type DISK struct {
 
 // GlobalConfig save global values for plugin
 type GlobalConfig struct {
-	EcsClient      *ecs.Client
-	Region         string
-	AttachMutex    sync.RWMutex
-	CanAttach      bool
-	TagDisk        bool
-	ADControllerEn bool
+	EcsClient          *ecs.Client
+	Region             string
+	AttachMutex        sync.RWMutex
+	CanAttach          bool
+	DiskTagEnable      bool
+	ADControllerEnable bool
+	MetricEnable       bool
 }
 
 // define global variable
@@ -105,68 +106,8 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 		region = GetMetaData(RegionIDTag)
 	}
 
-	// Global Configs Set
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
-	}
-
-	configMapName := "csi-plugin"
-	tagDiskConf := ""
-	aDControllerEnable := false
-	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(configMapName, metav1.GetOptions{})
-	if err != nil {
-		log.Infof("Not found configmap named as csi-plugin under kube-system")
-	} else {
-		if value, ok := configMap.Data["disk-adcontroller"]; ok {
-			if value == "enable" || value == "yes" || value == "true" {
-				log.Infof("AD-Controller is enabled by configMap(%s), CSI Disk Plugin running in AD Controller mode.", value)
-				aDControllerEnable = true
-			} else if value == "disable" || value == "no" || value == "false" {
-				log.Infof("AD-Controller is disable by configMap(%s), CSI Disk Plugin running in kubelet mode.", value)
-				aDControllerEnable = false
-			}
-		}
-		if value, ok := configMap.Data["patch-disk-tag"]; ok {
-			log.Infof("Patch Disk Tag is enabled by configMap(%s).", value)
-			tagDiskConf = value
-		}
-	}
-
-	// Env variables
-	adEnable := os.Getenv(DiskAttachByController)
-	if adEnable == "true" || adEnable == "yes" {
-		log.Infof("AD-Controller is enabled by Env(%s), CSI Disk Plugin running in AD Controller mode.", adEnable)
-		aDControllerEnable = true
-	} else if adEnable == "false" || adEnable == "no" {
-		log.Infof("AD-Controller is disabled by Env(%s), CSI Disk Plugin running in kubelet mode.", adEnable)
-		aDControllerEnable = false
-	}
-	if aDControllerEnable {
-		log.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
-	} else {
-		log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
-	}
-	tagDiskConf = os.Getenv(DiskTagedByPlugin)
-	tagDiskConfEn := false
-	if tagDiskConf == "true" || tagDiskConf == "yes" {
-		tagDiskConfEn = true
-	} else if tagDiskConf == "false" || tagDiskConf == "no" {
-		tagDiskConfEn = false
-	}
-
-	// Global Config Set
-	GlobalConfigVar = GlobalConfig{
-		EcsClient:      client,
-		Region:         region,
-		CanAttach:      true,
-		ADControllerEn: aDControllerEnable,
-		TagDisk:        tagDiskConfEn,
-	}
+	// Config Global vars
+	GlobalConfigSet(client, region)
 
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
@@ -185,4 +126,87 @@ func (disk *DISK) Run() {
 	s := csicommon.NewNonBlockingGRPCServer()
 	s.Start(disk.endpoint, disk.idServer, disk.controllerServer, disk.nodeServer)
 	s.Wait()
+}
+
+func GlobalConfigSet(client *ecs.Client, region string) {
+	// Global Configs Set
+	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	if err != nil {
+		log.Fatalf("Error building kubeconfig: %s", err.Error())
+	}
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+
+	configMapName := "csi-plugin"
+	isADControllerEnable := false
+	isDiskTagEnable := false
+	isDiskMetricEnable := false
+
+	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(configMapName, metav1.GetOptions{})
+	if err != nil {
+		log.Infof("Not found configmap named as csi-plugin under kube-system")
+	} else {
+		if value, ok := configMap.Data["disk-adcontroller-enable"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				log.Infof("AD-Controller is enabled by configMap(%s), CSI Disk Plugin running in AD Controller mode.", value)
+				isADControllerEnable = true
+			} else if value == "disable" || value == "no" || value == "false" {
+				log.Infof("AD-Controller is disable by configMap(%s), CSI Disk Plugin running in kubelet mode.", value)
+				isADControllerEnable = false
+			}
+		}
+		if value, ok := configMap.Data["disk-tag-enable"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				log.Infof("Disk Tag is enabled by configMap(%s).", value)
+				isDiskTagEnable = true
+			}
+		}
+		if value, ok := configMap.Data["disk-metric-enable"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				log.Infof("Disk Metric is enabled by configMap(%s).", value)
+				isDiskMetricEnable = true
+			}
+		}
+	}
+
+	// Env variables
+	adEnable := os.Getenv(DiskAttachByController)
+	if adEnable == "true" || adEnable == "yes" {
+		log.Infof("AD-Controller is enabled by Env(%s), CSI Disk Plugin running in AD Controller mode.", adEnable)
+		isADControllerEnable = true
+	} else if adEnable == "false" || adEnable == "no" {
+		log.Infof("AD-Controller is disabled by Env(%s), CSI Disk Plugin running in kubelet mode.", adEnable)
+		isADControllerEnable = false
+	}
+	if isADControllerEnable {
+		log.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
+	} else {
+		log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
+	}
+
+	tagDiskConf := os.Getenv(DiskTagedByPlugin)
+	if tagDiskConf == "true" || tagDiskConf == "yes" {
+		isDiskTagEnable = true
+	} else if tagDiskConf == "false" || tagDiskConf == "no" {
+		isDiskTagEnable = false
+	}
+
+	metricDiskConf := os.Getenv(DiskMetricByPlugin)
+	if metricDiskConf == "true" || metricDiskConf == "yes" {
+		isDiskMetricEnable = true
+	} else if metricDiskConf == "false" || metricDiskConf == "no" {
+		isDiskMetricEnable = false
+	}
+
+	// Global Config Set
+	GlobalConfigVar = GlobalConfig{
+		EcsClient:          client,
+		Region:             region,
+		CanAttach:          true,
+		ADControllerEnable: isADControllerEnable,
+		DiskTagEnable:      isDiskTagEnable,
+		MetricEnable:       isDiskMetricEnable,
+	}
 }
