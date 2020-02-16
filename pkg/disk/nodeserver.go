@@ -350,16 +350,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
 
-	// Step 3: double check log pattern, check the path is mounted again
-	//notmounted, err = ns.k8smounter.IsLikelyNotMountPoint(targetPath)
-	//if err != nil {
-	//	return nil, status.Error(codes.Internal, err.Error())
-	//}
-	//if !notmounted {
-	//	log.Infof("NodeStageVolume:  check again, volumeId: %s, Path: %s is already mounted, device: %s", req.VolumeId, targetPath, GetDevicePath(targetPath))
-	//	return &csi.NodeStageVolumeResponse{}, nil
-	//}
-
 	device := ""
 	isSharedDisk := false
 	if value, ok := req.VolumeContext[SharedEnable]; ok {
@@ -391,7 +381,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	if err := saveVolumeConfig(req.VolumeId, device); err != nil {
 		return nil, status.Error(codes.Aborted, "NodeStageVolume: saveVolumeConfig for ("+req.VolumeId+device+") error with: "+err.Error())
 	}
-	log.Infof("NodeStageVolume: Volume Successful Attached: %s, Device: %s", req.VolumeId, device)
+	log.Infof("NodeStageVolume: Volume Successful Attached: %s, to Node: %s, Device: %s", req.VolumeId, ns.nodeID, device)
 
 	// Block volume not need to format
 	if isBlock {
