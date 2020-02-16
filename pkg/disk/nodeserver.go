@@ -62,7 +62,7 @@ const (
 	DiskTagedByPlugin = "DISK_TAGED_BY_PLUGIN"
 	// DiskMetricByPlugin tag
 	DiskMetricByPlugin = "DISK_METRIC_BY_PLUGIN"
-	// DiskAttachByController
+	// DiskAttachByController tag
 	DiskAttachByController = "DISK_AD_CONTROLLER"
 	// DiskAttachedKey attached key
 	DiskAttachedKey = "k8s.aliyun.com"

@@ -128,6 +128,7 @@ func (disk *DISK) Run() {
 	s.Wait()
 }
 
+// GlobalConfigSet set Global Config
 func GlobalConfigSet(client *ecs.Client, region string) {
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)

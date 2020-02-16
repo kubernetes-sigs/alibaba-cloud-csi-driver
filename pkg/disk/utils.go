@@ -360,9 +360,9 @@ func getInstanceDoc() (*instanceDocument, error) {
 // GetDeviceByVolumeID Get device by volumeID, link file should be like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
 func GetDeviceByVolumeID(volumeID string) (device string, err error) {
-	byIdPath := "/dev/disk/by-id/"
+	byIDPath := "/dev/disk/by-id/"
 	volumeLinkName := strings.Replace(volumeID, "d-", "virtio-", -1)
-	volumeLinPath := filepath.Join(byIdPath, volumeLinkName)
+	volumeLinPath := filepath.Join(byIDPath, volumeLinkName)
 
 	stat, err := os.Lstat(volumeLinPath)
 	if err != nil {
@@ -370,11 +370,11 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 			// in some os, link file is not begin with virtio-,
 			// but diskPart will always be part of link file.
 			isSearched := false
-			files, _ := ioutil.ReadDir(byIdPath)
+			files, _ := ioutil.ReadDir(byIDPath)
 			diskPart := strings.Replace(volumeID, "d-", "", -1)
 			for _, f := range files {
 				if strings.Contains(f.Name(), diskPart) {
-					volumeLinPath = filepath.Join(byIdPath, f.Name())
+					volumeLinPath = filepath.Join(byIDPath, f.Name())
 					stat, _ = os.Lstat(volumeLinPath)
 					isSearched = true
 					break
@@ -406,20 +406,20 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 	return resolved, nil
 }
 
-// Device Mapping DiskID is in testing, not all user enable this feature
+// IsDeviceMappedDiskIDEnabled Device Mapping DiskID is in testing, not all user enable this feature
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vda
 func IsDeviceMappedDiskIDEnabled() bool {
-	byIdPath := "/dev/disk/by-id"
-	if !IsFileExisting(byIdPath) {
+	byIDPath := "/dev/disk/by-id"
+	if !IsFileExisting(byIDPath) {
 		return false
 	}
-	files, err := ioutil.ReadDir(byIdPath)
+	files, err := ioutil.ReadDir(byIDPath)
 	if err != nil {
 		return false
 	}
 
 	for _, f := range files {
-		volumeLinPath := filepath.Join(byIdPath, f.Name())
+		volumeLinPath := filepath.Join(byIDPath, f.Name())
 		resolved, err := filepath.EvalSymlinks(volumeLinPath)
 		if err != nil {
 			return false
@@ -748,11 +748,11 @@ func checkDeviceAvailable(devicePath string) error {
 	return nil
 }
 
-// GetVolumeDeviceName
-func GetVolumeDeviceName(volumeId string) string {
-	deviceName, err := GetDeviceByVolumeID(volumeId)
+// GetVolumeDeviceName get device name
+func GetVolumeDeviceName(volumeID string) string {
+	deviceName, err := GetDeviceByVolumeID(volumeID)
 	if err != nil {
-		deviceName = getVolumeConfig(volumeId)
+		deviceName = getVolumeConfig(volumeID)
 		log.Infof("GetVolumeDeviceName, Get Device Name by configFile %s, DeviceMap error: %s", deviceName, err.Error())
 	}
 	return deviceName
