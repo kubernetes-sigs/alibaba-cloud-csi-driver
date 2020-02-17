@@ -40,6 +40,9 @@ func attachDisk(volumeID, nodeID string, isSharedDisk bool) (string, error) {
 	if err != nil {
 		return "", status.Errorf(codes.Internal, "AttachDisk: find disk: %s with error: %s", volumeID, err.Error())
 	}
+	if disk == nil {
+		return "", status.Errorf(codes.Internal, "AttachDisk: can't find disk: %s", volumeID)
+	}
 
 	if !GlobalConfigVar.ADControllerEnable {
 		//NodeStageVolume should be called by sequence
@@ -188,9 +191,10 @@ func detachDisk(volumeID, nodeID string) error {
 		return status.Error(codes.Aborted, err.Error())
 	}
 	if disk == nil {
-		log.Infof("DetachDisk: Detach Disk %s, describe with empty", volumeID)
+		log.Infof("DetachDisk: Detach Disk %s, describe and find disk not exist", volumeID)
 		return nil
 	}
+	beforeAttachTime := disk.AttachedTime
 
 	if disk.InstanceId != "" {
 		if disk.InstanceId == nodeID {
@@ -222,9 +226,49 @@ func detachDisk(volumeID, nodeID string) error {
 				log.Errorf(errMsg)
 				return status.Error(codes.Aborted, errMsg)
 			}
-			if err := waitForDiskInStatus(20, time.Second*3, disk.DiskId, DiskStatusAvailable); err != nil {
-				log.Errorf("DetachDisk: Detaching volume %s with timeout: %s", disk.DiskId, err.Error())
-				return err
+
+			// check disk detach
+			for i := 0; i < 25; i++ {
+				tmpDisk, err := findDiskByID(volumeID)
+				if err != nil {
+					errMsg := fmt.Sprintf("DetachDisk: Detaching Disk %s with describe error: %s", volumeID, err.Error())
+					log.Errorf(errMsg)
+					return status.Error(codes.Aborted, errMsg)
+				}
+				if tmpDisk == nil {
+					log.Warnf("DetachDisk: DiskId %s is not found", volumeID)
+					break
+				}
+				if tmpDisk.InstanceId == "" {
+					log.Infof("DetachDisk: Disk %s has empty instanceId, detach finished", volumeID)
+					break
+				}
+				// Attached by other Instance
+				if tmpDisk.InstanceId != nodeID {
+					log.Infof("DetachDisk: DiskId %s is attached by other instance %s, not as before %s", volumeID, tmpDisk.InstanceId, nodeID)
+					break
+				}
+				// Detach Finish
+				if tmpDisk.Status == DiskStatusAvailable {
+					break
+				}
+				// Disk is InUse in same host, but is attached again.
+				if tmpDisk.Status == DiskStatusInuse {
+					if beforeAttachTime != tmpDisk.AttachedTime {
+						log.Infof("DetachDisk: DiskId %s is attached again, old AttachTime: %s, new AttachTime: %s", volumeID, beforeAttachTime, tmpDisk.AttachedTime)
+						break
+					}
+				}
+				if tmpDisk.Status == DiskStatusAttaching {
+					log.Infof("DetachDisk: DiskId %s is attaching to: %s", volumeID, tmpDisk.InstanceId)
+					break
+				}
+				if i == 24 {
+					errMsg := fmt.Sprintf("DetachDisk: Detaching Disk %s with timeout", volumeID)
+					log.Errorf(errMsg)
+					return status.Error(codes.Aborted, errMsg)
+				}
+				time.Sleep(2000 * time.Millisecond)
 			}
 			log.Infof("DetachDisk: Volume: %s Success to detach disk %s from Instance %s, RequestId: %s", volumeID, disk.DiskId, disk.InstanceId, response.RequestId)
 		} else {
@@ -291,6 +335,9 @@ func waitForSharedDiskInStatus(retryCount int, interval time.Duration, volumeID,
 		if err != nil {
 			return err
 		}
+		if disk == nil {
+			return status.Errorf(codes.Aborted, "waitForSharedDiskInStatus: disk not exist: ", volumeID)
+		}
 		for _, instance := range disk.MountInstances.MountInstance {
 			if expectStatus == DiskStatusAttached {
 				if instance.InstanceId == nodeID {
@@ -312,6 +359,9 @@ func waitForDiskInStatus(retryCount int, interval time.Duration, volumeID string
 		disk, err := findDiskByID(volumeID)
 		if err != nil {
 			return err
+		}
+		if disk == nil {
+			return status.Errorf(codes.Aborted, "WaitForDiskInStatus: disk not exist: ", volumeID)
 		}
 		if disk.Status == expectedStatus {
 			return nil
@@ -373,8 +423,12 @@ func findDiskByID(diskID string) (*ecs.Disk, error) {
 		}
 		disks = diskResponse.Disks.Disk
 	}
-	if len(disks) == 0 || len(disks) > 1 {
-		return nil, status.Errorf(codes.Internal, "FindDiskByID: Unexpected count %d for volume id %s, Get Response: %v, with Request: %v, %v", len(disks), diskID, diskResponse, describeDisksRequest.RegionId, describeDisksRequest.DiskIds)
+
+	if len(disks) == 0 {
+		return nil, nil
+	}
+	if len(disks) > 1 {
+		return nil, status.Errorf(codes.Internal, "FindDiskByID:FindDiskByID: Unexpected count %d for volume id %s, Get Response: %v, with Request: %v, %v Unexpected count %d for volume id %s, Get Response: %v, with Request: %v, %v", len(disks), diskID, diskResponse, describeDisksRequest.RegionId, describeDisksRequest.DiskIds)
 	}
 	return &disks[0], err
 }
