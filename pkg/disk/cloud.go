@@ -336,7 +336,7 @@ func waitForSharedDiskInStatus(retryCount int, interval time.Duration, volumeID,
 			return err
 		}
 		if disk == nil {
-			return status.Errorf(codes.Aborted, "waitForSharedDiskInStatus: disk not exist: ", volumeID)
+			return status.Errorf(codes.Aborted, "waitForSharedDiskInStatus: disk not exist: %s", volumeID)
 		}
 		for _, instance := range disk.MountInstances.MountInstance {
 			if expectStatus == DiskStatusAttached {
@@ -361,7 +361,7 @@ func waitForDiskInStatus(retryCount int, interval time.Duration, volumeID string
 			return err
 		}
 		if disk == nil {
-			return status.Errorf(codes.Aborted, "WaitForDiskInStatus: disk not exist: ", volumeID)
+			return status.Errorf(codes.Aborted, "WaitForDiskInStatus: disk not exist: %s", volumeID)
 		}
 		if disk.Status == expectedStatus {
 			return nil
@@ -428,7 +428,8 @@ func findDiskByID(diskID string) (*ecs.Disk, error) {
 		return nil, nil
 	}
 	if len(disks) > 1 {
-		return nil, status.Errorf(codes.Internal, "FindDiskByID:FindDiskByID: Unexpected count %d for volume id %s, Get Response: %v, with Request: %v, %v Unexpected count %d for volume id %s, Get Response: %v, with Request: %v, %v", len(disks), diskID, diskResponse, describeDisksRequest.RegionId, describeDisksRequest.DiskIds)
+		errMsg := fmt.Sprintf("FindDiskByID:FindDiskByID: Unexpected count %d for volume id %s, Get Response: %v, with Request: %v, %v", len(disks), diskID, diskResponse, describeDisksRequest.RegionId, describeDisksRequest.DiskIds)
+		return nil, status.Errorf(codes.Internal, errMsg)
 	}
 	return &disks[0], err
 }
