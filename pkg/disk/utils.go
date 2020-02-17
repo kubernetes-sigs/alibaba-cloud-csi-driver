@@ -753,7 +753,7 @@ func GetVolumeDeviceName(volumeID string) string {
 	deviceName, err := GetDeviceByVolumeID(volumeID)
 	if err != nil {
 		deviceName = getVolumeConfig(volumeID)
-		log.Infof("GetVolumeDeviceName, Get Device Name by configFile %s, DeviceMap error: %s", deviceName, err.Error())
+		log.Infof("GetVolumeDeviceName, Get Device Name by configFile %s, DeviceMap: %s", deviceName, err.Error())
 	}
 	return deviceName
 }
