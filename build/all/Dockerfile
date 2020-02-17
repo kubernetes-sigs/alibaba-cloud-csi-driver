@@ -4,7 +4,8 @@ LABEL description="Alibaba Cloud CSI Plugin"
 
 RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs
 
-COPY ossfs_1.80.6_centos7.0_x86_64.rpm /root/ossfs_1.80.6_centos7.0_x86_64.rpm
+ARG ossfsVer=1.80.6.ack.1
+RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_1.80.6.ack.1-b42b3a8_centos7.0_x86_64.rpm -o /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
 COPY nsenter /nsenter
 COPY entrypoint.sh /entrypoint.sh
 COPY csiplugin-connector /bin/csiplugin-connector

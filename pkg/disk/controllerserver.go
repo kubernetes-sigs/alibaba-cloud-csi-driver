@@ -479,6 +479,10 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 		log.Errorf("ControllerExpandVolume:: expand disk with error: %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	if disk == nil {
+		log.Errorf("ControllerExpandVolume: expand disk find disk not exist: %s", diskID)
+		return nil, status.Error(codes.Internal, "expand disk find disk not exist "+diskID)
+	}
 	if requestGB == disk.Size {
 		log.Infof("ControllerExpandVolume:: expect size is same with current: %s, size: %dGi", req.VolumeId, requestGB)
 		return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
