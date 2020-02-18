@@ -4,6 +4,7 @@ metadata:
   name: diskplugin.csi.alibabacloud.com
 spec:
   attachRequired: true
+  podInfoOnMount: true
 ---
 apiVersion: storage.k8s.io/v1beta1
 kind: CSIDriver
@@ -11,6 +12,7 @@ metadata:
   name: nasplugin.csi.alibabacloud.com
 spec:
   attachRequired: false
+  podInfoOnMount: true
 ---
 apiVersion: storage.k8s.io/v1beta1
 kind: CSIDriver
@@ -18,6 +20,7 @@ metadata:
   name: ossplugin.csi.alibabacloud.com
 spec:
   attachRequired: false
+  podInfoOnMount: true
 ---
 kind: DaemonSet
 apiVersion: apps/v1
@@ -49,7 +52,7 @@ spec:
             - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock"
           volumeMounts:
             - name: kubelet-dir
-              mountPath: /var/lib/kubelet/
+              mountPath: /var/lib/kubelet
             - name: registration-dir
               mountPath: /registration
 
@@ -100,7 +103,7 @@ spec:
           - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock"
           volumeMounts:
           - name: kubelet-dir
-            mountPath: /var/lib/kubelet
+            mountPath: /var/lib/kubelet/
           - name: registration-dir
             mountPath: /registration
 
@@ -149,7 +152,7 @@ spec:
           imagePullPolicy: "Always"
           args:
           - "--endpoint=$(CSI_ENDPOINT)"
-          - "--v=5"
+          - "--v=4"
           - "--driver=ossplugin.csi.alibabacloud.com"
           env:
           - name: CSI_ENDPOINT
@@ -191,3 +194,4 @@ spec:
             path: /usr/
   updateStrategy:
     type: RollingUpdate
+    maxUnavailable: 10%
