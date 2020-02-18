@@ -193,5 +193,6 @@ spec:
           hostPath:
             path: /usr/
   updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 10%
     type: RollingUpdate
-    maxUnavailable: 10%
