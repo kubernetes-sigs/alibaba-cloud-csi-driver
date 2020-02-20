@@ -99,6 +99,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
+	// Default oss path
+	if opt.Path == "" {
+		opt.Path = "/"
+	}
 	// support set ak by secret
 	if opt.AkID == "" || opt.AkSecret == "" {
 		if value, ok := req.Secrets[AkID]; ok {
