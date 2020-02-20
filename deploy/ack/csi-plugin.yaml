@@ -55,18 +55,17 @@ spec:
               mountPath: /var/lib/kubelet
             - name: registration-dir
               mountPath: /registration
-
         - name: csi-diskplugin
           securityContext:
             privileged: true
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.8.32-01ac4726-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.8.34-f554b6dc-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--v=5"
+            - "--v=2"
             - "--driver=diskplugin.csi.alibabacloud.com"
           env:
             - name: CSI_ENDPOINT
@@ -79,6 +78,19 @@ spec:
               value: "15"
             - name: DISK_TAGED_BY_PLUGIN
               value: "true"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          ports:
+          - containerPort: 9810
+            name: healthz
+            protocol: TCP
           volumeMounts:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet
@@ -93,6 +105,14 @@ spec:
               name: host-log
             - name: etc
               mountPath: /host/etc
+        - name: disk-liveness-probe
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-livenessprobe:v2.0.0
+          args:
+            - --csi-address=/var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock
+            - --health-port=9810
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet
 
         - name: nas-driver-registrar
           image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
@@ -113,21 +133,42 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.8.32-01ac4726-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.8.34-f554b6dc-aliyun
           imagePullPolicy: "Always"
           args:
           - "--endpoint=$(CSI_ENDPOINT)"
-          - "--v=5"
+          - "--v=2"
           - "--driver=nasplugin.csi.alibabacloud.com"
           env:
           - name: CSI_ENDPOINT
             value: unix://var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          ports:
+          - containerPort: 9811
+            name: healthz
+            protocol: TCP
           volumeMounts:
           - name: kubelet-dir
             mountPath: /var/lib/kubelet/
             mountPropagation: "Bidirectional"
           - mountPath: /var/log/
             name: host-log
+        - name: nas-liveness-probe
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-livenessprobe:v2.0.0
+          args:
+            - --csi-address=/var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock
+            - --health-port=9811
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet
 
         - name: oss-driver-registrar
           image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
@@ -148,15 +189,28 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.8.32-01ac4726-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.8.34-f554b6dc-aliyun
           imagePullPolicy: "Always"
           args:
           - "--endpoint=$(CSI_ENDPOINT)"
-          - "--v=4"
+          - "--v=2"
           - "--driver=ossplugin.csi.alibabacloud.com"
           env:
           - name: CSI_ENDPOINT
             value: unix://var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          ports:
+          - containerPort: 9812
+            name: healthz
+            protocol: TCP
           volumeMounts:
           - name: kubelet-dir
             mountPath: /var/lib/kubelet/
@@ -167,6 +221,14 @@ spec:
             name: host-log
           - mountPath: /host/usr/
             name: ossconnectordir
+        - name: oss-liveness-probe
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-livenessprobe:v2.0.0
+          args:
+            - --csi-address=/var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock
+            - --health-port=9812
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet
       volumes:
         - name: registration-dir
           hostPath:
