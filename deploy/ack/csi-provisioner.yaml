@@ -130,11 +130,11 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.8.32-01ac4726-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.8.34-f554b6dc-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--v=5"
+            - "--v=2"
             - "--driver=diskplugin.csi.alibabacloud.com"
           env:
             - name: CSI_ENDPOINT
@@ -145,6 +145,19 @@ spec:
               value: ""
             - name: MAX_VOLUMES_PERNODE
               value: "15"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 5
+          ports:
+          - containerPort: 9808
+            name: healthz
+            protocol: TCP
           volumeMounts:
             - mountPath: /dev
               mountPropagation: "HostToContainer"
@@ -162,17 +175,14 @@ spec:
             requests:
               cpu: 100m
               memory: 100Mi
-          livenessProbe:
-            exec:
-              command:
-              - sh
-              - -c
-              - ps -ef | grep plugin.csi.alibabacloud.com | grep diskplugin.csi.alibabacloud.com | grep -v grep
-            failureThreshold: 8
-            initialDelaySeconds: 15
-            periodSeconds: 10
-            successThreshold: 1
-            timeoutSeconds: 15
+        - name: dusk-liveness-probe
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-livenessprobe:v2.0.0
+          args:
+            - --csi-address=/csi/csi.sock
+            - --health-port=9808
+          volumeMounts:
+            - name: disk-provisioner-dir
+              mountPath: /csi
         - name: external-nas-provisioner
           image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.4.0-aliyun
           args:
@@ -193,15 +203,28 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.8.32-01ac4726-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.8.34-f554b6dc-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
-            - "--v=5"
+            - "--v=2"
             - "--driver=nasplugin.csi.alibabacloud.com"
           env:
             - name: CSI_ENDPOINT
               value: unix://socketDir/csi.sock
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 5
+          ports:
+          - containerPort: 9809
+            name: healthz
+            protocol: TCP
           volumeMounts:
             - mountPath: /var/log/
               name: host-log
@@ -216,17 +239,14 @@ spec:
             requests:
               cpu: 100m
               memory: 100Mi
-          livenessProbe:
-            exec:
-              command:
-              - sh
-              - -c
-              - ps -ef | grep plugin.csi.alibabacloud.com | grep nasplugin.csi.alibabacloud.com | grep -v grep
-            failureThreshold: 8
-            initialDelaySeconds: 15
-            periodSeconds: 10
-            successThreshold: 1
-            timeoutSeconds: 15
+        - name: nas-liveness-probe
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-livenessprobe:v2.0.0
+          args:
+            - --csi-address=/csi/csi.sock
+            - --health-port=9809
+          volumeMounts:
+            - name: nas-provisioner-dir
+              mountPath: /csi
       volumes:
         - name: disk-provisioner-dir
           emptyDir: {}
