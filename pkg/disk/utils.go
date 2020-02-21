@@ -163,8 +163,11 @@ func updateEcsClent(client *ecs.Client) *ecs.Client {
 // SetEcsEndPoint Set Endpoint for Ecs
 func SetEcsEndPoint(regionID string) {
 	// use unitized region endpoint for blew regions.
-	unitizedRegions := []string{"cn-hangzhou", "cn-hongkong", "ap-northeast-1", "ap-south-1", "eu-central-1", "us-west-1",
-		"us-east-1", "ap-southeast-1", "ap-southeast-2", "ap-southeast-3", "ap-southeast-5", "me-east-1"}
+	// total 19 regions
+	unitizedRegions := []string{"cn-hangzhou", "cn-shanghai", "cn-beijing", "cn-chengdu", "cn-zhangjiakou", "cn-huhehaote", "cn-shenzhen",
+		"cn-hongkong", "ap-northeast-1", "ap-southeast-1", "ap-southeast-2", "ap-southeast-3", "ap-southeast-5", "eu-central-1", "us-west-1",
+		"ap-south-1", "eu-west-1", "us-east-1", "me-east-1"}
+
 	for _, tmpRegion := range unitizedRegions {
 		if regionID == tmpRegion {
 			aliyunep.AddEndpointMapping(regionID, "Ecs", "ecs."+regionID+".aliyuncs.com")
