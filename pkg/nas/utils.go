@@ -250,10 +250,9 @@ func newNasClient(accessKeyID, accessKeySecret, accessToken string) (nasClient *
 // SetNasEndPoint Set Endpoint for Nas
 func SetNasEndPoint(regionID string) {
 	// use unitized region endpoint for blew regions.
-	// total 21 regions
-	unitizedRegions := []string{"cn-hangzhou", "cn-shanghai", "cn-beijing", "cn-chengdu", "cn-zhangjiakou", "cn-hongkong", "cn-huhehaote",
-		"cn-shenzhen", "ap-southeast-1", "ap-southeast-1", "eu-central-1", "eu-west-1", "ap-south-1", "ap-northeast-1", "ap-southeast-5",
-		"ap-southeast-2", "us-west-1", "us-east-1", "cn-shenzhen-finance-1", "cn-shanghai-finance-1", "cn-north-2-gov-1"}
+	// total 9 regions
+	unitizedRegions := []string{"cn-hangzhou", "cn-zhangjiakou", "cn-huhehaote", "cn-shenzhen",
+		"ap-southeast-1", "ap-southeast-2", "ap-southeast-5", "eu-central-1", "us-east-1"}
 
 	for _, tmpRegion := range unitizedRegions {
 		if regionID == tmpRegion {
