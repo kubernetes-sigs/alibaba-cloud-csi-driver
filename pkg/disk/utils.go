@@ -244,7 +244,7 @@ func GetLocalAK() (string, string) {
 
 // GetDeviceByMntPoint return the device info from given mount point
 func GetDeviceByMntPoint(targetPath string) string {
-	deviceCmd := fmt.Sprintf("mount | grep %s  | grep -v grep | awk '{print $1}'", targetPath)
+	deviceCmd := fmt.Sprintf("mount | grep \"on %s\"  | grep -v grep | awk 'NR==1 {print $1}'", targetPath)
 	deviceCmdOut, err := run(deviceCmd)
 	if err != nil {
 		return ""
