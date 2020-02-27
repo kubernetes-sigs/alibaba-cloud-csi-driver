@@ -189,6 +189,10 @@ spec:
             - "--provisioner=nasplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
             - "--volume-name-prefix=nas"
+            - "--timeout=150s"
+            - "--enable-leader-election=true"
+            - "--leader-election-type=leases"
+            - "--retry-interval-start=500ms"
             - "--v=5"
           env:
             - name: ADDRESS
