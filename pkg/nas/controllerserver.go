@@ -172,6 +172,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			}
 			fileSystemID = createFileSystemsResponse.FileSystemId
 			pvcFileSystemIDMap[pvName] = fileSystemID
+			log.Infof("CreateVolume: Volume: %s, Successful Create Nas filesystem with ID: %s, with requestID: %s", pvName, fileSystemID, createFileSystemsResponse.RequestId)
 		}
 
 		// if mountTarget is already created, skip create a mountTarget
@@ -197,13 +198,14 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			}
 			mountTargetDomain = createMountTargetResponse.MountTargetDomain
 			pvcMountTargetMap[pvName] = mountTargetDomain
+			log.Infof("CreateVolume: Volume: %s, Successful Create Nas mountTarget with: %s, with requestID: %s", pvName, mountTargetDomain, createMountTargetResponse.RequestId)
 		}
 
 		describeMountTargetsRequest := aliNas.CreateDescribeMountTargetsRequest()
 		describeMountTargetsRequest.FileSystemId = fileSystemID
 		describeMountTargetsRequest.MountTargetDomain = mountTargetDomain
 		// describe mountTarget 3 times util its status is active
-		for i := 1; i <= 3; i++ {
+		for i := 1; i <= 15; i++ {
 			log.Debugf("CreateVolume: Waiting for nas mountTarget %s active, try %d times total 3 times", mountTargetDomain, i)
 			describeMountTargetsResponse, err := cs.nasClient.DescribeMountTargets(describeMountTargetsRequest)
 			if err != nil {
@@ -213,11 +215,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			if describeMountTargetsResponse.MountTargets.MountTarget[0].Status == "Active" {
 				log.Infof("CreateVolume: Nas Volume(%s) mountTarget %s status active", pvName, mountTargetDomain)
 				break
-			} else if i == 3 {
+			} else if i == 15 {
 				log.Errorf("CreateVolume: nas volume(%s) mountTarget %s not active", pvName, mountTargetDomain)
 				return nil, status.Error(codes.Internal, "CreateVolume: nas mountTarget "+mountTargetDomain+" is not active")
 			}
-			time.Sleep(time.Duration(1) * time.Second)
+			time.Sleep(time.Duration(2) * time.Second)
 		}
 
 		volumeContext["volumeAs"] = nasVol.VolumeAs
