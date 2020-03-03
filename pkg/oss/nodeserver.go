@@ -71,6 +71,7 @@ const (
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// logout oss paras
+	log.Infof("NodePublishVolume:: Starting Mount volume: %s to path: %s", req.VolumeId, req.TargetPath)
 	mountPath := req.GetTargetPath()
 	opt := &Options{}
 	opt.UseSharedPath = false
@@ -177,7 +178,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	log.Infof("NodePublishVolume:: Mount Oss successful: %s, with Command: %s", mountPath, mntCmd)
+	log.Infof("NodePublishVolume:: Mount Oss successful, volume %s, targetPath: %s, with Command: %s", req.VolumeId, mountPath, mntCmd)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
