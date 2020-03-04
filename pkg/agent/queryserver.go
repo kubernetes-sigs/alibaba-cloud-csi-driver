@@ -12,7 +12,6 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -36,6 +35,7 @@ type QueryServer struct {
 	client kubernetes.Interface
 }
 
+// NewQueryServer new server
 func NewQueryServer() *QueryServer {
 	cfg, err := clientcmd.BuildConfigFromFlags("", "")
 	if err != nil {
@@ -51,7 +51,7 @@ func NewQueryServer() *QueryServer {
 	}
 }
 
-// RunAgent Routers
+// RunQueryServer Routers
 func (ks *QueryServer) RunQueryServer() {
 	socketAddr := &net.UnixAddr{Name: QueryServerSocket, Net: "unix"}
 	os.Remove(socketAddr.Name)
@@ -171,49 +171,6 @@ func (ks *QueryServer) volumeInfoHandler(w http.ResponseWriter, r *http.Request)
 	fmt.Fprintf(w, "no found volume: %s", fileName)
 	return
 
-}
-
-// podRunTimeHander used for CSI, get pod runtime info.
-func (ks *QueryServer) podRunTimeHander(w http.ResponseWriter, r *http.Request) {
-	reqInfo := QueryRequest{}
-	content, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		log.Errorf("Request RunTime: Receive Request Body with error: %s", err.Error())
-		fmt.Fprintf(w, Unkown_RunTime_Tag)
-		return
-	}
-	if err := json.Unmarshal(content, &reqInfo); err != nil {
-		log.Errorf("Request RunTime: Unmarshal request body(%s) error: %s", string(content), err.Error())
-		fmt.Fprintf(w, Unkown_RunTime_Tag)
-		return
-	}
-
-	if reqInfo.PodNameSpace == "" || reqInfo.PodName == "" {
-		log.Errorf("Request RunTime: Request with Empty PodInfo: %s, %s", reqInfo.PodName, reqInfo.PodNameSpace)
-		fmt.Fprintf(w, Unkown_RunTime_Tag)
-		return
-	}
-	log.Infof("Request RunTime: Receive Request with Pod: %s, NameSpace: %s", reqInfo.PodName, reqInfo.PodNameSpace)
-
-	podInfo, err := ks.client.CoreV1().Pods(reqInfo.PodNameSpace).Get(reqInfo.PodName, metav1.GetOptions{})
-	if err != nil {
-		log.Errorf("Request RunTime: Get PodInfo(%s, %s) with error: %s", reqInfo.PodName, reqInfo.PodNameSpace, err.Error())
-		fmt.Fprintf(w, Unkown_RunTime_Tag)
-		return
-	}
-	if podInfo.Spec.RuntimeClassName == nil {
-		log.Infof("Request RunTime: Get with no runtime(nil), %s, %s", reqInfo.PodName, reqInfo.PodNameSpace)
-		fmt.Fprintf(w, Runc_RunTime_Tag)
-		return
-	} else if *podInfo.Spec.RuntimeClassName == "" {
-		log.Infof("Request RunTime: Get with empty runtime: %s, %s", reqInfo.PodName, reqInfo.PodNameSpace)
-		fmt.Fprintf(w, Runc_RunTime_Tag)
-		return
-	} else {
-		log.Infof("Request RunTime: Send for Pod: %s, %s, with runtime: %s", reqInfo.PodName, reqInfo.PodNameSpace, *podInfo.Spec.RuntimeClassName)
-		fmt.Fprintf(w, *podInfo.Spec.RuntimeClassName)
-		return
-	}
 }
 
 // pingHandler ping test

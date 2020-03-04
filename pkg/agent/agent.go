@@ -3,9 +3,6 @@ package agent
 const (
 	// CsiPluginRunTimeFlagFile tag
 	CsiPluginRunTimeFlagFile = "alibabacloudcsiplugin.json"
-	Runc_RunTime_Tag         = "runc"
-	Runv_RunTime_Tag         = "runv"
-	Unkown_RunTime_Tag       = "unkown"
 )
 
 // Agent for node server
