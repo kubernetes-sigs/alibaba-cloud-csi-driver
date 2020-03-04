@@ -181,7 +181,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// check target mount path
 	sourcePath := req.StagingTargetPath
 	// running in runc/runv mode
-	if os.Getenv("RUNTIME") == MixRunTimeMode && utils.GetPodRunTime(req, ns.clientSet) == RunvRunTimeMode {
+	if GlobalConfigVar.RunTimeClass == MixRunTimeMode && utils.GetPodRunTime(req, ns.clientSet) == RunvRunTimeMode {
 		log.Infof("NodePublishVolume:: Kata Disk Volume %s Mount with: %v", req.VolumeId, req)
 		// umount the stage path, which is mounted in Stage
 		if err := ns.unmountStageTarget(sourcePath); err != nil {
@@ -319,7 +319,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	// check runtime mode
-	if os.Getenv("RUNTIME") == MixRunTimeMode && utils.IsMountPointRunv(targetPath) {
+	if GlobalConfigVar.RunTimeClass == MixRunTimeMode && utils.IsMountPointRunv(targetPath) {
 		fileName := filepath.Join(targetPath, CsiPluginRunTimeFlagFile)
 		if err := os.Remove(fileName); err != nil {
 			msg := fmt.Sprintf("NodeUnpublishVolume: Remove Runv File %s with error: %s", fileName, err.Error())

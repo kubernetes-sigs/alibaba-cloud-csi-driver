@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -56,6 +57,7 @@ type GlobalConfig struct {
 	DiskTagEnable      bool
 	ADControllerEnable bool
 	MetricEnable       bool
+	RunTimeClass       string
 }
 
 // define global variable
@@ -201,6 +203,18 @@ func GlobalConfigSet(client *ecs.Client, region string) {
 		isDiskMetricEnable = false
 	}
 
+	nodeName := os.Getenv("KUBE_NODE_NAME")
+	runtimeValue := "runc"
+	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("Describe node %s with error: %s", nodeName, err.Error())
+	} else {
+		if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime"]; ok && strings.TrimSpace(value) == "Sandboxed-Container.runv" {
+			runtimeValue = MixRunTimeMode
+		}
+		log.Infof("Describe node %s and Set RunTimeClass to %s", nodeName, runtimeValue)
+	}
+
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
 		EcsClient:          client,
@@ -209,5 +223,6 @@ func GlobalConfigSet(client *ecs.Client, region string) {
 		ADControllerEnable: isADControllerEnable,
 		DiskTagEnable:      isDiskTagEnable,
 		MetricEnable:       isDiskMetricEnable,
+		RunTimeClass:       runtimeValue,
 	}
 }
