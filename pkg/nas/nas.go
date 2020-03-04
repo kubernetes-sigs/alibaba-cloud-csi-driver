@@ -93,13 +93,6 @@ func NewDriver(nodeID, endpoint string) *NAS {
 	return d
 }
 
-//newNodeServer create the csi node server
-func newNodeServer(d *NAS) *nodeServer {
-	return &nodeServer{
-		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
-	}
-}
-
 // Run start a new NodeServer
 func (d *NAS) Run() {
 	s := csicommon.NewNonBlockingGRPCServer()

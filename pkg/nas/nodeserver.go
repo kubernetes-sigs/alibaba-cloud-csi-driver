@@ -33,9 +33,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type nodeServer struct {
+	clientSet *kubernetes.Clientset
 	*csicommon.DefaultNodeServer
 }
 
@@ -76,6 +79,23 @@ const (
 	// CsiPluginRunTimeFlagFile tag
 	CsiPluginRunTimeFlagFile = "alibabacloudcsiplugin.json"
 )
+
+//newNodeServer create the csi node server
+func newNodeServer(d *NAS) *nodeServer {
+	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	if err != nil {
+		log.Fatalf("Error building kubeconfig: %s", err.Error())
+	}
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+
+	return &nodeServer{
+		clientSet:         kubeClient,
+		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
+	}
+}
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	log.Infof("NodePublishVolume:: Nas Volume %s Mount with: %v", req.VolumeId, req)
@@ -118,7 +138,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// running in runc/runv mode
-	if os.Getenv("RUNTIME") == MixRunTimeMode && utils.GetPodRunTime(req) == RunvRunTimeMode {
+	if os.Getenv("RUNTIME") == MixRunTimeMode && utils.GetPodRunTime(req, ns.clientSet) == RunvRunTimeMode {
 		if err := utils.CreateDest(mountPath); err != nil {
 			return nil, errors.New("NodePublishVolume: create dest directory error: " + err.Error())
 		}
