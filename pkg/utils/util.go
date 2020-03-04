@@ -66,6 +66,10 @@ const (
 	DefaultRegion = "cn-hangzhou"
 	// CsiPluginRunTimeFlagFile tag
 	CsiPluginRunTimeFlagFile = "alibabacloudcsiplugin.json"
+	// RuncRunTimeTag tag
+	RuncRunTimeTag = "runc"
+	// RunvRunTimeTag tag
+	RunvRunTimeTag = "runv"
 )
 
 // KubernetesAlicloudIdentity set a identity label
@@ -442,24 +446,33 @@ func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet *kubernetes.Clie
 	}
 	if podName == "" || nameSpace == "" {
 		log.Warnf("GetPodRunTime: Rreceive Request with Empty name or namespace: %s, %s", podName, nameSpace)
-		return "runc"
+		return RuncRunTimeTag
 	}
 
 	podInfo, err := clientSet.CoreV1().Pods(nameSpace).Get(podName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("GetPodRunTime: Get PodInfo(%s, %s) with error: %s", podName, nameSpace, err.Error())
-		return "runc"
+		return RuncRunTimeTag
 	}
+	runTimeValue := RuncRunTimeTag
+
+	// check pod.Spec.RuntimeClassName == "runv"
 	if podInfo.Spec.RuntimeClassName == nil {
 		log.Infof("GetPodRunTime: Get without runtime(nil), %s, %s", podName, nameSpace)
-		return "runc"
 	} else if *podInfo.Spec.RuntimeClassName == "" {
 		log.Infof("GetPodRunTime: Get with empty runtime: %s, %s", podName, nameSpace)
-		return "runc"
 	} else {
 		log.Infof("GetPodRunTime: Get PodInfo Successful: %s, %s, with runtime: %s", podName, nameSpace, *podInfo.Spec.RuntimeClassName)
-		return strings.TrimSpace(*podInfo.Spec.RuntimeClassName)
+		if strings.TrimSpace(*podInfo.Spec.RuntimeClassName) == RunvRunTimeTag {
+			runTimeValue = RunvRunTimeTag
+		}
 	}
+
+	// check Annotation[io.kubernetes.cri.untrusted-workload] = true
+	if value, ok := podInfo.Annotations["io.kubernetes.cri.untrusted-workload"]; ok && strings.TrimSpace(value) == "true" {
+		runTimeValue = RunvRunTimeTag
+	}
+	return runTimeValue
 }
 
 // IsMountPointRunv check the mountpoint is runv style
