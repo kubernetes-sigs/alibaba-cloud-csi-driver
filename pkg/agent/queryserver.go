@@ -64,7 +64,7 @@ func (ks *QueryServer) RunQueryServer() {
 	// set router
 	log.Infof("Started Query Server with unix socket: %s", QueryServerSocket)
 	http.HandleFunc("/api/v1/volumeinfo", ks.volumeInfoHandler)
-	http.HandleFunc("/api/v1/podruntime", ks.podRunTimeHander)
+	//	http.HandleFunc("/api/v1/podruntime", ks.podRunTimeHander)
 	http.HandleFunc("/api/v1/ping", ks.pingHandler)
 
 	// Server Listen

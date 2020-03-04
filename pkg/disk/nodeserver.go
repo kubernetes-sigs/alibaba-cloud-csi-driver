@@ -26,6 +26,8 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/util/resizefs"
 	"os"
@@ -40,6 +42,7 @@ type nodeServer struct {
 	nodeID            string
 	mounter           utils.Mounter
 	k8smounter        k8smount.Interface
+	clientSet         *kubernetes.Clientset
 	*csicommon.DefaultNodeServer
 }
 
@@ -114,6 +117,15 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		log.Fatalf("Error happens to get node document: %v", err)
 	}
 
+	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	if err != nil {
+		log.Fatalf("Error building kubeconfig: %s", err.Error())
+	}
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+
 	// Create Directory
 	os.MkdirAll(VolumeDir, os.FileMode(0755))
 	os.MkdirAll(VolumeDirRemove, os.FileMode(0755))
@@ -125,6 +137,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		mounter:           utils.NewMounter(),
 		k8smounter:        k8smount.New(""),
+		clientSet:         kubeClient,
 	}
 }
 
@@ -168,7 +181,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// check target mount path
 	sourcePath := req.StagingTargetPath
 	// running in runc/runv mode
-	if os.Getenv("RUNTIME") == MixRunTimeMode && utils.GetPodRunTime(req) == RunvRunTimeMode {
+	if os.Getenv("RUNTIME") == MixRunTimeMode && utils.GetPodRunTime(req, ns.clientSet) == RunvRunTimeMode {
 		// umount the stage path, which is mounted in Stage
 		if err := ns.unmountStageTarget(sourcePath); err != nil {
 			log.Errorf("NodePublishVolume(runv): unmountStageTarget %s with error: %s", sourcePath, err.Error())

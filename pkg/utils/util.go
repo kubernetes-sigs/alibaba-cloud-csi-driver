@@ -27,9 +27,9 @@ import (
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	k8svol "k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/util/fs"
-	"net"
 	"net/http"
 	"os"
 	"path"
@@ -64,8 +64,6 @@ const (
 	InstanceIDTag = "instance-id"
 	// DefaultRegion is default region
 	DefaultRegion = "cn-hangzhou"
-	// QueryServerSocket used for queryserver
-	QueryServerSocket = "/var/run/node-extender-server/volume-query-server.sock"
 	// CsiPluginRunTimeFlagFile tag
 	CsiPluginRunTimeFlagFile = "alibabacloudcsiplugin.json"
 )
@@ -433,7 +431,7 @@ func WriteJosnFile(obj interface{}, file string) error {
 
 // GetPodRunTime Get Pod runtimeclass config
 // Default as runc.
-func GetPodRunTime(req *csi.NodePublishVolumeRequest) string {
+func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet *kubernetes.Clientset) string {
 	// if pod name namespace is empty, use default
 	podName, nameSpace := "", ""
 	if value, ok := req.VolumeContext["csi.storage.k8s.io/pod.name"]; ok {
@@ -447,36 +445,21 @@ func GetPodRunTime(req *csi.NodePublishVolumeRequest) string {
 		return "runc"
 	}
 
-	// Request Prepare
-	httpc := http.Client{
-		Transport: &http.Transport{
-			Dial: func(proto, addr string) (net.Conn, error) {
-				return net.Dial("unix", QueryServerSocket)
-			},
-		},
-		Timeout: 2 * time.Second,
-	}
-	postDataMap := map[string]string{}
-	postDataMap["podName"] = podName
-	postDataMap["podNameSpace"] = nameSpace
-	postData, err := json.Marshal(postDataMap)
+	podInfo, err := clientSet.CoreV1().Pods(nameSpace).Get(podName, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("GetPodRunTime: Json Marshal error: %v", err.Error())
+		log.Errorf("GetPodRunTime: Get PodInfo(%s, %s) with error: %s", podName, nameSpace, err.Error())
 		return "runc"
 	}
-
-	// do Post
-	response, err := httpc.Post("http://localhost/api/v1/podruntime", "application/json", strings.NewReader(string(postData)))
-	if err != nil || response == nil {
-		log.Errorf("GetPodRunTime: Http Request(%s) with error: %v", postData, err)
+	if podInfo.Spec.RuntimeClassName == nil {
+		log.Infof("GetPodRunTime: Get without runtime(nil), %s, %s", podName, nameSpace)
 		return "runc"
-	}
-	content, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		log.Errorf("GetPodRunTime: Http Read Response Body error: %s", err.Error())
+	} else if *podInfo.Spec.RuntimeClassName == "" {
+		log.Infof("GetPodRunTime: Get with empty runtime: %s, %s", podName, nameSpace)
 		return "runc"
+	} else {
+		log.Infof("GetPodRunTime: Get PodInfo Successful: %s, %s, with runtime: %s", podName, nameSpace, *podInfo.Spec.RuntimeClassName)
+		return strings.TrimSpace(*podInfo.Spec.RuntimeClassName)
 	}
-	return string(content)
 }
 
 // IsMountPointRunv check the mountpoint is runv style
