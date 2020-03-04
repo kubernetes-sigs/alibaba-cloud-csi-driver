@@ -68,12 +68,15 @@ spec:
             - "--v=2"
             - "--driver=diskplugin.csi.alibabacloud.com"
           env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock
             - name: ACCESS_KEY_ID
               value: ""
-            - name: RUNTIME
-              value: "runc-runv"
             - name: ACCESS_KEY_SECRET
               value: ""
             - name: MAX_VOLUMES_PERNODE
@@ -142,8 +145,11 @@ spec:
           - "--v=2"
           - "--driver=nasplugin.csi.alibabacloud.com"
           env:
-          - name: RUNTIME
-            value: "runc-runv"
+          - name: KUBE_NODE_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
           - name: CSI_ENDPOINT
             value: unix://var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock
           livenessProbe:
