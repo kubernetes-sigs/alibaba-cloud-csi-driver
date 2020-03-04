@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
+	"strings"
 )
 
 const (
@@ -47,6 +48,7 @@ type GlobalConfig struct {
 	NasTagEnable       bool
 	ADControllerEnable bool
 	MetricEnable       bool
+	RunTimeClass       string
 }
 
 // NAS the NAS object
@@ -137,5 +139,19 @@ func GlobalConfigSet() {
 		isNasMetricEnable = false
 	}
 
+	nodeName := os.Getenv("KUBE_NODE_NAME")
+	runtimeValue := "runc"
+	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("Describe node %s with error: %s", nodeName, err.Error())
+	} else {
+		if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime"]; ok && strings.TrimSpace(value) == "Sandboxed-Container.runv" {
+			runtimeValue = MixRunTimeMode
+		}
+		log.Infof("Describe node %s and set RunTimeClass to %s", nodeName, runtimeValue)
+	}
+
 	GlobalConfigVar.MetricEnable = isNasMetricEnable
+	GlobalConfigVar.RunTimeClass = runtimeValue
+
 }

@@ -138,7 +138,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// running in runc/runv mode
-	if os.Getenv("RUNTIME") == MixRunTimeMode && utils.GetPodRunTime(req, ns.clientSet) == RunvRunTimeMode {
+	if GlobalConfigVar.RunTimeClass == MixRunTimeMode && utils.GetPodRunTime(req, ns.clientSet) == RunvRunTimeMode {
 		if err := utils.CreateDest(mountPath); err != nil {
 			return nil, errors.New("NodePublishVolume: create dest directory error: " + err.Error())
 		}
@@ -263,7 +263,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	log.Infof("NodeUnpublishVolume:: Starting Umount Nas Volume %s at path %s", req.VolumeId, req.TargetPath)
 	// check runtime mode
-	if os.Getenv("RUNTIME") == MixRunTimeMode && utils.IsMountPointRunv(req.TargetPath) {
+	if GlobalConfigVar.RunTimeClass == MixRunTimeMode && utils.IsMountPointRunv(req.TargetPath) {
 		fileName := filepath.Join(req.TargetPath, CsiPluginRunTimeFlagFile)
 		if err := os.Remove(fileName); err != nil {
 			log.Errorf("NodeUnpublishVolume(runv):  Remove local runv file with error %s", err.Error())
