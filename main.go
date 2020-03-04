@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cpfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/lvm"
@@ -54,6 +55,8 @@ const (
 	TypePluginLVM = "lvmplugin.csi.alibabacloud.com"
 	// TypePluginMEM memory type plugin
 	TypePluginMEM = "memplugin.csi.alibabacloud.com"
+	// ExtenderAgent agent component
+	ExtenderAgent = "agent"
 )
 
 // BRANCH is CSI Driver Branch
@@ -113,6 +116,9 @@ func main() {
 	} else if drivername == TypePluginMEM {
 		driver := mem.NewDriver(*nodeID, *endpoint)
 		driver.Run()
+	} else if drivername == ExtenderAgent {
+		queryServer := agent.NewAgent()
+		queryServer.RunAgent()
 	} else {
 		log.Errorf("CSI start failed, not support driver: %s", drivername)
 	}

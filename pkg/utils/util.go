@@ -27,10 +27,12 @@ import (
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	k8svol "k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/util/fs"
 	"net/http"
 	"os"
+	"path"
 
 	"os/exec"
 	"path/filepath"
@@ -62,6 +64,8 @@ const (
 	InstanceIDTag = "instance-id"
 	// DefaultRegion is default region
 	DefaultRegion = "cn-hangzhou"
+	// CsiPluginRunTimeFlagFile tag
+	CsiPluginRunTimeFlagFile = "alibabacloudcsiplugin.json"
 )
 
 // KubernetesAlicloudIdentity set a identity label
@@ -392,4 +396,90 @@ func GetMetrics(path string) (*csi.NodeGetVolumeStatsResponse, error) {
 			},
 		},
 	}, nil
+}
+
+// GetFileContent get file content
+func GetFileContent(fileName string) string {
+	volumeFile := path.Join(fileName)
+	if !IsFileExisting(volumeFile) {
+		return ""
+	}
+	value, err := ioutil.ReadFile(volumeFile)
+	if err != nil {
+		return ""
+	}
+	devicePath := strings.TrimSpace(string(value))
+	return devicePath
+}
+
+// WriteJosnFile save json data to file
+func WriteJosnFile(obj interface{}, file string) error {
+	maps := make(map[string]interface{})
+	t := reflect.TypeOf(obj)
+	v := reflect.ValueOf(obj)
+	for i := 0; i < v.NumField(); i++ {
+		if v.Field(i).String() != "" {
+			maps[t.Field(i).Name] = v.Field(i).String()
+		}
+	}
+	rankingsJSON, _ := json.Marshal(maps)
+	if err := ioutil.WriteFile(file, rankingsJSON, 0644); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetPodRunTime Get Pod runtimeclass config
+// Default as runc.
+func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet *kubernetes.Clientset) string {
+	// if pod name namespace is empty, use default
+	podName, nameSpace := "", ""
+	if value, ok := req.VolumeContext["csi.storage.k8s.io/pod.name"]; ok {
+		podName = value
+	}
+	if value, ok := req.VolumeContext["csi.storage.k8s.io/pod.namespace"]; ok {
+		nameSpace = value
+	}
+	if podName == "" || nameSpace == "" {
+		log.Warnf("GetPodRunTime: Rreceive Request with Empty name or namespace: %s, %s", podName, nameSpace)
+		return "runc"
+	}
+
+	podInfo, err := clientSet.CoreV1().Pods(nameSpace).Get(podName, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("GetPodRunTime: Get PodInfo(%s, %s) with error: %s", podName, nameSpace, err.Error())
+		return "runc"
+	}
+	if podInfo.Spec.RuntimeClassName == nil {
+		log.Infof("GetPodRunTime: Get without runtime(nil), %s, %s", podName, nameSpace)
+		return "runc"
+	} else if *podInfo.Spec.RuntimeClassName == "" {
+		log.Infof("GetPodRunTime: Get with empty runtime: %s, %s", podName, nameSpace)
+		return "runc"
+	} else {
+		log.Infof("GetPodRunTime: Get PodInfo Successful: %s, %s, with runtime: %s", podName, nameSpace, *podInfo.Spec.RuntimeClassName)
+		return strings.TrimSpace(*podInfo.Spec.RuntimeClassName)
+	}
+}
+
+// IsMountPointRunv check the mountpoint is runv style
+func IsMountPointRunv(mountPoint string) bool {
+	if IsMounted(mountPoint) {
+		return false
+	}
+	mountFileName := filepath.Join(mountPoint, CsiPluginRunTimeFlagFile)
+	if IsFileExisting(mountFileName) {
+		mountInfo := GetFileContent(mountFileName)
+		mountInfo = strings.ToLower(mountInfo)
+		maps := map[string]string{}
+		if err := json.Unmarshal([]byte(mountInfo), &maps); err != nil {
+			return false
+		}
+		if value, ok := maps["mountfile"]; ok && value == mountFileName {
+			if valuert, okrt := maps["runtime"]; okrt && valuert == "runv" {
+				return true
+			}
+		}
+	}
+	return false
 }
