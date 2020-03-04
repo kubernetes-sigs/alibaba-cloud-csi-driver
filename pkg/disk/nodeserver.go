@@ -72,7 +72,22 @@ const (
 	VolumeDir = "/host/etc/kubernetes/volumes/disk/"
 	// VolumeDirRemove volume dir remove
 	VolumeDirRemove = "/host/etc/kubernetes/volumes/disk/remove"
+	// CsiPluginRunTimeFlagFile tag
+	CsiPluginRunTimeFlagFile = "alibabacloudcsiplugin.json"
+	// MixRunTimeMode support both runc and runv
+	MixRunTimeMode = "runc-runv"
+	// RunvRunTimeMode tag
+	RunvRunTimeMode = "runv"
 )
+
+// QueryResponse response struct for query server
+type QueryResponse struct {
+	device     string
+	volumeType string
+	identity   string
+	mountfile  string
+	runtime    string
+}
 
 // NewNodeServer creates node server
 func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
@@ -152,6 +167,43 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// check target mount path
 	sourcePath := req.StagingTargetPath
+	// running in runc/runv mode
+	if os.Getenv("RUNTIME") == MixRunTimeMode && utils.GetPodRunTime(req) == RunvRunTimeMode {
+		// umount the stage path, which is mounted in Stage
+		if err := ns.unmountStageTarget(sourcePath); err != nil {
+			log.Errorf("NodePublishVolume(runv): unmountStageTarget %s with error: %s", sourcePath, err.Error())
+			return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: unmountStageTarget "+sourcePath+" with error: "+err.Error())
+		}
+		deviceName, err := GetDeviceByVolumeID(req.VolumeId)
+		if err != nil && deviceName == "" {
+			deviceName = getVolumeConfig(req.VolumeId)
+		}
+		if deviceName == "" {
+			log.Errorf("NodePublishVolume(runv): cannot get local deviceName for volume:  %s", req.VolumeId)
+			return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot get local deviceName for volume: "+req.VolumeId)
+		}
+
+		// save volume info to local file
+		mountFile := filepath.Join(req.GetTargetPath(), CsiPluginRunTimeFlagFile)
+		if err := utils.CreateDest(req.GetTargetPath()); err != nil {
+			log.Errorf("NodePublishVolume(runv): Create Dest %s error: %s", req.GetTargetPath(), err.Error())
+			return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Create Dest "+req.GetTargetPath()+" with error: "+err.Error())
+		}
+
+		qResponse := QueryResponse{}
+		qResponse.device = deviceName
+		qResponse.identity = req.GetTargetPath()
+		qResponse.volumeType = "block"
+		qResponse.mountfile = mountFile
+		qResponse.runtime = RunvRunTimeMode
+		if err := utils.WriteJosnFile(qResponse, mountFile); err != nil {
+			log.Errorf("NodePublishVolume(runv): Write Josn File error: %s", err.Error())
+			return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Write Josn File error: "+err.Error())
+		}
+
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
+
 	isBlock := req.GetVolumeCapability().GetBlock() != nil
 	if isBlock {
 		sourcePath = filepath.Join(req.StagingTargetPath, req.VolumeId)
@@ -251,6 +303,17 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
+	// check runtime mode
+	if os.Getenv("RUNTIME") == MixRunTimeMode && utils.IsMountPointRunv(targetPath) {
+		fileName := filepath.Join(targetPath, CsiPluginRunTimeFlagFile)
+		if err := os.Remove(fileName); err != nil {
+			msg := fmt.Sprintf("NodeUnpublishVolume: Remove Runv File %s with error: %s", fileName, err.Error())
+			return nil, status.Error(codes.InvalidArgument, msg)
+		}
+		log.Infof("NodeUnpublishVolume(runv): Remove Runv File Successful: %s", fileName)
+		return &csi.NodeUnpublishVolumeResponse{}, nil
+
+	}
 	// Step 2: check mount point
 	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
@@ -557,4 +620,30 @@ func (ns *nodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 	}
 
 	return utils.GetMetrics(targetPath)
+}
+
+// umount path and not remove
+func (ns *nodeServer) unmountStageTarget(targetPath string) error {
+	msgLog := "UnmountStageTarget: Unmount Stage Target: " + targetPath
+	if IsFileExisting(targetPath) {
+		notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
+		if err != nil {
+			log.Errorf("unmountStageTarget: check mountPoint: %s mountpoint error: %v", targetPath, err)
+			return status.Error(codes.Internal, err.Error())
+		}
+		if !notmounted {
+			err = ns.k8smounter.Unmount(targetPath)
+			if err != nil {
+				log.Errorf("unmountStageTarget: umount path: %s failed with: %v", targetPath, err)
+				return status.Error(codes.Internal, err.Error())
+			}
+		} else {
+			msgLog = fmt.Sprintf("unmountStageTarget: umount %s Successful", targetPath)
+		}
+	} else {
+		msgLog = fmt.Sprintf("unmountStageTarget: Path %s doesn't exist", targetPath)
+	}
+
+	log.Infof(msgLog)
+	return nil
 }

@@ -29,8 +29,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8svol "k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/util/fs"
+	"net"
 	"net/http"
 	"os"
+	"path"
 
 	"os/exec"
 	"path/filepath"
@@ -62,6 +64,10 @@ const (
 	InstanceIDTag = "instance-id"
 	// DefaultRegion is default region
 	DefaultRegion = "cn-hangzhou"
+	// QueryServerSocket used for queryserver
+	QueryServerSocket = "/var/run/node-extender-server/volume-query-server.sock"
+	// CsiPluginRunTimeFlagFile tag
+	CsiPluginRunTimeFlagFile = "alibabacloudcsiplugin.json"
 )
 
 // KubernetesAlicloudIdentity set a identity label
@@ -392,4 +398,105 @@ func GetMetrics(path string) (*csi.NodeGetVolumeStatsResponse, error) {
 			},
 		},
 	}, nil
+}
+
+// GetFileContent get file content
+func GetFileContent(fileName string) string {
+	volumeFile := path.Join(fileName)
+	if !IsFileExisting(volumeFile) {
+		return ""
+	}
+	value, err := ioutil.ReadFile(volumeFile)
+	if err != nil {
+		return ""
+	}
+	devicePath := strings.TrimSpace(string(value))
+	return devicePath
+}
+
+// WriteJosnFile save json data to file
+func WriteJosnFile(obj interface{}, file string) error {
+	maps := make(map[string]interface{})
+	t := reflect.TypeOf(obj)
+	v := reflect.ValueOf(obj)
+	for i := 0; i < v.NumField(); i++ {
+		if v.Field(i).String() != "" {
+			maps[t.Field(i).Name] = v.Field(i).String()
+		}
+	}
+	rankingsJSON, _ := json.Marshal(maps)
+	if err := ioutil.WriteFile(file, rankingsJSON, 0644); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetPodRunTime Get Pod runtimeclass config
+// Default as runc.
+func GetPodRunTime(req *csi.NodePublishVolumeRequest) string {
+	// if pod name namespace is empty, use default
+	podName, nameSpace := "", ""
+	if value, ok := req.VolumeContext["csi.storage.k8s.io/pod.name"]; ok {
+		podName = value
+	}
+	if value, ok := req.VolumeContext["csi.storage.k8s.io/pod.namespace"]; ok {
+		nameSpace = value
+	}
+	if podName == "" || nameSpace == "" {
+		log.Warnf("GetPodRunTime: Rreceive Request with Empty name or namespace: %s, %s", podName, nameSpace)
+		return "runc"
+	}
+
+	// Request Prepare
+	httpc := http.Client{
+		Transport: &http.Transport{
+			Dial: func(proto, addr string) (net.Conn, error) {
+				return net.Dial("unix", QueryServerSocket)
+			},
+		},
+		Timeout: 2 * time.Second,
+	}
+	postDataMap := map[string]string{}
+	postDataMap["podName"] = podName
+	postDataMap["podNameSpace"] = nameSpace
+	postData, err := json.Marshal(postDataMap)
+	if err != nil {
+		log.Errorf("GetPodRunTime: Json Marshal error: %v", err.Error())
+		return "runc"
+	}
+
+	// do Post
+	response, err := httpc.Post("http://localhost/api/v1/podruntime", "application/json", strings.NewReader(string(postData)))
+	if err != nil || response == nil {
+		log.Errorf("GetPodRunTime: Http Request(%s) with error: %v", postData, err)
+		return "runc"
+	}
+	content, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Errorf("GetPodRunTime: Http Read Response Body error: %s", err.Error())
+		return "runc"
+	}
+	return string(content)
+}
+
+// IsMountPointRunv check the mountpoint is runv style
+func IsMountPointRunv(mountPoint string) bool {
+	if IsMounted(mountPoint) {
+		return false
+	}
+	mountFileName := filepath.Join(mountPoint, CsiPluginRunTimeFlagFile)
+	if IsFileExisting(mountFileName) {
+		mountInfo := GetFileContent(mountFileName)
+		mountInfo = strings.ToLower(mountInfo)
+		maps := map[string]string{}
+		if err := json.Unmarshal([]byte(mountInfo), &maps); err != nil {
+			return false
+		}
+		if value, ok := maps["mountfile"]; ok && value == mountFileName {
+			if valuert, okrt := maps["runtime"]; okrt && valuert == "runv" {
+				return true
+			}
+		}
+	}
+	return false
 }
