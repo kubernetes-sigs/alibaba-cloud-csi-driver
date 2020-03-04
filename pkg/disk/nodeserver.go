@@ -182,6 +182,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	sourcePath := req.StagingTargetPath
 	// running in runc/runv mode
 	if os.Getenv("RUNTIME") == MixRunTimeMode && utils.GetPodRunTime(req, ns.clientSet) == RunvRunTimeMode {
+		log.Infof("NodePublishVolume:: Kata Disk Volume %s Mount with: %v", req.VolumeId, req)
 		// umount the stage path, which is mounted in Stage
 		if err := ns.unmountStageTarget(sourcePath); err != nil {
 			log.Errorf("NodePublishVolume(runv): unmountStageTarget %s with error: %s", sourcePath, err.Error())
@@ -214,6 +215,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Write Josn File error: "+err.Error())
 		}
 
+		log.Infof("NodePublishVolume:: Kata Disk Volume %s Mount Successful", req.VolumeId)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
