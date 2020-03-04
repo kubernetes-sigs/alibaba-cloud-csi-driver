@@ -21,6 +21,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -31,9 +33,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type nodeServer struct {
+	clientSet *kubernetes.Clientset
 	*csicommon.DefaultNodeServer
 }
 
@@ -47,6 +52,19 @@ type Options struct {
 	Options  string `json:"options"`
 }
 
+// RunvNasOptions struct definition
+type RunvNasOptions struct {
+	Server     string `json:"server"`
+	Path       string `json:"path"`
+	Vers       string `json:"vers"`
+	Mode       string `json:"mode"`
+	ModeType   string `json:"modeType"`
+	Options    string `json:"options"`
+	RunTime    string `json:"runtime"`
+	MountFile  string `json:"mountfile"`
+	VolumeType string `json:"volumeType"`
+}
+
 const (
 	// NasTempMntPath used for create sub directory
 	NasTempMntPath = "/mnt/acs_mnt/k8s_nas/temp"
@@ -54,7 +72,30 @@ const (
 	NasPortnum = "2049"
 	// NasMetricByPlugin tag
 	NasMetricByPlugin = "NAS_METRIC_BY_PLUGIN"
+	// MixRunTimeMode support both runc and runv
+	MixRunTimeMode = "runc-runv"
+	// RunvRunTimeMode tag
+	RunvRunTimeMode = "runv"
+	// CsiPluginRunTimeFlagFile tag
+	CsiPluginRunTimeFlagFile = "alibabacloudcsiplugin.json"
 )
+
+//newNodeServer create the csi node server
+func newNodeServer(d *NAS) *nodeServer {
+	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	if err != nil {
+		log.Fatalf("Error building kubeconfig: %s", err.Error())
+	}
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+
+	return &nodeServer{
+		clientSet:         kubeClient,
+		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
+	}
+}
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	log.Infof("NodePublishVolume:: Nas Volume %s Mount with: %v", req.VolumeId, req)
@@ -94,6 +135,29 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			}
 			opt.Options = parseOptions
 		}
+	}
+
+	// running in runc/runv mode
+	if os.Getenv("RUNTIME") == MixRunTimeMode && utils.GetPodRunTime(req, ns.clientSet) == RunvRunTimeMode {
+		if err := utils.CreateDest(mountPath); err != nil {
+			return nil, errors.New("NodePublishVolume: create dest directory error: " + err.Error())
+		}
+		fileName := filepath.Join(mountPath, CsiPluginRunTimeFlagFile)
+		runvOptions := RunvNasOptions{}
+		runvOptions.Options = opt.Options
+		runvOptions.Server = opt.Server
+		runvOptions.ModeType = opt.ModeType
+		runvOptions.Mode = opt.Mode
+		runvOptions.Vers = opt.Vers
+		runvOptions.Path = opt.Path
+		runvOptions.RunTime = "runv"
+		runvOptions.VolumeType = "nfs"
+		runvOptions.MountFile = fileName
+		if err := utils.WriteJosnFile(runvOptions, fileName); err != nil {
+			return nil, errors.New("NodePublishVolume: Write Josn File error: " + err.Error())
+		}
+		log.Infof("Nas(Kata), Write Nfs Options to File Successful: %s", fileName)
+		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	// check parameters
@@ -198,6 +262,16 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	log.Infof("NodeUnpublishVolume:: Starting Umount Nas Volume %s at path %s", req.VolumeId, req.TargetPath)
+	// check runtime mode
+	if os.Getenv("RUNTIME") == MixRunTimeMode && utils.IsMountPointRunv(req.TargetPath) {
+		fileName := filepath.Join(req.TargetPath, CsiPluginRunTimeFlagFile)
+		if err := os.Remove(fileName); err != nil {
+			log.Errorf("NodeUnpublishVolume(runv):  Remove local runv file with error %s", err.Error())
+			return nil, status.Error(codes.InvalidArgument, "NodeUnpublishVolume(runv): Remove local file with error "+err.Error())
+		}
+		log.Infof("NodeUnpublishVolume(runv): Remove runv file successful: %s", fileName)
+		return &csi.NodeUnpublishVolumeResponse{}, nil
+	}
 	mountPoint := req.TargetPath
 	if !utils.IsMounted(mountPoint) {
 		log.Infof("Umount Nas: mountpoint not mounted, skipping: %s", mountPoint)
