@@ -97,7 +97,7 @@ func (ks *QueryServer) volumeInfoHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Response with file content
-	fileName := filepath.Join(reqInfo.Identity, CsiPluginRunTimeFlagFile)
+	fileName := filepath.Join(reqInfo.Identity, utils.CsiPluginRunTimeFlagFile)
 	if utils.IsFileExisting(fileName) {
 		// Unmarshal file content to map
 		fileContent := utils.GetFileContent(fileName)

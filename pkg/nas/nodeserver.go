@@ -76,8 +76,6 @@ const (
 	MixRunTimeMode = "runc-runv"
 	// RunvRunTimeMode tag
 	RunvRunTimeMode = "runv"
-	// CsiPluginRunTimeFlagFile tag
-	CsiPluginRunTimeFlagFile = "alibabacloudcsiplugin.json"
 )
 
 //newNodeServer create the csi node server
@@ -142,7 +140,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err := utils.CreateDest(mountPath); err != nil {
 			return nil, errors.New("NodePublishVolume: create dest directory error: " + err.Error())
 		}
-		fileName := filepath.Join(mountPath, CsiPluginRunTimeFlagFile)
+		fileName := filepath.Join(mountPath, utils.CsiPluginRunTimeFlagFile)
 		runvOptions := RunvNasOptions{}
 		runvOptions.Options = opt.Options
 		runvOptions.Server = opt.Server
@@ -264,7 +262,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	log.Infof("NodeUnpublishVolume:: Starting Umount Nas Volume %s at path %s", req.VolumeId, req.TargetPath)
 	// check runtime mode
 	if GlobalConfigVar.RunTimeClass == MixRunTimeMode && utils.IsMountPointRunv(req.TargetPath) {
-		fileName := filepath.Join(req.TargetPath, CsiPluginRunTimeFlagFile)
+		fileName := filepath.Join(req.TargetPath, utils.CsiPluginRunTimeFlagFile)
 		if err := os.Remove(fileName); err != nil {
 			log.Errorf("NodeUnpublishVolume(runv):  Remove local runv file with error %s", err.Error())
 			return nil, status.Error(codes.InvalidArgument, "NodeUnpublishVolume(runv): Remove local file with error "+err.Error())
