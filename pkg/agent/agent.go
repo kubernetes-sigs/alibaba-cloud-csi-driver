@@ -1,6 +1,5 @@
 package agent
 
-
 // Agent for node server
 type Agent struct {
 }
