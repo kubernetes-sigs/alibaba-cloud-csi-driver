@@ -1,9 +1,5 @@
 package agent
 
-const (
-	// CsiPluginRunTimeFlagFile tag
-	CsiPluginRunTimeFlagFile = "alibabacloudcsiplugin.json"
-)
 
 // Agent for node server
 type Agent struct {
