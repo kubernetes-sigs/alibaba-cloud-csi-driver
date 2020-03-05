@@ -65,7 +65,7 @@ const (
 	// DefaultRegion is default region
 	DefaultRegion = "cn-hangzhou"
 	// CsiPluginRunTimeFlagFile tag
-	CsiPluginRunTimeFlagFile = "alibabacloudcsiplugin.json"
+	CsiPluginRunTimeFlagFile = "../alibabacloudcsiplugin.json"
 	// RuncRunTimeTag tag
 	RuncRunTimeTag = "runc"
 	// RunvRunTimeTag tag

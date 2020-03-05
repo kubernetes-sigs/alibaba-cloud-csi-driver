@@ -75,8 +75,6 @@ const (
 	VolumeDir = "/host/etc/kubernetes/volumes/disk/"
 	// VolumeDirRemove volume dir remove
 	VolumeDirRemove = "/host/etc/kubernetes/volumes/disk/remove"
-	// CsiPluginRunTimeFlagFile tag
-	CsiPluginRunTimeFlagFile = "alibabacloudcsiplugin.json"
 	// MixRunTimeMode support both runc and runv
 	MixRunTimeMode = "runc-runv"
 	// RunvRunTimeMode tag
@@ -198,7 +196,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 
 		// save volume info to local file
-		mountFile := filepath.Join(req.GetTargetPath(), CsiPluginRunTimeFlagFile)
+		mountFile := filepath.Join(req.GetTargetPath(), utils.CsiPluginRunTimeFlagFile)
 		if err := utils.CreateDest(req.GetTargetPath()); err != nil {
 			log.Errorf("NodePublishVolume(runv): Create Dest %s error: %s", req.GetTargetPath(), err.Error())
 			return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Create Dest "+req.GetTargetPath()+" with error: "+err.Error())
@@ -320,7 +318,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	// check runtime mode
 	if GlobalConfigVar.RunTimeClass == MixRunTimeMode && utils.IsMountPointRunv(targetPath) {
-		fileName := filepath.Join(targetPath, CsiPluginRunTimeFlagFile)
+		fileName := filepath.Join(targetPath, utils.CsiPluginRunTimeFlagFile)
 		if err := os.Remove(fileName); err != nil {
 			msg := fmt.Sprintf("NodeUnpublishVolume: Remove Runv File %s with error: %s", fileName, err.Error())
 			return nil, status.Error(codes.InvalidArgument, msg)
