@@ -563,6 +563,12 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 
 	// Do detach if ADController disable
 	if !GlobalConfigVar.ADControllerEnable {
+		// if DetachDisabled is set to true, return
+		if GlobalConfigVar.DetachDisabled {
+			log.Infof("NodeUnstageVolume: ADController is Disable, Detach Flag Set to false, PV %s", req.VolumeId)
+			return &csi.NodeUnstageVolumeResponse{}, nil
+		}
+
 		err := detachDisk(req.VolumeId, ns.nodeID)
 		if err != nil {
 			log.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
