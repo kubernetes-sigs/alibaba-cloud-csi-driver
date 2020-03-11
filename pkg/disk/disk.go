@@ -59,6 +59,7 @@ type GlobalConfig struct {
 	DetachDisabled     bool
 	MetricEnable       bool
 	RunTimeClass       string
+	DetachBeforeDelete bool
 	ClientSet          *kubernetes.Clientset
 }
 
@@ -139,6 +140,7 @@ func GlobalConfigSet(client *ecs.Client, region string) {
 	isDiskTagEnable := false
 	isDiskMetricEnable := false
 	isDiskDetachDisable := false
+	isDiskDetachBeforeDelete := true
 
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
@@ -182,6 +184,15 @@ func GlobalConfigSet(client *ecs.Client, region string) {
 			} else if value == "disable" || value == "no" || value == "false" {
 				log.Infof("Disk Detach is enable by configMap(%s), this tag only works when adcontroller enabled.", value)
 				isDiskDetachDisable = false
+			}
+		}
+		if value, ok := configMap.Data["disk-detach-before-delete"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				log.Infof("Disk Detach before delete is enabled by configMap(%s).", value)
+				isDiskDetachBeforeDelete = true
+			} else if value == "disable" || value == "no" || value == "false" {
+				log.Infof("Disk Detach before delete is diskable by configMap(%s).", value)
+				isDiskDetachBeforeDelete = false
 			}
 		}
 	}
@@ -237,6 +248,7 @@ func GlobalConfigSet(client *ecs.Client, region string) {
 		MetricEnable:       isDiskMetricEnable,
 		RunTimeClass:       runtimeValue,
 		DetachDisabled:     isDiskDetachDisable,
+		DetachBeforeDelete: isDiskDetachBeforeDelete,
 		ClientSet:          kubeClient,
 	}
 }
