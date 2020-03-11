@@ -272,6 +272,24 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 	// For now the image get unconditionally deleted, but here retention policy can be checked
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
+	if GlobalConfigVar.DetachBeforeDelete {
+		disk, err := findDiskByID(req.VolumeId)
+		if err != nil {
+			log.Warnf("DeleteVolume: find disk(%s) by id with error: %s", req.VolumeId, err.Error())
+		}
+		if disk != nil && disk.Status == DiskStatusInuse {
+			detachDiskRequest := ecs.CreateDetachDiskRequest()
+			detachDiskRequest.DiskId = req.VolumeId
+			detachDiskRequest.InstanceId = disk.InstanceId
+			response, err := GlobalConfigVar.EcsClient.DetachDisk(detachDiskRequest)
+			if err != nil {
+				log.Warnf("DeleteVolume: Detach Disk(%s) from node %s with error: %s", req.VolumeId, disk.InstanceId, err.Error())
+			} else {
+				log.Infof("DeleteVolume: Detach disk(%s) from node %s before remove with requestId %s", req.VolumeId, disk.InstanceId, response.RequestId)
+			}
+		}
+	}
+
 	deleteDiskRequest := ecs.CreateDeleteDiskRequest()
 	deleteDiskRequest.DiskId = req.GetVolumeId()
 	response, err := GlobalConfigVar.EcsClient.DeleteDisk(deleteDiskRequest)
