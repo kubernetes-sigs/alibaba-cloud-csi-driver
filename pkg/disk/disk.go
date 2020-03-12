@@ -56,8 +56,11 @@ type GlobalConfig struct {
 	CanAttach          bool
 	DiskTagEnable      bool
 	ADControllerEnable bool
+	DetachDisabled     bool
 	MetricEnable       bool
 	RunTimeClass       string
+	DetachBeforeDelete bool
+	ClientSet          *kubernetes.Clientset
 }
 
 // define global variable
@@ -132,6 +135,13 @@ func (disk *DISK) Run() {
 
 // GlobalConfigSet set Global Config
 func GlobalConfigSet(client *ecs.Client, region string) {
+	configMapName := "csi-plugin"
+	isADControllerEnable := false
+	isDiskTagEnable := false
+	isDiskMetricEnable := false
+	isDiskDetachDisable := false
+	isDiskDetachBeforeDelete := true
+
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
@@ -141,11 +151,6 @@ func GlobalConfigSet(client *ecs.Client, region string) {
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
-
-	configMapName := "csi-plugin"
-	isADControllerEnable := false
-	isDiskTagEnable := false
-	isDiskMetricEnable := false
 
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(configMapName, metav1.GetOptions{})
 	if err != nil {
@@ -170,6 +175,24 @@ func GlobalConfigSet(client *ecs.Client, region string) {
 			if value == "enable" || value == "yes" || value == "true" {
 				log.Infof("Disk Metric is enabled by configMap(%s).", value)
 				isDiskMetricEnable = true
+			}
+		}
+		if value, ok := configMap.Data["disk-detach-disable"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				log.Infof("Disk Detach is disabled by configMap(%s), this tag only works when adcontroller enabled.", value)
+				isDiskDetachDisable = true
+			} else if value == "disable" || value == "no" || value == "false" {
+				log.Infof("Disk Detach is enable by configMap(%s), this tag only works when adcontroller enabled.", value)
+				isDiskDetachDisable = false
+			}
+		}
+		if value, ok := configMap.Data["disk-detach-before-delete"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				log.Infof("Disk Detach before delete is enabled by configMap(%s).", value)
+				isDiskDetachBeforeDelete = true
+			} else if value == "disable" || value == "no" || value == "false" {
+				log.Infof("Disk Detach before delete is diskable by configMap(%s).", value)
+				isDiskDetachBeforeDelete = false
 			}
 		}
 	}
@@ -224,5 +247,8 @@ func GlobalConfigSet(client *ecs.Client, region string) {
 		DiskTagEnable:      isDiskTagEnable,
 		MetricEnable:       isDiskMetricEnable,
 		RunTimeClass:       runtimeValue,
+		DetachDisabled:     isDiskDetachDisable,
+		DetachBeforeDelete: isDiskDetachBeforeDelete,
+		ClientSet:          kubeClient,
 	}
 }
