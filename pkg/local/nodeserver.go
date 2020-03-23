@@ -64,7 +64,7 @@ const (
 	StripingType = "striping"
 	// DefaultFs default fs
 	DefaultFs = "ext4"
-	// DefaultNA default NodeAffinity
+	// DefaultNodeAffinity default NodeAffinity
 	DefaultNodeAffinity = "true"
 )
 
@@ -215,7 +215,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// upgrade PV with NodeAffinity
 	nodeAffinityAdded := false
-	if _, ok := req.VolumeContext[NODE_SCH_TAG]; ok {
+	if _, ok := req.VolumeContext[NodeSchTag]; ok {
 		nodeAffinityAdded = true
 	}
 	if nodeAffinity == "true" && !nodeAffinityAdded {

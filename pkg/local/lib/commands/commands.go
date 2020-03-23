@@ -119,6 +119,7 @@ func CloneLV(ctx context.Context, src, dest string) (string, error) {
 	return string(out), err
 }
 
+// ListVG get vg info
 func ListVG(ctx context.Context) ([]*parser.VG, error) {
 
 	args := []string{NsenterCmd, "vgs", "--units=b", "--separator=\"<:SEP:>\"", "--nosuffix", "--noheadings",
@@ -142,6 +143,7 @@ func ListVG(ctx context.Context) ([]*parser.VG, error) {
 	return vgs, nil
 }
 
+// CreateVG create volume group
 func CreateVG(ctx context.Context, name string, physicalVolume string, tags []string) (string, error) {
 
 	args := []string{NsenterCmd, "vgcreate", name, physicalVolume, "-v"}
@@ -154,6 +156,7 @@ func CreateVG(ctx context.Context, name string, physicalVolume string, tags []st
 	return string(out), err
 }
 
+// RemoveVG remove volume group
 func RemoveVG(ctx context.Context, name string) (string, error) {
 	vgs, err := ListVG(ctx)
 	if err != nil {
@@ -207,6 +210,7 @@ func CleanPath(ctx context.Context, path string) error {
 	return errList[0]
 }
 
+// AddTagLV add tag
 func AddTagLV(ctx context.Context, vg string, name string, tags []string) (string, error) {
 
 	lvs, err := ListLV(ctx, fmt.Sprintf("%s/%s", vg, name))
@@ -231,6 +235,7 @@ func AddTagLV(ctx context.Context, vg string, name string, tags []string) (strin
 	return string(out), err
 }
 
+// RemoveTagLV remove tag
 func RemoveTagLV(ctx context.Context, vg string, name string, tags []string) (string, error) {
 
 	lvs, err := ListLV(ctx, fmt.Sprintf("%s/%s", vg, name))

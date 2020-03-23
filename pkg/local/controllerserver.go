@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"strings"
 	"time"
 )
 
@@ -45,12 +46,12 @@ const (
 	connectTimeout = 3 * time.Second
 	// TopologyNodeKey define host name of node
 	TopologyNodeKey = "kubernetes.io/hostname"
-	// PVC_NAME_TAG in annotations
-	PVC_NAME_TAG = "csi.storage.k8s.io/pvc/name"
-	// PVC_NS_TAG in annotations
-	PVC_NS_TAG = "csi.storage.k8s.io/pvc/namespace"
-	// NODE_SCH_TAG in annotations
-	NODE_SCH_TAG = "volume.kubernetes.io/selected-node"
+	// PvcNameTag in annotations
+	PvcNameTag = "csi.storage.k8s.io/pvc/name"
+	// PvcNsTag in annotations
+	PvcNsTag = "csi.storage.k8s.io/pvc/namespace"
+	// NodeSchTag in annotations
+	NodeSchTag = "volume.kubernetes.io/selected-node"
 )
 
 // newControllerServer creates a controllerServer object
@@ -95,13 +96,13 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		log.Errorf("CreateVolume: Create volume %s with error volumeType %v", volumeID, parameters)
 		return nil, status.Error(codes.InvalidArgument, "Local driver only support LVM volume type, no "+volumeType)
 	}
-	if value, ok := parameters[PVC_NAME_TAG]; ok {
+	if value, ok := parameters[PvcNameTag]; ok {
 		pvcName = value
 	}
-	if value, ok := parameters[PVC_NS_TAG]; ok {
+	if value, ok := parameters[PvcNsTag]; ok {
 		pvcNameSpace = value
 	}
-	if value, ok := parameters[NODE_SCH_TAG]; ok {
+	if value, ok := parameters[NodeSchTag]; ok {
 		nodeSelected = value
 	}
 
@@ -118,7 +119,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			},
 		}
 	} else {
-		parameters[NODE_SCH_TAG] = nodeSelected
+		parameters[NodeSchTag] = nodeSelected
 		response = &csi.CreateVolumeResponse{
 			Volume: &csi.Volume{
 				VolumeId:      volumeID,
@@ -195,15 +196,25 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				log.Errorf("DeleteVolume: New lvm %s Connection with error: %s", req.GetVolumeId(), err.Error())
 				return nil, err
 			}
-			if err := conn.DeleteLvm(ctx, vgName, volumeID); err != nil {
-				log.Errorf("DeleteVolume: Remove lvm %s/%s with error: %s", vgName, volumeID, err.Error())
-				return nil, errors.New("Remove Lvm with error " + err.Error())
+			if _, err := conn.GetLvm(ctx, vgName, volumeID); err == nil {
+				if err := conn.DeleteLvm(ctx, vgName, volumeID); err != nil {
+					log.Errorf("DeleteVolume: Remove lvm %s/%s with error: %s", vgName, volumeID, err.Error())
+					return nil, errors.New("Remove Lvm with error " + err.Error())
+				}
+			} else if strings.Contains(err.Error(), "Failed to find logical volume") {
+				log.Infof("DeleteVolume: lvm volume not found, skip deleting %s", volumeID)
+			} else if strings.Contains(err.Error(), "Volume group \""+vgName+"\" not found") {
+				log.Infof("DeleteVolume: Volume group not found, skip deleting %s", volumeID)
+			} else {
+				log.Errorf("DeleteVolume: Get lvm for %s with error: %s", req.GetVolumeId(), err.Error())
+				return nil, err
 			}
 		}
 	} else {
 		log.Errorf("DeleteVolume: volumeType %s not supported %s", volumeType, volumeID)
 		return nil, status.Error(codes.InvalidArgument, "Local driver only support LVM volume type, no "+volumeType)
 	}
+	log.Infof("DeleteVolume: successful delete volume %s", volumeID)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
