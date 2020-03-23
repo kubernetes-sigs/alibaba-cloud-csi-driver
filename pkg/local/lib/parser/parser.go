@@ -273,6 +273,7 @@ type LV struct {
 	Tags               []string
 }
 
+// VG is volume group
 type VG struct {
 	Name     string
 	Size     uint64
@@ -295,6 +296,7 @@ func (lv LV) ToProto() *pb.LogicalVolume {
 	}
 }
 
+// ToProto to proto
 func (vg VG) ToProto() *pb.VolumeGroup {
 	return &pb.VolumeGroup{
 		Name:     vg.Name,
@@ -374,6 +376,7 @@ func ParseLV(line string) (*LV, error) {
 	}, nil
 }
 
+// ParseVG parse volume group
 func ParseVG(line string) (*VG, error) {
 	// vgs --units=b --separator="<:SEP:>" --nosuffix --noheadings -o vg_name,vg_size,vg_free,vg_uuid,vg_tags --nameprefixes -a
 	fields, err := parse(line, 5)

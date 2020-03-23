@@ -25,12 +25,15 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Server lvm grpc server
 type Server struct{}
 
+// NewServer new server
 func NewServer() Server {
 	return Server{}
 }
 
+// ListLV list lvm volume
 func (s Server) ListLV(ctx context.Context, in *pb.ListLVRequest) (*pb.ListLVReply, error) {
 	lvs, err := commands.ListLV(ctx, in.VolumeGroup)
 	if err != nil {
@@ -46,6 +49,7 @@ func (s Server) ListLV(ctx context.Context, in *pb.ListLVRequest) (*pb.ListLVRep
 	return &pb.ListLVReply{Volumes: pblvs}, nil
 }
 
+// CreateLV create lvm volume
 func (s Server) CreateLV(ctx context.Context, in *pb.CreateLVRequest) (*pb.CreateLVReply, error) {
 	out, err := commands.CreateLV(ctx, in.VolumeGroup, in.Name, in.Size, in.Mirrors, in.Tags)
 	if err != nil {
@@ -56,6 +60,7 @@ func (s Server) CreateLV(ctx context.Context, in *pb.CreateLVRequest) (*pb.Creat
 	return &pb.CreateLVReply{CommandOutput: out}, nil
 }
 
+// RemoveLV remove lvm volume
 func (s Server) RemoveLV(ctx context.Context, in *pb.RemoveLVRequest) (*pb.RemoveLVReply, error) {
 	out, err := commands.RemoveLV(ctx, in.VolumeGroup, in.Name)
 	if err != nil {
@@ -66,6 +71,7 @@ func (s Server) RemoveLV(ctx context.Context, in *pb.RemoveLVRequest) (*pb.Remov
 	return &pb.RemoveLVReply{CommandOutput: out}, nil
 }
 
+// CloneLV clone lvm volume
 func (s Server) CloneLV(ctx context.Context, in *pb.CloneLVRequest) (*pb.CloneLVReply, error) {
 	out, err := commands.CloneLV(ctx, in.SourceName, in.DestName)
 	if err != nil {
@@ -76,6 +82,7 @@ func (s Server) CloneLV(ctx context.Context, in *pb.CloneLVRequest) (*pb.CloneLV
 	return &pb.CloneLVReply{CommandOutput: out}, nil
 }
 
+// ListVG list volume group
 func (s Server) ListVG(ctx context.Context, in *pb.ListVGRequest) (*pb.ListVGReply, error) {
 	vgs, err := commands.ListVG(ctx)
 	if err != nil {
@@ -91,6 +98,7 @@ func (s Server) ListVG(ctx context.Context, in *pb.ListVGRequest) (*pb.ListVGRep
 	return &pb.ListVGReply{VolumeGroups: pbvgs}, nil
 }
 
+// CreateVG create volume group
 func (s Server) CreateVG(ctx context.Context, in *pb.CreateVGRequest) (*pb.CreateVGReply, error) {
 	out, err := commands.CreateVG(ctx, in.Name, in.PhysicalVolume, in.Tags)
 	if err != nil {
@@ -101,6 +109,7 @@ func (s Server) CreateVG(ctx context.Context, in *pb.CreateVGRequest) (*pb.Creat
 	return &pb.CreateVGReply{CommandOutput: out}, nil
 }
 
+// RemoveVG remove volume group
 func (s Server) RemoveVG(ctx context.Context, in *pb.CreateVGRequest) (*pb.RemoveVGReply, error) {
 	out, err := commands.RemoveVG(ctx, in.Name)
 	if err != nil {
@@ -111,6 +120,7 @@ func (s Server) RemoveVG(ctx context.Context, in *pb.CreateVGRequest) (*pb.Remov
 	return &pb.RemoveVGReply{CommandOutput: out}, nil
 }
 
+// CleanPath remove file under path
 func (s Server) CleanPath(ctx context.Context, in *pb.CleanPathRequest) (*pb.CleanPathReply, error) {
 	err := commands.CleanPath(ctx, in.Path)
 	if err != nil {
@@ -121,6 +131,7 @@ func (s Server) CleanPath(ctx context.Context, in *pb.CleanPathRequest) (*pb.Cle
 	return &pb.CleanPathReply{CommandOutput: "Successful remove path: " + in.Path}, nil
 }
 
+// AddTagLV add tag
 func (s Server) AddTagLV(ctx context.Context, in *pb.AddTagLVRequest) (*pb.AddTagLVReply, error) {
 	log, err := commands.AddTagLV(ctx, in.VolumeGroup, in.Name, in.Tags)
 	if err != nil {
@@ -129,6 +140,7 @@ func (s Server) AddTagLV(ctx context.Context, in *pb.AddTagLVRequest) (*pb.AddTa
 	return &pb.AddTagLVReply{CommandOutput: log}, nil
 }
 
+// RemoveTagLV remove tag
 func (s Server) RemoveTagLV(ctx context.Context, in *pb.RemoveTagLVRequest) (*pb.RemoveTagLVReply, error) {
 	log, err := commands.RemoveTagLV(ctx, in.VolumeGroup, in.Name, in.Tags)
 	if err != nil {
