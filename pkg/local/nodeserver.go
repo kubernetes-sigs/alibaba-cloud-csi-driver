@@ -65,7 +65,7 @@ const (
 	// DefaultFs default fs
 	DefaultFs = "ext4"
 	// DefaultNA default NodeAffinity
-	DefaultNA = "true"
+	DefaultNodeAffinity = "true"
 )
 
 type nodeServer struct {
@@ -96,6 +96,7 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
+	// local volume daemon
 	go server.Start()
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
@@ -112,7 +113,7 @@ func (ns *nodeServer) GetNodeID() string {
 }
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	log.Infof("NodePublishVolume:: req, %v", req)
+	log.Infof("NodePublishVolume:: request with %v", req)
 
 	// parse request args.
 	targetPath := req.GetTargetPath()
@@ -124,12 +125,16 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		vgName = req.VolumeContext[VgNameTag]
 	}
 	if vgName == "" {
+		log.Errorf("NodePublishVolume: request with empty vgName in volume: %s", req.VolumeId)
 		return nil, status.Error(codes.Internal, "error with input vgName is empty")
 	}
+
+	// special process on alibaba local disk type;
 	pvType := CloudDisk
 	if _, ok := req.VolumeContext[PvTypeTag]; ok {
 		pvType = req.VolumeContext[PvTypeTag]
 	}
+	// default create lvm in linear type
 	lvmType := LinearType
 	if _, ok := req.VolumeContext[LvmTypeTag]; ok {
 		lvmType = req.VolumeContext[LvmTypeTag]
@@ -138,11 +143,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if _, ok := req.VolumeContext[FsTypeTag]; ok {
 		fsType = req.VolumeContext[FsTypeTag]
 	}
-	nodeAffinity := DefaultNA
+	nodeAffinity := DefaultNodeAffinity
 	if _, ok := req.VolumeContext[NodeAffinity]; ok {
 		nodeAffinity = req.VolumeContext[NodeAffinity]
 	}
-	log.Infof("NodePublishVolume: Starting to mount lvm at: %s, with vg: %s, with volume: %s, PV type: %s, LVM type: %s", targetPath, vgName, req.GetVolumeId(), pvType, lvmType)
+	log.Infof("NodePublishVolume: Starting to mount lvm at path: %s, with vg: %s, with volume: %s, PV Type: %s, LVM Type: %s", targetPath, vgName, req.GetVolumeId(), pvType, lvmType)
 
 	volumeNewCreated := false
 	volumeID := req.GetVolumeId()
@@ -151,6 +156,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		volumeNewCreated = true
 		err := ns.createVolume(ctx, volumeID, vgName, pvType, lvmType)
 		if err != nil {
+			log.Errorf("NodePublishVolume: create volume %s with error: %s", volumeID, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -159,6 +165,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err != nil {
 		if _, err := os.Stat(targetPath); os.IsNotExist(err) {
 			if err := os.MkdirAll(targetPath, 0750); err != nil {
+				log.Errorf("NodePublishVolume: volume %s mkdir target path %s with error: %s", volumeID, targetPath, err.Error())
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 			isMnt = false
@@ -169,12 +176,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	exitFSType, err := checkFSType(devicePath)
 	if err != nil {
+		log.Errorf("NodePublishVolume: check FS type %s with error: %s", volumeID, err.Error())
 		return nil, status.Errorf(codes.Internal, "check fs type err: %v", err)
 	}
 	if exitFSType == "" {
-		log.Printf("The device %v has no filesystem, starting format: %v", devicePath, fsType)
+		log.Infof("The device %v has no filesystem, starting format to: %v", devicePath, fsType)
 		if err := formatDevice(devicePath, fsType); err != nil {
-			return nil, status.Errorf(codes.Internal, "format fstype failed: err=%v", err)
+			log.Errorf("NodePublishVolume: Format device %s with error: %s", devicePath, err.Error())
+			return nil, status.Errorf(codes.Internal, "format fstype failed: err %v", err)
 		}
 	}
 
@@ -190,6 +199,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 		err = ns.mounter.Mount(devicePath, targetPath, fsType, options...)
 		if err != nil {
+			log.Errorf("NodePublishVolume: Mount volume %s to %s with error: %s", devicePath, targetPath, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		log.Infof("NodePublishVolume:: mount successful devicePath: %s, targetPath: %s, options: %v", devicePath, targetPath, options)
@@ -198,12 +208,17 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// xfs filesystem works on targetpath.
 	if volumeNewCreated == false {
 		if err := ns.resizeVolume(ctx, volumeID, vgName, targetPath); err != nil {
+			log.Errorf("NodePublishVolume: Resize volume %s with error: %s", volumeID, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 
 	// upgrade PV with NodeAffinity
-	if nodeAffinity == "true" {
+	nodeAffinityAdded := false
+	if _, ok := req.VolumeContext[NODE_SCH_TAG]; ok {
+		nodeAffinityAdded = true
+	}
+	if nodeAffinity == "true" && !nodeAffinityAdded {
 		oldPv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
 		if err != nil {
 			log.Errorf("NodePublishVolume: Get Persistent Volume(%s) Error: %s", volumeID, err.Error())
