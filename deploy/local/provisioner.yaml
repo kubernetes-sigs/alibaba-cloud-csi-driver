@@ -1,0 +1,54 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: csi-local-provisioner
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: csi-local-provisioner
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: csi-local-provisioner
+    spec:
+      tolerations:
+      - operator: "Exists"
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+      priorityClassName: system-node-critical
+      serviceAccount: admin
+      hostNetwork: true
+      containers:
+        - name: external-local-provisioner
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1-5f99079e0-ack
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--feature-gates=Topology=True"
+            - "--volume-name-prefix=disk"
+            - "--strict-topology=true"
+            - "--timeout=150s"
+            - "--extra-create-metadata=true"
+            - "--enable-leader-election=true"
+            - "--leader-election-type=leases"
+            - "--retry-interval-start=500ms"
+            - "--v=5"
+          env:
+            - name: ADDRESS
+              value: /socketDir/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /socketDir
+      volumes:
+        - name: socket-dir
+          hostPath:
+            path: /var/lib/kubelet/csi-plugins/localplugin.csi.alibabacloud.com
+            type: DirectoryOrCreate

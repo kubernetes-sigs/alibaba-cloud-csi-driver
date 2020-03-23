@@ -8,6 +8,8 @@ require (
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/groupcache v0.0.0-00010101000000-000000000000 // indirect
 	github.com/golang/protobuf v1.3.0
+	github.com/google/credstore v0.0.0-20181218150457-e184c60ef875 // indirect
+	github.com/google/go-microservice-helpers v0.0.0-20190205165657-a91942da5417
 	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf // indirect
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/hashicorp/golang-lru v0.0.0-00010101000000-000000000000 // indirect
@@ -17,6 +19,7 @@ require (
 	github.com/kubernetes-csi/drivers v1.0.2
 	github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443
 	github.com/onsi/gomega v0.0.0-00010101000000-000000000000 // indirect
+	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/sevlyar/go-daemon v0.1.5
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/afero v1.2.2 // indirect
@@ -28,7 +31,6 @@ require (
 	google.golang.org/genproto v0.0.0-20190307195333-5fe7a883aa19 // indirect
 	google.golang.org/grpc v1.19.0
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v2 v2.2.2 // indirect
 	k8s.io/api v0.0.0-20190624085159-95846d7ef82a
 	k8s.io/apimachinery v0.0.0-20190624085041-961b39a1baa0
 	k8s.io/client-go v11.0.0+incompatible
