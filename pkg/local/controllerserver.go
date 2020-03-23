@@ -45,6 +45,12 @@ const (
 	connectTimeout = 3 * time.Second
 	// TopologyNodeKey define host name of node
 	TopologyNodeKey = "kubernetes.io/hostname"
+	// PVC_NAME_TAG in annotations
+	PVC_NAME_TAG = "csi.storage.k8s.io/pvc/name"
+	// PVC_NS_TAG in annotations
+	PVC_NS_TAG = "csi.storage.k8s.io/pvc/namespace"
+	// NODE_SCH_TAG in annotations
+	NODE_SCH_TAG = "volume.kubernetes.io/selected-node"
 )
 
 // newControllerServer creates a controllerServer object
@@ -66,13 +72,15 @@ func newControllerServer(d *csicommon.CSIDriver) *controllerServer {
 
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME); err != nil {
-		log.Infof("invalid create volume req: %v", req)
+		log.Errorf("Invalid create volume req: %v", req)
 		return nil, err
 	}
-	if len(req.Name) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Volume Name cannot be empty")
+	if req.Name == "" {
+		log.Errorf("CreateVolume: volume Name is empty")
+		return nil, status.Error(codes.InvalidArgument, "CreateVolume: Volume Name cannot be empty")
 	}
 	if req.VolumeCapabilities == nil {
+		log.Errorf("Volume Capabilities cannot be empty")
 		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
 	}
 	pvcName, pvcNameSpace, volumeType, nodeSelected := "", "", "", ""
@@ -87,24 +95,35 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		log.Errorf("CreateVolume: Create volume %s with error volumeType %v", volumeID, parameters)
 		return nil, status.Error(codes.InvalidArgument, "Local driver only support LVM volume type, no "+volumeType)
 	}
+	if value, ok := parameters[PVC_NAME_TAG]; ok {
+		pvcName = value
+	}
+	if value, ok := parameters[PVC_NS_TAG]; ok {
+		pvcNameSpace = value
+	}
+	if value, ok := parameters[NODE_SCH_TAG]; ok {
+		nodeSelected = value
+	}
 
-	log.Infof("Starting to Create %s volume with: %s, %s", volumeType, pvcName, pvcNameSpace)
 	// Get nodeID if pvc in topology mode.
 	nodeSelected = pickNodeID(req.GetAccessibilityRequirements())
+	log.Infof("Starting to Create %s volume with: %s, %s, %s, %s", volumeType, volumeID, pvcName, pvcNameSpace, nodeSelected)
+
 	if nodeSelected == "" {
 		response = &csi.CreateVolumeResponse{
 			Volume: &csi.Volume{
 				VolumeId:      volumeID,
 				CapacityBytes: req.GetCapacityRange().GetRequiredBytes(),
-				VolumeContext: req.GetParameters(),
+				VolumeContext: parameters,
 			},
 		}
 	} else {
+		parameters[NODE_SCH_TAG] = nodeSelected
 		response = &csi.CreateVolumeResponse{
 			Volume: &csi.Volume{
 				VolumeId:      volumeID,
 				CapacityBytes: req.GetCapacityRange().GetRequiredBytes(),
-				VolumeContext: req.GetParameters(),
+				VolumeContext: parameters,
 				AccessibleTopology: []*csi.Topology{
 					{
 						Segments: map[string]string{
@@ -116,7 +135,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 	}
 
-	log.Infof("Success create Volume: %s, Size: %d, Parameters: %v", volumeID, req.GetCapacityRange().GetRequiredBytes(), req.Parameters)
+	log.Infof("Success create Volume: %s, Size: %d, Parameters: %v", volumeID, req.GetCapacityRange().GetRequiredBytes(), response.Volume)
 	return response, nil
 }
 
@@ -146,10 +165,11 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	volumeID := req.GetVolumeId()
 	pvObj, err := getPvObj(cs.client, volumeID)
 	if err != nil {
-		log.Infof("DeleteVolume: deleting volume %s error with: %s", volumeID, err.Error())
+		log.Errorf("DeleteVolume: get volume object %s error with: %s", volumeID, err.Error())
 		return nil, err
 	}
 	if pvObj.Spec.CSI == nil {
+		log.Errorf("DeleteVolume: Remove Lvm Failed, volume is not csi type %s", volumeID)
 		return nil, errors.New("Remove Lvm Failed: volume is not csi type: " + volumeID)
 	}
 	volumeType := ""
@@ -160,6 +180,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	if volumeType == LvmVolumeType {
 		nodeName, vgName, err := getLvmSpec(cs.client, volumeID, cs.driverName)
 		if err != nil {
+			log.Errorf("DeleteVolume: get Lvm %s Spec with error %s", volumeID, err.Error())
 			return nil, err
 		}
 		if nodeName != "" {
@@ -174,17 +195,14 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				log.Errorf("DeleteVolume: New lvm %s Connection with error: %s", req.GetVolumeId(), err.Error())
 				return nil, err
 			}
-
-			if _, err := conn.GetLvm(ctx, vgName, volumeID); err == nil {
-				if err := conn.DeleteLvm(ctx, vgName, volumeID); err != nil {
-					log.Errorf("DeleteVolume: Remove lvm %s with error: %s", req.GetVolumeId(), err.Error())
-					return nil, errors.New("Remove Lvm Failed: " + err.Error())
-				}
-			} else {
-				log.Errorf("DeleteVolume: Get lvm %s with error: %s", req.GetVolumeId(), err.Error())
-				return nil, err
+			if err := conn.DeleteLvm(ctx, vgName, volumeID); err != nil {
+				log.Errorf("DeleteVolume: Remove lvm %s/%s with error: %s", vgName, volumeID, err.Error())
+				return nil, errors.New("Remove Lvm with error " + err.Error())
 			}
 		}
+	} else {
+		log.Errorf("DeleteVolume: volumeType %s not supported %s", volumeType, volumeID)
+		return nil, status.Error(codes.InvalidArgument, "Local driver only support LVM volume type, no "+volumeType)
 	}
 	return &csi.DeleteVolumeResponse{}, nil
 }
