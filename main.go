@@ -27,6 +27,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cpfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/lvm"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mem"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
@@ -55,6 +56,8 @@ const (
 	TypePluginLVM = "lvmplugin.csi.alibabacloud.com"
 	// TypePluginMEM memory type plugin
 	TypePluginMEM = "memplugin.csi.alibabacloud.com"
+	// TypePluginLOCAL local type plugin
+	TypePluginLOCAL = "localplugin.csi.alibabacloud.com"
 	// ExtenderAgent agent component
 	ExtenderAgent = "agent"
 )
@@ -115,6 +118,9 @@ func main() {
 		driver.Run()
 	} else if drivername == TypePluginMEM {
 		driver := mem.NewDriver(*nodeID, *endpoint)
+		driver.Run()
+	} else if drivername == TypePluginLOCAL {
+		driver := local.NewDriver(*nodeID, *endpoint)
 		driver.Run()
 	} else if drivername == ExtenderAgent {
 		queryServer := agent.NewAgent()
