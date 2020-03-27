@@ -20,6 +20,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -97,7 +98,7 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	tmpdisk.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
 
 	// Init ECS Client
-	accessKeyID, accessSecret, accessToken := GetDefaultAK()
+	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
 	client := newEcsClient(accessKeyID, accessSecret, accessToken)
 	if accessToken == "" {
 		log.Infof("Starting csi-plugin without sts")
@@ -138,7 +139,7 @@ func GlobalConfigSet(client *ecs.Client, region string) {
 	configMapName := "csi-plugin"
 	isADControllerEnable := false
 	isDiskTagEnable := false
-	isDiskMetricEnable := false
+	isDiskMetricEnable := true
 	isDiskDetachDisable := false
 	isDiskDetachBeforeDelete := true
 

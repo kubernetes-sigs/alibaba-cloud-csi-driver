@@ -246,69 +246,6 @@ func ReadJSONFile(file string) (map[string]string, error) {
 	return jsonObj, nil
 }
 
-// GetLocalAK read ossfs ak from local or from secret file
-func GetLocalAK() (string, string) {
-	accessKeyID, accessSecret := "", ""
-	//accessKeyID, accessSecret = GetLocalAK()
-	//if accessKeyID == "" || accessSecret == "" {
-	if IsFileExisting(UserAKID) && IsFileExisting(UserAKSecret) {
-		raw, err := ioutil.ReadFile(UserAKID)
-		if err != nil {
-			log.Errorf("Read User AK ID file error: %s", err.Error())
-			return "", ""
-		}
-		accessKeyID = string(raw)
-
-		raw, err = ioutil.ReadFile(UserAKSecret)
-		if err != nil {
-			log.Errorf("Read User AK Secret file error: %s", err.Error())
-			return "", ""
-		}
-		accessSecret = string(raw)
-	}
-
-	//}
-	return strings.TrimSpace(accessKeyID), strings.TrimSpace(accessSecret)
-}
-
-// GetDefaultAK read default ak from local file or from STS
-func GetDefaultAK() (string, string, string) {
-	accessKeyID, accessSecret := GetLocalAK()
-
-	accessToken := ""
-	if accessKeyID == "" || accessSecret == "" {
-		accessKeyID, accessSecret, accessToken = GetSTSAK()
-	}
-
-	return accessKeyID, accessSecret, accessToken
-
-}
-
-// GetSTSAK get STS AK and token from ecs meta server
-func GetSTSAK() (string, string, string) {
-	roleAuth := RoleAuth{}
-	subpath := "ram/security-credentials/"
-	roleName, err := GetMetaData(subpath)
-	if err != nil {
-		log.Errorf("GetSTSToken: request roleName with error: %s", err.Error())
-		return "", "", ""
-	}
-
-	fullPath := filepath.Join(subpath, roleName)
-	roleInfo, err := GetMetaData(fullPath)
-	if err != nil {
-		log.Errorf("GetSTSToken: request roleInfo with error: %s", err.Error())
-		return "", "", ""
-	}
-
-	err = json.Unmarshal([]byte(roleInfo), &roleAuth)
-	if err != nil {
-		log.Errorf("GetSTSToken: unmarshal roleInfo: %s, with error: %s", roleInfo, err.Error())
-		return "", "", ""
-	}
-	return roleAuth.AccessKeyID, roleAuth.AccessKeySecret, roleAuth.SecurityToken
-}
-
 // NewEcsClient create a ecsClient object
 func NewEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *ecs.Client) {
 	var err error
