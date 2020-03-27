@@ -150,7 +150,7 @@ func newEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *
 }
 
 func updateEcsClent(client *ecs.Client) *ecs.Client {
-	accessKeyID, accessSecret, accessToken := GetDefaultAK()
+	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
 	if accessToken != "" {
 		client = newEcsClient(accessKeyID, accessSecret, accessToken)
 	}
@@ -180,18 +180,6 @@ func SetEcsEndPoint(regionID string) {
 	}
 }
 
-// GetDefaultAK read default ak from local file or from STS
-func GetDefaultAK() (string, string, string) {
-	accessKeyID, accessSecret := GetLocalAK()
-
-	accessToken := ""
-	if accessKeyID == "" || accessSecret == "" {
-		accessKeyID, accessSecret, accessToken = GetSTSAK()
-	}
-
-	return accessKeyID, accessSecret, accessToken
-}
-
 // GetMetaData get host regionid, zoneid
 func GetMetaData(resource string) string {
 	resp, err := http.Get(MetadataURL + resource)
@@ -204,44 +192,6 @@ func GetMetaData(resource string) string {
 		return ""
 	}
 	return string(body)
-}
-
-// GetSTSAK get STS AK and token from ecs meta server
-func GetSTSAK() (string, string, string) {
-	roleAuth := RoleAuth{}
-	subpath := "ram/security-credentials/"
-	roleName, err := utils.GetMetaData(subpath)
-	if err != nil {
-		log.Errorf("GetSTSToken: request roleName with error: %s", err.Error())
-		return "", "", ""
-	}
-
-	fullPath := filepath.Join(subpath, roleName)
-	roleInfo, err := utils.GetMetaData(fullPath)
-	if err != nil {
-		log.Errorf("GetSTSToken: request roleInfo with error: %s", err.Error())
-		return "", "", ""
-	}
-
-	err = json.Unmarshal([]byte(roleInfo), &roleAuth)
-	if err != nil {
-		log.Errorf("GetSTSToken: unmarshal roleInfo: %s, with error: %s", roleInfo, err.Error())
-		return "", "", ""
-	}
-	return roleAuth.AccessKeyID, roleAuth.AccessKeySecret, roleAuth.SecurityToken
-}
-
-// GetLocalAK return if ak meta defined in env
-func GetLocalAK() (string, string) {
-	var accessKeyID, accessSecret string
-	// first check if the environment setting
-	accessKeyID = os.Getenv("ACCESS_KEY_ID")
-	accessSecret = os.Getenv("ACCESS_KEY_SECRET")
-	if accessKeyID != "" && accessSecret != "" {
-		return accessKeyID, accessSecret
-	}
-
-	return accessKeyID, accessSecret
 }
 
 // GetDeviceByMntPoint return the device info from given mount point

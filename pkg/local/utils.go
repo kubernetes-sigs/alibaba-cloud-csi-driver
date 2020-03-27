@@ -122,11 +122,7 @@ func getLocalDeviceNum() (int, error) {
 	instanceID := GetMetaData(InstanceID)
 	regionID := GetMetaData(RegionIDTag)
 	localDeviceNum := 0
-	akID, akSecret, token := "", "", ""
-	akID, akSecret = utils.GetLocalAK()
-	if akID == "" || akSecret == "" {
-		akID, akSecret, token = utils.GetSTSAK()
-	}
+	akID, akSecret, token := utils.GetDefaultAK()
 	client := utils.NewEcsClient(akID, akSecret, token)
 
 	// Get Instance Type

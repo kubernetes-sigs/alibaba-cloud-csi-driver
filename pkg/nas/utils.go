@@ -27,7 +27,6 @@ import (
 	"sync"
 	"time"
 
-	"encoding/json"
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -167,7 +166,7 @@ func GetMetaData(resource string) string {
 }
 
 func updateNasClient(client *aliNas.Client) *aliNas.Client {
-	accessKeyID, accessSecret, accessToken := GetDefaultAK()
+	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
 	if accessToken != "" {
 		client = newNasClient(accessKeyID, accessSecret, accessToken)
 	}
@@ -175,56 +174,6 @@ func updateNasClient(client *aliNas.Client) *aliNas.Client {
 		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
 	}
 	return client
-}
-
-// GetDefaultAK read default ak from local file or from STS
-func GetDefaultAK() (string, string, string) {
-	accessKeyID, accessSecret := GetLocalAK()
-
-	accessToken := ""
-	if accessKeyID == "" || accessSecret == "" {
-		accessKeyID, accessSecret, accessToken = GetSTSAK()
-	}
-
-	return accessKeyID, accessSecret, accessToken
-}
-
-// GetLocalAK return if ak meta defined in env
-func GetLocalAK() (string, string) {
-	var accessKeyID, accessSecret string
-	// first check if the environment setting
-	accessKeyID = os.Getenv("ACCESS_KEY_ID")
-	accessSecret = os.Getenv("ACCESS_KEY_SECRET")
-	if accessKeyID != "" && accessSecret != "" {
-		return accessKeyID, accessSecret
-	}
-
-	return accessKeyID, accessSecret
-}
-
-// GetSTSAK get STS AK and token from ecs meta server
-func GetSTSAK() (string, string, string) {
-	roleAuth := RoleAuth{}
-	subpath := "ram/security-credentials/"
-	roleName, err := utils.GetMetaData(subpath)
-	if err != nil {
-		log.Errorf("GetSTSToken: request roleName with error: %s", err.Error())
-		return "", "", ""
-	}
-
-	fullPath := filepath.Join(subpath, roleName)
-	roleInfo, err := utils.GetMetaData(fullPath)
-	if err != nil {
-		log.Errorf("GetSTSToken: request roleInfo with error: %s", err.Error())
-		return "", "", ""
-	}
-
-	err = json.Unmarshal([]byte(roleInfo), &roleAuth)
-	if err != nil {
-		log.Errorf("GetSTSToken: unmarshal roleInfo: %s, with error: %s", roleInfo, err.Error())
-		return "", "", ""
-	}
-	return roleAuth.AccessKeyID, roleAuth.AccessKeySecret, roleAuth.SecurityToken
 }
 
 func newNasClient(accessKeyID, accessKeySecret, accessToken string) (nasClient *aliNas.Client) {
