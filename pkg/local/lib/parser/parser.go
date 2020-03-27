@@ -280,6 +280,7 @@ type VG struct {
 	FreeSize uint64
 	UUID     string
 	Tags     []string
+	PvCount  uint64
 }
 
 // ToProto returns lvm.LogicalVolume representation of struct
@@ -304,6 +305,7 @@ func (vg VG) ToProto() *pb.VolumeGroup {
 		FreeSize: vg.FreeSize,
 		Uuid:     vg.UUID,
 		Tags:     vg.Tags,
+		PvCount:  vg.PvCount,
 	}
 }
 
@@ -378,8 +380,8 @@ func ParseLV(line string) (*LV, error) {
 
 // ParseVG parse volume group
 func ParseVG(line string) (*VG, error) {
-	// vgs --units=b --separator="<:SEP:>" --nosuffix --noheadings -o vg_name,vg_size,vg_free,vg_uuid,vg_tags --nameprefixes -a
-	fields, err := parse(line, 5)
+	// vgs --units=b --separator="<:SEP:>" --nosuffix --noheadings -o vg_name,vg_size,vg_free,vg_uuid,vg_tags,pv_count --nameprefixes -a
+	fields, err := parse(line, 6)
 	if err != nil {
 		return nil, err
 	}
@@ -393,13 +395,17 @@ func ParseVG(line string) (*VG, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	pvCount, err := strconv.ParseUint(fields["LVM2_PV_COUNT"], 10, 64)
+	if err != nil {
+		return nil, err
+	}
 	return &VG{
 		Name:     fields["LVM2_VG_NAME"],
 		Size:     size,
 		FreeSize: freeSize,
 		UUID:     fields["LVM2_VG_UUID"],
 		Tags:     strings.Split(fields["LVM2_VG_TAGS"], ","),
+		PvCount:  pvCount,
 	}, nil
 }
 

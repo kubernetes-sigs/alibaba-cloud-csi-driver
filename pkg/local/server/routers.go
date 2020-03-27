@@ -84,7 +84,7 @@ func (s Server) CloneLV(ctx context.Context, in *pb.CloneLVRequest) (*pb.CloneLV
 
 // ListVG list volume group
 func (s Server) ListVG(ctx context.Context, in *pb.ListVGRequest) (*pb.ListVGReply, error) {
-	vgs, err := commands.ListVG(ctx)
+	vgs, err := commands.ListVG()
 	if err != nil {
 		log.Errorf("List VG with error: %s", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to list LVs: %v", err)
