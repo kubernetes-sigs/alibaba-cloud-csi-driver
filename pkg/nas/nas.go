@@ -84,7 +84,7 @@ func NewDriver(nodeID, endpoint string) *NAS {
 	GlobalConfigSet()
 
 	d.driver = csiDriver
-	accessKeyID, accessSecret, accessToken := GetDefaultAK()
+	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
 	c := newNasClient(accessKeyID, accessSecret, accessToken)
 	region := os.Getenv("REGION_ID")
 	if region == "" {
