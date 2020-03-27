@@ -122,7 +122,7 @@ func GlobalConfigSet() {
 
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(configMapName, metav1.GetOptions{})
 	if err != nil {
-		log.Infof("Not found configmap named as csi-plugin under kube-system")
+		log.Infof("Not found configmap named as csi-plugin under kube-system, with error: %v", err)
 	} else {
 		if value, ok := configMap.Data["nas-metric-enable"]; ok {
 			if value == "enable" || value == "yes" || value == "true" {

@@ -120,10 +120,9 @@ func CloneLV(ctx context.Context, src, dest string) (string, error) {
 }
 
 // ListVG get vg info
-func ListVG(ctx context.Context) ([]*parser.VG, error) {
-
+func ListVG() ([]*parser.VG, error) {
 	args := []string{NsenterCmd, "vgs", "--units=b", "--separator=\"<:SEP:>\"", "--nosuffix", "--noheadings",
-		"-o", "vg_name,vg_size,vg_free,vg_uuid,vg_tags", "--nameprefixes", "-a"}
+		"-o", "vg_name,vg_size,vg_free,vg_uuid,vg_tags,pv_count", "--nameprefixes", "-a"}
 	cmd := strings.Join(args, " ")
 	out, err := Run(cmd)
 	if err != nil {
@@ -145,7 +144,6 @@ func ListVG(ctx context.Context) ([]*parser.VG, error) {
 
 // CreateVG create volume group
 func CreateVG(ctx context.Context, name string, physicalVolume string, tags []string) (string, error) {
-
 	args := []string{NsenterCmd, "vgcreate", name, physicalVolume, "-v"}
 	for _, tag := range tags {
 		args = append(args, "--add-tag", tag)
@@ -158,7 +156,7 @@ func CreateVG(ctx context.Context, name string, physicalVolume string, tags []st
 
 // RemoveVG remove volume group
 func RemoveVG(ctx context.Context, name string) (string, error) {
-	vgs, err := ListVG(ctx)
+	vgs, err := ListVG()
 	if err != nil {
 		return "", fmt.Errorf("failed to list VGs: %v", err)
 	}
