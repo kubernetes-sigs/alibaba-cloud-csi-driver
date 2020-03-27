@@ -37,7 +37,7 @@ const (
 // AKInfo access key info
 type AKInfo struct {
 	// AccessKeyId access key id
-	AccessKeyId string `json:"access.key.id"`
+	AccessKeyID string `json:"access.key.id"`
 	// AccessKeySecret access key secret
 	AccessKeySecret string `json:"access.key.secret"`
 	// SecurityToken security token
@@ -120,7 +120,7 @@ func GetManagedToken() (string, string, string) {
 			return "", "", ""
 		}
 		keyring := akInfo.Keyring
-		ak, err := Decrypt(akInfo.AccessKeyId, []byte(keyring))
+		ak, err := Decrypt(akInfo.AccessKeyID, []byte(keyring))
 		if err != nil {
 			log.Errorf("failed to decode ak, err: %v", err)
 			return "", "", ""
