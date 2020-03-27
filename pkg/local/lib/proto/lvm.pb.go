@@ -502,6 +502,7 @@ type VolumeGroup struct {
 	FreeSize             uint64   `protobuf:"varint,3,opt,name=free_size,json=freeSize,proto3" json:"free_size,omitempty"`
 	Uuid                 string   `protobuf:"bytes,4,opt,name=uuid,proto3" json:"uuid,omitempty"`
 	Tags                 []string `protobuf:"bytes,5,rep,name=tags,proto3" json:"tags,omitempty"`
+	PvCount              uint64   `protobuf:"varint,2,opt,name=pv_count,proto3" json:"pv_count,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -557,6 +558,13 @@ func (m *VolumeGroup) GetUuid() string {
 		return m.Uuid
 	}
 	return ""
+}
+
+func (m *VolumeGroup) GetPvCount() uint64 {
+	if m != nil {
+		return m.PvCount
+	}
+	return 0
 }
 
 func (m *VolumeGroup) GetTags() []string {

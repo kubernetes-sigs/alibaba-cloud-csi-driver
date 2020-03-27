@@ -421,19 +421,24 @@ func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType
 
 	// Create lvm volume
 	if lvmType == StripingType {
+		pvNumber = getPVNumber(vgName)
+		if pvNumber == 0 {
+			log.Errorf("createVolume:: VG is exist: %s, bug get pv number as 0", vgName)
+			return err
+		}
 		cmd := fmt.Sprintf("%s lvcreate -i %d -n %s -L %d%s %s", NsenterCmd, pvNumber, volumeID, pvSize, unit, vgName)
 		_, err = utils.Run(cmd)
 		if err != nil {
 			return err
 		}
-		log.Infof("Successful Create Striping LVM volume: %s, Size: %d%s, vgName: %s, striped number: %d", volumeID, pvSize, unit, vgName, pvNumber)
+		log.Infof("Successful Create Striping LVM volume: %s, with command: %s", volumeID, cmd)
 	} else if lvmType == LinearType {
 		cmd := fmt.Sprintf("%s lvcreate -n %s -L %d%s %s", NsenterCmd, volumeID, pvSize, unit, vgName)
 		_, err = utils.Run(cmd)
 		if err != nil {
 			return err
 		}
-		log.Infof("Successful Create Linear LVM volume: %s, Size: %d%s, vgName: %s", volumeID, pvSize, unit, vgName)
+		log.Infof("Successful Create Linear LVM volume: %s, with command: %s", volumeID, cmd)
 	}
 	return nil
 }

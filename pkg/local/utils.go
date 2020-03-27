@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/commands"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -235,6 +236,21 @@ func createVG(vgName string) (int, error) {
 
 	log.Infof("Successful add Local Disks to VG (%s): %v", vgName, localDeviceList)
 	return localDeviceNum, nil
+}
+
+func getPVNumber(vgName string) int {
+	var pvCount = 0
+	vgList, err := commands.ListVG()
+	if err != nil {
+		log.Errorf("Get pv for vg %s with error %s", vgName, err.Error())
+		return 0
+	}
+	for _, vg := range vgList {
+		if vg.Name == vgName {
+			pvCount = int(vg.PvCount)
+		}
+	}
+	return pvCount
 }
 
 func getPvObj(client kubernetes.Interface, volumeID string) (*v1.PersistentVolume, error) {
