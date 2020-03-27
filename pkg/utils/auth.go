@@ -30,16 +30,22 @@ import (
 )
 
 const (
+	// ConfigPath the secret mount file
 	ConfigPath = "/var/addon/token-config"
 )
 
 // AKInfo access key info
 type AKInfo struct {
-	AccessKeyId     string `json:"access.key.id"`
+	// AccessKeyId access key id
+	AccessKeyId string `json:"access.key.id"`
+	// AccessKeySecret access key secret
 	AccessKeySecret string `json:"access.key.secret"`
-	SecurityToken   string `json:"security.token"`
-	Expiration      string `json:"expiration"`
-	Keyring         string `json:"keyring"`
+	// SecurityToken security token
+	SecurityToken string `json:"security.token"`
+	// Expiration expiration duration
+	Expiration string `json:"expiration"`
+	// Keyring key ring
+	Keyring string `json:"keyring"`
 }
 
 // GetDefaultAK read default ak from local file or from STS
@@ -101,7 +107,7 @@ func GetSTSAK() (string, string, string) {
 // GetManagedToken get ak from csi secret
 func GetManagedToken() (string, string, string) {
 	var akInfo AKInfo
-	AccessKeyId, AccessKeySecret, SecurityToken := "", "", ""
+	AccessKeyID, AccessKeySecret, SecurityToken := "", "", ""
 	if _, err := os.Stat(ConfigPath); err == nil {
 		encodeTokenCfg, err := ioutil.ReadFile(ConfigPath)
 		if err != nil {
@@ -139,11 +145,11 @@ func GetManagedToken() (string, string, string) {
 		if t.Before(time.Now()) {
 			log.Errorf("invalid token which is expired, expiration as: %s", akInfo.Expiration)
 		}
-		AccessKeyId = string(ak)
+		AccessKeyID = string(ak)
 		AccessKeySecret = string(sk)
 		SecurityToken = string(token)
 	}
-	return AccessKeyId, AccessKeySecret, SecurityToken
+	return AccessKeyID, AccessKeySecret, SecurityToken
 }
 
 // PKCS5UnPadding get pkc
