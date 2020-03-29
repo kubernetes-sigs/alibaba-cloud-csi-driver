@@ -25,6 +25,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -104,6 +105,17 @@ func attachDisk(volumeID, nodeID string, isSharedDisk bool) (string, error) {
 					}
 				}
 			}
+
+			if GlobalConfigVar.DiskBdfEnable {
+				if allowed, err := forceDetachAllowed(disk, nodeID); err != nil {
+					err = errors.Wrapf(err, "forceDetachAllowed")
+					return "", status.Errorf(codes.Aborted, err.Error())
+				} else if !allowed {
+					err = errors.Errorf("NodeStageVolume: Disk %s is already attached to instance %s, and depend bdf, reject force detach", volumeID, disk.InstanceId)
+					log.Error(err)
+					return "", status.Errorf(codes.Aborted, err.Error())
+				}
+			}
 			log.Infof("AttachDisk: Disk %s is already attached to instance %s, will be detached", volumeID, disk.InstanceId)
 			detachRequest := ecs.CreateDetachDiskRequest()
 			detachRequest.InstanceId = disk.InstanceId
@@ -163,6 +175,25 @@ func attachDisk(volumeID, nodeID string, isSharedDisk bool) (string, error) {
 		}
 		after := getDevices()
 		devicePaths := calcNewDevices(before, after)
+
+		// BDF Disk Logical
+		if GlobalConfigVar.DiskBdfEnable && len(devicePaths) == 0 {
+			if _, err = bindBdfDisk(disk.DiskId); err != nil {
+				if err := unbindBdfDisk(disk.DiskId); err != nil {
+					return "", status.Errorf(codes.Aborted, "NodeStageVolume: failed to detach bdf: %v", err)
+				}
+				return "", status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf: %v", err)
+			}
+
+			deviceName, err := GetDeviceByVolumeID(volumeID)
+			if err == nil && deviceName != "" {
+				log.Infof("AttachDisk: Successful attach bdf disk %s to node %s device %s by DiskID/Device mapping", volumeID, nodeID, deviceName)
+				return deviceName, nil
+			}
+			after = getDevices()
+			devicePaths = calcNewDevices(before, after)
+		}
+
 		if len(devicePaths) == 2 {
 			if strings.HasPrefix(devicePaths[1], devicePaths[0]) {
 				return devicePaths[1], nil

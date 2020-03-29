@@ -53,6 +53,7 @@ type DISK struct {
 type GlobalConfig struct {
 	EcsClient          *ecs.Client
 	Region             string
+	NodeID             string
 	AttachMutex        sync.RWMutex
 	CanAttach          bool
 	DiskTagEnable      bool
@@ -61,6 +62,7 @@ type GlobalConfig struct {
 	MetricEnable       bool
 	RunTimeClass       string
 	DetachBeforeDelete bool
+	DiskBdfEnable      bool
 	ClientSet          *kubernetes.Clientset
 }
 
@@ -113,7 +115,7 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	}
 
 	// Config Global vars
-	GlobalConfigSet(client, region)
+	GlobalConfigSet(client, region, nodeID)
 
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
@@ -135,13 +137,14 @@ func (disk *DISK) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(client *ecs.Client, region string) {
+func GlobalConfigSet(client *ecs.Client, region, nodeID string) {
 	configMapName := "csi-plugin"
 	isADControllerEnable := false
 	isDiskTagEnable := false
 	isDiskMetricEnable := true
 	isDiskDetachDisable := false
 	isDiskDetachBeforeDelete := true
+	isDiskBdfEnable := false
 
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
@@ -196,6 +199,15 @@ func GlobalConfigSet(client *ecs.Client, region string) {
 				isDiskDetachBeforeDelete = false
 			}
 		}
+		if value, ok := configMap.Data["disk-bdf-enable"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				log.Infof("Disk Bdf is enabled by configMap(%s).", value)
+				isDiskBdfEnable = true
+			} else if value == "disable" || value == "no" || value == "false" {
+				log.Infof("Disk Bdf is disable by configMap(%s).", value)
+				isDiskBdfEnable = false
+			}
+		}
 	}
 
 	// Env variables
@@ -243,9 +255,11 @@ func GlobalConfigSet(client *ecs.Client, region string) {
 	GlobalConfigVar = GlobalConfig{
 		EcsClient:          client,
 		Region:             region,
+		NodeID:             nodeID,
 		CanAttach:          true,
 		ADControllerEnable: isADControllerEnable,
 		DiskTagEnable:      isDiskTagEnable,
+		DiskBdfEnable:      isDiskBdfEnable,
 		MetricEnable:       isDiskMetricEnable,
 		RunTimeClass:       runtimeValue,
 		DetachDisabled:     isDiskDetachDisable,
