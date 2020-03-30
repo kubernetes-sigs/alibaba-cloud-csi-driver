@@ -29,6 +29,8 @@ const (
 	MetadataURL = "http://100.100.100.200/latest/meta-data/"
 	// InstanceID is instance ID
 	InstanceID = "instance-id"
+	// RAMRoleResource is ram-role url subpath
+	RAMRoleResource = "ram/security-credentials/"
 )
 
 // GetMetaData get host regionid, zoneid
@@ -43,6 +45,14 @@ func GetMetaData(resource string) string {
 		return ""
 	}
 	return string(body)
+}
+
+// GetRAMRoleOption get command line's ram_role option
+func GetRAMRoleOption(mntCmd string) string {
+	ramRole := GetMetaData(RAMRoleResource)
+	ramRoleOpt := MetadataURL + RAMRoleResource + ramRole
+	mntCmd = fmt.Sprintf(mntCmd+" -oram_role=%s", ramRoleOpt)
+	return mntCmd
 }
 
 // IsOssfsMounted return if oss mountPath is mounted
