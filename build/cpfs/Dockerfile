@@ -2,6 +2,7 @@ FROM registry.cn-hangzhou.aliyuncs.com/plugins/centos:7.4.1708-aliyun
 LABEL maintainers="Alibaba Cloud Authors"
 LABEL description="Alibaba Cloud CSI Plugin"
 
+RUN yum install wget -y
 RUN mkdir -p /acs
 COPY nsenter /acs/nsenter
 COPY kmod-cpfs-client-2.10.8-202-3.10.0-957.5.1.el7.x86_64.rpm /acs/kmod-cpfs-client-2.10.8-202-3.10.0-957.5.1.el7.x86_64.rpm

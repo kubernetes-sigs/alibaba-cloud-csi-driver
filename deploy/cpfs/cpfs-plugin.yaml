@@ -4,6 +4,7 @@ metadata:
   name: cpfsplugin.csi.alibabacloud.com
 spec:
   attachRequired: false
+  podInfoOnMount: true
 ---
 # This YAML defines all API objects to create RBAC roles for csi node plugin.
 kind: DaemonSet
@@ -28,12 +29,12 @@ spec:
       hostPID: true
       containers:
       - name: driver-registrar
-        image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.1.0
+        image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
         imagePullPolicy: Always
         args:
         - "--v=5"
-        - "--csi-address=/var/lib/kubelet/plugins/cpfsplugin.csi.alibabacloud.com/csi.sock"
-        - "--kubelet-registration-path=/var/lib/kubelet/plugins/cpfsplugin.csi.alibabacloud.com/csi.sock"
+        - "--csi-address=/var/lib/kubelet/csi-plugins/cpfsplugin.csi.alibabacloud.com/csi.sock"
+        - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/cpfsplugin.csi.alibabacloud.com/csi.sock"
         volumeMounts:
         - name: kubelet-dir
           mountPath: /var/lib/kubelet/
@@ -46,7 +47,7 @@ spec:
           capabilities:
             add: ["SYS_ADMIN"]
           allowPrivilegeEscalation: true
-        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-cpfsplugin:v1.14.6-1d879d3ff
+        image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-cpfsplugin:v1.14.6-e4026006f
         imagePullPolicy: "Always"
         args:
         - "--endpoint=$(CSI_ENDPOINT)"
@@ -54,7 +55,7 @@ spec:
         - "--driver=cpfsplugin.csi.alibabacloud.com"
         env:
         - name: CSI_ENDPOINT
-          value: unix://var/lib/kubelet/plugins/cpfsplugin.csi.alibabacloud.com/csi.sock
+          value: unix://var/lib/kubelet/csi-plugins/cpfsplugin.csi.alibabacloud.com/csi.sock
         volumeMounts:
         - name: kubelet-dir
           mountPath: /var/lib/kubelet/
