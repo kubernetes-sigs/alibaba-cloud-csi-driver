@@ -196,6 +196,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		opt.Vers = "4.0"
 	}
 
+	if strings.Contains(opt.Server, "extreme.nas.aliyuncs.com") {
+		if opt.Vers != "3" {
+			return nil, errors.New("Extreme nas only support nfs v3 " + opt.Server)
+		}
+	}
 	// check options, config defaults for aliyun nas
 	if opt.Options == "" {
 		if opt.Vers == "3" {

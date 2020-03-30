@@ -119,7 +119,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 }
 
 func doCpfsConfig() {
-	configCmd := fmt.Sprintf("lctl set_param osc.*.max_rpcs_in_flight=256;lctl set_param osc.*.max_pages_per_rpc=1024;lctl set_param lov.*.target_obds.*osc*.max_rpcs_in_flight=256;lctl set_param mdc.*.max_rpcs_in_flight=256;lctl set_param lmv.*.target_obds.*.max_rpcs_in_flight=256")
+	configCmd := fmt.Sprintf("lctl set_param osc.*.max_rpcs_in_flight=128;lctl set_param osc.*.max_pages_per_rpc=256;lctl set_param mdc.*.max_rpcs_in_flight=256;lctl set_param mdc.*.max_mod_rpcs_in_flight=128")
 	if _, err := utils.Run(configCmd); err != nil {
 		log.Errorf("Cpfs, doCpfsConfig fail with error: %s", err.Error())
 	}
