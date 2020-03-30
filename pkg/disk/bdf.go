@@ -379,10 +379,14 @@ func forceDetachAllowed(disk *ecs.Disk, nodeID string) (allowed bool, err error)
 		log.Warnf("forceDetachAllowed: no disk found: %s", disk.DiskId)
 		return false, errors.Wrapf(err, "forceDetachAllowed: Get disk empty, ID=%s", disk.DiskId)
 	}
+	bdfTagExist := false
 	for _, tag := range disks[0].Tags.Tag {
 		if tag.TagKey == DiskBdfTagKey {
-			return false, nil
+			bdfTagExist = true
 		}
+	}
+	if !bdfTagExist {
+		return true, nil
 	}
 
 	request := ecs.CreateDescribeInstancesRequest()
