@@ -32,8 +32,6 @@ const (
 	iohubSrviovDriver = "iohub_sriov"
 	virtioPciDriver   = "virtio-pci"
 
-	// PVBdfInfo info about bdf
-	PVBdfInfo = "pv.diskplugin.csi.alibabacloud.com/bdf-info"
 	// InstanceStatusStopped ecs stopped status
 	InstanceStatusStopped = "Stopped"
 	// DiskBdfTagKey disk bdf tag
@@ -256,17 +254,8 @@ func storeBdfInfo(diskID, bdf string) (err error) {
 		LastAttachedNodeId: GlobalConfigVar.NodeID,
 	}
 	infoBytes, _ := json.Marshal(info)
-	// Step 2: Describe tag
-	//describeTagRequest := ecs.CreateDescribeTagsRequest()
-	//tag := ecs.DescribeTagsTag{Key: BdfTagKey, Value: string(infoBytes)}
-	//describeTagRequest.Tag = &[]ecs.DescribeTagsTag{tag}
-	//_, err = GlobalConfigVar.EcsClient.DescribeTags(describeTagRequest)
-	//if err != nil {
-	//	log.Warnf("tagAsK8sAttached: DescribeTags error: %s, %s", diskID, err.Error())
-	//	return
-	//}
 
-	// Step 3: create & attach tag
+	// Step 2: create & attach tag
 	addTagsRequest := ecs.CreateAddTagsRequest()
 	tmpTag := ecs.AddTagsTag{Key: DiskBdfTagKey, Value: string(infoBytes)}
 	addTagsRequest.Tag = &[]ecs.AddTagsTag{tmpTag}
@@ -278,22 +267,6 @@ func storeBdfInfo(diskID, bdf string) (err error) {
 		log.Warnf("storeBdfInfo: AddTags error: %s, %s", diskID, err.Error())
 		return
 	}
-	//log.Infof("tagDiskAsK8sAttached:: add tag to disk: %s", diskID)
-
-	//patchData := []PatchStringValue{
-	//	{
-	//		Op:    "add",
-	//		Path:  fmt.Sprintf("/metadata/annotations/%s", strings.Replace(PVBdfInfo, "/", "~1", -1)),
-	//		Value: string(infoBytes),
-	//	},
-	//}
-	//patchBytes, _ := json.Marshal(patchData)
-	//log.Infof("Adding bdf information to persistent volume, request body: %s", patchBytes)
-	//// ack-csi的csi-provisioner(registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.2.2-aliyun)会将pv name强行改为diskId
-	//if _, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Patch(diskID, types.JSONPatchType, patchBytes); err != nil {
-	//	log.Errorf("Adding bdf information failed: %v", err)
-	//	return err
-	//}
 	log.Infof("Adding bdf information successfully")
 	return nil
 }
@@ -317,18 +290,6 @@ func clearBdfInfo(diskID, bdf string) (err error) {
 		return
 	}
 
-	//patchData := []PatchStringValue{
-	//	{
-	//		Op:   "remove",
-	//		Path: fmt.Sprintf("/metadata/annotations/%s", strings.Replace(PVBdfInfo, "/", "~1", -1)),
-	//	},
-	//}
-	//patchBytes, _ := json.Marshal(patchData)
-	//log.Infof("Deleting bdf information, request body: %s", patchBytes)
-	//if _, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Patch(diskID, types.JSONPatchType, patchBytes); err != nil {
-	//	log.Errorf("Deleting bdf information failed: %v", err)
-	//	return err
-	//}
 	log.Infof("Deleting bdf information successfully")
 	return nil
 }
@@ -339,33 +300,6 @@ func forceDetachAllowed(disk *ecs.Disk, nodeID string) (allowed bool, err error)
 	// 2. instancce status is stopped
 
 	// case 1
-	//if disk.InstanceId == nodeID {
-	//	return true, nil
-	//	}
-
-	//pv, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Get(disk.DiskId, metav1.GetOptions{})
-	//if err != nil {
-	//	return false, errors.Wrapf(err, "get pv, name=%s", disk.DiskName)
-	//}
-	//
-	//infoStr, ok := pv.Annotations[PVBdfInfo]
-	//if !ok {
-	//	log.Infof("forceDetachAllowed: %s no bdf information, allow force detach", disk.DiskName)
-	//	return true, nil
-	//}
-	//log.Infof("forceDetachAllowed: %s bdf information: %s", disk.DiskName, infoStr)
-	//info := BdfAttachInfo{}
-	//if err := json.Unmarshal([]byte(infoStr), &info); err != nil {
-	//	return false, errors.Wrapf(err, "Unmarshal bdf information(%s)", infoStr)
-	//}
-	//if info.LastAttachedNodeId == "" {
-	//	return false, errors.Errorf("BdfAttachInfo.LastAttachedNodeId must provided")
-	//}
-	//// case 2
-	//if !info.Depend {
-	//	return true, nil
-	//}
-
 	describeDisksRequest := ecs.CreateDescribeDisksRequest()
 	describeDisksRequest.RegionId = GlobalConfigVar.Region
 	describeDisksRequest.DiskIds = "[\"" + disk.DiskId + "\"]"
@@ -401,6 +335,6 @@ func forceDetachAllowed(disk *ecs.Disk, nodeID string) (allowed bool, err error)
 	}
 	inst := instanceResponse.Instances.Instance[0]
 	log.Infof("forceDetachAllowed: Instance status is %s", inst.Status)
-	// case 3
+	// case 2
 	return inst.Status == InstanceStatusStopped, nil
 }
