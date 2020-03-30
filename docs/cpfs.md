@@ -9,7 +9,7 @@ You can create a pv with csi configuration, and the pvc, pod defines as usual.
 * Service Accounts with required RBAC permissions
 
 ## Feature Status
-Alpha
+Beta
 
 ## Compiling and Package
 cpfsplugin.csi.alibabacloud.com can be compiled in a form of a container.
@@ -25,6 +25,14 @@ $ cd build && sh build-cpfs.sh
 ### Prerequisite
 
 Same as cpfsplugin.csi.alibabacloud.com;
+
+Current, csi-cpfsplugin only support centos7 os and linux kernel versions as belows:
+
+> 3.10.0-1062.9.1
+>
+> 3.10.0-957.21.3
+>
+> 3.10.0-957.5.1
 
 
 ### Step 1: Create CSI Plugin
@@ -59,27 +67,22 @@ cpfs-csi-pv   5Gi        RWO            Retain           Available              
 ```
 
 ```
-# kubectl describe pv cpfs-csi-pv
-Name:            cpfs-csi-pv
-Labels:          <none>
-Annotations:     <none>
-Finalizers:      [kubernetes.io/pv-protection]
-StorageClass:
-Status:          Available
-Claim:
-Reclaim Policy:  Retain
-Access Modes:    RWO
-VolumeMode:      Filesystem
-Capacity:        5Gi
-Node Affinity:   <none>
-Message:
-Source:
-    Type:              CSI (a Container Storage Interface (CSI) volume source)
-    Driver:            cpfsplugin.csi.alibabacloud.com
-    VolumeHandle:      cpfs-csi-pv
-    ReadOnly:          false
-    VolumeAttributes:      fileSystem=kfs
-                           server=192.168.0.214@tcp
-                           subPath=/k8s
-Events:                <none>
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cpfs-csi-pv
+spec:
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 5Gi
+  csi:
+    driver: cpfsplugin.csi.alibabacloud.com
+    volumeAttributes:
+      fileSystem: 0237cc41
+      server: cpfs-0237cc41-**.cn-shenzhen.cpfs.nas.aliyuncs.com@tcp:cpfs-0237cc41-**.cn-shenzhen.cpfs.nas.aliyuncs.com@tcp
+      subPath: /shenzhen
+    volumeHandle: cpfs-csi-pv
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
 ```

@@ -54,14 +54,18 @@ elif [ "$os_release_exist" = "0" ]; then
     fi
 fi
 
+# luster version
+lustreversion="2.10.0-1"
+dkmsversion="1.0.0-202"
 
-# cpfs version
-cpfsversion="2.10.8-202"
+cpfsversion1="2.10.8-202"
+cpfsversion2="2.10.8-204"
+
 kernelversion74="3.10.0-693.2.2"
 kernelversion75="3.10.0-862.14.4"
 kernelversion76="3.10.0-957.5.1"
 kernelversion763="3.10.0-957.21.3"
-kernelversion=${kernelversion763}
+kernelversion77="3.10.0-1062.9.1"
 
 
 if [ "$host_os" = "centos-7" ] || [ "$host_os" = "alios" ] ; then
@@ -69,13 +73,35 @@ if [ "$host_os" = "centos-7" ] || [ "$host_os" = "alios" ] ; then
     kernelInfo=`/acs/nsenter --mount=/proc/1/ns/mnt uname -a | awk '{print $3}'`
     if [ ${kernelInfo} = ${kernelversion74}".el7.x86_64" ]; then
         kernelversion=${kernelversion74}
+        cpfsversion=${cpfsversion1}
     elif [ ${kernelInfo} = ${kernelversion75}".el7.x86_64" ]; then
         kernelversion=${kernelversion75}
+        cpfsversion=${cpfsversion1}
     elif [ ${kernelInfo} = ${kernelversion76}".el7.x86_64" ]; then
         kernelversion=${kernelversion76}
+        cpfsversion=${cpfsversion1}
     elif [ ${kernelInfo} = ${kernelversion763}".el7.x86_64" ]; then
         kernelversion=${kernelversion763}
+        cpfsversion=${cpfsversion1}
+    elif [ ${kernelInfo} = ${kernelversion77}".el7.x86_64" ]; then
+        kernelversion=${kernelversion77}
+        cpfsversion=${cpfsversion2}
     fi
+
+    if [ "${CPFS_VERSION}" != "" ]; then
+        echo "Get env set CPFS_VERSION: "${CPFS_VERSION}
+        cpfsversion=${CPFS_VERSION}
+    fi
+    if [ "${KERNEL_VERSION}" != "" ]; then
+        echo "Get env set KERNEL_VERSION: "${KERNEL_VERSION}
+        kernelversion=${KERNEL_VERSION}
+    fi
+    if [ "$cpfsversion" = "" ] || [ "$kernelversion" = "" ]; then
+        echo "cpfsversion, kernelversion empty, please set CPFS_VERSION/KERNEL_VERSION for cpfs: ${cpfsversion}, ${kernelversion}"
+        return
+    fi
+    echo "Use CPFS_VERSION: "${cpfsversion}
+    echo "Use KERNEL_VERSION: "${kernelversion}
 
     # check if need to install driver
     installDriver="true"
@@ -115,15 +141,35 @@ if [ "$host_os" = "centos-7" ] || [ "$host_os" = "alios" ] ; then
     fi
 
     if [ "${installDriver}" = "true" ] ; then
+        mkdir -p /host/etc/kubernetes/csi-cpfs/
+
         # install cpfs client kmod
-        cp /acs/kmod-cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm /host/etc/cpfs-tools/
+        if [ ! -f /acs/kmod-cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm ]; then
+            if [ "${CPFS_URL_PREFIX}" != "" ]; then
+                echo "Download kmod-cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm from ${CPFS_URL_PREFIX} oss..."
+                wget ${CPFS_URL_PREFIX}/kmod-cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm -P /acs/
+            else
+                echo "Download kmod-cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm from aliyun oss..."
+                wget http://cpfs-ack.oss-cn-beijing.aliyuncs.com/kmod-cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm -P /acs/
+            fi
+        fi
+        cp /acs/kmod-cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm /host/etc/kubernetes/csi-cpfs/
         echo "Starting to install kmod-cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm ...."
-        /acs/nsenter --mount=/proc/1/ns/mnt yum install -y /etc/cpfs-tools/kmod-cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm
+        /acs/nsenter --mount=/proc/1/ns/mnt yum install -y /etc/kubernetes/csi-cpfs/kmod-cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm
 
         # install cpfs client
-        cp /acs/cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm /host/etc/cpfs-tools/
+        if [ ! -f /acs/cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm ]; then
+            if [ "${CPFS_URL_PREFIX}" != "" ]; then
+                echo "Download cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm ${CPFS_URL_PREFIX} oss..."
+                wget ${CPFS_URL_PREFIX}/cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm -P /acs/
+            else
+                echo "Download cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm from aliyun oss..."
+                wget http://cpfs-ack.oss-cn-beijing.aliyuncs.com/cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm -P /acs/
+            fi
+        fi
+        cp /acs/cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm /host/etc/kubernetes/csi-cpfs/
         echo "Starting to install cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm ....."
-        /acs/nsenter --mount=/proc/1/ns/mnt yum install -y /etc/cpfs-tools/cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm
+        /acs/nsenter --mount=/proc/1/ns/mnt yum install -y /etc/kubernetes/csi-cpfs/cpfs-client-${cpfsversion}-${kernelversion}.el7.x86_64.rpm
     fi
 fi
 
