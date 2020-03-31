@@ -249,6 +249,16 @@ func detachDisk(volumeID, nodeID string) error {
 					GlobalConfigVar.AttachMutex.Unlock()
 				}()
 			}
+			if GlobalConfigVar.DiskBdfEnable {
+				if allowed, err := forceDetachAllowed(disk, disk.InstanceId); err != nil {
+					err = errors.Wrapf(err, "detachDisk forceDetachAllowed")
+					return status.Errorf(codes.Aborted, err.Error())
+				} else if !allowed {
+					err = errors.Errorf("detachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.InstanceId, disk.InstanceId)
+					log.Error(err)
+					return status.Errorf(codes.Aborted, err.Error())
+				}
+			}
 			detachDiskRequest := ecs.CreateDetachDiskRequest()
 			detachDiskRequest.DiskId = disk.DiskId
 			detachDiskRequest.InstanceId = disk.InstanceId
