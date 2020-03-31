@@ -239,6 +239,20 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) {
 		isDiskMetricEnable = false
 	}
 
+	diskDetachDisable := os.Getenv(DiskDetachDisable)
+	if diskDetachDisable == "true" || diskDetachDisable == "yes" {
+		isDiskDetachDisable = true
+	} else if diskDetachDisable == "false" || diskDetachDisable == "no" {
+		isDiskDetachDisable = false
+	}
+
+	bdfDiskConf := os.Getenv(DiskBdfEnable)
+	if bdfDiskConf == "true" || bdfDiskConf == "yes" {
+		isDiskBdfEnable = true
+	} else if bdfDiskConf == "false" || bdfDiskConf == "no" {
+		isDiskBdfEnable = false
+	}
+
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	runtimeValue := "runc"
 	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
@@ -251,6 +265,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) {
 		log.Infof("Describe node %s and Set RunTimeClass to %s", nodeName, runtimeValue)
 	}
 
+	log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%b), DiskTagEnable(%b), DiskBdfEnable(%b), MetricEnable(%b), RunTimeClass(%s), DetachDisabled(%b), DetachBeforeDelete(%b)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
 		EcsClient:          client,

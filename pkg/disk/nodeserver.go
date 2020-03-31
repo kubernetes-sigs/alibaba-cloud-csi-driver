@@ -65,6 +65,10 @@ const (
 	DiskTagedByPlugin = "DISK_TAGED_BY_PLUGIN"
 	// DiskMetricByPlugin tag
 	DiskMetricByPlugin = "DISK_METRIC_BY_PLUGIN"
+	// DiskDetachDisable tag
+	DiskDetachDisable = "DISK_DETACH_DISABLE"
+	// DiskBdfEnable tag
+	DiskBdfEnable = "DISK_BDF_ENABLE"
 	// DiskAttachByController tag
 	DiskAttachByController = "DISK_AD_CONTROLLER"
 	// DiskAttachedKey attached key

@@ -182,27 +182,28 @@ func findBdf(diskId string) (bdf string, err error) {
 func unbindBdfDisk(diskId string) (err error) {
 	bdf, err := findBdf(diskId)
 	if err != nil {
+		log.Errorf("unbindBdfDisk: Disk %s bdf not found with error: %v", diskId, err)
 		return errors.Wrapf(err, "findBdf, diskId=%s", diskId)
 	}
 	if bdf == "" {
-		log.Infof("detachBdfDisk: Disk %s bdf not found, skip", diskId)
-		//if err = clearBdfInfo(diskId); err != nil {
-		//	return err
-		//}
+		log.Infof("unbindBdfDisk: Disk %s bdf not found, skip", diskId)
 		return nil
 	}
-	log.Infof("detachBdfDisk: Disk %s bdf is %s", diskId, bdf)
+	log.Infof("unbindBdfDisk: Disk %s bdf is %s", diskId, bdf)
 
 	if err := VirtioPciUnbind(bdf); err != nil && !IsNoSuchDeviceErr(err) {
+		log.Errorf("unbindBdfDisk: Disk %s bdf %s VirtioPciUnbind with error: %v", diskId, bdf, err)
 		return errors.Wrapf(err, "VirtioPciUnbind, bdf=%s", bdf)
 	}
 
 	if err := IohubSriovBind(bdf); err != nil && !IsNoSuchDeviceErr(err) {
+		log.Errorf("unbindBdfDisk: Disk %s bdf %s IohubSriovBind with error: %v", diskId, bdf, err)
 		return errors.Wrapf(err, "IohubSriovBind, bdf=%s", bdf)
 	}
-	log.Infof("detachBdfDisk: Disk %s(%s) successfully", diskId, bdf)
+	log.Infof("unbindBdfDisk: Disk %s(%s) successfully", diskId, bdf)
 
 	if err = clearBdfInfo(diskId, bdf); err != nil {
+		log.Errorf("unbindBdfDisk: Disk %s bdf %s clearBdfInfo with error: %v", diskId, bdf, err)
 		return err
 	}
 	return nil
@@ -211,38 +212,44 @@ func unbindBdfDisk(diskId string) (err error) {
 func bindBdfDisk(diskId string) (bdf string, err error) {
 	bdf, err = findBdf(diskId)
 	if err != nil {
+		log.Errorf("bindBdfDisk: Disk %s bdf not found with error: %v", diskId, err)
 		return "", errors.Wrapf(err, "findBdf, diskId=%s", diskId)
 	}
 	if bdf == "" {
-		log.Infof("attachBdfDisk: Disk %s bdf not found, skip", diskId)
+		log.Infof("bindBdfDisk: Disk %s bdf not found, skip", diskId)
 		return "", nil
 	}
-	log.Infof("attachBdfDisk: Disk %s bdf is %s", diskId, bdf)
+	log.Infof("bindBdfDisk: Disk %s bdf is %s", diskId, bdf)
 
 	data, err := os.Readlink(sysPrefix + "/sys/bus/pci/devices/" + bdf + "/driver")
 	if err != nil {
+		log.Errorf("bindBdfDisk: Disk %s bdf %s Readlink with error: %v", diskId, bdf, err)
 		return bdf, errors.Wrapf(err, "read disk dirver, diskId=%s, bdf=%s", diskId, bdf)
 	}
 	driver := filepath.Base(data)
-	log.Infof("attachBdfDisk: Disk %s(%s), kernel driver in use: %s", diskId, bdf, driver)
+	log.Infof("bindBdfDisk: Disk %s bdf %s, kernel driver in use: %s", diskId, bdf, driver)
 	switch driver {
 	case iohubSrviovDriver:
 		if err = IohubSriovUnbind(bdf); err != nil {
+			log.Errorf("bindBdfDisk: Disk %s bdf %s IohubSriovUnbind with error: %v", diskId, bdf, err)
 			return bdf, errors.Wrapf(err, "IohubSriovUnbind, bdf=%s", bdf)
 		}
 	case virtioPciDriver:
-		log.Infof("attachBdfDisk: Disk %s(%s) already bound virtio-pci", diskId, bdf)
+		log.Infof("bindBdfDisk: Disk %s(%s) already bound virtio-pci", diskId, bdf)
 		if err = storeBdfInfo(diskId, bdf); err != nil {
+			log.Errorf("bindBdfDisk: Disk %s bdf %s storeBdfInfo with error: %v", diskId, bdf, err)
 			return bdf, err
 		}
 		return bdf, nil
 	}
 	if err = VirtioPciBind(bdf); err != nil && !IsNoSuchDeviceErr(err) {
+		log.Errorf("bindBdfDisk: Disk %s bdf %s VirtioPciBind with error: %v", diskId, bdf, err)
 		return bdf, errors.Wrapf(err, "VirtioPciBind, bdf=%s", bdf)
 	}
-	log.Infof("attachBdfDisk: Disk %s(%s) successfully", diskId, bdf)
+	log.Infof("bindBdfDisk: Disk %s(%s) successfully", diskId, bdf)
 
 	if err = storeBdfInfo(diskId, bdf); err != nil {
+		log.Errorf("bindBdfDisk: Disk %s bdf %s storeBdfInfo at end with error: %v", diskId, bdf, err)
 		return bdf, err
 	}
 	return bdf, nil
@@ -262,12 +269,13 @@ func storeBdfInfo(diskID, bdf string) (err error) {
 	addTagsRequest.ResourceType = "disk"
 	addTagsRequest.ResourceId = diskID
 	addTagsRequest.RegionId = GlobalConfigVar.Region
+	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	_, err = GlobalConfigVar.EcsClient.AddTags(addTagsRequest)
 	if err != nil {
 		log.Warnf("storeBdfInfo: AddTags error: %s, %s", diskID, err.Error())
 		return
 	}
-	log.Infof("Adding bdf information successfully")
+	log.Infof("Storing bdf information successfully")
 	return nil
 }
 
@@ -284,6 +292,7 @@ func clearBdfInfo(diskID, bdf string) (err error) {
 	removeTagsRequest.ResourceType = "disk"
 	removeTagsRequest.ResourceId = diskID
 	removeTagsRequest.RegionId = GlobalConfigVar.Region
+	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	_, err = GlobalConfigVar.EcsClient.RemoveTags(removeTagsRequest)
 	if err != nil {
 		log.Warnf("storeBdfInfo: Remove error: %s, %s", diskID, err.Error())
