@@ -278,15 +278,12 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			log.Warnf("DeleteVolume: find disk(%s) by id with error: %s", req.VolumeId, err.Error())
 		}
 		if disk != nil && disk.Status == DiskStatusInuse {
-			detachDiskRequest := ecs.CreateDetachDiskRequest()
-			detachDiskRequest.DiskId = req.VolumeId
-			detachDiskRequest.InstanceId = disk.InstanceId
-			response, err := GlobalConfigVar.EcsClient.DetachDisk(detachDiskRequest)
+			err := detachDisk(req.VolumeId, disk.InstanceId)
 			if err != nil {
-				log.Warnf("DeleteVolume: Detach Disk(%s) from node %s with error: %s", req.VolumeId, disk.InstanceId, err.Error())
-			} else {
-				log.Infof("DeleteVolume: Detach disk(%s) from node %s before remove with requestId %s", req.VolumeId, disk.InstanceId, response.RequestId)
+				log.Errorf("DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, err.Error())
+				return nil, err
 			}
+			log.Infof("DeleteVolume: Successful Detach disk(%s) from node %s before remove", req.VolumeId, disk.InstanceId)
 		}
 	}
 

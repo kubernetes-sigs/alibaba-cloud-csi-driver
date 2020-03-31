@@ -65,6 +65,10 @@ const (
 	DiskTagedByPlugin = "DISK_TAGED_BY_PLUGIN"
 	// DiskMetricByPlugin tag
 	DiskMetricByPlugin = "DISK_METRIC_BY_PLUGIN"
+	// DiskDetachDisable tag
+	DiskDetachDisable = "DISK_DETACH_DISABLE"
+	// DiskBdfEnable tag
+	DiskBdfEnable = "DISK_BDF_ENABLE"
 	// DiskAttachByController tag
 	DiskAttachByController = "DISK_AD_CONTROLLER"
 	// DiskAttachedKey attached key
@@ -437,7 +441,20 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 
 	// Step 4 Attach volume
 	if GlobalConfigVar.ADControllerEnable {
+		var bdf string
 		device, err = GetDeviceByVolumeID(req.GetVolumeId())
+		if GlobalConfigVar.DiskBdfEnable && device == "" {
+			if bdf, err = bindBdfDisk(req.GetVolumeId()); err != nil {
+				if err := unbindBdfDisk(req.GetVolumeId()); err != nil {
+					return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to detach bdf disk: %v", err)
+				}
+				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf disk: %v", err)
+			}
+			device, err = GetDeviceByVolumeID(req.GetVolumeId())
+			if bdf != "" && device == "" {
+				device, err = GetDeviceByBdf(bdf)
+			}
+		}
 		if err != nil {
 			log.Errorf("NodeStageVolume: ADController Enabled, but device can't be found in node: %s, error: %s", req.VolumeId, err.Error())
 			return nil, status.Error(codes.Aborted, "NodeStageVolume: ADController Enabled, but device can't be found:"+req.VolumeId+err.Error())
@@ -559,6 +576,13 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		log.Infof("NodeUnstageVolume: Unmount TargetPath successful, target %v, volumeId: %s", targetPath, req.VolumeId)
 	} else {
 		log.Infof(msgLog)
+	}
+
+	if GlobalConfigVar.DiskBdfEnable {
+		if err := unbindBdfDisk(req.VolumeId); err != nil {
+			log.Errorf("NodeUnstageVolume: unbind bdf disk error: %v", err)
+			return nil, err
+		}
 	}
 
 	// Do detach if ADController disable

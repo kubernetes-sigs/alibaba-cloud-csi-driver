@@ -81,6 +81,8 @@ github.com/nightlyone/lockfile
 github.com/opentracing/opentracing-go
 github.com/opentracing/opentracing-go/ext
 github.com/opentracing/opentracing-go/log
+# github.com/pkg/errors v0.8.0 => github.com/pkg/errors v0.8.1
+github.com/pkg/errors
 # github.com/prometheus/client_golang v0.9.2 => github.com/prometheus/client_golang v0.9.2
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
