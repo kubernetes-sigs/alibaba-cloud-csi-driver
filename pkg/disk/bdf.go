@@ -19,11 +19,14 @@ import (
 )
 
 const (
-	//
-	VfBar0Sz          = 0x1000
+	// VfBar0Sz value
+	VfBar0Sz = 0x1000
+	// DevIDOffsetInBar0 value
 	DevIDOffsetInBar0 = 0x100
-	MaxVfNum          = 256
-	BlkIdSz           = 20
+	// MaxVfNum value
+	MaxVfNum = 256
+	// BlkIDSz value
+	BlkIDSz = 20
 
 	sysPrefix        = "/host"
 	iohubSriovAction = sysPrefix + "/sys/bus/pci/drivers/iohub_sriov/"
@@ -38,17 +41,20 @@ const (
 	DiskBdfTagKey = "bdf.csi.aliyun.com"
 )
 
+// PatchStringValue type
 type PatchStringValue struct {
 	Op    string      `json:"op"`
 	Path  string      `json:"path"`
 	Value interface{} `json:"value"`
 }
 
+// BdfAttachInfo type
 type BdfAttachInfo struct {
 	Depend             bool   `json:"depend"`
-	LastAttachedNodeId string `json:"last_attached_node_id"`
+	LastAttachedNodeID string `json:"last_attached_node_id"`
 }
 
+// FindLines parse lines
 func FindLines(reader io.Reader, keyword string) []string {
 	var matched []string
 	scanner := bufio.NewScanner(reader)
@@ -61,6 +67,7 @@ func FindLines(reader io.Reader, keyword string) []string {
 	return matched
 }
 
+// IsNoSuchDeviceErr nd device error
 func IsNoSuchDeviceErr(err error) bool {
 	if err == nil {
 		return false
@@ -68,22 +75,27 @@ func IsNoSuchDeviceErr(err error) bool {
 	return strings.Contains(strings.ToLower(err.Error()), "no such device")
 }
 
+// IohubSriovBind io hub bind
 func IohubSriovBind(bdf string) error {
 	return ioutil.WriteFile(iohubSriovAction+"bind", []byte(bdf), 0600)
 }
 
+// IohubSriovUnbind io hub unbind
 func IohubSriovUnbind(bdf string) error {
 	return ioutil.WriteFile(iohubSriovAction+"unbind", []byte(bdf), 0600)
 }
 
+// VirtioPciBind pci bind
 func VirtioPciBind(bdf string) error {
 	return ioutil.WriteFile(virtioPciAction+"bind", []byte(bdf), 0600)
 }
 
+// VirtioPciUnbind pci unbind
 func VirtioPciUnbind(bdf string) error {
 	return ioutil.WriteFile(virtioPciAction+"unbind", []byte(bdf), 0600)
 }
 
+// ExecCheckOutput check output
 func ExecCheckOutput(cmd string, args ...string) (io.Reader, error) {
 	c := exec.Command(cmd, args...)
 	stdout := bytes.NewBuffer(nil)
@@ -98,7 +110,7 @@ func ExecCheckOutput(cmd string, args ...string) (io.Reader, error) {
 	return stdout, nil
 }
 
-func findBdf(diskId string) (bdf string, err error) {
+func findBdf(diskID string) (bdf string, err error) {
 	var (
 		domain   int
 		bus      int
@@ -106,14 +118,14 @@ func findBdf(diskId string) (bdf string, err error) {
 		function int
 		bar0     uint64
 
-		blkIds      = make([]byte, BlkIdSz)
-		blkIdSuffix string
+		blkIds      = make([]byte, BlkIDSz)
+		blkIDSuffix string
 	)
 
-	if _, err := fmt.Sscanf(diskId, "d-%s", &blkIdSuffix); err != nil {
+	if _, err := fmt.Sscanf(diskID, "d-%s", &blkIDSuffix); err != nil {
 		return "", err
 	}
-	copy(blkIds, blkIdSuffix)
+	copy(blkIds, blkIDSuffix)
 
 	output, err := ExecCheckOutput("lspci", "-D")
 	if err != nil {
@@ -165,7 +177,7 @@ func findBdf(diskId string) (bdf string, err error) {
 	bdf = ""
 	for i := 0; i < MaxVfNum; i++ {
 		pos := offset + i*VfBar0Sz + DevIDOffsetInBar0
-		devIds := make([]byte, BlkIdSz)
+		devIds := make([]byte, BlkIDSz)
 		for i := 0; i < 5; i++ {
 			start := 4 * i
 			copy(devIds[start:start+4], mmdata[pos+start:pos+start+4])
@@ -179,77 +191,77 @@ func findBdf(diskId string) (bdf string, err error) {
 	return bdf, nil
 }
 
-func unbindBdfDisk(diskId string) (err error) {
-	bdf, err := findBdf(diskId)
+func unbindBdfDisk(diskID string) (err error) {
+	bdf, err := findBdf(diskID)
 	if err != nil {
-		log.Errorf("unbindBdfDisk: Disk %s bdf not found with error: %v", diskId, err)
-		return errors.Wrapf(err, "findBdf, diskId=%s", diskId)
+		log.Errorf("unbindBdfDisk: Disk %s bdf not found with error: %v", diskID, err)
+		return errors.Wrapf(err, "findBdf, diskId=%s", diskID)
 	}
 	if bdf == "" {
-		log.Infof("unbindBdfDisk: Disk %s bdf not found, skip", diskId)
+		log.Infof("unbindBdfDisk: Disk %s bdf not found, skip", diskID)
 		return nil
 	}
-	log.Infof("unbindBdfDisk: Disk %s bdf is %s", diskId, bdf)
+	log.Infof("unbindBdfDisk: Disk %s bdf is %s", diskID, bdf)
 
 	if err := VirtioPciUnbind(bdf); err != nil && !IsNoSuchDeviceErr(err) {
-		log.Errorf("unbindBdfDisk: Disk %s bdf %s VirtioPciUnbind with error: %v", diskId, bdf, err)
+		log.Errorf("unbindBdfDisk: Disk %s bdf %s VirtioPciUnbind with error: %v", diskID, bdf, err)
 		return errors.Wrapf(err, "VirtioPciUnbind, bdf=%s", bdf)
 	}
 
 	if err := IohubSriovBind(bdf); err != nil && !IsNoSuchDeviceErr(err) {
-		log.Errorf("unbindBdfDisk: Disk %s bdf %s IohubSriovBind with error: %v", diskId, bdf, err)
+		log.Errorf("unbindBdfDisk: Disk %s bdf %s IohubSriovBind with error: %v", diskID, bdf, err)
 		return errors.Wrapf(err, "IohubSriovBind, bdf=%s", bdf)
 	}
-	log.Infof("unbindBdfDisk: Disk %s(%s) successfully", diskId, bdf)
+	log.Infof("unbindBdfDisk: Disk %s(%s) successfully", diskID, bdf)
 
-	if err = clearBdfInfo(diskId, bdf); err != nil {
-		log.Errorf("unbindBdfDisk: Disk %s bdf %s clearBdfInfo with error: %v", diskId, bdf, err)
+	if err = clearBdfInfo(diskID, bdf); err != nil {
+		log.Errorf("unbindBdfDisk: Disk %s bdf %s clearBdfInfo with error: %v", diskID, bdf, err)
 		return err
 	}
 	return nil
 }
 
-func bindBdfDisk(diskId string) (bdf string, err error) {
-	bdf, err = findBdf(diskId)
+func bindBdfDisk(diskID string) (bdf string, err error) {
+	bdf, err = findBdf(diskID)
 	if err != nil {
-		log.Errorf("bindBdfDisk: Disk %s bdf not found with error: %v", diskId, err)
-		return "", errors.Wrapf(err, "findBdf, diskId=%s", diskId)
+		log.Errorf("bindBdfDisk: Disk %s bdf not found with error: %v", diskID, err)
+		return "", errors.Wrapf(err, "findBdf, diskId=%s", diskID)
 	}
 	if bdf == "" {
-		log.Infof("bindBdfDisk: Disk %s bdf not found, skip", diskId)
+		log.Infof("bindBdfDisk: Disk %s bdf not found, skip", diskID)
 		return "", nil
 	}
-	log.Infof("bindBdfDisk: Disk %s bdf is %s", diskId, bdf)
+	log.Infof("bindBdfDisk: Disk %s bdf is %s", diskID, bdf)
 
 	data, err := os.Readlink(sysPrefix + "/sys/bus/pci/devices/" + bdf + "/driver")
 	if err != nil {
-		log.Errorf("bindBdfDisk: Disk %s bdf %s Readlink with error: %v", diskId, bdf, err)
-		return bdf, errors.Wrapf(err, "read disk dirver, diskId=%s, bdf=%s", diskId, bdf)
+		log.Errorf("bindBdfDisk: Disk %s bdf %s Readlink with error: %v", diskID, bdf, err)
+		return bdf, errors.Wrapf(err, "read disk dirver, diskId=%s, bdf=%s", diskID, bdf)
 	}
 	driver := filepath.Base(data)
-	log.Infof("bindBdfDisk: Disk %s bdf %s, kernel driver in use: %s", diskId, bdf, driver)
+	log.Infof("bindBdfDisk: Disk %s bdf %s, kernel driver in use: %s", diskID, bdf, driver)
 	switch driver {
 	case iohubSrviovDriver:
 		if err = IohubSriovUnbind(bdf); err != nil {
-			log.Errorf("bindBdfDisk: Disk %s bdf %s IohubSriovUnbind with error: %v", diskId, bdf, err)
+			log.Errorf("bindBdfDisk: Disk %s bdf %s IohubSriovUnbind with error: %v", diskID, bdf, err)
 			return bdf, errors.Wrapf(err, "IohubSriovUnbind, bdf=%s", bdf)
 		}
 	case virtioPciDriver:
-		log.Infof("bindBdfDisk: Disk %s(%s) already bound virtio-pci", diskId, bdf)
-		if err = storeBdfInfo(diskId, bdf); err != nil {
-			log.Errorf("bindBdfDisk: Disk %s bdf %s storeBdfInfo with error: %v", diskId, bdf, err)
+		log.Infof("bindBdfDisk: Disk %s(%s) already bound virtio-pci", diskID, bdf)
+		if err = storeBdfInfo(diskID, bdf); err != nil {
+			log.Errorf("bindBdfDisk: Disk %s bdf %s storeBdfInfo with error: %v", diskID, bdf, err)
 			return bdf, err
 		}
 		return bdf, nil
 	}
 	if err = VirtioPciBind(bdf); err != nil && !IsNoSuchDeviceErr(err) {
-		log.Errorf("bindBdfDisk: Disk %s bdf %s VirtioPciBind with error: %v", diskId, bdf, err)
+		log.Errorf("bindBdfDisk: Disk %s bdf %s VirtioPciBind with error: %v", diskID, bdf, err)
 		return bdf, errors.Wrapf(err, "VirtioPciBind, bdf=%s", bdf)
 	}
-	log.Infof("bindBdfDisk: Disk %s(%s) successfully", diskId, bdf)
+	log.Infof("bindBdfDisk: Disk %s(%s) successfully", diskID, bdf)
 
-	if err = storeBdfInfo(diskId, bdf); err != nil {
-		log.Errorf("bindBdfDisk: Disk %s bdf %s storeBdfInfo at end with error: %v", diskId, bdf, err)
+	if err = storeBdfInfo(diskID, bdf); err != nil {
+		log.Errorf("bindBdfDisk: Disk %s bdf %s storeBdfInfo at end with error: %v", diskID, bdf, err)
 		return bdf, err
 	}
 	return bdf, nil
@@ -258,7 +270,7 @@ func bindBdfDisk(diskId string) (bdf string, err error) {
 func storeBdfInfo(diskID, bdf string) (err error) {
 	info := BdfAttachInfo{
 		Depend:             bdf != "",
-		LastAttachedNodeId: GlobalConfigVar.NodeID,
+		LastAttachedNodeID: GlobalConfigVar.NodeID,
 	}
 	infoBytes, _ := json.Marshal(info)
 
@@ -282,7 +294,7 @@ func storeBdfInfo(diskID, bdf string) (err error) {
 func clearBdfInfo(diskID, bdf string) (err error) {
 	info := BdfAttachInfo{
 		Depend:             bdf != "",
-		LastAttachedNodeId: GlobalConfigVar.NodeID,
+		LastAttachedNodeID: GlobalConfigVar.NodeID,
 	}
 	infoBytes, _ := json.Marshal(info)
 

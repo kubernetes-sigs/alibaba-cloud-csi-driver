@@ -265,7 +265,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) {
 		log.Infof("Describe node %s and Set RunTimeClass to %s", nodeName, runtimeValue)
 	}
 
-	log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%b), DiskTagEnable(%b), DiskBdfEnable(%b), MetricEnable(%b), RunTimeClass(%s), DetachDisabled(%b), DetachBeforeDelete(%b)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete)
+	log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%b)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
 		EcsClient:          client,

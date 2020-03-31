@@ -310,6 +310,7 @@ func getInstanceDoc() (*instanceDocument, error) {
 	return result, nil
 }
 
+// GetDeviceByBdf get device name by bdf
 func GetDeviceByBdf(bdf string) (device string, err error) {
 	virtioPciPath := fmt.Sprintf("/sys/bus/pci/drivers/virtio-pci/%s", bdf)
 	dirs, err := ioutil.ReadDir(virtioPciPath)
