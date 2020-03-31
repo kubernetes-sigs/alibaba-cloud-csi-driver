@@ -34,12 +34,13 @@ import (
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	utilexec "k8s.io/utils/exec"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 const (
@@ -307,6 +308,40 @@ func getInstanceDoc() (*instanceDocument, error) {
 	}
 
 	return result, nil
+}
+
+func GetDeviceByBdf(bdf string) (device string, err error) {
+	virtioPciPath := fmt.Sprintf("/sys/bus/pci/drivers/virtio-pci/%s", bdf)
+	dirs, err := ioutil.ReadDir(virtioPciPath)
+	if err != nil {
+		return "", err
+	}
+	var virtioNumbers []string
+	for _, dir := range dirs {
+		if dir.IsDir() && strings.HasPrefix(dir.Name(), "virtio") {
+			virtioNumbers = append(virtioNumbers, dir.Name())
+		}
+	}
+	log.Infof("Device bdf: %s, virtio numbers: %v", bdf, virtioNumbers)
+	if len(virtioNumbers) == 0 {
+		return "", fmt.Errorf("virtio device not found, bdf: %s", bdf)
+	} else if len(virtioNumbers) > 1 {
+		return "", fmt.Errorf("virtio device found multiple: %v, bdf: %s", virtioNumbers, bdf)
+	}
+
+	devices, err := filepath.Glob("/sys/block/*/device")
+	if err != nil {
+		return "", fmt.Errorf("Glob：%v", err)
+	}
+	for _, device := range devices {
+		targetPath, _ := os.Readlink(device)
+		if filepath.Base(targetPath) == virtioNumbers[0] {
+			devicePath := fmt.Sprintf("/dev/%s", filepath.Base(filepath.Dir(device)))
+			log.Infof("Device bdf: %s, device: %s", bdf, devicePath)
+			return devicePath, nil
+		}
+	}
+	return "", fmt.Errorf("virtio device not found, bdf: %s", bdf)
 }
 
 // GetDeviceByVolumeID Get device by volumeID, link file should be like:
