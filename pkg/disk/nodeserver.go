@@ -438,7 +438,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	// Step 4 Attach volume
 	if GlobalConfigVar.ADControllerEnable {
 		var bdf string
-		device, _ = GetDeviceByVolumeID(req.GetVolumeId())
+		device, err = GetDeviceByVolumeID(req.GetVolumeId())
 		if GlobalConfigVar.DiskBdfEnable && device == "" {
 			if bdf, err = bindBdfDisk(req.GetVolumeId()); err != nil {
 				if err := unbindBdfDisk(req.GetVolumeId()); err != nil {
@@ -446,10 +446,10 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 				}
 				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf disk: %v", err)
 			}
-		}
-		device, err = GetDeviceByVolumeID(req.GetVolumeId())
-		if bdf != "" && device == "" {
-			device, err = GetDeviceByBdf(bdf)
+			device, err = GetDeviceByVolumeID(req.GetVolumeId())
+			if bdf != "" && device == "" {
+				device, err = GetDeviceByBdf(bdf)
+			}
 		}
 		if err != nil {
 			log.Errorf("NodeStageVolume: ADController Enabled, but device can't be found in node: %s, error: %s", req.VolumeId, err.Error())
