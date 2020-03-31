@@ -178,7 +178,8 @@ func attachDisk(volumeID, nodeID string, isSharedDisk bool) (string, error) {
 
 		// BDF Disk Logical
 		if GlobalConfigVar.DiskBdfEnable && len(devicePaths) == 0 {
-			if _, err = bindBdfDisk(disk.DiskId); err != nil {
+			var bdf string
+			if bdf, err = bindBdfDisk(disk.DiskId); err != nil {
 				if err := unbindBdfDisk(disk.DiskId); err != nil {
 					return "", status.Errorf(codes.Aborted, "NodeStageVolume: failed to detach bdf: %v", err)
 				}
@@ -186,6 +187,9 @@ func attachDisk(volumeID, nodeID string, isSharedDisk bool) (string, error) {
 			}
 
 			deviceName, err := GetDeviceByVolumeID(volumeID)
+			if len(deviceName) == 0 && bdf != "" {
+				deviceName, err = GetDeviceByBdf(bdf)
+			}
 			if err == nil && deviceName != "" {
 				log.Infof("AttachDisk: Successful attach bdf disk %s to node %s device %s by DiskID/Device mapping", volumeID, nodeID, deviceName)
 				return deviceName, nil
