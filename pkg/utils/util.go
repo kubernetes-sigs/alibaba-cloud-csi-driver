@@ -158,13 +158,13 @@ func IsMounted(mountPath string) bool {
 }
 
 // Umount do an unmount operation
-func Umount(mountPath string) bool {
+func Umount(mountPath string) error {
 	cmd := fmt.Sprintf("umount %s", mountPath)
 	_, err := Run(cmd)
 	if err != nil {
-		return false
+		return err
 	}
-	return true
+	return nil
 }
 
 // IsFileExisting check file exist in volume driver or not
