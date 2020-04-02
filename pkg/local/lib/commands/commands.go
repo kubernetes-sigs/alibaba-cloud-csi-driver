@@ -35,7 +35,7 @@ const (
 )
 
 // ListLV lists lvm volumes
-func ListLV(ctx context.Context, listspec string) ([]*parser.LV, error) {
+func ListLV(listspec string) ([]*parser.LV, error) {
 	cmdList := []string{NsenterCmd, "lvs", "--units=b", "--separator=\"<:SEP:>\"", "--nosuffix", "--noheadings",
 		"-o", "lv_name,lv_size,lv_uuid,lv_attr,copy_percent,lv_kernel_major,lv_kernel_minor,lv_tags", "--nameprefixes", "-a", listspec}
 	cmd := strings.Join(cmdList, " ")
@@ -85,7 +85,7 @@ const ProtectedTagName = "protected"
 
 // RemoveLV removes a volume
 func RemoveLV(ctx context.Context, vg string, name string) (string, error) {
-	lvs, err := ListLV(ctx, fmt.Sprintf("%s/%s", vg, name))
+	lvs, err := ListLV(fmt.Sprintf("%s/%s", vg, name))
 	if err != nil {
 		return "", fmt.Errorf("failed to list LVs: %v", err)
 	}
@@ -211,7 +211,7 @@ func CleanPath(ctx context.Context, path string) error {
 // AddTagLV add tag
 func AddTagLV(ctx context.Context, vg string, name string, tags []string) (string, error) {
 
-	lvs, err := ListLV(ctx, fmt.Sprintf("%s/%s", vg, name))
+	lvs, err := ListLV(fmt.Sprintf("%s/%s", vg, name))
 	if err != nil {
 		return "", fmt.Errorf("failed to list LVs: %v", err)
 	}
@@ -236,7 +236,7 @@ func AddTagLV(ctx context.Context, vg string, name string, tags []string) (strin
 // RemoveTagLV remove tag
 func RemoveTagLV(ctx context.Context, vg string, name string, tags []string) (string, error) {
 
-	lvs, err := ListLV(ctx, fmt.Sprintf("%s/%s", vg, name))
+	lvs, err := ListLV(fmt.Sprintf("%s/%s", vg, name))
 	if err != nil {
 		return "", fmt.Errorf("failed to list LVs: %v", err)
 	}

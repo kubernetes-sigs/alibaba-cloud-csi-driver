@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/commands"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -37,8 +38,6 @@ import (
 	"k8s.io/kubernetes/pkg/util/resizefs"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -149,11 +148,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	log.Infof("NodePublishVolume: Starting to mount lvm at path: %s, with vg: %s, with volume: %s, PV Type: %s, LVM Type: %s", targetPath, vgName, req.GetVolumeId(), pvType, lvmType)
 
-	volumeNewCreated := false
 	volumeID := req.GetVolumeId()
 	devicePath := filepath.Join("/dev/", vgName, volumeID)
 	if _, err := os.Stat(devicePath); os.IsNotExist(err) {
-		volumeNewCreated = true
 		err := ns.createVolume(ctx, volumeID, vgName, pvType, lvmType)
 		if err != nil {
 			log.Errorf("NodePublishVolume: create volume %s with error: %s", volumeID, err.Error())
@@ -203,14 +200,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		log.Infof("NodePublishVolume:: mount successful devicePath: %s, targetPath: %s, options: %v", devicePath, targetPath, options)
-	}
-
-	// xfs filesystem works on targetpath.
-	if volumeNewCreated == false {
-		if err := ns.resizeVolume(ctx, volumeID, vgName, targetPath); err != nil {
-			log.Errorf("NodePublishVolume: Resize volume %s with error: %s", volumeID, err.Error())
-			return nil, status.Error(codes.Internal, err.Error())
-		}
 	}
 
 	// upgrade PV with NodeAffinity
@@ -316,9 +305,20 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 	}, nil
 }
 
+// "required_bytes":6442450944},
+// "volume_id":"disk-548091b1-9ff9-4ec9-843b-f88cf0ac08ea",
+// "volume_path":"/var/lib/kubelet/pods/8b3d3e3b-a6ad-4338-a421-65152426c5e7/volumes/kubernetes.io~csi/disk-548091b1-9ff9-4ec9-843b-f88cf0ac08ea/mount"}
 func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (
 	*csi.NodeExpandVolumeResponse, error) {
 	log.Infof("NodeExpandVolume: lvm node expand volume: %v", req)
+	volumeID := req.VolumeId
+	targetPath := req.VolumePath
+	expectSize := req.CapacityRange.RequiredBytes
+	if err := ns.resizeVolume(ctx, expectSize, volumeID, targetPath); err != nil {
+		log.Errorf("NodePublishVolume: Resize volume %s with error: %s", volumeID, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	return &csi.NodeExpandVolumeResponse{}, nil
 }
 
@@ -334,34 +334,47 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}, nil
 }
 
-func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, targetPath string) error {
-	pvSize, unit := ns.getPvSize(volumeID)
-	devicePath := filepath.Join("/dev", vgName, volumeID)
-	sizeCmd := fmt.Sprintf("%s lvdisplay %s | grep 'LV Size' | awk '{print $3}'", NsenterCmd, devicePath)
-	sizeStr, err := utils.Run(sizeCmd)
-	if err != nil {
-		return err
+// lvm volume resize
+func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volumeID, targetPath string) error {
+	vgName := ""
+	var curSize int64
+
+	// Get vgName
+	_, _, pv := ns.getPvInfo(volumeID)
+	if pv != nil && pv.Spec.CSI != nil {
+		if value, ok := pv.Spec.CSI.VolumeAttributes["vgName"]; ok {
+			vgName = value
+		}
 	}
-	if sizeStr == "" {
-		return status.Error(codes.Internal, "Get lvm size error")
-	}
-	sizeStr = strings.Split(sizeStr, ".")[0]
-	sizeInt, err := strconv.ParseInt(strings.TrimSpace(sizeStr), 10, 64)
-	if err != nil {
-		return err
+	if vgName == "" {
+		return status.Error(codes.Internal, "VG Name is empty, cannot resize volume "+volumeID)
 	}
 
+	// Get lvm info
+	lvList, err := commands.ListLV(vgName)
+	if err != nil {
+		return status.Error(codes.Internal, "List lvm error with: "+err.Error())
+	}
+	for _, lv := range lvList {
+		if lv.Name == volumeID {
+			curSize = int64(lv.Size)
+		}
+	}
+	devicePath := filepath.Join("/dev", vgName, volumeID)
+
 	// if lvmsize equal/bigger than pv size, no do expand.
-	if sizeInt >= pvSize {
+	if curSize >= expectSize {
+		log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, curent size: %d is larger than expect Size: %d", volumeID, devicePath, curSize, expectSize)
 		return nil
 	}
-	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, from size: %d, to Size: %d%s", volumeID, devicePath, sizeInt, pvSize, unit)
+	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, from size: %d, to Size: %d", volumeID, devicePath, curSize, expectSize)
 
 	// resize lvm volume
 	// lvextend -L3G /dev/vgtest/lvm-5db74864-ea6b-11e9-a442-00163e07fb69
-	resizeCmd := fmt.Sprintf("%s lvextend -L%d%s %s", NsenterCmd, pvSize, unit, devicePath)
+	resizeCmd := fmt.Sprintf("%s lvextend -L%dB %s", NsenterCmd, expectSize, devicePath)
 	_, err = utils.Run(resizeCmd)
 	if err != nil {
+		log.Errorf("NodeExpandVolume: lvm volume %s expand error with %v", volumeID, err)
 		return err
 	}
 
@@ -370,22 +383,22 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, target
 	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: realExec})
 	ok, err := resizer.Resize(devicePath, targetPath)
 	if err != nil {
-		log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeID, devicePath, targetPath, err.Error())
+		log.Errorf("NodeExpandVolume:: Lvm Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeID, devicePath, targetPath, err.Error())
 		return err
 	}
 	if !ok {
-		log.Errorf("NodeExpandVolume:: Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, targetPath)
+		log.Errorf("NodeExpandVolume:: Lvm Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, targetPath)
 		return status.Error(codes.Internal, "Fail to resize volume fs")
 	}
-	log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, targetPath)
+	log.Infof("NodeExpandVolume:: lvm resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, targetPath)
 	return nil
 }
 
-func (ns *nodeServer) getPvSize(volumeID string) (int64, string) {
+func (ns *nodeServer) getPvInfo(volumeID string) (int64, string, *v1.PersistentVolume) {
 	pv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("lvcreate: fail to get pv, err: %v", err)
-		return 0, ""
+		return 0, "", nil
 	}
 	pvQuantity := pv.Spec.Capacity["storage"]
 	pvSize := pvQuantity.Value()
@@ -393,15 +406,14 @@ func (ns *nodeServer) getPvSize(volumeID string) (int64, string) {
 
 	if pvSizeGB == 0 {
 		pvSizeMB := pvSize / (1024 * 1024)
-		return pvSizeMB, "m"
+		return pvSizeMB, "m", pv
 	}
-	return pvSizeGB, "g"
+	return pvSizeGB, "g", pv
 }
 
 // create lvm volume
 func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType, lvmType string) error {
-	pvSize, unit := ns.getPvSize(volumeID)
-
+	pvSize, unit, _ := ns.getPvInfo(volumeID)
 	pvNumber := 0
 	var err error
 	// Create VG if vg not exist,
