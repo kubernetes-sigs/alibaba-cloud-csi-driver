@@ -35,7 +35,7 @@ func NewServer() Server {
 
 // ListLV list lvm volume
 func (s Server) ListLV(ctx context.Context, in *pb.ListLVRequest) (*pb.ListLVReply, error) {
-	lvs, err := commands.ListLV(ctx, in.VolumeGroup)
+	lvs, err := commands.ListLV(in.VolumeGroup)
 	if err != nil {
 		log.Errorf("List LVM with error: %s", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to list LVs: %v", err)

@@ -47,6 +47,19 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /socketDir
+        - name: external-local-resizer
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v0.3.0
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election"
+          env:
+            - name: ADDRESS
+              value: /socketDir/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /socketDir/
       volumes:
         - name: socket-dir
           hostPath:
