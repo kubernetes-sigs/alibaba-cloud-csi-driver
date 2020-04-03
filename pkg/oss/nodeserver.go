@@ -50,6 +50,7 @@ type Options struct {
 	AkSecret      string `json:"akSecret"`
 	Path          string `json:"path"`
 	UseSharedPath bool   `json:"useSharedPath"`
+	AuthType      string `json:"authType"`
 }
 
 const (
@@ -97,6 +98,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if strings.TrimSpace(value) == "true" || strings.TrimSpace(value) == "True" || strings.TrimSpace(value) == "1" {
 				opt.UseSharedPath = true
 			}
+		} else if key == "authtype" {
+			opt.AuthType = strings.TrimSpace(value)
 		}
 	}
 
@@ -104,6 +107,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if opt.Path == "" {
 		opt.Path = "/"
 	}
+
 	// support set ak by secret
 	if opt.AkID == "" || opt.AkSecret == "" {
 		if value, ok := req.Secrets[AkID]; ok {
@@ -132,10 +136,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	// Save ak file for ossfs
-	if err := saveOssCredential(opt); err != nil {
-		log.Errorf("Save oss ak error: %s", err.Error())
-		return nil, errors.New("Oss, Save AK file fail: " + err.Error())
+	// If you do not use sts authentication, save ak
+	if opt.AuthType == "" {
+		// Save ak file for ossfs
+		if err := saveOssCredential(opt); err != nil {
+			log.Errorf("Save oss ak error: %s", err.Error())
+			return nil, errors.New("Oss, Save AK file fail: " + err.Error())
+		}
 	}
 
 	// default use allow_other
@@ -150,6 +157,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				return nil, errors.New("Create OSS volume fail: " + err.Error())
 			}
 			mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s", opt.Bucket, opt.Path, sharedPath, opt.URL, opt.OtherOpts)
+			if opt.AuthType == "sts" {
+				mntCmd = GetRAMRoleOption(mntCmd)
+			}
 			if out, err := connectorRun(mntCmd); err != nil {
 				if err != nil {
 					log.Errorf("Ossfs mount error: %s", err.Error())
@@ -170,6 +180,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, errors.New("Oss, Mount fail with create Path error: " + err.Error() + mountPath)
 		}
 		mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s", opt.Bucket, opt.Path, mountPath, opt.URL, opt.OtherOpts)
+		if opt.AuthType == "sts" {
+			mntCmd = GetRAMRoleOption(mntCmd)
+		}
 		if out, err := connectorRun(mntCmd); err != nil {
 			if err != nil {
 				log.Errorf("Ossfs mount error: %s", err.Error())
@@ -223,7 +236,9 @@ func checkOssOptions(opt *Options) error {
 		opt.AkID, opt.AkSecret = utils.GetLocalAK()
 	}
 	if opt.AkID == "" || opt.AkSecret == "" {
-		return errors.New("Oss Parametes error: AK is empty ")
+		if opt.AuthType == "" {
+			return errors.New("Oss Parametes error: AK and authType are both empty ")
+		}
 	}
 
 	if opt.OtherOpts != "" {
