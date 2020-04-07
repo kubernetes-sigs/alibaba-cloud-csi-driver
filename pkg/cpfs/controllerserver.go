@@ -148,8 +148,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	os.Chmod(fullPath, 0777)
 
 	// step7: Unmount cpfs server
-	if !utils.Umount(mountPoint) {
-		log.Errorf("Provision: %s, unmount cpfs mountpoint %s failed", req.Name, mountPoint)
+	if err := utils.Umount(mountPoint); err != nil {
+		log.Errorf("Provision: %s, unmount cpfs mountpoint %s failed with error: %v", req.Name, mountPoint, err)
 		return nil, errors.New("unable to unmount cpfs server: " + cpfsServer)
 	}
 
