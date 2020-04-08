@@ -628,27 +628,27 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	}
 
 	volumePath := req.GetVolumePath()
-	volumeID := req.GetVolumeId()
-	devicePath := GetVolumeDeviceName(volumeID)
+	diskID := req.GetVolumeId()
+	devicePath := GetVolumeDeviceName(diskID)
 	if devicePath == "" {
-		log.Errorf("NodeExpandVolume:: can't get devicePath: %s", volumeID)
-		return nil, status.Error(codes.InvalidArgument, "can't get devicePath for "+volumeID)
+		log.Errorf("NodeExpandVolume:: can't get devicePath: %s", diskID)
+		return nil, status.Error(codes.InvalidArgument, "can't get devicePath for "+diskID)
 	}
-	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, volumePath)
+	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
 
 	// use resizer to expand volume filesystem
 	realExec := k8smount.NewOsExec()
 	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: realExec})
 	ok, err := resizer.Resize(devicePath, volumePath)
 	if err != nil {
-		log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeID, devicePath, volumePath, err.Error())
+		log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", diskID, devicePath, volumePath, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if !ok {
-		log.Errorf("NodeExpandVolume:: Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, volumePath)
+		log.Errorf("NodeExpandVolume:: Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
 		return nil, status.Error(codes.Internal, "Fail to resize volume fs")
 	}
-	log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, volumePath)
+	log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
 	return &csi.NodeExpandVolumeResponse{}, nil
 }
 
