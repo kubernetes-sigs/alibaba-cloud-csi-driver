@@ -99,7 +99,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				opt.UseSharedPath = true
 			}
 		} else if key == "authtype" {
-			opt.AuthType = strings.TrimSpace(value)
+			opt.AuthType = strings.ToLower(strings.TrimSpace(value))
 		}
 	}
 
@@ -128,7 +128,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("mountPath is empty")
 	}
 
-	argStr := fmt.Sprintf("Bucket: %s, url: %s, , OtherOpts: %s, Path: %s, UseSharedPath: %s", opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath))
+	argStr := fmt.Sprintf("Bucket: %s, url: %s, , OtherOpts: %s, Path: %s, UseSharedPath: %s, autType: %s", opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType)
 	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
 
 	if IsOssfsMounted(mountPath) {
@@ -137,7 +137,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// If you do not use sts authentication, save ak
-	if opt.AuthType == "" {
+	if opt.AuthType != "sts" {
 		// Save ak file for ossfs
 		if err := saveOssCredential(opt); err != nil {
 			log.Errorf("Save oss ak error: %s", err.Error())
