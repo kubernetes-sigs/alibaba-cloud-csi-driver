@@ -147,7 +147,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	} else if len(disks) == 1 {
 		disk := disks[0]
 		if disk.Size != requestGB || disk.ZoneId != diskVol.ZoneID || disk.Encrypted != diskVol.Encrypted || disk.Category != diskVol.Type {
-			log.Errorf("CreateVolume: exist disk %s is different with requested for disk: existing : %v", req.GetName(), disk)
+			log.Errorf("CreateVolume: exist disk %s is different with requested, for disk existing: %v", req.GetName(), disk)
 			return nil, status.Errorf(codes.Internal, "exist disk %s is different with requested for disk", req.GetName())
 		}
 		log.Infof("CreateVolume: Volume %s is already created: %s, %s, %s, %d", req.GetName(), disk.DiskId, disk.RegionId, disk.ZoneId, disk.Size)
@@ -169,7 +169,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	// Step 3: init Disk create args
 	disktype := diskVol.Type
 	if DiskHighAvail == diskVol.Type {
-		disktype = DiskESSD
+		disktype = DiskSSD
 	}
 
 	createDiskRequest := ecs.CreateCreateDiskRequest()
@@ -210,27 +210,19 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	// Step 4: Create Disk
 	volumeResponse, err := GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
 	if err != nil {
-		// if available feature enable, try with ssd again
+		// if available feature enable, try with efficiency again
 		if diskVol.Type == DiskHighAvail && strings.Contains(err.Error(), DiskNotAvailable) {
-			disktype = DiskSSD
+			disktype = DiskEfficiency
 			createDiskRequest.DiskCategory = disktype
 			volumeResponse, err = GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
 			if err != nil {
-				if strings.Contains(err.Error(), DiskNotAvailable) {
-					disktype = DiskEfficiency
-					createDiskRequest.DiskCategory = disktype
-					volumeResponse, err = GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
-					if err != nil {
-						log.Errorf("CreateVolume: requestId[%s], fail to create disk %s with %v", volumeResponse.RequestId, req.GetName(), err)
-						return nil, status.Error(codes.Internal, err.Error())
-					}
-				} else {
-					log.Errorf("CreateVolume: requestId[%s], fail to create disk %s error: %v", volumeResponse.RequestId, req.GetName(), err)
-					return nil, status.Error(codes.Internal, err.Error())
-				}
+				log.Errorf("CreateVolume: requestId[%s], fail to create disk %s error: %v", volumeResponse.RequestId, req.GetName(), err)
+				return nil, status.Error(codes.Internal, err.Error())
 			}
 		} else if strings.Contains(err.Error(), DiskSizeNotAvailable) || strings.Contains(err.Error(), "The specified parameter \"Size\" is not valid") {
 			return nil, status.Error(codes.Internal, err.Error()+", PVC defined storage should equal/greater than 20Gi")
+		} else if strings.Contains(err.Error(), DiskNotAvailable) {
+			return nil, status.Error(codes.Internal, err.Error()+", PVC defined storage type not supported in zone: "+diskVol.ZoneID)
 		} else {
 			log.Errorf("CreateVolume: requestId[%s], fail to create disk %s, %v", volumeResponse.RequestId, req.GetName(), err)
 			return nil, status.Error(codes.Internal, err.Error())
@@ -497,7 +489,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 
 	disk, err := findDiskByID(diskID)
 	if err != nil {
-		log.Errorf("ControllerExpandVolume:: expand disk with error: %s", err.Error())
+		log.Errorf("ControllerExpandVolume:: find disk(%s) with error: %s", diskID, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if disk == nil {
@@ -509,8 +501,8 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 		return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
 	}
 	if requestGB < disk.Size {
-		log.Errorf("ControllerExpandVolume:: expect size is less than current: %d, expected: %d", disk.Size, requestGB)
-		return nil, status.Errorf(codes.Internal, "configured disk size less than current size: %d, %d", disk.Size, requestGB)
+		log.Infof("ControllerExpandVolume:: expect size is less than current: %d, expected: %d, disk: %s", disk.Size, requestGB, req.VolumeId)
+		return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
 	}
 
 	// do resize
