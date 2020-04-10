@@ -528,7 +528,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 	}
 	// save diskID and uuid info
-	SaveUUid(req.VolumeId, device)
+	SaveUUID(req.VolumeId, device)
 
 	log.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v, device: %s, mkfsOptions: %v", req.VolumeId, targetPath, device, mkfsOptions)
 	return &csi.NodeStageVolumeResponse{}, nil

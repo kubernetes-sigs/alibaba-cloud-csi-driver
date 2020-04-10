@@ -98,8 +98,8 @@ const (
 	fsckErrorsCorrected = 1
 	// fsckErrorsUncorrected tag
 	fsckErrorsUncorrected = 4
-	// DiskUuidPath tag
-	DiskUuidPath = "/host/etc/kubernetes/volumes/disk/uuid"
+	// DiskUUIDPath tag
+	DiskUUIDPath = "/host/etc/kubernetes/volumes/disk/uuid"
 )
 
 var (
@@ -753,8 +753,9 @@ func GetVolumeDeviceName(diskID string) string {
 	return deviceName
 }
 
+// GetDeviceByUUID get device path
 func GetDeviceByUUID(diskID string) string {
-	fileName := filepath.Join(DiskUuidPath, diskID)
+	fileName := filepath.Join(DiskUUIDPath, diskID)
 	if utils.IsFileExisting(fileName) {
 		uuid, err := ioutil.ReadFile(fileName)
 		if err != nil {
@@ -774,8 +775,9 @@ func GetDeviceByUUID(diskID string) string {
 	return ""
 }
 
-func SaveUUid(diskID, deviceName string) error {
-	fileName := filepath.Join(DiskUuidPath, diskID)
+// SaveUUID save uuid
+func SaveUUID(diskID, deviceName string) error {
+	fileName := filepath.Join(DiskUUIDPath, diskID)
 	if !utils.IsFileExisting(fileName) {
 		cmd := fmt.Sprintf("blkid %s -o export | grep UUID= | grep -v grep | awk -F= '{print $2}'", deviceName)
 		outStr, err := utils.Run(cmd)
