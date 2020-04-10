@@ -143,13 +143,13 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				return nil, status.Error(codes.InvalidArgument, "Parse lvm part schedule info error "+err.Error())
 			}
 		} else {
-			nodeId := ""
-			nodeId, paraList, err = lvmNoScheduled(parameters)
+			nodeID := ""
+			nodeID, paraList, err = lvmNoScheduled(parameters)
 			if err != nil {
 				log.Errorf("CreateVolume: lvm No scheduled volume %s with error: %s", volumeID, err.Error())
 				return nil, status.Error(codes.InvalidArgument, "Parse lvm schedule info error "+err.Error())
 			}
-			nodeSelected = nodeId
+			nodeSelected = nodeID
 		}
 	} else if volumeType == MountPointType {
 		var err error
@@ -165,12 +165,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				return nil, status.Error(codes.InvalidArgument, "Parse lvm part schedule info error "+err.Error())
 			}
 		} else {
-			nodeId := ""
-			nodeId, paraList, err = mountpointNoScheduled(parameters)
+			nodeID := ""
+			nodeID, paraList, err = mountpointNoScheduled(parameters)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, "Parse lvm schedule info error "+err.Error())
 			}
-			nodeSelected = nodeId
+			nodeSelected = nodeID
 		}
 	} else if volumeType == DeviceVolumeType {
 		var err error
@@ -186,12 +186,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				return nil, status.Error(codes.InvalidArgument, "Parse Device part schedule info error "+err.Error())
 			}
 		} else {
-			nodeId := ""
-			nodeId, paraList, err = deviceNoScheduled(parameters)
+			nodeID := ""
+			nodeID, paraList, err = deviceNoScheduled(parameters)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, "Parse Device schedule info error "+err.Error())
 			}
-			nodeSelected = nodeId
+			nodeSelected = nodeID
 		}
 	} else {
 		log.Errorf("CreateVolume: Create with no support volume type %s", volumeType)

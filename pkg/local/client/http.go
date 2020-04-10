@@ -8,11 +8,6 @@ import (
 	"time"
 )
 
-// scheduler restful address
-var (
-	UrlHost = ""
-)
-
 // DoRequest Http Post Request
 func DoRequest(url string) ([]byte, error) {
 	req, err := http.NewRequest("POST", url, nil)
@@ -20,7 +15,6 @@ func DoRequest(url string) ([]byte, error) {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Host", UrlHost)
 	client := &http.Client{Timeout: time.Second * 10}
 
 	// Send request

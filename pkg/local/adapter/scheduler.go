@@ -42,29 +42,31 @@ type BindingInfo struct {
 }
 
 const (
-	SCHEDULER_HOST_TAG = "SCHEDULER_HOST"
+	// SchedulerHostTag tag
+	SchedulerHostTag = "SCHEDULER_HOST"
 )
 
-var UrlHost = "http://127.0.0.1:23000"
+// UrlHost default value
+var URLHost = "http://127.0.0.1:23000"
 
-// make request and get expect schedule topology
-func ScheduleVolume(volumeType, pvcName, pvcNamespace, vgName, nodeId string) (*BindingInfo, error) {
+// ScheduleVolume make request and get expect schedule topology
+func ScheduleVolume(volumeType, pvcName, pvcNamespace, vgName, nodeID string) (*BindingInfo, error) {
 	bindingInfo := &BindingInfo{}
-	hostEnv := os.Getenv(SCHEDULER_HOST_TAG)
+	hostEnv := os.Getenv(SchedulerHostTag)
 	if hostEnv != "" {
-		UrlHost = hostEnv
+		URLHost = hostEnv
 	}
 
 	// make request url
-	urlPath := fmt.Sprintf("/apis/scheduling/%s/persistentvolumeclaims/%s?nodeName=%s&volumeType=%s&vgName=%s", pvcNamespace, pvcName, nodeId, volumeType, vgName)
-	if nodeId == "" && vgName != "" {
+	urlPath := fmt.Sprintf("/apis/scheduling/%s/persistentvolumeclaims/%s?nodeName=%s&volumeType=%s&vgName=%s", pvcNamespace, pvcName, nodeID, volumeType, vgName)
+	if nodeID == "" && vgName != "" {
 		urlPath = fmt.Sprintf("/apis/scheduling/%s/persistentvolumeclaims/%s?volumeType=%s&vgName=%s", pvcNamespace, pvcName, volumeType, vgName)
-	} else if nodeId != "" && vgName == "" {
-		urlPath = fmt.Sprintf("/apis/scheduling/%s/persistentvolumeclaims/%s?volumeType=%s&nodeName=%s", pvcNamespace, pvcName, volumeType, nodeId)
-	} else if nodeId == "" && vgName == "" {
+	} else if nodeID != "" && vgName == "" {
+		urlPath = fmt.Sprintf("/apis/scheduling/%s/persistentvolumeclaims/%s?volumeType=%s&nodeName=%s", pvcNamespace, pvcName, volumeType, nodeID)
+	} else if nodeID == "" && vgName == "" {
 		urlPath = fmt.Sprintf("/apis/scheduling/%s/persistentvolumeclaims/%s?volumeType=%s", pvcNamespace, pvcName, volumeType)
 	}
-	url := UrlHost + urlPath
+	url := URLHost + urlPath
 
 	// Request restful api
 	respBody, err := client.DoRequest(url)
