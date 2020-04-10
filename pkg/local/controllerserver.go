@@ -203,9 +203,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		parameters[key] = value
 	}
 	// remove not necessary labels
-	for key, _ := range parameters {
-		switch "key" {
-		case LastAppliyAnnotationTag, CsiProvisionerIdentity, CsiProvisionerTag, NodeSchTag:
+	for key := range parameters {
+		if key == LastAppliyAnnotationTag {
+			delete(parameters, key)
+		} else if key == CsiProvisionerTag {
 			delete(parameters, key)
 		}
 	}
