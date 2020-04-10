@@ -3,6 +3,7 @@
 run_oss="false"
 
 mkdir -p /var/log/alicloud/
+mkdir -p /host/etc/kubernetes/volumes/disk/uuid
 
 ossfsVer="1.80.6.ack.1"
 

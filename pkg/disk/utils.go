@@ -98,6 +98,8 @@ const (
 	fsckErrorsCorrected = 1
 	// fsckErrorsUncorrected tag
 	fsckErrorsUncorrected = 4
+	// DiskUUIDPath tag
+	DiskUUIDPath = "/host/etc/kubernetes/volumes/disk/uuid"
 )
 
 var (
@@ -737,11 +739,64 @@ func checkDeviceAvailable(devicePath string) error {
 }
 
 // GetVolumeDeviceName get device name
-func GetVolumeDeviceName(volumeID string) string {
-	deviceName, err := GetDeviceByVolumeID(volumeID)
+func GetVolumeDeviceName(diskID string) string {
+	deviceName, err := GetDeviceByVolumeID(diskID)
 	if err != nil {
-		deviceName = getVolumeConfig(volumeID)
-		log.Infof("GetVolumeDeviceName, Get Device Name by configFile %s, DeviceMap: %s", deviceName, err.Error())
+		deviceName = GetDeviceByUUID(diskID)
+		if deviceName == "" {
+			deviceName = getVolumeConfig(diskID)
+			log.Infof("GetVolumeDeviceName, Get Device Name by Config File %s, DeviceName: %s", diskID, deviceName)
+		} else {
+			log.Infof("GetVolumeDeviceName, Get Device Name by UUID %s, DeviceName: %s", diskID, deviceName)
+		}
 	}
 	return deviceName
+}
+
+// GetDeviceByUUID get device path
+func GetDeviceByUUID(diskID string) string {
+	fileName := filepath.Join(DiskUUIDPath, diskID)
+	if utils.IsFileExisting(fileName) {
+		uuid, err := ioutil.ReadFile(fileName)
+		if err != nil {
+			log.Errorf("Read disk UUID error: %v", err)
+			return ""
+		}
+		uuidStr := strings.TrimSpace(string(uuid))
+
+		cmd := fmt.Sprintf("blkid -U %s | grep -v grep", uuidStr)
+		outStr, err := utils.Run(cmd)
+		if err != nil {
+			return ""
+		}
+		devicePath := strings.TrimSpace(outStr)
+		return devicePath
+	}
+	return ""
+}
+
+// SaveUUID save uuid
+func SaveUUID(diskID, deviceName string) error {
+	fileName := filepath.Join(DiskUUIDPath, diskID)
+	if !utils.IsFileExisting(fileName) {
+		cmd := fmt.Sprintf("blkid %s -o export | grep UUID= | grep -v grep | awk -F= '{print $2}'", deviceName)
+		outStr, err := utils.Run(cmd)
+		if err != nil {
+			log.Errorf("SaveUUid: exec command(%s) error: %v", cmd, err)
+			return err
+		}
+		uuid := strings.TrimSpace(outStr)
+		if !strings.Contains(uuid, "-") {
+			log.Errorf("SaveUUid: parse uuid get format error with: %s diskID: %s, DeviceName: %s", outStr, diskID, deviceName)
+			return fmt.Errorf("parse uuid and format error with: %s diskID: %s, DeviceName: %s", outStr, diskID, deviceName)
+		}
+		if err := ioutil.WriteFile(fileName, []byte(uuid), 0644); err != nil {
+			log.Errorf("SaveUUid: write uuid with error: %v, diskID: %s, uuid: %s", err, diskID, uuid)
+			return err
+		}
+		log.Infof("Successful save uuid %s to file %s for disk %s, device: %s", uuid, fileName, diskID, deviceName)
+	} else {
+
+	}
+	return nil
 }
