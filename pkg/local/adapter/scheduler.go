@@ -46,7 +46,7 @@ const (
 	SchedulerHostTag = "SCHEDULER_HOST"
 )
 
-// UrlHost default value
+// URLHost default value
 var URLHost = "http://127.0.0.1:23000"
 
 // ScheduleVolume make request and get expect schedule topology
