@@ -745,9 +745,9 @@ func GetVolumeDeviceName(diskID string) string {
 		deviceName = GetDeviceByUUID(diskID)
 		if deviceName == "" {
 			deviceName = getVolumeConfig(diskID)
-			log.Infof("GetVolumeDeviceName, Get Device Name by Config File %s, DeviceMap: %s", deviceName)
+			log.Infof("GetVolumeDeviceName, Get Device Name by Config File %s, DeviceName: %s", diskID, deviceName)
 		} else {
-			log.Infof("GetVolumeDeviceName, Get Device Name by UUID %s, DeviceMap: %s", deviceName)
+			log.Infof("GetVolumeDeviceName, Get Device Name by UUID %s, DeviceName: %s", diskID, deviceName)
 		}
 	}
 	return deviceName
