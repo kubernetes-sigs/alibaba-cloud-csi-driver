@@ -372,7 +372,7 @@ func WriteJosnFile(obj interface{}, file string) error {
 
 // GetPodRunTime Get Pod runtimeclass config
 // Default as runc.
-func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet *kubernetes.Clientset) string {
+func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet *kubernetes.Clientset) (string, error) {
 	// if pod name namespace is empty, use default
 	podName, nameSpace := "", ""
 	if value, ok := req.VolumeContext["csi.storage.k8s.io/pod.name"]; ok {
@@ -383,13 +383,13 @@ func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet *kubernetes.Clie
 	}
 	if podName == "" || nameSpace == "" {
 		log.Warnf("GetPodRunTime: Rreceive Request with Empty name or namespace: %s, %s", podName, nameSpace)
-		return RuncRunTimeTag
+		return "", fmt.Errorf("GetPodRunTime: Rreceive Request with Empty name or namespace")
 	}
 
 	podInfo, err := clientSet.CoreV1().Pods(nameSpace).Get(podName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("GetPodRunTime: Get PodInfo(%s, %s) with error: %s", podName, nameSpace, err.Error())
-		return RuncRunTimeTag
+		return "", fmt.Errorf("GetPodRunTime: Get PodInfo(%s, %s) with error: %s", podName, nameSpace, err.Error())
 	}
 	runTimeValue := RuncRunTimeTag
 
@@ -405,11 +405,17 @@ func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet *kubernetes.Clie
 		}
 	}
 
+	// Deprecated pouch为了支持k8s 1.12以前没有RuntimeClass的情况做的特殊逻辑，为了代码健壮性，这里做下支持
+	if podInfo.Annotations["io.kubernetes.runtime"] == "kata-runtime" {
+		log.Infof("RunTime: Send with runtime: %s, %s, %s", podName, nameSpace, "runv")
+		runTimeValue = RunvRunTimeTag
+	}
+
 	// check Annotation[io.kubernetes.cri.untrusted-workload] = true
 	if value, ok := podInfo.Annotations["io.kubernetes.cri.untrusted-workload"]; ok && strings.TrimSpace(value) == "true" {
 		runTimeValue = RunvRunTimeTag
 	}
-	return runTimeValue
+	return runTimeValue, nil
 }
 
 // IsMountPointRunv check the mountpoint is runv style

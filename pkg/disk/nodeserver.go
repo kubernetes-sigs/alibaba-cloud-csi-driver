@@ -183,45 +183,49 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// check target mount path
 	sourcePath := req.StagingTargetPath
 	// running in runc/runv mode
-	if GlobalConfigVar.RunTimeClass == MixRunTimeMode && utils.GetPodRunTime(req, ns.clientSet) == RunvRunTimeMode {
-		log.Infof("NodePublishVolume:: Kata Disk Volume %s Mount with: %v", req.VolumeId, req)
-		// umount the stage path, which is mounted in Stage
-		if err := ns.unmountStageTarget(sourcePath); err != nil {
-			log.Errorf("NodePublishVolume(runv): unmountStageTarget %s with error: %s", sourcePath, err.Error())
-			return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: unmountStageTarget "+sourcePath+" with error: "+err.Error())
-		}
-		deviceName, err := GetDeviceByVolumeID(req.VolumeId)
-		if deviceName == "" {
-			deviceName = GetDeviceByUUID(req.VolumeId)
-		}
-		if err != nil && deviceName == "" {
-			deviceName = getVolumeConfig(req.VolumeId)
-		}
-		if deviceName == "" {
-			log.Errorf("NodePublishVolume(runv): cannot get local deviceName for volume:  %s", req.VolumeId)
-			return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot get local deviceName for volume: "+req.VolumeId)
-		}
+	if GlobalConfigVar.RunTimeClass == MixRunTimeMode {
+		if runtime, err := utils.GetPodRunTime(req, ns.clientSet); err != nil {
+			return nil, status.Errorf(codes.Internal, "NodePublishVolume: cannot get pod runtime: %v", err)
+		} else if runtime == RunvRunTimeMode {
+			log.Infof("NodePublishVolume:: Kata Disk Volume %s Mount with: %v", req.VolumeId, req)
+			// umount the stage path, which is mounted in Stage
+			if err := ns.unmountStageTarget(sourcePath); err != nil {
+				log.Errorf("NodePublishVolume(runv): unmountStageTarget %s with error: %s", sourcePath, err.Error())
+				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: unmountStageTarget "+sourcePath+" with error: "+err.Error())
+			}
+			deviceName, err := GetDeviceByVolumeID(req.VolumeId)
+			if deviceName == "" {
+				deviceName = GetDeviceByUUID(req.VolumeId)
+			}
+			if err != nil && deviceName == "" {
+				deviceName = getVolumeConfig(req.VolumeId)
+			}
+			if deviceName == "" {
+				log.Errorf("NodePublishVolume(runv): cannot get local deviceName for volume:  %s", req.VolumeId)
+				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot get local deviceName for volume: "+req.VolumeId)
+			}
 
-		// save volume info to local file
-		mountFile := filepath.Join(req.GetTargetPath(), utils.CsiPluginRunTimeFlagFile)
-		if err := utils.CreateDest(req.GetTargetPath()); err != nil {
-			log.Errorf("NodePublishVolume(runv): Create Dest %s error: %s", req.GetTargetPath(), err.Error())
-			return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Create Dest "+req.GetTargetPath()+" with error: "+err.Error())
-		}
+			// save volume info to local file
+			mountFile := filepath.Join(req.GetTargetPath(), utils.CsiPluginRunTimeFlagFile)
+			if err := utils.CreateDest(req.GetTargetPath()); err != nil {
+				log.Errorf("NodePublishVolume(runv): Create Dest %s error: %s", req.GetTargetPath(), err.Error())
+				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Create Dest "+req.GetTargetPath()+" with error: "+err.Error())
+			}
 
-		qResponse := QueryResponse{}
-		qResponse.device = deviceName
-		qResponse.identity = req.GetTargetPath()
-		qResponse.volumeType = "block"
-		qResponse.mountfile = mountFile
-		qResponse.runtime = RunvRunTimeMode
-		if err := utils.WriteJosnFile(qResponse, mountFile); err != nil {
-			log.Errorf("NodePublishVolume(runv): Write Josn File error: %s", err.Error())
-			return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Write Josn File error: "+err.Error())
-		}
+			qResponse := QueryResponse{}
+			qResponse.device = deviceName
+			qResponse.identity = req.GetTargetPath()
+			qResponse.volumeType = "block"
+			qResponse.mountfile = mountFile
+			qResponse.runtime = RunvRunTimeMode
+			if err := utils.WriteJosnFile(qResponse, mountFile); err != nil {
+				log.Errorf("NodePublishVolume(runv): Write Josn File error: %s", err.Error())
+				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Write Josn File error: "+err.Error())
+			}
 
-		log.Infof("NodePublishVolume:: Kata Disk Volume %s Mount Successful", req.VolumeId)
-		return &csi.NodePublishVolumeResponse{}, nil
+			log.Infof("NodePublishVolume:: Kata Disk Volume %s Mount Successful", req.VolumeId)
+			return &csi.NodePublishVolumeResponse{}, nil
+		}
 	}
 
 	isBlock := req.GetVolumeCapability().GetBlock() != nil

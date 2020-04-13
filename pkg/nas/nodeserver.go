@@ -136,26 +136,30 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// running in runc/runv mode
-	if GlobalConfigVar.RunTimeClass == MixRunTimeMode && utils.GetPodRunTime(req, ns.clientSet) == RunvRunTimeMode {
-		if err := utils.CreateDest(mountPath); err != nil {
-			return nil, errors.New("NodePublishVolume: create dest directory error: " + err.Error())
+	if GlobalConfigVar.RunTimeClass == MixRunTimeMode {
+		if runtime, err := utils.GetPodRunTime(req, ns.clientSet); err != nil {
+			return nil, status.Errorf(codes.Internal, "NodePublishVolume: cannot get pod runtime: %v", err)
+		} else if runtime == RunvRunTimeMode {
+			if err := utils.CreateDest(mountPath); err != nil {
+				return nil, errors.New("NodePublishVolume: create dest directory error: " + err.Error())
+			}
+			fileName := filepath.Join(mountPath, utils.CsiPluginRunTimeFlagFile)
+			runvOptions := RunvNasOptions{}
+			runvOptions.Options = opt.Options
+			runvOptions.Server = opt.Server
+			runvOptions.ModeType = opt.ModeType
+			runvOptions.Mode = opt.Mode
+			runvOptions.Vers = opt.Vers
+			runvOptions.Path = opt.Path
+			runvOptions.RunTime = "runv"
+			runvOptions.VolumeType = "nfs"
+			runvOptions.MountFile = fileName
+			if err := utils.WriteJosnFile(runvOptions, fileName); err != nil {
+				return nil, errors.New("NodePublishVolume: Write Josn File error: " + err.Error())
+			}
+			log.Infof("Nas(Kata), Write Nfs Options to File Successful: %s", fileName)
+			return &csi.NodePublishVolumeResponse{}, nil
 		}
-		fileName := filepath.Join(mountPath, utils.CsiPluginRunTimeFlagFile)
-		runvOptions := RunvNasOptions{}
-		runvOptions.Options = opt.Options
-		runvOptions.Server = opt.Server
-		runvOptions.ModeType = opt.ModeType
-		runvOptions.Mode = opt.Mode
-		runvOptions.Vers = opt.Vers
-		runvOptions.Path = opt.Path
-		runvOptions.RunTime = "runv"
-		runvOptions.VolumeType = "nfs"
-		runvOptions.MountFile = fileName
-		if err := utils.WriteJosnFile(runvOptions, fileName); err != nil {
-			return nil, errors.New("NodePublishVolume: Write Josn File error: " + err.Error())
-		}
-		log.Infof("Nas(Kata), Write Nfs Options to File Successful: %s", fileName)
-		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	// check parameters
