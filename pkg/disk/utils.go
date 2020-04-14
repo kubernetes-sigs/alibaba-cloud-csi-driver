@@ -371,7 +371,7 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 				}
 			}
 			if !isSearched {
-				log.Errorf("volumeID link path %q not found", volumeLinPath)
+				log.Warnf("volumeID link path %q not found", volumeLinPath)
 				return "", fmt.Errorf("volumeID link path %q not found", volumeLinPath)
 			}
 		} else {
