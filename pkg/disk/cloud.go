@@ -173,12 +173,12 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 
 	// step 5: diff device with previous files under /dev
 	if !GlobalConfigVar.ADControllerEnable {
-		deviceName, err := GetDeviceByVolumeID(diskID)
+		deviceName, _ := GetDeviceByVolumeID(diskID)
 		if deviceName == "" {
 			deviceName = GetDeviceByUUID(diskID)
 		}
-		if err == nil && deviceName != "" {
-			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device mapping", diskID, nodeID, deviceName)
+		if deviceName != "" {
+			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device mapping/uuid", diskID, nodeID, deviceName)
 			return deviceName, nil
 		}
 		// TODO: use uuid get devicepath
