@@ -2,7 +2,7 @@
 
 ## Usage
 ## Append image tag which is expect.
-## sh upgrade_csi-provisioner.sh v1.14.8.36-93f2b131-aliyun
+## sh upgrade_csi-provisioner.sh v1.14.8.38-fe611ad1-aliyun
 
 
 if [ "$1" = "" ]; then
@@ -91,6 +91,13 @@ spec:
               matchExpressions:
               - key: node-role.kubernetes.io/master
                 operator: Exists
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: type
+                operator: NotIn
+                values:
+                - virtual-kubelet
       priorityClassName: system-node-critical
       serviceAccount: admin
       hostNetwork: true
@@ -156,10 +163,6 @@ spec:
           env:
             - name: CSI_ENDPOINT
               value: unix://socketDir/csi.sock
-            - name: ACCESS_KEY_ID
-              value: ""
-            - name: ACCESS_KEY_SECRET
-              value: ""
             - name: MAX_VOLUMES_PERNODE
               value: "15"
           livenessProbe:
@@ -192,7 +195,7 @@ spec:
             requests:
               cpu: 100m
               memory: 100Mi
-        - name: dusk-liveness-probe
+        - name: disk-liveness-probe
           image: csi-image-prefix/acs/csi-livenessprobe:v2.0.0
           args:
             - --csi-address=/csi/csi.sock
@@ -206,6 +209,10 @@ spec:
             - "--provisioner=nasplugin.csi.alibabacloud.com"
             - "--csi-address=\$(ADDRESS)"
             - "--volume-name-prefix=nas"
+            - "--timeout=150s"
+            - "--enable-leader-election=true"
+            - "--leader-election-type=leases"
+            - "--retry-interval-start=500ms"
             - "--v=5"
           env:
             - name: ADDRESS
