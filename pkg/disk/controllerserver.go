@@ -166,6 +166,19 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 	}
 
+	snapshotID := ""
+	volumeSource := req.GetVolumeContentSource()
+	if volumeSource != nil {
+		if _, ok := volumeSource.GetType().(*csi.VolumeContentSource_Snapshot); !ok {
+			return nil, status.Error(codes.InvalidArgument, "CreateVolume: unsupported volumeContentSource type")
+		}
+		sourceSnapshot := volumeSource.GetSnapshot()
+		if sourceSnapshot == nil {
+			return nil, status.Error(codes.InvalidArgument, "CreateVolume: get empty snapshot from volumeContentSource")
+		}
+		snapshotID = sourceSnapshot.GetSnapshotId()
+	}
+
 	// Step 3: init Disk create args
 	disktype := diskVol.Type
 	if DiskHighAvail == diskVol.Type {
@@ -180,6 +193,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	createDiskRequest.DiskCategory = disktype
 	createDiskRequest.Encrypted = requests.NewBoolean(diskVol.Encrypted)
 	createDiskRequest.ResourceGroupId = diskVol.ResourceGroupID
+	if snapshotID != "" {
+		createDiskRequest.SnapshotId = snapshotID
+	}
 
 	// Set Default DiskTags
 	diskTags := []ecs.CreateDiskTag{}
@@ -511,7 +527,9 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	resizeDiskRequest.DiskId = diskID
 	resizeDiskRequest.NewSize = requests.NewInteger(requestGB)
 	if disk.Category == DiskSSD || disk.Category == DiskEfficiency || disk.Category == DiskESSD {
-		resizeDiskRequest.Type = "online"
+		if disk.Status == DiskStatusInuse {
+			resizeDiskRequest.Type = "online"
+		}
 	}
 	response, err := GlobalConfigVar.EcsClient.ResizeDisk(resizeDiskRequest)
 	if err != nil {
