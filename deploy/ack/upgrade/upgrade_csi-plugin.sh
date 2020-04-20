@@ -2,7 +2,7 @@
 
 ## Usage
 ## Append image tag which is expect.
-## sh upgrade_csi-plugin.sh v1.14.8.36-93f2b131-aliyun
+## sh upgrade_csi-plugin.sh v1.14.8.38-fe611ad1-aliyun
 
 
 if [ "$1" = "" ]; then
@@ -53,7 +53,18 @@ spec:
         app: csi-plugin
     spec:
       tolerations:
-        - operator: "Exists"
+        - operator: Exists
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: type
+                operator: NotIn
+                values:
+                - virtual-kubelet
+      nodeSelector:
+        beta.kubernetes.io/os: linux
       priorityClassName: system-node-critical
       serviceAccount: admin
       hostNetwork: true
@@ -84,6 +95,11 @@ spec:
             - "--v=2"
             - "--driver=diskplugin.csi.alibabacloud.com"
           env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock
             - name: ACCESS_KEY_ID
@@ -92,8 +108,6 @@ spec:
               value: ""
             - name: MAX_VOLUMES_PERNODE
               value: "15"
-            - name: DISK_TAGED_BY_PLUGIN
-              value: "true"
           livenessProbe:
             httpGet:
               path: /healthz
@@ -156,6 +170,11 @@ spec:
           - "--v=2"
           - "--driver=nasplugin.csi.alibabacloud.com"
           env:
+          - name: KUBE_NODE_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
           - name: CSI_ENDPOINT
             value: unix://var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock
           livenessProbe:
