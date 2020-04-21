@@ -195,7 +195,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			}
 			deviceName, err := GetDeviceByVolumeID(req.VolumeId)
 			if deviceName == "" {
-				deviceName = GetDeviceByUUID(req.VolumeId)
+				deviceName, err = GetDeviceByUUID(req.VolumeId)
 			}
 			if err != nil && deviceName == "" {
 				deviceName = getVolumeConfig(req.VolumeId)
@@ -280,7 +280,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if sourceNotMounted {
 		device, _ := GetDeviceByVolumeID(req.GetVolumeId())
 		if device == "" {
-			device = GetDeviceByUUID(req.GetVolumeId())
+			device, _ = GetDeviceByUUID(req.GetVolumeId())
 		}
 		if device != "" {
 			if err := ns.mountDeviceToGlobal(req.VolumeCapability, req.VolumeContext, device, sourcePath); err != nil {
@@ -453,7 +453,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		var bdf string
 		device, err = GetDeviceByVolumeID(req.GetVolumeId())
 		if device == "" {
-			device = GetDeviceByUUID(req.GetVolumeId())
+			device, err = GetDeviceByUUID(req.GetVolumeId())
 		}
 		if GlobalConfigVar.DiskBdfEnable && device == "" {
 			if bdf, err = bindBdfDisk(req.GetVolumeId()); err != nil {
@@ -464,7 +464,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			}
 			device, err = GetDeviceByVolumeID(req.GetVolumeId())
 			if device == "" {
-				device = GetDeviceByUUID(req.GetVolumeId())
+				device, err = GetDeviceByUUID(req.GetVolumeId())
 			}
 			if bdf != "" && device == "" {
 				device, err = GetDeviceByBdf(bdf)
