@@ -742,7 +742,7 @@ func checkDeviceAvailable(devicePath string) error {
 func GetVolumeDeviceName(diskID string) string {
 	deviceName, err := GetDeviceByVolumeID(diskID)
 	if err != nil {
-		deviceName = GetDeviceByUUID(diskID)
+		deviceName, _ = GetDeviceByUUID(diskID)
 		if deviceName == "" {
 			deviceName = getVolumeConfig(diskID)
 			log.Infof("GetVolumeDeviceName, Get Device Name by Config File %s, DeviceName: %s", diskID, deviceName)
@@ -754,25 +754,25 @@ func GetVolumeDeviceName(diskID string) string {
 }
 
 // GetDeviceByUUID get device path
-func GetDeviceByUUID(diskID string) string {
+func GetDeviceByUUID(diskID string) (string, error) {
 	fileName := filepath.Join(DiskUUIDPath, diskID)
 	if utils.IsFileExisting(fileName) {
 		uuid, err := ioutil.ReadFile(fileName)
 		if err != nil {
 			log.Errorf("Read disk UUID error: %v", err)
-			return ""
+			return "", err
 		}
 		uuidStr := strings.TrimSpace(string(uuid))
 
 		cmd := fmt.Sprintf("blkid -U %s | grep -v grep", uuidStr)
 		outStr, err := utils.Run(cmd)
 		if err != nil {
-			return ""
+			return "", err
 		}
 		devicePath := strings.TrimSpace(outStr)
-		return devicePath
+		return devicePath, nil
 	}
-	return ""
+	return "", nil
 }
 
 // SaveUUID save uuid
