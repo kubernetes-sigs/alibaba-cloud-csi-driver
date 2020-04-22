@@ -253,6 +253,13 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) {
 		isDiskBdfEnable = false
 	}
 
+	diskDetachBeforeDelete := os.Getenv(DiskDetachBeforeDelete)
+	if diskDetachBeforeDelete == "true" || diskDetachBeforeDelete == "yes" {
+		isDiskDetachBeforeDelete = true
+	} else if diskDetachBeforeDelete == "false" || diskDetachBeforeDelete == "no" {
+		isDiskDetachBeforeDelete = false
+	}
+
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	runtimeValue := "runc"
 	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
