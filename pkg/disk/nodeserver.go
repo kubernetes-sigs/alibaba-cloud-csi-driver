@@ -69,6 +69,8 @@ const (
 	DiskDetachDisable = "DISK_DETACH_DISABLE"
 	// DiskBdfEnable tag
 	DiskBdfEnable = "DISK_BDF_ENABLE"
+	// DiskDetachBeforeDelete tag
+	DiskDetachBeforeDelete = "DISK_DETACH_BEFORE_DELETE"
 	// DiskAttachByController tag
 	DiskAttachByController = "DISK_AD_CONTROLLER"
 	// DiskAttachedKey attached key
