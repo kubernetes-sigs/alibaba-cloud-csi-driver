@@ -347,9 +347,36 @@ func GetDeviceByBdf(bdf string) (device string, err error) {
 	return "", fmt.Errorf("virtio device not found, bdf: %s", bdf)
 }
 
-// GetDeviceByVolumeID Get device by volumeID, link file should be like:
+func getDeviceSerial(serial string) (device string) {
+	serialFiles, err := filepath.Glob("/sys/block/*/serial")
+	if err != nil {
+		log.Infof("List device serial failed: %v", err)
+		return ""
+	}
+
+	for _, serialFile := range serialFiles {
+		body, err := ioutil.ReadFile(serialFile)
+		if err != nil {
+			log.Errorf("Read serial(%s): %v", serialFile, err)
+			continue
+		}
+		if strings.TrimSpace(string(body)) == serial {
+			return filepath.Join("/dev", filepath.Base(filepath.Dir(serialFile)))
+		}
+	}
+	return ""
+}
+
+// GetDeviceByVolumeID First try to find the device by serial
+// If cannot find the device using the serial number, get device by volumeID, link file should be like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
 func GetDeviceByVolumeID(volumeID string) (device string, err error) {
+	device = getDeviceSerial(strings.TrimPrefix(volumeID, "d-"))
+	log.Infof("Use the serial to find the device is %q, volumeID: %s", device, volumeID)
+	if device != "" {
+		return device, nil
+	}
+
 	byIDPath := "/dev/disk/by-id/"
 	volumeLinkName := strings.Replace(volumeID, "d-", "virtio-", -1)
 	volumeLinPath := filepath.Join(byIDPath, volumeLinkName)
@@ -468,7 +495,7 @@ func removeVolumeConfig(volumeID string) error {
 	return nil
 }
 
-//IsDeviceUsedOthers check if the given device attached by other instance
+// IsDeviceUsedOthers check if the given device attached by other instance
 func IsDeviceUsedOthers(deviceName, volumeID string) (bool, error) {
 	files, err := ioutil.ReadDir(VolumeDir)
 	if err != nil {
