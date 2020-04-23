@@ -15,7 +15,11 @@ limitations under the License.
 */
 package oss
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestGetDiskVolumeOptions(t *testing.T) {
 	options := &Options{}
@@ -26,9 +30,22 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 	options.Path = "/path"
 
 	err := checkOssOptions(options)
-	if err != nil {
-		t.Fatal("Test Fail")
-	}
+	assert.Nil(t, err)
 
-	t.Log("Test Pass")
+	options.URL = ""
+	err = checkOssOptions(options)
+	assert.Equal(t, "Oss Parametes error: Url/Bucket empty ", err.Error())
+
+	options.URL = "1.1.1.1"
+	options.AkID = ""
+	err = checkOssOptions(options)
+	assert.Equal(t, "Oss Parametes error: AK and authType are both empty ", err.Error())
+
+	options.AkID = "2222"
+	// reset AkSecret in checkOssOptions when AkID = ""
+	options.AkSecret = "11111"
+	options.Path = "errorpath"
+	err = checkOssOptions(options)
+	assert.Equal(t, "Oss path error: start with "+options.Path+", should start with / ", err.Error())
+
 }

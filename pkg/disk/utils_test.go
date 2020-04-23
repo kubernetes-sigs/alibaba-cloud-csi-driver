@@ -14,3 +14,66 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 package disk
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestIsFileExisting(t *testing.T) {
+
+	existsFilePath := ".tmp/test.data"
+	notExistsFilePath := ".tmp/notexists.data"
+
+	err := EnsureDir(".tmp/")
+	assert.Nil(t, err)
+	err = createDest(existsFilePath)
+	assert.Nil(t, err)
+	assert.True(t, IsFileExisting(existsFilePath))
+	assert.False(t, IsFileExisting(notExistsFilePath))
+	RemoveContents(".tmp/")
+}
+
+func EnsureDir(target string) error {
+	mdkirCmd := "mkdir"
+	_, err := exec.LookPath(mdkirCmd)
+	if err != nil {
+		if err == exec.ErrNotFound {
+			return fmt.Errorf("%q executable not found in $PATH", mdkirCmd)
+		}
+		return err
+	}
+
+	mkdirArgs := []string{"-p", target}
+	//log.Infof("mkdir for folder, the command is %s %v", mdkirCmd, mkdirArgs)
+	_, err = exec.Command(mdkirCmd, mkdirArgs...).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("mkdir for folder error: %v", err)
+	}
+	return nil
+}
+
+func RemoveContents(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(dir)
+	defer d.Close()
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+	for _, name := range names {
+		err = os.RemoveAll(filepath.Join(dir, name))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
