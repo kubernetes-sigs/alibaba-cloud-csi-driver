@@ -285,7 +285,15 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		if err != nil {
 			log.Warnf("DeleteVolume: find disk(%s) by id with error: %s", req.VolumeId, err.Error())
 		}
-		if disk != nil && disk.Status == DiskStatusInuse {
+
+		// if disk has bdf tag, it should not detach
+		canDetach := true
+		for _, tag := range disk.Tags.Tag {
+			if tag.TagKey == DiskBdfTagKey {
+				canDetach = false
+			}
+		}
+		if disk != nil && disk.Status == DiskStatusInuse && canDetach {
 			err := detachDisk(req.VolumeId, disk.InstanceId)
 			if err != nil {
 				log.Errorf("DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, err.Error())
