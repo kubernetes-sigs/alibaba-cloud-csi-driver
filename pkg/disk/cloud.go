@@ -491,7 +491,7 @@ func findDiskByID(diskID string) (*ecs.Disk, error) {
 	return &disks[0], err
 }
 
-func describeSnapshotByName(name string) (*diskSnapshot, error) {
+func findSnapshotByName(name string) (*diskSnapshot, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
 	describeSnapShotRequest.SnapshotName = name
@@ -527,4 +527,22 @@ func describeSnapshotByName(name string) (*diskSnapshot, error) {
 		ReadyToUse:   readyToUse,
 	}
 	return resSnapshot, nil
+}
+
+func findSnapshotByID(id string) (*ecs.Snapshot, error) {
+	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
+	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
+	describeSnapShotRequest.SnapshotIds = "[\"" + id + "\"]"
+	snapshots, err := GlobalConfigVar.EcsClient.DescribeSnapshots(describeSnapShotRequest)
+	if err != nil {
+		return nil, err
+	}
+	if len(snapshots.Snapshots.Snapshot) == 0 {
+		return nil, nil
+	}
+	if len(snapshots.Snapshots.Snapshot) > 1 {
+		return nil, status.Error(codes.Internal, "find more than one snapshot with id "+id)
+	}
+	existSnapshot := snapshots.Snapshots.Snapshot[0]
+	return &existSnapshot, nil
 }
