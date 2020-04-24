@@ -427,8 +427,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		}
 		log.Errorf("CreateSnapshot:: Snapshot already exist with same name: name[%s], volumeID[%s]", req.Name, exSnap.VolID)
 		return nil, status.Error(codes.AlreadyExists, fmt.Sprintf("snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName()))
-	} else {
-		log.Infof("Debug: %v", err)
 	}
 
 	// init createSnapshotRequest and parameters
