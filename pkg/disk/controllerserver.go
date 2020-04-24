@@ -24,13 +24,10 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/nightlyone/lockfile"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -49,6 +46,10 @@ const (
 	DISKTAGKEY2 = "createdby"
 	// DISKTAGVALUE2 value
 	DISKTAGVALUE2 = "alibabacloud-csi-plugin"
+	// SNAPSHOTFORCETAG tag
+	SNAPSHOTFORCETAG = "forceDelete"
+	// SNAPSHOTTAGKEY1 tag
+	SNAPSHOTTAGKEY1 = "force.delete.snapshot.k8s.aliyun.com"
 )
 
 // controller server try to create/delete volumes/snapshots
@@ -395,33 +396,21 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 
 //
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	log.Infof("CreateSnapshot:: Starting to create snapshot: %v", req)
+	log.Infof("CreateSnapshot:: Starting to create snapshot: %+v", req)
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
 		return nil, err
 	}
 	if len(req.GetName()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Name missing in request")
+		return nil, status.Error(codes.InvalidArgument, "CreateSnapshot: Name missing in request")
 	}
 	// Check arguments
 	if len(req.GetSourceVolumeId()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "SourceVolumeId missing in request")
+		return nil, status.Error(codes.InvalidArgument, "CreateSnapshot: SourceVolumeId missing in request")
 	}
-
-	// lock file is save at /tmp/*.lck
-	lockfileName := "lockfile-" + req.Name + ".lck"
-	lock, err := lockfile.New(filepath.Join(os.TempDir(), lockfileName))
-	if err != nil {
-		return nil, fmt.Errorf("New lockfile error: %s, %s ", lockfileName, err.Error())
-	}
-	err = lock.TryLock()
-	if err != nil {
-		return nil, fmt.Errorf("Try lock error: %s, %s ", lockfileName, err.Error())
-	}
-	defer lock.Unlock()
 
 	// Need to check for already existing snapshot name
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
-	if exSnap, err := describeSnapshotByName(req.GetName()); err == nil && exSnap != nil {
+	if exSnap, err := findSnapshotByName(req.GetName()); err == nil && exSnap != nil {
 		// Since err is nil, it means the snapshot with the same name already exists need
 		// to check if the sourceVolumeId of existing snapshot is the same as in new request.
 		if exSnap.VolID == req.GetSourceVolumeId() {
@@ -436,20 +425,31 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 				},
 			}, nil
 		}
+		log.Errorf("CreateSnapshot:: Snapshot already exist with same name: name[%s], volumeID[%s]", req.Name, exSnap.VolID)
 		return nil, status.Error(codes.AlreadyExists, fmt.Sprintf("snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName()))
+	} else {
+		log.Infof("Debug: %v", err)
 	}
 
-	//volFound := false
-	//TODO: check volume exist
-	volumeID := req.GetSourceVolumeId()
-	//if !volFound {
-	//	return nil, status.Error(codes.Internal, "volumeID is not exist")
-	//}
-
+	// init createSnapshotRequest and parameters
+	diskID := req.GetSourceVolumeId()
+	snapshotName := req.GetName()
 	createAt := ptypes.TimestampNow()
 	createSnapshotRequest := ecs.CreateCreateSnapshotRequest()
-	createSnapshotRequest.DiskId = volumeID
-	createSnapshotRequest.SnapshotName = req.GetName()
+	createSnapshotRequest.DiskId = diskID
+	createSnapshotRequest.SnapshotName = snapshotName
+
+	// Set tags
+	snapshotTags := []ecs.CreateSnapshotTag{}
+	tag1 := ecs.CreateSnapshotTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
+	snapshotTags = append(snapshotTags, tag1)
+	if value, ok := req.Parameters[SNAPSHOTFORCETAG]; ok && value == "true" {
+		tag2 := ecs.CreateSnapshotTag{Key: SNAPSHOTTAGKEY1, Value: "true"}
+		snapshotTags = append(snapshotTags, tag2)
+	}
+	createSnapshotRequest.Tag = &snapshotTags
+
+	// Do Snapshot create
 	snapshotResponse, err := GlobalConfigVar.EcsClient.CreateSnapshot(createSnapshotRequest)
 	if err != nil {
 		log.Errorf("CreateSnapshot:: Snapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", req.Name, req.GetSourceVolumeId(), err.Error())
@@ -459,7 +459,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	snapshot := diskSnapshot{}
 	snapshot.Name = req.GetName()
 	snapshot.ID = snapshotID
-	snapshot.VolID = volumeID
+	snapshot.VolID = diskID
 	snapshot.CreationTime = *createAt
 	snapshot.ReadyToUse = false
 
@@ -484,17 +484,37 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 		return nil, err
 	}
 	snapshotID := req.GetSnapshotId()
-	log.Infof("DeleteSnapshot:: deleting snapshot %s", snapshotID)
+	log.Infof("DeleteSnapshot:: starting delete snapshot %s", snapshotID)
 
+	// Check Snapshot exist and forceDelete tag;
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
+	forceDelete := false
+	snapShot, err := findSnapshotByID(req.SnapshotId)
+	if err == nil && snapShot != nil {
+		for _, tag := range snapShot.Tags.Tag {
+			if tag.TagKey == SNAPSHOTTAGKEY1 && tag.TagValue == "true" {
+				forceDelete = true
+			}
+		}
+	} else if err == nil && snapShot == nil {
+		log.Infof("DeleteSnapshot: snapShot not exist for expect %s, return successful", snapshotID)
+		return &csi.DeleteSnapshotResponse{}, nil
+	}
+	// log snapshot
+	log.Infof("DeleteSnapshot: Snapshot %s exist with Info: %+v, %+v", snapshotID, snapShot, err)
+
+	// Delete Snapshot
 	deleteSnapshotRequest := ecs.CreateDeleteSnapshotRequest()
 	deleteSnapshotRequest.SnapshotId = snapshotID
+	if forceDelete {
+		deleteSnapshotRequest.Force = requests.NewBoolean(true)
+	}
 	response, err := GlobalConfigVar.EcsClient.DeleteSnapshot(deleteSnapshotRequest)
 	if err != nil {
 		if response != nil {
 			log.Errorf("DeleteSnapshot: fail to delete %s: with RequestId: %s, error: %s", snapshotID, response.RequestId, err.Error())
 		}
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed create snapshot: %v", err))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed delete snapshot: %v", err))
 	}
 
 	log.Infof("DeleteSnapshot:: Successful delete snapshot %s, requestId: %s", snapshotID, response.RequestId)
