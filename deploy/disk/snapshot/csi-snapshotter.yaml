@@ -1,0 +1,72 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: csi-snapshotter
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: csi-snapshotter
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: csi-snapshotter
+    spec:
+      tolerations:
+      - operator: "Exists"
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+      priorityClassName: system-node-critical
+      serviceAccount: admin
+      hostNetwork: true
+      containers:
+        - name: disk-snapshotter
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-snapshotter:v1.2.2
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--connection-timeout=15s"
+          env:
+            - name: ADDRESS
+              value: /socketDir/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: disk-provisioner-dir
+              mountPath: /socketDir/
+        - name: csi-diskprovisioner
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.8.39-9732bf58-aliyun
+          imagePullPolicy: "Always"
+          args:
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v=2"
+            - "--driver=diskplugin.csi.alibabacloud.com"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix://socketDir/csi.sock
+          volumeMounts:
+            - mountPath: /var/log/
+              name: host-log
+            - mountPath: /socketDir/
+              name: disk-provisioner-dir
+            - name: etc
+              mountPath: /host/etc
+      volumes:
+        - name: disk-provisioner-dir
+          emptyDir: {}
+        - name: host-log
+          hostPath:
+            path: /var/log/
+        - name: etc
+          hostPath:
+            path: /etc
