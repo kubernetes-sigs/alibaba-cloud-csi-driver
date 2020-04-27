@@ -85,6 +85,8 @@ const (
 	MixRunTimeMode = "runc-runv"
 	// RunvRunTimeMode tag
 	RunvRunTimeMode = "runv"
+	// InputOutputErr tag
+	InputOutputErr = "input/output error"
 )
 
 // QueryResponse response struct for query server
@@ -556,8 +558,17 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	if IsFileExisting(tmpPath) {
 		fileInfo, err := os.Lstat(tmpPath)
 		if err != nil {
-			log.Errorf("NodeUnstageVolume: lstat mountpoint: %s with error: %s", tmpPath, err.Error())
-			return nil, status.Error(codes.InvalidArgument, "NodeUnstageVolume: stat mountpoint error: "+err.Error())
+			if strings.Contains(strings.ToLower(err.Error()), InputOutputErr) {
+				if err = isPathAvailiable(targetPath); err != nil {
+					if err = utils.Umount(targetPath); err != nil {
+						return nil, status.Errorf(codes.InvalidArgument, "NodeUnstageVolume umount target %s with errror: %v", targetPath, err)
+					}
+					log.Warnf("NodeUnstageVolume: target path %s show input/output error: %v, umount it.", targetPath, err)
+				}
+			} else {
+				log.Errorf("NodeUnstageVolume: lstat mountpoint: %s with error: %s", tmpPath, err.Error())
+				return nil, status.Error(codes.InvalidArgument, "NodeUnstageVolume: stat mountpoint error: "+err.Error())
+			}
 		} else if (fileInfo.Mode() & os.ModeDevice) != 0 {
 			log.Infof("NodeUnstageVolume: mountpoint %s, is block device", tmpPath)
 			targetPath = tmpPath

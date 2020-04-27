@@ -423,31 +423,6 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 	return resolved, nil
 }
 
-// IsDeviceMappedDiskIDEnabled Device Mapping DiskID is in testing, not all user enable this feature
-// /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vda
-func IsDeviceMappedDiskIDEnabled() bool {
-	byIDPath := "/dev/disk/by-id"
-	if !IsFileExisting(byIDPath) {
-		return false
-	}
-	files, err := ioutil.ReadDir(byIDPath)
-	if err != nil {
-		return false
-	}
-
-	for _, f := range files {
-		volumeLinPath := filepath.Join(byIDPath, f.Name())
-		resolved, err := filepath.EvalSymlinks(volumeLinPath)
-		if err != nil {
-			return false
-		}
-		if resolved == "/dev/vda" {
-			return true
-		}
-	}
-	return false
-}
-
 // get diskID
 func getVolumeConfig(volumeID string) string {
 	volumeFile := path.Join(VolumeDir, volumeID+".conf")
@@ -824,6 +799,20 @@ func SaveUUID(diskID, deviceName string) error {
 		log.Infof("Successful save uuid %s to file %s for disk %s, device: %s", uuid, fileName, diskID, deviceName)
 	} else {
 
+	}
+	return nil
+}
+
+// isPathAvailiable
+func isPathAvailiable(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("Open Path (%s) with error: %v ", path, err)
+	}
+	defer f.Close()
+	_, err = f.Readdirnames(1)
+	if err != nil && err != io.EOF {
+		return fmt.Errorf("Read Path (%s) with error: %v ", path, err)
 	}
 	return nil
 }
