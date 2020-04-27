@@ -4,11 +4,9 @@ LABEL description="Alibaba Cloud CSI Plugin"
 
 RUN yum install wget -y
 RUN mkdir -p /acs
-COPY nsenter /acs/nsenter
-COPY kmod-cpfs-client-2.10.8-202-3.10.0-957.5.1.el7.x86_64.rpm /acs/kmod-cpfs-client-2.10.8-202-3.10.0-957.5.1.el7.x86_64.rpm
-COPY cpfs-client-2.10.8-202-3.10.0-957.5.1.el7.x86_64.rpm /acs/cpfs-client-2.10.8-202-3.10.0-957.5.1.el7.x86_64.rpm
-COPY kmod-cpfs-client-2.10.8-202-3.10.0-957.21.3.el7.x86_64.rpm /acs/kmod-cpfs-client-2.10.8-202-3.10.0-957.21.3.el7.x86_64.rpm
-COPY cpfs-client-2.10.8-202-3.10.0-957.21.3.el7.x86_64.rpm /acs/cpfs-client-2.10.8-202-3.10.0-957.21.3.el7.x86_64.rpm
+COPY nsenter /nsenter
+COPY cpfs-client-dkms-1.0.0-204.el7.noarch.rpm /acs/cpfs-client-dkms-1.0.0-204.el7.noarch.rpm
+COPY cpfs-client-2.10.8-202.el7.x86_64.rpm /acs/cpfs-client-2.10.8-202.el7.x86_64.rpm
 COPY mount.lustre /usr/sbin/mount.lustre
 COPY lctl /usr/sbin/lctl
 COPY entrypoint.sh /acs/entrypoint.sh
