@@ -11,6 +11,7 @@ require (
 	github.com/google/credstore v0.0.0-20181218150457-e184c60ef875 // indirect
 	github.com/google/go-microservice-helpers v0.0.0-20190205165657-a91942da5417
 	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf // indirect
+	github.com/google/uuid v0.0.0-00010101000000-000000000000 // indirect
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/hashicorp/golang-lru v0.0.0-00010101000000-000000000000 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
@@ -20,11 +21,13 @@ require (
 	github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443
 	github.com/onsi/gomega v0.0.0-00010101000000-000000000000 // indirect
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
+	github.com/pborman/uuid v0.0.0-00010101000000-000000000000 // indirect
 	github.com/pkg/errors v0.8.0
 	github.com/sevlyar/go-daemon v0.1.5
 	github.com/sirupsen/logrus v1.4.2
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
+	github.com/stretchr/testify v1.3.0
 	golang.org/x/crypto v0.0.0-20190228161510-8dd112bcdc25 // indirect
 	golang.org/x/net v0.0.0-20190301231341-16b79f2e4e95
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a // indirect
@@ -33,7 +36,9 @@ require (
 	google.golang.org/grpc v1.19.0
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.0.0-20190624085159-95846d7ef82a
+	k8s.io/apiextensions-apiserver v0.0.0-00010101000000-000000000000 // indirect
 	k8s.io/apimachinery v0.0.0-20190624085041-961b39a1baa0
+	k8s.io/apiserver v0.0.0-00010101000000-000000000000 // indirect
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/cloud-provider v0.0.0-00010101000000-000000000000 // indirect
 	k8s.io/klog v0.3.1 // indirect

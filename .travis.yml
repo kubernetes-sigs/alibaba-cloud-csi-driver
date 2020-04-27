@@ -1,0 +1,12 @@
+language: go
+
+go:
+- 1.12
+
+sudo: required
+
+install:
+    - go mod download
+
+script:
+    - make test
