@@ -87,6 +87,8 @@ const (
 	RunvRunTimeMode = "runv"
 	// InputOutputErr tag
 	InputOutputErr = "input/output error"
+	// BLOCKVOLUMEPREFIX block volume mount prefix
+	BLOCKVOLUMEPREFIX = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/publish"
 )
 
 // QueryResponse response struct for query server
@@ -370,7 +372,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
 		// Block device
-		if !utils.IsDir(targetPath) && strings.HasPrefix(targetPath, "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/publish") {
+		if !utils.IsDir(targetPath) && strings.HasPrefix(targetPath, BLOCKVOLUMEPREFIX) {
 			if removeErr := os.Remove(targetPath); removeErr != nil {
 				return nil, status.Errorf(codes.Internal, "Could not remove mount block target %s: %v", targetPath, removeErr)
 			}
@@ -660,6 +662,11 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 
 	volumePath := req.GetVolumePath()
 	diskID := req.GetVolumeId()
+	if strings.Contains(volumePath, BLOCKVOLUMEPREFIX) {
+		log.Infof("NodeExpandVolume:: Block Volume not Expand FS, volumeId: %s, volumePath: %s", diskID, volumePath)
+		return &csi.NodeExpandVolumeResponse{}, nil
+	}
+
 	devicePath := GetVolumeDeviceName(diskID)
 	if devicePath == "" {
 		log.Errorf("NodeExpandVolume:: can't get devicePath: %s", diskID)
