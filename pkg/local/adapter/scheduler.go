@@ -84,3 +84,19 @@ func ScheduleVolume(volumeType, pvcName, pvcNamespace, vgName, nodeID string) (*
 	log.Infof("Schedule Volume with Url(%s) Finished, get result: %v, %v", url, bindingInfo, string(respBody))
 	return bindingInfo, nil
 }
+
+// ExpandVolume do volume capacity check
+func ExpandVolume(pvcNameSpace, pvcName string, newSize int) error {
+	urlPath := fmt.Sprintf("/apis/expand/%s/persistentvolumeclaims/%s?newSize=%d", pvcNameSpace, pvcName, newSize)
+	url := URLHost + urlPath
+
+	// Request restful api
+	respBody, err := client.DoRequest(url)
+	if err != nil {
+		log.Errorf("Volume Expand with Url(%s) get error: %s", url, err.Error())
+		return err
+	}
+
+	log.Infof("Volume Expand with Url(%s) Finished, get result: %v, %v", url, string(respBody))
+	return nil
+}
