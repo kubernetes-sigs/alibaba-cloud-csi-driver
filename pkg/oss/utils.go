@@ -18,10 +18,12 @@ package oss
 
 import (
 	"fmt"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"github.com/aliyun/aliyun-oss-go-sdk/oss"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 const (
@@ -31,6 +33,12 @@ const (
 	InstanceID = "instance-id"
 	// RAMRoleResource is ram-role url subpath
 	RAMRoleResource = "ram/security-credentials/"
+	// RegionTag is region id
+	RegionTag = "region-id"
+	// Endpoint is OSS endpoint
+	Endpoint = "oss-%s.aliyuncs.com"
+	// InternalEndpoint is OSS internal endpoint
+	InternalEndpoint = "oss-%s-internal.aliyuncs.com"
 )
 
 // GetMetaData get host regionid, zoneid
@@ -45,6 +53,30 @@ func GetMetaData(resource string) string {
 		return ""
 	}
 	return string(body)
+}
+
+func getOssEndpoint(networkType, regionID string) (endpoint string) {
+	if networkType == "vpc" {
+		endpoint = fmt.Sprintf(InternalEndpoint, regionID)
+	} else {
+		endpoint = fmt.Sprintf(Endpoint, regionID)
+	}
+	return
+}
+
+func newOSSClient(customAccessKeyID, customAccessKeySecret, endpoint string) (ossClient *oss.Client, err error) {
+
+	if customAccessKeyID != "" && customAccessKeySecret != "" {
+		ossClient, err = oss.New(endpoint, customAccessKeyID, customAccessKeySecret)
+	} else {
+		accessKeyID, accessKeySecret, accessToken := utils.GetDefaultAK()
+		ossClient, err = oss.New(endpoint, accessKeyID, accessKeySecret, oss.SecurityToken(accessToken))
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	return ossClient, nil
 }
 
 // GetRAMRoleOption get command line's ram_role option

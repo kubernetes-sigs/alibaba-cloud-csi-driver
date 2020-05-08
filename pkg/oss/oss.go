@@ -17,6 +17,8 @@ limitations under the License.
 package oss
 
 import (
+	"os"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	log "github.com/sirupsen/logrus"
@@ -34,10 +36,11 @@ var (
 
 // OSS the OSS object
 type OSS struct {
-	driver     *csicommon.CSIDriver
-	endpoint   string
-	idServer   *csicommon.DefaultIdentityServer
-	nodeServer *nodeServer
+	driver           *csicommon.CSIDriver
+	endpoint         string
+	idServer         *csicommon.DefaultIdentityServer
+	nodeServer       *nodeServer
+	controllerServer csi.ControllerServer
 
 	cap   []*csi.VolumeCapability_AccessMode
 	cscap []*csi.ControllerServiceCapability
@@ -55,11 +58,23 @@ func NewDriver(nodeID, endpoint string) *OSS {
 		log.Infof("Use node id : %s", nodeID)
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
+	log.Infof("before add volume capability Driver: %v version: %v", driverName, version)
 	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
-	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{csi.ControllerServiceCapability_RPC_UNKNOWN})
+	log.Infof("before add controller capability Driver: %v version: %v", driverName, version)
+	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
+		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+		csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+	})
 
 	d.driver = csiDriver
 
+	// accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
+	// client := newOSSClient(accessKeyID, accessSecret, accessToken)
+	region := os.Getenv("REGION_ID")
+	if region == "" {
+		region = GetMetaData(RegionTag)
+	}
+	d.controllerServer = NewControllerServer(d.driver, region)
 	return d
 }
 
@@ -76,8 +91,7 @@ func (d *OSS) Run() {
 	s := csicommon.NewNonBlockingGRPCServer()
 	s.Start(d.endpoint,
 		csicommon.NewDefaultIdentityServer(d.driver),
-		nil,
-		//csicommon.NewDefaultControllerServer(d.driver),
+		d.controllerServer,
 		newNodeServer(d))
 	s.Wait()
 }

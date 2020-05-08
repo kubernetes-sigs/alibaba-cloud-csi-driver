@@ -42,3 +42,17 @@ func TestIsLastSharedVol(t *testing.T) {
 	result, _ := IsLastSharedVol(lastSharedVol)
 	assert.NotEqual(t, "", result)
 }
+
+func TestGetOssEndpoint(t *testing.T) {
+	vpcNetworkType := "vpc"
+	otherNetworkType := "open"
+	endpoint := getOssEndpoint(vpcNetworkType, "cn-beijing")
+	assert.Equal(t, "oss-cn-beijing-internal.aliyuncs.com", endpoint)
+	endpoint = getOssEndpoint(otherNetworkType, "cn-beijing")
+	assert.Equal(t, "oss-cn-beijing.aliyuncs.com", endpoint)
+}
+
+func TestNewOssClient(t *testing.T) {
+	_, err := newOSSClient("", "", "oss-cn-beijing.aliyuncs.com")
+	assert.NotNil(t, err)
+}

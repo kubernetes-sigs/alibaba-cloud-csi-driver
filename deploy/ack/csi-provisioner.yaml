@@ -251,10 +251,81 @@ spec:
           volumeMounts:
             - name: nas-provisioner-dir
               mountPath: /csi
+
+        - name: external-oss-provisioner
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.4.0-aliyun
+          args:
+            - "--provisioner=ossplugin.csi.alibabacloud.com"
+            - "--csi-address=$(ADDRESS)"
+            - "--volume-name-prefix=oss"
+            - "--timeout=150s"
+            - "--enable-leader-election=true"
+            - "--leader-election-type=leases"
+            - "--retry-interval-start=500ms"
+            - "--v=5"
+          env:
+            - name: ADDRESS
+              value: /socketDir/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: oss-provisioner-dir
+              mountPath: /socketDir
+        - name: csi-ossprovisioner
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: registry.cn-beijing.aliyuncs.com/gyq193577/csi_plugin:v1.14.5-ac1d01df
+          imagePullPolicy: "Always"
+          args:
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v=2"
+            - "--driver=ossplugin.csi.alibabacloud.com"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix://socketDir/csi.sock
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 5
+          ports:
+          - containerPort: 9807
+            name: healthz
+            protocol: TCP
+          volumeMounts:
+            - mountPath: /var/log/
+              name: host-log
+            - mountPath: /socketDir/
+              name: oss-provisioner-dir
+            - name: etc
+              mountPath: /host/etc
+          resources:
+            limits:
+              cpu: 100m
+              memory: 100Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+        - name: oss-liveness-probe
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-livenessprobe:v2.0.0
+          args:
+            - --csi-address=/csi/csi.sock
+            - --health-port=9807
+          volumeMounts:
+            - name: oss-provisioner-dir
+              mountPath: /csi
       volumes:
         - name: disk-provisioner-dir
           emptyDir: {}
         - name: nas-provisioner-dir
+          emptyDir: {}
+        - name: oss-provisioner-dir
           emptyDir: {}
         - name: host-log
           hostPath:
