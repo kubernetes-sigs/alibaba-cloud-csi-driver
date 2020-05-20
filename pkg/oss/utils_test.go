@@ -54,5 +54,5 @@ func TestGetOssEndpoint(t *testing.T) {
 
 func TestNewOssClient(t *testing.T) {
 	_, err := newOSSClient("", "", "oss-cn-beijing.aliyuncs.com")
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
 }

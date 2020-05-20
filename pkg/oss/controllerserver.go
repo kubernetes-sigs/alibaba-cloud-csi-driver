@@ -26,6 +26,7 @@ const (
 	AuthType      = "authType"
 	path          = "path"
 	useSharedPath = "useSharedPath"
+	otherOpts     = "otherOpts"
 )
 
 type controllerServer struct {
@@ -159,11 +160,17 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 	if value, ok := pvInfo.Spec.CSI.VolumeAttributes["authType"]; ok {
 		authType = value
+	} else {
+		return nil, fmt.Errorf("DeleteVolume: Volume autType is empty, pv volumeAttributes: %v", pvInfo.Spec.CSI.VolumeAttributes)
 	}
-	if authType == "" && akID == "" {
-		return nil, fmt.Errorf("DeleteVolume: Volume autType & akId empty , pv volumeAttributes: %v", pvInfo.Spec.CSI.VolumeAttributes)
+	if authType != "sts" && authType != "secret" && akID == "" {
+		return nil, fmt.Errorf("DeleteVolume: akId must be specific, pv volumeAttributes: %v", pvInfo.Spec.CSI.VolumeAttributes)
 	}
 
+	if authType == "secret" {
+		akID = req.Secrets[AkID]
+		akSecret = req.Secrets[AkSecret]
+	}
 	if pvInfo.Spec.StorageClassName == "" {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with storageclass empty: %s, Spec: %v", req.VolumeId, pvInfo.Spec.CSI.VolumeAttributes)
 	}
@@ -218,8 +225,8 @@ func (cs *controllerServer) getOSSVolumeOptions(req *csi.CreateVolumeRequest) (*
 	}
 
 	if ossVolArgs.AuthType, ok = volOptions[AuthType]; !ok {
-		ossVolArgs.AuthType = ""
-	}
+        return nil, fmt.Errorf("Required parameter [parameter.authType] must be filled")
+	} 		
 
 	if ossVolArgs.AkID, ok = volOptions[AkID]; !ok {
 		ossVolArgs.AkID = ""
@@ -228,8 +235,14 @@ func (cs *controllerServer) getOSSVolumeOptions(req *csi.CreateVolumeRequest) (*
 	if ossVolArgs.AkSecret, ok = volOptions[AkSecret]; !ok {
 		ossVolArgs.AkSecret = ""
 	}
-	if ossVolArgs.AuthType == "" && ossVolArgs.AkID == "" {
-		return nil, fmt.Errorf("Required parameter [parameter.AuthType] must be [sts] when ak is [None]")
+	ossVolArgs.OtherOpts, ok = volOptions[otherOpts]
+
+	if ossVolArgs.AuthType != "sts" && ossVolArgs.AuthType != "secret" && ossVolArgs.AkID == "" {
+		return nil, fmt.Errorf("CreateVolume: akId must be specific, volOptions: %+v", volOptions)
+	}
+	if ossVolArgs.AuthType == "secret" {
+		ossVolArgs.AkID = req.Secrets[AkID]
+		ossVolArgs.AkSecret = req.Secrets[AkSecret]
 	}
 
 	if ossVolArgs.Path, ok = volOptions[path]; !ok {

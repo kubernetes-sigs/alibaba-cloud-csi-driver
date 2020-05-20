@@ -276,7 +276,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-beijing.aliyuncs.com/gyq193577/csi_plugin:v1.14.5-ac1d01df
+          image: registry.cn-beijing.aliyuncs.com/gyq193577/csi_plugin:v1.14.5-bdbb4588	
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -285,6 +285,8 @@ spec:
           env:
             - name: CSI_ENDPOINT
               value: unix://socketDir/csi.sock
+            - name: CSI_OSS_PLUGIN_TYPE
+              value: provisioner
           livenessProbe:
             httpGet:
               path: /healthz
