@@ -1,0 +1,34 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: alicloud-nas-fs-extreme
+mountOptions:
+- nolock,tcp,noresvport
+- vers=3
+parameters:
+  # volumeAs is optional, should be 'filesystem' or 'subpath', default value is 'subpath'
+  volumeAs: filesystem
+  # fileSystemType is optional, should be 'standard' or 'extreme', default value is 'standard'
+  fileSystemType: "extreme"
+  # capacity is mandatory, 100Gi at least, only support [100Gi, 200Gi, 500Gi, 1Ti, 2Ti, 4Ti, 8Ti, 16Ti, 32Ti]
+  capacity: "100Gi"
+  # storageType is optional, value should be set according to fileSystemType:
+  # if fileSystemType is standard, should be 'Performance' or 'Capacity', default value is 'Performance'
+  # if fileSystemType is extreme, should 'standard' or 'advance', default value is 'standard'
+  storageType: standard
+  # protocolType is optional, only support 'NFS' now;
+  protocolType: "NFS"
+  # encryptType is optional, only support "0" or "1", default as 0; 0 means without encrypt and 1 means with encrypt.
+  encryptType: "0"
+  # zoneId is optional, default value is the kubernetes cluster's worker's zoneId
+  zoneId: cn-hangzhou-f
+  # vpcId is reqiured
+  vpcId: "vpc-xxxxxxxx"
+  # vSwitchId is reqiured
+  vSwitchId: "vsw-xxxxxxxx"
+  # accessGroupName is optional, default value is 'DEFAULT_VPC_GROUP_NAME'
+  accessGroupName: "DEFAULT_VPC_GROUP_NAME"
+  # deleteVolume is optional, should be 'true' or 'false', default value is 'false'
+  deleteVolume: "false"
+provisioner: nasplugin.csi.alibabacloud.com
+reclaimPolicy: Retain
