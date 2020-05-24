@@ -569,7 +569,7 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 			volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 			requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
 			if requestGB < 100 {
-				return nil, fmt.Errorf("Capacity value is illegal, must be larger than 100Gi, please refer to NAS documents in aliyun.com.")
+				return nil, fmt.Errorf("Capacity value is illegal, must be larger than 100Gi, please refer to NAS documents in aliyun.com")
 			}
 			nasVolArgs.Capacity = requests.NewInteger(requestGB)
 
