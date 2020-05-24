@@ -53,7 +53,7 @@ const (
 	FileSystemType  = "fileSystemType"
 	Capacity        = "capacity"
 	EncryptType     = "encryptType"
-	SnapshotId      = "snapshotId"
+	SnapshotID      = "snapshotID"
 	StorageType     = "storageType"
 	ZoneID          = "zoneId"
 	DESCRIPTION     = "description"
@@ -81,7 +81,7 @@ type nasVolumeArgs struct {
 	FileSystemType  string           `json:"fileSystemType"`
 	Capacity        requests.Integer `json:"capacity"`
 	EncryptType     string           `json:"encryptType"`
-	SnapshotId      string           `json:"snapshotId"`
+	SnapshotID      string           `json:"snapshotID"`
 	ZoneID          string           `json:"zoneId"`
 	Description     string           `json:"description"`
 	NetworkType     string           `json:"networkType"`
@@ -181,7 +181,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				createFileSystemsRequest.EncryptType = requests.Integer(nasVol.EncryptType)
 				createFileSystemsRequest.ZoneId = nasVol.ZoneID
 			}
-			log.Infof("CreateVolume: Volume: %s, Create Nas filesystem with: %v, %v, %v", pvName, cs.region, nasVol)
+			log.Infof("CreateVolume: Volume: %s, Create Nas filesystem with: %v, %v", pvName, cs.region, nasVol)
 
 			createFileSystemsResponse, err := cs.nasClient.CreateFileSystem(createFileSystemsRequest)
 			if err != nil {
@@ -587,9 +587,9 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 				return nil, fmt.Errorf("Required parameter [parameter.encryptType] must be [0] or [1]")
 			}
 
-			// snapshotId
-			if nasVolArgs.SnapshotId, ok = volOptions[SnapshotId]; !ok {
-				nasVolArgs.SnapshotId = ""
+			// snapshotID
+			if nasVolArgs.SnapshotID, ok = volOptions[SnapshotID]; !ok {
+				nasVolArgs.SnapshotID = ""
 			}
 
 		} else {
