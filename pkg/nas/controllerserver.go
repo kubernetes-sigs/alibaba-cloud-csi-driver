@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
@@ -49,6 +50,10 @@ const (
 	VolumeAs        = "volumeAs"
 	PATH            = "path"
 	ProtocolType    = "protocolType"
+	FileSystemType  = "fileSystemType"
+	Capacity        = "capacity"
+	EncryptType     = "encryptType"
+	SnapshotID      = "snapshotID"
 	StorageType     = "storageType"
 	ZoneID          = "zoneId"
 	DESCRIPTION     = "description"
@@ -70,19 +75,23 @@ type controllerServer struct {
 
 // Alibaba Cloud nas volume parameters
 type nasVolumeArgs struct {
-	VolumeAs        string `json:"volumeAs"`
-	ProtocolType    string `json:"protocolType"`
-	StorageType     string `json:"storageType"`
-	ZoneID          string `json:"zoneId"`
-	Description     string `json:"description"`
-	NetworkType     string `json:"networkType"`
-	VpcID           string `json:"vpcId"`
-	VSwitchID       string `json:"vSwitchId"`
-	AccessGroupName string `json:"accessGroupName"`
-	Server          string `json:"server"`
-	Mode            string `json:"mode"`
-	ModeType        string `json:"modeType"`
-	DeleteVolume    bool   `json:"deleteVolume"`
+	VolumeAs        string           `json:"volumeAs"`
+	ProtocolType    string           `json:"protocolType"`
+	StorageType     string           `json:"storageType"`
+	FileSystemType  string           `json:"fileSystemType"`
+	Capacity        requests.Integer `json:"capacity"`
+	EncryptType     string           `json:"encryptType"`
+	SnapshotID      string           `json:"snapshotID"`
+	ZoneID          string           `json:"zoneId"`
+	Description     string           `json:"description"`
+	NetworkType     string           `json:"networkType"`
+	VpcID           string           `json:"vpcId"`
+	VSwitchID       string           `json:"vSwitchId"`
+	AccessGroupName string           `json:"accessGroupName"`
+	Server          string           `json:"server"`
+	Mode            string           `json:"mode"`
+	ModeType        string           `json:"modeType"`
+	DeleteVolume    bool             `json:"deleteVolume"`
 }
 
 // used by check pvc is processed
@@ -163,7 +172,16 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			createFileSystemsRequest.StorageType = nasVol.StorageType
 			createFileSystemsRequest.ZoneId = nasVol.ZoneID
 			createFileSystemsRequest.Description = nasVol.Description
-			log.Infof("CreateVolume: Volume: %s, Create Nas filesystem with: %v, %v, %v, %v, %v", pvName, cs.region, nasVol.ProtocolType, nasVol.StorageType, nasVol.ZoneID, nasVol.Description)
+			if nasVol.FileSystemType == "extreme" {
+				createFileSystemsRequest.FileSystemType = nasVol.FileSystemType
+				createFileSystemsRequest.ChargeType = "PayAsYouGo"
+				createFileSystemsRequest.Capacity = nasVol.Capacity
+				createFileSystemsRequest.StorageType = nasVol.StorageType
+				createFileSystemsRequest.ProtocolType = nasVol.ProtocolType
+				createFileSystemsRequest.EncryptType = requests.Integer(nasVol.EncryptType)
+				createFileSystemsRequest.ZoneId = nasVol.ZoneID
+			}
+			log.Infof("CreateVolume: Volume: %s, Create Nas filesystem with: %v, %v", pvName, cs.region, nasVol)
 
 			createFileSystemsResponse, err := cs.nasClient.CreateFileSystem(createFileSystemsRequest)
 			if err != nil {
@@ -196,6 +214,37 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				log.Errorf("CreateVolume: requestId[%s], fail to create nas mountTarget %s: with %v", createMountTargetResponse.RequestId, req.GetName(), err)
 				return nil, status.Error(codes.Internal, err.Error())
 			}
+			// extreme nas not return TargetDomain with filesystem create
+			if mountTargetDomain == "" && nasVol.FileSystemType == "extreme" {
+				describeFSRequest := aliNas.CreateDescribeFileSystemsRequest()
+				describeFSRequest.FileSystemType = "extreme"
+				describeFSRequest.FileSystemId = fileSystemID
+				for i := 1; i <= 30; i++ {
+					log.Debugf("CreateVolume: Waiting for nas mountTarget for filesystem %s, try %d times, max 30 times", fileSystemID, i)
+					describeFSResponse, err := cs.nasClient.DescribeFileSystems(describeFSRequest)
+					if err != nil {
+						log.Errorf("CreateVolume: requestId[%s], fail to describe nas filesystem %s: with %v", describeFSResponse.RequestId, req.GetName(), err)
+						return nil, status.Error(codes.Internal, err.Error())
+					}
+					if describeFSResponse.TotalCount != 1 || len(describeFSResponse.FileSystems.FileSystem) != 1 {
+						log.Errorf("CreateVolume: requestId[%s], fail to describe nas filesystem %s: with more 1 response", describeFSResponse.RequestId, req.GetName())
+						return nil, status.Error(codes.Internal, err.Error())
+					}
+					fs := describeFSResponse.FileSystems.FileSystem[0]
+					if len(fs.MountTargets.MountTarget) == 1 && fs.MountTargets.MountTarget[0].MountTargetDomain != "" {
+						createMountTargetResponse.MountTargetDomain = fs.MountTargets.MountTarget[0].MountTargetDomain
+						log.Infof("CreateVolume: Nas Volume(%s) create mountTarget %s successful", pvName, createMountTargetResponse.MountTargetDomain)
+						break
+					} else if len(fs.MountTargets.MountTarget) == 2 {
+						log.Errorf("CreateVolume: nas volume(%s) create mountTarget %s with 2 mountTarget", pvName, fileSystemID)
+						return nil, status.Error(codes.Internal, "CreateVolume: nas mountTarget "+fileSystemID+" is 2")
+					} else if i == 30 {
+						log.Errorf("CreateVolume: wait nas volume(%s) for filesystem %s timeout", pvName, fileSystemID)
+						return nil, status.Error(codes.Internal, "CreateVolume: nas wait filesystem "+fileSystemID+" timeout")
+					}
+					time.Sleep(time.Duration(2) * time.Second)
+				}
+			}
 			mountTargetDomain = createMountTargetResponse.MountTargetDomain
 			pvcMountTargetMap[pvName] = mountTargetDomain
 			log.Infof("CreateVolume: Volume: %s, Successful Create Nas mountTarget with: %s, with requestID: %s", pvName, mountTargetDomain, createMountTargetResponse.RequestId)
@@ -226,6 +275,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		volumeContext["fileSystemId"] = fileSystemID
 		volumeContext["server"] = mountTargetDomain
 		volumeContext["path"] = filepath.Join("/")
+		if nasVol.FileSystemType == "extreme" {
+			volumeContext["server"] = strings.Split(mountTargetDomain, ":")[0]
+			volumeContext["path"] = filepath.Join("/share")
+		}
 		if !pvMntOptionsVersSet {
 			volumeContext["vers"] = nfsVersion
 		}
@@ -362,13 +415,27 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			if fileSystemID == "" {
 				return nil, fmt.Errorf("DeleteVolume: Volume: %s in filesystem mode, with filesystemId empty", req.VolumeId)
 			}
-			deleteMountTargetRequest := aliNas.CreateDeleteMountTargetRequest()
-			deleteMountTargetRequest.FileSystemId = fileSystemID
-			deleteMountTargetRequest.MountTargetDomain = nfsServer
-			deleteMountTargetResponse, err := cs.nasClient.DeleteMountTarget(deleteMountTargetRequest)
+			cs.nasClient = updateNasClient(cs.nasClient)
+			isMountTargetDelete := false
+			describeMountTargetRequest := aliNas.CreateDescribeMountTargetsRequest()
+			describeMountTargetRequest.FileSystemId = fileSystemID
+			describeMountTargetRequest.MountTargetDomain = nfsServer
+			_, err := cs.nasClient.DescribeMountTargets(describeMountTargetRequest)
 			if err != nil {
-				log.Errorf("DeleteVolume: requestId[%s], volume[%s], fail to delete nas mountTarget %s: with %v", deleteMountTargetResponse.RequestId, req.VolumeId, nfsServer, err)
-				return nil, status.Error(codes.Internal, err.Error())
+				if strings.Contains(err.Error(), "InvalidMountTarget.NotFound") {
+					log.Infof("DeleteVolume: Volume %s MountTarget %s already delete", req.VolumeId, nfsServer)
+					isMountTargetDelete = true
+				}
+			}
+			if !isMountTargetDelete {
+				deleteMountTargetRequest := aliNas.CreateDeleteMountTargetRequest()
+				deleteMountTargetRequest.FileSystemId = fileSystemID
+				deleteMountTargetRequest.MountTargetDomain = nfsServer
+				deleteMountTargetResponse, err := cs.nasClient.DeleteMountTarget(deleteMountTargetRequest)
+				if err != nil {
+					log.Errorf("DeleteVolume: requestId[%s], volume[%s], fail to delete nas mountTarget %s: with %v", deleteMountTargetResponse.RequestId, req.VolumeId, nfsServer, err)
+					return nil, status.Error(codes.Internal, err.Error())
+				}
 			}
 			// remove the pvc mountTarget mapping if exist
 			if _, ok := pvcMountTargetMap[req.VolumeId]; ok {
@@ -491,18 +558,54 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 	}
 
 	if nasVolArgs.VolumeAs == "filesystem" {
+		// fileSystemType
+		if nasVolArgs.FileSystemType, ok = volOptions[FileSystemType]; !ok {
+			nasVolArgs.ProtocolType = "standard"
+		} else if nasVolArgs.FileSystemType != "standard" && nasVolArgs.FileSystemType != "extreme" {
+			return nil, fmt.Errorf("Required parameter [parameter.fileSystemType] must be [standard, extreme]")
+		}
+
+		if nasVolArgs.FileSystemType == "extreme" {
+			volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
+			requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
+			if requestGB < 100 {
+				return nil, fmt.Errorf("Capacity value is illegal, must be larger than 100Gi, please refer to NAS documents in aliyun.com")
+			}
+			nasVolArgs.Capacity = requests.NewInteger(requestGB)
+
+			// storageType
+			if nasVolArgs.StorageType, ok = volOptions[StorageType]; !ok {
+				nasVolArgs.StorageType = "standard"
+			} else if nasVolArgs.StorageType != "standard" && nasVolArgs.StorageType != "advance" {
+				return nil, fmt.Errorf("Required parameter [parameter.storageType] must be [standard] or [advance]")
+			}
+
+			// encryptType
+			if nasVolArgs.EncryptType, ok = volOptions[EncryptType]; !ok {
+				nasVolArgs.EncryptType = "0"
+			} else if nasVolArgs.EncryptType != "0" && nasVolArgs.EncryptType != "1" {
+				return nil, fmt.Errorf("Required parameter [parameter.encryptType] must be [0] or [1]")
+			}
+
+			// snapshotID
+			if nasVolArgs.SnapshotID, ok = volOptions[SnapshotID]; !ok {
+				nasVolArgs.SnapshotID = ""
+			}
+
+		} else {
+			// storageType
+			if nasVolArgs.StorageType, ok = volOptions[StorageType]; !ok {
+				nasVolArgs.StorageType = "Performance"
+			} else if nasVolArgs.StorageType != "Performance" && nasVolArgs.StorageType != "Capacity" {
+				return nil, fmt.Errorf("Required parameter [parameter.storageType] must be [Performance] or [Capacity]")
+			}
+		}
+
 		// protocolType
 		if nasVolArgs.ProtocolType, ok = volOptions[ProtocolType]; !ok {
 			nasVolArgs.ProtocolType = "NFS"
 		} else if nasVolArgs.ProtocolType != "NFS" {
 			return nil, fmt.Errorf("Required parameter [parameter.protocolType] must be [NFS]")
-		}
-
-		// storageType
-		if nasVolArgs.StorageType, ok = volOptions[StorageType]; !ok {
-			nasVolArgs.StorageType = "Performance"
-		} else if nasVolArgs.StorageType != "Performance" && nasVolArgs.StorageType != "Capacity" {
-			return nil, fmt.Errorf("Required parameter [parameter.storageType] must be [Performance] or [Capacity]")
 		}
 
 		// zoneId

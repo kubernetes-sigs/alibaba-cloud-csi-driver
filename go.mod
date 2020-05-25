@@ -3,7 +3,7 @@ module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 go 1.12
 
 require (
-	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20191010082856-e76f4c50e182
+	github.com/aliyun/alibaba-cloud-sdk-go v1.61.201
 	github.com/container-storage-interface/spec v1.1.0
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/groupcache v0.0.0-00010101000000-000000000000 // indirect
@@ -18,7 +18,7 @@ require (
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/kubernetes-csi/csi-lib-utils v0.6.1 // indirect
 	github.com/kubernetes-csi/drivers v1.0.2
-	github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443
+	github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443 // indirect
 	github.com/onsi/gomega v0.0.0-00010101000000-000000000000 // indirect
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/pborman/uuid v0.0.0-00010101000000-000000000000 // indirect
@@ -32,6 +32,7 @@ require (
 	golang.org/x/net v0.0.0-20190301231341-16b79f2e4e95
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a // indirect
 	golang.org/x/sys v0.0.0-20190626221950-04f50cda93cb // indirect
+	golang.org/x/time v0.0.0-00010101000000-000000000000 // indirect
 	google.golang.org/genproto v0.0.0-20190307195333-5fe7a883aa19 // indirect
 	google.golang.org/grpc v1.19.0
 	gopkg.in/inf.v0 v0.9.1 // indirect
