@@ -69,7 +69,9 @@ type Instance struct {
 	InnerIpAddress             InnerIpAddressInDescribeInstances    `json:"InnerIpAddress" xml:"InnerIpAddress"`
 	PublicIpAddress            PublicIpAddressInDescribeInstances   `json:"PublicIpAddress" xml:"PublicIpAddress"`
 	RdmaIpAddress              RdmaIpAddress                        `json:"RdmaIpAddress" xml:"RdmaIpAddress"`
+	MetadataOptions            MetadataOptions                      `json:"MetadataOptions" xml:"MetadataOptions"`
 	EipAddress                 EipAddressInDescribeInstances        `json:"EipAddress" xml:"EipAddress"`
+	CpuOptions                 CpuOptions                           `json:"CpuOptions" xml:"CpuOptions"`
 	EcsCapacityReservationAttr EcsCapacityReservationAttr           `json:"EcsCapacityReservationAttr" xml:"EcsCapacityReservationAttr"`
 	DedicatedHostAttribute     DedicatedHostAttribute               `json:"DedicatedHostAttribute" xml:"DedicatedHostAttribute"`
 	DedicatedInstanceAttribute DedicatedInstanceAttribute           `json:"DedicatedInstanceAttribute" xml:"DedicatedInstanceAttribute"`

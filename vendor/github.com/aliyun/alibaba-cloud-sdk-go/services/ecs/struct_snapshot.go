@@ -18,6 +18,7 @@ package ecs
 // Snapshot is a nested struct in ecs response
 type Snapshot struct {
 	SnapshotId        string                  `json:"SnapshotId" xml:"SnapshotId"`
+	SnapshotSN        string                  `json:"SnapshotSN" xml:"SnapshotSN"`
 	SnapshotName      string                  `json:"SnapshotName" xml:"SnapshotName"`
 	Progress          string                  `json:"Progress" xml:"Progress"`
 	ProductCode       string                  `json:"ProductCode" xml:"ProductCode"`
@@ -35,5 +36,7 @@ type Snapshot struct {
 	RemainTime        int                     `json:"RemainTime" xml:"RemainTime"`
 	ResourceGroupId   string                  `json:"ResourceGroupId" xml:"ResourceGroupId"`
 	KMSKeyId          string                  `json:"KMSKeyId" xml:"KMSKeyId"`
+	Category          string                  `json:"Category" xml:"Category"`
+	SnapshotType      string                  `json:"SnapshotType" xml:"SnapshotType"`
 	Tags              TagsInDescribeSnapshots `json:"Tags" xml:"Tags"`
 }
