@@ -27,6 +27,7 @@ const (
 	path          = "path"
 	useSharedPath = "useSharedPath"
 	otherOpts     = "otherOpts"
+	regionID      = "regionId"
 )
 
 type controllerServer struct {
@@ -48,6 +49,7 @@ type ossVolumeArgs struct {
 	Bucket        string `json:"bucket"`
 	NetworkType   string `json:"networkType"`
 	RemovePV      bool   `json:"removePV"`
+	RegionID      string `json:"regionId"`
 }
 
 // used by check pvc is processed
@@ -92,7 +94,14 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %v, with error: %v", req.Name, err)
 	}
 	volumeContext := map[string]string{}
-	regionID := GetMetaData(RegionTag)
+	regionID := ossVol.RegionID
+	defaultRegionID := GetMetaData(RegionTag)
+	if regionID == "" {
+		regionID = defaultRegionID
+	} else if regionID != defaultRegionID && ossVol.NetworkType == "vpc" {
+		return nil, fmt.Errorf("CreateVolume: regionId must be equal to ack region when use vpc network")
+	}
+
 	endpoint := getOssEndpoint(ossVol.NetworkType, regionID)
 	cs.ossClient, err = newOSSClient(ossVol.AkID, ossVol.AkSecret, endpoint)
 	if err != nil {
@@ -249,6 +258,9 @@ func (cs *controllerServer) getOSSVolumeOptions(req *csi.CreateVolumeRequest) (*
 		ossVolArgs.Path = ""
 	}
 
+	if ossVolArgs.RegionID, ok = volOptions[regionID]; !ok {
+		ossVolArgs.RegionID = ""
+	}
 	if data, ok := volOptions[useSharedPath]; !ok {
 		ossVolArgs.UseSharedPath = false
 	} else {

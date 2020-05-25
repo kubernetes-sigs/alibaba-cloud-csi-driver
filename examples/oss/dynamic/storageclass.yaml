@@ -3,11 +3,11 @@ kind: StorageClass
 metadata:
   name: alicloud-oss
 parameters:
-  # volumeAs is optional, should be 'filesystem' or 'subpath', default value is 'subpath'
-  volumeAs: filesystem
-  networkType: open
+  networkType: vpc
   authType: sts
-  # akId: ***
+  # csi.storage.k8s.io/provisioner-secret-name: oss-secret
+  # csi.storage.k8s.io/provisioner-secret-namespace: default
+  # akId: ****
   # akSecret: ***
   # bucketReclaim: retain
   
