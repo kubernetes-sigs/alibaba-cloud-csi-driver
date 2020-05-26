@@ -59,6 +59,8 @@ const (
 	DiskStatusDetached = "detached"
 	// SharedEnable tag
 	SharedEnable = "shared"
+	// SysConfigTag tag
+	SysConfigTag = "sysConfig"
 	// MkfsOptions tag
 	MkfsOptions = "mkfsOptions"
 	// DiskTagedByPlugin tag
@@ -496,6 +498,26 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return nil, status.Error(codes.Aborted, "NodeStageVolume: saveVolumeConfig for ("+req.VolumeId+device+") error with: "+err.Error())
 	}
 	log.Infof("NodeStageVolume: Volume Successful Attached: %s, to Node: %s, Device: %s", req.VolumeId, ns.nodeID, device)
+
+	// sysConfig
+	if value, ok := req.VolumeContext[SysConfigTag]; ok {
+		configList := strings.Split(strings.TrimSpace(value), ",")
+		for _, configStr := range configList {
+			keyValue := strings.Split(configStr, "=")
+			if len(keyValue) == 2 {
+				fileName := filepath.Join("/sys/block/", filepath.Base(device), keyValue[0])
+				configCmd := "echo '" + keyValue[1] + "' > " + fileName
+				if _, err := utils.Run(configCmd); err != nil {
+					log.Errorf("NodeStageVolume: Volume Block System Config with cmd: %s, get error: %v", configCmd, err)
+					return nil, status.Error(codes.Aborted, "NodeStageVolume: Volume Block System Config with cmd:"+configCmd+", error with: "+err.Error())
+				}
+				log.Errorf("NodeStageVolume: Volume Block System Config Successful with command: %s, for volume: %v", configCmd, req.VolumeId)
+			} else {
+				log.Errorf("NodeStageVolume: Volume Block System Config with format error: %s", configStr)
+				return nil, status.Error(codes.Aborted, "NodeStageVolume: Volume Block System Config with format error "+configStr)
+			}
+		}
+	}
 
 	// Block volume not need to format
 	if isBlock {
