@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: csi-pv-sysconfig
+  labels:
+    alicloud-pvname: csi-pv-sysconfig
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  csi:
+    driver: diskplugin.csi.alibabacloud.com
+    volumeHandle: d-2ze4tf94z3fkeg6ttv52
+    volumeAttributes:
+      mkfsOptions: "-q -L yunpan -J size=2048 -T largefile"
+      sysConfig: "/queue/max_sectors_kb=64"
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: topology.diskplugin.csi.alibabacloud.com/zone
+          operator: In
+          values:
+          - cn-hangzhou-a
