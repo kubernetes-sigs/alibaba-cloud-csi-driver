@@ -97,6 +97,6 @@ func ExpandVolume(pvcNameSpace, pvcName string, newSize int) error {
 		return err
 	}
 
-	log.Infof("Volume Expand with Url(%s) Finished, get result: %v, %v", url, string(respBody))
+	log.Infof("Volume Expand with Url(%s) Finished, get result: %s", url, string(respBody))
 	return nil
 }

@@ -35,6 +35,7 @@ type Local struct {
 	cscap []*csi.ControllerServiceCapability
 }
 
+// GlobalConfig var
 type GlobalConfig struct {
 	Region    string
 	NodeID    string
@@ -42,6 +43,7 @@ type GlobalConfig struct {
 }
 
 var (
+	// GlobalConfigVar var
 	GlobalConfigVar GlobalConfig
 )
 
