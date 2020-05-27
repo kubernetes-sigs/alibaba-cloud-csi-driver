@@ -42,7 +42,7 @@ const (
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
 	// VgNameTag is the vg name tag
 	VgNameTag = "vgName"
-	// PvTypeTag is the pv type tag
+	// VolumeTypeTag is the pv type tag
 	VolumeTypeTag = "volumeType"
 	// PvTypeTag is the pv type tag
 	PvTypeTag = "pvType"
