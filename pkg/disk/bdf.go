@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
@@ -358,4 +359,39 @@ func forceDetachAllowed(disk *ecs.Disk, nodeID string) (allowed bool, err error)
 	log.Infof("forceDetachAllowed: Instance status is %s", inst.Status)
 	// case 2
 	return inst.Status == InstanceStatusStopped, nil
+}
+
+var vfOnce = new(sync.Once)
+var isVF = false
+
+// IsVFNode returns whether the current node is vf
+func IsVFNode() bool {
+	vfOnce.Do(func() {
+		output, err := ExecCheckOutput("lspci", "-D")
+		if err != nil {
+			log.Fatalf("[IsVFNode] lspci -D: %v", err)
+		}
+		// 0000:4b:00.0 SCSI storage controller: Device 1ded:1001
+		matched := FindLines(output, "storage controller")
+		if len(matched) == 0 {
+			log.Fatal("[IsVFNode] not found storage controller")
+		}
+		for _, line := range matched {
+			bdf := strings.SplitN(line, " ", 2)[0]
+			if !strings.HasSuffix(bdf, ".0") {
+				continue
+			}
+			output, err = ExecCheckOutput("lspci", "-s", bdf, "-v")
+			if err != nil {
+				log.Fatalf("[IsVFNode] lspic -s %s -v: %v", bdf, err)
+			}
+			// Capabilities: [110] Single Root I/O Virtualization (SR-IOV)
+			matched = FindLines(output, "Single Root I/O Virtualization")
+			if len(matched) > 0 {
+				isVF = true
+				break
+			}
+		}
+	})
+	return isVF
 }
