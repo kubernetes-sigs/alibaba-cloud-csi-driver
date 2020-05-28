@@ -253,7 +253,7 @@ spec:
               mountPath: /csi
 
         - name: external-oss-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.4.0-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.8.36-93f2b131-aliyun
           args:
             - "--provisioner=ossplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
