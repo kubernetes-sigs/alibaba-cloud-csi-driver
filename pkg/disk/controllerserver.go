@@ -18,6 +18,8 @@ package disk
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -28,7 +30,6 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"strings"
 )
 
 const (
@@ -284,7 +285,17 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	if GlobalConfigVar.DetachBeforeDelete {
 		disk, err := findDiskByID(req.VolumeId)
 		if err != nil {
-			log.Warnf("DeleteVolume: find disk(%s) by id with error: %s", req.VolumeId, err.Error())
+			errMsg := fmt.Sprintf("DeleteVolume: find disk(%s) by id with error: %s", req.VolumeId, err.Error())
+			log.Error(errMsg)
+			return nil, status.Error(codes.Internal, errMsg)
+		} else if disk == nil {
+			// TODO Optimize concurrent access problems
+			if value, ok := diskIDPVMap[req.VolumeId]; ok {
+				delete(createdVolumeMap, value)
+				delete(diskIDPVMap, req.VolumeId)
+			}
+			log.Warnf("DeleteVolume: disk(%s) already deleted", req.VolumeId)
+			return &csi.DeleteVolumeResponse{}, nil
 		}
 
 		// if disk has bdf tag, it should not detach
