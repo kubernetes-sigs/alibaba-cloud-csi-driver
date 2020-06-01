@@ -46,8 +46,8 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 	}
 
 	if !GlobalConfigVar.ADControllerEnable {
-		//NodeStageVolume should be called by sequence
-		//In order no to block to caller, use boolean canAttach to check whether to continue.
+		// NodeStageVolume should be called by sequence
+		// In order no to block to caller, use boolean canAttach to check whether to continue.
 		GlobalConfigVar.AttachMutex.Lock()
 		if !GlobalConfigVar.CanAttach {
 			GlobalConfigVar.AttachMutex.Unlock()
@@ -186,7 +186,7 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 		devicePaths := calcNewDevices(before, after)
 
 		// BDF Disk Logical
-		if GlobalConfigVar.DiskBdfEnable && len(devicePaths) == 0 {
+		if IsVFNode() && len(devicePaths) == 0 {
 			var bdf string
 			if bdf, err = bindBdfDisk(disk.DiskId); err != nil {
 				if err := unbindBdfDisk(disk.DiskId); err != nil {
@@ -221,7 +221,7 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by diff", diskID, nodeID, devicePaths[0])
 			return devicePaths[0], nil
 		}
-		//device count is not expected, should retry (later by detaching and attaching again)
+		// device count is not expected, should retry (later by detaching and attaching again)
 		log.Errorf("AttachDisk: Get Device Name error, with Before: %s, After: %s, diff: %s", before, after, devicePaths)
 		return "", status.Error(codes.Aborted, "AttachDisk: after attaching to disk, but fail to get mounted device, will retry later")
 	}
@@ -245,8 +245,8 @@ func detachDisk(diskID, nodeID string) error {
 
 	if disk.InstanceId != "" {
 		if disk.InstanceId == nodeID {
-			//NodeStageVolume/NodeUnstageVolume should be called by sequence
-			//In order no to block to caller, use boolean canAttach to check whether to continue.
+			// NodeStageVolume/NodeUnstageVolume should be called by sequence
+			// In order no to block to caller, use boolean canAttach to check whether to continue.
 			if !GlobalConfigVar.ADControllerEnable {
 				GlobalConfigVar.AttachMutex.Lock()
 				if !GlobalConfigVar.CanAttach {

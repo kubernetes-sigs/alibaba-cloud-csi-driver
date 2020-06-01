@@ -18,10 +18,14 @@ package disk
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -30,10 +34,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/util/resizefs"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 type nodeServer struct {
@@ -139,6 +141,12 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	// Create Directory
 	os.MkdirAll(VolumeDir, os.FileMode(0755))
 	os.MkdirAll(VolumeDirRemove, os.FileMode(0755))
+
+	if IsVFNode() {
+		log.Infof("Currently node is VF model")
+	} else {
+		log.Infof("Currently node is NOT VF model")
+	}
 
 	return &nodeServer{
 		zone:              doc.ZoneID,
@@ -432,7 +440,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 	}
 
-	//Step 2: check target path mounted
+	// Step 2: check target path mounted
 	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -463,7 +471,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		if device == "" {
 			device, err = GetDeviceByUUID(req.GetVolumeId())
 		}
-		if GlobalConfigVar.DiskBdfEnable && device == "" {
+		if IsVFNode() && device == "" {
 			if bdf, err = bindBdfDisk(req.GetVolumeId()); err != nil {
 				if err := unbindBdfDisk(req.GetVolumeId()); err != nil {
 					return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to detach bdf disk: %v", err)
@@ -632,7 +640,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		log.Infof(msgLog)
 	}
 
-	if GlobalConfigVar.DiskBdfEnable {
+	if IsVFNode() {
 		if err := unbindBdfDisk(req.VolumeId); err != nil {
 			log.Errorf("NodeUnstageVolume: unbind bdf disk error: %v", err)
 			return nil, err
