@@ -372,7 +372,7 @@ func getDeviceSerial(serial string) (device string) {
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
 func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 	// this is danger in Bdf mode
-	if !GlobalConfigVar.DiskBdfEnable {
+	if !IsVFNode() {
 		device = getDeviceSerial(strings.TrimPrefix(volumeID, "d-"))
 		if device != "" {
 			log.Infof("Use the serial to find device, got %q, volumeID: %s", device, volumeID)
