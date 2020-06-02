@@ -377,6 +377,10 @@ func IsVFNode() bool {
 			log.Fatal("[IsVFNode] not found storage controller")
 		}
 		for _, line := range matched {
+			// 1ded: is alibaba cloud
+			if !strings.Contains(line, "1ded:") {
+				continue
+			}
 			bdf := strings.SplitN(line, " ", 2)[0]
 			if !strings.HasSuffix(bdf, ".0") {
 				continue
