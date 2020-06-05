@@ -12,6 +12,14 @@ Current implementation of CSI plugins has been tested in Kubernetes environment 
 
 Current Support: ***Cloud Disk, NAS, CPFS, OSS, LVM***;
 
+## Features in Development
+
+| Feature         | Stage | Min Kubernetes Version |  Min Driver Version  |
+|-----------------|-------|---------------------------|-------------------|
+| Topology        | Beta  | 1.14                       | v1.0.2           |
+| Snapshots       | Alpha | 1.14                       | v1.0.3           |
+| Resize (Expand) | Beta  | 1.16                       | v1.0.5           |
+
 
 ### Cloud Disk CSI Plugin
 
