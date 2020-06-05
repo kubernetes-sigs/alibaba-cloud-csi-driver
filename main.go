@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
@@ -98,37 +99,69 @@ func main() {
 		os.Exit(1)
 	}
 
-	drivername := *driver
-	log.Infof("CSI Driver Name: %s, %s, %s", drivername, *nodeID, *endpoint)
+	driverName := *driver
+	endPointName := *endpoint
+	endPointNames := strings.Split(endPointName, ",")
+	log.Infof("CSI Driver Name: %s, %s, %s", driverName, *nodeID, *endpoint)
 	log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", BRANCH, VERSION, BUILDTIME)
-	if drivername == TypePluginNAS {
-		driver := nas.NewDriver(*nodeID, *endpoint)
-		driver.Run()
-	} else if drivername == TypePluginOSS {
-		driver := oss.NewDriver(*nodeID, *endpoint)
-		driver.Run()
-	} else if drivername == TypePluginDISK {
-		driver := disk.NewDriver(*nodeID, *endpoint, *runAsController)
-		driver.Run()
-	} else if drivername == TypePluginLVM {
-		driver := lvm.NewDriver(*nodeID, *endpoint)
-		driver.Run()
-	} else if drivername == TypePluginCPFS {
-		driver := cpfs.NewDriver(*nodeID, *endpoint)
-		driver.Run()
-	} else if drivername == TypePluginMEM {
-		driver := mem.NewDriver(*nodeID, *endpoint)
-		driver.Run()
-	} else if drivername == TypePluginLOCAL {
-		driver := local.NewDriver(*nodeID, *endpoint)
-		driver.Run()
-	} else if drivername == ExtenderAgent {
-		queryServer := agent.NewAgent()
-		queryServer.RunAgent()
-	} else {
-		log.Errorf("CSI start failed, not support driver: %s", drivername)
+	driverNames := strings.Split(driverName, ",")
+	var wg sync.WaitGroup
+	for _, driverName := range driverNames {
+		for _, endPointName := range endPointNames {
+			if driverName == TypePluginNAS && strings.Contains(endPointName, TypePluginNAS) {
+				go func() {
+					defer wg.Done()
+					driver := nas.NewDriver(*nodeID, endPointName)
+					driver.Run()
+				}()
+			} else if driverName == TypePluginOSS && strings.Contains(endPointName, TypePluginOSS) {
+				go func() {
+					defer wg.Done()
+					driver := oss.NewDriver(*nodeID, *endpoint)
+					driver.Run()
+				}()
+			} else if driverName == TypePluginDISK && strings.Contains(endPointName, TypePluginDISK) {
+				go func() {
+					defer wg.Done()
+					driver := disk.NewDriver(*nodeID, *endpoint, *runAsController)
+					driver.Run()
+				}()
+			} else if driverName == TypePluginLVM && strings.Contains(endPointName, TypePluginLVM) {
+				go func() {
+					defer wg.Done()
+					driver := lvm.NewDriver(*nodeID, *endpoint)
+					driver.Run()
+				}()
+			} else if driverName == TypePluginCPFS && strings.Contains(endPointName, TypePluginCPFS) {
+				go func() {
+					defer wg.Done()
+					driver := cpfs.NewDriver(*nodeID, *endpoint)
+					driver.Run()
+				}()
+			} else if driverName == TypePluginMEM && strings.Contains(endPointName, TypePluginMEM) {
+				go func() {
+					defer wg.Done()
+					driver := mem.NewDriver(*nodeID, *endpoint)
+					driver.Run()
+				}()
+			} else if driverName == TypePluginLOCAL && strings.Contains(endPointName, TypePluginLOCAL) {
+				go func() {
+					defer wg.Done()
+					driver := local.NewDriver(*nodeID, *endpoint)
+					driver.Run()
+				}()
+			} else if driverName == ExtenderAgent && strings.Contains(endPointName, ExtenderAgent) {
+				go func() {
+					defer wg.Done()
+					queryServer := agent.NewAgent()
+					queryServer.RunAgent()
+				}()
+			} else {
+				log.Errorf("CSI start failed, not support driver: %s", driverName)
+			}
+		}
 	}
-
+	wg.Wait()
 	os.Exit(0)
 }
 
