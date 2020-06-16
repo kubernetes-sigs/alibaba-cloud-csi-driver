@@ -259,6 +259,19 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeResponse.DiskId, diskVol.ZoneID, disktype, requestGB, volumeResponse.RequestId)
+
+	// Set VolumeContentSource
+	var src *csi.VolumeContentSource
+	if snapshotID != "" {
+		src = &csi.VolumeContentSource{
+			Type: &csi.VolumeContentSource_Snapshot{
+				Snapshot: &csi.VolumeContentSource_SnapshotSource{
+					SnapshotId: snapshotID,
+				},
+			},
+		}
+	}
+
 	tmpVol := &csi.Volume{
 		VolumeId:      volumeResponse.DiskId,
 		CapacityBytes: int64(volSizeBytes),
@@ -270,6 +283,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				},
 			},
 		},
+		ContentSource: src,
 	}
 
 	diskIDPVMap[volumeResponse.DiskId] = req.Name
