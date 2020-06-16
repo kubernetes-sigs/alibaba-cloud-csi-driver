@@ -27,11 +27,16 @@ spec:
       serviceAccount: admin
       hostNetwork: true
       containers:
+        - name: snapshot-controller
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/snapshot-controller:v2.0.1
+          args:
+            - "--v=5"
+            - "--leader-election=false"
+          imagePullPolicy: Always
         - name: disk-snapshotter
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-snapshotter:v1.2.2
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-snapshotter:v2.1.1
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--connection-timeout=15s"
           env:
             - name: ADDRESS
               value: /socketDir/csi.sock
@@ -45,7 +50,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.8.39-9732bf58-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-plugin:v1.14.5-a18ae9031
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
