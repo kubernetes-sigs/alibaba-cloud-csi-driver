@@ -10,6 +10,6 @@ spec:
     requests:
       storage: 20Gi
   dataSource:
-    name: ebs-volume-snapshot
+    name: new-snapshot-demo
     kind: VolumeSnapshot
     apiGroup: snapshot.storage.k8s.io
