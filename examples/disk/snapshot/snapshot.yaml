@@ -1,9 +1,8 @@
-apiVersion: snapshot.storage.k8s.io/v1alpha1
+apiVersion: snapshot.storage.k8s.io/v1beta1
 kind: VolumeSnapshot
 metadata:
-  name: new-snapshot-test
+  name: new-snapshot-demo
 spec:
-  snapshotClassName: default-snapclass
+  volumeSnapshotClassName: default-snapclass
   source:
-    name: disk-pvc
-    kind: PersistentVolumeClaim
+    persistentVolumeClaimName: disk-ssd-web-0

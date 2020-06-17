@@ -1,5 +1,6 @@
-apiVersion: snapshot.storage.k8s.io/v1alpha1
+apiVersion: snapshot.storage.k8s.io/v1beta1
 kind: VolumeSnapshotClass
 metadata:
   name: default-snapclass
-snapshotter: diskplugin.csi.alibabacloud.com
+driver: diskplugin.csi.alibabacloud.com
+deletionPolicy: Delete

@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  ports:
+  - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    app: nginx
+---
+apiVersion: apps/v1beta2
+kind: StatefulSet
+metadata:
+  name: web
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  serviceName: "nginx"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        command: ["sh", "-c"]
+        args: ["sleep 10000"]
+        volumeMounts:
+        - name: disk-ssd
+          mountPath: /data
+  volumeClaimTemplates:
+  - metadata:
+      name: disk-ssd
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: alicloud-disk-ssd
+      resources:
+        requests:
+          storage: 20Gi

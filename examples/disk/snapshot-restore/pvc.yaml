@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: disk-snapshot-restore
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: alicloud-disk-ssd
+  resources:
+    requests:
+      storage: 20Gi
+  dataSource:
+    name: new-snapshot-demo
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
