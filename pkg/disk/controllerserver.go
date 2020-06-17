@@ -253,6 +253,19 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeResponse.DiskId, diskVol.ZoneID, disktype, requestGB, volumeResponse.RequestId)
+
+	// Set VolumeContentSource
+	var src *csi.VolumeContentSource
+	if snapshotID != "" {
+		src = &csi.VolumeContentSource{
+			Type: &csi.VolumeContentSource_Snapshot{
+				Snapshot: &csi.VolumeContentSource_SnapshotSource{
+					SnapshotId: snapshotID,
+				},
+			},
+		}
+	}
+
 	tmpVol := &csi.Volume{
 		VolumeId:      volumeResponse.DiskId,
 		CapacityBytes: int64(volSizeBytes),
@@ -264,6 +277,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				},
 			},
 		},
+		ContentSource: src,
 	}
 
 	diskIDPVMap[volumeResponse.DiskId] = req.Name
@@ -426,18 +440,22 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		// to check if the sourceVolumeId of existing snapshot is the same as in new request.
 		if exSnap.VolID == req.GetSourceVolumeId() {
 			log.Infof("CreateSnapshot:: Snapshot already created: name[%s], sourceId[%s], status[%v]", req.Name, req.GetSourceVolumeId(), exSnap.ReadyToUse)
+			csiSnapshot := &csi.Snapshot{
+				SnapshotId:     exSnap.ID,
+				SourceVolumeId: exSnap.VolID,
+				CreationTime:   &exSnap.CreationTime,
+				SizeBytes:      exSnap.SizeBytes,
+				ReadyToUse:     exSnap.ReadyToUse,
+			}
 			return &csi.CreateSnapshotResponse{
-				Snapshot: &csi.Snapshot{
-					SnapshotId:     exSnap.ID,
-					SourceVolumeId: exSnap.VolID,
-					CreationTime:   &exSnap.CreationTime,
-					SizeBytes:      exSnap.SizeBytes,
-					ReadyToUse:     exSnap.ReadyToUse,
-				},
+				Snapshot: csiSnapshot,
 			}, nil
 		}
 		log.Errorf("CreateSnapshot:: Snapshot already exist with same name: name[%s], volumeID[%s]", req.Name, exSnap.VolID)
 		return nil, status.Error(codes.AlreadyExists, fmt.Sprintf("snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName()))
+	} else if err != nil {
+		log.Errorf("CreateSnapshot:: Find Snapshot name[%s], get error: %v", req.Name, err)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot: get snapshot with error: %s", err.Error()))
 	}
 
 	// init createSnapshotRequest and parameters
@@ -472,15 +490,17 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	snapshot.CreationTime = *createAt
 	snapshot.ReadyToUse = false
 
-	log.Infof("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotID)
+	log.Infof("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s], snapshot[%++v]", req.Name, req.GetSourceVolumeId(), snapshotID, snapshot)
+	csiSnapshot := &csi.Snapshot{
+		SnapshotId:     snapshotID,
+		SourceVolumeId: snapshot.VolID,
+		CreationTime:   &snapshot.CreationTime,
+		SizeBytes:      snapshot.SizeBytes,
+		ReadyToUse:     snapshot.ReadyToUse,
+	}
+
 	return &csi.CreateSnapshotResponse{
-		Snapshot: &csi.Snapshot{
-			SnapshotId:     snapshotID,
-			SourceVolumeId: snapshot.VolID,
-			CreationTime:   &snapshot.CreationTime,
-			SizeBytes:      snapshot.SizeBytes,
-			ReadyToUse:     snapshot.ReadyToUse,
-		},
+		Snapshot: csiSnapshot,
 	}, nil
 }
 
