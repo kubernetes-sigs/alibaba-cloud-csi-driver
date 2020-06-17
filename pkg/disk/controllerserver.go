@@ -101,12 +101,6 @@ var storageClassZonePos = map[string]int{}
 // diskId and pvName is not same under csi plugin
 var diskIDPVMap = map[string]string{}
 
-// the map of snapshotID and volumeSnapshotName
-var snapshotVolumeMap = map[string]string{}
-
-// the map of req.Name and csi.Sanpshot
-var createdSnapshotMap = map[string]*csi.Snapshot{}
-
 // provisioner: create/delete disk
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	log.Infof("CreateVolume: Starting CreateVolume, %s, %v", req.Name, req)
@@ -439,12 +433,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		return nil, status.Error(codes.InvalidArgument, "CreateSnapshot: SourceVolumeId missing in request")
 	}
 
-	// check volumeSnapshot already exist
-	if value, ok := createdSnapshotMap[req.GetName()]; ok {
-		log.Infof("CreateSnapshot:: Snapshot already created: name[%s]", req.Name)
-		return &csi.CreateSnapshotResponse{Snapshot: value}, nil
-	}
-
 	// Need to check for already existing snapshot name
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	if exSnap, err := findSnapshotByName(req.GetName()); err == nil && exSnap != nil {
@@ -459,8 +447,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 				SizeBytes:      exSnap.SizeBytes,
 				ReadyToUse:     exSnap.ReadyToUse,
 			}
-			createdSnapshotMap[req.GetName()] = csiSnapshot
-			snapshotVolumeMap[exSnap.ID] = req.GetName()
 			return &csi.CreateSnapshotResponse{
 				Snapshot: csiSnapshot,
 			}, nil
@@ -504,7 +490,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	snapshot.CreationTime = *createAt
 	snapshot.ReadyToUse = false
 
-	log.Infof("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotID)
+	log.Infof("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s], snapshot[%++v]", req.Name, req.GetSourceVolumeId(), snapshotID, snapshot)
 	csiSnapshot := &csi.Snapshot{
 		SnapshotId:     snapshotID,
 		SourceVolumeId: snapshot.VolID,
@@ -512,9 +498,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		SizeBytes:      snapshot.SizeBytes,
 		ReadyToUse:     snapshot.ReadyToUse,
 	}
-
-	createdSnapshotMap[req.GetName()] = csiSnapshot
-	snapshotVolumeMap[snapshotID] = req.GetName()
 
 	return &csi.CreateSnapshotResponse{
 		Snapshot: csiSnapshot,
@@ -561,11 +544,6 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 			log.Errorf("DeleteSnapshot: fail to delete %s: with RequestId: %s, error: %s", snapshotID, response.RequestId, err.Error())
 		}
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed delete snapshot: %v", err))
-	}
-
-	if value, ok := snapshotVolumeMap[req.GetSnapshotId()]; ok {
-		delete(createdSnapshotMap, value)
-		delete(snapshotVolumeMap, req.GetSnapshotId())
 	}
 
 	log.Infof("DeleteSnapshot:: Successful delete snapshot %s, requestId: %s", snapshotID, response.RequestId)
