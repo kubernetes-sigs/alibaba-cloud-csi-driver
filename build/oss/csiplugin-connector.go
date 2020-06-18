@@ -51,7 +51,6 @@ func main() {
 }
 
 func runOssProxy() {
-
 	if IsFileExisting(SocketPath) {
 		os.Remove(SocketPath)
 	} else {

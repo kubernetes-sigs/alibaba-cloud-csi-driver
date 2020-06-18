@@ -30,13 +30,23 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/lvm"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mem"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
+	"github.com/prometheus/common/version"
 	log "github.com/sirupsen/logrus"
 )
 
 func init() {
 	flag.Set("logtostderr", "true")
+}
+
+func setPrometheusVersion() {
+	version.Version = Version
+	version.Revision = Revision
+	version.Branch = Branch
+	version.BuildUser = BuildUser
+	version.BuildDate = BuildTime
 }
 
 const (
@@ -63,16 +73,18 @@ const (
 )
 
 // BRANCH is CSI Driver Branch
-var BRANCH = ""
+var Branch = ""
 
 // VERSION is CSI Driver Version
-var VERSION = ""
+var Version = ""
 
 // COMMITID is CSI Driver CommitID
-var COMMITID = ""
+var Revision = ""
 
 // BUILDTIME is CSI Driver Buildtime
-var BUILDTIME = ""
+var BuildTime = ""
+
+var BuildUser = ""
 
 var (
 	endpoint        = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
@@ -81,6 +93,11 @@ var (
 	driver          = flag.String("driver", TypePluginDISK, "CSI Driver")
 	rootDir         = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
 )
+
+type globalMetricConfig struct {
+	enableMetric string
+	serverType   string
+}
 
 // Nas CSI Plugin
 func main() {
@@ -98,9 +115,28 @@ func main() {
 		os.Exit(1)
 	}
 
+	setPrometheusVersion()
+	metricConfig := &globalMetricConfig{
+		"false",
+		"node-server",
+	}
+
+	enableMetric := os.Getenv("ENABLE_METRIC")
+	if enableMetric == "true" {
+		metricConfig.enableMetric = enableMetric
+		serverType := os.Getenv("SERVER_TYPE")
+		if serverType != "node-server" {
+			metricConfig.serverType = serverType
+		}
+	}
+
+	if metricConfig.enableMetric == "true" {
+		go metric.Run(":10260", "/metrics", metricConfig.serverType)
+	}
+
 	drivername := *driver
 	log.Infof("CSI Driver Name: %s, %s, %s", drivername, *nodeID, *endpoint)
-	log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", BRANCH, VERSION, BUILDTIME)
+	log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", Branch, Version, BuildTime)
 	if drivername == TypePluginNAS {
 		driver := nas.NewDriver(*nodeID, *endpoint)
 		driver.Run()
