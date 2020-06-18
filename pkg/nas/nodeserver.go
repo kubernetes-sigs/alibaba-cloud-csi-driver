@@ -20,6 +20,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
+	"github.com/prometheus/client_golang/prometheus"
 	"net"
 	"os"
 	"path/filepath"
@@ -96,6 +98,9 @@ func newNodeServer(d *NAS) *nodeServer {
 }
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
+	defer metric.CollectDesc(req.VolumeId, metric.NodePublishVolumeAction, metric.NasStorageName, timer, metric.ActionCollectorInstance)
+
 	log.Infof("NodePublishVolume:: Nas Volume %s Mount with: %v", req.VolumeId, req)
 
 	// parse parameters
@@ -268,6 +273,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
+	defer metric.CollectDesc(req.VolumeId, metric.NodeUnPublishVolumeAction, metric.NasStorageName, timer, metric.ActionCollectorInstance)
+
 	log.Infof("NodeUnpublishVolume:: Starting Umount Nas Volume %s at path %s", req.VolumeId, req.TargetPath)
 	// check runtime mode
 	if GlobalConfigVar.RunTimeClass == MixRunTimeMode && utils.IsMountPointRunv(req.TargetPath) {

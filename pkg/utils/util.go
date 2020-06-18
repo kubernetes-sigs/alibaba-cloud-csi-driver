@@ -33,6 +33,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 
 	"os/exec"
 	"path/filepath"
@@ -438,4 +439,9 @@ func IsMountPointRunv(mountPoint string) bool {
 		}
 	}
 	return false
+}
+
+func IsNumeric(s string) bool {
+	_, err := strconv.ParseFloat(s, 64)
+	return err == nil
 }

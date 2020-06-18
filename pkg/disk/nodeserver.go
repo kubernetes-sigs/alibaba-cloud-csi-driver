@@ -18,6 +18,8 @@ package disk
 
 import (
 	"fmt"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
+	"github.com/prometheus/client_golang/prometheus"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -196,6 +198,8 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 
 // csi disk driver: bind directory from global to pod.
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
+	defer metric.CollectDesc(req.VolumeId, metric.NodePublishVolumeAction, metric.DiskStorageName, timer, metric.ActionCollectorInstance)
 	// check target mount path
 	sourcePath := req.StagingTargetPath
 	// running in runc/runv mode
@@ -347,6 +351,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
+	defer metric.CollectDesc(req.VolumeId, metric.NodeUnPublishVolumeAction, metric.DiskStorageName, timer, metric.ActionCollectorInstance)
+
 	targetPath := req.GetTargetPath()
 	log.Infof("NodeUnpublishVolume: Starting to Unmount Volume %s, Target %v", req.VolumeId, targetPath)
 	// Step 1: check folder exists
@@ -409,6 +416,9 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 }
 
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
+	defer metric.CollectDesc(req.VolumeId, metric.NodeStageVolumeAction, metric.DiskStorageName, timer, metric.ActionCollectorInstance)
+
 	log.Infof("NodeStageVolume: Stage VolumeId: %s, Target Path: %s, VolumeContext: %v", req.GetVolumeId(), req.StagingTargetPath, req.VolumeContext)
 
 	// Step 1: check input parameters
@@ -571,11 +581,15 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	SaveUUID(req.VolumeId, device)
 
 	log.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v, device: %s, mkfsOptions: %v", req.VolumeId, targetPath, device, mkfsOptions)
+
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
 // target format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
+	defer metric.CollectDesc(req.VolumeId, metric.NodeUnstageVolumeAction, metric.DiskStorageName, timer, metric.ActionCollectorInstance)
+
 	log.Infof("NodeUnstageVolume:: Starting to Unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
 	if req.VolumeId == "" {
 		return nil, status.Error(codes.InvalidArgument, "NodeUnstageVolume Volume ID must be provided")

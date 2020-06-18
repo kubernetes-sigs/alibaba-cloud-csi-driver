@@ -5,9 +5,11 @@ go 1.12
 require (
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.201
 	github.com/container-storage-interface/spec v1.1.0
+	github.com/emirpasic/gods v1.12.0
+	github.com/go-kit/kit v0.9.0
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/groupcache v0.0.0-00010101000000-000000000000 // indirect
-	github.com/golang/protobuf v1.3.0
+	github.com/golang/protobuf v1.3.2
 	github.com/google/credstore v0.0.0-20181218150457-e184c60ef875 // indirect
 	github.com/google/go-microservice-helpers v0.0.0-20190205165657-a91942da5417
 	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf // indirect
@@ -22,20 +24,24 @@ require (
 	github.com/onsi/gomega v0.0.0-00010101000000-000000000000 // indirect
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/pborman/uuid v0.0.0-00010101000000-000000000000 // indirect
-	github.com/pkg/errors v0.8.0
+	github.com/pkg/errors v0.8.1
+	github.com/prometheus/client_golang v1.0.0
+	github.com/prometheus/common v0.0.0-20181126121408-4724e9255275
+	github.com/prometheus/procfs v0.0.0-20181204211112-1dc9a6cbc91a
 	github.com/sevlyar/go-daemon v0.1.5
-	github.com/sirupsen/logrus v1.4.2
+	github.com/sirupsen/logrus v1.2.0
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/stretchr/testify v1.3.0
 	golang.org/x/crypto v0.0.0-20190228161510-8dd112bcdc25 // indirect
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
-	golang.org/x/net v0.0.0-20190301231341-16b79f2e4e95
+	golang.org/x/net v0.0.0-20190613194153-d28f0bde5980
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a // indirect
 	golang.org/x/sys v0.0.0-20190626221950-04f50cda93cb // indirect
 	golang.org/x/time v0.0.0-00010101000000-000000000000 // indirect
 	google.golang.org/genproto v0.0.0-20190307195333-5fe7a883aa19 // indirect
 	google.golang.org/grpc v1.19.0
+	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.0.0-20190624085159-95846d7ef82a
 	k8s.io/apiextensions-apiserver v0.0.0-00010101000000-000000000000 // indirect

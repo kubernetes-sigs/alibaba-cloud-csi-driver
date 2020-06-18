@@ -20,8 +20,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"io"
 	"io/ioutil"
+	k8smount "k8s.io/kubernetes/pkg/util/mount"
+	utilexec "k8s.io/utils/exec"
 	"net/http"
 	"os"
 	"os/exec"
@@ -31,18 +39,8 @@ import (
 	"strings"
 	"time"
 
-	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	k8smount "k8s.io/kubernetes/pkg/util/mount"
-	utilexec "k8s.io/utils/exec"
-
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
-
 const (
 	// KubernetesAlicloudDiskDriver driver name
 	KubernetesAlicloudDiskDriver = "alicloud/disk"

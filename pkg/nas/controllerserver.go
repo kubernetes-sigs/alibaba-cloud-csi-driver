@@ -19,6 +19,8 @@ package nas
 import (
 	"errors"
 	"fmt"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
+	"github.com/prometheus/client_golang/prometheus"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -122,6 +124,9 @@ func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region s
 
 // provisioner: create/delete nas volume
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
+	defer metric.CollectDesc(req.Name, metric.CreateVolumeAction, metric.NasStorageName, timer, metric.ActionCollectorInstance)
+
 	log.Infof("CreateVolume: Starting NFS CreateVolume, %s, %v", req.Name, req)
 
 	// step1: check pvc is created or not.
@@ -367,6 +372,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 // call nas api to delete disk
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
+	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
+	defer metric.CollectDesc(req.VolumeId, metric.DeleteVolumeAction, metric.NasStorageName, timer, metric.ActionCollectorInstance)
+
 	log.Infof("DeleteVolume: Starting deleting volume %s", req.GetVolumeId())
 
 	pvInfo, err := cs.client.CoreV1().PersistentVolumes().Get(req.VolumeId, metav1.GetOptions{})

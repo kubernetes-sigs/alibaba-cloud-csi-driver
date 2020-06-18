@@ -18,6 +18,8 @@ package disk
 
 import (
 	"fmt"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
+	"github.com/prometheus/client_golang/prometheus"
 	"strings"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
@@ -103,6 +105,9 @@ var diskIDPVMap = map[string]string{}
 
 // provisioner: create/delete disk
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
+	defer metric.CollectDesc(req.Name, metric.CreateVolumeAction, metric.DiskStorageName, timer, metric.ActionCollectorInstance)
+
 	log.Infof("CreateVolume: Starting CreateVolume, %s, %v", req.Name, req)
 
 	// Step 1: check parameters
@@ -273,6 +278,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 // call ecs api to delete disk
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
+	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
+	defer metric.CollectDesc(req.VolumeId, metric.DeleteVolumeAction, metric.DiskStorageName, timer, metric.ActionCollectorInstance)
+
 	log.Infof("DeleteVolume: Starting deleting volume %s", req.VolumeId)
 
 	// Step 1: check inputs
