@@ -398,6 +398,13 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		log.Errorf("NodeUnpublishVolume: volumeId: %s, umount path: %s with error: %s", req.VolumeId, targetPath, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	if utils.IsMounted(targetPath) {
+		err = ns.k8smounter.Unmount(targetPath)
+		if err != nil {
+			log.Errorf("NodeUnpublishVolume: double check mountpoint, volumeId: %s, umount path: %s with error: %s", req.VolumeId, targetPath, err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	// below directory can not be umounted by kubelet in ack
 	if err := ns.unmountDuplicateMountPoint(targetPath); err != nil {
@@ -529,6 +536,10 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 
 	// Block volume not need to format
 	if isBlock {
+		if utils.IsMounted(targetPath) {
+			log.Infof("NodeStageVolume: Block Already Mounted: volumeId: %s with target %s", req.VolumeId, targetPath)
+			return &csi.NodeStageVolumeResponse{}, nil
+		}
 		options := []string{"bind"}
 		if err := ns.mounter.MountBlock(device, targetPath, options...); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
