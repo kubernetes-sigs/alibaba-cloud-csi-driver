@@ -20,6 +20,7 @@ import (
 	"errors"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/adapter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/client"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -345,5 +346,32 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	log.Infof("ControllerExpandVolume::: %v", req)
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
+	if GlobalConfigVar.Scheduler == yodaDriverName {
+		volSizeGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
+		volumeID := req.GetVolumeId()
+		pvObj, err := getPvObj(cs.client, volumeID)
+		if err != nil {
+			log.Errorf("ControllerExpandVolume: get volume object %s error with: %s", volumeID, err.Error())
+			return nil, err
+		}
+		if pvObj.Spec.CSI == nil {
+			log.Errorf("ControllerExpandVolume: volume is not csi type %s", volumeID)
+			return nil, errors.New("ControllerExpandVolume: volume is not csi type: " + volumeID)
+		}
+		attributes := pvObj.Spec.CSI.VolumeAttributes
+		pvcName, pvcNameSpace := "", ""
+		if value, ok := attributes[PvcNameTag]; ok {
+			pvcName = value
+		}
+		if value, ok := attributes[PvcNsTag]; ok {
+			pvcNameSpace = value
+		}
+		if err := adapter.ExpandVolume(pvcNameSpace, pvcName, volSizeGB); err != nil {
+			log.Errorf("ControllerExpandVolume: expand volume %s to size %d meet error: %v", volumeID, volSizeGB, err)
+			return nil, errors.New("ControllerExpandVolume: expand volume error " + err.Error())
+		}
+
+	}
+
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
 }
