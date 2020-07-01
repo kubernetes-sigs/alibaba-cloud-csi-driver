@@ -202,7 +202,8 @@ func SetNasEndPoint(regionID string) {
 	// total 16 regions
 	unitizedRegions := []string{"cn-hangzhou", "cn-zhangjiakou", "cn-huhehaote", "cn-shenzhen", "ap-southeast-1", "ap-southeast-2",
 		"ap-southeast-3", "ap-southeast-5", "eu-central-1", "us-east-1", "ap-northeast-1", "ap-south-1",
-		"us-west-1", "eu-west-1", "cn-chengdu", "cn-north-2-gov-1"}
+		"us-west-1", "eu-west-1", "cn-chengdu", "cn-north-2-gov-1", "cn-beijing", "cn-shanghai", "cn-hongkong",
+		"cn-shenzhen-finance-1", "cn-shanghai-finance-1"}
 	for _, tmpRegion := range unitizedRegions {
 		if regionID == tmpRegion {
 			aliyunep.AddEndpointMapping(regionID, "Nas", "nas-vpc."+regionID+".aliyuncs.com")

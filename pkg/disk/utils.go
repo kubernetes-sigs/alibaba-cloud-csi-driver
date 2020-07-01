@@ -176,6 +176,13 @@ func SetEcsEndPoint(regionID string) {
 			break
 		}
 	}
+	unitizedRegionsVpc := []string{"cn-beijing", "cn-shanghai", "cn-hongkong", "me-east-1", "cn-shenzhen-finance-1", "cn-shanghai-finance-1"}
+	for _, tmpRegion := range unitizedRegionsVpc {
+		if regionID == tmpRegion {
+			aliyunep.AddEndpointMapping(regionID, "Ecs", "ecs-vpc."+regionID+".aliyuncs.com")
+			break
+		}
+	}
 
 	// use environment endpoint setting first;
 	if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
