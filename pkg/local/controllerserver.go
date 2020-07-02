@@ -282,6 +282,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 					log.Errorf("DeleteVolume: Remove lvm %s/%s with error: %s", vgName, volumeID, err.Error())
 					return nil, errors.New("Remove Lvm with error " + err.Error())
 				}
+				log.Infof("DeleteLvm: Successful Delete lvm %s/%s", vgName, volumeID)
 			} else if strings.Contains(err.Error(), "Failed to find logical volume") {
 				log.Infof("DeleteVolume: lvm volume not found, skip deleting %s", volumeID)
 			} else if strings.Contains(err.Error(), "Volume group \""+vgName+"\" not found") {

@@ -69,6 +69,7 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 			}
 			isMnt = false
 		} else {
+			log.Errorf("NodePublishVolume: check volume %s mounted with error: %s", volumeID, err.Error())
 			return status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -90,7 +91,6 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 		}
 		log.Infof("NodePublishVolume:: mount successful devicePath: %s, targetPath: %s, options: %v", devicePath, targetPath, options)
 	}
-
 	return nil
 }
 
@@ -101,11 +101,13 @@ func (ns *nodeServer) mountLocalVolume(ctx context.Context, req *csi.NodePublish
 		sourcePath = value
 	}
 	if sourcePath == "" {
+		log.Errorf("mountLocalVolume: volume: %s, sourcePath empty", req.VolumeId)
 		return status.Error(codes.Internal, "Mount LocalVolume with empty source path "+req.VolumeId)
 	}
 
 	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
+		log.Errorf("mountLocalVolume: check volume: %s mounted with error %v", req.VolumeId, err)
 		return status.Error(codes.Internal, err.Error())
 	}
 	if !notmounted {
@@ -125,6 +127,7 @@ func (ns *nodeServer) mountLocalVolume(ctx context.Context, req *csi.NodePublish
 	}
 	log.Infof("NodePublishVolume: Starting mount local volume %s with flags %v and fsType %s", req.VolumeId, options, fsType)
 	if err = ns.k8smounter.Mount(sourcePath, targetPath, fsType, options); err != nil {
+		log.Errorf("mountLocalVolume: Mount volume: %s with error %v", req.VolumeId, err)
 		return status.Error(codes.Internal, err.Error())
 	}
 	return nil
@@ -137,6 +140,7 @@ func (ns *nodeServer) mountDeviceVolume(ctx context.Context, req *csi.NodePublis
 		sourceDevice = value
 	}
 	if sourceDevice == "" {
+		log.Errorf("mountDeviceVolume: device volume: %s, sourcePath empty", req.VolumeId)
 		return status.Error(codes.Internal, "Mount Device with empty source path "+req.VolumeId)
 	}
 
@@ -166,6 +170,7 @@ func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType
 	// Create VG if vg not exist,
 	if pvType == LocalDisk {
 		if pvNumber, err = createVG(vgName); err != nil {
+			log.Errorf("createVolume: Volume: %s, VG: %s, error: %s", volumeID, vgName, err.Error())
 			return err
 		}
 	}
@@ -188,6 +193,7 @@ func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType
 		cmd := fmt.Sprintf("%s lvcreate -i %d -n %s -L %d%s %s", NsenterCmd, pvNumber, volumeID, pvSize, unit, vgName)
 		_, err = utils.Run(cmd)
 		if err != nil {
+			log.Errorf("createVolume:: lvcreate command %s error: %v", cmd, err)
 			return err
 		}
 		log.Infof("Successful Create Striping LVM volume: %s, with command: %s", volumeID, cmd)
@@ -195,6 +201,7 @@ func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType
 		cmd := fmt.Sprintf("%s lvcreate -n %s -L %d%s %s", NsenterCmd, volumeID, pvSize, unit, vgName)
 		_, err = utils.Run(cmd)
 		if err != nil {
+			log.Errorf("createVolume:: lvcreate linear command %s error: %v", cmd, err)
 			return err
 		}
 		log.Infof("Successful Create Linear LVM volume: %s, with command: %s", volumeID, cmd)
