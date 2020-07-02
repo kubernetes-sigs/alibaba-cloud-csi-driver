@@ -106,7 +106,7 @@ func checkFSType(devicePath string) (string, error) {
 }
 
 func isVgExist(vgName string) (bool, error) {
-	vgCmd := fmt.Sprintf("%s vgdisplay %s | grep 'VG Name' | grep %s | grep -v grep | wc -l", NsenterCmd, vgName, vgName)
+	vgCmd := fmt.Sprintf("%s vgdisplay %s 2>&1 | grep 'VG Name' | grep %s | grep -v grep | wc -l", NsenterCmd, vgName, vgName)
 	vgline, err := utils.Run(vgCmd)
 	if err != nil {
 		return false, err
@@ -165,13 +165,13 @@ func createVG(vgName string) (int, error) {
 	pvNum := 0
 
 	// step1: check vg is created or not
-	vgCmd := fmt.Sprintf("%s vgdisplay %s | grep 'VG Name' | grep %s | grep -v grep | wc -l", NsenterCmd, vgName, vgName)
+	vgCmd := fmt.Sprintf("%s vgdisplay %s 2>&1 | grep 'VG Name' | grep %s | grep -v grep | wc -l", NsenterCmd, vgName, vgName)
 	vgline, err := utils.Run(vgCmd)
 	if err != nil {
 		return 0, err
 	}
 	if strings.TrimSpace(vgline) == "1" {
-		pvNumCmd := fmt.Sprintf("%s vgdisplay %s | grep 'Cur PV' | grep -v grep | awk '{print $3}'", NsenterCmd, vgName)
+		pvNumCmd := fmt.Sprintf("%s vgdisplay %s 2>&1 | grep 'Cur PV' | grep -v grep | awk '{print $3}'", NsenterCmd, vgName)
 		if pvNumStr, err := utils.Run(pvNumCmd); err != nil {
 			return 0, err
 		} else if pvNum, err = strconv.Atoi(strings.TrimSpace(pvNumStr)); err != nil {
@@ -219,7 +219,7 @@ func createVG(vgName string) (int, error) {
 			log.Errorf("PV (%s) is not exist", devicePath)
 			return 0, status.Error(codes.Internal, "PV is Not exit: "+devicePath)
 		}
-		pvCmd := fmt.Sprintf("%s pvdisplay %s | grep 'VG Name' | grep -v grep | awk '{print $3}'", NsenterCmd, devicePath)
+		pvCmd := fmt.Sprintf("%s pvdisplay %s 2>&1 | grep 'VG Name' | grep -v grep | awk '{print $3}'", NsenterCmd, devicePath)
 		existVgName, err := utils.Run(pvCmd)
 		if err != nil {
 			log.Errorf("PV (%s) is Already in VG: %s", devicePath, strings.TrimSpace(existVgName))
