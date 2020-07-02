@@ -96,6 +96,7 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 
 	// local volume daemon
 	go server.Start()
+
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		nodeID:            nodeID,
@@ -116,6 +117,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// parse request args.
 	targetPath := req.GetTargetPath()
 	if targetPath == "" {
+		log.Errorf("NodePublishVolume: mount volume %s with path %s", req.VolumeId, targetPath)
 		return nil, status.Error(codes.Internal, "targetPath is empty")
 	}
 
@@ -127,19 +129,23 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if volumeType == LvmVolumeType {
 		err := ns.mountLvm(ctx, req)
 		if err != nil {
+			log.Errorf("NodePublishVolume: mount lvm volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
 			return nil, err
 		}
 	} else if volumeType == MountPointType {
 		err := ns.mountLocalVolume(ctx, req)
 		if err != nil {
+			log.Errorf("NodePublishVolume: mount mountpoint volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
 			return nil, err
 		}
 	} else if volumeType == DeviceVolumeType {
 		err := ns.mountDeviceVolume(ctx, req)
 		if err != nil {
+			log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
 			return nil, err
 		}
 	} else {
+		log.Errorf("NodePublishVolume: unsupported volume %s with type %s", req.VolumeId, volumeType)
 		return nil, status.Error(codes.Internal, "volumeType is not support "+volumeType)
 	}
 
@@ -150,22 +156,35 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	targetPath := req.GetTargetPath()
+	log.Infof("NodeUnpublishVolume: Starting to umount target path %s for volume %s", targetPath, req.VolumeId)
+
 	isMnt, err := ns.mounter.IsMounted(targetPath)
 	if err != nil {
 		if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-			return nil, status.Error(codes.NotFound, "TargetPath not found")
+			log.Infof("NodeUnpublishVolume: Target path not exist for volume %s with path %s", req.VolumeId, targetPath)
+			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
+		log.Errorf("NodeUnpublishVolume: Stat error volume %s with path %s with error %v", req.VolumeId, targetPath, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if !isMnt {
+		log.Infof("NodeUnpublishVolume: Target path %s not mounted for volume %s", targetPath, req.VolumeId)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
 	err = ns.mounter.Unmount(req.GetTargetPath())
 	if err != nil {
+		log.Errorf("NodeUnpublishVolume: Umount volume %s for path %s with error %v", req.VolumeId, targetPath, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	isMnt, err = ns.mounter.IsMounted(targetPath)
+	if isMnt {
+		log.Errorf("NodeUnpublishVolume: Umount volume %s for path %s not successful", req.VolumeId, targetPath)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("Umount volume %s not successful", req.VolumeId))
+	}
+
+	log.Infof("NodeUnpublishVolume: Successful umount target path %s for volume %s", targetPath, req.VolumeId)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
@@ -214,6 +233,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	log.Infof("NodeExpandVolume: Successful expand lvm volume: %v to %d", req.VolumeId, expectSize)
 	return &csi.NodeExpandVolumeResponse{}, nil
 }
 
@@ -242,12 +262,14 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 		}
 	}
 	if vgName == "" {
+		log.Errorf("resizeVolume: Resize volume %s with empty vg", volumeID)
 		return status.Error(codes.Internal, "VG Name is empty, cannot resize volume "+volumeID)
 	}
 
 	// Get lvm info
 	lvList, err := commands.ListLV(vgName)
 	if err != nil {
+		log.Errorf("resizeVolume: Resize volume %s with list lv error %v", volumeID, err)
 		return status.Error(codes.Internal, "List lvm error with: "+err.Error())
 	}
 	for _, lv := range lvList {
