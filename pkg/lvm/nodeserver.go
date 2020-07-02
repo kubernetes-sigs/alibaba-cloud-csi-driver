@@ -321,7 +321,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, targetPath string) error {
 	pvSize, unit := ns.getPvSize(volumeID)
 	devicePath := filepath.Join("/dev", vgName, volumeID)
-	sizeCmd := fmt.Sprintf("%s lvdisplay %s | grep 'LV Size' | awk '{print $3}'", NsenterCmd, devicePath)
+	sizeCmd := fmt.Sprintf("%s lvdisplay %s 2>&1 | grep 'LV Size' | awk '{print $3}'", NsenterCmd, devicePath)
 	sizeStr, err := utils.Run(sizeCmd)
 	if err != nil {
 		return err
