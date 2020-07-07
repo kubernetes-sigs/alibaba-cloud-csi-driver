@@ -62,7 +62,8 @@ const (
 	VpcID           = "vpcId"
 	VSwitchID       = "vSwitchId"
 	AccessGroupName = "accessGroupName"
-	RegionID        = "regionID"
+	RegionID        = "regionId"
+	CnHangzhouFin   = "cn-hangzhou-finance"
 	DeleteVolume    = "deleteVolume"
 )
 
@@ -173,6 +174,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			createFileSystemsRequest.ProtocolType = nasVol.ProtocolType
 			createFileSystemsRequest.StorageType = nasVol.StorageType
 			createFileSystemsRequest.ZoneId = nasVol.ZoneID
+			if nasVol.RegionID == CnHangzhouFin {
+				createFileSystemsRequest.RegionId = "cn-hangzhou-dg-a01"
+			}
 			createFileSystemsRequest.Description = nasVol.Description
 			if nasVol.FileSystemType == "extreme" {
 				createFileSystemsRequest.FileSystemType = nasVol.FileSystemType
@@ -208,6 +212,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				createMountTargetRequest.VpcId = nasVol.VpcID
 				createMountTargetRequest.VSwitchId = nasVol.VSwitchID
 			}
+			if nasVol.RegionID == CnHangzhouFin {
+				createMountTargetRequest.RegionId = "cn-hangzhou-dg-a01"
+			}
 			createMountTargetRequest.AccessGroupName = nasVol.AccessGroupName
 			log.Infof("CreateVolume: Volume(%s), Create Nas mountTarget with: %v, %v, %v, %v, %v", pvName, fileSystemID, nasVol.NetworkType, nasVol.VpcID, nasVol.VSwitchID, nasVol.AccessGroupName)
 
@@ -221,6 +228,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				describeFSRequest := aliNas.CreateDescribeFileSystemsRequest()
 				describeFSRequest.FileSystemType = "extreme"
 				describeFSRequest.FileSystemId = fileSystemID
+				if nasVol.RegionID == CnHangzhouFin {
+					describeFSRequest.RegionId = "cn-hangzhou-dg-a01"
+				}
 				for i := 1; i <= 30; i++ {
 					log.Debugf("CreateVolume: Waiting for nas mountTarget for filesystem %s, try %d times, max 30 times", fileSystemID, i)
 					describeFSResponse, err := cs.nasClient.DescribeFileSystems(describeFSRequest)
@@ -255,6 +265,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		describeMountTargetsRequest := aliNas.CreateDescribeMountTargetsRequest()
 		describeMountTargetsRequest.FileSystemId = fileSystemID
 		describeMountTargetsRequest.MountTargetDomain = mountTargetDomain
+		if nasVol.RegionID == CnHangzhouFin {
+			describeMountTargetsRequest.RegionId = "cn-hangzhou-dg-a01"
+		}
 		// describe mountTarget 3 times util its status is active
 		for i := 1; i <= 15; i++ {
 			log.Debugf("CreateVolume: Waiting for nas mountTarget %s active, try %d times total 3 times", mountTargetDomain, i)
@@ -421,11 +434,15 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			if value, ok := storageclass.Parameters[RegionID]; ok {
 				regionID = value
 			}
+
 			cs.nasClient = updateNasClient(cs.nasClient, regionID)
 			isMountTargetDelete := false
 			describeMountTargetRequest := aliNas.CreateDescribeMountTargetsRequest()
 			describeMountTargetRequest.FileSystemId = fileSystemID
 			describeMountTargetRequest.MountTargetDomain = nfsServer
+			if regionID == CnHangzhouFin {
+				describeMountTargetRequest.RegionId = "cn-hangzhou-dg-a01"
+			}
 			_, err := cs.nasClient.DescribeMountTargets(describeMountTargetRequest)
 			if err != nil {
 				if strings.Contains(err.Error(), "InvalidMountTarget.NotFound") {
@@ -437,6 +454,9 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				deleteMountTargetRequest := aliNas.CreateDeleteMountTargetRequest()
 				deleteMountTargetRequest.FileSystemId = fileSystemID
 				deleteMountTargetRequest.MountTargetDomain = nfsServer
+				if regionID == CnHangzhouFin {
+					deleteMountTargetRequest.RegionId = "cn-hangzhou-dg-a01"
+				}
 				deleteMountTargetResponse, err := cs.nasClient.DeleteMountTarget(deleteMountTargetRequest)
 				if err != nil {
 					log.Errorf("DeleteVolume: requestId[%s], volume[%s], fail to delete nas mountTarget %s: with %v", deleteMountTargetResponse.RequestId, req.VolumeId, nfsServer, err)
@@ -451,6 +471,9 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 			deleteFileSystemRequest := aliNas.CreateDeleteFileSystemRequest()
 			deleteFileSystemRequest.FileSystemId = fileSystemID
+			if regionID == CnHangzhouFin {
+				deleteFileSystemRequest.RegionId = "cn-hangzhou-dg-a01"
+			}
 			deleteFileSystemResponse, err := cs.nasClient.DeleteFileSystem(deleteFileSystemRequest)
 			if err != nil {
 				log.Errorf("DeleteVolume: requestId[%s], volume %s fail to delete nas filesystem %s: with %v", deleteFileSystemResponse.RequestId, req.VolumeId, fileSystemID, err)
@@ -654,7 +677,7 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 		if nasVolArgs.RegionID, ok = volOptions[RegionID]; !ok {
 			nasVolArgs.RegionID = ""
 		}
-		if nasVolArgs.RegionID != "" && nasVolArgs.RegionID != "cn-shanghai-finance" {
+		if nasVolArgs.RegionID != "" && nasVolArgs.RegionID != CnHangzhouFin {
 			log.Warnf("getNasVolumeOptions: RegionID is set, but is: %s", nasVolArgs.RegionID)
 		}
 
