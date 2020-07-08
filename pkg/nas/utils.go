@@ -165,10 +165,10 @@ func GetMetaData(resource string) string {
 	return string(body)
 }
 
-func updateNasClient(client *aliNas.Client) *aliNas.Client {
+func updateNasClient(client *aliNas.Client, regionID string) *aliNas.Client {
 	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
 	if accessToken != "" {
-		client = newNasClient(accessKeyID, accessSecret, accessToken)
+		client = newNasClient(accessKeyID, accessSecret, accessToken, regionID)
 	}
 	if client.Client.GetConfig() != nil {
 		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
@@ -176,9 +176,11 @@ func updateNasClient(client *aliNas.Client) *aliNas.Client {
 	return client
 }
 
-func newNasClient(accessKeyID, accessKeySecret, accessToken string) (nasClient *aliNas.Client) {
+func newNasClient(accessKeyID, accessKeySecret, accessToken, regionID string) (nasClient *aliNas.Client) {
 	var err error
-	regionID := GetMetaData(RegionTag)
+	if regionID == "" {
+		regionID = GetMetaData(RegionTag)
+	}
 	if accessToken == "" {
 		nasClient, err = aliNas.NewClientWithAccessKey(regionID, accessKeyID, accessKeySecret)
 		if err != nil {
@@ -202,7 +204,8 @@ func SetNasEndPoint(regionID string) {
 	// total 16 regions
 	unitizedRegions := []string{"cn-hangzhou", "cn-zhangjiakou", "cn-huhehaote", "cn-shenzhen", "ap-southeast-1", "ap-southeast-2",
 		"ap-southeast-3", "ap-southeast-5", "eu-central-1", "us-east-1", "ap-northeast-1", "ap-south-1",
-		"us-west-1", "eu-west-1", "cn-chengdu", "cn-north-2-gov-1"}
+		"us-west-1", "eu-west-1", "cn-chengdu", "cn-north-2-gov-1", "cn-beijing", "cn-shanghai", "cn-hongkong",
+		"cn-shenzhen-finance-1", "cn-shanghai-finance-1", "cn-hangzhou-finance"}
 	for _, tmpRegion := range unitizedRegions {
 		if regionID == tmpRegion {
 			aliyunep.AddEndpointMapping(regionID, "Nas", "nas-vpc."+regionID+".aliyuncs.com")
