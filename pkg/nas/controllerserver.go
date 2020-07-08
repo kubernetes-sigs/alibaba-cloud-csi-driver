@@ -62,6 +62,8 @@ const (
 	VpcID           = "vpcId"
 	VSwitchID       = "vSwitchId"
 	AccessGroupName = "accessGroupName"
+	RegionID        = "regionId"
+	CnHangzhouFin   = "cn-hangzhou-finance"
 	DeleteVolume    = "deleteVolume"
 )
 
@@ -82,6 +84,7 @@ type nasVolumeArgs struct {
 	Capacity        requests.Integer `json:"capacity"`
 	EncryptType     string           `json:"encryptType"`
 	SnapshotID      string           `json:"snapshotID"`
+	RegionID        string           `json:"regionID"`
 	ZoneID          string           `json:"zoneId"`
 	Description     string           `json:"description"`
 	NetworkType     string           `json:"networkType"`
@@ -160,7 +163,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	volumeContext := map[string]string{}
 	csiTargetVol := &csi.Volume{}
 	if nasVol.VolumeAs == "filesystem" {
-		cs.nasClient = updateNasClient(cs.nasClient)
+		cs.nasClient = updateNasClient(cs.nasClient, nasVol.RegionID)
 		fileSystemID := ""
 		// if the pvc mapped fileSystem is already create, skip creating a filesystem
 		if value, ok := pvcFileSystemIDMap[pvName]; ok && value != "" {
@@ -415,7 +418,12 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			if fileSystemID == "" {
 				return nil, fmt.Errorf("DeleteVolume: Volume: %s in filesystem mode, with filesystemId empty", req.VolumeId)
 			}
-			cs.nasClient = updateNasClient(cs.nasClient)
+			regionID := ""
+			if value, ok := storageclass.Parameters[RegionID]; ok {
+				regionID = value
+			}
+
+			cs.nasClient = updateNasClient(cs.nasClient, regionID)
 			isMountTargetDelete := false
 			describeMountTargetRequest := aliNas.CreateDescribeMountTargetsRequest()
 			describeMountTargetRequest.FileSystemId = fileSystemID
@@ -642,6 +650,14 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 		// accessGroupName
 		if nasVolArgs.AccessGroupName, ok = volOptions[AccessGroupName]; !ok {
 			nasVolArgs.AccessGroupName = "DEFAULT_VPC_GROUP_NAME"
+		}
+
+		// regionID
+		if nasVolArgs.RegionID, ok = volOptions[RegionID]; !ok {
+			nasVolArgs.RegionID = ""
+		}
+		if nasVolArgs.RegionID != "" && nasVolArgs.RegionID != CnHangzhouFin {
+			log.Warnf("getNasVolumeOptions: RegionID is set, but is: %s", nasVolArgs.RegionID)
 		}
 
 		// deleteVolume
