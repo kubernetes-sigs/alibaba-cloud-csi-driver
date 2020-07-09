@@ -32,6 +32,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mem"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/om"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -97,6 +98,9 @@ func main() {
 		log.Errorf("failed to create persistent storage for node: %v", err)
 		os.Exit(1)
 	}
+
+	// Storage devops
+	go om.StorageOM()
 
 	drivername := *driver
 	log.Infof("CSI Driver Name: %s, %s, %s", drivername, *nodeID, *endpoint)
