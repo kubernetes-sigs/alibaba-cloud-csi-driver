@@ -17,6 +17,8 @@ const (
 	IssueMessageFile = "ISSUE_MESSAGE_FILE"
 	// IssueBlockReference tag
 	IssueBlockReference = "ISSUE_BLOCK_REFERENCE"
+	// IssueOrphanedPod tag
+	IssueOrphanedPod = "ISSUE_ORPHANED_POD"
 	// MessageFileLines tag
 	MessageFileLines = "MESSAGE_FILE_LINES"
 )
@@ -30,6 +32,7 @@ type GlobalConfig struct {
 	IssueMessageFile     bool
 	MessageFileTailLines int
 	IssueBlockReference  bool
+	IssueOrphanedPod     bool
 }
 
 // StorageOM, storage Operation and Maintenance
@@ -39,7 +42,7 @@ func StorageOM() {
 	for {
 		// fix block volume reference not removed issue;
 		// error message: The device %q is still referenced from other Pods;
-		if GlobalConfigVar.IssueMessageFile {
+		if GlobalConfigVar.IssueBlockReference {
 			CheckMessageFileIssue()
 		}
 
@@ -55,14 +58,17 @@ func CheckMessageFileIssue() {
 
 	// loop in lines
 	for _, line := range lines {
-		// fix block volume reference not removed issue;
-		// error message: The device %q is still referenced from other Pods;
+		// Fix Block Volume Reference Issue;
 		if GlobalConfigVar.IssueBlockReference && strings.Contains(line, "is still referenced from other Pods") {
 			if FixReferenceMountIssue(line) {
 
 			}
+			// Fix Orphaned Pod Issue
+		} else if GlobalConfigVar.IssueOrphanedPod && strings.Contains(line, "rphaned pod") && strings.Contains(line, "found, but volume paths are still present on disk") {
+			if FixOrphanedPodIssue(line) {
+
+			}
 		}
-		// TODO: CheckOrphanPodIssue()
 	}
 }
 
@@ -92,5 +98,11 @@ func GlobalConfigSet() {
 	blockRef := os.Getenv(IssueBlockReference)
 	if blockRef == "true" {
 		GlobalConfigVar.IssueBlockReference = true
+	}
+
+	GlobalConfigVar.IssueOrphanedPod = false
+	orphanedPod := os.Getenv(IssueOrphanedPod)
+	if orphanedPod == "true" {
+		GlobalConfigVar.IssueOrphanedPod = true
 	}
 }
