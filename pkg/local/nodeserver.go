@@ -311,6 +311,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 	return nil
 }
 
+// get pvSize, pvSizeUnit, pvObject
 func (ns *nodeServer) getPvInfo(volumeID string) (int64, string, *v1.PersistentVolume) {
 	pv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
 	if err != nil {

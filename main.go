@@ -58,7 +58,7 @@ const (
 	// TypePluginMEM memory type plugin
 	TypePluginMEM = "memplugin.csi.alibabacloud.com"
 	// TypePluginLOCAL local type plugin
-	TypePluginLOCAL = "localplugin.csi.alibabacloud.com"
+	TypePluginLOCAL = "yodaplugin.csi.alibabacloud.com"
 	// ExtenderAgent agent component
 	ExtenderAgent = "agent"
 )
