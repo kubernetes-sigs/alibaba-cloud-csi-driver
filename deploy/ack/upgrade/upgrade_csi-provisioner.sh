@@ -2,7 +2,7 @@
 
 ## Usage
 ## Append image tag which is expect.
-## sh upgrade_csi-provisioner.sh v1.14.8.38-fe611ad1-aliyun
+## sh upgrade_csi-provisioner.sh v1.14.8.40-146fd1d8-aliyun
 
 
 if [ "$1" = "" ]; then
