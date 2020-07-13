@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	// SYS_LOG log file
+	// SysLog log file
 	SysLog = "/var/log/messages"
 	// NsenterCmd is nsenter mount command
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
