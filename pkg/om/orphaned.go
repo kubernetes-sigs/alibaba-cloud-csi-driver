@@ -14,7 +14,7 @@ var (
 	// FixedPodList fix pod
 	FixedPodList = map[string]string{}
 	// K8sMounter mounter
-	K8sMounter   = k8smount.New("")
+	K8sMounter = k8smount.New("")
 )
 
 // FixOrphanedPodIssue Pod Like:
