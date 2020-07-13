@@ -9,10 +9,11 @@ import (
 )
 
 const (
+	// MountInfo mount file
 	MountInfo = "/proc/mounts"
 )
 
-// remove reference links
+// FixReferenceMountIssue remove reference links
 // error message: The device %q is still referenced from other Pods;
 func FixReferenceMountIssue(line string) bool {
 	linkFiles := parseReferenceMount(line)

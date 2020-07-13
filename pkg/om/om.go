@@ -10,7 +10,7 @@ import (
 
 const (
 	// SYS_LOG log file
-	SYS_LOG = "/var/log/messages"
+	SysLog = "/var/log/messages"
 	// NsenterCmd is nsenter mount command
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
 	// IssueMessageFile tag
@@ -24,6 +24,7 @@ const (
 )
 
 var (
+	// GlobalConfigVar var
 	GlobalConfigVar GlobalConfig
 )
 
@@ -35,7 +36,7 @@ type GlobalConfig struct {
 	IssueOrphanedPod     bool
 }
 
-// StorageOM, storage Operation and Maintenance
+// StorageOM storage Operation and Maintenance
 func StorageOM() {
 	GlobalConfigSet()
 
@@ -54,7 +55,7 @@ func StorageOM() {
 // CheckMessageFileIssue check/fix issues from message file
 func CheckMessageFileIssue() {
 	// got the last few lines of message file
-	lines := ReadFileLinesFromHost(SYS_LOG)
+	lines := ReadFileLinesFromHost(SysLog)
 
 	// loop in lines
 	for _, line := range lines {
