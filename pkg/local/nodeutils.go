@@ -165,6 +165,10 @@ func (ns *nodeServer) mountDeviceVolume(ctx context.Context, req *csi.NodePublis
 // create lvm volume
 func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType, lvmType string) error {
 	pvSize, unit, _ := ns.getPvInfo(volumeID)
+	if pvSize == 0 {
+		log.Errorf("createVolume: Volume: %s, VG: %s, parse pv Size zero", volumeID, vgName)
+		return status.Error(codes.Internal, "parse pv Size zero")
+	}
 	pvNumber := 0
 	var err error
 	// Create VG if vg not exist,
