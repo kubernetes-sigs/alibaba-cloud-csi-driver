@@ -41,7 +41,7 @@ func FixReferenceMountIssue(line string) bool {
 				log.Infof("Remove Reference File %s Successful", file)
 			}
 		} else {
-			log.Debug("Reference File %s not exist, skipping", file)
+			log.Debugf("Reference File %s not exist, skipping", file)
 		}
 	}
 	return true
