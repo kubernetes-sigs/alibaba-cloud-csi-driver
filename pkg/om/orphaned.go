@@ -63,12 +63,20 @@ func FixOrphanedPodIssue(line string) bool {
 			}
 		}
 		if IsFileExisting(volumeJsonPath) {
-			os.Remove(volumeJsonPath)
-			log.Infof("OrphanPod: Remove csi ConfigFile(%s).", volumeJsonPath)
+			err = os.Remove(volumeJsonPath)
+			if err != nil {
+				log.Errorf("OrphanPod: Remove Json File %s with error %s", volumeJsonPath, err.Error())
+			} else {
+				log.Infof("OrphanPod: Remove Json File %s Successful", volumeJsonPath)
+			}
 		}
 		if empty, _ := utils.IsDirEmpty(volumePath); empty {
-			os.Remove(volumePath)
-			log.Infof("OrphanPod: Remove csi volume path(%s).", volumePath)
+			err = os.Remove(volumePath)
+			if err != nil {
+				log.Errorf("OrphanPod: Remove Volume Path %s with error %s", volumePath, err.Error())
+			} else {
+				log.Infof("OrphanPod: Remove Volume Path %s Successful", volumePath)
+			}
 		}
 	}
 	return true
