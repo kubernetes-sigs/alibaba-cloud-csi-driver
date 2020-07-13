@@ -47,14 +47,14 @@ const (
 )
 
 // URLHost default value
-var UrlHost = "http://yoda-scheduler-extender-service:23000"
+var URLHost = "http://yoda-scheduler-extender-service:23000"
 
 // ScheduleVolume make request and get expect schedule topology
 func ScheduleVolume(volumeType, pvcName, pvcNamespace, vgName, nodeID string) (*BindingInfo, error) {
 	bindingInfo := &BindingInfo{}
 	hostEnv := os.Getenv(SchedulerHostTag)
 	if hostEnv != "" {
-		UrlHost = hostEnv
+		URLHost = hostEnv
 	}
 
 	// make request url
@@ -66,7 +66,7 @@ func ScheduleVolume(volumeType, pvcName, pvcNamespace, vgName, nodeID string) (*
 	} else if nodeID == "" && vgName == "" {
 		urlPath = fmt.Sprintf("/apis/scheduling/%s/persistentvolumeclaims/%s?volumeType=%s", pvcNamespace, pvcName, volumeType)
 	}
-	url := UrlHost + urlPath
+	url := URLHost + urlPath
 
 	// Request restful api
 	respBody, err := client.DoRequest(url)
@@ -88,7 +88,7 @@ func ScheduleVolume(volumeType, pvcName, pvcNamespace, vgName, nodeID string) (*
 // ExpandVolume do volume capacity check
 func ExpandVolume(pvcNameSpace, pvcName string, newSize int) error {
 	urlPath := fmt.Sprintf("/apis/expand/%s/persistentvolumeclaims/%s?newSize=%d", pvcNameSpace, pvcName, newSize)
-	url := UrlHost + urlPath
+	url := URLHost + urlPath
 
 	// Request restful api
 	respBody, err := client.DoRequest(url)
