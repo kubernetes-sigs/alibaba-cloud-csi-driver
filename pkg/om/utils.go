@@ -10,15 +10,16 @@ import (
 // ReadFileLinesFromHost read file from /var/log/messages
 func ReadFileLinesFromHost(fname string) []string {
 	lineList := []string{}
+	out := ""
+	var err error
 	cmd := fmt.Sprintf("tail -n %d %s", GlobalConfigVar.MessageFileTailLines, fname)
-	if out, err := Run(cmd); err != nil {
+	if out, err = Run(cmd); err != nil {
 		return lineList
-	} else {
-		return strings.Split(out, "\n")
 	}
+	return strings.Split(out, "\n")
 }
 
-// run shell command
+// Run run shell command
 func Run(cmd string) (string, error) {
 	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
 	if err != nil {
@@ -27,7 +28,7 @@ func Run(cmd string) (string, error) {
 	return string(out), nil
 }
 
-// check file exist in volume driver;
+// IsFileExisting check file exist in volume driver;
 func IsFileExisting(filename string) bool {
 	_, err := os.Stat(filename)
 	if err == nil {
