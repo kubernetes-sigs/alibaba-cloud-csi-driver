@@ -52,6 +52,8 @@ const (
 	connectTimeout = 3 * time.Second
 	// TopologyNodeKey define host name of node
 	TopologyNodeKey = "kubernetes.io/hostname"
+	// TopologyYodaNodeKey define host name of node
+	TopologyYodaNodeKey = "topology.yodaplugin.csi.alibabacloud.com/hostname"
 	// PvcNameTag in annotations
 	PvcNameTag = "csi.storage.k8s.io/pvc/name"
 	// PvcNsTag in annotations
