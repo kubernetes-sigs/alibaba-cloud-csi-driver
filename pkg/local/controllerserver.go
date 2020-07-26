@@ -296,6 +296,23 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		}
 	} else if volumeType == MountPointType {
 		if pvObj.Spec.PersistentVolumeReclaimPolicy == v1.PersistentVolumeReclaimDelete {
+			if pvObj.Spec.NodeAffinity == nil {
+				log.Errorf("Get Lvm Spec for volume %s, with nil nodeAffinity", volumeID)
+				return nil, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil nodeAffinity")
+			}
+			if pvObj.Spec.NodeAffinity.Required == nil || len(pvObj.Spec.NodeAffinity.Required.NodeSelectorTerms) == 0 {
+				log.Errorf("Get Lvm Spec for volume %s, with nil Required", volumeID)
+				return nil, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil Required")
+			}
+			if len(pvObj.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions) == 0 {
+				log.Errorf("Get Lvm Spec for volume %s, with nil MatchExpressions", volumeID)
+				return nil, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil MatchExpressions")
+			}
+			key := pvObj.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Key
+			if key != TopologyNodeKey && key != TopologyYodaNodeKey {
+				log.Errorf("Get Lvm Spec for volume %s, with key %s", volumeID, key)
+				return nil, errors.New("Get Lvm Spec for volume " + volumeID + ", with key" + key)
+			}
 			nodes := pvObj.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Values
 			if len(nodes) == 0 {
 				log.Errorf("Get MountPoint Spec for volume %s, with empty nodes", volumeID)
