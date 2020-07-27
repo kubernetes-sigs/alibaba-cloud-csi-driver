@@ -108,55 +108,72 @@ func main() {
 	var wg sync.WaitGroup
 	for _, driverName := range driverNames {
 		for _, endPointName := range endPointNames {
-			if driverName == TypePluginNAS && strings.Contains(endPointName, TypePluginNAS) {
-				go func() {
-					defer wg.Done()
-					driver := nas.NewDriver(*nodeID, endPointName)
-					driver.Run()
-				}()
-			} else if driverName == TypePluginOSS && strings.Contains(endPointName, TypePluginOSS) {
-				go func() {
-					defer wg.Done()
-					driver := oss.NewDriver(*nodeID, *endpoint)
-					driver.Run()
-				}()
-			} else if driverName == TypePluginDISK && strings.Contains(endPointName, TypePluginDISK) {
-				go func() {
-					defer wg.Done()
-					driver := disk.NewDriver(*nodeID, *endpoint, *runAsController)
-					driver.Run()
-				}()
-			} else if driverName == TypePluginLVM && strings.Contains(endPointName, TypePluginLVM) {
-				go func() {
-					defer wg.Done()
-					driver := lvm.NewDriver(*nodeID, *endpoint)
-					driver.Run()
-				}()
-			} else if driverName == TypePluginCPFS && strings.Contains(endPointName, TypePluginCPFS) {
-				go func() {
-					defer wg.Done()
-					driver := cpfs.NewDriver(*nodeID, *endpoint)
-					driver.Run()
-				}()
-			} else if driverName == TypePluginMEM && strings.Contains(endPointName, TypePluginMEM) {
-				go func() {
-					defer wg.Done()
-					driver := mem.NewDriver(*nodeID, *endpoint)
-					driver.Run()
-				}()
-			} else if driverName == TypePluginLOCAL && strings.Contains(endPointName, TypePluginLOCAL) {
-				go func() {
-					defer wg.Done()
-					driver := local.NewDriver(*nodeID, *endpoint)
-					driver.Run()
-				}()
-			} else if driverName == ExtenderAgent && strings.Contains(endPointName, ExtenderAgent) {
-				go func() {
-					defer wg.Done()
-					queryServer := agent.NewAgent()
-					queryServer.RunAgent()
-				}()
-			} else {
+			switch driverName {
+			case TypePluginNAS:
+				if strings.Contains(endPointName, TypePluginNAS) {
+					go func() {
+						defer wg.Done()
+						driver := nas.NewDriver(*nodeID, endPointName)
+						driver.Run()
+					}()
+				}
+			case TypePluginOSS:
+				if strings.Contains(endPointName, TypePluginOSS) {
+					go func() {
+						defer wg.Done()
+						driver := oss.NewDriver(*nodeID, *endpoint)
+						driver.Run()
+					}()
+				}
+			case TypePluginDISK:
+				if strings.Contains(endPointName, TypePluginDISK) {
+					go func() {
+						defer wg.Done()
+						driver := disk.NewDriver(*nodeID, *endpoint, *runAsController)
+						driver.Run()
+					}()
+				}
+			case TypePluginLVM:
+				if strings.Contains(endPointName, TypePluginLVM) {
+					go func() {
+						defer wg.Done()
+						driver := lvm.NewDriver(*nodeID, *endpoint)
+						driver.Run()
+					}()
+				}
+			case TypePluginCPFS:
+				if strings.Contains(endPointName, TypePluginCPFS) {
+					go func() {
+						defer wg.Done()
+						driver := cpfs.NewDriver(*nodeID, *endpoint)
+						driver.Run()
+					}()
+				}
+			case TypePluginMEM:
+				if strings.Contains(endPointName, TypePluginMEM) {
+					go func() {
+						defer wg.Done()
+						driver := mem.NewDriver(*nodeID, *endpoint)
+						driver.Run()
+					}()
+				}
+			case TypePluginLOCAL:
+				if strings.Contains(endPointName, TypePluginLOCAL) {
+					go func() {
+						defer wg.Done()
+						driver := local.NewDriver(*nodeID, *endpoint)
+						driver.Run()
+					}()
+				}
+			case ExtenderAgent:
+				if strings.Contains(endPointName, ExtenderAgent) {
+					go func() {
+						defer wg.Done()
+						queryServer := agent.NewAgent()
+						queryServer.RunAgent()
+					}()
+				}
+			default:
 				log.Errorf("CSI start failed, not support driver: %s", driverName)
 			}
 		}
