@@ -1,0 +1,142 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: csi-plugin
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: csi-plugin
+  template:
+    metadata:
+      labels:
+        app: csi-plugin
+    spec:
+      tolerations:
+        - operator: "Exists"
+      priorityClassName: system-node-critical
+      serviceAccount: admin
+      hostNetwork: true
+      hostPID: true
+      containers:
+        - name: disk-driver-registrar
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+          imagePullPolicy: Always
+          args:
+            - "--v=5"
+            - "--csi-address=/var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock"
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet
+            - name: registration-dir
+              mountPath: /registration
+        - name: nas-driver-registrar
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+          imagePullPolicy: Always
+          args:
+            - "--v=5"
+            - "--csi-address=/var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock"
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet/
+            - name: registration-dir
+              mountPath: /registration
+        - name: oss-driver-registrar
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+          imagePullPolicy: Always
+          args:
+            - "--v=5"
+            - "--csi-address=/var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock"
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet/
+            - name: registration-dir
+              mountPath: /registration
+        - name: csi-plugin
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: registry.cn-shenzhen.aliyuncs.com/acs1/csi-merge:v1.14.5-2c916021
+          imagePullPolicy: "Always"
+          args:
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v=2"
+            - "--driver=oss,nas,disk"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix://var/lib/kubelet/csi-plugins/driverplugin.csi.alibabacloud.com-replace/csi.sock
+            - name: ACCESS_KEY_ID
+              value: ""
+            - name: ACCESS_KEY_SECRET
+              value: ""
+            - name: MAX_VOLUMES_PERNODE
+              value: "15"
+            - name: DISK_TAGED_BY_PLUGIN
+              value: "true"
+            - name: SERVICE_PORT
+              value: "10260"
+            - name: SERVICE_TYPE
+              value: "plugin"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          ports:
+            - name: healthz
+              containerPort: 10260
+              protocol: TCP
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet/
+              mountPropagation: "Bidirectional"
+            - name: etc
+              mountPath: /host/etc
+            - name: host-log
+              mountPath: /var/log/
+            - name: ossconnectordir
+              mountPath: /host/usr/
+            - name: container-dir
+              mountPath: /var/lib/container
+              mountPropagation: "Bidirectional"
+            - name: host-dev
+              mountPath: /dev
+              mountPropagation: "HostToContainer"
+      volumes:
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: DirectoryOrCreate
+        - name: container-dir
+          hostPath:
+            path: /var/lib/container
+            type: DirectoryOrCreate
+        - name: kubelet-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: host-log
+          hostPath:
+            path: /var/log/
+        - name: etc
+          hostPath:
+            path: /etc
+        - name: ossconnectordir
+          hostPath:
+            path: /usr/
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 10%
+    type: RollingUpdate
