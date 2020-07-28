@@ -210,9 +210,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: unmountStageTarget "+sourcePath+" with error: "+err.Error())
 			}
 			deviceName, err := GetDeviceByVolumeID(req.VolumeId)
-			if deviceName == "" {
-				deviceName, err = GetDeviceByUUID(req.VolumeId)
-			}
 			if err != nil && deviceName == "" {
 				deviceName = getVolumeConfig(req.VolumeId)
 			}
@@ -295,9 +292,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if sourceNotMounted {
 		device, _ := GetDeviceByVolumeID(req.GetVolumeId())
-		if device == "" {
-			device, _ = GetDeviceByUUID(req.GetVolumeId())
-		}
 		if device != "" {
 			if err := ns.mountDeviceToGlobal(req.VolumeCapability, req.VolumeContext, device, sourcePath); err != nil {
 				log.Errorf("NodePublishVolume: VolumeId: %s, remount disk to global %s error: %s", req.VolumeId, sourcePath, err.Error())
@@ -472,9 +466,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	if GlobalConfigVar.ADControllerEnable {
 		var bdf string
 		device, err = GetDeviceByVolumeID(req.GetVolumeId())
-		if device == "" {
-			device, err = GetDeviceByUUID(req.GetVolumeId())
-		}
 		if IsVFNode() && device == "" {
 			if bdf, err = bindBdfDisk(req.GetVolumeId()); err != nil {
 				if err := unbindBdfDisk(req.GetVolumeId()); err != nil {
@@ -483,9 +474,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf disk: %v", err)
 			}
 			device, err = GetDeviceByVolumeID(req.GetVolumeId())
-			if device == "" {
-				device, err = GetDeviceByUUID(req.GetVolumeId())
-			}
 			if bdf != "" && device == "" {
 				device, err = GetDeviceByBdf(bdf)
 			}
@@ -575,8 +563,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-	// save diskID and uuid info
-	SaveUUID(req.VolumeId, device)
 
 	log.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v, device: %s, mkfsOptions: %v", req.VolumeId, targetPath, device, mkfsOptions)
 	return &csi.NodeStageVolumeResponse{}, nil
