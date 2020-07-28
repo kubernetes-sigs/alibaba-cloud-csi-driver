@@ -98,9 +98,6 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 					return "", nil
 				}
 				deviceName := GetVolumeDeviceName(diskID)
-				if deviceName == "" {
-					deviceName, _ = GetDeviceByUUID(diskID)
-				}
 				if deviceName != "" && IsFileExisting(deviceName) {
 					// TODO:
 					if used, err := IsDeviceUsedOthers(deviceName, diskID); err == nil && used == false {
@@ -174,9 +171,6 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 	// step 5: diff device with previous files under /dev
 	if !GlobalConfigVar.ADControllerEnable {
 		deviceName, _ := GetDeviceByVolumeID(diskID)
-		if deviceName == "" {
-			deviceName, _ = GetDeviceByUUID(diskID)
-		}
 		if deviceName != "" {
 			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device mapping/uuid", diskID, nodeID, deviceName)
 			return deviceName, nil
@@ -196,9 +190,6 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 			}
 
 			deviceName, err := GetDeviceByVolumeID(diskID)
-			if deviceName == "" {
-				deviceName, err = GetDeviceByUUID(diskID)
-			}
 			if len(deviceName) == 0 && bdf != "" {
 				deviceName, err = GetDeviceByBdf(bdf)
 			}
