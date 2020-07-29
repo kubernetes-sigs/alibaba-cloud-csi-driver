@@ -564,24 +564,7 @@ func findDiskSnapshotByID(id string) (*diskSnapshot, error) {
 		CreationTime: timestamp,
 		SizeBytes:    sizeBytes,
 		ReadyToUse:   readyToUse,
+		SnapshotTags: existSnapshot.Tags.Tag,
 	}
 	return resSnapshot, nil
-}
-
-func findSnapshotByID(id string) (*ecs.Snapshot, error) {
-	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
-	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
-	describeSnapShotRequest.SnapshotIds = "[\"" + id + "\"]"
-	snapshots, err := GlobalConfigVar.EcsClient.DescribeSnapshots(describeSnapShotRequest)
-	if err != nil {
-		return nil, err
-	}
-	if len(snapshots.Snapshots.Snapshot) == 0 {
-		return nil, nil
-	}
-	if len(snapshots.Snapshots.Snapshot) > 1 {
-		return nil, status.Error(codes.Internal, "find more than one snapshot with id "+id)
-	}
-	existSnapshot := snapshots.Snapshots.Snapshot[0]
-	return &existSnapshot, nil
 }
