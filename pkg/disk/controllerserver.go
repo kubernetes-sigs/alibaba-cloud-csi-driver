@@ -80,6 +80,7 @@ type diskSnapshot struct {
 	CreationTime timestamp.Timestamp `json:"creationTime"`
 	SizeBytes    int64               `json:"sizeBytes"`
 	ReadyToUse   bool                `json:"readyToUse"`
+	SnapshotTags []ecs.Tag           `json:"snapshotTags"`
 }
 
 // NewControllerServer is to create controller server
@@ -410,7 +411,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 
 	// Need to check for already existing snapshot name
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
-	exSnap, err := findSnapshotByName(req.GetName())  
+	exSnap, err := findSnapshotByName(req.GetName())
 	if exSnap == nil {
 		exSnap, err = findDiskSnapshotByID(req.GetName())
 	}
@@ -491,9 +492,9 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	// Check Snapshot exist and forceDelete tag;
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	forceDelete := false
-	snapShot, err := findSnapshotByID(req.SnapshotId)
+	snapShot, err := findDiskSnapshotByID(req.SnapshotId)
 	if err == nil && snapShot != nil {
-		for _, tag := range snapShot.Tags.Tag {
+		for _, tag := range snapShot.SnapshotTags {
 			if tag.TagKey == SNAPSHOTTAGKEY1 && tag.TagValue == "true" {
 				forceDelete = true
 			}
