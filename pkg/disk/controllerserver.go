@@ -410,7 +410,11 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 
 	// Need to check for already existing snapshot name
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
-	if exSnap, err := findSnapshotByName(req.GetName()); err == nil && exSnap != nil {
+	exSnap, err := findSnapshotByName(req.GetName())  
+	if exSnap == nil {
+		exSnap, err = findDiskSnapshotByID(req.GetName())
+	}
+	if err == nil && exSnap != nil {
 		// Since err is nil, it means the snapshot with the same name already exists need
 		// to check if the sourceVolumeId of existing snapshot is the same as in new request.
 		if exSnap.VolID == req.GetSourceVolumeId() {
