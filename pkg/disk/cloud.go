@@ -520,7 +520,8 @@ func findSnapshotByName(name string) (*diskSnapshot, error) {
 	return resSnapshot, nil
 }
 
-func findSnapshotByID(id string) (*ecs.Snapshot, error) {
+func findDiskSnapshotByID(id string) (*diskSnapshot, error) {
+
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
 	describeSnapShotRequest.SnapshotIds = "[\"" + id + "\"]"
@@ -535,5 +536,26 @@ func findSnapshotByID(id string) (*ecs.Snapshot, error) {
 		return nil, status.Error(codes.Internal, "find more than one snapshot with id "+id)
 	}
 	existSnapshot := snapshots.Snapshots.Snapshot[0]
-	return &existSnapshot, nil
+	t, err := time.Parse(time.RFC3339, existSnapshot.CreationTime)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", existSnapshot.CreationTime)
+	}
+	timestamp := timestamp.Timestamp{Seconds: t.Unix()}
+	sizeGb, _ := strconv.ParseInt(existSnapshot.SourceDiskSize, 10, 64)
+	sizeBytes := sizeGb * 1024 * 1024
+	readyToUse := false
+	if existSnapshot.Status == "accomplished" {
+		readyToUse = true
+	}
+
+	resSnapshot := &diskSnapshot{
+		Name:         id,
+		ID:           existSnapshot.SnapshotId,
+		VolID:        existSnapshot.SourceDiskId,
+		CreationTime: timestamp,
+		SizeBytes:    sizeBytes,
+		ReadyToUse:   readyToUse,
+		SnapshotTags: existSnapshot.Tags.Tag,
+	}
+	return resSnapshot, nil
 }
