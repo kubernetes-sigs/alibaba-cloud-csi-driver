@@ -369,13 +369,12 @@ func IsVFNode() bool {
 	vfOnce.Do(func() {
 		output, err := ExecCheckOutput("lspci", "-D")
 		if err != nil {
-			log.Errorf("[IsVFNode] lspci -D exec with error: %v", err)
-			return
+			log.Fatal("[IsVFNode] lspci -D: %v", err)
 		}
 		// 0000:4b:00.0 SCSI storage controller: Device 1ded:1001
 		matched := FindLines(output, "storage controller")
 		if len(matched) == 0 {
-			log.Fatal("[IsVFNode] not found storage controller")
+			log.Errorf("[IsVFNode] not found storage controller")
 			return
 		}
 		for _, line := range matched {
