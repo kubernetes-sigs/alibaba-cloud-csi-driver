@@ -369,7 +369,7 @@ func IsVFNode() bool {
 	vfOnce.Do(func() {
 		output, err := ExecCheckOutput("lspci", "-D")
 		if err != nil {
-			log.Fatal("[IsVFNode] lspci -D: %v", err)
+			log.Fatalf("[IsVFNode] lspci -D: %v", err)
 		}
 		// 0000:4b:00.0 SCSI storage controller: Device 1ded:1001
 		matched := FindLines(output, "storage controller")
