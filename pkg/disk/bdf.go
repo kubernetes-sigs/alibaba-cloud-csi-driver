@@ -369,12 +369,13 @@ func IsVFNode() bool {
 	vfOnce.Do(func() {
 		output, err := ExecCheckOutput("lspci", "-D")
 		if err != nil {
-			log.Fatalf("[IsVFNode] lspci -D: %v", err)
+			log.Fatal("[IsVFNode] lspci -D: %v", err)
 		}
 		// 0000:4b:00.0 SCSI storage controller: Device 1ded:1001
 		matched := FindLines(output, "storage controller")
 		if len(matched) == 0 {
-			log.Fatal("[IsVFNode] not found storage controller")
+			log.Errorf("[IsVFNode] not found storage controller")
+			return
 		}
 		for _, line := range matched {
 			// 1ded: is alibaba cloud
@@ -387,7 +388,8 @@ func IsVFNode() bool {
 			}
 			output, err = ExecCheckOutput("lspci", "-s", bdf, "-v")
 			if err != nil {
-				log.Fatalf("[IsVFNode] lspic -s %s -v: %v", bdf, err)
+				log.Errorf("[IsVFNode] lspic -s %s -v: %v", bdf, err)
+				return
 			}
 			// Capabilities: [110] Single Root I/O Virtualization (SR-IOV)
 			matched = FindLines(output, "Single Root I/O Virtualization")
