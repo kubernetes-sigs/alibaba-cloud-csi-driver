@@ -154,6 +154,43 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			}
 			nodeSelected = nodeID
 		}
+
+		if value, ok := parameters["vgName"]; ok && value != "" {
+			storageSelected = value
+		}
+		if nodeSelected != "" && storageSelected != "" {
+			addr, err := getLvmdAddr(cs.client, nodeSelected)
+			if err != nil {
+				log.Errorf("CreateVolume: Get lvm node %s address with error: %s", nodeSelected, err.Error())
+				return nil, err
+			}
+			conn, err := client.NewLVMConnection(addr, connectTimeout)
+			defer conn.Close()
+			if err != nil {
+				log.Errorf("CreateVolume: New lvm %s Connection(%s) with error: %s", req.Name, addr, err.Error())
+				return nil, err
+			}
+			if lvmName, err := conn.GetLvm(ctx, storageSelected, volumeID); err == nil && lvmName == "" {
+				options := &client.LVMOptions{}
+				options.Name = req.Name
+				options.VolumeGroup = storageSelected
+				if value, ok := parameters[LvmTypeTag]; ok && value == StripingType {
+					options.Striping = true
+				}
+				options.Size = uint64(req.GetCapacityRange().GetRequiredBytes())
+				if outstr, err := conn.CreateLvm(ctx, options); err != nil {
+					log.Errorf("CreateVolume: Create lvm %s/%s, options: %v with error: %s", storageSelected, volumeID, options, err.Error())
+					return nil, errors.New("Create Lvm with error " + err.Error())
+				} else {
+					log.Infof("CreateLvm: Successful Create lvm %s/%s with response %s", storageSelected, volumeID, outstr)
+				}
+			} else if err != nil {
+				log.Errorf("CreateVolume: Get lvm %s with error: %s", req.Name, err.Error())
+				return nil, err
+			} else {
+				log.Infof("CreateVolume: lvm volume already created %s", req.Name)
+			}
+		}
 	} else if volumeType == MountPointType {
 		var err error
 		// Node and Storage have been scheduled
@@ -279,15 +316,17 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				log.Errorf("DeleteVolume: New lvm %s Connection with error: %s", req.GetVolumeId(), err.Error())
 				return nil, err
 			}
-			if _, err := conn.GetLvm(ctx, vgName, volumeID); err == nil {
+			if lvmName, err := conn.GetLvm(ctx, vgName, volumeID); err == nil && lvmName != "" {
 				if err := conn.DeleteLvm(ctx, vgName, volumeID); err != nil {
 					log.Errorf("DeleteVolume: Remove lvm %s/%s with error: %s", vgName, volumeID, err.Error())
 					return nil, errors.New("Remove Lvm with error " + err.Error())
 				}
 				log.Infof("DeleteLvm: Successful Delete lvm %s/%s", vgName, volumeID)
-			} else if strings.Contains(err.Error(), "Failed to find logical volume") {
+			} else if err == nil && lvmName == "" {
+				log.Infof("DeleteVolume: get lvm empty, skip deleting %s", volumeID)
+			} else if err != nil && strings.Contains(err.Error(), "Failed to find logical volume") {
 				log.Infof("DeleteVolume: lvm volume not found, skip deleting %s", volumeID)
-			} else if strings.Contains(err.Error(), "Volume group \""+vgName+"\" not found") {
+			} else if err != nil && strings.Contains(err.Error(), "Volume group \""+vgName+"\" not found") {
 				log.Infof("DeleteVolume: Volume group not found, skip deleting %s", volumeID)
 			} else {
 				log.Errorf("DeleteVolume: Get lvm for %s with error: %s", req.GetVolumeId(), err.Error())
