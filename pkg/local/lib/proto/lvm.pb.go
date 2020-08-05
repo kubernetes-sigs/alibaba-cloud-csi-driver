@@ -656,6 +656,7 @@ type CreateLVRequest struct {
 	Size                 uint64   `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
 	Mirrors              uint32   `protobuf:"varint,4,opt,name=mirrors,proto3" json:"mirrors,omitempty"`
 	Tags                 []string `protobuf:"bytes,5,rep,name=tags,proto3" json:"tags,omitempty"`
+	Striping             bool     `protobuf:"varint,6,opt,name=striping,json=striping,proto3" json:"striping,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
