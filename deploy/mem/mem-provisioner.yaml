@@ -1,36 +1,20 @@
-kind: Service
-apiVersion: v1
-metadata:
-  name: csi-mem-provisioner
-  namespace: kube-system
-  labels:
-    app: csi-mem-provisioner
-spec:
-  selector:
-    app: csi-mem-provisioner
-  ports:
-    - name: dummy
-      port: 12345
-
----
-kind: StatefulSet
+kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: csi-mem-provisioner
+  name: csi-memprovisioner
   namespace: kube-system
 spec:
   selector:
     matchLabels:
-      app: csi-mem-provisioner
-  serviceName: "csi-mem-provisioner"
-  replicas: 1
+      app: csi-memprovisioner
+  replicas: 2
   template:
     metadata:
       labels:
-        app: csi-mem-provisioner
+        app: csi-memprovisioner
     spec:
       tolerations:
-      - operator: Exists
+      - operator: "Exists"
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -41,19 +25,25 @@ spec:
                 operator: Exists
       priorityClassName: system-node-critical
       serviceAccount: admin
+      hostNetwork: true
       containers:
         - name: csi-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.2.2-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.4.0-aliyun
           args:
             - "--provisioner=memplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
-            - "--volume-name-prefix=mem"
             - "--feature-gates=Topology=True"
+            - "--volume-name-prefix=mem"
+            - "--strict-topology=true"
+            - "--timeout=150s"
+            - "--enable-leader-election=true"
+            - "--leader-election-type=leases"
+            - "--retry-interval-start=500ms"
             - "--v=5"
           env:
             - name: ADDRESS
               value: /var/lib/kubelet/plugins/memplugin.csi.alibabacloud.com/csi.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: "Always"
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/kubelet/plugins/memplugin.csi.alibabacloud.com
@@ -62,5 +52,3 @@ spec:
           hostPath:
             path: /var/lib/kubelet/plugins/memplugin.csi.alibabacloud.com
             type: DirectoryOrCreate
-  updateStrategy:
-    type: RollingUpdate

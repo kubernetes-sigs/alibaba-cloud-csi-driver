@@ -81,6 +81,7 @@ type diskSnapshot struct {
 	CreationTime timestamp.Timestamp `json:"creationTime"`
 	SizeBytes    int64               `json:"sizeBytes"`
 	ReadyToUse   bool                `json:"readyToUse"`
+	SnapshotTags []ecs.Tag           `json:"snapshotTags"`
 }
 
 // NewControllerServer is to create controller server
@@ -90,6 +91,9 @@ func NewControllerServer(d *csicommon.CSIDriver, client *ecs.Client, region stri
 	}
 	return c
 }
+
+// the map of req.Name and csi.Snapshot
+var createdSnapshotMap = map[string]*csi.Snapshot{}
 
 // the map of req.Name and csi.Volume
 var createdVolumeMap = map[string]*csi.Volume{}
@@ -253,6 +257,19 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeResponse.DiskId, diskVol.ZoneID, disktype, requestGB, volumeResponse.RequestId)
+
+	// Set VolumeContentSource
+	var src *csi.VolumeContentSource
+	if snapshotID != "" {
+		src = &csi.VolumeContentSource{
+			Type: &csi.VolumeContentSource_Snapshot{
+				Snapshot: &csi.VolumeContentSource_SnapshotSource{
+					SnapshotId: snapshotID,
+				},
+			},
+		}
+	}
+
 	tmpVol := &csi.Volume{
 		VolumeId:      volumeResponse.DiskId,
 		CapacityBytes: int64(volSizeBytes),
@@ -264,6 +281,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				},
 			},
 		},
+		ContentSource: src,
 	}
 
 	diskIDPVMap[volumeResponse.DiskId] = req.Name
@@ -421,23 +439,42 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 
 	// Need to check for already existing snapshot name
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
-	if exSnap, err := findSnapshotByName(req.GetName()); err == nil && exSnap != nil {
+	exSnap, snapNum, err := findSnapshotByName(req.GetName())
+	if exSnap == nil {
+		exSnap, snapNum, err = findDiskSnapshotByID(req.GetName())
+	}
+	if snapNum == 1 {
 		// Since err is nil, it means the snapshot with the same name already exists need
 		// to check if the sourceVolumeId of existing snapshot is the same as in new request.
 		if exSnap.VolID == req.GetSourceVolumeId() {
 			log.Infof("CreateSnapshot:: Snapshot already created: name[%s], sourceId[%s], status[%v]", req.Name, req.GetSourceVolumeId(), exSnap.ReadyToUse)
+			csiSnapshot := &csi.Snapshot{
+				SnapshotId:     exSnap.ID,
+				SourceVolumeId: exSnap.VolID,
+				CreationTime:   &exSnap.CreationTime,
+				SizeBytes:      exSnap.SizeBytes,
+				ReadyToUse:     exSnap.ReadyToUse,
+			}
 			return &csi.CreateSnapshotResponse{
-				Snapshot: &csi.Snapshot{
-					SnapshotId:     exSnap.ID,
-					SourceVolumeId: exSnap.VolID,
-					CreationTime:   &exSnap.CreationTime,
-					SizeBytes:      exSnap.SizeBytes,
-					ReadyToUse:     exSnap.ReadyToUse,
-				},
+				Snapshot: csiSnapshot,
 			}, nil
 		}
 		log.Errorf("CreateSnapshot:: Snapshot already exist with same name: name[%s], volumeID[%s]", req.Name, exSnap.VolID)
 		return nil, status.Error(codes.AlreadyExists, fmt.Sprintf("snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName()))
+	} else if snapNum > 1 {
+		log.Errorf("CreateSnapshot:: Find Snapshot name[%s], but get more than 1 instance", req.Name)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot: get snapshot more than 1 instance"))
+	} else if err != nil {
+		log.Errorf("CreateSnapshot:: Expect to find Snapshot name[%s], but get error: %v", req.Name, err)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot: get snapshot with error: %s", err.Error()))
+	}
+
+	// check snapshot again, if ram has no auth to describe snapshot, there will always 0 response.
+	if value, ok := createdSnapshotMap[req.Name]; ok {
+		log.Infof("CreateSnapshot:: Snapshot already created, Name: %s, Info: %v", req.Name, value)
+		return &csi.CreateSnapshotResponse{
+			Snapshot: value,
+		}, nil
 	}
 
 	// init createSnapshotRequest and parameters
@@ -472,15 +509,18 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	snapshot.CreationTime = *createAt
 	snapshot.ReadyToUse = false
 
-	log.Infof("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotID)
+	log.Infof("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s], snapshot[%++v]", req.Name, req.GetSourceVolumeId(), snapshotID, snapshot)
+	csiSnapshot := &csi.Snapshot{
+		SnapshotId:     snapshotID,
+		SourceVolumeId: snapshot.VolID,
+		CreationTime:   &snapshot.CreationTime,
+		SizeBytes:      snapshot.SizeBytes,
+		ReadyToUse:     snapshot.ReadyToUse,
+	}
+
+	createdSnapshotMap[req.Name] = csiSnapshot
 	return &csi.CreateSnapshotResponse{
-		Snapshot: &csi.Snapshot{
-			SnapshotId:     snapshotID,
-			SourceVolumeId: snapshot.VolID,
-			CreationTime:   &snapshot.CreationTime,
-			SizeBytes:      snapshot.SizeBytes,
-			ReadyToUse:     snapshot.ReadyToUse,
-		},
+		Snapshot: csiSnapshot,
 	}, nil
 }
 
@@ -498,16 +538,19 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	// Check Snapshot exist and forceDelete tag;
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	forceDelete := false
-	snapShot, err := findSnapshotByID(req.SnapshotId)
-	if err == nil && snapShot != nil {
-		for _, tag := range snapShot.Tags.Tag {
+	snapShot, snapNum, err := findDiskSnapshotByID(req.SnapshotId)
+	if snapNum == 1 && snapShot != nil {
+		for _, tag := range snapShot.SnapshotTags {
 			if tag.TagKey == SNAPSHOTTAGKEY1 && tag.TagValue == "true" {
 				forceDelete = true
 			}
 		}
-	} else if err == nil && snapShot == nil {
+	} else if snapNum == 0 && err == nil {
 		log.Infof("DeleteSnapshot: snapShot not exist for expect %s, return successful", snapshotID)
 		return &csi.DeleteSnapshotResponse{}, nil
+	} else if snapNum > 1 {
+		log.Errorf("DeleteSnapshot: snapShot cannot be deleted %s, with more than 1 snapshot", snapshotID)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("snapShot cannot be deleted %s, with more than 1 snapshot", snapshotID))
 	}
 	// log snapshot
 	log.Infof("DeleteSnapshot: Snapshot %s exist with Info: %+v, %+v", snapshotID, snapShot, err)
@@ -526,6 +569,9 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed delete snapshot: %v", err))
 	}
 
+	if snapShot != nil {
+		delete(createdSnapshotMap, snapShot.Name)
+	}
 	log.Infof("DeleteSnapshot:: Successful delete snapshot %s, requestId: %s", snapshotID, response.RequestId)
 	return &csi.DeleteSnapshotResponse{}, nil
 }

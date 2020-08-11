@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
-cd ${GOPATH}/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/
+REPO_NAME=$2
+
+if [ "$REPO_NAME" == "" ]; then
+    REPO_NAME="kubernetes-sigs"
+fi
+
+cd ${GOPATH}/src/github.com/$REPO_NAME/alibaba-cloud-csi-driver/
 GIT_SHA=`git rev-parse --short HEAD || echo "HEAD"`
 
 
@@ -19,7 +25,8 @@ mv plugin.csi.alibabacloud.com ./build/nas/
 if [ "$1" == "" ]; then
   cd ./build/nas/
   docker build -t=registry.cn-hangzhou.aliyuncs.com/acs/csi-nasplugin:$version-$GIT_SHA ./
+  rm -rf ${GOPATH}/src/github.com/$REPO_NAME/alibaba-cloud-csi-driver/build/nas/plugin.csi.alibabacloud.com
   docker push registry.cn-hangzhou.aliyuncs.com/acs/csi-nasplugin:$version-$GIT_SHA
 fi
 
-rm -rf plugin.csi.alibabacloud.com
+rm -rf ${GOPATH}/src/github.com/$REPO_NAME/alibaba-cloud-csi-driver/build/nas/plugin.csi.alibabacloud.com

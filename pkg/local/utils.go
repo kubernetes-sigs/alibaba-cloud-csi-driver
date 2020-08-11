@@ -106,7 +106,7 @@ func checkFSType(devicePath string) (string, error) {
 }
 
 func isVgExist(vgName string) (bool, error) {
-	vgCmd := fmt.Sprintf("%s vgdisplay %s | grep 'VG Name' | grep %s | grep -v grep | wc -l", NsenterCmd, vgName, vgName)
+	vgCmd := fmt.Sprintf("%s vgdisplay %s 2>&1 | grep 'VG Name' | grep %s | grep -v grep | wc -l", NsenterCmd, vgName, vgName)
 	vgline, err := utils.Run(vgCmd)
 	if err != nil {
 		return false, err
@@ -165,13 +165,13 @@ func createVG(vgName string) (int, error) {
 	pvNum := 0
 
 	// step1: check vg is created or not
-	vgCmd := fmt.Sprintf("%s vgdisplay %s | grep 'VG Name' | grep %s | grep -v grep | wc -l", NsenterCmd, vgName, vgName)
+	vgCmd := fmt.Sprintf("%s vgdisplay %s 2>&1 | grep 'VG Name' | grep %s | grep -v grep | wc -l", NsenterCmd, vgName, vgName)
 	vgline, err := utils.Run(vgCmd)
 	if err != nil {
 		return 0, err
 	}
 	if strings.TrimSpace(vgline) == "1" {
-		pvNumCmd := fmt.Sprintf("%s vgdisplay %s | grep 'Cur PV' | grep -v grep | awk '{print $3}'", NsenterCmd, vgName)
+		pvNumCmd := fmt.Sprintf("%s vgdisplay %s 2>&1 | grep 'Cur PV' | grep -v grep | awk '{print $3}'", NsenterCmd, vgName)
 		if pvNumStr, err := utils.Run(pvNumCmd); err != nil {
 			return 0, err
 		} else if pvNum, err = strconv.Atoi(strings.TrimSpace(pvNumStr)); err != nil {
@@ -219,7 +219,7 @@ func createVG(vgName string) (int, error) {
 			log.Errorf("PV (%s) is not exist", devicePath)
 			return 0, status.Error(codes.Internal, "PV is Not exit: "+devicePath)
 		}
-		pvCmd := fmt.Sprintf("%s pvdisplay %s | grep 'VG Name' | grep -v grep | awk '{print $3}'", NsenterCmd, devicePath)
+		pvCmd := fmt.Sprintf("%s pvdisplay %s 2>&1 | grep 'VG Name' | grep -v grep | awk '{print $3}'", NsenterCmd, devicePath)
 		existVgName, err := utils.Run(pvCmd)
 		if err != nil {
 			log.Errorf("PV (%s) is Already in VG: %s", devicePath, strings.TrimSpace(existVgName))
@@ -264,25 +264,25 @@ func getLvmSpec(client kubernetes.Interface, volumeID, driverName string) (strin
 	}
 	if pv.Spec.NodeAffinity == nil {
 		log.Errorf("Get Lvm Spec for volume %s, with nil nodeAffinity", volumeID)
-		return "", "", nil
+		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with nil nodeAffinity")
 	}
 	if pv.Spec.NodeAffinity.Required == nil || len(pv.Spec.NodeAffinity.Required.NodeSelectorTerms) == 0 {
 		log.Errorf("Get Lvm Spec for volume %s, with nil Required", volumeID)
-		return "", "", nil
+		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with nil Required")
 	}
 	if len(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions) == 0 {
 		log.Errorf("Get Lvm Spec for volume %s, with nil MatchExpressions", volumeID)
-		return "", "", nil
+		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with nil MatchExpressions")
 	}
 	key := pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Key
-	if key != TopologyNodeKey {
+	if key != TopologyNodeKey && key != TopologyYodaNodeKey {
 		log.Errorf("Get Lvm Spec for volume %s, with key %s", volumeID, key)
-		return "", "", nil
+		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with key" + key)
 	}
 	nodes := pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Values
 	if len(nodes) == 0 {
 		log.Errorf("Get Lvm Spec for volume %s, with empty nodes", volumeID)
-		return "", "", nil
+		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with empty nodes")
 	}
 
 	if _, ok := pv.Spec.CSI.VolumeAttributes["vgName"]; !ok {

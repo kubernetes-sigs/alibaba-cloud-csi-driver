@@ -4,6 +4,7 @@ metadata:
   name: memplugin.csi.alibabacloud.com
 spec:
   attachRequired: false
+  podInfoOnMount: true
 ---
 kind: DaemonSet
 apiVersion: apps/v1
@@ -29,10 +30,6 @@ spec:
         - name: driver-registrar
           image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.1.0
           imagePullPolicy: Always
-          lifecycle:
-            preStop:
-              exec:
-                command: ["/bin/sh", "-c", "rm -rf /registration/memplugin.csi.alibabacloud.com /registration/memplugin.csi.alibabacloud.com-reg.sock"]
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
@@ -48,14 +45,13 @@ spec:
               mountPath: /csi
             - name: registration-dir
               mountPath: /registration
-
         - name: csi-memplugin
           securityContext:
             privileged: true
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-memplugin:v1.14.8-a33709cad
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.14.8.41-9efe2ede-aliyun
           imagePullPolicy: "Always"
           args :
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -99,4 +95,6 @@ spec:
           hostPath:
             path: /var/log/
   updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 10%
     type: RollingUpdate

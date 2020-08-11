@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/parser"
@@ -31,21 +32,24 @@ import (
 
 const (
 	// NsenterCmd is the nsenter command
-	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt "
+	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
 )
 
 // ListLV lists lvm volumes
 func ListLV(listspec string) ([]*parser.LV, error) {
+	lvs := []*parser.LV{}
 	cmdList := []string{NsenterCmd, "lvs", "--units=b", "--separator=\"<:SEP:>\"", "--nosuffix", "--noheadings",
 		"-o", "lv_name,lv_size,lv_uuid,lv_attr,copy_percent,lv_kernel_major,lv_kernel_minor,lv_tags", "--nameprefixes", "-a", listspec}
 	cmd := strings.Join(cmdList, " ")
 	out, err := Run(cmd)
 	if err != nil {
+		if strings.Contains(err.Error(), "Failed to find logical volume") {
+			return lvs, nil
+		}
 		return nil, err
 	}
 	outStr := strings.TrimSpace(string(out))
 	outLines := strings.Split(outStr, "\n")
-	lvs := []*parser.LV{}
 	for _, line := range outLines {
 		line = strings.TrimSpace(line)
 		if !strings.Contains(line, "LVM2_LV_NAME") {
@@ -61,23 +65,42 @@ func ListLV(listspec string) ([]*parser.LV, error) {
 }
 
 // CreateLV creates a new volume
-func CreateLV(ctx context.Context, vg string, name string, size uint64, mirrors uint32, tags []string) (string, error) {
+func CreateLV(ctx context.Context, vg string, name string, size uint64, mirrors uint32, tags []string, striping bool) (string, error) {
 	if size == 0 {
 		return "", errors.New("size must be greater than 0")
 	}
-
-	args := []string{"lvcreate", "-v", "-n", name, "-L", fmt.Sprintf("%db", size)}
+	args := []string{NsenterCmd, "lvcreate", "-n", name, "-L", fmt.Sprintf("%db", size), "-W", "y", "-y"}
 	if mirrors > 0 {
 		args = append(args, "-m", fmt.Sprintf("%d", mirrors), "--nosync")
 	}
 	for _, tag := range tags {
 		args = append(args, "--add-tag", tag)
 	}
+	if striping {
+		pvCount := getPVNumber(vg)
+		if pvCount != 0 {
+			args = append(args, "-i", strconv.Itoa(pvCount))
+		}
+	}
 
 	args = append(args, vg)
 	cmd := strings.Join(args, " ")
 	out, err := Run(cmd)
 	return string(out), err
+}
+
+func getPVNumber(vgName string) int {
+	var pvCount = 0
+	vgList, err := ListVG()
+	if err != nil {
+		return 0
+	}
+	for _, vg := range vgList {
+		if vg.Name == vgName {
+			pvCount = int(vg.PvCount)
+		}
+	}
+	return pvCount
 }
 
 // ProtectedTagName is a tag that prevents RemoveLV & RemoveVG from removing a volume

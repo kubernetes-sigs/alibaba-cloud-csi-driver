@@ -109,10 +109,7 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	}
 
 	// Set Region ID
-	region := os.Getenv("REGION_ID")
-	if region == "" {
-		region = GetMetaData(RegionIDTag)
-	}
+	region := GetRegionID()
 
 	// Config Global vars
 	GlobalConfigSet(client, region, nodeID)
