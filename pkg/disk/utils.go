@@ -133,7 +133,7 @@ type RoleAuth struct {
 
 func newEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *ecs.Client) {
 	var err error
-	regionID := GetMetaData(RegionIDTag)
+	regionID := GetRegionID()
 	if accessToken == "" {
 		ecsClient, err = ecs.NewClientWithAccessKey(regionID, accessKeyID, accessKeySecret)
 		if err != nil {
@@ -188,6 +188,15 @@ func SetEcsEndPoint(regionID string) {
 	if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
 		aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
 	}
+}
+
+// GetRegionID Get RegionID from Environment Variables or Metadata
+func GetRegionID() string {
+	regionID := os.Getenv("REGION_ID")
+	if regionID == "" {
+		regionID = GetMetaData(RegionIDTag)
+	}
+	return regionID
 }
 
 // GetMetaData get host regionid, zoneid
