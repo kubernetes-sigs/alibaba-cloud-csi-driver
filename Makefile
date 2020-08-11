@@ -16,6 +16,7 @@ PKG=github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 
 GO111MODULE=on
 GOPROXY=direct
+REPONAME="$(shell pwd | rev | awk -F \/ '{ print $$2 }' | rev)"
 
 .EXPORT_ALL_VARIABLES:
 
@@ -34,3 +35,15 @@ vet:
 .PHONY: test
 test:
 	./hack/check-unittest.sh
+
+.PHONY: build
+build:
+	./build/build-all.sh "" $(REPONAME)
+
+.PHONY: build-nas
+build-nas:
+	./build/build-nas.sh "" $(REPONAME)
+
+.PHONY: build-disk
+build-disk:
+	./build/build-disk.sh "" $(REPONAME)
