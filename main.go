@@ -201,9 +201,8 @@ func main() {
 	// When serviceType is neither plugin nor provisioner, the program will exits.
 	if serviceType != PluginService && serviceType != ProvisionerService {
 		log.Fatalf("Service type is unknown:%s", serviceType)
-	}
-
-	if len(servicePort) == 0 || servicePort == "" {
+    }
+    if len(servicePort) == 0 || servicePort == "" {
 		switch serviceType {
 		case PluginService:
 			servicePort = PluginServicePort

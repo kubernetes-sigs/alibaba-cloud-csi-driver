@@ -20,6 +20,7 @@ import (
 	"errors"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/adapter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/client"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -51,6 +52,8 @@ const (
 	connectTimeout = 3 * time.Second
 	// TopologyNodeKey define host name of node
 	TopologyNodeKey = "kubernetes.io/hostname"
+	// TopologyYodaNodeKey define host name of node
+	TopologyYodaNodeKey = "topology.yodaplugin.csi.alibabacloud.com/hostname"
 	// PvcNameTag in annotations
 	PvcNameTag = "csi.storage.k8s.io/pvc/name"
 	// PvcNsTag in annotations
@@ -150,6 +153,43 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				return nil, status.Error(codes.InvalidArgument, "Parse lvm schedule info error "+err.Error())
 			}
 			nodeSelected = nodeID
+		}
+
+		if value, ok := parameters["vgName"]; ok && value != "" {
+			storageSelected = value
+		}
+		if nodeSelected != "" && storageSelected != "" {
+			addr, err := getLvmdAddr(cs.client, nodeSelected)
+			if err != nil {
+				log.Errorf("CreateVolume: Get lvm node %s address with error: %s", nodeSelected, err.Error())
+				return nil, err
+			}
+			conn, err := client.NewLVMConnection(addr, connectTimeout)
+			defer conn.Close()
+			if err != nil {
+				log.Errorf("CreateVolume: New lvm %s Connection(%s) with error: %s", req.Name, addr, err.Error())
+				return nil, err
+			}
+			if lvmName, err := conn.GetLvm(ctx, storageSelected, volumeID); err == nil && lvmName == "" {
+				options := &client.LVMOptions{}
+				options.Name = req.Name
+				options.VolumeGroup = storageSelected
+				if value, ok := parameters[LvmTypeTag]; ok && value == StripingType {
+					options.Striping = true
+				}
+				options.Size = uint64(req.GetCapacityRange().GetRequiredBytes())
+				outstr, err := conn.CreateLvm(ctx, options)
+				if err != nil {
+					log.Errorf("CreateVolume: Create lvm %s/%s, options: %v with error: %s", storageSelected, volumeID, options, err.Error())
+					return nil, errors.New("Create Lvm with error " + err.Error())
+				}
+				log.Infof("CreateLvm: Successful Create lvm %s/%s with response %s", storageSelected, volumeID, outstr)
+			} else if err != nil {
+				log.Errorf("CreateVolume: Get lvm %s with error: %s", req.Name, err.Error())
+				return nil, err
+			} else {
+				log.Infof("CreateVolume: lvm volume already created %s", req.Name)
+			}
 		}
 	} else if volumeType == MountPointType {
 		var err error
@@ -276,14 +316,17 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				log.Errorf("DeleteVolume: New lvm %s Connection with error: %s", req.GetVolumeId(), err.Error())
 				return nil, err
 			}
-			if _, err := conn.GetLvm(ctx, vgName, volumeID); err == nil {
+			if lvmName, err := conn.GetLvm(ctx, vgName, volumeID); err == nil && lvmName != "" {
 				if err := conn.DeleteLvm(ctx, vgName, volumeID); err != nil {
 					log.Errorf("DeleteVolume: Remove lvm %s/%s with error: %s", vgName, volumeID, err.Error())
 					return nil, errors.New("Remove Lvm with error " + err.Error())
 				}
-			} else if strings.Contains(err.Error(), "Failed to find logical volume") {
+				log.Infof("DeleteLvm: Successful Delete lvm %s/%s", vgName, volumeID)
+			} else if err == nil && lvmName == "" {
+				log.Infof("DeleteVolume: get lvm empty, skip deleting %s", volumeID)
+			} else if err != nil && strings.Contains(err.Error(), "Failed to find logical volume") {
 				log.Infof("DeleteVolume: lvm volume not found, skip deleting %s", volumeID)
-			} else if strings.Contains(err.Error(), "Volume group \""+vgName+"\" not found") {
+			} else if err != nil && strings.Contains(err.Error(), "Volume group \""+vgName+"\" not found") {
 				log.Infof("DeleteVolume: Volume group not found, skip deleting %s", volumeID)
 			} else {
 				log.Errorf("DeleteVolume: Get lvm for %s with error: %s", req.GetVolumeId(), err.Error())
@@ -292,6 +335,23 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		}
 	} else if volumeType == MountPointType {
 		if pvObj.Spec.PersistentVolumeReclaimPolicy == v1.PersistentVolumeReclaimDelete {
+			if pvObj.Spec.NodeAffinity == nil {
+				log.Errorf("Get Lvm Spec for volume %s, with nil nodeAffinity", volumeID)
+				return nil, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil nodeAffinity")
+			}
+			if pvObj.Spec.NodeAffinity.Required == nil || len(pvObj.Spec.NodeAffinity.Required.NodeSelectorTerms) == 0 {
+				log.Errorf("Get Lvm Spec for volume %s, with nil Required", volumeID)
+				return nil, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil Required")
+			}
+			if len(pvObj.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions) == 0 {
+				log.Errorf("Get Lvm Spec for volume %s, with nil MatchExpressions", volumeID)
+				return nil, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil MatchExpressions")
+			}
+			key := pvObj.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Key
+			if key != TopologyNodeKey && key != TopologyYodaNodeKey {
+				log.Errorf("Get Lvm Spec for volume %s, with key %s", volumeID, key)
+				return nil, errors.New("Get Lvm Spec for volume " + volumeID + ", with key" + key)
+			}
 			nodes := pvObj.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Values
 			if len(nodes) == 0 {
 				log.Errorf("Get MountPoint Spec for volume %s, with empty nodes", volumeID)
@@ -345,5 +405,32 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	log.Infof("ControllerExpandVolume::: %v", req)
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
+	if GlobalConfigVar.Scheduler == yodaDriverName {
+		volSizeGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
+		volumeID := req.GetVolumeId()
+		pvObj, err := getPvObj(cs.client, volumeID)
+		if err != nil {
+			log.Errorf("ControllerExpandVolume: get volume object %s error with: %s", volumeID, err.Error())
+			return nil, err
+		}
+		if pvObj.Spec.CSI == nil {
+			log.Errorf("ControllerExpandVolume: volume is not csi type %s", volumeID)
+			return nil, errors.New("ControllerExpandVolume: volume is not csi type: " + volumeID)
+		}
+		attributes := pvObj.Spec.CSI.VolumeAttributes
+		pvcName, pvcNameSpace := "", ""
+		if value, ok := attributes[PvcNameTag]; ok {
+			pvcName = value
+		}
+		if value, ok := attributes[PvcNsTag]; ok {
+			pvcNameSpace = value
+		}
+		if err := adapter.ExpandVolume(pvcNameSpace, pvcName, volSizeGB); err != nil {
+			log.Errorf("ControllerExpandVolume: expand volume %s to size %d meet error: %v", volumeID, volSizeGB, err)
+			return nil, errors.New("ControllerExpandVolume: expand volume error " + err.Error())
+		}
+
+	}
+
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
 }
