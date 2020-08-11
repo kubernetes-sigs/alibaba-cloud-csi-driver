@@ -58,7 +58,9 @@ const (
 	// TypePluginMEM memory type plugin
 	TypePluginMEM = "memplugin.csi.alibabacloud.com"
 	// TypePluginLOCAL local type plugin
-	TypePluginLOCAL = "yodaplugin.csi.alibabacloud.com"
+	TypePluginLOCAL = "localplugin.csi.alibabacloud.com"
+	// TypePluginYODA local type plugin
+	TypePluginYODA = "yodaplugin.csi.alibabacloud.com"
 	// ExtenderAgent agent component
 	ExtenderAgent = "agent"
 )
@@ -103,6 +105,9 @@ func main() {
 	go om.StorageOM()
 
 	drivername := *driver
+	if drivername == TypePluginYODA {
+		drivername = TypePluginLOCAL
+	}
 	log.Infof("CSI Driver Name: %s, %s, %s", drivername, *nodeID, *endpoint)
 	log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", BRANCH, VERSION, BUILDTIME)
 	if drivername == TypePluginNAS {

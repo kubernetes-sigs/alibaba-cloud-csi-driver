@@ -35,6 +35,7 @@ func NewServer() Server {
 
 // ListLV list lvm volume
 func (s Server) ListLV(ctx context.Context, in *pb.ListLVRequest) (*pb.ListLVReply, error) {
+	log.Infof("List LVM for vg: %s", in.VolumeGroup)
 	lvs, err := commands.ListLV(in.VolumeGroup)
 	if err != nil {
 		log.Errorf("List LVM with error: %s", err.Error())
@@ -45,29 +46,31 @@ func (s Server) ListLV(ctx context.Context, in *pb.ListLVRequest) (*pb.ListLVRep
 	for i, v := range lvs {
 		pblvs[i] = v.ToProto()
 	}
-	log.Infof("List LVM with result: %+v", pblvs)
+	log.Infof("List LVM Successful with result: %+v", pblvs)
 	return &pb.ListLVReply{Volumes: pblvs}, nil
 }
 
 // CreateLV create lvm volume
 func (s Server) CreateLV(ctx context.Context, in *pb.CreateLVRequest) (*pb.CreateLVReply, error) {
-	out, err := commands.CreateLV(ctx, in.VolumeGroup, in.Name, in.Size, in.Mirrors, in.Tags)
+	log.Infof("Create LVM with: %+v", in)
+	out, err := commands.CreateLV(ctx, in.VolumeGroup, in.Name, in.Size, in.Mirrors, in.Tags, in.Striping)
 	if err != nil {
 		log.Errorf("Create LVM with error: %s", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to create lv: %v", err)
 	}
-	log.Infof("Create LVM with result: %+v", out)
+	log.Infof("Create LVM Successful with result: %+v", out)
 	return &pb.CreateLVReply{CommandOutput: out}, nil
 }
 
 // RemoveLV remove lvm volume
 func (s Server) RemoveLV(ctx context.Context, in *pb.RemoveLVRequest) (*pb.RemoveLVReply, error) {
+	log.Infof("Remove LVM with: %+v", in)
 	out, err := commands.RemoveLV(ctx, in.VolumeGroup, in.Name)
 	if err != nil {
 		log.Errorf("Remove LVM with error: %s", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to remove lv: %v", err)
 	}
-	log.Infof("Remove LVM with result: %+v", out)
+	log.Infof("Remove LVM Successful with result: %+v", out)
 	return &pb.RemoveLVReply{CommandOutput: out}, nil
 }
 
