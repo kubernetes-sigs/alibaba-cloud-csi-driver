@@ -18,7 +18,6 @@ package client
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -45,6 +44,7 @@ type LVMOptions struct {
 	Name        string
 	Size        uint64
 	Tags        []string
+	Striping    bool
 }
 
 //
@@ -110,6 +110,7 @@ func (c *lvmdConnection) CreateLvm(ctx context.Context, opt *LVMOptions) (string
 		Name:        opt.Name,
 		Size:        opt.Size,
 		Tags:        opt.Tags,
+		Striping:    opt.Striping,
 	}
 
 	rsp, err := client.CreateLV(ctx, &req)
@@ -133,8 +134,8 @@ func (c *lvmdConnection) GetLvm(ctx context.Context, volGroup string, volumeID s
 		return "", err
 	}
 	if len(rsp.GetVolumes()) <= 0 {
-		msg := fmt.Sprintf("Volume %s/%s is not exist", volGroup, volumeID)
-		return "", errors.New(msg)
+		log.Warnf("Volume %s/%s is not exist", volGroup, volumeID)
+		return "", nil
 	}
 	log.Infof("Get Lvm with result: %+v", rsp.Volumes)
 	return rsp.GetVolumes()[0].String(), nil
