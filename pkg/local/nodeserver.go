@@ -17,7 +17,6 @@ limitations under the License.
 package local
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
@@ -30,8 +29,6 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
@@ -42,9 +39,11 @@ import (
 
 const (
 	// NsenterCmd is the nsenter command
-	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
+	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
 	// VgNameTag is the vg name tag
 	VgNameTag = "vgName"
+	// VolumeTypeTag is the pv type tag
+	VolumeTypeTag = "volumeType"
 	// PvTypeTag is the pv type tag
 	PvTypeTag = "pvType"
 	// FsTypeTag is the fs type tag
@@ -97,6 +96,7 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 
 	// local volume daemon
 	go server.Start()
+
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		nodeID:            nodeID,
@@ -117,160 +117,74 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// parse request args.
 	targetPath := req.GetTargetPath()
 	if targetPath == "" {
+		log.Errorf("NodePublishVolume: mount volume %s with path %s", req.VolumeId, targetPath)
 		return nil, status.Error(codes.Internal, "targetPath is empty")
 	}
-	vgName := ""
-	if _, ok := req.VolumeContext[VgNameTag]; ok {
-		vgName = req.VolumeContext[VgNameTag]
-	}
-	if vgName == "" {
-		log.Errorf("NodePublishVolume: request with empty vgName in volume: %s", req.VolumeId)
-		return nil, status.Error(codes.Internal, "error with input vgName is empty")
+
+	volumeType := ""
+	if _, ok := req.VolumeContext[VolumeTypeTag]; ok {
+		volumeType = req.VolumeContext[VolumeTypeTag]
 	}
 
-	// special process on alibaba local disk type;
-	pvType := CloudDisk
-	if _, ok := req.VolumeContext[PvTypeTag]; ok {
-		pvType = req.VolumeContext[PvTypeTag]
-	}
-	// default create lvm in linear type
-	lvmType := LinearType
-	if _, ok := req.VolumeContext[LvmTypeTag]; ok {
-		lvmType = req.VolumeContext[LvmTypeTag]
-	}
-	fsType := DefaultFs
-	if _, ok := req.VolumeContext[FsTypeTag]; ok {
-		fsType = req.VolumeContext[FsTypeTag]
-	}
-	nodeAffinity := DefaultNodeAffinity
-	if _, ok := req.VolumeContext[NodeAffinity]; ok {
-		nodeAffinity = req.VolumeContext[NodeAffinity]
-	}
-	log.Infof("NodePublishVolume: Starting to mount lvm at path: %s, with vg: %s, with volume: %s, PV Type: %s, LVM Type: %s", targetPath, vgName, req.GetVolumeId(), pvType, lvmType)
-
-	volumeID := req.GetVolumeId()
-	devicePath := filepath.Join("/dev/", vgName, volumeID)
-	if _, err := os.Stat(devicePath); os.IsNotExist(err) {
-		err := ns.createVolume(ctx, volumeID, vgName, pvType, lvmType)
+	if volumeType == LvmVolumeType {
+		err := ns.mountLvm(ctx, req)
 		if err != nil {
-			log.Errorf("NodePublishVolume: create volume %s with error: %s", volumeID, err.Error())
-			return nil, status.Error(codes.Internal, err.Error())
+			log.Errorf("NodePublishVolume: mount lvm volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
+			return nil, err
 		}
-	}
-
-	isMnt, err := ns.mounter.IsMounted(targetPath)
-	if err != nil {
-		if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-			if err := os.MkdirAll(targetPath, 0750); err != nil {
-				log.Errorf("NodePublishVolume: volume %s mkdir target path %s with error: %s", volumeID, targetPath, err.Error())
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-			isMnt = false
-		} else {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-	}
-
-	exitFSType, err := checkFSType(devicePath)
-	if err != nil {
-		log.Errorf("NodePublishVolume: check FS type %s with error: %s", volumeID, err.Error())
-		return nil, status.Errorf(codes.Internal, "check fs type err: %v", err)
-	}
-	if exitFSType == "" {
-		log.Infof("The device %v has no filesystem, starting format to: %v", devicePath, fsType)
-		if err := formatDevice(devicePath, fsType); err != nil {
-			log.Errorf("NodePublishVolume: Format device %s with error: %s", devicePath, err.Error())
-			return nil, status.Errorf(codes.Internal, "format fstype failed: err %v", err)
-		}
-	}
-
-	if !isMnt {
-		var options []string
-		if req.GetReadonly() {
-			options = append(options, "ro")
-		} else {
-			options = append(options, "rw")
-		}
-		mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
-		options = append(options, mountFlags...)
-
-		err = ns.mounter.Mount(devicePath, targetPath, fsType, options...)
+	} else if volumeType == MountPointType {
+		err := ns.mountLocalVolume(ctx, req)
 		if err != nil {
-			log.Errorf("NodePublishVolume: Mount volume %s to %s with error: %s", devicePath, targetPath, err.Error())
-			return nil, status.Error(codes.Internal, err.Error())
+			log.Errorf("NodePublishVolume: mount mountpoint volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
+			return nil, err
 		}
-		log.Infof("NodePublishVolume:: mount successful devicePath: %s, targetPath: %s, options: %v", devicePath, targetPath, options)
-	}
-
-	// upgrade PV with NodeAffinity
-	nodeAffinityAdded := false
-	if _, ok := req.VolumeContext[NodeSchTag]; ok {
-		nodeAffinityAdded = true
-	}
-	if nodeAffinity == "true" && !nodeAffinityAdded {
-		oldPv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
+	} else if volumeType == DeviceVolumeType {
+		err := ns.mountDeviceVolume(ctx, req)
 		if err != nil {
-			log.Errorf("NodePublishVolume: Get Persistent Volume(%s) Error: %s", volumeID, err.Error())
-			return nil, status.Error(codes.Internal, err.Error())
+			log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
+			return nil, err
 		}
-		if oldPv.Spec.NodeAffinity == nil {
-			oldData, err := json.Marshal(oldPv)
-			if err != nil {
-				log.Errorf("NodePublishVolume: Marshal Persistent Volume(%s) Error: %s", volumeID, err.Error())
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-			pvClone := oldPv.DeepCopy()
-
-			// construct new persistent volume data
-			values := []string{ns.nodeID}
-			nSR := v1.NodeSelectorRequirement{Key: "kubernetes.io/hostname", Operator: v1.NodeSelectorOpIn, Values: values}
-			matchExpress := []v1.NodeSelectorRequirement{nSR}
-			nodeSelectorTerm := v1.NodeSelectorTerm{MatchExpressions: matchExpress}
-			nodeSelectorTerms := []v1.NodeSelectorTerm{nodeSelectorTerm}
-			required := v1.NodeSelector{NodeSelectorTerms: nodeSelectorTerms}
-			pvClone.Spec.NodeAffinity = &v1.VolumeNodeAffinity{Required: &required}
-			newData, err := json.Marshal(pvClone)
-			if err != nil {
-				log.Errorf("NodePublishVolume: Marshal New Persistent Volume(%s) Error: %s", volumeID, err.Error())
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-			patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, pvClone)
-			if err != nil {
-				log.Errorf("NodePublishVolume: CreateTwoWayMergePatch Volume(%s) Error: %s", volumeID, err.Error())
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-
-			// Upgrade PersistentVolume with NodeAffinity
-			_, err = ns.client.CoreV1().PersistentVolumes().Patch(volumeID, types.StrategicMergePatchType, patchBytes)
-			if err != nil {
-				log.Errorf("NodePublishVolume: Patch Volume(%s) Error: %s", volumeID, err.Error())
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-			log.Infof("NodePublishVolume: upgrade Persistent Volume(%s) with nodeAffinity: %s", volumeID, ns.nodeID)
-		}
+	} else {
+		log.Errorf("NodePublishVolume: unsupported volume %s with type %s", req.VolumeId, volumeType)
+		return nil, status.Error(codes.Internal, "volumeType is not support "+volumeType)
 	}
 
+	log.Infof("NodePublishVolume: Successful mount volume %s to %s", req.VolumeId, targetPath)
 	return &csi.NodePublishVolumeResponse{}, nil
+
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	targetPath := req.GetTargetPath()
+	log.Infof("NodeUnpublishVolume: Starting to umount target path %s for volume %s", targetPath, req.VolumeId)
+
 	isMnt, err := ns.mounter.IsMounted(targetPath)
 	if err != nil {
 		if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-			return nil, status.Error(codes.NotFound, "TargetPath not found")
+			log.Infof("NodeUnpublishVolume: Target path not exist for volume %s with path %s", req.VolumeId, targetPath)
+			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
+		log.Errorf("NodeUnpublishVolume: Stat error volume %s with path %s with error %v", req.VolumeId, targetPath, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if !isMnt {
+		log.Infof("NodeUnpublishVolume: Target path %s not mounted for volume %s", targetPath, req.VolumeId)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
 	err = ns.mounter.Unmount(req.GetTargetPath())
 	if err != nil {
+		log.Errorf("NodeUnpublishVolume: Umount volume %s for path %s with error %v", req.VolumeId, targetPath, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	isMnt, err = ns.mounter.IsMounted(targetPath)
+	if isMnt {
+		log.Errorf("NodeUnpublishVolume: Umount volume %s for path %s not successful", req.VolumeId, targetPath)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("Umount volume %s not successful", req.VolumeId))
+	}
+
+	log.Infof("NodeUnpublishVolume: Successful umount target path %s for volume %s", targetPath, req.VolumeId)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
@@ -298,9 +212,17 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 			},
 		},
 	}
+	nscap3 := &csi.NodeServiceCapability{
+		Type: &csi.NodeServiceCapability_Rpc{
+			Rpc: &csi.NodeServiceCapability_RPC{
+				Type: csi.NodeServiceCapability_RPC_GET_VOLUME_STATS,
+			},
+		},
+	}
+
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: []*csi.NodeServiceCapability{
-			nscap, nscap2,
+			nscap, nscap2, nscap3,
 		},
 	}, nil
 }
@@ -319,6 +241,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	log.Infof("NodeExpandVolume: Successful expand lvm volume: %v to %d", req.VolumeId, expectSize)
 	return &csi.NodeExpandVolumeResponse{}, nil
 }
 
@@ -334,6 +257,18 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}, nil
 }
 
+// NodeGetVolumeStats used for csi metrics
+func (ns *nodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	var err error
+	targetPath := req.GetVolumePath()
+	if targetPath == "" {
+		err = fmt.Errorf("NodeGetVolumeStats target local path %v is empty", targetPath)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	return utils.GetMetrics(targetPath)
+}
+
 // lvm volume resize
 func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volumeID, targetPath string) error {
 	vgName := ""
@@ -347,12 +282,14 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 		}
 	}
 	if vgName == "" {
+		log.Errorf("resizeVolume: Resize volume %s with empty vg", volumeID)
 		return status.Error(codes.Internal, "VG Name is empty, cannot resize volume "+volumeID)
 	}
 
 	// Get lvm info
 	lvList, err := commands.ListLV(vgName)
 	if err != nil {
+		log.Errorf("resizeVolume: Resize volume %s with list lv error %v", volumeID, err)
 		return status.Error(codes.Internal, "List lvm error with: "+err.Error())
 	}
 	for _, lv := range lvList {
@@ -394,6 +331,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 	return nil
 }
 
+// get pvSize, pvSizeUnit, pvObject
 func (ns *nodeServer) getPvInfo(volumeID string) (int64, string, *v1.PersistentVolume) {
 	pv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
 	if err != nil {
@@ -409,48 +347,4 @@ func (ns *nodeServer) getPvInfo(volumeID string) (int64, string, *v1.PersistentV
 		return pvSizeMB, "m", pv
 	}
 	return pvSizeGB, "g", pv
-}
-
-// create lvm volume
-func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType, lvmType string) error {
-	pvSize, unit, _ := ns.getPvInfo(volumeID)
-	pvNumber := 0
-	var err error
-	// Create VG if vg not exist,
-	if pvType == LocalDisk {
-		if pvNumber, err = createVG(vgName); err != nil {
-			return err
-		}
-	}
-
-	// check vg exist
-	ckCmd := fmt.Sprintf("%s vgck %s", NsenterCmd, vgName)
-	_, err = utils.Run(ckCmd)
-	if err != nil {
-		log.Errorf("createVolume:: VG is not exist: %s", vgName)
-		return err
-	}
-
-	// Create lvm volume
-	if lvmType == StripingType {
-		pvNumber = getPVNumber(vgName)
-		if pvNumber == 0 {
-			log.Errorf("createVolume:: VG is exist: %s, bug get pv number as 0", vgName)
-			return err
-		}
-		cmd := fmt.Sprintf("%s lvcreate -i %d -n %s -L %d%s %s", NsenterCmd, pvNumber, volumeID, pvSize, unit, vgName)
-		_, err = utils.Run(cmd)
-		if err != nil {
-			return err
-		}
-		log.Infof("Successful Create Striping LVM volume: %s, with command: %s", volumeID, cmd)
-	} else if lvmType == LinearType {
-		cmd := fmt.Sprintf("%s lvcreate -n %s -L %d%s %s", NsenterCmd, volumeID, pvSize, unit, vgName)
-		_, err = utils.Run(cmd)
-		if err != nil {
-			return err
-		}
-		log.Infof("Successful Create Linear LVM volume: %s, with command: %s", volumeID, cmd)
-	}
-	return nil
 }

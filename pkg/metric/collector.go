@@ -8,7 +8,22 @@ import (
 	"time"
 )
 
-func registerCollector(collector string, factory func() (Collector, error)) {
+var (
+	scrapeDurationDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(clusterNamespace, scrapeSubSystem, "collector_duration_seconds"),
+		"csi_metric: Duration of a collector scrape.",
+		[]string{"collector"},
+		nil,
+	)
+	scrapeSuccessDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(clusterNamespace, scrapeSubSystem, "collector_success"),
+		"csi_metric: Whether a collector succeeded.",
+		[]string{"collector"},
+		nil,
+	)
+)
+
+func registerCollector(collector string, factory collectorFactoryFunc) {
 	factories[collector] = factory
 }
 
@@ -23,35 +38,36 @@ type CSICollector struct {
 	Collectors map[string]Collector
 }
 
-func NewCSICollector() (*CSICollector, error) {
+//NewCSICollector method returns the CSICollector object
+func NewCSICollector() error {
 	if CSICollectorInstance == nil {
 		collectors := make(map[string]Collector)
 		for key := range factories {
 			var collector Collector
 			var err error
 			switch metricType {
-			case nodeServer:
+			case pluginService:
 				if !nodeMetricSet.Contains(key) {
 					continue
 				}
 				collector, err = factories[key]()
-			case clusterServer:
+			case provisionerService:
 				if !clusterMetricSet.Contains(key) {
 					continue
 				}
 				collector, err = factories[key]()
 			default:
-				return nil, errors.New("Unknown metricType:" + metricType)
+				return errors.New("Unknown metricType:" + metricType)
 			}
 			if err != nil {
-				return nil, err
+				return err
 			}
 			collectors[key] = collector
 		}
 		CSICollectorInstance = &CSICollector{Collectors: collectors}
 	}
 
-	return CSICollectorInstance, nil
+	return nil
 }
 
 // Describe implements the prometheus.Collector interface.
@@ -81,9 +97,9 @@ func execute(name string, c Collector, ch chan<- prometheus.Metric) {
 
 	if err != nil {
 		if IsNoDataError(err) {
-			logrus.Infof("Collector returned no data,name:%, duration_seconds:%v, err:%s", name, duration.Seconds(), err.Error())
+			logrus.Infof("Collector returned no data,name: %s, duration_seconds: %f, err: %s", name, duration.Seconds(), err.Error())
 		} else {
-			logrus.Errorf("Collector failed, name%s, duration_seconds:%v, err:%s", name, duration.Seconds(), err.Error())
+			logrus.Errorf("Collector failed, name: %s, duration_seconds: %f, err: %s", name, duration.Seconds(), err.Error())
 		}
 		success = 0
 	} else {
@@ -96,6 +112,7 @@ func execute(name string, c Collector, ch chan<- prometheus.Metric) {
 // ErrNoData indicates the collector found no data to collect, but had no other error.
 var ErrNoData = errors.New("Collector returned no data")
 
+//IsNoDataError method is to determine whether the Collector has no data to return
 func IsNoDataError(err error) bool {
 	return err == ErrNoData
 }

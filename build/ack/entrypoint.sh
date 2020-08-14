@@ -10,20 +10,41 @@ ossfsVer="1.80.6.ack.1"
 ## check which plugin is running
 for item in $@;
 do
-  if [ "$item" = "--driver=ossplugin.csi.alibabacloud.com" ]; then
-      echo "Running oss plugin...."
-      run_oss="true"
-      mkdir -p /var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com
-      rm -rf /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
-  elif [ "$item" = "--driver=diskplugin.csi.alibabacloud.com" ]; then
-      echo "Running disk plugin...."
-      mkdir -p /var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com
-      rm -rf /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
-  elif [ "$item" = "--driver=nasplugin.csi.alibabacloud.com" ]; then
-      echo "Running nas plugin...."
-      mkdir -p /var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com
-      rm -rf /var/lib/kubelet/plugins/nasplugin.csi.alibabacloud.com/csi.sock
-  fi
+    if [ "$item" = "--driver=ossplugin.csi.alibabacloud.com" ]; then
+        echo "Running oss plugin...."
+        run_oss="true"
+        mkdir -p /var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com
+        rm -rf /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
+    elif [ "$item" = "--driver=diskplugin.csi.alibabacloud.com" ]; then
+        echo "Running disk plugin...."
+        mkdir -p /var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com
+        rm -rf /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
+    elif [ "$item" = "--driver=nasplugin.csi.alibabacloud.com" ]; then
+        echo "Running nas plugin...."
+        mkdir -p /var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com
+        rm -rf /var/lib/kubelet/plugins/nasplugin.csi.alibabacloud.com/csi.sock
+    elif [[ $item==*--driver=* ]]; then
+        tmp=${item}
+        driver_types=${tmp#*--driver=}
+        driver_type_array=(${driver_types//,/ })
+        for driver_type in ${driver_type_array[@]};
+        do
+            if [ "$driver_type" = "oss" ]; then
+                echo "Running oss plugin...."
+                run_oss="true"
+                mkdir -p /var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com
+                rm -rf /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
+            elif [ "$driver_type" = "disk" ]; then
+                echo "Running disk plugin...."
+                mkdir -p /var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com
+                rm -rf /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
+            elif [ "$driver_type" = "nas" ]; then
+                echo "Running nas plugin...."
+                mkdir -p /var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com
+                rm -rf /var/lib/kubelet/plugins/nasplugin.csi.alibabacloud.com/csi.sock
+            fi
+        done
+    fi
 done
 
 

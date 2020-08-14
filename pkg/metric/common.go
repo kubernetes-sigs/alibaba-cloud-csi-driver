@@ -9,31 +9,34 @@ import (
 )
 
 const (
-	OssStorageName     string = "oss"
-	NasStorageName     string = "nas"
-	DiskStorageName    string = "disk"
+	//OssStorageName represents the storage type name of Oss
+	OssStorageName string = "oss"
+	//NasStorageName represents the storage type name of Nas
+	NasStorageName string = "nas"
+	//DiskStorageName represents the storage type name of Disk
+	DiskStorageName string = "disk"
+	//unknownStorageName represents the storage type name of Unknown
 	unknownStorageName string = "unknown"
-	ossDriverName      string = "ossplugin.csi.alibabacloud.com"
-	nasDriverName      string = "nasplugin.csi.alibabacloud.com"
-	diskDriverName     string = "diskplugin.csi.alibabacloud.com"
+	//ossDriverName represents the csi storage type name of Oss
+	ossDriverName string = "ossplugin.csi.alibabacloud.com"
+	//nasDriverName represents the csi storage type name of Nas
+	nasDriverName string = "nasplugin.csi.alibabacloud.com"
+	//diskDriverName represents the csi storage type name of Disk
+	diskDriverName string = "diskplugin.csi.alibabacloud.com"
 )
 
 const (
-	defaultNamespace string = "default"
 	clusterNamespace string = "cluster"
 	nodeNamespace    string = "node"
 )
 
 const (
-	scrapeSubSystem                string = "scrape"
-	volumeSubSystem                string = "volume"
-	persistentVolumeSubSystem      string = "pv"
-	persistentVolumeClaimSubSystem string = "pvc"
+	scrapeSubSystem string = "scrape"
+	volumeSubSystem string = "volume"
 )
 
 const (
-	diskSectorSize  = 512
-	counterInitSize = 1
+	diskSectorSize = 512
 )
 
 const (
@@ -41,176 +44,32 @@ const (
 )
 
 var (
-	shellType        = "bash"
 	metricType       string
 	nodeMetricSet    = hashset.New("diskstat")
-	clusterMetricSet = hashset.New("pv", "pvc")
+	clusterMetricSet = hashset.New("")
 )
 
 const (
-	nodeServer    = "node-server"
-	clusterServer = "cluster-server"
+	// PluginService represents the csi-plugin type.
+	pluginService = "plugin"
+	// ProvisionerService represents the csi-provisioner type.
+	provisionerService = "provisioner"
 )
 
 const (
 	volDataFile      = "vol_data.json"
-	csiMountKeyWords = "kubernetes.io~csi"
+	csiMountKeyWords = "volumes/kubernetes.io~csi"
 	procPath         = procfs.DefaultMountPoint + "/"
 	podsRootPath     = "/var/lib/kubelet/pods"
 )
 
-const (
-	NodeStageVolumeAction     = "NodeStageVolume"
-	NodeUnstageVolumeAction   = "NodeUnstageVolume"
-	NodePublishVolumeAction   = "NodePublishVolume"
-	NodeUnPublishVolumeAction = "NodeUnPublishVolume"
-	CreateVolumeAction        = "CreateVolume"
-	DeleteVolumeAction        = "DeleteVolume"
-)
+type collectorFactoryFunc = func() (Collector, error)
 
+//CSICollectorInstance is a single instance of CSICollector
+//Factories are the mapping between monitoring types and collectorFactoryFunc
 var (
-	diskStatLabelNames              = []string{"namespace", "persistentvolumeclaim", "device", "type"}
-	nasStatLabelNames               = []string{"persistentvolumeclaim", "type"}
-	persistentVolumeLabelNames      = []string{"type", "status"}
-	persistentVolumeClaimLabelNames = []string{"type", "status"}
-	actionLabelNames                = []string{"persistentvolumeclaim", "type", "action"}
-)
-
-var (
-	ActionCollectorInstance *actionCollector = nil
-	CSICollectorInstance    *CSICollector    = nil
-	factories                                = make(map[string]func() (Collector, error))
-)
-
-var (
-	scrapeDurationDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(clusterNamespace, scrapeSubSystem, "collector_duration_seconds"),
-		"csi_metric: Duration of a collector scrape.",
-		[]string{"collector"},
-		nil,
-	)
-	scrapeSuccessDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(clusterNamespace, scrapeSubSystem, "collector_success"),
-		"csi_metric: Whether a collector succeeded.",
-		[]string{"collector"},
-		nil,
-	)
-	persistentVolumeCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(clusterNamespace, persistentVolumeSubSystem, "counter"),
-		"The total number of Persistent Volume",
-		persistentVolumeLabelNames, nil,
-	)
-	persistentVolumeClaimCounterDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(clusterNamespace, persistentVolumeClaimSubSystem, "counter"),
-		"The total number of Persistent Volume Claim",
-		persistentVolumeClaimLabelNames, nil,
-	)
-	//4 - reads completed successfully
-	diskReadsCompletedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_read_complete_total"),
-		"The total number of reads completed successfully.",
-		diskStatLabelNames, nil,
-	)
-	//5 - reads merged
-	diskReadsMergeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_read_merge_total"),
-		"The total number of reads merged.",
-		diskStatLabelNames,
-		nil,
-	)
-	//6 - sectors read
-	diskReadBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_read_byte_total"),
-		"The total number of bytes read successfully.",
-		diskStatLabelNames, nil,
-	)
-	//7 - time spent reading (ms)
-	diskReadTimeSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_read_time_second_total"),
-		"The total number of seconds spent by all reads.",
-		diskStatLabelNames,
-		nil,
-	)
-	//8 - writes completed
-	diskWritesCompletedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_write_complete_total"),
-		"The total number of writes completed successfully.",
-		diskStatLabelNames, nil,
-	)
-	//9 - writes merged
-	diskWriteMergeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_write_merge_total"),
-		"The number of writes merged.",
-		diskStatLabelNames,
-		nil,
-	)
-	//10 - sectors written
-	diskWrittenBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_write_byte_total"),
-		"The total number of bytes written successfully.",
-		diskStatLabelNames, nil,
-	)
-
-	//11 - time spent writing (ms)
-	diskWriteTimeSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_write_time_second_total"),
-		"This is the total number of seconds spent by all writes.",
-		diskStatLabelNames,
-		nil,
-	)
-	//12 - I/Os currently in progress
-	diskIONowDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_io_now"),
-		"The number of I/Os currently in progress.",
-		diskStatLabelNames,
-		nil,
-	)
-	//disk action Duration
-	actionTimeSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "action_time_second_total"),
-		"This is the total number of seconds spent by this pv.",
-		actionLabelNames,
-		nil,
-	)
-
-	//4 - reads completed successfully
-	nasReadsCompletedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "nas_read_complete_total"),
-		"The total number of reads completed successfully.",
-		nasStatLabelNames, nil,
-	)
-	//6 - sectors read
-	nasReadBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "nas_read_byte_total"),
-		"The total number of bytes read successfully.",
-		nasStatLabelNames, nil,
-	)
-	//7 - time spent reading (ms)
-	nasReadTimeSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "nas_read_time_second_total"),
-		"The total number of seconds spent by all reads.",
-		nasStatLabelNames,
-		nil,
-	)
-	//8 - writes completed
-	nasWritesCompletedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "nas_writes_complete_total"),
-		"The total number of writes completed successfully.",
-		nasStatLabelNames, nil,
-	)
-	//10 - sectors written
-	nasWrittenBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "nas_written_byte_total"),
-		"The total number of bytes written successfully.",
-		nasStatLabelNames, nil,
-	)
-	//11 - time spent writing (ms)
-	nasWriteTimeSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "nas_write_time_second_total"),
-		"This is the total number of seconds spent by all writes.",
-		nasStatLabelNames,
-		nil,
-	)
+	CSICollectorInstance *CSICollector
+	factories            = make(map[string]collectorFactoryFunc)
 )
 
 type typedFactorDesc struct {

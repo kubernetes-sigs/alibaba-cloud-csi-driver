@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
@@ -23,15 +22,6 @@ import (
 var vfOnce = new(sync.Once)
 var isVF = false
 
-// GetPVList fetch and update the list of PV.
-func getPersistentVolumeList(clientSet *kubernetes.Clientset) (*apicorev1.PersistentVolumeList, error) {
-	persistentVolumeList, err := clientSet.CoreV1().PersistentVolumes().List(apismetav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return persistentVolumeList, nil
-}
-
 func getPvcByPvName(clientSet *kubernetes.Clientset, pvName string) (string, string, error) {
 	pv, err := clientSet.CoreV1().PersistentVolumes().Get(pvName, apismetav1.GetOptions{})
 	if err != nil {
@@ -39,121 +29,39 @@ func getPvcByPvName(clientSet *kubernetes.Clientset, pvName string) (string, str
 	}
 	if pv.Status.Phase == apicorev1.VolumeBound {
 		return pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, nil
-	} else {
-		return "", "", errors.New("pvName:" + pv.Name + " status is not bound.")
 	}
+	return "", "", errors.New("pvName:" + pv.Name + " status is not bound.")
 }
-
-// getPersistentVolumeClaimList fetch and update the list of PVC.
-func getPersistentVolumeClaimList(clientSet *kubernetes.Clientset, namespaces string) (*apicorev1.PersistentVolumeClaimList, error) {
-	persistentVolumeClaimList, err := clientSet.CoreV1().PersistentVolumeClaims(namespaces).List(apismetav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return persistentVolumeClaimList, nil
-}
-
-// getPersistentVolumeDriver get the specified VolumeName Driver.
-func getPersistentVolumeDriver(clientSet *kubernetes.Clientset, volumeName string) (*string, error) {
-	persistentVolume, err := clientSet.CoreV1().PersistentVolumes().Get(volumeName, apismetav1.GetOptions{})
-	if err != nil {
-		logrus.Infof("Get Persistent Volume error:%s", err.Error())
-		return nil, err
-	}
-	if persistentVolume.Spec.CSI == nil {
-		return nil, nil
-	}
-
-	return &persistentVolume.Spec.CSI.Driver, nil
-}
-
-/*func execByShell(command string) (error, string, string) {
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd := exec.Command(shellType, "-c", command)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	return err, stdout.String(), stderr.String()
-}*/
 
 func procFilePath(name string) string {
 	return filepath.Join(procPath, name)
 }
 
-/*func getNameByMountPath(mountPath string) (string, error) {
-	mountKeyIndex := strings.LastIndex(mountPath, "mount")
-	mountPath = mountPath[0:mountKeyIndex]
-	volDataPath := mountPath + volDataFile
-	volDataMap, err := utils.ReadJSONFile(volDataPath)
-	if err != nil {
-		return "", err
-	}
-	return volDataMap["volumeHandle"], nil
-}*/
-
-/*func getStdoutArray(cmd string, sep string) ([]string, error) {
-	err, stdout, stderr := execByShell(cmd)
-	if err != nil {
-		return nil, err
-	}
-	if len(stderr) != 0 {
-		return nil, errors.New(stderr)
-	}
-	stdoutArray := strings.Split(stdout, sep)
-	return stdoutArray, err
-}
-
-func getMountPath(cmd string, sep string) (string, error) {
-	stdoutArray, err := getStdoutArray(cmd, sep)
-	if err != nil {
-		return "", err
-	}
-	for _, str := range stdoutArray {
-		if strings.Contains(str, csiMountKeyWords) {
-			return str, nil
-		}
-	}
-	return "", errors.New("Don't get persistent volume name")
-}
-
-func getMountPathByDevice(deviceName string) (string, error) {
-	cmd := "mount | grep pod | grep " + csiMountKeyWords + " | grep " + deviceName + " | grep -v container"
-	return getMountPath(cmd, " ")
-
-}
-
-func getMountPathByVolumeName(volumeName string) (string, error) {
-	cmd := "mount | grep pod " + " | grep " + volumeName + " | grep -v container"
-	return getMountPath(cmd, " ")
-}*/
-
-func getVolumeIDByJson(volDataJsonPath string, volType string) (string, error) {
-	volDataMap, err := utils.ReadJSONFile(volDataJsonPath)
+func getVolumeIDByJSON(volDataJSONPath string, volType string) (string, error) {
+	volDataMap, err := utils.ReadJSONFile(volDataJSONPath)
 	if err != nil {
 		return "", err
 	}
 	if volDataMap["driverName"] == volType {
 		return volDataMap["volumeHandle"], nil
-	} else {
-		return  "", errors.New("VolumeType is not the expected type")
 	}
+	return "", errors.New("VolumeType is not the expected type")
 }
 
-func findVolDataJsonFileByPattern(rootDir string) ([]string, error) {
+func findVolDataJSONFileByPattern(rootDir string) ([]string, error) {
 	resDir := make([]string, 0)
 	rootFiles, err := ioutil.ReadDir(rootDir)
 	if err != nil {
 		return nil, err
 	}
 	for _, rootFile := range rootFiles {
-		csiDir := rootDir + "/" + rootFile.Name() + "/" + "volumes/kubernetes.io~csi"
+		csiDir := rootDir + "/" + rootFile.Name() + "/" + csiMountKeyWords
 		csiFiles, err := ioutil.ReadDir(csiDir)
 		if err != nil {
 			continue
 		}
 		for _, csiFile := range csiFiles {
-			volDataDir := csiDir + "/" + csiFile.Name() + "/" + "vol_data.json"
+			volDataDir := csiDir + "/" + csiFile.Name() + "/" + volDataFile
 			if utils.IsFileExisting(volDataDir) {
 				resDir = append(resDir, volDataDir)
 			}

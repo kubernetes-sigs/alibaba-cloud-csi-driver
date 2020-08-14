@@ -18,8 +18,6 @@ package disk
 
 import (
 	"fmt"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
-	"github.com/prometheus/client_golang/prometheus"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -198,8 +196,6 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 
 // csi disk driver: bind directory from global to pod.
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
-	defer metric.CollectDesc(req.VolumeId, metric.NodePublishVolumeAction, metric.DiskStorageName, timer, metric.ActionCollectorInstance)
 	// check target mount path
 	sourcePath := req.StagingTargetPath
 	// running in runc/runv mode
@@ -214,9 +210,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: unmountStageTarget "+sourcePath+" with error: "+err.Error())
 			}
 			deviceName, err := GetDeviceByVolumeID(req.VolumeId)
-			if deviceName == "" {
-				deviceName, err = GetDeviceByUUID(req.VolumeId)
-			}
 			if err != nil && deviceName == "" {
 				deviceName = getVolumeConfig(req.VolumeId)
 			}
@@ -299,9 +292,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if sourceNotMounted {
 		device, _ := GetDeviceByVolumeID(req.GetVolumeId())
-		if device == "" {
-			device, _ = GetDeviceByUUID(req.GetVolumeId())
-		}
 		if device != "" {
 			if err := ns.mountDeviceToGlobal(req.VolumeCapability, req.VolumeContext, device, sourcePath); err != nil {
 				log.Errorf("NodePublishVolume: VolumeId: %s, remount disk to global %s error: %s", req.VolumeId, sourcePath, err.Error())
@@ -351,9 +341,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
-	defer metric.CollectDesc(req.VolumeId, metric.NodeUnPublishVolumeAction, metric.DiskStorageName, timer, metric.ActionCollectorInstance)
-
 	targetPath := req.GetTargetPath()
 	log.Infof("NodeUnpublishVolume: Starting to Unmount Volume %s, Target %v", req.VolumeId, targetPath)
 	// Step 1: check folder exists
@@ -405,6 +392,10 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		log.Errorf("NodeUnpublishVolume: volumeId: %s, umount path: %s with error: %s", req.VolumeId, targetPath, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	if utils.IsMounted(targetPath) {
+		log.Errorf("NodeUnpublishVolume: TargetPath mounted yet: volumeId: %s with target %s", req.VolumeId, targetPath)
+		return nil, status.Error(codes.Internal, "NodeUnpublishVolume: TargetPath mounted yet with target"+targetPath)
+	}
 
 	// below directory can not be umounted by kubelet in ack
 	if err := ns.unmountDuplicateMountPoint(targetPath); err != nil {
@@ -416,9 +407,6 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 }
 
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
-	defer metric.CollectDesc(req.VolumeId, metric.NodeStageVolumeAction, metric.DiskStorageName, timer, metric.ActionCollectorInstance)
-
 	log.Infof("NodeStageVolume: Stage VolumeId: %s, Target Path: %s, VolumeContext: %v", req.GetVolumeId(), req.StagingTargetPath, req.VolumeContext)
 
 	// Step 1: check input parameters
@@ -478,9 +466,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	if GlobalConfigVar.ADControllerEnable {
 		var bdf string
 		device, err = GetDeviceByVolumeID(req.GetVolumeId())
-		if device == "" {
-			device, err = GetDeviceByUUID(req.GetVolumeId())
-		}
 		if IsVFNode() && device == "" {
 			if bdf, err = bindBdfDisk(req.GetVolumeId()); err != nil {
 				if err := unbindBdfDisk(req.GetVolumeId()); err != nil {
@@ -489,9 +474,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf disk: %v", err)
 			}
 			device, err = GetDeviceByVolumeID(req.GetVolumeId())
-			if device == "" {
-				device, err = GetDeviceByUUID(req.GetVolumeId())
-			}
 			if bdf != "" && device == "" {
 				device, err = GetDeviceByBdf(bdf)
 			}
@@ -529,7 +511,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 					log.Errorf("NodeStageVolume: Volume Block System Config with cmd: %s, get error: %v", configCmd, err)
 					return nil, status.Error(codes.Aborted, "NodeStageVolume: Volume Block System Config with cmd:"+configCmd+", error with: "+err.Error())
 				}
-				log.Errorf("NodeStageVolume: Volume Block System Config Successful with command: %s, for volume: %v", configCmd, req.VolumeId)
+				log.Infof("NodeStageVolume: Volume Block System Config Successful with command: %s, for volume: %v", configCmd, req.VolumeId)
 			} else {
 				log.Errorf("NodeStageVolume: Volume Block System Config with format error: %s", configStr)
 				return nil, status.Error(codes.Aborted, "NodeStageVolume: Volume Block System Config with format error "+configStr)
@@ -539,6 +521,10 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 
 	// Block volume not need to format
 	if isBlock {
+		if utils.IsMounted(targetPath) {
+			log.Infof("NodeStageVolume: Block Already Mounted: volumeId: %s with target %s", req.VolumeId, targetPath)
+			return &csi.NodeStageVolumeResponse{}, nil
+		}
 		options := []string{"bind"}
 		if err := ns.mounter.MountBlock(device, targetPath, options...); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -577,19 +563,13 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-	// save diskID and uuid info
-	SaveUUID(req.VolumeId, device)
 
 	log.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v, device: %s, mkfsOptions: %v", req.VolumeId, targetPath, device, mkfsOptions)
-
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
 // target format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
-	defer metric.CollectDesc(req.VolumeId, metric.NodeUnstageVolumeAction, metric.DiskStorageName, timer, metric.ActionCollectorInstance)
-
 	log.Infof("NodeUnstageVolume:: Starting to Unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
 	if req.VolumeId == "" {
 		return nil, status.Error(codes.InvalidArgument, "NodeUnstageVolume Volume ID must be provided")
@@ -634,6 +614,10 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			if err != nil {
 				log.Errorf("NodeUnstageVolume: VolumeId: %s, umount path: %s failed with: %v", req.VolumeId, targetPath, err)
 				return nil, status.Error(codes.Internal, err.Error())
+			}
+			if utils.IsMounted(targetPath) {
+				log.Errorf("NodeUnstageVolume: TargetPath mounted yet: volumeId: %s with target %s", req.VolumeId, targetPath)
+				return nil, status.Error(codes.Internal, "NodeUnstageVolume: TargetPath mounted yet with target"+targetPath)
 			}
 		} else {
 			msgLog = fmt.Sprintf("NodeUnstageVolume: VolumeId: %s, mountpoint: %s not mounted, skipping and continue to detach", req.VolumeId, targetPath)

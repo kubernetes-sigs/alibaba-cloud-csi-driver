@@ -20,8 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
-	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"io/ioutil"
@@ -73,9 +71,6 @@ const (
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
-	defer metric.CollectDesc(req.VolumeId, metric.NodePublishVolumeAction, metric.OssStorageName, timer, metric.ActionCollectorInstance)
-
 	// logout oss paras
 	log.Infof("NodePublishVolume:: Starting Mount volume: %s to path: %s", req.VolumeId, req.TargetPath)
 	mountPath := req.GetTargetPath()
@@ -301,9 +296,6 @@ func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
-	defer metric.CollectDesc(req.VolumeId, metric.NodeUnPublishVolumeAction, metric.OssStorageName, timer, metric.ActionCollectorInstance)
-
 	log.Infof("NodeUnpublishVolume:: Starting Umount OSS: %s", req.TargetPath)
 	mountPoint := req.TargetPath
 	if !IsOssfsMounted(mountPoint) {
