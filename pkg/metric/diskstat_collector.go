@@ -13,6 +13,72 @@ import (
 	"sync"
 )
 
+var (
+	diskStatLabelNames = []string{"namespace", "persistentvolumeclaim", "device", "type"}
+)
+
+var (
+	//4 - reads completed successfully
+	diskReadsCompletedDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_read_completed_total"),
+		"The total number of reads completed successfully.",
+		diskStatLabelNames, nil,
+	)
+	//5 - reads merged
+	diskReadsMergeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_read_merged_total"),
+		"The total number of reads merged.",
+		diskStatLabelNames,
+		nil,
+	)
+	//6 - sectors read
+	diskReadBytesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_read_bytes_total"),
+		"The total number of bytes read successfully.",
+		diskStatLabelNames, nil,
+	)
+	//7 - time spent reading (ms)
+	diskReadTimeSecondsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_read_time_seconds_total"),
+		"The total number of seconds spent by all reads.",
+		diskStatLabelNames,
+		nil,
+	)
+	//8 - writes completed
+	diskWritesCompletedDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_write_completed_total"),
+		"The total number of writes completed successfully.",
+		diskStatLabelNames, nil,
+	)
+	//9 - writes merged
+	diskWriteMergeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_write_merged_total"),
+		"The number of writes merged.",
+		diskStatLabelNames,
+		nil,
+	)
+	//10 - sectors written
+	diskWrittenBytesDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_write_bytes_total"),
+		"The total number of bytes written successfully.",
+		diskStatLabelNames, nil,
+	)
+	//11 - time spent writing (ms)
+	diskWriteTimeSecondsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_write_time_seconds_total"),
+		"This is the total number of seconds spent by all writes.",
+		diskStatLabelNames,
+		nil,
+	)
+	//12 - I/Os currently in progress
+	diskIONowDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "disk_io_now"),
+		"The number of I/Os currently in progress.",
+		diskStatLabelNames,
+		nil,
+	)
+)
+
 type diskStatCollector struct {
 	descs             []typedFactorDesc
 	lastPvPathMapping map[string]string   //key:pvName,value:mountPath
@@ -24,7 +90,7 @@ func init() {
 	registerCollector("diskstat", NewDiskStatCollector)
 }
 
-// NewPVUsageCollector returns a new Collector exposing pv stats.
+// NewDiskStatCollector returns a new Collector exposing disk stats.
 func NewDiskStatCollector() (Collector, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -39,23 +105,23 @@ func NewDiskStatCollector() (Collector, error) {
 	return &diskStatCollector{
 		descs: []typedFactorDesc{
 			//4 - reads completed successfully
-			{desc: diskReadsCompletedDesc, valueType: prometheus.CounterValue,},
+			{desc: diskReadsCompletedDesc, valueType: prometheus.CounterValue},
 			//5 - reads merged
-			{desc: diskReadsMergeDesc, valueType: prometheus.CounterValue,},
+			{desc: diskReadsMergeDesc, valueType: prometheus.CounterValue},
 			//6 - sectors read
-			{desc: diskReadBytesDesc, valueType: prometheus.CounterValue, factor: diskSectorSize,},
+			{desc: diskReadBytesDesc, valueType: prometheus.CounterValue, factor: diskSectorSize},
 			//7 - time spent reading (ms)
-			{desc: diskReadTimeSecondsDesc, valueType: prometheus.CounterValue, factor: .001,},
+			{desc: diskReadTimeSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
 			//8 - writes completed
-			{desc: diskWritesCompletedDesc, valueType: prometheus.CounterValue,},
+			{desc: diskWritesCompletedDesc, valueType: prometheus.CounterValue},
 			//9 - writes merged
-			{desc: diskWriteMergeDesc, valueType: prometheus.CounterValue,},
+			{desc: diskWriteMergeDesc, valueType: prometheus.CounterValue},
 			//10 - sectors written
-			{desc: diskWrittenBytesDesc, valueType: prometheus.CounterValue, factor: diskSectorSize,},
+			{desc: diskWrittenBytesDesc, valueType: prometheus.CounterValue, factor: diskSectorSize},
 			//11 - time spent writing (ms)
-			{desc: diskWriteTimeSecondsDesc, valueType: prometheus.CounterValue, factor: .001,},
+			{desc: diskWriteTimeSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
 			//12 - I/Os currently in progress
-			{desc: diskIONowDesc, valueType: prometheus.GaugeValue,},
+			{desc: diskIONowDesc, valueType: prometheus.GaugeValue},
 		},
 		lastPvPathMapping: make(map[string]string, 0),
 		lastPvPvcMapping:  make(map[string][]string, 0),
@@ -69,16 +135,16 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get diskstats: %s", err)
 	}
-	volDataJsonPath, err := findVolDataJsonFileByPattern(podsRootPath)
+	volDataJSONPath, err := findVolDataJSONFileByPattern(podsRootPath)
 	if err != nil {
 		return err
 	}
 
 	pvDeviceNameMapping := make(map[string]string, 0)
 	thisPvPathMapping := make(map[string]string, 0)
-	for _, path := range volDataJsonPath {
+	for _, path := range volDataJSONPath {
 		//Get disk pvName
-		pvName, err := getVolumeIDByJson(path, diskDriverName)
+		pvName, err := getVolumeIDByJSON(path, diskDriverName)
 		if err != nil {
 			continue
 		}
@@ -94,9 +160,9 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	updateLastPvcMapping(thisPvPathMapping, &p.lastPvPathMapping, p.clientSet, &p.lastPvPvcMapping)
 	wg := sync.WaitGroup{}
 	for dev, stats := range diskStats {
-		pvName, ok := pvDeviceNameMapping[dev]
-		pvcArr, ok := p.lastPvPvcMapping[pvName]
-		if ok {
+		pvName, getPv := pvDeviceNameMapping[dev]
+		pvcArr, getPvc := p.lastPvPvcMapping[pvName]
+		if getPv && getPvc && len(pvcArr) == 2 {
 			pvcNamespace := pvcArr[0]
 			pvcName := pvcArr[1]
 			wg.Add(1)

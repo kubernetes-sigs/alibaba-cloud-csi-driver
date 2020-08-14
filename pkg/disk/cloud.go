@@ -98,9 +98,6 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 					return "", nil
 				}
 				deviceName := GetVolumeDeviceName(diskID)
-				if deviceName == "" {
-					deviceName, _ = GetDeviceByUUID(diskID)
-				}
 				if deviceName != "" && IsFileExisting(deviceName) {
 					// TODO:
 					if used, err := IsDeviceUsedOthers(deviceName, diskID); err == nil && used == false {
@@ -174,9 +171,6 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 	// step 5: diff device with previous files under /dev
 	if !GlobalConfigVar.ADControllerEnable {
 		deviceName, _ := GetDeviceByVolumeID(diskID)
-		if deviceName == "" {
-			deviceName, _ = GetDeviceByUUID(diskID)
-		}
 		if deviceName != "" {
 			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device mapping/uuid", diskID, nodeID, deviceName)
 			return deviceName, nil
@@ -196,9 +190,6 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 			}
 
 			deviceName, err := GetDeviceByVolumeID(diskID)
-			if deviceName == "" {
-				deviceName, err = GetDeviceByUUID(diskID)
-			}
 			if len(deviceName) == 0 && bdf != "" {
 				deviceName, err = GetDeviceByBdf(bdf)
 			}
@@ -491,24 +482,21 @@ func findDiskByID(diskID string) (*ecs.Disk, error) {
 	return &disks[0], err
 }
 
-func findSnapshotByName(name string) (*diskSnapshot, error) {
+func findSnapshotByName(name string) (*diskSnapshot, int, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
 	describeSnapShotRequest.SnapshotName = name
 	snapshots, err := GlobalConfigVar.EcsClient.DescribeSnapshots(describeSnapShotRequest)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if len(snapshots.Snapshots.Snapshot) == 0 {
-		return nil, nil
-	}
-	if len(snapshots.Snapshots.Snapshot) > 1 {
-		return nil, status.Error(codes.Internal, "find more than one snapshot with name "+name)
+		return nil, 0, nil
 	}
 	existSnapshot := snapshots.Snapshots.Snapshot[0]
 	t, err := time.Parse(time.RFC3339, existSnapshot.CreationTime)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", existSnapshot.CreationTime)
+		return nil, 0, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", existSnapshot.CreationTime)
 	}
 	timestamp := timestamp.Timestamp{Seconds: t.Unix()}
 	sizeGb, _ := strconv.ParseInt(existSnapshot.SourceDiskSize, 10, 64)
@@ -526,23 +514,48 @@ func findSnapshotByName(name string) (*diskSnapshot, error) {
 		SizeBytes:    sizeBytes,
 		ReadyToUse:   readyToUse,
 	}
-	return resSnapshot, nil
+	if len(snapshots.Snapshots.Snapshot) > 1 {
+		return resSnapshot, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with name "+name)
+	}
+	return resSnapshot, 1, nil
 }
 
-func findSnapshotByID(id string) (*ecs.Snapshot, error) {
+func findDiskSnapshotByID(id string) (*diskSnapshot, int, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
 	describeSnapShotRequest.SnapshotIds = "[\"" + id + "\"]"
 	snapshots, err := GlobalConfigVar.EcsClient.DescribeSnapshots(describeSnapShotRequest)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if len(snapshots.Snapshots.Snapshot) == 0 {
-		return nil, nil
+		return nil, 0, nil
+	}
+
+	existSnapshot := snapshots.Snapshots.Snapshot[0]
+	t, err := time.Parse(time.RFC3339, existSnapshot.CreationTime)
+	if err != nil {
+		return nil, 0, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", existSnapshot.CreationTime)
+	}
+	timestamp := timestamp.Timestamp{Seconds: t.Unix()}
+	sizeGb, _ := strconv.ParseInt(existSnapshot.SourceDiskSize, 10, 64)
+	sizeBytes := sizeGb * 1024 * 1024
+	readyToUse := false
+	if existSnapshot.Status == "accomplished" {
+		readyToUse = true
+	}
+
+	resSnapshot := &diskSnapshot{
+		Name:         id,
+		ID:           existSnapshot.SnapshotId,
+		VolID:        existSnapshot.SourceDiskId,
+		CreationTime: timestamp,
+		SizeBytes:    sizeBytes,
+		ReadyToUse:   readyToUse,
+		SnapshotTags: existSnapshot.Tags.Tag,
 	}
 	if len(snapshots.Snapshots.Snapshot) > 1 {
-		return nil, status.Error(codes.Internal, "find more than one snapshot with id "+id)
+		return resSnapshot, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with id "+id)
 	}
-	existSnapshot := snapshots.Snapshots.Snapshot[0]
-	return &existSnapshot, nil
+	return resSnapshot, 1, nil
 }

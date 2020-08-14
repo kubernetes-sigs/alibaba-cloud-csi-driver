@@ -19,9 +19,11 @@ package main
 import (
 	"flag"
 	"io"
+	"net/http"
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
@@ -32,6 +34,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mem"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/om"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
 	"github.com/prometheus/common/version"
 	log "github.com/sirupsen/logrus"
@@ -42,11 +45,10 @@ func init() {
 }
 
 func setPrometheusVersion() {
-	version.Version = Version
-	version.Revision = Revision
-	version.Branch = Branch
-	version.BuildUser = BuildUser
-	version.BuildDate = BuildTime
+	version.Version = VERSION
+	version.Revision = REVISION
+	version.Branch = BRANCH
+	version.BuildDate = BUILDTIME
 }
 
 const (
@@ -54,6 +56,18 @@ const (
 	LogfilePrefix = "/var/log/alicloud/"
 	// MBSIZE MB size
 	MBSIZE = 1024 * 1024
+	// TypePluginSuffix is the suffix of all storage plugins.
+	TypePluginSuffix = "plugin.csi.alibabacloud.com"
+	// TypePluginVar is the yaml variable that needs to be replaced.
+	TypePluginVar = "driverplugin.csi.alibabacloud.com-replace"
+	// PluginService represents the csi-plugin type.
+	PluginService = "plugin"
+	// ProvisionerService represents the csi-provisioner type.
+	ProvisionerService = "provisioner"
+	//PluginServicePort default port is 11260.
+	PluginServicePort = "11260"
+	//ProvisionerServicePort default port is 11270.
+	ProvisionerServicePort = "11270"
 	// TypePluginDISK DISK type plugin
 	TypePluginDISK = "diskplugin.csi.alibabacloud.com"
 	// TypePluginNAS NAS type plugin
@@ -68,23 +82,26 @@ const (
 	TypePluginMEM = "memplugin.csi.alibabacloud.com"
 	// TypePluginLOCAL local type plugin
 	TypePluginLOCAL = "localplugin.csi.alibabacloud.com"
+	// TypePluginYODA local type plugin
+	TypePluginYODA = "yodaplugin.csi.alibabacloud.com"
 	// ExtenderAgent agent component
 	ExtenderAgent = "agent"
 )
 
 // BRANCH is CSI Driver Branch
-var Branch = ""
+var BRANCH = ""
 
 // VERSION is CSI Driver Version
-var Version = ""
+var VERSION = ""
 
 // COMMITID is CSI Driver CommitID
-var Revision = ""
+var COMMITID = ""
 
 // BUILDTIME is CSI Driver Buildtime
-var BuildTime = ""
+var BUILDTIME = ""
 
-var BuildUser = ""
+// REVISION is CSI Driver Revision
+var REVISION = ""
 
 var (
 	endpoint        = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
@@ -95,79 +112,150 @@ var (
 )
 
 type globalMetricConfig struct {
-	enableMetric string
-	serverType   string
+	enableMetric bool
+	serviceType  string
 }
 
 // Nas CSI Plugin
 func main() {
 	flag.Parse()
+	setLogAttribute(TypePluginSuffix)
 
-	// set log config
-	setLogAttribute(*driver)
+	log.Infof("Multi CSI Driver Name: %s, nodeID: %s, endPoints: %s", *driver, *nodeID, *endpoint)
+	log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", BRANCH, VERSION, BUILDTIME)
 
-	if err := createPersistentStorage(path.Join(*rootDir, *driver, "controller")); err != nil {
-		log.Errorf("failed to create persistent storage for controller: %v", err)
-		os.Exit(1)
+	multiDriverNames := *driver
+	endPointName := *endpoint
+	driverNames := strings.Split(multiDriverNames, ",")
+	var wg sync.WaitGroup
+
+	// Storage devops
+	go om.StorageOM()
+
+	for _, driverName := range driverNames {
+		wg.Add(1)
+		if !strings.Contains(driverName, TypePluginSuffix) && driverName != ExtenderAgent {
+			driverName = joinCsiPluginSuffix(driverName)
+			if strings.Contains(*endpoint, TypePluginVar) {
+				endPointName = replaceCsiEndpoint(driverName, *endpoint)
+			} else {
+				log.Fatalf("Csi endpoint:%s", *endpoint)
+			}
+		}
+		if driverName == TypePluginYODA {
+			driverName = TypePluginLOCAL
+		}
+		if err := createPersistentStorage(path.Join(*rootDir, driverName, "controller")); err != nil {
+			log.Errorf("failed to create persistent storage for controller: %v", err)
+			os.Exit(1)
+		}
+		if err := createPersistentStorage(path.Join(*rootDir, driverName, "node")); err != nil {
+			log.Errorf("failed to create persistent storage for node: %v", err)
+			os.Exit(1)
+		}
+		switch driverName {
+		case TypePluginNAS:
+			go func(endPoint string) {
+				defer wg.Done()
+				driver := nas.NewDriver(*nodeID, endPoint)
+				driver.Run()
+			}(endPointName)
+		case TypePluginOSS:
+			go func(endPoint string) {
+				defer wg.Done()
+				driver := oss.NewDriver(*nodeID, endPoint)
+				driver.Run()
+			}(endPointName)
+		case TypePluginDISK:
+			go func(endPoint string) {
+				defer wg.Done()
+				driver := disk.NewDriver(*nodeID, endPoint, *runAsController)
+				driver.Run()
+			}(endPointName)
+
+		case TypePluginLVM:
+			go func(endPoint string) {
+				defer wg.Done()
+				driver := lvm.NewDriver(*nodeID, endPoint)
+				driver.Run()
+			}(endPointName)
+		case TypePluginCPFS:
+			go func(endPoint string) {
+				defer wg.Done()
+				driver := cpfs.NewDriver(*nodeID, endPoint)
+				driver.Run()
+			}(endPointName)
+		case TypePluginMEM:
+			go func(endPoint string) {
+				defer wg.Done()
+				driver := mem.NewDriver(*nodeID, endPoint)
+				driver.Run()
+			}(endPointName)
+		case TypePluginLOCAL:
+			go func(endPoint string) {
+				defer wg.Done()
+				driver := local.NewDriver(*nodeID, endPoint)
+				driver.Run()
+			}(endPointName)
+		case ExtenderAgent:
+			go func() {
+				defer wg.Done()
+				queryServer := agent.NewAgent()
+				queryServer.RunAgent()
+			}()
+		default:
+			log.Fatalf("CSI start failed, not support driver: %s", driverName)
+		}
 	}
-	if err := createPersistentStorage(path.Join(*rootDir, *driver, "node")); err != nil {
-		log.Errorf("failed to create persistent storage for node: %v", err)
-		os.Exit(1)
+	servicePort := os.Getenv("SERVICE_PORT")
+	serviceType := os.Getenv("SERVICE_TYPE")
+	if len(serviceType) == 0 || serviceType == "" {
+		serviceType = PluginService
 	}
 
-	setPrometheusVersion()
+	// When serviceType is neither plugin nor provisioner, the program will exits.
+	if serviceType != PluginService && serviceType != ProvisionerService {
+		log.Fatalf("Service type is unknown:%s", serviceType)
+	}
+	if len(servicePort) == 0 || servicePort == "" {
+		switch serviceType {
+		case PluginService:
+			servicePort = PluginServicePort
+		case ProvisionerService:
+			servicePort = ProvisionerServicePort
+		default:
+		}
+	}
+
 	metricConfig := &globalMetricConfig{
-		"false",
-		"node-server",
+		false,
+		"plugin",
 	}
 
 	enableMetric := os.Getenv("ENABLE_METRIC")
 	if enableMetric == "true" {
-		metricConfig.enableMetric = enableMetric
-		serverType := os.Getenv("SERVER_TYPE")
-		if serverType != "node-server" {
-			metricConfig.serverType = serverType
-		}
+		setPrometheusVersion()
+		metricConfig.enableMetric = true
+		metricConfig.serviceType = serviceType
 	}
 
-	if metricConfig.enableMetric == "true" {
-		go metric.Run(":10260", "/metrics", metricConfig.serverType)
+	log.Info("CSI is running status.")
+	server := &http.Server{Addr: ":" + servicePort}
+
+	http.HandleFunc("/healthz", healthHandler)
+	log.Infof("Metric listening on address: /healthz")
+	if metricConfig.enableMetric {
+		metricHandler := metric.NewMetricHandler(metricConfig.serviceType)
+		http.Handle("/metrics", metricHandler)
+		log.Infof("Metric listening on address: /metrics")
 	}
 
-	drivername := *driver
-	log.Infof("CSI Driver Name: %s, %s, %s", drivername, *nodeID, *endpoint)
-	log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", Branch, Version, BuildTime)
-	if drivername == TypePluginNAS {
-		driver := nas.NewDriver(*nodeID, *endpoint)
-		driver.Run()
-	} else if drivername == TypePluginOSS {
-		driver := oss.NewDriver(*nodeID, *endpoint)
-		driver.Run()
-	} else if drivername == TypePluginDISK {
-		driver := disk.NewDriver(*nodeID, *endpoint, *runAsController)
-		driver.Run()
-	} else if drivername == TypePluginLVM {
-		driver := lvm.NewDriver(*nodeID, *endpoint)
-		driver.Run()
-	} else if drivername == TypePluginCPFS {
-		driver := cpfs.NewDriver(*nodeID, *endpoint)
-		driver.Run()
-	} else if drivername == TypePluginMEM {
-		driver := mem.NewDriver(*nodeID, *endpoint)
-		driver.Run()
-	} else if drivername == TypePluginLOCAL {
-		driver := local.NewDriver(*nodeID, *endpoint)
-		driver.Run()
-	} else if drivername == ExtenderAgent {
-		queryServer := agent.NewAgent()
-		queryServer.RunAgent()
-	} else {
-		log.Errorf("CSI start failed, not support driver: %s", drivername)
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatalf("Service port listen and serve err:%s", err.Error())
 	}
-
+	wg.Wait()
 	os.Exit(0)
 }
-
 func createPersistentStorage(persistentStoragePath string) error {
 	log.Infof("Create Stroage Path: %s", persistentStoragePath)
 	return os.MkdirAll(persistentStoragePath, os.FileMode(0755))
@@ -209,4 +297,19 @@ func setLogAttribute(driver string) {
 	} else {
 		log.SetOutput(f)
 	}
+}
+
+func joinCsiPluginSuffix(storageType string) string {
+	return storageType + TypePluginSuffix
+}
+
+func replaceCsiEndpoint(pluginType string, endPointName string) string {
+	return strings.Replace(endPointName, TypePluginVar, pluginType, -1)
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	time := time.Now()
+	message := "Liveness probe is OK, time:" + time.String()
+	w.Write([]byte(message))
 }

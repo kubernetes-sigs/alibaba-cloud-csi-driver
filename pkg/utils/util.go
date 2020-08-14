@@ -32,10 +32,8 @@ import (
 	"k8s.io/kubernetes/pkg/volume/util/fs"
 	"net/http"
 	"os"
-	"path"
-	"strconv"
-
 	"os/exec"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -439,9 +437,4 @@ func IsMountPointRunv(mountPoint string) bool {
 		}
 	}
 	return false
-}
-
-func IsNumeric(s string) bool {
-	_, err := strconv.ParseFloat(s, 64)
-	return err == nil
 }

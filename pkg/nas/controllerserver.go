@@ -19,8 +19,6 @@ package nas
 import (
 	"errors"
 	"fmt"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
-	"github.com/prometheus/client_golang/prometheus"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -64,6 +62,8 @@ const (
 	VpcID           = "vpcId"
 	VSwitchID       = "vSwitchId"
 	AccessGroupName = "accessGroupName"
+	RegionID        = "regionId"
+	CnHangzhouFin   = "cn-hangzhou-finance"
 	DeleteVolume    = "deleteVolume"
 )
 
@@ -84,6 +84,7 @@ type nasVolumeArgs struct {
 	Capacity        requests.Integer `json:"capacity"`
 	EncryptType     string           `json:"encryptType"`
 	SnapshotID      string           `json:"snapshotID"`
+	RegionID        string           `json:"regionID"`
 	ZoneID          string           `json:"zoneId"`
 	Description     string           `json:"description"`
 	NetworkType     string           `json:"networkType"`
@@ -124,9 +125,6 @@ func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region s
 
 // provisioner: create/delete nas volume
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
-	defer metric.CollectDesc(req.Name, metric.CreateVolumeAction, metric.NasStorageName, timer, metric.ActionCollectorInstance)
-
 	log.Infof("CreateVolume: Starting NFS CreateVolume, %s, %v", req.Name, req)
 
 	// step1: check pvc is created or not.
@@ -165,7 +163,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	volumeContext := map[string]string{}
 	csiTargetVol := &csi.Volume{}
 	if nasVol.VolumeAs == "filesystem" {
-		cs.nasClient = updateNasClient(cs.nasClient)
+		cs.nasClient = updateNasClient(cs.nasClient, nasVol.RegionID)
 		fileSystemID := ""
 		// if the pvc mapped fileSystem is already create, skip creating a filesystem
 		if value, ok := pvcFileSystemIDMap[pvName]; ok && value != "" {
@@ -318,9 +316,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 
 		// step5: Mount nfs server to localpath
-		if err := DoNfsMount(nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name); err != nil {
-			log.Errorf("CreateVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.Name, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, err.Error())
-			return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
+		if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+			if err := DoNfsMount(nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name); err != nil {
+				log.Errorf("CreateVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.Name, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, err.Error())
+				return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
+			}
 		}
 		if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
 			return nil, errors.New("Check Mount nfsserver not mounted " + nfsServer)
@@ -372,9 +372,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 // call nas api to delete disk
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(v float64) {}))
-	defer metric.CollectDesc(req.VolumeId, metric.DeleteVolumeAction, metric.NasStorageName, timer, metric.ActionCollectorInstance)
-
 	log.Infof("DeleteVolume: Starting deleting volume %s", req.GetVolumeId())
 
 	pvInfo, err := cs.client.CoreV1().PersistentVolumes().Get(req.VolumeId, metav1.GetOptions{})
@@ -423,7 +420,12 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			if fileSystemID == "" {
 				return nil, fmt.Errorf("DeleteVolume: Volume: %s in filesystem mode, with filesystemId empty", req.VolumeId)
 			}
-			cs.nasClient = updateNasClient(cs.nasClient)
+			regionID := ""
+			if value, ok := storageclass.Parameters[RegionID]; ok {
+				regionID = value
+			}
+
+			cs.nasClient = updateNasClient(cs.nasClient, regionID)
 			isMountTargetDelete := false
 			describeMountTargetRequest := aliNas.CreateDescribeMountTargetsRequest()
 			describeMountTargetRequest.FileSystemId = fileSystemID
@@ -650,6 +652,14 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 		// accessGroupName
 		if nasVolArgs.AccessGroupName, ok = volOptions[AccessGroupName]; !ok {
 			nasVolArgs.AccessGroupName = "DEFAULT_VPC_GROUP_NAME"
+		}
+
+		// regionID
+		if nasVolArgs.RegionID, ok = volOptions[RegionID]; !ok {
+			nasVolArgs.RegionID = ""
+		}
+		if nasVolArgs.RegionID != "" && nasVolArgs.RegionID != CnHangzhouFin {
+			log.Warnf("getNasVolumeOptions: RegionID is set, but is: %s", nasVolArgs.RegionID)
 		}
 
 		// deleteVolume

@@ -35,8 +35,22 @@ type Local struct {
 	cscap []*csi.ControllerServiceCapability
 }
 
+// GlobalConfig var
+type GlobalConfig struct {
+	Region    string
+	NodeID    string
+	Scheduler string
+}
+
+var (
+	// GlobalConfigVar var
+	GlobalConfigVar GlobalConfig
+)
+
 const (
-	defaultDriverName = "localplugin.csi.alibabacloud.com"
+	defaultDriverName = "yodaplugin.csi.alibabacloud.com"
+	localDriverName   = "localplugin.csi.alibabacloud.com"
+	yodaDriverName    = "yodaplugin.csi.alibabacloud.com"
 	csiVersion        = "1.0.0"
 )
 
@@ -63,6 +77,9 @@ func NewDriver(nodeID, endpoint string) *Local {
 		driverName = tmpValue
 	}
 
+	// GlobalConfig Set
+	GlobalConfigSet("", nodeID, driverName)
+
 	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, nodeID)
 	tmplvm.driver = csiDriver
 	tmplvm.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
@@ -85,4 +102,14 @@ func (lvm *Local) Run() {
 	server := csicommon.NewNonBlockingGRPCServer()
 	server.Start(lvm.endpoint, lvm.idServer, lvm.controllerServer, lvm.nodeServer)
 	server.Wait()
+}
+
+// GlobalConfigSet set Global Config
+func GlobalConfigSet(region, nodeID, driverName string) {
+	// Global Config Set
+	GlobalConfigVar = GlobalConfig{
+		Region:    region,
+		NodeID:    nodeID,
+		Scheduler: driverName,
+	}
 }
