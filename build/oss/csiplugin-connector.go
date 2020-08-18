@@ -3,13 +3,15 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/sevlyar/go-daemon"
 	"log"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/sevlyar/go-daemon"
 )
 
 const (
@@ -67,6 +69,37 @@ func runOssProxy() {
 	}
 	log.Print("Daemon Started ...")
 	defer ln.Close()
+
+	// watchdog of UNIX Domain Socket
+	var socketsPath []string
+	if os.Getenv("WATCHDOG_SOCKETS_PATH") != "" {
+		socketsPath = strings.Split(os.Getenv("WATCHDOG_SOCKETS_PATH"), ",")
+	}
+	socketNotAliveCount := make(map[string]int)
+	go func() {
+		if len(socketsPath) == 0 {
+			return
+		}
+		for {
+			deadSockets := 0
+			for _, path := range socketsPath {
+				if err := isUnixDomainSocketLive(path); err != nil {
+					log.Printf("socket %s is not alive: %v", path, err)
+					socketNotAliveCount[path]++
+				} else {
+					socketNotAliveCount[path] = 0
+				}
+				if socketNotAliveCount[path] >= 6 {
+					deadSockets++
+				}
+			}
+			if deadSockets >= len(socketsPath) {
+				log.Printf("watchdog find too many dead sockets, csiplugin-connector will exit(0)")
+				os.Exit(0)
+			}
+			time.Sleep(time.Second * 10)
+		}
+	}()
 
 	// Handler to process the command
 	for {
@@ -193,4 +226,17 @@ func IsFileExisting(filename string) bool {
 		return false
 	}
 	return true
+}
+
+func isUnixDomainSocketLive(socketPath string) error {
+	fileInfo, err := os.Stat(socketPath)
+	if err != nil || (fileInfo.Mode()&os.ModeSocket == 0) {
+		return fmt.Errorf("socket file %s is invalid", socketPath)
+	}
+	conn, err := net.Dial("unix", socketPath)
+	if err != nil {
+		return err
+	}
+	conn.Close()
+	return nil
 }

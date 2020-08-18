@@ -121,6 +121,12 @@ fi
 
 # install/update csiplugin connector service
 updateConnectorService="true"
+if [[ ! -z "${PLUGINS_SOCKETS}" ]];then
+    sed -i 's/Restart=always/Restart=on-failure/g' /bin/csiplugin-connector.service
+    sed -i '/^\[Service\]/a Environment=\"WATCHDOG_SOCKETS_PATH='"${PLUGINS_SOCKETS}"'\"' /bin/csiplugin-connector.service
+    sed -i '/ExecStop=\/bin\/kill -s QUIT $MAINPID/d' /bin/csiplugin-connector.service
+    sed -i '/^\[Service\]/a ExecStop=sh -xc "if [ x$MAINPID != x ]; then /bin/kill -s QUIT $MAINPID; fi"' /bin/csiplugin-connector.service
+fi
 if [ -f "/host/usr/lib/systemd/system/csiplugin-connector.service" ];then
     echo "check upgrade csiplugin-connector.service...."
     oldmd5=`md5sum /host/usr/lib/systemd/system/csiplugin-connector.service | awk '{print $1}'`
