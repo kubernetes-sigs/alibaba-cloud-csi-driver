@@ -79,9 +79,11 @@ spec:
             - name: DISK_TAGED_BY_PLUGIN
               value: "true"
             - name: SERVICE_PORT
-              value: "10260"
+              value: "11260"
             - name: SERVICE_TYPE
               value: "plugin"
+            - name: ENABLE_METRIC
+              value: "false"
           livenessProbe:
             httpGet:
               path: /healthz
@@ -93,7 +95,7 @@ spec:
             failureThreshold: 5
           ports:
             - name: healthz
-              containerPort: 10260
+              containerPort: 11260
               protocol: TCP
           volumeMounts:
             - name: kubelet-dir

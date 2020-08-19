@@ -32,9 +32,8 @@ import (
 	"k8s.io/kubernetes/pkg/volume/util/fs"
 	"net/http"
 	"os"
-	"path"
-
 	"os/exec"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"

@@ -113,9 +113,11 @@ spec:
             - name: MAX_VOLUMES_PERNODE
               value: "15"
             - name: SERVICE_PORT
-              value: "10270"
+              value: "11270"
             - name: SERVICE_TYPE
               value: "provisioner"
+            - name: ENABLE_METRIC
+              value: "false"
           livenessProbe:
             httpGet:
               path: /healthz
@@ -127,7 +129,7 @@ spec:
             failureThreshold: 5
           ports:
             - name: healthz
-              containerPort: 10270
+              containerPort: 11270
               protocol: TCP
           volumeMounts:
             - name: host-dev
