@@ -32,14 +32,23 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/lvm"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mem"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/om"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
+	"github.com/prometheus/common/version"
 	log "github.com/sirupsen/logrus"
 )
 
 func init() {
 	flag.Set("logtostderr", "true")
+}
+
+func setPrometheusVersion() {
+	version.Version = VERSION
+	version.Revision = REVISION
+	version.Branch = BRANCH
+	version.BuildDate = BUILDTIME
 }
 
 const (
@@ -55,10 +64,10 @@ const (
 	PluginService = "plugin"
 	// ProvisionerService represents the csi-provisioner type.
 	ProvisionerService = "provisioner"
-	//PluginServicePort default port is 10260.
-	PluginServicePort = "10260"
-	//ProvisionerServicePort default port is 10270.
-	ProvisionerServicePort = "10270"
+	//PluginServicePort default port is 11260.
+	PluginServicePort = "11260"
+	//ProvisionerServicePort default port is 11270.
+	ProvisionerServicePort = "11270"
 	// TypePluginDISK DISK type plugin
 	TypePluginDISK = "diskplugin.csi.alibabacloud.com"
 	// TypePluginNAS NAS type plugin
@@ -91,6 +100,9 @@ var COMMITID = ""
 // BUILDTIME is CSI Driver Buildtime
 var BUILDTIME = ""
 
+// REVISION is CSI Driver Revision
+var REVISION = ""
+
 var (
 	endpoint        = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
 	nodeID          = flag.String("nodeid", "", "node id")
@@ -98,6 +110,11 @@ var (
 	driver          = flag.String("driver", TypePluginDISK, "CSI Driver")
 	rootDir         = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
 )
+
+type globalMetricConfig struct {
+	enableMetric bool
+	serviceType  string
+}
 
 // Nas CSI Plugin
 func main() {
@@ -114,8 +131,6 @@ func main() {
 
 	// Storage devops
 	go om.StorageOM()
-
-	http.HandleFunc("/healthz", healthHandler)
 
 	for _, driverName := range driverNames {
 		wg.Add(1)
@@ -212,8 +227,29 @@ func main() {
 		}
 	}
 
+	metricConfig := &globalMetricConfig{
+		false,
+		"plugin",
+	}
+
+	enableMetric := os.Getenv("ENABLE_METRIC")
+	if enableMetric == "true" {
+		setPrometheusVersion()
+		metricConfig.enableMetric = true
+		metricConfig.serviceType = serviceType
+	}
+
 	log.Info("CSI is running status.")
 	server := &http.Server{Addr: ":" + servicePort}
+
+	http.HandleFunc("/healthz", healthHandler)
+	log.Infof("Metric listening on address: /healthz")
+	if metricConfig.enableMetric {
+		metricHandler := metric.NewMetricHandler(metricConfig.serviceType)
+		http.Handle("/metrics", metricHandler)
+		log.Infof("Metric listening on address: /metrics")
+	}
+
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatalf("Service port listen and serve err:%s", err.Error())
 	}
