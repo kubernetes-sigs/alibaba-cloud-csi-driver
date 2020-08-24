@@ -28,8 +28,8 @@ import (
 	"google.golang.org/grpc/status"
 	"io"
 	"io/ioutil"
-	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	utilexec "k8s.io/utils/exec"
+	k8smount "k8s.io/utils/mount"
 	"net/http"
 	"os"
 	"os/exec"
@@ -524,7 +524,8 @@ func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 	if !readOnly {
 		// Run fsck on the disk to fix repairable issues, only do this for volumes requested as rw.
 		args := []string{"-a", source}
-		out, err := diskMounter.Exec.Run("fsck", args...)
+
+		out, err := diskMounter.Exec.Command("fsck", args...).CombinedOutput()
 		if err != nil {
 			ee, isExitError := err.(utilexec.ExitError)
 			switch {
@@ -578,7 +579,7 @@ func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 			}
 			log.Infof("Disk %q appears to be unformatted, attempting to format as type: %q with options: %v", source, fstype, args)
 
-			_, err := diskMounter.Exec.Run("mkfs."+fstype, args...)
+			_, err := diskMounter.Exec.Command("mkfs."+fstype, args...).CombinedOutput()
 			if err == nil {
 				// the disk has been formatted successfully try to mount it again.
 				return diskMounter.Interface.Mount(source, target, fstype, mountOptions)

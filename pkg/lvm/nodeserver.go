@@ -37,8 +37,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/util/resizefs"
+	utilexec "k8s.io/utils/exec"
+	k8smount "k8s.io/utils/mount"
 )
 
 const (
@@ -203,7 +204,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// upgrade PV with NodeAffinity
 	if nodeAffinity == "true" {
-		oldPv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
+		oldPv, err := ns.client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
 		if err != nil {
 			log.Errorf("NodePublishVolume: Get Persistent Volume(%s) Error: %s", volumeID, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
@@ -236,7 +237,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			}
 
 			// Upgrade PersistentVolume with NodeAffinity
-			_, err = ns.client.CoreV1().PersistentVolumes().Patch(volumeID, types.StrategicMergePatchType, patchBytes)
+			_, err = ns.client.CoreV1().PersistentVolumes().Patch(context.Background(), volumeID, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
 			if err != nil {
 				log.Errorf("NodePublishVolume: Patch Volume(%s) Error: %s", volumeID, err.Error())
 				return nil, status.Error(codes.Internal, err.Error())
@@ -350,8 +351,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, target
 	}
 
 	// use resizer to expand volume filesystem
-	realExec := k8smount.NewOsExec()
-	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: realExec})
+	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()})
 	ok, err := resizer.Resize(devicePath, targetPath)
 	if err != nil {
 		log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeID, devicePath, targetPath, err.Error())
@@ -366,7 +366,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, target
 }
 
 func (ns *nodeServer) getPvSize(volumeID string) (int64, string) {
-	pv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
+	pv, err := ns.client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("lvcreate: fail to get pv, err: %v", err)
 		return 0, ""

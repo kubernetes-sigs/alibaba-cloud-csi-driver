@@ -21,7 +21,7 @@ import (
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	log "github.com/sirupsen/logrus"
 
-	k8smount "k8s.io/kubernetes/pkg/util/mount"
+	k8smount "k8s.io/utils/mount"
 )
 
 const (
