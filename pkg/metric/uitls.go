@@ -3,6 +3,7 @@ package metric
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -23,7 +24,7 @@ var vfOnce = new(sync.Once)
 var isVF = false
 
 func getPvcByPvName(clientSet *kubernetes.Clientset, pvName string) (string, string, error) {
-	pv, err := clientSet.CoreV1().PersistentVolumes().Get(pvName, apismetav1.GetOptions{})
+	pv, err := clientSet.CoreV1().PersistentVolumes().Get(context.Background(), pvName, apismetav1.GetOptions{})
 	if err != nil {
 		return "", "", err
 	}

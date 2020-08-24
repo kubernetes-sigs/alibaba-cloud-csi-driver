@@ -374,7 +374,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	log.Infof("DeleteVolume: Starting deleting volume %s", req.GetVolumeId())
 
-	pvInfo, err := cs.client.CoreV1().PersistentVolumes().Get(req.VolumeId, metav1.GetOptions{})
+	pvInfo, err := cs.client.CoreV1().PersistentVolumes().Get(context.Background(), req.VolumeId, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("DeleteVolume: Get Volume: %s from cluster error: %s", req.VolumeId, err.Error())
 	}
@@ -409,7 +409,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	if pvInfo.Spec.StorageClassName == "" {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with storageclass empty: %s, Spec: %v", req.VolumeId, pvInfo.Spec)
 	}
-	storageclass, err := cs.client.StorageV1().StorageClasses().Get(pvInfo.Spec.StorageClassName, metav1.GetOptions{})
+	storageclass, err := cs.client.StorageV1().StorageClasses().Get(context.Background(), pvInfo.Spec.StorageClassName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("DeleteVolume: Volume: %s, reqeust storageclass error: %s", req.VolumeId, err.Error())
 	}

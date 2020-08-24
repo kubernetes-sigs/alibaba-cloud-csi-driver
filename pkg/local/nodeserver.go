@@ -31,8 +31,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/util/resizefs"
+	utilexec "k8s.io/utils/exec"
+	k8smount "k8s.io/utils/mount"
 	"os"
 	"path/filepath"
 )
@@ -316,8 +317,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 	}
 
 	// use resizer to expand volume filesystem
-	realExec := k8smount.NewOsExec()
-	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: realExec})
+	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()})
 	ok, err := resizer.Resize(devicePath, targetPath)
 	if err != nil {
 		log.Errorf("NodeExpandVolume:: Lvm Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeID, devicePath, targetPath, err.Error())
@@ -333,7 +333,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 
 // get pvSize, pvSizeUnit, pvObject
 func (ns *nodeServer) getPvInfo(volumeID string) (int64, string, *v1.PersistentVolume) {
-	pv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
+	pv, err := ns.client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("lvcreate: fail to get pv, err: %v", err)
 		return 0, "", nil
