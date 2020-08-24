@@ -4,7 +4,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
-	k8smount "k8s.io/kubernetes/pkg/util/mount"
+	k8smount "k8s.io/utils/mount"
 	"os"
 	"path/filepath"
 	"strings"
