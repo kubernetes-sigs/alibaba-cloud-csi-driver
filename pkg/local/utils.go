@@ -17,6 +17,7 @@ limitations under the License.
 package local
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -254,7 +255,7 @@ func getPVNumber(vgName string) int {
 }
 
 func getPvObj(client kubernetes.Interface, volumeID string) (*v1.PersistentVolume, error) {
-	return client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
+	return client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
 }
 func getLvmSpec(client kubernetes.Interface, volumeID, driverName string) (string, string, error) {
 	pv, err := getPvObj(client, volumeID)
@@ -284,14 +285,13 @@ func getLvmSpec(client kubernetes.Interface, volumeID, driverName string) (strin
 		log.Errorf("Get Lvm Spec for volume %s, with empty nodes", volumeID)
 		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with empty nodes")
 	}
-
-	if _, ok := pv.Spec.CSI.VolumeAttributes["vgName"]; !ok {
-		log.Errorf("Get Lvm Spec for volume %s, with empty vgName", volumeID)
-		return "", "", errors.New("vgName not exist for " + volumeID)
+	vgName := ""
+	if value, ok := pv.Spec.CSI.VolumeAttributes["vgName"]; ok {
+		vgName = value
 	}
 
 	log.Infof("Get Lvm Spec for volume %s, with VgName %s, Node %s", volumeID, pv.Spec.CSI.VolumeAttributes["vgName"], nodes[0])
-	return nodes[0], pv.Spec.CSI.VolumeAttributes["vgName"], nil
+	return nodes[0], vgName, nil
 }
 
 func getLvmdAddr(client kubernetes.Interface, node string) (string, error) {
@@ -304,7 +304,7 @@ func getLvmdAddr(client kubernetes.Interface, node string) (string, error) {
 
 // GetNodeIP get node address
 func GetNodeIP(client kubernetes.Interface, nodeID string) (net.IP, error) {
-	node, err := client.CoreV1().Nodes().Get(nodeID, metav1.GetOptions{})
+	node, err := client.CoreV1().Nodes().Get(context.Background(), nodeID, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
