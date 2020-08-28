@@ -50,6 +50,48 @@ func (s Server) ListLV(ctx context.Context, in *pb.ListLVRequest) (*pb.ListLVRep
 	return &pb.ListLVReply{Volumes: pblvs}, nil
 }
 
+// ListLV list lvm volume
+func (s Server) ListNameSpace(ctx context.Context, in *pb.ListNameSpaceRequest) (*pb.ListNameSpaceReply, error) {
+	log.Infof("List NameSpace for namespace: " +  in.NameSpace +" == " + in.Region)
+	namespaces, err := commands.ListNameSpace()
+	if err != nil {
+		log.Errorf("List NameSpace with error: %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "failed to list NameSpace: %v", err)
+	}
+	for _, namespace := range namespaces {
+		if namespace.Name == in.NameSpace {
+			log.Infof("List NameSpace with sigle response: %v", namespace)
+			return &pb.ListNameSpaceReply{NameSpace: []*pb.NameSpace{namespace}}, nil
+		}
+	}
+	log.Infof("List NameSpace with response: %v", namespaces)
+	return &pb.ListNameSpaceReply{NameSpace: namespaces}, nil
+}
+
+// CreateLV create lvm volume
+func (s Server) CreateNameSpace(ctx context.Context, in *pb.CreateNameSpaceRequest) (*pb.CreateNameSpaceReply, error) {
+	log.Infof("Create LVM with: %+v", in)
+	out, err := commands.CreateNameSpace(ctx, in.Region, in.Name, in.Size)
+	if err != nil {
+		log.Errorf("Create LVM with error: %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "failed to create lv: %v", err)
+	}
+	log.Infof("Create LVM Successful with result: %+v", out)
+	return &pb.CreateNameSpaceReply{CommandOutput: out}, nil
+}
+
+// RemoveLV remove lvm volume
+func (s Server) RemoveNameSpace(ctx context.Context, in *pb.RemoveNameSpaceRequest) (*pb.RemoveNameSpaceReply, error) {
+	log.Infof("Remove NameSpace with: %+v", in)
+	out, err := commands.RemoveNameSpace(ctx, in.NameSpace)
+	if err != nil {
+		log.Errorf("Remove NameSpace with error: %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "failed to remove lv: %v", err)
+	}
+	log.Infof("Remove NameSpace Successful with result: %+v", out)
+	return &pb.RemoveNameSpaceReply{CommandOutput: out}, nil
+}
+
 // CreateLV create lvm volume
 func (s Server) CreateLV(ctx context.Context, in *pb.CreateLVRequest) (*pb.CreateLVReply, error) {
 	log.Infof("Create LVM with: %+v", in)

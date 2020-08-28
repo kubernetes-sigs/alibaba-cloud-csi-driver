@@ -27,6 +27,8 @@ import (
 	"strings"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/parser"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/pmem"
+	pb "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/proto"
 	"golang.org/x/net/context"
 )
 
@@ -88,6 +90,64 @@ func CreateLV(ctx context.Context, vg string, name string, size uint64, mirrors 
 	out, err := Run(cmd)
 	return string(out), err
 }
+
+
+// CreateLV creates a new volume
+// ndctl create-namespace -r region0 --size=6G -n webpmem1
+func CreateNameSpace(ctx context.Context, region string, name string, size uint64) (string, error) {
+	if size == 0 {
+		return "", errors.New("size must be greater than 0")
+	}
+	args := []string{NsenterCmd, "ndctl", "create-namespace", "-r", region, "-s", fmt.Sprintf("%d", size), "-n", name}
+	cmd := strings.Join(args, " ")
+	out, err := Run(cmd)
+	return string(out), err
+}
+
+func GetNameSpace(namespaceName string) (*pb.NameSpace, error) {
+	namespaces, err := ListNameSpace()
+	if err != nil {
+		return nil, err
+	}
+	if len(namespaces) == 0 {
+		return nil, nil
+	}
+
+	for _, tmp := range namespaces {
+		if tmp.Dev == namespaceName {
+			return tmp, nil
+		}
+	}
+	return nil, nil
+}
+
+// RemoveLV removes a volume
+func RemoveNameSpace(ctx context.Context, namespaceName string) (string, error) {
+	namespace, err := GetNameSpace(namespaceName)
+	if err != nil {
+		return "", fmt.Errorf("failed to found namespace with error: %v", err)
+	}
+	if namespace == nil {
+		return "namespace  " + namespaceName + " not found, skip", nil
+	}
+
+	args := []string{NsenterCmd, "ndctl", "disable-namespace", fmt.Sprintf("%s", namespace.Dev)}
+	cmd := strings.Join(args, " ")
+	_, err = Run(cmd)
+	if err != nil {
+		return "", fmt.Errorf("failed to disable namespace with error: %v", err)
+	}
+
+	args = []string{NsenterCmd, "ndctl", "destroy-namespace", fmt.Sprintf("%s", namespace.Dev)}
+	cmd = strings.Join(args, " ")
+	_, err = Run(cmd)
+	if err != nil {
+		return "", fmt.Errorf("failed to destroy namespace with error: %v", err)
+	}
+
+	return "", nil
+}
+
 
 func getPVNumber(vgName string) int {
 	var pvCount = 0
@@ -279,3 +339,9 @@ func RemoveTagLV(ctx context.Context, vg string, name string, tags []string) (st
 	out, err := Run(cmd)
 	return string(out), err
 }
+
+// RemoveTagLV remove tag
+func ListNameSpace() ([]*pb.NameSpace, error) {
+	return pmem.ListNameSpace()
+}
+

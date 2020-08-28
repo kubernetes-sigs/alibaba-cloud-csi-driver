@@ -6,6 +6,7 @@ package proto
 import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"math"
@@ -291,6 +292,18 @@ func (x LogicalVolume_Attributes_Health) String() string {
 func (LogicalVolume_Attributes_Health) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_lvm_2fdce4b46d3763b2, []int{0, 0, 5}
 }
+//
+//type NameSpace struct {
+//	Dev        string `json:"dev"`
+//	Mode       string `json:"mode,omitempty"`
+//	MapType    string `json:"map,omitempty"`
+//	Size       int64  `json:"size,omitempty"`
+//	Uuid       string `json:"uuid,omitempty"`
+//	SectorSize int64  `json:"sector_size,omitempty"`
+//	Align      int64  `json:"align,omitempty"`
+//	BlockDev   string `json:"blockdev"`
+//	CharDev    string `json:"chardev"`
+//}
 
 type LogicalVolume struct {
 	Name                 string                    `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -574,6 +587,148 @@ func (m *VolumeGroup) GetTags() []string {
 	return nil
 }
 
+type ListNameSpaceRequest struct {
+	NameSpace       	   string   `protobuf:"bytes,1,opt,name=namespace,json=namespace,proto3" json:"namespace,omitempty"`
+	Region      	   	 string   `protobuf:"bytes,2,opt,name=region,json=region,proto3" json:"region,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ListNameSpaceRequest) Reset()         { *m = ListNameSpaceRequest{} }
+func (m *ListNameSpaceRequest) String() string { return proto.CompactTextString(m) }
+func (*ListNameSpaceRequest) ProtoMessage()    {}
+func (*ListNameSpaceRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_lvm_2fdce4b46d3763b2, []int{2}
+}
+func (m *ListNameSpaceRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListNameSpaceRequest.Unmarshal(m, b)
+}
+func (m *ListNameSpaceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListNameSpaceRequest.Marshal(b, m, deterministic)
+}
+func (dst *ListNameSpaceRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListNameSpaceRequest.Merge(dst, src)
+}
+func (m *ListNameSpaceRequest) XXX_Size() int {
+	return xxx_messageInfo_ListNameSpaceRequest.Size(m)
+}
+func (m *ListNameSpaceRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListNameSpaceRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListNameSpaceRequest proto.InternalMessageInfo
+
+func (m *ListNameSpaceRequest) GetNameSpace() string {
+	return m.NameSpace
+}
+
+func (m *ListNameSpaceRequest) GetRegion() string {
+	return m.Region
+}
+
+type NameSpace struct {
+	Dev        string `protobuf:"bytes,1,opt,name=dev,proto3" json:"dev,omitempty"`
+	Mode       string `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"`
+	MapType    string `protobuf:"bytes,3,opt,name=mapType,proto3" json:"mapType,omitempty"`
+	Size       int64  `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
+	Uuid       string `protobuf:"bytes,5,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	SectorSize int64  `protobuf:"varint,6,opt,name=sector_size,proto3" json:"sector_size,omitempty"`
+	Align      int64  `protobuf:"varint,7,opt,name=align,proto3" json:"align,omitempty"`
+	BlockDev   string `protobuf:"bytes,8,opt,name=blockdev,proto3" json:"blockdev,omitempty"`
+	CharDev    string `protobuf:"bytes,9,opt,name=charDev,proto3" json:"charDev,omitempty"`
+	Name       string `protobuf:"bytes,10,opt,name=name,proto3" json:"name,omitempty"`
+	Region     string `protobuf:"bytes,11,opt,name=region,proto3" json:"region,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
+	XXX_unrecognized     []byte                    `json:"-"`
+	XXX_sizecache        int32                     `json:"-"`
+}
+
+func (m *NameSpace) Reset()         { *m = NameSpace{} }
+func (m *NameSpace) String() string { return proto.CompactTextString(m) }
+func (*NameSpace) ProtoMessage()    {}
+func (*NameSpace) Descriptor() ([]byte, []int) {
+	return fileDescriptor_lvm_2fdce4b46d3763b2, []int{0}
+}
+func (m *NameSpace) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_NameSpace.Unmarshal(m, b)
+}
+func (m *NameSpace) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_NameSpace.Marshal(b, m, deterministic)
+}
+func (dst *NameSpace) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NameSpace.Merge(dst, src)
+}
+func (m *NameSpace) XXX_Size() int {
+	return xxx_messageInfo_NameSpace.Size(m)
+}
+func (m *NameSpace) XXX_DiscardUnknown() {
+	xxx_messageInfo_NameSpace.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_NameSpace proto.InternalMessageInfo
+
+func (m *NameSpace) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *NameSpace) GetSize() int64 {
+	if m != nil {
+		return m.Size
+	}
+	return 0
+}
+
+func (m *NameSpace) GetUuid() string {
+	if m != nil {
+		return m.Uuid
+	}
+	return ""
+}
+
+func (m *NameSpace) GetCharDev() string {
+	if m != nil {
+		return m.CharDev
+	}
+	return ""
+}
+
+
+type ListNameSpaceReply struct {
+	NameSpace              []*NameSpace `protobuf:"bytes,1,rep,name=namespace,proto3" json:"namespace,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
+	XXX_unrecognized     []byte           `json:"-"`
+	XXX_sizecache        int32            `json:"-"`
+}
+
+func (m *ListNameSpaceReply) Reset()         { *m = ListNameSpaceReply{} }
+func (m *ListNameSpaceReply) String() string { return proto.CompactTextString(m) }
+func (*ListNameSpaceReply) ProtoMessage()    {}
+func (*ListNameSpaceReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_lvm_2fdce4b46d3763b2, []int{3}
+}
+func (m *ListNameSpaceReply) XXX_Unmarshal(b []byte) error {
+	log.Infof("DDDDDDDD", string(b))
+	return xxx_messageInfo_ListNameSpaceReply.Unmarshal(m, b)
+}
+func (m *ListNameSpaceReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListNameSpaceReply.Marshal(b, m, deterministic)
+}
+func (dst *ListNameSpaceReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListNameSpaceReply.Merge(dst, src)
+}
+func (m *ListNameSpaceReply) XXX_Size() int {
+	return xxx_messageInfo_ListNameSpaceReply.Size(m)
+}
+func (m *ListNameSpaceReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListNameSpaceReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListNameSpaceReply proto.InternalMessageInfo
+
 type ListLVRequest struct {
 	VolumeGroup          string   `protobuf:"bytes,1,opt,name=volume_group,json=volumeGroup,proto3" json:"volume_group,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -686,6 +841,41 @@ func (m *CreateLVRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_CreateLVRequest proto.InternalMessageInfo
 
+
+
+type CreateNameSpaceRequest struct {
+	Region          string   `protobuf:"bytes,1,opt,name=region,json=region,proto3" json:"region,omitempty"`
+	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Size                 uint64   `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *CreateNameSpaceRequest) Reset()         { *m = CreateNameSpaceRequest{} }
+func (m *CreateNameSpaceRequest) String() string { return proto.CompactTextString(m) }
+func (*CreateNameSpaceRequest) ProtoMessage()    {}
+func (*CreateNameSpaceRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_lvm_2fdce4b46d3763b2, []int{4}
+}
+func (m *CreateNameSpaceRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateNameSpaceRequest.Unmarshal(m, b)
+}
+func (m *CreateNameSpaceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateNameSpaceRequest.Marshal(b, m, deterministic)
+}
+func (dst *CreateNameSpaceRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateNameSpaceRequest.Merge(dst, src)
+}
+func (m *CreateNameSpaceRequest) XXX_Size() int {
+	return xxx_messageInfo_CreateNameSpaceRequest.Size(m)
+}
+func (m *CreateNameSpaceRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateNameSpaceRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateNameSpaceRequest proto.InternalMessageInfo
+
 func (m *CreateLVRequest) GetVolumeGroup() string {
 	if m != nil {
 		return m.VolumeGroup
@@ -759,6 +949,43 @@ func (m *CreateLVReply) GetCommandOutput() string {
 	return ""
 }
 
+type CreateNameSpaceReply struct {
+	CommandOutput        string   `protobuf:"bytes,1,opt,name=command_output,json=commandOutput,proto3" json:"command_output,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *CreateNameSpaceReply) Reset()         { *m = CreateNameSpaceReply{} }
+func (m *CreateNameSpaceReply) String() string { return proto.CompactTextString(m) }
+func (*CreateNameSpaceReply) ProtoMessage()    {}
+func (*CreateNameSpaceReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_lvm_2fdce4b46d3763b2, []int{5}
+}
+func (m *CreateNameSpaceReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CreateNameSpaceReply.Unmarshal(m, b)
+}
+func (m *CreateNameSpaceReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CreateNameSpaceReply.Marshal(b, m, deterministic)
+}
+func (dst *CreateNameSpaceReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CreateNameSpaceReply.Merge(dst, src)
+}
+func (m *CreateNameSpaceReply) XXX_Size() int {
+	return xxx_messageInfo_CreateNameSpaceReply.Size(m)
+}
+func (m *CreateNameSpaceReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_CreateNameSpaceReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CreateNameSpaceReply proto.InternalMessageInfo
+
+func (m *CreateNameSpaceReply) GetCommandOutput() string {
+	if m != nil {
+		return m.CommandOutput
+	}
+	return ""
+}
 type RemoveLVRequest struct {
 	VolumeGroup          string   `protobuf:"bytes,1,opt,name=volume_group,json=volumeGroup,proto3" json:"volume_group,omitempty"`
 	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -790,6 +1017,38 @@ func (m *RemoveLVRequest) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_RemoveLVRequest proto.InternalMessageInfo
+
+type RemoveNameSpaceRequest struct {
+	NameSpace          string   `protobuf:"bytes,1,opt,name=namespace,json=nameSpace,proto3" json:"name_space,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *RemoveNameSpaceRequest) Reset()         { *m = RemoveNameSpaceRequest{} }
+func (m *RemoveNameSpaceRequest) String() string { return proto.CompactTextString(m) }
+func (*RemoveNameSpaceRequest) ProtoMessage()    {}
+func (*RemoveNameSpaceRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_lvm_2fdce4b46d3763b2, []int{6}
+}
+func (m *RemoveNameSpaceRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RemoveNameSpaceRequest.Unmarshal(m, b)
+}
+func (m *RemoveNameSpaceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RemoveNameSpaceRequest.Marshal(b, m, deterministic)
+}
+func (dst *RemoveNameSpaceRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RemoveNameSpaceRequest.Merge(dst, src)
+}
+func (m *RemoveNameSpaceRequest) XXX_Size() int {
+	return xxx_messageInfo_RemoveNameSpaceRequest.Size(m)
+}
+func (m *RemoveNameSpaceRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RemoveNameSpaceRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RemoveNameSpaceRequest proto.InternalMessageInfo
+
 
 func (m *RemoveLVRequest) GetVolumeGroup() string {
 	if m != nil {
@@ -835,6 +1094,44 @@ func (m *RemoveLVReply) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_RemoveLVReply proto.InternalMessageInfo
+
+type RemoveNameSpaceReply struct {
+	CommandOutput        string   `protobuf:"bytes,1,opt,name=command_output,json=commandOutput,proto3" json:"command_output,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *RemoveNameSpaceReply) Reset()         { *m = RemoveNameSpaceReply{} }
+func (m *RemoveNameSpaceReply) String() string { return proto.CompactTextString(m) }
+func (*RemoveNameSpaceReply) ProtoMessage()    {}
+func (*RemoveNameSpaceReply) Descriptor() ([]byte, []int) {
+	return fileDescriptor_lvm_2fdce4b46d3763b2, []int{7}
+}
+func (m *RemoveNameSpaceReply) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_RemoveNameSpaceReply.Unmarshal(m, b)
+}
+func (m *RemoveNameSpaceReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_RemoveNameSpaceReply.Marshal(b, m, deterministic)
+}
+func (dst *RemoveNameSpaceReply) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RemoveNameSpaceReply.Merge(dst, src)
+}
+func (m *RemoveNameSpaceReply) XXX_Size() int {
+	return xxx_messageInfo_RemoveLVReply.Size(m)
+}
+func (m *RemoveNameSpaceReply) XXX_DiscardUnknown() {
+	xxx_messageInfo_RemoveNameSpaceReply.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RemoveNameSpaceReply proto.InternalMessageInfo
+
+func (m *RemoveNameSpaceReply) GetCommandOutput() string {
+	if m != nil {
+		return m.CommandOutput
+	}
+	return ""
+}
 
 func (m *RemoveLVReply) GetCommandOutput() string {
 	if m != nil {
@@ -1396,7 +1693,12 @@ func no_init() {
 	proto.RegisterType((*AddTagLVRequest)(nil), "lvm.AddTagLVRequest")
 	proto.RegisterType((*AddTagLVReply)(nil), "lvm.AddTagLVReply")
 	proto.RegisterType((*RemoveTagLVRequest)(nil), "lvm.RemoveTagLVRequest")
-	proto.RegisterType((*RemoveTagLVReply)(nil), "lvm.RemoveTagLVReply")
+	proto.RegisterType((*ListNameSpaceRequest)(nil), "lvm.ListNameSpaceRequest")
+	proto.RegisterType((*ListNameSpaceReply)(nil), "lvm.ListNameSpaceReply")
+	proto.RegisterType((*CreateNameSpaceRequest)(nil), "lvm.CreateNameSpaceRequest")
+	proto.RegisterType((*CreateNameSpaceReply)(nil), "lvm.CreateNameSpaceReply")
+	proto.RegisterType((*RemoveNameSpaceRequest)(nil), "lvm.RemoveNameSpaceRequest")
+	proto.RegisterType((*RemoveNameSpaceReply)(nil), "lvm.RemoveNameSpaceReply")
 	proto.RegisterEnum("lvm.LogicalVolume_Attributes_Type", LogicalVolume_Attributes_Type_name, LogicalVolume_Attributes_Type_value)
 	proto.RegisterEnum("lvm.LogicalVolume_Attributes_Permissions", LogicalVolume_Attributes_Permissions_name, LogicalVolume_Attributes_Permissions_value)
 	proto.RegisterEnum("lvm.LogicalVolume_Attributes_Allocation", LogicalVolume_Attributes_Allocation_name, LogicalVolume_Attributes_Allocation_value)
@@ -1427,6 +1729,9 @@ type LVMClient interface {
 	CreateVG(ctx context.Context, in *CreateVGRequest, opts ...grpc.CallOption) (*CreateVGReply, error)
 	RemoveVG(ctx context.Context, in *CreateVGRequest, opts ...grpc.CallOption) (*RemoveVGReply, error)
 	CleanPath(ctx context.Context, in *CleanPathRequest, opts ...grpc.CallOption) (*CleanPathReply, error)
+	ListNameSpace(ctx context.Context, in *ListNameSpaceRequest, opts ...grpc.CallOption) (*ListNameSpaceReply, error)
+	CreateNameSpace(ctx context.Context, in *CreateNameSpaceRequest, opts ...grpc.CallOption) (*CreateNameSpaceReply, error)
+	RemoveNameSpace(ctx context.Context, in *RemoveNameSpaceRequest, opts ...grpc.CallOption) (*RemoveNameSpaceReply, error)
 }
 
 type lVMClient struct {
@@ -1436,6 +1741,16 @@ type lVMClient struct {
 func NewLVMClient(cc *grpc.ClientConn) LVMClient {
 	return &lVMClient{cc}
 }
+
+func (c *lVMClient) ListNameSpace(ctx context.Context, in *ListNameSpaceRequest, opts ...grpc.CallOption) (*ListNameSpaceReply, error) {
+	out := new(ListNameSpaceReply)
+	err := c.cc.Invoke(ctx, "/lvm.LVM/ListNameSpace", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 
 func (c *lVMClient) ListLV(ctx context.Context, in *ListLVRequest, opts ...grpc.CallOption) (*ListLVReply, error) {
 	out := new(ListLVReply)
@@ -1455,9 +1770,28 @@ func (c *lVMClient) CreateLV(ctx context.Context, in *CreateLVRequest, opts ...g
 	return out, nil
 }
 
+func (c *lVMClient) CreateNameSpace(ctx context.Context, in *CreateNameSpaceRequest, opts ...grpc.CallOption) (*CreateNameSpaceReply, error) {
+	out := new(CreateNameSpaceReply)
+	err := c.cc.Invoke(ctx, "/lvm.LVM/CreateNameSpace", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+
 func (c *lVMClient) RemoveLV(ctx context.Context, in *RemoveLVRequest, opts ...grpc.CallOption) (*RemoveLVReply, error) {
 	out := new(RemoveLVReply)
 	err := c.cc.Invoke(ctx, "/lvm.LVM/RemoveLV", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *lVMClient) RemoveNameSpace(ctx context.Context, in *RemoveNameSpaceRequest, opts ...grpc.CallOption) (*RemoveNameSpaceReply, error) {
+	out := new(RemoveNameSpaceReply)
+	err := c.cc.Invoke(ctx, "/lvm.LVM/RemoveNameSpace", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1539,10 +1873,32 @@ type LVMServer interface {
 	CreateVG(context.Context, *CreateVGRequest) (*CreateVGReply, error)
 	RemoveVG(context.Context, *CreateVGRequest) (*RemoveVGReply, error)
 	CleanPath(context.Context, *CleanPathRequest) (*CleanPathReply, error)
+	ListNameSpace(context.Context, *ListNameSpaceRequest) (*ListNameSpaceReply, error)
+	CreateNameSpace(ctx context.Context, in *CreateNameSpaceRequest) (*CreateNameSpaceReply, error)
+	RemoveNameSpace(context.Context, *RemoveNameSpaceRequest) (*RemoveNameSpaceReply, error)
 }
 
 func RegisterLVMServer(s *grpc.Server, srv LVMServer) {
 	s.RegisterService(&_LVM_serviceDesc, srv)
+}
+
+func _LVM_ListNameSpace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListNameSpaceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	log.Infof("YYYYYYYY %v", in)
+	if interceptor == nil {
+		return srv.(LVMServer).ListNameSpace(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lvm.LVM/ListNameSpace",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LVMServer).ListNameSpace(ctx, req.(*ListNameSpaceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _LVM_ListLV_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -1581,6 +1937,25 @@ func _LVM_CreateLV_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+
+func _LVM_CreateNameSpace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateNameSpaceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LVMServer).CreateNameSpace(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lvm.LVM/CreateNameSpace",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LVMServer).CreateNameSpace(ctx, req.(*CreateNameSpaceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _LVM_RemoveLV_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RemoveLVRequest)
 	if err := dec(in); err != nil {
@@ -1595,6 +1970,25 @@ func _LVM_RemoveLV_Handler(srv interface{}, ctx context.Context, dec func(interf
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(LVMServer).RemoveLV(ctx, req.(*RemoveLVRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+
+func _LVM_RemoveNameSpace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveNameSpaceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LVMServer).RemoveNameSpace(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/lvm.LVM/RemoveNameSpace",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LVMServer).RemoveNameSpace(ctx, req.(*RemoveNameSpaceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1768,6 +2162,18 @@ var _LVM_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CleanPath",
 			Handler:    _CleanPath_Handler,
+		},
+		{
+			MethodName: "ListNameSpace",
+			Handler:    _LVM_ListNameSpace_Handler,
+		},
+		{
+			MethodName: "CreateNameSpace",
+			Handler:    _LVM_CreateNameSpace_Handler,
+		},
+		{
+			MethodName: "RemoveNameSpace",
+			Handler:    _LVM_RemoveNameSpace_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
