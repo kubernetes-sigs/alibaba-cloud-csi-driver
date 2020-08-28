@@ -267,7 +267,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) {
 		log.Errorf("Describe node %s with error: %s", nodeName, err.Error())
 	} else {
 		if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime"]; ok && strings.TrimSpace(value) == "Sandboxed-Container.runv" {
-			if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime-version"]; ok && strings.TrimSpace(value) == "1.1.0" {
+			if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime-version"]; ok && strings.HasPrefix(strings.TrimSpace(value), "1.") {
 				runtimeValue = MixRunTimeMode
 			}
 		}
