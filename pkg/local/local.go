@@ -21,6 +21,11 @@ import (
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	log "github.com/sirupsen/logrus"
 	"os"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	"strings"
+	"context"
 )
 
 // Local the Local struct
@@ -40,6 +45,7 @@ type GlobalConfig struct {
 	Region    string
 	NodeID    string
 	Scheduler string
+	PmemType  string
 }
 
 var (
@@ -48,7 +54,7 @@ var (
 )
 
 const (
-	defaultDriverName = "yodaplugin.csi.alibabacloud.com"
+	defaultDriverName = "localplugin.csi.alibabacloud.com"
 	localDriverName   = "localplugin.csi.alibabacloud.com"
 	yodaDriverName    = "yodaplugin.csi.alibabacloud.com"
 	csiVersion        = "1.0.0"
@@ -106,10 +112,33 @@ func (lvm *Local) Run() {
 
 // GlobalConfigSet set Global Config
 func GlobalConfigSet(region, nodeID, driverName string) {
+	// Global Configs Set
+	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	if err != nil {
+		log.Fatalf("Error building kubeconfig: %s", err.Error())
+	}
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+
+	nodeName := os.Getenv("KUBE_NODE_NAME")
+	pmeType := "lvm"
+	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("Describe node %s with error: %s", nodeName, err.Error())
+	} else {
+		if value, ok := nodeInfo.Labels["type.pmem.aliyun.com"]; ok && strings.TrimSpace(value) == "direct" {
+			pmeType = "direct"
+		}
+		log.Infof("Describe node %s and Set RunTimeClass to %s", nodeName, pmeType)
+	}
+
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
 		Region:    region,
 		NodeID:    nodeID,
 		Scheduler: driverName,
+		PmemType:  pmeType,
 	}
 }

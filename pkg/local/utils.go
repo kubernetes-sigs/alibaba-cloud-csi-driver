@@ -74,38 +74,6 @@ func formatDevice(devicePath, fstype string) error {
 	return nil
 }
 
-func checkFSType(devicePath string) (string, error) {
-	// We use `file -bsL` to determine whether any filesystem type is detected.
-	// If a filesystem is detected (ie., the output is not "data", we use
-	// `blkid` to determine what the filesystem is. We use `blkid` as `file`
-	// has inconvenient output.
-	// We do *not* use `lsblk` as that requires udev to be up-to-date which
-	// is often not the case when a device is erased using `dd`.
-	output, err := exec.Command("file", "-bsL", devicePath).CombinedOutput()
-	if err != nil {
-		return "", err
-	}
-	if strings.TrimSpace(string(output)) == "data" {
-		return "", nil
-	}
-	output, err = exec.Command("blkid", "-c", "/dev/null", "-o", "export", devicePath).CombinedOutput()
-	if err != nil {
-		return "", err
-	}
-
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		fields := strings.Split(strings.TrimSpace(line), "=")
-		if len(fields) != 2 {
-			return "", ErrParse
-		}
-		if fields[0] == "TYPE" {
-			return fields[1], nil
-		}
-	}
-	return "", ErrParse
-}
-
 func isVgExist(vgName string) (bool, error) {
 	vgCmd := fmt.Sprintf("%s vgdisplay %s 2>&1 | grep 'VG Name' | grep %s | grep -v grep | wc -l", NsenterCmd, vgName, vgName)
 	vgline, err := utils.Run(vgCmd)

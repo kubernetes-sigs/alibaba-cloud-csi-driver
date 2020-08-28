@@ -480,7 +480,6 @@ k8s.io/klog
 # k8s.io/kube-openapi v0.0.0-20200811211545-daf3cbb84823 => k8s.io/kube-openapi v0.0.0-20190306001800-15615b16d372
 k8s.io/kube-openapi/pkg/util/proto
 # k8s.io/kubernetes v1.18.8 => k8s.io/kubernetes v1.18.6
-k8s.io/kubernetes/pkg/api/legacyscheme
 k8s.io/kubernetes/pkg/features
 k8s.io/kubernetes/pkg/util/resizefs
 k8s.io/kubernetes/pkg/volume
