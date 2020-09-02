@@ -69,7 +69,7 @@ var (
 )
 
 // NewLVMConnection lvm connection
-func NewLVMConnection(address string, timeout time.Duration) (LVMConnection, error) {
+func NewGrpcConnection(address string, timeout time.Duration) (LVMConnection, error) {
 	conn, err := connect(address, timeout)
 	if err != nil {
 		return nil, err

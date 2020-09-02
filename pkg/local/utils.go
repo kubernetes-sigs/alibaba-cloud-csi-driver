@@ -225,33 +225,33 @@ func getPVNumber(vgName string) int {
 func getPvObj(client kubernetes.Interface, volumeID string) (*v1.PersistentVolume, error) {
 	return client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
 }
-func getLvmSpec(client kubernetes.Interface, volumeID, driverName string) (string, string, error) {
+func getLvmSpec(client kubernetes.Interface, volumeID, driverName string) (string, string, *v1.PersistentVolume, error) {
 	pv, err := getPvObj(client, volumeID)
 	if err != nil {
 		log.Errorf("Get Lvm Spec for volume %s, error with %v", volumeID, err)
-		return "", "", err
+		return "", "", nil, err
 	}
 	if pv.Spec.NodeAffinity == nil {
 		log.Errorf("Get Lvm Spec for volume %s, with nil nodeAffinity", volumeID)
-		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with nil nodeAffinity")
+		return "", "", pv, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil nodeAffinity")
 	}
 	if pv.Spec.NodeAffinity.Required == nil || len(pv.Spec.NodeAffinity.Required.NodeSelectorTerms) == 0 {
 		log.Errorf("Get Lvm Spec for volume %s, with nil Required", volumeID)
-		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with nil Required")
+		return "", "", pv, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil Required")
 	}
 	if len(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions) == 0 {
 		log.Errorf("Get Lvm Spec for volume %s, with nil MatchExpressions", volumeID)
-		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with nil MatchExpressions")
+		return "", "", pv, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil MatchExpressions")
 	}
 	key := pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Key
 	if key != TopologyNodeKey && key != TopologyYodaNodeKey {
 		log.Errorf("Get Lvm Spec for volume %s, with key %s", volumeID, key)
-		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with key" + key)
+		return "", "", pv, errors.New("Get Lvm Spec for volume " + volumeID + ", with key" + key)
 	}
 	nodes := pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Values
 	if len(nodes) == 0 {
 		log.Errorf("Get Lvm Spec for volume %s, with empty nodes", volumeID)
-		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with empty nodes")
+		return "", "", pv, errors.New("Get Lvm Spec for volume " + volumeID + ", with empty nodes")
 	}
 	vgName := ""
 	if value, ok := pv.Spec.CSI.VolumeAttributes["vgName"]; ok {
@@ -259,10 +259,10 @@ func getLvmSpec(client kubernetes.Interface, volumeID, driverName string) (strin
 	}
 
 	log.Infof("Get Lvm Spec for volume %s, with VgName %s, Node %s", volumeID, pv.Spec.CSI.VolumeAttributes["vgName"], nodes[0])
-	return nodes[0], vgName, nil
+	return nodes[0], vgName, pv, nil
 }
 
-func getLvmdAddr(client kubernetes.Interface, node string) (string, error) {
+func getNodeAddr(client kubernetes.Interface, node string) (string, error) {
 	ip, err := GetNodeIP(client, node)
 	if err != nil {
 		return "", err
