@@ -13,10 +13,13 @@ import (
 )
 
 const (
-	// PmemVolumeGroupNameDefault tag
-	PmemVolumeGroupNameDefault = "pmemvolumegroup"
+	// PmemVolumeGroupNameRegion0 tag
+	PmemVolumeGroupNameRegion0 = "pmemvgregion0"
+	// PmemVolumeGroupNameRegion1 tag
+	PmemVolumeGroupNameRegion1 = "pmemvgregion1"
+	// PmemRegionNameDefault tag
+	PmemRegionNameDefault = "region0"
 )
-
 
 // PmemRegions list all regions
 type PmemRegions struct {
@@ -57,19 +60,42 @@ const (
 // ErrParse is an error that is returned when parse operation fails
 var ErrParse = errors.New("Cannot parse output of blkid")
 
-
-func MaintainVG() error {
+func MaintainPMEM(pmemType string) error {
 	regions, err := getRegions()
 	if err != nil {
-		log.Errorf("Get regions error: %v", err)
+		log.Errorf("Get pmem regions error: %v", err)
 		return err
 	}
 	if regions == nil || len(regions.Regions) == 0 {
-		log.Infof("No Pmem Regions found, exit.")
+		log.Infof("No pmem Regions found, exit")
 		return nil
 	}
 	log.Infof("Get Regions Info: %v", regions)
 
+	if pmemType == "lvm" {
+		if err := MaintainLVM(regions); err != nil {
+			log.Errorf("MaintainLVM got error: %v", err)
+			return err
+		}
+		log.Infof("MaintainLVM Successful")
+	} else if pmemType == "direct" {
+		if err := MaintainDirect(regions); err != nil {
+			log.Errorf("MaintainDirect got error: %v", err)
+			return err
+		}
+		log.Infof("MaintainDirect Successful")
+	} else {
+		log.Warnf("Set pmem type %s is not supported", pmemType)
+	}
+
+	return nil
+}
+
+func MaintainDirect(regions *PmemRegions) error {
+	return nil
+}
+
+func MaintainLVM(regions *PmemRegions) error {
 	// Create Namespaces if not exist
 	for _, region := range regions.Regions {
 		if len(region.Namespaces) == 0 {
@@ -79,34 +105,45 @@ func MaintainVG() error {
 			}
 		}
 	}
-
 	// Get Regions
-	regions, err = getRegions()
+	regions, err := getRegions()
 	if err != nil {
-		log.Errorf("Get regions error after create Namespace: %v", err)
+		log.Errorf("Get regions error after Check Namespace: %v", err)
 		return err
 	}
 
-	// Get Device List
-	deviceList := []string{}
+	// Create VolumeGroup
 	for _, region := range regions.Regions {
+		deviceList := []string{}
+		needCreate := true
 		for _, namespace := range region.Namespaces {
 			devicePath := filepath.Join("/dev", namespace.BlockDev)
 			if namespace.Mode == "devdax" {
 				devicePath = filepath.Join("/dev", namespace.CharDev)
 			}
 			if checkNameSpaceUsed(devicePath) {
-				return errors.New("NameSpace been used: " + region.Dev)
+				log.Warnf("NameSpace heen used: %v, %s", namespace, devicePath)
+				needCreate = false
+				break
 			}
 			deviceList = append(deviceList, devicePath)
 		}
-	}
 
-	log.Infof("Node Pmem Devices: %v", deviceList)
-	if len(deviceList) > 0 {
-		createPmemVG(deviceList)
-	}
+		if len(deviceList) > 0 && needCreate {
+			if region.Dev == "region0" {
+				if err := createPmemVG(deviceList, PmemVolumeGroupNameRegion0); err != nil {
+					return err
+				}
 
+			} else if region.Dev == "region1" {
+				if err := createPmemVG(deviceList, PmemVolumeGroupNameRegion1); err != nil {
+					return err
+				}
+			} else {
+				return errors.New("Create volumegroup with not supported region " + region.Dev)
+			}
+		}
+	}
 	return nil
 }
 
@@ -139,16 +176,16 @@ func checkNameSpaceUsed(devicePath string) bool {
 	return false
 }
 
-func createPmemVG(deviceList []string) error {
+func createPmemVG(deviceList []string, vgName string) error {
 	localDeviceStr := strings.Join(deviceList, " ")
-	vgAddCmd := fmt.Sprintf("%s vgcreate --force %s %s", NsenterCmd, PmemVolumeGroupNameDefault, localDeviceStr)
+	vgAddCmd := fmt.Sprintf("%s vgcreate --force %s %s", NsenterCmd, vgName, localDeviceStr)
 	_, err := utils.Run(vgAddCmd)
 	if err != nil {
-		log.Errorf("Add PV (%s) to VG: %s error: %s", localDeviceStr, PmemVolumeGroupNameDefault, err.Error())
+		log.Errorf("Create VG (%v) with PV (%v) error: %s", vgName, localDeviceStr, err.Error())
 		return err
 	}
 
-	log.Infof("Successful add Local Disks to VG (%s): %s", PmemVolumeGroupNameDefault, localDeviceStr)
+	log.Infof("Successful add Local Disks to VG (%s): %s", vgName, localDeviceStr)
 	return nil
 }
 
@@ -199,7 +236,7 @@ func GetNameSpace(namespaceName string) (*PmemNameSpace, error) {
 	return namespace, fmt.Errorf("namespace found error")
 }
 
-func (pns *PmemNameSpace) ToProto () *pb.NameSpace {
+func (pns *PmemNameSpace) ToProto() *pb.NameSpace {
 	new := &pb.NameSpace{}
 	new.CharDev = pns.CharDev
 	new.Name = pns.Name
@@ -214,7 +251,7 @@ func (pns *PmemNameSpace) ToProto () *pb.NameSpace {
 }
 
 func ListNameSpace() ([]*pb.NameSpace, error) {
-	regions, err :=getRegions()
+	regions, err := getRegions()
 	if err != nil {
 		return nil, err
 	}

@@ -178,7 +178,7 @@ func (ns *nodeServer) mountPmemVolume(ctx context.Context, req *csi.NodePublishV
 		vgName = req.VolumeContext[VgNameTag]
 	}
 	if vgName == "" {
-		vgName = pmem.PmemVolumeGroupNameDefault
+		vgName = pmem.PmemVolumeGroupNameRegion0
 	}
 
 	// parse lvm type and fstype

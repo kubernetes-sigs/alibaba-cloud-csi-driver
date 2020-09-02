@@ -17,15 +17,15 @@ limitations under the License.
 package local
 
 import (
+	"context"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	log "github.com/sirupsen/logrus"
-	"os"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"os"
 	"strings"
-	"context"
 )
 
 // Local the Local struct
@@ -42,10 +42,11 @@ type Local struct {
 
 // GlobalConfig var
 type GlobalConfig struct {
-	Region    string
-	NodeID    string
-	Scheduler string
-	PmemType  string
+	Region     string
+	NodeID     string
+	Scheduler  string
+	PmemEnable bool
+	PmemType   string
 }
 
 var (
@@ -123,22 +124,29 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 	}
 
 	nodeName := os.Getenv("KUBE_NODE_NAME")
-	pmeType := "lvm"
+	pmemEnable := false
+	pmeType := ""
 	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Describe node %s with error: %s", nodeName, err.Error())
 	} else {
-		if value, ok := nodeInfo.Labels["type.pmem.aliyun.com"]; ok && strings.TrimSpace(value) == "direct" {
-			pmeType = "direct"
+		if value, ok := nodeInfo.Labels["pmem.aliyun.com"]; ok {
+			pmemEnable = true
+			if strings.TrimSpace(value) == "lvm" {
+				pmeType = "lvm"
+			} else if strings.TrimSpace(value) == "direct" {
+				pmeType = "direct"
+			}
 		}
-		log.Infof("Describe node %s and Set RunTimeClass to %s", nodeName, pmeType)
+		log.Infof("Describe node %s and Set PMEM to %v, %s", nodeName, pmemEnable, pmeType)
 	}
 
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
-		Region:    region,
-		NodeID:    nodeID,
-		Scheduler: driverName,
-		PmemType:  pmeType,
+		Region:     region,
+		NodeID:     nodeID,
+		Scheduler:  driverName,
+		PmemEnable: pmemEnable,
+		PmemType:   pmeType,
 	}
 }
