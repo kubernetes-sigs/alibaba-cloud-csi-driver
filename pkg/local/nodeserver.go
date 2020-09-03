@@ -20,8 +20,7 @@ import (
 	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/commands"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/pmem"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -113,7 +112,7 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 
 	// config volumegroup for pmem node
 	if GlobalConfigVar.PmemEnable {
-		pmem.MaintainPMEM(GlobalConfigVar.PmemType)
+		lib.MaintainPMEM(GlobalConfigVar.PmemType)
 	}
 
 	return &nodeServer{
@@ -316,7 +315,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 	}
 
 	// Get lvm info
-	lvList, err := commands.ListLV(vgName)
+	lvList, err := server.ListLV(vgName)
 	if err != nil {
 		log.Errorf("resizeVolume: Resize volume %s with list lv error %v", volumeID, err)
 		return status.Error(codes.Internal, "List lvm error with: "+err.Error())

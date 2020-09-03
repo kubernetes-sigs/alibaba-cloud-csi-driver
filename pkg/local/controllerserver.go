@@ -22,7 +22,7 @@ import (
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/adapter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/client"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/pmem"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -274,7 +274,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			if pmemType == "lvm" {
 				// Set volume group
 				if _, ok := parameters[VgNameTag]; !ok {
-					parameters["vgName"] = pmem.PmemVolumeGroupNameRegion0
+					parameters["vgName"] = lib.PmemVolumeGroupNameRegion0
 				}
 				vgName := parameters[VgNameTag]
 				if lvmName, err := conn.GetLvm(ctx, vgName, volumeID); err == nil && lvmName == "" {
@@ -300,8 +300,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			} else if pmemType == "direct" {
 				options := &client.NameSpaceOptions{}
 				options.Name = req.Name
-				options.Region = pmem.PmemRegionNameDefault
-				if value, ok := parameters["region"]; ok {
+				options.Region = lib.PmemRegionNameDefault
+				if value, ok := parameters["pmemRegion"]; ok {
 					options.Region = value
 				}
 				options.Size = uint64(req.GetCapacityRange().GetRequiredBytes())
@@ -312,7 +312,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 						return nil, errors.New("Create Pmem direct with error " + err.Error())
 					}
 					log.Infof("CreatePmem: Successful Create Pmem namespace %s with response %s", volumeID, newNameSpace)
-					parameters["region"] = options.Region
+					parameters["pmemRegion"] = options.Region
 					parameters["pmemNameSpace"] = newNameSpace.Dev
 					parameters["pmemBlockDev"] = newNameSpace.BlockDev
 				} else if err != nil {
@@ -503,7 +503,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				return nil, err
 			}
 			if value, ok := pv.Spec.CSI.VolumeAttributes[PmemType]; ok && value == "direct" {
-				if _, ok := pv.Spec.CSI.VolumeAttributes["pmemNameSpace"]; ok {
+				if _, ok := pv.Spec.CSI.VolumeAttributes["pmemNameSpace"]; !ok {
 					log.Errorf("DeleteVolume: Direct PMEM volume can not found NameSpace: %s", volumeID)
 					return nil, errors.New("DeleteVolume Direct PMEM volume can not found NameSpace " + volumeID)
 				}

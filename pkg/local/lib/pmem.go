@@ -1,10 +1,9 @@
-package pmem
+package lib
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	pb "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"os/exec"
@@ -61,7 +60,7 @@ const (
 var ErrParse = errors.New("Cannot parse output of blkid")
 
 func MaintainPMEM(pmemType string) error {
-	regions, err := getRegions()
+	regions, err := GetRegions()
 	if err != nil {
 		log.Errorf("Get pmem regions error: %v", err)
 		return err
@@ -106,7 +105,7 @@ func MaintainLVM(regions *PmemRegions) error {
 		}
 	}
 	// Get Regions
-	regions, err := getRegions()
+	regions, err := GetRegions()
 	if err != nil {
 		log.Errorf("Get regions error after Check Namespace: %v", err)
 		return err
@@ -189,7 +188,7 @@ func createPmemVG(deviceList []string, vgName string) error {
 	return nil
 }
 
-func getRegions() (*PmemRegions, error) {
+func GetRegions() (*PmemRegions, error) {
 	regions := &PmemRegions{}
 	getRegionCmd := fmt.Sprintf("%s ndctl list -RN", NsenterCmd)
 	regionOut, err := utils.Run(getRegionCmd)
@@ -236,8 +235,8 @@ func GetNameSpace(namespaceName string) (*PmemNameSpace, error) {
 	return namespace, fmt.Errorf("namespace found error")
 }
 
-func (pns *PmemNameSpace) ToProto() *pb.NameSpace {
-	new := &pb.NameSpace{}
+func (pns *PmemNameSpace) ToProto() *NameSpace {
+	new := &NameSpace{}
 	new.CharDev = pns.CharDev
 	new.Name = pns.Name
 	new.Dev = pns.Dev
@@ -248,21 +247,6 @@ func (pns *PmemNameSpace) ToProto() *pb.NameSpace {
 	new.MapType = pns.MapType
 	new.SectorSize = pns.SectorSize
 	return new
-}
-
-func ListNameSpace() ([]*pb.NameSpace, error) {
-	regions, err := getRegions()
-	if err != nil {
-		return nil, err
-	}
-
-	namespaces := []*pb.NameSpace{}
-	for _, region := range regions.Regions {
-		for _, ns := range region.Namespaces {
-			namespaces = append(namespaces, ns.ToProto())
-		}
-	}
-	return namespaces, nil
 }
 
 func checkFSType(devicePath string) (string, error) {
