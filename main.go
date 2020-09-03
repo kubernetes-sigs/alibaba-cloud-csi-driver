@@ -119,7 +119,27 @@ type globalMetricConfig struct {
 // Nas CSI Plugin
 func main() {
 	flag.Parse()
-	setLogAttribute(TypePluginSuffix)
+	serviceType := os.Getenv("SERVICE_TYPE")
+
+	if len(serviceType) == 0 || serviceType == "" {
+		serviceType = PluginService
+	}
+
+	// When serviceType is neither plugin nor provisioner, the program will exits.
+	if serviceType != PluginService && serviceType != ProvisionerService {
+		log.Fatalf("Service type is unknown:%s", serviceType)
+	}
+
+	var logAttribute string
+	switch serviceType {
+	case ProvisionerService:
+		logAttribute = strings.Replace(TypePluginSuffix, PluginService, ProvisionerService, -1)
+	case PluginService:
+		logAttribute = TypePluginSuffix
+	default:
+	}
+
+	setLogAttribute(logAttribute)
 
 	log.Infof("Multi CSI Driver Name: %s, nodeID: %s, endPoints: %s", *driver, *nodeID, *endpoint)
 	log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", BRANCH, VERSION, BUILDTIME)
@@ -208,15 +228,7 @@ func main() {
 		}
 	}
 	servicePort := os.Getenv("SERVICE_PORT")
-	serviceType := os.Getenv("SERVICE_TYPE")
-	if len(serviceType) == 0 || serviceType == "" {
-		serviceType = PluginService
-	}
 
-	// When serviceType is neither plugin nor provisioner, the program will exits.
-	if serviceType != PluginService && serviceType != ProvisionerService {
-		log.Fatalf("Service type is unknown:%s", serviceType)
-	}
 	if len(servicePort) == 0 || servicePort == "" {
 		switch serviceType {
 		case PluginService:
