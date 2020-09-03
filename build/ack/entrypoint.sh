@@ -5,7 +5,8 @@ run_oss="false"
 mkdir -p /var/log/alicloud/
 mkdir -p /host/etc/kubernetes/volumes/disk/uuid
 
-ossfsVer="1.80.6.ack.1"
+HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
+zone_id=`${HOST_CMD} curl http://100.100.100.200/latest/meta-data/zone-id`
 
 ## check which plugin is running
 for item in $@;
@@ -52,10 +53,15 @@ done
 if [ "$run_oss" = "true" ]; then
     echo "Starting deploy oss csi-plugin...."
 
+    ossfsVer="1.80.6.ack.1"
+    if [ "$zone_id" == "cn-zhangjiakou-a" ] && [ "$USE_UPDATE_OSSFS" == "" ]; then
+        ossfsVer="1.86.1.ack.1"
+    fi
+
     # install OSSFS
     mkdir -p /host/etc/csi-tool/
     if [ ! `/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
-        echo "First install ossfs...."
+        echo "First install ossfs, ossfsVersion: $ossfsVer"
         cp /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm /host/etc/csi-tool/
         /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
     # update OSSFS
@@ -63,7 +69,7 @@ if [ "$run_oss" = "true" ]; then
         echo "Check ossfs Version...."
         oss_info=`/nsenter --mount=/proc/1/ns/mnt ossfs --version | grep -E -o "V[0-9.a-z]+" | cut -d"V" -f2`
         if [ "$oss_info" != "$ossfsVer" ]; then
-            echo "Upgrade ossfs...."
+            echo "Upgrade ossfs, ossfsVersion: $ossfsVer"
             /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
             cp /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm /host/etc/csi-tool/
             /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
