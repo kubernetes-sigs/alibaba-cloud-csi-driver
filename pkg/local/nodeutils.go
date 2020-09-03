@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/pmem"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -178,7 +178,7 @@ func (ns *nodeServer) mountPmemVolume(ctx context.Context, req *csi.NodePublishV
 		vgName = req.VolumeContext[VgNameTag]
 	}
 	if vgName == "" {
-		vgName = pmem.PmemVolumeGroupNameRegion0
+		vgName = lib.PmemVolumeGroupNameRegion0
 	}
 
 	// parse lvm type and fstype
@@ -313,11 +313,11 @@ func (ns *nodeServer) checkPmemNameSpaceResize(volumeID, targetPath string) erro
 	pvQuantity := pv.Spec.Capacity["storage"]
 	expectedSize := pvQuantity.Value()
 	pmemNameSpace := pv.Spec.CSI.VolumeAttributes["pmemNameSpace"]
-	namespace, err := pmem.GetNameSpace(pmemNameSpace)
+	namespace, err := lib.GetNameSpace(pmemNameSpace)
 	if err != nil {
 		return err
 	}
-	pvSize := pmem.GetSetCapacity(namespace)
+	pvSize := lib.GetSetCapacity(namespace)
 	if expectedSize <= pvSize {
 		return nil
 	}

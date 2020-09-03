@@ -29,7 +29,6 @@ import (
 	"strings"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/commands"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -209,7 +208,7 @@ func createVG(vgName string) (int, error) {
 
 func getPVNumber(vgName string) int {
 	var pvCount = 0
-	vgList, err := commands.ListVG()
+	vgList, err := server.ListVG()
 	if err != nil {
 		log.Errorf("Get pv for vg %s with error %s", vgName, err.Error())
 		return 0

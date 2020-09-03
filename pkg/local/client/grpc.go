@@ -20,12 +20,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/pmem"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	"net"
 	"strings"
 	"time"
 
-	pb "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/proto"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
@@ -39,7 +38,7 @@ type LVMConnection interface {
 	CleanPath(ctx context.Context, path string) error
 	Close() error
     GetNameSpace(ctx context.Context, regionName string, volumeID string) (string, error)
-    CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*pmem.PmemNameSpace, error)
+    CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*lib.PmemNameSpace, error)
     DeleteNameSpace(ctx context.Context, volumeID string) error
 }
 
@@ -116,8 +115,8 @@ func connect(address string, timeout time.Duration) (*grpc.ClientConn, error) {
 }
 
 func (c *lvmdConnection) CreateLvm(ctx context.Context, opt *LVMOptions) (string, error) {
-	client := pb.NewLVMClient(c.conn)
-	req := pb.CreateLVRequest{
+	client := lib.NewLVMClient(c.conn)
+	req := lib.CreateLVRequest{
 		VolumeGroup: opt.VolumeGroup,
 		Name:        opt.Name,
 		Size:        opt.Size,
@@ -135,9 +134,9 @@ func (c *lvmdConnection) CreateLvm(ctx context.Context, opt *LVMOptions) (string
 }
 
 
-func (c *lvmdConnection) CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*pmem.PmemNameSpace, error) {
-	client := pb.NewLVMClient(c.conn)
-	req := pb.CreateNameSpaceRequest{
+func (c *lvmdConnection) CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*lib.PmemNameSpace, error) {
+	client := lib.NewLVMClient(c.conn)
+	req := lib.CreateNameSpaceRequest{
 		Name:        opt.Name,
 		Size:        opt.Size,
 		Region:      opt.Region,
@@ -150,7 +149,7 @@ func (c *lvmdConnection) CreateNameSpace(ctx context.Context, opt *NameSpaceOpti
 	}
 	log.Infof("Create Lvm with result: %+v", rsp.CommandOutput)
 
-	pns := &pmem.PmemNameSpace{}
+	pns := &lib.PmemNameSpace{}
 	if err := json.Unmarshal([]byte(rsp.CommandOutput), pns); err != nil {
 		return nil, err
 	}
@@ -158,8 +157,8 @@ func (c *lvmdConnection) CreateNameSpace(ctx context.Context, opt *NameSpaceOpti
 }
 
 func (c *lvmdConnection) GetNameSpace(ctx context.Context, regionName string, volumeID string) (string, error) {
-	client := pb.NewLVMClient(c.conn)
-	req := pb.ListNameSpaceRequest{
+	client := lib.NewLVMClient(c.conn)
+	req := lib.ListNameSpaceRequest{
 		NameSpace: volumeID,
 		Region: regionName,
 	}
@@ -179,8 +178,8 @@ func (c *lvmdConnection) GetNameSpace(ctx context.Context, regionName string, vo
 }
 
 func (c *lvmdConnection) GetLvm(ctx context.Context, volGroup string, volumeID string) (string, error) {
-	client := pb.NewLVMClient(c.conn)
-	req := pb.ListLVRequest{
+	client := lib.NewLVMClient(c.conn)
+	req := lib.ListLVRequest{
 		VolumeGroup: fmt.Sprintf("%s/%s", volGroup, volumeID),
 	}
 
@@ -198,8 +197,8 @@ func (c *lvmdConnection) GetLvm(ctx context.Context, volGroup string, volumeID s
 }
 
 func (c *lvmdConnection) DeleteLvm(ctx context.Context, volGroup, volumeID string) error {
-	client := pb.NewLVMClient(c.conn)
-	req := pb.RemoveLVRequest{
+	client := lib.NewLVMClient(c.conn)
+	req := lib.RemoveLVRequest{
 		VolumeGroup: volGroup,
 		Name:        volumeID,
 	}
@@ -213,8 +212,8 @@ func (c *lvmdConnection) DeleteLvm(ctx context.Context, volGroup, volumeID strin
 }
 
 func (c *lvmdConnection) DeleteNameSpace(ctx context.Context, namespace string) error {
-	client := pb.NewLVMClient(c.conn)
-	req := pb.RemoveNameSpaceRequest{
+	client := lib.NewLVMClient(c.conn)
+	req := lib.RemoveNameSpaceRequest{
 		NameSpace: namespace,
 	}
 	response, err := client.RemoveNameSpace(ctx, &req)
@@ -227,8 +226,8 @@ func (c *lvmdConnection) DeleteNameSpace(ctx context.Context, namespace string) 
 }
 
 func (c *lvmdConnection) CleanPath(ctx context.Context, path string) error {
-	client := pb.NewLVMClient(c.conn)
-	req := pb.CleanPathRequest{
+	client := lib.NewLVMClient(c.conn)
+	req := lib.CleanPathRequest{
 		Path: path,
 	}
 	response, err := client.CleanPath(ctx, &req)
