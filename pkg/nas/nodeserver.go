@@ -208,7 +208,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// check options, config defaults for aliyun nas
 	if opt.Options == "" {
 		if opt.Vers == "3" {
-			opt.Options = "noresvport,nolock,tcp"
+			opt.Options = "nolock,proto=tcp,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport"
 		} else {
 			opt.Options = "noresvport"
 		}
