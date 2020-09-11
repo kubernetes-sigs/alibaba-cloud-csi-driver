@@ -17,11 +17,11 @@ spec:
       - name: nginx
         image: nginx:1.7.9
         command: ["sh", "-c"]
-        args: ["sleep 1000"]
+        args: ["sleep 10000"]
         volumeMounts:
           - name: pmem-pvc
             mountPath: "/data"
       volumes:
         - name: pmem-pvc
           persistentVolumeClaim:
-            claimName: pmem-pvc
+            claimName: pvc-pmem-lvm
