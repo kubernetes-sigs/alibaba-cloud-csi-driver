@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: pmem-pvc
+  name: pvc-pmem-lvm
 spec:
   accessModes:
   - ReadWriteOnce
   resources:
     requests:
       storage: 2Gi
-  storageClassName: csi-pmem
+  storageClassName: csi-pmem-lvm

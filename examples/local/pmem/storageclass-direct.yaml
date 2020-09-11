@@ -1,20 +1,21 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-    name: csi-pmem
+    name: csi-pmem-lvm
 provisioner: localplugin.csi.alibabacloud.com
 parameters:
     volumeType: PMEM
+    pmemType: "direct"
     fsType: ext4
-    lvmType: "striping"
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
 
+# volumeType: support LVM/MountPoint/Device/PMEM types
 
-# lvmType: (Optional) linear, striping
-#   linear: default, generate linear type lvm volume;
-#   striping: generate striping type lvm volume; only support localdisk now, and the striped number is the localdisk number;
+# pmemType: support lvm/direct types;
+# default as lvm;
+# direct: means not create volumegroup and use region create namespace
 
 # nodeAffinity: (Optional) true, false
 #   true: default, provision pv with nodeAffinity configuration;
