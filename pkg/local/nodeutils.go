@@ -14,9 +14,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/kubernetes/pkg/util/resizefs"
 	utilexec "k8s.io/utils/exec"
 	k8smount "k8s.io/utils/mount"
-	"k8s.io/kubernetes/pkg/util/resizefs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -317,7 +317,7 @@ func (ns *nodeServer) checkPmemNameSpaceResize(volumeID, targetPath string) erro
 	if err != nil {
 		return err
 	}
-	pvSize := lib.GetSetCapacity(namespace)
+	pvSize := lib.GetNameSpaceCapacity(namespace)
 	if expectedSize <= pvSize {
 		return nil
 	}
@@ -340,7 +340,7 @@ func (ns *nodeServer) checkPmemNameSpaceResize(volumeID, targetPath string) erro
 	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()})
 	ok, err := resizer.Resize(devicePath, targetPath)
 	if err != nil {
-		log.Errorf("NodeExpandVolume:: Lvm Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s",volumeID,  devicePath, targetPath, err.Error())
+		log.Errorf("NodeExpandVolume:: Lvm Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeID, devicePath, targetPath, err.Error())
 		return err
 	}
 	if !ok {
@@ -351,8 +351,6 @@ func (ns *nodeServer) checkPmemNameSpaceResize(volumeID, targetPath string) erro
 	return nil
 
 }
-
-
 
 // create lvm volume
 func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType, lvmType string) error {

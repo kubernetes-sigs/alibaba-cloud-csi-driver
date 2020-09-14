@@ -59,6 +59,7 @@ const (
 // ErrParse is an error that is returned when parse operation fails
 var ErrParse = errors.New("Cannot parse output of blkid")
 
+// MaintainPMEM build pmem device
 func MaintainPMEM(pmemType string) error {
 	regions, err := GetRegions()
 	if err != nil {
@@ -90,10 +91,12 @@ func MaintainPMEM(pmemType string) error {
 	return nil
 }
 
+// MaintainDirect direct pmem
 func MaintainDirect(regions *PmemRegions) error {
 	return nil
 }
 
+// MaintainLVM lvm pmem
 func MaintainLVM(regions *PmemRegions) error {
 	// Create Namespaces if not exist
 	for _, region := range regions.Regions {
@@ -188,6 +191,7 @@ func createPmemVG(deviceList []string, vgName string) error {
 	return nil
 }
 
+// GetRegions get regions info
 func GetRegions() (*PmemRegions, error) {
 	regions := &PmemRegions{}
 	getRegionCmd := fmt.Sprintf("%s ndctl list -RN", NsenterCmd)
@@ -212,11 +216,13 @@ func GetRegions() (*PmemRegions, error) {
 	return regions, nil
 }
 
-func GetSetCapacity(ns *PmemNameSpace) int64 {
+// GetNameSpaceCapacity get namespace size
+func GetNameSpaceCapacity(ns *PmemNameSpace) int64 {
 	expect := (ns.Size + ns.Align) * 4096 / 4032
 	return expect
 }
 
+// GetNameSpace get namespace info
 func GetNameSpace(namespaceName string) (*PmemNameSpace, error) {
 	namespace := &PmemNameSpace{}
 	namespaceList := []*PmemNameSpace{}
@@ -235,6 +241,7 @@ func GetNameSpace(namespaceName string) (*PmemNameSpace, error) {
 	return namespace, fmt.Errorf("namespace found error")
 }
 
+// ToProto build NameSpace object
 func (pns *PmemNameSpace) ToProto() *NameSpace {
 	new := &NameSpace{}
 	new.CharDev = pns.CharDev

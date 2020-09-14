@@ -153,7 +153,7 @@ func (s Server) RemoveTagLV(ctx context.Context, in *lib.RemoveTagLVRequest) (*l
 
 // ListNameSpace list pmem namespace
 func (s Server) ListNameSpace(ctx context.Context, in *lib.ListNameSpaceRequest) (*lib.ListNameSpaceReply, error) {
-	log.Infof("List NameSpace for pmem: " +  in.NameSpace +" == " + in.Region)
+	log.Infof("List NameSpace for pmem: " + in.NameSpace + " == " + in.Region)
 	namespaces, err := ListNameSpace()
 	if err != nil {
 		log.Errorf("List NameSpace with error: %s", err.Error())
