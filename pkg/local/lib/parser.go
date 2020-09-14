@@ -16,15 +16,13 @@ limitations under the License.
 
 */
 
-package parser
+package lib
 
 import (
 	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
-
-	pb "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/proto"
 )
 
 const separator = "<:SEP:>"
@@ -56,12 +54,12 @@ const (
 	VolumeTypeRaidOrThinPoolMetadata    VolumeType = 'e'
 )
 
-func (t VolumeType) toProto() pb.LogicalVolume_Attributes_Type {
+func (t VolumeType) toProto() LogicalVolume_Attributes_Type {
 	idx := bytes.IndexByte(volumeTypeKeys, byte(t))
 	if idx == -1 {
-		return pb.LogicalVolume_Attributes_MALFORMED_TYPE
+		return LogicalVolume_Attributes_MALFORMED_TYPE
 	}
-	return pb.LogicalVolume_Attributes_Type(idx + 1)
+	return LogicalVolume_Attributes_Type(idx + 1)
 }
 
 // VolumePermissions is volume permissions
@@ -76,12 +74,12 @@ const (
 	VolumePermissionsReadOnlyActivation VolumePermissions = 'R'
 )
 
-func (t VolumePermissions) toProto() pb.LogicalVolume_Attributes_Permissions {
+func (t VolumePermissions) toProto() LogicalVolume_Attributes_Permissions {
 	idx := bytes.IndexByte(volumePermissonsKeys, byte(t))
 	if idx == -1 {
-		return pb.LogicalVolume_Attributes_MALFORMED_PERMISSIONS
+		return LogicalVolume_Attributes_MALFORMED_PERMISSIONS
 	}
-	return pb.LogicalVolume_Attributes_Permissions(idx + 1)
+	return LogicalVolume_Attributes_Permissions(idx + 1)
 }
 
 // VolumeAllocation is volume allocation policy
@@ -103,12 +101,12 @@ const (
 	VolumeAllocationNormalLocked     VolumeAllocation = 'N'
 )
 
-func (t VolumeAllocation) toProto() pb.LogicalVolume_Attributes_Allocation {
+func (t VolumeAllocation) toProto() LogicalVolume_Attributes_Allocation {
 	idx := bytes.IndexByte(volumeAllocationKeys, byte(t))
 	if idx == -1 {
-		return pb.LogicalVolume_Attributes_MALFORMED_ALLOCATION
+		return LogicalVolume_Attributes_MALFORMED_ALLOCATION
 	}
-	return pb.LogicalVolume_Attributes_Allocation(idx + 1)
+	return LogicalVolume_Attributes_Allocation(idx + 1)
 }
 
 // VolumeFixedMinor is volume fixed minor
@@ -141,12 +139,12 @@ const (
 	VolumeStateMappedDevicePresentWithInactiveTable VolumeState = 'i'
 )
 
-func (t VolumeState) toProto() pb.LogicalVolume_Attributes_State {
+func (t VolumeState) toProto() LogicalVolume_Attributes_State {
 	idx := bytes.IndexByte(volumeStateKeys, byte(t))
 	if idx == -1 {
-		return pb.LogicalVolume_Attributes_MALFORMED_STATE
+		return LogicalVolume_Attributes_MALFORMED_STATE
 	}
-	return pb.LogicalVolume_Attributes_State(idx + 1)
+	return LogicalVolume_Attributes_State(idx + 1)
 }
 
 // VolumeOpen is volume open
@@ -177,12 +175,12 @@ const (
 	VolumeTargetTypeVirtual  VolumeTargetType = 'v'
 )
 
-func (t VolumeTargetType) toProto() pb.LogicalVolume_Attributes_TargetType {
+func (t VolumeTargetType) toProto() LogicalVolume_Attributes_TargetType {
 	idx := bytes.IndexByte(volumeTargetTypeKeys, byte(t))
 	if idx == -1 {
-		return pb.LogicalVolume_Attributes_MALFORMED_TARGET
+		return LogicalVolume_Attributes_MALFORMED_TARGET
 	}
-	return pb.LogicalVolume_Attributes_TargetType(idx + 1)
+	return LogicalVolume_Attributes_TargetType(idx + 1)
 }
 
 // VolumeZeroing is volume zeroing
@@ -210,12 +208,12 @@ const (
 	VolumeHealthWritemostly     VolumeHealth = 'w'
 )
 
-func (t VolumeHealth) toProto() pb.LogicalVolume_Attributes_Health {
+func (t VolumeHealth) toProto() LogicalVolume_Attributes_Health {
 	idx := bytes.IndexByte(volumeTargetTypeKeys, byte(t))
 	if idx == -1 {
-		return pb.LogicalVolume_Attributes_MALFORMED_HEALTH
+		return LogicalVolume_Attributes_MALFORMED_HEALTH
 	}
-	return pb.LogicalVolume_Attributes_Health(idx + 1)
+	return LogicalVolume_Attributes_Health(idx + 1)
 }
 
 // VolumeActivationSkipped is volume activation
@@ -246,8 +244,8 @@ type LVAttributes struct {
 }
 
 // ToProto returns lvm.LogicalVolume.Attributes representation of struct
-func (a LVAttributes) ToProto() *pb.LogicalVolume_Attributes {
-	return &pb.LogicalVolume_Attributes{
+func (a LVAttributes) ToProto() *LogicalVolume_Attributes {
+	return &LogicalVolume_Attributes{
 		Type:              a.Type.toProto(),
 		Permissions:       a.Permissions.toProto(),
 		Allocation:        a.Allocation.toProto(),
@@ -284,8 +282,8 @@ type VG struct {
 }
 
 // ToProto returns lvm.LogicalVolume representation of struct
-func (lv LV) ToProto() *pb.LogicalVolume {
-	return &pb.LogicalVolume{
+func (lv LV) ToProto() *LogicalVolume {
+	return &LogicalVolume{
 		Name:                 lv.Name,
 		Size:                 lv.Size,
 		Uuid:                 lv.UUID,
@@ -298,8 +296,8 @@ func (lv LV) ToProto() *pb.LogicalVolume {
 }
 
 // ToProto to proto
-func (vg VG) ToProto() *pb.VolumeGroup {
-	return &pb.VolumeGroup{
+func (vg VG) ToProto() *VolumeGroup {
+	return &VolumeGroup{
 		Name:     vg.Name,
 		Size:     vg.Size,
 		FreeSize: vg.FreeSize,
