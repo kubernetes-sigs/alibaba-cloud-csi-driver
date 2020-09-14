@@ -249,7 +249,7 @@ func (pns *PmemNameSpace) ToProto() *NameSpace {
 	new.Dev = pns.Dev
 	new.Mode = pns.Mode
 	new.Size = pns.Size
-	new.Uuid = pns.Uuid
+	new.Uuid = pns.UUID
 	new.Align = pns.Align
 	new.MapType = pns.MapType
 	new.SectorSize = pns.SectorSize
