@@ -312,7 +312,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 						log.Errorf("CreateVolume: Create Pmem direct %s, options: %v with error: %s", volumeID, options, err.Error())
 						return nil, errors.New("Create Pmem direct with error " + err.Error())
 					}
-					log.Infof("CreatePmem: Successful Create Pmem namespace %s with response %s", volumeID, newNameSpace)
+					log.Infof("CreatePmem: Successful Create Pmem namespace %s with response %v", volumeID, newNameSpace)
 					parameters["pmemRegion"] = options.Region
 					parameters["pmemNameSpace"] = newNameSpace.Dev
 					parameters["pmemBlockDev"] = newNameSpace.BlockDev
