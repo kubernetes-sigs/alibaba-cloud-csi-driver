@@ -32,7 +32,7 @@ type PmemRegion struct {
 	AvailableSize     int64           `json:"available_size,omitempty"`
 	MaxAvailableExent int64           `json:"max_available_extent,omitempty"`
 	RegionType        string          `json:"type,omitempty"`
-	IsetId            int64           `json:"iset_id,omitempty"`
+	IsetID            int64           `json:"iset_id,omitempty"`
 	PersistenceDomain string          `json:"persistence_domain,omitempty"`
 	Namespaces        []PmemNameSpace `json:"namespaces,omitempty"`
 }
