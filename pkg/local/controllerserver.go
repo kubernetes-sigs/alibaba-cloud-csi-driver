@@ -100,6 +100,7 @@ func newControllerServer(d *csicommon.CSIDriver) *controllerServer {
 	}
 }
 
+// CreateVolume csi interface
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME); err != nil {
 		log.Errorf("Invalid create volume req: %v", req)
@@ -381,6 +382,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	return response, nil
 }
 
+// DeleteVolume csi interface
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	log.Infof("DeleteVolume: deleting volume: %s", req.GetVolumeId())
 	volumeID := req.GetVolumeId()
@@ -558,16 +560,19 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
+// ControllerUnpublishVolume csi interface
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	log.Infof("ControllerUnpublishVolume is called, do nothing by now: %s", req.VolumeId)
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
+// ControllerPublishVolume csi interface
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	log.Infof("ControllerPublishVolume is called, do nothing by now: %s", req.VolumeId)
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
+// ControllerExpandVolume csi interface
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	log.Infof("ControllerExpandVolume::: %v", req)
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())

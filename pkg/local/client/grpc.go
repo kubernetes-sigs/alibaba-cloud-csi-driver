@@ -37,9 +37,9 @@ type LVMConnection interface {
 	DeleteLvm(ctx context.Context, volGroup string, volumeID string) error
 	CleanPath(ctx context.Context, path string) error
 	Close() error
-    GetNameSpace(ctx context.Context, regionName string, volumeID string) (string, error)
-    CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*lib.PmemNameSpace, error)
-    DeleteNameSpace(ctx context.Context, volumeID string) error
+	GetNameSpace(ctx context.Context, regionName string, volumeID string) (string, error)
+	CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*lib.PmemNameSpace, error)
+	DeleteNameSpace(ctx context.Context, volumeID string) error
 }
 
 // LVMOptions lvm options
@@ -54,8 +54,8 @@ type LVMOptions struct {
 // LVMOptions lvm options
 type NameSpaceOptions struct {
 	Region string
-	Name        string
-	Size        uint64
+	Name   string
+	Size   uint64
 }
 
 //
@@ -133,13 +133,12 @@ func (c *lvmdConnection) CreateLvm(ctx context.Context, opt *LVMOptions) (string
 	return rsp.GetCommandOutput(), nil
 }
 
-
 func (c *lvmdConnection) CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*lib.PmemNameSpace, error) {
 	client := lib.NewLVMClient(c.conn)
 	req := lib.CreateNameSpaceRequest{
-		Name:        opt.Name,
-		Size:        opt.Size,
-		Region:      opt.Region,
+		Name:   opt.Name,
+		Size:   opt.Size,
+		Region: opt.Region,
 	}
 
 	rsp, err := client.CreateNameSpace(ctx, &req)
@@ -160,7 +159,7 @@ func (c *lvmdConnection) GetNameSpace(ctx context.Context, regionName string, vo
 	client := lib.NewLVMClient(c.conn)
 	req := lib.ListNameSpaceRequest{
 		NameSpace: volumeID,
-		Region: regionName,
+		Region:    regionName,
 	}
 
 	log.Infof("xxxxxxxxxx: %v", req)

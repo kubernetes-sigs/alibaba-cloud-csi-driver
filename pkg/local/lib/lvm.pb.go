@@ -292,6 +292,7 @@ func (x LogicalVolume_Attributes_Health) String() string {
 func (LogicalVolume_Attributes_Health) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_lvm_2fdce4b46d3763b2, []int{0, 0, 5}
 }
+
 //
 //type NameSpace struct {
 //	Dev        string `json:"dev"`
@@ -588,8 +589,8 @@ func (m *VolumeGroup) GetTags() []string {
 }
 
 type ListNameSpaceRequest struct {
-	NameSpace       	   string   `protobuf:"bytes,1,opt,name=namespace,json=namespace,proto3" json:"namespace,omitempty"`
-	Region      	   	 string   `protobuf:"bytes,2,opt,name=region,json=region,proto3" json:"region,omitempty"`
+	NameSpace            string   `protobuf:"bytes,1,opt,name=namespace,json=namespace,proto3" json:"namespace,omitempty"`
+	Region               string   `protobuf:"bytes,2,opt,name=region,json=region,proto3" json:"region,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -628,20 +629,20 @@ func (m *ListNameSpaceRequest) GetRegion() string {
 }
 
 type NameSpace struct {
-	Dev        string `protobuf:"bytes,1,opt,name=dev,proto3" json:"dev,omitempty"`
-	Mode       string `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"`
-	MapType    string `protobuf:"bytes,3,opt,name=mapType,proto3" json:"mapType,omitempty"`
-	Size       int64  `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
-	Uuid       string `protobuf:"bytes,5,opt,name=uuid,proto3" json:"uuid,omitempty"`
-	SectorSize int64  `protobuf:"varint,6,opt,name=sector_size,proto3" json:"sector_size,omitempty"`
-	Align      int64  `protobuf:"varint,7,opt,name=align,proto3" json:"align,omitempty"`
-	BlockDev   string `protobuf:"bytes,8,opt,name=blockdev,proto3" json:"blockdev,omitempty"`
-	CharDev    string `protobuf:"bytes,9,opt,name=charDev,proto3" json:"charDev,omitempty"`
-	Name       string `protobuf:"bytes,10,opt,name=name,proto3" json:"name,omitempty"`
-	Region     string `protobuf:"bytes,11,opt,name=region,proto3" json:"region,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
-	XXX_unrecognized     []byte                    `json:"-"`
-	XXX_sizecache        int32                     `json:"-"`
+	Dev                  string   `protobuf:"bytes,1,opt,name=dev,proto3" json:"dev,omitempty"`
+	Mode                 string   `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"`
+	MapType              string   `protobuf:"bytes,3,opt,name=mapType,proto3" json:"mapType,omitempty"`
+	Size                 int64    `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
+	Uuid                 string   `protobuf:"bytes,5,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	SectorSize           int64    `protobuf:"varint,6,opt,name=sector_size,proto3" json:"sector_size,omitempty"`
+	Align                int64    `protobuf:"varint,7,opt,name=align,proto3" json:"align,omitempty"`
+	BlockDev             string   `protobuf:"bytes,8,opt,name=blockdev,proto3" json:"blockdev,omitempty"`
+	CharDev              string   `protobuf:"bytes,9,opt,name=charDev,proto3" json:"charDev,omitempty"`
+	Name                 string   `protobuf:"bytes,10,opt,name=name,proto3" json:"name,omitempty"`
+	Region               string   `protobuf:"bytes,11,opt,name=region,proto3" json:"region,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *NameSpace) Reset()         { *m = NameSpace{} }
@@ -696,12 +697,11 @@ func (m *NameSpace) GetCharDev() string {
 	return ""
 }
 
-
 type ListNameSpaceReply struct {
-	NameSpace              []*NameSpace `protobuf:"bytes,1,rep,name=namespace,proto3" json:"namespace,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
-	XXX_unrecognized     []byte           `json:"-"`
-	XXX_sizecache        int32            `json:"-"`
+	NameSpace            []*NameSpace `protobuf:"bytes,1,rep,name=namespace,proto3" json:"namespace,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
+	XXX_unrecognized     []byte       `json:"-"`
+	XXX_sizecache        int32        `json:"-"`
 }
 
 func (m *ListNameSpaceReply) Reset()         { *m = ListNameSpaceReply{} }
@@ -841,10 +841,8 @@ func (m *CreateLVRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_CreateLVRequest proto.InternalMessageInfo
 
-
-
 type CreateNameSpaceRequest struct {
-	Region          string   `protobuf:"bytes,1,opt,name=region,json=region,proto3" json:"region,omitempty"`
+	Region               string   `protobuf:"bytes,1,opt,name=region,json=region,proto3" json:"region,omitempty"`
 	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Size                 uint64   `protobuf:"varint,3,opt,name=size,proto3" json:"size,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -986,6 +984,7 @@ func (m *CreateNameSpaceReply) GetCommandOutput() string {
 	}
 	return ""
 }
+
 type RemoveLVRequest struct {
 	VolumeGroup          string   `protobuf:"bytes,1,opt,name=volume_group,json=volumeGroup,proto3" json:"volume_group,omitempty"`
 	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
@@ -1019,7 +1018,7 @@ func (m *RemoveLVRequest) XXX_DiscardUnknown() {
 var xxx_messageInfo_RemoveLVRequest proto.InternalMessageInfo
 
 type RemoveNameSpaceRequest struct {
-	NameSpace          string   `protobuf:"bytes,1,opt,name=namespace,json=nameSpace,proto3" json:"name_space,omitempty"`
+	NameSpace            string   `protobuf:"bytes,1,opt,name=namespace,json=nameSpace,proto3" json:"name_space,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1048,7 +1047,6 @@ func (m *RemoveNameSpaceRequest) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_RemoveNameSpaceRequest proto.InternalMessageInfo
-
 
 func (m *RemoveLVRequest) GetVolumeGroup() string {
 	if m != nil {
@@ -1751,7 +1749,6 @@ func (c *lVMClient) ListNameSpace(ctx context.Context, in *ListNameSpaceRequest,
 	return out, nil
 }
 
-
 func (c *lVMClient) ListLV(ctx context.Context, in *ListLVRequest, opts ...grpc.CallOption) (*ListLVReply, error) {
 	out := new(ListLVReply)
 	err := c.cc.Invoke(ctx, "/lvm.LVM/ListLV", in, out, opts...)
@@ -1778,7 +1775,6 @@ func (c *lVMClient) CreateNameSpace(ctx context.Context, in *CreateNameSpaceRequ
 	}
 	return out, nil
 }
-
 
 func (c *lVMClient) RemoveLV(ctx context.Context, in *RemoveLVRequest, opts ...grpc.CallOption) (*RemoveLVReply, error) {
 	out := new(RemoveLVReply)
@@ -1937,7 +1933,6 @@ func _LVM_CreateLV_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
-
 func _LVM_CreateNameSpace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateNameSpaceRequest)
 	if err := dec(in); err != nil {
@@ -1973,7 +1968,6 @@ func _LVM_RemoveLV_Handler(srv interface{}, ctx context.Context, dec func(interf
 	}
 	return interceptor(ctx, in, info, handler)
 }
-
 
 func _LVM_RemoveNameSpace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RemoveNameSpaceRequest)

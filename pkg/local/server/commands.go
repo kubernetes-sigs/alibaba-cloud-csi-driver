@@ -27,8 +27,8 @@ import (
 	"strings"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
-	"golang.org/x/net/context"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -280,7 +280,6 @@ func RemoveTagLV(ctx context.Context, vg string, name string, tags []string) (st
 	out, err := utils.Run(cmd)
 	return string(out), err
 }
-
 
 // CreateNameSpace creates a new namespace
 // ndctl create-namespace -r region0 --size=6G -n webpmem1
