@@ -43,8 +43,8 @@ type PmemNameSpace struct {
 	Mode       string `json:"mode,omitempty"`
 	MapType    string `json:"map,omitempty"`
 	Size       int64  `json:"size,omitempty"`
-	Uuid       string `json:"uuid,omitempty"`
-	SectorSize int64  `json:"sector_size,omitempty"`
+	UUID       string `json:"uuid,omitempty"`
+	SectorSize int64  `json:"sectorsize,omitempty"`
 	Align      int64  `json:"align,omitempty"`
 	BlockDev   string `json:"blockdev,omitempty"`
 	CharDev    string `json:"chardev,omitempty"`
