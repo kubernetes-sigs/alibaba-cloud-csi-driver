@@ -51,7 +51,7 @@ type LVMOptions struct {
 	Striping    bool
 }
 
-// LVMOptions lvm options
+// NameSpaceOptions lvm options
 type NameSpaceOptions struct {
 	Region string
 	Name   string
@@ -67,7 +67,7 @@ var (
 	_ LVMConnection = &lvmdConnection{}
 )
 
-// NewLVMConnection lvm connection
+// NewGrpcConnection lvm connection
 func NewGrpcConnection(address string, timeout time.Duration) (LVMConnection, error) {
 	conn, err := connect(address, timeout)
 	if err != nil {
