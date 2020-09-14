@@ -29,7 +29,6 @@ import (
 	"strings"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/commands"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -72,38 +71,6 @@ func formatDevice(devicePath, fstype string) error {
 		return errors.New("FormatDevice error: " + string(output))
 	}
 	return nil
-}
-
-func checkFSType(devicePath string) (string, error) {
-	// We use `file -bsL` to determine whether any filesystem type is detected.
-	// If a filesystem is detected (ie., the output is not "data", we use
-	// `blkid` to determine what the filesystem is. We use `blkid` as `file`
-	// has inconvenient output.
-	// We do *not* use `lsblk` as that requires udev to be up-to-date which
-	// is often not the case when a device is erased using `dd`.
-	output, err := exec.Command("file", "-bsL", devicePath).CombinedOutput()
-	if err != nil {
-		return "", err
-	}
-	if strings.TrimSpace(string(output)) == "data" {
-		return "", nil
-	}
-	output, err = exec.Command("blkid", "-c", "/dev/null", "-o", "export", devicePath).CombinedOutput()
-	if err != nil {
-		return "", err
-	}
-
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		fields := strings.Split(strings.TrimSpace(line), "=")
-		if len(fields) != 2 {
-			return "", ErrParse
-		}
-		if fields[0] == "TYPE" {
-			return fields[1], nil
-		}
-	}
-	return "", ErrParse
 }
 
 func isVgExist(vgName string) (bool, error) {
@@ -241,7 +208,7 @@ func createVG(vgName string) (int, error) {
 
 func getPVNumber(vgName string) int {
 	var pvCount = 0
-	vgList, err := commands.ListVG()
+	vgList, err := server.ListVG()
 	if err != nil {
 		log.Errorf("Get pv for vg %s with error %s", vgName, err.Error())
 		return 0
@@ -257,33 +224,33 @@ func getPVNumber(vgName string) int {
 func getPvObj(client kubernetes.Interface, volumeID string) (*v1.PersistentVolume, error) {
 	return client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
 }
-func getLvmSpec(client kubernetes.Interface, volumeID, driverName string) (string, string, error) {
+func getLvmSpec(client kubernetes.Interface, volumeID, driverName string) (string, string, *v1.PersistentVolume, error) {
 	pv, err := getPvObj(client, volumeID)
 	if err != nil {
 		log.Errorf("Get Lvm Spec for volume %s, error with %v", volumeID, err)
-		return "", "", err
+		return "", "", nil, err
 	}
 	if pv.Spec.NodeAffinity == nil {
 		log.Errorf("Get Lvm Spec for volume %s, with nil nodeAffinity", volumeID)
-		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with nil nodeAffinity")
+		return "", "", pv, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil nodeAffinity")
 	}
 	if pv.Spec.NodeAffinity.Required == nil || len(pv.Spec.NodeAffinity.Required.NodeSelectorTerms) == 0 {
 		log.Errorf("Get Lvm Spec for volume %s, with nil Required", volumeID)
-		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with nil Required")
+		return "", "", pv, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil Required")
 	}
 	if len(pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions) == 0 {
 		log.Errorf("Get Lvm Spec for volume %s, with nil MatchExpressions", volumeID)
-		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with nil MatchExpressions")
+		return "", "", pv, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil MatchExpressions")
 	}
 	key := pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Key
 	if key != TopologyNodeKey && key != TopologyYodaNodeKey {
 		log.Errorf("Get Lvm Spec for volume %s, with key %s", volumeID, key)
-		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with key" + key)
+		return "", "", pv, errors.New("Get Lvm Spec for volume " + volumeID + ", with key" + key)
 	}
 	nodes := pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Values
 	if len(nodes) == 0 {
 		log.Errorf("Get Lvm Spec for volume %s, with empty nodes", volumeID)
-		return "", "", errors.New("Get Lvm Spec for volume " + volumeID + ", with empty nodes")
+		return "", "", pv, errors.New("Get Lvm Spec for volume " + volumeID + ", with empty nodes")
 	}
 	vgName := ""
 	if value, ok := pv.Spec.CSI.VolumeAttributes["vgName"]; ok {
@@ -291,10 +258,10 @@ func getLvmSpec(client kubernetes.Interface, volumeID, driverName string) (strin
 	}
 
 	log.Infof("Get Lvm Spec for volume %s, with VgName %s, Node %s", volumeID, pv.Spec.CSI.VolumeAttributes["vgName"], nodes[0])
-	return nodes[0], vgName, nil
+	return nodes[0], vgName, pv, nil
 }
 
-func getLvmdAddr(client kubernetes.Interface, node string) (string, error) {
+func getNodeAddr(client kubernetes.Interface, node string) (string, error) {
 	ip, err := GetNodeIP(client, node)
 	if err != nil {
 		return "", err

@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/commands"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -43,6 +43,8 @@ const (
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
 	// VgNameTag is the vg name tag
 	VgNameTag = "vgName"
+	// PmemType tag
+	PmemType = "pmemType"
 	// VolumeTypeTag is the pv type tag
 	VolumeTypeTag = "volumeType"
 	// PvTypeTag is the pv type tag
@@ -51,6 +53,8 @@ const (
 	FsTypeTag = "fsType"
 	// LvmTypeTag is the lvm type tag
 	LvmTypeTag = "lvmType"
+	// PmemBlockDev is the pmem type tag
+	PmemBlockDev = "pmemBlockDev"
 	// NodeAffinity is the pv node schedule tag
 	NodeAffinity = "nodeAffinity"
 	// LocalDisk local disk
@@ -63,6 +67,8 @@ const (
 	StripingType = "striping"
 	// DefaultFs default fs
 	DefaultFs = "ext4"
+	// DefaultPmemType default lvm
+	DefaultPmemType = "lvm"
 	// DefaultNodeAffinity default NodeAffinity
 	DefaultNodeAffinity = "true"
 )
@@ -85,6 +91,12 @@ var (
 
 // NewNodeServer create a NodeServer object
 func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer {
+	k8sHost := os.Getenv("KUBERNETES_SERVICE_HOST")
+	k8sPort := os.Getenv("KUBERNETES_SERVICE_PORT")
+	if k8sHost != "" && k8sPort != "" {
+		//masterURL = "http://"+k8sHost + ":" + k8sPort
+	}
+
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubeconfig: %s", err.Error())
@@ -97,6 +109,11 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 
 	// local volume daemon
 	go server.Start()
+
+	// config volumegroup for pmem node
+	if GlobalConfigVar.PmemEnable {
+		lib.MaintainPMEM(GlobalConfigVar.PmemType)
+	}
 
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
@@ -141,6 +158,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	} else if volumeType == DeviceVolumeType {
 		err := ns.mountDeviceVolume(ctx, req)
+		if err != nil {
+			log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
+			return nil, err
+		}
+	} else if volumeType == PmemVolumeType {
+		err := ns.mountPmemVolume(ctx, req)
 		if err != nil {
 			log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
 			return nil, err
@@ -276,19 +299,23 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 	var curSize int64
 
 	// Get vgName
+	pmemType := "lvm"
 	_, _, pv := ns.getPvInfo(volumeID)
 	if pv != nil && pv.Spec.CSI != nil {
 		if value, ok := pv.Spec.CSI.VolumeAttributes["vgName"]; ok {
 			vgName = value
 		}
+		if value, ok := pv.Spec.CSI.VolumeAttributes["pmemType"]; ok {
+			pmemType = value
+		}
 	}
-	if vgName == "" {
-		log.Errorf("resizeVolume: Resize volume %s with empty vg", volumeID)
-		return status.Error(codes.Internal, "VG Name is empty, cannot resize volume "+volumeID)
+	if pmemType == "direct" {
+		log.Warnf("NodeExpandVolume: %s not support volume expand", pmemType)
+		return nil
 	}
 
 	// Get lvm info
-	lvList, err := commands.ListLV(vgName)
+	lvList, err := server.ListLV(vgName)
 	if err != nil {
 		log.Errorf("resizeVolume: Resize volume %s with list lv error %v", volumeID, err)
 		return status.Error(codes.Internal, "List lvm error with: "+err.Error())

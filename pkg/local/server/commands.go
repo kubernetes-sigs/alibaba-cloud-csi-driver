@@ -16,7 +16,7 @@ limitations under the License.
 
 */
 
-package commands
+package server
 
 import (
 	"errors"
@@ -26,7 +26,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/parser"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"golang.org/x/net/context"
 )
 
@@ -36,12 +37,12 @@ const (
 )
 
 // ListLV lists lvm volumes
-func ListLV(listspec string) ([]*parser.LV, error) {
-	lvs := []*parser.LV{}
+func ListLV(listspec string) ([]*lib.LV, error) {
+	lvs := []*lib.LV{}
 	cmdList := []string{NsenterCmd, "lvs", "--units=b", "--separator=\"<:SEP:>\"", "--nosuffix", "--noheadings",
 		"-o", "lv_name,lv_size,lv_uuid,lv_attr,copy_percent,lv_kernel_major,lv_kernel_minor,lv_tags", "--nameprefixes", "-a", listspec}
 	cmd := strings.Join(cmdList, " ")
-	out, err := Run(cmd)
+	out, err := utils.Run(cmd)
 	if err != nil {
 		if strings.Contains(err.Error(), "Failed to find logical volume") {
 			return lvs, nil
@@ -55,7 +56,7 @@ func ListLV(listspec string) ([]*parser.LV, error) {
 		if !strings.Contains(line, "LVM2_LV_NAME") {
 			continue
 		}
-		lv, err := parser.ParseLV(line)
+		lv, err := lib.ParseLV(line)
 		if err != nil {
 			return nil, errors.New("Parse LVM: " + line + ", with error: " + err.Error())
 		}
@@ -85,7 +86,7 @@ func CreateLV(ctx context.Context, vg string, name string, size uint64, mirrors 
 
 	args = append(args, vg)
 	cmd := strings.Join(args, " ")
-	out, err := Run(cmd)
+	out, err := utils.Run(cmd)
 	return string(out), err
 }
 
@@ -126,7 +127,7 @@ func RemoveLV(ctx context.Context, vg string, name string) (string, error) {
 
 	args := []string{NsenterCmd, "lvremove", "-v", "-f", fmt.Sprintf("%s/%s", vg, name)}
 	cmd := strings.Join(args, " ")
-	out, err := Run(cmd)
+	out, err := utils.Run(cmd)
 
 	return string(out), err
 }
@@ -137,26 +138,26 @@ func CloneLV(ctx context.Context, src, dest string) (string, error) {
 
 	args := []string{NsenterCmd, "dd", fmt.Sprintf("if=%s", src), fmt.Sprintf("of=%s", dest), "bs=4M"}
 	cmd := strings.Join(args, " ")
-	out, err := Run(cmd)
+	out, err := utils.Run(cmd)
 
 	return string(out), err
 }
 
 // ListVG get vg info
-func ListVG() ([]*parser.VG, error) {
+func ListVG() ([]*lib.VG, error) {
 	args := []string{NsenterCmd, "vgs", "--units=b", "--separator=\"<:SEP:>\"", "--nosuffix", "--noheadings",
 		"-o", "vg_name,vg_size,vg_free,vg_uuid,vg_tags,pv_count", "--nameprefixes", "-a"}
 	cmd := strings.Join(args, " ")
-	out, err := Run(cmd)
+	out, err := utils.Run(cmd)
 	if err != nil {
 		return nil, err
 	}
 	outStr := strings.TrimSpace(string(out))
 	outLines := strings.Split(outStr, "\n")
-	vgs := make([]*parser.VG, len(outLines))
+	vgs := make([]*lib.VG, len(outLines))
 	for i, line := range outLines {
 		line = strings.TrimSpace(line)
-		vg, err := parser.ParseVG(line)
+		vg, err := lib.ParseVG(line)
 		if err != nil {
 			return nil, err
 		}
@@ -172,7 +173,7 @@ func CreateVG(ctx context.Context, name string, physicalVolume string, tags []st
 		args = append(args, "--add-tag", tag)
 	}
 	cmd := strings.Join(args, " ")
-	out, err := Run(cmd)
+	out, err := utils.Run(cmd)
 
 	return string(out), err
 }
@@ -183,7 +184,7 @@ func RemoveVG(ctx context.Context, name string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to list VGs: %v", err)
 	}
-	var vg *parser.VG
+	var vg *lib.VG
 	for _, v := range vgs {
 		if v.Name == name {
 			vg = v
@@ -201,7 +202,7 @@ func RemoveVG(ctx context.Context, name string) (string, error) {
 
 	args := []string{NsenterCmd, "vgremove", "-v", "-f", name}
 	cmd := strings.Join(args, " ")
-	out, err := Run(cmd)
+	out, err := utils.Run(cmd)
 
 	return string(out), err
 }
@@ -251,7 +252,7 @@ func AddTagLV(ctx context.Context, vg string, name string, tags []string) (strin
 
 	args = append(args, fmt.Sprintf("%s/%s", vg, name))
 	cmd := strings.Join(args, " ")
-	out, err := Run(cmd)
+	out, err := utils.Run(cmd)
 
 	return string(out), err
 }
@@ -276,6 +277,78 @@ func RemoveTagLV(ctx context.Context, vg string, name string, tags []string) (st
 
 	args = append(args, fmt.Sprintf("%s/%s", vg, name))
 	cmd := strings.Join(args, " ")
-	out, err := Run(cmd)
+	out, err := utils.Run(cmd)
 	return string(out), err
+}
+
+// CreateNameSpace creates a new namespace
+// ndctl create-namespace -r region0 --size=6G -n webpmem1
+func CreateNameSpace(ctx context.Context, region string, name string, size uint64) (string, error) {
+	if size == 0 {
+		return "", errors.New("size must be greater than 0")
+	}
+	args := []string{NsenterCmd, "ndctl", "create-namespace", "-r", region, "-s", fmt.Sprintf("%d", size), "-n", name}
+	cmd := strings.Join(args, " ")
+	out, err := utils.Run(cmd)
+	return string(out), err
+}
+
+// GetNameSpace get pmem namespace
+func GetNameSpace(namespaceName string) (*lib.NameSpace, error) {
+	namespaces, err := ListNameSpace()
+	if err != nil {
+		return nil, err
+	}
+	if len(namespaces) == 0 {
+		return nil, nil
+	}
+
+	for _, tmp := range namespaces {
+		if tmp.Dev == namespaceName {
+			return tmp, nil
+		}
+	}
+	return nil, nil
+}
+
+// RemoveNameSpace removes a namespace
+func RemoveNameSpace(ctx context.Context, namespaceName string) (string, error) {
+	namespace, err := GetNameSpace(namespaceName)
+	if err != nil {
+		return "", fmt.Errorf("failed to found namespace with error: %v", err)
+	}
+	if namespace == nil {
+		return "namespace  " + namespaceName + " not found, skip", nil
+	}
+
+	args := []string{NsenterCmd, "ndctl", "disable-namespace", fmt.Sprintf("%s", namespace.Dev)}
+	cmd := strings.Join(args, " ")
+	_, err = utils.Run(cmd)
+	if err != nil {
+		return "", fmt.Errorf("failed to disable namespace with error: %v", err)
+	}
+
+	args = []string{NsenterCmd, "ndctl", "destroy-namespace", fmt.Sprintf("%s", namespace.Dev)}
+	cmd = strings.Join(args, " ")
+	_, err = utils.Run(cmd)
+	if err != nil {
+		return "", fmt.Errorf("failed to destroy namespace with error: %v", err)
+	}
+	return "", nil
+}
+
+// ListNameSpace list pmem namespace
+func ListNameSpace() ([]*lib.NameSpace, error) {
+	regions, err := lib.GetRegions()
+	if err != nil {
+		return nil, err
+	}
+
+	namespaces := []*lib.NameSpace{}
+	for _, region := range regions.Regions {
+		for _, ns := range region.Namespaces {
+			namespaces = append(namespaces, ns.ToProto())
+		}
+	}
+	return namespaces, nil
 }
