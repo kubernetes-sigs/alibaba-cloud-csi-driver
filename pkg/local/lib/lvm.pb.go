@@ -6,7 +6,6 @@ package lib
 import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"math"
@@ -711,7 +710,6 @@ func (*ListNameSpaceReply) Descriptor() ([]byte, []int) {
 	return fileDescriptor_lvm_2fdce4b46d3763b2, []int{3}
 }
 func (m *ListNameSpaceReply) XXX_Unmarshal(b []byte) error {
-	log.Infof("DDDDDDDD", string(b))
 	return xxx_messageInfo_ListNameSpaceReply.Unmarshal(m, b)
 }
 func (m *ListNameSpaceReply) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
@@ -1883,7 +1881,6 @@ func _LVM_ListNameSpace_Handler(srv interface{}, ctx context.Context, dec func(i
 	if err := dec(in); err != nil {
 		return nil, err
 	}
-	log.Infof("YYYYYYYY %v", in)
 	if interceptor == nil {
 		return srv.(LVMServer).ListNameSpace(ctx, in)
 	}
