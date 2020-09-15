@@ -20,6 +20,7 @@ import (
 	"context"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -41,18 +42,20 @@ type Local struct {
 }
 
 // GlobalConfig var
-type GlobalConfig struct {
-	Region     string
-	NodeID     string
-	Scheduler  string
-	PmemEnable bool
-	PmemType   string
-}
+//type GlobalConfig struct {
+//	Region          string
+//	NodeID          string
+//	Scheduler       string
+//	PmemEnable      bool
+//	PmemType        string
+//	ControllerProvision bool
+//	KubeClient      *kubernetes.Clientset
+//}
 
-var (
-	// GlobalConfigVar var
-	GlobalConfigVar GlobalConfig
-)
+//var (
+//	// GlobalConfigVar var
+//	GlobalConfigVar types.GlobalConfig
+//)
 
 const (
 	defaultDriverName = "localplugin.csi.alibabacloud.com"
@@ -141,12 +144,21 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 		log.Infof("Describe node %s and Set PMEM to %v, %s", nodeName, pmemEnable, pmeType)
 	}
 
-	// Global Config Set
-	GlobalConfigVar = GlobalConfig{
-		Region:     region,
-		NodeID:     nodeID,
-		Scheduler:  driverName,
-		PmemEnable: pmemEnable,
-		PmemType:   pmeType,
+	remoteProvision := true
+	remoteConfig := os.Getenv("LOCAL_CONTROLLER_PROVISION")
+	if strings.ToLower(remoteConfig) == "false" {
+		remoteProvision = false
 	}
+
+	// Global Config Set
+	types.GlobalConfigVar = types.GlobalConfig{
+		Region:          region,
+		NodeID:          nodeID,
+		Scheduler:       driverName,
+		PmemEnable:      pmemEnable,
+		PmemType:        pmeType,
+		ControllerProvision: remoteProvision,
+		KubeClient:      kubeClient,
+	}
+	log.Infof("Local Plugin Global Config is: %v", types.GlobalConfigVar)
 }

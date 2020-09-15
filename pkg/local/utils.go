@@ -20,23 +20,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net"
-	"net/http"
-	"os/exec"
-	"path/filepath"
-	"strconv"
-	"strings"
-
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"io/ioutil"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"net"
+	"net/http"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -288,3 +287,89 @@ func GetNodeIP(client kubernetes.Interface, nodeID string) (net.IP, error) {
 	}
 	return nil, fmt.Errorf("Node IP unknown; known addresses: %v", addresses)
 }
+//
+//func updatePvcWithLabel(namespace, pvcName string, labels map[string]string) error {
+//	ctx := context.Background()
+//	pvc, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcName, metav1.GetOptions{})
+//	if err != nil {
+//		return err
+//	}
+//	for key, value := range labels {
+//		if pvc.Annotations == nil {
+//			pvc.Annotations = map[string]string{key: value}
+//		} else {
+//			pvc.Annotations[key] = value
+//		}
+//	}
+//	_, err = types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumeClaims(namespace).Update(ctx, pvc, metav1.UpdateOptions{})
+//	if err != nil {
+//		return err
+//	}
+//
+//	return nil
+//}
+//
+//
+//func updatePvWithLabel(pvName string, labels map[string]string) error {
+//	ctx := context.Background()
+//	pv, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
+//	if err != nil {
+//		return err
+//	}
+//	for key, value := range labels {
+//		if pv.Annotations == nil {
+//			pv.Annotations = map[string]string{key: value}
+//		} else {
+//			pv.Annotations[key] = value
+//		}
+//	}
+//	_, err = types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Update(ctx, pv, metav1.UpdateOptions{})
+//	if err != nil {
+//		return err
+//	}
+//	return nil
+//}
+//
+//
+//
+//func createVolumeWithLabel(namespace, pvcName string, labels map[string]string) error {
+//	if err := updatePvcWithLabel(namespace, pvcName, labels); err != nil {
+//		log.Errorf("Failed to update PVC %s/%s: %v", namespace, pvcName, err)
+//		return err
+//	}
+//
+//	ctx := context.Background()
+//	for i := 0; i < 8; i++ {
+//		pvc, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcName, metav1.GetOptions{})
+//		if err != nil {
+//			log.Errorf("Failed to read PVC %s/%s: %v", namespace, pvcName, err)
+//			return err
+//		}
+//		for pvc.Annotations[types.VolumeLifecycleLabel] == types.VolumeLifecycleCreated {
+//			return nil
+//		}
+//		time.Sleep(time.Duration(2) * time.Second)
+//	}
+//	return errors.New("Create Volume with label timeout error: " + namespace + pvcName)
+//}
+//
+//func deleteVolumeWithLabel(pvName string, labels map[string]string) error {
+//	if err := updatePvWithLabel(pvName, labels); err != nil {
+//		log.Errorf("Failed to update PV %s: %v", pvName, err)
+//		return err
+//	}
+//
+//	ctx := context.Background()
+//	for i := 0; i < 8; i++ {
+//		pv, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
+//		if err != nil {
+//			log.Errorf("Failed to read PV %s: %v", pvName, err)
+//			return err
+//		}
+//		for pv.Annotations[types.VolumeLifecycleLabel] == types.VolumeLifecycleDeleted {
+//			return nil
+//		}
+//		time.Sleep(time.Duration(2) * time.Second)
+//	}
+//	return errors.New("Delete Volume with label timeout error: " + pvName)
+//}
