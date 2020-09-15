@@ -41,22 +41,6 @@ type Local struct {
 	cscap []*csi.ControllerServiceCapability
 }
 
-// GlobalConfig var
-//type GlobalConfig struct {
-//	Region          string
-//	NodeID          string
-//	Scheduler       string
-//	PmemEnable      bool
-//	PmemType        string
-//	ControllerProvision bool
-//	KubeClient      *kubernetes.Clientset
-//}
-
-//var (
-//	// GlobalConfigVar var
-//	GlobalConfigVar types.GlobalConfig
-//)
-
 const (
 	defaultDriverName = "localplugin.csi.alibabacloud.com"
 	localDriverName   = "localplugin.csi.alibabacloud.com"
