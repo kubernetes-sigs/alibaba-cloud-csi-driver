@@ -13,6 +13,7 @@ import (
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"errors"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/kubernetes/pkg/util/resizefs"
 	utilexec "k8s.io/utils/exec"
@@ -60,7 +61,7 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 	devicePath := filepath.Join("/dev/", vgName, volumeID)
 	if _, err := os.Stat(devicePath); os.IsNotExist(err) {
 		//volumeNewCreated = true
-		err := ns.createVolume(ctx, volumeID, vgName, pvType, lvmType)
+		err := createVolume(ctx, volumeID, vgName, pvType, lvmType)
 		if err != nil {
 			log.Errorf("NodePublishVolume: create volume %s with error: %s", volumeID, err.Error())
 			return status.Error(codes.Internal, err.Error())
@@ -207,7 +208,7 @@ func (ns *nodeServer) mountPmemVolume(ctx context.Context, req *csi.NodePublishV
 	if pmemBlockDev == "" {
 		if _, err := os.Stat(devicePath); os.IsNotExist(err) {
 			//volumeNewCreated = true
-			err := ns.createVolume(ctx, volumeID, vgName, "", lvmType)
+			err := createVolume(ctx, volumeID, vgName, "", lvmType)
 			if err != nil {
 				log.Errorf("NodePublishVolume: create volume %s with error: %s", volumeID, err.Error())
 				return status.Error(codes.Internal, err.Error())
@@ -353,17 +354,16 @@ func (ns *nodeServer) checkPmemNameSpaceResize(volumeID, targetPath string) erro
 }
 
 // create lvm volume
-func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType, lvmType string) error {
-	pvSize, unit, _ := ns.getPvInfo(volumeID)
+func createVolume(ctx context.Context, volumeID, vgName, pvType, lvmType string) error {
+	pvSize, unit, _ := getPvInfo(volumeID)
 	if pvSize == 0 {
 		log.Errorf("createVolume: Volume: %s, VG: %s, parse pv Size zero", volumeID, vgName)
 		return status.Error(codes.Internal, "parse pv Size zero")
 	}
-	pvNumber := 0
 	var err error
 	// Create VG if vg not exist,
 	if pvType == LocalDisk {
-		if pvNumber, err = createVG(vgName); err != nil {
+		if _, err = createVG(vgName); err != nil {
 			log.Errorf("createVolume: Volume: %s, VG: %s, error: %s", volumeID, vgName, err.Error())
 			return err
 		}
@@ -378,14 +378,23 @@ func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType
 	}
 
 	// Create lvm volume
+	if err := createLvm(vgName, volumeID, lvmType, unit, pvSize); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func createLvm(vgName, volumeID, lvmType, unit string, pvSize int64) error {
+		// Create lvm volume
 	if lvmType == StripingType {
-		pvNumber = getPVNumber(vgName)
+		pvNumber := getPVNumber(vgName)
 		if pvNumber == 0 {
 			log.Errorf("createVolume:: VG is exist: %s, bug get pv number as 0", vgName)
-			return err
+			return errors.New("")
 		}
 		cmd := fmt.Sprintf("%s lvcreate -i %d -n %s -L %d%s %s", NsenterCmd, pvNumber, volumeID, pvSize, unit, vgName)
-		_, err = utils.Run(cmd)
+		_, err := utils.Run(cmd)
 		if err != nil {
 			log.Errorf("createVolume:: lvcreate command %s error: %v", cmd, err)
 			return err
@@ -393,7 +402,7 @@ func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType
 		log.Infof("Successful Create Striping LVM volume: %s, with command: %s", volumeID, cmd)
 	} else if lvmType == LinearType {
 		cmd := fmt.Sprintf("%s lvcreate -n %s -L %d%s %s", NsenterCmd, volumeID, pvSize, unit, vgName)
-		_, err = utils.Run(cmd)
+		_, err := utils.Run(cmd)
 		if err != nil {
 			log.Errorf("createVolume:: lvcreate linear command %s error: %v", cmd, err)
 			return err

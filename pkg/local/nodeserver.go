@@ -22,6 +22,8 @@ import (
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/server"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/creator"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -110,9 +112,12 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 	// local volume daemon
 	go server.Start()
 
+	// pv handler
+	go creator.PvcHandler()
+
 	// config volumegroup for pmem node
-	if GlobalConfigVar.PmemEnable {
-		lib.MaintainPMEM(GlobalConfigVar.PmemType)
+	if types.GlobalConfigVar.PmemEnable {
+		lib.MaintainPMEM(types.GlobalConfigVar.PmemType)
 	}
 
 	return &nodeServer{
@@ -300,7 +305,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 
 	// Get vgName
 	pmemType := "lvm"
-	_, _, pv := ns.getPvInfo(volumeID)
+	_, _, pv := getPvInfo(volumeID)
 	if pv != nil && pv.Spec.CSI != nil {
 		if value, ok := pv.Spec.CSI.VolumeAttributes["vgName"]; ok {
 			vgName = value
@@ -359,8 +364,8 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 }
 
 // get pvSize, pvSizeUnit, pvObject
-func (ns *nodeServer) getPvInfo(volumeID string) (int64, string, *v1.PersistentVolume) {
-	pv, err := ns.client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
+func getPvInfo(volumeID string) (int64, string, *v1.PersistentVolume) {
+	pv, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("lvcreate: fail to get pv, err: %v", err)
 		return 0, "", nil
