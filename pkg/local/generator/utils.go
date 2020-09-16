@@ -1,20 +1,19 @@
-package creator
+package generator
 
 import (
 	"context"
+	"errors"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
-	log "github.com/sirupsen/logrus"
-	"errors"
 )
-func UpdatePvcWithLabel(namespace, pvcName string, labels map[string]string) error {
-	ctx := context.Background()
+
+func UpdatePvcWithLabel(ctx context.Context, namespace, pvcName string, annotations map[string]string) error {
 	pvc, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
-	for key, value := range labels {
+	for key, value := range annotations {
 		if pvc.Annotations == nil {
 			pvc.Annotations = map[string]string{key: value}
 		} else {
@@ -29,14 +28,12 @@ func UpdatePvcWithLabel(namespace, pvcName string, labels map[string]string) err
 	return nil
 }
 
-
-func UpdatePvWithLabel(pvName string, labels map[string]string) error {
-	ctx := context.Background()
+func UpdatePvWithLabel(ctx context.Context, pvName string, annotations map[string]string) error {
 	pv, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
-	for key, value := range labels {
+	for key, value := range annotations {
 		if pv.Annotations == nil {
 			pv.Annotations = map[string]string{key: value}
 		} else {
@@ -50,18 +47,17 @@ func UpdatePvWithLabel(pvName string, labels map[string]string) error {
 	return nil
 }
 
-
-func CreateVolumeWithLabel(namespace, pvcName string, labels map[string]string) error {
-	if err := UpdatePvcWithLabel(namespace, pvcName, labels); err != nil {
-		log.Errorf("Failed to update PVC %s/%s: %v", namespace, pvcName, err)
+func CreateVolumeWithLabel(namespace, pvcName string, annotations map[string]string) error {
+	ctx := context.Background()
+	if err := UpdatePvcWithLabel(ctx, namespace, pvcName, annotations); err != nil {
+		//log.Errorf("CreateVolumeWithLabel: Failed to update PVC %s/%s: %v", namespace, pvcName, err)
 		return err
 	}
 
-	ctx := context.Background()
 	for i := 0; i < 8; i++ {
 		pvc, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcName, metav1.GetOptions{})
 		if err != nil {
-			log.Errorf("Failed to read PVC %s/%s: %v", namespace, pvcName, err)
+			//log.Errorf("CreateVolumeWithLabel: Failed to read PVC %s/%s: %v", namespace, pvcName, err)
 			return err
 		}
 		for pvc.Annotations[types.VolumeLifecycleLabel] == types.VolumeLifecycleCreated {
@@ -69,20 +65,21 @@ func CreateVolumeWithLabel(namespace, pvcName string, labels map[string]string) 
 		}
 		time.Sleep(time.Duration(2) * time.Second)
 	}
-	return errors.New("Create Volume with label timeout error: " + namespace + pvcName)
+	//log.Errorf("CreateVolumeWithLabel: Fail to create volume with label timeout, %s, %s", namespace, pvcName)
+	return errors.New("CreateVolumeWithLabel: Create Volume with label timeout error: " + namespace + pvcName)
 }
 
-func DeleteVolumeWithLabel(pvName string, labels map[string]string) error {
-	if err := UpdatePvWithLabel(pvName, labels); err != nil {
-		log.Errorf("Failed to update PV %s: %v", pvName, err)
+func DeleteVolumeWithLabel(pvName string, annotations map[string]string) error {
+	ctx := context.Background()
+	if err := UpdatePvWithLabel(ctx, pvName, annotations); err != nil {
+		//log.Errorf("DeleteVolumeWithLabel: Failed to update PV %s: %v", pvName, err)
 		return err
 	}
 
-	ctx := context.Background()
 	for i := 0; i < 8; i++ {
 		pv, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
 		if err != nil {
-			log.Errorf("Failed to read PV %s: %v", pvName, err)
+			//log.Errorf("DeleteVolumeWithLabel: Failed to read PV %s: %v", pvName, err)
 			return err
 		}
 		for pv.Annotations[types.VolumeLifecycleLabel] == types.VolumeLifecycleDeleted {
@@ -90,5 +87,6 @@ func DeleteVolumeWithLabel(pvName string, labels map[string]string) error {
 		}
 		time.Sleep(time.Duration(2) * time.Second)
 	}
-	return errors.New("Delete Volume with label timeout error: " + pvName)
+	//log.Errorf("DeleteVolumeWithLabel: delete volume with label time, %s", pvName)
+	return errors.New("DeleteVolumeWithLabel: Delete Volume with label timeout error: " + pvName)
 }
