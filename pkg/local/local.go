@@ -136,13 +136,13 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 
 	// Global Config Set
 	types.GlobalConfigVar = types.GlobalConfig{
-		Region:          region,
-		NodeID:          nodeID,
-		Scheduler:       driverName,
-		PmemEnable:      pmemEnable,
-		PmemType:        pmeType,
+		Region:              region,
+		NodeID:              nodeID,
+		Scheduler:           driverName,
+		PmemEnable:          pmemEnable,
+		PmemType:            pmeType,
 		ControllerProvision: remoteProvision,
-		KubeClient:      kubeClient,
+		KubeClient:          kubeClient,
 	}
 	log.Infof("Local Plugin Global Config is: %v", types.GlobalConfigVar)
 }

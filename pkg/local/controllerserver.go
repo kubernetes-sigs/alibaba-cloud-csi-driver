@@ -23,7 +23,7 @@ import (
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/adapter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/client"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/creator"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/generator"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	log "github.com/sirupsen/logrus"
@@ -219,12 +219,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			createLabels := map[string]string{}
 			optBytes, err := json.Marshal(options)
 			if err != nil {
-				log.Errorf("Marshal lvm options error: %s", req.Name, err.Error())
+				log.Errorf("CreateVolume: Marshal lvm options error: %s, %s", req.Name, err.Error())
 				return nil, err
 			}
 			createLabels[types.VolumeLifecycleLabel] = types.VolumeLifecycleCreating
 			createLabels[types.VolumeSpecLabel] = string(optBytes)
-			if err := creator.CreateVolumeWithLabel(pvcNameSpace, pvcName, createLabels); err != nil {
+			if err := generator.CreateVolumeWithLabel(pvcNameSpace, pvcName, createLabels); err != nil {
 				log.Errorf("CreateVolume: create volume with label for volume %s error: %s", req.Name, err.Error())
 				return nil, err
 			}
@@ -457,7 +457,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			createLabels := map[string]string{}
 			createLabels[types.VolumeLifecycleLabel] = types.VolumeLifecycleDeleting
 			createLabels[types.VolumeSpecLabel] = vgName + "/" + volumeID
-			if err := creator.DeleteVolumeWithLabel(volumeID, createLabels); err != nil {
+			if err := generator.DeleteVolumeWithLabel(volumeID, createLabels); err != nil {
 				log.Errorf("DeleteVolume: delete volume with label for volume %s error: %s", volumeID, err.Error())
 				return nil, err
 			}

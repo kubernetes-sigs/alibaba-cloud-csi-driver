@@ -1,4 +1,4 @@
-package creator
+package generator
 
 import (
 	"context"
@@ -11,9 +11,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"os"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -21,29 +20,63 @@ import (
 	"syscall"
 	"time"
 )
+
 var (
 	masterURL  string
 	kubeconfig string
 )
 
+// DesiredStateOfWordPvc the desired pvc state
+type DesiredStateOfWordPvc struct {
+	DesiredPvcMap map[string]*corev1.PersistentVolumeClaim
+	sync.RWMutex
+}
+
+// Add object
+func (dsw *DesiredStateOfWordPvc) Add(pvc *corev1.PersistentVolumeClaim) {
+	dsw.Lock()
+	defer dsw.Unlock()
+	dsw.DesiredPvcMap[pvc.Name] = pvc
+}
+
+// Remove object
+func (dsw *DesiredStateOfWordPvc) Remove(pvc *corev1.PersistentVolumeClaim) {
+	dsw.Lock()
+	defer dsw.Unlock()
+	delete(dsw.DesiredPvcMap, pvc.Name)
+}
+
+// ActualStateOfWordPvc the actual pvc state
+type ActualStateOfWordPvc struct {
+	ActualPvcMap map[string]*corev1.PersistentVolumeClaim
+	sync.RWMutex
+}
+
+// Add object
+func (dsw *ActualStateOfWordPvc) Add(pvc *corev1.PersistentVolumeClaim) {
+	dsw.Lock()
+	defer dsw.Unlock()
+	dsw.ActualPvcMap[pvc.Name] = pvc
+}
+
+// Remove object
+func (dsw *ActualStateOfWordPvc) Remove(pvc *corev1.PersistentVolumeClaim) {
+	dsw.Lock()
+	defer dsw.Unlock()
+	delete(dsw.ActualPvcMap, pvc.Name)
+}
+
+// DesiredStateOfPvc record desired pvc
+var DesiredStateOfPvc = DesiredStateOfWordPvc{}
+
+// ActualStateOfPvc record actual pvc
+var ActualStateOfPvc = ActualStateOfWordPvc{}
+
 func pvcInformer() {
 	// set up signals so we handle the first shutdown signal gracefully
-
 	stopCh := SetupSignalHandlerPVC()
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
-	}
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*30)
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(types.GlobalConfigVar.KubeClient, time.Second*30)
 	pvcInformer := kubeInformerFactory.Core().V1().PersistentVolumeClaims()
-
-	//pvLister := pvInformer.Lister()
-	//pvSynced := pvInformer.Informer().HasSynced
 
 	pvcInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: handlePvcAdd,
@@ -60,10 +93,30 @@ func pvcInformer() {
 		DeleteFunc: handlePvcDelete,
 	})
 
+	// init pvc maps
+	DesiredStateOfPvc.DesiredPvcMap = map[string]*corev1.PersistentVolumeClaim{}
+	ActualStateOfPvc.ActualPvcMap = map[string]*corev1.PersistentVolumeClaim{}
+
+	// reconcile pvc state while process failed
+	go pvcReconcile()
+
 	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
 	kubeInformerFactory.Start(stopCh)
+}
 
+// process pvc object
+func pvcReconcile() {
+	for {
+		for _, pvc := range DesiredStateOfPvc.DesiredPvcMap {
+			if pvc.Annotations[types.VolumeLifecycleLabel] == types.VolumeLifecycleCreating {
+				if err := processPvc(pvc); err != nil {
+					log.Errorf("pvcReconcile: Process PVC error %s", err.Error())
+				}
+			}
+		}
+		time.Sleep(time.Duration(2) * time.Second)
+	}
 }
 
 func handlePvcAdd(obj interface{}) {
@@ -82,12 +135,17 @@ func handlePvcAdd(obj interface{}) {
 		}
 		log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
 	}
-	log.Infof("Adding Pv: %s", object.GetName())
-
 	pvcObj := obj.(*corev1.PersistentVolumeClaim)
-	pvcIdx := GetPvcIdx(pvcObj)
-	PVCGlobalMap[pvcIdx] = pvcObj
-	
+	// if pvc not desired pvcObj, just return
+	if !isPvcExpected(pvcObj) {
+		return
+	}
+	log.Infof("Adding Pvc: %s", object.GetName())
+
+	DesiredStateOfPvc.Add(pvcObj)
+	//if pvcObj.Spec.VolumeName != "" {
+	//	ActualStateOfPvc.Add(pvcObj)
+	//}
 }
 
 func handlePvcDelete(obj interface{}) {
@@ -106,10 +164,14 @@ func handlePvcDelete(obj interface{}) {
 		}
 		log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
 	}
-	log.Infof("Delete Pod: %s", object.GetName())
 	pvcObj := obj.(*corev1.PersistentVolumeClaim)
-	pvcIdx := GetPvcIdx(pvcObj)
-	delete(PVCGlobalMap, pvcIdx)
+	if !isPvcExpected(pvcObj) {
+		return
+	}
+	log.Infof("Delete Pvc: %s", object.GetName())
+
+	DesiredStateOfPvc.Remove(pvcObj)
+//	ActualStateOfPvc.Remove(pvcObj)
 }
 
 func handlePvcUpdate(obj interface{}) {
@@ -128,60 +190,76 @@ func handlePvcUpdate(obj interface{}) {
 		}
 		log.Infof("Recovered deleted object '%s' from tombstone", object.GetName())
 	}
-	log.Infof("Update PVC: %s", object.GetName())
 
 	pvcObj := obj.(*corev1.PersistentVolumeClaim)
-	podIdx := GetPvcIdx(pvcObj)
-	value, ok := pvcObj.Labels[types.NodeSchedueTag];
-	if !ok || types.GlobalConfigVar.NodeID != value {
-		PVCGlobalMap[podIdx] = pvcObj
+	if !isPvcExpected(pvcObj) {
 		return
 	}
+	log.Infof("Update PVC: %s", object.GetName())
 
 	// pv.csi.alibabacloud.com/volume.lifecycle
 	if value, ok := pvcObj.Annotations[types.VolumeLifecycleLabel]; ok && value == types.VolumeLifecycleCreating {
-		volumeSpec := pvcObj.Annotations[types.VolumeSpecLabel]
-		volumeSpecMap := client.LVMOptions{}
-		err := json.Unmarshal([]byte(volumeSpec), &volumeSpecMap)
-		if err != nil {
-			utilruntime.HandleError(fmt.Errorf("error Unmarshal object, invalid spec %s", volumeSpec))
+		DesiredStateOfPvc.Add(pvcObj)
+		if err := processPvc(pvcObj); err != nil {
+			log.Errorf("handlePvcUpdate: processPvc with error: %v", err)
+			utilruntime.HandleError(err)
 			return
 		}
-		vgName := ""
-		volumeID := ""
-		striping := false
-		var pvSize uint64
-		if volumeSpecMap.VolumeGroup != "" {
-			vgName = volumeSpecMap.VolumeGroup
-		}
-		if volumeSpecMap.Name != "" {
-			volumeID = volumeSpecMap.Name
-		}
-		if volumeSpecMap.Striping {
-			striping = true
-		}
-		if volumeSpecMap.Size != 0 {
-			pvSize = volumeSpecMap.Size
-		}
-		tags := []string{}
-		_, err = server.CreateLV(context.Background(), vgName, volumeID, pvSize, 0, tags, striping)
-		if err != nil {
-			utilruntime.HandleError(fmt.Errorf("error create lvm object, %s", volumeSpec))
-			return
-		}
-
-		labels := map[string]string{}
-		labels[types.VolumeLifecycleLabel] = types.VolumeLifecycleCreated
-		UpdatePvcWithLabel(pvcObj.Namespace, pvcObj.Name, labels)
-		log.Infof("Debug: create pv: %s", pvcObj)
-	} else {
-		PVCGlobalMap[podIdx] = pvcObj
+		//ActualStateOfPvc.Add(pvcObj)
 	}
 }
 
+func isPvcExpected(pvc *corev1.PersistentVolumeClaim) bool {
+	value, ok := pvc.Labels[types.NodeSchedueTag]
+	if !ok || types.GlobalConfigVar.NodeID != value {
+		return false
+	}
+	if _, ok := pvc.Annotations[types.VolumeLifecycleLabel]; !ok {
+		return false
+	}
+	return true
+}
+
 func GetPvcIdx(pvObj *corev1.PersistentVolumeClaim) string {
-	pvIdx := pvObj.Name
+	pvIdx := pvObj.Namespace + "/" + pvObj.Name
 	return pvIdx
+}
+
+func processPvc(pvcObj *corev1.PersistentVolumeClaim) error {
+	volumeSpec := pvcObj.Annotations[types.VolumeSpecLabel]
+	volumeSpecMap := client.LVMOptions{}
+	err := json.Unmarshal([]byte(volumeSpec), &volumeSpecMap)
+	if err != nil {
+		return fmt.Errorf("error Unmarshal object, invalid spec %s", volumeSpec)
+	}
+	vgName := ""
+	volumeID := ""
+	striping := false
+	var pvSize uint64
+	if volumeSpecMap.VolumeGroup != "" {
+		vgName = volumeSpecMap.VolumeGroup
+	}
+	if volumeSpecMap.Name != "" {
+		volumeID = volumeSpecMap.Name
+	}
+	if volumeSpecMap.Striping {
+		striping = true
+	}
+	if volumeSpecMap.Size != 0 {
+		pvSize = volumeSpecMap.Size
+	}
+	tags := []string{}
+	_, err = server.CreateLV(context.Background(), vgName, volumeID, pvSize, 0, tags, striping)
+	if err != nil {
+		return fmt.Errorf("error create lvm object, %s", volumeSpec)
+	}
+
+	labels := map[string]string{}
+	labels[types.VolumeLifecycleLabel] = types.VolumeLifecycleCreated
+	if err := UpdatePvcWithLabel(context.Background(), pvcObj.Namespace, pvcObj.Name, labels); err != nil {
+		return fmt.Errorf("update pvc object error, %s", err.Error())
+	}
+	return nil
 }
 
 var onlyOneSignalHandlerPVC = make(chan struct{})
