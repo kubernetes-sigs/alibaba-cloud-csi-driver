@@ -171,7 +171,7 @@ func handlePvcDelete(obj interface{}) {
 	log.Infof("Delete Pvc: %s", object.GetName())
 
 	DesiredStateOfPvc.Remove(pvcObj)
-//	ActualStateOfPvc.Remove(pvcObj)
+	//	ActualStateOfPvc.Remove(pvcObj)
 }
 
 func handlePvcUpdate(obj interface{}) {
@@ -205,12 +205,12 @@ func handlePvcUpdate(obj interface{}) {
 			utilruntime.HandleError(err)
 			return
 		}
-		//ActualStateOfPvc.Add(pvcObj)
+		log.Infof("handlePvUpdate: lvm volume created %s/%s", pvcObj.Namespace, pvcObj.Name)
 	}
 }
 
 func isPvcExpected(pvc *corev1.PersistentVolumeClaim) bool {
-	value, ok := pvc.Labels[types.NodeSchedueTag]
+	value, ok := pvc.Annotations[types.NodeSchedueTag]
 	if !ok || types.GlobalConfigVar.NodeID != value {
 		return false
 	}
@@ -248,10 +248,18 @@ func processPvc(pvcObj *corev1.PersistentVolumeClaim) error {
 	if volumeSpecMap.Size != 0 {
 		pvSize = volumeSpecMap.Size
 	}
-	tags := []string{}
-	_, err = server.CreateLV(context.Background(), vgName, volumeID, pvSize, 0, tags, striping)
+	lvmName := vgName + "/" + volumeID
+	rsp, err := server.ListLV(lvmName)
 	if err != nil {
-		return fmt.Errorf("error create lvm object, %s", volumeSpec)
+		log.Errorf("processPvc: Get Lvm with error: %s", err.Error())
+		return err
+	}
+	if len(rsp) == 0 {
+		tags := []string{}
+		_, err = server.CreateLV(context.Background(), vgName, volumeID, pvSize, 0, tags, striping)
+		if err != nil {
+			return fmt.Errorf("processPvc: error create lvm object, %s, %v", volumeSpec, err)
+		}
 	}
 
 	labels := map[string]string{}
