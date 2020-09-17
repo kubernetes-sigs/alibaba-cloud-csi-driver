@@ -219,8 +219,7 @@ func handlePvUpdate(obj interface{}) {
 		if err := processPv(pvObj); err != nil {
 			return
 		}
-		//ActualStateOfPv.Add(pvObj)
-		log.Infof("Debug: delete pv: %s", pvObj)
+		log.Infof("handlePvUpdate: lvm volume removed %s", pvObj.Name)
 	}
 }
 
