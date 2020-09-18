@@ -115,9 +115,9 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 	pmeType := ""
 	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("Describe node %s with error: %s", nodeName, err.Error())
+		log.Fatalf("Describe node %s with error: %s", nodeName, err.Error())
 	} else {
-		if value, ok := nodeInfo.Labels["pmem.aliyun.com"]; ok {
+		if value, ok := nodeInfo.Labels["pmem.csi.alibabacloud.com/type"]; ok {
 			pmemEnable = true
 			if strings.TrimSpace(value) == "lvm" {
 				pmeType = "lvm"
