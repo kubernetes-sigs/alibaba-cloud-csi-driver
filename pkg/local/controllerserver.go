@@ -17,12 +17,15 @@ limitations under the License.
 package local
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/adapter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/client"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/generator"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -177,7 +180,17 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		if value, ok := parameters["vgName"]; ok && value != "" {
 			storageSelected = value
 		}
-		if nodeSelected != "" && storageSelected != "" {
+
+		// Volume Options
+		options := &client.LVMOptions{}
+		options.Name = req.Name
+		options.VolumeGroup = storageSelected
+		if value, ok := parameters[LvmTypeTag]; ok && value == StripingType {
+			options.Striping = true
+		}
+		options.Size = uint64(req.GetCapacityRange().GetRequiredBytes())
+
+		if types.GlobalConfigVar.ControllerProvision && nodeSelected != "" && storageSelected != "" {
 			addr, err := getNodeAddr(cs.client, nodeSelected)
 			if err != nil {
 				log.Errorf("CreateVolume: Get lvm node %s address with error: %s", nodeSelected, err.Error())
@@ -190,13 +203,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				return nil, err
 			}
 			if lvmName, err := conn.GetLvm(ctx, storageSelected, volumeID); err == nil && lvmName == "" {
-				options := &client.LVMOptions{}
-				options.Name = req.Name
-				options.VolumeGroup = storageSelected
-				if value, ok := parameters[LvmTypeTag]; ok && value == StripingType {
-					options.Striping = true
-				}
-				options.Size = uint64(req.GetCapacityRange().GetRequiredBytes())
 				outstr, err := conn.CreateLvm(ctx, options)
 				if err != nil {
 					log.Errorf("CreateVolume: Create lvm %s/%s, options: %v with error: %s", storageSelected, volumeID, options, err.Error())
@@ -208,6 +214,19 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				return nil, err
 			} else {
 				log.Infof("CreateVolume: lvm volume already created %s", req.Name)
+			}
+		} else if !types.GlobalConfigVar.ControllerProvision && nodeSelected != "" && storageSelected != "" {
+			createLabels := map[string]string{}
+			optBytes, err := json.Marshal(options)
+			if err != nil {
+				log.Errorf("CreateVolume: Marshal lvm options error: %s, %s", req.Name, err.Error())
+				return nil, err
+			}
+			createLabels[types.VolumeLifecycleLabel] = types.VolumeLifecycleCreating
+			createLabels[types.VolumeSpecLabel] = string(optBytes)
+			if err := generator.CreateVolumeWithLabel(pvcNameSpace, pvcName, createLabels); err != nil {
+				log.Errorf("CreateVolume: create volume with label for volume %s error: %s", req.Name, err.Error())
+				return nil, err
 			}
 		}
 	} else if volumeType == MountPointType {
@@ -406,7 +425,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			log.Errorf("DeleteVolume: get Lvm %s Spec with error %s", volumeID, err.Error())
 			return nil, err
 		}
-		if nodeName != "" {
+		if types.GlobalConfigVar.ControllerProvision && nodeName != "" {
 			addr, err := getNodeAddr(cs.client, nodeName)
 			if err != nil {
 				log.Errorf("DeleteVolume: Get lvm volume %s address with error: %s", req.GetVolumeId(), err.Error())
@@ -432,6 +451,14 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				log.Infof("DeleteVolume: Volume group not found, skip deleting %s", volumeID)
 			} else {
 				log.Errorf("DeleteVolume: Get lvm for %s with error: %s", req.GetVolumeId(), err.Error())
+				return nil, err
+			}
+		} else if !types.GlobalConfigVar.ControllerProvision && nodeName != "" {
+			createLabels := map[string]string{}
+			createLabels[types.VolumeLifecycleLabel] = types.VolumeLifecycleDeleting
+			createLabels[types.VolumeSpecLabel] = vgName + "/" + volumeID
+			if err := generator.DeleteVolumeWithLabel(volumeID, createLabels); err != nil {
+				log.Errorf("DeleteVolume: delete volume with label for volume %s error: %s", volumeID, err.Error())
 				return nil, err
 			}
 		}
@@ -576,7 +603,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	log.Infof("ControllerExpandVolume::: %v", req)
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
-	if GlobalConfigVar.Scheduler == yodaDriverName {
+	if types.GlobalConfigVar.Scheduler == yodaDriverName {
 		volSizeGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
 		volumeID := req.GetVolumeId()
 		pvObj, err := getPvObj(cs.client, volumeID)

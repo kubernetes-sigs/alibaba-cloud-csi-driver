@@ -44,11 +44,11 @@ type LVMConnection interface {
 
 // LVMOptions lvm options
 type LVMOptions struct {
-	VolumeGroup string
-	Name        string
-	Size        uint64
-	Tags        []string
-	Striping    bool
+	VolumeGroup string   `json:"volumeGroup,omitempty"`
+	Name        string   `json:"name,omitempty"`
+	Size        uint64   `json:"size,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+	Striping    bool     `json:"striping,omitempty"`
 }
 
 // NameSpaceOptions lvm options
@@ -162,12 +162,10 @@ func (c *lvmdConnection) GetNameSpace(ctx context.Context, regionName string, vo
 		Region:    regionName,
 	}
 
-	log.Infof("xxxxxxxxxx: %v", req)
 	rsp, err := client.ListNameSpace(ctx, &req)
 	if err != nil {
 		return "", err
 	}
-	log.Infof("zzzzzzzzzzzzzz %v", rsp)
 	for _, namespace := range rsp.NameSpace {
 		if namespace.Name == volumeID {
 			return namespace.Name, nil
