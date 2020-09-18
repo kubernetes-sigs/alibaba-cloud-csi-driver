@@ -2,6 +2,7 @@ package local
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
@@ -13,7 +14,6 @@ import (
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"errors"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/kubernetes/pkg/util/resizefs"
 	utilexec "k8s.io/utils/exec"
@@ -386,7 +386,7 @@ func createVolume(ctx context.Context, volumeID, vgName, pvType, lvmType string)
 }
 
 func createLvm(vgName, volumeID, lvmType, unit string, pvSize int64) error {
-		// Create lvm volume
+	// Create lvm volume
 	if lvmType == StripingType {
 		pvNumber := getPVNumber(vgName)
 		if pvNumber == 0 {
