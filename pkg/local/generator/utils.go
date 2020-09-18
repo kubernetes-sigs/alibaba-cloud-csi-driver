@@ -29,7 +29,7 @@ func UpdatePvcWithLabel(ctx context.Context, namespace, pvcName string, annotati
 	return nil
 }
 
-// UpdatePvcWithLabel udpate pv
+// UpdatePvWithLabel udpate pv
 func UpdatePvWithLabel(ctx context.Context, pvName string, annotations map[string]string) error {
 	pv, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
 	if err != nil {
