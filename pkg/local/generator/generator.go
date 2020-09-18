@@ -5,6 +5,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// VolumeHandler watch pv/pvc
 func VolumeHandler() {
 	if types.GlobalConfigVar.ControllerProvision {
 		return
