@@ -6,13 +6,13 @@ import (
 
 // GlobalConfig var
 type GlobalConfig struct {
-	Region          string
-	NodeID          string
-	Scheduler       string
-	PmemEnable      bool
-	PmemType        string
+	Region              string
+	NodeID              string
+	Scheduler           string
+	PmemEnable          bool
+	PmemType            string
 	ControllerProvision bool
-	KubeClient      *kubernetes.Clientset
+	KubeClient          *kubernetes.Clientset
 }
 
 var (
@@ -21,7 +21,8 @@ var (
 )
 
 const (
-	LocalDriverName   = "localplugin.csi.alibabacloud.com"
+	// LocalDriverName tag
+	LocalDriverName = "localplugin.csi.alibabacloud.com"
 	// NodeSchedueTag in annotations
 	NodeSchedueTag = "volume.kubernetes.io/selected-node"
 )

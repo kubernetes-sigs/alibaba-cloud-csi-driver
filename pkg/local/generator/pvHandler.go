@@ -20,6 +20,7 @@ import (
 	"time"
 )
 
+// DesiredStateOfWordPv desired pv
 type DesiredStateOfWordPv struct {
 	DesiredPvMap map[string]*corev1.PersistentVolume
 	sync.RWMutex
@@ -45,19 +46,24 @@ type ActualStateOfWordPv struct {
 	sync.RWMutex
 }
 
+// Add pv object
 func (dsw *ActualStateOfWordPv) Add(pv *corev1.PersistentVolume) {
 	dsw.Lock()
 	defer dsw.Unlock()
 	dsw.ActualPvMap[pv.Name] = pv
 }
 
+// Remove pv object
 func (dsw *ActualStateOfWordPv) Remove(pv *corev1.PersistentVolume) {
 	dsw.Lock()
 	defer dsw.Unlock()
 	delete(dsw.ActualPvMap, pv.Name)
 }
 
+// DesiredStateOfPv desired pv
 var DesiredStateOfPv = DesiredStateOfWordPv{}
+
+// ActualStateOfPv actual pv
 var ActualStateOfPv = ActualStateOfWordPv{}
 
 func isPvExpected(pv *corev1.PersistentVolume) bool {
@@ -250,6 +256,7 @@ func processPv(pvObj *corev1.PersistentVolume) error {
 var onlyOneSignalHandlerPV = make(chan struct{})
 var shutdownSignalsPV = []os.Signal{os.Interrupt, syscall.SIGTERM}
 
+// SetupSignalHandlerPV set signal handler
 func SetupSignalHandlerPV() (stopCh <-chan struct{}) {
 	close(onlyOneSignalHandlerPV) // panics when called twice
 
