@@ -220,6 +220,7 @@ func isPvcExpected(pvc *corev1.PersistentVolumeClaim) bool {
 	return true
 }
 
+// GetPvcIdx get idx
 func GetPvcIdx(pvObj *corev1.PersistentVolumeClaim) string {
 	pvIdx := pvObj.Namespace + "/" + pvObj.Name
 	return pvIdx
@@ -273,7 +274,7 @@ func processPvc(pvcObj *corev1.PersistentVolumeClaim) error {
 var onlyOneSignalHandlerPVC = make(chan struct{})
 var shutdownSignalsPVC = []os.Signal{os.Interrupt, syscall.SIGTERM}
 
-// SetupSignalHandler registered for SIGTERM and SIGINT. A stop channel is returned
+// SetupSignalHandlerPVC registered for SIGTERM and SIGINT. A stop channel is returned
 // which is closed on one of these signals. If a second signal is caught, the program
 // is terminated with exit code 1.
 func SetupSignalHandlerPVC() (stopCh <-chan struct{}) {

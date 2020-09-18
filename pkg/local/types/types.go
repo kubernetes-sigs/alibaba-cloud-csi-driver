@@ -28,10 +28,16 @@ const (
 )
 
 const (
-	VolumeSpecLabel         = "pv.csi.alibabacloud.com/volume.spec"
-	VolumeLifecycleLabel    = "pv.csi.alibabacloud.com/volume.lifecycle"
+	// VolumeSpecLabel tag
+	VolumeSpecLabel = "pv.csi.alibabacloud.com/volume.spec"
+	// VolumeLifecycleLabel tag
+	VolumeLifecycleLabel = "pv.csi.alibabacloud.com/volume.lifecycle"
+	// VolumeLifecycleCreating tag
 	VolumeLifecycleCreating = "creating"
-	VolumeLifecycleCreated  = "created"
+	// VolumeLifecycleCreated tag
+	VolumeLifecycleCreated = "created"
+	// VolumeLifecycleDeleting tag
 	VolumeLifecycleDeleting = "deleting"
-	VolumeLifecycleDeleted  = "deleted"
+	// VolumeLifecycleDeleted tag
+	VolumeLifecycleDeleted = "deleted"
 )

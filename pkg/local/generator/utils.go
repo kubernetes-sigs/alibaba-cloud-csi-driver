@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// UpdatePvcWithLabel update pvc
 func UpdatePvcWithLabel(ctx context.Context, namespace, pvcName string, annotations map[string]string) error {
 	pvc, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcName, metav1.GetOptions{})
 	if err != nil {
@@ -28,6 +29,7 @@ func UpdatePvcWithLabel(ctx context.Context, namespace, pvcName string, annotati
 	return nil
 }
 
+// UpdatePvcWithLabel udpate pv
 func UpdatePvWithLabel(ctx context.Context, pvName string, annotations map[string]string) error {
 	pv, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
 	if err != nil {
@@ -47,6 +49,7 @@ func UpdatePvWithLabel(ctx context.Context, pvName string, annotations map[strin
 	return nil
 }
 
+// CreateVolumeWithLabel create volume
 func CreateVolumeWithLabel(namespace, pvcName string, annotations map[string]string) error {
 	ctx := context.Background()
 	if err := UpdatePvcWithLabel(ctx, namespace, pvcName, annotations); err != nil {
@@ -69,6 +72,7 @@ func CreateVolumeWithLabel(namespace, pvcName string, annotations map[string]str
 	return errors.New("CreateVolumeWithLabel: Create Volume with label timeout error: " + namespace + pvcName)
 }
 
+// DeleteVolumeWithLabel delete volume
 func DeleteVolumeWithLabel(pvName string, annotations map[string]string) error {
 	ctx := context.Background()
 	if err := UpdatePvWithLabel(ctx, pvName, annotations); err != nil {
