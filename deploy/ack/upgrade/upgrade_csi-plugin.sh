@@ -4,12 +4,21 @@
 ## Append image tag which is expect.
 ## sh upgrade_csi-plugin.sh v1.14.8.41-9efe2ede-aliyun
 
-
-if [ "$1" = "" ]; then
-  echo "Please input the expect csi plugin version... "
-fi
 imageVersion=$1
 echo `date`" Start to Upgrade CSI Provisioner to $imageVersion ..."
+if [ "$imageVersion" = "" ]; then
+  echo "Not csi plugin version get, set to default value... "
+  imageVersion="v1.14.8.41-9efe2ede-aliyun"
+fi
+
+## set secret mounts for managed cluster
+masterCount=`kubectl get node | grep master |grep -v grep | wc -l`
+volumeDefineStr=""
+volumeMountStr=""
+if [ "$masterCount" = "0" ]; then
+  volumeDefineStr="        - name: addon-token\n          secret:\n            defaultMode: 420\n            items:\n            - key: addon.token.config\n              path: token-config\n            secretName: addon.csi.token"
+  volumeMountStr="            - mountPath: \/var\/addon\n              name: addon-token\n              readOnly: true"
+fi
 
 # new deploy template file
 # if any changes, just update here and replace image value
@@ -135,6 +144,7 @@ spec:
               name: host-log
             - name: etc
               mountPath: /host/etc
+volume-mount-string
         - name: disk-liveness-probe
           image: csi-image-prefix/acs/csi-livenessprobe:v2.0.0
           args:
@@ -143,7 +153,6 @@ spec:
           volumeMounts:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet
-
         - name: nas-driver-registrar
           image: csi-image-prefix/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
@@ -156,7 +165,6 @@ spec:
             mountPath: /var/lib/kubelet/
           - name: registration-dir
             mountPath: /registration
-
         - name: csi-nasplugin
           securityContext:
             privileged: true
@@ -191,11 +199,12 @@ spec:
             name: healthz
             protocol: TCP
           volumeMounts:
-          - name: kubelet-dir
-            mountPath: /var/lib/kubelet/
-            mountPropagation: "Bidirectional"
-          - mountPath: /var/log/
-            name: host-log
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet/
+              mountPropagation: "Bidirectional"
+            - mountPath: /var/log/
+              name: host-log
+volume-mount-string
         - name: nas-liveness-probe
           image: csi-image-prefix/acs/csi-livenessprobe:v2.0.0
           args:
@@ -204,7 +213,6 @@ spec:
           volumeMounts:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet
-
         - name: oss-driver-registrar
           image: csi-image-prefix/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
@@ -217,7 +225,6 @@ spec:
             mountPath: /var/lib/kubelet/
           - name: registration-dir
             mountPath: /registration
-
         - name: csi-ossplugin
           securityContext:
             privileged: true
@@ -247,15 +254,16 @@ spec:
             name: healthz
             protocol: TCP
           volumeMounts:
-          - name: kubelet-dir
-            mountPath: /var/lib/kubelet/
-            mountPropagation: "Bidirectional"
-          - name: etc
-            mountPath: /host/etc
-          - mountPath: /var/log/
-            name: host-log
-          - mountPath: /host/usr/
-            name: ossconnectordir
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet/
+              mountPropagation: "Bidirectional"
+            - name: etc
+              mountPath: /host/etc
+            - mountPath: /var/log/
+              name: host-log
+            - mountPath: /host/usr/
+              name: ossconnectordir
+volume-mount-string
         - name: oss-liveness-probe
           image: csi-image-prefix/acs/csi-livenessprobe:v2.0.0
           args:
@@ -289,6 +297,7 @@ spec:
         - name: ossconnectordir
           hostPath:
             path: /usr/
+volume-define-string
   updateStrategy:
     rollingUpdate:
       maxUnavailable: 10%
@@ -306,11 +315,9 @@ if [[ $imagePrefix != registry* ]] || [[ $imagePrefix != *aliyuncs.com ]]; then
     exit 0
 fi
 
-## Delete old plugin
-kubectl delete csidriver diskplugin.csi.alibabacloud.com nasplugin.csi.alibabacloud.com ossplugin.csi.alibabacloud.com
-kubectl delete ds csi-plugin -nkube-system
+echo "New csi-plugin image is: "$imagePrefix
 
 ## do csi-plugin upgrade
-cat .aliyun-csi-plugin.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | kubectl apply -f -
+cat .aliyun-csi-plugin.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl apply -f -
 
 echo "Upgrade csi From "$imageBefore" to "$imageName
