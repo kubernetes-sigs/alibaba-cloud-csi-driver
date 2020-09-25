@@ -4,13 +4,23 @@
 ## Append image tag which is expect.
 ## sh upgrade_csi-provisioner.sh v1.14.8.41-9efe2ede-aliyun
 
-
-if [ "$1" = "" ]; then
-  echo "Please input the expect csi provisioner version... "
-fi
 imageVersion=$1
+if [ "$imageVersion" = "" ]; then
+  echo "CSI provisioner version set to default... "
+  imageVersion=v1.14.8.41-9efe2ede-aliyun
+fi
 
 echo `date`" Start to Upgrade CSI Provisioner to $imageVersion ..."
+
+## set secret mounts for managed cluster
+masterCount=`kubectl get node | grep master |grep -v grep | wc -l`
+volumeDefineStr=""
+volumeMountStr=""
+if [ "$masterCount" = "0" ]; then
+  volumeDefineStr="        - name: addon-token\n          secret:\n            defaultMode: 420\n            items:\n            - key: addon.token.config\n              path: token-config\n            secretName: addon.csi.token"
+  volumeMountStr="            - mountPath: \/var\/addon\n              name: addon-token\n              readOnly: true"
+fi
+
 
 # new deploy template file
 # if any changes, just update here and replace image value
@@ -82,7 +92,12 @@ spec:
         app: csi-provisioner
     spec:
       tolerations:
-      - operator: "Exists"
+      - effect: NoSchedule
+        operator: Exists
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        operator: Exists
+        key: node.cloudprovider.kubernetes.io/uninitialized
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -188,6 +203,7 @@ spec:
               name: disk-provisioner-dir
             - name: etc
               mountPath: /host/etc
+volume-mount-string
           resources:
             limits:
               cpu: 100m
@@ -256,6 +272,7 @@ spec:
               name: nas-provisioner-dir
             - name: etc
               mountPath: /host/etc
+volume-mount-string
           resources:
             limits:
               cpu: 100m
@@ -285,6 +302,7 @@ spec:
         - name: etc
           hostPath:
             path: /etc
+volume-define-string
 EOF
 
 # get registry address
@@ -308,6 +326,6 @@ fi
 kubectl delete sts csi-provisioner -nkube-system
 
 ## do csi-provisioner upgrade
-cat .aliyun-csi-provisioner.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | kubectl apply -f -
+cat .aliyun-csi-provisioner.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl apply -f -
 
 echo "Upgrade csi provisioner to "$imageName
