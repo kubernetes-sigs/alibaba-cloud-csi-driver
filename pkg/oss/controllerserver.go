@@ -22,11 +22,11 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"os"
@@ -64,8 +64,8 @@ const (
 
 // controller server try to create/delete volumes
 type controllerServer struct {
-	region    string
-	client    kubernetes.Interface
+	region string
+	client kubernetes.Interface
 	*csicommon.DefaultControllerServer
 }
 
@@ -330,57 +330,3 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	log.Infof("ControllerExpandVolume is called, do nothing now")
 	return &csi.ControllerExpandVolumeResponse{}, nil
 }
-
-
-
-type identityServer struct {
-	*csicommon.DefaultIdentityServer
-}
-
-// NewIdentityServer create identity server
-func NewIdentityServer(d *csicommon.CSIDriver) csi.IdentityServer {
-	return &identityServer{
-		csicommon.NewDefaultIdentityServer(d),
-	}
-}
-
-// GetPluginCapabilities returns available capabilities of the plugin
-func (iden *identityServer) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
-	log.Infof("Identity:GetPluginCapabilities is called")
-	resp := &csi.GetPluginCapabilitiesResponse{
-		Capabilities: []*csi.PluginCapability{
-			{
-				Type: &csi.PluginCapability_Service_{
-					Service: &csi.PluginCapability_Service{
-						Type: csi.PluginCapability_Service_CONTROLLER_SERVICE,
-					},
-				},
-			},
-			{
-				Type: &csi.PluginCapability_Service_{
-					Service: &csi.PluginCapability_Service{
-						Type: csi.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS,
-					},
-				},
-			},
-			{
-				Type: &csi.PluginCapability_VolumeExpansion_{
-					VolumeExpansion: &csi.PluginCapability_VolumeExpansion{
-						Type: csi.PluginCapability_VolumeExpansion_OFFLINE,
-					},
-				},
-			},
-		},
-	}
-	return resp, nil
-}
-
-/*
-func (cs *controllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
-	//glog.V(5).Infof("Using default ControllerGetCapabilities")
-
-	return &csi.ControllerGetCapabilitiesResponse{
-		Capabilities: cs.Driver.cap,,
-	}, nil
-}
- */

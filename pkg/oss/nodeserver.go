@@ -139,7 +139,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// If you do not use sts authentication, save ak
 	if opt.AuthType != "sts" {
 		// Save ak file for ossfs
-		if err := saveOssCredential(opt,true); err != nil {
+		if err := saveOssCredential(opt, true); err != nil {
 			log.Errorf("Save oss ak error: %s", err.Error())
 			return nil, errors.New("Oss, Save AK file fail: " + err.Error())
 		}
