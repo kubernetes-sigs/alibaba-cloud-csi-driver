@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: osspv-secret
+stringData:
+  akId: "xxxxxxxx"
+  akSecret: "xxxxxxxx"
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: alicloud-oss-fs
+parameters:
+  #bucket name is required
+  bucket: oss-test-tsk
+  #bucker url is required
+  url: oss-cn-beijing.aliyuncs.com
+  #mount options
+  otherOpts: -o max_stat_cache_size=0 -o allow_other
+  #mount path is required
+  path: /input
+  csi.storage.k8s.io/provisioner-secret-name: osspv-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: default
+  csi.storage.k8s.io/node-publish-secret-name: osspv-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+provisioner: ossplugin.csi.alibabacloud.com
+reclaimPolicy: Delete

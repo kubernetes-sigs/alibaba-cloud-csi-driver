@@ -20,8 +20,8 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	log "github.com/sirupsen/logrus"
-
 	k8smount "k8s.io/utils/mount"
+	"os"
 )
 
 const (
@@ -38,6 +38,8 @@ type OSS struct {
 	endpoint   string
 	idServer   *csicommon.DefaultIdentityServer
 	nodeServer *nodeServer
+	//controllerServer *csicommon.DefaultControllerServer
+	controllerServer csi.ControllerServer
 
 	cap   []*csi.VolumeCapability_AccessMode
 	cscap []*csi.ControllerServiceCapability
@@ -56,9 +58,14 @@ func NewDriver(nodeID, endpoint string) *OSS {
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
 	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
-	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{csi.ControllerServiceCapability_RPC_UNKNOWN})
+	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
+		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+		csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+	})
 
+	region := os.Getenv("REGION_ID")
 	d.driver = csiDriver
+	d.controllerServer = NewControllerServer(d.driver, region)
 
 	return d
 }
@@ -76,8 +83,8 @@ func (d *OSS) Run() {
 	s := csicommon.NewNonBlockingGRPCServer()
 	s.Start(d.endpoint,
 		csicommon.NewDefaultIdentityServer(d.driver),
-		nil,
-		//csicommon.NewDefaultControllerServer(d.driver),
+		//nil,
+		d.controllerServer,
 		newNodeServer(d))
 	s.Wait()
 }

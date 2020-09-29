@@ -65,7 +65,7 @@ spec:
         - "--nodeid=$(KUBE_NODE_NAME)"
         env:
         - name: CSI_ENDPOINT
-          value: unix://var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
+          value: unix://var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock
         - name: KUBE_NODE_NAME
           valueFrom:
             fieldRef:

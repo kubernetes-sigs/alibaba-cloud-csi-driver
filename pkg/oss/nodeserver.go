@@ -139,7 +139,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// If you do not use sts authentication, save ak
 	if opt.AuthType != "sts" {
 		// Save ak file for ossfs
-		if err := saveOssCredential(opt); err != nil {
+		if err := saveOssCredential(opt, true); err != nil {
 			log.Errorf("Save oss ak error: %s", err.Error())
 			return nil, errors.New("Oss, Save AK file fail: " + err.Error())
 		}
@@ -196,7 +196,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 }
 
 // save ak file: bucket:ak_id:ak_secret
-func saveOssCredential(options *Options) error {
+func saveOssCredential(options *Options, host bool) error {
 
 	oldContentByte := []byte{}
 	if utils.IsFileExisting(CredentialFile) {
@@ -218,9 +218,16 @@ func saveOssCredential(options *Options) error {
 	}
 
 	newContentStr = options.Bucket + ":" + options.AkID + ":" + options.AkSecret + "\n" + newContentStr
-	if err := ioutil.WriteFile(CredentialFile, []byte(newContentStr), 0640); err != nil {
-		log.Errorf("Save Credential File failed, %s, %s", newContentStr, err)
-		return err
+	if host {
+		if err := ioutil.WriteFile(CredentialFile, []byte(newContentStr), 0640); err != nil {
+			log.Errorf("Save Credential File failed, %s, %s", newContentStr, err)
+			return err
+		}
+	} else {
+		if err := ioutil.WriteFile("/etc/passwd-ossfs", []byte(newContentStr), 0640); err != nil {
+			log.Errorf("Save Credential File failed, %s, %s", newContentStr, err)
+			return err
+		}
 	}
 	return nil
 }
