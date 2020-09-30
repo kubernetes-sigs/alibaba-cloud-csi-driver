@@ -65,6 +65,14 @@ const (
 	RegionID        = "regionId"
 	CnHangzhouFin   = "cn-hangzhou-finance"
 	DeleteVolume    = "deleteVolume"
+	// NASTAGKEY1 tag
+	NASTAGKEY1 = "k8s.aliyun.com"
+	// NASTAGVALUE1 value
+	NASTAGVALUE1 = "true"
+	// NASTAGKEY2 key
+	NASTAGKEY2 = "createdby"
+	// NASTAGVALUE2 value
+	NASTAGVALUE2 = "alibabacloud-csi-plugin"
 )
 
 // controller server try to create/delete volumes
@@ -194,6 +202,19 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			fileSystemID = createFileSystemsResponse.FileSystemId
 			pvcFileSystemIDMap[pvName] = fileSystemID
 			log.Infof("CreateVolume: Volume: %s, Successful Create Nas filesystem with ID: %s, with requestID: %s", pvName, fileSystemID, createFileSystemsResponse.RequestId)
+
+			// Set Default DiskTags
+			addTagsRequest := aliNas.CreateAddTagsRequest()
+			addTagsRequest.FileSystemId = fileSystemID
+			addTagsRequest.Tag = &[]aliNas.AddTagsTag{{Key: NASTAGKEY1, Value: NASTAGVALUE1}, {Key: NASTAGKEY2, Value: NASTAGVALUE2}}
+			addTagsResponse, err := cs.nasClient.AddTags(addTagsRequest)
+			log.Infof("addTagsRequest:%+v", addTagsRequest)
+			log.Infof("addTagsResponse:%+v", addTagsResponse)
+			if err != nil {
+				log.Errorf("CreateVolume: responseID[%s], fail to add default tags filesystem with ID: %s, err: %s", addTagsResponse.RequestId, fileSystemID, err.Error())
+			} else {
+				log.Infof("CreateVolume: Volume: %s, Successful Add Nas filesystem tags with ID: %s, with requestID: %s", pvName, fileSystemID, createFileSystemsResponse.RequestId)
+			}
 		}
 
 		// if mountTarget is already created, skip create a mountTarget
