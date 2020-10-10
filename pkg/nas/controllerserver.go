@@ -204,14 +204,13 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			log.Infof("CreateVolume: Volume: %s, Successful Create Nas filesystem with ID: %s, with requestID: %s", pvName, fileSystemID, createFileSystemsResponse.RequestId)
 
 			// Set Default DiskTags
-			addTagsRequest := aliNas.CreateAddTagsRequest()
-			addTagsRequest.FileSystemId = fileSystemID
-			addTagsRequest.Tag = &[]aliNas.AddTagsTag{{Key: NASTAGKEY1, Value: NASTAGVALUE1}, {Key: NASTAGKEY2, Value: NASTAGVALUE2}}
-			addTagsResponse, err := cs.nasClient.AddTags(addTagsRequest)
-			log.Infof("addTagsRequest:%+v", addTagsRequest)
-			log.Infof("addTagsResponse:%+v", addTagsResponse)
+			tagResourcesRequest := aliNas.CreateTagResourcesRequest()
+			tagResourcesRequest.ResourceId = &[]string{fileSystemID}
+			tagResourcesRequest.Tag = &[]aliNas.TagResourcesTag{{Key: NASTAGKEY1, Value: NASTAGVALUE1}, {Key: NASTAGKEY2, Value: NASTAGVALUE2}}
+			tagResourcesRequest.ResourceType = "filesystem"
+			tagResourcesResponse, err := cs.nasClient.TagResources(tagResourcesRequest)
 			if err != nil {
-				log.Errorf("CreateVolume: responseID[%s], fail to add default tags filesystem with ID: %s, err: %s", addTagsResponse.RequestId, fileSystemID, err.Error())
+				log.Errorf("CreateVolume: responseID[%s], fail to add default tags filesystem with ID: %s, err: %s", tagResourcesResponse.RequestId, fileSystemID, err.Error())
 			} else {
 				log.Infof("CreateVolume: Volume: %s, Successful Add Nas filesystem tags with ID: %s, with requestID: %s", pvName, fileSystemID, createFileSystemsResponse.RequestId)
 			}
