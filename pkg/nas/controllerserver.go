@@ -189,7 +189,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			createFileSystemsResponse, err := cs.nasClient.CreateFileSystem(createFileSystemsRequest)
 			if err != nil {
 				log.Errorf("CreateVolume: requestId[%s], fail to create nas filesystems %s: with %v", createFileSystemsResponse.RequestId, req.GetName(), err)
-				return nil, status.Error(codes.Internal, err.Error())
+				errMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.NasFilesystemCreate)
+				return nil, status.Error(codes.Internal, errMsg)
 			}
 			fileSystemID = createFileSystemsResponse.FileSystemId
 			pvcFileSystemIDMap[pvName] = fileSystemID
@@ -215,7 +216,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			createMountTargetResponse, err := cs.nasClient.CreateMountTarget(createMountTargetRequest)
 			if err != nil {
 				log.Errorf("CreateVolume: requestId[%s], fail to create nas mountTarget %s: with %v", createMountTargetResponse.RequestId, req.GetName(), err)
-				return nil, status.Error(codes.Internal, err.Error())
+				errMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.NasMountTargetCreate)
+				return nil, status.Error(codes.Internal, errMsg)
 			}
 			// extreme nas not return TargetDomain with filesystem create
 			if mountTargetDomain == "" && nasVol.FileSystemType == "extreme" {
@@ -444,7 +446,8 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				deleteMountTargetResponse, err := cs.nasClient.DeleteMountTarget(deleteMountTargetRequest)
 				if err != nil {
 					log.Errorf("DeleteVolume: requestId[%s], volume[%s], fail to delete nas mountTarget %s: with %v", deleteMountTargetResponse.RequestId, req.VolumeId, nfsServer, err)
-					return nil, status.Error(codes.Internal, err.Error())
+					errMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.NasMountTargetDelete)
+					return nil, status.Error(codes.Internal, errMsg)
 				}
 			}
 			// remove the pvc mountTarget mapping if exist
@@ -458,7 +461,8 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			deleteFileSystemResponse, err := cs.nasClient.DeleteFileSystem(deleteFileSystemRequest)
 			if err != nil {
 				log.Errorf("DeleteVolume: requestId[%s], volume %s fail to delete nas filesystem %s: with %v", deleteFileSystemResponse.RequestId, req.VolumeId, fileSystemID, err)
-				return nil, status.Error(codes.Internal, err.Error())
+				errMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.NasFilesystemDelete)
+				return nil, status.Error(codes.Internal, errMsg)
 			}
 			// remove the pvc filesystem mapping if exist
 			if _, ok := pvcFileSystemIDMap[req.VolumeId]; ok {
