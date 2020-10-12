@@ -18,13 +18,14 @@ package disk
 
 import (
 	"fmt"
+	"strings"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
-	"strings"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
@@ -32,6 +33,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -77,7 +79,7 @@ const (
 // controller server try to create/delete volumes/snapshots
 type controllerServer struct {
 	*csicommon.DefaultControllerServer
-	snapshotRecorder record.EventRecorder
+	recorder record.EventRecorder
 }
 
 // Alicloud disk parameters
@@ -110,13 +112,13 @@ type diskSnapshot struct {
 func NewControllerServer(d *csicommon.CSIDriver, client *ecs.Client, region string) csi.ControllerServer {
 	c := &controllerServer{
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
-		snapshotRecorder:        NewSnapshotsEventRecorder(),
+		recorder:                NewEventRecorder(),
 	}
 	return c
 }
 
-//NewSnapshotsEventRecorder is create snapshots event recorder
-func NewSnapshotsEventRecorder() record.EventRecorder {
+//NewEventRecorder is create snapshots event recorder
+func NewEventRecorder() record.EventRecorder {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Fatalf("NewControllerServer: Failed to create config: %v", err)
@@ -277,22 +279,24 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	// Step 4: Create Disk
 	volumeResponse, err := GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
 	if err != nil {
+		newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskProvision)
 		// if available feature enable, try with efficiency again
 		if diskVol.Type == DiskHighAvail && strings.Contains(err.Error(), DiskNotAvailable) {
 			disktype = DiskEfficiency
 			createDiskRequest.DiskCategory = disktype
 			volumeResponse, err = GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
 			if err != nil {
-				log.Errorf("CreateVolume: requestId[%s], fail to create disk %s error: %v", volumeResponse.RequestId, req.GetName(), err)
-				return nil, status.Error(codes.Internal, err.Error())
+				newErrMsg = utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskProvision)
+				log.Errorf("CreateVolume: requestId[%s], fail to create disk %s error: %v", volumeResponse.RequestId, req.GetName(), newErrMsg)
+				return nil, status.Error(codes.Internal, newErrMsg)
 			}
 		} else if strings.Contains(err.Error(), DiskSizeNotAvailable) || strings.Contains(err.Error(), "The specified parameter \"Size\" is not valid") {
-			return nil, status.Error(codes.Internal, err.Error()+", PVC defined storage should equal/greater than 20Gi")
+			return nil, status.Error(codes.Internal, newErrMsg)
 		} else if strings.Contains(err.Error(), DiskNotAvailable) {
 			return nil, status.Error(codes.Internal, err.Error()+", PVC defined storage type not supported in zone: "+diskVol.ZoneID)
 		} else {
 			log.Errorf("CreateVolume: requestId[%s], fail to create disk %s, %v", volumeResponse.RequestId, req.GetName(), err)
-			return nil, status.Error(codes.Internal, err.Error())
+			return nil, status.Error(codes.Internal, newErrMsg)
 		}
 	}
 
@@ -371,8 +375,9 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		if disk != nil && disk.Status == DiskStatusInuse && canDetach {
 			err := detachDisk(req.VolumeId, disk.InstanceId)
 			if err != nil {
-				log.Errorf("DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, err.Error())
-				return nil, err
+				newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
+				log.Errorf("DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, newErrMsg)
+				return nil, status.Errorf(codes.Internal, newErrMsg)
 			}
 			log.Infof("DeleteVolume: Successful Detach disk(%s) from node %s before remove", req.VolumeId, disk.InstanceId)
 		}
@@ -382,9 +387,10 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	deleteDiskRequest.DiskId = req.GetVolumeId()
 	response, err := GlobalConfigVar.EcsClient.DeleteDisk(deleteDiskRequest)
 	if err != nil {
-		errMsg := fmt.Sprintf("DeleteVolume: Delete disk with error: %s", err.Error())
+		newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
+		errMsg := fmt.Sprintf("DeleteVolume: Delete disk with error: %s", newErrMsg)
 		if response != nil {
-			errMsg = fmt.Sprintf("DeleteVolume: Delete disk with error: %s, with RequstId: %s", err.Error(), response.RequestId)
+			errMsg = fmt.Sprintf("DeleteVolume: Delete disk with error: %s, with RequstId: %s", newErrMsg, response.RequestId)
 		}
 		log.Warnf(errMsg)
 		if strings.Contains(err.Error(), DiskCreatingSnapshot) || strings.Contains(err.Error(), IncorrectDiskStatus) {
@@ -469,7 +475,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 }
 
 func (cs *controllerServer) createSnapshotEvent(objectRef *v1.ObjectReference, eventType string, reason string, err string) {
-	cs.snapshotRecorder.Event(objectRef, eventType, reason, err)
+	cs.recorder.Event(objectRef, eventType, reason, err)
 }
 
 //
