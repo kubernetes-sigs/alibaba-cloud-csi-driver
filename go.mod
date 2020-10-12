@@ -3,7 +3,8 @@ module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 go 1.12
 
 require (
-	github.com/aliyun/alibaba-cloud-sdk-go v1.61.201
+	github.com/aliyun/alibaba-cloud-sdk-go v1.61.550-0.20201010055725-73672738e6a8
+	github.com/docker/distribution v0.0.0-00010101000000-000000000000 // indirect
 	github.com/container-storage-interface/spec v1.2.0
 	github.com/emirpasic/gods v1.12.0
 	github.com/go-kit/kit v0.9.0 // indirect
@@ -18,6 +19,8 @@ require (
 	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/kubernetes-csi/drivers v1.0.2
+	github.com/onsi/gomega v0.0.0-00010101000000-000000000000 // indirect
+	github.com/opencontainers/go-digest v0.0.0-00010101000000-000000000000 // indirect
 	github.com/kubernetes-csi/external-snapshotter v1.2.2 // indirect
 	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.1-0.20200504125226-859696c419ff
 	github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443 // indirect
