@@ -21,10 +21,6 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
-	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
@@ -112,31 +108,9 @@ type diskSnapshot struct {
 func NewControllerServer(d *csicommon.CSIDriver, client *ecs.Client, region string) csi.ControllerServer {
 	c := &controllerServer{
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
-		recorder:                NewEventRecorder(),
+		recorder:                utils.NewEventRecorder(),
 	}
 	return c
-}
-
-//NewEventRecorder is create snapshots event recorder
-func NewEventRecorder() record.EventRecorder {
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		log.Fatalf("NewControllerServer: Failed to create config: %v", err)
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Fatalf("NewControllerServer: Failed to create client: %v", err)
-	}
-	broadcaster := record.NewBroadcaster()
-	broadcaster.StartLogging(log.Infof)
-	source := v1.EventSource{Component: "csi-controller-server"}
-	if broadcaster != nil {
-		sink := &v1core.EventSinkImpl{
-			Interface: v1core.New(clientset.CoreV1().RESTClient()).Events(""),
-		}
-		broadcaster.StartRecordingToSink(sink)
-	}
-	return broadcaster.NewRecorder(scheme.Scheme, source)
 }
 
 // the map of req.Name and csi.Snapshot
@@ -474,7 +448,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
-func (cs *controllerServer) createSnapshotEvent(objectRef *v1.ObjectReference, eventType string, reason string, err string) {
+func (cs *controllerServer) createEvent(objectRef *v1.ObjectReference, eventType string, reason string, err string) {
 	cs.recorder.Event(objectRef, eventType, reason, err)
 }
 
@@ -520,7 +494,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 			}
 			if exSnap.ReadyToUse {
 				str := fmt.Sprintf("VolumeSnapshot: %s is ready to use.", exSnap.Name)
-				cs.createSnapshotEvent(ref, v1.EventTypeNormal, CreatedSnapshotSuccessfully, str)
+				cs.createEvent(ref, v1.EventTypeNormal, CreatedSnapshotSuccessfully, str)
 			}
 			return &csi.CreateSnapshotResponse{
 				Snapshot: csiSnapshot,
@@ -528,17 +502,17 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		}
 		log.Errorf("CreateSnapshot:: Snapshot already exist with same name: name[%s], volumeID[%s]", req.Name, exSnap.VolID)
 		err := status.Error(codes.AlreadyExists, fmt.Sprintf("snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName()))
-		cs.createSnapshotEvent(ref, v1.EventTypeWarning, SnapshotAlreadyExist, err.Error())
+		cs.createEvent(ref, v1.EventTypeWarning, SnapshotAlreadyExist, err.Error())
 		return nil, err
 	} else if snapNum > 1 {
 		log.Errorf("CreateSnapshot:: Find Snapshot name[%s], but get more than 1 instance", req.Name)
 		err := status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot: get snapshot more than 1 instance"))
-		cs.createSnapshotEvent(ref, v1.EventTypeWarning, SnapshotTooMany, err.Error())
+		cs.createEvent(ref, v1.EventTypeWarning, SnapshotTooMany, err.Error())
 		return nil, err
 	} else if err != nil {
 		log.Errorf("CreateSnapshot:: Expect to find Snapshot name[%s], but get error: %v", req.Name, err)
 		e := status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot: get snapshot with error: %s", err.Error()))
-		cs.createSnapshotEvent(ref, v1.EventTypeWarning, CreateSnapshotError, e.Error())
+		cs.createEvent(ref, v1.EventTypeWarning, CreateSnapshotError, e.Error())
 		return nil, e
 	}
 
@@ -574,7 +548,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	if err != nil {
 		log.Errorf("CreateSnapshot:: Snapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", req.Name, req.GetSourceVolumeId(), err.Error())
 		e := status.Error(codes.Internal, fmt.Sprintf("failed create snapshot: %v", err))
-		cs.createSnapshotEvent(ref, v1.EventTypeWarning, CreateSnapshotError, e.Error())
+		cs.createEvent(ref, v1.EventTypeWarning, CreateSnapshotError, e.Error())
 		return nil, e
 	}
 	snapshotID := snapshotResponse.SnapshotId
@@ -596,7 +570,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	createdSnapshotMap[req.Name] = csiSnapshot
-	cs.createSnapshotEvent(ref, v1.EventTypeNormal, CreatedSnapshotSuccessfully, str)
+	cs.createEvent(ref, v1.EventTypeNormal, CreatedSnapshotSuccessfully, str)
 	return &csi.CreateSnapshotResponse{
 		Snapshot: csiSnapshot,
 	}, nil
@@ -656,7 +630,7 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 			log.Errorf("DeleteSnapshot: fail to delete %s: with RequestId: %s, error: %s", snapshotID, response.RequestId, err.Error())
 		}
 		e := status.Error(codes.Internal, fmt.Sprintf("failed delete snapshot: %v", err))
-		cs.createSnapshotEvent(ref, v1.EventTypeWarning, DeleteSnapshotError, e.Error())
+		cs.createEvent(ref, v1.EventTypeWarning, DeleteSnapshotError, e.Error())
 		return nil, e
 	}
 
@@ -665,7 +639,7 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	}
 	str := fmt.Sprintf("DeleteSnapshot:: Successfully delete snapshot %s, requestId: %s", snapshotID, response.RequestId)
 	log.Info(str)
-	cs.createSnapshotEvent(ref, v1.EventTypeNormal, DeletedSnapshotSuccessfully, str)
+	cs.createEvent(ref, v1.EventTypeNormal, DeletedSnapshotSuccessfully, str)
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
