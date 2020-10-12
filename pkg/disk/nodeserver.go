@@ -446,7 +446,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 	if !notmounted {
 		deviceName := GetDeviceByMntPoint(targetPath)
-		if err := checkDeviceAvailable(deviceName); err != nil {
+		if err := checkDeviceAvailable(deviceName, req.VolumeId, targetPath); err != nil {
 			log.Errorf("NodeStageVolume: mountPath is mounted %s, but check device available error: %s", targetPath, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -491,7 +491,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 	}
 
-	if err := checkDeviceAvailable(device); err != nil {
+	if err := checkDeviceAvailable(device, req.VolumeId, targetPath); err != nil {
 		log.Errorf("NodeStageVolume: Attach device with error: %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
