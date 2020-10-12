@@ -249,6 +249,7 @@ func IsFileExisting(filename string) bool {
 	if err == nil {
 		return true
 	}
+	// Notice: this err may be is not dictionary error, it will returns true
 	if os.IsNotExist(err) {
 		return false
 	}
