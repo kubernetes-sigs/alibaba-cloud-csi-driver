@@ -28,8 +28,8 @@ import (
 	"google.golang.org/grpc/status"
 	"io"
 	"io/ioutil"
-	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	utilexec "k8s.io/utils/exec"
+	k8smount "k8s.io/utils/mount"
 	"net/http"
 	"os"
 	"os/exec"
@@ -249,6 +249,7 @@ func IsFileExisting(filename string) bool {
 	if err == nil {
 		return true
 	}
+	// Notice: this err may be is not dictionary error, it will returns true
 	if os.IsNotExist(err) {
 		return false
 	}
@@ -441,6 +442,28 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 	return resolved, nil
 }
 
+// GetVolumeIDByDevice get volumeID by specific deivce name according to by-id dictionary
+func GetVolumeIDByDevice(device string) (volumeID string, err error) {
+	byIDPath := "/dev/disk/by-id/"
+	files, _ := ioutil.ReadDir(byIDPath)
+	for _, f := range files {
+		filePath := filepath.Join(byIDPath, f.Name())
+		stat, _ := os.Lstat(filePath)
+		if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
+			resolved, err := filepath.EvalSymlinks(filePath)
+			if err != nil {
+				log.Errorf("GetVolumeIDByDevice: error reading target of symlink %q: %v", filePath, err)
+				continue
+			}
+			if strings.Contains(resolved, device) {
+				volumeID = strings.Replace(f.Name(), "virtio-", "d-", -1)
+				return volumeID, nil
+			}
+		}
+	}
+	return "", nil
+}
+
 // get diskID
 func getVolumeConfig(volumeID string) string {
 	volumeFile := path.Join(VolumeDir, volumeID+".conf")
@@ -524,7 +547,8 @@ func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 	if !readOnly {
 		// Run fsck on the disk to fix repairable issues, only do this for volumes requested as rw.
 		args := []string{"-a", source}
-		out, err := diskMounter.Exec.Run("fsck", args...)
+
+		out, err := diskMounter.Exec.Command("fsck", args...).CombinedOutput()
 		if err != nil {
 			ee, isExitError := err.(utilexec.ExitError)
 			switch {
@@ -578,7 +602,7 @@ func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 			}
 			log.Infof("Disk %q appears to be unformatted, attempting to format as type: %q with options: %v", source, fstype, args)
 
-			_, err := diskMounter.Exec.Run("mkfs."+fstype, args...)
+			_, err := diskMounter.Exec.Command("mkfs."+fstype, args...).CombinedOutput()
 			if err == nil {
 				// the disk has been formatted successfully try to mount it again.
 				return diskMounter.Interface.Mount(source, target, fstype, mountOptions)
@@ -725,7 +749,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	return diskVolArgs, nil
 }
 
-func checkDeviceAvailable(devicePath string) error {
+func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
 	if devicePath == "" {
 		msg := fmt.Sprintf("devicePath is empty, cannot used for Volume")
 		return status.Error(codes.Internal, msg)
@@ -733,6 +757,20 @@ func checkDeviceAvailable(devicePath string) error {
 
 	// block volume
 	if devicePath == "devtmpfs" {
+		findmntCmd := fmt.Sprintf("findmnt %s | grep -v grep | awk '{if(NR>1)print $2}'", targetPath)
+		output, err := utils.Run(findmntCmd)
+		if err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+		device := output[len("devtmpfs")+1 : len(output)-1]
+		newVolumeID, err := GetVolumeIDByDevice(device)
+		if err != nil {
+			return nil
+		}
+		if newVolumeID != volumeID {
+			return status.Error(codes.Internal, fmt.Sprintf("device [%s] associate with volumeID: [%s] rather than volumeID: [%s]", device, newVolumeID, volumeID))
+		}
+
 		return nil
 	}
 

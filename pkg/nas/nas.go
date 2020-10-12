@@ -17,6 +17,7 @@ limitations under the License.
 package nas
 
 import (
+	"context"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -120,7 +121,7 @@ func GlobalConfigSet() {
 	configMapName := "csi-plugin"
 	isNasMetricEnable := false
 
-	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(configMapName, metav1.GetOptions{})
+	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
 		log.Infof("Not found configmap named as csi-plugin under kube-system, with error: %v", err)
 	} else {
@@ -141,7 +142,7 @@ func GlobalConfigSet() {
 
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	runtimeValue := "runc"
-	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Describe node %s with error: %s", nodeName, err.Error())
 	} else {

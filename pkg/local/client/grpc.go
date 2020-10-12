@@ -18,12 +18,13 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	"net"
 	"strings"
 	"time"
 
-	pb "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/proto"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
@@ -36,15 +37,25 @@ type LVMConnection interface {
 	DeleteLvm(ctx context.Context, volGroup string, volumeID string) error
 	CleanPath(ctx context.Context, path string) error
 	Close() error
+	GetNameSpace(ctx context.Context, regionName string, volumeID string) (string, error)
+	CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*lib.PmemNameSpace, error)
+	DeleteNameSpace(ctx context.Context, volumeID string) error
 }
 
 // LVMOptions lvm options
 type LVMOptions struct {
-	VolumeGroup string
-	Name        string
-	Size        uint64
-	Tags        []string
-	Striping    bool
+	VolumeGroup string   `json:"volumeGroup,omitempty"`
+	Name        string   `json:"name,omitempty"`
+	Size        uint64   `json:"size,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+	Striping    bool     `json:"striping,omitempty"`
+}
+
+// NameSpaceOptions lvm options
+type NameSpaceOptions struct {
+	Region string
+	Name   string
+	Size   uint64
 }
 
 //
@@ -56,8 +67,8 @@ var (
 	_ LVMConnection = &lvmdConnection{}
 )
 
-// NewLVMConnection lvm connection
-func NewLVMConnection(address string, timeout time.Duration) (LVMConnection, error) {
+// NewGrpcConnection lvm connection
+func NewGrpcConnection(address string, timeout time.Duration) (LVMConnection, error) {
 	conn, err := connect(address, timeout)
 	if err != nil {
 		return nil, err
@@ -104,8 +115,8 @@ func connect(address string, timeout time.Duration) (*grpc.ClientConn, error) {
 }
 
 func (c *lvmdConnection) CreateLvm(ctx context.Context, opt *LVMOptions) (string, error) {
-	client := pb.NewLVMClient(c.conn)
-	req := pb.CreateLVRequest{
+	client := lib.NewLVMClient(c.conn)
+	req := lib.CreateLVRequest{
 		VolumeGroup: opt.VolumeGroup,
 		Name:        opt.Name,
 		Size:        opt.Size,
@@ -122,9 +133,50 @@ func (c *lvmdConnection) CreateLvm(ctx context.Context, opt *LVMOptions) (string
 	return rsp.GetCommandOutput(), nil
 }
 
+func (c *lvmdConnection) CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*lib.PmemNameSpace, error) {
+	client := lib.NewLVMClient(c.conn)
+	req := lib.CreateNameSpaceRequest{
+		Name:   opt.Name,
+		Size:   opt.Size,
+		Region: opt.Region,
+	}
+
+	rsp, err := client.CreateNameSpace(ctx, &req)
+	if err != nil {
+		log.Errorf("Create Lvm with error: %s", err.Error())
+		return nil, err
+	}
+	log.Infof("Create Lvm with result: %+v", rsp.CommandOutput)
+
+	pns := &lib.PmemNameSpace{}
+	if err := json.Unmarshal([]byte(rsp.CommandOutput), pns); err != nil {
+		return nil, err
+	}
+	return pns, nil
+}
+
+func (c *lvmdConnection) GetNameSpace(ctx context.Context, regionName string, volumeID string) (string, error) {
+	client := lib.NewLVMClient(c.conn)
+	req := lib.ListNameSpaceRequest{
+		NameSpace: volumeID,
+		Region:    regionName,
+	}
+
+	rsp, err := client.ListNameSpace(ctx, &req)
+	if err != nil {
+		return "", err
+	}
+	for _, namespace := range rsp.NameSpace {
+		if namespace.Name == volumeID {
+			return namespace.Name, nil
+		}
+	}
+	return "", nil
+}
+
 func (c *lvmdConnection) GetLvm(ctx context.Context, volGroup string, volumeID string) (string, error) {
-	client := pb.NewLVMClient(c.conn)
-	req := pb.ListLVRequest{
+	client := lib.NewLVMClient(c.conn)
+	req := lib.ListLVRequest{
 		VolumeGroup: fmt.Sprintf("%s/%s", volGroup, volumeID),
 	}
 
@@ -142,8 +194,8 @@ func (c *lvmdConnection) GetLvm(ctx context.Context, volGroup string, volumeID s
 }
 
 func (c *lvmdConnection) DeleteLvm(ctx context.Context, volGroup, volumeID string) error {
-	client := pb.NewLVMClient(c.conn)
-	req := pb.RemoveLVRequest{
+	client := lib.NewLVMClient(c.conn)
+	req := lib.RemoveLVRequest{
 		VolumeGroup: volGroup,
 		Name:        volumeID,
 	}
@@ -156,9 +208,23 @@ func (c *lvmdConnection) DeleteLvm(ctx context.Context, volGroup, volumeID strin
 	return err
 }
 
+func (c *lvmdConnection) DeleteNameSpace(ctx context.Context, namespace string) error {
+	client := lib.NewLVMClient(c.conn)
+	req := lib.RemoveNameSpaceRequest{
+		NameSpace: namespace,
+	}
+	response, err := client.RemoveNameSpace(ctx, &req)
+	if err != nil {
+		log.Errorf("Remove Lvm with error: %v", err.Error())
+		return err
+	}
+	log.Infof("Remove Lvm with result: %v", response.GetCommandOutput())
+	return err
+}
+
 func (c *lvmdConnection) CleanPath(ctx context.Context, path string) error {
-	client := pb.NewLVMClient(c.conn)
-	req := pb.CleanPathRequest{
+	client := lib.NewLVMClient(c.conn)
+	req := lib.CleanPathRequest{
 		Path: path,
 	}
 	response, err := client.CleanPath(ctx, &req)

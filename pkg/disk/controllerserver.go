@@ -20,12 +20,20 @@ import (
 	"fmt"
 	"strings"
 
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/record"
+
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -53,9 +61,25 @@ const (
 	SNAPSHOTTAGKEY1 = "force.delete.snapshot.k8s.aliyun.com"
 )
 
+const (
+	//SnapshotTooMany means that the previous Snapshot is greater than 1
+	SnapshotTooMany string = "SnapshotTooMany"
+	//SnapshotAlreadyExist means that the snapshot already exists
+	SnapshotAlreadyExist string = "SnapshotAlreadyExist"
+	//CreateSnapshotError means that the create snapshot error occurred
+	CreateSnapshotError string = "CreateSnapshotError"
+	//CreatedSnapshotSuccessfully means that the create snapshot success
+	CreatedSnapshotSuccessfully string = "CreatedSnapshotSuccessfully"
+	//DeleteSnapshotError means that the delete snapshot error occurred
+	DeleteSnapshotError string = "DeleteSnapshotError"
+	//DeletedSnapshotSuccessfully means that the delete snapshot success
+	DeletedSnapshotSuccessfully string = "DeletedSnapshotSuccessfully"
+)
+
 // controller server try to create/delete volumes/snapshots
 type controllerServer struct {
 	*csicommon.DefaultControllerServer
+	recorder record.EventRecorder
 }
 
 // Alicloud disk parameters
@@ -88,8 +112,31 @@ type diskSnapshot struct {
 func NewControllerServer(d *csicommon.CSIDriver, client *ecs.Client, region string) csi.ControllerServer {
 	c := &controllerServer{
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
+		recorder:                NewEventRecorder(),
 	}
 	return c
+}
+
+//NewEventRecorder is create snapshots event recorder
+func NewEventRecorder() record.EventRecorder {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		log.Fatalf("NewControllerServer: Failed to create config: %v", err)
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("NewControllerServer: Failed to create client: %v", err)
+	}
+	broadcaster := record.NewBroadcaster()
+	broadcaster.StartLogging(log.Infof)
+	source := v1.EventSource{Component: "csi-controller-server"}
+	if broadcaster != nil {
+		sink := &v1core.EventSinkImpl{
+			Interface: v1core.New(clientset.CoreV1().RESTClient()).Events(""),
+		}
+		broadcaster.StartRecordingToSink(sink)
+	}
+	return broadcaster.NewRecorder(scheme.Scheme, source)
 }
 
 // the map of req.Name and csi.Snapshot
@@ -232,22 +279,24 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	// Step 4: Create Disk
 	volumeResponse, err := GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
 	if err != nil {
+		newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskProvision)
 		// if available feature enable, try with efficiency again
 		if diskVol.Type == DiskHighAvail && strings.Contains(err.Error(), DiskNotAvailable) {
 			disktype = DiskEfficiency
 			createDiskRequest.DiskCategory = disktype
 			volumeResponse, err = GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
 			if err != nil {
-				log.Errorf("CreateVolume: requestId[%s], fail to create disk %s error: %v", volumeResponse.RequestId, req.GetName(), err)
-				return nil, status.Error(codes.Internal, err.Error())
+				newErrMsg = utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskProvision)
+				log.Errorf("CreateVolume: requestId[%s], fail to create disk %s error: %v", volumeResponse.RequestId, req.GetName(), newErrMsg)
+				return nil, status.Error(codes.Internal, newErrMsg)
 			}
 		} else if strings.Contains(err.Error(), DiskSizeNotAvailable) || strings.Contains(err.Error(), "The specified parameter \"Size\" is not valid") {
-			return nil, status.Error(codes.Internal, err.Error()+", PVC defined storage should equal/greater than 20Gi")
+			return nil, status.Error(codes.Internal, newErrMsg)
 		} else if strings.Contains(err.Error(), DiskNotAvailable) {
 			return nil, status.Error(codes.Internal, err.Error()+", PVC defined storage type not supported in zone: "+diskVol.ZoneID)
 		} else {
 			log.Errorf("CreateVolume: requestId[%s], fail to create disk %s, %v", volumeResponse.RequestId, req.GetName(), err)
-			return nil, status.Error(codes.Internal, err.Error())
+			return nil, status.Error(codes.Internal, newErrMsg)
 		}
 	}
 
@@ -326,8 +375,9 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		if disk != nil && disk.Status == DiskStatusInuse && canDetach {
 			err := detachDisk(req.VolumeId, disk.InstanceId)
 			if err != nil {
-				log.Errorf("DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, err.Error())
-				return nil, err
+				newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
+				log.Errorf("DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, newErrMsg)
+				return nil, status.Errorf(codes.Internal, newErrMsg)
 			}
 			log.Infof("DeleteVolume: Successful Detach disk(%s) from node %s before remove", req.VolumeId, disk.InstanceId)
 		}
@@ -337,9 +387,10 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	deleteDiskRequest.DiskId = req.GetVolumeId()
 	response, err := GlobalConfigVar.EcsClient.DeleteDisk(deleteDiskRequest)
 	if err != nil {
-		errMsg := fmt.Sprintf("DeleteVolume: Delete disk with error: %s", err.Error())
+		newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
+		errMsg := fmt.Sprintf("DeleteVolume: Delete disk with error: %s", newErrMsg)
 		if response != nil {
-			errMsg = fmt.Sprintf("DeleteVolume: Delete disk with error: %s, with RequstId: %s", err.Error(), response.RequestId)
+			errMsg = fmt.Sprintf("DeleteVolume: Delete disk with error: %s, with RequstId: %s", newErrMsg, response.RequestId)
 		}
 		log.Warnf(errMsg)
 		if strings.Contains(err.Error(), DiskCreatingSnapshot) || strings.Contains(err.Error(), IncorrectDiskStatus) {
@@ -423,18 +474,30 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
+func (cs *controllerServer) createSnapshotEvent(objectRef *v1.ObjectReference, eventType string, reason string, err string) {
+	cs.recorder.Event(objectRef, eventType, reason, err)
+}
+
 //
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
+	ref := &v1.ObjectReference{
+		Kind:      "VolumeSnapshot",
+		Name:      req.Name,
+		UID:       "",
+		Namespace: "",
+	}
 	log.Infof("CreateSnapshot:: Starting to create snapshot: %+v", req)
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
 		return nil, err
 	}
 	if len(req.GetName()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "CreateSnapshot: Name missing in request")
+		err := status.Error(codes.InvalidArgument, "CreateSnapshot: Name missing in request")
+		return nil, err
 	}
 	// Check arguments
 	if len(req.GetSourceVolumeId()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "CreateSnapshot: SourceVolumeId missing in request")
+		err := status.Error(codes.InvalidArgument, "CreateSnapshot: SourceVolumeId missing in request")
+		return nil, err
 	}
 
 	// Need to check for already existing snapshot name
@@ -455,23 +518,34 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 				SizeBytes:      exSnap.SizeBytes,
 				ReadyToUse:     exSnap.ReadyToUse,
 			}
+			if exSnap.ReadyToUse {
+				str := fmt.Sprintf("VolumeSnapshot: %s is ready to use.", exSnap.Name)
+				cs.createSnapshotEvent(ref, v1.EventTypeNormal, CreatedSnapshotSuccessfully, str)
+			}
 			return &csi.CreateSnapshotResponse{
 				Snapshot: csiSnapshot,
 			}, nil
 		}
 		log.Errorf("CreateSnapshot:: Snapshot already exist with same name: name[%s], volumeID[%s]", req.Name, exSnap.VolID)
-		return nil, status.Error(codes.AlreadyExists, fmt.Sprintf("snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName()))
+		err := status.Error(codes.AlreadyExists, fmt.Sprintf("snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName()))
+		cs.createSnapshotEvent(ref, v1.EventTypeWarning, SnapshotAlreadyExist, err.Error())
+		return nil, err
 	} else if snapNum > 1 {
 		log.Errorf("CreateSnapshot:: Find Snapshot name[%s], but get more than 1 instance", req.Name)
-		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot: get snapshot more than 1 instance"))
+		err := status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot: get snapshot more than 1 instance"))
+		cs.createSnapshotEvent(ref, v1.EventTypeWarning, SnapshotTooMany, err.Error())
+		return nil, err
 	} else if err != nil {
 		log.Errorf("CreateSnapshot:: Expect to find Snapshot name[%s], but get error: %v", req.Name, err)
-		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot: get snapshot with error: %s", err.Error()))
+		e := status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot: get snapshot with error: %s", err.Error()))
+		cs.createSnapshotEvent(ref, v1.EventTypeWarning, CreateSnapshotError, e.Error())
+		return nil, e
 	}
 
 	// check snapshot again, if ram has no auth to describe snapshot, there will always 0 response.
 	if value, ok := createdSnapshotMap[req.Name]; ok {
-		log.Infof("CreateSnapshot:: Snapshot already created, Name: %s, Info: %v", req.Name, value)
+		str := fmt.Sprintf("CreateSnapshot:: Snapshot already created, Name: %s, Info: %v", req.Name, value)
+		log.Info(str)
 		return &csi.CreateSnapshotResponse{
 			Snapshot: value,
 		}, nil
@@ -499,7 +573,9 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	snapshotResponse, err := GlobalConfigVar.EcsClient.CreateSnapshot(createSnapshotRequest)
 	if err != nil {
 		log.Errorf("CreateSnapshot:: Snapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", req.Name, req.GetSourceVolumeId(), err.Error())
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed create snapshot: %v", err))
+		e := status.Error(codes.Internal, fmt.Sprintf("failed create snapshot: %v", err))
+		cs.createSnapshotEvent(ref, v1.EventTypeWarning, CreateSnapshotError, e.Error())
+		return nil, e
 	}
 	snapshotID := snapshotResponse.SnapshotId
 	snapshot := diskSnapshot{}
@@ -509,7 +585,8 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	snapshot.CreationTime = *createAt
 	snapshot.ReadyToUse = false
 
-	log.Infof("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s], snapshot[%++v]", req.Name, req.GetSourceVolumeId(), snapshotID, snapshot)
+	str := fmt.Sprintf("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s], snapshot[%++v]", req.Name, req.GetSourceVolumeId(), snapshotID, snapshot)
+	log.Infof(str)
 	csiSnapshot := &csi.Snapshot{
 		SnapshotId:     snapshotID,
 		SourceVolumeId: snapshot.VolID,
@@ -519,15 +596,18 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	createdSnapshotMap[req.Name] = csiSnapshot
+	cs.createSnapshotEvent(ref, v1.EventTypeNormal, CreatedSnapshotSuccessfully, str)
 	return &csi.CreateSnapshotResponse{
 		Snapshot: csiSnapshot,
 	}, nil
 }
 
 func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
+
 	// Check arguments
 	if len(req.GetSnapshotId()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Snapshot ID missing in request")
+		err := status.Error(codes.InvalidArgument, "Snapshot ID missing in request")
+		return nil, err
 	}
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
 		return nil, err
@@ -539,6 +619,7 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	forceDelete := false
 	snapShot, snapNum, err := findDiskSnapshotByID(req.SnapshotId)
+
 	if snapNum == 1 && snapShot != nil {
 		for _, tag := range snapShot.SnapshotTags {
 			if tag.TagKey == SNAPSHOTTAGKEY1 && tag.TagValue == "true" {
@@ -550,8 +631,16 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 		return &csi.DeleteSnapshotResponse{}, nil
 	} else if snapNum > 1 {
 		log.Errorf("DeleteSnapshot: snapShot cannot be deleted %s, with more than 1 snapshot", snapshotID)
-		return nil, status.Error(codes.Internal, fmt.Sprintf("snapShot cannot be deleted %s, with more than 1 snapshot", snapshotID))
+		err := status.Error(codes.Internal, fmt.Sprintf("snapShot cannot be deleted %s, with more than 1 snapshot", snapshotID))
+		return nil, err
 	}
+	ref := &v1.ObjectReference{
+		Kind:      "VolumeSnapshotContent",
+		Name:      snapShot.Name,
+		UID:       "",
+		Namespace: "",
+	}
+
 	// log snapshot
 	log.Infof("DeleteSnapshot: Snapshot %s exist with Info: %+v, %+v", snapshotID, snapShot, err)
 
@@ -566,13 +655,17 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 		if response != nil {
 			log.Errorf("DeleteSnapshot: fail to delete %s: with RequestId: %s, error: %s", snapshotID, response.RequestId, err.Error())
 		}
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed delete snapshot: %v", err))
+		e := status.Error(codes.Internal, fmt.Sprintf("failed delete snapshot: %v", err))
+		cs.createSnapshotEvent(ref, v1.EventTypeWarning, DeleteSnapshotError, e.Error())
+		return nil, e
 	}
 
 	if snapShot != nil {
 		delete(createdSnapshotMap, snapShot.Name)
 	}
-	log.Infof("DeleteSnapshot:: Successful delete snapshot %s, requestId: %s", snapshotID, response.RequestId)
+	str := fmt.Sprintf("DeleteSnapshot:: Successfully delete snapshot %s, requestId: %s", snapshotID, response.RequestId)
+	log.Info(str)
+	cs.createSnapshotEvent(ref, v1.EventTypeNormal, DeletedSnapshotSuccessfully, str)
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 

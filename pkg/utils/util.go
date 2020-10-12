@@ -17,6 +17,7 @@ limitations under the License.
 package utils
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
@@ -385,7 +386,7 @@ func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet *kubernetes.Clie
 		return "", fmt.Errorf("GetPodRunTime: Rreceive Request with Empty name or namespace")
 	}
 
-	podInfo, err := clientSet.CoreV1().Pods(nameSpace).Get(podName, metav1.GetOptions{})
+	podInfo, err := clientSet.CoreV1().Pods(nameSpace).Get(context.Background(), podName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("GetPodRunTime: Get PodInfo(%s, %s) with error: %s", podName, nameSpace, err.Error())
 		return "", fmt.Errorf("GetPodRunTime: Get PodInfo(%s, %s) with error: %s", podName, nameSpace, err.Error())

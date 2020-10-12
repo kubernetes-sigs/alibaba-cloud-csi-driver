@@ -32,8 +32,9 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/util/resizefs"
+	utilexec "k8s.io/utils/exec"
+	k8smount "k8s.io/utils/mount"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
@@ -445,7 +446,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 	if !notmounted {
 		deviceName := GetDeviceByMntPoint(targetPath)
-		if err := checkDeviceAvailable(deviceName); err != nil {
+		if err := checkDeviceAvailable(deviceName, req.VolumeId, targetPath); err != nil {
 			log.Errorf("NodeStageVolume: mountPath is mounted %s, but check device available error: %s", targetPath, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -485,12 +486,13 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	} else {
 		device, err = attachDisk(req.GetVolumeId(), ns.nodeID, isSharedDisk)
 		if err != nil {
-			log.Errorf("NodeStageVolume: Attach volume: %s with error: %s", req.VolumeId, err.Error())
+			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
+			log.Errorf("NodeStageVolume: Attach volume: %s with error: %s", req.VolumeId, fullErrorMessage)
 			return nil, err
 		}
 	}
 
-	if err := checkDeviceAvailable(device); err != nil {
+	if err := checkDeviceAvailable(device, req.VolumeId, targetPath); err != nil {
 		log.Errorf("NodeStageVolume: Attach device with error: %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -551,7 +553,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 
 	// do format-mount or mount
-	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: k8smount.NewOsExec()}
+	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
 	if len(mkfsOptions) > 0 && (fsType == "ext4" || fsType == "ext3") {
 		if err := formatAndMount(diskMounter, device, targetPath, fsType, mkfsOptions, options); err != nil {
 			log.Errorf("Mountdevice: FormatAndMount fail with mkfsOptions %s, %s, %s, %s, %s with error: %s", device, targetPath, fsType, mkfsOptions, options, err.Error())
@@ -703,8 +705,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
 
 	// use resizer to expand volume filesystem
-	realExec := k8smount.NewOsExec()
-	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: realExec})
+	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()})
 	ok, err := resizer.Resize(devicePath, volumePath)
 	if err != nil {
 		log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", diskID, devicePath, volumePath, err.Error())
@@ -774,7 +775,7 @@ func (ns *nodeServer) mountDeviceToGlobal(capability *csi.VolumeCapability, volu
 	}
 
 	// do format-mount or mount
-	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: k8smount.NewOsExec()}
+	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
 	if len(mkfsOptions) > 0 && (fsType == "ext4" || fsType == "ext3") {
 		if err := formatAndMount(diskMounter, device, sourcePath, fsType, mkfsOptions, options); err != nil {
 			log.Errorf("mountDeviceToGlobal: FormatAndMount fail with mkfsOptions %s, %s, %s, %s, %s with error: %s", device, sourcePath, fsType, mkfsOptions, options, err.Error())
