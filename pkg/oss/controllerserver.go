@@ -96,7 +96,7 @@ func NewControllerServer(d *csicommon.CSIDriver, region string) csi.ControllerSe
 
 // provisioner: create/delete oss volume
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	log.Infof("CreateVolume: Starting OSSFS CreateVolume, %s, %v", req.Name, req)
+	log.Infof("CreateVolume: Starting OSSFS CreateVolume, %s", req.Name)
 
 	// step1: check pvc is created or not.
 	if value, ok := pvcProcessSuccess[req.Name]; ok && value != nil {
