@@ -14,15 +14,15 @@ spec:
         app: csi-snapshotter
     spec:
       tolerations:
-      - operator: "Exists"
+        - operator: "Exists"
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 1
-            preference:
-              matchExpressions:
-              - key: node-role.kubernetes.io/master
-                operator: Exists
+            - weight: 1
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/master
+                    operator: Exists
       priorityClassName: system-node-critical
       serviceAccount: admin
       hostNetwork: true

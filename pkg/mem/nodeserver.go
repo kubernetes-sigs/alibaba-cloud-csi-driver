@@ -30,7 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	k8smount "k8s.io/kubernetes/pkg/util/mount"
+	k8smount "k8s.io/utils/mount"
 )
 
 const (
@@ -97,7 +97,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// Get pv size
-	pv, err := ns.client.CoreV1().PersistentVolumes().Get(req.VolumeId, metav1.GetOptions{})
+	pv, err := ns.client.CoreV1().PersistentVolumes().Get(context.Background(), req.VolumeId, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("get volume err: %v", err.Error())
 		return nil, status.Error(codes.Internal, "targetPath is empty")

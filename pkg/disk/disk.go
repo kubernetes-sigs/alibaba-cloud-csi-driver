@@ -17,6 +17,7 @@ limitations under the License.
 package disk
 
 import (
+	"context"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
@@ -153,7 +154,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(configMapName, metav1.GetOptions{})
+	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
 		log.Infof("Not found configmap named as csi-plugin under kube-system, with error: %v", err)
 	} else {
@@ -259,7 +260,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) {
 
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	runtimeValue := "runc"
-	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Describe node %s with error: %s", nodeName, err.Error())
 	} else {

@@ -20,8 +20,10 @@ import (
 	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/commands"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/generator"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/server"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -31,8 +33,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/util/resizefs"
+	utilexec "k8s.io/utils/exec"
+	k8smount "k8s.io/utils/mount"
 	"os"
 	"path/filepath"
 )
@@ -42,6 +45,8 @@ const (
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
 	// VgNameTag is the vg name tag
 	VgNameTag = "vgName"
+	// PmemType tag
+	PmemType = "pmemType"
 	// VolumeTypeTag is the pv type tag
 	VolumeTypeTag = "volumeType"
 	// PvTypeTag is the pv type tag
@@ -50,6 +55,8 @@ const (
 	FsTypeTag = "fsType"
 	// LvmTypeTag is the lvm type tag
 	LvmTypeTag = "lvmType"
+	// PmemBlockDev is the pmem type tag
+	PmemBlockDev = "pmemBlockDev"
 	// NodeAffinity is the pv node schedule tag
 	NodeAffinity = "nodeAffinity"
 	// LocalDisk local disk
@@ -62,6 +69,8 @@ const (
 	StripingType = "striping"
 	// DefaultFs default fs
 	DefaultFs = "ext4"
+	// DefaultPmemType default lvm
+	DefaultPmemType = "lvm"
 	// DefaultNodeAffinity default NodeAffinity
 	DefaultNodeAffinity = "true"
 )
@@ -84,6 +93,12 @@ var (
 
 // NewNodeServer create a NodeServer object
 func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer {
+	k8sHost := os.Getenv("KUBERNETES_SERVICE_HOST")
+	k8sPort := os.Getenv("KUBERNETES_SERVICE_PORT")
+	if k8sHost != "" && k8sPort != "" {
+		//masterURL = "http://"+k8sHost + ":" + k8sPort
+	}
+
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubeconfig: %s", err.Error())
@@ -96,6 +111,14 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 
 	// local volume daemon
 	go server.Start()
+
+	// pv handler
+	go generator.VolumeHandler()
+
+	// config volumegroup for pmem node
+	if types.GlobalConfigVar.PmemEnable {
+		lib.MaintainPMEM(types.GlobalConfigVar.PmemType)
+	}
 
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
@@ -140,6 +163,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	} else if volumeType == DeviceVolumeType {
 		err := ns.mountDeviceVolume(ctx, req)
+		if err != nil {
+			log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
+			return nil, err
+		}
+	} else if volumeType == PmemVolumeType {
+		err := ns.mountPmemVolume(ctx, req)
 		if err != nil {
 			log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
 			return nil, err
@@ -275,19 +304,23 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 	var curSize int64
 
 	// Get vgName
-	_, _, pv := ns.getPvInfo(volumeID)
+	pmemType := "lvm"
+	_, _, pv := getPvInfo(volumeID)
 	if pv != nil && pv.Spec.CSI != nil {
 		if value, ok := pv.Spec.CSI.VolumeAttributes["vgName"]; ok {
 			vgName = value
 		}
+		if value, ok := pv.Spec.CSI.VolumeAttributes["pmemType"]; ok {
+			pmemType = value
+		}
 	}
-	if vgName == "" {
-		log.Errorf("resizeVolume: Resize volume %s with empty vg", volumeID)
-		return status.Error(codes.Internal, "VG Name is empty, cannot resize volume "+volumeID)
+	if pmemType == "direct" {
+		log.Warnf("NodeExpandVolume: %s not support volume expand", pmemType)
+		return nil
 	}
 
 	// Get lvm info
-	lvList, err := commands.ListLV(vgName)
+	lvList, err := server.ListLV(vgName)
 	if err != nil {
 		log.Errorf("resizeVolume: Resize volume %s with list lv error %v", volumeID, err)
 		return status.Error(codes.Internal, "List lvm error with: "+err.Error())
@@ -316,8 +349,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 	}
 
 	// use resizer to expand volume filesystem
-	realExec := k8smount.NewOsExec()
-	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: realExec})
+	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()})
 	ok, err := resizer.Resize(devicePath, targetPath)
 	if err != nil {
 		log.Errorf("NodeExpandVolume:: Lvm Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeID, devicePath, targetPath, err.Error())
@@ -332,8 +364,8 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 }
 
 // get pvSize, pvSizeUnit, pvObject
-func (ns *nodeServer) getPvInfo(volumeID string) (int64, string, *v1.PersistentVolume) {
-	pv, err := ns.client.CoreV1().PersistentVolumes().Get(volumeID, metav1.GetOptions{})
+func getPvInfo(volumeID string) (int64, string, *v1.PersistentVolume) {
+	pv, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("lvcreate: fail to get pv, err: %v", err)
 		return 0, "", nil

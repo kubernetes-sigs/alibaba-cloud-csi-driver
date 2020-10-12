@@ -17,10 +17,16 @@ limitations under the License.
 package local
 
 import (
+	"context"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"os"
+	"strings"
 )
 
 // Local the Local struct
@@ -35,20 +41,8 @@ type Local struct {
 	cscap []*csi.ControllerServiceCapability
 }
 
-// GlobalConfig var
-type GlobalConfig struct {
-	Region    string
-	NodeID    string
-	Scheduler string
-}
-
-var (
-	// GlobalConfigVar var
-	GlobalConfigVar GlobalConfig
-)
-
 const (
-	defaultDriverName = "yodaplugin.csi.alibabacloud.com"
+	defaultDriverName = "localplugin.csi.alibabacloud.com"
 	localDriverName   = "localplugin.csi.alibabacloud.com"
 	yodaDriverName    = "yodaplugin.csi.alibabacloud.com"
 	csiVersion        = "1.0.0"
@@ -106,10 +100,49 @@ func (lvm *Local) Run() {
 
 // GlobalConfigSet set Global Config
 func GlobalConfigSet(region, nodeID, driverName string) {
-	// Global Config Set
-	GlobalConfigVar = GlobalConfig{
-		Region:    region,
-		NodeID:    nodeID,
-		Scheduler: driverName,
+	// Global Configs Set
+	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	if err != nil {
+		log.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+
+	nodeName := os.Getenv("KUBE_NODE_NAME")
+	pmemEnable := false
+	pmeType := ""
+	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	if err != nil {
+		log.Fatalf("Describe node %s with error: %s", nodeName, err.Error())
+	} else {
+		if value, ok := nodeInfo.Labels["pmem.csi.alibabacloud.com/type"]; ok {
+			pmemEnable = true
+			if strings.TrimSpace(value) == "lvm" {
+				pmeType = "lvm"
+			} else if strings.TrimSpace(value) == "direct" {
+				pmeType = "direct"
+			}
+		}
+		log.Infof("Describe node %s and Set PMEM to %v, %s", nodeName, pmemEnable, pmeType)
+	}
+
+	remoteProvision := true
+	remoteConfig := os.Getenv("LOCAL_CONTROLLER_PROVISION")
+	if strings.ToLower(remoteConfig) == "false" {
+		remoteProvision = false
+	}
+
+	// Global Config Set
+	types.GlobalConfigVar = types.GlobalConfig{
+		Region:              region,
+		NodeID:              nodeID,
+		Scheduler:           driverName,
+		PmemEnable:          pmemEnable,
+		PmemType:            pmeType,
+		ControllerProvision: remoteProvision,
+		KubeClient:          kubeClient,
+	}
+	log.Infof("Local Plugin Global Config is: %v", types.GlobalConfigVar)
 }

@@ -18,7 +18,7 @@ package server
 
 import (
 	"github.com/google/go-microservice-helpers/server"
-	pb "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib/proto"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	log "github.com/sirupsen/logrus"
 	"os"
 )
@@ -41,7 +41,7 @@ func Start() {
 		return
 	}
 
-	pb.RegisterLVMServer(grpcServer, &svr)
+	lib.RegisterLVMServer(grpcServer, &svr)
 
 	err = serverhelpers.ListenAndServe(grpcServer, nil)
 	if err != nil {
