@@ -442,6 +442,28 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 	return resolved, nil
 }
 
+// GetVolumeIDByDevice get volumeID by specific deivce name according to by-id dictionary
+func GetVolumeIDByDevice(device string) (volumeID string, err error) {
+	byIDPath := "/dev/disk/by-id/"
+	files, _ := ioutil.ReadDir(byIDPath)
+	for _, f := range files {
+		filePath := filepath.Join(byIDPath, f.Name())
+		stat, _ := os.Lstat(filePath)
+		if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
+			resolved, err := filepath.EvalSymlinks(filePath)
+			if err != nil {
+				log.Errorf("GetVolumeIDByDevice: error reading target of symlink %q: %v", filePath, err)
+				continue
+			}
+			if strings.Contains(resolved, device) {
+				volumeID = strings.Replace(f.Name(), "virtio-", "d-", -1)
+				return volumeID, nil
+			}
+		}
+	}
+	return "", nil
+}
+
 // get diskID
 func getVolumeConfig(volumeID string) string {
 	volumeFile := path.Join(VolumeDir, volumeID+".conf")
@@ -727,7 +749,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	return diskVolArgs, nil
 }
 
-func checkDeviceAvailable(devicePath string) error {
+func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
 	if devicePath == "" {
 		msg := fmt.Sprintf("devicePath is empty, cannot used for Volume")
 		return status.Error(codes.Internal, msg)
@@ -735,6 +757,20 @@ func checkDeviceAvailable(devicePath string) error {
 
 	// block volume
 	if devicePath == "devtmpfs" {
+		findmntCmd := fmt.Sprintf("findmnt %s | grep -v grep | awk '{if(NR>1)print $2}'", targetPath)
+		output, err := utils.Run(findmntCmd)
+		if err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+		device := output[len("devtmpfs")+1 : len(output)-1]
+		newVolumeID, err := GetVolumeIDByDevice(device)
+		if err != nil {
+			return nil
+		}
+		if newVolumeID != volumeID {
+			return status.Error(codes.Internal, fmt.Sprintf("device [%s] associate with volumeID: [%s] rather than volumeID: [%s]", device, newVolumeID, volumeID))
+		}
+
 		return nil
 	}
 
