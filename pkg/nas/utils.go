@@ -245,44 +245,39 @@ func createNasSubDir(nfsServer, nfsPath, nfsVers, nfsOptions string, volumeID st
 		utils.Umount(nasTmpPath)
 	}
 
-	// step 2: do mount
-	usePath := nfsPath
-	mntCmd := fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", nfsVers, nfsServer, "/", nasTmpPath)
+	// step 2: do mount, and create subpath by extreme
 	if nfsOptions != "" {
-		mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s,%s %s:%s %s", nfsVers, nfsOptions, nfsServer, "/", nasTmpPath)
+		nfsVers = nfsVers + "," + nfsOptions
 	}
-	_, err := utils.Run(mntCmd)
-	if err != nil {
-		if strings.Contains(nfsServer, "extreme.nas.aliyuncs.com") {
-			if strings.HasPrefix(nfsPath, "/share/") {
-				usePath = usePath[6:]
-				mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", nfsVers, nfsServer, "/share", nasTmpPath)
-				if nfsOptions != "" {
-					mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s,%s %s:%s %s", nfsVers, nfsOptions, nfsServer, "/share", nasTmpPath)
-				}
-				_, err := utils.Run(mntCmd)
-				if err != nil {
-					log.Errorf("Nas, Mount to temp directory(with /share) fail: %s", err.Error())
-					return err
-				}
-			} else {
-				log.Errorf("Nas, maybe use fast nas, but path not startwith /share: %s", err.Error())
-				return err
-			}
-		} else {
-			log.Errorf("Nas, Mount to temp directory fail: %s", err.Error())
-			return err
+	usePath := nfsPath
+	rootPath := "/"
+	//server is extreme nas
+	if strings.Contains(nfsServer, "extreme.nas.aliyuncs.com") {
+		//1.No need to deal with the case where nfsPath only beginning with /share or /share/
+		//2.No need to deal with the case where nfspath does not contain /share or /share/ at the beginning
+		//3.Need to deal with the case where nfsPath is /share/subpath
+		if strings.HasPrefix(nfsPath, "/share/") && len(nfsPath) > len("/share/") {
+			rootPath = "/share/"
+			usePath = nfsPath[6:]
 		}
 	}
+
+	mntCmdRootPath := fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", nfsVers, nfsServer, rootPath, nasTmpPath)
+	_, err := utils.Run(mntCmdRootPath)
+	if err != nil {
+		log.Errorf("Nas, mount directory rootPath fail, rootPath:%s, err:%s", rootPath, err.Error())
+		return err
+	}
+
 	subPath := path.Join(nasTmpPath, usePath)
 	if err := utils.CreateDest(subPath); err != nil {
-		log.Infof("Nas, Create Sub Directory err: " + err.Error())
+		log.Infof("Nas, Create Sub Directory fail, subPath:%s, err: " + err.Error())
 		return err
 	}
 
 	// step 3: umount after create
 	utils.Umount(nasTmpPath)
-	log.Infof("Create Sub Directory successful: %s", nfsPath)
+	log.Infof("Create Sub Directory successful, nfsPath:%s, subPath:%s", nfsPath, subPath)
 	return nil
 }
 
