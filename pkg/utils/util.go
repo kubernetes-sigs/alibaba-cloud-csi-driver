@@ -26,9 +26,14 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/record"
 	k8svol "k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/volume/util/fs"
 	"net/http"
@@ -83,6 +88,28 @@ type RoleAuth struct {
 	SecurityToken   string
 	LastUpdated     time.Time
 	Code            string
+}
+
+//NewEventRecorder is create snapshots event recorder
+func NewEventRecorder() record.EventRecorder {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		log.Fatalf("NewControllerServer: Failed to create config: %v", err)
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("NewControllerServer: Failed to create client: %v", err)
+	}
+	broadcaster := record.NewBroadcaster()
+	broadcaster.StartLogging(log.Infof)
+	source := v1.EventSource{Component: "csi-controller-server"}
+	if broadcaster != nil {
+		sink := &v1core.EventSinkImpl{
+			Interface: v1core.New(clientset.CoreV1().RESTClient()).Events(""),
+		}
+		broadcaster.StartRecordingToSink(sink)
+	}
+	return broadcaster.NewRecorder(scheme.Scheme, source)
 }
 
 // Succeed return a Succeed Result
