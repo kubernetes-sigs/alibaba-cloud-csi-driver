@@ -19,12 +19,6 @@ package nas
 import (
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
-
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -34,9 +28,16 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/record"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // resourcemode is selected by: subpath/filesystem
@@ -73,6 +74,8 @@ const (
 	NASTAGKEY2 = "createdby"
 	// NASTAGVALUE2 value
 	NASTAGVALUE2 = "alibabacloud-csi-plugin"
+	//AddDefaultTagsError means that the add nas default tags error
+	AddDefaultTagsError string = "AddDefaultTagsError"
 )
 
 // controller server try to create/delete volumes
@@ -81,6 +84,7 @@ type controllerServer struct {
 	region    string
 	client    kubernetes.Interface
 	*csicommon.DefaultControllerServer
+	recorder record.EventRecorder
 }
 
 // Alibaba Cloud nas volume parameters
@@ -127,12 +131,23 @@ func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region s
 		region:                  region,
 		client:                  clientset,
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
+		recorder:                utils.NewEventRecorder(),
 	}
 	return c
 }
 
+func (cs *controllerServer) createEvent(objectRef *v1.ObjectReference, eventType string, reason string, err string) {
+	cs.recorder.Event(objectRef, eventType, reason, err)
+}
+
 // provisioner: create/delete nas volume
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+	ref := &v1.ObjectReference{
+		Kind:      "Volume",
+		Name:      req.Name,
+		UID:       "",
+		Namespace: "",
+	}
 	log.Infof("CreateVolume: Starting NFS CreateVolume, %s, %v", req.Name, req)
 
 	// step1: check pvc is created or not.
@@ -211,7 +226,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			tagResourcesRequest.ResourceType = "filesystem"
 			tagResourcesResponse, err := cs.nasClient.TagResources(tagResourcesRequest)
 			if err != nil {
-				log.Errorf("CreateVolume: responseID[%s], fail to add default tags filesystem with ID: %s, err: %s", tagResourcesResponse.RequestId, fileSystemID, err.Error())
+				str := fmt.Sprintf("CreateVolume: responseID[%s], fail to add default tags filesystem with ID: %s, err: %s", tagResourcesResponse.RequestId, fileSystemID, err.Error())
+				e := status.Error(codes.Internal, str)
+				cs.createEvent(ref, v1.EventTypeWarning, AddDefaultTagsError, e.Error())
 			} else {
 				log.Infof("CreateVolume: Volume: %s, Successful Add Nas filesystem tags with ID: %s, with requestID: %s", pvName, fileSystemID, createFileSystemsResponse.RequestId)
 			}
