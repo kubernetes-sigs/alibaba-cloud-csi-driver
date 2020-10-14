@@ -174,6 +174,7 @@ func findBdf(diskID string) (bdf string, err error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "Mmap")
 	}
+	defer syscall.Munmap(mmdata)
 
 	bdf = ""
 	for i := 0; i < MaxVfNum; i++ {
