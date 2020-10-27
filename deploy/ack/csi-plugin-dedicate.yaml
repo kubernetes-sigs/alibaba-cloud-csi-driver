@@ -1,3 +1,27 @@
+apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: diskplugin.csi.alibabacloud.com
+spec:
+  attachRequired: true
+  podInfoOnMount: true
+---
+apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: nasplugin.csi.alibabacloud.com
+spec:
+  attachRequired: false
+  podInfoOnMount: true
+---
+apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: ossplugin.csi.alibabacloud.com
+spec:
+  attachRequired: false
+  podInfoOnMount: true
+---
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
@@ -13,9 +37,20 @@ spec:
         app: csi-plugin
     spec:
       tolerations:
-        - operator: "Exists"
-      priorityClassName: system-node-critical
+        - operator: Exists
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: type
+                operator: NotIn
+                values:
+                - virtual-kubelet
+      nodeSelector:
+        beta.kubernetes.io/os: linux
       serviceAccount: admin
+      priorityClassName: system-node-critical
       hostNetwork: true
       hostPID: true
       containers:
@@ -61,37 +96,32 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-shenzhen.aliyuncs.com/acs1/csi-merge:v1.14.5-2c916021
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.16.9.43-f36bb540-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=2"
             - "--driver=oss,nas,disk"
           env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/csi-plugins/driverplugin.csi.alibabacloud.com-replace/csi.sock
-            - name: ACCESS_KEY_ID
-              value: ""
-            - name: ACCESS_KEY_SECRET
-              value: ""
             - name: MAX_VOLUMES_PERNODE
               value: "15"
-            - name: DISK_TAGED_BY_PLUGIN
-              value: "true"
-            - name: SERVICE_PORT
-              value: "11260"
             - name: SERVICE_TYPE
               value: "plugin"
-            - name: ENABLE_METRIC
-              value: "false"
           livenessProbe:
             httpGet:
               path: /healthz
               port: healthz
               scheme: HTTP
             initialDelaySeconds: 10
-            periodSeconds: 10
-            timeoutSeconds: 3
+            periodSeconds: 30
+            timeoutSeconds: 5
             failureThreshold: 5
           ports:
             - name: healthz
