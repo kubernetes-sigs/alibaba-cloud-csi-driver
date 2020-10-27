@@ -1,0 +1,128 @@
+apiVersion: storage.k8s.io/v1beta1
+kind: CSIDriver
+metadata:
+  name: diskplugin.csi.alibabacloud.com
+spec:
+  attachRequired: false
+---
+  kind: DaemonSet
+  apiVersion: apps/v1
+  metadata:
+    name: csi-plugin
+    namespace: kube-system
+  spec:
+    selector:
+      matchLabels:
+        app: csi-plugin
+    template:
+      metadata:
+        labels:
+          app: csi-plugin
+      spec:
+        tolerations:
+          - operator: Exists
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: type
+                  operator: NotIn
+                  values:
+                  - virtual-kubelet
+        nodeSelector:
+          beta.kubernetes.io/os: linux
+        serviceAccount: admin
+        priorityClassName: system-node-critical
+        hostNetwork: true
+        hostPID: true
+        containers:
+          - name: disk-driver-registrar
+            image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+            imagePullPolicy: Always
+            args:
+              - "--v=5"
+              - "--csi-address=/var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock"
+              - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock"
+            volumeMounts:
+              - name: kubelet-dir
+                mountPath: /var/lib/kubelet
+              - name: registration-dir
+                mountPath: /registration
+          - name: csi-plugin
+            securityContext:
+              privileged: true
+              capabilities:
+                add: ["SYS_ADMIN"]
+              allowPrivilegeEscalation: true
+            image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.16.9.43-f36bb540-aliyun
+            imagePullPolicy: "Always"
+            args:
+              - "--endpoint=$(CSI_ENDPOINT)"
+              - "--v=2"
+              - "--driver=disk"
+            env:
+              - name: KUBE_NODE_NAME
+                valueFrom:
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: spec.nodeName
+              - name: CSI_ENDPOINT
+                value: unix://var/lib/kubelet/csi-plugins/driverplugin.csi.alibabacloud.com-replace/csi.sock
+              - name: MAX_VOLUMES_PERNODE
+                value: "15"
+              - name: SERVICE_TYPE
+                value: "plugin"
+            livenessProbe:
+              httpGet:
+                path: /healthz
+                port: healthz
+                scheme: HTTP
+              initialDelaySeconds: 10
+              periodSeconds: 30
+              timeoutSeconds: 5
+              failureThreshold: 5
+            ports:
+              - name: healthz
+                containerPort: 11260
+                protocol: TCP
+            volumeMounts:
+              - name: kubelet-dir
+                mountPath: /var/lib/kubelet/
+                mountPropagation: "Bidirectional"
+              - name: etc
+                mountPath: /host/etc
+              - name: host-log
+                mountPath: /var/log/
+              - name: container-dir
+                mountPath: /var/lib/container
+                mountPropagation: "Bidirectional"
+              - name: host-dev
+                mountPath: /dev
+                mountPropagation: "HostToContainer"
+        volumes:
+          - name: registration-dir
+            hostPath:
+              path: /var/lib/kubelet/plugins_registry
+              type: DirectoryOrCreate
+          - name: container-dir
+            hostPath:
+              path: /var/lib/container
+              type: DirectoryOrCreate
+          - name: kubelet-dir
+            hostPath:
+              path: /var/lib/kubelet
+              type: Directory
+          - name: host-dev
+            hostPath:
+              path: /dev
+          - name: host-log
+            hostPath:
+              path: /var/log/
+          - name: etc
+            hostPath:
+              path: /etc
+    updateStrategy:
+      rollingUpdate:
+        maxUnavailable: 10%
+      type: RollingUpdate
