@@ -25,6 +25,15 @@ type PmemRegions struct {
 	Regions []PmemRegion `json:"regions"`
 }
 
+// DaxctrlMem list all mems
+type DaxctrlMem struct {
+	Chardev       string `json:"chardev"`
+	Size          int64 `json:"size"`
+	TargetNode    int `json:"target_node"`
+	Mode          string `json:"mode"`
+	Movable       bool `json:"movable"`
+}
+
 // PmemRegion define on pmem region
 type PmemRegion struct {
 	Dev               string          `json:"dev"`
@@ -84,6 +93,11 @@ func MaintainPMEM(pmemType string) error {
 			return err
 		}
 		log.Infof("MaintainDirect Successful")
+	} else if pmemType == "kmem" {
+		if err := MaintainKMEM(regions); err != nil {
+			log.Errorf("MaintainKMEM got error: %v", err)
+			return err
+		}
 	} else {
 		log.Warnf("Set pmem type %s is not supported", pmemType)
 	}
@@ -96,13 +110,96 @@ func MaintainDirect(regions *PmemRegions) error {
 	return nil
 }
 
+// MaintainKMEM direct pmem
+func MaintainKMEM(regions *PmemRegions) error {
+	for _, region := range regions.Regions{
+		if len(region.Namespaces) == 0 {
+			err := createNameSpace(region.Dev, "kmem")
+			if err != nil {
+				log.Errorf("Create kmem NameSpace error for region: %s", region.Dev)
+				return errors.New("Create NameSpace error for region: " + region.Dev)
+			}
+		}
+		chardev, err := checkKMEMNamespaceValid(region.Dev)
+		if err != nil {
+			return err
+		}
+		created, err := checkKMEMCreated(chardev)
+		if err != nil {
+			return err
+		}
+		if !created{
+			err = makeNamespaceMemory(chardev)
+			if err != nil {
+				return err
+			}
+		}
+	} 
+	return nil
+}
+
+func checkKMEMCreated(chardev string) (bool, error) {
+	listCmd := fmt.Sprintf("%s daxctl list", NsenterCmd)
+	out, err := utils.Run(listCmd)
+	if err != nil {
+		log.Errorf("List daxctl error: %v", err)
+		return false, err
+	}
+	memList := []*DaxctrlMem{}
+	err = json.Unmarshal(([]byte)(out), &memList)
+	if err != nil {
+		return false, err
+	}
+	for _, mem := range memList {
+		if mem.Chardev == chardev && mem.Mode == "system-ram"{
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func checkKMEMNamespaceValid(region string) (string, error){
+	listCmd := fmt.Sprintf("%s ndctl list -RN -r %s", NsenterCmd, region)
+	out, err := utils.Run(listCmd)
+	if err != nil {
+		log.Errorf("List NameSpace for region %s error: %v", region, err)
+		return "", err
+	}
+	regions := &PmemRegions{}
+	err = json.Unmarshal(([]byte)(out), regions)
+	if err != nil {
+		log.Errorf("List NameSpace for region %s unmarshal error: %v", region, err)
+		return "", err
+	}
+	if len(regions.Regions) == 0 {
+		log.Errorf("list Namespace for region %s get 0 region", region)
+		return "", errors.New("list Namespace get 0 region by " + region)
+	}
+	if len(regions.Regions[0].Namespaces) != 1 {
+		log.Errorf("list Namespace for region %s get 0 or multi namespaces", region)
+		return "", errors.New("list Namespace for region get 0 or multi namespaces" + region)
+	}
+	namespaceMode := regions.Regions[0].Namespaces[0].Mode
+	if namespaceMode != "devdax"{
+		log.Errorf("KMEM namespace mode %s wrong", namespaceMode)
+		return "", errors.New("KMEM namespace wrong mode" + namespaceMode)
+	}
+	return regions.Regions[0].Namespaces[0].CharDev, nil
+}
+
+func makeNamespaceMemory(chardev string) error {
+	makeCmd := fmt.Sprintf("%s daxctl reconfigure-device -m system-ram %s", NsenterCmd, chardev)
+	_, err := utils.Run(makeCmd)
+	return err
+}
+
 // MaintainLVM lvm pmem
 func MaintainLVM(regions *PmemRegions) error {
 	// Create Namespaces if not exist
 	for _, region := range regions.Regions {
 		if len(region.Namespaces) == 0 {
-			if err := createNameSpace(region.Dev); err != nil {
-				log.Errorf("Create NameSpace error for region: %s", region.Dev)
+			if err := createNameSpace(region.Dev, "lvm"); err != nil {
+				log.Errorf("Create lvm NameSpace error for region: %s", region.Dev)
 				return errors.New("Create NameSpace error for region: " + region.Dev)
 			}
 		}
@@ -149,8 +246,13 @@ func MaintainLVM(regions *PmemRegions) error {
 	return nil
 }
 
-func createNameSpace(region string) error {
-	createCmd := fmt.Sprintf("%s ndctl create-namespace -r %s", NsenterCmd, region)
+func createNameSpace(region, pmemType string) error {
+	var createCmd string
+	if pmemType == "lvm" {
+		createCmd = fmt.Sprintf("%s ndctl create-namespace -r %s", NsenterCmd, region)
+	} else {
+		createCmd = fmt.Sprintf("%s ndctl create-namespace -r %s --mode=devdax", NsenterCmd, region)
+	}
 	_, err := utils.Run(createCmd)
 	if err != nil {
 		log.Errorf("Create NameSpace for region %s error: %v", region, err)

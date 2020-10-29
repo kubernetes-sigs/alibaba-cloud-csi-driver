@@ -341,6 +341,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				} else {
 					log.Infof("CreateVolume: PMEM namespace already created %s, %s", req.Name, namespace)
 				}
+			} else if pmemType == "kmem" {
+				log.Infof("CreateVolume: create KMEM types volumes")
 			} else {
 				log.Errorf("CreateVolume: No support PMEM type %s for volume %s", pmemType, req.Name)
 				return nil, status.Error(codes.InvalidArgument, "No support pmem type for volume "+req.Name)
