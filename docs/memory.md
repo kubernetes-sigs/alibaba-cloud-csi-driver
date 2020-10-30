@@ -2,7 +2,7 @@
 
 An Memory CSI plugin is available to help simplify storage management for memory type volume. You can create a pv with csi configuration, and the pvc, pod defines as usual.
 
-Memory volume is temp storage, and similar with Empty volume. Memory storage is created with pod starting and removed with pod terminatting.
+Memory volume is temp storage, and similar with Empty volume. Memory storage is created with pod starting and removed with pod terminating.
 
 Memory volume is just like Empty volume in memory type, and difference is that Memory volume support to limit memory size.
 
@@ -59,7 +59,7 @@ provisioner: memplugin.csi.alibabacloud.com
 reclaimPolicy: Delete
 ```
 
-### Step 4: Create nginx deploy with memory volume see usage of memory volue [examples](https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/tree/master/examples/mem) 
+### Step 4: Create nginx deploy with memory volume see usage of memory volume [examples](https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/tree/master/examples/mem) 
 ```
 # kubectl create -f ./examples/mem/pvc.yaml
 # kubectl create -f ./examples/mem/deploy.yaml
