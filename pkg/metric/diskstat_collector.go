@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 	"io"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -14,7 +15,7 @@ import (
 )
 
 var (
-	diskStatLabelNames = []string{"namespace", "persistentvolumeclaim", "device", "type"}
+	diskStatLabelNames = []string{"namespace", "pvc", "device", "type"}
 )
 
 var (
@@ -80,9 +81,10 @@ var (
 )
 
 type diskStatCollector struct {
+	lantencyThreshold int //Unit: milliseconds
 	descs             []typedFactorDesc
-	lastPvPathMapping map[string]string   //key:pvName,value:mountPath
-	lastPvPvcMapping  map[string][]string //key:pvName, value:pvcNamespace,pvcName
+	lastPvPathMapping map[string]string   //key:pvName, value:mountPath
+	lastPvPvcMapping  map[string][]string //key:pvName, value:pvcNamespace, pvcName
 	clientSet         *kubernetes.Clientset
 }
 
@@ -92,6 +94,10 @@ func init() {
 
 // NewDiskStatCollector returns a new Collector exposing disk stats.
 func NewDiskStatCollector() (Collector, error) {
+	lantencyThreshold := 10
+	lantencyThreshold = strings.Trim(os.Getenv("DISK_LATENCY_THRESHOLD"), " ")
+	if lantencyThreshold == "true" {
+	}
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
@@ -135,29 +141,12 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get diskstats: %s", err)
 	}
-	volDataJSONPath, err := findVolDataJSONFileByPattern(podsRootPath)
+
+	pvDeviceNameMapping,err := updateMapping(p.clientSet, &p.lastPvPathMapping, &p.lastPvPvcMapping, diskDriverName)
 	if err != nil {
+		logrus.Errorf("Update %s Mapping is failed, err:%s", diskStorageName, err)
 		return err
 	}
-
-	pvDeviceNameMapping := make(map[string]string, 0)
-	thisPvPathMapping := make(map[string]string, 0)
-	for _, path := range volDataJSONPath {
-		//Get disk pvName
-		pvName, err := getVolumeIDByJSON(path, diskDriverName)
-		if err != nil {
-			continue
-		}
-		pvDevice, err := GetDeviceByVolumeID(pvName)
-		if err != nil {
-			continue
-		}
-		thisPvPathMapping[pvName] = path
-		pvDeviceNameMapping[pvDevice] = pvName
-	}
-
-	//If there is a change:add, modify, delete
-	updateLastPvcMapping(thisPvPathMapping, &p.lastPvPathMapping, p.clientSet, &p.lastPvPvcMapping)
 	wg := sync.WaitGroup{}
 	for dev, stats := range diskStats {
 		pvName, getPv := pvDeviceNameMapping[dev]
@@ -187,7 +176,7 @@ func (p *diskStatCollector) setDiskMetric(dev string, pvcNamespace string, pvcNa
 		if err != nil {
 			return
 		}
-		ch <- p.descs[i].mustNewConstMetric(v, pvcNamespace, pvcName, dev, DiskStorageName)
+		ch <- p.descs[i].mustNewConstMetric(v, pvcNamespace, pvcName, dev, diskStorageName)
 	}
 }
 

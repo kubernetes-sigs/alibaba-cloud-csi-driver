@@ -10,11 +10,11 @@ import (
 
 const (
 	//OssStorageName represents the storage type name of Oss
-	OssStorageName string = "oss"
+	ossStorageName string = "oss"
 	//NasStorageName represents the storage type name of Nas
-	NasStorageName string = "nas"
-	//DiskStorageName represents the storage type name of Disk
-	DiskStorageName string = "disk"
+	nasStorageName string = "nas"
+	//diskStorageName represents the storage type name of Disk
+	diskStorageName string = "disk"
 	//unknownStorageName represents the storage type name of Unknown
 	unknownStorageName string = "unknown"
 	//ossDriverName represents the csi storage type name of Oss
@@ -45,7 +45,7 @@ const (
 
 var (
 	metricType       string
-	nodeMetricSet    = hashset.New("diskstat")
+	nodeMetricSet    = hashset.New("diskstat","rdsrawblockstat")
 	clusterMetricSet = hashset.New("")
 )
 
@@ -65,10 +65,10 @@ const (
 
 type collectorFactoryFunc = func() (Collector, error)
 
-//CSICollectorInstance is a single instance of CSICollector
+//csiCollectorInstance is a single instance of CSICollector
 //Factories are the mapping between monitoring types and collectorFactoryFunc
 var (
-	CSICollectorInstance *CSICollector
+	csiCollectorInstance *CSICollector
 	factories            = make(map[string]collectorFactoryFunc)
 )
 
@@ -85,7 +85,34 @@ func (d *typedFactorDesc) mustNewConstMetric(value float64, labels ...string) pr
 	return prometheus.MustNewConstMetric(d.desc, d.valueType, value, labels...)
 }
 
-func updateLastPvcMapping(thisPvPathMapping map[string]string, lastPvPathMapping *map[string]string, clientSet *kubernetes.Clientset, lastPvPvcMapping *map[string][]string) {
+func updateMapping(clientSet *kubernetes.Clientset, lastPvPathMapping *map[string]string, lastPvPvcMapping *map[string][]string, deriverNamer string)(map[string]string, error){
+	volDataJSONPath, err := findVolDataJSONFileByPattern(podsRootPath)
+	if err != nil {
+		return nil, err
+	}
+
+	pvDeviceNameMapping := make(map[string]string, 0)
+	thisPvPathMapping := make(map[string]string, 0)
+	for _, path := range volDataJSONPath {
+		//Get disk pvName
+		pvName, err := getVolumeIDByJSON(path, deriverNamer)
+		if err != nil {
+			continue
+		}
+		pvDevice, err := getDeviceByVolumeID(pvName)
+		if err != nil {
+			continue
+		}
+		thisPvPathMapping[pvName] = path
+		pvDeviceNameMapping[pvDevice] = pvName
+	}
+
+	//If there is a change:add, modify, delete
+	updateLastPvcMapping(clientSet, thisPvPathMapping, lastPvPathMapping, lastPvPvcMapping)
+	return thisPvPathMapping, nil
+}
+
+func updateLastPvcMapping(clientSet *kubernetes.Clientset, thisPvPathMapping map[string]string, lastPvPathMapping *map[string]string,  lastPvPvcMapping *map[string][]string) {
 	for thisKey, thisValue := range thisPvPathMapping {
 		lastValue, ok := (*lastPvPathMapping)[thisKey]
 		if !ok || thisValue != lastValue {
