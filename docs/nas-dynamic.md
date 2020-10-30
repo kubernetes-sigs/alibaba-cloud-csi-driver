@@ -99,9 +99,9 @@ Parameters:
 >
 > zoneId: zoneId is optional, default value is the kubernetes cluster's worker's zoneId
 >
-> vpcId: vpcId is reqiured, it is the node's vpc id you want to mount to
+> vpcId: vpcId is required, it is the node's vpc id you want to mount to
 >
-> vSwitchId: vSwitchId is reqiured, it is the node's vSwitchId id you want to mount to
+> vSwitchId: vSwitchId is required, it is the node's vSwitchId id you want to mount to
 >
 > accessGroupName: accessGroupName is optional, default value is 'DEFAULT_VPC_GROUP_NAME'
 >
