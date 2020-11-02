@@ -27,11 +27,11 @@ type PmemRegions struct {
 
 // DaxctrlMem list all mems
 type DaxctrlMem struct {
-	Chardev       string `json:"chardev"`
-	Size          int64 `json:"size"`
-	TargetNode    int `json:"target_node"`
-	Mode          string `json:"mode"`
-	Movable       bool `json:"movable"`
+	Chardev    string `json:"chardev"`
+	Size       int64  `json:"size"`
+	TargetNode int    `json:"target_node"`
+	Mode       string `json:"mode"`
+	Movable    bool   `json:"movable"`
 }
 
 // PmemRegion define on pmem region
@@ -112,7 +112,7 @@ func MaintainDirect(regions *PmemRegions) error {
 
 // MaintainKMEM direct pmem
 func MaintainKMEM(regions *PmemRegions) error {
-	for _, region := range regions.Regions{
+	for _, region := range regions.Regions {
 		if len(region.Namespaces) == 0 {
 			err := createNameSpace(region.Dev, "kmem")
 			if err != nil {
@@ -128,13 +128,13 @@ func MaintainKMEM(regions *PmemRegions) error {
 		if err != nil {
 			return err
 		}
-		if !created{
+		if !created {
 			err = makeNamespaceMemory(chardev)
 			if err != nil {
 				return err
 			}
 		}
-	} 
+	}
 	return nil
 }
 
@@ -151,14 +151,14 @@ func checkKMEMCreated(chardev string) (bool, error) {
 		return false, err
 	}
 	for _, mem := range memList {
-		if mem.Chardev == chardev && mem.Mode == "system-ram"{
+		if mem.Chardev == chardev && mem.Mode == "system-ram" {
 			return true, nil
 		}
 	}
 	return false, nil
 }
 
-func checkKMEMNamespaceValid(region string) (string, error){
+func checkKMEMNamespaceValid(region string) (string, error) {
 	listCmd := fmt.Sprintf("%s ndctl list -RN -r %s", NsenterCmd, region)
 	out, err := utils.Run(listCmd)
 	if err != nil {
@@ -180,7 +180,7 @@ func checkKMEMNamespaceValid(region string) (string, error){
 		return "", errors.New("list Namespace for region get 0 or multi namespaces" + region)
 	}
 	namespaceMode := regions.Regions[0].Namespaces[0].Mode
-	if namespaceMode != "devdax"{
+	if namespaceMode != "devdax" {
 		log.Errorf("KMEM namespace mode %s wrong", namespaceMode)
 		return "", errors.New("KMEM namespace wrong mode" + namespaceMode)
 	}
