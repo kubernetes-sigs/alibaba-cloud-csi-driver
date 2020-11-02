@@ -22,9 +22,9 @@ parameters:
   encryptType: "0"
   # zoneId is optional, default value is the kubernetes cluster's worker's zoneId
   zoneId: cn-hangzhou-f
-  # vpcId is reqiured
+  # vpcId is required
   vpcId: "vpc-xxxxxxxx"
-  # vSwitchId is reqiured
+  # vSwitchId is required
   vSwitchId: "vsw-xxxxxxxx"
   # accessGroupName is optional, default value is 'DEFAULT_VPC_GROUP_NAME'
   accessGroupName: "DEFAULT_VPC_GROUP_NAME"
