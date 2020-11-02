@@ -105,6 +105,17 @@ spec:
                 operator: NotIn
                 values:
                 - virtual-kubelet
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - csi-provisioner
+              topologyKey: "kubernetes.io/hostname"
       tolerations:
       - effect: NoSchedule
         operator: Exists
@@ -846,6 +857,17 @@ spec:
                 operator: NotIn
                 values:
                 - virtual-kubelet
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - csi-provisioner
+              topologyKey: "kubernetes.io/hostname"
       tolerations:
       - effect: NoSchedule
         operator: Exists
