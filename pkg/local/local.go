@@ -123,6 +123,8 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 				pmeType = "lvm"
 			} else if strings.TrimSpace(value) == "direct" {
 				pmeType = "direct"
+			} else {
+				pmeType = "kmem"
 			}
 		}
 		log.Infof("Describe node %s and Set PMEM to %v, %s", nodeName, pmemEnable, pmeType)
