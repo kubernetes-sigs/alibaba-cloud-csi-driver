@@ -320,7 +320,7 @@ func clearBdfInfo(diskID, bdf string) (err error) {
 func forceDetachAllowed(disk *ecs.Disk, nodeID string) (allowed bool, err error) {
 	// The following case allow detach:
 	// 1. no depend bdf
-	// 2. instancce status is stopped
+	// 2. instance status is stopped
 
 	// case 1
 	describeDisksRequest := ecs.CreateDescribeDisksRequest()
