@@ -19,7 +19,7 @@ require (
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/kubernetes-csi/drivers v1.0.2
 	github.com/kubernetes-csi/external-snapshotter v1.2.2 // indirect
-	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.1-0.20200504125226-859696c419ff
+	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.1-0.20200504125226-859696c419ff // indirect
 	github.com/nightlyone/lockfile v0.0.0-20180618180623-0ad87eef1443 // indirect
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/pkg/errors v0.8.1

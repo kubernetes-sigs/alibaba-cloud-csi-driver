@@ -28,6 +28,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cpfs"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dbfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/lvm"
@@ -84,6 +85,8 @@ const (
 	TypePluginLOCAL = "localplugin.csi.alibabacloud.com"
 	// TypePluginYODA local type plugin
 	TypePluginYODA = "yodaplugin.csi.alibabacloud.com"
+	// TypePluginDBFS local type plugin
+	TypePluginDBFS = "dbfsplugin.csi.alibabacloud.com"
 	// ExtenderAgent agent component
 	ExtenderAgent = "agent"
 )
@@ -215,6 +218,12 @@ func main() {
 			go func(endPoint string) {
 				defer wg.Done()
 				driver := local.NewDriver(*nodeID, endPoint)
+				driver.Run()
+			}(endPointName)
+		case TypePluginDBFS:
+			go func(endPoint string) {
+				defer wg.Done()
+				driver := dbfs.NewDriver(*nodeID, endPoint)
 				driver.Run()
 			}(endPointName)
 		case ExtenderAgent:

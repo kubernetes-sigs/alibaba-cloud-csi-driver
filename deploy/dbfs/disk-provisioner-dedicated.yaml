@@ -1,0 +1,148 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: csi-dbfs-provisioner
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: csi-dbfs-provisioner
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: csi-dbfs-provisioner
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/master
+                operator: Exists
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: type
+                operator: NotIn
+                values:
+                - virtual-kubelet
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+        key: node-role.kubernetes.io/master
+      - effect: NoSchedule
+        operator: Exists
+        key: node.cloudprovider.kubernetes.io/uninitialized
+      priorityClassName: system-node-critical
+      serviceAccount: admin
+      hostNetwork: true
+      containers:
+        - name: external-dbfs-provisioner
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.6.0-b6f763a43-aliyun
+          args:
+            - "--provisioner=dbfsplugin.csi.alibabacloud.com"
+            - "--csi-address=$(ADDRESS)"
+            - "--feature-gates=Topology=True"
+            - "--volume-name-prefix=dbfs"
+            - "--strict-topology=true"
+            - "--timeout=150s"
+            - "--enable-leader-election=true"
+            - "--leader-election-type=leases"
+            - "--retry-interval-start=500ms"
+            - "--v=5"
+          env:
+            - name: ADDRESS
+              value: /var/lib/kubelet/csi-provisioner/dbfsplugin.csi.alibabacloud.com/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: dbfs-provisioner-dir
+              mountPath: /var/lib/kubelet/csi-provisioner/dbfsplugin.csi.alibabacloud.com
+        - name: external-dbfs-attacher
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-attacher:v2.1.0
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election=true"
+          env:
+            - name: ADDRESS
+              value: /var/lib/kubelet/csi-provisioner/dbfsplugin.csi.alibabacloud.com/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: dbfs-provisioner-dir
+              mountPath: /var/lib/kubelet/csi-provisioner/dbfsplugin.csi.alibabacloud.com
+        - name: external-dbfs-resizer
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v0.3.0
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election"
+          env:
+            - name: ADDRESS
+              value: /var/lib/kubelet/csi-provisioner/dbfsplugin.csi.alibabacloud.com/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: dbfs-provisioner-dir
+              mountPath: /var/lib/kubelet/csi-provisioner/dbfsplugin.csi.alibabacloud.com
+        - name: csi-provisioner
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: registry.cn-hangzhou.aliyuncs.com/plugins/csi-plugin:v1.16.9-6f412e16c-dbfs
+          imagePullPolicy: "Always"
+          args:
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v=2"
+            - "--driver=dbfs"
+          env:
+            - name: CSI_ENDPOINT
+              value: unix://var/lib/kubelet/csi-provisioner/dbfsplugin.csi.alibabacloud.com/csi.sock
+            - name: MAX_VOLUMES_PERNODE
+              value: "15"
+            - name: SERVICE_TYPE
+              value: "provisioner"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+          ports:
+            - name: healthz
+              containerPort: 11270
+              protocol: TCP
+          volumeMounts:
+            - name: host-dev
+              mountPath: /dev
+              mountPropagation: "HostToContainer"
+            - name: host-log
+              mountPath: /var/log/
+            - name: etc
+              mountPath: /host/etc
+            - name: dbfs-provisioner-dir
+              mountPath: /var/lib/kubelet/csi-provisioner/dbfsplugin.csi.alibabacloud.com
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1000Mi
+            requests:
+              cpu: 100m
+              memory: 100Mi
+      volumes:
+        - name: dbfs-provisioner-dir
+          emptyDir: {}
+        - name: host-log
+          hostPath:
+            path: /var/log/
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: etc
+          hostPath:
+            path: /etc

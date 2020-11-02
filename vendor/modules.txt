@@ -1,4 +1,4 @@
-# github.com/aliyun/alibaba-cloud-sdk-go v1.61.201
+# github.com/aliyun/alibaba-cloud-sdk-go v1.61.550-0.20201010055725-73672738e6a8
 github.com/aliyun/alibaba-cloud-sdk-go/sdk
 github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth
 github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials
@@ -9,6 +9,7 @@ github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors
 github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests
 github.com/aliyun/alibaba-cloud-sdk-go/sdk/responses
 github.com/aliyun/alibaba-cloud-sdk-go/sdk/utils
+github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs
 github.com/aliyun/alibaba-cloud-sdk-go/services/ecs
 github.com/aliyun/alibaba-cloud-sdk-go/services/nas
 # github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 => github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
@@ -22,8 +23,6 @@ github.com/emirpasic/gods/containers
 github.com/emirpasic/gods/sets
 github.com/emirpasic/gods/sets/hashset
 github.com/emirpasic/gods/utils
-# github.com/evanphx/json-patch v4.5.0+incompatible => github.com/evanphx/json-patch v3.0.0+incompatible
-github.com/evanphx/json-patch
 # github.com/gogo/protobuf v1.3.1 => github.com/gogo/protobuf v1.3.1
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/sortkeys
@@ -84,16 +83,6 @@ github.com/konsorten/go-windows-terminal-sequences
 github.com/kubernetes-csi/csi-lib-utils/protosanitizer
 # github.com/kubernetes-csi/drivers v1.0.2
 github.com/kubernetes-csi/drivers/pkg/csi-common
-# github.com/kubernetes-csi/external-snapshotter/v2 v2.1.1-0.20200504125226-859696c419ff
-github.com/kubernetes-csi/external-snapshotter/v2/pkg/apis/volumesnapshot/v1beta1
-github.com/kubernetes-csi/external-snapshotter/v2/pkg/client/clientset/versioned
-github.com/kubernetes-csi/external-snapshotter/v2/pkg/client/clientset/versioned/scheme
-github.com/kubernetes-csi/external-snapshotter/v2/pkg/client/clientset/versioned/typed/volumesnapshot/v1beta1
-github.com/kubernetes-csi/external-snapshotter/v2/pkg/client/clientset/versioned/typed/volumesnapshot/v1beta1/fake
-github.com/kubernetes-csi/external-snapshotter/v2/pkg/client/informers/externalversions/internalinterfaces
-github.com/kubernetes-csi/external-snapshotter/v2/pkg/client/informers/externalversions/volumesnapshot
-github.com/kubernetes-csi/external-snapshotter/v2/pkg/client/informers/externalversions/volumesnapshot/v1beta1
-github.com/kubernetes-csi/external-snapshotter/v2/pkg/client/listers/volumesnapshot/v1beta1
 # github.com/matttproud/golang_protobuf_extensions v1.0.1 => github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd => github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
@@ -309,7 +298,6 @@ k8s.io/apiserver/pkg/features
 k8s.io/apiserver/pkg/util/feature
 # k8s.io/client-go v0.18.8 => k8s.io/client-go v0.18.6
 k8s.io/client-go/discovery
-k8s.io/client-go/discovery/fake
 k8s.io/client-go/informers
 k8s.io/client-go/informers/admissionregistration
 k8s.io/client-go/informers/admissionregistration/v1
@@ -452,7 +440,6 @@ k8s.io/client-go/pkg/version
 k8s.io/client-go/plugin/pkg/client/auth/exec
 k8s.io/client-go/rest
 k8s.io/client-go/rest/watch
-k8s.io/client-go/testing
 k8s.io/client-go/tools/auth
 k8s.io/client-go/tools/cache
 k8s.io/client-go/tools/clientcmd
