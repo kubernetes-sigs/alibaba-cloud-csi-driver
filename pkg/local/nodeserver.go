@@ -59,6 +59,10 @@ const (
 	PmemBlockDev = "pmemBlockDev"
 	// NodeAffinity is the pv node schedule tag
 	NodeAffinity = "nodeAffinity"
+	// ProjQuotaFullPath is the path of project quota
+	ProjQuotaFullPath = "projQuotaFullPath" 
+	// ProjQuotaProjectID is the project id of project quota
+    ProjQuotaProjectID = "projectID" 
 	// LocalDisk local disk
 	LocalDisk = "localdisk"
 	// CloudDisk cloud disk
@@ -115,16 +119,17 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 	// pv handler
 	go generator.VolumeHandler()
 
+	mounter := k8smount.New("")
 	// config volumegroup for pmem node
 	if types.GlobalConfigVar.PmemEnable {
-		lib.MaintainPMEM(types.GlobalConfigVar.PmemType)
+		lib.MaintainPMEM(types.GlobalConfigVar.PmemType, mounter)
 	}
 
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		nodeID:            nodeID,
 		mounter:           utils.NewMounter(),
-		k8smounter:        k8smount.New(""),
+		k8smounter:        mounter,
 		client:            kubeClient,
 		driverName:        dName,
 	}

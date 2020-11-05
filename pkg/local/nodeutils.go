@@ -209,7 +209,7 @@ func (ns *nodeServer) mountPmemVolume(ctx context.Context, req *csi.NodePublishV
 	//volumeNewCreated := false
 	volumeID := req.GetVolumeId()
 	devicePath := filepath.Join("/dev/", vgName, volumeID)
-	if pmemType != "kmem" {
+	if pmemType != "kmem" && pmemType != "projquota" {
 		if pmemBlockDev == "" {
 			if _, err := os.Stat(devicePath); os.IsNotExist(err) {
 				//volumeNewCreated = true
@@ -243,7 +243,8 @@ func (ns *nodeServer) mountPmemVolume(ctx context.Context, req *csi.NodePublishV
 	}
 
 	if !isMnt {
-		if pmemType == "kmem" {
+		switch (pmemType) {
+		case "kmem":
 			pvSize, pvSizeUnit, _ := getPvInfo(volumeID)
 			devicePath = "tmpfs"
 			kmemSize := fmt.Sprintf("%v%s", pvSize, pvSizeUnit)
@@ -258,7 +259,18 @@ func (ns *nodeServer) mountPmemVolume(ctx context.Context, req *csi.NodePublishV
 				log.Errorf("NodeStageVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, devicePath, err.Error())
 				return status.Error(codes.Internal, err.Error())
 			}
-		} else {
+		case "projquota":
+			projQuotaPath := ""
+			if value, ok := req.VolumeContext[ProjQuotaFullPath]; ok {
+				projQuotaPath = value
+			}
+			mountCmd := fmt.Sprintf("%s mount --bind %s %s", NsenterCmd, projQuotaPath, targetPath)
+			_, err = utils.Run(mountCmd)
+			if err != nil {
+				log.Errorf("NodeStageVolume: Volume: %s, Device: %s, mount error: %s", req.VolumeId, devicePath, err.Error())
+				return status.Error(codes.Internal, err.Error())
+			}
+		default:
 			var options []string
 			if req.GetReadonly() {
 				options = append(options, "ro")
