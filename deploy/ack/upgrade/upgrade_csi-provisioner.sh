@@ -128,7 +128,7 @@ spec:
       hostNetwork: true
       containers:
         - name: external-disk-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.6.0-b6f763a43-aliyun
+          image: csi-image-prefix/acs/csi-provisioner:v1.6.0-b6f763a43-aliyun
           args:
             - "--provisioner=diskplugin.csi.alibabacloud.com"
             - "--csi-address=\$(ADDRESS)"
@@ -148,7 +148,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-attacher
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-attacher:v2.1.0
+          image: csi-image-prefix/acs/csi-attacher:v2.1.0
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -161,7 +161,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-resizer
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v0.3.0
+          image: csi-image-prefix/acs/csi-resizer:v0.3.0
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -174,7 +174,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-nas-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.4.0-aliyun
+          image: csi-image-prefix/acs/csi-provisioner:v1.4.0-aliyun
           args:
             - "--provisioner=nasplugin.csi.alibabacloud.com"
             - "--csi-address=\$(ADDRESS)"
@@ -192,7 +192,7 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-csi-snapshotter
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-snapshotter:v3.0-cd699dc4-aliyun
+          image: csi-image-prefix/acs/csi-snapshotter:v3.0-cd699dc4-aliyun
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -205,7 +205,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /csi
         - name: external-snapshot-controller
-          image: registry.cn-hangzhou.aliyuncs.com/acs/snapshot-controller:v3.0-cd699dc4-aliyun
+          image: csi-image-prefix/acs/snapshot-controller:v3.0-cd699dc4-aliyun
           args:
             - "--v=5"
             - "--leader-election=true"
@@ -216,7 +216,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.16.9.43-f36bb540-aliyun
+          image: csi-image-prefix/acs/csi-plugin:csi-image-version
           imagePullPolicy: "Always"
           args:
             - "--endpoint=\$(CSI_ENDPOINT)"
@@ -880,7 +880,7 @@ spec:
       hostNetwork: true
       containers:
         - name: external-disk-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.6.0-b6f763a43-aliyun
+          image: csi-image-prefix/acs/csi-provisioner:v1.6.0-b6f763a43-aliyun
           args:
             - "--provisioner=diskplugin.csi.alibabacloud.com"
             - "--csi-address=\$(ADDRESS)"
@@ -900,7 +900,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-attacher
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-attacher:v2.1.0
+          image: csi-image-prefix/acs/csi-attacher:v2.1.0
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -913,7 +913,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-resizer
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v0.3.0
+          image: csi-image-prefix/acs/csi-resizer:v0.3.0
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -926,7 +926,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-nas-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.4.0-aliyun
+          image: csi-image-prefix/acs/csi-provisioner:v1.4.0-aliyun
           args:
             - "--provisioner=nasplugin.csi.alibabacloud.com"
             - "--csi-address=\$(ADDRESS)"
@@ -944,7 +944,7 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-csi-snapshotter
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-snapshotter:v3.0-cd699dc4-aliyun
+          image: csi-image-prefix/acs/csi-snapshotter:v3.0-cd699dc4-aliyun
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -957,7 +957,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /csi
         - name: external-snapshot-controller
-          image: registry.cn-hangzhou.aliyuncs.com/acs/snapshot-controller:v3.0-cd699dc4-aliyun
+          image: csi-image-prefix/acs/snapshot-controller:v3.0-cd699dc4-aliyun
           args:
             - "--v=5"
             - "--leader-election=true"
@@ -968,7 +968,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.16.9.43-f36bb540-aliyun
+          image: csi-image-prefix/acs/csi-plugin:csi-image-version
           imagePullPolicy: "Always"
           args:
             - "--endpoint=\$(CSI_ENDPOINT)"
