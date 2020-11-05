@@ -15,6 +15,7 @@ const (
 	nasStorageName string = "nas"
 	//diskStorageName represents the storage type name of Disk
 	diskStorageName string = "disk"
+	pfsBlockName    string = "pfsblock"
 	//unknownStorageName represents the storage type name of Unknown
 	unknownStorageName string = "unknown"
 	//ossDriverName represents the csi storage type name of Oss
@@ -45,7 +46,7 @@ const (
 
 var (
 	metricType       string
-	nodeMetricSet    = hashset.New("diskstat","rdsrawblockstat")
+	nodeMetricSet    = hashset.New("diskstat", "pfsblockstat")
 	clusterMetricSet = hashset.New("")
 )
 
@@ -60,6 +61,7 @@ const (
 	volDataFile      = "vol_data.json"
 	csiMountKeyWords = "volumes/kubernetes.io~csi"
 	procPath         = procfs.DefaultMountPoint + "/"
+	rawBlockRootPath = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/"
 	podsRootPath     = "/var/lib/kubelet/pods"
 )
 
@@ -78,6 +80,14 @@ type typedFactorDesc struct {
 	factor    float64
 }
 
+type storageInfo struct {
+	PvcNamespace string
+	PvcName      string
+	VolDataPath  string
+	DiskID       string
+	DeviceName   string
+}
+
 func (d *typedFactorDesc) mustNewConstMetric(value float64, labels ...string) prometheus.Metric {
 	if d.factor != 0 {
 		value *= d.factor
@@ -85,51 +95,57 @@ func (d *typedFactorDesc) mustNewConstMetric(value float64, labels ...string) pr
 	return prometheus.MustNewConstMetric(d.desc, d.valueType, value, labels...)
 }
 
-func updateMapping(clientSet *kubernetes.Clientset, lastPvPathMapping *map[string]string, lastPvPvcMapping *map[string][]string, deriverNamer string)(map[string]string, error){
-	volDataJSONPath, err := findVolDataJSONFileByPattern(podsRootPath)
-	if err != nil {
-		return nil, err
-	}
-
-	pvDeviceNameMapping := make(map[string]string, 0)
-	thisPvPathMapping := make(map[string]string, 0)
-	for _, path := range volDataJSONPath {
+func updateMap(clientSet *kubernetes.Clientset, lastPvStorageInfoMap *map[string]storageInfo, jsonPaths []string, deriverName string) {
+	thisPvStorageInfoMap := make(map[string]storageInfo, 0)
+	for _, path := range jsonPaths {
 		//Get disk pvName
-		pvName, err := getVolumeIDByJSON(path, deriverNamer)
+		pvName, diskID, err := getVolumeInfoByJSON(path, deriverName)
 		if err != nil {
+			logrus.Errorf("Get volume info by path %s is failed, err:%s", path, err)
 			continue
 		}
-		pvDevice, err := getDeviceByVolumeID(pvName)
+		deviceName, err := getDeviceByVolumeID(diskID)
 		if err != nil {
+			logrus.Errorf("Get dev name by diskID %s is failed, err:%s", diskID, err)
 			continue
 		}
-		thisPvPathMapping[pvName] = path
-		pvDeviceNameMapping[pvDevice] = pvName
+		strorageInfo := storageInfo{
+			DiskID:      diskID,
+			DeviceName:  deviceName,
+			VolDataPath: path,
+		}
+		thisPvStorageInfoMap[pvName] = strorageInfo
 	}
 
-	//If there is a change:add, modify, delete
-	updateLastPvcMapping(clientSet, thisPvPathMapping, lastPvPathMapping, lastPvPvcMapping)
-	return thisPvPathMapping, nil
+	//If there is a change: add, modify, delete
+	updateStorageInfoMap(clientSet, thisPvStorageInfoMap, lastPvStorageInfoMap)
 }
 
-func updateLastPvcMapping(clientSet *kubernetes.Clientset, thisPvPathMapping map[string]string, lastPvPathMapping *map[string]string,  lastPvPvcMapping *map[string][]string) {
-	for thisKey, thisValue := range thisPvPathMapping {
-		lastValue, ok := (*lastPvPathMapping)[thisKey]
-		if !ok || thisValue != lastValue {
-			pvcNamespace, pvcName, err := getPvcByPvName(clientSet, thisKey)
+func updateStorageInfoMap(clientSet *kubernetes.Clientset, thisPvStorageInfoMap map[string]storageInfo, lastPvStorageInfoMap *map[string]storageInfo) {
+	for pv, thisInfo := range thisPvStorageInfoMap {
+		lastInfo, ok := (*lastPvStorageInfoMap)[pv]
+		// add and modify
+		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
+			pvcNamespace, pvcName, err := getPvcByPvName(clientSet, pv)
 			if err != nil {
-				logrus.Errorf("GetPvcByPvName err:%s", err.Error())
+				logrus.Errorf("Get pvc by pv %s is failed, err:%s", pv, err.Error())
 				continue
 			}
-			(*lastPvPathMapping)[thisKey] = thisValue
-			(*lastPvPvcMapping)[thisKey] = []string{pvcNamespace, pvcName}
+			updateInfo := storageInfo{
+				DiskID:       thisInfo.DiskID,
+				VolDataPath:  thisInfo.VolDataPath,
+				DeviceName:   thisInfo.DeviceName,
+				PvcName:      pvcName,
+				PvcNamespace: pvcNamespace,
+			}
+			(*lastPvStorageInfoMap)[pv] = updateInfo
 		}
 	}
-	for lastKey := range *lastPvPvcMapping {
-		_, ok := thisPvPathMapping[lastKey]
+	//if pv exist thisPvStorageInfoMap and not exist lastPvStorageInfoMap, pv should be deleted
+	for lastPv := range *lastPvStorageInfoMap {
+		_, ok := thisPvStorageInfoMap[lastPv]
 		if !ok {
-			delete(*lastPvPvcMapping, lastKey)
-			delete(*lastPvPathMapping, lastKey)
+			delete(*lastPvStorageInfoMap, lastPv)
 		}
 	}
 }

@@ -81,11 +81,10 @@ var (
 )
 
 type diskStatCollector struct {
-	lantencyThreshold int //Unit: milliseconds
-	descs             []typedFactorDesc
-	lastPvPathMapping map[string]string   //key:pvName, value:mountPath
-	lastPvPvcMapping  map[string][]string //key:pvName, value:pvcNamespace, pvcName
-	clientSet         *kubernetes.Clientset
+	lantencyThreshold    int //Unit: milliseconds
+	descs                []typedFactorDesc
+	lastPvStorageInfoMap map[string]storageInfo
+	clientSet            *kubernetes.Clientset
 }
 
 func init() {
@@ -94,10 +93,10 @@ func init() {
 
 // NewDiskStatCollector returns a new Collector exposing disk stats.
 func NewDiskStatCollector() (Collector, error) {
-	lantencyThreshold := 10
+	/*lantencyThreshold := 10
 	lantencyThreshold = strings.Trim(os.Getenv("DISK_LATENCY_THRESHOLD"), " ")
 	if lantencyThreshold == "true" {
-	}
+	}*/
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
@@ -129,36 +128,34 @@ func NewDiskStatCollector() (Collector, error) {
 			//12 - I/Os currently in progress
 			{desc: diskIONowDesc, valueType: prometheus.GaugeValue},
 		},
-		lastPvPathMapping: make(map[string]string, 0),
-		lastPvPvcMapping:  make(map[string][]string, 0),
-		clientSet:         clientset,
+		lastPvStorageInfoMap: make(map[string]storageInfo, 0),
+		clientSet:            clientset,
 	}, nil
 }
 
 func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	//startTime := time.Now()
-	diskStats, err := getDiskStats()
+	deviceNameStatsMap, err := getDiskStats()
 	if err != nil {
 		return fmt.Errorf("couldn't get diskstats: %s", err)
 	}
-
-	pvDeviceNameMapping,err := updateMapping(p.clientSet, &p.lastPvPathMapping, &p.lastPvPvcMapping, diskDriverName)
+	volJSONPaths, err := findVolJSONByDisk(podsRootPath)
 	if err != nil {
-		logrus.Errorf("Update %s Mapping is failed, err:%s", diskStorageName, err)
+		logrus.Errorf("Find disk vol_data json is failed, err:%s", err)
 		return err
 	}
+	updateMap(p.clientSet, &p.lastPvStorageInfoMap, volJSONPaths, diskDriverName)
 	wg := sync.WaitGroup{}
-	for dev, stats := range diskStats {
-		pvName, getPv := pvDeviceNameMapping[dev]
-		pvcArr, getPvc := p.lastPvPvcMapping[pvName]
-		if getPv && getPvc && len(pvcArr) == 2 {
-			pvcNamespace := pvcArr[0]
-			pvcName := pvcArr[1]
+	for deviceName, stats := range deviceNameStatsMap {
+		for _, info := range p.lastPvStorageInfoMap {
+			if info.DeviceName != deviceName {
+				continue
+			}
 			wg.Add(1)
-			go func(devArgs string, pvcNamespaceArgs string, pvcNameArgs string, statsArgs []string) {
+			go func(deviceNameArgs string, pvcNamespaceArgs string, pvcNameArgs string, statsArgs []string) {
 				defer wg.Done()
-				p.setDiskMetric(devArgs, pvcNamespaceArgs, pvcNameArgs, statsArgs, ch)
-			}(dev, pvcNamespace, pvcName, stats)
+				p.setDiskMetric(deviceNameArgs, pvcNamespaceArgs, pvcNameArgs, statsArgs, ch)
+			}(deviceName, info.PvcNamespace, info.PvcName, stats)
 		}
 	}
 	wg.Wait()
