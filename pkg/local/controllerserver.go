@@ -291,7 +291,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			}
 
 			// use lvm volume
-			if pmemType == "lvm" {
+			switch pmemType {
+			case "lvm":
 				// Set volume group
 				if _, ok := parameters[VgNameTag]; !ok {
 					parameters["vgName"] = lib.PmemVolumeGroupNameRegion0
@@ -317,7 +318,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				} else {
 					log.Infof("CreateVolume: Pmem volume already created %s, with lvm %s", req.Name, lvmName)
 				}
-			} else if pmemType == "direct" {
+			case "direct":
 				options := &client.NameSpaceOptions{}
 				options.Name = req.Name
 				options.Region = lib.PmemRegionNameDefault
@@ -341,9 +342,23 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				} else {
 					log.Infof("CreateVolume: PMEM namespace already created %s, %s", req.Name, namespace)
 				}
-			} else if pmemType == "kmem" {
+			case "kmem":
 				log.Infof("CreateVolume: create KMEM types volumes")
-			} else {
+			case "projquota":
+				log.Infof("CreateVolume: create project quota types volumes")
+				_, projectQuotaSubpath, projectID, err := conn.CreateProjQuotaSubpath(ctx, req.Name)
+				if err != nil {
+					log.Infof("CreateVolume: create project quota subpath %s failed: %s", req.Name, err.Error())
+					return nil, err
+				}
+				_, err = conn.SetSubpathProjQuota(ctx, projectQuotaSubpath, req.CapacityRange.String(), req.CapacityRange.String(), "", "", projectID)
+				if err != nil {
+					log.Infof("CreateVolume: set project quota subpath %s failed: %s", req.Name, err.Error())
+					return nil, err
+				}
+				parameters[ProjQuotaFullPath] = projectQuotaSubpath 
+				parameters[ProjQuotaProjectID] = projectID
+			default:
 				log.Errorf("CreateVolume: No support PMEM type %s for volume %s", pmemType, req.Name)
 				return nil, status.Error(codes.InvalidArgument, "No support pmem type for volume "+req.Name)
 			}
