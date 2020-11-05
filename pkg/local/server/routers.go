@@ -32,6 +32,15 @@ func NewServer() Server {
 	return Server{}
 }
 
+// ProjQuotaServer proj quota grpc server 
+type ProjQuotaServer struct {}
+
+
+// NewProjQuotaServer new proj quota grpc server
+func NewProjQuotaServer() ProjQuotaServer {
+    return ProjQuotaServer{}
+}  
+
 // ListLV list lvm volume
 func (s Server) ListLV(ctx context.Context, in *lib.ListLVRequest) (*lib.ListLVReply, error) {
 	log.Infof("List LVM for vg: %s", in.VolumeGroup)
@@ -191,4 +200,40 @@ func (s Server) RemoveNameSpace(ctx context.Context, in *lib.RemoveNameSpaceRequ
 	}
 	log.Infof("Remove NameSpace Successful with result: %+v", out)
 	return &lib.RemoveNameSpaceReply{CommandOutput: out}, nil
+}
+
+// CreateProjQuotaSubpath ...
+func (s ProjQuotaServer) CreateProjQuotaSubpath(ctx context.Context, in *lib.CreateProjQuotaSubpathRequest) (*lib.CreateProjQuotaSubpathReply, error) {
+	log.Infof("CreateProjQuotaSubpath with %+v", in)
+	projQuotaSubpath, out, projectID, err := CreateProjQuotaSubpath(ctx, in.PvName, in.QuotaSize)
+	if err != nil {
+		log.Errorf("CreateProjQuotaSubpath with error: %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "failed to create projQuota subpath: %v", err)
+	}
+	log.Infof("CreateProjQuotaSubpath successful with result %+v", out)
+	return &lib.CreateProjQuotaSubpathReply{ProjQuotaSubpath: projQuotaSubpath, CommandOutput: out, ProjectId: projectID}, nil
+}
+
+// SetSubpathProjQuota ...
+func (s ProjQuotaServer) SetSubpathProjQuota(ctx context.Context, in *lib.SetSubpathProjQuotaRequest) (*lib.SetSubpathProjQuotaReply, error) {
+	log.Infof("SetSubpathProjQuota with %+v", in)
+	out, err := SetSubpathProjQuota(ctx, in.ProjQuotaSubpath, in.ProjectId, in.BlockHardlimit, in.BlockSoftlimit)
+	if err != nil {
+		log.Errorf("SetSubpathProjQuota with error: %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "failed to set projQuota to subpath: %v", err)
+	}
+	log.Infof("SetSubpathProjQuota successful with result %+v", out)
+	return &lib.SetSubpathProjQuotaReply{CommandOutput: out}, nil
+}
+
+// RemoveProjQuotaSubpath ...
+func (s ProjQuotaServer) RemoveProjQuotaSubpath(ctx context.Context, in *lib.RemoveProjQuotaSubpathRequest) (*lib.RemoveProjQuotaSubpathReply, error) {
+	log.Infof("RemoveProjQuotaSubpath with %+v", in)
+	out, err := RemoveProjQuotaSubpath(ctx, in.QuotaSubpath)
+	if err != nil {
+		log.Errorf("RemoveProjQuotaSubpath with error: %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "failed to remove projQuota subpath: %v", err)
+	}
+	log.Infof("RemoveProjQuotaSubpath successful with result %+v", out)
+	return &lib.RemoveProjQuotaSubpathReply{CommandOutput: out}, nil
 }

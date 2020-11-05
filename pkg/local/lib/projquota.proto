@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package proto;
+
+
+message CreateProjQuotaSubpathRequest {
+  string pvName = 1;
+  string quotaSize = 2;
+}
+
+message CreateProjQuotaSubpathReply {
+  string proj_quota_subpath = 1;
+  string command_output = 2;
+  string project_id = 3;
+}
+
+message RemoveProjQuotaSubpathRequest {
+  string quota_subpath = 1;
+  string project_id = 2;
+}
+
+message RemoveProjQuotaSubpathReply {
+  string command_output = 1;
+}
+
+message SetSubpathProjQuotaRequest {
+  string proj_quota_subpath = 1; 
+  string block_softlimit = 2; 
+  string block_hardlimit = 3; 
+  string inode_softlimit = 4; 
+  string inode_hardlimit = 5;
+  string project_id = 6;
+}
+
+message SetSubpathProjQuotaReply {
+  string command_output = 1;
+}
+
+service ProjQuota {
+  rpc CreateProjQuotaSubpath(CreateProjQuotaSubpathRequest) returns (CreateProjQuotaSubpathReply) {}
+  rpc SetSubpathProjQuota(SetSubpathProjQuotaRequest) returns (SetSubpathProjQuotaReply) {}
+  rpc RemoveProjQuotaSubpath(RemoveProjQuotaSubpathRequest) returns (RemoveProjQuotaSubpathReply) {}
+}

@@ -10,7 +10,7 @@ require (
 	github.com/go-kit/kit v0.9.0 // indirect
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
-	github.com/golang/protobuf v1.3.5
+	github.com/golang/protobuf v1.4.1
 	github.com/google/credstore v0.0.0-20181218150457-e184c60ef875 // indirect
 	github.com/google/go-cmp v0.4.0 // indirect
 	github.com/google/go-microservice-helpers v0.0.0-20190205165657-a91942da5417
@@ -42,6 +42,7 @@ require (
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/grpc v1.28.0
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 	k8s.io/api v0.18.8
 	k8s.io/apimachinery v0.18.8
