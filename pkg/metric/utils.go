@@ -38,18 +38,19 @@ func procFilePath(name string) string {
 	return filepath.Join(procPath, name)
 }
 
-func getVolumeIDByJSON(volDataJSONPath string, volType string) (string, error) {
+func getVolumeInfoByJSON(volDataJSONPath string, volType string) (string, string, error) {
 	volDataMap, err := utils.ReadJSONFile(volDataJSONPath)
 	if err != nil {
-		return "", err
+		log.Errorf("Read json path %s is failed, err:%s", volDataJSONPath, err)
+		return "", "", err
 	}
 	if volDataMap["driverName"] == volType {
-		return volDataMap["volumeHandle"], nil
+		return volDataMap["specVolID"], volDataMap["volumeHandle"], nil
 	}
-	return "", errors.New("VolumeType is not the expected type")
+	return "", "", errors.New("VolumeType is not the expected type")
 }
 
-func findVolDataJSONFileByPattern(rootDir string) ([]string, error) {
+func findVolJSONByDisk(rootDir string) ([]string, error) {
 	resDir := make([]string, 0)
 	rootFiles, err := ioutil.ReadDir(rootDir)
 	if err != nil {
@@ -222,9 +223,9 @@ func listDirectory(rootPath string) ([]string, error) {
 	for _, f := range files {
 		fileLists = append(fileLists, f.Name())
 	}
-	return fileLists,nil
+	return fileLists, nil
 }
 
-func parseLantencyThreshold(lantencyThreshold string) (int,error){
-	if 
+func parseLantencyThreshold(lantencyThreshold string) (int, error) {
+	return 1, nil
 }
