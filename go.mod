@@ -18,6 +18,7 @@ require (
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
+	github.com/kubernetes-csi/csi-lib-utils v0.7.0 // indirect
 	github.com/kubernetes-csi/drivers v1.0.2
 	github.com/kubernetes-csi/external-snapshotter v1.2.2 // indirect
 	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.1-0.20200504125226-859696c419ff // indirect
@@ -46,7 +47,6 @@ require (
 	k8s.io/client-go v0.18.8
 	k8s.io/kube-openapi v0.0.0-20200811211545-daf3cbb84823 // indirect
 	k8s.io/kubernetes v1.18.8
-	k8s.io/sample-controller v0.18.8 // indirect
 	k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89
 )
 
@@ -93,11 +93,9 @@ replace (
 	github.com/go-openapi/spec => github.com/go-openapi/spec v0.19.0
 	github.com/go-openapi/swag => github.com/go-openapi/swag v0.19.0
 	github.com/go-stack/stack => github.com/go-stack/stack v1.8.0
-	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.1
 	github.com/golang/glog => github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/groupcache => github.com/golang/groupcache v0.0.0-20190129154638-5b532d6fd5ef
 	github.com/golang/mock => github.com/golang/mock v1.1.1
-	github.com/golang/protobuf => github.com/golang/protobuf v1.3.0
 	github.com/google/btree => github.com/google/btree v1.0.0
 	github.com/google/go-cmp => github.com/google/go-cmp v0.5.0
 	github.com/google/gofuzz => github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf

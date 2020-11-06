@@ -23,8 +23,7 @@ func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 		}
 	}
 
-	// check device fs
-	mountOptions = append(mountOptions, "defaults")
+	log.Infof("show me the readonly: %v", readOnly)
 	if !readOnly {
 		// Run fsck on the disk to fix repairable issues, only do this for volumes requested as rw.
 		args := []string{"-a", source}
@@ -45,8 +44,10 @@ func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 	}
 
 	// Try to mount the disk
-	mountErr := diskMounter.Interface.Mount(source, target, fstype, mountOptions)
+	// mountErr := diskMounter.Interface.Mount(source, target, fstype, mountOptions)
+	_, mountErr := utils.Run(fmt.Sprintf("%s mount -t %s -o prjquota %s %s", NsenterCmd, fstype, source, target))
 	if mountErr != nil {
+		log.Infof("show me err: %v", mountErr)
 		// Mount failed. This indicates either that the disk is unformatted or
 		// it contains an unexpected filesystem.
 		existingFormat, err := diskMounter.GetDiskFormat(source)
@@ -83,10 +84,10 @@ func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 			}
 			log.Infof("Disk %q appears to be unformatted, attempting to format as type: %q with options: %v", source, fstype, args)
 
-			_, err := diskMounter.Exec.Command("mkfs."+fstype, args...).CombinedOutput()
+			_, err := diskMounter.Exec.Command(fmt.Sprintf("%s mkfs.%s", NsenterCmd, fstype), args...).CombinedOutput()
 			if err == nil {
 				// the disk has been formatted successfully try to mount it again.
-				return diskMounter.Interface.Mount(source, target, fstype, mountOptions)
+				_, err = utils.Run(fmt.Sprintf("%s mount -t %s -o prjquota %s %s", NsenterCmd, fstype, source, target))
 			}
 			log.Errorf("format of disk %q failed: type:(%q) target:(%q) options:(%q)error:(%v)", source, fstype, target, mkfsOptions, err)
 			return err
@@ -133,9 +134,9 @@ func checkProjQuotaNamespaceValid(region string) (devicePath string, namespaceNa
 	namespace := regions.Regions[0].Namespaces[0]
 	if namespace.Mode != "fsdax" {
 		log.Errorf("projectQuota namespace mode %s wrong", namespace.Mode)
-		return "", "", errors.New("KMEM namespace wrong mode" + namespace.Mode)
+		return "", "", errors.New("projectQuota namespace wrong mode" + namespace.Mode)
 	}
-	return "/dev/" + namespace.BlockDev, namespace.Name, nil
+	return "/dev/" + namespace.BlockDev, namespace.Dev, nil
 }
 
 func checkKMEMCreated(chardev string) (bool, error) {
@@ -320,3 +321,24 @@ func checkFSType(devicePath string) (string, error) {
 	}
 	return "", ErrParse
 }
+
+// EnsureFolder ...
+func EnsureFolder(target string) error {
+	mdkirCmd := "mkdir"
+	_, err := exec.LookPath(mdkirCmd)
+	if err != nil {
+		if err == exec.ErrNotFound {
+			return fmt.Errorf("%q executable not found in $PATH", mdkirCmd)
+		}
+		return err
+	}
+
+	mkdirFullPath := fmt.Sprintf("%s mkdir -p %s", NsenterCmd, target)
+	_, err = utils.Run(mkdirFullPath)
+	if err != nil {
+		log.Errorf("Create path error: %v", err)
+		return err
+	}
+	return nil
+}
+
