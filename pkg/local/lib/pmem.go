@@ -3,13 +3,12 @@ package lib
 import (
 	"errors"
 	"fmt"
+	utilexec "k8s.io/utils/exec"
+	k8smount "k8s.io/utils/mount"
 	"path/filepath"
 	"strings"
-	k8smount "k8s.io/utils/mount"
-	utilexec "k8s.io/utils/exec"
 
 	log "github.com/sirupsen/logrus"
-
 )
 
 const (
@@ -150,7 +149,7 @@ func MaintainKMEM(regions *PmemRegions) error {
 
 // MaintainProjQuota maintain project quota file system
 func MaintainProjQuota(regions *PmemRegions, mounter k8smount.Interface) error {
-    for _, region := range regions.Regions {
+	for _, region := range regions.Regions {
 		if len(region.Namespaces) == 0 {
 			err := createNameSpace(region.Dev, "lvm")
 			if err != nil {

@@ -356,7 +356,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					log.Infof("CreateVolume: set project quota subpath %s failed: %s", req.Name, err.Error())
 					return nil, err
 				}
-				parameters[ProjQuotaFullPath] = projectQuotaSubpath 
+				parameters[ProjQuotaFullPath] = projectQuotaSubpath
 				parameters[ProjQuotaProjectID] = projectID
 			default:
 				log.Errorf("CreateVolume: No support PMEM type %s for volume %s", pmemType, req.Name)

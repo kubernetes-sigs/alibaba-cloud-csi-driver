@@ -42,7 +42,7 @@ type Connection interface {
 	DeleteNameSpace(ctx context.Context, volumeID string) error
 	CreateProjQuotaSubpath(ctx context.Context, pvName string) (string, string, string, error)
 	SetSubpathProjQuota(ctx context.Context, quotaSubpath, blockSoftlimit, blockHardlimit, inodeSoftlimit, inodeHardlimit, projectID string) (string, error)
-    RemoveProjQuotaSubpath(ctx context.Context, quotaSubpath, projectID string) (string, error)
+	RemoveProjQuotaSubpath(ctx context.Context, quotaSubpath, projectID string) (string, error)
 }
 
 // LVMOptions lvm options
@@ -256,13 +256,13 @@ func (c *workerConnection) CreateProjQuotaSubpath(ctx context.Context, pvName st
 
 func (c *workerConnection) SetSubpathProjQuota(ctx context.Context, quotaSubpath, blockSoftlimit, blockHardlimit, inodeSoftlimit, inodeHardlimit, projectID string) (string, error) {
 	client := lib.NewProjQuotaClient(c.conn)
-	req := lib.SetSubpathProjQuotaRequest {
+	req := lib.SetSubpathProjQuotaRequest{
 		ProjQuotaSubpath: quotaSubpath,
-		BlockSoftlimit: blockSoftlimit,
-		BlockHardlimit: blockHardlimit,
-		InodeSoftlimit: inodeSoftlimit,
-		InodeHardlimit: inodeHardlimit,
-		ProjectId: projectID,
+		BlockSoftlimit:   blockSoftlimit,
+		BlockHardlimit:   blockHardlimit,
+		InodeSoftlimit:   inodeSoftlimit,
+		InodeHardlimit:   inodeHardlimit,
+		ProjectId:        projectID,
 	}
 	response, err := client.SetSubpathProjQuota(ctx, &req)
 	if err != nil {
@@ -276,9 +276,9 @@ func (c *workerConnection) SetSubpathProjQuota(ctx context.Context, quotaSubpath
 func (c *workerConnection) RemoveProjQuotaSubpath(ctx context.Context, quotaSubpath string, projectID string) (string, error) {
 
 	client := lib.NewProjQuotaClient(c.conn)
-	req := lib.RemoveProjQuotaSubpathRequest {
+	req := lib.RemoveProjQuotaSubpathRequest{
 		QuotaSubpath: quotaSubpath,
-		ProjectId: projectID,
+		ProjectId:    projectID,
 	}
 	response, err := client.RemoveProjQuotaSubpath(ctx, &req)
 	if err != nil {

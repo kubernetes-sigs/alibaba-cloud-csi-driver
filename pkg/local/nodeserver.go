@@ -60,9 +60,9 @@ const (
 	// NodeAffinity is the pv node schedule tag
 	NodeAffinity = "nodeAffinity"
 	// ProjQuotaFullPath is the path of project quota
-	ProjQuotaFullPath = "projQuotaFullPath" 
+	ProjQuotaFullPath = "projQuotaFullPath"
 	// ProjQuotaProjectID is the project id of project quota
-    ProjQuotaProjectID = "projectID" 
+	ProjQuotaProjectID = "projectID"
 	// LocalDisk local disk
 	LocalDisk = "localdisk"
 	// CloudDisk cloud disk
