@@ -30,6 +30,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
+	"strings"
+	"time"
 )
 
 // resourcemode is selected by: subpath/filesystem
@@ -108,12 +110,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return &csi.CreateVolumeResponse{Volume: value}, nil
 	}
 
-	// parse nfs parameters
 	pvName := req.Name
 	// get dbfs information
 	dbfsOpts, err := cs.getDbfsVolumeOptions(req)
 	if err != nil {
-		log.Errorf("CreateVolume: error parameters from input: %v, with error: %v", req.Name, err)
+		log.Errorf("CreateVolume: error dbfs parameters from input: %v, with error: %v", req.Name, err)
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %v, with error: %v", req.Name, err)
 	}
 
@@ -137,8 +138,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	createDbfsRequest.RegionId = dbfsOpts.RegionId
 	createDbfsRequest.SizeG = requests.NewInteger(dbfsOpts.Size)
 	createDbfsRequest.ClientToken = req.Name
-	createDbfsRequest.Domain = "dbfs.cn-hangzhou.aliyuncs.com"
-
+	createDbfsRequest.Domain = "dbfs." + dbfsOpts.RegionId + ".aliyuncs.com"
 
 	GlobalConfigVar.DbfsClient = updateDbfsClient(GlobalConfigVar.DbfsClient)
 	response, err := GlobalConfigVar.DbfsClient.CreateDbfs(createDbfsRequest)
@@ -146,9 +146,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %v, with error: %v", req.Name, err)
 	}
 
-	var src *csi.VolumeContentSource
+	var source *csi.VolumeContentSource
 	if snapshotID != "" {
-		src = &csi.VolumeContentSource{
+		source = &csi.VolumeContentSource{
 			Type: &csi.VolumeContentSource_Snapshot{
 				Snapshot: &csi.VolumeContentSource_SnapshotSource{
 					SnapshotId: snapshotID,
@@ -167,7 +167,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				},
 			},
 		},
-		ContentSource: src,
+		ContentSource: source,
 	}
 
 	pvcProcessSuccess[pvName] = tmpVol
@@ -177,14 +177,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 // call dbfs api to delete disk
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	log.Infof("DeleteVolume: Starting deleting volume %s", req.GetVolumeId())
+	log.Infof("DeleteVolume: Starting deleting dbfs volume %s", req.GetVolumeId())
 
 	deleteDbfsRequest := dbfs.CreateDeleteDbfsRequest()
 	deleteDbfsRequest.FsId = req.VolumeId
 	deleteDbfsRequest.RegionId = GlobalConfigVar.Region
 	deleteDbfsRequest.Domain = "dbfs.cn-hangzhou.aliyuncs.com"
-
-
 	_, err := GlobalConfigVar.DbfsClient.DeleteDbfs(deleteDbfsRequest)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "DeleteVolume: invalid delete volume req: %v", req)
@@ -233,7 +231,17 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 }
 
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	log.Infof("ControllerUnpublishVolume is called, do nothing by now")
+	log.Infof("ControllerUnpublishVolume: Detach target %s", req.VolumeId)
+
+	if strings.HasSuffix(req.VolumeId, "-config") {
+		return &csi.ControllerUnpublishVolumeResponse{}, nil
+	}
+
+	if !GlobalConfigVar.ADControllerEnable {
+		log.Infof("ControllerUnpublishVolume: ADController Disable to detach dbfs: %s from node: %s", req.VolumeId, req.NodeId)
+		return &csi.ControllerUnpublishVolumeResponse{}, nil
+	}
+
 	detachDbfsRequest := dbfs.CreateDetachDbfsRequest()
 	detachDbfsRequest.RegionId = GlobalConfigVar.Region
 	detachDbfsRequest.FsId = req.VolumeId
@@ -247,7 +255,14 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 }
 
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	log.Infof("ControllerPublishVolume is called, do nothing by now")
+	log.Infof("ControllerPublishVolume: attach dbfs %s to node %s", req.VolumeId, req.NodeId)
+	if strings.HasSuffix(req.VolumeId, "-config") {
+		return &csi.ControllerPublishVolumeResponse{}, nil
+	}
+
+	if attached, err := checkDbfsStatus(GlobalConfigVar.Region, req.VolumeId, req.NodeId, "Attached"); err == nil && attached {
+		return &csi.ControllerPublishVolumeResponse{}, nil
+	}
 
 	attachDbfsRequest := dbfs.CreateAttachDbfsRequest()
 	attachDbfsRequest.RegionId = GlobalConfigVar.Region
@@ -257,6 +272,17 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	_, err := GlobalConfigVar.DbfsClient.AttachDbfs(attachDbfsRequest)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume missing VolumeId/NodeId in request")
+	}
+	// check dbfs ready
+	for i := 0; i < 10; i++ {
+		isAttached, err := checkDbfsStatus(GlobalConfigVar.Region, req.VolumeId, req.NodeId, "Attached")
+		if isAttached == true {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		time.Sleep(2000 * time.Millisecond)
 	}
 
 	return &csi.ControllerPublishVolumeResponse{}, nil
@@ -275,6 +301,33 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest,
 ) (*csi.ControllerExpandVolumeResponse, error) {
-	log.Infof("ControllerExpandVolume is called, do nothing now")
-	return &csi.ControllerExpandVolumeResponse{}, nil
+	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
+	newSize := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
+
+	log.Infof("ControllerExpandVolume: expand dbfs volume(%s) to size: %d", req.VolumeId, newSize)
+
+	getDbfsRequest := dbfs.CreateGetDbfsRequest()
+	getDbfsRequest.RegionId = GlobalConfigVar.Region
+	getDbfsRequest.FsId = req.VolumeId
+	getDbfsRequest.Domain = "dbfs.cn-hangzhou.aliyuncs.com"
+	response, err := GlobalConfigVar.DbfsClient.GetDbfs(getDbfsRequest)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "ControllerExpandVolume: Get DBFS error: "+err.Error())
+	}
+	if len(response.DBFSInfo) != 1 {
+		return nil, status.Error(codes.InvalidArgument, "ControllerExpandVolume: Get DBFS with error dbfsinfo")
+	}
+	oldSize := response.DBFSInfo[0].SizeG
+
+	resizeDbfsRequest := dbfs.CreateResizeDbfsRequest()
+	resizeDbfsRequest.RegionId = GlobalConfigVar.Region
+	resizeDbfsRequest.FsId = req.VolumeId
+	resizeDbfsRequest.NewSizeG = requests.NewInteger(newSize)
+	resizeDbfsRequest.Domain = "dbfs.cn-hangzhou.aliyuncs.com"
+	_, err = GlobalConfigVar.DbfsClient.ResizeDbfs(resizeDbfsRequest)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume resize dbfs error")
+	}
+	log.Infof("ControllerExpandVolume: DBFS(%s) resize from %dGB to %dGB", req.VolumeId, oldSize, newSize)
+	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: false}, nil
 }

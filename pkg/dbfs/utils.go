@@ -17,13 +17,19 @@ limitations under the License.
 package dbfs
 
 import (
+	"errors"
 	"fmt"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/common/log"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 const (
@@ -31,6 +37,8 @@ const (
 	MetadataURL = "http://100.100.100.200/latest/meta-data/"
 	// RegionTag is region id
 	RegionTag = "region-id"
+	// NsenterCmd is the nsenter command
+	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
 )
 
 var (
@@ -42,10 +50,67 @@ var (
 	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Nas-%s", VERSION)
 )
 
+func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint string, volumeID string) error {
+	log.Infof("DoDBFSMount: mount %s to target %s", volumeID, mountPoint)
+	dbfsDir := strings.Replace(volumeID, "d-", "dbfs-", 0)
+	dbfsPath := filepath.Join(DBFS_ROOT, dbfsDir)
+	isAttached, err := checkDbfsAttached(dbfsPath)
+	if err != nil {
+		log.Errorf("")
+		return err
+	}
 
-func DoDBFSMount(opt *Options, mountPoint string, volumeID string) error {
-	log.Infof("DoDBFSMount: do nothing")
+	if isAttached {
+		return errors.New("DBFS is not attahced")
+	}
+	mnt := req.VolumeCapability.GetMount()
+	options := append(mnt.MountFlags, "bind")
+
+	fsType := ""
+	if err = ns.k8smounter.Mount(dbfsPath, mountPoint, fsType, options); err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+
 	return nil
+}
+
+func checkDbfsAttached(dbfsPath string) (bool, error) {
+	cmd := fmt.Sprintf("mount | grep %s | grep dbfs_server | wc -l", dbfsPath)
+	line, err := utils.Run(cmd)
+	if err != nil {
+		return false, err
+	}
+	if strings.TrimSpace(line) == "1" {
+		return true, nil
+	}
+	return false, nil
+}
+
+func checkVolumeIDAvailiable(volumeID string) bool {
+	if !strings.HasPrefix(volumeID, "d-") {
+		return false
+	}
+	if len(strings.Split(volumeID, "-")) != 2 {
+		return false
+	}
+	return true
+}
+
+func saveDbfsConfig(volumeId, mountpoint string) bool {
+	targetFile := filepath.Join(mountpoint, "")
+	if utils.IsFileExisting(targetFile) {
+		return true
+	}
+	cmd := fmt.Sprintf("%s /opt/dbfs/app/1.0.0.1/bin/dbfs_get_home_path.sh %s", NsenterCmd, volumeId)
+	configPath, err := utils.Run(cmd)
+	if err != nil {
+		log.Errorf("saveDbfsConfig: run command with error: %s", err)
+	}
+
+	if err := ioutil.WriteFile(targetFile, []byte(configPath), 0644); err != nil {
+		return false
+	}
+	return true
 }
 
 //CreateDest create the target
@@ -106,4 +171,25 @@ func newDbfsClient(accessKeyID, accessKeySecret, accessToken, regionID string) (
 	}
 
 	return
+}
+
+func checkDbfsStatus(regionID , fsID, nideID string, expected string) (bool, error) {
+	describeDbfsRequest := dbfs.CreateGetDbfsRequest()
+	describeDbfsRequest.Domain = "dbfs." + regionID + ".aliyuncs.com"
+	describeDbfsRequest.RegionId = regionID
+	describeDbfsRequest.FsId = fsID
+	getResponse, err := GlobalConfigVar.DbfsClient.GetDbfs(describeDbfsRequest)
+	if err != nil {
+		return false, status.Errorf(codes.InvalidArgument, "Get DBFS with error response %v, with error: %v", fsID, err)
+	}
+	if len(getResponse.DBFSInfo) != 1 {
+		return false, status.Errorf(codes.InvalidArgument, "Get DBFS error response %v, with empty dbfs", fsID)
+	}
+	dbfsInfo := getResponse.DBFSInfo[0]
+	if dbfsInfo.Status == expected {
+		return true, nil
+	}
+	// TODO: check nideID
+
+	return false, nil
 }

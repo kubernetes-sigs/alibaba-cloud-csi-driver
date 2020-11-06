@@ -16,7 +16,8 @@ import (
 const (
 	driverName = "dbfsplugin.csi.alibabacloud.com"
 	// InstanceID is instance id
-	InstanceID = "instance-id"
+	InstanceID             = "instance-id"
+	DBFSAttachByController = "DBFS_AD_CONTROLLER"
 )
 
 var (
@@ -29,11 +30,13 @@ var (
 
 // GlobalConfig save global values for plugin
 type GlobalConfig struct {
-	Region       string
-	DbfsClient   *dbfs.Client
-	MetricEnable bool
-	NodeName     string
-	EcsInstanceID string
+	Region             string
+	DbfsClient         *dbfs.Client
+	MetricEnable       bool
+	NodeName           string
+	DBFSDomain         string
+	EcsInstanceID      string
+	ADControllerEnable bool
 }
 
 type DBFS struct {
@@ -55,7 +58,7 @@ func NewDriver(nodeID, endpoint string) *DBFS {
 	d.endpoint = endpoint
 	if nodeID == "" {
 		nodeID, _ = utils.GetMetaData(InstanceID)
-		log.Infof("Use node id : %s", nodeID)
+		log.Infof("DBFS Use node id : %s", nodeID)
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
 	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
@@ -102,6 +105,7 @@ func GlobalConfigSet() {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
+	isADControllerEnable := false
 	configMapName := "csi-plugin"
 	isMetricEnable := false
 
@@ -124,8 +128,25 @@ func GlobalConfigSet() {
 		isMetricEnable = false
 	}
 
+	// Env variables
+	adEnable := os.Getenv(DBFSAttachByController)
+	if adEnable == "true" || adEnable == "yes" {
+		log.Infof("AD-Controller is enabled by Env(%s), CSI DBFS Plugin running in AD Controller mode.", adEnable)
+		isADControllerEnable = true
+	} else if adEnable == "false" || adEnable == "no" {
+		log.Infof("AD-Controller is disabled by Env(%s), CSI DBFS Plugin running in kubelet mode.", adEnable)
+		isADControllerEnable = false
+	}
+	if isADControllerEnable {
+		log.Infof("AD-Controller is enabled, CSI DBFS Plugin running in AD Controller mode.")
+	} else {
+		log.Infof("AD-Controller is disabled, CSI DBFS Plugin running in kubelet mode.")
+	}
+
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	GlobalConfigVar.MetricEnable = isMetricEnable
 	GlobalConfigVar.NodeName = nodeName
 	GlobalConfigVar.EcsInstanceID, _ = utils.GetMetaData(InstanceID)
+	GlobalConfigVar.ADControllerEnable = isADControllerEnable
+	GlobalConfigVar.DBFSDomain = "dbfs." + GlobalConfigVar.Region + ".aliyuncs.com"
 }
