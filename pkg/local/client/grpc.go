@@ -40,7 +40,7 @@ type Connection interface {
 	GetNameSpace(ctx context.Context, regionName string, volumeID string) (string, error)
 	CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*lib.PmemNameSpace, error)
 	DeleteNameSpace(ctx context.Context, volumeID string) error
-	CreateProjQuotaSubpath(ctx context.Context, pvName string) (string, string, string, error)
+	CreateProjQuotaSubpath(ctx context.Context, pvName, size string) (string, string, string, error)
 	SetSubpathProjQuota(ctx context.Context, quotaSubpath, blockSoftlimit, blockHardlimit, inodeSoftlimit, inodeHardlimit, projectID string) (string, error)
 	RemoveProjQuotaSubpath(ctx context.Context, quotaSubpath, projectID string) (string, error)
 }
@@ -239,10 +239,11 @@ func (c *workerConnection) CleanPath(ctx context.Context, path string) error {
 	return err
 }
 
-func (c *workerConnection) CreateProjQuotaSubpath(ctx context.Context, pvName string) (string, string, string, error) {
+func (c *workerConnection) CreateProjQuotaSubpath(ctx context.Context, pvName, size string) (string, string, string, error) {
 	client := lib.NewProjQuotaClient(c.conn)
 	req := lib.CreateProjQuotaSubpathRequest{
 		PvName: pvName,
+		QuotaSize: size,
 	}
 	response, err := client.CreateProjQuotaSubpath(ctx, &req)
 	if err != nil {

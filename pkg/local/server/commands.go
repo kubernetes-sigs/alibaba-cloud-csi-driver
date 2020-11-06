@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -38,9 +37,9 @@ const (
 	// NsenterCmd is the nsenter command
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
 	// ProjQuotaPrefix is the template of quota fullpath
-	ProjQuotaPrefix = "/mnt/projectquota.%s/%s"
+	ProjQuotaPrefix = "/mnt/quotapath.%s/%s"
 	// ProjQuotaNamespacePrefix ...
-	ProjQuotaNamespacePrefix = "/mnt/projectquota.%s"
+	ProjQuotaNamespacePrefix = "/mnt/quotapath.%s"
 )
 
 // ListLV lists lvm volumes
@@ -419,25 +418,6 @@ func GetNamespaceAssignedQuota(namespace string) (int, error) {
 	return totalLimit, nil
 }
 
-func ensureDir(target string) error {
-	mdkirCmd := "mkdir"
-	_, err := exec.LookPath(mdkirCmd)
-	if err != nil {
-		if err == exec.ErrNotFound {
-			return fmt.Errorf("%q executable not found in $PATH", mdkirCmd)
-		}
-		return err
-	}
-
-	mkdirArgs := []string{"-p", target}
-	//log.Infof("mkdir for folder, the command is %s %v", mdkirCmd, mkdirArgs)
-	_, err = exec.Command(mdkirCmd, mkdirArgs...).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("mkdir for folder error: %v", err)
-	}
-	return nil
-}
-
 // SelectNamespace ...
 func SelectNamespace(ctx context.Context, quotaSize string) (string, error) {
 	namespaces, err := ListNameSpace()
@@ -465,7 +445,7 @@ func CreateProjQuotaSubpath(ctx context.Context, subPath, quotaSize string) (str
 		return "", "", "", err
 	}
 	fullPath := fmt.Sprintf(ProjQuotaPrefix, selectedNamespace, subPath)
-	err = ensureDir(fullPath)
+	err = lib.EnsureFolder(fullPath)
 	if err != nil {
 		return "", "", "", err
 	}
