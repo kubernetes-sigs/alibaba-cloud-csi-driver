@@ -243,7 +243,7 @@ func (ns *nodeServer) mountPmemVolume(ctx context.Context, req *csi.NodePublishV
 	}
 
 	if !isMnt {
-		switch (pmemType) {
+		switch pmemType {
 		case "kmem":
 			pvSize, pvSizeUnit, _ := getPvInfo(volumeID)
 			devicePath = "tmpfs"

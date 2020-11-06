@@ -362,8 +362,8 @@ func ListNameSpace() ([]*lib.NameSpace, error) {
 
 func str2ASCII(origin string) string {
 	runes := []rune(origin)
-    var result string
-    for i := 0; i < len(runes); i++ {
+	var result string
+	for i := 0; i < len(runes); i++ {
 		result += strconv.Itoa(int(runes[i]))
 	}
 	return result
@@ -392,7 +392,7 @@ func getTotalLimitKBFromCSV(in string) (totalLimit int, err error) {
 		if err != nil {
 			return 0, err
 		}
-		if strings.HasPrefix(record[0], "#") && record[0] != "#0"{
+		if strings.HasPrefix(record[0], "#") && record[0] != "#0" {
 			limitKByte, err := strconv.Atoi(record[5])
 			if err != nil {
 				return 0, err
@@ -404,7 +404,7 @@ func getTotalLimitKBFromCSV(in string) (totalLimit int, err error) {
 }
 
 // GetNamespaceAssignedQuota ...
-func GetNamespaceAssignedQuota(namespace string) (int, error){
+func GetNamespaceAssignedQuota(namespace string) (int, error) {
 	args := []string{NsenterCmd, "repquota", "-P -O csv", fmt.Sprintf(ProjQuotaNamespacePrefix, namespace)}
 	cmd := strings.Join(args, " ")
 	out, err := utils.Run(cmd)
@@ -454,12 +454,12 @@ func SelectNamespace(ctx context.Context, quotaSize string) (string, error) {
 	}
 	if namespace1Quota > namespace2Quota {
 		return namespaces[1].Dev, nil
-	} 
+	}
 	return namespaces[0].Dev, nil
 }
 
 // CreateProjQuotaSubpath ...
-func CreateProjQuotaSubpath(ctx context.Context, subPath, quotaSize string) (string, string, string, error){
+func CreateProjQuotaSubpath(ctx context.Context, subPath, quotaSize string) (string, string, string, error) {
 	selectedNamespace, err := SelectNamespace(ctx, quotaSize)
 	if err != nil {
 		return "", "", "", err

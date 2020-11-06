@@ -125,7 +125,7 @@ func getRegionNamespaceInfo(region string) (*PmemRegions, error) {
 	return regions, nil
 }
 
-func checkProjQuotaNamespaceValid(region string) (devicePath string, namespaceName string, err error){
+func checkProjQuotaNamespaceValid(region string) (devicePath string, namespaceName string, err error) {
 	regions, err := getRegionNamespaceInfo(region)
 	if err != nil {
 		return "", "", err
@@ -135,7 +135,7 @@ func checkProjQuotaNamespaceValid(region string) (devicePath string, namespaceNa
 		log.Errorf("projectQuota namespace mode %s wrong", namespace.Mode)
 		return "", "", errors.New("KMEM namespace wrong mode" + namespace.Mode)
 	}
-	return "/dev/" + namespace.BlockDev, namespace.Name, nil 
+	return "/dev/" + namespace.BlockDev, namespace.Name, nil
 }
 
 func checkKMEMCreated(chardev string) (bool, error) {
