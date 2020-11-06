@@ -32,14 +32,13 @@ func NewServer() Server {
 	return Server{}
 }
 
-// ProjQuotaServer proj quota grpc server 
-type ProjQuotaServer struct {}
-
+// ProjQuotaServer proj quota grpc server
+type ProjQuotaServer struct{}
 
 // NewProjQuotaServer new proj quota grpc server
 func NewProjQuotaServer() ProjQuotaServer {
-    return ProjQuotaServer{}
-}  
+	return ProjQuotaServer{}
+}
 
 // ListLV list lvm volume
 func (s Server) ListLV(ctx context.Context, in *lib.ListLVRequest) (*lib.ListLVReply, error) {
