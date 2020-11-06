@@ -35,7 +35,7 @@ require (
 	github.com/stretchr/testify v1.4.0
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
-	golang.org/x/net v0.0.0-20200904194848-62affa334b73
+	golang.org/x/net v0.0.0-20200822124328-c89045814202
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/sys v0.0.0-20200821140526-fda516888d29 // indirect
 	golang.org/x/text v0.3.3 // indirect
@@ -95,11 +95,9 @@ replace (
 	github.com/go-openapi/spec => github.com/go-openapi/spec v0.19.0
 	github.com/go-openapi/swag => github.com/go-openapi/swag v0.19.0
 	github.com/go-stack/stack => github.com/go-stack/stack v1.8.0
-	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.1
 	github.com/golang/glog => github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/groupcache => github.com/golang/groupcache v0.0.0-20190129154638-5b532d6fd5ef
 	github.com/golang/mock => github.com/golang/mock v1.1.1
-	github.com/golang/protobuf => github.com/golang/protobuf v1.3.0
 	github.com/google/btree => github.com/google/btree v1.0.0
 	github.com/google/go-cmp => github.com/google/go-cmp v0.5.0
 	github.com/google/gofuzz => github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf

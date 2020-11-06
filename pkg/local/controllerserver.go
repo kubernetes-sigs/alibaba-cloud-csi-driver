@@ -19,6 +19,11 @@ package local
 import (
 	"encoding/json"
 	"errors"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/adapter"
@@ -33,9 +38,6 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"strings"
-	"time"
 )
 
 type controllerServer struct {
@@ -202,18 +204,20 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				log.Errorf("CreateVolume: New lvm %s Connection(%s) with error: %s", req.Name, addr, err.Error())
 				return nil, err
 			}
-			if lvmName, err := conn.GetLvm(ctx, storageSelected, volumeID); err == nil && lvmName == "" {
-				outstr, err := conn.CreateLvm(ctx, options)
-				if err != nil {
-					log.Errorf("CreateVolume: Create lvm %s/%s, options: %v with error: %s", storageSelected, volumeID, options, err.Error())
-					return nil, errors.New("Create Lvm with error " + err.Error())
+			if volumeType == LvmVolumeType {
+				if lvmName, err := conn.GetLvm(ctx, storageSelected, volumeID); err == nil && lvmName == "" {
+					outstr, err := conn.CreateLvm(ctx, options)
+					if err != nil {
+						log.Errorf("CreateVolume: Create lvm %s/%s, options: %v with error: %s", storageSelected, volumeID, options, err.Error())
+						return nil, errors.New("Create Lvm with error " + err.Error())
+					}
+					log.Infof("CreateLvm: Successful Create lvm %s/%s with response %s", storageSelected, volumeID, outstr)
+				} else if err != nil {
+					log.Errorf("CreateVolume: Get lvm %s with error: %s", req.Name, err.Error())
+					return nil, err
+				} else {
+					log.Infof("CreateVolume: lvm volume already created %s", req.Name)
 				}
-				log.Infof("CreateLvm: Successful Create lvm %s/%s with response %s", storageSelected, volumeID, outstr)
-			} else if err != nil {
-				log.Errorf("CreateVolume: Get lvm %s with error: %s", req.Name, err.Error())
-				return nil, err
-			} else {
-				log.Infof("CreateVolume: lvm volume already created %s", req.Name)
 			}
 		} else if !types.GlobalConfigVar.ControllerProvision && nodeSelected != "" && storageSelected != "" {
 			createLabels := map[string]string{}
@@ -346,12 +350,14 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				log.Infof("CreateVolume: create KMEM types volumes")
 			case "projquota":
 				log.Infof("CreateVolume: create project quota types volumes")
-				_, projectQuotaSubpath, projectID, err := conn.CreateProjQuotaSubpath(ctx, req.Name)
+				size := strconv.Itoa(int(req.GetCapacityRange().GetRequiredBytes()))
+				kSize := strconv.Itoa(int(req.GetCapacityRange().GetRequiredBytes()/1024))
+				_, projectQuotaSubpath, projectID, err := conn.CreateProjQuotaSubpath(ctx, req.Name, size)
 				if err != nil {
 					log.Infof("CreateVolume: create project quota subpath %s failed: %s", req.Name, err.Error())
 					return nil, err
 				}
-				_, err = conn.SetSubpathProjQuota(ctx, projectQuotaSubpath, req.CapacityRange.String(), req.CapacityRange.String(), "", "", projectID)
+				_, err = conn.SetSubpathProjQuota(ctx, projectQuotaSubpath, kSize, kSize, "", "", projectID)
 				if err != nil {
 					log.Infof("CreateVolume: set project quota subpath %s failed: %s", req.Name, err.Error())
 					return nil, err

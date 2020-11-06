@@ -123,6 +123,8 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 				pmeType = "lvm"
 			} else if strings.TrimSpace(value) == "direct" {
 				pmeType = "direct"
+			} else if strings.TrimSpace(value) == "projquota" {
+				pmeType = "projquota"
 			} else {
 				pmeType = "kmem"
 			}
