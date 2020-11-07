@@ -90,6 +90,10 @@ type RoleAuth struct {
 	Code            string
 }
 
+func CreateEvent(recorder record.EventRecorder, objectRef *v1.ObjectReference, eventType string, reason string, err string) {
+	recorder.Event(objectRef, eventType, reason, err)
+}
+
 //NewEventRecorder is create snapshots event recorder
 func NewEventRecorder() record.EventRecorder {
 	config, err := rest.InClusterConfig()

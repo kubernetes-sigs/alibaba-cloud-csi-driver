@@ -136,9 +136,6 @@ func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region s
 	return c
 }
 
-func (cs *controllerServer) createEvent(objectRef *v1.ObjectReference, eventType string, reason string, err string) {
-	cs.recorder.Event(objectRef, eventType, reason, err)
-}
 
 // provisioner: create/delete nas volume
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
@@ -228,7 +225,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			if err != nil {
 				str := fmt.Sprintf("CreateVolume: responseID[%s], fail to add default tags filesystem with ID: %s, err: %s", tagResourcesResponse.RequestId, fileSystemID, err.Error())
 				e := status.Error(codes.Internal, str)
-				cs.createEvent(ref, v1.EventTypeWarning, AddDefaultTagsError, e.Error())
+				utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, AddDefaultTagsError, e.Error())
 			} else {
 				log.Infof("CreateVolume: Volume: %s, Successful Add Nas filesystem tags with ID: %s, with requestID: %s", pvName, fileSystemID, createFileSystemsResponse.RequestId)
 			}

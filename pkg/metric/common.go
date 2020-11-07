@@ -37,11 +37,23 @@ const (
 )
 
 const (
-	diskSectorSize = 512
+	latencySwitch  = "latency"
+	capacitySwitch = "capacity"
+)
+const (
+	diskSectorSize                          = 512
+	diskDefaultsLantencyThreshold           = 10
+	diskDefaultsCapacityPercentageThreshold = 85
+	float64EqualityThreshold                = 1e-9
 )
 
 const (
 	diskStatsFileName = "diskstats"
+)
+
+const (
+	latencyTooHigh     = "LatencyTooHigh"
+	capacityNotEnough = "NotEnoughDiskSpace"
 )
 
 var (
@@ -81,11 +93,12 @@ type typedFactorDesc struct {
 }
 
 type storageInfo struct {
-	PvcNamespace string
-	PvcName      string
-	VolDataPath  string
-	DiskID       string
-	DeviceName   string
+	PvcNamespace    string
+	PvcName         string
+	DiskID          string
+	DeviceName      string
+	VolDataPath     string
+	GlobalMountPath string
 }
 
 func (d *typedFactorDesc) mustNewConstMetric(value float64, labels ...string) prometheus.Metric {

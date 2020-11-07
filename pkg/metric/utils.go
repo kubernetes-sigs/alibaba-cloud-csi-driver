@@ -13,6 +13,7 @@ import (
 	apicorev1 "k8s.io/api/core/v1"
 	apismetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -226,6 +227,36 @@ func listDirectory(rootPath string) ([]string, error) {
 	return fileLists, nil
 }
 
-func parseLantencyThreshold(lantencyThreshold string) (int, error) {
-	return 1, nil
+func almostEqualFloat64(a, b float64) bool {
+	return math.Abs(a - b) <= float64EqualityThreshold
+}
+
+func parseLantencyThreshold(s string, defaults float64) (float64, error) {
+	var thresholNum int
+	var threshodUnit string
+	_, err := fmt.Sscanf(s, "%d%s", &thresholNum, &threshodUnit)
+	if err != nil {
+		log.Errorf("Parse latency threshold %s is failed, err:%s", s, err)
+		return defaults, err
+	}
+	switch threshodUnit {
+	case "s", "second", "seconds":
+		return float64(thresholNum * 1000), nil
+	case "ms", "millisecond", "milliseconds":
+		return float64(thresholNum), nil
+	case "us", "microsecond", "microseconds":
+		return float64(thresholNum / 1000), nil
+	default:
+		return defaults, nil
+	}
+}
+
+func parseCapacityThreshold(s string, defaults float64) (float64, error) {
+	var thresholNum float64
+	_, err := fmt.Sscanf(s, "%f", &thresholNum)
+	if err != nil {
+		log.Errorf("Parse  threshold %s is failed, err:%s", s, err)
+		return defaults, err
+	}
+	return thresholNum, nil
 }
