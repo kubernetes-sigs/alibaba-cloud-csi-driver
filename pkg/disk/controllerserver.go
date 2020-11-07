@@ -58,18 +58,18 @@ const (
 )
 
 const (
-	//SnapshotTooMany means that the previous Snapshot is greater than 1
-	SnapshotTooMany string = "SnapshotTooMany"
-	//SnapshotAlreadyExist means that the snapshot already exists
-	SnapshotAlreadyExist string = "SnapshotAlreadyExist"
-	//CreateSnapshotError means that the create snapshot error occurred
-	CreateSnapshotError string = "CreateSnapshotError"
-	//CreatedSnapshotSuccessfully means that the create snapshot success
-	CreatedSnapshotSuccessfully string = "CreatedSnapshotSuccessfully"
-	//DeleteSnapshotError means that the delete snapshot error occurred
-	DeleteSnapshotError string = "DeleteSnapshotError"
-	//DeletedSnapshotSuccessfully means that the delete snapshot success
-	DeletedSnapshotSuccessfully string = "DeletedSnapshotSuccessfully"
+	//snapshotTooMany means that the previous Snapshot is greater than 1
+	snapshotTooMany string = "SnapshotTooMany"
+	//snapshotAlreadyExist means that the snapshot already exists
+	snapshotAlreadyExist string = "SnapshotAlreadyExist"
+	//snapshotCreateError means that the create snapshot error occurred
+	snapshotCreateError string = "SnapshotCreateError"
+	//snapshotCreatedSuccessfully means that the create snapshot success
+	snapshotCreatedSuccessfully string = "SnapshotCreatedSuccessfully"
+	//snapshotDeleteError means that the delete snapshot error occurred
+	snapshotDeleteError string = "SnapshotDeleteError"
+	//snapshotDeletedSuccessfully means that the delete snapshot success
+	snapshotDeletedSuccessfully string = "SnapshotDeletedSuccessfully"
 )
 
 // controller server try to create/delete volumes/snapshots
@@ -448,10 +448,6 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
-func (cs *controllerServer) createEvent(objectRef *v1.ObjectReference, eventType string, reason string, err string) {
-	cs.recorder.Event(objectRef, eventType, reason, err)
-}
-
 //
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
 	ref := &v1.ObjectReference{
@@ -494,7 +490,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 			}
 			if exSnap.ReadyToUse {
 				str := fmt.Sprintf("VolumeSnapshot: %s is ready to use.", exSnap.Name)
-				cs.createEvent(ref, v1.EventTypeNormal, CreatedSnapshotSuccessfully, str)
+				utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotCreatedSuccessfully, str)
 			}
 			return &csi.CreateSnapshotResponse{
 				Snapshot: csiSnapshot,
@@ -502,17 +498,17 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		}
 		log.Errorf("CreateSnapshot:: Snapshot already exist with same name: name[%s], volumeID[%s]", req.Name, exSnap.VolID)
 		err := status.Error(codes.AlreadyExists, fmt.Sprintf("snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName()))
-		cs.createEvent(ref, v1.EventTypeWarning, SnapshotAlreadyExist, err.Error())
+		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotAlreadyExist, err.Error())
 		return nil, err
 	} else if snapNum > 1 {
 		log.Errorf("CreateSnapshot:: Find Snapshot name[%s], but get more than 1 instance", req.Name)
 		err := status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot: get snapshot more than 1 instance"))
-		cs.createEvent(ref, v1.EventTypeWarning, SnapshotTooMany, err.Error())
+		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotTooMany, err.Error())
 		return nil, err
 	} else if err != nil {
 		log.Errorf("CreateSnapshot:: Expect to find Snapshot name[%s], but get error: %v", req.Name, err)
 		e := status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot: get snapshot with error: %s", err.Error()))
-		cs.createEvent(ref, v1.EventTypeWarning, CreateSnapshotError, e.Error())
+		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
 		return nil, e
 	}
 
@@ -548,7 +544,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	if err != nil {
 		log.Errorf("CreateSnapshot:: Snapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", req.Name, req.GetSourceVolumeId(), err.Error())
 		e := status.Error(codes.Internal, fmt.Sprintf("failed create snapshot: %v", err))
-		cs.createEvent(ref, v1.EventTypeWarning, CreateSnapshotError, e.Error())
+		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
 		return nil, e
 	}
 	snapshotID := snapshotResponse.SnapshotId
@@ -570,7 +566,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	createdSnapshotMap[req.Name] = csiSnapshot
-	cs.createEvent(ref, v1.EventTypeNormal, CreatedSnapshotSuccessfully, str)
+	utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotCreatedSuccessfully, str)
 	return &csi.CreateSnapshotResponse{
 		Snapshot: csiSnapshot,
 	}, nil
@@ -630,7 +626,7 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 			log.Errorf("DeleteSnapshot: fail to delete %s: with RequestId: %s, error: %s", snapshotID, response.RequestId, err.Error())
 		}
 		e := status.Error(codes.Internal, fmt.Sprintf("failed delete snapshot: %v", err))
-		cs.createEvent(ref, v1.EventTypeWarning, DeleteSnapshotError, e.Error())
+		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotDeleteError, e.Error())
 		return nil, e
 	}
 
@@ -639,7 +635,7 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	}
 	str := fmt.Sprintf("DeleteSnapshot:: Successfully delete snapshot %s, requestId: %s", snapshotID, response.RequestId)
 	log.Info(str)
-	cs.createEvent(ref, v1.EventTypeNormal, DeletedSnapshotSuccessfully, str)
+	utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 

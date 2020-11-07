@@ -82,8 +82,8 @@ func execByDocker(ctx context.Context, dockerClient *client.Client, id string, c
 	return ExecResult{ExitCode: iresp.ExitCode, outBuffer: &outBuf, errBuffer: &errBuf}, nil
 }
 
-func listContainerByDocker(dockerClient **client.Client) ([]types.Container, error) {
-	containers, err := (*dockerClient).ContainerList(context.TODO(), types.ContainerListOptions{})
+func listContainerByDocker(dockerClient **client.Client, containerListOptions types.ContainerListOptions) ([]types.Container, error) {
+	containers, err := (*dockerClient).ContainerList(context.TODO(), containerListOptions)
 	if err != nil {
 		logrus.Errorf("Execute docker ps is failed, err:%s", err)
 		return nil, err
