@@ -50,6 +50,8 @@ type GlobalConfig struct {
 	ADControllerEnable bool
 	MetricEnable       bool
 	RunTimeClass       string
+	NodeID             string
+	NodeIP             string
 }
 
 // NAS the NAS object
@@ -79,10 +81,11 @@ func NewDriver(nodeID, endpoint string) *NAS {
 	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+		csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
 	})
 
 	// Global Configs Set
-	GlobalConfigSet()
+	GlobalConfigSet(nodeID)
 
 	d.driver = csiDriver
 	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
@@ -107,7 +110,7 @@ func (d *NAS) Run() {
 }
 
 // GlobalConfigSet set global config
-func GlobalConfigSet() {
+func GlobalConfigSet(nodeID string) {
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
@@ -152,7 +155,17 @@ func GlobalConfigSet() {
 		log.Infof("Describe node %s and set RunTimeClass to %s", nodeName, runtimeValue)
 	}
 
+	for _, address := range nodeInfo.Status.Addresses {
+		if address.Type == "InternalIP" {
+			log.Infof("Node InternalIP is: %s", address.Address)
+			GlobalConfigVar.NodeIP = address.Address
+		}
+	}
+	if GlobalConfigVar.NodeIP == "" {
+		log.Warnf("Init GlobalConfigVar with NodeIP Empty, Nas losetup feature may be useless")
+	}
+
 	GlobalConfigVar.MetricEnable = isNasMetricEnable
 	GlobalConfigVar.RunTimeClass = runtimeValue
-
+	GlobalConfigVar.NodeID = nodeName
 }
