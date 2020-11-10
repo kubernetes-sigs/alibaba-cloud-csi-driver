@@ -76,6 +76,10 @@ const (
 	NASTAGVALUE2 = "alibabacloud-csi-plugin"
 	//AddDefaultTagsError means that the add nas default tags error
 	AddDefaultTagsError string = "AddDefaultTagsError"
+	// MntTypeKey tag
+	MntTypeKey = "mountType"
+	// LosetupType tag
+	LosetupType = "losetup"
 )
 
 // controller server try to create/delete volumes
@@ -374,12 +378,13 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		os.Chmod(fullPath, 0777)
 
 		volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
-		if value, ok := req.Parameters["mountType"]; ok && value == "losetup" {
+		if value, ok := req.Parameters[MntTypeKey]; ok && value == LosetupType {
 			if err = createLosetupPv(fullPath, volSizeBytes); err != nil {
 				log.Errorf("Provision: create losetup image file error: %v", err)
 				return nil, errors.New("Provision: " + req.Name + ", create losetup image file with error: " + err.Error())
 			}
-			volumeContext["mountType"] = "losetup"
+			volumeContext[MntTypeKey] = LosetupType
+			log.Infof("CreateVolume: Successful create losetup pv with: %s, %s", fullPath, req.Name)
 		}
 
 		// step7: Unmount nfs server

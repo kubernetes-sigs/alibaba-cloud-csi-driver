@@ -230,7 +230,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// do losetup nas logical
-	if opt.MountType == "losetup" {
+	if opt.MountType == LosetupType {
 		if err := mountLosetupPv(mountPath, opt, req.VolumeId); err != nil {
 			log.Errorf("NodePublishVolume: mount losetup volume(%s) error %s", req.VolumeId, err.Error())
 			return nil, errors.New("NodePublishVolume, mount Losetup volume error with: " + err.Error())
@@ -340,8 +340,8 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	*csi.NodeExpandVolumeResponse, error) {
 	pathList := strings.Split(req.VolumePath, "/")
 	if len(pathList) != 10 {
-		log.Errorf("NodeExpandVolume: Mountpoint Format error", req.VolumePath)
-		return nil, fmt.Errorf("NodeExpandVolume: mountPoint format error, %s", req.VolumePath)
+		log.Warnf("NodeExpandVolume: Mountpoint Format illegal, just skip expand %s", req.VolumePath)
+		return &csi.NodeExpandVolumeResponse{}, nil
 	}
 	podID := pathList[5]
 	pvName := pathList[8]

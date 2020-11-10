@@ -363,6 +363,10 @@ func ParseMountFlags(mntOptions []string) (string, string) {
 func createLosetupPv(fullPath string, volSizeBytes int64) error {
 	blockNum := volSizeBytes / (4 * 1024)
 	fileName := filepath.Join(fullPath, LoopImgFile)
+	if utils.IsFileExisting(fileName) {
+		log.Infof("createLosetupPv: image file is exist, just skip: %s", fileName)
+		return nil
+	}
 	imgCmd := fmt.Sprintf("dd if=/dev/zero of=%s bs=4k seek=%d count=0", fileName, blockNum)
 	_, err := utils.Run(imgCmd)
 	if err != nil {
@@ -450,7 +454,8 @@ func isLosetupUsed(lockFile string, opt *Options, volumeID string) bool {
 func checkLosetupUnmount(mountPoint string) error {
 	pathList := strings.Split(mountPoint, "/")
 	if len(pathList) != 10 {
-		return fmt.Errorf("checkLosetupUnmount: mountPoint format error %s", mountPoint)
+		log.Infof("MountPoint not format as losetup type: %s", mountPoint)
+		return nil
 	}
 	podID := pathList[5]
 	pvName := pathList[8]

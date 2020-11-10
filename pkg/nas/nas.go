@@ -85,7 +85,7 @@ func NewDriver(nodeID, endpoint string) *NAS {
 	})
 
 	// Global Configs Set
-	GlobalConfigSet(nodeID)
+	GlobalConfigSet()
 
 	d.driver = csiDriver
 	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
@@ -110,7 +110,7 @@ func (d *NAS) Run() {
 }
 
 // GlobalConfigSet set global config
-func GlobalConfigSet(nodeID string) {
+func GlobalConfigSet() {
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
@@ -155,12 +155,15 @@ func GlobalConfigSet(nodeID string) {
 		log.Infof("Describe node %s and set RunTimeClass to %s", nodeName, runtimeValue)
 	}
 
-	for _, address := range nodeInfo.Status.Addresses {
-		if address.Type == "InternalIP" {
-			log.Infof("Node InternalIP is: %s", address.Address)
-			GlobalConfigVar.NodeIP = address.Address
+	if nodeInfo != nil {
+		for _, address := range nodeInfo.Status.Addresses {
+			if address.Type == "InternalIP" {
+				log.Infof("Node InternalIP is: %s", address.Address)
+				GlobalConfigVar.NodeIP = address.Address
+			}
 		}
 	}
+
 	if GlobalConfigVar.NodeIP == "" {
 		log.Warnf("Init GlobalConfigVar with NodeIP Empty, Nas losetup feature may be useless")
 	}
