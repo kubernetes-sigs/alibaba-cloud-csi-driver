@@ -29,16 +29,16 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx
+        image: nginx:v1.7.9
         volumeMounts:
-        - name: dbfs-ssd
+        - name: csi-dbfs-data
           mountPath: /data
-  volumeClaimTemplates:
-  - metadata:
-      name: dbfs-ssd
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: alicloud-dbfs-ssd-hangzhou-i
-      resources:
-        requests:
-          storage: 20Gi
+        - name: csi-dbfs-config
+            mountPath: /config
+      volumes:
+        - name: csi-dbfs-data
+          persistentVolumeClaim:
+            claimName: csi-dbfs-data
+        - name: csi-dbfs-config
+            persistentVolumeClaim:
+              claimName: csi-dbfs-config

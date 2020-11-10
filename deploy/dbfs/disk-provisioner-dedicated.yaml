@@ -110,7 +110,7 @@ spec:
               port: healthz
               scheme: HTTP
             initialDelaySeconds: 10
-            periodSeconds: 30
+            periodSeconds: 60
             timeoutSeconds: 5
             failureThreshold: 5
           ports:
@@ -118,9 +118,6 @@ spec:
               containerPort: 11270
               protocol: TCP
           volumeMounts:
-            - name: host-dev
-              mountPath: /dev
-              mountPropagation: "HostToContainer"
             - name: host-log
               mountPath: /var/log/
             - name: etc
@@ -140,9 +137,6 @@ spec:
         - name: host-log
           hostPath:
             path: /var/log/
-        - name: host-dev
-          hostPath:
-            path: /dev
         - name: etc
           hostPath:
             path: /etc

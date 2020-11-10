@@ -3,7 +3,7 @@ kind: CSIDriver
 metadata:
   name: dbfsplugin.csi.alibabacloud.com
 spec:
-  attachRequired: false
+  attachRequired: true
   podInfoOnMount: true
 ---
   kind: DaemonSet
@@ -98,8 +98,8 @@ spec:
               - name: container-dir
                 mountPath: /var/lib/container
                 mountPropagation: "Bidirectional"
-              - name: host-dev
-                mountPath: /dev
+              - name: dbfs
+                mountPath: /mnt/dbfs
                 mountPropagation: "HostToContainer"
         volumes:
           - name: registration-dir
@@ -114,9 +114,9 @@ spec:
             hostPath:
               path: /var/lib/kubelet
               type: Directory
-          - name: host-dev
+          - name: dbfs
             hostPath:
-              path: /dev
+              path: /mnt/dbfs
           - name: host-log
             hostPath:
               path: /var/log/

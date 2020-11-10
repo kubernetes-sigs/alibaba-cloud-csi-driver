@@ -13,7 +13,7 @@ GIT_SHA=`git rev-parse --short HEAD || echo "HEAD"`
 export GOARCH="amd64"
 export GOOS="linux"
 
-VERSION="v1.16.9"
+VERSION="v1.18.8"
 GIT_HASH=`git rev-parse --short HEAD || echo "HEAD"`
 GIT_BRANCH=`git symbolic-ref --short -q HEAD`
 BUILD_TIME=`date +%FT%T%z`

@@ -75,7 +75,7 @@ func NewDriver(nodeID, endpoint string) *DBFS {
 	c := newDbfsClient(accessKeyID, accessSecret, accessToken, "")
 	region := os.Getenv("REGION_ID")
 	if region == "" {
-		region = GetMetaData(RegionTag)
+		region, _ = utils.GetMetaData(RegionTag)
 	}
 	d.controllerServer = NewControllerServer(d.driver, c, region)
 	GlobalConfigVar.DbfsClient = c
@@ -105,9 +105,9 @@ func GlobalConfigSet() {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	isADControllerEnable := false
+	isADControllerEnable := true
 	configMapName := "csi-plugin"
-	isMetricEnable := false
+	isMetricEnable := true
 
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
@@ -149,4 +149,5 @@ func GlobalConfigSet() {
 	GlobalConfigVar.EcsInstanceID, _ = utils.GetMetaData(InstanceID)
 	GlobalConfigVar.ADControllerEnable = isADControllerEnable
 	GlobalConfigVar.DBFSDomain = "dbfs." + GlobalConfigVar.Region + ".aliyuncs.com"
+	log.Infof("DBFS Global Config: %v", GlobalConfigVar)
 }

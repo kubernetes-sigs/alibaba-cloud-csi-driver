@@ -25,9 +25,6 @@ import (
 	"github.com/prometheus/common/log"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io/ioutil"
-	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -96,53 +93,53 @@ func checkVolumeIDAvailiable(volumeID string) bool {
 	return true
 }
 
-func saveDbfsConfig(volumeId, mountpoint string) bool {
-	targetFile := filepath.Join(mountpoint, "")
-	if utils.IsFileExisting(targetFile) {
-		return true
-	}
-	cmd := fmt.Sprintf("%s /opt/dbfs/app/1.0.0.1/bin/dbfs_get_home_path.sh %s", NsenterCmd, volumeId)
-	configPath, err := utils.Run(cmd)
-	if err != nil {
-		log.Errorf("saveDbfsConfig: run command with error: %s", err)
-	}
-
-	if err := ioutil.WriteFile(targetFile, []byte(configPath), 0644); err != nil {
-		return false
-	}
-	return true
-}
+//func saveDbfsConfig(volumeId, mountpoint string) bool {
+//	targetFile := filepath.Join(mountpoint, "")
+//	if utils.IsFileExisting(targetFile) {
+//		return true
+//	}
+//	cmd := fmt.Sprintf("%s /opt/dbfs/app/1.0.0.1/bin/dbfs_get_home_path.sh %s", NsenterCmd, volumeId)
+//	configPath, err := utils.Run(cmd)
+//	if err != nil {
+//		log.Errorf("saveDbfsConfig: run command with error: %s", err)
+//	}
+//
+//	if err := ioutil.WriteFile(targetFile, []byte(configPath), 0644); err != nil {
+//		return false
+//	}
+//	return true
+//}
 
 //CreateDest create the target
-func CreateDest(dest string) error {
-	fi, err := os.Lstat(dest)
-	if os.IsNotExist(err) {
-		if err := os.MkdirAll(dest, 0777); err != nil {
-			return err
-		}
-	} else if err != nil {
-		return err
-	}
-
-	if fi != nil && !fi.IsDir() {
-		return fmt.Errorf("%v already exist but it's not a directory", dest)
-	}
-	return nil
-}
+//func CreateDest(dest string) error {
+//	fi, err := os.Lstat(dest)
+//	if os.IsNotExist(err) {
+//		if err := os.MkdirAll(dest, 0777); err != nil {
+//			return err
+//		}
+//	} else if err != nil {
+//		return err
+//	}
+//
+//	if fi != nil && !fi.IsDir() {
+//		return fmt.Errorf("%v already exist but it's not a directory", dest)
+//	}
+//	return nil
+//}
 
 // GetMetaData get host regionid, zoneid
-func GetMetaData(resource string) string {
-	resp, err := http.Get(MetadataURL + resource)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ""
-	}
-	return string(body)
-}
+//func GetMetaData(resource string) string {
+//	resp, err := http.Get(MetadataURL + resource)
+//	if err != nil {
+//		return ""
+//	}
+//	defer resp.Body.Close()
+//	body, err := ioutil.ReadAll(resp.Body)
+//	if err != nil {
+//		return ""
+//	}
+//	return string(body)
+//}
 
 func updateDbfsClient(client *dbfs.Client) *dbfs.Client {
 	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
@@ -156,7 +153,7 @@ func updateDbfsClient(client *dbfs.Client) *dbfs.Client {
 func newDbfsClient(accessKeyID, accessKeySecret, accessToken, regionID string) (dbfsClient *dbfs.Client) {
 	var err error
 	if regionID == "" {
-		regionID = GetMetaData(RegionTag)
+		regionID, _ = utils.GetMetaData(RegionTag)
 	}
 	if accessToken == "" {
 		dbfsClient, err = dbfs.NewClientWithAccessKey(regionID, accessKeyID, accessKeySecret)
@@ -173,9 +170,9 @@ func newDbfsClient(accessKeyID, accessKeySecret, accessToken, regionID string) (
 	return
 }
 
-func checkDbfsStatus(regionID , fsID, nideID string, expected string) (bool, error) {
+func checkDbfsStatus(regionID, fsID, nideID string, expected string) (bool, error) {
 	describeDbfsRequest := dbfs.CreateGetDbfsRequest()
-	describeDbfsRequest.Domain = "dbfs." + regionID + ".aliyuncs.com"
+	describeDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
 	describeDbfsRequest.RegionId = regionID
 	describeDbfsRequest.FsId = fsID
 	getResponse, err := GlobalConfigVar.DbfsClient.GetDbfs(describeDbfsRequest)

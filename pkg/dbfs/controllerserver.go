@@ -66,14 +66,11 @@ type dbfsOptions struct {
 	FsName   string
 	RegionId string
 	ZoneId   string
-	Size     int
+	SizeGB   int
 }
 
 // used by check pvc is processed
 var pvcProcessSuccess = map[string]*csi.Volume{}
-var storageClassServerPos = map[string]int{}
-var pvcFileSystemIDMap = map[string]string{}
-var pvcMountTargetMap = map[string]string{}
 
 // NewControllerServer is to create controller server
 func NewControllerServer(d *csicommon.CSIDriver, client *dbfs.Client, region string) csi.ControllerServer {
@@ -102,16 +99,15 @@ func (cs *controllerServer) createEvent(objectRef *v1.ObjectReference, eventType
 
 // provisioner: create/delete dbfs volume
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	log.Infof("CreateVolume: Starting NFS CreateVolume, %s, %v", req.Name, req)
+	log.Infof("CreateVolume: Starting DBFS CreateVolume, %s, %v", req.Name, req)
 
 	// step1: check pvc is created or not.
 	if value, ok := pvcProcessSuccess[req.Name]; ok && value != nil {
-		log.Infof("CreateVolume: Nfs Volume %s has Created Already: %v", req.Name, value)
+		log.Infof("CreateVolume: DBFS Volume %s has Created Already: %v", req.Name, value)
 		return &csi.CreateVolumeResponse{Volume: value}, nil
 	}
 
 	pvName := req.Name
-	// get dbfs information
 	dbfsOpts, err := cs.getDbfsVolumeOptions(req)
 	if err != nil {
 		log.Errorf("CreateVolume: error dbfs parameters from input: %v, with error: %v", req.Name, err)
@@ -136,9 +132,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	createDbfsRequest.FsName = dbfsOpts.FsName
 	createDbfsRequest.ZoneId = dbfsOpts.ZoneId
 	createDbfsRequest.RegionId = dbfsOpts.RegionId
-	createDbfsRequest.SizeG = requests.NewInteger(dbfsOpts.Size)
+	createDbfsRequest.SizeG = requests.NewInteger(dbfsOpts.SizeGB)
 	createDbfsRequest.ClientToken = req.Name
-	createDbfsRequest.Domain = "dbfs." + dbfsOpts.RegionId + ".aliyuncs.com"
+	createDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
 
 	GlobalConfigVar.DbfsClient = updateDbfsClient(GlobalConfigVar.DbfsClient)
 	response, err := GlobalConfigVar.DbfsClient.CreateDbfs(createDbfsRequest)
@@ -182,7 +178,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	deleteDbfsRequest := dbfs.CreateDeleteDbfsRequest()
 	deleteDbfsRequest.FsId = req.VolumeId
 	deleteDbfsRequest.RegionId = GlobalConfigVar.Region
-	deleteDbfsRequest.Domain = "dbfs.cn-hangzhou.aliyuncs.com"
+	deleteDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
 	_, err := GlobalConfigVar.DbfsClient.DeleteDbfs(deleteDbfsRequest)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "DeleteVolume: invalid delete volume req: %v", req)
@@ -200,19 +196,19 @@ func (cs *controllerServer) getDbfsVolumeOptions(req *csi.CreateVolumeRequest) (
 	dbfsOpts := &dbfsOptions{}
 	volOptions := req.GetParameters()
 
-	if dbfsOpts.Category, ok = volOptions["Category"]; !ok {
+	if dbfsOpts.Category, ok = volOptions["category"]; !ok {
 		dbfsOpts.Category = "cloud_essd"
 	}
 	dbfsOpts.RegionId = GlobalConfigVar.Region
 
 	if dbfsOpts.ZoneId, ok = volOptions["zoneId"]; !ok {
-		dbfsOpts.ZoneId = GetMetaData("zone-id")
+		dbfsOpts.ZoneId, _ = utils.GetMetaData("zone-id")
 	}
 
 	dbfsOpts.FsName = req.Name
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
-	dbfsOpts.Size = requestGB
+	dbfsOpts.SizeGB = requestGB
 
 	return dbfsOpts, nil
 }
@@ -234,6 +230,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	log.Infof("ControllerUnpublishVolume: Detach target %s", req.VolumeId)
 
 	if strings.HasSuffix(req.VolumeId, "-config") {
+		log.Infof("ControllerUnpublishVolume: dbfs config volume just skip, %s", req.VolumeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
@@ -245,7 +242,8 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	detachDbfsRequest := dbfs.CreateDetachDbfsRequest()
 	detachDbfsRequest.RegionId = GlobalConfigVar.Region
 	detachDbfsRequest.FsId = req.VolumeId
-	detachDbfsRequest.Domain = "dbfs.cn-hangzhou.aliyuncs.com"
+	detachDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
+	detachDbfsRequest.ECSInstanceId = req.NodeId
 	_, err := GlobalConfigVar.DbfsClient.DetachDbfs(detachDbfsRequest)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume missing VolumeId/NodeId in request")
@@ -257,10 +255,12 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	log.Infof("ControllerPublishVolume: attach dbfs %s to node %s", req.VolumeId, req.NodeId)
 	if strings.HasSuffix(req.VolumeId, "-config") {
+		log.Infof("ControllerPublishVolume: dbfs config volume not do attach: %s to node %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 
 	if attached, err := checkDbfsStatus(GlobalConfigVar.Region, req.VolumeId, req.NodeId, "Attached"); err == nil && attached {
+		log.Infof("ControllerPublishVolume: dbfs volume already attach %s to node %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 
@@ -268,10 +268,10 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	attachDbfsRequest.RegionId = GlobalConfigVar.Region
 	attachDbfsRequest.ECSInstanceId = req.NodeId
 	attachDbfsRequest.FsId = req.VolumeId
-	attachDbfsRequest.Domain = "dbfs.cn-hangzhou.aliyuncs.com"
+	attachDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
 	_, err := GlobalConfigVar.DbfsClient.AttachDbfs(attachDbfsRequest)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume missing VolumeId/NodeId in request")
+		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume attach error"+req.VolumeId)
 	}
 	// check dbfs ready
 	for i := 0; i < 10; i++ {
@@ -284,6 +284,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}
 		time.Sleep(2000 * time.Millisecond)
 	}
+	log.Infof("ControllerPublishVolume: Successful attach dbfs %s to node %s", req.VolumeId, req.NodeId)
 
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
@@ -303,19 +304,23 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 ) (*csi.ControllerExpandVolumeResponse, error) {
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	newSize := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
-
 	log.Infof("ControllerExpandVolume: expand dbfs volume(%s) to size: %d", req.VolumeId, newSize)
+
+	if strings.HasSuffix(req.VolumeId, "-config") {
+		log.Infof("ControllerExpandVolume: expand dbfs config volume(%s) just skip", req.VolumeId)
+		return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: false}, nil
+	}
 
 	getDbfsRequest := dbfs.CreateGetDbfsRequest()
 	getDbfsRequest.RegionId = GlobalConfigVar.Region
 	getDbfsRequest.FsId = req.VolumeId
-	getDbfsRequest.Domain = "dbfs.cn-hangzhou.aliyuncs.com"
+	getDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
 	response, err := GlobalConfigVar.DbfsClient.GetDbfs(getDbfsRequest)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "ControllerExpandVolume: Get DBFS error: "+err.Error())
 	}
 	if len(response.DBFSInfo) != 1 {
-		return nil, status.Error(codes.InvalidArgument, "ControllerExpandVolume: Get DBFS with error dbfsinfo")
+		return nil, status.Error(codes.InvalidArgument, "ControllerExpandVolume: Get DBFS with error dbfsinfo, "+req.VolumeId)
 	}
 	oldSize := response.DBFSInfo[0].SizeG
 
@@ -323,9 +328,10 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	resizeDbfsRequest.RegionId = GlobalConfigVar.Region
 	resizeDbfsRequest.FsId = req.VolumeId
 	resizeDbfsRequest.NewSizeG = requests.NewInteger(newSize)
-	resizeDbfsRequest.Domain = "dbfs.cn-hangzhou.aliyuncs.com"
+	resizeDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
 	_, err = GlobalConfigVar.DbfsClient.ResizeDbfs(resizeDbfsRequest)
 	if err != nil {
+		log.Infof("ControllerExpandVolume: DBFS(%s) resize with error: %s", req.VolumeId, err.Error())
 		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume resize dbfs error")
 	}
 	log.Infof("ControllerExpandVolume: DBFS(%s) resize from %dGB to %dGB", req.VolumeId, oldSize, newSize)
