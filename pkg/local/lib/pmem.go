@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -16,6 +17,8 @@ const (
 	PmemVolumeGroupNameRegion0 = "pmemvgregion0"
 	// PmemVolumeGroupNameRegion1 tag
 	PmemVolumeGroupNameRegion1 = "pmemvgregion1"
+	// PmemVolumeGroupNamePrefix ...
+	PmemVolumeGroupNamePrefix = "pmemvg"
 	// PmemRegionNameDefault tag
 	PmemRegionNameDefault = "region0"
 	// fsckErrorsCorrected tag
@@ -84,31 +87,33 @@ func MaintainPMEM(pmemType string, mounter k8smount.Interface) error {
 		return nil
 	}
 	log.Infof("Get Regions Info: %v", regions)
-
-	if pmemType == "lvm" {
+	switch pmemType {
+	case types.PmemLVMType:
 		if err := MaintainLVM(regions); err != nil {
 			log.Errorf("MaintainLVM got error: %v", err)
 			return err
 		}
-		log.Infof("MaintainLVM Successful")
-	} else if pmemType == "direct" {
+		log.Info("MaintainLVM Successful")
+	case types.PmemDirectType:
 		if err := MaintainDirect(regions); err != nil {
 			log.Errorf("MaintainDirect got error: %v", err)
 			return err
 		}
-		log.Infof("MaintainDirect Successful")
-	} else if pmemType == "kmem" {
+		log.Info("MaintainDirect Successful")
+	case types.PmemKmemType:
 		if err := MaintainKMEM(regions); err != nil {
 			log.Errorf("MaintainKMEM got error: %v", err)
 			return err
 		}
-	} else if pmemType == "projquota" {
-		if err := MaintainProjQuota(regions, mounter); err != nil {
+		log.Info("MaintainKMEM Successful")
+	case types.PmemQuotaPathType:
+		if err := MaintainQuotaPath(regions, mounter); err != nil {
 			log.Errorf("MaintainProjQuota got error: %v", err)
 			return err
 		}
-	} else {
-		log.Warnf("Set pmem type %s is not supported", pmemType)
+		log.Info("MaintainProjQuota Successful")
+	default:
+		log.Error("MaintainPMEM: unsupport pmem type")
 	}
 
 	return nil
@@ -123,7 +128,7 @@ func MaintainDirect(regions *PmemRegions) error {
 func MaintainKMEM(regions *PmemRegions) error {
 	for _, region := range regions.Regions {
 		if len(region.Namespaces) == 0 {
-			err := createNameSpace(region.Dev, "kmem")
+			err := createNameSpace(region.Dev, types.PmemKmemType)
 			if err != nil {
 				log.Errorf("Create kmem NameSpace error for region: %s", region.Dev)
 				return errors.New("Create NameSpace error for region: " + region.Dev)
@@ -147,30 +152,28 @@ func MaintainKMEM(regions *PmemRegions) error {
 	return nil
 }
 
-// MaintainProjQuota maintain project quota file system
-func MaintainProjQuota(regions *PmemRegions, mounter k8smount.Interface) error {
+// MaintainQuotaPath maintain project quota file system
+func MaintainQuotaPath(regions *PmemRegions, mounter k8smount.Interface) error {
 	for _, region := range regions.Regions {
 		if len(region.Namespaces) == 0 {
-			err := createNameSpace(region.Dev, "lvm")
+			err := createNameSpace(region.Dev, types.PmemQuotaPathType)
 			if err != nil {
 				log.Errorf("Create projQuota namespace error for region: %s", region.Dev)
 				return errors.New("Create projQuota namespace error for region " + region.Dev)
 			}
 		}
-		mntOptions := []string{"prjquota", "shared"}
-		fsType := "ext4"
 		mkfsOptions := strings.Split("-O project,quota", " ")
 		devicePath, namespaceName, err := checkProjQuotaNamespaceValid(region.Dev)
 		if err != nil {
 			return err
 		}
-		namespaceFullPath := fmt.Sprintf("/mnt/quotapath.%s", namespaceName)
+		namespaceFullPath := fmt.Sprintf(types.PmemProjectQuotaBasePath, namespaceName)
 		err = EnsureFolder(namespaceFullPath)
 		if err != nil {
 			return err
 		}
 		diskMounter := &k8smount.SafeFormatAndMount{Interface: mounter, Exec: utilexec.New()}
-		err = formatAndMount(diskMounter, devicePath, namespaceFullPath, fsType, mkfsOptions, mntOptions)
+		err = formatAndMount(diskMounter, devicePath, namespaceFullPath, types.PmemDeviceFilesystem, mkfsOptions)
 		if err != nil {
 			return err
 		}
@@ -183,7 +186,7 @@ func MaintainLVM(regions *PmemRegions) error {
 	// Create Namespaces if not exist
 	for _, region := range regions.Regions {
 		if len(region.Namespaces) == 0 {
-			if err := createNameSpace(region.Dev, "lvm"); err != nil {
+			if err := createNameSpace(region.Dev, types.PmemLVMType); err != nil {
 				log.Errorf("Create lvm NameSpace error for region: %s", region.Dev)
 				return errors.New("Create NameSpace error for region: " + region.Dev)
 			}
@@ -214,18 +217,23 @@ func MaintainLVM(regions *PmemRegions) error {
 		}
 
 		if len(deviceList) > 0 && needCreate {
-			if region.Dev == "region0" {
-				if err := createPmemVG(deviceList, PmemVolumeGroupNameRegion0); err != nil {
-					return err
-				}
-
-			} else if region.Dev == "region1" {
-				if err := createPmemVG(deviceList, PmemVolumeGroupNameRegion1); err != nil {
-					return err
-				}
-			} else {
-				return errors.New("Create volumegroup with not supported region " + region.Dev)
+			vgName := PmemVolumeGroupNamePrefix + region.Dev
+			if err := createPmemVG(deviceList, vgName); err != nil {
+				return err
 			}
+
+			// if region.Dev == "region0" {
+			// 	if err := createPmemVG(deviceList, PmemVolumeGroupNameRegion0); err != nil {
+			// 		return err
+			// 	}
+
+			// } else if region.Dev == "region1" {
+			// 	if err := createPmemVG(deviceList, PmemVolumeGroupNameRegion1); err != nil {
+			// 		return err
+			// 	}
+			// } else {
+			// 	return errors.New("Create volumegroup with not supported region " + region.Dev)
+			// }
 		}
 	}
 	return nil

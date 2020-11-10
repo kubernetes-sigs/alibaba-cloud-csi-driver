@@ -19,6 +19,7 @@ limitations under the License.
 package server
 
 import (
+	"crypto/sha256"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -27,6 +28,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -359,18 +361,35 @@ func ListNameSpace() ([]*lib.NameSpace, error) {
 	return namespaces, nil
 }
 
+func convertString2int(origin string) string {
+	h := sha256.New()
+	h.Write([]byte(origin))
+	hashResult := fmt.Sprintf("%x", h.Sum(nil))
+	for {
+		if hashResult[0] == '0' {
+			hashResult = hashResult[1:]
+			continue
+		}
+		break
+	}
+	return str2ASCII(hashResult[:9])[:9]
+}
+
 func str2ASCII(origin string) string {
-	runes := []rune(origin)
 	var result string
-	for i := 0; i < len(runes); i++ {
-		result += strconv.Itoa(int(runes[i]))
+	for _, c := range origin {
+		if !unicode.IsDigit(c) {
+			result += strconv.Itoa(int(rune(c)))
+		} else {
+			result += string(c)
+		}
 	}
 	return result
 }
 
 // SetProjectID2PVSubpath ...
 func SetProjectID2PVSubpath(namespace, subPath string) (string, error) {
-	projectID := str2ASCII(subPath)
+	projectID := convertString2int(subPath)
 	quotaSubpath := fmt.Sprintf(ProjQuotaPrefix, namespace, subPath)
 	args := []string{NsenterCmd, "chattr", "+P -p", fmt.Sprintf("%s %s", projectID, quotaSubpath)}
 	cmd := strings.Join(args, " ")
@@ -457,7 +476,8 @@ func CreateProjQuotaSubpath(ctx context.Context, subPath, quotaSize string) (str
 }
 
 // SetSubpathProjQuota ...
-func SetSubpathProjQuota(ctx context.Context, projQuotaSubpath, projectID, blockHardlimit, blockSoftlimit string) (string, error) {
+func SetSubpathProjQuota(ctx context.Context, projQuotaSubpath, blockHardlimit, blockSoftlimit string) (string, error) {
+	projectID := convertString2int(filepath.Base(projQuotaSubpath))
 	args := []string{NsenterCmd, "setquota", "-P", fmt.Sprintf("%s %s %s 0 0 %s", projectID, blockHardlimit, blockHardlimit, filepath.Dir(projQuotaSubpath))}
 	cmd := strings.Join(args, " ")
 	_, err := utils.Run(cmd)
@@ -469,7 +489,7 @@ func SetSubpathProjQuota(ctx context.Context, projQuotaSubpath, projectID, block
 
 // RemoveProjQuotaSubpath ...
 func RemoveProjQuotaSubpath(ctx context.Context, quotaSubpath string) (string, error) {
-	args := []string{NsenterCmd, "rm", "-r", quotaSubpath}
+	args := []string{NsenterCmd, "rm", "-rf", quotaSubpath}
 	cmd := strings.Join(args, " ")
 	out, err := utils.Run(cmd)
 	if err != nil {

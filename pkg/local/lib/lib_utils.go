@@ -14,32 +14,22 @@ import (
 )
 
 // formatAndMount uses unix utils to format and mount the given disk
-func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, target string, fstype string, mkfsOptions []string, mountOptions []string) error {
-	readOnly := false
-	for _, option := range mountOptions {
-		if option == "ro" {
-			readOnly = true
-			break
-		}
-	}
+func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, target string, fstype string, mkfsOptions []string) error {
 
-	log.Infof("show me the readonly: %v", readOnly)
-	if !readOnly {
-		// Run fsck on the disk to fix repairable issues, only do this for volumes requested as rw.
-		args := []string{"-a", source}
+	// Run fsck on the disk to fix repairable issues, only do this for volumes requested as rw.
+	args := []string{"-a", source}
 
-		out, err := diskMounter.Exec.Command("fsck", args...).CombinedOutput()
-		if err != nil {
-			ee, isExitError := err.(utilexec.ExitError)
-			switch {
-			case err == utilexec.ErrExecutableNotFound:
-				log.Warningf("'fsck' not found on system; continuing mount without running 'fsck'.")
-			case isExitError && ee.ExitStatus() == fsckErrorsCorrected:
-				log.Infof("Device %s has errors which were corrected by fsck.", source)
-			case isExitError && ee.ExitStatus() == fsckErrorsUncorrected:
-				return fmt.Errorf("'fsck' found errors on device %s but could not correct them: %s", source, string(out))
-			case isExitError && ee.ExitStatus() > fsckErrorsUncorrected:
-			}
+	out, err := diskMounter.Exec.Command("fsck", args...).CombinedOutput()
+	if err != nil {
+		ee, isExitError := err.(utilexec.ExitError)
+		switch {
+		case err == utilexec.ErrExecutableNotFound:
+			log.Warningf("'fsck' not found on system; continuing mount without running 'fsck'.")
+		case isExitError && ee.ExitStatus() == fsckErrorsCorrected:
+			log.Infof("Device %s has errors which were corrected by fsck.", source)
+		case isExitError && ee.ExitStatus() == fsckErrorsUncorrected:
+			return fmt.Errorf("'fsck' found errors on device %s but could not correct them: %s", source, string(out))
+		case isExitError && ee.ExitStatus() > fsckErrorsUncorrected:
 		}
 	}
 
@@ -47,7 +37,6 @@ func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 	// mountErr := diskMounter.Interface.Mount(source, target, fstype, mountOptions)
 	_, mountErr := utils.Run(fmt.Sprintf("%s mount -t %s -o prjquota %s %s", NsenterCmd, fstype, source, target))
 	if mountErr != nil {
-		log.Infof("show me err: %v", mountErr)
 		// Mount failed. This indicates either that the disk is unformatted or
 		// it contains an unexpected filesystem.
 		existingFormat, err := diskMounter.GetDiskFormat(source)
@@ -55,11 +44,6 @@ func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 			return err
 		}
 		if existingFormat == "" {
-			if readOnly {
-				// Don't attempt to format if mounting as readonly, return an error to reflect this.
-				return errors.New("failed to mount unformatted volume as read only")
-			}
-
 			// Disk is unformatted so format it.
 			args := []string{source}
 			// Use 'ext4' as the default
@@ -341,4 +325,3 @@ func EnsureFolder(target string) error {
 	}
 	return nil
 }
-

@@ -25,6 +25,19 @@ const (
 	LocalDriverName = "localplugin.csi.alibabacloud.com"
 	// NodeSchedueTag in annotations
 	NodeSchedueTag = "volume.kubernetes.io/selected-node"
+
+	// PmemProjectQuotaBasePath ...
+	PmemProjectQuotaBasePath = "/mnt/quotapath.%s"
+	// PmemDeviceFilesystem ...
+	PmemDeviceFilesystem = "ext4"
+	// PmemLVMType ...
+	PmemLVMType = "lvm"
+	// PmemDirectType ...
+	PmemDirectType = "direct"
+	// PmemQuotaPathType ...
+	PmemQuotaPathType = "quotapath"
+	// PmemKmemType ...
+	PmemKmemType = "kmem"
 )
 
 const (
@@ -32,6 +45,8 @@ const (
 	VolumeSpecLabel = "pv.csi.alibabacloud.com/volume.spec"
 	// VolumeLifecycleLabel tag
 	VolumeLifecycleLabel = "pv.csi.alibabacloud.com/volume.lifecycle"
+	// PmemNodeLable ...
+	PmemNodeLable = "pmem.csi.alibabacloud.com/type"
 	// VolumeLifecycleCreating tag
 	VolumeLifecycleCreating = "creating"
 	// VolumeLifecycleCreated tag
