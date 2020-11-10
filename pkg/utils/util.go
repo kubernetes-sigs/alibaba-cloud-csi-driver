@@ -468,6 +468,7 @@ func IsMountPointRunv(mountPoint string) bool {
 	return false
 }
 
+// Ping check network like shell ping command
 func Ping(ipAddress string) (*ping.Statistics, error) {
 	pinger, err := ping.NewPinger(ipAddress)
 	if err != nil {

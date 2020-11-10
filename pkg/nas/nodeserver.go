@@ -78,7 +78,7 @@ const (
 	MixRunTimeMode = "runc-runv"
 	// RunvRunTimeMode tag
 	RunvRunTimeMode = "runv"
-	// NasMntPoint
+	// NasMntPoint tag
 	NasMntPoint = "/mnt/nasplugin.alibabacloud.com"
 )
 
