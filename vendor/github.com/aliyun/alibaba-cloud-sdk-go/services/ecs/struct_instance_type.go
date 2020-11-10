@@ -21,6 +21,7 @@ type InstanceType struct {
 	EniPrivateIpAddressQuantity int     `json:"EniPrivateIpAddressQuantity" xml:"EniPrivateIpAddressQuantity"`
 	InstancePpsRx               int64   `json:"InstancePpsRx" xml:"InstancePpsRx"`
 	CpuCoreCount                int     `json:"CpuCoreCount" xml:"CpuCoreCount"`
+	EniTotalQuantity            int     `json:"EniTotalQuantity" xml:"EniTotalQuantity"`
 	Cores                       int     `json:"Cores" xml:"Cores"`
 	InstanceTypeId              string  `json:"InstanceTypeId" xml:"InstanceTypeId"`
 	InstanceBandwidthRx         int     `json:"InstanceBandwidthRx" xml:"InstanceBandwidthRx"`
@@ -35,9 +36,13 @@ type InstanceType struct {
 	InstanceFamilyLevel         string  `json:"InstanceFamilyLevel" xml:"InstanceFamilyLevel"`
 	TotalEniQueueQuantity       int     `json:"TotalEniQueueQuantity" xml:"TotalEniQueueQuantity"`
 	GPUSpec                     string  `json:"GPUSpec" xml:"GPUSpec"`
+	SecondaryEniQueueNumber     int     `json:"SecondaryEniQueueNumber" xml:"SecondaryEniQueueNumber"`
 	InstanceBandwidthTx         int     `json:"InstanceBandwidthTx" xml:"InstanceBandwidthTx"`
+	MaximumQueueNumberPerEni    int     `json:"MaximumQueueNumberPerEni" xml:"MaximumQueueNumberPerEni"`
+	PrimaryEniQueueNumber       int     `json:"PrimaryEniQueueNumber" xml:"PrimaryEniQueueNumber"`
 	Memory                      int     `json:"Memory" xml:"Memory"`
 	BaselineCredit              int     `json:"BaselineCredit" xml:"BaselineCredit"`
+	EniTrunkSupported           bool    `json:"EniTrunkSupported" xml:"EniTrunkSupported"`
 	GPUAmount                   int     `json:"GPUAmount" xml:"GPUAmount"`
 	EniIpv6AddressQuantity      int     `json:"EniIpv6AddressQuantity" xml:"EniIpv6AddressQuantity"`
 	LocalStorageCapacity        int64   `json:"LocalStorageCapacity" xml:"LocalStorageCapacity"`
