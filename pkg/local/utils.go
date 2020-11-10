@@ -223,7 +223,7 @@ func getPVNumber(vgName string) int {
 func getPvObj(client kubernetes.Interface, volumeID string) (*v1.PersistentVolume, error) {
 	return client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
 }
-func getLvmSpec(client kubernetes.Interface, volumeID, driverName string) (string, string, *v1.PersistentVolume, error) {
+func getPvSpec(client kubernetes.Interface, volumeID, driverName string) (string, string, *v1.PersistentVolume, error) {
 	pv, err := getPvObj(client, volumeID)
 	if err != nil {
 		log.Errorf("Get Lvm Spec for volume %s, error with %v", volumeID, err)

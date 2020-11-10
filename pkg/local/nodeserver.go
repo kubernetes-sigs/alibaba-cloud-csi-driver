@@ -154,38 +154,37 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		volumeType = req.VolumeContext[VolumeTypeTag]
 	}
 
-	if volumeType == LvmVolumeType {
+	switch volumeType {
+	case LvmVolumeType:
 		err := ns.mountLvm(ctx, req)
 		if err != nil {
 			log.Errorf("NodePublishVolume: mount lvm volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
 			return nil, err
 		}
-	} else if volumeType == MountPointType {
+	case MountPointType:
 		err := ns.mountLocalVolume(ctx, req)
 		if err != nil {
 			log.Errorf("NodePublishVolume: mount mountpoint volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
 			return nil, err
 		}
-	} else if volumeType == DeviceVolumeType {
+	case DeviceVolumeType:
 		err := ns.mountDeviceVolume(ctx, req)
 		if err != nil {
 			log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
 			return nil, err
 		}
-	} else if volumeType == PmemVolumeType {
+	case PmemVolumeType:
 		err := ns.mountPmemVolume(ctx, req)
 		if err != nil {
 			log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
 			return nil, err
 		}
-	} else {
+	default:
 		log.Errorf("NodePublishVolume: unsupported volume %s with type %s", req.VolumeId, volumeType)
 		return nil, status.Error(codes.Internal, "volumeType is not support "+volumeType)
 	}
-
 	log.Infof("NodePublishVolume: Successful mount volume %s to %s", req.VolumeId, targetPath)
 	return &csi.NodePublishVolumeResponse{}, nil
-
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {

@@ -29,7 +29,6 @@ message SetSubpathProjQuotaRequest {
   string block_hardlimit = 3; 
   string inode_softlimit = 4; 
   string inode_hardlimit = 5;
-  string project_id = 6;
 }
 
 message SetSubpathProjQuotaReply {

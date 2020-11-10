@@ -216,7 +216,7 @@ func (s ProjQuotaServer) CreateProjQuotaSubpath(ctx context.Context, in *lib.Cre
 // SetSubpathProjQuota ...
 func (s ProjQuotaServer) SetSubpathProjQuota(ctx context.Context, in *lib.SetSubpathProjQuotaRequest) (*lib.SetSubpathProjQuotaReply, error) {
 	log.Infof("SetSubpathProjQuota with %+v", in)
-	out, err := SetSubpathProjQuota(ctx, in.ProjQuotaSubpath, in.ProjectId, in.BlockHardlimit, in.BlockSoftlimit)
+	out, err := SetSubpathProjQuota(ctx, in.ProjQuotaSubpath, in.BlockHardlimit, in.BlockSoftlimit)
 	if err != nil {
 		log.Errorf("SetSubpathProjQuota with error: %s", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to set projQuota to subpath: %v", err)
