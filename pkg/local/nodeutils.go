@@ -181,6 +181,10 @@ func (ns *nodeServer) mountPmemVolume(ctx context.Context, req *csi.NodePublishV
 	if vgName == "" {
 		vgName = lib.PmemVolumeGroupNameRegion0
 	}
+	pmemType := ""
+	if _, ok := req.VolumeContext[PmemType]; ok {
+		pmemType = req.VolumeContext[PmemType]
+	}
 
 	// parse lvm type and fstype
 	lvmType := LinearType
@@ -205,23 +209,24 @@ func (ns *nodeServer) mountPmemVolume(ctx context.Context, req *csi.NodePublishV
 	//volumeNewCreated := false
 	volumeID := req.GetVolumeId()
 	devicePath := filepath.Join("/dev/", vgName, volumeID)
-	if pmemBlockDev == "" {
-		if _, err := os.Stat(devicePath); os.IsNotExist(err) {
-			//volumeNewCreated = true
-			err := createVolume(ctx, volumeID, vgName, "", lvmType)
-			if err != nil {
-				log.Errorf("NodePublishVolume: create volume %s with error: %s", volumeID, err.Error())
+	if pmemType != "kmem" {
+		if pmemBlockDev == "" {
+			if _, err := os.Stat(devicePath); os.IsNotExist(err) {
+				//volumeNewCreated = true
+				err := createVolume(ctx, volumeID, vgName, "", lvmType)
+				if err != nil {
+					log.Errorf("NodePublishVolume: create volume %s with error: %s", volumeID, err.Error())
+					return status.Error(codes.Internal, err.Error())
+				}
+			}
+		} else {
+			devicePath = filepath.Join("/dev/", pmemBlockDev)
+			if _, err := os.Stat(devicePath); os.IsNotExist(err) {
 				return status.Error(codes.Internal, err.Error())
 			}
+			ns.checkPmemNameSpaceResize(volumeID, targetPath)
 		}
-	} else {
-		devicePath = filepath.Join("/dev/", pmemBlockDev)
-		if _, err := os.Stat(devicePath); os.IsNotExist(err) {
-			return status.Error(codes.Internal, err.Error())
-		}
-		ns.checkPmemNameSpaceResize(volumeID, targetPath)
 	}
-
 	// Check target mounted
 	isMnt, err := ns.mounter.IsMounted(targetPath)
 	if err != nil {
@@ -238,21 +243,38 @@ func (ns *nodeServer) mountPmemVolume(ctx context.Context, req *csi.NodePublishV
 	}
 
 	if !isMnt {
-		var options []string
-		if req.GetReadonly() {
-			options = append(options, "ro")
+		if pmemType == "kmem" {
+			pvSize, pvSizeUnit, _ := getPvInfo(volumeID)
+			devicePath = "tmpfs"
+			kmemSize := fmt.Sprintf("%v%s", pvSize, pvSizeUnit)
+			mpol, err := pickRegionForKMEM(kmemSize)
+			if err != nil {
+				log.Errorf("NodeStageVolume: Volume: %s, Device: %s, pick region for KMEM err: %s", req.VolumeId, devicePath, err.Error())
+				return status.Error(codes.Internal, err.Error())
+			}
+			mountCmd := fmt.Sprintf("%s mount -t %s -o size=%s,mpol=%s %s %s", NsenterCmd, devicePath, kmemSize, mpol, devicePath, targetPath)
+			_, err = utils.Run(mountCmd)
+			if err != nil {
+				log.Errorf("NodeStageVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, devicePath, err.Error())
+				return status.Error(codes.Internal, err.Error())
+			}
 		} else {
-			options = append(options, "rw")
-		}
-		mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
-		options = append(options, mountFlags...)
+			var options []string
+			if req.GetReadonly() {
+				options = append(options, "ro")
+			} else {
+				options = append(options, "rw")
+			}
+			mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
+			options = append(options, mountFlags...)
 
-		diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
-		if err := diskMounter.FormatAndMount(devicePath, targetPath, fsType, options); err != nil {
-			log.Errorf("NodeStageVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, devicePath, err.Error())
-			return status.Error(codes.Internal, err.Error())
+			diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
+			if err := diskMounter.FormatAndMount(devicePath, targetPath, fsType, options); err != nil {
+				log.Errorf("NodeStageVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, devicePath, err.Error())
+				return status.Error(codes.Internal, err.Error())
+			}
+			log.Infof("NodePublishVolume:: mount successful devicePath: %s, targetPath: %s, options: %v", devicePath, targetPath, options)
 		}
-		log.Infof("NodePublishVolume:: mount successful devicePath: %s, targetPath: %s, options: %v", devicePath, targetPath, options)
 	}
 
 	// upgrade PV with NodeAffinity
@@ -410,4 +432,8 @@ func createLvm(vgName, volumeID, lvmType, unit string, pvSize int64) error {
 		log.Infof("Successful Create Linear LVM volume: %s, with command: %s", volumeID, cmd)
 	}
 	return nil
+}
+
+func pickRegionForKMEM(size string) (string, error) {
+	return "bind:3", nil
 }

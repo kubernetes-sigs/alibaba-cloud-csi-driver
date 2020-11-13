@@ -1,4 +1,3 @@
-# github.com/Microsoft/go-winio v0.4.14
 github.com/Microsoft/go-winio
 github.com/Microsoft/go-winio/pkg/guid
 # github.com/aliyun/alibaba-cloud-sdk-go v1.61.550-0.20201010055725-73672738e6a8
@@ -55,6 +54,7 @@ github.com/emirpasic/gods/containers
 github.com/emirpasic/gods/sets
 github.com/emirpasic/gods/sets/hashset
 github.com/emirpasic/gods/utils
+github.com/go-ping/ping
 # github.com/gogo/protobuf v1.3.1 => github.com/gogo/protobuf v1.3.1
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/sortkeys
@@ -164,16 +164,23 @@ golang.org/x/crypto/ed25519
 golang.org/x/crypto/ed25519/internal/edwards25519
 golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20200822124328-c89045814202 => golang.org/x/net v0.0.0-20190301231341-16b79f2e4e95
+# golang.org/x/net v0.0.0-20200904194848-62affa334b73 => golang.org/x/net v0.0.0-20190301231341-16b79f2e4e95
+golang.org/x/net/bpf
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
+golang.org/x/net/icmp
 golang.org/x/net/idna
 golang.org/x/net/internal/socks
 golang.org/x/net/internal/timeseries
 golang.org/x/net/proxy
+golang.org/x/net/internal/iana
+golang.org/x/net/internal/socket
+golang.org/x/net/internal/timeseries
+golang.org/x/net/ipv4
+golang.org/x/net/ipv6
 golang.org/x/net/trace
 # golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d => golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421
 golang.org/x/oauth2
