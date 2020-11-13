@@ -5,12 +5,14 @@ go 1.12
 require (
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.550-0.20201010055725-73672738e6a8
 	github.com/container-storage-interface/spec v1.2.0
+	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
 	github.com/emirpasic/gods v1.12.0
 	github.com/go-kit/kit v0.9.0 // indirect
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.3.5
 	github.com/google/credstore v0.0.0-20181218150457-e184c60ef875 // indirect
+	github.com/google/go-cmp v0.4.0 // indirect
 	github.com/google/go-microservice-helpers v0.0.0-20190205165657-a91942da5417
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/googleapis/gnostic v0.5.1 // indirect
@@ -18,6 +20,7 @@ require (
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
+	github.com/kubernetes-csi/csi-lib-utils v0.7.0 // indirect
 	github.com/kubernetes-csi/drivers v1.0.2
 	github.com/kubernetes-csi/external-snapshotter v1.2.2 // indirect
 	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.1-0.20200504125226-859696c419ff // indirect
@@ -45,7 +48,6 @@ require (
 	k8s.io/client-go v0.18.8
 	k8s.io/kube-openapi v0.0.0-20200811211545-daf3cbb84823 // indirect
 	k8s.io/kubernetes v1.18.8
-	k8s.io/sample-controller v0.18.8 // indirect
 	k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89
 )
 

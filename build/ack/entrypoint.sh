@@ -54,7 +54,7 @@ if [ "$run_oss" = "true" ]; then
     echo "Starting deploy oss csi-plugin...."
 
     ossfsVer="1.80.6.ack.1"
-    if [ "$zone_id" == "cn-zhangjiakou-a" ] && [ "$USE_UPDATE_OSSFS" == "" ]; then
+    if [ "$USE_UPDATE_OSSFS" == "" ]; then
         ossfsVer="1.86.1.ack.1"
     fi
 
