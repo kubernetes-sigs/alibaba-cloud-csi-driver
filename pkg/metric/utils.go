@@ -13,6 +13,7 @@ import (
 	apicorev1 "k8s.io/api/core/v1"
 	apismetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,18 +39,19 @@ func procFilePath(name string) string {
 	return filepath.Join(procPath, name)
 }
 
-func getVolumeIDByJSON(volDataJSONPath string, volType string) (string, error) {
+func getVolumeInfoByJSON(volDataJSONPath string, volType string) (string, string, error) {
 	volDataMap, err := utils.ReadJSONFile(volDataJSONPath)
 	if err != nil {
-		return "", err
+		log.Errorf("Read json path %s is failed, err:%s", volDataJSONPath, err)
+		return "", "", err
 	}
 	if volDataMap["driverName"] == volType {
-		return volDataMap["volumeHandle"], nil
+		return volDataMap["specVolID"], volDataMap["volumeHandle"], nil
 	}
-	return "", errors.New("VolumeType is not the expected type")
+	return "", "", errors.New("VolumeType is not the expected type")
 }
 
-func findVolDataJSONFileByPattern(rootDir string) ([]string, error) {
+func findVolJSONByDisk(rootDir string) ([]string, error) {
 	resDir := make([]string, 0)
 	rootFiles, err := ioutil.ReadDir(rootDir)
 	if err != nil {
@@ -72,14 +74,13 @@ func findVolDataJSONFileByPattern(rootDir string) ([]string, error) {
 }
 
 // ExecCheckOutput check output
-func ExecCheckOutput(cmd string, args ...string) (io.Reader, error) {
+func execCheckOutput(cmd string, args ...string) (io.Reader, error) {
 	c := exec.Command(cmd, args...)
 	stdout := bytes.NewBuffer(nil)
 	stderr := bytes.NewBuffer(nil)
 	c.Stdout = stdout
 	c.Stderr = stderr
 	if err := c.Run(); err != nil {
-
 		return nil, errors.New("cmd:" + cmd + ", stdout: " + stdout.String() + ", stderr: " + stderr.String() + ", err: " + err.Error())
 	}
 
@@ -87,7 +88,7 @@ func ExecCheckOutput(cmd string, args ...string) (io.Reader, error) {
 }
 
 // FindLines parse lines
-func FindLines(reader io.Reader, keyword string) []string {
+func findLines(reader io.Reader, keyword string) []string {
 	var matched []string
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
@@ -100,14 +101,14 @@ func FindLines(reader io.Reader, keyword string) []string {
 }
 
 // IsVFNode returns whether the current node is vf
-func IsVFNode() bool {
+func isVFNode() bool {
 	vfOnce.Do(func() {
-		output, err := ExecCheckOutput("lspci", "-D")
+		output, err := execCheckOutput("lspci", "-D")
 		if err != nil {
 			log.Fatalf("[IsVFNode] lspci -D: %v", err)
 		}
 		// 0000:4b:00.0 SCSI storage controller: Device 1ded:1001
-		matched := FindLines(output, "storage controller")
+		matched := findLines(output, "storage controller")
 		if len(matched) == 0 {
 			log.Fatal("[IsVFNode] not found storage controller")
 		}
@@ -120,12 +121,12 @@ func IsVFNode() bool {
 			if !strings.HasSuffix(bdf, ".0") {
 				continue
 			}
-			output, err = ExecCheckOutput("lspci", "-s", bdf, "-v")
+			output, err = execCheckOutput("lspci", "-s", bdf, "-v")
 			if err != nil {
 				log.Fatalf("[IsVFNode] lspic -s %s -v: %v", bdf, err)
 			}
 			// Capabilities: [110] Single Root I/O Virtualization (SR-IOV)
-			matched = FindLines(output, "Single Root I/O Virtualization")
+			matched = findLines(output, "Single Root I/O Virtualization")
 			if len(matched) > 0 {
 				isVF = true
 				break
@@ -158,9 +159,9 @@ func getDeviceSerial(serial string) (device string) {
 // GetDeviceByVolumeID First try to find the device by serial
 // If cannot find the device using the serial number, get device by volumeID, link file should be like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
-func GetDeviceByVolumeID(volumeID string) (device string, err error) {
+func getDeviceByVolumeID(volumeID string) (device string, err error) {
 	// this is danger in Bdf mode
-	if !IsVFNode() {
+	if !isVFNode() {
 		device = getDeviceSerial(strings.TrimPrefix(volumeID, "d-"))
 		if device != "" {
 			return device, nil
@@ -211,4 +212,51 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 	}
 	log.Infof("Device Link Info: %s link to %s", volumeLinPath, resolved)
 	return resolved, nil
+}
+
+func listDirectory(rootPath string) ([]string, error) {
+	var fileLists []string
+	files, err := ioutil.ReadDir(rootPath)
+	if err != nil {
+		log.Errorf("List Directory %s is failed, err:%s", rootPath, err.Error())
+		return nil, err
+	}
+	for _, f := range files {
+		fileLists = append(fileLists, f.Name())
+	}
+	return fileLists, nil
+}
+
+func almostEqualFloat64(a, b float64) bool {
+	return math.Abs(a-b) <= float64EqualityThreshold
+}
+
+func parseLantencyThreshold(s string, defaults float64) (float64, error) {
+	var thresholNum int
+	var threshodUnit string
+	_, err := fmt.Sscanf(s, "%d%s", &thresholNum, &threshodUnit)
+	if err != nil {
+		log.Errorf("Parse latency threshold %s is failed, err:%s", s, err)
+		return defaults, err
+	}
+	switch threshodUnit {
+	case "s", "second", "seconds":
+		return float64(thresholNum * 1000), nil
+	case "ms", "millisecond", "milliseconds":
+		return float64(thresholNum), nil
+	case "us", "microsecond", "microseconds":
+		return float64(thresholNum / 1000), nil
+	default:
+		return defaults, nil
+	}
+}
+
+func parseCapacityThreshold(s string, defaults float64) (float64, error) {
+	var thresholNum float64
+	_, err := fmt.Sscanf(s, "%f", &thresholNum)
+	if err != nil {
+		log.Errorf("Parse  threshold %s is failed, err:%s", s, err)
+		return defaults, err
+	}
+	return thresholNum, nil
 }
