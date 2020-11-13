@@ -245,13 +245,13 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		} else if nodeSelected != "" {
 			paraList, err = mountpointPartScheduled(nodeSelected, pvcName, pvcNameSpace, parameters)
 			if err != nil {
-				return nil, status.Error(codes.InvalidArgument, "Parse lvm part schedule info error "+err.Error())
+				return nil, status.Error(codes.InvalidArgument, "Parse mountpoint part schedule info error "+err.Error())
 			}
 		} else {
 			nodeID := ""
 			nodeID, paraList, err = mountpointNoScheduled(parameters)
 			if err != nil {
-				return nil, status.Error(codes.InvalidArgument, "Parse lvm schedule info error "+err.Error())
+				return nil, status.Error(codes.InvalidArgument, "Parse mountpoint schedule info error "+err.Error())
 			}
 			nodeSelected = nodeID
 		}
@@ -278,7 +278,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 	case PmemVolumeType:
 		if _, ok := parameters[PmemType]; !ok {
-			parameters[PmemType] = types.PmemDirectType
+			return nil, status.Error(codes.InvalidArgument, "Parse pmem volume error, pmemType is null")
 		}
 		pmemType := strings.ToLower(parameters[PmemType])
 

@@ -138,13 +138,13 @@ func (c *workerConnection) CreateLvm(ctx context.Context, opt *LVMOptions) (stri
 
 func (c *workerConnection) CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*lib.PmemNameSpace, error) {
 	client := lib.NewLVMClient(c.conn)
-	req := lib.CreateNameSpaceRequest{
+	req := lib.CreateNamespaceRequest{
 		Name:   opt.Name,
 		Size:   opt.Size,
 		Region: opt.Region,
 	}
 
-	rsp, err := client.CreateNameSpace(ctx, &req)
+	rsp, err := client.CreateNamespace(ctx, &req)
 	if err != nil {
 		log.Errorf("Create Lvm with error: %s", err.Error())
 		return nil, err
@@ -160,12 +160,12 @@ func (c *workerConnection) CreateNameSpace(ctx context.Context, opt *NameSpaceOp
 
 func (c *workerConnection) GetNameSpace(ctx context.Context, regionName string, volumeID string) (string, error) {
 	client := lib.NewLVMClient(c.conn)
-	req := lib.ListNameSpaceRequest{
+	req := lib.ListNamespaceRequest{
 		NameSpace: volumeID,
 		Region:    regionName,
 	}
 
-	rsp, err := client.ListNameSpace(ctx, &req)
+	rsp, err := client.ListNamespace(ctx, &req)
 	if err != nil {
 		return "", err
 	}
@@ -213,10 +213,10 @@ func (c *workerConnection) DeleteLvm(ctx context.Context, volGroup, volumeID str
 
 func (c *workerConnection) DeleteNameSpace(ctx context.Context, namespace string) error {
 	client := lib.NewLVMClient(c.conn)
-	req := lib.RemoveNameSpaceRequest{
+	req := lib.RemoveNamespaceRequest{
 		NameSpace: namespace,
 	}
-	response, err := client.RemoveNameSpace(ctx, &req)
+	response, err := client.RemoveNamespace(ctx, &req)
 	if err != nil {
 		log.Errorf("Remove Lvm with error: %v", err.Error())
 		return err
