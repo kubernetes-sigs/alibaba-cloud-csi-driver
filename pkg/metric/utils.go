@@ -228,7 +228,7 @@ func listDirectory(rootPath string) ([]string, error) {
 }
 
 func almostEqualFloat64(a, b float64) bool {
-	return math.Abs(a - b) <= float64EqualityThreshold
+	return math.Abs(a-b) <= float64EqualityThreshold
 }
 
 func parseLantencyThreshold(s string, defaults float64) (float64, error) {

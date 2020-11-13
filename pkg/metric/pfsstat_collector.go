@@ -31,24 +31,6 @@ const (
 	pfsRawBlockUnit = 4 * 1024 * 1024
 )
 
-/*var (
-	rawBlockTotalCapacityDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "pfs_block_capacity_total"),
-		"The total capacity of pfs raw block.",
-		diskStatLabelNames, nil,
-	)
-	rawBlockAvailableCapacityDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "pfs_block_capacity_available"),
-		"The available capacity of pfs raw block.",
-		diskStatLabelNames, nil,
-	)
-	rawBlockUsedCapacityDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "pfs_block_capacity_used"),
-		"The used capacity of pfs raw block.",
-		diskStatLabelNames, nil,
-	)
-)*/
-
 type pfsRawBlockStatCollector struct {
 	enable           bool
 	descs            []typedFactorDesc
@@ -56,7 +38,7 @@ type pfsRawBlockStatCollector struct {
 	rawBlockStatsMap map[string][]string
 	kubeClient       *kubernetes.Clientset
 	dockerClient     *client.Client
-	capacityMetux    sync.Mutex
+	capacityMutex    sync.Mutex
 }
 
 func init() {
@@ -76,35 +58,24 @@ func (p *pfsRawBlockStatCollector) updateStatByPolling() {
 	}
 	var err error
 	for {
-		p.capacityMetux.Lock()
-		//1.getPfsRawBlockStats
-		startTime := time.Now()
+		p.capacityMutex.Lock()
+
 		p.rawBlockStatsMap, err = getPfsRawBlockStats(&p.dockerClient)
 		if err != nil {
 			msg := fmt.Sprintf("Couldn't get pfs raw block: %s", err)
 			logrus.Errorf(msg)
 			continue
 		}
-		elapsedTime := time.Since(startTime)
-		logrus.Info("getPfsRawBlockStats spent time:", elapsedTime)
 
-		//2.findVolJSONByPfsRawBlock
-		startTime = time.Now()
 		volJSONPaths, err := findVolJSONByPfsRawBlock(rawBlockRootPath)
 		if err != nil {
 			logrus.Errorf("Find disk vol_data json is failed, err:%s", err)
 			continue
 		}
-		elapsedTime = time.Since(startTime)
-		logrus.Info("findVolJSONByPfsRawBlock spent time:", elapsedTime)
 
-		//3.updateMap
-		startTime = time.Now()
 		updateMap(p.kubeClient, &p.pvStorageInfoMap, volJSONPaths, diskDriverName)
-		elapsedTime = time.Since(startTime)
-		logrus.Info("updateMap spent time:", elapsedTime)
 
-		p.capacityMetux.Unlock()
+		p.capacityMutex.Unlock()
 		time.Sleep(60 * time.Second)
 	}
 }
@@ -133,7 +104,6 @@ func NewPfsRawBlockStatCollector() (Collector, error) {
 		return nil, err
 	}
 
-	metux := sync.Mutex{}
 	pfsBlockCollector := pfsRawBlockStatCollector{
 		enable: enable,
 		descs: []typedFactorDesc{
@@ -145,7 +115,7 @@ func NewPfsRawBlockStatCollector() (Collector, error) {
 
 		kubeClient:    clientset,
 		dockerClient:  client,
-		capacityMetux: metux,
+		capacityMutex: sync.Mutex{},
 	}
 	go pfsBlockCollector.updateStatByPolling()
 	return &pfsBlockCollector, nil
@@ -153,13 +123,11 @@ func NewPfsRawBlockStatCollector() (Collector, error) {
 
 func (p *pfsRawBlockStatCollector) Update(ch chan<- prometheus.Metric) error {
 	if !p.isEnable() {
-		return errors.New("")
+		return nil
 	}
 
-	p.capacityMetux.Lock()
-	defer p.capacityMetux.Unlock()
-	//4.setPfsRawBlockMetric
-	startTime := time.Now()
+	p.capacityMutex.Lock()
+	defer p.capacityMutex.Unlock()
 	wg := sync.WaitGroup{}
 	for pvName, stats := range p.rawBlockStatsMap {
 		info, ok := p.pvStorageInfoMap[pvName]
@@ -172,8 +140,6 @@ func (p *pfsRawBlockStatCollector) Update(ch chan<- prometheus.Metric) error {
 		}
 	}
 	wg.Wait()
-	elapsedTime := time.Since(startTime)
-	logrus.Info("setPfsRawBlockMetric spent time:", elapsedTime)
 
 	return nil
 }
@@ -222,8 +188,7 @@ func getPfsRawBlockStats(dockerClient **client.Client) (map[string][]string, err
 		logrus.Errorf("Get  raw block pv is failed, err:%s", err)
 		return nil, err
 	}
-	//1.listContainerByDocker
-	startTime := time.Now()
+
 	pvStatMapping := make(map[string][]string)
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("status", "running")
@@ -232,24 +197,16 @@ func getPfsRawBlockStats(dockerClient **client.Client) (map[string][]string, err
 	if err != nil {
 		return nil, err
 	}
-	elapsedTime := time.Since(startTime)
-	logrus.Info("listContainerByDocker spent time:", elapsedTime)
 
 	for _, pvName := range pvNameArray {
-		//2.getDockerIDByPvName
-		startTime := time.Now()
 		dockerIDArray, err := getDockerIDByPvName(pvName, containers)
 		if err != nil {
 			logrus.Errorf("Get pod name by pv is failed, err:%s", err)
 			continue
 		}
-		elapsedTime := time.Since(startTime)
-		logrus.Info("getDockerIDByPvName spent time:", elapsedTime)
 
 		for _, dockerID := range dockerIDArray {
 			//rawblock is used by multi pod
-			//3.getStatByDockerID
-			startTime := time.Now()
 			if _, ok := pvStatMapping[pvName]; ok {
 				continue
 			}
@@ -259,16 +216,12 @@ func getPfsRawBlockStats(dockerClient **client.Client) (map[string][]string, err
 				continue
 			}
 			pvStatMapping[pvName] = statArray
-			elapsedTime := time.Since(startTime)
-			logrus.Info("getStatByDockerID spent time:", elapsedTime)
 		}
 	}
 	return pvStatMapping, nil
 }
 
 func getStatByDockerID(dockerID string, dockerClient **client.Client) ([]string, error) {
-	//1.docker exec
-	startTime := time.Now()
 	var stat []string
 	cmd := []string{"sh", "-c", "cd /dev && pfsadm info vda"}
 	execResult, err := execByDocker(context.TODO(), *dockerClient, dockerID, cmd)
@@ -280,11 +233,7 @@ func getStatByDockerID(dockerID string, dockerClient **client.Client) ([]string,
 		logrus.Errorf("Execute cmd %s is failed, errBuffer:%s", cmd, execResult.errBuffer.String())
 		return nil, errors.New(execResult.errBuffer.String())
 	}
-	elapsedTime := time.Since(startTime)
-	logrus.Info("execByDocker spent time:", elapsedTime)
 
-	//1.deal with result
-	startTime = time.Now()
 	pfsadmInfo := execResult.outBuffer.String()
 	pfsadmInfoArray := strings.Split(pfsadmInfo, ",")
 	nallFlag := false
@@ -319,8 +268,7 @@ func getStatByDockerID(dockerID string, dockerClient **client.Client) ([]string,
 		}
 		stat = append(stat, strconv.Itoa(usedCapacity))
 	}
-	elapsedTime = time.Since(startTime)
-	logrus.Info("DealWithResult spent time:", elapsedTime)
+
 	return stat, nil
 }
 

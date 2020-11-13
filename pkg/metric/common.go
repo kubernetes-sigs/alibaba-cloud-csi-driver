@@ -52,7 +52,7 @@ const (
 )
 
 const (
-	latencyTooHigh     = "LatencyTooHigh"
+	latencyTooHigh    = "LatencyTooHigh"
 	capacityNotEnough = "NotEnoughDiskSpace"
 )
 
