@@ -111,6 +111,7 @@ message VolumeGroup {
   string uuid = 4;
 
   repeated string tags = 5;
+  uint64 pv_count = 6;
 }
 
 message ListLVRequest {
@@ -127,6 +128,7 @@ message CreateLVRequest {
   uint64 size = 3;
   uint32 mirrors = 4;
   repeated string tags = 5;
+  bool striping = 6;
 }
 
 message CreateLVReply {
@@ -194,16 +196,69 @@ message RemoveTagLVReply {
   string command_output = 1;
 }
 
+message CleanPathRequest {
+  string path = 1;
+}
+
+message CleanPathReply {
+  string command_output = 1;
+}
+
+message ListNamespaceRequest {
+  string name_space = 1;
+  string region = 2;
+}
+
+message NameSpace {
+  string dev = 1;
+  string mode = 2;
+  string map_type = 3;
+  int64 size = 4;
+  string uuid = 5;
+  int64 sector_size = 6;
+  int64 align = 7;
+  string block_dev = 8;
+  string char_dev = 9;
+  string name  = 10;
+  string region = 11;
+}
+
+message ListNamespaceReply {
+  repeated NameSpace name_space = 1;
+}
+
+message CreateNamespaceRequest {
+  string region = 1;
+  string name = 2;
+  uint64 size = 3;
+}
+
+message CreateNamespaceReply {
+  string command_output = 1;
+}
+
+message RemoveNamespaceRequest {
+  string name_space = 1;
+}
+
+message RemoveNamespaceReply {
+  string command_output = 1;
+}
+
 service LVM {
- rpc ListLV(ListLVRequest) returns (ListLVReply) {}
- rpc CreateLV(CreateLVRequest) returns (CreateLVReply) {}
- rpc RemoveLV(RemoveLVRequest) returns (RemoveLVReply) {}
- rpc CloneLV(CloneLVRequest) returns (CloneLVReply) {}
+  rpc ListLV(ListLVRequest) returns (ListLVReply) {}
+  rpc CreateLV(CreateLVRequest) returns (CreateLVReply) {}
+  rpc RemoveLV(RemoveLVRequest) returns (RemoveLVReply) {}
+  rpc CloneLV(CloneLVRequest) returns (CloneLVReply) {}
 
- rpc AddTagLV(AddTagLVRequest) returns (AddTagLVReply) {}
- rpc RemoveTagLV(RemoveTagLVRequest) returns (RemoveTagLVReply) {}
+  rpc AddTagLV(AddTagLVRequest) returns (AddTagLVReply) {}
+  rpc RemoveTagLV(RemoveTagLVRequest) returns (RemoveTagLVReply) {}
 
- rpc ListVG(ListVGRequest) returns (ListVGReply) {}
- rpc CreateVG(CreateVGRequest) returns (CreateVGReply) {}
- rpc RemoveVG(CreateVGRequest) returns (RemoveVGReply) {}
+  rpc ListVG(ListVGRequest) returns (ListVGReply) {}
+  rpc CreateVG(CreateVGRequest) returns (CreateVGReply) {}
+  rpc RemoveVG(CreateVGRequest) returns (RemoveVGReply) {}
+  rpc CleanPath(CleanPathRequest) returns (CleanPathReply) {}
+  rpc ListNamespace(ListNamespaceRequest) returns (ListNamespaceReply) {}
+  rpc CreateNamespace(CreateNamespaceRequest) returns (CreateNamespaceReply) {}
+  rpc RemoveNamespace(RemoveNamespaceRequest) returns (RemoveNamespaceReply) {}
 }

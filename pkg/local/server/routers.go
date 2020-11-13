@@ -159,8 +159,8 @@ func (s Server) RemoveTagLV(ctx context.Context, in *lib.RemoveTagLVRequest) (*l
 	return &lib.RemoveTagLVReply{CommandOutput: log}, nil
 }
 
-// ListNameSpace list pmem namespace
-func (s Server) ListNameSpace(ctx context.Context, in *lib.ListNameSpaceRequest) (*lib.ListNameSpaceReply, error) {
+// ListNamespace list pmem namespace
+func (s Server) ListNamespace(ctx context.Context, in *lib.ListNamespaceRequest) (*lib.ListNamespaceReply, error) {
 	log.Infof("List NameSpace for pmem: " + in.NameSpace + " == " + in.Region)
 	namespaces, err := ListNameSpace()
 	if err != nil {
@@ -170,15 +170,15 @@ func (s Server) ListNameSpace(ctx context.Context, in *lib.ListNameSpaceRequest)
 	for _, namespace := range namespaces {
 		if namespace.Name == in.NameSpace {
 			log.Infof("List NameSpace with single result: %v", namespace)
-			return &lib.ListNameSpaceReply{NameSpace: []*lib.NameSpace{namespace}}, nil
+			return &lib.ListNamespaceReply{NameSpace: []*lib.NameSpace{namespace}}, nil
 		}
 	}
 	log.Infof("List NameSpace with response: %v", namespaces)
-	return &lib.ListNameSpaceReply{NameSpace: namespaces}, nil
+	return &lib.ListNamespaceReply{NameSpace: namespaces}, nil
 }
 
-// CreateNameSpace create pmem namespace
-func (s Server) CreateNameSpace(ctx context.Context, in *lib.CreateNameSpaceRequest) (*lib.CreateNameSpaceReply, error) {
+// CreateNamespace create pmem namespace
+func (s Server) CreateNamespace(ctx context.Context, in *lib.CreateNamespaceRequest) (*lib.CreateNamespaceReply, error) {
 	log.Infof("Create NameSpace with: %+v", in)
 	out, err := CreateNameSpace(ctx, in.Region, in.Name, in.Size)
 	if err != nil {
@@ -186,11 +186,11 @@ func (s Server) CreateNameSpace(ctx context.Context, in *lib.CreateNameSpaceRequ
 		return nil, status.Errorf(codes.Internal, "failed to create NameSpace: %v", err)
 	}
 	log.Infof("Create NameSpace Successful with result: %+v", out)
-	return &lib.CreateNameSpaceReply{CommandOutput: out}, nil
+	return &lib.CreateNamespaceReply{CommandOutput: out}, nil
 }
 
-// RemoveNameSpace remove pmem namespace
-func (s Server) RemoveNameSpace(ctx context.Context, in *lib.RemoveNameSpaceRequest) (*lib.RemoveNameSpaceReply, error) {
+// RemoveNamespace remove pmem namespace
+func (s Server) RemoveNamespace(ctx context.Context, in *lib.RemoveNamespaceRequest) (*lib.RemoveNamespaceReply, error) {
 	log.Infof("Remove NameSpace with: %+v", in)
 	out, err := RemoveNameSpace(ctx, in.NameSpace)
 	if err != nil {
@@ -198,7 +198,7 @@ func (s Server) RemoveNameSpace(ctx context.Context, in *lib.RemoveNameSpaceRequ
 		return nil, status.Errorf(codes.Internal, "failed to remove NameSpace: %v", err)
 	}
 	log.Infof("Remove NameSpace Successful with result: %+v", out)
-	return &lib.RemoveNameSpaceReply{CommandOutput: out}, nil
+	return &lib.RemoveNamespaceReply{CommandOutput: out}, nil
 }
 
 // CreateProjQuotaSubpath ...
