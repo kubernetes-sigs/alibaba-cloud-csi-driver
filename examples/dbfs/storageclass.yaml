@@ -2,8 +2,8 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
    name: alicloud-dbfs-ssd-zhangjiakou-a
-provisioner: dbfskplugin.csi.alibabacloud.com
+provisioner: dbfsplugin.csi.alibabacloud.com
 parameters:
     zoneId: cn-zhangjiakou-a
-    type: cloud_ssd
+    category: standard
 reclaimPolicy: Delete

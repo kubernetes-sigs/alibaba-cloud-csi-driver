@@ -4,10 +4,8 @@ metadata:
   name: csi-dbfs-data
 spec:
   accessModes:
-    - ReadWriteMany
+  - ReadWriteMany
   resources:
     requests:
       storage: 20Gi
-  selector:
-    matchLabels:
-      alicloud-pvname: csi-dbfs-data
+  storageClassName: alicloud-dbfs-ssd-zhangjiakou-a

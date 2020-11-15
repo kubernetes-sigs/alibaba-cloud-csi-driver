@@ -12,7 +12,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   csi:
     driver: dbfsplugin.csi.alibabacloud.com
-    volumeHandle: d-2ze4tf94z3fkeg6ttv52
+    volumeHandle: dbfs-2ze4tf94z3fkeg6ttv52
   nodeAffinity:
     required:
       nodeSelectorTerms:
