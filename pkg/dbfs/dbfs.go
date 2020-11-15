@@ -50,7 +50,7 @@ type DBFS struct {
 	cscap []*csi.ControllerServiceCapability
 }
 
-//NewDriver create the identity/node/controller server and disk driver
+//NewDriver create the identity/node/controller server and dbfs driver
 func NewDriver(nodeID, endpoint string) *DBFS {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
@@ -65,10 +65,10 @@ func NewDriver(nodeID, endpoint string) *DBFS {
 	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+		csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
+		csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
+		csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
 	})
-
-	// Global Configs Set
-	GlobalConfigSet()
 
 	d.driver = csiDriver
 	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
@@ -80,6 +80,8 @@ func NewDriver(nodeID, endpoint string) *DBFS {
 	d.controllerServer = NewControllerServer(d.driver, c, region)
 	GlobalConfigVar.DbfsClient = c
 
+	// Global Configs Set
+	GlobalConfigSet(region)
 	return d
 }
 
@@ -94,7 +96,7 @@ func (d *DBFS) Run() {
 }
 
 // GlobalConfigSet set global config
-func GlobalConfigSet() {
+func GlobalConfigSet(region string) {
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
@@ -146,6 +148,7 @@ func GlobalConfigSet() {
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	GlobalConfigVar.MetricEnable = isMetricEnable
 	GlobalConfigVar.NodeName = nodeName
+	GlobalConfigVar.Region = region
 	GlobalConfigVar.EcsInstanceID, _ = utils.GetMetaData(InstanceID)
 	GlobalConfigVar.ADControllerEnable = isADControllerEnable
 	GlobalConfigVar.DBFSDomain = "dbfs." + GlobalConfigVar.Region + ".aliyuncs.com"

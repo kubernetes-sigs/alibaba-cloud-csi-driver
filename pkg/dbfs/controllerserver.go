@@ -135,6 +135,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	createDbfsRequest.SizeG = requests.NewInteger(dbfsOpts.SizeGB)
 	createDbfsRequest.ClientToken = req.Name
 	createDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
+	createDbfsRequest.PerformanceLevel = "PL1"
 
 	GlobalConfigVar.DbfsClient = updateDbfsClient(GlobalConfigVar.DbfsClient)
 	response, err := GlobalConfigVar.DbfsClient.CreateDbfs(createDbfsRequest)
@@ -197,7 +198,7 @@ func (cs *controllerServer) getDbfsVolumeOptions(req *csi.CreateVolumeRequest) (
 	volOptions := req.GetParameters()
 
 	if dbfsOpts.Category, ok = volOptions["category"]; !ok {
-		dbfsOpts.Category = "cloud_essd"
+		dbfsOpts.Category = "standard"
 	}
 	dbfsOpts.RegionId = GlobalConfigVar.Region
 
@@ -271,7 +272,8 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	attachDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
 	_, err := GlobalConfigVar.DbfsClient.AttachDbfs(attachDbfsRequest)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume attach error"+req.VolumeId)
+		log.Errorf("ControllerPublishVolume: attach dbfs(%s) to node(%s) error: %v", req.VolumeId, req.NodeId, err)
+		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume attach error: "+req.VolumeId)
 	}
 	// check dbfs ready
 	for i := 0; i < 10; i++ {
@@ -319,10 +321,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "ControllerExpandVolume: Get DBFS error: "+err.Error())
 	}
-	if len(response.DBFSInfo) != 1 {
-		return nil, status.Error(codes.InvalidArgument, "ControllerExpandVolume: Get DBFS with error dbfsinfo, "+req.VolumeId)
-	}
-	oldSize := response.DBFSInfo[0].SizeG
+	oldSize := response.DBFSInfo.SizeG
 
 	resizeDbfsRequest := dbfs.CreateResizeDbfsRequest()
 	resizeDbfsRequest.RegionId = GlobalConfigVar.Region

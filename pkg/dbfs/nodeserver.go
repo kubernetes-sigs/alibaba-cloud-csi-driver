@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	k8smount "k8s.io/utils/mount"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -148,13 +149,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	options := append(mnt.MountFlags, "bind")
 	fsType := ""
 	if strings.HasSuffix(opt.FileSystemID, "-config") {
-		dbfsID := strings.Replace(opt.FileSystemID, "-config", "", 0)
+		dbfsID := strings.Replace(opt.FileSystemID, "-config", "", 1)
 		cmd := fmt.Sprintf("%s /opt/dbfs/app/1.0.0.1/bin/dbfs_get_home_path.sh %s", NsenterCmd, dbfsID)
 		out, err := utils.Run(cmd)
 		if err != nil {
 			return nil, errors.New("Dbfs, Get dbfs Config Path error: " + err.Error())
 		}
 
+		log.Infof("Exec dbfs config path get: %s", out)
 		homePath := strings.TrimSpace(out)
 		if err := ns.k8smounter.Mount(homePath, mountPath, fsType, options); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -217,6 +219,12 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return nil, errors.New("Dbfs, Mount Nfs error: %s" + err.Error())
 	}
 
+	dbfsPath := filepath.Join(DBFS_ROOT, req.VolumeId)
+	err = HostUmount(dbfsPath)
+	if err != nil {
+		log.Errorf("Umount DBFS %s, %s", dbfsPath, err.Error())
+	}
+	log.Infof("Umount DBFS Root %s",dbfsPath)
 	log.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v", req.VolumeId, req.StagingTargetPath)
 	return &csi.NodeStageVolumeResponse{}, nil
 }
@@ -278,15 +286,29 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 	nscap := &csi.NodeServiceCapability{
 		Type: &csi.NodeServiceCapability_Rpc{
 			Rpc: &csi.NodeServiceCapability_RPC{
+				Type: csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
+			},
+		},
+	}
+	nscap2 := &csi.NodeServiceCapability{
+		Type: &csi.NodeServiceCapability_Rpc{
+			Rpc: &csi.NodeServiceCapability_RPC{
+				Type: csi.NodeServiceCapability_RPC_EXPAND_VOLUME,
+			},
+		},
+	}
+	nscap3 := &csi.NodeServiceCapability{
+		Type: &csi.NodeServiceCapability_Rpc{
+			Rpc: &csi.NodeServiceCapability_RPC{
 				Type: csi.NodeServiceCapability_RPC_GET_VOLUME_STATS,
 			},
 		},
 	}
 
 	// DBFS Metric enable config
-	nodeSvcCap := []*csi.NodeServiceCapability{}
+	nodeSvcCap := []*csi.NodeServiceCapability{nscap, nscap2}
 	if GlobalConfigVar.MetricEnable {
-		nodeSvcCap = []*csi.NodeServiceCapability{nscap}
+		nodeSvcCap = []*csi.NodeServiceCapability{nscap, nscap2, nscap3}
 	}
 
 	return &csi.NodeGetCapabilitiesResponse{

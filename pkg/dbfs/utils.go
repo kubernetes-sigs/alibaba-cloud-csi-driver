@@ -22,7 +22,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"path/filepath"
@@ -49,15 +49,14 @@ var (
 
 func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint string, volumeID string) error {
 	log.Infof("DoDBFSMount: mount %s to target %s", volumeID, mountPoint)
-	dbfsDir := strings.Replace(volumeID, "d-", "dbfs-", 0)
-	dbfsPath := filepath.Join(DBFS_ROOT, dbfsDir)
+	dbfsPath := filepath.Join(DBFS_ROOT, volumeID)
 	isAttached, err := checkDbfsAttached(dbfsPath)
 	if err != nil {
-		log.Errorf("")
+		log.Errorf("checkDbfsAttached error with: %s", err.Error())
 		return err
 	}
 
-	if isAttached {
+	if !isAttached {
 		return errors.New("DBFS is not attahced")
 	}
 	mnt := req.VolumeCapability.GetMount()
@@ -68,6 +67,16 @@ func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint st
 		return status.Error(codes.Internal, err.Error())
 	}
 
+	return nil
+}
+
+// Umount do an unmount operation
+func HostUmount(mountPath string) error {
+	cmd := fmt.Sprintf("%s umount %s", NsenterCmd, mountPath)
+	_, err := utils.Run(cmd)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -84,10 +93,11 @@ func checkDbfsAttached(dbfsPath string) (bool, error) {
 }
 
 func checkVolumeIDAvailiable(volumeID string) bool {
-	if !strings.HasPrefix(volumeID, "d-") {
+	if !strings.HasPrefix(volumeID, "dbfs-") {
 		return false
 	}
-	if len(strings.Split(volumeID, "-")) != 2 {
+
+	if len(strings.Split(volumeID, "-")) != 2 && len(strings.Split(volumeID, "-")) != 3 {
 		return false
 	}
 	return true
@@ -170,7 +180,7 @@ func newDbfsClient(accessKeyID, accessKeySecret, accessToken, regionID string) (
 	return
 }
 
-func checkDbfsStatus(regionID, fsID, nideID string, expected string) (bool, error) {
+func checkDbfsStatus(regionID, fsID, nodeID string, expected string) (bool, error) {
 	describeDbfsRequest := dbfs.CreateGetDbfsRequest()
 	describeDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
 	describeDbfsRequest.RegionId = regionID
@@ -179,14 +189,15 @@ func checkDbfsStatus(regionID, fsID, nideID string, expected string) (bool, erro
 	if err != nil {
 		return false, status.Errorf(codes.InvalidArgument, "Get DBFS with error response %v, with error: %v", fsID, err)
 	}
-	if len(getResponse.DBFSInfo) != 1 {
-		return false, status.Errorf(codes.InvalidArgument, "Get DBFS error response %v, with empty dbfs", fsID)
+
+	dbfsInfo := getResponse.DBFSInfo
+	if dbfsInfo.Status == expected || dbfsInfo.Status == "已挂载" {
+		for _, ecsItem := range dbfsInfo.EcsList {
+			if ecsItem.EcsId == nodeID {
+				return true, nil
+			}
+		}
 	}
-	dbfsInfo := getResponse.DBFSInfo[0]
-	if dbfsInfo.Status == expected {
-		return true, nil
-	}
-	// TODO: check nideID
 
 	return false, nil
 }
