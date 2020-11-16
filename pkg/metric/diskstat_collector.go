@@ -356,7 +356,7 @@ func getDiskStats() (map[string][]string, error) {
 }
 
 func getGlobalMountPathByPvName(pvName string, info *storageInfo) {
-	info.GlobalMountPath = fmt.Sprintf("/var/lib/container/kubelet/plugins/kubernetes.io/csi/pv/%s/globalmount", pvName)
+	info.GlobalMountPath = fmt.Sprintf("/var/lib/kubelet/plugins/kubernetes.io/csi/pv/%s/globalmount", pvName)
 }
 
 func getCapacityMetric(pvName string, info *storageInfo, stat []string) ([]string, error) {
