@@ -97,7 +97,7 @@ func (s Server) ListVG(ctx context.Context, in *lib.ListVGRequest) (*lib.ListVGR
 	vgs, err := ListVG()
 	if err != nil {
 		log.Errorf("List VG with error: %s", err.Error())
-		return nil, status.Errorf(codes.Internal, "failed to list LVs: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to list VGs: %v", err)
 	}
 
 	pbvgs := make([]*lib.VolumeGroup, len(vgs))
