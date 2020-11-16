@@ -180,7 +180,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			nodeSelected = nodeID
 		}
 
-		if value, ok := parameters["vgName"]; ok && value != "" {
+		if value, ok := paraList["vgName"]; ok && value != "" {
 			storageSelected = value
 		}
 
@@ -194,15 +194,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		options.Size = uint64(req.GetCapacityRange().GetRequiredBytes())
 
 		if types.GlobalConfigVar.ControllerProvision && nodeSelected != "" && storageSelected != "" {
-			addr, err := getNodeAddr(cs.client, nodeSelected)
-			if err != nil {
-				log.Errorf("CreateVolume: Get lvm node %s address with error: %s", nodeSelected, err.Error())
-				return nil, err
-			}
-			conn, err := client.NewGrpcConnection(addr, connectTimeout)
+			conn, err := cs.getNodeConn(nodeSelected)
 			defer conn.Close()
 			if err != nil {
-				log.Errorf("CreateVolume: New lvm %s Connection(%s) with error: %s", req.Name, addr, err.Error())
+				log.Errorf("CreateVolume: New lvm %s Connection with error: %s", req.Name, err.Error())
 				return nil, err
 			}
 			if volumeType == LvmVolumeType {
@@ -283,15 +278,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		pmemType := strings.ToLower(parameters[PmemType])
 
 		if nodeSelected != "" {
-			addr, err := getNodeAddr(cs.client, nodeSelected)
-			if err != nil {
-				log.Errorf("CreateVolume: Get pmem node %s address for volume %s with error: %s", nodeSelected, req.Name, err.Error())
-				return nil, err
-			}
-			conn, err := client.NewGrpcConnection(addr, connectTimeout)
+			conn, err := cs.getNodeConn(nodeSelected)
 			defer conn.Close()
 			if err != nil {
-				log.Errorf("CreateVolume: New pmem volume %s Connection(%s) with error: %s", req.Name, addr, err.Error())
+				log.Errorf("CreateVolume: New pmem volume %s Connection with error: %s", req.Name, err.Error())
 				return nil, err
 			}
 
@@ -421,6 +411,16 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	createdVolumeMap[req.Name] = response.Volume
 	log.Infof("Success create Volume: %s, Size: %d, Parameters: %v", volumeID, req.GetCapacityRange().GetRequiredBytes(), response.Volume)
 	return response, nil
+}
+
+func (cs *controllerServer) getNodeConn(nodeSelected string) (client.Connection, error) {
+	addr, err := getNodeAddr(cs.client, nodeSelected)
+	if err != nil {
+		log.Errorf("CreateVolume: Get lvm node %s address with error: %s", nodeSelected, err.Error())
+		return nil, err
+	}
+	conn, err := client.NewGrpcConnection(addr, connectTimeout)
+	return conn, err
 }
 
 // DeleteVolume csi interface
