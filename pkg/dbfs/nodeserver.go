@@ -275,16 +275,10 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 
 	// Do mount
 	if err := ns.DoDBFSMount(req, req.StagingTargetPath, req.VolumeId); err != nil {
-		log.Errorf("Dbfs, Mount Nfs error: %s", err.Error())
-		return nil, errors.New("Dbfs, Mount Nfs error: %s" + err.Error())
+		log.Errorf("Dbfs, Mount DBFS error: %s", err.Error())
+		return nil, errors.New("Dbfs, Mount DBFS error: %s" + err.Error())
 	}
 
-	//dbfsPath := filepath.Join(DBFS_ROOT, req.VolumeId)
-	//err = HostUmount(dbfsPath)
-	//if err != nil {
-	//	log.Errorf("Umount DBFS %s, %s", dbfsPath, err.Error())
-	//}
-	//log.Infof("Umount DBFS Root %s",dbfsPath)
 	log.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v", req.VolumeId, req.StagingTargetPath)
 	return &csi.NodeStageVolumeResponse{}, nil
 }

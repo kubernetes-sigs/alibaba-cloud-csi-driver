@@ -3,7 +3,7 @@ module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 go 1.12
 
 require (
-	github.com/aliyun/alibaba-cloud-sdk-go v1.61.550-0.20201010055725-73672738e6a8
+	github.com/aliyun/alibaba-cloud-sdk-go v1.61.652
 	github.com/container-storage-interface/spec v1.2.0
 	github.com/emirpasic/gods v1.12.0
 	github.com/go-kit/kit v0.9.0 // indirect

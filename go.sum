@@ -39,6 +39,10 @@ github.com/aliyun/alibaba-cloud-sdk-go v1.61.201 h1:rqpE39O+ItGbpTZwNfzNQMkw0Si4
 github.com/aliyun/alibaba-cloud-sdk-go v1.61.201/go.mod h1:pUKYbK5JQ+1Dfxk80P0qxGqe5dkxDoabbZS7zOcouyA=
 github.com/aliyun/alibaba-cloud-sdk-go v1.61.550-0.20201010055725-73672738e6a8 h1:54Tj6kPMMFu9VDBIrXZweQnodk+VMEHzIkFVBSvlIGg=
 github.com/aliyun/alibaba-cloud-sdk-go v1.61.550-0.20201010055725-73672738e6a8/go.mod h1:pUKYbK5JQ+1Dfxk80P0qxGqe5dkxDoabbZS7zOcouyA=
+github.com/aliyun/alibaba-cloud-sdk-go v1.61.641 h1:X/Ik2DvrwICTd5hbRPjB7+s/61pk/b40HJ6XHAg2LSc=
+github.com/aliyun/alibaba-cloud-sdk-go v1.61.641/go.mod h1:pUKYbK5JQ+1Dfxk80P0qxGqe5dkxDoabbZS7zOcouyA=
+github.com/aliyun/alibaba-cloud-sdk-go v1.61.652 h1:0bQG7JeXxchoRVBIVlhyu2zf+fjWxwRQ9irg5hcUFNw=
+github.com/aliyun/alibaba-cloud-sdk-go v1.61.652/go.mod h1:pUKYbK5JQ+1Dfxk80P0qxGqe5dkxDoabbZS7zOcouyA=
 github.com/aliyun/aliyun-oss-go-sdk v0.0.0-20190307165228-86c17b95fcd5/go.mod h1:T/Aws4fEfogEE9v+HPhhw+CntffsBHJ8nXQCwKr0/g8=
 github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883/go.mod h1:rCTlJbsFo29Kk6CurOXKm700vrz8f0KW0JNfpkRJY/8=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
