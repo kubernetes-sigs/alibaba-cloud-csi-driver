@@ -89,7 +89,7 @@ func NewDriver(nodeID, endpoint string) *DBFS {
 func (d *DBFS) Run() {
 	s := csicommon.NewNonBlockingGRPCServer()
 	s.Start(d.endpoint,
-		csicommon.NewDefaultIdentityServer(d.driver),
+		NewIdentityServer(d.driver),
 		d.controllerServer,
 		newNodeServer(d))
 	s.Wait()

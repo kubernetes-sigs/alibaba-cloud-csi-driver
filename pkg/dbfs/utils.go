@@ -180,24 +180,35 @@ func newDbfsClient(accessKeyID, accessKeySecret, accessToken, regionID string) (
 	return
 }
 
-func checkDbfsStatus(regionID, fsID, nodeID string, expected string) (bool, error) {
-	describeDbfsRequest := dbfs.CreateGetDbfsRequest()
-	describeDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
-	describeDbfsRequest.RegionId = regionID
-	describeDbfsRequest.FsId = fsID
-	getResponse, err := GlobalConfigVar.DbfsClient.GetDbfs(describeDbfsRequest)
+func checkDbfsStatus(fsID, nodeID string, expected string) (bool, error) {
+	getResponse, err := describeDbfs(fsID)
 	if err != nil {
 		return false, status.Errorf(codes.InvalidArgument, "Get DBFS with error response %v, with error: %v", fsID, err)
 	}
-
 	dbfsInfo := getResponse.DBFSInfo
-	if dbfsInfo.Status == expected || dbfsInfo.Status == "已挂载" {
+	if dbfsInfo.Status == expected {
+		if nodeID == "" {
+			return true, nil
+		}
+
 		for _, ecsItem := range dbfsInfo.EcsList {
 			if ecsItem.EcsId == nodeID {
 				return true, nil
 			}
 		}
 	}
-
 	return false, nil
+}
+
+func describeDbfs(fsID string) (*dbfs.GetDbfsResponse, error) {
+	describeDbfsRequest := dbfs.CreateGetDbfsRequest()
+	describeDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
+	describeDbfsRequest.RegionId = GlobalConfigVar.Region
+	describeDbfsRequest.FsId = fsID
+	getResponse, err := GlobalConfigVar.DbfsClient.GetDbfs(describeDbfsRequest)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Get DBFS with error response %v, with error: %v", fsID, err)
+	}
+
+	return getResponse, nil
 }
