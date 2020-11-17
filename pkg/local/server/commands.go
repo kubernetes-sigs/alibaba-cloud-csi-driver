@@ -357,7 +357,7 @@ func ListNameSpace() ([]*lib.NameSpace, error) {
 	namespaces := []*lib.NameSpace{}
 	for _, region := range regions.Regions {
 		for _, ns := range region.Namespaces {
-            newns := ns.ToProto()
+			newns := ns.ToProto()
 			namespaces = append(namespaces, newns)
 		}
 	}

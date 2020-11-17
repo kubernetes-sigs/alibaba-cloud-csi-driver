@@ -45,7 +45,7 @@ const (
 	DefaultFs = "ext4"
 	// MemoryType ...
 	MemoryType = "memoryType"
-	// 
+	//
 )
 
 type nodeServer struct {
@@ -147,7 +147,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	pvSizeNumStr := strconv.FormatInt(pvSizeNum, 10)
 	if pmemType {
-		mpol, err := pickRegionForKMEM(pvSizeNumStr+pvSizeUnit)
+		mpol, err := pickRegionForKMEM(pvSizeNumStr + pvSizeUnit)
 		if err != nil {
 			log.Errorf("NodeStageVolume: Volume: %s, pick region for KMEM err: %s", req.VolumeId, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
@@ -266,4 +266,3 @@ func maintainKMEM(mounter k8smount.Interface) error {
 	}
 	return nil
 }
-

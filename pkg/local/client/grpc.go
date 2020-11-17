@@ -252,7 +252,7 @@ func (c *workerConnection) CreateProjQuotaSubpath(ctx context.Context, pvName, s
 	}
 	log.Infof("CreateProjQuotaSubpath with result: %v", response)
 
-	return response.CommandOutput, response.ProjQuotaSubpath,  nil
+	return response.CommandOutput, response.ProjQuotaSubpath, nil
 }
 
 func (c *workerConnection) SetSubpathProjQuota(ctx context.Context, quotaSubpath, blockSoftlimit, blockHardlimit, inodeSoftlimit, inodeHardlimit string) (string, error) {
