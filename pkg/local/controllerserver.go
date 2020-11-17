@@ -19,6 +19,7 @@ package local
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -51,6 +52,10 @@ const (
 	LvmVolumeType = "LVM"
 	// PmemVolumeType lvm volume type
 	PmemVolumeType = "PMEM"
+	// PmemDirectVolumeType ...
+	PmemDirectVolumeType = "PMEMDirect"
+	// PmemQuotaPathVolumeType ... 
+	PmemQuotaPathVolumeType = "PMEMQuotaPath"
 	// MountPointType type
 	MountPointType = "MountPoint"
 	// DeviceVolumeType type
@@ -200,20 +205,18 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				log.Errorf("CreateVolume: New lvm %s Connection with error: %s", req.Name, err.Error())
 				return nil, err
 			}
-			if volumeType == LvmVolumeType {
-				if lvmName, err := conn.GetLvm(ctx, storageSelected, volumeID); err == nil && lvmName == "" {
-					outstr, err := conn.CreateLvm(ctx, options)
-					if err != nil {
-						log.Errorf("CreateVolume: Create lvm %s/%s, options: %v with error: %s", storageSelected, volumeID, options, err.Error())
-						return nil, errors.New("Create Lvm with error " + err.Error())
-					}
-					log.Infof("CreateLvm: Successful Create lvm %s/%s with response %s", storageSelected, volumeID, outstr)
-				} else if err != nil {
-					log.Errorf("CreateVolume: Get lvm %s with error: %s", req.Name, err.Error())
-					return nil, err
-				} else {
-					log.Infof("CreateVolume: lvm volume already created %s", req.Name)
+			if lvmName, err := conn.GetLvm(ctx, storageSelected, volumeID); err == nil && lvmName == "" {
+				outstr, err := conn.CreateLvm(ctx, options)
+				if err != nil {
+					log.Errorf("CreateVolume: Create lvm %s/%s, options: %v with error: %s", storageSelected, volumeID, options, err.Error())
+					return nil, errors.New("Create Lvm with error " + err.Error())
 				}
+				log.Infof("CreateLvm: Successful Create lvm %s/%s with response %s", storageSelected, volumeID, outstr)
+			} else if err != nil {
+				log.Errorf("CreateVolume: Get lvm %s with error: %s", req.Name, err.Error())
+				return nil, err
+			} else {
+				log.Infof("CreateVolume: lvm volume already created %s", req.Name)
 			}
 		} else if !types.GlobalConfigVar.ControllerProvision && nodeSelected != "" && storageSelected != "" {
 			createLabels := map[string]string{}
@@ -271,12 +274,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			}
 			nodeSelected = nodeID
 		}
-	case PmemVolumeType:
-		if _, ok := parameters[PmemType]; !ok {
-			return nil, status.Error(codes.InvalidArgument, "Parse pmem volume error, pmemType is null")
-		}
-		pmemType := strings.ToLower(parameters[PmemType])
-
+	case PmemDirectVolumeType:
 		if nodeSelected != "" {
 			conn, err := cs.getNodeConn(nodeSelected)
 			defer conn.Close()
@@ -285,83 +283,56 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				return nil, err
 			}
 
-			// use lvm volume
-			switch pmemType {
-			// case "lvm":
-			// 	// Set volume group
-			// 	if _, ok := parameters[VgNameTag]; !ok {
-			// 		parameters["vgName"] = lib.PmemVolumeGroupNameRegion0
-			// 	}
-			// 	vgName := parameters[VgNameTag]
-			// 	if lvmName, err := conn.GetLvm(ctx, vgName, volumeID); err == nil && lvmName == "" {
-			// 		options := &client.LVMOptions{}
-			// 		options.Name = req.Name
-			// 		options.VolumeGroup = vgName
-			// 		if value, ok := parameters[LvmTypeTag]; ok && value == StripingType {
-			// 			options.Striping = true
-			// 		}
-			// 		options.Size = uint64(req.GetCapacityRange().GetRequiredBytes())
-			// 		outstr, err := conn.CreateLvm(ctx, options)
-			// 		if err != nil {
-			// 			log.Errorf("CreateVolume: Create PMEM lvm %s/%s, options: %v with error: %s", vgName, volumeID, options, err.Error())
-			// 			return nil, errors.New("Create PMEM lvm with error " + err.Error())
-			// 		}
-			// 		log.Infof("CreatePMEM: Successful Create PMEM lvm %s/%s with response %s", vgName, volumeID, outstr)
-			// 	} else if err != nil {
-			// 		log.Errorf("CreateVolume: Get PMEM volume %s with error: %s", req.Name, err.Error())
-			// 		return nil, err
-			// 	} else {
-			// 		log.Infof("CreateVolume: Pmem volume already created %s, with lvm %s", req.Name, lvmName)
-			// 	}
-			case types.PmemDirectType:
-				options := &client.NameSpaceOptions{}
-				options.Name = req.Name
-				options.Region = lib.PmemRegionNameDefault
-				if value, ok := parameters["pmemRegion"]; ok {
-					options.Region = value
-				}
-				options.Size = uint64(req.GetCapacityRange().GetRequiredBytes())
-				if namespace, err := conn.GetNameSpace(ctx, options.Region, volumeID); err == nil && namespace == "" {
-					newNameSpace, err := conn.CreateNameSpace(ctx, options)
-					if err != nil {
-						log.Errorf("CreateVolume: Create Pmem direct %s, options: %v with error: %s", volumeID, options, err.Error())
-						return nil, errors.New("Create Pmem direct with error " + err.Error())
-					}
-					log.Infof("CreatePmem: Successful Create Pmem namespace %s with response %v", volumeID, newNameSpace)
-					parameters["pmemRegion"] = options.Region
-					parameters["pmemNameSpace"] = newNameSpace.Dev
-					parameters["pmemBlockDev"] = newNameSpace.BlockDev
-				} else if err != nil {
-					log.Errorf("CreateVolume: Get PMEM direct namespace %s with error: %s", req.Name, err.Error())
-					return nil, err
-				} else {
-					log.Infof("CreateVolume: PMEM namespace already created %s, %s", req.Name, namespace)
-				}
-			case types.PmemKmemType:
-				log.Infof("CreateVolume: create KMEM types volumes")
-			case types.PmemQuotaPathType:
-				log.Infof("CreateVolume: create project quota types volumes")
-				size := strconv.Itoa(int(req.GetCapacityRange().GetRequiredBytes()))
-				kSize := strconv.Itoa(int(req.GetCapacityRange().GetRequiredBytes() / 1024))
-				_, projectQuotaSubpath, err := conn.CreateProjQuotaSubpath(ctx, req.Name, size)
-				if err != nil {
-					log.Infof("CreateVolume: create project quota subpath %s failed: %s", req.Name, err.Error())
-					return nil, err
-				}
-				_, err = conn.SetSubpathProjQuota(ctx, projectQuotaSubpath, kSize, kSize, "", "")
-				if err != nil {
-					log.Infof("CreateVolume: set project quota subpath %s failed: %s", req.Name, err.Error())
-					return nil, err
-				}
-				parameters[ProjQuotaFullPath] = projectQuotaSubpath
-			default:
-				log.Errorf("CreateVolume: No support PMEM type %s for volume %s", pmemType, req.Name)
-				return nil, status.Error(codes.InvalidArgument, "No support pmem type for volume "+req.Name)
+			options := &client.NameSpaceOptions{}
+			options.Name = req.Name
+			options.Region = lib.PmemRegionNameDefault
+			if value, ok := parameters["pmemRegion"]; ok {
+				options.Region = value
 			}
-			parameters[PmemType] = pmemType
+			options.Size = uint64(req.GetCapacityRange().GetRequiredBytes())
+			if namespace, err := conn.GetNameSpace(ctx, options.Region, volumeID); err == nil && namespace == "" {
+				newNameSpace, err := conn.CreateNameSpace(ctx, options)
+				if err != nil {
+					log.Errorf("CreateVolume: Create Pmem direct %s, options: %v with error: %s", volumeID, options, err.Error())
+					return nil, errors.New("Create Pmem direct with error " + err.Error())
+				}
+				log.Infof("CreatePmem: Successful Create Pmem namespace %s with response %v", volumeID, newNameSpace)
+				parameters["pmemRegion"] = options.Region
+				parameters["pmemNameSpace"] = newNameSpace.Dev
+				parameters["pmemBlockDev"] = newNameSpace.BlockDev
+			} else if err != nil {
+				log.Errorf("CreateVolume: Get PMEM direct namespace %s with error: %s", req.Name, err.Error())
+				return nil, err
+			} else {
+				log.Infof("CreateVolume: PMEM namespace already created %s, %s", req.Name, namespace)
+			}
 		} else {
-			nodeSelected = ""
-			log.Infof("CreateVolume: PMEM volume %s with not nodeAffinity set", req.Name)
+			return nil, errors.New("CreateVolume: PMEMDirect type nodeselected must not be None")
+		}
+	case PmemQuotaPathVolumeType:
+		if nodeSelected != "" {
+			conn, err := cs.getNodeConn(nodeSelected)
+			defer conn.Close()
+			if err != nil {
+				log.Errorf("CreateVolume: New pmem volume %s Connection with error: %s", req.Name, err.Error())
+				return nil, err
+			}
+			log.Infof("CreateVolume: create project quota types volumes")
+			size := strconv.Itoa(int(req.GetCapacityRange().GetRequiredBytes()))
+			kSize := strconv.Itoa(int(req.GetCapacityRange().GetRequiredBytes() / 1024))
+			_, projectQuotaSubpath, err := conn.CreateProjQuotaSubpath(ctx, req.Name, size)
+			if err != nil {
+				log.Infof("CreateVolume: create project quota subpath %s failed: %s", req.Name, err.Error())
+				return nil, err
+			}
+			_, err = conn.SetSubpathProjQuota(ctx, projectQuotaSubpath, kSize, kSize, "", "")
+			if err != nil {
+				log.Infof("CreateVolume: set project quota subpath %s failed: %s", req.Name, err.Error())
+				return nil, err
+			}
+			parameters[ProjQuotaFullPath] = projectQuotaSubpath
+		}else {
+			return nil, errors.New("CreateVolume: PMEMQuotaPath type nodeselected must not be None")
 		}
 	default:
 		log.Errorf("CreateVolume: Create with no support volume type %s", volumeType)
@@ -440,10 +411,10 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	if value, ok := pvObj.Spec.CSI.VolumeAttributes[VolumeTypeKey]; ok {
 		volumeType = value
 	}
+	nodeName, vgName, pv, err := getPvSpec(cs.client, volumeID, cs.driverName)
 
 	switch volumeType {
 	case LvmVolumeType:
-		nodeName, vgName, _, err := getPvSpec(cs.client, volumeID, cs.driverName)
 		if err != nil {
 			log.Errorf("DeleteVolume: get Lvm %s Spec with error %s", volumeID, err.Error())
 			return nil, err
@@ -536,85 +507,54 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		log.Infof("DeleteVolume: default to delete MountPoint volume(%s) type volume...", volumeID)
 	case DeviceVolumeType:
 		log.Infof("DeleteVolume: default to delete Device volume type volume...")
-	case PmemVolumeType:
-		nodeName, _, pv, err := getPvSpec(cs.client, volumeID, cs.driverName)
-		if err != nil {
-			log.Errorf("DeleteVolume: get PMEM volume %s Spec with error %s", volumeID, err.Error())
-			return nil, err
-		}
+	case PmemDirectVolumeType:
 		if nodeName != "" {
-			addr, err := getNodeAddr(cs.client, nodeName)
-			if err != nil {
-				log.Errorf("DeleteVolume: Get PMEM volume %s address with error: %s", req.GetVolumeId(), err.Error())
-				return nil, err
-			}
-			conn, err := client.NewGrpcConnection(addr, connectTimeout)
+			conn, err := cs.getNodeConn(nodeName)
 			defer conn.Close()
 			if err != nil {
 				log.Errorf("DeleteVolume: New PMEM %s Connection with error: %s", req.GetVolumeId(), err.Error())
 				return nil, err
 			}
-			if value, ok := pv.Spec.CSI.VolumeAttributes[PmemType]; ok {
-				switch value {
-				case types.PmemDirectType:
-					if _, ok := pv.Spec.CSI.VolumeAttributes["pmemNameSpace"]; !ok {
-						log.Errorf("DeleteVolume: Direct PMEM volume can not found NameSpace: %s", volumeID)
-						return nil, errors.New("DeleteVolume Direct PMEM volume can not found NameSpace " + volumeID)
-					}
-					namespace := pv.Spec.CSI.VolumeAttributes["pmemNameSpace"]
-					if pmemName, err := conn.GetNameSpace(ctx, "", volumeID); err == nil && pmemName != "" {
-						if err := conn.DeleteNameSpace(ctx, namespace); err != nil {
-							log.Errorf("DeleteVolume: Remove PMEM direct volume %s with error: %s", volumeID, err.Error())
-							return nil, errors.New("Remove Pmem with error " + err.Error())
-						}
-						log.Infof("DeleteLvm: Successful Delete PMEM direct %s", volumeID)
-					} else if err == nil && pmemName == "" {
-						log.Infof("DeleteVolume: get PMEM empty, skip deleting %s", volumeID)
-					} else {
-						log.Errorf("DeleteVolume: Get Pmem for %s with error: %s", req.GetVolumeId(), err.Error())
-						return nil, err
-					}
-				case types.PmemKmemType:
-					log.Infof("DeleteVolume: delete KMEM types volumes")
-				case types.PmemQuotaPathType:
-					log.Infof("DeleteVolume: delete project quota types volumes")
-					quotaPath := pv.Spec.CSI.VolumeAttributes[ProjQuotaFullPath]
-					if quotaPath == "" {
-						return nil, errors.New("DeleteVolume: pv message ")
-					}
-					_, err := conn.RemoveProjQuotaSubpath(ctx, quotaPath)
-					if err != nil {
-						return nil, err
-					}
-
-				// case types.PmemLVMType:
-				// 	if _, ok := pv.Spec.CSI.VolumeAttributes["vgName"]; !ok {
-				// 		log.Errorf("DeleteVolume: LVM PMEM volume can not found vgName: %s", volumeID)
-				// 		return nil, errors.New("DeleteVolume LVM PMEM volume can not found vgName " + volumeID)
-				// 	}
-				// 	if lvmName, err := conn.GetLvm(ctx, vgName, volumeID); err == nil && lvmName != "" {
-				// 		if err := conn.DeleteLvm(ctx, vgName, volumeID); err != nil {
-				// 			log.Errorf("DeleteVolume: Remove Pmem lvm %s/%s with error: %s", vgName, volumeID, err.Error())
-				// 			return nil, errors.New("Remove Pmem lvm with error " + err.Error())
-				// 		}
-				// 		log.Infof("DeleteLvm: Successful Delete PMEM lvm %s/%s", vgName, volumeID)
-				// 	} else if err == nil && lvmName == "" {
-				// 		log.Infof("DeleteVolume: get PMEM lvm empty, skip deleting %s", volumeID)
-				// 	} else if err != nil && strings.Contains(err.Error(), "Failed to find logical volume") {
-				// 		log.Infof("DeleteVolume: PMEM lvm volume not found, skip deleting %s", volumeID)
-				// 	} else if err != nil && strings.Contains(err.Error(), "Volume group \""+vgName+"\" not found") {
-				// 		log.Infof("DeleteVolume: PMEM Volume group not found, skip deleting %s", volumeID)
-				// 	} else {
-				// 		log.Errorf("DeleteVolume: Get PMEM lvm for %s with error: %s", req.GetVolumeId(), err.Error())
-				// 		return nil, err
-				// 	}
-				default:
-					log.Errorf("DeleteVolume: Get PMEM volume type with no support: %s, %s", volumeID, value)
-					return nil, errors.New("DeleteVolume: get PMEM volume type with no support " + value)
+			if _, ok := pv.Spec.CSI.VolumeAttributes["pmemNameSpace"]; !ok {
+				log.Errorf("DeleteVolume: Direct PMEM volume can not found NameSpace: %s", volumeID)
+				return nil, errors.New("DeleteVolume Direct PMEM volume can not found NameSpace " + volumeID)
+			}
+			namespace := pv.Spec.CSI.VolumeAttributes["pmemNameSpace"]
+			if pmemName, err := conn.GetNameSpace(ctx, "", volumeID); err == nil && pmemName != "" {
+				if err := conn.DeleteNameSpace(ctx, namespace); err != nil {
+					log.Errorf("DeleteVolume: Remove PMEM direct volume %s with error: %s", volumeID, err.Error())
+					return nil, errors.New("Remove Pmem with error " + err.Error())
 				}
+				log.Infof("DeleteLvm: Successful Delete PMEM direct %s", volumeID)
+			} else if err == nil && pmemName == "" {
+				log.Infof("DeleteVolume: get PMEM empty, skip deleting %s", volumeID)
+			} else {
+				log.Errorf("DeleteVolume: Get Pmem for %s with error: %s", req.GetVolumeId(), err.Error())
+				return nil, err
+			}
+		} else {
+			return nil, fmt.Errorf("DeleteVolume: delete volume without nodeAffinity %s", volumeID)
+		}
+	case PmemQuotaPathVolumeType:
+		if nodeName != "" {
+			conn, err := cs.getNodeConn(nodeName)
+			defer conn.Close()
+			if err != nil {
+				log.Errorf("DeleteVolume: New PMEM %s Connection with error: %s", req.GetVolumeId(), err.Error())
+				return nil, err
+			}
+			log.Infof("DeleteVolume: delete project quota types volumes")
+			quotaPath := pv.Spec.CSI.VolumeAttributes[ProjQuotaFullPath]
+			if quotaPath == "" {
+				return nil, errors.New("DeleteVolume: pv message ")
+			}
+			_, err = conn.RemoveProjQuotaSubpath(ctx, quotaPath)
+			if err != nil {
+				return nil, err
 			}
 		} else {
 			log.Infof("DeleteVolume: delete volume without nodeAffinity %s", volumeID)
+			return nil, fmt.Errorf("DeleteVolume: delete volume without nodeAffinity %s", volumeID)
 		}
 	default:
 		log.Errorf("DeleteVolume: volumeType %s not supported %s", volumeType, volumeID)

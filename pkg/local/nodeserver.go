@@ -173,11 +173,43 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
 			return nil, err
 		}
-	case PmemVolumeType:
-		err := ns.mountPmemVolume(ctx, req)
+	case PmemQuotaPathVolumeType:
+		targetPath := req.TargetPath
+
+		nodeAffinity := DefaultNodeAffinity
+		if _, ok := req.VolumeContext[NodeAffinity]; ok {
+			nodeAffinity = req.VolumeContext[NodeAffinity]
+		}
+		log.Infof("NodePublishVolume: Starting to mount kmem or quotapath at path: %s, with volume: %s, NodeAffinty: %s", targetPath, req.GetVolumeId(), nodeAffinity)
+
+		// Create LVM if not exist
+		//volumeNewCreated := false
+		volumeID := req.GetVolumeId()
+		// Check target mounted
+		isMnt, err := ns.checkTargetMounted(targetPath)
 		if err != nil {
-			log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
+			log.Errorf("NodePublishVolume: check volume %s mounted with error: %s", volumeID, err.Error())
 			return nil, err
+		}
+		if !isMnt {
+			projQuotaPath := ""
+			if value, ok := req.VolumeContext[ProjQuotaFullPath]; ok {
+				projQuotaPath = value
+			}
+			mountCmd := fmt.Sprintf("%s mount --bind %s %s", NsenterCmd, projQuotaPath, targetPath)
+			_, err = utils.Run(mountCmd)
+			if err != nil {
+				err = fmt.Errorf("NodeStageVolume: Volume: %s, Device: %s, mount error: %s", req.VolumeId, projQuotaPath, err.Error())
+				return nil, err
+			}
+		}
+		// upgrade PV with NodeAffinity
+		if nodeAffinity == "true" {
+			err = ns.updatePVNodeAffinity(volumeID)
+			if err !=nil {
+				log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
+				return nil, err
+			}
 		}
 	default:
 		log.Errorf("NodePublishVolume: unsupported volume %s with type %s", req.VolumeId, volumeType)
