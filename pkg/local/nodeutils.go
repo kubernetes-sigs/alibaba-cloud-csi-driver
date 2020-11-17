@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
-	localtypes "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -228,114 +227,128 @@ func (ns *nodeServer) mountDeviceVolume(ctx context.Context, req *csi.NodePublis
 	return nil
 }
 
-func (ns *nodeServer) mountPmemVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) error {
-	targetPath := req.TargetPath
-	// parse vgname, consider invalid if empty
-	pmemType := ""
-	if _, ok := req.VolumeContext[PmemType]; ok {
-		pmemType = req.VolumeContext[PmemType]
-	}
+func (ns *nodeServer) checkTargetMounted(targetPath string) (bool, error) {
 
-	nodeAffinity := DefaultNodeAffinity
-	if _, ok := req.VolumeContext[NodeAffinity]; ok {
-		nodeAffinity = req.VolumeContext[NodeAffinity]
-	}
-	log.Infof("NodePublishVolume: Starting to mount kmem or quotapath at path: %s, with volume: %s, NodeAffinty: %s", targetPath, req.GetVolumeId(), nodeAffinity)
-
-	// Create LVM if not exist
-	//volumeNewCreated := false
-	volumeID := req.GetVolumeId()
-	// Check target mounted
 	isMnt, err := ns.mounter.IsMounted(targetPath)
 	if err != nil {
 		if _, err := os.Stat(targetPath); os.IsNotExist(err) {
 			if err := os.MkdirAll(targetPath, 0750); err != nil {
-				log.Errorf("NodePublishVolume: volume %s mkdir target path %s with error: %s", volumeID, targetPath, err.Error())
-				return status.Error(codes.Internal, err.Error())
+				return isMnt, status.Error(codes.Internal, err.Error())
 			}
 			isMnt = false
 		} else {
-			log.Errorf("NodePublishVolume: check volume %s mounted with error: %s", volumeID, err.Error())
-			return status.Error(codes.Internal, err.Error())
+			return false, status.Error(codes.Internal, err.Error())
 		}
 	}
+	return isMnt, nil
+}
 
-	if !isMnt {
-		switch pmemType {
-		case localtypes.PmemKmemType:
-			pvSize, pvSizeUnit, _ := getPvInfo(volumeID)
-			devicePath := "tmpfs"
-			kmemSize := fmt.Sprintf("%v%s", pvSize, pvSizeUnit)
-			mpol, err := pickRegionForKMEM(kmemSize)
-			if err != nil {
-				log.Errorf("NodeStageVolume: Volume: %s, Device: %s, pick region for KMEM err: %s", req.VolumeId, devicePath, err.Error())
-				return status.Error(codes.Internal, err.Error())
-			}
-			mountCmd := fmt.Sprintf("%s mount -t %s -o size=%s,mpol=%s %s %s", NsenterCmd, devicePath, kmemSize, mpol, devicePath, targetPath)
-			_, err = utils.Run(mountCmd)
-			if err != nil {
-				log.Errorf("NodeStageVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, devicePath, err.Error())
-				return status.Error(codes.Internal, err.Error())
-			}
-		case localtypes.PmemQuotaPathType:
-			projQuotaPath := ""
-			if value, ok := req.VolumeContext[ProjQuotaFullPath]; ok {
-				projQuotaPath = value
-			}
-			mountCmd := fmt.Sprintf("%s mount --bind %s %s", NsenterCmd, projQuotaPath, targetPath)
-			_, err = utils.Run(mountCmd)
-			if err != nil {
-				log.Errorf("NodeStageVolume: Volume: %s, Device: %s, mount error: %s", req.VolumeId, projQuotaPath, err.Error())
-				return status.Error(codes.Internal, err.Error())
-			}
-		}
+func (ns *nodeServer) updatePVNodeAffinity(volumeID string) error {
+	oldPv, err := ns.client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("NodePublishVolume: Get Persistent Volume(%s) Error: %s", volumeID, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
-
-	// upgrade PV with NodeAffinity
-	if nodeAffinity == "true" {
-		oldPv, err := ns.client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
+	if oldPv.Spec.NodeAffinity == nil {
+		oldData, err := json.Marshal(oldPv)
 		if err != nil {
-			log.Errorf("NodePublishVolume: Get Persistent Volume(%s) Error: %s", volumeID, err.Error())
+			log.Errorf("NodePublishVolume: Marshal Persistent Volume(%s) Error: %s", volumeID, err.Error())
 			return status.Error(codes.Internal, err.Error())
 		}
-		if oldPv.Spec.NodeAffinity == nil {
-			oldData, err := json.Marshal(oldPv)
-			if err != nil {
-				log.Errorf("NodePublishVolume: Marshal Persistent Volume(%s) Error: %s", volumeID, err.Error())
-				return status.Error(codes.Internal, err.Error())
-			}
-			pvClone := oldPv.DeepCopy()
+		pvClone := oldPv.DeepCopy()
 
-			// construct new persistent volume data
-			values := []string{ns.nodeID}
-			nSR := v1.NodeSelectorRequirement{Key: "kubernetes.io/hostname", Operator: v1.NodeSelectorOpIn, Values: values}
-			matchExpress := []v1.NodeSelectorRequirement{nSR}
-			nodeSelectorTerm := v1.NodeSelectorTerm{MatchExpressions: matchExpress}
-			nodeSelectorTerms := []v1.NodeSelectorTerm{nodeSelectorTerm}
-			required := v1.NodeSelector{NodeSelectorTerms: nodeSelectorTerms}
-			pvClone.Spec.NodeAffinity = &v1.VolumeNodeAffinity{Required: &required}
-			newData, err := json.Marshal(pvClone)
-			if err != nil {
-				log.Errorf("NodePublishVolume: Marshal New Persistent Volume(%s) Error: %s", volumeID, err.Error())
-				return status.Error(codes.Internal, err.Error())
-			}
-			patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, pvClone)
-			if err != nil {
-				log.Errorf("NodePublishVolume: CreateTwoWayMergePatch Volume(%s) Error: %s", volumeID, err.Error())
-				return status.Error(codes.Internal, err.Error())
-			}
-
-			// Upgrade PersistentVolume with NodeAffinity
-			_, err = ns.client.CoreV1().PersistentVolumes().Patch(context.Background(), volumeID, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
-			if err != nil {
-				log.Errorf("NodePublishVolume: Patch Volume(%s) Error: %s", volumeID, err.Error())
-				return status.Error(codes.Internal, err.Error())
-			}
-			log.Infof("NodePublishVolume: upgrade Persistent Volume(%s) with nodeAffinity: %s", volumeID, ns.nodeID)
+		// construct new persistent volume data
+		values := []string{ns.nodeID}
+		nSR := v1.NodeSelectorRequirement{Key: "kubernetes.io/hostname", Operator: v1.NodeSelectorOpIn, Values: values}
+		matchExpress := []v1.NodeSelectorRequirement{nSR}
+		nodeSelectorTerm := v1.NodeSelectorTerm{MatchExpressions: matchExpress}
+		nodeSelectorTerms := []v1.NodeSelectorTerm{nodeSelectorTerm}
+		required := v1.NodeSelector{NodeSelectorTerms: nodeSelectorTerms}
+		pvClone.Spec.NodeAffinity = &v1.VolumeNodeAffinity{Required: &required}
+		newData, err := json.Marshal(pvClone)
+		if err != nil {
+			log.Errorf("NodePublishVolume: Marshal New Persistent Volume(%s) Error: %s", volumeID, err.Error())
+			return status.Error(codes.Internal, err.Error())
 		}
+		patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, pvClone)
+		if err != nil {
+			log.Errorf("NodePublishVolume: CreateTwoWayMergePatch Volume(%s) Error: %s", volumeID, err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+
+		// Upgrade PersistentVolume with NodeAffinity
+		_, err = ns.client.CoreV1().PersistentVolumes().Patch(context.Background(), volumeID, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+		if err != nil {
+			log.Errorf("NodePublishVolume: Patch Volume(%s) Error: %s", volumeID, err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+		log.Infof("NodePublishVolume: upgrade Persistent Volume(%s) with nodeAffinity: %s", volumeID, ns.nodeID)
 	}
 	return nil
 }
+
+// func (ns *nodeServer) mountPmemVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) error {
+// 	targetPath := req.TargetPath
+// 	// parse vgname, consider invalid if empty
+// 	pmemType := ""
+// 	if _, ok := req.VolumeContext[PmemType]; ok {
+// 		pmemType = req.VolumeContext[PmemType]
+// 	}
+
+// 	nodeAffinity := DefaultNodeAffinity
+// 	if _, ok := req.VolumeContext[NodeAffinity]; ok {
+// 		nodeAffinity = req.VolumeContext[NodeAffinity]
+// 	}
+// 	log.Infof("NodePublishVolume: Starting to mount kmem or quotapath at path: %s, with volume: %s, NodeAffinty: %s", targetPath, req.GetVolumeId(), nodeAffinity)
+
+// 	// Create LVM if not exist
+// 	//volumeNewCreated := false
+// 	volumeID := req.GetVolumeId()
+// 	// Check target mounted
+// 	isMnt, err := ns.checkTargetMounted(targetPath)
+// 	if err != nil {
+// 		log.Errorf("NodePublishVolume: check volume %s mounted with error: %s", volumeID, err.Error())
+// 		return err
+// 	}
+
+// 	if !isMnt {
+// 		switch pmemType {
+// 		case localtypes.PmemKmemType:
+// 			pvSize, pvSizeUnit, _ := getPvInfo(volumeID)
+// 			devicePath := "tmpfs"
+// 			kmemSize := fmt.Sprintf("%v%s", pvSize, pvSizeUnit)
+// 			mpol, err := pickRegionForKMEM(kmemSize)
+// 			if err != nil {
+// 				log.Errorf("NodeStageVolume: Volume: %s, Device: %s, pick region for KMEM err: %s", req.VolumeId, devicePath, err.Error())
+// 				return status.Error(codes.Internal, err.Error())
+// 			}
+// 			mountCmd := fmt.Sprintf("%s mount -t %s -o size=%s,mpol=%s %s %s", NsenterCmd, devicePath, kmemSize, mpol, devicePath, targetPath)
+// 			_, err = utils.Run(mountCmd)
+// 			if err != nil {
+// 				log.Errorf("NodeStageVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, devicePath, err.Error())
+// 				return status.Error(codes.Internal, err.Error())
+// 			}
+// 		case localtypes.PmemQuotaPathType:
+// 			projQuotaPath := ""
+// 			if value, ok := req.VolumeContext[ProjQuotaFullPath]; ok {
+// 				projQuotaPath = value
+// 			}
+// 			mountCmd := fmt.Sprintf("%s mount --bind %s %s", NsenterCmd, projQuotaPath, targetPath)
+// 			_, err = utils.Run(mountCmd)
+// 			if err != nil {
+// 				log.Errorf("NodeStageVolume: Volume: %s, Device: %s, mount error: %s", req.VolumeId, projQuotaPath, err.Error())
+// 				return status.Error(codes.Internal, err.Error())
+// 			}
+// 		}
+// 	}
+
+// 	// upgrade PV with NodeAffinity
+// 	if nodeAffinity == "true" {
+// 		err = ns.updatePVNodeAffinity(volumeID)
+// 		return err
+// 	}
+// 	return nil
+// }
 
 func (ns *nodeServer) checkPmemNameSpaceResize(volumeID, targetPath string) error {
 	pv, err := getPvObj(ns.client, volumeID)
@@ -448,6 +461,3 @@ func createLvm(vgName, volumeID, lvmType, unit string, pvSize int64) error {
 	return nil
 }
 
-func pickRegionForKMEM(size string) (string, error) {
-	return "bind:3", nil
-}

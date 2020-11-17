@@ -17,6 +17,7 @@ limitations under the License.
 package mem
 
 import (
+	"errors"
 	"os"
 	"strconv"
 
@@ -42,6 +43,9 @@ const (
 	LocalDisk = "localdisk"
 	// DefaultFs default fs
 	DefaultFs = "ext4"
+	// MemoryType ...
+	MemoryType = "memoryType"
+	// 
 )
 
 type nodeServer struct {
@@ -68,12 +72,19 @@ func NewNodeServer(d *csicommon.CSIDriver, nodeID string) csi.NodeServer {
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
+	mounter := k8smount.New("")
+	if GlobalConfigVar.KmemEnable {
+		err = maintainKMEM(mounter)
+		if err != nil {
+			log.Fatal("Error maintain kmem err: %v", err)
+		}
+	}
 
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		nodeID:            nodeID,
 		mounter:           utils.NewMounter(),
-		k8smounter:        k8smount.New(""),
+		k8smounter:        mounter,
 		client:            kubeClient,
 	}
 }
@@ -85,10 +96,24 @@ func (ns *nodeServer) GetNodeID() string {
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	log.Infof("NodePublishVolume:: req, %v", req)
 
-	// parse request args.
+	// devicePath := "tmpfs"
+	// kmemSize := fmt.Sprintf("%v%s", pvSize, pvSizeUnit)
+	// mountCmd := fmt.Sprintf("%s mount -t %s -o size=%s,mpol=%s %s %s", NsenterCmd, devicePath, kmemSize, mpol, devicePath, targetPath)
+	// _, err = utils.Run(mountCmd)
+	// if err != nil {
+	// 	log.Errorf("NodeStageVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, devicePath, err.Error())
+	// 	return status.Error(codes.Internal, err.Error())
+	// }
+
 	targetPath := req.GetTargetPath()
 	if targetPath == "" {
 		return nil, status.Error(codes.Internal, "targetPath is empty")
+	}
+	pmemType := false
+	if mType, ok := req.VolumeContext[MemoryType]; ok {
+		if mType == "kmem" {
+			pmemType = true
+		}
 	}
 
 	pvName := GetPvNameFormMntPoint(targetPath)
@@ -121,6 +146,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		options = append(options, tmp)
 	}
 	pvSizeNumStr := strconv.FormatInt(pvSizeNum, 10)
+	if pmemType {
+		mpol, err := pickRegionForKMEM(pvSizeNumStr+pvSizeUnit)
+		if err != nil {
+			log.Errorf("NodeStageVolume: Volume: %s, pick region for KMEM err: %s", req.VolumeId, err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		options = append(options, "mpol="+mpol)
+	}
 	options = append(options, "size="+pvSizeNumStr+pvSizeUnit)
 	if err := ns.k8smounter.Mount("tmpfs", targetPath, "tmpfs", options); err != nil {
 		log.Errorf("Mount memory volume with err: %v", err.Error())
@@ -199,3 +232,38 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		},
 	}, nil
 }
+
+func maintainKMEM(mounter k8smount.Interface) error {
+
+	regions, err := GetRegions()
+	if err != nil {
+		log.Errorf("maintainKMEM: get regions failed. err: %v", err)
+		return err
+	}
+
+	for _, region := range regions.Regions {
+		if len(region.Namespaces) == 0 {
+			err := createNameSpace(region.Dev)
+			if err != nil {
+				log.Errorf("Create kmem NameSpace error for region: %s", region.Dev)
+				return errors.New("Create NameSpace error for region: " + region.Dev)
+			}
+		}
+		chardev, err := checkKMEMNamespaceValid(region.Dev)
+		if err != nil {
+			return err
+		}
+		created, err := checkKMEMCreated(chardev)
+		if err != nil {
+			return err
+		}
+		if !created {
+			err = makeNamespaceMemory(chardev)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
