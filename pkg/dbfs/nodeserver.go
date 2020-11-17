@@ -102,7 +102,7 @@ func newNodeServer(d *DBFS) *nodeServer {
 }
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	log.Infof("NodePublishVolume:: Dbfs Volume %s Mount with: %v", req.VolumeId, req)
+	log.Infof("NodePublishVolume:: DBFS Volume %s Mount with: %v", req.VolumeId, req)
 
 	// parse parameters
 	mountPath := req.GetTargetPath()
@@ -124,25 +124,25 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// check parameters
 	if mountPath == "" {
-		return nil, errors.New("mountPath is empty")
+		return nil, errors.New("dbfs mountPath is empty: " + req.VolumeId)
 	}
 	if opt.FileSystemID == "" {
-		return nil, errors.New("FileSystemID is empty, should input the useful dbfsID")
+		return nil, errors.New("FileSystemID is empty, should input the useful dbfsID: " + req.VolumeId)
 	}
 
 	if utils.IsMounted(mountPath) {
-		log.Infof("Dbfs, Mount Path Already Mount, options: %s", mountPath)
+		log.Infof("NodePublishVolume: Dbfs Mount Path Already Mounted, options: %s", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	if !checkVolumeIDAvailiable(req.VolumeId) {
-		log.Infof("Dbfs, Use error format volumeID: %s", req.VolumeId)
-		return nil, errors.New("FileSystemID is error format " + req.VolumeId)
+		log.Infof("NodePublishVolume: DBFS use illegal volumeID: %s", req.VolumeId)
+		return nil, errors.New("NodePublishVolume: FileSystemID is error format " + req.VolumeId)
 	}
 
 	// Create Mount Path
 	if err := utils.CreateDest(mountPath); err != nil {
-		return nil, errors.New("Dbfs, Mount error with create Path fail: " + mountPath)
+		return nil, errors.New("NodePublishVolume: DBFS Mount error with create Path fail: " + err.Error())
 	}
 
 	mnt := req.VolumeCapability.GetMount()
@@ -150,28 +150,39 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	fsType := ""
 	if strings.HasSuffix(opt.FileSystemID, "-config") {
 		dbfsID := strings.Replace(opt.FileSystemID, "-config", "", 1)
+
+		// check dbfs attached
+		if attached, err := checkDbfsAttached(dbfsID); err != nil || !attached {
+			log.Errorf("NodePublishVolume: dbfs(%s) not attached, dbfs config volume cannot mount", req.VolumeId)
+			return nil, errors.New("NodePublishVolume: dbfs " + req.VolumeId + " not attached, dbfs config volume cannot mount")
+		}
+
+		// Get dbfs config path
 		cmd := fmt.Sprintf("%s /opt/dbfs/app/1.0.0.1/bin/dbfs_get_home_path.sh %s", NsenterCmd, dbfsID)
 		out, err := utils.Run(cmd)
 		if err != nil {
-			return nil, errors.New("Dbfs, Get dbfs Config Path error: " + err.Error())
+			log.Errorf("NodePublishVolume: get dbfs config volume path %s with error: %s", req.VolumeId, err.Error())
+			return nil, errors.New("NodePublishVolume: Get DBFS Config Path with error: " + err.Error())
 		}
 
-		log.Infof("Exec dbfs config path get: %s", out)
+		// mount dbfs config path to target
 		homePath := strings.TrimSpace(out)
 		if err := ns.k8smounter.Mount(homePath, mountPath, fsType, options); err != nil {
+			log.Errorf("NodePublishVolume: mount dbfs config volume from %s to %s with error: %s", homePath, mountPath, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		log.Infof("NodePublishVolume: Mount DBFS Config Volume from %s to %s", homePath, mountPath)
 	} else {
 		if err := ns.k8smounter.Mount(req.StagingTargetPath, mountPath, fsType, options); err != nil {
+			log.Errorf("NodePublishVolume: mount DBFS %s with error %s", req.VolumeId, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		log.Infof("NodePublishVolume: Mount DBFS Volume from %s to %s", req.StagingTargetPath, mountPath)
 	}
 
 	// check mount
 	if !utils.IsMounted(mountPath) {
-		return nil, errors.New("Check DBFS mount fail after mount:" + mountPath)
+		log.Errorf("NodePublishVolume: mount DBFS %s finished, check failed", req.VolumeId)
+		return nil, errors.New("NodePublishVolume: Check DBFS mount fail after mount:" + mountPath)
 	}
 	log.Infof("NodePublishVolume:: Volume %s Mount success on mountpoint: %s", req.VolumeId, mountPath)
 
@@ -179,114 +190,65 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	log.Infof("NodeUnpublishVolume:: Starting Umount Dbfs Volume %s at path %s", req.VolumeId, req.TargetPath)
+	log.Infof("NodeUnpublishVolume:: Starting Umount DBFS Volume %s from path %s", req.VolumeId, req.TargetPath)
 	// check runtime mode
 	mountPoint := req.TargetPath
 	if !utils.IsMounted(mountPoint) {
 		if err := ns.umountGlobalPath(req.VolumeId, mountPoint); err != nil {
-			log.Errorf("Umount DBFS Globalpath Fail and mountpoint not mounted %s", err.Error())
-			return nil, errors.New("Dbfs, Umount DBFS Globalpath Fail and mountpoint not mounted: " + err.Error())
+			log.Errorf("NodeUnpublishVolume: Umount DBFS Globalpath Fail with %s", err.Error())
+			return nil, errors.New("NodeUnpublishVolume: Umount DBFS Globalpath Fail: " + err.Error())
 		}
-		log.Infof("NodeUnpublishVolume: Dbfs mountpoint not mounted, skipping: %s", mountPoint)
+		log.Infof("NodeUnpublishVolume: Dbfs mountpoint not mounted, skipping: %s, %s", mountPoint, req.VolumeId)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
 	umntCmd := fmt.Sprintf("umount %s", mountPoint)
 	if _, err := utils.Run(umntCmd); err != nil {
-		log.Errorf("Umount DBFS Fail %s", err.Error())
-		return nil, errors.New("Dbfs, Umount DBFS Fail: " + err.Error())
+		log.Errorf("NodeUnpublishVolume: Umount DBFS Fail %s", err.Error())
+		return nil, errors.New("NodeUnpublishVolume: Umount DBFS Fail: " + err.Error())
 	}
 
 	if err := ns.umountGlobalPath(req.VolumeId, mountPoint); err != nil {
-		log.Errorf("Umount DBFS Globalpath Fail %s", err.Error())
-		return nil, errors.New("Dbfs, Umount DBFS Globalpath Fail: " + err.Error())
+		log.Errorf("NodeUnpublishVolume: Umount DBFS Globalpath Fail %s", err.Error())
+		return nil, errors.New("NodeUnpublishVolume: Umount DBFS Globalpath Fail: " + err.Error())
 	}
 
-	log.Infof("NodeUnpublishVolume: Umount Dbfs Successful on: %s", mountPoint)
+	log.Infof("NodeUnpublishVolume: Umount DBFS Successful on: %s, %s", mountPoint, req.VolumeId)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
-func isPodMounted(pvName string) (bool, error) {
-	mountFlag := filepath.Join("volumes/kubernetes.io~csi", pvName, "mount")
-	cmd := fmt.Sprintf("mount | grep -v grep | grep fuse.dbfs_server | grep %s | wc -l", mountFlag)
-	out, err := utils.Run(cmd)
-	if err != nil {
-		return false, err
-	}
-	if strings.TrimSpace(out) == "0" {
-		return false, nil
-	}
-	return true, nil
-}
-
-func (ns *nodeServer) umountGlobalPath(volumeID, targetPath string) error {
-	pathParts := strings.Split(targetPath, "/")
-	partsLen := len(pathParts)
-	if partsLen > 2 && pathParts[partsLen-1] == "mount" {
-		pvName := pathParts[partsLen-2]
-		globalPath1 := filepath.Join("/var/lib/kubelet/plugins/kubernetes.io/csi/pv/", pvName, "/globalmount")
-
-		if podMounted, err := isPodMounted(pvName); err == nil && podMounted == false {
-			if utils.IsFileExisting(globalPath1) {
-				notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(globalPath1)
-				if err == nil && !notmounted {
-					if err := utils.Umount(globalPath1); err != nil {
-						log.Errorf("NodeUnpublishVolume: volumeId: unmount global path %s failed with err: %v", globalPath1, err)
-						return status.Error(codes.Internal, err.Error())
-					}
-				}
-			}
-		}
-	} else {
-		log.Warnf("Target Path is illegal format: %s", targetPath)
-	}
-	return nil
-}
-
-// GetPvNameFormMntPoint get pv name
-func GetPvNameFormMntPoint(mntPath string) string {
-	if mntPath == "" {
-		return ""
-	}
-	if strings.HasSuffix(mntPath, "/mount") {
-		tmpPath := mntPath[0 : len(mntPath)-6]
-		pvName := filepath.Base(tmpPath)
-		return pvName
-	}
-	return ""
-}
-
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	log.Infof("NodeStageVolume: Stage volume for %s with target: %s", req.VolumeId, req.StagingTargetPath)
+	log.Infof("NodeStageVolume: Stage dbfs volume %s with target: %s", req.VolumeId, req.StagingTargetPath)
 
 	if strings.HasSuffix(req.VolumeId, "-config") {
-		log.Infof("NodeStageVolume: Stage DBFS Config volume %s with skip", req.VolumeId)
+		log.Infof("NodeStageVolume: DBFS Config volume %s with skip stage call", req.VolumeId)
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
 
 	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(req.StagingTargetPath)
 	if err != nil {
+		log.Errorf("NodeStageVolume: dbfs stage target %s is not mountpoint", req.StagingTargetPath)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if !notmounted {
-		log.Infof("NodeStageVolume: volumeId: %s, Path: %s is already mounted", req.VolumeId, req.StagingTargetPath)
+		log.Infof("NodeStageVolume: volumeId: %s, StagePath: %s is already mounted", req.VolumeId, req.StagingTargetPath)
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
 
 	// Do mount
 	if err := ns.DoDBFSMount(req, req.StagingTargetPath, req.VolumeId); err != nil {
-		log.Errorf("Dbfs, Mount DBFS error: %s", err.Error())
-		return nil, errors.New("Dbfs, Mount DBFS error: %s" + err.Error())
+		log.Errorf("NodeStageVolume: Stage DBFS %s with error: %s", req.VolumeId, err.Error())
+		return nil, errors.New("NodeStageVolume: Stage DBFS " + req.VolumeId + " with error: " + err.Error())
 	}
 
-	log.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v", req.VolumeId, req.StagingTargetPath)
+	log.Infof("NodeStageVolume: Stage DBFS Successful, volumeId: %s target %v", req.VolumeId, req.StagingTargetPath)
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	log.Infof("NodeUnstageVolume: unstage volume with %s for target: %s", req.VolumeId, req.StagingTargetPath)
+	log.Infof("NodeUnstageVolume: unstage dbfs volume %s for target: %s", req.VolumeId, req.StagingTargetPath)
 	if strings.HasSuffix(req.VolumeId, "-config") {
-		log.Infof("NodeUnstageVolume: unstage config volume %s just skip", req.VolumeId)
+		log.Infof("NodeUnstageVolume: unstage dbfs config volume %s just skip", req.VolumeId)
 		return &csi.NodeUnstageVolumeResponse{}, nil
 	}
 
@@ -294,13 +256,13 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	if utils.IsFileExisting(req.StagingTargetPath) {
 		notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(req.StagingTargetPath)
 		if err != nil {
-			log.Errorf("NodeUnstageVolume: VolumeId: %s, check mountPoint: %s mountpoint error: %v", req.VolumeId, req.StagingTargetPath, err)
+			log.Errorf("NodeUnstageVolume: VolumeId: %s, check mountPoint: %s with error: %v", req.VolumeId, req.StagingTargetPath, err)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		if !notmounted {
 			err = ns.k8smounter.Unmount(req.StagingTargetPath)
 			if err != nil {
-				log.Errorf("NodeUnstageVolume: VolumeId: %s, umount path: %s failed with: %v", req.VolumeId, req.StagingTargetPath, err)
+				log.Errorf("NodeUnstageVolume: VolumeId: %s, target: %s umount failed with: %v", req.VolumeId, req.StagingTargetPath, err)
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 			if utils.IsMounted(req.StagingTargetPath) {
@@ -308,7 +270,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 				return nil, status.Error(codes.Internal, "NodeUnstageVolume: TargetPath mounted yet with target"+req.StagingTargetPath)
 			}
 		} else {
-			msgLog = fmt.Sprintf("NodeUnstageVolume: VolumeId: %s, mountpoint: %s not mounted, skipping and continue to detach", req.VolumeId, req.StagingTargetPath)
+			msgLog = fmt.Sprintf("NodeUnstageVolume: VolumeId: %s, mountpoint: %s not mounted, skipping", req.VolumeId, req.StagingTargetPath)
 		}
 		// safe remove mountpoint
 		err = ns.mounter.SafePathRemove(req.StagingTargetPath)
@@ -317,7 +279,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	} else {
-		msgLog = fmt.Sprintf("NodeUnstageVolume: VolumeId: %s, Path %s doesn't exist, continue to detach", req.VolumeId, req.StagingTargetPath)
+		msgLog = fmt.Sprintf("NodeUnstageVolume: VolumeId: %s, Path %s doesn't exist, skip", req.VolumeId, req.StagingTargetPath)
 	}
 
 	if msgLog == "" {
@@ -393,4 +355,31 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 			},
 		},
 	}, nil
+}
+
+func (ns *nodeServer) umountGlobalPath(volumeID, targetPath string) error {
+	pathParts := strings.Split(targetPath, "/")
+	partsLen := len(pathParts)
+	if partsLen > 2 && pathParts[partsLen-1] == "mount" {
+		pvName := pathParts[partsLen-2]
+		globalPath := filepath.Join("/var/lib/kubelet/plugins/kubernetes.io/csi/pv/", pvName, "/globalmount")
+		if podMounted, err := isPodMounted(pvName); err == nil && podMounted == false {
+			notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(globalPath)
+			if err == nil && !notmounted {
+				if err := utils.Umount(globalPath); err != nil {
+					log.Errorf("umountGlobalPath: unmount global path %s failed with err: %v", globalPath, err)
+					return status.Error(codes.Internal, err.Error())
+				} else {
+					log.Infof("umountGlobalPath: successful unmount global path %s, %s", globalPath, volumeID)
+				}
+			}
+		} else {
+			log.Errorf("umountGlobalPath: Target Path is mounted by others: %s", targetPath)
+			return fmt.Errorf("umountGlobalPath: Target Path is mounted by others: %s", targetPath)
+		}
+	} else {
+		log.Errorf("umountGlobalPath: Target Path is illegal format: %s", targetPath)
+		return fmt.Errorf("umountGlobalPath: Target Path is illegal format: %s", targetPath)
+	}
+	return nil
 }

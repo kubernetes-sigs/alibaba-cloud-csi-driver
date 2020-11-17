@@ -16,8 +16,11 @@ import (
 const (
 	driverName = "dbfsplugin.csi.alibabacloud.com"
 	// InstanceID is instance id
-	InstanceID             = "instance-id"
+	InstanceID = "instance-id"
+	// DBFSAttachByController tag
 	DBFSAttachByController = "DBFS_AD_CONTROLLER"
+	// DbfsDetachDisable tag
+	DbfsDetachDisable = "DBFS_DETACH_DISABLE"
 )
 
 var (
@@ -30,13 +33,15 @@ var (
 
 // GlobalConfig save global values for plugin
 type GlobalConfig struct {
-	Region             string
-	DbfsClient         *dbfs.Client
-	MetricEnable       bool
-	NodeName           string
-	DBFSDomain         string
+	Region       string
+	DbfsClient   *dbfs.Client
+	MetricEnable bool
+	NodeName     string
+	DBFSDomain   string
+	// only useful in node
 	EcsInstanceID      string
 	ADControllerEnable bool
+	DBFSDetachDisable  bool
 }
 
 type DBFS struct {
@@ -117,7 +122,7 @@ func GlobalConfigSet(region string) {
 	} else {
 		if value, ok := configMap.Data["dbfs-metric-enable"]; ok {
 			if value == "enable" || value == "yes" || value == "true" {
-				log.Infof("Nas Metric is enabled by configMap(%s).", value)
+				log.Infof("Dbfs Metric is enabled by configMap(%s).", value)
 				isMetricEnable = true
 			}
 		}
@@ -145,6 +150,14 @@ func GlobalConfigSet(region string) {
 		log.Infof("AD-Controller is disabled, CSI DBFS Plugin running in kubelet mode.")
 	}
 
+	isDbfsDetachDisable := false
+	dbfsDetachDisable := os.Getenv(DbfsDetachDisable)
+	if dbfsDetachDisable == "true" || dbfsDetachDisable == "yes" {
+		isDbfsDetachDisable = true
+	} else if dbfsDetachDisable == "false" || dbfsDetachDisable == "no" {
+		isDbfsDetachDisable = false
+	}
+
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	GlobalConfigVar.MetricEnable = isMetricEnable
 	GlobalConfigVar.NodeName = nodeName
@@ -152,5 +165,6 @@ func GlobalConfigSet(region string) {
 	GlobalConfigVar.EcsInstanceID, _ = utils.GetMetaData(InstanceID)
 	GlobalConfigVar.ADControllerEnable = isADControllerEnable
 	GlobalConfigVar.DBFSDomain = "dbfs." + GlobalConfigVar.Region + ".aliyuncs.com"
+	GlobalConfigVar.DBFSDetachDisable = isDbfsDetachDisable
 	log.Infof("DBFS Global Config: %v", GlobalConfigVar)
 }

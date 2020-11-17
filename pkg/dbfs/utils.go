@@ -48,17 +48,17 @@ var (
 )
 
 func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint string, volumeID string) error {
-	log.Infof("DoDBFSMount: mount %s to target %s", volumeID, mountPoint)
+	log.Infof("DoDBFSMount: mount volume %s to target %s", volumeID, mountPoint)
 	dbfsPath := filepath.Join(DBFS_ROOT, volumeID)
-	isAttached, err := checkDbfsAttached(dbfsPath)
+	isAttached, err := checkDbfsAttached(volumeID)
 	if err != nil {
-		log.Errorf("checkDbfsAttached error with: %s", err.Error())
+		log.Errorf("DoDBFSMount: check Dbfs Attached error with: %s", err.Error())
 		return err
 	}
-
 	if !isAttached {
-		return errors.New("DBFS is not attahced")
+		return errors.New(volumeID + " is not attahced")
 	}
+
 	mnt := req.VolumeCapability.GetMount()
 	options := append(mnt.MountFlags, "bind")
 
@@ -70,17 +70,8 @@ func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint st
 	return nil
 }
 
-// Umount do an unmount operation
-func HostUmount(mountPath string) error {
-	cmd := fmt.Sprintf("%s umount %s", NsenterCmd, mountPath)
-	_, err := utils.Run(cmd)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func checkDbfsAttached(dbfsPath string) (bool, error) {
+func checkDbfsAttached(volumeID string) (bool, error) {
+	dbfsPath := filepath.Join(DBFS_ROOT, volumeID)
 	cmd := fmt.Sprintf("mount | grep %s | grep dbfs_server | wc -l", dbfsPath)
 	line, err := utils.Run(cmd)
 	if err != nil {
@@ -153,7 +144,6 @@ func checkVolumeIDAvailiable(volumeID string) bool {
 
 func updateDbfsClient(client *dbfs.Client) *dbfs.Client {
 	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
-
 	if accessToken != "" {
 		client = newDbfsClient(accessKeyID, accessSecret, accessToken, GlobalConfigVar.Region)
 	}
@@ -162,28 +152,24 @@ func updateDbfsClient(client *dbfs.Client) *dbfs.Client {
 
 func newDbfsClient(accessKeyID, accessKeySecret, accessToken, regionID string) (dbfsClient *dbfs.Client) {
 	var err error
-	if regionID == "" {
-		regionID, _ = utils.GetMetaData(RegionTag)
-	}
 	if accessToken == "" {
-		dbfsClient, err = dbfs.NewClientWithAccessKey(regionID, accessKeyID, accessKeySecret)
+		dbfsClient, err = dbfs.NewClientWithAccessKey(GlobalConfigVar.Region, accessKeyID, accessKeySecret)
 		if err != nil {
 			return nil
 		}
 	} else {
-		dbfsClient, err = dbfs.NewClientWithStsToken(regionID, accessKeyID, accessKeySecret, accessToken)
+		dbfsClient, err = dbfs.NewClientWithStsToken(GlobalConfigVar.Region, accessKeyID, accessKeySecret, accessToken)
 		if err != nil {
 			return nil
 		}
 	}
-
 	return
 }
 
 func checkDbfsStatus(fsID, nodeID string, expected string) (bool, error) {
 	getResponse, err := describeDbfs(fsID)
 	if err != nil {
-		return false, status.Errorf(codes.InvalidArgument, "Get DBFS with error response %v, with error: %v", fsID, err)
+		return false, status.Errorf(codes.InvalidArgument, "Get DBFS %s with error: %v", fsID, err)
 	}
 	dbfsInfo := getResponse.DBFSInfo
 	if dbfsInfo.Status == expected {
@@ -207,8 +193,34 @@ func describeDbfs(fsID string) (*dbfs.GetDbfsResponse, error) {
 	describeDbfsRequest.FsId = fsID
 	getResponse, err := GlobalConfigVar.DbfsClient.GetDbfs(describeDbfsRequest)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "Get DBFS with error response %v, with error: %v", fsID, err)
+		return nil, status.Errorf(codes.InvalidArgument, "Get DBFS %s with error: %v", fsID, err)
 	}
 
 	return getResponse, nil
+}
+
+func isPodMounted(pvName string) (bool, error) {
+	mountFlag := filepath.Join("volumes/kubernetes.io~csi", pvName, "mount")
+	cmd := fmt.Sprintf("mount | grep -v grep | grep fuse.dbfs_server | grep %s | wc -l", mountFlag)
+	out, err := utils.Run(cmd)
+	if err != nil {
+		return false, err
+	}
+	if strings.TrimSpace(out) == "0" {
+		return false, nil
+	}
+	return true, nil
+}
+
+// GetPvNameFormMntPoint get pv name
+func GetPvNameFormMntPoint(mntPath string) string {
+	if mntPath == "" {
+		return ""
+	}
+	if strings.HasSuffix(mntPath, "/mount") {
+		tmpPath := mntPath[0 : len(mntPath)-6]
+		pvName := filepath.Base(tmpPath)
+		return pvName
+	}
+	return ""
 }
