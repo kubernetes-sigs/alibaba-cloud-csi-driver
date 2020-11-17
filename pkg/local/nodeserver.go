@@ -206,7 +206,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		// upgrade PV with NodeAffinity
 		if nodeAffinity == "true" {
 			err = ns.updatePVNodeAffinity(volumeID)
-			if err !=nil {
+			if err != nil {
 				log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
 				return nil, err
 			}

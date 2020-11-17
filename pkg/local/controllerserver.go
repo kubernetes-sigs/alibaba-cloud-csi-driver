@@ -54,7 +54,7 @@ const (
 	PmemVolumeType = "PMEM"
 	// PmemDirectVolumeType ...
 	PmemDirectVolumeType = "PMEMDirect"
-	// PmemQuotaPathVolumeType ... 
+	// PmemQuotaPathVolumeType ...
 	PmemQuotaPathVolumeType = "PMEMQuotaPath"
 	// MountPointType type
 	MountPointType = "MountPoint"
@@ -331,7 +331,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				return nil, err
 			}
 			parameters[ProjQuotaFullPath] = projectQuotaSubpath
-		}else {
+		} else {
 			return nil, errors.New("CreateVolume: PMEMQuotaPath type nodeselected must not be None")
 		}
 	default:

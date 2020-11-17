@@ -460,4 +460,3 @@ func createLvm(vgName, volumeID, lvmType, unit string, pvSize int64) error {
 	}
 	return nil
 }
-
