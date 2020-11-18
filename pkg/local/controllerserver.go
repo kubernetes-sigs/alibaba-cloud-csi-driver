@@ -87,6 +87,8 @@ const (
 // the map of req.Name and csi.Volume
 var createdVolumeMap = map[string]*csi.Volume{}
 
+var supportVolumeTypes = []string{LvmVolumeType, PmemDirectVolumeType, PmemQuotaPathVolumeType, MountPointType, DeviceVolumeType}
+
 // newControllerServer creates a controllerServer object
 func newControllerServer(d *csicommon.CSIDriver) *controllerServer {
 	k8sHost := os.Getenv("KUBERNETES_SERVICE_HOST")
@@ -130,11 +132,15 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	response := &csi.CreateVolumeResponse{}
 	parameters := req.GetParameters()
 	if value, ok := parameters[VolumeTypeKey]; ok {
-		volumeType = value
+		for _, supportVolType := range supportVolumeTypes {
+			if supportVolType == value {
+				volumeType = value
+			} 
+		}
 	}
-	if volumeType != LvmVolumeType && volumeType != MountPointType && volumeType != DeviceVolumeType && volumeType != PmemVolumeType {
+	if volumeType == "" {
 		log.Errorf("CreateVolume: Create volume %s with error volumeType %v", volumeID, parameters)
-		return nil, status.Error(codes.InvalidArgument, "Local driver only support LVM/MountPoint/Device/PMEM volume type, no "+volumeType)
+		return nil, status.Error(codes.InvalidArgument, "Local driver only support LVM/MountPoint/Device/PmemDirect/PmemQuotaPath volume type, no "+volumeType)
 	}
 
 	if value, ok := createdVolumeMap[req.Name]; ok {
