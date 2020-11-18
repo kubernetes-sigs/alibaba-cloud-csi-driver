@@ -162,6 +162,7 @@ func MaintainQuotaPath(regions *PmemRegions, mounter k8smount.Interface) error {
 				return errors.New("Create projQuota namespace error for region " + region.Dev)
 			}
 		}
+		options := []string{"prjquota", "shared"}
 		mkfsOptions := strings.Split("-O project,quota", " ")
 		devicePath, namespaceName, err := checkProjQuotaNamespaceValid(region.Dev)
 		if err != nil {
@@ -173,7 +174,7 @@ func MaintainQuotaPath(regions *PmemRegions, mounter k8smount.Interface) error {
 			return err
 		}
 		diskMounter := &k8smount.SafeFormatAndMount{Interface: mounter, Exec: utilexec.New()}
-		err = formatAndMount(diskMounter, devicePath, namespaceFullPath, types.PmemDeviceFilesystem, mkfsOptions)
+		err = formatAndMount(diskMounter, devicePath, namespaceFullPath, types.PmemDeviceFilesystem, mkfsOptions, options)
 		if err != nil {
 			return err
 		}
