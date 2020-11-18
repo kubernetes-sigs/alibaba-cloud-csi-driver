@@ -312,6 +312,7 @@ github.com/kubernetes-csi/csi-test v1.1.0/go.mod h1:YxJ4UiuPWIhMBkxUKY5c267DyA0u
 github.com/kubernetes-csi/drivers v1.0.2 h1:kaEAMfo+W5YFr23yedBIY+NGnNjr6/PbPzx7N4GYgiQ=
 github.com/kubernetes-csi/drivers v1.0.2/go.mod h1:V6rHbbSLCZGaQoIZ8MkyDtoXtcKXZM0F7N3bkloDCOY=
 github.com/kubernetes-csi/external-snapshotter v1.0.1 h1:mR9hun6TViPyNDa+SFoRxnIXQmITIVM840ODiuNG784=
+github.com/kubernetes-csi/external-snapshotter v1.0.1/go.mod h1:oYfxnsuh48V1UDYORl77YQxQbbdokNy7D73phuFpksY=
 github.com/kubernetes-csi/external-snapshotter/v2 v2.1.2 h1:e9X3AkEwEYctP4SWDr39Ox84u12w16yLGcPrXodJvAM=
 github.com/kubernetes-csi/external-snapshotter/v2 v2.1.2/go.mod h1:2ar8FelpdkUJaoqp8cQpucBd8pir8c1K5BQIVZwUbJI=
 github.com/kylelemons/godebug v0.0.0-20170820004349-d65d576e9348/go.mod h1:B69LEHPfb2qLo0BaaOLcbitczOKLWTsrBG9LczfCD4k=
