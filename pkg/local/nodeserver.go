@@ -18,6 +18,9 @@ package local
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/generator"
@@ -36,8 +39,6 @@ import (
 	"k8s.io/kubernetes/pkg/util/resizefs"
 	utilexec "k8s.io/utils/exec"
 	k8smount "k8s.io/utils/mount"
-	"os"
-	"path/filepath"
 )
 
 const (
@@ -173,7 +174,63 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
 			return nil, err
 		}
-	case PmemQuotaPathVolumeType:
+	case PmemVolumeType:
+		targetPath := req.TargetPath
+		nodeAffinity := DefaultNodeAffinity
+		pmemBlockDev := ""
+		volumeID := req.GetVolumeId()
+		if value, ok := req.VolumeContext[PmemBlockDev]; ok {
+			fsType := DefaultFs
+			if _, ok := req.VolumeContext[FsTypeTag]; ok {
+				fsType = req.VolumeContext[FsTypeTag]
+			}
+			pmemBlockDev = value
+			devicePath := filepath.Join("/dev/", pmemBlockDev)
+			if _, err := os.Stat(devicePath); os.IsNotExist(err) {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			ns.checkPmemNameSpaceResize(volumeID, targetPath)
+			if _, ok := req.VolumeContext[NodeAffinity]; ok {
+				nodeAffinity = req.VolumeContext[NodeAffinity]
+			}
+			log.Infof("NodePublishVolume: Starting to mount kmem or quotapath at path: %s, with volume: %s, NodeAffinty: %s", targetPath, req.GetVolumeId(), nodeAffinity)
+
+			// Check target mounted
+			isMnt, err := ns.checkTargetMounted(targetPath)
+			if err != nil {
+				log.Errorf("NodePublishVolume: check volume %s mounted with error: %s", volumeID, err.Error())
+				return nil, err
+			}
+			if !isMnt {
+				var options []string
+				if req.GetReadonly() {
+					options = append(options, "ro")
+				} else {
+					options = append(options, "rw")
+				}
+				mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
+				options = append(options, mountFlags...)
+
+				diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
+				if err := diskMounter.FormatAndMount(devicePath, targetPath, fsType, options); err != nil {
+					log.Errorf("NodePublishVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, devicePath, err.Error())
+					return nil, status.Error(codes.Internal, err.Error())
+				}
+				log.Infof("NodePublishVolume:: mount successful devicePath: %s, targetPath: %s, options: %v", devicePath, targetPath, options)
+			}
+
+			// upgrade PV with NodeAffinity
+			if nodeAffinity == "true" {
+				err = ns.updatePVNodeAffinity(volumeID)
+				if err != nil {
+					log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
+					return nil, err
+				}
+			}
+		} else {
+			return nil, status.Error(codes.Internal, "pmemBlockDev is empty")
+		}
+	case QuotaPathVolumeType:
 		targetPath := req.TargetPath
 
 		nodeAffinity := DefaultNodeAffinity

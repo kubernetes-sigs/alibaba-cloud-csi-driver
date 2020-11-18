@@ -76,7 +76,7 @@ func NewNodeServer(d *csicommon.CSIDriver, nodeID string) csi.NodeServer {
 	if GlobalConfigVar.KmemEnable {
 		err = maintainKMEM(mounter)
 		if err != nil {
-			log.Fatal("Error maintain kmem err: %v", err)
+			log.Fatalf("Error maintain kmem err: %v", err)
 		}
 	}
 
