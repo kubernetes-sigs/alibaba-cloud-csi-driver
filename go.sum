@@ -39,6 +39,8 @@ github.com/aliyun/alibaba-cloud-sdk-go v1.61.550-0.20201010055725-73672738e6a8 h
 github.com/aliyun/alibaba-cloud-sdk-go v1.61.550-0.20201010055725-73672738e6a8 h1:54Tj6kPMMFu9VDBIrXZweQnodk+VMEHzIkFVBSvlIGg=
 github.com/aliyun/alibaba-cloud-sdk-go v1.61.550-0.20201010055725-73672738e6a8/go.mod h1:pUKYbK5JQ+1Dfxk80P0qxGqe5dkxDoabbZS7zOcouyA=
 github.com/aliyun/alibaba-cloud-sdk-go v1.61.550-0.20201010055725-73672738e6a8/go.mod h1:pUKYbK5JQ+1Dfxk80P0qxGqe5dkxDoabbZS7zOcouyA=
+github.com/aliyun/alibaba-cloud-sdk-go v1.61.671 h1:saC1xSnjO1xUeK/NQRap1Rdocn97tWwEmGjXX5epdMc=
+github.com/aliyun/alibaba-cloud-sdk-go v1.61.671/go.mod h1:pUKYbK5JQ+1Dfxk80P0qxGqe5dkxDoabbZS7zOcouyA=
 github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883/go.mod h1:rCTlJbsFo29Kk6CurOXKm700vrz8f0KW0JNfpkRJY/8=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
 github.com/apache/thrift v0.0.0-20181217171848-56ac72e74ae3/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
