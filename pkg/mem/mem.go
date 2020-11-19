@@ -108,10 +108,11 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 	} else {
 		if value, ok := nodeInfo.Labels[KmemNodeLabel]; ok {
 			nodePmemType := strings.TrimSpace(value)
-			if nodePmemType != KmemValue {
-				log.Fatalf("GlobalConfigSet: unknown pemeType: %s", nodePmemType)
+			if nodePmemType == KmemValue {
+				kmemEnable = true
+			} else {
+				log.Errorf("GlobalConfigSet: unknown pemeType: %s", nodePmemType)
 			}
-			kmemEnable = true
 		}
 	}
 
