@@ -56,7 +56,7 @@ type Options struct {
 const (
 	// DbfsMetricByPlugin tag
 	DbfsMetricByPlugin = "DBFS_METRIC_BY_PLUGIN"
-	// DBFS_ROOT tag
+	// DdbfROOT tag
 	DdbfROOT = "/mnt/dbfs/"
 )
 
