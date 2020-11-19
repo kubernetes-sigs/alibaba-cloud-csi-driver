@@ -49,7 +49,7 @@ var (
 
 func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint string, volumeID string) error {
 	log.Infof("DoDBFSMount: mount volume %s to target %s", volumeID, mountPoint)
-	dbfsPath := filepath.Join(DBFS_ROOT, volumeID)
+	dbfsPath := filepath.Join(DdbfROOT, volumeID)
 	isAttached, err := checkDbfsAttached(volumeID)
 	if err != nil {
 		log.Errorf("DoDBFSMount: check Dbfs Attached error with: %s", err.Error())
@@ -71,7 +71,7 @@ func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint st
 }
 
 func checkDbfsAttached(volumeID string) (bool, error) {
-	dbfsPath := filepath.Join(DBFS_ROOT, volumeID)
+	dbfsPath := filepath.Join(DdbfROOT, volumeID)
 	cmd := fmt.Sprintf("mount | grep %s | grep dbfs_server | wc -l", dbfsPath)
 	line, err := utils.Run(cmd)
 	if err != nil {
