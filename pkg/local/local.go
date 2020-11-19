@@ -48,6 +48,9 @@ const (
 	csiVersion        = "1.0.0"
 )
 
+// PmemSupportType ...
+var PmemSupportType = []string{types.PmemLVMType, types.PmemDirectType, types.PmemKmemType, types.PmemQuotaPathType}
+
 // Init checks for the persistent volume file and loads all found volumes
 // into a memory structure
 func initDriver() {
@@ -117,17 +120,19 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 	if err != nil {
 		log.Fatalf("Describe node %s with error: %s", nodeName, err.Error())
 	} else {
-		if value, ok := nodeInfo.Labels["pmem.csi.alibabacloud.com/type"]; ok {
+		if value, ok := nodeInfo.Labels[types.PmemNodeLable]; ok {
+			nodePmemType := strings.TrimSpace(value)
 			pmemEnable = true
-			if strings.TrimSpace(value) == "lvm" {
-				pmeType = "lvm"
-			} else if strings.TrimSpace(value) == "direct" {
-				pmeType = "direct"
-			} else {
-				pmeType = "kmem"
+			for _, supportPmemType := range PmemSupportType {
+				if nodePmemType == supportPmemType {
+					pmeType = supportPmemType
+				}
+			}
+			if pmeType == "" {
+				log.Fatalf("GlobalConfigSet: unknown pemeType: %s", nodePmemType)
 			}
 		}
-		log.Infof("Describe node %s and Set PMEM to %v, %s", nodeName, pmemEnable, pmeType)
+		log.Infof("GlobalConfigSet: Describe node %s and Set PMEM to %v, %s", nodeName, pmemEnable, pmeType)
 	}
 
 	remoteProvision := true

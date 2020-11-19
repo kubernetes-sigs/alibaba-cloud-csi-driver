@@ -17,9 +17,16 @@ limitations under the License.
 package mem
 
 import (
+	"os"
+	"strings"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/context"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 // MEM the LVM struct
@@ -54,6 +61,7 @@ func NewDriver(nodeID, endpoint string) *MEM {
 		nodeID = GetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
+	GlobalConfigSet("", nodeID, driverName)
 	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, nodeID)
 	tmpmem.driver = csiDriver
 	tmpmem.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
@@ -78,4 +86,50 @@ func (mem *MEM) Run() {
 	server := csicommon.NewNonBlockingGRPCServer()
 	server.Start(mem.endpoint, mem.idServer, mem.controllerServer, mem.nodeServer)
 	server.Wait()
+}
+
+// GlobalConfigSet set Global Config
+func GlobalConfigSet(region, nodeID, driverName string) {
+	// Global Config set
+	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	if err != nil {
+		log.Fatalf("Error building kubeconfig: %s", err.Error())
+	}
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+
+	nodeName := os.Getenv("KUBE_NODE_NAME")
+	kmemEnable := false
+	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	if err != nil {
+		log.Fatalf("Describe node %s with error: %s", nodeName, err.Error())
+	} else {
+		if value, ok := nodeInfo.Labels[KmemNodeLabel]; ok {
+			nodePmemType := strings.TrimSpace(value)
+			if nodePmemType != KmemValue {
+				log.Fatalf("GlobalConfigSet: unknown pemeType: %s", nodePmemType)
+			}
+			kmemEnable = true
+		}
+	}
+
+	remoteProvision := true
+	remoteConfig := os.Getenv("LOCAL_CONTROLLER_PROVISION")
+	if strings.ToLower(remoteConfig) == "false" {
+		remoteProvision = false
+	}
+
+	// Global Config Set
+	GlobalConfigVar = GlobalConfig{
+		Region:              region,
+		NodeID:              nodeID,
+		Scheduler:           driverName,
+		KmemEnable:          kmemEnable,
+		ControllerProvision: remoteProvision,
+		KubeClient:          kubeClient,
+	}
+	log.Infof("Local Plugin Global Config is: %v", GlobalConfigVar)
+
 }

@@ -1,14 +1,15 @@
 package lib
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
-	"os/exec"
+	utilexec "k8s.io/utils/exec"
+	k8smount "k8s.io/utils/mount"
 	"path/filepath"
 	"strings"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -16,8 +17,14 @@ const (
 	PmemVolumeGroupNameRegion0 = "pmemvgregion0"
 	// PmemVolumeGroupNameRegion1 tag
 	PmemVolumeGroupNameRegion1 = "pmemvgregion1"
+	// PmemVolumeGroupNamePrefix ...
+	PmemVolumeGroupNamePrefix = "pmemvg"
 	// PmemRegionNameDefault tag
 	PmemRegionNameDefault = "region0"
+	// fsckErrorsCorrected tag
+	fsckErrorsCorrected = 1
+	// fsckErrorsUncorrected tag
+	fsckErrorsUncorrected = 4
 )
 
 // PmemRegions list all regions
@@ -69,7 +76,7 @@ const (
 var ErrParse = errors.New("Cannot parse output of blkid")
 
 // MaintainPMEM build pmem device
-func MaintainPMEM(pmemType string) error {
+func MaintainPMEM(pmemType string, mounter k8smount.Interface) error {
 	regions, err := GetRegions()
 	if err != nil {
 		log.Errorf("Get pmem regions error: %v", err)
@@ -80,26 +87,33 @@ func MaintainPMEM(pmemType string) error {
 		return nil
 	}
 	log.Infof("Get Regions Info: %v", regions)
-
-	if pmemType == "lvm" {
+	switch pmemType {
+	case types.PmemLVMType:
 		if err := MaintainLVM(regions); err != nil {
 			log.Errorf("MaintainLVM got error: %v", err)
 			return err
 		}
-		log.Infof("MaintainLVM Successful")
-	} else if pmemType == "direct" {
+		log.Info("MaintainLVM Successful")
+	case types.PmemDirectType:
 		if err := MaintainDirect(regions); err != nil {
 			log.Errorf("MaintainDirect got error: %v", err)
 			return err
 		}
-		log.Infof("MaintainDirect Successful")
-	} else if pmemType == "kmem" {
+		log.Info("MaintainDirect Successful")
+	case types.PmemKmemType:
 		if err := MaintainKMEM(regions); err != nil {
 			log.Errorf("MaintainKMEM got error: %v", err)
 			return err
 		}
-	} else {
-		log.Warnf("Set pmem type %s is not supported", pmemType)
+		log.Info("MaintainKMEM Successful")
+	case types.PmemQuotaPathType:
+		if err := MaintainQuotaPath(regions, mounter); err != nil {
+			log.Errorf("MaintainProjQuota got error: %v", err)
+			return err
+		}
+		log.Info("MaintainProjQuota Successful")
+	default:
+		log.Error("MaintainPMEM: unsupport pmem type")
 	}
 
 	return nil
@@ -110,11 +124,11 @@ func MaintainDirect(regions *PmemRegions) error {
 	return nil
 }
 
-// MaintainKMEM direct pmem
+// MaintainKMEM create kmem type namespace
 func MaintainKMEM(regions *PmemRegions) error {
 	for _, region := range regions.Regions {
 		if len(region.Namespaces) == 0 {
-			err := createNameSpace(region.Dev, "kmem")
+			err := createNameSpace(region.Dev, types.PmemKmemType)
 			if err != nil {
 				log.Errorf("Create kmem NameSpace error for region: %s", region.Dev)
 				return errors.New("Create NameSpace error for region: " + region.Dev)
@@ -138,59 +152,34 @@ func MaintainKMEM(regions *PmemRegions) error {
 	return nil
 }
 
-func checkKMEMCreated(chardev string) (bool, error) {
-	listCmd := fmt.Sprintf("%s daxctl list", NsenterCmd)
-	out, err := utils.Run(listCmd)
-	if err != nil {
-		log.Errorf("List daxctl error: %v", err)
-		return false, err
-	}
-	memList := []*DaxctrlMem{}
-	err = json.Unmarshal(([]byte)(out), &memList)
-	if err != nil {
-		return false, err
-	}
-	for _, mem := range memList {
-		if mem.Chardev == chardev && mem.Mode == "system-ram" {
-			return true, nil
+// MaintainQuotaPath maintain project quota file system
+func MaintainQuotaPath(regions *PmemRegions, mounter k8smount.Interface) error {
+	for _, region := range regions.Regions {
+		if len(region.Namespaces) == 0 {
+			err := createNameSpace(region.Dev, types.PmemQuotaPathType)
+			if err != nil {
+				log.Errorf("Create projQuota namespace error for region: %s", region.Dev)
+				return errors.New("Create projQuota namespace error for region " + region.Dev)
+			}
+		}
+		options := []string{"prjquota", "shared"}
+		mkfsOptions := strings.Split("-O project,quota", " ")
+		devicePath, namespaceName, err := checkProjQuotaNamespaceValid(region.Dev)
+		if err != nil {
+			return err
+		}
+		namespaceFullPath := fmt.Sprintf(types.PmemProjectQuotaBasePath, namespaceName)
+		err = EnsureFolder(namespaceFullPath)
+		if err != nil {
+			return err
+		}
+		diskMounter := &k8smount.SafeFormatAndMount{Interface: mounter, Exec: utilexec.New()}
+		err = formatAndMount(diskMounter, devicePath, namespaceFullPath, types.PmemDeviceFilesystem, mkfsOptions, options)
+		if err != nil {
+			return err
 		}
 	}
-	return false, nil
-}
-
-func checkKMEMNamespaceValid(region string) (string, error) {
-	listCmd := fmt.Sprintf("%s ndctl list -RN -r %s", NsenterCmd, region)
-	out, err := utils.Run(listCmd)
-	if err != nil {
-		log.Errorf("List NameSpace for region %s error: %v", region, err)
-		return "", err
-	}
-	regions := &PmemRegions{}
-	err = json.Unmarshal(([]byte)(out), regions)
-	if err != nil {
-		log.Errorf("List NameSpace for region %s unmarshal error: %v", region, err)
-		return "", err
-	}
-	if len(regions.Regions) == 0 {
-		log.Errorf("list Namespace for region %s get 0 region", region)
-		return "", errors.New("list Namespace get 0 region by " + region)
-	}
-	if len(regions.Regions[0].Namespaces) != 1 {
-		log.Errorf("list Namespace for region %s get 0 or multi namespaces", region)
-		return "", errors.New("list Namespace for region get 0 or multi namespaces" + region)
-	}
-	namespaceMode := regions.Regions[0].Namespaces[0].Mode
-	if namespaceMode != "devdax" {
-		log.Errorf("KMEM namespace mode %s wrong", namespaceMode)
-		return "", errors.New("KMEM namespace wrong mode" + namespaceMode)
-	}
-	return regions.Regions[0].Namespaces[0].CharDev, nil
-}
-
-func makeNamespaceMemory(chardev string) error {
-	makeCmd := fmt.Sprintf("%s daxctl reconfigure-device -m system-ram %s", NsenterCmd, chardev)
-	_, err := utils.Run(makeCmd)
-	return err
+	return nil
 }
 
 // MaintainLVM lvm pmem
@@ -198,7 +187,7 @@ func MaintainLVM(regions *PmemRegions) error {
 	// Create Namespaces if not exist
 	for _, region := range regions.Regions {
 		if len(region.Namespaces) == 0 {
-			if err := createNameSpace(region.Dev, "lvm"); err != nil {
+			if err := createNameSpace(region.Dev, types.PmemLVMType); err != nil {
 				log.Errorf("Create lvm NameSpace error for region: %s", region.Dev)
 				return errors.New("Create NameSpace error for region: " + region.Dev)
 			}
@@ -229,163 +218,24 @@ func MaintainLVM(regions *PmemRegions) error {
 		}
 
 		if len(deviceList) > 0 && needCreate {
-			if region.Dev == "region0" {
-				if err := createPmemVG(deviceList, PmemVolumeGroupNameRegion0); err != nil {
-					return err
-				}
-
-			} else if region.Dev == "region1" {
-				if err := createPmemVG(deviceList, PmemVolumeGroupNameRegion1); err != nil {
-					return err
-				}
-			} else {
-				return errors.New("Create volumegroup with not supported region " + region.Dev)
+			vgName := PmemVolumeGroupNamePrefix + region.Dev
+			if err := createPmemVG(deviceList, vgName); err != nil {
+				return err
 			}
+
+			// if region.Dev == "region0" {
+			// 	if err := createPmemVG(deviceList, PmemVolumeGroupNameRegion0); err != nil {
+			// 		return err
+			// 	}
+
+			// } else if region.Dev == "region1" {
+			// 	if err := createPmemVG(deviceList, PmemVolumeGroupNameRegion1); err != nil {
+			// 		return err
+			// 	}
+			// } else {
+			// 	return errors.New("Create volumegroup with not supported region " + region.Dev)
+			// }
 		}
 	}
 	return nil
-}
-
-func createNameSpace(region, pmemType string) error {
-	var createCmd string
-	if pmemType == "lvm" {
-		createCmd = fmt.Sprintf("%s ndctl create-namespace -r %s", NsenterCmd, region)
-	} else {
-		createCmd = fmt.Sprintf("%s ndctl create-namespace -r %s --mode=devdax", NsenterCmd, region)
-	}
-	_, err := utils.Run(createCmd)
-	if err != nil {
-		log.Errorf("Create NameSpace for region %s error: %v", region, err)
-		return err
-	}
-	log.Infof("Create NameSpace for region %s successful", region)
-	return nil
-}
-
-// device used in pv
-// device used in block
-func checkNameSpaceUsed(devicePath string) bool {
-	pvCheckCmd := fmt.Sprintf("%s pvs %s 2>&1 | grep -v \"Failed to \" | grep /dev | awk '{print $2}' | wc -l", NsenterCmd, devicePath)
-	out, err := utils.Run(pvCheckCmd)
-	if err == nil && strings.TrimSpace(out) != "0" {
-		log.Infof("NameSpace %s used for pv", devicePath)
-		return true
-	}
-
-	out, err = checkFSType(devicePath)
-	if err == nil && strings.TrimSpace(out) != "" {
-		log.Infof("NameSpace %s format as %s", devicePath, out)
-		return true
-	}
-	return false
-}
-
-func createPmemVG(deviceList []string, vgName string) error {
-	localDeviceStr := strings.Join(deviceList, " ")
-	vgAddCmd := fmt.Sprintf("%s vgcreate --force %s %s", NsenterCmd, vgName, localDeviceStr)
-	_, err := utils.Run(vgAddCmd)
-	if err != nil {
-		log.Errorf("Create VG (%v) with PV (%v) error: %s", vgName, localDeviceStr, err.Error())
-		return err
-	}
-
-	log.Infof("Successful add Local Disks to VG (%s): %s", vgName, localDeviceStr)
-	return nil
-}
-
-// GetRegions get regions info
-func GetRegions() (*PmemRegions, error) {
-	regions := &PmemRegions{}
-	getRegionCmd := fmt.Sprintf("%s ndctl list -RN", NsenterCmd)
-	regionOut, err := utils.Run(getRegionCmd)
-	if err != nil {
-		return regions, err
-	}
-	err = json.Unmarshal(([]byte)(regionOut), regions)
-	if err != nil {
-		if strings.HasPrefix(regionOut, "[") {
-			regionList := []PmemRegion{}
-			err = json.Unmarshal(([]byte)(regionOut), &regionList)
-			if err != nil {
-				return regions, err
-			}
-			regions.Regions = regionList
-		} else {
-			return regions, err
-		}
-	}
-
-	return regions, nil
-}
-
-// GetNameSpaceCapacity get namespace size
-func GetNameSpaceCapacity(ns *PmemNameSpace) int64 {
-	expect := (ns.Size + ns.Align) * 4096 / 4032
-	return expect
-}
-
-// GetNameSpace get namespace info
-func GetNameSpace(namespaceName string) (*PmemNameSpace, error) {
-	namespace := &PmemNameSpace{}
-	namespaceList := []*PmemNameSpace{}
-	getRegionCmd := fmt.Sprintf("%s ndctl list -n %s", NsenterCmd, namespaceName)
-	regionOut, err := utils.Run(getRegionCmd)
-	if err != nil {
-		return namespace, err
-	}
-	err = json.Unmarshal(([]byte)(regionOut), &namespaceList)
-	if err != nil {
-		return namespace, err
-	}
-	if len(namespaceList) == 1 {
-		return namespaceList[0], nil
-	}
-	return namespace, fmt.Errorf("namespace found error")
-}
-
-// ToProto build NameSpace object
-func (pns *PmemNameSpace) ToProto() *NameSpace {
-	new := &NameSpace{}
-	new.CharDev = pns.CharDev
-	new.Name = pns.Name
-	new.Dev = pns.Dev
-	new.Mode = pns.Mode
-	new.Size = pns.Size
-	new.Uuid = pns.UUID
-	new.Align = pns.Align
-	new.MapType = pns.MapType
-	new.SectorSize = pns.SectorSize
-	return new
-}
-
-func checkFSType(devicePath string) (string, error) {
-	// We use `file -bsL` to determine whether any filesystem type is detected.
-	// If a filesystem is detected (ie., the output is not "data", we use
-	// `blkid` to determine what the filesystem is. We use `blkid` as `file`
-	// has inconvenient output.
-	// We do *not* use `lsblk` as that requires udev to be up-to-date which
-	// is often not the case when a device is erased using `dd`.
-	output, err := exec.Command("file", "-bsL", devicePath).CombinedOutput()
-	if err != nil {
-		return "", err
-	}
-	if strings.TrimSpace(string(output)) == "data" {
-		return "", nil
-	}
-	output, err = exec.Command("blkid", "-c", "/dev/null", "-o", "export", devicePath).CombinedOutput()
-	if err != nil {
-		return "", err
-	}
-
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		fields := strings.Split(strings.TrimSpace(line), "=")
-		if len(fields) != 2 {
-			return "", ErrParse
-		}
-		if fields[0] == "TYPE" {
-			return fields[1], nil
-		}
-	}
-	return "", ErrParse
 }
