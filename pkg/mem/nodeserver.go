@@ -111,7 +111,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	pmemType := false
 	if mType, ok := req.VolumeContext[MemoryType]; ok {
-		if mType == "kmem" {
+		if mType == "KMEM" {
 			pmemType = true
 		}
 	}
