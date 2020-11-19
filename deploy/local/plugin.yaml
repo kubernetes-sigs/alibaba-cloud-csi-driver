@@ -76,6 +76,9 @@ spec:
               name: host-dev
             - mountPath: /var/log/
               name: host-log
+            - mountPath: /mnt
+              name: quota-path-dir
+              mountPropagation: "HostToContainer"
       volumes:
         - name: plugin-dir
           hostPath:
@@ -88,6 +91,10 @@ spec:
         - name: pods-mount-dir
           hostPath:
             path: /var/lib/kubelet
+            type: Directory
+        - name: quota-path-dir
+          hostPath:
+            path: /mnt
             type: Directory
         - name: host-dev
           hostPath:
