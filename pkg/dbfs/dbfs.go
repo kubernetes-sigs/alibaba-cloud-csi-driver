@@ -44,6 +44,7 @@ type GlobalConfig struct {
 	DBFSDetachDisable  bool
 }
 
+// DBFS define driver
 type DBFS struct {
 	driver           *csicommon.CSIDriver
 	endpoint         string

@@ -56,7 +56,8 @@ type Options struct {
 const (
 	// DbfsMetricByPlugin tag
 	DbfsMetricByPlugin = "DBFS_METRIC_BY_PLUGIN"
-	DBFS_ROOT          = "/mnt/dbfs/"
+	// DBFS_ROOT tag
+	DdbfROOT = "/mnt/dbfs/"
 )
 
 //newNodeServer create the csi node server
@@ -369,9 +370,8 @@ func (ns *nodeServer) umountGlobalPath(volumeID, targetPath string) error {
 				if err := utils.Umount(globalPath); err != nil {
 					log.Errorf("umountGlobalPath: unmount global path %s failed with err: %v", globalPath, err)
 					return status.Error(codes.Internal, err.Error())
-				} else {
-					log.Infof("umountGlobalPath: successful unmount global path %s, %s", globalPath, volumeID)
 				}
+				log.Infof("umountGlobalPath: successful unmount global path %s, %s", globalPath, volumeID)
 			}
 		} else {
 			log.Errorf("umountGlobalPath: Target Path is mounted by others: %s", targetPath)

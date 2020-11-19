@@ -35,15 +35,25 @@ import (
 )
 
 const (
-	DRIVER          = "driver"
-	SERVER          = "server"
-	MODE            = "mode"
-	ModeType        = "modeType"
-	PATH            = "path"
-	ProtocolType    = "protocolType"
-	FileSystemType  = "fileSystemType"
-	ZoneID          = "zoneId"
-	ZoneIDTag       = "zone-id"
+	// DRIVER tag
+	DRIVER = "driver"
+	// SERVER tag
+	SERVER = "server"
+	// MODE tag
+	MODE = "mode"
+	// ModeType tag
+	ModeType = "modeType"
+	// PATH tag
+	PATH = "path"
+	// ProtocolType tag
+	ProtocolType = "protocolType"
+	// FileSystemType tag
+	FileSystemType = "fileSystemType"
+	// ZoneID tag
+	ZoneID = "zoneId"
+	// ZoneIDTag tag
+	ZoneIDTag = "zone-id"
+	// TopologyZoneKey tag
 	TopologyZoneKey = "topology." + driverName + "/zone"
 )
 
@@ -60,8 +70,8 @@ type controllerServer struct {
 type dbfsOptions struct {
 	Category         string
 	FsName           string
-	RegionId         string
-	ZoneId           string
+	RegionID         string
+	ZoneID           string
 	SizeGB           int
 	PerformanceLevel string
 }
@@ -123,8 +133,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	createDbfsRequest := dbfs.CreateCreateDbfsRequest()
 	createDbfsRequest.Category = dbfsOpts.Category
 	createDbfsRequest.FsName = dbfsOpts.FsName
-	createDbfsRequest.ZoneId = dbfsOpts.ZoneId
-	createDbfsRequest.RegionId = dbfsOpts.RegionId
+	createDbfsRequest.ZoneId = dbfsOpts.ZoneID
+	createDbfsRequest.RegionId = dbfsOpts.RegionID
 	createDbfsRequest.SizeG = requests.NewInteger(dbfsOpts.SizeGB)
 	createDbfsRequest.ClientToken = req.Name
 	createDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
@@ -154,7 +164,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		AccessibleTopology: []*csi.Topology{
 			{
 				Segments: map[string]string{
-					TopologyZoneKey: dbfsOpts.ZoneId,
+					TopologyZoneKey: dbfsOpts.ZoneID,
 				},
 			},
 		},
@@ -410,10 +420,10 @@ func (cs *controllerServer) getDbfsVolumeOptions(req *csi.CreateVolumeRequest) (
 	if dbfsOpts.Category, ok = volOptions["category"]; !ok {
 		dbfsOpts.Category = "standard"
 	}
-	dbfsOpts.RegionId = GlobalConfigVar.Region
+	dbfsOpts.RegionID = GlobalConfigVar.Region
 
-	if dbfsOpts.ZoneId, ok = volOptions["zoneId"]; !ok {
-		dbfsOpts.ZoneId, _ = utils.GetMetaData("zone-id")
+	if dbfsOpts.ZoneID, ok = volOptions["zoneId"]; !ok {
+		dbfsOpts.ZoneID, _ = utils.GetMetaData("zone-id")
 	}
 
 	if dbfsOpts.PerformanceLevel, ok = volOptions["performanceLevel"]; !ok {
