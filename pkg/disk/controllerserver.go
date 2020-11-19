@@ -94,14 +94,14 @@ type diskVolumeArgs struct {
 
 // Alicloud disk snapshot parameters
 type diskSnapshot struct {
-	Name         string              `json:"name"`
-	ID           string              `json:"id"`
-	VolID        string              `json:"volID"`
-	Path         string              `json:"path"`
-	CreationTime timestamp.Timestamp `json:"creationTime"`
-	SizeBytes    int64               `json:"sizeBytes"`
-	ReadyToUse   bool                `json:"readyToUse"`
-	SnapshotTags []ecs.Tag           `json:"snapshotTags"`
+	Name         string               `json:"name"`
+	ID           string               `json:"id"`
+	VolID        string               `json:"volID"`
+	Path         string               `json:"path"`
+	CreationTime *timestamp.Timestamp `json:"creationTime"`
+	SizeBytes    int64                `json:"sizeBytes"`
+	ReadyToUse   bool                 `json:"readyToUse"`
+	SnapshotTags []ecs.Tag            `json:"snapshotTags"`
 }
 
 // NewControllerServer is to create controller server
@@ -484,7 +484,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 			csiSnapshot := &csi.Snapshot{
 				SnapshotId:     exSnap.ID,
 				SourceVolumeId: exSnap.VolID,
-				CreationTime:   &exSnap.CreationTime,
+				CreationTime:   exSnap.CreationTime,
 				SizeBytes:      exSnap.SizeBytes,
 				ReadyToUse:     exSnap.ReadyToUse,
 			}
@@ -552,7 +552,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	snapshot.Name = req.GetName()
 	snapshot.ID = snapshotID
 	snapshot.VolID = diskID
-	snapshot.CreationTime = *createAt
+	snapshot.CreationTime = createAt
 	snapshot.ReadyToUse = false
 
 	str := fmt.Sprintf("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s], snapshot[%++v]", req.Name, req.GetSourceVolumeId(), snapshotID, snapshot)
@@ -560,7 +560,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	csiSnapshot := &csi.Snapshot{
 		SnapshotId:     snapshotID,
 		SourceVolumeId: snapshot.VolID,
-		CreationTime:   &snapshot.CreationTime,
+		CreationTime:   snapshot.CreationTime,
 		SizeBytes:      snapshot.SizeBytes,
 		ReadyToUse:     snapshot.ReadyToUse,
 	}
