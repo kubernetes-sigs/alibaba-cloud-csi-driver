@@ -70,6 +70,12 @@ func DoNfsMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID 
 	if !utils.IsFileExisting(mountPoint) {
 		CreateDest(mountPoint)
 	}
+
+	if CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+		log.Infof("DoNfsMount: nfs server already mounted: %s, %s", nfsServer, nfsPath)
+		return nil
+	}
+
 	mntCmd := fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", nfsVers, nfsServer, nfsPath, mountPoint)
 	if mountOptions != "" {
 		mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s,%s %s:%s %s", nfsVers, mountOptions, nfsServer, nfsPath, mountPoint)
