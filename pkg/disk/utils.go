@@ -186,6 +186,9 @@ func SetEcsEndPoint(regionID string) {
 
 	// use environment endpoint setting first;
 	if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
+		if strings.Contains(ep, "http://") {
+			ep = ep[len("http://"):]
+		}
 		aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
 	}
 }
