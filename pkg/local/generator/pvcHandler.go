@@ -220,7 +220,6 @@ func isPvcExpected(pvc *corev1.PersistentVolumeClaim) bool {
 	return true
 }
 
-
 func processPvc(pvcObj *corev1.PersistentVolumeClaim) error {
 	volumeSpec := pvcObj.Annotations[types.VolumeSpecLabel]
 	volumeSpecMap := client.LVMOptions{}
