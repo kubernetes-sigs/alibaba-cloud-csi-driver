@@ -59,21 +59,24 @@ func (p *pfsRawBlockStatCollector) updateStatByPolling() {
 	var err error
 	for {
 		p.capacityMutex.Lock()
-
+		doUpdate := true
+		var volJSONPaths []string
 		p.rawBlockStatsMap, err = getPfsRawBlockStats(&p.dockerClient)
 		if err != nil {
 			msg := fmt.Sprintf("Couldn't get pfs raw block: %s", err)
 			logrus.Errorf(msg)
-			continue
+			doUpdate = false
+		} else {
+			volJSONPaths, err = findVolJSONByPfsRawBlock(rawBlockRootPath)
+			if err != nil {
+				logrus.Errorf("Find disk vol_data json is failed, err:%s", err)
+				doUpdate = false
+			}
 		}
 
-		volJSONPaths, err := findVolJSONByPfsRawBlock(rawBlockRootPath)
-		if err != nil {
-			logrus.Errorf("Find disk vol_data json is failed, err:%s", err)
-			continue
+		if doUpdate {
+			updateMap(p.kubeClient, &p.pvStorageInfoMap, volJSONPaths, diskDriverName)
 		}
-
-		updateMap(p.kubeClient, &p.pvStorageInfoMap, volJSONPaths, diskDriverName)
 
 		p.capacityMutex.Unlock()
 		time.Sleep(60 * time.Second)
@@ -185,7 +188,7 @@ func findVolJSONByPfsRawBlock(rootDir string) ([]string, error) {
 func getPfsRawBlockStats(dockerClient **client.Client) (map[string][]string, error) {
 	pvNameArray, err := getPfsRawBlockPvName()
 	if err != nil {
-		logrus.Errorf("Get  raw block pv is failed, err:%s", err)
+		logrus.Errorf("Get raw block pv is failed, err:%s", err)
 		return nil, err
 	}
 

@@ -210,7 +210,6 @@ func getDeviceByVolumeID(volumeID string) (device string, err error) {
 	if !strings.HasPrefix(resolved, "/dev") {
 		return "", fmt.Errorf("resolved symlink for %q was unexpected: %q", volumeLinPath, resolved)
 	}
-	log.Infof("Device Link Info: %s link to %s", volumeLinPath, resolved)
 	return resolved, nil
 }
 
