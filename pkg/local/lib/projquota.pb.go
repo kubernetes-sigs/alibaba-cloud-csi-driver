@@ -27,6 +27,7 @@ type CreateProjQuotaSubpathRequest struct {
 
 	PvName    string `protobuf:"bytes,1,opt,name=pvName,proto3" json:"pvName,omitempty"`
 	QuotaSize string `protobuf:"bytes,2,opt,name=quotaSize,proto3" json:"quotaSize,omitempty"`
+	RootPath  string `protobuf:"bytes,3,opt,name=rootPath,proto3" json:"rootPath,omitempty"`
 }
 
 func (x *CreateProjQuotaSubpathRequest) Reset() {
