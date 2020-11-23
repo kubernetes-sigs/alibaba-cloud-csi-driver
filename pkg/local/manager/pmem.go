@@ -1,4 +1,4 @@
-package lib
+package manager
 
 import (
 	"errors"

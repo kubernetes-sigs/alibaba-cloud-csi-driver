@@ -24,7 +24,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/generator"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -123,7 +123,7 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 	mounter := k8smount.New("")
 	// config volumegroup for pmem node
 	if types.GlobalConfigVar.PmemEnable {
-		lib.MaintainPMEM(types.GlobalConfigVar.PmemType, mounter)
+		manager.MaintainPMEM(types.GlobalConfigVar.PmemType, mounter)
 	}
 
 	return &nodeServer{
