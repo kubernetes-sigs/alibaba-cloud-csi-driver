@@ -6,6 +6,7 @@ package proto;
 message CreateProjQuotaSubpathRequest {
   string pvName = 1;
   string quotaSize = 2;
+  string rootPath = 3;
 }
 
 message CreateProjQuotaSubpathReply {
