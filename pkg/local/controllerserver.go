@@ -322,7 +322,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			defer conn.Close()
 			size := strconv.Itoa(int(req.GetCapacityRange().GetRequiredBytes()))
 			kSize := strconv.Itoa(int(req.GetCapacityRange().GetRequiredBytes() / 1024))
-			log.Infof("CreateVolume: create project quota types volumes with node(%s), storage(%s), size(%d)KB", nodeSelected, storageSelected, kSize)
+			log.Infof("CreateVolume: create project quota types volumes with node(%s), storage(%s), size(%s)KB", nodeSelected, storageSelected, kSize)
 			_, projectQuotaSubpath, err := conn.CreateProjQuotaSubpath(ctx, req.Name, size, storageSelected)
 			if err != nil {
 				log.Infof("CreateVolume: create project quota subpath %s failed: %s", req.Name, err.Error())
@@ -346,7 +346,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		parameters[key] = value
 	}
 	// remove not necessary labels
-	for key, _ := range parameters {
+	for key := range parameters {
 		if key == LastAppliyAnnotationTag {
 			delete(parameters, key)
 		} else if key == CsiProvisionerTag {
