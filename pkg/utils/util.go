@@ -149,6 +149,9 @@ type Result struct {
 	Device  string `json:"device,omitempty"`
 }
 
+// CommandRunFunc define the run function in utils for ut
+type CommandRunFunc func(cmd string) (string, error)
+
 // Run run shell command
 func Run(cmd string) (string, error) {
 	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()

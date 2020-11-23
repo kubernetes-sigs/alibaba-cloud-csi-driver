@@ -320,7 +320,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			}
 			defer conn.Close()
 			size := fmt.Sprintf("%d", req.GetCapacityRange().GetRequiredBytes())
-			kSize := fmt.Sprintf("%d", req.GetCapacityRange().GetRequiredBytes() / 1024)
+			kSize := fmt.Sprintf("%d", req.GetCapacityRange().GetRequiredBytes()/1024)
 			log.Infof("CreateVolume: create project quota types volumes with node(%s), storage(%s), size(%s)KB", nodeSelected, storageSelected, kSize)
 			_, projectQuotaSubpath, err := conn.CreateProjQuotaSubpath(ctx, req.Name, size, storageSelected)
 
