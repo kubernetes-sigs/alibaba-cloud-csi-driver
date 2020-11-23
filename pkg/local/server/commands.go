@@ -485,6 +485,11 @@ func CreateProjQuotaSubpath(ctx context.Context, subPath, quotaSize, rootPath st
 	return fullPath, "", projectID, nil
 }
 
+func checkSubpathProjQuota(projQuotaPath, blockHardlimit, blockSoftlimit string) (bool, error) {
+	
+	return false, nil
+}
+
 // SetSubpathProjQuota ...
 func SetSubpathProjQuota(ctx context.Context, projQuotaSubpath, blockHardlimit, blockSoftlimit string) (string, error) {
 	projectID := convertString2int(filepath.Base(projQuotaSubpath))
