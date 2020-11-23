@@ -31,6 +31,7 @@ import (
 	"unicode"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -348,7 +349,7 @@ func RemoveNameSpace(ctx context.Context, namespaceName string) (string, error) 
 
 // ListNameSpace list pmem namespace
 func ListNameSpace() ([]*lib.NameSpace, error) {
-	regions, err := lib.GetRegions()
+	regions, err := manager.GetRegions()
 	log.Infof("show me the regions: %+v", regions)
 	if err != nil {
 		return nil, err
@@ -461,13 +462,16 @@ func SelectNamespace(ctx context.Context, quotaSize string) (string, error) {
 }
 
 // CreateProjQuotaSubpath ...
-func CreateProjQuotaSubpath(ctx context.Context, subPath, quotaSize string) (string, string, string, error) {
+func CreateProjQuotaSubpath(ctx context.Context, subPath, quotaSize, rootPath string) (string, string, string, error) {
 	selectedNamespace, err := SelectNamespace(ctx, quotaSize)
 	if err != nil {
 		return "", "", "", err
 	}
 	fullPath := fmt.Sprintf(ProjQuotaPrefix, selectedNamespace, subPath)
-	err = lib.EnsureFolder(fullPath)
+	if rootPath != "" {
+		fullPath = fmt.Sprintf(rootPath, subPath)
+	}
+	err = manager.EnsureFolder(fullPath)
 	if err != nil {
 		return "", "", "", err
 	}

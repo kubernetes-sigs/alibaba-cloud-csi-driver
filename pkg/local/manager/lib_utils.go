@@ -1,4 +1,4 @@
-package lib
+package manager
 
 import (
 	"encoding/json"
@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	log "github.com/sirupsen/logrus"
 	utilexec "k8s.io/utils/exec"
 	k8smount "k8s.io/utils/mount"
@@ -274,8 +275,8 @@ func GetNameSpace(namespaceName string) (*PmemNameSpace, error) {
 }
 
 // ToProto build NameSpace object
-func (pns *PmemNameSpace) ToProto() *NameSpace {
-	new := &NameSpace{}
+func (pns *PmemNameSpace) ToProto() *lib.NameSpace {
+	new := &lib.NameSpace{}
 	new.CharDev = pns.CharDev
 	new.Name = pns.Name
 	new.Dev = pns.Dev

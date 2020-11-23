@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -363,11 +363,11 @@ func (ns *nodeServer) checkPmemNameSpaceResize(volumeID, targetPath string) erro
 	pvQuantity := pv.Spec.Capacity["storage"]
 	expectedSize := pvQuantity.Value()
 	pmemNameSpace := pv.Spec.CSI.VolumeAttributes["pmemNameSpace"]
-	namespace, err := lib.GetNameSpace(pmemNameSpace)
+	namespace, err := manager.GetNameSpace(pmemNameSpace)
 	if err != nil {
 		return err
 	}
-	pvSize := lib.GetNameSpaceCapacity(namespace)
+	pvSize := manager.GetNameSpaceCapacity(namespace)
 	if expectedSize <= pvSize {
 		return nil
 	}

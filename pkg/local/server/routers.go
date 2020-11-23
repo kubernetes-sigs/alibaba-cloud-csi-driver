@@ -204,7 +204,7 @@ func (s Server) RemoveNamespace(ctx context.Context, in *lib.RemoveNamespaceRequ
 // CreateProjQuotaSubpath ...
 func (s ProjQuotaServer) CreateProjQuotaSubpath(ctx context.Context, in *lib.CreateProjQuotaSubpathRequest) (*lib.CreateProjQuotaSubpathReply, error) {
 	log.Infof("CreateProjQuotaSubpath with %+v", in)
-	projQuotaSubpath, out, projectID, err := CreateProjQuotaSubpath(ctx, in.PvName, in.QuotaSize)
+	projQuotaSubpath, out, projectID, err := CreateProjQuotaSubpath(ctx, in.PvName, in.QuotaSize, in.RootPath)
 	if err != nil {
 		log.Errorf("CreateProjQuotaSubpath with error: %s", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to create projQuota subpath: %v", err)

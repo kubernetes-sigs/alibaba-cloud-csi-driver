@@ -9,7 +9,7 @@ import (
 )
 
 // UpdatePvcWithLabel update pvc
-func UpdatePvcWithLabel(ctx context.Context, namespace, pvcName string, annotations map[string]string) error {
+func UpdatePvcWithAnnotations(ctx context.Context, namespace, pvcName string, annotations map[string]string) error {
 	pvc, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcName, metav1.GetOptions{})
 	if err != nil {
 		return err
@@ -30,7 +30,7 @@ func UpdatePvcWithLabel(ctx context.Context, namespace, pvcName string, annotati
 }
 
 // UpdatePvWithLabel udpate pv
-func UpdatePvWithLabel(ctx context.Context, pvName string, annotations map[string]string) error {
+func UpdatePvWithAnnotations(ctx context.Context, pvName string, annotations map[string]string) error {
 	pv, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
 	if err != nil {
 		return err
@@ -50,9 +50,9 @@ func UpdatePvWithLabel(ctx context.Context, pvName string, annotations map[strin
 }
 
 // CreateVolumeWithLabel create volume
-func CreateVolumeWithLabel(namespace, pvcName string, annotations map[string]string) error {
+func CreateVolumeWithAnnotations(namespace, pvcName string, annotations map[string]string) error {
 	ctx := context.Background()
-	if err := UpdatePvcWithLabel(ctx, namespace, pvcName, annotations); err != nil {
+	if err := UpdatePvcWithAnnotations(ctx, namespace, pvcName, annotations); err != nil {
 		//log.Errorf("CreateVolumeWithLabel: Failed to update PVC %s/%s: %v", namespace, pvcName, err)
 		return err
 	}
@@ -73,9 +73,9 @@ func CreateVolumeWithLabel(namespace, pvcName string, annotations map[string]str
 }
 
 // DeleteVolumeWithLabel delete volume
-func DeleteVolumeWithLabel(pvName string, annotations map[string]string) error {
+func DeleteVolumeWithAnnotations(pvName string, annotations map[string]string) error {
 	ctx := context.Background()
-	if err := UpdatePvWithLabel(ctx, pvName, annotations); err != nil {
+	if err := UpdatePvWithAnnotations(ctx, pvName, annotations); err != nil {
 		//log.Errorf("DeleteVolumeWithLabel: Failed to update PV %s: %v", pvName, err)
 		return err
 	}
