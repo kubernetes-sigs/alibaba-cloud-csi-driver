@@ -392,7 +392,7 @@ func str2ASCII(origin string) string {
 }
 
 // SetProjectID2PVSubpath ...
-func SetProjectID2PVSubpath(namespace, subPath, rootPath string) (string, error) {
+func SetProjectID2PVSubpath(namespace, subPath, rootPath string, run utils.CommandRunFunc) (string, error) {
 	projectID := convertString2int(subPath)
 	quotaSubpath := fmt.Sprintf(ProjQuotaPrefix, namespace, subPath)
 	if rootPath != "" {
@@ -400,14 +400,14 @@ func SetProjectID2PVSubpath(namespace, subPath, rootPath string) (string, error)
 	}
 	args := []string{NsenterCmd, "chattr", "+P -p", fmt.Sprintf("%s %s", projectID, quotaSubpath)}
 	cmd := strings.Join(args, " ")
-	_, err := utils.Run(cmd)
+	_, err := run(cmd)
 	if err != nil {
 		return "", fmt.Errorf("failed to set projectID to subpath with error: %v", err)
 	}
 	return projectID, nil
 }
 
-func getTotalLimitKBFromCSV(in string) (totalLimit int, err error) {
+func getTotalLimitKBFromCSV(in string) (totalLimit int64, err error) {
 	r := csv.NewReader(strings.NewReader(in))
 	for {
 		record, err := r.Read()
@@ -417,8 +417,12 @@ func getTotalLimitKBFromCSV(in string) (totalLimit int, err error) {
 		if err != nil {
 			return 0, err
 		}
-		if strings.HasPrefix(record[0], "#") && record[0] != "#0" {
-			limitKByte, err := strconv.Atoi(record[5])
+		trimedStr := strings.TrimSpace(record[0])
+		if strings.HasPrefix(trimedStr, "#") && trimedStr != "#0" {
+			if err != nil {
+				return 0, err
+			}
+			limitKByte, err := strconv.ParseInt(record[5], 10, 64)
 			if err != nil {
 				return 0, err
 			}
@@ -441,7 +445,7 @@ func GetNamespaceAssignedQuota(namespace string) (int, error) {
 		return 0, err
 	}
 
-	return totalLimit, nil
+	return int(totalLimit), nil
 }
 
 // SelectNamespace ...
@@ -478,11 +482,16 @@ func CreateProjQuotaSubpath(ctx context.Context, subPath, quotaSize, rootPath st
 	if err != nil {
 		return "", "", "", err
 	}
-	projectID, err := SetProjectID2PVSubpath(selectedNamespace, subPath, rootPath)
+	projectID, err := SetProjectID2PVSubpath(selectedNamespace, subPath, rootPath, utils.Run)
 	if err != nil {
 		return "", "", "", err
 	}
 	return fullPath, "", projectID, nil
+}
+
+func checkSubpathProjQuota(projQuotaPath, blockHardlimit, blockSoftlimit string) (bool, error) {
+
+	return false, nil
 }
 
 // SetSubpathProjQuota ...
