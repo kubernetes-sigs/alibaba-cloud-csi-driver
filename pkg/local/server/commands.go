@@ -365,7 +365,8 @@ func ListNameSpace() ([]*lib.NameSpace, error) {
 	return namespaces, nil
 }
 
-func convertString2int(origin string) string {
+// ConvertString2int convert pvName to int data
+func ConvertString2int(origin string) string {
 	h := sha256.New()
 	h.Write([]byte(origin))
 	hashResult := fmt.Sprintf("%x", h.Sum(nil))
@@ -393,7 +394,7 @@ func str2ASCII(origin string) string {
 
 // SetProjectID2PVSubpath ...
 func SetProjectID2PVSubpath(namespace, subPath, rootPath string, run utils.CommandRunFunc) (string, error) {
-	projectID := convertString2int(subPath)
+	projectID := ConvertString2int(subPath)
 	quotaSubpath := fmt.Sprintf(ProjQuotaPrefix, namespace, subPath)
 	if rootPath != "" {
 		quotaSubpath = filepath.Join(rootPath, subPath)
@@ -496,7 +497,7 @@ func checkSubpathProjQuota(projQuotaPath, blockHardlimit, blockSoftlimit string)
 
 // SetSubpathProjQuota ...
 func SetSubpathProjQuota(ctx context.Context, projQuotaSubpath, blockHardlimit, blockSoftlimit string) (string, error) {
-	projectID := convertString2int(filepath.Base(projQuotaSubpath))
+	projectID := ConvertString2int(filepath.Base(projQuotaSubpath))
 	args := []string{NsenterCmd, "setquota", "-P", fmt.Sprintf("%s %s %s 0 0 %s", projectID, blockHardlimit, blockHardlimit, filepath.Dir(projQuotaSubpath))}
 	cmd := strings.Join(args, " ")
 	_, err := utils.Run(cmd)
