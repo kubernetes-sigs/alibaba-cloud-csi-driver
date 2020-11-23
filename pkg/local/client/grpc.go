@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
 	"net"
 	"strings"
 	"time"
@@ -38,9 +39,9 @@ type Connection interface {
 	CleanPath(ctx context.Context, path string) error
 	Close() error
 	GetNameSpace(ctx context.Context, regionName string, volumeID string) (string, error)
-	CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*lib.PmemNameSpace, error)
+	CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*manager.PmemNameSpace, error)
 	DeleteNameSpace(ctx context.Context, volumeID string) error
-	CreateProjQuotaSubpath(ctx context.Context, pvName, size string) (string, string, error)
+	CreateProjQuotaSubpath(ctx context.Context, pvName, size, rootPath string) (string, string, error)
 	SetSubpathProjQuota(ctx context.Context, quotaSubpath, blockSoftlimit, blockHardlimit, inodeSoftlimit, inodeHardlimit string) (string, error)
 	RemoveProjQuotaSubpath(ctx context.Context, quotaSubpath string) (string, error)
 }
@@ -136,7 +137,7 @@ func (c *workerConnection) CreateLvm(ctx context.Context, opt *LVMOptions) (stri
 	return rsp.GetCommandOutput(), nil
 }
 
-func (c *workerConnection) CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*lib.PmemNameSpace, error) {
+func (c *workerConnection) CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*manager.PmemNameSpace, error) {
 	client := lib.NewLVMClient(c.conn)
 	req := lib.CreateNamespaceRequest{
 		Name:   opt.Name,
@@ -151,7 +152,7 @@ func (c *workerConnection) CreateNameSpace(ctx context.Context, opt *NameSpaceOp
 	}
 	log.Infof("Create Lvm with result: %+v", rsp.CommandOutput)
 
-	pns := &lib.PmemNameSpace{}
+	pns := &manager.PmemNameSpace{}
 	if err := json.Unmarshal([]byte(rsp.CommandOutput), pns); err != nil {
 		return nil, err
 	}
@@ -239,11 +240,12 @@ func (c *workerConnection) CleanPath(ctx context.Context, path string) error {
 	return err
 }
 
-func (c *workerConnection) CreateProjQuotaSubpath(ctx context.Context, pvName, size string) (string, string, error) {
+func (c *workerConnection) CreateProjQuotaSubpath(ctx context.Context, pvName, size, rootPath string) (string, string, error) {
 	client := lib.NewProjQuotaClient(c.conn)
 	req := lib.CreateProjQuotaSubpathRequest{
 		PvName:    pvName,
 		QuotaSize: size,
+		RootPath:  rootPath,
 	}
 	response, err := client.CreateProjQuotaSubpath(ctx, &req)
 	if err != nil {
