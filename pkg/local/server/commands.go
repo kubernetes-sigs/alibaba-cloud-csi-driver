@@ -392,9 +392,12 @@ func str2ASCII(origin string) string {
 }
 
 // SetProjectID2PVSubpath ...
-func SetProjectID2PVSubpath(namespace, subPath string) (string, error) {
+func SetProjectID2PVSubpath(namespace, subPath, rootPath string) (string, error) {
 	projectID := convertString2int(subPath)
 	quotaSubpath := fmt.Sprintf(ProjQuotaPrefix, namespace, subPath)
+	if rootPath != "" {
+		quotaSubpath = filepath.Join(rootPath, subPath)
+	}
 	args := []string{NsenterCmd, "chattr", "+P -p", fmt.Sprintf("%s %s", projectID, quotaSubpath)}
 	cmd := strings.Join(args, " ")
 	_, err := utils.Run(cmd)
@@ -469,13 +472,13 @@ func CreateProjQuotaSubpath(ctx context.Context, subPath, quotaSize, rootPath st
 	}
 	fullPath := fmt.Sprintf(ProjQuotaPrefix, selectedNamespace, subPath)
 	if rootPath != "" {
-		fullPath = fmt.Sprintf(rootPath, subPath)
+		fullPath = filepath.Join(rootPath, subPath)
 	}
 	err = manager.EnsureFolder(fullPath)
 	if err != nil {
 		return "", "", "", err
 	}
-	projectID, err := SetProjectID2PVSubpath(selectedNamespace, subPath)
+	projectID, err := SetProjectID2PVSubpath(selectedNamespace, subPath, rootPath)
 	if err != nil {
 		return "", "", "", err
 	}
