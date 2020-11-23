@@ -156,7 +156,7 @@ func MaintainKMEM(regions *PmemRegions) error {
 func MaintainQuotaPath(regions *PmemRegions, mounter k8smount.Interface) error {
 	for _, region := range regions.Regions {
 		if len(region.Namespaces) == 0 {
-			err := createNameSpace(region.Dev, types.PmemQuotaPathType)
+			err := createNameSpace(region.Dev, types.PmemLVMType)
 			if err != nil {
 				log.Errorf("Create projQuota namespace error for region: %s", region.Dev)
 				return errors.New("Create projQuota namespace error for region " + region.Dev)

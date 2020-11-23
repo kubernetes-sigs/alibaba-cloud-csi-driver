@@ -287,69 +287,6 @@ func (ns *nodeServer) updatePVNodeAffinity(volumeID string) error {
 	return nil
 }
 
-// func (ns *nodeServer) mountPmemVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) error {
-// 	targetPath := req.TargetPath
-// 	// parse vgname, consider invalid if empty
-// 	pmemType := ""
-// 	if _, ok := req.VolumeContext[PmemType]; ok {
-// 		pmemType = req.VolumeContext[PmemType]
-// 	}
-
-// 	nodeAffinity := DefaultNodeAffinity
-// 	if _, ok := req.VolumeContext[NodeAffinity]; ok {
-// 		nodeAffinity = req.VolumeContext[NodeAffinity]
-// 	}
-// 	log.Infof("NodePublishVolume: Starting to mount kmem or quotapath at path: %s, with volume: %s, NodeAffinty: %s", targetPath, req.GetVolumeId(), nodeAffinity)
-
-// 	// Create LVM if not exist
-// 	//volumeNewCreated := false
-// 	volumeID := req.GetVolumeId()
-// 	// Check target mounted
-// 	isMnt, err := ns.checkTargetMounted(targetPath)
-// 	if err != nil {
-// 		log.Errorf("NodePublishVolume: check volume %s mounted with error: %s", volumeID, err.Error())
-// 		return err
-// 	}
-
-// 	if !isMnt {
-// 		switch pmemType {
-// 		case localtypes.PmemKmemType:
-// 			pvSize, pvSizeUnit, _ := getPvInfo(volumeID)
-// 			devicePath := "tmpfs"
-// 			kmemSize := fmt.Sprintf("%v%s", pvSize, pvSizeUnit)
-// 			mpol, err := pickRegionForKMEM(kmemSize)
-// 			if err != nil {
-// 				log.Errorf("NodeStageVolume: Volume: %s, Device: %s, pick region for KMEM err: %s", req.VolumeId, devicePath, err.Error())
-// 				return status.Error(codes.Internal, err.Error())
-// 			}
-// 			mountCmd := fmt.Sprintf("%s mount -t %s -o size=%s,mpol=%s %s %s", NsenterCmd, devicePath, kmemSize, mpol, devicePath, targetPath)
-// 			_, err = utils.Run(mountCmd)
-// 			if err != nil {
-// 				log.Errorf("NodeStageVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, devicePath, err.Error())
-// 				return status.Error(codes.Internal, err.Error())
-// 			}
-// 		case localtypes.PmemQuotaPathType:
-// 			projQuotaPath := ""
-// 			if value, ok := req.VolumeContext[ProjQuotaFullPath]; ok {
-// 				projQuotaPath = value
-// 			}
-// 			mountCmd := fmt.Sprintf("%s mount --bind %s %s", NsenterCmd, projQuotaPath, targetPath)
-// 			_, err = utils.Run(mountCmd)
-// 			if err != nil {
-// 				log.Errorf("NodeStageVolume: Volume: %s, Device: %s, mount error: %s", req.VolumeId, projQuotaPath, err.Error())
-// 				return status.Error(codes.Internal, err.Error())
-// 			}
-// 		}
-// 	}
-
-// 	// upgrade PV with NodeAffinity
-// 	if nodeAffinity == "true" {
-// 		err = ns.updatePVNodeAffinity(volumeID)
-// 		return err
-// 	}
-// 	return nil
-// }
-
 func (ns *nodeServer) checkPmemNameSpaceResize(volumeID, targetPath string) error {
 	pv, err := getPvObj(ns.client, volumeID)
 	if err != nil {
