@@ -56,7 +56,7 @@ func TestSetProjectID2PVSubpath(t *testing.T) {
 			assert.Equal(t, procedureID, calculatedID)
 
 			if err != nil {
-				assert.Equal(t, "failed to set projectID to subpath with error: " + err.Error(), testErr.Error())
+				assert.Equal(t, "failed to set projectID to subpath with error: "+err.Error(), testErr.Error())
 			} else {
 				assert.Nil(t, testErr)
 			}
