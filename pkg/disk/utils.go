@@ -866,3 +866,22 @@ func deleteEmpty(s []string) []string {
 	}
 	return r
 }
+func getDiskCapacity(devicePath string) (float64, error) {
+	capacityCmd := fmt.Sprintf("df -BG | grep %s | awk '{ print $2 }'", devicePath)
+	output, err := run(capacityCmd)
+	if err != nil {
+		return 0, fmt.Errorf("getDiskCapacity:: run cmd error: %+v", err)
+	}
+	output = strings.Trim(output, "\n")
+	if strings.Contains(output, "\n") {
+		return 0, fmt.Errorf("getDiskCapacity:: get result %s err", output)
+	}
+	if !strings.HasSuffix(output, "G") {
+		return 0, fmt.Errorf("getDiskCapacity:: get result %s unit error", output)
+	}
+	diskCapacity, err := strconv.Atoi(output[:len(output)-1])
+	if err != nil {
+		return 0, fmt.Errorf("getDiskCapacity:: get result %s format error", output)
+	}
+	return float64(diskCapacity), nil
+}
