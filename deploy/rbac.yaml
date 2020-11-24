@@ -11,7 +11,7 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: admin
+  name: csi-admin
   # replace with the same namespace name with plugin
   namespace: kube-system
 
@@ -56,7 +56,7 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: ["storage.k8s.io"]
     resources: ["volumeattachments"]
-    verbs: ["get", "list", "watch", "update"]
+    verbs: ["get", "list", "watch", "update", "patch"]
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshotclasses"]
     verbs: ["get", "list", "watch"]
@@ -79,7 +79,7 @@ metadata:
   name: alicloud-csi-plugin
 subjects:
   - kind: ServiceAccount
-    name: admin
+    name: csi-admin
     namespace: kube-system
 roleRef:
   kind: ClusterRole

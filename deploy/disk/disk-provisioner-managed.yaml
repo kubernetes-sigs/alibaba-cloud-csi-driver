@@ -61,7 +61,7 @@ spec:
         operator: Exists
         key: node.cloudprovider.kubernetes.io/uninitialized
       priorityClassName: system-node-critical
-      serviceAccount: admin
+      serviceAccount: csi-admin
       hostNetwork: true
       containers:
         - name: external-disk-provisioner

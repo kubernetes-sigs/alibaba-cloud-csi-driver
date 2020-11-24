@@ -32,7 +32,7 @@ spec:
                 - virtual-kubelet
       nodeSelector:
         beta.kubernetes.io/os: linux
-      serviceAccount: admin
+      serviceAccount: csi-admin
       priorityClassName: system-node-critical
       hostNetwork: true
       hostPID: true
