@@ -398,19 +398,19 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 	var curSize int64
 
 	// Get vgName
-	pmemType := "lvm"
+	volumeType := LvmVolumeType
 	_, _, pv := getPvInfo(volumeID)
 	if pv != nil && pv.Spec.CSI != nil {
-		if value, ok := pv.Spec.CSI.VolumeAttributes["vgName"]; ok {
-			vgName = value
+		if value, ok := pv.Spec.CSI.VolumeAttributes["volumeType"]; ok {
+			volumeType = value
 		}
-		if value, ok := pv.Spec.CSI.VolumeAttributes["pmemType"]; ok {
-			pmemType = value
-		}
+	} else {
+		log.Errorf("resizeVolume:: local volume get pv info error %s", volumeID)
+		return status.Errorf(codes.Internal, "resizeVolume:: local volume get pv info error %s", volumeID)
 	}
-	switch pmemType {
+	switch volumeType {
 	case PmemVolumeType:
-		log.Warnf("NodeExpandVolume: %s not support volume expand", pmemType)
+		log.Warnf("NodeExpandVolume: %s not support volume expand", volumeType)
 		return nil
 	case QuotaPathVolumeType:
 		if quotaFullPath, ok := pv.Spec.CSI.VolumeAttributes[ProjQuotaFullPath]; ok {
@@ -420,6 +420,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 				log.Error(err.Error())
 				return err
 			}
+			log.Infof("Successful resize QuotaPath: %s to %sKB", quotaFullPath, kSize)
 		} else {
 			err := fmt.Errorf("resizeVolume quota path pv attributes ProjQuotaFullPath absent, pvName: %s", pv.Name)
 			log.Error(err.Error())
@@ -427,6 +428,9 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 		}
 	case LvmVolumeType:
 		// Get lvm info
+		if value, ok := pv.Spec.CSI.VolumeAttributes["vgName"]; ok {
+			vgName = value
+		}
 		lvList, err := server.ListLV(vgName)
 		if err != nil {
 			log.Errorf("resizeVolume: Resize volume %s with list lv error %v", volumeID, err)
