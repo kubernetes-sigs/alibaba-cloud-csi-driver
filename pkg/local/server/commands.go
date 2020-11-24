@@ -490,9 +490,42 @@ func CreateProjQuotaSubpath(ctx context.Context, subPath, quotaSize, rootPath st
 	return fullPath, "", projectID, nil
 }
 
-func checkSubpathProjQuota(projQuotaPath, blockHardlimit, blockSoftlimit string) (bool, error) {
+func findBlockLimitByProjectID(out, projectID string) (string, string, error) {
+	r := csv.NewReader(strings.NewReader(out))
+	for {
+		record, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", "", err
+		}
+		trimedStr := strings.TrimSpace(record[0])
+		if strings.HasPrefix(trimedStr, "#") && trimedStr != "#0" {
+			if strings.Contains(trimedStr, projectID) {
+				return record[5], record[6], nil
+			}
+		}
+	}
+	return "", "", fmt.Errorf("findBlockLimitByProjectID: cannot find projectID: %s in output", projectID)
+}
 
-	return false, nil
+func checkSubpathProjQuotaEqual(projQuotaNamespacePath, projectID, blockHardlimit, blockSoftlimit string) (bool, error) {
+
+	args := []string{NsenterCmd, "repquota", "-P -O csv", projQuotaNamespacePath}
+	cmd := strings.Join(args, " ")
+	out, err := utils.Run(cmd)
+	if err != nil {
+		return false, fmt.Errorf("failed to request namespace quota with error: %v", err)
+	}
+	blockHardLimit, blockSoftLimit, err := findBlockLimitByProjectID(out, projectID)
+	if err != nil {
+		return false, err
+	}
+	if blockHardLimit == blockHardlimit && blockSoftLimit == blockSoftlimit {
+		return true, nil
+	}
+	return false, fmt.Errorf("checkSubpathProjQuotaEqual: actualData: %s is not equals with setedData :%s", blockHardLimit, blockHardlimit)
 }
 
 // SetSubpathProjQuota ...
@@ -504,7 +537,11 @@ func SetSubpathProjQuota(ctx context.Context, projQuotaSubpath, blockHardlimit, 
 	if err != nil {
 		return "", fmt.Errorf("failed to set quota to subpath with error: %v", err)
 	}
-	return "", nil
+	ok, err := checkSubpathProjQuotaEqual(filepath.Dir(projQuotaSubpath), projectID, blockHardlimit, blockHardlimit)
+	if ok {
+		return "", nil
+	}
+	return "", err
 }
 
 // RemoveProjQuotaSubpath ...
