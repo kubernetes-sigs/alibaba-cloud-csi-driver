@@ -7,7 +7,7 @@ import (
 
 // VolumeHandler watch pv/pvc
 func VolumeHandler() {
-	if types.GlobalConfigVar.ControllerProvision {
+	if types.GlobalConfigVar.GrpcProvision {
 		return
 	}
 	log.Infof("Local Plugin worker in Worker Provision mode")

@@ -54,32 +54,19 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 	if _, ok := req.VolumeContext[NodeAffinity]; ok {
 		nodeAffinity = req.VolumeContext[NodeAffinity]
 	}
-	pmemBlockDev := ""
-	if value, ok := req.VolumeContext[PmemBlockDev]; ok {
-		pmemBlockDev = value
-	}
-
 	log.Infof("NodePublishVolume: Starting to mount lvm at path: %s, with vg: %s, with volume: %s, PV Type: %s, LVM Type: %s, NodeAffinty: %s", targetPath, vgName, req.GetVolumeId(), pvType, lvmType, nodeAffinity)
 
 	// Create LVM if not exist
 	//volumeNewCreated := false
 	volumeID := req.GetVolumeId()
 	devicePath := filepath.Join("/dev/", vgName, volumeID)
-	if pmemBlockDev == "" {
-		if _, err := os.Stat(devicePath); os.IsNotExist(err) {
-			//volumeNewCreated = true
-			err := createVolume(ctx, volumeID, vgName, "", lvmType)
-			if err != nil {
-				log.Errorf("NodePublishVolume: create volume %s with error: %s", volumeID, err.Error())
-				return status.Error(codes.Internal, err.Error())
-			}
-		}
-	} else {
-		devicePath = filepath.Join("/dev/", pmemBlockDev)
-		if _, err := os.Stat(devicePath); os.IsNotExist(err) {
+	if _, err := os.Stat(devicePath); os.IsNotExist(err) {
+		//volumeNewCreated = true
+		err := createVolume(ctx, volumeID, vgName, "", lvmType)
+		if err != nil {
+			log.Errorf("NodePublishVolume: create volume %s with error: %s", volumeID, err.Error())
 			return status.Error(codes.Internal, err.Error())
 		}
-		ns.checkPmemNameSpaceResize(volumeID, targetPath)
 	}
 	// Check target mounted
 	isMnt, err := ns.mounter.IsMounted(targetPath)
@@ -159,7 +146,7 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 	return nil
 }
 
-func (ns *nodeServer) mountLocalVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) error {
+func (ns *nodeServer) mountMountPointVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) error {
 	sourcePath := ""
 	targetPath := req.TargetPath
 	if value, ok := req.VolumeContext[MountPointType]; ok {
@@ -227,8 +214,107 @@ func (ns *nodeServer) mountDeviceVolume(ctx context.Context, req *csi.NodePublis
 	return nil
 }
 
-func (ns *nodeServer) checkTargetMounted(targetPath string) (bool, error) {
+func (ns *nodeServer) mountPmemVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) error {
+	targetPath := req.TargetPath
+	nodeAffinity := DefaultNodeAffinity
+	pmemBlockDev := ""
+	volumeID := req.GetVolumeId()
+	if value, ok := req.VolumeContext[PmemBlockDev]; ok {
+		fsType := DefaultFs
+		if _, ok := req.VolumeContext[FsTypeTag]; ok {
+			fsType = req.VolumeContext[FsTypeTag]
+		}
+		pmemBlockDev = value
+		devicePath := filepath.Join("/dev/", pmemBlockDev)
+		if _, err := os.Stat(devicePath); os.IsNotExist(err) {
+			return status.Error(codes.Internal, err.Error())
+		}
+		ns.checkPmemNameSpaceResize(volumeID, targetPath)
+		if _, ok := req.VolumeContext[NodeAffinity]; ok {
+			nodeAffinity = req.VolumeContext[NodeAffinity]
+		}
+		log.Infof("NodePublishVolume: Starting to mount direct volume at path: %s, with volume: %s, NodeAffinty: %s", targetPath, req.GetVolumeId(), nodeAffinity)
 
+		// Check target mounted
+		isMnt, err := ns.checkTargetMounted(targetPath)
+		if err != nil {
+			log.Errorf("NodePublishVolume: check volume %s mounted with error: %s", volumeID, err.Error())
+			return err
+		}
+		if !isMnt {
+			var options []string
+			if req.GetReadonly() {
+				options = append(options, "ro")
+			} else {
+				options = append(options, "rw")
+			}
+			mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
+			options = append(options, mountFlags...)
+
+			diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
+			if err := diskMounter.FormatAndMount(devicePath, targetPath, fsType, options); err != nil {
+				log.Errorf("NodePublishVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, devicePath, err.Error())
+				return status.Error(codes.Internal, err.Error())
+			}
+			log.Infof("NodePublishVolume:: mount successful devicePath: %s, targetPath: %s, options: %v", devicePath, targetPath, options)
+		}
+
+		// upgrade PV with NodeAffinity
+		if nodeAffinity == "true" {
+			err = ns.updatePVNodeAffinity(volumeID)
+			if err != nil {
+				log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
+				return err
+			}
+		}
+	} else {
+		return status.Error(codes.Internal, "NodePublishVolume: direct pmem with pmemBlockDev empty"+req.VolumeId)
+	}
+	return nil
+}
+
+func (ns *nodeServer) mountQuotaPathVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) error {
+	targetPath := req.TargetPath
+
+	nodeAffinity := DefaultNodeAffinity
+	if _, ok := req.VolumeContext[NodeAffinity]; ok {
+		nodeAffinity = req.VolumeContext[NodeAffinity]
+	}
+	log.Infof("NodePublishVolume: Starting to mount kmem or quotapath at path: %s, with volume: %s, NodeAffinty: %s", targetPath, req.GetVolumeId(), nodeAffinity)
+
+	// Create LVM if not exist
+	//volumeNewCreated := false
+	volumeID := req.GetVolumeId()
+	// Check target mounted
+	isMnt, err := ns.checkTargetMounted(targetPath)
+	if err != nil {
+		log.Errorf("NodePublishVolume: check volume %s mounted with error: %s", volumeID, err.Error())
+		return err
+	}
+	if !isMnt {
+		projQuotaPath := ""
+		if value, ok := req.VolumeContext[ProjQuotaFullPath]; ok {
+			projQuotaPath = value
+		}
+		mountCmd := fmt.Sprintf("%s mount --bind %s %s", NsenterCmd, projQuotaPath, targetPath)
+		_, err = utils.Run(mountCmd)
+		if err != nil {
+			err = fmt.Errorf("NodeStageVolume: Volume: %s, Device: %s, mount error: %s", req.VolumeId, projQuotaPath, err.Error())
+			return err
+		}
+	}
+	// upgrade PV with NodeAffinity
+	if nodeAffinity == "true" {
+		err = ns.updatePVNodeAffinity(volumeID)
+		if err != nil {
+			log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (ns *nodeServer) checkTargetMounted(targetPath string) (bool, error) {
 	isMnt, err := ns.mounter.IsMounted(targetPath)
 	if err != nil {
 		if _, err := os.Stat(targetPath); os.IsNotExist(err) {
