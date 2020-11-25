@@ -233,7 +233,7 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 		logrus.Errorf("Find disk vol_data json is failed, err:%s", err)
 		return err
 	}
-	updateMap(p.clientSet, &p.lastPvStorageInfoMap, volJSONPaths, diskDriverName)
+	updateMap(p.clientSet, &p.lastPvStorageInfoMap, volJSONPaths, diskDriverName, "volumes")
 
 	wg := sync.WaitGroup{}
 	for deviceName, stats := range deviceNameStatsMap {

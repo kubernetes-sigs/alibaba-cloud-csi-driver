@@ -2,10 +2,12 @@ package metric
 
 import (
 	"github.com/emirpasic/gods/sets/hashset"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
+	"strings"
 )
 
 const (
@@ -108,8 +110,14 @@ func (d *typedFactorDesc) mustNewConstMetric(value float64, labels ...string) pr
 	return prometheus.MustNewConstMetric(d.desc, d.valueType, value, labels...)
 }
 
-func updateMap(clientSet *kubernetes.Clientset, lastPvStorageInfoMap *map[string]storageInfo, jsonPaths []string, deriverName string) {
+func updateMap(clientSet *kubernetes.Clientset, lastPvStorageInfoMap *map[string]storageInfo, jsonPaths []string, deriverName string, keyword string) {
 	thisPvStorageInfoMap := make(map[string]storageInfo, 0)
+	cmd := "mount | grep csi | grep " + keyword
+	line, err := utils.Run(cmd)
+	if err != nil {
+		logrus.Errorf("Execute cmd %s is failed, err: %s", cmd, err)
+		return
+	}
 	for _, path := range jsonPaths {
 		//Get disk pvName
 		pvName, diskID, err := getVolumeInfoByJSON(path, deriverName)
@@ -117,6 +125,11 @@ func updateMap(clientSet *kubernetes.Clientset, lastPvStorageInfoMap *map[string
 			logrus.Errorf("Get volume info by path %s is failed, err:%s", path, err)
 			continue
 		}
+
+		if !strings.Contains(line, pvName) {
+			continue
+		}
+
 		deviceName, err := getDeviceByVolumeID(diskID)
 		if err != nil {
 			logrus.Errorf("Get dev name by diskID %s is failed, err:%s", diskID, err)
