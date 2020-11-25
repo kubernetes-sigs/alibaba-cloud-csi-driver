@@ -75,7 +75,7 @@ func (p *pfsRawBlockStatCollector) updateStatByPolling() {
 		}
 
 		if doUpdate {
-			updateMap(p.kubeClient, &p.pvStorageInfoMap, volJSONPaths, diskDriverName)
+			updateMap(p.kubeClient, &p.pvStorageInfoMap, volJSONPaths, diskDriverName, "volumeDevices")
 		}
 
 		p.capacityMutex.Unlock()
