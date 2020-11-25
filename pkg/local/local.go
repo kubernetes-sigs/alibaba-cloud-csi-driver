@@ -135,21 +135,21 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 		log.Infof("GlobalConfigSet: Describe node %s and Set PMEM to %v, %s", nodeName, pmemEnable, pmeType)
 	}
 
-	remoteProvision := true
-	remoteConfig := os.Getenv("LOCAL_CONTROLLER_PROVISION")
+	grpcProvision := true
+	remoteConfig := os.Getenv("LOCAL_GRPC_PROVISION")
 	if strings.ToLower(remoteConfig) == "false" {
-		remoteProvision = false
+		grpcProvision = false
 	}
 
 	// Global Config Set
 	types.GlobalConfigVar = types.GlobalConfig{
-		Region:              region,
-		NodeID:              nodeID,
-		Scheduler:           driverName,
-		PmemEnable:          pmemEnable,
-		PmemType:            pmeType,
-		ControllerProvision: remoteProvision,
-		KubeClient:          kubeClient,
+		Region:        region,
+		NodeID:        nodeID,
+		Scheduler:     driverName,
+		PmemEnable:    pmemEnable,
+		PmemType:      pmeType,
+		GrpcProvision: grpcProvision,
+		KubeClient:    kubeClient,
 	}
 	log.Infof("Local Plugin Global Config is: %v", types.GlobalConfigVar)
 }

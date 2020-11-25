@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -88,12 +87,6 @@ var supportVolumeTypes = []string{LvmVolumeType, PmemVolumeType, QuotaPathVolume
 
 // newControllerServer creates a controllerServer object
 func newControllerServer(d *csicommon.CSIDriver) *controllerServer {
-	k8sHost := os.Getenv("KUBERNETES_SERVICE_HOST")
-	k8sPort := os.Getenv("KUBERNETES_SERVICE_PORT")
-	if k8sHost != "" && k8sPort != "" {
-		//masterURL = "http://" + k8sHost + ":" + k8sPort
-	}
-
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubeconfig: %s", err.Error())
@@ -112,15 +105,15 @@ func newControllerServer(d *csicommon.CSIDriver) *controllerServer {
 // CreateVolume csi interface
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME); err != nil {
-		log.Errorf("Invalid create volume req: %v", req)
+		log.Errorf("CreateVolume: Invalid create local volume req: %v", req)
 		return nil, err
 	}
 	if req.Name == "" {
-		log.Errorf("CreateVolume: volume Name is empty")
-		return nil, status.Error(codes.InvalidArgument, "CreateVolume: Volume Name cannot be empty")
+		log.Errorf("CreateVolume: local volume Name is empty")
+		return nil, status.Error(codes.InvalidArgument, "CreateVolume: local Volume Name cannot be empty")
 	}
 	if req.VolumeCapabilities == nil {
-		log.Errorf("Volume Capabilities cannot be empty")
+		log.Errorf("CreateVolume: local Volume Capabilities cannot be empty")
 		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
 	}
 	pvcName, pvcNameSpace, volumeType, nodeSelected, storageSelected := "", "", "", "", ""
@@ -141,7 +134,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	if value, ok := createdVolumeMap[req.Name]; ok {
-		log.Infof("CreateVolume: local volume already be created pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, value.VolumeId, value.VolumeContext)
+		log.Infof("CreateVolume: local volume already be created, pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, value.VolumeId, value.VolumeContext)
 		return &csi.CreateVolumeResponse{Volume: value}, nil
 	}
 
@@ -188,7 +181,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			nodeSelected = nodeID
 		}
 
-		if value, ok := paraList["vgName"]; ok && value != "" {
+		// if vgName configed in storageclass, use it first;
+		if value, ok := paraList[VgNameTag]; ok && value != "" {
 			storageSelected = value
 		}
 
@@ -201,10 +195,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 		options.Size = uint64(req.GetCapacityRange().GetRequiredBytes())
 
-		if types.GlobalConfigVar.ControllerProvision && nodeSelected != "" && storageSelected != "" {
+		if types.GlobalConfigVar.GrpcProvision && nodeSelected != "" && storageSelected != "" {
 			conn, err := cs.getNodeConn(nodeSelected)
 			if err != nil {
-				log.Errorf("CreateVolume: New lvm %s Connection with error: %s", req.Name, err.Error())
+				log.Errorf("CreateVolume: New lvm %s Connection to node %s with error: %s", req.Name, nodeSelected, err.Error())
 				return nil, err
 			}
 			defer conn.Close()
@@ -214,14 +208,14 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					log.Errorf("CreateVolume: Create lvm %s/%s, options: %v with error: %s", storageSelected, volumeID, options, err.Error())
 					return nil, errors.New("Create Lvm with error " + err.Error())
 				}
-				log.Infof("CreateLvm: Successful Create lvm %s/%s with response %s", storageSelected, volumeID, outstr)
+				log.Infof("CreateLvm: Successful Create lvm %s/%s in node %s with response %s", storageSelected, volumeID, nodeSelected, outstr)
 			} else if err != nil {
-				log.Errorf("CreateVolume: Get lvm %s with error: %s", req.Name, err.Error())
+				log.Errorf("CreateVolume: Get lvm %s from node %s with error: %s", req.Name, nodeSelected, err.Error())
 				return nil, err
 			} else {
-				log.Infof("CreateVolume: lvm volume already created %s", req.Name)
+				log.Infof("CreateVolume: lvm volume already created %s at node %s", req.Name, nodeSelected)
 			}
-		} else if !types.GlobalConfigVar.ControllerProvision && nodeSelected != "" && storageSelected != "" {
+		} else if !types.GlobalConfigVar.GrpcProvision && nodeSelected != "" && storageSelected != "" {
 			createLabels := map[string]string{}
 			optBytes, err := json.Marshal(options)
 			if err != nil {
@@ -231,9 +225,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			createLabels[types.VolumeLifecycleLabel] = types.VolumeLifecycleCreating
 			createLabels[types.VolumeSpecLabel] = string(optBytes)
 			if err := generator.CreateVolumeWithAnnotations(pvcNameSpace, pvcName, createLabels); err != nil {
-				log.Errorf("CreateVolume: create volume with label for volume %s error: %s", req.Name, err.Error())
+				log.Errorf("CreateVolume: create volume with label for volume %s %s at node %s error: %s", req.Name, storageSelected, nodeSelected, err.Error())
 				return nil, err
 			}
+			log.Infof("CreateVolume: Successful create lvm volume without GRPC %s/%s at node %s", storageSelected, req.Name, nodeSelected)
 		}
 	case MountPointType:
 		var err error
@@ -241,72 +236,91 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		if storageSelected != "" && nodeSelected != "" {
 			paraList, err = mountpointScheduled(storageSelected, parameters)
 			if err != nil {
-				return nil, status.Error(codes.InvalidArgument, "Parse mountpoint all scheduled info error "+err.Error())
+				log.Errorf("CreateVolume: create mountpoint volume %s/%s at node %s error: %s", storageSelected, req.Name, nodeSelected, err.Error())
+				return nil, status.Error(codes.InvalidArgument, "CreateVolume: Parse mountpoint all scheduled info error "+err.Error())
 			}
 		} else if nodeSelected != "" {
 			paraList, err = mountpointPartScheduled(nodeSelected, pvcName, pvcNameSpace, parameters)
 			if err != nil {
+				log.Errorf("CreateVolume: part schedule mountpoint volume %s at node %s error: %s", req.Name, nodeSelected, err.Error())
 				return nil, status.Error(codes.InvalidArgument, "Parse mountpoint part schedule info error "+err.Error())
 			}
 		} else {
 			nodeID := ""
 			nodeID, paraList, err = mountpointNoScheduled(parameters)
 			if err != nil {
+				log.Errorf("CreateVolume: schedule mountpoint volume %s error: %s", req.Name, err.Error())
 				return nil, status.Error(codes.InvalidArgument, "Parse mountpoint schedule info error "+err.Error())
 			}
 			nodeSelected = nodeID
 		}
+		log.Infof("CreateVolume: Successful create mountpoint volume %s/%s at node %s", storageSelected, req.Name, nodeSelected)
 	case DeviceVolumeType:
 		var err error
 		// Node and Storage have been scheduled
 		if storageSelected != "" && nodeSelected != "" {
 			paraList, err = deviceScheduled(storageSelected, parameters)
 			if err != nil {
+				log.Errorf("CreateVolume: create device volume %s/%s at node %s error: %s", storageSelected, req.Name, nodeSelected, err.Error())
 				return nil, status.Error(codes.InvalidArgument, "Parse Device all scheduled info error "+err.Error())
 			}
 		} else if nodeSelected != "" {
 			paraList, err = devicePartScheduled(nodeSelected, pvcName, pvcNameSpace, parameters)
 			if err != nil {
+				log.Errorf("CreateVolume: part schedule device volume %s at node %s error: %s", req.Name, nodeSelected, err.Error())
 				return nil, status.Error(codes.InvalidArgument, "Parse Device part schedule info error "+err.Error())
 			}
 		} else {
 			nodeID := ""
 			nodeID, paraList, err = deviceNoScheduled(parameters)
 			if err != nil {
+				log.Errorf("CreateVolume: schedule device volume %s error: %s", req.Name, err.Error())
 				return nil, status.Error(codes.InvalidArgument, "Parse Device schedule info error "+err.Error())
 			}
 			nodeSelected = nodeID
 		}
+		log.Infof("CreateVolume: Successful create device volume %s/%s at node %s", storageSelected, req.Name, nodeSelected)
 	case PmemVolumeType:
 		if nodeSelected != "" {
+			// only support pmem direct type
 			conn, err := cs.getNodeConn(nodeSelected)
 			if err != nil {
-				log.Errorf("CreateVolume: New pmem volume %s Connection with error: %s", req.Name, err.Error())
+				log.Errorf("CreateVolume: create connect with node %s volume %s with error: %s", nodeSelected, req.Name, err.Error())
 				return nil, err
 			}
 			defer conn.Close()
 			options := &client.NameSpaceOptions{}
 			options.Name = req.Name
+
+			// pmem direct type need Region selection
+			// First: scheduled aonnotation from pvc;
+			// Second: pmemRegion setting in storageclass
+			// Third: default as region0
 			options.Region = manager.PmemRegionNameDefault
 			if value, ok := parameters["pmemRegion"]; ok {
 				options.Region = value
 			}
+			if storageSelected != "" {
+				options.Region = storageSelected
+			}
+
 			options.Size = uint64(req.GetCapacityRange().GetRequiredBytes())
 			if namespace, err := conn.GetNameSpace(ctx, options.Region, volumeID); err == nil && namespace == "" {
 				newNameSpace, err := conn.CreateNameSpace(ctx, options)
 				if err != nil {
-					log.Errorf("CreateVolume: Create Pmem direct %s, options: %v with error: %s", volumeID, options, err.Error())
+					log.Errorf("CreateVolume: Create Pmem direct Namespace %s, options: %v at node with error: %s", volumeID, options, nodeSelected, err.Error())
 					return nil, errors.New("Create Pmem direct with error " + err.Error())
 				}
-				log.Infof("CreatePmem: Successful Create Pmem namespace %s with response %v", volumeID, newNameSpace)
 				parameters["pmemRegion"] = options.Region
 				parameters["pmemNameSpace"] = newNameSpace.Dev
 				parameters["pmemBlockDev"] = newNameSpace.BlockDev
+				log.Infof("CreatePmem: Successful Create Pmem namespace %s with response %v", volumeID, newNameSpace)
+
 			} else if err != nil {
-				log.Errorf("CreateVolume: Get PMEM direct namespace %s with error: %s", req.Name, err.Error())
+				log.Errorf("CreateVolume: Get PMEM namespace %s at node %s with error: %s", req.Name, nodeSelected, err.Error())
 				return nil, err
 			} else {
-				log.Infof("CreateVolume: PMEM namespace already created %s, %s", req.Name, namespace)
+				log.Infof("CreateVolume: PMEM namespace already created %s, %s at node %s", req.Name, namespace, nodeSelected)
 			}
 		} else {
 			return nil, errors.New("CreateVolume: PMEMDirect type nodeselected must not be None")
@@ -315,28 +329,29 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		if nodeSelected != "" {
 			conn, err := cs.getNodeConn(nodeSelected)
 			if err != nil {
-				log.Errorf("CreateVolume: New pmem volume %s Connection with error: %s", req.Name, err.Error())
+				log.Errorf("CreateVolume: New QuotaPath volume %s Connection node %s with error: %s", req.Name, nodeSelected, err.Error())
 				return nil, err
 			}
 			defer conn.Close()
 			size := fmt.Sprintf("%d", req.GetCapacityRange().GetRequiredBytes())
 			kSize := fmt.Sprintf("%d", req.GetCapacityRange().GetRequiredBytes()/1024)
-			log.Infof("CreateVolume: create project quota types volumes with node(%s), storage(%s), size(%s)KB", nodeSelected, storageSelected, kSize)
+			log.Infof("CreateVolume: create quotaPath type volume %s with node(%s), rootPath(%s), size(%s)KB", req.Name, nodeSelected, storageSelected, kSize)
 			_, projectQuotaSubpath, err := conn.CreateProjQuotaSubpath(ctx, req.Name, size, storageSelected)
-
 			if err != nil {
-				log.Infof("CreateVolume: create project quota subpath %s failed: %s", req.Name, err.Error())
+				log.Errorf("CreateVolume: create quotaPath %s at node %s with error: %s", req.Name, nodeSelected, err.Error())
 				return nil, err
 			}
 			_, err = conn.SetSubpathProjQuota(ctx, projectQuotaSubpath, kSize, kSize, "", "")
 			if err != nil {
-				log.Infof("CreateVolume: set project quota subpath %s failed: %s", req.Name, err.Error())
+				log.Errorf("CreateVolume: set quotaPath %s at node %s with error: %s", req.Name, nodeSelected, err.Error())
 				return nil, err
 			}
 			parameters[ProjQuotaFullPath] = projectQuotaSubpath
 		} else {
-			return nil, errors.New("CreateVolume: PMEMQuotaPath type nodeselected must not be None")
+			log.Errorf("CreateVolume: QuotaPath type nodeselected must not be None: %s", req.Name)
+			return nil, errors.New("CreateVolume: QuotaPath type nodeselected must not be None")
 		}
+		log.Infof("CreateVolume: Successful Create QuotaPath volume %s at node %s", req.Name, nodeSelected)
 	default:
 		log.Errorf("CreateVolume: Create with no support volume type %s", volumeType)
 		return nil, status.Error(codes.InvalidArgument, "Create with no support type "+volumeType)
@@ -390,7 +405,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 func (cs *controllerServer) getNodeConn(nodeSelected string) (client.Connection, error) {
 	addr, err := getNodeAddr(cs.client, nodeSelected)
 	if err != nil {
-		log.Errorf("CreateVolume: Get lvm node %s address with error: %s", nodeSelected, err.Error())
+		log.Errorf("CreateVolume: Get node %s address with error: %s", nodeSelected, err.Error())
 		return nil, err
 	}
 	conn, err := client.NewGrpcConnection(addr, connectTimeout)
@@ -399,42 +414,33 @@ func (cs *controllerServer) getNodeConn(nodeSelected string) (client.Connection,
 
 // DeleteVolume csi interface
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	log.Infof("DeleteVolume: deleting volume: %s", req.GetVolumeId())
+	log.Infof("DeleteVolume: deleting local volume: %s", req.GetVolumeId())
 	volumeID := req.GetVolumeId()
-	pvObj, err := getPvObj(cs.client, volumeID)
+	nodeName, vgName, pvObj, err := getPvSpec(cs.client, volumeID, cs.driverName)
 	if err != nil {
-		log.Errorf("DeleteVolume: get volume object %s error with: %s", volumeID, err.Error())
+		log.Errorf("DeleteVolume: get pv spec %s with error: %s", volumeID, err.Error())
 		return nil, err
-	}
-	if pvObj.Spec.CSI == nil {
-		log.Errorf("DeleteVolume: Remove Lvm Failed, volume is not csi type %s", volumeID)
-		return nil, errors.New("Remove Lvm Failed: volume is not csi type: " + volumeID)
 	}
 	volumeType := ""
 	if value, ok := pvObj.Spec.CSI.VolumeAttributes[VolumeTypeKey]; ok {
 		volumeType = value
 	}
-	nodeName, vgName, pv, err := getPvSpec(cs.client, volumeID, cs.driverName)
 
 	switch volumeType {
 	case LvmVolumeType:
-		if err != nil {
-			log.Errorf("DeleteVolume: get Lvm %s Spec with error %s", volumeID, err.Error())
-			return nil, err
-		}
-		if types.GlobalConfigVar.ControllerProvision && nodeName != "" {
+		if types.GlobalConfigVar.GrpcProvision && nodeName != "" {
 			conn, err := cs.getNodeConn(nodeName)
 			if err != nil {
-				log.Errorf("DeleteVolume: New lvm %s Connection with error: %s", req.GetVolumeId(), err.Error())
+				log.Errorf("DeleteVolume: New lvm %s Connection at node %s with error: %s", req.GetVolumeId(), nodeName, err.Error())
 				return nil, err
 			}
 			defer conn.Close()
 			if lvmName, err := conn.GetLvm(ctx, vgName, volumeID); err == nil && lvmName != "" {
 				if err := conn.DeleteLvm(ctx, vgName, volumeID); err != nil {
-					log.Errorf("DeleteVolume: Remove lvm %s/%s with error: %s", vgName, volumeID, err.Error())
-					return nil, errors.New("Remove Lvm with error " + err.Error())
+					log.Errorf("DeleteVolume: Remove lvm %s/%s at node %s with error: %s", vgName, volumeID, nodeName, err.Error())
+					return nil, errors.New("DeleteVolume: Remove Lvm " + volumeID + " with error " + err.Error())
 				}
-				log.Infof("DeleteLvm: Successful Delete lvm %s/%s", vgName, volumeID)
+				log.Infof("DeleteLvm: Successful Delete lvm %s/%s at node %s", vgName, volumeID, nodeName)
 			} else if err == nil && lvmName == "" {
 				log.Infof("DeleteVolume: get lvm empty, skip deleting %s", volumeID)
 			} else if err != nil && strings.Contains(err.Error(), "Failed to find logical volume") {
@@ -445,7 +451,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				log.Errorf("DeleteVolume: Get lvm for %s with error: %s", req.GetVolumeId(), err.Error())
 				return nil, err
 			}
-		} else if !types.GlobalConfigVar.ControllerProvision && nodeName != "" {
+		} else if !types.GlobalConfigVar.GrpcProvision && nodeName != "" {
 			createLabels := map[string]string{}
 			createLabels[types.VolumeLifecycleLabel] = types.VolumeLifecycleDeleting
 			createLabels[types.VolumeSpecLabel] = vgName + "/" + volumeID
@@ -453,29 +459,33 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				log.Errorf("DeleteVolume: delete volume with label for volume %s error: %s", volumeID, err.Error())
 				return nil, err
 			}
+			log.Infof("DeleteVolume: delete local volume %s with label at node %s", volumeID, nodeName)
+		} else {
+			log.Infof("DeleteVolume: delete local volume %s with node empty", volumeID)
 		}
+
 	case MountPointType:
 		if pvObj.Spec.PersistentVolumeReclaimPolicy == v1.PersistentVolumeReclaimDelete {
 			if pvObj.Spec.NodeAffinity == nil {
-				log.Errorf("Get Lvm Spec for volume %s, with nil nodeAffinity", volumeID)
+				log.Errorf("DeleteVolume: Get Lvm Spec for volume %s, with nil nodeAffinity", volumeID)
 				return nil, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil nodeAffinity")
 			}
 			if pvObj.Spec.NodeAffinity.Required == nil || len(pvObj.Spec.NodeAffinity.Required.NodeSelectorTerms) == 0 {
-				log.Errorf("Get Lvm Spec for volume %s, with nil Required", volumeID)
+				log.Errorf("DeleteVolume: Get Lvm Spec for volume %s, with nil Required", volumeID)
 				return nil, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil Required")
 			}
 			if len(pvObj.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions) == 0 {
-				log.Errorf("Get Lvm Spec for volume %s, with nil MatchExpressions", volumeID)
+				log.Errorf("DeleteVolume: Get Lvm Spec for volume %s, with nil MatchExpressions", volumeID)
 				return nil, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil MatchExpressions")
 			}
 			key := pvObj.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Key
 			if key != TopologyNodeKey && key != TopologyYodaNodeKey {
-				log.Errorf("Get Lvm Spec for volume %s, with key %s", volumeID, key)
+				log.Errorf("DeleteVolume: Get Lvm Spec for volume %s, with key %s", volumeID, key)
 				return nil, errors.New("Get Lvm Spec for volume " + volumeID + ", with key" + key)
 			}
 			nodes := pvObj.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Values
 			if len(nodes) == 0 {
-				log.Errorf("Get MountPoint Spec for volume %s, with empty nodes", volumeID)
+				log.Errorf("DeleteVolume: Get MountPoint Spec for volume %s, with empty nodes", volumeID)
 				return nil, errors.New("MountPoint Pv is illegal, No node info")
 			}
 			nodeName := nodes[0]
@@ -490,72 +500,74 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				path = value
 			}
 			if path == "" {
-				log.Errorf("Get MountPoint Path for volume %s, with empty", volumeID)
+				log.Errorf("DeleteVolume: Get MountPoint Path for volume %s, with empty", volumeID)
 				return nil, errors.New("MountPoint Path is empty")
 			}
 			if err := conn.CleanPath(ctx, path); err != nil {
 				log.Errorf("DeleteVolume: Remove mountpoint for %s with error: %s", req.GetVolumeId(), err.Error())
-				return nil, errors.New("Delete mountpoint Failed: " + err.Error())
+				return nil, errors.New("DeleteVolume: Delete mountpoint Failed: " + err.Error())
 			}
 		}
-		log.Infof("DeleteVolume: default to delete MountPoint volume(%s) type volume...", volumeID)
+		log.Infof("DeleteVolume: successful delete MountPoint volume(%s)...", volumeID)
 	case DeviceVolumeType:
-		log.Infof("DeleteVolume: default to delete Device volume type volume...")
+		log.Infof("DeleteVolume: successful delete Device volume(%s)...", volumeID)
 	case PmemVolumeType:
 		if nodeName != "" {
 			conn, err := cs.getNodeConn(nodeName)
 			if err != nil {
-				log.Errorf("DeleteVolume: New PMEM %s Connection with error: %s", req.GetVolumeId(), err.Error())
+				log.Errorf("DeleteVolume: New PMEM %s Connection at node %s with error: %s", req.GetVolumeId(), nodeName, err.Error())
 				return nil, err
 			}
 			defer conn.Close()
-			if _, ok := pv.Spec.CSI.VolumeAttributes["pmemNameSpace"]; !ok {
+			if _, ok := pvObj.Spec.CSI.VolumeAttributes["pmemNameSpace"]; !ok {
 				log.Errorf("DeleteVolume: Direct PMEM volume can not found NameSpace: %s", volumeID)
 				return nil, errors.New("DeleteVolume Direct PMEM volume can not found NameSpace " + volumeID)
 			}
-			namespace := pv.Spec.CSI.VolumeAttributes["pmemNameSpace"]
+			namespace := pvObj.Spec.CSI.VolumeAttributes["pmemNameSpace"]
 			if pmemName, err := conn.GetNameSpace(ctx, "", volumeID); err == nil && pmemName != "" {
 				if err := conn.DeleteNameSpace(ctx, namespace); err != nil {
-					log.Errorf("DeleteVolume: Remove PMEM direct volume %s with error: %s", volumeID, err.Error())
-					return nil, errors.New("Remove Pmem with error " + err.Error())
+					log.Errorf("DeleteVolume: Remove PMEM direct volume %s at node %s with error: %s", volumeID, nodeName, err.Error())
+					return nil, errors.New("DeleteVolume: Remove Pmem namespace with error " + err.Error())
 				}
-				log.Infof("DeleteLvm: Successful Delete PMEM direct %s", volumeID)
+				log.Infof("DeleteLvm: Successful Delete PMEM volume %s at node %s", volumeID, nodeName)
 			} else if err == nil && pmemName == "" {
-				log.Infof("DeleteVolume: get PMEM empty, skip deleting %s", volumeID)
+				log.Infof("DeleteVolume: get PMEM empty at node %s, skip deleting %s", nodeName, volumeID)
 			} else {
-				log.Errorf("DeleteVolume: Get Pmem for %s with error: %s", req.GetVolumeId(), err.Error())
+				log.Errorf("DeleteVolume: Get PMEM volume %s at node %s with error: %s", req.VolumeId, nodeName, err.Error())
 				return nil, err
 			}
 		} else {
-			return nil, fmt.Errorf("DeleteVolume: delete volume without nodeAffinity %s", volumeID)
+			return nil, fmt.Errorf("DeleteVolume: failed to delete volume without nodeAffinity %s", volumeID)
 		}
 	case QuotaPathVolumeType:
 		if nodeName != "" {
 			conn, err := cs.getNodeConn(nodeName)
 			if err != nil {
-				log.Errorf("DeleteVolume: New PMEM %s Connection with error: %s", req.GetVolumeId(), err.Error())
+				log.Errorf("DeleteVolume: get QuotaPath volume %s Connection at node %s with error: %s", req.VolumeId, nodeName, err.Error())
 				return nil, err
 			}
 			defer conn.Close()
-			log.Infof("DeleteVolume: delete project quota types volumes")
-			quotaPath := pv.Spec.CSI.VolumeAttributes[ProjQuotaFullPath]
-			if quotaPath == "" {
-				return nil, errors.New("DeleteVolume: pv message ")
+
+			if _, ok := pvObj.Spec.CSI.VolumeAttributes[ProjQuotaFullPath]; !ok {
+				log.Errorf("DeleteVolume: QuotaPath volume %s not have projQuotaFullPath parameter", req.VolumeId)
+				return nil, fmt.Errorf("DeleteVolume: QuotaPath volume %s not have projQuotaFullPath parameter", req.VolumeId)
 			}
+			quotaPath := pvObj.Spec.CSI.VolumeAttributes[ProjQuotaFullPath]
 			_, err = conn.RemoveProjQuotaSubpath(ctx, quotaPath)
 			if err != nil {
+				log.Errorf("DeleteVolume: Remove QuotaPath volume %s at node % with error %s", req.VolumeId, nodeName, err.Error())
 				return nil, err
 			}
 		} else {
-			log.Infof("DeleteVolume: delete volume without nodeAffinity %s", volumeID)
-			return nil, fmt.Errorf("DeleteVolume: delete volume without nodeAffinity %s", volumeID)
+			log.Errorf("DeleteVolume: delete quotapath volume without nodeAffinity %s", volumeID)
+			return nil, fmt.Errorf("DeleteVolume: delete quotapath volume without nodeAffinity %s", volumeID)
 		}
 	default:
 		log.Errorf("DeleteVolume: volumeType %s not supported %s", volumeType, volumeID)
 		return nil, status.Error(codes.InvalidArgument, "Local driver only support LVM volume type, no "+volumeType)
 	}
 	delete(createdVolumeMap, req.VolumeId)
-	log.Infof("DeleteVolume: successful delete volume %s", volumeID)
+	log.Infof("DeleteVolume: successful delete local volume %s", volumeID)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
