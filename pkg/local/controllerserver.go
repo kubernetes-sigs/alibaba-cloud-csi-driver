@@ -308,7 +308,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			if namespace, err := conn.GetNameSpace(ctx, options.Region, volumeID); err == nil && namespace == "" {
 				newNameSpace, err := conn.CreateNameSpace(ctx, options)
 				if err != nil {
-					log.Errorf("CreateVolume: Create Pmem direct Namespace %s, options: %v at node with error: %s", volumeID, options, nodeSelected, err.Error())
+					log.Errorf("CreateVolume: Create Pmem direct Namespace %s, options: %v at node %s with error: %s", volumeID, options, nodeSelected, err.Error())
 					return nil, errors.New("Create Pmem direct with error " + err.Error())
 				}
 				parameters["pmemRegion"] = options.Region
@@ -555,7 +555,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			quotaPath := pvObj.Spec.CSI.VolumeAttributes[ProjQuotaFullPath]
 			_, err = conn.RemoveProjQuotaSubpath(ctx, quotaPath)
 			if err != nil {
-				log.Errorf("DeleteVolume: Remove QuotaPath volume %s at node % with error %s", req.VolumeId, nodeName, err.Error())
+				log.Errorf("DeleteVolume: Remove QuotaPath volume %s at node %s with error %s", req.VolumeId, nodeName, err.Error())
 				return nil, err
 			}
 		} else {
