@@ -60,14 +60,14 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 	//volumeNewCreated := false
 	volumeID := req.GetVolumeId()
 	devicePath := filepath.Join("/dev/", vgName, volumeID)
-		if _, err := os.Stat(devicePath); os.IsNotExist(err) {
-			//volumeNewCreated = true
-			err := createVolume(ctx, volumeID, vgName, "", lvmType)
-			if err != nil {
-				log.Errorf("NodePublishVolume: create volume %s with error: %s", volumeID, err.Error())
-				return status.Error(codes.Internal, err.Error())
-			}
+	if _, err := os.Stat(devicePath); os.IsNotExist(err) {
+		//volumeNewCreated = true
+		err := createVolume(ctx, volumeID, vgName, "", lvmType)
+		if err != nil {
+			log.Errorf("NodePublishVolume: create volume %s with error: %s", volumeID, err.Error())
+			return status.Error(codes.Internal, err.Error())
 		}
+	}
 	// Check target mounted
 	isMnt, err := ns.mounter.IsMounted(targetPath)
 	if err != nil {
