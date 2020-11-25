@@ -16,4 +16,7 @@ COPY csiplugin-connector.service /bin/csiplugin-connector.service
 COPY plugin.csi.alibabacloud.com /bin/plugin.csi.alibabacloud.com
 RUN chmod +x /bin/plugin.csi.alibabacloud.com && chmod +x /entrypoint.sh && chmod +x /bin/csiplugin-connector && chmod +x /bin/csiplugin-connector.service
 
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+RUN echo 'Asia/Shanghai' >/etc/timezone
+
 ENTRYPOINT ["/entrypoint.sh"]
