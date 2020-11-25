@@ -6,13 +6,13 @@ import (
 
 // GlobalConfig var
 type GlobalConfig struct {
-	Region              string
-	NodeID              string
-	Scheduler           string
-	PmemEnable          bool
-	PmemType            string
-	ControllerProvision bool
-	KubeClient          *kubernetes.Clientset
+	Region        string
+	NodeID        string
+	Scheduler     string
+	PmemEnable    bool
+	PmemType      string
+	GrpcProvision bool
+	KubeClient    *kubernetes.Clientset
 }
 
 var (
