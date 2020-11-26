@@ -191,7 +191,7 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 
 			deviceName, err := GetDeviceByVolumeID(diskID)
 			if len(deviceName) == 0 && bdf != "" {
-				deviceName, err = GetDeviceByBdf(bdf)
+				deviceName, err = GetDeviceByBdf(bdf, true)
 			}
 			if err == nil && deviceName != "" {
 				log.Infof("AttachDisk: Successful attach bdf disk %s to node %s device %s by DiskID/Device mapping", diskID, nodeID, deviceName)
