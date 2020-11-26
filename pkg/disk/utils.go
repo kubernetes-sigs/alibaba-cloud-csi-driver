@@ -329,7 +329,7 @@ func getInstanceDoc() (*instanceDocument, error) {
 }
 
 // GetDeviceByBdf get device name by bdf
-func GetDeviceByBdf(bdf string) (device string, err error) {
+func GetDeviceByBdf(bdf string, enLog bool) (device string, err error) {
 	virtioPciPath := fmt.Sprintf("/sys/bus/pci/drivers/virtio-pci/%s", bdf)
 	dirs, err := ioutil.ReadDir(virtioPciPath)
 	if err != nil {
@@ -341,7 +341,9 @@ func GetDeviceByBdf(bdf string) (device string, err error) {
 			virtioNumbers = append(virtioNumbers, dir.Name())
 		}
 	}
-	log.Infof("Device bdf: %s, virtio numbers: %v", bdf, virtioNumbers)
+	if enLog {
+		log.Infof("Device bdf: %s, virtio numbers: %v", bdf, virtioNumbers)
+	}
 	if len(virtioNumbers) == 0 {
 		return "", fmt.Errorf("virtio device not found, bdf: %s", bdf)
 	} else if len(virtioNumbers) > 1 {
@@ -356,7 +358,9 @@ func GetDeviceByBdf(bdf string) (device string, err error) {
 		targetPath, _ := os.Readlink(device)
 		if filepath.Base(targetPath) == virtioNumbers[0] {
 			devicePath := fmt.Sprintf("/dev/%s", filepath.Base(filepath.Dir(device)))
-			log.Infof("Device bdf: %s, device: %s", bdf, devicePath)
+			if enLog {
+				log.Infof("Device bdf: %s, device: %s", bdf, devicePath)
+			}
 			return devicePath, nil
 		}
 	}

@@ -159,8 +159,9 @@ func getDeviceSerial(serial string) (device string) {
 // GetDeviceByVolumeID First try to find the device by serial
 // If cannot find the device using the serial number, get device by volumeID, link file should be like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
-func getDeviceByVolumeID(volumeID string) (device string, err error) {
+func getDeviceByVolumeID(pvName, volumeID string) (device string, err error) {
 	// this is danger in Bdf mode
+	// when bdf hang resolved, use this in all types
 	if !isVFNode() {
 		device = getDeviceSerial(strings.TrimPrefix(volumeID, "d-"))
 		if device != "" {
@@ -168,6 +169,27 @@ func getDeviceByVolumeID(volumeID string) (device string, err error) {
 		}
 	}
 
+	if device, err = getDeviceBySymlink(volumeID); err != nil {
+		mountPath := filepath.Join("/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/staging", pvName, volumeID)
+		cmd := fmt.Sprintf("findmnt -o SOURCE --noheadings %s", mountPath)
+		out, err := utils.Run(cmd)
+		if err != nil {
+			return "", fmt.Errorf("getDeviceByVolumeID %s with error %s", volumeID, err.Error())
+		}
+		mountInfo := strings.TrimSpace(out)
+		if strings.HasPrefix(mountInfo, "devtmpfs[") && strings.HasSuffix(mountInfo, "]") {
+			deviceName := mountInfo[9 : len(mountInfo)-1]
+			devicePath := filepath.Join("/dev", deviceName)
+			if utils.IsFileExisting(devicePath) {
+				return devicePath, nil
+			}
+		}
+		return "", fmt.Errorf("getDeviceByVolumeID not get %s device ", volumeID)
+	}
+	return device, nil
+}
+
+func getDeviceBySymlink(volumeID string) (string, error) {
 	byIDPath := "/dev/disk/by-id/"
 	volumeLinkName := strings.Replace(volumeID, "d-", "virtio-", -1)
 	volumeLinPath := filepath.Join(byIDPath, volumeLinkName)
@@ -189,7 +211,6 @@ func getDeviceByVolumeID(volumeID string) (device string, err error) {
 				}
 			}
 			if !isSearched {
-				log.Warnf("volumeID link path %q not found", volumeLinPath)
 				return "", fmt.Errorf("volumeID link path %q not found", volumeLinPath)
 			}
 		} else {
@@ -198,7 +219,6 @@ func getDeviceByVolumeID(volumeID string) (device string, err error) {
 	}
 
 	if stat.Mode()&os.ModeSymlink != os.ModeSymlink {
-		log.Warningf("volumeID link file %q found, but was not a symlink", volumeLinPath)
 		return "", fmt.Errorf("volumeID link file %q found, but was not a symlink", volumeLinPath)
 	}
 	// Find the target, resolving to an absolute path
@@ -212,7 +232,6 @@ func getDeviceByVolumeID(volumeID string) (device string, err error) {
 	}
 	return resolved, nil
 }
-
 func listDirectory(rootPath string) ([]string, error) {
 	var fileLists []string
 	files, err := ioutil.ReadDir(rootPath)
