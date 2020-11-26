@@ -130,7 +130,7 @@ func updateMap(clientSet *kubernetes.Clientset, lastPvStorageInfoMap *map[string
 			continue
 		}
 
-		deviceName, err := getDeviceByVolumeID(diskID)
+		deviceName, err := getDeviceByVolumeID(pvName, diskID)
 		if err != nil {
 			logrus.Errorf("Get dev name by diskID %s is failed, err:%s", diskID, err)
 			continue
