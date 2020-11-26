@@ -476,7 +476,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			}
 			device, err = GetDeviceByVolumeID(req.GetVolumeId())
 			if bdf != "" && device == "" {
-				device, err = GetDeviceByBdf(bdf)
+				device, err = GetDeviceByBdf(bdf, true)
 			}
 		}
 		if err != nil {
