@@ -91,10 +91,14 @@ func NewDriver(nodeID, endpoint string) *NAS {
 	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
 	c := newNasClient(accessKeyID, accessSecret, accessToken, "")
 	region := os.Getenv("REGION_ID")
+	limit := os.Getenv("NAS_LIMIT_PERSECOND")
+	if limit == "" {
+		limit = "2"
+	}
 	if region == "" {
 		region = GetMetaData(RegionTag)
 	}
-	d.controllerServer = NewControllerServer(d.driver, c, region)
+	d.controllerServer = NewControllerServer(d.driver, c, region, limit)
 
 	return d
 }

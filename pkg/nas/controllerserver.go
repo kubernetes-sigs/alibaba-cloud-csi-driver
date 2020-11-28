@@ -25,6 +25,7 @@ import (
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"go.uber.org/ratelimit"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -88,7 +89,8 @@ type controllerServer struct {
 	region    string
 	client    kubernetes.Interface
 	*csicommon.DefaultControllerServer
-	recorder record.EventRecorder
+	recorder    record.EventRecorder
+	rateLimiter ratelimit.Limiter
 }
 
 // Alibaba Cloud nas volume parameters
@@ -120,7 +122,7 @@ var pvcFileSystemIDMap = map[string]string{}
 var pvcMountTargetMap = map[string]string{}
 
 // NewControllerServer is to create controller server
-func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region string) csi.ControllerServer {
+func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region, limit string) csi.ControllerServer {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Fatalf("NewControllerServer: Failed to create config: %v", err)
@@ -129,13 +131,20 @@ func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region s
 	if err != nil {
 		log.Fatalf("NewControllerServer: Failed to create client: %v", err)
 	}
+	intLimit, err := strconv.Atoi(limit)
+	if err != nil {
+		log.Errorf("NewControllerServer: Failed to convert string limit to int: %s, err: %v", limit, err)
+		intLimit = 2
+	}
 
+	log.Infof("NewControllerServer: current provisioenr nas limit is %v", intLimit)
 	c := &controllerServer{
 		nasClient:               client,
 		region:                  region,
 		client:                  clientset,
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
 		recorder:                utils.NewEventRecorder(),
+		rateLimiter:             ratelimit.New(intLimit),
 	}
 	return c
 }
@@ -354,6 +363,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			}
 		}
 
+		cs.rateLimiter.Take()
 		// step5: Mount nfs server to localpath
 		if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
 			if err := DoNfsMount(nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name); err != nil {
