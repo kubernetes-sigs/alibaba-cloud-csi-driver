@@ -49,6 +49,7 @@ type GlobalConfig struct {
 	NasTagEnable       bool
 	ADControllerEnable bool
 	MetricEnable       bool
+	NasFakeProvision   bool
 	RunTimeClass       string
 	NodeID             string
 	NodeIP             string
@@ -127,6 +128,7 @@ func GlobalConfigSet() {
 
 	configMapName := "csi-plugin"
 	isNasMetricEnable := false
+	isNasFakeProvisioner := false
 
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
@@ -136,6 +138,11 @@ func GlobalConfigSet() {
 			if value == "enable" || value == "yes" || value == "true" {
 				log.Infof("Nas Metric is enabled by configMap(%s).", value)
 				isNasMetricEnable = true
+			}
+		}
+		if value, ok := configMap.Data["nas-fake-provision"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				isNasFakeProvisioner = true
 			}
 		}
 	}
@@ -177,4 +184,5 @@ func GlobalConfigSet() {
 	GlobalConfigVar.MetricEnable = isNasMetricEnable
 	GlobalConfigVar.RunTimeClass = runtimeValue
 	GlobalConfigVar.NodeID = nodeName
+	GlobalConfigVar.NasFakeProvision = isNasFakeProvisioner
 }
