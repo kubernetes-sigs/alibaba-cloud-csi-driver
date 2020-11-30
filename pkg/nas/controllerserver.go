@@ -354,7 +354,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 		log.Infof("Create Volume: %s, with Exist Nfs Server: %s, Path: %s, Options: %s, Version: %s", req.Name, nfsServer, nfsPath, nfsOptions, nfsVersion)
 
-		// local mountpoint for one volume
 		mountPoint := filepath.Join(MNTROOTPATH, pvName)
 		if !utils.IsFileExisting(mountPoint) {
 			if err := os.MkdirAll(mountPoint, 0777); err != nil {
@@ -363,40 +362,52 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			}
 		}
 
-		cs.rateLimiter.Take()
-		// step5: Mount nfs server to localpath
-		if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
-			if err := DoNfsMount(nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name); err != nil {
-				log.Errorf("CreateVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.Name, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, err.Error())
-				return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
-			}
-		}
-		if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
-			return nil, errors.New("Check Mount nfsserver not mounted " + nfsServer)
-		}
-
-		// step6: create volume
-		fullPath := filepath.Join(mountPoint, pvName)
-		if err := os.MkdirAll(fullPath, 0777); err != nil {
-			log.Errorf("Provision: %s, creating path: %s, with error: %s", req.Name, fullPath, err.Error())
-			return nil, errors.New("Provision: " + req.Name + ", creating path: " + fullPath + ", with error: " + err.Error())
-		}
-		os.Chmod(fullPath, 0777)
-
 		volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
-		if value, ok := req.Parameters[MntTypeKey]; ok && value == LosetupType {
-			if err = createLosetupPv(fullPath, volSizeBytes); err != nil {
-				log.Errorf("Provision: create losetup image file error: %v", err)
-				return nil, errors.New("Provision: " + req.Name + ", create losetup image file with error: " + err.Error())
+
+		losetupType := false
+		if value, ok := req.Parameters[MntTypeKey]; ok {
+			if value == LosetupType {
+				losetupType = true
 			}
-			volumeContext[MntTypeKey] = LosetupType
-			log.Infof("CreateVolume: Successful create losetup pv with: %s, %s", fullPath, req.Name)
 		}
 
-		// step7: Unmount nfs server
-		if err := utils.Umount(mountPoint); err != nil {
-			log.Errorf("Provision: %s, unmount nfs mountpoint %s failed with error %v", req.Name, mountPoint, err)
-			return nil, errors.New("unable to unmount nfs server: " + nfsServer)
+		if !GlobalConfigVar.NasFakeProvision || losetupType {
+			// local mountpoint for one volume
+
+			cs.rateLimiter.Take()
+			// step5: Mount nfs server to localpath
+			if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+				if err := DoNfsMount(nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name); err != nil {
+					log.Errorf("CreateVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.Name, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, err.Error())
+					return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
+				}
+			}
+			if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+				return nil, errors.New("Check Mount nfsserver not mounted " + nfsServer)
+			}
+
+			// step6: create volume
+			fullPath := filepath.Join(mountPoint, pvName)
+			if err := os.MkdirAll(fullPath, 0777); err != nil {
+				log.Errorf("Provision: %s, creating path: %s, with error: %s", req.Name, fullPath, err.Error())
+				return nil, errors.New("Provision: " + req.Name + ", creating path: " + fullPath + ", with error: " + err.Error())
+			}
+			os.Chmod(fullPath, 0777)
+
+			if losetupType {
+				if err = createLosetupPv(fullPath, volSizeBytes); err != nil {
+					log.Errorf("Provision: create losetup image file error: %v", err)
+					return nil, errors.New("Provision: " + req.Name + ", create losetup image file with error: " + err.Error())
+				}
+				volumeContext[MntTypeKey] = LosetupType
+				log.Infof("CreateVolume: Successful create losetup pv with: %s, %s", fullPath, req.Name)
+			}
+
+			// step7: Unmount nfs server
+			if err := utils.Umount(mountPoint); err != nil {
+				log.Errorf("Provision: %s, unmount nfs mountpoint %s failed with error %v", req.Name, mountPoint, err)
+				return nil, errors.New("unable to unmount nfs server: " + nfsServer)
+			}
 		}
 
 		volumeContext["volumeAs"] = nasVol.VolumeAs
