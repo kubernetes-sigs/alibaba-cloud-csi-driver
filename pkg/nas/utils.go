@@ -103,7 +103,9 @@ func DoNfsMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID 
 
 //CheckNfsPathMounted check whether the given nfs path was mounted
 func CheckNfsPathMounted(mountpoint, server, path string) bool {
-	mntCmd := fmt.Sprintf("findmnt %s | grep %s | grep %s | grep -v grep | wc -l", mountpoint, server, path)
+	// mntCmd := fmt.Sprintf("findmnt %s | grep %s | grep %s | grep -v grep | wc -l", mountpoint, server, path)
+	mntCmd := fmt.Sprintf("cat /proc/mounts | grep %s | grep %s | grep -v grep | wc -l", mountpoint, path)
+	// mntCmd := fmt.Sprintf("grep -E -- '%s.*%s' /proc/mounts", mountpoint, path)
 	if out, err := utils.Run(mntCmd); err == nil && strings.TrimSpace(out) != "0" {
 		return true
 	}

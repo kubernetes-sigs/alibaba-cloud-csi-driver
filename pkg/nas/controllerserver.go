@@ -25,6 +25,7 @@ import (
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"go.uber.org/ratelimit"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -88,7 +89,8 @@ type controllerServer struct {
 	region    string
 	client    kubernetes.Interface
 	*csicommon.DefaultControllerServer
-	recorder record.EventRecorder
+	recorder    record.EventRecorder
+	rateLimiter ratelimit.Limiter
 }
 
 // Alibaba Cloud nas volume parameters
@@ -120,7 +122,7 @@ var pvcFileSystemIDMap = map[string]string{}
 var pvcMountTargetMap = map[string]string{}
 
 // NewControllerServer is to create controller server
-func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region string) csi.ControllerServer {
+func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region, limit string) csi.ControllerServer {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Fatalf("NewControllerServer: Failed to create config: %v", err)
@@ -129,13 +131,20 @@ func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region s
 	if err != nil {
 		log.Fatalf("NewControllerServer: Failed to create client: %v", err)
 	}
+	intLimit, err := strconv.Atoi(limit)
+	if err != nil {
+		log.Errorf("NewControllerServer: Failed to convert string limit to int: %s, err: %v", limit, err)
+		intLimit = 2
+	}
 
+	log.Infof("NewControllerServer: current provisioenr nas limit is %v", intLimit)
 	c := &controllerServer{
 		nasClient:               client,
 		region:                  region,
 		client:                  clientset,
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
 		recorder:                utils.NewEventRecorder(),
+		rateLimiter:             ratelimit.New(intLimit),
 	}
 	return c
 }
@@ -345,7 +354,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 		log.Infof("Create Volume: %s, with Exist Nfs Server: %s, Path: %s, Options: %s, Version: %s", req.Name, nfsServer, nfsPath, nfsOptions, nfsVersion)
 
-		// local mountpoint for one volume
 		mountPoint := filepath.Join(MNTROOTPATH, pvName)
 		if !utils.IsFileExisting(mountPoint) {
 			if err := os.MkdirAll(mountPoint, 0777); err != nil {
@@ -354,39 +362,52 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			}
 		}
 
-		// step5: Mount nfs server to localpath
-		if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
-			if err := DoNfsMount(nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name); err != nil {
-				log.Errorf("CreateVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.Name, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, err.Error())
-				return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
-			}
-		}
-		if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
-			return nil, errors.New("Check Mount nfsserver not mounted " + nfsServer)
-		}
-
-		// step6: create volume
-		fullPath := filepath.Join(mountPoint, pvName)
-		if err := os.MkdirAll(fullPath, 0777); err != nil {
-			log.Errorf("Provision: %s, creating path: %s, with error: %s", req.Name, fullPath, err.Error())
-			return nil, errors.New("Provision: " + req.Name + ", creating path: " + fullPath + ", with error: " + err.Error())
-		}
-		os.Chmod(fullPath, 0777)
-
 		volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
-		if value, ok := req.Parameters[MntTypeKey]; ok && value == LosetupType {
-			if err = createLosetupPv(fullPath, volSizeBytes); err != nil {
-				log.Errorf("Provision: create losetup image file error: %v", err)
-				return nil, errors.New("Provision: " + req.Name + ", create losetup image file with error: " + err.Error())
+
+		losetupType := false
+		if value, ok := req.Parameters[MntTypeKey]; ok {
+			if value == LosetupType {
+				losetupType = true
 			}
-			volumeContext[MntTypeKey] = LosetupType
-			log.Infof("CreateVolume: Successful create losetup pv with: %s, %s", fullPath, req.Name)
 		}
 
-		// step7: Unmount nfs server
-		if err := utils.Umount(mountPoint); err != nil {
-			log.Errorf("Provision: %s, unmount nfs mountpoint %s failed with error %v", req.Name, mountPoint, err)
-			return nil, errors.New("unable to unmount nfs server: " + nfsServer)
+		if !GlobalConfigVar.NasFakeProvision || losetupType {
+			// local mountpoint for one volume
+
+			cs.rateLimiter.Take()
+			// step5: Mount nfs server to localpath
+			if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+				if err := DoNfsMount(nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name); err != nil {
+					log.Errorf("CreateVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.Name, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, err.Error())
+					return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
+				}
+			}
+			if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+				return nil, errors.New("Check Mount nfsserver not mounted " + nfsServer)
+			}
+
+			// step6: create volume
+			fullPath := filepath.Join(mountPoint, pvName)
+			if err := os.MkdirAll(fullPath, 0777); err != nil {
+				log.Errorf("Provision: %s, creating path: %s, with error: %s", req.Name, fullPath, err.Error())
+				return nil, errors.New("Provision: " + req.Name + ", creating path: " + fullPath + ", with error: " + err.Error())
+			}
+			os.Chmod(fullPath, 0777)
+
+			if losetupType {
+				if err = createLosetupPv(fullPath, volSizeBytes); err != nil {
+					log.Errorf("Provision: create losetup image file error: %v", err)
+					return nil, errors.New("Provision: " + req.Name + ", create losetup image file with error: " + err.Error())
+				}
+				volumeContext[MntTypeKey] = LosetupType
+				log.Infof("CreateVolume: Successful create losetup pv with: %s, %s", fullPath, req.Name)
+			}
+
+			// step7: Unmount nfs server
+			if err := utils.Umount(mountPoint); err != nil {
+				log.Errorf("Provision: %s, unmount nfs mountpoint %s failed with error %v", req.Name, mountPoint, err)
+				return nil, errors.New("unable to unmount nfs server: " + nfsServer)
+			}
 		}
 
 		volumeContext["volumeAs"] = nasVol.VolumeAs
