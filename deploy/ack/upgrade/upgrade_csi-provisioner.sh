@@ -192,7 +192,7 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-csi-snapshotter
-          image: csi-image-prefix/acs/csi-snapshotter:v3.0-cd699dc4-aliyun
+          image: csi-image-prefix/acs/csi-snapshotter:v3.0.2-1038b92d8-aliyun
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -205,7 +205,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /csi
         - name: external-snapshot-controller
-          image: csi-image-prefix/acs/snapshot-controller:v3.0-cd699dc4-aliyun
+          image: csi-image-prefix/acs/snapshot-controller:v3.0.2-1038b92d8-aliyun
           args:
             - "--v=5"
             - "--leader-election=true"
@@ -944,7 +944,7 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-csi-snapshotter
-          image: csi-image-prefix/acs/csi-snapshotter:v3.0-cd699dc4-aliyun
+          image: csi-image-prefix/acs/csi-snapshotter:v3.0.2-1038b92d8-aliyun
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -957,7 +957,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /csi
         - name: external-snapshot-controller
-          image: csi-image-prefix/acs/snapshot-controller:v3.0-cd699dc4-aliyun
+          image: csi-image-prefix/acs/snapshot-controller:v3.0.2-1038b92d8-aliyun
           args:
             - "--v=5"
             - "--leader-election=true"
