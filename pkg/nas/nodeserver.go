@@ -230,7 +230,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// do losetup nas logical
-	if opt.MountType == LosetupType {
+	if GlobalConfigVar.LosetupEnable && opt.MountType == LosetupType {
 		if err := mountLosetupPv(mountPath, opt, req.VolumeId); err != nil {
 			log.Errorf("NodePublishVolume: mount losetup volume(%s) error %s", req.VolumeId, err.Error())
 			return nil, errors.New("NodePublishVolume, mount Losetup volume error with: " + err.Error())
@@ -313,9 +313,11 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, errors.New("Nas, Umount nfs Fail: " + err.Error())
 	}
 
-	if err := checkLosetupUnmount(mountPoint); err != nil {
-		log.Errorf("Nas: umount lostup volume with error: %v", err)
-		return nil, errors.New("Nas, check Losetup Unmount Fail: " + err.Error())
+	if GlobalConfigVar.LosetupEnable {
+		if err := checkLosetupUnmount(mountPoint); err != nil {
+			log.Errorf("Nas: umount lostup volume with error: %v", err)
+			return nil, errors.New("Nas, check Losetup Unmount Fail: " + err.Error())
+		}
 	}
 
 	log.Infof("Umount Nas Successful on: %s", mountPoint)
@@ -338,10 +340,21 @@ func (ns *nodeServer) NodeUnstageVolume(
 
 func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (
 	*csi.NodeExpandVolumeResponse, error) {
+	log.Infof("NodeExpandVolume: nas expand volume with %v", req)
+	if GlobalConfigVar.LosetupEnable {
+		if err := ns.LosetupExpandVolume(req); err != nil {
+			return nil, fmt.Errorf("NodeExpandVolume: error with %v", err)
+		}
+	}
+	return &csi.NodeExpandVolumeResponse{}, nil
+}
+
+// LosetupExpandVolume tag
+func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) error {
 	pathList := strings.Split(req.VolumePath, "/")
 	if len(pathList) != 10 {
 		log.Warnf("NodeExpandVolume: Mountpoint Format illegal, just skip expand %s", req.VolumePath)
-		return &csi.NodeExpandVolumeResponse{}, nil
+		return nil
 	}
 	podID := pathList[5]
 	pvName := pathList[8]
@@ -357,32 +370,32 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		_, err := utils.Run(imgCmd)
 		if err != nil {
 			log.Errorf("NodeExpandVolume: nas resize img file error %v", err)
-			return nil, fmt.Errorf("NodeExpandVolume: nas resize img file error, %v", err)
+			return fmt.Errorf("NodeExpandVolume: nas resize img file error, %v", err)
 		}
 		loopCmd := fmt.Sprintf("%s losetup | grep -v grep | grep %s | awk '{print $1}'", NsenterCmd, imgFile)
 		out, err := utils.Run(loopCmd)
 		if err != nil {
 			log.Errorf("NodeExpandVolume: search losetup device error %v", err)
-			return nil, fmt.Errorf("NodeExpandVolume: search losetup device error, %v", err)
+			return fmt.Errorf("NodeExpandVolume: search losetup device error, %v", err)
 		}
 		loopDev := strings.TrimSpace(out)
 		loopResize := fmt.Sprintf("%s losetup -c %s", NsenterCmd, loopDev)
 		_, err = utils.Run(loopResize)
 		if err != nil {
 			log.Errorf("NodeExpandVolume: resize device error %v", err)
-			return nil, fmt.Errorf("NodeExpandVolume: resize device file error, %v", err)
+			return fmt.Errorf("NodeExpandVolume: resize device file error, %v", err)
 		}
 		resizeFs := fmt.Sprintf("%s resize2fs %s", NsenterCmd, loopDev)
 		_, err = utils.Run(resizeFs)
 		if err != nil {
 			log.Errorf("NodeExpandVolume: resize filesystem error %v", err)
-			return nil, fmt.Errorf("NodeExpandVolume: resize filesystem error, %v", err)
+			return fmt.Errorf("NodeExpandVolume: resize filesystem error, %v", err)
 		}
 		log.Infof("NodeExpandVolume, losetup volume expand successful %s to %d B", req.VolumeId, volSizeBytes)
 	} else {
 		log.Infof("NodeExpandVolume, only support losetup nas pv type for volume expand %s", req.VolumeId)
 	}
-	return &csi.NodeExpandVolumeResponse{}, nil
+	return nil
 }
 
 // NodeGetCapabilities node get capability
