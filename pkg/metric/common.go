@@ -114,6 +114,10 @@ func updateMap(clientSet *kubernetes.Clientset, lastPvStorageInfoMap *map[string
 	thisPvStorageInfoMap := make(map[string]storageInfo, 0)
 	cmd := "mount | grep csi | grep " + keyword
 	line, err := utils.Run(cmd)
+	if err != nil && strings.Contains(err.Error(), "with out: , with error:") {
+		updateStorageInfoMap(clientSet, thisPvStorageInfoMap, lastPvStorageInfoMap)
+		return
+	}
 	if err != nil {
 		logrus.Errorf("Execute cmd %s is failed, err: %s", cmd, err)
 		return

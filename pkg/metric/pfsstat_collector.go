@@ -28,7 +28,8 @@ const (
 	volumeDevice       = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/"
 	defaultTokenFormat = "/var/lib/kubelet/pods/%s/volumes/kubernetes.io~secret/default-token"
 	//RawBlockUnit is 4MB
-	pfsRawBlockUnit = 4 * 1024 * 1024
+	pfsRawBlockUnit       = 4 * 1024 * 1024
+	notFoundvolumeDevices = "Not found volumeDevices"
 )
 
 type pfsRawBlockStatCollector struct {
@@ -63,9 +64,11 @@ func (p *pfsRawBlockStatCollector) updateStatByPolling() {
 		var volJSONPaths []string
 		p.rawBlockStatsMap, err = getPfsRawBlockStats(&p.dockerClient)
 		if err != nil {
-			msg := fmt.Sprintf("Couldn't get pfs raw block: %s", err)
-			logrus.Errorf(msg)
-			doUpdate = false
+			if err.Error() != notFoundvolumeDevices {
+				msg := fmt.Sprintf("Couldn't get pfs raw block: %s", err)
+				logrus.Errorf(msg)
+				doUpdate = false
+			}
 		} else {
 			volJSONPaths, err = findVolJSONByPfsRawBlock(rawBlockRootPath)
 			if err != nil {
@@ -187,6 +190,9 @@ func findVolJSONByPfsRawBlock(rootDir string) ([]string, error) {
 //4.find docker id by pod id
 func getPfsRawBlockStats(dockerClient **client.Client) (map[string][]string, error) {
 	pvNameArray, err := getPfsRawBlockPvName()
+	if pvNameArray == nil && err.Error() == notFoundvolumeDevices {
+		return nil, err
+	}
 	if err != nil {
 		logrus.Errorf("Get raw block pv is failed, err:%s", err)
 		return nil, err
@@ -277,12 +283,17 @@ func getStatByDockerID(dockerID string, dockerClient **client.Client) ([]string,
 
 func getPfsRawBlockPvName() ([]string, error) {
 	var pvNameArray []string
-	cmd := fmt.Sprintf("mount | grep /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices | grep staging")
-	mount, err := utils.Run(cmd)
+	mountCmd := "mount | grep /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices | grep staging"
+	mount, err := utils.Run(mountCmd)
+	if err != nil && strings.Contains(err.Error(), "with out: , with error:") {
+		return nil, errors.New(notFoundvolumeDevices)
+	}
+
 	if err != nil {
 		logrus.Errorf("Execute cmd %s is failed, err:%s", mount, err)
 		return nil, err
 	}
+
 	mountArray := strings.Fields(mount)
 	for _, s := range mountArray {
 		if strings.Contains(s, volumeDevice+"staging/") {
