@@ -53,6 +53,7 @@ type GlobalConfig struct {
 	RunTimeClass       string
 	NodeID             string
 	NodeIP             string
+	LosetupEnable      bool
 }
 
 // NAS the NAS object
@@ -177,8 +178,14 @@ func GlobalConfigSet() {
 		}
 	}
 
-	if GlobalConfigVar.NodeIP == "" {
-		log.Warnf("Init GlobalConfigVar with NodeIP Empty, Nas losetup feature may be useless")
+	GlobalConfigVar.LosetupEnable = false
+	losetupEn := os.Getenv("NAS_LOSETUP_ENABLE")
+	if losetupEn == "true" || losetupEn == "yes" {
+		GlobalConfigVar.LosetupEnable = true
+	}
+
+	if GlobalConfigVar.LosetupEnable && GlobalConfigVar.NodeIP == "" {
+		log.Fatal("Init GlobalConfigVar with NodeIP Empty, Nas losetup feature may be useless")
 	}
 
 	GlobalConfigVar.MetricEnable = isNasMetricEnable
