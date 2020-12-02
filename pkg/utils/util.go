@@ -76,6 +76,12 @@ const (
 	RuncRunTimeTag = "runc"
 	// RunvRunTimeTag tag
 	RunvRunTimeTag = "runv"
+	// ServiceType tag
+	ServiceType = "SERVICE_TYPE"
+	// PluginService represents the csi-plugin type.
+	PluginService = "plugin"
+	// ProvisionerService represents the csi-provisioner type.
+	ProvisionerService = "provisioner"
 )
 
 // KubernetesAlicloudIdentity set a identity label
