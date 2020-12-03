@@ -18,17 +18,20 @@ package disk
 
 import (
 	"context"
+	"os"
+	"strings"
+	"sync"
+
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"strings"
-	"sync"
 )
 
 // PluginFolder defines the location of diskplugin
@@ -113,11 +116,16 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	region := GetRegionID()
 
 	// Config Global vars
-	GlobalConfigSet(client, region, nodeID)
+	cfg := GlobalConfigSet(client, region, nodeID)
+
+	apiExtentionClient, err := crd.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
 
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
-	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, client, region)
+	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient, region)
 
 	if !runAsController {
 		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, client)
@@ -135,7 +143,7 @@ func (disk *DISK) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(client *ecs.Client, region, nodeID string) {
+func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Config {
 	configMapName := "csi-plugin"
 	isADControllerEnable := false
 	isDiskTagEnable := false
@@ -292,4 +300,5 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) {
 		DetachBeforeDelete: isDiskDetachBeforeDelete,
 		ClientSet:          kubeClient,
 	}
+	return cfg
 }
