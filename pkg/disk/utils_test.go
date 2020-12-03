@@ -77,3 +77,17 @@ func RemoveContents(dir string) error {
 	}
 	return nil
 }
+
+func TestValidateDiskType(t *testing.T) {
+	examples := []map[string]string {
+		{"result": "available"}, 
+		{"type": "a,b,c", "result": ""}, 
+		{"type": "available", "result": "available"},
+		{"type": "cloud_ssd,cloud_essd", "result": "cloud_ssd,cloud_essd"},
+		{"type": "cloud_ssd,cloud_essd", "result": "cloud_ssd,cloud_essd"},
+	}
+	for _, example := range examples {
+		actualResult, _ := validateDiskType(example)
+		assert.Equal(t, example["result"], actualResult)
+	}
+}

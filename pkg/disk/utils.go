@@ -108,6 +108,10 @@ var (
 	GITCOMMIT = "HEAD"
 	// KubernetesAlicloudIdentity is the system identity for ecs client request
 	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", VERSION)
+	// AvaliableDiskTypes ...
+	AvaliableDiskTypes = []string{DiskCommon, DiskESSD, DiskEfficiency, DiskSSD, DiskSharedSSD, DiskSharedEfficiency}
+	// CustomDiskTypes ...
+	CustomDiskTypes = map[string]string{DiskESSD: "", DiskSSD: "", DiskEfficiency: ""}
 )
 
 // DefaultOptions is the struct for access key
@@ -698,13 +702,11 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	// disk Type
-	diskVolArgs.Type, ok = volOptions["type"]
-	if !ok {
-		diskVolArgs.Type = DiskHighAvail
-	}
-	if diskVolArgs.Type != DiskHighAvail && diskVolArgs.Type != DiskCommon && diskVolArgs.Type != DiskESSD && diskVolArgs.Type != DiskEfficiency && diskVolArgs.Type != DiskSSD && diskVolArgs.Type != DiskSharedSSD && diskVolArgs.Type != DiskSharedEfficiency {
+	diskType ,err := validateDiskType(volOptions)
+	if err != nil {
 		return nil, fmt.Errorf("Illegal required parameter type: " + diskVolArgs.Type)
 	}
+	diskVolArgs.Type = diskType
 
 	// readonly, default false
 	value, ok := volOptions["readOnly"]
@@ -752,6 +754,31 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 
 	return diskVolArgs, nil
 }
+
+func validateDiskType(opts map[string]string) (diskType string, err error) {
+	if _, ok := opts["type"]; !ok {
+		diskType = strings.Join([]string{DiskESSD, DiskSSD, DiskEfficiency}, ",")
+		return
+	}
+	if strings.Contains(opts["type"], ",") {
+		for _, cusType := range strings.Split(opts["type"], ",") {
+			if _, ok := CustomDiskTypes[cusType]; !ok {
+				return diskType, fmt.Errorf("Illegal required parameter type: " + cusType)
+			} 
+		}
+		diskType = opts["type"]
+		return
+	}
+	for _, t := range AvaliableDiskTypes {
+		if opts["type"] == t {
+			diskType = t
+		}
+	}
+	if diskType == "" {
+		return diskType, fmt.Errorf("Illegal required parameter type: " + opts["type"])
+	}
+	return 
+} 
 
 func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
 	if devicePath == "" {
