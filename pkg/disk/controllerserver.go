@@ -17,7 +17,10 @@ limitations under the License.
 package disk
 
 import (
+	"bytes"
 	"fmt"
+	"os"
+	"reflect"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -29,11 +32,16 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/crds"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
 const (
@@ -105,7 +113,12 @@ type diskSnapshot struct {
 }
 
 // NewControllerServer is to create controller server
-func NewControllerServer(d *csicommon.CSIDriver, client *ecs.Client, region string) csi.ControllerServer {
+func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset, region string) csi.ControllerServer {
+
+	serviceType := os.Getenv(utils.ServiceType)
+	if serviceType == utils.ProvisionerService {
+		checkInstallCRD(client)
+	}
 	c := &controllerServer{
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
 		recorder:                utils.NewEventRecorder(),
@@ -685,4 +698,46 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 
 	log.Infof("ControllerExpandVolume:: Success to resize volume: %s from %dG to %dG, RequestID: %s", req.VolumeId, disk.Size, requestGB, response.RequestId)
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
+}
+
+func checkInstallCRD(crdClient *crd.Clientset) {
+
+	snapshotCRDNames := map[string]string{
+		"volumesnapshotclasses.snapshot.storage.k8s.io":  "GetVolumeSnapshotClassesCRD",
+		"volumesnapshotcontents.snapshot.storage.k8s.io": "GetVolumeSnapshotContentsCRD",
+		"volumesnapshots.snapshot.storage.k8s.io":        "GetVolumeSnapshotsCRD",
+	}
+
+	ctx := context.Background()
+	listOpts := metav1.ListOptions{}
+	crdList, err := crdClient.ApiextensionsV1().CustomResourceDefinitions().List(ctx, listOpts)
+	if err != nil {
+		log.Errorf("checkInstallCRD: list CustomResourceDefinitions error: %v", err)
+		return
+	}
+	for _, crd := range crdList.Items {
+		delete(snapshotCRDNames, crd.Name)
+		if len(snapshotCRDNames) == 0 {
+			return
+		}
+	}
+	temp := &crds.Template{}
+	log.Infof("checkInstallCRD: need to create crd counts: %v", len(snapshotCRDNames))
+	for _, value := range snapshotCRDNames {
+		crdStrings := reflect.ValueOf(temp).MethodByName(value).Call(nil)
+		createOpts := metav1.CreateOptions{}
+		crdToBeCreated := crdv1.CustomResourceDefinition{}
+		yamlString := crdStrings[0].Interface().(string)
+		crdDecoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader([]byte(yamlString)), 4096)
+		err := crdDecoder.Decode(&crdToBeCreated)
+		if err != nil {
+			log.Errorf("checkInstallCRD: yaml unmarshal error: %v", err)
+			return
+		}
+		_, err = crdClient.ApiextensionsV1().CustomResourceDefinitions().Create(ctx, &crdToBeCreated, createOpts)
+		if err != nil {
+			log.Errorf("checkInstallCRD: crd create error: %v", err)
+			return
+		}
+	}
 }
