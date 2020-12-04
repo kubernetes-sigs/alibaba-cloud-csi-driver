@@ -220,17 +220,14 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	// Step 3: init Disk create args
-	disktype := diskVol.Type
-	if DiskHighAvail == diskVol.Type {
-		disktype = DiskSSD
-	}
-
+	// if DiskHighAvail == diskVol.Type {
+	// 	disktype = DiskSSD
+	// }
 	createDiskRequest := ecs.CreateCreateDiskRequest()
 	createDiskRequest.DiskName = req.GetName()
 	createDiskRequest.Size = requests.NewInteger(requestGB)
 	createDiskRequest.RegionId = diskVol.RegionID
 	createDiskRequest.ZoneId = diskVol.ZoneID
-	createDiskRequest.DiskCategory = disktype
 	createDiskRequest.Encrypted = requests.NewBoolean(diskVol.Encrypted)
 	createDiskRequest.ResourceGroupId = diskVol.ResourceGroupID
 	if snapshotID != "" {
@@ -243,6 +240,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	tag2 := ecs.CreateDiskTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
 	diskTags = append(diskTags, tag1)
 	diskTags = append(diskTags, tag2)
+	// Set Default DiskTags
 	// Set Config DiskTags
 	if diskVol.DiskTags != "" {
 		for _, tag := range strings.Split(diskVol.DiskTags, ",") {
@@ -258,31 +256,39 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if diskVol.Encrypted == true && diskVol.KMSKeyID != "" {
 		createDiskRequest.KMSKeyId = diskVol.KMSKeyID
 	}
-	if disktype == DiskESSD {
-		createDiskRequest.PerformanceLevel = diskVol.PerformanceLevel
+	var volumeResponse *ecs.CreateDiskResponse
+	var createdDiskType string
+	allTypes := deleteEmpty(strings.Split(diskVol.Type, ","))
+	log.Infof("CreateVolume: all types: %+v, len: %v", allTypes, len(allTypes))
+	for _, dType := range allTypes {
+		if dType == "" {
+			continue
+		}
+		if dType == DiskESSD && len(allTypes) == 1 && diskVol.PerformanceLevel != "" {
+			createDiskRequest.PerformanceLevel = diskVol.PerformanceLevel
+		}
+		createDiskRequest.DiskCategory = dType
+		log.Infof("CreateVolume: Create Disk with diskCatalog: %v, performaceLevel: %v", createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel)
+		volumeResponse, err = GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
+		if err == nil {
+			createdDiskType = dType
+			break
+		} else if strings.Contains(err.Error(), DiskNotAvailable) {
+			continue
+		} else {
+			log.Errorf("CreateVolume: create type: %s disk err: %v", dType, err)
+			break
+		}
 	}
-	log.Infof("CreateVolume: Create Disk with: %v, %v, %v, %v GB, %v, %v, %v", GlobalConfigVar.Region, diskVol.ZoneID, disktype, requestGB, diskVol.Encrypted, diskVol.KMSKeyID, diskVol.ResourceGroupID)
 
-	// Step 4: Create Disk
-	volumeResponse, err := GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
 	if err != nil {
 		newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskProvision)
-		// if available feature enable, try with efficiency again
-		if diskVol.Type == DiskHighAvail && strings.Contains(err.Error(), DiskNotAvailable) {
-			disktype = DiskEfficiency
-			createDiskRequest.DiskCategory = disktype
-			volumeResponse, err = GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
-			if err != nil {
-				newErrMsg = utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskProvision)
-				log.Errorf("CreateVolume: requestId[%s], fail to create disk %s error: %v", volumeResponse.RequestId, req.GetName(), newErrMsg)
-				return nil, status.Error(codes.Internal, newErrMsg)
-			}
-		} else if strings.Contains(err.Error(), DiskSizeNotAvailable) || strings.Contains(err.Error(), "The specified parameter \"Size\" is not valid") {
+		if strings.Contains(err.Error(), DiskSizeNotAvailable) || strings.Contains(err.Error(), "The specified parameter \"Size\" is not valid") {
 			return nil, status.Error(codes.Internal, newErrMsg)
 		} else if strings.Contains(err.Error(), DiskNotAvailable) {
-			return nil, status.Error(codes.Internal, err.Error()+", PVC defined storage type not supported in zone: "+diskVol.ZoneID)
+			return nil, status.Error(codes.Internal, newErrMsg)
 		} else {
-			log.Errorf("CreateVolume: requestId[%s], fail to create disk %s, %v", volumeResponse.RequestId, req.GetName(), err)
+			log.Errorf("CreateVolume: requestId[%s], fail to create disk %s error: %v", volumeResponse.RequestId, req.GetName(), newErrMsg)
 			return nil, status.Error(codes.Internal, newErrMsg)
 		}
 	}
@@ -291,8 +297,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if sharedDisk {
 		volumeContext[SharedEnable] = "enable"
 	}
+	if createdDiskType != "" {
+		volumeContext["type"] = createdDiskType
+	}
 
-	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeResponse.DiskId, diskVol.ZoneID, disktype, requestGB, volumeResponse.RequestId)
+	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeResponse.DiskId, diskVol.ZoneID, createdDiskType, requestGB, volumeResponse.RequestId)
 
 	// Set VolumeContentSource
 	var src *csi.VolumeContentSource
