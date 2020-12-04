@@ -99,6 +99,8 @@ const (
 	fsckErrorsUncorrected = 4
 	// DiskUUIDPath tag
 	DiskUUIDPath = "/host/etc/kubernetes/volumes/disk/uuid"
+	// ZoneID ...
+	ZoneID = "zoneId"
 )
 
 var (
@@ -111,7 +113,7 @@ var (
 	// AvaliableDiskTypes ...
 	AvaliableDiskTypes = []string{DiskCommon, DiskESSD, DiskEfficiency, DiskSSD, DiskSharedSSD, DiskSharedEfficiency}
 	// CustomDiskTypes ...
-	CustomDiskTypes = map[string]string{DiskESSD: "", DiskSSD: "", DiskEfficiency: ""}
+	CustomDiskTypes = map[string]int{DiskESSD: 0, DiskSSD: 1, DiskEfficiency: 2}
 )
 
 // DefaultOptions is the struct for access key
@@ -657,13 +659,14 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	diskVolArgs := &diskVolumeArgs{}
 	volOptions := req.GetParameters()
 
-	diskVolArgs.ZoneID, ok = volOptions["zoneId"]
-	if !ok {
-		// topology aware feature to get zoneid
-		diskVolArgs.ZoneID = pickZone(req.GetAccessibilityRequirements())
-		if diskVolArgs.ZoneID == "" {
-			log.Errorf("CreateVolume: Can't get topology info , please check your setup or set zone ID in storage class. Use zone from Meta service: %s", req.Name)
-			diskVolArgs.ZoneID = GetMetaData(ZoneIDTag)
+	if diskVolArgs.ZoneID, ok = volOptions[ZoneID]; !ok {
+		if diskVolArgs.ZoneID, ok = volOptions[strings.ToLower(ZoneID)]; !ok {
+			// topology aware feature to get zoneid
+			diskVolArgs.ZoneID = pickZone(req.GetAccessibilityRequirements())
+			if diskVolArgs.ZoneID == "" {
+				log.Errorf("CreateVolume: Can't get topology info , please check your setup or set zone ID in storage class. Use zone from Meta service: %s", req.Name)
+				diskVolArgs.ZoneID = GetMetaData(ZoneIDTag)
+			}
 		}
 	}
 	// Support Multi zones if set;
@@ -702,7 +705,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	// disk Type
-	diskType ,err := validateDiskType(volOptions)
+	diskType, err := validateDiskType(volOptions)
 	if err != nil {
 		return nil, fmt.Errorf("Illegal required parameter type: " + diskVolArgs.Type)
 	}
@@ -756,17 +759,20 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 }
 
 func validateDiskType(opts map[string]string) (diskType string, err error) {
-	if _, ok := opts["type"]; !ok {
+	if value, ok := opts["type"]; !ok || (ok && value == DiskHighAvail) {
 		diskType = strings.Join([]string{DiskESSD, DiskSSD, DiskEfficiency}, ",")
 		return
 	}
 	if strings.Contains(opts["type"], ",") {
+		orderedList := make([]string, 3)
 		for _, cusType := range strings.Split(opts["type"], ",") {
-			if _, ok := CustomDiskTypes[cusType]; !ok {
+			if value, ok := CustomDiskTypes[cusType]; ok {
+				orderedList[value] = cusType
+			} else {
 				return diskType, fmt.Errorf("Illegal required parameter type: " + cusType)
-			} 
+			}
 		}
-		diskType = opts["type"]
+		diskType = strings.Join(orderedList, ",")
 		return
 	}
 	for _, t := range AvaliableDiskTypes {
@@ -777,8 +783,8 @@ func validateDiskType(opts map[string]string) (diskType string, err error) {
 	if diskType == "" {
 		return diskType, fmt.Errorf("Illegal required parameter type: " + opts["type"])
 	}
-	return 
-} 
+	return
+}
 
 func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
 	if devicePath == "" {
@@ -849,4 +855,14 @@ func isPathAvailiable(path string) error {
 		return fmt.Errorf("Read Path (%s) with error: %v ", path, err)
 	}
 	return nil
+}
+
+func deleteEmpty(s []string) []string {
+	var r []string
+	for _, str := range s {
+		if str != "" {
+			r = append(r, str)
+		}
+	}
+	return r
 }

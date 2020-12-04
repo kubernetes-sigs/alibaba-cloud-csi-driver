@@ -256,18 +256,23 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	var volumeResponse *ecs.CreateDiskResponse
 	var createdDiskType string
-	// TODO: need to sort
-	customTypes := strings.Split(diskVol.Type, ",")
-	for _, dType := range customTypes {
-		createDiskRequest.DiskCategory = dType
-		if dType == DiskESSD {
+	allTypes := deleteEmpty(strings.Split(diskVol.Type, ","))
+	log.Infof("CreateVolume: all types: %+v, len: %v", allTypes, len(allTypes))
+	for _, dType := range allTypes {
+		if dType == "" {
+			continue
+		}
+		if dType == DiskESSD && len(allTypes) == 1 && diskVol.PerformanceLevel != "" {
 			createDiskRequest.PerformanceLevel = diskVol.PerformanceLevel
 		}
-		log.Infof("CreateVolume: Create Disk with: %v, %v, %v, %v GB, %v, %v, %v", GlobalConfigVar.Region, diskVol.ZoneID, dType, requestGB, diskVol.Encrypted, diskVol.KMSKeyID, diskVol.ResourceGroupID)
+		log.Infof("CreateVolume: Create Disk with: %+v", createDiskRequest)
+		createDiskRequest.DiskCategory = dType
 		volumeResponse, err = GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
 		if err == nil {
 			createdDiskType = dType
 			break
+		} else {
+			log.Errorf("CreateVolume: create type: %s disk err: %v", dType, err)
 		}
 	}
 
