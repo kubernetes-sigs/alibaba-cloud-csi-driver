@@ -422,8 +422,10 @@ func (cs *controllerServer) getDbfsVolumeOptions(req *csi.CreateVolumeRequest) (
 	}
 	dbfsOpts.RegionID = GlobalConfigVar.Region
 
-	if dbfsOpts.ZoneID, ok = volOptions["zoneId"]; !ok {
-		dbfsOpts.ZoneID, _ = utils.GetMetaData("zone-id")
+	if dbfsOpts.ZoneID, ok = volOptions[ZoneID]; !ok {
+		if dbfsOpts.ZoneID, ok = volOptions[strings.ToLower(ZoneID)]; !ok {
+			dbfsOpts.ZoneID, _ = utils.GetMetaData("zone-id")
+		}
 	}
 
 	if dbfsOpts.PerformanceLevel, ok = volOptions["performanceLevel"]; !ok {
