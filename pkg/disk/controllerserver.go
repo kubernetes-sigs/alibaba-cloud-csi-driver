@@ -230,14 +230,16 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	createDiskRequest.ZoneId = diskVol.ZoneID
 	createDiskRequest.Encrypted = requests.NewBoolean(diskVol.Encrypted)
 	createDiskRequest.ResourceGroupId = diskVol.ResourceGroupID
+	if snapshotID != "" {
+		createDiskRequest.SnapshotId = snapshotID
+	}
+
+	// Set Default DiskTags
 	diskTags := []ecs.CreateDiskTag{}
 	tag1 := ecs.CreateDiskTag{Key: DISKTAGKEY1, Value: DISKTAGVALUE1}
 	tag2 := ecs.CreateDiskTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
 	diskTags = append(diskTags, tag1)
 	diskTags = append(diskTags, tag2)
-	if snapshotID != "" {
-		createDiskRequest.SnapshotId = snapshotID
-	}
 	// Set Default DiskTags
 	// Set Config DiskTags
 	if diskVol.DiskTags != "" {
@@ -265,14 +267,17 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		if dType == DiskESSD && len(allTypes) == 1 && diskVol.PerformanceLevel != "" {
 			createDiskRequest.PerformanceLevel = diskVol.PerformanceLevel
 		}
-		log.Infof("CreateVolume: Create Disk with: %+v", createDiskRequest)
 		createDiskRequest.DiskCategory = dType
+		log.Infof("CreateVolume: Create Disk with diskCatalog: %v, performaceLevel: %v", createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel)
 		volumeResponse, err = GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
 		if err == nil {
 			createdDiskType = dType
 			break
+		} else if strings.Contains(err.Error(), DiskNotAvailable) {
+			continue
 		} else {
 			log.Errorf("CreateVolume: create type: %s disk err: %v", dType, err)
+			break
 		}
 	}
 
