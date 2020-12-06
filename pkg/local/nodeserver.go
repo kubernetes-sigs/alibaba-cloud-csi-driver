@@ -340,11 +340,14 @@ func (ns *nodeServer) getPvInfo(volumeID string) (int64, string, *v1.PersistentV
 	}
 	pvQuantity := pv.Spec.Capacity["storage"]
 	pvSize := pvQuantity.Value()
-	pvSizeGB := pvSize / (1024 * 1024 * 1024)
+	return pvSize, "b", pv
 
-	if pvSizeGB == 0 {
-		pvSizeMB := pvSize / (1024 * 1024)
-		return pvSizeMB, "m", pv
-	}
-	return pvSizeGB, "g", pv
+	//pvSize := pvQuantity.Value()
+	//pvSizeGB := pvSize / (1024 * 1024 * 1024)
+
+	//if pvSizeGB == 0 {
+	//	pvSizeMB := pvSize / (1024 * 1024)
+	//	return pvSizeMB, "m", pv
+	//}
+	//return pvSizeGB, "g", pv
 }
