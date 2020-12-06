@@ -184,12 +184,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					options.Striping = true
 				}
 				options.Size = uint64(req.GetCapacityRange().GetRequiredBytes())
-				if outstr, err := conn.CreateLvm(ctx, options); err != nil {
+				outstr := ""
+				if outstr, err = conn.CreateLvm(ctx, options); err != nil {
 					log.Errorf("CreateVolume: Create lvm %s/%s, options: %v with error: %s", storageSelected, volumeID, options, err.Error())
 					return nil, errors.New("Create Lvm with error " + err.Error())
-				} else {
-					log.Infof("CreateLvm: Successful Create lvm %s/%s with response %s", storageSelected, volumeID, outstr)
 				}
+				log.Infof("CreateLvm: Successful Create lvm %s/%s with response %s", storageSelected, volumeID, outstr)
 			} else if err != nil {
 				log.Errorf("CreateVolume: Get lvm %s with error: %s", req.Name, err.Error())
 				return nil, err
