@@ -69,7 +69,8 @@ func CreateLV(ctx context.Context, vg string, name string, size uint64, mirrors 
 	if size == 0 {
 		return "", errors.New("size must be greater than 0")
 	}
-	args := []string{NsenterCmd, "lvcreate", "-n", name, "-L", fmt.Sprintf("%db", size), "-W", "y", "-y"}
+	size = size / 1024
+	args := []string{NsenterCmd, "lvcreate", "-n", name, "-L", fmt.Sprintf("%dk", size), "-W", "y", "-y"}
 	if mirrors > 0 {
 		args = append(args, "-m", fmt.Sprintf("%d", mirrors), "--nosync")
 	}

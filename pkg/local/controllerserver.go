@@ -139,12 +139,14 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				log.Errorf("CreateVolume: lvm all scheduled volume %s with error: %s", volumeID, err.Error())
 				return nil, status.Error(codes.InvalidArgument, "Parse lvm all schedule info error "+err.Error())
 			}
+			log.Infof("CreateVolume: lvm scheduled with %s, %s", storageSelected, nodeSelected)
 		} else if nodeSelected != "" {
 			paraList, err = lvmPartScheduled(nodeSelected, pvcName, pvcNameSpace, parameters)
 			if err != nil {
 				log.Errorf("CreateVolume: lvm part scheduled volume %s with error: %s", volumeID, err.Error())
 				return nil, status.Error(codes.InvalidArgument, "Parse lvm part schedule info error "+err.Error())
 			}
+			log.Infof("CreateVolume: lvm part scheduled with %s, %s", storageSelected, nodeSelected)
 		} else {
 			nodeID := ""
 			nodeID, paraList, err = lvmNoScheduled(parameters)
@@ -153,9 +155,13 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				return nil, status.Error(codes.InvalidArgument, "Parse lvm schedule info error "+err.Error())
 			}
 			nodeSelected = nodeID
+			log.Infof("CreateVolume: lvm No scheduled with %s, %s", storageSelected, nodeSelected)
 		}
 
 		if value, ok := parameters["vgName"]; ok && value != "" {
+			storageSelected = value
+		}
+		if value, ok := paraList["vgName"]; ok && value != "" {
 			storageSelected = value
 		}
 		if nodeSelected != "" && storageSelected != "" {
@@ -178,12 +184,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					options.Striping = true
 				}
 				options.Size = uint64(req.GetCapacityRange().GetRequiredBytes())
-				if outstr, err := conn.CreateLvm(ctx, options); err != nil {
+				outstr := ""
+				if outstr, err = conn.CreateLvm(ctx, options); err != nil {
 					log.Errorf("CreateVolume: Create lvm %s/%s, options: %v with error: %s", storageSelected, volumeID, options, err.Error())
 					return nil, errors.New("Create Lvm with error " + err.Error())
-				} else {
-					log.Infof("CreateLvm: Successful Create lvm %s/%s with response %s", storageSelected, volumeID, outstr)
 				}
+				log.Infof("CreateLvm: Successful Create lvm %s/%s with response %s", storageSelected, volumeID, outstr)
 			} else if err != nil {
 				log.Errorf("CreateVolume: Get lvm %s with error: %s", req.Name, err.Error())
 				return nil, err
