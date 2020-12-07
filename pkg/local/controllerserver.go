@@ -165,12 +165,17 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				log.Errorf("CreateVolume: lvm all scheduled volume %s with error: %s", volumeID, err.Error())
 				return nil, status.Error(codes.InvalidArgument, "Parse lvm all schedule info error "+err.Error())
 			}
+			log.Infof("CreateVolume: lvm scheduled with %s, %s", nodeSelected, storageSelected)
 		} else if nodeSelected != "" {
 			paraList, err = lvmPartScheduled(nodeSelected, pvcName, pvcNameSpace, parameters)
 			if err != nil {
 				log.Errorf("CreateVolume: lvm part scheduled volume %s with error: %s", volumeID, err.Error())
 				return nil, status.Error(codes.InvalidArgument, "Parse lvm part schedule info error "+err.Error())
 			}
+			if value, ok := paraList[VgNameTag]; ok && value != "" {
+				storageSelected = value
+			}
+			log.Infof("CreateVolume: lvm part scheduled with %s, %s", nodeSelected, storageSelected)
 		} else {
 			nodeID := ""
 			nodeID, paraList, err = lvmNoScheduled(parameters)
@@ -179,6 +184,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				return nil, status.Error(codes.InvalidArgument, "Parse lvm schedule info error "+err.Error())
 			}
 			nodeSelected = nodeID
+			if value, ok := paraList[VgNameTag]; ok && value != "" {
+				storageSelected = value
+			}
+			log.Infof("CreateVolume: lvm no scheduled with %s, %s", nodeSelected, storageSelected)
 		}
 
 		// if vgName configed in storageclass, use it first;
