@@ -19,8 +19,7 @@ package oss
 import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	log "github.com/sirupsen/logrus"
-
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	k8smount "k8s.io/utils/mount"
 )
 
@@ -45,14 +44,14 @@ type OSS struct {
 
 // NewDriver init oss type of csi driver
 func NewDriver(nodeID, endpoint string) *OSS {
-	log.Infof("Driver: %v version: %v", driverName, version)
+	log.Infof(log.TypeOSS, log.StatusOK, "Driver: %v version: %v", driverName, version)
 
 	d := &OSS{}
 	d.endpoint = endpoint
 
 	if nodeID == "" {
 		nodeID = GetMetaData(InstanceID)
-		log.Infof("Use node id : %s", nodeID)
+		log.Infof(log.TypeOSS, log.StatusOK, "Use node id : %s", nodeID)
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
 	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})

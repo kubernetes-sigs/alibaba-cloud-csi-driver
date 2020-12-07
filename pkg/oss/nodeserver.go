@@ -30,8 +30,8 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	k8smount "k8s.io/utils/mount"
 	"strconv"
 )
@@ -72,7 +72,7 @@ const (
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// logout oss paras
-	log.Infof("NodePublishVolume:: Starting Mount volume: %s to path: %s", req.VolumeId, req.TargetPath)
+	log.Infof(log.TypeOSS, log.StatusOK, "NodePublishVolume:: Starting Mount volume: %s to path: %s", req.VolumeId, req.TargetPath)
 	mountPath := req.GetTargetPath()
 	opt := &Options{}
 	opt.UseSharedPath = false
@@ -120,19 +120,19 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// check parameters
 	if err := checkOssOptions(opt); err != nil {
-		log.Errorf("Check oss input error: %s", err.Error())
+		log.Errorf(log.TypeOSS, log.StatusArgsInvalid, "Check oss input error: %s", err.Error())
 		return nil, errors.New("Check oss input error: " + err.Error())
 	}
 	if mountPath == "" {
-		log.Errorf("Check oss input error: mountPath is empty")
+		log.Errorf(log.TypeOSS, log.StatusArgsInvalid, "Check oss input error: mountPath is empty")
 		return nil, errors.New("mountPath is empty")
 	}
 
 	argStr := fmt.Sprintf("Bucket: %s, url: %s, , OtherOpts: %s, Path: %s, UseSharedPath: %s, autType: %s", opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType)
-	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
+	log.Infof(log.TypeOSS, log.StatusOK, "NodePublishVolume:: Starting Oss Mount: %s", argStr)
 
 	if IsOssfsMounted(mountPath) {
-		log.Infof("NodePublishVolume: The mountpoint is mounted: %s", mountPath)
+		log.Infof(log.TypeOSS, log.StatusOK, "NodePublishVolume: The mountpoint is mounted: %s", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -140,7 +140,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if opt.AuthType != "sts" {
 		// Save ak file for ossfs
 		if err := saveOssCredential(opt); err != nil {
-			log.Errorf("Save oss ak error: %s", err.Error())
+			log.Errorf(log.TypeOSS, log.StatusFailed, "Save oss ak error: %s", err.Error())
 			return nil, errors.New("Oss, Save AK file fail: " + err.Error())
 		}
 	}
@@ -150,10 +150,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if opt.UseSharedPath {
 		sharedPath := fmt.Sprintf(SharedPath, req.GetVolumeId())
 		if IsOssfsMounted(sharedPath) {
-			log.Infof("NodePublishVolume: The shared path: %s is already mounted", sharedPath)
+			log.Infof(log.TypeOSS, log.StatusOK, "NodePublishVolume: The shared path: %s is already mounted", sharedPath)
 		} else {
 			if err := utils.CreateDest(sharedPath); err != nil {
-				log.Errorf("Ossfs mount error: %v", err.Error())
+				log.Errorf(log.TypeOSS, log.StatusExecuCmdFailed, "Ossfs mount error: %v", err.Error())
 				return nil, errors.New("Create OSS volume fail: " + err.Error())
 			}
 			mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s", opt.Bucket, opt.Path, sharedPath, opt.URL, opt.OtherOpts)
@@ -162,21 +162,21 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			}
 			if out, err := connectorRun(mntCmd); err != nil {
 				if err != nil {
-					log.Errorf("Ossfs mount error: %s", err.Error())
+					log.Errorf(log.TypeOSS, log.StatusSocketError, "Ossfs mount error: %s", err.Error())
 					return nil, errors.New("Create OSS volume fail: " + err.Error() + ", out: " + out)
 				}
 			}
 		}
-		log.Infof("NodePublishVolume:: Start mount operation from source [%s] to dest [%s]", sharedPath, mountPath)
+		log.Infof(log.TypeOSS, log.StatusOK, "NodePublishVolume:: Start mount operation from source [%s] to dest [%s]", sharedPath, mountPath)
 		options := []string{"bind"}
 		if err := ns.k8smounter.Mount(sharedPath, mountPath, "", options); err != nil {
-			log.Errorf("Ossfs mount error: %v", err.Error())
+			log.Errorf(log.TypeOSS, log.StatusMountFailed, "Ossfs mount error: %v", err.Error())
 			return nil, errors.New("Create OSS volume fail: " + err.Error())
 		}
 	} else {
 		// Create Mount Path
 		if err := utils.CreateDest(mountPath); err != nil {
-			log.Errorf("Create Directory error: %s", err.Error())
+			log.Errorf(log.TypeOSS, log.StatusExecuCmdFailed, "Create Directory error: %s", err.Error())
 			return nil, errors.New("Oss, Mount fail with create Path error: " + err.Error() + mountPath)
 		}
 		mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s", opt.Bucket, opt.Path, mountPath, opt.URL, opt.OtherOpts)
@@ -185,13 +185,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 		if out, err := connectorRun(mntCmd); err != nil {
 			if err != nil {
-				log.Errorf("Ossfs mount error: %s", err.Error())
+				log.Errorf(log.TypeOSS, log.StatusSocketError, "Ossfs mount error: %s", err.Error())
 				return nil, errors.New("Create OSS volume fail: " + err.Error() + ", out: " + out)
 			}
 		}
 	}
 
-	log.Infof("NodePublishVolume:: Mount Oss successful, volume %s, targetPath: %s, with Command: %s", req.VolumeId, mountPath, mntCmd)
+	log.Infof(log.TypeOSS, log.StatusOK, "NodePublishVolume:: Mount Oss successful, volume %s, targetPath: %s, with Command: %s", req.VolumeId, mountPath, mntCmd)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
@@ -219,7 +219,7 @@ func saveOssCredential(options *Options) error {
 
 	newContentStr = options.Bucket + ":" + options.AkID + ":" + options.AkSecret + "\n" + newContentStr
 	if err := ioutil.WriteFile(CredentialFile, []byte(newContentStr), 0640); err != nil {
-		log.Errorf("Save Credential File failed, %s, %s", newContentStr, err)
+		log.Errorf(log.TypeOSS, log.StatusUnauthenticated, "Save Credential File failed, %s, %s", newContentStr, err)
 		return err
 	}
 	return nil
@@ -259,14 +259,14 @@ func checkOssOptions(opt *Options) error {
 func connectorRun(cmd string) (string, error) {
 	c, err := net.Dial("unix", SocketPath)
 	if err != nil {
-		log.Errorf("Oss connector Dial error: %s", err.Error())
+		log.Errorf(log.TypeOSS, log.StatusSocketError, "Oss connector Dial error: %s", err.Error())
 		return err.Error(), err
 	}
 	defer c.Close()
 
 	_, err = c.Write([]byte(cmd))
 	if err != nil {
-		log.Errorf("Oss connector write error: %s", err.Error())
+		log.Errorf(log.TypeOSS, log.StatusExecuCmdFailed, "Oss connector write error: %s", err.Error())
 		return err.Error(), err
 	}
 
@@ -296,10 +296,10 @@ func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	log.Infof("NodeUnpublishVolume:: Starting Umount OSS: %s", req.TargetPath)
+	log.Infof(log.TypeOSS, log.StatusOK, "NodeUnpublishVolume:: Starting Umount OSS: %s", req.TargetPath)
 	mountPoint := req.TargetPath
 	if !IsOssfsMounted(mountPoint) {
-		log.Infof("Directory is not mounted: %s", mountPoint)
+		log.Infof(log.TypeOSS, log.StatusOK, "Directory is not mounted: %s", mountPoint)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
@@ -307,10 +307,10 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	var umntCmd string
 	sharedMountPoint := fmt.Sprintf(SharedPath, pvName)
 	if IsOssfsMounted(sharedMountPoint) {
-		log.Infof("NodeUnpublishVolume:: Starting umount a shared path oss volume: %s", req.TargetPath)
+		log.Infof(log.TypeOSS, log.StatusOK, "NodeUnpublishVolume:: Starting umount a shared path oss volume: %s", req.TargetPath)
 		code, err := IsLastSharedVol(pvName)
 		if err != nil {
-			log.Errorf("Umount oss fail, with: %s", err.Error())
+			log.Errorf(log.TypeOSS, log.StatusFailed, "Umount oss fail, with: %s", err.Error())
 			return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
 		}
 		if code == "1" {
@@ -322,11 +322,11 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		umntCmd = fmt.Sprintf("umount -f %s", mountPoint)
 	}
 	if _, err := utils.Run(umntCmd); err != nil {
-		log.Errorf("Umount oss fail, with: %s", err.Error())
+		log.Errorf(log.TypeOSS, log.StatusUmountFailed, "Umount oss fail, with: %s", err.Error())
 		return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
 	}
 
-	log.Infof("NodeUnpublishVolume:: Umount OSS Successful: %s", mountPoint)
+	log.Infof(log.TypeOSS, log.StatusOK, "NodeUnpublishVolume:: Umount OSS Successful: %s", mountPoint)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
