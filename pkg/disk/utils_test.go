@@ -80,9 +80,9 @@ func RemoveContents(dir string) error {
 
 func TestValidateDiskType(t *testing.T) {
 	examples := []map[string]string{
-		{"result": "cloud_essd,cloud_ssd,cloud_efficiency"},
+		{"result": "cloud_ssd,cloud_efficiency"},
 		{"type": "a,b,c", "result": ""},
-		{"type": "available", "result": "cloud_essd,cloud_ssd,cloud_efficiency"},
+		{"type": "available", "result": "cloud_ssd,cloud_efficiency"},
 		{"type": "cloud_ssd,cloud_essd", "result": "cloud_essd,cloud_ssd,"},
 	}
 	for _, example := range examples {

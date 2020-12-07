@@ -760,7 +760,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 
 func validateDiskType(opts map[string]string) (diskType string, err error) {
 	if value, ok := opts["type"]; !ok || (ok && value == DiskHighAvail) {
-		diskType = strings.Join([]string{DiskESSD, DiskSSD, DiskEfficiency}, ",")
+		diskType = strings.Join([]string{DiskSSD, DiskEfficiency}, ",")
 		return
 	}
 	if strings.Contains(opts["type"], ",") {
