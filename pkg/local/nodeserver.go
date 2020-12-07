@@ -404,11 +404,11 @@ func getPvInfo(volumeID string) (int64, string, *v1.PersistentVolume) {
 	}
 	pvQuantity := pv.Spec.Capacity["storage"]
 	pvSize := pvQuantity.Value()
-	pvSizeGB := pvSize / (1024 * 1024 * 1024)
+	//pvSizeGB := pvSize / (1024 * 1024 * 1024)
 
-	if pvSizeGB == 0 {
-		pvSizeMB := pvSize / (1024 * 1024)
-		return pvSizeMB, "m", pv
-	}
-	return pvSizeGB, "g", pv
+	//if pvSizeGB == 0 {
+	pvSizeMB := pvSize / (1024 * 1024)
+	return pvSizeMB, "m", pv
+	//}
+	//return pvSizeGB, "g", pv
 }
