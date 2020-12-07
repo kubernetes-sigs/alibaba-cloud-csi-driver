@@ -170,7 +170,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		log.Infof(log.TypeOSS, log.StatusOK, "NodePublishVolume:: Start mount operation from source [%s] to dest [%s]", sharedPath, mountPath)
 		options := []string{"bind"}
 		if err := ns.k8smounter.Mount(sharedPath, mountPath, "", options); err != nil {
-			log.Errorf(log.TypeOSS, log.StatusMountFailed, "Ossfs mount error: %v", err.Error())
+			log.Errorf(log.TypeOSS, log.StatusMountErr, "Ossfs mount error: %v", err.Error())
 			return nil, errors.New("Create OSS volume fail: " + err.Error())
 		}
 	} else {
@@ -322,7 +322,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		umntCmd = fmt.Sprintf("umount -f %s", mountPoint)
 	}
 	if _, err := utils.Run(umntCmd); err != nil {
-		log.Errorf(log.TypeOSS, log.StatusUmountFailed, "Umount oss fail, with: %s", err.Error())
+		log.Errorf(log.TypeOSS, log.StatusUmountErr, "Umount oss fail, with: %s", err.Error())
 		return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
 	}
 

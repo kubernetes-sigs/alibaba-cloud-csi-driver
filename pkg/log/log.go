@@ -6,19 +6,19 @@ import (
 )
 
 func Infof(storageType, reason, message string, args ...interface{}) {
-	logrus.Infof(msgFormat(storageType, reason, message), args)
+	logrus.Infof(msgFormat(storageType, reason, message), args...)
 }
 
 func Warningf(storageType, reason, message string, args ...interface{}) {
-	logrus.Warningf(msgFormat(storageType, reason, message), args)
+	logrus.Warningf(msgFormat(storageType, reason, message), args...)
 }
 
 func Errorf(storageType, reason, message string, args ...interface{}) {
-	logrus.Errorf(msgFormat(storageType, reason, message), args)
+	logrus.Errorf(msgFormat(storageType, reason, message), args...)
 }
 
 func Fatalf(storageType, reason, message string, args ...interface{}) {
-	logrus.Fatalf(msgFormat(storageType, reason, message), args)
+	logrus.Fatalf(msgFormat(storageType, reason, message), args...)
 }
 
 func msgFormat(storageType, reason, message string) string {
