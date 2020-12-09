@@ -13,9 +13,10 @@ imageVersion=$1
 echo `date`" Start to Upgrade CSI Provisioner to $imageVersion ..."
 
 masterCount=`kubectl get node | grep master |grep -v grep | wc -l`
+secretCount=`kubectl get secret addon.csi.token -nkube-system | grep addon.csi.token | grep -v grep | wc -l`
 volumeDefineStr=""
 volumeMountStr=""
-if [ "$masterCount" -eq "0" ]; then
+if [ "$masterCount" -eq "0" ] && [ "$secretCount" -eq "1" ]; then
   volumeDefineStr="        - name: addon-token\n          secret:\n            defaultMode: 420\n            items:\n            - key: addon.token.config\n              path: token-config\n            secretName: addon.csi.token"
   volumeMountStr="            - mountPath: \/var\/addon\n              name: addon-token\n              readOnly: true"
 fi
@@ -1543,8 +1544,8 @@ if [ "$provisionerExist" = "csi-provisioner" ]; then
 fi
 
 # get registry address
-imageBefore=`kubectl describe deploy csi-provisioner -nkube-system | grep Image: | awk 'NR==2 {print $2}'`
-imagePrefix=`kubectl describe ds csi-plugin -nkube-system | grep Image: | awk 'NR==2 {print $2}' | awk -F: '{print $1}' | awk -F/ '{print $1}'`
+imageBefore=`kubectl describe deploy csi-provisioner -nkube-system | grep Image: | grep csi-plugin | awk 'NR==1 {print $2}'`
+imagePrefix=`kubectl describe ds csi-plugin -nkube-system | grep Image: | grep csi-plugin | awk 'NR==1 {print $2}' | awk -F: '{print $1}' | awk -F/ '{print $1}'`
 
 # New image name
 imageName=${imagePrefix}/acs/csi-plugin:$imageVersion

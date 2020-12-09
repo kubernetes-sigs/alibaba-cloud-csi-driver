@@ -12,10 +12,11 @@ imageVersion=$1
 
 ## set secret mounts for managed cluster
 masterCount=`kubectl get node | grep master | grep -v grep | wc -l`
+secretCount=`kubectl get secret addon.csi.token -nkube-system | grep addon.csi.token | grep -v grep | wc -l`
 volumeDefineStr=""
 volumeMountStr=""
 
-if [ "$masterCount" -eq "0" ]; then
+if [ "$masterCount" -eq "0" ] && [ "$secretCount" -eq "1" ]; then
   volumeDefineStr="        - name: addon-token\n          secret:\n            defaultMode: 420\n            items:\n            - key: addon.token.config\n              path: token-config\n            secretName: addon.csi.token"
   volumeMountStr="            - mountPath: \/var\/addon\n              name: addon-token\n              readOnly: true"
 fi
