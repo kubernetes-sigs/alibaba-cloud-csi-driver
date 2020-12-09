@@ -2,7 +2,7 @@
 
 ## Usage
 ## Append image tag which is expect.
-## sh upgrade_csi-plugin.sh v1.14.8.38-fe611ad1-aliyun
+## sh upgrade_csi-plugin.sh v1.16.9.43-f36bb540-aliyun
 
 
 if [ "$1" = "" ]; then
@@ -82,7 +82,7 @@ spec:
       hostPID: true
       containers:
         - name: disk-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+          image: csi-image-prefix/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
             - "--v=5"
@@ -94,7 +94,7 @@ spec:
             - name: registration-dir
               mountPath: /registration
         - name: nas-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+          image: csi-image-prefix/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
             - "--v=5"
@@ -106,7 +106,7 @@ spec:
             - name: registration-dir
               mountPath: /registration
         - name: oss-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+          image: csi-image-prefix/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
             - "--v=5"
@@ -123,7 +123,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.16.9.43-f36bb540-aliyun
+          image: csi-image-prefix/acs/csi-plugin:csi-image-version
           imagePullPolicy: "Always"
           args:
             - "--endpoint=\$(CSI_ENDPOINT)"
@@ -259,7 +259,7 @@ spec:
       hostPID: true
       containers:
         - name: disk-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+          image: csi-image-prefix/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
             - "--v=5"
@@ -271,7 +271,7 @@ spec:
             - name: registration-dir
               mountPath: /registration
         - name: nas-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+          image: csi-image-prefix/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
             - "--v=5"
@@ -283,7 +283,7 @@ spec:
             - name: registration-dir
               mountPath: /registration
         - name: oss-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+          image: csi-image-prefix/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
             - "--v=5"
@@ -300,7 +300,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.16.9.43-f36bb540-aliyun
+          image: csi-image-prefix/acs/csi-plugin:csi-image-version
           imagePullPolicy: "Always"
           args:
             - "--endpoint=\$(CSI_ENDPOINT)"
@@ -404,11 +404,27 @@ if [[ $imageVersion != *aliyun ]]; then
     exit 0
 fi
 
+
+diskdriver=`kubectl get csidriver | grep diskplugin.csi.alibabacloud.com | awk '{print $2}'`
+nasdriver=`kubectl get csidriver | grep nasplugin.csi.alibabacloud.com | awk '{print $3}'`
+ossdriver=`kubectl get csidriver | grep ossplugin.csi.alibabacloud.com | awk '{print $3}'`
+
+if [ "$diskdriver" = "false" ]; then
+    kubectl delete csidriver diskplugin.csi.alibabacloud.com
+fi
+
+if [ "$nasdriver" = "false" ]; then
+    kubectl delete csidriver nasplugin.csi.alibabacloud.com
+fi
+
+if [ "$ossdriver" = "false" ]; then
+    kubectl delete csidriver ossplugin.csi.alibabacloud.com
+fi
+
 ## Delete old plugin
-kubectl delete ds csi-plugin -nkube-system
+## kubectl delete ds csi-plugin -nkube-system
 
 ## do csi-plugin upgrade
-
 if [ "$masterCount" -eq "0" ]; then
   cat .aliyun-csi-plugin-managed.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl apply -f -
 else
