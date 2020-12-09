@@ -145,11 +145,14 @@ func (ns *nodeServer) mountDeviceVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// Step Start to format
-	mnt := req.VolumeCapability.GetMount()
-	options := append(mnt.MountFlags, "shared")
+	options := []string{}
 	fsType := "ext4"
-	if mnt.FsType != "" {
-		fsType = mnt.FsType
+	mnt := req.VolumeCapability.GetMount()
+	if mnt != nil {
+		options = append(options, mnt.MountFlags...)
+		if mnt.FsType != "" {
+			fsType = mnt.FsType
+		}
 	}
 
 	// do format-mount or mount
