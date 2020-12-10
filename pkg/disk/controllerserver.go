@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -63,6 +64,12 @@ const (
 	SNAPSHOTFORCETAG = "forceDelete"
 	// SNAPSHOTTAGKEY1 tag
 	SNAPSHOTTAGKEY1 = "force.delete.snapshot.k8s.aliyun.com"
+	// SNAPSHOTTYPE ...
+	SNAPSHOTTYPE = "snapshotType"
+	// INSTANTACCESS ...
+	INSTANTACCESS = "InstantAccess"
+	// RETENTIONDAYS ...
+	RETENTIONDAYS = "retentionDays"
 )
 
 const (
@@ -478,16 +485,31 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		UID:       "",
 		Namespace: "",
 	}
+	useInstanceAccess := false
+	retentionDays := -1
+	params := req.GetParameters()
+	if value, ok := params[SNAPSHOTTYPE]; ok && value == INSTANTACCESS {
+		useInstanceAccess = true
+	}
+	if value, ok := params[RETENTIONDAYS]; ok {
+		days, err := strconv.Atoi(value)
+		if err != nil {
+			err := status.Error(codes.InvalidArgument, fmt.Sprintf("CreateSnapshot: retentiondays err %s", value))
+			return nil, err
+		}
+		retentionDays = days
+	}
 	log.Infof("CreateSnapshot:: Starting to create snapshot: %+v", req)
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
 		return nil, err
 	}
+	// Check arguments
 	if len(req.GetName()) == 0 {
 		err := status.Error(codes.InvalidArgument, "CreateSnapshot: Name missing in request")
 		return nil, err
 	}
-	// Check arguments
-	if len(req.GetSourceVolumeId()) == 0 {
+	sourceVolumeID := strings.Trim(req.GetSourceVolumeId(), " ")
+	if len(sourceVolumeID) == 0 {
 		err := status.Error(codes.InvalidArgument, "CreateSnapshot: SourceVolumeId missing in request")
 		return nil, err
 	}
@@ -544,12 +566,15 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	// init createSnapshotRequest and parameters
-	diskID := req.GetSourceVolumeId()
 	snapshotName := req.GetName()
 	createAt := ptypes.TimestampNow()
 	createSnapshotRequest := ecs.CreateCreateSnapshotRequest()
-	createSnapshotRequest.DiskId = diskID
+	createSnapshotRequest.DiskId = sourceVolumeID
 	createSnapshotRequest.SnapshotName = snapshotName
+	createSnapshotRequest.InstantAccess = requests.NewBoolean(useInstanceAccess)
+	if retentionDays != -1 {
+		createSnapshotRequest.RetentionDays = requests.NewInteger(retentionDays)
+	}
 
 	// Set tags
 	snapshotTags := []ecs.CreateSnapshotTag{}
@@ -573,7 +598,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	snapshot := diskSnapshot{}
 	snapshot.Name = req.GetName()
 	snapshot.ID = snapshotID
-	snapshot.VolID = diskID
+	snapshot.VolID = sourceVolumeID
 	snapshot.CreationTime = createAt
 	snapshot.ReadyToUse = false
 
