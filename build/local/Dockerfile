@@ -1,8 +1,8 @@
-FROM ubuntu:18.10
+FROM alpine:3.10
 LABEL maintainers="Alibaba Cloud Authors"
 LABEL description="Alibaba Cloud CSI Plugin"
 
-RUN apt update && apt upgrade -y && apt install -y ca-certificates file tzdata lvm2
+RUN apk update && apk add --no-cache ca-certificates file tzdata lvm2 e2fsprogs blkid
 COPY nsenter /nsenter
 
 COPY plugin.csi.alibabacloud.com /bin/plugin.csi.alibabacloud.com
