@@ -221,6 +221,9 @@ func CleanPath(ctx context.Context, path string) error {
 	}
 	errList := []error{}
 	for _, file := range files {
+		if file == "lost+found" {
+			continue
+		}
 		err = os.RemoveAll(filepath.Join(path, file))
 		if err != nil {
 			errList = append(errList, err)
