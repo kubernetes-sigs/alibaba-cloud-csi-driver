@@ -3,7 +3,7 @@ module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 go 1.12
 
 require (
-	github.com/aliyun/alibaba-cloud-sdk-go v1.61.671
+	github.com/aliyun/alibaba-cloud-sdk-go v1.61.751
 	github.com/container-storage-interface/spec v1.2.0
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
 	github.com/emirpasic/gods v1.12.0
@@ -18,8 +18,8 @@ require (
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
+	github.com/kubernetes-csi/csi-lib-utils v0.7.1 // indirect
 	github.com/kubernetes-csi/drivers v1.0.2
-	github.com/kubernetes-csi/external-snapshotter/v2 v2.1.2
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.0.0
@@ -38,7 +38,7 @@ require (
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/grpc v1.28.0
 	google.golang.org/protobuf v1.25.0
-	gopkg.in/yaml.v2 v2.3.0
+	gopkg.in/yaml.v2 v2.3.0 // indirect
 	k8s.io/api v0.18.8
 	k8s.io/apiextensions-apiserver v0.0.0
 	k8s.io/apimachinery v0.18.8
