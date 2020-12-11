@@ -17,20 +17,25 @@ limitations under the License.
 package nas
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -295,6 +300,54 @@ func createNasSubDir(nfsServer, nfsPath, nfsVers, nfsOptions string, volumeID st
 	return nil
 }
 
+func setNasVolumeCapacity(nfsServer, nfsPath string, volSizeBytes int64) error {
+	if nfsPath == "" || nfsPath == "/" {
+		return fmt.Errorf("Volume %s:%s not support set quota to root path ", nfsServer, nfsPath)
+	}
+	pvSizeGB := volSizeBytes / (1024 * 1024 * 1024)
+	nasClient := updateNasClient(GlobalConfigVar.NasClient, GetMetaData(RegionTag))
+	fsList := strings.Split(nfsServer, "-")
+	if len(fsList) < 1 {
+		return fmt.Errorf("volume error nas server(%s) ", nfsServer)
+	}
+	quotaRequest := aliNas.CreateSetDirQuotaRequest()
+	quotaRequest.FileSystemId = fsList[0]
+	quotaRequest.Path = nfsPath
+	quotaRequest.UserType = "AllUsers"
+	quotaRequest.QuotaType = "Enforcement"
+	pvSizeGBStr := strconv.FormatInt(pvSizeGB, 10)
+	quotaRequest.SizeLimit = requests.Integer(pvSizeGBStr)
+	quotaRequest.RegionId = GetMetaData(RegionTag)
+	_, err := nasClient.SetDirQuota(quotaRequest)
+	if err != nil {
+		return fmt.Errorf("volume set nas quota with error: %s", err.Error())
+	}
+	return nil
+}
+
+func setNasVolumeCapacityWithID(volumeID string, volSizeBytes int64) error {
+	pvObj, err := getPvObj(volumeID)
+	if err != nil {
+		return err
+	}
+	if pvObj.Spec.CSI == nil {
+		return fmt.Errorf("Volume %s is not CSI type %v ", volumeID, pvObj)
+	}
+
+	// Check Pv volume parameters
+	if _, ok := pvObj.Spec.CSI.VolumeAttributes["volumeCapacity"]; !ok {
+		return fmt.Errorf("Volume %s not contain volumeCapacity parameters, not support expand, PV: %v ", volumeID, pvObj)
+	}
+	nfsServer, nfsPath := "", ""
+	if value, ok := pvObj.Spec.CSI.VolumeAttributes["server"]; ok {
+		nfsServer = value
+	}
+	if value, ok := pvObj.Spec.CSI.VolumeAttributes["path"]; ok {
+		nfsPath = value
+	}
+	return setNasVolumeCapacity(nfsServer, nfsPath, volSizeBytes)
+}
+
 // check system config,
 // if tcp_slot_table_entries not set to 128, just config.
 func checkSystemNasConfig() {
@@ -495,4 +548,8 @@ func isLosetupMount(volumeID string) bool {
 		return false
 	}
 	return true
+}
+
+func getPvObj(volumeID string) (*v1.PersistentVolume, error) {
+	return GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
 }
