@@ -2,7 +2,7 @@
 
 ## Usage
 ## Append image tag which is expect.
-## sh upgrade_csi-provisioner.sh v1.14.8.38-fe611ad1-aliyun
+## sh upgrade_csi-provisioner.sh v1.16.9.43-f36bb540-aliyun
 
 
 if [ "$1" = "" ]; then
@@ -13,9 +13,10 @@ imageVersion=$1
 echo `date`" Start to Upgrade CSI Provisioner to $imageVersion ..."
 
 masterCount=`kubectl get node | grep master |grep -v grep | wc -l`
+secretCount=`kubectl get secret addon.csi.token -nkube-system | grep addon.csi.token | grep -v grep | wc -l`
 volumeDefineStr=""
 volumeMountStr=""
-if [ "$masterCount" -eq "0" ]; then
+if [ "$masterCount" -eq "0" ] && [ "$secretCount" -eq "1" ]; then
   volumeDefineStr="        - name: addon-token\n          secret:\n            defaultMode: 420\n            items:\n            - key: addon.token.config\n              path: token-config\n            secretName: addon.csi.token"
   volumeMountStr="            - mountPath: \/var\/addon\n              name: addon-token\n              readOnly: true"
 fi
@@ -105,6 +106,17 @@ spec:
                 operator: NotIn
                 values:
                 - virtual-kubelet
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - csi-provisioner
+              topologyKey: "kubernetes.io/hostname"
       tolerations:
       - effect: NoSchedule
         operator: Exists
@@ -117,7 +129,7 @@ spec:
       hostNetwork: true
       containers:
         - name: external-disk-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.6.0-b6f763a43-aliyun
+          image: csi-image-prefix/acs/csi-provisioner:v1.6.0-b6f763a43-aliyun
           args:
             - "--provisioner=diskplugin.csi.alibabacloud.com"
             - "--csi-address=\$(ADDRESS)"
@@ -137,7 +149,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-attacher
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-attacher:v2.1.0
+          image: csi-image-prefix/acs/csi-attacher:v2.1.0
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -150,7 +162,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-resizer
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v0.3.0
+          image: csi-image-prefix/acs/csi-resizer:v0.3.0
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -163,7 +175,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-nas-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.4.0-aliyun
+          image: csi-image-prefix/acs/csi-provisioner:v1.4.0-aliyun
           args:
             - "--provisioner=nasplugin.csi.alibabacloud.com"
             - "--csi-address=\$(ADDRESS)"
@@ -181,7 +193,7 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-csi-snapshotter
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-snapshotter:v3.0-cd699dc4-aliyun
+          image: csi-image-prefix/acs/csi-snapshotter:v3.0.2-1038b92d8-aliyun
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -194,7 +206,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /csi
         - name: external-snapshot-controller
-          image: registry.cn-hangzhou.aliyuncs.com/acs/snapshot-controller:v3.0-cd699dc4-aliyun
+          image: csi-image-prefix/acs/snapshot-controller:v3.0.2-1038b92d8-aliyun
           args:
             - "--v=5"
             - "--leader-election=true"
@@ -205,7 +217,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.16.9.43-f36bb540-aliyun
+          image: csi-image-prefix/acs/csi-plugin:csi-image-version
           imagePullPolicy: "Always"
           args:
             - "--endpoint=\$(CSI_ENDPOINT)"
@@ -846,6 +858,17 @@ spec:
                 operator: NotIn
                 values:
                 - virtual-kubelet
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - csi-provisioner
+              topologyKey: "kubernetes.io/hostname"
       tolerations:
       - effect: NoSchedule
         operator: Exists
@@ -858,7 +881,7 @@ spec:
       hostNetwork: true
       containers:
         - name: external-disk-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.6.0-b6f763a43-aliyun
+          image: csi-image-prefix/acs/csi-provisioner:v1.6.0-b6f763a43-aliyun
           args:
             - "--provisioner=diskplugin.csi.alibabacloud.com"
             - "--csi-address=\$(ADDRESS)"
@@ -878,7 +901,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-attacher
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-attacher:v2.1.0
+          image: csi-image-prefix/acs/csi-attacher:v2.1.0
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -891,7 +914,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-resizer
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v0.3.0
+          image: csi-image-prefix/acs/csi-resizer:v0.3.0
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -904,7 +927,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-nas-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.4.0-aliyun
+          image: csi-image-prefix/acs/csi-provisioner:v1.4.0-aliyun
           args:
             - "--provisioner=nasplugin.csi.alibabacloud.com"
             - "--csi-address=\$(ADDRESS)"
@@ -922,7 +945,7 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-csi-snapshotter
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-snapshotter:v3.0-cd699dc4-aliyun
+          image: csi-image-prefix/acs/csi-snapshotter:v3.0.2-1038b92d8-aliyun
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -935,7 +958,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /csi
         - name: external-snapshot-controller
-          image: registry.cn-hangzhou.aliyuncs.com/acs/snapshot-controller:v3.0-cd699dc4-aliyun
+          image: csi-image-prefix/acs/snapshot-controller:v3.0.2-1038b92d8-aliyun
           args:
             - "--v=5"
             - "--leader-election=true"
@@ -946,7 +969,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.16.9.43-f36bb540-aliyun
+          image: csi-image-prefix/acs/csi-plugin:csi-image-version
           imagePullPolicy: "Always"
           args:
             - "--endpoint=\$(CSI_ENDPOINT)"
@@ -1515,9 +1538,14 @@ status:
   storedVersions: []
 EOF
 
+provisionerExist=`kubectl get sts -nkube-system | grep csi-provisioner | awk '{print $1}'`
+if [ "$provisionerExist" = "csi-provisioner" ]; then
+    kubectl delete sts csi-provisioner -nkube-system
+fi
+
 # get registry address
-imageBefore=`kubectl describe ds csi-plugin -nkube-system | grep Image: | awk 'NR==2 {print $2}'`
-imagePrefix=`kubectl describe ds csi-plugin -nkube-system | grep Image: | awk 'NR==2 {print $2}' | awk -F: '{print $1}' | awk -F/ '{print $1}'`
+imageBefore=`kubectl describe deploy csi-provisioner -nkube-system | grep Image: | grep csi-plugin | awk 'NR==1 {print $2}'`
+imagePrefix=`kubectl describe ds csi-plugin -nkube-system | grep Image: | grep csi-plugin | awk 'NR==1 {print $2}' | awk -F: '{print $1}' | awk -F/ '{print $1}'`
 
 # New image name
 imageName=${imagePrefix}/acs/csi-plugin:$imageVersion
@@ -1534,7 +1562,7 @@ if [[ $imageVersion != *aliyun ]]; then
 fi
 
 ## Delete old plugin
-kubectl delete deployment csi-provisioner -nkube-system
+# kubectl delete deployment csi-provisioner -nkube-system
 
 if [ "$masterCount" -eq "0" ]; then
   cat .aliyun-csi-provisioner-managed.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl apply -f -
