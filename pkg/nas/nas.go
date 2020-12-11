@@ -18,6 +18,7 @@ package nas
 
 import (
 	"context"
+	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -54,6 +55,8 @@ type GlobalConfig struct {
 	NodeID             string
 	NodeIP             string
 	LosetupEnable      bool
+	KubeClient         *kubernetes.Clientset
+	NasClient          *aliNas.Client
 }
 
 // NAS the NAS object
@@ -102,6 +105,7 @@ func NewDriver(nodeID, endpoint string) *NAS {
 	}
 	d.controllerServer = NewControllerServer(d.driver, c, region, limit)
 
+	GlobalConfigVar.NasClient = c
 	return d
 }
 
@@ -188,6 +192,7 @@ func GlobalConfigSet() {
 		log.Fatal("Init GlobalConfigVar with NodeIP Empty, Nas losetup feature may be useless")
 	}
 
+	GlobalConfigVar.KubeClient = kubeClient
 	GlobalConfigVar.MetricEnable = isNasMetricEnable
 	GlobalConfigVar.RunTimeClass = runtimeValue
 	GlobalConfigVar.NodeID = nodeName
