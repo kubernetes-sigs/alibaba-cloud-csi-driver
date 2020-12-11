@@ -408,6 +408,17 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				log.Errorf("Provision: %s, unmount nfs mountpoint %s failed with error %v", req.Name, mountPoint, err)
 				return nil, errors.New("unable to unmount nfs server: " + nfsServer)
 			}
+
+			// Set Nas volume capacity
+			if value, ok := req.GetParameters()["volumeCapacity"]; ok && value == "true" {
+				err := setNasVolumeCapacity(nfsServer, filepath.Join(nfsPath, pvName), volSizeBytes)
+				if err != nil {
+					log.Errorf("CreateVolume: %s, Set Volume Capacity(%s:%s) with error: %s", req.Name, nfsServer, nfsPath, err.Error())
+					return nil, fmt.Errorf("CreateVolume: %s, Set Volume Capacity(%s:%s) with error: %s", req.Name, nfsServer, nfsPath, err.Error())
+				}
+				volumeContext["volumeCapacity"] = "true"
+				log.Infof("CreateVolume: %s, Successful Set Volume(%s:%s) Capacity to %d", req.Name, nfsServer, nfsPath, volSizeBytes)
+			}
 		}
 
 		volumeContext["volumeAs"] = nasVol.VolumeAs
@@ -804,7 +815,13 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest,
 ) (*csi.ControllerExpandVolumeResponse, error) {
-	log.Infof("ControllerExpandVolume is called, default as successful.")
+	log.Infof("ControllerExpandVolume: starting to expand nas volume with %v", req)
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
+	err := setNasVolumeCapacityWithID(req.VolumeId, volSizeBytes)
+	if err != nil {
+		log.Errorf("ControllerExpandVolume: nas volume(%s) expand error: %s", req.VolumeId, err.Error())
+		return nil, fmt.Errorf("ControllerExpandVolume: nas volume(%s) expand error: %s", req.VolumeId, err.Error())
+	}
+	log.Infof("ControllerExpandVolume: Successful expand nas volume(%s) to size %d", req.VolumeId, volSizeBytes)
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
 }
