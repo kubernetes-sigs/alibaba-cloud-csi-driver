@@ -301,6 +301,9 @@ func createNasSubDir(nfsServer, nfsPath, nfsVers, nfsOptions string, volumeID st
 }
 
 func setNasVolumeCapacity(nfsServer, nfsPath string, volSizeBytes int64) error {
+	if nfsPath == "" || nfsPath == "/" {
+		return fmt.Errorf("Volume %s:%s not support set quota to root path ", nfsServer, nfsPath)
+	}
 	pvSizeGB := volSizeBytes / (1024 * 1024 * 1024)
 	nasClient := updateNasClient(GlobalConfigVar.NasClient, GetMetaData(RegionTag))
 	fsList := strings.Split(nfsServer, "-")
