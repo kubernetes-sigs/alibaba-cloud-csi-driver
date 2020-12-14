@@ -247,7 +247,7 @@ func processPv(pvObj *corev1.PersistentVolume) error {
 
 	labels := map[string]string{}
 	labels[types.VolumeLifecycleLabel] = types.VolumeLifecycleDeleted
-	if err := UpdatePvWithLabel(context.Background(), pvObj.Name, labels); err != nil {
+	if err := UpdatePvWithAnnotations(context.Background(), pvObj.Name, labels); err != nil {
 		return err
 	}
 	return nil

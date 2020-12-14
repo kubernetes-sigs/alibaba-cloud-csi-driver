@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/go-ping/ping"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -75,6 +76,12 @@ const (
 	RuncRunTimeTag = "runc"
 	// RunvRunTimeTag tag
 	RunvRunTimeTag = "runv"
+	// ServiceType tag
+	ServiceType = "SERVICE_TYPE"
+	// PluginService represents the csi-plugin type.
+	PluginService = "plugin"
+	// ProvisionerService represents the csi-provisioner type.
+	ProvisionerService = "provisioner"
 )
 
 // KubernetesAlicloudIdentity set a identity label
@@ -88,6 +95,11 @@ type RoleAuth struct {
 	SecurityToken   string
 	LastUpdated     time.Time
 	Code            string
+}
+
+//CreateEvent is create events
+func CreateEvent(recorder record.EventRecorder, objectRef *v1.ObjectReference, eventType string, reason string, err string) {
+	recorder.Event(objectRef, eventType, reason, err)
 }
 
 //NewEventRecorder is create snapshots event recorder
@@ -142,6 +154,9 @@ type Result struct {
 	Message string `json:"message,omitempty"`
 	Device  string `json:"device,omitempty"`
 }
+
+// CommandRunFunc define the run function in utils for ut
+type CommandRunFunc func(cmd string) (string, error)
 
 // Run run shell command
 func Run(cmd string) (string, error) {
@@ -465,4 +480,18 @@ func IsMountPointRunv(mountPoint string) bool {
 		}
 	}
 	return false
+}
+
+// Ping check network like shell ping command
+func Ping(ipAddress string) (*ping.Statistics, error) {
+	pinger, err := ping.NewPinger(ipAddress)
+	if err != nil {
+		return nil, err
+	}
+	pinger.SetPrivileged(true)
+	pinger.Count = 1
+	pinger.Timeout = time.Second * 2
+	pinger.Run()
+	stats := pinger.Statistics()
+	return stats, nil
 }

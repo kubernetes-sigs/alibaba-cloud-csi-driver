@@ -25,6 +25,7 @@ import (
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"go.uber.org/ratelimit"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -76,6 +77,10 @@ const (
 	NASTAGVALUE2 = "alibabacloud-csi-plugin"
 	//AddDefaultTagsError means that the add nas default tags error
 	AddDefaultTagsError string = "AddDefaultTagsError"
+	// MntTypeKey tag
+	MntTypeKey = "mountType"
+	// LosetupType tag
+	LosetupType = "losetup"
 )
 
 // controller server try to create/delete volumes
@@ -84,7 +89,8 @@ type controllerServer struct {
 	region    string
 	client    kubernetes.Interface
 	*csicommon.DefaultControllerServer
-	recorder record.EventRecorder
+	recorder    record.EventRecorder
+	rateLimiter ratelimit.Limiter
 }
 
 // Alibaba Cloud nas volume parameters
@@ -116,7 +122,7 @@ var pvcFileSystemIDMap = map[string]string{}
 var pvcMountTargetMap = map[string]string{}
 
 // NewControllerServer is to create controller server
-func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region string) csi.ControllerServer {
+func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region, limit string) csi.ControllerServer {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Fatalf("NewControllerServer: Failed to create config: %v", err)
@@ -125,19 +131,22 @@ func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region s
 	if err != nil {
 		log.Fatalf("NewControllerServer: Failed to create client: %v", err)
 	}
+	intLimit, err := strconv.Atoi(limit)
+	if err != nil {
+		log.Errorf("NewControllerServer: Failed to convert string limit to int: %s, err: %v", limit, err)
+		intLimit = 2
+	}
 
+	log.Infof("NewControllerServer: current provisioenr nas limit is %v", intLimit)
 	c := &controllerServer{
 		nasClient:               client,
 		region:                  region,
 		client:                  clientset,
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
 		recorder:                utils.NewEventRecorder(),
+		rateLimiter:             ratelimit.New(intLimit),
 	}
 	return c
-}
-
-func (cs *controllerServer) createEvent(objectRef *v1.ObjectReference, eventType string, reason string, err string) {
-	cs.recorder.Event(objectRef, eventType, reason, err)
 }
 
 // provisioner: create/delete nas volume
@@ -228,7 +237,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			if err != nil {
 				str := fmt.Sprintf("CreateVolume: responseID[%s], fail to add default tags filesystem with ID: %s, err: %s", tagResourcesResponse.RequestId, fileSystemID, err.Error())
 				e := status.Error(codes.Internal, str)
-				cs.createEvent(ref, v1.EventTypeWarning, AddDefaultTagsError, e.Error())
+				utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, AddDefaultTagsError, e.Error())
 			} else {
 				log.Infof("CreateVolume: Volume: %s, Successful Add Nas filesystem tags with ID: %s, with requestID: %s", pvName, fileSystemID, createFileSystemsResponse.RequestId)
 			}
@@ -345,7 +354,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 		log.Infof("Create Volume: %s, with Exist Nfs Server: %s, Path: %s, Options: %s, Version: %s", req.Name, nfsServer, nfsPath, nfsOptions, nfsVersion)
 
-		// local mountpoint for one volume
 		mountPoint := filepath.Join(MNTROOTPATH, pvName)
 		if !utils.IsFileExisting(mountPoint) {
 			if err := os.MkdirAll(mountPoint, 0777); err != nil {
@@ -354,29 +362,63 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			}
 		}
 
-		// step5: Mount nfs server to localpath
-		if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
-			if err := DoNfsMount(nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name); err != nil {
-				log.Errorf("CreateVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.Name, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, err.Error())
-				return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
+		volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
+
+		losetupType := false
+		if value, ok := req.Parameters[MntTypeKey]; ok {
+			if value == LosetupType {
+				losetupType = true
 			}
 		}
-		if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
-			return nil, errors.New("Check Mount nfsserver not mounted " + nfsServer)
-		}
 
-		// step6: create volume
-		fullPath := filepath.Join(mountPoint, pvName)
-		if err := os.MkdirAll(fullPath, 0777); err != nil {
-			log.Errorf("Provision: %s, creating path: %s, with error: %s", req.Name, fullPath, err.Error())
-			return nil, errors.New("Provision: " + req.Name + ", creating path: " + fullPath + ", with error: " + err.Error())
-		}
-		os.Chmod(fullPath, 0777)
+		if !GlobalConfigVar.NasFakeProvision || losetupType {
+			// local mountpoint for one volume
 
-		// step7: Unmount nfs server
-		if err := utils.Umount(mountPoint); err != nil {
-			log.Errorf("Provision: %s, unmount nfs mountpoint %s failed with error %v", req.Name, mountPoint, err)
-			return nil, errors.New("unable to unmount nfs server: " + nfsServer)
+			cs.rateLimiter.Take()
+			// step5: Mount nfs server to localpath
+			if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+				if err := DoNfsMount(nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name); err != nil {
+					log.Errorf("CreateVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.Name, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, err.Error())
+					return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
+				}
+			}
+			if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+				return nil, errors.New("Check Mount nfsserver not mounted " + nfsServer)
+			}
+
+			// step6: create volume
+			fullPath := filepath.Join(mountPoint, pvName)
+			if err := os.MkdirAll(fullPath, 0777); err != nil {
+				log.Errorf("Provision: %s, creating path: %s, with error: %s", req.Name, fullPath, err.Error())
+				return nil, errors.New("Provision: " + req.Name + ", creating path: " + fullPath + ", with error: " + err.Error())
+			}
+			os.Chmod(fullPath, 0777)
+
+			if losetupType {
+				if err = createLosetupPv(fullPath, volSizeBytes); err != nil {
+					log.Errorf("Provision: create losetup image file error: %v", err)
+					return nil, errors.New("Provision: " + req.Name + ", create losetup image file with error: " + err.Error())
+				}
+				volumeContext[MntTypeKey] = LosetupType
+				log.Infof("CreateVolume: Successful create losetup pv with: %s, %s", fullPath, req.Name)
+			}
+
+			// step7: Unmount nfs server
+			if err := utils.Umount(mountPoint); err != nil {
+				log.Errorf("Provision: %s, unmount nfs mountpoint %s failed with error %v", req.Name, mountPoint, err)
+				return nil, errors.New("unable to unmount nfs server: " + nfsServer)
+			}
+
+			// Set Nas volume capacity
+			if value, ok := req.GetParameters()["volumeCapacity"]; ok && value == "true" {
+				err := setNasVolumeCapacity(nfsServer, filepath.Join(nfsPath, pvName), volSizeBytes)
+				if err != nil {
+					log.Errorf("CreateVolume: %s, Set Volume Capacity(%s:%s) with error: %s", req.Name, nfsServer, nfsPath, err.Error())
+					return nil, fmt.Errorf("CreateVolume: %s, Set Volume Capacity(%s:%s) with error: %s", req.Name, nfsServer, nfsPath, err.Error())
+				}
+				volumeContext["volumeCapacity"] = "true"
+				log.Infof("CreateVolume: %s, Successful Set Volume(%s:%s) Capacity to %d", req.Name, nfsServer, nfsPath, volSizeBytes)
+			}
 		}
 
 		volumeContext["volumeAs"] = nasVol.VolumeAs
@@ -393,7 +435,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			volumeContext["options"] = value
 		}
 
-		volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 		csiTargetVol = &csi.Volume{
 			VolumeId:      req.Name,
 			CapacityBytes: int64(volSizeBytes),
@@ -661,7 +702,9 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 
 		// zoneId
 		if nasVolArgs.ZoneID, ok = volOptions[ZoneID]; !ok {
-			nasVolArgs.ZoneID = GetMetaData(ZoneIDTag)
+			if nasVolArgs.ZoneID, ok = volOptions[strings.ToLower(ZoneID)]; !ok {
+				nasVolArgs.ZoneID = GetMetaData(ZoneIDTag)
+			}
 		}
 
 		// description
@@ -772,6 +815,13 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest,
 ) (*csi.ControllerExpandVolumeResponse, error) {
-	log.Infof("ControllerExpandVolume is called, do nothing now")
-	return &csi.ControllerExpandVolumeResponse{}, nil
+	log.Infof("ControllerExpandVolume: starting to expand nas volume with %v", req)
+	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
+	err := setNasVolumeCapacityWithID(req.VolumeId, volSizeBytes)
+	if err != nil {
+		log.Errorf("ControllerExpandVolume: nas volume(%s) expand error: %s", req.VolumeId, err.Error())
+		return nil, fmt.Errorf("ControllerExpandVolume: nas volume(%s) expand error: %s", req.VolumeId, err.Error())
+	}
+	log.Infof("ControllerExpandVolume: Successful expand nas volume(%s) to size %d", req.VolumeId, volSizeBytes)
+	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
 }

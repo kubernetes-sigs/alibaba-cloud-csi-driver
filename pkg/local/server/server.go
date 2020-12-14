@@ -41,7 +41,9 @@ func Start() {
 		return
 	}
 
+	projQuotaServer := NewProjQuotaServer()
 	lib.RegisterLVMServer(grpcServer, &svr)
+	lib.RegisterProjQuotaServer(grpcServer, &projQuotaServer)
 
 	err = serverhelpers.ListenAndServe(grpcServer, nil)
 	if err != nil {

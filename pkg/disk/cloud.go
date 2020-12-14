@@ -191,7 +191,7 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 
 			deviceName, err := GetDeviceByVolumeID(diskID)
 			if len(deviceName) == 0 && bdf != "" {
-				deviceName, err = GetDeviceByBdf(bdf)
+				deviceName, err = GetDeviceByBdf(bdf, true)
 			}
 			if err == nil && deviceName != "" {
 				log.Infof("AttachDisk: Successful attach bdf disk %s to node %s device %s by DiskID/Device mapping", diskID, nodeID, deviceName)
@@ -498,7 +498,6 @@ func findSnapshotByName(name string) (*diskSnapshot, int, error) {
 	if err != nil {
 		return nil, 0, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", existSnapshot.CreationTime)
 	}
-	timestamp := timestamp.Timestamp{Seconds: t.Unix()}
 	sizeGb, _ := strconv.ParseInt(existSnapshot.SourceDiskSize, 10, 64)
 	sizeBytes := sizeGb * 1024 * 1024
 	readyToUse := false
@@ -510,7 +509,7 @@ func findSnapshotByName(name string) (*diskSnapshot, int, error) {
 		Name:         name,
 		ID:           existSnapshot.SnapshotId,
 		VolID:        existSnapshot.SourceDiskId,
-		CreationTime: timestamp,
+		CreationTime: &timestamp.Timestamp{Seconds: t.Unix()},
 		SizeBytes:    sizeBytes,
 		ReadyToUse:   readyToUse,
 	}
@@ -537,7 +536,6 @@ func findDiskSnapshotByID(id string) (*diskSnapshot, int, error) {
 	if err != nil {
 		return nil, 0, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", existSnapshot.CreationTime)
 	}
-	timestamp := timestamp.Timestamp{Seconds: t.Unix()}
 	sizeGb, _ := strconv.ParseInt(existSnapshot.SourceDiskSize, 10, 64)
 	sizeBytes := sizeGb * 1024 * 1024
 	readyToUse := false
@@ -549,7 +547,7 @@ func findDiskSnapshotByID(id string) (*diskSnapshot, int, error) {
 		Name:         id,
 		ID:           existSnapshot.SnapshotId,
 		VolID:        existSnapshot.SourceDiskId,
-		CreationTime: timestamp,
+		CreationTime: &timestamp.Timestamp{Seconds: t.Unix()},
 		SizeBytes:    sizeBytes,
 		ReadyToUse:   readyToUse,
 		SnapshotTags: existSnapshot.Tags.Tag,

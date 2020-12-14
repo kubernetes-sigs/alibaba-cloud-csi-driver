@@ -28,6 +28,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cpfs"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dbfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/lvm"
@@ -36,6 +37,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/om"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/common/version"
 	log "github.com/sirupsen/logrus"
 )
@@ -60,14 +62,12 @@ const (
 	TypePluginSuffix = "plugin.csi.alibabacloud.com"
 	// TypePluginVar is the yaml variable that needs to be replaced.
 	TypePluginVar = "driverplugin.csi.alibabacloud.com-replace"
-	// PluginService represents the csi-plugin type.
-	PluginService = "plugin"
-	// ProvisionerService represents the csi-provisioner type.
-	ProvisionerService = "provisioner"
 	//PluginServicePort default port is 11260.
 	PluginServicePort = "11260"
 	//ProvisionerServicePort default port is 11270.
 	ProvisionerServicePort = "11270"
+	// TypePluginDBFS local type plugin
+	TypePluginDBFS = "dbfsplugin.csi.alibabacloud.com"
 	// TypePluginDISK DISK type plugin
 	TypePluginDISK = "diskplugin.csi.alibabacloud.com"
 	// TypePluginNAS NAS type plugin
@@ -119,22 +119,22 @@ type globalMetricConfig struct {
 // Nas CSI Plugin
 func main() {
 	flag.Parse()
-	serviceType := os.Getenv("SERVICE_TYPE")
+	serviceType := os.Getenv(utils.ServiceType)
 
 	if len(serviceType) == 0 || serviceType == "" {
-		serviceType = PluginService
+		serviceType = utils.PluginService
 	}
 
 	// When serviceType is neither plugin nor provisioner, the program will exits.
-	if serviceType != PluginService && serviceType != ProvisionerService {
+	if serviceType != utils.PluginService && serviceType != utils.ProvisionerService {
 		log.Fatalf("Service type is unknown:%s", serviceType)
 	}
 
 	var logAttribute string
 	switch serviceType {
-	case ProvisionerService:
-		logAttribute = strings.Replace(TypePluginSuffix, PluginService, ProvisionerService, -1)
-	case PluginService:
+	case utils.ProvisionerService:
+		logAttribute = strings.Replace(TypePluginSuffix, utils.PluginService, utils.ProvisionerService, -1)
+	case utils.PluginService:
 		logAttribute = TypePluginSuffix
 	default:
 	}
@@ -217,6 +217,12 @@ func main() {
 				driver := local.NewDriver(*nodeID, endPoint)
 				driver.Run()
 			}(endPointName)
+		case TypePluginDBFS:
+			go func(endPoint string) {
+				defer wg.Done()
+				driver := dbfs.NewDriver(*nodeID, endPoint)
+				driver.Run()
+			}(endPointName)
 		case ExtenderAgent:
 			go func() {
 				defer wg.Done()
@@ -231,9 +237,9 @@ func main() {
 
 	if len(servicePort) == 0 || servicePort == "" {
 		switch serviceType {
-		case PluginService:
+		case utils.PluginService:
 			servicePort = PluginServicePort
-		case ProvisionerService:
+		case utils.ProvisionerService:
 			servicePort = ProvisionerServicePort
 		default:
 		}

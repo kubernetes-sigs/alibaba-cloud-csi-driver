@@ -82,7 +82,7 @@ spec:
       hostPID: true
       containers:
         - name: disk-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+          image: csi-image-prefix/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
             - "--v=5"
@@ -94,7 +94,7 @@ spec:
             - name: registration-dir
               mountPath: /registration
         - name: nas-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+          image: csi-image-prefix/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
             - "--v=5"
@@ -106,7 +106,7 @@ spec:
             - name: registration-dir
               mountPath: /registration
         - name: oss-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+          image: csi-image-prefix/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
             - "--v=5"
@@ -123,7 +123,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.16.9.43-f36bb540-aliyun
+          image: csi-image-prefix/acs/csi-plugin:csi-image-version
           imagePullPolicy: "Always"
           args:
             - "--endpoint=\$(CSI_ENDPOINT)"
@@ -259,7 +259,7 @@ spec:
       hostPID: true
       containers:
         - name: disk-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+          image: csi-image-prefix/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
             - "--v=5"
@@ -271,7 +271,7 @@ spec:
             - name: registration-dir
               mountPath: /registration
         - name: nas-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+          image: csi-image-prefix/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
             - "--v=5"
@@ -283,7 +283,7 @@ spec:
             - name: registration-dir
               mountPath: /registration
         - name: oss-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+          image: csi-image-prefix/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
             - "--v=5"
@@ -300,7 +300,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.16.9.43-f36bb540-aliyun
+          image: csi-image-prefix/acs/csi-plugin:csi-image-version
           imagePullPolicy: "Always"
           args:
             - "--endpoint=\$(CSI_ENDPOINT)"

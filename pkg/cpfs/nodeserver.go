@@ -114,15 +114,16 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	log.Infof("NodePublishVolume:: Mount success on mountpoint: %s, with Command: %s", mountPath, mntCmd)
 
-	doCpfsConfig()
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
 func doCpfsConfig() {
-	configCmd := fmt.Sprintf("lctl set_param osc.*.max_rpcs_in_flight=128;lctl set_param osc.*.max_pages_per_rpc=256;lctl set_param mdc.*.max_rpcs_in_flight=256;lctl set_param mdc.*.max_mod_rpcs_in_flight=128")
+	configCmd := fmt.Sprintf("lctl set_param osc.*.max_rpcs_in_flight=64;lctl set_param osc.*.max_pages_per_rpc=256;lctl set_param mdc.*.max_rpcs_in_flight=64;lctl set_param mdc.*.max_mod_rpcs_in_flight=64")
 	if _, err := utils.Run(configCmd); err != nil {
-		log.Errorf("Cpfs, doCpfsConfig fail with error: %s", err.Error())
+		log.Errorf("Cpfs, doCpfsConfig fail with command %s, with error: %s", configCmd, err.Error())
+		return
 	}
+	log.Infof("Cpfs: Do Cpfs Config Successful with: %s", configCmd)
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {

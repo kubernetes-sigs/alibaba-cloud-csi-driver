@@ -6,13 +6,13 @@ import (
 
 // GlobalConfig var
 type GlobalConfig struct {
-	Region              string
-	NodeID              string
-	Scheduler           string
-	PmemEnable          bool
-	PmemType            string
-	ControllerProvision bool
-	KubeClient          *kubernetes.Clientset
+	Region        string
+	NodeID        string
+	Scheduler     string
+	PmemEnable    bool
+	PmemType      string
+	GrpcProvision bool
+	KubeClient    *kubernetes.Clientset
 }
 
 var (
@@ -25,6 +25,19 @@ const (
 	LocalDriverName = "localplugin.csi.alibabacloud.com"
 	// NodeSchedueTag in annotations
 	NodeSchedueTag = "volume.kubernetes.io/selected-node"
+
+	// PmemProjectQuotaBasePath ...
+	PmemProjectQuotaBasePath = "/mnt/quotapath.%s"
+	// PmemDeviceFilesystem ...
+	PmemDeviceFilesystem = "ext4"
+	// PmemLVMType ...
+	PmemLVMType = "lvm"
+	// PmemDirectType ...
+	PmemDirectType = "direct"
+	// PmemQuotaPathType ...
+	PmemQuotaPathType = "quotapath"
+	// PmemKmemType ...
+	PmemKmemType = "kmem"
 )
 
 const (
@@ -32,6 +45,8 @@ const (
 	VolumeSpecLabel = "pv.csi.alibabacloud.com/volume.spec"
 	// VolumeLifecycleLabel tag
 	VolumeLifecycleLabel = "pv.csi.alibabacloud.com/volume.lifecycle"
+	// PmemNodeLable ...
+	PmemNodeLable = "pmem.csi.alibabacloud.com/type"
 	// VolumeLifecycleCreating tag
 	VolumeLifecycleCreating = "creating"
 	// VolumeLifecycleCreated tag

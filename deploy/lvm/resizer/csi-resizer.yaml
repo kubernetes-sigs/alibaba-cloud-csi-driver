@@ -38,7 +38,7 @@ spec:
               - key: node-role.kubernetes.io/master
                 operator: Exists
       priorityClassName: system-node-critical
-      serviceAccount: admin
+      serviceAccount: csi-admin
       hostNetwork: true
       containers:
         - name: csi-lvm-resizer

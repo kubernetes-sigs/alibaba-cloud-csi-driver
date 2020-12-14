@@ -29,7 +29,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func NewMetricHandler(serviceType string) *Handler {
 	setServiceType(serviceType)
 	//csi collector singleton
-	err := NewCSICollector()
+	err := newCSICollector()
 	if err != nil {
 		logrus.Errorf("Couldn't create collector: %s", err)
 	}
@@ -39,7 +39,7 @@ func NewMetricHandler(serviceType string) *Handler {
 func (h *Handler) innerHandler() (http.Handler, error) {
 	r := prometheus.NewRegistry()
 	r.MustRegister(version.NewCollector("alibaba_cloud_csi_driver"))
-	if err := r.Register(CSICollectorInstance); err != nil {
+	if err := r.Register(csiCollectorInstance); err != nil {
 		return nil, fmt.Errorf("Couldn't register node collector: %s", err)
 	}
 	handler := promhttp.HandlerFor(

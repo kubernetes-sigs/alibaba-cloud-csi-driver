@@ -32,6 +32,14 @@ func NewServer() Server {
 	return Server{}
 }
 
+// ProjQuotaServer proj quota grpc server
+type ProjQuotaServer struct{}
+
+// NewProjQuotaServer new proj quota grpc server
+func NewProjQuotaServer() ProjQuotaServer {
+	return ProjQuotaServer{}
+}
+
 // ListLV list lvm volume
 func (s Server) ListLV(ctx context.Context, in *lib.ListLVRequest) (*lib.ListLVReply, error) {
 	log.Infof("List LVM for vg: %s", in.VolumeGroup)
@@ -89,7 +97,7 @@ func (s Server) ListVG(ctx context.Context, in *lib.ListVGRequest) (*lib.ListVGR
 	vgs, err := ListVG()
 	if err != nil {
 		log.Errorf("List VG with error: %s", err.Error())
-		return nil, status.Errorf(codes.Internal, "failed to list LVs: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to list VGs: %v", err)
 	}
 
 	pbvgs := make([]*lib.VolumeGroup, len(vgs))
@@ -151,8 +159,8 @@ func (s Server) RemoveTagLV(ctx context.Context, in *lib.RemoveTagLVRequest) (*l
 	return &lib.RemoveTagLVReply{CommandOutput: log}, nil
 }
 
-// ListNameSpace list pmem namespace
-func (s Server) ListNameSpace(ctx context.Context, in *lib.ListNameSpaceRequest) (*lib.ListNameSpaceReply, error) {
+// ListNamespace list pmem namespace
+func (s Server) ListNamespace(ctx context.Context, in *lib.ListNamespaceRequest) (*lib.ListNamespaceReply, error) {
 	log.Infof("List NameSpace for pmem: " + in.NameSpace + " == " + in.Region)
 	namespaces, err := ListNameSpace()
 	if err != nil {
@@ -162,15 +170,15 @@ func (s Server) ListNameSpace(ctx context.Context, in *lib.ListNameSpaceRequest)
 	for _, namespace := range namespaces {
 		if namespace.Name == in.NameSpace {
 			log.Infof("List NameSpace with single result: %v", namespace)
-			return &lib.ListNameSpaceReply{NameSpace: []*lib.NameSpace{namespace}}, nil
+			return &lib.ListNamespaceReply{NameSpace: []*lib.NameSpace{namespace}}, nil
 		}
 	}
 	log.Infof("List NameSpace with response: %v", namespaces)
-	return &lib.ListNameSpaceReply{NameSpace: namespaces}, nil
+	return &lib.ListNamespaceReply{NameSpace: namespaces}, nil
 }
 
-// CreateNameSpace create pmem namespace
-func (s Server) CreateNameSpace(ctx context.Context, in *lib.CreateNameSpaceRequest) (*lib.CreateNameSpaceReply, error) {
+// CreateNamespace create pmem namespace
+func (s Server) CreateNamespace(ctx context.Context, in *lib.CreateNamespaceRequest) (*lib.CreateNamespaceReply, error) {
 	log.Infof("Create NameSpace with: %+v", in)
 	out, err := CreateNameSpace(ctx, in.Region, in.Name, in.Size)
 	if err != nil {
@@ -178,11 +186,11 @@ func (s Server) CreateNameSpace(ctx context.Context, in *lib.CreateNameSpaceRequ
 		return nil, status.Errorf(codes.Internal, "failed to create NameSpace: %v", err)
 	}
 	log.Infof("Create NameSpace Successful with result: %+v", out)
-	return &lib.CreateNameSpaceReply{CommandOutput: out}, nil
+	return &lib.CreateNamespaceReply{CommandOutput: out}, nil
 }
 
-// RemoveNameSpace remove pmem namespace
-func (s Server) RemoveNameSpace(ctx context.Context, in *lib.RemoveNameSpaceRequest) (*lib.RemoveNameSpaceReply, error) {
+// RemoveNamespace remove pmem namespace
+func (s Server) RemoveNamespace(ctx context.Context, in *lib.RemoveNamespaceRequest) (*lib.RemoveNamespaceReply, error) {
 	log.Infof("Remove NameSpace with: %+v", in)
 	out, err := RemoveNameSpace(ctx, in.NameSpace)
 	if err != nil {
@@ -190,5 +198,41 @@ func (s Server) RemoveNameSpace(ctx context.Context, in *lib.RemoveNameSpaceRequ
 		return nil, status.Errorf(codes.Internal, "failed to remove NameSpace: %v", err)
 	}
 	log.Infof("Remove NameSpace Successful with result: %+v", out)
-	return &lib.RemoveNameSpaceReply{CommandOutput: out}, nil
+	return &lib.RemoveNamespaceReply{CommandOutput: out}, nil
+}
+
+// CreateProjQuotaSubpath ...
+func (s ProjQuotaServer) CreateProjQuotaSubpath(ctx context.Context, in *lib.CreateProjQuotaSubpathRequest) (*lib.CreateProjQuotaSubpathReply, error) {
+	log.Infof("CreateProjQuotaSubpath with %+v", in)
+	projQuotaSubpath, out, projectID, err := CreateProjQuotaSubpath(ctx, in.PvName, in.QuotaSize, in.RootPath)
+	if err != nil {
+		log.Errorf("CreateProjQuotaSubpath with error: %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "failed to create projQuota subpath: %v", err)
+	}
+	log.Infof("CreateProjQuotaSubpath successful with result %+v", out)
+	return &lib.CreateProjQuotaSubpathReply{ProjQuotaSubpath: projQuotaSubpath, CommandOutput: out, ProjectId: projectID}, nil
+}
+
+// SetSubpathProjQuota ...
+func (s ProjQuotaServer) SetSubpathProjQuota(ctx context.Context, in *lib.SetSubpathProjQuotaRequest) (*lib.SetSubpathProjQuotaReply, error) {
+	log.Infof("SetSubpathProjQuota with %+v", in)
+	out, err := SetSubpathProjQuota(ctx, in.ProjQuotaSubpath, in.BlockHardlimit, in.BlockSoftlimit)
+	if err != nil {
+		log.Errorf("SetSubpathProjQuota with error: %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "failed to set projQuota to subpath: %v", err)
+	}
+	log.Infof("SetSubpathProjQuota successful with result %+v", out)
+	return &lib.SetSubpathProjQuotaReply{CommandOutput: out}, nil
+}
+
+// RemoveProjQuotaSubpath ...
+func (s ProjQuotaServer) RemoveProjQuotaSubpath(ctx context.Context, in *lib.RemoveProjQuotaSubpathRequest) (*lib.RemoveProjQuotaSubpathReply, error) {
+	log.Infof("RemoveProjQuotaSubpath with %+v", in)
+	out, err := RemoveProjQuotaSubpath(ctx, in.QuotaSubpath)
+	if err != nil {
+		log.Errorf("RemoveProjQuotaSubpath with error: %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "failed to remove projQuota subpath: %v", err)
+	}
+	log.Infof("RemoveProjQuotaSubpath successful with result %+v", out)
+	return &lib.RemoveProjQuotaSubpathReply{CommandOutput: out}, nil
 }

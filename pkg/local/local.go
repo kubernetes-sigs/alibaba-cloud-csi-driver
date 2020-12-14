@@ -48,6 +48,9 @@ const (
 	csiVersion        = "1.0.0"
 )
 
+// PmemSupportType ...
+var PmemSupportType = []string{types.PmemLVMType, types.PmemDirectType, types.PmemKmemType, types.PmemQuotaPathType}
+
 // Init checks for the persistent volume file and loads all found volumes
 // into a memory structure
 func initDriver() {
@@ -117,32 +120,36 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 	if err != nil {
 		log.Fatalf("Describe node %s with error: %s", nodeName, err.Error())
 	} else {
-		if value, ok := nodeInfo.Labels["pmem.csi.alibabacloud.com/type"]; ok {
+		if value, ok := nodeInfo.Labels[types.PmemNodeLable]; ok {
+			nodePmemType := strings.TrimSpace(value)
 			pmemEnable = true
-			if strings.TrimSpace(value) == "lvm" {
-				pmeType = "lvm"
-			} else if strings.TrimSpace(value) == "direct" {
-				pmeType = "direct"
+			for _, supportPmemType := range PmemSupportType {
+				if nodePmemType == supportPmemType {
+					pmeType = supportPmemType
+				}
+			}
+			if pmeType == "" {
+				log.Fatalf("GlobalConfigSet: unknown pemeType: %s", nodePmemType)
 			}
 		}
-		log.Infof("Describe node %s and Set PMEM to %v, %s", nodeName, pmemEnable, pmeType)
+		log.Infof("GlobalConfigSet: Describe node %s and Set PMEM to %v, %s", nodeName, pmemEnable, pmeType)
 	}
 
-	remoteProvision := true
-	remoteConfig := os.Getenv("LOCAL_CONTROLLER_PROVISION")
+	grpcProvision := true
+	remoteConfig := os.Getenv("LOCAL_GRPC_PROVISION")
 	if strings.ToLower(remoteConfig) == "false" {
-		remoteProvision = false
+		grpcProvision = false
 	}
 
 	// Global Config Set
 	types.GlobalConfigVar = types.GlobalConfig{
-		Region:              region,
-		NodeID:              nodeID,
-		Scheduler:           driverName,
-		PmemEnable:          pmemEnable,
-		PmemType:            pmeType,
-		ControllerProvision: remoteProvision,
-		KubeClient:          kubeClient,
+		Region:        region,
+		NodeID:        nodeID,
+		Scheduler:     driverName,
+		PmemEnable:    pmemEnable,
+		PmemType:      pmeType,
+		GrpcProvision: grpcProvision,
+		KubeClient:    kubeClient,
 	}
 	log.Infof("Local Plugin Global Config is: %v", types.GlobalConfigVar)
 }
