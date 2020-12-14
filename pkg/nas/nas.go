@@ -18,6 +18,7 @@ package nas
 
 import (
 	"context"
+	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -49,7 +50,13 @@ type GlobalConfig struct {
 	NasTagEnable       bool
 	ADControllerEnable bool
 	MetricEnable       bool
+	NasFakeProvision   bool
 	RunTimeClass       string
+	NodeID             string
+	NodeIP             string
+	LosetupEnable      bool
+	KubeClient         *kubernetes.Clientset
+	NasClient          *aliNas.Client
 }
 
 // NAS the NAS object
@@ -79,6 +86,7 @@ func NewDriver(nodeID, endpoint string) *NAS {
 	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+		csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
 	})
 
 	// Global Configs Set
@@ -88,11 +96,16 @@ func NewDriver(nodeID, endpoint string) *NAS {
 	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
 	c := newNasClient(accessKeyID, accessSecret, accessToken, "")
 	region := os.Getenv("REGION_ID")
+	limit := os.Getenv("NAS_LIMIT_PERSECOND")
+	if limit == "" {
+		limit = "2"
+	}
 	if region == "" {
 		region = GetMetaData(RegionTag)
 	}
-	d.controllerServer = NewControllerServer(d.driver, c, region)
+	d.controllerServer = NewControllerServer(d.driver, c, region, limit)
 
+	GlobalConfigVar.NasClient = c
 	return d
 }
 
@@ -120,6 +133,7 @@ func GlobalConfigSet() {
 
 	configMapName := "csi-plugin"
 	isNasMetricEnable := false
+	isNasFakeProvisioner := false
 
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
@@ -129,6 +143,11 @@ func GlobalConfigSet() {
 			if value == "enable" || value == "yes" || value == "true" {
 				log.Infof("Nas Metric is enabled by configMap(%s).", value)
 				isNasMetricEnable = true
+			}
+		}
+		if value, ok := configMap.Data["nas-fake-provision"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				isNasFakeProvisioner = true
 			}
 		}
 	}
@@ -147,12 +166,35 @@ func GlobalConfigSet() {
 		log.Errorf("Describe node %s with error: %s", nodeName, err.Error())
 	} else {
 		if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime"]; ok && strings.TrimSpace(value) == "Sandboxed-Container.runv" {
-			runtimeValue = MixRunTimeMode
+			if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime-version"]; ok && strings.HasPrefix(strings.TrimSpace(value), "1.") {
+				runtimeValue = MixRunTimeMode
+			}
 		}
 		log.Infof("Describe node %s and set RunTimeClass to %s", nodeName, runtimeValue)
 	}
 
+	if nodeInfo != nil {
+		for _, address := range nodeInfo.Status.Addresses {
+			if address.Type == "InternalIP" {
+				log.Infof("Node InternalIP is: %s", address.Address)
+				GlobalConfigVar.NodeIP = address.Address
+			}
+		}
+	}
+
+	GlobalConfigVar.LosetupEnable = false
+	losetupEn := os.Getenv("NAS_LOSETUP_ENABLE")
+	if losetupEn == "true" || losetupEn == "yes" {
+		GlobalConfigVar.LosetupEnable = true
+	}
+
+	if GlobalConfigVar.LosetupEnable && GlobalConfigVar.NodeIP == "" {
+		log.Fatal("Init GlobalConfigVar with NodeIP Empty, Nas losetup feature may be useless")
+	}
+
+	GlobalConfigVar.KubeClient = kubeClient
 	GlobalConfigVar.MetricEnable = isNasMetricEnable
 	GlobalConfigVar.RunTimeClass = runtimeValue
-
+	GlobalConfigVar.NodeID = nodeName
+	GlobalConfigVar.NasFakeProvision = isNasFakeProvisioner
 }

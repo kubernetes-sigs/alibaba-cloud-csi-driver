@@ -18,8 +18,6 @@ package local
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/adapter"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -36,11 +34,11 @@ func lvmScheduled(storageSelected string, parameters map[string]string) (map[str
 			return nil, status.Error(codes.InvalidArgument, "Scheduler provide error storage format: "+err.Error())
 		}
 		if value, ok := storageMap["VolumeGroup"]; ok {
-			paraList["vgName"] = value
+			paraList[VgNameTag] = value
 			vgName = value
 		}
 	}
-	if value, ok := parameters["vgName"]; ok && value != "" {
+	if value, ok := parameters[VgNameTag]; ok && value != "" {
 		if vgName != "" && value != vgName {
 			return nil, status.Error(codes.InvalidArgument, "Storage Schedule is not expected "+value+vgName)
 		}
@@ -54,7 +52,7 @@ func lvmScheduled(storageSelected string, parameters map[string]string) (map[str
 func lvmPartScheduled(nodeSelected, pvcName, pvcNameSpace string, parameters map[string]string) (map[string]string, error) {
 	vgName := ""
 	paraList := map[string]string{}
-	if value, ok := parameters["vgName"]; ok {
+	if value, ok := parameters[VgNameTag]; ok {
 		vgName = value
 	}
 	if vgName == "" {
@@ -68,7 +66,7 @@ func lvmPartScheduled(nodeSelected, pvcName, pvcNameSpace string, parameters map
 		}
 		vgName = volumeInfo.VgName
 	}
-	paraList["vgName"] = vgName
+	paraList[VgNameTag] = vgName
 	return paraList, nil
 }
 
@@ -153,37 +151,4 @@ func devicePartScheduled(nodeSelected, pvcName, pvcNameSpace string, parameters 
 func deviceNoScheduled(parameters map[string]string) (string, map[string]string, error) {
 	paraList := map[string]string{}
 	return "", paraList, nil
-}
-
-// pickNodeID selects node given topology requirement.
-// if not found, empty string is returned.
-func pickNodeID(requirement *csi.TopologyRequirement, driverName string) string {
-	if requirement == nil {
-		return ""
-	}
-
-	topologyKey := fmt.Sprintf("topology.%s/hostname", driverName)
-	nodeList := []string{}
-	for _, topology := range requirement.GetPreferred() {
-		nodeID, exists := topology.GetSegments()[topologyKey]
-		if exists {
-			nodeList = append(nodeList, nodeID)
-		}
-	}
-	if len(nodeList) == 1 {
-		return nodeList[0]
-	}
-	if len(nodeList) > 1 {
-		return ""
-	}
-	for _, topology := range requirement.GetRequisite() {
-		nodeID, exists := topology.GetSegments()[topologyKey]
-		if exists {
-			nodeList = append(nodeList, nodeID)
-		}
-	}
-	if len(nodeList) != 1 {
-		return ""
-	}
-	return nodeList[0]
 }

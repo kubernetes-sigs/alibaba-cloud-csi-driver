@@ -38,9 +38,9 @@ type CSICollector struct {
 	Collectors map[string]Collector
 }
 
-//NewCSICollector method returns the CSICollector object
-func NewCSICollector() error {
-	if CSICollectorInstance == nil {
+//newCSICollector method returns the CSICollector object
+func newCSICollector() error {
+	if csiCollectorInstance == nil {
 		collectors := make(map[string]Collector)
 		for key := range factories {
 			var collector Collector
@@ -64,7 +64,7 @@ func NewCSICollector() error {
 			}
 			collectors[key] = collector
 		}
-		CSICollectorInstance = &CSICollector{Collectors: collectors}
+		csiCollectorInstance = &CSICollector{Collectors: collectors}
 	}
 
 	return nil

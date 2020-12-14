@@ -220,12 +220,6 @@ func isPvcExpected(pvc *corev1.PersistentVolumeClaim) bool {
 	return true
 }
 
-// GetPvcIdx get idx
-func GetPvcIdx(pvObj *corev1.PersistentVolumeClaim) string {
-	pvIdx := pvObj.Namespace + "/" + pvObj.Name
-	return pvIdx
-}
-
 func processPvc(pvcObj *corev1.PersistentVolumeClaim) error {
 	volumeSpec := pvcObj.Annotations[types.VolumeSpecLabel]
 	volumeSpecMap := client.LVMOptions{}
@@ -265,7 +259,7 @@ func processPvc(pvcObj *corev1.PersistentVolumeClaim) error {
 
 	labels := map[string]string{}
 	labels[types.VolumeLifecycleLabel] = types.VolumeLifecycleCreated
-	if err := UpdatePvcWithLabel(context.Background(), pvcObj.Namespace, pvcObj.Name, labels); err != nil {
+	if err := UpdatePvcWithAnnotations(context.Background(), pvcObj.Namespace, pvcObj.Name, labels); err != nil {
 		return fmt.Errorf("update pvc object error, %s", err.Error())
 	}
 	return nil

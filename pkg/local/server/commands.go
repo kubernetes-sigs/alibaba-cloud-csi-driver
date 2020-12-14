@@ -19,21 +19,31 @@ limitations under the License.
 package server
 
 import (
+	"crypto/sha256"
+	"encoding/csv"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
 const (
 	// NsenterCmd is the nsenter command
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
+	// ProjQuotaPrefix is the template of quota fullpath
+	ProjQuotaPrefix = "/mnt/quotapath.%s/%s"
+	// ProjQuotaNamespacePrefix ...
+	ProjQuotaNamespacePrefix = "/mnt/quotapath.%s"
 )
 
 // ListLV lists lvm volumes
@@ -339,7 +349,8 @@ func RemoveNameSpace(ctx context.Context, namespaceName string) (string, error) 
 
 // ListNameSpace list pmem namespace
 func ListNameSpace() ([]*lib.NameSpace, error) {
-	regions, err := lib.GetRegions()
+	regions, err := manager.GetRegions()
+	log.Infof("show me the regions: %+v", regions)
 	if err != nil {
 		return nil, err
 	}
@@ -347,8 +358,199 @@ func ListNameSpace() ([]*lib.NameSpace, error) {
 	namespaces := []*lib.NameSpace{}
 	for _, region := range regions.Regions {
 		for _, ns := range region.Namespaces {
-			namespaces = append(namespaces, ns.ToProto())
+			newns := ns.ToProto()
+			namespaces = append(namespaces, newns)
 		}
 	}
 	return namespaces, nil
+}
+
+// ConvertString2int convert pvName to int data
+func ConvertString2int(origin string) string {
+	h := sha256.New()
+	h.Write([]byte(origin))
+	hashResult := fmt.Sprintf("%x", h.Sum(nil))
+	for {
+		if hashResult[0] == '0' {
+			hashResult = hashResult[1:]
+			continue
+		}
+		break
+	}
+	return str2ASCII(hashResult[:9])[:9]
+}
+
+func str2ASCII(origin string) string {
+	var result string
+	for _, c := range origin {
+		if !unicode.IsDigit(c) {
+			result += strconv.Itoa(int(rune(c)))
+		} else {
+			result += string(c)
+		}
+	}
+	return result
+}
+
+// SetProjectID2PVSubpath ...
+func SetProjectID2PVSubpath(namespace, subPath, rootPath string, run utils.CommandRunFunc) (string, error) {
+	projectID := ConvertString2int(subPath)
+	quotaSubpath := fmt.Sprintf(ProjQuotaPrefix, namespace, subPath)
+	if rootPath != "" {
+		quotaSubpath = filepath.Join(rootPath, subPath)
+	}
+	args := []string{NsenterCmd, "chattr", "+P -p", fmt.Sprintf("%s %s", projectID, quotaSubpath)}
+	cmd := strings.Join(args, " ")
+	_, err := run(cmd)
+	if err != nil {
+		return "", fmt.Errorf("failed to set projectID to subpath with error: %v", err)
+	}
+	return projectID, nil
+}
+
+func getTotalLimitKBFromCSV(in string) (totalLimit int64, err error) {
+	r := csv.NewReader(strings.NewReader(in))
+	for {
+		record, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return 0, err
+		}
+		trimedStr := strings.TrimSpace(record[0])
+		if strings.HasPrefix(trimedStr, "#") && trimedStr != "#0" {
+			if err != nil {
+				return 0, err
+			}
+			limitKByte, err := strconv.ParseInt(record[5], 10, 64)
+			if err != nil {
+				return 0, err
+			}
+			totalLimit += limitKByte
+		}
+	}
+	return
+}
+
+// GetNamespaceAssignedQuota ...
+func GetNamespaceAssignedQuota(namespace string) (int, error) {
+	args := []string{NsenterCmd, "repquota", "-P -O csv", fmt.Sprintf(ProjQuotaNamespacePrefix, namespace)}
+	cmd := strings.Join(args, " ")
+	out, err := utils.Run(cmd)
+	if err != nil {
+		return 0, fmt.Errorf("failed to request namespace quota with error: %v", err)
+	}
+	totalLimit, err := getTotalLimitKBFromCSV(out)
+	if err != nil {
+		return 0, err
+	}
+
+	return int(totalLimit), nil
+}
+
+// SelectNamespace ...
+func SelectNamespace(ctx context.Context, quotaSize string) (string, error) {
+	namespaces, err := ListNameSpace()
+	if err != nil {
+		return "", err
+	}
+	if len(namespaces) != 2 {
+		return "", fmt.Errorf("namespaces count is wrong in current ecs %v", len(namespaces))
+	}
+	namespace1Quota, err := GetNamespaceAssignedQuota(namespaces[0].Dev)
+	namespace2Quota, err := GetNamespaceAssignedQuota(namespaces[1].Dev)
+	if err != nil {
+		return "", err
+	}
+	if namespace1Quota > namespace2Quota {
+		return namespaces[1].Dev, nil
+	}
+	return namespaces[0].Dev, nil
+}
+
+// CreateProjQuotaSubpath ...
+func CreateProjQuotaSubpath(ctx context.Context, subPath, quotaSize, rootPath string) (string, string, string, error) {
+	selectedNamespace, err := SelectNamespace(ctx, quotaSize)
+	if err != nil {
+		return "", "", "", err
+	}
+	fullPath := fmt.Sprintf(ProjQuotaPrefix, selectedNamespace, subPath)
+	if rootPath != "" {
+		fullPath = filepath.Join(rootPath, subPath)
+	}
+	err = manager.EnsureFolder(fullPath)
+	if err != nil {
+		return "", "", "", err
+	}
+	projectID, err := SetProjectID2PVSubpath(selectedNamespace, subPath, rootPath, utils.Run)
+	if err != nil {
+		return "", "", "", err
+	}
+	return fullPath, "", projectID, nil
+}
+
+func findBlockLimitByProjectID(out, projectID string) (string, string, error) {
+	r := csv.NewReader(strings.NewReader(out))
+	for {
+		record, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", "", err
+		}
+		trimedStr := strings.TrimSpace(record[0])
+		if strings.HasPrefix(trimedStr, "#") && trimedStr != "#0" {
+			if strings.Contains(trimedStr, projectID) {
+				return record[4], record[5], nil
+			}
+		}
+	}
+	return "", "", fmt.Errorf("findBlockLimitByProjectID: cannot find projectID: %s in output", projectID)
+}
+
+func checkSubpathProjQuotaEqual(projQuotaNamespacePath, projectID, blockHardLimitExpected, blockSoftLimitExpected string) (bool, error) {
+
+	args := []string{NsenterCmd, "repquota", "-P -O csv", projQuotaNamespacePath}
+	cmd := strings.Join(args, " ")
+	out, err := utils.Run(cmd)
+	if err != nil {
+		return false, fmt.Errorf("failed to request namespace quota with error: %v", err)
+	}
+	blockSoftLimitActual, blockHardLimitActual, err := findBlockLimitByProjectID(out, projectID)
+	if err != nil {
+		return false, err
+	}
+	if blockHardLimitExpected == blockHardLimitActual && blockSoftLimitActual == blockHardLimitExpected {
+		return true, nil
+	}
+	return false, fmt.Errorf("checkSubpathProjQuotaEqual:actualData:%s is not equals with setedData:%s, blockSoftLimit:%s, blockSoftlimit:%s", blockHardLimitExpected, blockHardLimitActual, blockSoftLimitExpected, blockSoftLimitActual)
+}
+
+// SetSubpathProjQuota ...
+func SetSubpathProjQuota(ctx context.Context, projQuotaSubpath, blockHardlimit, blockSoftlimit string) (string, error) {
+	projectID := ConvertString2int(filepath.Base(projQuotaSubpath))
+	args := []string{NsenterCmd, "setquota", "-P", fmt.Sprintf("%s %s %s 0 0 %s", projectID, blockHardlimit, blockHardlimit, filepath.Dir(projQuotaSubpath))}
+	cmd := strings.Join(args, " ")
+	_, err := utils.Run(cmd)
+	if err != nil {
+		return "", fmt.Errorf("failed to set quota to subpath with error: %v", err)
+	}
+	ok, err := checkSubpathProjQuotaEqual(filepath.Dir(projQuotaSubpath), projectID, blockHardlimit, blockHardlimit)
+	if ok {
+		return "", nil
+	}
+	return "", err
+}
+
+// RemoveProjQuotaSubpath ...
+func RemoveProjQuotaSubpath(ctx context.Context, quotaSubpath string) (string, error) {
+	args := []string{NsenterCmd, "rm", "-rf", quotaSubpath}
+	cmd := strings.Join(args, " ")
+	out, err := utils.Run(cmd)
+	if err != nil {
+		return "", fmt.Errorf("failed to remove proj quota subpath with error: %v", err)
+	}
+	return out, nil
 }
