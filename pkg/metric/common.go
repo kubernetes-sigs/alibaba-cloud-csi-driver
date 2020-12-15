@@ -56,6 +56,7 @@ const (
 const (
 	latencyTooHigh    = "LatencyTooHigh"
 	capacityNotEnough = "NotEnoughDiskSpace"
+	ioHang            = "IOHang"
 )
 
 var (
