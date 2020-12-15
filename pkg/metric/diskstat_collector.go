@@ -82,6 +82,12 @@ var (
 		diskStatLabelNames,
 		nil,
 	)
+	//13 - time spent doing I/Os (ms)
+	ioTimeSecondsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "io_time_seconds_total"),
+		"Total seconds spent doing I/Os.",
+		diskStatLabelNames, nil,
+	)
 	//13 - capacity available
 	capacityAvailableDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "capacity_bytes_available"),
@@ -165,10 +171,7 @@ func parseDiskThreshold(defaultLatencyThreshold float64, defaultCapacityPercenta
 // NewDiskStatCollector returns a new Collector exposing disk stats.
 func NewDiskStatCollector() (Collector, error) {
 	alertSet, latencyThreshold, capacityPercentageThreshold := parseDiskThreshold(diskDefaultsLantencyThreshold, diskDefaultsCapacityPercentageThreshold)
-	var recorder record.EventRecorder
-	if !alertSet.Empty() {
-		recorder = utils.NewEventRecorder()
-	}
+	recorder := utils.NewEventRecorder()
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
@@ -199,17 +202,19 @@ func NewDiskStatCollector() (Collector, error) {
 			{desc: writeTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
 			//12 - I/Os currently in progress
 			{desc: ioNowDesc, valueType: prometheus.GaugeValue},
-			//13 - capacity available
+			//13 - time spent doing I/Os (ms)
+			{desc: ioTimeSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
+			//14 - capacity available
 			{desc: capacityAvailableDesc, valueType: prometheus.CounterValue},
-			//14 - capacity total
+			//15 - capacity total
 			{desc: capacityTotalDesc, valueType: prometheus.CounterValue},
-			//15 - capacity used
+			//16 - capacity used
 			{desc: capacityUsedDesc, valueType: prometheus.CounterValue},
-			//16 - inode available
+			//17 - inode available
 			{desc: inodesAvailableDesc, valueType: prometheus.CounterValue},
-			//17 - inode total
+			//18 - inode total
 			{desc: inodesTotalDesc, valueType: prometheus.CounterValue},
-			//18 - inode used
+			//19 - inode used
 			{desc: inodesUsedDesc, valueType: prometheus.CounterValue},
 		},
 		lastPvStorageInfoMap:         make(map[string]storageInfo, 0),
@@ -273,6 +278,19 @@ func isExceedLatencyThreshold(stats []string, lastStats []string, iopsIndex int,
 	return incrementLatency / incrementIOPS, false
 }
 
+func isIOHang(stats []string, lastStats []string) bool {
+	if len(stats) < 10 || len(lastStats) < 10 {
+		logrus.Errorf("stats and last stats array length is less than 10")
+		return false
+	}
+	if (stats[0] == lastStats[0]) &&
+		(stats[4] == lastStats[4]) &&
+		(stats[9] != lastStats[9]) {
+		return true
+	}
+	return false
+}
+
 func (p *diskStatCollector) latencyEventAlert(pvName string, pvcName string, pvcNamespace string, stats []string, index int) {
 	lastStats, ok := p.lastPvStatsMap.Load(pvName)
 	if p.alertSwtichSet.Contains(latencySwitch) && ok {
@@ -286,6 +304,23 @@ func (p *diskStatCollector) latencyEventAlert(pvName string, pvcName string, pvc
 			}
 			reason := fmt.Sprintf("Pvc %s latency load is too high, namespace: %s, latency:%.2f ms, threshold:%.2f ms", pvcName, pvcNamespace, thisLatency, p.milliSecondsLatencyThreshold)
 			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, latencyTooHigh, reason)
+		}
+	}
+}
+
+func (p *diskStatCollector) ioHangEventAlert(devName string, pvName string, pvcName string, pvcNamespace string, stats []string) {
+	lastStats, ok := p.lastPvStatsMap.Load(pvName)
+	if ok {
+		isHang := isIOHang(stats, lastStats.([]string))
+		if isHang {
+			ref := &v1.ObjectReference{
+				Kind:      "Volume",
+				Name:      pvcName,
+				UID:       "",
+				Namespace: pvcNamespace,
+			}
+			reason := fmt.Sprintf("IO Hang on Persistent Volume %s, diskID:%s, Device:%s", pvName, p.lastPvStorageInfoMap[pvName].DiskID, devName)
+			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, ioHang, reason)
 		}
 	}
 }
@@ -335,9 +370,14 @@ func (p *diskStatCollector) setDiskMetric(devName string, pvName string, pvcName
 			p.latencyEventAlert(pvName, pvcName, pvcNamespace, stats, 4)
 		}
 
-		if i == 11 { //11：diskCapacityUsedDesc
+		if i == 9 { //9: ioTimeSecondsDesc
+			p.ioHangEventAlert(devName, pvName, pvcName, pvcNamespace, stats)
+		}
+
+		if i == 12 { //12：diskCapacityUsedDesc
 			p.capacityEventAlert(valueFloat64, pvcName, pvcNamespace, stats)
 		}
+
 		ch <- p.descs[i].mustNewConstMetric(valueFloat64, pvcNamespace, pvcName, devName, diskStorageName)
 	}
 
@@ -386,7 +426,7 @@ func parseDiskStats(r io.Reader) (map[string][]string, error) {
 			return nil, fmt.Errorf("Invalid line in %s: %s", procFilePath(diskStatsFileName), scanner.Text())
 		}
 		dev := "/dev/" + parts[2]
-		diskStats[dev] = parts[3:12]
+		diskStats[dev] = parts[3:13]
 	}
 
 	return diskStats, scanner.Err()
