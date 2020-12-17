@@ -74,6 +74,11 @@ spec:
                 value: "15"
               - name: SERVICE_TYPE
                 value: "plugin"
+              - name: ACCESS_KEY_ID
+                value: ""
+              - name: ACCESS_KEY_SECRET
+                value: ""
+
             livenessProbe:
               httpGet:
                 path: /healthz

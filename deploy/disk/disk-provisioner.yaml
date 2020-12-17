@@ -127,6 +127,10 @@ spec:
               value: unix://var/lib/kubelet/csi-provisioner/driverplugin.csi.alibabacloud.com-replace/csi.sock
             - name: MAX_VOLUMES_PERNODE
               value: "15"
+            - name: ACCESS_KEY_ID
+              value: ""
+            - name: ACCESS_KEY_SECRET
+              value: ""
             - name: SERVICE_TYPE
               value: "provisioner"
           livenessProbe:
