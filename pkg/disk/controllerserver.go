@@ -729,21 +729,14 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 		log.Errorf("ControllerExpandVolume:: resize got error: %s", err.Error())
 		return nil, status.Errorf(codes.Internal, "resize disk %s get error: %s", diskID, err.Error())
 	}
-	describeDisksRequest := ecs.CreateDescribeDisksRequest()
-	describeDisksRequest.RegionId = GlobalConfigVar.Region
-	describeDisksRequest.DiskIds = "[\"" + disk.DiskId + "\"]"
-	diskResponse, err := GlobalConfigVar.EcsClient.DescribeDisks(describeDisksRequest)
+	checkDisk, err := findDiskByID(disk.DiskId)
 	if err != nil {
-		log.Warnf("ControllerExpandVolume: error with DescribeDisks: %s, %s", disk.DiskId, err.Error())
-		return nil, status.Errorf(codes.Internal, "resize disk %s get error: %s", diskID, err.Error())
+		log.Infof("ControllerExpandVolume:: find disk failed with error: %+v", err)
+		return nil, status.Errorf(codes.Internal, "ControllerExpandVolume:: find disk failed with error: %+v", err)
 	}
-	disks := diskResponse.Disks.Disk
-	if len(disks) == 0 {
-		log.Warnf("ControllerExpandVolume: no disk found: %s", disk.DiskId)
-		return nil, status.Errorf(codes.Internal, "discribe disk %s get err: %s", diskID, err.Error())
-	}
-	if requestGB != disks[0].Size {
-		return nil, status.Errorf(codes.Internal, "resize disk err with excepted size: %vGB, actual size: %vGB", requestGB, disks[0].Size)
+	if requestGB != checkDisk.Size {
+		log.Infof("ControllerExpandVolume:: resize disk err with excepted size: %vGB, actual size: %vGB", requestGB, checkDisk.Size)
+		return nil, status.Errorf(codes.Internal, "resize disk err with excepted size: %vGB, actual size: %vGB", requestGB, checkDisk.Size)
 	}
 
 	log.Infof("ControllerExpandVolume:: Success to resize volume: %s from %dG to %dG, RequestID: %s", req.VolumeId, disk.Size, requestGB, response.RequestId)

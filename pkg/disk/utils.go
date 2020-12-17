@@ -20,16 +20,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"io"
 	"io/ioutil"
-	utilexec "k8s.io/utils/exec"
-	k8smount "k8s.io/utils/mount"
 	"net/http"
 	"os"
 	"os/exec"
@@ -38,6 +30,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/kubernetes/pkg/volume/util/fs"
+	utilexec "k8s.io/utils/exec"
+	k8smount "k8s.io/utils/mount"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
@@ -91,6 +94,8 @@ const (
 	DiskSharedEfficiency = "san_efficiency"
 	// MBSIZE tag
 	MBSIZE = 1024 * 1024
+	// GBSIZE tag
+	GBSIZE = 1024 * MBSIZE
 	// DefaultRegion is the default region id
 	DefaultRegion = "cn-hangzhou"
 	// fsckErrorsCorrected tag
@@ -866,22 +871,17 @@ func deleteEmpty(s []string) []string {
 	}
 	return r
 }
+
 func getDiskCapacity(devicePath string) (float64, error) {
-	capacityCmd := fmt.Sprintf("df -BG | grep %s | awk '{ print $2 }'", devicePath)
-	output, err := run(capacityCmd)
+	_, capacity, _, _, _, _, err := fs.FsInfo(devicePath)
 	if err != nil {
-		return 0, fmt.Errorf("getDiskCapacity:: run cmd error: %+v", err)
+		log.Errorf("getDiskCapacity:: get device error: %+v", err)
+		return 0, fmt.Errorf("getDiskCapacity:: get device error: %+v", err)
 	}
-	output = strings.Trim(output, "\n")
-	if strings.Contains(output, "\n") {
-		return 0, fmt.Errorf("getDiskCapacity:: get result %s err", output)
+	capacity, ok := (*(resource.NewQuantity(capacity, resource.BinarySI))).AsInt64()
+	if !ok {
+		log.Errorf("getDiskCapacity:: failed to fetch capacity bytes for target: %s", devicePath)
+		return 0, status.Error(codes.Unknown, "failed to fetch capacity bytes")
 	}
-	if !strings.HasSuffix(output, "G") {
-		return 0, fmt.Errorf("getDiskCapacity:: get result %s unit error", output)
-	}
-	diskCapacity, err := strconv.Atoi(output[:len(output)-1])
-	if err != nil {
-		return 0, fmt.Errorf("getDiskCapacity:: get result %s format error", output)
-	}
-	return float64(diskCapacity), nil
+	return float64(capacity) / GBSIZE, nil
 }
