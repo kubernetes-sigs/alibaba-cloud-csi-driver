@@ -18,13 +18,11 @@ package disk
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -482,7 +480,7 @@ func findDiskByID(diskID string) (*ecs.Disk, error) {
 	return &disks[0], err
 }
 
-func findSnapshotByName(name string) (*diskSnapshot, int, error) {
+func findSnapshotByName(name string) (*ecs.DescribeSnapshotsResponse, int, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
 	describeSnapShotRequest.SnapshotName = name
@@ -491,35 +489,16 @@ func findSnapshotByName(name string) (*diskSnapshot, int, error) {
 		return nil, 0, err
 	}
 	if len(snapshots.Snapshots.Snapshot) == 0 {
-		return nil, 0, nil
-	}
-	existSnapshot := snapshots.Snapshots.Snapshot[0]
-	t, err := time.Parse(time.RFC3339, existSnapshot.CreationTime)
-	if err != nil {
-		return nil, 0, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", existSnapshot.CreationTime)
-	}
-	sizeGb, _ := strconv.ParseInt(existSnapshot.SourceDiskSize, 10, 64)
-	sizeBytes := sizeGb * 1024 * 1024
-	readyToUse := false
-	if existSnapshot.Status == "accomplished" {
-		readyToUse = true
+		return snapshots, 0, nil
 	}
 
-	resSnapshot := &diskSnapshot{
-		Name:         name,
-		ID:           existSnapshot.SnapshotId,
-		VolID:        existSnapshot.SourceDiskId,
-		CreationTime: &timestamp.Timestamp{Seconds: t.Unix()},
-		SizeBytes:    sizeBytes,
-		ReadyToUse:   readyToUse,
-	}
 	if len(snapshots.Snapshots.Snapshot) > 1 {
-		return resSnapshot, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with name "+name)
+		return snapshots, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with name "+name)
 	}
-	return resSnapshot, 1, nil
+	return snapshots, 1, nil
 }
 
-func findDiskSnapshotByID(id string) (*diskSnapshot, int, error) {
+func findDiskSnapshotByID(id string) (*ecs.DescribeSnapshotsResponse, int, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
 	describeSnapShotRequest.SnapshotIds = "[\"" + id + "\"]"
@@ -528,32 +507,11 @@ func findDiskSnapshotByID(id string) (*diskSnapshot, int, error) {
 		return nil, 0, err
 	}
 	if len(snapshots.Snapshots.Snapshot) == 0 {
-		return nil, 0, nil
+		return snapshots, 0, nil
 	}
 
-	existSnapshot := snapshots.Snapshots.Snapshot[0]
-	t, err := time.Parse(time.RFC3339, existSnapshot.CreationTime)
-	if err != nil {
-		return nil, 0, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", existSnapshot.CreationTime)
-	}
-	sizeGb, _ := strconv.ParseInt(existSnapshot.SourceDiskSize, 10, 64)
-	sizeBytes := sizeGb * 1024 * 1024
-	readyToUse := false
-	if existSnapshot.Status == "accomplished" {
-		readyToUse = true
-	}
-
-	resSnapshot := &diskSnapshot{
-		Name:         id,
-		ID:           existSnapshot.SnapshotId,
-		VolID:        existSnapshot.SourceDiskId,
-		CreationTime: &timestamp.Timestamp{Seconds: t.Unix()},
-		SizeBytes:    sizeBytes,
-		ReadyToUse:   readyToUse,
-		SnapshotTags: existSnapshot.Tags.Tag,
-	}
 	if len(snapshots.Snapshots.Snapshot) > 1 {
-		return resSnapshot, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with id "+id)
+		return snapshots, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with id "+id)
 	}
-	return resSnapshot, 1, nil
+	return snapshots, 1, nil
 }
