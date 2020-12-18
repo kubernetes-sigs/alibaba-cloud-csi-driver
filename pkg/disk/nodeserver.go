@@ -94,6 +94,8 @@ const (
 	InputOutputErr = "input/output error"
 	// BLOCKVOLUMEPREFIX block volume mount prefix
 	BLOCKVOLUMEPREFIX = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/publish"
+	// FileSystemLose ...
+	FileSystemLose = float64(0.97)
 )
 
 // QueryResponse response struct for query server
@@ -683,6 +685,8 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	*csi.NodeExpandVolumeResponse, error) {
 	log.Infof("NodeExpandVolume: node expand volume: %v", req)
 
+	volExpandBytes := int64(req.GetCapacityRange().GetRequiredBytes())
+	requestGB := float64((volExpandBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
 	if len(req.GetVolumeId()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID is empty")
 	}
@@ -715,8 +719,16 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		log.Errorf("NodeExpandVolume:: Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
 		return nil, status.Error(codes.Internal, "Fail to resize volume fs")
 	}
-	log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
-	return &csi.NodeExpandVolumeResponse{}, nil
+	diskCapacity, err := getDiskCapacity(volumePath)
+	if err != nil {
+		log.Errorf("NodeExpandVolume:: get diskCapacity error %+v", err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if diskCapacity <= requestGB && diskCapacity >= requestGB*FileSystemLose {
+		log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
+		return &csi.NodeExpandVolumeResponse{}, nil
+	}
+	return nil, status.Error(codes.Internal, fmt.Sprintf("requestGB: %v, diskCapacity: %v not in range", requestGB, diskCapacity))
 }
 
 // NodeGetVolumeStats used for csi metrics

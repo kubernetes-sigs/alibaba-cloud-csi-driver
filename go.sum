@@ -230,6 +230,7 @@ github.com/golangplus/bytes v0.0.0-20160111154220-45c989fe5450/go.mod h1:Bk6SMAO
 github.com/golangplus/fmt v0.0.0-20150411045040-2a5d6d7d2995/go.mod h1:lJgMEyOkYFkPcDKwRXegd+iM6E7matEszMG5HhwytU8=
 github.com/golangplus/testing v0.0.0-20180327235837-af21d9c3145e/go.mod h1:0AA//k/eakGydO4jKRoRL2j92ZKSzTgj9tclaCrvXHk=
 github.com/google/btree v1.0.0/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
+github.com/google/cadvisor v0.35.0 h1:qivoEm+iGqTrd0CKSmQidxfOxUxkNZovvYs/8G6B6ao=
 github.com/google/cadvisor v0.35.0/go.mod h1:1nql6U13uTHaLYB8rLS5x9IJc2qT6Xd/Tr1sTX6NE48=
 github.com/google/credstore v0.0.0-20181218150457-e184c60ef875 h1:7EiaRUOaJuWKBcN7I1JLaXdh3QOCsjMzswK8D0mlpF4=
 github.com/google/credstore v0.0.0-20181218150457-e184c60ef875/go.mod h1:l7D6/mhvFUAR6eapBoXqACeHhx7P5lnDeT2eYu0ZvkY=
