@@ -41,8 +41,8 @@ func TestReadCSV2(t *testing.T) {
 func TestSetProjectID2PVSubpath(t *testing.T) {
 
 	testCases := map[string]map[string]error{
-		"quotapath.namespace1.0,test1,":          {"198410201": nil},
-		"quotapath.namespace0.0,testxxxx2,/data": {"": errors.New("testerror")},
+		"test1,/mnt/quotapath.namespace1.0/test1":          {"198410201": nil},
+		"testxxxx2,/data/quotapath.namespace0.0/testxxxx2": {"": errors.New("testerror")},
 	}
 	for namespaceSubpath, value := range testCases {
 		for procedureID, err := range value {
@@ -51,7 +51,7 @@ func TestSetProjectID2PVSubpath(t *testing.T) {
 				return procedureID, err
 			}
 			keys := strings.Split(namespaceSubpath, ",")
-			calculatedID, testErr := SetProjectID2PVSubpath(keys[0], keys[1], keys[2], mockRun)
+			calculatedID, testErr := SetProjectID2PVSubpath(keys[0], keys[1], mockRun)
 
 			assert.Equal(t, procedureID, calculatedID)
 
