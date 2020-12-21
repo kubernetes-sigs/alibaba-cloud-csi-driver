@@ -35,7 +35,7 @@ const (
 type pfsRawBlockStatCollector struct {
 	enable           bool
 	descs            []typedFactorDesc
-	pvStorageInfoMap map[string]storageInfo
+	pvStorageInfoMap map[string]diskInfo
 	rawBlockStatsMap map[string][]string
 	kubeClient       *kubernetes.Clientset
 	dockerClient     *client.Client
@@ -117,7 +117,7 @@ func NewPfsRawBlockStatCollector() (Collector, error) {
 			{desc: capacityAvailableDesc, valueType: prometheus.CounterValue},
 			{desc: capacityUsedDesc, valueType: prometheus.CounterValue},
 		},
-		pvStorageInfoMap: make(map[string]storageInfo, 0),
+		pvStorageInfoMap: make(map[string]diskInfo, 0),
 
 		kubeClient:    clientset,
 		dockerClient:  client,
