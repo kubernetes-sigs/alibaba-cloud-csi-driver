@@ -114,6 +114,13 @@ spec:
               value: "15"
             - name: SERVICE_TYPE
               value: "plugin"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           livenessProbe:
             httpGet:
               path: /healthz
@@ -123,10 +130,15 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 5
+            periodSeconds: 20
           ports:
             - name: healthz
               containerPort: 11260
-              protocol: TCP
           volumeMounts:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet/
