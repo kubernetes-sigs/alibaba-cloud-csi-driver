@@ -244,10 +244,10 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 			stats, _ := getCapacityMetric(pvName, &info, stats)
 
 			wg.Add(1)
-			go func(deviceNameArgs string, pvNameArgs string, pvcNamespaceArgs string, pvcNameArgs string, statsArgs []string) {
+			go func(nodeNameArgs string, deviceNameArgs string, pvNameArgs string, pvcNamespaceArgs string, pvcNameArgs string, statsArgs []string) {
 				defer wg.Done()
-				p.setDiskMetric(deviceNameArgs, pvNameArgs, pvcNamespaceArgs, pvcNameArgs, statsArgs, ch)
-			}(deviceName, pvName, info.PvcNamespace, info.PvcName, stats)
+				p.setDiskMetric(nodeNameArgs, deviceNameArgs, pvNameArgs, pvcNamespaceArgs, pvcNameArgs, statsArgs, ch)
+			}(info.NodeName, deviceName, pvName, info.PvcNamespace, info.PvcName, stats)
 		}
 	}
 	wg.Wait()
@@ -273,7 +273,20 @@ func isExceedLatencyThreshold(stats []string, lastStats []string, iopsIndex int,
 	return incrementLatency / incrementIOPS, false
 }
 
-func (p *diskStatCollector) latencyEventAlert(pvName string, pvcName string, pvcNamespace string, stats []string, index int) {
+func isIOHang(stats []string, lastStats []string) bool {
+	if len(stats) < 10 || len(lastStats) < 10 {
+		logrus.Errorf("stats and last stats array length is less than 10")
+		return false
+	}
+	if (stats[0] == lastStats[0]) &&
+		(stats[4] == lastStats[4]) &&
+		(stats[9] != lastStats[9]) {
+		return true
+	}
+	return false
+}
+
+func (p *diskStatCollector) latencyEventAlert(nodeName string, pvName string, pvcName string, pvcNamespace string, stats []string, index int) {
 	lastStats, ok := p.lastPvStatsMap.Load(pvName)
 	if p.alertSwtichSet.Contains(latencySwitch) && ok {
 		thisLatency, exceed := isExceedLatencyThreshold(stats, lastStats.([]string), index, index+3, p.milliSecondsLatencyThreshold)
@@ -284,13 +297,30 @@ func (p *diskStatCollector) latencyEventAlert(pvName string, pvcName string, pvc
 				UID:       "",
 				Namespace: pvcNamespace,
 			}
-			reason := fmt.Sprintf("Pvc %s latency load is too high, namespace: %s, latency:%.2f ms, threshold:%.2f ms", pvcName, pvcNamespace, thisLatency, p.milliSecondsLatencyThreshold)
+			reason := fmt.Sprintf("Pvc %s latency load is too high, nodeName: %s, namespace: %s, latency:%.2f ms, threshold:%.2f ms", nodeName, pvcName, pvcNamespace, thisLatency, p.milliSecondsLatencyThreshold)
 			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, latencyTooHigh, reason)
 		}
 	}
 }
 
-func (p *diskStatCollector) capacityEventAlert(valueFloat64 float64, pvcName string, pvcNamespace string, stats []string) {
+func (p *diskStatCollector) ioHangEventAlert(nodeName string, devName string, pvName string, pvcName string, pvcNamespace string, stats []string) {
+	lastStats, ok := p.lastPvStatsMap.Load(pvName)
+	if ok {
+		isHang := isIOHang(stats, lastStats.([]string))
+		if isHang {
+			ref := &v1.ObjectReference{
+				Kind:      "Volume",
+				Name:      pvcName,
+				UID:       "",
+				Namespace: pvcNamespace,
+			}
+			reason := fmt.Sprintf("IO Hang on Persistent Volume %s, nodeName:%s, diskID:%s, Device:%s", nodeName, pvName, p.lastPvStorageInfoMap[pvName].DiskID, devName)
+			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, ioHang, reason)
+		}
+	}
+}
+
+func (p *diskStatCollector) capacityEventAlert(nodeName string, valueFloat64 float64, pvcName string, pvcNamespace string, stats []string) {
 	if p.alertSwtichSet.Contains(capacitySwitch) {
 		capacityTotalFloat64, err := strconv.ParseFloat(stats[10], 64)
 		if err != nil {
@@ -309,13 +339,13 @@ func (p *diskStatCollector) capacityEventAlert(valueFloat64 float64, pvcName str
 				UID:       "",
 				Namespace: pvcNamespace,
 			}
-			reason := fmt.Sprintf("Pvc %s is not enough disk space, namespace: %s, usedPercentage:%.2f%%, threshold:%.2f%%", pvcName, pvcNamespace, usedPercentage, p.capacityPercentageThreshold)
+			reason := fmt.Sprintf("Pvc %s is not enough disk space, nodeName:%s, namespace: %s, usedPercentage:%.2f%%, threshold:%.2f%%", nodeName, pvcName, pvcNamespace, usedPercentage, p.capacityPercentageThreshold)
 			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, capacityNotEnough, reason)
 		}
 	}
 }
 
-func (p *diskStatCollector) setDiskMetric(devName string, pvName string, pvcNamespace string, pvcName string, stats []string, ch chan<- prometheus.Metric) {
+func (p *diskStatCollector) setDiskMetric(nodeName string, devName string, pvName string, pvcNamespace string, pvcName string, stats []string, ch chan<- prometheus.Metric) {
 	defer p.lastPvStatsMap.Store(pvName, stats)
 	for i, value := range stats {
 		if i >= len(p.descs) {
@@ -328,15 +358,19 @@ func (p *diskStatCollector) setDiskMetric(devName string, pvName string, pvcName
 			continue
 		}
 		if i == 3 { //3：diskReadTimeMilliSecondsDesc
-			p.latencyEventAlert(pvName, pvcName, pvcNamespace, stats, 0)
+			p.latencyEventAlert(nodeName, pvName, pvcName, pvcNamespace, stats, 0)
 		}
 
 		if i == 7 { //7：diskWriteTimeMilliSecondsDesc
-			p.latencyEventAlert(pvName, pvcName, pvcNamespace, stats, 4)
+			p.latencyEventAlert(nodeName, pvName, pvcName, pvcNamespace, stats, 4)
+		}
+
+		if i == 9 { //9: ioTimeSecondsDesc
+			p.ioHangEventAlert(nodeName, devName, pvName, pvcName, pvcNamespace, stats)
 		}
 
 		if i == 11 { //11：diskCapacityUsedDesc
-			p.capacityEventAlert(valueFloat64, pvcName, pvcNamespace, stats)
+			p.capacityEventAlert(nodeName, valueFloat64, pvcName, pvcNamespace, stats)
 		}
 		ch <- p.descs[i].mustNewConstMetric(valueFloat64, pvcNamespace, pvcName, devName, diskStorageName)
 	}

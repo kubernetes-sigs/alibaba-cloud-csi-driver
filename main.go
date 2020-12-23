@@ -246,14 +246,14 @@ func main() {
 	}
 
 	metricConfig := &globalMetricConfig{
-		false,
+		true,
 		"plugin",
 	}
 
 	enableMetric := os.Getenv("ENABLE_METRIC")
-	if enableMetric == "true" {
+	if enableMetric == "false" {
 		setPrometheusVersion()
-		metricConfig.enableMetric = true
+		metricConfig.enableMetric = false
 		metricConfig.serviceType = serviceType
 	}
 

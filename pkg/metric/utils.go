@@ -39,16 +39,16 @@ func procFilePath(name string) string {
 	return filepath.Join(procPath, name)
 }
 
-func getVolumeInfoByJSON(volDataJSONPath string, volType string) (string, string, error) {
+func getVolumeInfoByJSON(volDataJSONPath string, volType string) (string, string, string, error) {
 	volDataMap, err := utils.ReadJSONFile(volDataJSONPath)
 	if err != nil {
 		log.Errorf("Read json path %s is failed, err:%s", volDataJSONPath, err)
-		return "", "", err
+		return "", "", "", err
 	}
 	if volDataMap["driverName"] == volType {
-		return volDataMap["specVolID"], volDataMap["volumeHandle"], nil
+		return volDataMap["specVolID"], volDataMap["volumeHandle"], volDataMap["nodeName"], nil
 	}
-	return "", "", errors.New("VolumeType is not the expected type")
+	return "", "", "", errors.New("VolumeType is not the expected type")
 }
 
 func findVolJSONByDisk(rootDir string) ([]string, error) {
