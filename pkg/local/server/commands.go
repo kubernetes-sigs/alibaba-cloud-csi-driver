@@ -393,13 +393,9 @@ func str2ASCII(origin string) string {
 }
 
 // SetProjectID2PVSubpath ...
-func SetProjectID2PVSubpath(namespace, subPath, rootPath string, run utils.CommandRunFunc) (string, error) {
+func SetProjectID2PVSubpath(subPath, fullPath string, run utils.CommandRunFunc) (string, error) {
 	projectID := ConvertString2int(subPath)
-	quotaSubpath := fmt.Sprintf(ProjQuotaPrefix, namespace, subPath)
-	if rootPath != "" {
-		quotaSubpath = filepath.Join(rootPath, subPath)
-	}
-	args := []string{NsenterCmd, "chattr", "+P -p", fmt.Sprintf("%s %s", projectID, quotaSubpath)}
+	args := []string{NsenterCmd, "chattr", "+P -p", fmt.Sprintf("%s %s", projectID, fullPath)}
 	cmd := strings.Join(args, " ")
 	_, err := run(cmd)
 	if err != nil {
@@ -471,19 +467,23 @@ func SelectNamespace(ctx context.Context, quotaSize string) (string, error) {
 
 // CreateProjQuotaSubpath ...
 func CreateProjQuotaSubpath(ctx context.Context, subPath, quotaSize, rootPath string) (string, string, string, error) {
-	selectedNamespace, err := SelectNamespace(ctx, quotaSize)
-	if err != nil {
-		return "", "", "", err
-	}
-	fullPath := fmt.Sprintf(ProjQuotaPrefix, selectedNamespace, subPath)
-	if rootPath != "" {
+	var fullPath string
+	var err error
+	if len(rootPath) == 0 {
+		selectedNamespace, err := SelectNamespace(ctx, quotaSize)
+		if err != nil {
+			return "", "", "", err
+		}
+		fullPath = fmt.Sprintf(ProjQuotaPrefix, selectedNamespace, subPath)
+	} else {
 		fullPath = filepath.Join(rootPath, subPath)
 	}
+
 	err = manager.EnsureFolder(fullPath)
 	if err != nil {
 		return "", "", "", err
 	}
-	projectID, err := SetProjectID2PVSubpath(selectedNamespace, subPath, rootPath, utils.Run)
+	projectID, err := SetProjectID2PVSubpath(subPath, fullPath, utils.Run)
 	if err != nil {
 		return "", "", "", err
 	}
