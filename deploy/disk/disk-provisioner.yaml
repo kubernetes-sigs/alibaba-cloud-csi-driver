@@ -1,13 +1,13 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: csi-disk-provisioner
+  name: csi-provisioner
   namespace: kube-system
   labels:
-    app: csi-disk-provisioner
+    app: csi-provisioner
 spec:
   selector:
-    app: csi-disk-provisioner
+    app: csi-provisioner
   ports:
     - name: dummy
       port: 12345
@@ -21,7 +21,7 @@ spec:
   selector:
     matchLabels:
       app: csi-provisioner
-  replicas: 2
+  replicas: 1
   template:
     metadata:
       labels:
@@ -127,6 +127,10 @@ spec:
               value: unix://var/lib/kubelet/csi-provisioner/driverplugin.csi.alibabacloud.com-replace/csi.sock
             - name: MAX_VOLUMES_PERNODE
               value: "15"
+            - name: ACCESS_KEY_ID
+              value: ""
+            - name: ACCESS_KEY_SECRET
+              value: ""
             - name: SERVICE_TYPE
               value: "provisioner"
           livenessProbe:
@@ -152,9 +156,6 @@ spec:
               mountPath: /host/etc
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
-            - mountPath: /var/addon
-              name: addon-token
-              readOnly: true
           resources:
             limits:
               cpu: 1000m
@@ -171,13 +172,6 @@ spec:
         - name: host-dev
           hostPath:
             path: /dev
-        - name: addon-token
-          secret:
-            defaultMode: 420
-            items:
-            - key: addon.token.config
-              path: token-config
-            secretName: addon.csi.token
         - name: etc
           hostPath:
             path: /etc

@@ -100,7 +100,6 @@ type storageInfo struct {
 	PvcName         string
 	DiskID          string
 	DeviceName      string
-	NodeName        string
 	VolDataPath     string
 	GlobalMountPath string
 }
@@ -126,7 +125,7 @@ func updateMap(clientSet *kubernetes.Clientset, lastPvStorageInfoMap *map[string
 	}
 	for _, path := range jsonPaths {
 		//Get disk pvName
-		pvName, diskID, nodeName, err := getVolumeInfoByJSON(path, deriverName)
+		pvName, diskID, err := getVolumeInfoByJSON(path, deriverName)
 		if err != nil {
 			logrus.Errorf("Get volume info by path %s is failed, err:%s", path, err)
 			continue
@@ -145,7 +144,6 @@ func updateMap(clientSet *kubernetes.Clientset, lastPvStorageInfoMap *map[string
 			DiskID:      diskID,
 			DeviceName:  deviceName,
 			VolDataPath: path,
-			NodeName:    nodeName,
 		}
 		thisPvStorageInfoMap[pvName] = strorageInfo
 	}
