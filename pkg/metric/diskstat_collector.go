@@ -144,6 +144,7 @@ type diskStatCollector struct {
 	lastPvStatsMap               sync.Map
 	clientSet                    *kubernetes.Clientset
 	recorder                     record.EventRecorder
+	nodeName                     string
 }
 
 func init() {
@@ -182,6 +183,7 @@ func NewDiskStatCollector() (Collector, error) {
 		return nil, err
 	}
 
+	nodeName := os.Getenv("KUBE_NODE_NAME")
 	return &diskStatCollector{
 		descs: []typedFactorDesc{
 			//4 - reads completed successfully
@@ -224,6 +226,7 @@ func NewDiskStatCollector() (Collector, error) {
 		capacityPercentageThreshold:  capacityPercentageThreshold,
 		alertSwtichSet:               alertSet,
 		recorder:                     recorder,
+		nodeName:                     nodeName,
 	}, nil
 }
 
@@ -292,6 +295,7 @@ func isIOHang(stats []string, lastStats []string) bool {
 }
 
 func (p *diskStatCollector) latencyEventAlert(pvName string, pvcName string, pvcNamespace string, stats []string, index int) {
+
 	lastStats, ok := p.lastPvStatsMap.Load(pvName)
 	if p.alertSwtichSet.Contains(latencySwitch) && ok {
 		thisLatency, exceed := isExceedLatencyThreshold(stats, lastStats.([]string), index, index+3, p.milliSecondsLatencyThreshold)
@@ -302,7 +306,7 @@ func (p *diskStatCollector) latencyEventAlert(pvName string, pvcName string, pvc
 				UID:       "",
 				Namespace: pvcNamespace,
 			}
-			reason := fmt.Sprintf("Pvc %s latency load is too high, namespace: %s, latency:%.2f ms, threshold:%.2f ms", pvcName, pvcNamespace, thisLatency, p.milliSecondsLatencyThreshold)
+			reason := fmt.Sprintf("Pvc %s latency load is too high, nodeName: %s, namespace: %s, latency:%.2f ms, threshold:%.2f ms", pvcName, p.nodeName, pvcNamespace, thisLatency, p.milliSecondsLatencyThreshold)
 			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, latencyTooHigh, reason)
 		}
 	}
@@ -319,7 +323,7 @@ func (p *diskStatCollector) ioHangEventAlert(devName string, pvName string, pvcN
 				UID:       "",
 				Namespace: pvcNamespace,
 			}
-			reason := fmt.Sprintf("IO Hang on Persistent Volume %s, diskID:%s, Device:%s", pvName, p.lastPvStorageInfoMap[pvName].DiskID, devName)
+			reason := fmt.Sprintf("IO Hang on Persistent Volume %s, nodeName:%s, diskID:%s, Device:%s", pvName, p.nodeName, p.lastPvStorageInfoMap[pvName].DiskID, devName)
 			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, ioHang, reason)
 		}
 	}
@@ -344,7 +348,7 @@ func (p *diskStatCollector) capacityEventAlert(valueFloat64 float64, pvcName str
 				UID:       "",
 				Namespace: pvcNamespace,
 			}
-			reason := fmt.Sprintf("Pvc %s is not enough disk space, namespace: %s, usedPercentage:%.2f%%, threshold:%.2f%%", pvcName, pvcNamespace, usedPercentage, p.capacityPercentageThreshold)
+			reason := fmt.Sprintf("Pvc %s is not enough disk space, nodeName:%s, namespace: %s, usedPercentage:%.2f%%, threshold:%.2f%%", pvcName, p.nodeName, pvcNamespace, usedPercentage, p.capacityPercentageThreshold)
 			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, capacityNotEnough, reason)
 		}
 	}
