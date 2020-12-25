@@ -568,7 +568,7 @@ fi
 ## Delete old plugin
 # kubectl delete deployment csi-provisioner -nkube-system
 
-if [ "$masterCount" -eq "0" ]; then
+if [ "$masterCount" -eq "0" ] && [ "$secretCount" -eq "1" ]; then
   cat .aliyun-csi-provisioner-managed.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl apply -f -
 else
   cat .aliyun-csi-provisioner-dedicate.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl apply -f -
