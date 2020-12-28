@@ -127,7 +127,9 @@ func updateMap(clientSet *kubernetes.Clientset, lastPvStorageInfoMap *map[string
 		//Get disk pvName
 		pvName, diskID, err := getVolumeInfoByJSON(path, deriverName)
 		if err != nil {
-			logrus.Errorf("Get volume info by path %s is failed, err:%s", path, err)
+			if err.Error() != "VolumeType is not the expected type" {
+				logrus.Errorf("Get volume info by path %s is failed, err:%s", path, err)
+			}
 			continue
 		}
 
