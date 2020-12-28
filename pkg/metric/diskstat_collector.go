@@ -272,7 +272,6 @@ func isExceedLatencyThreshold(stats []string, lastStats []string, iopsIndex int,
 	incrementLatency := thisLatency - lastLatency
 	incrementIOPS := thisIOPS - lastIOPS
 	if almostEqualFloat64(incrementIOPS, 0) {
-		logrus.Errorf("Convert incrementIOPS %f to int is failed, err:number is zero", incrementIOPS)
 		return 0, false
 	}
 	if (incrementLatency / incrementIOPS) > threshold {
@@ -337,7 +336,6 @@ func (p *diskStatCollector) capacityEventAlert(valueFloat64 float64, pvcName str
 			return
 		}
 		if almostEqualFloat64(capacityTotalFloat64, 0) {
-			logrus.Errorf("Equal capacityTotalFloat64 %s and zero is true", stats[10])
 			return
 		}
 		usedPercentage := (valueFloat64 / capacityTotalFloat64) * 100
