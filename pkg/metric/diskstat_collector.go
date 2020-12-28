@@ -272,7 +272,6 @@ func isExceedLatencyThreshold(stats []string, lastStats []string, iopsIndex int,
 	incrementLatency := thisLatency - lastLatency
 	incrementIOPS := thisIOPS - lastIOPS
 	if almostEqualFloat64(incrementIOPS, 0) {
-		logrus.Errorf("Convert incrementIOPS %f to int is failed, err:number is zero", incrementIOPS)
 		return 0, false
 	}
 	if (incrementLatency / incrementIOPS) > threshold {
@@ -301,7 +300,7 @@ func (p *diskStatCollector) latencyEventAlert(pvName string, pvcName string, pvc
 		thisLatency, exceed := isExceedLatencyThreshold(stats, lastStats.([]string), index, index+3, p.milliSecondsLatencyThreshold)
 		if exceed {
 			ref := &v1.ObjectReference{
-				Kind:      "Volume",
+				Kind:      "PersistentVolumeClaim",
 				Name:      pvcName,
 				UID:       "",
 				Namespace: pvcNamespace,
@@ -318,7 +317,7 @@ func (p *diskStatCollector) ioHangEventAlert(devName string, pvName string, pvcN
 		isHang := isIOHang(stats, lastStats.([]string))
 		if isHang {
 			ref := &v1.ObjectReference{
-				Kind:      "Volume",
+				Kind:      "PersistentVolumeClaim",
 				Name:      pvcName,
 				UID:       "",
 				Namespace: pvcNamespace,
@@ -331,19 +330,18 @@ func (p *diskStatCollector) ioHangEventAlert(devName string, pvName string, pvcN
 
 func (p *diskStatCollector) capacityEventAlert(valueFloat64 float64, pvcName string, pvcNamespace string, stats []string) {
 	if p.alertSwtichSet.Contains(capacitySwitch) {
-		capacityTotalFloat64, err := strconv.ParseFloat(stats[10], 64)
+		capacityTotalFloat64, err := strconv.ParseFloat(stats[11], 64)
 		if err != nil {
 			logrus.Errorf("Convert diskCapacityTotalDesc %s to float64 is failed, err:%s", stats[10], err)
 			return
 		}
 		if almostEqualFloat64(capacityTotalFloat64, 0) {
-			logrus.Errorf("Equal capacityTotalFloat64 %s and zero is true", stats[10])
 			return
 		}
 		usedPercentage := (valueFloat64 / capacityTotalFloat64) * 100
 		if usedPercentage >= p.capacityPercentageThreshold {
 			ref := &v1.ObjectReference{
-				Kind:      "Volume",
+				Kind:      "PersistentVolumeClaim",
 				Name:      pvcName,
 				UID:       "",
 				Namespace: pvcNamespace,
