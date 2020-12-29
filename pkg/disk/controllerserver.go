@@ -267,7 +267,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	var volumeResponse *ecs.CreateDiskResponse
 	var createdDiskType string
 	allTypes := deleteEmpty(strings.Split(diskVol.Type, ","))
-	log.Infof("CreateVolume: all types: %+v, len: %v", allTypes, len(allTypes))
+	log.Infof("CreateVolume: all disk types: %+v, len: %v", allTypes, len(allTypes))
 	for _, dType := range allTypes {
 		if dType == "" {
 			continue
@@ -282,6 +282,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			createdDiskType = dType
 			break
 		} else if strings.Contains(err.Error(), DiskNotAvailable) {
+			log.Infof("CreateVolume: Create Disk with diskCatalog: %s is not supported in zone: %s", createDiskRequest.DiskCategory, createDiskRequest.ZoneId)
 			continue
 		} else {
 			log.Errorf("CreateVolume: create type: %s disk err: %v", dType, err)
