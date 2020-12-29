@@ -198,10 +198,10 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 
 		if len(devicePaths) == 2 {
 			if strings.TrimSpace(devicePaths[1]) == strings.TrimSpace(devicePaths[0])+"1" {
-				log.Info("AttachDisk: get 2 devices and select 1 device, list with: %v for volume: %s", devicePaths, diskID)
+				log.Infof("AttachDisk: get 2 devices and select 1 device, list with: %v for volume: %s", devicePaths, diskID)
 				return devicePaths[1], nil
 			} else if strings.TrimSpace(devicePaths[0]) == strings.TrimSpace(devicePaths[1])+"1" {
-				log.Info("AttachDisk: get 2 devices and select 0 device, list with: %v for volume: %s", devicePaths, diskID)
+				log.Infof("AttachDisk: get 2 devices and select 0 device, list with: %v for volume: %s", devicePaths, diskID)
 				return devicePaths[0], nil
 			}
 		}
