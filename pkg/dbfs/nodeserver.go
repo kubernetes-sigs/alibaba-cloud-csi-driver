@@ -257,8 +257,13 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	if utils.IsFileExisting(req.StagingTargetPath) {
 		notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(req.StagingTargetPath)
 		if err != nil {
-			log.Errorf("NodeUnstageVolume: VolumeId: %s, check mountPoint: %s with error: %v", req.VolumeId, req.StagingTargetPath, err)
-			return nil, status.Error(codes.Internal, err.Error())
+			if strings.Contains(err.Error(), "transport endpoint is not connected") {
+				log.Warnf("NodeUnstageVolume: target path %s is corrupted, try unmount, error: %s", req.StagingTargetPath, err.Error())
+				notmounted = false
+			} else {
+				log.Errorf("NodeUnstageVolume: VolumeId: %s, check mountPoint: %s with error: %v", req.VolumeId, req.StagingTargetPath, err)
+				return nil, status.Error(codes.Internal, err.Error())
+			}
 		}
 		if !notmounted {
 			err = ns.k8smounter.Unmount(req.StagingTargetPath)
