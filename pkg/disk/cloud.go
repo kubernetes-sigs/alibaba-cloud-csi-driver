@@ -97,13 +97,11 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 				}
 				deviceName := GetVolumeDeviceName(diskID)
 				if deviceName != "" && IsFileExisting(deviceName) {
-					// TODO:
 					if used, err := IsDeviceUsedOthers(deviceName, diskID); err == nil && used == false {
 						log.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
 						return deviceName, nil
 					}
 				}
-				// TODO: use uuid get devicepath
 			}
 
 			if GlobalConfigVar.DiskBdfEnable {
@@ -170,10 +168,9 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 	if !GlobalConfigVar.ADControllerEnable {
 		deviceName, _ := GetDeviceByVolumeID(diskID)
 		if deviceName != "" {
-			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device mapping/uuid", diskID, nodeID, deviceName)
+			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device", diskID, nodeID, deviceName)
 			return deviceName, nil
 		}
-		// TODO: use uuid get devicepath
 		after := getDevices()
 		devicePaths := calcNewDevices(before, after)
 
@@ -200,9 +197,11 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 		}
 
 		if len(devicePaths) == 2 {
-			if strings.HasPrefix(devicePaths[1], devicePaths[0]) {
+			if strings.TrimSpace(devicePaths[1]) == strings.TrimSpace(devicePaths[0])+"1" {
+				log.Infof("AttachDisk: get 2 devices and select 1 device, list with: %v for volume: %s", devicePaths, diskID)
 				return devicePaths[1], nil
-			} else if strings.HasPrefix(devicePaths[0], devicePaths[1]) {
+			} else if strings.TrimSpace(devicePaths[0]) == strings.TrimSpace(devicePaths[1])+"1" {
+				log.Infof("AttachDisk: get 2 devices and select 0 device, list with: %v for volume: %s", devicePaths, diskID)
 				return devicePaths[0], nil
 			}
 		}
