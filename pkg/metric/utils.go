@@ -24,7 +24,7 @@ import (
 var vfOnce = new(sync.Once)
 var isVF = false
 
-func getPvcByPvName(clientSet *kubernetes.Clientset, pvName string) (string, string, error) {
+func getPvcByPvNameByDisk(clientSet *kubernetes.Clientset, pvName string) (string, string, error) {
 	pv, err := clientSet.CoreV1().PersistentVolumes().Get(context.Background(), pvName, apismetav1.GetOptions{})
 	if err != nil {
 		return "", "", err
@@ -33,6 +33,21 @@ func getPvcByPvName(clientSet *kubernetes.Clientset, pvName string) (string, str
 		return pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, nil
 	}
 	return "", "", errors.New("pvName:" + pv.Name + " status is not bound.")
+}
+
+func getPvcByPvNameByNas(clientSet *kubernetes.Clientset, pvName string) (string, string, string, error) {
+	pv, err := clientSet.CoreV1().PersistentVolumes().Get(context.Background(), pvName, apismetav1.GetOptions{})
+	if err != nil {
+		return "", "", "", err
+	}
+	if pv.Spec.CSI != nil {
+		if val, ok := pv.Spec.CSI.VolumeAttributes["server"];ok {
+			if pv.Status.Phase == apicorev1.VolumeBound {
+				return pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, val, nil
+			}
+		}
+	}
+	return "", "", "", errors.New("pvName:" + pv.Name + " status is not bound.")
 }
 
 func procFilePath(name string) string {

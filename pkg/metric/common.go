@@ -47,11 +47,13 @@ const (
 
 const (
 	diskStatsFileName = "diskstats"
+	nfsStatsFileName = "/proc/self/mountstats"
 )
 
 const (
 	latencyTooHigh    = "LatencyTooHigh"
 	capacityNotEnough = "NotEnoughDiskSpace"
+	ioHang            = "IOHang"
 )
 
 var (

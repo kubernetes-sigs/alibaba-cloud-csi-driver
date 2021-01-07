@@ -82,6 +82,12 @@ var (
 		diskStatLabelNames,
 		nil,
 	)
+	//13 - time spent doing I/Os (ms)
+	diskIOTimeSecondsDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "io_time_seconds_total"),
+		"Total seconds spent doing I/Os.",
+		diskStatLabelNames, nil,
+	)
 	//13 - capacity available
 	diskCapacityAvailableDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "capacity_bytes_available"),
@@ -147,6 +153,7 @@ type diskStatCollector struct {
 	lastPvStatsMap               sync.Map
 	clientSet                    *kubernetes.Clientset
 	recorder                     record.EventRecorder
+	nodeName                     string
 }
 
 func init() {
@@ -174,10 +181,7 @@ func parseDiskThreshold(defaultLatencyThreshold float64, defaultCapacityPercenta
 // NewDiskStatCollector returns a new Collector exposing disk stats.
 func NewDiskStatCollector() (Collector, error) {
 	alertSet, latencyThreshold, capacityPercentageThreshold := parseDiskThreshold(diskDefaultsLantencyThreshold, diskDefaultsCapacityPercentageThreshold)
-	var recorder record.EventRecorder
-	if !alertSet.Empty() {
-		recorder = utils.NewEventRecorder()
-	}
+	recorder := utils.NewEventRecorder()
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return nil, err
@@ -188,6 +192,7 @@ func NewDiskStatCollector() (Collector, error) {
 		return nil, err
 	}
 
+	nodeName := os.Getenv("KUBE_NODE_NAME")
 	return &diskStatCollector{
 		descs: []typedFactorDesc{
 			//4 - reads completed successfully
@@ -208,17 +213,19 @@ func NewDiskStatCollector() (Collector, error) {
 			{desc: diskWriteTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
 			//12 - I/Os currently in progress
 			{desc: diskIONowDesc, valueType: prometheus.GaugeValue},
-			//13 - capacity available
+			//13 - time spent doing I/Os (ms)
+			{desc: diskIOTimeSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
+			//14 - capacity available
 			{desc: diskCapacityAvailableDesc, valueType: prometheus.CounterValue},
-			//14 - capacity total
+			//15 - capacity total
 			{desc: diskCapacityTotalDesc, valueType: prometheus.CounterValue},
-			//15 - capacity used
+			//16 - capacity used
 			{desc: diskCapacityUsedDesc, valueType: prometheus.CounterValue},
-			//16 - inode available
+			//17 - inode available
 			{desc: diskInodesAvailableDesc, valueType: prometheus.CounterValue},
-			//17 - inode total
+			//18 - inode total
 			{desc: diskInodesTotalDesc, valueType: prometheus.CounterValue},
-			//18 - inode used
+			//19 - inode used
 			{desc: diskInodesUsedDesc, valueType: prometheus.CounterValue},
 		},
 		lastPvDiskInfoMap:            make(map[string]diskInfo, 0),
@@ -228,6 +235,7 @@ func NewDiskStatCollector() (Collector, error) {
 		capacityPercentageThreshold:  capacityPercentageThreshold,
 		alertSwtichSet:               alertSet,
 		recorder:                     recorder,
+		nodeName:                     nodeName,
 	}, nil
 }
 
@@ -250,7 +258,7 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 			if info.DeviceName != deviceName {
 				continue
 			}
-			stats, _ := getCapacityMetric(pvName, &info, stats)
+			stats, _ := getDiskCapacityMetric(pvName, &info, stats)
 
 			wg.Add(1)
 			go func(deviceNameArgs string, pvNameArgs string, pvcNamespaceArgs string, pvcNameArgs string, statsArgs []string) {
@@ -273,7 +281,6 @@ func isExceedLatencyThreshold(stats []string, lastStats []string, iopsIndex int,
 	incrementLatency := thisLatency - lastLatency
 	incrementIOPS := thisIOPS - lastIOPS
 	if almostEqualFloat64(incrementIOPS, 0) {
-		logrus.Errorf("Convert incrementIOPS %f to int is failed, err:number is zero", incrementIOPS)
 		return 0, false
 	}
 	if (incrementLatency / incrementIOPS) > threshold {
@@ -282,43 +289,73 @@ func isExceedLatencyThreshold(stats []string, lastStats []string, iopsIndex int,
 	return incrementLatency / incrementIOPS, false
 }
 
+func isIOHang(stats []string, lastStats []string) bool {
+	if len(stats) < 10 || len(lastStats) < 10 {
+		logrus.Errorf("stats and last stats array length is less than 10")
+		return false
+	}
+	if (stats[0] == lastStats[0]) &&
+		(stats[4] == lastStats[4]) &&
+		(stats[9] != lastStats[9]) {
+		return true
+	}
+	return false
+}
+
 func (p *diskStatCollector) latencyEventAlert(pvName string, pvcName string, pvcNamespace string, stats []string, index int) {
+
 	lastStats, ok := p.lastPvStatsMap.Load(pvName)
 	if p.alertSwtichSet.Contains(latencySwitch) && ok {
 		thisLatency, exceed := isExceedLatencyThreshold(stats, lastStats.([]string), index, index+3, p.milliSecondsLatencyThreshold)
 		if exceed {
 			ref := &v1.ObjectReference{
-				Kind:      "Volume",
+				Kind:      "PersistentVolumeClaim",
 				Name:      pvcName,
 				UID:       "",
 				Namespace: pvcNamespace,
 			}
-			reason := fmt.Sprintf("Pvc %s latency load is too high, namespace: %s, latency:%.2f ms, threshold:%.2f ms", pvcName, pvcNamespace, thisLatency, p.milliSecondsLatencyThreshold)
+			reason := fmt.Sprintf("Pvc %s latency load is too high, nodeName: %s, namespace: %s, latency:%.2f ms, threshold:%.2f ms", pvcName, p.nodeName, pvcNamespace, thisLatency, p.milliSecondsLatencyThreshold)
 			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, latencyTooHigh, reason)
+		}
+	}
+}
+
+func (p *diskStatCollector) ioHangEventAlert(devName string, pvName string, pvcName string, pvcNamespace string, stats []string) {
+	lastStats, ok := p.lastPvStatsMap.Load(pvName)
+	if ok {
+		isHang := isIOHang(stats, lastStats.([]string))
+		if isHang {
+			ref := &v1.ObjectReference{
+				Kind:      "PersistentVolumeClaim",
+				Name:      pvcName,
+				UID:       "",
+				Namespace: pvcNamespace,
+			}
+			reason := fmt.Sprintf("IO Hang on Persistent Volume %s, nodeName:%s, diskID:%s, Device:%s", pvName, p.nodeName, p.lastPvDiskInfoMap[pvName].DiskID, devName)
+			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, ioHang, reason)
 		}
 	}
 }
 
 func (p *diskStatCollector) capacityEventAlert(valueFloat64 float64, pvcName string, pvcNamespace string, stats []string) {
 	if p.alertSwtichSet.Contains(capacitySwitch) {
-		capacityTotalFloat64, err := strconv.ParseFloat(stats[10], 64)
+		capacityTotalFloat64, err := strconv.ParseFloat(stats[11], 64)
 		if err != nil {
 			logrus.Errorf("Convert diskCapacityTotalDesc %s to float64 is failed, err:%s", stats[10], err)
 			return
 		}
 		if almostEqualFloat64(capacityTotalFloat64, 0) {
-			logrus.Errorf("Equal capacityTotalFloat64 %s and zero is true", stats[10])
 			return
 		}
 		usedPercentage := (valueFloat64 / capacityTotalFloat64) * 100
 		if usedPercentage >= p.capacityPercentageThreshold {
 			ref := &v1.ObjectReference{
-				Kind:      "Volume",
+				Kind:      "PersistentVolumeClaim",
 				Name:      pvcName,
 				UID:       "",
 				Namespace: pvcNamespace,
 			}
-			reason := fmt.Sprintf("Pvc %s is not enough disk space, namespace: %s, usedPercentage:%.2f%%, threshold:%.2f%%", pvcName, pvcNamespace, usedPercentage, p.capacityPercentageThreshold)
+			reason := fmt.Sprintf("Pvc %s is not enough disk space, nodeName:%s, namespace: %s, usedPercentage:%.2f%%, threshold:%.2f%%", pvcName, p.nodeName, pvcNamespace, usedPercentage, p.capacityPercentageThreshold)
 			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, capacityNotEnough, reason)
 		}
 	}
@@ -344,9 +381,14 @@ func (p *diskStatCollector) setDiskMetric(devName string, pvName string, pvcName
 			p.latencyEventAlert(pvName, pvcName, pvcNamespace, stats, 4)
 		}
 
-		if i == 11 { //11：diskCapacityUsedDesc
+		if i == 9 { //9: ioTimeSecondsDesc
+			p.ioHangEventAlert(devName, pvName, pvcName, pvcNamespace, stats)
+		}
+
+		if i == 12 { //12：diskCapacityUsedDesc
 			p.capacityEventAlert(valueFloat64, pvcName, pvcNamespace, stats)
 		}
+
 		ch <- p.descs[i].mustNewConstMetric(valueFloat64, pvcNamespace, pvcName, devName, diskStorageName)
 	}
 
@@ -368,7 +410,9 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 		//Get disk pvName
 		pvName, diskID, err := getVolumeInfoByJSON(path, deriverName)
 		if err != nil {
-			logrus.Errorf("Get volume info by path %s is failed, err:%s", path, err)
+			if err.Error() != "VolumeType is not the expected type" {
+				logrus.Errorf("Get volume info by path %s is failed, err:%s", path, err)
+			}
 			continue
 		}
 
@@ -398,7 +442,7 @@ func (p *diskStatCollector) updateDiskInfoMap(thisPvDiskInfoMap map[string]diskI
 		lastInfo, ok := (*lastPvDiskInfoMap)[pv]
 		// add and modify
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
-			pvcNamespace, pvcName, err := getPvcByPvName(p.clientSet, pv)
+			pvcNamespace, pvcName, err := getPvcByPvNameByDisk(p.clientSet, pv)
 			if err != nil {
 				logrus.Errorf("Get pvc by pv %s is failed, err:%s", pv, err.Error())
 				continue
@@ -438,7 +482,7 @@ func getGlobalMountPathByPvName(pvName string, info *diskInfo) {
 	info.GlobalMountPath = fmt.Sprintf("/var/lib/kubelet/plugins/kubernetes.io/csi/pv/%s/globalmount", pvName)
 }
 
-func getCapacityMetric(pvName string, info *diskInfo, stat []string) ([]string, error) {
+func getDiskCapacityMetric(pvName string, info *diskInfo, stat []string) ([]string, error) {
 	getGlobalMountPathByPvName(pvName, info)
 	response, err := utils.GetMetrics(info.GlobalMountPath)
 	if err != nil {
@@ -465,7 +509,7 @@ func parseDiskStats(r io.Reader) (map[string][]string, error) {
 			return nil, fmt.Errorf("Invalid line in %s: %s", procFilePath(diskStatsFileName), scanner.Text())
 		}
 		dev := "/dev/" + parts[2]
-		diskStats[dev] = parts[3:12]
+		diskStats[dev] = parts[3:13]
 	}
 
 	return diskStats, scanner.Err()
