@@ -31,8 +31,7 @@ CGO_ENABLED=0 go build csiplugin-connector.go
 
 if [ "$1" == "" ]; then
   mv ${GOPATH}/src/github.com/$REPO_NAME/alibaba-cloud-csi-driver/plugin.csi.alibabacloud.com ./
-  docker build -t=registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:$VERSION-$GIT_HASH ./
+  docker build -t=registry.cn-beijing.aliyuncs.com/acs1/csi-plugin:$VERSION-$GIT_HASH ./
   rm -rf csiplugin-connector.go csiplugin-connector.service csiplugin-connector plugin.csi.alibabacloud.com ossfs_1.80.6_centos7.0_x86_64.rpm nsenter
-  docker push registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:$VERSION-$GIT_HASH
+  docker push registry.cn-beijing.aliyuncs.com/acs1/csi-plugin:$VERSION-$GIT_HASH
 fi
-

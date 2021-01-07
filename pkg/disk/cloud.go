@@ -18,13 +18,11 @@ package disk
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -99,13 +97,11 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 				}
 				deviceName := GetVolumeDeviceName(diskID)
 				if deviceName != "" && IsFileExisting(deviceName) {
-					// TODO:
 					if used, err := IsDeviceUsedOthers(deviceName, diskID); err == nil && used == false {
 						log.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
 						return deviceName, nil
 					}
 				}
-				// TODO: use uuid get devicepath
 			}
 
 			if GlobalConfigVar.DiskBdfEnable {
@@ -172,10 +168,9 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 	if !GlobalConfigVar.ADControllerEnable {
 		deviceName, _ := GetDeviceByVolumeID(diskID)
 		if deviceName != "" {
-			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device mapping/uuid", diskID, nodeID, deviceName)
+			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device", diskID, nodeID, deviceName)
 			return deviceName, nil
 		}
-		// TODO: use uuid get devicepath
 		after := getDevices()
 		devicePaths := calcNewDevices(before, after)
 
@@ -202,9 +197,11 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 		}
 
 		if len(devicePaths) == 2 {
-			if strings.HasPrefix(devicePaths[1], devicePaths[0]) {
+			if strings.TrimSpace(devicePaths[1]) == strings.TrimSpace(devicePaths[0])+"1" {
+				log.Infof("AttachDisk: get 2 devices and select 1 device, list with: %v for volume: %s", devicePaths, diskID)
 				return devicePaths[1], nil
-			} else if strings.HasPrefix(devicePaths[0], devicePaths[1]) {
+			} else if strings.TrimSpace(devicePaths[0]) == strings.TrimSpace(devicePaths[1])+"1" {
+				log.Infof("AttachDisk: get 2 devices and select 0 device, list with: %v for volume: %s", devicePaths, diskID)
 				return devicePaths[0], nil
 			}
 		}
@@ -482,7 +479,7 @@ func findDiskByID(diskID string) (*ecs.Disk, error) {
 	return &disks[0], err
 }
 
-func findSnapshotByName(name string) (*diskSnapshot, int, error) {
+func findSnapshotByName(name string) (*ecs.DescribeSnapshotsResponse, int, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
 	describeSnapShotRequest.SnapshotName = name
@@ -491,35 +488,16 @@ func findSnapshotByName(name string) (*diskSnapshot, int, error) {
 		return nil, 0, err
 	}
 	if len(snapshots.Snapshots.Snapshot) == 0 {
-		return nil, 0, nil
-	}
-	existSnapshot := snapshots.Snapshots.Snapshot[0]
-	t, err := time.Parse(time.RFC3339, existSnapshot.CreationTime)
-	if err != nil {
-		return nil, 0, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", existSnapshot.CreationTime)
-	}
-	sizeGb, _ := strconv.ParseInt(existSnapshot.SourceDiskSize, 10, 64)
-	sizeBytes := sizeGb * 1024 * 1024
-	readyToUse := false
-	if existSnapshot.Status == "accomplished" {
-		readyToUse = true
+		return snapshots, 0, nil
 	}
 
-	resSnapshot := &diskSnapshot{
-		Name:         name,
-		ID:           existSnapshot.SnapshotId,
-		VolID:        existSnapshot.SourceDiskId,
-		CreationTime: &timestamp.Timestamp{Seconds: t.Unix()},
-		SizeBytes:    sizeBytes,
-		ReadyToUse:   readyToUse,
-	}
 	if len(snapshots.Snapshots.Snapshot) > 1 {
-		return resSnapshot, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with name "+name)
+		return snapshots, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with name "+name)
 	}
-	return resSnapshot, 1, nil
+	return snapshots, 1, nil
 }
 
-func findDiskSnapshotByID(id string) (*diskSnapshot, int, error) {
+func findDiskSnapshotByID(id string) (*ecs.DescribeSnapshotsResponse, int, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
 	describeSnapShotRequest.SnapshotIds = "[\"" + id + "\"]"
@@ -528,32 +506,11 @@ func findDiskSnapshotByID(id string) (*diskSnapshot, int, error) {
 		return nil, 0, err
 	}
 	if len(snapshots.Snapshots.Snapshot) == 0 {
-		return nil, 0, nil
+		return snapshots, 0, nil
 	}
 
-	existSnapshot := snapshots.Snapshots.Snapshot[0]
-	t, err := time.Parse(time.RFC3339, existSnapshot.CreationTime)
-	if err != nil {
-		return nil, 0, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", existSnapshot.CreationTime)
-	}
-	sizeGb, _ := strconv.ParseInt(existSnapshot.SourceDiskSize, 10, 64)
-	sizeBytes := sizeGb * 1024 * 1024
-	readyToUse := false
-	if existSnapshot.Status == "accomplished" {
-		readyToUse = true
-	}
-
-	resSnapshot := &diskSnapshot{
-		Name:         id,
-		ID:           existSnapshot.SnapshotId,
-		VolID:        existSnapshot.SourceDiskId,
-		CreationTime: &timestamp.Timestamp{Seconds: t.Unix()},
-		SizeBytes:    sizeBytes,
-		ReadyToUse:   readyToUse,
-		SnapshotTags: existSnapshot.Tags.Tag,
-	}
 	if len(snapshots.Snapshots.Snapshot) > 1 {
-		return resSnapshot, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with id "+id)
+		return snapshots, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with id "+id)
 	}
-	return resSnapshot, 1, nil
+	return snapshots, 1, nil
 }

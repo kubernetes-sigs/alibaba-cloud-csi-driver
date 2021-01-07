@@ -2,7 +2,7 @@
 
 ## Usage
 ## Append image tag which is expect.
-## sh upgrade_csi-plugin.sh v1.14.8.38-fe611ad1-aliyun
+## sh upgrade_csi-plugin.sh v1.16.9.43-f36bb540-aliyun
 
 
 if [ "$1" = "" ]; then
@@ -12,10 +12,11 @@ imageVersion=$1
 
 ## set secret mounts for managed cluster
 masterCount=`kubectl get node | grep master | grep -v grep | wc -l`
+secretCount=`kubectl get secret addon.csi.token -nkube-system | grep addon.csi.token | grep -v grep | wc -l`
 volumeDefineStr=""
 volumeMountStr=""
 
-if [ "$masterCount" -eq "0" ]; then
+if [ "$masterCount" -eq "0" ] && [ "$secretCount" -eq "1" ]; then
   volumeDefineStr="        - name: addon-token\n          secret:\n            defaultMode: 420\n            items:\n            - key: addon.token.config\n              path: token-config\n            secretName: addon.csi.token"
   volumeMountStr="            - mountPath: \/var\/addon\n              name: addon-token\n              readOnly: true"
 fi
@@ -404,12 +405,28 @@ if [[ $imageVersion != *aliyun ]]; then
     exit 0
 fi
 
+
+diskdriver=`kubectl get csidriver | grep diskplugin.csi.alibabacloud.com | awk '{print $2}'`
+nasdriver=`kubectl get csidriver | grep nasplugin.csi.alibabacloud.com | awk '{print $3}'`
+ossdriver=`kubectl get csidriver | grep ossplugin.csi.alibabacloud.com | awk '{print $3}'`
+
+if [ "$diskdriver" = "false" ]; then
+    kubectl delete csidriver diskplugin.csi.alibabacloud.com
+fi
+
+if [ "$nasdriver" = "false" ]; then
+    kubectl delete csidriver nasplugin.csi.alibabacloud.com
+fi
+
+if [ "$ossdriver" = "false" ]; then
+    kubectl delete csidriver ossplugin.csi.alibabacloud.com
+fi
+
 ## Delete old plugin
-kubectl delete ds csi-plugin -nkube-system
+## kubectl delete ds csi-plugin -nkube-system
 
 ## do csi-plugin upgrade
-
-if [ "$masterCount" -eq "0" ]; then
+if [ "$masterCount" -eq "0" ] && [ "$secretCount" -eq "1" ]; then
   cat .aliyun-csi-plugin-managed.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl apply -f -
 else
   cat .aliyun-csi-plugin-dedicate.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl apply -f -
