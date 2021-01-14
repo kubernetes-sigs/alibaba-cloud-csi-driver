@@ -95,7 +95,7 @@ const (
 	// BLOCKVOLUMEPREFIX block volume mount prefix
 	BLOCKVOLUMEPREFIX = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/publish"
 	// FileSystemLose ...
-	FileSystemLose = float64(0.97)
+	FileSystemLose = float64(0.90)
 )
 
 // QueryResponse response struct for query server
