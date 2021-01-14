@@ -150,6 +150,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	} else {
 		log.Infof("Currently node is NOT VF model")
 	}
+	go UpdateCSINode(doc.InstanceID, kubeClient, c)
 
 	return &nodeServer{
 		zone:              doc.ZoneID,
