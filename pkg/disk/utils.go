@@ -17,6 +17,7 @@ limitations under the License.
 package disk
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,6 +39,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/volume/util/fs"
 	utilexec "k8s.io/utils/exec"
 	k8smount "k8s.io/utils/mount"
@@ -106,6 +109,16 @@ const (
 	DiskUUIDPath = "/host/etc/kubernetes/volumes/disk/uuid"
 	// ZoneID ...
 	ZoneID = "zoneId"
+	// instanceTypeLabel ...
+	instanceTypeLabel = "beta.kubernetes.io/instance-type"
+	// zoneIDLabel ... 
+	zoneIDLabel = "failure-domain.beta.kubernetes.io/zone"
+	// csiNodeLabel ... 
+	csiNodeLabel = "node.csi.alibabacloud.com/disk.supported"
+	// kubeNodeName ...  
+	kubeNodeName = "KUBE_NODE_NAME"
+	// describeResourceType ...  
+	describeResourceType = "DataDisk"
 )
 
 var (
@@ -884,4 +897,64 @@ func getDiskCapacity(devicePath string) (float64, error) {
 		return 0, status.Error(codes.Unknown, "failed to fetch capacity bytes")
 	}
 	return float64(capacity) / GBSIZE, nil
+}
+
+// UpdateCSINode ...
+func UpdateCSINode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
+    instanceAvaialableType := []string{}
+	ctx := context.Background()
+	nodeName := os.Getenv(kubeNodeName)
+	nodeInfo, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	instanceType := nodeInfo.Labels[instanceTypeLabel]
+	zoneID := nodeInfo.Labels[zoneIDLabel]
+	if err != nil {
+		log.Errorf("UpdateCSINode:: get node info error : %s", err.Error())
+		return
+	}
+	request := ecs.CreateDescribeAvailableResourceRequest()
+	request.InstanceType = instanceType
+	request.DestinationResource = describeResourceType
+	request.ZoneId = zoneID
+	response, err := c.DescribeAvailableResource(request)
+	if err != nil {
+		log.Errorf("UpdateCSINode:: describe available resource with nodeID: %s", instanceType)
+		return
+	}
+	availableZones := response.AvailableZones.AvailableZone
+	if len(availableZones) == 1 {
+		availableZone := availableZones[0]
+		availableResources := availableZone.AvailableResources.AvailableResource
+		if len(availableResources) == 1 {
+			dataDisk := availableResources[0]
+			if dataDisk.Type == describeResourceType {
+				for _, resource := range dataDisk.SupportedResources.SupportedResource {
+					instanceAvaialableType = append(instanceAvaialableType, resource.Value)
+				}
+			} else {
+				log.Errorf("UpdateCSINode:: multi available datadisk error: %v", availableResources)
+				return
+			}
+		} else {
+			log.Errorf("UpdateCSINode:: multi available resource error: %v", availableResources)
+			return
+		}
+	} else {
+		log.Errorf("UpdateCSINode:: multi available zones error: %v", availableZones)
+		return
+	}
+	for n := 1; n < 5; n++ {
+		csiNode, err := client.StorageV1().CSINodes().Get(ctx, nodeName, metav1.GetOptions{})
+		if err != nil {
+			log.Errorf("UpdateCSINode:: get csinode info error : %s", err.Error())
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		csiNode.Labels[csiNodeLabel] = strings.Join(instanceAvaialableType, ",")
+		_, err = client.StorageV1().CSINodes().Update(ctx, csiNode, metav1.UpdateOptions{})
+		if err != nil {
+			log.Errorf("UpdateCSINode:: update csi node error: %s", err.Error())
+			continue
+		}
+		return
+	}
 }
