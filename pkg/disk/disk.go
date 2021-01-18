@@ -19,6 +19,7 @@ package disk
 import (
 	"context"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -55,19 +56,20 @@ type DISK struct {
 
 // GlobalConfig save global values for plugin
 type GlobalConfig struct {
-	EcsClient          *ecs.Client
-	Region             string
-	NodeID             string
-	AttachMutex        sync.RWMutex
-	CanAttach          bool
-	DiskTagEnable      bool
-	ADControllerEnable bool
-	DetachDisabled     bool
-	MetricEnable       bool
-	RunTimeClass       string
-	DetachBeforeDelete bool
-	DiskBdfEnable      bool
-	ClientSet          *kubernetes.Clientset
+	EcsClient             *ecs.Client
+	Region                string
+	NodeID                string
+	AttachMutex           sync.RWMutex
+	CanAttach             bool
+	DiskTagEnable         bool
+	ADControllerEnable    bool
+	DetachDisabled        bool
+	MetricEnable          bool
+	RunTimeClass          string
+	DetachBeforeDelete    bool
+	DiskBdfEnable         bool
+	ClientSet             *kubernetes.Clientset
+	FilesystemLosePercent float64
 }
 
 // define global variable
@@ -266,6 +268,15 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		isDiskDetachBeforeDelete = false
 	}
 
+	// fileSystemLosePercent ...
+	fileSystemLosePercent := float64(0.90)
+	if fileSystemLoseCapacityPercent := os.Getenv(FileSystemLoseCapacityPercent); fileSystemLoseCapacityPercent != "" {
+		percent, err := strconv.ParseFloat(fileSystemLoseCapacityPercent, 64)
+		if err == nil {
+			fileSystemLosePercent = percent
+		}
+	}
+
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	runtimeValue := "runc"
 	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
@@ -287,18 +298,19 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 	log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
-		EcsClient:          client,
-		Region:             region,
-		NodeID:             nodeID,
-		CanAttach:          true,
-		ADControllerEnable: isADControllerEnable,
-		DiskTagEnable:      isDiskTagEnable,
-		DiskBdfEnable:      isDiskBdfEnable,
-		MetricEnable:       isDiskMetricEnable,
-		RunTimeClass:       runtimeValue,
-		DetachDisabled:     isDiskDetachDisable,
-		DetachBeforeDelete: isDiskDetachBeforeDelete,
-		ClientSet:          kubeClient,
+		EcsClient:             client,
+		Region:                region,
+		NodeID:                nodeID,
+		CanAttach:             true,
+		ADControllerEnable:    isADControllerEnable,
+		DiskTagEnable:         isDiskTagEnable,
+		DiskBdfEnable:         isDiskBdfEnable,
+		MetricEnable:          isDiskMetricEnable,
+		RunTimeClass:          runtimeValue,
+		DetachDisabled:        isDiskDetachDisable,
+		DetachBeforeDelete:    isDiskDetachBeforeDelete,
+		ClientSet:             kubeClient,
+		FilesystemLosePercent: fileSystemLosePercent,
 	}
 	return cfg
 }
