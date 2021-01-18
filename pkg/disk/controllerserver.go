@@ -71,6 +71,8 @@ const (
 	INSTANTACCESS = "InstantAccess"
 	// RETENTIONDAYS ...
 	RETENTIONDAYS = "retentionDays"
+	// INSTANTACCESSRETENTIONDAYS ...
+	INSTANTACCESSRETENTIONDAYS = "instantAccessRetentionDays"
 )
 
 const (
@@ -489,6 +491,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 	useInstanceAccess := false
 	retentionDays := -1
+	var instantAccessRetentionDays int
 	params := req.GetParameters()
 	if value, ok := params[SNAPSHOTTYPE]; ok && value == INSTANTACCESS {
 		useInstanceAccess = true
@@ -500,6 +503,16 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 			return nil, err
 		}
 		retentionDays = days
+	}
+	if value, ok := params[INSTANTACCESSRETENTIONDAYS]; ok {
+		days, err := strconv.Atoi(value)
+		if err != nil {
+			err := status.Error(codes.InvalidArgument, fmt.Sprintf("CreateSnapshot: retentiondays err %s", value))
+			return nil, err
+		}
+		instantAccessRetentionDays = days
+	} else {
+		instantAccessRetentionDays = retentionDays
 	}
 	log.Infof("CreateSnapshot:: Starting to create snapshot: %+v", req)
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
@@ -573,6 +586,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	createSnapshotRequest.DiskId = sourceVolumeID
 	createSnapshotRequest.SnapshotName = snapshotName
 	createSnapshotRequest.InstantAccess = requests.NewBoolean(useInstanceAccess)
+	createSnapshotRequest.InstantAccessRetentionDays = requests.NewInteger(instantAccessRetentionDays)
 	if retentionDays != -1 {
 		createSnapshotRequest.RetentionDays = requests.NewInteger(retentionDays)
 	}

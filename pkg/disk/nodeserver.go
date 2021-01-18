@@ -94,10 +94,9 @@ const (
 	InputOutputErr = "input/output error"
 	// BLOCKVOLUMEPREFIX block volume mount prefix
 	BLOCKVOLUMEPREFIX = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/publish"
+	// FileSystemLoseCapacityPercent is the env of container
+	FileSystemLoseCapacityPercent = "FILE_SYSTEM_LOSE_PERCENT"
 )
-
-// FileSystemLose ...
-var FileSystemLose = float64(0.90)
 
 // QueryResponse response struct for query server
 type QueryResponse struct {
@@ -151,7 +150,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	} else {
 		log.Infof("Currently node is NOT VF model")
 	}
-	go UpdateCSINode(doc.InstanceID, kubeClient, c)
+	go UpdateNode(doc.InstanceID, kubeClient, c)
 
 	return &nodeServer{
 		zone:              doc.ZoneID,
@@ -726,14 +725,8 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		log.Errorf("NodeExpandVolume:: get diskCapacity error %+v", err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	envValue := os.Getenv("FILE_SYSTEM_LOSE_PERCENT")
-	if envValue != "" {
-		percent, err := strconv.ParseFloat(envValue, 64)
-		if err == nil {
-			FileSystemLose = percent
-		}
-	}
-	if diskCapacity >= requestGB*FileSystemLose {
+	log.Infof("NodeExpandVolume:: file system lose percent: %v", GlobalConfigVar.FilesystemLosePercent)
+	if diskCapacity >= requestGB*GlobalConfigVar.FilesystemLosePercent {
 		log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
 		return &csi.NodeExpandVolumeResponse{}, nil
 	}

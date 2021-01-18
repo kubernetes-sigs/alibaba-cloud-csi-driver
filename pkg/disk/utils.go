@@ -111,13 +111,13 @@ const (
 	ZoneID = "zoneId"
 	// instanceTypeLabel ...
 	instanceTypeLabel = "beta.kubernetes.io/instance-type"
-	// zoneIDLabel ... 
+	// zoneIDLabel ...
 	zoneIDLabel = "failure-domain.beta.kubernetes.io/zone"
-	// csiNodeLabel ... 
-	csiNodeLabel = "node.csi.alibabacloud.com/disk.supported"
-	// kubeNodeName ...  
+	// nodeStorageLabel ...
+	nodeStorageLabel = "node.csi.alibabacloud.com/disktype.%s"
+	// kubeNodeName ...
 	kubeNodeName = "KUBE_NODE_NAME"
-	// describeResourceType ...  
+	// describeResourceType ...
 	describeResourceType = "DataDisk"
 )
 
@@ -899,16 +899,16 @@ func getDiskCapacity(devicePath string) (float64, error) {
 	return float64(capacity) / GBSIZE, nil
 }
 
-// UpdateCSINode ...
-func UpdateCSINode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
-    instanceAvaialableType := []string{}
+// UpdateNode ...
+func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
+	instanceStorageLabels := []string{}
 	ctx := context.Background()
 	nodeName := os.Getenv(kubeNodeName)
 	nodeInfo, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	instanceType := nodeInfo.Labels[instanceTypeLabel]
 	zoneID := nodeInfo.Labels[zoneIDLabel]
 	if err != nil {
-		log.Errorf("UpdateCSINode:: get node info error : %s", err.Error())
+		log.Errorf("UpdateNode:: get node info error : %s", err.Error())
 		return
 	}
 	request := ecs.CreateDescribeAvailableResourceRequest()
@@ -917,7 +917,7 @@ func UpdateCSINode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 	request.ZoneId = zoneID
 	response, err := c.DescribeAvailableResource(request)
 	if err != nil {
-		log.Errorf("UpdateCSINode:: describe available resource with nodeID: %s", instanceType)
+		log.Errorf("UpdateNode:: describe available resource with nodeID: %s", instanceType)
 		return
 	}
 	availableZones := response.AvailableZones.AvailableZone
@@ -928,32 +928,39 @@ func UpdateCSINode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 			dataDisk := availableResources[0]
 			if dataDisk.Type == describeResourceType {
 				for _, resource := range dataDisk.SupportedResources.SupportedResource {
-					instanceAvaialableType = append(instanceAvaialableType, resource.Value)
+					labelKey := fmt.Sprintf(nodeStorageLabel, resource.Value)
+					instanceStorageLabels = append(instanceStorageLabels, labelKey)
 				}
 			} else {
-				log.Errorf("UpdateCSINode:: multi available datadisk error: %v", availableResources)
+				log.Errorf("UpdateNode:: multi available datadisk error: %v", availableResources)
 				return
 			}
 		} else {
-			log.Errorf("UpdateCSINode:: multi available resource error: %v", availableResources)
+			log.Errorf("UpdateNode:: multi available resource error: %v", availableResources)
 			return
 		}
 	} else {
-		log.Errorf("UpdateCSINode:: multi available zones error: %v", availableZones)
+		log.Errorf("UpdateNode:: multi available zones error: %v", availableZones)
 		return
 	}
+	needUpdate := false
 	for n := 1; n < 5; n++ {
-		csiNode, err := client.StorageV1().CSINodes().Get(ctx, nodeName, metav1.GetOptions{})
-		if err != nil {
-			log.Errorf("UpdateCSINode:: get csinode info error : %s", err.Error())
-			time.Sleep(5 * time.Second)
-			continue
+		for _, storageLabel := range instanceStorageLabels {
+			if _, ok := nodeInfo.Labels[storageLabel]; ok {
+				continue
+			} else {
+				needUpdate = true
+				nodeInfo.Labels[storageLabel] = "available"
+			}
 		}
-		csiNode.Labels[csiNodeLabel] = strings.Join(instanceAvaialableType, ",")
-		_, err = client.StorageV1().CSINodes().Update(ctx, csiNode, metav1.UpdateOptions{})
-		if err != nil {
-			log.Errorf("UpdateCSINode:: update csi node error: %s", err.Error())
-			continue
+		if needUpdate {
+			_, err = client.CoreV1().Nodes().Update(ctx, nodeInfo, metav1.UpdateOptions{})
+			if err != nil {
+				log.Errorf("UpdateNode:: update node error: %s", err.Error())
+				continue
+			}
+		} else {
+			log.Info("UpdateNode:: need not to update node label")
 		}
 		return
 	}
