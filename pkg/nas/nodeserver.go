@@ -305,9 +305,11 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	mountPoint := req.TargetPath
 	if !utils.IsMounted(mountPoint) {
 		log.Infof("Umount Nas: mountpoint not mounted, skipping: %s", mountPoint)
-		if err := checkLosetupUnmount(mountPoint); err != nil {
-			log.Errorf("Nas: umount lostup volume with error: %v", err)
-			return nil, errors.New("Nas, check Losetup Unmount Fail: " + err.Error())
+		if GlobalConfigVar.LosetupEnable {
+			if err := checkLosetupUnmount(mountPoint); err != nil {
+				log.Errorf("Nas: check and umount lostup volume with error: %v", err)
+				return nil, errors.New("Nas, check Losetup Unmount Fail: " + err.Error())
+			}
 		}
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
