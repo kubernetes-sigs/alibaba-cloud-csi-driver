@@ -8,6 +8,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/kubernetes/pkg/volume/util/fs"
 	"strconv"
 	"strings"
 	"sync"
@@ -158,7 +159,7 @@ func init() {
 	registerCollector("nfsstat", NewNfsStatCollector)
 }
 
-// NewDiskStatCollector returns a new Collector exposing disk stats.
+// NewNfsStatCollector returns a new Collector exposing disk stats.
 func NewNfsStatCollector() (Collector, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -343,7 +344,7 @@ func getNfsStat() (map[string][]string, error) {
 
 func parseStat(keywords string, field string, startIndex *int, fieldArray []string, stat *[]string) {
 	if field == keywords {
-		*startIndex += 1
+		*startIndex++
 		for j := 0; j < 8; j++ {
 			if *startIndex+j <= len(fieldArray)-1 {
 				if _, err := strconv.Atoi(fieldArray[*startIndex+j]); err == nil {
@@ -359,17 +360,15 @@ func parseStat(keywords string, field string, startIndex *int, fieldArray []stri
 
 func getNfsCapacityStat(pvName string, info nfsInfo, stat *[]string) error {
 	mountPath := strings.Replace(info.VolDataPath, "/vol_data.json", "", -1)
-	cmd := "df | grep " + mountPath
-	line, err := utils.Run(cmd)
+	mountPath = mountPath + "/mount"
+	available, capacity, usage, _, _, _, err := fs.FsInfo(mountPath)
 	if err != nil {
-		logrus.Errorf("Run cmd %s is faile,err:%s", cmd, err)
+		logrus.Errorf("Get fs info %s is failed,err:%s", mountPath, err)
 		return err
 	}
-	dealLine := strings.Join(strings.Fields(line), " ")
-	fieldArray := strings.Split(dealLine, " ")
-	*stat = append(*stat, kilobytes2byte(fieldArray[1]))
-	*stat = append(*stat, kilobytes2byte(fieldArray[2]))
-	*stat = append(*stat, kilobytes2byte(fieldArray[3]))
+	*stat = append(*stat, strconv.Itoa(int(capacity)))
+	*stat = append(*stat, strconv.Itoa(int(usage)))
+	*stat = append(*stat, strconv.Itoa(int(available)))
 	return nil
 }
 

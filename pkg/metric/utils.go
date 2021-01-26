@@ -41,7 +41,7 @@ func getPvcByPvNameByNas(clientSet *kubernetes.Clientset, pvName string) (string
 		return "", "", "", err
 	}
 	if pv.Spec.CSI != nil {
-		if val, ok := pv.Spec.CSI.VolumeAttributes["server"];ok {
+		if val, ok := pv.Spec.CSI.VolumeAttributes["server"]; ok {
 			if pv.Status.Phase == apicorev1.VolumeBound {
 				return pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, val, nil
 			}
