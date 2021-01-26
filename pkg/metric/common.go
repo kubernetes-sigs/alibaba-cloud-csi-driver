@@ -47,7 +47,7 @@ const (
 
 const (
 	diskStatsFileName = "diskstats"
-	nfsStatsFileName = "/proc/self/mountstats"
+	nfsStatsFileName  = "/proc/self/mountstats"
 )
 
 const (
