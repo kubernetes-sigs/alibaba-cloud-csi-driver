@@ -194,7 +194,7 @@ func (p *pfsRawBlockStatCollector) updateMap(clientSet *kubernetes.Clientset, la
 			continue
 		}
 
-		if !strings.Contains(line, pvName) {
+		if !strings.Contains(line, "/"+pvName+"/") {
 			continue
 		}
 
