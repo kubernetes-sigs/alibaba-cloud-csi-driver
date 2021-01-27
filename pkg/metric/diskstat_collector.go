@@ -245,7 +245,7 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get diskstats: %s", err)
 	}
-	volJSONPaths, err := findVolJSONByDisk(podsRootPath)
+	volJSONPaths, err := findVolJSON(podsRootPath)
 	if err != nil {
 		logrus.Errorf("Find disk vol_data json is failed, err:%s", err)
 		return err
@@ -416,7 +416,7 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 			continue
 		}
 
-		if !strings.Contains(line, pvName) {
+		if !strings.Contains(line, "/"+pvName+"/") {
 			continue
 		}
 

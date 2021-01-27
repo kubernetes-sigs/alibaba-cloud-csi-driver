@@ -66,7 +66,7 @@ func getVolumeInfoByJSON(volDataJSONPath string, volType string) (string, string
 	return "", "", errors.New("VolumeType is not the expected type")
 }
 
-func findVolJSONByDisk(rootDir string) ([]string, error) {
+func findVolJSON(rootDir string) ([]string, error) {
 	resDir := make([]string, 0)
 	rootFiles, err := ioutil.ReadDir(rootDir)
 	if err != nil {

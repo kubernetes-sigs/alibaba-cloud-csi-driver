@@ -159,7 +159,7 @@ func init() {
 	registerCollector("nfsstat", NewNfsStatCollector)
 }
 
-// NewNfsStatCollector returns a new Collector exposing disk stats.
+// NewNfsStatCollector returns a new Collector exposing nfs stats.
 func NewNfsStatCollector() (Collector, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -208,11 +208,11 @@ func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
 	pvNameStatsMap, err := getNfsStat()
 
 	if err != nil {
-		return fmt.Errorf("couldn't get diskstats: %s", err)
+		return fmt.Errorf("couldn't get nfsstats: %s", err)
 	}
-	volJSONPaths, err := findVolJSONByDisk(podsRootPath)
+	volJSONPaths, err := findVolJSON(podsRootPath)
 	if err != nil {
-		logrus.Errorf("Find disk vol_data json is failed, err:%s", err)
+		logrus.Errorf("Find nfs vol_data json is failed, err:%s", err)
 		return err
 	}
 	p.updateMap(&p.lastPvNfsInfoMap, volJSONPaths, nasDriverName, "volumes")
@@ -224,16 +224,16 @@ func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
 		wg.Add(1)
 		go func(pvNameArgs string, pvcNamespaceArgs string, pvcNameArgs string, serverNameArgs string, statsArgs []string) {
 			defer wg.Done()
-			p.setDiskMetric(pvNameArgs, pvcNamespaceArgs, pvcNameArgs, serverNameArgs, statsArgs, ch)
+			p.setNfsMetric(pvNameArgs, pvcNamespaceArgs, pvcNameArgs, serverNameArgs, statsArgs, ch)
 		}(pvName, nfsInfo.PvcNamespace, nfsInfo.PvcName, nfsInfo.ServerName, stats)
 	}
 	wg.Wait()
 	//elapsedTime := time.Since(startTime)
-	//logrus.Info("DiskStat spent time:", elapsedTime)
+	//logrus.Info("Nfsstat spent time:", elapsedTime)
 	return nil
 }
 
-func (p *nfsStatCollector) setDiskMetric(pvName string, pvcNamespace string, pvcName string, serverName string, stats []string, ch chan<- prometheus.Metric) {
+func (p *nfsStatCollector) setNfsMetric(pvName string, pvcNamespace string, pvcName string, serverName string, stats []string, ch chan<- prometheus.Metric) {
 	defer p.lastPvStatsMap.Store(pvName, stats)
 	for i, value := range stats {
 		if i >= len(p.descs) {
@@ -263,7 +263,7 @@ func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonP
 		return
 	}
 	for _, path := range jsonPaths {
-		//Get disk pvName
+		//Get nfs pvName
 		pvName, _, err := getVolumeInfoByJSON(path, deriverName)
 		if err != nil {
 			if err.Error() != "VolumeType is not the expected type" {
@@ -272,7 +272,7 @@ func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonP
 			continue
 		}
 
-		if !strings.Contains(line, pvName) {
+		if !strings.Contains(line, "/"+pvName+"/") {
 			continue
 		}
 
@@ -305,7 +305,7 @@ func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo,
 			(*lastPvNfsInfoMap)[pv] = updateInfo
 		}
 	}
-	//if pv exist thisPvStorageInfoMap and not exist lastPvDiskInfoMap, pv should be deleted
+	//if pv exist thisPvStorageInfoMap and not exist lastPvNfsInfoMap, pv should be deleted
 	for lastPv := range *lastPvNfsInfoMap {
 		_, ok := thisPvNfsInfoMap[lastPv]
 		if !ok {
