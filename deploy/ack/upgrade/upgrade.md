@@ -34,7 +34,7 @@
 
 > 注意：CSI Provisioner所指的镜像版本为：acs/csi-plugin的镜像版本，例如：v1.18.8.45-1c5d2cd1-aliyun，而acs/csi-provisioner这个镜像本质上是一个sidercar，不是升级需要的参数；
 
-[https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/blob/release-v1.1.1/deploy/ack/upgrade/upgrade_csi-plugin.sh](https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/blob/release-v1.1.1/deploy/ack/upgrade/upgrade_csi-plugin.sh)
+[https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/blob/release-v1.1.1/deploy/ack/upgrade/upgrade_csi-plugin.sh](https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/blob/release-v1.1.1/deploy/ack/upgrade/upgrade_csi-provisioner.sh)
 
 > $ bash upgrade_csi-provisioner.sh v1.18.8.45-1c5d2cd1-aliyun
 
