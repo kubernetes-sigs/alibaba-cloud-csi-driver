@@ -967,7 +967,8 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 		}
 		return
 	}
-  
+}
+
 func intersect(slice1, slice2 []string) []string {
 	m := make(map[string]int)
 	nn := make([]string, 0)
