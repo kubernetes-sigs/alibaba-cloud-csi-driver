@@ -115,6 +115,7 @@ spec:
             - "--strict-topology=true"
             - "--timeout=150s"
             - "--enable-leader-election=true"
+            - "--extra-create-metadata=true"
             - "--leader-election-type=leases"
             - "--retry-interval-start=500ms"
             - "--v=5"

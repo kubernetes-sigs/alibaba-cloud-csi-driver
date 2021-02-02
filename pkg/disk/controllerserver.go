@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -108,6 +109,7 @@ type diskVolumeArgs struct {
 	PerformanceLevel string `json:"performanceLevel"`
 	ResourceGroupID  string `json:"resourceGroupId"`
 	DiskTags         string `json:"diskTags"`
+	NodeSelected     string `json:"nodeSelected"`
 }
 
 // Alicloud disk snapshot parameters
@@ -183,7 +185,22 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
 	sharedDisk := diskVol.Type == DiskSharedEfficiency || diskVol.Type == DiskSharedSSD
-
+	nodeSupportDiskType := []string{}
+	if diskVol.NodeSelected != "" {
+		ctx := context.Background()
+		client := GlobalConfigVar.ClientSet
+		nodeInfo, err := client.CoreV1().Nodes().Get(ctx, diskVol.NodeSelected, metav1.GetOptions{})
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "CreateVolume:: get node info error: %v", req.Name)
+		}
+		re := regexp.MustCompile(`node.csi.alibabacloud.com/disktype.(.*)`)
+		for key := range nodeInfo.Labels {
+			if result := re.FindStringSubmatch(key); len(result) != 0 {
+				nodeSupportDiskType = append(nodeSupportDiskType, result[1])
+			}
+		}
+	}
+	log.Infof("CreateVolume:: node support disk types: %v, nodeSelected: %v", nodeSupportDiskType, diskVol.NodeSelected)
 	// Step 2: Check whether volume is created
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	disks, err := findDiskByName(req.GetName(), diskVol.ResourceGroupID, sharedDisk)
@@ -268,9 +285,19 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	var volumeResponse *ecs.CreateDiskResponse
 	var createdDiskType string
+	provisionerDiskTypes := []string{}
 	allTypes := deleteEmpty(strings.Split(diskVol.Type, ","))
-	log.Infof("CreateVolume: all disk types: %+v, len: %v", allTypes, len(allTypes))
-	for _, dType := range allTypes {
+	if len(nodeSupportDiskType) != 0 {
+		provisionerDiskTypes = intersect(nodeSupportDiskType, allTypes)
+		if len(provisionerDiskTypes) == 0 {
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("CreateVolume:: node support type: [%v] is incompatible with provision disk type: [%s]", nodeSupportDiskType, allTypes))
+		}
+	} else {
+		provisionerDiskTypes = allTypes
+	}
+
+	log.Infof("CreateVolume: provision disk types: %+v, len: %v", provisionerDiskTypes, len(provisionerDiskTypes))
+	for _, dType := range provisionerDiskTypes {
 		if dType == "" {
 			continue
 		}

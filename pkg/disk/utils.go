@@ -119,6 +119,8 @@ const (
 	kubeNodeName = "KUBE_NODE_NAME"
 	// describeResourceType ...
 	describeResourceType = "DataDisk"
+	// NodeSchedueTag in annotations
+	NodeSchedueTag = "volume.kubernetes.io/selected-node"
 )
 
 var (
@@ -708,6 +710,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	if !ok {
 		diskVolArgs.PerformanceLevel = PERFORMANCELEVELPL1
 	}
+	diskVolArgs.NodeSelected, _ = volOptions[NodeSchedueTag]
 
 	// fstype
 	// https://github.com/kubernetes-csi/external-provisioner/releases/tag/v1.0.1
@@ -964,4 +967,18 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 		}
 		return
 	}
+  
+func intersect(slice1, slice2 []string) []string {
+	m := make(map[string]int)
+	nn := make([]string, 0)
+	for _, v := range slice1 {
+		m[v]++
+	}
+	for _, v := range slice2 {
+		times, _ := m[v]
+		if times == 1 {
+			nn = append(nn, v)
+		}
+	}
+	return nn
 }
