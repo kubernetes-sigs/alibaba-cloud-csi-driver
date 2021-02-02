@@ -17,6 +17,7 @@ limitations under the License.
 package disk
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,6 +39,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/volume/util/fs"
 	utilexec "k8s.io/utils/exec"
 	k8smount "k8s.io/utils/mount"
@@ -106,6 +109,16 @@ const (
 	DiskUUIDPath = "/host/etc/kubernetes/volumes/disk/uuid"
 	// ZoneID ...
 	ZoneID = "zoneId"
+	// instanceTypeLabel ...
+	instanceTypeLabel = "beta.kubernetes.io/instance-type"
+	// zoneIDLabel ...
+	zoneIDLabel = "failure-domain.beta.kubernetes.io/zone"
+	// nodeStorageLabel ...
+	nodeStorageLabel = "node.csi.alibabacloud.com/disktype.%s"
+	// kubeNodeName ...
+	kubeNodeName = "KUBE_NODE_NAME"
+	// describeResourceType ...
+	describeResourceType = "DataDisk"
 	// NodeSchedueTag in annotations
 	NodeSchedueTag = "volume.kubernetes.io/selected-node"
 )
@@ -887,6 +900,73 @@ func getDiskCapacity(devicePath string) (float64, error) {
 		return 0, status.Error(codes.Unknown, "failed to fetch capacity bytes")
 	}
 	return float64(capacity) / GBSIZE, nil
+}
+
+// UpdateNode ...
+func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
+	instanceStorageLabels := []string{}
+	ctx := context.Background()
+	nodeName := os.Getenv(kubeNodeName)
+	nodeInfo, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	instanceType := nodeInfo.Labels[instanceTypeLabel]
+	zoneID := nodeInfo.Labels[zoneIDLabel]
+	if err != nil {
+		log.Errorf("UpdateNode:: get node info error : %s", err.Error())
+		return
+	}
+	request := ecs.CreateDescribeAvailableResourceRequest()
+	request.InstanceType = instanceType
+	request.DestinationResource = describeResourceType
+	request.ZoneId = zoneID
+	response, err := c.DescribeAvailableResource(request)
+	if err != nil {
+		log.Errorf("UpdateNode:: describe available resource with nodeID: %s", instanceType)
+		return
+	}
+	availableZones := response.AvailableZones.AvailableZone
+	if len(availableZones) == 1 {
+		availableZone := availableZones[0]
+		availableResources := availableZone.AvailableResources.AvailableResource
+		if len(availableResources) == 1 {
+			dataDisk := availableResources[0]
+			if dataDisk.Type == describeResourceType {
+				for _, resource := range dataDisk.SupportedResources.SupportedResource {
+					labelKey := fmt.Sprintf(nodeStorageLabel, resource.Value)
+					instanceStorageLabels = append(instanceStorageLabels, labelKey)
+				}
+			} else {
+				log.Errorf("UpdateNode:: multi available datadisk error: %v", availableResources)
+				return
+			}
+		} else {
+			log.Errorf("UpdateNode:: multi available resource error: %v", availableResources)
+			return
+		}
+	} else {
+		log.Errorf("UpdateNode:: multi available zones error: %v", availableZones)
+		return
+	}
+	needUpdate := false
+	for n := 1; n < 5; n++ {
+		for _, storageLabel := range instanceStorageLabels {
+			if _, ok := nodeInfo.Labels[storageLabel]; ok {
+				continue
+			} else {
+				needUpdate = true
+				nodeInfo.Labels[storageLabel] = "available"
+			}
+		}
+		if needUpdate {
+			_, err = client.CoreV1().Nodes().Update(ctx, nodeInfo, metav1.UpdateOptions{})
+			if err != nil {
+				log.Errorf("UpdateNode:: update node error: %s", err.Error())
+				continue
+			}
+		} else {
+			log.Info("UpdateNode:: need not to update node label")
+		}
+		return
+	}
 }
 
 func intersect(slice1, slice2 []string) []string {
