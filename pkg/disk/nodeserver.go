@@ -25,7 +25,7 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -94,8 +94,8 @@ const (
 	InputOutputErr = "input/output error"
 	// BLOCKVOLUMEPREFIX block volume mount prefix
 	BLOCKVOLUMEPREFIX = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/publish"
-	// FileSystemLose ...
-	FileSystemLose = float64(0.90)
+	// FileSystemLoseCapacityPercent is the env of container
+	FileSystemLoseCapacityPercent = "FILE_SYSTEM_LOSE_PERCENT"
 )
 
 // QueryResponse response struct for query server
@@ -150,6 +150,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	} else {
 		log.Infof("Currently node is NOT VF model")
 	}
+	go UpdateNode(doc.InstanceID, kubeClient, c)
 
 	return &nodeServer{
 		zone:              doc.ZoneID,
@@ -724,7 +725,8 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		log.Errorf("NodeExpandVolume:: get diskCapacity error %+v", err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if diskCapacity <= requestGB && diskCapacity >= requestGB*FileSystemLose {
+	log.Infof("NodeExpandVolume:: file system lose percent: %v", GlobalConfigVar.FilesystemLosePercent)
+	if diskCapacity >= requestGB*GlobalConfigVar.FilesystemLosePercent {
 		log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
 		return &csi.NodeExpandVolumeResponse{}, nil
 	}
