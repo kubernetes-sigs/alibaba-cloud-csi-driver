@@ -22,6 +22,17 @@ spec:
     spec:
       tolerations:
         - operator: Exists
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: type
+                operator: NotIn
+                values:
+                - virtual-kubelet
+      nodeSelector:
+        beta.kubernetes.io/os: linux
       serviceAccount: csi-admin
       priorityClassName: system-node-critical
       hostNetwork: true
@@ -67,6 +78,8 @@ spec:
                   fieldPath: spec.nodeName
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/csi-plugins/localplugin.csi.alibabacloud.com/csi.sock
+            - name: SERVICE_PORT
+              value: "11280"
           volumeMounts:
             - name: pods-mount-dir
               mountPath: /var/lib/kubelet
