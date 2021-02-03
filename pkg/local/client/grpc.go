@@ -87,7 +87,7 @@ func (c *workerConnection) Close() error {
 }
 
 func connect(address string, timeout time.Duration) (*grpc.ClientConn, error) {
-	log.Infof("New LVM Connecting to %s", address)
+	log.Infof("New Connecting to %s", address)
 	dialOptions := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithBackoffMaxDelay(time.Second),

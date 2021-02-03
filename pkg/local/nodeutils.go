@@ -78,7 +78,7 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 			}
 			isMnt = false
 		} else {
-			log.Errorf("NodePublishVolume: check volume %s mounted with error: %s", volumeID, err.Error())
+			log.Errorf("NodePublishVolume: check volume %s mounted with error: %v", volumeID, err)
 			return status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -323,7 +323,7 @@ func (ns *nodeServer) checkTargetMounted(targetPath string) (bool, error) {
 			}
 			isMnt = false
 		} else {
-			return false, status.Error(codes.Internal, err.Error())
+			return false, err
 		}
 	}
 	return isMnt, nil
