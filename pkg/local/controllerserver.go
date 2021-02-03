@@ -78,7 +78,7 @@ const (
 	CsiProvisionerIdentity = "storage.kubernetes.io/csiProvisionerIdentity"
 	// CsiProvisionerTag tag
 	CsiProvisionerTag = "volume.beta.kubernetes.io/storage-provisioner"
-	// QuotaRootPath
+	// QuotaRootPath tag
 	QuotaRootPath = "rootPath"
 )
 
