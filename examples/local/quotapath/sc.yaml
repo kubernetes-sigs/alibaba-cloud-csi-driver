@@ -1,0 +1,11 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: alicloud-local-quota
+parameters:
+  volumeType: QuotaPath
+  rootPath: /mnt/quota
+provisioner: localplugin.csi.alibabacloud.com
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
