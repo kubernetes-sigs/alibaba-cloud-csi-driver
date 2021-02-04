@@ -109,18 +109,25 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	// local volume daemon
-	// GRPC server to provide volume manage
-	go server.Start()
-
-	// pv handler
-	// watch pv/pvc annotations and provide volume manage
-	go generator.VolumeHandler()
-
 	mounter := k8smount.New("")
-	// maintain pmem node
-	if types.GlobalConfigVar.PmemEnable {
-		manager.MaintainPMEM(types.GlobalConfigVar.PmemType, mounter)
+	serviceType := os.Getenv(utils.ServiceType)
+	if len(serviceType) == 0 || serviceType == "" {
+		serviceType = utils.PluginService
+	}
+
+	if serviceType == utils.PluginService {
+		// local volume daemon
+		// GRPC server to provide volume manage
+		go server.Start()
+
+		// pv handler
+		// watch pv/pvc annotations and provide volume manage
+		go generator.VolumeHandler()
+
+		// maintain pmem node
+		if types.GlobalConfigVar.PmemEnable {
+			manager.MaintainPMEM(types.GlobalConfigVar.PmemType, mounter)
+		}
 	}
 
 	return &nodeServer{
