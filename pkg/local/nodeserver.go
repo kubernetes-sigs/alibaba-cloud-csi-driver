@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
@@ -35,6 +36,7 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubernetes/pkg/util/resizefs"
@@ -404,7 +406,16 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 
 // get pvSize, pvSizeUnit, pvObject
 func getPvInfo(volumeID string) (int64, string, *v1.PersistentVolume) {
-	pv, err := types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
+	var pv *v1.PersistentVolume
+	err := wait.PollImmediate(2*time.Second, 6*time.Second, func() (bool, error) {
+		var apierr error
+		pv, apierr = types.GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
+		if apierr != nil {
+			log.Errorf("get pv %s err: %v, will retry", volumeID, apierr)
+			return false, nil
+		}
+		return true, nil
+	})
 	if err != nil {
 		log.Errorf("getPvInfo: fail to get pv, err: %v", err)
 		return 0, "", nil

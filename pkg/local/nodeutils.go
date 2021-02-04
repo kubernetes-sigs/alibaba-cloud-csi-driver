@@ -4,6 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -15,12 +20,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/kubernetes/pkg/util/resizefs"
 	utilexec "k8s.io/utils/exec"
 	k8smount "k8s.io/utils/mount"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 // include normal lvm & aep lvm type
@@ -97,45 +100,59 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 	}
 	// upgrade PV with NodeAffinity
 	if nodeAffinity == "true" {
-		oldPv, err := ns.client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
-		if err != nil {
-			log.Errorf("NodePublishVolume: Get Persistent Volume(%s) Error: %s", volumeID, err.Error())
-			return status.Error(codes.Internal, err.Error())
-		}
-		if oldPv.Spec.NodeAffinity == nil {
-			oldData, err := json.Marshal(oldPv)
+		waitErr := wait.PollImmediate(2*time.Second, 6*time.Second, func() (bool, error) {
+			oldPv, err := ns.client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
 			if err != nil {
-				log.Errorf("NodePublishVolume: Marshal Persistent Volume(%s) Error: %s", volumeID, err.Error())
-				return status.Error(codes.Internal, err.Error())
+				log.Errorf("NodePublishVolume: Get Persistent Volume(%s) Error: %s", volumeID, err.Error())
+				return false, nil
 			}
-			pvClone := oldPv.DeepCopy()
+			if oldPv.Spec.NodeAffinity == nil {
+				oldData, err := json.Marshal(oldPv)
+				if err != nil {
+					log.Errorf("NodePublishVolume: Marshal Persistent Volume(%s) Error: %s", volumeID, err.Error())
+					return false, err
+				}
+				pvClone := oldPv.DeepCopy()
 
-			// construct new persistent volume data
-			values := []string{ns.nodeID}
-			nSR := v1.NodeSelectorRequirement{Key: "kubernetes.io/hostname", Operator: v1.NodeSelectorOpIn, Values: values}
-			matchExpress := []v1.NodeSelectorRequirement{nSR}
-			nodeSelectorTerm := v1.NodeSelectorTerm{MatchExpressions: matchExpress}
-			nodeSelectorTerms := []v1.NodeSelectorTerm{nodeSelectorTerm}
-			required := v1.NodeSelector{NodeSelectorTerms: nodeSelectorTerms}
-			pvClone.Spec.NodeAffinity = &v1.VolumeNodeAffinity{Required: &required}
-			newData, err := json.Marshal(pvClone)
-			if err != nil {
-				log.Errorf("NodePublishVolume: Marshal New Persistent Volume(%s) Error: %s", volumeID, err.Error())
-				return status.Error(codes.Internal, err.Error())
-			}
-			patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, pvClone)
-			if err != nil {
-				log.Errorf("NodePublishVolume: CreateTwoWayMergePatch Volume(%s) Error: %s", volumeID, err.Error())
-				return status.Error(codes.Internal, err.Error())
-			}
+				// construct new persistent volume data
+				pvClone.Spec.NodeAffinity = &v1.VolumeNodeAffinity{
+					Required: &v1.NodeSelector{
+						NodeSelectorTerms: []v1.NodeSelectorTerm{
+							{
+								MatchExpressions: []v1.NodeSelectorRequirement{
+									{
+										Key:      "kubernetes.io/hostname",
+										Operator: v1.NodeSelectorOpIn,
+										Values:   []string{ns.nodeID},
+									},
+								},
+							},
+						},
+					},
+				}
+				newData, err := json.Marshal(pvClone)
+				if err != nil {
+					log.Errorf("NodePublishVolume: Marshal New Persistent Volume(%s) Error: %s", volumeID, err.Error())
+					return false, err
+				}
+				patchBytes, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, pvClone)
+				if err != nil {
+					log.Errorf("NodePublishVolume: CreateTwoWayMergePatch Volume(%s) Error: %s", volumeID, err.Error())
+					return false, err
+				}
 
-			// Upgrade PersistentVolume with NodeAffinity
-			_, err = ns.client.CoreV1().PersistentVolumes().Patch(context.Background(), volumeID, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
-			if err != nil {
-				log.Errorf("NodePublishVolume: Patch Volume(%s) Error: %s", volumeID, err.Error())
-				return status.Error(codes.Internal, err.Error())
+				// Upgrade PersistentVolume with NodeAffinity
+				_, err = ns.client.CoreV1().PersistentVolumes().Patch(context.Background(), volumeID, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+				if err != nil {
+					log.Errorf("NodePublishVolume: Patch Volume(%s) Error: %s", volumeID, err.Error())
+					return false, nil
+				}
+				log.Infof("NodePublishVolume: upgrade Persistent Volume(%s) with nodeAffinity: %s", volumeID, ns.nodeID)
 			}
-			log.Infof("NodePublishVolume: upgrade Persistent Volume(%s) with nodeAffinity: %s", volumeID, ns.nodeID)
+			return true, nil
+		})
+		if waitErr != nil {
+			return status.Error(codes.Internal, waitErr.Error())
 		}
 	}
 	return nil
