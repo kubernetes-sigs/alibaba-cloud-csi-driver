@@ -118,13 +118,15 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 	}
 
 	if serviceType == utils.PluginService {
-		// local volume daemon
-		// GRPC server to provide volume manage
-		go server.Start()
-
-		// pv handler
-		// watch pv/pvc annotations and provide volume manage
-		go generator.VolumeHandler()
+		if types.GlobalConfigVar.GrpcProvision {
+			// local volume daemon
+			// GRPC server to provide volume manage
+			go server.Start()
+		} else {
+			// pv handler
+			// watch pv/pvc annotations and provide volume manage
+			go generator.VolumeHandler()
+		}
 
 		// maintain pmem node
 		if types.GlobalConfigVar.PmemEnable {
