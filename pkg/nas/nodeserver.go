@@ -30,6 +30,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -320,10 +321,22 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	if GlobalConfigVar.LosetupEnable {
-		if err := checkLosetupUnmount(mountPoint); err != nil {
-			log.Errorf("Nas: umount lostup volume with error: %v", err)
-			return nil, errors.New("Nas, check Losetup Unmount Fail: " + err.Error())
+		pvName := filepath.Base(filepath.Dir(mountPoint))
+		pv, err := GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
+		if err != nil {
+			log.Errorf("Nas: find pv error: err", err)
+			return nil, errors.New("Nas: find pv error: " + err.Error())
 		}
+		log.Infof("Nas: losetupEnable pv check: %v", pv)
+		if mountType, ok := pv.Spec.CSI.VolumeAttributes["mountType"]; ok {
+			if mountType == "losetup" {
+				if err := checkLosetupUnmount(mountPoint); err != nil {
+					log.Errorf("Nas: umount lostup volume with error: %v", err)
+					return nil, errors.New("Nas, check Losetup Unmount Fail: " + err.Error())
+				}
+			}
+		}
+
 	}
 
 	log.Infof("Umount Nas Successful on: %s", mountPoint)
