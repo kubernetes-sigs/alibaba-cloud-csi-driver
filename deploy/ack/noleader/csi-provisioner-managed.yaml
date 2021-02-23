@@ -28,16 +28,14 @@ spec:
                 values:
                 - virtual-kubelet
         podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 1
-            podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                - key: app
-                  operator: In
-                  values:
-                  - csi-provisioner
-              topologyKey: "kubernetes.io/hostname"
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - csi-provisioner
+            topologyKey: kubernetes.io/hostname
       tolerations:
       - effect: NoSchedule
         operator: Exists
@@ -46,7 +44,7 @@ spec:
         operator: Exists
         key: node.cloudprovider.kubernetes.io/uninitialized
       priorityClassName: system-node-critical
-      serviceAccount: admin
+      serviceAccount: csi-admin
       hostNetwork: true
       containers:
         - name: external-disk-provisioner
@@ -59,6 +57,8 @@ spec:
             - "--strict-topology=true"
             - "--timeout=150s"
             - "--enable-leader-election=false"
+            - "--extra-create-metadata=true"
+            - "--retry-interval-start=500ms"
             - "--v=5"
           env:
             - name: ADDRESS
