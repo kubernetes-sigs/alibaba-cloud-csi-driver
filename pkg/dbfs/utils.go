@@ -224,3 +224,14 @@ func GetPvNameFormMntPoint(mntPath string) string {
 	}
 	return ""
 }
+
+// getDbfsVersion get dbfs config version from config file
+func getDbfsVersion(dbfsID string) string {
+	cmd := fmt.Sprintf("%s cat /opt/dbfs/config/version.conf", NsenterCmd)
+	out, err := utils.Run(cmd)
+	if err != nil {
+		log.Errorf("getDbfsVersion: %s with error: %s", dbfsID, err.Error())
+		return ""
+	}
+	return strings.TrimSpace(out)
+}
