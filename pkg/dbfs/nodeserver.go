@@ -161,7 +161,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		// Get dbfs config path
 		dbfsVersion := os.Getenv("DBFS_CONFIG_VERSION")
 		if dbfsVersion == "" {
-			dbfsVersion := getDbfsVersion(dbfsID)
+			dbfsVersion = getDbfsVersion(dbfsID)
 			if dbfsVersion == "" {
 				dbfsVersion = "1.0.0.2"
 			}
