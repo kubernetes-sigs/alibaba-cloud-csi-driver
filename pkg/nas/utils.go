@@ -320,23 +320,22 @@ func setNasVolumeCapacity(nfsServer, nfsPath string, volSizeBytes int64) error {
 	quotaRequest.RegionId = GetMetaData(RegionTag)
 	_, err := nasClient.SetDirQuota(quotaRequest)
 	if err != nil {
+		if strings.Contains(err.Error(), "The specified FileSystem does not exist.") {
+			return fmt.Errorf("extreme did not support quota, please change %s to General Purpose NAS", nfsServer)
+		}
 		return fmt.Errorf("volume set nas quota with error: %s", err.Error())
 	}
 	return nil
 }
 
-func setNasVolumeCapacityWithID(volumeID string, volSizeBytes int64) error {
-	pvObj, err := getPvObj(volumeID)
-	if err != nil {
-		return err
-	}
+func setNasVolumeCapacityWithID(pvObj *v1.PersistentVolume, volSizeBytes int64) error {
 	if pvObj.Spec.CSI == nil {
-		return fmt.Errorf("Volume %s is not CSI type %v ", volumeID, pvObj)
+		return fmt.Errorf("Volume %s is not CSI type %v ", pvObj.Name, pvObj)
 	}
 
 	// Check Pv volume parameters
-	if _, ok := pvObj.Spec.CSI.VolumeAttributes["volumeCapacity"]; !ok {
-		return fmt.Errorf("Volume %s not contain volumeCapacity parameters, not support expand, PV: %v ", volumeID, pvObj)
+	if value, ok := pvObj.Spec.CSI.VolumeAttributes["volumeCapacity"]; ok && value == "false" {
+		return fmt.Errorf("Volume %s not contain volumeCapacity parameters, not support expand, PV: %v ", pvObj.Name, pvObj)
 	}
 	nfsServer, nfsPath := "", ""
 	if value, ok := pvObj.Spec.CSI.VolumeAttributes["server"]; ok {
