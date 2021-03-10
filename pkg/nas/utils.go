@@ -526,12 +526,13 @@ func checkLosetupUnmount(mountPoint string) error {
 		if err := os.Remove(lockFile); err != nil {
 			return fmt.Errorf("checkLosetupUnmount: remove lock file error %v", err)
 		}
+		if err := utils.Umount(nfsPath); err != nil {
+			return fmt.Errorf("checkLosetupUnmount: umount nfs path error %v", err)
+		}
+		log.Infof("Losetup Unmount successful %s", mountPoint)
+	} else {
+		log.Infof("Losetup Unmount, image file not exist, skipping %s", mountPoint)
 	}
-
-	if err := utils.Umount(nfsPath); err != nil {
-		return fmt.Errorf("checkLosetupUnmount: umount nfs path error %v", err)
-	}
-	log.Infof("Losetup Unmount successful %s", mountPoint)
 	return nil
 }
 
