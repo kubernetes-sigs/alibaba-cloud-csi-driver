@@ -817,11 +817,21 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 ) (*csi.ControllerExpandVolumeResponse, error) {
 	log.Infof("ControllerExpandVolume: starting to expand nas volume with %v", req)
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
-	err := setNasVolumeCapacityWithID(req.VolumeId, volSizeBytes)
+	pvObj, err := getPvObj(req.VolumeId)
 	if err != nil {
-		log.Errorf("ControllerExpandVolume: nas volume(%s) expand error: %s", req.VolumeId, err.Error())
 		return nil, fmt.Errorf("ControllerExpandVolume: nas volume(%s) expand error: %s", req.VolumeId, err.Error())
 	}
-	log.Infof("ControllerExpandVolume: Successful expand nas volume(%s) to size %d", req.VolumeId, volSizeBytes)
+	if _, ok := pvObj.Spec.CSI.VolumeAttributes["volumeCapacity"]; ok {
+		err = setNasVolumeCapacityWithID(pvObj, volSizeBytes)
+		if err != nil {
+			log.Errorf("ControllerExpandVolume: nas volume(%s) expand error: %s", req.VolumeId, err.Error())
+			return nil, fmt.Errorf("ControllerExpandVolume: nas volume(%s) expand error: %s", req.VolumeId, err.Error())
+		}
+		log.Infof("ControllerExpandVolume: Successful expand nas quota volume(%s) to size %d", req.VolumeId, volSizeBytes)
+	} else if mountType, ok := pvObj.Spec.CSI.VolumeAttributes["mountType"]; ok && mountType == "losetup" {
+		log.Infof("ControllerExpandVolume: Successful expand nas losetup volume(%s) to size %d", req.VolumeId, volSizeBytes)
+	} else {
+		return nil, fmt.Errorf("ControllerExpandVolume: nas volume(%s) not support expand", req.VolumeId)
+	}
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
 }
