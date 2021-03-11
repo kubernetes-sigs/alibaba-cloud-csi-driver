@@ -391,6 +391,12 @@ func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) erro
 			log.Errorf("NodeExpandVolume: resize device error %v", err)
 			return fmt.Errorf("NodeExpandVolume: resize device file error, %v", err)
 		}
+
+		chkCmd := fmt.Sprintf("%s fsck.ext4 %s", NsenterCmd, imgFile)
+		_, err = utils.Run(chkCmd)
+		if err != nil {
+			return fmt.Errorf("Check losetup image error %s", err.Error())
+		}
 		resizeFs := fmt.Sprintf("%s resize2fs %s", NsenterCmd, loopDev)
 		_, err = utils.Run(resizeFs)
 		if err != nil {
