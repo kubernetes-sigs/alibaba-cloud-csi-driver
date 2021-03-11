@@ -25,8 +25,7 @@ echo `date`" Start to Upgrade CSI Plugin to $imageVersion ..."
 
 # new deploy template file
 # if any changes, just update here and replace image value
-cat > .aliyun-csi-plugin.yaml << EOF
----
+cat > .aliyun-csi-plugin-addition.yaml << EOF
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -97,7 +96,7 @@ rules:
     verbs: ["patch"]
   - apiGroups: [""]
     resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch", "update"]
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshots/status"]
     verbs: ["update"]
@@ -147,6 +146,9 @@ metadata:
 spec:
   attachRequired: false
   podInfoOnMount: true
+EOF
+
+cat > .aliyun-csi-plugin.yaml << EOF
 ---
 kind: DaemonSet
 apiVersion: apps/v1
@@ -336,7 +338,18 @@ if [ "$ossdriver" = "false" ]; then
 fi
 
 
+echo "Apply plugin additions..."
+kubectl apply -f .aliyun-csi-plugin-addition.yaml
+
 ## do csi-plugin upgrade
-cat .aliyun-csi-plugin.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl apply -f -
+canApply=`kubectl get ds csi-plugin -nkube-system -oyaml |grep kubectl.kubernetes.io/last-applied-configuration | wc -l`
+if [ "$canApply" != "0" ]; then
+  echo "Upgrade CSI plugin with kubectl apply..."
+  cat .aliyun-csi-plugin.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl apply -f -
+else
+  echo "Upgrade CSI plugin with kubectl replace..."
+  cat .aliyun-csi-plugin.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl replace -f -
+fi
+
 
 echo "Upgrade csi plugin from $imageBefore to $imageName"
