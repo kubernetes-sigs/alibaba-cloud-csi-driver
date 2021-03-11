@@ -25,7 +25,7 @@ fi
 # new deploy template file
 # if any changes, just update here and replace image value
 
-cat > .aliyun-csi-provisioner.yaml << EOF
+cat > .aliyun-csi-provisioner-addition.yaml << EOF
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -76,6 +76,9 @@ parameters:
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
+EOF
+
+cat > .aliyun-csi-provisioner.yaml << EOF
 ---
 kind: Deployment
 apiVersion: apps/v1
@@ -308,8 +311,19 @@ if [[ $imageVersion != *aliyun ]]; then
     exit 0
 fi
 
+echo "Apply StorageClass..."
+kubectl apply -f .aliyun-csi-provisioner-addition.yaml
+
+
 ## Delete old plugin
 # kubectl delete deployment csi-provisioner -nkube-system
-cat .aliyun-csi-provisioner.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl apply -f -
+canApply=`kubectl get deploy csi-provisioner -nkube-system -oyaml |grep kubectl.kubernetes.io/last-applied-configuration | wc -l`
+if [ "$canApply" != "0" ]; then
+  echo "Upgrade CSI provisioner with kubectl apply..."
+  cat .aliyun-csi-provisioner.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl apply -f -
+else
+  echo "Upgrade CSI provisioner with kubectl replace..."
+  cat .aliyun-csi-provisioner.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl replace -f -
+fi
 
 echo "Upgrade csi provisioner from $imageBefore to $imageName"
