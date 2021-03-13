@@ -75,6 +75,8 @@ const (
 	NASTAGKEY2 = "createdby"
 	// NASTAGVALUE2 value
 	NASTAGVALUE2 = "alibabacloud-csi-plugin"
+	// NASTAGKEY3 key
+	NASTAGKEY3 = "ack.aliyun.com"
 	//AddDefaultTagsError means that the add nas default tags error
 	AddDefaultTagsError string = "AddDefaultTagsError"
 	// MntTypeKey tag
@@ -231,7 +233,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			// Set Default DiskTags
 			tagResourcesRequest := aliNas.CreateTagResourcesRequest()
 			tagResourcesRequest.ResourceId = &[]string{fileSystemID}
-			tagResourcesRequest.Tag = &[]aliNas.TagResourcesTag{{Key: NASTAGKEY1, Value: NASTAGVALUE1}, {Key: NASTAGKEY2, Value: NASTAGVALUE2}}
+			tagResourcesRequest.Tag = &[]aliNas.TagResourcesTag{{Key: NASTAGKEY1, Value: NASTAGVALUE1}, {Key: NASTAGKEY2, Value: NASTAGVALUE2}, {Key: NASTAGKEY3, Value: GlobalConfigVar.ClusterID}}
 			tagResourcesRequest.ResourceType = "filesystem"
 			tagResourcesResponse, err := cs.nasClient.TagResources(tagResourcesRequest)
 			if err != nil {

@@ -70,6 +70,7 @@ type GlobalConfig struct {
 	DiskBdfEnable         bool
 	ClientSet             *kubernetes.Clientset
 	FilesystemLosePercent float64
+	ClusterID             string
 }
 
 // define global variable
@@ -115,10 +116,13 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	}
 
 	// Set Region ID
-	region := GetRegionID()
+	regionID := os.Getenv("REGION_ID")
+	if regionID == "" {
+		regionID = GetRegionID()
+	}
 
 	// Config Global vars
-	cfg := GlobalConfigSet(client, region, nodeID)
+	cfg := GlobalConfigSet(client, regionID, nodeID)
 
 	apiExtentionClient, err := crd.NewForConfig(cfg)
 	if err != nil {
@@ -127,7 +131,7 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
-	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient, region)
+	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient, regionID)
 
 	if !runAsController {
 		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, client)
@@ -294,8 +298,9 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 	if runtimeEnv == MixRunTimeMode {
 		runtimeValue = MixRunTimeMode
 	}
+	clustID := os.Getenv("CLUSTER_ID")
 
-	log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete)
+	log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete, clustID)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
 		EcsClient:             client,
@@ -311,6 +316,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		DetachBeforeDelete:    isDiskDetachBeforeDelete,
 		ClientSet:             kubeClient,
 		FilesystemLosePercent: fileSystemLosePercent,
+		ClusterID:             clustID,
 	}
 	return cfg
 }
