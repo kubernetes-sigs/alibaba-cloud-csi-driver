@@ -108,6 +108,9 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	// Init ECS Client
 	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
 	client := newEcsClient(accessKeyID, accessSecret, accessToken)
+	if os.Getenv("INTERNAL_MODE") == "true" {
+		client.Network = "openapi-share"
+	}
 	if accessToken == "" {
 		log.Infof("Starting csi-plugin without sts")
 	} else {
