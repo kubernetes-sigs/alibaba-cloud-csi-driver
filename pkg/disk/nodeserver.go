@@ -127,9 +127,18 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		log.Infof("NewNodeServer: MAX_VOLUMES_PERNODE is set to(default): %d", maxVolumesNum)
 	}
 
-	doc, err := getInstanceDoc()
-	if err != nil {
-		log.Fatalf("Error happens to get node document: %v", err)
+	zoneID := ""
+	nodeID := GlobalConfigVar.NodeID
+	internalMode := os.Getenv("INTERNAL_MODE")
+	if internalMode == "true" {
+		zoneID = getZoneID(c, nodeID)
+	} else {
+		doc, err := getInstanceDoc()
+		if err != nil {
+			log.Fatalf("Error happens to get node document: %v", err)
+		}
+		zoneID = doc.ZoneID
+		nodeID = doc.InstanceID
 	}
 
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
@@ -150,12 +159,12 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	} else {
 		log.Infof("Currently node is NOT VF model")
 	}
-	go UpdateNode(doc.InstanceID, kubeClient, c)
+	go UpdateNode(nodeID, kubeClient, c)
 
 	return &nodeServer{
-		zone:              doc.ZoneID,
+		zone:              zoneID,
 		maxVolumesPerNode: maxVolumesNum,
-		nodeID:            doc.InstanceID,
+		nodeID:            nodeID,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		mounter:           utils.NewMounter(),
 		k8smounter:        k8smount.New(""),

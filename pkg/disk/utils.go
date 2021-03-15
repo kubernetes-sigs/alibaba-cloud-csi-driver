@@ -969,6 +969,36 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 	}
 }
 
+// getZoneID ...
+func getZoneID(c *ecs.Client, instanceID string) string {
+
+	node, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), instanceID, metav1.GetOptions{})
+	if err != nil {
+		log.Fatalf("getZoneID:: get node error: %v", err)
+	}
+	ecsKey := os.Getenv("NODE_LABEL_ECS_ID_KEY")
+	ecsID := ""
+	if ecsKey == "" {
+		ecsID = instanceID
+	} else {
+		ecsID = node.Labels[ecsKey]
+	}
+	request := ecs.CreateDescribeInstancesRequest()
+
+	request.RegionId = GlobalConfigVar.Region
+	request.InstanceIds = "[\"" + ecsID + "\"]"
+
+	request.Domain = fmt.Sprintf("ecs-openapi-share.%s.aliyuncs.com", GlobalConfigVar.Region)
+	instanceResponse, err := c.DescribeInstances(request)
+	if err != nil {
+		log.Fatalf("getZoneID:: describe instance id error: %s ecsID: %s", err.Error(), ecsID);
+	}
+	if len(instanceResponse.Instances.Instance) != 1 {
+		log.Fatalf("getZoneID:: describe instance returns error instance count: %v", len(instanceResponse.Instances.Instance)) 
+	}
+	return instanceResponse.Instances.Instance[0].ZoneId
+}
+
 func intersect(slice1, slice2 []string) []string {
 	m := make(map[string]int)
 	nn := make([]string, 0)
