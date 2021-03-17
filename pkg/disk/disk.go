@@ -72,6 +72,7 @@ type GlobalConfig struct {
 	FilesystemLosePercent float64
 	ClusterID             string
 	DiskPartitionEnable   bool
+	BaseDir               string
 }
 
 // define global variable
@@ -87,7 +88,7 @@ func initDriver() {
 }
 
 //NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
+func NewDriver(nodeID, endpoint, baseDir string, runAsController bool) *DISK {
 	initDriver()
 	tmpdisk := &DISK{}
 	tmpdisk.endpoint = endpoint
@@ -123,7 +124,7 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	}
 
 	// Config Global vars
-	cfg := GlobalConfigSet(client, regionID, nodeID)
+	cfg := GlobalConfigSet(client, regionID, nodeID, baseDir)
 
 	apiExtentionClient, err := crd.NewForConfig(cfg)
 	if err != nil {
@@ -150,7 +151,7 @@ func (disk *DISK) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Config {
+func GlobalConfigSet(client *ecs.Client, region, nodeID, baseDir string) *restclient.Config {
 	configMapName := "csi-plugin"
 	isADControllerEnable := false
 	isDiskTagEnable := false
@@ -324,6 +325,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		FilesystemLosePercent: fileSystemLosePercent,
 		ClusterID:             clustID,
 		DiskPartitionEnable:   partition,
+		BaseDir:               baseDir,
 	}
 	return cfg
 }

@@ -52,7 +52,7 @@ func initDriver() {
 }
 
 // NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string) *MEM {
+func NewDriver(nodeID, endpoint, baseDir string) *MEM {
 	initDriver()
 	tmpmem := &MEM{}
 	tmpmem.endpoint = endpoint
@@ -61,7 +61,7 @@ func NewDriver(nodeID, endpoint string) *MEM {
 		nodeID = GetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
-	GlobalConfigSet("", nodeID, driverName)
+	GlobalConfigSet("", nodeID, driverName, baseDir)
 	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, nodeID)
 	tmpmem.driver = csiDriver
 	tmpmem.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
@@ -89,7 +89,7 @@ func (mem *MEM) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(region, nodeID, driverName string) {
+func GlobalConfigSet(region, nodeID, driverName, baseDir string) {
 	// Global Config set
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
@@ -130,6 +130,7 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 		KmemEnable:          kmemEnable,
 		ControllerProvision: remoteProvision,
 		KubeClient:          kubeClient,
+		BaseDir:             baseDir,
 	}
 	log.Infof("Local Plugin Global Config is: %v", GlobalConfigVar)
 

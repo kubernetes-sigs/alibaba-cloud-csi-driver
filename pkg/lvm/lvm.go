@@ -45,7 +45,7 @@ func initDriver() {
 }
 
 // NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string) *LVM {
+func NewDriver(nodeID, endpoint, baseDir string) *LVM {
 	initDriver()
 	tmplvm := &LVM{}
 	tmplvm.endpoint = endpoint
@@ -65,7 +65,7 @@ func NewDriver(nodeID, endpoint string) *LVM {
 
 	// Create GRPC servers
 	tmplvm.idServer = newIdentityServer(tmplvm.driver)
-	tmplvm.nodeServer = NewNodeServer(tmplvm.driver, nodeID)
+	tmplvm.nodeServer = NewNodeServer(tmplvm.driver, nodeID, baseDir)
 	tmplvm.controllerServer = newControllerServer(tmplvm.driver)
 
 	return tmplvm

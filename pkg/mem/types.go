@@ -9,6 +9,7 @@ type GlobalConfig struct {
 	Region              string
 	NodeID              string
 	Scheduler           string
+	BaseDir             string
 	KmemEnable          bool
 	ControllerProvision bool
 	KubeClient          *kubernetes.Clientset

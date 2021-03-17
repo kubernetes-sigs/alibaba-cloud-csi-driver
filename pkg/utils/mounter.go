@@ -72,11 +72,14 @@ type Mounter interface {
 // architecture specific code in the future, such as mounter_darwin.go,
 // mounter_linux.go, etc..
 type mounter struct {
+	baseDir string
 }
 
 // NewMounter returns a new mounter instance
-func NewMounter() Mounter {
-	return &mounter{}
+func NewMounter(baseDir string) Mounter {
+	return &mounter{
+		baseDir: baseDir,
+	}
 }
 func (m *mounter) EnsureFolder(target string) error {
 	mdkirCmd := "mkdir"
@@ -325,15 +328,15 @@ func (m *mounter) HasMountRefs(mountPath string, mountRefs []string) bool {
 	count := 0
 	for _, refPath := range mountRefs {
 		if !strings.Contains(refPath, mountPath) {
-			if strings.HasPrefix(mountPath, "/var/lib/kubelet/") {
-				mountPathSuffix := strings.Replace(mountPath, "/var/lib/kubelet/", "", 1)
-				refPathSuffix := strings.Replace(refPath, "/var/lib/container/kubelet/", "", 1)
+			if strings.HasPrefix(mountPath, m.baseDir +"/kubelet/") {
+				mountPathSuffix := strings.Replace(mountPath, m.baseDir + "/kubelet/", "", 1)
+				refPathSuffix := strings.Replace(refPath, m.baseDir + "/container/kubelet/", "", 1)
 				if refPathSuffix != mountPathSuffix {
 					count = count + 1
 				}
-			} else if strings.HasPrefix(mountPath, "/var/lib/container/kubelet/") {
-				mountPathSuffix := strings.Replace(mountPath, "/var/lib/container/kubelet/", "", 1)
-				refPathSuffix := strings.Replace(refPath, "/var/lib/kubelet/", "", 1)
+			} else if strings.HasPrefix(mountPath, m.baseDir + "/container/kubelet/") {
+				mountPathSuffix := strings.Replace(mountPath, m.baseDir + "/container/kubelet/", "", 1)
+				refPathSuffix := strings.Replace(refPath, m.baseDir + "/kubelet/", "", 1)
 				if refPathSuffix != mountPathSuffix {
 					count = count + 1
 				}

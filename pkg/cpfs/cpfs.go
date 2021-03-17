@@ -46,7 +46,7 @@ type CPFS struct {
 }
 
 // NewDriver create a cpfs driver object
-func NewDriver(nodeID, endpoint string) *CPFS {
+func NewDriver(nodeID, endpoint, baseDir string) *CPFS {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
 	d := &CPFS{}

@@ -1072,7 +1072,7 @@ func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
 		return status.Error(codes.Internal, msg)
 	}
 
-	checkCmd := fmt.Sprintf("mount | grep \"%s on /var/lib/kubelet type\" | wc -l", devicePath)
+	checkCmd := fmt.Sprintf("mount | grep \"%s on %s/kubelet type\" | wc -l", devicePath, GlobalConfigVar.BaseDir)
 	if out, err := utils.Run(checkCmd); err != nil {
 		msg := fmt.Sprintf("devicePath(%s) is used to kubelet", devicePath)
 		return status.Error(codes.Internal, msg)
