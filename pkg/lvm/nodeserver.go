@@ -87,7 +87,7 @@ var (
 )
 
 // NewNodeServer create a NodeServer object
-func NewNodeServer(d *csicommon.CSIDriver, nodeID string) csi.NodeServer {
+func NewNodeServer(d *csicommon.CSIDriver, nodeID, baseDir string) csi.NodeServer {
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubeconfig: %s", err.Error())
@@ -101,7 +101,7 @@ func NewNodeServer(d *csicommon.CSIDriver, nodeID string) csi.NodeServer {
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		nodeID:            nodeID,
-		mounter:           utils.NewMounter(),
+		mounter:           utils.NewMounter(baseDir),
 		k8smounter:        k8smount.New(""),
 		client:            kubeClient,
 	}

@@ -210,7 +210,7 @@ func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get nfsstats: %s", err)
 	}
-	volJSONPaths, err := findVolJSON(podsRootPath)
+	volJSONPaths, err := findVolJSON(baseKubeletDir + podsRootPath)
 	if err != nil {
 		logrus.Errorf("Find nfs vol_data json is failed, err:%s", err)
 		return err

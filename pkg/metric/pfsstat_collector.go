@@ -25,8 +25,8 @@ var (
 )
 
 const (
-	volumeDevice       = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/"
-	defaultTokenFormat = "/var/lib/kubelet/pods/%s/volumes/kubernetes.io~secret/default-token"
+	volumeDevice       = "/kubelet/plugins/kubernetes.io/csi/volumeDevices/"
+	defaultTokenFormat = "%s/kubelet/pods/%s/volumes/kubernetes.io~secret/default-token"
 	//RawBlockUnit is 4MB
 	pfsRawBlockUnit       = 4 * 1024 * 1024
 	notFoundvolumeDevices = "Not found volumeDevices"
@@ -79,7 +79,7 @@ func (p *pfsRawBlockStatCollector) updateStatByPolling() {
 				doUpdate = false
 			}
 		} else {
-			volJSONPaths, err = findVolJSONByPfsRawBlock(rawBlockRootPath)
+			volJSONPaths, err = findVolJSONByPfsRawBlock(baseKubeletDir + rawBlockRootPath)
 			if err != nil {
 				logrus.Errorf("Find disk vol_data json is failed, err:%s", err)
 				doUpdate = false
@@ -364,7 +364,7 @@ func getStatByDockerID(dockerID string, dockerClient **client.Client) ([]string,
 
 func getPfsRawBlockPvName() ([]string, error) {
 	var pvNameArray []string
-	mountCmd := "mount | grep /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices | grep staging"
+	mountCmd := fmt.Sprintf("mount | grep %s/kubelet/plugins/kubernetes.io/csi/volumeDevices | grep staging", baseKubeletDir)
 	mount, err := utils.Run(mountCmd)
 	if err != nil && strings.Contains(err.Error(), "with out: , with error:") {
 		return nil, errors.New(notFoundvolumeDevices)
@@ -377,8 +377,9 @@ func getPfsRawBlockPvName() ([]string, error) {
 
 	mountArray := strings.Fields(mount)
 	for _, s := range mountArray {
-		if strings.Contains(s, volumeDevice+"staging/") {
-			pvName := strings.Split(s, volumeDevice+"staging/")
+		volumeDeviceDir := baseKubeletDir + volumeDevice + "staging/"
+		if strings.Contains(s, volumeDeviceDir) {
+			pvName := strings.Split(s, volumeDeviceDir)
 			if len(pvName) >= 2 {
 				keyWord := "/"
 				end := strings.Index(pvName[1], keyWord)
@@ -394,7 +395,7 @@ func getPfsRawBlockPvName() ([]string, error) {
 }
 
 func isRunningByPodName(podID string) bool {
-	runningPodMountPoint := fmt.Sprintf(defaultTokenFormat, podID)
+	runningPodMountPoint := fmt.Sprintf(defaultTokenFormat, baseKubeletDir, podID)
 	cmd := "mount | grep " + runningPodMountPoint
 	out, err := utils.Run(cmd)
 	if err != nil {
@@ -424,7 +425,7 @@ func getDockerIDByPodID(podID string, containers []types.Container) (string, err
 
 func getDockerIDByPvName(pvName string, containers []types.Container) ([]string, error) {
 	var dockerIDArray []string
-	pvDevPath := volumeDevice + pvName + "/dev"
+	pvDevPath := baseKubeletDir + volumeDevice + pvName + "/dev"
 	podIDList, err := listDirectory(pvDevPath)
 	if err != nil {
 		logrus.Errorf("List Directory %s is failed, err:%s", pvDevPath, err)

@@ -133,7 +133,7 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		nodeID:            nodeID,
-		mounter:           utils.NewMounter(),
+		mounter:           utils.NewMounter(types.GlobalConfigVar.BaseDir),
 		k8smounter:        mounter,
 		client:            kubeClient,
 		driverName:        dName,

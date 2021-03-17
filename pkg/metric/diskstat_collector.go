@@ -245,7 +245,7 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get diskstats: %s", err)
 	}
-	volJSONPaths, err := findVolJSON(podsRootPath)
+	volJSONPaths, err := findVolJSON(baseKubeletDir + podsRootPath)
 	if err != nil {
 		logrus.Errorf("Find disk vol_data json is failed, err:%s", err)
 		return err
@@ -479,7 +479,7 @@ func getDiskStats() (map[string][]string, error) {
 }
 
 func getGlobalMountPathByPvName(pvName string, info *diskInfo) {
-	info.GlobalMountPath = fmt.Sprintf("/var/lib/kubelet/plugins/kubernetes.io/csi/pv/%s/globalmount", pvName)
+	info.GlobalMountPath = fmt.Sprintf("%s/kubelet/plugins/kubernetes.io/csi/pv/%s/globalmount", baseKubeletDir, pvName)
 }
 
 func getDiskCapacityMetric(pvName string, info *diskInfo, stat []string) ([]string, error) {

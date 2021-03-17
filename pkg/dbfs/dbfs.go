@@ -42,6 +42,7 @@ type GlobalConfig struct {
 	EcsInstanceID      string
 	ADControllerEnable bool
 	DBFSDetachDisable  bool
+	BaseDir            string
 }
 
 // DBFS define driver
@@ -57,7 +58,7 @@ type DBFS struct {
 }
 
 //NewDriver create the identity/node/controller server and dbfs driver
-func NewDriver(nodeID, endpoint string) *DBFS {
+func NewDriver(nodeID, endpoint, baseDir string) *DBFS {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
 	d := &DBFS{}
@@ -87,7 +88,7 @@ func NewDriver(nodeID, endpoint string) *DBFS {
 	GlobalConfigVar.DbfsClient = c
 
 	// Global Configs Set
-	GlobalConfigSet(region)
+	GlobalConfigSet(region, baseDir)
 	return d
 }
 
@@ -102,7 +103,7 @@ func (d *DBFS) Run() {
 }
 
 // GlobalConfigSet set global config
-func GlobalConfigSet(region string) {
+func GlobalConfigSet(region, baseDir string) {
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
@@ -167,5 +168,6 @@ func GlobalConfigSet(region string) {
 	GlobalConfigVar.ADControllerEnable = isADControllerEnable
 	GlobalConfigVar.DBFSDomain = "dbfs." + GlobalConfigVar.Region + ".aliyuncs.com"
 	GlobalConfigVar.DBFSDetachDisable = isDbfsDetachDisable
+	GlobalConfigVar.BaseDir = baseDir
 	log.Infof("DBFS Global Config: %v", GlobalConfigVar)
 }

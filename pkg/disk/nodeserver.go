@@ -93,7 +93,7 @@ const (
 	// InputOutputErr tag
 	InputOutputErr = "input/output error"
 	// BLOCKVOLUMEPREFIX block volume mount prefix
-	BLOCKVOLUMEPREFIX = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/publish"
+	BLOCKVOLUMEPREFIX = "/kubelet/plugins/kubernetes.io/csi/volumeDevices/publish"
 	// FileSystemLoseCapacityPercent is the env of container
 	FileSystemLoseCapacityPercent = "FILE_SYSTEM_LOSE_PERCENT"
 )
@@ -166,7 +166,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		maxVolumesPerNode: maxVolumesNum,
 		nodeID:            nodeID,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
-		mounter:           utils.NewMounter(),
+		mounter:           utils.NewMounter(GlobalConfigVar.BaseDir),
 		k8smounter:        k8smount.New(""),
 		clientSet:         kubeClient,
 	}
@@ -389,7 +389,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
 		// Block device
-		if !utils.IsDir(targetPath) && strings.HasPrefix(targetPath, BLOCKVOLUMEPREFIX) {
+		if !utils.IsDir(targetPath) && strings.HasPrefix(targetPath, GlobalConfigVar.BaseDir + BLOCKVOLUMEPREFIX) {
 			if removeErr := os.Remove(targetPath); removeErr != nil {
 				return nil, status.Errorf(codes.Internal, "Could not remove mount block target %s: %v", targetPath, removeErr)
 			}
@@ -427,7 +427,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	if req.VolumeId == "" {
 		return nil, status.Error(codes.InvalidArgument, "NodeStageVolume Volume ID must be provided")
 	}
-	// targetPath format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
+	// targetPath format: {GlobalConfigVar.BaseDir}/var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
 	if targetPath == "" {
 		return nil, status.Error(codes.InvalidArgument, "NodeStageVolume Staging Target Path must be provided")
 	}
@@ -582,7 +582,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
-// target format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
+// target format: {GlobalConfigVar.BaseDir} /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	log.Infof("NodeUnstageVolume:: Starting to Unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
 	if req.VolumeId == "" {
@@ -817,7 +817,7 @@ func (ns *nodeServer) unmountDuplicateMountPoint(targetPath string) error {
 	pathParts := strings.Split(targetPath, "/")
 	partsLen := len(pathParts)
 	if partsLen > 2 && pathParts[partsLen-1] == "mount" {
-		globalPath2 := filepath.Join("/var/lib/container/kubelet/plugins/kubernetes.io/csi/pv/", pathParts[partsLen-2], "/globalmount")
+		globalPath2 := filepath.Join(GlobalConfigVar.BaseDir + "/container/kubelet/plugins/kubernetes.io/csi/pv/", pathParts[partsLen-2], "/globalmount")
 		if utils.IsFileExisting(globalPath2) {
 			// check globalPath2 is mountpoint
 			notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(globalPath2)
