@@ -171,8 +171,12 @@ func newEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *
 		}
 	}
 
-	// Set Unitized Endpoint for hangzhou region
-	SetEcsEndPoint(regionID)
+	if os.Getenv("INTERNAL_MODE") == "true" {
+		ecsClient.Network = "openapi-share"
+	} else {
+		// Set Unitized Endpoint for hangzhou region
+		SetEcsEndPoint(regionID)
+	}
 
 	return
 }
@@ -184,6 +188,9 @@ func updateEcsClent(client *ecs.Client) *ecs.Client {
 	}
 	if client.Client.GetConfig() != nil {
 		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
+	}
+	if os.Getenv("INTERNAL_MODE") == "true" {
+		client.Network = "openapi-share"
 	}
 	return client
 }
@@ -994,7 +1001,7 @@ func getZoneID(c *ecs.Client, instanceID string) string {
 		log.Fatalf("getZoneID:: describe instance id error: %s ecsID: %s", err.Error(), ecsID);
 	}
 	if len(instanceResponse.Instances.Instance) != 1 {
-		log.Fatalf("getZoneID:: describe instance returns error instance count: %v", len(instanceResponse.Instances.Instance)) 
+		log.Fatalf("getZoneID:: describe instance returns error instance count: %v, ecsID: %v", len(instanceResponse.Instances.Instance), ecsID) 
 	}
 	return instanceResponse.Instances.Instance[0].ZoneId
 }
