@@ -47,3 +47,7 @@ build-nas:
 .PHONY: build-disk
 build-disk:
 	./build/build-disk.sh "" $(REPONAME)
+
+.PHONY: build-local-edge
+build-local-edge:
+	bash ./build/build-local-edge.sh "" $(REPONAME)

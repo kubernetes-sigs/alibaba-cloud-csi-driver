@@ -11,4 +11,5 @@ build/oss/csiplugin-connector
 build/lvm/lvmplugin.csi.alibabacloud.com
 build/nsenter
 build/Dockerfile
+build/local-edge/_output
 alibaba-cloud-csi-driver
