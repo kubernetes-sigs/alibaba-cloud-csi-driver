@@ -121,6 +121,15 @@ func NewDriver(nodeID, endpoint, baseDir string, runAsController bool) *DISK {
 	// Config Global vars
 	cfg := GlobalConfigSet(client, region, nodeID, baseDir)
 
+	// only for inner oxs env. disk type only
+	node, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), nodeID, metav1.GetOptions{})
+	if err != nil {
+		log.Fatalf("getZoneID:: get node error: %v", err)
+	}
+	if os.Getenv("INTERNAL_MODE") == "true" && os.Getenv("NODE_LABEL_ECS_ID_KEY") != "" {
+		GlobalConfigVar.NodeID = node.Labels[os.Getenv("NODE_LABEL_ECS_ID_KEY")]
+	}
+
 	apiExtentionClient, err := crd.NewForConfig(cfg)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())

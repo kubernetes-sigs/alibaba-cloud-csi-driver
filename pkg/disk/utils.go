@@ -979,29 +979,18 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 // getZoneID ...
 func getZoneID(c *ecs.Client, instanceID string) string {
 
-	node, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), instanceID, metav1.GetOptions{})
-	if err != nil {
-		log.Fatalf("getZoneID:: get node error: %v", err)
-	}
-	ecsKey := os.Getenv("NODE_LABEL_ECS_ID_KEY")
-	ecsID := ""
-	if ecsKey == "" {
-		ecsID = instanceID
-	} else {
-		ecsID = node.Labels[ecsKey]
-	}
 	request := ecs.CreateDescribeInstancesRequest()
 
 	request.RegionId = GlobalConfigVar.Region
-	request.InstanceIds = "[\"" + ecsID + "\"]"
+	request.InstanceIds = "[\"" + instanceID + "\"]"
 
 	request.Domain = fmt.Sprintf("ecs-openapi-share.%s.aliyuncs.com", GlobalConfigVar.Region)
 	instanceResponse, err := c.DescribeInstances(request)
 	if err != nil {
-		log.Fatalf("getZoneID:: describe instance id error: %s ecsID: %s", err.Error(), ecsID);
+		log.Fatalf("getZoneID:: describe instance id error: %s ecsID: %s", err.Error(), instanceID);
 	}
 	if len(instanceResponse.Instances.Instance) != 1 {
-		log.Fatalf("getZoneID:: describe instance returns error instance count: %v, ecsID: %v", len(instanceResponse.Instances.Instance), ecsID) 
+		log.Fatalf("getZoneID:: describe instance returns error instance count: %v, ecsID: %v, response: %+v", len(instanceResponse.Instances.Instance), instanceID, instanceResponse)
 	}
 	return instanceResponse.Instances.Instance[0].ZoneId
 }
