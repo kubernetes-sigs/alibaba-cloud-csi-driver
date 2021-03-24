@@ -276,6 +276,10 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 			fileSystemLosePercent = percent
 		}
 	}
+	enable := os.Getenv(EnableFileSystemLoseCapacityPercent)
+	if enable == "" {
+		fileSystemLosePercent = float64(0.0)
+	}
 
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	runtimeValue := "runc"

@@ -96,6 +96,8 @@ const (
 	BLOCKVOLUMEPREFIX = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/publish"
 	// FileSystemLoseCapacityPercent is the env of container
 	FileSystemLoseCapacityPercent = "FILE_SYSTEM_LOSE_PERCENT"
+	// EnableFileSystemLoseCapacityPercent is the env of enable filesystem lose percent
+	EnableFileSystemLoseCapacityPercent = "ENABLE_FILE_SYSTEM_LOSE_PERCENT"
 )
 
 // QueryResponse response struct for query server
