@@ -902,6 +902,21 @@ func getDiskCapacity(devicePath string) (float64, error) {
 	return float64(capacity) / GBSIZE, nil
 }
 
+func getBlockDeviceCapacity(devicePath string) float64 {
+
+	file, err := os.Open(devicePath)
+	if err != nil {
+		log.Errorf("getBlockDeviceCapacity:: failed to open devicePath: %v", devicePath)
+		return 0
+	}
+	pos, err := file.Seek(0, io.SeekEnd)
+	if err != nil {
+		log.Errorf("getBlockDeviceCapacity:: failed to read devicePath: %v", devicePath)
+		return 0
+	}
+	return float64(pos) / GBSIZE
+}
+
 // UpdateNode ...
 func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 	instanceStorageLabels := []string{}
