@@ -271,7 +271,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	diskTags = append(diskTags, tag1)
 	diskTags = append(diskTags, tag2)
-	diskTags = append(diskTags, tag3)
+	if GlobalConfigVar.ClusterID != "" {
+		diskTags = append(diskTags, tag3)
+	}
 	// Set Default DiskTags
 	// Set Config DiskTags
 	if diskVol.DiskTags != "" {
