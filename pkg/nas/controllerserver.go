@@ -233,7 +233,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			// Set Default DiskTags
 			tagResourcesRequest := aliNas.CreateTagResourcesRequest()
 			tagResourcesRequest.ResourceId = &[]string{fileSystemID}
-			tagResourcesRequest.Tag = &[]aliNas.TagResourcesTag{{Key: NASTAGKEY1, Value: NASTAGVALUE1}, {Key: NASTAGKEY2, Value: NASTAGVALUE2}, {Key: NASTAGKEY3, Value: GlobalConfigVar.ClusterID}}
+			if GlobalConfigVar.ClusterID != "" {
+				tagResourcesRequest.Tag = &[]aliNas.TagResourcesTag{{Key: NASTAGKEY1, Value: NASTAGVALUE1}, {Key: NASTAGKEY2, Value: NASTAGVALUE2}, {Key: NASTAGKEY3, Value: GlobalConfigVar.ClusterID}}
+			} else {
+				tagResourcesRequest.Tag = &[]aliNas.TagResourcesTag{{Key: NASTAGKEY1, Value: NASTAGVALUE1}, {Key: NASTAGKEY2, Value: NASTAGVALUE2}}
+			}
 			tagResourcesRequest.ResourceType = "filesystem"
 			tagResourcesResponse, err := cs.nasClient.TagResources(tagResourcesRequest)
 			if err != nil {
