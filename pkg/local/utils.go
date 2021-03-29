@@ -220,6 +220,14 @@ func getPVNumber(vgName string) int {
 	return pvCount
 }
 
+func getPvcObj(client kubernetes.Interface, name, namespace string) (*v1.PersistentVolumeClaim, error) {
+	return client.CoreV1().PersistentVolumeClaims(namespace).Get(context.Background(), name, metav1.GetOptions{})
+}
+
+func updatePvcObj(client kubernetes.Interface, pvcObj *v1.PersistentVolumeClaim, namespace string) (*v1.PersistentVolumeClaim, error) {
+	return client.CoreV1().PersistentVolumeClaims(namespace).Update(context.Background(), pvcObj, metav1.UpdateOptions{})
+}
+
 func getPvObj(client kubernetes.Interface, volumeID string) (*v1.PersistentVolume, error) {
 	return client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
 }

@@ -25,7 +25,6 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/adapter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/client"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/generator"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
@@ -623,11 +622,26 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 		if value, ok := attributes[PvcNsTag]; ok {
 			pvcNameSpace = value
 		}
-		if err := adapter.ExpandVolume(pvcNameSpace, pvcName, volSizeGB); err != nil {
-			log.Errorf("ControllerExpandVolume: expand volume %s to size %d meet error: %v", volumeID, volSizeGB, err)
-			return nil, errors.New("ControllerExpandVolume: expand volume error " + err.Error())
+
+		pvcObj, err := getPvcObj(cs.client, pvcName, pvcNameSpace)
+		if err != nil {
+			log.Errorf("ControllerExpandVolume: Get pvc object error: %v", err)
+			return nil, errors.New("ControllerExpandVolume: Get pvc object error " + err.Error())
 		}
 
+		if value, ok := pvcObj.Annotations["volume.kubernetes.io/storage-resize"]; !ok || value != "true" {
+			log.Errorf("ControllerExpandVolume: expand volume %s, waiting scheduler annotations", volumeID)
+			return nil, errors.New("ControllerExpandVolume: expand volume, waiting scheduler annotations, volume: " + volumeID)
+		}
+
+		delete(pvcObj.Annotations, "volume.kubernetes.io/storage-resize")
+		_, err = updatePvcObj(cs.client, pvcObj, pvcNameSpace)
+		if err != nil {
+			log.Errorf("ControllerExpandVolume: expand volume %s, meet pvc update error: %v", volumeID, volSizeGB, err)
+			return nil, errors.New("ControllerExpandVolume: expand volume, meet pvc update error " + err.Error())
+		}
+
+		log.Infof("ControllerExpandVolume: Successful expand volume %s, to %d", volumeID, volSizeGB)
 	}
 
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
