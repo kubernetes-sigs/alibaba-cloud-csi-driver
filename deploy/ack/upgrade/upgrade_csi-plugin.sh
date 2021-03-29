@@ -2,24 +2,13 @@
 
 ## Usage
 ## Append image tag which is expect.
-## bash upgrade_csi-plugin.sh v1.18.8.45-1c5d2cd1-aliyun
+## bash upgrade_csi-plugin.sh v1.18.8.46-afb19e46-aliyun
 
 
 if [ "$1" = "" ]; then
   echo "Please input the expect csi plugin version... "
 fi
 imageVersion=$1
-
-## set secret mounts for managed cluster
-masterCount=`kubectl get node | grep master | grep -v grep | wc -l`
-secretCount=`kubectl get secret addon.csi.token -nkube-system | grep addon.csi.token | grep -v grep | wc -l`
-volumeDefineStr=""
-volumeMountStr=""
-
-if [ "$masterCount" -eq "0" ] && [ "$secretCount" -eq "1" ]; then
-  volumeDefineStr="        - name: addon-token\n          secret:\n            defaultMode: 420\n            items:\n            - key: addon.token.config\n              path: token-config\n            secretName: addon.csi.token"
-  volumeMountStr="            - mountPath: \/var\/addon\n              name: addon-token\n              readOnly: true"
-fi
 
 echo `date`" Start to Upgrade CSI Plugin to $imageVersion ..."
 
@@ -271,7 +260,9 @@ spec:
             - name: host-dev
               mountPath: /dev
               mountPropagation: "HostToContainer"
-volume-mount-string
+            - mountPath: /var/addon
+              name: addon-token
+              readOnly: true
       volumes:
         - name: registration-dir
           hostPath:
@@ -297,7 +288,14 @@ volume-mount-string
         - name: ossconnectordir
           hostPath:
             path: /usr/
-volume-define-string
+        - name: addon-token
+          secret:
+            defaultMode: 420
+            optional: true
+            items:
+            - key: addon.token.config
+              path: token-config
+            secretName: addon.csi.token
   updateStrategy:
     rollingUpdate:
       maxUnavailable: 10%
@@ -345,10 +343,10 @@ kubectl apply -f .aliyun-csi-plugin-addition.yaml
 canApply=`kubectl get ds csi-plugin -nkube-system -oyaml |grep kubectl.kubernetes.io/last-applied-configuration | wc -l`
 if [ "$canApply" != "0" ]; then
   echo "Upgrade CSI plugin with kubectl apply..."
-  cat .aliyun-csi-plugin.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl apply -f -
+  cat .aliyun-csi-plugin.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | kubectl apply -f -
 else
   echo "Upgrade CSI plugin with kubectl replace..."
-  cat .aliyun-csi-plugin.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl replace -f -
+  cat .aliyun-csi-plugin.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | kubectl replace -f -
 fi
 
 

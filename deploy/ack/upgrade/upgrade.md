@@ -16,12 +16,12 @@
 
 ### 2. 升级CSI Plugin版本到最新：
 
-选择最新release版本号（例如v：1.1.1 对应acs/csi-plugin版本为 v1.18.8.45-1c5d2cd1-aliyun），下载并执行脚本（注意链接地址）：
+选择最新release版本号（例如v：1.1.1 对应acs/csi-plugin版本为 v1.18.8.46-afb19e46-aliyun），下载并执行脚本（注意链接地址）：
 
 [https://raw.githubusercontent.com/kubernetes-sigs/alibaba-cloud-csi-driver/release-v1.1.1/deploy/ack/upgrade/upgrade_csi-plugin.sh](https://raw.githubusercontent.com/kubernetes-sigs/alibaba-cloud-csi-driver/release-v1.1.1/deploy/ack/upgrade/upgrade_csi-plugin.sh)
 
 执行：
->$ bash upgrade_csi-plugin.sh v1.18.8.45-1c5d2cd1-aliyun
+>$ bash upgrade_csi-plugin.sh v1.18.8.46-afb19e46-aliyun
 
 ### 3. 检查升级情况：
 
@@ -37,13 +37,13 @@
 版本信息详见：[https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/releases](https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/releases)
 
 ### 2. 升级CSI Provisioner版本到最新：
-选择最新release版本（例如：v1.1.1 对应acs/csi-plugin的版本为 v1.18.8.45-1c5d2cd1-aliyun），下载脚本并执行：
+选择最新release版本（例如：v1.1.1 对应acs/csi-plugin的版本为 v1.18.8.46-afb19e46-aliyun），下载脚本并执行：
 
-> 注意：CSI Provisioner所指的镜像版本为：acs/csi-plugin的镜像版本，例如：v1.1.1对应v1.18.8.45-1c5d2cd1-aliyun，而acs/csi-provisioner这个镜像本质上是一个sidercar，不是升级需要的参数；
+> 注意：CSI Provisioner所指的镜像版本为：acs/csi-plugin的镜像版本，而acs/csi-provisioner这个镜像本质上是一个sidercar，不是升级需要的参数；
 
 [https://raw.githubusercontent.com/kubernetes-sigs/alibaba-cloud-csi-driver/release-v1.1.1/deploy/ack/upgrade/upgrade_csi-provisioner.sh](https://raw.githubusercontent.com/kubernetes-sigs/alibaba-cloud-csi-driver/release-v1.1.1/deploy/ack/upgrade/upgrade_csi-provisioner.sh)
 
-> $ bash upgrade_csi-provisioner.sh v1.18.8.45-1c5d2cd1-aliyun
+> $ bash upgrade_csi-provisioner.sh v1.18.8.46-afb19e46-aliyun
 
 **（这里填写acs/csi-plugin的镜像版本号）**
 

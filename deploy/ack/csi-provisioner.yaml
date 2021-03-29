@@ -106,7 +106,7 @@ spec:
       hostNetwork: true
       containers:
         - name: external-disk-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.6.0-b6f763a43-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.6.0-e360c7e43-aliyun
           args:
             - "--provisioner=diskplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
@@ -153,7 +153,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-nas-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.6.0-b6f763a43-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.6.0-e360c7e43-aliyun
           args:
             - "--provisioner=nasplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
@@ -195,7 +195,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.18.8.45-1c5d2cd1-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.18.8.46-afb19e46-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -259,13 +259,14 @@ spec:
         - name: host-dev
           hostPath:
             path: /dev
+        - name: etc
+          hostPath:
+            path: /etc
         - name: addon-token
           secret:
             defaultMode: 420
+            optional: true
             items:
             - key: addon.token.config
               path: token-config
             secretName: addon.csi.token
-        - name: etc
-          hostPath:
-            path: /etc
