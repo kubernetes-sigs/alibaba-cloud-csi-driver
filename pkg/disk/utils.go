@@ -171,8 +171,12 @@ func newEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *
 		}
 	}
 
-	// Set Unitized Endpoint for hangzhou region
-	SetEcsEndPoint(regionID)
+	if os.Getenv("INTERNAL_MODE") == "true" {
+		ecsClient.Network = "openapi-share"
+	} else {
+		// Set Unitized Endpoint for hangzhou region
+		SetEcsEndPoint(regionID)
+	}
 
 	return
 }
@@ -184,6 +188,9 @@ func updateEcsClent(client *ecs.Client) *ecs.Client {
 	}
 	if client.Client.GetConfig() != nil {
 		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
+	}
+	if os.Getenv("INTERNAL_MODE") == "true" {
+		client.Network = "openapi-share"
 	}
 	return client
 }
@@ -967,6 +974,36 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 		}
 		return
 	}
+}
+
+// getZoneID ...
+func getZoneID(c *ecs.Client, instanceID string) string {
+
+	node, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), instanceID, metav1.GetOptions{})
+	if err != nil {
+		log.Fatalf("getZoneID:: get node error: %v", err)
+	}
+	ecsKey := os.Getenv("NODE_LABEL_ECS_ID_KEY")
+	ecsID := ""
+	if ecsKey == "" {
+		ecsID = instanceID
+	} else {
+		ecsID = node.Labels[ecsKey]
+	}
+	request := ecs.CreateDescribeInstancesRequest()
+
+	request.RegionId = GlobalConfigVar.Region
+	request.InstanceIds = "[\"" + ecsID + "\"]"
+
+	request.Domain = fmt.Sprintf("ecs-openapi-share.%s.aliyuncs.com", GlobalConfigVar.Region)
+	instanceResponse, err := c.DescribeInstances(request)
+	if err != nil {
+		log.Fatalf("getZoneID:: describe instance id error: %s ecsID: %s", err.Error(), ecsID)
+	}
+	if len(instanceResponse.Instances.Instance) != 1 {
+		log.Fatalf("getZoneID:: describe instance returns error instance count: %v, ecsID: %v", len(instanceResponse.Instances.Instance), ecsID)
+	}
+	return instanceResponse.Instances.Instance[0].ZoneId
 }
 
 func intersect(slice1, slice2 []string) []string {
