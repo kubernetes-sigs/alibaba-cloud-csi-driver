@@ -637,7 +637,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 		delete(pvcObj.Annotations, "volume.kubernetes.io/storage-resize")
 		_, err = updatePvcObj(cs.client, pvcObj, pvcNameSpace)
 		if err != nil {
-			log.Errorf("ControllerExpandVolume: expand volume %s, meet pvc update error: %v", volumeID, volSizeGB, err)
+			log.Errorf("ControllerExpandVolume: expand volume %s, meet pvc update error: %v", volumeID, err)
 			return nil, errors.New("ControllerExpandVolume: expand volume, meet pvc update error " + err.Error())
 		}
 
