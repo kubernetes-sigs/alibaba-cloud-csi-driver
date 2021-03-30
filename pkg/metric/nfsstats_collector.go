@@ -3,12 +3,14 @@ package metric
 import (
 	"fmt"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/volume/util/fs"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -206,6 +208,9 @@ func NewNfsStatCollector() (Collector, error) {
 func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
 	//startTime := time.Now()
 	pvNameStatsMap, err := getNfsStat()
+	if len(pvNameStatsMap) == 0 || pvNameStatsMap == nil {
+		return nil
+	}
 
 	if err != nil {
 		return fmt.Errorf("couldn't get nfsstats: %s", err)
@@ -315,46 +320,43 @@ func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo,
 }
 
 func getNfsStat() (map[string][]string, error) {
-	cmd := "cat " + nfsStatsFileName + " | grep -E 'fstype nfs|WRITE:|READ:'"
-	line, err := utils.Run(cmd)
-	if err != nil {
-		return nil, err
-	}
 	pvNameStatMapping := make(map[string][]string, 0)
-	line = strings.Replace(line, "\n", " ", -1)
-	line = strings.Replace(line, "\t", " ", -1)
-	fieldArray := strings.Split(line, " ")
-	stat := make([]string, 0)
-	var pvName string
-	for i, field := range fieldArray {
-		if strings.Contains(field, "/kubernetes.io~csi/") {
-			pathArray := strings.Split(field, "/")
-			pvName = pathArray[len(pathArray)-2]
+	mountStatsFile, err := os.Open(nfsStatsFileName)
+	defer mountStatsFile.Close()
+	if mountStatsFile == nil {
+		return nil, errors.New(fmt.Sprintf("File %s is not found.", nfsStatsFileName))
+	}
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Open file %s is error, err:%s", nfsStatsFileName, err))
+	}
+	mountArr, err := parseMountStats(mountStatsFile)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("ParseMountStats %s is error, err:%s.", nfsStatsFileName, err))
+	}
+	for _, mount := range mountArr {
+		nfsOperationStats := mount.Stats.operationStats()
+		for _, operation := range nfsOperationStats {
+			addNfsStat(&pvNameStatMapping, mount.Mount, operation, "READ")
 		}
-		parseStat("READ:", field, &i, fieldArray, &stat)
-		parseStat("WRITE:", field, &i, fieldArray, &stat)
-		if len(stat) == 16 {
-			pvNameStatMapping[pvName] = stat
-			stat = make([]string, 0)
-			pvName = ""
+		for _, operation := range nfsOperationStats {
+			addNfsStat(&pvNameStatMapping, mount.Mount, operation, "WRITE")
 		}
 	}
 	return pvNameStatMapping, nil
 }
 
-func parseStat(keywords string, field string, startIndex *int, fieldArray []string, stat *[]string) {
-	if field == keywords {
-		*startIndex++
-		for j := 0; j < 8; j++ {
-			if *startIndex+j <= len(fieldArray)-1 {
-				if _, err := strconv.Atoi(fieldArray[*startIndex+j]); err == nil {
-					*stat = append(*stat, fieldArray[*startIndex+j])
-				} else {
-					logrus.Errorf("strconv.Atoi is failed, err:%s", err)
-				}
-			}
-		}
-		*startIndex += 8
+func addNfsStat(pvNameStatMapping *map[string][]string, mountPath string, operationStat NFSOperationStats, keyWord string) {
+	if operationStat.Operation == keyWord {
+		pathArr := strings.Split(mountPath, "/")
+		pvName := pathArr[len(pathArr)-2]
+		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.Requests)))
+		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.Transmissions)))
+		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.MajorTimeouts)))
+		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.BytesSent)))
+		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.BytesReceived)))
+		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.CumulativeQueueMilliseconds)))
+		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.CumulativeTotalResponseMilliseconds)))
+		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.CumulativeTotalRequestMilliseconds)))
 	}
 }
 
@@ -370,9 +372,4 @@ func getNfsCapacityStat(pvName string, info nfsInfo, stat *[]string) error {
 	*stat = append(*stat, strconv.Itoa(int(usage)))
 	*stat = append(*stat, strconv.Itoa(int(available)))
 	return nil
-}
-
-func kilobytes2byte(kilobytes string) string {
-	kilobytesInt64, _ := strconv.ParseInt(kilobytes, 10, 64)
-	return strconv.FormatInt(kilobytesInt64*1024, 10)
 }

@@ -987,10 +987,10 @@ func getZoneID(c *ecs.Client, instanceID string) string {
 	request.Domain = fmt.Sprintf("ecs-openapi-share.%s.aliyuncs.com", GlobalConfigVar.Region)
 	instanceResponse, err := c.DescribeInstances(request)
 	if err != nil {
-		log.Fatalf("getZoneID:: describe instance id error: %s ecsID: %s", err.Error(), instanceID);
+		log.Fatalf("getZoneID:: describe instance id error: %s ecsID: %s", err.Error(), instanceID)
 	}
 	if len(instanceResponse.Instances.Instance) != 1 {
-		log.Fatalf("getZoneID:: describe instance returns error instance count: %v, ecsID: %v, response: %+v", len(instanceResponse.Instances.Instance), instanceID, instanceResponse)
+		log.Fatalf("getZoneID:: describe instance returns error instance count: %v, ecsID: %v", len(instanceResponse.Instances.Instance), instanceID)
 	}
 	return instanceResponse.Instances.Instance[0].ZoneId
 }

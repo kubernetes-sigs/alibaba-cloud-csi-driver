@@ -75,6 +75,8 @@ const (
 	NASTAGKEY2 = "createdby"
 	// NASTAGVALUE2 value
 	NASTAGVALUE2 = "alibabacloud-csi-plugin"
+	// NASTAGKEY3 key
+	NASTAGKEY3 = "ack.aliyun.com"
 	//AddDefaultTagsError means that the add nas default tags error
 	AddDefaultTagsError string = "AddDefaultTagsError"
 	// MntTypeKey tag
@@ -231,7 +233,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			// Set Default DiskTags
 			tagResourcesRequest := aliNas.CreateTagResourcesRequest()
 			tagResourcesRequest.ResourceId = &[]string{fileSystemID}
-			tagResourcesRequest.Tag = &[]aliNas.TagResourcesTag{{Key: NASTAGKEY1, Value: NASTAGVALUE1}, {Key: NASTAGKEY2, Value: NASTAGVALUE2}}
+			if GlobalConfigVar.ClusterID != "" {
+				tagResourcesRequest.Tag = &[]aliNas.TagResourcesTag{{Key: NASTAGKEY1, Value: NASTAGVALUE1}, {Key: NASTAGKEY2, Value: NASTAGVALUE2}, {Key: NASTAGKEY3, Value: GlobalConfigVar.ClusterID}}
+			} else {
+				tagResourcesRequest.Tag = &[]aliNas.TagResourcesTag{{Key: NASTAGKEY1, Value: NASTAGVALUE1}, {Key: NASTAGKEY2, Value: NASTAGVALUE2}}
+			}
 			tagResourcesRequest.ResourceType = "filesystem"
 			tagResourcesResponse, err := cs.nasClient.TagResources(tagResourcesRequest)
 			if err != nil {
@@ -817,11 +823,21 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 ) (*csi.ControllerExpandVolumeResponse, error) {
 	log.Infof("ControllerExpandVolume: starting to expand nas volume with %v", req)
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
-	err := setNasVolumeCapacityWithID(req.VolumeId, volSizeBytes)
+	pvObj, err := getPvObj(req.VolumeId)
 	if err != nil {
-		log.Errorf("ControllerExpandVolume: nas volume(%s) expand error: %s", req.VolumeId, err.Error())
 		return nil, fmt.Errorf("ControllerExpandVolume: nas volume(%s) expand error: %s", req.VolumeId, err.Error())
 	}
-	log.Infof("ControllerExpandVolume: Successful expand nas volume(%s) to size %d", req.VolumeId, volSizeBytes)
+	if _, ok := pvObj.Spec.CSI.VolumeAttributes["volumeCapacity"]; ok {
+		err = setNasVolumeCapacityWithID(pvObj, volSizeBytes)
+		if err != nil {
+			log.Errorf("ControllerExpandVolume: nas volume(%s) expand error: %s", req.VolumeId, err.Error())
+			return nil, fmt.Errorf("ControllerExpandVolume: nas volume(%s) expand error: %s", req.VolumeId, err.Error())
+		}
+		log.Infof("ControllerExpandVolume: Successful expand nas quota volume(%s) to size %d", req.VolumeId, volSizeBytes)
+	} else if mountType, ok := pvObj.Spec.CSI.VolumeAttributes["mountType"]; ok && mountType == "losetup" {
+		log.Infof("ControllerExpandVolume: Successful expand nas losetup volume(%s) to size %d", req.VolumeId, volSizeBytes)
+	} else {
+		return nil, fmt.Errorf("ControllerExpandVolume: nas volume(%s) not support expand", req.VolumeId)
+	}
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
 }

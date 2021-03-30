@@ -62,6 +62,8 @@ const (
 	DISKTAGKEY2 = "createdby"
 	// DISKTAGVALUE2 value
 	DISKTAGVALUE2 = "alibabacloud-csi-plugin"
+	// DISKTAGKEY3 key
+	DISKTAGKEY3 = "ack.aliyun.com"
 	// SNAPSHOTFORCETAG tag
 	SNAPSHOTFORCETAG = "forceDelete"
 	// SNAPSHOTTAGKEY1 tag
@@ -265,8 +267,13 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	diskTags := []ecs.CreateDiskTag{}
 	tag1 := ecs.CreateDiskTag{Key: DISKTAGKEY1, Value: DISKTAGVALUE1}
 	tag2 := ecs.CreateDiskTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
+	tag3 := ecs.CreateDiskTag{Key: DISKTAGKEY3, Value: GlobalConfigVar.ClusterID}
+
 	diskTags = append(diskTags, tag1)
 	diskTags = append(diskTags, tag2)
+	if GlobalConfigVar.ClusterID != "" {
+		diskTags = append(diskTags, tag3)
+	}
 	// Set Default DiskTags
 	// Set Config DiskTags
 	if diskVol.DiskTags != "" {

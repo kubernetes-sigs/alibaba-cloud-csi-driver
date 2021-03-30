@@ -65,7 +65,7 @@ func isFileRemovable(file string) (bool, string) {
 
 // {BaseDir}/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/pvc-54574338-42dc-4c7e-8337-e015d4e6dbc1/dev/abc
 func isFileBlockLink(file string) bool {
-	if !strings.HasPrefix(file, GlobalConfigVar.BaseDir + "/kubelet/plugins/kubernetes.io/csi/volumeDevices/") {
+	if !strings.HasPrefix(file, GlobalConfigVar.BaseDir+"/kubelet/plugins/kubernetes.io/csi/volumeDevices/") {
 		return false
 	}
 

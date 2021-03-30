@@ -71,6 +71,7 @@ type GlobalConfig struct {
 	ClientSet             *kubernetes.Clientset
 	FilesystemLosePercent float64
 	BaseDir               string
+	ClusterID             string
 }
 
 // define global variable
@@ -116,18 +117,23 @@ func NewDriver(nodeID, endpoint, baseDir string, runAsController bool) *DISK {
 	}
 
 	// Set Region ID
-	region := GetRegionID()
+	regionID := os.Getenv("REGION_ID")
+	if regionID == "" {
+		regionID = GetRegionID()
+	}
 
 	// Config Global vars
-	cfg := GlobalConfigSet(client, region, nodeID, baseDir)
+	cfg := GlobalConfigSet(client, regionID, nodeID, baseDir)
 
-	// only for inner oxs env. disk type only
-	node, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), nodeID, metav1.GetOptions{})
-	if err != nil {
-		log.Fatalf("getZoneID:: get node error: %v", err)
-	}
 	if os.Getenv("INTERNAL_MODE") == "true" && os.Getenv("NODE_LABEL_ECS_ID_KEY") != "" {
-		GlobalConfigVar.NodeID = node.Labels[os.Getenv("NODE_LABEL_ECS_ID_KEY")]
+		// only for inner oxs env. disk type only
+		node, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), nodeID, metav1.GetOptions{})
+		if err != nil {
+			log.Fatalf("getZoneID:: get node error: %v", err)
+		}
+		if node != nil {
+			GlobalConfigVar.NodeID = node.Labels[os.Getenv("NODE_LABEL_ECS_ID_KEY")]
+		}
 	}
 
 	apiExtentionClient, err := crd.NewForConfig(cfg)
@@ -137,7 +143,7 @@ func NewDriver(nodeID, endpoint, baseDir string, runAsController bool) *DISK {
 
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
-	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient, region)
+	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient, regionID)
 
 	if !runAsController {
 		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, client)
@@ -304,8 +310,9 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID, baseDir string) *restcl
 	if runtimeEnv == MixRunTimeMode {
 		runtimeValue = MixRunTimeMode
 	}
+	clustID := os.Getenv("CLUSTER_ID")
 
-	log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete)
+	log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete, clustID)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
 		EcsClient:             client,
@@ -322,6 +329,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID, baseDir string) *restcl
 		ClientSet:             kubeClient,
 		FilesystemLosePercent: fileSystemLosePercent,
 		BaseDir:               baseDir,
+		ClusterID:             clustID,
 	}
 	return cfg
 }
