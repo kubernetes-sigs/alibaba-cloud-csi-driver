@@ -420,6 +420,13 @@ func getDeviceSerial(serial string) (device string) {
 	return ""
 }
 
+func getDiskPartition(deviceName string) string {
+	if utils.IsFileExisting(deviceName + "1") {
+		return deviceName + "1"
+	}
+	return deviceName
+}
+
 // GetDeviceByVolumeID First try to find the device by serial
 // If cannot find the device using the serial number, get device by volumeID, link file should be like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
