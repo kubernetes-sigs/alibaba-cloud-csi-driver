@@ -565,6 +565,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 
 	// do format-mount or mount
+	device = getDiskPartition(device)
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
 	if len(mkfsOptions) > 0 && (fsType == "ext4" || fsType == "ext3") {
 		if err := formatAndMount(diskMounter, device, targetPath, fsType, mkfsOptions, options); err != nil {
@@ -798,6 +799,7 @@ func (ns *nodeServer) mountDeviceToGlobal(capability *csi.VolumeCapability, volu
 	}
 
 	// do format-mount or mount
+	device = getDiskPartition(device)
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
 	if len(mkfsOptions) > 0 && (fsType == "ext4" || fsType == "ext3") {
 		if err := formatAndMount(diskMounter, device, sourcePath, fsType, mkfsOptions, options); err != nil {
