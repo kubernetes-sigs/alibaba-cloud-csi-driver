@@ -613,6 +613,21 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		}, nil
 	}
 
+	disks := getDisk(sourceVolumeID)
+	if len(disks) == 0 {
+		log.Warnf("CreateSnapshot: no disk found: %s", sourceVolumeID)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID))
+	} else if len(disks) != 1 {
+		log.Warnf("CreateSnapshot: multi disk found: %s", sourceVolumeID)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID))
+	}
+	if disks[0].Status != "In_use" {
+		log.Errorf("CreateSnapshot: disk [%s] not attached, status: [%s]", sourceVolumeID, disks[0].Status)
+		e := status.Error(codes.InvalidArgument, fmt.Sprintf("CreateSnapshot:: target disk: %v must be attached", sourceVolumeID))
+		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
+		return nil, e
+	}
+
 	// init createSnapshotRequest and parameters
 	snapshotName := req.GetName()
 	createAt := ptypes.TimestampNow()
