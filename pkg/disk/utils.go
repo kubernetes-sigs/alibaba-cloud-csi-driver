@@ -481,6 +481,21 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 
 // GetVolumeIDByDevice get volumeID by specific deivce name according to by-id dictionary
 func GetVolumeIDByDevice(device string) (volumeID string, err error) {
+	// get volume by serial number feature
+	deviceName := device
+	if strings.HasPrefix(device, "/dev/") {
+		deviceName = strings.TrimPrefix(device, "/dev/")
+	} else if strings.HasPrefix(device, "/") {
+		deviceName = strings.TrimPrefix(device, "/")
+	}
+
+	serialFile := filepath.Join("/sys/block/", deviceName, "/serial")
+	volumeIDContent := utils.GetFileContent(serialFile)
+	if volumeIDContent != "" {
+		return "d-" + volumeIDContent, nil
+	}
+
+	// Get volume by disk by-id feature
 	byIDPath := "/dev/disk/by-id/"
 	files, _ := ioutil.ReadDir(byIDPath)
 	for _, f := range files {
@@ -492,7 +507,7 @@ func GetVolumeIDByDevice(device string) (volumeID string, err error) {
 				log.Errorf("GetVolumeIDByDevice: error reading target of symlink %q: %v", filePath, err)
 				continue
 			}
-			if strings.Contains(resolved, device) {
+			if strings.HasSuffix(resolved, device) {
 				volumeID = strings.Replace(f.Name(), "virtio-", "d-", -1)
 				return volumeID, nil
 			}
