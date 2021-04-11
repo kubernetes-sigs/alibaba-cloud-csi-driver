@@ -28,9 +28,11 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
@@ -420,11 +422,163 @@ func getDeviceSerial(serial string) (device string) {
 	return ""
 }
 
-func getDiskPartition(deviceName string) string {
-	if utils.IsFileExisting(deviceName + "1") {
-		return deviceName + "1"
+// validate and get the correct device path;
+func validateDevicePartition(devicePath string) (string, error) {
+	// check disk partition is enabled.
+	if !GlobalConfigVar.DiskPartitionEnable {
+		return devicePath, nil
 	}
-	return deviceName
+
+	if devicePath == "" {
+		return "", fmt.Errorf("DevicePath is empty ")
+	}
+	// Sign disk is partition or not
+	isPartation := false
+	// example: /dev/vdb
+	rootDevicePath := ""
+	// example: /dev/vdb1
+	subDevicePath := ""
+
+	// Get RootDevice path
+	if tmpPath, _, err := getDeviceRootAndIndex(devicePath); err != nil {
+		return "", err
+	} else {
+		rootDevicePath = tmpPath
+	}
+
+	// Get all device path relate to root device
+	deviceList, err := filepath.Glob(rootDevicePath + "*")
+	if err != nil {
+		return "", fmt.Errorf("Get Device List for %s error %v ", devicePath, err)
+	}
+
+	// set isPartation and check partition
+	if len(deviceList) == 0 {
+		return "", fmt.Errorf("List Device Path empty for %s ", devicePath)
+	} else if len(deviceList) == 1 {
+		isPartation = false
+	} else if len(deviceList) == 2 {
+		isPartation = true
+		if rootDevicePath == deviceList[0] {
+			subDevicePath = deviceList[1]
+		} else {
+			subDevicePath = deviceList[0]
+		}
+	} else if len(deviceList) > 2 {
+		return "", fmt.Errorf("Device %s has more than 1 partition: %v ", devicePath, deviceList)
+	}
+
+	if isPartation == true {
+		if err := checkDeviceFileSystem(rootDevicePath, subDevicePath); err != nil {
+			return "", err
+		}
+		devicePath = subDevicePath
+	}
+	return devicePath, nil
+}
+
+func checkDeviceFileSystem(rootDevicePath, subDevicePath string) error {
+	fstype, pptype, _ := GetDiskFormat(rootDevicePath)
+	if fstype != "" {
+		return fmt.Errorf("Root device %s, has filesystem exist: %s, and pptype: %s ", rootDevicePath, fstype, pptype)
+	}
+
+	fstype, _, _ = GetDiskFormat(subDevicePath)
+	if fstype == "" {
+		return fmt.Errorf("Root device %s is partition, and format for %s is not supported ", rootDevicePath, subDevicePath)
+	}
+	return nil
+}
+
+func getDeviceRootAndIndex(devicePath string) (string, int, error) {
+	rootDevicePath := ""
+	index := -1
+	re := regexp.MustCompile(`\d+`)
+	regexpRes := re.FindAllStringSubmatch(devicePath, -1)
+	if len(regexpRes) == 0 {
+		rootDevicePath = devicePath
+		index = -1
+	} else if len(regexpRes) == 1 {
+		numStrTmp := regexpRes[0]
+		if len(numStrTmp) == 0 {
+			return "", -1, fmt.Errorf("GetDeviceRootAndIndex: Device %s has error format %s ", devicePath, numStrTmp)
+		}
+		numStr := numStrTmp[0]
+		if !strings.HasSuffix(devicePath, numStr) {
+			return "", -1, fmt.Errorf("GetDeviceRootAndIndex: Device %s has error format, not endwith %s ", devicePath, numStr)
+		}
+		rootDevicePath = strings.TrimRight(devicePath, numStr)
+		indexTmp, err := strconv.Atoi(numStr)
+		if err != nil {
+			return "", -1, fmt.Errorf("GetDeviceRootAndIndex: Device %s strconv %s, with error: %s ", devicePath, numStr, err.Error())
+		}
+		index = indexTmp
+	} else {
+		return "", -1, fmt.Errorf("Device %s has error format more than one digit ", devicePath)
+	}
+	return rootDevicePath, index, nil
+}
+
+func isDevicePartition(device string) bool {
+	if len(device) == 0 {
+		return false
+	}
+	lastChar := rune(device[len(device)-1])
+	if unicode.IsDigit(lastChar) {
+		return true
+	}
+	return false
+}
+
+// GetDiskFormat uses 'blkid' to see if the given disk is unformatted
+func GetDiskFormat(disk string) (string, string, error) {
+	args := []string{"-p", "-s", "TYPE", "-s", "PTTYPE", "-o", "export", disk}
+
+	diskMounter := &k8smount.SafeFormatAndMount{Interface: k8smount.New(""), Exec: utilexec.New()}
+	dataOut, err := diskMounter.Exec.Command("blkid", args...).CombinedOutput()
+	output := string(dataOut)
+
+	if err != nil {
+		if exit, ok := err.(utilexec.ExitError); ok {
+			if exit.ExitStatus() == 2 {
+				// Disk device is unformatted.
+				// For `blkid`, if the specified token (TYPE/PTTYPE, etc) was
+				// not found, or no (specified) devices could be identified, an
+				// exit code of 2 is returned.
+				return "", "", nil
+			}
+		}
+		log.Errorf("Could not determine if disk %q is formatted (%v)", disk, err)
+		return "", "", err
+	}
+
+	var fstype, pttype string
+	lines := strings.Split(output, "\n")
+	for _, l := range lines {
+		if len(l) <= 0 {
+			// Ignore empty line.
+			continue
+		}
+		cs := strings.Split(l, "=")
+		if len(cs) != 2 {
+			return "", "", fmt.Errorf("blkid returns invalid output: %s", output)
+		}
+		// TYPE is filesystem type, and PTTYPE is partition table type, according
+		// to https://www.kernel.org/pub/linux/utils/util-linux/v2.21/libblkid-docs/.
+		if cs[0] == "TYPE" {
+			fstype = cs[1]
+		} else if cs[0] == "PTTYPE" {
+			pttype = cs[1]
+		}
+	}
+
+	if len(pttype) > 0 {
+		// Returns a special non-empty string as filesystem type, then kubelet
+		// will not format it.
+		return fstype, "unknown data, probably partitions", nil
+	}
+
+	return fstype, "", nil
 }
 
 // GetDeviceByVolumeID First try to find the device by serial
@@ -436,6 +590,10 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 		device = getDeviceSerial(strings.TrimPrefix(volumeID, "d-"))
 		if device != "" {
 			log.Infof("Use the serial to find device, got %q, volumeID: %s", device, volumeID)
+			if device, err = validateDevicePartition(device); err != nil {
+				log.Warnf("Get volume %s device %s by Serial, but validate error %s", volumeID, device, err.Error())
+				return "", fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", volumeID, device, err.Error())
+			}
 			return device, nil
 		}
 	}
@@ -482,6 +640,12 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 	if !strings.HasPrefix(resolved, "/dev") {
 		return "", fmt.Errorf("resolved symlink for %q was unexpected: %q", volumeLinPath, resolved)
 	}
+
+	if resolved, err = validateDevicePartition(resolved); err != nil {
+		log.Warnf("Get volume %s device %s by Serial, but validate error %s", volumeID, resolved, err.Error())
+		return "", fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", volumeID, resolved, err.Error())
+	}
+
 	log.Infof("Device Link Info: %s link to %s", volumeLinPath, resolved)
 	return resolved, nil
 }

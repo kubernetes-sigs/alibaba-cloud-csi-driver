@@ -198,9 +198,17 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 
 		if len(devicePaths) == 2 {
 			if strings.TrimSpace(devicePaths[1]) == strings.TrimSpace(devicePaths[0])+"1" {
+				if err := checkDeviceFileSystem(devicePaths[0], devicePaths[1]); err != nil {
+					log.Errorf("AttachDisk: volume %s get device with diff, and check partition error %s", diskID, err.Error())
+					return "", err
+				}
 				log.Infof("AttachDisk: get 2 devices and select 1 device, list with: %v for volume: %s", devicePaths, diskID)
 				return devicePaths[1], nil
 			} else if strings.TrimSpace(devicePaths[0]) == strings.TrimSpace(devicePaths[1])+"1" {
+				if err := checkDeviceFileSystem(devicePaths[1], devicePaths[0]); err != nil {
+					log.Errorf("AttachDisk: volume %s get device with diff, and check partition error %s", diskID, err.Error())
+					return "", err
+				}
 				log.Infof("AttachDisk: get 2 devices and select 0 device, list with: %v for volume: %s", devicePaths, diskID)
 				return devicePaths[0], nil
 			}
