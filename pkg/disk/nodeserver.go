@@ -96,6 +96,8 @@ const (
 	BLOCKVOLUMEPREFIX = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/publish"
 	// FileSystemLoseCapacityPercent is the env of container
 	FileSystemLoseCapacityPercent = "FILE_SYSTEM_LOSE_PERCENT"
+	// NsenterCmd run command on host
+	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
 )
 
 // QueryResponse response struct for query server
@@ -565,7 +567,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 
 	// do format-mount or mount
-	device = getDiskPartition(device)
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
 	if len(mkfsOptions) > 0 && (fsType == "ext4" || fsType == "ext3") {
 		if err := formatAndMount(diskMounter, device, targetPath, fsType, mkfsOptions, options); err != nil {
@@ -719,6 +720,20 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	}
 	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
 
+	if GlobalConfigVar.DiskPartitionEnable && isDevicePartition(devicePath) {
+		rootPath, index, err := getDeviceRootAndIndex(devicePath)
+		if err != nil {
+			log.Errorf("NodeExpandVolume:: GetDeviceRootAndIndex: %s with error: %s", diskID, err.Error())
+			return nil, status.Errorf(codes.InvalidArgument, "Volume %s GetDeviceRootAndIndex with error %s ", diskID, err.Error())
+		}
+		cmd := fmt.Sprintf("%s growpart %s %d", NsenterCmd, rootPath, index)
+		if _, err := utils.Run(cmd); err != nil {
+			log.Errorf("NodeExpandVolume: expand volume %s partition with error: %s", diskID, err.Error())
+			return nil, status.Errorf(codes.InvalidArgument, "NodeExpandVolume: expand volume %s partition with error: %s ", diskID, err.Error())
+		}
+		log.Infof("NodeExpandVolume: Successful expand partition for volume: %s device: %s partition: %d", diskID, rootPath, index)
+	}
+
 	// use resizer to expand volume filesystem
 	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()})
 	ok, err := resizer.Resize(devicePath, volumePath)
@@ -799,7 +814,6 @@ func (ns *nodeServer) mountDeviceToGlobal(capability *csi.VolumeCapability, volu
 	}
 
 	// do format-mount or mount
-	device = getDiskPartition(device)
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
 	if len(mkfsOptions) > 0 && (fsType == "ext4" || fsType == "ext3") {
 		if err := formatAndMount(diskMounter, device, sourcePath, fsType, mkfsOptions, options); err != nil {
