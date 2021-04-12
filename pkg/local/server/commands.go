@@ -167,6 +167,9 @@ func ListVG() ([]*lib.VG, error) {
 	vgs := make([]*lib.VG, len(outLines))
 	for i, line := range outLines {
 		line = strings.TrimSpace(line)
+		if !strings.Contains(line, "LVM2_VG_NAME") {
+			continue
+		}
 		vg, err := lib.ParseVG(line)
 		if err != nil {
 			return nil, err
