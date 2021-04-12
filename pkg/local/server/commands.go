@@ -164,8 +164,9 @@ func ListVG() ([]*lib.VG, error) {
 	}
 	outStr := strings.TrimSpace(string(out))
 	outLines := strings.Split(outStr, "\n")
-	vgs := make([]*lib.VG, len(outLines))
-	for i, line := range outLines {
+
+	vgs := []*lib.VG{}
+	for _, line := range outLines {
 		line = strings.TrimSpace(line)
 		if !strings.Contains(line, "LVM2_VG_NAME") {
 			continue
@@ -174,7 +175,7 @@ func ListVG() ([]*lib.VG, error) {
 		if err != nil {
 			return nil, err
 		}
-		vgs[i] = vg
+		vgs = append(vgs, vg)
 	}
 	return vgs, nil
 }
