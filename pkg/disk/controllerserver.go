@@ -76,6 +76,10 @@ const (
 	RETENTIONDAYS = "retentionDays"
 	// INSTANTACCESSRETENTIONDAYS ...
 	INSTANTACCESSRETENTIONDAYS = "instantAccessRetentionDays"
+	// SNAPSHOTNAME
+	SNAPSHOTNAME = "volumesnapshot.name"
+	// SNAPSHOTNAMESPACE
+	SNAPSHOTNAMESPACE = "volumesnapshot.namespace"
 )
 
 const (
@@ -594,7 +598,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		return nil, err
 	case snapNum > 1:
 		log.Errorf("CreateSnapshot:: Find Snapshot name[%s], but get more than 1 instance", req.Name)
-		err := status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot: get snapshot more than 1 instance"))
+		err := status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot: get snapshot more than 1 instance err: %s", err.Error()))
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotTooMany, err.Error())
 		return nil, err
 	case err != nil:
@@ -630,8 +634,16 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	tag1 := ecs.CreateSnapshotTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
 	snapshotTags = append(snapshotTags, tag1)
 	if value, ok := req.Parameters[SNAPSHOTFORCETAG]; ok && value == "true" {
-		tag2 := ecs.CreateSnapshotTag{Key: SNAPSHOTTAGKEY1, Value: "true"}
-		snapshotTags = append(snapshotTags, tag2)
+		forceTag := ecs.CreateSnapshotTag{Key: SNAPSHOTTAGKEY1, Value: "true"}
+		snapshotTags = append(snapshotTags, forceTag)
+	}
+	if value, ok := req.Parameters[SNAPSHOTNAME]; ok {
+		nameTag := ecs.CreateSnapshotTag{Key: SNAPSHOTNAME, Value: value}
+		snapshotTags = append(snapshotTags, nameTag)
+	}
+	if value, ok := req.Parameters[SNAPSHOTNAMESPACE]; ok {
+		namespaceTag := ecs.CreateSnapshotTag{Key: SNAPSHOTNAMESPACE, Value: value}
+		snapshotTags = append(snapshotTags, namespaceTag)
 	}
 	createSnapshotRequest.Tag = &snapshotTags
 
@@ -677,6 +689,7 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	// Check Snapshot exist and forceDelete tag;
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	forceDelete := false
+	deleteSnasphot := false
 	snapshot, snapNum, err := findDiskSnapshotByID(req.SnapshotId)
 	if err != nil {
 		return nil, err
@@ -688,6 +701,9 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 		for _, tag := range existsSnapshots[0].Tags.Tag {
 			if tag.TagKey == SNAPSHOTTAGKEY1 && tag.TagValue == "true" {
 				forceDelete = true
+			}
+			if tag.TagKey == SNAPSHOTNAME && tag.TagValue != "" {
+				deleteSnasphot = true
 			}
 		}
 	case snapNum == 0 && err == nil:
@@ -717,6 +733,12 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	}
 	response, err := GlobalConfigVar.EcsClient.DeleteSnapshot(deleteSnapshotRequest)
 	if err != nil {
+		if !forceDelete && strings.Contains(err.Error(), "SnapshotCreatedDisk") && deleteSnasphot {
+			err = attachTagToSnapshot(GlobalConfigVar.EcsClient, snapshotID)
+			if err == nil {
+				return &csi.DeleteSnapshotResponse{}, nil
+			}
+		}
 		if response != nil {
 			log.Errorf("DeleteSnapshot: fail to delete %s: with RequestId: %s, error: %s", snapshotID, response.RequestId, err.Error())
 		}

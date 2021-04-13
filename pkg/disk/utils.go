@@ -1020,3 +1020,17 @@ func intersect(slice1, slice2 []string) []string {
 	}
 	return nn
 }
+
+func attachTagToSnapshot(c *ecs.Client, snapshotID string) error {
+	tag := ecs.TagResourcesTag{
+		Key:   "volumesnapshot.del.k8s.aliyun.com",
+		Value: time.Now().String(),
+	}
+	request := ecs.CreateTagResourcesRequest()
+	request.ResourceType = "snapshot"
+	request.ResourceId = &[]string{snapshotID}
+
+	request.Tag = &[]ecs.TagResourcesTag{tag}
+	_, err := c.TagResources(request)
+	return err
+}
