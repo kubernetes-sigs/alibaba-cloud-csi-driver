@@ -326,18 +326,23 @@ func detachDisk(diskID, nodeID string) error {
 	return nil
 }
 
-// tag disk with: k8s.aliyun.com=true
-func tagDiskAsK8sAttached(diskID string) {
+func getDisk(diskID string) []ecs.Disk {
 	// Step 1: Describe disk, if tag exist, return;
 	describeDisksRequest := ecs.CreateDescribeDisksRequest()
 	describeDisksRequest.RegionId = GlobalConfigVar.Region
 	describeDisksRequest.DiskIds = "[\"" + diskID + "\"]"
 	diskResponse, err := GlobalConfigVar.EcsClient.DescribeDisks(describeDisksRequest)
 	if err != nil {
-		log.Warnf("tagAsK8sAttached: error with DescribeDisks: %s, %s", diskID, err.Error())
-		return
+		log.Warnf("getDisk: error with DescribeDisks: %s, %s", diskID, err.Error())
+		return []ecs.Disk{}
 	}
-	disks := diskResponse.Disks.Disk
+	return diskResponse.Disks.Disk
+}
+
+// tag disk with: k8s.aliyun.com=true
+func tagDiskAsK8sAttached(diskID string) {
+	// Step 1: Describe disk, if tag exist, return;
+	disks := getDisk(diskID)
 	if len(disks) == 0 {
 		log.Warnf("tagAsK8sAttached: no disk found: %s", diskID)
 		return
@@ -352,7 +357,7 @@ func tagDiskAsK8sAttached(diskID string) {
 	describeTagRequest := ecs.CreateDescribeTagsRequest()
 	tag := ecs.DescribeTagsTag{Key: DiskAttachedKey, Value: DiskAttachedValue}
 	describeTagRequest.Tag = &[]ecs.DescribeTagsTag{tag}
-	_, err = GlobalConfigVar.EcsClient.DescribeTags(describeTagRequest)
+	_, err := GlobalConfigVar.EcsClient.DescribeTags(describeTagRequest)
 	if err != nil {
 		log.Warnf("tagAsK8sAttached: DescribeTags error: %s, %s", diskID, err.Error())
 		return
