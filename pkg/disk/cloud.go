@@ -40,7 +40,7 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 		return "", status.Errorf(codes.Internal, "AttachDisk: find disk: %s with error: %s", diskID, err.Error())
 	}
 	if disk == nil {
-		return "", status.Errorf(codes.Internal, "AttachDisk: can't find disk: %s", diskID)
+		return "", status.Errorf(codes.Internal, "AttachDisk: can't find disk: %s, check the disk region, disk exist or not, and the csi access auth", diskID)
 	}
 
 	if !GlobalConfigVar.ADControllerEnable {
@@ -50,7 +50,7 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 		if !GlobalConfigVar.CanAttach {
 			GlobalConfigVar.AttachMutex.Unlock()
 			log.Errorf("NodeStageVolume: Previous attach action is still in process, VolumeId: %s", diskID)
-			return "", status.Error(codes.Aborted, "NodeStageVolume: Previous attach action is still in process")
+			return "", status.Error(codes.Aborted, "NodeStageVolume: Previous attach action is still in process: "+diskID)
 		}
 		GlobalConfigVar.CanAttach = false
 		GlobalConfigVar.AttachMutex.Unlock()
@@ -92,7 +92,7 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 		if disk.Status == DiskStatusInuse {
 			if disk.InstanceId == nodeID {
 				if GlobalConfigVar.ADControllerEnable {
-					log.Infof("AttachDisk: Disk %s is already attached to Instance %s", diskID, disk.InstanceId)
+					log.Infof("AttachDisk: Disk %s is already attached to Instance %s, skipping", diskID, disk.InstanceId)
 					return "", nil
 				}
 				deviceName := GetVolumeDeviceName(diskID)
@@ -145,7 +145,7 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 	response, err := GlobalConfigVar.EcsClient.AttachDisk(attachRequest)
 	if err != nil {
 		if strings.Contains(err.Error(), DiskLimitExceeded) {
-			return "", status.Error(codes.Internal, err.Error()+", Node("+nodeID+")exceed the limit attachments of disk, which at most 16 disks.")
+			return "", status.Error(codes.Internal, err.Error()+", Node("+nodeID+")exceed the limit attachments of disk")
 		} else if strings.Contains(err.Error(), DiskNotPortable) {
 			return "", status.Error(codes.Internal, err.Error()+", Disk("+diskID+") should be \"Pay by quantity\", not be \"Annual package\", please check and modify the charge type.")
 		}
@@ -198,14 +198,14 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 
 		if len(devicePaths) == 2 {
 			if strings.TrimSpace(devicePaths[1]) == strings.TrimSpace(devicePaths[0])+"1" {
-				if err := checkDeviceFileSystem(devicePaths[0], devicePaths[1]); err != nil {
+				if err := checkRootAndSubDeviceFS(devicePaths[0], devicePaths[1]); err != nil {
 					log.Errorf("AttachDisk: volume %s get device with diff, and check partition error %s", diskID, err.Error())
 					return "", err
 				}
 				log.Infof("AttachDisk: get 2 devices and select 1 device, list with: %v for volume: %s", devicePaths, diskID)
 				return devicePaths[1], nil
 			} else if strings.TrimSpace(devicePaths[0]) == strings.TrimSpace(devicePaths[1])+"1" {
-				if err := checkDeviceFileSystem(devicePaths[1], devicePaths[0]); err != nil {
+				if err := checkRootAndSubDeviceFS(devicePaths[1], devicePaths[0]); err != nil {
 					log.Errorf("AttachDisk: volume %s get device with diff, and check partition error %s", diskID, err.Error())
 					return "", err
 				}
@@ -267,6 +267,7 @@ func detachDisk(diskID, nodeID string) error {
 					return status.Errorf(codes.Aborted, err.Error())
 				}
 			}
+			log.Infof("DetachDisk: Starting to Detach Disk %s from node %s", diskID, nodeID)
 			detachDiskRequest := ecs.CreateDetachDiskRequest()
 			detachDiskRequest.DiskId = disk.DiskId
 			detachDiskRequest.InstanceId = disk.InstanceId

@@ -422,39 +422,52 @@ func getDeviceSerial(serial string) (device string) {
 	return ""
 }
 
-// validate and get the correct device path;
-func validateDevicePartition(devicePath string) (string, error) {
+// if device has no partition, just return;
+// if device has one partition, return the partition;
+// if device has more than one partition, return error;
+func adaptDevicePartition(devicePath string) (string, error) {
 	// check disk partition is enabled.
 	if !GlobalConfigVar.DiskPartitionEnable {
 		return devicePath, nil
 	}
-
-	if devicePath == "" {
-		return "", fmt.Errorf("DevicePath is empty ")
+	if devicePath == "" || !strings.HasPrefix(devicePath, "/dev/") {
+		return "", fmt.Errorf("DevicePath is empty or format error %s", devicePath)
 	}
-	// Sign disk is partition or not
+
+	// check disk is partition or not
 	isPartation := false
 	// example: /dev/vdb
 	rootDevicePath := ""
 	// example: /dev/vdb1
 	subDevicePath := ""
+	// device rootPath and partitions
+	deviceList := []string{}
 
 	// Get RootDevice path
-	if tmpPath, _, err := getDeviceRootAndIndex(devicePath); err != nil {
+	if tmpRootPath, _, err := getDeviceRootAndIndex(devicePath); err != nil {
 		return "", err
 	} else {
-		rootDevicePath = tmpPath
+		rootDevicePath = tmpRootPath
 	}
 
 	// Get all device path relate to root device
-	deviceList, err := filepath.Glob(rootDevicePath + "*")
+	globDevices, err := filepath.Glob(rootDevicePath + "*")
 	if err != nil {
-		return "", fmt.Errorf("Get Device List for %s error %v ", devicePath, err)
+		return "", fmt.Errorf("Get Device List by Glob for %s with error %v ", devicePath, err)
+	}
+	digitPattern := "^(\\d+)$"
+	for _, tmpDevice := range globDevices {
+		// find all device partitions
+		if result, err := regexp.MatchString(digitPattern, strings.TrimLeft(tmpDevice, rootDevicePath)); err == nil && result == true {
+			deviceList = append(deviceList, tmpDevice)
+		} else if tmpDevice == rootDevicePath {
+			deviceList = append(deviceList, tmpDevice)
+		}
 	}
 
 	// set isPartation and check partition
 	if len(deviceList) == 0 {
-		return "", fmt.Errorf("List Device Path empty for %s ", devicePath)
+		return "", fmt.Errorf("List Device Path empty for %s and globDevices with %v ", devicePath, globDevices)
 	} else if len(deviceList) == 1 {
 		isPartation = false
 	} else if len(deviceList) == 2 {
@@ -465,11 +478,11 @@ func validateDevicePartition(devicePath string) (string, error) {
 			subDevicePath = deviceList[0]
 		}
 	} else if len(deviceList) > 2 {
-		return "", fmt.Errorf("Device %s has more than 1 partition: %v ", devicePath, deviceList)
+		return "", fmt.Errorf("Device %s has more than 1 partition: %v, globDevices %v ", devicePath, deviceList, globDevices)
 	}
 
 	if isPartation == true {
-		if err := checkDeviceFileSystem(rootDevicePath, subDevicePath); err != nil {
+		if err := checkRootAndSubDeviceFS(rootDevicePath, subDevicePath); err != nil {
 			return "", err
 		}
 		devicePath = subDevicePath
@@ -477,33 +490,40 @@ func validateDevicePartition(devicePath string) (string, error) {
 	return devicePath, nil
 }
 
-func checkDeviceFileSystem(rootDevicePath, subDevicePath string) error {
+func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
+	if !utils.IsFileExisting(rootDevicePath) || !utils.IsFileExisting(subDevicePath) {
+		return fmt.Errorf("Input device path is illegal format: %s, %s ", rootDevicePath, subDevicePath)
+	}
 	fstype, pptype, _ := GetDiskFormat(rootDevicePath)
 	if fstype != "" {
-		return fmt.Errorf("Root device %s, has filesystem exist: %s, and pptype: %s ", rootDevicePath, fstype, pptype)
+		return fmt.Errorf("Root device %s, has filesystem exist: %s, and pptype: %s, disk is not supported ", rootDevicePath, fstype, pptype)
 	}
 
 	fstype, _, _ = GetDiskFormat(subDevicePath)
 	if fstype == "" {
-		return fmt.Errorf("Root device %s is partition, and format for %s is not supported ", rootDevicePath, subDevicePath)
+		return fmt.Errorf("Root device %s is partition, and you should format %s by hands ", rootDevicePath, subDevicePath)
 	}
 	return nil
 }
 
+// return root device name, the partition index
+// input /dev/vdb,   output: /dev/vdb, -1, nil
+// input /dev/vdb1,  output: /dev/vdb, 1,  nil
+// input /dev/vdb22, output: /dev/vdb, 22, nil
 func getDeviceRootAndIndex(devicePath string) (string, int, error) {
 	rootDevicePath := ""
 	index := -1
 	re := regexp.MustCompile(`\d+`)
 	regexpRes := re.FindAllStringSubmatch(devicePath, -1)
 	if len(regexpRes) == 0 {
+		// no digit find in device name
 		rootDevicePath = devicePath
 		index = -1
 	} else if len(regexpRes) == 1 {
-		numStrTmp := regexpRes[0]
-		if len(numStrTmp) == 0 {
-			return "", -1, fmt.Errorf("GetDeviceRootAndIndex: Device %s has error format %s ", devicePath, numStrTmp)
+		if len(regexpRes[0]) == 0 {
+			return "", -1, fmt.Errorf("GetDeviceRootAndIndex: Device %s has error format %s ", devicePath, regexpRes[0])
 		}
-		numStr := numStrTmp[0]
+		numStr := regexpRes[0][0]
 		if !strings.HasSuffix(devicePath, numStr) {
 			return "", -1, fmt.Errorf("GetDeviceRootAndIndex: Device %s has error format, not endwith %s ", devicePath, numStr)
 		}
@@ -514,7 +534,8 @@ func getDeviceRootAndIndex(devicePath string) (string, int, error) {
 		}
 		index = indexTmp
 	} else {
-		return "", -1, fmt.Errorf("Device %s has error format more than one digit ", devicePath)
+		// the partition format is end with digit, so never more than one digit locations
+		return "", -1, fmt.Errorf("Device %s has error format more than one digit locations ", devicePath)
 	}
 	return rootDevicePath, index, nil
 }
@@ -589,11 +610,11 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 	if !IsVFNode() {
 		device = getDeviceSerial(strings.TrimPrefix(volumeID, "d-"))
 		if device != "" {
-			log.Infof("Use the serial to find device, got %q, volumeID: %s", device, volumeID)
-			if device, err = validateDevicePartition(device); err != nil {
-				log.Warnf("Get volume %s device %s by Serial, but validate error %s", volumeID, device, err.Error())
+			if device, err = adaptDevicePartition(device); err != nil {
+				log.Warnf("GetDevice: Get volume %s device %s by Serial, but validate error %s", volumeID, device, err.Error())
 				return "", fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", volumeID, device, err.Error())
 			}
+			log.Infof("GetDevice: Use the serial to find device, got %q, volumeID: %s", device, volumeID)
 			return device, nil
 		}
 	}
@@ -641,8 +662,8 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 		return "", fmt.Errorf("resolved symlink for %q was unexpected: %q", volumeLinPath, resolved)
 	}
 
-	if resolved, err = validateDevicePartition(resolved); err != nil {
-		log.Warnf("Get volume %s device %s by Serial, but validate error %s", volumeID, resolved, err.Error())
+	if resolved, err = adaptDevicePartition(resolved); err != nil {
+		log.Warnf("GetDevice: Get volume %s device %s by ID, but validate error %s", volumeID, resolved, err.Error())
 		return "", fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", volumeID, resolved, err.Error())
 	}
 
