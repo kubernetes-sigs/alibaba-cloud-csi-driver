@@ -726,9 +726,9 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 			log.Errorf("NodeExpandVolume:: GetDeviceRootAndIndex: %s with error: %s", diskID, err.Error())
 			return nil, status.Errorf(codes.InvalidArgument, "Volume %s GetDeviceRootAndIndex with error %s ", diskID, err.Error())
 		}
-		cmd := fmt.Sprintf("%s growpart %s %d", NsenterCmd, rootPath, index)
+		cmd := fmt.Sprintf("growpart %s %d", rootPath, index)
 		if _, err := utils.Run(cmd); err != nil {
-			log.Errorf("NodeExpandVolume: expand volume %s partition with error: %s", diskID, err.Error())
+			log.Errorf("NodeExpandVolume: expand volume %s partition command: %s with error: %s", diskID, cmd, err.Error())
 			return nil, status.Errorf(codes.InvalidArgument, "NodeExpandVolume: expand volume %s partition with error: %s ", diskID, err.Error())
 		}
 		log.Infof("NodeExpandVolume: Successful expand partition for volume: %s device: %s partition: %d", diskID, rootPath, index)
