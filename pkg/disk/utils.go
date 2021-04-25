@@ -444,11 +444,11 @@ func adaptDevicePartition(devicePath string) (string, error) {
 	deviceList := []string{}
 
 	// Get RootDevice path
-	if tmpRootPath, _, err := getDeviceRootAndIndex(devicePath); err != nil {
+	tmpRootPath, _, err := getDeviceRootAndIndex(devicePath)
+	if err != nil {
 		return "", err
-	} else {
-		rootDevicePath = tmpRootPath
 	}
+	rootDevicePath = tmpRootPath
 
 	// Get all device path relate to root device
 	globDevices, err := filepath.Glob(rootDevicePath + "*")
