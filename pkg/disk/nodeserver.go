@@ -719,6 +719,11 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return nil, status.Error(codes.InvalidArgument, "can't get devicePath for "+diskID)
 	}
 	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
+	beforeResizeDiskCapacity, err := getDiskCapacity(volumePath)
+	if err != nil {
+		log.Errorf("NodeExpandVolume:: get diskCapacity error %+v", err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 
 	if GlobalConfigVar.DiskPartitionEnable && isDevicePartition(devicePath) {
 		rootPath, index, err := getDeviceRootAndIndex(devicePath)
@@ -750,7 +755,10 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		log.Errorf("NodeExpandVolume:: get diskCapacity error %+v", err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	log.Infof("NodeExpandVolume:: file system lose percent: %v", GlobalConfigVar.FilesystemLosePercent)
+	deviceCapacity := getBlockDeviceCapacity(devicePath)
+	log.Infof(
+		"NodeExpandVolume:: filesystem resize context device capacity: %v, before resize fs capacity: %v resize fs capacity: %v, requestGB: %v. file system lose percent: %v",
+		deviceCapacity, beforeResizeDiskCapacity, diskCapacity, requestGB, GlobalConfigVar.FilesystemLosePercent)
 	if diskCapacity >= requestGB*GlobalConfigVar.FilesystemLosePercent {
 		log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
 		return &csi.NodeExpandVolumeResponse{}, nil
