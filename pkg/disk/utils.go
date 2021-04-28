@@ -458,7 +458,7 @@ func adaptDevicePartition(devicePath string) (string, error) {
 	digitPattern := "^(\\d+)$"
 	for _, tmpDevice := range globDevices {
 		// find all device partitions
-		if result, err := regexp.MatchString(digitPattern, strings.TrimLeft(tmpDevice, rootDevicePath)); err == nil && result == true {
+		if result, err := regexp.MatchString(digitPattern, strings.TrimPrefix(tmpDevice, rootDevicePath)); err == nil && result == true {
 			deviceList = append(deviceList, tmpDevice)
 		} else if tmpDevice == rootDevicePath {
 			deviceList = append(deviceList, tmpDevice)
@@ -491,6 +491,14 @@ func adaptDevicePartition(devicePath string) (string, error) {
 }
 
 func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
+	if !strings.HasPrefix(subDevicePath, rootDevicePath) {
+		return fmt.Errorf("DeviceNotAvailable: input devices is not root&sub device path: %s, %s ", rootDevicePath, subDevicePath)
+	}
+	digitPattern := "^(\\d+)$"
+	if result, err := regexp.MatchString(digitPattern, strings.TrimPrefix(subDevicePath, rootDevicePath)); err != nil || result != true {
+		return fmt.Errorf("checkRootAndSubDeviceFS: input devices not meet root&sub device path: %s, %s ", rootDevicePath, subDevicePath)
+	}
+
 	if !utils.IsFileExisting(rootDevicePath) || !utils.IsFileExisting(subDevicePath) {
 		return fmt.Errorf("Input device path is illegal format: %s, %s ", rootDevicePath, subDevicePath)
 	}
@@ -504,6 +512,13 @@ func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
 		return fmt.Errorf("Root device %s is partition, and you should format %s by hands ", rootDevicePath, subDevicePath)
 	}
 	return nil
+}
+
+func makeDevicePath(name string) string {
+	if strings.HasPrefix(name, "/dev/") {
+		return name
+	}
+	return filepath.Join("/dev/", name)
 }
 
 // return root device name, the partition index
