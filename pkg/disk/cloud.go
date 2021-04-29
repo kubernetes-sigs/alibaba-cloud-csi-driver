@@ -37,6 +37,7 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	disk, err := findDiskByID(diskID)
 	if err != nil {
+		log.Errorf("AttachDisk: find disk: %s with error: %s", diskID, err.Error())
 		return "", status.Errorf(codes.Internal, "AttachDisk: find disk: %s with error: %s", diskID, err.Error())
 	}
 	if disk == nil {
@@ -120,6 +121,7 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 			detachRequest.DiskId = disk.DiskId
 			_, err = GlobalConfigVar.EcsClient.DetachDisk(detachRequest)
 			if err != nil {
+				log.Errorf("AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
 				return "", status.Errorf(codes.Aborted, "AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
 			}
 		} else if disk.Status == DiskStatusAttaching {
@@ -147,7 +149,9 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 		if strings.Contains(err.Error(), DiskLimitExceeded) {
 			return "", status.Error(codes.Internal, err.Error()+", Node("+nodeID+")exceed the limit attachments of disk")
 		} else if strings.Contains(err.Error(), DiskNotPortable) {
-			return "", status.Error(codes.Internal, err.Error()+", Disk("+diskID+") should be \"Pay by quantity\", not be \"Annual package\", please check and modify the charge type.")
+			return "", status.Error(codes.Internal, err.Error()+", Disk("+diskID+") should be \"Pay by quantity\", not be \"Annual package\", please check and modify the charge type, and refer to: https://help.aliyun.com/document_detail/134767.html")
+		} else if strings.Contains(err.Error(), NotSupportDiskCategory) {
+			return "", status.Error(codes.Internal, err.Error()+", Disk("+diskID+") is not supported by instance, please refer to: https://help.aliyun.com/document_detail/25378.html")
 		}
 		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happens to attach disk %s to instance %s, %v", diskID, nodeID, err)
 	}

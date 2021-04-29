@@ -201,8 +201,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				nodeSupportDiskType = append(nodeSupportDiskType, result[1])
 			}
 		}
+		log.Infof("CreateVolume:: node support disk types: %v, nodeSelected: %v", nodeSupportDiskType, diskVol.NodeSelected)
 	}
-	log.Infof("CreateVolume:: node support disk types: %v, nodeSelected: %v", nodeSupportDiskType, diskVol.NodeSelected)
 	// Step 2: Check whether volume is created
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	disks, err := findDiskByName(req.GetName(), diskVol.ResourceGroupID, sharedDisk)
@@ -211,8 +211,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.Aborted, err.Error())
 	}
 	if len(disks) > 1 {
-		log.Errorf("CreateVolume: fatal issue: duplicate disk %s exists, with %v", req.Name, disks)
-		return nil, status.Errorf(codes.Internal, "fatal issue: duplicate disk %s exists, with %v", req.Name, disks)
+		log.Errorf("CreateVolume: duplicate disk %s exists, with %v", req.Name, disks)
+		return nil, status.Errorf(codes.Internal, "CreateVolume: duplicate disk %s exists, with %v", req.Name, disks)
 	} else if len(disks) == 1 {
 		disk := disks[0]
 		if disk.Size != requestGB || disk.ZoneId != diskVol.ZoneID || disk.Encrypted != diskVol.Encrypted || disk.Category != diskVol.Type {
@@ -249,9 +249,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	// Step 3: init Disk create args
-	// if DiskHighAvail == diskVol.Type {
-	// 	disktype = DiskSSD
-	// }
 	createDiskRequest := ecs.CreateCreateDiskRequest()
 	createDiskRequest.DiskName = req.GetName()
 	createDiskRequest.Size = requests.NewInteger(requestGB)
@@ -297,13 +294,18 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if len(nodeSupportDiskType) != 0 {
 		provisionerDiskTypes = intersect(nodeSupportDiskType, allTypes)
 		if len(provisionerDiskTypes) == 0 {
+			log.Errorf("CreateVolume:: node support type: [%v] is incompatible with provision disk type: [%s]", nodeSupportDiskType, allTypes)
 			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("CreateVolume:: node support type: [%v] is incompatible with provision disk type: [%s]", nodeSupportDiskType, allTypes))
 		}
 	} else {
 		provisionerDiskTypes = allTypes
 	}
 
-	log.Infof("CreateVolume: provision disk types: %+v, len: %v", provisionerDiskTypes, len(provisionerDiskTypes))
+	if len(provisionerDiskTypes) == 0 {
+		log.Errorf("CreateVolume:: volume %s provisioner DiskTypes is empty, please check the storageclass", req.Name)
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("CreateVolume:: volume %s provisioner DiskTypes is empty, please check the storageclass", req.Name))
+	}
+	log.Infof("CreateVolume: provision volume %s with types: %+v, len: %v", req.Name, provisionerDiskTypes, len(provisionerDiskTypes))
 	for _, dType := range provisionerDiskTypes {
 		if dType == "" {
 			continue
@@ -312,16 +314,16 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			createDiskRequest.PerformanceLevel = diskVol.PerformanceLevel
 		}
 		createDiskRequest.DiskCategory = dType
-		log.Infof("CreateVolume: Create Disk with diskCatalog: %v, performaceLevel: %v", createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel)
+		log.Infof("CreateVolume: Create Disk for volume %s with diskCatalog: %v, performaceLevel: %v", req.Name, createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel)
 		volumeResponse, err = GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
 		if err == nil {
 			createdDiskType = dType
 			break
 		} else if strings.Contains(err.Error(), DiskNotAvailable) {
-			log.Infof("CreateVolume: Create Disk with diskCatalog: %s is not supported in zone: %s", createDiskRequest.DiskCategory, createDiskRequest.ZoneId)
+			log.Infof("CreateVolume: Create Disk for volume %s with diskCatalog: %s is not supported in zone: %s", req.Name, createDiskRequest.DiskCategory, createDiskRequest.ZoneId)
 			continue
 		} else {
-			log.Errorf("CreateVolume: create type: %s disk err: %v", dType, err)
+			log.Errorf("CreateVolume: create disk for volume %s with type: %s err: %v", req.Name, dType, err)
 			break
 		}
 	}
@@ -402,7 +404,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				delete(createdVolumeMap, value)
 				delete(diskIDPVMap, req.VolumeId)
 			}
-			log.Warnf("DeleteVolume: disk(%s) already deleted", req.VolumeId)
+			log.Infof("DeleteVolume: disk(%s) already deleted", req.VolumeId)
 			return &csi.DeleteVolumeResponse{}, nil
 		}
 
