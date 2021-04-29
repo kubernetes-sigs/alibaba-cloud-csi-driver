@@ -81,6 +81,8 @@ const (
 	DiskSizeNotAvailable = "InvalidDiskSize.NotSupported"
 	// DiskLimitExceeded tag
 	DiskLimitExceeded = "InstanceDiskLimitExceeded"
+	// NotSupportDiskCategory tag
+	NotSupportDiskCategory = "NotSupportDiskCategory"
 	// DiskNotPortable tag
 	DiskNotPortable = "DiskNotPortable"
 	// DiskHighAvail tag
@@ -629,7 +631,7 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 				log.Warnf("GetDevice: Get volume %s device %s by Serial, but validate error %s", volumeID, device, err.Error())
 				return "", fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", volumeID, device, err.Error())
 			}
-			log.Infof("GetDevice: Use the serial to find device, got %q, volumeID: %s", device, volumeID)
+			log.Infof("GetDevice: Use the serial to find device, got %s, volumeID: %s", device, volumeID)
 			return device, nil
 		}
 	}
@@ -682,7 +684,7 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 		return "", fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", volumeID, resolved, err.Error())
 	}
 
-	log.Infof("Device Link Info: %s link to %s", volumeLinPath, resolved)
+	log.Infof("GetDevice: Device Link Info: %s link to %s", volumeLinPath, resolved)
 	return resolved, nil
 }
 
