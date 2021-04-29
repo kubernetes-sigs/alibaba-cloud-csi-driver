@@ -171,7 +171,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
-		log.Infof("Not found configmap named as csi-plugin under kube-system, with error: %v", err)
+		log.Infof("Not found configmap named as csi-plugin under kube-system, with: %v", err)
 	} else {
 		if value, ok := configMap.Data["disk-adcontroller-enable"]; ok {
 			if value == "enable" || value == "yes" || value == "true" {
