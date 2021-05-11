@@ -544,7 +544,7 @@ func getDeviceRootAndIndex(devicePath string) (string, int, error) {
 		if !strings.HasSuffix(devicePath, numStr) {
 			return "", -1, fmt.Errorf("GetDeviceRootAndIndex: Device %s has error format, not endwith %s ", devicePath, numStr)
 		}
-		rootDevicePath = strings.TrimRight(devicePath, numStr)
+		rootDevicePath = strings.TrimSuffix(devicePath, numStr)
 		indexTmp, err := strconv.Atoi(numStr)
 		if err != nil {
 			return "", -1, fmt.Errorf("GetDeviceRootAndIndex: Device %s strconv %s, with error: %s ", devicePath, numStr, err.Error())
