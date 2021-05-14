@@ -1,46 +1,42 @@
 package v1alpha1
 
 import (
-	"github.com/looplab/fsm"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sync"
 )
 
 var GVR = schema.GroupVersionResource{
 	Group:    "storage.alibabacloud.com",
 	Version:  "v1alpha1",
-	Resource: "managedfilesystems",
+	Resource: "containernetworkfilesystems",
 }
 
-type ManagedFileSystem struct {
+type ContainerNetworkFileSystem struct {
 	metaV1.TypeMeta   `json:",inline"`
 	metaV1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   ManagedFileSystemSpec   `json:"spec,omitempty"`
-	Status ManagedFileSystemStatus `json:"status,omitempty"`
-	mux    sync.Mutex
-	FSM    *fsm.FSM
+	Spec   ContainerNetworkFileSystemSpec   `json:"spec,omitempty"`
+	Status ContainerNetworkFileSystemStatus `json:"status,omitempty"`
 }
 
-type ManagedFileSystemStatus struct {
-	Status     string                       `json:"status,omitempty"`
-	Conditions []ManagedFileSystemCondition `json:"conditions,omitempty"`
+type ContainerNetworkFileSystemStatus struct {
+	Status       string                                `json:"status,omitempty"`
+	FsAttributes FsAttributes                          `json:"fsAttributes,omitempty"`
+	Conditions   []ContainerNetworkFileSystemCondition `json:"conditions,omitempty"`
 }
 
-type ManagedFileSystemCondition struct {
+type ContainerNetworkFileSystemCondition struct {
 	LastProbeTime      string `json:"lastProbeTime,omitempty"`
 	LastTransitionTime string `json:"lastTransitionTime,omitempty"`
 	Status             string `json:"status,omitempty"`
 	Reason             string `json:"reason,omitempty"`
 }
 
-type ManagedFileSystemSpec struct {
-	StorageType   string       `json:"type,omitempty"`
-	ReclaimPolicy string       `json:"reclaimPolicy,omitempty"`
-	Description   string       `json:"description,omitempty"`
-	Parameters    Parameters   `json:"parameters,omitempty"`
-	FsAttributes  FsAttributes `json:"fsAttributes,omitempty"`
+type ContainerNetworkFileSystemSpec struct {
+	StorageType   string     `json:"type,omitempty"`
+	ReclaimPolicy string     `json:"reclaimPolicy,omitempty"`
+	Description   string     `json:"description,omitempty"`
+	Parameters    Parameters `json:"parameters,omitempty"`
 }
 
 type FsAttributes struct {
@@ -81,11 +77,9 @@ type Secret struct {
 	Namespace string `json:"namespace,,omitempty"`
 }
 
-type ManagedFileSystemList struct {
+type ContainerNetworkFileSystemList struct {
 	metaV1.TypeMeta `json:",inline"`
 	metaV1.ListMeta `json:"metadata,omitempty"`
 
-	Items []ManagedFileSystem `json:"items"`
+	Items []ContainerNetworkFileSystem `json:"items"`
 }
-
-

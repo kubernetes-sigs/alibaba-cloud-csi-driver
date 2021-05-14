@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mfs/v1alpha1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1alpha1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -113,7 +113,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// parse parameters
 	mountPath := req.GetTargetPath()
 	opt := &Options{}
-	var mfsName string
+	var cnfsName string
 	for key, value := range req.VolumeContext {
 		key = strings.ToLower(key)
 		if key == "server" {
@@ -132,23 +132,22 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.MountType = value
 		} else if key == "looplock" {
 			opt.LoopLock = value
-		} else if key == "managedfilesystem" {
-			mfsName = value
+		} else if key == "containernetworkfilesystem" {
+			cnfsName = value
 		}
 	}
 
+	err := isValidCnfsParameter(opt.Server, cnfsName)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(opt.Server) == 0 {
-		if len(mfsName) == 0 {
-			msg := fmt.Sprintf("Server and ManagerFileSystem need to be configured at least one.")
-			log.Errorf(msg)
-			return nil, errors.New(msg)
-		} else {
-			server, err := v1alpha1.GetManagedFileSystemServer(ns.crdClient, mfsName)
-			if err != nil {
-				return nil, err
-			}
-			opt.Server = server
+		server, err := v1alpha1.GetContainerNetworkFileSystemServer(ns.crdClient, cnfsName)
+		if err != nil {
+			return nil, err
 		}
+		opt.Server = server
 	}
 
 	if opt.LoopLock != "false" {
