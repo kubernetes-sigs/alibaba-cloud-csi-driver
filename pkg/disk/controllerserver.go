@@ -44,6 +44,7 @@ import (
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
@@ -858,9 +859,9 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 func checkInstallCRD(crdClient *crd.Clientset) {
 
 	snapshotCRDNames := map[string]string{
-		"volumesnapshotclasses.snapshot.storage.k8s.io":  "GetVolumeSnapshotClassesCRD",
-		"volumesnapshotcontents.snapshot.storage.k8s.io": "GetVolumeSnapshotContentsCRD",
-		"volumesnapshots.snapshot.storage.k8s.io":        "GetVolumeSnapshotsCRD",
+		"volumesnapshotclasses.snapshot.storage.k8s.io":  "GetVolumeSnapshotClassesCRDv1",
+		"volumesnapshotcontents.snapshot.storage.k8s.io": "GetVolumeSnapshotContentsCRDv1",
+		"volumesnapshots.snapshot.storage.k8s.io":        "GetVolumeSnapshotsCRDv1",
 	}
 
 	ctx := context.Background()
@@ -871,16 +872,23 @@ func checkInstallCRD(crdClient *crd.Clientset) {
 		return
 	}
 	for _, crd := range crdList.Items {
+		if len(crd.Spec.Versions) == 1 && crd.Spec.Versions[0].Name == "v1beta1" {
+			log.Infof("checkInstallCRD:: need to update crd version: %s", crd.Name)
+			continue
+		}
 		delete(snapshotCRDNames, crd.Name)
 		if len(snapshotCRDNames) == 0 {
 			return
 		}
 	}
 	temp := &crds.Template{}
+	info, err := GlobalConfigVar.ClientSet.ServerVersion()
+	if err != nil {
+		log.Errorf("checkInstallCRD: get server version error : %v", err)
+	}
 	log.Infof("checkInstallCRD: need to create crd counts: %v", len(snapshotCRDNames))
 	for _, value := range snapshotCRDNames {
-		crdStrings := reflect.ValueOf(temp).MethodByName(value).Call(nil)
-		createOpts := metav1.CreateOptions{}
+		crdStrings := reflect.ValueOf(temp).MethodByName(value).Call([]reflect.Value{reflect.ValueOf(info.GitVersion)})
 		crdToBeCreated := crdv1.CustomResourceDefinition{}
 		yamlString := crdStrings[0].Interface().(string)
 		crdDecoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader([]byte(yamlString)), 4096)
@@ -889,9 +897,14 @@ func checkInstallCRD(crdClient *crd.Clientset) {
 			log.Errorf("checkInstallCRD: yaml unmarshal error: %v", err)
 			return
 		}
-		_, err = crdClient.ApiextensionsV1().CustomResourceDefinitions().Create(ctx, &crdToBeCreated, createOpts)
+		force := true
+		yamlBytes := []byte(yamlString)
+		_, err = crdClient.ApiextensionsV1().CustomResourceDefinitions().Patch(ctx, crdToBeCreated.Name, types.ApplyPatchType, yamlBytes, metav1.PatchOptions{
+			Force:        &force,
+			FieldManager: "alibaba-cloud-csi-driver",
+		})
 		if err != nil {
-			log.Errorf("checkInstallCRD: crd create error: %v", err)
+			log.Infof("checkInstallCRD: crd apply error: %v", err)
 			return
 		}
 	}
