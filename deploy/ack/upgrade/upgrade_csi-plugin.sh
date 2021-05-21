@@ -2,7 +2,7 @@
 
 ## Usage
 ## Append image tag which is expect.
-## bash upgrade_csi-plugin.sh v1.18.8.46-afb19e46-aliyun
+## bash upgrade_csi-plugin.sh v1.18.8.47-906bd535-aliyun
 
 
 if [ "$1" = "" ]; then
@@ -53,9 +53,6 @@ rules:
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get", "watch", "list", "delete", "update", "create"]
-  - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
   - apiGroups: ["csi.storage.k8s.io"]
     resources: ["csinodeinfos"]
     verbs: ["get", "list", "watch"]

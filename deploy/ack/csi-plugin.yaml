@@ -39,7 +39,7 @@ rules:
     verbs: ["get", "watch", "list", "delete", "update", "create"]
   - apiGroups: [""]
     resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["get", "list", "watch", "update"]
   - apiGroups: ["csi.storage.k8s.io"]
     resources: ["csinodeinfos"]
     verbs: ["get", "list", "watch"]
@@ -67,9 +67,6 @@ rules:
   - apiGroups: ["storage.k8s.io"]
     resources: ["volumeattachments/status"]
     verbs: ["patch"]
-  - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshots/status"]
     verbs: ["update"]
@@ -194,7 +191,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.18.8.46-afb19e46-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.18.8.47-906bd535-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
