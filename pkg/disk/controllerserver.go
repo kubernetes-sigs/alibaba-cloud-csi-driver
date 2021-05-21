@@ -868,7 +868,7 @@ func checkInstallCRD(crdClient *crd.Clientset) {
 	listOpts := metav1.ListOptions{}
 	crdList, err := crdClient.ApiextensionsV1().CustomResourceDefinitions().List(ctx, listOpts)
 	if err != nil {
-		log.Errorf("checkInstallCRD: list CustomResourceDefinitions error: %v", err)
+		log.Errorf("checkInstallCRD:: list CustomResourceDefinitions error: %v", err)
 		return
 	}
 	for _, crd := range crdList.Items {
@@ -883,12 +883,16 @@ func checkInstallCRD(crdClient *crd.Clientset) {
 	}
 	temp := &crds.Template{}
 	info, err := GlobalConfigVar.ClientSet.ServerVersion()
-	if err != nil {
+	kVersion := ""
+	if err != nil || info == nil {
 		log.Errorf("checkInstallCRD: get server version error : %v", err)
+		kVersion = "v1.18.8-aliyun.1"
+	} else {
+		kVersion = info.GitVersion
 	}
 	log.Infof("checkInstallCRD: need to create crd counts: %v", len(snapshotCRDNames))
 	for _, value := range snapshotCRDNames {
-		crdStrings := reflect.ValueOf(temp).MethodByName(value).Call([]reflect.Value{reflect.ValueOf(info.GitVersion)})
+		crdStrings := reflect.ValueOf(temp).MethodByName(value).Call([]reflect.Value{reflect.ValueOf(kVersion)})
 		crdToBeCreated := crdv1.CustomResourceDefinition{}
 		yamlString := crdStrings[0].Interface().(string)
 		crdDecoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader([]byte(yamlString)), 4096)
