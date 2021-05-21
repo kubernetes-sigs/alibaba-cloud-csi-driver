@@ -170,6 +170,19 @@ spec:
           volumeMounts:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
+        - name: external-nas-resizer
+          image: egistry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v0.3.0
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election"
+          env:
+            - name: ADDRESS
+              value: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: nas-provisioner-dir
+              mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-csi-snapshotter
           image: registry.cn-hangzhou.aliyuncs.com/acs/csi-snapshotter:v3.0.2-1038b92d8-aliyun
           args:
@@ -195,7 +208,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.18.8.46-afb19e46-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.18.8.47-906bd535-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"

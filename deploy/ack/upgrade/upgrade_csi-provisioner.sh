@@ -2,7 +2,7 @@
 
 ## Usage
 ## Append image tag which is expect.
-## bash upgrade_csi-provisioner.sh v1.18.8.46-afb19e46-aliyun
+## bash upgrade_csi-provisioner.sh v1.18.8.47-906bd535-aliyun
 
 
 if [ "$1" = "" ]; then
@@ -183,6 +183,19 @@ spec:
             - "--leader-election-type=leases"
             - "--retry-interval-start=500ms"
             - "--v=5"
+          env:
+            - name: ADDRESS
+              value: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: nas-provisioner-dir
+              mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
+        - name: external-nas-resizer
+          image: csi-image-prefix/acs/csi-resizer:v0.3.0
+          args:
+            - "--v=5"
+            - "--csi-address=\$(ADDRESS)"
+            - "--leader-election"
           env:
             - name: ADDRESS
               value: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com/csi.sock
