@@ -1,11 +1,12 @@
 apiVersion: storage.k8s.io/v1beta1
 kind: CSIDriver
 metadata:
-  name: ossplugin.csi.alibabacloud.com
+  name: nasplugin.csi.alibabacloud.com
 spec:
   attachRequired: false
   podInfoOnMount: true
 ---
+# This YAML defines all API objects to create RBAC roles for csi node plugin.
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
@@ -38,13 +39,13 @@ spec:
       hostNetwork: true
       hostPID: true
       containers:
-        - name: oss-driver-registrar
+        - name: nas-driver-registrar
           image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
           imagePullPolicy: Always
           args:
             - "--v=5"
-            - "--csi-address=/var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock"
+            - "--csi-address=/var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock"
           volumeMounts:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet/
@@ -56,12 +57,12 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.16.9.43-f36bb540-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.18.8.47-906bd535-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=2"
-            - "--driver=oss"
+            - "--driver=nas"
           env:
             - name: KUBE_NODE_NAME
               valueFrom:
@@ -95,17 +96,12 @@ spec:
               mountPath: /host/etc
             - name: host-log
               mountPath: /var/log/
-            - name: ossconnectordir
-              mountPath: /host/usr/
             - name: container-dir
               mountPath: /var/lib/container
               mountPropagation: "Bidirectional"
             - name: host-dev
               mountPath: /dev
               mountPropagation: "HostToContainer"
-            - mountPath: /var/addon
-              name: addon-token
-              readOnly: true
       volumes:
         - name: registration-dir
           hostPath:
@@ -128,16 +124,6 @@ spec:
         - name: etc
           hostPath:
             path: /etc
-        - name: ossconnectordir
-          hostPath:
-            path: /usr/
-        - name: addon-token
-          secret:
-            defaultMode: 420
-            items:
-            - key: addon.token.config
-              path: token-config
-            secretName: addon.csi.token
   updateStrategy:
     rollingUpdate:
       maxUnavailable: 10%
