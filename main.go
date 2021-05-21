@@ -37,6 +37,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/om"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/jindofs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/common/version"
 	log "github.com/sirupsen/logrus"
@@ -84,6 +85,8 @@ const (
 	TypePluginLOCAL = "localplugin.csi.alibabacloud.com"
 	// TypePluginYODA local type plugin
 	TypePluginYODA = "yodaplugin.csi.alibabacloud.com"
+	// TypePluginJindoFS type plugin
+	TypePluginJindoFS = "jindofsplugin.csi.alibabacloud.com"
 	// ExtenderAgent agent component
 	ExtenderAgent = "agent"
 )
@@ -223,6 +226,12 @@ func main() {
 			go func(endPoint string) {
 				defer wg.Done()
 				driver := dbfs.NewDriver(*nodeID, endPoint, *baseDir)
+				driver.Run()
+			}(endPointName)
+		case TypePluginJindoFS:
+			go func(endPoint string) {
+				defer wg.Done()
+				driver := jindofs.NewDriver(*nodeID, endPoint)
 				driver.Run()
 			}(endPointName)
 		case ExtenderAgent:
