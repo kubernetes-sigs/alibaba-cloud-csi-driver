@@ -40,6 +40,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -47,6 +48,7 @@ import (
 	utilexec "k8s.io/utils/exec"
 	k8smount "k8s.io/utils/mount"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/crds"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
@@ -125,6 +127,10 @@ const (
 	describeResourceType = "DataDisk"
 	// NodeSchedueTag in annotations
 	NodeSchedueTag = "volume.kubernetes.io/selected-node"
+	// VolumeSnapshotPreRuleKey ...
+	VolumeSnapshotPreRuleKey = "storage.alibabacloud.com/pre-rule"
+	// VolumeSnapshotPostRuleKey ...
+	VolumeSnapshotPostRuleKey = "storage.alibabacloud.com/post-rule"
 )
 
 var (
@@ -1256,4 +1262,78 @@ func intersect(slice1, slice2 []string) []string {
 		}
 	}
 	return nn
+}
+
+// CheckAppConsistent ...
+func CheckAppConsistent(snapshotName, snapshotNamespace string) (pvcName string, preRule, postRule crds.Rule, err error) {
+	ctx := context.Background()
+	volumeSnapshot, err := GlobalConfigVar.SnapClientSet.SnapshotV1().VolumeSnapshots(snapshotNamespace).Get(ctx, snapshotName, metav1.GetOptions{})
+	if err != nil {
+		return "", crds.Rule{}, crds.Rule{}, fmt.Errorf("CheckAppConsistent:: failed to get VolumeSnapshot err: %v", err)
+	}
+
+	pvcName = *volumeSnapshot.Spec.Source.PersistentVolumeClaimName
+	if pvcName == "" {
+		return "", crds.Rule{}, crds.Rule{}, fmt.Errorf("CheckAppConsistent:: App consistent snapshot only support dynamic provisioning, pvcName is nil")
+	}
+
+	for key, value := range volumeSnapshot.Annotations {
+		switch key {
+		case VolumeSnapshotPreRuleKey:
+			getRule(ctx, value, &preRule)
+		case VolumeSnapshotPostRuleKey:
+			getRule(ctx, value, &postRule)
+		}
+	}
+	return pvcName, preRule, postRule, nil
+}
+
+func getRule(ctx context.Context, value string, result *crds.Rule) {
+	rule, err := GlobalConfigVar.DynamicClientSet.Resource(crds.GVR).Get(ctx, value, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("CheckAppConsistent:: failed to get rules err: %v", err)
+		return
+	}
+	ruleJ, err := rule.MarshalJSON()
+	if err != nil {
+		log.Errorf("CheckAppConsistent:: failed to marshal rule: %v", err)
+		return
+	}
+	if err := json.Unmarshal(ruleJ, result); err != nil {
+		log.Errorf("CheckAppConsistent:: failed to unmarshal rule %v", err)
+		return
+	}
+}
+
+// GetPodsByPvc ...
+func GetPodsByPvc(pvcNamespace, pvcName string) ([]v1.Pod, error) {
+	getPvcs := func(volumes []v1.Volume) []v1.Volume {
+		var pvcs []v1.Volume
+
+		for _, volume := range volumes {
+			if volume.VolumeSource.PersistentVolumeClaim != nil {
+				pvcs = append(pvcs, volume)
+			}
+		}
+		return pvcs
+	}
+
+	nsPods, err := GlobalConfigVar.ClientSet.CoreV1().Pods(pvcNamespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var pods []v1.Pod
+	for _, pod := range nsPods.Items {
+		pvcs := getPvcs(pod.Spec.Volumes)
+
+		for _, pvc := range pvcs {
+			if pvc.PersistentVolumeClaim.ClaimName == pvcName {
+				pods = append(pods, pod)
+			}
+		}
+	}
+
+	return pods, nil
+
 }

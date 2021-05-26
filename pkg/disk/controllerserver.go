@@ -77,6 +77,10 @@ const (
 	RETENTIONDAYS = "retentionDays"
 	// INSTANTACCESSRETENTIONDAYS ...
 	INSTANTACCESSRETENTIONDAYS = "instantAccessRetentionDays"
+	// VOLUMESNAPSHOTNAMEKEY ...
+	VOLUMESNAPSHOTNAMEKEY = "csi.storage.k8s.io/volumesnapshot/name"
+	// VOLUMESNAPSHOTNAMESPACEKEY ...
+	VOLUMESNAPSHOTNAMESPACEKEY = "csi.storage.k8s.io/volumesnapshot/namespace"
 )
 
 const (
@@ -529,6 +533,8 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	useInstanceAccess := false
 	retentionDays := -1
 	var instantAccessRetentionDays int
+	volumeSnapshotName := ""
+	volumeSnapshotNamespace := ""
 	params := req.GetParameters()
 	if value, ok := params[SNAPSHOTTYPE]; ok && value == INSTANTACCESS {
 		useInstanceAccess = true
@@ -541,6 +547,15 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		}
 		retentionDays = days
 	}
+
+	if value, ok := params[VOLUMESNAPSHOTNAMEKEY]; ok {
+		volumeSnapshotName = value
+	}
+
+	if value, ok := params[VOLUMESNAPSHOTNAMESPACEKEY]; ok {
+		volumeSnapshotNamespace = value
+	}
+
 	if value, ok := params[INSTANTACCESSRETENTIONDAYS]; ok {
 		days, err := strconv.Atoi(value)
 		if err != nil {
@@ -653,10 +668,41 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 	createSnapshotRequest.Tag = &snapshotTags
 
+	pvcName, preRule, postRule, err := CheckAppConsistent(volumeSnapshotName, volumeSnapshotNamespace)
+	var podName string
+	log.Infof("CreateSnapshot:: appconsistent status pvcName: %s namespace: %v", pvcName, volumeSnapshotNamespace)
+	if pvcName != "" {
+		pods, err := GetPodsByPvc(volumeSnapshotNamespace, pvcName)
+		if err != nil {
+			log.Errorf("CreateSnapshot:: get pods by pvc error: %v, pvcName: %v, volumeSnapshotNamespace: %v", err, pvcName, volumeSnapshotNamespace)
+		}
+		if len(pods) == 1 {
+			podName = pods[0].Name
+		} else {
+			log.Errorf("CreateSnapshot:: get pods count: %v by pvc: %v which is not support for now", len(pods), pvcName)
+		}
+	}
+	if preRule.Spec.ContainerName != postRule.Spec.ContainerName {
+		log.Errorf("CreateSnapshot:: container name in preRule & postRule are must be same")
+		podName = ""
+	}
+	if err == nil && preRule.Name != "" && postRule.Name != "" && podName != "" {
+		command := utils.NewPodCommands(volumeSnapshotNamespace, podName, preRule.Spec.ContainerName, GlobalConfigVar.ClientSet, GlobalConfigVar.kubeClientConfig)
+		err = command.ApplyPreCommands(preRule)
+		if err == nil {
+			defer command.ApplyPostCommands(postRule)
+		} else {
+			log.Errorf("CreateSnapshot:: execute pre commands err: %v", err)
+			command.ApplyPostCommands(postRule)
+		}
+	} else {
+		log.Errorf("CreateSnapshot:: not app consistent type preRule: %s, postRule: %s, podName: %s, error: %v", preRule.Name, postRule.Name, podName, err)
+	}
+
 	// Do Snapshot create
 	snapshotResponse, err := GlobalConfigVar.EcsClient.CreateSnapshot(createSnapshotRequest)
 	if err != nil {
-		log.Errorf("CreateSnapshot:: Snapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", req.Name, req.GetSourceVolumeId(), err.Error())
+		log.Errorf("CreateSnapshot:: Snapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", volumeSnapshotNamespace+"/"+volumeSnapshotName, req.GetSourceVolumeId(), err.Error())
 		e := status.Error(codes.Internal, fmt.Sprintf("failed create snapshot: %v", err))
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
 		return nil, e

@@ -26,11 +26,15 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -68,7 +72,10 @@ type GlobalConfig struct {
 	RunTimeClass          string
 	DetachBeforeDelete    bool
 	DiskBdfEnable         bool
+	kubeClientConfig      *rest.Config
 	ClientSet             *kubernetes.Clientset
+	SnapClientSet         *snapClientset.Clientset
+	DynamicClientSet      dynamic.Interface
 	FilesystemLosePercent float64
 	ClusterID             string
 	DiskPartitionEnable   bool
@@ -164,10 +171,9 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 	if err != nil {
 		log.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
-	}
+	kubeClient := kubernetes.NewForConfigOrDie(cfg)
+	snapClient := snapClientset.NewForConfigOrDie(cfg)
+	dynamicClient := dynamic.NewForConfigOrDie(cfg)
 
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
@@ -321,6 +327,9 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		DetachDisabled:        isDiskDetachDisable,
 		DetachBeforeDelete:    isDiskDetachBeforeDelete,
 		ClientSet:             kubeClient,
+		kubeClientConfig:      cfg,
+		SnapClientSet:         snapClient,
+		DynamicClientSet:      dynamicClient,
 		FilesystemLosePercent: fileSystemLosePercent,
 		ClusterID:             clustID,
 		DiskPartitionEnable:   partition,

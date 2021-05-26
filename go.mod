@@ -6,11 +6,11 @@ require (
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.751
 	github.com/container-storage-interface/spec v1.2.0
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
+	github.com/elazarl/goproxy/ext v0.0.0-00010101000000-000000000000 // indirect
 	github.com/emirpasic/gods v1.12.0
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.4.1
-	github.com/google/cadvisor v0.35.0 // indirect
 	github.com/google/credstore v0.0.0-20181218150457-e184c60ef875 // indirect
 	github.com/google/go-microservice-helpers v0.0.0-20190205165657-a91942da5417
 	github.com/google/gofuzz v1.2.0 // indirect
@@ -21,7 +21,7 @@ require (
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/kubernetes-csi/csi-lib-utils v0.7.1 // indirect
 	github.com/kubernetes-csi/drivers v1.0.2
-	github.com/looplab/fsm v0.2.0
+	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.1.0
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.0.0
@@ -32,9 +32,7 @@ require (
 	github.com/stretchr/testify v1.4.0
 	go.uber.org/ratelimit v0.1.0
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
-	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/net v0.0.0-20200904194848-62affa334b73
-	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/sys v0.0.0-20200821140526-fda516888d29 // indirect
 	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
@@ -42,11 +40,12 @@ require (
 	google.golang.org/grpc v1.28.0
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/yaml.v2 v2.3.0 // indirect
-	k8s.io/api v0.18.8
+	k8s.io/api v0.19.0
 	k8s.io/apiextensions-apiserver v0.0.0
-	k8s.io/apimachinery v0.18.8
-	k8s.io/client-go v0.18.8
+	k8s.io/apimachinery v0.19.0
+	k8s.io/client-go v0.19.0
 	k8s.io/kube-openapi v0.0.0-20200811211545-daf3cbb84823 // indirect
+	k8s.io/kubectl v0.0.0
 	k8s.io/kubernetes v1.18.8
 	k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89
 )

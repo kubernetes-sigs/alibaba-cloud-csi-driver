@@ -33,7 +33,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -354,7 +353,6 @@ func RemoveNameSpace(ctx context.Context, namespaceName string) (string, error) 
 // ListNameSpace list pmem namespace
 func ListNameSpace() ([]*lib.NameSpace, error) {
 	regions, err := manager.GetRegions()
-	log.Infof("show me the regions: %+v", regions)
 	if err != nil {
 		return nil, err
 	}
