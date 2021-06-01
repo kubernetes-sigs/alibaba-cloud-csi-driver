@@ -45,13 +45,18 @@ Same as diskplugin.csi.alibabacloud.com;
 
 > "both": default option, log will be printed both to stdout and host file.
 
+
+If your kubelet RootDir is not /var/lib/kubelet, the deploy template(nas-plugin.yaml) should be changed:
+
+> Replace all /var/lib/kubelet into /rootdir/kubelet for the nas-plugin.yaml file.
+
 ### Step 3: Create CSI Plugin
 
 ```
 # kubectl create -f ./deploy/nas/nas-provisioner.yaml
 ```
 
-### Step 4: Create nginx deploy with csi
+### Step 4: Create nginx deploy with csi volume
 ```
 # kubectl create -f ./examples/nas/deploy.yaml
 ```
