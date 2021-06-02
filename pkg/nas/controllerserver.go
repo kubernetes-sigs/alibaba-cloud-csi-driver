@@ -116,6 +116,7 @@ type nasVolumeArgs struct {
 	VSwitchID       string           `json:"vSwitchId"`
 	AccessGroupName string           `json:"accessGroupName"`
 	Server          string           `json:"server"`
+	Path            string           `json:"path"`
 	CnfsName        string           `json:"containerNetworkFileSystem"`
 	Mode            string           `json:"mode"`
 	ModeType        string           `json:"modeType"`
@@ -793,7 +794,13 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 			if err != nil {
 				return nil, err
 			}
-			nasVolArgs.Server = server
+			path, pathExist := volOptions[PATH]
+			if !pathExist {
+				nasVolArgs.Path = "/"
+			} else {
+				nasVolArgs.Path = path
+			}
+			nasVolArgs.Server = server + ":" + nasVolArgs.Path
 		}
 
 		// mode

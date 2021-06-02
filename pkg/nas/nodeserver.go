@@ -147,6 +147,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, err
 		}
+
 		opt.Server = server
 	}
 
