@@ -11,6 +11,7 @@ var GVR = schema.GroupVersionResource{
 	Resource: "containernetworkfilesystems",
 }
 
+
 type ContainerNetworkFileSystem struct {
 	metaV1.TypeMeta   `json:",inline"`
 	metaV1.ObjectMeta `json:"metadata,omitempty"`
@@ -26,10 +27,9 @@ type ContainerNetworkFileSystemStatus struct {
 }
 
 type ContainerNetworkFileSystemCondition struct {
-	LastProbeTime      string `json:"lastProbeTime,omitempty"`
-	LastTransitionTime string `json:"lastTransitionTime,omitempty"`
-	Status             string `json:"status,omitempty"`
-	Reason             string `json:"reason,omitempty"`
+	LastProbeTime string `json:"lastProbeTime,omitempty"`
+	Status        string `json:"status,omitempty"`
+	Reason        string `json:"reason,omitempty"`
 }
 
 type ContainerNetworkFileSystemSpec struct {
@@ -50,9 +50,11 @@ type FsAttributes struct {
 	VSwitchID       string    `json:"vSwitchId,omitempty"`
 	FilesystemID    string    `json:"filesystemId,omitempty"`
 	FilesystemType  string    `json:"filesystemType,omitempty"`
-	Server          string    `json:"server,,omitempty"`
+	Server          string    `json:"server,omitempty"`
 	BucketName      string    `json:"bucketName,omitempty"`
 	EndPoint        *EndPoint `json:"endPoint,omitempty"`
+	AclType         string    `json:"aclType,omitempty"`
+	EnableTrashCan  string    `json:"enableTrashCan,omitempty"`
 }
 
 type EndPoint struct {
@@ -60,16 +62,17 @@ type EndPoint struct {
 	Extranet string `json:"extranet,omitempty"`
 }
 
-//
 type Parameters struct {
 	Secret         *Secret `json:"secret,omitempty"`
 	StorageType    string  `json:"storageType,omitempty"`
 	ProtocolType   string  `json:"protocolType,omitempty"`
 	EncryptType    string  `json:"encryptType,omitempty"`
 	VSwitchID      string  `json:"vSwitchId,omitempty"`
-	FilesystemID   string  `json:"filesystemId,omitempty"`
 	Server         string  `json:"server,omitempty"`
 	FileSystemType string  `json:"filesystemType,omitempty"`
+	BucketName     string  `json:"bucketName,omitempty"`
+	AclType        string  `json:"aclType,omitempty"`
+	EnableTrashCan string  `json:"enableTrashCan,omitempty"`
 }
 
 type Secret struct {
