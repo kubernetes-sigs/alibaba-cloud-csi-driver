@@ -29,6 +29,7 @@ import (
 	"sync"
 	"time"
 
+	"errors"
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
@@ -552,4 +553,19 @@ func isLosetupMount(volumeID string) bool {
 
 func getPvObj(volumeID string) (*v1.PersistentVolume, error) {
 	return GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
+}
+
+func isValidCnfsParameter(server string, cnfsName string) error {
+	if len(server) == 0 && len(cnfsName) == 0 {
+		msg := fmt.Sprintf("Server and ContainerNetworkFileSystem need to be configured at least one.")
+		log.Errorf(msg)
+		return errors.New(msg)
+	}
+
+	if len(server) != 0 && len(cnfsName) != 0 {
+		msg := fmt.Sprintf("Server and ContainerNetworkFileSystem can only be configured to use one.")
+		log.Errorf(msg)
+		return errors.New(msg)
+	}
+	return nil
 }

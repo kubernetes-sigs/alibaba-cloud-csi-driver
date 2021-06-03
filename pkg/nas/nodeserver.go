@@ -20,25 +20,27 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1alpha1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 type nodeServer struct {
 	clientSet *kubernetes.Clientset
+	crdClient dynamic.Interface
 	*csicommon.DefaultNodeServer
 }
 
@@ -93,8 +95,14 @@ func newNodeServer(d *NAS) *nodeServer {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
+	crdClient, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building crd clientset: %s", err)
+	}
+
 	return &nodeServer{
 		clientSet:         kubeClient,
+		crdClient:         crdClient,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
 	}
 }
@@ -105,6 +113,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// parse parameters
 	mountPath := req.GetTargetPath()
 	opt := &Options{}
+	var cnfsName string
 	for key, value := range req.VolumeContext {
 		key = strings.ToLower(key)
 		if key == "server" {
@@ -123,7 +132,23 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.MountType = value
 		} else if key == "looplock" {
 			opt.LoopLock = value
+		} else if key == "containernetworkfilesystem" {
+			cnfsName = value
 		}
+	}
+
+	err := isValidCnfsParameter(opt.Server, cnfsName)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(opt.Server) == 0 {
+		server, err := v1alpha1.GetContainerNetworkFileSystemServer(ns.crdClient, cnfsName)
+		if err != nil {
+			return nil, err
+		}
+
+		opt.Server = server
 	}
 
 	if opt.LoopLock != "false" {

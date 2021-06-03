@@ -23,6 +23,7 @@ import (
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1alpha1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"go.uber.org/ratelimit"
@@ -31,6 +32,7 @@ import (
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
@@ -43,30 +45,31 @@ import (
 
 // resourcemode is selected by: subpath/filesystem
 const (
-	MNTROOTPATH     = "/csi-persistentvolumes"
-	MBSize          = 1024 * 1024
-	DRIVER          = "driver"
-	SERVER          = "server"
-	MODE            = "mode"
-	ModeType        = "modeType"
-	VolumeAs        = "volumeAs"
-	PATH            = "path"
-	ProtocolType    = "protocolType"
-	FileSystemType  = "fileSystemType"
-	Capacity        = "capacity"
-	EncryptType     = "encryptType"
-	SnapshotID      = "snapshotID"
-	StorageType     = "storageType"
-	ZoneID          = "zoneId"
-	DESCRIPTION     = "description"
-	ZoneIDTag       = "zone-id"
-	NetworkType     = "networkType"
-	VpcID           = "vpcId"
-	VSwitchID       = "vSwitchId"
-	AccessGroupName = "accessGroupName"
-	RegionID        = "regionId"
-	CnHangzhouFin   = "cn-hangzhou-finance"
-	DeleteVolume    = "deleteVolume"
+	MNTROOTPATH                = "/csi-persistentvolumes"
+	MBSize                     = 1024 * 1024
+	DRIVER                     = "driver"
+	SERVER                     = "server"
+	ContainerNetworkFileSystem = "containerNetworkFileSystem"
+	MODE                       = "mode"
+	ModeType                   = "modeType"
+	VolumeAs                   = "volumeAs"
+	PATH                       = "path"
+	ProtocolType               = "protocolType"
+	FileSystemType             = "fileSystemType"
+	Capacity                   = "capacity"
+	EncryptType                = "encryptType"
+	SnapshotID                 = "snapshotID"
+	StorageType                = "storageType"
+	ZoneID                     = "zoneId"
+	DESCRIPTION                = "description"
+	ZoneIDTag                  = "zone-id"
+	NetworkType                = "networkType"
+	VpcID                      = "vpcId"
+	VSwitchID                  = "vSwitchId"
+	AccessGroupName            = "accessGroupName"
+	RegionID                   = "regionId"
+	CnHangzhouFin              = "cn-hangzhou-finance"
+	DeleteVolume               = "deleteVolume"
 	// NASTAGKEY1 tag
 	NASTAGKEY1 = "k8s.aliyun.com"
 	// NASTAGVALUE1 value
@@ -90,6 +93,7 @@ type controllerServer struct {
 	nasClient *aliNas.Client
 	region    string
 	client    kubernetes.Interface
+	crdClient dynamic.Interface
 	*csicommon.DefaultControllerServer
 	recorder    record.EventRecorder
 	rateLimiter ratelimit.Limiter
@@ -112,6 +116,8 @@ type nasVolumeArgs struct {
 	VSwitchID       string           `json:"vSwitchId"`
 	AccessGroupName string           `json:"accessGroupName"`
 	Server          string           `json:"server"`
+	Path            string           `json:"path"`
+	CnfsName        string           `json:"containerNetworkFileSystem"`
 	Mode            string           `json:"mode"`
 	ModeType        string           `json:"modeType"`
 	DeleteVolume    bool             `json:"deleteVolume"`
@@ -133,15 +139,20 @@ func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region, 
 	if err != nil {
 		log.Fatalf("NewControllerServer: Failed to create client: %v", err)
 	}
+	crdClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("NewControllerServer: Failed to create crd client: %v", err)
+	}
 	intLimit, err := strconv.Atoi(limit)
 	if err != nil {
 		log.Errorf("NewControllerServer: Failed to convert string limit to int: %s, err: %v", limit, err)
 		intLimit = 2
 	}
 
-	log.Infof("NewControllerServer: current provisioenr nas limit is %v", intLimit)
+	log.Infof("NewControllerServer: current provisioner nas limit is %v", intLimit)
 	c := &controllerServer{
 		nasClient:               client,
+		crdClient:               crdClient,
 		region:                  region,
 		client:                  clientset,
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
@@ -428,8 +439,13 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 
 		volumeContext["volumeAs"] = nasVol.VolumeAs
-		volumeContext["server"] = nfsServer
 		volumeContext["path"] = filepath.Join(nfsPath, pvName)
+		if len(nasVol.CnfsName) != 0 {
+			volumeContext[ContainerNetworkFileSystem] = nasVol.CnfsName
+			delete(volumeContext, "server")
+		} else {
+			volumeContext["server"] = nfsServer
+		}
 		if !pvMntOptionsVersSet {
 			volumeContext["vers"] = nfsVersion
 		}
@@ -766,8 +782,25 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 		}
 	} else if nasVolArgs.VolumeAs == "subpath" {
 		// server
-		if nasVolArgs.Server, ok = volOptions[SERVER]; !ok {
-			return nil, fmt.Errorf("Required parameter [parameter.server] must be set because [parameter.volumeAs] is [subpath]")
+		var serverExist bool
+		nasVolArgs.Server, serverExist = volOptions[SERVER]
+		nasVolArgs.CnfsName, _ = volOptions[ContainerNetworkFileSystem]
+		err := isValidCnfsParameter(nasVolArgs.Server, nasVolArgs.CnfsName)
+		if err != nil {
+			return nil, err
+		}
+		if !serverExist {
+			server, err := v1alpha1.GetContainerNetworkFileSystemServer(cs.crdClient, nasVolArgs.CnfsName)
+			if err != nil {
+				return nil, err
+			}
+			path, pathExist := volOptions[PATH]
+			if !pathExist {
+				nasVolArgs.Path = "/"
+			} else {
+				nasVolArgs.Path = path
+			}
+			nasVolArgs.Server = server + ":" + nasVolArgs.Path
 		}
 
 		// mode
