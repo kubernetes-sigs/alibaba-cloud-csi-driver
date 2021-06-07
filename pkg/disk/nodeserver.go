@@ -98,6 +98,8 @@ const (
 	FileSystemLoseCapacityPercent = "FILE_SYSTEM_LOSE_PERCENT"
 	// NsenterCmd run command on host
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
+	// DiskMultiTenantEnable Enable disk multi-tenant mode
+	DiskMultiTenantEnable = "DISK_MULTI_TENANT_ENABLE"
 )
 
 // QueryResponse response struct for query server
@@ -506,7 +508,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			return nil, status.Error(codes.Aborted, "NodeStageVolume: ADController Enabled, but device can't be found:"+req.VolumeId+err.Error())
 		}
 	} else {
-		device, err = attachDisk(req.GetVolumeId(), ns.nodeID, isSharedDisk)
+		device, err = attachDisk(req.VolumeContext[TenantUserUid], req.GetVolumeId(), ns.nodeID, isSharedDisk)
 		if err != nil {
 			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
 			log.Errorf("NodeStageVolume: Attach volume: %s with error: %s", req.VolumeId, fullErrorMessage)
@@ -679,7 +681,15 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			return &csi.NodeUnstageVolumeResponse{}, nil
 		}
 
-		err := detachDisk(req.VolumeId, ns.nodeID)
+		ecsClient, tenantUserUid, err := createUpdateEcsClientByVolumeId(ctx, req.VolumeId)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		if tenantUserUid == "" {
+			GlobalConfigVar.EcsClient = ecsClient
+		}
+
+		err = detachDisk(ecsClient, req.VolumeId, ns.nodeID)
 		if err != nil {
 			log.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
 			return nil, err

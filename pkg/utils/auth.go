@@ -21,12 +21,13 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"encoding/json"
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -46,6 +47,20 @@ type AKInfo struct {
 	Expiration string `json:"expiration"`
 	// Keyring key ring
 	Keyring string `json:"keyring"`
+
+	RoleAccessKeyId     string `json:"role.access.key.id"`
+	RoleAccessKeySecret string `json:"role.access.key.secret"`
+	RoleArn             string `json:"role.arn"`
+}
+
+// GetDefaultRoleAK  返回角色扮演账号AK, SK, role arn
+func GetDefaultRoleAK() (string, string, string) {
+	accessKeyID, accessSecret, roleArn := os.Getenv("ROLE_ACCESS_KEY_ID"), os.Getenv("ROLE_ACCESS_KEY_SECRET"), os.Getenv("ROLE_ARN")
+	if accessKeyID == "" || accessSecret == "" || roleArn == "" {
+		tokens := GetManagedToken()
+		accessKeyID, accessSecret, roleArn = tokens.RoleAccessKeyId, tokens.RoleAccessKeySecret, tokens.RoleArn
+	}
+	return accessKeyID, accessSecret, roleArn
 }
 
 // GetDefaultAK read default ak from local file or from STS
@@ -54,7 +69,8 @@ func GetDefaultAK() (string, string, string) {
 
 	accessToken := ""
 	if accessKeyID == "" || accessSecret == "" {
-		accessKeyID, accessSecret, accessToken = GetManagedToken()
+		tokens := GetManagedToken()
+		accessKeyID, accessSecret, accessToken = tokens.AccessKeyId, tokens.AccessKeySecret, tokens.SecurityToken
 		if accessKeyID != "" {
 			log.Infof("Get AK: use Managed AK")
 		}
@@ -104,38 +120,49 @@ func GetSTSAK() (string, string, string) {
 	return roleAuth.AccessKeyID, roleAuth.AccessKeySecret, roleAuth.SecurityToken
 }
 
+type ManageTokens struct {
+	// 资源账号
+	AccessKeyId     string
+	AccessKeySecret string
+	SecurityToken   string
+
+	// 角色扮演账号
+	RoleAccessKeyId     string
+	RoleAccessKeySecret string
+	RoleArn             string
+}
+
 // GetManagedToken get ak from csi secret
-func GetManagedToken() (string, string, string) {
+func GetManagedToken() (tokens ManageTokens) {
 	var akInfo AKInfo
-	AccessKeyID, AccessKeySecret, SecurityToken := "", "", ""
 	if _, err := os.Stat(ConfigPath); err == nil {
 		encodeTokenCfg, err := ioutil.ReadFile(ConfigPath)
 		if err != nil {
 			log.Errorf("failed to read token config, err: %v", err)
-			return "", "", ""
+			return ManageTokens{}
 		}
 		err = json.Unmarshal(encodeTokenCfg, &akInfo)
 		if err != nil {
 			log.Errorf("error unmarshal token config: %v", err)
-			return "", "", ""
+			return ManageTokens{}
 		}
 		keyring := akInfo.Keyring
 		ak, err := Decrypt(akInfo.AccessKeyID, []byte(keyring))
 		if err != nil {
 			log.Errorf("failed to decode ak, err: %v", err)
-			return "", "", ""
+			return ManageTokens{}
 		}
 
 		sk, err := Decrypt(akInfo.AccessKeySecret, []byte(keyring))
 		if err != nil {
 			log.Errorf("failed to decode sk, err: %v", err)
-			return "", "", ""
+			return ManageTokens{}
 		}
 
 		token, err := Decrypt(akInfo.SecurityToken, []byte(keyring))
 		if err != nil {
 			log.Errorf("failed to decode token, err: %v", err)
-			return "", "", ""
+			return ManageTokens{}
 		}
 		layout := "2006-01-02T15:04:05Z"
 		t, err := time.Parse(layout, akInfo.Expiration)
@@ -145,11 +172,28 @@ func GetManagedToken() (string, string, string) {
 		if t.Before(time.Now()) {
 			log.Errorf("invalid token which is expired, expiration as: %s", akInfo.Expiration)
 		}
-		AccessKeyID = string(ak)
-		AccessKeySecret = string(sk)
-		SecurityToken = string(token)
+
+		tokens.AccessKeyId = string(ak)
+		tokens.AccessKeySecret = string(sk)
+		tokens.SecurityToken = string(token)
+
+		if akInfo.RoleAccessKeyId != "" && akInfo.RoleAccessKeySecret != "" {
+			roleAK, err := Decrypt(akInfo.RoleAccessKeyId, []byte(keyring))
+			if err != nil {
+				log.Errorf("failed to decode role ak, err: %v", err)
+				return ManageTokens{}
+			}
+			roleSK, err := Decrypt(akInfo.RoleAccessKeySecret, []byte(keyring))
+			if err != nil {
+				log.Errorf("failed to decode role sk, err : %v", err)
+				return ManageTokens{}
+			}
+			tokens.RoleAccessKeyId = string(roleAK)
+			tokens.RoleAccessKeySecret = string(roleSK)
+		}
+		tokens.RoleArn = akInfo.RoleArn
 	}
-	return AccessKeyID, AccessKeySecret, SecurityToken
+	return tokens
 }
 
 // PKCS5UnPadding get pkc

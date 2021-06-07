@@ -15,6 +15,7 @@ github.com/aliyun/alibaba-cloud-sdk-go/sdk/utils
 github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs
 github.com/aliyun/alibaba-cloud-sdk-go/services/ecs
 github.com/aliyun/alibaba-cloud-sdk-go/services/nas
+github.com/aliyun/alibaba-cloud-sdk-go/services/sts
 # github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 => github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
 github.com/beorn7/perks/quantile
 # github.com/container-storage-interface/spec v1.2.0 => github.com/container-storage-interface/spec v1.1.0
@@ -56,6 +57,8 @@ github.com/emirpasic/gods/containers
 github.com/emirpasic/gods/sets
 github.com/emirpasic/gods/sets/hashset
 github.com/emirpasic/gods/utils
+# github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473
+github.com/envoyproxy/go-control-plane/pkg/wellknown
 # github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 github.com/go-ping/ping
 # github.com/gogo/protobuf v1.3.1

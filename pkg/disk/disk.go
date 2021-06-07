@@ -26,13 +26,14 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 // PluginFolder defines the location of diskplugin
@@ -68,6 +69,7 @@ type GlobalConfig struct {
 	RunTimeClass          string
 	DetachBeforeDelete    bool
 	DiskBdfEnable         bool
+	DiskMultiTenantEnable bool
 	ClientSet             *kubernetes.Clientset
 	FilesystemLosePercent float64
 	ClusterID             string
@@ -87,7 +89,7 @@ var (
 func initDriver() {
 }
 
-//NewDriver create the identity/node/controller server and disk driver
+// NewDriver create the identity/node/controller server and disk driver
 func NewDriver(nodeID, endpoint, baseDir string, runAsController bool) *DISK {
 	initDriver()
 	tmpdisk := &DISK{}
@@ -168,6 +170,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID, baseDir string) *restcl
 	isDiskDetachDisable := false
 	isDiskDetachBeforeDelete := true
 	isDiskBdfEnable := false
+	isDiskMultiTenantEnable := false
 
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
@@ -316,6 +319,14 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID, baseDir string) *restcl
 		partition = false
 	}
 
+	diskMultiTenantEnable := os.Getenv(DiskMultiTenantEnable)
+	if diskMultiTenantEnable == "true" || diskMultiTenantEnable == "yes" {
+		log.Infof("Multi tenant is Enabled")
+		isDiskMultiTenantEnable = true
+	} else if diskMultiTenantEnable == "false" || diskMultiTenantEnable == "no" {
+		isDiskMultiTenantEnable = false
+	}
+
 	log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete, clustID)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
@@ -326,6 +337,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID, baseDir string) *restcl
 		ADControllerEnable:    isADControllerEnable,
 		DiskTagEnable:         isDiskTagEnable,
 		DiskBdfEnable:         isDiskBdfEnable,
+		DiskMultiTenantEnable: isDiskMultiTenantEnable,
 		MetricEnable:          isDiskMetricEnable,
 		RunTimeClass:          runtimeValue,
 		DetachDisabled:        isDiskDetachDisable,
