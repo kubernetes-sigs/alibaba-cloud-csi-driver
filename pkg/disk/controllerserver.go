@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 
@@ -35,8 +36,6 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/crds"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -45,6 +44,9 @@ import (
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/crds"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 const (
@@ -79,18 +81,20 @@ const (
 )
 
 const (
-	//snapshotTooMany means that the previous Snapshot is greater than 1
+	// snapshotTooMany means that the previous Snapshot is greater than 1
 	snapshotTooMany string = "SnapshotTooMany"
-	//snapshotAlreadyExist means that the snapshot already exists
+	// snapshotAlreadyExist means that the snapshot already exists
 	snapshotAlreadyExist string = "SnapshotAlreadyExist"
-	//snapshotCreateError means that the create snapshot error occurred
+	// snapshotCreateError means that the create snapshot error occurred
 	snapshotCreateError string = "SnapshotCreateError"
-	//snapshotCreatedSuccessfully means that the create snapshot success
+	// snapshotCreatedSuccessfully means that the create snapshot success
 	snapshotCreatedSuccessfully string = "SnapshotCreatedSuccessfully"
-	//snapshotDeleteError means that the delete snapshot error occurred
+	// snapshotDeleteError means that the delete snapshot error occurred
 	snapshotDeleteError string = "SnapshotDeleteError"
-	//snapshotDeletedSuccessfully means that the delete snapshot success
+	// snapshotDeletedSuccessfully means that the delete snapshot success
 	snapshotDeletedSuccessfully string = "SnapshotDeletedSuccessfully"
+
+	TenantUserUid = "alibabacloud.com/user-uid"
 )
 
 // controller server try to create/delete volumes/snapshots
@@ -154,6 +158,7 @@ var storageClassZonePos = map[string]int{}
 var diskIDPVMap = map[string]string{}
 
 // provisioner: create/delete disk
+// extra-create-metadata
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	log.Infof("CreateVolume: Starting CreateVolume, %s, %v", req.Name, req)
 
@@ -204,8 +209,20 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	log.Infof("CreateVolume:: node support disk types: %v, nodeSelected: %v", nodeSupportDiskType, diskVol.NodeSelected)
 	// Step 2: Check whether volume is created
-	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
-	disks, err := findDiskByName(req.GetName(), diskVol.ResourceGroupID, sharedDisk)
+	var ecsClient *ecs.Client
+	// 需要配置external-provisioner启动参数--extra-create-metadata=true，然后ACK的external-provisioner才会将PVC的Annotations传过来
+	if tenantUserUid := req.Parameters[TenantUserUid]; GlobalConfigVar.DiskMultiTenantEnable && tenantUserUid != "" {
+		log.Infof("CreateVolume:: need to AssumeRole, user uid is %s", tenantUserUid)
+		if ecsClient, err = createRoleClient(tenantUserUid); err != nil {
+			log.Errorf("CreateVolume:: failed to create role client for %s", tenantUserUid)
+			err = errors.Wrapf(err, "createRoleClient, tenant uid=%s", tenantUserUid)
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	} else {
+		ecsClient = updateEcsClient(GlobalConfigVar.EcsClient)
+		GlobalConfigVar.EcsClient = ecsClient
+	}
+	disks, err := findDiskByName(ecsClient, req.GetName(), diskVol.ResourceGroupID, sharedDisk)
 	if err != nil {
 		log.Errorf("CreateVolume: describe volume error with: %s", err.Error())
 		return nil, status.Error(codes.Aborted, err.Error())
@@ -313,7 +330,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 		createDiskRequest.DiskCategory = dType
 		log.Infof("CreateVolume: Create Disk with diskCatalog: %v, performaceLevel: %v", createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel)
-		volumeResponse, err = GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
+		volumeResponse, err = ecsClient.CreateDisk(createDiskRequest)
 		if err == nil {
 			createdDiskType = dType
 			break
@@ -345,7 +362,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if createdDiskType != "" {
 		volumeContext["type"] = createdDiskType
 	}
-
+	if tenantUserUid := req.Parameters[TenantUserUid]; tenantUserUid != "" {
+		volumeContext[TenantUserUid] = tenantUserUid
+	}
 	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeResponse.DiskId, diskVol.ZoneID, createdDiskType, requestGB, volumeResponse.RequestId)
 
 	// Set VolumeContentSource
@@ -388,10 +407,17 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		log.Warnf("DeleteVolume: invalid delete volume req: %v", req)
 		return nil, status.Errorf(codes.InvalidArgument, "DeleteVolume: invalid delete volume req: %v", req)
 	}
+	ecsClient, tenantUserUid, err := createUpdateEcsClientByVolumeId(ctx, req.VolumeId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if tenantUserUid == "" {
+		GlobalConfigVar.EcsClient = ecsClient
+	}
+
 	// For now the image get unconditionally deleted, but here retention policy can be checked
-	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	if GlobalConfigVar.DetachBeforeDelete {
-		disk, err := findDiskByID(req.VolumeId)
+		disk, err := findDiskByID(ecsClient, req.VolumeId)
 		if err != nil {
 			errMsg := fmt.Sprintf("DeleteVolume: find disk(%s) by id with error: %s", req.VolumeId, err.Error())
 			log.Error(errMsg)
@@ -414,7 +440,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			}
 		}
 		if disk != nil && disk.Status == DiskStatusInuse && canDetach {
-			err := detachDisk(req.VolumeId, disk.InstanceId)
+			err := detachDisk(ecsClient, req.VolumeId, disk.InstanceId)
 			if err != nil {
 				newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
 				log.Errorf("DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, newErrMsg)
@@ -426,7 +452,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 	deleteDiskRequest := ecs.CreateDeleteDiskRequest()
 	deleteDiskRequest.DiskId = req.GetVolumeId()
-	response, err := GlobalConfigVar.EcsClient.DeleteDisk(deleteDiskRequest)
+	response, err := ecsClient.DeleteDisk(deleteDiskRequest)
 	if err != nil {
 		newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
 		errMsg := fmt.Sprintf("DeleteVolume: Delete disk with error: %s", newErrMsg)
@@ -480,7 +506,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume missing VolumeId/NodeId in request")
 	}
 
-	_, err := attachDisk(req.VolumeId, req.NodeId, isSharedDisk)
+	_, err := attachDisk(req.VolumeContext[TenantUserUid], req.VolumeId, req.NodeId, isSharedDisk)
 	if err != nil {
 		log.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
@@ -506,7 +532,16 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	if req.VolumeId == "" || req.NodeId == "" {
 		return nil, status.Error(codes.InvalidArgument, "ControllerUnpublishVolume missing VolumeId/NodeId in request")
 	}
-	err := detachDisk(req.VolumeId, req.NodeId)
+
+	ecsClient, tenantUserUid, err := createUpdateEcsClientByVolumeId(ctx, req.VolumeId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if tenantUserUid == "" {
+		GlobalConfigVar.EcsClient = ecsClient
+	}
+
+	err = detachDisk(ecsClient, req.VolumeId, req.NodeId)
 	if err != nil {
 		log.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
@@ -564,7 +599,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	// Need to check for already existing snapshot name
-	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
+	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshots, snapNum, err := findSnapshotByName(req.GetName())
 	if snapNum == 0 {
 		snapshots, snapNum, err = findDiskSnapshotByID(req.GetName())
@@ -675,7 +710,7 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	log.Infof("DeleteSnapshot:: starting delete snapshot %s", snapshotID)
 
 	// Check Snapshot exist and forceDelete tag;
-	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
+	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	forceDelete := false
 	snapshot, snapNum, err := findDiskSnapshotByID(req.SnapshotId)
 	if err != nil {
@@ -781,17 +816,23 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 	return newListSnapshotsResponse(response)
 }
 
-func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest,
-) (*csi.ControllerExpandVolumeResponse, error) {
+func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	log.Infof("ControllerExpandVolume:: Starting expand disk with: %v", req)
 
 	// check resize conditions
-	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
 	diskID := req.VolumeId
 
-	disk, err := findDiskByID(diskID)
+	ecsClient, tenantUserUid, err := createUpdateEcsClientByVolumeId(ctx, req.VolumeId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if tenantUserUid == "" {
+		GlobalConfigVar.EcsClient = ecsClient
+	}
+
+	disk, err := findDiskByID(ecsClient, diskID)
 	if err != nil {
 		log.Errorf("ControllerExpandVolume:: find disk(%s) with error: %s", diskID, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
@@ -819,12 +860,12 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 			resizeDiskRequest.Type = "online"
 		}
 	}
-	response, err := GlobalConfigVar.EcsClient.ResizeDisk(resizeDiskRequest)
+	response, err := ecsClient.ResizeDisk(resizeDiskRequest)
 	if err != nil {
 		log.Errorf("ControllerExpandVolume:: resize got error: %s", err.Error())
 		return nil, status.Errorf(codes.Internal, "resize disk %s get error: %s", diskID, err.Error())
 	}
-	checkDisk, err := findDiskByID(disk.DiskId)
+	checkDisk, err := findDiskByID(ecsClient, disk.DiskId)
 	if err != nil {
 		log.Infof("ControllerExpandVolume:: find disk failed with error: %+v", err)
 		return nil, status.Errorf(codes.Internal, "ControllerExpandVolume:: find disk failed with error: %+v", err)
