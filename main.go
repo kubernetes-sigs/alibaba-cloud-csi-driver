@@ -18,12 +18,18 @@ package main
 
 import (
 	"flag"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/controller"
 	"io"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"net/http"
 	"os"
+	"os/signal"
 	"path"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
@@ -116,6 +122,9 @@ type globalMetricConfig struct {
 	serviceType  string
 }
 
+var onlyOneSignalHandler = make(chan struct{})
+var shutdownSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
+
 // Nas CSI Plugin
 func main() {
 	flag.Parse()
@@ -134,6 +143,7 @@ func main() {
 	switch serviceType {
 	case utils.ProvisionerService:
 		logAttribute = strings.Replace(TypePluginSuffix, utils.PluginService, utils.ProvisionerService, -1)
+		go runController()
 	case utils.PluginService:
 		logAttribute = TypePluginSuffix
 	default:
@@ -330,4 +340,41 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	time := time.Now()
 	message := "Liveness probe is OK, time:" + time.String()
 	w.Write([]byte(message))
+}
+
+// SetupSignalHandler registered for SIGTERM and SIGINT. A stop channel is returned
+// which is closed on one of these signals. If a second signal is caught, the program
+// is terminated with exit code 1.
+func setupSignalHandler() (stopCh <-chan struct{}) {
+	close(onlyOneSignalHandler) // panics when called twice
+
+	stop := make(chan struct{})
+	c := make(chan os.Signal, 2)
+	signal.Notify(c, shutdownSignals...)
+	go func() {
+		<-c
+		close(stop)
+		<-c
+		os.Exit(1) // second signal. Exit directly.
+	}()
+
+	return stop
+}
+
+// RunController is run csi controller watch pv
+func runController() {
+	stopCh := setupSignalHandler()
+	var masterURL, config string
+	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, config)
+	if err != nil {
+		log.Fatalf("Get kubeconfig is failed from master, err: %s", err.Error())
+	}
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Create kubeclient is failed, err: %s", err.Error())
+	}
+	kubeInformerFactory := informers.NewSharedInformerFactory(kubeClient, time.Second*30)
+	controller.NewController(kubeInformerFactory.Core().V1().PersistentVolumes())
+	kubeInformerFactory.Start(stopCh)
+	kubeInformerFactory.WaitForCacheSync(stopCh)
 }

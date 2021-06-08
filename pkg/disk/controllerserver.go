@@ -67,6 +67,8 @@ const (
 	DISKTAGKEY3 = "ack.aliyun.com"
 	// SNAPSHOTFORCETAG tag
 	SNAPSHOTFORCETAG = "forceDelete"
+	// SNAPSHOTDELETEPROTECTIONTAG tag
+	SNAPSHOTDELETEPROTECTIONTAG = "snapshot.csi.alibabacloud.com/protection"
 	// SNAPSHOTTAGKEY1 tag
 	SNAPSHOTTAGKEY1 = "force.delete.snapshot.k8s.aliyun.com"
 	// SNAPSHOTTYPE ...
@@ -94,6 +96,10 @@ const (
 	snapshotDeletedSuccessfully string = "SnapshotDeletedSuccessfully"
 )
 
+const (
+	deleteProtectionDay int = 1
+)
+
 // controller server try to create/delete volumes/snapshots
 type controllerServer struct {
 	*csicommon.DefaultControllerServer
@@ -113,6 +119,7 @@ type diskVolumeArgs struct {
 	ResourceGroupID  string `json:"resourceGroupId"`
 	DiskTags         string `json:"diskTags"`
 	NodeSelected     string `json:"nodeSelected"`
+	DeleteProtection bool   `json:"deleteProtection"`
 }
 
 // Alicloud disk snapshot parameters
@@ -129,7 +136,6 @@ type diskSnapshot struct {
 
 // NewControllerServer is to create controller server
 func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset, region string) csi.ControllerServer {
-
 	serviceType := os.Getenv(utils.ServiceType)
 	if serviceType == utils.ProvisionerService {
 		checkInstallCRD(client)
@@ -393,22 +399,21 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 	// For now the image get unconditionally deleted, but here retention policy can be checked
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
-	if GlobalConfigVar.DetachBeforeDelete {
-		disk, err := findDiskByID(req.VolumeId)
-		if err != nil {
-			errMsg := fmt.Sprintf("DeleteVolume: find disk(%s) by id with error: %s", req.VolumeId, err.Error())
-			log.Error(errMsg)
-			return nil, status.Error(codes.Internal, errMsg)
-		} else if disk == nil {
-			// TODO Optimize concurrent access problems
-			if value, ok := diskIDPVMap[req.VolumeId]; ok {
-				delete(createdVolumeMap, value)
-				delete(diskIDPVMap, req.VolumeId)
-			}
-			log.Infof("DeleteVolume: disk(%s) already deleted", req.VolumeId)
-			return &csi.DeleteVolumeResponse{}, nil
+	disk, err := findDiskByID(req.VolumeId)
+	if err != nil {
+		errMsg := fmt.Sprintf("DeleteVolume: find disk(%s) by id with error: %s", req.VolumeId, err.Error())
+		log.Error(errMsg)
+		return nil, status.Error(codes.Internal, errMsg)
+	} else if disk == nil {
+		// TODO Optimize concurrent access problems
+		if value, ok := diskIDPVMap[req.VolumeId]; ok {
+			delete(createdVolumeMap, value)
+			delete(diskIDPVMap, req.VolumeId)
 		}
-
+		log.Infof("DeleteVolume: disk(%s) already deleted", req.VolumeId)
+		return &csi.DeleteVolumeResponse{}, nil
+	}
+	if GlobalConfigVar.DetachBeforeDelete {
 		// if disk has bdf tag, it should not detach
 		canDetach := true
 		for _, tag := range disk.Tags.Tag {
@@ -426,6 +431,8 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			log.Infof("DeleteVolume: Successful Detach disk(%s) from node %s before remove", req.VolumeId, disk.InstanceId)
 		}
 	}
+
+	createDiskSnapshotByProtection(disk.DiskId, disk.Category, cs.recorder)
 
 	deleteDiskRequest := ecs.CreateDeleteDiskRequest()
 	deleteDiskRequest.DiskId = req.GetVolumeId()
@@ -633,25 +640,15 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 
 	// init createSnapshotRequest and parameters
 	snapshotName := req.GetName()
-	createAt := ptypes.TimestampNow()
-	createSnapshotRequest := ecs.CreateCreateSnapshotRequest()
-	createSnapshotRequest.DiskId = sourceVolumeID
-	createSnapshotRequest.SnapshotName = snapshotName
-	createSnapshotRequest.InstantAccess = requests.NewBoolean(useInstanceAccess)
-	createSnapshotRequest.InstantAccessRetentionDays = requests.NewInteger(instantAccessRetentionDays)
-	if retentionDays != -1 {
-		createSnapshotRequest.RetentionDays = requests.NewInteger(retentionDays)
-	}
-
 	// Set tags
-	snapshotTags := []ecs.CreateSnapshotTag{}
+	var snapshotTags []ecs.CreateSnapshotTag
 	tag1 := ecs.CreateSnapshotTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
 	snapshotTags = append(snapshotTags, tag1)
 	if value, ok := req.Parameters[SNAPSHOTFORCETAG]; ok && value == "true" {
 		tag2 := ecs.CreateSnapshotTag{Key: SNAPSHOTTAGKEY1, Value: "true"}
 		snapshotTags = append(snapshotTags, tag2)
 	}
-	createSnapshotRequest.Tag = &snapshotTags
+	createSnapshotRequest := createDiskSnapshotRequest(snapshotName, sourceVolumeID, useInstanceAccess, instantAccessRetentionDays, retentionDays, &snapshotTags)
 
 	// Do Snapshot create
 	snapshotResponse, err := GlobalConfigVar.EcsClient.CreateSnapshot(createSnapshotRequest)
@@ -664,10 +661,11 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 
 	str := fmt.Sprintf("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotResponse.SnapshotId)
 	log.Infof(str)
+
 	csiSnapshot := &csi.Snapshot{
 		SnapshotId:     snapshotResponse.SnapshotId,
 		SourceVolumeId: sourceVolumeID,
-		CreationTime:   createAt,
+		CreationTime:   ptypes.TimestampNow(),
 		ReadyToUse:     false,
 	}
 

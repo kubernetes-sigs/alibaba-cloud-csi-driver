@@ -1005,6 +1005,14 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		diskVolArgs.ResourceGroupID = ""
 	}
 
+	// deleteProtection, default true
+	diskVolArgs.DeleteProtection = true
+	value, _ = volOptions["deleteProtection"]
+	value = strings.ToLower(value)
+	if value == "false" {
+		diskVolArgs.DeleteProtection = false
+	}
+
 	return diskVolArgs, nil
 }
 

@@ -18,6 +18,10 @@ package disk
 
 import (
 	"fmt"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/controller"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 	"strings"
 	"time"
 
@@ -28,6 +32,56 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+func createDiskSnapshotByProtection(diskID string, category string, recorder record.EventRecorder) {
+	if controller.CsiControllerInstance == nil {
+		return
+	}
+
+	if pv := controller.CsiControllerInstance.GetPvByDiskID(diskID); pv != nil {
+		if pv.Spec.CSI == nil {
+			return
+		}
+		if category != DiskESSD {
+			return
+		}
+		enable, ok := pv.Spec.CSI.VolumeAttributes["deleteProtection"]
+		if !ok || enable == "true" {
+			snapshotTags := []ecs.CreateSnapshotTag{{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}, {Key: SNAPSHOTDELETEPROTECTIONTAG, Value: diskID}}
+			createDiskSnapshot(diskID, recorder, snapshotTags)
+		}
+	}
+}
+
+func createDiskSnapshot(diskID string, recorder record.EventRecorder, snapshotTags []ecs.CreateSnapshotTag) {
+	createSnapshotRequest := createDiskSnapshotRequest(diskID, diskID, true, deleteProtectionDay, deleteProtectionDay, &snapshotTags)
+	_, err := GlobalConfigVar.EcsClient.CreateSnapshot(createSnapshotRequest)
+	if err != nil {
+		log.Errorf("Snapshot create failed: snapshotName[%s], sourceId[%s], error[%s]", diskID, diskID, err.Error())
+		e := status.Error(codes.Internal, fmt.Sprintf("failed create snapshot: %v", err))
+		ref := &v1.ObjectReference{
+			Kind:      "VolumeSnapshot",
+			Name:      diskID,
+			UID:       "",
+			Namespace: "",
+		}
+		utils.CreateEvent(recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
+	}
+}
+
+//createDiskSnapshotRequest function is create disk snapshot request
+func createDiskSnapshotRequest(snapshotName string, sourceVolumeID string, useInstanceAccess bool, instantAccessRetentionDays int, retentionDays int, snapshotTags *[]ecs.CreateSnapshotTag) *ecs.CreateSnapshotRequest {
+	createSnapshotRequest := ecs.CreateCreateSnapshotRequest()
+	createSnapshotRequest.DiskId = sourceVolumeID
+	createSnapshotRequest.SnapshotName = snapshotName
+	createSnapshotRequest.InstantAccess = requests.NewBoolean(useInstanceAccess)
+	createSnapshotRequest.InstantAccessRetentionDays = requests.NewInteger(instantAccessRetentionDays)
+	if retentionDays != -1 {
+		createSnapshotRequest.RetentionDays = requests.NewInteger(retentionDays)
+	}
+	createSnapshotRequest.Tag = snapshotTags
+	return createSnapshotRequest
+}
 
 // attach alibaba cloud disk
 func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
