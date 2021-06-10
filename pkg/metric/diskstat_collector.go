@@ -20,6 +20,7 @@ import (
 
 var (
 	diskStatLabelNames = []string{"namespace", "pvc", "device", "type"}
+	scalerPvcMap       *sync.Map
 )
 
 var (
@@ -259,12 +260,17 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 				continue
 			}
 			stats, _ := getDiskCapacityMetric(pvName, &info, stats)
-
+			if scalerPvcMap != nil {
+				if _, ok := scalerPvcMap.Load(info.PvcName); !ok {
+					continue
+				}
+			}
 			wg.Add(1)
 			go func(deviceNameArgs string, pvNameArgs string, pvcNamespaceArgs string, pvcNameArgs string, statsArgs []string) {
 				defer wg.Done()
 				p.setDiskMetric(deviceNameArgs, pvNameArgs, pvcNamespaceArgs, pvcNameArgs, statsArgs, ch)
 			}(deviceName, pvName, info.PvcNamespace, info.PvcName, stats)
+
 		}
 	}
 	wg.Wait()

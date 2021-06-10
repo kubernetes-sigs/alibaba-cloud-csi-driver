@@ -78,6 +78,7 @@ func (csi CSICollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements the prometheus.Collector interface.
 func (csi CSICollector) Collect(ch chan<- prometheus.Metric) {
+	defer func() { scalerPvcMap = nil }()
 	wg := sync.WaitGroup{}
 	wg.Add(len(csi.Collectors))
 	for name, c := range csi.Collectors {
@@ -94,7 +95,6 @@ func execute(name string, c Collector, ch chan<- prometheus.Metric) {
 	err := c.Update(ch)
 	duration := time.Since(begin)
 	var success float64
-
 	if err != nil {
 		if IsNoDataError(err) {
 			logrus.Infof("Collector returned no data,name: %s, duration_seconds: %f, err: %s", name, duration.Seconds(), err.Error())
