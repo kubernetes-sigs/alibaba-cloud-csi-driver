@@ -7,6 +7,8 @@ import (
 	"github.com/prometheus/common/version"
 	"github.com/sirupsen/logrus"
 	"net/http"
+	"strings"
+	"sync"
 )
 
 //Handler is a package of promHttp,metric entry
@@ -15,6 +17,16 @@ type Handler struct {
 
 // ServeHTTP implements http.Handler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL != nil && len(r.URL.RawQuery) != 0 {
+		queryField := strings.Split(r.URL.RawQuery, "=")
+		if len(queryField) >= 2 && queryField[0] == "multipvc" {
+			pvcNameArray := strings.Split(queryField[1], ",")
+			scalerPvcMap = new(sync.Map)
+			for _, pvcName := range pvcNameArray {
+				scalerPvcMap.Store(pvcName, true)
+			}
+		}
+	}
 	handler, err := h.innerHandler()
 	if err != nil {
 		logrus.Errorf("Couldn't create filtered metrics handler, err:%s", err.Error())
