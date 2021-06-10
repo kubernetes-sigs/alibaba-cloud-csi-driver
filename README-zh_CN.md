@@ -15,8 +15,8 @@
 | Feature         | Stage | Min Kubernetes Version |  Min Driver Version  |
 |-----------------|-------|---------------------------|-------------------|
 | Topology        | Beta  | 1.14                       | v1.0.2           |
-| Snapshots       | Alpha | 1.14                       | v1.0.3           |
 | Resize (Expand) | Beta  | 1.16                       | v1.0.5           |
+| Snapshots       | Beta  | 1.17                       | v1.1.2           |
 
 
 ### 云盘CSI插件
@@ -60,7 +60,7 @@ LVM CSI插件更多详细说明请参考[LVM](./docs/lvm.md)
 
 可以到 [Cloud Provider SIG](https://github.com/kubernetes/community/tree/master/sig-cloud-provider) 联系到项目管理者；
 
-可以加入[钉钉群](https://qr.dingtalk.com/action/joingroup?code=v1,k1,xxf5eqc7eMgILnXxj9Chab8KNZFoPtD00kaOtTKg/Rk=&_dt_no_comment=1&origin=11)和我们一起讨论遇到的问题；
+可以加入钉钉群(群ID：33936810)和我们一起讨论遇到的问题；
 
 
 ### 行为准则

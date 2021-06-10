@@ -68,21 +68,16 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 			return status.Error(codes.Internal, err.Error())
 		}
 	}
-	// Check target mounted
-	isMnt, err := ns.mounter.IsMounted(targetPath)
-	if err != nil {
-		if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-			if err := os.MkdirAll(targetPath, 0750); err != nil {
-				log.Errorf("NodePublishVolume: volume %s mkdir target path %s with error: %s", volumeID, targetPath, err.Error())
-				return status.Error(codes.Internal, err.Error())
-			}
-			isMnt = false
-		} else {
-			log.Errorf("NodePublishVolume: check volume %s mounted with error: %s", volumeID, err.Error())
+
+	// Check targetPath
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		if err := os.MkdirAll(targetPath, 0750); err != nil {
+			log.Errorf("NodePublishVolume: volume %s mkdir target path %s with error: %s", volumeID, targetPath, err.Error())
 			return status.Error(codes.Internal, err.Error())
 		}
 	}
 
+	isMnt := utils.IsMounted(targetPath)
 	if !isMnt {
 		var options []string
 		if req.GetReadonly() {
@@ -323,7 +318,7 @@ func (ns *nodeServer) checkTargetMounted(targetPath string) (bool, error) {
 			}
 			isMnt = false
 		} else {
-			return false, status.Error(codes.Internal, err.Error())
+			return false, err
 		}
 	}
 	return isMnt, nil

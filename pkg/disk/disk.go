@@ -19,6 +19,7 @@ package disk
 import (
 	"context"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -55,19 +56,22 @@ type DISK struct {
 
 // GlobalConfig save global values for plugin
 type GlobalConfig struct {
-	EcsClient          *ecs.Client
-	Region             string
-	NodeID             string
-	AttachMutex        sync.RWMutex
-	CanAttach          bool
-	DiskTagEnable      bool
-	ADControllerEnable bool
-	DetachDisabled     bool
-	MetricEnable       bool
-	RunTimeClass       string
-	DetachBeforeDelete bool
-	DiskBdfEnable      bool
-	ClientSet          *kubernetes.Clientset
+	EcsClient             *ecs.Client
+	Region                string
+	NodeID                string
+	AttachMutex           sync.RWMutex
+	CanAttach             bool
+	DiskTagEnable         bool
+	ADControllerEnable    bool
+	DetachDisabled        bool
+	MetricEnable          bool
+	RunTimeClass          string
+	DetachBeforeDelete    bool
+	DiskBdfEnable         bool
+	ClientSet             *kubernetes.Clientset
+	FilesystemLosePercent float64
+	ClusterID             string
+	DiskPartitionEnable   bool
 }
 
 // define global variable
@@ -113,10 +117,13 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	}
 
 	// Set Region ID
-	region := GetRegionID()
+	regionID := os.Getenv("REGION_ID")
+	if regionID == "" {
+		regionID = GetRegionID()
+	}
 
 	// Config Global vars
-	cfg := GlobalConfigSet(client, region, nodeID)
+	cfg := GlobalConfigSet(client, regionID, nodeID)
 
 	apiExtentionClient, err := crd.NewForConfig(cfg)
 	if err != nil {
@@ -125,7 +132,7 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
-	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient, region)
+	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient, regionID)
 
 	if !runAsController {
 		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, client)
@@ -164,7 +171,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
-		log.Infof("Not found configmap named as csi-plugin under kube-system, with error: %v", err)
+		log.Infof("Not found configmap named as csi-plugin under kube-system, with: %v", err)
 	} else {
 		if value, ok := configMap.Data["disk-adcontroller-enable"]; ok {
 			if value == "enable" || value == "yes" || value == "true" {
@@ -266,6 +273,15 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		isDiskDetachBeforeDelete = false
 	}
 
+	// fileSystemLosePercent ...
+	fileSystemLosePercent := float64(0.90)
+	if fileSystemLoseCapacityPercent := os.Getenv(FileSystemLoseCapacityPercent); fileSystemLoseCapacityPercent != "" {
+		percent, err := strconv.ParseFloat(fileSystemLoseCapacityPercent, 64)
+		if err == nil {
+			fileSystemLosePercent = percent
+		}
+	}
+
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	runtimeValue := "runc"
 	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
@@ -283,22 +299,31 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 	if runtimeEnv == MixRunTimeMode {
 		runtimeValue = MixRunTimeMode
 	}
+	clustID := os.Getenv("CLUSTER_ID")
 
-	log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete)
+	partition := true
+	if partitionEn := os.Getenv("DISK_PARTITION_ENABLE"); partitionEn == "false" {
+		partition = false
+	}
+
+	log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete, clustID)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
-		EcsClient:          client,
-		Region:             region,
-		NodeID:             nodeID,
-		CanAttach:          true,
-		ADControllerEnable: isADControllerEnable,
-		DiskTagEnable:      isDiskTagEnable,
-		DiskBdfEnable:      isDiskBdfEnable,
-		MetricEnable:       isDiskMetricEnable,
-		RunTimeClass:       runtimeValue,
-		DetachDisabled:     isDiskDetachDisable,
-		DetachBeforeDelete: isDiskDetachBeforeDelete,
-		ClientSet:          kubeClient,
+		EcsClient:             client,
+		Region:                region,
+		NodeID:                nodeID,
+		CanAttach:             true,
+		ADControllerEnable:    isADControllerEnable,
+		DiskTagEnable:         isDiskTagEnable,
+		DiskBdfEnable:         isDiskBdfEnable,
+		MetricEnable:          isDiskMetricEnable,
+		RunTimeClass:          runtimeValue,
+		DetachDisabled:        isDiskDetachDisable,
+		DetachBeforeDelete:    isDiskDetachBeforeDelete,
+		ClientSet:             kubeClient,
+		FilesystemLosePercent: fileSystemLosePercent,
+		ClusterID:             clustID,
+		DiskPartitionEnable:   partition,
 	}
 	return cfg
 }

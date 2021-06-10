@@ -35,11 +35,20 @@ const (
 type pfsRawBlockStatCollector struct {
 	enable           bool
 	descs            []typedFactorDesc
-	pvStorageInfoMap map[string]storageInfo
+	pvPfsInfoMap     map[string]pfsInfo
 	rawBlockStatsMap map[string][]string
 	kubeClient       *kubernetes.Clientset
 	dockerClient     *client.Client
 	capacityMutex    sync.Mutex
+}
+
+type pfsInfo struct {
+	PvcNamespace    string
+	PvcName         string
+	DiskID          string
+	DeviceName      string
+	VolDataPath     string
+	GlobalMountPath string
 }
 
 func init() {
@@ -78,7 +87,7 @@ func (p *pfsRawBlockStatCollector) updateStatByPolling() {
 		}
 
 		if doUpdate {
-			updateMap(p.kubeClient, &p.pvStorageInfoMap, volJSONPaths, diskDriverName, "volumeDevices")
+			p.updateMap(p.kubeClient, &p.pvPfsInfoMap, volJSONPaths, diskDriverName, "volumeDevices")
 		}
 
 		p.capacityMutex.Unlock()
@@ -113,11 +122,11 @@ func NewPfsRawBlockStatCollector() (Collector, error) {
 	pfsBlockCollector := pfsRawBlockStatCollector{
 		enable: enable,
 		descs: []typedFactorDesc{
-			{desc: capacityTotalDesc, valueType: prometheus.CounterValue},
-			{desc: capacityAvailableDesc, valueType: prometheus.CounterValue},
-			{desc: capacityUsedDesc, valueType: prometheus.CounterValue},
+			{desc: diskCapacityTotalDesc, valueType: prometheus.CounterValue},
+			{desc: diskCapacityAvailableDesc, valueType: prometheus.CounterValue},
+			{desc: diskCapacityUsedDesc, valueType: prometheus.CounterValue},
 		},
-		pvStorageInfoMap: make(map[string]storageInfo, 0),
+		pvPfsInfoMap: make(map[string]pfsInfo, 0),
 
 		kubeClient:    clientset,
 		dockerClient:  client,
@@ -136,7 +145,7 @@ func (p *pfsRawBlockStatCollector) Update(ch chan<- prometheus.Metric) error {
 	defer p.capacityMutex.Unlock()
 	wg := sync.WaitGroup{}
 	for pvName, stats := range p.rawBlockStatsMap {
-		info, ok := p.pvStorageInfoMap[pvName]
+		info, ok := p.pvPfsInfoMap[pvName]
 		if ok {
 			wg.Add(1)
 			go func(deviceNameArgs string, pvcNamespaceArgs string, pvcNameArgs string, statsArgs []string) {
@@ -160,6 +169,78 @@ func (p *pfsRawBlockStatCollector) setPfsRawBlockMetric(dev string, pvcNamespace
 			return
 		}
 		ch <- p.descs[i].mustNewConstMetric(v*pfsRawBlockUnit, pvcNamespace, pvcName, dev, pfsBlockName)
+	}
+}
+
+func (p *pfsRawBlockStatCollector) updateMap(clientSet *kubernetes.Clientset, lastPvPfsInfoMap *map[string]pfsInfo, jsonPaths []string, deriverName string, keyword string) {
+	thisPvStorageInfoMap := make(map[string]pfsInfo, 0)
+	cmd := "mount | grep csi | grep " + keyword
+	line, err := utils.Run(cmd)
+	if err != nil && strings.Contains(err.Error(), "with out: , with error:") {
+		p.updatePfsInfoMap(clientSet, thisPvStorageInfoMap, lastPvPfsInfoMap)
+		return
+	}
+	if err != nil {
+		logrus.Errorf("Execute cmd %s is failed, err: %s", cmd, err)
+		return
+	}
+	for _, path := range jsonPaths {
+		//Get disk pvName
+		pvName, diskID, err := getVolumeInfoByJSON(path, deriverName)
+		if err != nil {
+			if err.Error() != "VolumeType is not the expected type" {
+				logrus.Errorf("Get volume info by path %s is failed, err:%s", path, err)
+			}
+			continue
+		}
+
+		if !strings.Contains(line, "/"+pvName+"/") {
+			continue
+		}
+
+		deviceName, err := getDeviceByVolumeID(pvName, diskID)
+		if err != nil {
+			logrus.Errorf("Get dev name by diskID %s is failed, err:%s", diskID, err)
+			continue
+		}
+		strorageInfo := pfsInfo{
+			DiskID:      diskID,
+			DeviceName:  deviceName,
+			VolDataPath: path,
+		}
+		thisPvStorageInfoMap[pvName] = strorageInfo
+	}
+
+	//If there is a change: add, modify, delete
+	p.updatePfsInfoMap(clientSet, thisPvStorageInfoMap, lastPvPfsInfoMap)
+}
+
+func (p *pfsRawBlockStatCollector) updatePfsInfoMap(clientSet *kubernetes.Clientset, thisPvStorageInfoMap map[string]pfsInfo, lastPvStorageInfoMap *map[string]pfsInfo) {
+	for pv, thisInfo := range thisPvStorageInfoMap {
+		lastInfo, ok := (*lastPvStorageInfoMap)[pv]
+		// add and modify
+		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
+			pvcNamespace, pvcName, err := getPvcByPvNameByDisk(clientSet, pv)
+			if err != nil {
+				logrus.Errorf("Get pvc by pv %s is failed, err:%s", pv, err.Error())
+				continue
+			}
+			updateInfo := pfsInfo{
+				DiskID:       thisInfo.DiskID,
+				VolDataPath:  thisInfo.VolDataPath,
+				DeviceName:   thisInfo.DeviceName,
+				PvcName:      pvcName,
+				PvcNamespace: pvcNamespace,
+			}
+			(*lastPvStorageInfoMap)[pv] = updateInfo
+		}
+	}
+	//if pv exist thisPvStorageInfoMap and not exist lastPvStorageInfoMap, pv should be deleted
+	for lastPv := range *lastPvStorageInfoMap {
+		_, ok := thisPvStorageInfoMap[lastPv]
+		if !ok {
+			delete(*lastPvStorageInfoMap, lastPv)
+		}
 	}
 }
 

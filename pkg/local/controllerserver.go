@@ -78,6 +78,8 @@ const (
 	CsiProvisionerIdentity = "storage.kubernetes.io/csiProvisionerIdentity"
 	// CsiProvisionerTag tag
 	CsiProvisionerTag = "volume.beta.kubernetes.io/storage-provisioner"
+	// QuotaRootPath tag
+	QuotaRootPath = "rootPath"
 )
 
 // the map of req.Name and csi.Volume
@@ -344,6 +346,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			defer conn.Close()
 			size := fmt.Sprintf("%d", req.GetCapacityRange().GetRequiredBytes())
 			kSize := fmt.Sprintf("%d", req.GetCapacityRange().GetRequiredBytes()/1024)
+
+			// if quotaRootPath configed in storageclass, use it first;
+			if value, ok := parameters[QuotaRootPath]; ok && value != "" && storageSelected == "" {
+				storageSelected = value
+			}
 			log.Infof("CreateVolume: create quotaPath type volume %s with node(%s), rootPath(%s), size(%s)KB", req.Name, nodeSelected, storageSelected, kSize)
 			_, projectQuotaSubpath, err := conn.CreateProjQuotaSubpath(ctx, req.Name, size, storageSelected)
 			if err != nil {

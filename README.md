@@ -10,15 +10,15 @@ volumes and attach it to workloads.
 
 Current implementation of CSI plugins has been tested in Kubernetes environment (requires Kubernetes 1.14+).
 
-Current Support: ***Cloud Disk, NAS, CPFS, OSS, LVM***;
+Current Support: ***Cloud Disk, NAS, CPFS, OSS, LVM, DBFS***;
 
 ## Features in Development
 
 | Feature         | Stage | Min Kubernetes Version |  Min Driver Version  |
 |-----------------|-------|---------------------------|-------------------|
 | Topology        | Beta  | 1.14                       | v1.0.2           |
-| Snapshots       | Alpha | 1.14                       | v1.0.3           |
 | Resize (Expand) | Beta  | 1.16                       | v1.0.5           |
+| Snapshots       | Beta  | 1.17                       | v1.1.2           |
 
 
 ### Cloud Disk CSI Plugin
@@ -62,7 +62,7 @@ Learn how to engage with the Kubernetes community on the [community page](https:
 
 You can reach the maintainers of this project at the [Cloud Provider SIG](https://github.com/kubernetes/community/tree/master/sig-cloud-provider).
 
-You can join the DingDing Talking [Group](https://qr.dingtalk.com/action/joingroup?code=v1,k1,xxf5eqc7eMgILnXxj9Chab8KNZFoPtD00kaOtTKg/Rk=&_dt_no_comment=1&origin=11) to talk with us.
+You can join the DingDing Talking (GroupID: 33936810) to talk with us.
 
 ### Code of conduct
 

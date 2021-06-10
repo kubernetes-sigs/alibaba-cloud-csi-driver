@@ -20,80 +20,77 @@ import (
 
 var (
 	diskStatLabelNames = []string{"namespace", "pvc", "device", "type"}
-)
-
-var (
-	scalerPvcMap *sync.Map = nil
+	scalerPvcMap       *sync.Map
 )
 
 var (
 	//4 - reads completed successfully
-	readsCompletedDesc = prometheus.NewDesc(
+	diskReadsCompletedDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_completed_total"),
 		"The total number of reads completed successfully.",
 		diskStatLabelNames, nil,
 	)
 	//5 - reads merged
-	readsMergeDesc = prometheus.NewDesc(
+	diskReadsMergeDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_merged_total"),
 		"The total number of reads merged.",
 		diskStatLabelNames,
 		nil,
 	)
 	//6 - sectors read
-	readBytesDesc = prometheus.NewDesc(
+	diskReadBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_bytes_total"),
 		"The total number of bytes read successfully.",
 		diskStatLabelNames, nil,
 	)
 	//7 - time spent reading (ms)
-	readTimeMilliSecondsDesc = prometheus.NewDesc(
+	diskReadTimeMilliSecondsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_time_milliseconds_total"),
 		"The total number of seconds spent by all reads.",
 		diskStatLabelNames,
 		nil,
 	)
 	//8 - writes completed
-	writesCompletedDesc = prometheus.NewDesc(
+	diskWritesCompletedDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_completed_total"),
 		"The total number of writes completed successfully.",
 		diskStatLabelNames, nil,
 	)
 	//9 - writes merged
-	writeMergeDesc = prometheus.NewDesc(
+	diskWriteMergeDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_merged_total"),
 		"The number of writes merged.",
 		diskStatLabelNames,
 		nil,
 	)
 	//10 - sectors written
-	writtenBytesDesc = prometheus.NewDesc(
+	diskWrittenBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_bytes_total"),
 		"The total number of bytes written successfully.",
 		diskStatLabelNames, nil,
 	)
 	//11 - time spent writing (ms)
-	writeTimeMilliSecondsDesc = prometheus.NewDesc(
+	diskWriteTimeMilliSecondsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_time_milliseconds_total"),
 		"This is the total number of seconds spent by all writes.",
 		diskStatLabelNames,
 		nil,
 	)
 	//12 - I/Os currently in progress
-	ioNowDesc = prometheus.NewDesc(
+	diskIONowDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "io_now"),
 		"The number of I/Os currently in progress.",
 		diskStatLabelNames,
 		nil,
 	)
 	//13 - time spent doing I/Os (ms)
-	ioTimeSecondsDesc = prometheus.NewDesc(
+	diskIOTimeSecondsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "io_time_seconds_total"),
 		"Total seconds spent doing I/Os.",
 		diskStatLabelNames, nil,
 	)
 	//13 - capacity available
-	capacityAvailableDesc = prometheus.NewDesc(
+	diskCapacityAvailableDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "capacity_bytes_available"),
 		"The number of available size(bytes).",
 		diskStatLabelNames,
@@ -101,7 +98,7 @@ var (
 	)
 
 	//14 - capacity total
-	capacityTotalDesc = prometheus.NewDesc(
+	diskCapacityTotalDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "capacity_bytes_total"),
 		"The number of total size(bytes).",
 		diskStatLabelNames,
@@ -109,21 +106,21 @@ var (
 	)
 
 	//15 - capacity used
-	capacityUsedDesc = prometheus.NewDesc(
+	diskCapacityUsedDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "capacity_bytes_used"),
 		"The number of used size(bytes).",
 		diskStatLabelNames,
 		nil,
 	)
 	//16 - inode available
-	inodesAvailableDesc = prometheus.NewDesc(
+	diskInodesAvailableDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "inodes_available"),
 		"The number of available inodes.",
 		diskStatLabelNames,
 		nil,
 	)
 	//17 - inode total
-	inodesTotalDesc = prometheus.NewDesc(
+	diskInodesTotalDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "inodes_total"),
 		"The number of total inodes.",
 		diskStatLabelNames,
@@ -131,7 +128,7 @@ var (
 	)
 
 	//18 - inode used
-	inodesUsedDesc = prometheus.NewDesc(
+	diskInodesUsedDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "inodes_used"),
 		"The number of used inodes.",
 		diskStatLabelNames,
@@ -139,12 +136,21 @@ var (
 	)
 )
 
+type diskInfo struct {
+	PvcNamespace    string
+	PvcName         string
+	DiskID          string
+	DeviceName      string
+	VolDataPath     string
+	GlobalMountPath string
+}
+
 type diskStatCollector struct {
 	alertSwtichSet               *hashset.Set
 	milliSecondsLatencyThreshold float64 //Unit: milliseconds
 	capacityPercentageThreshold  float64
 	descs                        []typedFactorDesc
-	lastPvStorageInfoMap         map[string]storageInfo
+	lastPvDiskInfoMap            map[string]diskInfo
 	lastPvStatsMap               sync.Map
 	clientSet                    *kubernetes.Clientset
 	recorder                     record.EventRecorder
@@ -191,39 +197,39 @@ func NewDiskStatCollector() (Collector, error) {
 	return &diskStatCollector{
 		descs: []typedFactorDesc{
 			//4 - reads completed successfully
-			{desc: readsCompletedDesc, valueType: prometheus.CounterValue},
+			{desc: diskReadsCompletedDesc, valueType: prometheus.CounterValue},
 			//5 - reads merged
-			{desc: readsMergeDesc, valueType: prometheus.CounterValue},
+			{desc: diskReadsMergeDesc, valueType: prometheus.CounterValue},
 			//6 - sectors read
-			{desc: readBytesDesc, valueType: prometheus.CounterValue, factor: diskSectorSize},
+			{desc: diskReadBytesDesc, valueType: prometheus.CounterValue, factor: diskSectorSize},
 			//7 - time spent reading (ms)
-			{desc: readTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
+			{desc: diskReadTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
 			//8 - writes completed
-			{desc: writesCompletedDesc, valueType: prometheus.CounterValue},
+			{desc: diskWritesCompletedDesc, valueType: prometheus.CounterValue},
 			//9 - writes merged
-			{desc: writeMergeDesc, valueType: prometheus.CounterValue},
+			{desc: diskWriteMergeDesc, valueType: prometheus.CounterValue},
 			//10 - sectors written
-			{desc: writtenBytesDesc, valueType: prometheus.CounterValue, factor: diskSectorSize},
+			{desc: diskWrittenBytesDesc, valueType: prometheus.CounterValue, factor: diskSectorSize},
 			//11 - time spent writing (ms)
-			{desc: writeTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
+			{desc: diskWriteTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
 			//12 - I/Os currently in progress
-			{desc: ioNowDesc, valueType: prometheus.GaugeValue},
+			{desc: diskIONowDesc, valueType: prometheus.GaugeValue},
 			//13 - time spent doing I/Os (ms)
-			{desc: ioTimeSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
+			{desc: diskIOTimeSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
 			//14 - capacity available
-			{desc: capacityAvailableDesc, valueType: prometheus.CounterValue},
+			{desc: diskCapacityAvailableDesc, valueType: prometheus.CounterValue},
 			//15 - capacity total
-			{desc: capacityTotalDesc, valueType: prometheus.CounterValue},
+			{desc: diskCapacityTotalDesc, valueType: prometheus.CounterValue},
 			//16 - capacity used
-			{desc: capacityUsedDesc, valueType: prometheus.CounterValue},
+			{desc: diskCapacityUsedDesc, valueType: prometheus.CounterValue},
 			//17 - inode available
-			{desc: inodesAvailableDesc, valueType: prometheus.CounterValue},
+			{desc: diskInodesAvailableDesc, valueType: prometheus.CounterValue},
 			//18 - inode total
-			{desc: inodesTotalDesc, valueType: prometheus.CounterValue},
+			{desc: diskInodesTotalDesc, valueType: prometheus.CounterValue},
 			//19 - inode used
-			{desc: inodesUsedDesc, valueType: prometheus.CounterValue},
+			{desc: diskInodesUsedDesc, valueType: prometheus.CounterValue},
 		},
-		lastPvStorageInfoMap:         make(map[string]storageInfo, 0),
+		lastPvDiskInfoMap:            make(map[string]diskInfo, 0),
 		lastPvStatsMap:               sync.Map{},
 		clientSet:                    clientset,
 		milliSecondsLatencyThreshold: latencyThreshold,
@@ -240,22 +246,22 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get diskstats: %s", err)
 	}
-	volJSONPaths, err := findVolJSONByDisk(podsRootPath)
+	volJSONPaths, err := findVolJSON(podsRootPath)
 	if err != nil {
 		logrus.Errorf("Find disk vol_data json is failed, err:%s", err)
 		return err
 	}
-	updateMap(p.clientSet, &p.lastPvStorageInfoMap, volJSONPaths, diskDriverName, "volumes")
+	p.updateMap(&p.lastPvDiskInfoMap, volJSONPaths, diskDriverName, "volumes")
 
 	wg := sync.WaitGroup{}
 	for deviceName, stats := range deviceNameStatsMap {
-		for pvName, info := range p.lastPvStorageInfoMap {
+		for pvName, info := range p.lastPvDiskInfoMap {
 			if info.DeviceName != deviceName {
 				continue
 			}
-			stats, _ := getCapacityMetric(pvName, &info, stats)
-			if scalerPvcMap != nil{
-				if _,ok := scalerPvcMap.Load(info.PvcName);!ok{
+			stats, _ := getDiskCapacityMetric(pvName, &info, stats)
+			if scalerPvcMap != nil {
+				if _, ok := scalerPvcMap.Load(info.PvcName); !ok {
 					continue
 				}
 			}
@@ -331,7 +337,7 @@ func (p *diskStatCollector) ioHangEventAlert(devName string, pvName string, pvcN
 				UID:       "",
 				Namespace: pvcNamespace,
 			}
-			reason := fmt.Sprintf("IO Hang on Persistent Volume %s, nodeName:%s, diskID:%s, Device:%s", pvName, p.nodeName, p.lastPvStorageInfoMap[pvName].DiskID, devName)
+			reason := fmt.Sprintf("IO Hang on Persistent Volume %s, nodeName:%s, diskID:%s, Device:%s", pvName, p.nodeName, p.lastPvDiskInfoMap[pvName].DiskID, devName)
 			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, ioHang, reason)
 		}
 	}
@@ -394,6 +400,78 @@ func (p *diskStatCollector) setDiskMetric(devName string, pvName string, pvcName
 
 }
 
+func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, jsonPaths []string, deriverName string, keyword string) {
+	thisPvDiskInfoMap := make(map[string]diskInfo, 0)
+	cmd := "mount | grep csi | grep " + keyword
+	line, err := utils.Run(cmd)
+	if err != nil && strings.Contains(err.Error(), "with out: , with error:") {
+		p.updateDiskInfoMap(thisPvDiskInfoMap, lastPvDiskInfoMap)
+		return
+	}
+	if err != nil {
+		logrus.Errorf("Execute cmd %s is failed, err: %s", cmd, err)
+		return
+	}
+	for _, path := range jsonPaths {
+		//Get disk pvName
+		pvName, diskID, err := getVolumeInfoByJSON(path, deriverName)
+		if err != nil {
+			if err.Error() != "VolumeType is not the expected type" {
+				logrus.Errorf("Get volume info by path %s is failed, err:%s", path, err)
+			}
+			continue
+		}
+
+		if !strings.Contains(line, "/"+pvName+"/") {
+			continue
+		}
+
+		deviceName, err := getDeviceByVolumeID(pvName, diskID)
+		if err != nil {
+			logrus.Errorf("Get dev name by diskID %s is failed, err:%s", diskID, err)
+			continue
+		}
+		diskInfo := diskInfo{
+			DiskID:      diskID,
+			DeviceName:  deviceName,
+			VolDataPath: path,
+		}
+		thisPvDiskInfoMap[pvName] = diskInfo
+	}
+
+	//If there is a change: add, modify, delete
+	p.updateDiskInfoMap(thisPvDiskInfoMap, lastPvDiskInfoMap)
+}
+
+func (p *diskStatCollector) updateDiskInfoMap(thisPvDiskInfoMap map[string]diskInfo, lastPvDiskInfoMap *map[string]diskInfo) {
+	for pv, thisInfo := range thisPvDiskInfoMap {
+		lastInfo, ok := (*lastPvDiskInfoMap)[pv]
+		// add and modify
+		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
+			pvcNamespace, pvcName, err := getPvcByPvNameByDisk(p.clientSet, pv)
+			if err != nil {
+				logrus.Errorf("Get pvc by pv %s is failed, err:%s", pv, err.Error())
+				continue
+			}
+			updateInfo := diskInfo{
+				DiskID:       thisInfo.DiskID,
+				VolDataPath:  thisInfo.VolDataPath,
+				DeviceName:   thisInfo.DeviceName,
+				PvcName:      pvcName,
+				PvcNamespace: pvcNamespace,
+			}
+			(*lastPvDiskInfoMap)[pv] = updateInfo
+		}
+	}
+	//if pv exist thisPvStorageInfoMap and not exist lastPvDiskInfoMap, pv should be deleted
+	for lastPv := range *lastPvDiskInfoMap {
+		_, ok := thisPvDiskInfoMap[lastPv]
+		if !ok {
+			delete(*lastPvDiskInfoMap, lastPv)
+		}
+	}
+}
+
 func getDiskStats() (map[string][]string, error) {
 	diskStatsPath := procFilePath(diskStatsFileName)
 
@@ -406,11 +484,11 @@ func getDiskStats() (map[string][]string, error) {
 	return parseDiskStats(file)
 }
 
-func getGlobalMountPathByPvName(pvName string, info *storageInfo) {
+func getGlobalMountPathByPvName(pvName string, info *diskInfo) {
 	info.GlobalMountPath = fmt.Sprintf("/var/lib/kubelet/plugins/kubernetes.io/csi/pv/%s/globalmount", pvName)
 }
 
-func getCapacityMetric(pvName string, info *storageInfo, stat []string) ([]string, error) {
+func getDiskCapacityMetric(pvName string, info *diskInfo, stat []string) ([]string, error) {
 	getGlobalMountPathByPvName(pvName, info)
 	response, err := utils.GetMetrics(info.GlobalMountPath)
 	if err != nil {

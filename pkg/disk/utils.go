@@ -17,6 +17,7 @@ limitations under the License.
 package disk
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,9 +28,11 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
@@ -38,6 +41,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/volume/util/fs"
 	utilexec "k8s.io/utils/exec"
 	k8smount "k8s.io/utils/mount"
@@ -76,6 +81,8 @@ const (
 	DiskSizeNotAvailable = "InvalidDiskSize.NotSupported"
 	// DiskLimitExceeded tag
 	DiskLimitExceeded = "InstanceDiskLimitExceeded"
+	// NotSupportDiskCategory tag
+	NotSupportDiskCategory = "NotSupportDiskCategory"
 	// DiskNotPortable tag
 	DiskNotPortable = "DiskNotPortable"
 	// DiskHighAvail tag
@@ -106,6 +113,18 @@ const (
 	DiskUUIDPath = "/host/etc/kubernetes/volumes/disk/uuid"
 	// ZoneID ...
 	ZoneID = "zoneId"
+	// instanceTypeLabel ...
+	instanceTypeLabel = "beta.kubernetes.io/instance-type"
+	// zoneIDLabel ...
+	zoneIDLabel = "failure-domain.beta.kubernetes.io/zone"
+	// nodeStorageLabel ...
+	nodeStorageLabel = "node.csi.alibabacloud.com/disktype.%s"
+	// kubeNodeName ...
+	kubeNodeName = "KUBE_NODE_NAME"
+	// describeResourceType ...
+	describeResourceType = "DataDisk"
+	// NodeSchedueTag in annotations
+	NodeSchedueTag = "volume.kubernetes.io/selected-node"
 )
 
 var (
@@ -156,8 +175,12 @@ func newEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *
 		}
 	}
 
-	// Set Unitized Endpoint for hangzhou region
-	SetEcsEndPoint(regionID)
+	if os.Getenv("INTERNAL_MODE") == "true" {
+		ecsClient.Network = "openapi-share"
+	} else {
+		// Set Unitized Endpoint for hangzhou region
+		SetEcsEndPoint(regionID)
+	}
 
 	return
 }
@@ -170,28 +193,29 @@ func updateEcsClent(client *ecs.Client) *ecs.Client {
 	if client.Client.GetConfig() != nil {
 		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
 	}
+	if os.Getenv("INTERNAL_MODE") == "true" {
+		client.Network = "openapi-share"
+	}
 	return client
 }
 
 // SetEcsEndPoint Set Endpoint for Ecs
 func SetEcsEndPoint(regionID string) {
 	// use unitized region endpoint for blew regions.
-	// total 18 regions
+	// total 19 regions
+	isEndpointSet := false
 	unitizedRegions := []string{"cn-hangzhou", "cn-zhangjiakou", "cn-huhehaote", "cn-shenzhen", "ap-southeast-1", "ap-southeast-2",
 		"ap-southeast-3", "ap-southeast-5", "eu-central-1", "us-east-1", "cn-hongkong", "ap-northeast-1", "ap-south-1",
 		"us-west-1", "me-east-1", "cn-north-2-gov-1", "eu-west-1", "cn-chengdu"}
 	for _, tmpRegion := range unitizedRegions {
 		if regionID == tmpRegion {
 			aliyunep.AddEndpointMapping(regionID, "Ecs", "ecs."+regionID+".aliyuncs.com")
+			isEndpointSet = true
 			break
 		}
 	}
-	unitizedRegionsVpc := []string{"cn-beijing", "cn-shanghai", "cn-hongkong", "me-east-1", "cn-shenzhen-finance-1", "cn-shanghai-finance-1"}
-	for _, tmpRegion := range unitizedRegionsVpc {
-		if regionID == tmpRegion {
-			aliyunep.AddEndpointMapping(regionID, "Ecs", "ecs-vpc."+regionID+".aliyuncs.com")
-			break
-		}
+	if isEndpointSet == false {
+		aliyunep.AddEndpointMapping(regionID, "Ecs", "ecs-vpc."+regionID+".aliyuncs.com")
 	}
 
 	// use environment endpoint setting first;
@@ -398,6 +422,201 @@ func getDeviceSerial(serial string) (device string) {
 	return ""
 }
 
+// if device has no partition, just return;
+// if device has one partition, return the partition;
+// if device has more than one partition, return error;
+func adaptDevicePartition(devicePath string) (string, error) {
+	// check disk partition is enabled.
+	if !GlobalConfigVar.DiskPartitionEnable {
+		return devicePath, nil
+	}
+	if devicePath == "" || !strings.HasPrefix(devicePath, "/dev/") {
+		return "", fmt.Errorf("DevicePath is empty or format error %s", devicePath)
+	}
+
+	// check disk is partition or not
+	isPartation := false
+	// example: /dev/vdb
+	rootDevicePath := ""
+	// example: /dev/vdb1
+	subDevicePath := ""
+	// device rootPath and partitions
+	deviceList := []string{}
+
+	// Get RootDevice path
+	tmpRootPath, _, err := getDeviceRootAndIndex(devicePath)
+	if err != nil {
+		return "", err
+	}
+	rootDevicePath = tmpRootPath
+
+	// Get all device path relate to root device
+	globDevices, err := filepath.Glob(rootDevicePath + "*")
+	if err != nil {
+		return "", fmt.Errorf("Get Device List by Glob for %s with error %v ", devicePath, err)
+	}
+	digitPattern := "^(\\d+)$"
+	for _, tmpDevice := range globDevices {
+		// find all device partitions
+		if result, err := regexp.MatchString(digitPattern, strings.TrimPrefix(tmpDevice, rootDevicePath)); err == nil && result == true {
+			deviceList = append(deviceList, tmpDevice)
+		} else if tmpDevice == rootDevicePath {
+			deviceList = append(deviceList, tmpDevice)
+		}
+	}
+
+	// set isPartation and check partition
+	if len(deviceList) == 0 {
+		return "", fmt.Errorf("List Device Path empty for %s and globDevices with %v ", devicePath, globDevices)
+	} else if len(deviceList) == 1 {
+		isPartation = false
+	} else if len(deviceList) == 2 {
+		isPartation = true
+		if rootDevicePath == deviceList[0] {
+			subDevicePath = deviceList[1]
+		} else {
+			subDevicePath = deviceList[0]
+		}
+	} else if len(deviceList) > 2 {
+		return "", fmt.Errorf("Device %s has more than 1 partition: %v, globDevices %v ", devicePath, deviceList, globDevices)
+	}
+
+	if isPartation == true {
+		if err := checkRootAndSubDeviceFS(rootDevicePath, subDevicePath); err != nil {
+			return "", err
+		}
+		devicePath = subDevicePath
+	}
+	return devicePath, nil
+}
+
+func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
+	if !strings.HasPrefix(subDevicePath, rootDevicePath) {
+		return fmt.Errorf("DeviceNotAvailable: input devices is not root&sub device path: %s, %s ", rootDevicePath, subDevicePath)
+	}
+	digitPattern := "^(\\d+)$"
+	if result, err := regexp.MatchString(digitPattern, strings.TrimPrefix(subDevicePath, rootDevicePath)); err != nil || result != true {
+		return fmt.Errorf("checkRootAndSubDeviceFS: input devices not meet root&sub device path: %s, %s ", rootDevicePath, subDevicePath)
+	}
+
+	if !utils.IsFileExisting(rootDevicePath) || !utils.IsFileExisting(subDevicePath) {
+		return fmt.Errorf("Input device path is illegal format: %s, %s ", rootDevicePath, subDevicePath)
+	}
+	fstype, pptype, _ := GetDiskFormat(rootDevicePath)
+	if fstype != "" {
+		return fmt.Errorf("Root device %s, has filesystem exist: %s, and pptype: %s, disk is not supported ", rootDevicePath, fstype, pptype)
+	}
+
+	fstype, _, _ = GetDiskFormat(subDevicePath)
+	if fstype == "" {
+		return fmt.Errorf("Root device %s is partition, and you should format %s by hands ", rootDevicePath, subDevicePath)
+	}
+	return nil
+}
+
+func makeDevicePath(name string) string {
+	if strings.HasPrefix(name, "/dev/") {
+		return name
+	}
+	return filepath.Join("/dev/", name)
+}
+
+// return root device name, the partition index
+// input /dev/vdb,   output: /dev/vdb, -1, nil
+// input /dev/vdb1,  output: /dev/vdb, 1,  nil
+// input /dev/vdb22, output: /dev/vdb, 22, nil
+func getDeviceRootAndIndex(devicePath string) (string, int, error) {
+	rootDevicePath := ""
+	index := -1
+	re := regexp.MustCompile(`\d+`)
+	regexpRes := re.FindAllStringSubmatch(devicePath, -1)
+	if len(regexpRes) == 0 {
+		// no digit find in device name
+		rootDevicePath = devicePath
+		index = -1
+	} else if len(regexpRes) == 1 {
+		if len(regexpRes[0]) == 0 {
+			return "", -1, fmt.Errorf("GetDeviceRootAndIndex: Device %s has error format %s ", devicePath, regexpRes[0])
+		}
+		numStr := regexpRes[0][0]
+		if !strings.HasSuffix(devicePath, numStr) {
+			return "", -1, fmt.Errorf("GetDeviceRootAndIndex: Device %s has error format, not endwith %s ", devicePath, numStr)
+		}
+		rootDevicePath = strings.TrimSuffix(devicePath, numStr)
+		indexTmp, err := strconv.Atoi(numStr)
+		if err != nil {
+			return "", -1, fmt.Errorf("GetDeviceRootAndIndex: Device %s strconv %s, with error: %s ", devicePath, numStr, err.Error())
+		}
+		index = indexTmp
+	} else {
+		// the partition format is end with digit, so never more than one digit locations
+		return "", -1, fmt.Errorf("Device %s has error format more than one digit locations ", devicePath)
+	}
+	return rootDevicePath, index, nil
+}
+
+func isDevicePartition(device string) bool {
+	if len(device) == 0 {
+		return false
+	}
+	lastChar := rune(device[len(device)-1])
+	if unicode.IsDigit(lastChar) {
+		return true
+	}
+	return false
+}
+
+// GetDiskFormat uses 'blkid' to see if the given disk is unformatted
+func GetDiskFormat(disk string) (string, string, error) {
+	args := []string{"-p", "-s", "TYPE", "-s", "PTTYPE", "-o", "export", disk}
+
+	diskMounter := &k8smount.SafeFormatAndMount{Interface: k8smount.New(""), Exec: utilexec.New()}
+	dataOut, err := diskMounter.Exec.Command("blkid", args...).CombinedOutput()
+	output := string(dataOut)
+
+	if err != nil {
+		if exit, ok := err.(utilexec.ExitError); ok {
+			if exit.ExitStatus() == 2 {
+				// Disk device is unformatted.
+				// For `blkid`, if the specified token (TYPE/PTTYPE, etc) was
+				// not found, or no (specified) devices could be identified, an
+				// exit code of 2 is returned.
+				return "", "", nil
+			}
+		}
+		log.Errorf("Could not determine if disk %q is formatted (%v)", disk, err)
+		return "", "", err
+	}
+
+	var fstype, pttype string
+	lines := strings.Split(output, "\n")
+	for _, l := range lines {
+		if len(l) <= 0 {
+			// Ignore empty line.
+			continue
+		}
+		cs := strings.Split(l, "=")
+		if len(cs) != 2 {
+			return "", "", fmt.Errorf("blkid returns invalid output: %s", output)
+		}
+		// TYPE is filesystem type, and PTTYPE is partition table type, according
+		// to https://www.kernel.org/pub/linux/utils/util-linux/v2.21/libblkid-docs/.
+		if cs[0] == "TYPE" {
+			fstype = cs[1]
+		} else if cs[0] == "PTTYPE" {
+			pttype = cs[1]
+		}
+	}
+
+	if len(pttype) > 0 {
+		// Returns a special non-empty string as filesystem type, then kubelet
+		// will not format it.
+		return fstype, "unknown data, probably partitions", nil
+	}
+
+	return fstype, "", nil
+}
+
 // GetDeviceByVolumeID First try to find the device by serial
 // If cannot find the device using the serial number, get device by volumeID, link file should be like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
@@ -406,7 +625,11 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 	if !IsVFNode() {
 		device = getDeviceSerial(strings.TrimPrefix(volumeID, "d-"))
 		if device != "" {
-			log.Infof("Use the serial to find device, got %q, volumeID: %s", device, volumeID)
+			if device, err = adaptDevicePartition(device); err != nil {
+				log.Warnf("GetDevice: Get volume %s device %s by Serial, but validate error %s", volumeID, device, err.Error())
+				return "", fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", volumeID, device, err.Error())
+			}
+			log.Infof("GetDevice: Use the serial to find device, got %s, volumeID: %s", device, volumeID)
 			return device, nil
 		}
 	}
@@ -453,12 +676,33 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 	if !strings.HasPrefix(resolved, "/dev") {
 		return "", fmt.Errorf("resolved symlink for %q was unexpected: %q", volumeLinPath, resolved)
 	}
-	log.Infof("Device Link Info: %s link to %s", volumeLinPath, resolved)
+
+	if resolved, err = adaptDevicePartition(resolved); err != nil {
+		log.Warnf("GetDevice: Get volume %s device %s by ID, but validate error %s", volumeID, resolved, err.Error())
+		return "", fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", volumeID, resolved, err.Error())
+	}
+
+	log.Infof("GetDevice: Device Link Info: %s link to %s", volumeLinPath, resolved)
 	return resolved, nil
 }
 
 // GetVolumeIDByDevice get volumeID by specific deivce name according to by-id dictionary
 func GetVolumeIDByDevice(device string) (volumeID string, err error) {
+	// get volume by serial number feature
+	deviceName := device
+	if strings.HasPrefix(device, "/dev/") {
+		deviceName = strings.TrimPrefix(device, "/dev/")
+	} else if strings.HasPrefix(device, "/") {
+		deviceName = strings.TrimPrefix(device, "/")
+	}
+
+	serialFile := filepath.Join("/sys/block/", deviceName, "/serial")
+	volumeIDContent := utils.GetFileContent(serialFile)
+	if volumeIDContent != "" {
+		return "d-" + volumeIDContent, nil
+	}
+
+	// Get volume by disk by-id feature
 	byIDPath := "/dev/disk/by-id/"
 	files, _ := ioutil.ReadDir(byIDPath)
 	for _, f := range files {
@@ -470,7 +714,7 @@ func GetVolumeIDByDevice(device string) (volumeID string, err error) {
 				log.Errorf("GetVolumeIDByDevice: error reading target of symlink %q: %v", filePath, err)
 				continue
 			}
-			if strings.Contains(resolved, device) {
+			if strings.HasSuffix(resolved, device) {
 				volumeID = strings.Replace(f.Name(), "virtio-", "d-", -1)
 				return volumeID, nil
 			}
@@ -695,6 +939,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	if !ok {
 		diskVolArgs.PerformanceLevel = PERFORMANCELEVELPL1
 	}
+	diskVolArgs.NodeSelected, _ = volOptions[NodeSchedueTag]
 
 	// fstype
 	// https://github.com/kubernetes-csi/external-provisioner/releases/tag/v1.0.1
@@ -884,4 +1129,131 @@ func getDiskCapacity(devicePath string) (float64, error) {
 		return 0, status.Error(codes.Unknown, "failed to fetch capacity bytes")
 	}
 	return float64(capacity) / GBSIZE, nil
+}
+
+func getBlockDeviceCapacity(devicePath string) float64 {
+
+	file, err := os.Open(devicePath)
+	if err != nil {
+		log.Errorf("getBlockDeviceCapacity:: failed to open devicePath: %v", devicePath)
+		return 0
+	}
+	pos, err := file.Seek(0, io.SeekEnd)
+	if err != nil {
+		log.Errorf("getBlockDeviceCapacity:: failed to read devicePath: %v", devicePath)
+		return 0
+	}
+	return float64(pos) / GBSIZE
+}
+
+// UpdateNode ...
+func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
+	instanceStorageLabels := []string{}
+	ctx := context.Background()
+	nodeName := os.Getenv(kubeNodeName)
+	nodeInfo, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	instanceType := nodeInfo.Labels[instanceTypeLabel]
+	zoneID := nodeInfo.Labels[zoneIDLabel]
+	if err != nil {
+		log.Errorf("UpdateNode:: get node info error : %s", err.Error())
+		return
+	}
+	request := ecs.CreateDescribeAvailableResourceRequest()
+	request.InstanceType = instanceType
+	request.DestinationResource = describeResourceType
+	request.ZoneId = zoneID
+	response, err := c.DescribeAvailableResource(request)
+	if err != nil {
+		log.Errorf("UpdateNode:: describe available resource with nodeID: %s", instanceType)
+		return
+	}
+	availableZones := response.AvailableZones.AvailableZone
+	if len(availableZones) == 1 {
+		availableZone := availableZones[0]
+		availableResources := availableZone.AvailableResources.AvailableResource
+		if len(availableResources) == 1 {
+			dataDisk := availableResources[0]
+			if dataDisk.Type == describeResourceType {
+				for _, resource := range dataDisk.SupportedResources.SupportedResource {
+					labelKey := fmt.Sprintf(nodeStorageLabel, resource.Value)
+					instanceStorageLabels = append(instanceStorageLabels, labelKey)
+				}
+			} else {
+				log.Errorf("UpdateNode:: multi available datadisk error: %v", availableResources)
+				return
+			}
+		} else {
+			log.Errorf("UpdateNode:: multi available resource error: %v", availableResources)
+			return
+		}
+	} else {
+		log.Errorf("UpdateNode:: multi available zones error: %v", availableZones)
+		return
+	}
+	needUpdate := false
+	for n := 1; n < 5; n++ {
+		for _, storageLabel := range instanceStorageLabels {
+			if _, ok := nodeInfo.Labels[storageLabel]; ok {
+				continue
+			} else {
+				needUpdate = true
+				nodeInfo.Labels[storageLabel] = "available"
+			}
+		}
+		if needUpdate {
+			_, err = client.CoreV1().Nodes().Update(ctx, nodeInfo, metav1.UpdateOptions{})
+			if err != nil {
+				log.Errorf("UpdateNode:: update node error: %s", err.Error())
+				continue
+			}
+		} else {
+			log.Info("UpdateNode:: need not to update node label")
+		}
+		return
+	}
+}
+
+// getZoneID ...
+func getZoneID(c *ecs.Client, instanceID string) string {
+
+	node, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), instanceID, metav1.GetOptions{})
+	if err != nil {
+		log.Fatalf("getZoneID:: get node error: %v", err)
+	}
+	ecsKey := os.Getenv("NODE_LABEL_ECS_ID_KEY")
+	ecsID := ""
+	if ecsKey == "" {
+		ecsID = instanceID
+	} else {
+		ecsID = node.Labels[ecsKey]
+	}
+	request := ecs.CreateDescribeInstancesRequest()
+
+	request.RegionId = GlobalConfigVar.Region
+	request.InstanceIds = "[\"" + ecsID + "\"]"
+
+	request.Domain = fmt.Sprintf("ecs-openapi-share.%s.aliyuncs.com", GlobalConfigVar.Region)
+	instanceResponse, err := c.DescribeInstances(request)
+	if err != nil {
+		log.Fatalf("getZoneID:: describe instance id error: %s ecsID: %s", err.Error(), ecsID)
+	}
+	if len(instanceResponse.Instances.Instance) != 1 {
+		log.Fatalf("getZoneID:: describe instance returns error instance count: %v, ecsID: %v", len(instanceResponse.Instances.Instance), ecsID)
+	}
+	return instanceResponse.Instances.Instance[0].ZoneId
+}
+
+func intersect(slice1, slice2 []string) []string {
+	m := make(map[string]int)
+	nn := make([]string, 0)
+	for _, v := range slice1 {
+		m[v]++
+	}
+	for _, v := range slice2 {
+		times, _ := m[v]
+		if times == 1 {
+			nn = append(nn, v)
+		}
+	}
+	return nn
 }

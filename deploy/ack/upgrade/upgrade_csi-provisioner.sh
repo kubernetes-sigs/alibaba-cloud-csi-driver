@@ -2,7 +2,7 @@
 
 ## Usage
 ## Append image tag which is expect.
-## bash upgrade_csi-provisioner.sh v1.18.8.45-1c5d2cd1-aliyun
+## bash upgrade_csi-provisioner.sh v1.18.8.47-906bd535-aliyun
 
 
 if [ "$1" = "" ]; then
@@ -12,20 +12,10 @@ imageVersion=$1
 
 echo `date`" Start to Upgrade CSI Provisioner to $imageVersion ..."
 
-masterCount=`kubectl get node | grep master |grep -v grep | wc -l`
-secretCount=`kubectl get secret addon.csi.token -nkube-system | grep addon.csi.token | grep -v grep | wc -l`
-volumeDefineStr=""
-volumeMountStr=""
-if [ "$masterCount" -eq "0" ] && [ "$secretCount" -eq "1" ]; then
-  volumeDefineStr="        - name: addon-token\n          secret:\n            defaultMode: 420\n            items:\n            - key: addon.token.config\n              path: token-config\n            secretName: addon.csi.token"
-  volumeMountStr="            - mountPath: \/var\/addon\n              name: addon-token\n              readOnly: true"
-fi
-
-
 # new deploy template file
 # if any changes, just update here and replace image value
 
-cat > .aliyun-csi-provisioner.yaml << EOF
+cat > .aliyun-csi-provisioner-addition.yaml << EOF
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -76,6 +66,9 @@ parameters:
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
+EOF
+
+cat > .aliyun-csi-provisioner.yaml << EOF
 ---
 kind: Deployment
 apiVersion: apps/v1
@@ -133,7 +126,7 @@ spec:
       hostNetwork: true
       containers:
         - name: external-disk-provisioner
-          image: csi-image-prefix/acs/csi-provisioner:v1.6.0-b6f763a43-aliyun
+          image: csi-image-prefix/acs/csi-provisioner:v1.6.0-e360c7e43-aliyun
           args:
             - "--provisioner=diskplugin.csi.alibabacloud.com"
             - "--csi-address=\$(ADDRESS)"
@@ -142,6 +135,7 @@ spec:
             - "--strict-topology=true"
             - "--timeout=150s"
             - "--enable-leader-election=true"
+            - "--extra-create-metadata=true"
             - "--leader-election-type=leases"
             - "--retry-interval-start=500ms"
             - "--v=5"
@@ -179,7 +173,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-nas-provisioner
-          image: csi-image-prefix/acs/csi-provisioner:v1.4.0-aliyun
+          image: csi-image-prefix/acs/csi-provisioner:v1.6.0-e360c7e43-aliyun
           args:
             - "--provisioner=nasplugin.csi.alibabacloud.com"
             - "--csi-address=\$(ADDRESS)"
@@ -196,12 +190,26 @@ spec:
           volumeMounts:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
+        - name: external-nas-resizer
+          image: csi-image-prefix/acs/csi-resizer:v0.3.0
+          args:
+            - "--v=5"
+            - "--csi-address=\$(ADDRESS)"
+            - "--leader-election"
+          env:
+            - name: ADDRESS
+              value: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: nas-provisioner-dir
+              mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-csi-snapshotter
-          image: csi-image-prefix/acs/csi-snapshotter:v3.0.2-1038b92d8-aliyun
+          image: csi-image-prefix/acs/csi-snapshotter:v4.0.0-4f8a2d347-aliyun
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
             - "--leader-election=true"
+            - "--extra-create-metadata=true"
           env:
             - name: ADDRESS
               value: /csi/csi.sock
@@ -210,7 +218,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /csi
         - name: external-snapshot-controller
-          image: csi-image-prefix/acs/snapshot-controller:v3.0.2-1038b92d8-aliyun
+          image: csi-image-prefix/acs/snapshot-controller:v4.0.0-4f8a2d347-aliyun
           args:
             - "--v=5"
             - "--leader-election=true"
@@ -259,7 +267,9 @@ spec:
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
-volume-mount-string
+            - mountPath: /var/addon
+              name: addon-token
+              readOnly: true
           resources:
             limits:
               cpu: 1000m
@@ -278,7 +288,14 @@ volume-mount-string
         - name: host-dev
           hostPath:
             path: /dev
-volume-define-string
+        - name: addon-token
+          secret:
+            defaultMode: 420
+            optional: true
+            items:
+            - key: addon.token.config
+              path: token-config
+            secretName: addon.csi.token
         - name: etc
           hostPath:
             path: /etc
@@ -307,8 +324,19 @@ if [[ $imageVersion != *aliyun ]]; then
     exit 0
 fi
 
+echo "Apply StorageClass..."
+kubectl apply -f .aliyun-csi-provisioner-addition.yaml
+
+
 ## Delete old plugin
 # kubectl delete deployment csi-provisioner -nkube-system
-cat .aliyun-csi-provisioner.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | sed "s/volume-define-string/$volumeDefineStr/" | sed "s/volume-mount-string/$volumeMountStr/" | kubectl apply -f -
+canApply=`kubectl get deploy csi-provisioner -nkube-system -oyaml |grep kubectl.kubernetes.io/last-applied-configuration | wc -l`
+if [ "$canApply" != "0" ]; then
+  echo "Upgrade CSI provisioner with kubectl apply..."
+  cat .aliyun-csi-provisioner.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | kubectl apply -f -
+else
+  echo "Upgrade CSI provisioner with kubectl replace..."
+  cat .aliyun-csi-provisioner.yaml | sed "s/csi-image-prefix/$imagePrefix/" | sed "s/csi-image-version/$imageVersion/" | kubectl replace -f -
+fi
 
 echo "Upgrade csi provisioner from $imageBefore to $imageName"
