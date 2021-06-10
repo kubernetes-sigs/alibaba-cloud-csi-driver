@@ -109,18 +109,25 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	// local volume daemon
-	// GRPC server to provide volume manage
-	go server.Start()
-
-	// pv handler
-	// watch pv/pvc annotations and provide volume manage
-	go generator.VolumeHandler()
-
 	mounter := k8smount.New("")
-	// maintain pmem node
-	if types.GlobalConfigVar.PmemEnable {
-		manager.MaintainPMEM(types.GlobalConfigVar.PmemType, mounter)
+	serviceType := os.Getenv(utils.ServiceType)
+	if len(serviceType) == 0 || serviceType == "" {
+		serviceType = utils.PluginService
+	}
+
+	if serviceType == utils.PluginService {
+		// local volume daemon
+		// GRPC server to provide volume manage
+		go server.Start()
+
+		// pv handler
+		// watch pv/pvc annotations and provide volume manage
+		go generator.VolumeHandler()
+
+		// maintain pmem node
+		if types.GlobalConfigVar.PmemEnable {
+			manager.MaintainPMEM(types.GlobalConfigVar.PmemType, mounter)
+		}
 	}
 
 	return &nodeServer{
@@ -145,6 +152,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if targetPath == "" {
 		log.Errorf("NodePublishVolume: mount local volume %s with path %s", req.VolumeId, targetPath)
 		return nil, status.Error(codes.Internal, "NodePublishVolume: targetPath is empty")
+	}
+	// Check targetPath
+	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
+		if err := os.MkdirAll(targetPath, 0750); err != nil {
+			log.Errorf("NodePublishVolume: local volume %s mkdir target path %s with error: %s", req.VolumeId, targetPath, err.Error())
+			return nil, status.Errorf(codes.Internal, "NodePublishVolume: local volume %s mkdir target path %s with error: %s", req.VolumeId, targetPath, err.Error())
+		}
 	}
 
 	volumeType := ""

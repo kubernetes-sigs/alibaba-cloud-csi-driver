@@ -9,7 +9,7 @@ You can create a pv with csi configuration, and the pvc, pod defines as usual.
 * Service Accounts with required RBAC permissions
 
 ## Feature Status
-Alpha
+Beta
 
 ## Compiling and Package
 nasplugin.csi.alibabacloud.com can be compiled in a form of a container.
@@ -26,8 +26,13 @@ $ cd build && sh build-nas.sh
 
 Same as diskplugin.csi.alibabacloud.com;
 
+### Step 1: Create RBAC resource
 
-### Step 1: Create CSI Plugin
+```
+# kubectl create -f ./deploy/rbac.yaml
+```
+
+### Step 2: Create CSI Plugin
 ```
 # kubectl create -f ./deploy/nas/nas-plugin.yaml
 ```
@@ -40,7 +45,18 @@ Same as diskplugin.csi.alibabacloud.com;
 
 > "both": default option, log will be printed both to stdout and host file.
 
-### Step 2: Create nginx deploy with csi
+
+If your kubelet RootDir is not /var/lib/kubelet, the deploy template(nas-plugin.yaml) should be changed:
+
+> Replace all /var/lib/kubelet into /rootdir/kubelet for the nas-plugin.yaml file.
+
+### Step 3: Create CSI Plugin
+
+```
+# kubectl create -f ./deploy/nas/nas-provisioner.yaml
+```
+
+### Step 4: Create nginx deploy with csi volume
 ```
 # kubectl create -f ./examples/nas/deploy.yaml
 ```

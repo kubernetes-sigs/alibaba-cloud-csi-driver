@@ -54,6 +54,7 @@ type GlobalConfig struct {
 	RunTimeClass       string
 	NodeID             string
 	NodeIP             string
+	ClusterID          string
 	LosetupEnable      bool
 	KubeClient         *kubernetes.Clientset
 	NasClient          *aliNas.Client
@@ -191,10 +192,13 @@ func GlobalConfigSet() {
 	if GlobalConfigVar.LosetupEnable && GlobalConfigVar.NodeIP == "" {
 		log.Fatal("Init GlobalConfigVar with NodeIP Empty, Nas losetup feature may be useless")
 	}
+	clustID := os.Getenv("CLUSTER_ID")
 
 	GlobalConfigVar.KubeClient = kubeClient
 	GlobalConfigVar.MetricEnable = isNasMetricEnable
 	GlobalConfigVar.RunTimeClass = runtimeValue
 	GlobalConfigVar.NodeID = nodeName
+	GlobalConfigVar.ClusterID = clustID
 	GlobalConfigVar.NasFakeProvision = isNasFakeProvisioner
+	log.Infof("NAS Global Config: %v", GlobalConfigVar)
 }

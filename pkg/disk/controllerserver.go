@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -43,6 +44,7 @@ import (
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
@@ -61,6 +63,8 @@ const (
 	DISKTAGKEY2 = "createdby"
 	// DISKTAGVALUE2 value
 	DISKTAGVALUE2 = "alibabacloud-csi-plugin"
+	// DISKTAGKEY3 key
+	DISKTAGKEY3 = "ack.aliyun.com"
 	// SNAPSHOTFORCETAG tag
 	SNAPSHOTFORCETAG = "forceDelete"
 	// SNAPSHOTTAGKEY1 tag
@@ -71,6 +75,8 @@ const (
 	INSTANTACCESS = "InstantAccess"
 	// RETENTIONDAYS ...
 	RETENTIONDAYS = "retentionDays"
+	// INSTANTACCESSRETENTIONDAYS ...
+	INSTANTACCESSRETENTIONDAYS = "instantAccessRetentionDays"
 )
 
 const (
@@ -106,6 +112,7 @@ type diskVolumeArgs struct {
 	PerformanceLevel string `json:"performanceLevel"`
 	ResourceGroupID  string `json:"resourceGroupId"`
 	DiskTags         string `json:"diskTags"`
+	NodeSelected     string `json:"nodeSelected"`
 }
 
 // Alicloud disk snapshot parameters
@@ -181,7 +188,22 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
 	sharedDisk := diskVol.Type == DiskSharedEfficiency || diskVol.Type == DiskSharedSSD
-
+	nodeSupportDiskType := []string{}
+	if diskVol.NodeSelected != "" {
+		ctx := context.Background()
+		client := GlobalConfigVar.ClientSet
+		nodeInfo, err := client.CoreV1().Nodes().Get(ctx, diskVol.NodeSelected, metav1.GetOptions{})
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "CreateVolume:: get node info error: %v", req.Name)
+		}
+		re := regexp.MustCompile(`node.csi.alibabacloud.com/disktype.(.*)`)
+		for key := range nodeInfo.Labels {
+			if result := re.FindStringSubmatch(key); len(result) != 0 {
+				nodeSupportDiskType = append(nodeSupportDiskType, result[1])
+			}
+		}
+		log.Infof("CreateVolume:: node support disk types: %v, nodeSelected: %v", nodeSupportDiskType, diskVol.NodeSelected)
+	}
 	// Step 2: Check whether volume is created
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	disks, err := findDiskByName(req.GetName(), diskVol.ResourceGroupID, sharedDisk)
@@ -190,8 +212,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.Aborted, err.Error())
 	}
 	if len(disks) > 1 {
-		log.Errorf("CreateVolume: fatal issue: duplicate disk %s exists, with %v", req.Name, disks)
-		return nil, status.Errorf(codes.Internal, "fatal issue: duplicate disk %s exists, with %v", req.Name, disks)
+		log.Errorf("CreateVolume: duplicate disk %s exists, with %v", req.Name, disks)
+		return nil, status.Errorf(codes.Internal, "CreateVolume: duplicate disk %s exists, with %v", req.Name, disks)
 	} else if len(disks) == 1 {
 		disk := disks[0]
 		if disk.Size != requestGB || disk.ZoneId != diskVol.ZoneID || disk.Encrypted != diskVol.Encrypted || disk.Category != diskVol.Type {
@@ -228,9 +250,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	// Step 3: init Disk create args
-	// if DiskHighAvail == diskVol.Type {
-	// 	disktype = DiskSSD
-	// }
 	createDiskRequest := ecs.CreateCreateDiskRequest()
 	createDiskRequest.DiskName = req.GetName()
 	createDiskRequest.Size = requests.NewInteger(requestGB)
@@ -246,8 +265,13 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	diskTags := []ecs.CreateDiskTag{}
 	tag1 := ecs.CreateDiskTag{Key: DISKTAGKEY1, Value: DISKTAGVALUE1}
 	tag2 := ecs.CreateDiskTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
+	tag3 := ecs.CreateDiskTag{Key: DISKTAGKEY3, Value: GlobalConfigVar.ClusterID}
+
 	diskTags = append(diskTags, tag1)
 	diskTags = append(diskTags, tag2)
+	if GlobalConfigVar.ClusterID != "" {
+		diskTags = append(diskTags, tag3)
+	}
 	// Set Default DiskTags
 	// Set Config DiskTags
 	if diskVol.DiskTags != "" {
@@ -266,9 +290,24 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	var volumeResponse *ecs.CreateDiskResponse
 	var createdDiskType string
+	provisionerDiskTypes := []string{}
 	allTypes := deleteEmpty(strings.Split(diskVol.Type, ","))
-	log.Infof("CreateVolume: all disk types: %+v, len: %v", allTypes, len(allTypes))
-	for _, dType := range allTypes {
+	if len(nodeSupportDiskType) != 0 {
+		provisionerDiskTypes = intersect(nodeSupportDiskType, allTypes)
+		if len(provisionerDiskTypes) == 0 {
+			log.Errorf("CreateVolume:: node support type: [%v] is incompatible with provision disk type: [%s]", nodeSupportDiskType, allTypes)
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("CreateVolume:: node support type: [%v] is incompatible with provision disk type: [%s]", nodeSupportDiskType, allTypes))
+		}
+	} else {
+		provisionerDiskTypes = allTypes
+	}
+
+	if len(provisionerDiskTypes) == 0 {
+		log.Errorf("CreateVolume:: volume %s provisioner DiskTypes is empty, please check the storageclass", req.Name)
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("CreateVolume:: volume %s provisioner DiskTypes is empty, please check the storageclass", req.Name))
+	}
+	log.Infof("CreateVolume: provision volume %s with types: %+v, len: %v", req.Name, provisionerDiskTypes, len(provisionerDiskTypes))
+	for _, dType := range provisionerDiskTypes {
 		if dType == "" {
 			continue
 		}
@@ -276,16 +315,16 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			createDiskRequest.PerformanceLevel = diskVol.PerformanceLevel
 		}
 		createDiskRequest.DiskCategory = dType
-		log.Infof("CreateVolume: Create Disk with diskCatalog: %v, performaceLevel: %v", createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel)
+		log.Infof("CreateVolume: Create Disk for volume %s with diskCatalog: %v, performaceLevel: %v", req.Name, createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel)
 		volumeResponse, err = GlobalConfigVar.EcsClient.CreateDisk(createDiskRequest)
 		if err == nil {
 			createdDiskType = dType
 			break
 		} else if strings.Contains(err.Error(), DiskNotAvailable) {
-			log.Infof("CreateVolume: Create Disk with diskCatalog: %s is not supported in zone: %s", createDiskRequest.DiskCategory, createDiskRequest.ZoneId)
+			log.Infof("CreateVolume: Create Disk for volume %s with diskCatalog: %s is not supported in zone: %s", req.Name, createDiskRequest.DiskCategory, createDiskRequest.ZoneId)
 			continue
 		} else {
-			log.Errorf("CreateVolume: create type: %s disk err: %v", dType, err)
+			log.Errorf("CreateVolume: create disk for volume %s with type: %s err: %v", req.Name, dType, err)
 			break
 		}
 	}
@@ -366,7 +405,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				delete(createdVolumeMap, value)
 				delete(diskIDPVMap, req.VolumeId)
 			}
-			log.Warnf("DeleteVolume: disk(%s) already deleted", req.VolumeId)
+			log.Infof("DeleteVolume: disk(%s) already deleted", req.VolumeId)
 			return &csi.DeleteVolumeResponse{}, nil
 		}
 
@@ -489,6 +528,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 	useInstanceAccess := false
 	retentionDays := -1
+	var instantAccessRetentionDays int
 	params := req.GetParameters()
 	if value, ok := params[SNAPSHOTTYPE]; ok && value == INSTANTACCESS {
 		useInstanceAccess = true
@@ -500,6 +540,16 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 			return nil, err
 		}
 		retentionDays = days
+	}
+	if value, ok := params[INSTANTACCESSRETENTIONDAYS]; ok {
+		days, err := strconv.Atoi(value)
+		if err != nil {
+			err := status.Error(codes.InvalidArgument, fmt.Sprintf("CreateSnapshot: retentiondays err %s", value))
+			return nil, err
+		}
+		instantAccessRetentionDays = days
+	} else {
+		instantAccessRetentionDays = retentionDays
 	}
 	log.Infof("CreateSnapshot:: Starting to create snapshot: %+v", req)
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
@@ -566,6 +616,21 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		}, nil
 	}
 
+	disks := getDisk(sourceVolumeID)
+	if len(disks) == 0 {
+		log.Warnf("CreateSnapshot: no disk found: %s", sourceVolumeID)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID))
+	} else if len(disks) != 1 {
+		log.Warnf("CreateSnapshot: multi disk found: %s", sourceVolumeID)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID))
+	}
+	if disks[0].Status != "In_use" {
+		log.Errorf("CreateSnapshot: disk [%s] not attached, status: [%s]", sourceVolumeID, disks[0].Status)
+		e := status.Error(codes.InvalidArgument, fmt.Sprintf("CreateSnapshot:: target disk: %v must be attached", sourceVolumeID))
+		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
+		return nil, e
+	}
+
 	// init createSnapshotRequest and parameters
 	snapshotName := req.GetName()
 	createAt := ptypes.TimestampNow()
@@ -573,6 +638,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	createSnapshotRequest.DiskId = sourceVolumeID
 	createSnapshotRequest.SnapshotName = snapshotName
 	createSnapshotRequest.InstantAccess = requests.NewBoolean(useInstanceAccess)
+	createSnapshotRequest.InstantAccessRetentionDays = requests.NewInteger(instantAccessRetentionDays)
 	if retentionDays != -1 {
 		createSnapshotRequest.RetentionDays = requests.NewInteger(retentionDays)
 	}
@@ -793,29 +859,40 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 func checkInstallCRD(crdClient *crd.Clientset) {
 
 	snapshotCRDNames := map[string]string{
-		"volumesnapshotclasses.snapshot.storage.k8s.io":  "GetVolumeSnapshotClassesCRD",
-		"volumesnapshotcontents.snapshot.storage.k8s.io": "GetVolumeSnapshotContentsCRD",
-		"volumesnapshots.snapshot.storage.k8s.io":        "GetVolumeSnapshotsCRD",
+		"volumesnapshotclasses.snapshot.storage.k8s.io":  "GetVolumeSnapshotClassesCRDv1",
+		"volumesnapshotcontents.snapshot.storage.k8s.io": "GetVolumeSnapshotContentsCRDv1",
+		"volumesnapshots.snapshot.storage.k8s.io":        "GetVolumeSnapshotsCRDv1",
 	}
 
 	ctx := context.Background()
 	listOpts := metav1.ListOptions{}
 	crdList, err := crdClient.ApiextensionsV1().CustomResourceDefinitions().List(ctx, listOpts)
 	if err != nil {
-		log.Errorf("checkInstallCRD: list CustomResourceDefinitions error: %v", err)
+		log.Errorf("checkInstallCRD:: list CustomResourceDefinitions error: %v", err)
 		return
 	}
 	for _, crd := range crdList.Items {
+		if len(crd.Spec.Versions) == 1 && crd.Spec.Versions[0].Name == "v1beta1" {
+			log.Infof("checkInstallCRD:: need to update crd version: %s", crd.Name)
+			continue
+		}
 		delete(snapshotCRDNames, crd.Name)
 		if len(snapshotCRDNames) == 0 {
 			return
 		}
 	}
 	temp := &crds.Template{}
+	info, err := GlobalConfigVar.ClientSet.ServerVersion()
+	kVersion := ""
+	if err != nil || info == nil {
+		log.Errorf("checkInstallCRD: get server version error : %v", err)
+		kVersion = "v1.18.8-aliyun.1"
+	} else {
+		kVersion = info.GitVersion
+	}
 	log.Infof("checkInstallCRD: need to create crd counts: %v", len(snapshotCRDNames))
 	for _, value := range snapshotCRDNames {
-		crdStrings := reflect.ValueOf(temp).MethodByName(value).Call(nil)
-		createOpts := metav1.CreateOptions{}
+		crdStrings := reflect.ValueOf(temp).MethodByName(value).Call([]reflect.Value{reflect.ValueOf(kVersion)})
 		crdToBeCreated := crdv1.CustomResourceDefinition{}
 		yamlString := crdStrings[0].Interface().(string)
 		crdDecoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader([]byte(yamlString)), 4096)
@@ -824,9 +901,14 @@ func checkInstallCRD(crdClient *crd.Clientset) {
 			log.Errorf("checkInstallCRD: yaml unmarshal error: %v", err)
 			return
 		}
-		_, err = crdClient.ApiextensionsV1().CustomResourceDefinitions().Create(ctx, &crdToBeCreated, createOpts)
+		force := true
+		yamlBytes := []byte(yamlString)
+		_, err = crdClient.ApiextensionsV1().CustomResourceDefinitions().Patch(ctx, crdToBeCreated.Name, types.ApplyPatchType, yamlBytes, metav1.PatchOptions{
+			Force:        &force,
+			FieldManager: "alibaba-cloud-csi-driver",
+		})
 		if err != nil {
-			log.Errorf("checkInstallCRD: crd create error: %v", err)
+			log.Infof("checkInstallCRD: crd apply error: %v", err)
 			return
 		}
 	}

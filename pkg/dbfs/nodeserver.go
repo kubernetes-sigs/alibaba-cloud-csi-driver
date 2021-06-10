@@ -159,7 +159,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 
 		// Get dbfs config path
-		cmd := fmt.Sprintf("%s /opt/dbfs/app/1.0.0.1/bin/dbfs_get_home_path.sh %s", NsenterCmd, dbfsID)
+		dbfsVersion := os.Getenv("DBFS_CONFIG_VERSION")
+		if dbfsVersion == "" {
+			dbfsVersion = getDbfsVersion(dbfsID)
+			if dbfsVersion == "" {
+				dbfsVersion = "1.0.0.2"
+			}
+		}
+		cmd := fmt.Sprintf("%s /opt/dbfs/app/%s/bin/dbfs_get_home_path.sh %s", NsenterCmd, dbfsVersion, dbfsID)
 		out, err := utils.Run(cmd)
 		if err != nil {
 			log.Errorf("NodePublishVolume: get dbfs config volume path %s with error: %s", req.VolumeId, err.Error())

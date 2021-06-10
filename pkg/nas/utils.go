@@ -29,6 +29,7 @@ import (
 	"sync"
 	"time"
 
+	"errors"
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
@@ -224,7 +225,7 @@ func SetNasEndPoint(regionID string) {
 	unitizedRegions := []string{"cn-hangzhou", "cn-zhangjiakou", "cn-huhehaote", "cn-shenzhen", "ap-southeast-1", "ap-southeast-2",
 		"ap-southeast-3", "ap-southeast-5", "eu-central-1", "us-east-1", "ap-northeast-1", "ap-south-1",
 		"us-west-1", "eu-west-1", "cn-chengdu", "cn-north-2-gov-1", "cn-beijing", "cn-shanghai", "cn-hongkong",
-		"cn-shenzhen-finance-1", "cn-shanghai-finance-1", "cn-hangzhou-finance"}
+		"cn-shenzhen-finance-1", "cn-shanghai-finance-1", "cn-hangzhou-finance", "cn-qingdao"}
 	for _, tmpRegion := range unitizedRegions {
 		if regionID == tmpRegion {
 			aliyunep.AddEndpointMapping(regionID, "Nas", "nas-vpc."+regionID+".aliyuncs.com")
@@ -320,23 +321,22 @@ func setNasVolumeCapacity(nfsServer, nfsPath string, volSizeBytes int64) error {
 	quotaRequest.RegionId = GetMetaData(RegionTag)
 	_, err := nasClient.SetDirQuota(quotaRequest)
 	if err != nil {
+		if strings.Contains(err.Error(), "The specified FileSystem does not exist.") {
+			return fmt.Errorf("extreme did not support quota, please change %s to General Purpose NAS", nfsServer)
+		}
 		return fmt.Errorf("volume set nas quota with error: %s", err.Error())
 	}
 	return nil
 }
 
-func setNasVolumeCapacityWithID(volumeID string, volSizeBytes int64) error {
-	pvObj, err := getPvObj(volumeID)
-	if err != nil {
-		return err
-	}
+func setNasVolumeCapacityWithID(pvObj *v1.PersistentVolume, volSizeBytes int64) error {
 	if pvObj.Spec.CSI == nil {
-		return fmt.Errorf("Volume %s is not CSI type %v ", volumeID, pvObj)
+		return fmt.Errorf("Volume %s is not CSI type %v ", pvObj.Name, pvObj)
 	}
 
 	// Check Pv volume parameters
-	if _, ok := pvObj.Spec.CSI.VolumeAttributes["volumeCapacity"]; !ok {
-		return fmt.Errorf("Volume %s not contain volumeCapacity parameters, not support expand, PV: %v ", volumeID, pvObj)
+	if value, ok := pvObj.Spec.CSI.VolumeAttributes["volumeCapacity"]; ok && value == "false" {
+		return fmt.Errorf("Volume %s not contain volumeCapacity parameters, not support expand, PV: %v ", pvObj.Name, pvObj)
 	}
 	nfsServer, nfsPath := "", ""
 	if value, ok := pvObj.Spec.CSI.VolumeAttributes["server"]; ok {
@@ -527,12 +527,13 @@ func checkLosetupUnmount(mountPoint string) error {
 		if err := os.Remove(lockFile); err != nil {
 			return fmt.Errorf("checkLosetupUnmount: remove lock file error %v", err)
 		}
+		if err := utils.Umount(nfsPath); err != nil {
+			return fmt.Errorf("checkLosetupUnmount: umount nfs path error %v", err)
+		}
+		log.Infof("Losetup Unmount successful %s", mountPoint)
+	} else {
+		log.Infof("Losetup Unmount, image file not exist, skipping %s", mountPoint)
 	}
-
-	if err := utils.Umount(nfsPath); err != nil {
-		return fmt.Errorf("checkLosetupUnmount: umount nfs path error %v", err)
-	}
-	log.Infof("Losetup Unmount successful %s", mountPoint)
 	return nil
 }
 
@@ -552,4 +553,19 @@ func isLosetupMount(volumeID string) bool {
 
 func getPvObj(volumeID string) (*v1.PersistentVolume, error) {
 	return GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
+}
+
+func isValidCnfsParameter(server string, cnfsName string) error {
+	if len(server) == 0 && len(cnfsName) == 0 {
+		msg := fmt.Sprintf("Server and ContainerNetworkFileSystem need to be configured at least one.")
+		log.Errorf(msg)
+		return errors.New(msg)
+	}
+
+	if len(server) != 0 && len(cnfsName) != 0 {
+		msg := fmt.Sprintf("Server and ContainerNetworkFileSystem can only be configured to use one.")
+		log.Errorf(msg)
+		return errors.New(msg)
+	}
+	return nil
 }
