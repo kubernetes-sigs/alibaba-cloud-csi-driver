@@ -79,10 +79,10 @@ func (c *PodCommands) ApplyPreCommands(rule crds.Rule) error {
 			return err
 		}
 	}
-	err := c.ExecutePodCommand("FlushCache", []string{"sh", "-c", "fsync"})
-	if err != nil {
-		return err
-	}
+	// err := c.ExecutePodCommand("FlushCache", []string{"sh", "-c", "fsync"})
+	// if err != nil {
+	// 	return err
+	// }
 	return nil
 }
 
