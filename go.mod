@@ -7,10 +7,10 @@ require (
 	github.com/container-storage-interface/spec v1.2.0
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
 	github.com/emirpasic/gods v1.12.0
+	github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.4.1
-	github.com/google/cadvisor v0.35.0
 	github.com/google/credstore v0.0.0-20181218150457-e184c60ef875 // indirect
 	github.com/google/go-microservice-helpers v0.0.0-20190205165657-a91942da5417
 	github.com/google/gofuzz v1.2.0 // indirect
