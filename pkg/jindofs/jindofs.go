@@ -77,7 +77,7 @@ func newNodeServer(d *JindoFS) *nodeServer {
 
 const (
 	// JindofsCredentialPathInPod Pod side sts file
-	JindofsCredentialPathInPod  = "/oss-secret/sts-token"
+	JindofsCredentialPathInPod = "/oss-secret/sts-token"
 	// JindofsCredentialPathOnHost Host side sts file
 	JindofsCredentialPathOnHost = "/host/etc/jindofs-credentials"
 )
