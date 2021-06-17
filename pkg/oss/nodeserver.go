@@ -39,7 +39,7 @@ import (
 type nodeServer struct {
 	k8smounter k8smount.Interface
 	*csicommon.DefaultNodeServer
-	baseDir    string
+	baseDir string
 }
 
 // Options contains options for target oss

@@ -70,7 +70,7 @@ func newNodeServer(d *OSS) *nodeServer {
 	return &nodeServer{
 		k8smounter:        k8smount.New(""),
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
-		baseDir:            d.baseDir,
+		baseDir:           d.baseDir,
 	}
 }
 

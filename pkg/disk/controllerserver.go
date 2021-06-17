@@ -651,7 +651,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		}, nil
 	}
 
-	disks := getDisk(sourceVolumeID)
+	disks := getDisk(GlobalConfigVar.EcsClient, sourceVolumeID)
 	if len(disks) == 0 {
 		log.Warnf("CreateSnapshot: no disk found: %s", sourceVolumeID)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID))

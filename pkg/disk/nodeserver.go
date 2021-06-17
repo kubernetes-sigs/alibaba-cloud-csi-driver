@@ -395,7 +395,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
 		// Block device
-		if !utils.IsDir(targetPath) && strings.HasPrefix(targetPath, GlobalConfigVar.BaseDir + BLOCKVOLUMEPREFIX) {
+		if !utils.IsDir(targetPath) && strings.HasPrefix(targetPath, GlobalConfigVar.BaseDir+BLOCKVOLUMEPREFIX) {
 			if removeErr := os.Remove(targetPath); removeErr != nil {
 				log.Errorf("NodeUnpublishVolume: VolumeId: %s, Could not remove mount block target %s with error %v", req.VolumeId, targetPath, removeErr)
 				return nil, status.Errorf(codes.Internal, "Could not remove mount block target %s: %v", targetPath, removeErr)
@@ -867,7 +867,7 @@ func (ns *nodeServer) unmountDuplicateMountPoint(targetPath string) error {
 	pathParts := strings.Split(targetPath, "/")
 	partsLen := len(pathParts)
 	if partsLen > 2 && pathParts[partsLen-1] == "mount" {
-		globalPath2 := filepath.Join(GlobalConfigVar.BaseDir + "/container/kubelet/plugins/kubernetes.io/csi/pv/", pathParts[partsLen-2], "/globalmount")
+		globalPath2 := filepath.Join(GlobalConfigVar.BaseDir+"/container/kubelet/plugins/kubernetes.io/csi/pv/", pathParts[partsLen-2], "/globalmount")
 		if utils.IsFileExisting(globalPath2) {
 			// check globalPath2 is mountpoint
 			notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(globalPath2)

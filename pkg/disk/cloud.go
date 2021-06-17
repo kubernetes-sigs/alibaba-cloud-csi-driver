@@ -353,7 +353,7 @@ func detachDisk(ecsClient *ecs.Client, diskID, nodeID string) error {
 	return nil
 }
 
-func getDisk(diskID string) []ecs.Disk {
+func getDisk(ecsClient *ecs.Client, diskID string) []ecs.Disk {
 	// Step 1: Describe disk, if tag exist, return;
 	describeDisksRequest := ecs.CreateDescribeDisksRequest()
 	describeDisksRequest.RegionId = GlobalConfigVar.Region
@@ -367,9 +367,9 @@ func getDisk(diskID string) []ecs.Disk {
 }
 
 // tag disk with: k8s.aliyun.com=true
-func tagDiskAsK8sAttached(diskID string) {
+func tagDiskAsK8sAttached(ecsClient *ecs.Client, diskID string) {
 	// Step 1: Describe disk, if tag exist, return;
-	disks := getDisk(diskID)
+	disks := getDisk(ecsClient, diskID)
 	if len(disks) == 0 {
 		log.Warnf("tagAsK8sAttached: no disk found: %s", diskID)
 		return
@@ -384,7 +384,7 @@ func tagDiskAsK8sAttached(diskID string) {
 	describeTagRequest := ecs.CreateDescribeTagsRequest()
 	tag := ecs.DescribeTagsTag{Key: DiskAttachedKey, Value: DiskAttachedValue}
 	describeTagRequest.Tag = &[]ecs.DescribeTagsTag{tag}
-	_, err = ecsClient.DescribeTags(describeTagRequest)
+	_, err := ecsClient.DescribeTags(describeTagRequest)
 	if err != nil {
 		log.Warnf("tagAsK8sAttached: DescribeTags error: %s, %s", diskID, err.Error())
 		return
