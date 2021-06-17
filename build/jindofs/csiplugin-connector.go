@@ -123,15 +123,15 @@ func echoServer(c net.Conn) {
 	log.Printf("Server Receive OSS command: %s", cmd)
 
 	/*
-	if err := checkOssfsCmd(cmd); err != nil {
-		out := "Fail: " + err.Error()
-		log.Printf("Check oss command error: %s", out)
-		if _, err := c.Write([]byte(out)); err != nil {
-			log.Printf("Check command write error: %s", err.Error())
+		if err := checkOssfsCmd(cmd); err != nil {
+			out := "Fail: " + err.Error()
+			log.Printf("Check oss command error: %s", out)
+			if _, err := c.Write([]byte(out)); err != nil {
+				log.Printf("Check command write error: %s", err.Error())
+			}
+			return
 		}
-		return
-	}
-	 */
+	*/
 
 	// run command
 	if out, err := run(cmd); err != nil {

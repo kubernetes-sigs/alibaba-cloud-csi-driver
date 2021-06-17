@@ -70,4 +70,3 @@ func IsLastSharedVol(pvName string) (string, error) {
 	}
 	return strings.TrimSpace(out), nil
 }
-
