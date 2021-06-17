@@ -8,6 +8,19 @@ mkdir -p /host/etc/kubernetes/volumes/disk/uuid
 HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
 zone_id=`${HOST_CMD} curl http://100.100.100.200/latest/meta-data/zone-id`
 
+
+host_os="centos"
+${HOST_CMD} ls /etc/os-release
+os_release_exist=$?
+
+if [[ "$os_release_exist" = "0" ]]; then
+    osID=`${HOST_CMD} cat /etc/os-release | grep "ID="`
+    osVersion=`${HOST_CMD} cat /etc/os-release | grep "VERSION_ID="`
+    if [[ `echo ${osID} | grep "alinux" | wc -l` != "0" ]] && [[ `echo ${osVersion} | grep "3" | wc -l` = "1" ]]; then
+        host_os="alinux3"
+    fi
+fi
+
 ## check which plugin is running
 for item in $@;
 do
@@ -51,12 +64,20 @@ done
 
 ## OSS plugin setup
 if [ "$run_oss" = "true" ]; then
-    echo "Starting deploy oss csi-plugin...."
 
     ossfsVer="1.80.6.ack.1"
     if [ "$USE_UPDATE_OSSFS" == "" ]; then
         ossfsVer="1.86.2"
     fi
+
+    if [[ ${host_os} == "alinux3" ]]; then
+        ossfsVer="1.80.6.ack.1"
+        ${HOST_CMD} yum install -y libcurl-devel libxml2-devel fuse-devel openssl-devel
+    fi
+
+    echo "Starting deploy oss csi-plugin..."
+    echo "ossfsVersion:"${ossfsVer}
+    echo "osHost:"${host_os}
 
     # install OSSFS
     mkdir -p /host/etc/csi-tool/
