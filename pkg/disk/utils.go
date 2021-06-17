@@ -188,27 +188,27 @@ func newEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *
 	return
 }
 
-func getTenantUidByVolumeId(ctx context.Context, volumeId string) (uid string, err error) {
+func getTenantUIDByVolumeID(ctx context.Context, volumeID string) (uid string, err error) {
 	if !GlobalConfigVar.DiskMultiTenantEnable {
 		return "", nil
 	}
 
 	// external-provisioner已经保证了PV的名字 == req.VolumeId
 	// 如果是静态PV，需要告知用户将PV#Name和PV#spec.volumeHandler配成一致
-	pv, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Get(ctx, volumeId, metav1.GetOptions{ResourceVersion: "0"})
+	pv, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Get(ctx, volumeID, metav1.GetOptions{ResourceVersion: "0"})
 	if err != nil {
-		return "", perrors.Wrapf(err, "get pv, volumeId=%s", volumeId)
+		return "", perrors.Wrapf(err, "get pv, volumeID=%s", volumeID)
 	}
 	if pv.Spec.CSI == nil {
-		return "", perrors.Errorf("pv.Spec.CSI is nil, volumeId=%s", volumeId)
+		return "", perrors.Errorf("pv.Spec.CSI is nil, volumeID=%s", volumeID)
 	}
-	return pv.Spec.CSI.VolumeAttributes[TenantUserUid], nil
+	return pv.Spec.CSI.VolumeAttributes[TenantUserUID], nil
 }
 
-func createUpdateEcsClientByVolumeId(ctx context.Context, volumeId string) (ecsClient *ecs.Client, uid string, err error) {
-	uid, err = getTenantUidByVolumeId(ctx, volumeId)
+func createUpdateEcsClientByVolumeID(ctx context.Context, volumeID string) (ecsClient *ecs.Client, uid string, err error) {
+	uid, err = getTenantUIDByVolumeID(ctx, volumeID)
 	if err != nil {
-		return nil, "", perrors.Wrapf(err, "get uid by volumeId, volumeId=%s", volumeId)
+		return nil, "", perrors.Wrapf(err, "get uid by volumeID, volumeID=%s", volumeID)
 	}
 	if uid != "" {
 		if ecsClient, err = createRoleClient(uid); err != nil {

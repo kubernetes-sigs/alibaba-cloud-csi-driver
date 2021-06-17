@@ -36,7 +36,7 @@ var (
 	version = "1.0.0"
 )
 
-// OSS the OSS object
+// JindoFS the JindoFS object
 type JindoFS struct {
 	driver     *csicommon.CSIDriver
 	endpoint   string
@@ -76,7 +76,9 @@ func newNodeServer(d *JindoFS) *nodeServer {
 }
 
 const (
+	// JindofsCredentialPathInPod Pod side sts file
 	JindofsCredentialPathInPod  = "/oss-secret/sts-token"
+	// JindofsCredentialPathOnHost Host side sts file
 	JindofsCredentialPathOnHost = "/host/etc/jindofs-credentials"
 )
 

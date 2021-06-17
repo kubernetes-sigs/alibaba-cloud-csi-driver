@@ -30,15 +30,15 @@ import (
 )
 
 // attach alibaba cloud disk
-func attachDisk(tenantUserUid, diskID, nodeID string, isSharedDisk bool) (string, error) {
+func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string, error) {
 	log.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 	var (
 		ecsClient *ecs.Client
 		err       error
 	)
-	if GlobalConfigVar.DiskMultiTenantEnable && tenantUserUid != "" {
-		if ecsClient, err = createRoleClient(tenantUserUid); err != nil {
-			return "", status.Errorf(codes.Internal, "createRoleClient, uid=%s: %v", tenantUserUid, err)
+	if GlobalConfigVar.DiskMultiTenantEnable && tenantUserUID != "" {
+		if ecsClient, err = createRoleClient(tenantUserUID); err != nil {
+			return "", status.Errorf(codes.Internal, "createRoleClient, uid=%s: %v", tenantUserUID, err)
 		}
 	} else {
 		ecsClient = updateEcsClient(GlobalConfigVar.EcsClient)
