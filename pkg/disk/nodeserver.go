@@ -508,7 +508,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			return nil, status.Error(codes.Aborted, "NodeStageVolume: ADController Enabled, but device can't be found:"+req.VolumeId+err.Error())
 		}
 	} else {
-		device, err = attachDisk(req.VolumeContext[TenantUserUid], req.GetVolumeId(), ns.nodeID, isSharedDisk)
+		device, err = attachDisk(req.VolumeContext[TenantUserUID], req.GetVolumeId(), ns.nodeID, isSharedDisk)
 		if err != nil {
 			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
 			log.Errorf("NodeStageVolume: Attach volume: %s with error: %s", req.VolumeId, fullErrorMessage)
@@ -681,11 +681,11 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			return &csi.NodeUnstageVolumeResponse{}, nil
 		}
 
-		ecsClient, tenantUserUid, err := createUpdateEcsClientByVolumeId(ctx, req.VolumeId)
+		ecsClient, tenantUserUID, err := createUpdateEcsClientByVolumeID(ctx, req.VolumeId)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		if tenantUserUid == "" {
+		if tenantUserUID == "" {
 			GlobalConfigVar.EcsClient = ecsClient
 		}
 

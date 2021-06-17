@@ -47,7 +47,7 @@ func GetMetaData(resource string) string {
 	return string(body)
 }
 
-// IsOssfsMounted return if oss mountPath is mounted
+// IsJindofsMounted return if Jindofs mountPath is mounted
 func IsJindofsMounted(mountPath string) bool {
 	checkMountCountCmd := fmt.Sprintf("%s mount | grep %s | grep %s | grep -v grep | wc -l", NsenterCmd, mountPath, JindoFsType)
 	out, err := utils.Run(checkMountCountCmd)

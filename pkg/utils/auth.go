@@ -37,7 +37,7 @@ const (
 
 // AKInfo access key info
 type AKInfo struct {
-	// AccessKeyId access key id
+	// AccessKeyID access key id
 	AccessKeyID string `json:"access.key.id"`
 	// AccessKeySecret access key secret
 	AccessKeySecret string `json:"access.key.secret"`
@@ -48,7 +48,7 @@ type AKInfo struct {
 	// Keyring key ring
 	Keyring string `json:"keyring"`
 
-	RoleAccessKeyId     string `json:"role.access.key.id"`
+	RoleAccessKeyID     string `json:"role.access.key.id"`
 	RoleAccessKeySecret string `json:"role.access.key.secret"`
 	RoleArn             string `json:"role.arn"`
 }
@@ -58,7 +58,7 @@ func GetDefaultRoleAK() (string, string, string) {
 	accessKeyID, accessSecret, roleArn := os.Getenv("ROLE_ACCESS_KEY_ID"), os.Getenv("ROLE_ACCESS_KEY_SECRET"), os.Getenv("ROLE_ARN")
 	if accessKeyID == "" || accessSecret == "" || roleArn == "" {
 		tokens := GetManagedToken()
-		accessKeyID, accessSecret, roleArn = tokens.RoleAccessKeyId, tokens.RoleAccessKeySecret, tokens.RoleArn
+		accessKeyID, accessSecret, roleArn = tokens.RoleAccessKeyID, tokens.RoleAccessKeySecret, tokens.RoleArn
 	}
 	return accessKeyID, accessSecret, roleArn
 }
@@ -70,7 +70,7 @@ func GetDefaultAK() (string, string, string) {
 	accessToken := ""
 	if accessKeyID == "" || accessSecret == "" {
 		tokens := GetManagedToken()
-		accessKeyID, accessSecret, accessToken = tokens.AccessKeyId, tokens.AccessKeySecret, tokens.SecurityToken
+		accessKeyID, accessSecret, accessToken = tokens.AccessKeyID, tokens.AccessKeySecret, tokens.SecurityToken
 		if accessKeyID != "" {
 			log.Infof("Get AK: use Managed AK")
 		}
@@ -120,14 +120,15 @@ func GetSTSAK() (string, string, string) {
 	return roleAuth.AccessKeyID, roleAuth.AccessKeySecret, roleAuth.SecurityToken
 }
 
+// ManageTokens include resource ak and role ak
 type ManageTokens struct {
 	// 资源账号
-	AccessKeyId     string
+	AccessKeyID     string
 	AccessKeySecret string
 	SecurityToken   string
 
 	// 角色扮演账号
-	RoleAccessKeyId     string
+	RoleAccessKeyID     string
 	RoleAccessKeySecret string
 	RoleArn             string
 }
@@ -173,12 +174,12 @@ func GetManagedToken() (tokens ManageTokens) {
 			log.Errorf("invalid token which is expired, expiration as: %s", akInfo.Expiration)
 		}
 
-		tokens.AccessKeyId = string(ak)
+		tokens.AccessKeyID = string(ak)
 		tokens.AccessKeySecret = string(sk)
 		tokens.SecurityToken = string(token)
 
-		if akInfo.RoleAccessKeyId != "" && akInfo.RoleAccessKeySecret != "" {
-			roleAK, err := Decrypt(akInfo.RoleAccessKeyId, []byte(keyring))
+		if akInfo.RoleAccessKeyID != "" && akInfo.RoleAccessKeySecret != "" {
+			roleAK, err := Decrypt(akInfo.RoleAccessKeyID, []byte(keyring))
 			if err != nil {
 				log.Errorf("failed to decode role ak, err: %v", err)
 				return ManageTokens{}
@@ -188,7 +189,7 @@ func GetManagedToken() (tokens ManageTokens) {
 				log.Errorf("failed to decode role sk, err : %v", err)
 				return ManageTokens{}
 			}
-			tokens.RoleAccessKeyId = string(roleAK)
+			tokens.RoleAccessKeyID = string(roleAK)
 			tokens.RoleAccessKeySecret = string(roleSK)
 		}
 		tokens.RoleArn = akInfo.RoleArn
