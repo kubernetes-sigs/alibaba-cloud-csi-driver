@@ -55,6 +55,7 @@ type GlobalConfig struct {
 	NodeID             string
 	NodeIP             string
 	ClusterID          string
+	BaseDir            string
 	LosetupEnable      bool
 	KubeClient         *kubernetes.Clientset
 	NasClient          *aliNas.Client
@@ -73,7 +74,7 @@ type NAS struct {
 }
 
 //NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string) *NAS {
+func NewDriver(nodeID, endpoint, baseDir string) *NAS {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
 	d := &NAS{}
@@ -91,7 +92,7 @@ func NewDriver(nodeID, endpoint string) *NAS {
 	})
 
 	// Global Configs Set
-	GlobalConfigSet()
+	GlobalConfigSet(baseDir)
 
 	d.driver = csiDriver
 	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
@@ -121,7 +122,7 @@ func (d *NAS) Run() {
 }
 
 // GlobalConfigSet set global config
-func GlobalConfigSet() {
+func GlobalConfigSet(baseDir string) {
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
@@ -183,6 +184,7 @@ func GlobalConfigSet() {
 		}
 	}
 
+	GlobalConfigVar.BaseDir = baseDir
 	GlobalConfigVar.LosetupEnable = false
 	losetupEn := os.Getenv("NAS_LOSETUP_ENABLE")
 	if losetupEn == "true" || losetupEn == "yes" {

@@ -38,17 +38,19 @@ type OSS struct {
 	endpoint   string
 	idServer   *csicommon.DefaultIdentityServer
 	nodeServer *nodeServer
+	baseDir    string
 
 	cap   []*csi.VolumeCapability_AccessMode
 	cscap []*csi.ControllerServiceCapability
 }
 
 // NewDriver init oss type of csi driver
-func NewDriver(nodeID, endpoint string) *OSS {
+func NewDriver(nodeID, endpoint, baseDir string) *OSS {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
 	d := &OSS{}
 	d.endpoint = endpoint
+	d.baseDir = baseDir
 
 	if nodeID == "" {
 		nodeID = GetMetaData(InstanceID)
@@ -68,6 +70,7 @@ func newNodeServer(d *OSS) *nodeServer {
 	return &nodeServer{
 		k8smounter:        k8smount.New(""),
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
+		baseDir:           d.baseDir,
 	}
 }
 

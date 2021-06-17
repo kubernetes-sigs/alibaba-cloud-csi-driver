@@ -13,6 +13,7 @@ type GlobalConfig struct {
 	PmemType      string
 	GrpcProvision bool
 	KubeClient    *kubernetes.Clientset
+	BaseDir       string
 }
 
 var (

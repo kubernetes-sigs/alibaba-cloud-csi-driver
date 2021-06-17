@@ -34,11 +34,12 @@ type GlobalConfig struct {
 	MessageFileTailLines int
 	IssueBlockReference  bool
 	IssueOrphanedPod     bool
+	BaseDir              string
 }
 
 // StorageOM storage Operation and Maintenance
-func StorageOM() {
-	GlobalConfigSet()
+func StorageOM(baseDir string) {
+	GlobalConfigSet(baseDir)
 
 	for {
 		// fix block volume reference not removed issue;
@@ -74,7 +75,7 @@ func CheckMessageFileIssue() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet() {
+func GlobalConfigSet(baseDir string) {
 	GlobalConfigVar.IssueMessageFile = false
 	messageFile := os.Getenv(IssueMessageFile)
 	if messageFile == "true" {
@@ -101,6 +102,7 @@ func GlobalConfigSet() {
 		GlobalConfigVar.IssueBlockReference = true
 	}
 
+	GlobalConfigVar.BaseDir = baseDir
 	GlobalConfigVar.IssueOrphanedPod = false
 	orphanedPod := os.Getenv(IssueOrphanedPod)
 	if orphanedPod == "true" {

@@ -58,6 +58,7 @@ const (
 
 var (
 	metricType       string
+	baseKubeletDir   string
 	nodeMetricSet    = hashset.New("diskstat", "pfsblockstat", "nfsstat")
 	clusterMetricSet = hashset.New("")
 )
@@ -73,8 +74,8 @@ const (
 	volDataFile      = "vol_data.json"
 	csiMountKeyWords = "volumes/kubernetes.io~csi"
 	procPath         = procfs.DefaultMountPoint + "/"
-	rawBlockRootPath = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/"
-	podsRootPath     = "/var/lib/kubelet/pods"
+	rawBlockRootPath = "/kubelet/plugins/kubernetes.io/csi/volumeDevices/"
+	podsRootPath     = "/kubelet/pods"
 )
 
 type collectorFactoryFunc = func() (Collector, error)

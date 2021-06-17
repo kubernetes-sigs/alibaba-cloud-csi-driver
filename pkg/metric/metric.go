@@ -38,8 +38,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 //NewMetricHandler method returns a promHttp object
-func NewMetricHandler(serviceType string) *Handler {
+func NewMetricHandler(serviceType, baseDir string) *Handler {
 	setServiceType(serviceType)
+	setBaseDir(baseDir)
 	//csi collector singleton
 	err := newCSICollector()
 	if err != nil {
@@ -73,4 +74,8 @@ func newHandler() *Handler {
 
 func setServiceType(serviceType string) {
 	metricType = serviceType
+}
+
+func setBaseDir(baseDir string) {
+	baseKubeletDir = baseDir
 }

@@ -26,13 +26,14 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 // PluginFolder defines the location of diskplugin
@@ -68,10 +69,12 @@ type GlobalConfig struct {
 	RunTimeClass          string
 	DetachBeforeDelete    bool
 	DiskBdfEnable         bool
+	DiskMultiTenantEnable bool
 	ClientSet             *kubernetes.Clientset
 	FilesystemLosePercent float64
 	ClusterID             string
 	DiskPartitionEnable   bool
+	BaseDir               string
 }
 
 // define global variable
@@ -86,8 +89,8 @@ var (
 func initDriver() {
 }
 
-//NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
+// NewDriver create the identity/node/controller server and disk driver
+func NewDriver(nodeID, endpoint, baseDir string, runAsController bool) *DISK {
 	initDriver()
 	tmpdisk := &DISK{}
 	tmpdisk.endpoint = endpoint
@@ -123,7 +126,16 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	}
 
 	// Config Global vars
-	cfg := GlobalConfigSet(client, regionID, nodeID)
+	cfg := GlobalConfigSet(client, regionID, nodeID, baseDir)
+
+	// only for inner oxs env. disk type only
+	node, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), nodeID, metav1.GetOptions{})
+	if err != nil {
+		log.Fatalf("getZoneID:: get node error: %v", err)
+	}
+	if os.Getenv("INTERNAL_MODE") == "true" && os.Getenv("NODE_LABEL_ECS_ID_KEY") != "" {
+		GlobalConfigVar.NodeID = node.Labels[os.Getenv("NODE_LABEL_ECS_ID_KEY")]
+	}
 
 	apiExtentionClient, err := crd.NewForConfig(cfg)
 	if err != nil {
@@ -150,7 +162,7 @@ func (disk *DISK) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Config {
+func GlobalConfigSet(client *ecs.Client, region, nodeID, baseDir string) *restclient.Config {
 	configMapName := "csi-plugin"
 	isADControllerEnable := false
 	isDiskTagEnable := false
@@ -158,6 +170,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 	isDiskDetachDisable := false
 	isDiskDetachBeforeDelete := true
 	isDiskBdfEnable := false
+	isDiskMultiTenantEnable := false
 
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
@@ -306,6 +319,14 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		partition = false
 	}
 
+	diskMultiTenantEnable := os.Getenv(DiskMultiTenantEnable)
+	if diskMultiTenantEnable == "true" || diskMultiTenantEnable == "yes" {
+		log.Infof("Multi tenant is Enabled")
+		isDiskMultiTenantEnable = true
+	} else if diskMultiTenantEnable == "false" || diskMultiTenantEnable == "no" {
+		isDiskMultiTenantEnable = false
+	}
+
 	log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete, clustID)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
@@ -316,6 +337,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		ADControllerEnable:    isADControllerEnable,
 		DiskTagEnable:         isDiskTagEnable,
 		DiskBdfEnable:         isDiskBdfEnable,
+		DiskMultiTenantEnable: isDiskMultiTenantEnable,
 		MetricEnable:          isDiskMetricEnable,
 		RunTimeClass:          runtimeValue,
 		DetachDisabled:        isDiskDetachDisable,
@@ -324,6 +346,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		FilesystemLosePercent: fileSystemLosePercent,
 		ClusterID:             clustID,
 		DiskPartitionEnable:   partition,
+		BaseDir:               baseDir,
 	}
 	return cfg
 }

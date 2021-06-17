@@ -39,6 +39,7 @@ import (
 type nodeServer struct {
 	k8smounter k8smount.Interface
 	*csicommon.DefaultNodeServer
+	baseDir string
 }
 
 // Options contains options for target oss
@@ -65,7 +66,7 @@ const (
 	// AkSecret is Ak Secret
 	AkSecret = "akSecret"
 	// SharedPath is the shared mountpoint when UseSharedPath is "true"
-	SharedPath = "/var/lib/kubelet/plugins/kubernetes.io/csi/pv/%s/globalmount"
+	SharedPath = "%s/kubelet/plugins/kubernetes.io/csi/pv/%s/globalmount"
 	// OssFsType is the oss filesystem type
 	OssFsType = "fuse.ossfs"
 )
@@ -148,7 +149,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// default use allow_other
 	var mntCmd string
 	if opt.UseSharedPath {
-		sharedPath := fmt.Sprintf(SharedPath, req.GetVolumeId())
+		sharedPath := fmt.Sprintf(SharedPath, ns.baseDir, req.GetVolumeId())
 		if IsOssfsMounted(sharedPath) {
 			log.Infof("NodePublishVolume: The shared path: %s is already mounted", sharedPath)
 		} else {
@@ -305,7 +306,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	pvName := req.GetVolumeId()
 	var umntCmd string
-	sharedMountPoint := fmt.Sprintf(SharedPath, pvName)
+	sharedMountPoint := fmt.Sprintf(SharedPath, ns.baseDir, pvName)
 	if IsOssfsMounted(sharedMountPoint) {
 		log.Infof("NodeUnpublishVolume:: Starting umount a shared path oss volume: %s", req.TargetPath)
 		code, err := IsLastSharedVol(pvName)

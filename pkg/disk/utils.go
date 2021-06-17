@@ -35,8 +35,11 @@ import (
 	"unicode"
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	perrors "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -185,7 +188,73 @@ func newEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *
 	return
 }
 
-func updateEcsClent(client *ecs.Client) *ecs.Client {
+func getTenantUIDByVolumeID(ctx context.Context, volumeID string) (uid string, err error) {
+	if !GlobalConfigVar.DiskMultiTenantEnable {
+		return "", nil
+	}
+
+	// external-provisioner已经保证了PV的名字 == req.VolumeId
+	// 如果是静态PV，需要告知用户将PV#Name和PV#spec.volumeHandler配成一致
+	pv, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Get(ctx, volumeID, metav1.GetOptions{ResourceVersion: "0"})
+	if err != nil {
+		return "", perrors.Wrapf(err, "get pv, volumeID=%s", volumeID)
+	}
+	if pv.Spec.CSI == nil {
+		return "", perrors.Errorf("pv.Spec.CSI is nil, volumeID=%s", volumeID)
+	}
+	return pv.Spec.CSI.VolumeAttributes[TenantUserUID], nil
+}
+
+func createUpdateEcsClientByVolumeID(ctx context.Context, volumeID string) (ecsClient *ecs.Client, uid string, err error) {
+	uid, err = getTenantUIDByVolumeID(ctx, volumeID)
+	if err != nil {
+		return nil, "", perrors.Wrapf(err, "get uid by volumeID, volumeID=%s", volumeID)
+	}
+	if uid != "" {
+		if ecsClient, err = createRoleClient(uid); err != nil {
+			return nil, "", perrors.Wrapf(err, "createRoleClient, tenant uid=%s", uid)
+		}
+	} else {
+		ecsClient = updateEcsClient(GlobalConfigVar.EcsClient)
+	}
+	return ecsClient, uid, nil
+}
+
+func createRoleClient(uid string) (cli *ecs.Client, err error) {
+	if uid == "" {
+		return nil, errors.New("uid is empty")
+	}
+	roleAccessKeyID, roleAccessKeySecret, roleArn := utils.GetDefaultRoleAK()
+	if roleAccessKeyID == "" || roleAccessKeySecret == "" {
+		return nil, errors.New("role access key id or secret is empty")
+	}
+	if roleArn == "" {
+		return nil, errors.New("role arn is empty")
+	}
+
+	roleCli, err := sts.NewClientWithAccessKey(GetRegionID(), roleAccessKeyID, roleAccessKeySecret)
+	if err != nil {
+		return nil, perrors.Wrapf(err, "sts.NewClientWithAccessKey")
+	}
+	req := sts.CreateAssumeRoleRequest()
+	req.RoleArn = fmt.Sprintf("acs:ram::%s:role/%s", uid, roleArn)
+	req.RoleSessionName = "ack-csi"
+	req.DurationSeconds = requests.NewInteger(3600)
+	// 必须https
+	req.Scheme = "https"
+
+	resp, err := roleCli.AssumeRole(req)
+	if err != nil {
+		return nil, perrors.Wrapf(err, "AssumeRole")
+	}
+	cli = newEcsClient(resp.Credentials.AccessKeyId, resp.Credentials.AccessKeySecret, resp.Credentials.SecurityToken)
+	if cli.Client.GetConfig() != nil {
+		cli.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
+	}
+	return cli, nil
+}
+
+func updateEcsClient(client *ecs.Client) *ecs.Client {
 	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
 	if accessToken != "" {
 		client = newEcsClient(accessKeyID, accessSecret, accessToken)
@@ -1072,7 +1141,7 @@ func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
 		return status.Error(codes.Internal, msg)
 	}
 
-	checkCmd := fmt.Sprintf("mount | grep \"%s on /var/lib/kubelet type\" | wc -l", devicePath)
+	checkCmd := fmt.Sprintf("mount | grep \"%s on %s/kubelet type\" | wc -l", devicePath, GlobalConfigVar.BaseDir)
 	if out, err := utils.Run(checkCmd); err != nil {
 		msg := fmt.Sprintf("devicePath(%s) is used to kubelet", devicePath)
 		return status.Error(codes.Internal, msg)
@@ -1216,29 +1285,18 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 // getZoneID ...
 func getZoneID(c *ecs.Client, instanceID string) string {
 
-	node, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), instanceID, metav1.GetOptions{})
-	if err != nil {
-		log.Fatalf("getZoneID:: get node error: %v", err)
-	}
-	ecsKey := os.Getenv("NODE_LABEL_ECS_ID_KEY")
-	ecsID := ""
-	if ecsKey == "" {
-		ecsID = instanceID
-	} else {
-		ecsID = node.Labels[ecsKey]
-	}
 	request := ecs.CreateDescribeInstancesRequest()
 
 	request.RegionId = GlobalConfigVar.Region
-	request.InstanceIds = "[\"" + ecsID + "\"]"
+	request.InstanceIds = "[\"" + instanceID + "\"]"
 
 	request.Domain = fmt.Sprintf("ecs-openapi-share.%s.aliyuncs.com", GlobalConfigVar.Region)
 	instanceResponse, err := c.DescribeInstances(request)
 	if err != nil {
-		log.Fatalf("getZoneID:: describe instance id error: %s ecsID: %s", err.Error(), ecsID)
+		log.Fatalf("getZoneID:: describe instance id error: %s ecsID: %s", err.Error(), instanceID)
 	}
 	if len(instanceResponse.Instances.Instance) != 1 {
-		log.Fatalf("getZoneID:: describe instance returns error instance count: %v, ecsID: %v", len(instanceResponse.Instances.Instance), ecsID)
+		log.Fatalf("getZoneID:: describe instance returns error instance count: %v, ecsID: %v, response: %+v", len(instanceResponse.Instances.Instance), instanceID, instanceResponse)
 	}
 	return instanceResponse.Instances.Instance[0].ZoneId
 }

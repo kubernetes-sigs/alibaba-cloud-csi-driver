@@ -26,7 +26,7 @@ func TestFormat(t *testing.T) {
 
 	testSource := ".tmp/"
 	testFsType := "ext4test"
-	testMounter := NewMounter()
+	testMounter := NewMounter("/var/lib")
 	err := testMounter.Format(testSource, testFsType)
 	assert.NotNil(t, err)
 	testFsType = "ext4"
@@ -38,7 +38,7 @@ func TestFormat(t *testing.T) {
 func TestMount(t *testing.T) {
 	mountErrDir := ".tmp/"
 	mountedDevice := ".mounted/block"
-	testMounter := NewMounter()
+	testMounter := NewMounter("/var/lib")
 	err := testMounter.EnsureFolder(mountErrDir)
 	assert.Nil(t, err)
 	err = testMounter.MountBlock(mountedDevice, mountErrDir)

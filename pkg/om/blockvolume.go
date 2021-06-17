@@ -47,7 +47,7 @@ func FixReferenceMountIssue(line string) bool {
 	return true
 }
 
-// /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/pvc-54574338-42dc-4c7e-8337-e015d4e6dbc1/dev/abc
+// {baseDir}/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/pvc-54574338-42dc-4c7e-8337-e015d4e6dbc1/dev/abc
 // If podUid is in mount list, it means the pod related pod is running, not remove it.
 func isFileRemovable(file string) (bool, string) {
 	fileName := filepath.Base(file)
@@ -63,9 +63,9 @@ func isFileRemovable(file string) (bool, string) {
 	return true, ""
 }
 
-// /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/pvc-54574338-42dc-4c7e-8337-e015d4e6dbc1/dev/abc
+// {BaseDir}/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/pvc-54574338-42dc-4c7e-8337-e015d4e6dbc1/dev/abc
 func isFileBlockLink(file string) bool {
-	if !strings.HasPrefix(file, "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/") {
+	if !strings.HasPrefix(file, GlobalConfigVar.BaseDir+"/kubelet/plugins/kubernetes.io/csi/volumeDevices/") {
 		return false
 	}
 

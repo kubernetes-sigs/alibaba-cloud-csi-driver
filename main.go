@@ -30,6 +30,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cpfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dbfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/jindofs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/lvm"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mem"
@@ -84,6 +85,8 @@ const (
 	TypePluginLOCAL = "localplugin.csi.alibabacloud.com"
 	// TypePluginYODA local type plugin
 	TypePluginYODA = "yodaplugin.csi.alibabacloud.com"
+	// TypePluginJindoFS type plugin
+	TypePluginJindoFS = "jindofsplugin.csi.alibabacloud.com"
 	// ExtenderAgent agent component
 	ExtenderAgent = "agent"
 )
@@ -108,12 +111,14 @@ var (
 	nodeID          = flag.String("nodeid", "", "node id")
 	runAsController = flag.Bool("run-as-controller", false, "Only run as controller service")
 	driver          = flag.String("driver", TypePluginDISK, "CSI Driver")
-	rootDir         = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
+	rootDir         = flag.String("rootdir", "/kubelet/csi-plugins", "Kubernetes root directory")
+	baseDir         = flag.String("basedir", "/var/lib", "Kubernetes base directory")
 )
 
 type globalMetricConfig struct {
 	enableMetric bool
 	serviceType  string
+	baseDir      string
 }
 
 // Nas CSI Plugin
@@ -150,7 +155,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	// Storage devops
-	go om.StorageOM()
+	go om.StorageOM(*baseDir)
 
 	for _, driverName := range driverNames {
 		wg.Add(1)
@@ -165,11 +170,11 @@ func main() {
 		if driverName == TypePluginYODA {
 			driverName = TypePluginLOCAL
 		}
-		if err := createPersistentStorage(path.Join(*rootDir, driverName, "controller")); err != nil {
+		if err := createPersistentStorage(path.Join(*baseDir, *rootDir, driverName, "controller")); err != nil {
 			log.Errorf("failed to create persistent storage for controller: %v", err)
 			os.Exit(1)
 		}
-		if err := createPersistentStorage(path.Join(*rootDir, driverName, "node")); err != nil {
+		if err := createPersistentStorage(path.Join(*baseDir, *rootDir, driverName, "node")); err != nil {
 			log.Errorf("failed to create persistent storage for node: %v", err)
 			os.Exit(1)
 		}
@@ -177,50 +182,56 @@ func main() {
 		case TypePluginNAS:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := nas.NewDriver(*nodeID, endPoint)
+				driver := nas.NewDriver(*nodeID, endPoint, *baseDir)
 				driver.Run()
 			}(endPointName)
 		case TypePluginOSS:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := oss.NewDriver(*nodeID, endPoint)
+				driver := oss.NewDriver(*nodeID, endPoint, *baseDir)
 				driver.Run()
 			}(endPointName)
 		case TypePluginDISK:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := disk.NewDriver(*nodeID, endPoint, *runAsController)
+				driver := disk.NewDriver(*nodeID, endPoint, *baseDir, *runAsController)
 				driver.Run()
 			}(endPointName)
 
 		case TypePluginLVM:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := lvm.NewDriver(*nodeID, endPoint)
+				driver := lvm.NewDriver(*nodeID, endPoint, *baseDir)
 				driver.Run()
 			}(endPointName)
 		case TypePluginCPFS:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := cpfs.NewDriver(*nodeID, endPoint)
+				driver := cpfs.NewDriver(*nodeID, endPoint, *baseDir)
 				driver.Run()
 			}(endPointName)
 		case TypePluginMEM:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := mem.NewDriver(*nodeID, endPoint)
+				driver := mem.NewDriver(*nodeID, endPoint, *baseDir)
 				driver.Run()
 			}(endPointName)
 		case TypePluginLOCAL:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := local.NewDriver(*nodeID, endPoint)
+				driver := local.NewDriver(*nodeID, endPoint, *baseDir)
 				driver.Run()
 			}(endPointName)
 		case TypePluginDBFS:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := dbfs.NewDriver(*nodeID, endPoint)
+				driver := dbfs.NewDriver(*nodeID, endPoint, *baseDir)
+				driver.Run()
+			}(endPointName)
+		case TypePluginJindoFS:
+			go func(endPoint string) {
+				defer wg.Done()
+				driver := jindofs.NewDriver(*nodeID, endPoint)
 				driver.Run()
 			}(endPointName)
 		case ExtenderAgent:
@@ -248,6 +259,7 @@ func main() {
 	metricConfig := &globalMetricConfig{
 		true,
 		"plugin",
+		*baseDir,
 	}
 
 	enableMetric := os.Getenv("ENABLE_METRIC")
@@ -263,7 +275,7 @@ func main() {
 	http.HandleFunc("/healthz", healthHandler)
 	log.Infof("Metric listening on address: /healthz")
 	if metricConfig.enableMetric {
-		metricHandler := metric.NewMetricHandler(metricConfig.serviceType)
+		metricHandler := metric.NewMetricHandler(metricConfig.serviceType, metricConfig.baseDir)
 		http.Handle("/metrics", metricHandler)
 		log.Infof("Metric listening on address: /metrics")
 	}
