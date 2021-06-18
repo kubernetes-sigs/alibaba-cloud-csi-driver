@@ -708,6 +708,11 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 				forceDelete = true
 			}
 		}
+		if existsSnapshots[0].Usage == "disk" {
+			log.Errorf("DeleteSnapshot: snapshotID [%s] has been used to create disk can't be deleted by default", snapshotID)
+			err = status.Error(codes.Internal, fmt.Sprintf("DeleteSnapshot: snapshotID [%s] has been used to create disk can't be deleted by default", snapshotID))
+			return nil, err
+		}
 	case snapNum == 0 && err == nil:
 		log.Infof("DeleteSnapshot: snapShot not exist for expect %s, return successful", snapshotID)
 		return &csi.DeleteSnapshotResponse{}, nil
