@@ -1257,3 +1257,12 @@ func intersect(slice1, slice2 []string) []string {
 	}
 	return nn
 }
+
+func StringInSlice(a string, list []string) bool {
+	for _, b := range list {
+			if b == a {
+					return true
+			}
+	}
+	return false
+}

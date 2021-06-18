@@ -207,6 +207,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	// Step 2: Check whether volume is created
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	disks, err := findDiskByName(req.GetName(), diskVol.ResourceGroupID, sharedDisk)
+	allTypes := deleteEmpty(strings.Split(diskVol.Type, ","))
 	if err != nil {
 		log.Errorf("CreateVolume: describe volume error with: %s", err.Error())
 		return nil, status.Error(codes.Aborted, err.Error())
@@ -216,7 +217,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Errorf(codes.Internal, "CreateVolume: duplicate disk %s exists, with %v", req.Name, disks)
 	} else if len(disks) == 1 {
 		disk := disks[0]
-		if disk.Size != requestGB || disk.ZoneId != diskVol.ZoneID || disk.Encrypted != diskVol.Encrypted || disk.Category != diskVol.Type {
+		if disk.Size != requestGB || disk.ZoneId != diskVol.ZoneID || disk.Encrypted != diskVol.Encrypted || !StringInSlice(disk.Category, allTypes){
 			log.Errorf("CreateVolume: exist disk %s is different with requested, for disk existing: %v", req.GetName(), disk)
 			return nil, status.Errorf(codes.Internal, "exist disk %s is different with requested for disk", req.GetName())
 		}
@@ -291,7 +292,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	var volumeResponse *ecs.CreateDiskResponse
 	var createdDiskType string
 	provisionerDiskTypes := []string{}
-	allTypes := deleteEmpty(strings.Split(diskVol.Type, ","))
 	if len(nodeSupportDiskType) != 0 {
 		provisionerDiskTypes = intersect(nodeSupportDiskType, allTypes)
 		if len(provisionerDiskTypes) == 0 {
