@@ -761,6 +761,7 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 		Namespace: "",
 	}
 	log.Infof("ListSnapshots:: called with args: %+v", req)
+	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	snapshotID := req.GetSnapshotId()
 	snapshot, snapNum, err := findDiskSnapshotByID(snapshotID)
 	switch {
