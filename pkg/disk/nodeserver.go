@@ -743,11 +743,13 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		}
 		cmd := fmt.Sprintf("growpart %s %d", rootPath, index)
 		if _, err := utils.Run(cmd); err != nil {
-			if strings.Contains(err.Error(), "it cannot be grown") && strings.Contains(err.Error(), "NOCHANGE") {
-				deviceCapacity := getBlockDeviceCapacity(devicePath)
-				rootCapacity := getBlockDeviceCapacity(rootPath)
-				log.Infof("NodeExpandVolume: Volume %s with Device Partition %s no need to grown, with requestSize: %v, rootBlockSize: %v, partition BlockDevice size: %v", diskID, devicePath, requestGB, rootCapacity, deviceCapacity)
-				return &csi.NodeExpandVolumeResponse{}, nil
+			if strings.Contains(err.Error(), "NOCHANGE") {
+				if strings.Contains(err.Error(), "it cannot be grown") || strings.Contains(err.Error(), "could only be grown by") {
+					deviceCapacity := getBlockDeviceCapacity(devicePath)
+					rootCapacity := getBlockDeviceCapacity(rootPath)
+					log.Infof("NodeExpandVolume: Volume %s with Device Partition %s no need to grown, with requestSize: %v, rootBlockSize: %v, partition BlockDevice size: %v", diskID, devicePath, requestGB, rootCapacity, deviceCapacity)
+					return &csi.NodeExpandVolumeResponse{}, nil
+				}
 			}
 			log.Errorf("NodeExpandVolume: expand volume %s partition command: %s with error: %s", diskID, cmd, err.Error())
 			return nil, status.Errorf(codes.InvalidArgument, "NodeExpandVolume: expand volume %s partition with error: %s ", diskID, err.Error())
