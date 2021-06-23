@@ -254,6 +254,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		opt.Options = ""
 	}
 
+	// Create Mount Path
+	if err := utils.CreateDest(mountPath); err != nil {
+		return nil, errors.New("Nas, Mount error with create Path fail: " + mountPath)
+	}
+
 	// do losetup nas logical
 	if GlobalConfigVar.LosetupEnable && opt.MountType == LosetupType {
 		if err := mountLosetupPv(mountPath, opt, req.VolumeId); err != nil {
@@ -271,11 +276,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// if system not set nas, config it.
 	checkSystemNasConfig()
-
-	// Create Mount Path
-	if err := utils.CreateDest(mountPath); err != nil {
-		return nil, errors.New("Nas, Mount error with create Path fail: " + mountPath)
-	}
 
 	// Do mount
 	if err := DoNfsMount(opt.Server, opt.Path, opt.Vers, opt.Options, mountPath, req.VolumeId); err != nil {
