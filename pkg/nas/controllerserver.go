@@ -86,6 +86,8 @@ const (
 	MntTypeKey = "mountType"
 	// LosetupType tag
 	LosetupType = "losetup"
+
+	allowVolumeExpansion = "allowVolumeExpansion"
 )
 
 // controller server try to create/delete volumes
@@ -427,7 +429,13 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			}
 
 			// Set Nas volume capacity
-			if value, ok := req.GetParameters()["volumeCapacity"]; ok && value == "true" {
+			canQuota := false
+			value1, ok1 := req.GetParameters()["volumeCapacity"]
+			value2, ok2 := req.GetParameters()[allowVolumeExpansion]
+			if (ok1 && value1 == "true") || (ok2 && value2 == "true") {
+				canQuota = true
+			}
+			if canQuota {
 				err := setNasVolumeCapacity(nfsServer, filepath.Join(nfsPath, pvName), volSizeBytes)
 				if err != nil {
 					log.Errorf("CreateVolume: %s, Set Volume Capacity(%s:%s) with error: %s", req.Name, nfsServer, nfsPath, err.Error())
