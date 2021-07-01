@@ -19,7 +19,9 @@ package nas
 import (
 	"context"
 	"fmt"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1alpha1"
 	"io/ioutil"
+	"k8s.io/client-go/dynamic"
 	"net/http"
 	"os"
 	"path"
@@ -329,7 +331,7 @@ func setNasVolumeCapacity(nfsServer, nfsPath string, volSizeBytes int64) error {
 	return nil
 }
 
-func setNasVolumeCapacityWithID(pvObj *v1.PersistentVolume, volSizeBytes int64) error {
+func setNasVolumeCapacityWithID(pvObj *v1.PersistentVolume, crdClient dynamic.Interface, volSizeBytes int64) error {
 	if pvObj.Spec.CSI == nil {
 		return fmt.Errorf("Volume %s is not CSI type %v ", pvObj.Name, pvObj)
 	}
@@ -341,6 +343,14 @@ func setNasVolumeCapacityWithID(pvObj *v1.PersistentVolume, volSizeBytes int64) 
 	nfsServer, nfsPath := "", ""
 	if value, ok := pvObj.Spec.CSI.VolumeAttributes["server"]; ok {
 		nfsServer = value
+	} else {
+		if value, ok := pvObj.Spec.CSI.VolumeAttributes["containerNetworkFileSystem"]; ok {
+			server, err := v1alpha1.GetContainerNetworkFileSystemServer(crdClient, value)
+			if err != nil {
+				return err
+			}
+			nfsServer = server
+		}
 	}
 	if value, ok := pvObj.Spec.CSI.VolumeAttributes["path"]; ok {
 		nfsPath = value
