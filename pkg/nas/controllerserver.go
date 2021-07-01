@@ -861,7 +861,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 		return nil, fmt.Errorf("ControllerExpandVolume: nas volume(%s) expand error: %s", req.VolumeId, err.Error())
 	}
 	if _, ok := pvObj.Spec.CSI.VolumeAttributes["volumeCapacity"]; ok {
-		err = setNasVolumeCapacityWithID(pvObj, volSizeBytes)
+		err = setNasVolumeCapacityWithID(pvObj, cs.crdClient, volSizeBytes)
 		if err != nil {
 			log.Errorf("ControllerExpandVolume: nas volume(%s) expand error: %s", req.VolumeId, err.Error())
 			return nil, fmt.Errorf("ControllerExpandVolume: nas volume(%s) expand error: %s", req.VolumeId, err.Error())
