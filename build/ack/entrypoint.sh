@@ -8,6 +8,19 @@ mkdir -p /host/etc/kubernetes/volumes/disk/uuid
 HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
 zone_id=`${HOST_CMD} curl http://100.100.100.200/latest/meta-data/zone-id`
 
+
+host_os="centos"
+${HOST_CMD} ls /etc/os-release
+os_release_exist=$?
+
+if [[ "$os_release_exist" = "0" ]]; then
+    osID=`${HOST_CMD} cat /etc/os-release | grep "ID=" | grep -v "VERSION_ID"`
+    osVersion=`${HOST_CMD} cat /etc/os-release | grep "VERSION_ID="`
+    if [[ `echo ${osID} | grep "alinux" | wc -l` != "0" ]] && [[ `echo ${osVersion} | grep "3" | wc -l` = "1" ]]; then
+        host_os="alinux3"
+    fi
+fi
+
 ## check which plugin is running
 for item in $@;
 do
@@ -51,19 +64,29 @@ done
 
 ## OSS plugin setup
 if [ "$run_oss" = "true" ]; then
-    echo "Starting deploy oss csi-plugin...."
 
     ossfsVer="1.80.6.ack.1"
     if [ "$USE_UPDATE_OSSFS" == "" ]; then
         ossfsVer="1.86.2"
     fi
 
+    ossfsArch="centos7.0"
+    if [[ ${host_os} == "alinux3" ]]; then
+        ${HOST_CMD} yum install -y libcurl-devel libxml2-devel fuse-devel openssl-devel
+        ossfsArch="centos8"
+    fi
+
+    echo "Starting deploy oss csi-plugin..."
+    echo "osHost:"${host_os}
+    echo "ossfsVersion:"${ossfsVer}
+    echo "ossfsArch:"${ossfsArch}
+
     # install OSSFS
     mkdir -p /host/etc/csi-tool/
     if [ ! `/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
         echo "First install ossfs, ossfsVersion: $ossfsVer"
-        cp /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm /host/etc/csi-tool/
-        /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
+        cp /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm /host/etc/csi-tool/
+        /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
     # update OSSFS
     else
         echo "Check ossfs Version...."
@@ -71,8 +94,8 @@ if [ "$run_oss" = "true" ]; then
         if [ "$oss_info" != "$ossfsVer" ]; then
             echo "Upgrade ossfs, ossfsVersion: $ossfsVer"
             /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
-            cp /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm /host/etc/csi-tool/
-            /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
+            cp /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm /host/etc/csi-tool/
+            /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
         fi
     fi
 
