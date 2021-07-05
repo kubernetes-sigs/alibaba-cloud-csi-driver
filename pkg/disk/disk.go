@@ -66,6 +66,7 @@ type GlobalConfig struct {
 	DetachDisabled        bool
 	MetricEnable          bool
 	RunTimeClass          string
+	DetachBeforeAttach    bool
 	DetachBeforeDelete    bool
 	DiskBdfEnable         bool
 	ClientSet             *kubernetes.Clientset
@@ -238,6 +239,12 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
 	}
 
+	isDetachBeforeAttached := true
+	forceDetached := os.Getenv(DiskForceDetached)
+	if forceDetached == "false" || forceDetached == "no" {
+		isDetachBeforeAttached = false
+	}
+
 	tagDiskConf := os.Getenv(DiskTagedByPlugin)
 	if tagDiskConf == "true" || tagDiskConf == "yes" {
 		isDiskTagEnable = true
@@ -320,6 +327,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		RunTimeClass:          runtimeValue,
 		DetachDisabled:        isDiskDetachDisable,
 		DetachBeforeDelete:    isDiskDetachBeforeDelete,
+		DetachBeforeAttach:    isDetachBeforeAttached,
 		ClientSet:             kubeClient,
 		FilesystemLosePercent: fileSystemLosePercent,
 		ClusterID:             clustID,

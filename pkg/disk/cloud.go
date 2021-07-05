@@ -110,10 +110,15 @@ func attachDisk(diskID, nodeID string, isSharedDisk bool) (string, error) {
 					err = errors.Wrapf(err, "forceDetachAllowed")
 					return "", status.Errorf(codes.Aborted, err.Error())
 				} else if !allowed {
-					err = errors.Errorf("NodeStageVolume: Disk %s is already attached to instance %s, and depend bdf, reject force detach", diskID, disk.InstanceId)
+					err = errors.Errorf("AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", diskID, disk.InstanceId)
 					log.Error(err)
 					return "", status.Errorf(codes.Aborted, err.Error())
 				}
+			}
+			if !GlobalConfigVar.DetachBeforeAttach {
+				err = errors.Errorf("AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
+				log.Error(err)
+				return "", status.Errorf(codes.Aborted, err.Error())
 			}
 			log.Infof("AttachDisk: Disk %s is already attached to instance %s, will be detached", diskID, disk.InstanceId)
 			detachRequest := ecs.CreateDetachDiskRequest()
