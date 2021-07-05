@@ -78,6 +78,8 @@ const (
 	DiskDetachBeforeDelete = "DISK_DETACH_BEFORE_DELETE"
 	// DiskAttachByController tag
 	DiskAttachByController = "DISK_AD_CONTROLLER"
+	// DiskForceDetached tag
+	DiskForceDetached = "DISK_FORCE_DETACHED"
 	// DiskAttachedKey attached key
 	DiskAttachedKey = "k8s.aliyun.com"
 	// DiskAttachedValue attached value
