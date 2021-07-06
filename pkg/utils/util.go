@@ -167,6 +167,22 @@ func Run(cmd string) (string, error) {
 	return string(out), nil
 }
 
+// RunTimeout tag
+func RunTimeout(cmd string, timeout int) error {
+	ctx := context.Background()
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+		defer cancel()
+	}
+
+	cmdCont := exec.CommandContext(ctx, "sh", "-c", cmd)
+	if err := cmdCont.Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
 // CreateDest create de destination dir
 func CreateDest(dest string) error {
 	fi, err := os.Lstat(dest)
