@@ -57,21 +57,23 @@ func BdfHealthCheck() {
 
 	// running in loop
 	for {
-		checkBdfHang()
-		if doUnusedCheck {
+		isHang := checkBdfHang()
+		if doUnusedCheck && !isHang {
 			checkDiskUnused()
 		}
 		time.Sleep(time.Duration(interTime) * time.Minute)
 	}
 }
 
-func checkBdfHang() {
+func checkBdfHang() bool {
 	if isHang, err := isBdfHang(); isHang {
-		errMsg := fmt.Sprintf("Find Bdf Hang in Node %s, with error %v", GlobalConfigVar.NodeID, err)
+		errMsg := fmt.Sprintf("Find BDF Hang in Node %s, with error %v", GlobalConfigVar.NodeID, err)
 		log.Errorf(errMsg)
 		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeHang, errMsg)
 		DingTalk(errMsg)
+		return true
 	}
+	return false
 }
 
 func checkDiskUnused() {
@@ -82,7 +84,7 @@ func checkDiskUnused() {
 		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeUnUsed, errMsg)
 		DingTalk(errMsg)
 	} else if err != nil && len(deviceList) != 0 {
-		errMsg := fmt.Sprintf("Get unUsed Device in Node %s, get unused devices: %v", GlobalConfigVar.NodeID, deviceList)
+		errMsg := fmt.Sprintf("Get UnUsed Device in Node %s, devices: %v", GlobalConfigVar.NodeID, deviceList)
 		log.Warnf(errMsg)
 		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeUnUsed, errMsg)
 		DingTalk(errMsg)
@@ -100,7 +102,7 @@ func isBdfHang() (bool, error) {
 	}
 
 	chckHang := "cat /sys/block/*/serial &"
-	_, err = utils.Run(chckHang)
+	err = utils.RunTimeout(chckHang, 3)
 	if err != nil {
 		return true, err
 	}
