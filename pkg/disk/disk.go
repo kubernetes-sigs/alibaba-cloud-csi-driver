@@ -308,9 +308,9 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		partition = false
 	}
 
-	serviceType := false
+	controllerServerType := false
 	if os.Getenv(utils.ServiceType) == utils.ProvisionerService {
-		serviceType = true
+		controllerServerType = true
 	}
 
 	bdfCheck := true
@@ -336,7 +336,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		FilesystemLosePercent: fileSystemLosePercent,
 		ClusterID:             clustID,
 		DiskPartitionEnable:   partition,
-		ControllerService:     serviceType,
+		ControllerService:     controllerServerType,
 		BdfHealthCheck:        bdfCheck,
 	}
 	return cfg

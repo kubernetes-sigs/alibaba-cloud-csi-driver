@@ -29,10 +29,11 @@ const (
 	// BdfVolumeHang tag
 	BdfVolumeHang = "BdfVolumeHang"
 	// BdfVolumeUnUsed tag
-	BdfDeviceUnUsed = "BdfVolumeUnUsed"
+	BdfVolumeUnUsed = "BdfVolumeUnUsed"
 )
 
-var DingUrl = os.Getenv("Ding_URL")
+// DingURL tag
+var DingURL = os.Getenv("Ding_URL")
 
 // BdfHealthCheck check bdf volume
 func BdfHealthCheck() {
@@ -78,12 +79,12 @@ func checkDiskUnused() {
 	if err != nil && len(deviceList) == 0 {
 		errMsg := fmt.Sprintf("Get unUsed Device in Node %s, with error: %v", GlobalConfigVar.NodeID, err)
 		log.Warnf(errMsg)
-		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfDeviceUnUsed, errMsg)
+		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeUnUsed, errMsg)
 		DingTalk(errMsg)
 	} else if err != nil && len(deviceList) != 0 {
 		errMsg := fmt.Sprintf("Get unUsed Device in Node %s, get unused devices: %v", GlobalConfigVar.NodeID, deviceList)
 		log.Warnf(errMsg)
-		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfDeviceUnUsed, errMsg)
+		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeUnUsed, errMsg)
 		DingTalk(errMsg)
 	}
 }
@@ -175,7 +176,7 @@ func getDiskUnused() ([]string, error) {
 	}
 
 	// Delete Filesystem device
-	for fsDev, _ := range FileSystemDeviceMap {
+	for fsDev := range FileSystemDeviceMap {
 		if _, ok := DeviceMap[fsDev]; ok {
 			delete(DeviceMap, fsDev)
 		} else {
@@ -183,7 +184,7 @@ func getDiskUnused() ([]string, error) {
 		}
 	}
 	// Delete Block device
-	for blockDev, _ := range BlockMntMap {
+	for blockDev := range BlockMntMap {
 		if _, ok := DeviceMap[blockDev]; ok {
 			delete(DeviceMap, blockDev)
 		} else {
@@ -194,7 +195,7 @@ func getDiskUnused() ([]string, error) {
 	// check Device unused;
 	if len(DeviceMap) != 0 {
 		unUsedDevice := []string{}
-		for key, _ := range DeviceMap {
+		for key := range DeviceMap {
 			unUsedDevice = append(unUsedDevice, key)
 		}
 		return unUsedDevice, fmt.Errorf("Devices %v is Not Used ", unUsedDevice)
@@ -202,17 +203,20 @@ func getDiskUnused() ([]string, error) {
 	return nil, nil
 }
 
+// DingMsg struct
 type DingMsg struct {
 	Mstype string   `json:"mstype"`
 	Text   DingText `json:"text"`
 }
 
+// DingText struct
 type DingText struct {
 	Content string `json:"content"`
 }
 
+// DingTalk tag
 func DingTalk(msg string) {
-	if DingUrl == "" {
+	if DingURL == "" {
 		return
 	}
 	content := DingText{Content: msg}
@@ -222,7 +226,7 @@ func DingTalk(msg string) {
 		log.Warnf("Marshal message get error: %v", err)
 		return
 	}
-	resp, err := http.Post(DingUrl, "Content-Type: application/json", strings.NewReader(string(bytpes)))
+	resp, err := http.Post(DingURL, "Content-Type: application/json", strings.NewReader(string(bytpes)))
 	if err != nil {
 		log.Warnf("Connect to DingTalk get error: %v", err)
 		return
