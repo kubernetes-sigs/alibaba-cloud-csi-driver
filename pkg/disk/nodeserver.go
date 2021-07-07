@@ -165,6 +165,10 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	}
 	go UpdateNode(nodeID, kubeClient, c)
 
+	if !GlobalConfigVar.ControllerService && IsVFNode() && GlobalConfigVar.BdfHealthCheck {
+		go BdfHealthCheck()
+	}
+
 	return &nodeServer{
 		zone:              zoneID,
 		maxVolumesPerNode: maxVolumesNum,
