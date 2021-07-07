@@ -15,8 +15,8 @@ os_release_exist=$?
 
 if [[ "$os_release_exist" = "0" ]]; then
     osID=`${HOST_CMD} cat /etc/os-release | grep "ID=" | grep -v "VERSION_ID"`
-    osVersion=`${HOST_CMD} cat /etc/os-release | grep "VERSION_ID="`
-    if [[ `echo ${osID} | grep "alinux" | wc -l` != "0" ]] && [[ `echo ${osVersion} | grep "3" | wc -l` = "1" ]]; then
+    osVersion=`${HOST_CMD} cat /etc/os-release | grep "VERSION_ID=" | grep "^VERSION_ID=\"3"`
+    if [[ `echo ${osID} | grep "alinux" | wc -l` != "0" ]] && [[ "${osVersion}" ]]; then
         host_os="alinux3"
     fi
 fi
