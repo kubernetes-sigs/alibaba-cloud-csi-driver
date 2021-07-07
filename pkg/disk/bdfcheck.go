@@ -14,6 +14,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 )
 
 // ObjReference reference for bdf volume
@@ -23,7 +24,6 @@ var ObjReference = &v1.ObjectReference{
 	UID:       "",
 	Namespace: "",
 }
-var recorder = utils.NewEventRecorder()
 
 const (
 	// BdfVolumeHang tag
@@ -47,6 +47,7 @@ func BdfHealthCheck() {
 		log.Errorf("Format BDF_CHECK_INTERVAL error: %v", err)
 		return
 	}
+	recorder := utils.NewEventRecorder()
 
 	// BDF_CHECK_UNUSED setting
 	doUnusedCheck := true
@@ -57,15 +58,15 @@ func BdfHealthCheck() {
 
 	// running in loop
 	for {
-		isHang := checkBdfHang()
+		isHang := checkBdfHang(recorder)
 		if doUnusedCheck && !isHang {
-			checkDiskUnused()
+			checkDiskUnused(recorder)
 		}
 		time.Sleep(time.Duration(interTime) * time.Minute)
 	}
 }
 
-func checkBdfHang() bool {
+func checkBdfHang(recorder record.EventRecorder) bool {
 	if isHang, err := isBdfHang(); isHang {
 		errMsg := fmt.Sprintf("Find BDF Hang in Node %s, with error %v", GlobalConfigVar.NodeID, err)
 		log.Errorf(errMsg)
@@ -76,7 +77,7 @@ func checkBdfHang() bool {
 	return false
 }
 
-func checkDiskUnused() {
+func checkDiskUnused(recorder record.EventRecorder) {
 	deviceList, err := getDiskUnused()
 	if err != nil && len(deviceList) == 0 {
 		errMsg := fmt.Sprintf("Get unUsed Device in Node %s, with error: %v", GlobalConfigVar.NodeID, err)
