@@ -147,6 +147,22 @@ func echoServer(c net.Conn) {
 // -ourl=oss-cn-shenzhen-internal.aliyuncs.com
 // -o max_stat_cache_size=0 -o allow_other
 func checkOssfsCmd(cmd string) error {
+	jindofsPrefix := "systemd-run --scope -- /etc/jindofs-tool/jindofs-fuse "
+	if strings.HasPrefix(cmd, jindofsPrefix) {
+		if strings.Contains(cmd, ";") {
+			return errors.New("Jindofs Options: command cannot contains ; " + cmd)
+		}
+		cmdParametes := strings.TrimPrefix(cmd, jindofsPrefix)
+		cmdParametes = strings.TrimSpace(cmdParametes)
+		cmdParametes = strings.Join(strings.Fields(cmdParametes), " ")
+		parameteList := strings.Split(cmdParametes, " ")
+		for _, value := range parameteList {
+			if !strings.HasPrefix(value, "-o") && !strings.HasPrefix(value, "/") {
+				return errors.New("Jindofs Options: must start with -o :" + cmd)
+			}
+		}
+		return nil
+	}
 	ossCmdPrefixList := []string{"systemd-run --scope -- /usr/local/bin/ossfs", "systemd-run --scope -- ossfs", "ossfs"}
 	ossCmdPrefix := ""
 	for _, cmdPrefix := range ossCmdPrefixList {

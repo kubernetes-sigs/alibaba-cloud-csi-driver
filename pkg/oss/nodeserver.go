@@ -51,6 +51,7 @@ type Options struct {
 	Path          string `json:"path"`
 	UseSharedPath bool   `json:"useSharedPath"`
 	AuthType      string `json:"authType"`
+	FuseType      string `json:"fuseType"`
 }
 
 const (
@@ -68,6 +69,12 @@ const (
 	SharedPath = "/var/lib/kubelet/plugins/kubernetes.io/csi/pv/%s/globalmount"
 	// OssFsType is the oss filesystem type
 	OssFsType = "fuse.ossfs"
+	// JindoFsType tag
+	JindoFsType = "jindofs"
+	// JindofsCredentialPathInPod Pod side sts file
+	JindofsCredentialPathInPod = "/oss-secret/sts-token"
+	// JindofsCredentialPathOnHost Host side sts file
+	JindofsCredentialPathOnHost = "/host/etc/jindofs-credentials"
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -100,6 +107,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			}
 		} else if key == "authtype" {
 			opt.AuthType = strings.ToLower(strings.TrimSpace(value))
+		} else if key == "fusetype" {
+			opt.FuseType = strings.ToLower(strings.TrimSpace(value))
 		}
 	}
 
@@ -137,7 +146,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// If you do not use sts authentication, save ak
-	if opt.AuthType != "sts" {
+	if opt.AuthType != "sts" && opt.FuseType != JindoFsType {
 		// Save ak file for ossfs
 		if err := saveOssCredential(opt); err != nil {
 			log.Errorf("Save oss ak error: %s", err.Error())
@@ -145,6 +154,15 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
+	credentialProvider := ""
+	if opt.FuseType == JindoFsType {
+		if opt.AuthType == "sts" {
+			credentialProvider = "-ocredential_provider=secrets:///etc/jindofs-credentials"
+		} else {
+			credentialProvider = "-ocredential_provider=ECS_ROLE"
+		}
+
+	}
 	// default use allow_other
 	var mntCmd string
 	if opt.UseSharedPath {
@@ -159,6 +177,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s", opt.Bucket, opt.Path, sharedPath, opt.URL, opt.OtherOpts)
 			if opt.AuthType == "sts" {
 				mntCmd = GetRAMRoleOption(mntCmd)
+			}
+			if opt.FuseType == JindoFsType {
+				mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindofs-fuse -obucket=%v -opath=%v -oendpoint=%v %v -oonly_sdk %s", opt.Bucket, opt.Path, opt.URL, credentialProvider, sharedPath)
 			}
 			if out, err := connectorRun(mntCmd); err != nil {
 				if err != nil {
@@ -182,6 +203,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s", opt.Bucket, opt.Path, mountPath, opt.URL, opt.OtherOpts)
 		if opt.AuthType == "sts" {
 			mntCmd = GetRAMRoleOption(mntCmd)
+		}
+		if opt.FuseType == JindoFsType {
+			mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindofs-fuse -obucket=%v -opath=%v -oendpoint=%v %v -oonly_sdk %s", opt.Bucket, opt.Path, opt.URL, credentialProvider, mountPath)
 		}
 		if out, err := connectorRun(mntCmd); err != nil {
 			if err != nil {
@@ -231,6 +255,14 @@ func checkOssOptions(opt *Options) error {
 		return errors.New("Oss Parametes error: Url/Bucket empty ")
 	}
 
+	if !strings.HasPrefix(opt.Path, "/") {
+		return errors.New("Oss path error: start with " + opt.Path + ", should start with / ")
+	}
+
+	if opt.FuseType == JindoFsType {
+		return nil
+	}
+
 	// if not input ak from user, use the default ak value
 	if opt.AkID == "" || opt.AkSecret == "" {
 		opt.AkID, opt.AkSecret = utils.GetLocalAK()
@@ -245,10 +277,6 @@ func checkOssOptions(opt *Options) error {
 		if !strings.HasPrefix(opt.OtherOpts, "-o ") {
 			return errors.New("Oss OtherOpts error: start with -o ")
 		}
-	}
-
-	if !strings.HasPrefix(opt.Path, "/") {
-		return errors.New("Oss path error: start with " + opt.Path + ", should start with / ")
 	}
 
 	return nil
