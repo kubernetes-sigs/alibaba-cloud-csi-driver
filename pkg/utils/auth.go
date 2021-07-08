@@ -46,10 +46,12 @@ type AKInfo struct {
 	Expiration string `json:"expiration"`
 	// Keyring key ring
 	Keyring string `json:"keyring"`
-
-	RoleAccessKeyId     string `json:"role.access.key.id"`
+	// RoleAccessKeyId key
+	RoleAccessKeyId string `json:"role.access.key.id"`
+	// RoleAccessKeySecret key
 	RoleAccessKeySecret string `json:"role.access.key.secret"`
-	RoleArn             string `json:"role.arn"`
+	// RoleArn key
+	RoleArn string `json:"role.arn"`
 }
 
 // GetDefaultAK read default ak from local file or from STS
@@ -213,14 +215,19 @@ func GetDefaultRoleAK() (string, string, string) {
 	return accessKeyID, accessSecret, roleArn
 }
 
+// ManageTokens 定义资源账号 和 角色扮演账号
 type ManageTokens struct {
-	// 资源账号
-	AccessKeyId     string
+	// AccessKeyId key
+	AccessKeyId string
+	// AccessKeySecret key
 	AccessKeySecret string
-	SecurityToken   string
+	// SecurityToken key
+	SecurityToken string
 
-	// 角色扮演账号
-	RoleAccessKeyId     string
+	// RoleAccessKeyId key
+	RoleAccessKeyId string
+	// RoleAccessKeySecret key
 	RoleAccessKeySecret string
-	RoleArn             string
+	// RoleArn key
+	RoleArn string
 }
