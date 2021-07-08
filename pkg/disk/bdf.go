@@ -283,8 +283,11 @@ func storeBdfInfo(diskID, bdf string) (err error) {
 	addTagsRequest.ResourceType = "disk"
 	addTagsRequest.ResourceId = diskID
 	addTagsRequest.RegionId = GlobalConfigVar.Region
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-	_, err = GlobalConfigVar.EcsClient.AddTags(addTagsRequest)
+	ecsClient, err := getEcsClientByID(diskID, "")
+	if err != nil {
+		return err
+	}
+	_, err = ecsClient.AddTags(addTagsRequest)
 	if err != nil {
 		log.Warnf("storeBdfInfo: AddTags error: %s, %s", diskID, err.Error())
 		return
