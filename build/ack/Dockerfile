@@ -11,6 +11,7 @@ RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${upd
 RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-a9e4226_centos8_x86_64.rpm -o /root/ossfs_1.86.2_centos8_x86_64.rpm
 
 COPY nsenter /nsenter
+COPY jindofs-fuse /jindofs-fuse
 COPY entrypoint.sh /entrypoint.sh
 COPY csiplugin-connector /bin/csiplugin-connector
 COPY csiplugin-connector.service /bin/csiplugin-connector.service
