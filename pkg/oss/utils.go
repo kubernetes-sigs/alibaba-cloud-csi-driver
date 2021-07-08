@@ -57,7 +57,7 @@ func GetRAMRoleOption(mntCmd string) string {
 
 // IsOssfsMounted return if oss mountPath is mounted
 func IsOssfsMounted(mountPath string) bool {
-	checkMountCountCmd := fmt.Sprintf("%s mount | grep %s | grep %s | grep -v grep | wc -l", NsenterCmd, mountPath, OssFsType)
+	checkMountCountCmd := fmt.Sprintf("%s mount | grep %s | grep -E '%s|%s' | grep -v grep | wc -l", NsenterCmd, mountPath, OssFsType, JindoFsType)
 	out, err := utils.Run(checkMountCountCmd)
 	if err != nil {
 		return false
@@ -71,7 +71,7 @@ func IsOssfsMounted(mountPath string) bool {
 // IsLastSharedVol return code status to help check if this oss volume uses UseSharedPath and is the last one
 func IsLastSharedVol(pvName string) (string, error) {
 	keyStr := fmt.Sprintf("volumes/kubernetes.io~csi/%s/mount", pvName)
-	checkMountCountCmd := fmt.Sprintf("%s mount | grep %s | grep %s | grep -v grep | wc -l", NsenterCmd, keyStr, OssFsType)
+	checkMountCountCmd := fmt.Sprintf("%s mount | grep %s | grep -E '%s|%s' | grep -v grep | wc -l", NsenterCmd, keyStr, OssFsType, JindoFsType)
 	out, err := utils.Run(checkMountCountCmd)
 	if err != nil {
 		return "0", err
