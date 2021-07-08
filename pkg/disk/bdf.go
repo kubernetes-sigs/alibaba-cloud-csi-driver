@@ -306,7 +306,7 @@ func clearBdfInfo(diskID, bdf string) (err error) {
 	removeTagsRequest.ResourceType = "disk"
 	removeTagsRequest.ResourceId = diskID
 	removeTagsRequest.RegionId = GlobalConfigVar.Region
-	ecsClient, err := getEcsClientById(diskID, "")
+	ecsClient, err := getEcsClientByID(diskID, "")
 	if err != nil {
 		return err
 	}

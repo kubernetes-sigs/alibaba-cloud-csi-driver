@@ -30,10 +30,10 @@ import (
 )
 
 // attach alibaba cloud disk
-func attachDisk(tenantUserUid, diskID, nodeID string, isSharedDisk bool) (string, error) {
+func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string, error) {
 	log.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
-	ecsClient, err := getEcsClientById("", tenantUserUid)
+	ecsClient, err := getEcsClientByID("", tenantUserUID)
 	// Step 1: check disk status
 	disk, err := findDiskByID(diskID, ecsClient)
 	if err != nil {
