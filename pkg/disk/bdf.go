@@ -283,7 +283,7 @@ func storeBdfInfo(diskID, bdf string) (err error) {
 	addTagsRequest.ResourceType = "disk"
 	addTagsRequest.ResourceId = diskID
 	addTagsRequest.RegionId = GlobalConfigVar.Region
-	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
+	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	_, err = GlobalConfigVar.EcsClient.AddTags(addTagsRequest)
 	if err != nil {
 		log.Warnf("storeBdfInfo: AddTags error: %s, %s", diskID, err.Error())
@@ -306,18 +306,21 @@ func clearBdfInfo(diskID, bdf string) (err error) {
 	removeTagsRequest.ResourceType = "disk"
 	removeTagsRequest.ResourceId = diskID
 	removeTagsRequest.RegionId = GlobalConfigVar.Region
-	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
-	_, err = GlobalConfigVar.EcsClient.RemoveTags(removeTagsRequest)
+	ecsClient, err := getEcsClientById(diskID, "")
+	if err != nil {
+		return err
+	}
+	_, err = ecsClient.RemoveTags(removeTagsRequest)
 	if err != nil {
 		log.Warnf("storeBdfInfo: Remove error: %s, %s", diskID, err.Error())
-		return
+		return err
 	}
 
 	log.Infof("Deleting bdf information successfully")
 	return nil
 }
 
-func forceDetachAllowed(disk *ecs.Disk, nodeID string) (allowed bool, err error) {
+func forceDetachAllowed(ecsClient *ecs.Client, disk *ecs.Disk, nodeID string) (allowed bool, err error) {
 	// The following case allow detach:
 	// 1. no depend bdf
 	// 2. instance status is stopped
@@ -326,7 +329,7 @@ func forceDetachAllowed(disk *ecs.Disk, nodeID string) (allowed bool, err error)
 	describeDisksRequest := ecs.CreateDescribeDisksRequest()
 	describeDisksRequest.RegionId = GlobalConfigVar.Region
 	describeDisksRequest.DiskIds = "[\"" + disk.DiskId + "\"]"
-	diskResponse, err := GlobalConfigVar.EcsClient.DescribeDisks(describeDisksRequest)
+	diskResponse, err := ecsClient.DescribeDisks(describeDisksRequest)
 	if err != nil {
 		log.Warnf("forceDetachAllowed: error with DescribeDisks: %s, %s", disk.DiskId, err.Error())
 		return false, errors.Wrapf(err, "DescribeInstances, instanceId=%s", disk.InstanceId)
@@ -349,7 +352,7 @@ func forceDetachAllowed(disk *ecs.Disk, nodeID string) (allowed bool, err error)
 	request := ecs.CreateDescribeInstancesRequest()
 	request.RegionId = disk.RegionId
 	request.InstanceIds = "[\"" + disk.InstanceId + "\"]"
-	instanceResponse, err := GlobalConfigVar.EcsClient.DescribeInstances(request)
+	instanceResponse, err := ecsClient.DescribeInstances(request)
 	if err != nil {
 		return false, errors.Wrapf(err, "DescribeInstances, instanceId=%s", disk.InstanceId)
 	}
