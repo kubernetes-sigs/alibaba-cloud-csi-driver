@@ -35,8 +35,11 @@ import (
 	"unicode"
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	perrors "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -185,7 +188,7 @@ func newEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *
 	return
 }
 
-func updateEcsClent(client *ecs.Client) *ecs.Client {
+func updateEcsClient(client *ecs.Client) *ecs.Client {
 	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
 	if accessToken != "" {
 		client = newEcsClient(accessKeyID, accessSecret, accessToken)
@@ -1256,4 +1259,79 @@ func intersect(slice1, slice2 []string) []string {
 		}
 	}
 	return nn
+}
+
+func getEcsClientById(volumeId, uid string) (ecsClient *ecs.Client, err error) {
+	// feature gate not enable;
+	if !GlobalConfigVar.DiskMultiTenantEnable {
+		ecsClient = updateEcsClient(GlobalConfigVar.EcsClient)
+		return ecsClient, nil
+	}
+
+	// volumeId not empty, get uid from pv;
+	if uid == "" && volumeId != "" {
+		uid, err = getTenantUidByVolumeId(volumeId)
+		if err != nil {
+			return nil, perrors.Wrapf(err, "get uid by volumeId, volumeId=%s", volumeId)
+		}
+	}
+
+	// uid always empty after describe pv spec, use GlobalConfigVar.EcsClient
+	if uid == "" {
+		ecsClient = updateEcsClient(GlobalConfigVar.EcsClient)
+		return ecsClient, nil
+	}
+
+	// create role client with uid;
+	if ecsClient, err = createRoleClient(uid); err != nil {
+		return nil, perrors.Wrapf(err, "createRoleClient, tenant uid=%s", uid)
+	}
+	return ecsClient, nil
+}
+
+func getTenantUidByVolumeId(volumeId string) (uid string, err error) {
+	// external-provisioner已经保证了PV的名字 == req.VolumeId
+	// 如果是静态PV，需要告知用户将PV#Name和PV#spec.volumeHandler配成一致
+	pv, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Get(context.Background(), volumeId, metav1.GetOptions{ResourceVersion: "0"})
+	if err != nil {
+		return "", perrors.Wrapf(err, "get pv, volumeId=%s", volumeId)
+	}
+	if pv.Spec.CSI == nil {
+		return "", perrors.Errorf("pv.Spec.CSI is nil, volumeId=%s", volumeId)
+	}
+	return pv.Spec.CSI.VolumeAttributes[TenantUserUid], nil
+}
+
+func createRoleClient(uid string) (cli *ecs.Client, err error) {
+	if uid == "" {
+		return nil, errors.New("uid is empty")
+	}
+	roleAccessKeyID, roleAccessKeySecret, roleArn := utils.GetDefaultRoleAK()
+	if roleAccessKeyID == "" || roleAccessKeySecret == "" {
+		return nil, errors.New("role access key id or secret is empty")
+	}
+	if roleArn == "" {
+		return nil, errors.New("role arn is empty")
+	}
+
+	roleCli, err := sts.NewClientWithAccessKey(GetRegionID(), roleAccessKeyID, roleAccessKeySecret)
+	if err != nil {
+		return nil, perrors.Wrapf(err, "sts.NewClientWithAccessKey")
+	}
+	req := sts.CreateAssumeRoleRequest()
+	req.RoleArn = fmt.Sprintf("acs:ram::%s:role/%s", uid, roleArn)
+	req.RoleSessionName = "ack-csi"
+	req.DurationSeconds = requests.NewInteger(3600)
+	// 必须https
+	req.Scheme = "https"
+
+	resp, err := roleCli.AssumeRole(req)
+	if err != nil {
+		return nil, perrors.Wrapf(err, "AssumeRole")
+	}
+	cli = newEcsClient(resp.Credentials.AccessKeyId, resp.Credentials.AccessKeySecret, resp.Credentials.SecurityToken)
+	if cli.Client.GetConfig() != nil {
+		cli.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
+	}
+	return cli, nil
 }

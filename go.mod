@@ -21,7 +21,7 @@ require (
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/kubernetes-csi/csi-lib-utils v0.7.1 // indirect
 	github.com/kubernetes-csi/drivers v1.0.2
-	github.com/looplab/fsm v0.2.0
+	github.com/looplab/fsm v0.2.0 // indirect
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.0.0
