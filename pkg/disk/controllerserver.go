@@ -206,7 +206,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	// 需要配置external-provisioner启动参数--extra-create-metadata=true，然后ACK的external-provisioner才会将PVC的Annotations传过来
-	ecsClient, err := getEcsClientById("", req.Parameters[TenantUserUid])
+	ecsClient, err := getEcsClientByID("", req.Parameters[TenantUserUID])
 	// Step 2: Check whether volume is created
 	disks, err := findDiskByName(ecsClient, req.GetName(), diskVol.ResourceGroupID, sharedDisk)
 	if err != nil {
@@ -350,8 +350,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if createdDiskType != "" {
 		volumeContext["type"] = createdDiskType
 	}
-	if tenantUserUid := req.Parameters[TenantUserUid]; tenantUserUid != "" {
-		volumeContext[TenantUserUid] = tenantUserUid
+	if tenantUserUID := req.Parameters[TenantUserUID]; tenantUserUID != "" {
+		volumeContext[TenantUserUID] = tenantUserUID
 	}
 
 	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeResponse.DiskId, diskVol.ZoneID, createdDiskType, requestGB, volumeResponse.RequestId)
@@ -397,7 +397,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		return nil, status.Errorf(codes.InvalidArgument, "DeleteVolume: invalid delete volume req: %v", req)
 	}
 	// For now the image get unconditionally deleted, but here retention policy can be checked
-	ecsClient, err := getEcsClientById(req.VolumeId, "")
+	ecsClient, err := getEcsClientByID(req.VolumeId, "")
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -491,7 +491,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume missing VolumeId/NodeId in request")
 	}
 
-	_, err := attachDisk(req.VolumeContext[TenantUserUid], req.VolumeId, req.NodeId, isSharedDisk)
+	_, err := attachDisk(req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk)
 	if err != nil {
 		log.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
@@ -518,7 +518,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		return nil, status.Error(codes.InvalidArgument, "ControllerUnpublishVolume missing VolumeId/NodeId in request")
 	}
 
-	ecsClient, err := getEcsClientById(req.VolumeId, "")
+	ecsClient, err := getEcsClientByID(req.VolumeId, "")
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -628,7 +628,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 			Snapshot: value,
 		}, nil
 	}
-	ecsClient, err := getEcsClientById(sourceVolumeID, "")
+	ecsClient, err := getEcsClientByID(sourceVolumeID, "")
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -821,7 +821,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	log.Infof("ControllerExpandVolume:: Starting expand disk with: %v", req)
 
 	// check resize conditions
-	ecsClient, err := getEcsClientById(req.VolumeId, "")
+	ecsClient, err := getEcsClientByID(req.VolumeId, "")
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

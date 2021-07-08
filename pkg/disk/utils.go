@@ -1261,7 +1261,7 @@ func intersect(slice1, slice2 []string) []string {
 	return nn
 }
 
-func getEcsClientById(volumeId, uid string) (ecsClient *ecs.Client, err error) {
+func getEcsClientByID(volumeId, uid string) (ecsClient *ecs.Client, err error) {
 	// feature gate not enable;
 	if !GlobalConfigVar.DiskMultiTenantEnable {
 		ecsClient = updateEcsClient(GlobalConfigVar.EcsClient)
@@ -1270,7 +1270,7 @@ func getEcsClientById(volumeId, uid string) (ecsClient *ecs.Client, err error) {
 
 	// volumeId not empty, get uid from pv;
 	if uid == "" && volumeId != "" {
-		uid, err = getTenantUidByVolumeId(volumeId)
+		uid, err = getTenantUidByVolumeID(volumeId)
 		if err != nil {
 			return nil, perrors.Wrapf(err, "get uid by volumeId, volumeId=%s", volumeId)
 		}
@@ -1289,17 +1289,17 @@ func getEcsClientById(volumeId, uid string) (ecsClient *ecs.Client, err error) {
 	return ecsClient, nil
 }
 
-func getTenantUidByVolumeId(volumeId string) (uid string, err error) {
+func getTenantUidByVolumeID(volumeID string) (uid string, err error) {
 	// external-provisioner已经保证了PV的名字 == req.VolumeId
 	// 如果是静态PV，需要告知用户将PV#Name和PV#spec.volumeHandler配成一致
-	pv, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Get(context.Background(), volumeId, metav1.GetOptions{ResourceVersion: "0"})
+	pv, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{ResourceVersion: "0"})
 	if err != nil {
-		return "", perrors.Wrapf(err, "get pv, volumeId=%s", volumeId)
+		return "", perrors.Wrapf(err, "get pv, volumeId=%s", volumeID)
 	}
 	if pv.Spec.CSI == nil {
-		return "", perrors.Errorf("pv.Spec.CSI is nil, volumeId=%s", volumeId)
+		return "", perrors.Errorf("pv.Spec.CSI is nil, volumeId=%s", volumeID)
 	}
-	return pv.Spec.CSI.VolumeAttributes[TenantUserUid], nil
+	return pv.Spec.CSI.VolumeAttributes[TenantUserUID], nil
 }
 
 func createRoleClient(uid string) (cli *ecs.Client, err error) {
