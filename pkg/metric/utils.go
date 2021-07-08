@@ -185,7 +185,7 @@ func getDeviceByVolumeID(pvName, volumeID string) (device string, err error) {
 	}
 
 	if device, err = getDeviceBySymlink(volumeID); err != nil {
-		mountPath := filepath.Join("/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/staging", pvName, volumeID)
+		mountPath := filepath.Join(kubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/staging", pvName, volumeID)
 		cmd := fmt.Sprintf("findmnt -o SOURCE --noheadings %s", mountPath)
 		out, err := utils.Run(cmd)
 		if err != nil {

@@ -43,7 +43,7 @@ func FixOrphanedPodIssue(line string) bool {
 	}
 
 	// check kubernetes csi volumes
-	csiPodPath := filepath.Join("/var/lib/kubelet/pods", orphanUID, "volumes/kubernetes.io~csi")
+	csiPodPath := filepath.Join(GlobalConfigVar.KubeletRootDir, "/pods", orphanUID, "volumes/kubernetes.io~csi")
 	volumes, err := ioutil.ReadDir(csiPodPath)
 	if err != nil {
 		log.Warnf("OrphanPod: List Volumes with error: %s, line: %s", err.Error(), line)

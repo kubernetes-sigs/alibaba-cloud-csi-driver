@@ -255,7 +255,7 @@ func parseMountStats(r io.Reader) ([]*Mount, error) {
 
 	s := bufio.NewScanner(r)
 	for s.Scan() {
-		if strings.Contains(s.Text(), "/kubernetes.io~csi/") && strings.Contains(s.Text(), "fstype nfs") && strings.Contains(s.Text(), "/var/lib/kubelet/") {
+		if strings.Contains(s.Text(), "/kubernetes.io~csi/") && strings.Contains(s.Text(), "fstype nfs") && strings.Contains(s.Text(), kubeletRootDir) {
 			// Only look for device entries in this function
 			ss := strings.Fields(string(s.Bytes()))
 			if len(ss) == 0 || ss[0] != device {

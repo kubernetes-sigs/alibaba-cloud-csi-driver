@@ -4,6 +4,7 @@ import (
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs"
+	"path/filepath"
 )
 
 const (
@@ -73,8 +74,6 @@ const (
 	volDataFile      = "vol_data.json"
 	csiMountKeyWords = "volumes/kubernetes.io~csi"
 	procPath         = procfs.DefaultMountPoint + "/"
-	rawBlockRootPath = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/"
-	podsRootPath     = "/var/lib/kubelet/pods"
 )
 
 type collectorFactoryFunc = func() (Collector, error)
@@ -84,6 +83,8 @@ type collectorFactoryFunc = func() (Collector, error)
 var (
 	csiCollectorInstance *CSICollector
 	factories            = make(map[string]collectorFactoryFunc)
+	rawBlockRootPath = filepath.Join(kubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/")
+	podsRootPath     = filepath.Join(kubeletRootDir, "/pods")
 )
 
 type typedFactorDesc struct {
