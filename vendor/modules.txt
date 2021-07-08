@@ -15,6 +15,7 @@ github.com/aliyun/alibaba-cloud-sdk-go/sdk/utils
 github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs
 github.com/aliyun/alibaba-cloud-sdk-go/services/ecs
 github.com/aliyun/alibaba-cloud-sdk-go/services/nas
+github.com/aliyun/alibaba-cloud-sdk-go/services/sts
 # github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 => github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
 github.com/beorn7/perks/quantile
 # github.com/container-storage-interface/spec v1.2.0 => github.com/container-storage-interface/spec v1.1.0
@@ -118,8 +119,6 @@ github.com/konsorten/go-windows-terminal-sequences
 github.com/kubernetes-csi/csi-lib-utils/protosanitizer
 # github.com/kubernetes-csi/drivers v1.0.2
 github.com/kubernetes-csi/drivers/pkg/csi-common
-# github.com/looplab/fsm v0.2.0
-github.com/looplab/fsm
 # github.com/matttproud/golang_protobuf_extensions v1.0.1 => github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd => github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
