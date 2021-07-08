@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -485,7 +486,7 @@ func getDiskStats() (map[string][]string, error) {
 }
 
 func getGlobalMountPathByPvName(pvName string, info *diskInfo) {
-	info.GlobalMountPath = fmt.Sprintf("/var/lib/kubelet/plugins/kubernetes.io/csi/pv/%s/globalmount", pvName)
+	info.GlobalMountPath = filepath.Join(kubeletRootDir, "/plugins/kubernetes.io/csi/pv/", pvName, "/globalmount")
 }
 
 func getDiskCapacityMetric(pvName string, info *diskInfo, stat []string) ([]string, error) {

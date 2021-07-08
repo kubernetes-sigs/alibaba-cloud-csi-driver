@@ -34,7 +34,9 @@ const (
 
 var (
 	version = "1.0.0"
+	kubeletRootDir = os.Getenv("KUBELET_ROOT_DIR")
 )
+
 
 // OSS the OSS object
 type OSS struct {
@@ -71,6 +73,10 @@ func NewDriver(nodeID, endpoint string) *OSS {
 func newNodeServer(d *OSS) *nodeServer {
 	// sync oss credential
 	go syncCredential()
+
+	if kubeletRootDir == "" {
+		kubeletRootDir = "/var/lib/kubelet"
+	}
 
 	return &nodeServer{
 		k8smounter:        k8smount.New(""),
