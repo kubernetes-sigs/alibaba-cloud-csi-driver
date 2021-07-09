@@ -59,6 +59,7 @@ func BdfHealthCheck() {
 	}
 
 	// running in loop
+	// if bdf hang exist, unused not be checked.
 	for {
 		isHang := checkBdfHang(recorder)
 		if doUnusedCheck && !isHang {
@@ -68,6 +69,8 @@ func BdfHealthCheck() {
 	}
 }
 
+// check if bdf hang in host
+// record events if bdf hang;
 func checkBdfHang(recorder record.EventRecorder) bool {
 	if isHang, err := isBdfHang(); isHang {
 		errMsg := fmt.Sprintf("Find BDF Hang in Node %s, with message: %v", GlobalConfigVar.NodeID, err)
@@ -79,6 +82,8 @@ func checkBdfHang(recorder record.EventRecorder) bool {
 	return false
 }
 
+// check disk attached but not used in host;
+// if volume is bdf bind, it should be mounted by directory;
 func checkDiskUnused(recorder record.EventRecorder) {
 	deviceList, err := getDiskUnUsed()
 	if err != nil && len(deviceList) == 0 {
@@ -94,6 +99,19 @@ func checkDiskUnused(recorder record.EventRecorder) {
 	}
 }
 
+// go routine for bdf check command;
+func checkBdfHangCmd() error {
+	chckHang := "cat /sys/block/*/serial &"
+	err := utils.RunTimeout(chckHang, 3)
+	if err != nil {
+		log.Errorf("BdfCheck: command exec: %s with error: %v", chckHang, err)
+		return err
+	}
+	return nil
+}
+
+// check bdf hang exist in host
+// suppose cat /sys/block/ will be hang, if bdf hang;
 func isBdfHang() (bool, error) {
 	cmdHang := "ps -ef | grep \"cat /sys/block/\" | grep -v grep | wc -l"
 	psOut, err := utils.Run(cmdHang)
@@ -104,11 +122,10 @@ func isBdfHang() (bool, error) {
 		return true, fmt.Errorf("Proccess cat /sys/block/ already exist ")
 	}
 
-	chckHang := "cat /sys/block/*/serial &"
-	err = utils.RunTimeout(chckHang, 3)
-	if err != nil {
-		return true, err
-	}
+	// run cat /sys/block/*/serial
+	// go routine avoid command hang
+	go checkBdfHangCmd()
+	time.Sleep(time.Duration(5) * time.Millisecond)
 
 	psOut, err = utils.Run(cmdHang)
 	if err != nil {
@@ -121,6 +138,7 @@ func isBdfHang() (bool, error) {
 	return false, nil
 }
 
+// get disk unused
 func getDiskUnUsed() ([]string, error) {
 	files, err := ioutil.ReadDir("/dev/")
 	if err != nil {
@@ -185,7 +203,7 @@ func getDiskUnUsed() ([]string, error) {
 		if _, ok := DeviceMap[fsDev]; ok {
 			delete(DeviceMap, fsDev)
 		} else {
-			log.Warnf("Device %s is not find under /dev, but is mounted by path", fsDev)
+			log.Warnf("BdfCheck: Device %s is not find under /dev, but is mounted by path", fsDev)
 		}
 	}
 	// Delete Block device
@@ -196,7 +214,7 @@ func getDiskUnUsed() ([]string, error) {
 		if _, ok := DeviceMap[blockDev]; ok {
 			delete(DeviceMap, blockDev)
 		} else {
-			log.Warnf("Device %s is not find under /dev, but is mounted by block", blockDev)
+			log.Warnf("BdfCheck: Device %s is not find under /dev, but is mounted by block", blockDev)
 		}
 	}
 
@@ -276,9 +294,10 @@ func getDiskList(diskList []string) ([]ecs.Disk, error) {
 	}
 	describeDisksRequest.DiskIds = "[" + strings.Join(diskListCopy, ",") + "]"
 	describeDisksRequest.PageSize = requests.NewInteger(100)
+	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	diskResponse, err := GlobalConfigVar.EcsClient.DescribeDisks(describeDisksRequest)
 	if err != nil {
-		log.Warnf("getDiskList: error with DescribeDisks: %s, %s", diskList, err.Error())
+		log.Warnf("getDiskList: DescribeDisks error with: %s, %s", diskList, err.Error())
 		return []ecs.Disk{}, err
 	}
 	return diskResponse.Disks.Disk, nil
