@@ -39,6 +39,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 //NewMetricHandler method returns a promHttp object
 func NewMetricHandler(serviceType string) *Handler {
+
 	setServiceType(serviceType)
 	//csi collector singleton
 	err := newCSICollector()

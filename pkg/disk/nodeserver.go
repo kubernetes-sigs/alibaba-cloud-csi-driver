@@ -94,8 +94,6 @@ const (
 	RunvRunTimeMode = "runv"
 	// InputOutputErr tag
 	InputOutputErr = "input/output error"
-	// BLOCKVOLUMEPREFIX block volume mount prefix
-	BLOCKVOLUMEPREFIX = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/publish"
 	// FileSystemLoseCapacityPercent is the env of container
 	FileSystemLoseCapacityPercent = "FILE_SYSTEM_LOSE_PERCENT"
 	// NsenterCmd run command on host
@@ -104,6 +102,11 @@ const (
 	DiskMultiTenantEnable = "DISK_MULTI_TENANT_ENABLE"
 	// TenantUserUID tag
 	TenantUserUID = "alibabacloud.com/user-uid"
+)
+
+var (
+	// BLOCKVOLUMEPREFIX block volume mount prefix
+	BLOCKVOLUMEPREFIX = filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/publish")
 )
 
 // QueryResponse response struct for query server

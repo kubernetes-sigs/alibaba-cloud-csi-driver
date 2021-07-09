@@ -108,7 +108,8 @@ var (
 	nodeID          = flag.String("nodeid", "", "node id")
 	runAsController = flag.Bool("run-as-controller", false, "Only run as controller service")
 	driver          = flag.String("driver", TypePluginDISK, "CSI Driver")
-	rootDir         = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
+	// Deprecated: rootDir is instead by KUBELET_ROOT_DIR env.
+	rootDir = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
 )
 
 type globalMetricConfig struct {
@@ -165,11 +166,11 @@ func main() {
 		if driverName == TypePluginYODA {
 			driverName = TypePluginLOCAL
 		}
-		if err := createPersistentStorage(path.Join(*rootDir, driverName, "controller")); err != nil {
+		if err := createPersistentStorage(path.Join(utils.KubeletRootDir, "/csi-plugins", driverName, "controller")); err != nil {
 			log.Errorf("failed to create persistent storage for controller: %v", err)
 			os.Exit(1)
 		}
-		if err := createPersistentStorage(path.Join(*rootDir, driverName, "node")); err != nil {
+		if err := createPersistentStorage(path.Join(utils.KubeletRootDir, "/csi-plugins", driverName, "node")); err != nil {
 			log.Errorf("failed to create persistent storage for node: %v", err)
 			os.Exit(1)
 		}

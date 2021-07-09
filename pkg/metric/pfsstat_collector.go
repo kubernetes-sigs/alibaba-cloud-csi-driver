@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,11 +23,11 @@ import (
 
 var (
 	rawBlockStatLabelNames = []string{"namespace", "pvc", "device", "type"}
+	volumeDevice           = filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/")
+	defaultTokenFormat     = filepath.Join(utils.KubeletRootDir, "/pods/%s/volumes/kubernetes.io~secret/default-token")
 )
 
 const (
-	volumeDevice       = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/"
-	defaultTokenFormat = "/var/lib/kubelet/pods/%s/volumes/kubernetes.io~secret/default-token"
 	//RawBlockUnit is 4MB
 	pfsRawBlockUnit       = 4 * 1024 * 1024
 	notFoundvolumeDevices = "Not found volumeDevices"
@@ -364,7 +365,7 @@ func getStatByDockerID(dockerID string, dockerClient **client.Client) ([]string,
 
 func getPfsRawBlockPvName() ([]string, error) {
 	var pvNameArray []string
-	mountCmd := "mount | grep /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices | grep staging"
+	mountCmd := fmt.Sprintf("mount | grep %s/plugins/kubernetes.io/csi/volumeDevices | grep staging", utils.KubeletRootDir)
 	mount, err := utils.Run(mountCmd)
 	if err != nil && strings.Contains(err.Error(), "with out: , with error:") {
 		return nil, errors.New(notFoundvolumeDevices)

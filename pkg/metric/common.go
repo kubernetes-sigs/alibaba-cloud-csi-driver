@@ -2,8 +2,10 @@ package metric
 
 import (
 	"github.com/emirpasic/gods/sets/hashset"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs"
+	"path/filepath"
 )
 
 const (
@@ -25,35 +27,21 @@ const (
 )
 
 const (
-	clusterNamespace string = "cluster"
-	nodeNamespace    string = "node"
-)
-
-const (
-	scrapeSubSystem string = "scrape"
-	volumeSubSystem string = "volume"
-)
-
-const (
-	latencySwitch  = "latency"
-	capacitySwitch = "capacity"
-)
-const (
-	diskSectorSize                          = 512
-	diskDefaultsLantencyThreshold           = 10
-	diskDefaultsCapacityPercentageThreshold = 85
-	float64EqualityThreshold                = 1e-9
-)
-
-const (
-	diskStatsFileName = "diskstats"
-	nfsStatsFileName  = "/proc/self/mountstats"
-)
-
-const (
-	latencyTooHigh    = "LatencyTooHigh"
-	capacityNotEnough = "NotEnoughDiskSpace"
-	ioHang            = "IOHang"
+	clusterNamespace                        string = "cluster"
+	nodeNamespace                           string = "node"
+	scrapeSubSystem                         string = "scrape"
+	volumeSubSystem                         string = "volume"
+	latencySwitch                                  = "latency"
+	capacitySwitch                                 = "capacity"
+	diskSectorSize                                 = 512
+	diskDefaultsLantencyThreshold                  = 10
+	diskDefaultsCapacityPercentageThreshold        = 85
+	float64EqualityThreshold                       = 1e-9
+	diskStatsFileName                              = "diskstats"
+	nfsStatsFileName                               = "/proc/self/mountstats"
+	latencyTooHigh                                 = "LatencyTooHigh"
+	capacityNotEnough                              = "NotEnoughDiskSpace"
+	ioHang                                         = "IOHang"
 )
 
 var (
@@ -73,8 +61,6 @@ const (
 	volDataFile      = "vol_data.json"
 	csiMountKeyWords = "volumes/kubernetes.io~csi"
 	procPath         = procfs.DefaultMountPoint + "/"
-	rawBlockRootPath = "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/"
-	podsRootPath     = "/var/lib/kubelet/pods"
 )
 
 type collectorFactoryFunc = func() (Collector, error)
@@ -84,6 +70,8 @@ type collectorFactoryFunc = func() (Collector, error)
 var (
 	csiCollectorInstance *CSICollector
 	factories            = make(map[string]collectorFactoryFunc)
+	rawBlockRootPath     = filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/")
+	podsRootPath         = filepath.Join(utils.KubeletRootDir, "/pods")
 )
 
 type typedFactorDesc struct {
