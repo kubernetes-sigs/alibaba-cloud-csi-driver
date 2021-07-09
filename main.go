@@ -109,7 +109,7 @@ var (
 	runAsController = flag.Bool("run-as-controller", false, "Only run as controller service")
 	driver          = flag.String("driver", TypePluginDISK, "CSI Driver")
 	// Deprecated: rootDir is instead by KUBELET_ROOT_DIR env.
-	rootDir         = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
+	rootDir = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
 )
 
 type globalMetricConfig struct {
