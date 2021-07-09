@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/api/core/v1"
@@ -68,7 +70,7 @@ func BdfHealthCheck() {
 
 func checkBdfHang(recorder record.EventRecorder) bool {
 	if isHang, err := isBdfHang(); isHang {
-		errMsg := fmt.Sprintf("Find BDF Hang in Node %s, with error %v", GlobalConfigVar.NodeID, err)
+		errMsg := fmt.Sprintf("Find BDF Hang in Node %s, with message: %v", GlobalConfigVar.NodeID, err)
 		log.Errorf(errMsg)
 		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeHang, errMsg)
 		DingTalk(errMsg)
@@ -78,14 +80,14 @@ func checkBdfHang(recorder record.EventRecorder) bool {
 }
 
 func checkDiskUnused(recorder record.EventRecorder) {
-	deviceList, err := getDiskUnused()
+	deviceList, err := getDiskUnUsed()
 	if err != nil && len(deviceList) == 0 {
-		errMsg := fmt.Sprintf("Get unUsed Device in Node %s, with error: %v", GlobalConfigVar.NodeID, err)
+		errMsg := fmt.Sprintf("Get UnUsed BDF Device in Node %s, with error: %v", GlobalConfigVar.NodeID, err)
 		log.Warnf(errMsg)
 		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeUnUsed, errMsg)
 		DingTalk(errMsg)
 	} else if err != nil && len(deviceList) != 0 {
-		errMsg := fmt.Sprintf("Get UnUsed Device in Node %s, devices: %v", GlobalConfigVar.NodeID, deviceList)
+		errMsg := fmt.Sprintf("Get UnUsed BDF Device in Node %s, devices: %v, with message: %v", GlobalConfigVar.NodeID, deviceList, err)
 		log.Warnf(errMsg)
 		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeUnUsed, errMsg)
 		DingTalk(errMsg)
@@ -93,13 +95,13 @@ func checkDiskUnused(recorder record.EventRecorder) {
 }
 
 func isBdfHang() (bool, error) {
-	cmdHang := "ps -ef |grep \"cat /sys/block/\" | grep -v grep | wc -l"
+	cmdHang := "ps -ef | grep \"cat /sys/block/\" | grep -v grep | wc -l"
 	psOut, err := utils.Run(cmdHang)
 	if err != nil {
 		return true, err
 	}
 	if strings.TrimSpace(psOut) != "0" {
-		return true, fmt.Errorf("Proccess cat /sys/block/ exist ")
+		return true, fmt.Errorf("Proccess cat /sys/block/ already exist ")
 	}
 
 	chckHang := "cat /sys/block/*/serial &"
@@ -119,7 +121,7 @@ func isBdfHang() (bool, error) {
 	return false, nil
 }
 
-func getDiskUnused() ([]string, error) {
+func getDiskUnUsed() ([]string, error) {
 	files, err := ioutil.ReadDir("/dev/")
 	if err != nil {
 		return nil, err
@@ -151,7 +153,7 @@ func getDiskUnused() ([]string, error) {
 
 	// Get all mounted device by filesystem
 	FileSystemDeviceMap := map[string]bool{}
-	fsCheckCmd := "mount |grep /var/lib/kubelet/plugins/kubernetes.io/csi/pv/ | awk '{print $1}'"
+	fsCheckCmd := "mount | grep /var/lib/kubelet/plugins/kubernetes.io/csi/pv/ | awk '{print $1}'"
 	out, err := utils.Run(fsCheckCmd)
 	if err != nil {
 		return nil, err
@@ -165,7 +167,7 @@ func getDiskUnused() ([]string, error) {
 
 	// Get all mounted device by block
 	BlockMntMap := map[string]bool{}
-	blockCheckCmd := "findmnt -o SOURCE | grep \"devtmpfs\\[\" |  awk -F[ '{print $2}'"
+	blockCheckCmd := "findmnt -o TARGET,SOURCE | grep \"devtmpfs\\[\" | grep /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/staging | awk '{print $NF}' |  awk -F[ '{print $2}'"
 	blockOut, err := utils.Run(blockCheckCmd)
 	if err != nil {
 		return nil, err
@@ -188,6 +190,9 @@ func getDiskUnused() ([]string, error) {
 	}
 	// Delete Block device
 	for blockDev := range BlockMntMap {
+		if blockDev == "" {
+			continue
+		}
 		if _, ok := DeviceMap[blockDev]; ok {
 			delete(DeviceMap, blockDev)
 		} else {
@@ -197,13 +202,111 @@ func getDiskUnused() ([]string, error) {
 
 	// check Device unused;
 	if len(DeviceMap) != 0 {
-		unUsedDevice := []string{}
+		unUsedDevices := []string{}
 		for key := range DeviceMap {
-			unUsedDevice = append(unUsedDevice, key)
+			unUsedDevices = append(unUsedDevices, key)
 		}
-		return unUsedDevice, fmt.Errorf("Devices %v is Not Used ", unUsedDevice)
+		disks, err := addDiskBdfTag(unUsedDevices)
+		return unUsedDevices, fmt.Errorf("diskIDs: %v, error: %v", disks, err)
 	}
 	return nil, nil
+}
+
+func addDiskBdfTag(devices []string) ([]string, error) {
+	// Get diskIDs for devices
+	disks := []string{}
+	for _, device := range devices {
+		diskID, err := GetVolumeIDByDevice(device)
+		if err != nil {
+			return nil, fmt.Errorf("BdfCheck: Get DiskID for Device %s error: %v", device, err)
+		}
+		disks = append(disks, diskID)
+	}
+	if len(devices) != len(disks) {
+		log.Errorf("BdfCheck: disks %v not same with devices %v", disks, devices)
+	}
+
+	// filter untaged disks
+	disksResponse, err := getDiskList(disks)
+	if err != nil {
+		return disks, err
+	}
+	diskNeedTag := []string{}
+	for _, diskItem := range disksResponse {
+		bdfTagExist := false
+		for _, tag := range diskItem.Tags.Tag {
+			if tag.TagKey == DiskBdfTagKey {
+				bdfTagExist = true
+				break
+			}
+		}
+		if !bdfTagExist {
+			diskNeedTag = append(diskNeedTag, diskItem.DiskId)
+		}
+	}
+	// all disks(unused) have tag already
+	if len(diskNeedTag) == 0 {
+		return disks, nil
+	}
+
+	// Add bdf tag to disks
+	errAddDisk := []string{}
+	for _, diskID := range diskNeedTag {
+		err := addBdfTagToDisk(diskID)
+		if err != nil {
+			errAddDisk = append(errAddDisk, diskID)
+		}
+		time.Sleep(time.Duration(50) * time.Millisecond)
+	}
+	if len(errAddDisk) != 0 {
+		return disks, fmt.Errorf("Disks %v add tag failed ", errAddDisk)
+	}
+
+	log.Infof("BdfCheck: Add bdf tag for disks: %v", diskNeedTag)
+	return disks, nil
+}
+
+func getDiskList(diskList []string) ([]ecs.Disk, error) {
+	// Step 1: Describe disk, if tag exist, return;
+	describeDisksRequest := ecs.CreateDescribeDisksRequest()
+	describeDisksRequest.RegionId = GlobalConfigVar.Region
+	diskListCopy := []string{}
+	for _, diskID := range diskList {
+		diskListCopy = append(diskListCopy, "\""+diskID+"\"")
+	}
+	describeDisksRequest.DiskIds = "[" + strings.Join(diskListCopy, ",") + "]"
+	describeDisksRequest.PageSize = requests.NewInteger(100)
+	diskResponse, err := GlobalConfigVar.EcsClient.DescribeDisks(describeDisksRequest)
+	if err != nil {
+		log.Warnf("getDiskList: error with DescribeDisks: %s, %s", diskList, err.Error())
+		return []ecs.Disk{}, err
+	}
+	return diskResponse.Disks.Disk, nil
+}
+
+func addBdfTagToDisk(diskID string) (err error) {
+	info := BdfAttachInfo{
+		Depend:             true,
+		LastAttachedNodeID: GlobalConfigVar.NodeID,
+	}
+	infoBytes, _ := json.Marshal(info)
+
+	// Step 2: create & attach tag
+	addTagsRequest := ecs.CreateAddTagsRequest()
+	tmpTag := ecs.AddTagsTag{Key: DiskBdfTagKey, Value: string(infoBytes)}
+	tmpTag1 := ecs.AddTagsTag{Key: DiskBdfCheckTagKey, Value: "true"}
+	addTagsRequest.Tag = &[]ecs.AddTagsTag{tmpTag, tmpTag1}
+	addTagsRequest.ResourceType = "disk"
+	addTagsRequest.ResourceId = diskID
+	addTagsRequest.RegionId = GlobalConfigVar.Region
+	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
+	_, err = GlobalConfigVar.EcsClient.AddTags(addTagsRequest)
+	if err != nil {
+		log.Warnf("BDFCheck: disk %s attached to instance %s, but not used, add bdf tag error: %s", diskID, GlobalConfigVar.NodeID, err.Error())
+		return err
+	}
+	log.Infof("BDFCheck: disk %s attached to instance %s, but not used, add bdf tag successfully", diskID, GlobalConfigVar.NodeID)
+	return nil
 }
 
 // DingMsg struct
