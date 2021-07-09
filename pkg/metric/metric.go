@@ -7,7 +7,6 @@ import (
 	"github.com/prometheus/common/version"
 	"github.com/sirupsen/logrus"
 	"net/http"
-	"os"
 	"strings"
 	"sync"
 )
@@ -15,8 +14,6 @@ import (
 //Handler is a package of promHttp,metric entry
 type Handler struct {
 }
-
-var kubeletRootDir = os.Getenv("KUBELET_ROOT_DIR")
 
 // ServeHTTP implements http.Handler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -42,9 +39,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 //NewMetricHandler method returns a promHttp object
 func NewMetricHandler(serviceType string) *Handler {
-	if kubeletRootDir == "" {
-		kubeletRootDir = "/var/lib/kubelet"
-	}
 
 	setServiceType(serviceType)
 	//csi collector singleton

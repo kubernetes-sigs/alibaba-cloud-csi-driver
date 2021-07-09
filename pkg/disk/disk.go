@@ -76,7 +76,6 @@ type GlobalConfig struct {
 	ControllerService     bool
 	BdfHealthCheck        bool
 	DiskMultiTenantEnable bool
-	KubeletRootDir        string
 }
 
 // define global variable
@@ -335,11 +334,6 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		isDiskMultiTenantEnable = false
 	}
 
-	kubeletRootDir := os.Getenv("KUBELET_ROOT_DIR")
-	if kubeletRootDir == "" {
-		kubeletRootDir = "/var/lib/kubelet"
-	}
-
 	log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete, clustID)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
@@ -362,7 +356,6 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		ControllerService:     controllerServerType,
 		BdfHealthCheck:        bdfCheck,
 		DiskMultiTenantEnable: isDiskMultiTenantEnable,
-		KubeletRootDir:        kubeletRootDir,
 	}
 	return cfg
 }

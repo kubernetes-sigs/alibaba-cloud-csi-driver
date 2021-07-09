@@ -42,7 +42,6 @@ type GlobalConfig struct {
 	EcsInstanceID      string
 	ADControllerEnable bool
 	DBFSDetachDisable  bool
-	KubeletRootDir     string
 }
 
 // DBFS define driver
@@ -160,11 +159,6 @@ func GlobalConfigSet(region string) {
 		isDbfsDetachDisable = false
 	}
 
-	kubeletRootDir := os.Getenv("KUBELET_ROOT_DIR")
-	if kubeletRootDir == "" {
-		kubeletRootDir = "/var/lib/kubelet"
-	}
-
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	GlobalConfigVar.MetricEnable = isMetricEnable
 	GlobalConfigVar.NodeName = nodeName
@@ -173,6 +167,5 @@ func GlobalConfigSet(region string) {
 	GlobalConfigVar.ADControllerEnable = isADControllerEnable
 	GlobalConfigVar.DBFSDomain = "dbfs." + GlobalConfigVar.Region + ".aliyuncs.com"
 	GlobalConfigVar.DBFSDetachDisable = isDbfsDetachDisable
-	GlobalConfigVar.KubeletRootDir = kubeletRootDir
 	log.Infof("DBFS Global Config: %v", GlobalConfigVar)
 }

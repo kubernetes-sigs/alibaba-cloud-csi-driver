@@ -1,6 +1,7 @@
 package om
 
 import (
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
@@ -65,7 +66,7 @@ func isFileRemovable(file string) (bool, string) {
 
 // /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/pvc-54574338-42dc-4c7e-8337-e015d4e6dbc1/dev/abc
 func isFileBlockLink(file string) bool {
-	if !strings.HasPrefix(file, filepath.Join(GlobalConfigVar.KubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/")) {
+	if !strings.HasPrefix(file, filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/")) {
 		return false
 	}
 

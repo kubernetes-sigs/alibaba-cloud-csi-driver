@@ -23,8 +23,8 @@ import (
 
 var (
 	rawBlockStatLabelNames = []string{"namespace", "pvc", "device", "type"}
-	volumeDevice           = filepath.Join(kubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/")
-	defaultTokenFormat     = filepath.Join(kubeletRootDir, "/pods/%s/volumes/kubernetes.io~secret/default-token")
+	volumeDevice           = filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/")
+	defaultTokenFormat     = filepath.Join(utils.KubeletRootDir, "/pods/%s/volumes/kubernetes.io~secret/default-token")
 )
 
 const (
@@ -365,7 +365,7 @@ func getStatByDockerID(dockerID string, dockerClient **client.Client) ([]string,
 
 func getPfsRawBlockPvName() ([]string, error) {
 	var pvNameArray []string
-	mountCmd := fmt.Sprintf("mount | grep %s/plugins/kubernetes.io/csi/volumeDevices | grep staging", kubeletRootDir)
+	mountCmd := fmt.Sprintf("mount | grep %s/plugins/kubernetes.io/csi/volumeDevices | grep staging", utils.KubeletRootDir)
 	mount, err := utils.Run(mountCmd)
 	if err != nil && strings.Contains(err.Error(), "with out: , with error:") {
 		return nil, errors.New(notFoundvolumeDevices)
