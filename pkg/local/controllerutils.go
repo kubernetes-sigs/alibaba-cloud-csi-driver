@@ -31,9 +31,9 @@ func lvmScheduled(storageSelected string, parameters map[string]string) (map[str
 		storageMap := map[string]string{}
 		err := json.Unmarshal([]byte(storageSelected), &storageMap)
 		if err != nil {
-			return nil, status.Error(codes.InvalidArgument, "Scheduler provide error storage format: "+err.Error())
-		}
-		if value, ok := storageMap["VolumeGroup"]; ok {
+			paraList[VgNameTag] = storageSelected
+			vgName = storageSelected
+		} else if value, ok := storageMap["VolumeGroup"]; ok {
 			paraList[VgNameTag] = value
 			vgName = value
 		}
