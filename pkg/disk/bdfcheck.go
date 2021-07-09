@@ -206,19 +206,19 @@ func getDiskUnUsed() ([]string, error) {
 		for key := range DeviceMap {
 			unUsedDevices = append(unUsedDevices, key)
 		}
-		err := addDiskBdfTag(unUsedDevices)
-		return unUsedDevices, fmt.Errorf("%v", err)
+		disks, err := addDiskBdfTag(unUsedDevices)
+		return unUsedDevices, fmt.Errorf("diskIDs: %v, error: %v", disks, err)
 	}
 	return nil, nil
 }
 
-func addDiskBdfTag(devices []string) error {
+func addDiskBdfTag(devices []string) ([]string, error) {
 	// Get diskIDs for devices
 	disks := []string{}
 	for _, device := range devices {
 		diskID, err := GetVolumeIDByDevice(device)
 		if err != nil {
-			return fmt.Errorf("BdfCheck: Get DiskID for Device %s error: %v", device, err)
+			return nil, fmt.Errorf("BdfCheck: Get DiskID for Device %s error: %v", device, err)
 		}
 		disks = append(disks, diskID)
 	}
@@ -229,7 +229,7 @@ func addDiskBdfTag(devices []string) error {
 	// filter untaged disks
 	disksResponse, err := getDiskList(disks)
 	if err != nil {
-		return err
+		return disks, err
 	}
 	diskNeedTag := []string{}
 	for _, diskItem := range disksResponse {
@@ -246,7 +246,7 @@ func addDiskBdfTag(devices []string) error {
 	}
 	// all disks(unused) have tag already
 	if len(diskNeedTag) == 0 {
-		return nil
+		return disks, nil
 	}
 
 	// Add bdf tag to disks
@@ -259,11 +259,11 @@ func addDiskBdfTag(devices []string) error {
 		time.Sleep(time.Duration(50) * time.Millisecond)
 	}
 	if len(errAddDisk) != 0 {
-		return fmt.Errorf("Disks %v add tag failed ", errAddDisk)
+		return disks, fmt.Errorf("Disks %v add tag failed ", errAddDisk)
 	}
 
 	log.Infof("BdfCheck: Add bdf tag for disks: %v", diskNeedTag)
-	return nil
+	return disks, nil
 }
 
 func getDiskList(diskList []string) ([]ecs.Disk, error) {
