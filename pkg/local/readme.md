@@ -17,5 +17,5 @@
 
 ### adapter:
 
-Add support for yoda plugin; schedule pod with storage capacity.
+Add support for Yoda plugin; schedule pod with storage capacity.
 
