@@ -375,7 +375,7 @@ func (ns *nodeServer) umountGlobalPath(volumeID, targetPath string) error {
 	partsLen := len(pathParts)
 	if partsLen > 2 && pathParts[partsLen-1] == "mount" {
 		pvName := pathParts[partsLen-2]
-		globalPath := filepath.Join("/var/lib/kubelet/plugins/kubernetes.io/csi/pv/", pvName, "/globalmount")
+		globalPath := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/pv/", pvName, "/globalmount")
 		if podMounted, err := isPodMounted(pvName); err == nil && podMounted == false {
 			notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(globalPath)
 			if err == nil && !notmounted {

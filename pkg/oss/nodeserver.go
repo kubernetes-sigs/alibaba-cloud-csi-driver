@@ -24,6 +24,7 @@ import (
 	"google.golang.org/grpc/status"
 	"io/ioutil"
 	"net"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -65,8 +66,6 @@ const (
 	AkID = "akId"
 	// AkSecret is Ak Secret
 	AkSecret = "akSecret"
-	// SharedPath is the shared mountpoint when UseSharedPath is "true"
-	SharedPath = "/var/lib/kubelet/plugins/kubernetes.io/csi/pv/%s/globalmount"
 	// OssFsType is the oss filesystem type
 	OssFsType = "fuse.ossfs"
 	// JindoFsType tag
@@ -75,6 +74,11 @@ const (
 	JindofsCredentialPathInPod = "/oss-secret/sts-token"
 	// JindofsCredentialPathOnHost Host side sts file
 	JindofsCredentialPathOnHost = "/host/etc/jindofs-credentials"
+)
+
+var (
+	// SharedPath is the shared mountpoint when UseSharedPath is "true"
+	SharedPath = filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/pv/%s/globalmount")
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
