@@ -26,35 +26,21 @@ const (
 )
 
 const (
-	clusterNamespace string = "cluster"
-	nodeNamespace    string = "node"
-)
-
-const (
-	scrapeSubSystem string = "scrape"
-	volumeSubSystem string = "volume"
-)
-
-const (
-	latencySwitch  = "latency"
-	capacitySwitch = "capacity"
-)
-const (
-	diskSectorSize                          = 512
-	diskDefaultsLantencyThreshold           = 10
-	diskDefaultsCapacityPercentageThreshold = 85
-	float64EqualityThreshold                = 1e-9
-)
-
-const (
-	diskStatsFileName = "diskstats"
-	nfsStatsFileName  = "/proc/self/mountstats"
-)
-
-const (
-	latencyTooHigh    = "LatencyTooHigh"
-	capacityNotEnough = "NotEnoughDiskSpace"
-	ioHang            = "IOHang"
+	clusterNamespace                        string = "cluster"
+	nodeNamespace                           string = "node"
+	scrapeSubSystem                         string = "scrape"
+	volumeSubSystem                         string = "volume"
+	latencySwitch                                  = "latency"
+	capacitySwitch                                 = "capacity"
+	diskSectorSize                                 = 512
+	diskDefaultsLantencyThreshold                  = 10
+	diskDefaultsCapacityPercentageThreshold        = 85
+	float64EqualityThreshold                       = 1e-9
+	diskStatsFileName                              = "diskstats"
+	nfsStatsFileName                               = "/proc/self/mountstats"
+	latencyTooHigh                                 = "LatencyTooHigh"
+	capacityNotEnough                              = "NotEnoughDiskSpace"
+	ioHang                                         = "IOHang"
 )
 
 var (
@@ -83,8 +69,8 @@ type collectorFactoryFunc = func() (Collector, error)
 var (
 	csiCollectorInstance *CSICollector
 	factories            = make(map[string]collectorFactoryFunc)
-	rawBlockRootPath = filepath.Join(kubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/")
-	podsRootPath     = filepath.Join(kubeletRootDir, "/pods")
+	rawBlockRootPath     = filepath.Join(kubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/")
+	podsRootPath         = filepath.Join(kubeletRootDir, "/pods")
 )
 
 type typedFactorDesc struct {

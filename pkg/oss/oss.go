@@ -33,10 +33,9 @@ const (
 )
 
 var (
-	version = "1.0.0"
+	version        = "1.0.0"
 	kubeletRootDir = os.Getenv("KUBELET_ROOT_DIR")
 )
-
 
 // OSS the OSS object
 type OSS struct {

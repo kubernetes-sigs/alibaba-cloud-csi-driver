@@ -7,8 +7,8 @@ import (
 	"github.com/prometheus/common/version"
 	"github.com/sirupsen/logrus"
 	"net/http"
-	"strings"
 	"os"
+	"strings"
 	"sync"
 )
 
