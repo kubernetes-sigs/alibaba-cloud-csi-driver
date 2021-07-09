@@ -40,6 +40,8 @@ const (
 	InstanceStatusStopped = "Stopped"
 	// DiskBdfTagKey disk bdf tag
 	DiskBdfTagKey = "bdf.csi.aliyun.com"
+	// DiskBdfCheckTagKey disk bdf check tag
+	DiskBdfCheckTagKey = "check.bdf.csi.aliyun.com"
 )
 
 // PatchStringValue type
