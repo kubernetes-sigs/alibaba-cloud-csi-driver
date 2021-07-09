@@ -42,7 +42,7 @@ type GlobalConfig struct {
 	EcsInstanceID      string
 	ADControllerEnable bool
 	DBFSDetachDisable  bool
-	KubeletRootDir    string
+	KubeletRootDir     string
 }
 
 // DBFS define driver

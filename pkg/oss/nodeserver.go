@@ -79,8 +79,8 @@ const (
 var (
 	// SharedPath is the shared mountpoint when UseSharedPath is "true"
 	SharedPath = filepath.Join(kubeletRootDir, "/plugins/kubernetes.io/csi/pv/%s/globalmount")
-
 )
+
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// logout oss paras
 	log.Infof("NodePublishVolume:: Starting Mount volume: %s to path: %s", req.VolumeId, req.TargetPath)
