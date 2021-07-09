@@ -2,6 +2,7 @@ package metric
 
 import (
 	"github.com/emirpasic/gods/sets/hashset"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs"
 	"path/filepath"
@@ -69,8 +70,8 @@ type collectorFactoryFunc = func() (Collector, error)
 var (
 	csiCollectorInstance *CSICollector
 	factories            = make(map[string]collectorFactoryFunc)
-	rawBlockRootPath     = filepath.Join(kubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/")
-	podsRootPath         = filepath.Join(kubeletRootDir, "/pods")
+	rawBlockRootPath     = filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/")
+	podsRootPath         = filepath.Join(utils.KubeletRootDir, "/pods")
 )
 
 type typedFactorDesc struct {

@@ -108,6 +108,7 @@ var (
 	nodeID          = flag.String("nodeid", "", "node id")
 	runAsController = flag.Bool("run-as-controller", false, "Only run as controller service")
 	driver          = flag.String("driver", TypePluginDISK, "CSI Driver")
+	// Deprecated: rootDir is instead by KUBELET_ROOT_DIR env.
 	rootDir         = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
 )
 
@@ -130,10 +131,6 @@ func main() {
 		log.Fatalf("Service type is unknown:%s", serviceType)
 	}
 
-	kubeletRootDir := os.Getenv("KUBELET_ROOT_DIR")
-	if kubeletRootDir == "" {
-		kubeletRootDir = "/var/lib/kubelet"
-	}
 	var logAttribute string
 	switch serviceType {
 	case utils.ProvisionerService:
@@ -169,11 +166,11 @@ func main() {
 		if driverName == TypePluginYODA {
 			driverName = TypePluginLOCAL
 		}
-		if err := createPersistentStorage(path.Join(kubeletRootDir, "/csi-plugins", driverName, "controller")); err != nil {
+		if err := createPersistentStorage(path.Join(utils.KubeletRootDir, "/csi-plugins", driverName, "controller")); err != nil {
 			log.Errorf("failed to create persistent storage for controller: %v", err)
 			os.Exit(1)
 		}
-		if err := createPersistentStorage(path.Join(kubeletRootDir, "/csi-plugins", driverName, "node")); err != nil {
+		if err := createPersistentStorage(path.Join(utils.KubeletRootDir, "/csi-plugins", driverName, "node")); err != nil {
 			log.Errorf("failed to create persistent storage for node: %v", err)
 			os.Exit(1)
 		}

@@ -34,7 +34,6 @@ type GlobalConfig struct {
 	MessageFileTailLines int
 	IssueBlockReference  bool
 	IssueOrphanedPod     bool
-	KubeletRootDir       string
 }
 
 // StorageOM storage Operation and Maintenance
@@ -107,10 +106,4 @@ func GlobalConfigSet() {
 	if orphanedPod == "true" {
 		GlobalConfigVar.IssueOrphanedPod = true
 	}
-
-	kubeletRootDir := os.Getenv("KUBELET_ROOT_DIR")
-	if kubeletRootDir == "" {
-		kubeletRootDir = "/var/lib/kubelet"
-	}
-	GlobalConfigVar.KubeletRootDir = kubeletRootDir
 }

@@ -106,7 +106,7 @@ const (
 
 var (
 	// BLOCKVOLUMEPREFIX block volume mount prefix
-	BLOCKVOLUMEPREFIX = filepath.Join(GlobalConfigVar.KubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/publish")
+	BLOCKVOLUMEPREFIX = filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/publish")
 )
 
 // QueryResponse response struct for query server

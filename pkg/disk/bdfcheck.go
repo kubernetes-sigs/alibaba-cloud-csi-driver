@@ -140,7 +140,7 @@ func getDiskUnused() ([]string, error) {
 			continue
 		}
 		if f.Name() == "vdb" {
-			cmd := fmt.Sprintf("mount | grep \"vdb on %s type\" | wc -l", GlobalConfigVar.KubeletRootDir)
+			cmd := fmt.Sprintf("mount | grep \"vdb on %s type\" | wc -l", utils.KubeletRootDir)
 			if out, err := utils.Run(cmd); err == nil && strings.TrimSpace(out) != "0" {
 				continue
 			}
@@ -151,7 +151,7 @@ func getDiskUnused() ([]string, error) {
 
 	// Get all mounted device by filesystem
 	FileSystemDeviceMap := map[string]bool{}
-	fsCheckCmd := fmt.Sprintf("mount |grep %s/plugins/kubernetes.io/csi/pv/ | awk '{print $1}'", GlobalConfigVar.KubeletRootDir)
+	fsCheckCmd := fmt.Sprintf("mount |grep %s/plugins/kubernetes.io/csi/pv/ | awk '{print $1}'", utils.KubeletRootDir)
 	out, err := utils.Run(fsCheckCmd)
 	if err != nil {
 		return nil, err
