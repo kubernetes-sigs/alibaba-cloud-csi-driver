@@ -224,7 +224,7 @@ func getDiskUnUsedAndAddTag() ([]string, error) {
 
 		// there are unUsedDevices in host;
 		diskIDList, err := addDiskBdfTag(unUsedDevices)
-		return unUsedDevices, fmt.Errorf("diskIDs: %v, error: %v", diskIDList, err)
+		return unUsedDevices, fmt.Errorf("diskIDs: %v, message: %v", diskIDList, err)
 	}
 	return nil, nil
 }
@@ -287,6 +287,9 @@ func addDiskBdfTag(devices []string) ([]string, error) {
 	if len(devices) != len(disks) {
 		log.Errorf("BdfCheck: disks %v not same with devices %v", disks, devices)
 	}
+	if len(disks) == 0 {
+		return disks, nil
+	}
 
 	// filter untaged disks
 	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
@@ -314,19 +317,19 @@ func addDiskBdfTag(devices []string) ([]string, error) {
 
 	// Add bdf tag to disks
 	errAddDisk := []string{}
+	sucAddDisk := []string{}
 	for _, diskID := range diskNeedTag {
 		err := addBdfTagToDisk(diskID)
 		if err != nil {
 			errAddDisk = append(errAddDisk, diskID)
+		} else {
+			sucAddDisk = append(sucAddDisk, diskID)
 		}
 		time.Sleep(time.Duration(50) * time.Millisecond)
 	}
-	if len(errAddDisk) != 0 {
-		return disks, fmt.Errorf("Disks %v add tag failed ", errAddDisk)
-	}
 
-	log.Infof("BdfCheck: Add bdf tag for disks: %v", diskNeedTag)
-	return disks, nil
+	log.Infof("BdfCheck: Disks %v add bdf tag successful, Disks %v add bdf tag failed ", sucAddDisk, errAddDisk)
+	return disks, fmt.Errorf("Disks %v add bdf tag successful, Disks %v add bdf tag failed ", sucAddDisk, errAddDisk)
 }
 
 func getDiskList(diskList []string) ([]ecs.Disk, error) {
