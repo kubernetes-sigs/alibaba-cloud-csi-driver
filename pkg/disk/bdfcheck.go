@@ -57,6 +57,7 @@ func BdfHealthCheck() {
 	if unusedCheck == "false" {
 		doUnusedCheck = false
 	}
+	log.Infof("Bdf Health Check Starting, with Interval %d minutes...", interTime)
 
 	// running in loop
 	// if bdf hang exist, unused not be checked.
@@ -85,7 +86,7 @@ func checkBdfHang(recorder record.EventRecorder) bool {
 // check disk attached but not used in host;
 // if volume is bdf bind, it should be mounted by directory;
 func checkDiskUnused(recorder record.EventRecorder) {
-	deviceList, err := getDiskUnUsed()
+	deviceList, err := getDiskUnUsedAndAddTag()
 	if err != nil && len(deviceList) == 0 {
 		errMsg := fmt.Sprintf("Get UnUsed BDF Device in Node %s, with error: %v", GlobalConfigVar.NodeID, err)
 		log.Warnf(errMsg)
@@ -124,22 +125,31 @@ func isBdfHang() (bool, error) {
 
 	// run cat /sys/block/*/serial
 	// go routine avoid command hang
+	// sleep 50ms sometimes too short to wait command stop
 	go checkBdfHangCmd()
-	time.Sleep(time.Duration(5) * time.Millisecond)
+	time.Sleep(time.Duration(50) * time.Millisecond)
 
 	psOut, err = utils.Run(cmdHang)
 	if err != nil {
 		return true, err
 	}
 	if strings.TrimSpace(psOut) != "0" {
-		return true, fmt.Errorf("Proccess cat /sys/block/ exist after exec ")
+		// double check if bdf is hang
+		// sleep 3s to wait cat command finished.
+		time.Sleep(time.Duration(2) * time.Second)
+		psOut, err = utils.Run(cmdHang)
+		if err != nil {
+			return true, err
+		}
+		if strings.TrimSpace(psOut) != "0" {
+			return true, fmt.Errorf("Proccess cat /sys/block/ exist after exec ")
+		}
 	}
-
 	return false, nil
 }
 
 // get disk unused
-func getDiskUnUsed() ([]string, error) {
+func getDiskUnUsedAndAddTag() ([]string, error) {
 	files, err := ioutil.ReadDir("/dev/")
 	if err != nil {
 		return nil, err
@@ -169,33 +179,9 @@ func getDiskUnUsed() ([]string, error) {
 		DeviceMap[devPath] = true
 	}
 
-	// Get all mounted device by filesystem
-	FileSystemDeviceMap := map[string]bool{}
-	fsCheckCmd := "mount | grep /var/lib/kubelet/plugins/kubernetes.io/csi/pv/ | awk '{print $1}'"
-	out, err := utils.Run(fsCheckCmd)
+	FileSystemDeviceMap, BlockMntMap, err := getDeviceMounted()
 	if err != nil {
 		return nil, err
-	}
-	for _, deviceStr := range strings.Split(out, "\n") {
-		if strings.TrimSpace(deviceStr) == "" {
-			continue
-		}
-		FileSystemDeviceMap[deviceStr] = true
-	}
-
-	// Get all mounted device by block
-	BlockMntMap := map[string]bool{}
-	blockCheckCmd := "findmnt -o TARGET,SOURCE | grep \"devtmpfs\\[\" | grep /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/staging | awk '{print $NF}' |  awk -F[ '{print $2}'"
-	blockOut, err := utils.Run(blockCheckCmd)
-	if err != nil {
-		return nil, err
-	}
-	for _, deviceStr := range strings.Split(blockOut, "\n") {
-		if strings.HasSuffix(deviceStr, "]") {
-			strLen := len(deviceStr)
-			devPath := filepath.Join("/dev/", deviceStr[0:strLen-1])
-			BlockMntMap[devPath] = true
-		}
 	}
 
 	// Delete Filesystem device
@@ -220,14 +206,72 @@ func getDiskUnUsed() ([]string, error) {
 
 	// check Device unused;
 	if len(DeviceMap) != 0 {
+		// wait for mount finished
+		time.Sleep(time.Duration(2) * time.Second)
 		unUsedDevices := []string{}
-		for key := range DeviceMap {
-			unUsedDevices = append(unUsedDevices, key)
+		FileSystemDeviceMap, BlockMntMap, err := getDeviceMounted()
+		if err != nil {
+			return nil, err
 		}
-		disks, err := addDiskBdfTag(unUsedDevices)
-		return unUsedDevices, fmt.Errorf("diskIDs: %v, error: %v", disks, err)
+		for key := range DeviceMap {
+			if utils.IsFileExisting(key) && doubleCheckDeviceUnUsed(FileSystemDeviceMap, BlockMntMap, key) {
+				unUsedDevices = append(unUsedDevices, key)
+			}
+		}
+		if len(unUsedDevices) == 0 {
+			return nil, nil
+		}
+
+		// there are unUsedDevices in host;
+		diskIDList, err := addDiskBdfTag(unUsedDevices)
+		return unUsedDevices, fmt.Errorf("diskIDs: %v, error: %v", diskIDList, err)
 	}
 	return nil, nil
+}
+
+// filesystem not mounted, block volume not mounted
+func doubleCheckDeviceUnUsed(FileSystemDeviceMap map[string]bool, BlockMntMap map[string]bool, deviceName string) bool {
+	if _, ok := FileSystemDeviceMap[deviceName]; ok {
+		return false
+	}
+	if _, ok := BlockMntMap[deviceName]; ok {
+		return false
+	}
+	return true
+}
+
+// get device mounted as filesystem or block volume
+func getDeviceMounted() (map[string]bool, map[string]bool, error) {
+	// Get all mounted device by filesystem
+	FileSystemDeviceMap := map[string]bool{}
+	fsCheckCmd := "mount | grep /var/lib/kubelet/plugins/kubernetes.io/csi/pv/ | awk '{print $1}'"
+	out, err := utils.Run(fsCheckCmd)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, deviceStr := range strings.Split(out, "\n") {
+		if strings.TrimSpace(deviceStr) == "" {
+			continue
+		}
+		FileSystemDeviceMap[deviceStr] = true
+	}
+
+	// Get all mounted device by block
+	BlockMntMap := map[string]bool{}
+	blockCheckCmd := "findmnt -o TARGET,SOURCE | grep \"devtmpfs\\[\" | grep /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/staging | awk '{print $NF}' |  awk -F[ '{print $2}'"
+	blockOut, err := utils.Run(blockCheckCmd)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, deviceStr := range strings.Split(blockOut, "\n") {
+		if strings.HasSuffix(deviceStr, "]") {
+			strLen := len(deviceStr)
+			devPath := filepath.Join("/dev/", deviceStr[0:strLen-1])
+			BlockMntMap[devPath] = true
+		}
+	}
+
+	return FileSystemDeviceMap, BlockMntMap, nil
 }
 
 func addDiskBdfTag(devices []string) ([]string, error) {
@@ -245,6 +289,7 @@ func addDiskBdfTag(devices []string) ([]string, error) {
 	}
 
 	// filter untaged disks
+	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	disksResponse, err := getDiskList(disks)
 	if err != nil {
 		return disks, err
@@ -294,7 +339,6 @@ func getDiskList(diskList []string) ([]ecs.Disk, error) {
 	}
 	describeDisksRequest.DiskIds = "[" + strings.Join(diskListCopy, ",") + "]"
 	describeDisksRequest.PageSize = requests.NewInteger(100)
-	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	diskResponse, err := GlobalConfigVar.EcsClient.DescribeDisks(describeDisksRequest)
 	if err != nil {
 		log.Warnf("getDiskList: DescribeDisks error with: %s, %s", diskList, err.Error())
@@ -318,7 +362,6 @@ func addBdfTagToDisk(diskID string) (err error) {
 	addTagsRequest.ResourceType = "disk"
 	addTagsRequest.ResourceId = diskID
 	addTagsRequest.RegionId = GlobalConfigVar.Region
-	GlobalConfigVar.EcsClient = updateEcsClent(GlobalConfigVar.EcsClient)
 	_, err = GlobalConfigVar.EcsClient.AddTags(addTagsRequest)
 	if err != nil {
 		log.Warnf("BDFCheck: disk %s attached to instance %s, but not used, add bdf tag error: %s", diskID, GlobalConfigVar.NodeID, err.Error())
