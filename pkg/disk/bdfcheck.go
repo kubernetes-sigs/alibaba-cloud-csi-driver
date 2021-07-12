@@ -93,7 +93,7 @@ func checkDiskUnused(recorder record.EventRecorder) {
 		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeUnUsed, errMsg)
 		DingTalk(errMsg)
 	} else if err != nil && len(deviceList) != 0 {
-		errMsg := fmt.Sprintf("Get UnUsed BDF Device in Node %s, devices: %v, with message: %v", GlobalConfigVar.NodeID, deviceList, err)
+		errMsg := fmt.Sprintf("Get UnUsed BDF Device in Node %s, DeviceList: %v, with message: %v", GlobalConfigVar.NodeID, deviceList, err)
 		log.Warnf(errMsg)
 		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeUnUsed, errMsg)
 		DingTalk(errMsg)
@@ -224,7 +224,7 @@ func getDiskUnUsedAndAddTag() ([]string, error) {
 
 		// there are unUsedDevices in host;
 		diskIDList, err := addDiskBdfTag(unUsedDevices)
-		return unUsedDevices, fmt.Errorf("diskIDs: %v, message: %v", diskIDList, err)
+		return unUsedDevices, fmt.Errorf("UnUsedDisks: %v, Udpate Tags: %v", diskIDList, err)
 	}
 	return nil, nil
 }
