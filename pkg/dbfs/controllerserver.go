@@ -317,7 +317,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	GlobalConfigVar.DbfsClient = updateDbfsClient(GlobalConfigVar.DbfsClient)
 	response, err := describeDbfs(req.VolumeId)
 	if err != nil {
-		if strings.Contains(err.Error(), "Not_Exist.DBFS") {
+		if strings.Contains(err.Error(), "EntityNotExist.DBFS") {
 			log.Infof("ControllerUnpublishVolume: DBFS not exist %s, just skip the detach (%s)", req.VolumeId, err.Error())
 			return &csi.ControllerUnpublishVolumeResponse{}, nil
 		}
@@ -348,7 +348,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	detachDbfsRequest.ECSInstanceId = req.NodeId
 	_, err = GlobalConfigVar.DbfsClient.DetachDbfs(detachDbfsRequest)
 	if err != nil {
-		if strings.Contains(err.Error(), "Not_Exist.DBFS") {
+		if strings.Contains(err.Error(), "EntityNotExist.DBFS") {
 			log.Infof("ControllerUnpublishVolume: DBFS not exist %s, just skip(%s)", req.VolumeId, err.Error())
 			return &csi.ControllerUnpublishVolumeResponse{}, nil
 		}
