@@ -297,7 +297,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 }
 
 func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
-	return &csi.NodeGetInfoResponse{
+	nodeInfo := &csi.NodeGetInfoResponse{
 		NodeId: ns.nodeID,
 		// make sure that the driver works on this particular node only
 		AccessibleTopology: &csi.Topology{
@@ -305,7 +305,17 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 				TopologyNodeKey: ns.nodeID,
 			},
 		},
-	}, nil
+	}
+
+	if types.GlobalConfigVar.HostNameAsTopo {
+		hostName, err := utils.Run("hostname")
+		if err != nil {
+			return nil, fmt.Errorf("NodeGetInfo: Get Node(%s) HostName error: %v ", ns.nodeID, err)
+		}
+		nodeInfo.NodeId = string(hostName)
+		nodeInfo.AccessibleTopology.Segments[TopologyNodeKey] = string(hostName)
+	}
+	return nodeInfo, nil
 }
 
 // NodeGetVolumeStats used for csi metrics

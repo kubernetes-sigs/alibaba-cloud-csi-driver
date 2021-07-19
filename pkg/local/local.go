@@ -141,15 +141,22 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 		grpcProvision = false
 	}
 
+	hostNameAsTop := false
+	hostNameEnv := os.Getenv("HOSTNAME_AS_TOPO")
+	if strings.ToLower(hostNameEnv) == "true" {
+		hostNameAsTop = true
+	}
+
 	// Global Config Set
 	types.GlobalConfigVar = types.GlobalConfig{
-		Region:        region,
-		NodeID:        nodeID,
-		Scheduler:     driverName,
-		PmemEnable:    pmemEnable,
-		PmemType:      pmeType,
-		GrpcProvision: grpcProvision,
-		KubeClient:    kubeClient,
+		Region:         region,
+		NodeID:         nodeID,
+		Scheduler:      driverName,
+		PmemEnable:     pmemEnable,
+		PmemType:       pmeType,
+		GrpcProvision:  grpcProvision,
+		KubeClient:     kubeClient,
+		HostNameAsTopo: hostNameAsTop,
 	}
 	log.Infof("Local Plugin Global Config is: %v", types.GlobalConfigVar)
 }
