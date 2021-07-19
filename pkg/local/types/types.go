@@ -13,6 +13,7 @@ type GlobalConfig struct {
 	PmemType       string
 	GrpcProvision  bool
 	HostNameAsTopo bool
+	TopoKeyDefine  string
 	KubeClient     *kubernetes.Clientset
 }
 

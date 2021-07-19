@@ -147,6 +147,12 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 		hostNameAsTop = true
 	}
 
+	topoKeyDefine := TopologyNodeKey
+	topoKeyStr := os.Getenv("TOPO_KEY_DEFINED")
+	if topoKeyStr != "" {
+		topoKeyDefine = topoKeyStr
+	}
+
 	// Global Config Set
 	types.GlobalConfigVar = types.GlobalConfig{
 		Region:         region,
@@ -157,6 +163,7 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 		GrpcProvision:  grpcProvision,
 		KubeClient:     kubeClient,
 		HostNameAsTopo: hostNameAsTop,
+		TopoKeyDefine:  topoKeyDefine,
 	}
 	log.Infof("Local Plugin Global Config is: %v", types.GlobalConfigVar)
 }

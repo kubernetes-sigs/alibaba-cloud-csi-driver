@@ -302,7 +302,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		// make sure that the driver works on this particular node only
 		AccessibleTopology: &csi.Topology{
 			Segments: map[string]string{
-				TopologyNodeKey: ns.nodeID,
+				types.GlobalConfigVar.TopoKeyDefine: ns.nodeID,
 			},
 		},
 	}
@@ -313,7 +313,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 			return nil, fmt.Errorf("NodeGetInfo: Get Node(%s) HostName error: %v ", ns.nodeID, err)
 		}
 		nodeInfo.NodeId = string(hostName)
-		nodeInfo.AccessibleTopology.Segments[TopologyNodeKey] = string(hostName)
+		nodeInfo.AccessibleTopology.Segments[types.GlobalConfigVar.TopoKeyDefine] = string(hostName)
 	}
 	return nodeInfo, nil
 }
