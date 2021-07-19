@@ -77,6 +77,21 @@ const (
 	RETENTIONDAYS = "retentionDays"
 	// INSTANTACCESSRETENTIONDAYS ...
 	INSTANTACCESSRETENTIONDAYS = "instantAccessRetentionDays"
+	// DiskSnapshotID means snapshot id
+	DiskSnapshotID = "csi.alibabacloud.com/disk-snapshot-id"
+)
+
+const (
+	// LastApplyKey key
+	LastApplyKey = "kubectl.kubernetes.io/last-applied-configuration"
+	// PvNameKey key
+	PvNameKey = "csi.storage.k8s.io/pv/name"
+	// PvcNameKey key
+	PvcNameKey = "csi.storage.k8s.io/pvc/name"
+	// PvcNamespaceKey key
+	PvcNamespaceKey = "csi.storage.k8s.io/pvc/namespace"
+	// StorageProvisionerKey key
+	StorageProvisionerKey = "volume.beta.kubernetes.io/storage-provisioner"
 )
 
 const (
@@ -250,6 +265,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 		snapshotID = sourceSnapshot.GetSnapshotId()
 	}
+	// set snapshotID if pvc labels/annotation set it.
+	if snapshotID == "" {
+		if value, ok := req.Parameters[DiskSnapshotID]; ok && value != "" {
+			snapshotID = value
+		}
+	}
 
 	// Step 3: init Disk create args
 	createDiskRequest := ecs.CreateCreateDiskRequest()
@@ -352,6 +373,21 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	if tenantUserUID := req.Parameters[TenantUserUID]; tenantUserUID != "" {
 		volumeContext[TenantUserUID] = tenantUserUID
+	}
+	if _, ok := volumeContext[LastApplyKey]; ok {
+		delete(volumeContext, LastApplyKey)
+	}
+	if _, ok := volumeContext[PvNameKey]; ok {
+		delete(volumeContext, PvNameKey)
+	}
+	if _, ok := volumeContext[PvcNameKey]; ok {
+		delete(volumeContext, PvcNameKey)
+	}
+	if _, ok := volumeContext[PvcNamespaceKey]; ok {
+		delete(volumeContext, PvcNamespaceKey)
+	}
+	if _, ok := volumeContext[StorageProvisionerKey]; ok {
+		delete(volumeContext, StorageProvisionerKey)
 	}
 
 	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeResponse.DiskId, diskVol.ZoneID, createdDiskType, requestGB, volumeResponse.RequestId)
