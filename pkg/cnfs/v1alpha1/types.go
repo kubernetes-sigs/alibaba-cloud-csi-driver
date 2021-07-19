@@ -45,21 +45,22 @@ type ContainerNetworkFileSystemSpec struct {
 
 //FsAttributes define cnfs status FsAttributes field
 type FsAttributes struct {
-	RegionID        string    `json:"regionId,omitempty"`
-	ZoneID          string    `json:"zoneId,omitempty"`
-	StorageType     string    `json:"storageType,omitempty"`
-	ProtocolType    string    `json:"protocolType,omitempty"`
-	EncryptType     string    `json:"encryptType,omitempty"`
-	AccessGroupName string    `json:"accessGroupName,omitempty"`
-	VpcID           string    `json:"vpcId,omitempty"`
-	VSwitchID       string    `json:"vSwitchId,omitempty"`
-	FilesystemID    string    `json:"filesystemId,omitempty"`
-	FilesystemType  string    `json:"filesystemType,omitempty"`
-	Server          string    `json:"server,omitempty"`
-	BucketName      string    `json:"bucketName,omitempty"`
-	EndPoint        *EndPoint `json:"endPoint,omitempty"`
-	ACLType         string    `json:"aclType,omitempty"`
-	EnableTrashCan  string    `json:"enableTrashCan,omitempty"`
+	RegionID             string    `json:"regionId,omitempty"`
+	ZoneID               string    `json:"zoneId,omitempty"`
+	StorageType          string    `json:"storageType,omitempty"`
+	ProtocolType         string    `json:"protocolType,omitempty"`
+	EncryptType          string    `json:"encryptType,omitempty"`
+	AccessGroupName      string    `json:"accessGroupName,omitempty"`
+	VpcID                string    `json:"vpcId,omitempty"`
+	VSwitchID            string    `json:"vSwitchId,omitempty"`
+	FilesystemID         string    `json:"filesystemId,omitempty"`
+	FilesystemType       string    `json:"filesystemType,omitempty"`
+	Server               string    `json:"server,omitempty"`
+	BucketName           string    `json:"bucketName,omitempty"`
+	EndPoint             *EndPoint `json:"endPoint,omitempty"`
+	ACLType              string    `json:"aclType,omitempty"`
+	EnableTrashCan       string    `json:"enableTrashCan,omitempty"`
+	TrashCanReservedDays string    `json:"trashCanReservedDays,omitempty"`
 }
 
 //EndPoint define cnfs endpoint field when cnfs type is oss
@@ -70,16 +71,17 @@ type EndPoint struct {
 
 //Parameters define cnfs parameters field
 type Parameters struct {
-	Secret         *Secret `json:"secret,omitempty"`
-	StorageType    string  `json:"storageType,omitempty"`
-	ProtocolType   string  `json:"protocolType,omitempty"`
-	EncryptType    string  `json:"encryptType,omitempty"`
-	VSwitchID      string  `json:"vSwitchId,omitempty"`
-	Server         string  `json:"server,omitempty"`
-	FileSystemType string  `json:"filesystemType,omitempty"`
-	BucketName     string  `json:"bucketName,omitempty"`
-	ACLType        string  `json:"aclType,omitempty"`
-	EnableTrashCan string  `json:"enableTrashCan,omitempty"`
+	Secret               *Secret `json:"secret,omitempty"`
+	StorageType          string  `json:"storageType,omitempty"`
+	ProtocolType         string  `json:"protocolType,omitempty"`
+	EncryptType          string  `json:"encryptType,omitempty"`
+	VSwitchID            string  `json:"vSwitchId,omitempty"`
+	Server               string  `json:"server,omitempty"`
+	FileSystemType       string  `json:"filesystemType,omitempty"`
+	BucketName           string  `json:"bucketName,omitempty"`
+	ACLType              string  `json:"aclType,omitempty"`
+	EnableTrashCan       string  `json:"enableTrashCan,omitempty"`
+	TrashCanReservedDays string  `json:"trashCanReservedDays,omitempty"`
 }
 
 //Secret define secret field
