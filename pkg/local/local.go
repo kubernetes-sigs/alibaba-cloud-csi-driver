@@ -142,13 +142,13 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 	}
 
 	hostNameAsTop := false
-	hostNameEnv := os.Getenv("HOSTNAME_AS_TOPO")
+	hostNameEnv := os.Getenv("LOCAL_HOSTNAME_AS_TOPO")
 	if strings.ToLower(hostNameEnv) == "true" {
 		hostNameAsTop = true
 	}
 
 	topoKeyDefine := TopologyNodeKey
-	topoKeyStr := os.Getenv("TOPO_KEY_DEFINED")
+	topoKeyStr := os.Getenv("LOCAL_TOPO_KEY_DEFINED")
 	if topoKeyStr != "" {
 		topoKeyDefine = topoKeyStr
 	}
