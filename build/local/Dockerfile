@@ -1,4 +1,5 @@
-FROM ubuntu:18.10
+FROM ubuntu:20.04
+
 LABEL maintainers="Alibaba Cloud Authors"
 LABEL description="Alibaba Cloud CSI Plugin"
 
