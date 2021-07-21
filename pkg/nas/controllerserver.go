@@ -23,7 +23,7 @@ import (
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1alpha1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"go.uber.org/ratelimit"
@@ -798,7 +798,7 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 			return nil, err
 		}
 		if !serverExist {
-			server, err := v1alpha1.GetContainerNetworkFileSystemServer(cs.crdClient, nasVolArgs.CnfsName)
+			server, err := v1beta1.GetContainerNetworkFileSystemServer(cs.crdClient, nasVolArgs.CnfsName)
 			if err != nil {
 				return nil, err
 			}

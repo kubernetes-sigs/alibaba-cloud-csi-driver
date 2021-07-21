@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1alpha1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -143,7 +143,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	if len(opt.Server) == 0 {
-		server, err := v1alpha1.GetContainerNetworkFileSystemServer(ns.crdClient, cnfsName)
+		server, err := v1beta1.GetContainerNetworkFileSystemServer(ns.crdClient, cnfsName)
 		if err != nil {
 			return nil, err
 		}
