@@ -1,4 +1,4 @@
-package v1alpha1
+package v1beta1
 
 import (
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -8,7 +8,7 @@ import (
 //GVR is cnfs version
 var GVR = schema.GroupVersionResource{
 	Group:    "storage.alibabacloud.com",
-	Version:  "v1alpha1",
+	Version:  "v1beta1",
 	Resource: "containernetworkfilesystems",
 }
 
