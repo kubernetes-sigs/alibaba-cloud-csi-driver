@@ -82,6 +82,8 @@ const (
 	PluginService = "plugin"
 	// ProvisionerService represents the csi-provisioner type.
 	ProvisionerService = "provisioner"
+	// InstallSnapshotCRD tag
+	InstallSnapshotCRD = "INSTALL_SNAPSHOT_CRD"
 )
 
 // KubernetesAlicloudIdentity set a identity label
