@@ -144,9 +144,13 @@ type diskSnapshot struct {
 
 // NewControllerServer is to create controller server
 func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset, region string) csi.ControllerServer {
-
+	installCRD := true
+	installCRDStr := os.Getenv(utils.InstallSnapshotCRD)
+	if installCRDStr == "false" {
+		installCRD = false
+	}
 	serviceType := os.Getenv(utils.ServiceType)
-	if serviceType == utils.ProvisionerService {
+	if serviceType == utils.ProvisionerService && installCRD {
 		checkInstallCRD(client)
 	}
 	c := &controllerServer{
