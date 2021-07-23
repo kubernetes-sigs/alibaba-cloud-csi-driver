@@ -507,6 +507,12 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 	if value, ok := pvInfo.Spec.CSI.VolumeAttributes["server"]; ok {
 		nfsServer = value
+	} else if value, ok := pvInfo.Spec.CSI.VolumeAttributes[ContainerNetworkFileSystem]; ok {
+		server, err := v1beta1.GetContainerNetworkFileSystemServer(cs.crdClient, value)
+		if err != nil {
+			return nil, err
+		}
+		nfsServer = server
 	} else {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with nfs server empty: %s, CSI: %v", req.VolumeId, pvInfo.Spec.CSI)
 	}
