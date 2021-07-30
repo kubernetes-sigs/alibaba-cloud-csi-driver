@@ -117,17 +117,18 @@ type controllerServer struct {
 
 // Alicloud disk parameters
 type diskVolumeArgs struct {
-	Type             string `json:"type"`
-	RegionID         string `json:"regionId"`
-	ZoneID           string `json:"zoneId"`
-	FsType           string `json:"fsType"`
-	ReadOnly         bool   `json:"readOnly"`
-	Encrypted        bool   `json:"encrypted"`
-	KMSKeyID         string `json:"kmsKeyId"`
-	PerformanceLevel string `json:"performanceLevel"`
-	ResourceGroupID  string `json:"resourceGroupId"`
-	DiskTags         string `json:"diskTags"`
-	NodeSelected     string `json:"nodeSelected"`
+	Type             string              `json:"type"`
+	RegionID         string              `json:"regionId"`
+	ZoneID           string              `json:"zoneId"`
+	FsType           string              `json:"fsType"`
+	ReadOnly         bool                `json:"readOnly"`
+	Encrypted        bool                `json:"encrypted"`
+	KMSKeyID         string              `json:"kmsKeyId"`
+	PerformanceLevel string              `json:"performanceLevel"`
+	ResourceGroupID  string              `json:"resourceGroupId"`
+	DiskTags         string              `json:"diskTags"`
+	NodeSelected     string              `json:"nodeSelected"`
+	ARN              []ecs.CreateDiskArn `json:"arn"`
 }
 
 // Alicloud disk snapshot parameters
@@ -283,6 +284,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	createDiskRequest.RegionId = diskVol.RegionID
 	createDiskRequest.ZoneId = diskVol.ZoneID
 	createDiskRequest.Encrypted = requests.NewBoolean(diskVol.Encrypted)
+	if len(diskVol.ARN) > 0 {
+		createDiskRequest.Arn = &diskVol.ARN
+	}
 	createDiskRequest.ResourceGroupId = diskVol.ResourceGroupID
 	if snapshotID != "" {
 		createDiskRequest.SnapshotId = snapshotID
