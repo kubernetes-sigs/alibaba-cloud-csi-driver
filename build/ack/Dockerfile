@@ -7,8 +7,8 @@ RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciu
 ARG ossfsVer=1.80.6.ack.1
 ARG update_ossfsVer=1.86.1.ack.1
 RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${ossfsVer}-b42b3a8_centos7.0_x86_64.rpm -o /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
-RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-e85518d_centos7.0_x86_64.rpm -o /root/ossfs_1.86.2_centos7.0_x86_64.rpm
-RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-a9e4226_centos8_x86_64.rpm -o /root/ossfs_1.86.2_centos8_x86_64.rpm
+RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-ca30fc4_centos7.0_x86_64.rpm -o /root/ossfs_1.86.4_centos7.0_x86_64.rpm
+RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-75ed4f1_centos8_x86_64.rpm -o /root/ossfs_1.86.4_centos8_x86_64.rpm
 
 COPY nsenter /nsenter
 COPY entrypoint.sh /entrypoint.sh
