@@ -25,16 +25,27 @@ var (
 	mntPathListInput = flag.String("paths", "", "define the mountpoints of the disks")
 )
 
+// RegionID for the instance
 var RegionID = "cn-hangzhou"
+
+// InstanceID tag
 var InstanceID = ""
+
+// K8sMounter tag
 var K8sMounter = k8smount.New("")
+
+// DiskMounter tag
 var DiskMounter = &k8smount.SafeFormatAndMount{Interface: K8sMounter, Exec: utilexec.New()}
 
 const (
+	// ExcludeFirstLastMode tag
 	ExcludeFirstLastMode = "device-exclude-first-last"
-	ExcludeFirstMode     = "device-exclude-first"
-	DeviceDefinedMode    = "device-defined"
-	DiskIdDefinedMode    = "device-disks"
+	// ExcludeFirstMode tag
+	ExcludeFirstMode = "device-exclude-first"
+	// DeviceDefinedMode tag
+	DeviceDefinedMode = "device-defined"
+	// DiskIDDefinedMode tag
+	DiskIDDefinedMode = "device-disks"
 )
 
 func init() {
@@ -121,14 +132,14 @@ func main() {
 			os.Exit(1)
 		}
 		break
-	case DiskIdDefinedMode:
+	case DiskIDDefinedMode:
 		if *diskListInput != "" {
 			diskList = strings.Split(*diskListInput, ",")
 			if len(diskList) != 0 {
 				for _, disk := range diskList {
 					disks := getDisk(disk)
 					if len(disks) == 0 {
-						log.Fatal("The input Disk %s not Found", disk)
+						log.Fatalf("The input Disk %s not Found", disk)
 					}
 				}
 			}
@@ -150,7 +161,7 @@ func safeInitDevice(device string, path string) error {
 	log.Infof("Starting Mount Device %s to Path: %s", device, path)
 
 	if !utils.IsFileExisting(device) {
-		log.Fatal("The Input Device %s not Found", device)
+		log.Fatalf("The Input Device %s not Found", device)
 	}
 	mkfsOptions := make([]string, 0)
 	mntOptions := make([]string, 0)
@@ -172,7 +183,7 @@ func safeInitDevice(device string, path string) error {
 	}
 
 	if err := disk.FormatAndMount(DiskMounter, device, path, "ext4", mkfsOptions, mntOptions); err != nil {
-		log.Fatal("Device %s, Path %s, FormatAndMount got error %v", device, path, err)
+		log.Fatalf("Device %s, Path %s, FormatAndMount got error %v", device, path, err)
 	}
 	log.Infof("Successful Mount Device %s to Path: %s", device, path)
 	return nil
@@ -182,7 +193,7 @@ func getPathDevice(path string) string {
 	cmd := fmt.Sprintf("findmnt %s -o SOURCE --noheadings | awk -F[ '{print $1}'", path)
 	out, err := utils.Run(cmd)
 	if err != nil {
-		log.Fatal("Exec FindMnt error: %v", err)
+		log.Fatalf("Exec FindMnt error: %v", err)
 	}
 	return strings.TrimSpace(string(out))
 }
