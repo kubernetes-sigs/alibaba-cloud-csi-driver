@@ -1002,6 +1002,12 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		diskVolArgs.KMSKeyID = ""
 	}
 
+	if arnStr, ok := volOptions[CreateDiskARN]; ok {
+		if err := json.Unmarshal([]byte(arnStr), &diskVolArgs.ARN); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal arn, string: %s, err: %v", arnStr, err)
+		}
+	}
+
 	// resourceGroupId
 	diskVolArgs.ResourceGroupID, ok = volOptions["resourceGroupId"]
 	if !ok {
