@@ -102,6 +102,8 @@ const (
 	DiskMultiTenantEnable = "DISK_MULTI_TENANT_ENABLE"
 	// TenantUserUID tag
 	TenantUserUID = "alibabacloud.com/user-uid"
+	// CreateDiskARN ARN parameter of the CreateDisk interface
+	CreateDiskARN = "alibabacloud.com/createdisk-arn"
 )
 
 var (
