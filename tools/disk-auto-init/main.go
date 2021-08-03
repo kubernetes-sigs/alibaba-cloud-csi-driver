@@ -185,7 +185,28 @@ func safeInitDevice(device string, path string) error {
 	if err := disk.FormatAndMount(DiskMounter, device, path, "ext4", mkfsOptions, mntOptions); err != nil {
 		log.Fatalf("Device %s, Path %s, FormatAndMount got error %v", device, path, err)
 	}
+	if err := addToFsTab(device, path); err != nil {
+		log.Fatalf("Device %s, Path %s, addToFsTab got error %v", device, path, err)
+	}
 	log.Infof("Successful Mount Device %s to Path: %s", device, path)
+	return nil
+}
+
+func addToFsTab(device, path string) error {
+	fsTabFile := "/etc/fstab"
+	deviceStr := fmt.Sprintf("%s %s ext4 defaults 0 0", device, path)
+	contents := utils.GetFileContent(fsTabFile)
+	if strings.Contains(contents, deviceStr) {
+		log.Errorf("/etc/fstab already contains %s", deviceStr)
+		return nil
+	}
+	inputCmd := fmt.Sprintf("echo \"%s\" >> /etc/fstab", deviceStr)
+	_, err := utils.Run(inputCmd)
+	if err != nil {
+		log.Errorf("Failed Append %s to /etc/fstab", deviceStr)
+		return err
+	}
+	log.Infof("Successful Append %s to /etc/fstab", deviceStr)
 	return nil
 }
 
