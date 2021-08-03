@@ -5,7 +5,6 @@ import (
 	"fmt"
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -163,7 +162,6 @@ func safeInitDevice(device string, path string) error {
 	if !utils.IsFileExisting(device) {
 		log.Fatalf("The Input Device %s not Found", device)
 	}
-	mkfsOptions := make([]string, 0)
 	mntOptions := make([]string, 0)
 	mntOptions = append(mntOptions, "shared")
 
@@ -182,7 +180,7 @@ func safeInitDevice(device string, path string) error {
 		log.Infof("Create Path %s", path)
 	}
 
-	if err := disk.FormatAndMount(DiskMounter, device, path, "ext4", mkfsOptions, mntOptions); err != nil {
+	if err := DiskMounter.FormatAndMount(device, path, "ext4", mntOptions); err != nil {
 		log.Fatalf("Device %s, Path %s, FormatAndMount got error %v", device, path, err)
 	}
 	if err := addToFsTab(device, path); err != nil {
