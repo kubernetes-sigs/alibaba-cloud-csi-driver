@@ -128,6 +128,8 @@ const (
 	describeResourceType = "DataDisk"
 	// NodeSchedueTag in annotations
 	NodeSchedueTag = "volume.kubernetes.io/selected-node"
+	// RetryMaxTimes ...
+	RetryMaxTimes = 5
 )
 
 var (
@@ -1161,20 +1163,24 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 	ctx := context.Background()
 	nodeName := os.Getenv(kubeNodeName)
 	nodeInfo, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
-	instanceType := nodeInfo.Labels[instanceTypeLabel]
-	zoneID := nodeInfo.Labels[zoneIDLabel]
 	if err != nil {
 		log.Errorf("UpdateNode:: get node info error : %s", err.Error())
 		return
 	}
+	instanceType := nodeInfo.Labels[instanceTypeLabel]
+	zoneID := nodeInfo.Labels[zoneIDLabel]
 	request := ecs.CreateDescribeAvailableResourceRequest()
 	request.InstanceType = instanceType
 	request.DestinationResource = describeResourceType
 	request.ZoneId = zoneID
-	response, err := c.DescribeAvailableResource(request)
-	if err != nil {
-		log.Errorf("UpdateNode:: describe available resource with nodeID: %s", instanceType)
-		return
+	var response *ecs.DescribeAvailableResourceResponse
+	for n := 1; n < RetryMaxTimes; n++ {
+		response, err = c.DescribeAvailableResource(request)
+		if err != nil {
+			log.Errorf("UpdateNode:: describe available resource with nodeID: %s", instanceType)
+			continue
+		}
+		break
 	}
 	availableZones := response.AvailableZones.AvailableZone
 	if len(availableZones) == 1 {
@@ -1200,17 +1206,25 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 		return
 	}
 	needUpdate := false
-	for n := 1; n < 5; n++ {
-		for _, storageLabel := range instanceStorageLabels {
-			if _, ok := nodeInfo.Labels[storageLabel]; ok {
-				continue
-			} else {
-				needUpdate = true
-				nodeInfo.Labels[storageLabel] = "available"
-			}
+	needUpdateLabels := []string{}
+	for _, storageLabel := range instanceStorageLabels {
+		if _, ok := nodeInfo.Labels[storageLabel]; ok {
+			continue
+		} else {
+			needUpdate = true
+			needUpdateLabels = append(needUpdateLabels, storageLabel)
 		}
+	}
+	for n := 1; n < RetryMaxTimes; n++ {
 		if needUpdate {
-			_, err = client.CoreV1().Nodes().Update(ctx, nodeInfo, metav1.UpdateOptions{})
+			newNode, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+			if err != nil {
+				continue
+			}
+			for _, updatedLabel := range needUpdateLabels {
+				newNode.Labels[updatedLabel] = "available"
+			}
+			_, err = client.CoreV1().Nodes().Update(ctx, newNode, metav1.UpdateOptions{})
 			if err != nil {
 				log.Errorf("UpdateNode:: update node error: %s", err.Error())
 				continue
