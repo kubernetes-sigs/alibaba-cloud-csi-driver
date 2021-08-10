@@ -91,7 +91,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	pvName := req.Name
 	cpfsOptions := []string{}
 	for _, volCap := range req.VolumeCapabilities {
-		volCapMount := ((*volCap).AccessType).(*csi.VolumeCapability_Mount)
+		var volCapMount *csi.VolumeCapability_Mount
+		volCapMount, ok := ((*volCap).AccessType).(*csi.VolumeCapability_Mount)
+		if !ok {
+			return nil, fmt.Errorf("CreateVolume: Input cpfs type error: volume: %v", req)
+		}
 		for _, mountFlag := range volCapMount.Mount.MountFlags {
 			cpfsOptions = append(cpfsOptions, mountFlag)
 		}
