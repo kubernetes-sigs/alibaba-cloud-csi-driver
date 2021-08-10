@@ -184,7 +184,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	pvName := req.Name
 	nfsOptions := []string{}
 	for _, volCap := range req.VolumeCapabilities {
-		volCapMount := ((*volCap).AccessType).(*csi.VolumeCapability_Mount)
+		volCapMount, ok := ((*volCap).AccessType).(*csi.VolumeCapability_Mount)
+		if !ok {
+			return nil, status.Errorf(codes.InvalidArgument, "Invalid accessType of create volumes: %v", volCap)
+		}
 		for _, mountFlag := range volCapMount.Mount.MountFlags {
 			nfsOptions = append(nfsOptions, mountFlag)
 		}
