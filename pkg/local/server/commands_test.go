@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -51,7 +52,7 @@ func TestSetProjectID2PVSubpath(t *testing.T) {
 				return procedureID, err
 			}
 			keys := strings.Split(namespaceSubpath, ",")
-			calculatedID, testErr := SetProjectID2PVSubpath(keys[0], keys[1], mockRun)
+			calculatedID, testErr := SetProjectID2PVSubpath(keys[0], keys[1], filepath.Dir(keys[1]), "ext4", mockRun)
 
 			assert.Equal(t, procedureID, calculatedID)
 
