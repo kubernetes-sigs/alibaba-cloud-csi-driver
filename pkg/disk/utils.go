@@ -182,6 +182,9 @@ func newEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *
 
 	if os.Getenv("INTERNAL_MODE") == "true" {
 		ecsClient.Network = "openapi-share"
+		if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
+			aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
+		}
 	} else {
 		// Set Unitized Endpoint for hangzhou region
 		SetEcsEndPoint(regionID)
