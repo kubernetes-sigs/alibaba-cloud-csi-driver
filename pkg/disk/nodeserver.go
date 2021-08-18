@@ -144,7 +144,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	nodeID := GlobalConfigVar.NodeID
 	internalMode := os.Getenv("INTERNAL_MODE")
 	if internalMode == "true" {
-		zoneID = getZoneID(c, nodeID)
+		zoneID, nodeID = getZoneID(c, nodeID)
 	} else {
 		doc, err := getInstanceDoc()
 		if err != nil {
