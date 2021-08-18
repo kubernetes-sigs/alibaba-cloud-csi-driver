@@ -1240,7 +1240,7 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 }
 
 // getZoneID ...
-func getZoneID(c *ecs.Client, instanceID string) string {
+func getZoneID(c *ecs.Client, instanceID string) (string, string) {
 
 	node, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), instanceID, metav1.GetOptions{})
 	if err != nil {
@@ -1270,7 +1270,7 @@ func getZoneID(c *ecs.Client, instanceID string) string {
 	if len(instanceResponse.Instances.Instance) != 1 {
 		log.Fatalf("getZoneID:: describe instance returns error instance count: %v, ecsID: %v", len(instanceResponse.Instances.Instance), ecsID)
 	}
-	return instanceResponse.Instances.Instance[0].ZoneId
+	return instanceResponse.Instances.Instance[0].ZoneId, ecsID
 }
 
 func intersect(slice1, slice2 []string) []string {
