@@ -38,12 +38,20 @@ test:
 
 .PHONY: build
 build:
+	./build/build-all-multi.sh "" $(REPONAME)
+
+./PHONY: build-amd
+build-amd:
 	./build/build-all.sh "" $(REPONAME)
 	./build/build-all-arm.sh "" $(REPONAME)
 
 ./PHONY: build-amd
 build-amd:
 	./build/build-all.sh "" $(REPONAME)
+
+.PHONY: build-arm
+build-arm:
+	./build/build-all-arm.sh "" $(REPONAME)
 
 .PHONY: build-arm
 build-arm:
