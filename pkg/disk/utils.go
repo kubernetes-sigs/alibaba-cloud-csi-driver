@@ -130,6 +130,12 @@ const (
 	NodeSchedueTag = "volume.kubernetes.io/selected-node"
 	// RetryMaxTimes ...
 	RetryMaxTimes = 5
+	// VolumeSnapshotNameKey tag
+	VolumeSnapshotNameKey = "csi.storage.k8s.io/volumesnapshot/name"
+	// VolumeSnapshotNameSpaceKey tag
+	VolumeSnapshotNameSpaceKey = "csi.storage.k8s.io/volumesnapshot/namespace"
+	// IAVolumeSnapshotKey tag
+	IAVolumeSnapshotKey = "csi.alibabacloud.com/snapshot-ia"
 )
 
 var (
@@ -1242,7 +1248,7 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 // getZoneID ...
 func getZoneID(c *ecs.Client, instanceID string) string {
 
-	node, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), instanceID, metav1.GetOptions{})
+	node, err := GlobalConfigVar.KubeClient.CoreV1().Nodes().Get(context.Background(), instanceID, metav1.GetOptions{})
 	if err != nil {
 		log.Fatalf("getZoneID:: get node error: %v", err)
 	}
@@ -1319,7 +1325,7 @@ func getEcsClientByID(volumeID, uid string) (ecsClient *ecs.Client, err error) {
 func getTenantUIDByVolumeID(volumeID string) (uid string, err error) {
 	// external-provisioner已经保证了PV的名字 == req.VolumeId
 	// 如果是静态PV，需要告知用户将PV#Name和PV#spec.volumeHandler配成一致
-	pv, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{ResourceVersion: "0"})
+	pv, err := GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{ResourceVersion: "0"})
 	if err != nil {
 		return "", perrors.Wrapf(err, "get pv, volumeId=%s", volumeID)
 	}
@@ -1361,4 +1367,30 @@ func createRoleClient(uid string) (cli *ecs.Client, err error) {
 		cli.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
 	}
 	return cli, nil
+}
+
+func updateSnapshotIAStatus(req *csi.CreateSnapshotRequest, status string) {
+	volumeSnapshotName := req.Parameters[VolumeSnapshotNameKey]
+	volumeSnapshotNameSpace := req.Parameters[VolumeSnapshotNameSpaceKey]
+	if volumeSnapshotName == "" || volumeSnapshotNameSpace == "" {
+		log.Warnf("CreateSnapshot: cannot get volumesnapshot name and namespace: %s, %s, %s", volumeSnapshotName, volumeSnapshotNameSpace, req.Name)
+		return
+	}
+
+	volumeSnapshot, err := GlobalConfigVar.SnapshotClient.VolumeSnapshots(volumeSnapshotNameSpace).Get(context.Background(), volumeSnapshotName, metav1.GetOptions{})
+	if err != nil {
+		log.Warnf("CreateSnapshot: get volumeSnapshot(%s/%s) labels error: %s", volumeSnapshotNameSpace, volumeSnapshotName, err.Error())
+		return
+	}
+	if volumeSnapshot.Labels == nil {
+		volumeSnapshot.Labels = map[string]string{}
+	}
+	volumeSnapshot.Labels[IAVolumeSnapshotKey] = status
+
+	_, err = GlobalConfigVar.SnapshotClient.VolumeSnapshots(volumeSnapshotNameSpace).Update(context.Background(), volumeSnapshot, metav1.UpdateOptions{})
+	if err != nil {
+		log.Warnf("CreateSnapshot: Update VolumeSnapshot(%s/%s) IA Status error: %s", volumeSnapshotNameSpace, volumeSnapshotName, err.Error())
+		return
+	}
+	log.Infof("CreateSnapshot: updateSnapshot(%s/%s) IA Status successful %s", volumeSnapshotNameSpace, volumeSnapshotName, req.Name)
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	snapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/typed/volumesnapshot/v1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -69,7 +70,8 @@ type GlobalConfig struct {
 	DetachBeforeAttach    bool
 	DetachBeforeDelete    bool
 	DiskBdfEnable         bool
-	ClientSet             *kubernetes.Clientset
+	KubeClient            *kubernetes.Clientset
+	SnapshotClient        *snapshotv1.SnapshotV1Client
 	FilesystemLosePercent float64
 	ClusterID             string
 	DiskPartitionEnable   bool
@@ -172,6 +174,12 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+
+	// Snapshot ClientSet
+	snapshotClient, err := snapshotv1.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building kubernetes snapshot clientset: %s", err.Error())
 	}
 
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
@@ -349,7 +357,8 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		DetachDisabled:        isDiskDetachDisable,
 		DetachBeforeDelete:    isDiskDetachBeforeDelete,
 		DetachBeforeAttach:    isDetachBeforeAttached,
-		ClientSet:             kubeClient,
+		KubeClient:            kubeClient,
+		SnapshotClient:        snapshotClient,
 		FilesystemLosePercent: fileSystemLosePercent,
 		ClusterID:             clustID,
 		DiskPartitionEnable:   partition,

@@ -41,6 +41,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -79,6 +80,10 @@ const (
 	INSTANTACCESSRETENTIONDAYS = "instantAccessRetentionDays"
 	// DiskSnapshotID means snapshot id
 	DiskSnapshotID = "csi.alibabacloud.com/disk-snapshot-id"
+	// SnapshotRetentionDaysDefault means snapshot auto remove duration
+	SnapshotRetentionDaysDefault = 30
+	// IASnapshotRetentionDaysDefault tag
+	IASnapshotRetentionDaysDefault = 1
 )
 
 const (
@@ -211,8 +216,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	nodeSupportDiskType := []string{}
 	if diskVol.NodeSelected != "" {
 		ctx := context.Background()
-		client := GlobalConfigVar.ClientSet
-		nodeInfo, err := client.CoreV1().Nodes().Get(ctx, diskVol.NodeSelected, metav1.GetOptions{})
+		nodeInfo, err := GlobalConfigVar.KubeClient.CoreV1().Nodes().Get(ctx, diskVol.NodeSelected, metav1.GetOptions{})
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "CreateVolume:: get node info error: %v", req.Name)
 		}
@@ -584,8 +588,8 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		Namespace: "",
 	}
 	useInstanceAccess := false
-	retentionDays := -1
-	var instantAccessRetentionDays int
+	retentionDays := SnapshotRetentionDaysDefault
+	instantAccessRetentionDays := IASnapshotRetentionDaysDefault
 	params := req.GetParameters()
 	if value, ok := params[SNAPSHOTTYPE]; ok && value == INSTANTACCESS {
 		useInstanceAccess = true
@@ -605,8 +609,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 			return nil, err
 		}
 		instantAccessRetentionDays = days
-	} else {
-		instantAccessRetentionDays = retentionDays
 	}
 	log.Infof("CreateSnapshot:: Starting to create snapshot: %+v", req)
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
@@ -624,8 +626,8 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	// Need to check for already existing snapshot name
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-	snapshots, snapNum, err := findSnapshotByName(req.GetName())
+	ecsClient, err := getEcsClientByID(sourceVolumeID, "")
+	snapshots, snapNum, err := findSnapshotByName(req.GetName(), ecsClient)
 	if snapNum == 0 {
 		snapshots, snapNum, err = findDiskSnapshotByID(req.GetName())
 	}
@@ -672,7 +674,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 			Snapshot: value,
 		}, nil
 	}
-	ecsClient, err := getEcsClientByID(sourceVolumeID, "")
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -691,6 +692,9 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		return nil, e
 	}
 
+	if disks[0].Category == DiskESSD {
+		useInstanceAccess = true
+	}
 	// init createSnapshotRequest and parameters
 	snapshotName := req.GetName()
 	createAt := ptypes.TimestampNow()
@@ -722,6 +726,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		return nil, e
 	}
 
+	updateSnapshotIAStatus(req, "completed")
 	str := fmt.Sprintf("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotResponse.SnapshotId)
 	log.Infof(str)
 	csiSnapshot := &csi.Snapshot{
@@ -946,7 +951,7 @@ func checkInstallCRD(crdClient *crd.Clientset) {
 		}
 	}
 	temp := &crds.Template{}
-	info, err := GlobalConfigVar.ClientSet.ServerVersion()
+	info, err := GlobalConfigVar.KubeClient.ServerVersion()
 	kVersion := ""
 	if err != nil || info == nil {
 		log.Errorf("checkInstallCRD: get server version error : %v", err)

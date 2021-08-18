@@ -505,11 +505,11 @@ func findDiskByID(diskID string, ecsClient *ecs.Client) (*ecs.Disk, error) {
 	return &disks[0], err
 }
 
-func findSnapshotByName(name string) (*ecs.DescribeSnapshotsResponse, int, error) {
+func findSnapshotByName(name string, ecsClient *ecs.Client) (*ecs.DescribeSnapshotsResponse, int, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
 	describeSnapShotRequest.SnapshotName = name
-	snapshots, err := GlobalConfigVar.EcsClient.DescribeSnapshots(describeSnapShotRequest)
+	snapshots, err := ecsClient.DescribeSnapshots(describeSnapShotRequest)
 	if err != nil {
 		return nil, 0, err
 	}
