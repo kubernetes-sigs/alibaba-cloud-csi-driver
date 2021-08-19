@@ -588,8 +588,8 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		Namespace: "",
 	}
 	useInstanceAccess := false
-	retentionDays := SnapshotRetentionDaysDefault
-	instantAccessRetentionDays := IASnapshotRetentionDaysDefault
+	retentionDays := -1
+	var instantAccessRetentionDays int
 	params := req.GetParameters()
 	if value, ok := params[SNAPSHOTTYPE]; ok && value == INSTANTACCESS {
 		useInstanceAccess = true
@@ -609,6 +609,8 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 			return nil, err
 		}
 		instantAccessRetentionDays = days
+	} else {
+		instantAccessRetentionDays = retentionDays
 	}
 	log.Infof("CreateSnapshot:: Starting to create snapshot: %+v", req)
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
