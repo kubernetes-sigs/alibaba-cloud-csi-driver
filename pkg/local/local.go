@@ -24,7 +24,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
+	restclient "k8s.io/client-go/rest"
 	"os"
 	"strings"
 )
@@ -57,7 +57,7 @@ func initDriver() {
 }
 
 // NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string) *Local {
+func NewDriver(nodeID, endpoint string, kubeconfig *restclient.Config) *Local {
 	initDriver()
 	tmplvm := &Local{}
 	tmplvm.endpoint = endpoint
@@ -75,7 +75,7 @@ func NewDriver(nodeID, endpoint string) *Local {
 	}
 
 	// GlobalConfig Set
-	GlobalConfigSet("", nodeID, driverName)
+	GlobalConfigSet("", nodeID, driverName, kubeconfig)
 
 	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, nodeID)
 	tmplvm.driver = csiDriver
@@ -88,8 +88,8 @@ func NewDriver(nodeID, endpoint string) *Local {
 
 	// Create GRPC servers
 	tmplvm.idServer = newIdentityServer(tmplvm.driver)
-	tmplvm.nodeServer = NewNodeServer(tmplvm.driver, driverName, nodeID)
-	tmplvm.controllerServer = newControllerServer(tmplvm.driver)
+	tmplvm.nodeServer = NewNodeServer(tmplvm.driver, driverName, nodeID, kubeconfig)
+	tmplvm.controllerServer = newControllerServer(tmplvm.driver, kubeconfig)
 
 	return tmplvm
 }
@@ -102,13 +102,9 @@ func (lvm *Local) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(region, nodeID, driverName string) {
-	// Global Configs Set
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
+func GlobalConfigSet(region, nodeID, driverName string, kubeconfig *restclient.Config) {
+
+	kubeClient, err := kubernetes.NewForConfig(kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}

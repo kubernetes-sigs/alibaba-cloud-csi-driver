@@ -18,6 +18,7 @@ package mem
 
 import (
 	"errors"
+	restclient "k8s.io/client-go/rest"
 	"os"
 	"strconv"
 
@@ -30,7 +31,6 @@ import (
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	k8smount "k8s.io/utils/mount"
 )
 
@@ -56,19 +56,10 @@ type nodeServer struct {
 	k8smounter k8smount.Interface
 }
 
-var (
-	masterURL  string
-	kubeconfig string
-)
-
 // NewNodeServer create a NodeServer object
-func NewNodeServer(d *csicommon.CSIDriver, nodeID string) csi.NodeServer {
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
+func NewNodeServer(d *csicommon.CSIDriver, nodeID string, kubeconfig *restclient.Config) csi.NodeServer {
 
-	kubeClient, err := kubernetes.NewForConfig(cfg)
+	kubeClient, err := kubernetes.NewForConfig(kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}

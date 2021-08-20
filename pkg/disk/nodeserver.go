@@ -18,6 +18,7 @@ package disk
 
 import (
 	"fmt"
+	restclient "k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -31,7 +32,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubernetes/pkg/util/resizefs"
 	utilexec "k8s.io/utils/exec"
 	k8smount "k8s.io/utils/mount"
@@ -121,7 +121,7 @@ type QueryResponse struct {
 }
 
 // NewNodeServer creates node server
-func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
+func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client, kubeconfig *restclient.Config) csi.NodeServer {
 	var maxVolumesNum int64 = 15
 	volumeNum := os.Getenv("MAX_VOLUMES_PERNODE")
 	if "" != volumeNum {
@@ -154,11 +154,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		nodeID = doc.InstanceID
 	}
 
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
+	kubeClient, err := kubernetes.NewForConfig(kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}

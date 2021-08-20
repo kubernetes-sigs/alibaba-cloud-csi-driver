@@ -9,7 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
+	restclient "k8s.io/client-go/rest"
 	"os"
 )
 
@@ -24,9 +24,7 @@ const (
 )
 
 var (
-	version    = "1.0.0"
-	masterURL  string
-	kubeconfig string
+	version = "1.0.0"
 	// GlobalConfigVar Global Config
 	GlobalConfigVar GlobalConfig
 )
@@ -52,16 +50,18 @@ type DBFS struct {
 	nodeServer       *nodeServer
 	controllerServer csi.ControllerServer
 
-	cap   []*csi.VolumeCapability_AccessMode
-	cscap []*csi.ControllerServiceCapability
+	cap        []*csi.VolumeCapability_AccessMode
+	cscap      []*csi.ControllerServiceCapability
+	kubeconfig *restclient.Config
 }
 
 //NewDriver create the identity/node/controller server and dbfs driver
-func NewDriver(nodeID, endpoint string) *DBFS {
+func NewDriver(nodeID, endpoint string, kubeconfig *restclient.Config) *DBFS {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
 	d := &DBFS{}
 	d.endpoint = endpoint
+	d.kubeconfig = kubeconfig
 	if nodeID == "" {
 		nodeID, _ = utils.GetMetaData(InstanceID)
 		log.Infof("DBFS Use node id : %s", nodeID)
@@ -87,7 +87,7 @@ func NewDriver(nodeID, endpoint string) *DBFS {
 	GlobalConfigVar.DbfsClient = c
 
 	// Global Configs Set
-	GlobalConfigSet(region)
+	GlobalConfigSet(region, kubeconfig)
 	return d
 }
 
@@ -102,13 +102,8 @@ func (d *DBFS) Run() {
 }
 
 // GlobalConfigSet set global config
-func GlobalConfigSet(region string) {
-	// Global Configs Set
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
+func GlobalConfigSet(region string, kubeconfig *restclient.Config) {
+	kubeClient, err := kubernetes.NewForConfig(kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}

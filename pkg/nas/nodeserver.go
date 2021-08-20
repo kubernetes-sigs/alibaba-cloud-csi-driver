@@ -37,7 +37,6 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 type nodeServer struct {
@@ -88,16 +87,13 @@ const (
 
 //newNodeServer create the csi node server
 func newNodeServer(d *NAS) *nodeServer {
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
+	kubeconfig := d.kubeconfig
+	kubeClient, err := kubernetes.NewForConfig(kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	crdClient, err := dynamic.NewForConfig(cfg)
+	crdClient, err := dynamic.NewForConfig(kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building crd clientset: %s", err)
 	}

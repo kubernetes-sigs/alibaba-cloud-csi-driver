@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	restclient "k8s.io/client-go/rest"
 	"strings"
 	"time"
 
@@ -36,7 +37,6 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 type controllerServer struct {
@@ -88,12 +88,9 @@ var createdVolumeMap = map[string]*csi.Volume{}
 var supportVolumeTypes = []string{LvmVolumeType, PmemVolumeType, QuotaPathVolumeType, MountPointType, DeviceVolumeType}
 
 // newControllerServer creates a controllerServer object
-func newControllerServer(d *csicommon.CSIDriver) *controllerServer {
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
+func newControllerServer(d *csicommon.CSIDriver, kubeconfig *restclient.Config) *controllerServer {
+
+	kubeClient, err := kubernetes.NewForConfig(kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}

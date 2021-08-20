@@ -19,6 +19,7 @@ package lvm
 import (
 	"encoding/json"
 	"fmt"
+	restclient "k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -36,7 +37,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubernetes/pkg/util/resizefs"
 	utilexec "k8s.io/utils/exec"
 	k8smount "k8s.io/utils/mount"
@@ -80,20 +80,14 @@ type nodeServer struct {
 }
 
 var (
-	masterURL  string
-	kubeconfig string
 	// DeviceChars is chars of a device
 	DeviceChars = []string{"b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}
 )
 
 // NewNodeServer create a NodeServer object
-func NewNodeServer(d *csicommon.CSIDriver, nodeID string) csi.NodeServer {
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
+func NewNodeServer(d *csicommon.CSIDriver, nodeID string, kubeconfig *restclient.Config) csi.NodeServer {
 
-	kubeClient, err := kubernetes.NewForConfig(cfg)
+	kubeClient, err := kubernetes.NewForConfig(kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}

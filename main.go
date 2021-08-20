@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"io"
+	"k8s.io/client-go/tools/clientcmd"
 	"net/http"
 	"os"
 	"path"
@@ -108,6 +109,9 @@ var (
 	nodeID          = flag.String("nodeid", "", "node id")
 	runAsController = flag.Bool("run-as-controller", false, "Only run as controller service")
 	driver          = flag.String("driver", TypePluginDISK, "CSI Driver")
+	master          = flag.String("master", "", "The address of the Kubernetes API server (overrides any value in kubeconfig).")
+	kubeConfigFile  = flag.String("kubeconfig", "", "Path to kubeconfig file with authorization and master location information.")
+
 	// Deprecated: rootDir is instead by KUBELET_ROOT_DIR env.
 	rootDir = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
 )
@@ -152,7 +156,10 @@ func main() {
 
 	// Storage devops
 	go om.StorageOM()
-
+	kubeconfig, err := clientcmd.BuildConfigFromFlags(*master, *kubeConfigFile)
+	if err != nil {
+		log.Fatalf("Error building kubeconfig: %s", err.Error())
+	}
 	for _, driverName := range driverNames {
 		wg.Add(1)
 		if !strings.Contains(driverName, TypePluginSuffix) && driverName != ExtenderAgent {
@@ -178,7 +185,7 @@ func main() {
 		case TypePluginNAS:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := nas.NewDriver(*nodeID, endPoint)
+				driver := nas.NewDriver(*nodeID, endPoint, kubeconfig)
 				driver.Run()
 			}(endPointName)
 		case TypePluginOSS:
@@ -190,14 +197,14 @@ func main() {
 		case TypePluginDISK:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := disk.NewDriver(*nodeID, endPoint, *runAsController)
+				driver := disk.NewDriver(*nodeID, endPoint, *runAsController, kubeconfig)
 				driver.Run()
 			}(endPointName)
 
 		case TypePluginLVM:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := lvm.NewDriver(*nodeID, endPoint)
+				driver := lvm.NewDriver(*nodeID, endPoint, kubeconfig)
 				driver.Run()
 			}(endPointName)
 		case TypePluginCPFS:
@@ -209,26 +216,26 @@ func main() {
 		case TypePluginMEM:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := mem.NewDriver(*nodeID, endPoint)
+				driver := mem.NewDriver(*nodeID, endPoint, kubeconfig)
 				driver.Run()
 			}(endPointName)
 		case TypePluginLOCAL:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := local.NewDriver(*nodeID, endPoint)
+				driver := local.NewDriver(*nodeID, endPoint, kubeconfig)
 				driver.Run()
 			}(endPointName)
 		case TypePluginDBFS:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := dbfs.NewDriver(*nodeID, endPoint)
+				driver := dbfs.NewDriver(*nodeID, endPoint, kubeconfig)
 				driver.Run()
 			}(endPointName)
 		case ExtenderAgent:
 			go func() {
 				defer wg.Done()
 				queryServer := agent.NewAgent()
-				queryServer.RunAgent()
+				queryServer.RunAgent(kubeconfig)
 			}()
 		default:
 			log.Fatalf("CSI start failed, not support driver: %s", driverName)

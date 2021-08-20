@@ -17,6 +17,7 @@ limitations under the License.
 package mem
 
 import (
+	restclient "k8s.io/client-go/rest"
 	"os"
 	"strings"
 
@@ -26,7 +27,6 @@ import (
 	"golang.org/x/net/context"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 // MEM the LVM struct
@@ -52,7 +52,7 @@ func initDriver() {
 }
 
 // NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string) *MEM {
+func NewDriver(nodeID, endpoint string, kubeconfig *restclient.Config) *MEM {
 	initDriver()
 	tmpmem := &MEM{}
 	tmpmem.endpoint = endpoint
@@ -61,7 +61,7 @@ func NewDriver(nodeID, endpoint string) *MEM {
 		nodeID = GetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
-	GlobalConfigSet("", nodeID, driverName)
+	GlobalConfigSet("", nodeID, driverName, kubeconfig)
 	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, nodeID)
 	tmpmem.driver = csiDriver
 	tmpmem.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
@@ -73,7 +73,7 @@ func NewDriver(nodeID, endpoint string) *MEM {
 
 	// Create GRPC servers
 	tmpmem.idServer = newIdentityServer(tmpmem.driver)
-	tmpmem.nodeServer = NewNodeServer(tmpmem.driver, nodeID)
+	tmpmem.nodeServer = NewNodeServer(tmpmem.driver, nodeID, kubeconfig)
 	tmpmem.controllerServer = newControllerServer(tmpmem.driver)
 
 	return tmpmem
@@ -89,13 +89,9 @@ func (mem *MEM) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(region, nodeID, driverName string) {
+func GlobalConfigSet(region, nodeID, driverName string, kubeconfig *restclient.Config) {
 	// Global Config set
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
+	kubeClient, err := kubernetes.NewForConfig(kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}

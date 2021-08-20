@@ -1,5 +1,7 @@
 package agent
 
+import restclient "k8s.io/client-go/rest"
+
 // Agent for node server
 type Agent struct {
 }
@@ -10,8 +12,8 @@ func NewAgent() *Agent {
 }
 
 // RunAgent run agent
-func (ag *Agent) RunAgent() {
+func (ag *Agent) RunAgent(kubeconfig *restclient.Config) {
 	// current only query server support
-	queryServ := NewQueryServer()
+	queryServ := NewQueryServer(kubeconfig)
 	queryServ.RunQueryServer()
 }

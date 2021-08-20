@@ -25,7 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
+	restclient "k8s.io/client-go/rest"
 	"os"
 	"strings"
 )
@@ -37,9 +37,7 @@ const (
 )
 
 var (
-	version    = "1.0.0"
-	masterURL  string
-	kubeconfig string
+	version = "1.0.0"
 	// GlobalConfigVar Global Config
 	GlobalConfigVar GlobalConfig
 )
@@ -68,12 +66,13 @@ type NAS struct {
 	nodeServer       *nodeServer
 	controllerServer csi.ControllerServer
 
-	cap   []*csi.VolumeCapability_AccessMode
-	cscap []*csi.ControllerServiceCapability
+	cap        []*csi.VolumeCapability_AccessMode
+	cscap      []*csi.ControllerServiceCapability
+	kubeconfig *restclient.Config
 }
 
 //NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string) *NAS {
+func NewDriver(nodeID, endpoint string, kubeconfig *restclient.Config) *NAS {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
 	d := &NAS{}
@@ -91,7 +90,7 @@ func NewDriver(nodeID, endpoint string) *NAS {
 	})
 
 	// Global Configs Set
-	GlobalConfigSet()
+	GlobalConfigSet(kubeconfig)
 
 	d.driver = csiDriver
 	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
@@ -121,13 +120,9 @@ func (d *NAS) Run() {
 }
 
 // GlobalConfigSet set global config
-func GlobalConfigSet() {
+func GlobalConfigSet(kubeconfig *restclient.Config) {
 	// Global Configs Set
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
+	kubeClient, err := kubernetes.NewForConfig(kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}

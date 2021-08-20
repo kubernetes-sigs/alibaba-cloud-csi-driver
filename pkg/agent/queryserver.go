@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	restclient "k8s.io/client-go/rest"
 	"net"
 	"net/http"
 	"os"
@@ -13,7 +14,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 const (
@@ -36,13 +36,9 @@ type QueryServer struct {
 }
 
 // NewQueryServer new server
-func NewQueryServer() *QueryServer {
-	cfg, err := clientcmd.BuildConfigFromFlags("", "")
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
+func NewQueryServer(kubeconfig *restclient.Config) *QueryServer {
 
-	kubeClient, err := kubernetes.NewForConfig(cfg)
+	kubeClient, err := kubernetes.NewForConfig(kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}

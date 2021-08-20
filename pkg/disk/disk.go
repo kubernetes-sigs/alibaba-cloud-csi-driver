@@ -32,7 +32,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 // PluginFolder defines the location of diskplugin
@@ -80,8 +79,6 @@ type GlobalConfig struct {
 
 // define global variable
 var (
-	masterURL       string
-	kubeconfig      string
 	GlobalConfigVar GlobalConfig
 )
 
@@ -91,7 +88,7 @@ func initDriver() {
 }
 
 //NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
+func NewDriver(nodeID, endpoint string, runAsController bool, kubeconfig *restclient.Config) *DISK {
 	initDriver()
 	tmpdisk := &DISK{}
 	tmpdisk.endpoint = endpoint
@@ -127,9 +124,9 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	}
 
 	// Config Global vars
-	cfg := GlobalConfigSet(client, regionID, nodeID)
+	GlobalConfigSet(client, regionID, nodeID, kubeconfig)
 
-	apiExtentionClient, err := crd.NewForConfig(cfg)
+	apiExtentionClient, err := crd.NewForConfig(kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
@@ -139,7 +136,7 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient, regionID)
 
 	if !runAsController {
-		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, client)
+		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, client, kubeconfig)
 	}
 
 	return tmpdisk
@@ -154,7 +151,7 @@ func (disk *DISK) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Config {
+func GlobalConfigSet(client *ecs.Client, region, nodeID string, kubeconfig *restclient.Config) {
 	configMapName := "csi-plugin"
 	isADControllerEnable := false
 	isDiskTagEnable := false
@@ -165,11 +162,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 	isDiskMultiTenantEnable := false
 
 	// Global Configs Set
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
+	kubeClient, err := kubernetes.NewForConfig(kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
@@ -357,5 +350,4 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		BdfHealthCheck:        bdfCheck,
 		DiskMultiTenantEnable: isDiskMultiTenantEnable,
 	}
-	return cfg
 }

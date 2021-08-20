@@ -20,6 +20,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	log "github.com/sirupsen/logrus"
+	restclient "k8s.io/client-go/rest"
 )
 
 // LVM the LVM struct
@@ -45,7 +46,7 @@ func initDriver() {
 }
 
 // NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string) *LVM {
+func NewDriver(nodeID, endpoint string, kubeconfig *restclient.Config) *LVM {
 	initDriver()
 	tmplvm := &LVM{}
 	tmplvm.endpoint = endpoint
@@ -65,7 +66,7 @@ func NewDriver(nodeID, endpoint string) *LVM {
 
 	// Create GRPC servers
 	tmplvm.idServer = newIdentityServer(tmplvm.driver)
-	tmplvm.nodeServer = NewNodeServer(tmplvm.driver, nodeID)
+	tmplvm.nodeServer = NewNodeServer(tmplvm.driver, nodeID, kubeconfig)
 	tmplvm.controllerServer = newControllerServer(tmplvm.driver)
 
 	return tmplvm
