@@ -6,12 +6,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	apicorev1 "k8s.io/api/core/v1"
 	apismetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"math"
 	"os"
@@ -24,6 +26,8 @@ import (
 var vfOnce = new(sync.Once)
 var isVF = false
 
+const containerNetworkFileSystem = "containerNetworkFileSystem"
+
 func getPvcByPvNameByDisk(clientSet *kubernetes.Clientset, pvName string) (string, string, error) {
 	pv, err := clientSet.CoreV1().PersistentVolumes().Get(context.Background(), pvName, apismetav1.GetOptions{})
 	if err != nil {
@@ -35,7 +39,7 @@ func getPvcByPvNameByDisk(clientSet *kubernetes.Clientset, pvName string) (strin
 	return "", "", errors.New("pvName:" + pv.Name + " status is not bound.")
 }
 
-func getPvcByPvNameByNas(clientSet *kubernetes.Clientset, pvName string) (string, string, string, error) {
+func getPvcByPvNameByNas(clientSet *kubernetes.Clientset, cnfsClient dynamic.Interface, pvName string) (string, string, string, error) {
 	pv, err := clientSet.CoreV1().PersistentVolumes().Get(context.Background(), pvName, apismetav1.GetOptions{})
 	if err != nil {
 		return "", "", "", err
@@ -45,6 +49,13 @@ func getPvcByPvNameByNas(clientSet *kubernetes.Clientset, pvName string) (string
 			if pv.Status.Phase == apicorev1.VolumeBound {
 				return pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, val, nil
 			}
+		} else if value, ok := pv.Spec.CSI.VolumeAttributes[containerNetworkFileSystem]; ok {
+			server, err := v1beta1.GetContainerNetworkFileSystemServer(cnfsClient, value)
+			if err != nil {
+				log.Errorf("Get cnfs %s server is failed, err:%s", value, err)
+				return "", "", "", err
+			}
+			return pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, server, nil
 		}
 	}
 	return "", "", "", errors.New("pvName:" + pv.Name + " status is not bound.")

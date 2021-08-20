@@ -6,10 +6,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/volume/util/fs"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -154,6 +156,7 @@ type nfsStatCollector struct {
 	lastPvNfsInfoMap map[string]nfsInfo
 	lastPvStatsMap   sync.Map
 	clientSet        *kubernetes.Clientset
+	crdClient        dynamic.Interface
 	recorder         record.EventRecorder
 }
 
@@ -172,6 +175,11 @@ func NewNfsStatCollector() (Collector, error) {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
+	}
+
+	crdClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("Failed to create crd client: %v", err)
 	}
 
 	return &nfsStatCollector{
@@ -201,6 +209,7 @@ func NewNfsStatCollector() (Collector, error) {
 		lastPvNfsInfoMap: make(map[string]nfsInfo, 0),
 		lastPvStatsMap:   sync.Map{},
 		clientSet:        clientset,
+		crdClient:        crdClient,
 		recorder:         recorder,
 	}, nil
 }
@@ -296,7 +305,7 @@ func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo,
 		lastInfo, ok := (*lastPvNfsInfoMap)[pv]
 		// add and modify
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
-			pvcNamespace, pvcName, serverName, err := getPvcByPvNameByNas(p.clientSet, pv)
+			pvcNamespace, pvcName, serverName, err := getPvcByPvNameByNas(p.clientSet, p.crdClient, pv)
 			if err != nil {
 				logrus.Errorf("Get pvc by pv %s is failed, err:%s", pv, err.Error())
 				continue
