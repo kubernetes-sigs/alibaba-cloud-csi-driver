@@ -1,4 +1,4 @@
-FROM registry.cn-hangzhou.aliyuncs.com/plugins/centos:7.9.2009
+FROM registry.cn-hangzhou.aliyuncs.com/acs/centos:7-update
 LABEL maintainers="Alibaba Cloud Authors"
 LABEL description="Alibaba Cloud CSI Plugin"
 

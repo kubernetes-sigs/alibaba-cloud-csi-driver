@@ -397,9 +397,17 @@ func str2ASCII(origin string) string {
 }
 
 // SetProjectID2PVSubpath ...
-func SetProjectID2PVSubpath(subPath, fullPath string, run utils.CommandRunFunc) (string, error) {
+func SetProjectID2PVSubpath(subPath, fullPath, rootPath, filesystem string, run utils.CommandRunFunc) (string, error) {
 	projectID := ConvertString2int(subPath)
-	args := []string{NsenterCmd, "chattr", "+P -p", fmt.Sprintf("%s %s", projectID, fullPath)}
+	var args []string
+	switch filesystem {
+	case "ext4", "ext3":
+		args = []string{NsenterCmd, "chattr", "+P -p", fmt.Sprintf("%s %s", projectID, fullPath)}
+	case "xfs":
+		args = []string{NsenterCmd, "xfs_quota", "-x -c", fmt.Sprintf("'project -s -p %s %s' %s", fullPath, projectID, rootPath)}
+	default:
+		return "", fmt.Errorf("SetProjectID2PVSubpath:: unsupport filesystem: %s type", filesystem)
+	}
 	cmd := strings.Join(args, " ")
 	_, err := run(cmd)
 	if err != nil {
@@ -482,12 +490,15 @@ func CreateProjQuotaSubpath(ctx context.Context, subPath, quotaSize, rootPath st
 	} else {
 		fullPath = filepath.Join(rootPath, subPath)
 	}
-
+	fsType := getFileSystemType(rootPath)
+	if fsType == "" {
+		return "", "", "", fmt.Errorf("CreateProjQuotaSubpath:: failed to get rootPath: %s filesystem", rootPath)
+	}
 	err = manager.EnsureFolder(fullPath)
 	if err != nil {
 		return "", "", "", err
 	}
-	projectID, err := SetProjectID2PVSubpath(subPath, fullPath, utils.Run)
+	projectID, err := SetProjectID2PVSubpath(subPath, fullPath, rootPath, fsType, utils.Run)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -514,6 +525,13 @@ func findBlockLimitByProjectID(out, projectID string) (string, string, error) {
 	return "", "", fmt.Errorf("findBlockLimitByProjectID: cannot find projectID: %s in output", projectID)
 }
 
+func getFileSystemType(rootPath string) string {
+	args := []string{NsenterCmd, "df", "-Th", rootPath, " | awk 'NR != 1 {print $2}'"}
+	cmd := strings.Join(args, " ")
+	out, _ := utils.Run(cmd)
+	return strings.TrimSpace(out)
+}
+
 func checkSubpathProjQuotaEqual(projQuotaNamespacePath, projectID, blockHardLimitExpected, blockSoftLimitExpected string) (bool, error) {
 
 	args := []string{NsenterCmd, "repquota", "-P -O csv", projQuotaNamespacePath}
@@ -535,17 +553,32 @@ func checkSubpathProjQuotaEqual(projQuotaNamespacePath, projectID, blockHardLimi
 // SetSubpathProjQuota ...
 func SetSubpathProjQuota(ctx context.Context, projQuotaSubpath, blockHardlimit, blockSoftlimit string) (string, error) {
 	projectID := ConvertString2int(filepath.Base(projQuotaSubpath))
-	args := []string{NsenterCmd, "setquota", "-P", fmt.Sprintf("%s %s %s 0 0 %s", projectID, blockHardlimit, blockHardlimit, filepath.Dir(projQuotaSubpath))}
-	cmd := strings.Join(args, " ")
-	_, err := utils.Run(cmd)
-	if err != nil {
-		return "", fmt.Errorf("failed to set quota to subpath with error: %v", err)
-	}
-	ok, err := checkSubpathProjQuotaEqual(filepath.Dir(projQuotaSubpath), projectID, blockHardlimit, blockHardlimit)
-	if ok {
+	rootPath := filepath.Dir(projQuotaSubpath)
+	fsType := getFileSystemType(rootPath)
+	switch fsType {
+	case "ext3", "ext4":
+		args := []string{NsenterCmd, "setquota", "-P", fmt.Sprintf("%s %s %s 0 0 %s", projectID, blockHardlimit, blockHardlimit, filepath.Dir(projQuotaSubpath))}
+		cmd := strings.Join(args, " ")
+		_, err := utils.Run(cmd)
+		if err != nil {
+			return "", fmt.Errorf("failed to set quota to subpath with error: %v", err)
+		}
+		ok, err := checkSubpathProjQuotaEqual(filepath.Dir(projQuotaSubpath), projectID, blockHardlimit, blockHardlimit)
+		if ok {
+			return "", nil
+		}
+		return "", err
+	case "xfs":
+		args := []string{NsenterCmd, "xfs_quota", "-x -c", fmt.Sprintf("'limit -p bhard=%sk %s' %s", blockHardlimit, projectID, rootPath)}
+		cmd := strings.Join(args, " ")
+		_, err := utils.Run(cmd)
+		if err != nil {
+			return "", fmt.Errorf("failed to set quota to subpath with error: %v", err)
+		}
 		return "", nil
+	default:
+		return "", fmt.Errorf("failed to analyse filesystem: %v type", fsType)
 	}
-	return "", err
 }
 
 // RemoveProjQuotaSubpath ...
