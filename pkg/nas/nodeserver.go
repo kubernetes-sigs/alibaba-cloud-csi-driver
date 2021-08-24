@@ -20,6 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
@@ -30,12 +38,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"net"
-	"os"
-	"path/filepath"
-	"strings"
-	"sync"
-	"time"
 )
 
 type nodeServer struct {
@@ -426,6 +428,13 @@ func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) erro
 		_, err = utils.Run(resizeFs)
 		if err != nil {
 			log.Errorf("NodeExpandVolume: resize filesystem error %v", err)
+			failedFile := filepath.Join(nfsPath, Resize2fsFailedFilename)
+			if !utils.IsFileExisting(failedFile) {
+				// path/to/whatever does not exist
+				if werr := ioutil.WriteFile(failedFile, ([]byte)(""), 0644); werr != nil {
+					return fmt.Errorf("NodeExpandVolume: write file err %s, resizefs err: %s", werr, err)
+				}
+			}
 			return fmt.Errorf("NodeExpandVolume: resize filesystem error, %v", err)
 		}
 		log.Infof("NodeExpandVolume, losetup volume expand successful %s to %d B", req.VolumeId, volSizeBytes)

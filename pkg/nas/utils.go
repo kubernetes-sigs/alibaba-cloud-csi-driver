@@ -52,6 +52,10 @@ const (
 	LoopLockFile = "loopsetup.nas.csi.alibabacloud.com.lck"
 	// LoopImgFile image file for nas loopsetup
 	LoopImgFile = "loopsetup.nas.csi.alibabacloud.com.img"
+	// Resize2fsFailedFilename ...
+	Resize2fsFailedFilename = "resize2fs_failed.txt"
+	// Resize2fsFailedFixCmd ...
+	Resize2fsFailedFixCmd = "%s fsck -a %s"
 )
 
 var (
@@ -456,7 +460,7 @@ func createLosetupPv(fullPath string, volSizeBytes int64) error {
 func mountLosetupPv(mountPoint string, opt *Options, volumeID string) error {
 	pathList := strings.Split(mountPoint, "/")
 	if len(pathList) != 10 {
-		return fmt.Errorf("mountPoint format error, %s", mountPoint)
+		return fmt.Errorf("mountLosetupPv: mountPoint format error, %s", mountPoint)
 	}
 
 	podID := pathList[5]
@@ -465,22 +469,35 @@ func mountLosetupPv(mountPoint string, opt *Options, volumeID string) error {
 	// /mnt/nasplugin.alibabacloud.com/6c690876-74aa-46f6-a301-da7f4353665d/pv-losetup/
 	nfsPath := filepath.Join(NasMntPoint, podID, pvName)
 	if err := utils.CreateDest(nfsPath); err != nil {
-		return fmt.Errorf("Create nfs mountPath error %s ", err.Error())
+		return fmt.Errorf("mountLosetupPv: create nfs mountPath error %s ", err.Error())
 	}
 	err := DoNfsMount(opt.Server, opt.Path, opt.Vers, opt.Options, nfsPath, volumeID)
 	if err != nil {
-		return fmt.Errorf("mount losetup volume failed: %s", err.Error())
+		return fmt.Errorf("mountLosetupPv: mount losetup volume failed: %s", err.Error())
 	}
 
 	lockFile := filepath.Join(nfsPath, LoopLockFile)
 	if opt.LoopLock == "true" && isLosetupUsed(lockFile, opt, volumeID) {
-		return fmt.Errorf("nfs losetup file is used by others %s", lockFile)
+		return fmt.Errorf("mountLosetupPv: nfs losetup file is used by others %s", lockFile)
 	}
 	imgFile := filepath.Join(nfsPath, LoopImgFile)
+	failedFile := filepath.Join(nfsPath, Resize2fsFailedFilename)
+	if utils.IsFileExisting(failedFile) {
+		// path/to/whatever does not exist
+		cmd := fmt.Sprintf(Resize2fsFailedFixCmd, NsenterCmd, imgFile)
+		_, err = utils.Run(cmd)
+		if err != nil {
+			return fmt.Errorf("mountLosetupPv: mount nfs losetup error %s", err.Error())
+		}
+		err = os.Remove(failedFile)
+		if err != nil {
+			log.Errorf("mountLosetupPv: failed to remove failed file: %v", err)
+		}
+	}
 	mountCmd := fmt.Sprintf("%s mount -o loop %s %s", NsenterCmd, imgFile, mountPoint)
 	_, err = utils.Run(mountCmd)
 	if err != nil {
-		return fmt.Errorf("Mount nfs losetup error %s", err.Error())
+		return fmt.Errorf("mountLosetupPv: mount nfs losetup error %s", err.Error())
 	}
 	lockContent := GlobalConfigVar.NodeID + ":" + GlobalConfigVar.NodeIP
 	if err := ioutil.WriteFile(lockFile, ([]byte)(lockContent), 0644); err != nil {
