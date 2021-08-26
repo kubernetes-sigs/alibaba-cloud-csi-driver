@@ -198,7 +198,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// xfs filesystem works on targetpath.
 	if volumeNewCreated == false {
 		if err := ns.resizeVolume(ctx, volumeID, vgName, targetPath); err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
+			//see https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/issues/515
+			// Maybe we show remove resize volume on NodePublishVolume
+			log.Errorf("resize volume %s error :%s", volumeID, err.Error())
 		}
 	}
 
