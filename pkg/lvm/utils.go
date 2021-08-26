@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
 	"net/http"
 	"os/exec"
 	"path/filepath"
@@ -230,4 +231,40 @@ func createVG(vgName string) (int, error) {
 
 	log.Infof("Successful add Local Disks to VG (%s): %v", vgName, localDeviceList)
 	return localDeviceNum, nil
+}
+
+func getLVSize(volumeId, vgName string) (int, error) {
+	const separator = "<:SEP:>"
+	vgAddCmd := fmt.Sprintf("%s lvs --select=\"lv_name=%s,vg_name=%s\" -o LV_SIZE,VG_NAME --noheadings --units=b --nosuffix --separator=\"%s\"", NsenterCmd, volumeId, vgName, separator)
+	raw, err := utils.Run(vgAddCmd)
+	if err != nil {
+		return 0, fmt.Errorf("lvs filter lv error:%s", err.Error())
+	}
+	raw = strings.TrimSpace(raw)
+	lineResults := strings.Split(raw, "\n")
+	if len(lineResults) > 1 {
+		return 0, fmt.Errorf("get error lv info %s", raw)
+	}
+	size, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("occur error %s when strconv.Atoi ", raw)
+	}
+	return size, nil
+
+}
+
+func translateSize(bysSize int64) (int64, string) {
+	pvSizeGB := bysSize / (1024 * 1024 * 1024)
+
+	if pvSizeGB == 0 {
+		pvSizeMB := bysSize / (1024 * 1024)
+		return pvSizeMB, "m"
+	}
+	return pvSizeGB, "g"
+}
+
+func getPvSize(pv *v1.PersistentVolume) int64 {
+	pvQuantity := pv.Spec.Capacity["storage"]
+	pvSize := pvQuantity.Value()
+	return pvSize
 }

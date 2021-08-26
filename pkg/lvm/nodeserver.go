@@ -197,7 +197,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// xfs filesystem works on targetpath.
 	if volumeNewCreated == false {
-		if err := ns.resizeVolume(ctx, volumeID, vgName, targetPath); err != nil {
+		pv, err := ns.getPersistentVolume(volumeID)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "get persistentvolume %s error %s", volumeID, err.Error())
+		}
+		pvSize := getPvSize(pv)
+		if err := ns.resizeVolume(ctx, volumeID, vgName, targetPath, pvSize); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -304,6 +309,24 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (
 	*csi.NodeExpandVolumeResponse, error) {
 	log.Infof("NodeExpandVolume: lvm node expand volume: %v", req)
+
+	pv, err := ns.getPersistentVolume(req.GetVolumeId())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "get persistentvolume %s error %s", req.GetVolumeId(), err.Error())
+	}
+	if pv != nil && pv.Spec.CSI == nil {
+		return nil, status.Errorf(codes.Internal, "persistentvolume %s not found csi field", req.GetVolumeId())
+	}
+	vgName := pv.Spec.CSI.VolumeAttributes["vgName"]
+	if vgName == "" {
+		return nil, status.Errorf(codes.Internal, "persistentvolume %s's .Spec.CSI.VolumeAttributes[\"vgName\"] not found ", req.GetVolumeId())
+	}
+	pvSizeBys := getPvSize(pv)
+	err = ns.resizeVolume(ctx, req.VolumeId, vgName, req.GetVolumePath(), pvSizeBys)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "resize volume %s error %s", req.GetVolumeId(), err.Error())
+	}
+
 	return &csi.NodeExpandVolumeResponse{}, nil
 }
 
@@ -319,10 +342,10 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}, nil
 }
 
-func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, targetPath string) error {
-	pvSize, unit := ns.getPvSize(volumeID)
+func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, targetPath string, pvSizeBys int64) error {
+	pvSize, unit := translateSize(pvSizeBys)
 	devicePath := filepath.Join("/dev", vgName, volumeID)
-	sizeCmd := fmt.Sprintf("%s lvdisplay %s 2>&1 | grep 'LV Size' | awk '{print $3}'", NsenterCmd, devicePath)
+	sizeCmd := fmt.Sprintf("%s lvdisplay %s --units=b 2>&1 | grep 'LV Size' | awk '{print $3}'", NsenterCmd, devicePath)
 	sizeStr, err := utils.Run(sizeCmd)
 	if err != nil {
 		return err
@@ -337,7 +360,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, target
 	}
 
 	// if lvmsize equal/bigger than pv size, no do expand.
-	if sizeInt >= pvSize {
+	if sizeInt >= pvSizeBys {
 		return nil
 	}
 	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, from size: %d, to Size: %d%s", volumeID, devicePath, sizeInt, pvSize, unit)
@@ -365,29 +388,19 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, target
 	return nil
 }
 
-func (ns *nodeServer) getPvSize(volumeID string) (int64, string) {
+func (ns *nodeServer) getPersistentVolume(volumeID string) (*v1.PersistentVolume, error) {
 	pv, err := ns.client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
-	if err != nil {
-		log.Errorf("lvcreate: fail to get pv, err: %v", err)
-		return 0, ""
-	}
-	pvQuantity := pv.Spec.Capacity["storage"]
-	pvSize := pvQuantity.Value()
-	pvSizeGB := pvSize / (1024 * 1024 * 1024)
-
-	if pvSizeGB == 0 {
-		pvSizeMB := pvSize / (1024 * 1024)
-		return pvSizeMB, "m"
-	}
-	return pvSizeGB, "g"
+	return pv, err
 }
 
 // create lvm volume
 func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType, lvmType string) error {
-	pvSize, unit := ns.getPvSize(volumeID)
-
+	pv, err := ns.getPersistentVolume(volumeID)
+	if err != nil {
+		return err
+	}
+	pvSize, unit := translateSize(getPvSize(pv))
 	pvNumber := 0
-	var err error
 	// Create VG if vg not exist,
 	if pvType == LocalDisk {
 		if pvNumber, err = createVG(vgName); err != nil {
