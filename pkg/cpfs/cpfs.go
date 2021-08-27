@@ -52,7 +52,7 @@ func NewDriver(nodeID, endpoint string) *CPFS {
 	d := &CPFS{}
 	d.endpoint = endpoint
 	if nodeID == "" {
-		nodeID, _ = utils.GetMetaData(InstanceID)
+		nodeID = utils.RetryGetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
