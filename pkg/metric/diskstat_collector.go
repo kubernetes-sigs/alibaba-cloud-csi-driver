@@ -310,7 +310,6 @@ func isIOHang(stats []string, lastStats []string) bool {
 }
 
 func (p *diskStatCollector) latencyEventAlert(pvName string, pvcName string, pvcNamespace string, stats []string, index int) {
-
 	lastStats, ok := p.lastPvStatsMap.Load(pvName)
 	if p.alertSwtichSet.Contains(latencySwitch) && ok {
 		thisLatency, exceed := isExceedLatencyThreshold(stats, lastStats.([]string), index, index+3, p.milliSecondsLatencyThreshold)
