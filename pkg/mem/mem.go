@@ -22,6 +22,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,7 +59,7 @@ func NewDriver(nodeID, endpoint string) *MEM {
 	tmpmem.endpoint = endpoint
 
 	if nodeID == "" {
-		nodeID = GetMetaData(InstanceID)
+		nodeID = utils.RetryGetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
 	GlobalConfigSet("", nodeID, driverName)

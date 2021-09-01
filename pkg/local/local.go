@@ -18,15 +18,17 @@ package local
 
 import (
 	"context"
+	"os"
+	"strings"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"strings"
 )
 
 // Local the Local struct
@@ -63,7 +65,7 @@ func NewDriver(nodeID, endpoint string) *Local {
 	tmplvm.endpoint = endpoint
 
 	if nodeID == "" {
-		nodeID = GetMetaData(InstanceID)
+		nodeID = utils.RetryGetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
 
