@@ -1,11 +1,15 @@
 package metric
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
@@ -18,6 +22,11 @@ import (
 
 var (
 	nfsStatLabelNames = []string{"namespace", "pvc", "server", "type"}
+)
+
+const (
+	// GBSIZE metrics
+	GBSIZE = 1024 * 1024 * 1024
 )
 
 var (
@@ -149,16 +158,38 @@ type nfsInfo struct {
 	VolDataPath  string
 }
 
+type nfsCapacityInfo struct {
+	TotalInodeCount int64 `json:"totalInodeCount"`
+	UsedInodeCount  int64 `json:"usedInodeCount"`
+	TotalSize       int64 `json:"totalSize"`
+	UsedSize        int64 `json:"usedSize"`
+}
+
 type nfsStatCollector struct {
-	descs            []typedFactorDesc
-	lastPvNfsInfoMap map[string]nfsInfo
-	lastPvStatsMap   sync.Map
-	clientSet        *kubernetes.Clientset
-	recorder         record.EventRecorder
+	descs                       []typedFactorDesc
+	lastPvNfsInfoMap            map[string]nfsInfo
+	lastPvStatsMap              sync.Map
+	clientSet                   *kubernetes.Clientset
+	crdClient                   dynamic.Interface
+	httpClient                  *HTTPClient
+	recorder                    record.EventRecorder
+	alertSwtichSet              *hashset.Set
+	capacityPercentageThreshold float64
 }
 
 func init() {
 	registerCollector("nfsstat", NewNfsStatCollector)
+}
+
+func parseNfsThreshold(defaultCapacityPercentageThreshold float64) (*hashset.Set, float64) {
+	alertSet := hashset.New()
+	nfsCapacityThreshold := strings.ToLower(strings.Trim(os.Getenv("NFS_CAPACITY_THRESHOLD_PERCENTAGE"), " "))
+	if len(nfsCapacityThreshold) != 0 {
+		alertSet.Add(capacitySwitch)
+		defaultCapacityPercentageThreshold, _ = parseCapacityThreshold(nfsCapacityThreshold, defaultCapacityPercentageThreshold)
+	}
+
+	return alertSet, defaultCapacityPercentageThreshold
 }
 
 // NewNfsStatCollector returns a new Collector exposing nfs stats.
@@ -173,6 +204,15 @@ func NewNfsStatCollector() (Collector, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	crdClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("Failed to create crd client: %v", err)
+	}
+
+	httpClient := NewHTTPClient()
+
+	alertSet, capacityPercentageThreshold := parseNfsThreshold(nfsDefaultsCapacityPercentageThreshold)
 
 	return &nfsStatCollector{
 		descs: []typedFactorDesc{
@@ -198,17 +238,21 @@ func NewNfsStatCollector() (Collector, error) {
 			{desc: nfsCapacityUsedDesc, valueType: prometheus.CounterValue},
 			{desc: nfsCapacityAvailableDesc, valueType: prometheus.CounterValue},
 		},
-		lastPvNfsInfoMap: make(map[string]nfsInfo, 0),
-		lastPvStatsMap:   sync.Map{},
-		clientSet:        clientset,
-		recorder:         recorder,
+		lastPvNfsInfoMap:            make(map[string]nfsInfo, 0),
+		lastPvStatsMap:              sync.Map{},
+		clientSet:                   clientset,
+		crdClient:                   crdClient,
+		recorder:                    recorder,
+		httpClient:                  httpClient,
+		alertSwtichSet:              alertSet,
+		capacityPercentageThreshold: capacityPercentageThreshold,
 	}, nil
 }
 
 func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
 	//startTime := time.Now()
 	pvNameStatsMap, err := getNfsStat()
-	if len(pvNameStatsMap) == 0 || pvNameStatsMap == nil {
+	if pvNameStatsMap == nil || len(pvNameStatsMap) == 0 {
 		return nil
 	}
 
@@ -217,7 +261,7 @@ func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
 	}
 	volJSONPaths, err := findVolJSON(podsRootPath)
 	if err != nil {
-		logrus.Errorf("Find nfs vol_data json is failed, err:%s", err)
+		log.Errorf("Find nfs vol_data json is failed, err:%s", err)
 		return err
 	}
 	p.updateMap(&p.lastPvNfsInfoMap, volJSONPaths, nasDriverName, "volumes")
@@ -225,7 +269,10 @@ func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
 	wg := sync.WaitGroup{}
 	for pvName, stats := range pvNameStatsMap {
 		nfsInfo := p.lastPvNfsInfoMap[pvName]
-		getNfsCapacityStat(pvName, nfsInfo, &stats)
+		err := getNfsCapacityStat(pvName, nfsInfo, &stats, p)
+		if err != nil {
+			continue
+		}
 		wg.Add(1)
 		go func(pvNameArgs string, pvcNamespaceArgs string, pvcNameArgs string, serverNameArgs string, statsArgs []string) {
 			defer wg.Done()
@@ -247,7 +294,7 @@ func (p *nfsStatCollector) setNfsMetric(pvName string, pvcNamespace string, pvcN
 
 		valueFloat64, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			logrus.Errorf("Convert value %s to float64 is failed, err:%s, stat:%+v", value, err, stats)
+			log.Errorf("Convert value %s to float64 is failed, err:%s, stat:%+v", value, err, stats)
 			continue
 		}
 
@@ -264,7 +311,7 @@ func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonP
 		return
 	}
 	if err != nil {
-		logrus.Errorf("Execute cmd %s is failed, err: %s", cmd, err)
+		log.Errorf("Execute cmd %s is failed, err: %s", cmd, err)
 		return
 	}
 	for _, path := range jsonPaths {
@@ -272,7 +319,7 @@ func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonP
 		pvName, _, err := getVolumeInfoByJSON(path, deriverName)
 		if err != nil {
 			if err.Error() != "VolumeType is not the expected type" {
-				logrus.Errorf("Get volume info by path %s is failed, err:%s", path, err)
+				log.Errorf("Get volume info by path %s is failed, err:%s", path, err)
 			}
 			continue
 		}
@@ -296,9 +343,9 @@ func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo,
 		lastInfo, ok := (*lastPvNfsInfoMap)[pv]
 		// add and modify
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
-			pvcNamespace, pvcName, serverName, err := getPvcByPvNameByNas(p.clientSet, pv)
+			pvcNamespace, pvcName, serverName, err := getPvcByPvNameByNas(p.clientSet, p.crdClient, pv)
 			if err != nil {
-				logrus.Errorf("Get pvc by pv %s is failed, err:%s", pv, err.Error())
+				log.Errorf("Get pvc by pv %s is failed, err:%s", pv, err.Error())
 				continue
 			}
 			updateInfo := nfsInfo{
@@ -360,16 +407,53 @@ func addNfsStat(pvNameStatMapping *map[string][]string, mountPath string, operat
 	}
 }
 
-func getNfsCapacityStat(pvName string, info nfsInfo, stat *[]string) error {
-	mountPath := strings.Replace(info.VolDataPath, "/vol_data.json", "", -1)
-	mountPath = mountPath + "/mount"
-	available, capacity, usage, _, _, _, err := fs.FsInfo(mountPath)
+func getNfsCapacityStat(pvName string, info nfsInfo, stat *[]string, p *nfsStatCollector) error {
+	response, err := p.httpClient.Get("multi-cnfs-nas", pvName)
 	if err != nil {
-		logrus.Errorf("Get fs info %s is failed,err:%s", mountPath, err)
 		return err
 	}
-	*stat = append(*stat, strconv.Itoa(int(capacity)))
-	*stat = append(*stat, strconv.Itoa(int(usage)))
-	*stat = append(*stat, strconv.Itoa(int(available)))
+	body := p.httpClient.ReadBody(response)
+	defer p.httpClient.Close(response)
+	m := make(map[string]nfsCapacityInfo, 0)
+	err = json.Unmarshal([]byte(body), &m)
+	if err != nil {
+		log.Errorf("Json unmarshal is failed, body:%+v, err:%s", body, err)
+		return err
+	}
+	value, ok := m[pvName]
+	if ok && value.TotalSize != -1 && value.UsedSize != -1 {
+		p.capacityEventAlert(value.TotalSize, value.UsedSize, pvName, info)
+		*stat = append(*stat, strconv.Itoa(int(value.TotalSize)*GBSIZE))
+		*stat = append(*stat, strconv.Itoa(int(value.UsedSize)*GBSIZE))
+		*stat = append(*stat, strconv.Itoa((int(value.TotalSize)-int(value.UsedSize))*GBSIZE))
+	} else {
+		mountPath := strings.Replace(info.VolDataPath, "/vol_data.json", "", -1)
+		mountPath = mountPath + "/mount"
+		available, capacity, usage, _, _, _, err := fs.FsInfo(mountPath)
+		if err != nil {
+			log.Errorf("Get fs info %s is failed,err:%s", mountPath, err)
+			return err
+		}
+		*stat = append(*stat, strconv.Itoa(int(capacity)))
+		*stat = append(*stat, strconv.Itoa(int(usage)))
+		*stat = append(*stat, strconv.Itoa(int(available)))
+	}
 	return nil
+}
+
+func (p *nfsStatCollector) capacityEventAlert(totalSize int64, usedSize int64, pvName string, info nfsInfo) {
+	if p.alertSwtichSet.Contains(capacitySwitch) {
+		usedPercentage := (float64(usedSize) / float64(totalSize)) * 100
+		if usedPercentage >= float64(p.capacityPercentageThreshold) {
+			ref := &v1.ObjectReference{
+				Kind:      "PersistentVolumeClaim",
+				Name:      info.PvcName,
+				UID:       "",
+				Namespace: info.PvcNamespace,
+			}
+			reason := fmt.Sprintf("Pvc %s is not enough disk space, namespace: %s, totalSize:%dGi, usedSize:%dGi, usedPercentage:%.2f%%, threshold:%.2f%%",
+				info.PvcName, info.PvcNamespace, totalSize, usedSize, usedPercentage, p.capacityPercentageThreshold)
+			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, capacityNotEnough, reason)
+		}
+	}
 }
