@@ -84,6 +84,8 @@ const (
 	ProvisionerService = "provisioner"
 	// InstallSnapshotCRD tag
 	InstallSnapshotCRD = "INSTALL_SNAPSHOT_CRD"
+	// MetadataMaxRetrycount ...
+	MetadataMaxRetrycount = 4
 )
 
 // KubernetesAlicloudIdentity set a identity label
@@ -264,6 +266,22 @@ func GetMetaData(resource string) (string, error) {
 		return "", err
 	}
 	return string(body), nil
+}
+
+// RetryGetMetaData ...
+func RetryGetMetaData(resource string) string {
+	var nodeID string
+	for i := 0; i < MetadataMaxRetrycount; i++ {
+		nodeID, _ = GetMetaData(resource)
+		if strings.Contains(nodeID, "Error 500 Internal Server Error") {
+			if i == MetadataMaxRetrycount-1 {
+				log.Fatalf("NewDriver:: Access metadata server failed: %v", nodeID)
+			}
+			continue
+		}
+		return nodeID
+	}
+	return nodeID
 }
 
 // GetRegionIDAndInstanceID get regionID and instanceID object
