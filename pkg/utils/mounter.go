@@ -79,22 +79,7 @@ func NewMounter() Mounter {
 	return &mounter{}
 }
 func (m *mounter) EnsureFolder(target string) error {
-	mdkirCmd := "mkdir"
-	_, err := exec.LookPath(mdkirCmd)
-	if err != nil {
-		if err == exec.ErrNotFound {
-			return fmt.Errorf("%q executable not found in $PATH", mdkirCmd)
-		}
-		return err
-	}
-
-	mkdirArgs := []string{"-p", target}
-	//log.Infof("mkdir for folder, the command is %s %v", mdkirCmd, mkdirArgs)
-	_, err = exec.Command(mdkirCmd, mkdirArgs...).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("mkdir for folder error: %v", err)
-	}
-	return nil
+	return os.MkdirAll(target, os.ModePerm)
 }
 
 func (m *mounter) EnsureBlock(target string) error {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -323,20 +324,5 @@ func checkFSType(devicePath string) (string, error) {
 
 // EnsureFolder ...
 func EnsureFolder(target string) error {
-	mdkirCmd := "mkdir"
-	_, err := exec.LookPath(mdkirCmd)
-	if err != nil {
-		if err == exec.ErrNotFound {
-			return fmt.Errorf("%q executable not found in $PATH", mdkirCmd)
-		}
-		return err
-	}
-
-	mkdirFullPath := fmt.Sprintf("%s mkdir -p %s", NsenterCmd, target)
-	_, err = utils.Run(mkdirFullPath)
-	if err != nil {
-		log.Errorf("Create path error: %v", err)
-		return err
-	}
-	return nil
+	return os.MkdirAll(target, os.ModePerm)
 }
