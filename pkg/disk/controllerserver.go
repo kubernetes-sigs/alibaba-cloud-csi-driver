@@ -724,11 +724,15 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 
 	str := fmt.Sprintf("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotResponse.SnapshotId)
 	log.Infof(str)
+	readyToUse := false
+	if useInstanceAccess {
+		readyToUse = true
+	}
 	csiSnapshot := &csi.Snapshot{
 		SnapshotId:     snapshotResponse.SnapshotId,
 		SourceVolumeId: sourceVolumeID,
 		CreationTime:   createAt,
-		ReadyToUse:     false,
+		ReadyToUse:     readyToUse,
 	}
 
 	createdSnapshotMap[req.Name] = csiSnapshot
