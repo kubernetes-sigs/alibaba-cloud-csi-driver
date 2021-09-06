@@ -323,6 +323,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		} else if strings.Contains(err.Error(), DiskNotAvailable) {
 			log.Infof("CreateVolume: Create Disk for volume %s with diskCatalog: %s is not supported in zone: %s", req.Name, createDiskRequest.DiskCategory, createDiskRequest.ZoneId)
 			continue
+		} else if strings.Contains(err.Error(), DiskNotAvailableVer2) {
+			log.Infof("CreateVolume: Create Disk for volume %s with diskCatalog: %s is not supported in zone: %s", req.Name, createDiskRequest.DiskCategory, createDiskRequest.ZoneId)
+			continue
 		} else {
 			log.Errorf("CreateVolume: create disk for volume %s with type: %s err: %v", req.Name, dType, err)
 			break
