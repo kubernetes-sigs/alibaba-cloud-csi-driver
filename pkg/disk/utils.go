@@ -80,6 +80,8 @@ const (
 	LogfilePrefix = "/var/log/alicloud/provisioner"
 	// DiskNotAvailable tag
 	DiskNotAvailable = "InvalidDataDiskCategory.NotSupported"
+	// DiskNotAvailableVer2 tag
+	DiskNotAvailableVer2 = "'DataDisk.n.Category' is not valid in this region."
 	// DiskSizeNotAvailable tag
 	DiskSizeNotAvailable = "InvalidDiskSize.NotSupported"
 	// DiskLimitExceeded tag
