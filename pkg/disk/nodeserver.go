@@ -25,7 +25,8 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -35,8 +36,6 @@ import (
 	"k8s.io/kubernetes/pkg/util/resizefs"
 	utilexec "k8s.io/utils/exec"
 	k8smount "k8s.io/utils/mount"
-
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 type nodeServer struct {
@@ -226,6 +225,12 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 
 // csi disk driver: bind directory from global to pod.
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	// if target path mounted already, return
+	if ns.isDirMounted(req.TargetPath) {
+		log.Infof("NodePublishVolume: TargetPath(%s) is mounted, not need mount again", req.TargetPath)
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
+
 	// check target mount path
 	sourcePath := req.StagingTargetPath
 	// running in runc/runv mode
@@ -442,6 +447,11 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 }
 
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	// if target path mounted already, return
+	if ns.isDirMounted(req.StagingTargetPath) {
+		log.Infof("NodeStageVolume: TargetPath(%s) is mounted, not need mount again", req.StagingTargetPath)
+		return &csi.NodeStageVolumeResponse{}, nil
+	}
 	log.Infof("NodeStageVolume: Stage VolumeId: %s, Target Path: %s, VolumeContext: %v", req.GetVolumeId(), req.StagingTargetPath, req.VolumeContext)
 
 	// Step 1: check input parameters
@@ -901,4 +911,13 @@ func (ns *nodeServer) unmountDuplicateMountPoint(targetPath string) error {
 		log.Warnf("Target Path is illegal format: %s", targetPath)
 	}
 	return nil
+}
+
+// check path is mounted or not
+func (ns *nodeServer) isDirMounted(path string) bool {
+	notMnt, err := ns.k8smounter.IsLikelyNotMountPoint(path)
+	if err == nil {
+		return !notMnt
+	}
+	return false
 }
