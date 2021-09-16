@@ -26,6 +26,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -76,6 +77,7 @@ type GlobalConfig struct {
 	ControllerService     bool
 	BdfHealthCheck        bool
 	DiskMultiTenantEnable bool
+	SnapClient            *snapClientset.Clientset
 }
 
 // define global variable
@@ -172,6 +174,10 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+	snapClient, err := snapClientset.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building kubernetes snapclientset: %s", err.Error())
 	}
 
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
@@ -350,6 +356,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		DetachBeforeDelete:    isDiskDetachBeforeDelete,
 		DetachBeforeAttach:    isDetachBeforeAttached,
 		ClientSet:             kubeClient,
+		SnapClient:            snapClient,
 		FilesystemLosePercent: fileSystemLosePercent,
 		ClusterID:             clustID,
 		DiskPartitionEnable:   partition,
