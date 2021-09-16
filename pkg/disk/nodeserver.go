@@ -225,16 +225,17 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 
 // csi disk driver: bind directory from global to pod.
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	// if target path mounted already, return
-	if ns.isDirTmpfsMounted(req.TargetPath) {
-		log.Infof("NodePublishVolume: TargetPath(%s) is mounted as tmpfs, not need mount again", req.TargetPath)
-		return &csi.NodePublishVolumeResponse{}, nil
-	}
-
 	// check target mount path
 	sourcePath := req.StagingTargetPath
 	// running in runc/runv mode
 	if GlobalConfigVar.RunTimeClass == MixRunTimeMode {
+		// if target path mounted already, return
+		if utils.IsMounted(req.TargetPath) {
+			log.Infof("NodePublishVolume: TargetPath(%s) is mounted, not need mount again", req.TargetPath)
+			return &csi.NodePublishVolumeResponse{}, nil
+		}
+
+		// check pod runtime
 		if runtime, err := utils.GetPodRunTime(req, ns.clientSet); err != nil {
 			return nil, status.Errorf(codes.Internal, "NodePublishVolume: cannot get pod runtime: %v", err)
 		} else if runtime == RunvRunTimeMode {
@@ -447,11 +448,6 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 }
 
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	// if target path mounted already, return
-	if ns.isDirTmpfsMounted(req.StagingTargetPath) {
-		log.Infof("NodeStageVolume: TargetPath(%s) is mounted as tmpfs, not need mount again", req.StagingTargetPath)
-		return &csi.NodeStageVolumeResponse{}, nil
-	}
 	log.Infof("NodeStageVolume: Stage VolumeId: %s, Target Path: %s, VolumeContext: %v", req.GetVolumeId(), req.StagingTargetPath, req.VolumeContext)
 
 	// Step 1: check input parameters
@@ -492,6 +488,13 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if !notmounted {
+		// if target path is mounted tmpfs, return
+		if utils.IsDirTmpfs(req.StagingTargetPath) {
+			log.Infof("NodeStageVolume: TargetPath(%s) is mounted as tmpfs, not need mount again", req.StagingTargetPath)
+			return &csi.NodeStageVolumeResponse{}, nil
+		}
+
+		// check device avaliable
 		deviceName := GetDeviceByMntPoint(targetPath)
 		if err := checkDeviceAvailable(deviceName, req.VolumeId, targetPath); err != nil {
 			log.Errorf("NodeStageVolume: mountPath is mounted %s, but check device available error: %s", targetPath, err.Error())
@@ -911,14 +914,4 @@ func (ns *nodeServer) unmountDuplicateMountPoint(targetPath string) error {
 		log.Warnf("Target Path is illegal format: %s", targetPath)
 	}
 	return nil
-}
-
-// check path is tmpfs mounted or not
-func (ns *nodeServer) isDirTmpfsMounted(path string) bool {
-	cmd := fmt.Sprintf("findmnt %s -o FSTYPE -n", path)
-	fsType, err := utils.Run(cmd)
-	if err == nil && strings.TrimSpace(fsType) == "tmpfs" {
-		return true
-	}
-	return false
 }
