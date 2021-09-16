@@ -226,8 +226,8 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 // csi disk driver: bind directory from global to pod.
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// if target path mounted already, return
-	if ns.isDirMounted(req.TargetPath) {
-		log.Infof("NodePublishVolume: TargetPath(%s) is mounted, not need mount again", req.TargetPath)
+	if ns.isDirTmpfsMounted(req.TargetPath) {
+		log.Infof("NodePublishVolume: TargetPath(%s) is mounted as tmpfs, not need mount again", req.TargetPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -448,8 +448,8 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	// if target path mounted already, return
-	if ns.isDirMounted(req.StagingTargetPath) {
-		log.Infof("NodeStageVolume: TargetPath(%s) is mounted, not need mount again", req.StagingTargetPath)
+	if ns.isDirTmpfsMounted(req.StagingTargetPath) {
+		log.Infof("NodeStageVolume: TargetPath(%s) is mounted as tmpfs, not need mount again", req.StagingTargetPath)
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
 	log.Infof("NodeStageVolume: Stage VolumeId: %s, Target Path: %s, VolumeContext: %v", req.GetVolumeId(), req.StagingTargetPath, req.VolumeContext)
@@ -913,11 +913,12 @@ func (ns *nodeServer) unmountDuplicateMountPoint(targetPath string) error {
 	return nil
 }
 
-// check path is mounted or not
-func (ns *nodeServer) isDirMounted(path string) bool {
-	notMnt, err := ns.k8smounter.IsLikelyNotMountPoint(path)
-	if err == nil {
-		return !notMnt
+// check path is tmpfs mounted or not
+func (ns *nodeServer) isDirTmpfsMounted(path string) bool {
+	cmd := fmt.Sprintf("findmnt %s -o FSTYPE -n", path)
+	fsType, err := utils.Run(cmd)
+	if err == nil && strings.TrimSpace(fsType) == "tmpfs" {
+		return true
 	}
 	return false
 }
