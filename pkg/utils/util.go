@@ -532,7 +532,7 @@ func Ping(ipAddress string) (*ping.Statistics, error) {
 	return stats, nil
 }
 
-// check path is tmpfs mounted or not
+// IsDirTmpfs check path is tmpfs mounted or not
 func IsDirTmpfs(path string) bool {
 	cmd := fmt.Sprintf("findmnt %s -o FSTYPE -n", path)
 	fsType, err := Run(cmd)
