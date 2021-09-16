@@ -531,3 +531,13 @@ func Ping(ipAddress string) (*ping.Statistics, error) {
 	stats := pinger.Statistics()
 	return stats, nil
 }
+
+// check path is tmpfs mounted or not
+func IsDirTmpfs(path string) bool {
+	cmd := fmt.Sprintf("findmnt %s -o FSTYPE -n", path)
+	fsType, err := Run(cmd)
+	if err == nil && strings.TrimSpace(fsType) == "tmpfs" {
+		return true
+	}
+	return false
+}
