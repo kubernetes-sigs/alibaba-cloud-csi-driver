@@ -458,6 +458,12 @@ func createLosetupPv(fullPath string, volSizeBytes int64) error {
 
 // /var/lib/kubelet/pods/5e03c7f7-2946-4ee1-ad77-2efbc4fdb16c/volumes/kubernetes.io~csi/nas-f5308354-725a-4fd3-b613-0f5b384bd00e/mount
 func mountLosetupPv(mountPoint string, opt *Options, volumeID string) error {
+	// if target path mounted already, return
+	if utils.IsMounted(mountPoint) {
+		log.Infof("mountLosetupPv: TargetPath(%s) is mounted as tmpfs, not need mount again", mountPoint)
+		return nil
+	}
+
 	pathList := strings.Split(mountPoint, "/")
 	if len(pathList) != 10 {
 		return fmt.Errorf("mountLosetupPv: mountPoint format error, %s", mountPoint)
