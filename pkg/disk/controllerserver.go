@@ -81,7 +81,7 @@ const (
 	DiskSnapshotID = "csi.alibabacloud.com/disk-snapshot-id"
 	// VolumeSnapshotNamespace namespace
 	VolumeSnapshotNamespace = "csi.storage.k8s.io/volumesnapshot/namespace"
-	// VolumeSnapshotName
+	// VolumeSnapshotName tag
 	VolumeSnapshotName = "csi.storage.k8s.io/volumesnapshot/name"
 	// IAVolumeSnapshotKey tag
 	IAVolumeSnapshotKey = "csi.alibabacloud.com/snapshot-ia"
@@ -193,10 +193,10 @@ var storageClassZonePos = map[string]int{}
 // diskId and pvName is not same under csi plugin
 var diskIDPVMap = map[string]string{}
 
-// snapshot request limit
+// SnapshotRequestMap snapshot request limit
 var SnapshotRequestMap = map[string]int64{}
 
-// snapshot request limit
+// SnapshotRequestInterval snapshot request limit
 var SnapshotRequestInterval = int64(10)
 
 // provisioner: create/delete disk
@@ -651,7 +651,7 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, er
 	if snapshotTTL != "" {
 		retentionDays, err = strconv.Atoi(snapshotTTL)
 		if err != nil {
-			log.Warnf("CreateSnapshot: Snapshot ttl format error: %v", req.Name, err.Error())
+			log.Warnf("CreateSnapshot: Snapshot(%s) ttl format error: %v", req.Name, err.Error())
 			return retentionDays, useInstanceAccess, instantAccessRetentionDays, err
 		}
 	}
@@ -661,7 +661,7 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, er
 	if iaTTL != "" {
 		instantAccessRetentionDays, err = strconv.Atoi(iaTTL)
 		if err != nil {
-			log.Warnf("CreateSnapshot: IA ttl format error: %v", req.Name, err.Error())
+			log.Warnf("CreateSnapshot: IA ttl(%s) format error: %v", req.Name, err.Error())
 			return retentionDays, useInstanceAccess, instantAccessRetentionDays, err
 		}
 	}
