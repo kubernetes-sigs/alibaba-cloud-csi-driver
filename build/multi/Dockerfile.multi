@@ -4,11 +4,11 @@ ARG BUILDPLATFORM
 ENV GOPATH=/go
 ADD . /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/
 WORKDIR /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
-RUN env GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GOOS=linux CGO_ENABLED=0 go build -ldflags "-X main._BRANCH_='v1.0.0' -X main._VERSION_='v1.14.5' -X main._BUILDTIME_=`date '+%Y-%m-%d-%H:%M:%S'`" -o plugin.csi.alibabacloud.com && env GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GOOS=linux CGO_ENABLED=0 go build ./build/oss/csiplugin-connector.go
+RUN env GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GOOS=linux CGO_ENABLED=0 go build -ldflags "-X main._BRANCH_='v1.0.0' -X main._VERSION_='v1.14.5' -X main._BUILDTIME_=`date '+%Y-%m-%d-%H:%M:%S'`" -o plugin.csi.alibabacloud.com && env GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GOOS=linux CGO_ENABLED=0 go build ./build/multi/csiplugin-connector.go
 
 FROM registry.cn-hangzhou.aliyuncs.com/acs/centos:7-update
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
-RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils
+RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils nc
 ARG BUILDPLATFORM 
 ARG TARGETPLATFORM 
 COPY ./build/multi/ /multi_data

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sevlyar/go-daemon"
@@ -23,8 +24,10 @@ const (
 	PIDFilename = "/var/log/alicloud/connector.pid"
 	// WorkPath workspace
 	WorkPath = "./"
-	// SocketPath socket path
-	SocketPath = "/etc/csi-tool/connector.sock"
+	// OSSSocketPath socket path
+	OSSSocketPath = "/etc/csi-tool/connector.sock"
+	// DiskSocketPath socket path
+	DiskSocketPath = "/etc/csi-tool/diskconnector.sock"
 )
 
 func main() {
@@ -49,57 +52,79 @@ func main() {
 	defer cntxt.Release()
 	log.Print("OSS Connector Daemon Is Starting...")
 
-	runOssProxy()
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go runOssProxy(wg)
+	go runDiskProxy(wg)
+	wg.Wait()
 }
 
-func runOssProxy() {
-	if IsFileExisting(SocketPath) {
-		os.Remove(SocketPath)
-	} else {
-		pathDir := filepath.Dir(SocketPath)
-		if !IsFileExisting(pathDir) {
-			os.MkdirAll(pathDir, os.ModePerm)
-		}
-	}
-	log.Printf("Socket path is ready: %s", SocketPath)
-	ln, err := net.Listen("unix", SocketPath)
+func runDiskProxy(wg sync.WaitGroup) {
+	defer wg.Done()
+	EnsureSocketPath(DiskSocketPath)
+	log.Printf("Socket path is ready: %s", OSSSocketPath)
+	ln, err := net.Listen("unix", DiskSocketPath)
 	if err != nil {
-		log.Fatalf("Server Listen error: %s", err.Error())
+		log.Fatalf("runDiskProxy: server Listen error: %v", err.Error())
 	}
-	log.Print("Daemon Started ...")
+	log.Print("Disk proxy daemon started ....")
 	defer ln.Close()
+	go watchDogCheck()
 
+	// Handler to process the command
+	for {
+		fd, err := ln.Accept()
+		if err != nil {
+			log.Printf("Disk Server Accept error: %s", err.Error())
+			continue
+		}
+		go echoDiskServer(fd)
+	}
+}
+
+func watchDogCheck() {
 	// watchdog of UNIX Domain Socket
 	var socketsPath []string
 	if os.Getenv("WATCHDOG_SOCKETS_PATH") != "" {
 		socketsPath = strings.Split(os.Getenv("WATCHDOG_SOCKETS_PATH"), ",")
 	}
 	socketNotAliveCount := make(map[string]int)
-	go func() {
-		if len(socketsPath) == 0 {
-			return
-		}
-		for {
-			deadSockets := 0
-			for _, path := range socketsPath {
-				if err := isUnixDomainSocketLive(path); err != nil {
-					log.Printf("socket %s is not alive: %v", path, err)
-					socketNotAliveCount[path]++
-				} else {
-					socketNotAliveCount[path] = 0
-				}
-				if socketNotAliveCount[path] >= 6 {
-					deadSockets++
-				}
+	if len(socketsPath) == 0 {
+		return
+	}
+	for {
+		deadSockets := 0
+		for _, path := range socketsPath {
+			if err := isUnixDomainSocketLive(path); err != nil {
+				log.Printf("socket %s is not alive: %v", path, err)
+				socketNotAliveCount[path]++
+			} else {
+				socketNotAliveCount[path] = 0
 			}
-			if deadSockets >= len(socketsPath) {
-				log.Printf("watchdog find too many dead sockets, csiplugin-connector will exit(0)")
-				os.Exit(0)
+			if socketNotAliveCount[path] >= 6 {
+				deadSockets++
 			}
-			time.Sleep(time.Second * 10)
 		}
-	}()
+		if deadSockets >= len(socketsPath) {
+			log.Printf("watchdog find too many dead sockets, csiplugin-connector will exit(0)")
+			os.Exit(0)
+		}
+		time.Sleep(time.Second * 10)
+	}
+}
 
+func runOssProxy(wg sync.WaitGroup) {
+	defer wg.Done()
+	EnsureSocketPath(OSSSocketPath)
+	log.Printf("Socket path is ready: %s", OSSSocketPath)
+	ln, err := net.Listen("unix", OSSSocketPath)
+	if err != nil {
+		log.Fatalf("Server Listen error: %s", err.Error())
+	}
+	log.Print("Daemon Started ...")
+	defer ln.Close()
+
+	go watchDogCheck()
 	// Handler to process the command
 	for {
 		fd, err := ln.Accept()
@@ -109,6 +134,38 @@ func runOssProxy() {
 		}
 		go echoServer(fd)
 	}
+}
+
+func echoDiskServer(c net.Conn) {
+	buf := make([]byte, 2048)
+	nr, err := c.Read(buf)
+	if err != nil {
+		log.Print("echoDiskServer:: server read error: %v", err.Error())
+	}
+	cmd := string(buf[0:nr])
+	log.Printf("echoDiskServer:: server receive oss command: %v", cmd)
+	if err := checkFilesystemConsistentCommand(cmd); err != nil {
+		out := "Fail:" + err.Error()
+		log.Printf("echoDiskServer:: check disk command error: %v", out)
+		if _, err := c.Write([]byte(out)); err != nil {
+			log.Printf("echoDiskServer:: check disk command error: %v", out)
+		}
+		return
+	}
+	// run command
+	if out, err := run(cmd); err != nil {
+		reply := "Fail: " + cmd + ", error: " + err.Error()
+		_, err = c.Write([]byte(reply))
+		log.Print("Server Fail to run cmd:", reply)
+	} else {
+		out = "Success:" + out
+		_, err = c.Write([]byte(out))
+		log.Printf("Success: %s", out)
+	}
+}
+
+func checkFilesystemConsistentCommand(cmd string) error {
+	return nil
 }
 
 func echoServer(c net.Conn) {
@@ -254,4 +311,15 @@ func isUnixDomainSocketLive(socketPath string) error {
 	}
 	conn.Close()
 	return nil
+}
+
+func EnsureSocketPath(socketPath string) {
+	if IsFileExisting(socketPath) {
+		os.Remove(socketPath)
+	} else {
+		pathDir := filepath.Dir(socketPath)
+		if !IsFileExisting(pathDir) {
+			os.MkdirAll(pathDir, os.ModePerm)
+		}
+	}
 }
