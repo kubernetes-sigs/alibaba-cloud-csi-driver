@@ -126,17 +126,15 @@ spec:
       hostNetwork: true
       containers:
         - name: external-disk-provisioner
-          image: csi-image-prefix/acs/csi-provisioner:v1.6.0-e360c7e43-aliyun
+          image: csi-image-prefix/acs/csi-provisioner:v3.0.0-3f86569-aliyun
           args:
-            - "--provisioner=diskplugin.csi.alibabacloud.com"
             - "--csi-address=\$(ADDRESS)"
             - "--feature-gates=Topology=True"
             - "--volume-name-prefix=disk"
             - "--strict-topology=true"
             - "--timeout=150s"
-            - "--enable-leader-election=true"
+            - "--leader-election=true"
             - "--extra-create-metadata=true"
-            - "--leader-election-type=leases"
             - "--retry-interval-start=500ms"
             - "--v=5"
           env:
@@ -173,14 +171,12 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-nas-provisioner
-          image: csi-image-prefix/acs/csi-provisioner:v1.6.0-e360c7e43-aliyun
+          image: csi-image-prefix/acs/csi-provisioner:v3.0.0-3f86569-aliyun
           args:
-            - "--provisioner=nasplugin.csi.alibabacloud.com"
             - "--csi-address=\$(ADDRESS)"
             - "--volume-name-prefix=nas"
             - "--timeout=150s"
-            - "--enable-leader-election=true"
-            - "--leader-election-type=leases"
+            - "--leader-election=true"
             - "--retry-interval-start=500ms"
             - "--v=5"
           env:
