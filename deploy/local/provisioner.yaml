@@ -57,7 +57,7 @@ spec:
       hostNetwork: true
       containers:
         - name: external-local-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.6.0-b6f763a43-ack
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v3.0.0-3f86569-aliyun
           args:
             - "--csi-address=$(ADDRESS)"
             - "--feature-gates=Topology=True"
@@ -65,8 +65,7 @@ spec:
             - "--strict-topology=true"
             - "--timeout=150s"
             - "--extra-create-metadata=true"
-            - "--enable-leader-election=true"
-            - "--leader-election-type=leases"
+            - "--leader-election=true"
             - "--retry-interval-start=500ms"
             - "--v=5"
           env:
