@@ -28,14 +28,12 @@ spec:
       hostNetwork: true
       containers:
         - name: external-cpfs-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.4.0-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v3.0.0-3f86569-aliyun
           args:
-            - "--provisioner=cpfsplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
             - "--volume-name-prefix=cpfs"
             - "--timeout=150s"
-            - "--enable-leader-election=true"
-            - "--leader-election-type=leases"
+            - "--leader-election=true"
             - "--retry-interval-start=500ms"
             - "--v=5"
           env:
