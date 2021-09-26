@@ -79,6 +79,13 @@ const (
 	INSTANTACCESSRETENTIONDAYS = "instantAccessRetentionDays"
 	// DiskSnapshotID means snapshot id
 	DiskSnapshotID = "csi.alibabacloud.com/disk-snapshot-id"
+
+	// MetaVolumeSnapshotNamespace ...
+	MetaVolumeSnapshotNamespace = "csi.storage.k8s.io/volumesnapshot/namespace"
+	// MetaVolumeSnapshotName ...
+	MetaVolumeSnapshotName = "csi.storage.k8s.io/volumesnapshot/name"
+	// MetaVolumeSnapshotContentName ...
+	MetaVolumeSnapshotContentName = "csi.storage.k8s.io/volumesnapshotcontent/name"
 )
 
 const (
@@ -577,11 +584,13 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 
 // CreateSnapshot ...
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
+	snapshotName := req.Parameters[MetaVolumeSnapshotName]
+	snapshotNamespace := req.Parameters[MetaVolumeSnapshotNamespace]
 	ref := &v1.ObjectReference{
 		Kind:      "VolumeSnapshot",
-		Name:      req.Name,
+		Name:      snapshotName,
 		UID:       "",
-		Namespace: "",
+		Namespace: snapshotNamespace,
 	}
 	useInstanceAccess := false
 	retentionDays := -1
@@ -692,11 +701,10 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	// init createSnapshotRequest and parameters
-	snapshotName := req.GetName()
 	createAt := ptypes.TimestampNow()
 	createSnapshotRequest := ecs.CreateCreateSnapshotRequest()
 	createSnapshotRequest.DiskId = sourceVolumeID
-	createSnapshotRequest.SnapshotName = snapshotName
+	createSnapshotRequest.SnapshotName = req.GetName()
 	createSnapshotRequest.InstantAccess = requests.NewBoolean(useInstanceAccess)
 	createSnapshotRequest.InstantAccessRetentionDays = requests.NewInteger(instantAccessRetentionDays)
 	if retentionDays != -1 {
