@@ -48,12 +48,12 @@
 ### 2. 适配模板并部署：
 根据集群所在的Region修改模板中的镜像地址。例如：如果是cn-beijing的集群
 
-则将 registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.6.0-e360c7e43-aliyun 中的：
+则将 registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v3.0.0-3f86569-aliyun 中的：
 > registry 改为 registry-vpc
 >
 > cn-hangzhou 改为 cn-beijing
 
-即：registry-vpc.cn-beijing.aliyuncs.com/acs/csi-provisioner:v1.6.0-e360c7e43-aliyun
+即：registry-vpc.cn-beijing.aliyuncs.com/acs/csi-provisioner:v3.0.0-3f86569-aliyun
 
 **模板中的其他镜像也是如此更新；**
 
