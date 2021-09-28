@@ -345,7 +345,6 @@ func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo,
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
 			pvcNamespace, pvcName, serverName, err := getPvcByPvNameByNas(p.clientSet, p.crdClient, pv)
 			if err != nil {
-				log.Errorf("Get pvc by pv %s is failed, err:%s", pv, err.Error())
 				continue
 			}
 			updateInfo := nfsInfo{
@@ -428,6 +427,9 @@ func getNfsCapacityStat(pvName string, info nfsInfo, stat *[]string, p *nfsStatC
 		*stat = append(*stat, strconv.Itoa((int(value.TotalSize)-int(value.UsedSize))*GBSIZE))
 	} else {
 		mountPath := strings.Replace(info.VolDataPath, "/vol_data.json", "", -1)
+		if len(mountPath) == 0 {
+			return errors.New("MountPath is empty")
+		}
 		mountPath = mountPath + "/mount"
 		available, capacity, usage, _, _, _, err := fs.FsInfo(mountPath)
 		if err != nil {

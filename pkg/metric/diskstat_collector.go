@@ -450,7 +450,6 @@ func (p *diskStatCollector) updateDiskInfoMap(thisPvDiskInfoMap map[string]diskI
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
 			pvcNamespace, pvcName, err := getPvcByPvNameByDisk(p.clientSet, pv)
 			if err != nil {
-				logrus.Errorf("Get pvc by pv %s is failed, err:%s", pv, err.Error())
 				continue
 			}
 			updateInfo := diskInfo{

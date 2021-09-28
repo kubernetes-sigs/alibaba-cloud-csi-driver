@@ -223,7 +223,6 @@ func (p *pfsRawBlockStatCollector) updatePfsInfoMap(clientSet *kubernetes.Client
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
 			pvcNamespace, pvcName, err := getPvcByPvNameByDisk(clientSet, pv)
 			if err != nil {
-				logrus.Errorf("Get pvc by pv %s is failed, err:%s", pv, err.Error())
 				continue
 			}
 			updateInfo := pfsInfo{
