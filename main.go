@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"io"
 	"net/http"
 	"os"
@@ -33,7 +34,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/lvm"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mem"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/om"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
