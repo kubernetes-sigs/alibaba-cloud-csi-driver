@@ -20,6 +20,7 @@ require (
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/kubernetes-csi/csi-lib-utils v0.7.1 // indirect
 	github.com/kubernetes-csi/drivers v1.0.2
+	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.2.0
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.0.0
@@ -39,10 +40,10 @@ require (
 	google.golang.org/grpc v1.28.0
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/yaml.v2 v2.3.0 // indirect
-	k8s.io/api v0.18.8
+	k8s.io/api v0.19.0
 	k8s.io/apiextensions-apiserver v0.0.0
-	k8s.io/apimachinery v0.18.8
-	k8s.io/client-go v0.18.8
+	k8s.io/apimachinery v0.19.0
+	k8s.io/client-go v0.19.0
 	k8s.io/kube-openapi v0.0.0-20200811211545-daf3cbb84823 // indirect
 	k8s.io/kubernetes v1.18.8
 	k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89
