@@ -70,7 +70,7 @@ if [ "$run_oss" = "true" ]; then
 
     ossfsVer="1.80.6.ack.1"
     if [ "$USE_UPDATE_OSSFS" == "" ]; then
-        ossfsVer="1.86.2"
+        ossfsVer="1.86.4"
     fi
 
     ossfsArch="centos7.0"

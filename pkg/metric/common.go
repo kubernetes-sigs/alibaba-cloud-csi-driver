@@ -36,6 +36,7 @@ const (
 	diskSectorSize                                 = 512
 	diskDefaultsLantencyThreshold                  = 10
 	diskDefaultsCapacityPercentageThreshold        = 85
+	nfsDefaultsCapacityPercentageThreshold         = 85
 	float64EqualityThreshold                       = 1e-9
 	diskStatsFileName                              = "diskstats"
 	nfsStatsFileName                               = "/proc/self/mountstats"

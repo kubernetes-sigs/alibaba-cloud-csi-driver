@@ -15,8 +15,6 @@ import (
 )
 
 const (
-	// MBSIZE metrics
-	MBSIZE = 1024 * 1024
 	// LogFilename name of log file
 	LogFilename = "/var/log/alicloud/csi_connector.log"
 	// PIDFilename name of pid file
