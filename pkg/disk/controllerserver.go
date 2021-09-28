@@ -683,7 +683,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	SnapshotRequestMap[req.Name] = cur
 
 	// used for snapshot events
-  snapshotName := req.Parameters[VolumeSnapshotName]
+	snapshotName := req.Parameters[VolumeSnapshotName]
 	snapshotNamespace := req.Parameters[VolumeSnapshotNamespace]
 	ref := &v1.ObjectReference{
 		Kind:      "VolumeSnapshot",
