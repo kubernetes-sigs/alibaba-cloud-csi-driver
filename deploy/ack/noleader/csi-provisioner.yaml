@@ -48,15 +48,13 @@ spec:
       hostNetwork: true
       containers:
         - name: external-disk-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.6.0-e360c7e43-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v3.0.0-3f86569-aliyun
           args:
-            - "--provisioner=diskplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
             - "--feature-gates=Topology=True"
             - "--volume-name-prefix=disk"
             - "--strict-topology=true"
             - "--timeout=150s"
-            - "--enable-leader-election=false"
             - "--extra-create-metadata=true"
             - "--retry-interval-start=500ms"
             - "--v=5"
@@ -93,13 +91,11 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-nas-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v1.6.0-e360c7e43-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v3.0.0-3f86569-aliyun
           args:
-            - "--provisioner=nasplugin.csi.alibabacloud.com"
             - "--csi-address=$(ADDRESS)"
             - "--volume-name-prefix=nas"
             - "--timeout=150s"
-            - "--enable-leader-election=false"
             - "--v=5"
           env:
             - name: ADDRESS
