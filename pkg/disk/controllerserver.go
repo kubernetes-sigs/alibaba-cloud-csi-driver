@@ -87,6 +87,8 @@ const (
 	IAVolumeSnapshotKey = "csi.alibabacloud.com/snapshot-ia"
 	// SnapshotRequestTag interval limit
 	SnapshotRequestTag = "SNAPSHOT_REQUEST_INTERVAL"
+	// VolumeSnapshotContentName ...
+	VolumeSnapshotContentName = "csi.storage.k8s.io/volumesnapshotcontent/name"
 )
 
 const (
@@ -681,11 +683,13 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	SnapshotRequestMap[req.Name] = cur
 
 	// used for snapshot events
+  snapshotName := req.Parameters[VolumeSnapshotName]
+	snapshotNamespace := req.Parameters[VolumeSnapshotNamespace]
 	ref := &v1.ObjectReference{
 		Kind:      "VolumeSnapshot",
-		Name:      req.Name,
+		Name:      snapshotName,
 		UID:       "",
-		Namespace: "",
+		Namespace: snapshotNamespace,
 	}
 
 	// parse snapshot Retention Days
@@ -786,11 +790,10 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	// init createSnapshotRequest and parameters
-	snapshotName := req.GetName()
 	createAt := ptypes.TimestampNow()
 	createSnapshotRequest := ecs.CreateCreateSnapshotRequest()
 	createSnapshotRequest.DiskId = sourceVolumeID
-	createSnapshotRequest.SnapshotName = snapshotName
+	createSnapshotRequest.SnapshotName = req.GetName()
 	createSnapshotRequest.InstantAccess = requests.NewBoolean(useInstanceAccess)
 	createSnapshotRequest.InstantAccessRetentionDays = requests.NewInteger(instantAccessRetentionDays)
 	if retentionDays != -1 {
