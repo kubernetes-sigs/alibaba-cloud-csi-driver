@@ -22,6 +22,7 @@ RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then curl http
 RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-e85518d_centos7.0_x86_64.rpm -o /root/ossfs_1.86.2_centos7.0_x86_64.rpm; fi
 RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-a9e4226_centos8_x86_64.rpm -o /root/ossfs_1.86.2_centos8_x86_64.rpm; fi
 
+RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then mv /multi_data/jindofs-fuse /; fi
 RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "arm64" ]]; then mkdir /acs; mv /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-fuse-2.9.2-11.el7.aarch64.rpm /acs/fuse-2.9.2-11.el7.aarch64.rpm; mv /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-fuse-libs-2.9.2-11.el7.aarch64.rpm /acs/fuse-libs-2.9.2-11.el7.aarch64.rpm; fi
 RUN mv /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-entrypoint.sh /entrypoint.sh
 COPY ./build/multi/csiplugin-connector.service /bin/csiplugin-connector.service

@@ -19,6 +19,9 @@ if [[ "$os_release_exist" = "0" ]]; then
     if [[ `echo ${osID} | grep "alinux" | wc -l` != "0" ]] && [[ "${osVersion}" ]]; then
         host_os="alinux3"
     fi
+		if [[ `echo ${osID} | grep "lifsea" | wc -l` != "0" ]]; then
+        host_os="lifsea"
+    fi
 fi
 
 ## check which plugin is running
@@ -76,6 +79,10 @@ if [ "$run_oss" = "true" ]; then
         ossfsArch="centos8"
     fi
 
+		if [[ ${host_os} == "lifsea" ]]; then
+        ossfsArch="centos8"
+    fi
+
     echo "Starting deploy oss csi-plugin..."
     echo "osHost:"${host_os}
     echo "ossfsVersion:"${ossfsVer}
@@ -83,10 +90,12 @@ if [ "$run_oss" = "true" ]; then
 
     # install OSSFS
     mkdir -p /host/etc/csi-tool/
+		reconcileOssFS="skip"
     if [ ! `/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
         echo "First install ossfs, ossfsVersion: $ossfsVer"
         cp /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm /host/etc/csi-tool/
-        /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+        # /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+				reconcileOssFS="install"
     # update OSSFS
     else
         echo "Check ossfs Version...."
@@ -95,8 +104,31 @@ if [ "$run_oss" = "true" ]; then
             echo "Upgrade ossfs, ossfsVersion: $ossfsVer"
             /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
             cp /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm /host/etc/csi-tool/
-            /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+            # /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+						reconcileOssFS="upgrade"
         fi
+    fi
+
+		if [[ ${reconcileOssFS} == "install" ]]; then
+      if [[ ${host_os} == "lifsea" ]]; then
+          rpm2cpio /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | cpio -idmv
+          cp ./usr/local/bin/ossfs /host/etc/csi-tool/
+          /nsenter --mount=/proc/1/ns/mnt cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
+      else
+          /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+      fi
+    fi
+
+    if [[ ${reconcileOssFS} == "upgrade" ]]; then
+      if [[ ${host_os} == "lifsea" ]]; then
+          /nsenter --mount=/proc/1/ns/mnt rm /usr/local/bin/ossfs
+          rpm2cpio /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | cpio -idmv
+          cp ./usr/local/bin/ossfs /host/etc/csi-tool/
+          /nsenter --mount=/proc/1/ns/mnt cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
+      else
+          /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
+          /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+      fi
     fi
 
     # install Jindofs
@@ -116,6 +148,10 @@ if [ "$run_oss" = "true" ]; then
 
     ## install/update csi connector
     updateConnector="true"
+		systemdDir="/host/usr/lib/systemd/system"
+    if [[ ${host_os} == "lifsea" ]]; then
+        systemdDir="/host/etc/systemd/system"
+    fi
     if [ ! -f "/host/etc/csi-tool/csiplugin-connector" ];then
         mkdir -p /host/etc/csi-tool/
         echo "mkdir /etc/csi-tool/ directory..."
@@ -147,20 +183,20 @@ if [ "$run_oss" = "true" ]; then
         sed -i '/ExecStop=\/bin\/kill -s QUIT $MAINPID/d' /bin/csiplugin-connector.service
         sed -i '/^\[Service\]/a ExecStop=sh -xc "if [ x$MAINPID != x ]; then /bin/kill -s QUIT $MAINPID; fi"' /bin/csiplugin-connector.service
     fi
-    if [ -f "/host/usr/lib/systemd/system/csiplugin-connector.service" ];then
+    if [ -f "$systemdDir/csiplugin-connector.service" ];then
         echo "Check csiplugin-connector.service...."
-        oldmd5=`md5sum /host/usr/lib/systemd/system/csiplugin-connector.service | awk '{print $1}'`
+        oldmd5=`md5sum $systemdDir/csiplugin-connector.service | awk '{print $1}'`
         newmd5=`md5sum /bin/csiplugin-connector.service | awk '{print $1}'`
         if [ "$oldmd5" = "$newmd5" ]; then
             updateConnectorService="false"
         else
-            rm -rf /host/usr/lib/systemd/system/csiplugin-connector.service
+            rm -rf $systemdDir/csiplugin-connector.service
         fi
     fi
 
     if [ "$updateConnectorService" = "true" ]; then
         echo "Install csiplugin connector service...."
-        cp /bin/csiplugin-connector.service /host/usr/lib/systemd/system/csiplugin-connector.service
+        cp /bin/csiplugin-connector.service $systemdDir/csiplugin-connector.service
         /nsenter --mount=/proc/1/ns/mnt systemctl daemon-reload
     fi
 
