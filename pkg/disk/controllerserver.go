@@ -35,6 +35,8 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	volumeSnasphotV1 "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
+	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/crds"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -89,6 +91,8 @@ const (
 	SnapshotRequestTag = "SNAPSHOT_REQUEST_INTERVAL"
 	// VolumeSnapshotContentName ...
 	VolumeSnapshotContentName = "csi.storage.k8s.io/volumesnapshotcontent/name"
+	// DefaultVolumeSnapshotClass ...
+	DefaultVolumeSnapshotClass = "alibabacloud-disk-snapshot"
 )
 
 const (
@@ -174,6 +178,7 @@ func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset, region s
 	serviceType := os.Getenv(utils.ServiceType)
 	if serviceType == utils.ProvisionerService && installCRD {
 		checkInstallCRD(client)
+		checkInstallDefaultVolumeSnapshotClass(GlobalConfigVar.SnapClient)
 	}
 	c := &controllerServer{
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
@@ -1052,6 +1057,24 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 
 	log.Infof("ControllerExpandVolume:: Success to resize volume: %s from %dG to %dG, RequestID: %s", req.VolumeId, disk.Size, requestGB, response.RequestId)
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
+}
+
+func checkInstallDefaultVolumeSnapshotClass(snapClient *snapClientset.Clientset) {
+	_, err := snapClient.SnapshotV1().VolumeSnapshotClasses().Get(context.TODO(), DefaultVolumeSnapshotClass, metav1.GetOptions{})
+	if err != nil {
+		snapshotClass := &volumeSnasphotV1.VolumeSnapshotClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: DefaultVolumeSnapshotClass,
+			},
+			Driver:         driverName,
+			DeletionPolicy: "Delete",
+			Parameters:     map[string]string{},
+		}
+		_, err = snapClient.SnapshotV1().VolumeSnapshotClasses().Create(context.TODO(), snapshotClass, metav1.CreateOptions{})
+		if err != nil {
+			log.Errorf("checkInstallDefaultVolumeSnapshotClass:: failed to create volume snapshot class: %v", err)
+		}
+	}
 }
 
 func checkInstallCRD(crdClient *crd.Clientset) {
