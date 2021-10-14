@@ -55,8 +55,8 @@ elif [ "$os_release_exist" = "0" ]; then
 fi
 
 # cpfs version
-dkmsversion="1.0.0-204"
-cpfsversion="2.10.8-202"
+dkmsversion="1.0.0-205a"
+cpfsversion="2.10.8-209a"
 
 if [ "$host_os" = "centos-7" ] || [ "$host_os" = "alios" ] ; then
     if [ "${CPFS_VERSION}" != "" ]; then
