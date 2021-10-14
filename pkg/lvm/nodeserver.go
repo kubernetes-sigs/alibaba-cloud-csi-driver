@@ -320,9 +320,9 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 }
 
 func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, targetPath string) error {
-	pvSize, unit := ns.getPvSize(volumeID)
+	pvSize, pvSizeByte, unit := ns.getPvSize(volumeID)
 	devicePath := filepath.Join("/dev", vgName, volumeID)
-	sizeCmd := fmt.Sprintf("%s lvdisplay %s 2>&1 | grep 'LV Size' | awk '{print $3}'", NsenterCmd, devicePath)
+	sizeCmd := fmt.Sprintf("%s lvdisplay --units B %s 2>&1 | grep 'LV Size' | awk '{print $3}'", NsenterCmd, devicePath)
 	sizeStr, err := utils.Run(sizeCmd)
 	if err != nil {
 		return err
@@ -337,7 +337,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, target
 	}
 
 	// if lvmsize equal/bigger than pv size, no do expand.
-	if sizeInt >= pvSize {
+	if sizeInt >= pvSizeByte {
 		return nil
 	}
 	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, from size: %d, to Size: %d%s", volumeID, devicePath, sizeInt, pvSize, unit)
@@ -365,21 +365,22 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, volumeID, vgName, target
 	return nil
 }
 
-func (ns *nodeServer) getPvSize(volumeID string) (int64, string) {
+func (ns *nodeServer) getPvSize(volumeID string) (int64, int64, string) {
 	pv, err := ns.client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("lvcreate: fail to get pv, err: %v", err)
-		return 0, ""
+		return 0, 0, ""
 	}
 	pvQuantity := pv.Spec.Capacity["storage"]
-	pvSize := pvQuantity.Value()
+	pvSizeByte := pvQuantity.Value()
+	pvSize := pvSizeByte
 	pvSizeGB := pvSize / (1024 * 1024 * 1024)
 
 	if pvSizeGB == 0 {
 		pvSizeMB := pvSize / (1024 * 1024)
-		return pvSizeMB, "m"
+		return pvSizeMB, pvSizeByte, "m"
 	}
-	return pvSizeGB, "g"
+	return pvSizeGB, pvSizeByte, "g"
 }
 
 // create lvm volume
