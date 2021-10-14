@@ -385,7 +385,7 @@ func (ns *nodeServer) getPvSize(volumeID string) (int64, int64, string) {
 
 // create lvm volume
 func (ns *nodeServer) createVolume(ctx context.Context, volumeID, vgName, pvType, lvmType string) error {
-	pvSize, unit := ns.getPvSize(volumeID)
+	pvSize, _, unit := ns.getPvSize(volumeID)
 
 	pvNumber := 0
 	var err error
