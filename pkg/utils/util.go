@@ -44,6 +44,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -203,6 +204,24 @@ func CreateDest(dest string) error {
 		return fmt.Errorf("%v already exist but it's not a directory", dest)
 	}
 	return nil
+}
+
+//IsLikelyNotMountPoint return status of mount point,this function fix IsMounted return 0 bug
+func IsLikelyNotMountPoint(file string) (bool, error) {
+	stat, err := os.Stat(file)
+	if err != nil {
+		return true, err
+	}
+	rootStat, err := os.Stat(filepath.Dir(strings.TrimSuffix(file, "/")))
+	if err != nil {
+		return true, err
+	}
+	// If the directory has a different device as parent, then it is a mountpoint.
+	if stat.Sys().(*syscall.Stat_t).Dev != rootStat.Sys().(*syscall.Stat_t).Dev {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // IsMounted return status of mount operation
