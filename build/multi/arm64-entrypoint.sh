@@ -62,6 +62,10 @@ done
 if [ "$run_oss" = "true" ]; then
     echo "Starting deploy oss csi-plugin...."
 
+    systemdDir="/host/usr/lib/systemd/system"
+    if [[ ${host_os} == "lifsea" ]]; then
+        systemdDir="/host/etc/systemd/system"
+    fi
     # install OSSFS
     mkdir -p /host/etc/csi-tool/
     if [ ! `/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
@@ -107,20 +111,20 @@ if [ "$run_oss" = "true" ]; then
 
     # install/update csiplugin connector service
     updateConnectorService="true"
-    if [ -f "/host/usr/lib/systemd/system/csiplugin-connector.service" ];then
+    if [ -f "$systemdDir/csiplugin-connector.service" ];then
         echo "Check csiplugin-connector.service...."
-        oldmd5=`md5sum /host/usr/lib/systemd/system/csiplugin-connector.service | awk '{print $1}'`
+        oldmd5=`md5sum $systemdDir/csiplugin-connector.service | awk '{print $1}'`
         newmd5=`md5sum /bin/csiplugin-connector.service | awk '{print $1}'`
         if [ "$oldmd5" = "$newmd5" ]; then
             updateConnectorService="false"
         else
-            rm -rf /host/usr/lib/systemd/system/csiplugin-connector.service
+            rm -rf $systemdDir/csiplugin-connector.service
         fi
     fi
 
     if [ "$updateConnectorService" = "true" ]; then
         echo "Install csiplugin connector service...."
-        cp /bin/csiplugin-connector.service /host/usr/lib/systemd/system/csiplugin-connector.service
+        cp /bin/csiplugin-connector.service $systemdDir/csiplugin-connector.service
         /nsenter --mount=/proc/1/ns/mnt systemctl daemon-reload
     fi
 

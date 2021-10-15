@@ -330,7 +330,8 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 	mountPoint := req.TargetPath
-	if !utils.IsMounted(mountPoint) {
+	isNotMounted, err := utils.IsLikelyNotMountPoint(mountPoint)
+	if isNotMounted && err == nil {
 		log.Infof("Umount Nas: mountpoint not mounted, skipping: %s", mountPoint)
 		if GlobalConfigVar.LosetupEnable {
 			if err := checkLosetupUnmount(mountPoint); err != nil {
