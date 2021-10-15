@@ -331,7 +331,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 	mountPoint := req.TargetPath
 	isNotMounted, err := utils.IsLikelyNotMountPoint(mountPoint)
-	if isNotMounted && err == nil {
+	if (isNotMounted && err == nil) || os.IsNotExist(err) {
 		log.Infof("Umount Nas: mountpoint not mounted, skipping: %s", mountPoint)
 		if GlobalConfigVar.LosetupEnable {
 			if err := checkLosetupUnmount(mountPoint); err != nil {
@@ -344,6 +344,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	umntCmd := fmt.Sprintf("umount %s", mountPoint)
 	if _, err := utils.Run(umntCmd); err != nil {
+		log.Errorf("Nas, Umount nfs(%s) Fail: %s", mountPoint, err.Error())
 		return nil, errors.New("Nas, Umount nfs Fail: " + err.Error())
 	}
 
