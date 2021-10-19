@@ -17,7 +17,7 @@ PKG=github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 GO111MODULE=on
 GOPROXY=direct
 REPONAME="$(shell pwd | rev | awk -F \/ '{ print $$2 }' | rev)"
-VERSION="v1.14.5"
+VERSION="v1.20.4"
 GIT_SHA=$(shell git rev-parse --short HEAD || echo "HEAD")
 
 .EXPORT_ALL_VARIABLES:
@@ -60,4 +60,4 @@ build-disk:
 
 .PHONY: build-disk-image
 build-disk-image:
-	docker build -t registry.cn-hangzhou.aliyuncs.com/acs/csi-diskplugin:$version-$GIT_SHA .
+	docker build -t registry.cn-hangzhou.aliyuncs.com/acs/csi-diskplugin:$(VERSION)-$(GIT_SHA) .
