@@ -48,6 +48,10 @@ const (
 
 // ListLV lists lvm volumes
 func ListLV(listspec string) ([]*lib.LV, error) {
+	if !checkStringAlpha([]string{listspec}) {
+		return nil, fmt.Errorf("inputs illegal: %s", listspec)
+	}
+
 	lvs := []*lib.LV{}
 	cmdList := []string{NsenterCmd, "lvs", "--units=b", "--separator=\"<:SEP:>\"", "--nosuffix", "--noheadings",
 		"-o", "lv_name,lv_size,lv_uuid,lv_attr,copy_percent,lv_kernel_major,lv_kernel_minor,lv_tags", "--nameprefixes", "-a", listspec}
@@ -77,6 +81,13 @@ func ListLV(listspec string) ([]*lib.LV, error) {
 
 // CreateLV creates a new volume
 func CreateLV(ctx context.Context, vg string, name string, size uint64, mirrors uint32, tags []string, striping bool) (string, error) {
+	if !checkStringAlpha([]string{vg, name}) {
+		return "", fmt.Errorf("inputs illegal: %s, %s", vg, name)
+	}
+	if !checkStringAlpha(tags) {
+		return "", fmt.Errorf("inputs illegal: %v", tags)
+	}
+
 	if size == 0 {
 		return "", errors.New("size must be greater than 0")
 	}
@@ -119,6 +130,10 @@ const ProtectedTagName = "protected"
 
 // RemoveLV removes a volume
 func RemoveLV(ctx context.Context, vg string, name string) (string, error) {
+	if !checkStringAlpha([]string{vg, name}) {
+		return "", fmt.Errorf("inputs illegal: %s, %s", vg, name)
+	}
+
 	lvs, err := ListLV(fmt.Sprintf("%s/%s", vg, name))
 	if err != nil {
 		return "", fmt.Errorf("failed to list LVs: %v", err)
@@ -145,6 +160,9 @@ func RemoveLV(ctx context.Context, vg string, name string) (string, error) {
 // CloneLV clones a volume via dd
 func CloneLV(ctx context.Context, src, dest string) (string, error) {
 	// FIXME(farcaller): bloody insecure. And broken.
+	if !checkStringAlpha([]string{src, dest}) {
+		return "", fmt.Errorf("inputs illegal: %s, %s", src, dest)
+	}
 
 	args := []string{NsenterCmd, "dd", fmt.Sprintf("if=%s", src), fmt.Sprintf("of=%s", dest), "bs=4M"}
 	cmd := strings.Join(args, " ")
@@ -182,6 +200,13 @@ func ListVG() ([]*lib.VG, error) {
 
 // CreateVG create volume group
 func CreateVG(ctx context.Context, name string, physicalVolume string, tags []string) (string, error) {
+	if !checkStringAlpha([]string{name, physicalVolume}) {
+		return "", fmt.Errorf("inputs illegal: %s, %s", name, physicalVolume)
+	}
+	if !checkStringAlpha(tags) {
+		return "", fmt.Errorf("inputs illegal: %s", tags)
+	}
+
 	args := []string{NsenterCmd, "vgcreate", name, physicalVolume, "-v"}
 	for _, tag := range tags {
 		args = append(args, "--add-tag", tag)
@@ -194,6 +219,10 @@ func CreateVG(ctx context.Context, name string, physicalVolume string, tags []st
 
 // RemoveVG remove volume group
 func RemoveVG(ctx context.Context, name string) (string, error) {
+	if !checkStringAlpha([]string{name}) {
+		return "", fmt.Errorf("inputs illegal: %s", name)
+	}
+
 	vgs, err := ListVG()
 	if err != nil {
 		return "", fmt.Errorf("failed to list VGs: %v", err)
@@ -223,6 +252,10 @@ func RemoveVG(ctx context.Context, name string) (string, error) {
 
 // CleanPath deletes all the contents under the given directory
 func CleanPath(ctx context.Context, path string) error {
+	if !checkStringAlpha([]string{path}) {
+		return fmt.Errorf("inputs illegal: %s", path)
+	}
+
 	dir, err := os.Open(path)
 	if err != nil {
 		return err
@@ -248,6 +281,12 @@ func CleanPath(ctx context.Context, path string) error {
 
 // AddTagLV add tag
 func AddTagLV(ctx context.Context, vg string, name string, tags []string) (string, error) {
+	if !checkStringAlpha([]string{vg, name}) {
+		return "", fmt.Errorf("inputs illegal: %s, %s", vg, name)
+	}
+	if !checkStringAlpha(tags) {
+		return "", fmt.Errorf("inputs illegal: %s", tags)
+	}
 
 	lvs, err := ListLV(fmt.Sprintf("%s/%s", vg, name))
 	if err != nil {
@@ -273,6 +312,12 @@ func AddTagLV(ctx context.Context, vg string, name string, tags []string) (strin
 
 // RemoveTagLV remove tag
 func RemoveTagLV(ctx context.Context, vg string, name string, tags []string) (string, error) {
+	if !checkStringAlpha([]string{vg, name}) {
+		return "", fmt.Errorf("inputs illegal: %s, %s", vg, name)
+	}
+	if !checkStringAlpha(tags) {
+		return "", fmt.Errorf("inputs illegal: %s", tags)
+	}
 
 	lvs, err := ListLV(fmt.Sprintf("%s/%s", vg, name))
 	if err != nil {
@@ -298,6 +343,10 @@ func RemoveTagLV(ctx context.Context, vg string, name string, tags []string) (st
 // CreateNameSpace creates a new namespace
 // ndctl create-namespace -r region0 --size=6G -n webpmem1
 func CreateNameSpace(ctx context.Context, region string, name string, size uint64) (string, error) {
+	if !checkStringAlpha([]string{region, name}) {
+		return "", fmt.Errorf("inputs illegal: %s, %s", region, name)
+	}
+
 	if size == 0 {
 		return "", errors.New("size must be greater than 0")
 	}
@@ -327,6 +376,10 @@ func GetNameSpace(namespaceName string) (*lib.NameSpace, error) {
 
 // RemoveNameSpace removes a namespace
 func RemoveNameSpace(ctx context.Context, namespaceName string) (string, error) {
+	if !checkStringAlpha([]string{namespaceName}) {
+		return "", fmt.Errorf("inputs illegal: %s", namespaceName)
+	}
+
 	namespace, err := GetNameSpace(namespaceName)
 	if err != nil {
 		return "", fmt.Errorf("failed to found namespace with error: %v", err)
@@ -398,6 +451,10 @@ func str2ASCII(origin string) string {
 
 // SetProjectID2PVSubpath ...
 func SetProjectID2PVSubpath(subPath, fullPath, rootPath, filesystem string, run utils.CommandRunFunc) (string, error) {
+	if !checkStringAlpha([]string{subPath, fullPath, rootPath, filesystem}) {
+		return "", fmt.Errorf("inputs illegal: %s, %s, %s, %s", subPath, fullPath, rootPath, filesystem)
+	}
+
 	projectID := ConvertString2int(subPath)
 	var args []string
 	switch filesystem {
@@ -443,6 +500,10 @@ func getTotalLimitKBFromCSV(in string) (totalLimit int64, err error) {
 
 // GetNamespaceAssignedQuota ...
 func GetNamespaceAssignedQuota(namespace string) (int, error) {
+	if !checkStringAlpha([]string{namespace}) {
+		return 0, fmt.Errorf("inputs illegal: %s", namespace)
+	}
+
 	args := []string{NsenterCmd, "repquota", "-P -O csv", fmt.Sprintf(ProjQuotaNamespacePrefix, namespace)}
 	cmd := strings.Join(args, " ")
 	out, err := utils.Run(cmd)
@@ -479,6 +540,10 @@ func SelectNamespace(ctx context.Context, quotaSize string) (string, error) {
 
 // CreateProjQuotaSubpath ...
 func CreateProjQuotaSubpath(ctx context.Context, subPath, quotaSize, rootPath string) (string, string, string, error) {
+	if !checkStringAlpha([]string{subPath, quotaSize, rootPath}) {
+		return "", "", "", fmt.Errorf("inputs illegal: %s, %s, %s", subPath, quotaSize, rootPath)
+	}
+
 	var fullPath string
 	var err error
 	if len(rootPath) == 0 {
@@ -552,6 +617,10 @@ func checkSubpathProjQuotaEqual(projQuotaNamespacePath, projectID, blockHardLimi
 
 // SetSubpathProjQuota ...
 func SetSubpathProjQuota(ctx context.Context, projQuotaSubpath, blockHardlimit, blockSoftlimit string) (string, error) {
+	if !checkStringAlpha([]string{projQuotaSubpath, blockHardlimit, blockSoftlimit}) {
+		return "", fmt.Errorf("inputs illegal: %s, %s, %s", projQuotaSubpath, blockHardlimit, blockSoftlimit)
+	}
+
 	projectID := ConvertString2int(filepath.Base(projQuotaSubpath))
 	rootPath := filepath.Dir(projQuotaSubpath)
 	fsType := getFileSystemType(rootPath)
@@ -583,6 +652,16 @@ func SetSubpathProjQuota(ctx context.Context, projQuotaSubpath, blockHardlimit, 
 
 // RemoveProjQuotaSubpath ...
 func RemoveProjQuotaSubpath(ctx context.Context, quotaSubpath string) (string, error) {
+	if !checkStringAlpha([]string{quotaSubpath}) {
+		return "", fmt.Errorf("inputs illegal: %s", quotaSubpath)
+	}
+	if !isHostFileExist(quotaSubpath) {
+		return "path already removed", nil
+	}
+	if err := checkQuotaPath(quotaSubpath); err != nil {
+		return "", err
+	}
+
 	args := []string{NsenterCmd, "rm", "-rf", quotaSubpath}
 	cmd := strings.Join(args, " ")
 	out, err := utils.Run(cmd)

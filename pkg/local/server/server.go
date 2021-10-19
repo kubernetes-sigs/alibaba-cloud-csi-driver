@@ -20,6 +20,7 @@ import (
 	"github.com/google/go-microservice-helpers/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/client-go/kubernetes"
 	"os"
 )
 
@@ -28,11 +29,15 @@ const (
 	LvmdPort = "1736"
 )
 
+// KubeClient for resource access
+var KubeClient = &kubernetes.Clientset{}
+
 // Start start lvmd
-func Start() {
+func Start(kubeClient *kubernetes.Clientset) {
 	address := "0.0.0.0:" + GetLvmdPort()
 	log.Infof("Lvmd Starting with socket: %s ...", address)
 
+	KubeClient = kubeClient
 	svr := NewServer()
 	serverhelpers.ListenAddress = &address
 	grpcServer, _, err := serverhelpers.NewServer()

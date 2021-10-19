@@ -118,7 +118,7 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 	if serviceType == utils.PluginService {
 		// local volume daemon
 		// GRPC server to provide volume manage
-		go server.Start()
+		go server.Start(kubeClient)
 
 		// pv handler
 		// watch pv/pvc annotations and provide volume manage
