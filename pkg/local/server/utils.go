@@ -11,7 +11,6 @@ import (
 )
 
 func checkStringAlpha(inputs []string) bool {
-	log.Infof("Debug: checkStringAlpha %v", inputs)
 	for _, input := range inputs {
 		if matched, err := regexp.MatchString("^[A-Za-z0-9=._~/-]*$", input); err != nil || !matched {
 			return false
@@ -21,7 +20,6 @@ func checkStringAlpha(inputs []string) bool {
 }
 
 func checkQuotaPath(path string) error {
-	log.Infof("Debug: checkQuotaPath %v", path)
 	pvName := filepath.Base(path)
 	_, err := KubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvName, metav1.GetOptions{})
 	if err != nil {

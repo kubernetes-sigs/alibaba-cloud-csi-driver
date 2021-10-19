@@ -29,6 +29,7 @@ const (
 	LvmdPort = "1736"
 )
 
+// KubeClient for resource access
 var KubeClient = &kubernetes.Clientset{}
 
 // Start start lvmd

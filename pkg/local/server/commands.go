@@ -656,7 +656,7 @@ func RemoveProjQuotaSubpath(ctx context.Context, quotaSubpath string) (string, e
 		return "", fmt.Errorf("inputs illegal: %s", quotaSubpath)
 	}
 	if !isHostFileExist(quotaSubpath) {
-		return "path not exist", nil
+		return "path already removed", nil
 	}
 	if err := checkQuotaPath(quotaSubpath); err != nil {
 		return "", err

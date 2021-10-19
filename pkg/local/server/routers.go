@@ -132,13 +132,14 @@ func (s Server) RemoveVG(ctx context.Context, in *lib.CreateVGRequest) (*lib.Rem
 
 // CleanPath remove file under path
 func (s Server) CleanPath(ctx context.Context, in *lib.CleanPathRequest) (*lib.CleanPathReply, error) {
-	err := CleanPath(ctx, in.Path)
-	if err != nil {
-		log.Errorf("CleanPath with error: %s", err.Error())
-		return nil, status.Errorf(codes.Internal, "failed to remove vg: %v", err)
-	}
-	log.Infof("CleanPath with result Successful")
-	return &lib.CleanPathReply{CommandOutput: "Successful remove path: " + in.Path}, nil
+	return nil, status.Errorf(codes.Internal, "CleanPath not support")
+	//err := CleanPath(ctx, in.Path)
+	//if err != nil {
+	//	log.Errorf("CleanPath with error: %s", err.Error())
+	//	return nil, status.Errorf(codes.Internal, "failed to remove vg: %v", err)
+	//}
+	//log.Infof("CleanPath with result Successful")
+	//return &lib.CleanPathReply{CommandOutput: "Successful remove path: " + in.Path}, nil
 }
 
 // AddTagLV add tag
