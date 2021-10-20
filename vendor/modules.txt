@@ -126,13 +126,6 @@ github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned
 github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/scheme
 github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/typed/volumesnapshot/v1
 github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/typed/volumesnapshot/v1beta1
-github.com/kubernetes-csi/external-snapshotter/client/v4/informers/externalversions
-github.com/kubernetes-csi/external-snapshotter/client/v4/informers/externalversions/internalinterfaces
-github.com/kubernetes-csi/external-snapshotter/client/v4/informers/externalversions/volumesnapshot
-github.com/kubernetes-csi/external-snapshotter/client/v4/informers/externalversions/volumesnapshot/v1
-github.com/kubernetes-csi/external-snapshotter/client/v4/informers/externalversions/volumesnapshot/v1beta1
-github.com/kubernetes-csi/external-snapshotter/client/v4/listers/volumesnapshot/v1
-github.com/kubernetes-csi/external-snapshotter/client/v4/listers/volumesnapshot/v1beta1
 # github.com/matttproud/golang_protobuf_extensions v1.0.1 => github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd => github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
