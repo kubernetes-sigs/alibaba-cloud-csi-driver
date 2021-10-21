@@ -28,6 +28,10 @@ const (
 	OSSSocketPath = "/etc/csi-tool/connector.sock"
 	// DiskSocketPath socket path
 	DiskSocketPath = "/etc/csi-tool/diskconnector.sock"
+	// ShellPath is the fsfreeze shell path
+	ShellPath = "/etc/csi-tool/fsfreeze.sh"
+	// GetPathDevice get the device of specific path  
+	GetPathDevice = "df --output=source %s"
 )
 
 func main() {
@@ -78,7 +82,7 @@ func runDiskProxy(wg sync.WaitGroup) {
 			log.Printf("Disk Server Accept error: %s", err.Error())
 			continue
 		}
-		go echoDiskServer(fd)
+		go freezeFilesystemServer(fd)
 	}
 }
 
@@ -136,27 +140,29 @@ func runOssProxy(wg sync.WaitGroup) {
 	}
 }
 
-func echoDiskServer(c net.Conn) {
+func freezeFilesystemServer(c net.Conn) {
 	buf := make([]byte, 2048)
 	nr, err := c.Read(buf)
 	if err != nil {
-		log.Print("echoDiskServer:: server read error: %v", err.Error())
+		log.Printf("freezeFilesystemServer:: server read error: %v", err.Error())
 	}
-	cmd := string(buf[0:nr])
-	log.Printf("echoDiskServer:: server receive oss command: %v", cmd)
-	if err := checkFilesystemConsistentCommand(cmd); err != nil {
+	command := string(buf[0:nr])
+	log.Printf("freezeFilesystemServer:: server receive freeze parms: %v", command)
+	err = checkFilesystemConsistentCommand(command);
+	if err != nil {
 		out := "Fail:" + err.Error()
-		log.Printf("echoDiskServer:: check disk command error: %v", out)
+		log.Printf("freezeFilesystemServer:: check disk command error: %v", out)
 		if _, err := c.Write([]byte(out)); err != nil {
-			log.Printf("echoDiskServer:: check disk command error: %v", out)
+			log.Printf("freezeFilesystemServer:: check disk command error: %v", out)
 		}
 		return
 	}
+	log.Printf("freezeFilesystemServer:: command: %v", command)
 	// run command
-	if out, err := run(cmd); err != nil {
-		reply := "Fail: " + cmd + ", error: " + err.Error()
+	if out, err := run(command); err != nil {
+		reply := "Fail: " + command + ", error: " + err.Error()
 		_, err = c.Write([]byte(reply))
-		log.Print("Server Fail to run cmd:", reply)
+		log.Print("diskServer Fail to run cmd:", reply)
 	} else {
 		out = "Success:" + out
 		_, err = c.Write([]byte(out))
@@ -164,9 +170,50 @@ func echoDiskServer(c net.Conn) {
 	}
 }
 
-func checkFilesystemConsistentCommand(cmd string) error {
+func checkFilesystemConsistentCommand(paramStr string) error {
+	params := strings.Split(paramStr, " ")
+	for index, param := range params {
+		if index == 0 {
+			if !strings.EqualFold(param, "/etc/csi-tool/freezefs.sh") {
+				return fmt.Errorf("checkFilesystemConsistentParams:: scripts name: %v invalid", param)
+			}
+		} else {
+			if !strings.HasPrefix(param, "--path") && !strings.HasPrefix(param, "--timeout") && !strings.HasPrefix(param, "--type") && !strings.HasPrefix(param, "&") {
+				return fmt.Errorf("checkFilesystemConsistentParams:: paramStr: %v invalid", param)
+			}
+		}
+		if index == 2 {
+			globalPath := strings.Split(param, "=")[1]
+			log.Printf("checkFilesystemConsistentCommand:: globalPath: %v", globalPath)
+			if !isIsolateDevice(globalPath) {
+				return fmt.Errorf("checkFilesystemConsistentParams:: globalPath: %v isn't isolated device mount path", globalPath)
+			}
+		}
+	}
 	return nil
 }
+
+func isIsolateDevice(globalPath string) bool {
+  globalPathCommand := fmt.Sprintf(GetPathDevice, globalPath)
+	if pathOut, err := run(globalPathCommand); err != nil {
+		reply := "Fail: " + globalPathCommand + ", error: " + err.Error()
+		log.Print("Server Fail to run cmd:", reply)
+		return false
+	} else {
+    globalPathDirCommad := fmt.Sprintf(GetPathDevice, filepath.Dir(globalPath))
+		if dirOut, err := run(globalPathDirCommad); err != nil {
+			reply := "Fail: " + globalPathDirCommad + ", error: " + err.Error()
+			log.Print("Server Fail to run cmd:", reply)
+			return false
+		} else {
+			log.Printf("isIsolateDevice:: pathOut： %s, dirOut: %s", pathOut, dirOut)
+			if strings.EqualFold(pathOut, dirOut) {
+				return false
+			}
+		}
+	}
+	return true
+} 
 
 func echoServer(c net.Conn) {
 	buf := make([]byte, 2048)
