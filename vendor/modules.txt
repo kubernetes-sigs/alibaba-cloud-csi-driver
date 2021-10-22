@@ -59,7 +59,7 @@ github.com/emirpasic/gods/sets/hashset
 github.com/emirpasic/gods/utils
 # github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 github.com/go-ping/ping
-# github.com/gogo/protobuf v1.3.1
+# github.com/gogo/protobuf v1.3.2
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/sortkeys
 # github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b => github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
