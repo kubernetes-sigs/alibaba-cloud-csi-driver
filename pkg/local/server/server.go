@@ -17,11 +17,15 @@ limitations under the License.
 package server
 
 import (
-	"github.com/google/go-microservice-helpers/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"k8s.io/client-go/kubernetes"
+	"net"
 	"os"
+	"time"
 )
 
 const (
@@ -32,28 +36,45 @@ const (
 // KubeClient for resource access
 var KubeClient = &kubernetes.Clientset{}
 
-// Start start lvmd
-func Start(kubeClient *kubernetes.Clientset) {
-	address := "0.0.0.0:" + GetLvmdPort()
-	log.Infof("Lvmd Starting with socket: %s ...", address)
+const (
+	caCertFileName     = "ca_cert.pem"
+	serverCertFileName = "server_cert.pem"
+	serverKeyFileName  = "server_key.pem"
+)
 
-	KubeClient = kubeClient
-	svr := NewServer()
-	serverhelpers.ListenAddress = &address
-	grpcServer, _, err := serverhelpers.NewServer()
-	if err != nil {
-		log.Errorf("failed to init GRPC server: %v", err)
-		return
+func newServerTransportCredentials(ch chan bool) credentials.TransportCredentials {
+	pathWithTLS := utils.MountPathWithTLS + "/local/grpc"
+	caFile := pathWithTLS + "/" + caCertFileName
+	certFile := pathWithTLS + "/" + serverCertFileName
+	keyFile := pathWithTLS + "/" + serverKeyFileName
+	for {
+		creds, err := utils.NewServerTLSFromFile(caFile, certFile, keyFile)
+		time.Sleep(5 * time.Second)
+		if err == nil {
+			ch <- true
+			return creds
+		}
+		log.Errorf("NewServerTLSFromFile is failed, err:%s", err)
 	}
+}
 
-	projQuotaServer := NewProjQuotaServer()
-	lib.RegisterLVMServer(grpcServer, &svr)
-	lib.RegisterProjQuotaServer(grpcServer, &projQuotaServer)
-
-	err = serverhelpers.ListenAndServe(grpcServer, nil)
+// Start start lvmd
+func Start(kubeClient *kubernetes.Clientset, ch chan bool) {
+	address := "0.0.0.0:" + GetLvmdPort()
+	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		log.Errorf("failed to serve: %v", err)
-		return
+		log.Fatalf("failed to listen: %v", err)
+	}
+	log.Infof("Lvmd Starting with socket: %s ...", address)
+	KubeClient = kubeClient
+	creds := newServerTransportCredentials(ch)
+	grpcServer := grpc.NewServer(grpc.Creds(creds))
+	lvmServer := NewServer()
+	projQuotaServer := NewProjQuotaServer()
+	lib.RegisterLVMServer(grpcServer, &lvmServer)
+	lib.RegisterProjQuotaServer(grpcServer, &projQuotaServer)
+	if err := grpcServer.Serve(listener); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 	log.Infof("Lvmd End ...")
 }
