@@ -22,13 +22,14 @@ import (
 	"fmt"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
-	"net"
-	"strings"
-	"time"
-
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials"
+	"net"
+	"strings"
+	"time"
 )
 
 // Connection lvm connection interface
@@ -64,16 +65,27 @@ type NameSpaceOptions struct {
 
 //
 type workerConnection struct {
-	conn *grpc.ClientConn
+	conn             *grpc.ClientConn
+	mountPathWithTLS string
 }
 
 var (
-	_ Connection = &workerConnection{}
+	_          Connection = &workerConnection{}
+	serverName            = "csi-local-plugin-server"
 )
 
+const (
+	caCertFileName     = "ca_cert.pem"
+	clientCertFileName = "client_cert.pem"
+	clientKeyFileName  = "client_key.pem"
+)
+
+
+
 // NewGrpcConnection lvm connection
-func NewGrpcConnection(address string, timeout time.Duration) (Connection, error) {
-	conn, err := connect(address, timeout)
+func NewGrpcConnection(address string, timeout time.Duration, caCertFile string, clientCertFile string, clientKeyFile string) (Connection, error) {
+	creds, err := utils.NewClientTLSFromFile(serverName, caCertFile, clientCertFile, clientKeyFile)
+	conn, err := connect(address, timeout, creds)
 	if err != nil {
 		return nil, err
 	}
@@ -86,10 +98,10 @@ func (c *workerConnection) Close() error {
 	return c.conn.Close()
 }
 
-func connect(address string, timeout time.Duration) (*grpc.ClientConn, error) {
+func connect(address string, timeout time.Duration, creds credentials.TransportCredentials) (*grpc.ClientConn, error) {
 	log.Infof("New Connecting to %s", address)
 	dialOptions := []grpc.DialOption{
-		grpc.WithInsecure(),
+		grpc.WithTransportCredentials(creds),
 		grpc.WithBackoffMaxDelay(time.Second),
 		grpc.WithUnaryInterceptor(logGRPC),
 	}

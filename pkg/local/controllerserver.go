@@ -36,13 +36,15 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 type controllerServer struct {
 	*csicommon.DefaultControllerServer
-	client     kubernetes.Interface
-	driverName string
+	client         kubernetes.Interface
+	caCertFile     string
+	clientCertFile string
+	clientKeyFile  string
+	driverName     string
 }
 
 const (
@@ -88,19 +90,14 @@ var createdVolumeMap = map[string]*csi.Volume{}
 var supportVolumeTypes = []string{LvmVolumeType, PmemVolumeType, QuotaPathVolumeType, MountPointType, DeviceVolumeType}
 
 // newControllerServer creates a controllerServer object
-func newControllerServer(d *csicommon.CSIDriver) *controllerServer {
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
-	}
-
+func newControllerServer(d *csicommon.CSIDriver, caCertFile string, clientCertFile string, clientKeyFile string) *controllerServer {
+	kubeClient := newKubeClient()
 	return &controllerServer{
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
 		client:                  kubeClient,
+		caCertFile:              caCertFile,
+		clientCertFile:          clientCertFile,
+		clientKeyFile:           clientKeyFile,
 	}
 }
 
@@ -207,7 +204,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		options.Size = uint64(req.GetCapacityRange().GetRequiredBytes())
 
 		if types.GlobalConfigVar.GrpcProvision && nodeSelected != "" && storageSelected != "" {
-			conn, err := cs.getNodeConn(nodeSelected)
+			conn, err := cs.getNodeConn(nodeSelected, cs.caCertFile, cs.clientCertFile, cs.clientKeyFile)
 			if err != nil {
 				log.Errorf("CreateVolume: New lvm %s Connection to node %s with error: %s", req.Name, nodeSelected, err.Error())
 				return nil, err
@@ -294,7 +291,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	case PmemVolumeType:
 		if nodeSelected != "" {
 			// only support pmem direct type
-			conn, err := cs.getNodeConn(nodeSelected)
+			conn, err := cs.getNodeConn(nodeSelected, cs.caCertFile, cs.clientCertFile, cs.clientKeyFile)
 			if err != nil {
 				log.Errorf("CreateVolume: create connect with node %s volume %s with error: %s", nodeSelected, req.Name, err.Error())
 				return nil, err
@@ -338,7 +335,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 	case QuotaPathVolumeType:
 		if nodeSelected != "" {
-			conn, err := cs.getNodeConn(nodeSelected)
+			conn, err := cs.getNodeConn(nodeSelected, cs.caCertFile, cs.clientCertFile, cs.clientKeyFile)
 			if err != nil {
 				log.Errorf("CreateVolume: New QuotaPath volume %s Connection node %s with error: %s", req.Name, nodeSelected, err.Error())
 				return nil, err
@@ -418,13 +415,13 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	return response, nil
 }
 
-func (cs *controllerServer) getNodeConn(nodeSelected string) (client.Connection, error) {
+func (cs *controllerServer) getNodeConn(nodeSelected string, caCertFile string, clientCertFile string, clientKeyFile string) (client.Connection, error) {
 	addr, err := getNodeAddr(cs.client, nodeSelected)
 	if err != nil {
 		log.Errorf("CreateVolume: Get node %s address with error: %s", nodeSelected, err.Error())
 		return nil, err
 	}
-	conn, err := client.NewGrpcConnection(addr, connectTimeout)
+	conn, err := client.NewGrpcConnection(addr, connectTimeout, caCertFile, clientCertFile, clientKeyFile)
 	return conn, err
 }
 
@@ -445,7 +442,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	switch volumeType {
 	case LvmVolumeType:
 		if types.GlobalConfigVar.GrpcProvision && nodeName != "" {
-			conn, err := cs.getNodeConn(nodeName)
+			conn, err := cs.getNodeConn(nodeName, cs.caCertFile, cs.clientCertFile, cs.clientKeyFile)
 			if err != nil {
 				log.Errorf("DeleteVolume: New lvm %s Connection at node %s with error: %s", req.GetVolumeId(), nodeName, err.Error())
 				return nil, err
@@ -505,7 +502,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				return nil, errors.New("MountPoint Pv is illegal, No node info")
 			}
 			nodeName := nodes[0]
-			conn, err := cs.getNodeConn(nodeName)
+			conn, err := cs.getNodeConn(nodeName, cs.caCertFile, cs.clientCertFile, cs.clientKeyFile)
 			if err != nil {
 				log.Errorf("DeleteVolume: New mountpoint %s Connection error: %s", req.GetVolumeId(), err.Error())
 				return nil, err
@@ -529,7 +526,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		log.Infof("DeleteVolume: successful delete Device volume(%s)...", volumeID)
 	case PmemVolumeType:
 		if nodeName != "" {
-			conn, err := cs.getNodeConn(nodeName)
+			conn, err := cs.getNodeConn(nodeName, cs.caCertFile, cs.clientCertFile, cs.clientKeyFile)
 			if err != nil {
 				log.Errorf("DeleteVolume: New PMEM %s Connection at node %s with error: %s", req.GetVolumeId(), nodeName, err.Error())
 				return nil, err
@@ -557,7 +554,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		}
 	case QuotaPathVolumeType:
 		if nodeName != "" {
-			conn, err := cs.getNodeConn(nodeName)
+			conn, err := cs.getNodeConn(nodeName, cs.caCertFile, cs.clientCertFile, cs.clientKeyFile)
 			if err != nil {
 				log.Errorf("DeleteVolume: get QuotaPath volume %s Connection at node %s with error: %s", req.VolumeId, nodeName, err.Error())
 				return nil, err
