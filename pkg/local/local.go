@@ -18,7 +18,6 @@ package local
 
 import (
 	"context"
-	"github.com/coreos/etcd/pkg/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -53,7 +52,7 @@ const (
 )
 
 const (
-	localSecretName      = "csi-local-plugin-token"
+	localSecretName      = "csi-local-plugin-cert"
 	localSecretNamespace = "kube-system"
 	caCertFileName       = "ca_cert.pem"
 	serverCertFileName   = "server_cert.pem"
@@ -75,15 +74,15 @@ func writeClientCert(caCert []byte, clientCert []byte, clientKey []byte) (string
 	caCertFile := caCertPath + "/" + caCertFileName
 	clientCertFile := caCertPath + "/" + clientCertFileName
 	clientKeyFile := caCertPath + "/" + clientKeyFileName
-	err := ioutil.WriteAndSyncFile(caCertFile, caCert, 0644)
+	err := utils.WriteAndSyncFile(caCertFile, caCert, 0644)
 	if err != nil {
 		log.Fatalf("WriteFile caCertFile is failed, caCertFile:%s, err:%s", caCertFile, err)
 	}
-	err = ioutil.WriteAndSyncFile(clientCertFile, clientCert, 0644)
+	err = utils.WriteAndSyncFile(clientCertFile, clientCert, 0644)
 	if err != nil {
 		log.Fatalf("WriteFile clientCertFile is failed, clientCertFile:%s, err:%s", clientCertFile, err)
 	}
-	err = ioutil.WriteAndSyncFile(clientKeyFile, clientKey, 0644)
+	err = utils.WriteAndSyncFile(clientKeyFile, clientKey, 0644)
 	if err != nil {
 		log.Fatalf("WriteFile clientKeyFile is failed, clientKeyFile:%s, err:%s", clientKeyFile, err)
 	}

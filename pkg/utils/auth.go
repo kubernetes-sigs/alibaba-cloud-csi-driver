@@ -82,6 +82,7 @@ type ManageTokens struct {
 	RoleArn string
 }
 
+// KeyPairArtifacts is cert struct
 type KeyPairArtifacts struct {
 	Cert    *x509.Certificate
 	Key     *rsa.PrivateKey
@@ -89,6 +90,7 @@ type KeyPairArtifacts struct {
 	KeyPEM  []byte
 }
 
+// CertOption is cert option
 type CertOption struct {
 	CAName          string
 	CAOrganizations []string
@@ -257,6 +259,7 @@ func GetDefaultRoleAK() (string, string, string) {
 	return accessKeyID, accessSecret, roleArn
 }
 
+// CreateCACert function is create cacert
 func CreateCACert(option CertOption, begin, end time.Time) (*KeyPairArtifacts, error) {
 	templ := &x509.Certificate{
 		SerialNumber: big.NewInt(0),
@@ -291,6 +294,7 @@ func CreateCACert(option CertOption, begin, end time.Time) (*KeyPairArtifacts, e
 	return &KeyPairArtifacts{Cert: cert, Key: key, CertPEM: certPEM, KeyPEM: keyPEM}, nil
 }
 
+// CreateCertPEM function is create cacert pem
 func CreateCertPEM(option CertOption, ca *KeyPairArtifacts, begin, end time.Time, isClient bool) ([]byte, []byte, error) {
 	sn, err := genSerialNum()
 	if err != nil {
@@ -350,6 +354,7 @@ func genSerialNum() (*big.Int, error) {
 	return serialNum, nil
 }
 
+// NewClientTLSFromFile function is new client with tls
 func NewClientTLSFromFile(serverName, caFile, certFile, keyFile string) (credentials.TransportCredentials, error) {
 	// Load the certificates from disk
 	certificate, err := tls.LoadX509KeyPair(certFile, keyFile)
@@ -378,7 +383,8 @@ func NewClientTLSFromFile(serverName, caFile, certFile, keyFile string) (credent
 	return creds, nil
 }
 
-func NewServerTLSFromFile(caFile, certFile, keyFile string)(credentials.TransportCredentials, error) {
+// NewServerTLSFromFile function is new server with tls
+func NewServerTLSFromFile(caFile, certFile, keyFile string) (credentials.TransportCredentials, error) {
 	// Load the certificates from disk
 	certificate, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
@@ -394,7 +400,7 @@ func NewServerTLSFromFile(caFile, certFile, keyFile string)(credentials.Transpor
 
 	// Append the client certificates from the CA
 	if ok := certPool.AppendCertsFromPEM(ca); !ok {
-		return nil,  errors.New("failed to append client certs")
+		return nil, errors.New("failed to append client certs")
 	}
 
 	// Create the TLS credentials

@@ -26,6 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"io"
 	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -559,4 +560,30 @@ func IsDirTmpfs(path string) bool {
 		return true
 	}
 	return false
+}
+
+// WriteAndSyncFile behaves just like ioutil.WriteFile in the standard library,
+// but calls Sync before closing the file. WriteAndSyncFile guarantees the data
+// is synced if there is no error returned.
+func WriteAndSyncFile(filename string, data []byte, perm os.FileMode) error {
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+	n, err := f.Write(data)
+	if err == nil && n < len(data) {
+		err = io.ErrShortWrite
+	}
+	if err == nil {
+		err = Fsync(f)
+	}
+	if err1 := f.Close(); err == nil {
+		err = err1
+	}
+	return err
+}
+
+// Fsync is a wrapper around file.Sync(). Special handling is needed on darwin platform.
+func Fsync(f *os.File) error {
+	return f.Sync()
 }

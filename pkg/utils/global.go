@@ -6,7 +6,8 @@ import (
 
 // KubeletRootDir kubelet root dir;
 var KubeletRootDir = "/var/lib/kubelet"
-// MountDirWithTLS tls mount path;
+
+// MountPathWithTLS tls mount path;
 var MountPathWithTLS = "/tls"
 
 func init() {

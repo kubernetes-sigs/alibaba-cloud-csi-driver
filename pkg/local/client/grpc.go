@@ -80,8 +80,6 @@ const (
 	clientKeyFileName  = "client_key.pem"
 )
 
-
-
 // NewGrpcConnection lvm connection
 func NewGrpcConnection(address string, timeout time.Duration, caCertFile string, clientCertFile string, clientKeyFile string) (Connection, error) {
 	creds, err := utils.NewClientTLSFromFile(serverName, caCertFile, clientCertFile, clientKeyFile)
