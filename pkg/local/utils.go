@@ -30,7 +30,6 @@ import (
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"net"
 	"net/http"
 	"os/exec"
 	"path/filepath"
@@ -258,32 +257,4 @@ func getPvSpec(client kubernetes.Interface, volumeID, driverName string) (string
 
 	log.Infof("Get Lvm Spec for volume %s, with VgName %s, Node %s", volumeID, pv.Spec.CSI.VolumeAttributes["vgName"], nodes[0])
 	return nodes[0], vgName, pv, nil
-}
-
-func getNodeAddr(client kubernetes.Interface, node string) (string, error) {
-	ip, err := GetNodeIP(client, node)
-	if err != nil {
-		return "", err
-	}
-	return ip.String() + ":" + server.GetLvmdPort(), nil
-}
-
-// GetNodeIP get node address
-func GetNodeIP(client kubernetes.Interface, nodeID string) (net.IP, error) {
-	node, err := client.CoreV1().Nodes().Get(context.Background(), nodeID, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
-	}
-	addresses := node.Status.Addresses
-	addressMap := make(map[v1.NodeAddressType][]v1.NodeAddress)
-	for i := range addresses {
-		addressMap[addresses[i].Type] = append(addressMap[addresses[i].Type], addresses[i])
-	}
-	if addresses, ok := addressMap[v1.NodeInternalIP]; ok {
-		return net.ParseIP(addresses[0].Address), nil
-	}
-	if addresses, ok := addressMap[v1.NodeExternalIP]; ok {
-		return net.ParseIP(addresses[0].Address), nil
-	}
-	return nil, fmt.Errorf("Node IP unknown; known addresses: %v", addresses)
 }

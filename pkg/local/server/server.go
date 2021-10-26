@@ -60,7 +60,11 @@ func newServerTransportCredentials(ch chan bool) credentials.TransportCredential
 
 // Start start lvmd
 func Start(kubeClient *kubernetes.Clientset, ch chan bool) {
-	address := "0.0.0.0:" + GetLvmdPort()
+	kubeNode := os.Getenv("KUBE_NODE_NAME")
+	if len(kubeNode) == 0 {
+		log.Fatalf("KUBE_NODE_NAME env is empty.")
+	}
+	address, err := utils.GetNodeAddr(kubeClient, kubeNode, GetLvmdPort())
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
