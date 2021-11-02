@@ -540,3 +540,44 @@ func findDiskSnapshotByID(id string) (*ecs.DescribeSnapshotsResponse, int, error
 	}
 	return snapshots, 1, nil
 }
+
+func DescribeInstances(regionID, instanceID string) ([]ecs.Instance, error) {
+	req := ecs.CreateDescribeInstancesRequest()
+	req.RegionId = regionID
+	req.InstanceIds ="[\"" + instanceID + "\"]" 
+	var resp *ecs.DescribeInstancesResponse
+	var err error
+	for n := 1; n < RetryMaxTimes; n++ {
+		resp, err = GlobalConfigVar.EcsClient.DescribeInstances(req)
+		if err != nil {
+			log.Errorf("DescribeInstances:: describe instance with instanceID: %s, err: %v", instanceID, err)
+			continue
+		}
+		break
+	}
+	if err != nil {
+		return nil, err 
+	}
+	return resp.Instances.Instance, nil
+}
+
+func DescribeAvailableResource(zoneID, instanceType, describeResourceType string) ([]ecs.AvailableZone, error){
+	request := ecs.CreateDescribeAvailableResourceRequest()
+	request.InstanceType = instanceType
+	request.DestinationResource = describeResourceType
+	request.ZoneId = zoneID
+	var resp *ecs.DescribeAvailableResourceResponse
+	var err error
+	for n := 1; n < RetryMaxTimes; n++ {
+		resp, err = GlobalConfigVar.EcsClient.DescribeAvailableResource(request)
+		if err != nil {
+			log.Errorf("UpdateNode:: describe available resource with instanceType: %s, err: %v", instanceType, err)
+			continue
+		}
+		break
+	}
+	if err == nil {
+		return resp.AvailableZones.AvailableZone, nil
+	}
+	return nil, err
+}

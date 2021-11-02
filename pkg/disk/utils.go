@@ -1163,7 +1163,7 @@ func getBlockDeviceCapacity(devicePath string) float64 {
 }
 
 // UpdateNode ...
-func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
+func UpdateNode(nodeID, zoneID string, client *kubernetes.Clientset) {
 	instanceStorageLabels := []string{}
 	ctx := context.Background()
 	nodeName := os.Getenv(kubeNodeName)
@@ -1173,21 +1173,16 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 		return
 	}
 	instanceType := nodeInfo.Labels[instanceTypeLabel]
-	zoneID := nodeInfo.Labels[zoneIDLabel]
-	request := ecs.CreateDescribeAvailableResourceRequest()
-	request.InstanceType = instanceType
-	request.DestinationResource = describeResourceType
-	request.ZoneId = zoneID
-	var response *ecs.DescribeAvailableResourceResponse
-	for n := 1; n < RetryMaxTimes; n++ {
-		response, err = c.DescribeAvailableResource(request)
+	if instanceType == "" {
+		instances, err := DescribeInstances(GlobalConfigVar.Region, nodeID)
 		if err != nil {
-			log.Errorf("UpdateNode:: describe available resource with nodeID: %s", instanceType)
-			continue
+			log.Errorf("UpdateNode:: get node info error : %s", err.Error())
+			return
 		}
-		break
+		instanceType = instances[0].InstanceType
 	}
-	availableZones := response.AvailableZones.AvailableZone
+	availableZones, err := DescribeAvailableResource(zoneID, instanceType, describeResourceType)
+
 	if len(availableZones) == 1 {
 		availableZone := availableZones[0]
 		availableResources := availableZone.AvailableResources.AvailableResource

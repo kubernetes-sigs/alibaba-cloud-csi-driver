@@ -138,10 +138,11 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
-	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient, regionID)
 
-	if !runAsController {
+	if !GlobalConfigVar.ControllerService {
 		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, client)
+	} else {
+		tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient, regionID)
 	}
 
 	return tmpdisk

@@ -171,7 +171,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	} else {
 		log.Infof("Currently node is NOT VF model")
 	}
-	go UpdateNode(nodeID, kubeClient, c)
+	go UpdateNode(nodeID, zoneID, kubeClient)
 
 	if !GlobalConfigVar.ControllerService && IsVFNode() && GlobalConfigVar.BdfHealthCheck {
 		go BdfHealthCheck()
