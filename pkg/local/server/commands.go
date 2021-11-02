@@ -48,7 +48,7 @@ const (
 
 // ListLV lists lvm volumes
 func ListLV(listspec string) ([]*lib.LV, error) {
-	if !checkStringAlpha([]string{listspec}) {
+	if !utils.CheckParameterValidate([]string{listspec}) {
 		return nil, fmt.Errorf("inputs illegal: %s", listspec)
 	}
 
@@ -81,10 +81,10 @@ func ListLV(listspec string) ([]*lib.LV, error) {
 
 // CreateLV creates a new volume
 func CreateLV(ctx context.Context, vg string, name string, size uint64, mirrors uint32, tags []string, striping bool) (string, error) {
-	if !checkStringAlpha([]string{vg, name}) {
+	if !utils.CheckParameterValidate([]string{vg, name}) {
 		return "", fmt.Errorf("inputs illegal: %s, %s", vg, name)
 	}
-	if !checkStringAlpha(tags) {
+	if !utils.CheckParameterValidate(tags) {
 		return "", fmt.Errorf("inputs illegal: %v", tags)
 	}
 
@@ -130,7 +130,7 @@ const ProtectedTagName = "protected"
 
 // RemoveLV removes a volume
 func RemoveLV(ctx context.Context, vg string, name string) (string, error) {
-	if !checkStringAlpha([]string{vg, name}) {
+	if !utils.CheckParameterValidate([]string{vg, name}) {
 		return "", fmt.Errorf("inputs illegal: %s, %s", vg, name)
 	}
 
@@ -160,7 +160,7 @@ func RemoveLV(ctx context.Context, vg string, name string) (string, error) {
 // CloneLV clones a volume via dd
 func CloneLV(ctx context.Context, src, dest string) (string, error) {
 	// FIXME(farcaller): bloody insecure. And broken.
-	if !checkStringAlpha([]string{src, dest}) {
+	if !utils.CheckParameterValidate([]string{src, dest}) {
 		return "", fmt.Errorf("inputs illegal: %s, %s", src, dest)
 	}
 
@@ -200,10 +200,10 @@ func ListVG() ([]*lib.VG, error) {
 
 // CreateVG create volume group
 func CreateVG(ctx context.Context, name string, physicalVolume string, tags []string) (string, error) {
-	if !checkStringAlpha([]string{name, physicalVolume}) {
+	if !utils.CheckParameterValidate([]string{name, physicalVolume}) {
 		return "", fmt.Errorf("inputs illegal: %s, %s", name, physicalVolume)
 	}
-	if !checkStringAlpha(tags) {
+	if !utils.CheckParameterValidate(tags) {
 		return "", fmt.Errorf("inputs illegal: %s", tags)
 	}
 
@@ -219,7 +219,7 @@ func CreateVG(ctx context.Context, name string, physicalVolume string, tags []st
 
 // RemoveVG remove volume group
 func RemoveVG(ctx context.Context, name string) (string, error) {
-	if !checkStringAlpha([]string{name}) {
+	if !utils.CheckParameterValidate([]string{name}) {
 		return "", fmt.Errorf("inputs illegal: %s", name)
 	}
 
@@ -252,7 +252,7 @@ func RemoveVG(ctx context.Context, name string) (string, error) {
 
 // CleanPath deletes all the contents under the given directory
 func CleanPath(ctx context.Context, path string) error {
-	if !checkStringAlpha([]string{path}) {
+	if !utils.CheckParameterValidate([]string{path}) {
 		return fmt.Errorf("inputs illegal: %s", path)
 	}
 
@@ -281,10 +281,10 @@ func CleanPath(ctx context.Context, path string) error {
 
 // AddTagLV add tag
 func AddTagLV(ctx context.Context, vg string, name string, tags []string) (string, error) {
-	if !checkStringAlpha([]string{vg, name}) {
+	if !utils.CheckParameterValidate([]string{vg, name}) {
 		return "", fmt.Errorf("inputs illegal: %s, %s", vg, name)
 	}
-	if !checkStringAlpha(tags) {
+	if !utils.CheckParameterValidate(tags) {
 		return "", fmt.Errorf("inputs illegal: %s", tags)
 	}
 
@@ -312,10 +312,10 @@ func AddTagLV(ctx context.Context, vg string, name string, tags []string) (strin
 
 // RemoveTagLV remove tag
 func RemoveTagLV(ctx context.Context, vg string, name string, tags []string) (string, error) {
-	if !checkStringAlpha([]string{vg, name}) {
+	if !utils.CheckParameterValidate([]string{vg, name}) {
 		return "", fmt.Errorf("inputs illegal: %s, %s", vg, name)
 	}
-	if !checkStringAlpha(tags) {
+	if !utils.CheckParameterValidate(tags) {
 		return "", fmt.Errorf("inputs illegal: %s", tags)
 	}
 
@@ -343,7 +343,7 @@ func RemoveTagLV(ctx context.Context, vg string, name string, tags []string) (st
 // CreateNameSpace creates a new namespace
 // ndctl create-namespace -r region0 --size=6G -n webpmem1
 func CreateNameSpace(ctx context.Context, region string, name string, size uint64) (string, error) {
-	if !checkStringAlpha([]string{region, name}) {
+	if !utils.CheckParameterValidate([]string{region, name}) {
 		return "", fmt.Errorf("inputs illegal: %s, %s", region, name)
 	}
 
@@ -376,7 +376,7 @@ func GetNameSpace(namespaceName string) (*lib.NameSpace, error) {
 
 // RemoveNameSpace removes a namespace
 func RemoveNameSpace(ctx context.Context, namespaceName string) (string, error) {
-	if !checkStringAlpha([]string{namespaceName}) {
+	if !utils.CheckParameterValidate([]string{namespaceName}) {
 		return "", fmt.Errorf("inputs illegal: %s", namespaceName)
 	}
 
@@ -451,7 +451,7 @@ func str2ASCII(origin string) string {
 
 // SetProjectID2PVSubpath ...
 func SetProjectID2PVSubpath(subPath, fullPath, rootPath, filesystem string, run utils.CommandRunFunc) (string, error) {
-	if !checkStringAlpha([]string{subPath, fullPath, rootPath, filesystem}) {
+	if !utils.CheckParameterValidate([]string{subPath, fullPath, rootPath, filesystem}) {
 		return "", fmt.Errorf("inputs illegal: %s, %s, %s, %s", subPath, fullPath, rootPath, filesystem)
 	}
 
@@ -500,7 +500,7 @@ func getTotalLimitKBFromCSV(in string) (totalLimit int64, err error) {
 
 // GetNamespaceAssignedQuota ...
 func GetNamespaceAssignedQuota(namespace string) (int, error) {
-	if !checkStringAlpha([]string{namespace}) {
+	if !utils.CheckParameterValidate([]string{namespace}) {
 		return 0, fmt.Errorf("inputs illegal: %s", namespace)
 	}
 
@@ -540,7 +540,7 @@ func SelectNamespace(ctx context.Context, quotaSize string) (string, error) {
 
 // CreateProjQuotaSubpath ...
 func CreateProjQuotaSubpath(ctx context.Context, subPath, quotaSize, rootPath string) (string, string, string, error) {
-	if !checkStringAlpha([]string{subPath, quotaSize, rootPath}) {
+	if !utils.CheckParameterValidate([]string{subPath, quotaSize, rootPath}) {
 		return "", "", "", fmt.Errorf("inputs illegal: %s, %s, %s", subPath, quotaSize, rootPath)
 	}
 
@@ -617,7 +617,7 @@ func checkSubpathProjQuotaEqual(projQuotaNamespacePath, projectID, blockHardLimi
 
 // SetSubpathProjQuota ...
 func SetSubpathProjQuota(ctx context.Context, projQuotaSubpath, blockHardlimit, blockSoftlimit string) (string, error) {
-	if !checkStringAlpha([]string{projQuotaSubpath, blockHardlimit, blockSoftlimit}) {
+	if !utils.CheckParameterValidate([]string{projQuotaSubpath, blockHardlimit, blockSoftlimit}) {
 		return "", fmt.Errorf("inputs illegal: %s, %s, %s", projQuotaSubpath, blockHardlimit, blockSoftlimit)
 	}
 
@@ -652,13 +652,13 @@ func SetSubpathProjQuota(ctx context.Context, projQuotaSubpath, blockHardlimit, 
 
 // RemoveProjQuotaSubpath ...
 func RemoveProjQuotaSubpath(ctx context.Context, quotaSubpath string) (string, error) {
-	if !checkStringAlpha([]string{quotaSubpath}) {
+	if !utils.CheckParameterValidate([]string{quotaSubpath}) {
 		return "", fmt.Errorf("inputs illegal: %s", quotaSubpath)
 	}
-	if !isHostFileExist(quotaSubpath) {
+	if !utils.IsHostFileExist(quotaSubpath) {
 		return "path already removed", nil
 	}
-	if err := checkQuotaPath(quotaSubpath); err != nil {
+	if err := utils.CheckQuotaPathValidate(KubeClient, quotaSubpath); err != nil {
 		return "", err
 	}
 

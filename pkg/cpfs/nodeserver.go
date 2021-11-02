@@ -52,6 +52,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// parse parameters
 	mountPath := req.GetTargetPath()
+
+	// Check parameter validate
+	if !utils.CheckParameterValidate([]string{mountPath}) {
+		return nil, fmt.Errorf("inputs illegal: %s", mountPath)
+	}
+
 	opt := &Options{}
 	for key, value := range req.VolumeContext {
 		key = strings.ToLower(key)
@@ -81,6 +87,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		opt.SubPath = filepath.Join("/", opt.SubPath)
 	}
 
+	// Check parameter validate
+	if !utils.CheckParameterValidate([]string{opt.Server, opt.FileSystem, opt.SubPath, mountPath}) {
+		return nil, fmt.Errorf("inputs illegal: %+v", []string{opt.Server, opt.FileSystem, opt.SubPath, mountPath})
+	}
+
 	if utils.IsMounted(mountPath) {
 		log.Infof("CPFS, Mount Path Already Mount, path: %s", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
@@ -93,6 +104,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// Do mount
 	mntCmd := fmt.Sprintf("mount -t lustre %s:/%s%s %s", opt.Server, opt.FileSystem, opt.SubPath, mountPath)
+
 	if opt.Options != "" {
 		mntCmd = fmt.Sprintf("mount -t lustre -o %s %s:/%s%s %s", opt.Options, opt.Server, opt.FileSystem, opt.SubPath, mountPath)
 	}

@@ -45,6 +45,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -89,6 +90,9 @@ const (
 	InstallSnapshotCRD = "INSTALL_SNAPSHOT_CRD"
 	// MetadataMaxRetrycount ...
 	MetadataMaxRetrycount = 4
+
+	// NsenterCmd is the nsenter command
+	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
 )
 
 // KubernetesAlicloudIdentity set a identity label
@@ -616,4 +620,37 @@ func GetNodeIP(client kubernetes.Interface, nodeID string) (net.IP, error) {
 		return net.ParseIP(addresses[0].Address), nil
 	}
 	return nil, fmt.Errorf("Node IP unknown; known addresses: %v", addresses)
+}
+
+//CheckParameterValidate is check parameter validating in csi-plugin
+func CheckParameterValidate(inputs []string) bool {
+	for _, input := range inputs {
+		if matched, err := regexp.MatchString("^[A-Za-z0-9=._@:~/-]*$", input); err != nil || !matched {
+			return false
+		}
+	}
+	return true
+}
+
+//CheckQuotaPathValidate is check quota path validating in csi-plugin
+func CheckQuotaPathValidate(kubeClient *kubernetes.Clientset, path string) error {
+	pvName := filepath.Base(path)
+	_, err := kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvName, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("utils.CheckQuotaPathValidate %s cannot find volume, error: %s", path, err.Error())
+		return err
+	}
+	return nil
+}
+
+//IsHostFileExist is check host file is existing in lvm
+func IsHostFileExist(path string) bool {
+	args := []string{NsenterCmd, "stat", path}
+	cmd := strings.Join(args, " ")
+	out, err := Run(cmd)
+	if err != nil && strings.Contains(out, "No such file or directory") {
+		return false
+	}
+
+	return true
 }
