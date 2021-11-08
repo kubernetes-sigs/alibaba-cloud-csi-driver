@@ -467,13 +467,17 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				return nil, err
 			}
 		} else if !types.GlobalConfigVar.GrpcProvision && nodeName != "" {
-			createLabels := map[string]string{}
-			createLabels[types.VolumeLifecycleLabel] = types.VolumeLifecycleDeleting
-			createLabels[types.VolumeSpecLabel] = vgName + "/" + volumeID
-			if err := generator.DeleteVolumeWithAnnotations(volumeID, createLabels); err != nil {
-				log.Errorf("DeleteVolume: delete volume with label for volume %s error: %s", volumeID, err.Error())
-				return nil, err
+			createAnnotations := map[string]string{}
+			createAnnotations[types.VolumeLifecycleLabel] = types.VolumeLifecycleDeleting
+			createAnnotations[types.VolumeSpecLabel] = vgName + "/" + volumeID
+			pvAnnotations := pvObj.Annotations
+			if pvAnnotations == nil || (pvAnnotations != nil && pvAnnotations[types.VolumeLifecycleLabel] != types.VolumeLifecycleDeleted) {
+				if err := generator.DeleteVolumeWithAnnotations(volumeID, createAnnotations); err != nil {
+					log.Errorf("DeleteVolume: delete volume with label for volume %s error: %s", volumeID, err.Error())
+					return nil, err
+				}
 			}
+
 			log.Infof("DeleteVolume: delete local volume %s with label at node %s", volumeID, nodeName)
 		} else {
 			log.Infof("DeleteVolume: delete local volume %s with node empty", volumeID)
