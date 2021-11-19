@@ -109,7 +109,7 @@ roleRef:
   name: alicloud-csi-plugin
   apiGroup: rbac.authorization.k8s.io
 ---
-apiVersion: storage.k8s.io/v1beta1
+apiVersion: storage.k8s.io/v1
 kind: CSIDriver
 metadata:
   name: diskplugin.csi.alibabacloud.com
@@ -117,7 +117,7 @@ spec:
   attachRequired: true
   podInfoOnMount: true
 ---
-apiVersion: storage.k8s.io/v1beta1
+apiVersion: storage.k8s.io/v1
 kind: CSIDriver
 metadata:
   name: nasplugin.csi.alibabacloud.com
@@ -125,7 +125,7 @@ spec:
   attachRequired: false
   podInfoOnMount: true
 ---
-apiVersion: storage.k8s.io/v1beta1
+apiVersion: storage.k8s.io/v1
 kind: CSIDriver
 metadata:
   name: ossplugin.csi.alibabacloud.com
