@@ -141,6 +141,12 @@ func doCpfsConfig() {
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	log.Infof("NodeUnpublishVolume:: Starting Umount Cpfs: %s", req.TargetPath)
 	mountPoint := req.TargetPath
+
+	// Check parameter validate
+	if !utils.CheckParameterValidate([]string{mountPoint}) {
+		return nil, fmt.Errorf("inputs illegal: %s", mountPoint)
+	}
+
 	if !utils.IsMounted(mountPoint) {
 		log.Infof("Path not mounted, skipped: %s", mountPoint)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
