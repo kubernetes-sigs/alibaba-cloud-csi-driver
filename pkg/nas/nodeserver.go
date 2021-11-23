@@ -24,6 +24,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -401,6 +402,10 @@ func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) erro
 		volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 		// loop block size is 4K
 		blockNum := volSizeBytes / (4 * 1024)
+		// Check parameter validate
+		if !utils.CheckParameterValidate([]string{imgFile, strconv.FormatInt(blockNum, 10)}) {
+			return fmt.Errorf("inputs illegal: %s %s ", imgFile, strconv.FormatInt(blockNum, 10))
+		}
 		imgCmd := fmt.Sprintf("dd if=/dev/zero of=%s bs=4k seek=%d count=0", imgFile, blockNum)
 		_, err := utils.Run(imgCmd)
 		if err != nil {
@@ -414,6 +419,10 @@ func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) erro
 			return fmt.Errorf("NodeExpandVolume: search losetup device error, %v", err)
 		}
 		loopDev := strings.TrimSpace(out)
+		// Check parameter validate
+		if !utils.CheckParameterValidate([]string{loopDev}) {
+			return fmt.Errorf("inputs illegal: %s ", loopDev)
+		}
 		loopResize := fmt.Sprintf("%s losetup -c %s", NsenterCmd, loopDev)
 		_, err = utils.Run(loopResize)
 		if err != nil {
