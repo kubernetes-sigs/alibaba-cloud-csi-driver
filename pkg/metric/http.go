@@ -39,7 +39,7 @@ func (h *HTTPClient) Get(key string, val string) (*http.Response, error) {
 	url := h.url + "?" + key + "=" + val
 	resp, err := h.client.Get(url)
 	if err != nil {
-		log.Errorf("Get url %s is failed, err: %s. ", url, err)
+		//log.Errorf("Get url %s is failed, err: %s. ", url, err)
 		return nil, err
 	}
 	return resp, nil
