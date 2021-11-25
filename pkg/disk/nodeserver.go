@@ -96,7 +96,7 @@ const (
 	// FileSystemLoseCapacityPercent is the env of container
 	FileSystemLoseCapacityPercent = "FILE_SYSTEM_LOSE_PERCENT"
 	// NsenterCmd run command on host
-	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
+	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts"
 	// DiskMultiTenantEnable Enable disk multi-tenant mode
 	DiskMultiTenantEnable = "DISK_MULTI_TENANT_ENABLE"
 	// TenantUserUID tag
@@ -374,6 +374,17 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	if !IsHostMounted(targetPath) {
+		mountCmd := fmt.Sprintf("%s mount -o bind %s %s ", NsenterCmd, sourcePath, targetPath)
+		_, err = utils.Run(mountCmd)
+		if err != nil {
+			log.Errorf("NodePublishVolume: Mount to host failed: volumeId: %s source: %s target %v,  error: %v", req.VolumeId, sourcePath, targetPath, err)
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+
+		log.Infof("NodePublishVolume: Mount to host Successful Volume: %s, from source %s to target %v", req.VolumeId, sourcePath, targetPath)
+	}
+
 	log.Infof("NodePublishVolume: Mount Successful Volume: %s, from source %s to target %v", req.VolumeId, sourcePath, targetPath)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
@@ -441,6 +452,16 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err := ns.unmountDuplicateMountPoint(targetPath); err != nil {
 		log.Errorf("NodeUnpublishVolume: umount duplicate mountpoint %s with error: %v", targetPath, err)
 		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	if IsHostMounted(targetPath) {
+		umountCmd := fmt.Sprintf("%s umount %s ", NsenterCmd, targetPath)
+		_, err = utils.Run(umountCmd)
+		if err != nil {
+			log.Errorf("NodeUnpublishVolume: TargetPath mounted on host yet: volumeId: %s with target %s", req.VolumeId, targetPath)
+			return nil, status.Error(codes.Internal, "NodeUnpublishVolume: TargetPath mounted on host yet with target"+targetPath)
+		}
+		log.Infof("NodeUnpublishVolume: Unmount host TargetPath successful, target %v, volumeId: %s", targetPath, req.VolumeId)
 	}
 
 	log.Infof("NodeUnpublishVolume: Umount Successful for volume %s, target %v", req.VolumeId, targetPath)
@@ -617,6 +638,17 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 	}
 
+	if !IsHostMounted(targetPath) {
+		mountCmd := fmt.Sprintf("%s mount %s %s ", NsenterCmd, device, targetPath)
+		_, err = utils.Run(mountCmd)
+		if err != nil {
+			log.Errorf("NodeStageVolume: Mount to host Successful: volumeId: %s target %v, device: %s, mkfsOptions: %v  error: %v", req.VolumeId, targetPath, device, mkfsOptions, err)
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		log.Infof("NodeStageVolume: Mount to host Successful: volumeId: %s target %v, device: %s, mkfsOptions: %v", req.VolumeId, targetPath, device, mkfsOptions)
+
+	}
+
 	log.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v, device: %s, mkfsOptions: %v, options: %v", req.VolumeId, targetPath, device, mkfsOptions, options)
 	return &csi.NodeStageVolumeResponse{}, nil
 }
@@ -676,6 +708,17 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		} else {
 			msgLog = fmt.Sprintf("NodeUnstageVolume: VolumeId: %s, mountpoint: %s not mounted, skipping and continue to detach", req.VolumeId, targetPath)
 		}
+
+		if IsHostMounted(targetPath) {
+			umountCmd := fmt.Sprintf("%s umount %s ", NsenterCmd, targetPath)
+			_, err = utils.Run(umountCmd)
+			if err != nil {
+				log.Errorf("NodeUnstageVolume: TargetPath mounted on host yet: volumeId: %s with target %s", req.VolumeId, targetPath)
+				return nil, status.Error(codes.Internal, "NodeUnstageVolume: TargetPath mounted on host yet with target"+targetPath)
+			}
+			log.Infof("NodeUnstageVolume: Unmount host TargetPath successful, target %v, volumeId: %s", targetPath, req.VolumeId)
+		}
+
 		// safe remove mountpoint
 		err = ns.mounter.SafePathRemove(targetPath)
 		if err != nil {
@@ -914,4 +957,18 @@ func (ns *nodeServer) unmountDuplicateMountPoint(targetPath string) error {
 		log.Warnf("Target Path is illegal format: %s", targetPath)
 	}
 	return nil
+}
+
+// IsHostMounted return status of mount operation
+func IsHostMounted(mountPath string) bool {
+	cmd := fmt.Sprintf("%s mount | grep %s | grep -v grep | wc -l", NsenterCmd, mountPath)
+	out, err := utils.Run(cmd)
+	if err != nil {
+		log.Infof("IsMounted: exec error: %s, %s", cmd, err.Error())
+		return false
+	}
+	if strings.TrimSpace(out) == "0" {
+		return false
+	}
+	return true
 }
