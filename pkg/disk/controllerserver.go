@@ -93,6 +93,8 @@ const (
 	VolumeSnapshotContentName = "csi.storage.k8s.io/volumesnapshotcontent/name"
 	// DefaultVolumeSnapshotClass ...
 	DefaultVolumeSnapshotClass = "alibabacloud-disk-snapshot"
+	// annDiskID tag
+	annDiskID = "volume.alibabacloud.com/disk-id"
 )
 
 const (
@@ -226,6 +228,18 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if value, ok := createdVolumeMap[req.Name]; ok {
 		log.Infof("CreateVolume: volume already be created pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, value.VolumeId, value.VolumeContext)
 		return &csi.CreateVolumeResponse{Volume: value}, nil
+	}
+
+	// 兼容 serverless 拓扑感知场景；
+	// req参数里面包含了云盘ID，则直接使用云盘ID进行返回；
+	csiVolume, err := staticVolumeCreate(req)
+	if err != nil {
+		log.Errorf("CreateVolume: static volume(%s) describe with error: %s", req.Name, err.Error())
+		return nil, err
+	}
+	if csiVolume != nil {
+		log.Infof("CreateVolume: static volume create successful, pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, csiVolume.VolumeId, csiVolume.VolumeContext)
+		return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 	}
 
 	diskVol, err := getDiskVolumeOptions(req)
@@ -417,21 +431,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if tenantUserUID := req.Parameters[TenantUserUID]; tenantUserUID != "" {
 		volumeContext[TenantUserUID] = tenantUserUID
 	}
-	if _, ok := volumeContext[LastApplyKey]; ok {
-		delete(volumeContext, LastApplyKey)
-	}
-	if _, ok := volumeContext[PvNameKey]; ok {
-		delete(volumeContext, PvNameKey)
-	}
-	if _, ok := volumeContext[PvcNameKey]; ok {
-		delete(volumeContext, PvcNameKey)
-	}
-	if _, ok := volumeContext[PvcNamespaceKey]; ok {
-		delete(volumeContext, PvcNamespaceKey)
-	}
-	if _, ok := volumeContext[StorageProvisionerKey]; ok {
-		delete(volumeContext, StorageProvisionerKey)
-	}
+	volumeContext = updateVolumeContext(volumeContext)
 
 	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeResponse.DiskId, diskVol.ZoneID, createdDiskType, requestGB, volumeResponse.RequestId)
 

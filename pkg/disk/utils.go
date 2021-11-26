@@ -39,6 +39,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	perrors "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -49,8 +50,6 @@ import (
 	"k8s.io/kubernetes/pkg/volume/util/fs"
 	utilexec "k8s.io/utils/exec"
 	k8smount "k8s.io/utils/mount"
-
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 const (
@@ -1363,4 +1362,54 @@ func createRoleClient(uid string) (cli *ecs.Client, err error) {
 		cli.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
 	}
 	return cli, nil
+}
+
+// staticVolumeCreate 检查输入参数，如果包含了云盘ID，则直接使用云盘进行返回；
+// 根据云盘ID请求云盘的具体属性，并作为pv参数返回；
+func staticVolumeCreate(req *csi.CreateVolumeRequest) (*csi.Volume, error) {
+	paras := req.GetParameters()
+	diskID := paras[annDiskID]
+	if diskID == "" {
+		return nil, nil
+	}
+
+	ecsClient, err := getEcsClientByID("", req.Parameters[TenantUserUID])
+	if err != nil {
+		return nil, err
+	}
+	disk, err := findDiskByID(diskID, ecsClient)
+	if err != nil {
+		return nil, err
+	}
+	if disk == nil {
+		return nil, perrors.Errorf("Disk %s cannot be found from ecs api", diskID)
+	}
+
+	volumeContext := req.GetParameters()
+	volumeContext = updateVolumeContext(volumeContext)
+	volumeContext["type"] = disk.Category
+	tmpVol := &csi.Volume{
+		VolumeId:      diskID,
+		CapacityBytes: int64(disk.Size) * 1024 * 1024 * 1024,
+		VolumeContext: volumeContext,
+		AccessibleTopology: []*csi.Topology{
+			{
+				Segments: map[string]string{
+					TopologyZoneKey: disk.ZoneId,
+				},
+			},
+		},
+	}
+	return tmpVol, nil
+}
+
+// updateVolumeContext remove unneccessary volume context
+func updateVolumeContext(volumeContext map[string]string) map[string]string {
+	for _, key := range []string{LastApplyKey, PvNameKey, PvcNameKey, PvcNamespaceKey, StorageProvisionerKey, "csi.alibabacloud.com/reclaimPolicy", "csi.alibabacloud.com/storageclassName", "allowVolumeExpansion", "volume.kubernetes.io/selected-node"} {
+		if _, ok := volumeContext[key]; ok {
+			delete(volumeContext, key)
+		}
+	}
+
+	return volumeContext
 }
