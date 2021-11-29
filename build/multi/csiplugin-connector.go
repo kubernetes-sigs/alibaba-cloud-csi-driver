@@ -30,7 +30,7 @@ const (
 	DiskSocketPath = "/etc/csi-tool/diskconnector.sock"
 	// ShellPath is the fsfreeze shell path
 	ShellPath = "/etc/csi-tool/fsfreeze.sh"
-	// GetPathDevice get the device of specific path  
+	// GetPathDevice get the device of specific path
 	GetPathDevice = "df --output=source %s"
 )
 
@@ -145,15 +145,16 @@ func freezeFilesystemServer(c net.Conn) {
 	nr, err := c.Read(buf)
 	if err != nil {
 		log.Printf("freezeFilesystemServer:: server read error: %v", err.Error())
+		return
 	}
 	command := string(buf[0:nr])
 	log.Printf("freezeFilesystemServer:: server receive freeze parms: %v", command)
-	err = checkFilesystemConsistentCommand(command);
+	err = checkFilesystemConsistentCommand(command)
 	if err != nil {
 		out := "Fail:" + err.Error()
 		log.Printf("freezeFilesystemServer:: check disk command error: %v", out)
 		if _, err := c.Write([]byte(out)); err != nil {
-			log.Printf("freezeFilesystemServer:: check disk command error: %v", out)
+			log.Printf("freezeFilesystemServer:: check disk command write error: %v", out)
 		}
 		return
 	}
@@ -194,13 +195,13 @@ func checkFilesystemConsistentCommand(paramStr string) error {
 }
 
 func isIsolateDevice(globalPath string) bool {
-  globalPathCommand := fmt.Sprintf(GetPathDevice, globalPath)
+	globalPathCommand := fmt.Sprintf(GetPathDevice, globalPath)
 	if pathOut, err := run(globalPathCommand); err != nil {
 		reply := "Fail: " + globalPathCommand + ", error: " + err.Error()
 		log.Print("Server Fail to run cmd:", reply)
 		return false
 	} else {
-    globalPathDirCommad := fmt.Sprintf(GetPathDevice, filepath.Dir(globalPath))
+		globalPathDirCommad := fmt.Sprintf(GetPathDevice, filepath.Dir(globalPath))
 		if dirOut, err := run(globalPathDirCommad); err != nil {
 			reply := "Fail: " + globalPathDirCommad + ", error: " + err.Error()
 			log.Print("Server Fail to run cmd:", reply)
@@ -213,7 +214,7 @@ func isIsolateDevice(globalPath string) bool {
 		}
 	}
 	return true
-} 
+}
 
 func echoServer(c net.Conn) {
 	buf := make([]byte, 2048)
