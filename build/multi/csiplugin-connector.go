@@ -58,32 +58,51 @@ func main() {
 
 	var wg sync.WaitGroup
 	wg.Add(2)
-	go runOssProxy(wg)
-	go runDiskProxy(wg)
-	wg.Wait()
-}
-
-func runDiskProxy(wg sync.WaitGroup) {
-	defer wg.Done()
-	EnsureSocketPath(DiskSocketPath)
-	log.Printf("Socket path is ready: %s", OSSSocketPath)
-	ln, err := net.Listen("unix", DiskSocketPath)
-	if err != nil {
-		log.Fatalf("runDiskProxy: server Listen error: %v", err.Error())
-	}
-	log.Print("Disk proxy daemon started ....")
-	defer ln.Close()
-	go watchDogCheck()
-
-	// Handler to process the command
-	for {
-		fd, err := ln.Accept()
+	go func() {
+		defer wg.Done()
+		EnsureSocketPath(OSSSocketPath)
+		log.Printf("Socket path is ready: %s", OSSSocketPath)
+		ln, err := net.Listen("unix", OSSSocketPath)
 		if err != nil {
-			log.Printf("Disk Server Accept error: %s", err.Error())
-			continue
+			log.Fatalf("Server Listen error: %s", err.Error())
 		}
-		go freezeFilesystemServer(fd)
-	}
+		log.Print("Daemon Started ...")
+		defer ln.Close()
+
+		go watchDogCheck()
+		// Handler to process the command
+		for {
+			fd, err := ln.Accept()
+			if err != nil {
+				log.Printf("Server Accept error: %s", err.Error())
+				continue
+			}
+			go echoServer(fd)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		EnsureSocketPath(DiskSocketPath)
+		log.Printf("Socket path is ready: %s", OSSSocketPath)
+		ln, err := net.Listen("unix", DiskSocketPath)
+		if err != nil {
+			log.Fatalf("runDiskProxy: server Listen error: %v", err.Error())
+		}
+		log.Print("Disk proxy daemon started ....")
+		defer ln.Close()
+		go watchDogCheck()
+
+		// Handler to process the command
+		for {
+			fd, err := ln.Accept()
+			if err != nil {
+				log.Printf("Disk Server Accept error: %s", err.Error())
+				continue
+			}
+			go freezeFilesystemServer(fd)
+		}
+	}()
+	wg.Wait()
 }
 
 func watchDogCheck() {
@@ -114,29 +133,6 @@ func watchDogCheck() {
 			os.Exit(0)
 		}
 		time.Sleep(time.Second * 10)
-	}
-}
-
-func runOssProxy(wg sync.WaitGroup) {
-	defer wg.Done()
-	EnsureSocketPath(OSSSocketPath)
-	log.Printf("Socket path is ready: %s", OSSSocketPath)
-	ln, err := net.Listen("unix", OSSSocketPath)
-	if err != nil {
-		log.Fatalf("Server Listen error: %s", err.Error())
-	}
-	log.Print("Daemon Started ...")
-	defer ln.Close()
-
-	go watchDogCheck()
-	// Handler to process the command
-	for {
-		fd, err := ln.Accept()
-		if err != nil {
-			log.Printf("Server Accept error: %s", err.Error())
-			continue
-		}
-		go echoServer(fd)
 	}
 }
 
@@ -196,24 +192,22 @@ func checkFilesystemConsistentCommand(paramStr string) error {
 
 func isIsolateDevice(globalPath string) bool {
 	globalPathCommand := fmt.Sprintf(GetPathDevice, globalPath)
-	if pathOut, err := run(globalPathCommand); err != nil {
+	pathOut, err := run(globalPathCommand)
+	if err != nil {
 		reply := "Fail: " + globalPathCommand + ", error: " + err.Error()
 		log.Print("Server Fail to run cmd:", reply)
 		return false
-	} else {
-		globalPathDirCommad := fmt.Sprintf(GetPathDevice, filepath.Dir(globalPath))
-		if dirOut, err := run(globalPathDirCommad); err != nil {
-			reply := "Fail: " + globalPathDirCommad + ", error: " + err.Error()
-			log.Print("Server Fail to run cmd:", reply)
-			return false
-		} else {
-			log.Printf("isIsolateDevice:: pathOut： %s, dirOut: %s", pathOut, dirOut)
-			if strings.EqualFold(pathOut, dirOut) {
-				return false
-			}
-		}
 	}
-	return true
+	globalPathDirCommad := fmt.Sprintf(GetPathDevice, filepath.Dir(globalPath))
+	dirOut, err := run(globalPathDirCommad)
+	if err != nil {
+		reply := "Fail: " + globalPathDirCommad + ", error: " + err.Error()
+		log.Print("Server Fail to run cmd:", reply)
+		return false
+	}
+
+	log.Printf("isIsolateDevice:: pathOut： %s, dirOut: %s", pathOut, dirOut)
+	return !strings.EqualFold(pathOut, dirOut)
 }
 
 func echoServer(c net.Conn) {
@@ -361,6 +355,7 @@ func isUnixDomainSocketLive(socketPath string) error {
 	return nil
 }
 
+// EnsureSocketPath ...
 func EnsureSocketPath(socketPath string) {
 	if IsFileExisting(socketPath) {
 		os.Remove(socketPath)

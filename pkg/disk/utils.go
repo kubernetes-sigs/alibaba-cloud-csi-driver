@@ -134,7 +134,7 @@ const (
 	RetryMaxTimes = 5
 	// RemoteSnapshotLabelKey ...
 	RemoteSnapshotLabelKey = "csi.alibabacloud.com/snapshot.targetregion"
-	// SnapshotVolumeKey
+	// SnapshotVolumeKey ...
 	SnapshotVolumeKey = "csi.alibabacloud.com/snapshot.volumeid"
 )
 
