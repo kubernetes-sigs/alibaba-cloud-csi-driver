@@ -2,7 +2,7 @@ FROM registry.cn-hangzhou.aliyuncs.com/plugins/centos:7.9.2009
 LABEL maintainers="Alibaba Cloud Authors"
 LABEL description="Alibaba Cloud CSI Plugin"
 
-RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace cloud-utils-growpart gdisk
+RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace cloud-utils-growpart gdisk nc
 
 ARG ossfsVer=1.80.6.ack.1
 ARG update_ossfsVer=1.86.1.ack.1

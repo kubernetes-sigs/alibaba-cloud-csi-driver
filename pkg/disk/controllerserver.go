@@ -979,6 +979,21 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 	}
 	volumeID := req.GetSourceVolumeId()
 	if len(volumeID) == 0 {
+		snapshotRegion, volumeID, cTime := getSnapshotInfoByID(snapshotID)
+		log.Infof("ListSnapshots:: snapshotRegion: %s, snapshotID: %v", snapshotRegion, snapshotID)
+		if snapshotRegion != "" {
+			csiSnapshot := &csi.Snapshot{
+				SnapshotId:     snapshotID,
+				SourceVolumeId: volumeID,
+				ReadyToUse:     true,
+				CreationTime:   cTime,
+			}
+			entry := &csi.ListSnapshotsResponse_Entry{
+				Snapshot: csiSnapshot,
+			}
+			entries := []*csi.ListSnapshotsResponse_Entry{entry}
+			return &csi.ListSnapshotsResponse{Entries: entries}, nil
+		}
 		return nil, status.Error(codes.Internal, fmt.Sprint("ListSnapshots:: Expect to find snapshot by volumeID but get volumeID is null"))
 	}
 	nextToken := req.GetStartingToken()

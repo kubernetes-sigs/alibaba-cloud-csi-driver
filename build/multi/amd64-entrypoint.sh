@@ -1,6 +1,7 @@
 #!/bin/sh
 
 run_oss="false"
+run_disk="false"
 
 mkdir -p /var/log/alicloud/
 mkdir -p /host/etc/kubernetes/volumes/disk/uuid
@@ -34,6 +35,7 @@ do
         rm -rf /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
     elif [ "$item" = "--driver=diskplugin.csi.alibabacloud.com" ]; then
         echo "Running disk plugin...."
+				run_disk="true"
         mkdir -p /var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com
         rm -rf /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
     elif [ "$item" = "--driver=nasplugin.csi.alibabacloud.com" ]; then
@@ -53,6 +55,7 @@ do
                 rm -rf /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
             elif [ "$driver_type" = "disk" ]; then
                 echo "Running disk plugin...."
+								run_disk="true"
                 mkdir -p /var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com
                 rm -rf /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
             elif [ "$driver_type" = "nas" ]; then
@@ -146,6 +149,9 @@ if [ "$run_oss" = "true" ]; then
         fi
     fi
 
+fi
+
+if [ "$run_oss" = "true" ] || ["$run_disk" = "true"]; then
     ## install/update csi connector
     updateConnector="true"
 		systemdDir="/host/usr/lib/systemd/system"
@@ -167,7 +173,7 @@ if [ "$run_oss" = "true" ]; then
             mkdir -p /host/etc/csi-tool/
         fi
     fi
-
+		cp /freezefs.sh /host/etc/csi-tool/freezefs.sh
     if [ "$updateConnector" = "true" ]; then
         echo "Install csiplugin-connector...."
         cp /bin/csiplugin-connector /host/etc/csi-tool/csiplugin-connector

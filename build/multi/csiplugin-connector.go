@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sevlyar/go-daemon"
@@ -23,8 +24,14 @@ const (
 	PIDFilename = "/var/log/alicloud/connector.pid"
 	// WorkPath workspace
 	WorkPath = "./"
-	// SocketPath socket path
-	SocketPath = "/etc/csi-tool/connector.sock"
+	// OSSSocketPath socket path
+	OSSSocketPath = "/etc/csi-tool/connector.sock"
+	// DiskSocketPath socket path
+	DiskSocketPath = "/etc/csi-tool/diskconnector.sock"
+	// ShellPath is the fsfreeze shell path
+	ShellPath = "/etc/csi-tool/fsfreeze.sh"
+	// GetPathDevice get the device of specific path
+	GetPathDevice = "df --output=source %s"
 )
 
 func main() {
@@ -49,66 +56,158 @@ func main() {
 	defer cntxt.Release()
 	log.Print("OSS Connector Daemon Is Starting...")
 
-	runOssProxy()
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		EnsureSocketPath(OSSSocketPath)
+		log.Printf("Socket path is ready: %s", OSSSocketPath)
+		ln, err := net.Listen("unix", OSSSocketPath)
+		if err != nil {
+			log.Fatalf("Server Listen error: %s", err.Error())
+		}
+		log.Print("Daemon Started ...")
+		defer ln.Close()
+
+		go watchDogCheck()
+		// Handler to process the command
+		for {
+			fd, err := ln.Accept()
+			if err != nil {
+				log.Printf("Server Accept error: %s", err.Error())
+				continue
+			}
+			go echoServer(fd)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		EnsureSocketPath(DiskSocketPath)
+		log.Printf("Socket path is ready: %s", OSSSocketPath)
+		ln, err := net.Listen("unix", DiskSocketPath)
+		if err != nil {
+			log.Fatalf("runDiskProxy: server Listen error: %v", err.Error())
+		}
+		log.Print("Disk proxy daemon started ....")
+		defer ln.Close()
+		go watchDogCheck()
+
+		// Handler to process the command
+		for {
+			fd, err := ln.Accept()
+			if err != nil {
+				log.Printf("Disk Server Accept error: %s", err.Error())
+				continue
+			}
+			go freezeFilesystemServer(fd)
+		}
+	}()
+	wg.Wait()
 }
 
-func runOssProxy() {
-	if IsFileExisting(SocketPath) {
-		os.Remove(SocketPath)
-	} else {
-		pathDir := filepath.Dir(SocketPath)
-		if !IsFileExisting(pathDir) {
-			os.MkdirAll(pathDir, os.ModePerm)
-		}
-	}
-	log.Printf("Socket path is ready: %s", SocketPath)
-	ln, err := net.Listen("unix", SocketPath)
-	if err != nil {
-		log.Fatalf("Server Listen error: %s", err.Error())
-	}
-	log.Print("Daemon Started ...")
-	defer ln.Close()
-
+func watchDogCheck() {
 	// watchdog of UNIX Domain Socket
 	var socketsPath []string
 	if os.Getenv("WATCHDOG_SOCKETS_PATH") != "" {
 		socketsPath = strings.Split(os.Getenv("WATCHDOG_SOCKETS_PATH"), ",")
 	}
 	socketNotAliveCount := make(map[string]int)
-	go func() {
-		if len(socketsPath) == 0 {
-			return
-		}
-		for {
-			deadSockets := 0
-			for _, path := range socketsPath {
-				if err := isUnixDomainSocketLive(path); err != nil {
-					log.Printf("socket %s is not alive: %v", path, err)
-					socketNotAliveCount[path]++
-				} else {
-					socketNotAliveCount[path] = 0
-				}
-				if socketNotAliveCount[path] >= 6 {
-					deadSockets++
-				}
-			}
-			if deadSockets >= len(socketsPath) {
-				log.Printf("watchdog find too many dead sockets, csiplugin-connector will exit(0)")
-				os.Exit(0)
-			}
-			time.Sleep(time.Second * 10)
-		}
-	}()
-
-	// Handler to process the command
-	for {
-		fd, err := ln.Accept()
-		if err != nil {
-			log.Printf("Server Accept error: %s", err.Error())
-			continue
-		}
-		go echoServer(fd)
+	if len(socketsPath) == 0 {
+		return
 	}
+	for {
+		deadSockets := 0
+		for _, path := range socketsPath {
+			if err := isUnixDomainSocketLive(path); err != nil {
+				log.Printf("socket %s is not alive: %v", path, err)
+				socketNotAliveCount[path]++
+			} else {
+				socketNotAliveCount[path] = 0
+			}
+			if socketNotAliveCount[path] >= 6 {
+				deadSockets++
+			}
+		}
+		if deadSockets >= len(socketsPath) {
+			log.Printf("watchdog find too many dead sockets, csiplugin-connector will exit(0)")
+			os.Exit(0)
+		}
+		time.Sleep(time.Second * 10)
+	}
+}
+
+func freezeFilesystemServer(c net.Conn) {
+	buf := make([]byte, 2048)
+	nr, err := c.Read(buf)
+	if err != nil {
+		log.Printf("freezeFilesystemServer:: server read error: %v", err.Error())
+		return
+	}
+	command := string(buf[0:nr])
+	log.Printf("freezeFilesystemServer:: server receive freeze parms: %v", command)
+	err = checkFilesystemConsistentCommand(command)
+	if err != nil {
+		out := "Fail:" + err.Error()
+		log.Printf("freezeFilesystemServer:: check disk command error: %v", out)
+		if _, err := c.Write([]byte(out)); err != nil {
+			log.Printf("freezeFilesystemServer:: check disk command write error: %v", out)
+		}
+		return
+	}
+	log.Printf("freezeFilesystemServer:: command: %v", command)
+	// run command
+	if out, err := run(command); err != nil {
+		reply := "Fail: " + command + ", error: " + err.Error()
+		_, err = c.Write([]byte(reply))
+		log.Print("diskServer Fail to run cmd:", reply)
+	} else {
+		out = "Success:" + out
+		_, err = c.Write([]byte(out))
+		log.Printf("Success: %s", out)
+	}
+}
+
+func checkFilesystemConsistentCommand(paramStr string) error {
+	params := strings.Split(paramStr, " ")
+	for index, param := range params {
+		if index == 0 {
+			if !strings.EqualFold(param, "/etc/csi-tool/freezefs.sh") {
+				return fmt.Errorf("checkFilesystemConsistentParams:: scripts name: %v invalid", param)
+			}
+		} else {
+			if !strings.HasPrefix(param, "--path") && !strings.HasPrefix(param, "--timeout") && !strings.HasPrefix(param, "--type") && !strings.HasPrefix(param, "&") {
+				return fmt.Errorf("checkFilesystemConsistentParams:: paramStr: %v invalid", param)
+			}
+		}
+		if index == 2 {
+			globalPath := strings.Split(param, "=")[1]
+			log.Printf("checkFilesystemConsistentCommand:: globalPath: %v", globalPath)
+			if !isIsolateDevice(globalPath) {
+				return fmt.Errorf("checkFilesystemConsistentParams:: globalPath: %v isn't isolated device mount path", globalPath)
+			}
+		}
+	}
+	return nil
+}
+
+func isIsolateDevice(globalPath string) bool {
+	globalPathCommand := fmt.Sprintf(GetPathDevice, globalPath)
+	pathOut, err := run(globalPathCommand)
+	if err != nil {
+		reply := "Fail: " + globalPathCommand + ", error: " + err.Error()
+		log.Print("Server Fail to run cmd:", reply)
+		return false
+	}
+	globalPathDirCommad := fmt.Sprintf(GetPathDevice, filepath.Dir(globalPath))
+	dirOut, err := run(globalPathDirCommad)
+	if err != nil {
+		reply := "Fail: " + globalPathDirCommad + ", error: " + err.Error()
+		log.Print("Server Fail to run cmd:", reply)
+		return false
+	}
+
+	log.Printf("isIsolateDevice:: pathOut： %s, dirOut: %s", pathOut, dirOut)
+	return !strings.EqualFold(pathOut, dirOut)
 }
 
 func echoServer(c net.Conn) {
@@ -254,4 +353,16 @@ func isUnixDomainSocketLive(socketPath string) error {
 	}
 	conn.Close()
 	return nil
+}
+
+// EnsureSocketPath ...
+func EnsureSocketPath(socketPath string) {
+	if IsFileExisting(socketPath) {
+		os.Remove(socketPath)
+	} else {
+		pathDir := filepath.Dir(socketPath)
+		if !IsFileExisting(pathDir) {
+			os.MkdirAll(pathDir, os.ModePerm)
+		}
+	}
 }

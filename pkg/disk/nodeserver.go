@@ -103,6 +103,8 @@ const (
 	TenantUserUID = "alibabacloud.com/user-uid"
 	// CreateDiskARN ARN parameter of the CreateDisk interface
 	CreateDiskARN = "alibabacloud.com/createdisk-arn"
+	// SocketPath is path of connector sock
+	SocketPath = "/host/etc/csi-tool/diskconnector.sock"
 )
 
 var (

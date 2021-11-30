@@ -39,6 +39,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	perrors "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -131,6 +132,10 @@ const (
 	NodeSchedueTag = "volume.kubernetes.io/selected-node"
 	// RetryMaxTimes ...
 	RetryMaxTimes = 5
+	// RemoteSnapshotLabelKey ...
+	RemoteSnapshotLabelKey = "csi.alibabacloud.com/snapshot.targetregion"
+	// SnapshotVolumeKey ...
+	SnapshotVolumeKey = "csi.alibabacloud.com/snapshot.volumeid"
 )
 
 var (
@@ -1412,4 +1417,19 @@ func updateVolumeContext(volumeContext map[string]string) map[string]string {
 	}
 
 	return volumeContext
+}
+
+func getSnapshotInfoByID(snapshotID string) (string, string, *timestamp.Timestamp) {
+	content, err := GlobalConfigVar.SnapClient.SnapshotV1().VolumeSnapshotContents().Get(context.TODO(), snapshotID, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("getSnapshotContentByID:: get snapshot content in cluster err: %v", content)
+		return "", "", nil
+	}
+	if targetRegion, ok := content.Labels[RemoteSnapshotLabelKey]; ok {
+		if volumeID, ok := content.Labels[SnapshotVolumeKey]; ok {
+			return targetRegion, volumeID, &timestamp.Timestamp{Seconds: int64(content.CreationTimestamp.Second())}
+		}
+	}
+
+	return "", "", nil
 }
