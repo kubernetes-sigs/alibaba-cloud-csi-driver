@@ -89,8 +89,8 @@ type ModifyInstanceChargeTypeRequest struct {
 // ModifyInstanceChargeTypeResponse is the response struct for api ModifyInstanceChargeType
 type ModifyInstanceChargeTypeResponse struct {
 	*responses.BaseResponse
-	RequestId      string                                   `json:"RequestId" xml:"RequestId"`
 	OrderId        string                                   `json:"OrderId" xml:"OrderId"`
+	RequestId      string                                   `json:"RequestId" xml:"RequestId"`
 	FeeOfInstances FeeOfInstancesInModifyInstanceChargeType `json:"FeeOfInstances" xml:"FeeOfInstances"`
 }
 
@@ -99,7 +99,7 @@ func CreateModifyInstanceChargeTypeRequest() (request *ModifyInstanceChargeTypeR
 	request = &ModifyInstanceChargeTypeRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "ModifyInstanceChargeType", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "ModifyInstanceChargeType", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

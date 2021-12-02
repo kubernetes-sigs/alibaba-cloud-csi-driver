@@ -107,9 +107,9 @@ type ImportImageTag struct {
 type ImportImageResponse struct {
 	*responses.BaseResponse
 	RequestId string `json:"RequestId" xml:"RequestId"`
+	ImageId   string `json:"ImageId" xml:"ImageId"`
 	TaskId    string `json:"TaskId" xml:"TaskId"`
 	RegionId  string `json:"RegionId" xml:"RegionId"`
-	ImageId   string `json:"ImageId" xml:"ImageId"`
 }
 
 // CreateImportImageRequest creates a request to invoke ImportImage API
@@ -117,7 +117,7 @@ func CreateImportImageRequest() (request *ImportImageRequest) {
 	request = &ImportImageRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "ImportImage", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "ImportImage", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

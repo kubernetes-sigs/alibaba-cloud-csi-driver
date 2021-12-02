@@ -83,8 +83,8 @@ type AllocatePublicIpAddressRequest struct {
 // AllocatePublicIpAddressResponse is the response struct for api AllocatePublicIpAddress
 type AllocatePublicIpAddressResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"RequestId" xml:"RequestId"`
 	IpAddress string `json:"IpAddress" xml:"IpAddress"`
+	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateAllocatePublicIpAddressRequest creates a request to invoke AllocatePublicIpAddress API
@@ -92,7 +92,7 @@ func CreateAllocatePublicIpAddressRequest() (request *AllocatePublicIpAddressReq
 	request = &AllocatePublicIpAddressRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "AllocatePublicIpAddress", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "AllocatePublicIpAddress", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

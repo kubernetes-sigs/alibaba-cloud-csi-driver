@@ -87,11 +87,11 @@ type DescribeTasksRequest struct {
 // DescribeTasksResponse is the response struct for api DescribeTasks
 type DescribeTasksResponse struct {
 	*responses.BaseResponse
-	RequestId  string  `json:"RequestId" xml:"RequestId"`
-	RegionId   string  `json:"RegionId" xml:"RegionId"`
-	TotalCount int     `json:"TotalCount" xml:"TotalCount"`
-	PageNumber int     `json:"PageNumber" xml:"PageNumber"`
 	PageSize   int     `json:"PageSize" xml:"PageSize"`
+	PageNumber int     `json:"PageNumber" xml:"PageNumber"`
+	RequestId  string  `json:"RequestId" xml:"RequestId"`
+	TotalCount int     `json:"TotalCount" xml:"TotalCount"`
+	RegionId   string  `json:"RegionId" xml:"RegionId"`
 	TaskSet    TaskSet `json:"TaskSet" xml:"TaskSet"`
 }
 
@@ -100,7 +100,7 @@ func CreateDescribeTasksRequest() (request *DescribeTasksRequest) {
 	request = &DescribeTasksRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeTasks", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeTasks", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

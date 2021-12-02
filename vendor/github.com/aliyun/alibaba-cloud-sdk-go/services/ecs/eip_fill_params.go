@@ -83,11 +83,11 @@ type EipFillParamsRequest struct {
 // EipFillParamsResponse is the response struct for api EipFillParams
 type EipFillParamsResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"requestId" xml:"requestId"`
-	Data      string `json:"data" xml:"data"`
 	Code      string `json:"code" xml:"code"`
 	Success   bool   `json:"success" xml:"success"`
 	Message   string `json:"message" xml:"message"`
+	Data      string `json:"data" xml:"data"`
+	RequestId string `json:"requestId" xml:"requestId"`
 }
 
 // CreateEipFillParamsRequest creates a request to invoke EipFillParams API
@@ -95,7 +95,7 @@ func CreateEipFillParamsRequest() (request *EipFillParamsRequest) {
 	request = &EipFillParamsRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "EipFillParams", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "EipFillParams", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

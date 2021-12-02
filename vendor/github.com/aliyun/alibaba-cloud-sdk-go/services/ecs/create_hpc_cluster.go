@@ -83,8 +83,8 @@ type CreateHpcClusterRequest struct {
 // CreateHpcClusterResponse is the response struct for api CreateHpcCluster
 type CreateHpcClusterResponse struct {
 	*responses.BaseResponse
-	RequestId    string `json:"RequestId" xml:"RequestId"`
 	HpcClusterId string `json:"HpcClusterId" xml:"HpcClusterId"`
+	RequestId    string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateCreateHpcClusterRequest creates a request to invoke CreateHpcCluster API
@@ -92,7 +92,7 @@ func CreateCreateHpcClusterRequest() (request *CreateHpcClusterRequest) {
 	request = &CreateHpcClusterRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateHpcCluster", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateHpcCluster", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

@@ -17,7 +17,7 @@ package dbfs
 
 // TagListInListDbfs is a nested struct in dbfs response
 type TagListInListDbfs struct {
-	TagKey   string `json:"TagKey" xml:"TagKey"`
 	TagValue string `json:"TagValue" xml:"TagValue"`
 	Id       int64  `json:"Id" xml:"Id"`
+	TagKey   string `json:"TagKey" xml:"TagKey"`
 }

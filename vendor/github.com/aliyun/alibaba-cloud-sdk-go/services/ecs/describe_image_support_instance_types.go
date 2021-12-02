@@ -89,8 +89,8 @@ type DescribeImageSupportInstanceTypesFilter struct {
 type DescribeImageSupportInstanceTypesResponse struct {
 	*responses.BaseResponse
 	RequestId     string                                           `json:"RequestId" xml:"RequestId"`
-	RegionId      string                                           `json:"RegionId" xml:"RegionId"`
 	ImageId       string                                           `json:"ImageId" xml:"ImageId"`
+	RegionId      string                                           `json:"RegionId" xml:"RegionId"`
 	InstanceTypes InstanceTypesInDescribeImageSupportInstanceTypes `json:"InstanceTypes" xml:"InstanceTypes"`
 }
 
@@ -99,7 +99,7 @@ func CreateDescribeImageSupportInstanceTypesRequest() (request *DescribeImageSup
 	request = &DescribeImageSupportInstanceTypesRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeImageSupportInstanceTypes", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeImageSupportInstanceTypes", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

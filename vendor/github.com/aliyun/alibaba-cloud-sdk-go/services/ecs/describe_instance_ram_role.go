@@ -84,8 +84,8 @@ type DescribeInstanceRamRoleRequest struct {
 type DescribeInstanceRamRoleResponse struct {
 	*responses.BaseResponse
 	RequestId           string                                       `json:"RequestId" xml:"RequestId"`
-	RegionId            string                                       `json:"RegionId" xml:"RegionId"`
 	TotalCount          int                                          `json:"TotalCount" xml:"TotalCount"`
+	RegionId            string                                       `json:"RegionId" xml:"RegionId"`
 	InstanceRamRoleSets InstanceRamRoleSetsInDescribeInstanceRamRole `json:"InstanceRamRoleSets" xml:"InstanceRamRoleSets"`
 }
 
@@ -94,7 +94,7 @@ func CreateDescribeInstanceRamRoleRequest() (request *DescribeInstanceRamRoleReq
 	request = &DescribeInstanceRamRoleRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeInstanceRamRole", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeInstanceRamRole", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

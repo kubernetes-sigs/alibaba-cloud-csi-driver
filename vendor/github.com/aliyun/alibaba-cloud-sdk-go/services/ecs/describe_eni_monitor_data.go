@@ -85,8 +85,8 @@ type DescribeEniMonitorDataRequest struct {
 // DescribeEniMonitorDataResponse is the response struct for api DescribeEniMonitorData
 type DescribeEniMonitorDataResponse struct {
 	*responses.BaseResponse
-	RequestId   string                              `json:"RequestId" xml:"RequestId"`
 	TotalCount  int                                 `json:"TotalCount" xml:"TotalCount"`
+	RequestId   string                              `json:"RequestId" xml:"RequestId"`
 	MonitorData MonitorDataInDescribeEniMonitorData `json:"MonitorData" xml:"MonitorData"`
 }
 
@@ -95,7 +95,7 @@ func CreateDescribeEniMonitorDataRequest() (request *DescribeEniMonitorDataReque
 	request = &DescribeEniMonitorDataRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeEniMonitorData", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeEniMonitorData", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

@@ -82,10 +82,10 @@ type DescribeSnapshotPackageRequest struct {
 // DescribeSnapshotPackageResponse is the response struct for api DescribeSnapshotPackage
 type DescribeSnapshotPackageResponse struct {
 	*responses.BaseResponse
-	RequestId        string           `json:"RequestId" xml:"RequestId"`
-	TotalCount       int              `json:"TotalCount" xml:"TotalCount"`
-	PageNumber       int              `json:"PageNumber" xml:"PageNumber"`
 	PageSize         int              `json:"PageSize" xml:"PageSize"`
+	RequestId        string           `json:"RequestId" xml:"RequestId"`
+	PageNumber       int              `json:"PageNumber" xml:"PageNumber"`
+	TotalCount       int              `json:"TotalCount" xml:"TotalCount"`
 	SnapshotPackages SnapshotPackages `json:"SnapshotPackages" xml:"SnapshotPackages"`
 }
 
@@ -94,7 +94,7 @@ func CreateDescribeSnapshotPackageRequest() (request *DescribeSnapshotPackageReq
 	request = &DescribeSnapshotPackageRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeSnapshotPackage", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeSnapshotPackage", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

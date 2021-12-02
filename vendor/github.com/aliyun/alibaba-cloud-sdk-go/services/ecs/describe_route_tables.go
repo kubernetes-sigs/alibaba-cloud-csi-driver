@@ -87,10 +87,10 @@ type DescribeRouteTablesRequest struct {
 // DescribeRouteTablesResponse is the response struct for api DescribeRouteTables
 type DescribeRouteTablesResponse struct {
 	*responses.BaseResponse
-	RequestId   string      `json:"RequestId" xml:"RequestId"`
-	TotalCount  int         `json:"TotalCount" xml:"TotalCount"`
-	PageNumber  int         `json:"PageNumber" xml:"PageNumber"`
 	PageSize    int         `json:"PageSize" xml:"PageSize"`
+	RequestId   string      `json:"RequestId" xml:"RequestId"`
+	PageNumber  int         `json:"PageNumber" xml:"PageNumber"`
+	TotalCount  int         `json:"TotalCount" xml:"TotalCount"`
 	RouteTables RouteTables `json:"RouteTables" xml:"RouteTables"`
 }
 
@@ -99,7 +99,7 @@ func CreateDescribeRouteTablesRequest() (request *DescribeRouteTablesRequest) {
 	request = &DescribeRouteTablesRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeRouteTables", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeRouteTables", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

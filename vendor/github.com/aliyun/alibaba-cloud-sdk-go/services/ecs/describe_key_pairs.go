@@ -91,10 +91,10 @@ type DescribeKeyPairsTag struct {
 // DescribeKeyPairsResponse is the response struct for api DescribeKeyPairs
 type DescribeKeyPairsResponse struct {
 	*responses.BaseResponse
-	RequestId  string   `json:"RequestId" xml:"RequestId"`
-	TotalCount int      `json:"TotalCount" xml:"TotalCount"`
-	PageNumber int      `json:"PageNumber" xml:"PageNumber"`
 	PageSize   int      `json:"PageSize" xml:"PageSize"`
+	RequestId  string   `json:"RequestId" xml:"RequestId"`
+	PageNumber int      `json:"PageNumber" xml:"PageNumber"`
+	TotalCount int      `json:"TotalCount" xml:"TotalCount"`
 	KeyPairs   KeyPairs `json:"KeyPairs" xml:"KeyPairs"`
 }
 
@@ -103,7 +103,7 @@ func CreateDescribeKeyPairsRequest() (request *DescribeKeyPairsRequest) {
 	request = &DescribeKeyPairsRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeKeyPairs", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeKeyPairs", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

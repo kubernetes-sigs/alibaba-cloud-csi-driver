@@ -83,10 +83,10 @@ type DescribeInstanceAttachmentAttributesRequest struct {
 // DescribeInstanceAttachmentAttributesResponse is the response struct for api DescribeInstanceAttachmentAttributes
 type DescribeInstanceAttachmentAttributesResponse struct {
 	*responses.BaseResponse
-	RequestId  string                                          `json:"RequestId" xml:"RequestId"`
-	TotalCount int                                             `json:"TotalCount" xml:"TotalCount"`
-	PageNumber int                                             `json:"PageNumber" xml:"PageNumber"`
 	PageSize   int                                             `json:"PageSize" xml:"PageSize"`
+	RequestId  string                                          `json:"RequestId" xml:"RequestId"`
+	PageNumber int                                             `json:"PageNumber" xml:"PageNumber"`
+	TotalCount int                                             `json:"TotalCount" xml:"TotalCount"`
 	Instances  InstancesInDescribeInstanceAttachmentAttributes `json:"Instances" xml:"Instances"`
 }
 
@@ -95,7 +95,7 @@ func CreateDescribeInstanceAttachmentAttributesRequest() (request *DescribeInsta
 	request = &DescribeInstanceAttachmentAttributesRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeInstanceAttachmentAttributes", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeInstanceAttachmentAttributes", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

@@ -81,10 +81,10 @@ type ModifyReservedInstancesRequest struct {
 
 // ModifyReservedInstancesConfiguration is a repeated param struct in ModifyReservedInstancesRequest
 type ModifyReservedInstancesConfiguration struct {
-	ZoneId               string `name:"ZoneId"`
 	ReservedInstanceName string `name:"ReservedInstanceName"`
-	InstanceType         string `name:"InstanceType"`
+	ZoneId               string `name:"ZoneId"`
 	Scope                string `name:"Scope"`
+	InstanceType         string `name:"InstanceType"`
 	InstanceAmount       string `name:"InstanceAmount"`
 }
 
@@ -100,7 +100,7 @@ func CreateModifyReservedInstancesRequest() (request *ModifyReservedInstancesReq
 	request = &ModifyReservedInstancesRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "ModifyReservedInstances", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "ModifyReservedInstances", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

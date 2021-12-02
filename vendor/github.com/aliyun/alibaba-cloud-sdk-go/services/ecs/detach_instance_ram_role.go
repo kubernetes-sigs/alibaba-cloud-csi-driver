@@ -81,10 +81,10 @@ type DetachInstanceRamRoleRequest struct {
 // DetachInstanceRamRoleResponse is the response struct for api DetachInstanceRamRole
 type DetachInstanceRamRoleResponse struct {
 	*responses.BaseResponse
+	RamRoleName                  string                       `json:"RamRoleName" xml:"RamRoleName"`
 	RequestId                    string                       `json:"RequestId" xml:"RequestId"`
 	TotalCount                   int                          `json:"TotalCount" xml:"TotalCount"`
 	FailCount                    int                          `json:"FailCount" xml:"FailCount"`
-	RamRoleName                  string                       `json:"RamRoleName" xml:"RamRoleName"`
 	DetachInstanceRamRoleResults DetachInstanceRamRoleResults `json:"DetachInstanceRamRoleResults" xml:"DetachInstanceRamRoleResults"`
 }
 
@@ -93,7 +93,7 @@ func CreateDetachInstanceRamRoleRequest() (request *DetachInstanceRamRoleRequest
 	request = &DetachInstanceRamRoleRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DetachInstanceRamRole", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DetachInstanceRamRole", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

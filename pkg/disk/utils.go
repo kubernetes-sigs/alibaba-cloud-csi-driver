@@ -631,6 +631,32 @@ func GetDiskFormat(disk string) (string, string, error) {
 	return fstype, "", nil
 }
 
+// Get NVME device name by diskID;
+// /dev/nvme0n1 0: means device index, 1: means namespace for nvme device;
+// udevadm info --query=all --name=/dev/nvme0n1 | grep ID_SERIAL_SHORT | awk -F= '{print $2}'
+// bp1bcfmvsobfauvxb3ow
+func getNvmeDeviceByVolumeID(volumeID string) (device string, err error) {
+	serialNumber := strings.TrimPrefix(volumeID, "d-")
+	files, _ := ioutil.ReadDir("/dev/")
+	for _, f := range files {
+		if strings.HasPrefix(f.Name(), "nvme") && !strings.Contains(f.Name(), "p") {
+			cmd := fmt.Sprintf("%s udevadm info --query=all --name=/dev/%s | grep ID_SERIAL_SHORT | awk -F= '{print $2}'", NsenterCmd, f.Name())
+			snumber, err := utils.Run(cmd)
+			if err != nil {
+				log.Warnf("GetNvmeDeviceByVolumeID: Get device with command %s and got error: %s", cmd, err.Error())
+				continue
+			}
+			snumber = strings.TrimSpace(snumber)
+			if serialNumber == strings.TrimSpace(snumber) {
+				device = filepath.Join("/dev/", f.Name())
+				log.Infof("GetNvmeDeviceByVolumeID: Get nvme device %s with volumeID %s", device, volumeID)
+				return device, nil
+			}
+		}
+	}
+	return "", nil
+}
+
 // GetDeviceByVolumeID First try to find the device by serial
 // If cannot find the device using the serial number, get device by volumeID, link file should be like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
@@ -646,6 +672,12 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 			log.Infof("GetDevice: Use the serial to find device, got %s, volumeID: %s", device, volumeID)
 			return device, nil
 		}
+	}
+
+	// Get NVME device name
+	device, err = getNvmeDeviceByVolumeID(volumeID)
+	if err == nil && device != "" {
+		return device, nil
 	}
 
 	byIDPath := "/dev/disk/by-id/"
@@ -999,6 +1031,12 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		} else {
 			diskVolArgs.Encrypted = false
 		}
+	}
+
+	// MultiAttach
+	diskVolArgs.MultiAttach, ok = volOptions["multiAttach"]
+	if !ok {
+		diskVolArgs.DiskTags = "Disabled"
 	}
 
 	// DiskTags
@@ -1432,4 +1470,47 @@ func getSnapshotInfoByID(snapshotID string) (string, string, *timestamp.Timestam
 	}
 
 	return "", "", nil
+}
+
+// getVolumeCount
+func getVolumeCount() int64 {
+	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
+	instanceType := ""
+	var err error
+	volumeCount := int64(MaxVolumesPerNode)
+
+	for i := 0; i < 5; i++ {
+		// get instance type for node
+		if instanceType == "" {
+			instanceType, err = utils.GetMetaData("instance/instance-type")
+			if err != nil {
+				log.Warnf("getVolumeCount: get instance type with error: %s", err.Error())
+				time.Sleep(time.Duration(1) * time.Second)
+				continue
+			}
+		}
+
+		// describe ecs instance type
+		req := ecs.CreateDescribeInstanceTypesRequest()
+		req.RegionId = GlobalConfigVar.Region
+		req.InstanceTypes = &[]string{instanceType}
+		response, err := ecsClient.DescribeInstanceTypes(req)
+		// if auth failed, return with default
+		if err != nil && strings.Contains(err.Error(), "Forbidden") {
+			log.Errorf("getVolumeCount: describe instance type with error: %s", err.Error())
+			return MaxVolumesPerNode
+			// not forbidden error, retry
+		} else if err != nil && !strings.Contains(err.Error(), "Forbidden") {
+			time.Sleep(time.Duration(1) * time.Second)
+			continue
+		}
+		if len(response.InstanceTypes.InstanceType) != 1 {
+			log.Warnf("getVolumeCount: get instance max volume failed type with %v", response)
+			return MaxVolumesPerNode
+		}
+		volumeCount = int64(response.InstanceTypes.InstanceType[0].DiskQuantity) - 2
+		log.Infof("getVolumeCount: get instance max volume %d type with response %v", volumeCount, response)
+		break
+	}
+	return volumeCount
 }

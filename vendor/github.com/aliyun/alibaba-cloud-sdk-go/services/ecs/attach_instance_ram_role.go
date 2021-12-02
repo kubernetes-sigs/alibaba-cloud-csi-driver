@@ -72,6 +72,7 @@ func (client *Client) AttachInstanceRamRoleWithCallback(request *AttachInstanceR
 type AttachInstanceRamRoleRequest struct {
 	*requests.RpcRequest
 	ResourceOwnerId      requests.Integer `position:"Query" name:"ResourceOwnerId"`
+	Policy               string           `position:"Query" name:"Policy"`
 	ResourceOwnerAccount string           `position:"Query" name:"ResourceOwnerAccount"`
 	RamRoleName          string           `position:"Query" name:"RamRoleName"`
 	OwnerId              requests.Integer `position:"Query" name:"OwnerId"`
@@ -81,10 +82,10 @@ type AttachInstanceRamRoleRequest struct {
 // AttachInstanceRamRoleResponse is the response struct for api AttachInstanceRamRole
 type AttachInstanceRamRoleResponse struct {
 	*responses.BaseResponse
+	RamRoleName                  string                       `json:"RamRoleName" xml:"RamRoleName"`
 	RequestId                    string                       `json:"RequestId" xml:"RequestId"`
 	TotalCount                   int                          `json:"TotalCount" xml:"TotalCount"`
 	FailCount                    int                          `json:"FailCount" xml:"FailCount"`
-	RamRoleName                  string                       `json:"RamRoleName" xml:"RamRoleName"`
 	AttachInstanceRamRoleResults AttachInstanceRamRoleResults `json:"AttachInstanceRamRoleResults" xml:"AttachInstanceRamRoleResults"`
 }
 
@@ -93,7 +94,7 @@ func CreateAttachInstanceRamRoleRequest() (request *AttachInstanceRamRoleRequest
 	request = &AttachInstanceRamRoleRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "AttachInstanceRamRole", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "AttachInstanceRamRole", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

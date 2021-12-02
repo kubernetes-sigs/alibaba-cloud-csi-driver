@@ -91,8 +91,8 @@ type SendFileRequest struct {
 // SendFileResponse is the response struct for api SendFile
 type SendFileResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"RequestId" xml:"RequestId"`
 	InvokeId  string `json:"InvokeId" xml:"InvokeId"`
+	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateSendFileRequest creates a request to invoke SendFile API
@@ -100,7 +100,7 @@ func CreateSendFileRequest() (request *SendFileRequest) {
 	request = &SendFileRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "SendFile", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "SendFile", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

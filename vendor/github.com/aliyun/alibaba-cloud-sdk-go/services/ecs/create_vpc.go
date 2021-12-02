@@ -85,9 +85,9 @@ type CreateVpcRequest struct {
 // CreateVpcResponse is the response struct for api CreateVpc
 type CreateVpcResponse struct {
 	*responses.BaseResponse
-	RequestId    string `json:"RequestId" xml:"RequestId"`
 	VpcId        string `json:"VpcId" xml:"VpcId"`
 	VRouterId    string `json:"VRouterId" xml:"VRouterId"`
+	RequestId    string `json:"RequestId" xml:"RequestId"`
 	RouteTableId string `json:"RouteTableId" xml:"RouteTableId"`
 }
 
@@ -96,7 +96,7 @@ func CreateCreateVpcRequest() (request *CreateVpcRequest) {
 	request = &CreateVpcRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateVpc", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateVpc", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

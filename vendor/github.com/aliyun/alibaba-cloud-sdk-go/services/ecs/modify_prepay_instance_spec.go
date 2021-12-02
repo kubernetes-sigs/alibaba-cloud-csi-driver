@@ -90,8 +90,8 @@ type ModifyPrepayInstanceSpecRequest struct {
 // ModifyPrepayInstanceSpecResponse is the response struct for api ModifyPrepayInstanceSpec
 type ModifyPrepayInstanceSpecResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"RequestId" xml:"RequestId"`
 	OrderId   string `json:"OrderId" xml:"OrderId"`
+	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateModifyPrepayInstanceSpecRequest creates a request to invoke ModifyPrepayInstanceSpec API
@@ -99,7 +99,7 @@ func CreateModifyPrepayInstanceSpecRequest() (request *ModifyPrepayInstanceSpecR
 	request = &ModifyPrepayInstanceSpecRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "ModifyPrepayInstanceSpec", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "ModifyPrepayInstanceSpec", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

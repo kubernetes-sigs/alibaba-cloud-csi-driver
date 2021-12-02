@@ -83,11 +83,11 @@ type EipFillProductRequest struct {
 // EipFillProductResponse is the response struct for api EipFillProduct
 type EipFillProductResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"requestId" xml:"requestId"`
-	Data      string `json:"data" xml:"data"`
 	Code      string `json:"code" xml:"code"`
 	Success   bool   `json:"success" xml:"success"`
 	Message   string `json:"message" xml:"message"`
+	Data      string `json:"data" xml:"data"`
+	RequestId string `json:"requestId" xml:"requestId"`
 }
 
 // CreateEipFillProductRequest creates a request to invoke EipFillProduct API
@@ -95,7 +95,7 @@ func CreateEipFillProductRequest() (request *EipFillProductRequest) {
 	request = &EipFillProductRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "EipFillProduct", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "EipFillProduct", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

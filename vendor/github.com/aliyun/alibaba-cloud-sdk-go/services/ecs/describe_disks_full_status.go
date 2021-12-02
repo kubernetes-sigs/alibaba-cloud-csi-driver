@@ -89,10 +89,10 @@ type DescribeDisksFullStatusRequest struct {
 // DescribeDisksFullStatusResponse is the response struct for api DescribeDisksFullStatus
 type DescribeDisksFullStatusResponse struct {
 	*responses.BaseResponse
-	RequestId         string            `json:"RequestId" xml:"RequestId"`
-	TotalCount        int               `json:"TotalCount" xml:"TotalCount"`
-	PageNumber        int               `json:"PageNumber" xml:"PageNumber"`
 	PageSize          int               `json:"PageSize" xml:"PageSize"`
+	RequestId         string            `json:"RequestId" xml:"RequestId"`
+	PageNumber        int               `json:"PageNumber" xml:"PageNumber"`
+	TotalCount        int               `json:"TotalCount" xml:"TotalCount"`
 	DiskFullStatusSet DiskFullStatusSet `json:"DiskFullStatusSet" xml:"DiskFullStatusSet"`
 }
 
@@ -101,7 +101,7 @@ func CreateDescribeDisksFullStatusRequest() (request *DescribeDisksFullStatusReq
 	request = &DescribeDisksFullStatusRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeDisksFullStatus", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeDisksFullStatus", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

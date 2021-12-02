@@ -76,6 +76,7 @@ type AllocateDedicatedHostsRequest struct {
 	Description                    string                       `position:"Query" name:"Description"`
 	CpuOverCommitRatio             requests.Float               `position:"Query" name:"CpuOverCommitRatio"`
 	ResourceGroupId                string                       `position:"Query" name:"ResourceGroupId"`
+	MinQuantity                    requests.Integer             `position:"Query" name:"MinQuantity"`
 	ActionOnMaintenance            string                       `position:"Query" name:"ActionOnMaintenance"`
 	DedicatedHostClusterId         string                       `position:"Query" name:"DedicatedHostClusterId"`
 	Tag                            *[]AllocateDedicatedHostsTag `position:"Query" name:"Tag"  type:"Repeated"`
@@ -115,7 +116,7 @@ func CreateAllocateDedicatedHostsRequest() (request *AllocateDedicatedHostsReque
 	request = &AllocateDedicatedHostsRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "AllocateDedicatedHosts", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "AllocateDedicatedHosts", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

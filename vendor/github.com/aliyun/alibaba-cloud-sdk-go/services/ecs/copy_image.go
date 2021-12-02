@@ -95,8 +95,8 @@ type CopyImageTag struct {
 // CopyImageResponse is the response struct for api CopyImage
 type CopyImageResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"RequestId" xml:"RequestId"`
 	ImageId   string `json:"ImageId" xml:"ImageId"`
+	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateCopyImageRequest creates a request to invoke CopyImage API
@@ -104,7 +104,7 @@ func CreateCopyImageRequest() (request *CopyImageRequest) {
 	request = &CopyImageRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "CopyImage", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "CopyImage", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

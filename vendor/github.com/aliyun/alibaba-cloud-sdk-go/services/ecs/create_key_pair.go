@@ -88,11 +88,11 @@ type CreateKeyPairTag struct {
 // CreateKeyPairResponse is the response struct for api CreateKeyPair
 type CreateKeyPairResponse struct {
 	*responses.BaseResponse
-	RequestId          string `json:"RequestId" xml:"RequestId"`
-	KeyPairId          string `json:"KeyPairId" xml:"KeyPairId"`
-	KeyPairName        string `json:"KeyPairName" xml:"KeyPairName"`
-	KeyPairFingerPrint string `json:"KeyPairFingerPrint" xml:"KeyPairFingerPrint"`
 	PrivateKeyBody     string `json:"PrivateKeyBody" xml:"PrivateKeyBody"`
+	KeyPairName        string `json:"KeyPairName" xml:"KeyPairName"`
+	KeyPairId          string `json:"KeyPairId" xml:"KeyPairId"`
+	RequestId          string `json:"RequestId" xml:"RequestId"`
+	KeyPairFingerPrint string `json:"KeyPairFingerPrint" xml:"KeyPairFingerPrint"`
 }
 
 // CreateCreateKeyPairRequest creates a request to invoke CreateKeyPair API
@@ -100,7 +100,7 @@ func CreateCreateKeyPairRequest() (request *CreateKeyPairRequest) {
 	request = &CreateKeyPairRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateKeyPair", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateKeyPair", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

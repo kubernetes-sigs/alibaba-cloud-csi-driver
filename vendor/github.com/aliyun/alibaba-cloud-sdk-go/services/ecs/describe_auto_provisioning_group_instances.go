@@ -83,10 +83,10 @@ type DescribeAutoProvisioningGroupInstancesRequest struct {
 // DescribeAutoProvisioningGroupInstancesResponse is the response struct for api DescribeAutoProvisioningGroupInstances
 type DescribeAutoProvisioningGroupInstancesResponse struct {
 	*responses.BaseResponse
-	RequestId  string                                            `json:"RequestId" xml:"RequestId"`
-	TotalCount int                                               `json:"TotalCount" xml:"TotalCount"`
-	PageNumber int                                               `json:"PageNumber" xml:"PageNumber"`
 	PageSize   int                                               `json:"PageSize" xml:"PageSize"`
+	RequestId  string                                            `json:"RequestId" xml:"RequestId"`
+	PageNumber int                                               `json:"PageNumber" xml:"PageNumber"`
+	TotalCount int                                               `json:"TotalCount" xml:"TotalCount"`
 	Instances  InstancesInDescribeAutoProvisioningGroupInstances `json:"Instances" xml:"Instances"`
 }
 
@@ -95,7 +95,7 @@ func CreateDescribeAutoProvisioningGroupInstancesRequest() (request *DescribeAut
 	request = &DescribeAutoProvisioningGroupInstancesRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeAutoProvisioningGroupInstances", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeAutoProvisioningGroupInstances", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

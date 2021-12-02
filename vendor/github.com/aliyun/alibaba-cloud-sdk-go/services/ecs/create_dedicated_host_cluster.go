@@ -92,8 +92,8 @@ type CreateDedicatedHostClusterTag struct {
 // CreateDedicatedHostClusterResponse is the response struct for api CreateDedicatedHostCluster
 type CreateDedicatedHostClusterResponse struct {
 	*responses.BaseResponse
-	RequestId              string `json:"RequestId" xml:"RequestId"`
 	DedicatedHostClusterId string `json:"DedicatedHostClusterId" xml:"DedicatedHostClusterId"`
+	RequestId              string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateCreateDedicatedHostClusterRequest creates a request to invoke CreateDedicatedHostCluster API
@@ -101,7 +101,7 @@ func CreateCreateDedicatedHostClusterRequest() (request *CreateDedicatedHostClus
 	request = &CreateDedicatedHostClusterRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateDedicatedHostCluster", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateDedicatedHostCluster", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

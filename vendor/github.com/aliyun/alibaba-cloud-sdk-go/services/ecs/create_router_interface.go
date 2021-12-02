@@ -102,8 +102,8 @@ type CreateRouterInterfaceRequest struct {
 type CreateRouterInterfaceResponse struct {
 	*responses.BaseResponse
 	RequestId         string `json:"RequestId" xml:"RequestId"`
-	RouterInterfaceId string `json:"RouterInterfaceId" xml:"RouterInterfaceId"`
 	OrderId           int64  `json:"OrderId" xml:"OrderId"`
+	RouterInterfaceId string `json:"RouterInterfaceId" xml:"RouterInterfaceId"`
 }
 
 // CreateCreateRouterInterfaceRequest creates a request to invoke CreateRouterInterface API
@@ -111,7 +111,7 @@ func CreateCreateRouterInterfaceRequest() (request *CreateRouterInterfaceRequest
 	request = &CreateRouterInterfaceRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateRouterInterface", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateRouterInterface", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

@@ -76,6 +76,7 @@ type AcceptInquiredSystemEventRequest struct {
 	ResourceOwnerAccount string           `position:"Query" name:"ResourceOwnerAccount"`
 	OwnerAccount         string           `position:"Query" name:"OwnerAccount"`
 	OwnerId              requests.Integer `position:"Query" name:"OwnerId"`
+	Choice               string           `position:"Query" name:"Choice"`
 }
 
 // AcceptInquiredSystemEventResponse is the response struct for api AcceptInquiredSystemEvent
@@ -89,7 +90,7 @@ func CreateAcceptInquiredSystemEventRequest() (request *AcceptInquiredSystemEven
 	request = &AcceptInquiredSystemEventRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "AcceptInquiredSystemEvent", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "AcceptInquiredSystemEvent", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

@@ -84,8 +84,8 @@ type DescribeDiskMonitorDataRequest struct {
 // DescribeDiskMonitorDataResponse is the response struct for api DescribeDiskMonitorData
 type DescribeDiskMonitorDataResponse struct {
 	*responses.BaseResponse
-	RequestId   string                               `json:"RequestId" xml:"RequestId"`
 	TotalCount  int                                  `json:"TotalCount" xml:"TotalCount"`
+	RequestId   string                               `json:"RequestId" xml:"RequestId"`
 	MonitorData MonitorDataInDescribeDiskMonitorData `json:"MonitorData" xml:"MonitorData"`
 }
 
@@ -94,7 +94,7 @@ func CreateDescribeDiskMonitorDataRequest() (request *DescribeDiskMonitorDataReq
 	request = &DescribeDiskMonitorDataRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeDiskMonitorData", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeDiskMonitorData", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

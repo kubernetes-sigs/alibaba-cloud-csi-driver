@@ -88,8 +88,8 @@ type CreateDeploymentSetRequest struct {
 // CreateDeploymentSetResponse is the response struct for api CreateDeploymentSet
 type CreateDeploymentSetResponse struct {
 	*responses.BaseResponse
-	RequestId       string `json:"RequestId" xml:"RequestId"`
 	DeploymentSetId string `json:"DeploymentSetId" xml:"DeploymentSetId"`
+	RequestId       string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateCreateDeploymentSetRequest creates a request to invoke CreateDeploymentSet API
@@ -97,7 +97,7 @@ func CreateCreateDeploymentSetRequest() (request *CreateDeploymentSetRequest) {
 	request = &CreateDeploymentSetRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateDeploymentSet", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateDeploymentSet", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

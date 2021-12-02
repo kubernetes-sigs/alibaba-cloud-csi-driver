@@ -81,8 +81,8 @@ type DescribeInstanceVncUrlRequest struct {
 // DescribeInstanceVncUrlResponse is the response struct for api DescribeInstanceVncUrl
 type DescribeInstanceVncUrlResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"RequestId" xml:"RequestId"`
 	VncUrl    string `json:"VncUrl" xml:"VncUrl"`
+	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateDescribeInstanceVncUrlRequest creates a request to invoke DescribeInstanceVncUrl API
@@ -90,7 +90,7 @@ func CreateDescribeInstanceVncUrlRequest() (request *DescribeInstanceVncUrlReque
 	request = &DescribeInstanceVncUrlRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeInstanceVncUrl", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeInstanceVncUrl", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

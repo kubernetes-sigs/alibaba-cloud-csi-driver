@@ -102,19 +102,19 @@ type DescribeSnapshotsRequest struct {
 
 // DescribeSnapshotsTag is a repeated param struct in DescribeSnapshotsRequest
 type DescribeSnapshotsTag struct {
-	Value string `name:"Value"`
+	Value string `name:"value"`
 	Key   string `name:"Key"`
 }
 
 // DescribeSnapshotsResponse is the response struct for api DescribeSnapshots
 type DescribeSnapshotsResponse struct {
 	*responses.BaseResponse
-	RequestId  string    `json:"RequestId" xml:"RequestId"`
-	TotalCount int       `json:"TotalCount" xml:"TotalCount"`
-	PageNumber int       `json:"PageNumber" xml:"PageNumber"`
-	PageSize   int       `json:"PageSize" xml:"PageSize"`
-	NextToken  string    `json:"NextToken" xml:"NextToken"`
-	Snapshots  Snapshots `json:"Snapshots" xml:"Snapshots"`
+	NextToken  string                       `json:"NextToken" xml:"NextToken"`
+	PageSize   int                          `json:"PageSize" xml:"PageSize"`
+	PageNumber int                          `json:"PageNumber" xml:"PageNumber"`
+	RequestId  string                       `json:"RequestId" xml:"RequestId"`
+	TotalCount int                          `json:"TotalCount" xml:"TotalCount"`
+	Snapshots  SnapshotsInDescribeSnapshots `json:"Snapshots" xml:"Snapshots"`
 }
 
 // CreateDescribeSnapshotsRequest creates a request to invoke DescribeSnapshots API
@@ -122,7 +122,7 @@ func CreateDescribeSnapshotsRequest() (request *DescribeSnapshotsRequest) {
 	request = &DescribeSnapshotsRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeSnapshots", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeSnapshots", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

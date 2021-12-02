@@ -84,10 +84,10 @@ type DescribeElasticityAssuranceInstancesRequest struct {
 // DescribeElasticityAssuranceInstancesResponse is the response struct for api DescribeElasticityAssuranceInstances
 type DescribeElasticityAssuranceInstancesResponse struct {
 	*responses.BaseResponse
-	RequestId               string                                                        `json:"RequestId" xml:"RequestId"`
 	NextToken               string                                                        `json:"NextToken" xml:"NextToken"`
-	MaxResults              int                                                           `json:"MaxResults" xml:"MaxResults"`
+	RequestId               string                                                        `json:"RequestId" xml:"RequestId"`
 	TotalCount              int                                                           `json:"TotalCount" xml:"TotalCount"`
+	MaxResults              int                                                           `json:"MaxResults" xml:"MaxResults"`
 	ElasticityAssuranceItem ElasticityAssuranceItemInDescribeElasticityAssuranceInstances `json:"ElasticityAssuranceItem" xml:"ElasticityAssuranceItem"`
 }
 
@@ -96,7 +96,7 @@ func CreateDescribeElasticityAssuranceInstancesRequest() (request *DescribeElast
 	request = &DescribeElasticityAssuranceInstancesRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeElasticityAssuranceInstances", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeElasticityAssuranceInstances", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

@@ -81,9 +81,9 @@ type DescribeUserDataRequest struct {
 type DescribeUserDataResponse struct {
 	*responses.BaseResponse
 	RequestId  string `json:"RequestId" xml:"RequestId"`
-	RegionId   string `json:"RegionId" xml:"RegionId"`
 	InstanceId string `json:"InstanceId" xml:"InstanceId"`
 	UserData   string `json:"UserData" xml:"UserData"`
+	RegionId   string `json:"RegionId" xml:"RegionId"`
 }
 
 // CreateDescribeUserDataRequest creates a request to invoke DescribeUserData API
@@ -91,7 +91,7 @@ func CreateDescribeUserDataRequest() (request *DescribeUserDataRequest) {
 	request = &DescribeUserDataRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeUserData", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeUserData", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

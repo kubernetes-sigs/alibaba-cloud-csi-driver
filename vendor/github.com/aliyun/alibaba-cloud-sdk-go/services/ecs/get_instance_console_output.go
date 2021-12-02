@@ -82,10 +82,10 @@ type GetInstanceConsoleOutputRequest struct {
 // GetInstanceConsoleOutputResponse is the response struct for api GetInstanceConsoleOutput
 type GetInstanceConsoleOutputResponse struct {
 	*responses.BaseResponse
+	LastUpdateTime string `json:"LastUpdateTime" xml:"LastUpdateTime"`
 	RequestId      string `json:"RequestId" xml:"RequestId"`
 	InstanceId     string `json:"InstanceId" xml:"InstanceId"`
 	ConsoleOutput  string `json:"ConsoleOutput" xml:"ConsoleOutput"`
-	LastUpdateTime string `json:"LastUpdateTime" xml:"LastUpdateTime"`
 }
 
 // CreateGetInstanceConsoleOutputRequest creates a request to invoke GetInstanceConsoleOutput API
@@ -93,7 +93,7 @@ func CreateGetInstanceConsoleOutputRequest() (request *GetInstanceConsoleOutputR
 	request = &GetInstanceConsoleOutputRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "GetInstanceConsoleOutput", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "GetInstanceConsoleOutput", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

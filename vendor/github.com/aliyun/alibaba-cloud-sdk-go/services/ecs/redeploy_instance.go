@@ -82,8 +82,8 @@ type RedeployInstanceRequest struct {
 // RedeployInstanceResponse is the response struct for api RedeployInstance
 type RedeployInstanceResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"RequestId" xml:"RequestId"`
 	TaskId    string `json:"TaskId" xml:"TaskId"`
+	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateRedeployInstanceRequest creates a request to invoke RedeployInstance API
@@ -91,7 +91,7 @@ func CreateRedeployInstanceRequest() (request *RedeployInstanceRequest) {
 	request = &RedeployInstanceRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "RedeployInstance", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "RedeployInstance", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

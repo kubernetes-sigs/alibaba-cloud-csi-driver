@@ -72,20 +72,17 @@ func (client *Client) DescribeRecommendInstanceTypeWithCallback(request *Describ
 type DescribeRecommendInstanceTypeRequest struct {
 	*requests.RpcRequest
 	ResourceOwnerId      requests.Integer `position:"Query" name:"ResourceOwnerId"`
-	InstancePpsRx        requests.Integer `position:"Query" name:"InstancePpsRx"`
 	Memory               requests.Float   `position:"Query" name:"Memory"`
-	InstancePpsTx        requests.Integer `position:"Query" name:"InstancePpsTx"`
 	IoOptimized          string           `position:"Query" name:"IoOptimized"`
 	NetworkType          string           `position:"Query" name:"NetworkType"`
 	Scene                string           `position:"Query" name:"Scene"`
-	InstanceBandwidthTx  requests.Integer `position:"Query" name:"InstanceBandwidthTx"`
 	Cores                requests.Integer `position:"Query" name:"Cores"`
-	InstanceBandwidthRx  requests.Integer `position:"Query" name:"InstanceBandwidthRx"`
 	SystemDiskCategory   string           `position:"Query" name:"SystemDiskCategory"`
 	InstanceType         string           `position:"Query" name:"InstanceType"`
 	InstanceChargeType   string           `position:"Query" name:"InstanceChargeType"`
 	MaxPrice             requests.Float   `position:"Query" name:"MaxPrice"`
 	ResourceOwnerAccount string           `position:"Query" name:"ResourceOwnerAccount"`
+	ZoneMatchMode        string           `position:"Query" name:"ZoneMatchMode"`
 	OwnerAccount         string           `position:"Query" name:"OwnerAccount"`
 	InstanceTypeFamily   *[]string        `position:"Query" name:"InstanceTypeFamily"  type:"Repeated"`
 	OwnerId              requests.Integer `position:"Query" name:"OwnerId"`
@@ -107,7 +104,7 @@ func CreateDescribeRecommendInstanceTypeRequest() (request *DescribeRecommendIns
 	request = &DescribeRecommendInstanceTypeRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeRecommendInstanceType", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeRecommendInstanceType", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

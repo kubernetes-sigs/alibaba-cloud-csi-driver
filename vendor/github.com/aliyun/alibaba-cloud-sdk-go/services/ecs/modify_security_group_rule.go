@@ -73,6 +73,7 @@ type ModifySecurityGroupRuleRequest struct {
 	*requests.RpcRequest
 	NicType                 string           `position:"Query" name:"NicType"`
 	ResourceOwnerId         requests.Integer `position:"Query" name:"ResourceOwnerId"`
+	SourcePrefixListId      string           `position:"Query" name:"SourcePrefixListId"`
 	SourcePortRange         string           `position:"Query" name:"SourcePortRange"`
 	ClientToken             string           `position:"Query" name:"ClientToken"`
 	SecurityGroupId         string           `position:"Query" name:"SecurityGroupId"`
@@ -104,7 +105,7 @@ func CreateModifySecurityGroupRuleRequest() (request *ModifySecurityGroupRuleReq
 	request = &ModifySecurityGroupRuleRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "ModifySecurityGroupRule", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "ModifySecurityGroupRule", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

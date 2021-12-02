@@ -89,10 +89,10 @@ type DescribeLaunchTemplateVersionsRequest struct {
 // DescribeLaunchTemplateVersionsResponse is the response struct for api DescribeLaunchTemplateVersions
 type DescribeLaunchTemplateVersionsResponse struct {
 	*responses.BaseResponse
-	RequestId                 string                    `json:"RequestId" xml:"RequestId"`
-	TotalCount                int                       `json:"TotalCount" xml:"TotalCount"`
-	PageNumber                int                       `json:"PageNumber" xml:"PageNumber"`
 	PageSize                  int                       `json:"PageSize" xml:"PageSize"`
+	RequestId                 string                    `json:"RequestId" xml:"RequestId"`
+	PageNumber                int                       `json:"PageNumber" xml:"PageNumber"`
+	TotalCount                int                       `json:"TotalCount" xml:"TotalCount"`
 	LaunchTemplateVersionSets LaunchTemplateVersionSets `json:"LaunchTemplateVersionSets" xml:"LaunchTemplateVersionSets"`
 }
 
@@ -101,7 +101,7 @@ func CreateDescribeLaunchTemplateVersionsRequest() (request *DescribeLaunchTempl
 	request = &DescribeLaunchTemplateVersionsRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeLaunchTemplateVersions", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeLaunchTemplateVersions", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

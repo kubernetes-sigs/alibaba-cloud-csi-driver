@@ -138,6 +138,7 @@ type diskVolumeArgs struct {
 	ZoneID           string              `json:"zoneId"`
 	FsType           string              `json:"fsType"`
 	ReadOnly         bool                `json:"readOnly"`
+	MultiAttach      string              `json:"multiAttach"`
 	Encrypted        bool                `json:"encrypted"`
 	KMSKeyID         string              `json:"kmsKeyId"`
 	PerformanceLevel string              `json:"performanceLevel"`
@@ -361,6 +362,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			diskTags = append(diskTags, diskTagTmp)
 		}
 	}
+	if diskVol.MultiAttach == "Enabled" {
+		createDiskRequest.MultiAttach = diskVol.MultiAttach
+	}
+
 	createDiskRequest.Tag = &diskTags
 	if diskVol.Encrypted == true && diskVol.KMSKeyID != "" {
 		createDiskRequest.KMSKeyId = diskVol.KMSKeyID

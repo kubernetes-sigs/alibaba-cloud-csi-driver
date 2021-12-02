@@ -86,8 +86,8 @@ type CreateVSwitchRequest struct {
 // CreateVSwitchResponse is the response struct for api CreateVSwitch
 type CreateVSwitchResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"RequestId" xml:"RequestId"`
 	VSwitchId string `json:"VSwitchId" xml:"VSwitchId"`
+	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateCreateVSwitchRequest creates a request to invoke CreateVSwitch API
@@ -95,7 +95,7 @@ func CreateCreateVSwitchRequest() (request *CreateVSwitchRequest) {
 	request = &CreateVSwitchRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateVSwitch", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateVSwitch", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

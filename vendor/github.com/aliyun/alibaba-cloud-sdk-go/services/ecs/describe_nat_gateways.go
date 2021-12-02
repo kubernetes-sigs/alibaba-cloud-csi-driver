@@ -84,10 +84,10 @@ type DescribeNatGatewaysRequest struct {
 // DescribeNatGatewaysResponse is the response struct for api DescribeNatGateways
 type DescribeNatGatewaysResponse struct {
 	*responses.BaseResponse
-	RequestId   string      `json:"RequestId" xml:"RequestId"`
-	TotalCount  int         `json:"TotalCount" xml:"TotalCount"`
-	PageNumber  int         `json:"PageNumber" xml:"PageNumber"`
 	PageSize    int         `json:"PageSize" xml:"PageSize"`
+	RequestId   string      `json:"RequestId" xml:"RequestId"`
+	PageNumber  int         `json:"PageNumber" xml:"PageNumber"`
+	TotalCount  int         `json:"TotalCount" xml:"TotalCount"`
 	NatGateways NatGateways `json:"NatGateways" xml:"NatGateways"`
 }
 
@@ -96,7 +96,7 @@ func CreateDescribeNatGatewaysRequest() (request *DescribeNatGatewaysRequest) {
 	request = &DescribeNatGatewaysRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeNatGateways", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeNatGateways", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

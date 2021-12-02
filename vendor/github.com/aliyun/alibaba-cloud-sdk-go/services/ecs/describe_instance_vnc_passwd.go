@@ -81,8 +81,8 @@ type DescribeInstanceVncPasswdRequest struct {
 // DescribeInstanceVncPasswdResponse is the response struct for api DescribeInstanceVncPasswd
 type DescribeInstanceVncPasswdResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"RequestId" xml:"RequestId"`
 	VncPasswd string `json:"VncPasswd" xml:"VncPasswd"`
+	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateDescribeInstanceVncPasswdRequest creates a request to invoke DescribeInstanceVncPasswd API
@@ -90,7 +90,7 @@ func CreateDescribeInstanceVncPasswdRequest() (request *DescribeInstanceVncPassw
 	request = &DescribeInstanceVncPasswdRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeInstanceVncPasswd", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeInstanceVncPasswd", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

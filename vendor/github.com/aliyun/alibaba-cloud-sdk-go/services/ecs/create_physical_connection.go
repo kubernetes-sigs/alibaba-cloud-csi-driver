@@ -92,8 +92,8 @@ type CreatePhysicalConnectionRequest struct {
 // CreatePhysicalConnectionResponse is the response struct for api CreatePhysicalConnection
 type CreatePhysicalConnectionResponse struct {
 	*responses.BaseResponse
-	RequestId            string `json:"RequestId" xml:"RequestId"`
 	PhysicalConnectionId string `json:"PhysicalConnectionId" xml:"PhysicalConnectionId"`
+	RequestId            string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateCreatePhysicalConnectionRequest creates a request to invoke CreatePhysicalConnection API
@@ -101,7 +101,7 @@ func CreateCreatePhysicalConnectionRequest() (request *CreatePhysicalConnectionR
 	request = &CreatePhysicalConnectionRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "CreatePhysicalConnection", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "CreatePhysicalConnection", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }
