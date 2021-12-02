@@ -85,10 +85,10 @@ type DescribeAutoProvisioningGroupHistoryRequest struct {
 // DescribeAutoProvisioningGroupHistoryResponse is the response struct for api DescribeAutoProvisioningGroupHistory
 type DescribeAutoProvisioningGroupHistoryResponse struct {
 	*responses.BaseResponse
-	RequestId                      string                         `json:"RequestId" xml:"RequestId"`
-	TotalCount                     int                            `json:"TotalCount" xml:"TotalCount"`
-	PageNumber                     int                            `json:"PageNumber" xml:"PageNumber"`
 	PageSize                       int                            `json:"PageSize" xml:"PageSize"`
+	RequestId                      string                         `json:"RequestId" xml:"RequestId"`
+	PageNumber                     int                            `json:"PageNumber" xml:"PageNumber"`
+	TotalCount                     int                            `json:"TotalCount" xml:"TotalCount"`
 	AutoProvisioningGroupHistories AutoProvisioningGroupHistories `json:"AutoProvisioningGroupHistories" xml:"AutoProvisioningGroupHistories"`
 }
 
@@ -97,7 +97,7 @@ func CreateDescribeAutoProvisioningGroupHistoryRequest() (request *DescribeAutoP
 	request = &DescribeAutoProvisioningGroupHistoryRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeAutoProvisioningGroupHistory", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeAutoProvisioningGroupHistory", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

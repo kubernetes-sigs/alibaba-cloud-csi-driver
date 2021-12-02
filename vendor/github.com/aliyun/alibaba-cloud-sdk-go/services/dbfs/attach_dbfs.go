@@ -72,6 +72,7 @@ func (client *Client) AttachDbfsWithCallback(request *AttachDbfsRequest, callbac
 type AttachDbfsRequest struct {
 	*requests.RpcRequest
 	ECSInstanceId string `position:"Query" name:"ECSInstanceId"`
+	ServerUrl     string `position:"Query" name:"ServerUrl"`
 	FsId          string `position:"Query" name:"FsId"`
 }
 
@@ -86,7 +87,7 @@ func CreateAttachDbfsRequest() (request *AttachDbfsRequest) {
 	request = &AttachDbfsRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("DBFS", "2020-04-18", "AttachDbfs", "dbfs", "openAPI")
+	request.InitWithApiInfo("DBFS", "2020-04-18", "AttachDbfs", "", "")
 	request.Method = requests.POST
 	return
 }

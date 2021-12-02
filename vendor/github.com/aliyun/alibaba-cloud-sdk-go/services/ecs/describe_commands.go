@@ -76,6 +76,7 @@ type DescribeCommandsRequest struct {
 	Type                 string           `position:"Query" name:"Type"`
 	CommandId            string           `position:"Query" name:"CommandId"`
 	PageNumber           requests.Integer `position:"Query" name:"PageNumber"`
+	Provider             string           `position:"Query" name:"Provider"`
 	ContentEncoding      string           `position:"Query" name:"ContentEncoding"`
 	PageSize             requests.Integer `position:"Query" name:"PageSize"`
 	ResourceOwnerAccount string           `position:"Query" name:"ResourceOwnerAccount"`
@@ -87,10 +88,10 @@ type DescribeCommandsRequest struct {
 // DescribeCommandsResponse is the response struct for api DescribeCommands
 type DescribeCommandsResponse struct {
 	*responses.BaseResponse
-	RequestId  string   `json:"RequestId" xml:"RequestId"`
-	TotalCount int64    `json:"TotalCount" xml:"TotalCount"`
-	PageNumber int64    `json:"PageNumber" xml:"PageNumber"`
 	PageSize   int64    `json:"PageSize" xml:"PageSize"`
+	RequestId  string   `json:"RequestId" xml:"RequestId"`
+	PageNumber int64    `json:"PageNumber" xml:"PageNumber"`
+	TotalCount int64    `json:"TotalCount" xml:"TotalCount"`
 	Commands   Commands `json:"Commands" xml:"Commands"`
 }
 
@@ -99,7 +100,7 @@ func CreateDescribeCommandsRequest() (request *DescribeCommandsRequest) {
 	request = &DescribeCommandsRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeCommands", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeCommands", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

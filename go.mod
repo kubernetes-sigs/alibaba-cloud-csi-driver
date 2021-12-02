@@ -3,7 +3,7 @@ module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 go 1.12
 
 require (
-	github.com/aliyun/alibaba-cloud-sdk-go v1.61.751
+	github.com/aliyun/alibaba-cloud-sdk-go v1.61.1356
 	github.com/container-storage-interface/spec v1.2.0
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
 	github.com/emirpasic/gods v1.12.0
@@ -29,7 +29,7 @@ require (
 	github.com/prometheus/procfs v0.0.2
 	github.com/sevlyar/go-daemon v0.1.5
 	github.com/sirupsen/logrus v1.4.2
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.7.0
 	go.uber.org/ratelimit v0.1.0
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect

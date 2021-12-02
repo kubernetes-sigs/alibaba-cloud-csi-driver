@@ -90,8 +90,8 @@ type DescribeSpotPriceHistoryRequest struct {
 type DescribeSpotPriceHistoryResponse struct {
 	*responses.BaseResponse
 	RequestId  string     `json:"RequestId" xml:"RequestId"`
-	NextOffset int        `json:"NextOffset" xml:"NextOffset"`
 	Currency   string     `json:"Currency" xml:"Currency"`
+	NextOffset int        `json:"NextOffset" xml:"NextOffset"`
 	SpotPrices SpotPrices `json:"SpotPrices" xml:"SpotPrices"`
 }
 
@@ -100,7 +100,7 @@ func CreateDescribeSpotPriceHistoryRequest() (request *DescribeSpotPriceHistoryR
 	request = &DescribeSpotPriceHistoryRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeSpotPriceHistory", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeSpotPriceHistory", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

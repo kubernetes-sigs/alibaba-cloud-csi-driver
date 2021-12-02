@@ -84,11 +84,11 @@ type DescribeImageSharePermissionRequest struct {
 type DescribeImageSharePermissionResponse struct {
 	*responses.BaseResponse
 	RequestId   string      `json:"RequestId" xml:"RequestId"`
-	RegionId    string      `json:"RegionId" xml:"RegionId"`
-	TotalCount  int         `json:"TotalCount" xml:"TotalCount"`
 	PageNumber  int         `json:"PageNumber" xml:"PageNumber"`
 	PageSize    int         `json:"PageSize" xml:"PageSize"`
+	TotalCount  int         `json:"TotalCount" xml:"TotalCount"`
 	ImageId     string      `json:"ImageId" xml:"ImageId"`
+	RegionId    string      `json:"RegionId" xml:"RegionId"`
 	ShareGroups ShareGroups `json:"ShareGroups" xml:"ShareGroups"`
 	Accounts    Accounts    `json:"Accounts" xml:"Accounts"`
 }
@@ -98,7 +98,7 @@ func CreateDescribeImageSharePermissionRequest() (request *DescribeImageSharePer
 	request = &DescribeImageSharePermissionRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeImageSharePermission", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeImageSharePermission", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

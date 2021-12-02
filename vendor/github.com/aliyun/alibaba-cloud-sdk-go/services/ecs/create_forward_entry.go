@@ -86,8 +86,8 @@ type CreateForwardEntryRequest struct {
 // CreateForwardEntryResponse is the response struct for api CreateForwardEntry
 type CreateForwardEntryResponse struct {
 	*responses.BaseResponse
-	RequestId      string `json:"RequestId" xml:"RequestId"`
 	ForwardEntryId string `json:"ForwardEntryId" xml:"ForwardEntryId"`
+	RequestId      string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateCreateForwardEntryRequest creates a request to invoke CreateForwardEntry API
@@ -95,7 +95,7 @@ func CreateCreateForwardEntryRequest() (request *CreateForwardEntryRequest) {
 	request = &CreateForwardEntryRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateForwardEntry", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateForwardEntry", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

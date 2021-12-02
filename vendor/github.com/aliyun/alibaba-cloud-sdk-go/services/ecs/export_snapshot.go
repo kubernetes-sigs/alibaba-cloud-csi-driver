@@ -82,8 +82,8 @@ type ExportSnapshotRequest struct {
 // ExportSnapshotResponse is the response struct for api ExportSnapshot
 type ExportSnapshotResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"RequestId" xml:"RequestId"`
 	TaskId    string `json:"TaskId" xml:"TaskId"`
+	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateExportSnapshotRequest creates a request to invoke ExportSnapshot API
@@ -91,7 +91,7 @@ func CreateExportSnapshotRequest() (request *ExportSnapshotRequest) {
 	request = &ExportSnapshotRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "ExportSnapshot", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "ExportSnapshot", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

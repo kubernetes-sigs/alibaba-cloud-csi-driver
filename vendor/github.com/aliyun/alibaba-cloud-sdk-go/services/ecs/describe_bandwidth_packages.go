@@ -84,10 +84,10 @@ type DescribeBandwidthPackagesRequest struct {
 // DescribeBandwidthPackagesResponse is the response struct for api DescribeBandwidthPackages
 type DescribeBandwidthPackagesResponse struct {
 	*responses.BaseResponse
-	RequestId         string            `json:"RequestId" xml:"RequestId"`
-	TotalCount        int               `json:"TotalCount" xml:"TotalCount"`
-	PageNumber        int               `json:"PageNumber" xml:"PageNumber"`
 	PageSize          int               `json:"PageSize" xml:"PageSize"`
+	RequestId         string            `json:"RequestId" xml:"RequestId"`
+	PageNumber        int               `json:"PageNumber" xml:"PageNumber"`
+	TotalCount        int               `json:"TotalCount" xml:"TotalCount"`
 	BandwidthPackages BandwidthPackages `json:"BandwidthPackages" xml:"BandwidthPackages"`
 }
 
@@ -96,7 +96,7 @@ func CreateDescribeBandwidthPackagesRequest() (request *DescribeBandwidthPackage
 	request = &DescribeBandwidthPackagesRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeBandwidthPackages", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeBandwidthPackages", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

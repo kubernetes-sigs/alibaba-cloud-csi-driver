@@ -84,8 +84,8 @@ type ModifyRouterInterfaceSpecRequest struct {
 // ModifyRouterInterfaceSpecResponse is the response struct for api ModifyRouterInterfaceSpec
 type ModifyRouterInterfaceSpecResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"RequestId" xml:"RequestId"`
 	Spec      string `json:"Spec" xml:"Spec"`
+	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateModifyRouterInterfaceSpecRequest creates a request to invoke ModifyRouterInterfaceSpec API
@@ -93,7 +93,7 @@ func CreateModifyRouterInterfaceSpecRequest() (request *ModifyRouterInterfaceSpe
 	request = &ModifyRouterInterfaceSpecRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "ModifyRouterInterfaceSpec", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "ModifyRouterInterfaceSpec", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

@@ -92,8 +92,8 @@ type ReplaceSystemDiskRequest struct {
 // ReplaceSystemDiskResponse is the response struct for api ReplaceSystemDisk
 type ReplaceSystemDiskResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"RequestId" xml:"RequestId"`
 	DiskId    string `json:"DiskId" xml:"DiskId"`
+	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateReplaceSystemDiskRequest creates a request to invoke ReplaceSystemDisk API
@@ -101,7 +101,7 @@ func CreateReplaceSystemDiskRequest() (request *ReplaceSystemDiskRequest) {
 	request = &ReplaceSystemDiskRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "ReplaceSystemDisk", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "ReplaceSystemDisk", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

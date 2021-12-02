@@ -73,6 +73,7 @@ type RevokeSecurityGroupRequest struct {
 	*requests.RpcRequest
 	NicType                 string           `position:"Query" name:"NicType"`
 	ResourceOwnerId         requests.Integer `position:"Query" name:"ResourceOwnerId"`
+	SourcePrefixListId      string           `position:"Query" name:"SourcePrefixListId"`
 	SourcePortRange         string           `position:"Query" name:"SourcePortRange"`
 	ClientToken             string           `position:"Query" name:"ClientToken"`
 	SecurityGroupId         string           `position:"Query" name:"SecurityGroupId"`
@@ -104,7 +105,7 @@ func CreateRevokeSecurityGroupRequest() (request *RevokeSecurityGroupRequest) {
 	request = &RevokeSecurityGroupRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "RevokeSecurityGroup", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "RevokeSecurityGroup", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

@@ -81,7 +81,7 @@ type AddTagsRequest struct {
 
 // AddTagsTag is a repeated param struct in AddTagsRequest
 type AddTagsTag struct {
-	Value string `name:"Value"`
+	Value string `name:"value"`
 	Key   string `name:"Key"`
 }
 
@@ -96,7 +96,7 @@ func CreateAddTagsRequest() (request *AddTagsRequest) {
 	request = &AddTagsRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "AddTags", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "AddTags", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

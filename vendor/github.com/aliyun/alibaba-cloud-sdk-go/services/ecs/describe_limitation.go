@@ -81,9 +81,9 @@ type DescribeLimitationRequest struct {
 // DescribeLimitationResponse is the response struct for api DescribeLimitation
 type DescribeLimitationResponse struct {
 	*responses.BaseResponse
-	RequestId  string `json:"RequestId" xml:"RequestId"`
 	Limitation string `json:"Limitation" xml:"Limitation"`
 	Value      string `json:"Value" xml:"Value"`
+	RequestId  string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateDescribeLimitationRequest creates a request to invoke DescribeLimitation API
@@ -91,7 +91,7 @@ func CreateDescribeLimitationRequest() (request *DescribeLimitationRequest) {
 	request = &DescribeLimitationRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeLimitation", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeLimitation", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

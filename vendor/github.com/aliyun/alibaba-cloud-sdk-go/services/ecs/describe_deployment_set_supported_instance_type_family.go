@@ -80,8 +80,8 @@ type DescribeDeploymentSetSupportedInstanceTypeFamilyRequest struct {
 // DescribeDeploymentSetSupportedInstanceTypeFamilyResponse is the response struct for api DescribeDeploymentSetSupportedInstanceTypeFamily
 type DescribeDeploymentSetSupportedInstanceTypeFamilyResponse struct {
 	*responses.BaseResponse
-	RequestId            string `json:"RequestId" xml:"RequestId"`
 	InstanceTypeFamilies string `json:"InstanceTypeFamilies" xml:"InstanceTypeFamilies"`
+	RequestId            string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateDescribeDeploymentSetSupportedInstanceTypeFamilyRequest creates a request to invoke DescribeDeploymentSetSupportedInstanceTypeFamily API
@@ -89,7 +89,7 @@ func CreateDescribeDeploymentSetSupportedInstanceTypeFamilyRequest() (request *D
 	request = &DescribeDeploymentSetSupportedInstanceTypeFamilyRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeDeploymentSetSupportedInstanceTypeFamily", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeDeploymentSetSupportedInstanceTypeFamily", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

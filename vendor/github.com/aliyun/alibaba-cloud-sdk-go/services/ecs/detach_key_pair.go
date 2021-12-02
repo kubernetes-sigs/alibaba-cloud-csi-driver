@@ -81,10 +81,10 @@ type DetachKeyPairRequest struct {
 // DetachKeyPairResponse is the response struct for api DetachKeyPair
 type DetachKeyPairResponse struct {
 	*responses.BaseResponse
+	KeyPairName string                 `json:"KeyPairName" xml:"KeyPairName"`
 	RequestId   string                 `json:"RequestId" xml:"RequestId"`
 	TotalCount  string                 `json:"TotalCount" xml:"TotalCount"`
 	FailCount   string                 `json:"FailCount" xml:"FailCount"`
-	KeyPairName string                 `json:"KeyPairName" xml:"KeyPairName"`
 	Results     ResultsInDetachKeyPair `json:"Results" xml:"Results"`
 }
 
@@ -93,7 +93,7 @@ func CreateDetachKeyPairRequest() (request *DetachKeyPairRequest) {
 	request = &DetachKeyPairRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DetachKeyPair", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DetachKeyPair", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

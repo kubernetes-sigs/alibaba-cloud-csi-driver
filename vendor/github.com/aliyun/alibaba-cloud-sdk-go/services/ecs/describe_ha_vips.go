@@ -89,10 +89,10 @@ type DescribeHaVipsFilter struct {
 // DescribeHaVipsResponse is the response struct for api DescribeHaVips
 type DescribeHaVipsResponse struct {
 	*responses.BaseResponse
-	RequestId  string `json:"RequestId" xml:"RequestId"`
-	TotalCount int    `json:"TotalCount" xml:"TotalCount"`
-	PageNumber int    `json:"PageNumber" xml:"PageNumber"`
 	PageSize   int    `json:"PageSize" xml:"PageSize"`
+	RequestId  string `json:"RequestId" xml:"RequestId"`
+	PageNumber int    `json:"PageNumber" xml:"PageNumber"`
+	TotalCount int    `json:"TotalCount" xml:"TotalCount"`
 	HaVips     HaVips `json:"HaVips" xml:"HaVips"`
 }
 
@@ -101,7 +101,7 @@ func CreateDescribeHaVipsRequest() (request *DescribeHaVipsRequest) {
 	request = &DescribeHaVipsRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeHaVips", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeHaVips", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

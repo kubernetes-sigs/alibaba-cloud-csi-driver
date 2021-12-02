@@ -91,8 +91,8 @@ type CreateDemandRequest struct {
 // CreateDemandResponse is the response struct for api CreateDemand
 type CreateDemandResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"RequestId" xml:"RequestId"`
 	DemandId  string `json:"DemandId" xml:"DemandId"`
+	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateCreateDemandRequest creates a request to invoke CreateDemand API
@@ -100,7 +100,7 @@ func CreateCreateDemandRequest() (request *CreateDemandRequest) {
 	request = &CreateDemandRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateDemand", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateDemand", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

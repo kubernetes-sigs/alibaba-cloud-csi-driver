@@ -83,11 +83,11 @@ type EipNotifyPaidRequest struct {
 // EipNotifyPaidResponse is the response struct for api EipNotifyPaid
 type EipNotifyPaidResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"requestId" xml:"requestId"`
-	Data      string `json:"data" xml:"data"`
 	Code      string `json:"code" xml:"code"`
-	Message   string `json:"message" xml:"message"`
 	Success   bool   `json:"success" xml:"success"`
+	Message   string `json:"message" xml:"message"`
+	Data      string `json:"data" xml:"data"`
+	RequestId string `json:"requestId" xml:"requestId"`
 }
 
 // CreateEipNotifyPaidRequest creates a request to invoke EipNotifyPaid API
@@ -95,7 +95,7 @@ func CreateEipNotifyPaidRequest() (request *EipNotifyPaidRequest) {
 	request = &EipNotifyPaidRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "EipNotifyPaid", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "EipNotifyPaid", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

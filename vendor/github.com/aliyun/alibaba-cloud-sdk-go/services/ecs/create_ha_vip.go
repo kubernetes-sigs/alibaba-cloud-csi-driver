@@ -84,8 +84,8 @@ type CreateHaVipRequest struct {
 // CreateHaVipResponse is the response struct for api CreateHaVip
 type CreateHaVipResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"RequestId" xml:"RequestId"`
 	HaVipId   string `json:"HaVipId" xml:"HaVipId"`
+	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateCreateHaVipRequest creates a request to invoke CreateHaVip API
@@ -93,7 +93,7 @@ func CreateCreateHaVipRequest() (request *CreateHaVipRequest) {
 	request = &CreateHaVipRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateHaVip", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "CreateHaVip", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

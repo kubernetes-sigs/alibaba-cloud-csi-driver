@@ -75,6 +75,7 @@ type RevokeSecurityGroupEgressRequest struct {
 	ResourceOwnerId       requests.Integer `position:"Query" name:"ResourceOwnerId"`
 	SourcePortRange       string           `position:"Query" name:"SourcePortRange"`
 	ClientToken           string           `position:"Query" name:"ClientToken"`
+	DestPrefixListId      string           `position:"Query" name:"DestPrefixListId"`
 	SecurityGroupId       string           `position:"Query" name:"SecurityGroupId"`
 	Description           string           `position:"Query" name:"Description"`
 	Ipv6DestCidrIp        string           `position:"Query" name:"Ipv6DestCidrIp"`
@@ -104,7 +105,7 @@ func CreateRevokeSecurityGroupEgressRequest() (request *RevokeSecurityGroupEgres
 	request = &RevokeSecurityGroupEgressRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "RevokeSecurityGroupEgress", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "RevokeSecurityGroupEgress", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

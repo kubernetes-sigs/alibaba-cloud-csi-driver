@@ -81,7 +81,7 @@ type RemoveTagsRequest struct {
 
 // RemoveTagsTag is a repeated param struct in RemoveTagsRequest
 type RemoveTagsTag struct {
-	Value string `name:"Value"`
+	Value string `name:"value"`
 	Key   string `name:"Key"`
 }
 
@@ -96,7 +96,7 @@ func CreateRemoveTagsRequest() (request *RemoveTagsRequest) {
 	request = &RemoveTagsRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "RemoveTags", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "RemoveTags", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

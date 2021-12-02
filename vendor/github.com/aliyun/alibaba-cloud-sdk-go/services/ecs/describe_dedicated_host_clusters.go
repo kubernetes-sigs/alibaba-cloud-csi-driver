@@ -95,10 +95,10 @@ type DescribeDedicatedHostClustersTag struct {
 // DescribeDedicatedHostClustersResponse is the response struct for api DescribeDedicatedHostClusters
 type DescribeDedicatedHostClustersResponse struct {
 	*responses.BaseResponse
-	RequestId             string                `json:"RequestId" xml:"RequestId"`
-	TotalCount            int                   `json:"TotalCount" xml:"TotalCount"`
-	PageNumber            int                   `json:"PageNumber" xml:"PageNumber"`
 	PageSize              int                   `json:"PageSize" xml:"PageSize"`
+	RequestId             string                `json:"RequestId" xml:"RequestId"`
+	PageNumber            int                   `json:"PageNumber" xml:"PageNumber"`
+	TotalCount            int                   `json:"TotalCount" xml:"TotalCount"`
 	DedicatedHostClusters DedicatedHostClusters `json:"DedicatedHostClusters" xml:"DedicatedHostClusters"`
 }
 
@@ -107,7 +107,7 @@ func CreateDescribeDedicatedHostClustersRequest() (request *DescribeDedicatedHos
 	request = &DescribeDedicatedHostClustersRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeDedicatedHostClusters", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeDedicatedHostClusters", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

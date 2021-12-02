@@ -81,10 +81,10 @@ type AttachKeyPairRequest struct {
 // AttachKeyPairResponse is the response struct for api AttachKeyPair
 type AttachKeyPairResponse struct {
 	*responses.BaseResponse
+	KeyPairName string                 `json:"KeyPairName" xml:"KeyPairName"`
 	RequestId   string                 `json:"RequestId" xml:"RequestId"`
 	TotalCount  string                 `json:"TotalCount" xml:"TotalCount"`
 	FailCount   string                 `json:"FailCount" xml:"FailCount"`
-	KeyPairName string                 `json:"KeyPairName" xml:"KeyPairName"`
 	Results     ResultsInAttachKeyPair `json:"Results" xml:"Results"`
 }
 
@@ -93,7 +93,7 @@ func CreateAttachKeyPairRequest() (request *AttachKeyPairRequest) {
 	request = &AttachKeyPairRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "AttachKeyPair", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "AttachKeyPair", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

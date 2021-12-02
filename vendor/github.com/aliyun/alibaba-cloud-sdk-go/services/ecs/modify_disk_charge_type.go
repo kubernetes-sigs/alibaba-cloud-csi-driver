@@ -85,8 +85,8 @@ type ModifyDiskChargeTypeRequest struct {
 // ModifyDiskChargeTypeResponse is the response struct for api ModifyDiskChargeType
 type ModifyDiskChargeTypeResponse struct {
 	*responses.BaseResponse
-	RequestId string `json:"RequestId" xml:"RequestId"`
 	OrderId   string `json:"OrderId" xml:"OrderId"`
+	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
 // CreateModifyDiskChargeTypeRequest creates a request to invoke ModifyDiskChargeType API
@@ -94,7 +94,7 @@ func CreateModifyDiskChargeTypeRequest() (request *ModifyDiskChargeTypeRequest) 
 	request = &ModifyDiskChargeTypeRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "ModifyDiskChargeType", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "ModifyDiskChargeType", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

@@ -105,6 +105,8 @@ const (
 	CreateDiskARN = "alibabacloud.com/createdisk-arn"
 	// SocketPath is path of connector sock
 	SocketPath = "/host/etc/csi-tool/diskconnector.sock"
+	// MaxVolumesPerNode define max ebs one node
+	MaxVolumesPerNode = 15
 )
 
 var (
@@ -123,7 +125,7 @@ type QueryResponse struct {
 
 // NewNodeServer creates node server
 func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
-	var maxVolumesNum int64 = 15
+	var maxVolumesNum int64 = MaxVolumesPerNode
 	volumeNum := os.Getenv("MAX_VOLUMES_PERNODE")
 	if "" != volumeNum {
 		num, err := strconv.ParseInt(volumeNum, 10, 64)
@@ -138,7 +140,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 			}
 		}
 	} else {
-		log.Infof("NewNodeServer: MAX_VOLUMES_PERNODE is set to(default): %d", maxVolumesNum)
+		maxVolumesNum = getVolumeCount()
 	}
 
 	zoneID := ""

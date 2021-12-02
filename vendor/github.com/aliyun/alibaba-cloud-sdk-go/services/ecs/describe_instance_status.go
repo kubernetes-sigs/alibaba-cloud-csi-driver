@@ -85,10 +85,10 @@ type DescribeInstanceStatusRequest struct {
 // DescribeInstanceStatusResponse is the response struct for api DescribeInstanceStatus
 type DescribeInstanceStatusResponse struct {
 	*responses.BaseResponse
-	RequestId        string           `json:"RequestId" xml:"RequestId"`
-	TotalCount       int              `json:"TotalCount" xml:"TotalCount"`
-	PageNumber       int              `json:"PageNumber" xml:"PageNumber"`
 	PageSize         int              `json:"PageSize" xml:"PageSize"`
+	RequestId        string           `json:"RequestId" xml:"RequestId"`
+	PageNumber       int              `json:"PageNumber" xml:"PageNumber"`
+	TotalCount       int              `json:"TotalCount" xml:"TotalCount"`
 	InstanceStatuses InstanceStatuses `json:"InstanceStatuses" xml:"InstanceStatuses"`
 }
 
@@ -97,7 +97,7 @@ func CreateDescribeInstanceStatusRequest() (request *DescribeInstanceStatusReque
 	request = &DescribeInstanceStatusRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeInstanceStatus", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeInstanceStatus", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

@@ -76,6 +76,7 @@ type RenewInstanceRequest struct {
 	Period               requests.Integer `position:"Query" name:"Period"`
 	ResourceOwnerAccount string           `position:"Query" name:"ResourceOwnerAccount"`
 	OwnerAccount         string           `position:"Query" name:"OwnerAccount"`
+	ExpectedRenewDay     requests.Integer `position:"Query" name:"ExpectedRenewDay"`
 	OwnerId              requests.Integer `position:"Query" name:"OwnerId"`
 	PeriodUnit           string           `position:"Query" name:"PeriodUnit"`
 	InstanceId           string           `position:"Query" name:"InstanceId"`
@@ -84,6 +85,7 @@ type RenewInstanceRequest struct {
 // RenewInstanceResponse is the response struct for api RenewInstance
 type RenewInstanceResponse struct {
 	*responses.BaseResponse
+	OrderId   string `json:"OrderId" xml:"OrderId"`
 	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
@@ -92,7 +94,7 @@ func CreateRenewInstanceRequest() (request *RenewInstanceRequest) {
 	request = &RenewInstanceRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "RenewInstance", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "RenewInstance", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

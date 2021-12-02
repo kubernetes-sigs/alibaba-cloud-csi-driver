@@ -84,7 +84,7 @@ type DescribeTagsRequest struct {
 
 // DescribeTagsTag is a repeated param struct in DescribeTagsRequest
 type DescribeTagsTag struct {
-	Value string `name:"Value"`
+	Value string `name:"value"`
 	Key   string `name:"Key"`
 }
 
@@ -103,7 +103,7 @@ func CreateDescribeTagsRequest() (request *DescribeTagsRequest) {
 	request = &DescribeTagsRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeTags", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeTags", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }

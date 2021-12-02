@@ -80,9 +80,9 @@ type DescribeSnapshotsUsageRequest struct {
 // DescribeSnapshotsUsageResponse is the response struct for api DescribeSnapshotsUsage
 type DescribeSnapshotsUsageResponse struct {
 	*responses.BaseResponse
+	SnapshotSize  int64  `json:"SnapshotSize" xml:"SnapshotSize"`
 	RequestId     string `json:"RequestId" xml:"RequestId"`
 	SnapshotCount int    `json:"SnapshotCount" xml:"SnapshotCount"`
-	SnapshotSize  int64  `json:"SnapshotSize" xml:"SnapshotSize"`
 }
 
 // CreateDescribeSnapshotsUsageRequest creates a request to invoke DescribeSnapshotsUsage API
@@ -90,7 +90,7 @@ func CreateDescribeSnapshotsUsageRequest() (request *DescribeSnapshotsUsageReque
 	request = &DescribeSnapshotsUsageRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeSnapshotsUsage", "", "")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "DescribeSnapshotsUsage", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }
