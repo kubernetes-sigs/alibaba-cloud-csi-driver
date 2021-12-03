@@ -1183,7 +1183,7 @@ func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 	sizeGb, _ := strconv.ParseInt(ecsSnapshot.SourceDiskSize, 10, 64)
 	sizeBytes := sizeGb * 1024 * 1024 * 1024
 	readyToUse := false
-	if ecsSnapshot.Status == "accomplished" {
+	if ecsSnapshot.Status == "accomplished" || ecsSnapshot.InstantAccess {
 		readyToUse = true
 	}
 	return &csi.Snapshot{
