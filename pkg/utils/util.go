@@ -654,3 +654,16 @@ func IsHostFileExist(path string) bool {
 
 	return true
 }
+
+// GetPvNameFormPodMnt get pv name
+func GetPvNameFormPodMnt(mntPath string) string {
+	if mntPath == "" {
+		return ""
+	}
+	if strings.HasSuffix(mntPath, "/mount") {
+		tmpPath := mntPath[0 : len(mntPath)-6]
+		pvName := filepath.Base(tmpPath)
+		return pvName
+	}
+	return ""
+}

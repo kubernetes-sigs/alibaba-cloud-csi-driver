@@ -761,6 +761,16 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return &csi.NodeExpandVolumeResponse{}, nil
 	}
 
+	// volume resize in rund type will transfer to gustos
+	isRund, err := checkRundExpand(req)
+	if isRund && err == nil {
+		log.Infof("NodeExpandVolume:: Rund Volume skip ExpandFS, volumeId: %s, volumePath: %s", diskID, volumePath)
+		return &csi.NodeExpandVolumeResponse{}, nil
+	} else if isRund && err != nil {
+		log.Infof("NodeExpandVolume:: Rund Volume ExpandFS error(%s), volumeId: %s, volumePath: %s", err.Error(), diskID, volumePath)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	devicePath := GetVolumeDeviceName(diskID)
 	if devicePath == "" {
 		log.Errorf("NodeExpandVolume:: can't get devicePath: %s", diskID)

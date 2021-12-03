@@ -1530,3 +1530,21 @@ func hasMountOption(options []string, opt string) bool {
 	}
 	return false
 }
+
+// checkRundExpand
+func checkRundExpand(req *csi.NodeExpandVolumeRequest) (bool, error) {
+	socketPath := "/etc/kubernetes/volumes/rund/"
+	pvName := utils.GetPvNameFormPodMnt(req.VolumePath)
+	if pvName == "" {
+		return false, perrors.Errorf("cannot get pvname from volumePath %s for volume %s", req.VolumePath, req.VolumeId)
+	}
+	socketFile := filepath.Join(socketPath, pvName+".sock")
+	if !utils.IsFileExisting(socketFile) {
+		return false, nil
+	}
+
+	//connectTimeout := 3 * time.Second
+	//conn, err := grpc.NewGrpcConnection(socketFile, connectTimeout, caCertFile, clientCertFile, clientKeyFile)
+
+	return true, nil
+}
