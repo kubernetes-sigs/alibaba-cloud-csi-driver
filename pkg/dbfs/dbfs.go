@@ -77,8 +77,8 @@ func NewDriver(nodeID, endpoint string) *DBFS {
 	})
 
 	d.driver = csiDriver
-	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
-	c := newDbfsClient(accessKeyID, accessSecret, accessToken, "")
+	accessControl := utils.GetAccessControl()
+	c := newDbfsClient(accessControl, "")
 	region := os.Getenv("REGION_ID")
 	if region == "" {
 		region, _ = utils.GetMetaData(RegionTag)

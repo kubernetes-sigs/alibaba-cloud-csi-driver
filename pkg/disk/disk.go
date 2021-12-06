@@ -114,12 +114,12 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	tmpdisk.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
 
 	// Init ECS Client
-	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
-	client := newEcsClient(accessKeyID, accessSecret, accessToken)
-	if accessToken == "" {
-		log.Infof("Starting csi-plugin without sts")
+	accessControl := utils.GetAccessControl()
+	client := newEcsClient(accessControl)
+	if accessControl.UseMode == utils.EcsRAMRole || accessControl.UseMode == utils.ManagedToken {
+		log.Infof("Starting csi-plugin with sts.")
 	} else {
-		log.Infof("Starting csi-plugin with sts")
+		log.Infof("Starting csi-plugin without sts.")
 	}
 
 	// Set Region ID

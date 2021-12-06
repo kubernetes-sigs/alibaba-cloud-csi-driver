@@ -23,19 +23,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetDefaultAK(t *testing.T) {
+func TestGetAccessControl(t *testing.T) {
 	testAccessKey := "testkey"
 	testAccessKeySecret := "testvalue"
 	os.Setenv("ACCESS_KEY_ID", testAccessKey)
 	os.Setenv("ACCESS_KEY_SECRET", testAccessKeySecret)
-	accessKeyID, accessKeySecret, accessToken := GetDefaultAK()
-	assert.Equal(t, testAccessKey, accessKeyID)
-	assert.Equal(t, testAccessKeySecret, accessKeySecret)
-	assert.Empty(t, accessToken)
+	ac := GetAccessControl()
+	assert.Equal(t, testAccessKey, ac.AccessKeyID)
+	assert.Equal(t, testAccessKeySecret, ac.AccessKeySecret)
+	assert.Empty(t, ac.StsToken)
 	os.Unsetenv("ACCESS_KEY_ID")
 	os.Unsetenv("ACCESS_KEY_SECRET")
-	accessKeyID, accessKeySecret, accessToken = GetDefaultAK()
-	assert.Empty(t, accessKeyID)
-	assert.Empty(t, accessKeySecret)
-	assert.Empty(t, accessToken)
+	ac = GetAccessControl()
+	assert.Empty(t, ac.AccessKeyID)
+	assert.Empty(t, ac.AccessKeySecret)
+	assert.Empty(t, ac.StsToken)
 }
