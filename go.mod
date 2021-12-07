@@ -10,7 +10,7 @@ require (
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
-	github.com/golang/protobuf v1.4.1
+	github.com/golang/protobuf v1.5.0
 	github.com/google/credstore v0.0.0-20181218150457-e184c60ef875 // indirect
 	github.com/google/go-microservice-helpers v0.0.0-20190205165657-a91942da5417 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
@@ -39,8 +39,9 @@ require (
 	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
 	google.golang.org/appengine v1.6.6 // indirect
-	google.golang.org/grpc v1.28.0
-	google.golang.org/protobuf v1.25.0
+	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
+	google.golang.org/grpc v1.27.0
+	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 	k8s.io/api v0.19.0
 	k8s.io/apiextensions-apiserver v0.0.0
@@ -174,7 +175,7 @@ replace (
 	google.golang.org/api => google.golang.org/api v0.1.0
 	google.golang.org/appengine => google.golang.org/appengine v1.4.0
 	google.golang.org/genproto => google.golang.org/genproto v0.0.0-20190307195333-5fe7a883aa19
-	google.golang.org/grpc => google.golang.org/grpc v1.26.0
+	google.golang.org/grpc => google.golang.org/grpc v1.27.0
 	gopkg.in/alecthomas/kingpin.v2 => gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/check.v1 => gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405
 	gopkg.in/fsnotify.v1 => gopkg.in/fsnotify.v1 v1.4.7
