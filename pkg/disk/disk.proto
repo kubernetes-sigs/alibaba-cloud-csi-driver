@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "/proto";
+
+// 文件系统扩容服务
+service NodeExpandVolume {
+    // NodeExpandVolume 方法
+    rpc NodeExpandVolume(NodeExpandVolumeRequest) returns (NodeExpandVolumeReply) {}
+}
+
+// 文件系统扩容请求消息
+message NodeExpandVolumeRequest {
+    string VolumeName = 1;
+    string VolumeSize = 2;
+}
+
+// 文件系统扩容响应消息
+message NodeExpandVolumeReply {
+    string Message = 1;
+}

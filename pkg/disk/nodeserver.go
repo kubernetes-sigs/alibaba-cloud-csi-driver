@@ -85,6 +85,8 @@ const (
 	DiskAttachedValue = "true"
 	// VolumeDir volume dir
 	VolumeDir = "/host/etc/kubernetes/volumes/disk/"
+	// RundSocketDir dir
+	RundSocketDir = "/host/etc/kubernetes/volumes/rund/"
 	// VolumeDirRemove volume dir remove
 	VolumeDirRemove = "/host/etc/kubernetes/volumes/disk/remove"
 	// MixRunTimeMode support both runc and runv
@@ -171,6 +173,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	// Create Directory
 	os.MkdirAll(VolumeDir, os.FileMode(0755))
 	os.MkdirAll(VolumeDirRemove, os.FileMode(0755))
+	os.MkdirAll(RundSocketDir, os.FileMode(0755))
 
 	if IsVFNode() {
 		log.Infof("Currently node is VF model")
@@ -759,6 +762,16 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	if strings.Contains(volumePath, BLOCKVOLUMEPREFIX) {
 		log.Infof("NodeExpandVolume:: Block Volume not Expand FS, volumeId: %s, volumePath: %s", diskID, volumePath)
 		return &csi.NodeExpandVolumeResponse{}, nil
+	}
+
+	// volume resize in rund type will transfer to guest os
+	isRund, err := checkRundVolumeExpand(req)
+	if isRund && err == nil {
+		log.Infof("NodeExpandVolume:: Rund Volume ExpandFS Successful, volumeId: %s, volumePath: %s", diskID, volumePath)
+		return &csi.NodeExpandVolumeResponse{}, nil
+	} else if isRund && err != nil {
+		log.Errorf("NodeExpandVolume:: Rund Volume ExpandFS error(%s), volumeId: %s, volumePath: %s", err.Error(), diskID, volumePath)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	devicePath := GetVolumeDeviceName(diskID)
