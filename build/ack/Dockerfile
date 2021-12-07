@@ -11,12 +11,12 @@ RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${upd
 RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-75ed4f1_centos8_x86_64.rpm -o /root/ossfs_1.86.4_centos8_x86_64.rpm
 
 COPY nsenter /nsenter
-COPY jindofs-fuse /jindofs-fuse
+COPY jindofs-fuse-3.7.3-20211207.tar.gz /jindofs-fuse-3.7.3-20211207.tar.gz
 COPY entrypoint.sh /entrypoint.sh
 COPY csiplugin-connector /bin/csiplugin-connector
 COPY csiplugin-connector.service /bin/csiplugin-connector.service
 COPY plugin.csi.alibabacloud.com /bin/plugin.csi.alibabacloud.com
-RUN chmod +x /bin/plugin.csi.alibabacloud.com && chmod +x /entrypoint.sh && chmod +x /bin/csiplugin-connector && chmod +x /bin/csiplugin-connector.service
+RUN chmod +x /bin/plugin.csi.alibabacloud.com && chmod +x /entrypoint.sh && chmod +x /bin/csiplugin-connector && chmod +x /bin/csiplugin-connector.service && tar zvxf /jindofs-fuse-3.7.3-20211207.tar.gz -C /
 
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 RUN echo 'Asia/Shanghai' >/etc/timezone
