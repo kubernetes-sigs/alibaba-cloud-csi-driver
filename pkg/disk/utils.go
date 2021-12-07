@@ -1539,7 +1539,7 @@ func checkRundVolumeExpand(req *csi.NodeExpandVolumeRequest) (bool, error) {
 	if pvName == "" {
 		return false, perrors.Errorf("cannot get pvname from volumePath %s for volume %s", req.VolumePath, req.VolumeId)
 	}
-	socketFile := filepath.Join(RundSocketDir, pvName+".sock")
+	socketFile := filepath.Join(RundSocketDir, pvName)
 	if !utils.IsFileExisting(socketFile) {
 		return false, nil
 	}

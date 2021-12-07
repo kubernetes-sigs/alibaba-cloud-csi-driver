@@ -764,7 +764,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return &csi.NodeExpandVolumeResponse{}, nil
 	}
 
-	// volume resize in rund type will transfer to gustos
+	// volume resize in rund type will transfer to guest os
 	isRund, err := checkRundVolumeExpand(req)
 	if isRund && err == nil {
 		log.Infof("NodeExpandVolume:: Rund Volume ExpandFS Successful, volumeId: %s, volumePath: %s", diskID, volumePath)
