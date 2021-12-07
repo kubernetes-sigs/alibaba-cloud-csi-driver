@@ -1545,7 +1545,8 @@ func checkRundVolumeExpand(req *csi.NodeExpandVolumeRequest) (bool, error) {
 	}
 
 	// connect to rund server with timeout
-	ctx, _ := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
 	clientConn, err := grpc.DialContext(ctx, socketFile, grpc.WithInsecure())
 	if err != nil {
 		log.Errorf("checkRundExpand: volume %s, volumepath %s, connect to rund server with error: %s", req.VolumeId, req.VolumePath, err.Error())
