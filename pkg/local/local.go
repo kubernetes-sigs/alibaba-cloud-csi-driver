@@ -19,6 +19,7 @@ package local
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -70,7 +71,8 @@ func initDriver() {
 }
 
 func writeClientCert(caCert []byte, clientCert []byte, clientKey []byte) (string, string, string) {
-	caCertPath := utils.MountPathWithTLS + "/local/grpc"
+	caCertPath := filepath.Join(utils.MountPathWithTLS, "/local/grpc")
+	utils.CreateDest(caCertPath)
 	caCertFile := caCertPath + "/" + caCertFileName
 	clientCertFile := caCertPath + "/" + clientCertFileName
 	clientKeyFile := caCertPath + "/" + clientKeyFileName
