@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/server"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -241,7 +242,7 @@ func getPvSpec(client kubernetes.Interface, volumeID, driverName string) (string
 		return "", "", pv, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil MatchExpressions")
 	}
 	key := pv.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Key
-	if key != TopologyNodeKey && key != TopologyYodaNodeKey {
+	if key != types.GlobalConfigVar.TopoKeyDefine && key != TopologyYodaNodeKey {
 		log.Errorf("Get Lvm Spec for volume %s, with key %s", volumeID, key)
 		return "", "", pv, errors.New("Get Lvm Spec for volume " + volumeID + ", with key" + key)
 	}

@@ -249,6 +249,7 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 	topoKeyDefine := TopologyNodeKey
 	topoKeyStr := os.Getenv("LOCAL_TOPO_KEY_DEFINED")
 	if topoKeyStr != "" {
+		log.Infof("Lcoal: use special topoloy key with LOCAL_TOPO_KEY_DEFINED: %s", topoKeyStr)
 		topoKeyDefine = topoKeyStr
 	}
 
