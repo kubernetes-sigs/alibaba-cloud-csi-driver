@@ -20,6 +20,8 @@ github.com/aliyun/alibaba-cloud-sdk-go/services/sts
 github.com/beorn7/perks/quantile
 # github.com/container-storage-interface/spec v1.2.0 => github.com/container-storage-interface/spec v1.1.0
 github.com/container-storage-interface/spec/lib/go/csi
+# github.com/containerd/ttrpc v1.1.0
+github.com/containerd/ttrpc
 # github.com/davecgh/go-spew v1.1.1 => github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
 # github.com/docker/distribution v2.7.1+incompatible => github.com/docker/distribution v0.0.0-20170905204447-5db89f0ca686
@@ -100,8 +102,6 @@ github.com/jmespath/go-jmespath
 github.com/json-iterator/go
 # github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 github.com/kardianos/osext
-# github.com/konsorten/go-windows-terminal-sequences v1.0.1 => github.com/konsorten/go-windows-terminal-sequences v1.0.1
-github.com/konsorten/go-windows-terminal-sequences
 # github.com/kubernetes-csi/csi-lib-utils v0.7.1
 github.com/kubernetes-csi/csi-lib-utils/protosanitizer
 # github.com/kubernetes-csi/drivers v1.0.2
@@ -139,7 +139,7 @@ github.com/prometheus/common/expfmt
 github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg
 github.com/prometheus/common/model
 github.com/prometheus/common/version
-# github.com/prometheus/procfs v0.0.2 => github.com/prometheus/procfs v0.0.0-20190306233201-d0f344d83b0c
+# github.com/prometheus/procfs v0.6.0 => github.com/prometheus/procfs v0.0.0-20190306233201-d0f344d83b0c
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/util
 github.com/prometheus/procfs/iostats
@@ -147,7 +147,7 @@ github.com/prometheus/procfs/nfs
 github.com/prometheus/procfs/xfs
 # github.com/sevlyar/go-daemon v0.1.5
 github.com/sevlyar/go-daemon
-# github.com/sirupsen/logrus v1.4.2
+# github.com/sirupsen/logrus v1.8.1
 github.com/sirupsen/logrus
 # github.com/spf13/pflag v1.0.5 => github.com/spf13/pflag v1.0.3
 github.com/spf13/pflag
@@ -178,7 +178,7 @@ golang.org/x/net/trace
 # golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d => golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sys v0.0.0-20200821140526-fda516888d29 => golang.org/x/sys v0.0.0-20190308023053-584f3b12f43e
+# golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c => golang.org/x/sys v0.0.0-20190308023053-584f3b12f43e
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/text v0.3.3 => golang.org/x/text v0.3.0
@@ -198,7 +198,7 @@ google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
 # google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 => google.golang.org/genproto v0.0.0-20190307195333-5fe7a883aa19
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.27.0 => google.golang.org/grpc v1.27.0
+# google.golang.org/grpc v1.27.1 => google.golang.org/grpc v1.27.0
 google.golang.org/grpc
 google.golang.org/grpc/attributes
 google.golang.org/grpc/backoff
