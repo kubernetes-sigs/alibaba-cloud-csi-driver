@@ -50,12 +50,12 @@ func getPvcByPvNameByNas(clientSet *kubernetes.Clientset, cnfsClient dynamic.Int
 				return pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, val, nil
 			}
 		} else if value, ok := pv.Spec.CSI.VolumeAttributes[containerNetworkFileSystem]; ok {
-			server, err := v1beta1.GetContainerNetworkFileSystemServer(cnfsClient, value)
+			cnfs, err := v1beta1.GetCnfsObject(cnfsClient, value)
 			if err != nil {
 				log.Errorf("Get cnfs %s server is failed, err:%s", value, err)
 				return "", "", "", err
 			}
-			return pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, server, nil
+			return pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, cnfs.Status.FsAttributes.Server, nil
 		}
 	}
 	return "", "", "", errors.New("pvName:" + pv.Name + " status is not bound.")
