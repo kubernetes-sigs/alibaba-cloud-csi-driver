@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -39,12 +40,12 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/containerd/ttrpc"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	proto "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	perrors "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -1545,9 +1546,7 @@ func checkRundVolumeExpand(req *csi.NodeExpandVolumeRequest) (bool, error) {
 	}
 
 	// connect to rund server with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	clientConn, err := grpc.DialContext(ctx, socketFile, grpc.WithInsecure())
+	clientConn, err := net.DialTimeout("unix", socketFile, 1*time.Second)
 	if err != nil {
 		log.Errorf("checkRundExpand: volume %s, volumepath %s, connect to rund server with error: %s", req.VolumeId, req.VolumePath, err.Error())
 		return true, perrors.Errorf("checkRundExpand: volume %s, volumepath %s, connect to rund server with error: %s", req.VolumeId, req.VolumePath, err.Error())
@@ -1556,16 +1555,15 @@ func checkRundVolumeExpand(req *csi.NodeExpandVolumeRequest) (bool, error) {
 
 	// send volume spec to rund to expand volume fs
 	volumeSize := strconv.FormatInt(req.GetCapacityRange().GetRequiredBytes(), 10)
-	client := proto.NewNodeExpandVolumeClient(clientConn)
-	resp, err := client.NodeExpandVolume(context.Background(), &proto.NodeExpandVolumeRequest{
-		VolumeName: pvName,
-		VolumeSize: volumeSize,
+	client := proto.NewExtendedStatusClient(ttrpc.NewClient(clientConn))
+	resp, err := client.ExpandVolume(context.Background(), &proto.ExpandVolumeRequest{
+		Volume: pvName,
 	})
 	if err != nil {
 		log.Errorf("checkRundExpand: volume %s, volumepath %s, connect to rund server with error response: %s", req.VolumeId, req.VolumePath, err.Error())
 		return true, perrors.Errorf("checkRundExpand: volume %s, volumepath %s, connect to rund server with error response: %s", req.VolumeId, req.VolumePath, err.Error())
 	}
 
-	log.Infof("RundVolumeExpand: Expand VolumeFS(%s) to(%s) successful with response: %s", pvName, volumeSize, resp.Message)
+	log.Infof("RundVolumeExpand: Expand VolumeFS(%s) to(%s) successful with response: %s", pvName, volumeSize, resp)
 	return true, nil
 }
