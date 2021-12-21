@@ -95,6 +95,14 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 		}
 		log.Infof("NodePublishVolume:: mount successful devicePath: %s, targetPath: %s, options: %v", devicePath, targetPath, options)
 	}
+
+	// Set volume IO Limit
+	err := setVolumeIOLimit(devicePath, req)
+	if err != nil {
+		log.Errorf("NodePublishVolume: Set Volume(%s) IO Limit with Error: %s", volumeID, err.Error())
+		return status.Error(codes.Internal, err.Error())
+	}
+
 	// upgrade PV with NodeAffinity
 	if nodeAffinity == "true" {
 		oldPv, err := ns.client.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
