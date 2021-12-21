@@ -125,7 +125,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-attacher
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-attacher:v2.1.0
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-attacher:v2.1.0-b330d29-aliyun
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -138,7 +138,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-resizer
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v0.3.0
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v1.1.0-7b30758-aliyun
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -167,7 +167,7 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-nas-resizer
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v0.3.0
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v1.1.0-7b30758-aliyun
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -205,7 +205,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.18.8.47-906bd535-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.20.7-aafce42-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
