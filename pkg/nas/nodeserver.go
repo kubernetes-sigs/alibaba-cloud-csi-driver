@@ -146,12 +146,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	if len(opt.Server) == 0 {
-		server, err := v1beta1.GetContainerNetworkFileSystemServer(ns.crdClient, cnfsName)
+		cnfs, err := v1beta1.GetCnfsObject(ns.crdClient, cnfsName)
 		if err != nil {
 			return nil, err
 		}
 
-		opt.Server = server
+		opt.Server = cnfs.Status.FsAttributes.Server
 	}
 
 	if opt.LoopLock != "false" {

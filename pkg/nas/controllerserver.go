@@ -549,11 +549,12 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	if value, ok := pvInfo.Spec.CSI.VolumeAttributes["server"]; ok {
 		nfsServer = value
 	} else if value, ok := pvInfo.Spec.CSI.VolumeAttributes[ContainerNetworkFileSystem]; ok {
-		server, err := v1beta1.GetContainerNetworkFileSystemServer(cs.crdClient, value)
+		cnfs, err := v1beta1.GetCnfsObject(cs.crdClient, value)
 		if err != nil {
 			return nil, err
 		}
-		nfsServer = server
+		nfsServer = cnfs.Status.FsAttributes.Server
+		fileSystemID = cnfs.Status.FsAttributes.FilesystemID
 	} else {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with nfs server empty: %s, CSI: %v", req.VolumeId, pvInfo.Spec.CSI)
 	}
@@ -571,18 +572,18 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		return nil, fmt.Errorf("DeleteVolume: Volume: %s, reqeust storageclass error: %s", req.VolumeId, err.Error())
 	}
 
+	regionID := ""
+	if value, ok := storageclass.Parameters[RegionID]; ok {
+		regionID = value
+	}
+	cs.nasClient = updateNasClient(cs.nasClient, regionID)
 	if volumeAs == "filesystem" {
 		if deleteVolume == "true" {
 			log.Infof("DeleteVolume: Start delete mountTarget %s for volume %s", nfsServer, req.VolumeId)
 			if fileSystemID == "" {
 				return nil, fmt.Errorf("DeleteVolume: Volume: %s in filesystem mode, with filesystemId empty", req.VolumeId)
 			}
-			regionID := ""
-			if value, ok := storageclass.Parameters[RegionID]; ok {
-				regionID = value
-			}
 
-			cs.nasClient = updateNasClient(cs.nasClient, regionID)
 			isMountTargetDelete := false
 			describeMountTargetRequest := aliNas.CreateDescribeMountTargetsRequest()
 			describeMountTargetRequest.FileSystemId = fileSystemID
@@ -685,6 +686,39 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				return nil, errors.New("Check Mount nfsserver fail " + nfsServer + " error with: " + err.Error())
 			}
 			if !archiveBool {
+				//1、Does describe dir quota exist?
+				//2、If the dir quota exists, cancel the quota before deleting the subdirectory.
+				describeDirQuotasReq := aliNas.CreateDescribeDirQuotasRequest()
+				describeDirQuotasReq.FileSystemId = fileSystemID
+				describeDirQuotasReq.Path = pvPath
+				describeDirQuotasRep, err := cs.nasClient.DescribeDirQuotas(describeDirQuotasReq)
+				if err != nil {
+					log.Errorf("Describe dir quotas is failed, req:%+v, rep:%+v, path:%s, err:%s", describeDirQuotasReq, describeDirQuotasRep, deletePath, err.Error())
+				}
+				isSetQuota := false
+				if describeDirQuotasRep != nil && len(describeDirQuotasRep.DirQuotaInfos) != 0 {
+					for _, dirQuotaInfo := range describeDirQuotasRep.DirQuotaInfos {
+						if dirQuotaInfo.Path == pvPath {
+							isSetQuota = true
+						}
+					}
+				}
+				if isSetQuota {
+					cancelDirQuotaReq := aliNas.CreateCancelDirQuotaRequest()
+					cancelDirQuotaReq.FileSystemId = fileSystemID
+					cancelDirQuotaReq.Path = pvPath
+					cancelDirQuotaReq.UserType = "AllUsers"
+					cancelDirQuotaRep, err := cs.nasClient.CancelDirQuota(cancelDirQuotaReq)
+					if err != nil {
+						log.Errorf("Cancel dir quota is failed, req:%+v, rep:%+v, path:%s, err:%s", cancelDirQuotaReq, cancelDirQuotaRep, deletePath, err.Error())
+					}
+					if cancelDirQuotaRep != nil && cancelDirQuotaRep.Success {
+						log.Infof("Delete Successful: Volume %s fileSystemID %s, cancel dir quota path %s", req.VolumeId, fileSystemID, pvPath)
+					} else {
+						log.Warnf("Delete Failed: Volume %s, cancel dir quota path %s, req:%+v, rep:%+v", req.VolumeId, pvPath, cancelDirQuotaReq, cancelDirQuotaRep)
+					}
+				}
+
 				if err := os.RemoveAll(deletePath); err != nil {
 					return nil, errors.New("Check Mount nfsserver fail " + nfsServer + " error with: " + err.Error())
 				}
@@ -844,7 +878,7 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 			return nil, err
 		}
 		if !serverExist {
-			server, err := v1beta1.GetContainerNetworkFileSystemServer(cs.crdClient, nasVolArgs.CnfsName)
+			cnfs, err := v1beta1.GetCnfsObject(cs.crdClient, nasVolArgs.CnfsName)
 			if err != nil {
 				return nil, err
 			}
@@ -854,7 +888,7 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 			} else {
 				nasVolArgs.Path = path
 			}
-			nasVolArgs.Server = server + ":" + nasVolArgs.Path
+			nasVolArgs.Server = cnfs.Status.FsAttributes.Server + ":" + nasVolArgs.Path
 		}
 
 		// mode

@@ -349,11 +349,11 @@ func setNasVolumeCapacityWithID(pvObj *v1.PersistentVolume, crdClient dynamic.In
 		nfsServer = value
 	} else {
 		if value, ok := pvObj.Spec.CSI.VolumeAttributes["containerNetworkFileSystem"]; ok {
-			server, err := v1beta1.GetContainerNetworkFileSystemServer(crdClient, value)
+			cnfs, err := v1beta1.GetCnfsObject(crdClient, value)
 			if err != nil {
 				return err
 			}
-			nfsServer = server
+			nfsServer = cnfs.Status.FsAttributes.Server
 		}
 	}
 	if value, ok := pvObj.Spec.CSI.VolumeAttributes["path"]; ok {
