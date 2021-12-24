@@ -686,36 +686,46 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				return nil, errors.New("Check Mount nfsserver fail " + nfsServer + " error with: " + err.Error())
 			}
 			if !archiveBool {
-				//1、Does describe dir quota exist?
-				//2、If the dir quota exists, cancel the quota before deleting the subdirectory.
-				describeDirQuotasReq := aliNas.CreateDescribeDirQuotasRequest()
-				describeDirQuotasReq.FileSystemId = fileSystemID
-				describeDirQuotasReq.Path = pvPath
-				describeDirQuotasRep, err := cs.nasClient.DescribeDirQuotas(describeDirQuotasReq)
-				if err != nil {
-					log.Errorf("Describe dir quotas is failed, req:%+v, rep:%+v, path:%s, err:%s", describeDirQuotasReq, describeDirQuotasRep, deletePath, err.Error())
-				}
-				isSetQuota := false
-				if describeDirQuotasRep != nil && len(describeDirQuotasRep.DirQuotaInfos) != 0 {
-					for _, dirQuotaInfo := range describeDirQuotasRep.DirQuotaInfos {
-						if dirQuotaInfo.Path == pvPath {
-							isSetQuota = true
+				// only capacity and hibrid nas support quota
+				if strings.Contains(nfsServer, ".nas.aliyuncs.com") &&
+					!strings.Contains(nfsServer, ".extreme.nas.aliyuncs.com") &&
+					!strings.Contains(nfsServer, ".cpfs.nas.aliyuncs.com") {
+					fileSystemID = GetFsIDByServer(nfsServer)
+					if len(fileSystemID) != 0 {
+						//1、Does describe dir quota exist?
+						//2、If the dir quota exists, cancel the quota before deleting the subdirectory.
+						describeDirQuotasReq := aliNas.CreateDescribeDirQuotasRequest()
+						describeDirQuotasReq.FileSystemId = fileSystemID
+						describeDirQuotasReq.Path = pvPath
+						describeDirQuotasRep, err := cs.nasClient.DescribeDirQuotas(describeDirQuotasReq)
+						if err != nil {
+							log.Errorf("Describe dir quotas is failed, req:%+v, rep:%+v, path:%s, err:%s", describeDirQuotasReq, describeDirQuotasRep, deletePath, err.Error())
 						}
-					}
-				}
-				if isSetQuota {
-					cancelDirQuotaReq := aliNas.CreateCancelDirQuotaRequest()
-					cancelDirQuotaReq.FileSystemId = fileSystemID
-					cancelDirQuotaReq.Path = pvPath
-					cancelDirQuotaReq.UserType = "AllUsers"
-					cancelDirQuotaRep, err := cs.nasClient.CancelDirQuota(cancelDirQuotaReq)
-					if err != nil {
-						log.Errorf("Cancel dir quota is failed, req:%+v, rep:%+v, path:%s, err:%s", cancelDirQuotaReq, cancelDirQuotaRep, deletePath, err.Error())
-					}
-					if cancelDirQuotaRep != nil && cancelDirQuotaRep.Success {
-						log.Infof("Delete Successful: Volume %s fileSystemID %s, cancel dir quota path %s", req.VolumeId, fileSystemID, pvPath)
+						isSetQuota := false
+						if describeDirQuotasRep != nil && len(describeDirQuotasRep.DirQuotaInfos) != 0 {
+							for _, dirQuotaInfo := range describeDirQuotasRep.DirQuotaInfos {
+								if dirQuotaInfo.Path == pvPath {
+									isSetQuota = true
+								}
+							}
+						}
+						if isSetQuota {
+							cancelDirQuotaReq := aliNas.CreateCancelDirQuotaRequest()
+							cancelDirQuotaReq.FileSystemId = fileSystemID
+							cancelDirQuotaReq.Path = pvPath
+							cancelDirQuotaReq.UserType = "AllUsers"
+							cancelDirQuotaRep, err := cs.nasClient.CancelDirQuota(cancelDirQuotaReq)
+							if err != nil {
+								log.Errorf("Cancel dir quota is failed, req:%+v, rep:%+v, path:%s, err:%s", cancelDirQuotaReq, cancelDirQuotaRep, deletePath, err.Error())
+							}
+							if cancelDirQuotaRep != nil && cancelDirQuotaRep.Success {
+								log.Infof("Delete Successful: Volume %s fileSystemID %s, cancel dir quota path %s", req.VolumeId, fileSystemID, pvPath)
+							} else {
+								log.Warnf("Delete Failed: Volume %s, cancel dir quota path %s, req:%+v, rep:%+v", req.VolumeId, pvPath, cancelDirQuotaReq, cancelDirQuotaRep)
+							}
+						}
 					} else {
-						log.Warnf("Delete Failed: Volume %s, cancel dir quota path %s, req:%+v, rep:%+v", req.VolumeId, pvPath, cancelDirQuotaReq, cancelDirQuotaRep)
+						log.Errorf("Delete quota is failed: fileSystemID is empty, server:%s", nfsServer)
 					}
 				}
 
