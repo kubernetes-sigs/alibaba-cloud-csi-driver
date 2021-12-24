@@ -604,3 +604,12 @@ func isValidCnfsParameter(server string, cnfsName string) error {
 	}
 	return nil
 }
+
+//GetFsIDByServer func is get fsID from serverName
+func GetFsIDByServer(server string) string {
+	if len(server) == 0 {
+		return ""
+	}
+	serverArray := strings.Split(server, "-")
+	return serverArray[0]
+}
