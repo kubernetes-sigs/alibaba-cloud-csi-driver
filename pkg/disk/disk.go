@@ -185,49 +185,49 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		log.Infof("Not found configmap named as csi-plugin under kube-system, with: %v", err)
 	} else {
 		if value, ok := configMap.Data["disk-adcontroller-enable"]; ok {
-			if value == "enable" || value == "yes" || value == "true" {
+			if checkOption(value) {
 				log.Infof("AD-Controller is enabled by configMap(%s), CSI Disk Plugin running in AD Controller mode.", value)
 				isADControllerEnable = true
-			} else if value == "disable" || value == "no" || value == "false" {
+			} else if checkOptionFalse(value) {
 				log.Infof("AD-Controller is disable by configMap(%s), CSI Disk Plugin running in kubelet mode.", value)
 				isADControllerEnable = false
 			}
 		}
 		if value, ok := configMap.Data["disk-tag-enable"]; ok {
-			if value == "enable" || value == "yes" || value == "true" {
+			if checkOption(value) {
 				log.Infof("Disk Tag is enabled by configMap(%s).", value)
 				isDiskTagEnable = true
 			}
 		}
 		if value, ok := configMap.Data["disk-metric-enable"]; ok {
-			if value == "enable" || value == "yes" || value == "true" {
+			if checkOption(value) {
 				log.Infof("Disk Metric is enabled by configMap(%s).", value)
 				isDiskMetricEnable = true
 			}
 		}
 		if value, ok := configMap.Data["disk-detach-disable"]; ok {
-			if value == "enable" || value == "yes" || value == "true" {
+			if checkOption(value) {
 				log.Infof("Disk Detach is disabled by configMap(%s), this tag only works when adcontroller enabled.", value)
 				isDiskDetachDisable = true
-			} else if value == "disable" || value == "no" || value == "false" {
+			} else if checkOptionFalse(value) {
 				log.Infof("Disk Detach is enable by configMap(%s), this tag only works when adcontroller enabled.", value)
 				isDiskDetachDisable = false
 			}
 		}
 		if value, ok := configMap.Data["disk-detach-before-delete"]; ok {
-			if value == "enable" || value == "yes" || value == "true" {
+			if checkOption(value) {
 				log.Infof("Disk Detach before delete is enabled by configMap(%s).", value)
 				isDiskDetachBeforeDelete = true
-			} else if value == "disable" || value == "no" || value == "false" {
+			} else if checkOptionFalse(value) {
 				log.Infof("Disk Detach before delete is diskable by configMap(%s).", value)
 				isDiskDetachBeforeDelete = false
 			}
 		}
 		if value, ok := configMap.Data["disk-bdf-enable"]; ok {
-			if value == "enable" || value == "yes" || value == "true" {
+			if checkOption(value) {
 				log.Infof("Disk Bdf is enabled by configMap(%s).", value)
 				isDiskBdfEnable = true
-			} else if value == "disable" || value == "no" || value == "false" {
+			} else if checkOptionFalse(value) {
 				log.Infof("Disk Bdf is disable by configMap(%s).", value)
 				isDiskBdfEnable = false
 			}

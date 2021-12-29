@@ -517,7 +517,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	isSharedDisk := false
 	if value, ok := req.VolumeContext[SharedEnable]; ok {
 		value = strings.ToLower(value)
-		if value == "enable" || value == "true" || value == "yes" {
+		if checkOption(value) {
 			isSharedDisk = true
 		}
 	}
