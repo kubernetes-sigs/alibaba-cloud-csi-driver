@@ -66,7 +66,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-attacher
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-attacher:v2.1.0
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-attacher:v2.1.0-b330d29-aliyun
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -79,10 +79,11 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-resizer
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v0.3.0
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v1.1.0-7b30758-aliyun
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
+            - "--leader-election=false"
           env:
             - name: ADDRESS
               value: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com/csi.sock
@@ -105,10 +106,11 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-csi-snapshotter
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-snapshotter:v3.0.2-1038b92d8-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-snapshotter:v4.0.0-5cbf27e-aliyun
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
+            - "--extra-create-metadata=true"
             - "--leader-election=false"
           env:
             - name: ADDRESS
@@ -118,7 +120,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /csi
         - name: external-snapshot-controller
-          image: registry.cn-hangzhou.aliyuncs.com/acs/snapshot-controller:v3.0.2-1038b92d8-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/snapshot-controller:v4.0.0-5cbf27e-aliyun
           args:
             - "--v=5"
             - "--leader-election=false"
@@ -129,7 +131,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.18.8.46-afb19e46-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.20.7-aafce42-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"

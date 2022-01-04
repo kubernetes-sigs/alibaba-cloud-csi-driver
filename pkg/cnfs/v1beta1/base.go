@@ -10,8 +10,8 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
-//getContainerNetworkFileSystem get cnfs crd
-func getContainerNetworkFileSystem(client dynamic.Interface, name string) (*ContainerNetworkFileSystem, error) {
+//getCnfsObject get cnfs crd
+func getCnfsObject(client dynamic.Interface, name string) (*ContainerNetworkFileSystem, error) {
 	utd, err := client.Resource(GVR).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("Dynamic get cnfs %s is failed, err:%s", name, err)
@@ -30,16 +30,16 @@ func getContainerNetworkFileSystem(client dynamic.Interface, name string) (*Cont
 	return &cnfs, nil
 }
 
-//GetContainerNetworkFileSystemServer get cnfs's server field
-func GetContainerNetworkFileSystemServer(client dynamic.Interface, name string) (string, error) {
-	cnfsObj, err := getContainerNetworkFileSystem(client, name)
+//GetCnfsObject get cnfs's object
+func GetCnfsObject(client dynamic.Interface, name string) (*ContainerNetworkFileSystem, error) {
+	cnfsObj, err := getCnfsObject(client, name)
 	if err != nil {
 		log.Errorf("Get cnfs %s is failed, err:%s", name, err)
-		return "", err
+		return nil, err
 	}
 	if cnfsObj.Status.Status != "Available" {
 		msg := fmt.Sprintf("ContainerNetworkFileSystem %s is not available, status is %s", name, cnfsObj.Status.Status)
-		return "", errors.New(msg)
+		return nil, errors.New(msg)
 	}
-	return cnfsObj.Status.FsAttributes.Server, nil
+	return cnfsObj, nil
 }

@@ -404,7 +404,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				AccessibleTopology: []*csi.Topology{
 					{
 						Segments: map[string]string{
-							TopologyNodeKey: nodeSelected,
+							types.GlobalConfigVar.TopoKeyDefine: nodeSelected,
 						},
 					},
 				},
@@ -498,7 +498,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				return nil, errors.New("Get Lvm Spec for volume " + volumeID + ", with nil MatchExpressions")
 			}
 			key := pvObj.Spec.NodeAffinity.Required.NodeSelectorTerms[0].MatchExpressions[0].Key
-			if key != TopologyNodeKey && key != TopologyYodaNodeKey {
+			if key != types.GlobalConfigVar.TopoKeyDefine && key != TopologyYodaNodeKey {
 				log.Errorf("DeleteVolume: Get Lvm Spec for volume %s, with key %s", volumeID, key)
 				return nil, errors.New("Get Lvm Spec for volume " + volumeID + ", with key" + key)
 			}

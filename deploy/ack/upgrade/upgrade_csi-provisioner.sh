@@ -121,12 +121,12 @@ spec:
       - effect: NoSchedule
         operator: Exists
         key: node.cloudprovider.kubernetes.io/uninitialized
-      priorityClassName: system-node-critical
       serviceAccount: csi-admin
+      priorityClassName: system-node-critical
       hostNetwork: true
       containers:
         - name: external-disk-provisioner
-          image: csi-image-prefix/acs/csi-provisioner:v3.0.0-3f86569-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v3.0.0-3f86569-aliyun
           args:
             - "--csi-address=\$(ADDRESS)"
             - "--feature-gates=Topology=True"
@@ -145,7 +145,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-attacher
-          image: csi-image-prefix/acs/csi-attacher:v2.1.0
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-attacher:v2.1.0-b330d29-aliyun
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -158,7 +158,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-resizer
-          image: csi-image-prefix/acs/csi-resizer:v0.3.0
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v1.1.0-7b30758-aliyun
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -171,7 +171,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-nas-provisioner
-          image: csi-image-prefix/acs/csi-provisioner:v3.0.0-3f86569-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v3.0.0-3f86569-aliyun
           args:
             - "--csi-address=\$(ADDRESS)"
             - "--volume-name-prefix=nas"
@@ -187,7 +187,7 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-nas-resizer
-          image: csi-image-prefix/acs/csi-resizer:v0.3.0
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v1.1.0-7b30758-aliyun
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -200,7 +200,7 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-csi-snapshotter
-          image: csi-image-prefix/acs/csi-snapshotter:v4.0.0-4f8a2d347-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-snapshotter:v4.0.0-4f8a2d347-aliyun
           args:
             - "--v=5"
             - "--csi-address=\$(ADDRESS)"
@@ -214,7 +214,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /csi
         - name: external-snapshot-controller
-          image: csi-image-prefix/acs/snapshot-controller:v4.0.0-4f8a2d347-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/snapshot-controller:v4.0.0-4f8a2d347-aliyun
           args:
             - "--v=5"
             - "--leader-election=true"
@@ -225,10 +225,10 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: csi-image-prefix/acs/csi-plugin:csi-image-version
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.20.7-aafce42-aliyun
           imagePullPolicy: "Always"
           args:
-            - "--endpoint=\$(CSI_ENDPOINT)"
+            - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=2"
             - "--driver=nas,disk"
           env:
@@ -238,6 +238,13 @@ spec:
               value: "15"
             - name: SERVICE_TYPE
               value: "provisioner"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           livenessProbe:
             httpGet:
               path: /healthz
@@ -247,10 +254,15 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 5
+            periodSeconds: 20
           ports:
             - name: healthz
               containerPort: 11270
-              protocol: TCP
           volumeMounts:
             - name: host-dev
               mountPath: /dev
@@ -266,13 +278,6 @@ spec:
             - mountPath: /var/addon
               name: addon-token
               readOnly: true
-          resources:
-            limits:
-              cpu: 1000m
-              memory: 1000Mi
-            requests:
-              cpu: 100m
-              memory: 100Mi
       volumes:
         - name: disk-provisioner-dir
           emptyDir: {}
@@ -284,6 +289,9 @@ spec:
         - name: host-dev
           hostPath:
             path: /dev
+        - name: etc
+          hostPath:
+            path: /etc
         - name: addon-token
           secret:
             defaultMode: 420
@@ -292,9 +300,6 @@ spec:
             - key: addon.token.config
               path: token-config
             secretName: addon.csi.token
-        - name: etc
-          hostPath:
-            path: /etc
 EOF
 
 provisionerExist=`kubectl get sts -nkube-system | grep csi-provisioner | awk '{print $1}'`

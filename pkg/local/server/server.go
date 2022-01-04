@@ -25,6 +25,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"net"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -43,7 +44,8 @@ const (
 )
 
 func newServerTransportCredentials(ch chan bool) credentials.TransportCredentials {
-	pathWithTLS := utils.MountPathWithTLS + "/local/grpc"
+	pathWithTLS := filepath.Join(utils.MountPathWithTLS, "/local/grpc")
+	utils.CreateDest(pathWithTLS)
 	caFile := pathWithTLS + "/" + caCertFileName
 	certFile := pathWithTLS + "/" + serverCertFileName
 	keyFile := pathWithTLS + "/" + serverKeyFileName

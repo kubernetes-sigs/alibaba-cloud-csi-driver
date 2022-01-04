@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package katacontainers.extends.v1;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "/proto";
+
+// 文件系统扩容服务
+service ExtendedStatus {
+    // ExpandVolume 方法
+    rpc ExpandVolume(ExpandVolumeRequest) returns (google.protobuf.Empty) {}
+}
+
+// 文件系统扩容请求消息
+message ExpandVolumeRequest {
+    string volume = 1;
+}
