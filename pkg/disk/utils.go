@@ -1570,7 +1570,7 @@ func checkRundVolumeExpand(req *csi.NodeExpandVolumeRequest) (bool, error) {
 
 func checkOption(opt string) bool {
 	switch opt {
-	case "true","enable","yes":
+	case "enable", "true", "yes":
 		return true
 	default:
 		return false
@@ -1579,7 +1579,7 @@ func checkOption(opt string) bool {
 
 func checkOptionFalse(opt string) bool {
 	switch opt {
-	case "disable","no","false":
+	case "disable", "false", "no":
 		return true
 	default:
 		return false
