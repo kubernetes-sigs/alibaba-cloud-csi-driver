@@ -1567,3 +1567,21 @@ func checkRundVolumeExpand(req *csi.NodeExpandVolumeRequest) (bool, error) {
 	log.Infof("RundVolumeExpand: Expand VolumeFS(%s) to(%s) successful with response: %s", pvName, volumeSize, resp)
 	return true, nil
 }
+
+func checkOption(opt string) bool {
+	switch opt {
+	case "enable", "true", "yes":
+		return true
+	default:
+		return false
+	}
+}
+
+func checkOptionFalse(opt string) bool {
+	switch opt {
+	case "disable", "false", "no":
+		return true
+	default:
+		return false
+	}
+}

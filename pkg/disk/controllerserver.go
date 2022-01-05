@@ -567,7 +567,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	isSharedDisk := false
 	if value, ok := req.VolumeContext[SharedEnable]; ok {
 		value = strings.ToLower(value)
-		if value == "enable" || value == "true" || value == "yes" {
+		if checkOption(value) {
 			isSharedDisk = true
 		}
 	}
