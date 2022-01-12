@@ -698,6 +698,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	// used for snapshot events
 	snapshotName := req.Parameters[VolumeSnapshotName]
 	snapshotNamespace := req.Parameters[VolumeSnapshotNamespace]
+
 	ref := &v1.ObjectReference{
 		Kind:      "VolumeSnapshot",
 		Name:      snapshotName,
@@ -846,6 +847,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		SourceVolumeId: sourceVolumeID,
 		CreationTime:   createAt,
 		ReadyToUse:     tmpReadyToUse,
+		SizeBytes:      gi2Bytes(int64(disks[0].Size)),
 	}
 
 	createdSnapshotMap[req.Name] = csiSnapshot
@@ -1181,7 +1183,7 @@ func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 		return nil, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", ecsSnapshot.CreationTime)
 	}
 	sizeGb, _ := strconv.ParseInt(ecsSnapshot.SourceDiskSize, 10, 64)
-	sizeBytes := sizeGb * 1024 * 1024 * 1024
+	sizeBytes := gi2Bytes(sizeGb)
 	readyToUse := false
 	if ecsSnapshot.Status == "accomplished" || ecsSnapshot.InstantAccess {
 		readyToUse = true
@@ -1193,4 +1195,8 @@ func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 		CreationTime:   &timestamp.Timestamp{Seconds: t.Unix()},
 		ReadyToUse:     readyToUse,
 	}, nil
+}
+
+func gi2Bytes(gb int64) int64 {
+	return gb * 1024 * 1024 * 1024
 }
