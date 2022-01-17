@@ -143,25 +143,22 @@ func checkVolumeIDAvailiable(volumeID string) bool {
 //}
 
 func updateDbfsClient(client *dbfs.Client) *dbfs.Client {
-	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
-	if accessToken != "" {
-		client = newDbfsClient(accessKeyID, accessSecret, accessToken, GlobalConfigVar.Region)
+	ac := utils.GetAccessControl()
+	if ac.UseMode == utils.EcsRAMRole || ac.UseMode == utils.ManagedToken {
+		client = newDbfsClient(ac, GlobalConfigVar.Region)
 	}
 	return client
 }
 
-func newDbfsClient(accessKeyID, accessKeySecret, accessToken, regionID string) (dbfsClient *dbfs.Client) {
+func newDbfsClient(ac utils.AccessControl, regionID string) (dbfsClient *dbfs.Client) {
 	var err error
-	if accessToken == "" {
-		dbfsClient, err = dbfs.NewClientWithAccessKey(GlobalConfigVar.Region, accessKeyID, accessKeySecret)
-		if err != nil {
-			return nil
-		}
+	if ac.UseMode == utils.AccessKey {
+		dbfsClient, err = dbfs.NewClientWithAccessKey(GlobalConfigVar.Region, ac.AccessKeyID, ac.AccessKeySecret)
 	} else {
-		dbfsClient, err = dbfs.NewClientWithStsToken(GlobalConfigVar.Region, accessKeyID, accessKeySecret, accessToken)
-		if err != nil {
-			return nil
-		}
+		dbfsClient, err = dbfs.NewClientWithStsToken(GlobalConfigVar.Region, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
+	}
+	if err != nil {
+		return nil
 	}
 	return
 }

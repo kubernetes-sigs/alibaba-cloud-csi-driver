@@ -256,27 +256,26 @@ func getAllDevices() []string {
 }
 
 func getEcsClient() (client *ecs.Client) {
-	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
-	if accessToken != "" {
-		client = newEcsClient(accessKeyID, accessSecret, accessToken)
+	ac := utils.GetAccessControl()
+	if ac.UseMode == utils.EcsRAMRole || ac.UseMode == utils.ManagedToken {
+		client = newEcsClient(ac)
 	}
 	return client
 }
 
-func newEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *ecs.Client) {
+func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 	var err error
-	if accessToken == "" {
-		ecsClient, err = ecs.NewClientWithAccessKey(RegionID, accessKeyID, accessKeySecret)
-		if err != nil {
-			return nil
-		}
-	} else {
-		ecsClient, err = ecs.NewClientWithStsToken(RegionID, accessKeyID, accessKeySecret, accessToken)
-		if err != nil {
-			return nil
-		}
+	switch ac.UseMode {
+	case utils.AccessKey:
+		ecsClient, err = ecs.NewClientWithAccessKey(RegionID, ac.AccessKeyID, ac.AccessKeySecret)
+	case utils.Credential:
+		ecsClient, err = ecs.NewClientWithOptions(RegionID, ac.Config, ac.Credential)
+	default:
+		ecsClient, err = ecs.NewClientWithStsToken(RegionID, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
 	}
-
+	if err != nil {
+		return nil
+	}
 	aliyunep.AddEndpointMapping(RegionID, "Ecs", "ecs-vpc."+RegionID+".aliyuncs.com")
 	return
 }

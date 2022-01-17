@@ -174,19 +174,19 @@ type RoleAuth struct {
 	Code            string
 }
 
-func newEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *ecs.Client) {
-	var err error
+func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 	regionID := GetRegionID()
-	if accessToken == "" {
-		ecsClient, err = ecs.NewClientWithAccessKey(regionID, accessKeyID, accessKeySecret)
-		if err != nil {
-			return nil
-		}
-	} else {
-		ecsClient, err = ecs.NewClientWithStsToken(regionID, accessKeyID, accessKeySecret, accessToken)
-		if err != nil {
-			return nil
-		}
+	var err error
+	switch ac.UseMode {
+	case utils.AccessKey:
+		ecsClient, err = ecs.NewClientWithAccessKey(regionID, ac.AccessKeyID, ac.AccessKeySecret)
+	case utils.Credential:
+		ecsClient, err = ecs.NewClientWithOptions(regionID, ac.Config, ac.Credential)
+	default:
+		ecsClient, err = ecs.NewClientWithStsToken(regionID, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
+	}
+	if err != nil {
+		return nil
 	}
 
 	if os.Getenv("INTERNAL_MODE") == "true" {
@@ -203,9 +203,9 @@ func newEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *
 }
 
 func updateEcsClient(client *ecs.Client) *ecs.Client {
-	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
-	if accessToken != "" {
-		client = newEcsClient(accessKeyID, accessSecret, accessToken)
+	ac := utils.GetAccessControl()
+	if ac.UseMode == utils.EcsRAMRole || ac.UseMode == utils.ManagedToken {
+		client = newEcsClient(ac)
 	}
 	if client.Client.GetConfig() != nil {
 		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
@@ -1380,20 +1380,20 @@ func createRoleClient(uid string) (cli *ecs.Client, err error) {
 	if uid == "" {
 		return nil, errors.New("uid is empty")
 	}
-	roleAccessKeyID, roleAccessKeySecret, roleArn := utils.GetDefaultRoleAK()
-	if roleAccessKeyID == "" || roleAccessKeySecret == "" {
+	ac := utils.GetDefaultRoleAK()
+	if len(ac.AccessKeyID) == 0 || len(ac.AccessKeySecret) == 0 {
 		return nil, errors.New("role access key id or secret is empty")
 	}
-	if roleArn == "" {
+	if len(ac.RoleArn) == 0 {
 		return nil, errors.New("role arn is empty")
 	}
 
-	roleCli, err := sts.NewClientWithAccessKey(GetRegionID(), roleAccessKeyID, roleAccessKeySecret)
+	roleCli, err := sts.NewClientWithAccessKey(GetRegionID(), ac.AccessKeyID, ac.AccessKeySecret)
 	if err != nil {
 		return nil, perrors.Wrapf(err, "sts.NewClientWithAccessKey")
 	}
 	req := sts.CreateAssumeRoleRequest()
-	req.RoleArn = fmt.Sprintf("acs:ram::%s:role/%s", uid, roleArn)
+	req.RoleArn = fmt.Sprintf("acs:ram::%s:role/%s", uid, ac.RoleArn)
 	req.RoleSessionName = "ack-csi"
 	req.DurationSeconds = requests.NewInteger(3600)
 	// 必须https
@@ -1403,7 +1403,8 @@ func createRoleClient(uid string) (cli *ecs.Client, err error) {
 	if err != nil {
 		return nil, perrors.Wrapf(err, "AssumeRole")
 	}
-	cli = newEcsClient(resp.Credentials.AccessKeyId, resp.Credentials.AccessKeySecret, resp.Credentials.SecurityToken)
+	ac = utils.AccessControl{AccessKeyID: resp.Credentials.AccessKeyId, AccessKeySecret: resp.Credentials.AccessKeySecret, StsToken: resp.Credentials.SecurityToken, UseMode: utils.EcsRAMRole}
+	cli = newEcsClient(ac)
 	if cli.Client.GetConfig() != nil {
 		cli.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
 	}

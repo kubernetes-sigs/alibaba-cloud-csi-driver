@@ -192,9 +192,9 @@ func GetMetaData(resource string) string {
 }
 
 func updateNasClient(client *aliNas.Client, regionID string) *aliNas.Client {
-	accessKeyID, accessSecret, accessToken := utils.GetDefaultAK()
-	if accessToken != "" {
-		client = newNasClient(accessKeyID, accessSecret, accessToken, regionID)
+	ac := utils.GetAccessControl()
+	if ac.UseMode == utils.EcsRAMRole || ac.UseMode == utils.ManagedToken {
+		client = newNasClient(ac, regionID)
 	}
 	if client.Client.GetConfig() != nil {
 		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
@@ -202,21 +202,22 @@ func updateNasClient(client *aliNas.Client, regionID string) *aliNas.Client {
 	return client
 }
 
-func newNasClient(accessKeyID, accessKeySecret, accessToken, regionID string) (nasClient *aliNas.Client) {
-	var err error
-	if regionID == "" {
+func newNasClient(ac utils.AccessControl, regionID string) (nasClient *aliNas.Client) {
+	if len(regionID) == 0 {
 		regionID = GetMetaData(RegionTag)
 	}
-	if accessToken == "" {
-		nasClient, err = aliNas.NewClientWithAccessKey(regionID, accessKeyID, accessKeySecret)
-		if err != nil {
-			return nil
-		}
-	} else {
-		nasClient, err = aliNas.NewClientWithStsToken(regionID, accessKeyID, accessKeySecret, accessToken)
-		if err != nil {
-			return nil
-		}
+	var err error
+	switch ac.UseMode {
+	case utils.AccessKey:
+		nasClient, err = aliNas.NewClientWithAccessKey(regionID, ac.AccessKeyID, ac.AccessKeySecret)
+	case utils.Credential:
+		nasClient, err = aliNas.NewClientWithOptions(regionID, ac.Config, ac.Credential)
+	default:
+		nasClient, err = aliNas.NewClientWithStsToken(regionID, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
+	}
+
+	if err != nil {
+		return nil
 	}
 
 	// Set Nas Endpoint

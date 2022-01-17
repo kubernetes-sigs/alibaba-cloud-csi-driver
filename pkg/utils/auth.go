@@ -30,6 +30,9 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials/provider"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/credentials"
 	"io/ioutil"
@@ -98,65 +101,99 @@ type CertOption struct {
 	CommonName      string
 }
 
-// GetDefaultAK read default ak from local file or from STS
-func GetDefaultAK() (string, string, string) {
-	accessKeyID, accessSecret := GetLocalAK()
+// AccessControlMode is int, represents different modes
+type AccessControlMode int
 
-	accessToken := ""
-	if accessKeyID == "" || accessSecret == "" {
-		tokens := GetManagedToken()
-		accessKeyID, accessSecret, accessToken = tokens.AccessKeyID, tokens.AccessKeySecret, tokens.SecurityToken
-		if accessKeyID != "" {
-			log.Infof("Get AK: use Managed AK")
-		}
-	} else {
-		log.Infof("Get AK: use Local AK")
+// AccessControlMode includes AccessKey, ManagedToken, EcsRamRole, Credential, RoleArnToken, five types of access control
+const (
+	AccessKey AccessControlMode = iota
+	ManagedToken
+	EcsRAMRole
+	Credential
+	RoleArnToken
+)
+
+// AccessControl is access control option
+type AccessControl struct {
+	AccessKeyID     string
+	AccessKeySecret string
+	StsToken        string
+	RoleArn         string
+	Config          *sdk.Config
+	Credential      auth.Credential
+	UseMode         AccessControlMode
+}
+
+func getAddonToken() AccessControl {
+	tokens := getManagedToken()
+	return AccessControl{AccessKeyID: tokens.AccessKeyID, AccessKeySecret: tokens.AccessKeySecret, StsToken: tokens.SecurityToken, UseMode: ManagedToken}
+}
+
+// GetAccessControl  1、Read default ak from local file. 2、If local default ak is not exist, then read from STS.
+func GetAccessControl() AccessControl {
+	//1、Get AK from Env
+	acLocalAK := GetLocalAK()
+	if len(acLocalAK.AccessKeyID) != 0 && len(acLocalAK.AccessKeySecret) != 0 {
+		log.Info("Get AK: use Local AK")
+		return acLocalAK
 	}
 
-	if accessKeyID == "" || accessSecret == "" {
-		accessKeyID, accessSecret, accessToken = GetSTSAK()
-		log.Infof("Get AK: use STS")
+	//2、Get AK from Credential Files
+	acCredentialAK := getCredentialAK()
+	if acCredentialAK.Config != nil && acCredentialAK.Credential != nil {
+		log.Info("Get AK: use Credential AK")
+		return acCredentialAK
 	}
 
-	return accessKeyID, accessSecret, accessToken
+	//3、Get AK from ManagedToken
+	acAddonToken := getAddonToken()
+	if len(acAddonToken.AccessKeyID) != 0 {
+		log.Info("Get AK: use Addon Token")
+		return acAddonToken
+	}
+
+	//4、Get AK from StsToken
+	acStsToken := getStsToken()
+	log.Info("Get AK: use Sts Token")
+	return acStsToken
 }
 
 // GetLocalAK read ossfs ak from local or from secret file
-func GetLocalAK() (string, string) {
+func GetLocalAK() AccessControl {
 	accessKeyID, accessSecret := "", ""
 	accessKeyID = os.Getenv("ACCESS_KEY_ID")
 	accessSecret = os.Getenv("ACCESS_KEY_SECRET")
 
-	return strings.TrimSpace(accessKeyID), strings.TrimSpace(accessSecret)
+	return AccessControl{AccessKeyID: strings.TrimSpace(accessKeyID), AccessKeySecret: strings.TrimSpace(accessSecret), UseMode: AccessKey}
 }
 
-// GetSTSAK get STS AK and token from ecs meta server
-func GetSTSAK() (string, string, string) {
+// GetStsToken get STS token and token from ecs meta server
+func getStsToken() AccessControl {
 	roleAuth := RoleAuth{}
 	subpath := "ram/security-credentials/"
 	roleName, err := GetMetaData(subpath)
 	if err != nil {
 		log.Errorf("GetSTSToken: request roleName with error: %s", err.Error())
-		return "", "", ""
+		return AccessControl{}
 	}
 
 	fullPath := filepath.Join(subpath, roleName)
 	roleInfo, err := GetMetaData(fullPath)
 	if err != nil {
 		log.Errorf("GetSTSToken: request roleInfo with error: %s", err.Error())
-		return "", "", ""
+		return AccessControl{}
 	}
 
 	err = json.Unmarshal([]byte(roleInfo), &roleAuth)
 	if err != nil {
 		log.Errorf("GetSTSToken: unmarshal roleInfo: %s, with error: %s", roleInfo, err.Error())
-		return "", "", ""
+		return AccessControl{}
 	}
-	return roleAuth.AccessKeyID, roleAuth.AccessKeySecret, roleAuth.SecurityToken
+	return AccessControl{AccessKeyID: roleAuth.AccessKeyID, AccessKeySecret: roleAuth.AccessKeySecret, StsToken: roleAuth.SecurityToken, UseMode: EcsRAMRole}
 }
 
 // GetManagedToken get ak from csi secret
-func GetManagedToken() (tokens ManageTokens) {
+func getManagedToken() (tokens ManageTokens) {
 	var akInfo AKInfo
 	if _, err := os.Stat(ConfigPath); err == nil {
 		encodeTokenCfg, err := ioutil.ReadFile(ConfigPath)
@@ -250,13 +287,13 @@ func Decrypt(s string, keyring []byte) ([]byte, error) {
 }
 
 // GetDefaultRoleAK  返回角色扮演账号AK, SK, role arn
-func GetDefaultRoleAK() (string, string, string) {
-	accessKeyID, accessSecret, roleArn := os.Getenv("ROLE_ACCESS_KEY_ID"), os.Getenv("ROLE_ACCESS_KEY_SECRET"), os.Getenv("ROLE_ARN")
-	if accessKeyID == "" || accessSecret == "" || roleArn == "" {
-		tokens := GetManagedToken()
-		accessKeyID, accessSecret, roleArn = tokens.RoleAccessKeyID, tokens.RoleAccessKeySecret, tokens.RoleArn
+func GetDefaultRoleAK() AccessControl {
+	roleAccessKeyID, roleAccessKeySecret, roleArn := os.Getenv("ROLE_ACCESS_KEY_ID"), os.Getenv("ROLE_ACCESS_KEY_SECRET"), os.Getenv("ROLE_ARN")
+	if len(roleAccessKeyID) == 0 || len(roleAccessKeySecret) == 0 || len(roleArn) == 0 {
+		tokens := getManagedToken()
+		return AccessControl{AccessKeyID: tokens.RoleAccessKeyID, AccessKeySecret: tokens.RoleAccessKeySecret, RoleArn: tokens.RoleArn, UseMode: ManagedToken}
 	}
-	return accessKeyID, accessSecret, roleArn
+	return AccessControl{AccessKeyID: roleAccessKeyID, AccessKeySecret: roleAccessKeySecret, RoleArn: roleArn, UseMode: RoleArnToken}
 }
 
 // CreateCACert function is create cacert
@@ -410,4 +447,17 @@ func NewServerTLSFromFile(caFile, certFile, keyFile string) (credentials.Transpo
 		ClientCAs:    certPool,
 	})
 	return creds, nil
+}
+
+// getCredentialAK get credential and config from credential files.
+func getCredentialAK() AccessControl {
+	envProvider := provider.NewEnvProvider()
+	profileProvider := provider.NewProfileProvider()
+	pc := provider.NewProviderChain([]provider.Provider{envProvider, profileProvider})
+	credential, err := pc.Resolve()
+	if err != nil {
+		log.Errorf("Failed to resolve an authentication provider: %v", err)
+	}
+	config := sdk.NewConfig().WithScheme("https")
+	return AccessControl{Config: config, Credential: credential, UseMode: Credential}
 }

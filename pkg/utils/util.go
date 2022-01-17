@@ -350,18 +350,20 @@ func ReadJSONFile(file string) (map[string]string, error) {
 }
 
 // NewEcsClient create a ecsClient object
-func NewEcsClient(accessKeyID, accessKeySecret, accessToken string) (ecsClient *ecs.Client) {
+func NewEcsClient(ac AccessControl) (ecsClient *ecs.Client) {
 	var err error
-	if accessToken == "" {
-		ecsClient, err = ecs.NewClientWithAccessKey(DefaultRegion, accessKeyID, accessKeySecret)
-		if err != nil {
-			return nil
-		}
-	} else {
-		ecsClient, err = ecs.NewClientWithStsToken(DefaultRegion, accessKeyID, accessKeySecret, accessToken)
-		if err != nil {
-			return nil
-		}
+	switch ac.UseMode {
+	case AccessKey:
+		ecsClient, err = ecs.NewClientWithAccessKey(DefaultRegion, ac.AccessKeyID, ac.AccessKeySecret)
+	case Credential:
+		ecsClient, err = ecs.NewClientWithOptions(DefaultRegion, ac.Config, ac.Credential)
+	default:
+		ecsClient, err = ecs.NewClientWithStsToken(DefaultRegion, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
+
+	}
+
+	if err != nil {
+		return nil
 	}
 	return
 }
