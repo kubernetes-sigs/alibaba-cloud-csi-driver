@@ -124,6 +124,7 @@ type nasVolumeArgs struct {
 	Mode            string           `json:"mode"`
 	ModeType        string           `json:"modeType"`
 	DeleteVolume    bool             `json:"deleteVolume"`
+	MountProtocol   string           `json:"mountProtocol"`
 }
 
 // used by check pvc is processed
@@ -375,7 +376,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			log.Errorf("CreateVolume: Input nfs server format error: volume: %s, server: %s", req.Name, nfsServerInputs)
 			return nil, fmt.Errorf("CreateVolume: Input nfs server format error: volume: %s, server: %s", req.Name, nfsServerInputs)
 		}
-		log.Infof("Create Volume: %s, with Exist Nfs Server: %s, Path: %s, Options: %s, Version: %s", req.Name, nfsServer, nfsPath, nfsOptions, nfsVersion)
+		log.Infof("Create Volume: %s, with Exist Nfs Server: %s, Path: %s, Options: %s, Version: %s, MountProtocol: %s", req.Name, nfsServer, nfsPath, nfsOptions, nfsVersion, nasVol.MountProtocol)
 
 		mountPoint := filepath.Join(MNTROOTPATH, pvName)
 		if !utils.IsFileExisting(mountPoint) {
@@ -394,12 +395,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			}
 		}
 
-		if !GlobalConfigVar.NasFakeProvision || losetupType {
+		if (!GlobalConfigVar.NasFakeProvision || losetupType) && nasVol.MountProtocol != MountProtocolCFPSNFS {
 			// local mountpoint for one volume
 			cs.rateLimiter.Take()
 			// step5: Mount nfs server to localpath
 			if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
-				if err := DoNfsMount(nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name); err != nil {
+				if err := DoNfsMount(nasVol.MountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name); err != nil {
 					log.Errorf("CreateVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.Name, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, err.Error())
 					return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
 				}
@@ -466,6 +467,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 		if value, ok := req.Parameters["options"]; ok && value != "" {
 			volumeContext["options"] = value
+		}
+		if nasVol.MountProtocol == MountProtocolCFPSNFS {
+			volumeContext[MountProtocolTag] = MountProtocolCFPSNFS
 		}
 
 		csiTargetVol = &csi.Volume{
@@ -564,6 +568,10 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with nfs path empty: %s, CSI: %v", req.VolumeId, pvInfo.Spec.CSI)
 	}
 
+	mountProtocol := MountProtocolNFS
+	if value, ok := pvInfo.Spec.CSI.VolumeAttributes[MountProtocolTag]; ok {
+		mountProtocol = value
+	}
 	if pvInfo.Spec.StorageClassName == "" {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with storageclass empty: %s, Spec: %v", req.VolumeId, pvInfo.Spec)
 	}
@@ -656,7 +664,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 		// set the local mountpoint
 		mountPoint := filepath.Join(MNTROOTPATH, req.VolumeId+"-delete")
-		if err := DoNfsMount(nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, req.VolumeId); err != nil {
+		if err := DoNfsMount(mountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, req.VolumeId); err != nil {
 			log.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
 			return nil, fmt.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
 		}
@@ -904,6 +912,14 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 		// mode
 		if nasVolArgs.Mode, ok = volOptions[MODE]; !ok {
 			nasVolArgs.Mode = ""
+		}
+
+		// Protocol
+		if nasVolArgs.MountProtocol, ok = volOptions[MountProtocolTag]; !ok {
+			nasVolArgs.MountProtocol = MountProtocolNFS
+		}
+		if nasVolArgs.MountProtocol != MountProtocolNFS && nasVolArgs.MountProtocol != MountProtocolCFPSNFS {
+			return nil, fmt.Errorf("Mount Protocol only support nfs and cpfs-nfs, please check" + nasVolArgs.MountProtocol)
 		}
 
 		// modeType

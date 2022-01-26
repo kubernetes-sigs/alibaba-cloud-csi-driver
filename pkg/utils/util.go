@@ -212,6 +212,15 @@ func CreateDest(dest string) error {
 	return nil
 }
 
+func CreateHostDest(dest string) error {
+	cmd := fmt.Sprintf("%s mkdir -p %s", NsenterCmd, dest)
+	_, err := Run(cmd)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 //IsLikelyNotMountPoint return status of mount point,this function fix IsMounted return 0 bug
 func IsLikelyNotMountPoint(file string) (bool, error) {
 	stat, err := os.Stat(file)
@@ -242,6 +251,29 @@ func IsMounted(mountPath string) bool {
 		return false
 	}
 	return true
+}
+
+func IsHostMounted(mountPath string) bool {
+	cmd := fmt.Sprintf("%s mount | grep %s | grep -v grep | wc -l", NsenterCmd, mountPath)
+	out, err := Run(cmd)
+	if err != nil {
+		log.Infof("IsMounted: exec error: %s, %s", cmd, err.Error())
+		return false
+	}
+	if strings.TrimSpace(out) == "0" {
+		return false
+	}
+	return true
+}
+
+// Umount do an unmount operation
+func HostUmount(mountPath string) error {
+	cmd := fmt.Sprintf("%s umount %s", NsenterCmd, mountPath)
+	_, err := Run(cmd)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Umount do an unmount operation
