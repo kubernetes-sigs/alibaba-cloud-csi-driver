@@ -90,6 +90,8 @@ const (
 	InstallSnapshotCRD = "INSTALL_SNAPSHOT_CRD"
 	// MetadataMaxRetrycount ...
 	MetadataMaxRetrycount = 4
+	// VolDataFileName file
+	VolDataFileName = "vol_data.json"
 
 	// NsenterCmd is the nsenter command
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
@@ -668,4 +670,38 @@ func GetPvNameFormPodMnt(mntPath string) string {
 		return pvName
 	}
 	return ""
+}
+
+// AppendJsonData append map data to json file.
+func AppendJsonData(dataFilePath string, appData map[string]string) error {
+	curData, err := loadJsonData(dataFilePath)
+	if err != nil {
+		return err
+	}
+	for key, value := range appData {
+		if strings.HasPrefix(key, "csi.alibabacloud.com/") {
+			curData[key] = value
+		}
+	}
+	rankingsJSON, _ := json.Marshal(curData)
+	if err := ioutil.WriteFile(dataFilePath, rankingsJSON, 0644); err != nil {
+		return err
+	}
+
+	log.Infof("Json data file saved successfully [%s], content: %v", dataFilePath, curData)
+	return nil
+}
+
+// loadJsonData loads json info from specified json file
+func loadJsonData(dataFileName string) (map[string]string, error) {
+	file, err := os.Open(dataFileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open json data file [%s]: %v", dataFileName, err)
+	}
+	defer file.Close()
+	data := map[string]string{}
+	if err := json.NewDecoder(file).Decode(&data); err != nil {
+		return nil, fmt.Errorf("failed to parse json data file [%s]: %v", dataFileName, err)
+	}
+	return data, nil
 }
