@@ -217,7 +217,7 @@ spec:
           securityContext:
             privileged: true
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.20.7-aafce42-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.22.8-e84838c-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
