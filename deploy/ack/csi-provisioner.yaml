@@ -132,7 +132,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-attacher
-          image: registrycn-hangzhou.aliyuncs.com/acs/csi-attacher:v2.1.0-e8fa5d8-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-attacher:v2.1.0-e8fa5d8-aliyun
           resources:
             requests:
               cpu: 10m
