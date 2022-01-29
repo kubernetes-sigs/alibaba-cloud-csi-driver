@@ -11,6 +11,7 @@ type GlobalConfig struct {
 	Scheduler      string
 	PmemEnable     bool
 	PmemType       string
+	CapacityToNode bool
 	GrpcProvision  bool
 	HostNameAsTopo bool
 	TopoKeyDefine  string
