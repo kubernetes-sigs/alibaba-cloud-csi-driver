@@ -48,7 +48,7 @@ rules:
     verbs: ["get", "list", "watch", "update", "patch"]
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshotclasses"]
-    verbs: ["get", "list", "watch", "create"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshotcontents"]
     verbs: ["create", "get", "list", "watch", "update", "delete"]
@@ -77,8 +77,14 @@ rules:
     resources: ["namespaces"]
     verbs: ["get", "list"]
   - apiGroups: [""]
-    resources: ["pods"]
-    verbs: ["get", "list", "watch"]
+    resources: ["pods","pods/exec"]
+    verbs: ["create", "delete", "get", "post", "list", "watch", "patch", "udpate"]
+  - apiGroups: ["storage.alibabacloud.com"]
+    resources: ["rules"]
+    verbs: ["get"]
+  - apiGroups: ["storage.alibabacloud.com"]
+    resources: ["containernetworkfilesystems"]
+    verbs: ["get","list", "watch"]
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -143,15 +149,23 @@ spec:
                 values:
                 - virtual-kubelet
       nodeSelector:
-        beta.kubernetes.io/os: linux
+        kubernetes.io/os: linux
       serviceAccount: csi-admin
       priorityClassName: system-node-critical
       hostNetwork: true
       hostPID: true
+      dnsPolicy: ClusterFirst
       containers:
         - name: disk-driver-registrar
           image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.3.0-6e9fff3-aliyun
           imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           args:
             - "--v=5"
             - "--csi-address=/var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock"
@@ -164,6 +178,13 @@ spec:
         - name: nas-driver-registrar
           image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.3.0-6e9fff3-aliyun
           imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           args:
             - "--v=5"
             - "--csi-address=/var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock"
@@ -176,6 +197,13 @@ spec:
         - name: oss-driver-registrar
           image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.3.0-6e9fff3-aliyun
           imagePullPolicy: Always
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           args:
             - "--v=5"
             - "--csi-address=/var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock"
@@ -188,8 +216,6 @@ spec:
         - name: csi-plugin
           securityContext:
             privileged: true
-            capabilities:
-              add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
           image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.20.7-aafce42-aliyun
           imagePullPolicy: "Always"
@@ -203,8 +229,6 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
-            - name: SLUSTER_ID
-              value: ""
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/csi-plugins/driverplugin.csi.alibabacloud.com-replace/csi.sock
             - name: MAX_VOLUMES_PERNODE
