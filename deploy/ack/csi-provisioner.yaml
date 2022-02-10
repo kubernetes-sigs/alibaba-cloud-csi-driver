@@ -2,50 +2,50 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: alicloud-disk-available
+  name: alicloud-disk-available
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
-    type: available
+  type: available
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: alicloud-disk-essd
+  name: alicloud-disk-essd
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
-    type: cloud_essd
+  type: cloud_essd
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: alicloud-disk-ssd
+  name: alicloud-disk-ssd
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
-    type: cloud_ssd
+  type: cloud_ssd
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: alicloud-disk-efficiency
+  name: alicloud-disk-efficiency
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
-    type: cloud_efficiency
+  type: cloud_efficiency
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: alicloud-disk-topology
+  name: alicloud-disk-topology
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
-    type: available
+  type: available
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
@@ -73,40 +73,46 @@ spec:
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 1
-            preference:
-              matchExpressions:
-              - key: node-role.kubernetes.io/master
-                operator: Exists
+            - weight: 1
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/master
+                    operator: Exists
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
-            - matchExpressions:
-              - key: type
-                operator: NotIn
-                values:
-                - virtual-kubelet
+              - matchExpressions:
+                  - key: type
+                    operator: NotIn
+                    values:
+                      - virtual-kubelet
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - csi-provisioner
-            topologyKey: kubernetes.io/hostname
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - csi-provisioner
+              topologyKey: kubernetes.io/hostname
       tolerations:
-      - effect: NoSchedule
-        operator: Exists
-        key: node-role.kubernetes.io/master
-      - effect: NoSchedule
-        operator: Exists
-        key: node.cloudprovider.kubernetes.io/uninitialized
+        - effect: NoSchedule
+          operator: Exists
+          key: node-role.kubernetes.io/master
+        - effect: NoSchedule
+          operator: Exists
+          key: node.cloudprovider.kubernetes.io/uninitialized
       serviceAccount: csi-admin
       priorityClassName: system-node-critical
-      hostNetwork: true
       containers:
         - name: external-disk-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v3.0.0-b7fdbbf-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v3.0.0-3f86569-aliyun
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           args:
             - "--csi-address=$(ADDRESS)"
             - "--feature-gates=Topology=True"
@@ -114,8 +120,8 @@ spec:
             - "--strict-topology=true"
             - "--timeout=150s"
             - "--leader-election=true"
-            - "--extra-create-metadata=true"
             - "--retry-interval-start=500ms"
+            - "--extra-create-metadata=true"
             - "--default-fstype=ext4"
             - "--v=5"
           env:
@@ -126,7 +132,14 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-attacher
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-attacher:v3.3-37d8f31-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-attacher:v2.1.0-e8fa5d8-aliyun
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -139,7 +152,14 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-resizer
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v1.3-e42ee11-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v1.1.0-7b30758-aliyun
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -152,13 +172,21 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-nas-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v3.0.0-b7fdbbf-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v3.0.0-3f86569-aliyun
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           args:
             - "--csi-address=$(ADDRESS)"
             - "--volume-name-prefix=nas"
             - "--timeout=150s"
             - "--leader-election=true"
             - "--retry-interval-start=500ms"
+            - "--default-fstype=nfs"
             - "--v=5"
           env:
             - name: ADDRESS
@@ -168,7 +196,14 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-nas-resizer
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v1.3-e42ee11-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v1.1.0-7b30758-aliyun
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -181,7 +216,14 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-csi-snapshotter
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-snapshotter:v4.0.0-c91a964-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-snapshotter:v4.0.0-5cbf27e-aliyun
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -195,7 +237,14 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /csi
         - name: external-snapshot-controller
-          image: registry.cn-hangzhou.aliyuncs.com/acs/snapshot-controller:v4.0.0-c91a964-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/snapshot-controller:v4.0.0-5cbf27e-aliyun
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           args:
             - "--v=5"
             - "--leader-election=true"
@@ -203,10 +252,7 @@ spec:
         - name: csi-provisioner
           securityContext:
             privileged: true
-            capabilities:
-              add: ["SYS_ADMIN"]
-            allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.22.8-5d23546-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.20.7-aafce42-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
@@ -219,13 +265,6 @@ spec:
               value: "15"
             - name: SERVICE_TYPE
               value: "provisioner"
-          resources:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 500m
-              memory: 1024Mi
           livenessProbe:
             httpGet:
               path: /healthz
@@ -245,13 +284,8 @@ spec:
             - name: healthz
               containerPort: 11270
           volumeMounts:
-            - name: host-dev
-              mountPath: /dev
-              mountPropagation: "HostToContainer"
             - name: host-log
               mountPath: /var/log/
-            - name: etc
-              mountPath: /host/etc
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
             - name: nas-provisioner-dir
@@ -259,6 +293,13 @@ spec:
             - mountPath: /var/addon
               name: addon-token
               readOnly: true
+          resources:
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
       volumes:
         - name: disk-provisioner-dir
           emptyDir: {}
@@ -267,12 +308,6 @@ spec:
         - name: host-log
           hostPath:
             path: /var/log/
-        - name: host-dev
-          hostPath:
-            path: /dev
-        - name: etc
-          hostPath:
-            path: /etc
         - name: addon-token
           secret:
             defaultMode: 420
