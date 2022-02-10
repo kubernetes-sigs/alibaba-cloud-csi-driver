@@ -60,11 +60,16 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 	//volumeNewCreated := false
 	volumeID := req.GetVolumeId()
 	devicePath := filepath.Join("/dev/", vgName, volumeID)
-	if _, err := os.Stat(devicePath); os.IsNotExist(err) {
-		//volumeNewCreated = true
-		err := createVolume(ctx, volumeID, vgName, "", lvmType)
-		if err != nil {
-			log.Errorf("NodePublishVolume: create volume %s with error: %s", volumeID, err.Error())
+	if _, err := os.Stat(devicePath); err != nil { 
+		if os.IsNotExist(err) {
+			//volumeNewCreated = true
+			err := createVolume(ctx, volumeID, vgName, "", lvmType)
+			if err != nil {
+				log.Errorf("NodePublishVolume: create volume %s with error: %s", volumeID, err.Error())
+				return status.Error(codes.Internal, err.Error())
+			}
+		} else {
+			log.Errorf("NodePublishVolume: state volume path %s with error: %v", volumeID, err)
 			return status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -90,7 +95,7 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 
 		diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
 		if err := diskMounter.FormatAndMount(devicePath, targetPath, fsType, options); err != nil {
-			log.Errorf("NodeStageVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, devicePath, err.Error())
+			log.Errorf("NodePublishVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, devicePath, err.Error())
 			return status.Error(codes.Internal, err.Error())
 		}
 		log.Infof("NodePublishVolume:: mount successful devicePath: %s, targetPath: %s, options: %v", devicePath, targetPath, options)

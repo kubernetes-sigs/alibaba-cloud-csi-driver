@@ -158,10 +158,15 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.Internal, "NodePublishVolume: targetPath is empty")
 	}
 	// Check targetPath
-	if _, err := os.Stat(targetPath); os.IsNotExist(err) {
-		if err := os.MkdirAll(targetPath, 0750); err != nil {
-			log.Errorf("NodePublishVolume: local volume %s mkdir target path %s with error: %s", req.VolumeId, targetPath, err.Error())
-			return nil, status.Errorf(codes.Internal, "NodePublishVolume: local volume %s mkdir target path %s with error: %s", req.VolumeId, targetPath, err.Error())
+	if _, err := os.Stat(targetPath); err != nil{
+		if os.IsNotExist(err) {
+			if err := os.MkdirAll(targetPath, 0750); err != nil {
+				log.Errorf("NodePublishVolume: local volume %s mkdir target path %s with error: %s", req.VolumeId, targetPath, err.Error())
+				return nil, status.Errorf(codes.Internal, "NodePublishVolume: local volume %s mkdir target path %s with error: %s", req.VolumeId, targetPath, err.Error())
+			}
+		} else {
+			log.Errorf("NodePublishVolume: local volume %s stat targetPath err: %v", req.VolumeId, err)
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 
