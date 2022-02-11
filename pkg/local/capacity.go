@@ -13,7 +13,7 @@ import (
 // StorageCapacity define storage pool details
 // csi.alibabacloud.com/storage-capacity:
 // [
-//   {"type": "volumegroup", "name": "vg1", "capacity": 105151127552},
+//   {"type": "lvm", "name": "vg1", "capacity": 105151127552},
 //   {"type": "quotapath", "name": "quotapath1", "capacity": 105151127552, "devicetype": "ssd", mountPoint": "/path1"}
 // ]
 // volumegorup 类型：name、capacity都是必选；
@@ -69,7 +69,7 @@ func getVolumeGroup() []*StorageCapacity {
 		vg := &StorageCapacity{}
 		vg.Name = item.Name
 		vg.Capacity = item.Size
-		vg.Type = "volumegroup"
+		vg.Type = "lvm"
 		resVGList = append(resVGList, vg)
 	}
 	return resVGList
