@@ -1585,3 +1585,12 @@ func checkOptionFalse(opt string) bool {
 		return false
 	}
 }
+
+// IsDeviceNvme check device is nvme type or not;
+func IsDeviceNvme(deviceName string) bool {
+	fileName := filepath.Base(deviceName)
+	if strings.HasPrefix(fileName, "nvme") {
+		return true
+	}
+	return false
+}
