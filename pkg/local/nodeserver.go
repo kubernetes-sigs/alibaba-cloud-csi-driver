@@ -132,6 +132,11 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 		if types.GlobalConfigVar.PmemEnable {
 			manager.MaintainPMEM(types.GlobalConfigVar.PmemType, mounter)
 		}
+
+		// Update Local Storage capacity to Node
+		if types.GlobalConfigVar.CapacityToNode {
+			go updateNodeCapacity()
+		}
 	}
 
 	return &nodeServer{

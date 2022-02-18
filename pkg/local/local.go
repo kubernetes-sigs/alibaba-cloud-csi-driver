@@ -252,6 +252,12 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 		log.Infof("Lcoal: use special topoloy key with LOCAL_TOPO_KEY_DEFINED: %s", topoKeyStr)
 		topoKeyDefine = topoKeyStr
 	}
+	CapacityToNode := false
+	capacityToNode := os.Getenv("CAPACITY_TO_NODE")
+	if capacityToNode == "true" || capacityToNode == "yes" {
+		log.Infof("Lcoal: CAPACITY_TO_NODE is setting: %s", capacityToNode)
+		CapacityToNode = true
+	}
 
 	// Global Config Set
 	types.GlobalConfigVar = types.GlobalConfig{
@@ -260,6 +266,7 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 		Scheduler:      driverName,
 		PmemEnable:     pmemEnable,
 		PmemType:       pmeType,
+		CapacityToNode: CapacityToNode,
 		GrpcProvision:  grpcProvision,
 		KubeClient:     kubeClient,
 		HostNameAsTopo: hostNameAsTop,
