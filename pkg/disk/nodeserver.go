@@ -383,21 +383,23 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	// save volume data to json file
-	volumeData := map[string]string{}
-	volumeData["csi.alibabacloud.com/fsType"] = fsType
-	if len(options) != 0 {
-		volumeData["csi.alibabacloud.com/mountOptions"] = strings.Join(options, ",")
-	}
-	if value, ok := req.VolumeContext[MkfsOptions]; ok {
-		volumeData["csi.alibabacloud.com/mkfsOptions"] = value
-	}
-	fileName := filepath.Join(filepath.Dir(targetPath), utils.VolDataFileName)
-	if strings.HasSuffix(targetPath, "/") {
-		fileName = filepath.Join(filepath.Dir(filepath.Dir(targetPath)), utils.VolDataFileName)
-	}
-	if err = utils.AppendJsonData(fileName, volumeData); err != nil {
-		log.Warnf("NodeStageVolume: append volume spec to %s with error: %s", fileName, err.Error())
+	if utils.IsKataInstall() {
+		// save volume data to json file
+		volumeData := map[string]string{}
+		volumeData["csi.alibabacloud.com/fsType"] = fsType
+		if len(options) != 0 {
+			volumeData["csi.alibabacloud.com/mountOptions"] = strings.Join(options, ",")
+		}
+		if value, ok := req.VolumeContext[MkfsOptions]; ok {
+			volumeData["csi.alibabacloud.com/mkfsOptions"] = value
+		}
+		fileName := filepath.Join(filepath.Dir(targetPath), utils.VolDataFileName)
+		if strings.HasSuffix(targetPath, "/") {
+			fileName = filepath.Join(filepath.Dir(filepath.Dir(targetPath)), utils.VolDataFileName)
+		}
+		if err = utils.AppendJsonData(fileName, volumeData); err != nil {
+			log.Warnf("NodeStageVolume: append volume spec to %s with error: %s", fileName, err.Error())
+		}
 	}
 
 	log.Infof("NodePublishVolume: Mount Successful Volume: %s, from source %s to target %v", req.VolumeId, sourcePath, targetPath)

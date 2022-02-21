@@ -705,3 +705,11 @@ func loadJsonData(dataFileName string) (map[string]string, error) {
 	}
 	return data, nil
 }
+
+// IsKataInstall check kata daemon installed
+func IsKataInstall() bool {
+	if IsFileExisting("/host/etc/kata-containers") || IsFileExisting("/host/etc/kata-containers2") {
+		return true
+	}
+	return false
+}
