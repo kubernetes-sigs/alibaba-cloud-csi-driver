@@ -673,8 +673,8 @@ func GetPvNameFormPodMnt(mntPath string) string {
 }
 
 // AppendJsonData append map data to json file.
-func AppendJsonData(dataFilePath string, appData map[string]string) error {
-	curData, err := loadJsonData(dataFilePath)
+func AppendJSONData(dataFilePath string, appData map[string]string) error {
+	curData, err := loadJSONData(dataFilePath)
 	if err != nil {
 		return err
 	}
@@ -693,7 +693,7 @@ func AppendJsonData(dataFilePath string, appData map[string]string) error {
 }
 
 // loadJsonData loads json info from specified json file
-func loadJsonData(dataFileName string) (map[string]string, error) {
+func loadJSONData(dataFileName string) (map[string]string, error) {
 	file, err := os.Open(dataFileName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open json data file [%s]: %v", dataFileName, err)

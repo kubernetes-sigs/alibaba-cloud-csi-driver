@@ -397,7 +397,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if strings.HasSuffix(targetPath, "/") {
 			fileName = filepath.Join(filepath.Dir(filepath.Dir(targetPath)), utils.VolDataFileName)
 		}
-		if err = utils.AppendJsonData(fileName, volumeData); err != nil {
+		if err = utils.AppendJSONData(fileName, volumeData); err != nil {
 			log.Warnf("NodeStageVolume: append volume spec to %s with error: %s", fileName, err.Error())
 		}
 	}
