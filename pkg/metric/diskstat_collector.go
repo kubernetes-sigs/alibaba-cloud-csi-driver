@@ -156,6 +156,7 @@ type diskStatCollector struct {
 	clientSet                    *kubernetes.Clientset
 	recorder                     record.EventRecorder
 	nodeName                     string
+	ioHangEventCountMap          sync.Map
 }
 
 func init() {
@@ -238,6 +239,7 @@ func NewDiskStatCollector() (Collector, error) {
 		alertSwtichSet:               alertSet,
 		recorder:                     recorder,
 		nodeName:                     nodeName,
+		ioHangEventCountMap:          sync.Map{},
 	}, nil
 }
 
@@ -330,7 +332,14 @@ func (p *diskStatCollector) ioHangEventAlert(devName string, pvName string, pvcN
 	lastStats, ok := p.lastPvStatsMap.Load(pvName)
 	if ok {
 		isHang := isIOHang(stats, lastStats.([]string))
+		value, ok := p.ioHangEventCountMap.Load(pvName)
 		if isHang {
+			ioHangCount := 1
+			if ok {
+				ioHangCount = value.(int)
+				ioHangCount++
+			}
+			p.ioHangEventCountMap.Store(pvName, ioHangCount)
 			ref := &v1.ObjectReference{
 				Kind:      "PersistentVolumeClaim",
 				Name:      pvcName,
@@ -339,6 +348,14 @@ func (p *diskStatCollector) ioHangEventAlert(devName string, pvName string, pvcN
 			}
 			reason := fmt.Sprintf("IO Hang on Persistent Volume %s, nodeName:%s, diskID:%s, Device:%s", pvName, p.nodeName, p.lastPvDiskInfoMap[pvName].DiskID, devName)
 			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, ioHang, reason)
+			if ioHangCount > 20 {
+				reason := fmt.Sprintf("IO Hang on Persistent Volume %s, nodeName:%s, diskID:%s, Device:%s", pvName, p.nodeName, p.lastPvDiskInfoMap[pvName].DiskID, devName)
+				utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, ioHang, reason)
+			}
+		} else {
+			if ok {
+				p.ioHangEventCountMap.Delete(pvName)
+			}
 		}
 	}
 }
