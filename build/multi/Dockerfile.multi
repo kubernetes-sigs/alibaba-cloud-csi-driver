@@ -19,8 +19,8 @@ RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "arm64" ]]; then cp /multi
 ARG ossfsVer=1.80.6.ack.1
 ARG update_ossfsVer=1.86.1.ack.1
 RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${ossfsVer}-b42b3a8_centos7.0_x86_64.rpm -o /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm; fi
-RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-ca30fc4_centos7.0_x86_64.rpm -o /root/ossfs_1.86.4_centos7.0_x86_64.rpm; fi
-RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-75ed4f1_centos8_x86_64.rpm -o /root/ossfs_1.86.4_centos8_x86_64.rpm; fi
+RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-ca30fc4_centos7.0_x86_64.rpm -o /root/ossfs_1.86.5_centos7.0_x86_64.rpm; fi
+RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-61a3bf3_centos8_x86_64.rpm -o /root/ossfs_1.86.5_centos8_x86_64.rpm; fi
 
 RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then mv /multi_data/jindofs-fuse-3.7.3-20211207.tar.gz /; tar zvxf /jindofs-fuse-3.7.3-20211207.tar.gz -C /; fi
 RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "arm64" ]]; then mkdir /acs; mv /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-fuse-2.9.2-11.el7.aarch64.rpm /acs/fuse-2.9.2-11.el7.aarch64.rpm; mv /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-fuse-libs-2.9.2-11.el7.aarch64.rpm /acs/fuse-libs-2.9.2-11.el7.aarch64.rpm; fi
