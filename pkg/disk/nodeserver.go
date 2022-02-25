@@ -25,7 +25,7 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -112,6 +112,8 @@ const (
 	MaxVolumesPerNode = 15
 	// NOUUID is xfs fs mount opts
 	NOUUID = "nouuid"
+	// NodeMultiZoneEnable Enable node multi-zone mode
+	NodeMultiZoneEnable = "NODE_MULTI_ZONE_ENABLE"
 )
 
 var (
