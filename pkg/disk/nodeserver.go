@@ -387,8 +387,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		// save volume data to json file
 		volumeData := map[string]string{}
 		volumeData["csi.alibabacloud.com/fsType"] = fsType
-		if len(options) != 0 {
-			volumeData["csi.alibabacloud.com/mountOptions"] = strings.Join(options, ",")
+		saveOptions := req.VolumeCapability.GetMount().MountFlags
+		if len(saveOptions) != 0 {
+			volumeData["csi.alibabacloud.com/mountOptions"] = strings.Join(saveOptions, ",")
 		}
 		if value, ok := req.VolumeContext[MkfsOptions]; ok {
 			volumeData["csi.alibabacloud.com/mkfsOptions"] = value
