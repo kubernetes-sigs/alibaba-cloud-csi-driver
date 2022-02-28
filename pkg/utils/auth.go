@@ -124,7 +124,7 @@ type AccessControl struct {
 	UseMode         AccessControlMode
 }
 
-func getAddonToken() AccessControl {
+func getManagedAddonToken() AccessControl {
 	tokens := getManagedToken()
 	return AccessControl{AccessKeyID: tokens.AccessKeyID, AccessKeySecret: tokens.AccessKeySecret, StsToken: tokens.SecurityToken, UseMode: ManagedToken}
 }
@@ -132,9 +132,9 @@ func getAddonToken() AccessControl {
 // GetAccessControl  1、Read default ak from local file. 2、If local default ak is not exist, then read from STS.
 func GetAccessControl() AccessControl {
 	//1、Get AK from Env
-	acLocalAK := GetLocalAK()
+	acLocalAK := GetEnvAK()
 	if len(acLocalAK.AccessKeyID) != 0 && len(acLocalAK.AccessKeySecret) != 0 {
-		log.Info("Get AK: use Local AK")
+		log.Info("Get AK: use ENV AK")
 		return acLocalAK
 	}
 
@@ -146,20 +146,20 @@ func GetAccessControl() AccessControl {
 	}
 
 	//3、Get AK from ManagedToken
-	acAddonToken := getAddonToken()
+	acAddonToken := getManagedAddonToken()
 	if len(acAddonToken.AccessKeyID) != 0 {
-		log.Info("Get AK: use Addon Token")
+		log.Info("Get AK: use Managed Addon Token")
 		return acAddonToken
 	}
 
-	//4、Get AK from StsToken
+	//4、Get AK from ECS StsToken
 	acStsToken := getStsToken()
-	log.Info("Get AK: use Sts Token")
+	log.Info("Get AK: use ECS RamRole Token")
 	return acStsToken
 }
 
 // GetLocalAK read ossfs ak from local or from secret file
-func GetLocalAK() AccessControl {
+func GetEnvAK() AccessControl {
 	accessKeyID, accessSecret := "", ""
 	accessKeyID = os.Getenv("ACCESS_KEY_ID")
 	accessSecret = os.Getenv("ACCESS_KEY_SECRET")
@@ -456,7 +456,9 @@ func getCredentialAK() AccessControl {
 	pc := provider.NewProviderChain([]provider.Provider{envProvider, profileProvider})
 	credential, err := pc.Resolve()
 	if err != nil {
-		log.Errorf("Failed to resolve an authentication provider: %v", err)
+		if !strings.Contains(err.Error(), "No credential found") {
+			log.Errorf("Failed to resolve an authentication provider: %v", err)
+		}
 	}
 	config := sdk.NewConfig().WithScheme("https")
 	return AccessControl{Config: config, Credential: credential, UseMode: Credential}
