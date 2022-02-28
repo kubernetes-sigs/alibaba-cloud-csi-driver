@@ -158,7 +158,7 @@ func GetAccessControl() AccessControl {
 	return acStsToken
 }
 
-// GetLocalAK read ossfs ak from local or from secret file
+// GetEnvAK read ak from local ENV
 func GetEnvAK() AccessControl {
 	accessKeyID, accessSecret := "", ""
 	accessKeyID = os.Getenv("ACCESS_KEY_ID")
