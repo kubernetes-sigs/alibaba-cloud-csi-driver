@@ -691,7 +691,7 @@ func AppendJSONData(dataFilePath string, appData map[string]string) error {
 		return err
 	}
 
-	log.Infof("Json data file saved successfully [%s], content: %v", dataFilePath, curData)
+	log.Infof("AppendJSONData: Json data file saved successfully [%s], content: %v", dataFilePath, curData)
 	return nil
 }
 
