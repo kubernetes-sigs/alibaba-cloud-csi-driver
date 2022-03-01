@@ -213,7 +213,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	targetPath := req.GetTargetPath()
 	log.Infof("NodeUnpublishVolume: Starting to unmount target path %s for volume %s", targetPath, req.VolumeId)
 
-	isMnt, err := ns.mounter.IsMounted(targetPath)
+	isNotMnt, err := ns.mounter.IsNotMountPoint(targetPath)
 	if err != nil {
 		if _, err := os.Stat(targetPath); os.IsNotExist(err) {
 			log.Infof("NodeUnpublishVolume: Target path not exist for volume %s with path %s", req.VolumeId, targetPath)
@@ -222,7 +222,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		log.Errorf("NodeUnpublishVolume: Stat volume %s at path %s with error %v", req.VolumeId, targetPath, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if !isMnt {
+	if isNotMnt {
 		log.Infof("NodeUnpublishVolume: Target path %s not mounted for volume %s", targetPath, req.VolumeId)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
@@ -233,8 +233,8 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	isMnt, err = ns.mounter.IsMounted(targetPath)
-	if isMnt {
+	isNotMnt, err = ns.mounter.IsNotMountPoint(targetPath)
+	if !isNotMnt {
 		log.Errorf("NodeUnpublishVolume: Umount volume %s for path %s not successful", req.VolumeId, targetPath)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("Umount volume %s not successful", req.VolumeId))
 	}
