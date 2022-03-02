@@ -79,6 +79,8 @@ const (
 	RETENTIONDAYS = "retentionDays"
 	// INSTANTACCESSRETENTIONDAYS ...
 	INSTANTACCESSRETENTIONDAYS = "instantAccessRetentionDays"
+	// SNAPSHOTRESOURCEGROUPID ...
+	SNAPSHOTRESOURCEGROUPID = "resourceGroupId"
 	// DiskSnapshotID means snapshot id
 	DiskSnapshotID = "csi.alibabacloud.com/disk-snapshot-id"
 	// VolumeSnapshotNamespace namespace
@@ -619,7 +621,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 // storage.alibabacloud.com/snapshot-ttl
 // storage.alibabacloud.com/ia-snapshot
 // storage.alibabacloud.com/ia-snapshot-ttl
-func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, error) {
+func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, string, error) {
 	retentionDays := -1
 	useInstanceAccess := false
 	var instantAccessRetentionDays int
@@ -632,7 +634,7 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, er
 		days, err := strconv.Atoi(value)
 		if err != nil {
 			err := status.Error(codes.InvalidArgument, fmt.Sprintf("CreateSnapshot: retentiondays err %s", value))
-			return retentionDays, useInstanceAccess, instantAccessRetentionDays, err
+			return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
 		}
 		retentionDays = days
 	}
@@ -640,7 +642,7 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, er
 		days, err := strconv.Atoi(value)
 		if err != nil {
 			err := status.Error(codes.InvalidArgument, fmt.Sprintf("CreateSnapshot: retentiondays err %s", value))
-			return retentionDays, useInstanceAccess, instantAccessRetentionDays, err
+			return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
 		}
 		instantAccessRetentionDays = days
 	} else {
@@ -651,13 +653,13 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, er
 	vsNameSpace := req.Parameters[VolumeSnapshotNamespace]
 	// volumesnapshot not in parameters, just retrun
 	if vsName == "" || vsNameSpace == "" {
-		return retentionDays, useInstanceAccess, instantAccessRetentionDays, nil
+		return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", nil
 	}
 
 	volumeSnapshot, err := GlobalConfigVar.SnapClient.SnapshotV1().VolumeSnapshots(vsNameSpace).Get(context.Background(), vsName, metav1.GetOptions{})
 	if err != nil {
 		log.Warnf("CreateSnapshot: cannot get volumeSnapshot: %s, with error: %v", req.Name, err.Error())
-		return retentionDays, useInstanceAccess, instantAccessRetentionDays, err
+		return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
 	}
 	snapshotTTL := volumeSnapshot.Annotations["storage.alibabacloud.com/snapshot-ttl"]
 	iaEnable := volumeSnapshot.Annotations["storage.alibabacloud.com/ia-snapshot"]
@@ -667,7 +669,7 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, er
 		retentionDays, err = strconv.Atoi(snapshotTTL)
 		if err != nil {
 			log.Warnf("CreateSnapshot: Snapshot(%s) ttl format error: %v", req.Name, err.Error())
-			return retentionDays, useInstanceAccess, instantAccessRetentionDays, err
+			return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
 		}
 	}
 	if strings.ToLower(iaEnable) == "true" {
@@ -677,10 +679,11 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, er
 		instantAccessRetentionDays, err = strconv.Atoi(iaTTL)
 		if err != nil {
 			log.Warnf("CreateSnapshot: IA ttl(%s) format error: %v", req.Name, err.Error())
-			return retentionDays, useInstanceAccess, instantAccessRetentionDays, err
+			return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
 		}
 	}
-	return retentionDays, useInstanceAccess, instantAccessRetentionDays, nil
+	resourceGroupID := req.Parameters[SNAPSHOTRESOURCEGROUPID]
+	return retentionDays, useInstanceAccess, instantAccessRetentionDays, resourceGroupID, nil
 }
 
 // CreateSnapshot ...
@@ -707,7 +710,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	// parse snapshot Retention Days
-	retentionDays, useInstanceAccess, instantAccessRetentionDays, err := getVolumeSnapshotConfig(req)
+	retentionDays, useInstanceAccess, instantAccessRetentionDays, resourceGroupID, err := getVolumeSnapshotConfig(req)
 	if err != nil {
 		log.Errorf("CreateSnapshot:: Snapshot name[%s], parse retention days error: %v", req.Name, err)
 		return nil, err
@@ -812,6 +815,9 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	createSnapshotRequest.InstantAccessRetentionDays = requests.NewInteger(instantAccessRetentionDays)
 	if retentionDays != -1 {
 		createSnapshotRequest.RetentionDays = requests.NewInteger(retentionDays)
+	}
+	if resourceGroupID != "" {
+		createSnapshotRequest.ResourceGroupId = resourceGroupID
 	}
 
 	// Set tags
