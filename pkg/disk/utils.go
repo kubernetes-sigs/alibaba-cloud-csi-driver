@@ -930,6 +930,25 @@ func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 	return mountErr
 }
 
+func getMultiZones(segments map[string]string) (string, bool) {
+	parseZone := func(key string) string {
+		return key[len(TopologyMultiZonePrefix):]
+	}
+
+	var zones []string
+	for k := range segments {
+		if strings.HasPrefix(k, TopologyMultiZonePrefix) {
+			zones = append(zones, parseZone(k))
+		}
+	}
+
+	if len(zones) == 0 {
+		return "", false
+	}
+
+	return strings.Join(zones, ","), true
+}
+
 // pickZone selects 1 zone given topology requirement.
 // if not found, empty string is returned.
 func pickZone(requirement *csi.TopologyRequirement) string {
@@ -937,12 +956,24 @@ func pickZone(requirement *csi.TopologyRequirement) string {
 		return ""
 	}
 	for _, topology := range requirement.GetPreferred() {
+		if GlobalConfigVar.NodeMultiZoneEnable {
+			zones, exists := getMultiZones(topology.GetSegments())
+			if exists {
+				return zones
+			}
+		}
 		zone, exists := topology.GetSegments()[TopologyZoneKey]
 		if exists {
 			return zone
 		}
 	}
 	for _, topology := range requirement.GetRequisite() {
+		if GlobalConfigVar.NodeMultiZoneEnable {
+			zones, exists := getMultiZones(topology.GetSegments())
+			if exists {
+				return zones
+			}
+		}
 		zone, exists := topology.GetSegments()[TopologyZoneKey]
 		if exists {
 			return zone
@@ -1411,6 +1442,33 @@ func createRoleClient(uid string) (cli *ecs.Client, err error) {
 	return cli, nil
 }
 
+func volumeCreate(diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, contextSource *csi.VolumeContentSource) *csi.Volume {
+	accessibleTopology := []*csi.Topology{
+		{
+			Segments: map[string]string{
+				TopologyZoneKey: zoneID,
+			},
+		},
+	}
+	if GlobalConfigVar.NodeMultiZoneEnable {
+		accessibleTopology = append(accessibleTopology, &csi.Topology{
+			Segments: map[string]string{
+				TopologyMultiZonePrefix + zoneID: "true",
+			},
+		})
+	}
+
+	tmpVol := &csi.Volume{
+		CapacityBytes:      volSizeBytes,
+		VolumeId:           diskID,
+		VolumeContext:      volumeContext,
+		AccessibleTopology: accessibleTopology,
+		ContentSource:      contextSource,
+	}
+
+	return tmpVol
+}
+
 // staticVolumeCreate 检查输入参数，如果包含了云盘ID，则直接使用云盘进行返回；
 // 根据云盘ID请求云盘的具体属性，并作为pv参数返回；
 func staticVolumeCreate(req *csi.CreateVolumeRequest) (*csi.Volume, error) {
@@ -1441,19 +1499,7 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest) (*csi.Volume, error) {
 		return nil, perrors.Errorf("Disk %s is not expected capacity: expected(%d), disk(%d)", diskID, volSizeBytes, diskSizeBytes)
 	}
 
-	tmpVol := &csi.Volume{
-		VolumeId:      diskID,
-		CapacityBytes: volSizeBytes,
-		VolumeContext: volumeContext,
-		AccessibleTopology: []*csi.Topology{
-			{
-				Segments: map[string]string{
-					TopologyZoneKey: disk.ZoneId,
-				},
-			},
-		},
-	}
-	return tmpVol, nil
+	return volumeCreate(diskID, volSizeBytes, volumeContext, disk.ZoneId, nil), nil
 }
 
 // updateVolumeContext remove unneccessary volume context

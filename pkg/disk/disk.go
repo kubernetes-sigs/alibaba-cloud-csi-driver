@@ -25,7 +25,7 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -39,9 +39,10 @@ import (
 
 // PluginFolder defines the location of diskplugin
 const (
-	driverName      = "diskplugin.csi.alibabacloud.com"
-	csiVersion      = "1.0.0"
-	TopologyZoneKey = "topology." + driverName + "/zone"
+	driverName              = "diskplugin.csi.alibabacloud.com"
+	csiVersion              = "1.0.0"
+	TopologyZoneKey         = "topology." + driverName + "/zone"
+	TopologyMultiZonePrefix = TopologyZoneKey + "-"
 )
 
 // DISK the DISK object
@@ -79,6 +80,7 @@ type GlobalConfig struct {
 	BdfHealthCheck        bool
 	DiskMultiTenantEnable bool
 	SnapClient            *snapClientset.Clientset
+	NodeMultiZoneEnable   bool
 }
 
 // define global variable
@@ -164,6 +166,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 	isDiskDetachBeforeDelete := true
 	isDiskBdfEnable := false
 	isDiskMultiTenantEnable := false
+	isNodeMultiZoneEnable := false
 
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
@@ -339,6 +342,12 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		isDiskMultiTenantEnable = false
 	}
 
+	nodeMultiZoneEnable := os.Getenv(NodeMultiZoneEnable)
+	if nodeMultiZoneEnable == "true" || nodeMultiZoneEnable == "yes" {
+		log.Infof("Multi zone node is Enabled")
+		isNodeMultiZoneEnable = true
+	}
+
 	log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete, clustID)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
@@ -362,6 +371,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		ControllerService:     controllerServerType,
 		BdfHealthCheck:        bdfCheck,
 		DiskMultiTenantEnable: isDiskMultiTenantEnable,
+		NodeMultiZoneEnable:   isNodeMultiZoneEnable,
 	}
 	return cfg
 }

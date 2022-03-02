@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
@@ -34,7 +34,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	volumeSnasphotV1 "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/crds"
@@ -292,18 +292,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			return nil, status.Errorf(codes.Internal, "exist disk %s is different with requested for disk", req.GetName())
 		}
 		log.Infof("CreateVolume: Volume %s is already created: %s, %s, %s, %d", req.GetName(), disk.DiskId, disk.RegionId, disk.ZoneId, disk.Size)
-		tmpVol := &csi.Volume{
-			VolumeId:      disk.DiskId,
-			CapacityBytes: int64(volSizeBytes),
-			VolumeContext: req.GetParameters(),
-			AccessibleTopology: []*csi.Topology{
-				{
-					Segments: map[string]string{
-						TopologyZoneKey: diskVol.ZoneID,
-					},
-				},
-			},
-		}
+		tmpVol := volumeCreate(disk.DiskId, volSizeBytes, req.GetParameters(), diskVol.ZoneID, nil)
 		return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 	}
 
@@ -454,19 +443,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 	}
 
-	tmpVol := &csi.Volume{
-		VolumeId:      volumeResponse.DiskId,
-		CapacityBytes: int64(volSizeBytes),
-		VolumeContext: volumeContext,
-		AccessibleTopology: []*csi.Topology{
-			{
-				Segments: map[string]string{
-					TopologyZoneKey: diskVol.ZoneID,
-				},
-			},
-		},
-		ContentSource: src,
-	}
+	tmpVol := volumeCreate(volumeResponse.DiskId, volSizeBytes, volumeContext, diskVol.ZoneID, src)
 
 	diskIDPVMap[volumeResponse.DiskId] = req.Name
 	createdVolumeMap[req.Name] = tmpVol
