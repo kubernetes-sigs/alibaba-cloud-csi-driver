@@ -1480,12 +1480,12 @@ func volumeCreate(diskType, diskID string, volSizeBytes int64, volumeContext map
 
 		// Add PV NodeAffinity
 		labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
-		expressions := []v1.NodeSelectorRequirement{v1.NodeSelectorRequirement{
+		expressions := []v1.NodeSelectorRequirement{{
 			Key:      labelKey,
 			Operator: v1.NodeSelectorOpIn,
 			Values:   []string{"available"},
 		}}
-		terms := []v1.NodeSelectorTerm{v1.NodeSelectorTerm{
+		terms := []v1.NodeSelectorTerm{{
 			MatchExpressions: expressions,
 		}}
 		diskTypeTopo := &v1.NodeSelector{
