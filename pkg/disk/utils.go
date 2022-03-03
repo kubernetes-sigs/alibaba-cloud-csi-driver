@@ -1468,13 +1468,15 @@ func volumeCreate(diskType, diskID string, volSizeBytes int64, volumeContext map
 		if diskType == DiskESSD {
 			if pl, ok := volumeContext["performanceLevel"]; ok && pl != "" {
 				diskTypePL = fmt.Sprintf("%s.%s", DiskESSD, pl)
-				delete(volumeContext, "performanceLevel")
+				// TODO delete performanceLevel key
+				// delete(volumeContext, "performanceLevel")
 			} else {
 				diskTypePL = fmt.Sprintf("%s.%s", DiskESSD, "PL1")
 			}
 		}
 		volumeContext[labelAppendPrefix+labelVolumeType] = diskTypePL
-		delete(volumeContext, "type")
+		// TODO delete type key
+		// delete(volumeContext, "type")
 
 		// Add PV NodeAffinity
 		labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
