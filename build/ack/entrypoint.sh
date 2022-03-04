@@ -8,7 +8,6 @@ mkdir -p /host/etc/kubernetes/volumes/disk/uuid
 HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
 zone_id=`${HOST_CMD} curl http://100.100.100.200/latest/meta-data/zone-id`
 
-
 host_os="centos"
 ${HOST_CMD} ls /etc/os-release
 os_release_exist=$?
@@ -21,6 +20,31 @@ if [[ "$os_release_exist" = "0" ]]; then
     fi
     if [[ `echo ${osID} | grep "lifsea" | wc -l` != "0" ]]; then
         host_os="lifsea"
+    fi
+fi
+
+if [ "${USE_NAS_RICH_CLIENT}" == "true" ]; then
+    kernel_version=`${HOST_CMD} uname -r`
+    kernel_main_version=`echo ${kernel_version} | awk -F . '{print $1}'`
+    kernel_minor_version=`echo ${kernel_version} | awk -F . '{print $2}'`
+    nas_rich_client=""
+    echo "Installing nas rich client, kernel_version is:"${kernel_version}
+    if [ ${kernel_main_version} -eq 4 ] && [ ${kernel_minor_version} -eq 19 ]; then
+        nas_rich_client="unas-4.19.91-24-for-ack-poc-1.3.rpm"
+    elif [ ${kernel_main_version} -eq 3 ] && [ ${kernel_minor_version} -eq 10 ]; then
+        nas_rich_client="unas-kernel-3.10.0-1160.15.2-for-ack.rpm"
+    elif [ ${kernel_main_version} -eq 5 ] && [ ${kernel_minor_version} -eq 10 ]; then
+        nas_rich_client="unas-kernel-5.10.23-5-for-ack.rpm"
+    fi
+    if [ "${nas_rich_client}" != "" ]; then
+        cp /root/${nas_rich_client} /host/etc/csi-tool/
+        ${HOST_CMD} yum autoremove -y aliyun-alinas-utils-1.0-1.alios7.x86_64
+        ${HOST_CMD} yum install -y /etc/csi-tool/${nas_rich_client}
+        if [ "$?" -eq 0 ]; then
+            echo "Install nas rich client is successfully, nas_rich_client is "${nas_rich_client}
+        fi
+    else
+        echo "Don't install /host/etc/csi-tool/${nas_rich_client}"
     fi
 fi
 

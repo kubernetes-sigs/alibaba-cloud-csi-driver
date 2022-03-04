@@ -19,6 +19,7 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -93,6 +94,9 @@ const (
 
 	// NsenterCmd is the nsenter command
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
+
+	// socketPath is path of connector sock
+	socketPath = "/host/etc/csi-tool/connector.sock"
 )
 
 // KubernetesAlicloudIdentity set a identity label
@@ -668,4 +672,30 @@ func GetPvNameFormPodMnt(mntPath string) string {
 		return pvName
 	}
 	return ""
+}
+
+// ConnectorRun Run shell command with host connector
+// host connector is daemon running in host.
+func ConnectorRun(cmd string) (string, error) {
+	c, err := net.Dial("unix", socketPath)
+	if err != nil {
+		log.Errorf("Oss connector Dial error: %s", err.Error())
+		return err.Error(), err
+	}
+	defer c.Close()
+
+	_, err = c.Write([]byte(cmd))
+	if err != nil {
+		log.Errorf("Oss connector write error: %s", err.Error())
+		return err.Error(), err
+	}
+
+	buf := make([]byte, 2048)
+	n, err := c.Read(buf[:])
+	response := string(buf[0:n])
+	if strings.HasPrefix(response, "Success") {
+		respstr := response[8:]
+		return respstr, nil
+	}
+	return response, errors.New("oss connector exec command error:" + response)
 }

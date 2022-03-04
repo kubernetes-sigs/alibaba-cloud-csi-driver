@@ -9,6 +9,9 @@ ARG update_ossfsVer=1.86.1.ack.1
 RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${ossfsVer}-b42b3a8_centos7.0_x86_64.rpm -o /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
 RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-ca30fc4_centos7.0_x86_64.rpm -o /root/ossfs_1.86.4_centos7.0_x86_64.rpm
 RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-75ed4f1_centos8_x86_64.rpm -o /root/ossfs_1.86.4_centos8_x86_64.rpm
+RUN curl https://aliyun-unas.oss-cn-beijing.aliyuncs.com/unas-4.19.91-24-for-ack-poc-1.3.rpm -o /root/unas-4.19.91-24-for-ack-poc-1.3.rpm
+RUN curl https://aliyun-unas.oss-cn-beijing.aliyuncs.com/unas-kernel-3.10.0-1160.15.2-for-ack.rpm -o /root/unas-kernel-3.10.0-1160.15.2-for-ack.rpm
+RUN curl https://aliyun-unas.oss-cn-beijing.aliyuncs.com/unas-kernel-5.10.23-5-for-ack.rpm -o /root/unas-kernel-5.10.23-5-for-ack.rpm
 
 COPY nsenter /nsenter
 COPY jindofs-fuse-3.7.3-20211207.tar.gz /jindofs-fuse-3.7.3-20211207.tar.gz

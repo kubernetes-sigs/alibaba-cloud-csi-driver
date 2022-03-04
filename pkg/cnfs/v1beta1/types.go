@@ -61,6 +61,7 @@ type FsAttributes struct {
 	ACLType              string    `json:"aclType,omitempty"`
 	EnableTrashCan       string    `json:"enableTrashCan,omitempty"`
 	TrashCanReservedDays string    `json:"trashCanReservedDays,omitempty"`
+	UseRichClient        string    `json:"useRichClient,omitempty"`
 }
 
 //EndPoint define cnfs endpoint field when cnfs type is oss
@@ -82,6 +83,7 @@ type Parameters struct {
 	ACLType              string  `json:"aclType,omitempty"`
 	EnableTrashCan       string  `json:"enableTrashCan,omitempty"`
 	TrashCanReservedDays string  `json:"trashCanReservedDays,omitempty"`
+	UseRichClient        string  `json:"useRichClient,omitempty"`
 }
 
 //Secret define secret field

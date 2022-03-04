@@ -78,7 +78,7 @@ type RoleAuth struct {
 }
 
 //DoNfsMount execute the mount command for nas dir
-func DoNfsMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID string) error {
+func DoNfsMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, podUID, useNasClient string) error {
 	if !utils.IsFileExisting(mountPoint) {
 		CreateDest(mountPoint)
 	}
@@ -88,11 +88,21 @@ func DoNfsMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID 
 		return nil
 	}
 
-	mntCmd := fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", nfsVers, nfsServer, nfsPath, mountPoint)
-	if mountOptions != "" {
-		mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s,%s %s:%s %s", nfsVers, mountOptions, nfsServer, nfsPath, mountPoint)
+	var mntCmd string
+	var err error
+	if len(useNasClient) != 0 && useNasClient == "true" {
+		mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o unas -o client_owner=%s %s:%s %s", podUID, nfsServer, nfsPath, mountPoint)
+		if out, err := utils.ConnectorRun(mntCmd); err != nil {
+			log.Errorf("Mount by nas rich client, error: %s", err.Error())
+			return errors.New("Create nas user space volume fail: " + err.Error() + ", out: " + out)
+		}
+	} else {
+		mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", nfsVers, nfsServer, nfsPath, mountPoint)
+		if mountOptions != "" {
+			mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s,%s %s:%s %s", nfsVers, mountOptions, nfsServer, nfsPath, mountPoint)
+		}
+		_, err = utils.Run(mntCmd)
 	}
-	_, err := utils.Run(mntCmd)
 	if err != nil && nfsPath != "/" {
 		if strings.Contains(err.Error(), "reason given by server: No such file or directory") || strings.Contains(err.Error(), "access denied by server while mounting") {
 			if err := createNasSubDir(nfsServer, nfsPath, nfsVers, mountOptions, volumeID); err != nil {
@@ -478,7 +488,8 @@ func mountLosetupPv(mountPoint string, opt *Options, volumeID string) error {
 	if err := utils.CreateDest(nfsPath); err != nil {
 		return fmt.Errorf("mountLosetupPv: create nfs mountPath error %s ", err.Error())
 	}
-	err := DoNfsMount(opt.Server, opt.Path, opt.Vers, opt.Options, nfsPath, volumeID)
+	//mount nas to use losetup dev
+	err := DoNfsMount(opt.Server, opt.Path, opt.Vers, opt.Options, nfsPath, volumeID, podID, "false")
 	if err != nil {
 		return fmt.Errorf("mountLosetupPv: mount losetup volume failed: %s", err.Error())
 	}

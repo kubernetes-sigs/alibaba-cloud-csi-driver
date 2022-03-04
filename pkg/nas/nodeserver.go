@@ -117,6 +117,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	mountPath := req.GetTargetPath()
 	opt := &Options{}
 	var cnfsName string
+	var useNasClient string
 	for key, value := range req.VolumeContext {
 		key = strings.ToLower(key)
 		if key == "server" {
@@ -150,8 +151,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, err
 		}
-
 		opt.Server = cnfs.Status.FsAttributes.Server
+		useNasClient = cnfs.Status.FsAttributes.UseRichClient
 	}
 
 	if opt.LoopLock != "false" {
@@ -281,7 +282,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	checkSystemNasConfig()
 
 	// Do mount
-	if err := DoNfsMount(opt.Server, opt.Path, opt.Vers, opt.Options, mountPath, req.VolumeId); err != nil {
+	podUID := req.VolumeContext["csi.storage.k8s.io/pod.uid"]
+	if podUID == "" {
+		log.Errorf("Volume(%s) Cannot get poduid and cannot set volume limit", req.VolumeId)
+		return nil, errors.New("Cannot get poduid and cannot set volume limit: " + req.VolumeId)
+	}
+	//mount nas client
+	if err := DoNfsMount(opt.Server, opt.Path, opt.Vers, opt.Options, mountPath, req.VolumeId, podUID, useNasClient); err != nil {
 		log.Errorf("Nas, Mount Nfs error: %s", err.Error())
 		return nil, errors.New("Nas, Mount Nfs error: %s" + err.Error())
 	}
