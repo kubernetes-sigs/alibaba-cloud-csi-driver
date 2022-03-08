@@ -143,7 +143,7 @@ func updateCapacityToNode(vgList, qpList []*StorageCapacity) error {
 		log.Errorf("Update volumecapacity with json.Marshal error: %s", err.Error())
 		return err
 	}
-	nodeInfo.Annotations["csi.alibabacloud.com/storage-capacity"] = string(capacity)
+	nodeInfo.Annotations["csi.alibabacloud.com/storage-topology"] = string(capacity)
 	_, err = types.GlobalConfigVar.KubeClient.CoreV1().Nodes().Update(context.Background(), nodeInfo, metav1.UpdateOptions{})
 	if err != nil {
 		log.Errorf("Update volumecapacity to node with error: %s", err.Error())
@@ -160,7 +160,7 @@ func getCapacityFromNode() []*StorageCapacity {
 		log.Errorf("getCapacityFromNode:: get node info with error : %s", err.Error())
 		return nil
 	}
-	if value, ok := nodeInfo.Annotations["csi.alibabacloud.com/storage-capacity"]; ok {
+	if value, ok := nodeInfo.Annotations["csi.alibabacloud.com/storage-topology"]; ok {
 		err := json.Unmarshal([]byte(value), &capacityList)
 		if err != nil {
 			log.Errorf("getCapacityFromNode:: get node info with json.Unmarshal error : %s", err.Error())
