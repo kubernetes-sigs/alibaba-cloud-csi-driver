@@ -292,7 +292,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			return nil, status.Errorf(codes.Internal, "exist disk %s is different with requested for disk", req.GetName())
 		}
 		log.Infof("CreateVolume: Volume %s is already created: %s, %s, %s, %d", req.GetName(), disk.DiskId, disk.RegionId, disk.ZoneId, disk.Size)
-		tmpVol := volumeCreate(disk.DiskId, volSizeBytes, req.GetParameters(), diskVol.ZoneID, nil)
+		tmpVol := volumeCreate(disk.Category, disk.DiskId, volSizeBytes, req.GetParameters(), diskVol.ZoneID, nil)
 		return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 	}
 
@@ -443,7 +443,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 	}
 
-	tmpVol := volumeCreate(volumeResponse.DiskId, volSizeBytes, volumeContext, diskVol.ZoneID, src)
+	tmpVol := volumeCreate(createdDiskType, volumeResponse.DiskId, volSizeBytes, volumeContext, diskVol.ZoneID, src)
 
 	diskIDPVMap[volumeResponse.DiskId] = req.Name
 	createdVolumeMap[req.Name] = tmpVol

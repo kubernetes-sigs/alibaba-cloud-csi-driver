@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
 	"net"
 	"net/http"
 	"os"
@@ -139,6 +140,10 @@ const (
 	RemoteSnapshotLabelKey = "csi.alibabacloud.com/snapshot.targetregion"
 	// SnapshotVolumeKey ...
 	SnapshotVolumeKey = "csi.alibabacloud.com/snapshot.volumeid"
+	labelAppendPrefix = "csi.alibabacloud.com/label-prefix/"
+	annVolumeTopoKey  = "csi.alibabacloud.com/volume-topo"
+	labelVolumeType   = "csi.alibabacloud.com/actual-disktype"
+	annAppendPrefix   = "csi.alibabacloud.com/annotation-prefix/"
 )
 
 var (
@@ -1442,7 +1447,7 @@ func createRoleClient(uid string) (cli *ecs.Client, err error) {
 	return cli, nil
 }
 
-func volumeCreate(diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, contextSource *csi.VolumeContentSource) *csi.Volume {
+func volumeCreate(diskType, diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, contextSource *csi.VolumeContentSource) *csi.Volume {
 	accessibleTopology := []*csi.Topology{
 		{
 			Segments: map[string]string{
@@ -1456,6 +1461,38 @@ func volumeCreate(diskID string, volSizeBytes int64, volumeContext map[string]st
 				TopologyMultiZonePrefix + zoneID: "true",
 			},
 		})
+	}
+	if diskType != "" {
+		// Add PV Label
+		diskTypePL := diskType
+		if diskType == DiskESSD {
+			if pl, ok := volumeContext["performanceLevel"]; ok && pl != "" {
+				diskTypePL = fmt.Sprintf("%s.%s", DiskESSD, pl)
+				// TODO delete performanceLevel key
+				// delete(volumeContext, "performanceLevel")
+			} else {
+				diskTypePL = fmt.Sprintf("%s.%s", DiskESSD, "PL1")
+			}
+		}
+		volumeContext[labelAppendPrefix+labelVolumeType] = diskTypePL
+		// TODO delete type key
+		// delete(volumeContext, "type")
+
+		// Add PV NodeAffinity
+		labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
+		expressions := []v1.NodeSelectorRequirement{{
+			Key:      labelKey,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   []string{"available"},
+		}}
+		terms := []v1.NodeSelectorTerm{{
+			MatchExpressions: expressions,
+		}}
+		diskTypeTopo := &v1.NodeSelector{
+			NodeSelectorTerms: terms,
+		}
+		diskTypeTopoBytes, _ := json.Marshal(diskTypeTopo)
+		volumeContext[annAppendPrefix+annVolumeTopoKey] = string(diskTypeTopoBytes)
 	}
 
 	tmpVol := &csi.Volume{
@@ -1499,7 +1536,7 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest) (*csi.Volume, error) {
 		return nil, perrors.Errorf("Disk %s is not expected capacity: expected(%d), disk(%d)", diskID, volSizeBytes, diskSizeBytes)
 	}
 
-	return volumeCreate(diskID, volSizeBytes, volumeContext, disk.ZoneId, nil), nil
+	return volumeCreate(disk.Category, diskID, volSizeBytes, volumeContext, disk.ZoneId, nil), nil
 }
 
 // updateVolumeContext remove unneccessary volume context
