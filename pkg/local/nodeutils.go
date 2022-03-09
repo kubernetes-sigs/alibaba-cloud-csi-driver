@@ -77,8 +77,13 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 		}
 	}
 
-	isMnt := utils.IsMounted(targetPath)
-	if !isMnt {
+	isNotMnt, err := ns.mounter.IsNotMountPoint(targetPath)
+	if err != nil {
+		log.Errorf("NodePublishVolume: check target path mounted err: %+v", err)
+		return status.Error(codes.Internal, err.Error())
+	}
+
+	if isNotMnt {
 		var options []string
 		if req.GetReadonly() {
 			options = append(options, "ro")
@@ -97,7 +102,7 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 	}
 
 	// Set volume IO Limit
-	err := setVolumeIOLimit(devicePath, req)
+	err = setVolumeIOLimit(devicePath, req)
 	if err != nil {
 		log.Errorf("NodePublishVolume: Set Volume(%s) IO Limit with Error: %s", volumeID, err.Error())
 		return status.Error(codes.Internal, err.Error())

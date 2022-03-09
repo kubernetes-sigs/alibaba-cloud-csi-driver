@@ -920,7 +920,7 @@ func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 				// the disk has been formatted successfully try to mount it again.
 				return diskMounter.Interface.Mount(source, target, fstype, mountOptions)
 			}
-			log.Errorf("format of disk %q failed: type:(%q) target:(%q) options:(%q)error:(%v)", source, fstype, target, mkfsOptions, err)
+			log.Errorf("format of disk %q failed: type:(%q) target:(%q) options:(%q) error:(%v)", source, fstype, target, args, err)
 			return err
 		}
 		// Disk is already formatted and failed to mount

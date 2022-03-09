@@ -37,6 +37,7 @@ require (
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
 	google.golang.org/grpc v1.27.1
 	google.golang.org/protobuf v1.27.1
+	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 	k8s.io/api v0.19.0
 	k8s.io/apiextensions-apiserver v0.0.0
@@ -44,7 +45,7 @@ require (
 	k8s.io/client-go v0.19.0
 	k8s.io/kube-openapi v0.0.0-20200811211545-daf3cbb84823 // indirect
 	k8s.io/kubernetes v1.18.8
-	k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89
+	k8s.io/utils v0.0.0-20211116205334-6203023598ed
 )
 
 replace (
