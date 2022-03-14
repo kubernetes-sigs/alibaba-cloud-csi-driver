@@ -1106,10 +1106,10 @@ func validateDiskType(opts map[string]string) (diskType string, err error) {
 		return
 	}
 	if strings.Contains(opts["type"], ",") {
-		orderedList := make([]string, 3)
+		orderedList := []string{}
 		for _, cusType := range strings.Split(opts["type"], ",") {
-			if value, ok := CustomDiskTypes[cusType]; ok {
-				orderedList[value] = cusType
+			if _, ok := CustomDiskTypes[cusType]; ok {
+				orderedList = append(orderedList, cusType)
 			} else {
 				return diskType, fmt.Errorf("Illegal required parameter type: " + cusType)
 			}
