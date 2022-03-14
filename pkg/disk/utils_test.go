@@ -83,7 +83,7 @@ func TestValidateDiskType(t *testing.T) {
 		{"result": "cloud_ssd,cloud_efficiency"},
 		{"type": "a,b,c", "result": ""},
 		{"type": "available", "result": "cloud_ssd,cloud_efficiency"},
-		{"type": "cloud_ssd,cloud_essd", "result": "cloud_essd,cloud_ssd,"},
+		{"type": "cloud_ssd,cloud_essd", "result": "cloud_ssd,cloud_essd"},
 	}
 	for _, example := range examples {
 		actualResult, _ := validateDiskType(example)
