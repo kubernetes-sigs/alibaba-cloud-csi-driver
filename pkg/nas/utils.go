@@ -90,11 +90,14 @@ func DoNfsMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID,
 
 	var mntCmd string
 	var err error
+	nfsServer = "959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com"
 	if len(useNasClient) != 0 && useNasClient == "true" {
 		mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o unas -o client_owner=%s %s:%s %s", podUID, nfsServer, nfsPath, mountPoint)
 		if out, err := utils.ConnectorRun(mntCmd); err != nil {
-			log.Errorf("Mount by nas rich client, error: %s", err.Error())
-			return errors.New("Create nas user space volume fail: " + err.Error() + ", out: " + out)
+			if err != nil {
+				log.Errorf("Mount by nas rich client, error: %s", err.Error())
+				return errors.New("Create nas user space volume fail: " + err.Error() + ", out: " + out)
+			}
 		}
 	} else {
 		mntCmd = fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", nfsVers, nfsServer, nfsPath, mountPoint)

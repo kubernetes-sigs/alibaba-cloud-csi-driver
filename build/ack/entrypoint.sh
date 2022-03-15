@@ -30,7 +30,7 @@ if [ "${USE_NAS_RICH_CLIENT}" == "true" ]; then
     nas_rich_client=""
     echo "Installing nas rich client, kernel_version is:"${kernel_version}
     if [ ${kernel_main_version} -eq 4 ] && [ ${kernel_minor_version} -eq 19 ]; then
-        nas_rich_client="unas-4.19.91-24-for-ack-poc-1.3.rpm"
+        nas_rich_client="unas-4.19.91-24-for-ack-poc-1.10.rpm"
     elif [ ${kernel_main_version} -eq 3 ] && [ ${kernel_minor_version} -eq 10 ]; then
         nas_rich_client="unas-kernel-3.10.0-1160.15.2-for-ack.rpm"
     elif [ ${kernel_main_version} -eq 5 ] && [ ${kernel_minor_version} -eq 10 ]; then
