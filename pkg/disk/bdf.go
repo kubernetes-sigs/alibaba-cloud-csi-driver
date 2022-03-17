@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"io"
 	"io/ioutil"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/pkg/errors"
@@ -298,23 +300,47 @@ func storeBdfInfo(diskID, bdf string) (err error) {
 	return nil
 }
 
+// remove ecs bdf tag: bdf.csi.aliyun.com
 func clearBdfInfo(diskID, bdf string) (err error) {
-	info := BdfAttachInfo{
-		Depend:             bdf != "",
-		LastAttachedNodeID: GlobalConfigVar.NodeID,
-	}
-	infoBytes, _ := json.Marshal(info)
-
-	removeTagsRequest := ecs.CreateRemoveTagsRequest()
-	tmpTag := ecs.RemoveTagsTag{Key: DiskBdfTagKey, Value: string(infoBytes)}
-	removeTagsRequest.Tag = &[]ecs.RemoveTagsTag{tmpTag}
-	removeTagsRequest.ResourceType = "disk"
-	removeTagsRequest.ResourceId = diskID
-	removeTagsRequest.RegionId = GlobalConfigVar.Region
 	ecsClient, err := getEcsClientByID(diskID, "")
 	if err != nil {
 		return err
 	}
+
+	bdfInfoString := ""
+	if bdf == "" {
+		diskInfo := getDisk(diskID, ecsClient)
+		if len(diskInfo) != 1 {
+			log.Warnf("clearBdfInfo: cannot get disk: %s", diskID)
+			return err
+		}
+		bdfTagExist := false
+		for _, tag := range diskInfo[0].Tags.Tag {
+			if tag.Key == DiskBdfTagKey {
+				bdfInfoString = tag.Value
+				bdfTagExist = true
+				break
+			}
+		}
+		if !bdfTagExist {
+			return nil
+		}
+	}
+	if bdfInfoString == "" {
+		info := BdfAttachInfo{
+			Depend:             bdf != "",
+			LastAttachedNodeID: GlobalConfigVar.NodeID,
+		}
+		infoBytes, _ := json.Marshal(info)
+		bdfInfoString = string(infoBytes)
+	}
+
+	removeTagsRequest := ecs.CreateRemoveTagsRequest()
+	tmpTag := ecs.RemoveTagsTag{Key: DiskBdfTagKey, Value: bdfInfoString}
+	removeTagsRequest.Tag = &[]ecs.RemoveTagsTag{tmpTag}
+	removeTagsRequest.ResourceType = "disk"
+	removeTagsRequest.ResourceId = diskID
+	removeTagsRequest.RegionId = GlobalConfigVar.Region
 	_, err = ecsClient.RemoveTags(removeTagsRequest)
 	if err != nil {
 		log.Warnf("storeBdfInfo: Remove error: %s, %s", diskID, err.Error())
@@ -371,7 +397,13 @@ func forceDetachAllowed(ecsClient *ecs.Client, disk *ecs.Disk, nodeID string) (a
 }
 
 var vfOnce = new(sync.Once)
+
+// isVF means ecs running in VF mode
+// the instance is VF Node, and iohub-vfhp-helper not working
 var isVF = false
+
+// isVFInstance means instance is VF Node;
+var isVFInstance = false
 
 // IsVFNode returns whether the current node is vf
 func IsVFNode() bool {
@@ -404,9 +436,37 @@ func IsVFNode() bool {
 			matched = FindLines(output, "Single Root I/O Virtualization")
 			if len(matched) > 0 {
 				isVF = true
+				isVFInstance = true
 				break
 			}
 		}
+		// check iohub-vfhp-helper is running the system;
+		// if service is running, bdf mode is turn off;
+		checkVfhpOnline()
 	})
 	return isVF
+}
+
+func checkVfhpOnlineReconcile() {
+	for {
+		vfRecord := isVF
+		checkVfhpOnline()
+		if vfRecord != isVF {
+			log.Infof("Node iohub-vfhp-helper is changed, isVF flag from %t to %t", vfRecord, isVF)
+		}
+		time.Sleep(time.Duration(60) * time.Second)
+	}
+}
+
+func checkVfhpOnline() {
+	cmd := fmt.Sprintf("%s service iohub-vfhp-helper status", NsenterCmd)
+	_, err := utils.Run(cmd)
+	if err == nil {
+		isVF = false
+	}
+}
+
+// IsVFInstance check node is vf or not;
+func IsVFInstance() bool {
+	return isVFInstance
 }
