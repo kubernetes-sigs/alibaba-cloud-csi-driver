@@ -141,7 +141,7 @@ const (
 	// SnapshotVolumeKey ...
 	SnapshotVolumeKey = "csi.alibabacloud.com/snapshot.volumeid"
 	labelAppendPrefix = "csi.alibabacloud.com/label-prefix/"
-	annVolumeTopoKey  = "csi.alibabacloud.com/volume-topo"
+	annVolumeTopoKey  = "csi.alibabacloud.com/volume-topology"
 	labelVolumeType   = "csi.alibabacloud.com/disktype"
 	annAppendPrefix   = "csi.alibabacloud.com/annotation-prefix/"
 )
