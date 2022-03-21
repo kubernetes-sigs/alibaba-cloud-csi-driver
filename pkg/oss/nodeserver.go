@@ -378,16 +378,6 @@ func (ns *nodeServer) NodeUnstageVolume(
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
-// IsHostMounted return status of host mounted or not
-func IsHostMounted(mountPath string) bool {
-	cmd := fmt.Sprintf("%s mount | grep \"%s type\" | grep -v grep", NsenterCmd, mountPath)
-	out, err := utils.Run(cmd)
-	if err != nil || out == "" {
-		return false
-	}
-	return true
-}
-
 func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (
 	*csi.NodeExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
