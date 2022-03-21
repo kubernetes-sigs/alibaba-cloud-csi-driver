@@ -233,9 +233,28 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return &csi.CreateVolumeResponse{Volume: value}, nil
 	}
 
+	snapshotID := ""
+	volumeSource := req.GetVolumeContentSource()
+	if volumeSource != nil {
+		if _, ok := volumeSource.GetType().(*csi.VolumeContentSource_Snapshot); !ok {
+			return nil, status.Error(codes.InvalidArgument, "CreateVolume: unsupported volumeContentSource type")
+		}
+		sourceSnapshot := volumeSource.GetSnapshot()
+		if sourceSnapshot == nil {
+			return nil, status.Error(codes.InvalidArgument, "CreateVolume: get empty snapshot from volumeContentSource")
+		}
+		snapshotID = sourceSnapshot.GetSnapshotId()
+	}
+	// set snapshotID if pvc labels/annotation set it.
+	if snapshotID == "" {
+		if value, ok := req.Parameters[DiskSnapshotID]; ok && value != "" {
+			snapshotID = value
+		}
+	}
+
 	// 兼容 serverless 拓扑感知场景；
 	// req参数里面包含了云盘ID，则直接使用云盘ID进行返回；
-	csiVolume, err := staticVolumeCreate(req)
+	csiVolume, err := staticVolumeCreate(req, snapshotID)
 	if err != nil {
 		log.Errorf("CreateVolume: static volume(%s) describe with error: %s", req.Name, err.Error())
 		return nil, err
@@ -294,25 +313,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		log.Infof("CreateVolume: Volume %s is already created: %s, %s, %s, %d", req.GetName(), disk.DiskId, disk.RegionId, disk.ZoneId, disk.Size)
 		tmpVol := volumeCreate(disk.Category, disk.DiskId, volSizeBytes, req.GetParameters(), diskVol.ZoneID, nil)
 		return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
-	}
-
-	snapshotID := ""
-	volumeSource := req.GetVolumeContentSource()
-	if volumeSource != nil {
-		if _, ok := volumeSource.GetType().(*csi.VolumeContentSource_Snapshot); !ok {
-			return nil, status.Error(codes.InvalidArgument, "CreateVolume: unsupported volumeContentSource type")
-		}
-		sourceSnapshot := volumeSource.GetSnapshot()
-		if sourceSnapshot == nil {
-			return nil, status.Error(codes.InvalidArgument, "CreateVolume: get empty snapshot from volumeContentSource")
-		}
-		snapshotID = sourceSnapshot.GetSnapshotId()
-	}
-	// set snapshotID if pvc labels/annotation set it.
-	if snapshotID == "" {
-		if value, ok := req.Parameters[DiskSnapshotID]; ok && value != "" {
-			snapshotID = value
-		}
 	}
 
 	// Step 3: init Disk create args
@@ -429,7 +429,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	volumeContext = updateVolumeContext(volumeContext)
 
-	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeResponse.DiskId, diskVol.ZoneID, createdDiskType, requestGB, volumeResponse.RequestId)
+	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], snapshotID[%s], requestId[%s]", req.GetName(), volumeResponse.DiskId, diskVol.ZoneID, createdDiskType, requestGB, snapshotID, volumeResponse.RequestId)
 
 	// Set VolumeContentSource
 	var src *csi.VolumeContentSource

@@ -1508,7 +1508,7 @@ func volumeCreate(diskType, diskID string, volSizeBytes int64, volumeContext map
 
 // staticVolumeCreate 检查输入参数，如果包含了云盘ID，则直接使用云盘进行返回；
 // 根据云盘ID请求云盘的具体属性，并作为pv参数返回；
-func staticVolumeCreate(req *csi.CreateVolumeRequest) (*csi.Volume, error) {
+func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.Volume, error) {
 	paras := req.GetParameters()
 	diskID := paras[annDiskID]
 	if diskID == "" {
@@ -1536,7 +1536,19 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest) (*csi.Volume, error) {
 		return nil, perrors.Errorf("Disk %s is not expected capacity: expected(%d), disk(%d)", diskID, volSizeBytes, diskSizeBytes)
 	}
 
-	return volumeCreate(disk.Category, diskID, volSizeBytes, volumeContext, disk.ZoneId, nil), nil
+	// Set VolumeContentSource
+	var src *csi.VolumeContentSource
+	if snapshotID != "" {
+		src = &csi.VolumeContentSource{
+			Type: &csi.VolumeContentSource_Snapshot{
+				Snapshot: &csi.VolumeContentSource_SnapshotSource{
+					SnapshotId: snapshotID,
+				},
+			},
+		}
+	}
+
+	return volumeCreate(disk.Category, diskID, volSizeBytes, volumeContext, disk.ZoneId, src), nil
 }
 
 // updateVolumeContext remove unneccessary volume context
