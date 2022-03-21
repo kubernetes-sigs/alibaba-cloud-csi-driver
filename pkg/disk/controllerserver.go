@@ -429,7 +429,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	volumeContext = updateVolumeContext(volumeContext)
 
-	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeResponse.DiskId, diskVol.ZoneID, createdDiskType, requestGB, volumeResponse.RequestId)
+	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], snapshotID[%s], requestId[%s]", req.GetName(), volumeResponse.DiskId, diskVol.ZoneID, createdDiskType, requestGB, snapshotID, volumeResponse.RequestId)
 
 	// Set VolumeContentSource
 	var src *csi.VolumeContentSource
