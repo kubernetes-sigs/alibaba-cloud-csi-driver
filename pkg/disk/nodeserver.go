@@ -179,7 +179,11 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		log.Infof("Currently node is VF model")
 		go checkVfhpOnlineReconcile()
 	} else {
-		log.Infof("Currently node is NOT VF model")
+		if IsVFInstance() {
+			log.Infof("Currently node is NOT VF model, But is VF Node")
+		} else {
+			log.Infof("Currently node is NOT VF model, Also not VF Node")
+		}
 	}
 	go UpdateNode(nodeID, kubeClient, c)
 
@@ -708,10 +712,8 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			log.Errorf("NodeUnstageVolume: unbind bdf disk %s with error: %v", req.VolumeId, err)
 			return nil, err
 		}
-	}
-
-	// if vf hotplug is running, and node is VF Instance, remove the disk bdf tag;
-	if IsVFInstance() && !IsVFNode() {
+	} else if IsVFInstance() {
+		// if vf hotplug is running, and node is VF Instance, remove the disk bdf tag;
 		if err := clearBdfInfo(req.VolumeId, ""); err != nil {
 			log.Errorf("NodeUnstageVolume: clear disk bdf info %s with error: %v", req.VolumeId, err)
 			return nil, err

@@ -274,7 +274,7 @@ func detachDisk(ecsClient *ecs.Client, diskID, nodeID string) error {
 					err = errors.Wrapf(err, "detachDisk forceDetachAllowed")
 					return status.Errorf(codes.Aborted, err.Error())
 				} else if !allowed {
-					err = errors.Errorf("detachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.InstanceId, disk.InstanceId)
+					err = errors.Errorf("detachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.DiskId, disk.InstanceId)
 					log.Error(err)
 					return status.Errorf(codes.Aborted, err.Error())
 				}

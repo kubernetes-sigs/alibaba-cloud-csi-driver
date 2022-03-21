@@ -316,8 +316,8 @@ func clearBdfInfo(diskID, bdf string) (err error) {
 		}
 		bdfTagExist := false
 		for _, tag := range diskInfo[0].Tags.Tag {
-			if tag.Key == DiskBdfTagKey {
-				bdfInfoString = tag.Value
+			if tag.TagKey == DiskBdfTagKey {
+				bdfInfoString = tag.TagValue
 				bdfTagExist = true
 				break
 			}
@@ -347,7 +347,7 @@ func clearBdfInfo(diskID, bdf string) (err error) {
 		return err
 	}
 
-	log.Infof("Deleting bdf information successfully")
+	log.Infof("Deleting bdf information successfully for Disk: %s", diskID)
 	return nil
 }
 
