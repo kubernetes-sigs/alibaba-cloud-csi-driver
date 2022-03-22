@@ -102,9 +102,9 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 	}
 
 	// Set volume IO Limit
-	err = setVolumeIOLimit(devicePath, req)
+	err = utils.SetVolumeIOLimit(devicePath, req)
 	if err != nil {
-		log.Errorf("NodePublishVolume: Set Volume(%s) IO Limit with Error: %s", volumeID, err.Error())
+		log.Errorf("NodePublishVolume: Set LVM Volume(%s) IO Limit with Error: %s", volumeID, err.Error())
 		return status.Error(codes.Internal, err.Error())
 	}
 
