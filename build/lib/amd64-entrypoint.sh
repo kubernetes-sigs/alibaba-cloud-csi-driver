@@ -217,15 +217,7 @@ fi
 
 ## CPFS-NAS plugin setup
 if [ "$run_nas" = "true" ]; then
-      if [ $CPFS_NAS_ENABLE = "true" ]; then
-        echo "run in cpfs-nas mode"
-        if [ ! `/nsenter --mount=/proc/1/ns/mnt rpm -qa | grep aliyun-cpfs-utils` ]; then
-            echo "First install cpfs-nas"
-            cp /csi/aliyun-cpfs-nfs-utils-1.0-1.al.noarch.rpm /host/etc/csi-tool/
-            /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/aliyun-cpfs-nfs-utils-1.0-1.al.noarch.rpm
-            #/nsenter --mount=/proc/1/ns/mnt yum lcoalinstall -y /csi/aliyun-cpfs-nfs-utils-1.0-1.al.noarch.rpm
-        fi
-      fi
+    cp /csi/aliyun-cpfs-nfs-utils-1.0-2.al.noarch.rpm /host/etc/csi-tool/
 fi
 
 # start daemon

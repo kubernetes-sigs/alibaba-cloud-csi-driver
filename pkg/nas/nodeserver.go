@@ -86,9 +86,9 @@ const (
 	RunvRunTimeMode = "runv"
 	// NasMntPoint tag
 	NasMntPoint = "/mnt/nasplugin.alibabacloud.com"
-	// ProtocolNFS common nfs protocol
+	// MountProtocolNFS common nfs protocol
 	MountProtocolNFS = "nfs"
-	// ProtocolCFPSNFS cpfs-nfs protocol
+	// MountProtocolCFPSNFS cpfs-nfs protocol
 	MountProtocolCFPSNFS = "cpfs-nfs"
 	// MountProtocolTag tag
 	MountProtocolTag = "mountProtocol"
@@ -296,6 +296,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// if system not set nas, config it.
 	checkSystemNasConfig()
 
+	//use cpfs-nfs grayscale unit test
+	if !GlobalConfigVar.CpfsNfsEnable && opt.MountProtocol == MountProtocolCFPSNFS {
+		return nil, errors.New("Cpfs-NFS is testing in grayscale.Please set cpfs-nas-enable to true for the configmap of csi-plugin under the kube-system namespace")
+	}
 	// Do mount
 	if err := DoNfsMount(opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, mountPath, req.VolumeId); err != nil {
 		log.Errorf("Nas, Mount Nfs error: %s", err.Error())

@@ -72,7 +72,6 @@ func NewDriver(nodeID, endpoint string) *CPFS {
 func newNodeServer(d *CPFS) *nodeServer {
 	// do cpfs set_param init
 	doCpfsConfig()
-
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
 	}

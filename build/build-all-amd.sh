@@ -17,7 +17,7 @@ cp build/lib/csiplugin-connector.service build/amd/csiplugin-connector.service
 cp build/lib/amd64-nsenter build/amd/nsenter
 cp build/lib/freezefs.sh build/amd/freezefs.sh
 cp build/lib/jindofs-fuse-3.7.3-20211207.tar.gz build/amd/jindofs-fuse-3.7.3-20211207.tar.gz
-cp build/lib/aliyun-cpfs-nfs-utils-1.0-1.al.noarch.rpm build/amd/aliyun-cpfs-nfs-utils-1.0-1.al.noarch.rpm
+cp build/lib/aliyun-cpfs-nfs-utils-1.0-2.al.noarch.rpm build/amd/aliyun-cpfs-nfs-utils-1.0-2.al.noarch.rpm
 cp build/lib/amd64-entrypoint.sh build/amd/amd64-entrypoint.sh
 
 export GOARCH="amd64"
@@ -36,6 +36,6 @@ CGO_ENABLED=0 go build csiplugin-connector.go
 if [ "$1" == "" ]; then
   mv ${GOPATH}/src/github.com/$REPO_NAME/alibaba-cloud-csi-driver/plugin.csi.alibabacloud.com ./
   docker build -t=registry.cn-hangzhou.aliyuncs.com/plugins/csi-plugin:$VERSION-$GIT_HASH ./
-  rm -rf csiplugin-connector.go csiplugin-connector.service csiplugin-connector plugin.csi.alibabacloud.com ossfs_1.80.6_centos7.0_x86_64.rpm nsenter jindofs-fuse jindofs-fuse-3.7.3-20211207.tar.gz aliyun-cpfs-nfs-utils-1.0-1.al.noarch.rpm amd64-entrypoint.sh freezefs.sh
+  rm -rf csiplugin-connector.go csiplugin-connector.service csiplugin-connector plugin.csi.alibabacloud.com ossfs_1.80.6_centos7.0_x86_64.rpm nsenter jindofs-fuse jindofs-fuse-3.7.3-20211207.tar.gz aliyun-cpfs-nfs-utils-1.0-2.al.noarch.rpm amd64-entrypoint.sh freezefs.sh
   docker push registry.cn-hangzhou.aliyuncs.com/plugins/csi-plugin:$VERSION-$GIT_HASH
 fi
