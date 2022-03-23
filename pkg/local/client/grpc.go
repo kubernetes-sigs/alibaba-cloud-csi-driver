@@ -30,6 +30,7 @@ import (
 	"net"
 	"strings"
 	"time"
+	grpcpool "github.com/processout/grpc-go-pool"
 )
 
 // Connection lvm connection interface
@@ -38,7 +39,6 @@ type Connection interface {
 	CreateLvm(ctx context.Context, opt *LVMOptions) (string, error)
 	DeleteLvm(ctx context.Context, volGroup string, volumeID string) error
 	CleanPath(ctx context.Context, path string) error
-	Close() error
 	GetNameSpace(ctx context.Context, regionName string, volumeID string) (string, error)
 	CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*manager.PmemNameSpace, error)
 	DeleteNameSpace(ctx context.Context, volumeID string) error
@@ -65,7 +65,7 @@ type NameSpaceOptions struct {
 
 //
 type workerConnection struct {
-	conn             *grpc.ClientConn
+	pool             *grpcpool.Pool
 	mountPathWithTLS string
 }
 
@@ -78,22 +78,54 @@ const (
 	caCertFileName     = "ca_cert.pem"
 	clientCertFileName = "client_cert.pem"
 	clientKeyFileName  = "client_key.pem"
+	minConnectionCount = 1
+	maxConnectionCount = 8
 )
 
 // NewGrpcConnection lvm connection
 func NewGrpcConnection(address string, timeout time.Duration, caCertFile string, clientCertFile string, clientKeyFile string) (Connection, error) {
 	creds, err := utils.NewClientTLSFromFile(serverName, caCertFile, clientCertFile, clientKeyFile)
-	conn, err := connect(address, timeout, creds)
+	factory := func() (*grpc.ClientConn, error) {
+	    log.Infof("factory: new Connecting to %s", address)
+		dialOptions := []grpc.DialOption{
+			grpc.WithTransportCredentials(creds),
+			grpc.WithBackoffMaxDelay(time.Second),
+			grpc.WithUnaryInterceptor(logGRPC),
+		}
+		if strings.HasPrefix(address, "/") {
+			dialOptions = append(dialOptions, grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
+				return net.DialTimeout("unix", addr, timeout)
+			}))
+		}
+		conn, err := grpc.Dial(address, dialOptions...)
+		if err != nil {
+		    log.Infof("factory: dial conn err: %+v", err)
+			return nil, err
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	    defer cancel()
+	    for {
+	    	if !conn.WaitForStateChange(ctx, conn.GetState()) {
+	    		log.Warnf("Connection to %s timed out", address)
+	    		return conn, nil // return nil, subsequent GetPluginInfo will show the real connection error
+	    	}
+	    	if conn.GetState() == connectivity.Ready {
+	    		log.Warnf("Connected to %s", address)
+	    		return conn, nil
+	    	}
+	    	log.Infof("Still trying to connect %s, connection is %s", address, conn.GetState())
+	    }
+	}
+
+	pool, err := grpcpool.New(factory, minConnectionCount, maxConnectionCount, timeout)
 	if err != nil {
+		log.Errorf("NewGrpcConnection: failed to create pool: %v", pool)
 		return nil, err
 	}
-	return &workerConnection{
-		conn: conn,
-	}, nil
-}
 
-func (c *workerConnection) Close() error {
-	return c.conn.Close()
+	return &workerConnection{
+		pool: pool,
+	}, nil
 }
 
 func connect(address string, timeout time.Duration, creds credentials.TransportCredentials) (*grpc.ClientConn, error) {
@@ -129,7 +161,13 @@ func connect(address string, timeout time.Duration, creds credentials.TransportC
 }
 
 func (c *workerConnection) CreateLvm(ctx context.Context, opt *LVMOptions) (string, error) {
-	client := lib.NewLVMClient(c.conn)
+	conn, err := c.pool.Get(ctx)
+	if err != nil {
+		log.Errorf("CreateLvm: failed to get conn from pool: %+v", err)
+		return "", err
+	}
+	defer conn.Close()
+	client := lib.NewLVMClient(conn)
 	req := lib.CreateLVRequest{
 		VolumeGroup: opt.VolumeGroup,
 		Name:        opt.Name,
@@ -148,7 +186,13 @@ func (c *workerConnection) CreateLvm(ctx context.Context, opt *LVMOptions) (stri
 }
 
 func (c *workerConnection) CreateNameSpace(ctx context.Context, opt *NameSpaceOptions) (*manager.PmemNameSpace, error) {
-	client := lib.NewLVMClient(c.conn)
+	conn, err := c.pool.Get(ctx)
+	if err != nil {
+		log.Errorf("CreateLvm: failed to get conn from pool: %+v", err)
+		return nil, err
+	}
+	defer conn.Close()
+	client := lib.NewLVMClient(conn)
 	req := lib.CreateNamespaceRequest{
 		Name:   opt.Name,
 		Size:   opt.Size,
@@ -170,7 +214,13 @@ func (c *workerConnection) CreateNameSpace(ctx context.Context, opt *NameSpaceOp
 }
 
 func (c *workerConnection) GetNameSpace(ctx context.Context, regionName string, volumeID string) (string, error) {
-	client := lib.NewLVMClient(c.conn)
+	conn, err := c.pool.Get(ctx)
+	if err != nil {
+		log.Errorf("CreateLvm: failed to get conn from pool: %+v", err)
+		return "", err
+	}
+	defer conn.Close()
+	client := lib.NewLVMClient(conn)
 	req := lib.ListNamespaceRequest{
 		NameSpace: volumeID,
 		Region:    regionName,
@@ -189,7 +239,13 @@ func (c *workerConnection) GetNameSpace(ctx context.Context, regionName string, 
 }
 
 func (c *workerConnection) GetLvm(ctx context.Context, volGroup string, volumeID string) (string, error) {
-	client := lib.NewLVMClient(c.conn)
+	conn, err := c.pool.Get(ctx)
+	if err != nil {
+		log.Errorf("CreateLvm: failed to get conn from pool: %+v", err)
+		return "", err
+	}
+	defer conn.Close()
+	client := lib.NewLVMClient(conn)
 	req := lib.ListLVRequest{
 		VolumeGroup: fmt.Sprintf("%s/%s", volGroup, volumeID),
 	}
@@ -208,7 +264,13 @@ func (c *workerConnection) GetLvm(ctx context.Context, volGroup string, volumeID
 }
 
 func (c *workerConnection) DeleteLvm(ctx context.Context, volGroup, volumeID string) error {
-	client := lib.NewLVMClient(c.conn)
+	conn, err := c.pool.Get(ctx)
+	if err != nil {
+		log.Errorf("CreateLvm: failed to get conn from pool: %+v", err)
+		return err
+	}
+	defer conn.Close()
+	client := lib.NewLVMClient(conn)
 	req := lib.RemoveLVRequest{
 		VolumeGroup: volGroup,
 		Name:        volumeID,
@@ -223,7 +285,13 @@ func (c *workerConnection) DeleteLvm(ctx context.Context, volGroup, volumeID str
 }
 
 func (c *workerConnection) DeleteNameSpace(ctx context.Context, namespace string) error {
-	client := lib.NewLVMClient(c.conn)
+	conn, err := c.pool.Get(ctx)
+	if err != nil {
+		log.Errorf("CreateLvm: failed to get conn from pool: %+v", err)
+		return err
+	}
+	defer conn.Close()
+	client := lib.NewLVMClient(conn)
 	req := lib.RemoveNamespaceRequest{
 		NameSpace: namespace,
 	}
@@ -237,7 +305,13 @@ func (c *workerConnection) DeleteNameSpace(ctx context.Context, namespace string
 }
 
 func (c *workerConnection) CleanPath(ctx context.Context, path string) error {
-	client := lib.NewLVMClient(c.conn)
+	conn, err := c.pool.Get(ctx)
+	if err != nil {
+		log.Errorf("CreateLvm: failed to get conn from pool: %+v", err)
+		return err
+	}
+	defer conn.Close()
+	client := lib.NewLVMClient(conn)
 	req := lib.CleanPathRequest{
 		Path: path,
 	}
@@ -251,7 +325,13 @@ func (c *workerConnection) CleanPath(ctx context.Context, path string) error {
 }
 
 func (c *workerConnection) CreateProjQuotaSubpath(ctx context.Context, pvName, size, rootPath string) (string, string, error) {
-	client := lib.NewProjQuotaClient(c.conn)
+	conn, err := c.pool.Get(ctx)
+	if err != nil {
+		log.Errorf("CreateLvm: failed to get conn from pool: %+v", err)
+		return "", "", err
+	}
+	defer conn.Close()
+	client := lib.NewProjQuotaClient(conn)
 	req := lib.CreateProjQuotaSubpathRequest{
 		PvName:    pvName,
 		QuotaSize: size,
@@ -268,7 +348,13 @@ func (c *workerConnection) CreateProjQuotaSubpath(ctx context.Context, pvName, s
 }
 
 func (c *workerConnection) SetSubpathProjQuota(ctx context.Context, quotaSubpath, blockSoftlimit, blockHardlimit, inodeSoftlimit, inodeHardlimit string) (string, error) {
-	client := lib.NewProjQuotaClient(c.conn)
+	conn, err := c.pool.Get(ctx)
+	if err != nil {
+		log.Errorf("CreateLvm: failed to get conn from pool: %+v", err)
+		return "", err
+	}
+	defer conn.Close()
+	client := lib.NewProjQuotaClient(conn)
 	req := lib.SetSubpathProjQuotaRequest{
 		ProjQuotaSubpath: quotaSubpath,
 		BlockSoftlimit:   blockSoftlimit,
@@ -287,7 +373,13 @@ func (c *workerConnection) SetSubpathProjQuota(ctx context.Context, quotaSubpath
 
 func (c *workerConnection) RemoveProjQuotaSubpath(ctx context.Context, quotaSubpath string) (string, error) {
 
-	client := lib.NewProjQuotaClient(c.conn)
+	conn, err := c.pool.Get(ctx)
+	if err != nil {
+		log.Errorf("CreateLvm: failed to get conn from pool: %+v", err)
+		return "", err
+	}
+	defer conn.Close()
+	client := lib.NewProjQuotaClient(conn)
 	req := lib.RemoveProjQuotaSubpathRequest{
 		QuotaSubpath: quotaSubpath,
 		ProjectId:    "",

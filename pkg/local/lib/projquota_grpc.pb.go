@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	grpcpool "github.com/processout/grpc-go-pool"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -25,10 +26,10 @@ type ProjQuotaClient interface {
 }
 
 type projQuotaClient struct {
-	cc *grpc.ClientConn
+	cc *grpcpool.ClientConn
 }
 
-func NewProjQuotaClient(cc *grpc.ClientConn) ProjQuotaClient {
+func NewProjQuotaClient(cc *grpcpool.ClientConn) ProjQuotaClient {
 	return &projQuotaClient{cc}
 }
 

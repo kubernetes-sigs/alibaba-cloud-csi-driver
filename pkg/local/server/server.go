@@ -32,6 +32,7 @@ import (
 const (
 	// LvmdPort is lvm daemon tcp port
 	LvmdPort = "1736"
+	ProfilePort = "18000"
 )
 
 // KubeClient for resource access

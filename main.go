@@ -18,14 +18,19 @@ package main
 
 import (
 	"flag"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
+
+	_ "net/http/pprof"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cpfs"
@@ -67,6 +72,8 @@ const (
 	PluginServicePort = "11260"
 	//ProvisionerServicePort default port is 11270.
 	ProvisionerServicePort = "11270"
+	// ProfileServicePort ...
+	ProfileServicePort = "12260"
 	// TypePluginDBFS local type plugin
 	TypePluginDBFS = "dbfsplugin.csi.alibabacloud.com"
 	// TypePluginDISK DISK type plugin
@@ -125,6 +132,13 @@ func main() {
 
 	if len(serviceType) == 0 || serviceType == "" {
 		serviceType = utils.PluginService
+	}
+
+	if os.Getenv("IS_PROFILING") == "true" {
+		runtime.SetBlockProfileRate(1)
+        go func() {
+        	http.ListenAndServe(fmt.Sprintf(":%s", ProfileServicePort), nil)
+        }()
 	}
 
 	// When serviceType is neither plugin nor provisioner, the program will exits.

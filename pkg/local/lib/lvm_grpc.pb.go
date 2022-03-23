@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	grpcpool "github.com/processout/grpc-go-pool"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -35,10 +36,10 @@ type LVMClient interface {
 }
 
 type lVMClient struct {
-	cc *grpc.ClientConn
+	cc *grpcpool.ClientConn
 }
 
-func NewLVMClient(cc *grpc.ClientConn) LVMClient {
+func NewLVMClient(cc *grpcpool.ClientConn) LVMClient {
 	return &lVMClient{cc}
 }
 
