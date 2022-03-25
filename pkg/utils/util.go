@@ -31,6 +31,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -102,6 +103,13 @@ const (
 
 // KubernetesAlicloudIdentity set a identity label
 var KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiPlugin")
+
+var (
+	// NodeAddrMap map for NodeID and its Address
+	NodeAddrMap = map[string]string{}
+	// NodeAddrMutex Mutex for NodeAddr map
+	NodeAddrMutex sync.RWMutex
+)
 
 // RoleAuth define STS Token Response
 type RoleAuth struct {
@@ -606,6 +614,13 @@ func Fsync(f *os.File) error {
 	return f.Sync()
 }
 
+// SetNodeAddrMap set map with mutex
+func SetNodeAddrMap(key string, value string) {
+	NodeAddrMutex.Lock()
+	NodeAddrMap[key] = value
+	NodeAddrMutex.Unlock()
+}
+
 //GetNodeAddr get node address
 func GetNodeAddr(client kubernetes.Interface, node string, port string) (string, error) {
 	ip, err := GetNodeIP(client, node)
@@ -617,6 +632,9 @@ func GetNodeAddr(client kubernetes.Interface, node string, port string) (string,
 
 // GetNodeIP get node address
 func GetNodeIP(client kubernetes.Interface, nodeID string) (net.IP, error) {
+	if value, ok := NodeAddrMap[nodeID]; ok && value != "" {
+		return net.ParseIP(value), nil
+	}
 	node, err := client.CoreV1().Nodes().Get(context.Background(), nodeID, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -627,9 +645,11 @@ func GetNodeIP(client kubernetes.Interface, nodeID string) (net.IP, error) {
 		addressMap[addresses[i].Type] = append(addressMap[addresses[i].Type], addresses[i])
 	}
 	if addresses, ok := addressMap[v1.NodeInternalIP]; ok {
+		SetNodeAddrMap(nodeID, addresses[0].Address)
 		return net.ParseIP(addresses[0].Address), nil
 	}
 	if addresses, ok := addressMap[v1.NodeExternalIP]; ok {
+		SetNodeAddrMap(nodeID, addresses[0].Address)
 		return net.ParseIP(addresses[0].Address), nil
 	}
 	return nil, fmt.Errorf("Node IP unknown; known addresses: %v", addresses)
