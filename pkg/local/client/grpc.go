@@ -78,7 +78,7 @@ const (
 	caCertFileName     = "ca_cert.pem"
 	clientCertFileName = "client_cert.pem"
 	clientKeyFileName  = "client_key.pem"
-	minConnectionCount = 1
+	minConnectionCount = 3
 	maxConnectionCount = 8
 )
 
@@ -102,19 +102,20 @@ func NewGrpcConnection(address string, timeout time.Duration, caCertFile string,
 		    log.Infof("factory: dial conn err: %+v", err)
 			return nil, err
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	    defer cancel()
-	    for {
-	    	if !conn.WaitForStateChange(ctx, conn.GetState()) {
-	    		log.Warnf("Connection to %s timed out", address)
-	    		return conn, nil // return nil, subsequent GetPluginInfo will show the real connection error
-	    	}
-	    	if conn.GetState() == connectivity.Ready {
-	    		log.Warnf("Connected to %s", address)
-	    		return conn, nil
-	    	}
-	    	log.Infof("Still trying to connect %s, connection is %s", address, conn.GetState())
-	    }
+		return conn, nil
+        // ctx, cancel := context.WithTimeout(context.Background(), timeout)
+        // defer cancel()
+        // for {
+        //     if !conn.WaitForStateChange(ctx, conn.GetState()) {
+        //         log.Warnf("Connection to %s timed out", address)
+        //         return conn, nil // return nil, subsequent GetPluginInfo will show the real connection error
+        //     }
+        //     if conn.GetState() == connectivity.Ready {
+        //         log.Warnf("Connected to %s", address)
+        //         return conn, nil
+        //     }
+        //     log.Infof("Still trying to connect %s, connection is %s", address, conn.GetState())
+        // }
 	}
 
 	pool, err := grpcpool.New(factory, minConnectionCount, maxConnectionCount, timeout)
