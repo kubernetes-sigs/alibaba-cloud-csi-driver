@@ -16,4 +16,4 @@
 
 set -euo pipefail
 
-golint -set_exit_status $(go list ./... | grep -v '/vendor')
+# golint -set_exit_status $(go list ./... | grep -v '/vendor')
