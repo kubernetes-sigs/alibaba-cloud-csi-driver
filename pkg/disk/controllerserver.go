@@ -97,6 +97,10 @@ const (
 	DefaultVolumeSnapshotClass = "alibabacloud-disk-snapshot"
 	// annDiskID tag
 	annDiskID = "volume.alibabacloud.com/disk-id"
+	// MinimumDiskSizeInGB ...
+	MinimumDiskSizeInGB = 20
+	// MinimumDiskSizeInBytes ...
+	MinimumDiskSizeInBytes = 21474836480
 )
 
 const (
@@ -135,19 +139,20 @@ type controllerServer struct {
 
 // Alicloud disk parameters
 type diskVolumeArgs struct {
-	Type             string              `json:"type"`
-	RegionID         string              `json:"regionId"`
-	ZoneID           string              `json:"zoneId"`
-	FsType           string              `json:"fsType"`
-	ReadOnly         bool                `json:"readOnly"`
-	MultiAttach      string              `json:"multiAttach"`
-	Encrypted        bool                `json:"encrypted"`
-	KMSKeyID         string              `json:"kmsKeyId"`
-	PerformanceLevel string              `json:"performanceLevel"`
-	ResourceGroupID  string              `json:"resourceGroupId"`
-	DiskTags         string              `json:"diskTags"`
-	NodeSelected     string              `json:"nodeSelected"`
-	ARN              []ecs.CreateDiskArn `json:"arn"`
+	Type                    string              `json:"type"`
+	RegionID                string              `json:"regionId"`
+	ZoneID                  string              `json:"zoneId"`
+	FsType                  string              `json:"fsType"`
+	ReadOnly                bool                `json:"readOnly"`
+	MultiAttach             string              `json:"multiAttach"`
+	Encrypted               bool                `json:"encrypted"`
+	KMSKeyID                string              `json:"kmsKeyId"`
+	PerformanceLevel        string              `json:"performanceLevel"`
+	ResourceGroupID         string              `json:"resourceGroupId"`
+	DiskTags                string              `json:"diskTags"`
+	NodeSelected            string              `json:"nodeSelected"`
+	ARN                     []ecs.CreateDiskArn `json:"arn"`
+	VolumeSizeAutoAvailable bool                `json:"volumeSizeAutoAvailable"`
 }
 
 // Alicloud disk snapshot parameters
@@ -275,6 +280,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
+	if diskVol.VolumeSizeAutoAvailable && requestGB < MinimumDiskSizeInGB {
+		log.Infof("CreateVolume: volume size was less than allowed limit. Setting request Size to %vGB. volumeSizeAutoAvailable is set.", MinimumDiskSizeInGB)
+		requestGB = MinimumDiskSizeInGB
+		volSizeBytes = MinimumDiskSizeInBytes
+	}
 	sharedDisk := diskVol.Type == DiskSharedEfficiency || diskVol.Type == DiskSharedSSD
 	nodeSupportDiskType := []string{}
 	if diskVol.NodeSelected != "" {
