@@ -179,6 +179,15 @@ type RoleAuth struct {
 	Code            string
 }
 
+// DiskTypeMatch struct of disk match record file
+type DiskTypeMatch struct {
+	NotSupportConfig map[string][]string `json:"notSupportConfig,omitempty"`
+	SupportConfig    map[string][]string `json:"supportConfig,omitempty"`
+}
+
+// DiskTypeMatchMap disk and ecs type
+var DiskTypeMatchMap = &DiskTypeMatch{}
+
 func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 	regionID := GetRegionID()
 	var err error
@@ -1245,76 +1254,142 @@ func getBlockDeviceCapacity(devicePath string) float64 {
 
 // UpdateNode ...
 func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
-	instanceStorageLabels := []string{}
-	ctx := context.Background()
+	// Get Instance Type first
+	var nodeInfo *v1.Node
 	nodeName := os.Getenv(kubeNodeName)
-	nodeInfo, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	instanceType, err := utils.GetMetaData("instance/instance-type")
 	if err != nil {
-		log.Errorf("UpdateNode:: get node info error : %s", err.Error())
-		return
-	}
-	instanceType := nodeInfo.Labels[instanceTypeLabel]
-	zoneID := nodeInfo.Labels[zoneIDLabel]
-	request := ecs.CreateDescribeAvailableResourceRequest()
-	request.InstanceType = instanceType
-	request.DestinationResource = describeResourceType
-	request.ZoneId = zoneID
-	var response *ecs.DescribeAvailableResourceResponse
-	for n := 1; n < RetryMaxTimes; n++ {
-		response, err = c.DescribeAvailableResource(request)
+		instanceType, err = utils.GetMetaData("instance/instance-type")
 		if err != nil {
-			log.Errorf("UpdateNode:: describe available resource with nodeID: %s", instanceType)
-			continue
-		}
-		break
-	}
-	availableZones := response.AvailableZones.AvailableZone
-	if len(availableZones) == 1 {
-		availableZone := availableZones[0]
-		availableResources := availableZone.AvailableResources.AvailableResource
-		if len(availableResources) == 1 {
-			dataDisk := availableResources[0]
-			if dataDisk.Type == describeResourceType {
-				for _, resource := range dataDisk.SupportedResources.SupportedResource {
-					labelKey := fmt.Sprintf(nodeStorageLabel, resource.Value)
-					instanceStorageLabels = append(instanceStorageLabels, labelKey)
-				}
+			nodeInfo, err = client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+			if err != nil {
+				log.Errorf("UpdateNode:: get node info error : %s", err.Error())
 			} else {
-				log.Errorf("UpdateNode:: multi available datadisk error: %v", availableResources)
-				return
+				instanceType = nodeInfo.Labels[instanceTypeLabel]
 			}
-		} else {
-			log.Errorf("UpdateNode:: multi available resource error: %v", availableResources)
-			return
 		}
-	} else {
-		log.Errorf("UpdateNode:: multi available zones error: %v", availableZones)
+	}
+	// If instanceType empty, just return;
+	if instanceType == "" && strings.HasPrefix(instanceType, "ecs.") {
+		log.Errorf("UpdateNode: no instance type got, should be just return")
 		return
 	}
+	if DiskTypeMatchMap == nil || len(DiskTypeMatchMap.NotSupportConfig) == 0 || len(DiskTypeMatchMap.SupportConfig) == 0 {
+		log.Errorf("UpdateNode: DiskMatchMap format error")
+		return
+	}
+
+	// 获取实例族名称
+	// ecs.g6.xlarge 对应 ecs.g6
+	rootInstanceTypeList := strings.Split(instanceType, ".")
+	rootInstanceTypeListLen := len(rootInstanceTypeList)
+	rootInstanceType := strings.Join(rootInstanceTypeList[0:rootInstanceTypeListLen-1], ".")
+
+	// 从默认configMap中获取实例族支持哪几种磁盘类型；
+	supportedDiskTypes := []string{}
+	foundInConfigMap := false
+	configMapName := "csi-disk-match-cm"
+	diskTypeMap, err := GlobalConfigVar.ClientSet.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("UpdateNode: Not found configmap named as %s under kube-system, with: %v", configMapName, err)
+	} else {
+		if value, ok := diskTypeMap.Data[rootInstanceType]; ok {
+			diskTypeList := strings.Split(value, ",")
+			for _, diskType := range diskTypeList {
+				supportedDiskTypes = append(supportedDiskTypes, diskType)
+				foundInConfigMap = true
+			}
+			log.Infof("UpdateNode: Get Disk Types %v for InstanceType %s from configmap", diskTypeList, rootInstanceType)
+		}
+	}
+
+	// 默认的ConfigMap中没有定义，则到json中寻找；
+	if !foundInConfigMap {
+		// 判断是否支持ESSD
+		support_essd := false
+		if ecsTypeList, ok := DiskTypeMatchMap.SupportConfig[DiskESSD]; ok {
+			for _, value := range ecsTypeList {
+				if value == rootInstanceType {
+					support_essd = true
+					break
+				}
+			}
+		}
+
+		// ssd, efficiency 默认都支持，除非在NotSupportConfig 中配置了不支持；
+		support_ssd := true
+		support_efficiency := true
+		if ecsTypeList, ok := DiskTypeMatchMap.NotSupportConfig[DiskEfficiency]; ok {
+			for _, value := range ecsTypeList {
+				if value == rootInstanceType {
+					support_efficiency = false
+					break
+				}
+			}
+		}
+		if ecsTypeList, ok := DiskTypeMatchMap.NotSupportConfig[DiskSSD]; ok {
+			for _, value := range ecsTypeList {
+				if value == rootInstanceType {
+					support_ssd = false
+					break
+				}
+			}
+		}
+
+		if support_efficiency {
+			supportedDiskTypes = append(supportedDiskTypes, DiskEfficiency)
+		}
+		if support_ssd {
+			supportedDiskTypes = append(supportedDiskTypes, DiskSSD)
+		}
+		if support_essd {
+			supportedDiskTypes = append(supportedDiskTypes, DiskESSD)
+		}
+		log.Infof("UpdateNode: Get Disk Types %v for InstanceType %s from Json File", supportedDiskTypes, rootInstanceType)
+	}
+
+	// 获取Node信息；
+	nodeInfo, err = client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("UpdateNode:: get node info to update with error : %s", err.Error())
+		return
+	}
+
+	// 判断是否需要更新Label；
 	needUpdate := false
-	needUpdateLabels := []string{}
-	for _, storageLabel := range instanceStorageLabels {
-		if _, ok := nodeInfo.Labels[storageLabel]; ok {
+	unsupportedDiskTypes := map[string]int{DiskEfficiency: 1, DiskSSD: 1, DiskESSD: 1}
+	for _, diskType := range supportedDiskTypes {
+		delete(unsupportedDiskTypes, diskType)
+		labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
+		if _, ok := nodeInfo.Labels[labelKey]; ok {
 			continue
 		} else {
 			needUpdate = true
-			needUpdateLabels = append(needUpdateLabels, storageLabel)
 		}
 	}
+
+	// 最高重试5次更新
 	for n := 1; n < RetryMaxTimes; n++ {
 		if needUpdate {
+			log.Infof("UpdateNode:: need update node labels with %v", supportedDiskTypes)
 			newNode, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 			if err != nil {
 				continue
 			}
-			for _, updatedLabel := range needUpdateLabels {
-				newNode.Labels[updatedLabel] = "available"
+			for _, diskType := range supportedDiskTypes {
+				labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
+				newNode.Labels[labelKey] = "available"
 			}
-			_, err = client.CoreV1().Nodes().Update(ctx, newNode, metav1.UpdateOptions{})
+			for _, diskType := range unsupportedDiskTypes {
+				labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
+				delete(newNode.Labels, labelKey)
+			}
+			_, err = client.CoreV1().Nodes().Update(context.Background(), newNode, metav1.UpdateOptions{})
 			if err != nil {
 				log.Errorf("UpdateNode:: update node error: %s", err.Error())
 				continue
 			}
+			log.Infof("UpdateNode:: Successful Update Node labels with %v", supportedDiskTypes)
 		} else {
 			log.Info("UpdateNode:: need not to update node label")
 		}
