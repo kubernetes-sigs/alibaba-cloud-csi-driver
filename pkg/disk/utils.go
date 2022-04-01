@@ -179,15 +179,6 @@ type RoleAuth struct {
 	Code            string
 }
 
-// DiskTypeMatch struct of disk match record file
-type DiskTypeMatch struct {
-	NotSupportConfig map[string][]string `json:"notSupportConfig,omitempty"`
-	SupportConfig    map[string][]string `json:"supportConfig,omitempty"`
-}
-
-// DiskTypeMatchMap disk and ecs type
-var DiskTypeMatchMap = &DiskTypeMatch{}
-
 func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 	regionID := GetRegionID()
 	var err error
@@ -1270,12 +1261,12 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 		}
 	}
 	// If instanceType empty, just return;
-	if instanceType == "" && strings.HasPrefix(instanceType, "ecs.") {
-		log.Errorf("UpdateNode: no instance type got, should be just return")
+	if instanceType == "" || strings.HasPrefix(instanceType, "ecs.") {
+		log.Errorf("UpdateNode: instance type is illegal, should be just return: %s", instanceType)
 		return
 	}
-	if DiskTypeMatchMap == nil || len(DiskTypeMatchMap.NotSupportConfig) == 0 || len(DiskTypeMatchMap.SupportConfig) == 0 {
-		log.Errorf("UpdateNode: DiskMatchMap format error")
+	if DiskTypeMatchMap == nil || len(DiskTypeMatchMap) == 0 {
+		log.Errorf("UpdateNode: DiskMatchMap format error with empty")
 		return
 	}
 
@@ -1283,7 +1274,12 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 	// ecs.g6.xlarge 对应 ecs.g6
 	rootInstanceTypeList := strings.Split(instanceType, ".")
 	rootInstanceTypeListLen := len(rootInstanceTypeList)
+	if rootInstanceTypeListLen < 1 {
+		log.Errorf("UpdateNode: instanceType format illegal %s", instanceType)
+		return
+	}
 	rootInstanceType := strings.Join(rootInstanceTypeList[0:rootInstanceTypeListLen-1], ".")
+	log.Infof("UpdateNode: Starting update Node label for instance: %s, InstanceType: %s, RootInstanceType: %s", nodeName, instanceType, rootInstanceType)
 
 	// 从默认configMap中获取实例族支持哪几种磁盘类型；
 	supportedDiskTypes := []string{}
@@ -1305,47 +1301,24 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 
 	// 默认的ConfigMap中没有定义，则到json中寻找；
 	if !foundInConfigMap {
-		// 判断是否支持ESSD
-		support_essd := false
-		if ecsTypeList, ok := DiskTypeMatchMap.SupportConfig[DiskESSD]; ok {
-			for _, value := range ecsTypeList {
-				if value == rootInstanceType {
-					support_essd = true
-					break
-				}
+		for key, _ := range DiskTypeMatchMap {
+			// 规格族：f1
+			// 规格型号：ecs.f1-c8f1.2xlarge
+			if strings.HasPrefix(rootInstanceType, key+"-") {
+				rootInstanceType = key
 			}
 		}
-
-		// ssd, efficiency 默认都支持，除非在NotSupportConfig 中配置了不支持；
-		support_ssd := true
-		support_efficiency := true
-		if ecsTypeList, ok := DiskTypeMatchMap.NotSupportConfig[DiskEfficiency]; ok {
-			for _, value := range ecsTypeList {
-				if value == rootInstanceType {
-					support_efficiency = false
-					break
-				}
+		if diskTypes, ok := DiskTypeMatchMap[rootInstanceType]; ok {
+			diskTypeList := strings.Split(diskTypes, ",")
+			for _, diskType := range diskTypeList {
+				supportedDiskTypes = append(supportedDiskTypes, diskType)
 			}
+			log.Infof("UpdateNode: Get Disk Types %v for InstanceType %s from Json File", supportedDiskTypes, rootInstanceType)
 		}
-		if ecsTypeList, ok := DiskTypeMatchMap.NotSupportConfig[DiskSSD]; ok {
-			for _, value := range ecsTypeList {
-				if value == rootInstanceType {
-					support_ssd = false
-					break
-				}
-			}
-		}
-
-		if support_efficiency {
-			supportedDiskTypes = append(supportedDiskTypes, DiskEfficiency)
-		}
-		if support_ssd {
-			supportedDiskTypes = append(supportedDiskTypes, DiskSSD)
-		}
-		if support_essd {
-			supportedDiskTypes = append(supportedDiskTypes, DiskESSD)
-		}
-		log.Infof("UpdateNode: Get Disk Types %v for InstanceType %s from Json File", supportedDiskTypes, rootInstanceType)
+	}
+	if len(supportedDiskTypes) == 0 {
+		log.Warnf("UpdateNode: Unsupported Type, Not get ecs type both from ConfigMap and the DefaultMap: %s, %s", rootInstanceType, instanceType)
+		return
 	}
 
 	// 获取Node信息；
@@ -1361,38 +1334,36 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 	for _, diskType := range supportedDiskTypes {
 		delete(unsupportedDiskTypes, diskType)
 		labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
-		if _, ok := nodeInfo.Labels[labelKey]; ok {
-			continue
-		} else {
+		if _, ok := nodeInfo.Labels[labelKey]; !ok {
 			needUpdate = true
 		}
+	}
+	if needUpdate == false {
+		log.Infof("UpdateNode:: Node Label already added, need not to update node label: %s", instanceType)
+		return
 	}
 
 	// 最高重试5次更新
 	for n := 1; n < RetryMaxTimes; n++ {
-		if needUpdate {
-			log.Infof("UpdateNode:: need update node labels with %v", supportedDiskTypes)
-			newNode, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
-			if err != nil {
-				continue
-			}
-			for _, diskType := range supportedDiskTypes {
-				labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
-				newNode.Labels[labelKey] = "available"
-			}
-			for _, diskType := range unsupportedDiskTypes {
-				labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
-				delete(newNode.Labels, labelKey)
-			}
-			_, err = client.CoreV1().Nodes().Update(context.Background(), newNode, metav1.UpdateOptions{})
-			if err != nil {
-				log.Errorf("UpdateNode:: update node error: %s", err.Error())
-				continue
-			}
-			log.Infof("UpdateNode:: Successful Update Node labels with %v", supportedDiskTypes)
-		} else {
-			log.Info("UpdateNode:: need not to update node label")
+		log.Infof("UpdateNode:: updating node labels with %v", supportedDiskTypes)
+		newNode, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+		if err != nil {
+			continue
 		}
+		for _, diskType := range supportedDiskTypes {
+			labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
+			newNode.Labels[labelKey] = "available"
+		}
+		for _, diskType := range unsupportedDiskTypes {
+			labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
+			delete(newNode.Labels, labelKey)
+		}
+		_, err = client.CoreV1().Nodes().Update(context.Background(), newNode, metav1.UpdateOptions{})
+		if err != nil {
+			log.Errorf("UpdateNode:: update node Info %s error: %s", nodeName, err.Error())
+			continue
+		}
+		log.Infof("UpdateNode:: Successful Update Node(%s) labels with %v", nodeName, supportedDiskTypes)
 		return
 	}
 }
