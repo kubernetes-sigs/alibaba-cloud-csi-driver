@@ -1261,7 +1261,7 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 		}
 	}
 	// If instanceType empty, just return;
-	if instanceType == "" || strings.HasPrefix(instanceType, "ecs.") {
+	if instanceType == "" || !strings.HasPrefix(instanceType, "ecs.") {
 		log.Errorf("UpdateNode: instance type is illegal, should be just return: %s", instanceType)
 		return
 	}
@@ -1338,8 +1338,14 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 			needUpdate = true
 		}
 	}
+	for diskType, _ := range unsupportedDiskTypes {
+		labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
+		if _, ok := nodeInfo.Labels[labelKey]; ok {
+			needUpdate = true
+		}
+	}
 	if needUpdate == false {
-		log.Infof("UpdateNode:: Node Label already added, need not to update node label: %s", instanceType)
+		log.Infof("UpdateNode:: Node Label already added, need not to update node label: %s, Support DiskType: %v", instanceType, supportedDiskTypes)
 		return
 	}
 
@@ -1354,9 +1360,12 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 			labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
 			newNode.Labels[labelKey] = "available"
 		}
-		for _, diskType := range unsupportedDiskTypes {
+		for diskType, _ := range unsupportedDiskTypes {
 			labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
-			delete(newNode.Labels, labelKey)
+			if _, ok := newNode.Labels[labelKey]; ok {
+				log.Infof("UpdateNode:: remove Node Label %s", labelKey)
+				delete(newNode.Labels, labelKey)
+			}
 		}
 		_, err = client.CoreV1().Nodes().Update(context.Background(), newNode, metav1.UpdateOptions{})
 		if err != nil {
