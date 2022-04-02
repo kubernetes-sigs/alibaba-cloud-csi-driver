@@ -8,7 +8,8 @@ RUN env GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GOOS=linux CGO_ENABLED=0
 
 FROM registry.cn-hangzhou.aliyuncs.com/acs/centos:7-update
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
-RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils
+RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace cloud-utils-growpart gdisk nc
+
 ARG BUILDPLATFORM 
 ARG TARGETPLATFORM 
 COPY ./build/multi/ /multi_data
