@@ -97,6 +97,8 @@ const (
 	DefaultVolumeSnapshotClass = "alibabacloud-disk-snapshot"
 	// annDiskID tag
 	annDiskID = "volume.alibabacloud.com/disk-id"
+	// MultiAttach tag
+	MultiAttach = "multiAttach"
 )
 
 const (
@@ -353,8 +355,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			diskTags = append(diskTags, diskTagTmp)
 		}
 	}
-	if diskVol.MultiAttach == "Enabled" {
-		createDiskRequest.MultiAttach = diskVol.MultiAttach
+
+	if strings.ToLower(diskVol.MultiAttach) == "true" || strings.ToLower(diskVol.MultiAttach) == "enabled" {
+		createDiskRequest.MultiAttach = "Enabled"
 	}
 
 	createDiskRequest.Tag = &diskTags
@@ -537,6 +540,23 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 
 // ControllerPublishVolume do attach
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
+	isMultiAttach := false
+	if value, ok := req.VolumeContext[MultiAttach]; ok {
+		value = strings.ToLower(value)
+		if checkOption(value) {
+			isMultiAttach = true
+		}
+	}
+	if isMultiAttach {
+		_, err := attachSharedDisk(req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId)
+		if err != nil {
+			log.Errorf("ControllerPublishVolume: attach shared disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
+			return nil, err
+		}
+		log.Infof("ControllerPublishVolume: Successful attach shared disk: %s to node: %s", req.VolumeId, req.NodeId)
+		return &csi.ControllerPublishVolumeResponse{}, nil
+	}
+
 	if !GlobalConfigVar.ADControllerEnable {
 		log.Infof("ControllerPublishVolume: ADController Disable to attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerPublishVolumeResponse{}, nil
@@ -565,6 +585,20 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 
 // ControllerUnpublishVolume do detach
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
+	// Describe Disk Info
+	ecsClient, err := getEcsClientByID(req.VolumeId, "")
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	isMultiAttach, err := detachMultiAttachDisk(ecsClient, req.VolumeId, req.NodeId)
+	if isMultiAttach && err != nil {
+		log.Errorf("ControllerUnpublishVolume: detach multiAttach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
+		return nil, err
+	} else if isMultiAttach {
+		log.Infof("ControllerUnpublishVolume: Successful detach multiAttach disk: %s from node: %s", req.VolumeId, req.NodeId)
+		return &csi.ControllerUnpublishVolumeResponse{}, nil
+	}
+
 	if !GlobalConfigVar.ADControllerEnable {
 		log.Infof("ControllerUnpublishVolume: ADController Disable to detach disk: %s from node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
@@ -581,10 +615,6 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		return nil, status.Error(codes.InvalidArgument, "ControllerUnpublishVolume missing VolumeId/NodeId in request")
 	}
 
-	ecsClient, err := getEcsClientByID(req.VolumeId, "")
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
 	err = detachDisk(ecsClient, req.VolumeId, req.NodeId)
 	if err != nil {
 		log.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())

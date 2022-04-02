@@ -1075,7 +1075,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	// MultiAttach
 	diskVolArgs.MultiAttach, ok = volOptions["multiAttach"]
 	if !ok {
-		diskVolArgs.DiskTags = "Disabled"
+		diskVolArgs.MultiAttach = "Disabled"
 	}
 
 	// DiskTags
