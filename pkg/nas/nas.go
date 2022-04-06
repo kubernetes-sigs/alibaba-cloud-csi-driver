@@ -158,10 +158,10 @@ func GlobalConfigSet(serviceType string) {
 		if value, ok := configMap.Data["cpfs-nas-enable"]; ok {
 			if value == "enable" || value == "yes" || value == "true" {
 				isCpfsNfsEnable = true
-				queryCmd := fmt.Sprintf("%s rpm -qa | grep aliyun-cpfs-utils", NsenterCmd)
+				queryCmd := fmt.Sprintf("%s rpm -qa | grep aliyun-alinas-utils", NsenterCmd)
 				res, _ := utils.Run(queryCmd)
 				if len(res) == 0 && serviceType == utils.PluginService {
-					cpfsRpm := "aliyun-cpfs-nfs-utils-1.0-2.al.noarch.rpm"
+					cpfsRpm := "aliyun-alinas-utils-1.1-1.al.noarch.rpm"
 					installCmd := fmt.Sprintf("%s yum localinstall -y /etc/csi-tool/%s", NsenterCmd, cpfsRpm)
 					_, err := utils.Run(installCmd)
 					if err != nil {

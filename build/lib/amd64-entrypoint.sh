@@ -217,7 +217,7 @@ fi
 
 ## CPFS-NAS plugin setup
 if [ "$run_nas" = "true" ]; then
-    cp /csi/aliyun-cpfs-nfs-utils-1.0-2.al.noarch.rpm /host/etc/csi-tool/
+    cp /csi/aliyun-alinas-utils-1.1-1.al.noarch.rpm /host/etc/csi-tool/
 fi
 
 # start daemon
