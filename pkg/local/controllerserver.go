@@ -93,10 +93,9 @@ var supportVolumeTypes = []string{LvmVolumeType, PmemVolumeType, QuotaPathVolume
 
 // newControllerServer creates a controllerServer object
 func newControllerServer(d *csicommon.CSIDriver, caCertFile string, clientCertFile string, clientKeyFile string) *controllerServer {
-	kubeClient := newKubeClient()
 	return &controllerServer{
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
-		client:                  kubeClient,
+		client:                  types.GlobalConfigVar.KubeClient,
 		caCertFile:              caCertFile,
 		clientCertFile:          clientCertFile,
 		clientKeyFile:           clientKeyFile,

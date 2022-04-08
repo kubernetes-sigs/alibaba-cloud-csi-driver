@@ -35,6 +35,8 @@ import (
 	"time"
 	"unicode"
 
+	v1 "k8s.io/api/core/v1"
+
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
@@ -139,6 +141,10 @@ const (
 	RemoteSnapshotLabelKey = "csi.alibabacloud.com/snapshot.targetregion"
 	// SnapshotVolumeKey ...
 	SnapshotVolumeKey = "csi.alibabacloud.com/snapshot.volumeid"
+	labelAppendPrefix = "csi.alibabacloud.com/label-prefix/"
+	annVolumeTopoKey  = "csi.alibabacloud.com/volume-topology"
+	labelVolumeType   = "csi.alibabacloud.com/disktype"
+	annAppendPrefix   = "csi.alibabacloud.com/annotation-prefix/"
 )
 
 var (
@@ -915,7 +921,7 @@ func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 				// the disk has been formatted successfully try to mount it again.
 				return diskMounter.Interface.Mount(source, target, fstype, mountOptions)
 			}
-			log.Errorf("format of disk %q failed: type:(%q) target:(%q) options:(%q)error:(%v)", source, fstype, target, mkfsOptions, err)
+			log.Errorf("format of disk %q failed: type:(%q) target:(%q) options:(%q) error:(%v)", source, fstype, target, args, err)
 			return err
 		}
 		// Disk is already formatted and failed to mount
@@ -930,6 +936,25 @@ func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 	return mountErr
 }
 
+func getMultiZones(segments map[string]string) (string, bool) {
+	parseZone := func(key string) string {
+		return key[len(TopologyMultiZonePrefix):]
+	}
+
+	var zones []string
+	for k := range segments {
+		if strings.HasPrefix(k, TopologyMultiZonePrefix) {
+			zones = append(zones, parseZone(k))
+		}
+	}
+
+	if len(zones) == 0 {
+		return "", false
+	}
+
+	return strings.Join(zones, ","), true
+}
+
 // pickZone selects 1 zone given topology requirement.
 // if not found, empty string is returned.
 func pickZone(requirement *csi.TopologyRequirement) string {
@@ -937,12 +962,24 @@ func pickZone(requirement *csi.TopologyRequirement) string {
 		return ""
 	}
 	for _, topology := range requirement.GetPreferred() {
+		if GlobalConfigVar.NodeMultiZoneEnable {
+			zones, exists := getMultiZones(topology.GetSegments())
+			if exists {
+				return zones
+			}
+		}
 		zone, exists := topology.GetSegments()[TopologyZoneKey]
 		if exists {
 			return zone
 		}
 	}
 	for _, topology := range requirement.GetRequisite() {
+		if GlobalConfigVar.NodeMultiZoneEnable {
+			zones, exists := getMultiZones(topology.GetSegments())
+			if exists {
+				return zones
+			}
+		}
 		zone, exists := topology.GetSegments()[TopologyZoneKey]
 		if exists {
 			return zone
@@ -1066,6 +1103,19 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		diskVolArgs.ResourceGroupID = ""
 	}
 
+	// volumeSizeAutoAvailable
+	value, ok = volOptions["volumeSizeAutoAvailable"]
+	if !ok {
+		diskVolArgs.VolumeSizeAutoAvailable = false
+	} else {
+		value = strings.ToLower(value)
+		if value == "yes" || value == "true" || value == "1" {
+			diskVolArgs.VolumeSizeAutoAvailable = true
+		} else {
+			diskVolArgs.VolumeSizeAutoAvailable = false
+		}
+	}
+
 	return diskVolArgs, nil
 }
 
@@ -1075,10 +1125,10 @@ func validateDiskType(opts map[string]string) (diskType string, err error) {
 		return
 	}
 	if strings.Contains(opts["type"], ",") {
-		orderedList := make([]string, 3)
+		orderedList := []string{}
 		for _, cusType := range strings.Split(opts["type"], ",") {
-			if value, ok := CustomDiskTypes[cusType]; ok {
-				orderedList[value] = cusType
+			if _, ok := CustomDiskTypes[cusType]; ok {
+				orderedList = append(orderedList, cusType)
 			} else {
 				return diskType, fmt.Errorf("Illegal required parameter type: " + cusType)
 			}
@@ -1411,9 +1461,68 @@ func createRoleClient(uid string) (cli *ecs.Client, err error) {
 	return cli, nil
 }
 
+func volumeCreate(diskType, diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, contextSource *csi.VolumeContentSource) *csi.Volume {
+	accessibleTopology := []*csi.Topology{
+		{
+			Segments: map[string]string{
+				TopologyZoneKey: zoneID,
+			},
+		},
+	}
+	if GlobalConfigVar.NodeMultiZoneEnable {
+		accessibleTopology = append(accessibleTopology, &csi.Topology{
+			Segments: map[string]string{
+				TopologyMultiZonePrefix + zoneID: "true",
+			},
+		})
+	}
+	if diskType != "" {
+		// Add PV Label
+		diskTypePL := diskType
+		if diskType == DiskESSD {
+			if pl, ok := volumeContext["performanceLevel"]; ok && pl != "" {
+				diskTypePL = fmt.Sprintf("%s.%s", DiskESSD, pl)
+				// TODO delete performanceLevel key
+				// delete(volumeContext, "performanceLevel")
+			} else {
+				diskTypePL = fmt.Sprintf("%s.%s", DiskESSD, "PL1")
+			}
+		}
+		volumeContext[labelAppendPrefix+labelVolumeType] = diskTypePL
+		// TODO delete type key
+		// delete(volumeContext, "type")
+
+		// Add PV NodeAffinity
+		labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
+		expressions := []v1.NodeSelectorRequirement{{
+			Key:      labelKey,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   []string{"available"},
+		}}
+		terms := []v1.NodeSelectorTerm{{
+			MatchExpressions: expressions,
+		}}
+		diskTypeTopo := &v1.NodeSelector{
+			NodeSelectorTerms: terms,
+		}
+		diskTypeTopoBytes, _ := json.Marshal(diskTypeTopo)
+		volumeContext[annAppendPrefix+annVolumeTopoKey] = string(diskTypeTopoBytes)
+	}
+
+	tmpVol := &csi.Volume{
+		CapacityBytes:      volSizeBytes,
+		VolumeId:           diskID,
+		VolumeContext:      volumeContext,
+		AccessibleTopology: accessibleTopology,
+		ContentSource:      contextSource,
+	}
+
+	return tmpVol
+}
+
 // staticVolumeCreate 检查输入参数，如果包含了云盘ID，则直接使用云盘进行返回；
 // 根据云盘ID请求云盘的具体属性，并作为pv参数返回；
-func staticVolumeCreate(req *csi.CreateVolumeRequest) (*csi.Volume, error) {
+func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.Volume, error) {
 	paras := req.GetParameters()
 	diskID := paras[annDiskID]
 	if diskID == "" {
@@ -1441,19 +1550,19 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest) (*csi.Volume, error) {
 		return nil, perrors.Errorf("Disk %s is not expected capacity: expected(%d), disk(%d)", diskID, volSizeBytes, diskSizeBytes)
 	}
 
-	tmpVol := &csi.Volume{
-		VolumeId:      diskID,
-		CapacityBytes: volSizeBytes,
-		VolumeContext: volumeContext,
-		AccessibleTopology: []*csi.Topology{
-			{
-				Segments: map[string]string{
-					TopologyZoneKey: disk.ZoneId,
+	// Set VolumeContentSource
+	var src *csi.VolumeContentSource
+	if snapshotID != "" {
+		src = &csi.VolumeContentSource{
+			Type: &csi.VolumeContentSource_Snapshot{
+				Snapshot: &csi.VolumeContentSource_SnapshotSource{
+					SnapshotId: snapshotID,
 				},
 			},
-		},
+		}
 	}
-	return tmpVol, nil
+
+	return volumeCreate(disk.Category, diskID, volSizeBytes, volumeContext, disk.ZoneId, src), nil
 }
 
 // updateVolumeContext remove unneccessary volume context
