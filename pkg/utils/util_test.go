@@ -84,7 +84,7 @@ func TestWriteJsonFile(t *testing.T) {
 
 	os.MkdirAll(MacUnmountedPath, 0777)
 	resultFile := filepath.Join(MacCSIPluginFlag, CsiPluginRunTimeFlagFile)
-	assert.Nil(t, WriteJosnFile(jsonData, resultFile))
+	assert.Nil(t, WriteJSONFile(jsonData, resultFile))
 }
 
 func TestIsMountPointRunv(t *testing.T) {

@@ -25,7 +25,8 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -111,6 +112,8 @@ const (
 	MaxVolumesPerNode = 15
 	// NOUUID is xfs fs mount opts
 	NOUUID = "nouuid"
+	// NodeMultiZoneEnable Enable node multi-zone mode
+	NodeMultiZoneEnable = "NODE_MULTI_ZONE_ENABLE"
 )
 
 var (
@@ -161,7 +164,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		nodeID = doc.InstanceID
 	}
 
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
@@ -276,7 +279,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			qResponse.volumeType = "block"
 			qResponse.mountfile = mountFile
 			qResponse.runtime = RunvRunTimeMode
-			if err := utils.WriteJosnFile(qResponse, mountFile); err != nil {
+			if err := utils.WriteJSONFile(qResponse, mountFile); err != nil {
 				log.Errorf("NodePublishVolume(runv): Write Josn File error: %s", err.Error())
 				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Write Josn File error: "+err.Error())
 			}
@@ -380,6 +383,33 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	log.Infof("NodePublishVolume: Starting mount volume %s with flags %v and fsType %s", req.VolumeId, options, fsType)
 	if err = ns.k8smounter.Mount(sourcePath, targetPath, fsType, options); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	if utils.IsKataInstall() {
+		// save volume data to json file
+		volumeData := map[string]string{}
+		volumeData["csi.alibabacloud.com/fsType"] = fsType
+		saveOptions := req.VolumeCapability.GetMount().MountFlags
+		if len(saveOptions) != 0 {
+			volumeData["csi.alibabacloud.com/mountOptions"] = strings.Join(saveOptions, ",")
+		}
+		if value, ok := req.VolumeContext[MkfsOptions]; ok {
+			volumeData["csi.alibabacloud.com/mkfsOptions"] = value
+		}
+		fileName := filepath.Join(filepath.Dir(targetPath), utils.VolDataFileName)
+		if strings.HasSuffix(targetPath, "/") {
+			fileName = filepath.Join(filepath.Dir(filepath.Dir(targetPath)), utils.VolDataFileName)
+		}
+		if err = utils.AppendJSONData(fileName, volumeData); err != nil {
+			log.Warnf("NodeStageVolume: append volume spec to %s with error: %s", fileName, err.Error())
+		}
+	}
+
+	// Set volume IO Limit
+	err = utils.SetVolumeIOLimit(realDevice, req)
+	if err != nil {
+		log.Errorf("NodePublishVolume: Set Disk Volume(%s) IO Limit with Error: %s", req.VolumeId, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

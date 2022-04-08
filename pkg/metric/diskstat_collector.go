@@ -3,20 +3,23 @@ package metric
 import (
 	"bufio"
 	"fmt"
-	"github.com/emirpasic/gods/sets/hashset"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
 	"io"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/record"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/emirpasic/gods/sets/hashset"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/record"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 var (
@@ -184,7 +187,7 @@ func parseDiskThreshold(defaultLatencyThreshold float64, defaultCapacityPercenta
 func NewDiskStatCollector() (Collector, error) {
 	alertSet, latencyThreshold, capacityPercentageThreshold := parseDiskThreshold(diskDefaultsLantencyThreshold, diskDefaultsCapacityPercentageThreshold)
 	recorder := utils.NewEventRecorder()
-	config, err := rest.InClusterConfig()
+	config, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
 		return nil, err
 	}

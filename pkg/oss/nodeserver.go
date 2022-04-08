@@ -265,7 +265,7 @@ func checkOssOptions(opt *Options) error {
 
 	// if not input ak from user, use the default ak value
 	if opt.AkID == "" || opt.AkSecret == "" {
-		ac := utils.GetLocalAK()
+		ac := utils.GetEnvAK()
 		opt.AkID = ac.AccessKeyID
 		opt.AkSecret = ac.AccessKeySecret
 	}

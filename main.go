@@ -36,6 +36,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mem"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/om"
+	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/common/version"
@@ -178,7 +179,7 @@ func main() {
 		case TypePluginNAS:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := nas.NewDriver(*nodeID, endPoint)
+				driver := nas.NewDriver(*nodeID, endPoint, serviceType)
 				driver.Run()
 			}(endPointName)
 		case TypePluginOSS:

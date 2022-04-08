@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
@@ -34,7 +34,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	volumeSnasphotV1 "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/crds"
@@ -79,6 +79,8 @@ const (
 	RETENTIONDAYS = "retentionDays"
 	// INSTANTACCESSRETENTIONDAYS ...
 	INSTANTACCESSRETENTIONDAYS = "instantAccessRetentionDays"
+	// SNAPSHOTRESOURCEGROUPID ...
+	SNAPSHOTRESOURCEGROUPID = "resourceGroupId"
 	// DiskSnapshotID means snapshot id
 	DiskSnapshotID = "csi.alibabacloud.com/disk-snapshot-id"
 	// VolumeSnapshotNamespace namespace
@@ -95,6 +97,10 @@ const (
 	DefaultVolumeSnapshotClass = "alibabacloud-disk-snapshot"
 	// annDiskID tag
 	annDiskID = "volume.alibabacloud.com/disk-id"
+	// MinimumDiskSizeInGB ...
+	MinimumDiskSizeInGB = 20
+	// MinimumDiskSizeInBytes ...
+	MinimumDiskSizeInBytes = 21474836480
 )
 
 const (
@@ -133,19 +139,20 @@ type controllerServer struct {
 
 // Alicloud disk parameters
 type diskVolumeArgs struct {
-	Type             string              `json:"type"`
-	RegionID         string              `json:"regionId"`
-	ZoneID           string              `json:"zoneId"`
-	FsType           string              `json:"fsType"`
-	ReadOnly         bool                `json:"readOnly"`
-	MultiAttach      string              `json:"multiAttach"`
-	Encrypted        bool                `json:"encrypted"`
-	KMSKeyID         string              `json:"kmsKeyId"`
-	PerformanceLevel string              `json:"performanceLevel"`
-	ResourceGroupID  string              `json:"resourceGroupId"`
-	DiskTags         string              `json:"diskTags"`
-	NodeSelected     string              `json:"nodeSelected"`
-	ARN              []ecs.CreateDiskArn `json:"arn"`
+	Type                    string              `json:"type"`
+	RegionID                string              `json:"regionId"`
+	ZoneID                  string              `json:"zoneId"`
+	FsType                  string              `json:"fsType"`
+	ReadOnly                bool                `json:"readOnly"`
+	MultiAttach             string              `json:"multiAttach"`
+	Encrypted               bool                `json:"encrypted"`
+	KMSKeyID                string              `json:"kmsKeyId"`
+	PerformanceLevel        string              `json:"performanceLevel"`
+	ResourceGroupID         string              `json:"resourceGroupId"`
+	DiskTags                string              `json:"diskTags"`
+	NodeSelected            string              `json:"nodeSelected"`
+	ARN                     []ecs.CreateDiskArn `json:"arn"`
+	VolumeSizeAutoAvailable bool                `json:"volumeSizeAutoAvailable"`
 }
 
 // Alicloud disk snapshot parameters
@@ -231,9 +238,28 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return &csi.CreateVolumeResponse{Volume: value}, nil
 	}
 
+	snapshotID := ""
+	volumeSource := req.GetVolumeContentSource()
+	if volumeSource != nil {
+		if _, ok := volumeSource.GetType().(*csi.VolumeContentSource_Snapshot); !ok {
+			return nil, status.Error(codes.InvalidArgument, "CreateVolume: unsupported volumeContentSource type")
+		}
+		sourceSnapshot := volumeSource.GetSnapshot()
+		if sourceSnapshot == nil {
+			return nil, status.Error(codes.InvalidArgument, "CreateVolume: get empty snapshot from volumeContentSource")
+		}
+		snapshotID = sourceSnapshot.GetSnapshotId()
+	}
+	// set snapshotID if pvc labels/annotation set it.
+	if snapshotID == "" {
+		if value, ok := req.Parameters[DiskSnapshotID]; ok && value != "" {
+			snapshotID = value
+		}
+	}
+
 	// 兼容 serverless 拓扑感知场景；
 	// req参数里面包含了云盘ID，则直接使用云盘ID进行返回；
-	csiVolume, err := staticVolumeCreate(req)
+	csiVolume, err := staticVolumeCreate(req, snapshotID)
 	if err != nil {
 		log.Errorf("CreateVolume: static volume(%s) describe with error: %s", req.Name, err.Error())
 		return nil, err
@@ -254,6 +280,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
+	if diskVol.VolumeSizeAutoAvailable && requestGB < MinimumDiskSizeInGB {
+		log.Infof("CreateVolume: volume size was less than allowed limit. Setting request Size to %vGB. volumeSizeAutoAvailable is set.", MinimumDiskSizeInGB)
+		requestGB = MinimumDiskSizeInGB
+		volSizeBytes = MinimumDiskSizeInBytes
+	}
 	sharedDisk := diskVol.Type == DiskSharedEfficiency || diskVol.Type == DiskSharedSSD
 	nodeSupportDiskType := []string{}
 	if diskVol.NodeSelected != "" {
@@ -290,38 +321,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			return nil, status.Errorf(codes.Internal, "exist disk %s is different with requested for disk", req.GetName())
 		}
 		log.Infof("CreateVolume: Volume %s is already created: %s, %s, %s, %d", req.GetName(), disk.DiskId, disk.RegionId, disk.ZoneId, disk.Size)
-		tmpVol := &csi.Volume{
-			VolumeId:      disk.DiskId,
-			CapacityBytes: int64(volSizeBytes),
-			VolumeContext: req.GetParameters(),
-			AccessibleTopology: []*csi.Topology{
-				{
-					Segments: map[string]string{
-						TopologyZoneKey: diskVol.ZoneID,
-					},
-				},
-			},
-		}
+		tmpVol := volumeCreate(disk.Category, disk.DiskId, volSizeBytes, req.GetParameters(), diskVol.ZoneID, nil)
 		return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
-	}
-
-	snapshotID := ""
-	volumeSource := req.GetVolumeContentSource()
-	if volumeSource != nil {
-		if _, ok := volumeSource.GetType().(*csi.VolumeContentSource_Snapshot); !ok {
-			return nil, status.Error(codes.InvalidArgument, "CreateVolume: unsupported volumeContentSource type")
-		}
-		sourceSnapshot := volumeSource.GetSnapshot()
-		if sourceSnapshot == nil {
-			return nil, status.Error(codes.InvalidArgument, "CreateVolume: get empty snapshot from volumeContentSource")
-		}
-		snapshotID = sourceSnapshot.GetSnapshotId()
-	}
-	// set snapshotID if pvc labels/annotation set it.
-	if snapshotID == "" {
-		if value, ok := req.Parameters[DiskSnapshotID]; ok && value != "" {
-			snapshotID = value
-		}
 	}
 
 	// Step 3: init Disk create args
@@ -377,7 +378,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if len(nodeSupportDiskType) != 0 {
 		provisionerDiskTypes = intersect(nodeSupportDiskType, allTypes)
 		if len(provisionerDiskTypes) == 0 {
-			log.Errorf("CreateVolume:: node support type: [%v] is incompatible with provision disk type: [%s]", nodeSupportDiskType, allTypes)
+			log.Errorf("CreateVolume:: node(%s) support type: [%v] is incompatible with provision disk type: [%s]", diskVol.NodeSelected, nodeSupportDiskType, allTypes)
 			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("CreateVolume:: node support type: [%v] is incompatible with provision disk type: [%s]", nodeSupportDiskType, allTypes))
 		}
 	} else {
@@ -438,7 +439,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	volumeContext = updateVolumeContext(volumeContext)
 
-	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], requestId[%s]", req.GetName(), volumeResponse.DiskId, diskVol.ZoneID, createdDiskType, requestGB, volumeResponse.RequestId)
+	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], snapshotID[%s], requestId[%s]", req.GetName(), volumeResponse.DiskId, diskVol.ZoneID, createdDiskType, requestGB, snapshotID, volumeResponse.RequestId)
 
 	// Set VolumeContentSource
 	var src *csi.VolumeContentSource
@@ -452,19 +453,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 	}
 
-	tmpVol := &csi.Volume{
-		VolumeId:      volumeResponse.DiskId,
-		CapacityBytes: int64(volSizeBytes),
-		VolumeContext: volumeContext,
-		AccessibleTopology: []*csi.Topology{
-			{
-				Segments: map[string]string{
-					TopologyZoneKey: diskVol.ZoneID,
-				},
-			},
-		},
-		ContentSource: src,
-	}
+	tmpVol := volumeCreate(createdDiskType, volumeResponse.DiskId, volSizeBytes, volumeContext, diskVol.ZoneID, src)
 
 	diskIDPVMap[volumeResponse.DiskId] = req.Name
 	createdVolumeMap[req.Name] = tmpVol
@@ -619,7 +608,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 // storage.alibabacloud.com/snapshot-ttl
 // storage.alibabacloud.com/ia-snapshot
 // storage.alibabacloud.com/ia-snapshot-ttl
-func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, error) {
+func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, string, error) {
 	retentionDays := -1
 	useInstanceAccess := false
 	var instantAccessRetentionDays int
@@ -632,7 +621,7 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, er
 		days, err := strconv.Atoi(value)
 		if err != nil {
 			err := status.Error(codes.InvalidArgument, fmt.Sprintf("CreateSnapshot: retentiondays err %s", value))
-			return retentionDays, useInstanceAccess, instantAccessRetentionDays, err
+			return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
 		}
 		retentionDays = days
 	}
@@ -640,7 +629,7 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, er
 		days, err := strconv.Atoi(value)
 		if err != nil {
 			err := status.Error(codes.InvalidArgument, fmt.Sprintf("CreateSnapshot: retentiondays err %s", value))
-			return retentionDays, useInstanceAccess, instantAccessRetentionDays, err
+			return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
 		}
 		instantAccessRetentionDays = days
 	} else {
@@ -651,13 +640,13 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, er
 	vsNameSpace := req.Parameters[VolumeSnapshotNamespace]
 	// volumesnapshot not in parameters, just retrun
 	if vsName == "" || vsNameSpace == "" {
-		return retentionDays, useInstanceAccess, instantAccessRetentionDays, nil
+		return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", nil
 	}
 
 	volumeSnapshot, err := GlobalConfigVar.SnapClient.SnapshotV1().VolumeSnapshots(vsNameSpace).Get(context.Background(), vsName, metav1.GetOptions{})
 	if err != nil {
 		log.Warnf("CreateSnapshot: cannot get volumeSnapshot: %s, with error: %v", req.Name, err.Error())
-		return retentionDays, useInstanceAccess, instantAccessRetentionDays, err
+		return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
 	}
 	snapshotTTL := volumeSnapshot.Annotations["storage.alibabacloud.com/snapshot-ttl"]
 	iaEnable := volumeSnapshot.Annotations["storage.alibabacloud.com/ia-snapshot"]
@@ -667,7 +656,7 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, er
 		retentionDays, err = strconv.Atoi(snapshotTTL)
 		if err != nil {
 			log.Warnf("CreateSnapshot: Snapshot(%s) ttl format error: %v", req.Name, err.Error())
-			return retentionDays, useInstanceAccess, instantAccessRetentionDays, err
+			return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
 		}
 	}
 	if strings.ToLower(iaEnable) == "true" {
@@ -677,10 +666,11 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, er
 		instantAccessRetentionDays, err = strconv.Atoi(iaTTL)
 		if err != nil {
 			log.Warnf("CreateSnapshot: IA ttl(%s) format error: %v", req.Name, err.Error())
-			return retentionDays, useInstanceAccess, instantAccessRetentionDays, err
+			return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
 		}
 	}
-	return retentionDays, useInstanceAccess, instantAccessRetentionDays, nil
+	resourceGroupID := req.Parameters[SNAPSHOTRESOURCEGROUPID]
+	return retentionDays, useInstanceAccess, instantAccessRetentionDays, resourceGroupID, nil
 }
 
 // CreateSnapshot ...
@@ -707,7 +697,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	// parse snapshot Retention Days
-	retentionDays, useInstanceAccess, instantAccessRetentionDays, err := getVolumeSnapshotConfig(req)
+	retentionDays, useInstanceAccess, instantAccessRetentionDays, resourceGroupID, err := getVolumeSnapshotConfig(req)
 	if err != nil {
 		log.Errorf("CreateSnapshot:: Snapshot name[%s], parse retention days error: %v", req.Name, err)
 		return nil, err
@@ -812,6 +802,9 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	createSnapshotRequest.InstantAccessRetentionDays = requests.NewInteger(instantAccessRetentionDays)
 	if retentionDays != -1 {
 		createSnapshotRequest.RetentionDays = requests.NewInteger(retentionDays)
+	}
+	if resourceGroupID != "" {
+		createSnapshotRequest.ResourceGroupId = resourceGroupID
 	}
 
 	// Set tags

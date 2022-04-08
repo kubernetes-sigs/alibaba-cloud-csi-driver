@@ -90,9 +90,9 @@ func DoNfsMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID,
 
 	var mntCmd string
 	var err error
-	nfsServer = "959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com"
+	nfsServer = "3d3194a908-jnt8.cn-shanghai.nas.aliyuncs.com"
 	if len(useNasClient) != 0 && useNasClient == "true" {
-		mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o unas -o client_owner=%s %s:%s %s", podUID, nfsServer, nfsPath, mountPoint)
+		mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o unas -o client_owner=%s -o %s %s:%s %s", podUID, mountOptions, nfsServer, nfsPath, mountPoint)
 		if out, err := utils.ConnectorRun(mntCmd); err != nil {
 			if err != nil {
 				log.Errorf("Mount by nas rich client, error: %s", err.Error())

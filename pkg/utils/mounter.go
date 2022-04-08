@@ -19,11 +19,24 @@ package utils
 import (
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
+	utilio "k8s.io/utils/io"
+)
+
+const (
+	// list retry times
+	maxListTries = 10
+	// Location of the mount file to use
+	procMountsPath = "/proc/mounts"
+	// Number of fields per line in /proc/mounts as per the fstab man page.
+	expectedNumFieldsPerLine = 6
 )
 
 type findmntResponse struct {
@@ -35,6 +48,16 @@ type fileSystem struct {
 	Propagation string `json:"propagation"`
 	FsType      string `json:"fstype"`
 	Options     string `json:"options"`
+}
+
+// MountPoint represents a single line in /proc/mounts or /etc/fstab.
+type MountPoint struct { // nolint: golint
+	Device string
+	Path   string
+	Type   string
+	Opts   []string // Opts may contain sensitive mount options (like passwords) and MUST be treated as such (e.g. not logged).
+	Freq   int
+	Pass   int
 }
 
 // Mounter is responsible for formatting and mounting volumes
@@ -63,6 +86,8 @@ type Mounter interface {
 	// case of system errors or if it's mounted incorrectly.
 	IsMounted(target string) (bool, error)
 
+	IsNotMountPoint(file string) (bool, error)
+
 	SafePathRemove(target string) error
 
 	HasMountRefs(mountPath string, mountRefs []string) bool
@@ -78,6 +103,7 @@ type mounter struct {
 func NewMounter() Mounter {
 	return &mounter{}
 }
+
 func (m *mounter) EnsureFolder(target string) error {
 	mdkirCmd := "mkdir"
 	_, err := exec.LookPath(mdkirCmd)
@@ -358,4 +384,97 @@ func IsDirEmpty(name string) (bool, error) {
 		return true, nil
 	}
 	return false, err
+}
+
+func (m *mounter) IsNotMountPoint(file string) (bool, error) {
+	// IsLikelyNotMountPoint provides a quick check
+	// to determine whether file IS A mountpoint.
+	notMnt, notMntErr := IsLikelyNotMountPoint(file)
+	if notMntErr != nil && os.IsPermission(notMntErr) {
+		// We were not allowed to do the simple stat() check, e.g. on NFS with
+		// root_squash. Fall back to /proc/mounts check below.
+		notMnt = true
+		notMntErr = nil
+	}
+	if notMntErr != nil {
+		return notMnt, notMntErr
+	}
+	// identified as mountpoint, so return this fact.
+	if notMnt == false {
+		return notMnt, nil
+	}
+
+	// Resolve any symlinks in file, kernel would do the same and use the resolved path in /proc/mounts.
+	resolvedFile, err := filepath.EvalSymlinks(file)
+	if err != nil {
+		return true, err
+	}
+
+	// check all mountpoints since IsLikelyNotMountPoint
+	// is not reliable for some mountpoint types.
+	mountPoints, mountPointsErr := ListProcMounts()
+	if mountPointsErr != nil {
+		return notMnt, mountPointsErr
+	}
+	for _, mp := range mountPoints {
+		if isMountPointMatch(mp, resolvedFile) {
+			notMnt = false
+			break
+		}
+	}
+	return notMnt, nil
+}
+
+// isMountPointMatch returns true if the path in mp is the same as dir.
+// Handles case where mountpoint dir has been renamed due to stale NFS mount.
+func isMountPointMatch(mp MountPoint, dir string) bool {
+	deletedDir := fmt.Sprintf("%s\\040(deleted)", dir)
+	return ((mp.Path == dir) || (mp.Path == deletedDir))
+}
+
+// ListProcMounts is shared with NsEnterMounter
+func ListProcMounts() ([]MountPoint, error) {
+	content, err := utilio.ConsistentRead(procMountsPath, maxListTries)
+	if err != nil {
+		return nil, err
+	}
+	return parseProcMounts(content)
+}
+
+func parseProcMounts(content []byte) ([]MountPoint, error) {
+	out := []MountPoint{}
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		if line == "" {
+			// the last split() item is empty string following the last \n
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) != expectedNumFieldsPerLine {
+			// Do not log line in case it contains sensitive Mount options
+			return nil, fmt.Errorf("wrong number of fields (expected %d, got %d)", expectedNumFieldsPerLine, len(fields))
+		}
+
+		mp := MountPoint{
+			Device: fields[0],
+			Path:   fields[1],
+			Type:   fields[2],
+			Opts:   strings.Split(fields[3], ","),
+		}
+
+		freq, err := strconv.Atoi(fields[4])
+		if err != nil {
+			return nil, err
+		}
+		mp.Freq = freq
+
+		pass, err := strconv.Atoi(fields[5])
+		if err != nil {
+			return nil, err
+		}
+		mp.Pass = pass
+
+		out = append(out, mp)
+	}
+	return out, nil
 }

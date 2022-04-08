@@ -18,16 +18,21 @@ package nas
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dadi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"strings"
 )
 
 const (
@@ -37,9 +42,7 @@ const (
 )
 
 var (
-	version    = "1.0.0"
-	masterURL  string
-	kubeconfig string
+	version = "1.0.0"
 	// GlobalConfigVar Global Config
 	GlobalConfigVar GlobalConfig
 )
@@ -73,7 +76,7 @@ type NAS struct {
 }
 
 //NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string) *NAS {
+func NewDriver(nodeID, endpoint string, serviceType string) *NAS {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
 	d := &NAS{}
@@ -91,7 +94,7 @@ func NewDriver(nodeID, endpoint string) *NAS {
 	})
 
 	// Global Configs Set
-	GlobalConfigSet()
+	GlobalConfigSet(serviceType)
 
 	d.driver = csiDriver
 
@@ -122,11 +125,21 @@ func (d *NAS) Run() {
 }
 
 // GlobalConfigSet set global config
-func GlobalConfigSet() {
+func GlobalConfigSet(serviceType string) {
 	// Global Configs Set
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubeconfig: %s", err.Error())
+	}
+	if qps := os.Getenv("KUBE_CLI_API_QPS"); qps != "" {
+		if qpsi, err := strconv.Atoi(qps); err == nil {
+			cfg.QPS = float32(qpsi)
+		}
+	}
+	if burst := os.Getenv("KUBE_CLI_API_BURST"); burst != "" {
+		if qpsi, err := strconv.Atoi(burst); err == nil {
+			cfg.Burst = qpsi
+		}
 	}
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
@@ -152,54 +165,76 @@ func GlobalConfigSet() {
 				isNasFakeProvisioner = true
 			}
 		}
-	}
-
-	metricNasConf := os.Getenv(NasMetricByPlugin)
-	if metricNasConf == "true" || metricNasConf == "yes" {
-		isNasMetricEnable = true
-	} else if metricNasConf == "false" || metricNasConf == "no" {
-		isNasMetricEnable = false
-	}
-
-	nodeName := os.Getenv("KUBE_NODE_NAME")
-	runtimeValue := "runc"
-	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
-	if err != nil {
-		log.Errorf("Describe node %s with error: %s", nodeName, err.Error())
-	} else {
-		if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime"]; ok && strings.TrimSpace(value) == "Sandboxed-Container.runv" {
-			if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime-version"]; ok && strings.HasPrefix(strings.TrimSpace(value), "1.") {
-				runtimeValue = MixRunTimeMode
+		if value, ok := configMap.Data["alinas-dadi-properties"]; ok {
+			if strings.Contains(value, "enable=true") {
+				//start go write cluster nodeIP to /etc/hosts
+				//format{["192.168.1.1:8800", "192.168.1.2:8801", "192.168.1.3:8802"]}
+				//get service endpoint->format json->write /etc/hosts/dadi-endpoint.json
+				if serviceType == utils.PluginService {
+					queryCmd := fmt.Sprintf("%s rpm -qa | grep unas", NsenterCmd)
+					res, _ := utils.Run(queryCmd)
+					if len(res) == 0 && serviceType == utils.PluginService {
+						cpfsRpm := "unas-4.19.91-25-6-for-ack-20.rpm"
+						installCmd := fmt.Sprintf("%s yum localinstall -y /etc/csi-tool/%s", NsenterCmd, cpfsRpm)
+						_, err := utils.Run(installCmd)
+						if err != nil {
+							log.Errorf("Exec cmd %s is failed, err: %v", installCmd, err)
+						} else {
+							log.Infof("Exec cmd %s is successfully", installCmd)
+						}
+						go dadi.Run(kubeClient)
+					}
+				}
 			}
 		}
-		log.Infof("Describe node %s and set RunTimeClass to %s", nodeName, runtimeValue)
-	}
 
-	if nodeInfo != nil {
-		for _, address := range nodeInfo.Status.Addresses {
-			if address.Type == "InternalIP" {
-				log.Infof("Node InternalIP is: %s", address.Address)
-				GlobalConfigVar.NodeIP = address.Address
+		metricNasConf := os.Getenv(NasMetricByPlugin)
+		if metricNasConf == "true" || metricNasConf == "yes" {
+			isNasMetricEnable = true
+		} else if metricNasConf == "false" || metricNasConf == "no" {
+			isNasMetricEnable = false
+		}
+
+		nodeName := os.Getenv("KUBE_NODE_NAME")
+		runtimeValue := "runc"
+		nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+		if err != nil {
+			log.Errorf("Describe node %s with error: %s", nodeName, err.Error())
+		} else {
+			if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime"]; ok && strings.TrimSpace(value) == "Sandboxed-Container.runv" {
+				if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime-version"]; ok && strings.HasPrefix(strings.TrimSpace(value), "1.") {
+					runtimeValue = MixRunTimeMode
+				}
+			}
+			log.Infof("Describe node %s and set RunTimeClass to %s", nodeName, runtimeValue)
+		}
+
+		if nodeInfo != nil {
+			for _, address := range nodeInfo.Status.Addresses {
+				if address.Type == "InternalIP" {
+					log.Infof("Node InternalIP is: %s", address.Address)
+					GlobalConfigVar.NodeIP = address.Address
+				}
 			}
 		}
-	}
 
-	GlobalConfigVar.LosetupEnable = false
-	losetupEn := os.Getenv("NAS_LOSETUP_ENABLE")
-	if losetupEn == "true" || losetupEn == "yes" {
-		GlobalConfigVar.LosetupEnable = true
-	}
+		GlobalConfigVar.LosetupEnable = false
+		losetupEn := os.Getenv("NAS_LOSETUP_ENABLE")
+		if losetupEn == "true" || losetupEn == "yes" {
+			GlobalConfigVar.LosetupEnable = true
+		}
 
-	if GlobalConfigVar.LosetupEnable && GlobalConfigVar.NodeIP == "" {
-		log.Fatal("Init GlobalConfigVar with NodeIP Empty, Nas losetup feature may be useless")
-	}
-	clustID := os.Getenv("CLUSTER_ID")
+		if GlobalConfigVar.LosetupEnable && GlobalConfigVar.NodeIP == "" {
+			log.Fatal("Init GlobalConfigVar with NodeIP Empty, Nas losetup feature may be useless")
+		}
+		clustID := os.Getenv("CLUSTER_ID")
 
-	GlobalConfigVar.KubeClient = kubeClient
-	GlobalConfigVar.MetricEnable = isNasMetricEnable
-	GlobalConfigVar.RunTimeClass = runtimeValue
-	GlobalConfigVar.NodeID = nodeName
-	GlobalConfigVar.ClusterID = clustID
-	GlobalConfigVar.NasFakeProvision = isNasFakeProvisioner
-	log.Infof("NAS Global Config: %v", GlobalConfigVar)
+		GlobalConfigVar.KubeClient = kubeClient
+		GlobalConfigVar.MetricEnable = isNasMetricEnable
+		GlobalConfigVar.RunTimeClass = runtimeValue
+		GlobalConfigVar.NodeID = nodeName
+		GlobalConfigVar.ClusterID = clustID
+		GlobalConfigVar.NasFakeProvision = isNasFakeProvisioner
+		log.Infof("NAS Global Config: %v", GlobalConfigVar)
+	}
 }
