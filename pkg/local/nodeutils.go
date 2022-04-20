@@ -212,6 +212,7 @@ func (ns *nodeServer) mountDeviceVolume(ctx context.Context, req *csi.NodePublis
 		fsType = mnt.FsType
 	}
 
+	log.Infof("mountDeviceVolume: Starting mount device %s to mountpoint %s by fsType %s with options %v", sourceDevice, targetPath, fsType, options)
 	// do format-mount or mount
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
 	if err := diskMounter.FormatAndMount(sourceDevice, targetPath, fsType, options); err != nil {
@@ -219,6 +220,7 @@ func (ns *nodeServer) mountDeviceVolume(ctx context.Context, req *csi.NodePublis
 		return status.Error(codes.Internal, err.Error())
 	}
 
+	log.Infof("mountDeviceVolume: Successful mount device %s to mountpoint %s by fsType %s with options %v", sourceDevice, targetPath, fsType, options)
 	return nil
 }
 
