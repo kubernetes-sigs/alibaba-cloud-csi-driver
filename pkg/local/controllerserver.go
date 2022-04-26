@@ -60,6 +60,8 @@ const (
 	MountPointType = "MountPoint"
 	// DeviceVolumeType type
 	DeviceVolumeType = "Device"
+	// DeviceVolumeKey type
+	DeviceVolumeKey = "device"
 	// VolumeTypeKey volume type key words
 	VolumeTypeKey = "volumeType"
 	// connection timeout
@@ -270,7 +272,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		if storageSelected != "" && nodeSelected != "" {
 			paraList, err = deviceScheduled(storageSelected, parameters)
 			if err != nil {
-				log.Errorf("CreateVolume: create device volume %s/%s at node %s error: %s", storageSelected, req.Name, nodeSelected, err.Error())
+				log.Errorf("CreateVolume: create device volume %s with device %s at node %s error: %s", req.Name, storageSelected, nodeSelected, err.Error())
 				return nil, status.Error(codes.InvalidArgument, "Parse Device all scheduled info error "+err.Error())
 			}
 		} else if nodeSelected != "" {

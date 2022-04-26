@@ -32,7 +32,7 @@ func TestDoNfsMount(t *testing.T) {
 	mountOptions := ""
 	mountPoint := ".tmp"
 	volumeID := "testtsettest"
-	err := DoNfsMount(nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, "podUID", "false")
+	err := DoNfsMount(MountProtocolNFS, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, "podUID", "false")
 	assert.NotNil(t, err)
 
 }

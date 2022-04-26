@@ -22,6 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"strings"
 )
 
 func lvmScheduled(storageSelected string, parameters map[string]string) (map[string]string, error) {
@@ -117,6 +118,13 @@ func mountpointNoScheduled(parameters map[string]string) (string, map[string]str
 func deviceScheduled(storageSelected string, parameters map[string]string) (map[string]string, error) {
 	device := ""
 	paraList := map[string]string{}
+	// if scheduled device like /dev/vdx, just use it.
+	if strings.HasPrefix(storageSelected, "/dev/") {
+		paraList[DeviceVolumeKey] = storageSelected
+		return paraList, nil
+	}
+
+	// if scheduled device is json format.
 	if storageSelected != "" {
 		storageMap := map[string]string{}
 		err := json.Unmarshal([]byte(storageSelected), &storageMap)
@@ -124,7 +132,7 @@ func deviceScheduled(storageSelected string, parameters map[string]string) (map[
 			return nil, status.Error(codes.InvalidArgument, "Scheduler provide error storage format: "+err.Error())
 		}
 		if value, ok := storageMap[DeviceVolumeType]; ok {
-			paraList[DeviceVolumeType] = value
+			paraList[DeviceVolumeKey] = value
 			device = value
 		}
 	}
@@ -144,7 +152,7 @@ func devicePartScheduled(nodeSelected, pvcName, pvcNameSpace string, parameters 
 		log.Errorf("Device Schedule finished, but get empty Disk: %v", volumeInfo)
 		return nil, status.Error(codes.InvalidArgument, "Device schedule finish but Disk empty")
 	}
-	paraList[DeviceVolumeType] = volumeInfo.Disk
+	paraList[DeviceVolumeKey] = volumeInfo.Disk
 	return paraList, nil
 }
 
