@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/status"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
@@ -36,6 +37,8 @@ const (
 	RegionTag = "region-id"
 	// NsenterCmd is the nsenter command
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
+	// GetDBFSMountCmd get dbfs mount path
+	GetDBFSMountCmd = "/usr/sbin/get_dbfs_mount_path"
 )
 
 var (
@@ -49,8 +52,7 @@ var (
 
 func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint string, volumeID string) error {
 	log.Infof("DoDBFSMount: mount volume %s to target %s", volumeID, mountPoint)
-	dbfsPath := filepath.Join(DdbfROOT, volumeID)
-	isAttached, err := checkDbfsAttached(volumeID)
+	dbfsPath, isAttached, err := checkDbfsAttached(volumeID)
 	if err != nil {
 		log.Errorf("DoDBFSMount: check Dbfs Attached error with: %s", err.Error())
 		return err
@@ -63,6 +65,7 @@ func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint st
 	options := append(mnt.MountFlags, "bind")
 
 	fsType := ""
+	log.Infof("DoDBFSMount: mount dbfsPath: %v, to path: %v , with fstype: %v, and options: %+v, at %+v", dbfsPath, mountPoint, fsType, options, time.Now())
 	if err = ns.k8smounter.Mount(dbfsPath, mountPoint, fsType, options); err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
@@ -70,17 +73,21 @@ func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint st
 	return nil
 }
 
-func checkDbfsAttached(volumeID string) (bool, error) {
-	dbfsPath := filepath.Join(DdbfROOT, volumeID)
-	cmd := fmt.Sprintf("mount | grep %s | grep dbfs_server | wc -l", dbfsPath)
-	line, err := utils.Run(cmd)
+func checkDbfsAttached(volumeID string) (string, bool, error) {
+
+	path, err := getDBFSPath(volumeID)
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
-	if strings.TrimSpace(line) == "1" {
-		return true, nil
+	actualPath := strings.TrimSpace(path)
+	log.Infof("checkDbfsAttached: actualPath: %v", actualPath)
+	if !strings.HasPrefix(actualPath, "/mnt") {
+		return "", false, fmt.Errorf("checkDbfsAttached: checked err: %s", actualPath)
 	}
-	return false, nil
+	if actualPath != "" {
+		return path, true, nil
+	}
+	return "", false, nil
 }
 
 func checkVolumeIDAvailiable(volumeID string) bool {
@@ -92,6 +99,15 @@ func checkVolumeIDAvailiable(volumeID string) bool {
 		return false
 	}
 	return true
+}
+
+func getDBFSPath(volumeID string) (string, error) {
+	cmd := fmt.Sprintf("%s %s %s", NsenterCmd, GetDBFSMountCmd, volumeID)
+	line, err := utils.Run(cmd)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(line, "\n"), nil
 }
 
 //func saveDbfsConfig(volumeId, mountpoint string) bool {
