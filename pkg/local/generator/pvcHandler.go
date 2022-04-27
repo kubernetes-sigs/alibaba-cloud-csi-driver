@@ -21,11 +21,6 @@ import (
 	"time"
 )
 
-var (
-	masterURL  string
-	kubeconfig string
-)
-
 // DesiredStateOfWordPvc the desired pvc state
 type DesiredStateOfWordPvc struct {
 	DesiredPvcMap map[string]*corev1.PersistentVolumeClaim

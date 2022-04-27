@@ -20,24 +20,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/go-ping/ping"
-	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"io"
 	"io/ioutil"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
-	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/record"
-	k8svol "k8s.io/kubernetes/pkg/volume"
-	"k8s.io/kubernetes/pkg/volume/util/fs"
 	"net"
 	"net/http"
 	"os"
@@ -47,8 +31,28 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
+
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/go-ping/ping"
+	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/record"
+	k8svol "k8s.io/kubernetes/pkg/volume"
+	"k8s.io/kubernetes/pkg/volume/util/fs"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 )
 
 //DefaultOptions used for global ak
@@ -90,6 +94,8 @@ const (
 	InstallSnapshotCRD = "INSTALL_SNAPSHOT_CRD"
 	// MetadataMaxRetrycount ...
 	MetadataMaxRetrycount = 4
+	// VolDataFileName file
+	VolDataFileName = "vol_data.json"
 
 	// NsenterCmd is the nsenter command
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
@@ -97,6 +103,13 @@ const (
 
 // KubernetesAlicloudIdentity set a identity label
 var KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiPlugin")
+
+var (
+	// NodeAddrMap map for NodeID and its Address
+	NodeAddrMap = map[string]string{}
+	// NodeAddrMutex Mutex for NodeAddr map
+	NodeAddrMutex sync.RWMutex
+)
 
 // RoleAuth define STS Token Response
 type RoleAuth struct {
@@ -115,11 +128,11 @@ func CreateEvent(recorder record.EventRecorder, objectRef *v1.ObjectReference, e
 
 //NewEventRecorder is create snapshots event recorder
 func NewEventRecorder() record.EventRecorder {
-	config, err := rest.InClusterConfig()
+	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
-		log.Fatalf("NewControllerServer: Failed to create config: %v", err)
+		log.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		log.Fatalf("NewControllerServer: Failed to create client: %v", err)
 	}
@@ -223,6 +236,13 @@ func CreateHostDest(dest string) error {
 }
 
 //IsLikelyNotMountPoint return status of mount point,this function fix IsMounted return 0 bug
+// IsLikelyNotMountPoint determines if a directory is not a mountpoint.
+// It is fast but not necessarily ALWAYS correct. If the path is in fact
+// a bind mount from one part of a mount to another it will not be detected.
+// It also can not distinguish between mountpoints and symbolic links.
+// mkdir /tmp/a /tmp/b; mount --bind /tmp/a /tmp/b; IsLikelyNotMountPoint("/tmp/b")
+// will return true. When in fact /tmp/b is a mount point. If this situation
+// is of interest to you, don't use this function...
 func IsLikelyNotMountPoint(file string) (bool, error) {
 	stat, err := os.Stat(file)
 	if err != nil {
@@ -629,6 +649,13 @@ func Fsync(f *os.File) error {
 	return f.Sync()
 }
 
+// SetNodeAddrMap set map with mutex
+func SetNodeAddrMap(key string, value string) {
+	NodeAddrMutex.Lock()
+	NodeAddrMap[key] = value
+	NodeAddrMutex.Unlock()
+}
+
 //GetNodeAddr get node address
 func GetNodeAddr(client kubernetes.Interface, node string, port string) (string, error) {
 	ip, err := GetNodeIP(client, node)
@@ -640,6 +667,9 @@ func GetNodeAddr(client kubernetes.Interface, node string, port string) (string,
 
 // GetNodeIP get node address
 func GetNodeIP(client kubernetes.Interface, nodeID string) (net.IP, error) {
+	if value, ok := NodeAddrMap[nodeID]; ok && value != "" {
+		return net.ParseIP(value), nil
+	}
 	node, err := client.CoreV1().Nodes().Get(context.Background(), nodeID, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -650,9 +680,11 @@ func GetNodeIP(client kubernetes.Interface, nodeID string) (net.IP, error) {
 		addressMap[addresses[i].Type] = append(addressMap[addresses[i].Type], addresses[i])
 	}
 	if addresses, ok := addressMap[v1.NodeInternalIP]; ok {
+		SetNodeAddrMap(nodeID, addresses[0].Address)
 		return net.ParseIP(addresses[0].Address), nil
 	}
 	if addresses, ok := addressMap[v1.NodeExternalIP]; ok {
+		SetNodeAddrMap(nodeID, addresses[0].Address)
 		return net.ParseIP(addresses[0].Address), nil
 	}
 	return nil, fmt.Errorf("Node IP unknown; known addresses: %v", addresses)
@@ -702,4 +734,46 @@ func GetPvNameFormPodMnt(mntPath string) string {
 		return pvName
 	}
 	return ""
+}
+
+// AppendJSONData append map data to json file.
+func AppendJSONData(dataFilePath string, appData map[string]string) error {
+	curData, err := loadJSONData(dataFilePath)
+	if err != nil {
+		return err
+	}
+	for key, value := range appData {
+		if strings.HasPrefix(key, "csi.alibabacloud.com/") {
+			curData[key] = value
+		}
+	}
+	rankingsJSON, _ := json.Marshal(curData)
+	if err := ioutil.WriteFile(dataFilePath, rankingsJSON, 0644); err != nil {
+		return err
+	}
+
+	log.Infof("AppendJSONData: Json data file saved successfully [%s], content: %v", dataFilePath, curData)
+	return nil
+}
+
+// loadJSONData loads json info from specified json file
+func loadJSONData(dataFileName string) (map[string]string, error) {
+	file, err := os.Open(dataFileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open json data file [%s]: %v", dataFileName, err)
+	}
+	defer file.Close()
+	data := map[string]string{}
+	if err := json.NewDecoder(file).Decode(&data); err != nil {
+		return nil, fmt.Errorf("failed to parse json data file [%s]: %v", dataFileName, err)
+	}
+	return data, nil
+}
+
+// IsKataInstall check kata daemon installed
+func IsKataInstall() bool {
+	if IsFileExisting("/host/etc/kata-containers") || IsFileExisting("/host/etc/kata-containers2") {
+		return true
+	}
+	return false
 }

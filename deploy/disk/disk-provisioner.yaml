@@ -65,7 +65,7 @@ spec:
       hostNetwork: true
       containers:
         - name: external-disk-provisioner
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v3.0.0-3f86569-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-provisioner:v3.0.0-b7fdbbf-aliyun
           args:
             - "--csi-address=$(ADDRESS)"
             - "--feature-gates=Topology=True"
@@ -75,6 +75,7 @@ spec:
             - "--leader-election=true"
             - "--extra-create-metadata=true"
             - "--retry-interval-start=500ms"
+            - "--default-fstype=ext4"
             - "--v=5"
           env:
             - name: ADDRESS
@@ -84,7 +85,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-attacher
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-attacher:v2.1.0
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-attacher:v3.3-37d8f31-aliyun
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -97,7 +98,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-resizer
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v0.3.0
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer:v1.3-e42ee11-aliyun
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -115,7 +116,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.16.9.43-f36bb540-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.22.8-5d23546-aliyun
           imagePullPolicy: "Always"
           args:
             - "--endpoint=$(CSI_ENDPOINT)"

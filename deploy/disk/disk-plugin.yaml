@@ -39,7 +39,7 @@ spec:
         hostPID: true
         containers:
           - name: disk-driver-registrar
-            image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
+            image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v2.3.0-038aeb6-aliyun
             imagePullPolicy: Always
             args:
               - "--v=5"
@@ -56,7 +56,7 @@ spec:
               capabilities:
                 add: ["SYS_ADMIN"]
               allowPrivilegeEscalation: true
-            image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.16.9.43-f36bb540-aliyun
+            image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.22.8-5d23546-aliyun
             imagePullPolicy: "Always"
             args:
               - "--endpoint=$(CSI_ENDPOINT)"

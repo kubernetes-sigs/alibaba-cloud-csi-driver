@@ -36,7 +36,6 @@ import (
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubernetes/pkg/util/resizefs"
 	utilexec "k8s.io/utils/exec"
 	k8smount "k8s.io/utils/mount"
@@ -91,27 +90,12 @@ type nodeServer struct {
 }
 
 var (
-	masterURL  string
-	kubeconfig string
 	// DeviceChars is chars of a device
 	DeviceChars = []string{"b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}
 )
 
-func newKubeClient() *kubernetes.Clientset {
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
-	}
-	return kubeClient
-}
-
 // NewNodeServer create a NodeServer object
 func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer {
-	kubeClient := newKubeClient()
 	mounter := k8smount.New("")
 	serviceType := os.Getenv(utils.ServiceType)
 	if len(serviceType) == 0 || serviceType == "" {
@@ -122,7 +106,7 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 		// local volume daemon
 		// GRPC server to provide volume manage
 		ch := make(chan bool)
-		go server.Start(kubeClient, ch)
+		go server.Start(types.GlobalConfigVar.KubeClient, ch)
 		<-ch
 		// pv handler
 		// watch pv/pvc annotations and provide volume manage
@@ -132,6 +116,11 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 		if types.GlobalConfigVar.PmemEnable {
 			manager.MaintainPMEM(types.GlobalConfigVar.PmemType, mounter)
 		}
+
+		// Update Local Storage capacity to Node
+		if types.GlobalConfigVar.CapacityToNode {
+			go updateNodeCapacity()
+		}
 	}
 
 	return &nodeServer{
@@ -139,7 +128,7 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 		nodeID:            nodeID,
 		mounter:           utils.NewMounter(),
 		k8smounter:        mounter,
-		client:            kubeClient,
+		client:            types.GlobalConfigVar.KubeClient,
 		driverName:        dName,
 	}
 }
@@ -213,7 +202,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	targetPath := req.GetTargetPath()
 	log.Infof("NodeUnpublishVolume: Starting to unmount target path %s for volume %s", targetPath, req.VolumeId)
 
-	isMnt, err := ns.mounter.IsMounted(targetPath)
+	isNotMnt, err := ns.mounter.IsNotMountPoint(targetPath)
 	if err != nil {
 		if _, err := os.Stat(targetPath); os.IsNotExist(err) {
 			log.Infof("NodeUnpublishVolume: Target path not exist for volume %s with path %s", req.VolumeId, targetPath)
@@ -222,7 +211,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		log.Errorf("NodeUnpublishVolume: Stat volume %s at path %s with error %v", req.VolumeId, targetPath, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if !isMnt {
+	if isNotMnt {
 		log.Infof("NodeUnpublishVolume: Target path %s not mounted for volume %s", targetPath, req.VolumeId)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
@@ -233,8 +222,8 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	isMnt, err = ns.mounter.IsMounted(targetPath)
-	if isMnt {
+	isNotMnt, err = ns.mounter.IsNotMountPoint(targetPath)
+	if !isNotMnt {
 		log.Errorf("NodeUnpublishVolume: Umount volume %s for path %s not successful", req.VolumeId, targetPath)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("Umount volume %s not successful", req.VolumeId))
 	}

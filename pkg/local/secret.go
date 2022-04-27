@@ -2,8 +2,10 @@ package local
 
 import (
 	"context"
-	"github.com/pkg/errors"
 	"io/ioutil"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -41,8 +43,7 @@ func prepareSecret(
 
 // createSecret will create the provided secret on the Kubernetes cluster.
 func createSecret(newSecret *corev1.Secret) error {
-	client := newKubeClient()
-	_, err := client.CoreV1().Secrets(newSecret.Namespace).Create(context.Background(), newSecret, metav1.CreateOptions{})
+	_, err := types.GlobalConfigVar.KubeClient.CoreV1().Secrets(newSecret.Namespace).Create(context.Background(), newSecret, metav1.CreateOptions{})
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -51,8 +52,7 @@ func createSecret(newSecret *corev1.Secret) error {
 
 // getSecret will get a Kubernetes secret by name in the provided namespace.
 func getSecret(namespace string, name string) (*corev1.Secret, error) {
-	client := newKubeClient()
-	secret, err := client.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	secret, err := types.GlobalConfigVar.KubeClient.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -61,8 +61,7 @@ func getSecret(namespace string, name string) (*corev1.Secret, error) {
 
 // listSecrets will list all the secrets that match the provided filters in the provided namespace.
 func listSecrets(namespace string, filters metav1.ListOptions) ([]corev1.Secret, error) {
-	client := newKubeClient()
-	resp, err := client.CoreV1().Secrets(namespace).List(context.Background(), filters)
+	resp, err := types.GlobalConfigVar.KubeClient.CoreV1().Secrets(namespace).List(context.Background(), filters)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -71,8 +70,7 @@ func listSecrets(namespace string, filters metav1.ListOptions) ([]corev1.Secret,
 
 // deleteSecret will delete the secret in the provided namespace that has the provided name.
 func deleteSecret(namespace string, secretName string) error {
-	client := newKubeClient()
-	err := client.CoreV1().Secrets(namespace).Delete(context.Background(), secretName, metav1.DeleteOptions{})
+	err := types.GlobalConfigVar.KubeClient.CoreV1().Secrets(namespace).Delete(context.Background(), secretName, metav1.DeleteOptions{})
 	if err != nil {
 		return errors.WithStack(err)
 	}

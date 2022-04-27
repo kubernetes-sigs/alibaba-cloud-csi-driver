@@ -20,12 +20,14 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -203,9 +205,19 @@ func (lvm *Local) Run() {
 // GlobalConfigSet set Global Config
 func GlobalConfigSet(region, nodeID, driverName string) {
 	// Global Configs Set
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubeconfig: %s", err.Error())
+	}
+	if qps := os.Getenv("KUBE_CLI_API_QPS"); qps != "" {
+		if qpsi, err := strconv.Atoi(qps); err == nil {
+			cfg.QPS = float32(qpsi)
+		}
+	}
+	if burst := os.Getenv("KUBE_CLI_API_BURST"); burst != "" {
+		if qpsi, err := strconv.Atoi(burst); err == nil {
+			cfg.Burst = qpsi
+		}
 	}
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
@@ -252,6 +264,12 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 		log.Infof("Lcoal: use special topoloy key with LOCAL_TOPO_KEY_DEFINED: %s", topoKeyStr)
 		topoKeyDefine = topoKeyStr
 	}
+	CapacityToNode := false
+	capacityToNode := os.Getenv("CAPACITY_TO_NODE")
+	if capacityToNode == "true" || capacityToNode == "yes" {
+		log.Infof("Lcoal: CAPACITY_TO_NODE is setting: %s", capacityToNode)
+		CapacityToNode = true
+	}
 
 	// Global Config Set
 	types.GlobalConfigVar = types.GlobalConfig{
@@ -260,6 +278,7 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 		Scheduler:      driverName,
 		PmemEnable:     pmemEnable,
 		PmemType:       pmeType,
+		CapacityToNode: CapacityToNode,
 		GrpcProvision:  grpcProvision,
 		KubeClient:     kubeClient,
 		HostNameAsTopo: hostNameAsTop,

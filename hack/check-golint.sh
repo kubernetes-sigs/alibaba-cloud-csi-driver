@@ -16,10 +16,4 @@
 
 set -euo pipefail
 
-go get golang.org/x/lint/golint
-
-CMD=$(go list -f \{\{\.Target\}\} golang.org/x/lint/golint)
-
-"${CMD}" -set_exit_status $(go list ./... | grep -v /vendor/)
-
-echo "Congratulations! All Go source files have been linted."
+# golint -set_exit_status $(go list ./... | grep -v '/vendor')

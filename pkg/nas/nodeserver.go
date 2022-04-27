@@ -32,6 +32,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -96,7 +97,7 @@ const (
 
 //newNodeServer create the csi node server
 func newNodeServer(d *NAS) *nodeServer {
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
@@ -333,6 +334,29 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if !utils.IsMounted(mountPath) {
 		return nil, errors.New("Check mount fail after mount:" + mountPath)
 	}
+
+	// save volume data to json file
+	if utils.IsKataInstall() {
+		volumeData := map[string]string{}
+		volumeData["csi.alibabacloud.com/version"] = opt.Vers
+		if len(opt.Options) != 0 {
+			volumeData["csi.alibabacloud.com/options"] = opt.Options
+		}
+		if len(opt.Server) != 0 {
+			volumeData["csi.alibabacloud.com/server"] = opt.Server
+		}
+		if len(opt.Path) != 0 {
+			volumeData["csi.alibabacloud.com/path"] = opt.Path
+		}
+		fileName := filepath.Join(filepath.Dir(mountPath), utils.VolDataFileName)
+		if strings.HasSuffix(mountPath, "/") {
+			fileName = filepath.Join(filepath.Dir(filepath.Dir(mountPath)), utils.VolDataFileName)
+		}
+		if err = utils.AppendJSONData(fileName, volumeData); err != nil {
+			log.Warnf("NodePublishVolume: append nas volume spec to %s with error: %s", fileName, err.Error())
+		}
+	}
+
 	log.Infof("NodePublishVolume:: Volume %s Mount success on mountpoint: %s", req.VolumeId, mountPath)
 
 	return &csi.NodePublishVolumeResponse{}, nil

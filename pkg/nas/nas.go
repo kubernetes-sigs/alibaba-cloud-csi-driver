@@ -19,16 +19,18 @@ package nas
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"strings"
 )
 
 const (
@@ -38,9 +40,7 @@ const (
 )
 
 var (
-	version    = "1.0.0"
-	masterURL  string
-	kubeconfig string
+	version = "1.0.0"
 	// GlobalConfigVar Global Config
 	GlobalConfigVar GlobalConfig
 )
@@ -126,9 +126,19 @@ func (d *NAS) Run() {
 // GlobalConfigSet set global config
 func GlobalConfigSet(serviceType string) {
 	// Global Configs Set
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubeconfig: %s", err.Error())
+	}
+	if qps := os.Getenv("KUBE_CLI_API_QPS"); qps != "" {
+		if qpsi, err := strconv.Atoi(qps); err == nil {
+			cfg.QPS = float32(qpsi)
+		}
+	}
+	if burst := os.Getenv("KUBE_CLI_API_BURST"); burst != "" {
+		if qpsi, err := strconv.Atoi(burst); err == nil {
+			cfg.Burst = qpsi
+		}
 	}
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
