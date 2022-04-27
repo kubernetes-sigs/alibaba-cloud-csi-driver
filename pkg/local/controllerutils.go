@@ -22,6 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"strings"
 )
 
 func lvmScheduled(storageSelected string, parameters map[string]string) (map[string]string, error) {
@@ -117,6 +118,13 @@ func mountpointNoScheduled(parameters map[string]string) (string, map[string]str
 func deviceScheduled(storageSelected string, parameters map[string]string) (map[string]string, error) {
 	device := ""
 	paraList := map[string]string{}
+	// if scheduled device like /dev/vdx, just use it.
+	if strings.HasPrefix(storageSelected, "/dev/") {
+		paraList[DeviceVolumeType] = storageSelected
+		return paraList, nil
+	}
+
+	// if scheduled device is json format.
 	if storageSelected != "" {
 		storageMap := map[string]string{}
 		err := json.Unmarshal([]byte(storageSelected), &storageMap)

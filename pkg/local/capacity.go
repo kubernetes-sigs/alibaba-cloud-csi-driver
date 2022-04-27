@@ -3,8 +3,11 @@ package local
 import (
 	"context"
 	"encoding/json"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	disk2 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
@@ -15,9 +18,11 @@ import (
 // [
 //   {"type": "lvm", "name": "vg1", "capacity": 105151127552},
 //   {"type": "quotapath", "name": "quotapath1", "capacity": 105151127552, "devicetype": "ssd", mountPoint": "/path1"}
+//   {"type": "device", "name": "/dev/vdc", "capacity": 1919850381312, "devicetype": "local_ssd_pro"}
 // ]
 // volumegorup 类型：name、capacity都是必选；
 // quotapath 类型：mountPoint、capacity是必选；
+// device 类型：name、capacity都是必选;
 type StorageCapacity struct {
 	Type       string `json:"type,omitempty"`
 	Name       string `json:"name,omitempty"`
@@ -26,19 +31,42 @@ type StorageCapacity struct {
 	MountPoint string `json:"mountPoint,omitempty"`
 }
 
+// LocalDeviceList the local device type list, only support alibaba cloud local disks;
+var LocalDeviceList = []*StorageCapacity{}
+
+// LocalDeviceUpdate alibaba cloud local disk is constant, no need reconcile
+var LocalDeviceUpdate = false
+
+// LocalDeviceLoopIndex local device check index
+var LocalDeviceLoopIndex = 0
+
+// NodeInstanceID the node instance id
+var NodeInstanceID, _ = utils.GetMetaData(InstanceID)
+
+// NodeRegionID the node region id
+var NodeRegionID, _ = utils.GetMetaData(RegionIDTag)
+
+// updateNodeCapacity update node capacity annotations with the realtime storage capacities.
 func updateNodeCapacity() {
 	log.Infof("updateNodeCapacity: Starting to update volume capacity to node")
 	CacheStorageCapacity := getCapacityFromNode()
 	for {
 		vgList := getVolumeGroup()
 		qpList := getQuotaPath()
+		// local disk is not changed, no need reconcile
+		if !LocalDeviceUpdate {
+			updateLocalDiskList()
+		}
 
-		if !isCapacitySame(vgList, qpList, CacheStorageCapacity) {
+		if !isTopologySame(vgList, qpList, CacheStorageCapacity) {
 			for _, item := range vgList {
 				log.Infof("updateNodeCapacity: volumeGroup capacity %++v", item)
 			}
 			for _, item := range qpList {
 				log.Infof("updateNodeCapacity: QuotaPath capacity %++v", item)
+			}
+			for _, item := range LocalDeviceList {
+				log.Infof("updateNodeCapacity: Local Device capacity %++v", item)
 			}
 			for _, item := range CacheStorageCapacity {
 				log.Infof("updateNodeCapacity: Cached capacity %++v", item)
@@ -50,12 +78,59 @@ func updateNodeCapacity() {
 				for _, item := range qpList {
 					CacheStorageCapacity = append(CacheStorageCapacity, item)
 				}
+				for _, item := range LocalDeviceList {
+					CacheStorageCapacity = append(CacheStorageCapacity, item)
+				}
 			}
 		}
 
 		// sleep with reconcile interval
 		time.Sleep(time.Duration(60) * time.Second)
 	}
+}
+
+// update node local disks
+func updateLocalDiskList() {
+	ac := utils.GetAccessControl()
+	client := utils.NewEcsClient(ac)
+	if LocalDeviceLoopIndex > 5 {
+		return
+	}
+	LocalDeviceLoopIndex = LocalDeviceLoopIndex + 1
+
+	// Describe Disks with instanceID
+	describeDisksRequest := ecs.CreateDescribeDisksRequest()
+	describeDisksRequest.RegionId = NodeRegionID
+	describeDisksRequest.InstanceId = NodeInstanceID
+	diskResponse, err := client.DescribeDisks(describeDisksRequest)
+	if err != nil {
+		log.Errorf("updateLocalDiskList: Describe Disks for %s with error: %s", NodeInstanceID, err.Error())
+		return
+	}
+	for _, disk := range diskResponse.Disks.Disk {
+		if disk.Category == "local_ssd_pro" || disk.Category == "local_hdd_pro" {
+			deviceName, err := disk2.GetDeviceByVolumeID(disk.DiskId)
+			if err != nil {
+				log.Errorf("updateLocalDiskList: get device by VolumeID(%s) with error: %s", disk.DiskId, err.Error())
+				return
+			}
+			capacity := &StorageCapacity{
+				Capacity:   uint64(disk.Size * 1024 * 1024 * 1024),
+				Type:       "device",
+				Name:       deviceName,
+				DeviceType: disk.Category,
+			}
+			LocalDeviceList = append(LocalDeviceList, capacity)
+		}
+	}
+	if len(LocalDeviceList) != 0 {
+		for _, item := range LocalDeviceList {
+			log.Infof("updateLocalDiskList: add local device with: %+v", item)
+		}
+	}
+	log.Infof("updateLocalDiskList: Successful Update Local Device")
+	LocalDeviceUpdate = true
+	return
 }
 
 // get volumegroups from the node
@@ -81,9 +156,9 @@ func getQuotaPath() []*StorageCapacity {
 	return nil
 }
 
-// check the current volume capacity is same as cached.
-func isCapacitySame(vgList, qpList, cachedList []*StorageCapacity) bool {
-	if len(vgList)+len(qpList) != len(cachedList) {
+// isTopologySame check the current volume capacity is same as cached.
+func isTopologySame(vgList, qpList, cachedList []*StorageCapacity) bool {
+	if len(vgList)+len(qpList)+len(LocalDeviceList) != len(cachedList) {
 		return false
 	}
 	for _, item := range cachedList {
@@ -99,6 +174,15 @@ func isCapacitySame(vgList, qpList, cachedList []*StorageCapacity) bool {
 		}
 		for _, qpItem := range qpList {
 			if isCapacityObjectSame(item, qpItem) {
+				itemSearched = true
+				break
+			}
+		}
+		if itemSearched {
+			continue
+		}
+		for _, deviceItem := range LocalDeviceList {
+			if isCapacityObjectSame(item, deviceItem) {
 				itemSearched = true
 				break
 			}
@@ -138,6 +222,9 @@ func updateCapacityToNode(vgList, qpList []*StorageCapacity) error {
 	for _, item := range vgList {
 		qpList = append(qpList, item)
 	}
+	for _, item := range LocalDeviceList {
+		qpList = append(qpList, item)
+	}
 	capacity, err := json.Marshal(qpList)
 	if err != nil {
 		log.Errorf("Update volumecapacity with json.Marshal error: %s", err.Error())
@@ -168,7 +255,7 @@ func getCapacityFromNode() []*StorageCapacity {
 		}
 	}
 	for _, item := range capacityList {
-		log.Infof("Successful Get volumecapacity from node: %++v", item)
+		log.Infof("Successful Get storage capacity from node: %++v", item)
 	}
 	return capacityList
 }
