@@ -18,6 +18,7 @@ package nas
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -49,6 +50,7 @@ var (
 type GlobalConfig struct {
 	Region             string
 	NasTagEnable       bool
+	CpfsNfsEnable      bool
 	ADControllerEnable bool
 	MetricEnable       bool
 	NasFakeProvision   bool
@@ -74,7 +76,7 @@ type NAS struct {
 }
 
 //NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string) *NAS {
+func NewDriver(nodeID, endpoint, serviceType string) *NAS {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
 	d := &NAS{}
@@ -92,7 +94,7 @@ func NewDriver(nodeID, endpoint string) *NAS {
 	})
 
 	// Global Configs Set
-	GlobalConfigSet()
+	GlobalConfigSet(serviceType)
 
 	d.driver = csiDriver
 
@@ -123,7 +125,7 @@ func (d *NAS) Run() {
 }
 
 // GlobalConfigSet set global config
-func GlobalConfigSet() {
+func GlobalConfigSet(serviceType string) {
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
@@ -147,6 +149,7 @@ func GlobalConfigSet() {
 	configMapName := "csi-plugin"
 	isNasMetricEnable := false
 	isNasFakeProvisioner := false
+	isCpfsNfsEnable := false
 
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
@@ -161,6 +164,23 @@ func GlobalConfigSet() {
 		if value, ok := configMap.Data["nas-fake-provision"]; ok {
 			if value == "enable" || value == "yes" || value == "true" {
 				isNasFakeProvisioner = true
+			}
+		}
+		if value, ok := configMap.Data["cpfs-nas-enable"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				isCpfsNfsEnable = true
+				queryCmd := fmt.Sprintf("%s rpm -qa | grep aliyun-alinas-utils", NsenterCmd)
+				res, _ := utils.Run(queryCmd)
+				if len(res) == 0 && serviceType == utils.PluginService {
+					cpfsRpm := "aliyun-alinas-utils-1.1-1.al.noarch.rpm"
+					installCmd := fmt.Sprintf("%s yum localinstall -y /etc/csi-tool/%s", NsenterCmd, cpfsRpm)
+					_, err := utils.Run(installCmd)
+					if err != nil {
+						log.Errorf("Exec cmd %s is failed, err: %v", installCmd, err)
+					} else {
+						log.Infof("Exec cmd %s is successfully", installCmd)
+					}
+				}
 			}
 		}
 	}
@@ -212,5 +232,6 @@ func GlobalConfigSet() {
 	GlobalConfigVar.NodeID = nodeName
 	GlobalConfigVar.ClusterID = clustID
 	GlobalConfigVar.NasFakeProvision = isNasFakeProvisioner
+	GlobalConfigVar.CpfsNfsEnable = isCpfsNfsEnable
 	log.Infof("NAS Global Config: %v", GlobalConfigVar)
 }
