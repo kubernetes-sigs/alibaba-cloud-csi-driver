@@ -225,6 +225,17 @@ func CreateDest(dest string) error {
 	return nil
 }
 
+//CreateHostDest create host dest directory
+func CreateHostDest(dest string) error {
+	cmd := fmt.Sprintf("%s mkdir -p %s", NsenterCmd, dest)
+	_, err := Run(cmd)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// IsLikelyNotMountPoint return status of mount point,this function fix IsMounted return 0 bug
 // IsLikelyNotMountPoint determines if a directory is not a mountpoint.
 // It is fast but not necessarily ALWAYS correct. If the path is in fact
 // a bind mount from one part of a mount to another it will not be detected.
@@ -261,6 +272,30 @@ func IsMounted(mountPath string) bool {
 		return false
 	}
 	return true
+}
+
+// IsHostMounted return status of host mounted or not
+func IsHostMounted(mountPath string) bool {
+	cmd := fmt.Sprintf("%s mount | grep %s | grep -v grep | wc -l", NsenterCmd, mountPath)
+	out, err := Run(cmd)
+	if err != nil {
+		log.Infof("IsMounted: exec error: %s, %s", cmd, err.Error())
+		return false
+	}
+	if strings.TrimSpace(out) == "0" {
+		return false
+	}
+	return true
+}
+
+// HostUmount do an unmount operation
+func HostUmount(mountPath string) error {
+	cmd := fmt.Sprintf("%s umount %s", NsenterCmd, mountPath)
+	_, err := Run(cmd)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Umount do an unmount operation
