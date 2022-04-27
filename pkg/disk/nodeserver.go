@@ -577,7 +577,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		if err != nil {
 			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
 			log.Errorf("NodeStageVolume: Attach volume: %s with error: %s", req.VolumeId, fullErrorMessage)
-			return nil, err
+			return nil, status.Error(codes.Aborted, fmt.Sprintf("NodeStageVolume: Attach volume: %s with error: %+v", req.VolumeId, err))
 		}
 	}
 
