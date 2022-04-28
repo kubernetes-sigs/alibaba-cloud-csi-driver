@@ -19,12 +19,14 @@ package dbfs
 import (
 	"errors"
 	"fmt"
+	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -175,6 +177,12 @@ func newDbfsClient(ac utils.AccessControl, regionID string) (dbfsClient *dbfs.Cl
 	}
 	if err != nil {
 		return nil
+	}
+
+	aliyunep.AddEndpointMapping(regionID, "Dbfs", "dbfs-vpc."+regionID+".aliyuncs.com")
+	// use environment endpoint setting first;
+	if ep := os.Getenv("DBFS_ENDPOINT"); ep != "" {
+		aliyunep.AddEndpointMapping(regionID, "Dbfs", ep)
 	}
 	return
 }
