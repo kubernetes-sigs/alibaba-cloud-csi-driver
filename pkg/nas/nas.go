@@ -176,9 +176,9 @@ func GlobalConfigSet(serviceType string) {
 					installCmd := fmt.Sprintf("%s yum localinstall -y /etc/csi-tool/%s", NsenterCmd, cpfsRpm)
 					_, err := utils.Run(installCmd)
 					if err != nil {
-						log.Errorf("Exec cmd %s is failed, err: %v", installCmd, err)
+						log.Errorf("Install rpm  %s is failed, err: %v", cpfsRpm, err)
 					} else {
-						log.Infof("Exec cmd %s is successfully", installCmd)
+						log.Infof("Install rpm %s is successfully", cpfsRpm)
 					}
 				}
 			}
