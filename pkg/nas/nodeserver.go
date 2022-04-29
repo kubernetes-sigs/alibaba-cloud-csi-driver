@@ -297,10 +297,16 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// if system not set nas, config it.
 	checkSystemNasConfig()
 
-	//use cpfs-nfs grayscale unit test
-	if !GlobalConfigVar.CpfsNfsEnable && opt.MountProtocol == MountProtocolCFPSNFS {
-		return nil, errors.New("Cpfs-NFS is testing in grayscale.Please set cpfs-nas-enable to true for the configmap of csi-plugin under the kube-system namespace")
+	//cpfs-nfs check valid
+	if opt.MountProtocol == MountProtocolCFPSNFS {
+		if !GlobalConfigVar.CpfsNfsEnable {
+			return nil, errors.New("Cpfs-nfs is testing in grayscale.Please set cpfs-nas-enable to true for the configmap of csi-plugin under the kube-system namespace")
+		}
+		if !strings.HasPrefix(opt.Path, "/share") {
+			return nil, errors.New("The path to cpfs-nfs must start with /share.")
+		}
 	}
+
 	// Do mount
 	if err := DoNfsMount(opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, mountPath, req.VolumeId); err != nil {
 		log.Errorf("Nas, Mount Nfs error: %s", err.Error())
