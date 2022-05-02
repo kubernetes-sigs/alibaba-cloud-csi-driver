@@ -172,7 +172,7 @@ func GlobalConfigSet(serviceType string) {
 				queryCmd := fmt.Sprintf("%s rpm -qa | grep aliyun-alinas-utils", NsenterCmd)
 				res, _ := utils.Run(queryCmd)
 				if len(res) == 0 && serviceType == utils.PluginService {
-					cpfsRpm := "aliyun-alinas-utils-1.1-1.al.noarch.rpm"
+					cpfsRpm := "aliyun-alinas-utils-1.1-2.al7.noarch.rpm"
 					installCmd := fmt.Sprintf("%s yum localinstall -y /etc/csi-tool/%s", NsenterCmd, cpfsRpm)
 					_, err := utils.Run(installCmd)
 					if err != nil {
