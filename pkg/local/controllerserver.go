@@ -60,6 +60,8 @@ const (
 	MountPointType = "MountPoint"
 	// DeviceVolumeType type
 	DeviceVolumeType = "Device"
+	// DeviceVolumeKey type
+	DeviceVolumeKey = "device"
 	// VolumeTypeKey volume type key words
 	VolumeTypeKey = "volumeType"
 	// connection timeout

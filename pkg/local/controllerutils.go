@@ -120,7 +120,7 @@ func deviceScheduled(storageSelected string, parameters map[string]string) (map[
 	paraList := map[string]string{}
 	// if scheduled device like /dev/vdx, just use it.
 	if strings.HasPrefix(storageSelected, "/dev/") {
-		paraList[DeviceVolumeType] = storageSelected
+		paraList[DeviceVolumeKey] = storageSelected
 		return paraList, nil
 	}
 
@@ -132,7 +132,7 @@ func deviceScheduled(storageSelected string, parameters map[string]string) (map[
 			return nil, status.Error(codes.InvalidArgument, "Scheduler provide error storage format: "+err.Error())
 		}
 		if value, ok := storageMap[DeviceVolumeType]; ok {
-			paraList[DeviceVolumeType] = value
+			paraList[DeviceVolumeKey] = value
 			device = value
 		}
 	}
@@ -152,7 +152,7 @@ func devicePartScheduled(nodeSelected, pvcName, pvcNameSpace string, parameters 
 		log.Errorf("Device Schedule finished, but get empty Disk: %v", volumeInfo)
 		return nil, status.Error(codes.InvalidArgument, "Device schedule finish but Disk empty")
 	}
-	paraList[DeviceVolumeType] = volumeInfo.Disk
+	paraList[DeviceVolumeKey] = volumeInfo.Disk
 	return paraList, nil
 }
 
