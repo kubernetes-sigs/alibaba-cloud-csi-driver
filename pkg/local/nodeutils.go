@@ -198,6 +198,8 @@ func (ns *nodeServer) mountDeviceVolume(ctx context.Context, req *csi.NodePublis
 	targetPath := req.TargetPath
 	if value, ok := req.VolumeContext[DeviceVolumeType]; ok {
 		sourceDevice = value
+	} else if value, ok = req.VolumeContext[DeviceVolumeKey]; ok {
+		sourceDevice = value
 	}
 	if sourceDevice == "" {
 		log.Errorf("mountDeviceVolume: device volume: %s, sourcePath empty", req.VolumeId)
