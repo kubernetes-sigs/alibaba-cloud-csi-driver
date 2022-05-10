@@ -17,22 +17,22 @@ limitations under the License.
 package dbfs
 
 import (
-	"os"
-	"net/http"
 	"errors"
 	"fmt"
-	"time"
-	"io/ioutil"
+	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"io/ioutil"
+	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
@@ -155,7 +155,6 @@ func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 
 	return
 }
-
 
 func getVolumeCount() int64 {
 	ac := utils.GetAccessControl()
