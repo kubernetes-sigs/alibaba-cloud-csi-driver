@@ -226,7 +226,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("host is empty, should input nas domain")
 	}
 	// check network connection
-	if opt.MountProtocol == MountProtocolNFS {
+	doNfsPortCheck := GlobalConfigVar.NasPortCheck
+	if opt.MountType == SkipMountType {
+		doNfsPortCheck = false
+	}
+	if opt.MountProtocol == MountProtocolNFS && doNfsPortCheck {
 		conn, err := net.DialTimeout("tcp", opt.Server+":"+NasPortnum, time.Second*time.Duration(3))
 		if err != nil {
 			log.Errorf("NAS: Cannot connect to nas host: %s", opt.Server)
@@ -277,6 +281,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// Create Mount Path
 	if err := utils.CreateDest(mountPath); err != nil {
 		return nil, errors.New("Nas, Mount error with create Path fail: " + mountPath)
+	}
+
+	// if volume set mountType as skipmount;
+	if opt.MountType == SkipMountType {
+		saveVolumeData(opt, mountPath)
+		log.Infof("NodePublishVolume:: Volume %s is Skip Mount type, just save the metadata: %s", req.VolumeId, mountPath)
+		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	// do losetup nas logical
@@ -341,28 +352,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("Check mount fail after mount:" + mountPath)
 	}
 
-	// save volume data to json file
-	if utils.IsKataInstall() {
-		volumeData := map[string]string{}
-		volumeData["csi.alibabacloud.com/version"] = opt.Vers
-		if len(opt.Options) != 0 {
-			volumeData["csi.alibabacloud.com/options"] = opt.Options
-		}
-		if len(opt.Server) != 0 {
-			volumeData["csi.alibabacloud.com/server"] = opt.Server
-		}
-		if len(opt.Path) != 0 {
-			volumeData["csi.alibabacloud.com/path"] = opt.Path
-		}
-		fileName := filepath.Join(filepath.Dir(mountPath), utils.VolDataFileName)
-		if strings.HasSuffix(mountPath, "/") {
-			fileName = filepath.Join(filepath.Dir(filepath.Dir(mountPath)), utils.VolDataFileName)
-		}
-		if err = utils.AppendJSONData(fileName, volumeData); err != nil {
-			log.Warnf("NodePublishVolume: append nas volume spec to %s with error: %s", fileName, err.Error())
-		}
-	}
-
+	saveVolumeData(opt, mountPath)
 	log.Infof("NodePublishVolume:: Volume %s Mount success on mountpoint: %s", req.VolumeId, mountPath)
 
 	return &csi.NodePublishVolumeResponse{}, nil

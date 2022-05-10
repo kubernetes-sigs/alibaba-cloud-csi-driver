@@ -59,6 +59,7 @@ type GlobalConfig struct {
 	NodeIP             string
 	ClusterID          string
 	LosetupEnable      bool
+	NasPortCheck       bool
 	KubeClient         *kubernetes.Clientset
 	NasClient          *aliNas.Client
 }
@@ -226,6 +227,12 @@ func GlobalConfigSet(serviceType string) {
 	}
 	clustID := os.Getenv("CLUSTER_ID")
 
+	doNfsPortCheck := true
+	nasCheck := os.Getenv("NAS_PORT_CHECK")
+	if nasCheck == "no" || nasCheck == "false" {
+		doNfsPortCheck = false
+	}
+
 	GlobalConfigVar.KubeClient = kubeClient
 	GlobalConfigVar.MetricEnable = isNasMetricEnable
 	GlobalConfigVar.RunTimeClass = runtimeValue
@@ -233,5 +240,6 @@ func GlobalConfigSet(serviceType string) {
 	GlobalConfigVar.ClusterID = clustID
 	GlobalConfigVar.NasFakeProvision = isNasFakeProvisioner
 	GlobalConfigVar.CpfsNfsEnable = isCpfsNfsEnable
+	GlobalConfigVar.NasPortCheck = doNfsPortCheck
 	log.Infof("NAS Global Config: %v", GlobalConfigVar)
 }
