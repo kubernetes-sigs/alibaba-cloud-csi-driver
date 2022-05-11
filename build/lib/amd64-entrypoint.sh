@@ -221,7 +221,7 @@ if [ "$run_nas" = "true" ]; then
     cp /csi/aliyun-alinas-utils-1.1-2.al7.noarch.rpm /host/etc/csi-tool/
     # nas-rich-client rpm
     cp /csi/aliyun-alinas-utils-1.1-2.alios7.noarch.rpm /host/etc/csi-tool/
-    cp /csi/alinas-unas-1.1-1.alios7.x86_64.rpm /host/etc/csi-tool/
+    cp /csi/alinas-unas-1.2-1.alios7.x86_64.rpm /host/etc/csi-tool/
 fi
 
 

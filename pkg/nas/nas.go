@@ -126,6 +126,7 @@ func (d *NAS) Run() {
 }
 
 func installRpm(queryRpmName string, rpmName string) {
+	utils.Run(fmt.Sprintf("%s yum remove -y alinas-unas.x86_64", NsenterCmd))
 	queryCmd := fmt.Sprintf("%s rpm -qa | grep %s", queryRpmName, NsenterCmd)
 	res, _ := utils.Run(queryCmd)
 	if len(res) == 0 {
@@ -186,7 +187,7 @@ func GlobalConfigSet(serviceType string) {
 			if strings.Contains(value, "enable=true") {
 				if serviceType == utils.PluginService {
 					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.alios7.noarch.rpm")
-					installRpm("alinas-unas", "alinas-unas-1.1-1.alios7.x86_64.rpm")
+					installRpm("alinas-unas", "alinas-unas-1.2-1.alios7.x86_64.rpm")
 				}
 			}
 		}
