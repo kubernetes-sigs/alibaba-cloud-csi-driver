@@ -21,11 +21,14 @@ import (
 	"fmt"
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -112,6 +115,91 @@ func getDBFSPath(volumeID string) (string, error) {
 	return strings.TrimSuffix(line, "\n"), nil
 }
 
+// GetRegionID Get RegionID from Environment Variables or Metadata
+func GetRegionID() string {
+	regionID := os.Getenv("REGION_ID")
+	if regionID == "" {
+		regionID = GetMetaData(RegionTag)
+	}
+	return regionID
+}
+
+func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
+	regionID := GetRegionID()
+	var err error
+	switch ac.UseMode {
+	case utils.AccessKey:
+		ecsClient, err = ecs.NewClientWithAccessKey(regionID, ac.AccessKeyID, ac.AccessKeySecret)
+	case utils.Credential:
+		ecsClient, err = ecs.NewClientWithOptions(regionID, ac.Config, ac.Credential)
+	default:
+		ecsClient, err = ecs.NewClientWithStsToken(regionID, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
+	}
+	if err != nil {
+		return nil
+	}
+
+	if os.Getenv("INTERNAL_MODE") == "true" {
+		ecsClient.Network = "openapi-share"
+		if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
+			aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
+		}
+	} else {
+		// use environment endpoint setting first;
+		if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
+			aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
+		} else {
+			aliyunep.AddEndpointMapping(regionID, "Ecs", "ecs-vpc."+regionID+".aliyuncs.com")
+		}
+	}
+
+	return
+}
+
+func getVolumeCount() int64 {
+	ac := utils.GetAccessControl()
+	ecsClient := newEcsClient(ac)
+	instanceType := ""
+	var err error
+	var MaxVolumesPerNode int64 = 15
+	volumeCount := MaxVolumesPerNode
+
+	for i := 0; i < 5; i++ {
+		// get instance type for node
+		if instanceType == "" {
+			instanceType, err = utils.GetMetaData("instance/instance-type")
+			if err != nil {
+				log.Warnf("getVolumeCount: get instance type with error: %s", err.Error())
+				time.Sleep(time.Duration(1) * time.Second)
+				continue
+			}
+		}
+
+		// describe ecs instance type
+		req := ecs.CreateDescribeInstanceTypesRequest()
+		req.RegionId = GlobalConfigVar.Region
+		req.InstanceTypes = &[]string{instanceType}
+		response, err := ecsClient.DescribeInstanceTypes(req)
+		// if auth failed, return with default
+		if err != nil && strings.Contains(err.Error(), "Forbidden") {
+			log.Errorf("getVolumeCount: describe instance type with error: %s", err.Error())
+			return MaxVolumesPerNode
+			// not forbidden error, retry
+		} else if err != nil && !strings.Contains(err.Error(), "Forbidden") {
+			time.Sleep(time.Duration(1) * time.Second)
+			continue
+		}
+		if len(response.InstanceTypes.InstanceType) != 1 {
+			log.Warnf("getVolumeCount: get instance max volume failed type with %v", response)
+			return MaxVolumesPerNode
+		}
+		volumeCount = int64(response.InstanceTypes.InstanceType[0].DiskQuantity) - 2
+		log.Infof("getVolumeCount: get instance max volume %d type with response %v", volumeCount, response)
+		break
+	}
+	return volumeCount
+}
+
 //func saveDbfsConfig(volumeId, mountpoint string) bool {
 //	targetFile := filepath.Join(mountpoint, "")
 //	if utils.IsFileExisting(targetFile) {
@@ -147,18 +235,18 @@ func getDBFSPath(volumeID string) (string, error) {
 //}
 
 // GetMetaData get host regionid, zoneid
-//func GetMetaData(resource string) string {
-//	resp, err := http.Get(MetadataURL + resource)
-//	if err != nil {
-//		return ""
-//	}
-//	defer resp.Body.Close()
-//	body, err := ioutil.ReadAll(resp.Body)
-//	if err != nil {
-//		return ""
-//	}
-//	return string(body)
-//}
+func GetMetaData(resource string) string {
+	resp, err := http.Get(MetadataURL + resource)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return ""
+	}
+	return string(body)
+}
 
 func updateDbfsClient(client *dbfs.Client) *dbfs.Client {
 	ac := utils.GetAccessControl()

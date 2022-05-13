@@ -78,14 +78,11 @@ func newNodeServer(d *DBFS) *nodeServer {
 		if err != nil {
 			log.Fatalf("NewNodeServer: MAX_DBFS_VOLUMES_PERNODE must be int64, but get: %s", volumeNum)
 		} else {
-			if num < 0 || num > 15 {
-				log.Errorf("NewNodeServer: MAX_DBFS_VOLUMES_PERNODE must between 0-15, but get: %s", volumeNum)
-			} else {
-				maxVolumesNum = num
-				log.Infof("NewNodeServer: MAX_DBFS_VOLUMES_PERNODE is set to(not default): %d", maxVolumesNum)
-			}
+			maxVolumesNum = num
+			log.Infof("NewNodeServer: MAX_DBFS_VOLUMES_PERNODE is set to(not default): %d", maxVolumesNum)
 		}
 	} else {
+		maxVolumesNum = getVolumeCount()
 		log.Infof("NewNodeServer: MAX_DBFS_VOLUMES_PERNODE is set to(default): %d", maxVolumesNum)
 	}
 
