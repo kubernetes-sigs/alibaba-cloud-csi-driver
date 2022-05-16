@@ -27,7 +27,7 @@ func NewUDSClient(socketPath string) *UDSClient {
 func (u *UDSClient) Get(url string) (*http.Response, error) {
 	resp, err := u.client.Get(url)
 	if err != nil {
-		//log.Errorf("Get url %s is failed, err: %s. ", url, err)
+		log.Errorf("Get url %s is failed, err: %s ", url, err)
 		return nil, err
 	}
 	return resp, nil
@@ -37,7 +37,7 @@ func (u *UDSClient) Get(url string) (*http.Response, error) {
 func (u *UDSClient) ReadBody(resp *http.Response) string {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Errorf("Get resp is failed, resp:%+v, err:%s", resp, err.Error())
+		log.Errorf("Get resp.body is failed, resp:%+v, err:%s", resp, err.Error())
 		return string("")
 	}
 	return string(body)
@@ -48,4 +48,5 @@ func (u *UDSClient) Close(resp *http.Response) {
 	if resp != nil {
 		_ = resp.Body.Close()
 	}
+	u.client.CloseIdleConnections()
 }

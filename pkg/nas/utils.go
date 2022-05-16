@@ -78,7 +78,7 @@ type RoleAuth struct {
 }
 
 //DoNfsMount execute the mount command for nas dir
-func DoNfsMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, podUID, useNasClient string) error {
+func DoNfsMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, podUID, useEaClient string) error {
 	if !utils.IsFileExisting(mountPoint) {
 		CreateDest(mountPoint)
 	}
@@ -90,9 +90,8 @@ func DoNfsMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoi
 
 	var mntCmd string
 	var err error
-	nfsServer = "959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com"
-	if len(useNasClient) != 0 && useNasClient == "true" {
-		mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o unas -o client_owner=%s -o %s %s:%s %s", podUID, mountOptions, nfsServer, nfsPath, mountPoint)
+	if len(useEaClient) != 0 && useEaClient == "true" {
+		mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o eac -o client_owner=%s -o %s %s:%s %s", podUID, mountOptions, nfsServer, nfsPath, mountPoint)
 		if out, err := utils.ConnectorRun(mntCmd); err != nil {
 			if err != nil {
 				log.Errorf("Mount by nas rich client, error: %s", err.Error())
@@ -100,7 +99,7 @@ func DoNfsMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoi
 			}
 		}
 	} else {
-		mntCmd := fmt.Sprintf("mount -t %s -o vers=%s %s:%s %s", nfsProtocol, nfsVers, nfsServer, nfsPath, mountPoint)
+		mntCmd = fmt.Sprintf("mount -t %s -o vers=%s %s:%s %s", nfsProtocol, nfsVers, nfsServer, nfsPath, mountPoint)
 		if mountOptions != "" {
 			mntCmd = fmt.Sprintf("mount -t %s -o vers=%s,%s %s:%s %s", nfsProtocol, nfsVers, mountOptions, nfsServer, nfsPath, mountPoint)
 		}
@@ -280,6 +279,7 @@ func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
 
 func createHostNasSubDir(nfsServer, nfsPath, nfsVers, nfsOptions string, volumeID string) error {
 	// step 1: create mount path
+	//nasTmpPath: /mnt/acs_mnt/k8s_nas/temp/volumeID
 	nasTmpPath := filepath.Join(NasTempMntPath, volumeID)
 	if err := utils.CreateHostDest(nasTmpPath); err != nil {
 		log.Infof("Create Nas Host temp Directory err: " + err.Error())
@@ -293,8 +293,9 @@ func createHostNasSubDir(nfsServer, nfsPath, nfsVers, nfsOptions string, volumeI
 	if nfsOptions != "" {
 		nfsVers = nfsVers + "," + nfsOptions
 	}
-	usePath := nfsPath
-	rootPath := "/"
+	//nfsPath: /share/volumeID
+	usePath := strings.TrimPrefix(nfsPath, "/share/")
+	rootPath := "/share"
 
 	mntCmdRootPath := fmt.Sprintf("%s mount -t cpfs-nfs -o vers=%s %s:%s %s", NsenterCmd, nfsVers, nfsServer, rootPath, nasTmpPath)
 	_, err := utils.Run(mntCmdRootPath)
@@ -302,7 +303,9 @@ func createHostNasSubDir(nfsServer, nfsPath, nfsVers, nfsOptions string, volumeI
 		log.Errorf("Nas, mount directory rootPath fail, rootPath:%s, err:%s", rootPath, err.Error())
 		return err
 	}
-
+	//serverPath: /share
+	//subPath: /mnt/acs_mnt/k8s_nas/temp/volumeID/share/volumeID
+	//nfsPath: /share/subPath
 	subPath := path.Join(nasTmpPath, usePath)
 	if err := utils.CreateHostDest(subPath); err != nil {
 		log.Infof("Nas, Create Sub Directory fail, subPath:%s, err: " + err.Error())

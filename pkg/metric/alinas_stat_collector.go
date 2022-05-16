@@ -167,8 +167,9 @@ func NewAlinasStatCollector() (Collector, error) {
 			{desc: alinasCapacityUsedDesc, valueType: prometheus.CounterValue},
 			{desc: alinasCapacityAvailableDesc, valueType: prometheus.CounterValue},
 		},
-		clientSet: clientset,
-		crdClient: crdClient,
+		clientSet:             clientset,
+		crdClient:             crdClient,
+		lastMountPointInfoMap: make(map[string]alinasInfo, 0),
 	}, nil
 }
 
@@ -205,41 +206,6 @@ func getMountPointInfoMap() map[string]alinasInfo {
 	return m
 }
 
-/*
-read_completed_total{mountpoint="/mnt", domain="959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com", remotepath="/"} 0
-read_timeouts_total{mountpoint="/mnt", domain="959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com", remotepath="/"} 0
-read_bytes_total{mountpoint="/mnt", domain="959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com", remotepath="/"} 0
-read_queue_time_milliseconds_total{mountpoint="/mnt", domain="959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com", remotepath="/"} 0.000
-read_time_milliseconds_total{mountpoint="/mnt", domain="959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com", remotepath="/"} 0.000
-write_completed_total{mountpoint="/mnt", domain="959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com", remotepath="/"} 0
-write_timeouts_total{mountpoint="/mnt", domain="959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com", remotepath="/"} 0
-write_bytes_total{mountpoint="/mnt", domain="959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com", remotepath="/"} 0
-write_queue_time_milliseconds_total{mountpoint="/mnt", domain="959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com", remotepath="/"} 0.000
-write_time_milliseconds_total{mountpoint="/mnt", domain="959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com", remotepath="/"} 0.000
-capacity_bytes_available{mountpoint="/mnt", domain="959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com", remotepath="/"} 0
-capacity_bytes_total{mountpoint="/mnt", domain="959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com", remotepath="/"} 0
-inodes_available{mountpoint="/mnt", domain="959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com", remotepath="/"} 0
-inodes_total{mountpoint="/mnt", domain="959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com", remotepath="/"} 0
-*/
-
-/*
-{desc: alinasReadsCompletedDesc, valueType: prometheus.CounterValue},
-{desc: alinasReadsTimeOutDesc, valueType: prometheus.CounterValue},
-{desc: alinasReadsBytesDesc, valueType: prometheus.CounterValue},
-{desc: alinasReadsQueueTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
-{desc: alinasReadTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
-//write
-{desc: alinasWritesCompletedDesc, valueType: prometheus.CounterValue},
-{desc: alinasWritesTimeOutDesc, valueType: prometheus.CounterValue},
-{desc: alinasWritesBytesDesc, valueType: prometheus.CounterValue},
-{desc: alinasWritesQueueTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
-{desc: alinasWriteTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
-//capacity
-{desc: alinasCapacityTotalDesc, valueType: prometheus.CounterValue},
-{desc: alinasCapacityUsedDesc, valueType: prometheus.CounterValue},
-{desc: alinasCapacityAvailableDesc, valueType: prometheus.CounterValue},
-0-12
-*/
 func getMetric(respStr string) []string {
 	s1 := "{"
 	s2 := " "
@@ -248,6 +214,9 @@ func getMetric(respStr string) []string {
 	for _, resp := range respArr {
 		nameEnd := strings.Index(resp, s1)
 		numStart := strings.LastIndex(resp, s2)
+		if nameEnd == -1 || numStart == -1 {
+			continue
+		}
 		name := resp[0:nameEnd]
 		num := resp[numStart+1:]
 		switch name {
@@ -284,30 +253,26 @@ func getMetric(respStr string) []string {
 }
 
 func (p *alinasStatCollector) Update(ch chan<- prometheus.Metric) error {
-	//startTime := time.Now()
-	//1、mount | grep alinas return pv-stat mapping
-	//2、getPvcByPv
 	thisMountPointInfoMap := getMountPointInfoMap()
-	log.Infof("thisMountPointInfoMap:%+v",thisMountPointInfoMap)
 	if thisMountPointInfoMap == nil || len(thisMountPointInfoMap) == 0 {
 		return nil
 	}
-	p.updateMap(p.lastMountPointInfoMap)
-
+	p.updateMap(thisMountPointInfoMap)
 	wg := sync.WaitGroup{}
 	for _, info := range p.lastMountPointInfoMap {
 		wg.Add(1)
 		if len(info.UUID) != 0 {
-			udsClient := NewUDSClient(fmt.Sprintf(" /var/run/eac/%s.monitor.sock", info.UUID))
+			udsClient := NewUDSClient(fmt.Sprintf("/host/var/run/eac/%s.monitor.sock", info.UUID))
 			resp, err := udsClient.Get("http://localhost/metric")
 			if err != nil {
 				continue
 			}
 			respStr := udsClient.ReadBody(resp)
-			log.Infof("respStr:%+v",respStr)
+			if err != nil {
+				continue
+			}
 			defer udsClient.Close(resp)
 			stats := getMetric(respStr)
-			log.Infof("stats:%+v",stats)
 			go func(pvNameArgs string, pvcNamespaceArgs string, pvcNameArgs string, serverNameArgs string, statsArgs []string) {
 				defer wg.Done()
 				p.setAliNasMetric(pvNameArgs, pvcNamespaceArgs, pvcNameArgs, serverNameArgs, statsArgs, ch)
@@ -351,6 +316,7 @@ func (p *alinasStatCollector) updateAliNasInfoMap(thisMountPointInfoMap map[stri
 				PvcName:      pvcName,
 				PvcNamespace: pvcNamespace,
 				ServerName:   serverName,
+				UUID:         thisInfo.UUID,
 			}
 			(p.lastMountPointInfoMap)[mp] = updateInfo
 		}
