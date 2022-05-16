@@ -86,6 +86,8 @@ const (
 	MntTypeKey = "mountType"
 	// LosetupType tag
 	LosetupType = "losetup"
+	// SkipMountType tag
+	SkipMountType = "skipmount"
 
 	allowVolumeExpansion = "allowVolumeExpansion"
 	csiAlibabaCloudName  = "csi.alibabacloud.com"

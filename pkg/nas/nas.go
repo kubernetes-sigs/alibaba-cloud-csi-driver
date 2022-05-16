@@ -60,6 +60,7 @@ type GlobalConfig struct {
 	NodeIP             string
 	ClusterID          string
 	LosetupEnable      bool
+	NasPortCheck       bool
 	KubeClient         *kubernetes.Clientset
 	NasClient          *aliNas.Client
 }
@@ -182,6 +183,24 @@ func GlobalConfigSet(serviceType string) {
 			}
 		}
 
+		if value, ok := configMap.Data["cpfs-nas-enable"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				isCpfsNfsEnable = true
+				queryCmd := fmt.Sprintf("%s rpm -qa | grep aliyun-alinas-utils", NsenterCmd)
+				res, _ := utils.Run(queryCmd)
+				if len(res) == 0 && serviceType == utils.PluginService {
+					cpfsRpm := "aliyun-alinas-utils-1.1-2.al7.noarch.rpm"
+					installCmd := fmt.Sprintf("%s yum localinstall -y /etc/csi-tool/%s", NsenterCmd, cpfsRpm)
+					_, err := utils.Run(installCmd)
+					if err != nil {
+						log.Errorf("Install rpm  %s is failed, err: %v", cpfsRpm, err)
+					} else {
+						log.Infof("Install rpm %s is successfully", cpfsRpm)
+					}
+				}
+			}
+		}
+
 		if value, ok := configMap.Data["nas-elastic-acceleration-client-properties"]; ok {
 			if strings.Contains(value, "enable=true") {
 				if serviceType == utils.PluginService {
@@ -252,6 +271,12 @@ func GlobalConfigSet(serviceType string) {
 	}
 	clustID := os.Getenv("CLUSTER_ID")
 
+	doNfsPortCheck := true
+	nasCheck := os.Getenv("NAS_PORT_CHECK")
+	if nasCheck == "no" || nasCheck == "false" {
+		doNfsPortCheck = false
+	}
+
 	GlobalConfigVar.KubeClient = kubeClient
 	GlobalConfigVar.MetricEnable = isNasMetricEnable
 	GlobalConfigVar.RunTimeClass = runtimeValue
@@ -259,5 +284,7 @@ func GlobalConfigSet(serviceType string) {
 	GlobalConfigVar.ClusterID = clustID
 	GlobalConfigVar.NasFakeProvision = isNasFakeProvisioner
 	GlobalConfigVar.CpfsNfsEnable = isCpfsNfsEnable
+	GlobalConfigVar.NasPortCheck = doNfsPortCheck
+
 	log.Infof("NAS Global Config: %v", GlobalConfigVar)
 }
