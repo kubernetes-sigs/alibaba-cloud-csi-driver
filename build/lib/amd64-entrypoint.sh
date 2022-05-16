@@ -217,10 +217,9 @@ fi
 
 ## CPFS-NAS plugin setup
 if [ "$run_nas" = "true" ]; then
-    # cpfs-nas rpm
-    cp /csi/aliyun-alinas-utils-1.1-2.al7.noarch.rpm /host/etc/csi-tool/
+    # cpfs-nas nas-rich-client common rpm
+    cp /root/aliyun-alinas-utils-1.1-2.al7.noarch.rpm /host/etc/csi-tool/
     # nas-rich-client rpm
-    cp /root/aliyun-alinas-utils-1.1-2.alios7.noarch.rpm /host/etc/csi-tool/
     cp /root/alinas-eac-1.1-1.alios7.x86_64.rpm /host/etc/csi-tool/
 fi
 

@@ -10,7 +10,7 @@ RUN mkdir /csi && \
     curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-ca30fc4_centos7.0_x86_64.rpm -o /root/ossfs_1.86.4_centos7.0_x86_64.rpm && \
     curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}-75ed4f1_centos8_x86_64.rpm -o /root/ossfs_1.86.4_centos8_x86_64.rpm && \
     curl https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-eac-1.1-1.alios7.x86_64.rpm -o /root/alinas-eac-1.1-1.alios7.x86_64.rpm && \
-    curl https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-2.alios7.noarch.rpm -o /root/aliyun-alinas-utils-1.1-2.alios7.noarch.rpm \
+    curl https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-2.al7.noarch.rpm -o /root/aliyun-alinas-utils-1.1-2.al7.noarch.rpm \
 
 COPY . /csi
 COPY amd64-entrypoint.sh /entrypoint.sh

@@ -205,7 +205,7 @@ func GlobalConfigSet(serviceType string) {
 			if strings.Contains(value, "enable=true") {
 				if serviceType == utils.PluginService {
 					//deleteRpm before installRpm
-					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.alios7.noarch.rpm")
+					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
 					installRpm("alinas-unas", "alinas-eac-1.1-1.alios7.x86_64.rpm")
 				}
 			}
