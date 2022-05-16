@@ -285,6 +285,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// if volume set mountType as skipmount;
 	if opt.MountType == SkipMountType {
+		mountCmd := fmt.Sprintf("mount -t tmpfs -o size=1m tmpfs %s", mountPath)
+		_, err := utils.Run(mountCmd)
+		if err != nil {
+			log.Errorf("NAS: Mount volume(%s) path as tmpfs with err: %v", req.VolumeId, err.Error())
+			return nil, status.Error(codes.Internal, "NAS: Mount as tmpfs volume with err"+err.Error())
+		}
 		saveVolumeData(opt, mountPath)
 		log.Infof("NodePublishVolume:: Volume %s is Skip Mount type, just save the metadata: %s", req.VolumeId, mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
