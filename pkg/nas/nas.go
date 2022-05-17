@@ -26,6 +26,7 @@ import (
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dadi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -125,6 +126,20 @@ func (d *NAS) Run() {
 	s.Wait()
 }
 
+func installRpm(queryRpmName string, rpmName string) {
+	queryCmd := fmt.Sprintf("%s rpm -qa | grep %s", queryRpmName, NsenterCmd)
+	res, _ := utils.Run(queryCmd)
+	if len(res) == 0 {
+		installCmd := fmt.Sprintf("%s yum localinstall -y /etc/csi-tool/%s", NsenterCmd, rpmName)
+		_, err := utils.Run(installCmd)
+		if err != nil {
+			log.Errorf("Exec cmd %s is failed, err: %v", installCmd, err)
+		} else {
+			log.Infof("Exec cmd %s is successfully", installCmd)
+		}
+	}
+}
+
 // GlobalConfigSet set global config
 func GlobalConfigSet(serviceType string) {
 	// Global Configs Set
@@ -167,6 +182,7 @@ func GlobalConfigSet(serviceType string) {
 				isNasFakeProvisioner = true
 			}
 		}
+
 		if value, ok := configMap.Data["cpfs-nas-enable"]; ok {
 			if value == "enable" || value == "yes" || value == "true" {
 				isCpfsNfsEnable = true
@@ -184,8 +200,36 @@ func GlobalConfigSet(serviceType string) {
 				}
 			}
 		}
-	}
 
+		if value, ok := configMap.Data["nas-elastic-acceleration-client-properties"]; ok {
+			if strings.Contains(value, "enable=true") {
+				if serviceType == utils.PluginService {
+					//deleteRpm before installRpm
+					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
+					installRpm("alinas-unas", "alinas-eac-1.1-1.alios7.x86_64.rpm")
+				}
+			}
+		}
+
+		if value, ok := configMap.Data["alinas-dadi-properties"]; ok {
+			if strings.Contains(value, "enable=true") {
+				//start go write cluster nodeIP to /etc/hosts
+				//format{["192.168.1.1:8800", "192.168.1.2:8801", "192.168.1.3:8802"]}
+				//get service endpoint->format json->write /etc/hosts/dadi-endpoint.json
+				if serviceType == utils.PluginService {
+					go dadi.Run(kubeClient)
+				}
+			}
+		}
+		if value, ok := configMap.Data["cpfs-nas-enable"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				if serviceType == utils.PluginService {
+					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
+				}
+				isCpfsNfsEnable = true
+			}
+		}
+	}
 	metricNasConf := os.Getenv(NasMetricByPlugin)
 	if metricNasConf == "true" || metricNasConf == "yes" {
 		isNasMetricEnable = true
@@ -241,5 +285,6 @@ func GlobalConfigSet(serviceType string) {
 	GlobalConfigVar.NasFakeProvision = isNasFakeProvisioner
 	GlobalConfigVar.CpfsNfsEnable = isCpfsNfsEnable
 	GlobalConfigVar.NasPortCheck = doNfsPortCheck
+
 	log.Infof("NAS Global Config: %v", GlobalConfigVar)
 }

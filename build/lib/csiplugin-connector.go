@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"log"
 	"net"
 	"os"
@@ -221,9 +222,15 @@ func echoServer(c net.Conn) {
 	cmd := string(buf[0:nr])
 	log.Printf("Server Receive OSS command: %s", cmd)
 
-	if err := checkOssfsCmd(cmd); err != nil {
+	if strings.Contains(cmd, "/usr/local/bin/ossfs") {
+		err = checkOssfsCmd(cmd)
+	} else {
+		err = checkRichNasClientCmd(cmd)
+	}
+
+	if err != nil {
 		out := "Fail: " + err.Error()
-		log.Printf("Check oss command error: %s", out)
+		log.Printf("Check command error: %s", out)
 		if _, err := c.Write([]byte(out)); err != nil {
 			log.Printf("Check command write error: %s", err.Error())
 		}
@@ -239,6 +246,25 @@ func echoServer(c net.Conn) {
 		_, err = c.Write([]byte(out))
 		log.Printf("Success: %s", out)
 	}
+}
+
+//systemd-run --scope -- mount -t alinas -o unas -o client_owner=podUID nfsServer:nfsPath mountPoint
+func checkRichNasClientCmd(cmd string) error {
+	parameteList := strings.Split(cmd, " ")
+	mountPoint := parameteList[len(parameteList)-1]
+	if !IsFileExisting(mountPoint) {
+		return errors.New("Nas rich client option: mountpoint not exist " + mountPoint)
+	}
+	nfsInfo := strings.Split(parameteList[len(parameteList)-2], ":")
+	if len(nfsInfo) != 2 {
+		return errors.New("Nas rich client option: nfsServer:nfsPath is wrong format " + parameteList[len(parameteList)-2])
+	}
+	domain := nfsInfo[0]
+	stat, err := utils.Ping(domain)
+	if err != nil || stat.PacketLoss == 100 {
+		return errors.New("Nas rich client option: network is not connection, err:" + err.Error() + "domain:" + domain)
+	}
+	return nil
 }
 
 // systemd-run --scope -- /usr/local/bin/ossfs shenzhen

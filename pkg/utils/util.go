@@ -19,6 +19,7 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -99,6 +100,9 @@ const (
 
 	// NsenterCmd is the nsenter command
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
+
+	// socketPath is path of connector sock
+	socketPath = "/host/etc/csi-tool/connector.sock"
 )
 
 // KubernetesAlicloudIdentity set a identity label
@@ -372,23 +376,6 @@ func GetRegionIDAndInstanceID(nodeName string) (string, string, error) {
 	return strs[0], strs[1], nil
 }
 
-// WriteJSONFile write a json object
-func WriteJSONFile(obj interface{}, file string) error {
-	maps := make(map[string]interface{})
-	t := reflect.TypeOf(obj)
-	v := reflect.ValueOf(obj)
-	for i := 0; i < v.NumField(); i++ {
-		if v.Field(i).String() != "" {
-			maps[t.Field(i).Name] = v.Field(i).String()
-		}
-	}
-	rankingsJSON, _ := json.Marshal(maps)
-	if err := ioutil.WriteFile(file, rankingsJSON, 0644); err != nil {
-		return err
-	}
-	return nil
-}
-
 // ReadJSONFile return a json object
 func ReadJSONFile(file string) (map[string]string, error) {
 	jsonObj := map[string]string{}
@@ -512,8 +499,8 @@ func GetFileContent(fileName string) string {
 	return devicePath
 }
 
-// WriteJosnFile save json data to file
-func WriteJosnFile(obj interface{}, file string) error {
+// WriteJSONFile save json data to file
+func WriteJSONFile(obj interface{}, file string) error {
 	maps := make(map[string]interface{})
 	t := reflect.TypeOf(obj)
 	v := reflect.ValueOf(obj)
@@ -734,6 +721,32 @@ func GetPvNameFormPodMnt(mntPath string) string {
 		return pvName
 	}
 	return ""
+}
+
+// ConnectorRun Run shell command with host connector
+// host connector is daemon running in host.
+func ConnectorRun(cmd string) (string, error) {
+	c, err := net.Dial("unix", socketPath)
+	if err != nil {
+		log.Errorf("Oss connector Dial error: %s", err.Error())
+		return err.Error(), err
+	}
+	defer c.Close()
+
+	_, err = c.Write([]byte(cmd))
+	if err != nil {
+		log.Errorf("Oss connector write error: %s", err.Error())
+		return err.Error(), err
+	}
+
+	buf := make([]byte, 2048)
+	n, err := c.Read(buf[:])
+	response := string(buf[0:n])
+	if strings.HasPrefix(response, "Success") {
+		respstr := response[8:]
+		return respstr, nil
+	}
+	return response, errors.New("Exec command error:" + response)
 }
 
 // AppendJSONData append map data to json file.

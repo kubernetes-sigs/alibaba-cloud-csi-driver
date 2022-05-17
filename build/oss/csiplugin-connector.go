@@ -45,12 +45,12 @@ func main() {
 		return
 	}
 	defer cntxt.Release()
-	log.Print("OSS Connector Daemon Is Starting...")
+	log.Print("User Space Connector Daemon Is Starting...")
 
-	runOssProxy()
+	runUserSpaceProxy()
 }
 
-func runOssProxy() {
+func runUserSpaceProxy() {
 	if IsFileExisting(SocketPath) {
 		os.Remove(SocketPath)
 	} else {
@@ -118,16 +118,23 @@ func echoServer(c net.Conn) {
 	}
 
 	cmd := string(buf[0:nr])
-	log.Printf("Server Receive OSS command: %s", cmd)
+	log.Printf("Server Receive csi command: %s", cmd)
 
-	if err := checkOssfsCmd(cmd); err != nil {
+	if strings.Contains(cmd, "/usr/local/bin/ossfs") {
+		err = checkOssfsCmd(cmd)
+	} else if strings.Contains(cmd, "mount -t alinas") {
+		err = checkRichNasClientCmd(cmd)
+	}
+
+	if err != nil {
 		out := "Fail: " + err.Error()
-		log.Printf("Check oss command error: %s", out)
+		log.Printf("Check user space command error: %s", out)
 		if _, err := c.Write([]byte(out)); err != nil {
-			log.Printf("Check command write error: %s", err.Error())
+			log.Printf("Check user space command write error: %s", err.Error())
 		}
 		return
 	}
+
 	// run command
 	if out, err := run(cmd); err != nil {
 		reply := "Fail: " + cmd + ", error: " + err.Error()
@@ -219,6 +226,23 @@ func checkOssfsCmd(cmd string) error {
 		return nil
 	}
 	return errors.New("Oss Options: options with error prefix: " + cmd)
+}
+
+//systemd-run --scope -- mount -t alinas -o unas -o client_owner=podUID nfsServer:nfsPath mountPoint
+func checkRichNasClientCmd(cmd string) error {
+	parameteList := strings.Split(cmd, " ")
+	if len(parameteList) <= 2 {
+		return errors.New(fmt.Sprintf("Nas rich client mount command is format wrong:%+v", parameteList))
+	}
+	mountPoint := parameteList[len(parameteList)-1]
+	if !IsFileExisting(mountPoint) {
+		return errors.New("Nas rich client option: mountpoint not exist " + mountPoint)
+	}
+	nfsInfo := strings.Split(parameteList[len(parameteList)-2], ":")
+	if len(nfsInfo) != 2 {
+		return errors.New("Nas rich client option: nfsServer:nfsPath is wrong format " + parameteList[len(parameteList)-2])
+	}
+	return nil
 }
 
 func run(cmd string) (string, error) {

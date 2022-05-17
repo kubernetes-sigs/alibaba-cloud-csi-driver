@@ -39,7 +39,7 @@ func getPvcByPvNameByDisk(clientSet *kubernetes.Clientset, pvName string) (strin
 	return "", "", errors.New("pvName:" + pv.Name + " status is not bound.")
 }
 
-func getPvcByPvNameByNas(clientSet *kubernetes.Clientset, cnfsClient dynamic.Interface, pvName string) (string, string, string, error) {
+func getPvcByPvName(clientSet *kubernetes.Clientset, cnfsClient dynamic.Interface, pvName string) (string, string, string, error) {
 	pv, err := clientSet.CoreV1().PersistentVolumes().Get(context.Background(), pvName, apismetav1.GetOptions{})
 	if err != nil {
 		return "", "", "", err
