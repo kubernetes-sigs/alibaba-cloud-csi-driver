@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"log"
 	"net"
 	"os"
@@ -123,7 +122,7 @@ func echoServer(c net.Conn) {
 
 	if strings.Contains(cmd, "/usr/local/bin/ossfs") {
 		err = checkOssfsCmd(cmd)
-	} else {
+	} else if strings.Contains(cmd, "mount -t alinas") {
 		err = checkRichNasClientCmd(cmd)
 	}
 
@@ -232,6 +231,9 @@ func checkOssfsCmd(cmd string) error {
 //systemd-run --scope -- mount -t alinas -o unas -o client_owner=podUID nfsServer:nfsPath mountPoint
 func checkRichNasClientCmd(cmd string) error {
 	parameteList := strings.Split(cmd, " ")
+	if len(parameteList) <= 2 {
+		return errors.New(fmt.Sprintf("Nas rich client mount command is format wrong:%+v", parameteList))
+	}
 	mountPoint := parameteList[len(parameteList)-1]
 	if !IsFileExisting(mountPoint) {
 		return errors.New("Nas rich client option: mountpoint not exist " + mountPoint)
@@ -239,11 +241,6 @@ func checkRichNasClientCmd(cmd string) error {
 	nfsInfo := strings.Split(parameteList[len(parameteList)-2], ":")
 	if len(nfsInfo) != 2 {
 		return errors.New("Nas rich client option: nfsServer:nfsPath is wrong format " + parameteList[len(parameteList)-2])
-	}
-	domain := nfsInfo[0]
-	stat, err := utils.Ping(domain)
-	if err != nil || stat.PacketLoss == 100 {
-		return errors.New("Nas rich client option: network is barrier, err:" + err.Error() + "domain:" + domain)
 	}
 	return nil
 }
