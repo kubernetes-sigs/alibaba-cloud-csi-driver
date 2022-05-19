@@ -206,6 +206,16 @@ func (ns *nodeServer) mountDeviceVolume(ctx context.Context, req *csi.NodePublis
 		return status.Error(codes.Internal, "Mount Device with empty source path "+req.VolumeId)
 	}
 
+	isNotMnt, err := ns.mounter.IsNotMountPoint(targetPath)
+	if err != nil {
+		log.Errorf("mountDeviceVolume: check target path mounted err: %+v", err)
+		return status.Error(codes.Internal, err.Error())
+	}
+	if !isNotMnt {
+		log.Infof("mountDeviceVolume: Device %s Already mounted to mountpoint %s", sourceDevice, targetPath)
+		return nil
+	}
+
 	// Step Start to format
 	mnt := req.VolumeCapability.GetMount()
 	options := append(mnt.MountFlags, "shared")
