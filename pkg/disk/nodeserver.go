@@ -283,6 +283,16 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				log.Errorf("NodePublishVolume(runv): Write Josn File error: %s", err.Error())
 				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Write Josn File error: "+err.Error())
 			}
+			// save volume status to stage json file
+			volumeStatus := map[string]string{}
+			volumeStatus["csi.alibabacloud.com/disk-mounted"] = "true"
+			fileName := filepath.Join(filepath.Dir(sourcePath), utils.VolDataFileName)
+			if strings.HasSuffix(sourcePath, "/") {
+				fileName = filepath.Join(filepath.Dir(filepath.Dir(sourcePath)), utils.VolDataFileName)
+			}
+			if err = utils.AppendJSONData(fileName, volumeStatus); err != nil {
+				log.Warnf("NodePublishVolume: append kata volume attached info to %s with error: %s", fileName, err.Error())
+			}
 
 			log.Infof("NodePublishVolume:: Kata Disk Volume %s Mount Successful", req.VolumeId)
 			return &csi.NodePublishVolumeResponse{}, nil
@@ -517,6 +527,18 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		if err := ns.mounter.EnsureFolder(targetPath); err != nil {
 			log.Errorf("NodeStageVolume: create volume %s path %s error: %v", req.VolumeId, targetPath, err)
 			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	// check volume is mounted in kata mode;
+	fileName := filepath.Join(filepath.Dir(targetPath), utils.VolDataFileName)
+	if strings.HasSuffix(targetPath, "/") {
+		fileName = filepath.Join(filepath.Dir(filepath.Dir(targetPath)), utils.VolDataFileName)
+	}
+	volumeData, err := utils.LoadJSONData(fileName)
+	if err == nil {
+		if _, ok := volumeData["csi.alibabacloud.com/disk-mounted"]; ok {
+			log.Infof("NodeStageVolume:  volumeId: %s, Path: %s is already mounted in kata mode", req.VolumeId, targetPath)
+			return &csi.NodeStageVolumeResponse{}, nil
 		}
 	}
 

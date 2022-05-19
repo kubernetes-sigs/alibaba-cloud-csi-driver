@@ -751,7 +751,7 @@ func ConnectorRun(cmd string) (string, error) {
 
 // AppendJSONData append map data to json file.
 func AppendJSONData(dataFilePath string, appData map[string]string) error {
-	curData, err := loadJSONData(dataFilePath)
+	curData, err := LoadJSONData(dataFilePath)
 	if err != nil {
 		return err
 	}
@@ -769,8 +769,8 @@ func AppendJSONData(dataFilePath string, appData map[string]string) error {
 	return nil
 }
 
-// loadJSONData loads json info from specified json file
-func loadJSONData(dataFileName string) (map[string]string, error) {
+// LoadJSONData loads json info from specified json file
+func LoadJSONData(dataFileName string) (map[string]string, error) {
 	file, err := os.Open(dataFileName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open json data file [%s]: %v", dataFileName, err)
