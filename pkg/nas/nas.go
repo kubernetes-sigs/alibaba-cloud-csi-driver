@@ -126,6 +126,16 @@ func (d *NAS) Run() {
 	s.Wait()
 }
 
+func deleteRpm(rpmName string) {
+	deleteCmd := fmt.Sprintf("%s yum remove -y %s", NsenterCmd, rpmName)
+	_, err := utils.Run(deleteCmd)
+	if err != nil {
+		log.Errorf("Exec cmd %s is failed, err: %v", deleteCmd, err)
+	} else {
+		log.Infof("Exec cmd %s is successfully", deleteCmd)
+	}
+}
+
 func installRpm(queryRpmName string, rpmName string) {
 	queryCmd := fmt.Sprintf("%s rpm -qa | grep %s", queryRpmName, NsenterCmd)
 	res, _ := utils.Run(queryCmd)
@@ -205,8 +215,10 @@ func GlobalConfigSet(serviceType string) {
 			if strings.Contains(value, "enable=true") {
 				if serviceType == utils.PluginService {
 					//deleteRpm before installRpm
+					deleteRpm("aliyun-alinas-utils.noarch")
 					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
-					installRpm("alinas-unas", "alinas-eac-1.1-1.alios7.x86_64.rpm")
+					deleteRpm("alinas-eac.x86_64")
+					installRpm("alinas-eac", "alinas-eac-1.1-1.alios7.x86_64.rpm")
 				}
 			}
 		}
@@ -224,6 +236,7 @@ func GlobalConfigSet(serviceType string) {
 		if value, ok := configMap.Data["cpfs-nas-enable"]; ok {
 			if value == "enable" || value == "yes" || value == "true" {
 				if serviceType == utils.PluginService {
+					deleteRpm("aliyun-alinas-utils.noarch")
 					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
 				}
 				isCpfsNfsEnable = true
