@@ -17,7 +17,7 @@ do
       run_oss="true"
       mkdir -p /var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com
       rm -rf /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
-      /usr/bin/nsenter yum install -y fuse-devel
+      /usr/bin/nsenter --mount=/proc/1/ns/mnt yum install -y fuse-devel
       if [ ! `/usr/bin/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
           echo "First install ossfs...."
           cp /usr/bin/ossfs /host/usr/bin/
@@ -45,7 +45,7 @@ do
               run_oss="true"
               mkdir -p /var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com
               rm -rf /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
-              /usr/bin/nsenter yum install -y fuse-devel
+              /usr/bin/nsenter --mount=/proc/1/ns/mnt yum install -y fuse-devel
           elif [ "$driver_type" = "disk" ]; then
               echo "Running disk plugin...."
 							run_disk="true"
