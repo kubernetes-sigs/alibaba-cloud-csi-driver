@@ -99,6 +99,10 @@ const (
 	annDiskID = "volume.alibabacloud.com/disk-id"
 	// MultiAttach tag
 	MultiAttach = "multiAttach"
+	// MinimumDiskSizeInGB ...
+	MinimumDiskSizeInGB = 20
+	// MinimumDiskSizeInBytes ...
+	MinimumDiskSizeInBytes = 21474836480
 )
 
 const (
@@ -137,19 +141,20 @@ type controllerServer struct {
 
 // Alicloud disk parameters
 type diskVolumeArgs struct {
-	Type             string              `json:"type"`
-	RegionID         string              `json:"regionId"`
-	ZoneID           string              `json:"zoneId"`
-	FsType           string              `json:"fsType"`
-	ReadOnly         bool                `json:"readOnly"`
-	MultiAttach      string              `json:"multiAttach"`
-	Encrypted        bool                `json:"encrypted"`
-	KMSKeyID         string              `json:"kmsKeyId"`
-	PerformanceLevel string              `json:"performanceLevel"`
-	ResourceGroupID  string              `json:"resourceGroupId"`
-	DiskTags         string              `json:"diskTags"`
-	NodeSelected     string              `json:"nodeSelected"`
-	ARN              []ecs.CreateDiskArn `json:"arn"`
+	Type                    string              `json:"type"`
+	RegionID                string              `json:"regionId"`
+	ZoneID                  string              `json:"zoneId"`
+	FsType                  string              `json:"fsType"`
+	ReadOnly                bool                `json:"readOnly"`
+	MultiAttach             string              `json:"multiAttach"`
+	Encrypted               bool                `json:"encrypted"`
+	KMSKeyID                string              `json:"kmsKeyId"`
+	PerformanceLevel        string              `json:"performanceLevel"`
+	ResourceGroupID         string              `json:"resourceGroupId"`
+	DiskTags                string              `json:"diskTags"`
+	NodeSelected            string              `json:"nodeSelected"`
+	ARN                     []ecs.CreateDiskArn `json:"arn"`
+	VolumeSizeAutoAvailable bool                `json:"volumeSizeAutoAvailable"`
 }
 
 // Alicloud disk snapshot parameters
@@ -277,6 +282,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
+	if diskVol.VolumeSizeAutoAvailable && requestGB < MinimumDiskSizeInGB {
+		log.Infof("CreateVolume: volume size was less than allowed limit. Setting request Size to %vGB. volumeSizeAutoAvailable is set.", MinimumDiskSizeInGB)
+		requestGB = MinimumDiskSizeInGB
+		volSizeBytes = MinimumDiskSizeInBytes
+	}
 	sharedDisk := diskVol.Type == DiskSharedEfficiency || diskVol.Type == DiskSharedSSD
 	nodeSupportDiskType := []string{}
 	if diskVol.NodeSelected != "" {
@@ -298,24 +308,24 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	// 需要配置external-provisioner启动参数--extra-create-metadata=true，然后ACK的external-provisioner才会将PVC的Annotations传过来
 	ecsClient, err := getEcsClientByID("", req.Parameters[TenantUserUID])
 	// Step 2: Check whether volume is created
-	disks, err := findDiskByName(ecsClient, req.GetName(), diskVol.ResourceGroupID, sharedDisk)
-	if err != nil {
-		log.Errorf("CreateVolume: describe volume error with: %s", err.Error())
-		return nil, status.Error(codes.Aborted, err.Error())
-	}
-	if len(disks) > 1 {
-		log.Errorf("CreateVolume: duplicate disk %s exists, with %v", req.Name, disks)
-		return nil, status.Errorf(codes.Internal, "CreateVolume: duplicate disk %s exists, with %v", req.Name, disks)
-	} else if len(disks) == 1 {
-		disk := disks[0]
-		if disk.Size != requestGB || disk.ZoneId != diskVol.ZoneID || disk.Encrypted != diskVol.Encrypted || disk.Category != diskVol.Type {
-			log.Errorf("CreateVolume: exist disk %s is different with requested, for disk existing: %v", req.GetName(), disk)
-			return nil, status.Errorf(codes.Internal, "exist disk %s is different with requested for disk", req.GetName())
-		}
-		log.Infof("CreateVolume: Volume %s is already created: %s, %s, %s, %d", req.GetName(), disk.DiskId, disk.RegionId, disk.ZoneId, disk.Size)
-		tmpVol := volumeCreate(disk.Category, disk.DiskId, volSizeBytes, req.GetParameters(), diskVol.ZoneID, nil)
-		return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
-	}
+	// disks, err := findDiskByName(ecsClient, req.GetName(), diskVol.ResourceGroupID, sharedDisk)
+	// if err != nil {
+	// 	log.Errorf("CreateVolume: describe volume error with: %s", err.Error())
+	// 	return nil, status.Error(codes.Aborted, err.Error())
+	// }
+	// if len(disks) > 1 {
+	// 	log.Errorf("CreateVolume: duplicate disk %s exists, with %v", req.Name, disks)
+	// 	return nil, status.Errorf(codes.Internal, "CreateVolume: duplicate disk %s exists, with %v", req.Name, disks)
+	// } else if len(disks) == 1 {
+	// 	disk := disks[0]
+	// 	if disk.Size != requestGB || disk.ZoneId != diskVol.ZoneID || disk.Encrypted != diskVol.Encrypted || disk.Category != diskVol.Type {
+	// 		log.Errorf("CreateVolume: exist disk %s is different with requested, for disk existing: %v", req.GetName(), disk)
+	// 		return nil, status.Errorf(codes.Internal, "exist disk %s is different with requested for disk", req.GetName())
+	// 	}
+	// 	log.Infof("CreateVolume: Volume %s is already created: %s, %s, %s, %d", req.GetName(), disk.DiskId, disk.RegionId, disk.ZoneId, disk.Size)
+	// 	tmpVol := volumeCreate(disk.Category, disk.DiskId, volSizeBytes, req.GetParameters(), diskVol.ZoneID, nil)
+	// 	return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
+	// }
 
 	// Step 3: init Disk create args
 	createDiskRequest := ecs.CreateCreateDiskRequest()
@@ -391,6 +401,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			createDiskRequest.PerformanceLevel = diskVol.PerformanceLevel
 		}
 		createDiskRequest.DiskCategory = dType
+		createDiskRequest.ClientToken = req.GetName()
 		log.Infof("CreateVolume: Create Disk for volume %s with diskCatalog: %v, performaceLevel: %v", req.Name, createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel)
 		volumeResponse, err = ecsClient.CreateDisk(createDiskRequest)
 		if err == nil {

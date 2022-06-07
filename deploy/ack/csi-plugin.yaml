@@ -150,8 +150,17 @@ spec:
       hostPID: true
       containers:
         - name: disk-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v2.3.0-038aeb6-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v2.3.1-038aeb6-aliyun
           imagePullPolicy: Always
+          livenessProbe:
+            exec:
+              command:
+              - /health.sh diskplugin.csi.alibabacloud.com-reg.sock
+            failureThreshold: 3
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
           args:
             - "--v=5"
             - "--csi-address=/var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock"
@@ -162,8 +171,17 @@ spec:
             - name: registration-dir
               mountPath: /registration
         - name: nas-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v2.3.0-038aeb6-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v2.3.1-038aeb6-aliyun
           imagePullPolicy: Always
+          livenessProbe:
+            exec:
+              command:
+              - /health.sh diskplugin.csi.alibabacloud.com-reg.sock
+            failureThreshold: 3
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
           args:
             - "--v=5"
             - "--csi-address=/var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock"
@@ -174,8 +192,17 @@ spec:
             - name: registration-dir
               mountPath: /registration
         - name: oss-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v2.3.0-038aeb6-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v2.3.1-038aeb6-aliyun
           imagePullPolicy: Always
+          livenessProbe:
+            exec:
+              command:
+              - /health.sh diskplugin.csi.alibabacloud.com-reg.sock
+            failureThreshold: 3
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
           args:
             - "--v=5"
             - "--csi-address=/var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock"

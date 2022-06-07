@@ -18,17 +18,21 @@ package nas
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dadi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"strings"
 )
 
 const (
@@ -47,6 +51,7 @@ var (
 type GlobalConfig struct {
 	Region             string
 	NasTagEnable       bool
+	CpfsNfsEnable      bool
 	ADControllerEnable bool
 	MetricEnable       bool
 	NasFakeProvision   bool
@@ -55,6 +60,7 @@ type GlobalConfig struct {
 	NodeIP             string
 	ClusterID          string
 	LosetupEnable      bool
+	NasPortCheck       bool
 	KubeClient         *kubernetes.Clientset
 	NasClient          *aliNas.Client
 }
@@ -72,7 +78,7 @@ type NAS struct {
 }
 
 //NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string) *NAS {
+func NewDriver(nodeID, endpoint, serviceType string) *NAS {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
 	d := &NAS{}
@@ -90,7 +96,7 @@ func NewDriver(nodeID, endpoint string) *NAS {
 	})
 
 	// Global Configs Set
-	GlobalConfigSet()
+	GlobalConfigSet(serviceType)
 
 	d.driver = csiDriver
 
@@ -120,12 +126,46 @@ func (d *NAS) Run() {
 	s.Wait()
 }
 
+func deleteRpm(rpmName string) {
+	deleteCmd := fmt.Sprintf("%s yum remove -y %s", NsenterCmd, rpmName)
+	_, err := utils.Run(deleteCmd)
+	if err != nil {
+		log.Errorf("Exec cmd %s is failed, err: %v", deleteCmd, err)
+	} else {
+		log.Infof("Exec cmd %s is successfully", deleteCmd)
+	}
+}
+
+func installRpm(queryRpmName string, rpmName string) {
+	queryCmd := fmt.Sprintf("%s rpm -qa | grep %s", queryRpmName, NsenterCmd)
+	res, _ := utils.Run(queryCmd)
+	if len(res) == 0 {
+		installCmd := fmt.Sprintf("%s yum localinstall -y /etc/csi-tool/%s", NsenterCmd, rpmName)
+		_, err := utils.Run(installCmd)
+		if err != nil {
+			log.Errorf("Exec cmd %s is failed, err: %v", installCmd, err)
+		} else {
+			log.Infof("Exec cmd %s is successfully", installCmd)
+		}
+	}
+}
+
 // GlobalConfigSet set global config
-func GlobalConfigSet() {
+func GlobalConfigSet(serviceType string) {
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
 		log.Fatalf("Error building kubeconfig: %s", err.Error())
+	}
+	if qps := os.Getenv("KUBE_CLI_API_QPS"); qps != "" {
+		if qpsi, err := strconv.Atoi(qps); err == nil {
+			cfg.QPS = float32(qpsi)
+		}
+	}
+	if burst := os.Getenv("KUBE_CLI_API_BURST"); burst != "" {
+		if qpsi, err := strconv.Atoi(burst); err == nil {
+			cfg.Burst = qpsi
+		}
 	}
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
@@ -135,6 +175,7 @@ func GlobalConfigSet() {
 	configMapName := "csi-plugin"
 	isNasMetricEnable := false
 	isNasFakeProvisioner := false
+	isCpfsNfsEnable := false
 
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
@@ -151,8 +192,57 @@ func GlobalConfigSet() {
 				isNasFakeProvisioner = true
 			}
 		}
-	}
 
+		if value, ok := configMap.Data["cpfs-nas-enable"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				isCpfsNfsEnable = true
+				queryCmd := fmt.Sprintf("%s rpm -qa | grep aliyun-alinas-utils", NsenterCmd)
+				res, _ := utils.Run(queryCmd)
+				if len(res) == 0 && serviceType == utils.PluginService {
+					cpfsRpm := "aliyun-alinas-utils-1.1-2.al7.noarch.rpm"
+					installCmd := fmt.Sprintf("%s yum localinstall -y /etc/csi-tool/%s", NsenterCmd, cpfsRpm)
+					_, err := utils.Run(installCmd)
+					if err != nil {
+						log.Errorf("Install rpm  %s is failed, err: %v", cpfsRpm, err)
+					} else {
+						log.Infof("Install rpm %s is successfully", cpfsRpm)
+					}
+				}
+			}
+		}
+
+		if value, ok := configMap.Data["nas-elastic-acceleration-client-properties"]; ok {
+			if strings.Contains(value, "enable=true") {
+				if serviceType == utils.PluginService {
+					//deleteRpm before installRpm
+					deleteRpm("aliyun-alinas-utils.noarch")
+					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
+					deleteRpm("alinas-eac.x86_64")
+					installRpm("alinas-eac", "alinas-eac-1.1-1.alios7.x86_64.rpm")
+				}
+			}
+		}
+
+		if value, ok := configMap.Data["alinas-dadi-properties"]; ok {
+			if strings.Contains(value, "enable=true") {
+				//start go write cluster nodeIP to /etc/hosts
+				//format{["192.168.1.1:8800", "192.168.1.2:8801", "192.168.1.3:8802"]}
+				//get service endpoint->format json->write /etc/hosts/dadi-endpoint.json
+				if serviceType == utils.PluginService {
+					go dadi.Run(kubeClient)
+				}
+			}
+		}
+		if value, ok := configMap.Data["cpfs-nas-enable"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				if serviceType == utils.PluginService {
+					deleteRpm("aliyun-alinas-utils.noarch")
+					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
+				}
+				isCpfsNfsEnable = true
+			}
+		}
+	}
 	metricNasConf := os.Getenv(NasMetricByPlugin)
 	if metricNasConf == "true" || metricNasConf == "yes" {
 		isNasMetricEnable = true
@@ -194,11 +284,20 @@ func GlobalConfigSet() {
 	}
 	clustID := os.Getenv("CLUSTER_ID")
 
+	doNfsPortCheck := true
+	nasCheck := os.Getenv("NAS_PORT_CHECK")
+	if nasCheck == "no" || nasCheck == "false" {
+		doNfsPortCheck = false
+	}
+
 	GlobalConfigVar.KubeClient = kubeClient
 	GlobalConfigVar.MetricEnable = isNasMetricEnable
 	GlobalConfigVar.RunTimeClass = runtimeValue
 	GlobalConfigVar.NodeID = nodeName
 	GlobalConfigVar.ClusterID = clustID
 	GlobalConfigVar.NasFakeProvision = isNasFakeProvisioner
+	GlobalConfigVar.CpfsNfsEnable = isCpfsNfsEnable
+	GlobalConfigVar.NasPortCheck = doNfsPortCheck
+
 	log.Infof("NAS Global Config: %v", GlobalConfigVar)
 }

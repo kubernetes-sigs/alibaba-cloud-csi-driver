@@ -35,6 +35,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type nodeServer struct {
@@ -57,8 +58,6 @@ type Options struct {
 const (
 	// DbfsMetricByPlugin tag
 	DbfsMetricByPlugin = "DBFS_METRIC_BY_PLUGIN"
-	// DdbfROOT tag
-	DdbfROOT = "/mnt/dbfs/"
 )
 
 //newNodeServer create the csi node server
@@ -79,14 +78,11 @@ func newNodeServer(d *DBFS) *nodeServer {
 		if err != nil {
 			log.Fatalf("NewNodeServer: MAX_DBFS_VOLUMES_PERNODE must be int64, but get: %s", volumeNum)
 		} else {
-			if num < 0 || num > 15 {
-				log.Errorf("NewNodeServer: MAX_DBFS_VOLUMES_PERNODE must between 0-15, but get: %s", volumeNum)
-			} else {
-				maxVolumesNum = num
-				log.Infof("NewNodeServer: MAX_DBFS_VOLUMES_PERNODE is set to(not default): %d", maxVolumesNum)
-			}
+			maxVolumesNum = num
+			log.Infof("NewNodeServer: MAX_DBFS_VOLUMES_PERNODE is set to(not default): %d", maxVolumesNum)
 		}
 	} else {
+		maxVolumesNum = getVolumeCount()
 		log.Infof("NewNodeServer: MAX_DBFS_VOLUMES_PERNODE is set to(default): %d", maxVolumesNum)
 	}
 
@@ -154,7 +150,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		dbfsID := strings.Replace(opt.FileSystemID, "-config", "", 1)
 
 		// check dbfs attached
-		if attached, err := checkDbfsAttached(dbfsID); err != nil || !attached {
+		if _, attached, err := checkDbfsAttached(dbfsID); err != nil || !attached {
 			log.Errorf("NodePublishVolume: dbfs(%s) not attached, dbfs config volume cannot mount", req.VolumeId)
 			return nil, errors.New("NodePublishVolume: dbfs " + req.VolumeId + " not attached, dbfs config volume cannot mount")
 		}
@@ -176,12 +172,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 		// mount dbfs config path to target
 		homePath := strings.TrimSpace(out)
+		log.Infof("NodePublishVolume: mount path: %v, to %v, with fstype: %v, and options: %v at: %+v", homePath, mountPath, fsType, options, time.Now())
 		if err := ns.k8smounter.Mount(homePath, mountPath, fsType, options); err != nil {
 			log.Errorf("NodePublishVolume: mount dbfs config volume from %s to %s with error: %s", homePath, mountPath, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		log.Infof("NodePublishVolume: Mount DBFS Config Volume from %s to %s", homePath, mountPath)
 	} else {
+		log.Infof("NodePublishVolume: mount path: %v, to %v, with fstype: %v, and options: %v at: %+v", req.StagingTargetPath, mountPath, fsType, options, time.Now())
 		if err := ns.k8smounter.Mount(req.StagingTargetPath, mountPath, fsType, options); err != nil {
 			log.Errorf("NodePublishVolume: mount DBFS %s with error %s", req.VolumeId, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
@@ -247,7 +245,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	// Do mount
 	if err := ns.DoDBFSMount(req, req.StagingTargetPath, req.VolumeId); err != nil {
 		log.Errorf("NodeStageVolume: Stage DBFS %s with error: %s", req.VolumeId, err.Error())
-		return nil, errors.New("NodeStageVolume: Stage DBFS " + req.VolumeId + " with error: " + err.Error())
+		return nil, status.Error(codes.Internal, fmt.Sprintf("NodeStageVolume: Stage DBFS volumeid: %s, err: %v", req.VolumeId, err.Error()))
 	}
 
 	log.Infof("NodeStageVolume: Stage DBFS Successful, volumeId: %s target %v", req.VolumeId, req.StagingTargetPath)

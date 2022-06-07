@@ -198,10 +198,22 @@ func (ns *nodeServer) mountDeviceVolume(ctx context.Context, req *csi.NodePublis
 	targetPath := req.TargetPath
 	if value, ok := req.VolumeContext[DeviceVolumeType]; ok {
 		sourceDevice = value
+	} else if value, ok = req.VolumeContext[DeviceVolumeKey]; ok {
+		sourceDevice = value
 	}
 	if sourceDevice == "" {
 		log.Errorf("mountDeviceVolume: device volume: %s, sourcePath empty", req.VolumeId)
 		return status.Error(codes.Internal, "Mount Device with empty source path "+req.VolumeId)
+	}
+
+	isNotMnt, err := ns.mounter.IsNotMountPoint(targetPath)
+	if err != nil {
+		log.Errorf("mountDeviceVolume: check target path mounted err: %+v", err)
+		return status.Error(codes.Internal, err.Error())
+	}
+	if !isNotMnt {
+		log.Infof("mountDeviceVolume: Device %s Already mounted to mountpoint %s", sourceDevice, targetPath)
+		return nil
 	}
 
 	// Step Start to format
@@ -212,6 +224,7 @@ func (ns *nodeServer) mountDeviceVolume(ctx context.Context, req *csi.NodePublis
 		fsType = mnt.FsType
 	}
 
+	log.Infof("mountDeviceVolume: Starting mount device %s to mountpoint %s by fsType %s with options %v", sourceDevice, targetPath, fsType, options)
 	// do format-mount or mount
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
 	if err := diskMounter.FormatAndMount(sourceDevice, targetPath, fsType, options); err != nil {
@@ -219,6 +232,7 @@ func (ns *nodeServer) mountDeviceVolume(ctx context.Context, req *csi.NodePublis
 		return status.Error(codes.Internal, err.Error())
 	}
 
+	log.Infof("mountDeviceVolume: Successful mount device %s to mountpoint %s by fsType %s with options %v", sourceDevice, targetPath, fsType, options)
 	return nil
 }
 

@@ -19,14 +19,20 @@ package dbfs
 import (
 	"errors"
 	"fmt"
+	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"io/ioutil"
+	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
@@ -36,6 +42,8 @@ const (
 	RegionTag = "region-id"
 	// NsenterCmd is the nsenter command
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
+	// GetDBFSMountCmd get dbfs mount path
+	GetDBFSMountCmd = "/usr/sbin/get_dbfs_mount_path"
 )
 
 var (
@@ -49,8 +57,7 @@ var (
 
 func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint string, volumeID string) error {
 	log.Infof("DoDBFSMount: mount volume %s to target %s", volumeID, mountPoint)
-	dbfsPath := filepath.Join(DdbfROOT, volumeID)
-	isAttached, err := checkDbfsAttached(volumeID)
+	dbfsPath, isAttached, err := checkDbfsAttached(volumeID)
 	if err != nil {
 		log.Errorf("DoDBFSMount: check Dbfs Attached error with: %s", err.Error())
 		return err
@@ -63,6 +70,7 @@ func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint st
 	options := append(mnt.MountFlags, "bind")
 
 	fsType := ""
+	log.Infof("DoDBFSMount: mount dbfsPath: %v, to path: %v , with fstype: %v, and options: %+v, at %+v", dbfsPath, mountPoint, fsType, options, time.Now())
 	if err = ns.k8smounter.Mount(dbfsPath, mountPoint, fsType, options); err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
@@ -70,17 +78,21 @@ func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint st
 	return nil
 }
 
-func checkDbfsAttached(volumeID string) (bool, error) {
-	dbfsPath := filepath.Join(DdbfROOT, volumeID)
-	cmd := fmt.Sprintf("mount | grep %s | grep dbfs_server | wc -l", dbfsPath)
-	line, err := utils.Run(cmd)
+func checkDbfsAttached(volumeID string) (string, bool, error) {
+
+	path, err := getDBFSPath(volumeID)
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
-	if strings.TrimSpace(line) == "1" {
-		return true, nil
+	actualPath := strings.TrimSpace(path)
+	log.Infof("checkDbfsAttached: actualPath: %v", actualPath)
+	if !strings.HasPrefix(actualPath, "/mnt") {
+		return "", false, fmt.Errorf("checkDbfsAttached: checked err: %s", actualPath)
 	}
-	return false, nil
+	if actualPath != "" {
+		return path, true, nil
+	}
+	return "", false, nil
 }
 
 func checkVolumeIDAvailiable(volumeID string) bool {
@@ -92,6 +104,100 @@ func checkVolumeIDAvailiable(volumeID string) bool {
 		return false
 	}
 	return true
+}
+
+func getDBFSPath(volumeID string) (string, error) {
+	cmd := fmt.Sprintf("%s %s %s", NsenterCmd, GetDBFSMountCmd, volumeID)
+	line, err := utils.Run(cmd)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSuffix(line, "\n"), nil
+}
+
+// GetRegionID Get RegionID from Environment Variables or Metadata
+func GetRegionID() string {
+	regionID := os.Getenv("REGION_ID")
+	if regionID == "" {
+		regionID = GetMetaData(RegionTag)
+	}
+	return regionID
+}
+
+func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
+	regionID := GetRegionID()
+	var err error
+	switch ac.UseMode {
+	case utils.AccessKey:
+		ecsClient, err = ecs.NewClientWithAccessKey(regionID, ac.AccessKeyID, ac.AccessKeySecret)
+	case utils.Credential:
+		ecsClient, err = ecs.NewClientWithOptions(regionID, ac.Config, ac.Credential)
+	default:
+		ecsClient, err = ecs.NewClientWithStsToken(regionID, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
+	}
+	if err != nil {
+		return nil
+	}
+
+	if os.Getenv("INTERNAL_MODE") == "true" {
+		ecsClient.Network = "openapi-share"
+		if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
+			aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
+		}
+	} else {
+		// use environment endpoint setting first;
+		if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
+			aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
+		} else {
+			aliyunep.AddEndpointMapping(regionID, "Ecs", "ecs-vpc."+regionID+".aliyuncs.com")
+		}
+	}
+
+	return
+}
+
+func getVolumeCount() int64 {
+	ac := utils.GetAccessControl()
+	ecsClient := newEcsClient(ac)
+	instanceType := ""
+	var err error
+	var MaxVolumesPerNode int64 = 15
+	volumeCount := MaxVolumesPerNode
+
+	for i := 0; i < 5; i++ {
+		// get instance type for node
+		if instanceType == "" {
+			instanceType, err = utils.GetMetaData("instance/instance-type")
+			if err != nil {
+				log.Warnf("getVolumeCount: get instance type with error: %s", err.Error())
+				time.Sleep(time.Duration(1) * time.Second)
+				continue
+			}
+		}
+
+		// describe ecs instance type
+		req := ecs.CreateDescribeInstanceTypesRequest()
+		req.RegionId = GlobalConfigVar.Region
+		req.InstanceTypes = &[]string{instanceType}
+		response, err := ecsClient.DescribeInstanceTypes(req)
+		// if auth failed, return with default
+		if err != nil && strings.Contains(err.Error(), "Forbidden") {
+			log.Errorf("getVolumeCount: describe instance type with error: %s", err.Error())
+			return MaxVolumesPerNode
+			// not forbidden error, retry
+		} else if err != nil && !strings.Contains(err.Error(), "Forbidden") {
+			time.Sleep(time.Duration(1) * time.Second)
+			continue
+		}
+		if len(response.InstanceTypes.InstanceType) != 1 {
+			log.Warnf("getVolumeCount: get instance max volume failed type with %v", response)
+			return MaxVolumesPerNode
+		}
+		volumeCount = int64(response.InstanceTypes.InstanceType[0].DiskQuantity) - 2
+		log.Infof("getVolumeCount: get instance max volume %d type with response %v", volumeCount, response)
+		break
+	}
+	return volumeCount
 }
 
 //func saveDbfsConfig(volumeId, mountpoint string) bool {
@@ -129,18 +235,18 @@ func checkVolumeIDAvailiable(volumeID string) bool {
 //}
 
 // GetMetaData get host regionid, zoneid
-//func GetMetaData(resource string) string {
-//	resp, err := http.Get(MetadataURL + resource)
-//	if err != nil {
-//		return ""
-//	}
-//	defer resp.Body.Close()
-//	body, err := ioutil.ReadAll(resp.Body)
-//	if err != nil {
-//		return ""
-//	}
-//	return string(body)
-//}
+func GetMetaData(resource string) string {
+	resp, err := http.Get(MetadataURL + resource)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return ""
+	}
+	return string(body)
+}
 
 func updateDbfsClient(client *dbfs.Client) *dbfs.Client {
 	ac := utils.GetAccessControl()
@@ -159,6 +265,12 @@ func newDbfsClient(ac utils.AccessControl, regionID string) (dbfsClient *dbfs.Cl
 	}
 	if err != nil {
 		return nil
+	}
+
+	aliyunep.AddEndpointMapping(regionID, "Dbfs", "dbfs-vpc."+regionID+".aliyuncs.com")
+	// use environment endpoint setting first;
+	if ep := os.Getenv("DBFS_ENDPOINT"); ep != "" {
+		aliyunep.AddEndpointMapping(regionID, "Dbfs", ep)
 	}
 	return
 }

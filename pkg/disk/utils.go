@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	v1 "k8s.io/api/core/v1"
 	"net"
 	"net/http"
 	"os"
@@ -35,6 +34,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	v1 "k8s.io/api/core/v1"
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
@@ -1100,6 +1101,19 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	diskVolArgs.ResourceGroupID, ok = volOptions["resourceGroupId"]
 	if !ok {
 		diskVolArgs.ResourceGroupID = ""
+	}
+
+	// volumeSizeAutoAvailable
+	value, ok = volOptions["volumeSizeAutoAvailable"]
+	if !ok {
+		diskVolArgs.VolumeSizeAutoAvailable = false
+	} else {
+		value = strings.ToLower(value)
+		if value == "yes" || value == "true" || value == "1" {
+			diskVolArgs.VolumeSizeAutoAvailable = true
+		} else {
+			diskVolArgs.VolumeSizeAutoAvailable = false
+		}
 	}
 
 	return diskVolArgs, nil

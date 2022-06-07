@@ -23,7 +23,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"io/ioutil"
-	"net"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -60,8 +59,6 @@ const (
 	CredentialFile = "/host/etc/passwd-ossfs"
 	// NsenterCmd is nsenter mount command
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
-	// SocketPath is path of connector sock
-	SocketPath = "/host/etc/csi-tool/connector.sock"
 	// AkID is Ak ID
 	AkID = "akId"
 	// AkSecret is Ak Secret
@@ -185,7 +182,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if opt.FuseType == JindoFsType {
 				mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindofs-fuse -obucket=%v -opath=%v -oendpoint=%v %v -oonly_sdk %s", opt.Bucket, opt.Path, opt.URL, credentialProvider, sharedPath)
 			}
-			if out, err := connectorRun(mntCmd); err != nil {
+			if out, err := utils.ConnectorRun(mntCmd); err != nil {
 				if err != nil {
 					log.Errorf("Ossfs mount error: %s", err.Error())
 					return nil, errors.New("Create OSS volume fail: " + err.Error() + ", out: " + out)
@@ -211,7 +208,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if opt.FuseType == JindoFsType {
 			mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindofs-fuse -obucket=%v -opath=%v -oendpoint=%v %v -oonly_sdk %s", opt.Bucket, opt.Path, opt.URL, credentialProvider, mountPath)
 		}
-		if out, err := connectorRun(mntCmd); err != nil {
+		if out, err := utils.ConnectorRun(mntCmd); err != nil {
 			if err != nil {
 				log.Errorf("Ossfs mount error: %s", err.Error())
 				return nil, errors.New("Create OSS volume fail: " + err.Error() + ", out: " + out)
@@ -225,7 +222,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 // save ak file: bucket:ak_id:ak_secret
 func saveOssCredential(options *Options) error {
-
 	oldContentByte := []byte{}
 	if utils.IsFileExisting(CredentialFile) {
 		tmpValue, err := ioutil.ReadFile(CredentialFile)
@@ -286,32 +282,6 @@ func checkOssOptions(opt *Options) error {
 	}
 
 	return nil
-}
-
-// Run shell command with host connector
-// host connector is daemon running in host.
-func connectorRun(cmd string) (string, error) {
-	c, err := net.Dial("unix", SocketPath)
-	if err != nil {
-		log.Errorf("Oss connector Dial error: %s", err.Error())
-		return err.Error(), err
-	}
-	defer c.Close()
-
-	_, err = c.Write([]byte(cmd))
-	if err != nil {
-		log.Errorf("Oss connector write error: %s", err.Error())
-		return err.Error(), err
-	}
-
-	buf := make([]byte, 2048)
-	n, err := c.Read(buf[:])
-	response := string(buf[0:n])
-	if strings.HasPrefix(response, "Success") {
-		respstr := response[8:]
-		return respstr, nil
-	}
-	return response, errors.New("oss connector exec command error:" + response)
 }
 
 func waitTimeout(wg *sync.WaitGroup, timeout int) bool {

@@ -13,6 +13,8 @@ const (
 	ossStorageName string = "oss"
 	//NasStorageName represents the storage type name of Nas
 	nasStorageName string = "nas"
+	//aliNasStorageName represents the storage type name of AliNas
+	aliNasStorageName string = "alinas"
 	//diskStorageName represents the storage type name of Disk
 	diskStorageName string = "disk"
 	pfsBlockName    string = "pfsblock"
@@ -47,7 +49,7 @@ const (
 
 var (
 	metricType       string
-	nodeMetricSet    = hashset.New("diskstat", "pfsblockstat", "nfsstat")
+	nodeMetricSet    = hashset.New("diskstat", "pfsblockstat", "nfsstat", "alinasstat")
 	clusterMetricSet = hashset.New("")
 )
 

@@ -60,6 +60,8 @@ const (
 	MountPointType = "MountPoint"
 	// DeviceVolumeType type
 	DeviceVolumeType = "Device"
+	// DeviceVolumeKey type
+	DeviceVolumeKey = "device"
 	// VolumeTypeKey volume type key words
 	VolumeTypeKey = "volumeType"
 	// connection timeout
@@ -93,10 +95,9 @@ var supportVolumeTypes = []string{LvmVolumeType, PmemVolumeType, QuotaPathVolume
 
 // newControllerServer creates a controllerServer object
 func newControllerServer(d *csicommon.CSIDriver, caCertFile string, clientCertFile string, clientKeyFile string) *controllerServer {
-	kubeClient := newKubeClient()
 	return &controllerServer{
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
-		client:                  kubeClient,
+		client:                  types.GlobalConfigVar.KubeClient,
 		caCertFile:              caCertFile,
 		clientCertFile:          clientCertFile,
 		clientKeyFile:           clientKeyFile,
@@ -271,7 +272,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		if storageSelected != "" && nodeSelected != "" {
 			paraList, err = deviceScheduled(storageSelected, parameters)
 			if err != nil {
-				log.Errorf("CreateVolume: create device volume %s/%s at node %s error: %s", storageSelected, req.Name, nodeSelected, err.Error())
+				log.Errorf("CreateVolume: create device volume %s with device %s at node %s error: %s", req.Name, storageSelected, nodeSelected, err.Error())
 				return nil, status.Error(codes.InvalidArgument, "Parse Device all scheduled info error "+err.Error())
 			}
 		} else if nodeSelected != "" {
