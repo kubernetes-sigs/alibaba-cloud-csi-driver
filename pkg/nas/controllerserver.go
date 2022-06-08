@@ -402,8 +402,17 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			cs.rateLimiter.Take()
 			// step5: Mount nfs server to localpath
 			if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+				//When subdirectories are mounted, determine whether to use eacClient
+				useEaClient := "false"
+				if len(nasVol.CnfsName) != 0 {
+					cnfs, err := v1beta1.GetCnfsObject(cs.crdClient, nasVol.CnfsName)
+					if err != nil {
+						return nil, err
+					}
+					useEaClient = cnfs.Status.FsAttributes.UseElasticAccelerationClient
+				}
 				//create subpath directory
-				if err := DoNfsMount(nasVol.MountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name, req.Name, "false"); err != nil {
+				if err := DoNfsMount(nasVol.MountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name, req.Name, useEaClient); err != nil {
 					log.Errorf("CreateVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.Name, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, err.Error())
 					return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
 				}
