@@ -412,6 +412,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					useEaClient = cnfs.Status.FsAttributes.UseElasticAccelerationClient
 				}
 				//create subpath directory
+				if useEaClient == "true" {
+					utils.CreateHostDest(mountPoint)
+				}
+				//mount subpath directory
 				if err := DoNfsMount(nasVol.MountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name, req.Name, useEaClient); err != nil {
 					log.Errorf("CreateVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.Name, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, err.Error())
 					return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())

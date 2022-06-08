@@ -551,9 +551,16 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			isSharedDisk = true
 		}
 	}
+	isMultiAttach := false
+	if value, ok := req.VolumeContext[MultiAttach]; ok {
+		value = strings.ToLower(value)
+		if checkOption(value) {
+			isMultiAttach = true
+		}
+	}
 
 	// Step 4 Attach volume
-	if GlobalConfigVar.ADControllerEnable {
+	if GlobalConfigVar.ADControllerEnable || isMultiAttach {
 		var bdf string
 		device, err = GetDeviceByVolumeID(req.GetVolumeId())
 		if IsVFNode() && device == "" {

@@ -239,6 +239,137 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 	return "", nil
 }
 
+// Only called by controller
+func attachSharedDisk(tenantUserUID, diskID, nodeID string) (string, error) {
+	log.Infof("AttachDisk: Starting Do AttachSharedDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
+
+	ecsClient, err := getEcsClientByID("", tenantUserUID)
+	// Step 1: check disk status
+	disk, err := findDiskByID(diskID, ecsClient)
+	if err != nil {
+		log.Errorf("AttachDisk: find disk: %s with error: %s", diskID, err.Error())
+		return "", status.Errorf(codes.Internal, "AttachSharedDisk: find disk: %s with error: %s", diskID, err.Error())
+	}
+	if disk == nil {
+		return "", status.Errorf(codes.Internal, "AttachSharedDisk: can't find disk: %s, check the disk region, disk exist or not, and the csi access auth", diskID)
+	}
+
+	for _, instance := range disk.MountInstances.MountInstance {
+		if instance.InstanceId == nodeID {
+			log.Infof("AttachSharedDisk: Successful attach disk %s to node %s", diskID, nodeID)
+			return "", nil
+		}
+	}
+
+	// Step 3: Attach Disk, list device before attach disk
+	attachRequest := ecs.CreateAttachDiskRequest()
+	attachRequest.InstanceId = nodeID
+	attachRequest.DiskId = diskID
+	response, err := ecsClient.AttachDisk(attachRequest)
+	if err != nil {
+		if strings.Contains(err.Error(), DiskLimitExceeded) {
+			return "", status.Error(codes.Internal, err.Error()+", Node("+nodeID+")exceed the limit attachments of disk")
+		} else if strings.Contains(err.Error(), DiskNotPortable) {
+			return "", status.Error(codes.Internal, err.Error()+", Disk("+diskID+") should be \"Pay by quantity\", not be \"Annual package\", please check and modify the charge type, and refer to: https://help.aliyun.com/document_detail/134767.html")
+		} else if strings.Contains(err.Error(), NotSupportDiskCategory) {
+			return "", status.Error(codes.Internal, err.Error()+", Disk("+diskID+") is not supported by instance, please refer to: https://help.aliyun.com/document_detail/25378.html")
+		}
+		return "", status.Errorf(codes.Aborted, "AttachSharedDisk: Error happens to attach disk %s to instance %s, %v", diskID, nodeID, err)
+	}
+
+	// Step 4: wait for disk attached
+	log.Infof("AttachSharedDisk: Waiting for Disk %s is Attached to instance %s with RequestId: %s", diskID, nodeID, response.RequestId)
+	if err := waitForSharedDiskInStatus(20, time.Second*3, diskID, nodeID, DiskStatusAttached, ecsClient); err != nil {
+		return "", err
+	}
+
+	log.Infof("AttachSharedDisk: Successful attach disk %s to node %s", diskID, nodeID)
+	return "", nil
+}
+
+func detachMultiAttachDisk(ecsClient *ecs.Client, diskID, nodeID string) (isMultiAttach bool, err error) {
+	disk, err := findDiskByID(diskID, ecsClient)
+	if err != nil {
+		log.Errorf("DetachSharedDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
+		return false, status.Error(codes.Aborted, err.Error())
+	}
+	if disk == nil {
+		log.Infof("DetachSharedDisk: Detach Disk %s from node %s describe and find disk not exist", diskID, nodeID)
+		return false, nil
+	}
+	if disk.MultiAttach == "Disabled" {
+		return false, nil
+	}
+
+	isDetached := true
+	for _, attachment := range disk.Attachments.Attachment {
+		if attachment.InstanceId == nodeID {
+			isDetached = false
+			break
+		}
+	}
+
+	if !isDetached {
+		log.Infof("DetachSharedDisk: Starting to Detach Disk %s from node %s", diskID, nodeID)
+		detachDiskRequest := ecs.CreateDetachDiskRequest()
+		detachDiskRequest.DiskId = disk.DiskId
+		detachDiskRequest.InstanceId = nodeID
+		response, err := ecsClient.DetachDisk(detachDiskRequest)
+		if err != nil {
+			errMsg := fmt.Sprintf("DetachSharedDisk: Fail to detach %s: from Instance: %s with error: %s", disk.DiskId, disk.InstanceId, err.Error())
+			if response != nil {
+				errMsg = fmt.Sprintf("DetachSharedDisk: Fail to detach %s: from: %s, with error: %v, with requestId %s", disk.DiskId, disk.InstanceId, err.Error(), response.RequestId)
+			}
+			log.Errorf(errMsg)
+			return true, status.Error(codes.Aborted, errMsg)
+		}
+
+		// check disk detach
+		for i := 0; i < 25; i++ {
+			tmpDisk, err := findDiskByID(diskID, ecsClient)
+			if err != nil {
+				errMsg := fmt.Sprintf("DetachSharedDisk: Detaching Disk %s with describe error: %s", diskID, err.Error())
+				log.Errorf(errMsg)
+				return true, status.Error(codes.Aborted, errMsg)
+			}
+			if tmpDisk == nil {
+				log.Warnf("DetachSharedDisk: DiskId %s is not found", diskID)
+				break
+			}
+			// Detach Finish
+			if tmpDisk.Status == DiskStatusAvailable {
+				break
+			}
+			if tmpDisk.Status == DiskStatusAttaching {
+				log.Infof("DetachSharedDisk: DiskId %s is attaching to: %s", diskID, tmpDisk.InstanceId)
+				break
+			}
+			// 判断是否还包含此节点ID；
+			isDetached = true
+			for _, attachment := range tmpDisk.Attachments.Attachment {
+				if attachment.InstanceId == nodeID {
+					isDetached = false
+					break
+				}
+			}
+			if isDetached {
+				break
+			}
+			if i == 24 {
+				errMsg := fmt.Sprintf("DetachSharedDisk: Detaching Disk %s with timeout", diskID)
+				log.Errorf(errMsg)
+				return true, status.Error(codes.Aborted, errMsg)
+			}
+			time.Sleep(2000 * time.Millisecond)
+		}
+		log.Infof("DetachSharedDisk: Volume: %s Success to detach disk %s from Instance %s, RequestId: %s", diskID, disk.DiskId, disk.InstanceId, response.RequestId)
+	} else {
+		log.Infof("DetachSharedDisk: Skip Detach, disk %s have not detachable instance", diskID)
+	}
+
+	return true, nil
+}
+
 func detachDisk(ecsClient *ecs.Client, diskID, nodeID string) error {
 	disk, err := findDiskByID(diskID, ecsClient)
 	if err != nil {
@@ -409,6 +540,24 @@ func waitForSharedDiskInStatus(retryCount int, interval time.Duration, diskID, n
 		if disk == nil {
 			return status.Errorf(codes.Aborted, "waitForSharedDiskInStatus: disk not exist: %s", diskID)
 		}
+		if expectStatus == DiskStatusAttached {
+			for _, attachment := range disk.Attachments.Attachment {
+				if attachment.InstanceId == nodeID {
+					return nil
+				}
+			}
+		} else if expectStatus == DiskStatusDetached {
+			isDetached := true
+			for _, attachment := range disk.Attachments.Attachment {
+				if attachment.InstanceId == nodeID {
+					isDetached = false
+				}
+			}
+			if isDetached {
+				return nil
+			}
+		}
+
 		for _, instance := range disk.MountInstances.MountInstance {
 			if expectStatus == DiskStatusAttached {
 				if instance.InstanceId == nodeID {
