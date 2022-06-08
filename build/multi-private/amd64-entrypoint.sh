@@ -7,7 +7,6 @@ mkdir -p /var/log/alicloud/
 mkdir -p /host/etc/kubernetes/volumes/disk/uuid
 
 HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
-zone_id=`${HOST_CMD} curl http://100.100.100.200/latest/meta-data/zone-id`
 
 
 host_os="centos"

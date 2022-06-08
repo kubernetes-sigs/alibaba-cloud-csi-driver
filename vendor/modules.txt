@@ -1,6 +1,23 @@
 # github.com/Microsoft/go-winio v0.4.14
 github.com/Microsoft/go-winio
 github.com/Microsoft/go-winio/pkg/guid
+# github.com/alibabacloud-go/alibabacloud-gateway-spi v0.0.4
+github.com/alibabacloud-go/alibabacloud-gateway-spi/client
+# github.com/alibabacloud-go/darabonba-openapi v0.1.16
+github.com/alibabacloud-go/darabonba-openapi/client
+# github.com/alibabacloud-go/debug v0.0.0-20190504072949-9472017b5c68
+github.com/alibabacloud-go/debug/debug
+# github.com/alibabacloud-go/endpoint-util v1.1.0
+github.com/alibabacloud-go/endpoint-util/service
+# github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
+github.com/alibabacloud-go/ens-20171110/v3/client
+# github.com/alibabacloud-go/openapi-util v0.0.11
+github.com/alibabacloud-go/openapi-util/service
+# github.com/alibabacloud-go/tea v1.1.17
+github.com/alibabacloud-go/tea/tea
+github.com/alibabacloud-go/tea/utils
+# github.com/alibabacloud-go/tea-utils v1.4.3
+github.com/alibabacloud-go/tea-utils/service
 # github.com/aliyun/alibaba-cloud-sdk-go v1.61.1356
 github.com/aliyun/alibaba-cloud-sdk-go/sdk
 github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth
@@ -16,6 +33,11 @@ github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs
 github.com/aliyun/alibaba-cloud-sdk-go/services/ecs
 github.com/aliyun/alibaba-cloud-sdk-go/services/nas
 github.com/aliyun/alibaba-cloud-sdk-go/services/sts
+# github.com/aliyun/credentials-go v1.1.2
+github.com/aliyun/credentials-go/credentials
+github.com/aliyun/credentials-go/credentials/request
+github.com/aliyun/credentials-go/credentials/response
+github.com/aliyun/credentials-go/credentials/utils
 # github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 => github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
 github.com/beorn7/perks/quantile
 # github.com/container-storage-interface/spec v1.2.0 => github.com/container-storage-interface/spec v1.1.0
@@ -154,6 +176,8 @@ github.com/sirupsen/logrus
 github.com/spf13/pflag
 # github.com/stretchr/testify v1.7.0 => github.com/stretchr/testify v1.3.0
 github.com/stretchr/testify/assert
+# github.com/tjfoc/gmsm v1.3.2
+github.com/tjfoc/gmsm/sm3
 # go.uber.org/ratelimit v0.1.0
 go.uber.org/ratelimit
 go.uber.org/ratelimit/internal/clock

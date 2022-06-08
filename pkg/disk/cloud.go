@@ -102,6 +102,9 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 						log.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
 						return deviceName, nil
 					}
+				} else {
+					err = fmt.Errorf("AttachDisk: disk device cannot be found in node, diskid: %s, devicenName: %s", diskID, deviceName)
+					return "", err
 				}
 			}
 
@@ -115,6 +118,7 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 					return "", status.Errorf(codes.Aborted, err.Error())
 				}
 			}
+
 			if !GlobalConfigVar.DetachBeforeAttach {
 				err = errors.Errorf("AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
 				log.Error(err)
