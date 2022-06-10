@@ -164,7 +164,7 @@ func GlobalConfigSet(region string) {
 	GlobalConfigVar.Region = region
 	GlobalConfigVar.EcsInstanceID, _ = utils.GetMetaData(InstanceID)
 	GlobalConfigVar.ADControllerEnable = isADControllerEnable
-	GlobalConfigVar.DBFSDomain = "dbfs." + GlobalConfigVar.Region + ".aliyuncs.com"
+	GlobalConfigVar.DBFSDomain = "dbfs-vpc." + GlobalConfigVar.Region + ".aliyuncs.com"
 	GlobalConfigVar.DBFSDetachDisable = isDbfsDetachDisable
 	log.Infof("DBFS Global Config: %v", GlobalConfigVar)
 }
