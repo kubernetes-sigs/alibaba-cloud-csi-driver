@@ -211,18 +211,6 @@ func GlobalConfigSet(serviceType string) {
 			}
 		}
 
-		if value, ok := configMap.Data["nas-elastic-acceleration-client-properties"]; ok {
-			if strings.Contains(value, "enable=true") {
-				if serviceType == utils.PluginService {
-					//deleteRpm before installRpm
-					deleteRpm("aliyun-alinas-utils.noarch")
-					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
-					deleteRpm("alinas-eac.x86_64")
-					installRpm("alinas-eac", "alinas-eac-1.1-1.alios7.x86_64.rpm")
-				}
-			}
-		}
-
 		if value, ok := configMap.Data["alinas-dadi-properties"]; ok {
 			if strings.Contains(value, "enable=true") {
 				//start go write cluster nodeIP to /etc/hosts
@@ -243,6 +231,26 @@ func GlobalConfigSet(serviceType string) {
 			}
 		}
 	}
+
+	if value, ok := configMap.Data["nas-elastic-acceleration-client-properties"]; ok {
+		if strings.Contains(value, "enable=true") {
+			if serviceType == utils.PluginService {
+				//deleteRpm before installRpm
+				deleteRpm("aliyun-alinas-utils.noarch")
+				installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
+				deleteRpm("alinas-eac.x86_64")
+				installRpm("alinas-eac", "alinas-eac-1.1-1.alios7.x86_64.rpm")
+				runCmd := fmt.Sprintf("%s systemctl start aliyun-alinas-mount-watchdog", NsenterCmd)
+				_, err := utils.Run(runCmd)
+				if err != nil {
+					log.Errorf("Run %s is failed, err: %v", runCmd, err)
+				} else {
+					log.Infof("Run %s is successfully", runCmd)
+				}
+			}
+		}
+	}
+	
 	metricNasConf := os.Getenv(NasMetricByPlugin)
 	if metricNasConf == "true" || metricNasConf == "yes" {
 		isNasMetricEnable = true
