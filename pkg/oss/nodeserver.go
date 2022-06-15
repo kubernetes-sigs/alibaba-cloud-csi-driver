@@ -148,11 +148,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// If you do not use sts authentication, save ak
 	if opt.AuthType != "sts" && opt.FuseType != JindoFsType {
-		// Save ak file for ossfs
+		// Save ak file for ossfs, exist same entry
 		if err := saveOssCredential(opt); err != nil {
 			log.Errorf("Save oss ak error: %s", err.Error())
 			return nil, errors.New("Oss, Save AK file fail: " + err.Error())
 		}
+		// uniq same entry
+		uniqOssCredential()
 	}
 
 	credentialProvider := ""
@@ -242,11 +244,41 @@ func saveOssCredential(options *Options) error {
 	}
 
 	newContentStr = options.Bucket + ":" + options.AkID + ":" + options.AkSecret + "\n" + newContentStr
-	if err := ioutil.WriteFile(CredentialFile, []byte(newContentStr), 0640); err != nil {
-		log.Errorf("Save Credential File failed, %s, %s", newContentStr, err)
+	if err := utils.WriteAndSyncFile(CredentialFile, []byte(newContentStr), 0640); err != nil {
+		log.Errorf("Save credential file is failed, %s, %s", newContentStr, err)
 		return err
 	}
 	return nil
+}
+
+func uniqOssCredential() {
+	curOssInfoByte := []byte{}
+	if utils.IsFileExisting(CredentialFile) {
+		curOssInfoByte, _ = ioutil.ReadFile(CredentialFile)
+	}
+	curOssInfoStr := string(curOssInfoByte[:])
+	curOssInfoStrArray := strings.Split(curOssInfoStr, "\n")
+	uniqOssInfoStrArray := removeDuplicateElement(curOssInfoStrArray)
+	uniqOssInfoStr := ""
+	for _, line := range uniqOssInfoStrArray {
+		uniqOssInfoStr = uniqOssInfoStr + line + "\n"
+	}
+	if err := utils.WriteAndSyncFile(CredentialFile, []byte(uniqOssInfoStr), 0640); err != nil {
+		log.Errorf("Uniq credential file is failed, %s, %s", uniqOssInfoStr, err)
+		return
+	}
+}
+
+func removeDuplicateElement(languages []string) []string {
+	result := make([]string, 0, len(languages))
+	temp := map[string]struct{}{}
+	for _, item := range languages {
+		if _, ok := temp[item]; !ok {
+			temp[item] = struct{}{}
+			result = append(result, item)
+		}
+	}
+	return result
 }
 
 // Check oss options
