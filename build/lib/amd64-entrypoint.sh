@@ -76,7 +76,7 @@ if [ "$run_oss" = "true" ]; then
 
     ossfsVer="1.80.6.ack.1"
     if [ "$USE_UPDATE_OSSFS" == "" ]; then
-        ossfsVer="1.86.4"
+        ossfsVer="1.87.0"
     fi
 
     ossfsArch="centos7.0"
@@ -100,7 +100,6 @@ if [ "$run_oss" = "true" ]; then
     if [ ! `/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
         echo "First install ossfs, ossfsVersion: $ossfsVer"
         cp /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm /host/etc/csi-tool/
-        # /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
 				reconcileOssFS="install"
     # update OSSFS
     else
@@ -110,7 +109,6 @@ if [ "$run_oss" = "true" ]; then
             echo "Upgrade ossfs, ossfsVersion: $ossfsVer"
             /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
             cp /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm /host/etc/csi-tool/
-            # /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
 						reconcileOssFS="upgrade"
         fi
     fi
@@ -121,7 +119,7 @@ if [ "$run_oss" = "true" ]; then
           cp ./usr/local/bin/ossfs /host/etc/csi-tool/
           /nsenter --mount=/proc/1/ns/mnt cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
       else
-          /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+          /nsenter --mount=/proc/1/ns/mnt rpm -i /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
       fi
     fi
 
@@ -133,7 +131,7 @@ if [ "$run_oss" = "true" ]; then
           /nsenter --mount=/proc/1/ns/mnt cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
       else
           /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
-          /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+          /nsenter --mount=/proc/1/ns/mnt rpm -i /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
       fi
     fi
 
