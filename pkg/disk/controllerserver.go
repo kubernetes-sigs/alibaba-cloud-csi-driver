@@ -401,8 +401,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			createDiskRequest.PerformanceLevel = diskVol.PerformanceLevel
 		}
 		createDiskRequest.DiskCategory = dType
-		createDiskRequest.ClientToken = req.GetName()
-		log.Infof("CreateVolume: Create Disk for volume %s with diskCatalog: %v, performaceLevel: %v", req.Name, createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel)
+		createDiskRequest.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s", req.GetName(), diskVol.Type, diskVol.RegionID, diskVol.ZoneID)
+		log.Infof("CreateVolume: Create Disk for volume %s with diskCatalog: %v, performaceLevel: %v, regionID: %v, zoneID: %v", req.Name, createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel, diskVol.RegionID, diskVol.ZoneID)
 		volumeResponse, err = ecsClient.CreateDisk(createDiskRequest)
 		if err == nil {
 			createdDiskType = dType
@@ -588,7 +588,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	_, err := attachDisk(req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk)
 	if err != nil {
 		log.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
-		return nil, err
+		return nil, status.Error(codes.Aborted, err.Error())
 	}
 	log.Infof("ControllerPublishVolume: Successful attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 	return &csi.ControllerPublishVolumeResponse{}, nil
