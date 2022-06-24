@@ -21,10 +21,6 @@ import (
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
-	"io/ioutil"
-	"os"
-	"time"
-
 	k8smount "k8s.io/utils/mount"
 )
 
@@ -69,9 +65,6 @@ func NewDriver(nodeID, endpoint string) *OSS {
 
 // newNodeServer init oss type of csi nodeServer
 func newNodeServer(d *OSS) *nodeServer {
-	// sync oss credential
-	go syncCredential()
-
 	return &nodeServer{
 		k8smounter:        k8smount.New(""),
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
@@ -87,24 +80,4 @@ func (d *OSS) Run() {
 		//csicommon.NewDefaultControllerServer(d.driver),
 		newNodeServer(d))
 	s.Wait()
-}
-
-func syncCredential() {
-	log.Infof("Start to sync oss credentials from %v to %v", JindofsCredentialPathInPod, JindofsCredentialPathOnHost)
-	for {
-		select {
-		case _ = <-time.NewTimer(time.Second * 5).C:
-			if !utils.IsFileExisting(JindofsCredentialPathInPod) {
-				continue
-			}
-			credentials, err := ioutil.ReadFile(JindofsCredentialPathInPod)
-			if err != nil {
-				log.Errorf("Failed to read credentials file %v: %v", JindofsCredentialPathInPod, err)
-				continue
-			}
-			if err := ioutil.WriteFile(JindofsCredentialPathOnHost, credentials, os.ModePerm); err != nil {
-				log.Errorf("Failed to write credentials file %v: %v", JindofsCredentialPathOnHost, err)
-			}
-		}
-	}
 }

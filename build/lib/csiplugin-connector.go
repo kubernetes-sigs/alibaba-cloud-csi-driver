@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"log"
 	"net"
 	"os"
@@ -17,8 +16,6 @@ import (
 )
 
 const (
-	// MBSIZE metrics
-	MBSIZE = 1024 * 1024
 	// LogFilename name of log file
 	LogFilename = "/var/log/alicloud/csi_connector.log"
 	// PIDFilename name of pid file
@@ -220,19 +217,21 @@ func echoServer(c net.Conn) {
 	}
 
 	cmd := string(buf[0:nr])
-	log.Printf("Server Receive OSS command: %s", cmd)
+	log.Printf("Server receive mount cmd: %s", cmd)
 
 	if strings.Contains(cmd, "/usr/local/bin/ossfs") {
 		err = checkOssfsCmd(cmd)
-	} else {
+	} else if strings.Contains(cmd, "mount -t alinas") {
 		err = checkRichNasClientCmd(cmd)
+	} else if strings.Contains(cmd, "/etc/jindofs-tool/jindo-fuse") {
+		err = checkJindofsCmd(cmd)
 	}
 
 	if err != nil {
 		out := "Fail: " + err.Error()
-		log.Printf("Check command error: %s", out)
+		log.Printf("Check user space mount is failed, err: %s", out)
 		if _, err := c.Write([]byte(out)); err != nil {
-			log.Printf("Check command write error: %s", err.Error())
+			log.Printf("Check user space mount write is failed, err: %s", err.Error())
 		}
 		return
 	}
@@ -248,31 +247,8 @@ func echoServer(c net.Conn) {
 	}
 }
 
-//systemd-run --scope -- mount -t alinas -o unas -o client_owner=podUID nfsServer:nfsPath mountPoint
-func checkRichNasClientCmd(cmd string) error {
-	parameteList := strings.Split(cmd, " ")
-	mountPoint := parameteList[len(parameteList)-1]
-	if !IsFileExisting(mountPoint) {
-		return errors.New("Nas rich client option: mountpoint not exist " + mountPoint)
-	}
-	nfsInfo := strings.Split(parameteList[len(parameteList)-2], ":")
-	if len(nfsInfo) != 2 {
-		return errors.New("Nas rich client option: nfsServer:nfsPath is wrong format " + parameteList[len(parameteList)-2])
-	}
-	domain := nfsInfo[0]
-	stat, err := utils.Ping(domain)
-	if err != nil || stat.PacketLoss == 100 {
-		return errors.New("Nas rich client option: network is not connection, err:" + err.Error() + "domain:" + domain)
-	}
-	return nil
-}
-
-// systemd-run --scope -- /usr/local/bin/ossfs shenzhen
-// /var/lib/kubelet/pods/070d1a40-16a4-11ea-842e-00163e062fe1/volumes/kubernetes.io~csi/oss-csi-pv/mount
-// -ourl=oss-cn-shenzhen-internal.aliyuncs.com
-// -o max_stat_cache_size=0 -o allow_other
-func checkOssfsCmd(cmd string) error {
-	jindofsPrefix := "systemd-run --scope -- /etc/jindofs-tool/jindofs-fuse "
+func checkJindofsCmd(cmd string) error {
+	jindofsPrefix := "systemd-run --scope -- /etc/jindofs-tool/jindo-fuse "
 	if strings.HasPrefix(cmd, jindofsPrefix) {
 		if strings.Contains(cmd, ";") {
 			return errors.New("Jindofs Options: command cannot contains ; " + cmd)
@@ -286,8 +262,32 @@ func checkOssfsCmd(cmd string) error {
 				return errors.New("Jindofs Options: must start with -o :" + cmd)
 			}
 		}
-		return nil
 	}
+	return nil
+}
+
+//systemd-run --scope -- mount -t alinas -o unas -o client_owner=podUID nfsServer:nfsPath mountPoint
+func checkRichNasClientCmd(cmd string) error {
+	parameteList := strings.Split(cmd, " ")
+	if len(parameteList) <= 2 {
+		return errors.New(fmt.Sprintf("Nas rich client mount command is format wrong:%+v", parameteList))
+	}
+	mountPoint := parameteList[len(parameteList)-1]
+	if !IsFileExisting(mountPoint) {
+		return errors.New("Nas rich client option: mountpoint not exist " + mountPoint)
+	}
+	nfsInfo := strings.Split(parameteList[len(parameteList)-2], ":")
+	if len(nfsInfo) != 2 {
+		return errors.New("Nas rich client option: nfsServer:nfsPath is wrong format " + parameteList[len(parameteList)-2])
+	}
+	return nil
+}
+
+// systemd-run --scope -- /usr/local/bin/ossfs shenzhen
+// /var/lib/kubelet/pods/070d1a40-16a4-11ea-842e-00163e062fe1/volumes/kubernetes.io~csi/oss-csi-pv/mount
+// -ourl=oss-cn-shenzhen-internal.aliyuncs.com
+// -o max_stat_cache_size=0 -o allow_other
+func checkOssfsCmd(cmd string) error {
 	ossCmdPrefixList := []string{"systemd-run --scope -- /usr/local/bin/ossfs", "systemd-run --scope -- ossfs", "ossfs"}
 	ossCmdPrefix := ""
 	for _, cmdPrefix := range ossCmdPrefixList {
