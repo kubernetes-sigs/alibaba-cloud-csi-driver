@@ -155,7 +155,8 @@ spec:
           livenessProbe:
             exec:
               command:
-              - /health.sh diskplugin.csi.alibabacloud.com-reg.sock
+              - /health.sh
+              - diskplugin.csi.alibabacloud.com-reg.sock
             failureThreshold: 3
             initialDelaySeconds: 5
             periodSeconds: 10
@@ -176,7 +177,8 @@ spec:
           livenessProbe:
             exec:
               command:
-              - /health.sh diskplugin.csi.alibabacloud.com-reg.sock
+              - /health.sh
+              - nasplugin.csi.alibabacloud.com-reg.sock
             failureThreshold: 3
             initialDelaySeconds: 5
             periodSeconds: 10
@@ -197,7 +199,8 @@ spec:
           livenessProbe:
             exec:
               command:
-              - /health.sh diskplugin.csi.alibabacloud.com-reg.sock
+              - /health.sh
+              - ossplugin.csi.alibabacloud.com-reg.sock
             failureThreshold: 3
             initialDelaySeconds: 5
             periodSeconds: 10

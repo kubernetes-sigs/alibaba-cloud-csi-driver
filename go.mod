@@ -3,6 +3,9 @@ module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 go 1.12
 
 require (
+	github.com/alibabacloud-go/darabonba-openapi v0.1.16
+	github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
+	github.com/alibabacloud-go/tea v1.1.17
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.1356
 	github.com/container-storage-interface/spec v1.2.0
 	github.com/containerd/ttrpc v1.1.0
@@ -16,7 +19,6 @@ require (
 	github.com/googleapis/gnostic v0.5.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect
-	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/kubernetes-csi/csi-lib-utils v0.7.1 // indirect
 	github.com/kubernetes-csi/drivers v1.0.2
@@ -30,7 +32,6 @@ require (
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/ratelimit v0.1.0
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
-	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/net v0.0.0-20200904194848-62affa334b73
 	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e // indirect
@@ -38,7 +39,6 @@ require (
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
 	google.golang.org/grpc v1.27.1
 	google.golang.org/protobuf v1.27.1
-	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 	k8s.io/api v0.19.0
 	k8s.io/apiextensions-apiserver v0.0.0

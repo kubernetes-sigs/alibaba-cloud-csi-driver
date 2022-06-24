@@ -127,6 +127,10 @@ const (
 	instanceTypeLabel = "beta.kubernetes.io/instance-type"
 	// zoneIDLabel ...
 	zoneIDLabel = "failure-domain.beta.kubernetes.io/zone"
+	// sigmaLabel instance type ...
+	sigmaInstanceTypeLabel = "sigma.ali/machine-model"
+	// sigmaLabel zoneid ....
+	sigmaLabelZoneId = "sigma.ali/ecs-zone-id"
 	// nodeStorageLabel ...
 	nodeStorageLabel = "node.csi.alibabacloud.com/disktype.%s"
 	// kubeNodeName ...
@@ -1269,6 +1273,10 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 	}
 	instanceType := nodeInfo.Labels[instanceTypeLabel]
 	zoneID := nodeInfo.Labels[zoneIDLabel]
+	if instanceType == "" && zoneID == "" {
+		instanceType = nodeInfo.Labels[sigmaInstanceTypeLabel]
+		zoneID = nodeInfo.Labels[sigmaLabelZoneId]
+	}
 	request := ecs.CreateDescribeAvailableResourceRequest()
 	request.InstanceType = instanceType
 	request.DestinationResource = describeResourceType
@@ -1282,6 +1290,7 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 		}
 		break
 	}
+	log.Infof("UpdateNode: record ecs openapi req: %+v, resp: %+v", request, response)
 	availableZones := response.AvailableZones.AvailableZone
 	if len(availableZones) == 1 {
 		availableZone := availableZones[0]

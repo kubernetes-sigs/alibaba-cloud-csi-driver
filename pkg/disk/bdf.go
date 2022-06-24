@@ -340,6 +340,7 @@ func forceDetachAllowed(ecsClient *ecs.Client, disk *ecs.Disk, nodeID string) (a
 		return false, errors.Wrapf(err, "DescribeInstances, instanceId=%s", disk.InstanceId)
 	}
 	disks := diskResponse.Disks.Disk
+	log.Infof("forceDetachAllowed: diskResponse: %+v", diskResponse)
 	if len(disks) == 0 {
 		log.Warnf("forceDetachAllowed: no disk found: %s", disk.DiskId)
 		return false, errors.Wrapf(err, "forceDetachAllowed: Get disk empty, ID=%s", disk.DiskId)
@@ -358,6 +359,7 @@ func forceDetachAllowed(ecsClient *ecs.Client, disk *ecs.Disk, nodeID string) (a
 	request.RegionId = disk.RegionId
 	request.InstanceIds = "[\"" + disk.InstanceId + "\"]"
 	instanceResponse, err := ecsClient.DescribeInstances(request)
+	log.Infof("forceDetachAllowed: instanceResponse: %+v", diskResponse)
 	if err != nil {
 		return false, errors.Wrapf(err, "DescribeInstances, instanceId=%s", disk.InstanceId)
 	}
