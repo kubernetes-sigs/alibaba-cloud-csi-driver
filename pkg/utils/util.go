@@ -229,8 +229,8 @@ func CreateDest(dest string) error {
 	return nil
 }
 
-//CreateHostDest create host dest directory
-func CreateHostDest(dest string) error {
+//CreateDestInHost create host dest directory
+func CreateDestInHost(dest string) error {
 	cmd := fmt.Sprintf("%s mkdir -p %s", NsenterCmd, dest)
 	_, err := Run(cmd)
 	if err != nil {
@@ -278,8 +278,8 @@ func IsMounted(mountPath string) bool {
 	return true
 }
 
-// IsHostMounted return status of host mounted or not
-func IsHostMounted(mountPath string) bool {
+// IsMountedInHost return status of host mounted or not
+func IsMountedInHost(mountPath string) bool {
 	cmd := fmt.Sprintf("%s mount | grep %s | grep -v grep | wc -l", NsenterCmd, mountPath)
 	out, err := Run(cmd)
 	if err != nil {
@@ -292,8 +292,8 @@ func IsHostMounted(mountPath string) bool {
 	return true
 }
 
-// HostUmount do an unmount operation
-func HostUmount(mountPath string) error {
+// UmountInHost do an unmount operation
+func UmountInHost(mountPath string) error {
 	cmd := fmt.Sprintf("%s umount %s", NsenterCmd, mountPath)
 	_, err := Run(cmd)
 	if err != nil {
@@ -721,6 +721,16 @@ func GetPvNameFormPodMnt(mntPath string) string {
 		return pvName
 	}
 	return ""
+}
+
+func DoMountInHost(mntCmd string) error {
+	out, err := ConnectorRun(mntCmd)
+	if err != nil {
+		msg := fmt.Sprintf("Mount is failed in host, mntCmd:%s, err: %s, out: %s", mntCmd, err.Error(), out)
+		log.Errorf(msg)
+		return errors.New(msg)
+	}
+	return nil
 }
 
 // ConnectorRun Run shell command with host connector

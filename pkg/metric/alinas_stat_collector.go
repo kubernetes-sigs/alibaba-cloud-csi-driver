@@ -179,7 +179,7 @@ func getMountPointInfoMap() map[string]alinasInfo {
 	s1 := "/kubernetes.io~csi/"
 	s2 := "/mount"
 	s3 := ":"
-	cmd := "mount | grep alinas | grep csi | grep volumes"
+	cmd := "mount | grep alifuse.aliyun-alinas-eac | grep csi | grep volumes"
 	line, err := utils.Run(cmd)
 	if err != nil {
 		return m

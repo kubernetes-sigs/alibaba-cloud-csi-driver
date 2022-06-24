@@ -45,9 +45,7 @@ import (
 
 // resourcemode is selected by: subpath/filesystem
 const (
-	MNTROOTPATH                = "/csi-persistentvolumes"
-	MBSize                     = 1024 * 1024
-	DRIVER                     = "driver"
+	MntRootPath                = "/mnt"
 	SERVER                     = "server"
 	ContainerNetworkFileSystem = "containerNetworkFileSystem"
 	MODE                       = "mode"
@@ -56,7 +54,6 @@ const (
 	PATH                       = "path"
 	ProtocolType               = "protocolType"
 	FileSystemType             = "fileSystemType"
-	Capacity                   = "capacity"
 	EncryptType                = "encryptType"
 	SnapshotID                 = "snapshotID"
 	StorageType                = "storageType"
@@ -380,7 +377,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 		log.Infof("Create Volume: %s, with Exist Nfs Server: %s, Path: %s, Options: %s, Version: %s, MountProtocol: %s", req.Name, nfsServer, nfsPath, nfsOptions, nfsVersion, nasVol.MountProtocol)
 
-		mountPoint := filepath.Join(MNTROOTPATH, pvName)
+		mountPoint := filepath.Join(MntRootPath, pvName)
 		if !utils.IsFileExisting(mountPoint) {
 			if err := os.MkdirAll(mountPoint, 0777); err != nil {
 				log.Errorf("CreateVolume: %s, Unable to create directory: %s, with error: %s", req.Name, mountPoint, err.Error())
@@ -397,7 +394,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			}
 		}
 
-		if (!GlobalConfigVar.NasFakeProvision || losetupType) && nasVol.MountProtocol != MountProtocolCFPSNFS {
+		//use losetup device
+		if (!GlobalConfigVar.NasFakeProvision || losetupType) && nasVol.MountProtocol != MountProtocolCPFSNFS {
 			// local mountpoint for one volume
 			cs.rateLimiter.Take()
 			// step5: Mount nfs server to localpath
@@ -412,11 +410,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					useEaClient = cnfs.Status.FsAttributes.UseElasticAccelerationClient
 				}
 				//create subpath directory
-				if useEaClient == "true" {
-					utils.CreateHostDest(mountPoint)
+				if useEaClient == "true" || nasVol.MountProtocol == MountProtocolAliNas {
+					utils.CreateDestInHost(mountPoint)
 				}
 				//mount subpath directory
-				if err := DoNfsMount(nasVol.MountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name, req.Name, useEaClient); err != nil {
+				if err := DoMount(nasVol.MountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name, req.Name, useEaClient); err != nil {
 					log.Errorf("CreateVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.Name, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, err.Error())
 					return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
 				}
@@ -468,6 +466,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 		volumeContext["volumeAs"] = nasVol.VolumeAs
 		volumeContext["path"] = filepath.Join(nfsPath, pvName)
+		volumeContext[MountProtocolTag] = nasVol.MountProtocol
 		if len(nasVol.CnfsName) != 0 {
 			volumeContext[ContainerNetworkFileSystem] = nasVol.CnfsName
 			delete(volumeContext, "server")
@@ -483,9 +482,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 		if value, ok := req.Parameters["options"]; ok && value != "" {
 			volumeContext["options"] = value
-		}
-		if nasVol.MountProtocol == MountProtocolCFPSNFS {
-			volumeContext[MountProtocolTag] = MountProtocolCFPSNFS
 		}
 
 		csiTargetVol = &csi.Volume{
@@ -508,6 +504,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 		volumeContext["volumeAs"] = nasVol.VolumeAs
 		volumeContext["path"] = nfsPath
+		volumeContext[MountProtocolTag] = nasVol.MountProtocol
 		if len(nasVol.CnfsName) != 0 {
 			volumeContext[ContainerNetworkFileSystem] = nasVol.CnfsName
 			delete(volumeContext, "server")
@@ -679,9 +676,9 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		}
 
 		// set the local mountpoint
-		mountPoint := filepath.Join(MNTROOTPATH, req.VolumeId+"-delete")
+		mountPoint := filepath.Join(MntRootPath, req.VolumeId+"-delete")
 		// create subpath-delete directory
-		if err := DoNfsMount(mountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, req.VolumeId, req.VolumeId, "false"); err != nil {
+		if err := DoMount(mountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, req.VolumeId, req.VolumeId, "false"); err != nil {
 			log.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
 			return nil, fmt.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
 		}
@@ -934,10 +931,6 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 		if nasVolArgs.MountProtocol, ok = volOptions[MountProtocolTag]; !ok {
 			nasVolArgs.MountProtocol = MountProtocolNFS
 		}
-		if nasVolArgs.MountProtocol != MountProtocolNFS && nasVolArgs.MountProtocol != MountProtocolCFPSNFS {
-			return nil, fmt.Errorf("Mount Protocol only support nfs and cpfs-nfs, please check" + nasVolArgs.MountProtocol)
-		}
-
 		// modeType
 		if nasVolArgs.ModeType, ok = volOptions[ModeType]; !ok {
 			nasVolArgs.ModeType = "non-recursive"

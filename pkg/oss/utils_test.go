@@ -24,7 +24,7 @@ import (
 
 func TestGetRAMRoleOption(t *testing.T) {
 
-	result := GetRAMRoleOption("cmd")
+	result := GetRAMRoleOption()
 	assert.NotEqual(t, "", result)
 }
 

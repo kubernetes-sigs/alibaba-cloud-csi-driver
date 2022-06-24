@@ -89,8 +89,10 @@ const (
 	NasMntPoint = "/mnt/nasplugin.alibabacloud.com"
 	// MountProtocolNFS common nfs protocol
 	MountProtocolNFS = "nfs"
-	// MountProtocolCFPSNFS cpfs-nfs protocol
-	MountProtocolCFPSNFS = "cpfs-nfs"
+	// MountProtocolCPFSNFS cpfs-nfs protocol
+	MountProtocolCPFSNFS = "cpfs-nfs"
+	// MountProtocolAliNas alinas protocal
+	MountProtocolAliNas = "alinas"
 	// MountProtocolTag tag
 	MountProtocolTag = "mountProtocol"
 )
@@ -170,8 +172,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if opt.MountProtocol == "" {
 		opt.MountProtocol = MountProtocolNFS
-	} else if opt.MountProtocol != MountProtocolCFPSNFS && opt.MountProtocol != MountProtocolNFS {
-		return nil, status.Errorf(codes.Internal, "NodePublishVolume: Not support nfs protocol: %s", opt.MountProtocol)
 	}
 
 	// version/options used first in mountOptions
@@ -231,7 +231,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if opt.MountType == SkipMountType {
 		doNfsPortCheck = false
 	}
-	if opt.MountProtocol == MountProtocolNFS && doNfsPortCheck {
+	if (opt.MountProtocol == MountProtocolNFS || opt.MountProtocol == MountProtocolAliNas) && doNfsPortCheck {
 		conn, err := net.DialTimeout("tcp", opt.Server+":"+NasPortnum, time.Second*time.Duration(3))
 		if err != nil {
 			log.Errorf("NAS: Cannot connect to nas host: %s", opt.Server)
@@ -316,7 +316,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	checkSystemNasConfig()
 
 	//cpfs-nfs check valid
-	if opt.MountProtocol == MountProtocolCFPSNFS {
+	if opt.MountProtocol == MountProtocolCPFSNFS {
 		if !GlobalConfigVar.CpfsNfsEnable {
 			return nil, errors.New("Cpfs-nfs is testing in grayscale.Please set cpfs-nas-enable to true for the configmap of csi-plugin under the kube-system namespace")
 		}
@@ -332,7 +332,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("Cannot get poduid and cannot set volume limit: " + req.VolumeId)
 	}
 	//mount nas client
-	if err := DoNfsMount(opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, mountPath, req.VolumeId, podUID, useEaClient); err != nil {
+	if err := DoMount(opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, mountPath, req.VolumeId, podUID, useEaClient); err != nil {
 		log.Errorf("Nas, Mount Nfs error: %s", err.Error())
 		return nil, errors.New("Nas, Mount Nfs error: %s" + err.Error())
 	}

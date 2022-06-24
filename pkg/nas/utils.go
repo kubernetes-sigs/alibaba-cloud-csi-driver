@@ -77,63 +77,66 @@ type RoleAuth struct {
 	Code            string
 }
 
-//DoNfsMount execute the mount command for nas dir
-func DoNfsMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, podUID, useEaClient string) error {
+//DoMount execute the mount command for nas dir
+func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, podUID, useEaClient string) error {
 	if !utils.IsFileExisting(mountPoint) {
 		CreateDest(mountPoint)
 	}
 
 	if CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
-		log.Infof("DoNfsMount: nfs server already mounted: %s, %s", nfsServer, nfsPath)
+		log.Infof("DoMount: nfs server is already mounted: %s, %s", nfsServer, nfsPath)
 		return nil
 	}
 
 	var mntCmd string
 	var err error
+	//EAC Mount
 	if len(useEaClient) != 0 && useEaClient == "true" {
 		mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o eac -o client_owner=%s -o %s %s:%s %s", podUID, mountOptions, nfsServer, nfsPath, mountPoint)
-		if out, err := utils.ConnectorRun(mntCmd); err != nil {
-			if err != nil {
-				log.Errorf("Mount by nas rich client, error: %s", err.Error())
-				return errors.New("Create nas user space volume fail: " + err.Error() + ", out: " + out)
-			}
+		if err := utils.DoMountInHost(mntCmd); err != nil {
+			return err
 		}
 	} else {
-		mntCmd = fmt.Sprintf("mount -t %s -o vers=%s %s:%s %s", nfsProtocol, nfsVers, nfsServer, nfsPath, mountPoint)
-		if mountOptions != "" {
-			mntCmd = fmt.Sprintf("mount -t %s -o vers=%s,%s %s:%s %s", nfsProtocol, nfsVers, mountOptions, nfsServer, nfsPath, mountPoint)
+		//NFS Mount(Capacity/Performance Extreme Nas、Cpfs2.0, AliNas)
+		versStr := fmt.Sprintf("vers=%s", nfsVers)
+		if mountOptions == "" {
+			mountOptions = versStr
+		} else if !strings.Contains(mountOptions, versStr) {
+			mountOptions = versStr + "," + mountOptions
 		}
-		if nfsProtocol == MountProtocolCFPSNFS {
+		mntCmd = fmt.Sprintf("mount -t %s -o %s %s:%s %s", nfsProtocol, mountOptions, nfsServer, nfsPath, mountPoint)
+		if nfsProtocol == MountProtocolCPFSNFS || nfsProtocol == MountProtocolAliNas {
 			mntCmd = NsenterCmd + " " + mntCmd
 		}
 		_, err = utils.Run(mntCmd)
 
-		if err != nil && nfsPath != "/" {
-			if strings.Contains(err.Error(), "reason given by server: No such file or directory") || strings.Contains(err.Error(), "access denied by server while mounting") {
-				if err := createNasSubDir(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, volumeID); err != nil {
-					log.Errorf("DoNfsMount: Create SubPath error: %s", err.Error())
-					return err
-				}
-				if _, err := utils.Run(mntCmd); err != nil {
-					log.Errorf("DoNfsMount, Mount Nfs sub directory fail: %s", err.Error())
-					return err
-				}
-			} else {
-				return err
-			}
-		} else if err != nil {
+		//Mount rootpath is failed, return err
+		if err != nil && nfsPath == "/" {
 			return err
 		}
+		//Mount subpath is failed, if subpath is not exist or cpfs don't output subpath
+		if err != nil && nfsPath != "/" {
+			//Other errors
+			if !strings.Contains(err.Error(), "reason given by server: No such file or directory") && !strings.Contains(err.Error(), "access denied by server while mounting") {
+				return err
+			}
+			if err := createSubDir(nfsProtocol, nfsServer, nfsPath, mountOptions, volumeID); err != nil {
+				log.Errorf("DoMount: Create subpath is failed, err: %s", err.Error())
+				return err
+			}
+			if _, err := utils.Run(mntCmd); err != nil {
+				log.Errorf("DoMount: Mount %s  is failed, err: %s", mntCmd, err.Error())
+				return err
+			}
+		}
 	}
-	log.Infof("DoNfsMount: mount nfs successful with command: %s", mntCmd)
+	log.Infof("DoMount: Mount nfs is successfully with command: %s", mntCmd)
 	return nil
 }
 
 //CheckNfsPathMounted check whether the given nfs path was mounted
 func CheckNfsPathMounted(mountpoint, server, path string) bool {
-	// mntCmd := fmt.Sprintf("findmnt %s | grep %s | grep %s | grep -v grep | wc -l", mountpoint, server, path)
 	mntCmd := fmt.Sprintf("cat /proc/mounts | grep %s | grep %s | grep -v grep | wc -l", mountpoint, path)
-	// mntCmd := fmt.Sprintf("grep -E -- '%s.*%s' /proc/mounts", mountpoint, path)
 	if out, err := utils.Run(mntCmd); err == nil && strings.TrimSpace(out) != "0" {
 		return true
 	}
@@ -274,98 +277,70 @@ func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
 	case <-time.After(time.Duration(timeout) * time.Second):
 		return true
 	}
-
 }
 
-func createHostNasSubDir(nfsServer, nfsPath, nfsVers, nfsOptions string, volumeID string) error {
-	// step 1: create mount path
-	//nasTmpPath: /mnt/acs_mnt/k8s_nas/temp/volumeID
-	nasTmpPath := filepath.Join(NasTempMntPath, volumeID)
-	if err := utils.CreateHostDest(nasTmpPath); err != nil {
-		log.Infof("Create Nas Host temp Directory err: " + err.Error())
-		return err
+func createSubDir(nfsProtocol, nfsServer, nfsPath, nfsOptions, volumeID string) error {
+	// if volume is cpfs-nfs or alinas protocol, mount in host mode.
+	mountInHost := false
+	if nfsProtocol == MountProtocolCPFSNFS || nfsProtocol == MountProtocolAliNas {
+		mountInHost = true
 	}
-	if utils.IsHostMounted(nasTmpPath) {
-		utils.HostUmount(nasTmpPath)
-	}
-
-	// step 2: do mount, and create subpath by extreme
-	if nfsOptions != "" {
-		nfsVers = nfsVers + "," + nfsOptions
-	}
-	//nfsPath: /share/volumeID
-	usePath := strings.TrimPrefix(nfsPath, "/share/")
-	rootPath := "/share"
-
-	mntCmdRootPath := fmt.Sprintf("%s mount -t cpfs-nfs -o vers=%s %s:%s %s", NsenterCmd, nfsVers, nfsServer, rootPath, nasTmpPath)
-	_, err := utils.Run(mntCmdRootPath)
-	if err != nil {
-		log.Errorf("Nas, mount directory rootPath fail, rootPath:%s, err:%s", rootPath, err.Error())
-		return err
-	}
-	//serverPath: /share
-	//subPath: /mnt/acs_mnt/k8s_nas/temp/volumeID/share/volumeID
-	//nfsPath: /share/subPath
-	subPath := path.Join(nasTmpPath, usePath)
-	if err := utils.CreateHostDest(subPath); err != nil {
-		log.Infof("Nas, Create Sub Directory fail, subPath:%s, err: " + err.Error())
-		return err
-	}
-
-	// step 3: umount after create
-	utils.HostUmount(nasTmpPath)
-	log.Infof("Create Sub Directory successful, nfsPath:%s, subPath:%s", nfsPath, subPath)
-	return nil
-}
-
-func createNasSubDir(nfsProtocol, nfsServer, nfsPath, nfsVers, nfsOptions string, volumeID string) error {
-	// if volume is cpfs-nfs protocol, mount in host mode.
-	if nfsProtocol == MountProtocolCFPSNFS {
-		return createHostNasSubDir(nfsServer, nfsPath, nfsVers, nfsOptions, volumeID)
-	}
-	// step 1: create mount path
-	nasTmpPath := filepath.Join(NasTempMntPath, volumeID)
-	if err := utils.CreateDest(nasTmpPath); err != nil {
-		log.Infof("Create Nas temp Directory err: " + err.Error())
-		return err
-	}
-	if utils.IsMounted(nasTmpPath) {
-		utils.Umount(nasTmpPath)
-	}
-
-	// step 2: do mount, and create subpath by extreme
-	if nfsOptions != "" {
-		nfsVers = nfsVers + "," + nfsOptions
-	}
-	usePath := nfsPath
 	rootPath := "/"
-	//server is extreme nas
-	if strings.Contains(nfsServer, "extreme.nas.aliyuncs.com") {
+	usePath := nfsPath
+	//The root directory of cpfs-nfs and extreme NAS is /share
+	if nfsProtocol == MountProtocolCPFSNFS || strings.Contains(nfsServer, "extreme.nas.aliyuncs.com") {
 		//1.No need to deal with the case where nfsPath only beginning with /share or /share/
 		//2.No need to deal with the case where nfspath does not contain /share or /share/ at the beginning
 		//3.Need to deal with the case where nfsPath is /share/subpath
 		if strings.HasPrefix(nfsPath, "/share/") && len(nfsPath) > len("/share/") {
 			rootPath = "/share/"
-			usePath = nfsPath[6:]
+			usePath = nfsPath[len("/share/"):]
 		}
 	}
 
-	mntCmdRootPath := fmt.Sprintf("mount -t nfs -o vers=%s %s:%s %s", nfsVers, nfsServer, rootPath, nasTmpPath)
-	_, err := utils.Run(mntCmdRootPath)
-	if err != nil {
-		log.Errorf("Nas, mount directory rootPath fail, rootPath:%s, err:%s", rootPath, err.Error())
-		return err
+	nasTmpPath := filepath.Join(NasTempMntPath, volumeID)
+	if mountInHost {
+		if err := utils.CreateDestInHost(nasTmpPath); err != nil {
+			log.Infof("Create nas tempPath is failed in host, tmpPath:%s, err: %s", nasTmpPath, err.Error())
+			return err
+		}
+		if utils.IsMountedInHost(nasTmpPath) {
+			utils.UmountInHost(nasTmpPath)
+		}
+		mntCmdRootPath := fmt.Sprintf("%s mount -t %s -o %s %s:%s %s", NsenterCmd, nfsProtocol, nfsOptions, nfsServer, rootPath, nasTmpPath)
+		_, err := utils.Run(mntCmdRootPath)
+		if err != nil {
+			log.Errorf("Mount rootPath is failed in host, rootPath:%s, err:%s", rootPath, err.Error())
+			return err
+		}
+		subPath := path.Join(nasTmpPath, usePath)
+		if err := utils.CreateDestInHost(subPath); err != nil {
+			log.Infof("Create subPath is failed in host, subPath:%s, err:%s ", subPath, err.Error())
+			return err
+		}
+		utils.UmountInHost(nasTmpPath)
+	} else {
+		if err := utils.CreateDest(nasTmpPath); err != nil {
+			log.Infof("Create nas tempPath is failed, tmpPath:%s, err: %s", nasTmpPath, err.Error())
+			return err
+		}
+		if utils.IsMounted(nasTmpPath) {
+			utils.Umount(nasTmpPath)
+		}
+		mntCmdRootPath := fmt.Sprintf("mount -t %s -o %s %s:%s %s", nfsProtocol, nfsOptions, nfsServer, rootPath, nasTmpPath)
+		_, err := utils.Run(mntCmdRootPath)
+		if err != nil {
+			log.Errorf("Mount rootPath is failed, rootPath:%s, err:%s", rootPath, err.Error())
+			return err
+		}
+		subPath := path.Join(nasTmpPath, usePath)
+		if err := utils.CreateDest(subPath); err != nil {
+			log.Infof("Create subPath is failed, subPath:%s, err: %s", subPath, err.Error())
+			return err
+		}
+		utils.Umount(nasTmpPath)
 	}
-
-	subPath := path.Join(nasTmpPath, usePath)
-	if err := utils.CreateDest(subPath); err != nil {
-		log.Infof("Nas, Create Sub Directory fail, subPath:%s, err: " + err.Error())
-		return err
-	}
-
-	// step 3: umount after create
-	utils.Umount(nasTmpPath)
-	log.Infof("Create Sub Directory successful, nfsPath:%s, subPath:%s", nfsPath, subPath)
+	log.Infof("Create subPath is successfully, nfsPath:%s, subPath:%s", nfsPath, path.Join(nasTmpPath, usePath))
 	return nil
 }
 
@@ -540,7 +515,7 @@ func mountLosetupPv(mountPoint string, opt *Options, volumeID string) error {
 		return fmt.Errorf("mountLosetupPv: create nfs mountPath error %s ", err.Error())
 	}
 	//mount nas to use losetup dev
-	err := DoNfsMount(opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, nfsPath, volumeID, podID, "false")
+	err := DoMount(opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, nfsPath, volumeID, podID, "false")
 	if err != nil {
 		return fmt.Errorf("mountLosetupPv: mount losetup volume failed: %s", err.Error())
 	}

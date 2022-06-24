@@ -43,15 +43,10 @@ type controllerServer struct {
 
 // resourcemode is selected by: subpath/filesystem
 const (
-	MNTROOTPATH = "/csi-persistentvolumes"
-	MBSIZE      = 1024 * 1024
-	DRIVER      = "driver"
+	MntRootPath = "/mnt"
 	SERVER      = "server"
-	MODE        = "mode"
 	VOLUMEAS    = "volumeAs"
-	PATH        = "path"
 	SUBPATH     = "subpath"
-	FILESYSTEM  = "filesystem"
 )
 
 // used by check pvc is processed
@@ -129,7 +124,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	log.Infof("Create Volume: %s, with Exist cpfs Server: %s, cpfs filesystem: %s, Path: %s, Options: %s", req.Name, cpfsServer, cpfsFileSystem, cpfsPath, cpfsOptions)
 
 	// local mountpoint for one volume
-	mountPoint := filepath.Join(MNTROOTPATH, pvName)
+	mountPoint := filepath.Join(MntRootPath, pvName)
 	if !utils.IsFileExisting(mountPoint) {
 		if err := os.MkdirAll(mountPoint, 0777); err != nil {
 			log.Errorf("CreateVolume: %s, Unable to create directory: %s, with error: %s", req.Name, mountPoint, err.Error())
@@ -238,7 +233,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 
 	// set the local mountpoint
-	mountPoint := filepath.Join(MNTROOTPATH, req.VolumeId+"-delete")
+	mountPoint := filepath.Join(MntRootPath, req.VolumeId+"-delete")
 	if err := DoMount(cpfsServer, cpfsFileSystem, cpfsPath, cpfsOptions, mountPoint, req.VolumeId); err != nil {
 		log.Errorf("DeleteVolume: %s, Mount server: %s, cpfsPath: %s, cpfsVersion: %s, cpfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, cpfsServer, cpfsPath, cpfsFileSystem, cpfsOptions, mountPoint, err.Error())
 		return nil, fmt.Errorf("DeleteVolume: %s, Mount server: %s, cpfsPath: %s, cpfsVersion: %s, cpfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, cpfsServer, cpfsPath, cpfsFileSystem, cpfsOptions, mountPoint, err.Error())
