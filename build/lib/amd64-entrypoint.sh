@@ -72,10 +72,9 @@ done
 
 ## OSS plugin setup
 if [ "$run_oss" = "true" ]; then
-
     ossfsVer="1.80.6.ack.1"
     if [ "$USE_UPDATE_OSSFS" == "" ]; then
-        ossfsVer="1.86.4"
+        ossfsVer="1.87.0"
     fi
 
     ossfsArch="centos7.0"
@@ -95,21 +94,19 @@ if [ "$run_oss" = "true" ]; then
 
     # install OSSFS
     mkdir -p /host/etc/csi-tool/
-	reconcileOssFS="skip"
-    if [ ! `/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
+		reconcileOssFS="skip"
+    if [ ! `${HOST_CMD}  which ossfs` ]; then
         echo "First install ossfs, ossfsVersion: $ossfsVer"
         cp /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm /host/etc/csi-tool/
-        # /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
 				reconcileOssFS="install"
     # update OSSFS
     else
         echo "Check ossfs Version...."
-        oss_info=`/nsenter --mount=/proc/1/ns/mnt ossfs --version | grep -E -o "V[0-9.a-z]+" | cut -d"V" -f2`
+        oss_info=`${HOST_CMD}  ossfs --version | grep -E -o "V[0-9.a-z]+" | cut -d"V" -f2`
         if [ "$oss_info" != "$ossfsVer" ]; then
             echo "Upgrade ossfs, ossfsVersion: $ossfsVer"
-            /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
+            ${HOST_CMD}  yum remove -y ossfs
             cp /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm /host/etc/csi-tool/
-            # /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
 						reconcileOssFS="upgrade"
         fi
     fi
@@ -118,35 +115,35 @@ if [ "$run_oss" = "true" ]; then
       if [[ ${host_os} == "lifsea" ]]; then
           rpm2cpio /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | cpio -idmv
           cp ./usr/local/bin/ossfs /host/etc/csi-tool/
-          /nsenter --mount=/proc/1/ns/mnt cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
+          ${HOST_CMD} cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
       else
-          /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+          ${HOST_CMD} rpm -i /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
       fi
     fi
 
     if [[ ${reconcileOssFS} == "upgrade" ]]; then
       if [[ ${host_os} == "lifsea" ]]; then
-          /nsenter --mount=/proc/1/ns/mnt rm /usr/local/bin/ossfs
+          ${HOST_CMD}  rm /usr/local/bin/ossfs
           rpm2cpio /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | cpio -idmv
           cp ./usr/local/bin/ossfs /host/etc/csi-tool/
-          /nsenter --mount=/proc/1/ns/mnt cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
+          ${HOST_CMD}  cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
       else
-          /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
-          /nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+          ${HOST_CMD}  yum remove -y ossfs
+          ${HOST_CMD}  rpm -i /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
       fi
     fi
 
     # install Jindofs
-    if [ ! -f "/host/etc/jindofs-tool/jindofs-fuse" ];then
+    if [ ! -f "/host/etc/jindofs-tool/jindo-fuse" ];then
         mkdir -p /host/etc/jindofs-tool/
-        cp /jindofs-fuse /host/etc/jindofs-tool/jindofs-fuse
+        cp /jindo-fuse /host/etc/jindofs-tool/jindo-fuse
         echo "install jindofs..."
     else
-        oldmd5=`md5sum /host/etc/jindofs-tool/jindofs-fuse | awk '{print $1}'`
-        newmd5=`md5sum /jindofs-fuse | awk '{print $1}'`
+        oldmd5=`md5sum /host/etc/jindofs-tool/jindo-fuse | awk '{print $1}'`
+        newmd5=`md5sum /jindo-fuse | awk '{print $1}'`
         if [ "$oldmd5" != "$newmd5" ]; then
-            rm -rf /host/etc/jindofs-tool/jindofs-fuse
-            cp /jindofs-fuse /host/etc/jindofs-tool/jindofs-fuse
+            rm -rf /host/etc/jindofs-tool/jindo-fuse
+            cp /jindo-fuse /host/etc/jindofs-tool/jindo-fuse
             echo "upgrade jindofs..."
         fi
     fi
@@ -205,12 +202,12 @@ if [ "$run_oss" = "true" ] || ["$run_disk" = "true"]; then
     if [ "$updateConnectorService" = "true" ]; then
         echo "Install csiplugin connector service...."
         cp /csi/csiplugin-connector.service $systemdDir/csiplugin-connector.service
-        /nsenter --mount=/proc/1/ns/mnt systemctl daemon-reload
+        ${HOST_CMD} systemctl daemon-reload
     fi
 
     rm -rf /var/log/alicloud/connector.pid
-    /nsenter --mount=/proc/1/ns/mnt systemctl enable csiplugin-connector.service
-    /nsenter --mount=/proc/1/ns/mnt systemctl restart csiplugin-connector.service
+    ${HOST_CMD} systemctl enable csiplugin-connector.service
+    ${HOST_CMD} systemctl restart csiplugin-connector.service
 fi
 
 ## CPFS-NAS plugin setup
@@ -219,6 +216,12 @@ if [ "$run_nas" = "true" ]; then
     cp /root/aliyun-alinas-utils-1.1-2.al7.noarch.rpm /host/etc/csi-tool/
     # nas-rich-client rpm
     cp /root/alinas-eac-1.1-1.alios7.x86_64.rpm /host/etc/csi-tool/
+fi
+
+## Jindofs plugin setup
+if [ "$run_oss" = "true" ]; then
+    # jindofs common rpm
+    ${HOST_CMD} yum install -y fuse3 fuse3-devel
 fi
 
 

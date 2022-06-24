@@ -152,7 +152,7 @@ func echoServer(c net.Conn) {
 // -ourl=oss-cn-shenzhen-internal.aliyuncs.com
 // -o max_stat_cache_size=0 -o allow_other
 func checkOssfsCmd(cmd string) error {
-	jindofsPrefix := "systemd-run --scope -- /etc/jindofs-tool/jindofs-fuse "
+	jindofsPrefix := "systemd-run --scope -- /etc/jindofs-tool/jindo-fuse "
 	if strings.HasPrefix(cmd, jindofsPrefix) {
 		if strings.Contains(cmd, ";") {
 			return errors.New("Jindofs Options: command cannot contains ; " + cmd)

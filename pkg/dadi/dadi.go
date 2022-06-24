@@ -65,6 +65,7 @@ func getEndPoint(endpoints *corev1.Endpoints) []string {
 
 func Run(kubeClient *kubernetes.Clientset) {
 	for {
+		time.Sleep(time.Second * 10)
 		endpoint := getEndPoints(kubeClient, "kube-system")
 		if endpoint == nil {
 			continue
@@ -79,6 +80,5 @@ func Run(kubeClient *kubernetes.Clientset) {
 		if err != nil {
 			log.Errorf("Write %s json file is failed, err:%s", dadiHostPath+dadiEndPointFile, err.Error())
 		}
-		time.Sleep(time.Second * 10)
 	}
 }

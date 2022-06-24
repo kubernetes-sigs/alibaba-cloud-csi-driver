@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDoNfsMount(t *testing.T) {
+func TestDoMount(t *testing.T) {
 
 	nfsServer := "0.0.0.0"
 	nfsPath := "/test"
@@ -32,7 +32,7 @@ func TestDoNfsMount(t *testing.T) {
 	mountOptions := ""
 	mountPoint := ".tmp"
 	volumeID := "testtsettest"
-	err := DoNfsMount(MountProtocolNFS, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, "podUID", "false")
+	err := DoMount(MountProtocolNFS, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, "podUID", "false")
 	assert.NotNil(t, err)
 
 }
