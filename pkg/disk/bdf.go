@@ -359,7 +359,7 @@ func forceDetachAllowed(ecsClient *ecs.Client, disk *ecs.Disk, nodeID string) (a
 	request.RegionId = disk.RegionId
 	request.InstanceIds = "[\"" + disk.InstanceId + "\"]"
 	instanceResponse, err := ecsClient.DescribeInstances(request)
-	log.Infof("forceDetachAllowed: instanceResponse: %+v", diskResponse)
+	log.Infof("forceDetachAllowed: instanceResponse: %+v", instanceResponse)
 	if err != nil {
 		return false, errors.Wrapf(err, "DescribeInstances, instanceId=%s", disk.InstanceId)
 	}
