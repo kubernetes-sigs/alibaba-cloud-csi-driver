@@ -40,12 +40,6 @@ var LocalDeviceUpdate = false
 // LocalDeviceLoopIndex local device check index
 var LocalDeviceLoopIndex = 0
 
-// NodeInstanceID the node instance id
-var NodeInstanceID, _ = utils.GetMetaData(InstanceID)
-
-// NodeRegionID the node region id
-var NodeRegionID, _ = utils.GetMetaData(RegionIDTag)
-
 // updateNodeCapacity update node capacity annotations with the realtime storage capacities.
 func updateNodeCapacity() {
 	log.Infof("updateNodeCapacity: Starting to update volume capacity to node")
@@ -93,6 +87,8 @@ func updateNodeCapacity() {
 func updateLocalDiskList() {
 	ac := utils.GetAccessControl()
 	client := utils.NewEcsClient(ac)
+	NodeRegionID, _ := utils.GetMetaData(RegionIDTag)
+	NodeInstanceID, _ := utils.GetMetaData(InstanceID)
 	if LocalDeviceLoopIndex > 5 {
 		return
 	}
