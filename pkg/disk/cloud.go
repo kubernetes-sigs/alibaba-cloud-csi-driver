@@ -103,6 +103,16 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 						return deviceName, nil
 					}
 				} else {
+					// wait for pci attach ready
+					time.Sleep(5 * time.Second)
+					log.Infof("AttachDisk: find disk dev after 5 seconds")
+					deviceName := GetVolumeDeviceName(diskID)
+					if deviceName != "" && IsFileExisting(deviceName) {
+						if used, err := IsDeviceUsedOthers(deviceName, diskID); err == nil && used == false {
+							log.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
+							return deviceName, nil
+						}
+					}
 					err = fmt.Errorf("AttachDisk: disk device cannot be found in node, diskid: %s, devicenName: %s", diskID, deviceName)
 					return "", err
 				}

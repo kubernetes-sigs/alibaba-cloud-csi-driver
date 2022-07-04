@@ -105,6 +105,10 @@ const (
 	DiskSSD = "cloud_ssd"
 	// DiskESSD essd disk type
 	DiskESSD = "cloud_essd"
+	// DiskHighPerformance
+	DiskPPerf = "cloud_pperf"
+	// DiskStandPerformace
+	DiskSPerf = "cloud_sperf"
 	// DiskSharedSSD shared sdd disk type
 	DiskSharedSSD = "san_ssd"
 	// DiskSharedEfficiency shared efficiency disk type
@@ -159,9 +163,9 @@ var (
 	// KubernetesAlicloudIdentity is the system identity for ecs client request
 	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", VERSION)
 	// AvaliableDiskTypes ...
-	AvaliableDiskTypes = []string{DiskCommon, DiskESSD, DiskEfficiency, DiskSSD, DiskSharedSSD, DiskSharedEfficiency}
+	AvaliableDiskTypes = []string{DiskCommon, DiskESSD, DiskEfficiency, DiskSSD, DiskSharedSSD, DiskSharedEfficiency, DiskPPerf, DiskSPerf}
 	// CustomDiskTypes ...
-	CustomDiskTypes = map[string]int{DiskESSD: 0, DiskSSD: 1, DiskEfficiency: 2}
+	CustomDiskTypes = map[string]int{DiskESSD: 0, DiskSSD: 1, DiskEfficiency: 2, DiskPPerf: 3, DiskSPerf: 4}
 )
 
 // DefaultOptions is the struct for access key
