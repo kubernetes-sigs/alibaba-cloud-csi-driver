@@ -32,11 +32,12 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/kubernetes/pkg/util/resizefs"
+	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
-	k8smount "k8s.io/utils/mount"
 )
 
 type nodeServer struct {
@@ -663,8 +664,27 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
 	log.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v, device: %s, mkfsOptions: %v, options: %v", req.VolumeId, targetPath, device, mkfsOptions, mountOptions)
+	pvc, err := ns.getPvcFromDiskId(req.VolumeId)
+	if err != nil {
+		return &csi.NodeStageVolumeResponse{}, nil
+	}
+	if pvc.Spec.DataSource != nil {
+		log.Info("NodeStageVolume: pvc is created from snapshot, add resizefs check")
+		mounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
+		r := k8smount.NewResizeFs(mounter.Exec)
+		needResize, err := r.NeedResize(device, targetPath)
+		if err != nil {
+			log.Infof("NodeStageVolume: Could not determine if volume %s need to be resized: %v", req.VolumeId, err)
+			return &csi.NodeStageVolumeResponse{}, nil
+		}
+		if needResize {
+			log.Infof("NodeStageVolume: Resizing volume %q created from a snapshot/volume", req.VolumeId)
+			if _, err := r.Resize(device, targetPath); err != nil {
+				return nil, status.Errorf(codes.Internal, "Could not resize volume %s: %v", req.VolumeId, err)
+			}
+		}
+	}
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
@@ -846,8 +866,9 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	}
 
 	// use resizer to expand volume filesystem
-	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()})
-	ok, err := resizer.Resize(devicePath, volumePath)
+	mounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
+	r := k8smount.NewResizeFs(mounter.Exec)
+	ok, err := r.Resize(devicePath, volumePath)
 	if err != nil {
 		log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", diskID, devicePath, volumePath, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
@@ -974,6 +995,21 @@ func (ns *nodeServer) unmountDuplicateMountPoint(targetPath string) error {
 	return nil
 }
 
+func (ns *nodeServer) getPvcFromDiskId(diskId string) (*v1.PersistentVolumeClaim, error){
+	ctx := context.Background()
+	pv, err := ns.clientSet.CoreV1().PersistentVolumes().Get(ctx, diskId, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("getPvcFromDiskId: failed to get pv from apiserver: %v", err)
+		return nil, err
+	}
+	pvcName, pvcNamespace := pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace
+	pvc, err := ns.clientSet.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(ctx, pvcName, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("getPvcFromDiskId: failed to get pvc from apiserver: %v", err)
+	}
+	return pvc, nil
+}
+
 // collectMountOptions returns array of mount options
 func collectMountOptions(fsType string, mntFlags []string) (options []string) {
 	for _, opt := range mntFlags {
@@ -990,3 +1026,4 @@ func collectMountOptions(fsType string, mntFlags []string) (options []string) {
 	return
 
 }
+
