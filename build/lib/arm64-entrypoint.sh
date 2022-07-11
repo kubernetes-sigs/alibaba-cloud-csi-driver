@@ -95,7 +95,7 @@ if [ "$run_disk" = "true" ] || [ "$run_oss" = "true"]; then
 			echo "mkdir /etc/csi-tool/ directory ...."
 		else
 			oldmd5=`md5sum /host/etc/csi-tool/csiplugin-connector | awk '{print $1}'`
-			newmd5=`md5sum /bin/csiplugin-connector | awk '{print $1}'`
+			newmd5=`md5sum /csi/csiplugin-connector | awk '{print $1}'`
 			if [ "$oldmd5" = "$newmd5" ]; then
 					updateConnector="false"
 			else
@@ -108,7 +108,7 @@ if [ "$run_disk" = "true" ] || [ "$run_oss" = "true"]; then
 		cp /freezefs.sh /host/etc/csi-tool/freezefs.sh
     if [ "$updateConnector" = "true" ]; then
         echo "Install csiplugin-connector...."
-        cp /bin/csiplugin-connector /host/etc/csi-tool/csiplugin-connector
+        cp /csi/csiplugin-connector /host/etc/csi-tool/csiplugin-connector
         chmod 755 /host/etc/csi-tool/csiplugin-connector
     fi
 
@@ -116,15 +116,15 @@ if [ "$run_disk" = "true" ] || [ "$run_oss" = "true"]; then
     # install/update csiplugin connector service
     updateConnectorService="true"
     if [[ ! -z "${PLUGINS_SOCKETS}" ]];then
-        sed -i 's/Restart=always/Restart=on-failure/g' /bin/csiplugin-connector.service
-        sed -i '/^\[Service\]/a Environment=\"WATCHDOG_SOCKETS_PATH='"${PLUGINS_SOCKETS}"'\"' /bin/csiplugin-connector.service
-        sed -i '/ExecStop=\/bin\/kill -s QUIT $MAINPID/d' /bin/csiplugin-connector.service
-        sed -i '/^\[Service\]/a ExecStop=sh -xc "if [ x$MAINPID != x ]; then /bin/kill -s QUIT $MAINPID; fi"' /bin/csiplugin-connector.service
+        sed -i 's/Restart=always/Restart=on-failure/g' /csi/csiplugin-connector.service
+        sed -i '/^\[Service\]/a Environment=\"WATCHDOG_SOCKETS_PATH='"${PLUGINS_SOCKETS}"'\"' /csi/csiplugin-connector.service
+        sed -i '/ExecStop=\/bin\/kill -s QUIT $MAINPID/d' /csi/csiplugin-connector.service
+        sed -i '/^\[Service\]/a ExecStop=sh -xc "if [ x$MAINPID != x ]; then /bin/kill -s QUIT $MAINPID; fi"' /csi/csiplugin-connector.service
     fi
     if [ -f "$systemdDir/csiplugin-connector.service" ];then
         echo "Check csiplugin-connector.service...."
         oldmd5=`md5sum $systemdDir/csiplugin-connector.service | awk '{print $1}'`
-        newmd5=`md5sum /bin/csiplugin-connector.service | awk '{print $1}'`
+        newmd5=`md5sum /csi/csiplugin-connector.service | awk '{print $1}'`
         if [ "$oldmd5" = "$newmd5" ]; then
             updateConnectorService="false"
         else
@@ -134,7 +134,7 @@ if [ "$run_disk" = "true" ] || [ "$run_oss" = "true"]; then
 
     if [ "$updateConnectorService" = "true" ]; then
         echo "Install csiplugin connector service...."
-        cp /bin/csiplugin-connector.service $systemdDir/csiplugin-connector.service
+        cp /csi/csiplugin-connector.service $systemdDir/csiplugin-connector.service
         /nsenter --mount=/proc/1/ns/mnt systemctl daemon-reload
     fi
 
