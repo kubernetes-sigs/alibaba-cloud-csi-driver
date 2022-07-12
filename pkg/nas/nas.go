@@ -218,9 +218,9 @@ func GlobalConfigSet(serviceType string) {
 		if strings.Contains(value, "enable=true") {
 			if serviceType == utils.PluginService {
 				//deleteRpm before installRpm
+				deleteRpm("alinas-eac.x86_64")
 				deleteRpm("aliyun-alinas-utils.noarch")
 				installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
-				deleteRpm("alinas-eac.x86_64")
 				installRpm("alinas-eac", "alinas-eac-1.1-1.alios7.x86_64.rpm")
 				runCmd := fmt.Sprintf("%s systemctl start aliyun-alinas-mount-watchdog", NsenterCmd)
 				_, err := utils.Run(runCmd)
