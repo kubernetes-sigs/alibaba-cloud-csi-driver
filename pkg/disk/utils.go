@@ -52,7 +52,6 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/volume/util/fs"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
@@ -1266,11 +1265,11 @@ func getBlockDeviceCapacity(devicePath string) float64 {
 }
 
 // UpdateNode ...
-func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
+func UpdateNode(nodeID string, c *ecs.Client) {
 	instanceStorageLabels := []string{}
 	ctx := context.Background()
 	nodeName := os.Getenv(kubeNodeName)
-	nodeInfo, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	nodeInfo, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("UpdateNode:: get node info error : %s", err.Error())
 		return
@@ -1330,14 +1329,14 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 	}
 	for n := 1; n < RetryMaxTimes; n++ {
 		if needUpdate {
-			newNode, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+			newNode, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 			if err != nil {
 				continue
 			}
 			for _, updatedLabel := range needUpdateLabels {
 				newNode.Labels[updatedLabel] = "available"
 			}
-			_, err = client.CoreV1().Nodes().Update(ctx, newNode, metav1.UpdateOptions{})
+			_, err = GlobalConfigVar.ClientSet.CoreV1().Nodes().Update(ctx, newNode, metav1.UpdateOptions{})
 			if err != nil {
 				log.Errorf("UpdateNode:: update node error: %s", err.Error())
 				continue

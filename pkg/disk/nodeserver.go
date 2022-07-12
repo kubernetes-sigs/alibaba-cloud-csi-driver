@@ -26,7 +26,6 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -35,7 +34,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
 )
@@ -165,15 +163,6 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		nodeID = doc.InstanceID
 	}
 
-	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
-	}
-
 	// Create Directory
 	os.MkdirAll(VolumeDir, os.FileMode(0755))
 	os.MkdirAll(VolumeDirRemove, os.FileMode(0755))
@@ -184,7 +173,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	} else {
 		log.Infof("Currently node is NOT VF model")
 	}
-	go UpdateNode(nodeID, kubeClient, c)
+	go UpdateNode(nodeID, c)
 
 	if !GlobalConfigVar.ControllerService && IsVFNode() && GlobalConfigVar.BdfHealthCheck {
 		go BdfHealthCheck()
@@ -197,7 +186,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		mounter:           utils.NewMounter(),
 		k8smounter:        k8smount.New(""),
-		clientSet:         kubeClient,
+		clientSet:         GlobalConfigVar.ClientSet,
 	}
 }
 
@@ -995,7 +984,7 @@ func (ns *nodeServer) unmountDuplicateMountPoint(targetPath string) error {
 	return nil
 }
 
-func (ns *nodeServer) getPvcFromDiskId(diskId string) (*v1.PersistentVolumeClaim, error){
+func (ns *nodeServer) getPvcFromDiskId(diskId string) (*v1.PersistentVolumeClaim, error) {
 	ctx := context.Background()
 	pv, err := ns.clientSet.CoreV1().PersistentVolumes().Get(ctx, diskId, metav1.GetOptions{})
 	if err != nil {
@@ -1026,4 +1015,3 @@ func collectMountOptions(fsType string, mntFlags []string) (options []string) {
 	return
 
 }
-
