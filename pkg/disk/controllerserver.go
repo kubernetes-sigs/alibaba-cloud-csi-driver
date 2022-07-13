@@ -551,6 +551,12 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 
 // ControllerPublishVolume do attach
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
+
+	if GlobalConfigVar.WaitBeforeAttach {
+		time.Sleep(5 * time.Second)
+		log.Infof("ControllerPublishVolume: sleep 5s")
+	}
+
 	isMultiAttach := false
 	if value, ok := req.VolumeContext[MultiAttach]; ok {
 		value = strings.ToLower(value)

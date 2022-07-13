@@ -82,6 +82,7 @@ type GlobalConfig struct {
 	DiskMultiTenantEnable bool
 	SnapClient            *snapClientset.Clientset
 	NodeMultiZoneEnable   bool
+	WaitBeforeAttach      bool
 }
 
 // define global variable
@@ -168,6 +169,11 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 	isDiskBdfEnable := false
 	isDiskMultiTenantEnable := false
 	isNodeMultiZoneEnable := false
+
+	isWaitBeforeAttach := false
+	if waitBeforeAttach := os.Getenv("WAIT_BEFORE_ATTACH"); waitBeforeAttach == "true" {
+		isWaitBeforeAttach = true
+	}
 
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
@@ -385,6 +391,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		BdfHealthCheck:        bdfCheck,
 		DiskMultiTenantEnable: isDiskMultiTenantEnable,
 		NodeMultiZoneEnable:   isNodeMultiZoneEnable,
+		WaitBeforeAttach:      isWaitBeforeAttach,
 	}
 	return cfg
 }
