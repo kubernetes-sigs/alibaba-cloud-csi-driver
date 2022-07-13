@@ -193,11 +193,11 @@ func getMountPointInfoMap() map[string]alinasInfo {
 		if strings.Contains(arr1[2], s1) && strings.Contains(arr1[2], s2) {
 			pvStart := strings.Index(arr1[2], s1)
 			pvEnd := strings.Index(arr1[2], s2)
-			uuidStart := strings.LastIndex(arr1[0], s3)
+			uuidStart := strings.Index(arr1[0], s3)
 			serverEnd := strings.Index(arr1[0], s3)
 			alinasInfo := alinasInfo{
 				PvName:     arr1[2][pvStart+len(s1) : pvEnd],
-				UUID:       arr1[0][uuidStart+len(s3):],
+				UUID:       arr1[0][0:uuidStart],
 				ServerName: arr1[0][0:serverEnd],
 			}
 			m[arr1[0]] = alinasInfo

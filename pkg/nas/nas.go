@@ -193,7 +193,7 @@ func GlobalConfigSet(serviceType string) {
 			}
 		}
 
-		if value, ok := configMap.Data["alinas-dadi-properties"]; ok {
+		if value, ok := configMap.Data["cnfs-cache-properties"]; ok {
 			if strings.Contains(value, "enable=true") {
 				//start go write cluster nodeIP to /etc/hosts
 				//format{["192.168.1.1:8800", "192.168.1.2:8801", "192.168.1.3:8802"]}
@@ -214,14 +214,14 @@ func GlobalConfigSet(serviceType string) {
 		}
 	}
 
-	if value, ok := configMap.Data["nas-elastic-acceleration-client-properties"]; ok {
+	if value, ok := configMap.Data["cnfs-client-properties"]; ok {
 		if strings.Contains(value, "enable=true") {
 			if serviceType == utils.PluginService {
 				//deleteRpm before installRpm
 				deleteRpm("alinas-eac.x86_64")
 				deleteRpm("aliyun-alinas-utils.noarch")
 				installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
-				installRpm("alinas-eac", "alinas-eac-1.1-1.alios7.x86_64.rpm")
+				installRpm("alinas-eac", "alinas-eac-1.0-1.x86_64.rpm")
 				runCmd := fmt.Sprintf("%s systemctl start aliyun-alinas-mount-watchdog", NsenterCmd)
 				_, err := utils.Run(runCmd)
 				if err != nil {

@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	dadiCacheEndpointsName = "alinas-dadi-ds-service"
+	cnfsCacheEndpointsName = "cnfs-cache-ds-service"
 	dadiHostPath           = "/host/etc/"
 	dadiEndPointFile       = "alinas-dadi-endpoint.json"
 )
@@ -26,10 +26,10 @@ type DadiEndPoint struct {
 }
 
 func getEndPoints(kubeClient *kubernetes.Clientset, namespace string) *corev1.Endpoints {
-	endpoints, err := kubeClient.CoreV1().Endpoints(namespace).Get(context.Background(), dadiCacheEndpointsName, metav1.GetOptions{})
+	endpoints, err := kubeClient.CoreV1().Endpoints(namespace).Get(context.Background(), cnfsCacheEndpointsName, metav1.GetOptions{})
 	if err != nil && errMaxCount < 5 {
 		errMaxCount++
-		log.Errorf("Get %s endpoints is failed, error:%s", dadiCacheEndpointsName, err.Error())
+		log.Errorf("Get %s endpoints is failed, error:%s", cnfsCacheEndpointsName, err.Error())
 		return nil
 	}
 	return endpoints
@@ -37,13 +37,13 @@ func getEndPoints(kubeClient *kubernetes.Clientset, namespace string) *corev1.En
 
 func checkEndPoints(endpoints *corev1.Endpoints) bool {
 	if len(endpoints.Subsets) == 0 {
-		msg := fmt.Sprintf("%s endpoints.Subsets is empty.endpoints:%+v", dadiCacheEndpointsName, endpoints)
+		msg := fmt.Sprintf("%s endpoints.Subsets is empty.endpoints:%+v", cnfsCacheEndpointsName, endpoints)
 		log.Errorf(msg)
 		return false
 	}
 	for _, endpointSubset := range endpoints.Subsets {
 		if len(endpointSubset.Addresses) == 0 {
-			msg := fmt.Sprintf("%s endpoints.Subsets.Addresses is empty.endpoints:%+v", dadiCacheEndpointsName, endpoints)
+			msg := fmt.Sprintf("%s endpoints.Subsets.Addresses is empty.endpoints:%+v", cnfsCacheEndpointsName, endpoints)
 			log.Errorf(msg)
 			return false
 		}
