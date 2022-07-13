@@ -151,6 +151,7 @@ type diskVolumeArgs struct {
 	KMSKeyID                string              `json:"kmsKeyId"`
 	PerformanceLevel        string              `json:"performanceLevel"`
 	ResourceGroupID         string              `json:"resourceGroupId"`
+	StorageClusterID        string              `json:"storageClusterId"`
 	DiskTags                string              `json:"diskTags"`
 	NodeSelected            string              `json:"nodeSelected"`
 	ARN                     []ecs.CreateDiskArn `json:"arn"`
@@ -373,6 +374,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	createDiskRequest.Tag = &diskTags
 	if diskVol.Encrypted == true && diskVol.KMSKeyID != "" {
 		createDiskRequest.KMSKeyId = diskVol.KMSKeyID
+	}
+	if diskVol.StorageClusterID != "" {
+		createDiskRequest.StorageClusterId = diskVol.StorageClusterID
 	}
 	var volumeResponse *ecs.CreateDiskResponse
 	var createdDiskType string

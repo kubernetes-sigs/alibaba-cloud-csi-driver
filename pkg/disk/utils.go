@@ -1110,6 +1110,11 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		diskVolArgs.ResourceGroupID = ""
 	}
 
+	diskVolArgs.StorageClusterID, ok = volOptions["storageClusterId"]
+	if !ok {
+		diskVolArgs.StorageClusterID = ""
+	}
+
 	// volumeSizeAutoAvailable
 	value, ok = volOptions["volumeSizeAutoAvailable"]
 	if !ok {
