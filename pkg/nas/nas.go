@@ -31,7 +31,10 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -62,6 +65,7 @@ type GlobalConfig struct {
 	LosetupEnable      bool
 	NasPortCheck       bool
 	KubeClient         *kubernetes.Clientset
+	DynamicClient      dynamic.Interface
 	NasClient          *aliNas.Client
 }
 
@@ -96,7 +100,7 @@ func NewDriver(nodeID, endpoint, serviceType string) *NAS {
 	})
 
 	// Global Configs Set
-	GlobalConfigSet(serviceType)
+	cfg := GlobalConfigSet(serviceType)
 
 	d.driver = csiDriver
 
@@ -110,7 +114,7 @@ func NewDriver(nodeID, endpoint, serviceType string) *NAS {
 	if region == "" {
 		region = GetMetaData(RegionTag)
 	}
-	d.controllerServer = NewControllerServer(d.driver, c, region, limit)
+	d.controllerServer = NewControllerServer(d.driver, c, region, limit, cfg)
 
 	GlobalConfigVar.NasClient = c
 	return d
@@ -151,7 +155,7 @@ func installRpm(queryRpmName string, rpmName string) {
 }
 
 // GlobalConfigSet set global config
-func GlobalConfigSet(serviceType string) {
+func GlobalConfigSet(serviceType string) *restclient.Config {
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
@@ -167,9 +171,15 @@ func GlobalConfigSet(serviceType string) {
 			cfg.Burst = qpsi
 		}
 	}
+	cfg.AcceptContentTypes = strings.Join([]string{runtime.ContentTypeProtobuf, runtime.ContentTypeJSON}, ",")
+	cfg.ContentType = runtime.ContentTypeProtobuf
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+	crdClient, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("NewControllerServer: Failed to create crd client: %v", err)
 	}
 
 	configMapName := "csi-plugin"
@@ -281,6 +291,7 @@ func GlobalConfigSet(serviceType string) {
 	}
 
 	GlobalConfigVar.KubeClient = kubeClient
+	GlobalConfigVar.DynamicClient = crdClient
 	GlobalConfigVar.MetricEnable = isNasMetricEnable
 	GlobalConfigVar.RunTimeClass = runtimeValue
 	GlobalConfigVar.NodeID = nodeName
@@ -290,4 +301,5 @@ func GlobalConfigSet(serviceType string) {
 	GlobalConfigVar.NasPortCheck = doNfsPortCheck
 
 	log.Infof("NAS Global Config: %v", GlobalConfigVar)
+	return cfg
 }

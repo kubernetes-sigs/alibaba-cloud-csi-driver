@@ -151,6 +151,7 @@ type diskVolumeArgs struct {
 	KMSKeyID                string              `json:"kmsKeyId"`
 	PerformanceLevel        string              `json:"performanceLevel"`
 	ResourceGroupID         string              `json:"resourceGroupId"`
+	StorageClusterID        string              `json:"storageClusterId"`
 	DiskTags                string              `json:"diskTags"`
 	NodeSelected            string              `json:"nodeSelected"`
 	ARN                     []ecs.CreateDiskArn `json:"arn"`
@@ -374,6 +375,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if diskVol.Encrypted == true && diskVol.KMSKeyID != "" {
 		createDiskRequest.KMSKeyId = diskVol.KMSKeyID
 	}
+	if diskVol.StorageClusterID != "" {
+		createDiskRequest.StorageClusterId = diskVol.StorageClusterID
+	}
 	var volumeResponse *ecs.CreateDiskResponse
 	var createdDiskType string
 	provisionerDiskTypes := []string{}
@@ -551,6 +555,12 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 
 // ControllerPublishVolume do attach
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
+
+	if GlobalConfigVar.WaitBeforeAttach {
+		time.Sleep(5 * time.Second)
+		log.Infof("ControllerPublishVolume: sleep 5s")
+	}
+
 	isMultiAttach := false
 	if value, ok := req.VolumeContext[MultiAttach]; ok {
 		value = strings.ToLower(value)
