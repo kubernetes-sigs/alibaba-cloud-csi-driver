@@ -79,6 +79,9 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 			detachRequest := ecs.CreateDetachDiskRequest()
 			detachRequest.InstanceId = nodeID
 			detachRequest.DiskId = diskID
+			for key, value := range GlobalConfigVar.RequestBaseInfo {
+				detachRequest.AppendUserAgent(key, value)
+			}
 			_, err = ecsClient.DetachDisk(detachRequest)
 			if err != nil {
 				return "", status.Errorf(codes.Aborted, "AttachDisk: Can't attach disk %s to instance %s: %v", diskID, disk.InstanceId, err)
@@ -138,6 +141,9 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 			detachRequest := ecs.CreateDetachDiskRequest()
 			detachRequest.InstanceId = disk.InstanceId
 			detachRequest.DiskId = disk.DiskId
+			for key, value := range GlobalConfigVar.RequestBaseInfo {
+				detachRequest.AppendUserAgent(key, value)
+			}
 			_, err = ecsClient.DetachDisk(detachRequest)
 			if err != nil {
 				log.Errorf("AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
@@ -163,6 +169,9 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 	attachRequest := ecs.CreateAttachDiskRequest()
 	attachRequest.InstanceId = nodeID
 	attachRequest.DiskId = diskID
+	for key, value := range GlobalConfigVar.RequestBaseInfo {
+		attachRequest.AppendUserAgent(key, value)
+	}
 	response, err := ecsClient.AttachDisk(attachRequest)
 	if err != nil {
 		if strings.Contains(err.Error(), DiskLimitExceeded) {
@@ -428,6 +437,9 @@ func detachDisk(ecsClient *ecs.Client, diskID, nodeID string) error {
 			detachDiskRequest := ecs.CreateDetachDiskRequest()
 			detachDiskRequest.DiskId = disk.DiskId
 			detachDiskRequest.InstanceId = disk.InstanceId
+			for key, value := range GlobalConfigVar.RequestBaseInfo {
+				detachDiskRequest.AppendUserAgent(key, value)
+			}
 			response, err := ecsClient.DetachDisk(detachDiskRequest)
 			if err != nil {
 				errMsg := fmt.Sprintf("DetachDisk: Fail to detach %s: from Instance: %s with error: %s", disk.DiskId, disk.InstanceId, err.Error())

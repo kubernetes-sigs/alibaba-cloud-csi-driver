@@ -83,6 +83,7 @@ type GlobalConfig struct {
 	SnapClient            *snapClientset.Clientset
 	NodeMultiZoneEnable   bool
 	WaitBeforeAttach      bool
+	RequestBaseInfo       map[string]string
 }
 
 // define global variable
@@ -392,6 +393,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		DiskMultiTenantEnable: isDiskMultiTenantEnable,
 		NodeMultiZoneEnable:   isNodeMultiZoneEnable,
 		WaitBeforeAttach:      isWaitBeforeAttach,
+		RequestBaseInfo:       map[string]string{"owner": "alibaba-cloud-csi-driver", "nodeName": nodeName},
 	}
 	return cfg
 }
