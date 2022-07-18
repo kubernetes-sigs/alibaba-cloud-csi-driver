@@ -150,7 +150,7 @@ if [ "$run_oss" = "true" ]; then
 
 fi
 
-if [ "$run_oss" = "true" ] || ["$run_disk" = "true"]; then
+if [ "$run_oss" = "true" ] || [ "$run_disk" = "true" ]; then
     ## install/update csi connector
     updateConnector="true"
 	systemdDir="/host/usr/lib/systemd/system"
