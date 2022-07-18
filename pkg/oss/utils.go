@@ -19,8 +19,10 @@ package oss
 import (
 	"fmt"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"io/fs"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -77,4 +79,8 @@ func IsLastSharedVol(pvName string) (string, error) {
 		return "0", err
 	}
 	return strings.TrimSpace(out), nil
+}
+
+func MkdirAll(path string, mode fs.FileMode) error {
+	return os.MkdirAll(path, mode)
 }

@@ -121,7 +121,7 @@ func newNodeServer(d *NAS) *nodeServer {
 }
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	log.Infof("NodePublishVolume:: Nas Volume %s Mount with: %v", req.VolumeId, req)
+	log.Infof("NodePublishVolume:: Nas Volume %s mount with: %v", req.VolumeId, req)
 
 	// parse parameters
 	mountPath := req.GetTargetPath()

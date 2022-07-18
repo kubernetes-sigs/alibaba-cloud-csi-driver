@@ -28,6 +28,7 @@ import (
 	"google.golang.org/grpc/status"
 	"io/ioutil"
 	k8smount "k8s.io/utils/mount"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -73,7 +74,7 @@ var (
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// logout oss paras
-	log.Infof("NodePublishVolume:: Starting Mount volume: %s to path: %s", req.VolumeId, req.TargetPath)
+	log.Infof("NodePublishVolume:: Starting Mount volume: %s mount with req:%+v", req.VolumeId, req)
 	mountPath := req.GetTargetPath()
 	opt := &Options{}
 	opt.UseSharedPath = false
@@ -201,6 +202,18 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err := utils.DoMountInHost(mntCmd); err != nil {
 			return nil, err
 		}
+		metricsPath := "/host/var/run/ossfs/" + req.VolumeContext["csi.storage.k8s.io/pod.uid"] + "/"
+		MkdirAll(metricsPath, os.FileMode(0755))
+		info := "ossfs" + " " +
+			"oss" + " " +
+			req.VolumeContext["csi.storage.k8s.io/pod.namespace"] + " " +
+			req.VolumeContext["csi.storage.k8s.io/pod.name"] + " " +
+			req.VolumeContext["csi.storage.k8s.io/pod.uid"] + " " +
+			req.GetVolumeId() + " " +
+			req.GetVolumeId() + " " +
+			req.TargetPath + " " +
+			"10"
+		utils.WriteAndSyncFile(metricsPath+"info", []byte(info), 755)
 	}
 
 	log.Infof("NodePublishVolume:: Mount oss is successfully, volume %s, targetPath: %s, with Command: %s", req.VolumeId, mountPath, mntCmd)
@@ -302,7 +315,7 @@ func checkOssOptions(opt *Options) error {
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	log.Infof("NodeUnpublishVolume:: Starting Umount OSS: %s", req.TargetPath)
+	log.Infof("NodeUnpublishVolume:: Starting Umount OSS: %s mount with req:%+v", req.TargetPath, req)
 	mountPoint := req.TargetPath
 	if !IsOssfsMounted(mountPoint) {
 		log.Infof("Directory is not mounted: %s", mountPoint)

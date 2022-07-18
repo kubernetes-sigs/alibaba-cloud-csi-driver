@@ -814,3 +814,7 @@ func IsPathAvailiable(path string) error {
 	}
 	return nil
 }
+
+func RemoveAll(deletePath string) error {
+	return os.RemoveAll(deletePath)
+}
