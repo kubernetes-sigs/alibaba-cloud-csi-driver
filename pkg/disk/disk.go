@@ -83,6 +83,7 @@ type GlobalConfig struct {
 	SnapClient            *snapClientset.Clientset
 	NodeMultiZoneEnable   bool
 	WaitBeforeAttach      bool
+	AddonVMFatalEvents    []string
 	RequestBaseInfo       map[string]string
 }
 
@@ -257,6 +258,16 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 	}
 
 	// Env variables
+	avmfe := os.Getenv("ADDON_VM_FATAL_EVENTS")
+	fatalEvents := []string{}
+	if avmfe != ""  {
+		if strings.Contains(avmfe, ",") {
+			fatalEvents = strings.Split(avmfe, ",")
+		} else {
+			fatalEvents = []string{avmfe}
+		}
+	}
+
 	adEnable := os.Getenv(DiskAttachByController)
 	if adEnable == "true" || adEnable == "yes" {
 		log.Infof("AD-Controller is enabled by Env(%s), CSI Disk Plugin running in AD Controller mode.", adEnable)
@@ -393,6 +404,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		DiskMultiTenantEnable: isDiskMultiTenantEnable,
 		NodeMultiZoneEnable:   isNodeMultiZoneEnable,
 		WaitBeforeAttach:      isWaitBeforeAttach,
+		AddonVMFatalEvents:    fatalEvents,
 		RequestBaseInfo:       map[string]string{"owner": "alibaba-cloud-csi-driver", "nodeName": nodeName},
 	}
 	return cfg
