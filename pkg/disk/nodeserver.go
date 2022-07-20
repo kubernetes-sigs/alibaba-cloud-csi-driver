@@ -270,8 +270,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			qResponse.mountfile = mountFile
 			qResponse.runtime = RunvRunTimeMode
 			if err := utils.WriteJSONFile(qResponse, mountFile); err != nil {
-				log.Errorf("NodePublishVolume(runv): Write Josn File error: %s", err.Error())
-				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Write Josn File error: "+err.Error())
+				log.Errorf("NodePublishVolume(runv): Write Json File error: %s", err.Error())
+				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Write Json File error: "+err.Error())
 			}
 			// save volume status to stage json file
 			volumeStatus := map[string]string{}

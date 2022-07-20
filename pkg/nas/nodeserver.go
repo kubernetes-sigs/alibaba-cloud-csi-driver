@@ -197,7 +197,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			runvOptions.VolumeType = "nfs"
 			runvOptions.MountFile = fileName
 			if err := utils.WriteJSONFile(runvOptions, fileName); err != nil {
-				return nil, errors.New("NodePublishVolume: Write Josn File error: " + err.Error())
+				return nil, errors.New("NodePublishVolume: Write Json File error: " + err.Error())
 			}
 			log.Infof("Nas(Kata), Write Nfs Options to File Successful: %s", fileName)
 			return &csi.NodePublishVolumeResponse{}, nil
