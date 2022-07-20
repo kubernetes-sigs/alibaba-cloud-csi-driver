@@ -88,7 +88,7 @@ if [ "$run_oss" = "true" ]; then
     fi
 fi
 
-if [ "$run_disk" = "true" ] || [ "$run_oss" = "true"]; then
+if [ "$run_disk" = "true" ] || [ "$run_oss" = "true" ]; then
     updateConnector="true"
     if [ ! -f "/host/etc/csi-tool/csiplugin-connector" ]; then
       mkdir -p /host/etc/csi-tool/

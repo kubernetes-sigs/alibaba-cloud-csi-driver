@@ -260,7 +260,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 	// Env variables
 	avmfe := os.Getenv("ADDON_VM_FATAL_EVENTS")
 	fatalEvents := []string{}
-	if avmfe != ""  {
+	if avmfe != "" {
 		if strings.Contains(avmfe, ",") {
 			fatalEvents = strings.Split(avmfe, ",")
 		} else {
