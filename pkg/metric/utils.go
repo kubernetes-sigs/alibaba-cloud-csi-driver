@@ -28,7 +28,7 @@ var isVF = false
 
 const containerNetworkFileSystem = "containerNetworkFileSystem"
 
-func readLines(path string) ([]string, error) {
+func readFirstLines(path string) ([]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,11 @@ func readLines(path string) ([]string, error) {
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
 	}
-	return lines, scanner.Err()
+	if len(lines) == 0 {
+		return lines, scanner.Err()
+	}
+	lineStrArray := strings.Split(lines[0], " ")
+	return lineStrArray, scanner.Err()
 }
 
 func getPvcByPvNameByDisk(clientSet *kubernetes.Clientset, pvName string) (string, string, error) {

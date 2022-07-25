@@ -265,8 +265,8 @@ func main() {
 	if enableMetric == "false" {
 		setPrometheusVersion()
 		metricConfig.enableMetric = false
-		metricConfig.serviceType = serviceType
 	}
+	metricConfig.serviceType = serviceType
 
 	log.Info("CSI is running status.")
 	server := &http.Server{Addr: ":" + servicePort}

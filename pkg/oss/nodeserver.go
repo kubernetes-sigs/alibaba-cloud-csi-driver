@@ -28,15 +28,16 @@ import (
 	"google.golang.org/grpc/status"
 	"io/ioutil"
 	k8smount "k8s.io/utils/mount"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type nodeServer struct {
 	k8smounter k8smount.Interface
 	*csicommon.DefaultNodeServer
+	writeCredentialMutex sync.Mutex
 }
 
 // Options contains options for target oss
@@ -50,6 +51,7 @@ type Options struct {
 	UseSharedPath bool   `json:"useSharedPath"`
 	AuthType      string `json:"authType"`
 	FuseType      string `json:"fuseType"`
+	MetricsTop    string `json:"metricsTop"`
 }
 
 const (
@@ -65,6 +67,10 @@ const (
 	OssFsType = "ossfs"
 	// JindoFsType tag
 	JindoFsType = "jindofs"
+	// metricsPathPrefix
+	metricsPathPrefix = "/host/var/run/ossfs/"
+	// metricsTop
+	metricsTop = "10"
 )
 
 var (
@@ -79,6 +85,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	opt := &Options{}
 	opt.UseSharedPath = false
 	opt.FuseType = OssFsType
+	opt.MetricsTop = "10"
 	for key, value := range req.VolumeContext {
 		key = strings.ToLower(key)
 		if key == "bucket" {
@@ -105,6 +112,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.AuthType = strings.ToLower(strings.TrimSpace(value))
 		} else if key == "fusetype" {
 			opt.FuseType = strings.ToLower(strings.TrimSpace(value))
+		} else if key == "metricstop"{
+			opt.MetricsTop = strings.ToLower(strings.TrimSpace(value))
 		}
 	}
 
@@ -145,13 +154,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	credentialProvider := ""
 	if opt.AuthType != "sts" {
 		if opt.FuseType == OssFsType {
-			// Save ak file for ossfs, exist same entry
-			if err := saveOssfsCredential(opt); err != nil {
-				log.Errorf("Save ossfs ak is failed, err: %s", err.Error())
+			if err := ns.saveOssCredential(opt); err != nil {
 				return nil, errors.New("Save ossfs ak is failed, err: " + err.Error())
 			}
-			//The same entry will exist concurrently, will to uniq same entry.
-			uniqOssfsCredential()
 		} else if opt.FuseType == JindoFsType {
 			credentialProvider = fmt.Sprintf("-ofs.oss.accessKeyId=%s -ofs.oss.accessKeySecret=%s", opt.AkID, opt.AkSecret)
 		}
@@ -196,24 +201,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 		mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s %s", opt.Bucket, opt.Path, mountPath, opt.URL, opt.OtherOpts, credentialProvider)
 		if opt.FuseType == JindoFsType {
-			//mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse -obucket=%v -opath=%v -oendpoint=%v %v -oonly_sdk %s", opt.Bucket, opt.Path, opt.URL, credentialProvider, mountPath)
 			mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s", mountPath, opt.Bucket, opt.Path, opt.URL, credentialProvider)
 		}
+		WriteMetricsInfo(metricsPathPrefix, req, *opt)
 		if err := utils.DoMountInHost(mntCmd); err != nil {
 			return nil, err
 		}
-		metricsPath := "/host/var/run/ossfs/" + req.VolumeContext["csi.storage.k8s.io/pod.uid"] + "/"
-		MkdirAll(metricsPath, os.FileMode(0755))
-		info := "ossfs" + " " +
-			"oss" + " " +
-			req.VolumeContext["csi.storage.k8s.io/pod.namespace"] + " " +
-			req.VolumeContext["csi.storage.k8s.io/pod.name"] + " " +
-			req.VolumeContext["csi.storage.k8s.io/pod.uid"] + " " +
-			req.GetVolumeId() + " " +
-			req.GetVolumeId() + " " +
-			req.TargetPath + " " +
-			"10"
-		utils.WriteAndSyncFile(metricsPath+"info", []byte(info), 755)
 	}
 
 	log.Infof("NodePublishVolume:: Mount oss is successfully, volume %s, targetPath: %s, with Command: %s", req.VolumeId, mountPath, mntCmd)
@@ -311,6 +304,19 @@ func checkOssOptions(opt *Options) error {
 		}
 	}
 
+	return nil
+}
+
+func (ns *nodeServer) saveOssCredential(opt *Options) error {
+	// Save ak file for ossfs, exist same entry
+	ns.writeCredentialMutex.Lock()
+	defer ns.writeCredentialMutex.Unlock()
+	if err := saveOssfsCredential(opt); err != nil {
+		log.Errorf("Save ossfs ak is failed, err: %s", err.Error())
+		return errors.New("Save ossfs ak is failed, err: " + err.Error())
+	}
+	//The same entry will exist concurrently, will to uniq same entry.
+	uniqOssfsCredential()
 	return nil
 }
 

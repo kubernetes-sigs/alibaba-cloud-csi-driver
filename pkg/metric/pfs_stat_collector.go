@@ -56,7 +56,7 @@ type pfsInfo struct {
 }
 
 func init() {
-	registerCollector("pfsblockstat", NewPfsRawBlockStatCollector)
+	registerCollector("pfs_block_stat", NewPfsRawBlockStatCollector)
 }
 
 func (p *pfsRawBlockStatCollector) isEnable() bool {

@@ -22,6 +22,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	k8smount "k8s.io/utils/mount"
+	"sync"
 )
 
 const (
@@ -68,6 +69,7 @@ func newNodeServer(d *OSS) *nodeServer {
 	return &nodeServer{
 		k8smounter:        k8smount.New(""),
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
+		writeCredentialMutex: sync.Mutex{},
 	}
 }
 
