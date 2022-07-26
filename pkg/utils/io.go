@@ -129,7 +129,7 @@ func getBpsLimt(bpsLimt string) (int, error) {
 	convertNumber := 1
 	intBpsStr := bpsLimt
 	if strings.HasSuffix(bpsLimt, "k") && len(bpsLimt) > 1 {
-		convertNumber = 1024 * 1024
+		convertNumber = 1024
 		intBpsStr = strings.TrimSuffix(bpsLimt, "k")
 	} else if strings.HasSuffix(bpsLimt, "m") && len(bpsLimt) > 1 {
 		convertNumber = 1024 * 1024

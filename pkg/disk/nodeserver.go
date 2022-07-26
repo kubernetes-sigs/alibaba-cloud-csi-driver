@@ -162,6 +162,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		zoneID = doc.ZoneID
 		nodeID = doc.InstanceID
 	}
+	log.Infof("NewNodeServer: zone id: %+v", zoneID)
 
 	// Create Directory
 	os.MkdirAll(VolumeDir, os.FileMode(0755))

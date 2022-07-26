@@ -29,6 +29,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var DEFAULT_VMFATAL_EVENTS = []string{
+	"ecs_alarm_center.vm.guest_os_oom:critical",
+	"ecs_alarm_center.vm.guest_os_kernel_panic:critical",
+	"ecs_alarm_center.vm.guest_os_kernel_panic:fatal",
+	"ecs_alarm_center.vm.vmexit_exception_vm_hang:fatal",
+}
+
 // attach alibaba cloud disk
 func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string, error) {
 	log.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
@@ -449,6 +456,10 @@ func detachDisk(ecsClient *ecs.Client, diskID, nodeID string) error {
 				log.Errorf(errMsg)
 				return status.Error(codes.Aborted, errMsg)
 			}
+			if StopDiskOperationRetry(disk.InstanceId, ecsClient) {
+				log.Errorf("DetachDisk: the instance [%s] which disk [%s] attached report an fatal error, stop retry detach disk from instance", disk.DiskId, disk.InstanceId)
+				return nil
+			}
 
 			// check disk detach
 			for i := 0; i < 25; i++ {
@@ -714,4 +725,49 @@ func findDiskSnapshotByID(id string) (*ecs.DescribeSnapshotsResponse, int, error
 		return snapshots, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with id "+id)
 	}
 	return snapshots, 1, nil
+}
+
+func StopDiskOperationRetry(instanceId string, ecsClient *ecs.Client) bool {
+	eventMaps, err := DescribeDiskInstanceEvents(instanceId, ecsClient)
+	log.Infof("StopDiskOperationRetry: resp eventMaps: %+v", eventMaps)
+	if err != nil {
+		return false
+	}
+	for _, vmEvent := range DEFAULT_VMFATAL_EVENTS {
+		if _, ok := eventMaps[vmEvent]; ok {
+			return true
+		}
+	}
+	for _, addonEvent := range GlobalConfigVar.AddonVMFatalEvents {
+		if _, ok := eventMaps[addonEvent]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func DescribeDiskInstanceEvents(instanceId string, ecsClient *ecs.Client) (eventMaps map[string]string, err error) {
+	diher := ecs.CreateDescribeInstanceHistoryEventsRequest()
+	diher.RegionId = GlobalConfigVar.Region
+	diher.EventPublishTimeStart = time.Now().Add(-3 * time.Hour).UTC().Format(time.RFC3339)
+	diher.Scheme = "https"
+	diher.ResourceType = "instance"
+	instanceIds := make([]string, 0, 1)
+	instanceIds = append(instanceIds, "i-2ze7kmacdkxpsa1eyu9u")
+	diher.ResourceId = &instanceIds
+	diher.InstanceEventCycleStatus = &[]string{"Scheduled", "Avoided", "Executing", "Executed", "Canceled", "Failed", "Inquiring"}
+	diher.PageSize = "100"
+
+	resp, err := ecsClient.DescribeInstanceHistoryEvents(diher)
+	eventMaps = map[string]string{}
+
+	log.Infof("DescribeDiskInstanceEvents: describe history event resp: %+v", resp)
+	if err != nil {
+		log.Errorf("DescribeDiskInstanceEvents: describe instance history events with err: %+v", err)
+		return
+	}
+	for _, eventInfo := range resp.InstanceSystemEventSet.InstanceSystemEventType {
+		eventMaps[eventInfo.Reason] = ""
+	}
+	return
 }
