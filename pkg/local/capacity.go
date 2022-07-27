@@ -14,15 +14,6 @@ import (
 )
 
 // StorageCapacity define storage pool details
-// csi.alibabacloud.com/storage-capacity:
-// [
-//   {"type": "lvm", "name": "vg1", "capacity": 105151127552},
-//   {"type": "quotapath", "name": "quotapath1", "capacity": 105151127552, "devicetype": "ssd", mountPoint": "/path1"}
-//   {"type": "device", "name": "/dev/vdc", "capacity": 1919850381312, "devicetype": "local_ssd_pro"}
-// ]
-// volumegorup 类型：name、capacity都是必选；
-// quotapath 类型：mountPoint、capacity是必选；
-// device 类型：name、capacity都是必选;
 type StorageCapacity struct {
 	Type       string `json:"type,omitempty"`
 	Name       string `json:"name,omitempty"`

@@ -266,7 +266,7 @@ func checkJindofsCmd(cmd string) error {
 	return nil
 }
 
-//systemd-run --scope -- mount -t alinas -o unas -o client_owner=podUID nfsServer:nfsPath mountPoint
+// systemd-run --scope -- mount -t alinas -o unas -o client_owner=podUID nfsServer:nfsPath mountPoint
 func checkRichNasClientCmd(cmd string) error {
 	parameteList := strings.Split(cmd, " ")
 	if len(parameteList) <= 2 {

@@ -55,7 +55,7 @@ type DBFS struct {
 	cscap []*csi.ControllerServiceCapability
 }
 
-//NewDriver create the identity/node/controller server and dbfs driver
+// NewDriver create the identity/node/controller server and dbfs driver
 func NewDriver(nodeID, endpoint string) *DBFS {
 	log.Infof("Driver: %v version: %v", driverName, version)
 

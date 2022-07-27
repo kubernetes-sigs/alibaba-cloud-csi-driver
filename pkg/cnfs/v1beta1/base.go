@@ -10,7 +10,7 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
-//getCnfsObject get cnfs crd
+// getCnfsObject get cnfs crd
 func getCnfsObject(client dynamic.Interface, name string) (*ContainerNetworkFileSystem, error) {
 	utd, err := client.Resource(GVR).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
@@ -30,7 +30,7 @@ func getCnfsObject(client dynamic.Interface, name string) (*ContainerNetworkFile
 	return &cnfs, nil
 }
 
-//GetCnfsObject get cnfs's object
+// GetCnfsObject get cnfs's object
 func GetCnfsObject(client dynamic.Interface, name string) (*ContainerNetworkFileSystem, error) {
 	cnfsObj, err := getCnfsObject(client, name)
 	if err != nil {

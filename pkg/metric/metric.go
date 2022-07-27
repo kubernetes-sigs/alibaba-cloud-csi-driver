@@ -11,7 +11,7 @@ import (
 	"sync"
 )
 
-//Handler is a package of promHttp,metric entry
+// Handler is a package of promHttp,metric entry
 type Handler struct {
 }
 
@@ -37,7 +37,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	handler.ServeHTTP(w, r)
 }
 
-//NewMetricHandler method returns a promHttp object
+// NewMetricHandler method returns a promHttp object
 func NewMetricHandler(serviceType string) *Handler {
 
 	setServiceType(serviceType)

@@ -5,14 +5,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-//GVR is cnfs version
+// GVR is cnfs version
 var GVR = schema.GroupVersionResource{
 	Group:    "storage.alibabacloud.com",
 	Version:  "v1beta1",
 	Resource: "containernetworkfilesystems",
 }
 
-//ContainerNetworkFileSystem define cnfs crd
+// ContainerNetworkFileSystem define cnfs crd
 type ContainerNetworkFileSystem struct {
 	metaV1.TypeMeta   `json:",inline"`
 	metaV1.ObjectMeta `json:"metadata,omitempty"`
@@ -21,21 +21,21 @@ type ContainerNetworkFileSystem struct {
 	Status ContainerNetworkFileSystemStatus `json:"status,omitempty"`
 }
 
-//ContainerNetworkFileSystemStatus define cnfs status field
+// ContainerNetworkFileSystemStatus define cnfs status field
 type ContainerNetworkFileSystemStatus struct {
 	Status       string                                `json:"status,omitempty"`
 	FsAttributes FsAttributes                          `json:"fsAttributes,omitempty"`
 	Conditions   []ContainerNetworkFileSystemCondition `json:"conditions,omitempty"`
 }
 
-//ContainerNetworkFileSystemCondition define cnfs condition field
+// ContainerNetworkFileSystemCondition define cnfs condition field
 type ContainerNetworkFileSystemCondition struct {
 	LastProbeTime string `json:"lastProbeTime,omitempty"`
 	Status        string `json:"status,omitempty"`
 	Reason        string `json:"reason,omitempty"`
 }
 
-//ContainerNetworkFileSystemSpec define cnfs spec field
+// ContainerNetworkFileSystemSpec define cnfs spec field
 type ContainerNetworkFileSystemSpec struct {
 	StorageType   string     `json:"type,omitempty"`
 	ReclaimPolicy string     `json:"reclaimPolicy,omitempty"`
@@ -43,7 +43,7 @@ type ContainerNetworkFileSystemSpec struct {
 	Parameters    Parameters `json:"parameters,omitempty"`
 }
 
-//FsAttributes define cnfs status FsAttributes field
+// FsAttributes define cnfs status FsAttributes field
 type FsAttributes struct {
 	RegionID                     string    `json:"regionId,omitempty"`
 	ZoneID                       string    `json:"zoneId,omitempty"`
@@ -64,13 +64,13 @@ type FsAttributes struct {
 	UseElasticAccelerationClient string    `json:"useElasticAccelerationClient,omitempty"`
 }
 
-//EndPoint define cnfs endpoint field when cnfs type is oss
+// EndPoint define cnfs endpoint field when cnfs type is oss
 type EndPoint struct {
 	Internal string `json:"internal,omitempty"`
 	Extranet string `json:"extranet,omitempty"`
 }
 
-//Parameters define cnfs parameters field
+// Parameters define cnfs parameters field
 type Parameters struct {
 	Secret                       *Secret `json:"secret,omitempty"`
 	StorageType                  string  `json:"storageType,omitempty"`
@@ -86,13 +86,13 @@ type Parameters struct {
 	UseElasticAccelerationClient string  `json:"useElasticAccelerationClient,omitempty"`
 }
 
-//Secret define secret field
+// Secret define secret field
 type Secret struct {
 	Name      string `json:"name,omitempty"`
 	Namespace string `json:"namespace,,omitempty"`
 }
 
-//ContainerNetworkFileSystemList define cnfs list
+// ContainerNetworkFileSystemList define cnfs list
 type ContainerNetworkFileSystemList struct {
 	metaV1.TypeMeta `json:",inline"`
 	metaV1.ListMeta `json:"metadata,omitempty"`

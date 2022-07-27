@@ -56,7 +56,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 )
 
-//DefaultOptions used for global ak
+// DefaultOptions used for global ak
 type DefaultOptions struct {
 	Global struct {
 		KubernetesClusterTag string
@@ -125,12 +125,12 @@ type RoleAuth struct {
 	Code            string
 }
 
-//CreateEvent is create events
+// CreateEvent is create events
 func CreateEvent(recorder record.EventRecorder, objectRef *v1.ObjectReference, eventType string, reason string, err string) {
 	recorder.Event(objectRef, eventType, reason, err)
 }
 
-//NewEventRecorder is create snapshots event recorder
+// NewEventRecorder is create snapshots event recorder
 func NewEventRecorder() record.EventRecorder {
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
@@ -229,7 +229,7 @@ func CreateDest(dest string) error {
 	return nil
 }
 
-//CreateDestInHost create host dest directory
+// CreateDestInHost create host dest directory
 func CreateDestInHost(dest string) error {
 	cmd := fmt.Sprintf("%s mkdir -p %s", NsenterCmd, dest)
 	_, err := Run(cmd)
@@ -337,7 +337,7 @@ func GetRegionAndInstanceID() (string, string, error) {
 	return regionID, instanceID, nil
 }
 
-//GetMetaData get metadata from ecs meta-server
+// GetMetaData get metadata from ecs meta-server
 func GetMetaData(resource string) (string, error) {
 	resp, err := http.Get(MetadataURL + resource)
 	if err != nil {
@@ -643,7 +643,7 @@ func SetNodeAddrMap(key string, value string) {
 	NodeAddrMutex.Unlock()
 }
 
-//GetNodeAddr get node address
+// GetNodeAddr get node address
 func GetNodeAddr(client kubernetes.Interface, node string, port string) (string, error) {
 	ip, err := GetNodeIP(client, node)
 	if err != nil {
@@ -677,7 +677,7 @@ func GetNodeIP(client kubernetes.Interface, nodeID string) (net.IP, error) {
 	return nil, fmt.Errorf("Node IP unknown; known addresses: %v", addresses)
 }
 
-//CheckParameterValidate is check parameter validating in csi-plugin
+// CheckParameterValidate is check parameter validating in csi-plugin
 func CheckParameterValidate(inputs []string) bool {
 	for _, input := range inputs {
 		if matched, err := regexp.MatchString("^[A-Za-z0-9=._@:~/-]*$", input); err != nil || !matched {
@@ -687,7 +687,7 @@ func CheckParameterValidate(inputs []string) bool {
 	return true
 }
 
-//CheckQuotaPathValidate is check quota path validating in csi-plugin
+// CheckQuotaPathValidate is check quota path validating in csi-plugin
 func CheckQuotaPathValidate(kubeClient *kubernetes.Clientset, path string) error {
 	pvName := filepath.Base(path)
 	_, err := kubeClient.CoreV1().PersistentVolumes().Get(context.Background(), pvName, metav1.GetOptions{})
@@ -698,7 +698,7 @@ func CheckQuotaPathValidate(kubeClient *kubernetes.Clientset, path string) error
 	return nil
 }
 
-//IsHostFileExist is check host file is existing in lvm
+// IsHostFileExist is check host file is existing in lvm
 func IsHostFileExist(path string) bool {
 	args := []string{NsenterCmd, "stat", path}
 	cmd := strings.Join(args, " ")

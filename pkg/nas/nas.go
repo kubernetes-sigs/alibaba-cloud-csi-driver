@@ -81,7 +81,7 @@ type NAS struct {
 	cscap []*csi.ControllerServiceCapability
 }
 
-//NewDriver create the identity/node/controller server and disk driver
+// NewDriver create the identity/node/controller server and disk driver
 func NewDriver(nodeID, endpoint, serviceType string) *NAS {
 	log.Infof("Driver: %v version: %v", driverName, version)
 
