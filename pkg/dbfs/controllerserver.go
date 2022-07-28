@@ -364,7 +364,6 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
-//
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
 	log.Infof("CreateSnapshot is called, do nothing now")
 	return &csi.CreateSnapshotResponse{}, nil

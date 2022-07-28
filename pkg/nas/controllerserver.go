@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    http:// www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -77,7 +77,7 @@ const (
 	NASTAGVALUE2 = "alibabacloud-csi-plugin"
 	// NASTAGKEY3 key
 	NASTAGKEY3 = "ack.aliyun.com"
-	//AddDefaultTagsError means that the add nas default tags error
+	// AddDefaultTagsError means that the add nas default tags error
 	AddDefaultTagsError string = "AddDefaultTagsError"
 	// MntTypeKey tag
 	MntTypeKey = "mountType"
@@ -952,7 +952,6 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
-//
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
 	log.Infof("CreateSnapshot is called, do nothing now")
 	return &csi.CreateSnapshotResponse{}, nil

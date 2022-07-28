@@ -28,7 +28,6 @@ func DoRequest(url string) ([]byte, error) {
 		msg := fmt.Sprintf("Get Response StatusCode %d, Response: %++v", resp.StatusCode, resp)
 		return nil, errors.New(msg)
 	}
-	//
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err

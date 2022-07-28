@@ -68,8 +68,8 @@ const (
 
 type collectorFactoryFunc = func() (Collector, error)
 
-//csiCollectorInstance is a single instance of CSICollector
-//Factories are the mapping between monitoring types and collectorFactoryFunc
+// csiCollectorInstance is a single instance of CSICollector
+// Factories are the mapping between monitoring types and collectorFactoryFunc
 var (
 	csiCollectorInstance *CSICollector
 	factories            = make(map[string]collectorFactoryFunc)

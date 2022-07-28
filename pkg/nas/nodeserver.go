@@ -95,7 +95,7 @@ const (
 	MountProtocolTag = "mountProtocol"
 )
 
-//newNodeServer create the csi node server
+// newNodeServer create the csi node server
 func newNodeServer(d *NAS) *nodeServer {
 
 	return &nodeServer{

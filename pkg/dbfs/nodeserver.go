@@ -60,7 +60,7 @@ const (
 	DbfsMetricByPlugin = "DBFS_METRIC_BY_PLUGIN"
 )
 
-//newNodeServer create the csi node server
+// newNodeServer create the csi node server
 func newNodeServer(d *DBFS) *nodeServer {
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
