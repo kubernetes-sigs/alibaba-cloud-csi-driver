@@ -31,11 +31,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type nodeServer struct {
 	k8smounter k8smount.Interface
 	*csicommon.DefaultNodeServer
+	writeCredentialMutex sync.Mutex
 }
 
 // Options contains options for target oss
@@ -144,13 +146,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	credentialProvider := ""
 	if opt.AuthType != "sts" {
 		if opt.FuseType == OssFsType {
-			// Save ak file for ossfs, exist same entry
-			if err := saveOssfsCredential(opt); err != nil {
-				log.Errorf("Save ossfs ak is failed, err: %s", err.Error())
+			if err := ns.saveOssCredential(opt); err != nil {
 				return nil, errors.New("Save ossfs ak is failed, err: " + err.Error())
 			}
-			//The same entry will exist concurrently, will to uniq same entry.
-			uniqOssfsCredential()
 		} else if opt.FuseType == JindoFsType {
 			credentialProvider = fmt.Sprintf("-ofs.oss.accessKeyId=%s -ofs.oss.accessKeySecret=%s", opt.AkID, opt.AkSecret)
 		}
@@ -298,6 +296,19 @@ func checkOssOptions(opt *Options) error {
 		}
 	}
 
+	return nil
+}
+
+func (ns *nodeServer) saveOssCredential(opt *Options) error {
+	// Save ak file for ossfs, exist same entry
+	ns.writeCredentialMutex.Lock()
+	defer ns.writeCredentialMutex.Unlock()
+	if err := saveOssfsCredential(opt); err != nil {
+		log.Errorf("Save ossfs ak is failed, err: %s", err.Error())
+		return errors.New("Save ossfs ak is failed, err: " + err.Error())
+	}
+	//The same entry will exist concurrently, will to uniq same entry.
+	uniqOssfsCredential()
 	return nil
 }
 
