@@ -31,11 +31,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type nodeServer struct {
 	k8smounter k8smount.Interface
 	*csicommon.DefaultNodeServer
+	writeCredentialMutex sync.Mutex
 }
 
 // Options contains options for target oss
@@ -145,6 +147,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if opt.AuthType != "sts" {
 		if opt.FuseType == OssFsType {
 			// Save ak file for ossfs, exist same entry
+			ns.writeCredentialMutex.Lock()
+			defer ns.writeCredentialMutex.Unlock()
 			if err := saveOssfsCredential(opt); err != nil {
 				log.Errorf("Save ossfs ak is failed, err: %s", err.Error())
 				return nil, errors.New("Save ossfs ak is failed, err: " + err.Error())
