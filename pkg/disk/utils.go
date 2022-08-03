@@ -855,6 +855,7 @@ func IsDeviceUsedOthers(deviceName, volumeID string) (bool, error) {
 
 // formatAndMount uses unix utils to format and mount the given disk
 func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, target string, fstype string, mkfsOptions []string, mountOptions []string) error {
+	log.Infof("formatAndMount: mount options : %+v", mountOptions)
 	readOnly := false
 	for _, option := range mountOptions {
 		if option == "ro" {
