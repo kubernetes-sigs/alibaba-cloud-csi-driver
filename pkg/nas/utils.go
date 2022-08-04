@@ -234,6 +234,7 @@ func newNasClient(ac utils.AccessControl, regionID string) (nasClient *aliNas.Cl
 	default:
 		nasClient, err = aliNas.NewClientWithStsToken(regionID, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
 	}
+	nasClient.SetHTTPSInsecure(true)
 
 	if err != nil {
 		return nil

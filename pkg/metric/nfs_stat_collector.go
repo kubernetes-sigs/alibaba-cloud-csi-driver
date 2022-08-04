@@ -264,7 +264,6 @@ func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
 	}
 	volJSONPaths, err := findVolJSON(podsRootPath)
 	if err != nil {
-		log.Errorf("Find nfs vol_data json is failed, err:%s", err)
 		return err
 	}
 	p.updateMap(&p.lastPvNfsInfoMap, volJSONPaths, nasDriverName, "volumes")
