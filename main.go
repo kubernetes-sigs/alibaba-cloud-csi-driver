@@ -18,7 +18,6 @@ package main
 
 import (
 	"flag"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"io"
 	"net/http"
 	"os"
@@ -35,6 +34,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/lvm"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mem"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/om"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
@@ -262,11 +262,11 @@ func main() {
 	}
 
 	enableMetric := os.Getenv("ENABLE_METRIC")
+	setPrometheusVersion()
 	if enableMetric == "false" {
-		setPrometheusVersion()
 		metricConfig.enableMetric = false
+		metricConfig.serviceType = serviceType
 	}
-	metricConfig.serviceType = serviceType
 
 	log.Info("CSI is running status.")
 	server := &http.Server{Addr: ":" + servicePort}

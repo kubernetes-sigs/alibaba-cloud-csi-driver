@@ -1128,6 +1128,14 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		}
 	}
 
+	// volumeExpandAutoSnapshot, default closed
+	if value, ok = volOptions["volumeExpandAutoSnapshot"]; ok {
+		value = strings.ToLower(value)
+		if value != "forced" && value != "besteffort" && value != "closed" {
+			return nil, fmt.Errorf("illegal optional parameter volumeExpandAutoSnapshot, only support forced, besteffort and closed, the input is: %s", value)
+		}
+	}
+
 	return diskVolArgs, nil
 }
 
@@ -1720,4 +1728,37 @@ func IsDeviceNvme(deviceName string) bool {
 		return true
 	}
 	return false
+}
+
+// getPvFromDiskId returns a pv instance with specified disk ID
+func getPvFromDiskId(diskId string) (*v1.PersistentVolume, error) {
+	return GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Get(context.Background(), diskId, metav1.GetOptions{})
+}
+
+func getPvcFromPv(pv *v1.PersistentVolume) (*v1.PersistentVolumeClaim, error) {
+	pvcName, pvcNamespace := pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace
+	return GlobalConfigVar.ClientSet.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(context.Background(), pvcName, metav1.GetOptions{})
+}
+
+// UpdatePvcWithAnnotations update pvc
+func updatePvcWithAnnotations(ctx context.Context, pvc *v1.PersistentVolumeClaim, annotations map[string]string, option string) (*v1.PersistentVolumeClaim, error) {
+	switch option {
+	case "add":
+		for key, value := range annotations {
+			if pvc.Annotations == nil {
+				pvc.Annotations = map[string]string{key: value}
+			} else {
+				pvc.Annotations[key] = value
+			}
+		}
+	case "delete":
+		if pvc.Annotations != nil {
+			for key, _ := range annotations {
+				if _, ok := pvc.Annotations[key]; ok {
+					delete(pvc.Annotations, key)
+				}
+			}
+		}
+	}
+	return GlobalConfigVar.ClientSet.CoreV1().PersistentVolumeClaims(pvc.Namespace).Update(ctx, pvc, metav1.UpdateOptions{})
 }
