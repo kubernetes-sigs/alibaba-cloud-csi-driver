@@ -1306,25 +1306,23 @@ func (cs *controllerServer) autoSnapshot(ctx context.Context, disk *ecs.Disk) (b
 func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, pv *v1.PersistentVolume, disk *ecs.Disk) (*csi.Snapshot, error) {
 	// create the instance snapshot
 	cur := time.Now()
-	volumeExpandAutoSnapshotNamespace := pv.Namespace
 	timeStr := cur.Format("-2006-01-02-15:04:05")
 	volumeExpandAutoSnapshotName := veasp.Prefix + pv.Name + timeStr
 	sourceVolumeID := disk.DiskId
-
-	ref := &v1.ObjectReference{
-		Kind:      "VolumeSnapshot",
-		Name:      volumeExpandAutoSnapshotName,
-		UID:       "",
-		Namespace: volumeExpandAutoSnapshotNamespace,
-	}
 
 	log.Infof("ControllerExpandVolume:: Starting to create volumeExpandAutoSnapshot with name: %s", volumeExpandAutoSnapshotName)
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
 		return nil, err
 	}
 
-	// Need to check for already existing snapshot name
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
+
+	pvcName, pvcNamespace := pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace
+	pvc, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(ctx, pvcName, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("ControllerExpandVolume:: failed to get pvc from apiserver: %v", err)
+		return nil, err
+	}
 
 	ecsClient, err := getEcsClientByID(sourceVolumeID, "")
 	if err != nil {
@@ -1332,13 +1330,12 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 	}
 
 	// init createSnapshotRequest and parameters
-	// 用名字的timestamp
 	createAt := timestamppb.New(cur)
 	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, sourceVolumeID, volumeExpandAutoSnapshotName, "", veasp.RetentionDays, veasp.InstanceAccessRetentionDays, veasp.InstantAccess, veasp.ForceDelete)
 	if err != nil {
 		log.Errorf("ControllerExpandVolume:: volumeExpandAutoSnapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", volumeExpandAutoSnapshotName, sourceVolumeID, err.Error())
-		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, err.Error())
-		return nil, status.Error(codes.Internal, fmt.Sprintf("volumeExpandAutoSnapshot create Failed: %s", err.Error()))
+		cs.recorder.Event(pvc, v1.EventTypeWarning, snapshotCreateError, err.Error())
+		return nil, status.Error(codes.Internal, fmt.Sprintf("volumeExpandAutoSnapshot create Failed: %v", err))
 	}
 
 	// as a IA snapshot, volumeExpandAutoSnapshot should be ready immidately
@@ -1355,7 +1352,7 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 		ReadyToUse:     tmpReadyToUse,
 		SizeBytes:      gi2Bytes(int64(disk.Size)),
 	}
-	utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotCreatedSuccessfully, str)
+	cs.recorder.Event(pvc, v1.EventTypeNormal, snapshotCreatedSuccessfully, str)
 
 	return csiSnapshot, nil
 
@@ -1370,12 +1367,6 @@ func (cs *controllerServer) deleteVolumeExpandAutoSnapshot(ctx context.Context, 
 	// Check Snapshot exist and forceDelete tag;
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 
-	ref := &v1.ObjectReference{
-		Kind:      "PersistentVolumeClaim",
-		Name:      pvc.Name,
-		UID:       "",
-		Namespace: pvc.Namespace,
-	}
 	// Delete Snapshot
 	response, err := requestAndDeleteSnapshot(snapshotID, veasp.ForceDelete)
 	if err != nil {
@@ -1383,12 +1374,12 @@ func (cs *controllerServer) deleteVolumeExpandAutoSnapshot(ctx context.Context, 
 			log.Errorf("ControllerExpandVolume:: fail to delete %s with error: %s", snapshotID, err.Error())
 		}
 
-		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotDeleteError, err.Error())
-		return err
+		cs.recorder.Event(pvc, v1.EventTypeWarning, snapshotDeleteError, err.Error())
+		return status.Error(codes.Internal, fmt.Sprintf("volumeExpandAutoSnapshot delete Failed: %v", err))
 	}
 
 	str := fmt.Sprintf("DeleteSnapshot:: Successfully delete snapshot %s", snapshotID)
-	utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
+	cs.recorder.Event(pvc, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
 	return nil
 }
 

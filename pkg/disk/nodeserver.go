@@ -1056,7 +1056,7 @@ func deleteVolumeExpandAutoSnapshot(ctx context.Context, volumeExpandAutoSnapsho
 		}
 		return err
 	}
-	str := fmt.Sprintf("DeleteSnapshot:: Successfully delete snapshot %s", volumeExpandAutoSnapshotID)
+	str := fmt.Sprintf("NodeExpandVolume:: Successfully delete snapshot %s", volumeExpandAutoSnapshotID)
 	log.Info(str)
 	//utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
 	return nil
