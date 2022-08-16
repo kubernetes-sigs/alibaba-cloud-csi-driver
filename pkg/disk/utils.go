@@ -1730,14 +1730,21 @@ func IsDeviceNvme(deviceName string) bool {
 	return false
 }
 
-// getPvFromDiskId returns a pv instance with specified disk ID
-func getPvFromDiskId(diskId string) (*v1.PersistentVolume, error) {
-	return GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Get(context.Background(), diskId, metav1.GetOptions{})
-}
-
-func getPvcFromPv(pv *v1.PersistentVolume) (*v1.PersistentVolumeClaim, error) {
+// getPvPvcFromDiskId returns a pv instance with specified disk ID
+func getPvPvcFromDiskId(diskId string) (*v1.PersistentVolume, *v1.PersistentVolumeClaim, error) {
+	ctx := context.Background()
+	pv, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Get(ctx, diskId, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("getPvcFromDiskId: failed to get pv from apiserver: %v", err)
+		return nil, nil, err
+	}
 	pvcName, pvcNamespace := pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace
-	return GlobalConfigVar.ClientSet.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(context.Background(), pvcName, metav1.GetOptions{})
+	pvc, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(ctx, pvcName, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("getPvcFromDiskId: failed to get pvc from apiserver: %v", err)
+		return nil, nil, err
+	}
+	return pv, pvc, nil
 }
 
 // UpdatePvcWithAnnotations update pvc
@@ -1753,7 +1760,7 @@ func updatePvcWithAnnotations(ctx context.Context, pvc *v1.PersistentVolumeClaim
 		}
 	case "delete":
 		if pvc.Annotations != nil {
-			for key, _ := range annotations {
+			for key := range annotations {
 				if _, ok := pvc.Annotations[key]; ok {
 					delete(pvc.Annotations, key)
 				}
