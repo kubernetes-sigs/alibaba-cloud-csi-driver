@@ -302,9 +302,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	//cpfs-nfs check valid
 	if opt.MountProtocol == MountProtocolCPFSNFS {
-		if !GlobalConfigVar.CpfsNfsEnable {
-			return nil, errors.New("Cpfs-nfs is testing in grayscale.Please set cpfs-nas-enable to true for the configmap of csi-plugin under the kube-system namespace")
-		}
 		if !strings.HasPrefix(opt.Path, "/share") {
 			return nil, errors.New("The path to cpfs-nfs must start with /share.")
 		}
