@@ -1089,7 +1089,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	// do resize
 	resizeDiskRequest := ecs.CreateResizeDiskRequest()
 	resizeDiskRequest.RegionId = GlobalConfigVar.Region
-	resizeDiskRequest.DiskId = disk.DiskName
+	resizeDiskRequest.DiskId = disk.DiskId
 	resizeDiskRequest.NewSize = requests.NewInteger(requestGB)
 	if disk.Category == DiskSSD || disk.Category == DiskEfficiency || disk.Category == DiskESSD {
 		if disk.Status == DiskStatusInuse {
@@ -1390,7 +1390,7 @@ func (cs *controllerServer) deleteUntagAutoSnapshot(snapshotID, diskID string) {
 	if err != nil {
 		log.Errorf("ControllerExpandVolume:: failed to get pvc from apiserver: %s", err.Error())
 	}
-	err = cs.deleteVolumeExpandAutoSnapshot(context.Background(), pvc, "snapshotID")
+	err = cs.deleteVolumeExpandAutoSnapshot(context.Background(), pvc, snapshotID)
 	if err != nil {
 		log.Errorf("ControllerExpandVolume:: failed to delete volumeExpandAutoSnapshot: %s", err.Error())
 	}
