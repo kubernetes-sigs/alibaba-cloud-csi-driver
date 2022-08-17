@@ -112,7 +112,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.AuthType = strings.ToLower(strings.TrimSpace(value))
 		} else if key == "fusetype" {
 			opt.FuseType = strings.ToLower(strings.TrimSpace(value))
-		} else if key == "metricstop"{
+		} else if key == "metricstop" {
 			opt.MetricsTop = strings.ToLower(strings.TrimSpace(value))
 		}
 	}

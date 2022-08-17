@@ -78,9 +78,9 @@ var (
 )
 
 type typedFactorDesc struct {
-	desc                *prometheus.Desc
-	valueType           prometheus.ValueType
-	factor              float64
+	desc      *prometheus.Desc
+	valueType prometheus.ValueType
+	factor    float64
 }
 
 func (d *typedFactorDesc) mustNewConstMetric(value float64, labels ...string) prometheus.Metric {
