@@ -1390,7 +1390,7 @@ func (cs *controllerServer) deleteUntagAutoSnapshot(snapshotID, diskID string) {
 	if err != nil {
 		log.Errorf("ControllerExpandVolume:: failed to get pvc from apiserver: %s", err.Error())
 	}
-	err = cs.deleteVolumeExpandAutoSnapshot(context.Background(), pvc, snapshotID)
+	err = cs.deleteVolumeExpandAutoSnapshot(context.Background(), pvc, "snapshotID")
 	if err != nil {
 		log.Errorf("ControllerExpandVolume:: failed to delete volumeExpandAutoSnapshot: %s", err.Error())
 	}
