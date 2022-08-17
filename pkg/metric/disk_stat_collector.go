@@ -252,7 +252,6 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	}
 	volJSONPaths, err := findVolJSON(podsRootPath)
 	if err != nil {
-		logrus.Errorf("Find disk vol_data json is failed, err:%s", err)
 		return err
 	}
 	p.updateMap(&p.lastPvDiskInfoMap, volJSONPaths, diskDriverName, "volumes")
