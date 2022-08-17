@@ -1116,7 +1116,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	if requestGB != checkDisk.Size {
 		log.Infof("ControllerExpandVolume:: resize disk err with excepted size: %vGB, actual size: %vGB", requestGB, checkDisk.Size)
 		if snapshotEnable {
-			cs.deleteUntagAutoSnapshot(snapshot.SnapshotId, diskID)
+			log.Warnf("ControllerExpandVolume:: Please use the snapshot %s for data recovery。 The retentionDays is %d", snapshot.SnapshotId, veasp.RetentionDays)
 		}
 		return nil, status.Errorf(codes.Internal, "resize disk err with excepted size: %vGB, actual size: %vGB", requestGB, checkDisk.Size)
 	}
@@ -1378,7 +1378,7 @@ func (cs *controllerServer) deleteVolumeExpandAutoSnapshot(ctx context.Context, 
 		return status.Error(codes.Internal, fmt.Sprintf("volumeExpandAutoSnapshot delete Failed: %v", err))
 	}
 
-	str := fmt.Sprintf("DeleteSnapshot:: Successfully delete snapshot %s", snapshotID)
+	str := fmt.Sprintf("ControllerExpandVolume:: Successfully delete snapshot %s", snapshotID)
 	cs.recorder.Event(pvc, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
 	return nil
 }
