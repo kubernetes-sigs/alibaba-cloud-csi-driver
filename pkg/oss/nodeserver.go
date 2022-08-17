@@ -55,7 +55,7 @@ type Options struct {
 }
 
 const (
-	//OssfsCredentialFile is the path of oss ak credential file
+	// OssfsCredentialFile is the path of oss ak credential file
 	OssfsCredentialFile = "/host/etc/passwd-ossfs"
 	// NsenterCmd is nsenter mount command
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"

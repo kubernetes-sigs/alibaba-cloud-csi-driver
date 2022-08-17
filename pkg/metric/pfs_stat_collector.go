@@ -268,10 +268,10 @@ func findVolJSONByPfsRawBlock(rootDir string) ([]string, error) {
 	return resDir, err
 }
 
-//1.find pv
-//2.find pod id by pv
-//3.pod is running?
-//4.find docker id by pod id
+// 1.find pv
+// 2.find pod id by pv
+// 3.pod is running?
+// 4.find docker id by pod id
 func getPfsRawBlockStats(dockerClient **client.Client) (map[string][]string, error) {
 	pvNameArray, err := getPfsRawBlockPvName()
 	if pvNameArray == nil && err.Error() == notFoundvolumeDevices {

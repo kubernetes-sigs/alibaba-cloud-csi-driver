@@ -28,33 +28,33 @@ var (
 )
 
 var (
-	//4 - reads completed successfully
+	// 4 - reads completed successfully
 	diskReadsCompletedDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_completed_total"),
 		"The total number of reads completed successfully.",
 		diskStatLabelNames, nil,
 	)
-	//5 - reads merged
+	// 5 - reads merged
 	diskReadsMergeDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_merged_total"),
 		"The total number of reads merged.",
 		diskStatLabelNames,
 		nil,
 	)
-	//6 - sectors read
+	// 6 - sectors read
 	diskReadBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_bytes_total"),
 		"The total number of bytes read successfully.",
 		diskStatLabelNames, nil,
 	)
-	//7 - time spent reading (ms)
+	// 7 - time spent reading (ms)
 	diskReadTimeMilliSecondsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_time_milliseconds_total"),
 		"The total number of seconds spent by all reads.",
 		diskStatLabelNames,
 		nil,
 	)
-	//8 - writes completed
+	// 8 - writes completed
 	diskWritesCompletedDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_completed_total"),
 		"The total number of writes completed successfully.",

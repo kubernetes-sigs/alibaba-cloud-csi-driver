@@ -26,17 +26,16 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/kubernetes/pkg/util/resizefs"
+	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
-	k8smount "k8s.io/utils/mount"
 )
 
 type nodeServer struct {
@@ -163,15 +162,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		zoneID = doc.ZoneID
 		nodeID = doc.InstanceID
 	}
-
-	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
-	}
+	log.Infof("NewNodeServer: zone id: %+v", zoneID)
 
 	// Create Directory
 	os.MkdirAll(VolumeDir, os.FileMode(0755))
@@ -183,7 +174,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	} else {
 		log.Infof("Currently node is NOT VF model")
 	}
-	go UpdateNode(nodeID, kubeClient, c)
+	go UpdateNode(nodeID, c)
 
 	if !GlobalConfigVar.ControllerService && IsVFNode() && GlobalConfigVar.BdfHealthCheck {
 		go BdfHealthCheck()
@@ -196,7 +187,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		mounter:           utils.NewMounter(),
 		k8smounter:        k8smount.New(""),
-		clientSet:         kubeClient,
+		clientSet:         GlobalConfigVar.ClientSet,
 	}
 }
 
@@ -280,8 +271,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			qResponse.mountfile = mountFile
 			qResponse.runtime = RunvRunTimeMode
 			if err := utils.WriteJSONFile(qResponse, mountFile); err != nil {
-				log.Errorf("NodePublishVolume(runv): Write Josn File error: %s", err.Error())
-				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Write Josn File error: "+err.Error())
+				log.Errorf("NodePublishVolume(runv): Write Json File error: %s", err.Error())
+				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Write Json File error: "+err.Error())
 			}
 			// save volume status to stage json file
 			volumeStatus := map[string]string{}
@@ -685,8 +676,27 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
 	log.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v, device: %s, mkfsOptions: %v, options: %v", req.VolumeId, targetPath, device, mkfsOptions, mountOptions)
+	pvc, err := ns.getPvcFromDiskId(req.VolumeId)
+	if err != nil {
+		return &csi.NodeStageVolumeResponse{}, nil
+	}
+	if pvc.Spec.DataSource != nil {
+		log.Info("NodeStageVolume: pvc is created from snapshot, add resizefs check")
+		mounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
+		r := k8smount.NewResizeFs(mounter.Exec)
+		needResize, err := r.NeedResize(device, targetPath)
+		if err != nil {
+			log.Infof("NodeStageVolume: Could not determine if volume %s need to be resized: %v", req.VolumeId, err)
+			return &csi.NodeStageVolumeResponse{}, nil
+		}
+		if needResize {
+			log.Infof("NodeStageVolume: Resizing volume %q created from a snapshot/volume", req.VolumeId)
+			if _, err := r.Resize(device, targetPath); err != nil {
+				return nil, status.Errorf(codes.Internal, "Could not resize volume %s: %v", req.VolumeId, err)
+			}
+		}
+	}
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
@@ -868,8 +878,9 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	}
 
 	// use resizer to expand volume filesystem
-	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()})
-	ok, err := resizer.Resize(devicePath, volumePath)
+	mounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
+	r := k8smount.NewResizeFs(mounter.Exec)
+	ok, err := r.Resize(devicePath, volumePath)
 	if err != nil {
 		log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", diskID, devicePath, volumePath, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
@@ -994,6 +1005,21 @@ func (ns *nodeServer) unmountDuplicateMountPoint(targetPath string) error {
 		log.Warnf("Target Path is illegal format: %s", targetPath)
 	}
 	return nil
+}
+
+func (ns *nodeServer) getPvcFromDiskId(diskId string) (*v1.PersistentVolumeClaim, error) {
+	ctx := context.Background()
+	pv, err := ns.clientSet.CoreV1().PersistentVolumes().Get(ctx, diskId, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("getPvcFromDiskId: failed to get pv from apiserver: %v", err)
+		return nil, err
+	}
+	pvcName, pvcNamespace := pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace
+	pvc, err := ns.clientSet.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(ctx, pvcName, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("getPvcFromDiskId: failed to get pvc from apiserver: %v", err)
+	}
+	return pvc, nil
 }
 
 // collectMountOptions returns array of mount options

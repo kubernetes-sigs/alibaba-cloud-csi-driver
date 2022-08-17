@@ -29,6 +29,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var DEFAULT_VMFATAL_EVENTS = []string{
+	"ecs_alarm_center.vm.guest_os_oom:critical",
+	"ecs_alarm_center.vm.guest_os_kernel_panic:critical",
+	"ecs_alarm_center.vm.guest_os_kernel_panic:fatal",
+	"ecs_alarm_center.vm.vmexit_exception_vm_hang:fatal",
+}
+
 // attach alibaba cloud disk
 func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string, error) {
 	log.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
@@ -79,6 +86,9 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 			detachRequest := ecs.CreateDetachDiskRequest()
 			detachRequest.InstanceId = nodeID
 			detachRequest.DiskId = diskID
+			for key, value := range GlobalConfigVar.RequestBaseInfo {
+				detachRequest.AppendUserAgent(key, value)
+			}
 			_, err = ecsClient.DetachDisk(detachRequest)
 			if err != nil {
 				return "", status.Errorf(codes.Aborted, "AttachDisk: Can't attach disk %s to instance %s: %v", diskID, disk.InstanceId, err)
@@ -103,6 +113,16 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 						return deviceName, nil
 					}
 				} else {
+					// wait for pci attach ready
+					time.Sleep(5 * time.Second)
+					log.Infof("AttachDisk: find disk dev after 5 seconds")
+					deviceName := GetVolumeDeviceName(diskID)
+					if deviceName != "" && IsFileExisting(deviceName) {
+						if used, err := IsDeviceUsedOthers(deviceName, diskID); err == nil && used == false {
+							log.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
+							return deviceName, nil
+						}
+					}
 					err = fmt.Errorf("AttachDisk: disk device cannot be found in node, diskid: %s, devicenName: %s", diskID, deviceName)
 					return "", err
 				}
@@ -128,6 +148,9 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 			detachRequest := ecs.CreateDetachDiskRequest()
 			detachRequest.InstanceId = disk.InstanceId
 			detachRequest.DiskId = disk.DiskId
+			for key, value := range GlobalConfigVar.RequestBaseInfo {
+				detachRequest.AppendUserAgent(key, value)
+			}
 			_, err = ecsClient.DetachDisk(detachRequest)
 			if err != nil {
 				log.Errorf("AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
@@ -153,6 +176,9 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 	attachRequest := ecs.CreateAttachDiskRequest()
 	attachRequest.InstanceId = nodeID
 	attachRequest.DiskId = diskID
+	for key, value := range GlobalConfigVar.RequestBaseInfo {
+		attachRequest.AppendUserAgent(key, value)
+	}
 	response, err := ecsClient.AttachDisk(attachRequest)
 	if err != nil {
 		if strings.Contains(err.Error(), DiskLimitExceeded) {
@@ -418,6 +444,9 @@ func detachDisk(ecsClient *ecs.Client, diskID, nodeID string) error {
 			detachDiskRequest := ecs.CreateDetachDiskRequest()
 			detachDiskRequest.DiskId = disk.DiskId
 			detachDiskRequest.InstanceId = disk.InstanceId
+			for key, value := range GlobalConfigVar.RequestBaseInfo {
+				detachDiskRequest.AppendUserAgent(key, value)
+			}
 			response, err := ecsClient.DetachDisk(detachDiskRequest)
 			if err != nil {
 				errMsg := fmt.Sprintf("DetachDisk: Fail to detach %s: from Instance: %s with error: %s", disk.DiskId, disk.InstanceId, err.Error())
@@ -426,6 +455,10 @@ func detachDisk(ecsClient *ecs.Client, diskID, nodeID string) error {
 				}
 				log.Errorf(errMsg)
 				return status.Error(codes.Aborted, errMsg)
+			}
+			if StopDiskOperationRetry(disk.InstanceId, ecsClient) {
+				log.Errorf("DetachDisk: the instance [%s] which disk [%s] attached report an fatal error, stop retry detach disk from instance", disk.DiskId, disk.InstanceId)
+				return nil
 			}
 
 			// check disk detach
@@ -692,4 +725,49 @@ func findDiskSnapshotByID(id string) (*ecs.DescribeSnapshotsResponse, int, error
 		return snapshots, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with id "+id)
 	}
 	return snapshots, 1, nil
+}
+
+func StopDiskOperationRetry(instanceId string, ecsClient *ecs.Client) bool {
+	eventMaps, err := DescribeDiskInstanceEvents(instanceId, ecsClient)
+	log.Infof("StopDiskOperationRetry: resp eventMaps: %+v", eventMaps)
+	if err != nil {
+		return false
+	}
+	for _, vmEvent := range DEFAULT_VMFATAL_EVENTS {
+		if _, ok := eventMaps[vmEvent]; ok {
+			return true
+		}
+	}
+	for _, addonEvent := range GlobalConfigVar.AddonVMFatalEvents {
+		if _, ok := eventMaps[addonEvent]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func DescribeDiskInstanceEvents(instanceId string, ecsClient *ecs.Client) (eventMaps map[string]string, err error) {
+	diher := ecs.CreateDescribeInstanceHistoryEventsRequest()
+	diher.RegionId = GlobalConfigVar.Region
+	diher.EventPublishTimeStart = time.Now().Add(-3 * time.Hour).UTC().Format(time.RFC3339)
+	diher.Scheme = "https"
+	diher.ResourceType = "instance"
+	instanceIds := make([]string, 0, 1)
+	instanceIds = append(instanceIds, "i-2ze7kmacdkxpsa1eyu9u")
+	diher.ResourceId = &instanceIds
+	diher.InstanceEventCycleStatus = &[]string{"Scheduled", "Avoided", "Executing", "Executed", "Canceled", "Failed", "Inquiring"}
+	diher.PageSize = "100"
+
+	resp, err := ecsClient.DescribeInstanceHistoryEvents(diher)
+	eventMaps = map[string]string{}
+
+	log.Infof("DescribeDiskInstanceEvents: describe history event resp: %+v", resp)
+	if err != nil {
+		log.Errorf("DescribeDiskInstanceEvents: describe instance history events with err: %+v", err)
+		return
+	}
+	for _, eventInfo := range resp.InstanceSystemEventSet.InstanceSystemEventType {
+		eventMaps[eventInfo.Reason] = ""
+	}
+	return
 }

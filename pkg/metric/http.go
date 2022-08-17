@@ -14,19 +14,19 @@ const (
 	metricPath   = "metrics"
 )
 
-//HTTPClient is http client with server client
+// HTTPClient is http client with server client
 type HTTPClient struct {
 	url    string
 	client *http.Client
 }
 
-//getURL to get the corresponding url
+// getURL to get the corresponding url
 func getURL(httpProtocol string, dnsName string, port string, metricPath string) string {
 	url := httpProtocol + "://" + dnsName + ":" + port + "/" + metricPath
 	return url
 }
 
-//NewHTTPClient to create http client
+// NewHTTPClient to create http client
 func NewHTTPClient() *HTTPClient {
 	url := getURL(httpProtocol, dnsName, port, metricPath)
 	client := &http.Client{}
@@ -34,7 +34,7 @@ func NewHTTPClient() *HTTPClient {
 	return &HTTPClient{url, client}
 }
 
-//Get to get response from server with http client
+// Get to get response from server with http client
 func (h *HTTPClient) Get(key string, val string) (*http.Response, error) {
 	url := h.url + "?" + key + "=" + val
 	resp, err := h.client.Get(url)
@@ -45,7 +45,7 @@ func (h *HTTPClient) Get(key string, val string) (*http.Response, error) {
 	return resp, nil
 }
 
-//ReadBody to read body from response
+// ReadBody to read body from response
 func (h *HTTPClient) ReadBody(response *http.Response) string {
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
@@ -55,7 +55,7 @@ func (h *HTTPClient) ReadBody(response *http.Response) string {
 	return string(body)
 }
 
-//Close to close response
+// Close to close response
 func (h *HTTPClient) Close(response *http.Response) {
 	if response != nil {
 		_ = response.Body.Close()

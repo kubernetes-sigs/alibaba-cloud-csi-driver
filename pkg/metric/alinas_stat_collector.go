@@ -173,7 +173,7 @@ func NewAlinasStatCollector() (Collector, error) {
 	}, nil
 }
 
-//959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com:/:4x62bMXP on /var/lib/kubelet/pods/6f7c54d6-571d-4688-97a9-f74f94111e61/volumes/kubernetes.io~csi/nas-4c831575-fee8-452f-9fc9-4161825f55a9/mount type alifuse.aliyun-alinas-unasd (rw,nosuid,nodev,relatime,user_id=0,group_id=0,default_permissions,allow_other)
+// 959684a3e6-ege66.cn-zhangjiakou.nas.aliyuncs.com:/:4x62bMXP on /var/lib/kubelet/pods/6f7c54d6-571d-4688-97a9-f74f94111e61/volumes/kubernetes.io~csi/nas-4c831575-fee8-452f-9fc9-4161825f55a9/mount type alifuse.aliyun-alinas-unasd (rw,nosuid,nodev,relatime,user_id=0,group_id=0,default_permissions,allow_other)
 func getMountPointInfoMap() map[string]alinasInfo {
 	m := make(map[string]alinasInfo, 0)
 	s1 := "/kubernetes.io~csi/"

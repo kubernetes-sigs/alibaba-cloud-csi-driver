@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    http:// www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,7 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	"os"
 	"path/filepath"
@@ -77,7 +77,7 @@ const (
 	NASTAGVALUE2 = "alibabacloud-csi-plugin"
 	// NASTAGKEY3 key
 	NASTAGKEY3 = "ack.aliyun.com"
-	//AddDefaultTagsError means that the add nas default tags error
+	// AddDefaultTagsError means that the add nas default tags error
 	AddDefaultTagsError string = "AddDefaultTagsError"
 	// MntTypeKey tag
 	MntTypeKey = "mountType"
@@ -133,19 +133,7 @@ var pvcFileSystemIDMap = map[string]string{}
 var pvcMountTargetMap = map[string]string{}
 
 // NewControllerServer is to create controller server
-func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region, limit string) csi.ControllerServer {
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		log.Fatalf("NewControllerServer: Failed to create config: %v", err)
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Fatalf("NewControllerServer: Failed to create client: %v", err)
-	}
-	crdClient, err := dynamic.NewForConfig(config)
-	if err != nil {
-		log.Fatalf("NewControllerServer: Failed to create crd client: %v", err)
-	}
+func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region, limit string, cfg *restclient.Config) csi.ControllerServer {
 	intLimit, err := strconv.Atoi(limit)
 	if err != nil {
 		log.Errorf("NewControllerServer: Failed to convert string limit to int: %s, err: %v", limit, err)
@@ -155,9 +143,9 @@ func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region, 
 	log.Infof("NewControllerServer: current provisioner nas limit is %v", intLimit)
 	c := &controllerServer{
 		nasClient:               client,
-		crdClient:               crdClient,
+		crdClient:               GlobalConfigVar.DynamicClient,
 		region:                  region,
-		client:                  clientset,
+		client:                  GlobalConfigVar.KubeClient,
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
 		recorder:                utils.NewEventRecorder(),
 		rateLimiter:             ratelimit.New(intLimit),
@@ -964,7 +952,6 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
-//
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
 	log.Infof("CreateSnapshot is called, do nothing now")
 	return &csi.CreateSnapshotResponse{}, nil

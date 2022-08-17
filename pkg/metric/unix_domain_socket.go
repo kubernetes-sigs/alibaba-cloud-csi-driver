@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-//UDSClient is unix domain socket client with server client
+// UDSClient is unix domain socket client with server client
 type UDSClient struct {
 	client http.Client
 }
@@ -33,7 +33,7 @@ func (u *UDSClient) Get(url string) (*http.Response, error) {
 	return resp, nil
 }
 
-//ReadBody to read body from response
+// ReadBody to read body from response
 func (u *UDSClient) ReadBody(resp *http.Response) string {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -43,7 +43,7 @@ func (u *UDSClient) ReadBody(resp *http.Response) string {
 	return string(body)
 }
 
-//Close to close response
+// Close to close response
 func (u *UDSClient) Close(resp *http.Response) {
 	if resp != nil {
 		_ = resp.Body.Close()

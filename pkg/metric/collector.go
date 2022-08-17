@@ -38,7 +38,7 @@ type CSICollector struct {
 	Collectors map[string]Collector
 }
 
-//newCSICollector method returns the CSICollector object
+// newCSICollector method returns the CSICollector object
 func newCSICollector() error {
 	if csiCollectorInstance == nil {
 		collectors := make(map[string]Collector)
@@ -112,7 +112,7 @@ func execute(name string, c Collector, ch chan<- prometheus.Metric) {
 // ErrNoData indicates the collector found no data to collect, but had no other error.
 var ErrNoData = errors.New("Collector returned no data")
 
-//IsNoDataError method is to determine whether the Collector has no data to return
+// IsNoDataError method is to determine whether the Collector has no data to return
 func IsNoDataError(err error) bool {
 	return err == ErrNoData
 }
