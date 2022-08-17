@@ -180,14 +180,14 @@ type volumeExpandAutoSnapshotParam struct {
 	InstanceAccessRetentionDays int
 }
 
-var veasp = &volumeExpandAutoSnapshotParam{
-	IDKey:                       "volumeExpandAutoSnapshotID",
-	Prefix:                      "volume-expand-auto-snapshot-",
-	InstantAccess:               true,
-	ForceDelete:                 true,
-	RetentionDays:               1,
-	InstanceAccessRetentionDays: 1,
-}
+var veasp = struct {
+	IDKey                       string
+	Prefix                      string
+	InstantAccess               bool
+	ForceDelete                 bool
+	RetentionDays               int
+	InstanceAccessRetentionDays int
+}{"volumeExpandAutoSnapshotID", "volume-expand-auto-snapshot-", true, true, 1, 1}
 
 // NewControllerServer is to create controller server
 func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset, region string) csi.ControllerServer {
@@ -1284,6 +1284,9 @@ func (cs *controllerServer) autoSnapshot(ctx context.Context, disk *ecs.Disk) (b
 	snapshot, err := cs.createVolumeExpandAutoSnapshot(ctx, pv, disk)
 	if err != nil {
 		log.Errorf("ControllerExpandVolume:: failed to create volumeExpandAutoSnapshot: %s", err.Error())
+		if strings.Contains(err.Error(), NeverAttached) {
+			return true, nil, err
+		}
 	} else {
 		snapshotEnable = true
 		err = updateVolumeExpandAutoSnapshotID(pvc, snapshot.SnapshotId, "add")

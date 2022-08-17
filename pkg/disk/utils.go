@@ -72,6 +72,8 @@ const (
 	DiskConflict = "InvalidOperation.Conflict"
 	// IncorrectDiskStatus incorrect disk status
 	IncorrectDiskStatus = "IncorrectDiskStatus"
+	// NeverAttached status belongs to IncorrectDiskStatus
+	NeverAttached = "IncorrectDiskStatus.NeverAttached"
 	// DiskCreatingSnapshot ...
 	DiskCreatingSnapshot = "DiskCreatingSnapshot"
 	// UserNotInTheWhiteList tag
