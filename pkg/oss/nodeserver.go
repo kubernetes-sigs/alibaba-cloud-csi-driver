@@ -51,6 +51,7 @@ type Options struct {
 	UseSharedPath bool   `json:"useSharedPath"`
 	AuthType      string `json:"authType"`
 	FuseType      string `json:"fuseType"`
+	MetricsTop    string `json:"metricsTop"`
 }
 
 const (
@@ -66,6 +67,10 @@ const (
 	OssFsType = "ossfs"
 	// JindoFsType tag
 	JindoFsType = "jindofs"
+	// metricsPathPrefix
+	metricsPathPrefix = "/host/var/run/ossfs/"
+	// metricsTop
+	metricsTop = "10"
 )
 
 var (
@@ -75,11 +80,12 @@ var (
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// logout oss paras
-	log.Infof("NodePublishVolume:: Starting Mount volume: %s to path: %s", req.VolumeId, req.TargetPath)
+	log.Infof("NodePublishVolume:: Starting Mount volume: %s mount with req: %+v", req.VolumeId, req)
 	mountPath := req.GetTargetPath()
 	opt := &Options{}
 	opt.UseSharedPath = false
 	opt.FuseType = OssFsType
+	opt.MetricsTop = "10"
 	for key, value := range req.VolumeContext {
 		key = strings.ToLower(key)
 		if key == "bucket" {
@@ -106,6 +112,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.AuthType = strings.ToLower(strings.TrimSpace(value))
 		} else if key == "fusetype" {
 			opt.FuseType = strings.ToLower(strings.TrimSpace(value))
+		} else if key == "metricstop" {
+			opt.MetricsTop = strings.ToLower(strings.TrimSpace(value))
 		}
 	}
 
@@ -193,9 +201,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 		mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s %s", opt.Bucket, opt.Path, mountPath, opt.URL, opt.OtherOpts, credentialProvider)
 		if opt.FuseType == JindoFsType {
-			//mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse -obucket=%v -opath=%v -oendpoint=%v %v -oonly_sdk %s", opt.Bucket, opt.Path, opt.URL, credentialProvider, mountPath)
 			mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s", mountPath, opt.Bucket, opt.Path, opt.URL, credentialProvider)
 		}
+		WriteMetricsInfo(metricsPathPrefix, req, *opt)
 		if err := utils.DoMountInHost(mntCmd); err != nil {
 			return nil, err
 		}
@@ -313,7 +321,7 @@ func (ns *nodeServer) saveOssCredential(opt *Options) error {
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	log.Infof("NodeUnpublishVolume:: Starting Umount OSS: %s", req.TargetPath)
+	log.Infof("NodeUnpublishVolume:: Starting Umount OSS: %s mount with req: %+v", req.TargetPath, req)
 	mountPoint := req.TargetPath
 	if !IsOssfsMounted(mountPoint) {
 		log.Infof("Directory is not mounted: %s", mountPoint)

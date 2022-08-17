@@ -162,7 +162,7 @@ type diskStatCollector struct {
 }
 
 func init() {
-	registerCollector("diskstat", NewDiskStatCollector)
+	registerCollector("disk_stat", NewDiskStatCollector)
 }
 
 func parseDiskThreshold(defaultLatencyThreshold float64, defaultCapacityPercentageThreshold float64) (*hashset.Set, float64, float64) {

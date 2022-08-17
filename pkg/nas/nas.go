@@ -54,7 +54,6 @@ var (
 type GlobalConfig struct {
 	Region             string
 	NasTagEnable       bool
-	CpfsNfsEnable      bool
 	ADControllerEnable bool
 	MetricEnable       bool
 	NasFakeProvision   bool
@@ -185,7 +184,6 @@ func GlobalConfigSet(serviceType string) *restclient.Config {
 	configMapName := "csi-plugin"
 	isNasMetricEnable := false
 	isNasFakeProvisioner := false
-	isCpfsNfsEnable := false
 
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
@@ -213,33 +211,20 @@ func GlobalConfigSet(serviceType string) *restclient.Config {
 				}
 			}
 		}
-		if value, ok := configMap.Data["cpfs-nas-enable"]; ok {
-			if value == "enable" || value == "yes" || value == "true" {
-				if serviceType == utils.PluginService {
-					deleteRpm("aliyun-alinas-utils.noarch")
-					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
-				}
-				isCpfsNfsEnable = true
-			}
-		}
 	}
-
-	if value, ok := configMap.Data["cnfs-client-properties"]; ok {
-		if strings.Contains(value, "enable=true") {
-			if serviceType == utils.PluginService {
-				//deleteRpm before installRpm
-				deleteRpm("alinas-eac.x86_64")
-				deleteRpm("aliyun-alinas-utils.noarch")
-				installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
-				installRpm("alinas-eac", "alinas-eac-1.0-1.x86_64.rpm")
-				runCmd := fmt.Sprintf("%s systemctl start aliyun-alinas-mount-watchdog", NsenterCmd)
-				_, err := utils.Run(runCmd)
-				if err != nil {
-					log.Errorf("Run %s is failed, err: %v", runCmd, err)
-				} else {
-					log.Infof("Run %s is successfully", runCmd)
-				}
-			}
+	//install alinas rpm(alinas-eac alinas-utils) and cpfs rpm(alinas-utils)
+	if serviceType == utils.PluginService {
+		//deleteRpm before installRpm
+		deleteRpm("alinas-eac.x86_64")
+		deleteRpm("aliyun-alinas-utils.noarch")
+		installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
+		installRpm("alinas-eac", "alinas-eac-1.0-1.x86_64.rpm")
+		runCmd := fmt.Sprintf("%s systemctl start aliyun-alinas-mount-watchdog", NsenterCmd)
+		_, err := utils.Run(runCmd)
+		if err != nil {
+			log.Errorf("Run %s is failed, err: %v", runCmd, err)
+		} else {
+			log.Infof("Run %s is successfully", runCmd)
 		}
 	}
 
@@ -297,7 +282,6 @@ func GlobalConfigSet(serviceType string) *restclient.Config {
 	GlobalConfigVar.NodeID = nodeName
 	GlobalConfigVar.ClusterID = clustID
 	GlobalConfigVar.NasFakeProvision = isNasFakeProvisioner
-	GlobalConfigVar.CpfsNfsEnable = isCpfsNfsEnable
 	GlobalConfigVar.NasPortCheck = doNfsPortCheck
 
 	log.Infof("NAS Global Config: %v", GlobalConfigVar)

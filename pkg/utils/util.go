@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -51,7 +52,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
 	k8svol "k8s.io/kubernetes/pkg/volume"
-	"k8s.io/kubernetes/pkg/volume/util/fs"
+	k8sfs "k8s.io/kubernetes/pkg/volume/util/fs"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 )
@@ -423,7 +424,7 @@ func GetMetrics(path string) (*csi.NodeGetVolumeStatsResponse, error) {
 	if path == "" {
 		return nil, fmt.Errorf("getMetrics No path given")
 	}
-	available, capacity, usage, inodes, inodesFree, inodesUsed, err := fs.FsInfo(path)
+	available, capacity, usage, inodes, inodesFree, inodesUsed, err := k8sfs.FsInfo(path)
 	if err != nil {
 		return nil, err
 	}
@@ -813,4 +814,12 @@ func IsPathAvailiable(path string) error {
 		return fmt.Errorf("Read Path (%s) with error: %v ", path, err)
 	}
 	return nil
+}
+
+func RemoveAll(deletePath string) error {
+	return os.RemoveAll(deletePath)
+}
+
+func MkdirAll(path string, mode fs.FileMode) error {
+	return os.MkdirAll(path, mode)
 }

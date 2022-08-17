@@ -28,6 +28,25 @@ var isVF = false
 
 const containerNetworkFileSystem = "containerNetworkFileSystem"
 
+func readFirstLines(path string) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	if len(lines) == 0 {
+		return lines, scanner.Err()
+	}
+	lineStrArray := strings.Split(lines[0], " ")
+	return lineStrArray, scanner.Err()
+}
+
 func getPvcByPvNameByDisk(clientSet *kubernetes.Clientset, pvName string) (string, string, error) {
 	pv, err := clientSet.CoreV1().PersistentVolumes().Get(context.Background(), pvName, apismetav1.GetOptions{})
 	if err != nil {

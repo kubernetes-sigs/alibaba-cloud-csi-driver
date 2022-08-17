@@ -128,7 +128,7 @@ type alinasStatCollector struct {
 }
 
 func init() {
-	registerCollector("alinasstat", NewAlinasStatCollector)
+	registerCollector("alinas_stat", NewAlinasStatCollector)
 }
 
 // NewAlinasStatCollector returns a new Collector exposing alinas stats.
