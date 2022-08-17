@@ -1089,7 +1089,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	// do resize
 	resizeDiskRequest := ecs.CreateResizeDiskRequest()
 	resizeDiskRequest.RegionId = GlobalConfigVar.Region
-	resizeDiskRequest.DiskId = diskID
+	resizeDiskRequest.DiskId = disk.DiskName
 	resizeDiskRequest.NewSize = requests.NewInteger(requestGB)
 	if disk.Category == DiskSSD || disk.Category == DiskEfficiency || disk.Category == DiskESSD {
 		if disk.Status == DiskStatusInuse {
@@ -1308,7 +1308,7 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 	cur := time.Now()
 	timeStr := cur.Format("-2006-01-02-15:04:05")
 	volumeExpandAutoSnapshotName := veasp.Prefix + pv.Name + timeStr
-	sourceVolumeID := disk.DiskName
+	sourceVolumeID := disk.DiskId
 
 	log.Infof("ControllerExpandVolume:: Starting to create volumeExpandAutoSnapshot with name: %s", volumeExpandAutoSnapshotName)
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
