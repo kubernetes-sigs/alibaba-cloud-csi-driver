@@ -95,7 +95,7 @@ func GetCpfsDetails(cpfsServersString string) (string, string, string) {
 	return cpfsServer, cpfsFileSystem, cpfsPath
 }
 
-//CreateDest create the target
+// CreateDest create the target
 func CreateDest(dest string) error {
 	fi, err := os.Lstat(dest)
 	if os.IsNotExist(err) {
@@ -112,7 +112,7 @@ func CreateDest(dest string) error {
 	return nil
 }
 
-//DoMount execute the mount command for cpfs dir
+// DoMount execute the mount command for cpfs dir
 func DoMount(cpfsServer, cpfsFileSystem, cpfsPath, mountOptions, mountPoint, volumeID string) error {
 	if !utils.IsFileExisting(mountPoint) {
 		CreateDest(mountPoint)

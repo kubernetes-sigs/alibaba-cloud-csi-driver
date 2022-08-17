@@ -52,10 +52,9 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/volume/util/fs"
+	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
-	k8smount "k8s.io/utils/mount"
 )
 
 const (
@@ -105,6 +104,10 @@ const (
 	DiskSSD = "cloud_ssd"
 	// DiskESSD essd disk type
 	DiskESSD = "cloud_essd"
+	// DiskHighPerformance
+	DiskPPerf = "cloud_pperf"
+	// DiskStandPerformace
+	DiskSPerf = "cloud_sperf"
 	// DiskSharedSSD shared sdd disk type
 	DiskSharedSSD = "san_ssd"
 	// DiskSharedEfficiency shared efficiency disk type
@@ -159,9 +162,9 @@ var (
 	// KubernetesAlicloudIdentity is the system identity for ecs client request
 	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", VERSION)
 	// AvaliableDiskTypes ...
-	AvaliableDiskTypes = []string{DiskCommon, DiskESSD, DiskEfficiency, DiskSSD, DiskSharedSSD, DiskSharedEfficiency}
+	AvaliableDiskTypes = []string{DiskCommon, DiskESSD, DiskEfficiency, DiskSSD, DiskSharedSSD, DiskSharedEfficiency, DiskPPerf, DiskSPerf}
 	// CustomDiskTypes ...
-	CustomDiskTypes = map[string]int{DiskESSD: 0, DiskSSD: 1, DiskEfficiency: 2}
+	CustomDiskTypes = map[string]int{DiskESSD: 0, DiskSSD: 1, DiskEfficiency: 2, DiskPPerf: 3, DiskSPerf: 4}
 )
 
 // DefaultOptions is the struct for access key
@@ -852,6 +855,7 @@ func IsDeviceUsedOthers(deviceName, volumeID string) (bool, error) {
 
 // formatAndMount uses unix utils to format and mount the given disk
 func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, target string, fstype string, mkfsOptions []string, mountOptions []string) error {
+	log.Infof("formatAndMount: mount options : %+v", mountOptions)
 	readOnly := false
 	for _, option := range mountOptions {
 		if option == "ro" {
@@ -1107,6 +1111,11 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		diskVolArgs.ResourceGroupID = ""
 	}
 
+	diskVolArgs.StorageClusterID, ok = volOptions["storageClusterId"]
+	if !ok {
+		diskVolArgs.StorageClusterID = ""
+	}
+
 	// volumeSizeAutoAvailable
 	value, ok = volOptions["volumeSizeAutoAvailable"]
 	if !ok {
@@ -1262,11 +1271,11 @@ func getBlockDeviceCapacity(devicePath string) float64 {
 }
 
 // UpdateNode ...
-func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
+func UpdateNode(nodeID string, c *ecs.Client) {
 	instanceStorageLabels := []string{}
 	ctx := context.Background()
 	nodeName := os.Getenv(kubeNodeName)
-	nodeInfo, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	nodeInfo, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("UpdateNode:: get node info error : %s", err.Error())
 		return
@@ -1326,14 +1335,14 @@ func UpdateNode(nodeID string, client *kubernetes.Clientset, c *ecs.Client) {
 	}
 	for n := 1; n < RetryMaxTimes; n++ {
 		if needUpdate {
-			newNode, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+			newNode, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 			if err != nil {
 				continue
 			}
 			for _, updatedLabel := range needUpdateLabels {
 				newNode.Labels[updatedLabel] = "available"
 			}
-			_, err = client.CoreV1().Nodes().Update(ctx, newNode, metav1.UpdateOptions{})
+			_, err = GlobalConfigVar.ClientSet.CoreV1().Nodes().Update(ctx, newNode, metav1.UpdateOptions{})
 			if err != nil {
 				log.Errorf("UpdateNode:: update node error: %s", err.Error())
 				continue

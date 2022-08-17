@@ -64,9 +64,9 @@ const (
 	TypePluginSuffix = "plugin.csi.alibabacloud.com"
 	// TypePluginVar is the yaml variable that needs to be replaced.
 	TypePluginVar = "driverplugin.csi.alibabacloud.com-replace"
-	//PluginServicePort default port is 11260.
+	// PluginServicePort default port is 11260.
 	PluginServicePort = "11260"
-	//ProvisionerServicePort default port is 11270.
+	// ProvisionerServicePort default port is 11270.
 	ProvisionerServicePort = "11270"
 	// TypePluginDBFS local type plugin
 	TypePluginDBFS = "dbfsplugin.csi.alibabacloud.com"

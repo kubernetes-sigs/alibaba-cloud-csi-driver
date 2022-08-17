@@ -32,14 +32,12 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 type nodeServer struct {
@@ -97,25 +95,12 @@ const (
 	MountProtocolTag = "mountProtocol"
 )
 
-//newNodeServer create the csi node server
+// newNodeServer create the csi node server
 func newNodeServer(d *NAS) *nodeServer {
-	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	kubeClient, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
-	}
-
-	crdClient, err := dynamic.NewForConfig(cfg)
-	if err != nil {
-		log.Fatalf("Error building crd clientset: %s", err)
-	}
 
 	return &nodeServer{
-		clientSet:         kubeClient,
-		crdClient:         crdClient,
+		clientSet:         GlobalConfigVar.KubeClient,
+		crdClient:         GlobalConfigVar.DynamicClient,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
 	}
 }
@@ -212,7 +197,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			runvOptions.VolumeType = "nfs"
 			runvOptions.MountFile = fileName
 			if err := utils.WriteJSONFile(runvOptions, fileName); err != nil {
-				return nil, errors.New("NodePublishVolume: Write Josn File error: " + err.Error())
+				return nil, errors.New("NodePublishVolume: Write Json File error: " + err.Error())
 			}
 			log.Infof("Nas(Kata), Write Nfs Options to File Successful: %s", fileName)
 			return &csi.NodePublishVolumeResponse{}, nil

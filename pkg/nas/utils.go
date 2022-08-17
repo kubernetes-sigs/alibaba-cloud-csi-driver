@@ -77,7 +77,7 @@ type RoleAuth struct {
 	Code            string
 }
 
-//DoMount execute the mount command for nas dir
+// DoMount execute the mount command for nas dir
 func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, podUID, useEaClient string) error {
 	if !utils.IsFileExisting(mountPoint) {
 		CreateDest(mountPoint)
@@ -134,7 +134,7 @@ func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint,
 	return nil
 }
 
-//CheckNfsPathMounted check whether the given nfs path was mounted
+// CheckNfsPathMounted check whether the given nfs path was mounted
 func CheckNfsPathMounted(mountpoint, server, path string) bool {
 	mntCmd := fmt.Sprintf("cat /proc/mounts | grep %s | grep %s | grep -v grep | wc -l", mountpoint, path)
 	if out, err := utils.Run(mntCmd); err == nil && strings.TrimSpace(out) != "0" {
@@ -143,7 +143,7 @@ func CheckNfsPathMounted(mountpoint, server, path string) bool {
 	return false
 }
 
-//CreateDest create the target
+// CreateDest create the target
 func CreateDest(dest string) error {
 	fi, err := os.Lstat(dest)
 	if os.IsNotExist(err) {
@@ -643,7 +643,7 @@ func isValidCnfsParameter(server string, cnfsName string) error {
 	return nil
 }
 
-//GetFsIDByServer func is get fsID from serverName
+// GetFsIDByServer func is get fsID from serverName
 func GetFsIDByServer(server string) string {
 	if len(server) == 0 {
 		return ""

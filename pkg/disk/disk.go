@@ -32,6 +32,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -81,6 +82,9 @@ type GlobalConfig struct {
 	DiskMultiTenantEnable bool
 	SnapClient            *snapClientset.Clientset
 	NodeMultiZoneEnable   bool
+	WaitBeforeAttach      bool
+	AddonVMFatalEvents    []string
+	RequestBaseInfo       map[string]string
 }
 
 // define global variable
@@ -93,7 +97,7 @@ var (
 func initDriver() {
 }
 
-//NewDriver create the identity/node/controller server and disk driver
+// NewDriver create the identity/node/controller server and disk driver
 func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	initDriver()
 	tmpdisk := &DISK{}
@@ -168,6 +172,11 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 	isDiskMultiTenantEnable := false
 	isNodeMultiZoneEnable := false
 
+	isWaitBeforeAttach := false
+	if waitBeforeAttach := os.Getenv("WAIT_BEFORE_ATTACH"); waitBeforeAttach == "true" {
+		isWaitBeforeAttach = true
+	}
+
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
@@ -183,6 +192,8 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 			cfg.Burst = qpsi
 		}
 	}
+	cfg.AcceptContentTypes = strings.Join([]string{runtime.ContentTypeProtobuf, runtime.ContentTypeJSON}, ",")
+	cfg.ContentType = runtime.ContentTypeProtobuf
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
@@ -247,6 +258,16 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 	}
 
 	// Env variables
+	avmfe := os.Getenv("ADDON_VM_FATAL_EVENTS")
+	fatalEvents := []string{}
+	if avmfe != "" {
+		if strings.Contains(avmfe, ",") {
+			fatalEvents = strings.Split(avmfe, ",")
+		} else {
+			fatalEvents = []string{avmfe}
+		}
+	}
+
 	adEnable := os.Getenv(DiskAttachByController)
 	if adEnable == "true" || adEnable == "yes" {
 		log.Infof("AD-Controller is enabled by Env(%s), CSI Disk Plugin running in AD Controller mode.", adEnable)
@@ -382,6 +403,9 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		BdfHealthCheck:        bdfCheck,
 		DiskMultiTenantEnable: isDiskMultiTenantEnable,
 		NodeMultiZoneEnable:   isNodeMultiZoneEnable,
+		WaitBeforeAttach:      isWaitBeforeAttach,
+		AddonVMFatalEvents:    fatalEvents,
+		RequestBaseInfo:       map[string]string{"owner": "alibaba-cloud-csi-driver", "nodeName": nodeName},
 	}
 	return cfg
 }

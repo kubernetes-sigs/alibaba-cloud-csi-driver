@@ -63,7 +63,6 @@ type NameSpaceOptions struct {
 	Size   uint64
 }
 
-//
 type workerConnection struct {
 	conn             *grpc.ClientConn
 	mountPathWithTLS string

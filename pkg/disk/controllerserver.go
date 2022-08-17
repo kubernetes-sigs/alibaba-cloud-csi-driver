@@ -151,6 +151,7 @@ type diskVolumeArgs struct {
 	KMSKeyID                string              `json:"kmsKeyId"`
 	PerformanceLevel        string              `json:"performanceLevel"`
 	ResourceGroupID         string              `json:"resourceGroupId"`
+	StorageClusterID        string              `json:"storageClusterId"`
 	DiskTags                string              `json:"diskTags"`
 	NodeSelected            string              `json:"nodeSelected"`
 	ARN                     []ecs.CreateDiskArn `json:"arn"`
@@ -374,6 +375,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if diskVol.Encrypted == true && diskVol.KMSKeyID != "" {
 		createDiskRequest.KMSKeyId = diskVol.KMSKeyID
 	}
+	if diskVol.StorageClusterID != "" {
+		createDiskRequest.StorageClusterId = diskVol.StorageClusterID
+	}
 	var volumeResponse *ecs.CreateDiskResponse
 	var createdDiskType string
 	provisionerDiskTypes := []string{}
@@ -551,6 +555,12 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 
 // ControllerPublishVolume do attach
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
+
+	if GlobalConfigVar.WaitBeforeAttach {
+		time.Sleep(5 * time.Second)
+		log.Infof("ControllerPublishVolume: sleep 5s")
+	}
+
 	isMultiAttach := false
 	if value, ok := req.VolumeContext[MultiAttach]; ok {
 		value = strings.ToLower(value)
@@ -811,12 +821,12 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		log.Warnf("CreateSnapshot: multi disk found: %s", sourceVolumeID)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID))
 	}
-	if disks[0].Status != "In_use" {
-		log.Errorf("CreateSnapshot: disk [%s] not attached, status: [%s]", sourceVolumeID, disks[0].Status)
-		e := status.Error(codes.InvalidArgument, fmt.Sprintf("CreateSnapshot:: target disk: %v must be attached", sourceVolumeID))
-		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
-		return nil, e
-	}
+	// if disks[0].Status != "In_use" {
+	// 	log.Errorf("CreateSnapshot: disk [%s] not attached, status: [%s]", sourceVolumeID, disks[0].Status)
+	// 	e := status.Error(codes.InvalidArgument, fmt.Sprintf("CreateSnapshot:: target disk: %v must be attached", sourceVolumeID))
+	// 	utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
+	// 	return nil, e
+	// }
 
 	// if disk type is not essd and IA set disable
 	if useInstanceAccess && disks[0].Category != DiskESSD {
