@@ -31,8 +31,6 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
@@ -677,7 +675,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 	}
 	log.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v, device: %s, mkfsOptions: %v, options: %v", req.VolumeId, targetPath, device, mkfsOptions, mountOptions)
-	pvc, err := ns.getPvcFromDiskId(req.VolumeId)
+	_, pvc, err := getPvPvcFromDiskId(req.VolumeId)
 	if err != nil {
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
@@ -833,6 +831,17 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return &csi.NodeExpandVolumeResponse{}, nil
 	}
 
+	_, pvc, err := getPvPvcFromDiskId(diskID)
+	if err != nil {
+		log.Errorf("NodeExpandVolume:: failed to get pvc from apiserver: %s", err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	volumeExpandAutoSnapshotID := ""
+	if pvc.Annotations != nil {
+		volumeExpandAutoSnapshotID, _ = pvc.Annotations[veasp.IDKey]
+	}
+
 	// volume resize in rund type will transfer to guest os
 	isRund, err := checkRundVolumeExpand(req)
 	if isRund && err == nil {
@@ -843,6 +852,12 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	snapshotEnable := volumeExpandAutoSnapshotID != ""
+	defer func() {
+		if snapshotEnable {
+			deleteUntagAutoSnapshot(volumeExpandAutoSnapshotID, diskID)
+		}
+	}()
 	devicePath := GetVolumeDeviceName(diskID)
 	if devicePath == "" {
 		log.Errorf("NodeExpandVolume:: can't get devicePath: %s", diskID)
@@ -883,10 +898,18 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	ok, err := r.Resize(devicePath, volumePath)
 	if err != nil {
 		log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", diskID, devicePath, volumePath, err.Error())
+		if snapshotEnable {
+			log.Warnf("NodeExpandVolume:: Please use the snapshot %s for data recovery。 The retentionDays is %d", volumeExpandAutoSnapshotID, veasp.RetentionDays)
+			snapshotEnable = false
+		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if !ok {
 		log.Errorf("NodeExpandVolume:: Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
+		if snapshotEnable {
+			log.Warnf("NodeExpandVolume:: Please use the snapshot %s for data recovery。 The retentionDays is %d", volumeExpandAutoSnapshotID, veasp.RetentionDays)
+			snapshotEnable = false
+		}
 		return nil, status.Error(codes.Internal, "Fail to resize volume fs")
 	}
 	diskCapacity, err := getDiskCapacity(volumePath)
@@ -899,6 +922,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		"NodeExpandVolume:: filesystem resize context device capacity: %v, before resize fs capacity: %v resize fs capacity: %v, requestGB: %v. file system lose percent: %v",
 		deviceCapacity, beforeResizeDiskCapacity, diskCapacity, requestGB, GlobalConfigVar.FilesystemLosePercent)
 	if diskCapacity >= requestGB*GlobalConfigVar.FilesystemLosePercent {
+		// delete autoSnapshot
 		log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
 		return &csi.NodeExpandVolumeResponse{}, nil
 	}
@@ -1007,21 +1031,6 @@ func (ns *nodeServer) unmountDuplicateMountPoint(targetPath string) error {
 	return nil
 }
 
-func (ns *nodeServer) getPvcFromDiskId(diskId string) (*v1.PersistentVolumeClaim, error) {
-	ctx := context.Background()
-	pv, err := ns.clientSet.CoreV1().PersistentVolumes().Get(ctx, diskId, metav1.GetOptions{})
-	if err != nil {
-		log.Errorf("getPvcFromDiskId: failed to get pv from apiserver: %v", err)
-		return nil, err
-	}
-	pvcName, pvcNamespace := pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace
-	pvc, err := ns.clientSet.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(ctx, pvcName, metav1.GetOptions{})
-	if err != nil {
-		log.Errorf("getPvcFromDiskId: failed to get pvc from apiserver: %v", err)
-	}
-	return pvc, nil
-}
-
 // collectMountOptions returns array of mount options
 func collectMountOptions(fsType string, mntFlags []string) (options []string) {
 	for _, opt := range mntFlags {
@@ -1037,4 +1046,40 @@ func collectMountOptions(fsType string, mntFlags []string) (options []string) {
 	}
 	return
 
+}
+
+// func  handle error : event( autoSnapshot ID return) + error
+func deleteVolumeExpandAutoSnapshot(ctx context.Context, volumeExpandAutoSnapshotID string) error {
+	log.Infof("NodeExpandVolume:: Starting to delete volumeExpandAutoSnapshot with id: %s", volumeExpandAutoSnapshotID)
+
+	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
+
+	response, err := requestAndDeleteSnapshot(volumeExpandAutoSnapshotID, veasp.ForceDelete)
+	if err != nil {
+		if response != nil {
+			log.Errorf("NodeExpandVolume:: fail to delete %s with error: %s", volumeExpandAutoSnapshotID, err.Error())
+		}
+		return err
+	}
+	str := fmt.Sprintf("NodeExpandVolume:: Successfully delete snapshot %s", volumeExpandAutoSnapshotID)
+	log.Info(str)
+	//utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
+	return nil
+}
+
+// deleteUntagAutoSnapshot deletes and untags volumeExpandAutoSnapshot facing expand error
+func deleteUntagAutoSnapshot(snapshotID, diskID string) {
+	log.Infof("Deleted volumeExpandAutoSnapshot with id: %s", snapshotID)
+	_, pvc, err := getPvPvcFromDiskId(diskID)
+	if err != nil {
+		log.Errorf("NodeExpandVolume:: failed to get pvc from apiserver: %s", err.Error())
+	}
+	err = deleteVolumeExpandAutoSnapshot(context.Background(), snapshotID)
+	if err != nil {
+		log.Errorf("NodeExpandVolume:: failed to delete volumeExpandAutoSnapshot: %s", err.Error())
+	}
+	err = updateVolumeExpandAutoSnapshotID(pvc, snapshotID, "delete")
+	if err != nil {
+		log.Errorf("NodeExpandVolume:: failed to untag volumeExpandAutoSnapshot: %s", err.Error())
+	}
 }
