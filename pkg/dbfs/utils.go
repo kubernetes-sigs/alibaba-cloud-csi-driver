@@ -263,7 +263,8 @@ func newDbfsClient(ac utils.AccessControl, regionID string) (dbfsClient *dbfs.Cl
 	} else {
 		dbfsClient, err = dbfs.NewClientWithStsToken(GlobalConfigVar.Region, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
 	}
-	dbfsClient.SetHTTPSInsecure(true)
+	dbfsClient.SetHTTPSInsecure(false)
+	dbfsClient.GetConfig().WithScheme("HTTPS")
 	if err != nil {
 		return nil
 	}

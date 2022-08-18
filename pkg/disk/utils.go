@@ -198,7 +198,8 @@ func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 	default:
 		ecsClient, err = ecs.NewClientWithStsToken(regionID, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
 	}
-	ecsClient.SetHTTPSInsecure(true)
+	ecsClient.SetHTTPSInsecure(false)
+	ecsClient.GetConfig().WithScheme("HTTPS")
 	if err != nil {
 		return nil
 	}
