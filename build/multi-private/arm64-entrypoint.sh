@@ -11,6 +11,35 @@ mv /acs/which-2.20-7.el7.aarch64.rpm /var/lib/kubelet/which-2.20-7.el7.aarch64.r
 ossfsVer="1.80.6.ack.1"
 armfsVer="1.80.6"
 
+
+host_os="centos"
+${HOST_CMD} ls /etc/os-release
+os_release_exist=$?
+
+#get host os type
+if [[ "$os_release_exist" = "0" ]]; then
+    osID=`${HOST_CMD} cat /etc/os-release | grep "ID=" | grep -v "VERSION_ID"`
+    osVersion=`${HOST_CMD} cat /etc/os-release | grep "VERSION_ID=" | grep "^VERSION_ID=\"3"`
+    if [[ `echo ${osID} | grep "alinux" | wc -l` != "0" ]] && [[ "${osVersion}" ]]; then
+        host_os="alinux3"
+    fi
+    if [[ `echo ${osID} | grep "kylin" | wc -l` != "0" ]]; then
+        host_os="kylin"
+    fi
+    if [[ `echo ${osID} | grep "uos" | wc -l` != "0" ]] ; then
+        host_os="uos"
+    fi
+		if [[ `echo ${osID} | grep "lifsea" | wc -l` != "0" ]]; then
+        host_os="lifsea"
+    fi
+fi
+
+#update oss file in kylin/uos
+ossPath=/usr/bin/ossfs
+if [[ ${host_os} == "kylin" ]] || [[ ${host_os} == "uos" ]]; then
+   ossPath=/usr/bin/ossfs-8u
+fi
+
 ## check which plugin is running
 for item in $@;
 do
@@ -24,7 +53,7 @@ do
       /usr/bin/nsenter yum localinstall -y /var/lib/kubelet/fuse-2.9.2-11.el7.aarch64.rpm
       if [ ! `/usr/bin/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
           echo "First install ossfs...."
-          cp /usr/bin/ossfs /host/usr/bin/
+          cp $ossPath /host/usr/bin/
           echo "cp result -- `/usr/bin/nsenter --mount=/proc/1/ns/mnt which ossfs` --"
       else
           echo "ossfs is already on host"
@@ -54,7 +83,7 @@ do
               /usr/bin/nsenter yum localinstall -y /var/lib/kubelet/fuse-2.9.2-11.el7.aarch64.rpm
 							if [ ! `/usr/bin/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
 									echo "First install ossfs...."
-									cp /usr/bin/ossfs /host/usr/bin/
+									cp $ossPath /host/usr/bin/
 									echo "cp result -- `/usr/bin/nsenter --mount=/proc/1/ns/mnt which ossfs` --"
 							else
 									echo "ossfs is already on host"
@@ -77,6 +106,16 @@ done
 ## OSS plugin setup
 if [ "$run_oss" = "true" ]; then
     echo "Starting deploy oss csi-plugin...."
+    #update libstdc++ for arm kylin/uos
+    if [[ ${host_os} == "kylin" ]] || [[ ${host_os} == "uos" ]]; then
+      if [[ `strings /usr/lib64/libstdc++.so.6 | grep GLIBCXX | grep 3.4.26 | wc -l` != "1" ]]; then
+        echo "update libstdc++ version, link libstdc++.so.6.0.28 to /lib64"
+        /bin/cp -f /acs/libstdc++.so.6.0.28 /host/usr/lib64/libstdc++.so.6.0.28
+        /nsenter --mount=/proc/1/ns/mnt unlink /lib64/libstdc++.so.6
+        /nsenter --mount=/proc/1/ns/mnt ln -s /lib64/libstdc++.so.6.0.28 /lib64/libstdc++.so.6
+      fi
+    fi
+
 		if [ -e "/host/usr/lib64/libfuse.so.2" ]; then
         echo "libfuse exists in host"
     else
@@ -93,7 +132,7 @@ if [ "$run_oss" = "true" ]; then
     if [ ! `/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
         echo "First install ossfs...."
         /nsenter --mount=/proc/1/ns/mnt yum install -y ossfs
-        /nsenter --mount=/proc/1/ns/mnt ln -s /usr/bin/ossfs /usr/local/bin/ossfs
+        /nsenter --mount=/proc/1/ns/mnt ln -s $ossPath /usr/local/bin/ossfs
     # update OSSFS
     else
         echo "Check ossfs Version...."
@@ -102,7 +141,7 @@ if [ "$run_oss" = "true" ]; then
             echo "Upgrade ossfs...."
             /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
             /nsenter --mount=/proc/1/ns/mnt yum install -y ossfs
-            /nsenter --mount=/proc/1/ns/mnt ln -s /usr/bin/ossfs /usr/local/bin/ossfs
+            /nsenter --mount=/proc/1/ns/mnt ln -s $ossPath /usr/local/bin/ossfs
         fi
     fi
 fi
