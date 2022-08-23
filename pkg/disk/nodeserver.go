@@ -544,7 +544,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			return &csi.NodeStageVolumeResponse{}, nil
 		}
 
-		// check device avaliable
+		// check device available
 		deviceName := GetDeviceByMntPoint(targetPath)
 		if err := checkDeviceAvailable(deviceName, req.VolumeId, targetPath); err != nil {
 			log.Errorf("NodeStageVolume: mountPath is mounted %s, but check device available error: %s", targetPath, err.Error())

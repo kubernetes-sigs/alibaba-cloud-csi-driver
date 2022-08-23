@@ -163,8 +163,8 @@ var (
 	GITCOMMIT = "HEAD"
 	// KubernetesAlicloudIdentity is the system identity for ecs client request
 	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", VERSION)
-	// AvaliableDiskTypes ...
-	AvaliableDiskTypes = []string{DiskCommon, DiskESSD, DiskEfficiency, DiskSSD, DiskSharedSSD, DiskSharedEfficiency, DiskPPerf, DiskSPerf}
+	// AvailableDiskTypes ...
+	AvailableDiskTypes = []string{DiskCommon, DiskESSD, DiskEfficiency, DiskSSD, DiskSharedSSD, DiskSharedEfficiency, DiskPPerf, DiskSPerf}
 	// CustomDiskTypes ...
 	CustomDiskTypes = map[string]int{DiskESSD: 0, DiskSSD: 1, DiskEfficiency: 2, DiskPPerf: 3, DiskSPerf: 4}
 )
@@ -1161,7 +1161,7 @@ func validateDiskType(opts map[string]string) (diskType string, err error) {
 		diskType = strings.Join(orderedList, ",")
 		return
 	}
-	for _, t := range AvaliableDiskTypes {
+	for _, t := range AvailableDiskTypes {
 		if opts["type"] == t {
 			diskType = t
 		}
@@ -1595,7 +1595,7 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.V
 	return volumeCreate(disk.Category, diskID, volSizeBytes, volumeContext, disk.ZoneId, src), nil
 }
 
-// updateVolumeContext remove unneccessary volume context
+// updateVolumeContext remove unnecessary volume context
 func updateVolumeContext(volumeContext map[string]string) map[string]string {
 	for _, key := range []string{LastApplyKey, PvNameKey, PvcNameKey, PvcNamespaceKey, StorageProvisionerKey, "csi.alibabacloud.com/reclaimPolicy", "csi.alibabacloud.com/storageclassName", "allowVolumeExpansion", "volume.kubernetes.io/selected-node"} {
 		if _, ok := volumeContext[key]; ok {

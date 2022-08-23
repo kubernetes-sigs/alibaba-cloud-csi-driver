@@ -49,7 +49,7 @@ const (
 
 var (
 	metricType       string
-	nodeMetricSet    = hashset.New("disk_stat", "pfs_block_stat", "nfs_stat", "alinas_stat", "fuse_oss_stat")
+	nodeMetricSet    = hashset.New("disk_stat", "pfs_block_stat", "nfs_stat", "fuse_oss_stat")
 	clusterMetricSet = hashset.New("")
 )
 

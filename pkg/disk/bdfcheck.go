@@ -120,7 +120,7 @@ func isBdfHang() (bool, error) {
 		return true, err
 	}
 	if strings.TrimSpace(psOut) != "0" {
-		return true, fmt.Errorf("Proccess cat /sys/block/ already exist ")
+		return true, fmt.Errorf("Process cat /sys/block/ already exist ")
 	}
 
 	// run cat /sys/block/*/serial
@@ -142,7 +142,7 @@ func isBdfHang() (bool, error) {
 			return true, err
 		}
 		if strings.TrimSpace(psOut) != "0" {
-			return true, fmt.Errorf("Proccess cat /sys/block/ exist after exec ")
+			return true, fmt.Errorf("Process cat /sys/block/ exist after exec ")
 		}
 	}
 	return false, nil
