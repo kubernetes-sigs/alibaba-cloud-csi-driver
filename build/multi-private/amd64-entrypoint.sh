@@ -19,6 +19,12 @@ if [[ "$os_release_exist" = "0" ]]; then
     if [[ `echo ${osID} | grep "alinux" | wc -l` != "0" ]] && [[ "${osVersion}" ]]; then
         host_os="alinux3"
     fi
+    if [[ `echo ${osID} | grep "kylin" | wc -l` != "0" ]]; then
+        host_os="kylin"
+    fi
+    if [[ `echo ${osID} | grep "uos" | wc -l` != "0" ]] ; then
+        host_os="uos"
+    fi
 		if [[ `echo ${osID} | grep "lifsea" | wc -l` != "0" ]]; then
         host_os="lifsea"
     fi
@@ -73,6 +79,9 @@ if [ "$run_oss" = "true" ]; then
     ossfsVer="1.80.6.ack.1"
     if [ "$USE_UPDATE_OSSFS" == "" ]; then
         ossfsVer="1.86.4"
+    fi
+    if [[ ${host_os} == "kylin" ]] || [[ ${host_os} == "uos" ]]; then
+        ossfsVer="1.88.0"
     fi
 
     ossfsArch="centos7.0"
