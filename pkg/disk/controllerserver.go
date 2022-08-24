@@ -867,7 +867,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		return nil, err
 	}
 
-	// if is IA snapshot, snapshot ready immidately
+	// if is IA snapshot, snapshot ready immediately
 	tmpReadyToUse := false
 	if useInstanceAccess {
 		//updateSnapshotIAStatus(req, "completed")
@@ -1341,7 +1341,7 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 		return nil, status.Error(codes.Internal, fmt.Sprintf("volumeExpandAutoSnapshot create Failed: %v", err))
 	}
 
-	// as a IA snapshot, volumeExpandAutoSnapshot should be ready immidately
+	// as a IA snapshot, volumeExpandAutoSnapshot should be ready immediately
 	tmpReadyToUse := false
 	if veasp.InstantAccess {
 		tmpReadyToUse = true

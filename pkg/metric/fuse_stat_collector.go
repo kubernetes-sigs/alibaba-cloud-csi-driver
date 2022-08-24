@@ -15,7 +15,7 @@ var (
 	podInfo            = "pod_info"
 	mountPointInfo     = "mount_point_info"
 	counterTypeArray   = []string{"capacity_counter", "inodes_counter", "throughput_counter", "iops_counter", "latency_counter", "posix_counter", "oss_object_counter"}
-	hotSpotArray       = []string{"hot_spot_read_file_top", "hot_spot_write_file_top"}
+	hotSpotArray       = []string{"hot_spot_read_file_top", "hot_spot_write_file_top", "hot_spot_head_file_top"}
 )
 
 var (
@@ -198,6 +198,11 @@ var (
 		".",
 		usFsStatLabelNames, nil,
 	)
+	hotSpotHeadFileTopDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "hot_spot_head_file_top"),
+		".",
+		usFsStatLabelNames, nil,
+	)
 )
 
 type fuseInfo struct {
@@ -214,6 +219,7 @@ type fuseInfo struct {
 type usFsStatCollector struct {
 	hotSpotReadFileTop  *prometheus.Desc
 	hotSpotWriteFileTop *prometheus.Desc
+	hotSpotHeadFileTop  *prometheus.Desc
 	descs               []typedFactorDesc
 }
 
@@ -226,6 +232,7 @@ func NewFuseOssStatCollector() (Collector, error) {
 	return &usFsStatCollector{
 		hotSpotReadFileTop:  hotSpotReadFileTopDesc,
 		hotSpotWriteFileTop: hotSpotWriteFileTopDesc,
+		hotSpotHeadFileTop:  hotSpotHeadFileTopDesc,
 		descs: []typedFactorDesc{
 			//0-2
 			{desc: capacityBytesUsedCounterDesc, valueType: prometheus.CounterValue},
@@ -384,6 +391,9 @@ func (p *usFsStatCollector) Update(ch chan<- prometheus.Metric) error {
 							ch <- prometheus.MustNewConstMetric(p.hotSpotReadFileTop, prometheus.GaugeValue, valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, fileName)
 						case "hot_spot_write_file_top":
 							ch <- prometheus.MustNewConstMetric(p.hotSpotWriteFileTop, prometheus.GaugeValue, valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, fileName)
+						case "hot_spot_head_file_top":
+							ch <- prometheus.MustNewConstMetric(p.hotSpotHeadFileTop, prometheus.GaugeValue, valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, fileName)
+
 						default:
 							log.Errorf("Unknow hotSpotType:%s", hotSpotType)
 						}

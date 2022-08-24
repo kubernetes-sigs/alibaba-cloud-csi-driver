@@ -114,7 +114,7 @@ func ValidateCreateVolumeParams(params map[string]string) (*DiskParams, error) {
 	return dp, nil
 }
 
-// updateVolumeContext remove unneccessary volume context
+// updateVolumeContext remove unnecessary volume context
 func updateVolumeContext(volumeContext map[string]string) map[string]string {
 	for _, key := range []string{LastApplyKey, PvNameKey, PvcNameKey, PvcNamespaceKey, StorageProvisionerKey, "csi.alibabacloud.com/reclaimPolicy", "csi.alibabacloud.com/storageclassName", "allowVolumeExpansion", "volume.kubernetes.io/selected-node"} {
 		if _, ok := volumeContext[key]; ok {
