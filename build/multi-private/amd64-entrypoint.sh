@@ -80,13 +80,14 @@ if [ "$run_oss" = "true" ]; then
     if [ "$USE_UPDATE_OSSFS" == "" ]; then
         ossfsVer="1.86.4"
     fi
-    if [[ ${host_os} == "kylin" ]] || [[ ${host_os} == "uos" ]]; then
-        ossfsVer="1.88.0"
-    fi
 
     ossfsArch="centos7.0"
     if [[ ${host_os} == "alinux3" ]]; then
         ${HOST_CMD} yum install -y libcurl-devel libxml2-devel fuse-devel openssl-devel
+        ossfsArch="centos8"
+    fi
+    if [[ ${host_os} == "kylin" ]] || [[ ${host_os} == "uos" ]]; then
+        ossfsVer="1.88.0"
         ossfsArch="centos8"
     fi
 
