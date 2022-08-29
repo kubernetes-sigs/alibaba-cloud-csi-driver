@@ -17,6 +17,7 @@ limitations under the License.
 package disk
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -421,7 +422,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	log.Infof("NodeUnpublishVolume: Starting to Unmount Volume %s, Target %v", req.VolumeId, targetPath)
 	// Step 1: check folder exists
 	if !IsFileExisting(targetPath) {
-		if err := ns.unmountDuplicateMountPoint(targetPath); err != nil {
+		if err := ns.unmountDuplicateMountPoint(targetPath, req.VolumeId); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		log.Infof("NodeUnpublishVolume: Volume %s Folder %s doesn't exist", req.VolumeId, targetPath)
@@ -445,7 +446,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 	if notmounted {
 		if empty, _ := IsDirEmpty(targetPath); empty {
-			if err := ns.unmountDuplicateMountPoint(targetPath); err != nil {
+			if err := ns.unmountDuplicateMountPoint(targetPath, req.VolumeId); err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 			log.Infof("NodeUnpublishVolume: %s is unmounted and empty", targetPath)
@@ -476,7 +477,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	// below directory can not be umounted by kubelet in ack
-	if err := ns.unmountDuplicateMountPoint(targetPath); err != nil {
+	if err := ns.unmountDuplicateMountPoint(targetPath, req.VolumeId); err != nil {
 		log.Errorf("NodeUnpublishVolume: umount duplicate mountpoint %s with error: %v", targetPath, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -1001,32 +1002,43 @@ func (ns *nodeServer) mountDeviceToGlobal(capability *csi.VolumeCapability, volu
 	return nil
 }
 
-func (ns *nodeServer) unmountDuplicateMountPoint(targetPath string) error {
+func (ns *nodeServer) unmountDuplicateMountPoint(targetPath, volumeId string) error {
 	pathParts := strings.Split(targetPath, "/")
 	partsLen := len(pathParts)
 	if partsLen > 2 && pathParts[partsLen-1] == "mount" {
 		globalPath2 := filepath.Join("/var/lib/container/kubelet/plugins/kubernetes.io/csi/pv/", pathParts[partsLen-2], "/globalmount")
+
+		result := sha256.Sum256([]byte(fmt.Sprintf("%s", volumeId)))
+		volSha := fmt.Sprintf("%x", result)
+		globalPath3 := filepath.Join("/var/lib/container/kubelet/plugins/kubernetes.io/csi/", driverName, volSha, "/globalmount")
 		if utils.IsFileExisting(globalPath2) {
-			// check globalPath2 is mountpoint
-			notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(globalPath2)
-			if err == nil && !notmounted {
-				// check device is used by others
-				refs, err := ns.k8smounter.GetMountRefs(globalPath2)
-				if err == nil && !ns.mounter.HasMountRefs(globalPath2, refs) {
-					log.Infof("NodeUnpublishVolume: VolumeId Unmount global path %s for ack with kubelet data disk", globalPath2)
-					if err := utils.Umount(globalPath2); err != nil {
-						log.Errorf("NodeUnpublishVolume: volumeId: unmount global path %s failed with err: %v", globalPath2, err)
-						return status.Error(codes.Internal, err.Error())
-					}
-				} else {
-					log.Infof("Global Path %s is mounted by others: %v", globalPath2, refs)
-				}
-			} else {
-				log.Warnf("Global Path is not mounted: %s", globalPath2)
-			}
+			return ns.unmountDuplicationPath(globalPath2)
+		} else if utils.IsFileExisting(globalPath3) {
+			return ns.unmountDuplicationPath(globalPath3)
 		}
 	} else {
 		log.Warnf("Target Path is illegal format: %s", targetPath)
+	}
+	return nil
+}
+
+func (ns *nodeServer) unmountDuplicationPath(globalPath string) error {
+	// check globalPath2 is mountpoint
+	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(globalPath)
+	if err != nil || notmounted {
+		log.Warnf("Global Path is not mounted: %s", globalPath)
+		return nil
+	}
+	// check device is used by others
+	refs, err := ns.k8smounter.GetMountRefs(globalPath)
+	if err == nil && !ns.mounter.HasMountRefs(globalPath, refs) {
+		log.Infof("NodeUnpublishVolume: VolumeId Unmount global path %s for ack with kubelet data disk", globalPath)
+		if err := utils.Umount(globalPath); err != nil {
+			log.Errorf("NodeUnpublishVolume: volumeId: unmount global path %s failed with err: %v", globalPath, err)
+			return status.Error(codes.Internal, err.Error())
+		}
+	} else {
+		log.Infof("Global Path %s is mounted by others: %v", globalPath, refs)
 	}
 	return nil
 }
