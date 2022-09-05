@@ -28,7 +28,6 @@ import (
 	"google.golang.org/grpc/status"
 	"io/ioutil"
 	k8smount "k8s.io/utils/mount"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -71,11 +70,6 @@ const (
 	metricsPathPrefix = "/host/var/run/ossfs/"
 	// metricsTop
 	metricsTop = "10"
-)
-
-var (
-	// SharedPath is the shared mountpoint when UseSharedPath is "true"
-	SharedPath = filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/pv/%s/globalmount")
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -171,7 +165,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// default use allow_other
 	var mntCmd string
 	if opt.UseSharedPath {
-		sharedPath := fmt.Sprintf(SharedPath, req.GetVolumeId())
+		sharedPath := GetGlobalMountPath(req.GetVolumeId())
 		if IsOssfsMounted(sharedPath) {
 			log.Infof("NodePublishVolume: The shared path: %s is already mounted", sharedPath)
 		} else {
@@ -330,7 +324,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	pvName := req.GetVolumeId()
 	var umntCmd string
-	sharedMountPoint := fmt.Sprintf(SharedPath, pvName)
+	sharedMountPoint := GetGlobalMountPath(req.GetVolumeId())
 	if IsOssfsMounted(sharedMountPoint) {
 		log.Infof("NodeUnpublishVolume:: Starting umount a shared path oss volume: %s", req.TargetPath)
 		code, err := IsLastSharedVol(pvName)

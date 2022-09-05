@@ -18,11 +18,18 @@ package dbfs
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -31,11 +38,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	k8smount "k8s.io/utils/mount"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type nodeServer struct {
@@ -369,20 +371,35 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}, nil
 }
 
+func (ns *nodeServer) umountPath(globalPath string) error {
+	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(globalPath)
+	if err == nil && !notmounted {
+		if err := utils.Umount(globalPath); err != nil {
+			log.Errorf("umountGlobalPath: unmount global path %s failed with err: %v", globalPath, err)
+			return err
+		}
+		log.Infof("umountGlobalPath: successful unmount global path %s", globalPath)
+	} else {
+		log.Infof("umountGlobalPath: globalPath not exists: %v or not mounted: %v", err, notmounted)
+	}
+	return err
+}
+
 func (ns *nodeServer) umountGlobalPath(volumeID, targetPath string) error {
 	pathParts := strings.Split(targetPath, "/")
 	partsLen := len(pathParts)
 	if partsLen > 2 && pathParts[partsLen-1] == "mount" {
 		pvName := pathParts[partsLen-2]
-		globalPath := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/pv/", pvName, "/globalmount")
+		globalPathVer1 := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/pv/", pvName, "/globalmount")
 		if podMounted, err := isPodMounted(pvName); err == nil && podMounted == false {
-			notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(globalPath)
-			if err == nil && !notmounted {
-				if err := utils.Umount(globalPath); err != nil {
-					log.Errorf("umountGlobalPath: unmount global path %s failed with err: %v", globalPath, err)
-					return status.Error(codes.Internal, err.Error())
+			if err = ns.umountPath(globalPathVer1); err != nil {
+				result := sha256.Sum256([]byte(fmt.Sprintf("%s", volumeID)))
+				volSha := fmt.Sprintf("%x", result)
+				globalPathVer2 := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/", driverName, volSha, "/globalmount")
+				err = ns.umountPath(globalPathVer2)
+				if err != nil {
+					return fmt.Errorf("umountGlobalPath: unmount globalPathVer2 failed: %+v", err)
 				}
-				log.Infof("umountGlobalPath: successful unmount global path %s, %s", globalPath, volumeID)
 			}
 		} else {
 			log.Errorf("umountGlobalPath: Target Path is mounted by others: %s", targetPath)

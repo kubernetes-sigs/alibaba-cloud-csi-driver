@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
@@ -322,4 +323,20 @@ func parseCapacityThreshold(s string, defaults float64) (float64, error) {
 		return defaults, err
 	}
 	return thresholNum, nil
+}
+
+func getGlobalMountPathByPvName(pvName string, info *diskInfo) {
+
+	result := sha256.Sum256([]byte(fmt.Sprintf("%s", info.DiskID)))
+	volSha := fmt.Sprintf("%x", result)
+
+	globalFileVer1 := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/pv/", pvName, "/globalmount")
+	globalFileVer2 := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/", diskDriverName, volSha, "/globalmount")
+
+	if utils.IsFileExisting(globalFileVer1) {
+		info.GlobalMountPath = globalFileVer1
+	} else {
+		info.GlobalMountPath = globalFileVer2
+	}
+
 }
