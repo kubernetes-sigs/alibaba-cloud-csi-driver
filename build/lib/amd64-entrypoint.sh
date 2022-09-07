@@ -172,7 +172,7 @@ if [ "$run_oss" = "true" ] || [ "$run_disk" = "true" ]; then
             mkdir -p /host/etc/csi-tool/
         fi
     fi
-		cp /csi/freezefs.sh /host/etc/csi-tool/freezefs.sh
+		cp /freezefs.sh /host/etc/csi-tool/freezefs.sh
     if [ "$updateConnector" = "true" ]; then
         echo "Install csiplugin-connector...."
         cp /csi/csiplugin-connector /host/etc/csi-tool/csiplugin-connector
