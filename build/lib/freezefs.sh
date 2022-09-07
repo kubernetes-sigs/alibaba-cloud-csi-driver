@@ -4,8 +4,13 @@
 # sh fsfreeze.sh --type=unfreeze --path=/var/lib/kubelet/plugins/kubernetes.io/csi/pv/d-hp39lj3xo500dacme9hi/globalmount
 
 timeoutFunc() {
+  pathTmp=$1
   echo `date`" fsfreeze start to sleep: "$timeout  >> /var/log/alicloud/fsfreeze.log
   sleep $2
+  if ["$1" != pathTmp ]; then
+    echo `date`" skip fsfreeze-finish as already unfreeze"
+    exit 0
+  fi
   echo `date`" fsfreeze-finish to path: "$1  >> /var/log/alicloud/fsfreeze.log
   fsfreeze -u $1 &>> /var/log/alicloud/fsfreeze.log
   if [ "$?" != "0" ]; then
@@ -45,4 +50,6 @@ if [ "$?" != "0" ]; then
   exit 1
 fi
 
-timeoutFunc $path $timeout &
+if [ "$type" = "freeze" ]; then
+  timeoutFunc $path $timeout &
+fi
