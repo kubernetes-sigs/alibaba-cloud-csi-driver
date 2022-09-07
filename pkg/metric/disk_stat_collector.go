@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -483,10 +482,6 @@ func getDiskStats() (map[string][]string, error) {
 	defer file.Close()
 
 	return parseDiskStats(file)
-}
-
-func getGlobalMountPathByPvName(pvName string, info *diskInfo) {
-	info.GlobalMountPath = filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/pv/", pvName, "/globalmount")
 }
 
 func getDiskCapacityMetric(pvName string, info *diskInfo, stat []string) ([]string, error) {

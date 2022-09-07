@@ -696,6 +696,7 @@ func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 	return mountErr
 }
 
+// ens should not exists datadisk
 func (ns *nodeServer) unmountDuplicateMountPoint(targetPath string) error {
 	pathParts := strings.Split(targetPath, "/")
 	partsLen := len(pathParts)
