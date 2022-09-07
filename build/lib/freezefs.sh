@@ -4,12 +4,17 @@
 # sh fsfreeze.sh --type=unfreeze --path=/var/lib/kubelet/plugins/kubernetes.io/csi/pv/d-hp39lj3xo500dacme9hi/globalmount
 
 timeoutFunc() {
+  errorTpl="unfreeze failed: Invalid argument"
   echo `date`" fsfreeze start to sleep: "$timeout  >> /var/log/alicloud/fsfreeze.log
   sleep $2
   echo `date`" fsfreeze-finish to path: "$1  >> /var/log/alicloud/fsfreeze.log
-  fsfreeze -u $1 &>> /var/log/alicloud/fsfreeze.log
-  if [ "$?" != "0" ]; then
-    echo `date`" fsfreeze -u "$1" error." >> /var/log/alicloud/fsfreeze.log
+  returnStr=$(fsfreeze -u $1 2>&1)
+  if [[ -n $returnStr ]]; then
+    if [[ $returnStr == *$errorTpl* ]]; then
+    echo `date`" the status of "$1" is already unfreeze" >> /var/log/alicloud/fsfreeze.log
+    exit 0
+    fi
+    echo `date`" fsfreeze -u "$1" error: $returnStr" >> /var/log/alicloud/fsfreeze.log
     exit 0
   fi
 }
