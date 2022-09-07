@@ -45,6 +45,8 @@ const (
 	InstanceID = "instance-id"
 	// RegionIDTag is the region id tag
 	RegionIDTag = "region-id"
+	// MkfsOptions tag
+	MkfsOptions = "mkfsOptions"
 )
 
 // ErrParse is an error that is returned when parse operation fails

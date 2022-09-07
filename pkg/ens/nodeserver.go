@@ -17,8 +17,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
-	k8smount "k8s.io/utils/mount"
 )
 
 const (
@@ -418,7 +418,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	// do format-mount or mount
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
 	if len(mkfsOptions) > 0 && (fsType == "ext4" || fsType == "ext3") {
-		if err := formatAndMount(diskMounter, device, targetPath, fsType, mkfsOptions, mountOptions); err != nil {
+		if err := utils.FormatAndMount(diskMounter, device, targetPath, fsType, mkfsOptions, mountOptions); err != nil {
 			log.Errorf("Mountdevice: FormatAndMount fail with mkfsOptions %s, %s, %s, %s, %s with error: %s", device, targetPath, fsType, mkfsOptions, mountOptions, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -566,7 +566,7 @@ func (ns *nodeServer) mountDeviceToGlobal(capability *csi.VolumeCapability, volu
 	// do format-mount or mount
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
 	if len(mkfsOptions) > 0 && (fsType == "ext4" || fsType == "ext3") {
-		if err := formatAndMount(diskMounter, device, sourcePath, fsType, mkfsOptions, mountOptions); err != nil {
+		if err := utils.FormatAndMount(diskMounter, device, sourcePath, fsType, mkfsOptions, mountOptions); err != nil {
 			log.Errorf("mountDeviceToGlobal: FormatAndMount fail with mkfsOptions %s, %s, %s, %s, %s with error: %s", device, sourcePath, fsType, mkfsOptions, mountOptions, err.Error())
 			return status.Error(codes.Internal, err.Error())
 		}
@@ -606,97 +606,6 @@ func collectMountOptions(fsType string, mntFlags []string) (options []string) {
 
 }
 
-// formatAndMount uses unix utils to format and mount the given disk
-func formatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, target string, fstype string, mkfsOptions []string, mountOptions []string) error {
-	readOnly := false
-	for _, option := range mountOptions {
-		if option == "ro" {
-			readOnly = true
-			break
-		}
-	}
-
-	// check device fs
-	mountOptions = append(mountOptions, "defaults")
-	if !readOnly {
-		// Run fsck on the disk to fix repairable issues, only do this for volumes requested as rw.
-		args := []string{"-a", source}
-
-		out, err := diskMounter.Exec.Command("fsck", args...).CombinedOutput()
-		if err != nil {
-			ee, isExitError := err.(utilexec.ExitError)
-			switch {
-			case err == utilexec.ErrExecutableNotFound:
-				log.Warningf("'fsck' not found on system; continuing mount without running 'fsck'.")
-			case isExitError && ee.ExitStatus() == FSCK_ERRORS_CORRECTED:
-				log.Infof("Device %s has errors which were corrected by fsck.", source)
-			case isExitError && ee.ExitStatus() == FSCK_ERRORS_UNCORRECTED:
-				return fmt.Errorf("'fsck' found errors on device %s but could not correct them: %s", source, string(out))
-			case isExitError && ee.ExitStatus() > FSCK_ERRORS_UNCORRECTED:
-			}
-		}
-	}
-
-	// Try to mount the disk
-	mountErr := diskMounter.Interface.Mount(source, target, fstype, mountOptions)
-	if mountErr != nil {
-		// Mount failed. This indicates either that the disk is unformatted or
-		// it contains an unexpected filesystem.
-		existingFormat, err := diskMounter.GetDiskFormat(source)
-		if err != nil {
-			return err
-		}
-		if existingFormat == "" {
-			if readOnly {
-				// Don't attempt to format if mounting as readonly, return an error to reflect this.
-				return fmt.Errorf("failed to mount unformatted volume %s as read only", source)
-			}
-
-			// Disk is unformatted so format it.
-			args := []string{source}
-			// Use 'ext4' as the default
-			if len(fstype) == 0 {
-				fstype = "ext4"
-			}
-
-			if fstype == "ext4" || fstype == "ext3" {
-				args = []string{
-					"-F",  // Force flag
-					"-m0", // Zero blocks reserved for super-user
-					source,
-				}
-				// add mkfs options
-				if len(mkfsOptions) != 0 {
-					args = []string{}
-					for _, opts := range mkfsOptions {
-						args = append(args, opts)
-					}
-					args = append(args, source)
-				}
-			}
-			log.Infof("Disk %q appears to be unformatted, attempting to format as type: %q with options: %v", source, fstype, args)
-
-			_, err := diskMounter.Exec.Command("mkfs."+fstype, args...).CombinedOutput()
-			if err == nil {
-				// the disk has been formatted successfully try to mount it again.
-				return diskMounter.Interface.Mount(source, target, fstype, mountOptions)
-			}
-			log.Errorf("format of disk %q failed: type:(%q) target:(%q) options:(%q) error:(%v)", source, fstype, target, args, err)
-			return err
-		}
-		// Disk is already formatted and failed to mount
-		if len(fstype) == 0 || fstype == existingFormat {
-			// This is mount error
-			return mountErr
-		}
-		// Block device is formatted with unexpected filesystem, let the user know
-		return fmt.Errorf("failed to mount the volume as %q, it already contains %s. Mount error: %v", fstype, existingFormat, mountErr)
-	}
-
-	return mountErr
-}
-
-// ens should not exists datadisk
 func (ns *nodeServer) unmountDuplicateMountPoint(targetPath string) error {
 	pathParts := strings.Split(targetPath, "/")
 	partsLen := len(pathParts)
