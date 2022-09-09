@@ -11,6 +11,7 @@ mv /acs/which-2.20-7.el7.aarch64.rpm /var/lib/kubelet/which-2.20-7.el7.aarch64.r
 ossfsVer="1.80.6.ack.1"
 armfsVer="1.80.6"
 
+HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
 
 host_os="centos"
 ${HOST_CMD} ls /etc/os-release
