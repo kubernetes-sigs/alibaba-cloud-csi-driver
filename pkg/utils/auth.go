@@ -168,10 +168,21 @@ func GetAccessControl() AccessControl {
 
 }
 
+var oidcProvider oidc.Provider
+
 func getOIDCToken() AccessControl {
 
 	if os.Getenv("USE_OIDC_AUTH_INNER") != "true" {
 		return AccessControl{}
+	}
+	if oidcProvider != nil {
+		log.Infof("getOIDCToken: use exists provider")
+		resp, err := oidcProvider.GetStsTokenWithCache()
+		if err != nil || resp == nil {
+			log.Errorf("getOIDCtoken: failed to assume role with oidc : %++v", err)
+			return AccessControl{}
+		}
+		return AccessControl{AccessKeyID: strings.TrimSpace(resp.Credentials.AccessKeyId), AccessKeySecret: strings.TrimSpace(resp.Credentials.AccessKeySecret), StsToken: strings.TrimSpace(resp.Credentials.SecurityToken), UseMode: OIDCToken}
 	}
 
 	regionID := os.Getenv("REGION_ID")
@@ -188,19 +199,19 @@ func getOIDCToken() AccessControl {
 		return AccessControl{}
 	}
 
-	provider := oidc.NewOIDCProviderVPC(
+	oidcProvider = oidc.NewOIDCProviderVPC(
 		regionID,
 		"alibaba-cloud-csi-controller",
 		"alibaba-cloud-csi-controller-oidc-provider",
 		"alibaba-cloud-csi-controller-oidc-role",
 		ownerId,
 		time.Duration(1000)*time.Second)
-	if provider == nil {
+	if oidcProvider == nil {
 		log.Errorf("getOIDCtoken: get empty provider")
 		return AccessControl{}
 	}
-	resp, err := provider.AssumeRoleWithOIDC()
-	if err != nil {
+	resp, err := oidcProvider.GetStsTokenWithCache()
+	if err != nil || resp == nil {
 		log.Errorf("getOIDCtoken: failed to assume role with oidc : %++v", err)
 		return AccessControl{}
 	}

@@ -5,6 +5,15 @@ import (
 	"time"
 )
 
+var _ Provider = &oidcProvider{}
+
+type Provider interface {
+	AssumeRoleWithOIDC() (*sts.AssumeRoleWithOIDCResponse, error)
+	NewClientWithStsToken(response *sts.AssumeRoleWithOIDCResponse) (*Client, error)
+	GetStsTokenWithCache() (*sts.AssumeRoleWithOIDCResponse, error)
+	GetClient() (*Client, error)
+}
+
 type oidcProvider struct{}
 
 // NewOIDCProvider create a new OIDC Provider
@@ -19,6 +28,11 @@ func NewOIDCProviderVPC(region, appName, providerName, roleName, UUID string, du
 
 // AssumeRoleWithOIDC assume role with OIDC provider, return sts token
 func (p *oidcProvider) AssumeRoleWithOIDC() (*sts.AssumeRoleWithOIDCResponse, error) {
+	return nil, nil
+}
+
+// GetStsTokenWithCache get sts token with OIDC provider, return assume role response
+func (p *oidcProvider) GetStsTokenWithCache() (*sts.AssumeRoleWithOIDCResponse, error) {
 	return nil, nil
 }
 

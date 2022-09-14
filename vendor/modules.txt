@@ -118,6 +118,8 @@ github.com/google/uuid
 github.com/googleapis/gnostic/OpenAPIv2
 github.com/googleapis/gnostic/compiler
 github.com/googleapis/gnostic/extensions
+# github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542
+github.com/h2non/parth
 # github.com/hashicorp/golang-lru v0.5.4 => github.com/hashicorp/golang-lru v0.5.1
 github.com/hashicorp/golang-lru
 github.com/hashicorp/golang-lru/simplelru
@@ -295,6 +297,8 @@ google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/timestamppb
 google.golang.org/protobuf/types/known/wrapperspb
+# gopkg.in/h2non/gock.v1 v1.1.2
+gopkg.in/h2non/gock.v1
 # gopkg.in/inf.v0 v0.9.1 => gopkg.in/inf.v0 v0.9.1
 gopkg.in/inf.v0
 # gopkg.in/ini.v1 v1.62.0
