@@ -22,11 +22,13 @@ import (
 	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"io/ioutil"
+	"k8s.io/client-go/dynamic"
 	k8smount "k8s.io/utils/mount"
 	"strconv"
 	"strings"
@@ -36,6 +38,7 @@ import (
 type nodeServer struct {
 	k8smounter k8smount.Interface
 	*csicommon.DefaultNodeServer
+	dynamicClient        dynamic.Interface
 	writeCredentialMutex sync.Mutex
 }
 
@@ -76,6 +79,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// logout oss paras
 	log.Infof("NodePublishVolume:: Starting Mount volume: %s mount with req: %+v", req.VolumeId, req)
 	mountPath := req.GetTargetPath()
+	var cnfsName string
 	opt := &Options{}
 	opt.UseSharedPath = false
 	opt.FuseType = OssFsType
@@ -108,7 +112,18 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.FuseType = strings.ToLower(strings.TrimSpace(value))
 		} else if key == "metricstop" {
 			opt.MetricsTop = strings.ToLower(strings.TrimSpace(value))
+		} else if key == "containernetworkfilesystem" {
+			cnfsName = value
 		}
+	}
+
+	if len(opt.Bucket) == 0 {
+		cnfs, err := v1beta1.GetCnfsObject(ns.dynamicClient, cnfsName)
+		if err != nil {
+			return nil, err
+		}
+		opt.Bucket = cnfs.Status.FsAttributes.BucketName
+		opt.URL = cnfs.Status.FsAttributes.EndPoint.Internal
 	}
 
 	// Default oss path

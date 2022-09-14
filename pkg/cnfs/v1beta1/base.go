@@ -2,8 +2,6 @@ package v1beta1
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
@@ -36,10 +34,6 @@ func GetCnfsObject(client dynamic.Interface, name string) (*ContainerNetworkFile
 	if err != nil {
 		log.Errorf("Get cnfs %s is failed, err:%s", name, err)
 		return nil, err
-	}
-	if cnfsObj.Status.Status != "Available" {
-		msg := fmt.Sprintf("ContainerNetworkFileSystem %s is not available, status is %s", name, cnfsObj.Status.Status)
-		return nil, errors.New(msg)
 	}
 	return cnfsObj, nil
 }
