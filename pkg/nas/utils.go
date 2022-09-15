@@ -234,8 +234,12 @@ func newNasClient(ac utils.AccessControl, regionID string) (nasClient *aliNas.Cl
 	default:
 		nasClient, err = aliNas.NewClientWithStsToken(regionID, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
 	}
+	scheme := "HTTPS"
+	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
+		scheme = "HTTP"
+	}
 	nasClient.SetHTTPSInsecure(false)
-	nasClient.GetConfig().WithScheme("HTTPS")
+	nasClient.GetConfig().WithScheme(scheme)
 
 	if err != nil {
 		return nil

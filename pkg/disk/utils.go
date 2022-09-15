@@ -200,8 +200,12 @@ func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 	default:
 		ecsClient, err = ecs.NewClientWithStsToken(regionID, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
 	}
+	scheme := "HTTPS"
+	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
+		scheme = "HTTP"
+	}
 	ecsClient.SetHTTPSInsecure(false)
-	ecsClient.GetConfig().WithScheme("HTTPS")
+	ecsClient.GetConfig().WithScheme(scheme)
 	if err != nil {
 		return nil
 	}
