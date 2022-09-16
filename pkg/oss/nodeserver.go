@@ -122,6 +122,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, err
 		}
+		if cnfs.Status.FsAttributes.EndPoint == nil {
+			return nil, errors.New("Cnfs " + cnfsName + " is not ready, endpoint is empty.")
+		}
 		opt.Bucket = cnfs.Status.FsAttributes.BucketName
 		opt.URL = cnfs.Status.FsAttributes.EndPoint.Internal
 	}
