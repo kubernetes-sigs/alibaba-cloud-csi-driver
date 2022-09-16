@@ -263,8 +263,12 @@ func newDbfsClient(ac utils.AccessControl, regionID string) (dbfsClient *dbfs.Cl
 	} else {
 		dbfsClient, err = dbfs.NewClientWithStsToken(GlobalConfigVar.Region, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
 	}
+	scheme := "HTTPS"
+	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
+		scheme = "HTTP"
+	}
 	dbfsClient.SetHTTPSInsecure(false)
-	dbfsClient.GetConfig().WithScheme("HTTPS")
+	dbfsClient.GetConfig().WithScheme(scheme)
 	if err != nil {
 		return nil
 	}

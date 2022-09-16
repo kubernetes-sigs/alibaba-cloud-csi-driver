@@ -460,6 +460,10 @@ func getCredentialAK() AccessControl {
 			log.Errorf("Failed to resolve an authentication provider: %v", err)
 		}
 	}
-	config := sdk.NewConfig().WithScheme("https")
+	scheme := "https"
+	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
+		scheme = "http"
+	}
+	config := sdk.NewConfig().WithScheme(scheme)
 	return AccessControl{Config: config, Credential: credential, UseMode: Credential}
 }
