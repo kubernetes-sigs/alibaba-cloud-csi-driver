@@ -122,6 +122,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, err
 		}
+		if cnfs.Status.FsAttributes.EndPoint == nil {
+			return nil, errors.New("Cnfs " + cnfsName + " is not ready, endpoint is empty.")
+		}
 		opt.Bucket = cnfs.Status.FsAttributes.BucketName
 		opt.URL = cnfs.Status.FsAttributes.EndPoint.Internal
 	}
@@ -212,7 +215,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if opt.FuseType == JindoFsType {
 			mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s", mountPath, opt.Bucket, opt.Path, opt.URL, credentialProvider)
 		}
-		WriteMetricsInfo(metricsPathPrefix, req, *opt)
+		utils.WriteMetricsInfo(metricsPathPrefix, req, opt.MetricsTop, OssFsType, "oss", opt.Bucket)
 		if err := utils.DoMountInHost(mntCmd); err != nil {
 			return nil, err
 		}

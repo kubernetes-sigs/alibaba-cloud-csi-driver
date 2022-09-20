@@ -19,11 +19,9 @@ package oss
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -96,30 +94,4 @@ func IsLastSharedVol(pvName string) (string, error) {
 		return "0", err
 	}
 	return strings.TrimSpace(out), nil
-}
-
-func WriteMetricsInfo(metricsPathPrefix string, req *csi.NodePublishVolumeRequest, opt Options) {
-	podUIDPath := metricsPathPrefix + req.VolumeContext["csi.storage.k8s.io/pod.uid"] + "/"
-	mountPointPath := podUIDPath + req.GetVolumeId() + "/"
-	podInfoName := "pod_info"
-	mountPointName := "mount_point_info"
-	if !utils.IsFileExisting(mountPointPath) {
-		_ = utils.MkdirAll(mountPointPath, os.FileMode(0755))
-	}
-	if !utils.IsFileExisting(podUIDPath + podInfoName) {
-		info := req.VolumeContext["csi.storage.k8s.io/pod.namespace"] + " " +
-			req.VolumeContext["csi.storage.k8s.io/pod.name"] + " " +
-			req.VolumeContext["csi.storage.k8s.io/pod.uid"] + " " +
-			opt.MetricsTop
-		_ = utils.WriteAndSyncFile(podUIDPath+podInfoName, []byte(info), os.FileMode(0644))
-	}
-
-	if !utils.IsFileExisting(mountPointPath + mountPointName) {
-		info := "ossfs" + " " +
-			"oss" + " " +
-			opt.Bucket + " " +
-			req.GetVolumeId() + " " +
-			req.TargetPath
-		_ = utils.WriteAndSyncFile(mountPointPath+mountPointName, []byte(info), os.FileMode(0644))
-	}
 }
