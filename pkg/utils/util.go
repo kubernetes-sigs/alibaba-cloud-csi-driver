@@ -823,3 +823,29 @@ func RemoveAll(deletePath string) error {
 func MkdirAll(path string, mode fs.FileMode) error {
 	return os.MkdirAll(path, mode)
 }
+
+func WriteMetricsInfo(metricsPathPrefix string, req *csi.NodePublishVolumeRequest, metricsTop string, clientName string, storageBackendName string, fsName string) {
+	podUIDPath := metricsPathPrefix + req.VolumeContext["csi.storage.k8s.io/pod.uid"] + "/"
+	mountPointPath := podUIDPath + req.GetVolumeId() + "/"
+	podInfoName := "pod_info"
+	mountPointName := "mount_point_info"
+	if !IsFileExisting(mountPointPath) {
+		_ = MkdirAll(mountPointPath, os.FileMode(0755))
+	}
+	if !IsFileExisting(podUIDPath + podInfoName) {
+		info := req.VolumeContext["csi.storage.k8s.io/pod.namespace"] + " " +
+			req.VolumeContext["csi.storage.k8s.io/pod.name"] + " " +
+			req.VolumeContext["csi.storage.k8s.io/pod.uid"] + " " +
+			metricsTop
+		_ = WriteAndSyncFile(podUIDPath+podInfoName, []byte(info), os.FileMode(0644))
+	}
+
+	if !IsFileExisting(mountPointPath + mountPointName) {
+		info := clientName + " " +
+			storageBackendName + " " +
+			fsName + " " +
+			req.GetVolumeId() + " " +
+			req.TargetPath
+		_ = WriteAndSyncFile(mountPointPath+mountPointName, []byte(info), os.FileMode(0644))
+	}
+}

@@ -93,6 +93,9 @@ const (
 	MountProtocolAliNas = "alinas"
 	// MountProtocolTag tag
 	MountProtocolTag = "mountProtocol"
+
+	// metricsPathPrefix
+	metricsPathPrefix = "/host/var/run/eac/"
 )
 
 // newNodeServer create the csi node server
@@ -318,7 +321,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		log.Errorf("Nas, Mount Nfs error: %s", err.Error())
 		return nil, errors.New("Nas, Mount Nfs error: %s" + err.Error())
 	}
-
+	if strings.Contains(opt.Server, ".nas.aliyuncs.com") && useEaClient == "true" {
+		fsID := GetFsIDByServer(opt.Server)
+		if len(fsID) != 0 {
+			utils.WriteMetricsInfo(metricsPathPrefix, req, "10", "eac", "nas", fsID)
+		}
+	}
 	// change the mode
 	if opt.Mode != "" && opt.Path != "/" {
 		var wg1 sync.WaitGroup

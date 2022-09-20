@@ -11,7 +11,7 @@ import (
 
 var (
 	fsClientPathPrefix = "/host/var/run/"
-	fsClientTypeArray  = []string{"ossfs"}
+	fsClientTypeArray  = []string{"ossfs", "eac"}
 	podInfo            = "pod_info"
 	mountPointInfo     = "mount_point_info"
 	counterTypeArray   = []string{"capacity_counter", "inodes_counter", "throughput_counter", "iops_counter", "latency_counter", "posix_counter", "oss_object_counter"}
