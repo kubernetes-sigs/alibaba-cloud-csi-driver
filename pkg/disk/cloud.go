@@ -753,7 +753,7 @@ func DescribeDiskInstanceEvents(instanceId string, ecsClient *ecs.Client) (event
 	diher.Scheme = "https"
 	diher.ResourceType = "instance"
 	instanceIds := make([]string, 0, 1)
-	instanceIds = append(instanceIds, "i-2ze7kmacdkxpsa1eyu9u")
+	instanceIds = append(instanceIds, instanceId)
 	diher.ResourceId = &instanceIds
 	diher.InstanceEventCycleStatus = &[]string{"Scheduled", "Avoided", "Executing", "Executed", "Canceled", "Failed", "Inquiring"}
 	diher.PageSize = "100"
