@@ -218,7 +218,7 @@ func GlobalConfigSet(serviceType string) *restclient.Config {
 		deleteRpm("alinas-eac.x86_64")
 		deleteRpm("aliyun-alinas-utils.noarch")
 		installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
-		installRpm("alinas-eac", "alinas-eac-1.0-1.x86_64.rpm")
+		installRpm("alinas-eac", "alinas-eac-1.0-2.x86_64.rpm")
 		runCmd := fmt.Sprintf("%s systemctl start aliyun-alinas-mount-watchdog", NsenterCmd)
 		_, err := utils.Run(runCmd)
 		if err != nil {

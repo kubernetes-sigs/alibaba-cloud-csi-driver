@@ -215,7 +215,7 @@ if [ "$run_nas" = "true" ]; then
     # cpfs-nas nas-rich-client common rpm
     cp /root/aliyun-alinas-utils-1.1-2.al7.noarch.rpm /host/etc/csi-tool/
     # nas-rich-client rpm
-    cp /root/alinas-eac-1.0-1.x86_64.rpm /host/etc/csi-tool/
+    cp /root/alinas-eac-1.0-2.x86_64.rpm /host/etc/csi-tool/
 fi
 
 ## Jindofs plugin setup
