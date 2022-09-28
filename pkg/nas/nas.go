@@ -211,20 +211,32 @@ func GlobalConfigSet(serviceType string) *restclient.Config {
 				}
 			}
 		}
-	}
-	//install alinas rpm(alinas-eac alinas-utils) and cpfs rpm(alinas-utils)
-	if serviceType == utils.PluginService {
-		//deleteRpm before installRpm
-		deleteRpm("alinas-eac.x86_64")
-		deleteRpm("aliyun-alinas-utils.noarch")
-		installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
-		installRpm("alinas-eac", "alinas-eac-1.0-2.x86_64.rpm")
-		runCmd := fmt.Sprintf("%s systemctl start aliyun-alinas-mount-watchdog", NsenterCmd)
-		_, err := utils.Run(runCmd)
-		if err != nil {
-			log.Errorf("Run %s is failed, err: %v", runCmd, err)
-		} else {
-			log.Infof("Run %s is successfully", runCmd)
+		if value, ok := configMap.Data["cpfs-nas-enable"]; ok {
+			if value == "enable" || value == "yes" || value == "true" {
+				if serviceType == utils.PluginService {
+					deleteRpm("aliyun-alinas-utils.noarch")
+					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
+				}
+			}
+		}
+		if value, ok := configMap.Data["cnfs-client-properties"]; ok {
+			if strings.Contains(value, "enable=true") {
+				//install alinas rpm(alinas-eac alinas-utils) and cpfs rpm(alinas-utils)
+				if serviceType == utils.PluginService {
+					//deleteRpm before installRpm
+					deleteRpm("alinas-eac.x86_64")
+					deleteRpm("aliyun-alinas-utils.noarch")
+					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-2.al7.noarch.rpm")
+					installRpm("alinas-eac", "alinas-eac-1.0-2.x86_64.rpm")
+					runCmd := fmt.Sprintf("%s systemctl start aliyun-alinas-mount-watchdog", NsenterCmd)
+					_, err := utils.Run(runCmd)
+					if err != nil {
+						log.Errorf("Run %s is failed, err: %v", runCmd, err)
+					} else {
+						log.Infof("Run %s is successfully", runCmd)
+					}
+				}
+			}
 		}
 	}
 
