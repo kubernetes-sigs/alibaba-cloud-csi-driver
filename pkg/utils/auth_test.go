@@ -17,6 +17,7 @@ limitations under the License.
 package utils
 
 import (
+	"gopkg.in/h2non/gock.v1"
 	"os"
 	"testing"
 
@@ -38,4 +39,48 @@ func TestGetAccessControl(t *testing.T) {
 	assert.Empty(t, ac.AccessKeyID)
 	assert.Empty(t, ac.AccessKeySecret)
 	assert.Empty(t, ac.StsToken)
+}
+
+func TestGetOIDCToken(t *testing.T) {
+	defer gock.Off()
+	testExamples := []struct {
+		regionId    string
+		ownerId     string
+		useOIDCAuth string
+		expectKeyId string
+	}{
+		{
+			regionId:    "cn-test1",
+			ownerId:     "owner-test1",
+			useOIDCAuth: "true",
+			expectKeyId: "",
+		},
+		{
+			regionId:    "",
+			ownerId:     "owner-test1",
+			useOIDCAuth: "true",
+			expectKeyId: "",
+		},
+		{
+			regionId:    "",
+			ownerId:     "",
+			useOIDCAuth: "false",
+			expectKeyId: "",
+		},
+	}
+	for _, test := range testExamples {
+		os.Setenv("USE_OIDC_AUTH_INNER", "true")
+		gock.New("http://100.100.100.200").
+			Get("/latest/meta-data/region-id").
+			Reply(200).
+			BodyString(test.regionId)
+		gock.New("http://100.100.100.200").
+			Get("/latest/meta-data/owner-account-id").
+			Reply(200).
+			BodyString(test.ownerId)
+		ac := getOIDCToken()
+		if ac.AccessKeyID != "" {
+			assert.Equal(t, test.expectKeyId, ac.AccessKeyID)
+		}
+	}
 }

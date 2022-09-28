@@ -225,7 +225,7 @@ func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 
 func updateEcsClient(client *ecs.Client) *ecs.Client {
 	ac := utils.GetAccessControl()
-	if ac.UseMode == utils.EcsRAMRole || ac.UseMode == utils.ManagedToken {
+	if ac.UseMode == utils.EcsRAMRole || ac.UseMode == utils.ManagedToken || ac.UseMode == utils.OIDCToken {
 		client = newEcsClient(ac)
 	}
 	if client.Client.GetConfig() != nil {
