@@ -927,9 +927,9 @@ func FormatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 			}
 			log.Infof("Disk %q appears to be unformatted, attempting to format as type: %q with options: %v", source, fstype, args)
 			startT := time.Now()
-			
+
 			pvName := filepath.Base(source)
-			_, err := diskMounter.Exec.Command("mkfs." + fstype, args...).CombinedOutput()
+			_, err := diskMounter.Exec.Command("mkfs."+fstype, args...).CombinedOutput()
 			log.Infof("Disk format finished, pvName: %s elapsedTime: %+v ms", pvName, time.Now().Sub(startT).Milliseconds())
 			if err == nil {
 				// the disk has been formatted successfully try to mount it again.
