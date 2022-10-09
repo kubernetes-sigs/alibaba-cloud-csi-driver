@@ -231,9 +231,10 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 	if err != nil {
 		nodeInfo, err = kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 		if err != nil {
+			// nodeinfo is necessary in local volume
 			log.Fatalf("Describe node %s with error: %s", nodeName, err.Error())
 		}
-	} 
+	}
 
 	if value, ok := nodeInfo.Labels[types.PmemNodeLable]; ok {
 		nodePmemType := strings.TrimSpace(value)
