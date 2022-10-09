@@ -229,22 +229,25 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 	pmeType := ""
 	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("Describe node %s with error: %s", nodeName, err.Error())
-	} else {
-		if value, ok := nodeInfo.Labels[types.PmemNodeLable]; ok {
-			nodePmemType := strings.TrimSpace(value)
-			pmemEnable = true
-			for _, supportPmemType := range PmemSupportType {
-				if nodePmemType == supportPmemType {
-					pmeType = supportPmemType
-				}
-			}
-			if pmeType == "" {
-				log.Fatalf("GlobalConfigSet: unknown pemeType: %s", nodePmemType)
+		nodeInfo, err = kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+		if err != nil {
+			log.Fatalf("Describe node %s with error: %s", nodeName, err.Error())
+		}
+	} 
+
+	if value, ok := nodeInfo.Labels[types.PmemNodeLable]; ok {
+		nodePmemType := strings.TrimSpace(value)
+		pmemEnable = true
+		for _, supportPmemType := range PmemSupportType {
+			if nodePmemType == supportPmemType {
+				pmeType = supportPmemType
 			}
 		}
-		log.Infof("GlobalConfigSet: Describe node %s and Set PMEM to %v, %s", nodeName, pmemEnable, pmeType)
+		if pmeType == "" {
+			log.Fatalf("GlobalConfigSet: unknown pemeType: %s", nodePmemType)
+		}
 	}
+	log.Infof("GlobalConfigSet: Describe node %s and Set PMEM to %v, %s", nodeName, pmemEnable, pmeType)
 
 	grpcProvision := true
 	remoteConfig := os.Getenv("LOCAL_GRPC_PROVISION")
