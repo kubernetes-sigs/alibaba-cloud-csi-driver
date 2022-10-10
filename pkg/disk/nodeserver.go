@@ -357,6 +357,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// start to mount
 	mnt := req.VolumeCapability.GetMount()
 	options := append(mnt.MountFlags, "bind")
+	log.Infof("NodePublishVolume: VolumeCapability.MountFlags: %+v, req.ReadOnly: %+v", mnt.MountFlags, req.Readonly)
 	if req.Readonly {
 		options = append(options, "ro")
 	}
