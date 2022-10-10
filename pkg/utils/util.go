@@ -363,14 +363,15 @@ func RetryGetMetaData(resource string) string {
 	var nodeID string
 	for i := 0; i < MetadataMaxRetrycount; i++ {
 		nodeID, _ = GetMetaData(resource)
-		if strings.Contains(nodeID, "Error 500 Internal Server Error") {
-			if i == MetadataMaxRetrycount-1 {
-				log.Fatalf("NewDriver:: Access metadata server failed: %v", nodeID)
-			}
-			continue
+		if nodeID != "" && !strings.Contains(nodeID, "Error 500 Internal Server Error") {
+			break
 		}
-		return nodeID
+		time.Sleep(1 * time.Second)
 	}
+	if nodeID == "" || strings.Contains(nodeID, "Error 500 Internal Server Error") {
+		log.Fatalf("RetryGetMetadata: failed to get instanceId: %s from metadataserver %s after 4 retrys", nodeID, MetadataURL+resource)
+	}
+	log.Infof("RetryGetMetaData: successful get metadata %v: %v", resource, nodeID)
 	return nodeID
 }
 

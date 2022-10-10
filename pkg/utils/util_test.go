@@ -24,7 +24,9 @@ import (
 	"runtime"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/h2non/gock.v1"
 )
 
 const (
@@ -127,6 +129,52 @@ func WriteTestContent(path string) string {
 		panic(err)
 	}
 	return fileName
+}
+
+func TestRetryMetadataServer(t *testing.T) {
+	defer gock.Off()
+
+	testExamples := []struct {
+		resource         string
+		reString         string
+		expectString     string
+		expectFatalError bool
+	}{
+		{
+			resource:         "instance-id",
+			reString:         "i-asdfjiasdfji",
+			expectString:     "i-asdfjiasdfji",
+			expectFatalError: false,
+		},
+		{
+			resource:         "instance-id",
+			reString:         "",
+			expectString:     "",
+			expectFatalError: true,
+		},
+		{
+			resource:         "instance-id",
+			reString:         "Error 500 Internal Server Error",
+			expectString:     "Error 500 Internal Server Error",
+			expectFatalError: true,
+		},
+	}
+	defer func() { log.StandardLogger().ExitFunc = nil }()
+	var fatal bool
+	log.StandardLogger().ExitFunc = func(int) { fatal = true }
+
+	for _, test := range testExamples {
+		gock.New("http://100.100.100.200").
+			Get("/latest/meta-data/" + test.resource).
+			Reply(200).
+			BodyString(test.reString)
+		fatal = false
+		actualData := RetryGetMetaData(test.resource)
+		assert.Equal(t, test.expectFatalError, fatal)
+		if !test.expectFatalError {
+			assert.Equal(t, test.expectString, actualData)
+		}
+	}
 }
 
 // func TestPodRunTime(t *testing.T) {

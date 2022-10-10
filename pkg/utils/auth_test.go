@@ -17,6 +17,7 @@ limitations under the License.
 package utils
 
 import (
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/h2non/gock.v1"
 	"os"
 	"testing"
@@ -46,39 +47,54 @@ func TestGetOIDCToken(t *testing.T) {
 	testExamples := []struct {
 		regionId    string
 		ownerId     string
-		useOIDCAuth string
 		expectKeyId string
+		fatalError  bool
+		newProvider bool
 	}{
 		{
 			regionId:    "cn-test1",
 			ownerId:     "owner-test1",
-			useOIDCAuth: "true",
 			expectKeyId: "",
+			fatalError:  false,
+			newProvider: true,
 		},
 		{
 			regionId:    "",
 			ownerId:     "owner-test1",
-			useOIDCAuth: "true",
 			expectKeyId: "",
+			fatalError:  false,
+			newProvider: false,
+		},
+		{
+			regionId:    "",
+			ownerId:     "owner-test1",
+			expectKeyId: "",
+			fatalError:  true,
+			newProvider: true,
 		},
 		{
 			regionId:    "",
 			ownerId:     "",
-			useOIDCAuth: "false",
 			expectKeyId: "",
+			fatalError:  true,
+			newProvider: true,
 		},
 	}
+	defer func() { log.StandardLogger().ExitFunc = nil }()
+	var fatal bool
+	log.StandardLogger().ExitFunc = func(int) { fatal = true }
 	for _, test := range testExamples {
+		if test.newProvider {
+			oidcProvider = nil
+		}
 		os.Setenv("USE_OIDC_AUTH_INNER", "true")
-		gock.New("http://100.100.100.200").
-			Get("/latest/meta-data/region-id").
-			Reply(200).
-			BodyString(test.regionId)
-		gock.New("http://100.100.100.200").
-			Get("/latest/meta-data/owner-account-id").
-			Reply(200).
-			BodyString(test.ownerId)
+		// os.Setenv("REGION_ID", test.regionId)
+		// os.Setenv("ACCOUNT_ID", test.ownerId)
+		gock.New("http://100.100.100.200").Get("/latest/meta-data/region-id").Reply(200).BodyString(test.regionId)
+		gock.New("http://100.100.100.200").Get("/latest/meta-data/owner-account-id").Reply(200).BodyString(test.ownerId)
+		fatal = false
 		ac := getOIDCToken()
+		assert.Equal(t, test.fatalError, fatal)
 		if ac.AccessKeyID != "" {
 			assert.Equal(t, test.expectKeyId, ac.AccessKeyID)
 		}
