@@ -261,3 +261,38 @@ func getPvSpec(client kubernetes.Interface, volumeID, driverName string) (string
 	log.Infof("Get Lvm Spec for volume %s, with VgName %s, Node %s", volumeID, pv.Spec.CSI.VolumeAttributes["vgName"], nodes[0])
 	return nodes[0], vgName, pv, nil
 }
+
+func IsPmemSupported(nodeName string, kubeClient kubernetes.Interface) (pmemEnable bool, pmemType string) {
+	pmemEnable = false
+	pmemType = ""
+	if nodeName == "" {
+		log.Infof("IsPmemSupported: nodeName: %s is empty, pmem check interrupted", nodeName)
+		return
+	}
+	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	if err != nil {
+		nodeInfo, err = kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+		if err != nil {
+			// nodeinfo is necessary in local volume
+			log.Fatalf("Describe node %s with error: %s", nodeName, err.Error())
+		}
+	}
+	if nodeInfo == nil {
+		return
+	}
+
+	if value, ok := nodeInfo.Labels[types.PmemNodeLable]; ok {
+		nodePmemType := strings.TrimSpace(value)
+		pmemEnable = true
+		for _, supportPmemType := range PmemSupportType {
+			if nodePmemType == supportPmemType {
+				pmemType = supportPmemType
+			}
+		}
+		if pmemType == "" {
+			log.Fatalf("GlobalConfigSet: unknown pemeType: %s", nodePmemType)
+		}
+	}
+	log.Infof("GlobalConfigSet: Describe node %s and Set PMEM to %v, %s", nodeName, pmemEnable, pmemType)
+	return
+}

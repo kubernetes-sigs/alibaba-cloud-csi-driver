@@ -17,7 +17,6 @@ limitations under the License.
 package local
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -30,7 +29,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -225,30 +223,7 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 	}
 
 	nodeName := os.Getenv("KUBE_NODE_NAME")
-	pmemEnable := false
-	pmeType := ""
-	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
-	if err != nil {
-		nodeInfo, err = kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
-		if err != nil {
-			// nodeinfo is necessary in local volume
-			log.Fatalf("Describe node %s with error: %s", nodeName, err.Error())
-		}
-	}
-
-	if value, ok := nodeInfo.Labels[types.PmemNodeLable]; ok {
-		nodePmemType := strings.TrimSpace(value)
-		pmemEnable = true
-		for _, supportPmemType := range PmemSupportType {
-			if nodePmemType == supportPmemType {
-				pmeType = supportPmemType
-			}
-		}
-		if pmeType == "" {
-			log.Fatalf("GlobalConfigSet: unknown pemeType: %s", nodePmemType)
-		}
-	}
-	log.Infof("GlobalConfigSet: Describe node %s and Set PMEM to %v, %s", nodeName, pmemEnable, pmeType)
+	pmemEnable, pmeType := IsPmemSupported(nodeName, kubeClient)
 
 	grpcProvision := true
 	remoteConfig := os.Getenv("LOCAL_GRPC_PROVISION")
