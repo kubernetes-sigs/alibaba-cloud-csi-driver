@@ -36,9 +36,8 @@ import (
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/pkg/util/resizefs"
+	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
-	k8smount "k8s.io/utils/mount"
 )
 
 const (
@@ -396,15 +395,18 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 		}
 
 		// use resizer to expand volume filesystem
-		resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()})
-		ok, err := resizer.Resize(devicePath, targetPath)
+		mounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
+		r := k8smount.NewResizeFs(mounter.Exec)
+		needResize, err := r.NeedResize(devicePath, targetPath)
 		if err != nil {
-			log.Errorf("NodeExpandVolume:: Lvm Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeID, devicePath, targetPath, err.Error())
+			log.Errorf("NodeExpandVolume:: get need resize error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeID, devicePath, targetPath, err.Error())
 			return err
 		}
-		if !ok {
-			log.Errorf("NodeExpandVolume:: Lvm Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, targetPath)
-			return status.Error(codes.Internal, "Fail to resize volume fs")
+		if needResize {
+			log.Infof("NodeExpandVolume: Resizing volume %q created from a snapshot/volume", volumeID)
+			if _, err := r.Resize(devicePath, targetPath); err != nil {
+				return err
+			}
 		}
 		log.Infof("NodeExpandVolume:: lvm resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, targetPath)
 		return nil

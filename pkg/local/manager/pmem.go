@@ -3,12 +3,13 @@ package manager
 import (
 	"errors"
 	"fmt"
+	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
-	k8smount "k8s.io/utils/mount"
 	"path/filepath"
 	"strings"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -174,7 +175,7 @@ func MaintainQuotaPath(regions *PmemRegions, mounter k8smount.Interface) error {
 			return err
 		}
 		diskMounter := &k8smount.SafeFormatAndMount{Interface: mounter, Exec: utilexec.New()}
-		err = formatAndMount(diskMounter, devicePath, namespaceFullPath, types.PmemDeviceFilesystem, mkfsOptions, options)
+		err = utils.FormatAndMount(diskMounter, devicePath, namespaceFullPath, types.PmemDeviceFilesystem, mkfsOptions, options)
 		if err != nil {
 			log.Errorf("MaintainQuotaPath: formatAndMount quotapath err: %v", err)
 			continue

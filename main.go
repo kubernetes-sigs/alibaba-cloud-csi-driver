@@ -18,10 +18,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -142,6 +145,18 @@ func main() {
 	case utils.PluginService:
 		logAttribute = TypePluginSuffix
 	default:
+	}
+
+	// enable pprof analyse
+	pprofPort := os.Getenv("PPROF_PORT")
+	if pprofPort != "" {
+		if _, err := strconv.Atoi(pprofPort); err == nil {
+			log.Infof("enable pprof & start port at %v", pprofPort)
+			go func() {
+				err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%v", pprofPort), nil)
+				log.Errorf("start server err: %v", err)
+			}()
+		}
 	}
 
 	setLogAttribute(logAttribute)
@@ -282,6 +297,7 @@ func main() {
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatalf("Service port listen and serve err:%s", err.Error())
 	}
+
 	wg.Wait()
 	os.Exit(0)
 }

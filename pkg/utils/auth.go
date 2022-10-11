@@ -193,9 +193,13 @@ func getOIDCToken() AccessControl {
 		log.Error("getOIDCToken: failed to get regionid from metadata server")
 		return AccessControl{}
 	}
-	ownerId := RetryGetMetaData("owner-account-id")
+	ownerId := os.Getenv("ACCOUNT_ID")
+	if ownerId == "" {
+		ownerId = RetryGetMetaData("owner-account-id")
+	}
 	log.Infof("getOIDCToken: cluster owner id: %v", ownerId)
 	if ownerId == "" {
+		log.Error("getOIDCToken: failed to get cluster owner id from metadata server")
 		return AccessControl{}
 	}
 

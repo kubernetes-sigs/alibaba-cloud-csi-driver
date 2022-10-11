@@ -4,6 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -11,16 +15,12 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	"k8s.io/kubernetes/pkg/util/resizefs"
+	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
-	k8smount "k8s.io/utils/mount"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 // include normal lvm & aep lvm type
@@ -93,9 +93,16 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 		mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
 		options = append(options, mountFlags...)
 
+		// Set mkfs options for ext3, ext4
+		mkfsOptions := make([]string, 0)
+		if value, ok := req.VolumeContext[MkfsOptions]; ok {
+			mkfsOptions = strings.Split(value, " ")
+		}
+
 		diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
-		if err := diskMounter.FormatAndMount(devicePath, targetPath, fsType, options); err != nil {
-			log.Errorf("NodeStageVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, devicePath, err.Error())
+
+		if err := utils.FormatAndMount(diskMounter, devicePath, targetPath, fsType, mkfsOptions, options); err != nil {
+			log.Errorf("NodePublishVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, devicePath, err.Error())
 			return status.Error(codes.Internal, err.Error())
 		}
 		log.Infof("NodePublishVolume:: mount successful devicePath: %s, targetPath: %s, options: %v", devicePath, targetPath, options)
@@ -432,15 +439,18 @@ func (ns *nodeServer) checkPmemNameSpaceResize(volumeID, targetPath string) erro
 
 	devicePath := filepath.Join("/dev", pmemBlockDev)
 	// use resizer to expand volume filesystem
-	resizer := resizefs.NewResizeFs(&k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()})
-	ok, err := resizer.Resize(devicePath, targetPath)
+	mounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
+	r := k8smount.NewResizeFs(mounter.Exec)
+	needResize, err := r.NeedResize(devicePath, targetPath)
 	if err != nil {
 		log.Errorf("NodeExpandVolume:: Lvm Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", volumeID, devicePath, targetPath, err.Error())
 		return err
 	}
-	if !ok {
-		log.Errorf("NodeExpandVolume:: Lvm Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, targetPath)
-		return status.Error(codes.Internal, "Fail to resize volume fs")
+	if needResize {
+		log.Infof("NodeStageVolume: Resizing volume %q created from a snapshot/volume", devicePath)
+		if _, err := r.Resize(devicePath, targetPath); err != nil {
+			return err
+		}
 	}
 	log.Infof("NodeExpandVolume:: lvm resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", volumeID, devicePath, targetPath)
 	return nil
