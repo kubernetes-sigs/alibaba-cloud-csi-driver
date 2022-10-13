@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -155,6 +156,7 @@ type diskVolumeArgs struct {
 	StorageClusterID        string              `json:"storageClusterId"`
 	DiskTags                string              `json:"diskTags"`
 	NodeSelected            string              `json:"nodeSelected"`
+	DelAutoSnap             bool                `json:"delAutoSnap"`
 	ARN                     []ecs.CreateDiskArn `json:"arn"`
 	VolumeSizeAutoAvailable bool                `json:"volumeSizeAutoAvailable"`
 }
@@ -188,6 +190,8 @@ var veasp = struct {
 	RetentionDays               int
 	InstanceAccessRetentionDays int
 }{"volumeExpandAutoSnapshotID", "volume-expand-auto-snapshot-", true, true, 1, 1}
+
+var delVolumeSnap sync.Map
 
 // NewControllerServer is to create controller server
 func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset, region string) csi.ControllerServer {
@@ -367,12 +371,16 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	tag1 := ecs.CreateDiskTag{Key: DISKTAGKEY1, Value: DISKTAGVALUE1}
 	tag2 := ecs.CreateDiskTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
 	tag3 := ecs.CreateDiskTag{Key: DISKTAGKEY3, Value: GlobalConfigVar.ClusterID}
-
+	tag4 := ecs.CreateDiskTag{Key: VolumeDeleteAutoSnapshotKey, Value: "true"}
 	diskTags = append(diskTags, tag1)
 	diskTags = append(diskTags, tag2)
 	if GlobalConfigVar.ClusterID != "" {
 		diskTags = append(diskTags, tag3)
 	}
+	if diskVol.DelAutoSnap {
+		diskTags = append(diskTags, tag4)
+	}
+
 	// Set Default DiskTags
 	// Set Config DiskTags
 	if diskVol.DiskTags != "" {
@@ -535,6 +543,14 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		}
 	}
 
+	if GlobalConfigVar.SnapshotBeforeDelete {
+		err = snapshotBeforeDelete(req.GetVolumeId(), ecsClient)
+		if err != nil {
+			log.Errorf("DeleteVolume: failed to create snapshot before delete disk, err: %v", err)
+			return nil, status.Errorf(codes.Internal, err.Error())
+		}
+	}
+
 	deleteDiskRequest := ecs.CreateDeleteDiskRequest()
 	deleteDiskRequest.DiskId = req.GetVolumeId()
 	response, err := ecsClient.DeleteDisk(deleteDiskRequest)
@@ -556,6 +572,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		delete(diskIDPVMap, req.VolumeId)
 	}
 	log.Infof("DeleteVolume: Successfully deleting volume: %s, with RequestId: %s", req.GetVolumeId(), response.RequestId)
+	delVolumeSnap.Delete(req.GetVolumeId())
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
@@ -889,6 +906,36 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	return &csi.CreateSnapshotResponse{
 		Snapshot: csiSnapshot,
 	}, nil
+}
+
+func snapshotBeforeDelete(volumeID string, ecsClient *ecs.Client) error {
+	disk, err := findDiskByID(volumeID, ecsClient)
+	if err != nil {
+		return err
+	}
+	if disk.Category != DiskESSD && disk.Category != DiskESSDAuto {
+		log.Infof("snapshotBeforeDelete: only supports essd type which current disk.Catagory is: %s", disk.Category)
+		return nil
+	}
+
+	if !utils.HasSpecificTagKey(VolumeDeleteAutoSnapshotKey, disk) {
+		log.Infof("snapshotBeforeDelete: disk: %v didn't open the feature in related storageclass", volumeID)
+		return nil
+	}
+	deleteVolumeSnapshotName := fmt.Sprintf("%s-delprotect", volumeID)
+	if value, ok := delVolumeSnap.Load(volumeID); ok {
+		return createStaticSnap(volumeID, value.(string), GlobalConfigVar.SnapClient)
+	}
+	resp, err := requestAndCreateSnapshot(ecsClient, volumeID, deleteVolumeSnapshotName, "", 1, 1, true, true)
+	if err != nil {
+		return err
+	}
+	if resp.SnapshotId == "" {
+		log.Infof("snapshotBeforeDelete: snapshotId is empty: %s", resp.SnapshotId)
+		return nil
+	}
+	delVolumeSnap.Store(volumeID, resp.SnapshotId)
+	return createStaticSnap(volumeID, resp.SnapshotId, GlobalConfigVar.SnapClient)
 }
 
 func updateSnapshotIAStatus(req *csi.CreateSnapshotRequest, status string) error {

@@ -44,6 +44,8 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/containerd/ttrpc"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	volumeSnapshotV1 "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
+	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	proto "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	perrors "github.com/pkg/errors"
@@ -106,6 +108,8 @@ const (
 	DiskSSD = "cloud_ssd"
 	// DiskESSD essd disk type
 	DiskESSD = "cloud_essd"
+	// DiskESSDAuto  essd autopl disk type
+	DiskESSDAuto = "cloud_auto"
 	// DiskHighPerformance
 	DiskPPerf = "cloud_pperf"
 	// DiskStandPerformace
@@ -145,11 +149,12 @@ const (
 	// RemoteSnapshotLabelKey ...
 	RemoteSnapshotLabelKey = "csi.alibabacloud.com/snapshot.targetregion"
 	// SnapshotVolumeKey ...
-	SnapshotVolumeKey = "csi.alibabacloud.com/snapshot.volumeid"
-	labelAppendPrefix = "csi.alibabacloud.com/label-prefix/"
-	annVolumeTopoKey  = "csi.alibabacloud.com/volume-topology"
-	labelVolumeType   = "csi.alibabacloud.com/disktype"
-	annAppendPrefix   = "csi.alibabacloud.com/annotation-prefix/"
+	SnapshotVolumeKey           = "csi.alibabacloud.com/snapshot.volumeid"
+	labelAppendPrefix           = "csi.alibabacloud.com/label-prefix/"
+	annVolumeTopoKey            = "csi.alibabacloud.com/volume-topology"
+	labelVolumeType             = "csi.alibabacloud.com/disktype"
+	annAppendPrefix             = "csi.alibabacloud.com/annotation-prefix/"
+	VolumeDeleteAutoSnapshotKey = "csi.alibabacloud.com/volume-delete-autosnapshot"
 )
 
 var (
@@ -1049,6 +1054,12 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 			return nil, fmt.Errorf("illegal optional parameter volumeExpandAutoSnapshot, only support forced, besteffort and closed, the input is: %s", value)
 		}
 	}
+	if value, ok = volOptions["volumeDeleteAutoSnapshot"]; ok {
+		value = strings.ToLower(value)
+		if value == "true" {
+			diskVolArgs.DelAutoSnap = true
+		}
+	}
 
 	return diskVolArgs, nil
 }
@@ -1682,4 +1693,59 @@ func updatePvcWithAnnotations(ctx context.Context, pvc *v1.PersistentVolumeClaim
 		}
 	}
 	return GlobalConfigVar.ClientSet.CoreV1().PersistentVolumeClaims(pvc.Namespace).Update(ctx, pvc, metav1.UpdateOptions{})
+}
+
+func makeVolumeSnapshot(snapName string, snapContentName string) *volumeSnapshotV1.VolumeSnapshot {
+	vs := &volumeSnapshotV1.VolumeSnapshot{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: snapName,
+		},
+		Spec: volumeSnapshotV1.VolumeSnapshotSpec{
+			Source: volumeSnapshotV1.VolumeSnapshotSource{
+				VolumeSnapshotContentName: &snapContentName,
+			},
+		},
+	}
+	return vs
+}
+
+func makeVolumeSnapshotContent(snapName, snapContentName, snapshotID string) *volumeSnapshotV1.VolumeSnapshotContent {
+	vs := &volumeSnapshotV1.VolumeSnapshotContent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: snapContentName,
+		},
+		Spec: volumeSnapshotV1.VolumeSnapshotContentSpec{
+			VolumeSnapshotRef: v1.ObjectReference{
+				APIVersion: "snapshot.storage.k8s.io/v1",
+				Kind:       "VolumeSnapshot",
+				Name:       snapName,
+			},
+			DeletionPolicy: volumeSnapshotV1.VolumeSnapshotContentDelete,
+			Source: volumeSnapshotV1.VolumeSnapshotContentSource{
+				SnapshotHandle: &snapshotID,
+			},
+			Driver: "diskplugin.csi.alibabacloud.com",
+		},
+	}
+	return vs
+}
+
+func createStaticSnap(volumeID, snapshotID string, snapClient snapClientset.Interface) error {
+
+	log.Infof("createStaticSnap: start to create snapshot of volume: %s, snapshotID: %s", volumeID, snapshotID)
+	volumeSnapshotName := fmt.Sprintf("%s-delprotect-%s", volumeID, time.Now().Format("2006-01-02-15:04:05"))
+	volumeSnapshotContentName := fmt.Sprintf("%s-delprotect-content-%s", volumeID, time.Now().Format("2006-01-02-15:04:05"))
+
+	volumeSnapshot := makeVolumeSnapshot(volumeSnapshotName, volumeSnapshotContentName)
+	volumeSnapshotContent := makeVolumeSnapshotContent(volumeSnapshotName, volumeSnapshotContentName, snapshotID)
+
+	_, err := snapClient.SnapshotV1().VolumeSnapshots("default").Create(context.Background(), volumeSnapshot, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	_, err = snapClient.SnapshotV1().VolumeSnapshotContents().Create(context.Background(), volumeSnapshotContent, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }

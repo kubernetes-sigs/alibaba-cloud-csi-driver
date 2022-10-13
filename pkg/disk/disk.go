@@ -85,6 +85,7 @@ type GlobalConfig struct {
 	WaitBeforeAttach      bool
 	AddonVMFatalEvents    []string
 	RequestBaseInfo       map[string]string
+	SnapshotBeforeDelete  bool
 }
 
 // define global variable
@@ -379,6 +380,12 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		isNodeMultiZoneEnable = true
 	}
 
+	delAutoSnap := false
+	volumeDelAutoSnap := os.Getenv("VOLUME_DEL_AUTO_SNAP")
+	if volumeDelAutoSnap == "true" {
+		delAutoSnap = true
+	}
+
 	log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete, clustID)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
@@ -405,6 +412,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		NodeMultiZoneEnable:   isNodeMultiZoneEnable,
 		WaitBeforeAttach:      isWaitBeforeAttach,
 		AddonVMFatalEvents:    fatalEvents,
+		SnapshotBeforeDelete:  delAutoSnap,
 		RequestBaseInfo:       map[string]string{"owner": "alibaba-cloud-csi-driver", "nodeName": nodeName},
 	}
 	return cfg
