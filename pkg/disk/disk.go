@@ -194,14 +194,16 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		}
 	}
 	cfg.AcceptContentTypes = strings.Join([]string{runtime.ContentTypeProtobuf, runtime.ContentTypeJSON}, ",")
+	// snapshotClient does not support protobuf
+	snapClient, err := snapClientset.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building kubernetes snapclientset: %s", err.Error())
+	}
+
 	cfg.ContentType = runtime.ContentTypeProtobuf
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
-	}
-	snapClient, err := snapClientset.NewForConfig(cfg)
-	if err != nil {
-		log.Fatalf("Error building kubernetes snapclientset: %s", err.Error())
 	}
 
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
