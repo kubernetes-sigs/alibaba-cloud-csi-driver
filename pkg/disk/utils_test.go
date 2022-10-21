@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	fakesnapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -88,5 +89,23 @@ func TestValidateDiskType(t *testing.T) {
 	for _, example := range examples {
 		actualResult, _ := validateDiskType(example)
 		assert.Equal(t, example["result"], actualResult)
+	}
+}
+
+func TestCreateStaticSnap(t *testing.T) {
+	tables := []struct {
+		volumeID   string
+		snapshotID string
+	}{
+		{
+			volumeID:   "test1",
+			snapshotID: "test2",
+		},
+	}
+
+	for _, table := range tables {
+		client := fakesnapshotv1.NewSimpleClientset()
+		err := createStaticSnap(table.volumeID, table.snapshotID, client)
+		assert.Nil(t, err)
 	}
 }

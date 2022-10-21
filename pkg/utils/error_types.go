@@ -43,7 +43,7 @@ var DiskProvisionErrors = map[string]*errorInfo{
 	"disk size is not supported.": {
 		errorName:           "SpecificSizeNotValid",
 		errorTypicalMessage: "disk size is not supported.",
-		errorSuggestion:     "recommand: Please adjust the size of the cloud disk；\n reference：https://help.aliyun.com/document_detail/25412.html",
+		errorSuggestion:     "recommand: Please adjust the size of the cloud disk；\n reference：https://help.aliyun.com/document_detail/25412.html#BlockStorageQuota",
 	},
 }
 

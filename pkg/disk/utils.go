@@ -44,6 +44,8 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/containerd/ttrpc"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	volumeSnapshotV1 "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
+	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	proto "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	perrors "github.com/pkg/errors"
@@ -57,101 +59,6 @@ import (
 	utilexec "k8s.io/utils/exec"
 )
 
-const (
-	// KubernetesAlicloudDiskDriver driver name
-	KubernetesAlicloudDiskDriver = "alicloud/disk"
-	// MetadataURL metadata URL
-	MetadataURL = "http://100.100.100.200/latest/meta-data/"
-	// DocumentURL document URL
-	DocumentURL = "http://100.100.100.200/latest/dynamic/instance-identity/document"
-	// RegionIDTag region ID
-	RegionIDTag = "region-id"
-	// InstanceID instance ID
-	InstanceID = "instance-id"
-	// DiskConflict invalid operation type
-	DiskConflict = "InvalidOperation.Conflict"
-	// IncorrectDiskStatus incorrect disk status
-	IncorrectDiskStatus = "IncorrectDiskStatus"
-	// NeverAttached status belongs to IncorrectDiskStatus
-	NeverAttached = "IncorrectDiskStatus.NeverAttached"
-	// DiskCreatingSnapshot ...
-	DiskCreatingSnapshot = "DiskCreatingSnapshot"
-	// UserNotInTheWhiteList tag
-	UserNotInTheWhiteList = "UserNotInTheWhiteList"
-	// TagK8sPV tag
-	TagK8sPV = "k8s-pv"
-	// ZoneIDTag tag
-	ZoneIDTag = "zone-id"
-	// LogfilePrefix tag
-	LogfilePrefix = "/var/log/alicloud/provisioner"
-	// DiskNotAvailable tag
-	DiskNotAvailable = "InvalidDataDiskCategory.NotSupported"
-	// DiskNotAvailableVer2 tag
-	DiskNotAvailableVer2 = "'DataDisk.n.Category' is not valid in this region."
-	// DiskSizeNotAvailable tag
-	DiskSizeNotAvailable = "InvalidDiskSize.NotSupported"
-	// DiskLimitExceeded tag
-	DiskLimitExceeded = "InstanceDiskLimitExceeded"
-	// NotSupportDiskCategory tag
-	NotSupportDiskCategory = "NotSupportDiskCategory"
-	// DiskNotPortable tag
-	DiskNotPortable = "DiskNotPortable"
-	// DiskHighAvail tag
-	DiskHighAvail = "available"
-	// DiskCommon common disk type
-	DiskCommon = "cloud"
-	// DiskEfficiency efficiency disk type
-	DiskEfficiency = "cloud_efficiency"
-	// DiskSSD ssd disk type
-	DiskSSD = "cloud_ssd"
-	// DiskESSD essd disk type
-	DiskESSD = "cloud_essd"
-	// DiskHighPerformance
-	DiskPPerf = "cloud_pperf"
-	// DiskStandPerformace
-	DiskSPerf = "cloud_sperf"
-	// DiskSharedSSD shared sdd disk type
-	DiskSharedSSD = "san_ssd"
-	// DiskSharedEfficiency shared efficiency disk type
-	DiskSharedEfficiency = "san_efficiency"
-	// MBSIZE tag
-	MBSIZE = 1024 * 1024
-	// GBSIZE tag
-	GBSIZE = 1024 * MBSIZE
-	// DefaultRegion is the default region id
-	DefaultRegion = "cn-hangzhou"
-	// DiskUUIDPath tag
-	DiskUUIDPath = "/host/etc/kubernetes/volumes/disk/uuid"
-	// ZoneID ...
-	ZoneID = "zoneId"
-	// instanceTypeLabel ...
-	instanceTypeLabel = "beta.kubernetes.io/instance-type"
-	// zoneIDLabel ...
-	zoneIDLabel = "failure-domain.beta.kubernetes.io/zone"
-	// sigmaLabel instance type ...
-	sigmaInstanceTypeLabel = "sigma.ali/machine-model"
-	// sigmaLabel zoneid ....
-	sigmaLabelZoneId = "sigma.ali/ecs-zone-id"
-	// nodeStorageLabel ...
-	nodeStorageLabel = "node.csi.alibabacloud.com/disktype.%s"
-	// kubeNodeName ...
-	kubeNodeName = "KUBE_NODE_NAME"
-	// describeResourceType ...
-	describeResourceType = "DataDisk"
-	// NodeSchedueTag in annotations
-	NodeSchedueTag = "volume.kubernetes.io/selected-node"
-	// RetryMaxTimes ...
-	RetryMaxTimes = 5
-	// RemoteSnapshotLabelKey ...
-	RemoteSnapshotLabelKey = "csi.alibabacloud.com/snapshot.targetregion"
-	// SnapshotVolumeKey ...
-	SnapshotVolumeKey = "csi.alibabacloud.com/snapshot.volumeid"
-	labelAppendPrefix = "csi.alibabacloud.com/label-prefix/"
-	annVolumeTopoKey  = "csi.alibabacloud.com/volume-topology"
-	labelVolumeType   = "csi.alibabacloud.com/disktype"
-	annAppendPrefix   = "csi.alibabacloud.com/annotation-prefix/"
-)
-
 var (
 	// VERSION should be updated by hand at each release
 	VERSION = "v1.14.6"
@@ -162,7 +69,8 @@ var (
 	// AvailableDiskTypes ...
 	AvailableDiskTypes = []string{DiskCommon, DiskESSD, DiskEfficiency, DiskSSD, DiskSharedSSD, DiskSharedEfficiency, DiskPPerf, DiskSPerf}
 	// CustomDiskTypes ...
-	CustomDiskTypes = map[string]int{DiskESSD: 0, DiskSSD: 1, DiskEfficiency: 2, DiskPPerf: 3, DiskSPerf: 4}
+	CustomDiskTypes       = map[string]int{DiskESSD: 0, DiskSSD: 1, DiskEfficiency: 2, DiskPPerf: 3, DiskSPerf: 4}
+	CustomDiskPerfermance = map[string]string{DISK_PERFORMANCE_LEVEL0: "", DISK_PERFORMANCE_LEVEL1: "", DISK_PERFORMANCE_LEVEL2: "", DISK_PERFORMANCE_LEVEL3: ""}
 )
 
 // DefaultOptions is the struct for access key
@@ -942,10 +850,6 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		diskVolArgs.RegionID = GlobalConfigVar.Region
 	}
 
-	diskVolArgs.PerformanceLevel, ok = volOptions["performanceLevel"]
-	if !ok {
-		diskVolArgs.PerformanceLevel = PERFORMANCELEVELPL1
-	}
 	diskVolArgs.NodeSelected, _ = volOptions[NodeSchedueTag]
 
 	// fstype
@@ -967,6 +871,11 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		return nil, fmt.Errorf("Illegal required parameter type: " + diskVolArgs.Type)
 	}
 	diskVolArgs.Type = diskType
+	pls, err := validateDiskPerformaceLevel(volOptions)
+	if err != nil {
+		return nil, err
+	}
+	diskVolArgs.PerformanceLevel = pls
 
 	// readonly, default false
 	value, ok := volOptions["readOnly"]
@@ -1001,9 +910,15 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	// DiskTags
-	diskVolArgs.DiskTags, ok = volOptions["diskTags"]
-	if !ok {
-		diskVolArgs.DiskTags = ""
+	diskTags, ok := volOptions["diskTags"]
+	if ok {
+		for _, tag := range strings.Split(diskTags, ",") {
+			tagParts := strings.Split(tag, ":")
+			if len(tagParts) != 2 {
+				return nil, status.Errorf(codes.Internal, "Invalid diskTags format name: %s tags: %s", req.GetName(), diskTags)
+			}
+			diskVolArgs.DiskTags = append(diskVolArgs.DiskTags, tag)
+		}
 	}
 
 	// kmsKeyId
@@ -1049,6 +964,12 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 			return nil, fmt.Errorf("illegal optional parameter volumeExpandAutoSnapshot, only support forced, besteffort and closed, the input is: %s", value)
 		}
 	}
+	if value, ok = volOptions["volumeDeleteAutoSnapshot"]; ok {
+		value = strings.ToLower(value)
+		if value == "true" {
+			diskVolArgs.DelAutoSnap = true
+		}
+	}
 
 	return diskVolArgs, nil
 }
@@ -1079,6 +1000,22 @@ func validateDiskType(opts map[string]string) (diskType string, err error) {
 		return diskType, fmt.Errorf("Illegal required parameter type: " + opts["type"])
 	}
 	return
+}
+
+func validateDiskPerformaceLevel(opts map[string]string) (performaceLevel string, err error) {
+	pl, ok := opts[ESSD_PERFORMANCE_LEVEL]
+	if !ok || pl == "" {
+		return DISK_PERFORMANCE_LEVEL1, nil
+	}
+	log.Infof("validateDiskPerformaceLevel: pl: %v", pl)
+	if strings.Contains(pl, ",") {
+		for _, cusPer := range strings.Split(pl, ",") {
+			if _, ok := CustomDiskPerfermance[cusPer]; !ok {
+				return "", fmt.Errorf("Illegal performace level type: %s", cusPer)
+			}
+		}
+	}
+	return pl, nil
 }
 
 func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
@@ -1419,7 +1356,7 @@ func volumeCreate(diskType, diskID string, volSizeBytes int64, volumeContext map
 		// Add PV Label
 		diskTypePL := diskType
 		if diskType == DiskESSD {
-			if pl, ok := volumeContext["performanceLevel"]; ok && pl != "" {
+			if pl, ok := volumeContext[ESSD_PERFORMANCE_LEVEL]; ok && pl != "" {
 				diskTypePL = fmt.Sprintf("%s.%s", DiskESSD, pl)
 				// TODO delete performanceLevel key
 				// delete(volumeContext, "performanceLevel")
@@ -1448,6 +1385,7 @@ func volumeCreate(diskType, diskID string, volSizeBytes int64, volumeContext map
 		volumeContext[annAppendPrefix+annVolumeTopoKey] = string(diskTypeTopoBytes)
 	}
 
+	log.Infof("volumeCreate: volumeContext: %+v", volumeContext)
 	tmpVol := &csi.Volume{
 		CapacityBytes:      volSizeBytes,
 		VolumeId:           diskID,
@@ -1506,7 +1444,11 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.V
 
 // updateVolumeContext remove unnecessary volume context
 func updateVolumeContext(volumeContext map[string]string) map[string]string {
-	for _, key := range []string{LastApplyKey, PvNameKey, PvcNameKey, PvcNamespaceKey, StorageProvisionerKey, "csi.alibabacloud.com/reclaimPolicy", "csi.alibabacloud.com/storageclassName", "allowVolumeExpansion", "volume.kubernetes.io/selected-node"} {
+	for _, key := range []string{
+		LastApplyKey, PvNameKey, PvcNameKey, PvcNamespaceKey,
+		StorageProvisionerKey, "csi.alibabacloud.com/reclaimPolicy",
+		"csi.alibabacloud.com/storageclassName",
+		"allowVolumeExpansion", "volume.kubernetes.io/selected-node"} {
 		if _, ok := volumeContext[key]; ok {
 			delete(volumeContext, key)
 		}
@@ -1682,4 +1624,60 @@ func updatePvcWithAnnotations(ctx context.Context, pvc *v1.PersistentVolumeClaim
 		}
 	}
 	return GlobalConfigVar.ClientSet.CoreV1().PersistentVolumeClaims(pvc.Namespace).Update(ctx, pvc, metav1.UpdateOptions{})
+}
+
+func makeVolumeSnapshot(snapName string, snapContentName string) *volumeSnapshotV1.VolumeSnapshot {
+	vs := &volumeSnapshotV1.VolumeSnapshot{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: snapName,
+		},
+		Spec: volumeSnapshotV1.VolumeSnapshotSpec{
+			Source: volumeSnapshotV1.VolumeSnapshotSource{
+				VolumeSnapshotContentName: &snapContentName,
+			},
+		},
+	}
+	return vs
+}
+
+func makeVolumeSnapshotContent(snapName, snapContentName, snapshotID string) *volumeSnapshotV1.VolumeSnapshotContent {
+	vs := &volumeSnapshotV1.VolumeSnapshotContent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: snapContentName,
+		},
+		Spec: volumeSnapshotV1.VolumeSnapshotContentSpec{
+			VolumeSnapshotRef: v1.ObjectReference{
+				APIVersion: "snapshot.storage.k8s.io/v1",
+				Kind:       "VolumeSnapshot",
+				Name:       snapName,
+				Namespace:  "default",
+			},
+			DeletionPolicy: volumeSnapshotV1.VolumeSnapshotContentDelete,
+			Source: volumeSnapshotV1.VolumeSnapshotContentSource{
+				SnapshotHandle: &snapshotID,
+			},
+			Driver: "diskplugin.csi.alibabacloud.com",
+		},
+	}
+	return vs
+}
+
+func createStaticSnap(volumeID, snapshotID string, snapClient snapClientset.Interface) error {
+
+	log.Infof("createStaticSnap: start to create snapshot of volume: %s, snapshotID: %s", volumeID, snapshotID)
+	volumeSnapshotName := fmt.Sprintf("%s-delprotect", volumeID)
+	volumeSnapshotContentName := fmt.Sprintf("%s-delprotect-content", volumeID)
+
+	volumeSnapshot := makeVolumeSnapshot(volumeSnapshotName, volumeSnapshotContentName)
+	volumeSnapshotContent := makeVolumeSnapshotContent(volumeSnapshotName, volumeSnapshotContentName, snapshotID)
+
+	_, err := snapClient.SnapshotV1().VolumeSnapshots("default").Create(context.Background(), volumeSnapshot, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	_, err = snapClient.SnapshotV1().VolumeSnapshotContents().Create(context.Background(), volumeSnapshotContent, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }

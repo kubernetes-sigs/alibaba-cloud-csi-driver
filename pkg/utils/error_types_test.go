@@ -15,7 +15,7 @@ const (
 
 func TestFindSuggestionByErrorMessage(t *testing.T) {
 	errMsgProvisionSample := map[string]string{
-		provisionOrgMsg: provisionOrgMsg + "\n" + "recommand: Please adjust the size of the cloud disk；\n reference：https://help.aliyun.com/document_detail/25412.html",
+		provisionOrgMsg: provisionOrgMsg + "\n" + "recommand: Please adjust the size of the cloud disk；\n reference：https://help.aliyun.com/document_detail/25412.html#BlockStorageQuota",
 	}
 
 	errMsgAttachSample := map[string]string{
