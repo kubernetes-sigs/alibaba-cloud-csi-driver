@@ -113,7 +113,7 @@ if [ "$run_oss" = "true" ]; then
         echo "update libstdc++ version, link libstdc++.so.6.0.28 to /lib64"
         /bin/cp -f /acs/libstdc++.so.6.0.28 /host/usr/lib64/libstdc++.so.6.0.28
         /nsenter --mount=/proc/1/ns/mnt unlink /lib64/libstdc++.so.6
-        /nsenter --mount=/proc/1/ns/mnt ln -s /lib64/libstdc++.so.6.0.28 /lib64/libstdc++.so.6
+        /nsenter --mount=/proc/1/ns/mnt ln -sf /lib64/libstdc++.so.6.0.28 /lib64/libstdc++.so.6
       fi
     fi
 
@@ -133,7 +133,7 @@ if [ "$run_oss" = "true" ]; then
     if [ ! `/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
         echo "First install ossfs...."
         /nsenter --mount=/proc/1/ns/mnt yum install -y ossfs
-        /nsenter --mount=/proc/1/ns/mnt ln -s $ossPath /usr/local/bin/ossfs
+        /nsenter --mount=/proc/1/ns/mnt ln -sf $ossPath /usr/local/bin/ossfs
     # update OSSFS
     else
         echo "Check ossfs Version...."
@@ -142,12 +142,12 @@ if [ "$run_oss" = "true" ]; then
             echo "Upgrade ossfs...."
             /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
             /nsenter --mount=/proc/1/ns/mnt yum install -y ossfs
-            /nsenter --mount=/proc/1/ns/mnt ln -s $ossPath /usr/local/bin/ossfs
+            /nsenter --mount=/proc/1/ns/mnt ln -sf $ossPath /usr/local/bin/ossfs
         fi
     fi
 fi
 
-if [ "$run_disk" = "true" ] || [ "$run_oss" = "true"]; then
+if [ "$run_disk" = "true" ] || [ "$run_oss" = "true" ]; then
     updateConnector="true"
     if [ ! -f "/host/etc/csi-tool/csiplugin-connector" ]; then
       mkdir -p /host/etc/csi-tool/
