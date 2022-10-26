@@ -19,9 +19,7 @@ package nas
 import (
 	"context"
 	"fmt"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"io/ioutil"
-	"k8s.io/client-go/dynamic"
 	"net/http"
 	"os"
 	"path"
@@ -31,13 +29,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"k8s.io/client-go/dynamic"
+
 	"errors"
+
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -234,13 +236,10 @@ func newNasClient(ac utils.AccessControl, regionID string) (nasClient *aliNas.Cl
 	default:
 		nasClient, err = aliNas.NewClientWithStsToken(regionID, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
 	}
-	scheme := "HTTPS"
-	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
-		scheme = "HTTP"
+	if os.Getenv("ALICLOUD_CLIENT_SCHEME") != "HTTP" {
+		nasClient.SetHTTPSInsecure(false)
+		nasClient.GetConfig().WithScheme("HTTPS")
 	}
-	nasClient.SetHTTPSInsecure(false)
-	nasClient.GetConfig().WithScheme(scheme)
-
 	if err != nil {
 		return nil
 	}
