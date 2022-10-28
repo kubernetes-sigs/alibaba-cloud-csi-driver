@@ -162,7 +162,7 @@ spec:
                 values:
                 - virtual-kubelet
       nodeSelector:
-        beta.kubernetes.io/os: linux
+        kubernetes.io/os: linux
       serviceAccount: admin
       priorityClassName: system-node-critical
       hostNetwork: true

@@ -33,7 +33,7 @@ spec:
                 values:
                 - virtual-kubelet
       nodeSelector:
-        beta.kubernetes.io/os: linux
+        kubernetes.io/os: linux
       serviceAccount: csi-admin
       priorityClassName: system-node-critical
       hostNetwork: true
