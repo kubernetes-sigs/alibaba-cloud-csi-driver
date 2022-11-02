@@ -951,13 +951,13 @@ func FormatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 	return mountErr
 }
 
-func HasSpecificTagKey(tagKey string, disk *ecs.Disk) bool {
+func HasSpecificTagKey(tagKey string, disk *ecs.Disk) (bool, string) {
 	exists := false
 	for _, tag := range disk.Tags.Tag {
 		if tag.TagKey == tagKey {
 			exists = true
-			return exists
+			return exists, tag.TagValue
 		}
 	}
-	return exists
+	return exists, ""
 }

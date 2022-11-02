@@ -166,15 +166,27 @@ const (
 	// RemoteSnapshotLabelKey ...
 	RemoteSnapshotLabelKey = "csi.alibabacloud.com/snapshot.targetregion"
 	// SnapshotVolumeKey ...
-	SnapshotVolumeKey           = "csi.alibabacloud.com/snapshot.volumeid"
-	labelAppendPrefix           = "csi.alibabacloud.com/label-prefix/"
-	annVolumeTopoKey            = "csi.alibabacloud.com/volume-topology"
-	labelVolumeType             = "csi.alibabacloud.com/disktype"
-	annAppendPrefix             = "csi.alibabacloud.com/annotation-prefix/"
-	VolumeDeleteAutoSnapshotKey = "csi.alibabacloud.com/volume-delete-autosnapshot"
+	SnapshotVolumeKey = "csi.alibabacloud.com/snapshot.volumeid"
+	labelAppendPrefix = "csi.alibabacloud.com/label-prefix/"
+	annVolumeTopoKey  = "csi.alibabacloud.com/volume-topology"
+	labelVolumeType   = "csi.alibabacloud.com/disktype"
+	annAppendPrefix   = "csi.alibabacloud.com/annotation-prefix/"
+
+	VolumeDeleteAutoSnapshotKey                    = "csi.alibabacloud.com/volume-delete-autosnapshot-retentiondays"
+	VOLUME_EXPAND_AUTO_SNAPSHOT_OP_KEY             = "volumeExpandAutoSnapshot"
+	VOLUME_DELETE_AUTO_SNAPSHOT_OP_RETENT_DAYS_KEY = "volumeDeleteSnapshotRetentionDays"
+
+	CSI_DEFAULT_FS_TYPE = "csi.storage.k8s.io/fstype"
+	FS_TYPE             = "fsType"
+	EXT4_FSTYPE         = "ext4"
+	EXT3_FSTYPE         = "ext3"
+	XFS_FSTYPE          = "xfs"
 
 	DISK_PERFORMANCE_LEVEL0 = "PL0"
 	DISK_PERFORMANCE_LEVEL1 = "PL1"
 	DISK_PERFORMANCE_LEVEL2 = "PL2"
 	DISK_PERFORMANCE_LEVEL3 = "PL3"
+
+	SNAPSHOT_MAX_RETENTION_DAYS = 65536
+	SNAPSHOT_MIN_RETENTION_DAYS = 1
 )

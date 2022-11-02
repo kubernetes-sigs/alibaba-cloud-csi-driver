@@ -72,7 +72,7 @@ type diskVolumeArgs struct {
 	StorageClusterID        string              `json:"storageClusterId"`
 	DiskTags                []string            `json:"diskTags"`
 	NodeSelected            string              `json:"nodeSelected"`
-	DelAutoSnap             bool                `json:"delAutoSnap"`
+	DelAutoSnap             string              `json:"delAutoSnap"`
 	ARN                     []ecs.CreateDiskArn `json:"arn"`
 	VolumeSizeAutoAvailable bool                `json:"volumeSizeAutoAvailable"`
 }
@@ -695,15 +695,22 @@ func snapshotBeforeDelete(volumeID string, ecsClient *ecs.Client) error {
 		return nil
 	}
 
-	if !utils.HasSpecificTagKey(VolumeDeleteAutoSnapshotKey, disk) {
+	exists, value := utils.HasSpecificTagKey(VolumeDeleteAutoSnapshotKey, disk)
+	if !exists {
 		log.Infof("snapshotBeforeDelete: disk: %v didn't open the feature in related storageclass", volumeID)
 		return nil
 	}
+	iValue, err := strconv.Atoi(value)
+	if err != nil {
+		log.Errorf("snapshotBeforeDelete: disk tag retiondays illegal value: %v, failed to create snapshot", value)
+		return nil
+	}
+
 	deleteVolumeSnapshotName := fmt.Sprintf("%s-delprotect", volumeID)
 	if value, ok := delVolumeSnap.Load(volumeID); ok {
 		return createStaticSnap(volumeID, value.(string), GlobalConfigVar.SnapClient)
 	}
-	resp, err := requestAndCreateSnapshot(ecsClient, volumeID, deleteVolumeSnapshotName, "", 1, 1, true, true)
+	resp, err := requestAndCreateSnapshot(ecsClient, volumeID, deleteVolumeSnapshotName, "", iValue, iValue, true, true)
 	if err != nil {
 		return err
 	}
