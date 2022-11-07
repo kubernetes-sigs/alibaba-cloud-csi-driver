@@ -955,14 +955,14 @@ func getDefaultDiskTags(diskVol *diskVolumeArgs) []ecs.CreateDiskTag {
 	tag1 := ecs.CreateDiskTag{Key: DISKTAGKEY1, Value: DISKTAGVALUE1}
 	tag2 := ecs.CreateDiskTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
 	tag3 := ecs.CreateDiskTag{Key: DISKTAGKEY3, Value: GlobalConfigVar.ClusterID}
-	tag4 := ecs.CreateDiskTag{Key: VolumeDeleteAutoSnapshotKey, Value: "true"}
 	diskTags = append(diskTags, tag1)
 	diskTags = append(diskTags, tag2)
 	if GlobalConfigVar.ClusterID != "" {
 		diskTags = append(diskTags, tag3)
 	}
 	// if switch is setting in sc, assign the tag to disk tags
-	if diskVol.DelAutoSnap {
+	if diskVol.DelAutoSnap != "" {
+		tag4 := ecs.CreateDiskTag{Key: VolumeDeleteAutoSnapshotKey, Value: diskVol.DelAutoSnap}
 		diskTags = append(diskTags, tag4)
 	}
 	// set config tags in sc

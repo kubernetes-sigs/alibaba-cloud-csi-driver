@@ -854,14 +854,14 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 
 	// fstype
 	// https://github.com/kubernetes-csi/external-provisioner/releases/tag/v1.0.1
-	diskVolArgs.FsType, ok = volOptions["csi.storage.k8s.io/fstype"]
+	diskVolArgs.FsType, ok = volOptions[CSI_DEFAULT_FS_TYPE]
 	if !ok {
-		diskVolArgs.FsType, ok = volOptions["fsType"]
+		diskVolArgs.FsType, ok = volOptions[FS_TYPE]
 		if !ok {
-			diskVolArgs.FsType = "ext4"
+			diskVolArgs.FsType = EXT4_FSTYPE
 		}
 	}
-	if diskVolArgs.FsType != "ext4" && diskVolArgs.FsType != "ext3" && diskVolArgs.FsType != "xfs" {
+	if diskVolArgs.FsType != EXT4_FSTYPE && diskVolArgs.FsType != EXT3_FSTYPE && diskVolArgs.FsType != XFS_FSTYPE {
 		return nil, fmt.Errorf("illegal required parameter fsType, only support ext3, ext4 and xfs, the input is: %s", diskVolArgs.FsType)
 	}
 
@@ -958,16 +958,19 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	// volumeExpandAutoSnapshot, default closed
-	if value, ok = volOptions["volumeExpandAutoSnapshot"]; ok {
+	if value, ok = volOptions[VOLUME_EXPAND_AUTO_SNAPSHOT_OP_KEY]; ok {
 		value = strings.ToLower(value)
 		if value != "forced" && value != "besteffort" && value != "closed" {
 			return nil, fmt.Errorf("illegal optional parameter volumeExpandAutoSnapshot, only support forced, besteffort and closed, the input is: %s", value)
 		}
 	}
-	if value, ok = volOptions["volumeDeleteAutoSnapshot"]; ok {
-		value = strings.ToLower(value)
-		if value == "true" {
-			diskVolArgs.DelAutoSnap = true
+	if value, ok = volOptions[VOLUME_DELETE_AUTO_SNAPSHOT_OP_RETENT_DAYS_KEY]; ok {
+		iValue, err := strconv.Atoi(value)
+		if err != nil {
+			return nil, fmt.Errorf("getDiskVolumeOptions: parameters volumeDeleteSnapshotRetentionDays[%s] is illegal", value)
+		}
+		if iValue <= SNAPSHOT_MAX_RETENTION_DAYS && iValue >= SNAPSHOT_MIN_RETENTION_DAYS {
+			diskVolArgs.DelAutoSnap = value
 		}
 	}
 
