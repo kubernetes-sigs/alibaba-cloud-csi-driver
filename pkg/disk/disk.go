@@ -21,7 +21,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -63,7 +62,6 @@ type GlobalConfig struct {
 	EcsClient             *ecs.Client
 	Region                string
 	NodeID                string
-	AttachMutex           sync.RWMutex
 	CanAttach             bool
 	DiskTagEnable         bool
 	ADControllerEnable    bool
@@ -129,10 +127,7 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	}
 
 	// Set Region ID
-	regionID := os.Getenv("REGION_ID")
-	if regionID == "" {
-		regionID = GetRegionID()
-	}
+	regionID := GetRegionID()
 
 	// Config Global vars
 	cfg := GlobalConfigSet(client, regionID, nodeID)
