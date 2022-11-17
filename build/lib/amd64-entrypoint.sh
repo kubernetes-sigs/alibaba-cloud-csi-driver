@@ -23,6 +23,9 @@ if [[ "$os_release_exist" = "0" ]]; then
 		if [[ `echo ${osID} | grep "lifsea" | wc -l` != "0" ]]; then
         host_os="lifsea"
     fi
+    if [[ `echo ${osID} | grep "anolis" | wc -l` != "0" ]]; then
+        host_os="anolis"
+    fi
 fi
 
 ## check which plugin is running
@@ -85,6 +88,10 @@ if [ "$run_oss" = "true" ]; then
 
 		if [[ ${host_os} == "lifsea" ]]; then
         ossfsArch="centos8"
+    fi
+
+    if [[ ${host_os} == "anolis" ]]; then
+        ${HOST_CMD} yum install -y compat-openssl10
     fi
 
     echo "Starting deploy oss csi-plugin..."
