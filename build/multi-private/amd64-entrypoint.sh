@@ -89,17 +89,13 @@ if [ "$run_oss" = "true" ]; then
         ${HOST_CMD} yum install -y libcurl-devel libxml2-devel fuse-devel openssl-devel
         ossfsArch="centos8"
     fi
-    if [[ ${host_os} == "kylin" ]] || [[ ${host_os} == "uos" ]]; then
+    if [[ ${host_os} == "kylin" ]] || [[ ${host_os} == "uos" ]] || [[ ${host_os} == "anolis" ]]; then
         ossfsVer="1.88.0"
         ossfsArch="centos8"
     fi
 
 		if [[ ${host_os} == "lifsea" ]]; then
         ossfsArch="centos8"
-    fi
-
-    if [[ ${host_os} == "anolis" ]]; then
-        ${HOST_CMD} yum install -y compat-openssl10
     fi
 
     echo "Starting deploy oss csi-plugin..."

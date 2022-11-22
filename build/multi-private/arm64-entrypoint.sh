@@ -33,11 +33,14 @@ if [[ "$os_release_exist" = "0" ]]; then
 		if [[ `echo ${osID} | grep "lifsea" | wc -l` != "0" ]]; then
         host_os="lifsea"
     fi
+    if [[ `echo ${osID} | grep "anolis" | wc -l` != "0" ]]; then
+        host_os="anolis"
+    fi
 fi
 
 #update oss file in kylin/uos
 ossPath=/usr/bin/ossfs
-if [[ ${host_os} == "kylin" ]] || [[ ${host_os} == "uos" ]]; then
+if [[ ${host_os} == "kylin" ]] || [[ ${host_os} == "uos" ]] || [[ ${host_os} == "anolis" ]]; then
    ossPath=/usr/bin/ossfs-8u
 fi
 

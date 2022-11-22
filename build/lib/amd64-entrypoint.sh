@@ -86,12 +86,8 @@ if [ "$run_oss" = "true" ]; then
         ossfsArch="centos8"
     fi
 
-		if [[ ${host_os} == "lifsea" ]]; then
+		if [[ ${host_os} == "lifsea" ]] || [[ ${host_os} == "anolis" ]]; then
         ossfsArch="centos8"
-    fi
-
-    if [[ ${host_os} == "anolis" ]]; then
-        ${HOST_CMD} yum install -y compat-openssl10
     fi
 
     echo "Starting deploy oss csi-plugin..."
