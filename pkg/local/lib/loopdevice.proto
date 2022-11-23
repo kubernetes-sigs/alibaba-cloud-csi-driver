@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = ".;lib";
+
+
+message CreateLoopDeviceRequest {
+  string pv_name = 1;
+  string quota_size = 2;
+  string root_path = 3;
+}
+
+message CreateLoopDeviceReply {
+  string loop_device_path = 1;
+  string command_output = 2;
+}
+
+message DeleteLoopDeviceRequest {
+  string pv_name = 1;
+}
+
+message DeleteLoopDeviceReply {
+  string command_output = 1;
+}
+
+service LoopDevice {
+  rpc CreateLoopDevice(CreateLoopDeviceRequest) returns (CreateLoopDeviceReply) {}
+  rpc DeleteLoopDevice(DeleteLoopDeviceRequest) returns (DeleteLoopDeviceReply) {}
+}

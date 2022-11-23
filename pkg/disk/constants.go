@@ -1,5 +1,10 @@
 package disk
 
+import (
+	"fmt"
+	"time"
+)
+
 const (
 
 	// ESSD_PERFORMANCE_LEVEL is storage class
@@ -163,6 +168,11 @@ const (
 	NodeSchedueTag = "volume.kubernetes.io/selected-node"
 	// RetryMaxTimes ...
 	RetryMaxTimes = 5
+
+	// updatePollInterval means retry after n seconds
+    retryTimeout       = 30 * time.Second
+	// updatePollInterval means retry after n seconds
+    updatePollInterval = 2 * time.Second
 	// RemoteSnapshotLabelKey ...
 	RemoteSnapshotLabelKey = "csi.alibabacloud.com/snapshot.targetregion"
 	// SnapshotVolumeKey ...
@@ -189,4 +199,25 @@ const (
 
 	SNAPSHOT_MAX_RETENTION_DAYS = 65536
 	SNAPSHOT_MIN_RETENTION_DAYS = 1
+
+	DISK_CLOUD_EFFICIENT_MIN_CAPACITY      = 20
+	DISK_CLOUD_SSD_MIN_CAPACITY            = 20
+	DISK_CLOUD_ESSD_PL0_MIN_CAPACITY       = 40
+	DISK_CLOUD_ESSD_PL1_MIN_CAPACITY       = 20
+	DISK_CLOUD_ESSD_PL2_MIN_CAPACITY       = 461
+	DISK_CLOUD_ESSD_PL3_MIN_CAPACITY       = 1261
+	DISK_CLOUD_ESSD_PLX_MIN_CAPACITY       = 40
+	DISK_CLOUD_ESSD_AUTO_PL_MIN_CAPACITY   = 40
 )
+
+
+var DiskCapacityMapping = map[string]int {
+	DiskEfficiency:                                          DISK_CLOUD_EFFICIENT_MIN_CAPACITY, 
+	DiskSSD:                                                 DISK_CLOUD_SSD_MIN_CAPACITY, 
+	fmt.Sprintf("%s.%s", DiskESSD, DISK_PERFORMANCE_LEVEL0): DISK_CLOUD_ESSD_PL0_MIN_CAPACITY,
+	fmt.Sprintf("%s.%s", DiskESSD, DISK_PERFORMANCE_LEVEL1): DISK_CLOUD_ESSD_PL1_MIN_CAPACITY,
+	fmt.Sprintf("%s.%s", DiskESSD, DISK_PERFORMANCE_LEVEL2): DISK_CLOUD_ESSD_PL2_MIN_CAPACITY,
+	fmt.Sprintf("%s.%s", DiskESSD, DISK_PERFORMANCE_LEVEL3): DISK_CLOUD_ESSD_PL3_MIN_CAPACITY,
+	DiskESSDAuto:                                            DISK_CLOUD_ESSD_AUTO_PL_MIN_CAPACITY,
+	DiskESSD:                                                DISK_CLOUD_ESSD_PL1_MIN_CAPACITY,
+}

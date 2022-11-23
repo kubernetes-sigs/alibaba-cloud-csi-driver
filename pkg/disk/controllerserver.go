@@ -312,7 +312,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		if disk != nil && disk.Status == DiskStatusInuse && canDetach {
 			err := detachDisk(ecsClient, req.VolumeId, disk.InstanceId)
 			if err != nil {
-				newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
+				newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
 				log.Errorf("DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, newErrMsg)
 				return nil, status.Errorf(codes.Internal, newErrMsg)
 			}

@@ -45,6 +45,8 @@ type Connection interface {
 	CreateProjQuotaSubpath(ctx context.Context, pvName, size, rootPath string) (string, string, error)
 	SetSubpathProjQuota(ctx context.Context, quotaSubpath, blockSoftlimit, blockHardlimit, inodeSoftlimit, inodeHardlimit string) (string, error)
 	RemoveProjQuotaSubpath(ctx context.Context, quotaSubpath string) (string, error)
+	CreateLoopDevice(ctx context.Context, pvName, quotaSize string) (string, error)
+	DeleteLoopDevice(ctx context.Context, pvName string) (string, error)
 }
 
 // LVMOptions lvm options
@@ -125,6 +127,35 @@ func connect(address string, timeout time.Duration, creds credentials.TransportC
 		}
 		log.Infof("Still trying to connect %s, connection is %s", address, conn.GetState())
 	}
+}
+
+func (c *workerConnection) CreateLoopDevice(ctx context.Context, pvName, quotaSize string) (string, error) {
+	client := lib.NewLoopDeviceClient(c.conn)
+	req := lib.CreateLoopDeviceRequest{
+		PvName: pvName,
+		QuotaSize: quotaSize,
+	}
+	rsp, err := client.CreateLoopDevice(ctx, &req)
+	if err != nil {
+		log.Errorf("Create LoopDevice err: %v", err)
+		return "", err
+	}
+	log.Infof("Create LoopDevice result: %v", rsp.CommandOutput)
+	return rsp.CommandOutput, nil
+}
+
+func (c *workerConnection) DeleteLoopDevice(ctx context.Context, pvName string) (string, error) {
+	client := lib.NewLoopDeviceClient(c.conn)
+	req := lib.DeleteLoopDeviceRequest{
+		PvName: pvName,
+	}
+	rsp, err := client.DeleteLoopDevice(ctx, &req)
+	if err != nil {
+		log.Errorf("Delete loopdevice err: %v", err)
+		return "", err
+	}
+	log.Infof("Delete LoopDevice result: %s", rsp.CommandOutput)
+	return rsp.CommandOutput, nil
 }
 
 func (c *workerConnection) CreateLvm(ctx context.Context, opt *LVMOptions) (string, error) {

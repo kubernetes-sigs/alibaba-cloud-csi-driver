@@ -226,29 +226,30 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 	pmemEnable, pmeType := IsPmemSupported(nodeName, kubeClient)
 
 	grpcProvision := true
-	remoteConfig := os.Getenv("LOCAL_GRPC_PROVISION")
+	remoteConfig := os.Getenv(LOCAL_GRPC_PROVISION)
 	if strings.ToLower(remoteConfig) == "false" {
 		grpcProvision = false
 	}
 
 	hostNameAsTop := false
-	hostNameEnv := os.Getenv("LOCAL_HOSTNAME_AS_TOPO")
+	hostNameEnv := os.Getenv(LOCAL_HOSTNAME_AS_TOPO)
 	if strings.ToLower(hostNameEnv) == "true" {
 		hostNameAsTop = true
 	}
 
 	topoKeyDefine := TopologyNodeKey
-	topoKeyStr := os.Getenv("LOCAL_TOPO_KEY_DEFINED")
+	topoKeyStr := os.Getenv(LOCAL_TOPO_KEY_DEFINED)
 	if topoKeyStr != "" {
 		log.Infof("Lcoal: use special topoloy key with LOCAL_TOPO_KEY_DEFINED: %s", topoKeyStr)
 		topoKeyDefine = topoKeyStr
 	}
 	CapacityToNode := false
-	capacityToNode := os.Getenv("CAPACITY_TO_NODE")
+	capacityToNode := os.Getenv(CAPACITY_TO_NODE)
 	if capacityToNode == "true" || capacityToNode == "yes" {
-		log.Infof("Lcoal: CAPACITY_TO_NODE is setting: %s", capacityToNode)
+		log.Infof("Local: CAPACITY_TO_NODE is setting: %s", capacityToNode)
 		CapacityToNode = true
 	}
+
 
 	// Global Config Set
 	types.GlobalConfigVar = types.GlobalConfig{
@@ -262,6 +263,8 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 		KubeClient:     kubeClient,
 		HostNameAsTopo: hostNameAsTop,
 		TopoKeyDefine:  topoKeyDefine,
+		LocalSparseFileDir: os.Getenv(LOCAL_SPARSE_TEMPLATE_FILEDIR),
+		LocalSparseFileTempSize: os.Getenv(LOCAL_SPARSE_TEMPLATE_SIZE),
 	}
 	log.Infof("Local Plugin Global Config is: %v", types.GlobalConfigVar)
 }

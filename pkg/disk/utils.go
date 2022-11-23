@@ -53,6 +53,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/wait"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/volume/util/fs"
 	k8smount "k8s.io/mount-utils"
@@ -1152,14 +1153,14 @@ func UpdateNode(nodeID string, c *ecs.Client) {
 	request.DestinationResource = describeResourceType
 	request.ZoneId = zoneID
 	var response *ecs.DescribeAvailableResourceResponse
-	for n := 1; n < RetryMaxTimes; n++ {
+	waitErr := wait.PollImmediate(updatePollInterval, 30*time.Second, func() (bool, error) {
 		response, err = c.DescribeAvailableResource(request)
 		if err != nil {
 			log.Errorf("UpdateNode:: describe available resource with nodeID: %s", instanceType)
-			continue
+			return false, err
 		}
-		break
-	}
+		return true, nil
+	})
 	log.Infof("UpdateNode: record ecs openapi req: %+v, resp: %+v", request, response)
 	availableZones := response.AvailableZones.AvailableZone
 	if len(availableZones) == 1 {
@@ -1194,24 +1195,32 @@ func UpdateNode(nodeID string, c *ecs.Client) {
 			needUpdateLabels = append(needUpdateLabels, storageLabel)
 		}
 	}
-	for n := 1; n < RetryMaxTimes; n++ {
+
+		// Retry the update on error, until we hit a timeout.
+	// TODO: Determine whether "retry with timeout" is appropriate here. Maybe we should only retry on version conflict.
+	var lastUpdateError error
+	waitErr = wait.PollImmediate(updatePollInterval, 30*time.Second, func() (bool, error) {
 		if needUpdate {
 			newNode, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 			if err != nil {
-				continue
+				lastUpdateError = err
+				return false, err
 			}
 			for _, updatedLabel := range needUpdateLabels {
 				newNode.Labels[updatedLabel] = "available"
 			}
 			_, err = GlobalConfigVar.ClientSet.CoreV1().Nodes().Update(ctx, newNode, metav1.UpdateOptions{})
 			if err != nil {
-				log.Errorf("UpdateNode:: update node error: %s", err.Error())
-				continue
+				lastUpdateError = err
+				return false, err
 			}
 		} else {
 			log.Info("UpdateNode:: need not to update node label")
 		}
-		return
+		return true, nil
+	})
+	if waitErr != nil {
+		log.Errorf("UpdateNode:: failed to update node status: err: %v", lastUpdateError)
 	}
 }
 
