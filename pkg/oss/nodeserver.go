@@ -73,6 +73,8 @@ const (
 	metricsPathPrefix = "/host/var/run/ossfs/"
 	// metricsTop
 	metricsTop = "10"
+	// regionTag
+	regionTag = "region-id"
 )
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -211,6 +213,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			log.Errorf("Create directory is failed, err: %s", err.Error())
 			return nil, errors.New("Mount is failed, with create path err: " + err.Error() + mountPath)
 		}
+
+		metaZoneID := GetMetaDataAsync(regionTag)
+		if strings.Contains(opt.URL, metaZoneID) && !strings.Contains(opt.URL, "internal") {
+			originUrl := opt.URL
+			opt.URL = strings.ReplaceAll(originUrl, metaZoneID, metaZoneID+"-internal")
+		}
+
 		mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s %s", opt.Bucket, opt.Path, mountPath, opt.URL, opt.OtherOpts, credentialProvider)
 		if opt.FuseType == JindoFsType {
 			mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s", mountPath, opt.Bucket, opt.Path, opt.URL, credentialProvider)

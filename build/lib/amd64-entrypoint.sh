@@ -137,20 +137,19 @@ if [ "$run_oss" = "true" ]; then
     fi
 
     # install Jindofs
-    if [ ! -f "/host/etc/jindofs-tool/jindo-fuse" ];then
-        mkdir -p /host/etc/jindofs-tool/
-        cp /jindo-fuse /host/etc/jindofs-tool/jindo-fuse
-        echo "install jindofs..."
-    else
-        oldmd5=`md5sum /host/etc/jindofs-tool/jindo-fuse | awk '{print $1}'`
-        newmd5=`md5sum /jindo-fuse | awk '{print $1}'`
-        if [ "$oldmd5" != "$newmd5" ]; then
-            rm -rf /host/etc/jindofs-tool/jindo-fuse
-            cp /jindo-fuse /host/etc/jindofs-tool/jindo-fuse
-            echo "upgrade jindofs..."
-        fi
-    fi
-
+    #if [ ! -f "/host/etc/jindofs-tool/jindo-fuse" ];then
+    #    mkdir -p /host/etc/jindofs-tool/
+    #    cp /jindo-fuse /host/etc/jindofs-tool/jindo-fuse
+    #    echo "install jindofs..."
+    #else
+    #    oldmd5=`md5sum /host/etc/jindofs-tool/jindo-fuse | awk '{print $1}'`
+    #    newmd5=`md5sum /jindo-fuse | awk '{print $1}'`
+    #    if [ "$oldmd5" != "$newmd5" ]; then
+    #        rm -rf /host/etc/jindofs-tool/jindo-fuse
+    #        cp /jindo-fuse /host/etc/jindofs-tool/jindo-fuse
+    #        echo "upgrade jindofs..."
+    #    fi
+    #fi
 fi
 
 if [ "$run_oss" = "true" ] || [ "$run_disk" = "true" ]; then
@@ -216,16 +215,16 @@ fi
 ## CPFS-NAS plugin setup
 if [ "$run_nas" = "true" ]; then
     # cpfs-nas nas-rich-client common rpm
-    cp /root/aliyun-alinas-utils-1.1-2.al7.noarch.rpm /host/etc/csi-tool/
+    cp /root/aliyun-alinas-utils-1.1-3.al7.noarch.rpm /host/etc/csi-tool/
     # nas-rich-client rpm
-    cp /root/alinas-eac-1.0-2.x86_64.rpm /host/etc/csi-tool/
+    cp /root/alinas-eac-1.1-1.x86_64.rpm /host/etc/csi-tool/
 fi
 
 ## Jindofs plugin setup
-if [ "$run_oss" = "true" ]; then
-    # jindofs common rpm
-    ${HOST_CMD} yum install -y fuse3 fuse3-devel
-fi
+#if [ "$run_oss" = "true" ]; then
+#    # jindofs common rpm
+#    ${HOST_CMD} yum install -y fuse3 fuse3-devel
+#fi
 
 
 # start daemon

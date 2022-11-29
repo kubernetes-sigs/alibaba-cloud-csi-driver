@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
@@ -47,6 +48,20 @@ func GetMetaData(resource string) string {
 		return ""
 	}
 	return string(body)
+}
+
+func GetMetaDataAsync(resource string) string {
+	c1 := make(chan string, 1)
+	go func(r string) {
+		ans := GetMetaData(r)
+		c1 <- ans
+	}(resource)
+	select {
+	case res := <-c1:
+		return res
+	case <-time.After(2 * time.Second):
+		return ""
+	}
 }
 
 func GetGlobalMountPath(volumeId string) string {
