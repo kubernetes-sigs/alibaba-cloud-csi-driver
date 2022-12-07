@@ -890,7 +890,7 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 			}
 		}
 	}
-	return "", "", "", status.Error(codes.Internal, fmt.Sprintf("createDisk: the zone is not support to create disk with diskVolParmas: %+v", diskVol))
+	return "", "", "", status.Error(codes.Internal, fmt.Sprintf("createDisk: err: %v, the zone:[%s] is not support specific disk type, please change the request disktype: %s or disk pl: %s", err, diskVol.ZoneID, diskTypes, diskPLs))
 }
 
 func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (returned bool, diskId string, err error) {
