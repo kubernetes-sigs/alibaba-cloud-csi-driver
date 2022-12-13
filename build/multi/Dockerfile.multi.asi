@@ -11,7 +11,7 @@ ADD . /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/
 WORKDIR /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 
 RUN git config --global url."git@gitlab.alibaba-inc.com:".insteadOf "https://gitlab.alibaba-inc.com/" && mkdir -p -m 0600 ~/.ssh && ssh-keyscan gitlab.alibaba-inc.com >> ~/.ssh/known_hosts
-RUN --mount=type=ssh go get gitlab.alibaba-inc.com/idaas/go-cloud-token-isolate-consumer@v0.0.6
+RUN --mount=type=ssh go get gitlab.alibaba-inc.com/idaas/go-cloud-token-isolate-consumer@v0.0.6-nok8s-nokeepalive
 RUN --mount=type=ssh go mod tidy
 RUN --mount=type=ssh go mod vendor
 RUN env GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') go build --mod=vendor -ldflags "-X main._BRANCH_='v1.0.0' -X main._VERSION_='v1.14.5' -X main._BUILDTIME_=`date '+%Y-%m-%d-%H:%M:%S'`" -o plugin.csi.alibabacloud.com && env GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GOOS=linux CGO_ENABLED=0 go build --mod=vendor ./build/lib/csiplugin-connector.go
