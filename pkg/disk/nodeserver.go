@@ -836,11 +836,10 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	_, pvc, err := getPvPvcFromDiskId(diskID)
 	if err != nil {
 		log.Errorf("NodeExpandVolume:: failed to get pvc from apiserver: %s", err.Error())
-		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	volumeExpandAutoSnapshotID := ""
-	if pvc.Annotations != nil {
+	if pvc != nil && pvc.Annotations != nil {
 		volumeExpandAutoSnapshotID, _ = pvc.Annotations[veasp.IDKey]
 	}
 
