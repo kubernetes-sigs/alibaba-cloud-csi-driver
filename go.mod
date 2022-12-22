@@ -12,6 +12,7 @@ require (
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
 	github.com/emirpasic/gods v1.12.0
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
+	github.com/fastly/go-utils v0.0.0-20180712184237-d95a45783239 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/gogo/protobuf v1.3.2
@@ -23,19 +24,25 @@ require (
 	github.com/googleapis/gnostic v0.5.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect
+	github.com/jehiah/go-strftime v0.0.0-20171201141054-1d33003b3869 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0 // indirect
 	github.com/kubernetes-csi/csi-lib-utils v0.7.1 // indirect
 	github.com/kubernetes-csi/drivers v1.0.2
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.2.0
+	github.com/lestrrat/go-envload v0.0.0-20180220120943-6ed08b54a570 // indirect
+	github.com/lestrrat/go-file-rotatelogs v0.0.0-20180223000712-d3151e2a480f
+	github.com/lestrrat/go-strftime v0.0.0-20180220042222-ba3bf9c1d042 // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/common v0.26.0
 	github.com/prometheus/procfs v0.6.0
+	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5
 	github.com/sevlyar/go-daemon v0.1.5
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
+	github.com/tebeka/strftime v0.1.5 // indirect
 	go.uber.org/ratelimit v0.1.0
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20220909164309-bea034e7d591

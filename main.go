@@ -24,6 +24,7 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -43,7 +44,9 @@ import (
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	rotatelog "github.com/lestrrat/go-file-rotatelogs"
 	"github.com/prometheus/common/version"
+	"github.com/rifflock/lfshook"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -139,12 +142,10 @@ func main() {
 	}
 
 	var logAttribute string
-	switch serviceType {
-	case utils.ProvisionerService:
+	if serviceType == utils.ProvisionerService {
 		logAttribute = strings.Replace(TypePluginSuffix, utils.PluginService, utils.ProvisionerService, -1)
-	case utils.PluginService:
+	} else {
 		logAttribute = TypePluginSuffix
-	default:
 	}
 
 	// enable pprof analyse
@@ -159,7 +160,8 @@ func main() {
 		}
 	}
 
-	setLogAttribute(logAttribute)
+	// setLogAttribute(logAttribute)
+	log.AddHook(rotateHook(logAttribute))
 
 	log.Infof("Multi CSI Driver Name: %s, nodeID: %s, endPoints: %s", *driver, *nodeID, *endpoint)
 	log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", BRANCH, VERSION, BUILDTIME)
@@ -309,6 +311,7 @@ func createPersistentStorage(persistentStoragePath string) error {
 // rotate log file by 2M bytes
 // default print log to stdout and file both.
 func setLogAttribute(driver string) {
+
 	logType := os.Getenv("LOG_TYPE")
 	logType = strings.ToLower(logType)
 	if logType != "stdout" && logType != "host" {
@@ -342,6 +345,23 @@ func setLogAttribute(driver string) {
 	} else {
 		log.SetOutput(f)
 	}
+}
+
+func rotateHook(driver string) *lfshook.LfsHook {
+	filepath := filepath.Join(LogfilePrefix, fmt.Sprintf("%s.log", driver))
+	writer, err := rotatelog.New(
+		filepath+"%Y-%M-%D",
+		rotatelog.WithLinkName(filepath),
+		rotatelog.WithMaxAge(30 * 24 * time.Hour),
+		rotatelog.WithRotationTime(1 * time.Hour),
+	) 
+	if err != nil {
+		log.Errorf("rotateHook: config rotate log file err: %v", err)
+	}
+	return lfshook.NewHook(lfshook.WriterMap{
+		log.InfoLevel: writer,
+		log.ErrorLevel: writer,
+	}, &log.JSONFormatter{})
 }
 
 func joinCsiPluginSuffix(storageType string) string {

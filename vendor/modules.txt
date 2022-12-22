@@ -149,6 +149,10 @@ github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/typ
 github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/typed/volumesnapshot/v1/fake
 github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/typed/volumesnapshot/v1beta1
 github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/typed/volumesnapshot/v1beta1/fake
+# github.com/lestrrat/go-file-rotatelogs v0.0.0-20180223000712-d3151e2a480f
+github.com/lestrrat/go-file-rotatelogs
+# github.com/lestrrat/go-strftime v0.0.0-20180220042222-ba3bf9c1d042
+github.com/lestrrat/go-strftime
 # github.com/matttproud/golang_protobuf_extensions v1.0.1 => github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd => github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
@@ -179,6 +183,8 @@ github.com/prometheus/common/version
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
+# github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5
+github.com/rifflock/lfshook
 # github.com/sevlyar/go-daemon v0.1.5
 github.com/sevlyar/go-daemon
 # github.com/sirupsen/logrus v1.8.1

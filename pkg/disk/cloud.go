@@ -902,7 +902,7 @@ func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (r
 	if minCap, ok := DiskCapacityMapping[cata]; ok {
 		if rValue, err := createDiskRequest.Size.GetValue(); err == nil {
 			if rValue < minCap {
-				return false, "", fmt.Errorf("request: to request %s type disk you needs at least %dGB size which the provided size %dGB is not suitable, please please resize the size up.", cata, minCap, rValue)
+				return false, "", fmt.Errorf("request: to request %s type disk you needs at least %dGB size which the provided size %dGB does not meet the needs, please resize the size up.", cata, minCap, rValue)
 			}
 		}
 	}
