@@ -19,14 +19,11 @@ const (
 
 // MaintainSparseTemplateFile create template dir for loopdeivce
 func MaintainSparseTemplateFile(dir string, size string) error {
-	ld := NewLoopDevice()
-	tempFileName := filepath.Join(dir, LOCAL_SPARSE_TEMPLATE_NAME)
+	ld := NewLoopDevice(dir, size)
+	templateDir, templateSize := ld.GetTemplateInfo()
+	tempFileName := filepath.Join(templateDir, LOCAL_SPARSE_TEMPLATE_NAME)
 	_, err := os.Stat(tempFileName)
 	if os.IsNotExist(err) {
-		templateSize := LOCAL_SPARSE_DEFAULT_SIZE
-		if value, err := strconv.Atoi(size); err == nil {
-			templateSize = value
-		}
 		err = ld.CreateSparseFile(tempFileName, strconv.Itoa(templateSize * 1024 * 1024 * 1024))
 		if err != nil {
 			return err
@@ -44,12 +41,28 @@ type LoopDevice interface {
 	DeleteLoopDevice(sparseFile string) (string, error)
 	ResizeLoopDevice(sparseFile string) error
 	FindLoopDeviceBySparseFile(sparseFile string) (string, error)
+	GetTemplateInfo() (string, int)
 }
 
-type NodeLoopDevice struct {}
+type NodeLoopDevice struct {
+	templateDir  string
+	templateSize int
+}
 
-func NewLoopDevice() LoopDevice {
-	return &NodeLoopDevice{}
+func NewLoopDevice(templateDir, templateSize string) LoopDevice {
+
+	size := LOCAL_SPARSE_DEFAULT_SIZE
+	if value, err := strconv.Atoi(templateSize); err == nil {
+		size = value
+	}
+	return &NodeLoopDevice{
+		templateDir:   templateDir,
+		templateSize:  size,
+	}
+}
+
+func (ld *NodeLoopDevice) GetTemplateInfo() (string, int) {
+	return ld.templateDir, ld.templateSize
 }
 
 func (ld *NodeLoopDevice) CreateSparseFile(sparseFile string, sizebit string) error {

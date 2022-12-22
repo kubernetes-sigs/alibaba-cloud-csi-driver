@@ -198,7 +198,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, err
 		}
 	case LoopDeviceVolumeType:
-		lp := manager.NewLoopDevice()
+		lp := manager.NewLoopDevice(types.GlobalConfigVar.LocalSparseFileDir, types.GlobalConfigVar.LocalSparseFileTempSize)
 		err := ns.mountLoopDeviceVolume(ctx, req, lp)
 		if err != nil {
 			log.Errorf("NodePublishVolume: mount loopdevice volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
@@ -359,7 +359,7 @@ func (ns *nodeServer) resizeVolume(ctx context.Context, expectSize int64, volume
 		log.Warnf("NodeExpandVolume: %s not support volume expand", volumeType)
 		return nil
 	case LoopDeviceVolumeType:
-		lp := manager.NewLoopDevice()
+		lp := manager.NewLoopDevice(types.GlobalConfigVar.LocalSparseFileDir, types.GlobalConfigVar.LocalSparseFileTempSize)
 		lpPath := filepath.Join(ns.SparseFileDir, fmt.Sprintf("%s.img", volumeID))
 		err := lp.CreateSparseFile(lpPath, strconv.Itoa(int(expectSize)))
 		if err != nil {

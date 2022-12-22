@@ -19,6 +19,7 @@ package server
 import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -55,7 +56,7 @@ func NewLoopDeviceServer(tf string) LoopDeviceServer {
 // CreateLoopDevice defines how to create loopdevice by pv
 func (lds LoopDeviceServer) CreateLoopDevice(ctx context.Context, in *lib.CreateLoopDeviceRequest) (*lib.CreateLoopDeviceReply, error) {
 	log.Infof("CreateLoopDevice: start to create loopdevice with pv_name: %s, quota_path: %s, root_path: %s", in.PvName, in.QuotaSize, in.RootPath)
-	lp := manager.NewLoopDevice()
+	lp := manager.NewLoopDevice(types.GlobalConfigVar.LocalSparseFileDir, types.GlobalConfigVar.LocalSparseFileTempSize)
 	loopDevicePath, err := CreateLoopDevice(lds.templateFile, in.PvName, in.QuotaSize, lp)
 	if err != nil {
 		log.Errorf("CreateLoopDevice: failed to create loopdevice, err: %+v", err)

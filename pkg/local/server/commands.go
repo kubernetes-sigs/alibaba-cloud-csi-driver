@@ -62,7 +62,8 @@ func CreateLoopDevice(templateFile, pvName, quotaSize string, lp manager.LoopDev
 	if value, err := strconv.Atoi(quotaSize); err != nil {
 		return "", fmt.Errorf("CreateLoopDevice: invalid quotasize:%s, err:%v", quotaSize, err)
 	} else {
-		if value == 10 * 1024 * 1024 * 1024 {
+		_, size := lp.GetTemplateInfo()
+		if value == size * 1024 * 1024 * 1024 {
 			err := lp.CopySparseFile(templateFile, lpPath)
 			if err != nil {
 				log.Errorf("CreateLoopDevice: copy sparsefile failed err:%v", err)
@@ -86,7 +87,7 @@ func CreateLoopDevice(templateFile, pvName, quotaSize string, lp manager.LoopDev
 }
 
 func DeleteLoopDevice(pvName string) error {
-	ld := manager.NewLoopDevice()
+	ld := manager.NewLoopDevice(types.GlobalConfigVar.LocalSparseFileDir, types.GlobalConfigVar.LocalSparseFileTempSize)
 	lpPath := filepath.Join(types.GlobalConfigVar.LocalSparseFileDir, fmt.Sprintf("%s.img", pvName))
 	out, err := ld.DeleteLoopDevice(lpPath)
 	log.Infof("DeleteLoopDevice: delete loopdevice with out:%s, err:%v", out, err)
