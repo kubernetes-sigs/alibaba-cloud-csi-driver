@@ -4,13 +4,13 @@ import (
 	"github.com/golang/mock/gomock"
 )
 
-// MockLoopDevice defines the mocker of loopdevice 
+// MockLoopDevice defines the mocker of loopdevice
 type MockLoopDevice struct {
-	ctrl      *gomock.Controller
-	recorder  *MockLoopDeviceMockRecorder
+	ctrl     *gomock.Controller
+	recorder *MockLoopDeviceMockRecorder
 }
 
-// MockLoopDeviceMockRecorder ... 
+// MockLoopDeviceMockRecorder ...
 type MockLoopDeviceMockRecorder struct {
 	mock *MockLoopDevice
 }

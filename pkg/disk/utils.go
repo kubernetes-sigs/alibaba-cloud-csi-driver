@@ -53,8 +53,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/wait"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/kubernetes/pkg/volume/util/fs"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
@@ -1196,7 +1196,7 @@ func UpdateNode(nodeID string, c *ecs.Client) {
 		}
 	}
 
-		// Retry the update on error, until we hit a timeout.
+	// Retry the update on error, until we hit a timeout.
 	// TODO: Determine whether "retry with timeout" is appropriate here. Maybe we should only retry on version conflict.
 	var lastUpdateError error
 	waitErr = wait.PollImmediate(updatePollInterval, 30*time.Second, func() (bool, error) {

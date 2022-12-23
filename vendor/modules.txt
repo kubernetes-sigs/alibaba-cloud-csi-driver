@@ -149,10 +149,12 @@ github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/typ
 github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/typed/volumesnapshot/v1/fake
 github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/typed/volumesnapshot/v1beta1
 github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/typed/volumesnapshot/v1beta1/fake
-# github.com/lestrrat/go-file-rotatelogs v0.0.0-20180223000712-d3151e2a480f
-github.com/lestrrat/go-file-rotatelogs
-# github.com/lestrrat/go-strftime v0.0.0-20180220042222-ba3bf9c1d042
-github.com/lestrrat/go-strftime
+# github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
+github.com/lestrrat-go/file-rotatelogs
+github.com/lestrrat-go/file-rotatelogs/internal/option
+# github.com/lestrrat-go/strftime v1.0.6
+github.com/lestrrat-go/strftime
+github.com/lestrrat-go/strftime/internal/errors
 # github.com/matttproud/golang_protobuf_extensions v1.0.1 => github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd => github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd

@@ -32,8 +32,8 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
@@ -63,7 +63,7 @@ func CreateLoopDevice(templateFile, pvName, quotaSize string, lp manager.LoopDev
 		return "", fmt.Errorf("CreateLoopDevice: invalid quotasize:%s, err:%v", quotaSize, err)
 	} else {
 		_, size := lp.GetTemplateInfo()
-		if value == size * 1024 * 1024 * 1024 {
+		if value == size*1024*1024*1024 {
 			err := lp.CopySparseFile(templateFile, lpPath)
 			if err != nil {
 				log.Errorf("CreateLoopDevice: copy sparsefile failed err:%v", err)

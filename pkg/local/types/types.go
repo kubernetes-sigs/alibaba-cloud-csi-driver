@@ -17,7 +17,7 @@ type GlobalConfig struct {
 	TopoKeyDefine           string
 	LocalSparseFileDir      string
 	LocalSparseFileTempSize string
-	KubeClient         *kubernetes.Clientset
+	KubeClient              *kubernetes.Clientset
 }
 
 var (

@@ -104,7 +104,6 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 		serviceType = utils.PluginService
 	}
 
-	
 	lpTemplateFile := ""
 	if types.GlobalConfigVar.LocalSparseFileDir != "" {
 		log.Infof("NewNodeServer: start to create templatefile with dir: %s, size: %s", types.GlobalConfigVar.LocalSparseFileDir, types.GlobalConfigVar.LocalSparseFileTempSize)
@@ -112,7 +111,7 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 		if err != nil {
 			log.Errorf("NewNodeServer: failed to create template sparsefile. err: %v", err)
 		}
-		lpTemplateFile = filepath.Join(types.GlobalConfigVar.LocalSparseFileDir, manager.LOCAL_SPARSE_TEMPLATE_NAME) 
+		lpTemplateFile = filepath.Join(types.GlobalConfigVar.LocalSparseFileDir, manager.LOCAL_SPARSE_TEMPLATE_NAME)
 	}
 
 	// local volume daemon
@@ -128,7 +127,6 @@ func NewNodeServer(d *csicommon.CSIDriver, dName, nodeID string) csi.NodeServer 
 	if types.GlobalConfigVar.PmemEnable {
 		manager.MaintainPMEM(types.GlobalConfigVar.PmemType, mounter)
 	}
-	
 
 	// Update Local Storage capacity to Node
 	if types.GlobalConfigVar.CapacityToNode {

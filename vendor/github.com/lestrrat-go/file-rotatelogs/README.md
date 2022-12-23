@@ -1,17 +1,12 @@
-go-file-rotatelogs
+file-rotatelogs
 ==================
 
-[![Build Status](https://travis-ci.org/lestrrat/go-file-rotatelogs.png?branch=master)](https://travis-ci.org/lestrrat/go-file-rotatelogs)
+Provide an `io.Writer` that periodically rotates log files from within the application. Port of [File::RotateLogs](https://metacpan.org/release/File-RotateLogs) from Perl to Go.
 
-[![GoDoc](https://godoc.org/github.com/lestrrat/go-file-rotatelogs?status.svg)](https://godoc.org/github.com/lestrrat/go-file-rotatelogs)
+[![Build Status](https://travis-ci.org/lestrrat-go/file-rotatelogs.png?branch=master)](https://travis-ci.org/lestrrat-go/file-rotatelogs)
 
+[![GoDoc](https://godoc.org/github.com/lestrrat-go/file-rotatelogs?status.svg)](https://godoc.org/github.com/lestrrat-go/file-rotatelogs)
 
-Port of [File::RotateLogs](https://metacpan.org/release/File-RotateLogs) from Perl to Go.
-
-
-# WARNING
-
-This repository has been moved to [github.com/lestrrat-go/file-rotatelogs](https://github.com/lestrrat-go/file-rotatelogs). This repository exists so that libraries pointing to this URL will keep functioning, but this repository will NOT be updated in the future. Please use the new import path.
 
 # SYNOPSIS
 
@@ -20,8 +15,8 @@ import (
   "log"
   "net/http"
 
-  apachelog "github.com/lestrrat/go-apache-logformat"
-  rotatelogs "github.com/lestrrat/go-file-rotatelogs"
+  apachelog "github.com/lestrrat-go/apache-logformat"
+  rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 )
 
 func main() {
@@ -39,30 +34,33 @@ func main() {
     return
   }
 
-  http.ListenAndServe(":8080", apachelog.Wrap(mux, logf))
+  // Now you must write to logf. apache-logformat library can create
+  // a http.Handler that only writes the approriate logs for the request
+  // to the given handle
+  http.ListenAndServe(":8080", apachelog.CombinedLog.Wrap(mux, logf))
 }
 ```
 
 # DESCRIPTION
 
-When you integrate this to to you app, it automatically write to logs that
+When you integrate this to into your app, it automatically write to logs that
 are rotated from within the app: No more disk-full alerts because you forgot
 to setup logrotate!
 
 To install, simply issue a `go get`:
 
 ```
-go get github.com/lestrrat/go-file-rotatelogs
+go get github.com/lestrrat-go/file-rotatelogs
 ```
 
 It's normally expected that this library is used with some other
 logging service, such as the built-in `log` library, or loggers
-such as `github.com/lestrrat/go-apache-logformat`.
+such as `github.com/lestrrat-go/apache-logformat`.
 
 ```go
 import(
   "log"
-  "github.com/lestrrat/go-file-rotatelogs"
+  "github.com/lestrrat-go/file-rotatelogs"
 )
   
 func main() {
@@ -125,6 +123,15 @@ always check at the same location for log files even if the logs were rotated
   $ tail -f /var/log/myapp/current
 ```
 
+Links that share the same parent directory with the main log path will get a
+special treatment: namely, linked paths will be *RELATIVE* to the main log file.
+
+| Main log file name  | Link name           | Linked path           |
+|---------------------|---------------------|-----------------------|
+| /path/to/log.%Y%m%d | /path/to/log        | log.YYYYMMDD          |
+| /path/to/log.%Y%m%d | /path/to/nested/log | ../log.YYYYMMDD       |
+| /path/to/log.%Y%m%d | /foo/bar/baz/log    | /path/to/log.YYYYMMDD |
+
 If not provided, no link will be written.
 
 ## RotationTime (default: 86400 sec)
@@ -168,3 +175,59 @@ Note: MaxAge should be disabled by specifing `WithMaxAge(-1)` explicitly.
     rotatelogs.WithRotationCount(7),
   )
 ```
+
+## Handler (default: nil)
+
+Sets the event handler to receive event notifications from the RotateLogs
+object. Currently only supported event type is FiledRotated
+
+```go
+  rotatelogs.New(
+    "/var/log/myapp/log.%Y%m%d",
+    rotatelogs.Handler(rotatelogs.HandlerFunc(func(e Event) {
+      if e.Type() != rotatelogs.FileRotatedEventType {
+        return
+      }
+
+      // Do what you want with the data. This is just an idea:
+      storeLogFileToRemoteStorage(e.(*FileRotatedEvent).PreviousFile())
+    })),
+  )
+```
+
+## ForceNewFile
+
+Ensure a new file is created every time New() is called. If the base file name
+already exists, an implicit rotation is performed.
+
+```go
+  rotatelogs.New(
+    "/var/log/myapp/log.%Y%m%d",
+    rotatelogs.ForceNewFile(),
+  )
+```
+
+# Rotating files forcefully
+
+If you want to rotate files forcefully before the actual rotation time has reached,
+you may use the `Rotate()` method. This method forcefully rotates the logs, but
+if the generated file name clashes, then a numeric suffix is added so that
+the new file will forcefully appear on disk.
+
+For example, suppose you had a pattern of '%Y.log' with a rotation time of
+`86400` so that it only gets rotated every year, but for whatever reason you
+wanted to rotate the logs now, you could install a signal handler to
+trigger this rotation:
+
+```go
+rl := rotatelogs.New(...)
+
+signal.Notify(ch, syscall.SIGHUP)
+
+go func(ch chan os.Signal) {
+  <-ch
+  rl.Rotate()
+}()
+```
+
+And you will get a log file name in like `2018.log.1`, `2018.log.2`, etc.

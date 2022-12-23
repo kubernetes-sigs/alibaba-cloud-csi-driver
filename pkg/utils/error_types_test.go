@@ -15,13 +15,13 @@ const (
 
 func TestFindSuggestionByErrorMessage(t *testing.T) {
 	errMsgProvisionSample := map[string]string{
-		provisionOrgMsg: provisionOrgMsg + "\n" + "recommand: Please adjust the size of the cloud disk；\n reference：https://help.aliyun.com/document_detail/25412.html#BlockStorageQuota",
+		provisionOrgMsg: provisionOrgMsg + "\n" + "faq：https://help.aliyun.com/document_detail/286495.htm?spm=a2c4g.11186623.0.0.77bc690cSyWVYM#section-r6k-e7i-l78",
 	}
 
 	errMsgAttachSample := map[string]string{
-		attachOrgMsg1: attachOrgMsg1 + "\n" + "recommand: Please check the node affinity of the pvc/pv and the pod",
+		attachOrgMsg1: attachOrgMsg1 + "\n" + "faq: https://help.aliyun.com/document_detail/286495.htm?spm=a2c4g.11186623.0.0.77bc690cSyWVYM#section-7o2-zf7-eff",
 		attachOrgMsg2: attachOrgMsg2,
-		attachOrgMsg3: attachOrgMsg3 + "\n" + "recommand: Please change the cloud disk type or current ecs instance type. \n reference: https://help.aliyun.com/document_detail/25378.html",
+		attachOrgMsg3: attachOrgMsg3 + "\n" + "faq: https://help.aliyun.com/document_detail/286495.htm?spm=a2c4g.11186623.0.0.77bc690cSyWVYM#section-ihn-gds-9mm",
 	}
 
 	for origMsg, wrapperedMsg := range errMsgProvisionSample {

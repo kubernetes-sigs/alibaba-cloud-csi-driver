@@ -19,12 +19,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -36,6 +34,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/ens"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local"
+	csilog "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/lvm"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mem"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
@@ -44,10 +43,7 @@ import (
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	rotatelog "github.com/lestrrat/go-file-rotatelogs"
 	"github.com/prometheus/common/version"
-	"github.com/rifflock/lfshook"
-	log "github.com/sirupsen/logrus"
 )
 
 func init() {
@@ -62,8 +58,6 @@ func setPrometheusVersion() {
 }
 
 const (
-	// LogfilePrefix prefix of log file
-	LogfilePrefix = "/var/log/alicloud/"
 	// MBSIZE MB size
 	MBSIZE = 1024 * 1024
 	// TypePluginSuffix is the suffix of all storage plugins.
@@ -136,35 +130,35 @@ func main() {
 		serviceType = utils.PluginService
 	}
 
-	// When serviceType is neither plugin nor provisioner, the program will exits.
-	if serviceType != utils.PluginService && serviceType != utils.ProvisionerService {
-		log.Fatalf("Service type is unknown:%s", serviceType)
-	}
-
 	var logAttribute string
 	if serviceType == utils.ProvisionerService {
 		logAttribute = strings.Replace(TypePluginSuffix, utils.PluginService, utils.ProvisionerService, -1)
 	} else {
 		logAttribute = TypePluginSuffix
 	}
+	csilog.NewLogger(logAttribute)
 
+	// When serviceType is neither plugin nor provisioner, the program will exits.
+	if serviceType != utils.PluginService && serviceType != utils.ProvisionerService {
+		csilog.Log.Fatalf("Service type is unknown:%s", serviceType)
+	}
 	// enable pprof analyse
 	pprofPort := os.Getenv("PPROF_PORT")
 	if pprofPort != "" {
 		if _, err := strconv.Atoi(pprofPort); err == nil {
-			log.Infof("enable pprof & start port at %v", pprofPort)
+			csilog.Log.Infof("enable pprof & start port at %v", pprofPort)
 			go func() {
 				err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%v", pprofPort), nil)
-				log.Errorf("start server err: %v", err)
+				csilog.Log.Errorf("start server err: %v", err)
 			}()
 		}
 	}
 
 	// setLogAttribute(logAttribute)
-	log.AddHook(rotateHook(logAttribute))
+	// log.AddHook(rotateHook(logAttribute))
 
-	log.Infof("Multi CSI Driver Name: %s, nodeID: %s, endPoints: %s", *driver, *nodeID, *endpoint)
-	log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", BRANCH, VERSION, BUILDTIME)
+	csilog.Log.Infof("Multi CSI Driver Name: %s, nodeID: %s, endPoints: %s", *driver, *nodeID, *endpoint)
+	csilog.Log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", BRANCH, VERSION, BUILDTIME)
 
 	multiDriverNames := *driver
 	endPointName := *endpoint
@@ -181,18 +175,18 @@ func main() {
 			if strings.Contains(*endpoint, TypePluginVar) {
 				endPointName = replaceCsiEndpoint(driverName, *endpoint)
 			} else {
-				log.Fatalf("Csi endpoint:%s", *endpoint)
+				csilog.Log.Fatalf("Csi endpoint:%s", *endpoint)
 			}
 		}
 		if driverName == TypePluginYODA {
 			driverName = TypePluginLOCAL
 		}
 		if err := createPersistentStorage(path.Join(utils.KubeletRootDir, "/csi-plugins", driverName, "controller")); err != nil {
-			log.Errorf("failed to create persistent storage for controller: %v", err)
+			csilog.Log.Errorf("failed to create persistent storage for controller: %v", err)
 			os.Exit(1)
 		}
 		if err := createPersistentStorage(path.Join(utils.KubeletRootDir, "/csi-plugins", driverName, "node")); err != nil {
-			log.Errorf("failed to create persistent storage for node: %v", err)
+			csilog.Log.Errorf("failed to create persistent storage for node: %v", err)
 			os.Exit(1)
 		}
 		switch driverName {
@@ -258,7 +252,7 @@ func main() {
 				queryServer.RunAgent()
 			}()
 		default:
-			log.Fatalf("CSI start failed, not support driver: %s", driverName)
+			csilog.Log.Fatalf("CSI start failed, not support driver: %s", driverName)
 		}
 	}
 	servicePort := os.Getenv("SERVICE_PORT")
@@ -285,83 +279,27 @@ func main() {
 	}
 	metricConfig.serviceType = serviceType
 
-	log.Info("CSI is running status.")
+	csilog.Log.Info("CSI is running status.")
 	server := &http.Server{Addr: ":" + servicePort}
 
 	http.HandleFunc("/healthz", healthHandler)
-	log.Infof("Metric listening on address: /healthz")
+	csilog.Log.Infof("Metric listening on address: /healthz")
 	if metricConfig.enableMetric {
 		metricHandler := metric.NewMetricHandler(metricConfig.serviceType)
 		http.Handle("/metrics", metricHandler)
-		log.Infof("Metric listening on address: /metrics")
+		csilog.Log.Infof("Metric listening on address: /metrics")
 	}
 
 	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf("Service port listen and serve err:%s", err.Error())
+		csilog.Log.Fatalf("Service port listen and serve err:%s", err.Error())
 	}
 
 	wg.Wait()
 	os.Exit(0)
 }
 func createPersistentStorage(persistentStoragePath string) error {
-	log.Infof("Create Stroage Path: %s", persistentStoragePath)
+	csilog.Log.Infof("Create Stroage Path: %s", persistentStoragePath)
 	return os.MkdirAll(persistentStoragePath, os.FileMode(0755))
-}
-
-// rotate log file by 2M bytes
-// default print log to stdout and file both.
-func setLogAttribute(driver string) {
-
-	logType := os.Getenv("LOG_TYPE")
-	logType = strings.ToLower(logType)
-	if logType != "stdout" && logType != "host" {
-		logType = "both"
-	}
-	if logType == "stdout" {
-		return
-	}
-
-	os.MkdirAll(LogfilePrefix, os.FileMode(0755))
-	logFile := LogfilePrefix + driver + ".log"
-	f, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		os.Exit(1)
-	}
-
-	// rotate the log file if too large
-	if fi, err := f.Stat(); err == nil && fi.Size() > 2*MBSIZE {
-		f.Close()
-		timeStr := time.Now().Format("-2006-01-02-15:04:05")
-		timedLogfile := LogfilePrefix + driver + timeStr + ".log"
-		os.Rename(logFile, timedLogfile)
-		f, err = os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-		if err != nil {
-			os.Exit(1)
-		}
-	}
-	if logType == "both" {
-		mw := io.MultiWriter(os.Stdout, f)
-		log.SetOutput(mw)
-	} else {
-		log.SetOutput(f)
-	}
-}
-
-func rotateHook(driver string) *lfshook.LfsHook {
-	filepath := filepath.Join(LogfilePrefix, fmt.Sprintf("%s.log", driver))
-	writer, err := rotatelog.New(
-		filepath+"%Y-%M-%D",
-		rotatelog.WithLinkName(filepath),
-		rotatelog.WithMaxAge(30 * 24 * time.Hour),
-		rotatelog.WithRotationTime(1 * time.Hour),
-	) 
-	if err != nil {
-		log.Errorf("rotateHook: config rotate log file err: %v", err)
-	}
-	return lfshook.NewHook(lfshook.WriterMap{
-		log.InfoLevel: writer,
-		log.ErrorLevel: writer,
-	}, &log.JSONFormatter{})
 }
 
 func joinCsiPluginSuffix(storageType string) string {

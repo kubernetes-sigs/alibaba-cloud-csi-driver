@@ -42,7 +42,7 @@ func NewProjQuotaServer() ProjQuotaServer {
 	return ProjQuotaServer{}
 }
 
-type LoopDeviceServer struct{
+type LoopDeviceServer struct {
 	templateFile string
 }
 

@@ -24,7 +24,7 @@ func MaintainSparseTemplateFile(dir string, size string) error {
 	tempFileName := filepath.Join(templateDir, LOCAL_SPARSE_TEMPLATE_NAME)
 	_, err := os.Stat(tempFileName)
 	if os.IsNotExist(err) {
-		err = ld.CreateSparseFile(tempFileName, strconv.Itoa(templateSize * 1024 * 1024 * 1024))
+		err = ld.CreateSparseFile(tempFileName, strconv.Itoa(templateSize*1024*1024*1024))
 		if err != nil {
 			return err
 		}
@@ -56,8 +56,8 @@ func NewLoopDevice(templateDir, templateSize string) LoopDevice {
 		size = value
 	}
 	return &NodeLoopDevice{
-		templateDir:   templateDir,
-		templateSize:  size,
+		templateDir:  templateDir,
+		templateSize: size,
 	}
 }
 
@@ -94,7 +94,7 @@ func (ld *NodeLoopDevice) CustomFormatFile(fullName, fsType string, options []st
 		}
 	}
 	args = append(args, fullName)
-	_, err := exec.Command("mkfs." + fsType, args...).CombinedOutput()
+	_, err := exec.Command("mkfs."+fsType, args...).CombinedOutput()
 	return err
 
 }

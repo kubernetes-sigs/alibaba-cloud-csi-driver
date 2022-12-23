@@ -132,7 +132,7 @@ func connect(address string, timeout time.Duration, creds credentials.TransportC
 func (c *workerConnection) CreateLoopDevice(ctx context.Context, pvName, quotaSize string) (string, error) {
 	client := lib.NewLoopDeviceClient(c.conn)
 	req := lib.CreateLoopDeviceRequest{
-		PvName: pvName,
+		PvName:    pvName,
 		QuotaSize: quotaSize,
 	}
 	rsp, err := client.CreateLoopDevice(ctx, &req)

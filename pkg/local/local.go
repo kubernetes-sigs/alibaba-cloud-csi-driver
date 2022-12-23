@@ -250,20 +250,19 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 		CapacityToNode = true
 	}
 
-
 	// Global Config Set
 	types.GlobalConfigVar = types.GlobalConfig{
-		Region:         region,
-		NodeID:         nodeID,
-		Scheduler:      driverName,
-		PmemEnable:     pmemEnable,
-		PmemType:       pmeType,
-		CapacityToNode: CapacityToNode,
-		GrpcProvision:  grpcProvision,
-		KubeClient:     kubeClient,
-		HostNameAsTopo: hostNameAsTop,
-		TopoKeyDefine:  topoKeyDefine,
-		LocalSparseFileDir: os.Getenv(LOCAL_SPARSE_TEMPLATE_FILEDIR),
+		Region:                  region,
+		NodeID:                  nodeID,
+		Scheduler:               driverName,
+		PmemEnable:              pmemEnable,
+		PmemType:                pmeType,
+		CapacityToNode:          CapacityToNode,
+		GrpcProvision:           grpcProvision,
+		KubeClient:              kubeClient,
+		HostNameAsTopo:          hostNameAsTop,
+		TopoKeyDefine:           topoKeyDefine,
+		LocalSparseFileDir:      os.Getenv(LOCAL_SPARSE_TEMPLATE_FILEDIR),
 		LocalSparseFileTempSize: os.Getenv(LOCAL_SPARSE_TEMPLATE_SIZE),
 	}
 	log.Infof("Local Plugin Global Config is: %v", types.GlobalConfigVar)

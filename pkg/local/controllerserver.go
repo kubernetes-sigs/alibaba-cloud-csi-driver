@@ -56,7 +56,7 @@ const (
 	PmemVolumeType = "PMEM"
 	// QuotaPathVolumeType ...
 	QuotaPathVolumeType = "QuotaPath"
-	// LoopDeviceVolumeType type defines user want to use loopdevice local disk  
+	// LoopDeviceVolumeType type defines user want to use loopdevice local disk
 	LoopDeviceVolumeType = "LoopDevice"
 	// MountPointType type
 	MountPointType = "MountPoint"
