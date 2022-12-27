@@ -32,6 +32,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -45,6 +46,53 @@ const (
 	// ProjQuotaNamespacePrefix ...
 	ProjQuotaNamespacePrefix = "/mnt/quotapath.%s"
 )
+
+func CreateLoopDevice(templateFile, pvName, quotaSize string, lp manager.LoopDevice) (string, error) {
+
+	lpPath := filepath.Join(filepath.Dir(templateFile), fmt.Sprintf("%s.img", pvName))
+	_, err := os.Stat(lpPath)
+	if err == nil {
+		log.Errorf("CreateLoopDevice: target sparsefile: %s exists, previous loopdevice not cleaned", lpPath)
+	}
+	if !os.IsNotExist(err) {
+		log.Errorf("CreateLoopDevice: check loopdevice sparsefile path err: %v", err)
+		return "", err
+	}
+	log.Errorf("CreateLoopDevice: lpPath %s is not exists", lpPath)
+	if value, err := strconv.Atoi(quotaSize); err != nil {
+		return "", fmt.Errorf("CreateLoopDevice: invalid quotasize:%s, err:%v", quotaSize, err)
+	} else {
+		_, size := lp.GetTemplateInfo()
+		if value == size*1024*1024*1024 {
+			err := lp.CopySparseFile(templateFile, lpPath)
+			if err != nil {
+				log.Errorf("CreateLoopDevice: copy sparsefile failed err:%v", err)
+				return "", err
+			}
+		} else {
+			err := lp.CreateSparseFile(lpPath, quotaSize)
+			if err != nil {
+				log.Errorf("CreateLoopDevice: create sparsefile failed err:%v", err)
+				return "", err
+			}
+			err = lp.FormatFile(lpPath)
+			if err != nil {
+				log.Errorf("CreateLoopDevice: failed to create sparsefile. err: %v", err)
+				return "", err
+			}
+		}
+	}
+
+	return lp.CreateLoopDevice(lpPath)
+}
+
+func DeleteLoopDevice(pvName string) error {
+	ld := manager.NewLoopDevice(types.GlobalConfigVar.LocalSparseFileDir, types.GlobalConfigVar.LocalSparseFileTempSize)
+	lpPath := filepath.Join(types.GlobalConfigVar.LocalSparseFileDir, fmt.Sprintf("%s.img", pvName))
+	out, err := ld.DeleteLoopDevice(lpPath)
+	log.Infof("DeleteLoopDevice: delete loopdevice with out:%s, err:%v", out, err)
+	return err
+}
 
 // ListLV lists lvm volumes
 func ListLV(listspec string) ([]*lib.LV, error) {

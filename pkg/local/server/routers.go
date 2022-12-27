@@ -18,6 +18,8 @@ package server
 
 import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -38,6 +40,41 @@ type ProjQuotaServer struct{}
 // NewProjQuotaServer new proj quota grpc server
 func NewProjQuotaServer() ProjQuotaServer {
 	return ProjQuotaServer{}
+}
+
+type LoopDeviceServer struct {
+	templateFile string
+}
+
+// NewLoopDeviceServer create new loop device server
+func NewLoopDeviceServer(tf string) LoopDeviceServer {
+	return LoopDeviceServer{
+		templateFile: tf,
+	}
+}
+
+// CreateLoopDevice defines how to create loopdevice by pv
+func (lds LoopDeviceServer) CreateLoopDevice(ctx context.Context, in *lib.CreateLoopDeviceRequest) (*lib.CreateLoopDeviceReply, error) {
+	log.Infof("CreateLoopDevice: start to create loopdevice with pv_name: %s, quota_path: %s, root_path: %s", in.PvName, in.QuotaSize, in.RootPath)
+	lp := manager.NewLoopDevice(types.GlobalConfigVar.LocalSparseFileDir, types.GlobalConfigVar.LocalSparseFileTempSize)
+	loopDevicePath, err := CreateLoopDevice(lds.templateFile, in.PvName, in.QuotaSize, lp)
+	if err != nil {
+		log.Errorf("CreateLoopDevice: failed to create loopdevice, err: %+v", err)
+		return &lib.CreateLoopDeviceReply{}, err
+	}
+
+	return &lib.CreateLoopDeviceReply{LoopDevicePath: loopDevicePath, CommandOutput: ""}, nil
+}
+
+func (lds LoopDeviceServer) DeleteLoopDevice(ctx context.Context, in *lib.DeleteLoopDeviceRequest) (*lib.DeleteLoopDeviceReply, error) {
+	log.Infof("DeleteLoopDevice: start to delete loopdeivce")
+	err := DeleteLoopDevice(in.PvName)
+	if err != nil {
+		log.Errorf("DeleteLoopDevice: failed to delete loop device: %+v", err)
+		return &lib.DeleteLoopDeviceReply{}, err
+	}
+
+	return &lib.DeleteLoopDeviceReply{CommandOutput: ""}, nil
 }
 
 // ListLV list lvm volume

@@ -302,6 +302,48 @@ func (ns *nodeServer) mountPmemVolume(ctx context.Context, req *csi.NodePublishV
 	return nil
 }
 
+func (ns *nodeServer) mountLoopDeviceVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, lp manager.LoopDevice) error {
+	targetPath := req.TargetPath
+
+	nodeAffinity := DefaultNodeAffinity
+	if _, ok := req.VolumeContext[NodeAffinity]; ok {
+		nodeAffinity = req.VolumeContext[NodeAffinity]
+	}
+	log.Infof("NodePublishVolume: Starting to mount loopdevice at path %s, with volume: %s, nodeaffinity: %s", targetPath, req.GetVolumeId(), nodeAffinity)
+	volumeID := req.GetVolumeId()
+	// Check target mounted
+	isMnt, err := ns.checkTargetMounted(targetPath)
+	if err != nil {
+		log.Errorf("NodePublishVolume: check volume %s is mounted err: %s", volumeID, err.Error())
+		return err
+	}
+	if !isMnt {
+		lpPath := filepath.Join(ns.SparseFileDir, fmt.Sprintf("%s.img", volumeID))
+		device, err := lp.FindLoopDeviceBySparseFile(lpPath)
+		if err != nil {
+			log.Errorf("NodePublishVolume: find loopdevice failed. err: %v", err)
+			return err
+		}
+		mountCmd := fmt.Sprintf("%s mount %s %s", NsenterCmd, device, targetPath)
+		_, err = utils.Run(mountCmd)
+		if err != nil {
+			err = fmt.Errorf("NodePublishVOlume: Volume: %s, Device: %s, mount error: %s", req.VolumeId, device, err.Error())
+			return err
+		}
+	}
+	log.Infof("NodePublishVolume: targetpath: %s is mounted", targetPath)
+
+	// upgrade PV with NodeAffinity
+	if nodeAffinity == "true" {
+		err = ns.updatePVNodeAffinity(volumeID)
+		if err != nil {
+			log.Errorf("NodePublishVolume: mount device volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
+			return err
+		}
+	}
+	return nil
+}
+
 func (ns *nodeServer) mountQuotaPathVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) error {
 	targetPath := req.TargetPath
 

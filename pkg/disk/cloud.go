@@ -869,31 +869,43 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 				log.Infof("createDisk: start to create disk by diskName: %s, valid disktype: %v, pl: %s", diskName, diskTypes, diskPL)
 				createDiskRequest.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID, diskPL)
 				createDiskRequest.PerformanceLevel = diskPL
-				returned, diskId, err := request(createDiskRequest, ecsClient)
+				returned, diskId, rerr := request(createDiskRequest, ecsClient)
 				if returned {
-					if diskId != "" && err == nil {
+					if diskId != "" && rerr == nil {
 						return dType, diskId, diskPL, nil
 					}
-					if err != nil {
-						return "", "", "", err
+					if rerr != nil {
+						return "", "", "", rerr
 					}
 				}
+				err = rerr
 			}
 		}
-		returned, diskId, err := request(createDiskRequest, ecsClient)
+		createDiskRequest.PerformanceLevel = ""
+		returned, diskId, rerr := request(createDiskRequest, ecsClient)
 		if returned {
-			if diskId != "" && err == nil {
+			if diskId != "" && rerr == nil {
 				return dType, diskId, "", nil
 			}
 			if err != nil {
-				return "", "", "", err
+				return "", "", "", rerr
 			}
 		}
+		err = rerr
 	}
 	return "", "", "", status.Error(codes.Internal, fmt.Sprintf("createDisk: err: %v, the zone:[%s] is not support specific disk type, please change the request disktype: %s or disk pl: %s", err, diskVol.ZoneID, diskTypes, diskPLs))
 }
 
 func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (returned bool, diskId string, err error) {
+	cata := strings.Trim(fmt.Sprintf("%s.%s", createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel), ".")
+	log.Infof("request: Create Disk for volume: %s with cata: %s", createDiskRequest.DiskName, cata)
+	if minCap, ok := DiskCapacityMapping[cata]; ok {
+		if rValue, err := createDiskRequest.Size.GetValue(); err == nil {
+			if rValue < minCap {
+				return false, "", fmt.Errorf("request: to request %s type disk you needs at least %dGB size which the provided size %dGB does not meet the needs, please resize the size up.", cata, minCap, rValue)
+			}
+		}
+	}
 	volumeRes, err := ecsClient.CreateDisk(createDiskRequest)
 	log.Errorf("request: err: %v", err)
 	if err == nil {

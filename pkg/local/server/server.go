@@ -61,7 +61,7 @@ func newServerTransportCredentials(ch chan bool) credentials.TransportCredential
 }
 
 // Start start lvmd
-func Start(kubeClient *kubernetes.Clientset, ch chan bool) {
+func Start(kubeClient *kubernetes.Clientset, ch chan bool, templateFile string) {
 	kubeNode := os.Getenv("KUBE_NODE_NAME")
 	if len(kubeNode) == 0 {
 		log.Fatalf("KUBE_NODE_NAME env is empty.")
@@ -79,6 +79,10 @@ func Start(kubeClient *kubernetes.Clientset, ch chan bool) {
 	projQuotaServer := NewProjQuotaServer()
 	lib.RegisterLVMServer(grpcServer, &lvmServer)
 	lib.RegisterProjQuotaServer(grpcServer, &projQuotaServer)
+	if templateFile != "" {
+		loopDeviceServer := NewLoopDeviceServer(templateFile)
+		lib.RegisterLoopDeviceServer(grpcServer, &loopDeviceServer)
+	}
 	if err := grpcServer.Serve(listener); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
