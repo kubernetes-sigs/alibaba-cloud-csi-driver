@@ -162,6 +162,9 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		nodeID = doc.InstanceID
 	}
 	log.Log.Infof("NewNodeServer: zone id: %+v", zoneID)
+	if zoneID == "" {
+		log.Log.Fatalf("Failed to get zoneid from %s, please restart the csi-plugin pod", DocumentURL)
+	}
 
 	// Create Directory
 	os.MkdirAll(VolumeDir, os.FileMode(0755))

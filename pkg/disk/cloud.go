@@ -865,8 +865,10 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 		createDiskRequest.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID)
 		createDiskRequest.DiskCategory = dType
 		if dType == DiskESSD {
+			// when perforamceLevel is not setting, diskPLs is empty.
 			for _, diskPL := range diskPLs {
 				log.Infof("createDisk: start to create disk by diskName: %s, valid disktype: %v, pl: %s", diskName, diskTypes, diskPL)
+
 				createDiskRequest.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID, diskPL)
 				createDiskRequest.PerformanceLevel = diskPL
 				returned, diskId, rerr := request(createDiskRequest, ecsClient)
@@ -879,6 +881,9 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 					}
 				}
 				err = rerr
+			}
+			if len(diskPLs) != 0 {
+				continue
 			}
 		}
 		createDiskRequest.PerformanceLevel = ""
@@ -906,6 +911,7 @@ func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (r
 			}
 		}
 	}
+	log.Infof("request: request content: %++v", *createDiskRequest)
 	volumeRes, err := ecsClient.CreateDisk(createDiskRequest)
 	log.Errorf("request: err: %v", err)
 	if err == nil {
