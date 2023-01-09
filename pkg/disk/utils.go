@@ -1009,7 +1009,7 @@ func validateDiskType(opts map[string]string) (diskType string, err error) {
 func validateDiskPerformaceLevel(opts map[string]string) (performaceLevel string, err error) {
 	pl, ok := opts[ESSD_PERFORMANCE_LEVEL]
 	if !ok || pl == "" {
-		return DISK_PERFORMANCE_LEVEL1, nil
+		return "", nil
 	}
 	log.Infof("validateDiskPerformaceLevel: pl: %v", pl)
 	if strings.Contains(pl, ",") {
