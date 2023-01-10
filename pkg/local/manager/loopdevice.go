@@ -2,7 +2,6 @@ package manager
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,6 +41,7 @@ type LoopDevice interface {
 	ResizeLoopDevice(sparseFile string) error
 	FindLoopDeviceBySparseFile(sparseFile string) (string, error)
 	GetTemplateInfo() (string, int)
+	FileExists(filepath string) error
 }
 
 type NodeLoopDevice struct {
@@ -94,31 +94,31 @@ func (ld *NodeLoopDevice) CustomFormatFile(fullName, fsType string, options []st
 		}
 	}
 	args = append(args, fullName)
-	_, err := exec.Command("mkfs."+fsType, args...).CombinedOutput()
+	_, err := exec.Command(fmt.Sprintf("%s mkfs.%s", NsenterCmd, fsType), args...).CombinedOutput()
 	return err
 
 }
 
 func (ld *NodeLoopDevice) CopySparseFile(sourceFile, targetFile string) error {
-	// cmd := fmt.Sprintf("%s cp %s %s", NsenterCmd, sourceFile, targetFile)
-	// _, err := utils.Run(cmd)
-	// return err
-	source, err := os.Open(sourceFile)
-	if err != nil {
-		return err
-	}
-	defer source.Close()
-	des, err := os.Create(targetFile)
-	if err != nil {
-		return err
-	}
-	defer des.Close()
-	_, err = io.Copy(des, source)
+	cmd := fmt.Sprintf("%s cp %s %s", NsenterCmd, sourceFile, targetFile)
+	_, err := utils.Run(cmd)
 	return err
+	// source, err := os.Open(sourceFile)
+	// if err != nil {
+	// 	return err
+	// }
+	// defer source.Close()
+	// des, err := os.Create(targetFile)
+	// if err != nil {
+	// 	return err
+	// }
+	// defer des.Close()
+	// _, err = io.Copy(des, source)
+	// return err
 }
 
 func (ld *NodeLoopDevice) CreateLoopDevice(sparseFile string) (string, error) {
-	if _, err := os.Stat(sparseFile); err != nil {
+	if err := ld.FileExists(sparseFile); err != nil {
 		return "", fmt.Errorf("CreateLoopDevice: check sparsefile file: %s err:%v, failed to create loopdevice", sparseFile, err)
 	}
 	cmd := fmt.Sprintf("%s losetup -f %s", NsenterCmd, sparseFile)
@@ -151,7 +151,7 @@ func (ld *NodeLoopDevice) DeleteLoopDevice(sparseFile string) (string, error) {
 }
 
 func (ld *NodeLoopDevice) FindLoopDeviceBySparseFile(sparseFile string) (string, error) {
-	if _, err := os.Stat(sparseFile); err != nil {
+	if err := ld.FileExists(sparseFile); err != nil {
 		return "", fmt.Errorf("FindLoopDeviceBySparseFile: check sparsefile file: %s err:%v, failed to find sparsefile", sparseFile, err)
 	}
 	cmd := fmt.Sprintf("%s losetup | grep '%s' | awk '{print $1}'", NsenterCmd, sparseFile)
@@ -179,6 +179,15 @@ func (ld *NodeLoopDevice) ResizeLoopDevice(sparseFile string) error {
 	out, err = utils.Run(cmd)
 	if err != nil {
 		return fmt.Errorf("ResizeLoopDevice: failed to resize filesystem err:%v, out:%s", err, out)
+	}
+	return nil
+}
+
+func (ld *NodeLoopDevice) FileExists(filepath string) error {
+	cmd := fmt.Sprintf("%s stat %s", NsenterCmd, filepath)
+	_, err := utils.Run(cmd)
+	if err != nil {
+		return err
 	}
 	return nil
 }
