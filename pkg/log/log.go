@@ -33,7 +33,10 @@ func NewLogger(driver string) *logrus.Logger {
 	Log = logrus.New()
 	Log.Hooks.Add(lfshook.NewHook(
 		writerMap,
-		&logrus.JSONFormatter{},
+		&Formatter{
+			TimestampFormat: "2006-01-02 15:04:05",
+			LogFormat:       "[%lvl%]: %time% - %msg%",
+		},
 	))
 
 	return Log

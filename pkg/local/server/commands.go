@@ -58,7 +58,7 @@ func CreateLoopDevice(templateFile, pvName, quotaSize string, lp manager.LoopDev
 		log.Errorf("CreateLoopDevice: check loopdevice sparsefile path err: %v", err)
 		return "", err
 	}
-	log.Errorf("CreateLoopDevice: lpPath %s is not exists", lpPath)
+	log.Infof("CreateLoopDevice: lpPath %s is not exists", lpPath)
 	if value, err := strconv.Atoi(quotaSize); err != nil {
 		return "", fmt.Errorf("CreateLoopDevice: invalid quotasize:%s, err:%v", quotaSize, err)
 	} else {

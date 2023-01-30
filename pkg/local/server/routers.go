@@ -55,7 +55,7 @@ func NewLoopDeviceServer(tf string) LoopDeviceServer {
 
 // CreateLoopDevice defines how to create loopdevice by pv
 func (lds LoopDeviceServer) CreateLoopDevice(ctx context.Context, in *lib.CreateLoopDeviceRequest) (*lib.CreateLoopDeviceReply, error) {
-	log.Infof("CreateLoopDevice: start to create loopdevice with pv_name: %s, quota_path: %s, root_path: %s", in.PvName, in.QuotaSize, in.RootPath)
+	log.Infof("CreateLoopDevice: start to create loopdevice with pv_name: %s, quota_size: %s", in.PvName, in.QuotaSize)
 	lp := manager.NewLoopDevice(types.GlobalConfigVar.LocalSparseFileDir, types.GlobalConfigVar.LocalSparseFileTempSize)
 	loopDevicePath, err := CreateLoopDevice(lds.templateFile, in.PvName, in.QuotaSize, lp)
 	if err != nil {
