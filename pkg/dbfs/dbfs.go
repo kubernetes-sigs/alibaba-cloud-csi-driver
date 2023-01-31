@@ -5,9 +5,9 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -57,13 +57,13 @@ type DBFS struct {
 
 // NewDriver create the identity/node/controller server and dbfs driver
 func NewDriver(nodeID, endpoint string) *DBFS {
-	log.Infof("Driver: %v version: %v", driverName, version)
+	log.Log.Infof("Driver: %v version: %v", driverName, version)
 
 	d := &DBFS{}
 	d.endpoint = endpoint
 	if nodeID == "" {
 		nodeID = utils.RetryGetMetaData(InstanceID)
-		log.Infof("DBFS Use node id : %s", nodeID)
+		log.Log.Infof("DBFS Use node id : %s", nodeID)
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
 	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
@@ -105,11 +105,11 @@ func GlobalConfigSet(region string) {
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
+		log.Log.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+		log.Log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
 	isADControllerEnable := true
@@ -118,11 +118,11 @@ func GlobalConfigSet(region string) {
 
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
-		log.Infof("Not found configmap named as csi-plugin under kube-system, with error: %v", err)
+		log.Log.Infof("Not found configmap named as csi-plugin under kube-system, with error: %v", err)
 	} else {
 		if value, ok := configMap.Data["dbfs-metric-enable"]; ok {
 			if value == "enable" || value == "yes" || value == "true" {
-				log.Infof("Dbfs Metric is enabled by configMap(%s).", value)
+				log.Log.Infof("Dbfs Metric is enabled by configMap(%s).", value)
 				isMetricEnable = true
 			}
 		}
@@ -138,16 +138,16 @@ func GlobalConfigSet(region string) {
 	// Env variables
 	adEnable := os.Getenv(DBFSAttachByController)
 	if adEnable == "true" || adEnable == "yes" {
-		log.Infof("AD-Controller is enabled by Env(%s), CSI DBFS Plugin running in AD Controller mode.", adEnable)
+		log.Log.Infof("AD-Controller is enabled by Env(%s), CSI DBFS Plugin running in AD Controller mode.", adEnable)
 		isADControllerEnable = true
 	} else if adEnable == "false" || adEnable == "no" {
-		log.Infof("AD-Controller is disabled by Env(%s), CSI DBFS Plugin running in kubelet mode.", adEnable)
+		log.Log.Infof("AD-Controller is disabled by Env(%s), CSI DBFS Plugin running in kubelet mode.", adEnable)
 		isADControllerEnable = false
 	}
 	if isADControllerEnable {
-		log.Infof("AD-Controller is enabled, CSI DBFS Plugin running in AD Controller mode.")
+		log.Log.Infof("AD-Controller is enabled, CSI DBFS Plugin running in AD Controller mode.")
 	} else {
-		log.Infof("AD-Controller is disabled, CSI DBFS Plugin running in kubelet mode.")
+		log.Log.Infof("AD-Controller is disabled, CSI DBFS Plugin running in kubelet mode.")
 	}
 
 	isDbfsDetachDisable := false
@@ -166,5 +166,5 @@ func GlobalConfigSet(region string) {
 	GlobalConfigVar.ADControllerEnable = isADControllerEnable
 	GlobalConfigVar.DBFSDomain = "dbfs-vpc." + GlobalConfigVar.Region + ".aliyuncs.com"
 	GlobalConfigVar.DBFSDetachDisable = isDbfsDetachDisable
-	log.Infof("DBFS Global Config: %v", GlobalConfigVar)
+	log.Log.Infof("DBFS Global Config: %v", GlobalConfigVar)
 }
