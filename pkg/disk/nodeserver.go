@@ -401,6 +401,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if value, ok := req.VolumeContext[MkfsOptions]; ok {
 			volumeData["csi.alibabacloud.com/mkfsOptions"] = value
 		}
+		volumeData["csi.alibabacloud.com/disk-mounted"] = "true"
 		fileName := filepath.Join(filepath.Dir(targetPath), utils.VolDataFileName)
 		if strings.HasSuffix(targetPath, "/") {
 			fileName = filepath.Join(filepath.Dir(filepath.Dir(targetPath)), utils.VolDataFileName)
