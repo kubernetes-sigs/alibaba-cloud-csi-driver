@@ -865,13 +865,14 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 		createDiskRequest.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID)
 		createDiskRequest.DiskCategory = dType
 		if dType == DiskESSD {
+			newReq := generateNewRequest(createDiskRequest)
 			// when perforamceLevel is not setting, diskPLs is empty.
 			for _, diskPL := range diskPLs {
 				log.Log.Infof("createDisk: start to create disk by diskName: %s, valid disktype: %v, pl: %s", diskName, diskTypes, diskPL)
 
-				createDiskRequest.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID, diskPL)
-				createDiskRequest.PerformanceLevel = diskPL
-				returned, diskId, rerr := request(createDiskRequest, ecsClient)
+				newReq.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID, diskPL)
+				newReq.PerformanceLevel = diskPL
+				returned, diskId, rerr := request(newReq, ecsClient)
 				if returned {
 					if diskId != "" && rerr == nil {
 						return dType, diskId, diskPL, nil
@@ -899,6 +900,25 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 		err = rerr
 	}
 	return "", "", "", status.Error(codes.Internal, fmt.Sprintf("createDisk: err: %v, the zone:[%s] is not support specific disk type, please change the request disktype: %s or disk pl: %s", err, diskVol.ZoneID, diskTypes, diskPLs))
+}
+
+// reuse rpcrequest in ecs sdk is forbidden, because parameters can't be reassigned with empty string.(ecs sdk bug)
+func generateNewRequest(oldReq *ecs.CreateDiskRequest) *ecs.CreateDiskRequest {
+	createDiskRequest := ecs.CreateCreateDiskRequest()
+
+	createDiskRequest.DiskName = oldReq.DiskName
+	createDiskRequest.Size = oldReq.Size
+	createDiskRequest.RegionId = oldReq.RegionId
+	createDiskRequest.ZoneId = oldReq.ZoneId
+	createDiskRequest.Encrypted = oldReq.Encrypted
+	createDiskRequest.Arn = oldReq.Arn
+	createDiskRequest.ResourceGroupId = oldReq.ResourceGroupId
+	createDiskRequest.SnapshotId = oldReq.SnapshotId
+	createDiskRequest.Tag = oldReq.Tag
+	createDiskRequest.MultiAttach = oldReq.MultiAttach
+	createDiskRequest.KMSKeyId = oldReq.KMSKeyId
+	createDiskRequest.StorageClusterId = oldReq.StorageClusterId
+	return createDiskRequest
 }
 
 func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (returned bool, diskId string, err error) {
