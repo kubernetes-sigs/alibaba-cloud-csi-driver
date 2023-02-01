@@ -19,7 +19,6 @@ package dbfs
 import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -36,7 +35,6 @@ func NewIdentityServer(d *csicommon.CSIDriver) csi.IdentityServer {
 
 // GetPluginCapabilities returns available capabilities of the plugin
 func (iden *identityServer) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
-	log.Infof("Identity:GetPluginCapabilities dbfs is called")
 	resp := &csi.GetPluginCapabilitiesResponse{
 		Capabilities: []*csi.PluginCapability{
 			{
