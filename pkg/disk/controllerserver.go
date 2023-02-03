@@ -642,7 +642,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	// }
 
 	// if disk type is not essd and IA set disable
-	if useInstanceAccess && disks[0].Category != DiskESSD {
+	if useInstanceAccess && disks[0].Category != DiskESSD && disks[0].Category != DiskESSDAuto {
 		log.Log.Warnf("CreateSnapshot: Snapshot(%s) set as not IA type, because disk Category %s", req.Name, disks[0].Category)
 		useInstanceAccess = false
 	}
@@ -911,7 +911,6 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	}
 
 	// Check if autoSnapshot is enabled
-
 	ok, snapshot, err := cs.autoSnapshot(ctx, disk)
 	if !ok {
 		return nil, status.Errorf(codes.Internal, "ControllerExpandVolume:: autoSnapshot failed with error: %+v", err)
@@ -922,7 +921,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	resizeDiskRequest.RegionId = GlobalConfigVar.Region
 	resizeDiskRequest.DiskId = disk.DiskId
 	resizeDiskRequest.NewSize = requests.NewInteger(requestGB)
-	if disk.Category == DiskSSD || disk.Category == DiskEfficiency || disk.Category == DiskESSD {
+	if disk.Category == DiskSSD || disk.Category == DiskEfficiency || disk.Category == DiskESSD || disk.Category == DiskESSDAuto {
 		if disk.Status == DiskStatusInuse {
 			resizeDiskRequest.Type = "online"
 		}
@@ -1098,13 +1097,13 @@ func updateVolumeExpandAutoSnapshotID(pvc *v1.PersistentVolumeClaim, snapshotID,
 // autoSnapshot is used in volume expanding of ESSD,
 // returns if the volume expanding should be continued
 func (cs *controllerServer) autoSnapshot(ctx context.Context, disk *ecs.Disk) (bool, *csi.Snapshot, error) {
-	if disk.Category != DiskESSD {
+	if disk.Category != DiskESSD && disk.Category != DiskESSDAuto {
 		return true, nil, nil
 	}
 	pv, pvc, err := getPvPvcFromDiskId(disk.DiskId)
 	if err != nil {
 		log.Log.Errorf("ControllerExpandVolume:: failed to get pvc from apiserver: %s", err.Error())
-		return false, nil, nil
+		return true, nil, nil
 	}
 
 	if value, ok := pv.Spec.CSI.VolumeAttributes["volumeExpandAutoSnapshot"]; !ok || value == "closed" {

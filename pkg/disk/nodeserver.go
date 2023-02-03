@@ -401,6 +401,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if value, ok := req.VolumeContext[MkfsOptions]; ok {
 			volumeData["csi.alibabacloud.com/mkfsOptions"] = value
 		}
+		volumeData["csi.alibabacloud.com/disk-mounted"] = "true"
 		fileName := filepath.Join(filepath.Dir(targetPath), utils.VolDataFileName)
 		if strings.HasSuffix(targetPath, "/") {
 			fileName = filepath.Join(filepath.Dir(filepath.Dir(targetPath)), utils.VolDataFileName)
@@ -839,7 +840,6 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	_, pvc, err := getPvPvcFromDiskId(diskID)
 	if err != nil {
 		log.Log.Errorf("NodeExpandVolume:: failed to get pvc from apiserver: %s", err.Error())
-		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	volumeExpandAutoSnapshotID := ""
