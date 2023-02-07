@@ -224,9 +224,6 @@ func updateNasClient(client *aliNas.Client, regionID string) *aliNas.Client {
 }
 
 func newNasClient(ac utils.AccessControl, regionID string) (nasClient *aliNas.Client) {
-	if len(regionID) == 0 {
-		regionID = GetMetaData(RegionTag)
-	}
 	var err error
 	switch ac.UseMode {
 	case utils.AccessKey:

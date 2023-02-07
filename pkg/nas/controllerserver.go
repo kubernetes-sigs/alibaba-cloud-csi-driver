@@ -202,6 +202,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	volumeContext := map[string]string{}
 	csiTargetVol := &csi.Volume{}
 	if nasVol.VolumeAs == "filesystem" {
+		if len(nasVol.RegionID) == 0 {
+			nasVol.RegionID = GlobalConfigVar.Region
+		}
 		cs.nasClient = updateNasClient(cs.nasClient, nasVol.RegionID)
 		fileSystemID := ""
 		// if the pvc mapped fileSystem is already create, skip creating a filesystem
@@ -584,6 +587,8 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	regionID := ""
 	if value, ok := storageclass.Parameters[RegionID]; ok {
 		regionID = value
+	} else {
+		regionID = GlobalConfigVar.Region
 	}
 	cs.nasClient = updateNasClient(cs.nasClient, regionID)
 	if volumeAs == "filesystem" {
