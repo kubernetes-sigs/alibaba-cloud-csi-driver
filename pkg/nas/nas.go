@@ -113,10 +113,7 @@ func NewDriver(nodeID, endpoint, serviceType string) *NAS {
 	if limit == "" {
 		limit = "2"
 	}
-	if region == "" {
-		region = GetMetaData(RegionTag)
-	}
-	d.controllerServer = NewControllerServer(d.driver, c, region, limit, cfg)
+	d.controllerServer = NewControllerServer(d.driver, c, regionID, limit, cfg)
 
 	GlobalConfigVar.NasClient = c
 	return d
