@@ -103,9 +103,11 @@ func NewDriver(nodeID, endpoint, serviceType string) *NAS {
 
 	d.driver = csiDriver
 
-	ac := utils.GetAccessControl()
-	c := newNasClient(ac, "")
-	region := os.Getenv("REGION_ID")
+	regionID := os.Getenv("REGION_ID")
+	if len(regionID) == 0 {
+		regionID = GetMetaData(RegionTag)
+	}
+	c := newNasClient(ac, regionID)
 	limit := os.Getenv("NAS_LIMIT_PERSECOND")
 	if limit == "" {
 		limit = "2"
