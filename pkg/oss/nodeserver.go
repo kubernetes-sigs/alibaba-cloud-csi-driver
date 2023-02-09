@@ -60,7 +60,7 @@ const (
 	// OssfsCredentialFile is the path of oss ak credential file
 	OssfsCredentialFile = "/host/etc/passwd-ossfs"
 	// NsenterCmd is nsenter mount command
-	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
+	NsenterCmd = "nsenter --mount=/proc/1/ns/mnt"
 	// AkID is Ak ID
 	AkID = "akId"
 	// AkSecret is Ak Secret
@@ -81,6 +81,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// logout oss paras
 	log.Infof("NodePublishVolume:: Starting Mount volume: %s mount with req: %+v", req.VolumeId, req)
 	mountPath := req.GetTargetPath()
+	valid, err := utils.CheckRequest(req.GetVolumeContext(), mountPath)
+	if !valid {
+		return nil, errors.New(err.Error())
+	}
 	var cnfsName string
 	opt := &Options{}
 	opt.UseSharedPath = false
@@ -344,6 +348,10 @@ func (ns *nodeServer) saveOssCredential(opt *Options) error {
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	log.Infof("NodeUnpublishVolume:: Starting Umount OSS: %s mount with req: %+v", req.TargetPath, req)
 	mountPoint := req.TargetPath
+	valid, err := utils.CheckRequestPath(mountPoint)
+	if !valid {
+		return nil, errors.New(err.Error())
+	}
 	if !IsOssfsMounted(mountPoint) {
 		log.Infof("Directory is not mounted: %s", mountPoint)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -388,16 +396,6 @@ func (ns *nodeServer) NodeUnstageVolume(
 	req *csi.NodeUnstageVolumeRequest) (
 	*csi.NodeUnstageVolumeResponse, error) {
 	return &csi.NodeUnstageVolumeResponse{}, nil
-}
-
-// IsHostMounted return status of host mounted or not
-func IsHostMounted(mountPath string) bool {
-	cmd := fmt.Sprintf("%s mount | grep \"%s type\" | grep -v grep", NsenterCmd, mountPath)
-	out, err := utils.Run(cmd)
-	if err != nil || out == "" {
-		return false
-	}
-	return true
 }
 
 func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (

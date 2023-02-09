@@ -2,7 +2,7 @@
 
 echo "Preparing deploy oss csi-plugin...."
 
-HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
+HOST_CMD="nsenter --mount=/proc/1/ns/mnt"
 
 host_os="centos-7"
 $HOST_CMD which lsb_release

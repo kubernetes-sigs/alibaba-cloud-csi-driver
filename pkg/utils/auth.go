@@ -33,6 +33,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials/provider"
+	"github.com/emirpasic/gods/sets/hashset"
 	oidc "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/auth"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/credentials"
@@ -40,6 +41,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -124,6 +126,75 @@ type AccessControl struct {
 	Config          *sdk.Config
 	Credential      auth.Credential
 	UseMode         AccessControlMode
+}
+
+var (
+	// cmdSet is support cmd set
+	cmdSet = hashset.New("mount", "lctl", "umount", "nsenter", "findmnt", "chmod", "dd", "mkfs.ext4", "cat")
+	// cmdRegexp is not support cmd args
+	cmdRegexp = "[|$&;`'<>()%+\\\\]"
+)
+
+func CheckCmdArgs(cmd string, args ...string) error {
+	for _, element := range args {
+		match, err := regexp.MatchString(cmdRegexp, element)
+		if err != nil {
+			return fmt.Errorf("Command %s is regexp is failed, args:%s, err:%s.", cmd, element, err)
+		}
+		if match {
+			return fmt.Errorf("Command %s has illegal access, args:%s.", cmd, element)
+		}
+	}
+	return nil
+}
+
+func CheckCmd(cmd string, name string) error {
+	if !cmdSet.Contains(name) {
+		return fmt.Errorf("Command %s has illegal access, base command:%s.", cmd, name)
+	}
+	return nil
+}
+
+// CheckRequestArgs is check string is valid in args map
+func CheckRequestArgs(m map[string]string) (bool, error) {
+	valid := true
+	var msg string
+	for _, value := range m {
+		if strings.Contains(value, "&") || strings.Contains(value, "|") || strings.Contains(value, ";") ||
+			strings.Contains(value, "$") || strings.Contains(value, "'") || strings.Contains(value, "`") ||
+			strings.Contains(value, "(") || strings.Contains(value, ")") || strings.Contains(value, "\"") {
+			valid = false
+			msg = msg + fmt.Sprintf("Args %s has illegal access.", value)
+		}
+	}
+	return valid, errors.New(msg)
+}
+
+// CheckRequestPath is check path string is valid
+func CheckRequestPath(path string) (bool, error) {
+	var msg string
+	if strings.Contains(path, "../") || strings.Contains(path, "/..") {
+		msg = msg + fmt.Sprintf("Path %s has illegal access.", path)
+		return false, errors.New(msg)
+	}
+	if strings.Contains(path, "./") || strings.Contains(path, "/.") {
+		msg = msg + fmt.Sprintf("Path %s has illegal access.", path)
+		return false, errors.New(msg)
+	}
+
+	return true, nil
+}
+
+func CheckRequest(m map[string]string, path string) (bool, error) {
+	valid, err := CheckRequestArgs(m)
+	if !valid {
+		return valid, err
+	}
+	valid, err = CheckRequestPath(path)
+	if !valid {
+		return valid, err
+	}
+	return valid, nil
 }
 
 func getManagedAddonToken() AccessControl {

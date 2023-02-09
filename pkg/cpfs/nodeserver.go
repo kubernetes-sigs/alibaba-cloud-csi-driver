@@ -130,12 +130,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 }
 
 func doCpfsConfig() {
-	configCmd := fmt.Sprintf("lctl set_param osc.*.max_rpcs_in_flight=64;lctl set_param osc.*.max_pages_per_rpc=256;lctl set_param mdc.*.max_rpcs_in_flight=64;lctl set_param mdc.*.max_mod_rpcs_in_flight=64")
-	if _, err := utils.Run(configCmd); err != nil {
-		log.Errorf("Cpfs, doCpfsConfig fail with command %s, with error: %s", configCmd, err.Error())
-		return
+	configCmd := [...]string{"lctl set_param osc.*.max_rpcs_in_flight=64", "lctl set_param osc.*.max_pages_per_rpc=256", "lctl set_param mdc.*.max_rpcs_in_flight=64", "lctl set_param mdc.*.max_mod_rpcs_in_flight=64"}
+	for _, element := range configCmd {
+		if _, err := utils.Run(element); err != nil {
+			log.Errorf("Cpfs, doCpfsConfig fail with command %s, with error: %s", configCmd, err.Error())
+			return
+		}
+		log.Infof("Cpfs: Do Cpfs Config Successful with: %s", configCmd)
 	}
-	log.Infof("Cpfs: Do Cpfs Config Successful with: %s", configCmd)
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {

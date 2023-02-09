@@ -403,14 +403,13 @@ func (p *diskStatCollector) setDiskMetric(devName string, pvName string, pvcName
 
 func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, jsonPaths []string, deriverName string, keyword string) {
 	thisPvDiskInfoMap := make(map[string]diskInfo, 0)
-	cmd := "mount | grep csi | grep " + keyword
-	line, err := utils.Run(cmd)
-	if err != nil && strings.Contains(err.Error(), "with out: , with error:") {
+	lineArr, err := utils.RunWithFilter("mount", "csi", keyword)
+	if err != nil {
 		p.updateDiskInfoMap(thisPvDiskInfoMap, lastPvDiskInfoMap)
 		return
 	}
 	if err != nil {
-		logrus.Errorf("Execute cmd %s is failed, err: %s", cmd, err)
+		logrus.Errorf("Execute command disk is failed, err: %s", err)
 		return
 	}
 	for _, path := range jsonPaths {
@@ -423,8 +422,10 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 			continue
 		}
 
-		if !strings.Contains(line, "/"+pvName+"/") {
-			continue
+		for _, line := range lineArr {
+			if !strings.Contains(line, "/"+pvName+"/") {
+				continue
+			}
 		}
 
 		deviceName, err := getDeviceByVolumeID(pvName, diskID)
