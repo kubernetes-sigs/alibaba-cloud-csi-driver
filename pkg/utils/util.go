@@ -24,6 +24,8 @@ import (
 	"io"
 	"io/fs"
 	"io/ioutil"
+	utilexec "k8s.io/utils/exec"
+	"k8s.io/utils/mount"
 	"net"
 	"net/http"
 	"os"
@@ -56,7 +58,6 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	k8smount "k8s.io/mount-utils"
-	utilexec "k8s.io/utils/exec"
 )
 
 // DefaultOptions used for global ak
@@ -106,7 +107,7 @@ const (
 	fsckErrorsUncorrected = 4
 
 	// NsenterCmd is the nsenter command
-	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
+	NsenterCmd = "nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
 
 	// socketPath is path of connector sock
 	socketPath = "/host/etc/csi-tool/connector.sock"
@@ -193,13 +194,65 @@ type Result struct {
 // CommandRunFunc define the run function in utils for ut
 type CommandRunFunc func(cmd string) (string, error)
 
-// Run run shell command
+// Run command
 func Run(cmd string) (string, error) {
-	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("Failed to run cmd: " + cmd + ", with out: " + string(out) + ", with error: " + err.Error())
+	arr := strings.Split(cmd, " ")
+	withArgs := false
+	if len(arr) >= 2 {
+		withArgs = true
 	}
-	return string(out), nil
+
+	name := arr[0]
+	var args []string
+	err := CheckCmd(cmd, name)
+	if err != nil {
+		return "", err
+	}
+	if withArgs {
+		args := arr[1:]
+		err = CheckCmdArgs(cmd, args...)
+		if err != nil {
+			return "", err
+		}
+	}
+	safeMount := mount.SafeFormatAndMount{
+		Interface: mount.New(""),
+		Exec:      utilexec.New(),
+	}
+	var command utilexec.Cmd
+	if withArgs {
+		command = safeMount.Exec.Command(name, args...)
+	} else {
+		command = safeMount.Exec.Command(name)
+	}
+
+	stdout, err := command.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("Failed to exec command:%s, name:%s, args:%+v, stdout:%s, stderr:%s", cmd, name, args, string(stdout), err.Error())
+	}
+	log.Infof("Exec command %s is successfully.", cmd)
+	return string(stdout), nil
+}
+
+func RunWithFilter(cmd string, filter ...string) ([]string, error) {
+	ans := make([]string, 0)
+	stdout, err := Run(cmd)
+	if err != nil {
+		return nil, err
+	}
+	stdoutArr := strings.Split(string(stdout), "\n")
+	for _, stdout := range stdoutArr {
+		find := true
+		for _, f := range filter {
+			if !strings.Contains(stdout, f) {
+				find = false
+			}
+		}
+		if find {
+			ans = append(ans, stdout)
+		}
+	}
+	return ans, nil
 }
 
 // RunTimeout tag
@@ -273,13 +326,12 @@ func IsLikelyNotMountPoint(file string) (bool, error) {
 
 // IsMounted return status of mount operation
 func IsMounted(mountPath string) bool {
-	cmd := fmt.Sprintf("mount | grep %s | grep -v grep | wc -l", mountPath)
-	out, err := Run(cmd)
+	stdout, err := RunWithFilter("mount", mountPath)
 	if err != nil {
-		log.Infof("IsMounted: exec error: %s, %s", cmd, err.Error())
+		log.Infof("IsMounted: Exec command mount is failed, err: %s, %s", stdout, err.Error())
 		return false
 	}
-	if strings.TrimSpace(out) == "0" {
+	if len(stdout) == 0 {
 		return false
 	}
 	return true
@@ -287,13 +339,13 @@ func IsMounted(mountPath string) bool {
 
 // IsMountedInHost return status of host mounted or not
 func IsMountedInHost(mountPath string) bool {
-	cmd := fmt.Sprintf("%s mount | grep %s | grep -v grep | wc -l", NsenterCmd, mountPath)
-	out, err := Run(cmd)
+	cmd := fmt.Sprintf("%s mount", NsenterCmd)
+	stdout, err := RunWithFilter(cmd, mountPath)
 	if err != nil {
-		log.Infof("IsMounted: exec error: %s, %s", cmd, err.Error())
+		log.Infof("IsMounted: Exec command %s is failed, err: %s", cmd, err.Error())
 		return false
 	}
-	if strings.TrimSpace(out) == "0" {
+	if len(stdout) == 0 {
 		return false
 	}
 	return true

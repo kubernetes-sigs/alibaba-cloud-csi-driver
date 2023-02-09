@@ -11,8 +11,6 @@ import (
 const (
 	// SysLog log file
 	SysLog = "/var/log/messages"
-	// NsenterCmd is nsenter mount command
-	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
 	// IssueMessageFile tag
 	IssueMessageFile = "ISSUE_MESSAGE_FILE"
 	// IssueBlockReference tag

@@ -110,9 +110,12 @@ func newNodeServer(d *NAS) *nodeServer {
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	log.Infof("NodePublishVolume:: Nas Volume %s mount with req: %+v", req.VolumeId, req)
-
-	// parse parameters
 	mountPath := req.GetTargetPath()
+	valid, err := utils.CheckRequest(req.GetVolumeContext(), mountPath)
+	if !valid {
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	// parse parameters
 	opt := &Options{}
 	var cnfsName string
 	var useEaClient string
@@ -141,7 +144,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	err := isValidCnfsParameter(opt.Server, cnfsName)
+	err = isValidCnfsParameter(opt.Server, cnfsName)
 	if err != nil {
 		return nil, err
 	}
@@ -363,6 +366,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	log.Infof("NodeUnpublishVolume:: Starting umount nas volume %s with req: %+v", req.VolumeId, req)
+	valid, err := utils.CheckRequestPath(req.GetTargetPath())
+	if !valid {
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
 	// check runtime mode
 	if GlobalConfigVar.RunTimeClass == MixRunTimeMode && utils.IsMountPointRunv(req.TargetPath) {
 		fileName := filepath.Join(req.TargetPath, utils.CsiPluginRunTimeFlagFile)
@@ -376,11 +383,11 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	mountPoint := req.TargetPath
 	isNotMounted, err := utils.IsLikelyNotMountPoint(mountPoint)
 	if (isNotMounted && err == nil) || os.IsNotExist(err) {
-		log.Infof("Umount Nas: mountpoint not mounted, skipping: %s", mountPoint)
+		log.Infof("Umount mountpoint %s is not mounted, skipping.", mountPoint)
 		if GlobalConfigVar.LosetupEnable {
 			if err := checkLosetupUnmount(mountPoint); err != nil {
-				log.Errorf("Nas: check and umount lostup volume with error: %v", err)
-				return nil, errors.New("Nas, check Losetup Unmount Fail: " + err.Error())
+				log.Errorf("Check and umount losetup volume is failed, err: %v", err)
+				return nil, errors.New("Check ans umount losetup is failed: " + err.Error())
 			}
 		}
 		return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -388,18 +395,19 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 	umntCmd := fmt.Sprintf("umount %s", mountPoint)
 	if _, err := utils.Run(umntCmd); err != nil {
-		log.Errorf("Nas, Umount nfs(%s) Fail: %s", mountPoint, err.Error())
-		return nil, errors.New("Nas, Umount nfs Fail: " + err.Error())
+		msg := fmt.Sprintf("Umount nfs %s is failed, err: %s", mountPoint, err.Error())
+		log.Error(msg)
+		return nil, errors.New(msg)
 	}
 
 	if GlobalConfigVar.LosetupEnable {
 		if err := checkLosetupUnmount(mountPoint); err != nil {
 			log.Errorf("Nas: umount lostup volume with error: %v", err)
-			return nil, errors.New("Nas, check Losetup Unmount Fail: " + err.Error())
+			return nil, errors.New("Check umount losetup is failed, err: " + err.Error())
 		}
 	}
 
-	log.Infof("Umount Nas Successful on: %s", mountPoint)
+	log.Infof("Umount %s is successfully.", mountPoint)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
@@ -455,13 +463,16 @@ func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) erro
 			log.Errorf("NodeExpandVolume: nas resize img file error %v", err)
 			return fmt.Errorf("NodeExpandVolume: nas resize img file error, %v", err)
 		}
-		loopCmd := fmt.Sprintf("%s losetup | grep -v grep | grep %s | awk '{print $1}'", NsenterCmd, imgFile)
-		out, err := utils.Run(loopCmd)
+		loopCmd := fmt.Sprintf("%s losetup", NsenterCmd)
+		stdout, err := utils.RunWithFilter(loopCmd, imgFile)
 		if err != nil {
 			log.Errorf("NodeExpandVolume: search losetup device error %v", err)
 			return fmt.Errorf("NodeExpandVolume: search losetup device error, %v", err)
 		}
-		loopDev := strings.TrimSpace(out)
+		if len(stdout) == 0 {
+			return fmt.Errorf("Not found this losetup device %s", imgFile)
+		}
+		loopDev := strings.Split(strings.TrimSpace(stdout[0]), " ")[0]
 		// Check parameter validate
 		if !utils.CheckParameterValidate([]string{loopDev}) {
 			return fmt.Errorf("inputs illegal: %s ", loopDev)

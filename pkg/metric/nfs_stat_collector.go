@@ -306,14 +306,13 @@ func (p *nfsStatCollector) setNfsMetric(pvName string, pvcNamespace string, pvcN
 
 func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonPaths []string, deriverName string, keyword string) {
 	thisPvNfsInfoMap := make(map[string]nfsInfo, 0)
-	cmd := "mount | grep nfs | grep csi | grep " + keyword
-	line, err := utils.Run(cmd)
-	if err != nil && strings.Contains(err.Error(), "with out: , with error:") {
+	lineArr, err := utils.RunWithFilter("mount", "nfs", "csi", keyword)
+	if err != nil {
 		p.updateNfsInfoMap(thisPvNfsInfoMap, lastPvNfsInfoMap)
 		return
 	}
 	if err != nil {
-		log.Errorf("Execute cmd %s is failed, err: %s", cmd, err)
+		log.Errorf("Execute command nfs is failed, err: %s", err)
 		return
 	}
 	for _, path := range jsonPaths {
@@ -326,8 +325,10 @@ func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonP
 			continue
 		}
 
-		if !strings.Contains(line, "/"+pvName+"/") {
-			continue
+		for _, line := range lineArr {
+			if !strings.Contains(line, "/"+pvName+"/") {
+				continue
+			}
 		}
 
 		nfsInfo := nfsInfo{

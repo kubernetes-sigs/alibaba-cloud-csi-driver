@@ -23,7 +23,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -89,12 +88,12 @@ func GetRAMRoleOption() string {
 
 // IsOssfsMounted return if oss mountPath is mounted
 func IsOssfsMounted(mountPath string) bool {
-	checkMountCountCmd := fmt.Sprintf("%s mount | grep %s | grep -E 'fuse.ossfs|fuse.jindo-fuse' | grep -v grep | wc -l", NsenterCmd, mountPath)
-	out, err := utils.Run(checkMountCountCmd)
+	checkMountCountCmd := fmt.Sprintf("%s mount", NsenterCmd)
+	out, err := utils.RunWithFilter(checkMountCountCmd, mountPath, "fuse.ossfs")
 	if err != nil {
 		return false
 	}
-	if strings.TrimSpace(out) == "0" {
+	if len(out) == 0 {
 		return false
 	}
 	return true
@@ -103,10 +102,10 @@ func IsOssfsMounted(mountPath string) bool {
 // IsLastSharedVol return code status to help check if this oss volume uses UseSharedPath and is the last one
 func IsLastSharedVol(pvName string) (string, error) {
 	keyStr := fmt.Sprintf("volumes/kubernetes.io~csi/%s/mount", pvName)
-	checkMountCountCmd := fmt.Sprintf("%s mount | grep %s | grep -E 'fuse.ossfs|fuse.jindo-fuse' | grep -v grep | wc -l", NsenterCmd, keyStr)
-	out, err := utils.Run(checkMountCountCmd)
+	checkMountCountCmd := fmt.Sprintf("%s mount", NsenterCmd)
+	out, err := utils.RunWithFilter(checkMountCountCmd, keyStr, "fuse.ossfs")
 	if err != nil {
 		return "0", err
 	}
-	return strings.TrimSpace(out), nil
+	return string(len(out)), nil
 }

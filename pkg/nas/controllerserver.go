@@ -162,7 +162,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		Namespace: "",
 	}
 	log.Infof("CreateVolume: Starting NFS CreateVolume, %s, %v", req.Name, req)
-
+	valid, err := utils.CheckRequestArgs(req.GetParameters())
+	if !valid {
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
 	// step1: check pvc is created or not.
 	if value, ok := pvcProcessSuccess[req.Name]; ok && value != nil {
 		log.Infof("CreateVolume: Nfs Volume %s has Created Already: %v", req.Name, value)
@@ -420,7 +423,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				log.Errorf("Provision: %s, creating path: %s, with error: %s", req.Name, fullPath, err.Error())
 				return nil, errors.New("Provision: " + req.Name + ", creating path: " + fullPath + ", with error: " + err.Error())
 			}
-			os.Chmod(fullPath, 0777)
+			_ = os.Chmod(fullPath, 0777)
 
 			if losetupType {
 				if err = createLosetupPv(fullPath, volSizeBytes); err != nil {
@@ -935,6 +938,7 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 }
 
 func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
+
 	for _, cap := range req.VolumeCapabilities {
 		if cap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
 			return &csi.ValidateVolumeCapabilitiesResponse{Message: ""}, nil
