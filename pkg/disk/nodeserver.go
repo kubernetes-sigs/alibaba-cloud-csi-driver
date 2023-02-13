@@ -537,26 +537,21 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 	}
 
-	// Step 2: check target path mounted
-	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
+	// Step 1: check oldVersion volumeMount
+	oldTargetPath := fmt.Sprintf("/var/lib/kubelet/plugins/kubernetes.io/csi/pv/%s/globalmount", req.VolumeId)
+	returned, err := ns.checkStagingPathMounted(req.VolumeId, oldTargetPath, targetPath)
 	if err != nil {
-		log.Log.Errorf("NodeStageVolume: check volume %s path %s error: %v", req.VolumeId, targetPath, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if !notmounted {
-		// if target path is mounted tmpfs, return
-		if utils.IsDirTmpfs(req.StagingTargetPath) {
-			log.Log.Infof("NodeStageVolume: TargetPath(%s) is mounted as tmpfs, not need mount again", req.StagingTargetPath)
-			return &csi.NodeStageVolumeResponse{}, nil
-		}
-
-		// check device available
-		deviceName := GetDeviceByMntPoint(targetPath)
-		if err := checkDeviceAvailable(deviceName, req.VolumeId, targetPath); err != nil {
-			log.Log.Errorf("NodeStageVolume: mountPath is mounted %s, but check device available error: %s", targetPath, err.Error())
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		log.Log.Infof("NodeStageVolume:  volumeId: %s, Path: %s is already mounted, device: %s", req.VolumeId, targetPath, deviceName)
+	if returned {
+		return &csi.NodeStageVolumeResponse{}, nil
+	}
+	// Step 2: check target path mounted
+	returned, err = ns.checkStagingPathMounted(req.VolumeId, targetPath, targetPath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if returned {
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
 
@@ -1007,6 +1002,7 @@ func (ns *nodeServer) mountDeviceToGlobal(capability *csi.VolumeCapability, volu
 }
 
 func (ns *nodeServer) unmountDuplicateMountPoint(targetPath, volumeId string) error {
+	log.Log.Infof("unmountDuplicateMountPoint: start to unmount remains data: %s", targetPath)
 	pathParts := strings.Split(targetPath, "/")
 	partsLen := len(pathParts)
 	if partsLen > 2 && pathParts[partsLen-1] == "mount" {
@@ -1015,11 +1011,25 @@ func (ns *nodeServer) unmountDuplicateMountPoint(targetPath, volumeId string) er
 		result := sha256.Sum256([]byte(fmt.Sprintf("%s", volumeId)))
 		volSha := fmt.Sprintf("%x", result)
 		globalPath3 := filepath.Join("/var/lib/container/kubelet/plugins/kubernetes.io/csi/", driverName, volSha, "/globalmount")
-		if utils.IsFileExisting(globalPath2) {
-			return ns.unmountDuplicationPath(globalPath2)
-		} else if utils.IsFileExisting(globalPath3) {
-			return ns.unmountDuplicationPath(globalPath3)
+		var err error
+		oldExists := utils.IsFileExisting(globalPath2)
+		if oldExists {
+			err = ns.unmountDuplicationPath(globalPath2)
 		}
+		newExists := utils.IsFileExisting(globalPath3)
+		if newExists {
+			err = ns.unmountDuplicationPath(globalPath3)
+		}
+		if oldExists && newExists {
+			log.Log.Info("unmountDuplicateMountPoint: oldPath & newPath exists at same time")
+			globalPath4 := filepath.Join("/var/lib/kubelet/plugins/kubernetes.io/csi/pv/", pathParts[partsLen-2], "/globalmount")
+			exists := utils.IsFileExisting(globalPath4)
+			if exists {
+				err = ns.forceUnmountPath(globalPath4)
+			}
+			err = ns.unmountDuplicationPath(globalPath3)
+		}
+		return err
 	} else {
 		log.Log.Warnf("Target Path is illegal format: %s", targetPath)
 	}
@@ -1043,6 +1053,22 @@ func (ns *nodeServer) unmountDuplicationPath(globalPath string) error {
 		}
 	} else {
 		log.Log.Infof("Global Path %s is mounted by others: %v", globalPath, refs)
+	}
+	return nil
+}
+
+func (ns *nodeServer) forceUnmountPath(globalPath string) error {
+	// check globalPath2 is mountpoint
+	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(globalPath)
+	if err != nil || notmounted {
+		log.Log.Warnf("Global Path is not mounted: %s", globalPath)
+		return nil
+	}
+	if err := utils.Umount(globalPath); err != nil {
+		log.Log.Errorf("NodeUnpublishVolume: volumeId: unmount global path %s failed with err: %v", globalPath, err)
+		return status.Error(codes.Internal, err.Error())
+	} else {
+		log.Log.Infof("forceUmountPath: umount Global Path %s  successful", globalPath)
 	}
 	return nil
 }
@@ -1098,4 +1124,35 @@ func deleteUntagAutoSnapshot(snapshotID, diskID string) {
 	if err != nil {
 		log.Log.Errorf("NodeExpandVolume:: failed to untag volumeExpandAutoSnapshot: %s", err.Error())
 	}
+}
+
+// checkStagingPathMounted ...
+func (ns *nodeServer) checkStagingPathMounted(volumeId, path, passedPath string) (bool, error) {
+
+	notMounted, err := ns.k8smounter.IsLikelyNotMountPoint(path)
+	log.Log.Infof("checkStagingPathMounted: check path: %s, passedPath: %s, mounted: %v", path, passedPath, !notMounted)
+	if err != nil && strings.Contains(err.Error(), "no such file or directory") && path != passedPath {
+		return false, nil
+	}
+	if err != nil {
+		log.Log.Errorf("NodeStageVolume: check volume %s path %s error: %v", volumeId, path, err)
+		return true, status.Error(codes.Internal, err.Error())
+	}
+	if !notMounted {
+		// if target path is mounted tmpfs, return
+		if utils.IsDirTmpfs(path) {
+			log.Log.Infof("NodeStageVolume: TargetPath(%s) is mounted as tmpfs, not need mount again", path)
+			return true, nil
+		}
+
+		// check device available
+		deviceName := GetDeviceByMntPoint(path)
+		if err := checkDeviceAvailable(deviceName, volumeId, path); err != nil {
+			log.Log.Errorf("NodeStageVolume: mountPath is mounted %s, but check device available error: %s", path, err.Error())
+			return true, status.Error(codes.Internal, err.Error())
+		}
+		log.Log.Infof("NodeStageVolume:  volumeId: %s, Path: %s is already mounted, device: %s", volumeId, path, deviceName)
+		return true, nil
+	}
+	return false, nil
 }
