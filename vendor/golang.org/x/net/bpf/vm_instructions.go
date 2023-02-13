@@ -94,7 +94,7 @@ func jumpIfCommon(cond JumpTest, skipTrue, skipFalse uint8, regA uint32, value u
 
 func loadAbsolute(ins LoadAbsolute, in []byte) (uint32, bool) {
 	offset := int(ins.Off)
-	size := int(ins.Size)
+	size := ins.Size
 
 	return loadCommon(in, offset, size)
 }
@@ -121,7 +121,7 @@ func loadExtension(ins LoadExtension, in []byte) uint32 {
 
 func loadIndirect(ins LoadIndirect, in []byte, regX uint32) (uint32, bool) {
 	offset := int(ins.Off) + int(regX)
-	size := int(ins.Size)
+	size := ins.Size
 
 	return loadCommon(in, offset, size)
 }
@@ -129,7 +129,8 @@ func loadIndirect(ins LoadIndirect, in []byte, regX uint32) (uint32, bool) {
 func loadMemShift(ins LoadMemShift, in []byte) (uint32, bool) {
 	offset := int(ins.Off)
 
-	if !inBounds(len(in), offset, 0) {
+	// Size of LoadMemShift is always 1 byte
+	if !inBounds(len(in), offset, 1) {
 		return 0, false
 	}
 
