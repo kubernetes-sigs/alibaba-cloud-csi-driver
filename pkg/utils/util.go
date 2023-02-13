@@ -710,8 +710,8 @@ func CheckQuotaPathValidate(kubeClient *kubernetes.Clientset, path string) error
 func IsHostFileExist(path string) bool {
 	args := []string{NsenterCmd, "stat", path}
 	cmd := strings.Join(args, " ")
-	out, err := Run(cmd)
-	if err != nil && strings.Contains(out, "No such file or directory") {
+	_, err := Run(cmd)
+	if err != nil && strings.Contains(err.Error(), "No such file or directory") {
 		return false
 	}
 
