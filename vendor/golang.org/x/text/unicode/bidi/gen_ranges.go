@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 package main
@@ -15,7 +16,7 @@ import (
 )
 
 // These tables are hand-extracted from:
-// http://www.unicode.org/Public/8.0.0/ucd/extracted/DerivedBidiClass.txt
+// https://www.unicode.org/Public/8.0.0/ucd/extracted/DerivedBidiClass.txt
 func visitDefaults(fn func(r rune, c Class)) {
 	// first write default values for ranges listed above.
 	visitRunes(fn, AL, []rune{

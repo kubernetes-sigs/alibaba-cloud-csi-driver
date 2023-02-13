@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 /*
@@ -33,12 +34,14 @@ package unix
 #include <sys/signal.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/uio.h>
 #include <sys/un.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
+#include <uvm/uvm_extern.h>
 #include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -106,6 +109,8 @@ type Stat_t C.struct_stat
 
 type Statfs_t C.struct_statfs
 
+type Statvfs_t C.struct_statvfs
+
 type Flock_t C.struct_flock
 
 type Dirent C.struct_dirent
@@ -116,6 +121,13 @@ type Fsid C.fsid_t
 
 const (
 	PathMax = C.PATH_MAX
+)
+
+// Fstatvfs/Statvfs flags
+
+const (
+	ST_WAIT   = C.ST_WAIT
+	ST_NOWAIT = C.ST_NOWAIT
 )
 
 // Advice to Fadvise
@@ -170,6 +182,7 @@ const (
 	SizeofSockaddrUnix     = C.sizeof_struct_sockaddr_un
 	SizeofSockaddrDatalink = C.sizeof_struct_sockaddr_dl
 	SizeofLinger           = C.sizeof_struct_linger
+	SizeofIovec            = C.sizeof_struct_iovec
 	SizeofIPMreq           = C.sizeof_struct_ip_mreq
 	SizeofIPv6Mreq         = C.sizeof_struct_ipv6_mreq
 	SizeofMsghdr           = C.sizeof_struct_msghdr
@@ -254,7 +267,10 @@ type Ptmget C.struct_ptmget
 
 const (
 	AT_FDCWD            = C.AT_FDCWD
+	AT_EACCESS          = C.AT_EACCESS
 	AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
+	AT_SYMLINK_FOLLOW   = C.AT_SYMLINK_FOLLOW
+	AT_REMOVEDIR        = C.AT_REMOVEDIR
 )
 
 // poll
@@ -281,6 +297,12 @@ type Sysctlnode C.struct_sysctlnode
 // Uname
 
 type Utsname C.struct_utsname
+
+// Uvmexp
+
+const SizeofUvmexp = C.sizeof_struct_uvmexp_sysctl
+
+type Uvmexp C.struct_uvmexp_sysctl
 
 // Clockinfo
 

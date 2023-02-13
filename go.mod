@@ -40,7 +40,6 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/ratelimit v0.1.0
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.5.0
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
@@ -168,16 +167,6 @@ replace (
 	go.uber.org/atomic => go.uber.org/atomic v1.3.2
 	go.uber.org/multierr => go.uber.org/multierr v1.1.0
 	go.uber.org/zap => go.uber.org/zap v1.9.1
-	golang.org/x/crypto => golang.org/x/crypto v0.0.0-20190228161510-8dd112bcdc25
-	golang.org/x/exp => golang.org/x/exp v0.0.0-20190121172915-509febef88a4
-	golang.org/x/lint => golang.org/x/lint v0.0.0-20190227174305-5b3e6a55c961
-	golang.org/x/net => golang.org/x/net v0.5.0
-	golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421
-	golang.org/x/sync => golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6
-	golang.org/x/sys => golang.org/x/sys v0.0.0-20190308023053-584f3b12f43e
-	golang.org/x/text => golang.org/x/text v0.3.0
-	golang.org/x/time => golang.org/x/time v0.0.0-20181108054448-85acf8d2951c
-	golang.org/x/tools => golang.org/x/tools v0.0.0-20190226205152-f727befe758c
 	google.golang.org/api => google.golang.org/api v0.1.0
 	google.golang.org/appengine => google.golang.org/appengine v1.4.0
 	google.golang.org/genproto => google.golang.org/genproto v0.0.0-20190307195333-5fe7a883aa19

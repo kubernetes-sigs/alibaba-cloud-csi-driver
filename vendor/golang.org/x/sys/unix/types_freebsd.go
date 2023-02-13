@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 /*
@@ -14,11 +15,6 @@ Input to cgo -godefs.  See README.md
 package unix
 
 /*
-#define	_WANT_FREEBSD11_STAT	1
-#define	_WANT_FREEBSD11_STATFS	1
-#define	_WANT_FREEBSD11_DIRENT	1
-#define	_WANT_FREEBSD11_KEVENT  1
-
 #include <dirent.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -39,6 +35,7 @@ package unix
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/ucred.h>
 #include <sys/un.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
@@ -139,6 +136,8 @@ type Timespec C.struct_timespec
 
 type Timeval C.struct_timeval
 
+type Time_t C.time_t
+
 // Processes
 
 type Rusage C.struct_rusage
@@ -156,17 +155,11 @@ const (
 
 type Stat_t C.struct_stat
 
-type stat_freebsd11_t C.struct_freebsd11_stat
-
 type Statfs_t C.struct_statfs
-
-type statfs_freebsd11_t C.struct_freebsd11_statfs
 
 type Flock_t C.struct_flock
 
 type Dirent C.struct_dirent
-
-type dirent_freebsd11 C.struct_freebsd11_dirent
 
 type Fsid C.struct_fsid
 
@@ -203,6 +196,8 @@ type RawSockaddrAny C.struct_sockaddr_any
 
 type _Socklen C.socklen_t
 
+type Xucred C.struct_xucred
+
 type Linger C.struct_linger
 
 type Iovec C.struct_iovec
@@ -229,7 +224,9 @@ const (
 	SizeofSockaddrAny      = C.sizeof_struct_sockaddr_any
 	SizeofSockaddrUnix     = C.sizeof_struct_sockaddr_un
 	SizeofSockaddrDatalink = C.sizeof_struct_sockaddr_dl
+	SizeofXucred           = C.sizeof_struct_xucred
 	SizeofLinger           = C.sizeof_struct_linger
+	SizeofIovec            = C.sizeof_struct_iovec
 	SizeofIPMreq           = C.sizeof_struct_ip_mreq
 	SizeofIPMreqn          = C.sizeof_struct_ip_mreqn
 	SizeofIPv6Mreq         = C.sizeof_struct_ipv6_mreq
@@ -241,16 +238,30 @@ const (
 )
 
 // Ptrace requests
-
 const (
 	PTRACE_TRACEME = C.PT_TRACE_ME
 	PTRACE_CONT    = C.PT_CONTINUE
 	PTRACE_KILL    = C.PT_KILL
 )
 
+type PtraceLwpInfoStruct C.struct_ptrace_lwpinfo
+
+type __Siginfo C.struct___siginfo
+
+type Sigset_t C.sigset_t
+
+type Reg C.struct_reg
+
+type FpReg C.struct_fpreg
+
+// FpExtendedPrecision is only defined for use in a member of FpReg on freebsd/arm.
+type FpExtendedPrecision C.struct_fp_extended_precision
+
+type PtraceIoDesc C.struct_ptrace_io_desc
+
 // Events (kqueue, kevent)
 
-type Kevent_t C.struct_kevent_freebsd11
+type Kevent_t C.struct_kevent
 
 // Select
 
@@ -324,9 +335,10 @@ type Winsize C.struct_winsize
 
 const (
 	AT_FDCWD            = C.AT_FDCWD
-	AT_REMOVEDIR        = C.AT_REMOVEDIR
-	AT_SYMLINK_FOLLOW   = C.AT_SYMLINK_FOLLOW
+	AT_EACCESS          = C.AT_EACCESS
 	AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
+	AT_SYMLINK_FOLLOW   = C.AT_SYMLINK_FOLLOW
+	AT_REMOVEDIR        = C.AT_REMOVEDIR
 )
 
 // poll
@@ -354,3 +366,9 @@ type CapRights C.struct_cap_rights
 // Uname
 
 type Utsname C.struct_utsname
+
+// Clockinfo
+
+const SizeofClockinfo = C.sizeof_struct_clockinfo
+
+type Clockinfo C.struct_clockinfo

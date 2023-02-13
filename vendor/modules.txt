@@ -200,9 +200,9 @@ github.com/tjfoc/gmsm/sm3
 # go.uber.org/ratelimit v0.1.0
 go.uber.org/ratelimit
 go.uber.org/ratelimit/internal/clock
-# golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 => golang.org/x/crypto v0.0.0-20190228161510-8dd112bcdc25
+# golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.5.0 => golang.org/x/net v0.5.0
+# golang.org/x/net v0.5.0
 golang.org/x/net/context
 golang.org/x/net/http2
 golang.org/x/net/proxy
@@ -219,18 +219,22 @@ golang.org/x/net/internal/iana
 golang.org/x/net/internal/socket
 golang.org/x/net/bpf
 golang.org/x/net/context/ctxhttp
-# golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b => golang.org/x/oauth2 v0.0.0-20190226205417-e64efc72b421
+# golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sys v0.4.0 => golang.org/x/sys v0.0.0-20190308023053-584f3b12f43e
+# golang.org/x/sys v0.4.0
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.6.0 => golang.org/x/text v0.3.0
+golang.org/x/sys/internal/unsafeheader
+golang.org/x/sys/plan9
+# golang.org/x/term v0.4.0
+golang.org/x/term
+# golang.org/x/text v0.6.0
 golang.org/x/text/secure/bidirule
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
 golang.org/x/text/transform
-# golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 => golang.org/x/time v0.0.0-20181108054448-85acf8d2951c
+# golang.org/x/time v0.0.0-20220210224613-90d013bbcef8
 golang.org/x/time/rate
 # google.golang.org/appengine v1.6.7 => google.golang.org/appengine v1.4.0
 google.golang.org/appengine/urlfetch
