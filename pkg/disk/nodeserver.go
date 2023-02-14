@@ -1148,6 +1148,14 @@ func (ns *nodeServer) checkStagingPathMounted(volumeId, path, passedPath string)
 		// check device available
 		deviceName := GetDeviceByMntPoint(path)
 		if err := checkDeviceAvailable(deviceName, volumeId, path); err != nil {
+			if path != passedPath {
+				log.Log.Infof("checkStagingPathMounted: old version globalmount path: %s exists with empty dev: %v umount it", path, err)
+				err = ns.unmountStageTarget(path)
+				if err != nil {
+					return true, status.Error(codes.Internal, err.Error())
+				}
+				return false, nil
+			}
 			log.Log.Errorf("NodeStageVolume: mountPath is mounted %s, but check device available error: %s", path, err.Error())
 			return true, status.Error(codes.Internal, err.Error())
 		}

@@ -16,7 +16,7 @@ RUN --mount=type=ssh go mod tidy
 RUN --mount=type=ssh go mod vendor
 RUN env GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') go build --mod=vendor -ldflags "-X main._BRANCH_='v1.0.0' -X main._VERSION_='v1.14.5' -X main._BUILDTIME_=`date '+%Y-%m-%d-%H:%M:%S'`" -o plugin.csi.alibabacloud.com && env GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GOOS=linux CGO_ENABLED=0 go build --mod=vendor ./build/lib/csiplugin-connector.go
 
-FROM registry.cn-hangzhou.aliyuncs.com/acs/alinux:3-update
+FROM registry.eu-west-1.aliyuncs.com/acs/alinux:3-update
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace cloud-utils-growpart gdisk nc tar
 ARG BUILDPLATFORM 
