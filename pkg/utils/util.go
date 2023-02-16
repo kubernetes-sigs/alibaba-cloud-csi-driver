@@ -209,7 +209,7 @@ func Run(cmd string) (string, error) {
 		return "", err
 	}
 	if withArgs {
-		args := arr[1:]
+		args = arr[1:]
 		err = CheckCmdArgs(cmd, args...)
 		if err != nil {
 			return "", err
@@ -230,7 +230,7 @@ func Run(cmd string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Failed to exec command:%s, name:%s, args:%+v, stdout:%s, stderr:%s", cmd, name, args, string(stdout), err.Error())
 	}
-	log.Infof("Exec command %s is successfully.", cmd)
+	log.Infof("Exec command %s is successfully, name:%s, args:%+v", cmd, name, args)
 	return string(stdout), nil
 }
 

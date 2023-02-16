@@ -87,7 +87,7 @@ func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint,
 		CreateDest(mountPoint)
 	}
 
-	if CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+	if CheckNfsPathMounted(mountPoint, nfsPath) {
 		log.Infof("DoMount: nfs server is already mounted: %s, %s", nfsServer, nfsPath)
 		return nil
 	}
@@ -139,10 +139,14 @@ func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint,
 }
 
 // CheckNfsPathMounted check whether the given nfs path was mounted
-func CheckNfsPathMounted(mountpoint, server, path string) bool {
-	mntCmd := fmt.Sprintf("cat /proc/mounts", mountpoint, path)
-	stdout, err := utils.RunWithFilter(mntCmd, path)
-	if err != nil || len(stdout) == 0 {
+func CheckNfsPathMounted(mountpoint, path string) bool {
+	mntCmd := "cat /proc/mounts"
+	stdout, err := utils.RunWithFilter(mntCmd, mountpoint, path)
+	if err != nil {
+		log.Errorf("Exec command %s is failed, mountpoint:%s, path:%s, err:%s", mntCmd, mountpoint, path, err.Error())
+		return false
+	}
+	if len(stdout) == 0 {
 		return false
 	}
 	return true
@@ -424,13 +428,19 @@ func checkSystemNasConfig() {
 	}
 
 	if updateNasConfig {
-		upCmd := fmt.Sprintf("echo \"options sunrpc tcp_slot_table_entries=128\" >> %s && echo \"options sunrpc tcp_max_slot_table_entries=128\" >> %s && sysctl -w sunrpc.tcp_slot_table_entries=128", sunRPCFile, sunRPCFile)
-		_, err := utils.Run(upCmd)
+		sunRpcConfig := "\"options sunrpc tcp_slot_table_entries=128\"\n\"options sunrpc tcp_max_slot_table_entries=128\""
+		startRpcConfig := "sysctl -w sunrpc.tcp_slot_table_entries=128"
+		err := utils.WriteAndSyncFile(sunRPCFile, []byte(sunRpcConfig), 755)
 		if err != nil {
-			log.Warnf("Update Nas system config error: %s", err.Error())
+			log.Warnf("Write nas rpcconfig %s is failed, err: %s", sunRPCFile, err.Error())
 			return
 		}
-		log.Warnf("Successful update Nas system config")
+		_, err = utils.Run(startRpcConfig)
+		if err != nil {
+			log.Warnf("Start nas rpcconfig is failed, err: %s", err.Error())
+			return
+		}
+		log.Warnf("Update nas system config is successfully.")
 	}
 }
 

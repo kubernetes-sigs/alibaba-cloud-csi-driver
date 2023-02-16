@@ -130,7 +130,7 @@ type AccessControl struct {
 
 var (
 	// cmdSet is support cmd set
-	cmdSet = hashset.New("mount", "lctl", "umount", "nsenter", "findmnt", "chmod", "dd", "mkfs.ext4", "cat")
+	cmdSet = hashset.New("mount", "lctl", "umount", "nsenter", "findmnt", "chmod", "dd", "mkfs.ext4", "cat", "sysctl")
 	// cmdRegexp is not support cmd args
 	cmdRegexp = "[|$&;`'<>()%+\\\\]"
 )
@@ -162,7 +162,7 @@ func CheckRequestArgs(m map[string]string) (bool, error) {
 	for _, value := range m {
 		if strings.Contains(value, "&") || strings.Contains(value, "|") || strings.Contains(value, ";") ||
 			strings.Contains(value, "$") || strings.Contains(value, "'") || strings.Contains(value, "`") ||
-			strings.Contains(value, "(") || strings.Contains(value, ")") || strings.Contains(value, "\"") {
+			strings.Contains(value, "(") || strings.Contains(value, ")") {
 			valid = false
 			msg = msg + fmt.Sprintf("Args %s has illegal access.", value)
 		}

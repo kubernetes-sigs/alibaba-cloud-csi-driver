@@ -393,7 +393,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			// local mountpoint for one volume
 			cs.rateLimiter.Take()
 			// step5: Mount nfs server to localpath
-			if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+			if !CheckNfsPathMounted(mountPoint, nfsPath) {
 				//When subdirectories are mounted, determine whether to use eacClient
 				useEaClient := "false"
 				if len(nasVol.CnfsName) != 0 {
@@ -413,7 +413,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
 				}
 			}
-			if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+			if !CheckNfsPathMounted(mountPoint, nfsPath) {
 				return nil, errors.New("Check Mount nfsserver not mounted " + nfsServer)
 			}
 
@@ -678,7 +678,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			log.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
 			return nil, fmt.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
 		}
-		if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+		if !CheckNfsPathMounted(mountPoint, nfsPath) {
 			return nil, errors.New("Check Mount nfsserver fail " + nfsServer + " error with: ")
 		}
 		defer utils.Umount(mountPoint)
