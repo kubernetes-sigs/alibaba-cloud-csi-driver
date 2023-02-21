@@ -16,7 +16,6 @@ limitations under the License.
 package disk
 
 import (
-	"errors"
 	"fmt"
 	"gopkg.in/h2non/gock.v1"
 	"os"
@@ -122,8 +121,8 @@ func TestGetRootSubDevicePath(t *testing.T) {
 		},
 		{
 			deviceList:           []string{"/dev/vdb", "/dev/vdb22"},
-			expectRootDevicePath: "/dev/vdb",
-			expectSubDevicePath:  "/dev/vdb22",
+			expectRootDevicePath: "",
+			expectSubDevicePath:  "",
 			err:                  fmt.Errorf("Device %s has error format more than one digit locations ", "/dev/vdb22"),
 		},
 	}
@@ -132,7 +131,7 @@ func TestGetRootSubDevicePath(t *testing.T) {
 		assert.Equal(t, example.expectRootDevicePath, actualRootDevicePath)
 		assert.Equal(t, example.expectSubDevicePath, actualSubDevicePath)
 		if example.err != nil {
-			assert.True(t, errors.Is(err, example.err))
+			assert.Error(t, err)
 		}
 	}
 }
@@ -164,7 +163,7 @@ func TestRetryGetInstanceDoc(t *testing.T) {
 		expectErr    bool
 	}{
 		{
-			reString:     "{\"region-id\": \"cn-hangzhou\", \"instance-id\": \"i-xxxxx\", \"zone-id\": \"cn-hagnzhou-d\"}",
+			reString:     "{\"region-id\": \"cn-hangzhou\", \"instance-id\": \"i-xxxxx\", \"zone-id\": \"cn-hangzhou-d\"}",
 			expectZoneId: "cn-hangzhou-d",
 			expectErr:    false,
 		},

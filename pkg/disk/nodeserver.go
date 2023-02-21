@@ -155,7 +155,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		zoneID, nodeID = getZoneID(c, nodeID)
 	} else {
 		doc, err := retryGetInstanceDoc()
-		if err != nil || doc == nil || (doc != nil && doc.ZoneID == ""){
+		if err != nil || doc == nil || (doc != nil && doc.ZoneID == "") {
 			// these branch means metadata server is down, when nodeID equals nodeName, we can get nessary message from apiserver
 			log.Log.Infof("NewNodeServer: get instance meta info failed from metadataserver, start to get info from node labels")
 			zoneID, nodeID = getZoneID(c, nodeID)
@@ -164,10 +164,10 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 			nodeID = doc.InstanceID
 		}
 	}
-	log.Log.Infof("NewNodeServer: zone id: %+v", zoneID)
+	log.Log.Infof("NewNodeServer: zone id: %+v, GlobalConfigVar.zoneID: %s", zoneID, GlobalConfigVar.ZoneID)
 	// !strings.HasPrefix(zoneID, GlobalConfigVar.Region) is forbidden ex: regionId: ap-southeast-1 zoneId: ap-southeast-x
-	if zoneID == "" {
-		log.Log.Fatalf("Failed to get zoneid %s from %s or nodelabels, please restart the csi-plugin pod", zoneID, DocumentURL)
+	if GlobalConfigVar.ZoneID == "" {
+		GlobalConfigVar.ZoneID = zoneID
 	}
 
 	// Create Directory
@@ -187,7 +187,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	}
 
 	return &nodeServer{
-		zone:              zoneID,
+		zone:              GlobalConfigVar.ZoneID,
 		maxVolumesPerNode: maxVolumesNum,
 		nodeID:            nodeID,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),

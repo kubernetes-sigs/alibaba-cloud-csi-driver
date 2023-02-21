@@ -369,7 +369,7 @@ func RetryGetMetaData(resource string) string {
 		time.Sleep(1 * time.Second)
 	}
 	if nodeID == "" || strings.Contains(nodeID, "Error 500 Internal Server Error") {
-		log.Errorf("RetryGetMetadata: failed to get instanceId: %s from metadataserver %s after 4 retrys", nodeID, MetadataURL+resource)
+		log.Fatalf("RetryGetMetadata: failed to get instanceId: %s from metadataserver %s after 4 retrys", nodeID, MetadataURL+resource)
 	}
 	log.Infof("RetryGetMetaData: successful get metadata %v: %v", resource, nodeID)
 	return nodeID

@@ -110,7 +110,7 @@ var veasp = struct {
 var delVolumeSnap sync.Map
 
 // NewControllerServer is to create controller server
-func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset, region string) csi.ControllerServer {
+func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.ControllerServer {
 	installCRD := true
 	installCRDStr := os.Getenv(utils.InstallSnapshotCRD)
 	if installCRDStr == "false" {

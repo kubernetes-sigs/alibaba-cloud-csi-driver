@@ -1262,6 +1262,19 @@ func UpdateNode(nodeID string, c *ecs.Client) {
 	}
 }
 
+func getMeta(node *v1.Node) (string, string, string) {
+	zoneID := ""
+	regionID := ""
+	if value := node.Labels[zoneIDLabelNew]; value != "" {
+		zoneID = value
+	}
+	if value := node.Labels[regionIDLabelNew]; value != "" {
+		log.Log.Infof("getZoneID:: fix regionid value by: %s", value)
+		regionID = value
+	}
+	return regionID, zoneID, ""
+}
+
 // getZoneID ...
 func getZoneID(c *ecs.Client, instanceID string) (string, string) {
 
