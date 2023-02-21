@@ -154,16 +154,20 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	if internalMode == "true" {
 		zoneID, nodeID = getZoneID(c, nodeID)
 	} else {
-		doc, err := getInstanceDoc()
-		if err != nil {
-			log.Log.Fatalf("Error happens to get node document: %v", err)
+		doc, err := retryGetInstanceDoc()
+		if err != nil || doc == nil || (doc != nil && doc.ZoneID == "") {
+			// these branch means metadata server is down, when nodeID equals nodeName, we can get nessary message from apiserver
+			log.Log.Infof("NewNodeServer: get instance meta info failed from metadataserver, start to get info from node labels")
+			zoneID, nodeID = getZoneID(c, nodeID)
+		} else {
+			zoneID = doc.ZoneID
+			nodeID = doc.InstanceID
 		}
-		zoneID = doc.ZoneID
-		nodeID = doc.InstanceID
 	}
-	log.Log.Infof("NewNodeServer: zone id: %+v", zoneID)
-	if zoneID == "" || !strings.HasPrefix(zoneID, GlobalConfigVar.Region) {
-		log.Log.Fatalf("Failed to get zoneid %s from %s, please restart the csi-plugin pod", zoneID, DocumentURL)
+	log.Log.Infof("NewNodeServer: zone id: %+v, GlobalConfigVar.zoneID: %s", zoneID, GlobalConfigVar.ZoneID)
+	// !strings.HasPrefix(zoneID, GlobalConfigVar.Region) is forbidden ex: regionId: ap-southeast-1 zoneId: ap-southeast-x
+	if GlobalConfigVar.ZoneID == "" {
+		GlobalConfigVar.ZoneID = zoneID
 	}
 
 	// Create Directory
@@ -183,7 +187,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	}
 
 	return &nodeServer{
-		zone:              zoneID,
+		zone:              GlobalConfigVar.ZoneID,
 		maxVolumesPerNode: maxVolumesNum,
 		nodeID:            nodeID,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
@@ -250,8 +254,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				log.Log.Errorf("NodePublishVolume(runv): unmountStageTarget %s with error: %s", sourcePath, err.Error())
 				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: unmountStageTarget "+sourcePath+" with error: "+err.Error())
 			}
-			deviceName, err := GetDeviceByVolumeID(req.VolumeId)
-			if err != nil && deviceName == "" {
+			devicePaths, err := GetDeviceByVolumeID(req.VolumeId)
+			deviceName, _, err := GetRootSubDevicePath(devicePaths)
+			if err != nil && len(devicePaths) == 0 {
 				deviceName = getVolumeConfig(req.VolumeId)
 			}
 			if deviceName == "" {
@@ -344,8 +349,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if sourceNotMounted {
-		device, _ := GetDeviceByVolumeID(req.GetVolumeId())
-		if device != "" {
+		devicePaths, _ := GetDeviceByVolumeID(req.GetVolumeId())
+		rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
+		if err == nil {
+			device := ChooseDevice(rootDevice, subDevice)
 			if err := ns.mountDeviceToGlobal(req.VolumeCapability, req.VolumeContext, device, sourcePath); err != nil {
 				log.Log.Errorf("NodePublishVolume: VolumeId: %s, remount disk to global %s error: %s", req.VolumeId, sourcePath, err.Error())
 				return nil, status.Error(codes.Internal, "NodePublishVolume: VolumeId: %s, remount disk error "+err.Error())
@@ -370,7 +377,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// check device name available
-	expectName := GetVolumeDeviceName(req.VolumeId)
+	devicePaths := GetVolumeDeviceName(req.VolumeId)
+	rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
+	expectName := ChooseDevice(rootDevice, subDevice)
 	realDevice := GetDeviceByMntPoint(sourcePath)
 	if realDevice == "" {
 		opts := append(mnt.MountFlags, "shared")
@@ -574,16 +583,16 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	// Step 4 Attach volume
 	if GlobalConfigVar.ADControllerEnable || isMultiAttach {
 		var bdf string
-		device, err = GetDeviceByVolumeID(req.GetVolumeId())
-		if IsVFNode() && device == "" {
+		devicePaths, err := GetDeviceByVolumeID(req.GetVolumeId())
+		if IsVFNode() && len(devicePaths) == 0 {
 			if bdf, err = bindBdfDisk(req.GetVolumeId()); err != nil {
 				if err := unbindBdfDisk(req.GetVolumeId()); err != nil {
 					return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to detach bdf disk: %v", err)
 				}
 				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf disk: %v", err)
 			}
-			device, err = GetDeviceByVolumeID(req.GetVolumeId())
-			if bdf != "" && device == "" {
+			devicePaths, err = GetDeviceByVolumeID(req.GetVolumeId())
+			if bdf != "" && len(devicePaths) == 0 {
 				device, err = GetDeviceByBdf(bdf, true)
 			}
 		}
@@ -591,6 +600,13 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			log.Log.Errorf("NodeStageVolume: ADController Enabled, but device can't be found in node: %s, error: %s", req.VolumeId, err.Error())
 			return nil, status.Error(codes.Aborted, "NodeStageVolume: ADController Enabled, but device can't be found:"+req.VolumeId+err.Error())
 		}
+
+		rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
+		if err != nil {
+			log.Log.Errorf("NodeStageVolume: ADController Enabled, but device can't be found in node: %s, error: %s", req.VolumeId, err.Error())
+			return nil, status.Error(codes.Aborted, "NodeStageVolume: ADController Enabled, but device can't be found:"+req.VolumeId+err.Error())
+		}
+		device = ChooseDevice(rootDevice, subDevice)
 	} else {
 		device, err = attachDisk(req.VolumeContext[TenantUserUID], req.GetVolumeId(), ns.nodeID, isSharedDisk)
 		if err != nil {
@@ -858,12 +874,19 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 			deleteUntagAutoSnapshot(volumeExpandAutoSnapshotID, diskID)
 		}
 	}()
-	devicePath := GetVolumeDeviceName(diskID)
-	if devicePath == "" {
+	devicePaths := GetVolumeDeviceName(diskID)
+	if len(devicePaths) == 0 {
 		log.Log.Errorf("NodeExpandVolume:: can't get devicePath: %s", diskID)
 		return nil, status.Error(codes.InvalidArgument, "can't get devicePath for "+diskID)
 	}
-	log.Log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
+	rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
+	if err != nil {
+		log.Log.Errorf("NodeExpandVolume:: can't get devicePath: %s", diskID)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	devicePath := ChooseDevice(rootDevice, subDevice)
+
+	log.Log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePaths, volumePath)
 	beforeResizeDiskCapacity, err := getDiskCapacity(volumePath)
 	if err != nil {
 		log.Log.Errorf("NodeExpandVolume:: get diskCapacity error %+v", err)

@@ -21,7 +21,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -63,7 +62,7 @@ type GlobalConfig struct {
 	EcsClient             *ecs.Client
 	Region                string
 	NodeID                string
-	AttachMutex           sync.RWMutex
+	ZoneID                string
 	CanAttach             bool
 	DiskTagEnable         bool
 	ADControllerEnable    bool
@@ -128,14 +127,8 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 		log.Log.Infof("Starting csi-plugin without sts.")
 	}
 
-	// Set Region ID
-	regionID := os.Getenv("REGION_ID")
-	if regionID == "" {
-		regionID = GetRegionID()
-	}
-
 	// Config Global vars
-	cfg := GlobalConfigSet(client, regionID, nodeID)
+	cfg := GlobalConfigSet(client, nodeID)
 
 	apiExtentionClient, err := crd.NewForConfig(cfg)
 	if err != nil {
@@ -144,7 +137,7 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
-	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient, regionID)
+	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient)
 
 	if !runAsController {
 		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, client)
@@ -162,7 +155,7 @@ func (disk *DISK) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Config {
+func GlobalConfigSet(client *ecs.Client, nodeID string) *restclient.Config {
 	configMapName := "csi-plugin"
 	isADControllerEnable := false
 	isDiskTagEnable := false
@@ -335,11 +328,11 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		}
 	}
 
-	nodeName := os.Getenv("KUBE_NODE_NAME")
+	nodeName := os.Getenv(kubeNodeName)
 	runtimeValue := "runc"
 	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
-		log.Log.Errorf("Describe node %s with error: %s", nodeName, err.Error())
+		log.Log.Fatalf("GlobalConfigSet: get node %s with error: %s", nodeName, err.Error())
 	} else {
 		if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime"]; ok && strings.TrimSpace(value) == "Sandboxed-Container.runv" {
 			if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime-version"]; ok && strings.HasPrefix(strings.TrimSpace(value), "1.") {
@@ -348,6 +341,7 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		}
 		log.Log.Infof("Describe node %s and Set RunTimeClass to %s", nodeName, runtimeValue)
 	}
+	regionID, zoneID, _ := getMeta(nodeInfo)
 	runtimeEnv := os.Getenv("RUNTIME")
 	if runtimeEnv == MixRunTimeMode {
 		runtimeValue = MixRunTimeMode
@@ -388,12 +382,13 @@ func GlobalConfigSet(client *ecs.Client, region, nodeID string) *restclient.Conf
 		delAutoSnap = true
 	}
 
-	log.Log.Infof("Starting with GlobalConfigVar: region(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)", region, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete, clustID)
+	log.Log.Infof("Starting with GlobalConfigVar: region(%s), zone(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)", regionID, zoneID, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete, clustID)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
 		EcsClient:             client,
-		Region:                region,
+		Region:                regionID,
 		NodeID:                nodeID,
+		ZoneID:                zoneID,
 		CanAttach:             true,
 		ADControllerEnable:    isADControllerEnable,
 		DiskTagEnable:         isDiskTagEnable,

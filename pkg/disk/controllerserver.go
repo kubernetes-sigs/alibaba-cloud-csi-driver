@@ -110,7 +110,7 @@ var veasp = struct {
 var delVolumeSnap sync.Map
 
 // NewControllerServer is to create controller server
-func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset, region string) csi.ControllerServer {
+func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.ControllerServer {
 	installCRD := true
 	installCRDStr := os.Getenv(utils.InstallSnapshotCRD)
 	if installCRDStr == "false" {
@@ -321,6 +321,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 
 	if GlobalConfigVar.SnapshotBeforeDelete {
+		log.Log.Infof("DeleteVolume: snapshot before delete configured")
 		err = snapshotBeforeDelete(req.GetVolumeId(), ecsClient)
 		if err != nil {
 			log.Log.Errorf("DeleteVolume: failed to create snapshot before delete disk, err: %v", err)
@@ -843,6 +844,7 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 		return nil, e
 	}
 	volumeID := req.GetSourceVolumeId()
+	log.Log.Infof("ListSnapshots: failed to get snapshot with snapshotid: %s, start get snapshot by volumeid: %s", snapshotID, volumeID)
 	if len(volumeID) == 0 {
 		snapshotRegion, volumeID, cTime := getSnapshotInfoByID(snapshotID)
 		log.Log.Infof("ListSnapshots:: snapshotRegion: %s, snapshotID: %v", snapshotRegion, snapshotID)
