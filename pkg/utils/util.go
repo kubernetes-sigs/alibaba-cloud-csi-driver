@@ -32,6 +32,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -960,4 +961,13 @@ func HasSpecificTagKey(tagKey string, disk *ecs.Disk) (bool, string) {
 		}
 	}
 	return exists, ""
+}
+
+func IsPrivateCloud() bool {
+	privateTag := os.Getenv("PRIVATE_CLOUD_TAG")
+	privateBool, err := strconv.ParseBool(privateTag)
+	if err != nil {
+		return false
+	}
+	return privateBool
 }
