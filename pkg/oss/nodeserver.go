@@ -215,7 +215,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 
 		metaZoneID := GetMetaDataAsync(regionTag)
-		if strings.Contains(opt.URL, metaZoneID) && !strings.Contains(opt.URL, "internal") {
+		if strings.Contains(opt.URL, metaZoneID) && !strings.Contains(opt.URL, "internal") && !utils.IsPrivateCloud() {
 			originUrl := opt.URL
 			opt.URL = strings.ReplaceAll(originUrl, metaZoneID, metaZoneID+"-internal")
 		}
