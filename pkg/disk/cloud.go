@@ -834,7 +834,7 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 			newReq := generateNewRequest(createDiskRequest)
 			// when perforamceLevel is not setting, diskPLs is empty.
 			for _, diskPL := range diskPLs {
-				log.Log.Infof("createDisk: start to create disk by diskName: %s, valid disktype: %v, pl: %s", diskName, diskTypes, diskPL)
+				log.Log.Infof("createDisk: start to create disk by diskName: %s, valid disktype: %v, pl: %s", diskName, dType, diskPL)
 
 				newReq.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID, diskPL)
 				newReq.PerformanceLevel = diskPL
@@ -872,6 +872,7 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 func generateNewRequest(oldReq *ecs.CreateDiskRequest) *ecs.CreateDiskRequest {
 	createDiskRequest := ecs.CreateCreateDiskRequest()
 
+	createDiskRequest.DiskCategory = oldReq.DiskCategory
 	createDiskRequest.DiskName = oldReq.DiskName
 	createDiskRequest.Size = oldReq.Size
 	createDiskRequest.RegionId = oldReq.RegionId
