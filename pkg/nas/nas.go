@@ -228,7 +228,7 @@ func GlobalConfigSet(serviceType string) *restclient.Config {
 			if value == "enable" || value == "yes" || value == "true" {
 				if serviceType == utils.PluginService {
 					deleteRpm("aliyun-alinas-utils.noarch")
-					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-3.al7.noarch.rpm")
+					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-4.al7.noarch.rpm")
 				}
 			}
 		}
@@ -238,13 +238,13 @@ func GlobalConfigSet(serviceType string) *restclient.Config {
 				if serviceType == utils.PluginService {
 					//deleteRpm before installRpm
 					deleteRpm("aliyun-alinas-utils.noarch")
-					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-3.al7.noarch.rpm")
+					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-4.al7.noarch.rpm")
 					queryCmd := fmt.Sprintf("%s rpm -qa | grep %s", NsenterCmd, "alinas-eac")
 					res, _ := utils.Run(queryCmd)
 					if len(res) == 0 {
-						installRpm("alinas-eac", "alinas-eac-1.1-1.x86_64.rpm")
+						installRpm("alinas-eac", "alinas-eac-1.2-1.x86_64.rpm")
 					} else {
-						updateRpm(res, "alinas-eac", "alinas-eac-1.1-1.x86_64.rpm")
+						updateRpm(res, "alinas-eac", "alinas-eac-1.2-1.x86_64.rpm")
 					}
 					runCmd := fmt.Sprintf("%s systemctl start aliyun-alinas-mount-watchdog", NsenterCmd)
 					_, err := utils.Run(runCmd)

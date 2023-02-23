@@ -8,8 +8,8 @@ ARG update_ossfsVer=1.88.0
 RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${ossfsVer}-b42b3a8_centos7.0_x86_64.rpm -o /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
 RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}_centos7.0_x86_64.rpm -o /root/ossfs_${update_ossfsVer}_centos7.0_x86_64.rpm
 RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}_centos8_x86_64.rpm -o /root/ossfs_${update_ossfsVer}_centos8_x86_64.rpm
-RUN curl https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-eac-1.1-1.x86_64.rpm -o /root/alinas-eac-1.1-1.x86_64.rpm
-RUN curl https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-3.al7.noarch.rpm -o /root/aliyun-alinas-utils-1.1-3.al7.noarch.rpm
+RUN curl https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-eac-1.2-1.x86_64.rpm -o /root/alinas-eac-1.2-1.x86_64.rpm
+RUN curl https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-4.al7.noarch.rpm -o /root/aliyun-alinas-utils-1.1-4.al7.noarch.rpm
 
 RUN mkdir /csi && \
     yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace cloud-utils-growpart gdisk nc telnet
