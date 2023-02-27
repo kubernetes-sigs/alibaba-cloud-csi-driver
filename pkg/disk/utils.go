@@ -1488,7 +1488,7 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.V
 	volumeContext = updateVolumeContext(volumeContext)
 	volumeContext["type"] = disk.Category
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
-	diskSizeBytes := int64(disk.Size) * 1024 * 1024 * 1024
+	diskSizeBytes := utils.Gi2Bytes(int64(disk.Size))
 	if volSizeBytes != diskSizeBytes {
 		return nil, perrors.Errorf("Disk %s is not expected capacity: expected(%d), disk(%d)", diskID, volSizeBytes, diskSizeBytes)
 	}

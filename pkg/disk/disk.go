@@ -118,6 +118,9 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	})
 	tmpdisk.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
 
+	// Config Global vars
+	cfg := GlobalConfigSet(nodeID)
+
 	// Init ECS Client
 	accessControl := utils.GetAccessControl()
 	client := newEcsClient(accessControl)
@@ -126,9 +129,7 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	} else {
 		log.Log.Infof("Starting csi-plugin without sts.")
 	}
-
-	// Config Global vars
-	cfg := GlobalConfigSet(client, nodeID)
+	GlobalConfigVar.EcsClient = client
 
 	apiExtentionClient, err := crd.NewForConfig(cfg)
 	if err != nil {
@@ -155,7 +156,7 @@ func (disk *DISK) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(client *ecs.Client, nodeID string) *restclient.Config {
+func GlobalConfigSet(nodeID string) *restclient.Config {
 	configMapName := "csi-plugin"
 	isADControllerEnable := false
 	isDiskTagEnable := false
@@ -385,7 +386,6 @@ func GlobalConfigSet(client *ecs.Client, nodeID string) *restclient.Config {
 	log.Log.Infof("Starting with GlobalConfigVar: region(%s), zone(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)", regionID, zoneID, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete, clustID)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
-		EcsClient:             client,
 		Region:                regionID,
 		NodeID:                nodeID,
 		ZoneID:                zoneID,

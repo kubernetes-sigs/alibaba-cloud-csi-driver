@@ -676,7 +676,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		SourceVolumeId: sourceVolumeID,
 		CreationTime:   createAt,
 		ReadyToUse:     tmpReadyToUse,
-		SizeBytes:      gi2Bytes(int64(disks[0].Size)),
+		SizeBytes:      utils.Gi2Bytes(int64(disks[0].Size)),
 	}
 
 	createdSnapshotMap[req.Name] = csiSnapshot
@@ -1059,7 +1059,7 @@ func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 		return nil, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", ecsSnapshot.CreationTime)
 	}
 	sizeGb, _ := strconv.ParseInt(ecsSnapshot.SourceDiskSize, 10, 64)
-	sizeBytes := gi2Bytes(sizeGb)
+	sizeBytes := utils.Gi2Bytes(sizeGb)
 	readyToUse := false
 	if ecsSnapshot.Status == "accomplished" || ecsSnapshot.InstantAccess {
 		readyToUse = true
@@ -1071,10 +1071,6 @@ func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 		CreationTime:   &timestamp.Timestamp{Seconds: t.Unix()},
 		ReadyToUse:     readyToUse,
 	}, nil
-}
-
-func gi2Bytes(gb int64) int64 {
-	return gb * 1024 * 1024 * 1024
 }
 
 func updateVolumeExpandAutoSnapshotID(pvc *v1.PersistentVolumeClaim, snapshotID, option string) error {
@@ -1185,7 +1181,7 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 		SourceVolumeId: sourceVolumeID,
 		CreationTime:   createAt,
 		ReadyToUse:     tmpReadyToUse,
-		SizeBytes:      gi2Bytes(int64(disk.Size)),
+		SizeBytes:      utils.Gi2Bytes(int64(disk.Size)),
 	}
 	cs.recorder.Event(pvc, v1.EventTypeNormal, snapshotCreatedSuccessfully, str)
 
