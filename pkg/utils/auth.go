@@ -130,7 +130,7 @@ type AccessControl struct {
 
 var (
 	// cmdSet is support cmd set
-	cmdSet = hashset.New("mount", "lctl", "umount", "nsenter", "findmnt", "chmod", "dd", "mkfs.ext4", "cat", "sysctl")
+	cmdSet = hashset.New("mount", "lctl", "umount", "nsenter", "findmnt", "chmod", "dd", "mkfs.ext4", "cat", "ps", "hostname", "sysctl")
 	// cmdRegexp is not support cmd args
 	cmdRegexp = "[|$&;`'<>()%+\\\\]"
 )
