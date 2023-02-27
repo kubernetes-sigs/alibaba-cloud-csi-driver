@@ -153,6 +153,20 @@ func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region, 
 	return c
 }
 
+func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
+	volName := req.GetName()
+	if len(volName) == 0 {
+		return status.Error(codes.InvalidArgument, "Volume name not provided")
+	}
+
+	log.Infof("Starting nfs validate create volume request %s, %v", req.Name, req)
+	valid, err := utils.CheckRequestArgs(req.GetParameters())
+	if !valid {
+		return status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	return nil
+}
+
 // provisioner: create/delete nas volume
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	ref := &v1.ObjectReference{
@@ -161,10 +175,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		UID:       "",
 		Namespace: "",
 	}
-	log.Infof("CreateVolume: Starting NFS CreateVolume, %s, %v", req.Name, req)
-	valid, err := utils.CheckRequestArgs(req.GetParameters())
-	if !valid {
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	if err := validateCreateVolumeRequest(req); err != nil {
+		return nil, err
 	}
 	// step1: check pvc is created or not.
 	if value, ok := pvcProcessSuccess[req.Name]; ok && value != nil {
