@@ -385,6 +385,10 @@ func GetRegionIDAndInstanceID(nodeName string) (string, string, error) {
 	return strs[0], strs[1], nil
 }
 
+func Gi2Bytes(gb int64) int64 {
+	return gb * 1024 * 1024 * 1024
+}
+
 // ReadJSONFile return a json object
 func ReadJSONFile(file string) (map[string]string, error) {
 	jsonObj := map[string]string{}

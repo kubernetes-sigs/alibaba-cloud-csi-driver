@@ -23,7 +23,7 @@ func MaintainSparseTemplateFile(dir string, size string) error {
 	tempFileName := filepath.Join(templateDir, LOCAL_SPARSE_TEMPLATE_NAME)
 	_, err := os.Stat(tempFileName)
 	if os.IsNotExist(err) {
-		err = ld.CreateSparseFile(tempFileName, strconv.Itoa(templateSize*1024*1024*1024))
+		err = ld.CreateSparseFile(tempFileName, strconv.Itoa(int(utils.Gi2Bytes(int64(templateSize)))))
 		if err != nil {
 			return err
 		}
@@ -42,6 +42,7 @@ type LoopDevice interface {
 	FindLoopDeviceBySparseFile(sparseFile string) (string, error)
 	GetTemplateInfo() (string, int)
 	FileExists(filepath string) error
+	GetUsedByteSize() (int64, error)
 }
 
 type NodeLoopDevice struct {
@@ -94,13 +95,13 @@ func (ld *NodeLoopDevice) CustomFormatFile(fullName, fsType string, options []st
 		}
 	}
 	args = append(args, fullName)
-	_, err := exec.Command(fmt.Sprintf("%s mkfs.%s", NsenterCmd, fsType), args...).CombinedOutput()
+	_, err := exec.Command(fmt.Sprintf("%s mkfs.%s", utils.NsenterCmd, fsType), args...).CombinedOutput()
 	return err
 
 }
 
 func (ld *NodeLoopDevice) CopySparseFile(sourceFile, targetFile string) error {
-	cmd := fmt.Sprintf("%s cp %s %s", NsenterCmd, sourceFile, targetFile)
+	cmd := fmt.Sprintf("%s cp %s %s", utils.NsenterCmd, sourceFile, targetFile)
 	_, err := utils.Run(cmd)
 	return err
 	// source, err := os.Open(sourceFile)
@@ -121,7 +122,7 @@ func (ld *NodeLoopDevice) CreateLoopDevice(sparseFile string) (string, error) {
 	if err := ld.FileExists(sparseFile); err != nil {
 		return "", fmt.Errorf("CreateLoopDevice: check sparsefile file: %s err:%v, failed to create loopdevice", sparseFile, err)
 	}
-	cmd := fmt.Sprintf("%s losetup -f %s", NsenterCmd, sparseFile)
+	cmd := fmt.Sprintf("%s losetup -f %s", utils.NsenterCmd, sparseFile)
 	out, err := utils.Run(cmd)
 	if err != nil {
 		return "", err
@@ -135,13 +136,13 @@ func (ld *NodeLoopDevice) DeleteLoopDevice(sparseFile string) (string, error) {
 		return "", fmt.Errorf("DeleteLoopDevice: failed to find loopdevice by sparsefile err: %v", err)
 	}
 
-	cmd := fmt.Sprintf("%s losetup -d %s", NsenterCmd, loopDevice)
+	cmd := fmt.Sprintf("%s losetup -d %s", utils.NsenterCmd, loopDevice)
 	out, err := utils.Run(cmd)
 	if err != nil {
 		return "", err
 	}
 
-	sfCmd := fmt.Sprintf("%s rm %s", NsenterCmd, sparseFile)
+	sfCmd := fmt.Sprintf("%s rm %s", utils.NsenterCmd, sparseFile)
 	out, err = utils.Run(sfCmd)
 	if err != nil {
 		return "", err
@@ -154,12 +155,32 @@ func (ld *NodeLoopDevice) FindLoopDeviceBySparseFile(sparseFile string) (string,
 	if err := ld.FileExists(sparseFile); err != nil {
 		return "", fmt.Errorf("FindLoopDeviceBySparseFile: check sparsefile file: %s err:%v, failed to find sparsefile", sparseFile, err)
 	}
-	cmd := fmt.Sprintf("%s losetup | grep '%s' | awk '{print $1}'", NsenterCmd, sparseFile)
+	cmd := fmt.Sprintf("%s losetup | grep '%s' | awk '{print $1}'", utils.NsenterCmd, sparseFile)
 	out, err := utils.Run(cmd)
 	if err != nil {
 		return "", err
 	}
 	return strings.Trim(out, "\n"), nil
+}
+
+func (ld *NodeLoopDevice) GetUsedByteSize() (int64, error) {
+	var usedBytes int64
+	cmd := fmt.Sprintf("%s ls -l %s | awk '!/total/{print $5}'", utils.NsenterCmd, ld.templateDir)
+	out, err := utils.Run(cmd)
+	if err != nil {
+		return 0, err
+	}
+	for _, value := range strings.Split(out, "\n") {
+		if value == "" {
+			continue
+		}
+		i, err := strconv.Atoi(value)
+		if err != nil {
+			return 0, err
+		}
+		usedBytes += int64(i)
+	}
+	return usedBytes, nil
 }
 
 func (ld *NodeLoopDevice) ResizeLoopDevice(sparseFile string) error {
