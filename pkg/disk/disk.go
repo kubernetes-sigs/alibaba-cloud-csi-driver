@@ -21,6 +21,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -65,6 +66,7 @@ type GlobalConfig struct {
 	ZoneID                string
 	CanAttach             bool
 	DiskTagEnable         bool
+	AttachMutex           sync.RWMutex
 	ADControllerEnable    bool
 	DetachDisabled        bool
 	MetricEnable          bool

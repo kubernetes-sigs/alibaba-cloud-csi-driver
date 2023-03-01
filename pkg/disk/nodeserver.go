@@ -349,9 +349,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if sourceNotMounted {
-		devicePaths, _ := GetDeviceByVolumeID(req.GetVolumeId())
-		rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
-		if err == nil {
+		devicePaths, getDeviceErr := GetDeviceByVolumeID(req.GetVolumeId())
+		rootDevice, subDevice, chooseDeviceErr := GetRootSubDevicePath(devicePaths)
+		if getDeviceErr == nil && chooseDeviceErr == nil {
 			device := ChooseDevice(rootDevice, subDevice)
 			if err := ns.mountDeviceToGlobal(req.VolumeCapability, req.VolumeContext, device, sourcePath); err != nil {
 				log.Log.Errorf("NodePublishVolume: VolumeId: %s, remount disk to global %s error: %s", req.VolumeId, sourcePath, err.Error())
@@ -359,7 +359,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			}
 			log.Log.Infof("NodePublishVolume: SourcePath %s not mounted, and mounted again with device %s", sourcePath, device)
 		} else {
-			log.Log.Errorf("NodePublishVolume: VolumeId: %s, sourcePath %s is Not mounted and device cannot found", req.VolumeId, sourcePath)
+			log.Log.Errorf("NodePublishVolume: VolumeId: %s, sourcePath %s is Not mounted and device cannot found, getDeviceErr: %v, chooseDeviceErr: %v", req.VolumeId, sourcePath, getDeviceErr, chooseDeviceErr)
 			return nil, status.Error(codes.Internal, "NodePublishVolume: VolumeId: %s, sourcePath %s is Not mounted "+sourcePath)
 		}
 	}
