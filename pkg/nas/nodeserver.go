@@ -151,7 +151,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	err = isValidCnfsParameter(opt.Server, cnfsName)
+	err := isValidCnfsParameter(opt.Server, cnfsName)
 	if err != nil {
 		return nil, err
 	}
