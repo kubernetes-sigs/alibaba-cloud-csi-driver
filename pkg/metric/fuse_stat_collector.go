@@ -217,63 +217,115 @@ type fuseInfo struct {
 }
 
 type usFsStatCollector struct {
-	hotSpotReadFileTop  *prometheus.Desc
-	hotSpotWriteFileTop *prometheus.Desc
-	hotSpotHeadFileTop  *prometheus.Desc
-	descs               []typedFactorDesc
+	hotSpotReadFileTop             *prometheus.Desc
+	hotSpotWriteFileTop            *prometheus.Desc
+	hotSpotHeadFileTop             *prometheus.Desc
+	capacityBytesCounterDesc       capacityBytesCounterDesc
+	inodeBytesCounterDesc          inodeBytesCounterDesc
+	throughputBytesCounterDesc     throughputBytesCounterDesc
+	iopsCompletedCounterDesc       iopsCompletedCounterDesc
+	latencyMillisecondsCounterDesc latencyMillisecondsCounterDesc
+	posixCounterDesc               posixCounterDesc
+	ossObjectCounterDesc           ossObjectCounterDesc
+}
+
+type capacityBytesCounterDesc struct {
+	descs []typedFactorDesc
+}
+type inodeBytesCounterDesc struct {
+	descs []typedFactorDesc
+}
+
+type throughputBytesCounterDesc struct {
+	descs []typedFactorDesc
+}
+
+type iopsCompletedCounterDesc struct {
+	descs []typedFactorDesc
+}
+
+type latencyMillisecondsCounterDesc struct {
+	descs []typedFactorDesc
+}
+
+type posixCounterDesc struct {
+	descs []typedFactorDesc
+}
+
+type ossObjectCounterDesc struct {
+	descs []typedFactorDesc
 }
 
 func init() {
-	registerCollector("fuse_oss_stat", NewFuseOssStatCollector)
+	registerCollector("fuse_stat", NewFuseStatCollector)
 }
 
 // NewUsFsStatCollector returns a new Collector exposing user space fs stats.
-func NewFuseOssStatCollector() (Collector, error) {
+func NewFuseStatCollector() (Collector, error) {
 	return &usFsStatCollector{
 		hotSpotReadFileTop:  hotSpotReadFileTopDesc,
 		hotSpotWriteFileTop: hotSpotWriteFileTopDesc,
 		hotSpotHeadFileTop:  hotSpotHeadFileTopDesc,
-		descs: []typedFactorDesc{
-			//0-2
-			{desc: capacityBytesUsedCounterDesc, valueType: prometheus.CounterValue},
-			{desc: capacityBytesAvailableCounterDesc, valueType: prometheus.CounterValue},
-			{desc: capacityBytesTotalCounterDesc, valueType: prometheus.CounterValue},
-			//3-5
-			{desc: inodeBytesUsedCounterDesc, valueType: prometheus.CounterValue},
-			{desc: inodeBytesAvailableCounterDesc, valueType: prometheus.CounterValue},
-			{desc: inodeBytesTotalCounterDesc, valueType: prometheus.CounterValue},
-			//6-7
-			{desc: readBytesTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: writeBytesTotalCounterDesc, valueType: prometheus.CounterValue},
-			//8-9
-			{desc: readCompletedTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: writeCompletedTotalCounterDesc, valueType: prometheus.CounterValue},
-			//10-11
-			{desc: readTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001},
-			{desc: writeTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001},
-			//12-27
-			{desc: posixMkdirTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: posixRmdirTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: posixOpendirTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: posixReaddirTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: posixWriteTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: posixFlushTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: posixFsyncTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: posixReleaseTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: posixReadTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: posixCreateTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: posixOpenTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: posixAccessTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: posixRenameTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: posixChownTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: posixChmodTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: posixTruncateTotalCounterDesc, valueType: prometheus.CounterValue},
-			//28-32
-			{desc: ossPutObjectTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: ossGetObjectTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: ossHeadObjectTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: ossDeleteObjectTotalCounterDesc, valueType: prometheus.CounterValue},
-			{desc: ossPostObjectTotalCounterDesc, valueType: prometheus.CounterValue},
+		capacityBytesCounterDesc: capacityBytesCounterDesc{
+			descs: []typedFactorDesc{
+				{desc: capacityBytesUsedCounterDesc, valueType: prometheus.CounterValue},
+				{desc: capacityBytesAvailableCounterDesc, valueType: prometheus.CounterValue},
+				{desc: capacityBytesTotalCounterDesc, valueType: prometheus.CounterValue},
+			},
+		},
+		inodeBytesCounterDesc: inodeBytesCounterDesc{
+			descs: []typedFactorDesc{
+				{desc: inodeBytesUsedCounterDesc, valueType: prometheus.CounterValue},
+				{desc: inodeBytesAvailableCounterDesc, valueType: prometheus.CounterValue},
+				{desc: inodeBytesTotalCounterDesc, valueType: prometheus.CounterValue},
+			},
+		},
+		throughputBytesCounterDesc: throughputBytesCounterDesc{
+			descs: []typedFactorDesc{
+				{desc: readBytesTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: writeBytesTotalCounterDesc, valueType: prometheus.CounterValue},
+			},
+		},
+		iopsCompletedCounterDesc: iopsCompletedCounterDesc{
+			descs: []typedFactorDesc{
+				{desc: readCompletedTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: writeCompletedTotalCounterDesc, valueType: prometheus.CounterValue},
+			},
+		},
+		latencyMillisecondsCounterDesc: latencyMillisecondsCounterDesc{
+			descs: []typedFactorDesc{
+				{desc: readTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001},
+				{desc: writeTimeMillisecondsTotalCounterDesc, valueType: prometheus.CounterValue, factor: .001},
+			},
+		},
+		posixCounterDesc: posixCounterDesc{
+			descs: []typedFactorDesc{
+				{desc: posixMkdirTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixRmdirTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixOpendirTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixReaddirTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixWriteTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixFlushTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixFsyncTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixReleaseTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixReadTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixCreateTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixOpenTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixAccessTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixRenameTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixChownTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixChmodTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: posixTruncateTotalCounterDesc, valueType: prometheus.CounterValue},
+			},
+		},
+		ossObjectCounterDesc: ossObjectCounterDesc{
+			descs: []typedFactorDesc{
+				{desc: ossPutObjectTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: ossGetObjectTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: ossHeadObjectTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: ossDeleteObjectTotalCounterDesc, valueType: prometheus.CounterValue},
+				{desc: ossPostObjectTotalCounterDesc, valueType: prometheus.CounterValue},
+			},
 		},
 	}, nil
 }
@@ -286,21 +338,89 @@ func getPodUID(fsClientPathPrefix string, fsClientType string) ([]string, error)
 	return listDirectory(fsClientPathPrefix + fsClientType)
 }
 
-func setCounterStat(start int, end int, stat *[35]string, metricsArray []string) {
+func (p *usFsStatCollector) postHotTopFileMetrics(hotSpotType string, fsClientInfo *fuseInfo, metricsArray []string, ch chan<- prometheus.Metric) {
+	for _, metricsValue := range metricsArray {
+		start := strings.LastIndex(metricsValue, ":")
+		if start == -1 {
+			continue
+		}
+		fileName := metricsValue[0:start]
+		value := metricsValue[start+1:]
+		valueFloat64, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			continue
+		}
+		switch hotSpotType {
+		case "hot_spot_read_file_top":
+			ch <- prometheus.MustNewConstMetric(p.hotSpotReadFileTop, prometheus.GaugeValue, valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, fileName)
+		case "hot_spot_write_file_top":
+			ch <- prometheus.MustNewConstMetric(p.hotSpotWriteFileTop, prometheus.GaugeValue, valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, fileName)
+		case "hot_spot_head_file_top":
+			ch <- prometheus.MustNewConstMetric(p.hotSpotHeadFileTop, prometheus.GaugeValue, valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, fileName)
+		default:
+			log.Errorf("Unknow hotSpotType:%s", hotSpotType)
+		}
+	}
+}
+
+func (p *usFsStatCollector) postCounterMetrics(counterType string, fsClientInfo *fuseInfo, metricsArray []string, ch chan<- prometheus.Metric) {
 	if len(metricsArray) == 0 {
 		return
 	}
-	if len(metricsArray) < end-start+1 {
-		return
-	}
-	for i := 0; i < end-start+1; i++ {
-		(*stat)[i+start] = metricsArray[i]
+
+	for i, value := range metricsArray {
+		if len(strings.TrimSpace(value)) == 0 {
+			continue
+		}
+		valueFloat64, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			log.Errorf("Convert value %s to float64 is failed, err:%s, counterType:%s, metricsArray:%+v", value, err, counterType, metricsArray)
+			continue
+		}
+
+		switch counterType {
+		case "capacity_counter":
+			if i >= len(p.capacityBytesCounterDesc.descs) {
+				return
+			}
+			ch <- p.capacityBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+		case "inodes_counter":
+			if i >= len(p.inodeBytesCounterDesc.descs) {
+				return
+			}
+			ch <- p.inodeBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+		case "throughput_counter":
+			if i >= len(p.throughputBytesCounterDesc.descs) {
+				return
+			}
+			ch <- p.throughputBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+		case "iops_counter":
+			if i >= len(p.iopsCompletedCounterDesc.descs) {
+				return
+			}
+			ch <- p.iopsCompletedCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+		case "latency_counter":
+			if i >= len(p.latencyMillisecondsCounterDesc.descs) {
+				return
+			}
+			ch <- p.latencyMillisecondsCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+		case "posix_counter":
+			if i >= len(p.posixCounterDesc.descs) {
+				return
+			}
+			ch <- p.posixCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+		case "oss_object_counter":
+			if i >= len(p.ossObjectCounterDesc.descs) {
+				return
+			}
+			ch <- p.ossObjectCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
+		default:
+			log.Errorf("Unknow counterType:%s", counterType)
+		}
 	}
 }
 
 func (p *usFsStatCollector) Update(ch chan<- prometheus.Metric) error {
-	initFsClientFlag := false
-	var stat = [35]string{}
 	fsClientInfo := new(fuseInfo)
 	// foreach fuse client type
 	for _, fsClientType := range fsClientTypeArray {
@@ -316,6 +436,7 @@ func (p *usFsStatCollector) Update(ch chan<- prometheus.Metric) error {
 			if err != nil {
 				continue
 			}
+			//namespace pod_name uid top_number
 			if len(podInfoArray) < 4 {
 				continue
 			}
@@ -333,6 +454,7 @@ func (p *usFsStatCollector) Update(ch chan<- prometheus.Metric) error {
 				if err != nil {
 					continue
 				}
+				//fuse_client storage_type filesystem_id pv_name mount_point
 				if len(mountPointInfoArray) < 5 {
 					continue
 				}
@@ -341,84 +463,24 @@ func (p *usFsStatCollector) Update(ch chan<- prometheus.Metric) error {
 				fsClientInfo.BucketName = mountPointInfoArray[2]
 				fsClientInfo.PvName = mountPointInfoArray[3]
 				fsClientInfo.MountPoint = mountPointInfoArray[4]
-				initFsClientFlag = true
 				// foreach counter metrics
 				for _, counterType := range counterTypeArray {
 					metricsArray, err := readFirstLines(fsClientPathPrefix + fsClientType + "/" + podUID + "/" + volume + "/" + counterType)
 					if err != nil {
 						continue
 					}
-					switch counterType {
-					case "capacity_counter":
-						setCounterStat(0, 2, &stat, metricsArray)
-					case "inodes_counter":
-						setCounterStat(3, 5, &stat, metricsArray)
-					case "throughput_counter":
-						setCounterStat(6, 7, &stat, metricsArray)
-					case "iops_counter":
-						setCounterStat(8, 9, &stat, metricsArray)
-					case "latency_counter":
-						setCounterStat(10, 11, &stat, metricsArray)
-					case "posix_counter":
-						setCounterStat(12, 27, &stat, metricsArray)
-					case "oss_object_counter":
-						setCounterStat(28, 32, &stat, metricsArray)
-					default:
-						log.Errorf("Unknow counterType:%s", counterType)
-					}
+					p.postCounterMetrics(counterType, fsClientInfo, metricsArray, ch)
 				}
-				if initFsClientFlag {
-					p.setCounterMetrics(fsClientInfo, stat, ch)
-				}
+				// foreach hot_top_file metrics
 				for _, hotSpotType := range hotSpotArray {
 					metricsArray, err := readFirstLines(fsClientPathPrefix + fsClientType + "/" + podUID + "/" + volume + "/" + hotSpotType)
 					if err != nil {
 						continue
 					}
-					for _, metricsValue := range metricsArray {
-						start := strings.LastIndex(metricsValue, ":")
-						if start == -1 {
-							continue
-						}
-						fileName := metricsValue[0:start]
-						value := metricsValue[start+1:]
-						valueFloat64, err := strconv.ParseFloat(value, 64)
-						if err != nil {
-							continue
-						}
-						switch hotSpotType {
-						case "hot_spot_read_file_top":
-							ch <- prometheus.MustNewConstMetric(p.hotSpotReadFileTop, prometheus.GaugeValue, valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, fileName)
-						case "hot_spot_write_file_top":
-							ch <- prometheus.MustNewConstMetric(p.hotSpotWriteFileTop, prometheus.GaugeValue, valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, fileName)
-						case "hot_spot_head_file_top":
-							ch <- prometheus.MustNewConstMetric(p.hotSpotHeadFileTop, prometheus.GaugeValue, valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, fileName)
-
-						default:
-							log.Errorf("Unknow hotSpotType:%s", hotSpotType)
-						}
-					}
+					p.postHotTopFileMetrics(hotSpotType, fsClientInfo, metricsArray, ch)
 				}
 			}
 		}
 	}
 	return nil
-}
-
-func (p *usFsStatCollector) setCounterMetrics(fsClientInfo *fuseInfo, stats [35]string, ch chan<- prometheus.Metric) {
-	for i, value := range stats {
-		if i >= len(p.descs) {
-			return
-		}
-		if len(strings.TrimSpace(value)) == 0 {
-			continue
-		}
-		valueFloat64, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			log.Errorf("Convert value %s to float64 is failed, err:%s, stat:%+v", value, err, stats)
-			continue
-		}
-
-		ch <- p.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
-	}
 }

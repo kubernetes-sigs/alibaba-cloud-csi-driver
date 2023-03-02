@@ -94,7 +94,7 @@ func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint,
 	var err error
 	//EAC Mount
 	if len(useEaClient) != 0 && useEaClient == "true" {
-		mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o eac -o client_owner=%s -o %s %s:%s %s", podUID, mountOptions, nfsServer, nfsPath, mountPoint)
+		mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o eac -o bindtag=%s -o client_owner=%s -o %s %s:%s %s", volumeID, podUID, mountOptions, nfsServer, nfsPath, mountPoint)
 		if err := utils.DoMountInHost(mntCmd); err != nil {
 			return err
 		}
