@@ -77,13 +77,20 @@ const (
 	regionTag = "region-id"
 )
 
+func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
+	valid, err := utils.CheckRequest(req.GetVolumeContext(), req.GetTargetPath())
+	if !valid {
+		return status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	return nil
+}
+
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// logout oss paras
 	log.Infof("NodePublishVolume:: Starting Mount volume: %s mount with req: %+v", req.VolumeId, req)
 	mountPath := req.GetTargetPath()
-	valid, err := utils.CheckRequest(req.GetVolumeContext(), mountPath)
-	if !valid {
-		return nil, errors.New(err.Error())
+	if err := validateNodePublishVolumeRequest(req); err != nil {
+		return nil, err
 	}
 	var cnfsName string
 	opt := &Options{}

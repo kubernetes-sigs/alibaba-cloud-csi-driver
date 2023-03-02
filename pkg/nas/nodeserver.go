@@ -108,12 +108,19 @@ func newNodeServer(d *NAS) *nodeServer {
 	}
 }
 
+func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
+	valid, err := utils.CheckRequest(req.GetVolumeContext(), req.GetTargetPath())
+	if !valid {
+		return status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	return nil
+}
+
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	log.Infof("NodePublishVolume:: Nas Volume %s mount with req: %+v", req.VolumeId, req)
 	mountPath := req.GetTargetPath()
-	valid, err := utils.CheckRequest(req.GetVolumeContext(), mountPath)
-	if !valid {
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	if err := validateNodePublishVolumeRequest(req); err != nil {
+		return nil, err
 	}
 	// parse parameters
 	opt := &Options{}
