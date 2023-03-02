@@ -158,7 +158,7 @@ func installRpm(queryRpmName string, rpmName string) {
 	}
 }
 
-func updateRpm(res string, queryRpmName string, rpmName string) {
+func upgradeRPM(res string, queryRpmName string, rpmName string) {
 	rpmPath := "/etc/csi-tool/" + rpmName
 	if len(res) != 0 && !strings.Contains(res, strings.TrimSuffix(rpmName, ".rpm")) {
 		updateCmd := fmt.Sprintf("%s rpm -Uvh %s --nopostun", NsenterCmd, rpmPath)
@@ -249,7 +249,7 @@ func GlobalConfigSet(serviceType string) *restclient.Config {
 					if strings.Contains(stdout, alinasEac) {
 						installRpm(alinasEac, alinasEacRpmName)
 					} else {
-						updateRpm(stdout, alinasEac, alinasEacRpmName)
+						upgradeRPM(stdout, alinasEac, alinasEacRpmName)
 					}
 					runCmd := fmt.Sprintf("%s systemctl start aliyun-alinas-mount-watchdog", NsenterCmd)
 					_, err := utils.Run(runCmd)

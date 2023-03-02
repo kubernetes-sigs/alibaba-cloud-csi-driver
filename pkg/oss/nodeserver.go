@@ -352,12 +352,20 @@ func (ns *nodeServer) saveOssCredential(opt *Options) error {
 	return nil
 }
 
+func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) error {
+	valid, err := utils.CheckRequestPath(req.GetTargetPath())
+	if !valid {
+		return status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	return nil
+}
+
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	log.Infof("NodeUnpublishVolume:: Starting Umount OSS: %s mount with req: %+v", req.TargetPath, req)
 	mountPoint := req.TargetPath
-	valid, err := utils.CheckRequestPath(mountPoint)
-	if !valid {
-		return nil, errors.New(err.Error())
+	err := validateNodeUnpublishVolumeRequest(req);
+	if err != nil {
+		return nil ,err
 	}
 	if !IsOssfsMounted(mountPoint) {
 		log.Infof("Directory is not mounted: %s", mountPoint)
