@@ -105,11 +105,10 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 	tmpdisk := &DISK{}
 	tmpdisk.endpoint = endpoint
 
-	if nodeID == "" {
-		nodeID = utils.RetryGetMetaData(InstanceID)
-		log.Log.Infof("Use node id : %s", nodeID)
-	}
-	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, nodeID)
+	// Config Global vars
+	cfg := GlobalConfigSet(nodeID)
+
+	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, GlobalConfigVar.NodeID)
 	tmpdisk.driver = csiDriver
 	tmpdisk.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
@@ -119,9 +118,6 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 		csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
 	})
 	tmpdisk.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
-
-	// Config Global vars
-	cfg := GlobalConfigSet(nodeID)
 
 	// Init ECS Client
 	accessControl := utils.GetAccessControl()
@@ -333,9 +329,11 @@ func GlobalConfigSet(nodeID string) *restclient.Config {
 
 	nodeName := os.Getenv(kubeNodeName)
 	runtimeValue := "runc"
+	var regionID, zoneID, vmID string
 	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
-		log.Log.Fatalf("GlobalConfigSet: get node %s with error: %s", nodeName, err.Error())
+		log.Log.Errorf("GlobalConfigSet: get node %s with error: %s", nodeName, err.Error())
+		regionID = GetRegionID()
 	} else {
 		if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime"]; ok && strings.TrimSpace(value) == "Sandboxed-Container.runv" {
 			if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime-version"]; ok && strings.HasPrefix(strings.TrimSpace(value), "1.") {
@@ -343,8 +341,12 @@ func GlobalConfigSet(nodeID string) *restclient.Config {
 			}
 		}
 		log.Log.Infof("Describe node %s and Set RunTimeClass to %s", nodeName, runtimeValue)
+
+		regionID, zoneID, vmID = getMeta(nodeInfo)
+		if nodeID == "" {
+			nodeID = vmID
+		}
 	}
-	regionID, zoneID, _ := getMeta(nodeInfo)
 	runtimeEnv := os.Getenv("RUNTIME")
 	if runtimeEnv == MixRunTimeMode {
 		runtimeValue = MixRunTimeMode

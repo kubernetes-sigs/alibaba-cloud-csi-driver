@@ -148,18 +148,18 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		maxVolumesNum = getVolumeCount()
 	}
 
-	zoneID := ""
+	zoneID := GlobalConfigVar.ZoneID
 	nodeID := GlobalConfigVar.NodeID
 	internalMode := os.Getenv("INTERNAL_MODE")
 	if internalMode == "true" {
 		zoneID, nodeID = getZoneID(c, nodeID)
 	} else {
-		doc, err := retryGetInstanceDoc()
-		if err != nil || doc == nil || (doc != nil && doc.ZoneID == "") {
-			// these branch means metadata server is down, when nodeID equals nodeName, we can get nessary message from apiserver
-			log.Log.Infof("NewNodeServer: get instance meta info failed from metadataserver, start to get info from node labels")
-			zoneID, nodeID = getZoneID(c, nodeID)
-		} else {
+		if zoneID == "" || nodeID == "" {
+			doc, err := retryGetInstanceDoc()
+			if err != nil {
+				log.Log.Infof("NewNodeServer: get instance meta info failed from metadataserver, err: %v", err)
+				zoneID, nodeID = getZoneID(c, nodeID)
+			}
 			zoneID = doc.ZoneID
 			nodeID = doc.InstanceID
 		}
@@ -168,6 +168,10 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	// !strings.HasPrefix(zoneID, GlobalConfigVar.Region) is forbidden ex: regionId: ap-southeast-1 zoneId: ap-southeast-x
 	if GlobalConfigVar.ZoneID == "" {
 		GlobalConfigVar.ZoneID = zoneID
+	}
+
+	if GlobalConfigVar.NodeID == "" {
+		GlobalConfigVar.NodeID = nodeID
 	}
 
 	// Create Directory
@@ -180,7 +184,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	} else {
 		log.Log.Infof("Currently node is NOT VF model")
 	}
-	go UpdateNode(nodeID, c)
+	go UpdateNode(GlobalConfigVar.NodeID, c)
 
 	if !GlobalConfigVar.ControllerService && IsVFNode() && GlobalConfigVar.BdfHealthCheck {
 		go BdfHealthCheck()
@@ -189,7 +193,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	return &nodeServer{
 		zone:              GlobalConfigVar.ZoneID,
 		maxVolumesPerNode: maxVolumesNum,
-		nodeID:            nodeID,
+		nodeID:            GlobalConfigVar.NodeID,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		mounter:           utils.NewMounter(),
 		k8smounter:        k8smount.New(""),

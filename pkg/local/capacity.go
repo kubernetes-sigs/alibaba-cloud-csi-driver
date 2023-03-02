@@ -155,12 +155,29 @@ func getLoopDeviceCapacity() []*StorageCapacity {
 		log.Log.Errorf("getLoopDevice: failed to get used bytes, err: %v", err)
 		return nil
 	}
-	totalGi, err := strconv.Atoi(types.GlobalConfigVar.LocalSparseTotalGi)
-	if err != nil {
-		log.Log.Errorf("getLoopDevice: failed to convert LocalSparseTotalGi: %s to int. err: %v", types.GlobalConfigVar.LocalSparseTotalGi, err)
-		return nil
+	var totalAvailableBytes int64
+	if types.GlobalConfigVar.LocalSparseTotalGi == "" {
+		totalBytes, err := lp.GetTempDirTotalCapacity()
+		if err != nil {
+			log.Log.Errorf("getLoopDevice: failed to get totalcapacity: %v. err: %v", totalBytes, err)
+			return nil
+		}
+		percent := 0.9
+		if types.GlobalConfigVar.LocalSparseTotalAvailablePercent != "" {
+			p, _ := strconv.Atoi(types.GlobalConfigVar.LocalSparseTotalAvailablePercent)
+			percent = float64(p)
+		}
+		totalAvailableBytes = int64(float64(totalBytes) * percent)
+	} else {
+		totalGi, err := strconv.Atoi(types.GlobalConfigVar.LocalSparseTotalGi)
+		if err != nil {
+			log.Log.Errorf("getLoopDevice: failed to convert LocalSparseTotalGi: %s to int. err: %v", types.GlobalConfigVar.LocalSparseTotalGi, err)
+			return nil
+		}
+		totalAvailableBytes = utils.Gi2Bytes(int64(totalGi))
 	}
-	availableBytes := utils.Gi2Bytes(int64(totalGi)) - usedBytes
+	log.Log.Errorf("getLoopDevice: total available bytes: %v", totalAvailableBytes)
+	availableBytes := totalAvailableBytes - usedBytes
 	sc := StorageCapacity{
 		Name:     types.GlobalConfigVar.LocalSparseFileDir,
 		Type:     "loopdevice",
