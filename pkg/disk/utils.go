@@ -818,12 +818,21 @@ func pickZone(requirement *csi.TopologyRequirement) string {
 	return ""
 }
 
+func validateDiskVolumeCreateOptions(kv map[string]string) error {
+	valid, err := utils.CheckRequestArgs(kv)
+	if !valid {
+		return err
+	}
+	return nil
+}
+
 // getDiskVolumeOptions
 func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error) {
 	var ok bool
 	diskVolArgs := &diskVolumeArgs{}
 	volOptions := req.GetParameters()
 
+	validateDiskVolumeCreateOptions(volOptions)
 	if diskVolArgs.ZoneID, ok = volOptions[ZoneID]; !ok {
 		if diskVolArgs.ZoneID, ok = volOptions[strings.ToLower(ZoneID)]; !ok {
 			// topology aware feature to get zoneid
