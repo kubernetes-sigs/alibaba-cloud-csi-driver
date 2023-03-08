@@ -22,7 +22,6 @@ import (
 	"testing"
 )
 
-
 //go test ./*.go -v util_test.go
 /*
 === RUN   TestFindSuggestionByErrorMessage
