@@ -319,7 +319,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	//mount nas client
 	if err := DoMount(opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, mountPath, req.VolumeId, podUID, useEaClient); err != nil {
 		log.Errorf("Nas, Mount Nfs error: %s", err.Error())
-		return nil, errors.New("Nas, Mount Nfs error: %s" + err.Error())
+		return nil, errors.New("Nas, Mount Nfs error:" + err.Error())
 	}
 	if strings.Contains(opt.Server, ".nas.aliyuncs.com") && useEaClient == "true" {
 		fsID := GetFsIDByServer(opt.Server)
