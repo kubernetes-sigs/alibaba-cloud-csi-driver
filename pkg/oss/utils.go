@@ -107,5 +107,5 @@ func IsLastSharedVol(pvName string) (string, error) {
 	if err != nil {
 		return "0", err
 	}
-	return string(len(out)), nil
+	return string(rune(len(out))), nil
 }
