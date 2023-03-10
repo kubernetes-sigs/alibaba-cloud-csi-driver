@@ -32,7 +32,6 @@ func TestFormat(t *testing.T) {
 	testFsType = "ext4"
 	err = testMounter.Format(testSource, testFsType)
 	assert.NotNil(t, err)
-	RemoveContents(testSource)
 }
 
 func TestMount(t *testing.T) {
@@ -43,8 +42,5 @@ func TestMount(t *testing.T) {
 	assert.Nil(t, err)
 	err = testMounter.MountBlock(mountedDevice, mountErrDir)
 	assert.NotNil(t, err)
-
-	RemoveContents(mountErrDir)
-	RemoveContents(".mounted/")
 
 }

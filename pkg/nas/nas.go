@@ -41,7 +41,12 @@ import (
 const (
 	driverName = "nasplugin.csi.alibabacloud.com"
 	// InstanceID is instance id
-	InstanceID = "instance-id"
+	InstanceID         = "instance-id"
+	alinasUtilsName    = "aliyun-alinas-utils.noarch"
+	alinasUtils        = "aliyun-alinas-utils"
+	alinasUtilsRpmName = "aliyun-alinas-utils-1.1-4.al7.noarch.rpm"
+	alinasEac          = "alinas-eac"
+	alinasEacRpmName   = "alinas-eac-1.2-1.x86_64.rpm"
 )
 
 var (
@@ -140,9 +145,9 @@ func deleteRpm(rpmName string) {
 }
 
 func installRpm(queryRpmName string, rpmName string) {
-	queryCmd := fmt.Sprintf("%s rpm -qa | grep %s", NsenterCmd, queryRpmName)
-	res, _ := utils.Run(queryCmd)
-	if len(res) == 0 {
+	queryCmd := fmt.Sprintf("%s rpm -qa", NsenterCmd)
+	find, _ := utils.RunWithFilter(queryCmd, queryRpmName)
+	if len(find) == 0 {
 		installCmd := fmt.Sprintf("%s yum localinstall -y /etc/csi-tool/%s", NsenterCmd, rpmName)
 		_, err := utils.Run(installCmd)
 		if err != nil {
@@ -153,7 +158,7 @@ func installRpm(queryRpmName string, rpmName string) {
 	}
 }
 
-func updateRpm(res string, queryRpmName string, rpmName string) {
+func upgradeRPM(res string, queryRpmName string, rpmName string) {
 	rpmPath := "/etc/csi-tool/" + rpmName
 	if len(res) != 0 && !strings.Contains(res, strings.TrimSuffix(rpmName, ".rpm")) {
 		updateCmd := fmt.Sprintf("%s rpm -Uvh %s --nopostun", NsenterCmd, rpmPath)
@@ -227,8 +232,8 @@ func GlobalConfigSet(serviceType string) *restclient.Config {
 		if value, ok := configMap.Data["cpfs-nas-enable"]; ok {
 			if value == "enable" || value == "yes" || value == "true" {
 				if serviceType == utils.PluginService {
-					deleteRpm("aliyun-alinas-utils.noarch")
-					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-4.al7.noarch.rpm")
+					deleteRpm(alinasUtilsName)
+					installRpm(alinasUtils, alinasUtilsRpmName)
 				}
 			}
 		}
@@ -237,14 +242,14 @@ func GlobalConfigSet(serviceType string) *restclient.Config {
 				//install alinas rpm(alinas-eac alinas-utils) and cpfs rpm(alinas-utils)
 				if serviceType == utils.PluginService {
 					//deleteRpm before installRpm
-					deleteRpm("aliyun-alinas-utils.noarch")
-					installRpm("aliyun-alinas-utils", "aliyun-alinas-utils-1.1-4.al7.noarch.rpm")
-					queryCmd := fmt.Sprintf("%s rpm -qa | grep %s", NsenterCmd, "alinas-eac")
-					res, _ := utils.Run(queryCmd)
-					if len(res) == 0 {
-						installRpm("alinas-eac", "alinas-eac-1.2-1.x86_64.rpm")
+					deleteRpm(alinasUtilsName)
+					installRpm(alinasUtils, alinasUtilsRpmName)
+					queryCmd := fmt.Sprintf("%s rpm -qa", NsenterCmd)
+					stdout, _ := utils.Run(queryCmd)
+					if strings.Contains(stdout, alinasEac) {
+						installRpm(alinasEac, alinasEacRpmName)
 					} else {
-						updateRpm(res, "alinas-eac", "alinas-eac-1.2-1.x86_64.rpm")
+						upgradeRPM(stdout, alinasEac, alinasEacRpmName)
 					}
 					runCmd := fmt.Sprintf("%s systemctl start aliyun-alinas-mount-watchdog", NsenterCmd)
 					_, err := utils.Run(runCmd)

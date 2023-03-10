@@ -178,14 +178,13 @@ func (p *pfsRawBlockStatCollector) setPfsRawBlockMetric(dev string, pvcNamespace
 
 func (p *pfsRawBlockStatCollector) updateMap(clientSet *kubernetes.Clientset, lastPvPfsInfoMap *map[string]pfsInfo, jsonPaths []string, deriverName string, keyword string) {
 	thisPvStorageInfoMap := make(map[string]pfsInfo, 0)
-	cmd := "mount | grep csi | grep " + keyword
-	line, err := utils.Run(cmd)
-	if err != nil && strings.Contains(err.Error(), "with out: , with error:") {
+	lineArr, err := utils.RunWithFilter("mount", "csi", keyword)
+	if err != nil {
 		p.updatePfsInfoMap(clientSet, thisPvStorageInfoMap, lastPvPfsInfoMap)
 		return
 	}
 	if err != nil {
-		logrus.Errorf("Execute cmd %s is failed, err: %s", cmd, err)
+		logrus.Errorf("Execute command pfs is failed, err: %s", err)
 		return
 	}
 	for _, path := range jsonPaths {
@@ -197,9 +196,10 @@ func (p *pfsRawBlockStatCollector) updateMap(clientSet *kubernetes.Clientset, la
 			}
 			continue
 		}
-
-		if !strings.Contains(line, "/"+pvName+"/") {
-			continue
+		for _, line := range lineArr {
+			if !strings.Contains(line, "/"+pvName+"/") {
+				continue
+			}
 		}
 
 		deviceName, err := getDeviceByVolumeID(pvName, diskID)
@@ -367,19 +367,13 @@ func getStatByDockerID(dockerID string, dockerClient **client.Client) ([]string,
 
 func getPfsRawBlockPvName() ([]string, error) {
 	var pvNameArray []string
-	mountCmd := fmt.Sprintf("mount | grep %s/plugins/kubernetes.io/csi/volumeDevices | grep staging", utils.KubeletRootDir)
-	mount, err := utils.Run(mountCmd)
-	if err != nil && strings.Contains(err.Error(), "with out: , with error:") {
+	path := fmt.Sprintf("%s/plugins/kubernetes.io/csi/volumeDevices", utils.KubeletRootDir)
+	mountArr, err := utils.RunWithFilter("mount", path, "staging")
+	if err != nil {
 		return nil, errors.New(notFoundvolumeDevices)
 	}
 
-	if err != nil {
-		logrus.Errorf("Execute cmd %s is failed, err:%s", mount, err)
-		return nil, err
-	}
-
-	mountArray := strings.Fields(mount)
-	for _, s := range mountArray {
+	for _, s := range mountArr {
 		if strings.Contains(s, volumeDevice+"staging/") {
 			pvName := strings.Split(s, volumeDevice+"staging/")
 			if len(pvName) >= 2 {
@@ -398,12 +392,11 @@ func getPfsRawBlockPvName() ([]string, error) {
 
 func isRunningByPodName(podID string) bool {
 	runningPodMountPoint := fmt.Sprintf(defaultTokenFormat, podID)
-	cmd := "mount | grep " + runningPodMountPoint
-	out, err := utils.Run(cmd)
+	stdout, err := utils.RunWithFilter("mount", runningPodMountPoint)
 	if err != nil {
 		return false
 	}
-	if len(strings.Trim(out, " ")) == 0 {
+	if len(stdout) == 0 {
 		//event pod is down
 		return false
 	}

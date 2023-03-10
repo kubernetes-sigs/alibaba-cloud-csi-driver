@@ -40,10 +40,9 @@ func TestDoMount(t *testing.T) {
 func TestCheckNfsPathMounted(t *testing.T) {
 
 	mountPoint := "/data"
-	server := "0.0.0.0"
 	path := "tmp"
 
-	result := CheckNfsPathMounted(mountPoint, server, path)
+	result := CheckNfsPathMounted(mountPoint, path)
 	assert.False(t, result)
 
 }

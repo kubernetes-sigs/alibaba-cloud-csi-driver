@@ -49,7 +49,9 @@ const (
 	// RegionTag is region id
 	RegionTag = "region-id"
 	// NsenterCmd is nsenter mount command
-	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
+	NsenterCmd = "nsenter --mount=/proc/1/ns/mnt"
+	//Nsenter is nsenter binary command
+	Nsenter = "nsenter"
 	// LoopLockFile lock file for nas loopsetup
 	LoopLockFile = "loopsetup.nas.csi.alibabacloud.com.lck"
 	// LoopImgFile image file for nas loopsetup
@@ -85,7 +87,7 @@ func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint,
 		CreateDest(mountPoint)
 	}
 
-	if CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+	if CheckNfsPathMounted(mountPoint, nfsPath) {
 		log.Infof("DoMount: nfs server is already mounted: %s, %s", nfsServer, nfsPath)
 		return nil
 	}
@@ -137,12 +139,17 @@ func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint,
 }
 
 // CheckNfsPathMounted check whether the given nfs path was mounted
-func CheckNfsPathMounted(mountpoint, server, path string) bool {
-	mntCmd := fmt.Sprintf("cat /proc/mounts | grep %s | grep %s | grep -v grep | wc -l", mountpoint, path)
-	if out, err := utils.Run(mntCmd); err == nil && strings.TrimSpace(out) != "0" {
-		return true
+func CheckNfsPathMounted(mountpoint, path string) bool {
+	mntCmd := "cat /proc/mounts"
+	stdout, err := utils.RunWithFilter(mntCmd, mountpoint, path)
+	if err != nil {
+		log.Errorf("Exec command %s is failed, mountpoint:%s, path:%s, err:%s", mntCmd, mountpoint, path, err.Error())
+		return false
 	}
-	return false
+	if len(stdout) == 0 {
+		return false
+	}
+	return true
 }
 
 // CreateDest create the target
@@ -351,7 +358,7 @@ func setNasVolumeCapacity(nfsServer, nfsPath string, volSizeBytes int64) error {
 		return fmt.Errorf("Volume %s:%s not support set quota to root path ", nfsServer, nfsPath)
 	}
 	pvSizeGB := volSizeBytes / (1024 * 1024 * 1024)
-	nasClient := updateNasClient(GlobalConfigVar.NasClient, GetMetaData(RegionTag))
+	nasClient := updateNasClient(GlobalConfigVar.NasClient, GlobalConfigVar.Region)
 	fsList := strings.Split(nfsServer, "-")
 	if len(fsList) < 1 {
 		return fmt.Errorf("volume error nas server(%s) ", nfsServer)
@@ -409,25 +416,31 @@ func checkSystemNasConfig() {
 	if !utils.IsFileExisting(sunRPCFile) {
 		updateNasConfig = true
 	} else {
-		chkCmd := fmt.Sprintf("cat %s | grep tcp_slot_table_entries | grep 128 | grep -v grep | wc -l", sunRPCFile)
-		out, err := utils.Run(chkCmd)
+		chkCmd := fmt.Sprintf("cat %s", sunRPCFile)
+		stdout, err := utils.RunWithFilter(chkCmd, "tcp_slot_table_entries", "128")
 		if err != nil {
 			log.Warnf("Update Nas system config check error: %s", err.Error())
 			return
 		}
-		if strings.TrimSpace(out) == "0" {
+		if len(stdout) == 0 {
 			updateNasConfig = true
 		}
 	}
 
 	if updateNasConfig {
-		upCmd := fmt.Sprintf("echo \"options sunrpc tcp_slot_table_entries=128\" >> %s && echo \"options sunrpc tcp_max_slot_table_entries=128\" >> %s && sysctl -w sunrpc.tcp_slot_table_entries=128", sunRPCFile, sunRPCFile)
-		_, err := utils.Run(upCmd)
+		sunRpcConfig := "\"options sunrpc tcp_slot_table_entries=128\"\n\"options sunrpc tcp_max_slot_table_entries=128\""
+		startRpcConfig := "sysctl -w sunrpc.tcp_slot_table_entries=128"
+		err := utils.WriteAndSyncFile(sunRPCFile, []byte(sunRpcConfig), 755)
 		if err != nil {
-			log.Warnf("Update Nas system config error: %s", err.Error())
+			log.Warnf("Write nas rpcconfig %s is failed, err: %s", sunRPCFile, err.Error())
 			return
 		}
-		log.Warnf("Successful update Nas system config")
+		_, err = utils.Run(startRpcConfig)
+		if err != nil {
+			log.Warnf("Start nas rpcconfig is failed, err: %s", err.Error())
+			return
+		}
+		log.Warnf("Update nas system config is successfully.")
 	}
 }
 
@@ -614,13 +627,12 @@ func checkLosetupUnmount(mountPoint string) error {
 
 func isLosetupMount(volumeID string) bool {
 	keyWord := volumeID + "/" + LoopImgFile
-	cmd := fmt.Sprintf("mount | grep %s |grep -v grep |wc -l", keyWord)
-	out, err := utils.Run(cmd)
+	stdout, err := utils.RunWithFilter("mount", keyWord)
 	if err != nil {
-		log.Infof("isLosetupMount: exec error: %s, %s", cmd, err.Error())
+		log.Infof("isLosetupMount: Exec command mount is failed, err:, %s", err.Error())
 		return false
 	}
-	if strings.TrimSpace(out) == "0" {
+	if len(stdout) == 0 {
 		return false
 	}
 	return true

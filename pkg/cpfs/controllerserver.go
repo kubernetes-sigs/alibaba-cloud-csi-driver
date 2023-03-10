@@ -19,6 +19,8 @@ package cpfs
 import (
 	"errors"
 	"fmt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -71,9 +73,26 @@ func NewControllerServer(d *csicommon.CSIDriver) csi.ControllerServer {
 	return c
 }
 
+func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
+	volName := req.GetName()
+	if len(volName) == 0 {
+		return status.Error(codes.InvalidArgument, "Volume name not provided")
+	}
+
+	log.Infof("Starting cpfs validate create volume request: %s, %v", req.Name, req)
+	valid, err := utils.CheckRequestArgs(req.GetParameters())
+	if !valid {
+		return status.Errorf(codes.InvalidArgument, err.Error())
+	}
+
+	return nil
+}
+
 // provisioner: create/delete cpfs volume
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	log.Infof("CreateVolume: Starting to Create CPFS volume: %v", req)
+	if err := validateCreateVolumeRequest(req); err != nil {
+		return nil, err
+	}
 
 	// step1: check pvc is created or not.
 	pvcUID := string(req.Name)
@@ -184,6 +203,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	if err != nil {
 		return nil, fmt.Errorf("DeleteVolume: Get Volume: %s from cluster error: %s", req.VolumeId, err.Error())
 	}
+
 	cpfsOptions = strings.Join(pvInfo.Spec.MountOptions, ",")
 	if pvInfo.Spec.CSI == nil {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with CSI empty: %s, pv: %v", req.VolumeId, pvInfo)

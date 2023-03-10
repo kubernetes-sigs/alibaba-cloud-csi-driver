@@ -153,6 +153,20 @@ func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region, 
 	return c
 }
 
+func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
+	volName := req.GetName()
+	if len(volName) == 0 {
+		return status.Error(codes.InvalidArgument, "Volume name not provided")
+	}
+
+	log.Infof("Starting nfs validate create volume request %s, %v", req.Name, req)
+	valid, err := utils.CheckRequestArgs(req.GetParameters())
+	if !valid {
+		return status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	return nil
+}
+
 // provisioner: create/delete nas volume
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	ref := &v1.ObjectReference{
@@ -161,8 +175,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		UID:       "",
 		Namespace: "",
 	}
-	log.Infof("CreateVolume: Starting NFS CreateVolume, %s, %v", req.Name, req)
-
+	if err := validateCreateVolumeRequest(req); err != nil {
+		return nil, err
+	}
 	// step1: check pvc is created or not.
 	if value, ok := pvcProcessSuccess[req.Name]; ok && value != nil {
 		log.Infof("CreateVolume: Nfs Volume %s has Created Already: %v", req.Name, value)
@@ -390,7 +405,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			// local mountpoint for one volume
 			cs.rateLimiter.Take()
 			// step5: Mount nfs server to localpath
-			if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+			if !CheckNfsPathMounted(mountPoint, nfsPath) {
 				//When subdirectories are mounted, determine whether to use eacClient
 				useEaClient := "false"
 				if len(nasVol.CnfsName) != 0 {
@@ -410,7 +425,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
 				}
 			}
-			if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+			if !CheckNfsPathMounted(mountPoint, nfsPath) {
 				return nil, errors.New("Check Mount nfsserver not mounted " + nfsServer)
 			}
 
@@ -420,7 +435,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				log.Errorf("Provision: %s, creating path: %s, with error: %s", req.Name, fullPath, err.Error())
 				return nil, errors.New("Provision: " + req.Name + ", creating path: " + fullPath + ", with error: " + err.Error())
 			}
-			os.Chmod(fullPath, 0777)
+			_ = os.Chmod(fullPath, 0777)
 
 			if losetupType {
 				if err = createLosetupPv(fullPath, volSizeBytes); err != nil {
@@ -679,7 +694,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			log.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
 			return nil, fmt.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
 		}
-		if !CheckNfsPathMounted(mountPoint, nfsServer, nfsPath) {
+		if !CheckNfsPathMounted(mountPoint, nfsPath) {
 			return nil, errors.New("Check Mount nfsserver fail " + nfsServer + " error with: ")
 		}
 		defer utils.Umount(mountPoint)
@@ -939,6 +954,7 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 }
 
 func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
+
 	for _, cap := range req.VolumeCapabilities {
 		if cap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
 			return &csi.ValidateVolumeCapabilitiesResponse{Message: ""}, nil

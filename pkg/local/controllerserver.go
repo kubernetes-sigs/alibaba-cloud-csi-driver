@@ -125,6 +125,13 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	volumeID := req.GetName()
 	response := &csi.CreateVolumeResponse{}
 	parameters := req.GetParameters()
+
+	if valid, err := utils.CheckRequestArgs(parameters); !valid {
+		msg := fmt.Sprintf("CreateVolume: failed to check request args: %v", err)
+		log.Infof(msg)
+		return nil, status.Error(codes.InvalidArgument, msg)
+	}
+
 	if value, ok := parameters[VolumeTypeKey]; ok {
 		for _, supportVolType := range supportVolumeTypes {
 			if supportVolType == value {

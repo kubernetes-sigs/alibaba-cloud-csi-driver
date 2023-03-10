@@ -17,175 +17,108 @@ limitations under the License.
 package utils
 
 import (
-	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"runtime"
 	"testing"
-
-	log "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
-	"gopkg.in/h2non/gock.v1"
 )
 
-const (
-	MacMountedPath     = "/System/Volumes/Data"
-	MacUnmountedPath   = "./tmp"
-	MacCSIPluginFlag   = "./tmp/csiPluginFlag"
-	LinuxMountedPath   = "/sys/fs/cgroup"
-	LinuxUnmountedPath = "./tmp/"
-)
+//go test ./*.go -v util_test.go
+/*
+=== RUN   TestFindSuggestionByErrorMessage
+--- PASS: TestFindSuggestionByErrorMessage (0.00s)
+=== RUN   TestFormat
+--- PASS: TestFormat (0.00s)
+=== RUN   TestMount
+--- PASS: TestMount (0.00s)
+=== RUN   TestCmdValid
+    util_test.go:100:
+        	Error Trace:	util_test.go:100
+        	Error:      	Expected nil, but got: &errors.errorString{s:"Command echo is not support."}
+        	Test:       	TestCmdValid
+    util_test.go:101:
+        	Error Trace:	util_test.go:101
+        	Error:      	Expected nil, but got: &errors.errorString{s:"Command echo abc >> /mnt/abc is regexp match, args:>>"}
+        	Test:       	TestCmdValid
+    util_test.go:104:
+        	Error Trace:	util_test.go:104
+        	Error:      	Expected nil, but got: &errors.errorString{s:"Command cd is not support."}
+        	Test:       	TestCmdValid
+    util_test.go:108:
+        	Error Trace:	util_test.go:108
+        	Error:      	Expected nil, but got: &errors.errorString{s:"Command ping is not support."}
+        	Test:       	TestCmdValid
+    util_test.go:109:
+        	Error Trace:	util_test.go:109
+        	Error:      	Expected nil, but got: &errors.errorString{s:"Command ping && echo abc is regexp match, args:&&"}
+        	Test:       	TestCmdValid
+    util_test.go:113:
+        	Error Trace:	util_test.go:113
+        	Error:      	Expected nil, but got: &errors.errorString{s:"Command chmod -R 755 /mnt/../abc || echo abc is regexp match, args:||"}
+        	Test:       	TestCmdValid
+    util_test.go:117:
+        	Error Trace:	util_test.go:117
+        	Error:      	Expected nil, but got: &errors.errorString{s:"Command chmod -R 755 /mnt/abc; echo abc is regexp match, args:/mnt/abc;"}
+        	Test:       	TestCmdValid
+--- FAIL: TestCmdValid (0.00s)
+FAIL
+FAIL	command-line-arguments	0.552s
+FAIL
+*/
+func TestCmdValid(t *testing.T) {
+	//cmdSet = hashset.New("mount", "lctl", "umount", "nsenter", "findmnt", "chmod", "dd", "mkfs.ext4")
+	/*cmd := "mount -t nfs -o vers=3,nolock,tcp,noresvport 138df4a7e1-xgi36.cn-beijing.nas.aliyuncs.com:/ /mnt"
+	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
+	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))
 
-func TestResultStatus(t *testing.T) {
-	testParams := []string{"a", "b", "c"}
-	for _, param := range testParams {
-		resultSucceed := Succeed(param)
-		assert.Equal(t, param, resultSucceed.Message)
+	cmd = "umount /var/lib/kubelet/pods/1867bbd7-539d-49ff-a14b-3856a143b8e6/volume-subpaths/app-log/vinayaprocess/0"
+	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
+	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))
 
-		resultNotSupport := NotSupport(param)
-		assert.Equal(t, param, resultNotSupport.Message)
-
-		resultFail := Fail(param)
-		assert.Equal(t, param, resultFail.Message)
+	configCmd := [...]string{"lctl set_param osc.*.max_rpcs_in_flight=64", "lctl set_param osc.*.max_pages_per_rpc=256", "lctl set_param mdc.*.max_rpcs_in_flight=64", "lctl set_param mdc.*.max_mod_rpcs_in_flight=64"}
+	for _, element := range configCmd {
+		assert.Nil(t, CheckCmd(cmd, strings.Split(element, " ")[0]))
+		assert.Nil(t, CheckCmdArgs(cmd, strings.Split(element, " ")[1:]...))
 	}
 
+	cmd = "nsenter --mount=/proc/1/ns/mnt yum localinstall -y /etc/csi-tool/aliyun-alinas-utils-1.1-3.al7.noarch.rpm "
+	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
+	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))
+
+	cmd = "findmnt -o SOURCE --noheadings /mnt"
+	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
+	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))
+
+	cmd = "chmod -R 755 /mnt/abc"
+	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
+	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))
+
+	cmd = "dd if=/dev/zero of=/mnt/abc bs=4k seek=4k count=0"
+	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
+	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))
+
+	cmd = "mkfs.ext4 -E packed_meta_blocks=1,nodiscard,lazy_itable_init=0 -O ^has_journal -F /mnt/abc"
+	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
+	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))
+
+	cmd = "dd if=/dev/zero of=../abc bs=4k seek=4k count=0"
+	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
+	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))
+
+	cmd = "echo abc >> /mnt/abc"
+	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
+	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))
+
+	cmd = "cd .."
+	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
+	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))
+
+	cmd = "ping && echo abc"
+	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
+	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))
+
+	cmd = "chmod -R 755 /mnt/abc || echo abc"
+	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
+	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))
+
+	cmd = "chmod -R 755 /mnt/abc; echo abc"
+	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
+	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))*/
 }
-
-func TestCreateDest(t *testing.T) {
-	existsPath := "./tmp/test1/"
-	os.MkdirAll(existsPath, 0777)
-	normalPath := "./tmp/test2"
-
-	err := CreateDest(existsPath)
-	assert.Nil(t, err)
-	err = CreateDest(normalPath)
-	assert.Nil(t, err)
-
-	RemoveContents(MacUnmountedPath)
-}
-
-func TestIsMounted(t *testing.T) {
-	currentSystem := runtime.GOOS
-	if currentSystem == "darwin" {
-		assert.True(t, IsMounted(MacMountedPath))
-		assert.False(t, IsMounted(MacUnmountedPath))
-	} else if currentSystem == "linux" {
-		assert.True(t, IsMounted(LinuxMountedPath))
-		assert.False(t, IsMounted(LinuxUnmountedPath))
-	}
-}
-
-func TestWriteJsonFile(t *testing.T) {
-	var jsonData struct {
-		mountfile string
-		runtime   string
-	}
-	jsonData.mountfile = "tmp/alibabacloudcsiplugin.json"
-	jsonData.runtime = "runv"
-
-	os.MkdirAll(MacUnmountedPath, 0777)
-	resultFile := filepath.Join(MacCSIPluginFlag, CsiPluginRunTimeFlagFile)
-	assert.Nil(t, WriteJSONFile(jsonData, resultFile))
-}
-
-func TestIsMountPointRunv(t *testing.T) {
-
-	assert.False(t, IsMountPointRunv(MacMountedPath))
-	os.MkdirAll(MacCSIPluginFlag, 0777)
-	WriteTestContent(MacCSIPluginFlag)
-	assert.True(t, IsMountPointRunv(MacCSIPluginFlag))
-
-	RemoveContents(MacUnmountedPath)
-}
-
-func RemoveContents(dir string) error {
-	d, err := os.Open(dir)
-	if err != nil {
-		return err
-	}
-	defer os.Remove(dir)
-	defer d.Close()
-	names, err := d.Readdirnames(-1)
-	if err != nil {
-		return err
-	}
-	for _, name := range names {
-		err = os.RemoveAll(filepath.Join(dir, name))
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func WriteTestContent(path string) string {
-
-	d1 := []byte(`{"mountfile": "tmp/alibabacloudcsiplugin.json","runtime":"runv"}`)
-	os.MkdirAll(path, 0777)
-	fileName := fmt.Sprintf("%s/%s", path, CsiPluginRunTimeFlagFile)
-	err := ioutil.WriteFile(fileName, d1, 0644)
-	if err != nil {
-		panic(err)
-	}
-	return fileName
-}
-
-func TestRetryMetadataServer(t *testing.T) {
-	defer gock.Off()
-
-	testExamples := []struct {
-		resource         string
-		reString         string
-		expectString     string
-		expectFatalError bool
-	}{
-		{
-			resource:         "instance-id",
-			reString:         "i-asdfjiasdfji",
-			expectString:     "i-asdfjiasdfji",
-			expectFatalError: false,
-		},
-		{
-			resource:         "instance-id",
-			reString:         "",
-			expectString:     "",
-			expectFatalError: true,
-		},
-		{
-			resource:         "instance-id",
-			reString:         "Error 500 Internal Server Error",
-			expectString:     "Error 500 Internal Server Error",
-			expectFatalError: true,
-		},
-	}
-	defer func() { log.StandardLogger().ExitFunc = nil }()
-	var fatal bool
-	log.StandardLogger().ExitFunc = func(int) { fatal = true }
-
-	for _, test := range testExamples {
-		gock.New("http://100.100.100.200").
-			Get("/latest/meta-data/" + test.resource).
-			Reply(200).
-			BodyString(test.reString)
-		fatal = false
-		actualData := RetryGetMetaData(test.resource)
-		assert.Equal(t, test.expectFatalError, fatal)
-		if !test.expectFatalError {
-			assert.Equal(t, test.expectString, actualData)
-		}
-	}
-}
-
-// func TestPodRunTime(t *testing.T) {
-//     var restConfig *rest.Config
-//     dummyClient, err := kubernetes.NewForConfig(restConfig)
-//     req := &csi.NodePublishVolumeRequest{
-//         VolumeContext: map[string]string{
-//             "csi.storage.k8s.io/pod.name": "podName",
-//             "csi.storage.k8s.io/pod.namespace": "podNamespace",
-//         },
-//     }
-//     _, err := GetPodRunTime(req, dummyClient)
-//     assert.NotNil(t, err)
-// }

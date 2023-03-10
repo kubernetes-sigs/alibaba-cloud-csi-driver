@@ -165,6 +165,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
+	if valid, err := utils.CheckRequestArgs(req.VolumeContext); !valid {
+		msg := fmt.Sprintf("NodePublishVolume: failed to check request args: %v", err)
+		log.Infof(msg)
+		return nil, status.Error(codes.InvalidArgument, msg)
+	}
+
 	volumeType := ""
 	if _, ok := req.VolumeContext[VolumeTypeTag]; ok {
 		volumeType = req.VolumeContext[VolumeTypeTag]
