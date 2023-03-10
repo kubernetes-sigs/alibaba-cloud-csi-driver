@@ -3,14 +3,17 @@ package local
 import (
 	"context"
 	"encoding/json"
+	"strconv"
+	"time"
+
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	disk2 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
 )
 
 // StorageCapacity define storage pool details
@@ -33,34 +36,39 @@ var LocalDeviceLoopIndex = 0
 
 // updateNodeCapacity update node capacity annotations with the realtime storage capacities.
 func updateNodeCapacity() {
-	log.Infof("updateNodeCapacity: Starting to update volume capacity to node")
+	log.Log.Infof("updateNodeCapacity: Starting to update volume capacity to node")
 	CacheStorageCapacity := getCapacityFromNode()
 	for {
 		vgList := getVolumeGroup()
 		qpList := getQuotaPath()
+		ldList := getLoopDeviceCapacity()
 		// local disk is not changed, no need reconcile
 		if !LocalDeviceUpdate {
 			updateLocalDiskList()
 		}
-
-		if !isTopologySame(vgList, qpList, CacheStorageCapacity) {
+		same := isTopologySame(vgList, qpList, ldList, CacheStorageCapacity)
+		log.Log.Infof("updateNodeCapacity: same: %v vgList: %v, ldList: %v, cacheCapacity: %v", same, vgList, ldList, CacheStorageCapacity)
+		if !same {
 			for _, item := range vgList {
-				log.Infof("updateNodeCapacity: volumeGroup capacity %++v", item)
+				log.Log.Infof("updateNodeCapacity: volumeGroup capacity %++v", item)
 			}
 			for _, item := range qpList {
-				log.Infof("updateNodeCapacity: QuotaPath capacity %++v", item)
+				log.Log.Infof("updateNodeCapacity: QuotaPath capacity %++v", item)
 			}
 			for _, item := range LocalDeviceList {
-				log.Infof("updateNodeCapacity: Local Device capacity %++v", item)
+				log.Log.Infof("updateNodeCapacity: Local Device capacity %++v", item)
 			}
 			for _, item := range CacheStorageCapacity {
-				log.Infof("updateNodeCapacity: Cached capacity %++v", item)
+				log.Log.Infof("updateNodeCapacity: Cached capacity %++v", item)
 			}
 
-			err := updateCapacityToNode(vgList, qpList)
+			err := updateCapacityToNode(vgList, qpList, ldList)
 			if err == nil {
 				CacheStorageCapacity = vgList
 				for _, item := range qpList {
+					CacheStorageCapacity = append(CacheStorageCapacity, item)
+				}
+				for _, item := range ldList {
 					CacheStorageCapacity = append(CacheStorageCapacity, item)
 				}
 				for _, item := range LocalDeviceList {
@@ -91,18 +99,20 @@ func updateLocalDiskList() {
 	describeDisksRequest.InstanceId = NodeInstanceID
 	diskResponse, err := client.DescribeDisks(describeDisksRequest)
 	if err != nil {
-		log.Errorf("updateLocalDiskList: Describe Disks for %s with error: %s", NodeInstanceID, err.Error())
+		log.Log.Errorf("updateLocalDiskList: Describe Disks for %s with error: %s", NodeInstanceID, err.Error())
 		return
 	}
 	for _, disk := range diskResponse.Disks.Disk {
 		if disk.Category == "local_ssd_pro" || disk.Category == "local_hdd_pro" {
-			deviceName, err := disk2.GetDeviceByVolumeID(disk.DiskId)
+			devicePaths, err := disk2.GetDeviceByVolumeID(disk.DiskId)
+			rootDevice, subDevice, err := disk2.GetRootSubDevicePath(devicePaths)
 			if err != nil {
-				log.Errorf("updateLocalDiskList: get device by VolumeID(%s) with error: %s", disk.DiskId, err.Error())
+				log.Log.Errorf("updateLocalDiskList: get device by VolumeID(%s) with error: %s", disk.DiskId, err.Error())
 				return
 			}
+			deviceName := disk2.ChooseDevice(rootDevice, subDevice)
 			capacity := &StorageCapacity{
-				Capacity:   uint64(disk.Size * 1024 * 1024 * 1024),
+				Capacity:   uint64(utils.Gi2Bytes(int64(disk.Size))),
 				Type:       "device",
 				Name:       deviceName,
 				DeviceType: disk.Category,
@@ -112,10 +122,10 @@ func updateLocalDiskList() {
 	}
 	if len(LocalDeviceList) != 0 {
 		for _, item := range LocalDeviceList {
-			log.Infof("updateLocalDiskList: add local device with: %+v", item)
+			log.Log.Infof("updateLocalDiskList: add local device with: %+v", item)
 		}
 	}
-	log.Infof("updateLocalDiskList: Successful Update Local Device")
+	log.Log.Infof("updateLocalDiskList: Successful Update Local Device")
 	LocalDeviceUpdate = true
 	return
 }
@@ -137,6 +147,30 @@ func getVolumeGroup() []*StorageCapacity {
 	return resVGList
 }
 
+func getLoopDeviceCapacity() []*StorageCapacity {
+	lp := manager.NewLoopDevice(types.GlobalConfigVar.LocalSparseFileDir, types.GlobalConfigVar.LocalSparseFileTempSize)
+	usedBytes, err := lp.GetUsedByteSize()
+	log.Log.Infof("getLoopDevice: get usedBytes: %v", usedBytes)
+	if err != nil {
+		log.Log.Errorf("getLoopDevice: failed to get used bytes, err: %v", err)
+		return nil
+	}
+	totalGi, err := strconv.Atoi(types.GlobalConfigVar.LocalSparseTotalGi)
+	if err != nil {
+		log.Log.Errorf("getLoopDevice: failed to convert LocalSparseTotalGi: %s to int. err: %v", types.GlobalConfigVar.LocalSparseTotalGi, err)
+		return nil
+	}
+	availableBytes := utils.Gi2Bytes(int64(totalGi)) - usedBytes
+	sc := StorageCapacity{
+		Name:     types.GlobalConfigVar.LocalSparseFileDir,
+		Type:     "loopdevice",
+		Capacity: uint64(availableBytes),
+	}
+	scList := []*StorageCapacity{}
+	scList = append(scList, &sc)
+	return scList
+}
+
 // get quotapath from local node
 // not support now
 func getQuotaPath() []*StorageCapacity {
@@ -144,8 +178,8 @@ func getQuotaPath() []*StorageCapacity {
 }
 
 // isTopologySame check the current volume capacity is same as cached.
-func isTopologySame(vgList, qpList, cachedList []*StorageCapacity) bool {
-	if len(vgList)+len(qpList)+len(LocalDeviceList) != len(cachedList) {
+func isTopologySame(vgList, qpList, ldList, cachedList []*StorageCapacity) bool {
+	if len(vgList)+len(qpList)+len(ldList)+len(LocalDeviceList) != len(cachedList) {
 		return false
 	}
 	for _, item := range cachedList {
@@ -165,6 +199,18 @@ func isTopologySame(vgList, qpList, cachedList []*StorageCapacity) bool {
 				break
 			}
 		}
+
+		if itemSearched {
+			continue
+		}
+
+		for _, ldItem := range ldList {
+			if isCapacityObjectSame(item, ldItem) {
+				itemSearched = true
+				break
+			}
+		}
+
 		if itemSearched {
 			continue
 		}
@@ -200,13 +246,16 @@ func isCapacityObjectSame(item1, item2 *StorageCapacity) bool {
 	return true
 }
 
-func updateCapacityToNode(vgList, qpList []*StorageCapacity) error {
+func updateCapacityToNode(vgList, qpList, ldList []*StorageCapacity) error {
 	nodeInfo, err := types.GlobalConfigVar.KubeClient.CoreV1().Nodes().Get(context.Background(), types.GlobalConfigVar.NodeID, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("updateCapacityToNode:: get node info with error : %s", err.Error())
+		log.Log.Errorf("updateCapacityToNode:: get node info with error : %s", err.Error())
 		return err
 	}
 	for _, item := range vgList {
+		qpList = append(qpList, item)
+	}
+	for _, item := range ldList {
 		qpList = append(qpList, item)
 	}
 	for _, item := range LocalDeviceList {
@@ -214,16 +263,16 @@ func updateCapacityToNode(vgList, qpList []*StorageCapacity) error {
 	}
 	capacity, err := json.Marshal(qpList)
 	if err != nil {
-		log.Errorf("Update volumecapacity with json.Marshal error: %s", err.Error())
+		log.Log.Errorf("Update volumecapacity with json.Marshal error: %s", err.Error())
 		return err
 	}
 	nodeInfo.Annotations["csi.alibabacloud.com/storage-topology"] = string(capacity)
 	_, err = types.GlobalConfigVar.KubeClient.CoreV1().Nodes().Update(context.Background(), nodeInfo, metav1.UpdateOptions{})
 	if err != nil {
-		log.Errorf("Update volumecapacity to node with error: %s", err.Error())
+		log.Log.Errorf("Update volumecapacity to node with error: %s", err.Error())
 		return err
 	}
-	log.Infof("Successful Update volumecapacity to node: %s", string(capacity))
+	log.Log.Infof("Successful Update volumecapacity to node: %s", string(capacity))
 	return nil
 }
 
@@ -231,18 +280,18 @@ func getCapacityFromNode() []*StorageCapacity {
 	capacityList := []*StorageCapacity{}
 	nodeInfo, err := types.GlobalConfigVar.KubeClient.CoreV1().Nodes().Get(context.Background(), types.GlobalConfigVar.NodeID, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("getCapacityFromNode:: get node info with error : %s", err.Error())
+		log.Log.Errorf("getCapacityFromNode:: get node info with error : %s", err.Error())
 		return nil
 	}
 	if value, ok := nodeInfo.Annotations["csi.alibabacloud.com/storage-topology"]; ok {
 		err := json.Unmarshal([]byte(value), &capacityList)
 		if err != nil {
-			log.Errorf("getCapacityFromNode:: get node info with json.Unmarshal error : %s", err.Error())
+			log.Log.Errorf("getCapacityFromNode:: get node info with json.Unmarshal error : %s", err.Error())
 			return nil
 		}
 	}
 	for _, item := range capacityList {
-		log.Infof("Successful Get storage capacity from node: %++v", item)
+		log.Log.Infof("Successful Get storage capacity from node: %++v", item)
 	}
 	return capacityList
 }

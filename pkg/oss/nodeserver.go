@@ -226,7 +226,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 
 		metaZoneID := GetMetaDataAsync(regionTag)
-		if strings.Contains(opt.URL, metaZoneID) && !strings.Contains(opt.URL, "internal") {
+		if strings.Contains(opt.URL, metaZoneID) && !strings.Contains(opt.URL, "internal") && !utils.IsPrivateCloud() {
 			originUrl := opt.URL
 			opt.URL = strings.ReplaceAll(originUrl, metaZoneID, metaZoneID+"-internal")
 		}
@@ -363,9 +363,9 @@ func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) err
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	log.Infof("NodeUnpublishVolume:: Starting Umount OSS: %s mount with req: %+v", req.TargetPath, req)
 	mountPoint := req.TargetPath
-	err := validateNodeUnpublishVolumeRequest(req);
+	err := validateNodeUnpublishVolumeRequest(req)
 	if err != nil {
-		return nil ,err
+		return nil, err
 	}
 	if !IsOssfsMounted(mountPoint) {
 		log.Infof("Directory is not mounted: %s", mountPoint)

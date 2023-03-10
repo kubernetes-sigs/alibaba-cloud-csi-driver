@@ -287,6 +287,20 @@ type instanceDocument struct {
 	ZoneID     string `json:"zone-id"`
 }
 
+func retryGetInstanceDoc() (*instanceDocument, error) {
+	var err error
+	var doc *instanceDocument
+	for i := 0; i < utils.MetadataMaxRetrycount; i++ {
+		doc, err = getInstanceDoc()
+		if err != nil {
+			log.Log.Errorf("retryGetInstanceDoc: failed to get instance doc for %v try, err: %v", i, err)
+			continue
+		}
+		return doc, nil
+	}
+	return doc, err
+}
+
 func getInstanceDoc() (*instanceDocument, error) {
 	resp, err := http.Get(DocumentURL)
 	if err != nil {
@@ -366,37 +380,33 @@ func getDeviceSerial(serial string) (device string) {
 }
 
 // if device has no partition, just return;
-// if device has one partition, return the partition;
+// if device has one partition, return the multi partition;
 // if device has more than one partition, return error;
-func adaptDevicePartition(devicePath string) (string, error) {
+func adaptDevicePartition(devicePath string) ([]string, error) {
 	// check disk partition is enabled.
 	if !GlobalConfigVar.DiskPartitionEnable {
-		return devicePath, nil
+		return []string{devicePath}, nil
 	}
 	if devicePath == "" || !strings.HasPrefix(devicePath, "/dev/") {
-		return "", fmt.Errorf("DevicePath is empty or format error %s", devicePath)
+		return []string{}, fmt.Errorf("DevicePath is empty or format error %s", devicePath)
 	}
 
-	// check disk is partition or not
-	isPartation := false
 	// example: /dev/vdb
 	rootDevicePath := ""
-	// example: /dev/vdb1
-	subDevicePath := ""
 	// device rootPath and partitions
 	deviceList := []string{}
 
 	// Get RootDevice path
 	tmpRootPath, _, err := getDeviceRootAndIndex(devicePath)
 	if err != nil {
-		return "", err
+		return deviceList, err
 	}
 	rootDevicePath = tmpRootPath
 
 	// Get all device path relate to root device
 	globDevices, err := filepath.Glob(rootDevicePath + "*")
 	if err != nil {
-		return "", fmt.Errorf("Get Device List by Glob for %s with error %v ", devicePath, err)
+		return deviceList, fmt.Errorf("Get Device List by Glob for %s with error %v ", devicePath, err)
 	}
 	digitPattern := "^(\\d+)$"
 	for _, tmpDevice := range globDevices {
@@ -408,10 +418,25 @@ func adaptDevicePartition(devicePath string) (string, error) {
 		}
 	}
 
-	// set isPartation and check partition
+	return deviceList, nil
+
+}
+
+// GetRootSubDevicePath ...
+func GetRootSubDevicePath(deviceList []string) (rootDevicePath, subDevicePath string, err error) {
+
 	if len(deviceList) == 0 {
-		return "", fmt.Errorf("List Device Path empty for %s and globDevices with %v ", devicePath, globDevices)
-	} else if len(deviceList) == 1 {
+		return "", "", fmt.Errorf("List Device Path empty for %v", deviceList)
+	}
+	// Get RootDevice path
+	rootDevicePath, _, err = getDeviceRootAndIndex(deviceList[0])
+	if err != nil {
+		return "", "", err
+	}
+	// check disk is partition or not
+	isPartation := false
+	// set isPartation and check partition
+	if len(deviceList) == 1 {
 		isPartation = false
 	} else if len(deviceList) == 2 {
 		isPartation = true
@@ -421,16 +446,23 @@ func adaptDevicePartition(devicePath string) (string, error) {
 			subDevicePath = deviceList[0]
 		}
 	} else if len(deviceList) > 2 {
-		return "", fmt.Errorf("Device %s has more than 1 partition: %v, globDevices %v ", devicePath, deviceList, globDevices)
+		return "", "", fmt.Errorf("Devices %s has more than 1 partition", deviceList)
 	}
 
 	if isPartation == true {
 		if err := checkRootAndSubDeviceFS(rootDevicePath, subDevicePath); err != nil {
-			return "", err
+			return "", "", err
 		}
-		devicePath = subDevicePath
+		return rootDevicePath, subDevicePath, nil
 	}
-	return devicePath, nil
+	return rootDevicePath, "", nil
+}
+
+func ChooseDevice(rootDevice, subDevice string) string {
+	if subDevice != "" {
+		return subDevice
+	}
+	return rootDevice
 }
 
 func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
@@ -589,24 +621,24 @@ func getNvmeDeviceByVolumeID(volumeID string) (device string, err error) {
 // GetDeviceByVolumeID First try to find the device by serial
 // If cannot find the device using the serial number, get device by volumeID, link file should be like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
-func GetDeviceByVolumeID(volumeID string) (device string, err error) {
+func GetDeviceByVolumeID(volumeID string) (devices []string, err error) {
 	// this is danger in Bdf mode
 	if !IsVFNode() {
-		device = getDeviceSerial(strings.TrimPrefix(volumeID, "d-"))
+		device := getDeviceSerial(strings.TrimPrefix(volumeID, "d-"))
 		if device != "" {
-			if device, err = adaptDevicePartition(device); err != nil {
+			if devices, err = adaptDevicePartition(device); err != nil {
 				log.Log.Warnf("GetDevice: Get volume %s device %s by Serial, but validate error %s", volumeID, device, err.Error())
-				return "", fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", volumeID, device, err.Error())
+				return []string{}, fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", volumeID, device, err.Error())
 			}
-			log.Log.Infof("GetDevice: Use the serial to find device, got %s, volumeID: %s", device, volumeID)
-			return device, nil
+			log.Log.Infof("GetDevice: Use the serial to find device, got %s, volumeID: %s, devices: %v", device, volumeID, devices)
+			return devices, nil
 		}
 	}
 
 	// Get NVME device name
-	device, err = getNvmeDeviceByVolumeID(volumeID)
+	device, err := getNvmeDeviceByVolumeID(volumeID)
 	if err == nil && device != "" {
-		return device, nil
+		return []string{device}, nil
 	}
 
 	byIDPath := "/dev/disk/by-id/"
@@ -631,34 +663,34 @@ func GetDeviceByVolumeID(volumeID string) (device string, err error) {
 			}
 			if !isSearched {
 				log.Log.Warnf("volumeID link path %q not found", volumeLinPath)
-				return "", fmt.Errorf("volumeID link path %q not found", volumeLinPath)
+				return []string{}, fmt.Errorf("volumeID link path %q not found", volumeLinPath)
 			}
 		} else {
-			return "", fmt.Errorf("error getting stat of %q: %v", volumeLinPath, err)
+			return []string{}, fmt.Errorf("error getting stat of %q: %v", volumeLinPath, err)
 		}
 	}
 
 	if stat.Mode()&os.ModeSymlink != os.ModeSymlink {
 		log.Log.Warningf("volumeID link file %q found, but was not a symlink", volumeLinPath)
-		return "", fmt.Errorf("volumeID link file %q found, but was not a symlink", volumeLinPath)
+		return []string{}, fmt.Errorf("volumeID link file %q found, but was not a symlink", volumeLinPath)
 	}
 	// Find the target, resolving to an absolute path
 	// For example, /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
 	resolved, err := filepath.EvalSymlinks(volumeLinPath)
 	if err != nil {
-		return "", fmt.Errorf("error reading target of symlink %q: %v", volumeLinPath, err)
+		return []string{}, fmt.Errorf("error reading target of symlink %q: %v", volumeLinPath, err)
 	}
 	if !strings.HasPrefix(resolved, "/dev") {
-		return "", fmt.Errorf("resolved symlink for %q was unexpected: %q", volumeLinPath, resolved)
+		return []string{}, fmt.Errorf("resolved symlink for %q was unexpected: %q", volumeLinPath, resolved)
 	}
 
-	if resolved, err = adaptDevicePartition(resolved); err != nil {
+	if devices, err = adaptDevicePartition(resolved); err != nil {
 		log.Log.Warnf("GetDevice: Get volume %s device %s by ID, but validate error %s", volumeID, resolved, err.Error())
-		return "", fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", volumeID, resolved, err.Error())
+		return []string{}, fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", volumeID, resolved, err.Error())
 	}
 
-	log.Log.Infof("GetDevice: Device Link Info: %s link to %s", volumeLinPath, resolved)
-	return resolved, nil
+	log.Log.Infof("GetDevice: Device Link Info: %s link to %s", volumeLinPath, devices)
+	return devices, nil
 }
 
 // GetVolumeIDByDevice get volumeID by specific deivce name according to by-id dictionary
@@ -954,6 +986,11 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		diskVolArgs.StorageClusterID = ""
 	}
 
+	if diskVolArgs.StorageClusterID != "" {
+		if diskVolArgs.PerformanceLevel == "" {
+			return nil, fmt.Errorf("performaceLevel is necessary when storageClusterID: '%s' specified", diskVolArgs.StorageClusterID)
+		}
+	}
 	// volumeSizeAutoAvailable
 	value, ok = volOptions["volumeSizeAutoAvailable"]
 	if !ok {
@@ -1079,13 +1116,14 @@ func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
 }
 
 // GetVolumeDeviceName get device name
-func GetVolumeDeviceName(diskID string) string {
-	deviceName, err := GetDeviceByVolumeID(diskID)
+func GetVolumeDeviceName(diskID string) []string {
+	devices, err := GetDeviceByVolumeID(diskID)
 	if err != nil {
-		deviceName = getVolumeConfig(diskID)
+		deviceName := getVolumeConfig(diskID)
+		devices = []string{deviceName}
 		log.Log.Infof("GetVolumeDeviceName, Get Device Name by Config File %s, DeviceName: %s", diskID, deviceName)
 	}
-	return deviceName
+	return devices
 }
 
 // isPathAvailiable
@@ -1233,6 +1271,19 @@ func UpdateNode(nodeID string, c *ecs.Client) {
 	}
 }
 
+func getMeta(node *v1.Node) (string, string, string) {
+	zoneID := ""
+	regionID := ""
+	if value := node.Labels[zoneIDLabelNew]; value != "" {
+		zoneID = value
+	}
+	if value := node.Labels[regionIDLabelNew]; value != "" {
+		log.Log.Infof("getZoneID:: fix regionid value by: %s", value)
+		regionID = value
+	}
+	return regionID, zoneID, ""
+}
+
 // getZoneID ...
 func getZoneID(c *ecs.Client, instanceID string) (string, string) {
 
@@ -1246,6 +1297,9 @@ func getZoneID(c *ecs.Client, instanceID string) (string, string) {
 		ecsID = instanceID
 	} else {
 		ecsID = node.Labels[ecsKey]
+	}
+	if value := node.Labels[zoneIDLabelNew]; value != "" {
+		return value, ecsID
 	}
 	request := ecs.CreateDescribeInstancesRequest()
 
@@ -1443,7 +1497,7 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.V
 	volumeContext = updateVolumeContext(volumeContext)
 	volumeContext["type"] = disk.Category
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
-	diskSizeBytes := int64(disk.Size) * 1024 * 1024 * 1024
+	diskSizeBytes := utils.Gi2Bytes(int64(disk.Size))
 	if volSizeBytes != diskSizeBytes {
 		return nil, perrors.Errorf("Disk %s is not expected capacity: expected(%d), disk(%d)", diskID, volSizeBytes, diskSizeBytes)
 	}
@@ -1481,7 +1535,7 @@ func updateVolumeContext(volumeContext map[string]string) map[string]string {
 func getSnapshotInfoByID(snapshotID string) (string, string, *timestamp.Timestamp) {
 	content, err := GlobalConfigVar.SnapClient.SnapshotV1().VolumeSnapshotContents().Get(context.TODO(), snapshotID, metav1.GetOptions{})
 	if err != nil {
-		log.Log.Errorf("getSnapshotContentByID:: get snapshot content in cluster err: %v", content)
+		log.Log.Errorf("getSnapshotContentByID:: get snapshot content in cluster err: %v", err)
 		return "", "", nil
 	}
 	if targetRegion, ok := content.Labels[RemoteSnapshotLabelKey]; ok {

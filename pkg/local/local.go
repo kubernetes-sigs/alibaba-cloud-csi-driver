@@ -264,6 +264,7 @@ func GlobalConfigSet(region, nodeID, driverName string) {
 		TopoKeyDefine:           topoKeyDefine,
 		LocalSparseFileDir:      os.Getenv(LOCAL_SPARSE_TEMPLATE_FILEDIR),
 		LocalSparseFileTempSize: os.Getenv(LOCAL_SPARSE_TEMPLATE_SIZE),
+		LocalSparseTotalGi:      os.Getenv(LOCAL_SPARSE_TOTAL_AVAILABLE_GI),
 	}
 	log.Infof("Local Plugin Global Config is: %v", types.GlobalConfigVar)
 }

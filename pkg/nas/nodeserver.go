@@ -329,7 +329,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	//mount nas client
 	if err := DoMount(opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, mountPath, req.VolumeId, podUID, useEaClient); err != nil {
 		log.Errorf("Nas, Mount Nfs error: %s", err.Error())
-		return nil, errors.New("Nas, Mount Nfs error: %s" + err.Error())
+		return nil, errors.New("Nas, Mount Nfs error:" + err.Error())
 	}
 	if strings.Contains(opt.Server, ".nas.aliyuncs.com") && useEaClient == "true" {
 		fsID := GetFsIDByServer(opt.Server)
@@ -381,9 +381,9 @@ func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) err
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	log.Infof("NodeUnpublishVolume:: Starting umount nas volume %s with req: %+v", req.VolumeId, req)
-	err := validateNodeUnpublishVolumeRequest(req);
+	err := validateNodeUnpublishVolumeRequest(req)
 	if err != nil {
-		return nil ,err
+		return nil, err
 	}
 	// check runtime mode
 	if GlobalConfigVar.RunTimeClass == MixRunTimeMode && utils.IsMountPointRunv(req.TargetPath) {

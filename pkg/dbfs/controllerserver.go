@@ -105,7 +105,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	log.Log.Infof("CreateVolume: DBFS Start to CreateVolume, %s, %v", req.Name, req)
 
 	if valid, err := utils.CheckRequestArgs(req.Parameters); !valid {
-        msg := fmt.Sprintf("CreateVolume: failed to check request args: %v", err)
+		msg := fmt.Sprintf("CreateVolume: failed to check request args: %v", err)
 		log.Log.Infof(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)
 	}

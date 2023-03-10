@@ -41,12 +41,12 @@ import (
 const (
 	driverName = "nasplugin.csi.alibabacloud.com"
 	// InstanceID is instance id
-	InstanceID = "instance-id"
-	alinasUtilsName = "aliyun-alinas-utils.noarch"
-	alinasUtils = "aliyun-alinas-utils"
-	alinasUtilsRpmName = "aliyun-alinas-utils-1.1-3.al7.noarch.rpm"
-	alinasEac = "alinas-eac"
-	alinasEacRpmName = "alinas-eac-1.1-1.x86_64.rpm"
+	InstanceID         = "instance-id"
+	alinasUtilsName    = "aliyun-alinas-utils.noarch"
+	alinasUtils        = "aliyun-alinas-utils"
+	alinasUtilsRpmName = "aliyun-alinas-utils-1.1-4.al7.noarch.rpm"
+	alinasEac          = "alinas-eac"
+	alinasEacRpmName   = "alinas-eac-1.2-1.x86_64.rpm"
 )
 
 var (

@@ -110,7 +110,7 @@ var veasp = struct {
 var delVolumeSnap sync.Map
 
 // NewControllerServer is to create controller server
-func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset, region string) csi.ControllerServer {
+func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.ControllerServer {
 	installCRD := true
 	installCRDStr := os.Getenv(utils.InstallSnapshotCRD)
 	if installCRDStr == "false" {
@@ -321,6 +321,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 
 	if GlobalConfigVar.SnapshotBeforeDelete {
+		log.Log.Infof("DeleteVolume: snapshot before delete configured")
 		err = snapshotBeforeDelete(req.GetVolumeId(), ecsClient)
 		if err != nil {
 			log.Log.Errorf("DeleteVolume: failed to create snapshot before delete disk, err: %v", err)
@@ -675,7 +676,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		SourceVolumeId: sourceVolumeID,
 		CreationTime:   createAt,
 		ReadyToUse:     tmpReadyToUse,
-		SizeBytes:      gi2Bytes(int64(disks[0].Size)),
+		SizeBytes:      utils.Gi2Bytes(int64(disks[0].Size)),
 	}
 
 	createdSnapshotMap[req.Name] = csiSnapshot
@@ -843,6 +844,7 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 		return nil, e
 	}
 	volumeID := req.GetSourceVolumeId()
+	log.Log.Infof("ListSnapshots: failed to get snapshot with snapshotid: %s, start get snapshot by volumeid: %s", snapshotID, volumeID)
 	if len(volumeID) == 0 {
 		snapshotRegion, volumeID, cTime := getSnapshotInfoByID(snapshotID)
 		log.Log.Infof("ListSnapshots:: snapshotRegion: %s, snapshotID: %v", snapshotRegion, snapshotID)
@@ -1057,7 +1059,7 @@ func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 		return nil, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", ecsSnapshot.CreationTime)
 	}
 	sizeGb, _ := strconv.ParseInt(ecsSnapshot.SourceDiskSize, 10, 64)
-	sizeBytes := gi2Bytes(sizeGb)
+	sizeBytes := utils.Gi2Bytes(sizeGb)
 	readyToUse := false
 	if ecsSnapshot.Status == "accomplished" || ecsSnapshot.InstantAccess {
 		readyToUse = true
@@ -1069,10 +1071,6 @@ func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 		CreationTime:   &timestamp.Timestamp{Seconds: t.Unix()},
 		ReadyToUse:     readyToUse,
 	}, nil
-}
-
-func gi2Bytes(gb int64) int64 {
-	return gb * 1024 * 1024 * 1024
 }
 
 func updateVolumeExpandAutoSnapshotID(pvc *v1.PersistentVolumeClaim, snapshotID, option string) error {
@@ -1183,7 +1181,7 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 		SourceVolumeId: sourceVolumeID,
 		CreationTime:   createAt,
 		ReadyToUse:     tmpReadyToUse,
-		SizeBytes:      gi2Bytes(int64(disk.Size)),
+		SizeBytes:      utils.Gi2Bytes(int64(disk.Size)),
 	}
 	cs.recorder.Event(pvc, v1.EventTypeNormal, snapshotCreatedSuccessfully, str)
 

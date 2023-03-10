@@ -554,6 +554,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 
 	volumeAs, fileSystemID, deleteVolume, pvPath, nfsPath, nfsServer, nfsOptions := "", "", "", "", "", "", ""
+	useEaClient := "false"
 	nfsOptions = strings.Join(pvInfo.Spec.MountOptions, ",")
 	if pvInfo.Spec.CSI == nil {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with CSI empty: %s, pv: %v", req.VolumeId, pvInfo)
@@ -578,6 +579,9 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		}
 		nfsServer = cnfs.Status.FsAttributes.Server
 		fileSystemID = cnfs.Status.FsAttributes.FilesystemID
+		if cnfs.Status.FsAttributes.UseElasticAccelerationClient == "true" {
+			useEaClient = "true"
+		}
 	} else {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with nfs server empty: %s, CSI: %v", req.VolumeId, pvInfo.Spec.CSI)
 	}
@@ -686,7 +690,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		// set the local mountpoint
 		mountPoint := filepath.Join(MntRootPath, req.VolumeId+"-delete")
 		// create subpath-delete directory
-		if err := DoMount(mountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, req.VolumeId, req.VolumeId, "false"); err != nil {
+		if err := DoMount(mountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, req.VolumeId, req.VolumeId, useEaClient); err != nil {
 			log.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
 			return nil, fmt.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
 		}

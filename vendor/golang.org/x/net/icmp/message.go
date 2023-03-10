@@ -18,14 +18,14 @@ import (
 	"encoding/binary"
 	"errors"
 	"net"
+	"runtime"
 
 	"golang.org/x/net/internal/iana"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 )
 
-// BUG(mikio): This package is not implemented on AIX, JS, NaCl and
-// Plan 9.
+// BUG(mikio): This package is not implemented on JS, NaCl and Plan 9.
 
 var (
 	errInvalidConn      = errors.New("invalid connection")
@@ -33,9 +33,10 @@ var (
 	errMessageTooShort  = errors.New("message too short")
 	errHeaderTooShort   = errors.New("header too short")
 	errBufferTooShort   = errors.New("buffer too short")
-	errOpNoSupport      = errors.New("operation not supported")
+	errInvalidBody      = errors.New("invalid body")
 	errNoExtension      = errors.New("no extension")
 	errInvalidExtension = errors.New("invalid extension")
+	errNotImplemented   = errors.New("not implemented on " + runtime.GOOS + "/" + runtime.GOARCH)
 )
 
 func checksum(b []byte) uint16 {
@@ -150,7 +151,7 @@ func ParseMessage(proto int, b []byte) (*Message, error) {
 		return nil, errInvalidProtocol
 	}
 	if fn, ok := parseFns[m.Type]; !ok {
-		m.Body, err = parseDefaultMessageBody(proto, b[4:])
+		m.Body, err = parseRawBody(proto, b[4:])
 	} else {
 		m.Body, err = fn(proto, m.Type, b[4:])
 	}
