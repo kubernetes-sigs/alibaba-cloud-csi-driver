@@ -40,7 +40,7 @@ fi
 
 #update oss file in kylin/uos
 ossPath=/usr/bin/ossfs
-if [[ ${host_os} == "kylin" ]] || [[ ${host_os} == "uos" ]] || [[ ${host_os} == "anolis" ]]; then
+if [[ ${host_os} == "kylin" ]] || [[ ${host_os} == "uos" ]] || [[ ${host_os} == "anolis" ]] || [[ ${host_os} == "alinux3" ]]; then
    ossPath=/usr/bin/ossfs-8u
 fi
 
