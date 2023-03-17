@@ -108,7 +108,7 @@ const (
 	fsckErrorsUncorrected = 4
 
 	// NsenterCmd is the nsenter command
-	NsenterCmd = "nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
+	NsenterCmd = "nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts"
 
 	// socketPath is path of connector sock
 	socketPath = "/host/etc/csi-tool/connector.sock"
