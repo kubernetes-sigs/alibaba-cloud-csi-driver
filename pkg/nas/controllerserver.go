@@ -724,7 +724,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				if strings.Contains(nfsServer, ".nas.aliyuncs.com") &&
 					!strings.Contains(nfsServer, ".extreme.nas.aliyuncs.com") &&
 					!strings.Contains(nfsServer, ".cpfs.nas.aliyuncs.com") {
-					fileSystemID = GetFsIDByServer(nfsServer)
+					fileSystemID = GetFsIDByNasServer(nfsServer)
 					if len(fileSystemID) != 0 {
 						//1、Does describe dir quota exist?
 						//2、If the dir quota exists, cancel the quota before deleting the subdirectory.

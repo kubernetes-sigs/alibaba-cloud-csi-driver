@@ -84,7 +84,7 @@ type RoleAuth struct {
 // DoMount execute the mount command for nas dir
 func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, podUID, useEaClient string) error {
 	if !utils.IsFileExisting(mountPoint) {
-		CreateDest(mountPoint)
+		_ = CreateDest(mountPoint)
 	}
 
 	if CheckNfsPathMounted(mountPoint, nfsPath) {
@@ -96,12 +96,13 @@ func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint,
 	var err error
 	//EAC Mount
 	if len(useEaClient) != 0 && useEaClient == "true" {
-		mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o eac -o bindtag=%s -o client_owner=%s -o %s %s:%s %s", volumeID, podUID, mountOptions, nfsServer, nfsPath, mountPoint)
-		if err := utils.DoMountInHost(mntCmd); err != nil {
-			return err
+		if nfsProtocol == MountProtocolCPFSEAC {
+			mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o eac -o protocol=nfs3 -o bindtag=%s -o client_owner=%s -o %s %s:%s %s", volumeID, podUID, mountOptions, nfsServer, nfsPath, mountPoint)
+		} else {
+			mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o eac -o bindtag=%s -o client_owner=%s -o %s %s:%s %s", volumeID, podUID, mountOptions, nfsServer, nfsPath, mountPoint)
 		}
 	} else {
-		//NFS Mount(Capacity/Performance Extreme Nas、Cpfs2.0, AliNas)
+		//NFS Mount(Capacdity/Performance Extreme Nas、Cpfs2.0, AliNas)
 		versStr := fmt.Sprintf("vers=%s", nfsVers)
 		if mountOptions == "" {
 			mountOptions = versStr
@@ -114,11 +115,17 @@ func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint,
 		}
 		_, err = utils.Run(mntCmd)
 
-		//Mount rootpath is failed, return err
+		//try mount nfsPath is successfully.
+		if err == nil {
+			log.Infof("DoMount: Mount is successfully with command: %s", mntCmd)
+			return nil
+		}
+
+		//mount root-path is failed, return error
 		if err != nil && nfsPath == "/" {
 			return err
 		}
-		//Mount subpath is failed, if subpath is not exist or cpfs don't output subpath
+		//mount sub-path is failed, if subpath is not exist or cpfs don't output subpath
 		if err != nil && nfsPath != "/" {
 			//Other errors
 			if !strings.Contains(err.Error(), "reason given by server: No such file or directory") && !strings.Contains(err.Error(), "access denied by server while mounting") {
@@ -128,13 +135,19 @@ func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint,
 				log.Errorf("DoMount: Create subpath is failed, err: %s", err.Error())
 				return err
 			}
-			if _, err := utils.Run(mntCmd); err != nil {
-				log.Errorf("DoMount: Mount %s  is failed, err: %s", mntCmd, err.Error())
-				return err
-			}
 		}
 	}
-	log.Infof("DoMount: Mount nfs is successfully with command: %s", mntCmd)
+	//execute mount
+	if len(useEaClient) != 0 && useEaClient == "true" {
+		err = utils.DoMountInHost(mntCmd)
+	} else {
+		_, err = utils.Run(mntCmd)
+	}
+	if err != nil {
+		log.Errorf("DoMount: Mount %s is failed, err: %s", mntCmd, err.Error())
+		return err
+	}
+	log.Infof("DoMount: Mount is successfully with command: %s", mntCmd)
 	return nil
 }
 
@@ -644,26 +657,35 @@ func getPvObj(volumeID string) (*v1.PersistentVolume, error) {
 
 func isValidCnfsParameter(server string, cnfsName string) error {
 	if len(server) == 0 && len(cnfsName) == 0 {
-		msg := fmt.Sprintf("Server and ContainerNetworkFileSystem need to be configured at least one.")
+		msg := fmt.Sprintf("Server and Cnfs need to be configured at least one.")
 		log.Errorf(msg)
 		return errors.New(msg)
 	}
 
 	if len(server) != 0 && len(cnfsName) != 0 {
-		msg := fmt.Sprintf("Server and ContainerNetworkFileSystem can only be configured to use one.")
+		msg := fmt.Sprintf("Server and Cnfs can only be configured to use one.")
 		log.Errorf(msg)
 		return errors.New(msg)
 	}
 	return nil
 }
 
-// GetFsIDByServer func is get fsID from serverName
-func GetFsIDByServer(server string) string {
+// GetFsIDByNasServer func is get fsID from serverName
+func GetFsIDByNasServer(server string) string {
 	if len(server) == 0 {
 		return ""
 	}
 	serverArray := strings.Split(server, "-")
 	return serverArray[0]
+}
+
+// GetFsIDByCpfsServer func is get fsID from serverName
+func GetFsIDByCpfsServer(server string) string {
+	if len(server) == 0 {
+		return ""
+	}
+	serverArray := strings.Split(server, "-")
+	return serverArray[0] + "-" + serverArray[1]
 }
 
 func saveVolumeData(opt *Options, mountPath string) {

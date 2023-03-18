@@ -87,6 +87,8 @@ const (
 	NasMntPoint = "/mnt/nasplugin.alibabacloud.com"
 	// MountProtocolNFS common nfs protocol
 	MountProtocolNFS = "nfs"
+	// MountProtocolCPFS common cpfs protocol
+	MountProtocolCPFSEAC = "cpfs-eac"
 	// MountProtocolCPFSNFS cpfs-nfs protocol
 	MountProtocolCPFSNFS = "cpfs-nfs"
 	// MountProtocolAliNas alinas protocal
@@ -163,6 +165,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 		opt.Server = cnfs.Status.FsAttributes.Server
 		useEaClient = cnfs.Status.FsAttributes.UseElasticAccelerationClient
+		if cnfs.Status.FsAttributes.FilesystemType == "cpfs" {
+			opt.MountProtocol = MountProtocolCPFSNFS
+			if useEaClient == "true" {
+				opt.MountProtocol = MountProtocolCPFSEAC
+			}
+		}
 	}
 
 	if opt.LoopLock != "false" {
@@ -230,7 +238,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		doNfsPortCheck = false
 	}
 	if (opt.MountProtocol == MountProtocolNFS || opt.MountProtocol == MountProtocolAliNas) && doNfsPortCheck {
-		conn, err := net.DialTimeout("tcp", opt.Server+":"+NasPortnum, time.Second*time.Duration(3))
+		conn, err := net.DialTimeout("tcp", opt.Server+":"+NasPortnum, time.Second*time.Duration(30))
 		if err != nil {
 			log.Errorf("NAS: Cannot connect to nas host: %s", opt.Server)
 			return nil, errors.New("NAS: Cannot connect to nas host: " + opt.Server)
@@ -241,7 +249,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if opt.Path == "" {
 		opt.Path = "/"
 	}
-	// remove / if path end with /;
+	// if path end with /, remove /;
 	if opt.Path != "/" && strings.HasSuffix(opt.Path, "/") {
 		opt.Path = opt.Path[0 : len(opt.Path)-1]
 	}
@@ -279,7 +287,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// Create Mount Path
 	if err := utils.CreateDest(mountPath); err != nil {
-		return nil, errors.New("Nas, Mount error with create Path fail: " + mountPath)
+		return nil, errors.New("Create mount path is failed, mountPath: " + mountPath + ", err:" + err.Error())
 	}
 
 	// if volume set mountType as skipmount;
@@ -314,9 +322,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	checkSystemNasConfig()
 
 	//cpfs-nfs check valid
-	if opt.MountProtocol == MountProtocolCPFSNFS {
+	if opt.MountProtocol == MountProtocolCPFSNFS || opt.MountProtocol == MountProtocolCPFSEAC {
 		if !strings.HasPrefix(opt.Path, "/share") {
-			return nil, errors.New("The path to cpfs-nfs must start with /share.")
+			return nil, errors.New("The cpfs2.0 mount path must start with /share.")
 		}
 	}
 
@@ -331,11 +339,19 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		log.Errorf("Nas, Mount Nfs error: %s", err.Error())
 		return nil, errors.New("Nas, Mount Nfs error:" + err.Error())
 	}
-	if strings.Contains(opt.Server, ".nas.aliyuncs.com") && useEaClient == "true" {
-		fsID := GetFsIDByServer(opt.Server)
-		if len(fsID) != 0 {
-			utils.WriteMetricsInfo(metricsPathPrefix, req, "10", "eac", "nas", fsID)
+	if useEaClient == "true" {
+		if strings.Contains(opt.Server, ".nas.aliyuncs.com") {
+			fsID := GetFsIDByNasServer(opt.Server)
+			if len(fsID) != 0 {
+				utils.WriteMetricsInfo(metricsPathPrefix, req, "10", "eac", "nas", fsID)
+			}
+		} else {
+			fsID := GetFsIDByCpfsServer(opt.Server)
+			if len(fsID) != 0 {
+				utils.WriteMetricsInfo(metricsPathPrefix, req, "10", "eac", "cpfs", fsID)
+			}
 		}
+
 	}
 	// change the mode
 	if opt.Mode != "" && opt.Path != "/" {
