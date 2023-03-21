@@ -136,11 +136,11 @@ func (d *NAS) Run() {
 
 func deleteRpm(rpmName string) {
 	deleteCmd := fmt.Sprintf("%s yum remove -y %s", NsenterCmd, rpmName)
-	_, err := utils.Run(deleteCmd)
+	_, err := utils.ValidateRun(deleteCmd)
 	if err != nil {
-		log.Errorf("Run cmd %s is failed, err: %v", deleteCmd, err)
+		log.Errorf("ValidateRun cmd %s is failed, err: %v", deleteCmd, err)
 	} else {
-		log.Infof("Run cmd %s is successfully", deleteCmd)
+		log.Infof("ValidateRun cmd %s is successfully", deleteCmd)
 	}
 }
 
@@ -149,11 +149,11 @@ func installRpm(queryRpmName string, rpmName string) {
 	find, _ := utils.RunWithFilter(queryCmd, queryRpmName)
 	if len(find) == 0 {
 		installCmd := fmt.Sprintf("%s yum localinstall -y /etc/csi-tool/%s", NsenterCmd, rpmName)
-		_, err := utils.Run(installCmd)
+		_, err := utils.ValidateRun(installCmd)
 		if err != nil {
-			log.Errorf("Run cmd %s is failed, err: %v", installCmd, err)
+			log.Errorf("ValidateRun cmd %s is failed, err: %v", installCmd, err)
 		} else {
-			log.Infof("Run cmd %s is successfully", installCmd)
+			log.Infof("ValidateRun cmd %s is successfully", installCmd)
 		}
 	}
 }
@@ -162,11 +162,11 @@ func upgradeRPM(res string, queryRpmName string, rpmName string) {
 	rpmPath := "/etc/csi-tool/" + rpmName
 	if len(res) != 0 && !strings.Contains(res, strings.TrimSuffix(rpmName, ".rpm")) {
 		updateCmd := fmt.Sprintf("%s rpm -Uvh %s --nopostun", NsenterCmd, rpmPath)
-		_, err := utils.Run(updateCmd)
+		_, err := utils.ValidateRun(updateCmd)
 		if err != nil {
-			log.Errorf("Run cmd %s is failed, err: %v", updateCmd, err)
+			log.Errorf("ValidateRun cmd %s is failed, err: %v", updateCmd, err)
 		} else {
-			log.Infof("Run cmd %s is successfully", updateCmd)
+			log.Infof("ValidateRun cmd %s is successfully", updateCmd)
 		}
 	}
 }
@@ -245,18 +245,18 @@ func GlobalConfigSet(serviceType string) *restclient.Config {
 					deleteRpm(alinasUtilsName)
 					installRpm(alinasUtils, alinasUtilsRpmName)
 					queryCmd := fmt.Sprintf("%s rpm -qa", NsenterCmd)
-					stdout, _ := utils.Run(queryCmd)
+					stdout, _ := utils.ValidateRun(queryCmd)
 					if strings.Contains(stdout, alinasEac) {
 						installRpm(alinasEac, alinasEacRpmName)
 					} else {
 						upgradeRPM(stdout, alinasEac, alinasEacRpmName)
 					}
 					runCmd := fmt.Sprintf("%s systemctl start aliyun-alinas-mount-watchdog", NsenterCmd)
-					_, err := utils.Run(runCmd)
+					_, err := utils.ValidateRun(runCmd)
 					if err != nil {
-						log.Errorf("Run %s is failed, err: %v", runCmd, err)
+						log.Errorf("ValidateRun %s is failed, err: %v", runCmd, err)
 					} else {
-						log.Infof("Run %s is successfully", runCmd)
+						log.Infof("ValidateRun %s is successfully", runCmd)
 					}
 				}
 			}

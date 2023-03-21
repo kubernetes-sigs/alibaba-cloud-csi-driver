@@ -43,7 +43,7 @@ func createCpfsSubDir(cpfsOptions, cpfsServer, cpfsFileSystem, cpfsSubpath strin
 	if cpfsOptions != "" {
 		mntCmd = fmt.Sprintf("mount -t lustre -o %s %s:/%s %s", cpfsOptions, cpfsServer, cpfsFileSystem, cpfsTmpPath)
 	}
-	_, err := utils.Run(mntCmd)
+	_, err := utils.ValidateRun(mntCmd)
 	if err != nil {
 		log.Errorf("Cpfs, Mount to temp directory fail: %s", err.Error())
 		return err
@@ -121,13 +121,13 @@ func DoMount(cpfsServer, cpfsFileSystem, cpfsPath, mountOptions, mountPoint, vol
 	if mountOptions != "" {
 		mntCmd = fmt.Sprintf("mount -t lustre -o %s %s:/%s%s %s", mountOptions, cpfsServer, cpfsFileSystem, cpfsPath, mountPoint)
 	}
-	_, err := utils.Run(mntCmd)
+	_, err := utils.ValidateRun(mntCmd)
 	if err != nil && cpfsPath != "/" {
 		if strings.Contains(err.Error(), "No such file or directory") {
 			if err := createCpfsSubDir(mountOptions, cpfsServer, cpfsFileSystem, cpfsPath, volumeID); err != nil {
 				return err
 			}
-			if _, err := utils.Run(mntCmd); err != nil {
+			if _, err := utils.ValidateRun(mntCmd); err != nil {
 				return err
 			}
 		} else {
