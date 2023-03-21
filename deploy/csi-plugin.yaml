@@ -1,12 +1,4 @@
-apiVersion: storage.k8s.io/v1
-kind: CSIDriver
-metadata:
-  name: nasplugin.csi.alibabacloud.com
-spec:
-  attachRequired: false
-  podInfoOnMount: true
 ---
-# This YAML defines all API objects to create RBAC roles for csi node plugin.
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
@@ -27,21 +19,46 @@ spec:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
-            - matchExpressions:
-              - key: type
-                operator: NotIn
-                values:
-                - virtual-kubelet
+              - matchExpressions:
+                  - key: type
+                    operator: NotIn
+                    values:
+                      - virtual-kubelet
       nodeSelector:
         kubernetes.io/os: linux
       serviceAccount: csi-admin
       priorityClassName: system-node-critical
       hostNetwork: true
       hostPID: true
+      dnsPolicy: ClusterFirst
       containers:
+        - name: disk-driver-registrar
+          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-node-driver-registrar:v2.3.1-038aeb6-aliyun
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          args:
+            - "--v=5"
+            - "--csi-address=/var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock"
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet
+            - name: registration-dir
+              mountPath: /registration
         - name: nas-driver-registrar
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-node-driver-registrar:v1.2.0
-          imagePullPolicy: Always
+          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-node-driver-registrar:v2.3.1-038aeb6-aliyun
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           args:
             - "--v=5"
             - "--csi-address=/var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock"
@@ -51,18 +68,33 @@ spec:
               mountPath: /var/lib/kubelet/
             - name: registration-dir
               mountPath: /registration
+        - name: oss-driver-registrar
+          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-node-driver-registrar:v2.3.1-038aeb6-aliyun
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          args:
+            - "--v=5"
+            - "--csi-address=/var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock"
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet/
+            - name: registration-dir
+              mountPath: /registration
         - name: csi-plugin
           securityContext:
             privileged: true
-            capabilities:
-              add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.18.8.47-906bd535-aliyun
-          imagePullPolicy: "Always"
+          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-plugin:v1.24.9-74f8490-aliyun
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=2"
-            - "--driver=nas"
+            - "--driver=oss,nas,disk"
           env:
             - name: KUBE_NODE_NAME
               valueFrom:
@@ -75,6 +107,13 @@ spec:
               value: "15"
             - name: SERVICE_TYPE
               value: "plugin"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           livenessProbe:
             httpGet:
               path: /healthz
@@ -84,10 +123,17 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
           ports:
             - name: healthz
               containerPort: 11260
-              protocol: TCP
           volumeMounts:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet/
@@ -96,13 +142,24 @@ spec:
               mountPath: /host/etc
             - name: host-log
               mountPath: /var/log/
+            - name: ossconnectordir
+              mountPath: /host/usr/
             - name: container-dir
               mountPath: /var/lib/container
               mountPropagation: "Bidirectional"
             - name: host-dev
               mountPath: /dev
               mountPropagation: "HostToContainer"
+            - mountPath: /var/addon
+              name: addon-token
+              readOnly: true
+            - mountPath: /host/var/run/
+              name: fuse-metrics-dir
       volumes:
+        - name: fuse-metrics-dir
+          hostPath:
+            path: /var/run/
+            type: DirectoryOrCreate
         - name: registration-dir
           hostPath:
             path: /var/lib/kubelet/plugins_registry
@@ -124,7 +181,18 @@ spec:
         - name: etc
           hostPath:
             path: /etc
+        - name: ossconnectordir
+          hostPath:
+            path: /usr/
+        - name: addon-token
+          secret:
+            defaultMode: 420
+            optional: true
+            items:
+              - key: addon.token.config
+                path: token-config
+            secretName: addon.csi.token
   updateStrategy:
     rollingUpdate:
-      maxUnavailable: 10%
+      maxUnavailable: 20%
     type: RollingUpdate

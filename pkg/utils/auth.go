@@ -188,7 +188,6 @@ func ValidateRequest(m map[string]string) (bool, error) {
 	return valid, errors.New(msg)
 }
 
-
 // ValidatePath is check path string is valid
 func ValidatePath(path string) (bool, error) {
 	var msg string
