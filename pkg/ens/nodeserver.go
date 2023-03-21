@@ -112,7 +112,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if isBlock {
 		sourcePath = filepath.Join(req.StagingTargetPath, req.VolumeId)
 	}
-	if valid, err := utils.CheckRequestArgs(req.VolumeContext); !valid {
+	if valid, err := utils.ValidateRequest(req.VolumeContext); !valid {
 		msg := fmt.Sprintf("NodePublishVolume: failed to check request args: %v", err)
 		log.Infof(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)
@@ -286,7 +286,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	log.Infof("NodeStageVolume: Stage VolumeId: %s, Target Path: %s, VolumeContext: %v", req.GetVolumeId(), req.StagingTargetPath, req.VolumeContext)
 
-	if valid, err := utils.CheckRequestArgs(req.PublishContext); !valid {
+	if valid, err := utils.ValidateRequest(req.PublishContext); !valid {
 		msg := fmt.Sprintf("NodeStageVolume: failed to check request args: %v", err)
 		log.Infof(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)

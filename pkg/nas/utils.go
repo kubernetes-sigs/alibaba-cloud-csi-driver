@@ -113,7 +113,7 @@ func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint,
 		if nfsProtocol == MountProtocolCPFSNFS || nfsProtocol == MountProtocolAliNas {
 			mntCmd = NsenterCmd + " " + mntCmd
 		}
-		_, err = utils.Run(mntCmd)
+		_, err = utils.ValidateRun(mntCmd)
 
 		//try mount nfsPath is successfully.
 		if err == nil {
@@ -141,7 +141,7 @@ func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint,
 	if len(useEaClient) != 0 && useEaClient == "true" {
 		err = utils.DoMountInHost(mntCmd)
 	} else {
-		_, err = utils.Run(mntCmd)
+		_, err = utils.ValidateRun(mntCmd)
 	}
 	if err != nil {
 		log.Errorf("DoMount: Mount %s is failed, err: %s", mntCmd, err.Error())
@@ -330,7 +330,7 @@ func createSubDir(nfsProtocol, nfsServer, nfsPath, nfsOptions, volumeID string) 
 			utils.UmountInHost(nasTmpPath)
 		}
 		mntCmdRootPath := fmt.Sprintf("%s mount -t %s -o %s %s:%s %s", NsenterCmd, nfsProtocol, nfsOptions, nfsServer, rootPath, nasTmpPath)
-		_, err := utils.Run(mntCmdRootPath)
+		_, err := utils.ValidateRun(mntCmdRootPath)
 		if err != nil {
 			log.Errorf("Mount rootPath is failed in host, rootPath:%s, err:%s", rootPath, err.Error())
 			return err
@@ -350,7 +350,7 @@ func createSubDir(nfsProtocol, nfsServer, nfsPath, nfsOptions, volumeID string) 
 			utils.Umount(nasTmpPath)
 		}
 		mntCmdRootPath := fmt.Sprintf("mount -t %s -o %s %s:%s %s", nfsProtocol, nfsOptions, nfsServer, rootPath, nasTmpPath)
-		_, err := utils.Run(mntCmdRootPath)
+		_, err := utils.ValidateRun(mntCmdRootPath)
 		if err != nil {
 			log.Errorf("Mount rootPath is failed, rootPath:%s, err:%s", rootPath, err.Error())
 			return err
@@ -448,7 +448,7 @@ func checkSystemNasConfig() {
 			log.Warnf("Write nas rpcconfig %s is failed, err: %s", sunRPCFile, err.Error())
 			return
 		}
-		_, err = utils.Run(startRpcConfig)
+		_, err = utils.ValidateRun(startRpcConfig)
 		if err != nil {
 			log.Warnf("Start nas rpcconfig is failed, err: %s", err.Error())
 			return
@@ -508,13 +508,13 @@ func createLosetupPv(fullPath string, volSizeBytes int64) error {
 		return nil
 	}
 	imgCmd := fmt.Sprintf("dd if=/dev/zero of=%s bs=4k seek=%d count=0", fileName, blockNum)
-	_, err := utils.Run(imgCmd)
+	_, err := utils.ValidateRun(imgCmd)
 	if err != nil {
 		return err
 	}
 
 	formatCmd := fmt.Sprintf("mkfs.ext4 -F -m0 %s", fileName)
-	_, err = utils.Run(formatCmd)
+	_, err = utils.ValidateRun(formatCmd)
 	if err != nil {
 		return err
 	}
@@ -557,7 +557,7 @@ func mountLosetupPv(mountPoint string, opt *Options, volumeID string) error {
 	if utils.IsFileExisting(failedFile) {
 		// path/to/whatever does not exist
 		cmd := fmt.Sprintf(Resize2fsFailedFixCmd, NsenterCmd, imgFile)
-		_, err = utils.Run(cmd)
+		_, err = utils.ValidateRun(cmd)
 		if err != nil {
 			return fmt.Errorf("mountLosetupPv: mount nfs losetup error %s", err.Error())
 		}
@@ -567,7 +567,7 @@ func mountLosetupPv(mountPoint string, opt *Options, volumeID string) error {
 		}
 	}
 	mountCmd := fmt.Sprintf("%s mount -o loop %s %s", NsenterCmd, imgFile, mountPoint)
-	_, err = utils.Run(mountCmd)
+	_, err = utils.ValidateRun(mountCmd)
 	if err != nil {
 		return fmt.Errorf("mountLosetupPv: mount nfs losetup error %s", err.Error())
 	}

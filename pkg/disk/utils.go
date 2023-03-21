@@ -851,7 +851,7 @@ func pickZone(requirement *csi.TopologyRequirement) string {
 }
 
 func validateDiskVolumeCreateOptions(kv map[string]string) error {
-	valid, err := utils.CheckRequestArgs(kv)
+	valid, err := utils.ValidateRequest(kv)
 	if !valid {
 		return err
 	}

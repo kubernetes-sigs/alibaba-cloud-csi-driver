@@ -196,7 +196,7 @@ type Result struct {
 type CommandRunFunc func(cmd string) (string, error)
 
 // Run command
-func Run(cmd string) (string, error) {
+func ValidateRun(cmd string) (string, error) {
 	arr := strings.Split(cmd, " ")
 	withArgs := false
 	if len(arr) >= 2 {
@@ -233,6 +233,15 @@ func Run(cmd string) (string, error) {
 	}
 	log.Infof("Exec command %s is successfully, name:%s, args:%+v", cmd, name, args)
 	return string(stdout), nil
+}
+
+// run shell command
+func Run(cmd string) (string, error) {
+	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("Failed to run cmd: " + cmd + ", with out: " + string(out) + ", with error: " + err.Error())
+	}
+	return string(out), nil
 }
 
 func RunWithFilter(cmd string, filter ...string) ([]string, error) {

@@ -37,7 +37,7 @@ func NewControllerServer(d *csicommon.CSIDriver) csi.ControllerServer {
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 
 	log.Infof("CreateVolume: Starting CreateVolume: %+v", req)
-	if valid, err := utils.CheckRequestArgs(req.Parameters); !valid {
+	if valid, err := utils.ValidateRequest(req.Parameters); !valid {
 		msg := fmt.Sprintf("CreateVolume: check request args failed: %v", err)
 		log.Errorf(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)

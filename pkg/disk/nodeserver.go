@@ -237,7 +237,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// check target mount path
 	sourcePath := req.StagingTargetPath
 
-	if valid, err := utils.CheckRequestArgs(req.VolumeContext); !valid {
+	if valid, err := utils.ValidateRequest(req.VolumeContext); !valid {
 		msg := fmt.Sprintf("NodePublishVolume: failed to check request args: %v", err)
 		log.Log.Errorf(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)
@@ -510,11 +510,12 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	log.Log.Infof("NodeStageVolume: Stage VolumeId: %s, Target Path: %s, VolumeContext: %v", req.GetVolumeId(), req.StagingTargetPath, req.VolumeContext)
 
-	if valid, err := utils.CheckRequestArgs(req.PublishContext); !valid {
+	if valid, err := utils.ValidateRequest(req.VolumeContext); !valid {
 		msg := fmt.Sprintf("NodeStageVolume: failed to check request parameters: %v", err)
 		log.Log.Errorf(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)
 	}
+
 	// Step 1: check input parameters
 	targetPath := req.StagingTargetPath
 	if req.VolumeId == "" {

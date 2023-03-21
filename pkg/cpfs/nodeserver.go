@@ -108,10 +108,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if opt.Options != "" {
 		mntCmd = fmt.Sprintf("mount -t lustre -o %s %s:/%s%s %s", opt.Options, opt.Server, opt.FileSystem, opt.SubPath, mountPath)
 	}
-	_, err := utils.Run(mntCmd)
+	_, err := utils.ValidateRun(mntCmd)
 	if err != nil && opt.SubPath != "/" && strings.Contains(err.Error(), "No such file or directory") {
 		createCpfsSubDir(opt.Options, opt.Server, opt.FileSystem, opt.SubPath, req.VolumeId)
-		if _, err := utils.Run(mntCmd); err != nil {
+		if _, err := utils.ValidateRun(mntCmd); err != nil {
 			log.Errorf("Cpfs, Mount Cpfs after create subDirectory fail: %s", err.Error())
 			return nil, errors.New("Cpfs, Mount Cpfs after create subDirectory fail: %s" + err.Error())
 		}
@@ -132,7 +132,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 func doCpfsConfig() {
 	configCmd := [...]string{"lctl set_param osc.*.max_rpcs_in_flight=64", "lctl set_param osc.*.max_pages_per_rpc=256", "lctl set_param mdc.*.max_rpcs_in_flight=64", "lctl set_param mdc.*.max_mod_rpcs_in_flight=64"}
 	for _, element := range configCmd {
-		if _, err := utils.Run(element); err != nil {
+		if _, err := utils.ValidateRun(element); err != nil {
 			log.Errorf("Cpfs, doCpfsConfig fail with command %s, with error: %s", configCmd, err.Error())
 			return
 		}
@@ -155,7 +155,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	umntCmd := fmt.Sprintf("umount %s", mountPoint)
-	if _, err := utils.Run(umntCmd); err != nil {
+	if _, err := utils.ValidateRun(umntCmd); err != nil {
 		return nil, errors.New("Cpfs, Umount cpfs Fail: " + err.Error())
 	}
 

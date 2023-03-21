@@ -126,7 +126,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	response := &csi.CreateVolumeResponse{}
 	parameters := req.GetParameters()
 
-	if valid, err := utils.CheckRequestArgs(parameters); !valid {
+	if valid, err := utils.ValidateRequest(parameters); !valid {
 		msg := fmt.Sprintf("CreateVolume: failed to check request args: %v", err)
 		log.Infof(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)
@@ -471,6 +471,10 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	volumeType := ""
 	if value, ok := pvObj.Spec.CSI.VolumeAttributes[VolumeTypeKey]; ok {
 		volumeType = value
+	}
+	if validate, err := utils.ValidateRequest(pvObj.Spec.CSI.VolumeAttributes); !validate {
+		log.Errorf("DeleteVolume: pv volumeAttributes invalid, err: %v", err)
+		return nil, err
 	}
 
 	switch volumeType {

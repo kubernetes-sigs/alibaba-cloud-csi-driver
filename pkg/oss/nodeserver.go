@@ -353,7 +353,7 @@ func (ns *nodeServer) saveOssCredential(opt *Options) error {
 }
 
 func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) error {
-	valid, err := utils.CheckRequestPath(req.GetTargetPath())
+	valid, err := utils.ValidatePath(req.GetTargetPath())
 	if !valid {
 		return status.Errorf(codes.InvalidArgument, err.Error())
 	}
@@ -390,7 +390,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	} else {
 		umntCmd = fmt.Sprintf("umount -f %s", mountPoint)
 	}
-	if _, err := utils.Run(umntCmd); err != nil {
+	if _, err := utils.ValidateRun(umntCmd); err != nil {
 		log.Errorf("Umount oss fail, with: %s", err.Error())
 		return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
 	}

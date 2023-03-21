@@ -170,10 +170,29 @@ func CheckRequestArgs(m map[string]string) (bool, error) {
 	return valid, errors.New(msg)
 }
 
-// CheckRequestPath is check path string is valid
-func CheckRequestPath(path string) (bool, error) {
+func ValidateRequest(m map[string]string) (bool, error) {
+	valid := true
 	var msg string
-	if strings.Contains(path, "../") || strings.Contains(path, "/..") {
+	for _, value := range m {
+		if strings.Contains(value, "&") || strings.Contains(value, "|") || strings.Contains(value, ";") ||
+			strings.Contains(value, "$") || strings.Contains(value, "'") || strings.Contains(value, "`") ||
+			strings.Contains(value, "(") || strings.Contains(value, ")") {
+			valid = false
+			msg = msg + fmt.Sprintf("ValidateRequest: Args %s has illegal access.", value)
+		}
+		if valid, _ = ValidatePath(value); !valid {
+			msg = msg + fmt.Sprintf("ValidateRequest: Args %s has illegal path", value)
+			valid = false
+		}
+	}
+	return valid, errors.New(msg)
+}
+
+
+// ValidatePath is check path string is valid
+func ValidatePath(path string) (bool, error) {
+	var msg string
+	if strings.Contains(path, "../") || strings.Contains(path, "/..") || strings.Contains(path, "..") {
 		msg = msg + fmt.Sprintf("Path %s has illegal access.", path)
 		return false, errors.New(msg)
 	}
@@ -190,7 +209,7 @@ func CheckRequest(m map[string]string, path string) (bool, error) {
 	if !valid {
 		return valid, err
 	}
-	valid, err = CheckRequestPath(path)
+	valid, err = ValidatePath(path)
 	if !valid {
 		return valid, err
 	}

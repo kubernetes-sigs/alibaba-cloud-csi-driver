@@ -104,7 +104,7 @@ func NewControllerServer(d *csicommon.CSIDriver, client *dbfs.Client, region str
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	log.Log.Infof("CreateVolume: DBFS Start to CreateVolume, %s, %v", req.Name, req)
 
-	if valid, err := utils.CheckRequestArgs(req.Parameters); !valid {
+	if valid, err := utils.ValidateRequest(req.Parameters); !valid {
 		msg := fmt.Sprintf("CreateVolume: failed to check request args: %v", err)
 		log.Log.Infof(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)
@@ -249,7 +249,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 
-	if valid, err := utils.CheckRequestArgs(req.VolumeContext); !valid {
+	if valid, err := utils.ValidateRequest(req.VolumeContext); !valid {
 		msg := fmt.Sprintf("ControllerPublishVolume: failed to check request args: %v", err)
 		log.Log.Infof(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)

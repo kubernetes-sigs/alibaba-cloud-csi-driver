@@ -293,7 +293,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// if volume set mountType as skipmount;
 	if opt.MountType == SkipMountType {
 		mountCmd := fmt.Sprintf("mount -t tmpfs -o size=1m tmpfs %s", mountPath)
-		_, err := utils.Run(mountCmd)
+		_, err := utils.ValidateRun(mountCmd)
 		if err != nil {
 			log.Errorf("NAS: Mount volume(%s) path as tmpfs with err: %v", req.VolumeId, err.Error())
 			return nil, status.Error(codes.Internal, "NAS: Mount as tmpfs volume with err"+err.Error())
@@ -363,7 +363,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if opt.ModeType == "recursive" {
 				cmd = fmt.Sprintf("chmod -R %s %s", opt.Mode, mountPath)
 			}
-			if _, err := utils.Run(cmd); err != nil {
+			if _, err := utils.ValidateRun(cmd); err != nil {
 				log.Errorf("Nas chmod cmd fail: %s %s", cmd, err)
 			} else {
 				log.Infof("Nas chmod cmd success: %s", cmd)
@@ -388,7 +388,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 }
 
 func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) error {
-	valid, err := utils.CheckRequestPath(req.GetTargetPath())
+	valid, err := utils.ValidatePath(req.GetTargetPath())
 	if !valid {
 		return status.Errorf(codes.InvalidArgument, err.Error())
 	}
