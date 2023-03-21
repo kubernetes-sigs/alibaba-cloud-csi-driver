@@ -204,12 +204,27 @@ if [ "$run_oss" = "true" ] || [ "$run_disk" = "true" ]; then
     if [ "$updateConnectorService" = "true" ]; then
         echo "Install csiplugin connector service...."
         cp /csi/csiplugin-connector.service $systemdDir/csiplugin-connector.service
-        ${HOST_CMD} systemctl daemon-reload
+        echo "Starting systemctl daemon-reload."
+        until ${HOST_CMD} systemctl daemon-reload
+        do
+            echo "Starting retry again systemctl daemon-reload."
+            sleep 2
+        done
     fi
 
     rm -rf /var/log/alicloud/connector.pid
-    ${HOST_CMD} systemctl enable csiplugin-connector.service
-    ${HOST_CMD} systemctl restart csiplugin-connector.service
+    echo "Starting systemctl enable csiplugin-connector.service."
+    until ${HOST_CMD} systemctl enable csiplugin-connector.service
+    do
+        echo "Starting retry again systemctl enable csiplugin-connector.service."
+        sleep 2
+    done
+    echo "Starting systemctl restart csiplugin-connector.service."
+    until ${HOST_CMD} systemctl restart csiplugin-connector.service
+    do
+        echo "Starting retry again systemctl restart csiplugin-connector.service."
+        sleep 2
+    done
 fi
 
 ## CPFS-NAS plugin setup

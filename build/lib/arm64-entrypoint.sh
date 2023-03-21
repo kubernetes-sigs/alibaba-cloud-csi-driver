@@ -9,6 +9,8 @@ mkdir -p /host/etc/kubernetes/volumes/disk/uuid
 ossfsVer="1.80.6.ack.1"
 armfsVer="1.80.6"
 
+HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
+
 ## check which plugin is running
 for item in $@;
 do
@@ -135,12 +137,27 @@ if [ "$run_disk" = "true" ] || [ "$run_oss" = "true" ]; then
     if [ "$updateConnectorService" = "true" ]; then
         echo "Install csiplugin connector service...."
         cp /csi/csiplugin-connector.service $systemdDir/csiplugin-connector.service
-        /nsenter --mount=/proc/1/ns/mnt systemctl daemon-reload
+        echo "Starting systemctl daemon-reload."
+        until ${HOST_CMD} systemctl daemon-reload
+        do
+            echo "Starting retry again systemctl daemon-reload."
+            sleep 2
+        done
     fi
 
     rm -rf /var/log/alicloud/connector.pid
-    /nsenter --mount=/proc/1/ns/mnt systemctl enable csiplugin-connector.service
-    /nsenter --mount=/proc/1/ns/mnt systemctl restart csiplugin-connector.service
+    echo "Starting systemctl enable csiplugin-connector.service."
+    until ${HOST_CMD} systemctl enable csiplugin-connector.service
+    do
+        echo "Starting retry again systemctl enable csiplugin-connector.service."
+        sleep 2
+    done
+    echo "Starting systemctl restart csiplugin-connector.service."
+    until ${HOST_CMD} systemctl restart csiplugin-connector.service
+    do
+        echo "Starting retry again systemctl restart csiplugin-connector.service."
+        sleep 2
+    done
 
 fi
 
