@@ -205,25 +205,41 @@ if [ "$run_oss" = "true" ] || [ "$run_disk" = "true" ]; then
         echo "Install csiplugin connector service...."
         cp /csi/csiplugin-connector.service $systemdDir/csiplugin-connector.service
         echo "Starting systemctl daemon-reload."
-        until ${HOST_CMD} systemctl daemon-reload
+        for((i=1;i<=10;i++));
         do
-            echo "Starting retry again systemctl daemon-reload."
-            sleep 2
+            ${HOST_CMD} systemctl daemon-reload
+            if [ $? -eq 0 ]; then
+                break
+            else
+                echo "Starting retry again systemctl daemon-reload.retry count:$i"
+                sleep 2
+            fi
         done
     fi
 
     rm -rf /var/log/alicloud/connector.pid
     echo "Starting systemctl enable csiplugin-connector.service."
-    until ${HOST_CMD} systemctl enable csiplugin-connector.service
+    for((i=1;i<=10;i++));
     do
-        echo "Starting retry again systemctl enable csiplugin-connector.service."
-        sleep 2
+        ${HOST_CMD} systemctl enable csiplugin-connector.service
+        if [ $? -eq 0 ]; then
+            break
+        else
+            echo "Starting retry again systemctl enable csiplugin-connector.service.retry count:$i"
+            sleep 2
+        fi
     done
+
     echo "Starting systemctl restart csiplugin-connector.service."
-    until ${HOST_CMD} systemctl restart csiplugin-connector.service
+    for((i=1;i<=10;i++));
     do
-        echo "Starting retry again systemctl restart csiplugin-connector.service."
-        sleep 2
+        ${HOST_CMD} systemctl restart csiplugin-connector.service
+        if [ $? -eq 0 ]; then
+            break
+        else
+            echo "Starting retry again systemctl restart csiplugin-connector.service.retry count:$i"
+            sleep 2
+        fi
     done
 fi
 
