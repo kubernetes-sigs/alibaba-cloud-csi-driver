@@ -180,7 +180,7 @@ func ValidateRequest(m map[string]string) (bool, error) {
 			valid = false
 			msg = msg + fmt.Sprintf("ValidateRequest: Args %s has illegal access.", value)
 		}
-		if valid, _ = ValidatePath(value); !valid {
+		if pathValid, _ := ValidatePath(value); !pathValid {
 			msg = msg + fmt.Sprintf("ValidateRequest: Args %s has illegal path", value)
 			valid = false
 		}

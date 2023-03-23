@@ -450,6 +450,10 @@ func Gi2Bytes(gb int64) int64 {
 	return gb * 1024 * 1024 * 1024
 }
 
+func KBlock2Bytes(kblocks int64) int64 {
+	return kblocks * 1024
+}
+
 // ReadJSONFile return a json object
 func ReadJSONFile(file string) (map[string]string, error) {
 	jsonObj := map[string]string{}
@@ -921,6 +925,17 @@ func WriteMetricsInfo(metricsPathPrefix string, req *csi.NodePublishVolumeReques
 			req.TargetPath
 		_ = WriteAndSyncFile(mountPointPath+mountPointName, []byte(info), os.FileMode(0644))
 	}
+}
+
+func ParseProviderID(providerID string) (string, string) {
+	providerPrefix := "alicloud://"
+	pureProvider := strings.Trim(providerID, providerPrefix)
+	providers := strings.Split(pureProvider, ".")
+	if len(providers) != 2 {
+		log.Errorf("ParseProviderID: invalid providers: %s", providerID)
+		return "", ""
+	}
+	return providers[0], providers[1]
 }
 
 // formatAndMount uses unix utils to format and mount the given disk

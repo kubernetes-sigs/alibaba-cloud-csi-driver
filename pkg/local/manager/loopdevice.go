@@ -20,8 +20,12 @@ const (
 func MaintainSparseTemplateFile(dir string, size string) error {
 	ld := NewLoopDevice(dir, size)
 	templateDir, templateSize := ld.GetTemplateInfo()
+	err := EnsureFolder(templateDir)
+	if err != nil {
+		return err
+	}
 	tempFileName := filepath.Join(templateDir, LOCAL_SPARSE_TEMPLATE_NAME)
-	_, err := os.Stat(tempFileName)
+	_, err = os.Stat(tempFileName)
 	if os.IsNotExist(err) {
 		err = ld.CreateSparseFile(tempFileName, strconv.Itoa(int(utils.Gi2Bytes(int64(templateSize)))))
 		if err != nil {
@@ -43,6 +47,7 @@ type LoopDevice interface {
 	GetTemplateInfo() (string, int)
 	FileExists(filepath string) error
 	GetUsedByteSize() (int64, error)
+	GetTempDirTotalCapacity() (int64, error)
 }
 
 type NodeLoopDevice struct {
@@ -60,6 +65,21 @@ func NewLoopDevice(templateDir, templateSize string) LoopDevice {
 		templateDir:  templateDir,
 		templateSize: size,
 	}
+}
+
+func (ld *NodeLoopDevice) GetTempDirTotalCapacity() (int64, error) {
+	cmd := fmt.Sprintf("%s df %s | awk '!/1K-blocks/{print $2}'", NsenterCmd, ld.templateDir)
+	out, err := utils.Run(cmd)
+	if err != nil {
+		return 0, err
+	}
+	out = strings.Trim(out, "\n")
+	totalCapacity, err := strconv.Atoi(out)
+	if err != nil {
+		return 0, err
+	}
+	totalBytes := utils.KBlock2Bytes(int64(totalCapacity))
+	return totalBytes, nil
 }
 
 func (ld *NodeLoopDevice) GetTemplateInfo() (string, int) {
