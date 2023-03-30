@@ -503,6 +503,9 @@ func makeDevicePath(name string) string {
 func getDeviceRootAndIndex(devicePath string) (string, int, error) {
 	rootDevicePath := ""
 	index := -1
+	if IsDeviceNvme(devicePath) {
+		return devicePath, -1, nil
+	}
 	re := regexp.MustCompile(`\d+`)
 	regexpRes := re.FindAllStringSubmatch(devicePath, -1)
 	if len(regexpRes) == 0 {
