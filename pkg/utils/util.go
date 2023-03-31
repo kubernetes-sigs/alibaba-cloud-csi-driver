@@ -927,15 +927,12 @@ func WriteMetricsInfo(metricsPathPrefix string, req *csi.NodePublishVolumeReques
 	}
 }
 
-func ParseProviderID(providerID string) (string, string) {
-	providerPrefix := "alicloud://"
-	pureProvider := strings.Trim(providerID, providerPrefix)
-	providers := strings.Split(pureProvider, ".")
+func ParseProviderID(providerID string) string {
+	providers := strings.Split(providerID, ".")
 	if len(providers) != 2 {
-		log.Errorf("ParseProviderID: invalid providers: %s", providerID)
-		return "", ""
+		return ""
 	}
-	return providers[0], providers[1]
+	return providers[1]
 }
 
 // formatAndMount uses unix utils to format and mount the given disk
