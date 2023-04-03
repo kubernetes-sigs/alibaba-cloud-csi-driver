@@ -936,7 +936,7 @@ func ParseProviderID(providerID string) string {
 }
 
 // formatAndMount uses unix utils to format and mount the given disk
-func FormatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, target string, fstype string, mkfsOptions []string, mountOptions []string) error {
+func FormatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, target string, fstype string, mkfsOptions []string, mountOptions []string, omitFsCheck bool) error {
 	log.Infof("formatAndMount: mount options : %+v", mountOptions)
 	readOnly := false
 	for _, option := range mountOptions {
@@ -948,7 +948,7 @@ func FormatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 
 	// check device fs
 	mountOptions = append(mountOptions, "defaults")
-	if !readOnly {
+	if !readOnly || !omitFsCheck {
 		// Run fsck on the disk to fix repairable issues, only do this for volumes requested as rw.
 		args := []string{"-a", source}
 

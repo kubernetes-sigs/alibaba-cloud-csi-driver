@@ -17,8 +17,8 @@ limitations under the License.
 package utils
 
 import (
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 //go test ./*.go -v util_test.go
@@ -130,19 +130,19 @@ func TestParseProviderID(t *testing.T) {
 		expectNodeID string
 	}{
 		{
-			provider:      "cn-hangzhou.i-123456787894",
-			expectNodeID:  "i-123456787894",
+			provider:     "cn-hangzhou.i-123456787894",
+			expectNodeID: "i-123456787894",
 		},
 		{
-			provider:      "alicloud://cn-hangzhou.i-123456787894",
-			expectNodeID:  "i-123456787894",
+			provider:     "alicloud://cn-hangzhou.i-123456787894",
+			expectNodeID: "i-123456787894",
 		},
 		{
-			provider: "alicloud://cn-hangzhou",
+			provider:     "alicloud://cn-hangzhou",
 			expectNodeID: "",
 		},
 		{
-			provider: "alicloud://cn-hangzhou.i-xxxxxx.aaa",
+			provider:     "alicloud://cn-hangzhou.i-xxxxxx.aaa",
 			expectNodeID: "",
 		},
 	}

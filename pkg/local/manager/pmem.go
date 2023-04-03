@@ -175,7 +175,7 @@ func MaintainQuotaPath(regions *PmemRegions, mounter k8smount.Interface) error {
 			return err
 		}
 		diskMounter := &k8smount.SafeFormatAndMount{Interface: mounter, Exec: utilexec.New()}
-		err = utils.FormatAndMount(diskMounter, devicePath, namespaceFullPath, types.PmemDeviceFilesystem, mkfsOptions, options)
+		err = utils.FormatAndMount(diskMounter, devicePath, namespaceFullPath, types.PmemDeviceFilesystem, mkfsOptions, options, false)
 		if err != nil {
 			log.Errorf("MaintainQuotaPath: formatAndMount quotapath err: %v", err)
 			continue
