@@ -407,20 +407,24 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			// step5: Mount nfs server to localpath
 			if !CheckNfsPathMounted(mountPoint, nfsPath) {
 				//When subdirectories are mounted, determine whether to use eacClient
-				useEaClient := "false"
+				var cnfs *v1beta1.ContainerNetworkFileSystem
 				if len(nasVol.CnfsName) != 0 {
-					cnfs, err := v1beta1.GetCnfsObject(cs.crdClient, nasVol.CnfsName)
+					cnfs, err = v1beta1.GetCnfsObject(cs.crdClient, nasVol.CnfsName)
 					if err != nil {
 						return nil, err
 					}
-					useEaClient = cnfs.Status.FsAttributes.UseElasticAccelerationClient
+				}
+				opt := &Options{}
+				err := DetermineClientTypeAndMountProtocol(cnfs, opt)
+				if err != nil {
+					return nil, err
 				}
 				//create subpath directory
-				if useEaClient == "true" || nasVol.MountProtocol == MountProtocolAliNas {
+				if opt.ClientType == EFCClientType || nasVol.MountProtocol == MountProtocolAliNas {
 					utils.CreateDestInHost(mountPoint)
 				}
 				//mount subpath directory
-				if err := DoMount(nasVol.MountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name, req.Name, useEaClient); err != nil {
+				if err := DoMount(opt.FSType, opt.ClientType, nasVol.MountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name, req.Name); err != nil {
 					log.Errorf("CreateVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.Name, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, err.Error())
 					return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
 				}
@@ -554,7 +558,6 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 
 	volumeAs, fileSystemID, deleteVolume, pvPath, nfsPath, nfsServer, nfsOptions := "", "", "", "", "", "", ""
-	useEaClient := "false"
 	nfsOptions = strings.Join(pvInfo.Spec.MountOptions, ",")
 	if pvInfo.Spec.CSI == nil {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with CSI empty: %s, pv: %v", req.VolumeId, pvInfo)
@@ -570,6 +573,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	if value, ok := pvInfo.Spec.CSI.VolumeAttributes["deleteVolume"]; ok {
 		deleteVolume = value
 	}
+	opt := &Options{}
 	if value, ok := pvInfo.Spec.CSI.VolumeAttributes["server"]; ok {
 		nfsServer = value
 	} else if value, ok := pvInfo.Spec.CSI.VolumeAttributes[ContainerNetworkFileSystem]; ok {
@@ -577,11 +581,11 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		if err != nil {
 			return nil, err
 		}
-		nfsServer = cnfs.Status.FsAttributes.Server
-		fileSystemID = cnfs.Status.FsAttributes.FilesystemID
-		if cnfs.Status.FsAttributes.UseElasticAccelerationClient == "true" {
-			useEaClient = "true"
+		err = DetermineClientTypeAndMountProtocol(cnfs, opt)
+		if err != nil {
+			return nil, err
 		}
+		nfsServer = cnfs.Status.FsAttributes.Server
 	} else {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with nfs server empty: %s, CSI: %v", req.VolumeId, pvInfo.Spec.CSI)
 	}
@@ -690,7 +694,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		// set the local mountpoint
 		mountPoint := filepath.Join(MntRootPath, req.VolumeId+"-delete")
 		// create subpath-delete directory
-		if err := DoMount(mountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, req.VolumeId, req.VolumeId, useEaClient); err != nil {
+		if err := DoMount(opt.FSType, opt.ClientType, mountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, req.VolumeId, req.VolumeId); err != nil {
 			log.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
 			return nil, fmt.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
 		}

@@ -44,9 +44,9 @@ const (
 	InstanceID         = "instance-id"
 	alinasUtilsName    = "aliyun-alinas-utils.noarch"
 	alinasUtils        = "aliyun-alinas-utils"
-	alinasUtilsRpmName = "aliyun-alinas-utils-1.1-4.al7.noarch.rpm"
-	alinasEac          = "alinas-eac"
-	alinasEacRpmName   = "alinas-eac-1.2-1.x86_64.rpm"
+	alinasUtilsRpmName = "aliyun-alinas-utils-1.1-5.al7.noarch.rpm"
+	alinasEfc          = "alinas-efc"
+	alinasEfcRpmName   = "alinas-efc-1.2-1.x86_64.rpm"
 )
 
 var (
@@ -239,17 +239,17 @@ func GlobalConfigSet(serviceType string) *restclient.Config {
 		}
 		if value, ok := configMap.Data["cnfs-client-properties"]; ok {
 			if strings.Contains(value, "enable=true") {
-				//install alinas rpm(alinas-eac alinas-utils) and cpfs rpm(alinas-utils)
+				//install alinas rpm(alinas-efc alinas-utils) and cpfs rpm(alinas-utils)
 				if serviceType == utils.PluginService {
 					//deleteRpm before installRpm
 					deleteRpm(alinasUtilsName)
 					installRpm(alinasUtils, alinasUtilsRpmName)
 					queryCmd := fmt.Sprintf("%s rpm -qa", NsenterCmd)
 					stdout, _ := utils.ValidateRun(queryCmd)
-					if strings.Contains(stdout, alinasEac) {
-						installRpm(alinasEac, alinasEacRpmName)
+					if strings.Contains(stdout, alinasEfc) {
+						installRpm(alinasEfc, alinasEfcRpmName)
 					} else {
-						upgradeRPM(stdout, alinasEac, alinasEacRpmName)
+						upgradeRPM(stdout, alinasEfc, alinasEfcRpmName)
 					}
 					runCmd := fmt.Sprintf("%s systemctl start aliyun-alinas-mount-watchdog", NsenterCmd)
 					_, err := utils.ValidateRun(runCmd)

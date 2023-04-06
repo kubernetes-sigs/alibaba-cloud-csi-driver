@@ -57,6 +57,8 @@ type Options struct {
 	MountType     string `json:"mountType"`
 	LoopLock      string `json:"loopLock"`
 	MountProtocol string `json:"mountProtocol"`
+	ClientType    string `json:"clientType"`
+	FSType        string `json:"fsType"`
 }
 
 // RunvNasOptions struct definition
@@ -87,22 +89,28 @@ const (
 	NasMntPoint = "/mnt/nasplugin.alibabacloud.com"
 	// MountProtocolNFS common nfs protocol
 	MountProtocolNFS = "nfs"
+	// MountProtocolEFC common efc protocol
+	MountProtocolEFC = "efc"
 	// MountProtocolCPFS common cpfs protocol
-	MountProtocolCPFSEAC = "cpfs-eac"
+	MountProtocolCPFS = "cpfs"
 	// MountProtocolCPFSNFS cpfs-nfs protocol
 	MountProtocolCPFSNFS = "cpfs-nfs"
 	// MountProtocolAliNas alinas protocal
 	MountProtocolAliNas = "alinas"
 	// MountProtocolTag tag
 	MountProtocolTag = "mountProtocol"
-
 	// metricsPathPrefix
-	metricsPathPrefix = "/host/var/run/eac/"
+	metricsPathPrefix = "/host/var/run/efc/"
+	//EFCClientType
+	EFCClientType = "efcclient"
+	//NFSClientType
+	NFSClientType = "nfsclient"
+	//NativeClientType
+	NativeClientType = "nativeclient"
 )
 
 // newNodeServer create the csi node server
 func newNodeServer(d *NAS) *nodeServer {
-
 	return &nodeServer{
 		clientSet:         GlobalConfigVar.KubeClient,
 		crdClient:         GlobalConfigVar.DynamicClient,
@@ -118,6 +126,44 @@ func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
 	return nil
 }
 
+func DetermineClientTypeAndMountProtocol(cnfs *v1beta1.ContainerNetworkFileSystem, opt *Options) error {
+	useEaClient := cnfs.Status.FsAttributes.UseElasticAccelerationClient
+	useClientType := cnfs.Status.FsAttributes.UseClientType
+	if len(useClientType) == 0 && len(useEaClient) != 0 {
+		useClientType = "EFCClient"
+	}
+	opt.ClientType = strings.ToLower(useClientType)
+	opt.FSType = strings.ToLower(cnfs.Status.FsAttributes.FilesystemType)
+	switch opt.FSType {
+	case "nas":
+		opt.Server = cnfs.Status.FsAttributes.Server
+		switch opt.ClientType {
+		case EFCClientType:
+			opt.MountProtocol = MountProtocolEFC
+		case NFSClientType:
+			opt.MountProtocol = MountProtocolNFS
+		default:
+			return errors.New("Don't Support useClientType:" + useClientType)
+		}
+	case "cpfs":
+		switch opt.ClientType {
+		case EFCClientType:
+			opt.Server = cnfs.Status.FsAttributes.ProtocolServer
+			opt.MountProtocol = MountProtocolEFC
+		case NFSClientType:
+			opt.MountProtocol = MountProtocolCPFSNFS
+		case NativeClientType:
+			opt.Server = cnfs.Status.FsAttributes.Server
+			opt.MountProtocol = MountProtocolCPFS
+		default:
+			return errors.New("Don't Support useClientType:" + useClientType)
+		}
+	default:
+		return errors.New("Don't Support Storage type:" + opt.FSType)
+	}
+	return nil
+}
+
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	log.Infof("NodePublishVolume:: Nas Volume %s mount with req: %+v", req.VolumeId, req)
 	mountPath := req.GetTargetPath()
@@ -127,7 +173,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// parse parameters
 	opt := &Options{}
 	var cnfsName string
-	var useEaClient string
 	for key, value := range req.VolumeContext {
 		key = strings.ToLower(key)
 		if key == "server" {
@@ -163,13 +208,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, err
 		}
-		opt.Server = cnfs.Status.FsAttributes.Server
-		useEaClient = cnfs.Status.FsAttributes.UseElasticAccelerationClient
-		if cnfs.Status.FsAttributes.FilesystemType == "cpfs" {
-			opt.MountProtocol = MountProtocolCPFSNFS
-			if useEaClient == "true" {
-				opt.MountProtocol = MountProtocolCPFSEAC
-			}
+		err = DetermineClientTypeAndMountProtocol(cnfs, opt)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -260,10 +301,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if !strings.HasPrefix(opt.Path, "/") {
 		return nil, errors.New("the path format is illegal")
 	}
-	if opt.Vers == "" {
-		opt.Vers = "3"
-	}
-	if opt.Vers == "3.0" {
+	if opt.Vers == "" || opt.Vers == "3.0" {
 		opt.Vers = "3"
 	} else if opt.Vers == "4" {
 		opt.Vers = "4.0"
@@ -322,7 +360,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	checkSystemNasConfig()
 
 	//cpfs-nfs check valid
-	if opt.MountProtocol == MountProtocolCPFSNFS || opt.MountProtocol == MountProtocolCPFSEAC {
+	if opt.FSType == "cpfs" {
 		if !strings.HasPrefix(opt.Path, "/share") {
 			return nil, errors.New("The cpfs2.0 mount path must start with /share.")
 		}
@@ -335,20 +373,20 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("Cannot get poduid and cannot set volume limit: " + req.VolumeId)
 	}
 	//mount nas client
-	if err := DoMount(opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, mountPath, req.VolumeId, podUID, useEaClient); err != nil {
+	if err := DoMount(opt.FSType, opt.ClientType, opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, mountPath, req.VolumeId, podUID); err != nil {
 		log.Errorf("Nas, Mount Nfs error: %s", err.Error())
 		return nil, errors.New("Nas, Mount Nfs error:" + err.Error())
 	}
-	if useEaClient == "true" {
+	if opt.MountProtocol == "efc" {
 		if strings.Contains(opt.Server, ".nas.aliyuncs.com") {
 			fsID := GetFsIDByNasServer(opt.Server)
 			if len(fsID) != 0 {
-				utils.WriteMetricsInfo(metricsPathPrefix, req, "10", "eac", "nas", fsID)
+				utils.WriteMetricsInfo(metricsPathPrefix, req, "10", "efc", "nas", fsID)
 			}
 		} else {
 			fsID := GetFsIDByCpfsServer(opt.Server)
 			if len(fsID) != 0 {
-				utils.WriteMetricsInfo(metricsPathPrefix, req, "10", "eac", "cpfs", fsID)
+				utils.WriteMetricsInfo(metricsPathPrefix, req, "10", "efc", "cpfs", fsID)
 			}
 		}
 

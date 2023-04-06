@@ -62,6 +62,8 @@ type FsAttributes struct {
 	EnableTrashCan               string    `json:"enableTrashCan,omitempty"`
 	TrashCanReservedDays         string    `json:"trashCanReservedDays,omitempty"`
 	UseElasticAccelerationClient string    `json:"useElasticAccelerationClient,omitempty"`
+	UseClientType                string    `json:"useClientType,omitempty"`
+	ProtocolServer               string    `json:"protocolServer,omitempty"`
 }
 
 // EndPoint define cnfs endpoint field when cnfs type is oss
@@ -84,6 +86,8 @@ type Parameters struct {
 	EnableTrashCan               string  `json:"enableTrashCan,omitempty"`
 	TrashCanReservedDays         string  `json:"trashCanReservedDays,omitempty"`
 	UseElasticAccelerationClient string  `json:"useElasticAccelerationClient,omitempty"`
+	UseClientType                string  `json:"useClientType,omitempty"`
+	ProtocolServer               string  `json:"protocolServer,omitempty"`
 }
 
 // Secret define secret field
