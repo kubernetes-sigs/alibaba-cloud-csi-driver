@@ -101,7 +101,7 @@ func (ns *nodeServer) mountLvm(ctx context.Context, req *csi.NodePublishVolumeRe
 
 		diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
 
-		if err := utils.FormatAndMount(diskMounter, devicePath, targetPath, fsType, mkfsOptions, options); err != nil {
+		if err := utils.FormatAndMount(diskMounter, devicePath, targetPath, fsType, mkfsOptions, options, false); err != nil {
 			log.Errorf("NodePublishVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, devicePath, err.Error())
 			return status.Error(codes.Internal, err.Error())
 		}

@@ -87,6 +87,7 @@ type GlobalConfig struct {
 	AddonVMFatalEvents    []string
 	RequestBaseInfo       map[string]string
 	SnapshotBeforeDelete  bool
+	OmitFilesystemCheck   bool
 }
 
 // define global variable
@@ -387,6 +388,12 @@ func GlobalConfigSet(nodeID string) *restclient.Config {
 		delAutoSnap = true
 	}
 
+	omitFsCheck := false
+	disableFsCheck := os.Getenv("DISABLE_FS_CHECK")
+	if disableFsCheck == "true" {
+		omitFsCheck = true
+	}
+
 	log.Log.Infof("Starting with GlobalConfigVar: region(%s), zone(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)", regionID, zoneID, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete, clustID)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
@@ -415,6 +422,7 @@ func GlobalConfigSet(nodeID string) *restclient.Config {
 		AddonVMFatalEvents:    fatalEvents,
 		SnapshotBeforeDelete:  delAutoSnap,
 		RequestBaseInfo:       map[string]string{"owner": "alibaba-cloud-csi-driver", "nodeName": nodeName},
+		OmitFilesystemCheck:   omitFsCheck,
 	}
 	return cfg
 }
