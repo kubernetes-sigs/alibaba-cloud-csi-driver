@@ -142,7 +142,7 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 					err = errors.Wrapf(err, "forceDetachAllowed")
 					return "", status.Errorf(codes.Aborted, err.Error())
 				} else if !allowed {
-					err = errors.Errorf("AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", diskID, disk.InstanceId)
+					err = errors.Errorf("AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.DiskId, disk.InstanceId)
 					log.Log.Error(err)
 					return "", status.Errorf(codes.Aborted, err.Error())
 				}

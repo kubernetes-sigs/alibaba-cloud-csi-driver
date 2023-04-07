@@ -62,6 +62,9 @@ func BdfHealthCheck() {
 	// running in loop
 	// if bdf hang exist, unused not be checked.
 	for {
+		if !IsVFNode() {
+			break
+		}
 		isHang := checkBdfHang(recorder)
 		if doUnusedCheck && !isHang {
 			checkDiskUnused(recorder)
