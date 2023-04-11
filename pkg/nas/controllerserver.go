@@ -381,7 +381,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			log.Errorf("CreateVolume: Input nfs server format error: volume: %s, server: %s", req.Name, nfsServerInputs)
 			return nil, fmt.Errorf("CreateVolume: Input nfs server format error: volume: %s, server: %s", req.Name, nfsServerInputs)
 		}
-		log.Infof("Create Volume: %s, with Exist Nfs Server: %s, Path: %s, Options: %s, Version: %s, MountProtocol: %s", req.Name, nfsServer, nfsPath, nfsOptions, nfsVersion, nasVol.MountProtocol)
+		log.Infof("Create Volume: %s, with Exist Server: %s, Path: %s, Options: %s, Version: %s, MountProtocol: %s", req.Name, nfsServer, nfsPath, nfsOptions, nfsVersion, nasVol.MountProtocol)
 
 		mountPoint := filepath.Join(MntRootPath, pvName)
 		if !utils.IsFileExisting(mountPoint) {
@@ -405,6 +405,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			// local mountpoint for one volume
 			cs.rateLimiter.Take()
 			// step5: Mount nfs server to localpath
+			opt := &Options{}
 			if !CheckNfsPathMounted(mountPoint, nfsPath) {
 				//When subdirectories are mounted, determine whether to use eacClient
 				var cnfs *v1beta1.ContainerNetworkFileSystem
@@ -413,15 +414,18 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					if err != nil {
 						return nil, err
 					}
-				}
-				opt := &Options{}
-				err := DetermineClientTypeAndMountProtocol(cnfs, opt)
-				if err != nil {
-					return nil, err
+					err := DetermineClientTypeAndMountProtocol(cnfs, opt)
+					if err != nil {
+						return nil, err
+					}
+				} else if nasVol.MountProtocol == MountProtocolCPFSNative {
+					opt.FSType = "cpfs"
+					opt.MountProtocol = MountProtocolCPFS
+					opt.ClientType = NativeClient
 				}
 				//create subpath directory
-				if opt.ClientType == EFCClientType || nasVol.MountProtocol == MountProtocolAliNas {
-					utils.CreateDestInHost(mountPoint)
+				if opt.ClientType == EFCClient || opt.ClientType == NativeClient || nasVol.MountProtocol == MountProtocolAliNas {
+					_ = utils.CreateDestInHost(mountPoint)
 				}
 				//mount subpath directory
 				if err := DoMount(opt.FSType, opt.ClientType, nasVol.MountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name, req.Name); err != nil {
@@ -430,7 +434,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				}
 			}
 			if !CheckNfsPathMounted(mountPoint, nfsPath) {
-				return nil, errors.New("Check Mount nfsserver not mounted " + nfsServer)
+				return nil, errors.New("Check Mount server not mounted " + nfsServer)
 			}
 
 			// step6: create volume
@@ -460,8 +464,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			canQuota := false
 			value1, ok1 := req.GetParameters()["volumeCapacity"]
 			value2, ok2 := req.GetParameters()[allowVolumeExpansion]
-			if (ok1 && value1 == "true") || (ok2 && value2 == "true") {
-				canQuota = true
+			if opt.FSType != "cpfs" {
+				if (ok1 && value1 == "true") || (ok2 && value2 == "true") {
+					canQuota = true
+				}
 			}
 			if canQuota {
 				err := setNasVolumeCapacity(nfsServer, filepath.Join(nfsPath, pvName), volSizeBytes)
@@ -585,18 +591,25 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		if err != nil {
 			return nil, err
 		}
-		nfsServer = cnfs.Status.FsAttributes.Server
+		nfsServer = opt.Server
 	} else {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with nfs server empty: %s, CSI: %v", req.VolumeId, pvInfo.Spec.CSI)
 	}
+
 	if value, ok := pvInfo.Spec.CSI.VolumeAttributes["path"]; ok {
 		pvPath = value
 	} else {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with nfs path empty: %s, CSI: %v", req.VolumeId, pvInfo.Spec.CSI)
 	}
+
 	mountProtocol := MountProtocolNFS
 	if value, ok := pvInfo.Spec.CSI.VolumeAttributes[MountProtocolTag]; ok {
-		mountProtocol = value
+		opt.MountProtocol = value
+		if value == MountProtocolCPFSNative {
+			opt.FSType = "cpfs"
+			opt.MountProtocol = MountProtocolCPFS
+			opt.ClientType = NativeClient
+		}
 	}
 
 	if pvInfo.Spec.StorageClassName == "" {
@@ -613,6 +626,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	} else {
 		regionID = GlobalConfigVar.Region
 	}
+
 	cs.nasClient = updateNasClient(cs.nasClient, regionID)
 	if volumeAs == "filesystem" {
 		if deleteVolume == "true" {
@@ -721,7 +735,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		if exists {
 			archiveBool, err := strconv.ParseBool(archiveOnDelete)
 			if err != nil {
-				return nil, errors.New("Check Mount nfsserver fail " + nfsServer + " error with: " + err.Error())
+				return nil, errors.New("Check Mount server fail " + nfsServer + " error with: " + err.Error())
 			}
 			if !archiveBool {
 				// only capacity and hibrid nas support quota
@@ -936,7 +950,25 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 			} else {
 				nasVolArgs.Path = path
 			}
-			nasVolArgs.Server = cnfs.Status.FsAttributes.Server + ":" + nasVolArgs.Path
+			var cnfsServer string
+			fileSystemType := strings.ToLower(cnfs.Status.FsAttributes.FilesystemType)
+			useClient := strings.ToLower(cnfs.Status.FsAttributes.UseClient)
+			switch fileSystemType {
+			case "standard":
+				cnfsServer = cnfs.Status.FsAttributes.Server
+			case "cpfs":
+				switch useClient {
+				case EFCClient, NFSClient:
+					cnfsServer = cnfs.Status.FsAttributes.ProtocolServer
+				case NativeClient:
+					cnfsServer = cnfs.Status.FsAttributes.Server
+				default:
+					return nil, errors.New("Don't Support useClient:" + useClient)
+				}
+			default:
+				return nil, errors.New("Don't Support Storage type:" + fileSystemType)
+			}
+			nasVolArgs.Server = cnfsServer + ":" + nasVolArgs.Path
 		}
 
 		// mode

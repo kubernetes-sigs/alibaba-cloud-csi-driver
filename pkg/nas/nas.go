@@ -46,7 +46,7 @@ const (
 	alinasUtils        = "aliyun-alinas-utils"
 	alinasUtilsRpmName = "aliyun-alinas-utils-1.1-5.al7.noarch.rpm"
 	alinasEfc          = "alinas-efc"
-	alinasEfcRpmName   = "alinas-efc-1.2-1.x86_64.rpm"
+	alinasEfcRpmName   = "alinas-efc-1.2-2.x86_64.rpm"
 )
 
 var (
@@ -219,26 +219,25 @@ func GlobalConfigSet(serviceType string) *restclient.Config {
 			}
 		}
 
-		if value, ok := configMap.Data["cnfs-cache-properties"]; ok {
-			if strings.Contains(value, "enable=true") {
-				//start go write cluster nodeIP to /etc/hosts
-				//format{["192.168.1.1:8800", "192.168.1.2:8801", "192.168.1.3:8802"]}
-				//get service endpoint->format json->write /etc/hosts/dadi-endpoint.json
-				if serviceType == utils.PluginService {
-					go dadi.Run(kubeClient)
-				}
+		_, ok1 := configMap.Data["cnfs-cache-properties"]
+		_, ok2 := configMap.Data["nas-efc-cache"]
+		if ok1 || ok2 {
+			//start go write cluster nodeIP to /etc/hosts
+			//format{["192.168.1.1:8800", "192.168.1.2:8801", "192.168.1.3:8802"]}
+			//get service endpoint->format json->write /etc/hosts/dadi-endpoint.json
+			if serviceType == utils.PluginService {
+				go dadi.Run(kubeClient)
 			}
 		}
-		if value, ok := configMap.Data["cpfs-nas-enable"]; ok {
-			if value == "enable" || value == "yes" || value == "true" {
-				if serviceType == utils.PluginService {
-					deleteRpm(alinasUtilsName)
-					installRpm(alinasUtils, alinasUtilsRpmName)
-				}
+		_, ok1 = configMap.Data["cpfs-nas-enable"]
+		if ok1 {
+			if serviceType == utils.PluginService {
+				deleteRpm(alinasUtilsName)
+				installRpm(alinasUtils, alinasUtilsRpmName)
 			}
 		}
 		if value, ok := configMap.Data["cnfs-client-properties"]; ok {
-			if strings.Contains(value, "enable=true") {
+			if strings.Contains(value, "enable=true") || strings.Contains(value, "efc=true") {
 				//install alinas rpm(alinas-efc alinas-utils) and cpfs rpm(alinas-utils)
 				if serviceType == utils.PluginService {
 					//deleteRpm before installRpm

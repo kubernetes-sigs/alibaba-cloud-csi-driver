@@ -95,18 +95,20 @@ const (
 	MountProtocolCPFS = "cpfs"
 	// MountProtocolCPFSNFS cpfs-nfs protocol
 	MountProtocolCPFSNFS = "cpfs-nfs"
+	// MountProtocolCPFSNative cpfs-native protocol
+	MountProtocolCPFSNative = "cpfs-native"
 	// MountProtocolAliNas alinas protocal
 	MountProtocolAliNas = "alinas"
 	// MountProtocolTag tag
 	MountProtocolTag = "mountProtocol"
 	// metricsPathPrefix
 	metricsPathPrefix = "/host/var/run/efc/"
-	//EFCClientType
-	EFCClientType = "efcclient"
-	//NFSClientType
-	NFSClientType = "nfsclient"
-	//NativeClientType
-	NativeClientType = "nativeclient"
+	//EFCClient
+	EFCClient = "efcclient"
+	//NFSClient
+	NFSClient = "nfsclient"
+	//NativeClient
+	NativeClient = "nativeclient"
 )
 
 // newNodeServer create the csi node server
@@ -128,35 +130,37 @@ func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
 
 func DetermineClientTypeAndMountProtocol(cnfs *v1beta1.ContainerNetworkFileSystem, opt *Options) error {
 	useEaClient := cnfs.Status.FsAttributes.UseElasticAccelerationClient
-	useClientType := cnfs.Status.FsAttributes.UseClientType
-	if len(useClientType) == 0 && len(useEaClient) != 0 {
-		useClientType = "EFCClient"
+	useClient := cnfs.Status.FsAttributes.UseClient
+	if len(useClient) == 0 && useEaClient == "true" {
+		useClient = "EFCClient"
+	} else if len(useClient) == 0 {
+		useClient = "NFSClient"
 	}
-	opt.ClientType = strings.ToLower(useClientType)
+	opt.ClientType = strings.ToLower(useClient)
 	opt.FSType = strings.ToLower(cnfs.Status.FsAttributes.FilesystemType)
 	switch opt.FSType {
-	case "nas":
+	case "standard":
 		opt.Server = cnfs.Status.FsAttributes.Server
 		switch opt.ClientType {
-		case EFCClientType:
+		case EFCClient:
 			opt.MountProtocol = MountProtocolEFC
-		case NFSClientType:
+		case NFSClient:
 			opt.MountProtocol = MountProtocolNFS
 		default:
-			return errors.New("Don't Support useClientType:" + useClientType)
+			return errors.New("Don't Support useClient:" + useClient)
 		}
 	case "cpfs":
 		switch opt.ClientType {
-		case EFCClientType:
+		case EFCClient:
 			opt.Server = cnfs.Status.FsAttributes.ProtocolServer
 			opt.MountProtocol = MountProtocolEFC
-		case NFSClientType:
+		case NFSClient:
 			opt.MountProtocol = MountProtocolCPFSNFS
-		case NativeClientType:
+		case NativeClient:
 			opt.Server = cnfs.Status.FsAttributes.Server
 			opt.MountProtocol = MountProtocolCPFS
 		default:
-			return errors.New("Don't Support useClientType:" + useClientType)
+			return errors.New("Don't Support useClient:" + useClient)
 		}
 	default:
 		return errors.New("Don't Support Storage type:" + opt.FSType)
@@ -219,6 +223,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if opt.MountProtocol == "" {
 		opt.MountProtocol = MountProtocolNFS
+	} else if opt.MountProtocol == MountProtocolCPFSNative {
+		opt.FSType = "cpfs"
+		opt.MountProtocol = MountProtocolCPFS
+		opt.ClientType = NativeClient
 	}
 
 	// version/options used first in mountOptions
@@ -360,11 +368,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	checkSystemNasConfig()
 
 	//cpfs-nfs check valid
-	if opt.FSType == "cpfs" {
+	/*if opt.FSType == "cpfs" {
 		if !strings.HasPrefix(opt.Path, "/share") {
 			return nil, errors.New("The cpfs2.0 mount path must start with /share.")
 		}
-	}
+	}*/
 
 	// Do mount
 	podUID := req.VolumeContext["csi.storage.k8s.io/pod.uid"]

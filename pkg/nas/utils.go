@@ -88,7 +88,7 @@ func DoMount(fsType, clientType, nfsProtocol, nfsServer, nfsPath, nfsVers, mount
 	}
 
 	if CheckNfsPathMounted(mountPoint, nfsPath) {
-		log.Infof("DoMount: nfs server is already mounted: %s, %s", nfsServer, nfsPath)
+		log.Infof("DoMount: server is already mounted: %s, %s", nfsServer, nfsPath)
 		return nil
 	}
 
@@ -96,9 +96,9 @@ func DoMount(fsType, clientType, nfsProtocol, nfsServer, nfsPath, nfsVers, mount
 	var err error
 	//CNFS-EFC Mount
 	switch clientType {
-	case EFCClientType:
+	case EFCClient:
 		switch fsType {
-		case "nas":
+		case "standard":
 			mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o efc -o bindtag=%s -o client_owner=%s -o %s %s:%s %s", volumeID, podUID, mountOptions, nfsServer, nfsPath, mountPoint)
 		case "cpfs":
 			mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o efc -o protocol=nfs3 -o bindtag=%s -o client_owner=%s -o %s %s:%s %s", volumeID, podUID, mountOptions, nfsServer, nfsPath, mountPoint)
@@ -106,7 +106,7 @@ func DoMount(fsType, clientType, nfsProtocol, nfsServer, nfsPath, nfsVers, mount
 			return errors.New("EFC Client don't support this storage type:" + fsType)
 		}
 		err = utils.DoMountInHost(mntCmd)
-	case NativeClientType:
+	case NativeClient:
 		switch fsType {
 		case "cpfs":
 			mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t cpfs -o %s %s:%s %s", mountOptions, nfsServer, nfsPath, mountPoint)

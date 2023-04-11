@@ -62,7 +62,7 @@ type FsAttributes struct {
 	EnableTrashCan               string    `json:"enableTrashCan,omitempty"`
 	TrashCanReservedDays         string    `json:"trashCanReservedDays,omitempty"`
 	UseElasticAccelerationClient string    `json:"useElasticAccelerationClient,omitempty"`
-	UseClientType                string    `json:"useClientType,omitempty"`
+	UseClient                    string    `json:"useClient,omitempty"`
 	ProtocolServer               string    `json:"protocolServer,omitempty"`
 }
 
@@ -86,7 +86,7 @@ type Parameters struct {
 	EnableTrashCan               string  `json:"enableTrashCan,omitempty"`
 	TrashCanReservedDays         string  `json:"trashCanReservedDays,omitempty"`
 	UseElasticAccelerationClient string  `json:"useElasticAccelerationClient,omitempty"`
-	UseClientType                string  `json:"useClientType,omitempty"`
+	UseClient                    string  `json:"useClient,omitempty"`
 	ProtocolServer               string  `json:"protocolServer,omitempty"`
 }
 
