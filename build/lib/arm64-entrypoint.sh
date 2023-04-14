@@ -162,7 +162,7 @@ if [ "$run_disk" = "true" ] || [ "$run_oss" = "true" ]; then
             sleep 2
         fi
     done
-    
+
     echo "Starting systemctl restart csiplugin-connector.service."
     for((i=1;i<=10;i++));
     do

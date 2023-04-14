@@ -82,26 +82,40 @@ type RoleAuth struct {
 }
 
 // DoMount execute the mount command for nas dir
-func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, podUID, useEaClient string) error {
+func DoMount(fsType, clientType, nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, podUID string) error {
 	if !utils.IsFileExisting(mountPoint) {
 		_ = CreateDest(mountPoint)
 	}
 
 	if CheckNfsPathMounted(mountPoint, nfsPath) {
-		log.Infof("DoMount: nfs server is already mounted: %s, %s", nfsServer, nfsPath)
+		log.Infof("DoMount: server is already mounted: %s, %s", nfsServer, nfsPath)
 		return nil
 	}
 
 	var mntCmd string
 	var err error
-	//EAC Mount
-	if len(useEaClient) != 0 && useEaClient == "true" {
-		if nfsProtocol == MountProtocolCPFSEAC {
-			mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o eac -o protocol=nfs3 -o bindtag=%s -o client_owner=%s -o %s %s:%s %s", volumeID, podUID, mountOptions, nfsServer, nfsPath, mountPoint)
-		} else {
-			mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o eac -o bindtag=%s -o client_owner=%s -o %s %s:%s %s", volumeID, podUID, mountOptions, nfsServer, nfsPath, mountPoint)
+	//CNFS-EFC Mount
+	switch clientType {
+	case EFCClient:
+		switch fsType {
+		case "standard":
+			mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o efc -o bindtag=%s -o client_owner=%s -o %s %s:%s %s", volumeID, podUID, mountOptions, nfsServer, nfsPath, mountPoint)
+		case "cpfs":
+			mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o efc -o protocol=nfs3 -o bindtag=%s -o client_owner=%s -o %s %s:%s %s", volumeID, podUID, mountOptions, nfsServer, nfsPath, mountPoint)
+		default:
+			return errors.New("EFC Client don't support this storage type:" + fsType)
 		}
-	} else {
+		err = utils.DoMountInHost(mntCmd)
+	case NativeClient:
+		switch fsType {
+		case "cpfs":
+			mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t cpfs -o %s %s:%s %s", mountOptions, nfsServer, nfsPath, mountPoint)
+			mntCmd = NsenterCmd + " " + mntCmd
+		default:
+			return errors.New("Native Client don't support this storage type:" + fsType)
+		}
+		_, err = utils.ValidateRun(mntCmd)
+	default:
 		//NFS Mount(Capacdity/Performance Extreme Nas、Cpfs2.0, AliNas)
 		versStr := fmt.Sprintf("vers=%s", nfsVers)
 		if mountOptions == "" {
@@ -109,6 +123,7 @@ func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint,
 		} else if !strings.Contains(mountOptions, versStr) {
 			mountOptions = versStr + "," + mountOptions
 		}
+		//nfsProtocol: cpfs-nfs/nfs/alinas
 		mntCmd = fmt.Sprintf("mount -t %s -o %s %s:%s %s", nfsProtocol, mountOptions, nfsServer, nfsPath, mountPoint)
 		if nfsProtocol == MountProtocolCPFSNFS || nfsProtocol == MountProtocolAliNas {
 			mntCmd = NsenterCmd + " " + mntCmd
@@ -136,11 +151,6 @@ func DoMount(nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint,
 				return err
 			}
 		}
-	}
-	//execute mount
-	if len(useEaClient) != 0 && useEaClient == "true" {
-		err = utils.DoMountInHost(mntCmd)
-	} else {
 		_, err = utils.ValidateRun(mntCmd)
 	}
 	if err != nil {
@@ -543,7 +553,7 @@ func mountLosetupPv(mountPoint string, opt *Options, volumeID string) error {
 		return fmt.Errorf("mountLosetupPv: create nfs mountPath error %s ", err.Error())
 	}
 	//mount nas to use losetup dev
-	err := DoMount(opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, nfsPath, volumeID, podID, "false")
+	err := DoMount("nas", "nfsclient", opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, nfsPath, volumeID, podID)
 	if err != nil {
 		return fmt.Errorf("mountLosetupPv: mount losetup volume failed: %s", err.Error())
 	}
