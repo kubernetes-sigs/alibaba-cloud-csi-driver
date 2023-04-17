@@ -977,56 +977,118 @@ func FormatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 			return err
 		}
 		if existingFormat == "" {
-			if readOnly {
-				// Don't attempt to format if mounting as readonly, return an error to reflect this.
-				return errors.New("failed to mount unformatted volume as read only")
-			}
-
-			// Disk is unformatted so format it.
-			args := []string{source}
-			// Use 'ext4' as the default
-			if len(fstype) == 0 {
-				fstype = "ext4"
-			}
-
-			if fstype == "ext4" || fstype == "ext3" {
-				args = []string{
-					"-F",  // Force flag
-					"-m0", // Zero blocks reserved for super-user
-					source,
-				}
-				// add mkfs options
-				if len(mkfsOptions) != 0 {
-					args = []string{}
-					for _, opts := range mkfsOptions {
-						args = append(args, opts)
-					}
-					args = append(args, source)
-				}
-			}
-			log.Infof("Disk %q appears to be unformatted, attempting to format as type: %q with options: %v", source, fstype, args)
-			startT := time.Now()
-
-			pvName := filepath.Base(source)
-			_, err := diskMounter.Exec.Command("mkfs."+fstype, args...).CombinedOutput()
-			log.Infof("Disk format finished, pvName: %s elapsedTime: %+v ms", pvName, time.Now().Sub(startT).Milliseconds())
-			if err == nil {
-				// the disk has been formatted successfully try to mount it again.
-				return diskMounter.Interface.Mount(source, target, fstype, mountOptions)
-			}
-			log.Errorf("format of disk %q failed: type:(%q) target:(%q) options:(%q) error:(%v)", source, fstype, target, args, err)
-			return err
+			return FormatNewDisk(readOnly, source, fstype, target, mkfsOptions, mountOptions, diskMounter)
 		}
 		// Disk is already formatted and failed to mount
 		if len(fstype) == 0 || fstype == existingFormat {
 			// This is mount error
 			return mountErr
 		}
+		// Detect if an encrypted disk is empty disk, since atari type partition is detected by blkid.
+		if existingFormat == "unknown data, probably partitions" {
+			log.Infof("FormatAndMount: enter special partition logics")
+			fsType, ptType, _ := GetDiskPtypePTtype(source)
+			if fsType == "" && ptType == "atari" {
+				return FormatNewDisk(readOnly, source, fstype, target, mkfsOptions, mountOptions, diskMounter)
+			}
+		}
 		// Block device is formatted with unexpected filesystem, let the user know
 		return fmt.Errorf("failed to mount the volume as %q, it already contains %s. Mount error: %v", fstype, existingFormat, mountErr)
 	}
 
 	return mountErr
+}
+
+func FormatNewDisk(readOnly bool, source, fstype, target string, mkfsOptions, mountOptions []string, diskMounter *k8smount.SafeFormatAndMount) error {
+	if readOnly {
+		// Don't attempt to format if mounting as readonly, return an error to reflect this.
+		return errors.New("failed to mount unformatted volume as read only")
+	}
+
+	// Disk is unformatted so format it.
+	args := []string{source}
+	// Use 'ext4' as the default
+	if len(fstype) == 0 {
+		fstype = "ext4"
+	}
+
+	if fstype == "ext4" || fstype == "ext3" {
+		args = []string{
+			"-F",  // Force flag
+			"-m0", // Zero blocks reserved for super-user
+			source,
+		}
+		// add mkfs options
+		if len(mkfsOptions) != 0 {
+			args = []string{}
+			for _, opts := range mkfsOptions {
+				args = append(args, opts)
+			}
+			args = append(args, source)
+		}
+	}
+	log.Infof("Disk %q appears to be unformatted, attempting to format as type: %q with options: %v", source, fstype, args)
+	startT := time.Now()
+
+	pvName := filepath.Base(source)
+	_, err := diskMounter.Exec.Command("mkfs."+fstype, args...).CombinedOutput()
+	log.Infof("Disk format finished, pvName: %s elapsedTime: %+v ms", pvName, time.Now().Sub(startT).Milliseconds())
+	if err == nil {
+		// the disk has been formatted successfully try to mount it again.
+		return diskMounter.Interface.Mount(source, target, fstype, mountOptions)
+	}
+	log.Errorf("format of disk %q failed: type:(%q) target:(%q) options:(%q) error:(%v)", source, fstype, target, args, err)
+	return err
+}
+
+// GetDiskPtypePTtype uses 'blkid' to see if the given disk is unformatted
+func GetDiskPtypePTtype(disk string) (fstype string, pttype string, err error) {
+	args := []string{"-p", "-s", "TYPE", "-s", "PTTYPE", "-o", "export", disk}
+
+	diskMounter := &k8smount.SafeFormatAndMount{Interface: k8smount.New(""), Exec: utilexec.New()}
+	dataOut, err := diskMounter.Exec.Command("blkid", args...).CombinedOutput()
+	output := string(dataOut)
+
+	if err != nil {
+		if exit, ok := err.(utilexec.ExitError); ok {
+			if exit.ExitStatus() == 2 {
+				// Disk device is unformatted.
+				// For `blkid`, if the specified token (TYPE/PTTYPE, etc) was
+				// not found, or no (specified) devices could be identified, an
+				// exit code of 2 is returned.
+				return "", "", nil
+			}
+		}
+		log.Errorf("Could not determine if disk %q is formatted (%v)", disk, err)
+		return "", "", err
+	}
+
+	lines := strings.Split(output, "\n")
+	for _, l := range lines {
+		if len(l) <= 0 {
+			// Ignore empty line.
+			continue
+		}
+		cs := strings.Split(l, "=")
+		if len(cs) != 2 {
+			return "", "", fmt.Errorf("blkid returns invalid output: %s", output)
+		}
+		// TYPE is filesystem type, and PTTYPE is partition table type, according
+		// to https://www.kernel.org/pub/linux/utils/util-linux/v2.21/libblkid-docs/.
+		if cs[0] == "TYPE" {
+			fstype = cs[1]
+		} else if cs[0] == "PTTYPE" {
+			pttype = cs[1]
+		}
+	}
+
+	if len(pttype) > 0 {
+		// Returns a special non-empty string as filesystem type, then kubelet
+		// will not format it.
+		return fstype, pttype, nil
+	}
+
+	return fstype, "", nil
 }
 
 func HasSpecificTagKey(tagKey string, disk *ecs.Disk) (bool, string) {

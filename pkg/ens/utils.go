@@ -14,8 +14,6 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
-	utilexec "k8s.io/utils/exec"
-	k8smount "k8s.io/utils/mount"
 )
 
 const (
@@ -615,67 +613,16 @@ func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
 	if !utils.IsFileExisting(rootDevicePath) || !utils.IsFileExisting(subDevicePath) {
 		return fmt.Errorf("Input device path is illegal format: %s, %s ", rootDevicePath, subDevicePath)
 	}
-	fstype, pptype, _ := GetDiskFormat(rootDevicePath)
+	fstype, pptype, _ := utils.GetDiskPtypePTtype(rootDevicePath)
 	if fstype != "" {
 		return fmt.Errorf("Root device %s, has filesystem exist: %s, and pptype: %s, disk is not supported ", rootDevicePath, fstype, pptype)
 	}
 
-	fstype, _, _ = GetDiskFormat(subDevicePath)
+	fstype, _, _ = utils.GetDiskPtypePTtype(subDevicePath)
 	if fstype == "" {
 		return fmt.Errorf("Root device %s is partition, and you should format %s by hands ", rootDevicePath, subDevicePath)
 	}
 	return nil
-}
-
-// GetDiskFormat uses 'blkid' to see if the given disk is unformatted
-func GetDiskFormat(disk string) (string, string, error) {
-	args := []string{"-p", "-s", "TYPE", "-s", "PTTYPE", "-o", "export", disk}
-
-	diskMounter := &k8smount.SafeFormatAndMount{Interface: k8smount.New(""), Exec: utilexec.New()}
-	dataOut, err := diskMounter.Exec.Command("blkid", args...).CombinedOutput()
-	output := string(dataOut)
-
-	if err != nil {
-		if exit, ok := err.(utilexec.ExitError); ok {
-			if exit.ExitStatus() == 2 {
-				// Disk device is unformatted.
-				// For `blkid`, if the specified token (TYPE/PTTYPE, etc) was
-				// not found, or no (specified) devices could be identified, an
-				// exit code of 2 is returned.
-				return "", "", nil
-			}
-		}
-		log.Errorf("Could not determine if disk %q is formatted (%v)", disk, err)
-		return "", "", err
-	}
-
-	var fstype, pttype string
-	lines := strings.Split(output, "\n")
-	for _, l := range lines {
-		if len(l) <= 0 {
-			// Ignore empty line.
-			continue
-		}
-		cs := strings.Split(l, "=")
-		if len(cs) != 2 {
-			return "", "", fmt.Errorf("blkid returns invalid output: %s", output)
-		}
-		// TYPE is filesystem type, and PTTYPE is partition table type, according
-		// to https://www.kernel.org/pub/linux/utils/util-linux/v2.21/libblkid-docs/.
-		if cs[0] == "TYPE" {
-			fstype = cs[1]
-		} else if cs[0] == "PTTYPE" {
-			pttype = cs[1]
-		}
-	}
-
-	if len(pttype) > 0 {
-		// Returns a special non-empty string as filesystem type, then kubelet
-		// will not format it.
-		return fstype, "unknown data, probably partitions", nil
-	}
-
-	return fstype, "", nil
 }
 
 // Get NVME device name by diskID;
