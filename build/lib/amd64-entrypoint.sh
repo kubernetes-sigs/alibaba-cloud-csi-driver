@@ -82,7 +82,16 @@ if [ "$run_oss" = "true" ]; then
 
     ossfsArch="centos7.0"
     if [[ ${host_os} == "alinux3" ]]; then
-        ${HOST_CMD} yum install -y libcurl-devel libxml2-devel fuse-devel openssl-devel
+        for((i=1;i<=10;i++));
+        do
+            ${HOST_CMD} yum install -y libcurl-devel libxml2-devel fuse-devel openssl-devel
+            if [ $? -eq 0 ]; then
+                break
+            else
+                echo "Starting retry again yum install -y libcurl-devel libxml2-devel fuse-devel openssl-devel.retry count:$i"
+                sleep 2
+            fi
+        done
         ossfsArch="centos8"
     fi
 
