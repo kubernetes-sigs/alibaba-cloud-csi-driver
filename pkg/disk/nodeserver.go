@@ -186,6 +186,10 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	}
 	go UpdateNode(GlobalConfigVar.NodeID, c)
 
+	if GlobalConfigVar.CheckBDFHotPlugin {
+		go checkVfhpOnlineReconcile()
+	}
+
 	if !GlobalConfigVar.ControllerService && IsVFNode() && GlobalConfigVar.BdfHealthCheck {
 		go BdfHealthCheck()
 	}
@@ -806,6 +810,16 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	if IsVFNode() {
 		if err := unbindBdfDisk(req.VolumeId); err != nil {
 			log.Log.Errorf("NodeUnstageVolume: unbind bdf disk %s with error: %v", req.VolumeId, err)
+			return nil, err
+		}
+	}
+	if IsVFInstance() && !IsVFNode() {
+		bdf, err := findBdf(req.VolumeId)
+		if err != nil {
+			return nil, err
+		}
+		if err := clearBdfInfo(req.VolumeId, bdf); err != nil {
+			log.Log.Errorf("NodeUnstagedVolume: clear disk bdf info %s with err: %s", req.VolumeId, err)
 			return nil, err
 		}
 	}

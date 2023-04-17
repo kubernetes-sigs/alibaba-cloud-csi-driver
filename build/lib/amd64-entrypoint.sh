@@ -250,6 +250,17 @@ if [ "$run_oss" = "true" ] || [ "$run_disk" = "true" ]; then
             sleep 2
         fi
     done
+    echo "Start checking if the rpm package needs to be installed"
+    if [ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]; then
+        yum install -y "https://iohub-vfhp-helper.oss-rg-china-mainland.aliyuncs.com/iohub-vfhp-helper-0.1.3-20230417103419.x86_64.rpm"
+        # takes 10s
+        output=`${HOST_CMD} iohub-vfhp-helper -s`
+        if [[ $str == *"backend support auto vf hotplug."* ]]; then
+            ${HOST_CMD} sudo service iohub-vfhp-helper start
+        else
+            echo "backend not support auto vf hotplugin"
+        fi
+    fi
 fi
 
 ## CPFS-NAS plugin setup
