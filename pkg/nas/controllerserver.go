@@ -931,6 +931,10 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 			}
 		}
 	} else if nasVolArgs.VolumeAs == "subpath" || nasVolArgs.VolumeAs == "sharepath" {
+		// Protocol
+		if nasVolArgs.MountProtocol, ok = volOptions[MountProtocolTag]; !ok {
+			nasVolArgs.MountProtocol = MountProtocolNFS
+		}
 		// server
 		var serverExist bool
 		nasVolArgs.Server, serverExist = volOptions[SERVER]
@@ -958,10 +962,15 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 				cnfsServer = cnfs.Status.FsAttributes.Server
 			case "cpfs":
 				switch useClient {
-				case EFCClient, NFSClient:
+				case EFCClient:
 					cnfsServer = cnfs.Status.FsAttributes.ProtocolServer
+					nasVolArgs.MountProtocol = MountProtocolEFC
+				case NFSClient:
+					cnfsServer = cnfs.Status.FsAttributes.ProtocolServer
+					nasVolArgs.MountProtocol = MountProtocolCPFSNFS
 				case NativeClient:
 					cnfsServer = cnfs.Status.FsAttributes.Server
+					nasVolArgs.MountProtocol = MountProtocolCPFS
 				default:
 					return nil, errors.New("Don't Support useClient:" + useClient)
 				}
@@ -974,10 +983,6 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 		// mode
 		if nasVolArgs.Mode, ok = volOptions[MODE]; !ok {
 			nasVolArgs.Mode = ""
-		}
-		// Protocol
-		if nasVolArgs.MountProtocol, ok = volOptions[MountProtocolTag]; !ok {
-			nasVolArgs.MountProtocol = MountProtocolNFS
 		}
 		// modeType
 		if nasVolArgs.ModeType, ok = volOptions[ModeType]; !ok {
