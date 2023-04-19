@@ -155,6 +155,7 @@ func DetermineClientTypeAndMountProtocol(cnfs *v1beta1.ContainerNetworkFileSyste
 			opt.Server = cnfs.Status.FsAttributes.ProtocolServer
 			opt.MountProtocol = MountProtocolEFC
 		case NFSClient:
+			opt.Server = cnfs.Status.FsAttributes.ProtocolServer
 			opt.MountProtocol = MountProtocolCPFSNFS
 		case NativeClient:
 			opt.Server = cnfs.Status.FsAttributes.Server
