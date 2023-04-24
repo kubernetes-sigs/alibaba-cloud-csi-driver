@@ -62,6 +62,8 @@ const (
 	SharedEnable = "shared"
 	// SysConfigTag tag
 	SysConfigTag = "sysConfig"
+	// SysConfigTag tag
+	OmitFilesystemCheck = "omitfsck"
 	// MkfsOptions tag
 	MkfsOptions = "mkfsOptions"
 	// DiskTagedByPlugin tag
@@ -666,6 +668,10 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			}
 		}
 	}
+	omitfsck := false
+	if disable, ok := req.VolumeContext[OmitFilesystemCheck]; ok && disable == "true" {
+		omitfsck = true
+	}
 
 	// Block volume not need to format
 	if isBlock {
@@ -701,7 +707,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 
 	// do format-mount or mount
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
-	if err := utils.FormatAndMount(diskMounter, device, targetPath, fsType, mkfsOptions, mountOptions, GlobalConfigVar.OmitFilesystemCheck); err != nil {
+	if err := utils.FormatAndMount(diskMounter, device, targetPath, fsType, mkfsOptions, mountOptions, omitfsck); err != nil {
 		log.Log.Errorf("Mountdevice: FormatAndMount fail with mkfsOptions %s, %s, %s, %s, %s with error: %s", device, targetPath, fsType, mkfsOptions, mountOptions, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
