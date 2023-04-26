@@ -71,7 +71,8 @@ func (client *Client) DeleteDbfsWithCallback(request *DeleteDbfsRequest, callbac
 // DeleteDbfsRequest is the request struct for api DeleteDbfs
 type DeleteDbfsRequest struct {
 	*requests.RpcRequest
-	FsId string `position:"Query" name:"FsId"`
+	FsId  string           `position:"Query" name:"FsId"`
+	Force requests.Boolean `position:"Query" name:"Force"`
 }
 
 // DeleteDbfsResponse is the response struct for api DeleteDbfs
@@ -85,7 +86,7 @@ func CreateDeleteDbfsRequest() (request *DeleteDbfsRequest) {
 	request = &DeleteDbfsRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("DBFS", "2020-04-18", "DeleteDbfs", "", "")
+	request.InitWithApiInfo("DBFS", "2020-04-18", "DeleteDbfs", "dbfs", "openAPI")
 	request.Method = requests.POST
 	return
 }

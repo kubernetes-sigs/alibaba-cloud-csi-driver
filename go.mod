@@ -6,7 +6,7 @@ require (
 	github.com/alibabacloud-go/darabonba-openapi v0.1.16
 	github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
 	github.com/alibabacloud-go/tea v1.1.17
-	github.com/aliyun/alibaba-cloud-sdk-go v1.61.1356
+	github.com/aliyun/alibaba-cloud-sdk-go v1.62.289
 	github.com/container-storage-interface/spec v1.2.0
 	github.com/containerd/ttrpc v1.1.0
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
@@ -75,6 +75,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
+	github.com/opentracing/opentracing-go v1.2.1-0.20220228012449-10b1cf09e00b // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
@@ -87,7 +88,7 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20220107163113-42d7afdf6368 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/ini.v1 v1.62.0 // indirect
+	gopkg.in/ini.v1 v1.66.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/apiserver v0.18.8 // indirect
 	k8s.io/cloud-provider v0.18.6 // indirect
