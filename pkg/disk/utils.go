@@ -1024,6 +1024,27 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		}
 	}
 
+	diskVolArgs.ProvisionedIops = -1
+	if value, ok = volOptions[PROVISIONED_IOPS_KEY]; ok {
+		iValue, err := strconv.Atoi(value)
+		if err != nil || iValue < 0 {
+			return nil, fmt.Errorf("getDiskVolumeOptions: parameters provisionedIops[%s] is illegal", value)
+		}
+		diskVolArgs.ProvisionedIops = iValue
+	}
+
+	value, ok = volOptions[BURSTING_ENABLED_KEY]
+	if !ok {
+		diskVolArgs.BurstingEnabled = false
+	} else {
+		value = strings.ToLower(value)
+		if value == "yes" || value == "true" || value == "1" {
+			diskVolArgs.BurstingEnabled = true
+		} else {
+			diskVolArgs.BurstingEnabled = false
+		}
+	}
+
 	return diskVolArgs, nil
 }
 

@@ -894,6 +894,25 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 			}
 		}
 		createDiskRequest.PerformanceLevel = ""
+		if dType == DiskESSDAuto {
+			newReq := generateNewRequest(createDiskRequest)
+			createDiskRequest.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID, diskVol.ProvisionedIops, diskVol.BurstingEnabled)
+			if diskVol.ProvisionedIops != -1 {
+				newReq.ProvisionedIops = requests.NewInteger(diskVol.ProvisionedIops)
+			}
+			newReq.BurstingEnabled = requests.NewBoolean(diskVol.BurstingEnabled)
+			returned, diskId, rerr := request(newReq, ecsClient)
+			if returned {
+				if diskId != "" && rerr == nil {
+					return dType, diskId, "", nil
+				}
+				if rerr != nil {
+					return "", "", "", rerr
+				}
+			}
+			err = rerr
+			continue
+		}
 		returned, diskId, rerr := request(createDiskRequest, ecsClient)
 		if returned {
 			if diskId != "" && rerr == nil {
@@ -949,6 +968,9 @@ func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (r
 		return false, "", err
 	} else if strings.Contains(err.Error(), DiskPerformanceLevelNotMatch) && createDiskRequest.DiskCategory == DiskESSD {
 		log.Log.Infof("request: Create Disk for volume %s with diskCatalog: %s , pl: %s has invalid disk size: %s", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel, createDiskRequest.Size)
+		return false, "", err
+	} else if strings.Contains(err.Error(), DiskIopsLimitExceeded) && createDiskRequest.DiskCategory == DiskESSDAuto {
+		log.Log.Infof("request: Create Disk for volume %s with diskCatalog: %s , provisioned iops %s has exceeded limit", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.ProvisionedIops)
 		return false, "", err
 	} else {
 		log.Log.Errorf("request: create disk for volume %s with type: %s err: %v", createDiskRequest.DiskName, createDiskRequest.DiskCategory, err)

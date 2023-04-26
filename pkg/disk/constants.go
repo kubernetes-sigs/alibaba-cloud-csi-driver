@@ -112,8 +112,10 @@ const (
 	DiskNotAvailableVer2 = "'DataDisk.n.Category' is not valid in this region."
 	// DiskSizeNotAvailable tag
 	DiskSizeNotAvailable = "InvalidDiskSize.NotSupported"
-	// DiskPerformanceLevelNotMatch
+	// DiskPerformanceLevelNotMatch tag
 	DiskPerformanceLevelNotMatch = "OperationDenied.PerformanceLevelNotMatch"
+	// DiskIopsLimitExceeded tag
+	DiskIopsLimitExceeded = "InvalidProvisionedIops.LimitExceed"
 	// DiskLimitExceeded tag
 	DiskLimitExceeded = "InstanceDiskLimitExceeded"
 	// NotSupportDiskCategory tag
@@ -189,6 +191,9 @@ const (
 	VolumeDeleteAutoSnapshotKey                    = "csi.alibabacloud.com/volume-delete-autosnapshot-retentiondays"
 	VOLUME_EXPAND_AUTO_SNAPSHOT_OP_KEY             = "volumeExpandAutoSnapshot"
 	VOLUME_DELETE_AUTO_SNAPSHOT_OP_RETENT_DAYS_KEY = "volumeDeleteSnapshotRetentionDays"
+
+	PROVISIONED_IOPS_KEY = "provisionedIops"
+	BURSTING_ENABLED_KEY = "burstingEnabled"
 
 	CSI_DEFAULT_FS_TYPE = "csi.storage.k8s.io/fstype"
 	FS_TYPE             = "fsType"
