@@ -257,23 +257,22 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	p.updateMap(&p.lastPvDiskInfoMap, volJSONPaths, diskDriverName, "volumes")
 
 	wg := sync.WaitGroup{}
-	for deviceName, stats := range deviceNameStatsMap {
-		for pvName, info := range p.lastPvDiskInfoMap {
-			if info.DeviceName != deviceName {
+	for pvName, info := range p.lastPvDiskInfoMap {
+		stats, ok := deviceNameStatsMap[info.DeviceName]
+		if !ok {
+			continue
+		}
+		stats, _ = getDiskCapacityMetric(pvName, &info, stats)
+		if scalerPvcMap != nil {
+			if _, ok := scalerPvcMap.Load(info.PvcName); !ok {
 				continue
 			}
-			stats, _ := getDiskCapacityMetric(pvName, &info, stats)
-			if scalerPvcMap != nil {
-				if _, ok := scalerPvcMap.Load(info.PvcName); !ok {
-					continue
-				}
-			}
-			wg.Add(1)
-			go func(pvName string, info diskInfo, statsArgs []string) {
-				defer wg.Done()
-				p.setDiskMetric(pvName, info, statsArgs, ch)
-			}(pvName, info, stats)
 		}
+		wg.Add(1)
+		go func(pvName string, info diskInfo, stats []string) {
+			defer wg.Done()
+			p.setDiskMetric(pvName, info, stats, ch)
+		}(pvName, info, stats)
 	}
 	wg.Wait()
 	//elapsedTime := time.Since(startTime)
