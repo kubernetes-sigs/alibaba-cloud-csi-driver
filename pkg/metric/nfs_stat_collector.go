@@ -306,9 +306,6 @@ func (p *nfsStatCollector) setNfsMetric(pvName string, pvcNamespace string, pvcN
 }
 
 func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonPaths []string, deriverName string, keyword string) {
-	p.pvInfoLock.Lock()
-	defer p.pvInfoLock.Unlock()
-
 	thisPvNfsInfoMap := make(map[string]nfsInfo, 0)
 	lineArr, err := utils.RunWithFilter("mount", "nfs", "csi", keyword)
 	if err != nil {
@@ -343,6 +340,9 @@ func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonP
 }
 
 func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo, lastPvNfsInfoMap *map[string]nfsInfo) {
+	p.pvInfoLock.Lock()
+	defer p.pvInfoLock.Unlock()
+
 	for pv, thisInfo := range thisPvNfsInfoMap {
 		lastInfo, ok := (*lastPvNfsInfoMap)[pv]
 		// add and modify

@@ -401,9 +401,6 @@ func (p *diskStatCollector) setDiskMetric(pvName string, info diskInfo, stats []
 }
 
 func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, jsonPaths []string, deriverName string, keyword string) {
-	p.pvInfoLock.Lock()
-	defer p.pvInfoLock.Unlock()
-
 	thisPvDiskInfoMap := make(map[string]diskInfo, 0)
 	lineArr, err := utils.RunWithFilter("mount", "csi", keyword)
 	if err != nil {
@@ -445,6 +442,9 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 }
 
 func (p *diskStatCollector) updateDiskInfoMap(thisPvDiskInfoMap map[string]diskInfo, lastPvDiskInfoMap *map[string]diskInfo) {
+	p.pvInfoLock.Lock()
+	defer p.pvInfoLock.Unlock()
+
 	for pv, thisInfo := range thisPvDiskInfoMap {
 		lastInfo, ok := (*lastPvDiskInfoMap)[pv]
 		// add and modify
