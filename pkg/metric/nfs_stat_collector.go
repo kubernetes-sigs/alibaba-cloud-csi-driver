@@ -170,6 +170,7 @@ type nfsCapacityInfo struct {
 
 type nfsStatCollector struct {
 	descs                       []typedFactorDesc
+	pvInfoLock                  sync.Mutex
 	lastPvNfsInfoMap            map[string]nfsInfo
 	lastPvStatsMap              sync.Map
 	clientSet                   *kubernetes.Clientset
@@ -308,11 +309,8 @@ func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonP
 	thisPvNfsInfoMap := make(map[string]nfsInfo, 0)
 	lineArr, err := utils.RunWithFilter("mount", "nfs", "csi", keyword)
 	if err != nil {
+		log.Errorf("Failed to execute 'mount': %v", err)
 		p.updateNfsInfoMap(thisPvNfsInfoMap, lastPvNfsInfoMap)
-		return
-	}
-	if err != nil {
-		log.Errorf("Execute command nfs is failed, err: %s", err)
 		return
 	}
 	for _, path := range jsonPaths {
@@ -342,6 +340,9 @@ func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonP
 }
 
 func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo, lastPvNfsInfoMap *map[string]nfsInfo) {
+	p.pvInfoLock.Lock()
+	defer p.pvInfoLock.Unlock()
+
 	for pv, thisInfo := range thisPvNfsInfoMap {
 		lastInfo, ok := (*lastPvNfsInfoMap)[pv]
 		// add and modify

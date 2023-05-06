@@ -153,6 +153,7 @@ type diskStatCollector struct {
 	milliSecondsLatencyThreshold float64 //Unit: milliseconds
 	capacityPercentageThreshold  float64
 	descs                        []typedFactorDesc
+	pvInfoLock                   sync.Mutex
 	lastPvDiskInfoMap            map[string]diskInfo
 	lastPvStatsMap               sync.Map
 	clientSet                    *kubernetes.Clientset
@@ -256,24 +257,22 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	p.updateMap(&p.lastPvDiskInfoMap, volJSONPaths, diskDriverName, "volumes")
 
 	wg := sync.WaitGroup{}
-	for deviceName, stats := range deviceNameStatsMap {
-		for pvName, info := range p.lastPvDiskInfoMap {
-			if info.DeviceName != deviceName {
+	for pvName, info := range p.lastPvDiskInfoMap {
+		stats, ok := deviceNameStatsMap[info.DeviceName]
+		if !ok {
+			continue
+		}
+		stats, _ = getDiskCapacityMetric(pvName, &info, stats)
+		if scalerPvcMap != nil {
+			if _, ok := scalerPvcMap.Load(info.PvcName); !ok {
 				continue
 			}
-			stats, _ := getDiskCapacityMetric(pvName, &info, stats)
-			if scalerPvcMap != nil {
-				if _, ok := scalerPvcMap.Load(info.PvcName); !ok {
-					continue
-				}
-			}
-			wg.Add(1)
-			go func(deviceNameArgs string, pvNameArgs string, pvcNamespaceArgs string, pvcNameArgs string, statsArgs []string) {
-				defer wg.Done()
-				p.setDiskMetric(deviceNameArgs, pvNameArgs, pvcNamespaceArgs, pvcNameArgs, statsArgs, ch)
-			}(deviceName, pvName, info.PvcNamespace, info.PvcName, stats)
-
 		}
+		wg.Add(1)
+		go func(pvName string, info diskInfo, stats []string) {
+			defer wg.Done()
+			p.setDiskMetric(pvName, info, stats, ch)
+		}(pvName, info, stats)
 	}
 	wg.Wait()
 	//elapsedTime := time.Since(startTime)
@@ -327,18 +326,18 @@ func (p *diskStatCollector) latencyEventAlert(pvName string, pvcName string, pvc
 	}
 }
 
-func (p *diskStatCollector) ioHangEventAlert(devName string, pvName string, pvcName string, pvcNamespace string, stats []string) {
+func (p *diskStatCollector) ioHangEventAlert(pvName string, info diskInfo, stats []string) {
 	lastStats, ok := p.lastPvStatsMap.Load(pvName)
 	if ok {
 		isHang := isIOHang(stats, lastStats.([]string))
 		if isHang {
 			ref := &v1.ObjectReference{
 				Kind:      "PersistentVolumeClaim",
-				Name:      pvcName,
+				Name:      info.PvcName,
 				UID:       "",
-				Namespace: pvcNamespace,
+				Namespace: info.PvcNamespace,
 			}
-			reason := fmt.Sprintf("IO Hang on Persistent Volume %s, nodeName:%s, diskID:%s, Device:%s", pvName, p.nodeName, p.lastPvDiskInfoMap[pvName].DiskID, devName)
+			reason := fmt.Sprintf("IO Hang on Persistent Volume %s, nodeName:%s, diskID:%s, Device:%s", pvName, p.nodeName, info.DiskID, info.DeviceName)
 			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, ioHang, reason)
 		}
 	}
@@ -368,7 +367,7 @@ func (p *diskStatCollector) capacityEventAlert(valueFloat64 float64, pvcName str
 	}
 }
 
-func (p *diskStatCollector) setDiskMetric(devName string, pvName string, pvcNamespace string, pvcName string, stats []string, ch chan<- prometheus.Metric) {
+func (p *diskStatCollector) setDiskMetric(pvName string, info diskInfo, stats []string, ch chan<- prometheus.Metric) {
 	defer p.lastPvStatsMap.Store(pvName, stats)
 	for i, value := range stats {
 		if i >= len(p.descs) {
@@ -381,22 +380,22 @@ func (p *diskStatCollector) setDiskMetric(devName string, pvName string, pvcName
 			continue
 		}
 		if i == 3 { //3：diskReadTimeMilliSecondsDesc
-			p.latencyEventAlert(pvName, pvcName, pvcNamespace, stats, 0)
+			p.latencyEventAlert(pvName, info.PvcName, info.PvcNamespace, stats, 0)
 		}
 
 		if i == 7 { //7：diskWriteTimeMilliSecondsDesc
-			p.latencyEventAlert(pvName, pvcName, pvcNamespace, stats, 4)
+			p.latencyEventAlert(pvName, info.PvcName, info.PvcNamespace, stats, 4)
 		}
 
 		if i == 9 { //9: ioTimeSecondsDesc
-			p.ioHangEventAlert(devName, pvName, pvcName, pvcNamespace, stats)
+			p.ioHangEventAlert(pvName, info, stats)
 		}
 
 		if i == 12 { //12：diskCapacityUsedDesc
-			p.capacityEventAlert(valueFloat64, pvcName, pvcNamespace, stats)
+			p.capacityEventAlert(valueFloat64, info.PvcName, info.PvcNamespace, stats)
 		}
 
-		ch <- p.descs[i].mustNewConstMetric(valueFloat64, pvcNamespace, pvcName, devName, diskStorageName)
+		ch <- p.descs[i].mustNewConstMetric(valueFloat64, info.PvcNamespace, info.PvcName, info.DeviceName, diskStorageName)
 	}
 
 }
@@ -405,11 +404,8 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 	thisPvDiskInfoMap := make(map[string]diskInfo, 0)
 	lineArr, err := utils.RunWithFilter("mount", "csi", keyword)
 	if err != nil {
+		logrus.Errorf("Failed to execute 'mount': %v", err)
 		p.updateDiskInfoMap(thisPvDiskInfoMap, lastPvDiskInfoMap)
-		return
-	}
-	if err != nil {
-		logrus.Errorf("Execute command disk is failed, err: %s", err)
 		return
 	}
 	for _, path := range jsonPaths {
@@ -446,6 +442,9 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 }
 
 func (p *diskStatCollector) updateDiskInfoMap(thisPvDiskInfoMap map[string]diskInfo, lastPvDiskInfoMap *map[string]diskInfo) {
+	p.pvInfoLock.Lock()
+	defer p.pvInfoLock.Unlock()
+
 	for pv, thisInfo := range thisPvDiskInfoMap {
 		lastInfo, ok := (*lastPvDiskInfoMap)[pv]
 		// add and modify
