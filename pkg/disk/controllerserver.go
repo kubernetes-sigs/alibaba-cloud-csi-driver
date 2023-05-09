@@ -75,6 +75,8 @@ type diskVolumeArgs struct {
 	DelAutoSnap             string              `json:"delAutoSnap"`
 	ARN                     []ecs.CreateDiskArn `json:"arn"`
 	VolumeSizeAutoAvailable bool                `json:"volumeSizeAutoAvailable"`
+	ProvisionedIops         int                 `json:"provisionedIops"`
+	BurstingEnabled         bool                `json:"burstingEnabled"`
 }
 
 // Alicloud disk snapshot parameters
