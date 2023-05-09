@@ -1051,16 +1051,9 @@ func (ns *nodeServer) mountDeviceToGlobal(capability *csi.VolumeCapability, volu
 
 	// do format-mount or mount
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
-	if len(mkfsOptions) > 0 && (fsType == "ext4" || fsType == "ext3") {
-		if err := utils.FormatAndMount(diskMounter, device, sourcePath, fsType, mkfsOptions, mountOptions, GlobalConfigVar.OmitFilesystemCheck); err != nil {
-			log.Log.Errorf("mountDeviceToGlobal: FormatAndMount fail with mkfsOptions %s, %s, %s, %s, %s with error: %s", device, sourcePath, fsType, mkfsOptions, mountOptions, err.Error())
-			return status.Error(codes.Internal, err.Error())
-		}
-	} else {
-		if err := diskMounter.FormatAndMount(device, sourcePath, fsType, mountOptions); err != nil {
-			log.Log.Errorf("mountDeviceToGlobal: Device: %s, FormatAndMount error: %s", device, err.Error())
-			return status.Error(codes.Internal, err.Error())
-		}
+	if err := utils.FormatAndMount(diskMounter, device, sourcePath, fsType, mkfsOptions, mountOptions, GlobalConfigVar.OmitFilesystemCheck); err != nil {
+		log.Log.Errorf("mountDeviceToGlobal: FormatAndMount fail with mkfsOptions %s, %s, %s, %s, %s with error: %s", device, sourcePath, fsType, mkfsOptions, mountOptions, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 	return nil
 }

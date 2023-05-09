@@ -1005,40 +1005,51 @@ func FormatNewDisk(readOnly bool, source, fstype, target string, mkfsOptions, mo
 		return errors.New("failed to mount unformatted volume as read only")
 	}
 
-	// Disk is unformatted so format it.
-	args := []string{source}
 	// Use 'ext4' as the default
 	if len(fstype) == 0 {
 		fstype = "ext4"
 	}
 
+	args := mkfsDefaultArgs(fstype, source)
+
+	// add mkfs options
+	if len(mkfsOptions) != 0 {
+		args = []string{}
+		for _, opts := range mkfsOptions {
+			args = append(args, opts)
+		}
+		args = append(args, source)
+	}
+
+	log.Infof("Disk %q appears to be unformatted, attempting to format as type: %q with options: %v", source, fstype, args)
+	startT := time.Now()
+
+	pvName := filepath.Base(source)
+	_, err := diskMounter.Exec.Command("mkfs."+fstype, args...).CombinedOutput()
+	if err == nil {
+		// the disk has been formatted successfully try to mount it again.
+		log.Infof("Disk format successed, pvName: %s elapsedTime: %+v ms", pvName, time.Now().Sub(startT).Milliseconds())
+		return diskMounter.Interface.Mount(source, target, fstype, mountOptions)
+	}
+	log.Errorf("format of disk %q failed: type:(%q) target:(%q) options:(%q) error:(%v)", source, fstype, target, args, err)
+	return err
+}
+
+func mkfsDefaultArgs(fstype, source string) (args []string) {
+	// default args
 	if fstype == "ext4" || fstype == "ext3" {
 		args = []string{
 			"-F",  // Force flag
 			"-m0", // Zero blocks reserved for super-user
 			source,
 		}
-		// add mkfs options
-		if len(mkfsOptions) != 0 {
-			args = []string{}
-			for _, opts := range mkfsOptions {
-				args = append(args, opts)
-			}
-			args = append(args, source)
+	} else if fstype == "xfs" {
+		args = []string{
+			"-f",
+			source,
 		}
 	}
-	log.Infof("Disk %q appears to be unformatted, attempting to format as type: %q with options: %v", source, fstype, args)
-	startT := time.Now()
-
-	pvName := filepath.Base(source)
-	_, err := diskMounter.Exec.Command("mkfs."+fstype, args...).CombinedOutput()
-	log.Infof("Disk format finished, pvName: %s elapsedTime: %+v ms", pvName, time.Now().Sub(startT).Milliseconds())
-	if err == nil {
-		// the disk has been formatted successfully try to mount it again.
-		return diskMounter.Interface.Mount(source, target, fstype, mountOptions)
-	}
-	log.Errorf("format of disk %q failed: type:(%q) target:(%q) options:(%q) error:(%v)", source, fstype, target, args, err)
-	return err
+	return
 }
 
 // GetDiskPtypePTtype uses 'blkid' to see if the given disk is unformatted
