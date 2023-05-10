@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -42,6 +43,7 @@ type LoopDevice interface {
 	CopySparseFile(sourceFile, targetFile string) error
 	CreateLoopDevice(sparseFile string) (string, error)
 	DeleteLoopDevice(sparseFile string) (string, error)
+	SafeDeleteLoopDevice(sparseFile string) (string, error)
 	ResizeLoopDevice(sparseFile string) error
 	FindLoopDeviceBySparseFile(sparseFile string) (string, error)
 	GetTemplateInfo() (string, int)
@@ -168,6 +170,37 @@ func (ld *NodeLoopDevice) DeleteLoopDevice(sparseFile string) (string, error) {
 		return "", err
 	}
 
+	return out, nil
+}
+
+// SafeDeleteLoopDevice checks if loopdevice mounted before deleting it.
+// An error will be promoted if loopdevice currently mounted.
+func (ld *NodeLoopDevice) SafeDeleteLoopDevice(sparseFile string) (string, error) {
+	loopDevice, err := ld.FindLoopDeviceBySparseFile(sparseFile)
+	if err != nil {
+		return "", fmt.Errorf("SafeDeleteLoopDevice: failed to find loopdevice by sparsefile: %v", err)
+	}
+	if loopDevice != "" {
+		mounted, err := utils.NewMounter().IsMounted(loopDevice)
+		if err != nil {
+			return "", fmt.Errorf("SafeDeleteLoopDevice: failed to check mount points of %q: %v", loopDevice, err)
+		}
+		if mounted {
+			return "", errors.New("SafeDeleteLoopDevice: loopdevice is currently mounted")
+		}
+
+		cmd := fmt.Sprintf("%s losetup -d %s", utils.NsenterCmd, loopDevice)
+		_, err = utils.Run(cmd)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	sfCmd := fmt.Sprintf("%s rm %s", utils.NsenterCmd, sparseFile)
+	out, err := utils.Run(sfCmd)
+	if err != nil {
+		return "", err
+	}
 	return out, nil
 }
 
