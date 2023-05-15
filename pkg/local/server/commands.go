@@ -176,8 +176,7 @@ func getPVNumber(vgName string) int {
 // ProtectedTagName is a tag that prevents RemoveLV & RemoveVG from removing a volume
 const ProtectedTagName = "protected"
 
-// RemoveLV removes a volume
-func RemoveLV(ctx context.Context, vg string, name string) (string, error) {
+func removeLV(ctx context.Context, vg string, name string, extraOpts ...string) (string, error) {
 	if !utils.CheckParameterValidate([]string{vg, name}) {
 		return "", fmt.Errorf("inputs illegal: %s, %s", vg, name)
 	}
@@ -198,11 +197,23 @@ func RemoveLV(ctx context.Context, vg string, name string) (string, error) {
 		}
 	}
 
-	args := []string{NsenterCmd, "lvremove", "-v", "-f", fmt.Sprintf("%s/%s", vg, name)}
+	args := append([]string{NsenterCmd, "lvremove"}, extraOpts...)
+	args = append(args, fmt.Sprintf("%s/%s", vg, name))
 	cmd := strings.Join(args, " ")
 	out, err := utils.Run(cmd)
 
 	return string(out), err
+}
+
+// RemoveLV removes a volume
+func RemoveLV(ctx context.Context, vg string, name string) (string, error) {
+	return removeLV(ctx, vg, name, "-v", "-f")
+}
+
+// SafeRemoveLV removes an LV without utilizing the "-f" option.
+// As a result, if the LV is currently mounted, an error will be prompted.
+func SafeRemoveLV(ctx context.Context, vg, name string) (string, error) {
+	return removeLV(ctx, vg, name, "-v", "-y")
 }
 
 // CloneLV clones a volume via dd
