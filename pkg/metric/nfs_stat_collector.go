@@ -29,7 +29,8 @@ var (
 
 const (
 	// GBSIZE metrics
-	GBSIZE = 1024 * 1024 * 1024
+	GBSIZE          = 1024 * 1024 * 1024
+	NFSMetricsCount = 16
 )
 
 var (
@@ -267,12 +268,14 @@ func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return err
 	}
+	//log.Infof("volJSONPaths:%+v", volJSONPaths)
 	p.updateMap(&p.lastPvNfsInfoMap, volJSONPaths, nasDriverName, "volumes")
-
+	//log.Infof("lastPvNfsInfoMap:%+v", p.lastPvNfsInfoMap)
 	wg := sync.WaitGroup{}
 	for pvName, stats := range pvNameStatsMap {
 		nfsInfo := p.lastPvNfsInfoMap[pvName]
 		err := getNfsCapacityStat(pvName, nfsInfo, &stats, p)
+		//log.Infof("pvName:%+v,stats:%+v", p.lastPvNfsInfoMap, stats)
 		if err != nil {
 			continue
 		}
@@ -399,6 +402,9 @@ func addNfsStat(pvNameStatMapping *map[string][]string, mountPath string, operat
 	if operationStat.Operation == keyWord {
 		pathArr := strings.Split(mountPath, "/")
 		pvName := pathArr[len(pathArr)-2]
+		if len((*pvNameStatMapping)[pvName]) >= NFSMetricsCount {
+			return
+		}
 		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.Requests)))
 		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.Transmissions)))
 		(*pvNameStatMapping)[pvName] = append((*pvNameStatMapping)[pvName], strconv.Itoa(int(operationStat.MajorTimeouts)))
