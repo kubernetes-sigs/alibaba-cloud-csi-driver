@@ -34,6 +34,18 @@ func (l *lvmGC) GC(ctx context.Context) {
 		l.log.Errorf("List StorageClasses: %v", err)
 		return
 	}
+
+	// list vg
+	vgs, err := server.ListVG()
+	if err != nil {
+		l.log.Errorf("List VG: %v", err)
+		return
+	}
+	vgMap := make(map[string]struct{}, len(vgs))
+	for _, vg := range vgs {
+		vgMap[vg.Name] = struct{}{}
+	}
+
 	var wg sync.WaitGroup
 	for _, sc := range scs.Items {
 		if !isLvmStorageClass(sc) {
@@ -42,6 +54,10 @@ func (l *lvmGC) GC(ctx context.Context) {
 		vg := sc.Parameters["vgName"]
 		if vg == "" {
 			l.log.Warningf("Skip gc for StorageClass %s because parameters.vgName is empty", sc.Name)
+			continue
+		}
+		if _, ok := vgMap[vg]; !ok {
+			l.log.Infof("Skip gc for StorageClass %s: VG not found", sc.Name)
 			continue
 		}
 		wg.Add(1)
