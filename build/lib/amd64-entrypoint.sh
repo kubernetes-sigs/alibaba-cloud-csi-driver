@@ -252,16 +252,27 @@ if [ "$run_oss" = "true" ] || [ "$run_disk" = "true" ]; then
     done
     echo "Start checking if the rpm package needs to be installed"
     if [ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]; then
-        ${HOST_CMD} yum install -y "http://yum.tbsite.net/taobao/7/x86_64/current/iohub-vfhp-helper/iohub-vfhp-helper-0.1.3-20230417103419.x86_64.rpm"
-        if [ $? -ne 0 ]; then
-            ${HOST_CMD} yum install -y "https://iohub-vfhp-helper.oss-rg-china-mainland.aliyuncs.com/iohub-vfhp-helper-0.1.3-20230417103419.x86_64.rpm"
-        fi
-        # takes 10s
-        output=`${HOST_CMD} iohub-vfhp-helper -s`
-        if [[ $str == *"backend support auto vf hotplug."* ]]; then
-            ${HOST_CMD} sudo service iohub-vfhp-helper start
-        else
-            echo "backend not support auto vf hotplugin"
+        isbdf="false"
+        for i in $(lspci -D | grep "storage controller" | grep "1ded" | awk '{print $1}' |  sed -n '/0$/p'); 
+        do 
+            out=`lspci -s $i -v`;
+            if [[ $out == *"Single Root I/O Virtualization"* ]]; then
+                isbdf="true"
+                break
+            fi
+        done
+        if [ $isbdf = "true" ]; then
+            ${HOST_CMD} yum install -y "http://yum.tbsite.net/taobao/7/x86_64/current/iohub-vfhp-helper/iohub-vfhp-helper-0.1.3-20230417103419.x86_64.rpm"
+            if [ $? -ne 0 ]; then
+                ${HOST_CMD} yum install -y "https://iohub-vfhp-helper.oss-rg-china-mainland.aliyuncs.com/iohub-vfhp-helper-0.1.3-20230417103419.x86_64.rpm"
+            fi
+            # takes 10s
+            output=`${HOST_CMD} iohub-vfhp-helper -s`
+            if [[ $str == *"backend support auto vf hotplug."* ]]; then
+                ${HOST_CMD} sudo service iohub-vfhp-helper start
+            else
+                echo "backend not support auto vf hotplugin"
+            fi
         fi
     fi
 fi
