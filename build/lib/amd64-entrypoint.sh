@@ -252,7 +252,7 @@ if [ "$run_oss" = "true" ] || [ "$run_disk" = "true" ]; then
     done
     echo "Start checking if the rpm package needs to be installed"
     if [ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]; then
-        ${HOST_CMD} yum install -b current iohub-vfhp-helper
+        ${HOST_CMD} yum install -y "http://yum.tbsite.net/taobao/7/x86_64/current/iohub-vfhp-helper/iohub-vfhp-helper-0.1.3-20230417103419.x86_64.rpm"
         if [ $? -ne 0 ]; then
             ${HOST_CMD} yum install -y "https://iohub-vfhp-helper.oss-rg-china-mainland.aliyuncs.com/iohub-vfhp-helper-0.1.3-20230417103419.x86_64.rpm"
         fi
