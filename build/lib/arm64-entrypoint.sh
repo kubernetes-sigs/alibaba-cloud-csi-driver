@@ -177,7 +177,10 @@ if [ "$run_disk" = "true" ] || [ "$run_oss" = "true" ]; then
 
     echo "Start checking if the rpm package needs to be installed"
     if [ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]; then
-        ${HOST_CMD} yum install -y "https://iohub-vfhp-helper.oss-rg-china-mainland.aliyuncs.com/iohub-vfhp-helper-0.1.3-20230417103419.aarch64.rpm"
+        ${HOST_CMD} yum install -b current iohub-vfhp-helper
+        if [ $? -ne 0 ]; then
+            ${HOST_CMD} yum install -y "https://iohub-vfhp-helper.oss-rg-china-mainland.aliyuncs.com/iohub-vfhp-helper-0.1.3-20230417103419.aarch64.rpm"
+        fi
         # take 10s
         output=`${HOST_CMD} iohub-vfhp-helper -s`
         if [[ $str == *"backend support auto vf hotplug."* ]]; then
