@@ -195,7 +195,8 @@ if [ "$run_disk" = "true" ] || [ "$run_oss" = "true" ]; then
             fi
             # take 10s
             output=`${HOST_CMD} iohub-vfhp-helper -s`
-            if [[ $str == *"backend support auto vf hotplug."* ]]; then
+            if [[ $output == *"backend support auto vf hotplug."* ]]; then
+                echo "backend support auto vf hotplugin"
                 ${HOST_CMD} sudo service iohub-vfhp-helper start
             else
                 echo "backend not support auto vf hotplugin"
