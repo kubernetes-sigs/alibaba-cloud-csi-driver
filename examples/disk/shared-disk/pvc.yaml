@@ -6,7 +6,7 @@ spec:
   accessModes:
     - ReadWriteMany
   volumeMode: Block
-  storageClassName: csi-disk
+  storageClassName: alicloud-disk-essd-multi-attach-wait
   resources:
     requests:
       storage: 20Gi
