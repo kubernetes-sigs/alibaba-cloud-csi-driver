@@ -345,8 +345,18 @@ func GlobalConfigSet(nodeID string) *restclient.Config {
 		log.Log.Infof("Describe node %s and Set RunTimeClass to %s", nodeName, runtimeValue)
 
 		regionID, zoneID, vmID = getMeta(nodeInfo)
+		log.Log.Infof("NewNodeServer: get instance meta info from metadataserver, regionID: %s, zoneID: %s, vmID: %s", regionID, zoneID, vmID)
+
 		if nodeID == "" {
 			nodeID = vmID
+		}
+	}
+	if zoneID == "" || !strings.HasPrefix(vmID, "i-") {
+		doc, err := retryGetInstanceDoc()
+		log.Log.Infof("NewNodeServer: get instance meta info failed from metadataserver, err: %v, doc: %v", err, doc)
+		if err == nil {
+			zoneID = doc.ZoneID
+			nodeID = doc.InstanceID
 		}
 	}
 	runtimeEnv := os.Getenv("RUNTIME")
