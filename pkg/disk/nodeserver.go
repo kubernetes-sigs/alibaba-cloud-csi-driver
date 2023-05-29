@@ -157,13 +157,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		zoneID, nodeID = getZoneID(c, nodeID)
 	} else {
 		if zoneID == "" || nodeID == "" {
-			doc, err := retryGetInstanceDoc()
-			if err != nil {
-				log.Log.Infof("NewNodeServer: get instance meta info failed from metadataserver, err: %v", err)
-				zoneID, nodeID = getZoneID(c, nodeID)
-			}
-			zoneID = doc.ZoneID
-			nodeID = doc.InstanceID
+			zoneID, nodeID = getZoneID(c, nodeID)
 		}
 	}
 	log.Log.Infof("NewNodeServer: zone id: %+v, GlobalConfigVar.zoneID: %s", zoneID, GlobalConfigVar.ZoneID)
@@ -743,6 +737,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			}
 		}
 	}
+
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
