@@ -161,7 +161,8 @@ if [ "$run_oss" = "true" ]; then
     #fi
 fi
 
-if [ "$run_oss" = "true" ] || [ "$run_disk" = "true" ]; then
+# skip installing csiplugin-connector when DISABLE_CSIPLUGIN_CONNECTOR=true
+if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [ "$run_disk" = "true" ]); then
     ## install/update csi connector
     updateConnector="true"
 	systemdDir="/host/usr/lib/systemd/system"
@@ -228,7 +229,7 @@ if [ "$run_oss" = "true" ] || [ "$run_disk" = "true" ]; then
 
     rm -rf /var/log/alicloud/connector.pid
     echo "Starting systemctl enable csiplugin-connector.service."
-    for((i=1;i<=10;i++));
+    for((i=1;i<=5;i++));
     do
         ${HOST_CMD} systemctl enable csiplugin-connector.service
         if [ $? -eq 0 ]; then
@@ -240,7 +241,7 @@ if [ "$run_oss" = "true" ] || [ "$run_disk" = "true" ]; then
     done
 
     echo "Starting systemctl restart csiplugin-connector.service."
-    for((i=1;i<=10;i++));
+    for((i=1;i<=5;i++));
     do
         ${HOST_CMD} systemctl restart csiplugin-connector.service
         if [ $? -eq 0 ]; then
@@ -250,32 +251,33 @@ if [ "$run_oss" = "true" ] || [ "$run_disk" = "true" ]; then
             sleep 2
         fi
     done
-    echo "Start checking if the rpm package needs to be installed"
-    if [ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]; then
-        isbdf="false"
-        for i in $(${HOST_CMD} lspci -D | grep "storage controller" | grep "1ded" | awk '{print $1}' |  sed -n '/0$/p'); 
-        do 
-            out=`${HOST_CMD} lspci -s $i -v`;
-            if [[ $out == *"Single Root I/O Virtualization"* ]]; then
-                isbdf="true"
-                break
-            fi
-        done
-        echo "isbdf node: $isbdf"
-        if [ $isbdf = "true" ]; then
-            echo "start install vfhp"
-            ${HOST_CMD} yum install -y "http://yum.tbsite.net/taobao/7/x86_64/current/iohub-vfhp-helper/iohub-vfhp-helper-0.1.3-20230417103419.x86_64.rpm"
-            if [ $? -ne 0 ]; then
-                ${HOST_CMD} yum install -y "https://iohub-vfhp-helper.oss-rg-china-mainland.aliyuncs.com/iohub-vfhp-helper-0.1.3-20230417103419.x86_64.rpm"
-            fi
-            # takes 10s
-            output=`${HOST_CMD} iohub-vfhp-helper -s`
-            if [[ $output == *"backend support auto vf hotplug."* ]]; then
-                echo "backend support auto vf hotplugin"
-                ${HOST_CMD} sudo service iohub-vfhp-helper start
-            else
-                echo "backend not support auto vf hotplugin"
-            fi
+fi
+
+echo "Start checking if the rpm package needs to be installed"
+if [ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]; then
+    isbdf="false"
+    for i in $(${HOST_CMD} lspci -D | grep "storage controller" | grep "1ded" | awk '{print $1}' |  sed -n '/0$/p'); 
+    do 
+        out=`${HOST_CMD} lspci -s $i -v`;
+        if [[ $out == *"Single Root I/O Virtualization"* ]]; then
+            isbdf="true"
+            break
+        fi
+    done
+    echo "isbdf node: $isbdf"
+    if [ $isbdf = "true" ]; then
+        echo "start install vfhp"
+        ${HOST_CMD} yum install -y "http://yum.tbsite.net/taobao/7/x86_64/current/iohub-vfhp-helper/iohub-vfhp-helper-0.1.3-20230417103419.x86_64.rpm"
+        if [ $? -ne 0 ]; then
+            ${HOST_CMD} yum install -y "https://iohub-vfhp-helper.oss-rg-china-mainland.aliyuncs.com/iohub-vfhp-helper-0.1.3-20230417103419.x86_64.rpm"
+        fi
+        # takes 10s
+        output=`${HOST_CMD} iohub-vfhp-helper -s`
+        if [[ $output == *"backend support auto vf hotplug."* ]]; then
+            echo "backend support auto vf hotplugin"
+            ${HOST_CMD} sudo service iohub-vfhp-helper start
+        else
+            echo "backend not support auto vf hotplugin"
         fi
     fi
 fi
