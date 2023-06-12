@@ -1396,8 +1396,8 @@ func getTenantUIDByVolumeID(volumeID string) (uid string, err error) {
 	if err != nil {
 		return "", perrors.Wrapf(err, "get pv, volumeId=%s", volumeID)
 	}
-	if pv.Spec.CSI == nil {
-		return "", perrors.Errorf("pv.Spec.CSI is nil, volumeId=%s", volumeID)
+	if pv.Spec.CSI == nil || pv.Spec.CSI.VolumeAttributes == nil {
+		return "", perrors.Errorf("pv.Spec.CSI/Spec.CSI.VolumeAttributes is nil, volumeId=%s", volumeID)
 	}
 	return pv.Spec.CSI.VolumeAttributes[TenantUserUID], nil
 }
