@@ -42,6 +42,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/om"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/pov"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/common/version"
 )
@@ -88,6 +89,8 @@ const (
 	TypePluginYODA = "yodaplugin.csi.alibabacloud.com"
 	// TypePluginENS ENS type plugins
 	TypePluginENS = "ensplugin.csi.alibabacloud.com"
+	// TypePluginPOV POV type plugins
+	TypePluginPOV = "povplugin.csi.alibabacloud.com"
 	// ExtenderAgent agent component
 	ExtenderAgent = "agent"
 )
@@ -251,6 +254,12 @@ func main() {
 				queryServer := agent.NewAgent()
 				queryServer.RunAgent()
 			}()
+		case TypePluginPOV:
+			go func(endPoint string) {
+				defer wg.Done()
+				driver := pov.NewDriver(*nodeID, endPoint)
+				driver.Run()
+			}(endPointName)
 		default:
 			csilog.Log.Fatalf("CSI start failed, not support driver: %s", driverName)
 		}

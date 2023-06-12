@@ -112,6 +112,9 @@ const (
 
 	// socketPath is path of connector sock
 	socketPath = "/host/etc/csi-tool/connector.sock"
+
+	// GiB ...
+	GiB = 1024 * 1024 * 1024
 )
 
 // KubernetesAlicloudIdentity set a identity label
@@ -447,7 +450,34 @@ func GetRegionIDAndInstanceID(nodeName string) (string, string, error) {
 }
 
 func Gi2Bytes(gb int64) int64 {
-	return gb * 1024 * 1024 * 1024
+	return gb * GiB
+}
+
+// BytesToGiB converts Bytes to GiB
+func Bytes2GiB(volumeSizeBytes int64) int64 {
+	return volumeSizeBytes / GiB
+}
+
+// RoundUpBytes rounds up the volume size in bytes upto multiplications of GiB
+// in the unit of Bytes
+func RoundUpBytes(volumeSizeBytes int64) int64 {
+	return roundUpSize(volumeSizeBytes, GiB) * GiB
+}
+
+// RoundUpGiB rounds up the volume size in bytes upto multiplications of GiB
+// in the unit of GiB
+func RoundUpGiB(volumeSizeBytes int64) int64 {
+	return roundUpSize(volumeSizeBytes, GiB)
+}
+
+// BytesToGiB converts Bytes to GiB
+func BytesToGiB(volumeSizeBytes int64) int64 {
+	return volumeSizeBytes / GiB
+}
+
+// TODO: check division by zero and int overflow
+func roundUpSize(volumeSizeBytes int64, allocationUnitBytes int64) int64 {
+	return (volumeSizeBytes + allocationUnitBytes - 1) / allocationUnitBytes
 }
 
 func KBlock2Bytes(kblocks int64) int64 {
@@ -575,6 +605,16 @@ func GetFileContent(fileName string) string {
 	}
 	devicePath := strings.TrimSpace(string(value))
 	return devicePath
+}
+
+// GetAccessModes returns a slice containing all of the access modes defined
+// in the passed in VolumeCapabilities.
+func GetAccessModes(caps []*csi.VolumeCapability) *[]string {
+	modes := []string{}
+	for _, c := range caps {
+		modes = append(modes, c.AccessMode.GetMode().String())
+	}
+	return &modes
 }
 
 // WriteJSONFile save json data to file
