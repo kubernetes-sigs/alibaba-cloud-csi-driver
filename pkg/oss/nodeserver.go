@@ -20,19 +20,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"strconv"
+	"strings"
+	"sync"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io/ioutil"
 	"k8s.io/client-go/dynamic"
 	k8smount "k8s.io/utils/mount"
-	"strconv"
-	"strings"
-	"sync"
 )
 
 type nodeServer struct {
@@ -54,6 +55,8 @@ type Options struct {
 	AuthType      string `json:"authType"`
 	FuseType      string `json:"fuseType"`
 	MetricsTop    string `json:"metricsTop"`
+	Encrypted     string `json:"encrypted"`
+	KmsKeyId      string `json:"kmsKeyId"`
 }
 
 const (
@@ -75,6 +78,10 @@ const (
 	metricsTop = "10"
 	// regionTag
 	regionTag = "region-id"
+	// encrytedType kms
+	encryptedTypeKms = "kms"
+	// encrytedType aes256
+	encryptedTypeAes256 = "aes256"
 )
 
 func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
@@ -127,6 +134,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.MetricsTop = strings.ToLower(strings.TrimSpace(value))
 		} else if key == "containernetworkfilesystem" {
 			cnfsName = value
+		} else if key == "encrypted" {
+			opt.Encrypted = strings.ToLower(strings.TrimSpace(value))
+		} else if key == "kmsKeyId" {
+			opt.KmsKeyId = strings.ToLower(strings.TrimSpace(value))
 		}
 	}
 
@@ -167,7 +178,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("mountPath is empty")
 	}
 
-	argStr := fmt.Sprintf("Bucket: %s, url: %s, , OtherOpts: %s, Path: %s, UseSharedPath: %s, authType: %s", opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType)
+	argStr := fmt.Sprintf("Bucket: %s, url: %s, OtherOpts: %s, Path: %s, UseSharedPath: %s, authType: %s, encrypted: %s", opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType, opt.Encrypted)
 	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
 
 	if IsOssfsMounted(mountPath) {
@@ -193,6 +204,17 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
+	useSse := ""
+	if opt.Encrypted == encryptedTypeAes256 {
+		useSse = "-ouse_sse"
+	}
+	if opt.Encrypted == encryptedTypeKms {
+		useSse = "-ouse_sse=kmsid"
+		if opt.KmsKeyId != "" {
+			useSse = fmt.Sprintf("-ouse_sse=kmsid:%s", opt.KmsKeyId)
+		}
+	}
+
 	// default use allow_other
 	var mntCmd string
 	if opt.UseSharedPath {
@@ -204,9 +226,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				log.Errorf("Ossfs mount is failed, err: %v", err.Error())
 				return nil, errors.New("Create OSS volume fail: " + err.Error())
 			}
-			mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s %s", opt.Bucket, opt.Path, sharedPath, opt.URL, opt.OtherOpts, credentialProvider)
+			mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s %s %s", opt.Bucket, opt.Path, sharedPath, opt.URL, opt.OtherOpts, credentialProvider, useSse)
 			if opt.FuseType == JindoFsType {
-				mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s", sharedPath, opt.Bucket, opt.Path, opt.URL, credentialProvider)
+				mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s %s", sharedPath, opt.Bucket, opt.Path, opt.URL, credentialProvider, useSse)
 			}
 			if err := utils.DoMountInHost(mntCmd); err != nil {
 				return nil, err
@@ -231,9 +253,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.URL = strings.ReplaceAll(originUrl, metaZoneID, metaZoneID+"-internal")
 		}
 
-		mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s %s", opt.Bucket, opt.Path, mountPath, opt.URL, opt.OtherOpts, credentialProvider)
+		mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s %s %s", opt.Bucket, opt.Path, mountPath, opt.URL, opt.OtherOpts, credentialProvider, useSse)
 		if opt.FuseType == JindoFsType {
-			mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s", mountPath, opt.Bucket, opt.Path, opt.URL, credentialProvider)
+			mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s %s", mountPath, opt.Bucket, opt.Path, opt.URL, credentialProvider, useSse)
 		}
 		utils.WriteMetricsInfo(metricsPathPrefix, req, opt.MetricsTop, OssFsType, "oss", opt.Bucket)
 		if err := utils.DoMountInHost(mntCmd); err != nil {
@@ -334,6 +356,10 @@ func checkOssOptions(opt *Options) error {
 		if !strings.HasPrefix(opt.OtherOpts, "-o ") {
 			return errors.New("Oss OtherOpts error: start with -o ")
 		}
+	}
+
+	if opt.Encrypted != "" && opt.Encrypted != encryptedTypeKms && opt.Encrypted != encryptedTypeAes256 {
+		return errors.New("Oss Encrypted error: invalid SSE encryted type ")
 	}
 
 	return nil

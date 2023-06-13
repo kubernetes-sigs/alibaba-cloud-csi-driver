@@ -18,6 +18,8 @@ package oss
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -29,7 +31,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"strings"
 )
 
 // controller server try to create/delete volumes
@@ -83,6 +84,10 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 			ossVolArgs.UseSharedPath = true
 		} else if key == "authtype" {
 			ossVolArgs.AuthType = value
+		} else if key == "encrypted" {
+			ossVolArgs.Encrypted = value
+		} else if key == "kmsKeyId" {
+			ossVolArgs.KmsKeyId = value
 		}
 	}
 	for k, v := range secret {
