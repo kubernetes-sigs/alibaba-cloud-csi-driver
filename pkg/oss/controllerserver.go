@@ -86,7 +86,7 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 			ossVolArgs.AuthType = value
 		} else if key == "encrypted" {
 			ossVolArgs.Encrypted = value
-		} else if key == "kmsKeyId" {
+		} else if key == "kmskeyid" {
 			ossVolArgs.KmsKeyId = value
 		}
 	}

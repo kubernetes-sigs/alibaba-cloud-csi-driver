@@ -136,8 +136,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			cnfsName = value
 		} else if key == "encrypted" {
 			opt.Encrypted = strings.ToLower(strings.TrimSpace(value))
-		} else if key == "kmsKeyId" {
-			opt.KmsKeyId = strings.ToLower(strings.TrimSpace(value))
+		} else if key == "kmskeyid" {
+			opt.KmsKeyId = value
 		}
 	}
 
