@@ -372,17 +372,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 }
 
 func (ns *nodeServer) umountPath(globalPath string) error {
-	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(globalPath)
-	if err == nil && !notmounted {
-		if err := utils.Umount(globalPath); err != nil {
-			log.Log.Errorf("umountGlobalPath: unmount global path %s failed with err: %v", globalPath, err)
-			return err
-		}
-		log.Log.Infof("umountGlobalPath: successful unmount global path %s", globalPath)
-	} else {
-		log.Log.Infof("umountGlobalPath: globalPath not exists: %v or not mounted: %v", err, notmounted)
-	}
-	return err
+	return k8smount.CleanupMountPoint(globalPath, ns.k8smounter, false)
 }
 
 func (ns *nodeServer) umountGlobalPath(volumeID, targetPath string) error {
@@ -391,9 +381,9 @@ func (ns *nodeServer) umountGlobalPath(volumeID, targetPath string) error {
 	if partsLen > 2 && pathParts[partsLen-1] == "mount" {
 		pvName := pathParts[partsLen-2]
 		globalPathVer1 := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/pv/", pvName, "/globalmount")
-		if podMounted, err := isPodMounted(pvName); err == nil && podMounted == false {
+		if podMounted, err := isPodMounted(pvName); err == nil && !podMounted {
 			if err = ns.umountPath(globalPathVer1); err != nil {
-				result := sha256.Sum256([]byte(fmt.Sprintf("%s", volumeID)))
+				result := sha256.Sum256([]byte(volumeID))
 				volSha := fmt.Sprintf("%x", result)
 				globalPathVer2 := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/", driverName, volSha, "/globalmount")
 				err = ns.umountPath(globalPathVer2)
