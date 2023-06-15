@@ -25,7 +25,7 @@ import (
 
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dadi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -121,6 +121,7 @@ func NewDriver(nodeID, endpoint, serviceType string) *NAS {
 	d.controllerServer = NewControllerServer(d.driver, c, regionID, limit, cfg)
 
 	GlobalConfigVar.NasClient = c
+	GlobalConfigVar.Region = regionID
 	return d
 }
 
