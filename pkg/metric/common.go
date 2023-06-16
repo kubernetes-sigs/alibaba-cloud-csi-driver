@@ -1,11 +1,12 @@
 package metric
 
 import (
+	"path/filepath"
+
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs"
-	"path/filepath"
 )
 
 const (
@@ -26,6 +27,8 @@ const (
 	nasDriverName string = "nasplugin.csi.alibabacloud.com"
 	//diskDriverName represents the csi storage type name of Disk
 	diskDriverName string = "diskplugin.csi.alibabacloud.com"
+	// unknown metric value
+	UnknownValue string = "unknown"
 )
 
 const (
