@@ -1,15 +1,16 @@
 package metric
 
 import (
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
 	httpProtocol = "http"
-	dnsName      = "storage-monitor-service.kube-system.svc.cluster.local"
+	dnsName      = "storage-monitor-service.kube-system.svc"
 	port         = "11280"
 	metricPath   = "metrics"
 )
