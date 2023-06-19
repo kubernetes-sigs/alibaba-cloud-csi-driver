@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -503,24 +504,16 @@ func ParseMountFlags(mntOptions []string) (string, string) {
 }
 
 func createLosetupPv(fullPath string, volSizeBytes int64) error {
-	blockNum := volSizeBytes / (4 * 1024)
 	fileName := filepath.Join(fullPath, LoopImgFile)
 	if utils.IsFileExisting(fileName) {
 		log.Infof("createLosetupPv: image file is exist, just skip: %s", fileName)
 		return nil
 	}
-	imgCmd := fmt.Sprintf("dd if=/dev/zero of=%s bs=4k seek=%d count=0", fileName, blockNum)
-	_, err := utils.ValidateRun(imgCmd)
-	if err != nil {
+	if err := utils.CreateAndTruncateFile(fileName, volSizeBytes); err != nil {
 		return err
 	}
-
-	formatCmd := fmt.Sprintf("mkfs.ext4 -F -m0 %s", fileName)
-	_, err = utils.ValidateRun(formatCmd)
-	if err != nil {
-		return err
-	}
-	return nil
+	_, err := exec.Command("mkfs.ext4", "-F", "-m0", fileName).CombinedOutput()
+	return err
 }
 
 // /var/lib/kubelet/pods/5e03c7f7-2946-4ee1-ad77-2efbc4fdb16c/volumes/kubernetes.io~csi/nas-f5308354-725a-4fd3-b613-0f5b384bd00e/mount
