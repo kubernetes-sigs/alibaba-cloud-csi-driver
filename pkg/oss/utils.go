@@ -19,11 +19,12 @@ package oss
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
 	"time"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 const (
@@ -87,16 +88,17 @@ func GetRAMRoleOption() string {
 }
 
 // IsOssfsMounted return if oss mountPath is mounted
-func IsOssfsMounted(mountPath string) bool {
+// TEST::
+func IsOssfsMounted(mountPath string) (bool, []string, error) {
 	checkMountCountCmd := fmt.Sprintf("%s mount", NsenterCmd)
 	out, err := utils.RunWithFilter(checkMountCountCmd, mountPath, "fuse.ossfs")
 	if err != nil {
-		return false
+		return false, out, err
 	}
 	if len(out) == 0 {
-		return false
+		return false, nil, nil
 	}
-	return true
+	return true, out, nil
 }
 
 // IsLastSharedVol return code status to help check if this oss volume uses UseSharedPath and is the last one
