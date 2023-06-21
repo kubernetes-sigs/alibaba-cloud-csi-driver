@@ -18,6 +18,7 @@ package nas
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -29,18 +30,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
-	"k8s.io/client-go/dynamic"
-
-	"errors"
-
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
+	mountutils "k8s.io/mount-utils"
 )
 
 const (
@@ -84,82 +83,75 @@ type RoleAuth struct {
 }
 
 // DoMount execute the mount command for nas dir
-func DoMount(fsType, clientType, nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, podUID string) error {
+func DoMount(mounter mountutils.Interface, fsType, clientType, nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, podUID string) error {
 	if !utils.IsFileExisting(mountPoint) {
 		_ = CreateDest(mountPoint)
 	}
 
-	if CheckNfsPathMounted(mountPoint, nfsPath) {
-		log.Infof("DoMount: server is already mounted: %s, %s", nfsServer, nfsPath)
+	notMounted, err := mounter.IsLikelyNotMountPoint(mountPoint)
+	if err != nil {
+		return err
+	}
+	if !notMounted {
+		log.Infof("%s already mounted", mountPoint)
 		return nil
 	}
 
-	var mntCmd string
-	var err error
-	//CNFS-EFC Mount
+	source := fmt.Sprintf("%s:%s", nfsServer, nfsPath)
+	var combinedOptions []string
+	if mountOptions != "" {
+		combinedOptions = append(combinedOptions, mountOptions)
+	}
+
 	switch clientType {
 	case EFCClient:
+		combinedOptions = append(combinedOptions, "efc", fmt.Sprintf("bindtag=%s", volumeID), fmt.Sprintf("client_owner=%s", podUID))
 		switch fsType {
 		case "standard":
-			mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o efc -o bindtag=%s -o client_owner=%s -o %s %s:%s %s", volumeID, podUID, mountOptions, nfsServer, nfsPath, mountPoint)
 		case "cpfs":
-			mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t alinas -o efc -o protocol=nfs3 -o bindtag=%s -o client_owner=%s -o %s %s:%s %s", volumeID, podUID, mountOptions, nfsServer, nfsPath, mountPoint)
+			combinedOptions = append(combinedOptions, "protocol=nfs3")
 		default:
 			return errors.New("EFC Client don't support this storage type:" + fsType)
 		}
-		err = utils.DoMountInHost(mntCmd)
+		err = mounter.Mount(source, mountPoint, "alinas", combinedOptions)
 	case NativeClient:
 		switch fsType {
 		case "cpfs":
-			mntCmd = fmt.Sprintf("systemd-run --scope -- mount -t cpfs -o %s %s:%s %s", mountOptions, nfsServer, nfsPath, mountPoint)
-			mntCmd = NsenterCmd + " " + mntCmd
 		default:
 			return errors.New("Native Client don't support this storage type:" + fsType)
 		}
-		_, err = utils.ValidateRun(mntCmd)
+		err = mounter.Mount(source, mountPoint, "cpfs", combinedOptions)
 	default:
 		//NFS Mount(Capacdity/Performance Extreme Nas、Cpfs2.0, AliNas)
 		versStr := fmt.Sprintf("vers=%s", nfsVers)
-		if mountOptions == "" {
-			mountOptions = versStr
-		} else if !strings.Contains(mountOptions, versStr) {
-			mountOptions = versStr + "," + mountOptions
+		if !strings.Contains(mountOptions, versStr) {
+			combinedOptions = append(combinedOptions, versStr)
 		}
 		//nfsProtocol: cpfs-nfs/nfs/alinas
-		mntCmd = fmt.Sprintf("mount -t %s -o %s %s:%s %s", nfsProtocol, mountOptions, nfsServer, nfsPath, mountPoint)
-		if nfsProtocol == MountProtocolCPFSNFS || nfsProtocol == MountProtocolAliNas {
-			mntCmd = NsenterCmd + " " + mntCmd
-		}
-		_, err = utils.ValidateRun(mntCmd)
-
+		err = mounter.Mount(source, mountPoint, nfsProtocol, combinedOptions)
 		//try mount nfsPath is successfully.
 		if err == nil {
-			log.Infof("DoMount: Mount is successfully with command: %s", mntCmd)
-			return nil
+			break
 		}
-
 		//mount root-path is failed, return error
-		if err != nil && nfsPath == "/" {
-			return err
+		if nfsPath == "/" {
+			break
+		}
+		//Other errors
+		if !strings.Contains(err.Error(), "reason given by server: No such file or directory") && !strings.Contains(err.Error(), "access denied by server while mounting") {
+			break
 		}
 		//mount sub-path is failed, if subpath is not exist or cpfs don't output subpath
-		if err != nil && nfsPath != "/" {
-			//Other errors
-			if !strings.Contains(err.Error(), "reason given by server: No such file or directory") && !strings.Contains(err.Error(), "access denied by server while mounting") {
-				return err
-			}
-			if err := createSubDir(nfsProtocol, nfsServer, nfsPath, mountOptions, volumeID); err != nil {
-				log.Errorf("DoMount: Create subpath is failed, err: %s", err.Error())
-				return err
-			}
+		if err := createSubDir(mounter, nfsProtocol, nfsServer, nfsPath, mountOptions, volumeID); err != nil {
+			log.Errorf("DoMount: Create subpath is failed, err: %s", err.Error())
+			return err
 		}
-		_, err = utils.ValidateRun(mntCmd)
+		err = mounter.Mount(source, mountPoint, nfsProtocol, combinedOptions)
 	}
 	if err != nil {
-		log.Errorf("DoMount: Mount %s is failed, err: %s", mntCmd, err.Error())
 		return err
 	}
-	log.Infof("DoMount: Mount is successfully with command: %s", mntCmd)
+	log.WithFields(log.Fields{"source": source, "target": mountPoint, "client": clientType}).Info("mounted successfully")
 	return nil
 }
 
@@ -306,7 +298,7 @@ func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
 	}
 }
 
-func createSubDir(nfsProtocol, nfsServer, nfsPath, nfsOptions, volumeID string) error {
+func createSubDir(mounter mountutils.Interface, nfsProtocol, nfsServer, nfsPath, nfsOptions, volumeID string) error {
 	// if volume is cpfs-nfs or alinas protocol, mount in host mode.
 	mountInHost := false
 	if nfsProtocol == MountProtocolCPFSNFS || nfsProtocol == MountProtocolAliNas {
@@ -517,7 +509,7 @@ func createLosetupPv(fullPath string, volSizeBytes int64) error {
 }
 
 // /var/lib/kubelet/pods/5e03c7f7-2946-4ee1-ad77-2efbc4fdb16c/volumes/kubernetes.io~csi/nas-f5308354-725a-4fd3-b613-0f5b384bd00e/mount
-func mountLosetupPv(mountPoint string, opt *Options, volumeID string) error {
+func mountLosetupPv(mounter mountutils.Interface, mountPoint string, opt *Options, volumeID string) error {
 	// if target path mounted already, return
 	if utils.IsMounted(mountPoint) {
 		log.Infof("mountLosetupPv: TargetPath(%s) is mounted as tmpfs, not need mount again", mountPoint)
@@ -538,7 +530,7 @@ func mountLosetupPv(mountPoint string, opt *Options, volumeID string) error {
 		return fmt.Errorf("mountLosetupPv: create nfs mountPath error %s ", err.Error())
 	}
 	//mount nas to use losetup dev
-	err := DoMount("nas", "nfsclient", opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, nfsPath, volumeID, podID)
+	err := DoMount(mounter, "nas", "nfsclient", opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, nfsPath, volumeID, podID)
 	if err != nil {
 		return fmt.Errorf("mountLosetupPv: mount losetup volume failed: %s", err.Error())
 	}

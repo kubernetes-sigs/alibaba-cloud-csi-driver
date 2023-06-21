@@ -42,6 +42,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
+	mountutils "k8s.io/mount-utils"
 )
 
 // resourcemode is selected by: subpath/filesystem
@@ -100,6 +101,7 @@ type controllerServer struct {
 	*csicommon.DefaultControllerServer
 	recorder    record.EventRecorder
 	rateLimiter ratelimit.Limiter
+	mounter     mountutils.Interface
 }
 
 // Alibaba Cloud nas volume parameters
@@ -150,6 +152,7 @@ func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region, 
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
 		recorder:                utils.NewEventRecorder(),
 		rateLimiter:             ratelimit.New(intLimit),
+		mounter:                 NewNasMounter(),
 	}
 	return c
 }
@@ -427,7 +430,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					_ = utils.CreateDestInHost(mountPoint)
 				}
 				//mount subpath directory
-				if err := DoMount(opt.FSType, opt.ClientType, nasVol.MountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name, req.Name); err != nil {
+				if err := DoMount(cs.mounter, opt.FSType, opt.ClientType, nasVol.MountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name, req.Name); err != nil {
 					log.Errorf("CreateVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.Name, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, err.Error())
 					return nil, errors.New("CreateVolume: " + req.Name + ", Mount server: " + nfsServer + ", nfsPath: " + nfsPath + ", nfsVersion: " + nfsVersion + ", nfsOptions: " + nfsOptionsStr + ", mountPoint: " + mountPoint + ", with error: " + err.Error())
 				}
@@ -707,7 +710,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		// set the local mountpoint
 		mountPoint := filepath.Join(MntRootPath, req.VolumeId+"-delete")
 		// create subpath-delete directory
-		if err := DoMount(opt.FSType, opt.ClientType, opt.MountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, req.VolumeId, req.VolumeId); err != nil {
+		if err := DoMount(cs.mounter, opt.FSType, opt.ClientType, opt.MountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, req.VolumeId, req.VolumeId); err != nil {
 			log.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
 			return nil, fmt.Errorf("DeleteVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.VolumeId, nfsServer, nfsPath, nfsVersion, nfsOptions, mountPoint, err.Error())
 		}
