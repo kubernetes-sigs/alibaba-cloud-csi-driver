@@ -23,8 +23,8 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -32,6 +32,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -531,36 +532,22 @@ func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) erro
 	nfsPath := filepath.Join(NasMntPoint, podID, pvName)
 	imgFile := filepath.Join(nfsPath, LoopImgFile)
 	if utils.IsFileExisting(imgFile) {
-		volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
-		// loop block size is 4K
-		blockNum := volSizeBytes / (4 * 1024)
-		// Check parameter validate
-		if !utils.CheckParameterValidate([]string{imgFile, strconv.FormatInt(blockNum, 10)}) {
-			return fmt.Errorf("inputs illegal: %s %s ", imgFile, strconv.FormatInt(blockNum, 10))
-		}
-		imgCmd := fmt.Sprintf("dd if=/dev/zero of=%s bs=4k seek=%d count=0", imgFile, blockNum)
-		_, err := utils.Run(imgCmd)
+		volSizeBytes := req.GetCapacityRange().GetRequiredBytes()
+		err := losetup.TruncateFile(imgFile, volSizeBytes)
 		if err != nil {
 			log.Errorf("NodeExpandVolume: nas resize img file error %v", err)
 			return fmt.Errorf("NodeExpandVolume: nas resize img file error, %v", err)
 		}
-		loopCmd := fmt.Sprintf("%s losetup", NsenterCmd)
-		stdout, err := utils.RunWithFilter(loopCmd, imgFile)
+		devices, err := losetup.List(losetup.WithAssociatedFile(imgFile))
 		if err != nil {
 			log.Errorf("NodeExpandVolume: search losetup device error %v", err)
 			return fmt.Errorf("NodeExpandVolume: search losetup device error, %v", err)
 		}
-		if len(stdout) == 0 {
+		if len(devices) == 0 {
 			return fmt.Errorf("Not found this losetup device %s", imgFile)
 		}
-		loopDev := strings.Split(strings.TrimSpace(stdout[0]), " ")[0]
-		// Check parameter validate
-		if !utils.CheckParameterValidate([]string{loopDev}) {
-			return fmt.Errorf("inputs illegal: %s ", loopDev)
-		}
-		loopResize := fmt.Sprintf("%s losetup -c %s", NsenterCmd, loopDev)
-		_, err = utils.Run(loopResize)
-		if err != nil {
+		loopDev := devices[0].Name
+		if err := losetup.Resize(loopDev); err != nil {
 			log.Errorf("NodeExpandVolume: resize device error %v", err)
 			return fmt.Errorf("NodeExpandVolume: resize device file error, %v", err)
 		}
@@ -570,9 +557,7 @@ func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) erro
 		// if err != nil {
 		// 	return fmt.Errorf("Check losetup image error %s", err.Error())
 		// }
-		resizeFs := fmt.Sprintf("%s resize2fs %s", NsenterCmd, loopDev)
-		_, err = utils.Run(resizeFs)
-		if err != nil {
+		if err := exec.Command("resize2fs", loopDev); err != nil {
 			log.Errorf("NodeExpandVolume: resize filesystem error %v", err)
 			failedFile := filepath.Join(nfsPath, Resize2fsFailedFilename)
 			if !utils.IsFileExisting(failedFile) {
