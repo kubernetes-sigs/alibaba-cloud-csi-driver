@@ -34,6 +34,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
@@ -501,7 +502,7 @@ func createLosetupPv(fullPath string, volSizeBytes int64) error {
 		log.Infof("createLosetupPv: image file is exist, just skip: %s", fileName)
 		return nil
 	}
-	if err := utils.CreateAndTruncateFile(fileName, volSizeBytes); err != nil {
+	if err := losetup.TruncateFile(fileName, volSizeBytes); err != nil {
 		return err
 	}
 	_, err := exec.Command("mkfs.ext4", "-F", "-m0", fileName).CombinedOutput()

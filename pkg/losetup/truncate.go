@@ -1,11 +1,11 @@
-package utils
+package losetup
 
 import (
 	"os"
 )
 
-func CreateAndTruncateFile(path string, size int64) error {
-	file, err := os.Create(path)
+func TruncateFile(path string, size int64) error {
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
 		return err
 	}
