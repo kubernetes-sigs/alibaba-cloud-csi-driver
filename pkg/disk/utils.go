@@ -1092,7 +1092,7 @@ func validateDiskPerformaceLevel(opts map[string]string) (performaceLevel string
 
 func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
 	if devicePath == "" {
-		msg := fmt.Sprintf("devicePath is empty, cannot used for Volume")
+		msg := "devicePath is empty, cannot used for Volume"
 		return status.Error(codes.Internal, msg)
 	}
 

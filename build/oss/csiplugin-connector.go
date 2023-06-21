@@ -232,7 +232,7 @@ func checkOssfsCmd(cmd string) error {
 func checkRichNasClientCmd(cmd string) error {
 	parameteList := strings.Split(cmd, " ")
 	if len(parameteList) <= 2 {
-		return errors.New(fmt.Sprintf("Nas rich client mount command is format wrong:%+v", parameteList))
+		return fmt.Errorf("Nas rich client mount command is format wrong:%+v", parameteList)
 	}
 	mountPoint := parameteList[len(parameteList)-1]
 	if !IsFileExisting(mountPoint) {

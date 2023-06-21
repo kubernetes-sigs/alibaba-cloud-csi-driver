@@ -607,7 +607,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		return nil, err
 	case snapNum > 1:
 		log.Log.Errorf("CreateSnapshot:: Find Snapshot name[%s], but get more than 1 instance", req.Name)
-		err := status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot: get snapshot more than 1 instance"))
+		err := status.Error(codes.Internal, "CreateSnapshot: get snapshot more than 1 instance")
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotTooMany, err.Error())
 		return nil, err
 	case err != nil:

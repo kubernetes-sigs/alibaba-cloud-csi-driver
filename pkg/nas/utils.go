@@ -667,13 +667,13 @@ func getPvObj(volumeID string) (*v1.PersistentVolume, error) {
 
 func isValidCnfsParameter(server string, cnfsName string) error {
 	if len(server) == 0 && len(cnfsName) == 0 {
-		msg := fmt.Sprintf("Server and Cnfs need to be configured at least one.")
+		msg := "Server and Cnfs need to be configured at least one."
 		log.Errorf(msg)
 		return errors.New(msg)
 	}
 
 	if len(server) != 0 && len(cnfsName) != 0 {
-		msg := fmt.Sprintf("Server and Cnfs can only be configured to use one.")
+		msg := "Server and Cnfs can only be configured to use one."
 		log.Errorf(msg)
 		return errors.New(msg)
 	}

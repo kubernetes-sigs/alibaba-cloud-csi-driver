@@ -447,14 +447,14 @@ func RemoveNameSpace(ctx context.Context, namespaceName string) (string, error) 
 		return "namespace  " + namespaceName + " not found, skip", nil
 	}
 
-	args := []string{NsenterCmd, "ndctl", "disable-namespace", fmt.Sprintf("%s", namespace.Dev)}
+	args := []string{NsenterCmd, "ndctl", "disable-namespace", namespace.Dev}
 	cmd := strings.Join(args, " ")
 	_, err = utils.Run(cmd)
 	if err != nil {
 		return "", fmt.Errorf("failed to disable namespace with error: %v", err)
 	}
 
-	args = []string{NsenterCmd, "ndctl", "destroy-namespace", fmt.Sprintf("%s", namespace.Dev)}
+	args = []string{NsenterCmd, "ndctl", "destroy-namespace", namespace.Dev}
 	cmd = strings.Join(args, " ")
 	_, err = utils.Run(cmd)
 	if err != nil {

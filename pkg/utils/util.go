@@ -115,7 +115,7 @@ const (
 )
 
 // KubernetesAlicloudIdentity set a identity label
-var KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiPlugin")
+var KubernetesAlicloudIdentity = "Kubernetes.Alicloud/CsiPlugin"
 
 var (
 	// NodeAddrMap map for NodeID and its Address

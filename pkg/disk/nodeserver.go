@@ -1060,7 +1060,7 @@ func (ns *nodeServer) unmountDuplicateMountPoint(targetPath, volumeId string) er
 	if partsLen > 2 && pathParts[partsLen-1] == "mount" {
 		globalPath2 := filepath.Join("/var/lib/container/kubelet/plugins/kubernetes.io/csi/pv/", pathParts[partsLen-2], "/globalmount")
 
-		result := sha256.Sum256([]byte(fmt.Sprintf("%s", volumeId)))
+		result := sha256.Sum256([]byte(volumeId))
 		volSha := fmt.Sprintf("%x", result)
 		globalPath3 := filepath.Join("/var/lib/container/kubelet/plugins/kubernetes.io/csi/", driverName, volSha, "/globalmount")
 		var err error
