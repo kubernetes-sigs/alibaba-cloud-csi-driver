@@ -425,10 +425,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					opt.MountProtocol = MountProtocolCPFS
 					opt.ClientType = NativeClient
 				}
-				//create subpath directory
-				if opt.ClientType == EFCClient || opt.ClientType == NativeClient || nasVol.MountProtocol == MountProtocolAliNas {
-					_ = utils.CreateDestInHost(mountPoint)
-				}
 				//mount subpath directory
 				if err := DoMount(cs.mounter, opt.FSType, opt.ClientType, nasVol.MountProtocol, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, req.Name, req.Name); err != nil {
 					log.Errorf("CreateVolume: %s, Mount server: %s, nfsPath: %s, nfsVersion: %s, nfsOptions: %s, mountPoint: %s, with error: %s", req.Name, nfsServer, nfsPath, nfsVersion, nfsOptionsStr, mountPoint, err.Error())
