@@ -65,15 +65,9 @@ func updateNodeCapacity() {
 			err := updateCapacityToNode(vgList, qpList, ldList)
 			if err == nil {
 				CacheStorageCapacity = vgList
-				for _, item := range qpList {
-					CacheStorageCapacity = append(CacheStorageCapacity, item)
-				}
-				for _, item := range ldList {
-					CacheStorageCapacity = append(CacheStorageCapacity, item)
-				}
-				for _, item := range LocalDeviceList {
-					CacheStorageCapacity = append(CacheStorageCapacity, item)
-				}
+				CacheStorageCapacity = append(CacheStorageCapacity, qpList...)
+				CacheStorageCapacity = append(CacheStorageCapacity, ldList...)
+				CacheStorageCapacity = append(CacheStorageCapacity, LocalDeviceList...)
 			}
 		}
 
@@ -269,15 +263,9 @@ func updateCapacityToNode(vgList, qpList, ldList []*StorageCapacity) error {
 		log.Log.Errorf("updateCapacityToNode:: get node info with error : %s", err.Error())
 		return err
 	}
-	for _, item := range vgList {
-		qpList = append(qpList, item)
-	}
-	for _, item := range ldList {
-		qpList = append(qpList, item)
-	}
-	for _, item := range LocalDeviceList {
-		qpList = append(qpList, item)
-	}
+	qpList = append(qpList, vgList...)
+	qpList = append(qpList, ldList...)
+	qpList = append(qpList, LocalDeviceList...)
 	capacity, err := json.Marshal(qpList)
 	if err != nil {
 		log.Log.Errorf("Update volumecapacity with json.Marshal error: %s", err.Error())

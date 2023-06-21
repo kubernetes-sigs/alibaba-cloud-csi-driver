@@ -112,9 +112,7 @@ func (ld *NodeLoopDevice) CustomFormatFile(fullName, fsType string, options []st
 	}
 	args := []string{}
 	if len(options) != 0 {
-		for _, opts := range options {
-			args = append(args, opts)
-		}
+		args = append(args, options...)
 	}
 	args = append(args, fullName)
 	_, err := exec.Command(fmt.Sprintf("%s mkfs.%s", utils.NsenterCmd, fsType), args...).CombinedOutput()
