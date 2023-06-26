@@ -478,7 +478,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 					canQuota = true
 				}
 			}
-			if canQuota {
+			// don't set quota if using losetup
+			if canQuota && !losetupType {
 				err := setNasVolumeCapacity(nfsServer, filepath.Join(nfsPath, pvName), volSizeBytes)
 				if err != nil {
 					log.Errorf("CreateVolume: %s, Set Volume Capacity(%s:%s) with error: %s", req.Name, nfsServer, nfsPath, err.Error())

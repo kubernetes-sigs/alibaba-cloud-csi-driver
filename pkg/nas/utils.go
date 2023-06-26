@@ -464,8 +464,7 @@ func createLosetupPv(fullPath string, volSizeBytes int64) error {
 	if err := losetup.TruncateFile(fileName, volSizeBytes); err != nil {
 		return err
 	}
-	_, err := exec.Command("mkfs.ext4", "-F", "-m0", fileName).CombinedOutput()
-	return err
+	return exec.Command("mkfs.ext4", "-F", "-m0", fileName).Run()
 }
 
 // /var/lib/kubelet/pods/5e03c7f7-2946-4ee1-ad77-2efbc4fdb16c/volumes/kubernetes.io~csi/nas-f5308354-725a-4fd3-b613-0f5b384bd00e/mount
@@ -542,7 +541,12 @@ func isLosetupUsed(mounter mountutils.Interface, lockFile string, opt *Options, 
 	oldNodeID := contentParts[0]
 	oldNodeIP := contentParts[1]
 	if GlobalConfigVar.NodeID == oldNodeID {
-		if !isLosetupMount(mounter, volumeID) {
+		mounted, err := isLosetupMount(volumeID)
+		if err != nil {
+			log.Errorf("can not determine whether %s losetup image used: %v", volumeID, err)
+			return true
+		}
+		if !mounted {
 			log.Warnf("Lockfile(%s) exist, but Losetup image not mounted %s.", lockFile, opt.Path)
 			return false
 		}
@@ -589,18 +593,17 @@ func checkLosetupUnmount(mounter mountutils.Interface, mountPoint string) error 
 	return nil
 }
 
-func isLosetupMount(mounter mountutils.Interface, volumeID string) bool {
-	mountPoints, err := mounter.List()
+func isLosetupMount(volumeID string) (bool, error) {
+	devices, err := losetup.List()
 	if err != nil {
-		log.Errorf("list mountpoints: %v", err)
-		return false
+		return false, err
 	}
-	for _, mountPoint := range mountPoints {
-		if strings.Contains(mountPoint.Device, volumeID+"/"+LoopImgFile) {
-			return true
+	for _, device := range devices {
+		if strings.Contains(device.BackFile, volumeID+"/"+LoopImgFile) {
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 func getPvObj(volumeID string) (*v1.PersistentVolume, error) {
