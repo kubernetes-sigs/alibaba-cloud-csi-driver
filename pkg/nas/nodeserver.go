@@ -26,7 +26,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -349,8 +348,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// if volume set mountType as skipmount;
 	if opt.MountType == SkipMountType {
-		mountCmd := fmt.Sprintf("mount -t tmpfs -o size=1m tmpfs %s", mountPath)
-		_, err := utils.ValidateRun(mountCmd)
+		err := ns.mounter.Mount("tmpfs", mountPath, "tmpfs", []string{"size=1m"})
 		if err != nil {
 			log.Errorf("NAS: Mount volume(%s) path as tmpfs with err: %v", req.VolumeId, err.Error())
 			return nil, status.Error(codes.Internal, "NAS: Mount as tmpfs volume with err"+err.Error())
@@ -367,6 +365,16 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, errors.New("NodePublishVolume, mount Losetup volume error with: " + err.Error())
 		}
 		log.Infof("NodePublishVolume: nas losetup volume successful %s", req.VolumeId)
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
+
+	notMounted, err := ns.mounter.IsLikelyNotMountPoint(mountPath)
+	if err != nil {
+		log.Errorf("check mount point %s: %v", mountPath, err)
+		return &csi.NodePublishVolumeResponse{}, status.Errorf(codes.Internal, err.Error())
+	}
+	if !notMounted {
+		log.Infof("Nas, Mount Path Already Mount, options: %s", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -407,29 +415,35 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	// change the mode
 	if opt.Mode != "" && opt.Path != "/" {
-		var wg1 sync.WaitGroup
-		wg1.Add(1)
-
-		go func(*sync.WaitGroup) {
-			cmd := fmt.Sprintf("chmod %s %s", opt.Mode, mountPath)
-			if opt.ModeType == "recursive" {
-				cmd = fmt.Sprintf("chmod -R %s %s", opt.Mode, mountPath)
-			}
-			if _, err := utils.ValidateRun(cmd); err != nil {
+		var args []string
+		if opt.ModeType == "recursive" {
+			args = append(args, "-R")
+		}
+		args = append(args, opt.Mode, mountPath)
+		cmd := exec.Command("chmod", args...)
+		done := make(chan struct{})
+		go func() {
+			if err := cmd.Run(); err != nil {
 				log.Errorf("Nas chmod cmd fail: %s %s", cmd, err)
 			} else {
 				log.Infof("Nas chmod cmd success: %s", cmd)
 			}
-			wg1.Done()
-		}(&wg1)
-
-		if waitTimeout(&wg1, 1) {
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
 			log.Infof("Chmod use more than 1s, running in Concurrency: %s", mountPath)
 		}
 	}
 
 	// check mount
-	if !utils.IsMounted(mountPath) {
+	notMounted, err = ns.mounter.IsLikelyNotMountPoint(mountPath)
+	if err != nil {
+		log.Errorf("check mount point %s: %v", mountPath, err)
+		return &csi.NodePublishVolumeResponse{}, status.Errorf(codes.Internal, err.Error())
+	}
+	if notMounted {
 		return nil, errors.New("Check mount fail after mount:" + mountPath)
 	}
 
@@ -464,11 +478,11 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 	mountPoint := req.TargetPath
-	isNotMounted, err := utils.IsLikelyNotMountPoint(mountPoint)
+	isNotMounted, err := ns.mounter.IsLikelyNotMountPoint(mountPoint)
 	if (isNotMounted && err == nil) || os.IsNotExist(err) {
 		log.Infof("Umount mountpoint %s is not mounted, skipping.", mountPoint)
 		if GlobalConfigVar.LosetupEnable {
-			if err := checkLosetupUnmount(mountPoint); err != nil {
+			if err := checkLosetupUnmount(ns.mounter, mountPoint); err != nil {
 				log.Errorf("Check and umount losetup volume is failed, err: %v", err)
 				return nil, errors.New("Check ans umount losetup is failed: " + err.Error())
 			}
@@ -483,7 +497,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	if GlobalConfigVar.LosetupEnable {
-		if err := checkLosetupUnmount(mountPoint); err != nil {
+		if err := checkLosetupUnmount(ns.mounter, mountPoint); err != nil {
 			log.Errorf("Nas: umount lostup volume with error: %v", err)
 			return nil, errors.New("Check umount losetup is failed, err: " + err.Error())
 		}

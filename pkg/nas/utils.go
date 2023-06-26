@@ -156,20 +156,6 @@ func DoMount(mounter mountutils.Interface, fsType, clientType, nfsProtocol, nfsS
 	return nil
 }
 
-// CheckNfsPathMounted check whether the given nfs path was mounted
-func CheckNfsPathMounted(mountpoint, path string) bool {
-	mntCmd := "cat /proc/mounts"
-	stdout, err := utils.RunWithFilter(mntCmd, mountpoint, path)
-	if err != nil {
-		log.Errorf("Exec command %s is failed, mountpoint:%s, path:%s, err:%s", mntCmd, mountpoint, path, err.Error())
-		return false
-	}
-	if len(stdout) == 0 {
-		return false
-	}
-	return true
-}
-
 // CreateDest create the target
 func CreateDest(dest string) error {
 	fi, err := os.Lstat(dest)
@@ -300,11 +286,6 @@ func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
 }
 
 func createSubDir(mounter mountutils.Interface, nfsProtocol, nfsServer, nfsPath, nfsOptions, volumeID string) error {
-	// if volume is cpfs-nfs or alinas protocol, mount in host mode.
-	mountInHost := false
-	if nfsProtocol == MountProtocolCPFSNFS || nfsProtocol == MountProtocolAliNas {
-		mountInHost = true
-	}
 	rootPath := "/"
 	usePath := nfsPath
 	//The root directory of cpfs-nfs and extreme NAS is /share
@@ -319,49 +300,31 @@ func createSubDir(mounter mountutils.Interface, nfsProtocol, nfsServer, nfsPath,
 	}
 
 	nasTmpPath := filepath.Join(NasTempMntPath, volumeID)
-	if mountInHost {
-		if err := os.MkdirAll(nasTmpPath, os.ModePerm); err != nil {
-			log.Infof("Create nas tempPath is failed in host, tmpPath:%s, err: %s", nasTmpPath, err.Error())
+	if err := utils.CreateDest(nasTmpPath); err != nil {
+		log.Infof("Create nas tempPath is failed, tmpPath:%s, err: %s", nasTmpPath, err.Error())
+		return err
+	}
+	notMounted, err := mounter.IsLikelyNotMountPoint(nasTmpPath)
+	if err != nil {
+		return fmt.Errorf("check mountpoint %s: %w", nasTmpPath, err)
+	}
+	if !notMounted {
+		if err := mounter.Unmount(nasTmpPath); err != nil {
 			return err
 		}
-		if utils.IsMountedInHost(nasTmpPath) {
-			utils.UmountInHost(nasTmpPath)
-		}
-		mntCmdRootPath := fmt.Sprintf("%s mount -t %s -o %s %s:%s %s", NsenterCmd, nfsProtocol, nfsOptions, nfsServer, rootPath, nasTmpPath)
-		_, err := utils.ValidateRun(mntCmdRootPath)
-		if err != nil {
-			log.Errorf("Mount rootPath is failed in host, rootPath:%s, err:%s", rootPath, err.Error())
-			return err
-		}
-		subPath := path.Join(nasTmpPath, usePath)
-		if err := os.MkdirAll(subPath, os.ModePerm); err != nil {
-			log.Infof("Create subPath is failed in host, subPath:%s, err:%s ", subPath, err.Error())
-			return err
-		}
-		utils.UmountInHost(nasTmpPath)
-	} else {
-		if err := utils.CreateDest(nasTmpPath); err != nil {
-			log.Infof("Create nas tempPath is failed, tmpPath:%s, err: %s", nasTmpPath, err.Error())
-			return err
-		}
-		if utils.IsMounted(nasTmpPath) {
-			utils.Umount(nasTmpPath)
-		}
-		mntCmdRootPath := fmt.Sprintf("mount -t %s -o %s %s:%s %s", nfsProtocol, nfsOptions, nfsServer, rootPath, nasTmpPath)
-		_, err := utils.ValidateRun(mntCmdRootPath)
-		if err != nil {
-			log.Errorf("Mount rootPath is failed, rootPath:%s, err:%s", rootPath, err.Error())
-			return err
-		}
-		subPath := path.Join(nasTmpPath, usePath)
-		if err := utils.CreateDest(subPath); err != nil {
-			log.Infof("Create subPath is failed, subPath:%s, err: %s", subPath, err.Error())
-			return err
-		}
-		utils.Umount(nasTmpPath)
+	}
+	err = mounter.Mount(fmt.Sprintf("%s:%s", nfsServer, rootPath), nasTmpPath, nfsProtocol, []string{nfsOptions})
+	if err != nil {
+		log.Errorf("Mount rootPath is failed, rootPath:%s, err:%s", rootPath, err.Error())
+		return err
+	}
+	subPath := path.Join(nasTmpPath, usePath)
+	if err := utils.CreateDest(subPath); err != nil {
+		log.Infof("Create subPath is failed, subPath:%s, err: %s", subPath, err.Error())
+		return err
 	}
 	log.Infof("Create subPath is successfully, nfsPath:%s, subPath:%s", nfsPath, path.Join(nasTmpPath, usePath))
-	return nil
+	return mounter.Unmount(nasTmpPath)
 }
 
 func setNasVolumeCapacity(nfsServer, nfsPath string, volSizeBytes int64) error {
@@ -420,37 +383,33 @@ func setNasVolumeCapacityWithID(pvObj *v1.PersistentVolume, crdClient dynamic.In
 // check system config,
 // if tcp_slot_table_entries not set to 128, just config.
 func checkSystemNasConfig() {
-	updateNasConfig := false
 	sunRPCFile := "/etc/modprobe.d/sunrpc.conf"
-	if !utils.IsFileExisting(sunRPCFile) {
-		updateNasConfig = true
-	} else {
-		chkCmd := fmt.Sprintf("cat %s", sunRPCFile)
-		stdout, err := utils.RunWithFilter(chkCmd, "tcp_slot_table_entries", "128")
+	if utils.IsFileExisting(sunRPCFile) {
+		data, err := os.ReadFile(sunRPCFile)
 		if err != nil {
 			log.Warnf("Update Nas system config check error: %s", err.Error())
 			return
 		}
-		if len(stdout) == 0 {
-			updateNasConfig = true
+		for _, line := range strings.Split(string(data), "\n") {
+			if strings.Contains(line, "tcp_slot_table_entries") && strings.Contains(line, "128") {
+				return
+			}
 		}
 	}
 
-	if updateNasConfig {
-		sunRpcConfig := "\"options sunrpc tcp_slot_table_entries=128\"\n\"options sunrpc tcp_max_slot_table_entries=128\""
-		startRpcConfig := "sysctl -w sunrpc.tcp_slot_table_entries=128"
-		err := utils.WriteAndSyncFile(sunRPCFile, []byte(sunRpcConfig), 755)
-		if err != nil {
-			log.Warnf("Write nas rpcconfig %s is failed, err: %s", sunRPCFile, err.Error())
-			return
-		}
-		_, err = utils.ValidateRun(startRpcConfig)
-		if err != nil {
-			log.Warnf("Start nas rpcconfig is failed, err: %s", err.Error())
-			return
-		}
-		log.Warnf("Update nas system config is successfully.")
+	sunRpcConfig := "\"options sunrpc tcp_slot_table_entries=128\"\n\"options sunrpc tcp_max_slot_table_entries=128\""
+	// startRpcConfig := "sysctl -w sunrpc.tcp_slot_table_entries=128"
+	err := utils.WriteAndSyncFile(sunRPCFile, []byte(sunRpcConfig), 0755)
+	if err != nil {
+		log.Warnf("Write nas rpcconfig %s is failed, err: %s", sunRPCFile, err.Error())
+		return
 	}
+	err = exec.Command("sysctl", "-w", "sunrpc.tcp_slot_table_entries=128").Run()
+	if err != nil {
+		log.Warnf("Start nas rpcconfig is failed, err: %s", err.Error())
+		return
+	}
+	log.Warnf("Update nas system config is successfully.")
 }
 
 // ParseMountFlags parse mountOptions
@@ -512,7 +471,11 @@ func createLosetupPv(fullPath string, volSizeBytes int64) error {
 // /var/lib/kubelet/pods/5e03c7f7-2946-4ee1-ad77-2efbc4fdb16c/volumes/kubernetes.io~csi/nas-f5308354-725a-4fd3-b613-0f5b384bd00e/mount
 func mountLosetupPv(mounter mountutils.Interface, mountPoint string, opt *Options, volumeID string) error {
 	// if target path mounted already, return
-	if utils.IsMounted(mountPoint) {
+	notMounted, err := mounter.IsLikelyNotMountPoint(mountPoint)
+	if err != nil {
+		return fmt.Errorf("check mount point %s: %w", mountPoint, err)
+	}
+	if !notMounted {
 		log.Infof("mountLosetupPv: TargetPath(%s) is mounted as tmpfs, not need mount again", mountPoint)
 		return nil
 	}
@@ -531,21 +494,22 @@ func mountLosetupPv(mounter mountutils.Interface, mountPoint string, opt *Option
 		return fmt.Errorf("mountLosetupPv: create nfs mountPath error %s ", err.Error())
 	}
 	//mount nas to use losetup dev
-	err := DoMount(mounter, "nas", "nfsclient", opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, nfsPath, volumeID, podID)
+	err = DoMount(mounter, "nas", "nfsclient", opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, nfsPath, volumeID, podID)
 	if err != nil {
 		return fmt.Errorf("mountLosetupPv: mount losetup volume failed: %s", err.Error())
 	}
 
 	lockFile := filepath.Join(nfsPath, LoopLockFile)
-	if opt.LoopLock == "true" && isLosetupUsed(lockFile, opt, volumeID) {
+	if opt.LoopLock == "true" && isLosetupUsed(mounter, lockFile, opt, volumeID) {
 		return fmt.Errorf("mountLosetupPv: nfs losetup file is used by others %s", lockFile)
 	}
 	imgFile := filepath.Join(nfsPath, LoopImgFile)
 	failedFile := filepath.Join(nfsPath, Resize2fsFailedFilename)
 	if utils.IsFileExisting(failedFile) {
 		// path/to/whatever does not exist
-		cmd := fmt.Sprintf(Resize2fsFailedFixCmd, NsenterCmd, imgFile)
-		_, err = utils.ValidateRun(cmd)
+		cmd := exec.Command("fsck", "-a", imgFile)
+		// cmd := fmt.Sprintf(Resize2fsFailedFixCmd, NsenterCmd, imgFile)
+		err := cmd.Run()
 		if err != nil {
 			return fmt.Errorf("mountLosetupPv: mount nfs losetup error %s", err.Error())
 		}
@@ -554,8 +518,7 @@ func mountLosetupPv(mounter mountutils.Interface, mountPoint string, opt *Option
 			log.Errorf("mountLosetupPv: failed to remove failed file: %v", err)
 		}
 	}
-	mountCmd := fmt.Sprintf("%s mount -o loop %s %s", NsenterCmd, imgFile, mountPoint)
-	_, err = utils.ValidateRun(mountCmd)
+	err = mounter.Mount(imgFile, mountPoint, "", []string{"loop"})
 	if err != nil {
 		return fmt.Errorf("mountLosetupPv: mount nfs losetup error %s", err.Error())
 	}
@@ -566,7 +529,7 @@ func mountLosetupPv(mounter mountutils.Interface, mountPoint string, opt *Option
 	return nil
 }
 
-func isLosetupUsed(lockFile string, opt *Options, volumeID string) bool {
+func isLosetupUsed(mounter mountutils.Interface, lockFile string, opt *Options, volumeID string) bool {
 	if !utils.IsFileExisting(lockFile) {
 		return false
 	}
@@ -579,7 +542,7 @@ func isLosetupUsed(lockFile string, opt *Options, volumeID string) bool {
 	oldNodeID := contentParts[0]
 	oldNodeIP := contentParts[1]
 	if GlobalConfigVar.NodeID == oldNodeID {
-		if !isLosetupMount(volumeID) {
+		if !isLosetupMount(mounter, volumeID) {
 			log.Warnf("Lockfile(%s) exist, but Losetup image not mounted %s.", lockFile, opt.Path)
 			return false
 		}
@@ -599,7 +562,7 @@ func isLosetupUsed(lockFile string, opt *Options, volumeID string) bool {
 	return true
 }
 
-func checkLosetupUnmount(mountPoint string) error {
+func checkLosetupUnmount(mounter mountutils.Interface, mountPoint string) error {
 	pathList := strings.Split(mountPoint, "/")
 	if len(pathList) != 10 {
 		log.Infof("MountPoint not format as losetup type: %s", mountPoint)
@@ -616,7 +579,7 @@ func checkLosetupUnmount(mountPoint string) error {
 				return fmt.Errorf("checkLosetupUnmount: remove lock file error %v", err)
 			}
 		}
-		if err := utils.Umount(nfsPath); err != nil {
+		if err := mounter.Unmount(nfsPath); err != nil {
 			return fmt.Errorf("checkLosetupUnmount: umount nfs path error %v", err)
 		}
 		log.Infof("Losetup Unmount successful %s", mountPoint)
@@ -626,17 +589,18 @@ func checkLosetupUnmount(mountPoint string) error {
 	return nil
 }
 
-func isLosetupMount(volumeID string) bool {
-	keyWord := volumeID + "/" + LoopImgFile
-	stdout, err := utils.RunWithFilter("mount", keyWord)
+func isLosetupMount(mounter mountutils.Interface, volumeID string) bool {
+	mountPoints, err := mounter.List()
 	if err != nil {
-		log.Infof("isLosetupMount: Exec command mount is failed, err:, %s", err.Error())
+		log.Errorf("list mountpoints: %v", err)
 		return false
 	}
-	if len(stdout) == 0 {
-		return false
+	for _, mountPoint := range mountPoints {
+		if strings.Contains(mountPoint.Device, volumeID+"/"+LoopImgFile) {
+			return true
+		}
 	}
-	return true
+	return false
 }
 
 func getPvObj(volumeID string) (*v1.PersistentVolume, error) {

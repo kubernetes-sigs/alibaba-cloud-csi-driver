@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
-	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -59,11 +58,11 @@ func execLosetupWithArgs(arg ...string) ([]byte, error) {
 }
 
 func execWithLog(name string, arg ...string) ([]byte, error) {
-	command := name + " " + strings.Join(arg, " ")
-	output, err := exec.Command(name, arg...).CombinedOutput()
+	cmd := exec.Command(name, arg...)
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return output, fmt.Errorf("exec %q failed: %w", command, err)
+		return output, fmt.Errorf("failed to execute %q: %w", cmd, err)
 	}
-	log.WithField("command", command).Infof(string(output))
+	log.WithField("command", cmd).Infof(string(output))
 	return output, nil
 }
