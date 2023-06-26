@@ -458,6 +458,10 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.Internal, "NodeUnpublishVolume: mount point mounted yet "+mountPoint)
 	}
 
+	if empty, _ := IsDirEmpty(mountPoint); !empty {
+		log.Errorf("NodeUnpublishVolume: %s is unmounted but still not empty yet", mountPoint)
+		return nil, status.Error(codes.Internal, "NodeUnpublishVolume: is unmounted but still not empty yet "+mountPoint)
+	}
 	if removeErr := os.Remove(mountPoint); removeErr != nil {
 		log.Errorf("NodeUnpublishVolume: Could not remove mount point %s with error %v", mountPoint, removeErr)
 		return nil, status.Errorf(codes.Internal, "Could not remove mount point %s: %v", mountPoint, removeErr)
