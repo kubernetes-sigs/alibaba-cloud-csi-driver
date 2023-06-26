@@ -12,7 +12,7 @@ type NasMounter struct {
 
 func (m *NasMounter) Mount(source string, target string, fstype string, options []string) error {
 	switch fstype {
-	case "alinas", "cpfs", "cpfs-nas":
+	case "alinas", "cpfs", "cpfs-nfs":
 		return m.fuseMounter.Mount(source, target, fstype, options)
 	default:
 		return m.Interface.Mount(source, target, fstype, options)

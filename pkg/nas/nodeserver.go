@@ -571,7 +571,7 @@ func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) erro
 		// if err != nil {
 		// 	return fmt.Errorf("Check losetup image error %s", err.Error())
 		// }
-		if err := exec.Command("resize2fs", loopDev); err != nil {
+		if err := exec.Command("resize2fs", loopDev).Run(); err != nil {
 			log.Errorf("NodeExpandVolume: resize filesystem error %v", err)
 			failedFile := filepath.Join(nfsPath, Resize2fsFailedFilename)
 			if !utils.IsFileExisting(failedFile) {
