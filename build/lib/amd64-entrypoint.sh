@@ -125,23 +125,63 @@ if [ "$run_oss" = "true" ]; then
 
 	if [[ ${reconcileOssFS} == "install" ]]; then
       if [[ ${host_os} == "lifsea" ]]; then
-          rpm2cpio /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | cpio -idmv
+          for((i=1;i<=5;i++));
+          do
+            echo "Starting install ossfs in ${host_os}."
+            rpm2cpio /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | cpio -idmv
+            if [ $? -eq 0 ]; then
+                break
+            else
+                echo "Starting retry again install ossfs in ${host_os}.retry count:$i"
+                sleep 2
+            fi
+          done
           cp ./usr/local/bin/ossfs /host/etc/csi-tool/
           ${HOST_CMD} cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
       else
-          ${HOST_CMD} rpm -i /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+          for((i=1;i<=5;i++));
+          do
+            echo "Starting install ossfs in ${host_os}."
+            ${HOST_CMD} rpm -i /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+            if [ $? -eq 0 ]; then
+                break
+            else
+                echo "Starting retry again install ossfs in ${host_os}.retry count:$i"
+                sleep 2
+            fi
+          done
       fi
     fi
 
     if [[ ${reconcileOssFS} == "upgrade" ]]; then
       if [[ ${host_os} == "lifsea" ]]; then
           ${HOST_CMD}  rm /usr/local/bin/ossfs
-          rpm2cpio /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | cpio -idmv
+          for((i=1;i<=5;i++));
+          do
+            echo "Starting upgrade ossfs in ${host_os}."
+            rpm2cpio /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | cpio -idmv
+            if [ $? -eq 0 ]; then
+                break
+            else
+                echo "Starting retry again upgrade ossfs in ${host_os}.retry count:$i"
+                sleep 2
+            fi
+          done
           cp ./usr/local/bin/ossfs /host/etc/csi-tool/
           ${HOST_CMD}  cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
       else
           ${HOST_CMD}  yum remove -y ossfs
-          ${HOST_CMD}  rpm -i /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+          for((i=1;i<=5;i++));
+          do
+            echo "Starting upgrade ossfs in ${host_os}."
+            ${HOST_CMD} rpm -i /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+            if [ $? -eq 0 ]; then
+                break
+            else
+                echo "Starting retry again upgrade ossfs in ${host_os}.retry count:$i"
+                sleep 2
+            fi
+          done
       fi
     fi
 
