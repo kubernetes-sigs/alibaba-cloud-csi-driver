@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -377,11 +378,29 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err != nil {
 		return nil, err
 	}
-	mnted, out, err := IsOssfsMounted(mountPoint)
-	log.Infof("TEST:: NodeNodePublishVolume:: Check umount %s before doUmount: hasMount:%v, mountOut: %v, err:%v", mountPoint, mnted, out, err)
-	if !mnted {
-		log.Infof("Directory is not mounted: %s, mountOut: %v, err: %v", mountPoint, out, err)
-		return &csi.NodeUnpublishVolumeResponse{}, nil
+	/*
+		if !IsOssfsMounted(mountPoint) {
+			log.Infof("Directory is not mounted: %s", mountPoint)
+			return &csi.NodeUnpublishVolumeResponse{}, nil
+		}
+	*/
+	// check mount point with IsLikelyNotMountPoint
+	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(mountPoint)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	log.Infof("TEST:: NodeNodePublishVolume:: Check umount %s before doUmount: hasMount:%v, err:%v", mountPoint, !notmounted, err)
+	if notmounted {
+		if empty, _ := IsDirEmpty(mountPoint); empty {
+			if removeErr := os.Remove(mountPoint); removeErr != nil {
+				log.Errorf("NodeUnpublishVolume: Could not remove mount point %s with error %v", mountPoint, removeErr)
+				return nil, status.Errorf(codes.Internal, "Could not remove mount point %s: %v", mountPoint, removeErr)
+			}
+			log.Infof("NodeUnpublishVolume: %s is unmounted and empty", mountPoint)
+			return &csi.NodeUnpublishVolumeResponse{}, nil
+		}
+		log.Errorf("NodeUnpublishVolume: mount point %s is unmounted, but not empty dir", mountPoint)
+		return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume: mount point %s is unmounted, but not empty dir", mountPoint)
 	}
 
 	pvName := req.GetVolumeId()
@@ -407,8 +426,18 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
 	}
 
-	mnted, out, err = IsOssfsMounted(mountPoint)
+	mnted, out, err := IsOssfsMounted(mountPoint)
 	log.Infof("TEST:: NodeNodePublishVolume:: Check umount %s after doUmount: hasMount:%v, mountOut: %v, err:%v", mountPoint, mnted, out, err)
+	if mnted {
+		log.Errorf("NodeUnpublishVolume: mount pointed mounted yet", mountPoint)
+		return nil, status.Error(codes.Internal, "NodeUnpublishVolume: mount point mounted yet "+mountPoint)
+	}
+
+	if removeErr := os.Remove(mountPoint); removeErr != nil {
+		log.Errorf("NodeUnpublishVolume: Could not remove mount point %s with error %v", mountPoint, removeErr)
+		return nil, status.Errorf(codes.Internal, "Could not remove mount point %s: %v", mountPoint, removeErr)
+	}
+
 	log.Infof("NodeUnpublishVolume:: Umount OSS Successful: %s", mountPoint)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
