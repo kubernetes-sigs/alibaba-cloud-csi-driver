@@ -138,6 +138,9 @@ spec:
               readOnly: true
             - mountPath: /host/var/run/
               name: fuse-metrics-dir
+            - name: host-mnt
+              mountPath: /mnt
+              mountPropagation: "Bidirectional"
       volumes:
         - name: fuse-metrics-dir
           hostPath:
@@ -167,6 +170,10 @@ spec:
         - name: ossconnectordir
           hostPath:
             path: /usr/
+        - name: host-mnt
+          hostPath:
+            path: /mnt
+            type: DirectoryOrCreate
         - name: addon-token
           secret:
             defaultMode: 420
