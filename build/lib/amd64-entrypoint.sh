@@ -104,6 +104,22 @@ if [ "$run_oss" = "true" ]; then
     echo "ossfsVersion:"${ossfsVer}
     echo "ossfsArch:"${ossfsArch}
 
+    # ensure openssl
+    if [ ! `${HOST_CMD}  which openssl` ]; then
+        for((i=1;i<=10;i++));
+        do
+            opensslVer=`${HOST_CMD}  openssl version` 
+            if [ $? -eq 0 ]; then
+                echo "OpenSSL has installed : $opensslVer"
+                break
+            else
+                echo "Starting retry install OpenSSL .retry count:$i"
+                ${HOST_CMD} yum install -y openssl
+            fi
+        done
+    fi  
+
+
     # install OSSFS
     mkdir -p /host/etc/csi-tool/
 		reconcileOssFS="skip"
