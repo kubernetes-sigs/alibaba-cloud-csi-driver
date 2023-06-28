@@ -368,6 +368,29 @@ if [ "$run_nas" = "true" ]; then
     cp /root/aliyun-alinas-utils-1.1-6.al7.noarch.rpm /host/etc/csi-tool/
     # nas-rich-client rpm
     cp /root/alinas-efc-1.2-3.x86_64.rpm /host/etc/csi-tool/
+
+    install_utils="false"
+    install_efc="false"
+
+    if test -e /etc/csi-plugin/config/cpfs-nas-enable; then
+        install_utils="true"
+    fi
+
+    client_properties="/etc/csi-plugin/config/cnfs-client-properties"
+    if test -e $client_properties && grep -qE "enable=true|efc=true" $client_properties; then
+        install_utils="true"
+        install_efc="true"
+    fi
+
+    if [ $install_utils = "true" ]; then
+        echo "installing aliyun-alinas-utils"
+        ${HOST_CMD} rpm -Uvh /etc/csi-tool/aliyun-alinas-utils-1.1-6.al7.noarch.rpm 
+    fi
+    if [ $install_efc = "true" ]; then
+        echo "installing alinas-efc"
+        ${HOST_CMD} rpm -Uvh /etc/csi-tool/alinas-efc-1.2-3.x86_64.rpm
+        ${HOST_CMD} systemctl start aliyun-alinas-mount-watchdog
+    fi
 fi
 
 ## Jindofs plugin setup
