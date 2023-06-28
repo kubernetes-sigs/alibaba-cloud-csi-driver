@@ -81,7 +81,7 @@ if [ "$run_oss" = "true" ]; then
     fi
 
     ossfsArch="centos7.0"
-    if [[ ${host_os} == "alinux3" ]]; then
+    if [[ ${host_os} == "alinux3" ]] || [[ ${host_os} == "anolis" ]]; then
         for((i=1;i<=10;i++));
         do
             ${HOST_CMD} yum install -y libcurl-devel libxml2-devel fuse-devel openssl-devel
@@ -95,7 +95,7 @@ if [ "$run_oss" = "true" ]; then
         ossfsArch="centos8"
     fi
 
-		if [[ ${host_os} == "lifsea" ]] || [[ ${host_os} == "anolis" ]]; then
+		if [[ ${host_os} == "lifsea" ]]; then
         ossfsArch="centos8"
     fi
 
@@ -119,6 +119,21 @@ if [ "$run_oss" = "true" ]; then
             fi
         done
     fi  
+
+    sslDevelVer=`${HOST_CMD}  rpm -q openssl-devel`
+    if [ $? -ne 0 ]; then
+        for((i=1;i<=10;i++));
+        do
+            ${HOST_CMD} yum install -y openssl-devel
+            if [ $? -eq 0 ]; then
+                sslDevelVer=`${HOST_CMD}  rpm -q openssl-devel`
+                echo "OpenSSL-devel has installed : $sslDevelVer"
+                break
+            else
+                echo "Starting retry install OpenSSL-devel .retry count:$i"
+            fi
+        done
+    fi
 
 
     # install OSSFS
