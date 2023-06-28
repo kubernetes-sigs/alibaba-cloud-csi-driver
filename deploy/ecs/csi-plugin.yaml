@@ -196,6 +196,7 @@ spec:
         - name: csi-plugin-cm
           configMap:
             name: csi-plugin
+            optional: true
         - name: addon-token
           secret:
             defaultMode: 420
