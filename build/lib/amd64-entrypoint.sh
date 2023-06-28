@@ -385,11 +385,15 @@ if [ "$run_nas" = "true" ]; then
     if [ $install_utils = "true" ]; then
         echo "installing aliyun-alinas-utils"
         ${HOST_CMD} rpm -Uvh /etc/csi-tool/aliyun-alinas-utils-1.1-6.al7.noarch.rpm 
+        echo "checking aliyun-alinas-utils-1.1-5.alios7.noarch installed"
+        ${HOST_CMD} rpm -q aliyun-alinas-utils-1.1-5.alios7.noarch || exit 1
     fi
     if [ $install_efc = "true" ]; then
         echo "installing alinas-efc"
         ${HOST_CMD} rpm -Uvh /etc/csi-tool/alinas-efc-1.2-3.x86_64.rpm
-        ${HOST_CMD} systemctl start aliyun-alinas-mount-watchdog
+        echo "checking alinas-efc-1.2-2.x86_64 installed"
+        ${HOST_CMD} rpm -q alinas-efc-1.2-2.x86_64 || exit 1
+        ${HOST_CMD} systemctl start aliyun-alinas-mount-watchdog || exit 1
     fi
 fi
 
