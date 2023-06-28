@@ -105,16 +105,17 @@ if [ "$run_oss" = "true" ]; then
     echo "ossfsArch:"${ossfsArch}
 
     # ensure openssl
-    if [ ! `${HOST_CMD}  which openssl` ]; then
+    opensslVer=`${HOST_CMD}   openssl version | awk '{print $2}'` 
+    if [ ! `${HOST_CMD}  which openssl` ] || [[ "$opensslVer" =~ ^0.* ]]; then
         for((i=1;i<=10;i++));
         do
-            opensslVer=`${HOST_CMD}  openssl version` 
+            ${HOST_CMD} yum install -y openssl
             if [ $? -eq 0 ]; then
+                opensslVer=`${HOST_CMD}   openssl version | awk '{print $2}'` 
                 echo "OpenSSL has installed : $opensslVer"
                 break
             else
                 echo "Starting retry install OpenSSL .retry count:$i"
-                ${HOST_CMD} yum install -y openssl
             fi
         done
     fi  
