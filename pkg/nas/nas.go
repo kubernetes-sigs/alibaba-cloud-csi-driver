@@ -18,7 +18,6 @@ package nas
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -41,12 +40,7 @@ import (
 const (
 	driverName = "nasplugin.csi.alibabacloud.com"
 	// InstanceID is instance id
-	InstanceID         = "instance-id"
-	alinasUtilsName    = "aliyun-alinas-utils.noarch"
-	alinasUtils        = "aliyun-alinas-utils"
-	alinasUtilsRpmName = "aliyun-alinas-utils-1.1-6.al7.noarch.rpm"
-	alinasEfc          = "alinas-efc"
-	alinasEfcRpmName   = "alinas-efc-1.2-3.x86_64.rpm"
+	InstanceID = "instance-id"
 )
 
 var (
@@ -77,12 +71,7 @@ type GlobalConfig struct {
 type NAS struct {
 	driver           *csicommon.CSIDriver
 	endpoint         string
-	idServer         *csicommon.DefaultIdentityServer
-	nodeServer       *nodeServer
 	controllerServer csi.ControllerServer
-
-	cap   []*csi.VolumeCapability_AccessMode
-	cscap []*csi.ControllerServiceCapability
 }
 
 // NewDriver create the identity/node/controller server and disk driver
@@ -133,43 +122,6 @@ func (d *NAS) Run() {
 		d.controllerServer,
 		newNodeServer(d))
 	s.Wait()
-}
-
-func deleteRpm(rpmName string) {
-	deleteCmd := fmt.Sprintf("%s yum remove -y %s", NsenterCmd, rpmName)
-	_, err := utils.ValidateRun(deleteCmd)
-	if err != nil {
-		log.Errorf("ValidateRun cmd %s is failed, err: %v", deleteCmd, err)
-	} else {
-		log.Infof("ValidateRun cmd %s is successfully", deleteCmd)
-	}
-}
-
-func installRpm(queryRpmName string, rpmName string) {
-	queryCmd := fmt.Sprintf("%s rpm -qa", NsenterCmd)
-	find, _ := utils.RunWithFilter(queryCmd, queryRpmName)
-	if len(find) == 0 {
-		installCmd := fmt.Sprintf("%s yum localinstall -y /etc/csi-tool/%s", NsenterCmd, rpmName)
-		_, err := utils.ValidateRun(installCmd)
-		if err != nil {
-			log.Errorf("ValidateRun cmd %s is failed, err: %v", installCmd, err)
-		} else {
-			log.Infof("ValidateRun cmd %s is successfully", installCmd)
-		}
-	}
-}
-
-func upgradeRPM(res string, queryRpmName string, rpmName string) {
-	rpmPath := "/etc/csi-tool/" + rpmName
-	if len(res) != 0 && !strings.Contains(res, strings.TrimSuffix(rpmName, ".rpm")) {
-		updateCmd := fmt.Sprintf("%s rpm -Uvh %s --nopostun", NsenterCmd, rpmPath)
-		_, err := utils.ValidateRun(updateCmd)
-		if err != nil {
-			log.Errorf("ValidateRun cmd %s is failed, err: %v", updateCmd, err)
-		} else {
-			log.Infof("ValidateRun cmd %s is successfully", updateCmd)
-		}
-	}
 }
 
 // GlobalConfigSet set global config
@@ -228,37 +180,6 @@ func GlobalConfigSet(serviceType string) *restclient.Config {
 			//get service endpoint->format json->write /etc/hosts/dadi-endpoint.json
 			if serviceType == utils.PluginService {
 				go dadi.Run(kubeClient)
-			}
-		}
-		_, ok1 = configMap.Data["cpfs-nas-enable"]
-		if ok1 {
-			if serviceType == utils.PluginService {
-				deleteRpm(alinasUtilsName)
-				installRpm(alinasUtils, alinasUtilsRpmName)
-			}
-		}
-		if value, ok := configMap.Data["cnfs-client-properties"]; ok {
-			if strings.Contains(value, "enable=true") || strings.Contains(value, "efc=true") {
-				//install alinas rpm(alinas-efc alinas-utils) and cpfs rpm(alinas-utils)
-				if serviceType == utils.PluginService {
-					//deleteRpm before installRpm
-					deleteRpm(alinasUtilsName)
-					installRpm(alinasUtils, alinasUtilsRpmName)
-					queryCmd := fmt.Sprintf("%s rpm -qa", NsenterCmd)
-					stdout, _ := utils.ValidateRun(queryCmd)
-					if strings.Contains(stdout, alinasEfc) {
-						installRpm(alinasEfc, alinasEfcRpmName)
-					} else {
-						upgradeRPM(stdout, alinasEfc, alinasEfcRpmName)
-					}
-					runCmd := fmt.Sprintf("%s systemctl start aliyun-alinas-mount-watchdog", NsenterCmd)
-					_, err := utils.ValidateRun(runCmd)
-					if err != nil {
-						log.Errorf("ValidateRun %s is failed, err: %v", runCmd, err)
-					} else {
-						log.Infof("ValidateRun %s is successfully", runCmd)
-					}
-				}
 			}
 		}
 	}
