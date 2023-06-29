@@ -482,7 +482,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if (isNotMounted && err == nil) || os.IsNotExist(err) {
 		log.Infof("Umount mountpoint %s is not mounted, skipping.", mountPoint)
 		if GlobalConfigVar.LosetupEnable {
-			if err := checkLosetupUnmount(ns.mounter, mountPoint); err != nil {
+			if err := unmountLosetupPv(ns.mounter, mountPoint); err != nil {
 				log.Errorf("Check and umount losetup volume is failed, err: %v", err)
 				return nil, errors.New("Check ans umount losetup is failed: " + err.Error())
 			}
@@ -497,7 +497,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	if GlobalConfigVar.LosetupEnable {
-		if err := checkLosetupUnmount(ns.mounter, mountPoint); err != nil {
+		if err := unmountLosetupPv(ns.mounter, mountPoint); err != nil {
 			log.Errorf("Nas: umount lostup volume with error: %v", err)
 			return nil, errors.New("Check umount losetup is failed, err: " + err.Error())
 		}
