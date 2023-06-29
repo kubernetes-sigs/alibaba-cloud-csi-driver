@@ -566,7 +566,7 @@ func isLosetupUsed(mounter mountutils.Interface, lockFile string, opt *Options, 
 	return true
 }
 
-func checkLosetupUnmount(mounter mountutils.Interface, mountPoint string) error {
+func unmountLosetupPv(mounter mountutils.Interface, mountPoint string) error {
 	pathList := strings.Split(mountPoint, "/")
 	if len(pathList) != 10 {
 		log.Infof("MountPoint not format as losetup type: %s", mountPoint)
