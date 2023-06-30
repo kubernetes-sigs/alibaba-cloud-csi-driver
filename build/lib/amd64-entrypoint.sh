@@ -16,15 +16,20 @@ os_release_exist=$?
 
 if [[ "$os_release_exist" = "0" ]]; then
     osID=`${HOST_CMD} cat /etc/os-release | grep "ID=" | grep -v "VERSION_ID"`
-    osVersion=`${HOST_CMD} cat /etc/os-release | grep "VERSION_ID=" | grep "^VERSION_ID=\"3"`
-    if [[ `echo ${osID} | grep "alinux" | wc -l` != "0" ]] && [[ "${osVersion}" ]]; then
-        host_os="alinux3"
+    if [[ `echo ${osID} | grep "alinux" | wc -l` != "0" ]]; then
+        osVersion=`${HOST_CMD} cat /etc/os-release | grep "VERSION_ID=" | grep "^VERSION_ID=\"3"`
+        if [[ "${osVersion}" ]]; then
+            host_os="alinux3"
+        fi
     fi
 		if [[ `echo ${osID} | grep "lifsea" | wc -l` != "0" ]]; then
         host_os="lifsea"
     fi
     if [[ `echo ${osID} | grep "anolis" | wc -l` != "0" ]]; then
-        host_os="anolis"
+        osVersion=`${HOST_CMD} cat /etc/os-release | grep "VERSION_ID=" | grep "^VERSION_ID=\"8"`
+        if [[ "${osVersion}" ]]; then
+            host_os="anolis8"
+        fi
     fi
 fi
 
@@ -81,7 +86,7 @@ if [ "$run_oss" = "true" ]; then
     fi
 
     ossfsArch="centos7.0"
-    if [[ ${host_os} == "alinux3" ]] || [[ ${host_os} == "anolis" ]]; then
+    if [[ ${host_os} == "alinux3" ]] || [[ ${host_os} == "anolis8" ]]; then
         for((i=1;i<=10;i++));
         do
             ${HOST_CMD} yum install -y libcurl-devel libxml2-devel fuse-devel openssl-devel
