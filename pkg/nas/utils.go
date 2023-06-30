@@ -24,7 +24,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -60,6 +59,8 @@ const (
 	Resize2fsFailedFilename = "resize2fs_failed.txt"
 	// Resize2fsFailedFixCmd ...
 	Resize2fsFailedFixCmd = "%s fsck -a %s"
+
+	GiB = 1 << 30
 )
 
 var (
@@ -380,7 +381,6 @@ func setNasVolumeCapacity(nfsServer, nfsPath string, volSizeBytes int64) error {
 	if nfsPath == "" || nfsPath == "/" {
 		return fmt.Errorf("Volume %s:%s not support set quota to root path ", nfsServer, nfsPath)
 	}
-	pvSizeGB := volSizeBytes / (1024 * 1024 * 1024)
 	nasClient := updateNasClient(GlobalConfigVar.NasClient, GlobalConfigVar.Region)
 	fsList := strings.Split(nfsServer, "-")
 	if len(fsList) < 1 {
@@ -391,8 +391,7 @@ func setNasVolumeCapacity(nfsServer, nfsPath string, volSizeBytes int64) error {
 	quotaRequest.Path = nfsPath
 	quotaRequest.UserType = "AllUsers"
 	quotaRequest.QuotaType = "Enforcement"
-	pvSizeGBStr := strconv.FormatInt(pvSizeGB, 10)
-	quotaRequest.SizeLimit = requests.Integer(pvSizeGBStr)
+	quotaRequest.SizeLimit = requests.NewInteger64((volSizeBytes + GiB - 1) / GiB)
 	quotaRequest.RegionId = GetMetaData(RegionTag)
 	_, err := nasClient.SetDirQuota(quotaRequest)
 	if err != nil {
