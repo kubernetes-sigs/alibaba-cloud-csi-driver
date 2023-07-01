@@ -110,9 +110,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		if !ok {
 			return nil, fmt.Errorf("CreateVolume: Input cpfs type error: volume: %v", req)
 		}
-		for _, mountFlag := range volCapMount.Mount.MountFlags {
-			cpfsOptions = append(cpfsOptions, mountFlag)
-		}
+		cpfsOptions = append(cpfsOptions, volCapMount.Mount.MountFlags...)
 	}
 	cpfsOptionsStr := strings.Join(cpfsOptions, ",")
 	cpfsServerInputs, cpfsServer, cpfsFileSystem, cpfsPath := "", "", "", ""

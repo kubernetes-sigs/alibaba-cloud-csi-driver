@@ -1015,9 +1015,7 @@ func FormatNewDisk(readOnly bool, source, fstype, target string, mkfsOptions, mo
 	// add mkfs options
 	if len(mkfsOptions) != 0 {
 		args = []string{}
-		for _, opts := range mkfsOptions {
-			args = append(args, opts)
-		}
+		args = append(args, mkfsOptions...)
 		args = append(args, source)
 	}
 

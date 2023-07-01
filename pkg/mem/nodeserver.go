@@ -138,9 +138,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	//mntCmd := fmt.Sprintf("mount -t tmpfs -o size=10G,nr_inodes=10k,mode=700 tmpfs /mytmpfs")
 	options := []string{}
-	for _, tmp := range pv.Spec.MountOptions {
-		options = append(options, tmp)
-	}
+	options = append(options, pv.Spec.MountOptions...)
 	pvSizeNumStr := strconv.FormatInt(pvSizeNum, 10)
 	if pmemType {
 		mpol, err := pickRegionForKMEM(pvSizeNumStr + pvSizeUnit)
