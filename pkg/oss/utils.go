@@ -65,7 +65,7 @@ func GetMetaDataAsync(resource string) string {
 
 func GetGlobalMountPath(volumeId string) string {
 
-	result := sha256.Sum256([]byte(fmt.Sprintf("%s", volumeId)))
+	result := sha256.Sum256([]byte(volumeId))
 	volSha := fmt.Sprintf("%x", result)
 
 	globalFileVer1 := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/pv/", volumeId, "/globalmount")
