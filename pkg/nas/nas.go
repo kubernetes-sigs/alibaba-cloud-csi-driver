@@ -44,9 +44,9 @@ const (
 	InstanceID         = "instance-id"
 	alinasUtilsName    = "aliyun-alinas-utils.noarch"
 	alinasUtils        = "aliyun-alinas-utils"
-	alinasUtilsRpmName = "aliyun-alinas-utils-1.1-5.al7.noarch.rpm"
+	alinasUtilsRpmName = "aliyun-alinas-utils-1.1-6.al7.noarch.rpm"
 	alinasEfc          = "alinas-efc"
-	alinasEfcRpmName   = "alinas-efc-1.2-2.x86_64.rpm"
+	alinasEfcRpmName   = "alinas-efc-1.2-3.x86_64.rpm"
 )
 
 var (
