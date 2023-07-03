@@ -6,7 +6,7 @@ require (
 	github.com/alibabacloud-go/darabonba-openapi v0.1.16
 	github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
 	github.com/alibabacloud-go/tea v1.1.17
-	github.com/aliyun/alibaba-cloud-sdk-go v1.62.289
+	github.com/aliyun/alibaba-cloud-sdk-go v1.62.401
 	github.com/container-storage-interface/spec v1.2.0
 	github.com/containerd/ttrpc v1.1.0
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
