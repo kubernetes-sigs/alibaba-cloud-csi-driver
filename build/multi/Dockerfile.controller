@@ -1,0 +1,17 @@
+FROM --platform=$BUILDPLATFORM golang:1.18 as build
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ENV GOPATH=/go
+ADD . /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/
+WORKDIR /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
+RUN env GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GOOS=linux CGO_ENABLED=0 go build --mod=vendor -ldflags "-X main._BRANCH_='v1.0.0' -X main._VERSION_='v1.14.5' -X main._BUILDTIME_=`date '+%Y-%m-%d-%H:%M:%S'`" -o plugin.csi.alibabacloud.com
+
+FROM registry.cn-hangzhou.aliyuncs.com/acs/alpine:3.16-base
+LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM
+
+COPY --chmod=777 --from=build /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/plugin.csi.alibabacloud.com /bin/plugin.csi.alibabacloud.com
+COPY --from=build /etc/timezone /etc/timezone
+ENTRYPOINT ["/bin/plugin.csi.alibabacloud.com"]
