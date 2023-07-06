@@ -2,16 +2,18 @@ package dbfs
 
 import (
 	"context"
+	"os"
+
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
 )
 
 const (
@@ -92,12 +94,7 @@ func NewDriver(nodeID, endpoint string) *DBFS {
 
 // Run start a new NodeServer
 func (d *DBFS) Run() {
-	s := csicommon.NewNonBlockingGRPCServer()
-	s.Start(d.endpoint,
-		NewIdentityServer(d.driver),
-		d.controllerServer,
-		newNodeServer(d))
-	s.Wait()
+	common.RunCSIServer(d.endpoint, NewIdentityServer(d.driver), d.controllerServer, newNodeServer(d))
 }
 
 // GlobalConfigSet set global config

@@ -25,6 +25,7 @@ import (
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dadi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -116,12 +117,7 @@ func NewDriver(nodeID, endpoint, serviceType string) *NAS {
 
 // Run start a new NodeServer
 func (d *NAS) Run() {
-	s := csicommon.NewNonBlockingGRPCServer()
-	s.Start(d.endpoint,
-		csicommon.NewDefaultIdentityServer(d.driver),
-		d.controllerServer,
-		newNodeServer(d))
-	s.Wait()
+	common.RunCSIServer(d.endpoint, csicommon.NewDefaultIdentityServer(d.driver), d.controllerServer, newNodeServer(d))
 }
 
 // GlobalConfigSet set global config
