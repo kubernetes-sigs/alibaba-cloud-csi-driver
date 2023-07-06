@@ -27,6 +27,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -150,9 +151,7 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 // Run start a new NodeServer
 func (disk *DISK) Run() {
 	log.Log.Infof("Starting csi-plugin Driver: %v version: %v", driverName, csiVersion)
-	s := csicommon.NewNonBlockingGRPCServer()
-	s.Start(disk.endpoint, disk.idServer, disk.controllerServer, disk.nodeServer)
-	s.Wait()
+	common.RunCSIServer(disk.endpoint, disk.idServer, disk.controllerServer, disk.nodeServer)
 }
 
 // GlobalConfigSet set Global Config

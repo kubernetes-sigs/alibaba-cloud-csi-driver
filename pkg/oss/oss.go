@@ -17,15 +17,17 @@ limitations under the License.
 package oss
 
 import (
+	"sync"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 	k8smount "k8s.io/utils/mount"
-	"sync"
 )
 
 const (
@@ -90,10 +92,5 @@ func newNodeServer(d *OSS) *nodeServer {
 
 // Run start a newNodeServer
 func (d *OSS) Run() {
-	s := csicommon.NewNonBlockingGRPCServer()
-	s.Start(d.endpoint,
-		csicommon.NewDefaultIdentityServer(d.driver),
-		d.controllerServer,
-		newNodeServer(d))
-	s.Wait()
+	common.RunCSIServer(d.endpoint, csicommon.NewDefaultIdentityServer(d.driver), d.controllerServer, newNodeServer(d))
 }

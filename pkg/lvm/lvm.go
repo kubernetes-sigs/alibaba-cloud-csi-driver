@@ -18,7 +18,8 @@ package lvm
 
 import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -74,8 +75,5 @@ func NewDriver(nodeID, endpoint string) *LVM {
 // Run start a new server
 func (lvm *LVM) Run() {
 	log.Infof("Driver: %v ", driverName)
-
-	server := csicommon.NewNonBlockingGRPCServer()
-	server.Start(lvm.endpoint, lvm.idServer, lvm.controllerServer, lvm.nodeServer)
-	server.Wait()
+	common.RunCSIServer(lvm.endpoint, lvm.idServer, lvm.controllerServer, lvm.nodeServer)
 }
