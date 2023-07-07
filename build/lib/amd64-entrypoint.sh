@@ -383,7 +383,6 @@ if [ "$run_nas" = "true" ]; then
     fi
 
     if [ $install_utils = "true" ]; then
-        echo "installing aliyun-alinas-utils"
         if rpm -q aliyun-alinas-utils; then 
             echo "upgrade aliyun-alinas-utils"
             ${HOST_CMD} rpm -Uvh /etc/csi-tool/aliyun-alinas-utils-1.1-6.al7.noarch.rpm
