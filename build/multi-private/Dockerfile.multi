@@ -17,8 +17,8 @@ RUN cp /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-nsenter /usr/bin/nse
 RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "arm64" ]]; then cp /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-ossfs /usr/bin/ossfs; cp /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-ossfs-8u /usr/bin/ossfs-8u; cp /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-ossfs /usr/local/bin/ossfs; cp /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-ossfs-8u /usr/local/bin/ossfs-8u;fi
 
 ARG ossfsVer=1.80.6.ack.1
-ARG update_ossfsVer=1.88.2
-ARG update_ossfsVer8u=1.88.2
+ARG update_ossfsVer=1.88.1
+ARG update_ossfsVer8u=1.88.1
 RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${ossfsVer}-b42b3a8_centos7.0_x86_64.rpm -o /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm; fi
 RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}_centos7.0_x86_64.rpm -o /root/ossfs_${update_ossfsVer}_centos7.0_x86_64.rpm; fi
 RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer8u}_centos8_x86_64.rpm -o /root/ossfs_${update_ossfsVer8u}_centos8_x86_64.rpm; fi
