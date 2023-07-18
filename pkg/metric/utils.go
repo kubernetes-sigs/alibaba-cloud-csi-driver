@@ -156,7 +156,7 @@ func isVFNode() bool {
 		// 0000:4b:00.0 SCSI storage controller: Device 1ded:1001
 		matched := findLines(output, "storage controller")
 		if len(matched) == 0 {
-			log.Errorf("[IsVFNode] not found storage controller")
+			log.Error("[IsVFNode] not found storage controller")
 		}
 		for _, line := range matched {
 			// 1ded: is alibaba cloud
