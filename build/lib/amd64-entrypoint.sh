@@ -341,6 +341,7 @@ if [ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]; then
             break
         fi
     done
+    export IS_BDF="$isbdf"
     echo "isbdf node: $isbdf"
     if [ $isbdf = "true" ]; then
         echo "start install vfhp"

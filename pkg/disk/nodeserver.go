@@ -608,22 +608,24 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 				}
 				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf disk: %v", err)
 			}
-			devicePaths, err = GetDeviceByVolumeID(req.GetVolumeId())
-			if bdf != "" && len(devicePaths) == 0 {
+			// devicePaths, err = GetDeviceByVolumeID(req.GetVolumeId())
+			if bdf != "" {
 				device, err = GetDeviceByBdf(bdf, true)
 			}
-		}
-		if err != nil {
-			log.Log.Errorf("NodeStageVolume: ADController Enabled, but device can't be found in node: %s, error: %s", req.VolumeId, err.Error())
-			return nil, status.Error(codes.Aborted, "NodeStageVolume: ADController Enabled, but device can't be found:"+req.VolumeId+err.Error())
-		}
+			log.Log.Infof("NodeStageVolume: enabled bdf mode, device: %s, bdf: %s", device, bdf)
+		} else {
+			if err != nil {
+				log.Log.Errorf("NodeStageVolume: ADController Enabled, but device can't be found in node: %s, error: %s", req.VolumeId, err.Error())
+				return nil, status.Error(codes.Aborted, "NodeStageVolume: ADController Enabled, but device can't be found:"+req.VolumeId+err.Error())
+			}
 
-		rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
-		if err != nil {
-			log.Log.Errorf("NodeStageVolume: ADController Enabled, but device can't be found in node: %s, error: %s", req.VolumeId, err.Error())
-			return nil, status.Error(codes.Aborted, "NodeStageVolume: ADController Enabled, but device can't be found:"+req.VolumeId+err.Error())
+			rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
+			if err != nil {
+				log.Log.Errorf("NodeStageVolume: ADController Enabled, but device can't be found in node: %s, error: %s", req.VolumeId, err.Error())
+				return nil, status.Error(codes.Aborted, "NodeStageVolume: ADController Enabled, but device can't be found:"+req.VolumeId+err.Error())
+			}
+			device = ChooseDevice(rootDevice, subDevice)
 		}
-		device = ChooseDevice(rootDevice, subDevice)
 	} else {
 		device, err = attachDisk(req.VolumeContext[TenantUserUID], req.GetVolumeId(), ns.nodeID, isSharedDisk)
 		if err != nil {

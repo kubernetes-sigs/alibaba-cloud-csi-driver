@@ -298,7 +298,7 @@ func storeBdfInfo(diskID, bdf string) (err error) {
 		log.Warnf("storeBdfInfo: AddTags error: %s, %s", diskID, err.Error())
 		return
 	}
-	log.Infof("Storing bdf information successfully")
+	log.Info("Storing bdf information successfully")
 	return nil
 }
 
@@ -414,40 +414,46 @@ var isVFInstance = false
 // IsVFNode returns whether the current node is vf
 func IsVFNode() bool {
 	vfOnce.Do(func() {
-		output, err := ExecCheckOutput("lspci", "-D")
-		if err != nil {
-			log.Fatalf("[IsVFNode] lspci -D: %v", err)
-		}
-		// 0000:4b:00.0 SCSI storage controller: Device 1ded:1001
-		matched := FindLines(output, "storage controller")
-		if len(matched) == 0 {
-			log.Errorf("[IsVFNode] not found storage controller")
-			return
-		}
-		for _, line := range matched {
-			// 1ded: is alibaba cloud
-			if !strings.Contains(line, "1ded:") {
-				continue
-			}
-			bdf := strings.SplitN(line, " ", 2)[0]
-			if !strings.HasSuffix(bdf, ".0") {
-				continue
-			}
-			output, err = ExecCheckOutput("lspci", "-s", bdf, "-v")
+		is_bdf := os.Getenv("IS_BDF")
+		if is_bdf == "true" {
+			isVF = true
+			isVFInstance = true
+		} else {
+			output, err := ExecCheckOutput("lspci", "-D")
 			if err != nil {
-				log.Errorf("[IsVFNode] lspic -s %s -v: %v", bdf, err)
+				log.Fatalf("[IsVFNode] lspci -D: %v", err)
+			}
+			// 0000:4b:00.0 SCSI storage controller: Device 1ded:1001
+			matched := FindLines(output, "storage controller")
+			if len(matched) == 0 {
+				log.Errorf("[IsVFNode] not found storage controller")
 				return
 			}
-			// Capabilities: [110] Single Root I/O Virtualization (SR-IOV)
-			matched = FindLines(output, "Single Root I/O Virtualization")
-			if len(matched) > 0 {
-				isVF = true
-				isVFInstance = true
-				break
+			for _, line := range matched {
+				// 1ded: is alibaba cloud
+				if !strings.Contains(line, "1ded:") && !strings.Contains(line, "Alibaba") {
+					continue
+				}
+				bdf := strings.SplitN(line, " ", 2)[0]
+				if !strings.HasSuffix(bdf, ".0") {
+					continue
+				}
+				output, err = ExecCheckOutput("lspci", "-s", bdf, "-v")
+				if err != nil {
+					log.Errorf("[IsVFNode] lspic -s %s -v: %v", bdf, err)
+					return
+				}
+				// Capabilities: [110] Single Root I/O Virtualization (SR-IOV)
+				matched = FindLines(output, "Single Root I/O Virtualization")
+				if len(matched) > 0 {
+					isVF = true
+					isVFInstance = true
+					log.Infof("[IsVFNode] change isVF to true isVF: %v", isVF)
+					break
+				}
 			}
 		}
-		// check iohub-vfhp-helper is running the system;
-		// if service is running, bdf mode is turn off;
+		log.Infof("[IsVFNode] isVF: %v", isVF)
 		checkVfhpOnline()
 	})
 	return isVF
