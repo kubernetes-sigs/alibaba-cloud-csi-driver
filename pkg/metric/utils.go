@@ -7,21 +7,22 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
-	apicorev1 "k8s.io/api/core/v1"
-	apismetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	log "github.com/sirupsen/logrus"
+	apicorev1 "k8s.io/api/core/v1"
+	apismetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 )
 
 var vfOnce = new(sync.Once)
@@ -85,6 +86,8 @@ func procFilePath(name string) string {
 	return filepath.Join(procPath, name)
 }
 
+var ErrUnexpectedVolumeType = errors.New("VolumeType is not the expected type")
+
 func getVolumeInfoByJSON(volDataJSONPath string, volType string) (string, string, error) {
 	volDataMap, err := utils.ReadJSONFile(volDataJSONPath)
 	if err != nil {
@@ -94,7 +97,7 @@ func getVolumeInfoByJSON(volDataJSONPath string, volType string) (string, string
 	if volDataMap["driverName"] == volType {
 		return volDataMap["specVolID"], volDataMap["volumeHandle"], nil
 	}
-	return "", "", errors.New("VolumeType is not the expected type")
+	return "", "", ErrUnexpectedVolumeType
 }
 
 func findVolJSON(rootDir string) ([]string, error) {

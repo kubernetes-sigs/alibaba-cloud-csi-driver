@@ -412,7 +412,7 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 		//Get disk pvName
 		pvName, diskID, err := getVolumeInfoByJSON(path, driverName)
 		if err != nil {
-			if err.Error() != "VolumeType is not the expected type" {
+			if err != ErrUnexpectedVolumeType {
 				logrus.Errorf("Get volume info by path %s is failed, err:%s", path, err)
 			}
 			continue

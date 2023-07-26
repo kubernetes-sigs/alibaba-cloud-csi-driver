@@ -191,7 +191,7 @@ func (p *pfsRawBlockStatCollector) updateMap(clientSet *kubernetes.Clientset, la
 		//Get disk pvName
 		pvName, diskID, err := getVolumeInfoByJSON(path, deriverName)
 		if err != nil {
-			if err.Error() != "VolumeType is not the expected type" {
+			if err != ErrUnexpectedVolumeType {
 				logrus.Errorf("Get volume info by path %s is failed, err:%s", path, err)
 			}
 			continue
