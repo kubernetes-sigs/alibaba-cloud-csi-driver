@@ -104,6 +104,16 @@ func newCloud() (Cloud, error) {
 	return &cloud{dbfc: dfsClient}, nil
 }
 
+func (c *cloud) updateToken() error {
+	ac := utils.GetAccessControl()
+	dfsClient, err := dfs.NewClientWithOptions(GlobalConfigVar.regionID, ac.Config, ac.Credential)
+	if err != nil {
+		return err
+	}
+	c.dbfc = dfsClient
+	return nil
+}
+
 func (c *cloud) CreateVolume(ctx context.Context, volumeName string, diskOptions *PovOptions) (fsID, requestID string, err error) {
 	cfsr := dfs.CreateCreateFileSystemRequest()
 	cfsr.FileSystemName = volumeName
@@ -116,7 +126,11 @@ func (c *cloud) CreateVolume(ctx context.Context, volumeName string, diskOptions
 
 	resp, err := c.dbfc.CreateFileSystem(cfsr)
 	if err != nil {
-		return "", "", err
+		c.updateToken()
+		resp, err = c.dbfc.CreateFileSystem(cfsr)
+		if err != nil {
+			return "", "", err
+		}
 	}
 	return resp.FileSystemId, resp.RequestId, nil
 }
@@ -129,7 +143,11 @@ func (c *cloud) DeleteVolume(ctx context.Context, filesystemID string) (reqeustI
 
 	resp, err := c.dbfc.DeleteFileSystem(cdfsr)
 	if err != nil {
-		return "", err
+		c.updateToken()
+		resp, err = c.dbfc.DeleteFileSystem(cdfsr)
+		if err != nil {
+			return "", err
+		}
 	}
 	return resp.RequestId, nil
 }
@@ -140,7 +158,11 @@ func (c *cloud) CreateVolumeMountPoint(ctx context.Context, filesystemID string)
 	cmp.InputRegionId = GlobalConfigVar.regionID
 	resp, err := c.dbfc.CreateVscMountPoint(cmp)
 	if err != nil {
-		return "", err
+		c.updateToken()
+		resp, err = c.dbfc.CreateVscMountPoint(cmp)
+		if err != nil {
+			return "", err
+		}
 	}
 	return resp.MountPointId, nil
 }
@@ -157,7 +179,11 @@ func (c *cloud) AttachVscMountPoint(ctx context.Context, mpID, fsID, instanceID 
 	cavmpr.InputRegionId = GlobalConfigVar.regionID
 	resp, err := c.dbfc.AttachVscMountPoint(cavmpr)
 	if err != nil {
-		return "", err
+		c.updateToken()
+		resp, err = c.dbfc.AttachVscMountPoint(cavmpr)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	return resp.RequestId, nil
@@ -177,7 +203,11 @@ func (c *cloud) DetachVscMountPoint(ctx context.Context, mpID, filesystemID, ins
 
 	resp, err := c.dbfc.DetachVscMountPoint(cdvmpr)
 	if err != nil {
-		return "", err
+		c.updateToken()
+		resp, err = c.dbfc.DetachVscMountPoint(cdvmpr)
+		if err != nil {
+			return "", err
+		}
 	}
 	return resp.RequestId, nil
 }
@@ -193,7 +223,11 @@ func (c *cloud) DescribeVscMountPoints(ctx context.Context, fsID, mpID string) (
 
 	resp, err := c.dbfc.DescribeVscMountPoints(dvmp)
 	if err != nil {
-		return dfs.CreateDescribeVscMountPointsResponse(), err
+		c.updateToken()
+		resp, err = c.dbfc.DescribeVscMountPoints(dvmp)
+		if err != nil {
+			return dfs.CreateDescribeVscMountPointsResponse(), err
+		}
 	}
 	return resp, nil
 }

@@ -66,8 +66,9 @@ func newControllerService() controllerService {
 		log.Log.Fatalf("newControllerService: init cloud err: %v", err)
 	}
 	return controllerService{
-		cloud:    pov,
-		inFlight: internal.NewInFlight(),
+		cloud:               pov,
+		inFlight:            internal.NewInFlight(),
+		attachDescribeTimes: 12,
 	}
 }
 
@@ -287,11 +288,12 @@ func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *cs
 
 	var vscId string
 	for i := 0; i < d.attachDescribeTimes; i++ {
-		time.Sleep(1 * time.Second)
+		time.Sleep(4 * time.Second)
 		vmp, err := d.cloud.DescribeVscMountPoints(ctx, req.GetVolumeId(), mpID)
 		if err != nil {
 			return nil, err
 		}
+		log.Log.Infof("ControllerPublishVolume: describe vsc mountpoint success, volumeid: %s mountpointids: %v", req.GetVolumeId(), vmp.MountPoints)
 		for _, mp := range vmp.MountPoints {
 			for _, ins := range mp.Instances {
 				if ins.InstanceId == req.GetNodeId() {
