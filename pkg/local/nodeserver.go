@@ -193,6 +193,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			log.Errorf("NodePublishVolume: mount mountpoint volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
 			return nil, err
 		}
+	case QuotaPathVolumeType:
+		err := ns.mountQuotaPathVolume(ctx, req)
+		if err != nil {
+			log.Errorf("NodePublishVolume: mount mountpoint volume %s with path %s with error: %v", req.VolumeId, targetPath, err)
+			return nil, err
+		}
 	case DeviceVolumeType:
 		err := ns.mountDeviceVolume(ctx, req)
 		if err != nil {
