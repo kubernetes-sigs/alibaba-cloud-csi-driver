@@ -400,7 +400,7 @@ func (p *diskStatCollector) setDiskMetric(pvName string, info diskInfo, stats []
 
 }
 
-func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, jsonPaths []string, deriverName string, keyword string) {
+func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, jsonPaths []string, driverName string, keyword string) {
 	thisPvDiskInfoMap := make(map[string]diskInfo, 0)
 	lineArr, err := utils.RunWithFilter("mount", "csi", keyword)
 	if err != nil {
@@ -410,7 +410,7 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 	}
 	for _, path := range jsonPaths {
 		//Get disk pvName
-		pvName, diskID, err := getVolumeInfoByJSON(path, deriverName)
+		pvName, diskID, err := getVolumeInfoByJSON(path, driverName)
 		if err != nil {
 			if err.Error() != "VolumeType is not the expected type" {
 				logrus.Errorf("Get volume info by path %s is failed, err:%s", path, err)
