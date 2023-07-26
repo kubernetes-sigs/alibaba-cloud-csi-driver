@@ -101,25 +101,7 @@ func getVolumeInfoByJSON(volDataJSONPath string, volType string) (string, string
 }
 
 func findVolJSON(rootDir string) ([]string, error) {
-	resDir := make([]string, 0)
-	rootFiles, err := ioutil.ReadDir(rootDir)
-	if err != nil {
-		return nil, err
-	}
-	for _, rootFile := range rootFiles {
-		csiDir := rootDir + "/" + rootFile.Name() + "/" + csiMountKeyWords
-		csiFiles, err := ioutil.ReadDir(csiDir)
-		if err != nil {
-			continue
-		}
-		for _, csiFile := range csiFiles {
-			volDataDir := csiDir + "/" + csiFile.Name() + "/" + volDataFile
-			if utils.IsFileExisting(volDataDir) {
-				resDir = append(resDir, volDataDir)
-			}
-		}
-	}
-	return resDir, err
+	return filepath.Glob(filepath.Join(rootDir, "*", csiMountKeyWords, "*", volDataFile))
 }
 
 // ExecCheckOutput check output
