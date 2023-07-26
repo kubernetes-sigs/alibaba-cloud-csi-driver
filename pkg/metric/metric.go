@@ -2,13 +2,14 @@ package metric
 
 import (
 	"fmt"
+	"net/http"
+	"strings"
+	"sync"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
 	"github.com/sirupsen/logrus"
-	"net/http"
-	"strings"
-	"sync"
 )
 
 // Handler is a package of promHttp,metric entry
@@ -56,7 +57,7 @@ func (h *Handler) innerHandler() (http.Handler, error) {
 		return nil, fmt.Errorf("Couldn't register node collector: %s", err)
 	}
 	handler := promhttp.HandlerFor(
-		prometheus.Gatherers{r},
+		r,
 		promhttp.HandlerOpts{
 			ErrorHandling: promhttp.ContinueOnError,
 		},
