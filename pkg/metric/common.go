@@ -26,7 +26,8 @@ const (
 	//nasDriverName represents the csi storage type name of Nas
 	nasDriverName string = "nasplugin.csi.alibabacloud.com"
 	//diskDriverName represents the csi storage type name of Disk
-	diskDriverName string = "diskplugin.csi.alibabacloud.com"
+	diskDriverName  string = "diskplugin.csi.alibabacloud.com"
+	localDriverName string = "localplugin.csi.alibabacloud.com"
 	// unknown metric value
 	UnknownValue string = "unknown"
 )
@@ -52,7 +53,7 @@ const (
 
 var (
 	metricType       string
-	nodeMetricSet    = hashset.New("disk_stat", "pfs_block_stat", "nfs_stat", "fuse_stat")
+	nodeMetricSet    = hashset.New("disk_stat", "pfs_block_stat", "nfs_stat", "fuse_stat", "local_stat")
 	clusterMetricSet = hashset.New("")
 )
 

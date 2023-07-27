@@ -232,7 +232,7 @@ func CloneLV(ctx context.Context, src, dest string) (string, error) {
 
 // ListVG get vg info
 func ListVG() ([]lib.VG, error) {
-	out, err := utils.CommandOnNode("vgs", "--reportformat", "json", "--unit", "b", "-o", "vg_name,vg_size,vg_free,vg_uuid,vg_tags,pv_count", "--nosuffix").Output()
+	out, err := utils.CommandOnNode("vgs", "--reportformat", "json", "--units", "b", "-o", "vg_name,vg_size,vg_free,vg_uuid,vg_tags,pv_count", "--nosuffix").Output()
 	if err != nil {
 		return nil, err
 	}
