@@ -231,30 +231,13 @@ func CloneLV(ctx context.Context, src, dest string) (string, error) {
 }
 
 // ListVG get vg info
-func ListVG() ([]*lib.VG, error) {
-	args := []string{NsenterCmd, "vgs", "--units=b", "--separator=\"<:SEP:>\"", "--nosuffix", "--noheadings",
-		"-o", "vg_name,vg_size,vg_free,vg_uuid,vg_tags,pv_count", "--nameprefixes", "-a"}
-	cmd := strings.Join(args, " ")
-	out, err := utils.Run(cmd)
+func ListVG() ([]lib.VG, error) {
+	out, err := utils.CommandOnNode("vgs", "--reportformat", "json", "--unit", "b", "-o", "vg_name,vg_size,vg_free,vg_uuid,vg_tags,pv_count", "--nosuffix").Output()
 	if err != nil {
 		return nil, err
 	}
-	outStr := strings.TrimSpace(string(out))
-	outLines := strings.Split(outStr, "\n")
 
-	vgs := []*lib.VG{}
-	for _, line := range outLines {
-		line = strings.TrimSpace(line)
-		if !strings.Contains(line, "LVM2_VG_NAME") {
-			continue
-		}
-		vg, err := lib.ParseVG(line)
-		if err != nil {
-			return nil, err
-		}
-		vgs = append(vgs, vg)
-	}
-	return vgs, nil
+	return lib.ParseVGs(out)
 }
 
 // CreateVG create volume group
@@ -287,9 +270,9 @@ func RemoveVG(ctx context.Context, name string) (string, error) {
 		return "", fmt.Errorf("failed to list VGs: %v", err)
 	}
 	var vg *lib.VG
-	for _, v := range vgs {
+	for i, v := range vgs {
 		if v.Name == name {
-			vg = v
+			vg = &vgs[i]
 			break
 		}
 	}
