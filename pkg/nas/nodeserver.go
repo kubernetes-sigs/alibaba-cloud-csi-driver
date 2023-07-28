@@ -30,7 +30,7 @@ import (
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -175,6 +175,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err := validateNodePublishVolumeRequest(req); err != nil {
 		return nil, err
 	}
+
+	if utils.IsMounted(mountPath) {
+		log.Infof("Nas, Mount Path Already Mount, options: %s", mountPath)
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
+
 	// parse parameters
 	opt := &Options{}
 	var cnfsName string
@@ -357,11 +363,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, errors.New("NodePublishVolume, mount Losetup volume error with: " + err.Error())
 		}
 		log.Infof("NodePublishVolume: nas losetup volume successful %s", req.VolumeId)
-		return &csi.NodePublishVolumeResponse{}, nil
-	}
-
-	if utils.IsMounted(mountPath) {
-		log.Infof("Nas, Mount Path Already Mount, options: %s", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
