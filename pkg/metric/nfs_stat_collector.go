@@ -181,7 +181,7 @@ type nfsStatCollector struct {
 }
 
 func init() {
-	registerCollector("nfs_stat", NewNfsStatCollector)
+	registerCollector("nfs_stat", NewNfsStatCollector, nasDriverName)
 }
 
 func parseNfsThreshold(defaultCapacityPercentageThreshold float64) (*hashset.Set, float64) {

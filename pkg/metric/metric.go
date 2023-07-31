@@ -39,11 +39,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // NewMetricHandler method returns a promHttp object
-func NewMetricHandler(serviceType string) *Handler {
-
-	setServiceType(serviceType)
+func NewMetricHandler(serviceType string, driverNames []string) *Handler {
 	//csi collector singleton
-	err := newCSICollector()
+	err := newCSICollector(serviceType, driverNames)
 	if err != nil {
 		logrus.Errorf("Couldn't create collector: %s", err)
 	}
@@ -71,8 +69,4 @@ func newHandler() *Handler {
 		logrus.Errorf("Couldn't create metrics handler: %s", err)
 	}
 	return h
-}
-
-func setServiceType(serviceType string) {
-	metricType = serviceType
 }

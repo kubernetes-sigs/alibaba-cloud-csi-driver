@@ -56,7 +56,7 @@ type pfsInfo struct {
 }
 
 func init() {
-	registerCollector("pfs_block_stat", NewPfsRawBlockStatCollector)
+	registerCollector("pfs_block_stat", NewPfsRawBlockStatCollector, diskDriverName)
 }
 
 func (p *pfsRawBlockStatCollector) isEnable() bool {
