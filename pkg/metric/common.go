@@ -3,7 +3,6 @@ package metric
 import (
 	"path/filepath"
 
-	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs"
@@ -51,12 +50,6 @@ const (
 	ioHang                                         = "IOHang"
 )
 
-var (
-	metricType       string
-	nodeMetricSet    = hashset.New("disk_stat", "pfs_block_stat", "nfs_stat", "fuse_stat", "local_stat")
-	clusterMetricSet = hashset.New("")
-)
-
 const (
 	// PluginService represents the csi-plugin type.
 	pluginService = "plugin"
@@ -71,12 +64,17 @@ const (
 )
 
 type collectorFactoryFunc = func() (Collector, error)
+type collectorRegistryItem struct {
+	Name           string
+	Factory        collectorFactoryFunc
+	RelatedDrivers []string
+}
 
 // csiCollectorInstance is a single instance of CSICollector
 // Factories are the mapping between monitoring types and collectorFactoryFunc
 var (
 	csiCollectorInstance *CSICollector
-	factories            = make(map[string]collectorFactoryFunc)
+	registry             = []collectorRegistryItem{}
 	rawBlockRootPath     = filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/")
 	podsRootPath         = filepath.Join(utils.KubeletRootDir, "/pods")
 )

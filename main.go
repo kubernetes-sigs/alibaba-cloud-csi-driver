@@ -170,11 +170,14 @@ func main() {
 	// Storage devops
 	go om.StorageOM()
 
+	for i, driverName := range driverNames {
+		if !strings.Contains(driverName, TypePluginSuffix) && driverName != ExtenderAgent {
+			driverNames[i] = joinCsiPluginSuffix(driverName)
+		}
+	}
+
 	for _, driverName := range driverNames {
 		wg.Add(1)
-		if !strings.Contains(driverName, TypePluginSuffix) && driverName != ExtenderAgent {
-			driverName = joinCsiPluginSuffix(driverName)
-		}
 		endPointName := replaceCsiEndpoint(driverName, *endpoint)
 		csilog.Log.Infof("CSI endpoint for driver %s: %s", driverName, endPointName)
 
@@ -291,7 +294,7 @@ func main() {
 	http.HandleFunc("/healthz", healthHandler)
 	csilog.Log.Infof("Metric listening on address: /healthz")
 	if metricConfig.enableMetric {
-		metricHandler := metric.NewMetricHandler(metricConfig.serviceType)
+		metricHandler := metric.NewMetricHandler(metricConfig.serviceType, driverNames)
 		http.Handle("/metrics", metricHandler)
 		csilog.Log.Infof("Metric listening on address: /metrics")
 	}
