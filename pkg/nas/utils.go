@@ -143,7 +143,7 @@ func DoMount(mounter mountutils.Interface, fsType, clientType, nfsProtocol, nfsS
 			break
 		}
 		//mount sub-path is failed, if subpath is not exist or cpfs don't output subpath
-		if err := createSubDir(mounter, nfsProtocol, nfsServer, nfsPath, mountOptions, volumeID); err != nil {
+		if err := createSubDir(mounter, nfsProtocol, nfsServer, nfsPath, combinedOptions, volumeID); err != nil {
 			log.Errorf("DoMount: Create subpath is failed, err: %s", err.Error())
 			return err
 		}
@@ -285,7 +285,7 @@ func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
 	}
 }
 
-func createSubDir(mounter mountutils.Interface, nfsProtocol, nfsServer, nfsPath, nfsOptions, volumeID string) error {
+func createSubDir(mounter mountutils.Interface, nfsProtocol, nfsServer, nfsPath string, nfsOptions []string, volumeID string) error {
 	rootPath := "/"
 	usePath := nfsPath
 	//The root directory of cpfs-nfs and extreme NAS is /share
@@ -313,7 +313,7 @@ func createSubDir(mounter mountutils.Interface, nfsProtocol, nfsServer, nfsPath,
 			return err
 		}
 	}
-	err = mounter.Mount(fmt.Sprintf("%s:%s", nfsServer, rootPath), nasTmpPath, nfsProtocol, []string{nfsOptions})
+	err = mounter.Mount(fmt.Sprintf("%s:%s", nfsServer, rootPath), nasTmpPath, nfsProtocol, nfsOptions)
 	if err != nil {
 		log.Errorf("Mount rootPath is failed, rootPath:%s, err:%s", rootPath, err.Error())
 		return err
