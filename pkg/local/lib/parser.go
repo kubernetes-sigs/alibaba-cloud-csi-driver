@@ -20,6 +20,8 @@ package lib
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -377,34 +379,52 @@ func ParseLV(line string) (*LV, error) {
 }
 
 // ParseVG parse volume group
-func ParseVG(line string) (*VG, error) {
-	// vgs --units=b --separator="<:SEP:>" --nosuffix --noheadings -o vg_name,vg_size,vg_free,vg_uuid,vg_tags,pv_count --nameprefixes -a
-	fields, err := parse(line, 6)
+func ParseVGs(data []byte) ([]VG, error) {
+	// vg_name,vg_size,vg_free,vg_uuid,vg_tags,pv_count
+	vgsOut := struct {
+		Report []struct {
+			Vg []struct {
+				VgName  string `json:"vg_name"`
+				VgSize  string `json:"vg_size"`
+				VgFree  string `json:"vg_free"`
+				VgUUID  string `json:"vg_uuid"`
+				VgTags  string `json:"vg_tags"`
+				PvCount string `json:"pv_count"`
+			} `json:"vg"`
+		} `json:"report"`
+	}{}
+	err := json.Unmarshal(data, &vgsOut)
 	if err != nil {
 		return nil, err
 	}
 
-	size, err := strconv.ParseUint(fields["LVM2_VG_SIZE"], 10, 64)
-	if err != nil {
-		return nil, err
+	if len(vgsOut.Report) == 0 {
+		return nil, errors.New("got invalid output from vgs, no report present")
 	}
+	vgs := make([]VG, len(vgsOut.Report[0].Vg))
+	for i, vgOut := range vgsOut.Report[0].Vg {
+		vg := VG{
+			Name: vgOut.VgName,
+			UUID: vgOut.VgUUID,
+			Tags: strings.Split(vgOut.VgTags, ","),
+		}
+		vg.Size, err = strconv.ParseUint(vgOut.VgSize, 10, 64)
+		if err != nil {
+			return nil, err
+		}
 
-	freeSize, err := strconv.ParseUint(fields["LVM2_VG_FREE"], 10, 64)
-	if err != nil {
-		return nil, err
+		vg.FreeSize, err = strconv.ParseUint(vgOut.VgFree, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+
+		vg.PvCount, err = strconv.ParseUint(vgOut.PvCount, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		vgs[i] = vg
 	}
-	pvCount, err := strconv.ParseUint(fields["LVM2_PV_COUNT"], 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	return &VG{
-		Name:     fields["LVM2_VG_NAME"],
-		Size:     size,
-		FreeSize: freeSize,
-		UUID:     fields["LVM2_VG_UUID"],
-		Tags:     strings.Split(fields["LVM2_VG_TAGS"], ","),
-		PvCount:  pvCount,
-	}, nil
+	return vgs, nil
 }
 
 func parseAttrs(attrs string) (*LVAttributes, error) {

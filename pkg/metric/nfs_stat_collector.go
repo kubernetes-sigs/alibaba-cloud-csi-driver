@@ -326,7 +326,7 @@ func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonP
 		//Get nfs pvName
 		pvName, _, err := getVolumeInfoByJSON(path, deriverName)
 		if err != nil {
-			if err.Error() != "VolumeType is not the expected type" {
+			if err != ErrUnexpectedVolumeType {
 				log.Errorf("Get volume info by path %s is failed, err:%s", path, err)
 			}
 			continue

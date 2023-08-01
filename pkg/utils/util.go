@@ -24,8 +24,6 @@ import (
 	"io"
 	"io/fs"
 	"io/ioutil"
-	utilexec "k8s.io/utils/exec"
-	"k8s.io/utils/mount"
 	"net"
 	"net/http"
 	"os"
@@ -39,6 +37,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	utilexec "k8s.io/utils/exec"
+	"k8s.io/utils/mount"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -236,6 +237,13 @@ func ValidateRun(cmd string) (string, error) {
 	}
 	log.Infof("Exec command %s is successfully, name:%s, args:%+v", cmd, name, args)
 	return string(stdout), nil
+}
+
+var NsenterArgs = []string{"--target=1", "--mount", "--ipc", "--net", "--uts", "--"}
+
+func CommandOnNode(args ...string) *exec.Cmd {
+	allArgs := append(NsenterArgs, args...)
+	return exec.Command("/nsenter", allArgs...)
 }
 
 // run shell command
