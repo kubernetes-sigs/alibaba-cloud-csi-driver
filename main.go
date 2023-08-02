@@ -164,7 +164,6 @@ func main() {
 	csilog.Log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", BRANCH, VERSION, BUILDTIME)
 
 	multiDriverNames := *driver
-	endPointName := *endpoint
 	driverNames := strings.Split(multiDriverNames, ",")
 	var wg sync.WaitGroup
 
@@ -175,12 +174,10 @@ func main() {
 		wg.Add(1)
 		if !strings.Contains(driverName, TypePluginSuffix) && driverName != ExtenderAgent {
 			driverName = joinCsiPluginSuffix(driverName)
-			if strings.Contains(*endpoint, TypePluginVar) {
-				endPointName = replaceCsiEndpoint(driverName, *endpoint)
-			} else {
-				csilog.Log.Fatalf("Csi endpoint:%s", *endpoint)
-			}
 		}
+		endPointName := replaceCsiEndpoint(driverName, *endpoint)
+		csilog.Log.Infof("CSI endpoint for driver %s: %s", driverName, endPointName)
+
 		if driverName == TypePluginYODA {
 			driverName = TypePluginLOCAL
 		}
