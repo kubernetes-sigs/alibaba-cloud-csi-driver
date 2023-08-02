@@ -20,7 +20,6 @@ type nodeService struct {
 }
 
 func newNodeService() nodeService {
-
 	return nodeService{}
 }
 

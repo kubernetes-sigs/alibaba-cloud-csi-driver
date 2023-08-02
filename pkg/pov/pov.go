@@ -11,7 +11,6 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"k8s.io/client-go/kubernetes"
@@ -35,35 +34,44 @@ type PoV struct {
 
 func initDriver() {}
 
-func NewDriver(nodeID, endpoint string) *PoV {
+func NewDriver(nodeID, endpoint string, runAsController bool) *PoV {
 	initDriver()
 	poV := &PoV{}
 	poV.endpoint = endpoint
-	newGlobalConfig()
+	newGlobalConfig(runAsController)
 
-	poV.controllerService = newControllerService()
-	poV.nodeService = newNodeService()
+	if runAsController {
+		poV.controllerService = newControllerService()
+	} else {
+		poV.nodeService = newNodeService()
+	}
+
 	return poV
 }
 
 // Run start pov driver service
 func (p *PoV) Run() error {
+	log.Infof("Starting pov driver service, endpoint: %s", p.endpoint)
 	scheme, addr, err := parseEndpoint(p.endpoint)
 	if err != nil {
-		return err
+		log.Fatalf("failed to parse endpoint: %v", err)
 	}
 
 	listener, err := net.Listen(scheme, addr)
 	if err != nil {
-		return err
+		log.Fatalf("failed to listen endpoint: %s,  %v", p.endpoint, err)
 	}
 	p.srv = grpc.NewServer()
+
+	log.Info("Starting pov register identity service")
 	csi.RegisterIdentityServer(p.srv, p)
 
 	if GlobalConfigVar.controllerService {
-		csi.RegisterNodeServer(p.srv, p)
-	} else {
+		log.Info("Starting pov register in controller mode, register controller service")
 		csi.RegisterControllerServer(p.srv, p)
+	} else {
+		log.Info("Starting pov register in node mode, register node service")
+		csi.RegisterNodeServer(p.srv, p)
 	}
 	return p.srv.Serve(listener)
 }
@@ -91,7 +99,7 @@ func parseEndpoint(endpoint string) (string, string, error) {
 	return scheme, addr, nil
 }
 
-func newGlobalConfig() {
+func newGlobalConfig(runAsController bool) {
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
 		log.Fatalf("newGlobalConfig: build kubeconfig failed: %v", err)
@@ -112,10 +120,6 @@ func newGlobalConfig() {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	controllerServerType := false
-	if os.Getenv(utils.ServiceType) == utils.ProvisionerService {
-		controllerServerType = true
-	}
 	ms := NewMetadataService()
 	doc, err := ms.GetDoc()
 	if err != nil {
@@ -123,7 +127,7 @@ func newGlobalConfig() {
 	}
 
 	GlobalConfigVar = GlobalConfig{
-		controllerService: controllerServerType,
+		controllerService: runAsController,
 		client:            kubeClient,
 		regionID:          doc.RegionID,
 		instanceID:        doc.InstanceID,
