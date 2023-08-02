@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth"
+	cre "github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials/provider"
 	"github.com/emirpasic/gods/sets/hashset"
 	oidc "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/auth"
@@ -217,7 +218,18 @@ func CheckRequest(m map[string]string, path string) (bool, error) {
 
 func getManagedAddonToken() AccessControl {
 	tokens := getManagedToken()
-	return AccessControl{AccessKeyID: tokens.AccessKeyID, AccessKeySecret: tokens.AccessKeySecret, StsToken: tokens.SecurityToken, UseMode: ManagedToken}
+	scheme := "https"
+	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
+		scheme = "http"
+	}
+	config := sdk.NewConfig().WithScheme(scheme)
+	credent := &cre.StsTokenCredential{
+		AccessKeyId:       tokens.AccessKeyID,
+		AccessKeySecret:   tokens.AccessKeySecret,
+		AccessKeyStsToken: tokens.SecurityToken,
+	}
+
+	return AccessControl{AccessKeyID: tokens.AccessKeyID, AccessKeySecret: tokens.AccessKeySecret, StsToken: tokens.SecurityToken, UseMode: ManagedToken, Config: config, Credential: credent}
 }
 
 // GetAccessControl  1、Read default ak from local file. 2、If local default ak is not exist, then read from STS.
@@ -318,7 +330,17 @@ func GetEnvAK() AccessControl {
 	accessKeyID = os.Getenv("ACCESS_KEY_ID")
 	accessSecret = os.Getenv("ACCESS_KEY_SECRET")
 
-	return AccessControl{AccessKeyID: strings.TrimSpace(accessKeyID), AccessKeySecret: strings.TrimSpace(accessSecret), UseMode: AccessKey}
+	scheme := "https"
+	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
+		scheme = "http"
+	}
+	config := sdk.NewConfig().WithScheme(scheme)
+
+	credent := &cre.AccessKeyCredential{
+		AccessKeyId:     strings.TrimSpace(accessKeyID),
+		AccessKeySecret: strings.TrimSpace(accessSecret),
+	}
+	return AccessControl{AccessKeyID: strings.TrimSpace(accessKeyID), AccessKeySecret: strings.TrimSpace(accessSecret), UseMode: AccessKey, Config: config, Credential: credent}
 }
 
 // GetStsToken get STS token and token from ecs meta server
@@ -343,7 +365,17 @@ func getStsToken() AccessControl {
 		log.Errorf("GetSTSToken: unmarshal roleInfo: %s, with error: %s", roleInfo, err.Error())
 		return AccessControl{}
 	}
-	return AccessControl{AccessKeyID: roleAuth.AccessKeyID, AccessKeySecret: roleAuth.AccessKeySecret, StsToken: roleAuth.SecurityToken, UseMode: EcsRAMRole}
+	scheme := "https"
+	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
+		scheme = "http"
+	}
+	config := sdk.NewConfig().WithScheme(scheme)
+	credent := &cre.StsTokenCredential{
+		AccessKeyId:       roleAuth.AccessKeyID,
+		AccessKeySecret:   roleAuth.AccessKeySecret,
+		AccessKeyStsToken: roleAuth.SecurityToken,
+	}
+	return AccessControl{AccessKeyID: roleAuth.AccessKeyID, AccessKeySecret: roleAuth.AccessKeySecret, StsToken: roleAuth.SecurityToken, UseMode: EcsRAMRole, Config: config, Credential: credent}
 }
 
 // GetManagedToken get ak from csi secret
