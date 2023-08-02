@@ -255,21 +255,14 @@ func updateNasClient(client *aliNas.Client, regionID string) *aliNas.Client {
 }
 
 func newNasClient(ac utils.AccessControl, regionID string) (nasClient *aliNas.Client) {
-	var err error
-	switch ac.UseMode {
-	case utils.AccessKey:
-		nasClient, err = aliNas.NewClientWithAccessKey(regionID, ac.AccessKeyID, ac.AccessKeySecret)
-	case utils.Credential:
-		nasClient, err = aliNas.NewClientWithOptions(regionID, ac.Config, ac.Credential)
-	default:
-		nasClient, err = aliNas.NewClientWithStsToken(regionID, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
+	nasClient, err := aliNas.NewClientWithOptions(regionID, ac.Config, ac.Credential)
+	if err != nil {
+		return nil
 	}
+
 	if os.Getenv("ALICLOUD_CLIENT_SCHEME") != "HTTP" {
 		nasClient.SetHTTPSInsecure(false)
 		nasClient.GetConfig().WithScheme("HTTPS")
-	}
-	if err != nil {
-		return nil
 	}
 
 	// Set Nas Endpoint
