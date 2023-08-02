@@ -3,6 +3,7 @@ package pov
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -29,6 +30,7 @@ const (
 	SPACECAPACITY                = "spacecapacity"
 	THROUGHPUTMODE               = "throughputmode"
 	PROVISIONEDTHROUGHPUTINMIBPS = "provisionedthroughputinmibps"
+	FILESYSTEMID                 = "filesystemid"
 	// PVCNameKey contains name of the PVC for which is a volume provisioned.
 	PVCNameKey = "csi.storage.k8s.io/pvc/name"
 	// PVCNamespaceKey contains namespace of the PVC for which is a volume provisioned.
@@ -36,13 +38,13 @@ const (
 	// PVNameKey contains name of the final PV that will be used for the dynamically
 	// provisioned volume
 	PVNameKey   = "csi.storage.k8s.io/pv/name"
-	TopologyKey = "topology." + DriverName + "/zone"
+	TopologyKey = "topology.kubernetes.io/region"
 
 	// volumeContext starting with labelAppendPrefix will automatically added to pv lables
 	labelAppendPrefix = "csi.alibabacloud.com/label-prefix/"
 	annVSCIDPrefix    = "csi.alibabacloud.com/ann-vsc-id"
-	annMPIDPrefix     = "csi.alibabacloud.com/ann-mp-id"
-	labelFilesystemID = "csi.alibabacloud.com/label-pov-fsid"
+	labelmpId         = "csi.alibabacloud.com/label-mp-id"
+	labelFilesystemID = "csi.alibabacloud.com/label-pov-fsId"
 )
 
 // volumeCaps represents how the volume could be accessed.
@@ -52,6 +54,11 @@ var volumeCaps = []csi.VolumeCapability_AccessMode{
 	{
 		Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
 	},
+}
+
+var controllerCaps = []csi.ControllerServiceCapability_RPC_Type{
+	csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+	csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
 }
 
 type controllerService struct {
@@ -94,6 +101,7 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 		storageType        string
 		fileSystemName     string
 		spaceCapacity      int64
+		filesystemID       string
 
 		// throughputMode must be binded with provisionedThroughputInMiBps
 		throughputMode               string
@@ -125,9 +133,15 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 			pvProps.PVCNamespace = value
 		case PVNameKey:
 			pvProps.PVName = value
-		default:
-			return nil, status.Errorf(codes.InvalidArgument, "Invalid parameter key %s for CreateVolume", key)
+		case FILESYSTEMID:
+			filesystemID = value
+			// default:
+			// 	return nil, status.Errorf(codes.InvalidArgument, "Invalid parameter key %s for CreateVolume", key)
 		}
+	}
+
+	if filesystemID != "" {
+		return d.getMountPointWithFileSystemID(ctx, req, filesystemID)
 	}
 
 	volSizeBytes, err := getVolSizeBytes(req)
@@ -147,18 +161,46 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 		provisionedThroughputInmibps: provisionedThroughputInMiBps,
 	}
 
-	fsID, requestID, err := d.cloud.CreateVolume(ctx, volName, &opts)
+	fsId, requestID, err := d.cloud.CreateVolume(ctx, volName, &opts)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Create pov volume failed, volName: %s, requestID: %s err: %+v", volName, requestID, err)
 	}
 
-	allParams := addAdditionalParams(req.GetParameters(), fsID)
-
-	return newCreateVolumeResponse(fsID, zoneID, volSizeBytes, allParams), nil
+	return d.getMountPointWithFileSystemID(ctx, req, fsId)
 }
 
-func addAdditionalParams(params map[string]string, fsID string) map[string]string {
-	params[labelAppendPrefix+labelFilesystemID] = fsID
+func (d *controllerService) getMountPointWithFileSystemID(ctx context.Context, req *csi.CreateVolumeRequest, fsId string) (*csi.CreateVolumeResponse, error) {
+	var err error
+	// one filesystem only has one mountpoint by default, one filesystem can create 10 mountpoints at most
+	mpId := d.getDefaultMountPoint(ctx, fsId)
+	if mpId != "" {
+		mpId, err = d.cloud.CreateVolumeMountPoint(ctx, fsId)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "create mountpoint failed, fsId: %s err: %v", fsId, err)
+		}
+	}
+
+	allParams := addAdditionalParams(req.GetParameters(), fsId, mpId)
+	return newCreateVolumeResponse(mpId, 0, allParams), nil
+}
+
+func (d *controllerService) getDefaultMountPoint(ctx context.Context, fsId string) string {
+
+	vmp, err := d.cloud.DescribeVscMountPoints(ctx, fsId, "")
+	if err != nil {
+		log.Log.Errorf("getDefaultMountPoint: describe vsc mountpoint failed, fsId: %s err: %v", fsId, err)
+		return ""
+	}
+	if len(vmp.MountPoints) == 0 {
+		log.Log.Infof("getDefaultMountPoint: get empty mountpoint by fsId: %s", fsId)
+		return ""
+	}
+	return vmp.MountPoints[0].MountPointId
+}
+
+func addAdditionalParams(params map[string]string, fsId string, mpId string) map[string]string {
+	params[labelAppendPrefix+labelFilesystemID] = fsId
+	params[labelAppendPrefix+labelmpId] = mpId
 	return params
 }
 
@@ -220,13 +262,13 @@ func (d *controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
-func newCreateVolumeResponse(fsID, zoneID string, blockSize int64, params map[string]string) *csi.CreateVolumeResponse {
+func newCreateVolumeResponse(mpId string, blockSize int64, params map[string]string) *csi.CreateVolumeResponse {
 
-	segments := map[string]string{TopologyKey: zoneID}
+	segments := map[string]string{TopologyKey: GlobalConfigVar.regionID}
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
-			VolumeId:      fsID,
+			VolumeId:      mpId,
 			CapacityBytes: blockSize,
 			VolumeContext: params,
 			AccessibleTopology: []*csi.Topology{
@@ -239,7 +281,18 @@ func newCreateVolumeResponse(fsID, zoneID string, blockSize int64, params map[st
 }
 
 func (d *controllerService) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	var caps []*csi.ControllerServiceCapability
+	for _, cap := range controllerCaps {
+		c := &csi.ControllerServiceCapability{
+			Type: &csi.ControllerServiceCapability_Rpc{
+				Rpc: &csi.ControllerServiceCapability_RPC{
+					Type: cap,
+				},
+			},
+		}
+		caps = append(caps, c)
+	}
+	return &csi.ControllerGetCapabilitiesResponse{Capabilities: caps}, nil
 }
 
 func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
@@ -251,45 +304,33 @@ func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, err
 	}
 
-	vmp, err := d.cloud.DescribeVscMountPoints(ctx, req.GetVolumeId(), "")
+	pvs, err := getPVBympId(req.GetVolumeId())
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to describe fsid, err: %+v", err))
-	}
-	pvs, err := getPVByFsId(req.GetVolumeId())
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to get pv by fsid: %s err: %v", req.GetVolumeId(), err))
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to get pv by mpId: %s err: %v", req.GetVolumeId(), err))
 	}
 	if len(pvs) == 0 {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to get pv by fsid: %s", req.GetVolumeId()))
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to get pv by mpId: %s", req.GetVolumeId()))
 	}
 
-	var mpID string
-	if value, ok := pvs[0].Annotations[annMPIDPrefix]; ok {
-		log.Log.Infof("ControllerPublishVolume: pv: %s already has mpid: %s", pvs[0].Name, value)
-		mpID = value
+	var fsId string
+	if value, ok := pvs[0].Labels[labelFilesystemID]; ok {
+		log.Log.Infof("ControllerPublishVolume: pv:[%s]'s fsId: %s", pvs[0].Name, value)
+		fsId = value
 	} else {
-		if len(vmp.MountPoints) == 0 {
-			mpID, err = d.cloud.CreateVolumeMountPoint(ctx, req.GetVolumeId())
-			if err != nil {
-				return nil, err
-			}
-			log.Log.Infof("ControllerPublishVolume: create vsc mountpoint success, volumeid: %s mountpointID: %s", req.GetVolumeId(), mpID)
-		} else {
-			// for test
-			mpID = vmp.MountPoints[0].MountPointId
-		}
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to get fsId by mpId: %s, pvs: %+v", req.GetVolumeId(), pvs))
 	}
 
-	requestID, err := d.cloud.AttachVscMountPoint(ctx, mpID, req.GetVolumeId(), req.GetNodeId())
+	requestID, err := d.cloud.AttachVscMountPoint(ctx, req.GetVolumeId(), fsId, req.GetNodeId())
 	if err != nil {
 		return nil, err
 	}
 	log.Log.Infof("ControllerPublishVolume: attach vsc volume: %s to node : %s success, requestid: %s", req.GetVolumeId(), req.GetNodeId(), requestID)
 
 	var vscId string
-	for i := 0; i < d.attachDescribeTimes; i++ {
+VSCREADY:
+	for i := 0; i < d.attachDescribeTimes && vscId == ""; i++ {
 		time.Sleep(4 * time.Second)
-		vmp, err := d.cloud.DescribeVscMountPoints(ctx, req.GetVolumeId(), mpID)
+		vmp, err := d.cloud.DescribeVscMountPoints(ctx, fsId, req.GetVolumeId())
 		if err != nil {
 			return nil, err
 		}
@@ -299,6 +340,7 @@ func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *cs
 				if ins.InstanceId == req.GetNodeId() {
 					if ins.Status == NORMAL.String() && ins.Vscs[0].VscStatus == NORMAL.String() {
 						vscId = ins.Vscs[0].VscId
+						break VSCREADY
 					}
 				} else {
 					continue
@@ -307,33 +349,42 @@ func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *cs
 		}
 	}
 	if vscId == "" {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("can't get vscId by fsId: %s, mpId: %s, instanceId: %s", req.GetVolumeId(), mpID, req.GetNodeId()))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("can't get vscId by fsId: %s, mpId: %s, instanceId: %s", fsId, req.GetVolumeId(), req.GetNodeId()))
 	}
-	patchVscId2PV(req.GetVolumeId(), vscId, mpID)
+	log.Log.Infof("ControllerPublishVolume: patch pv vsc vscid: %v mpId: %v", vscId, req.GetVolumeId())
+	if err := patchVscId2PV(fsId, vscId, req.GetVolumeId(), req.GetNodeId()); err != nil {
+		return nil, err
+	}
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
-func patchVscId2PV(fsID, vscId, mpID string) error {
-	pvs, err := getPVByFsId(fsID)
+func patchVscId2PV(fsId, vscId, mpId, nodeID string) error {
+	pvs, err := getPVBympId(mpId)
 	if err != nil {
 		return err
 	}
-	if len(pvs) != 1 {
-		log.Log.Errorf("patchVscId2PV: get invalid pv count by pov fs labels, pv count: %d", len(pvs))
+	if len(pvs) == 0 {
+		log.Log.Errorf("patchVscId2PV: get invalid pv count by pov mpid labels, pv count: %d", len(pvs))
 	}
-	npv := pvs[0].DeepCopy()
-	npv.Annotations[annVSCIDPrefix] = vscId
-	_, err = GlobalConfigVar.client.CoreV1().PersistentVolumes().Update(context.TODO(), npv, metav1.UpdateOptions{})
-	if err != nil {
-		return err
+	for _, pv := range pvs {
+		npv := pv.DeepCopy()
+		// vscPrefix := fmt.Sprintf(annVSCIDPrefix, nodeID)
+		if value, ok := npv.Annotations[annVSCIDPrefix]; ok && value == vscId {
+			continue
+		}
+		npv.Annotations[annVSCIDPrefix] = vscId
+		_, err = GlobalConfigVar.client.CoreV1().PersistentVolumes().Update(context.TODO(), npv, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
 	}
 	log.Log.Info("patchVscId2PV: Successfully updated vscid to pv's labels")
 	return nil
 }
 
-func getPVByFsId(fsID string) ([]v1.PersistentVolume, error) {
+func getPVBympId(mpId string) ([]v1.PersistentVolume, error) {
 	ctx := context.TODO()
-	labelPvs := labels.SelectorFromSet(labels.Set(map[string]string{labelAppendPrefix + labelFilesystemID: fsID}))
+	labelPvs := labels.SelectorFromSet(labels.Set(map[string]string{labelAppendPrefix + labelmpId: mpId}))
 	listPvOpts := metav1.ListOptions{
 		LabelSelector: labelPvs.String(),
 	}
@@ -364,34 +415,37 @@ func validateControllerPublishVolumeRequest(req *csi.ControllerPublishVolumeRequ
 
 func (d *controllerService) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 
+	if os.Getenv("ENABLE_SINGLE_TENANT") == "true" {
+		return &csi.ControllerUnpublishVolumeResponse{}, nil
+	}
+
 	if len(req.GetVolumeId()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
+		return nil, status.Error(codes.InvalidArgument, "MountPoint ID not provided")
 	}
 
 	if len(req.GetNodeId()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Node ID not provided")
 	}
 
-	fsId := req.GetVolumeId()
-	pvs, err := getPVByFsId(fsId)
+	mpId := req.GetVolumeId()
+	pvs, err := getPVBympId(mpId)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "get pv by fsid: %s failed", fsId)
+		return nil, status.Errorf(codes.InvalidArgument, "get pv by mpId: %s failed", mpId)
 	}
-	if len(pvs) != 1 {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid pv counts by fsid: %s", fsId)
+	if len(pvs) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid pv counts by mpId: %s", mpId)
 	}
 
-	var mpID string
-	var exists bool
-	if mpID, exists = pvs[0].Annotations[annMPIDPrefix]; !exists || mpID == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid pv: %s, mpid annotation absent", pvs[0].Name)
+	fsId, ok := pvs[0].Labels[labelFilesystemID]
+	if !ok {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid pv labels: %v by mpId: %s", pvs[0].Labels, mpId)
 	}
 
-	requestID, err := d.cloud.DetachVscMountPoint(ctx, mpID, req.GetVolumeId(), req.GetNodeId())
+	requestID, err := d.cloud.DetachVscMountPoint(ctx, mpId, fsId, req.GetNodeId())
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "detach volume: %s failed err: %v", req.GetVolumeId(), err)
+		return nil, status.Errorf(codes.Internal, "detach volumepoint: %s failed err: %v", req.GetVolumeId(), err)
 	}
-	log.Log.Infof("ControllerUnpublishVolume: detach pov volume: %s success, reqid: %s", req.GetVolumeId(), requestID)
+	log.Log.Infof("ControllerUnpublishVolume: detach pov mountpoint: %s, fsId: %s success, reqid: %s", req.GetVolumeId(), fsId, requestID)
 
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }

@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"os"
 
+	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dfs"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
@@ -82,12 +85,12 @@ type PovOptions struct {
 }
 
 type Cloud interface {
-	CreateVolume(ctx context.Context, volumeName string, diskOptions *PovOptions) (fsID, requestID string, err error)
+	CreateVolume(ctx context.Context, volumeName string, diskOptions *PovOptions) (fsId, requestID string, err error)
 	DeleteVolume(ctx context.Context, volumeName string) (reuqestID string, err error)
-	CreateVolumeMountPoint(ctx context.Context, filesystemID string) (mpID string, err error)
-	AttachVscMountPoint(ctx context.Context, mpID, fsID, instanceID string) (requestID string, err error)
-	DescribeVscMountPoints(ctx context.Context, fsID, mpID string) (dvmpr *dfs.DescribeVscMountPointsResponse, err error)
-	DetachVscMountPoint(ctx context.Context, mpID, filesystemID, instanceID string) (requestID string, err error)
+	CreateVolumeMountPoint(ctx context.Context, filesystemID string) (mpId string, err error)
+	AttachVscMountPoint(ctx context.Context, mpId, fsId, instanceID string) (requestID string, err error)
+	DescribeVscMountPoints(ctx context.Context, fsId, mpId string) (dvmpr *dfs.DescribeVscMountPointsResponse, err error)
+	DetachVscMountPoint(ctx context.Context, mpId, filesystemID, instanceID string) (requestID string, err error)
 }
 
 type cloud struct {
@@ -97,10 +100,12 @@ type cloud struct {
 func newCloud() (Cloud, error) {
 	// Init ECS Client
 	ac := utils.GetAccessControl()
+	log.Log.Infof("newCloud: ac: %+v", ac)
 	dfsClient, err := dfs.NewClientWithOptions(GlobalConfigVar.regionID, ac.Config, ac.Credential)
 	if err != nil {
 		return nil, err
 	}
+	setPovEndPoint(GlobalConfigVar.regionID)
 	return &cloud{dbfc: dfsClient}, nil
 }
 
@@ -114,7 +119,17 @@ func (c *cloud) updateToken() error {
 	return nil
 }
 
-func (c *cloud) CreateVolume(ctx context.Context, volumeName string, diskOptions *PovOptions) (fsID, requestID string, err error) {
+// setPovEndPoint Set Endpoint for pov
+func setPovEndPoint(regionID string) {
+	aliyunep.AddEndpointMapping(regionID, "Dfs", "dfs-vpc."+regionID+".aliyuncs.com")
+
+	// use environment endpoint setting first;
+	if ep := os.Getenv("POV_ENDPOINT"); ep != "" {
+		aliyunep.AddEndpointMapping(regionID, "Dfs", ep)
+	}
+}
+
+func (c *cloud) CreateVolume(ctx context.Context, volumeName string, diskOptions *PovOptions) (fsId, requestID string, err error) {
 	cfsr := dfs.CreateCreateFileSystemRequest()
 	cfsr.FileSystemName = volumeName
 	cfsr.InputRegionId = GlobalConfigVar.regionID
@@ -152,7 +167,7 @@ func (c *cloud) DeleteVolume(ctx context.Context, filesystemID string) (reqeustI
 	return resp.RequestId, nil
 }
 
-func (c *cloud) CreateVolumeMountPoint(ctx context.Context, filesystemID string) (mpID string, err error) {
+func (c *cloud) CreateVolumeMountPoint(ctx context.Context, filesystemID string) (mpId string, err error) {
 	cmp := dfs.CreateCreateVscMountPointRequest()
 	cmp.FileSystemId = filesystemID
 	cmp.InputRegionId = GlobalConfigVar.regionID
@@ -167,15 +182,15 @@ func (c *cloud) CreateVolumeMountPoint(ctx context.Context, filesystemID string)
 	return resp.MountPointId, nil
 }
 
-func (c *cloud) AttachVscMountPoint(ctx context.Context, mpID, fsID, instanceID string) (requestID string, err error) {
+func (c *cloud) AttachVscMountPoint(ctx context.Context, mpId, fsId, instanceID string) (requestID string, err error) {
 	cavmpr := dfs.CreateAttachVscMountPointRequest()
 	jStr, err := json.Marshal([]string{instanceID})
 	if err != nil {
 		return "", err
 	}
 	cavmpr.InstanceIds = string(jStr)
-	cavmpr.MountPointId = mpID
-	cavmpr.FileSystemId = fsID
+	cavmpr.MountPointId = mpId
+	cavmpr.FileSystemId = fsId
 	cavmpr.InputRegionId = GlobalConfigVar.regionID
 	resp, err := c.dbfc.AttachVscMountPoint(cavmpr)
 	if err != nil {
@@ -189,11 +204,11 @@ func (c *cloud) AttachVscMountPoint(ctx context.Context, mpID, fsID, instanceID 
 	return resp.RequestId, nil
 }
 
-func (c *cloud) DetachVscMountPoint(ctx context.Context, mpID, filesystemID, instanceID string) (requestID string, err error) {
+func (c *cloud) DetachVscMountPoint(ctx context.Context, mpId, filesystemID, instanceID string) (requestID string, err error) {
 
 	cdvmpr := dfs.CreateDetachVscMountPointRequest()
 	cdvmpr.InputRegionId = GlobalConfigVar.regionID
-	cdvmpr.MountPointId = mpID
+	cdvmpr.MountPointId = mpId
 	cdvmpr.FileSystemId = filesystemID
 	jStr, err := json.Marshal([]string{instanceID})
 	if err != nil {
@@ -212,13 +227,13 @@ func (c *cloud) DetachVscMountPoint(ctx context.Context, mpID, filesystemID, ins
 	return resp.RequestId, nil
 }
 
-func (c *cloud) DescribeVscMountPoints(ctx context.Context, fsID, mpID string) (*dfs.DescribeVscMountPointsResponse, error) {
+func (c *cloud) DescribeVscMountPoints(ctx context.Context, fsId, mpId string) (*dfs.DescribeVscMountPointsResponse, error) {
 
 	dvmp := dfs.CreateDescribeVscMountPointsRequest()
 	dvmp.InputRegionId = GlobalConfigVar.regionID
-	dvmp.FileSystemId = fsID
-	if mpID != "" {
-		dvmp.MountPointId = mpID
+	dvmp.FileSystemId = fsId
+	if mpId != "" {
+		dvmp.MountPointId = mpId
 	}
 
 	resp, err := c.dbfc.DescribeVscMountPoints(dvmp)
