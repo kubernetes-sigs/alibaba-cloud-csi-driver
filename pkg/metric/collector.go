@@ -2,10 +2,11 @@ package metric
 
 import (
 	"errors"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -23,8 +24,12 @@ var (
 	)
 )
 
-func registerCollector(collector string, factory collectorFactoryFunc) {
-	factories[collector] = factory
+func registerCollector(collector string, factory collectorFactoryFunc, relatedDrivers ...string) {
+	registry = append(registry, collectorRegistryItem{
+		Name:           collector,
+		Factory:        factory,
+		RelatedDrivers: relatedDrivers,
+	})
 }
 
 // Collector is the interface a collector has to implement.
@@ -39,33 +44,30 @@ type CSICollector struct {
 }
 
 // newCSICollector method returns the CSICollector object
-func newCSICollector() error {
-	if csiCollectorInstance == nil {
-		collectors := make(map[string]Collector)
-		for key := range factories {
-			var collector Collector
-			var err error
-			switch metricType {
-			case pluginService:
-				if !nodeMetricSet.Contains(key) {
-					continue
-				}
-				collector, err = factories[key]()
-			case provisionerService:
-				if !clusterMetricSet.Contains(key) {
-					continue
-				}
-				collector, err = factories[key]()
-			default:
-				return errors.New("Unknown metricType:" + metricType)
-			}
-			if err != nil {
-				return err
-			}
-			collectors[key] = collector
-		}
-		csiCollectorInstance = &CSICollector{Collectors: collectors}
+func newCSICollector(metricType string, driverNames []string) error {
+	if csiCollectorInstance != nil {
+		return nil
 	}
+	collectors := make(map[string]Collector)
+	if metricType == pluginService {
+		enabledDrivers := map[string]struct{}{}
+		for _, d := range driverNames {
+			enabledDrivers[d] = struct{}{}
+		}
+		for _, reg := range registry {
+			for _, d := range reg.RelatedDrivers {
+				if _, ok := enabledDrivers[d]; ok {
+					collector, err := reg.Factory()
+					if err != nil {
+						return err
+					}
+					collectors[reg.Name] = collector
+				}
+			}
+		}
+
+	}
+	csiCollectorInstance = &CSICollector{Collectors: collectors}
 
 	return nil
 }

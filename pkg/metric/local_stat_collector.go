@@ -19,7 +19,7 @@ var (
 )
 
 func init() {
-	registerCollector("local_stat", NewLocalStatCollector)
+	registerCollector("local_stat", NewLocalStatCollector, localDriverName)
 }
 
 type localStatCollector struct {

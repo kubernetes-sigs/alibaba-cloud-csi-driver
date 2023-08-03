@@ -1,12 +1,13 @@
 package metric
 
 import (
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/prometheus/client_golang/prometheus"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/prometheus/client_golang/prometheus"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -368,7 +369,7 @@ type backendPosixCounterDesc struct {
 }
 
 func init() {
-	registerCollector("fuse_stat", NewFuseStatCollector)
+	registerCollector("fuse_stat", NewFuseStatCollector, ossDriverName, nasDriverName)
 }
 
 // NewUsFsStatCollector returns a new Collector exposing user space fs stats.
