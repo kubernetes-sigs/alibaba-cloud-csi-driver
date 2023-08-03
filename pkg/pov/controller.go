@@ -173,7 +173,7 @@ func (d *controllerService) getMountPointWithFileSystemID(ctx context.Context, r
 	var err error
 	// one filesystem only has one mountpoint by default, one filesystem can create 10 mountpoints at most
 	mpId := d.getDefaultMountPoint(ctx, fsId)
-	if mpId != "" {
+	if mpId == "" {
 		mpId, err = d.cloud.CreateVolumeMountPoint(ctx, fsId)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "create mountpoint failed, fsId: %s err: %v", fsId, err)
