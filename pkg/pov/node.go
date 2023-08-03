@@ -48,7 +48,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 func (d *nodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 
 	segments := map[string]string{
-		TopologyKey: GlobalConfigVar.zoneID,
+		TopologyKey: GlobalConfigVar.regionID,
 	}
 	topology := &csi.Topology{Segments: segments}
 
