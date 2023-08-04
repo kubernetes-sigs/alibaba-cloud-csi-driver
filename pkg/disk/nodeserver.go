@@ -799,7 +799,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			msgLog = fmt.Sprintf("NodeUnstageVolume: VolumeId: %s, mountpoint: %s not mounted, skipping and continue to detach", req.VolumeId, targetPath)
 		}
 		// safe remove mountpoint
-		err = ns.mounter.SafePathRemove(targetPath)
+		err = os.Remove(targetPath)
 		if err != nil {
 			log.Log.Errorf("NodeUnstageVolume: VolumeId: %s, Remove targetPath failed, target %v", req.VolumeId, targetPath)
 			return nil, status.Error(codes.Internal, err.Error())
