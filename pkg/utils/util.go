@@ -38,6 +38,7 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/sys/unix"
 	utilexec "k8s.io/utils/exec"
 	"k8s.io/utils/mount"
 
@@ -45,18 +46,13 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/go-ping/ping"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
-	k8svol "k8s.io/kubernetes/pkg/volume"
-	k8sfs "k8s.io/kubernetes/pkg/volume/util/fs"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	k8smount "k8s.io/mount-utils"
@@ -539,62 +535,37 @@ func GetMetrics(path string) (*csi.NodeGetVolumeStatsResponse, error) {
 	if path == "" {
 		return nil, fmt.Errorf("getMetrics No path given")
 	}
-	available, capacity, usage, inodes, inodesFree, inodesUsed, err := k8sfs.FsInfo(path)
+	statfs := &unix.Statfs_t{}
+	err := unix.Statfs(path, statfs)
 	if err != nil {
 		return nil, err
 	}
 
-	metrics := &k8svol.Metrics{Time: metav1.Now()}
-	metrics.Available = resource.NewQuantity(available, resource.BinarySI)
-	metrics.Capacity = resource.NewQuantity(capacity, resource.BinarySI)
-	metrics.Used = resource.NewQuantity(usage, resource.BinarySI)
-	metrics.Inodes = resource.NewQuantity(inodes, resource.BinarySI)
-	metrics.InodesFree = resource.NewQuantity(inodesFree, resource.BinarySI)
-	metrics.InodesUsed = resource.NewQuantity(inodesUsed, resource.BinarySI)
+	// Available is blocks available * fragment size
+	available := int64(statfs.Bavail) * int64(statfs.Bsize)
 
-	metricAvailable, ok := (*(metrics.Available)).AsInt64()
-	if !ok {
-		log.Errorf("failed to fetch available bytes for target: %s", path)
-		return nil, status.Error(codes.Unknown, "failed to fetch available bytes")
-	}
-	metricCapacity, ok := (*(metrics.Capacity)).AsInt64()
-	if !ok {
-		log.Errorf("failed to fetch capacity bytes for target: %s", path)
-		return nil, status.Error(codes.Unknown, "failed to fetch capacity bytes")
-	}
-	metricUsed, ok := (*(metrics.Used)).AsInt64()
-	if !ok {
-		log.Errorf("failed to fetch used bytes for target %s", path)
-		return nil, status.Error(codes.Unknown, "failed to fetch used bytes")
-	}
-	metricInodes, ok := (*(metrics.Inodes)).AsInt64()
-	if !ok {
-		log.Errorf("failed to fetch available inodes for target %s", path)
-		return nil, status.Error(codes.Unknown, "failed to fetch available inodes")
-	}
-	metricInodesFree, ok := (*(metrics.InodesFree)).AsInt64()
-	if !ok {
-		log.Errorf("failed to fetch free inodes for target: %s", path)
-		return nil, status.Error(codes.Unknown, "failed to fetch free inodes")
-	}
-	metricInodesUsed, ok := (*(metrics.InodesUsed)).AsInt64()
-	if !ok {
-		log.Errorf("failed to fetch used inodes for target: %s", path)
-		return nil, status.Error(codes.Unknown, "failed to fetch used inodes")
-	}
+	// Capacity is total block count * fragment size
+	capacity := int64(statfs.Blocks) * int64(statfs.Bsize)
+
+	// Usage is block being used * fragment size (aka block size).
+	usage := (int64(statfs.Blocks) - int64(statfs.Bfree)) * int64(statfs.Bsize)
+
+	inodes := int64(statfs.Files)
+	inodesFree := int64(statfs.Ffree)
+	inodesUsed := inodes - inodesFree
 
 	return &csi.NodeGetVolumeStatsResponse{
 		Usage: []*csi.VolumeUsage{
 			{
-				Available: metricAvailable,
-				Total:     metricCapacity,
-				Used:      metricUsed,
+				Available: available,
+				Total:     capacity,
+				Used:      usage,
 				Unit:      csi.VolumeUsage_BYTES,
 			},
 			{
-				Available: metricInodesFree,
-				Total:     metricInodes,
-				Used:      metricInodesUsed,
+				Available: inodesFree,
+				Total:     inodes,
+				Used:      inodesUsed,
 				Unit:      csi.VolumeUsage_INODES,
 			},
 		},
