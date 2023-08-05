@@ -101,6 +101,5 @@ require (
 
 replace (
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.2.0
-	github.com/pkg/errors => github.com/pkg/errors v0.8.1
 	github.com/stretchr/testify => github.com/stretchr/testify v1.3.0
 )

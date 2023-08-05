@@ -209,7 +209,7 @@ github.com/munnerz/goautoneg
 github.com/opentracing/opentracing-go
 github.com/opentracing/opentracing-go/ext
 github.com/opentracing/opentracing-go/log
-# github.com/pkg/errors v0.9.1 => github.com/pkg/errors v0.8.1
+# github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
@@ -761,5 +761,4 @@ sigs.k8s.io/structured-merge-diff/v4/value
 ## explicit; go 1.12
 sigs.k8s.io/yaml
 # github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.2.0
-# github.com/pkg/errors => github.com/pkg/errors v0.8.1
 # github.com/stretchr/testify => github.com/stretchr/testify v1.3.0
