@@ -100,17 +100,7 @@ require (
 )
 
 replace (
-	github.com/beorn7/perks => github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
-	github.com/evanphx/json-patch => github.com/evanphx/json-patch v3.0.0+incompatible
-	github.com/google/go-cmp => github.com/google/go-cmp v0.5.0
-	github.com/google/gofuzz => github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.2.0
-	github.com/json-iterator/go => github.com/json-iterator/go v1.1.5
-	github.com/modern-go/reflect2 => github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742
 	github.com/pkg/errors => github.com/pkg/errors v0.8.1
-	github.com/spf13/pflag => github.com/spf13/pflag v1.0.3
 	github.com/stretchr/testify => github.com/stretchr/testify v1.3.0
-	google.golang.org/appengine => google.golang.org/appengine v1.4.0
-	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.2
-	sigs.k8s.io/yaml => sigs.k8s.io/yaml v1.1.0
 )
