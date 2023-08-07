@@ -182,7 +182,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	argStr := fmt.Sprintf("Bucket: %s, url: %s, OtherOpts: %s, Path: %s, UseSharedPath: %s, authType: %s, encrypted: %s", opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType, opt.Encrypted)
 	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
 
-	if mnt, _, _ := IsOssfsMounted(mountPath); mnt {
+	if IsOssfsMounted(mountPath) {
 		log.Infof("NodePublishVolume: The mountpoint is mounted: %s", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
@@ -220,7 +220,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	var mntCmd string
 	if opt.UseSharedPath {
 		sharedPath := GetGlobalMountPath(req.GetVolumeId())
-		if mnt, _, _ := IsOssfsMounted(sharedPath); mnt {
+		if IsOssfsMounted(sharedPath) {
 			log.Infof("NodePublishVolume: The shared path: %s is already mounted", sharedPath)
 		} else {
 			if err := utils.CreateDest(sharedPath); err != nil {
@@ -258,19 +258,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if opt.FuseType == JindoFsType {
 			mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s %s", mountPath, opt.Bucket, opt.Path, opt.URL, credentialProvider, useSse)
 		}
-		// TEST::
-		mnted, out, err := IsOssfsMounted(mountPath)
-		log.Infof("TEST:: NodePublishVolume:: Check mount %s before doMount: hasMount:%v, mountOut: %v, err:%v", mountPath, mnted, out, err)
 		utils.WriteMetricsInfo(metricsPathPrefix, req, opt.MetricsTop, OssFsType, "oss", opt.Bucket)
 		if err := utils.DoMountInHost(mntCmd); err != nil {
 			return nil, err
 		}
-		// TEST::
-		mnted, out, err = IsOssfsMounted(mountPath)
-		log.Infof("TEST:: NodePublishVolume:: Check mount %s after doMount: hasMount:%v, mountOut: %v, err:%v", mountPath, mnted, out, err)
-		//if !mnted {
-		//	return nil, errors.New("Check mount fail after mount:" + mountPath)
-		//}
 	}
 
 	log.Infof("NodePublishVolume:: Mount oss is successfully, volume %s, targetPath: %s, with Command: %s", req.VolumeId, mountPath, mntCmd)
@@ -403,18 +394,12 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err != nil {
 		return nil, err
 	}
-	/*
-		if !IsOssfsMounted(mountPoint) {
-			log.Infof("Directory is not mounted: %s", mountPoint)
-			return &csi.NodeUnpublishVolumeResponse{}, nil
-		}
-	*/
+	
 	// check mount point with IsLikelyNotMountPoint
 	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(mountPoint)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	log.Infof("TEST:: NodeNodePublishVolume:: Check umount %s before doUmount: hasMount:%v, err:%v", mountPoint, !notmounted, err)
 	if notmounted {
 		if empty, _ := IsDirEmpty(mountPoint); empty {
 			if removeErr := os.Remove(mountPoint); removeErr != nil {
@@ -431,7 +416,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	pvName := req.GetVolumeId()
 	var umntCmd string
 	sharedMountPoint := GetGlobalMountPath(req.GetVolumeId())
-	if mnted, _, _ := IsOssfsMounted(sharedMountPoint); mnted {
+	if IsOssfsMounted(sharedMountPoint) {
 		log.Infof("NodeUnpublishVolume:: Starting umount a shared path oss volume: %s", req.TargetPath)
 		code, err := IsLastSharedVol(pvName)
 		if err != nil {
@@ -451,9 +436,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
 	}
 
-	mnted, out, err := IsOssfsMounted(mountPoint)
-	log.Infof("TEST:: NodeNodePublishVolume:: Check umount %s after doUmount: hasMount:%v, mountOut: %v, err:%v", mountPoint, mnted, out, err)
-	if mnted {
+	if IsOssfsMounted(mountPoint) {
 		log.Errorf("NodeUnpublishVolume: mount pointed mounted yet", mountPoint)
 		return nil, status.Error(codes.Internal, "NodeUnpublishVolume: mount point mounted yet "+mountPoint)
 	}
