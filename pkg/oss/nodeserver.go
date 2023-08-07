@@ -369,12 +369,14 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err != nil {
 		return nil, err
 	}
-	
-	// check mount point with IsLikelyNotMountPoint
+
+	// check mount point with IsLikelyNotMountPoint first
 	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(mountPoint)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		log.Errorf("NodeUnpublishVolume:: use IsLikelyNotMountPoint to check if path %s mounted failed with error %v", mountPoint, err)
+		notmounted = !IsOssfsMounted(mountPoint)
 	}
+
 	if notmounted {
 		if empty, _ := IsDirEmpty(mountPoint); empty {
 			if removeErr := os.Remove(mountPoint); removeErr != nil {
@@ -395,7 +397,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		log.Infof("NodeUnpublishVolume:: Starting umount a shared path oss volume: %s", req.TargetPath)
 		code, err := IsLastSharedVol(pvName)
 		if err != nil {
-			log.Errorf("Umount oss fail, with: %s", err.Error())
+			log.Errorf("NodeUnpublishVolume:: Umount oss fail, with: %s", err.Error())
 			return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
 		}
 		if code == "1" {
@@ -407,12 +409,12 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		umntCmd = fmt.Sprintf("umount -f %s", mountPoint)
 	}
 	if _, err := utils.ValidateRun(umntCmd); err != nil {
-		log.Errorf("Umount oss fail, with: %s", err.Error())
+		log.Errorf("NodeUnpublishVolume:: Umount oss fail, with: %s", err.Error())
 		return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
 	}
 
 	if IsOssfsMounted(mountPoint) {
-		log.Errorf("NodeUnpublishVolume: mount pointed mounted yet", mountPoint)
+		log.Errorf("NodeUnpublishVolume: mount pointed %s mounted yet", mountPoint)
 		return nil, status.Error(codes.Internal, "NodeUnpublishVolume: mount point mounted yet "+mountPoint)
 	}
 
