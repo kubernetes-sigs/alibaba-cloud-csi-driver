@@ -188,6 +188,7 @@ if [ "$run_oss" = "true" ] || ["$run_disk" = "true" ]; then
             rm -rf /host/etc/csi-tool/
             rm -rf /host/etc/csi-tool/connector.sock
             rm -rf /var/log/alicloud/connector.pid
+            rm -rf /var/run/csiplugin/connector.pid
             mkdir -p /host/etc/csi-tool/
         fi
     fi
@@ -225,6 +226,7 @@ if [ "$run_oss" = "true" ] || ["$run_disk" = "true" ]; then
     fi
 
     rm -rf /var/log/alicloud/connector.pid
+    rm -rf /var/run/csiplugin/connector.pid
     /nsenter --mount=/proc/1/ns/mnt systemctl enable csiplugin-connector.service
     /nsenter --mount=/proc/1/ns/mnt systemctl restart csiplugin-connector.service
 fi
