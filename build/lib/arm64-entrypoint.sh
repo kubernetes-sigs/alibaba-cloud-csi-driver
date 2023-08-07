@@ -105,6 +105,7 @@ if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [
 					rm -rf /host/etc/csi-tool/
 					rm -rf /host/etc/csi-tool/connector.sock
 					rm -rf /var/log/alicloud/connector.pid
+					rm -rf /var/run/csiplugin/connector.pid
 					mkdir -p /host/etc/csi-tool/
 			fi
 		fi
@@ -152,6 +153,7 @@ if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [
     fi
 
     rm -rf /var/log/alicloud/connector.pid
+    rm -rf /var/run/csiplugin/connector.pid
     echo "Starting systemctl enable csiplugin-connector.service."
     for((i=1;i<=5;i++));
     do
