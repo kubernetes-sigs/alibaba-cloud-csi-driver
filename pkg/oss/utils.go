@@ -90,17 +90,16 @@ func GetRAMRoleOption() string {
 }
 
 // IsOssfsMounted return if oss mountPath is mounted
-// TEST::
-func IsOssfsMounted(mountPath string) (bool, []string, error) {
+func IsOssfsMounted(mountPath string) bool {
 	checkMountCountCmd := fmt.Sprintf("%s mount", NsenterCmd)
 	out, err := utils.RunWithFilter(checkMountCountCmd, mountPath, "fuse.ossfs")
 	if err != nil {
-		return false, out, err
+		return false
 	}
 	if len(out) == 0 {
-		return false, nil, nil
+		return false
 	}
-	return true, out, nil
+	return true
 }
 
 // IsLastSharedVol return code status to help check if this oss volume uses UseSharedPath and is the last one
