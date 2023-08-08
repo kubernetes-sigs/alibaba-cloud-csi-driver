@@ -818,6 +818,24 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 	return newListSnapshotsResponse(response)
 }
 
+func resizeDisk(ecsClient *ecs.Client, req *ecs.ResizeDiskRequest) (*ecs.ResizeDiskResponse, error) {
+	for attempt := 1; ; attempt++ {
+		response, err := ecsClient.ResizeDisk(req)
+		if err == nil {
+			return response, nil
+		}
+
+		var aliErr *alicloudErr.ServerError
+		if attempt < 6 && errors.As(err, &aliErr) && aliErr.ErrorCode() == "LastOrderProcessing" {
+			log.Infof("ResizeDisk: last order processing, retry after 5s, attempt %d", attempt)
+			time.Sleep(time.Second * 5)
+			continue
+		}
+
+		return response, err
+	}
+}
+
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest,
 ) (*csi.ControllerExpandVolumeResponse, error) {
 	log.Infof("ControllerExpandVolume:: Starting expand disk with: %v", req)
@@ -864,7 +882,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 		resizeDiskRequest.Type = "online"
 	}
 
-	response, err := ecsClient.ResizeDisk(resizeDiskRequest)
+	response, err := resizeDisk(ecsClient, resizeDiskRequest)
 	if err != nil {
 		log.Errorf("ControllerExpandVolume:: resize got error: %s", err.Error())
 		if snapshotEnable {
