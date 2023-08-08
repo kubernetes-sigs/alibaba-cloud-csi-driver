@@ -316,7 +316,7 @@ func describeDbfs(fsID string) (*dbfs.GetDbfsResponse, error) {
 
 func isPodMounted(pvName string) (bool, error) {
 	mountFlag := filepath.Join("volumes/kubernetes.io~csi", pvName, "mount")
-	cmd := fmt.Sprintf("mount | grep -v grep | grep fuse.dbfs_server | grep %s | wc -l", mountFlag)
+	cmd := fmt.Sprintf("mount | grep fuse.dbfs_server | grep %s | wc -l", mountFlag)
 	out, err := utils.Run(cmd)
 	if err != nil {
 		return false, err
