@@ -237,6 +237,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	volumeContext := req.GetParameters()
+	if volumeContext == nil {
+		volumeContext = make(map[string]string)
+	}
 	if sharedDisk {
 		volumeContext[SharedEnable] = "enable"
 	}
