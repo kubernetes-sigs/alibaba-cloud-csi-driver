@@ -97,16 +97,6 @@ func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.Cont
 		installCRD = false
 	}
 
-	// parse input snapshot request interval
-	intervalStr := os.Getenv(SnapshotRequestTag)
-	if intervalStr != "" {
-		interval, err := strconv.ParseInt(intervalStr, 10, 64)
-		if err != nil {
-			log.Fatalf("Input SnapshotRequestTag is illegal: %s", intervalStr)
-		}
-		SnapshotRequestInterval = interval
-	}
-
 	serviceType := os.Getenv(utils.ServiceType)
 	if serviceType == utils.ProvisionerService && installCRD {
 		checkInstallCRD(client)
@@ -124,12 +114,6 @@ var createdSnapshotMap = map[string]*csi.Snapshot{}
 
 // the map of multizone and index
 var storageClassZonePos = map[string]int{}
-
-// SnapshotRequestMap snapshot request limit
-var SnapshotRequestMap = map[string]int64{}
-
-// SnapshotRequestInterval snapshot request limit
-var SnapshotRequestInterval = int64(10)
 
 // provisioner: create/delete disk
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
@@ -513,16 +497,6 @@ func parseSnapshotAnnotations(anno map[string]string, ecsParams *createSnapshotP
 
 // CreateSnapshot ...
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	// request limit
-	cur := time.Now().Unix()
-	if initTime, ok := SnapshotRequestMap[req.Name]; ok {
-		if cur-initTime < SnapshotRequestInterval {
-			err := fmt.Errorf("CreateSnapshot: snapshot create request limit %s", req.Name)
-			return nil, err
-		}
-	}
-	SnapshotRequestMap[req.Name] = cur
-
 	// used for snapshot events
 	snapshotName := req.Parameters[common.VolumeSnapshotNameKey]
 	snapshotNamespace := req.Parameters[common.VolumeSnapshotNamespaceKey]
@@ -561,7 +535,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 			if csiSnapshot.ReadyToUse {
 				str := fmt.Sprintf("VolumeSnapshot: name: %s, id: %s is ready to use.", existsSnapshot.SnapshotName, existsSnapshot.SnapshotId)
 				utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotCreatedSuccessfully, str)
-				delete(SnapshotRequestMap, req.Name)
 			}
 			return &csi.CreateSnapshotResponse{
 				Snapshot: csiSnapshot,
@@ -633,7 +606,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	if params.InstantAccess {
 		//updateSnapshotIAStatus(req, "completed")
 		tmpReadyToUse = true
-		delete(SnapshotRequestMap, req.Name)
 	}
 	str := fmt.Sprintf("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotResponse.SnapshotId)
 	log.Infof(str)
