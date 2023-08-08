@@ -548,7 +548,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 
 // GetDeviceByMntPoint return the device info from given mount point
 func GetDeviceByMntPoint(targetPath string) string {
-	deviceCmd := fmt.Sprintf("mount | grep \"on %s\"  | grep -v grep | awk 'NR==1 {print $1}'", targetPath)
+	deviceCmd := fmt.Sprintf("mount | grep \"on %s\" | awk 'NR==1 {print $1}'", targetPath)
 	deviceCmdOut, err := utils.Run(deviceCmd)
 	if err != nil {
 		return ""

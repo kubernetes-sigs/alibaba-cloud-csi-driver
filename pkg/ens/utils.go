@@ -712,7 +712,7 @@ func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
 
 	// block volume
 	if devicePath == "devtmpfs" {
-		findmntCmd := fmt.Sprintf("findmnt %s | grep -v grep | awk '{if(NR>1)print $2}'", targetPath)
+		findmntCmd := fmt.Sprintf("findmnt %s | awk '{if(NR>1)print $2}'", targetPath)
 		output, err := utils.Run(findmntCmd)
 		if err != nil {
 			return err

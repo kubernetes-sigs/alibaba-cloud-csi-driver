@@ -191,7 +191,7 @@ func GetMetaData(resource string) string {
 
 // GetDeviceByMntPoint return the device info from given mount point
 func GetDeviceByMntPoint(targetPath string) string {
-	deviceCmd := fmt.Sprintf("mount | grep \"on %s\"  | grep -v grep | awk 'NR==1 {print $1}'", targetPath)
+	deviceCmd := fmt.Sprintf("mount | grep \"on %s\" | awk 'NR==1 {print $1}'", targetPath)
 	deviceCmdOut, err := run(deviceCmd)
 	if err != nil {
 		return ""
@@ -201,13 +201,13 @@ func GetDeviceByMntPoint(targetPath string) string {
 
 // GetDeviceMountNum get the device mount number
 func GetDeviceMountNum(targetPath string) int {
-	deviceCmd := fmt.Sprintf("mount | grep %s  | grep -v grep | awk '{print $1}'", targetPath)
+	deviceCmd := fmt.Sprintf("mount | grep %s | awk '{print $1}'", targetPath)
 	deviceCmdOut, err := run(deviceCmd)
 	if err != nil {
 		return 0
 	}
 	deviceCmdOut = strings.TrimSuffix(deviceCmdOut, "\n")
-	deviceNumCmd := fmt.Sprintf("mount | grep \"%s \" | grep -v grep | wc -l", deviceCmdOut)
+	deviceNumCmd := fmt.Sprintf("mount | grep \"%s \" | wc -l", deviceCmdOut)
 	deviceNumOut, err := run(deviceNumCmd)
 	if err != nil {
 		return 0
@@ -1097,7 +1097,7 @@ func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
 
 	// block volume
 	if devicePath == "devtmpfs" {
-		findmntCmd := fmt.Sprintf("findmnt %s | grep -v grep | awk '{if(NR>1)print $2}'", targetPath)
+		findmntCmd := fmt.Sprintf("findmnt %s | awk '{if(NR>1)print $2}'", targetPath)
 		output, err := utils.Run(findmntCmd)
 		if err != nil {
 			return status.Error(codes.Internal, err.Error())
