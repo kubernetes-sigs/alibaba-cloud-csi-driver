@@ -35,6 +35,7 @@ import (
 	"time"
 	"unicode"
 
+	"golang.org/x/sys/unix"
 	v1 "k8s.io/api/core/v1"
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
@@ -52,10 +53,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/volume/util/fs"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
 )
@@ -1173,17 +1172,15 @@ func deleteEmpty(s []string) []string {
 }
 
 func getDiskCapacity(devicePath string) (float64, error) {
-	_, capacity, _, _, _, _, err := fs.FsInfo(devicePath)
+	statfs := &unix.Statfs_t{}
+	err := unix.Statfs(devicePath, statfs)
+
 	if err != nil {
 		log.Errorf("getDiskCapacity:: get device error: %+v", err)
 		return 0, fmt.Errorf("getDiskCapacity:: get device error: %+v", err)
 	}
-	capacity, ok := (*(resource.NewQuantity(capacity, resource.BinarySI))).AsInt64()
-	if !ok {
-		log.Errorf("getDiskCapacity:: failed to fetch capacity bytes for target: %s", devicePath)
-		return 0, status.Error(codes.Unknown, "failed to fetch capacity bytes")
-	}
-	return float64(capacity) / GBSIZE, nil
+
+	return float64(statfs.Blocks*uint64(statfs.Bsize)) / GBSIZE, nil
 }
 
 func getBlockDeviceCapacity(devicePath string) float64 {
