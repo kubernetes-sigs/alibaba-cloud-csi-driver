@@ -338,9 +338,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	if !strings.HasSuffix(targetPath, "/mount") {
-		return nil, status.Errorf(codes.InvalidArgument, "NodePublishVolume: volume %s malformed the value of target path: %s", req.VolumeId, targetPath)
-	}
 	if err := ns.mounter.EnsureFolder(targetPath); err != nil {
 		log.Log.Errorf("NodePublishVolume: create volume %s path %s error: %v", req.VolumeId, targetPath, err)
 		return nil, status.Error(codes.Internal, err.Error())
