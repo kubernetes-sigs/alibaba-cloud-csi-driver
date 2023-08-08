@@ -106,22 +106,20 @@ const (
 	ZoneIDTag = "zone-id"
 	// LogfilePrefix tag
 	LogfilePrefix = "/var/log/alicloud/provisioner"
-	// DiskNotAvailable tag
-	DiskNotAvailable = "InvalidDataDiskCategory.NotSupported"
-	// DiskNotAvailableVer2 tag
-	DiskNotAvailableVer2 = "'DataDisk.n.Category' is not valid in this region."
-	// DiskSizeNotAvailable tag
-	DiskSizeNotAvailable = "InvalidDiskSize.NotSupported"
-	// DiskPerformanceLevelNotMatch tag
+
+	// These are error codes of ECS OpenAPI
+
+	DiskNotAvailable             = "InvalidDataDiskCategory.NotSupported"
+	DiskNotAvailableVer2         = "'DataDisk.n.Category' is not valid in this region."
+	DiskSizeNotAvailable         = "InvalidDiskSize.NotSupported"
 	DiskPerformanceLevelNotMatch = "OperationDenied.PerformanceLevelNotMatch"
-	// DiskIopsLimitExceeded tag
-	DiskIopsLimitExceeded = "InvalidProvisionedIops.LimitExceed"
-	// DiskLimitExceeded tag
-	DiskLimitExceeded = "InstanceDiskLimitExceeded"
-	// NotSupportDiskCategory tag
-	NotSupportDiskCategory = "NotSupportDiskCategory"
-	// DiskNotPortable tag
-	DiskNotPortable = "DiskNotPortable"
+	DiskIopsLimitExceeded        = "InvalidProvisionedIops.LimitExceed"
+	DiskLimitExceeded            = "InstanceDiskLimitExceeded"
+	NotSupportDiskCategory       = "NotSupportDiskCategory"
+	DiskNotPortable              = "DiskNotPortable"
+	IdempotentParameterMismatch  = "IdempotentParameterMismatch"
+	SnapshotNotFound             = "InvalidSnapshotId.NotFound"
+
 	// DiskHighAvail tag
 	DiskHighAvail = "available"
 	// DiskCommon common disk type
