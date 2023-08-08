@@ -19,6 +19,7 @@ package disk
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -27,6 +28,7 @@ import (
 	"sync"
 	"time"
 
+	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -224,6 +226,15 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	diskType, diskID, diskPL, err := createDisk(req.GetName(), snapshotID, requestGB, diskVol, req.Parameters[TenantUserUID])
 	if err != nil {
+		var aliErr *alicloudErr.ServerError
+		if errors.As(err, &aliErr) {
+			switch aliErr.ErrorCode() {
+			case IdempotentParameterMismatch:
+				return nil, status.Errorf(codes.AlreadyExists, "volume %s already created with different parameters", req.Name)
+			case SnapshotNotFound:
+				return nil, status.Errorf(codes.NotFound, "snapshot %s not found", snapshotID)
+			}
+		}
 		return nil, err
 	}
 
