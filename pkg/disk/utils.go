@@ -1142,7 +1142,7 @@ func getDiskCapacity(devicePath string) (float64, error) {
 
 	if err != nil {
 		log.Errorf("getDiskCapacity:: get device error: %+v", err)
-		return 0, fmt.Errorf("getDiskCapacity:: get device error: %+v", err)
+		return 0, fmt.Errorf("getDiskCapacity:: get device error: %w", err)
 	}
 
 	return float64(statfs.Blocks*uint64(statfs.Bsize)) / GBSIZE, nil
