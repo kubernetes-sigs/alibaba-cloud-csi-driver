@@ -38,6 +38,7 @@ import (
 	"google.golang.org/grpc/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 var DEFAULT_VMFATAL_EVENTS = []string{
@@ -47,7 +48,10 @@ var DEFAULT_VMFATAL_EVENTS = []string{
 	"ecs_alarm_center.vm.vmexit_exception_vm_hang:fatal",
 }
 
-const DISK_DELETE_MAX_RETRY = 60
+const (
+	DISK_DELETE_INIT_TIMEOUT       = 5 * time.Minute
+	DISK_RESIZE_PROCESSING_TIMEOUT = 30 * time.Second
+)
 
 // attach alibaba cloud disk
 func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string, error) {
@@ -1029,26 +1033,44 @@ func getDefaultDiskTags(diskVol *diskVolumeArgs) []ecs.CreateDiskTag {
 	return diskTags
 }
 
-func deleteDisk(ecsClient cloud.ECSInterface, diskId string) (*ecs.DeleteDiskResponse, error) {
+func deleteDisk(ctx context.Context, ecsClient cloud.ECSInterface, diskId string) (*ecs.DeleteDiskResponse, error) {
 	deleteDiskRequest := ecs.CreateDeleteDiskRequest()
 	deleteDiskRequest.DiskId = diskId
 
-	for attempt := 1; ; attempt++ {
-		response, err := ecsClient.DeleteDisk(deleteDiskRequest)
+	var resp *ecs.DeleteDiskResponse
+	err := wait.PollImmediateWithContext(ctx, time.Second*5, DISK_DELETE_INIT_TIMEOUT, func(ctx context.Context) (bool, error) {
+		var err error
+		resp, err = ecsClient.DeleteDisk(deleteDiskRequest)
 		if err == nil {
-			log.Infof("DeleteVolume: Successfully deleted volume: %s, with RequestId: %s", diskId, response.RequestId)
-			return response, nil
+			log.Infof("DeleteVolume: Successfully deleted volume: %s, with RequestId: %s", diskId, resp.RequestId)
+			return true, nil
 		}
 
 		var aliErr *alicloudErr.ServerError
-		if attempt < DISK_DELETE_MAX_RETRY &&
-			errors.As(err, &aliErr) && aliErr.ErrorCode() == "IncorrectDiskStatus.Initializing" {
+		if errors.As(err, &aliErr) && aliErr.ErrorCode() == "IncorrectDiskStatus.Initializing" {
+			log.Infof("DeleteVolume: disk %s is still initializing, retrying", diskId)
+			return false, nil
+		}
+		return false, err
+	})
+	return resp, err
+}
 
-			log.Infof("DeleteVolume: disk %s is still initializing, retry after 5s, attempt %d", diskId, attempt)
-			time.Sleep(time.Second * 5)
-			continue
+func resizeDisk(ctx context.Context, ecsClient cloud.ECSInterface, req *ecs.ResizeDiskRequest) (*ecs.ResizeDiskResponse, error) {
+	var resp *ecs.ResizeDiskResponse
+	err := wait.PollImmediateWithContext(ctx, time.Second*5, DISK_RESIZE_PROCESSING_TIMEOUT, func(ctx context.Context) (bool, error) {
+		var err error
+		resp, err = ecsClient.ResizeDisk(req)
+		if err == nil {
+			return true, nil
 		}
 
-		return response, err
-	}
+		var aliErr *alicloudErr.ServerError
+		if errors.As(err, &aliErr) && aliErr.ErrorCode() == "LastOrderProcessing" {
+			log.Infof("ResizeDisk: last order processing, retrying")
+			return false, nil
+		}
+		return false, err
+	})
+	return resp, err
 }
