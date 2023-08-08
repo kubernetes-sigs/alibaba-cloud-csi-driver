@@ -19,9 +19,9 @@ const (
 	// MBSIZE metrics
 	MBSIZE = 1024 * 1024
 	// LogFilename name of log file
-	LogFilename = "/var/log/alicloud/csi_connector.log"
+	LogFilename = "/var/run/csiplugin/csi_connector.log"
 	// PIDFilename name of pid file
-	PIDFilename = "/var/log/alicloud/connector.pid"
+	PIDFilename = "/var/run/csiplugin/connector.pid"
 	// WorkPath workspace
 	WorkPath = "./"
 	// OSSSocketPath socket path

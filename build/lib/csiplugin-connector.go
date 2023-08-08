@@ -17,9 +17,9 @@ import (
 
 const (
 	// LogFilename name of log file
-	LogFilename = "/var/log/alicloud/csi_connector.log"
+	LogFilename = "/var/run/csiplugin/csi_connector.log"
 	// PIDFilename name of pid file
-	PIDFilename = "/var/log/alicloud/connector.pid"
+	PIDFilename = "/var/run/csiplugin/connector.pid"
 	// WorkPath workspace
 	WorkPath = "./"
 	// OSSSocketPath socket path
@@ -33,7 +33,7 @@ const (
 )
 
 func main() {
-	// log file is: /var/log/alicloud/csi_connector.log
+	// log file is: /var/run/csiplugin/csi_connector.log
 	cntxt := &daemon.Context{
 		PidFileName: PIDFilename,
 		PidFilePerm: 0644,

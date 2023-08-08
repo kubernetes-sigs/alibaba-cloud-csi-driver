@@ -108,6 +108,7 @@ else
         rm -rf /host/etc/csi-tool/
         rm -rf /host/etc/csi-tool/connector.sock
         rm -rf /var/log/alicloud/connector.pid
+        rm -rf /var/run/csiplugin/connector.pid
         mkdir -p /host/etc/csi-tool/
     fi
 fi
@@ -146,6 +147,7 @@ if [ "$updateConnectorService" = "true" ]; then
 fi
 
 rm -rf /var/log/alicloud/connector.pid
+rm -rf /var/run/csiplugin/connector.pid
 $HOST_CMD systemctl enable csiplugin-connector.service
 $HOST_CMD systemctl restart csiplugin-connector.service
 
