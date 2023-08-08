@@ -497,6 +497,10 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		log.Log.Errorf("NodeUnpublishVolume: TargetPath mounted yet, volumeId %s with target %s", req.VolumeId, targetPath)
 		return nil, status.Error(codes.Internal, "NodeUnpublishVolume: TargetPath mounted yet with target "+targetPath)
 	}
+	err = os.Remove(targetPath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("NodeUnpublishVolume: Cannot remove targetPath %s: %v", targetPath, err))
+	}
 
 	// below directory can not be umounted by kubelet in ack
 	if err := ns.unmountDuplicateMountPoint(targetPath, req.VolumeId); err != nil {
