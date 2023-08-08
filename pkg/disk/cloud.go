@@ -18,11 +18,13 @@ package disk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 	"time"
 
+	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	log "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
@@ -39,6 +41,8 @@ var DEFAULT_VMFATAL_EVENTS = []string{
 	"ecs_alarm_center.vm.guest_os_kernel_panic:fatal",
 	"ecs_alarm_center.vm.vmexit_exception_vm_hang:fatal",
 }
+
+const DISK_DELETE_MAX_RETRY = 60
 
 // attach alibaba cloud disk
 func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string, error) {
@@ -1050,4 +1054,28 @@ func IsDiskCreatedByCsi(disk ecs.Disk) bool {
 		}
 	}
 	return false
+}
+
+func deleteDisk(ecsClient *ecs.Client, diskId string) (*ecs.DeleteDiskResponse, error) {
+	deleteDiskRequest := ecs.CreateDeleteDiskRequest()
+	deleteDiskRequest.DiskId = diskId
+
+	for attempt := 1; ; attempt++ {
+		response, err := ecsClient.DeleteDisk(deleteDiskRequest)
+		if err == nil {
+			log.Log.Infof("DeleteVolume: Successfully deleted volume: %s, with RequestId: %s", diskId, response.RequestId)
+			return response, nil
+		}
+
+		var aliErr *alicloudErr.ServerError
+		if attempt < DISK_DELETE_MAX_RETRY &&
+			errors.As(err, &aliErr) && aliErr.ErrorCode() == "IncorrectDiskStatus.Initializing" {
+
+			log.Log.Infof("DeleteVolume: disk %s is still initializing, retry after 5s, attempt %d", diskId, attempt)
+			time.Sleep(time.Second * 5)
+			continue
+		}
+
+		return response, err
+	}
 }
