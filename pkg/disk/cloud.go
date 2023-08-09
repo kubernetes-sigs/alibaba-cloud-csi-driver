@@ -918,7 +918,7 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 			if diskId != "" && rerr == nil {
 				return dType, diskId, "", nil
 			}
-			if err != nil {
+			if rerr != nil {
 				return "", "", "", rerr
 			}
 		}
