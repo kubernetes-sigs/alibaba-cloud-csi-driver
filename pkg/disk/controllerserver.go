@@ -32,8 +32,6 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	volumeSnasphotV1 "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
@@ -642,7 +640,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	// init createSnapshotRequest and parameters
-	createAt := ptypes.TimestampNow()
+	createAt := timestamppb.Now()
 	params.SourceVolumeID = sourceVolumeID
 	params.SnapshotName = req.Name
 	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, params)
@@ -1025,7 +1023,7 @@ func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 		SnapshotId:     ecsSnapshot.SnapshotId,
 		SourceVolumeId: ecsSnapshot.SourceDiskId,
 		SizeBytes:      sizeBytes,
-		CreationTime:   &timestamp.Timestamp{Seconds: t.Unix()},
+		CreationTime:   &timestamppb.Timestamp{Seconds: t.Unix()},
 		ReadyToUse:     readyToUse,
 	}, nil
 }
