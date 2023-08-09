@@ -103,9 +103,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
-
-replace (
-	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.2.0
-	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.11.1
-	github.com/stretchr/testify => github.com/stretchr/testify v1.3.0
-)
