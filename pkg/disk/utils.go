@@ -40,7 +40,6 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/containerd/ttrpc"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	volumeSnapshotV1 "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
@@ -53,6 +52,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -1412,7 +1412,7 @@ func updateVolumeContext(volumeContext map[string]string) map[string]string {
 	return volumeContext
 }
 
-func getSnapshotInfoByID(snapshotID string) (string, string, *timestamp.Timestamp) {
+func getSnapshotInfoByID(snapshotID string) (string, string, *timestamppb.Timestamp) {
 	content, err := GlobalConfigVar.SnapClient.SnapshotV1().VolumeSnapshotContents().Get(context.TODO(), snapshotID, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("getSnapshotContentByID:: get snapshot content in cluster err: %v", err)
@@ -1420,7 +1420,7 @@ func getSnapshotInfoByID(snapshotID string) (string, string, *timestamp.Timestam
 	}
 	if targetRegion, ok := content.Labels[RemoteSnapshotLabelKey]; ok {
 		if volumeID, ok := content.Labels[SnapshotVolumeKey]; ok {
-			return targetRegion, volumeID, &timestamp.Timestamp{Seconds: int64(content.CreationTimestamp.Second())}
+			return targetRegion, volumeID, &timestamppb.Timestamp{Seconds: int64(content.CreationTimestamp.Second())}
 		}
 	}
 
