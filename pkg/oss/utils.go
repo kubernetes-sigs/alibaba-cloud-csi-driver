@@ -66,6 +66,15 @@ func GetMetaDataAsync(resource string) string {
 	}
 }
 
+// GetRegionID Get RegionID from Metadata first, then Environment Variables
+func GetRegionID() string {
+	regionID := GetMetaDataAsync(regionTag)
+	if regionID == "" {
+		regionID = os.Getenv("REGION_ID")
+	}
+	return regionID
+}
+
 func GetGlobalMountPath(volumeId string) string {
 
 	result := sha256.Sum256([]byte(volumeId))
