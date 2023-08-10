@@ -15,28 +15,35 @@ RUN --mount=type=bind,target=. \
         -o /out/plugin.csi.alibabacloud.com && \
     go build -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
+FROM --platform=$BUILDPLATFORM buildpack-deps:curl as download
+
+ARG TARGETARCH
+ARG ossfsVer=1.80.6.ack.1
+ARG update_ossfsVer=1.88.1
+RUN mkdir /downloads && cd /downloads && \
+    if [ $TARGETARCH = "amd64" ]; then \
+        curl -O https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.2-3.x86_64.rpm && \
+        curl -O https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.al7.noarch.rpm; \
+    fi
 
 FROM registry.eu-west-1.aliyuncs.com/acs/alinux:3-update
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 
-RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace cloud-utils-growpart gdisk nc telnet tar cpio && \
-    yum clean all
-RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
+RUN yum install -y tzdata nfs-utils xfsprogs e4fsprogs pciutils cloud-utils-growpart tar cpio && \
+    yum clean all && \
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
 
 ARG TARGETARCH
-WORKDIR /root
-RUN if [[ $TARGETARCH == "amd64" ]]; then \
-        curl -O https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.2-3.x86_64.rpm && \
-        curl -O https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.al7.noarch.rpm; \
-    fi
 RUN --mount=type=bind,source=build/lib,target=/csi-lib \
     cp /csi-lib/$TARGETARCH-nsenter /usr/bin/nsenter && \
     ln -s /usr/bin/nsenter /nsenter && \
     cp /csi-lib/$TARGETARCH-entrypoint.sh /entrypoint.sh && \
-    chmod +x /entrypoint.sh && \
     cp /csi-lib/freezefs.sh /freezefs.sh && \
     mkdir /csi && \
     cp /csi-lib/csiplugin-connector.service /csi/csiplugin-connector.service
+
+COPY --link --from=download /downloads /root
+
 COPY --link --from=build /out/csiplugin-connector /csi/csiplugin-connector
 COPY --link --from=build /out/plugin.csi.alibabacloud.com /usr/bin/plugin.csi.alibabacloud.com
 

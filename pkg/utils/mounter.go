@@ -66,10 +66,6 @@ type Mounter interface {
 	// Unmount unmounts the given target
 	Unmount(target string) error
 
-	// IsFormatted checks whether the source device is formatted or not. It
-	// returns true if the source device is already formatted.
-	IsFormatted(source string) (bool, error)
-
 	// IsMounted checks whether the target path is a correct mount (i.e:
 	// propagated). It returns true if it's mounted. An error is returned in
 	// case of system errors or if it's mounted incorrectly.
@@ -253,36 +249,6 @@ func (m *mounter) Unmount(target string) error {
 	}
 
 	return nil
-}
-
-func (m *mounter) IsFormatted(source string) (bool, error) {
-	if source == "" {
-		return false, errors.New("source is not specified")
-	}
-
-	fileCmd := "file"
-	_, err := exec.LookPath(fileCmd)
-	if err != nil {
-		if err == exec.ErrNotFound {
-			return false, fmt.Errorf("%q executable not found in $PATH", fileCmd)
-		}
-		return false, err
-	}
-
-	args := []string{"-sL", source}
-
-	out, err := exec.Command(fileCmd, args...).CombinedOutput()
-	if err != nil {
-		return false, fmt.Errorf("checking formatting failed: %v cmd: %q output: %q",
-			err, fileCmd, string(out))
-	}
-
-	output := strings.TrimPrefix(string(out), fmt.Sprintf("%s:", source))
-	if strings.TrimSpace(output) == "data" {
-		return false, nil
-	}
-
-	return true, nil
 }
 
 func (m *mounter) IsMounted(target string) (bool, error) {
