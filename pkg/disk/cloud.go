@@ -681,22 +681,22 @@ func findSnapshotByName(name string) (*ecs.DescribeSnapshotsResponse, int, error
 	return snapshots, 1, nil
 }
 
-func findDiskSnapshotByID(id string) (*ecs.DescribeSnapshotsResponse, int, error) {
+func findDiskSnapshotByID(id string) (*ecs.Snapshot, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
 	describeSnapShotRequest.SnapshotIds = "[\"" + id + "\"]"
 	snapshots, err := GlobalConfigVar.EcsClient.DescribeSnapshots(describeSnapShotRequest)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	if len(snapshots.Snapshots.Snapshot) == 0 {
-		return snapshots, 0, nil
+	s := snapshots.Snapshots.Snapshot
+	if len(s) == 0 {
+		return nil, nil
 	}
-
-	if len(snapshots.Snapshots.Snapshot) > 1 {
-		return snapshots, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with id "+id)
+	if len(s) > 1 {
+		return nil, status.Error(codes.Internal, "find more than one snapshot with id "+id)
 	}
-	return snapshots, 1, nil
+	return &s[0], nil
 }
 
 func StopDiskOperationRetry(instanceId string, ecsClient *ecs.Client) bool {
