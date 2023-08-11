@@ -32,7 +32,9 @@ const (
 
 type FuseMounterType interface {
 	name() string
-	buildPodSpec(source, target, fstype string, options, mountFlags []string, nodeName string, config FuseContainerConfig) corev1.PodSpec
+	buildPodSpec(
+		source, target, fstype string, options, mountFlags []string, nodeName string, config FuseContainerConfig,
+	) (corev1.PodSpec, error)
 }
 
 type FuseContainerConfig struct {
@@ -211,11 +213,14 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 	var fusePod *corev1.Pod
 	if len(pods) == 0 {
 		// create fuse pod for target
-		mounter.log.Infof("creating fuse pod for %s", target)
 		var rawPod corev1.Pod
 		rawPod.GenerateName = fmt.Sprintf("csi-%s-%s-", mounter.name(), mounter.volumeId)
 		rawPod.Labels = labels
-		rawPod.Spec = mounter.buildPodSpec(source, target, fstype, options, mountFlags, mounter.nodeName, mounter.fuseConfig)
+		rawPod.Spec, err = mounter.buildPodSpec(source, target, fstype, options, mountFlags, mounter.nodeName, mounter.fuseConfig)
+		if err != nil {
+			return err
+		}
+		mounter.log.Infof("creating fuse pod for %s", target)
 		createdPod, err := podClient.Create(ctx, &rawPod, metav1.CreateOptions{})
 		if err != nil {
 			return err

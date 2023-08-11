@@ -1,6 +1,8 @@
 package mounter
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -8,7 +10,6 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/sirupsen/logrus"
 )
 
 var FuseOssfs FuseMounterType = &fuseOssfs{}
@@ -19,7 +20,13 @@ func (f *fuseOssfs) name() string {
 	return "ossfs"
 }
 
-func (f *fuseOssfs) buildPodSpec(source, target, fstype string, options, mountFlags []string, nodeName string, config FuseContainerConfig) (spec corev1.PodSpec) {
+func (f *fuseOssfs) buildPodSpec(
+	source, target, fstype string, options, mountFlags []string, nodeName string, config FuseContainerConfig,
+) (spec corev1.PodSpec, _ error) {
+	if config.Image == "" {
+		return spec, errors.New("missing image configuration")
+	}
+
 	hostPathDirectoryType := corev1.HostPathDirectory
 	hostPathFileOrCreate := corev1.HostPathFileOrCreate
 	kubeletDirVolume := corev1.Volume{
@@ -64,7 +71,7 @@ func (f *fuseOssfs) buildPodSpec(source, target, fstype string, options, mountFl
 			options = append(options, "dbglevel="+dbglevel)
 		}
 	default:
-		logrus.Warnf("unknown ossfs dbglevel: %s", dbglevel)
+		return spec, fmt.Errorf("unknown ossfs dbglevel: %q", dbglevel)
 	}
 	args := mountutils.MakeMountArgs(source, target, "", options)
 	args = append(args, mountFlags...)
