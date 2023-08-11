@@ -75,7 +75,9 @@ func (f *fuseOssfs) buildPodSpec(
 	}
 	args := mountutils.MakeMountArgs(source, target, "", options)
 	args = append(args, mountFlags...)
-	propagationContainerToHost := corev1.MountPropagationHostToContainer
+	// FUSE foreground option - do not run as daemon
+	args = append(args, "-f")
+	propagationContainerToHost := corev1.MountPropagationBidirectional
 	container := corev1.Container{
 		Name:  "fuse-mounter",
 		Image: config.Image,
@@ -99,7 +101,7 @@ func (f *fuseOssfs) buildPodSpec(
 		},
 	}
 	spec.Containers = []corev1.Container{container}
-	spec.RestartPolicy = corev1.RestartPolicyOnFailure
+	spec.RestartPolicy = corev1.RestartPolicyNever
 	spec.NodeName = nodeName
 	spec.HostNetwork = true
 	spec.PriorityClassName = "system-node-critical"

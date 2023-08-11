@@ -104,6 +104,7 @@ func doMount(mounter mountutils.Interface, target string, opts Options, mountOpt
 	if opts.FuseType == JindoFsType {
 		mountOptions = append(mountOptions, fmt.Sprintf("uri=oss://%s%s", opts.Bucket, opts.Path), fmt.Sprintf("fs.oss.endpoint=%s", opts.URL))
 	} else {
+		source = fmt.Sprintf("%s:%s", opts.Bucket, opts.Path)
 		mountOptions = append(mountOptions, fmt.Sprintf("url=%s", opts.URL))
 		otherOpts, err := parseOtherOpts(opts.OtherOpts)
 		if err != nil {

@@ -83,6 +83,18 @@ const (
 	regionTag = "region-id"
 )
 
+func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
+	return &csi.NodeGetCapabilitiesResponse{Capabilities: []*csi.NodeServiceCapability{
+		&csi.NodeServiceCapability{
+			Type: &csi.NodeServiceCapability_Rpc{
+				Rpc: &csi.NodeServiceCapability_RPC{
+					Type: csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
+				},
+			},
+		},
+	}}, nil
+}
+
 func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
 	valid, err := utils.CheckRequest(req.GetVolumeContext(), req.GetTargetPath())
 	if !valid {
@@ -188,8 +200,17 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if opt.directAssigned {
 		return ns.publishDirectVolume(ctx, req, opt)
 	}
-	mounter := ns.getMounterFor(opt.FuseType, req.VolumeId)
-	notMnt, err := mountutils.IsNotMountPoint(mounter, mountPath)
+	var ossMounter mountutils.Interface
+	switch opt.FuseType {
+	case JindoFsType:
+		ossMounter = mounter.NewConnectorMounter(mountutils.New(""), "/etc/jindofs-tool/jindo-fuse")
+	case OssFsType, "":
+		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId)
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "unknown fuseType: %q", opt.FuseType)
+	}
+
+	notMnt, err := mountutils.IsNotMountPoint(ossMounter, mountPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			if err := os.MkdirAll(mountPath, os.ModePerm); err != nil {
@@ -241,7 +262,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if opt.UseSharedPath {
 		// TODO: how to collect sharedPath metrics !!!
 		sharedPath := GetGlobalMountPath(req.GetVolumeId())
-		notMnt, err := mounter.IsLikelyNotMountPoint(sharedPath)
+		notMnt, err := ossMounter.IsLikelyNotMountPoint(sharedPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				if err := os.MkdirAll(sharedPath, os.ModePerm); err != nil {
@@ -261,16 +282,15 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				return nil, status.Errorf(codes.Aborted, "NodePublishVolume operation on shared path of volume %s already exists", req.VolumeId)
 			}
 			defer ns.sharedPathLock.Release(req.VolumeId)
-			if err := doMount(mounter, sharedPath, *opt, mountOptions); err != nil {
+			if err := doMount(ossMounter, sharedPath, *opt, mountOptions); err != nil {
 				log.Errorf("NodePublishVolume: failed to mount")
 				return nil, err
 			}
 		} else {
 			log.Infof("NodePublishVolume: %s already mounted", sharedPath)
-			return &csi.NodePublishVolumeResponse{}, nil
 		}
 		log.Infof("NodePublishVolume:: Start mount operation from source [%s] to dest [%s]", sharedPath, mountPath)
-		if err := mounter.Mount(sharedPath, mountPath, "", []string{"bind"}); err != nil {
+		if err := ossMounter.Mount(sharedPath, mountPath, "", []string{"bind"}); err != nil {
 			log.Errorf("Ossfs mount error: %v", err.Error())
 			return nil, errors.New("Create oss volume fail: " + err.Error())
 		}
@@ -278,7 +298,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if opt.FuseType == OssFsType {
 			utils.WriteMetricsInfo(metricsPathPrefix, req, opt.MetricsTop, OssFsType, "oss", opt.Bucket)
 		}
-		if err := doMount(mounter, mountPath, *opt, mountOptions); err != nil {
+		if err := doMount(ossMounter, mountPath, *opt, mountOptions); err != nil {
 			return nil, err
 		}
 	}
@@ -397,7 +417,7 @@ func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) err
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	log.Infof("NodeUnpublishVolume:: Starting Umount OSS: %s mount with req: %+v", req.TargetPath, req)
+	log.Infof("NodeUnpublishVolume: Starting Umount OSS: %s mount with req: %+v", req.TargetPath, req)
 	mountPoint := req.TargetPath
 	err := validateNodeUnpublishVolumeRequest(req)
 	if err != nil {
@@ -406,18 +426,12 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if isDirectVolumePath(mountPoint) {
 		return ns.unPublishDirectVolume(ctx, req)
 	}
-	mounter := ns.getMounterFor("", req.VolumeId)
-	forceUnmounter, ok := mounter.(mountutils.MounterForceUnmounter)
-	if ok {
-		err = mountutils.CleanupMountWithForce(mountPoint, forceUnmounter, true, time.Minute)
-	} else {
-		err = mountutils.CleanupMountPoint(mountPoint, mounter, true)
-	}
+	err = ns.cleanupMountPoint(ctx, req.VolumeId, req.TargetPath)
 	if err != nil {
 		log.Errorf("NodeUnpublishVolume: failed to unmount %q: %v", mountPoint, err)
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", mountPoint, err)
 	}
-	log.Infof("NodeUnpublishVolume:: Umount OSS Successful: %s", mountPoint)
+	log.Infof("NodeUnpublishVolume: Umount OSS Successful: %s", mountPoint)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
@@ -433,20 +447,14 @@ func (ns *nodeServer) NodeUnstageVolume(
 	req *csi.NodeUnstageVolumeRequest) (
 	*csi.NodeUnstageVolumeResponse, error) {
 	log.Infof("NodeUnstageVolume: starting to unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
-	mounter := ns.getMounterFor("", req.VolumeId)
-	mountPoint := GetGlobalMountPath(req.VolumeId)
-	forceUnmounter, ok := mounter.(mountutils.MounterForceUnmounter)
-	var err error
-	if ok {
-		err = mountutils.CleanupMountWithForce(req.StagingTargetPath, forceUnmounter, true, time.Minute)
-	} else {
-		err = mountutils.CleanupMountPoint(mountPoint, mounter, true)
-	}
+	// unmount for sharedPath
+	mountpoint := GetGlobalMountPath(req.VolumeId)
+	err := ns.cleanupMountPoint(ctx, req.VolumeId, mountpoint)
 	if err != nil {
-		log.Errorf("NodeUnpublishVolume: failed to unmount %q: %v", mountPoint, err)
-		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", mountPoint, err)
+		log.Errorf("NodeUnpublishVolume: failed to unmount %q: %v", mountpoint, err)
+		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", mountpoint, err)
 	}
-	log.Infof("NodeUnpublishVolume:: Umount OSS Successful: %s", mountPoint)
+	log.Infof("NodeUnpublishVolume: Umount OSS Successful: %s", mountpoint)
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
@@ -455,9 +463,24 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (ns *nodeServer) getMounterFor(fuseType, volumeId string) mountutils.Interface {
-	if fuseType == JindoFsType {
-		return mounter.NewConnectorMounter(mountutils.New(""), "/etc/jindofs-tool/jindo-fuse")
+func (ns *nodeServer) cleanupMountPoint(ctx context.Context, volumeId string, mountpoint string) error {
+	m := mountutils.New("")
+	var umountErr error
+	forceUnmounter, ok := m.(mountutils.MounterForceUnmounter)
+	if ok {
+		umountErr = mountutils.CleanupMountWithForce(mountpoint, forceUnmounter, true, time.Minute)
+	} else {
+		umountErr = mountutils.CleanupMountPoint(mountpoint, m, true)
 	}
-	return ns.ossfsMounterFac.NewFuseMounter(volumeId)
+
+	// always try to clean fuse pod for mountpoint
+	cleanPodErr := ns.ossfsMounterFac.NewFuseMounter(ctx, volumeId).Unmount(mountpoint)
+
+	if umountErr != nil {
+		return umountErr
+	}
+	if cleanPodErr != nil {
+		return cleanPodErr
+	}
+	return nil
 }

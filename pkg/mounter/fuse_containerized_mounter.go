@@ -22,7 +22,7 @@ import (
 	mountutils "k8s.io/mount-utils"
 )
 
-const fuseMountTimeout = time.Minute
+const fuseMountTimeout = time.Second * 5
 
 const (
 	FuseTypeLabelKey          = "csi.alibabacloud.com/fuse-type"
@@ -107,8 +107,9 @@ func NewContainerizedFuseMounterFactory(
 	}
 }
 
-func (fac *ContainerizedFuseMounterFactory) NewFuseMounter(volumeId string) *ContainerizedFuseMounter {
+func (fac *ContainerizedFuseMounterFactory) NewFuseMounter(ctx context.Context, volumeId string) *ContainerizedFuseMounter {
 	return &ContainerizedFuseMounter{
+		ctx:       ctx,
 		volumeId:  volumeId,
 		nodeName:  fac.nodeName,
 		namespace: fac.namespace,
@@ -124,6 +125,7 @@ func (fac *ContainerizedFuseMounterFactory) NewFuseMounter(volumeId string) *Con
 }
 
 type ContainerizedFuseMounter struct {
+	ctx        context.Context
 	volumeId   string
 	nodeName   string
 	namespace  string
@@ -135,7 +137,13 @@ type ContainerizedFuseMounter struct {
 }
 
 func (mounter *ContainerizedFuseMounter) Mount(source string, target string, fstype string, options []string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), fuseMountTimeout)
+	for _, option := range options {
+		if option == "bind" {
+			return mounter.Interface.Mount(source, target, fstype, options)
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(mounter.ctx, fuseMountTimeout)
 	defer cancel()
 	err := mounter.launchFusePod(ctx, source, target, fstype, options, nil)
 	if err != nil {
@@ -154,28 +162,12 @@ func (mounter *ContainerizedFuseMounter) Mount(source string, target string, fst
 }
 
 func (mounter *ContainerizedFuseMounter) Unmount(target string) error {
-	unmountErr := mounter.Interface.Unmount(target)
-	if unmountErr != nil {
-		mounter.log.Errorf("umount %s: %v", target, unmountErr)
-	} else {
-		mounter.log.Infof("successfully unmount %s", target)
-	}
-
 	_, listOptions := mounter.labelsAndListOptionsFor(target)
-	deletePodErr := mounter.client.CoreV1().Pods(mounter.namespace).DeleteCollection(context.TODO(), metav1.DeleteOptions{}, listOptions)
-	if deletePodErr != nil {
-		mounter.log.Errorf("failed to delete fuse pod: %v", unmountErr)
-	} else {
-		mounter.log.Infof("deleted fuse pod for %s", target)
+	err := mounter.client.CoreV1().Pods(mounter.namespace).DeleteCollection(mounter.ctx, metav1.DeleteOptions{}, listOptions)
+	if err != nil {
+		return fmt.Errorf("delete fuse pod: %w", err)
 	}
-
-	// Only return nil when unmounted successfully and fuse pods are deleted
-	if unmountErr != nil {
-		return unmountErr
-	}
-	if deletePodErr != nil {
-		return deletePodErr
-	}
+	mounter.log.Infof("deleted fuse pod for %s", target)
 	return nil
 }
 
