@@ -17,26 +17,74 @@ limitations under the License.
 package oss
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetRAMRoleOption(t *testing.T) {
-
 	result := GetRAMRoleOption()
 	assert.NotEqual(t, "", result)
 }
 
-func TestIsOssfsMounted(t *testing.T) {
-	/*mountPathTest := ""
-	result := IsOssfsMounted(mountPathTest)
-	assert.True(t, result)*/
-}
-
 func TestIsLastSharedVol(t *testing.T) {
-
 	lastSharedVol := ""
 	result, _ := IsLastSharedVol(lastSharedVol)
 	assert.NotEqual(t, "", result)
+}
+
+func Test_parseOtherOpts(t *testing.T) {
+	type args struct {
+		otherOpts string
+	}
+	tests := []struct {
+		name             string
+		args             args
+		wantMountOptions []string
+		wantErr          bool
+	}{
+		{
+			"normal",
+			args{"-o max_stat_cache_size=0 -o allow_other"},
+			[]string{"max_stat_cache_size=0", "allow_other"},
+			false,
+		},
+		{
+			"empty",
+			args{""},
+			nil,
+			false,
+		},
+		{
+			"spaces",
+			args{"	 "},
+			nil,
+			false,
+		},
+		{
+			"merged -o",
+			args{"-omax_stat_cache_size=0 -o allow_other"},
+			[]string{"max_stat_cache_size=0", "allow_other"},
+			false,
+		},
+		{
+			"missing -o",
+			args{"-omax_stat_cache_size=0 allow_other"},
+			nil,
+			true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotMountOptions, err := parseOtherOpts(tt.args.otherOpts)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseOtherOpts() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotMountOptions, tt.wantMountOptions) {
+				t.Errorf("parseOtherOpts() = %v, want %v", gotMountOptions, tt.wantMountOptions)
+			}
+		})
+	}
 }

@@ -19,12 +19,15 @@ package oss
 import (
 	"crypto/sha256"
 	"fmt"
-	"io"
-	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	mountutils "k8s.io/mount-utils"
 )
 
 const (
@@ -69,60 +72,56 @@ func GetGlobalMountPath(volumeId string) string {
 func GetRAMRoleOption() string {
 	ramRole, _ := utils.GetMetaData(RAMRoleResource)
 	ramRoleOpt := MetadataURL + RAMRoleResource + ramRole
-	mntCmdRamRole := fmt.Sprintf("-oram_role=%s", ramRoleOpt)
+	mntCmdRamRole := fmt.Sprintf("ram_role=%s", ramRoleOpt)
 	return mntCmdRamRole
 }
 
-// IsOssfsMounted return if oss mountPath is mounted
-func IsOssfsMounted(mountPath string) bool {
-	checkMountCountCmd := fmt.Sprintf("%s mount", NsenterCmd)
-	out, err := utils.RunWithFilter(checkMountCountCmd, mountPath, "fuse.ossfs")
-	if err != nil {
-		return false
+// parseOtherOpts extracts mount options from parameters.otherOpts string.
+// example: "-o max_stat_cache_size=0 -o allow_other" => {"max_stat_cache_size=0", "allow_other"}
+func parseOtherOpts(otherOpts string) (mountOptions []string, err error) {
+	elements := strings.Fields(otherOpts)
+	accepting := false
+	for _, ele := range elements {
+		if accepting {
+			mountOptions = append(mountOptions, ele)
+			accepting = false
+		} else {
+			if ele == "-o" {
+				accepting = true
+			} else if strings.HasPrefix(ele, "-o") {
+				mountOptions = append(mountOptions, strings.TrimPrefix(ele, "-o"))
+			} else {
+				// missing -o
+				return nil, status.Errorf(codes.InvalidArgument, "invalid otherOpts: %q", otherOpts)
+			}
+		}
 	}
-	if len(out) == 0 {
-		return false
-	}
-	return true
+	return mountOptions, nil
 }
 
-// GetOssfsMountPoints return all oss mountPoints
-func GetOssfsMountPoints() []string {
-	checkMountCountCmd := fmt.Sprintf("%s mount", NsenterCmd)
-	out, err := utils.RunWithFilter(checkMountCountCmd, "fuse.ossfs")
+func doMount(mounter mountutils.Interface, target string, opts Options, mountOptions []string) error {
+	var source string
+	if opts.FuseType == JindoFsType {
+		mountOptions = append(mountOptions, fmt.Sprintf("uri=oss://%s%s", opts.Bucket, opts.Path), fmt.Sprintf("fs.oss.endpoint=%s", opts.URL))
+	} else {
+		mountOptions = append(mountOptions, fmt.Sprintf("url=%s", opts.URL))
+		otherOpts, err := parseOtherOpts(opts.OtherOpts)
+		if err != nil {
+			return err
+		}
+		mountOptions = append(mountOptions, otherOpts...)
+	}
+	logger := log.WithFields(log.Fields{
+		"source":  source,
+		"target":  target,
+		"options": mountOptions,
+		"fstype":  opts.FuseType,
+	})
+	err := mounter.Mount(source, target, "", mountOptions)
 	if err != nil {
-		return nil
+		logger.Errorf("failed to mount: %v", err)
+		return status.Errorf(codes.Internal, "failed to mount: %v", err)
 	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
-// IsLastSharedVol return code status to help check if this oss volume uses UseSharedPath and is the last one
-func IsLastSharedVol(pvName string) (string, error) {
-	keyStr := fmt.Sprintf("volumes/kubernetes.io~csi/%s/mount", pvName)
-	checkMountCountCmd := fmt.Sprintf("%s mount", NsenterCmd)
-	out, err := utils.RunWithFilter(checkMountCountCmd, keyStr, "fuse.ossfs")
-	if err != nil {
-		return "0", err
-	}
-	return string(rune(len(out))), nil
-}
-
-// IsDirEmpty check whether the given directory is empty
-func IsDirEmpty(name string) (bool, error) {
-	f, err := os.Open(name)
-	if err != nil {
-		return false, err
-	}
-	defer f.Close()
-
-	// read in ONLY one file
-	_, err = f.Readdir(1)
-	// and if the file is EOF... well, the dir is empty.
-	if err == io.EOF {
-		return true, nil
-	}
-	return false, err
+	logger.Info("mounted successfully")
+	return nil
 }

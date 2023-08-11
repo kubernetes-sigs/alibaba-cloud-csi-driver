@@ -23,6 +23,6 @@ func NewNasMounter() mountutils.Interface {
 	inner := mountutils.New("")
 	return &NasMounter{
 		Interface:   inner,
-		fuseMounter: mounter.NewConnectorMounter(inner),
+		fuseMounter: mounter.NewConnectorMounter(inner, ""),
 	}
 }

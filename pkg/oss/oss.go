@@ -17,17 +17,21 @@ limitations under the License.
 package oss
 
 import (
-	"sync"
+	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/context"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	k8smount "k8s.io/utils/mount"
 )
 
 const (
@@ -40,13 +44,8 @@ var (
 
 // OSS the OSS object
 type OSS struct {
-	driver           *csicommon.CSIDriver
-	endpoint         string
-	idServer         *csicommon.DefaultIdentityServer
-	nodeServer       *nodeServer
-	controllerServer csi.ControllerServer
-	cap              []*csi.VolumeCapability_AccessMode
-	cscap            []*csi.ControllerServiceCapability
+	driver   *csicommon.CSIDriver
+	endpoint string
 }
 
 // NewDriver init oss type of csi driver
@@ -61,36 +60,76 @@ func NewDriver(nodeID, endpoint string) *OSS {
 		log.Infof("Use node id : %s", nodeID)
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
-	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
+	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{
+		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+	})
 	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_UNKNOWN,
 	})
 
 	d.driver = csiDriver
-	d.controllerServer = NewControllerServer(d.driver)
 	return d
 }
 
+func newControllerServer(driver *csicommon.CSIDriver) csi.ControllerServer {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		log.Fatalf("Create create kube config is failed, err: %v", err)
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("Create client set is failed, err: %v", err)
+	}
+
+	crdClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("Create dynamic client is failed, err: %v", err)
+	}
+
+	c := &controllerServer{
+		client:                  clientset,
+		DefaultControllerServer: csicommon.NewDefaultControllerServer(driver),
+		crdClient:               crdClient,
+	}
+	return c
+}
+
 // newNodeServer init oss type of csi nodeServer
-func newNodeServer(d *OSS) *nodeServer {
+func newNodeServer(driver *csicommon.CSIDriver) *nodeServer {
+	nodeName := os.Getenv("KUBE_NODE_NAME")
+	if nodeName == "" {
+		log.Fatal("env KUBE_NODE_NAME is empty")
+	}
+
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
 		log.Fatalf("Build kubeconfig is failed, err: %s", err.Error())
 	}
+
+	clientset, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Create client set is failed, err: %v", err)
+	}
+	configmap, err := clientset.CoreV1().ConfigMaps("kube-system").Get(context.Background(), "csi-plugin", metav1.GetOptions{})
+	if err != nil {
+		log.Fatalf("failed to get configmap kube-system/csi-plugin: %v", err)
+	}
+
 	crdClient, err := dynamic.NewForConfig(cfg)
 	if err != nil {
 		log.Fatalf("Create crd client is failed, err: %v", err)
 	}
+
 	return &nodeServer{
-		k8smounter:           k8smount.New(""),
-		DefaultNodeServer:    csicommon.NewDefaultNodeServer(d.driver),
-		writeCredentialMutex: sync.Mutex{},
-		dynamicClient:        crdClient,
+		DefaultNodeServer: csicommon.NewDefaultNodeServer(driver),
+		dynamicClient:     crdClient,
+		sharedPathLock:    utils.NewVolumeLocks(),
+		ossfsMounterFac:   mounter.NewContainerizedFuseMounterFactory(mounter.FuseOssfs, configmap, clientset, nodeName),
 	}
 }
 
 // Run start a newNodeServer
 func (d *OSS) Run() {
-	common.RunCSIServer(d.endpoint, csicommon.NewDefaultIdentityServer(d.driver), d.controllerServer, newNodeServer(d))
+	common.RunCSIServer(d.endpoint, csicommon.NewDefaultIdentityServer(d.driver), newControllerServer(d.driver), newNodeServer(d.driver))
 }

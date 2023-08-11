@@ -50,37 +50,34 @@ func extractFuseContainerConfig(configmap *corev1.ConfigMap, fuseType FuseMounte
 		if line == "" {
 			continue
 		}
-		elements := strings.SplitN(line, "=", 2)
+		key, value, _ := strings.Cut(line, "=")
 		invalid := false
-		if len(elements) == 2 {
-			switch elements[0] {
-			case "cpu-request", "cpu-limit", "memory-request", "memory-limit":
-				quantity, err := resource.ParseQuantity(elements[1])
-				if err != nil {
-					invalid = true
-					break
-				}
-				s := strings.Split(elements[0], "-")
-				resourceName := corev1.ResourceName(s[0])
-				switch s[1] {
-				case "request":
-					config.Resources.Requests[resourceName] = quantity
-				case "limit":
-					config.Resources.Limits[resourceName] = quantity
-				}
-			case "image":
-				config.Image = elements[1]
-			default:
-				if config.Extra == nil {
-					config.Extra = make(map[string]string)
-				}
-				config.Extra[elements[0]] = elements[1]
-			}
-		} else {
+		switch key {
+		case "":
 			invalid = true
+		case "image":
+			config.Image = value
+		case "cpu-request", "cpu-limit", "memory-request", "memory-limit":
+			quantity, err := resource.ParseQuantity(value)
+			if err != nil {
+				invalid = true
+				break
+			}
+			resourceName, requireType, _ := strings.Cut(key, "-")
+			switch requireType {
+			case "request":
+				config.Resources.Requests[corev1.ResourceName(resourceName)] = quantity
+			case "limit":
+				config.Resources.Limits[corev1.ResourceName(resourceName)] = quantity
+			}
+		default:
+			if config.Extra == nil {
+				config.Extra = make(map[string]string)
+			}
+			config.Extra[key] = value
 		}
 		if invalid {
-			logrus.Warnf("invalid configuration line: %q", line)
+			logrus.Warnf("ignore invalid configuration line: %q", line)
 		}
 	}
 	return config
@@ -101,8 +98,8 @@ func NewContainerizedFuseMounterFactory(
 ) *ContainerizedFuseMounterFactory {
 	return &ContainerizedFuseMounterFactory{
 		fuseType:  fuseType,
-		nodeName:  nodeName,
 		config:    extractFuseContainerConfig(configmap, fuseType),
+		nodeName:  nodeName,
 		namespace: "kube-system",
 		client:    client,
 	}
@@ -136,11 +133,6 @@ type ContainerizedFuseMounter struct {
 }
 
 func (mounter *ContainerizedFuseMounter) Mount(source string, target string, fstype string, options []string) error {
-	for _, option := range options {
-		if option == "bind" {
-			return mounter.Interface.Mount(source, target, fstype, options)
-		}
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), fuseMountTimeout)
 	defer cancel()
 	err := mounter.launchFusePod(ctx, source, target, fstype, options, nil)
