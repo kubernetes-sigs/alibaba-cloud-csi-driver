@@ -207,6 +207,9 @@ func (p *pfsRawBlockStatCollector) updateMap(clientSet *kubernetes.Clientset, la
 			logrus.Errorf("Get dev name by diskID %s is failed, err:%s", diskID, err)
 			continue
 		}
+		if deviceName == "" {
+			continue
+		}
 		strorageInfo := pfsInfo{
 			DiskID:      diskID,
 			DeviceName:  deviceName,
