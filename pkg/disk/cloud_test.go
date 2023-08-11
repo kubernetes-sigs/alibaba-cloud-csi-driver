@@ -2,6 +2,7 @@ package disk
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
@@ -94,4 +95,90 @@ func TestResizeDiskPassthroughError(t *testing.T) {
 
 	_, err := resizeDisk(context.Background(), c, resizeDiskRequest)
 	assert.Equal(t, serverErr, err)
+}
+
+func TestListSnapshots(t *testing.T) {
+	cases := []struct {
+		name          string
+		numRemaining  int
+		maxEntries    int
+		nextToken     string
+		expectedNum   int
+		firstID       string
+		expectedToken string
+	}{
+		{
+			name:         "empty",
+			numRemaining: 0, maxEntries: 0, nextToken: "", expectedNum: 0, firstID: "",
+		}, {
+			name:         "one",
+			numRemaining: 1, maxEntries: 0, nextToken: "", expectedNum: 1, firstID: "snap-0",
+		}, {
+			name:         "skip one",
+			numRemaining: 2, maxEntries: 0, nextToken: "1@", expectedNum: 1, firstID: "snap-1",
+		}, {
+			name:         "paged",
+			numRemaining: 13, maxEntries: 5, nextToken: "6@", expectedNum: 5, firstID: "snap-6",
+			expectedToken: "0@next-page",
+		}, {
+			name:         "middle of page",
+			numRemaining: 3, maxEntries: 1, nextToken: "1@next-page", expectedNum: 1, firstID: "snap-1",
+			expectedToken: "2@next-page",
+		},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			client := cloud.NewMockECSInterface(ctrl)
+
+			client.EXPECT().DescribeSnapshots(gomock.Any()).DoAndReturn(func(req *ecs.DescribeSnapshotsRequest) (*ecs.DescribeSnapshotsResponse, error) {
+				snapshots := make([]ecs.Snapshot, c.numRemaining)
+				for i := 0; i < c.numRemaining; i++ {
+					snapshots[i] = ecs.Snapshot{SnapshotId: fmt.Sprintf("snap-%d", i)}
+				}
+				if req.NextToken != "" {
+					assert.Equal(t, "next-page", req.NextToken, "n@ should not be passed to the API")
+				}
+				max := 10
+				if req.MaxResults.HasValue() {
+					var err error
+					max, err = req.MaxResults.GetValue()
+					assert.NoError(t, err)
+				}
+				if max < 10 {
+					max = 10 // mimic the API behavior
+				}
+				nextToken := ""
+				if c.numRemaining > max {
+					assert.Empty(t, req.NextToken, "not supporting page 2 for now")
+					nextToken = "next-page"
+					snapshots = snapshots[:max]
+				}
+				return &ecs.DescribeSnapshotsResponse{
+					Snapshots: ecs.SnapshotsInDescribeSnapshots{
+						Snapshot: snapshots,
+					},
+					NextToken: nextToken,
+				}, nil
+			})
+
+			s, nextToken, err := listSnapshots(client, "test-disk", "my-cluster", c.nextToken, c.maxEntries)
+			assert.NoError(t, err)
+			assert.Len(t, s, c.expectedNum)
+			if c.expectedNum > 0 {
+				assert.Equal(t, c.firstID, s[0].SnapshotId)
+			}
+			assert.Equal(t, c.expectedToken, nextToken)
+		})
+	}
+}
+
+func TestListSnapshotsInvalidToken(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	client := cloud.NewMockECSInterface(ctrl)
+
+	_, _, err := listSnapshots(client, "test-disk", "my-cluster", "invalid-token", 0)
+	assert.Error(t, err)
 }
