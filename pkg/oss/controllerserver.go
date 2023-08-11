@@ -119,6 +119,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	ossVol := getOssVolumeOptions(req)
 	csiTargetVolume := &csi.Volume{}
 	volumeContext := req.GetParameters()
+	if volumeContext == nil {
+		volumeContext = map[string]string{}
+	}
 	volumeContext["path"] = ossVol.Path
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	csiTargetVolume = &csi.Volume{
