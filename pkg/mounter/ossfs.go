@@ -8,8 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	mountutils "k8s.io/mount-utils"
 	"k8s.io/utils/pointer"
-
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 var FuseOssfs FuseMounterType = &fuseOssfs{}
@@ -27,36 +25,37 @@ func (f *fuseOssfs) buildPodSpec(
 		return spec, errors.New("missing image configuration")
 	}
 
-	hostPathDirectoryType := corev1.HostPathDirectory
-	hostPathFileOrCreate := corev1.HostPathFileOrCreate
-	kubeletDirVolume := corev1.Volume{
+	targetVolume := corev1.Volume{
 		Name: "kubelet-dir",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: utils.KubeletRootDir,
-				Type: &hostPathDirectoryType,
+				Path: target,
+				Type: new(corev1.HostPathType),
 			},
 		},
 	}
+	*targetVolume.HostPath.Type = corev1.HostPathDirectory
 	metricsDirVolume := corev1.Volume{
 		Name: "metrics-dir",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: "/var/run/ossfs",
-				Type: &hostPathDirectoryType,
+				Type: new(corev1.HostPathType),
 			},
 		},
 	}
+	*metricsDirVolume.HostPath.Type = corev1.HostPathDirectoryOrCreate
 	passwdFileVolume := corev1.Volume{
 		Name: "passwd-ossfs",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: "/etc/passwd-ossfs",
-				Type: &hostPathFileOrCreate,
+				Type: new(corev1.HostPathType),
 			},
 		},
 	}
-	spec.Volumes = []corev1.Volume{kubeletDirVolume, metricsDirVolume, passwdFileVolume}
+	*passwdFileVolume.HostPath.Type = corev1.HostPathFileOrCreate
+	spec.Volumes = []corev1.Volume{targetVolume, metricsDirVolume, passwdFileVolume}
 
 	switch dbglevel := config.Extra["dbglevel"]; dbglevel {
 	case "info", "warn", "err", "crit":
@@ -77,16 +76,17 @@ func (f *fuseOssfs) buildPodSpec(
 	args = append(args, mountFlags...)
 	// FUSE foreground option - do not run as daemon
 	args = append(args, "-f")
-	propagationContainerToHost := corev1.MountPropagationBidirectional
+	bidirectional := corev1.MountPropagationBidirectional
 	container := corev1.Container{
-		Name:  "fuse-mounter",
-		Image: config.Image,
-		Args:  args,
+		Name:      "fuse-mounter",
+		Image:     config.Image,
+		Args:      args,
+		Resources: config.Resources,
 		VolumeMounts: []corev1.VolumeMount{
 			{
-				Name:             kubeletDirVolume.Name,
-				MountPath:        utils.KubeletRootDir,
-				MountPropagation: &propagationContainerToHost,
+				Name:             targetVolume.Name,
+				MountPath:        target,
+				MountPropagation: &bidirectional,
 			}, {
 				Name:      metricsDirVolume.Name,
 				MountPath: metricsDirVolume.HostPath.Path,
@@ -95,7 +95,16 @@ func (f *fuseOssfs) buildPodSpec(
 				MountPath: passwdFileVolume.HostPath.Path,
 			},
 		},
-		Resources: config.Resources,
+		StartupProbe: &corev1.Probe{
+			Handler: corev1.Handler{
+				Exec: &corev1.ExecAction{
+					Command: []string{
+						"findmnt", "-t", "fuse.ossfs", target,
+					},
+				},
+			},
+			PeriodSeconds: 1,
+		},
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: pointer.BoolPtr(true),
 		},

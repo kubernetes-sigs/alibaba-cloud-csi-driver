@@ -22,7 +22,7 @@ import (
 	mountutils "k8s.io/mount-utils"
 )
 
-const fuseMountTimeout = time.Second * 5
+const fuseMountTimeout = time.Second * 30
 
 const (
 	FuseTypeLabelKey          = "csi.alibabacloud.com/fuse-type"
@@ -191,19 +191,38 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 	if err != nil {
 		return err
 	}
-	var pods []corev1.Pod
+
+	ready := false
+	var startingPods []corev1.Pod
 	for _, pod := range podList.Items {
-		if pod.DeletionTimestamp.IsZero() {
-			if isFusePodReady(&pod) {
-				mounter.log.Infof("%s is already mounted by pod %s", target, pod.Name)
-				return nil
-			}
-			pods = append(pods, pod)
+		if !pod.DeletionTimestamp.IsZero() {
+			continue
 		}
+		switch pod.Status.Phase {
+		case corev1.PodSucceeded, corev1.PodFailed:
+			err := podClient.Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
+			if err != nil {
+				mounter.log.Errorf("delete exited fuse pod %s: %v", pod.Name, err)
+			} else {
+				mounter.log.Warnf("cleaned exited fuse pod %s", pod.Name)
+			}
+		case corev1.PodRunning:
+			if isFusePodReady(&pod) {
+				ready = true
+				mounter.log.Infof("%s already mounted by pod %s", target, pod.Name)
+			} else {
+				startingPods = append(startingPods, pod)
+			}
+		default:
+			startingPods = append(startingPods, pod)
+		}
+	}
+	if ready {
+		return nil
 	}
 
 	var fusePod *corev1.Pod
-	if len(pods) == 0 {
+	if len(startingPods) == 0 {
 		// create fuse pod for target
 		var rawPod corev1.Pod
 		rawPod.GenerateName = fmt.Sprintf("csi-%s-%s-", mounter.name(), mounter.volumeId)
@@ -220,12 +239,11 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 		mounter.log.Infof("created fuse pod %s for %s", createdPod.Name, target)
 		fusePod = createdPod
 	} else {
-		if len(pods) > 1 {
-			mounter.log.Warnf("%d duplicated fuse pods for %s", len(pods), target)
-			// TODO: clean duplicated fuse pods
+		if len(startingPods) > 1 {
+			mounter.log.Warnf("%d duplicated fuse pods for %s", len(startingPods), target)
 		}
-		mounter.log.Infof("found existed fuse pod %s for %s", pods[0].Name, target)
-		fusePod = &pods[0]
+		mounter.log.Infof("found existed fuse pod %s for %s", startingPods[0].Name, target)
+		fusePod = &startingPods[0]
 	}
 
 	mounter.log.Infof("wait util pod %s is ready", fusePod.Name)
@@ -240,28 +258,27 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 			return podClient.Watch(ctx, options)
 		},
 	}
-	event, err := watchtools.Until(ctx, fusePod.ResourceVersion, lw, func(event watch.Event) (bool, error) {
+	_, err = watchtools.Until(ctx, fusePod.ResourceVersion, lw, func(event watch.Event) (bool, error) {
 		if event.Type == watch.Deleted {
-			return true, fmt.Errorf("fuse pod %s was deleted", fusePod.Name)
+			return false, fmt.Errorf("fuse pod %s was deleted", fusePod.Name)
 		}
 		pod, ok := event.Object.(*corev1.Pod)
-		return ok && isFusePodReady(pod), nil
+		if !ok {
+			return false, errors.New("failed to cast event Object to Pod")
+		}
+		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+			return false, fmt.Errorf("fuse pod %s exited", pod.Name)
+		}
+		return pod.Status.Phase == corev1.PodRunning && isFusePodReady(pod), nil
 	})
 	if err != nil {
 		return err
 	}
-	if pod, ok := event.Object.(*corev1.Pod); !(ok && isFusePodReady(pod)) {
-		return fmt.Errorf("failed to wait for pod %s to be ready", fusePod.Name)
-	}
 	mounter.log.Infof("fuse pod %s is ready", fusePod.Name)
-
 	return nil
 }
 
 func isFusePodReady(pod *corev1.Pod) bool {
-	if pod.Status.Phase != corev1.PodRunning {
-		return false
-	}
 	for _, cond := range pod.Status.Conditions {
 		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
 			return true

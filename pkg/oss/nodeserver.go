@@ -134,8 +134,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				opt.Path = v
 			}
 		} else if key == "usesharedpath" {
-			if strings.TrimSpace(value) == "true" || strings.TrimSpace(value) == "True" || strings.TrimSpace(value) == "1" {
-				opt.UseSharedPath = true
+			if useSharedPath, err := strconv.ParseBool(value); err == nil {
+				opt.UseSharedPath = useSharedPath
+			} else {
+				log.Warnf("invalid useSharedPath: %q", value)
 			}
 		} else if key == "authtype" {
 			opt.AuthType = strings.ToLower(strings.TrimSpace(value))
@@ -287,7 +289,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				return nil, err
 			}
 		} else {
-			log.Infof("NodePublishVolume: %s already mounted", sharedPath)
+			log.Infof("NodePublishVolume: sharedpath %s already mounted", sharedPath)
 		}
 		log.Infof("NodePublishVolume:: Start mount operation from source [%s] to dest [%s]", sharedPath, mountPath)
 		if err := ossMounter.Mount(sharedPath, mountPath, "", []string{"bind"}); err != nil {
