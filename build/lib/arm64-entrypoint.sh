@@ -7,9 +7,6 @@ run_nas="false"
 mkdir -p /var/log/alicloud/
 mkdir -p /host/etc/kubernetes/volumes/disk/uuid
 
-ossfsVer="1.80.6.ack.1"
-armfsVer="1.80.6"
-
 HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
 
 ## check which plugin is running
@@ -20,14 +17,6 @@ do
       run_oss="true"
       mkdir -p /var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com
       rm -rf /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
-      /usr/bin/nsenter --mount=/proc/1/ns/mnt yum install -y fuse-devel
-      if [ ! `/usr/bin/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
-          echo "First install ossfs...."
-          cp /usr/bin/ossfs /host/usr/bin/
-          echo "cp result -- `/usr/bin/nsenter --mount=/proc/1/ns/mnt which ossfs` --"
-      else
-          echo "ossfs is already on host"
-      fi
   elif [ "$item" = "--driver=diskplugin.csi.alibabacloud.com" ]; then
       echo "Running disk plugin...."
 			run_disk="true"
@@ -64,34 +53,6 @@ do
       done
   fi
 done
-
-
-## OSS plugin setup
-if [ "$run_oss" = "true" ]; then
-    echo "Starting deploy oss csi-plugin...."
-
-    systemdDir="/host/usr/lib/systemd/system"
-    if [[ ${host_os} == "lifsea" ]]; then
-        systemdDir="/host/etc/systemd/system"
-    fi
-    # install OSSFS
-    mkdir -p /host/etc/csi-tool/
-    if [ ! `/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
-        echo "First install ossfs...."
-        /nsenter --mount=/proc/1/ns/mnt yum install -y ossfs
-        /nsenter --mount=/proc/1/ns/mnt ln -s /usr/bin/ossfs /usr/local/bin/ossfs
-    # update OSSFS
-    else
-        echo "Check ossfs Version...."
-        oss_info=`/nsenter --mount=/proc/1/ns/mnt ossfs --version | grep -E -o "V[0-9.a-z]+" | cut -d"V" -f2`
-        if [ "$oss_info" != "$ossfsVer" ] || [ "$oss_info" != "$armfsVer" ]; then
-            echo "Upgrade ossfs...."
-            /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
-            /nsenter --mount=/proc/1/ns/mnt yum install -y ossfs
-            /nsenter --mount=/proc/1/ns/mnt ln -s /usr/bin/ossfs /usr/local/bin/ossfs
-        fi
-    fi
-fi
 
 # skip installing csiplugin-connector when DISABLE_CSIPLUGIN_CONNECTOR=true
 if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [ "$run_disk" = "true" ] || [ "$run_nas" = "true" ]); then
