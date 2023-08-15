@@ -225,7 +225,7 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 	if len(startingPods) == 0 {
 		// create fuse pod for target
 		var rawPod corev1.Pod
-		rawPod.GenerateName = fmt.Sprintf("csi-%s-%s-", mounter.name(), mounter.volumeId)
+		rawPod.GenerateName = fmt.Sprintf("csi-fuse-%s-", mounter.name())
 		rawPod.Labels = labels
 		rawPod.Spec, err = mounter.buildPodSpec(source, target, fstype, options, mountFlags, mounter.nodeName, mounter.fuseConfig)
 		if err != nil {
