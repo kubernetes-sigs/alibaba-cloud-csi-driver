@@ -391,6 +391,11 @@ if [ "$run_nas" = "true" ]; then
             ${HOST_CMD} yum install -y /etc/csi-tool/aliyun-alinas-utils-1.1-6.al7.noarch.rpm
         fi
     fi
+
+    if [ $host_os != "alinux2" ] && [ $install_efc = "true" ]; then
+        echo "WARN: skip install efc because host os is not alinux2"
+        install_efc="false"
+    fi
     if [ $install_efc = "true" ]; then
         echo "installing alinas-efc"
         ${HOST_CMD} rpm -Uvh /etc/csi-tool/alinas-efc-1.2-3.x86_64.rpm
