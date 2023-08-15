@@ -1569,19 +1569,42 @@ func getSnapshotInfoByID(snapshotID string) (string, string, *timestamp.Timestam
 	return "", "", nil
 }
 
+func getNonCsiDiskCount(ecsClient *ecs.Client) int {
+	req := ecs.CreateDescribeDisksRequest()
+	req.InstanceId = GlobalConfigVar.NodeID
+	req.RegionId = GlobalConfigVar.Region
+	req.MaxResults = requests.NewInteger(100)
+	cummDiskCount := 0
+	for {
+		resp, err := ecsClient.DescribeDisks(req)
+		if err != nil {
+			log.Errorf("getVolumeCount: describe disks with error: %s", err.Error())
+			// Assume 1 OS disk
+			return 1
+		}
+		req.NextToken = resp.NextToken
+
+		for _, disk := range resp.Disks.Disk {
+			if !IsDiskCreatedByCsi(disk) {
+				cummDiskCount++
+			}
+		}
+
+		if len(req.NextToken) == 0 {
+			break
+		}
+	}
+	return cummDiskCount
+}
+
 // getVolumeCount
 func getVolumeCount() int64 {
 	var availableVolumeCount int
 
 	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 	instanceType := utils.RetryGetMetaData("instance/instance-type")
-	diskList := utils.RetryGetMetaData("disks/")
-	log.Infof("getVolumeCount: instanceType: %s, diskList: %s", instanceType, diskList)
-	existsDiskCount := 2
-	if diskList != "" {
-		existsDiskCount = len(strings.Split(diskList, "\n"))
-		log.Infof("getVolumeCount: disk count was rewritten to %d", existsDiskCount)
-	}
+	existsDiskCount := getNonCsiDiskCount(ecsClient)
+	log.Infof("getVolumeCount: found %d non-CSI disks", existsDiskCount)
 
 	for i := 0; i < 5; i++ {
 		// describe ecs instance type
