@@ -403,16 +403,14 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	if notmounted {
-		if empty, _ := IsDirEmpty(mountPoint); empty {
-			if removeErr := os.Remove(mountPoint); removeErr != nil {
-				log.Errorf("NodeUnpublishVolume: Could not remove mount point %s with error %v", mountPoint, removeErr)
-				return nil, status.Errorf(codes.Internal, "Could not remove mount point %s: %v", mountPoint, removeErr)
-			}
-			log.Infof("NodeUnpublishVolume: %s is unmounted and empty", mountPoint)
-			return &csi.NodeUnpublishVolumeResponse{}, nil
+		mountPoints := GetOssfsMountPoints()
+		log.Warnf("NodeUnpublishVolume: mount point %s is unmounted, got ossfs mount point list: %v", mountPoint, mountPoints)
+		if removeErr := os.Remove(mountPoint); removeErr != nil {
+			log.Errorf("NodeUnpublishVolume: Could not remove mount point %s with error %v", mountPoint, removeErr)
+			return nil, status.Errorf(codes.Internal, "Could not remove mount point %s: %v", mountPoint, removeErr)
 		}
-		log.Errorf("NodeUnpublishVolume: mount point %s is unmounted, but not empty dir", mountPoint)
-		return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume: mount point %s is unmounted, but not empty dir", mountPoint)
+		log.Infof("NodeUnpublishVolume: %s is unmounted and empty, removed successfully", mountPoint)
+		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
 	pvName := req.GetVolumeId()

@@ -102,6 +102,19 @@ func IsOssfsMounted(mountPath string) bool {
 	return true
 }
 
+// GetOssfsMountPoints return all oss mountPoints
+func GetOssfsMountPoints() []string {
+	checkMountCountCmd := fmt.Sprintf("%s mount", NsenterCmd)
+	out, err := utils.RunWithFilter(checkMountCountCmd, "fuse.ossfs")
+	if err != nil {
+		return nil
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 // IsLastSharedVol return code status to help check if this oss volume uses UseSharedPath and is the last one
 func IsLastSharedVol(pvName string) (string, error) {
 	keyStr := fmt.Sprintf("volumes/kubernetes.io~csi/%s/mount", pvName)
