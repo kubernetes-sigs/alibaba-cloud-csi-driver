@@ -1042,3 +1042,12 @@ func getDefaultDiskTags(diskVol *diskVolumeArgs) []ecs.CreateDiskTag {
 	}
 	return diskTags
 }
+
+func IsDiskCreatedByCsi(disk ecs.Disk) bool {
+	for _, tag := range disk.Tags.Tag {
+		if tag.TagKey == DISKTAGKEY2 {
+			return tag.TagValue == DISKTAGVALUE2
+		}
+	}
+	return false
+}
