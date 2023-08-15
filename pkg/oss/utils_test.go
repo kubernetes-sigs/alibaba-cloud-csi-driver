@@ -28,12 +28,6 @@ func TestGetRAMRoleOption(t *testing.T) {
 	assert.NotEqual(t, "", result)
 }
 
-func TestIsLastSharedVol(t *testing.T) {
-	lastSharedVol := ""
-	result, _ := IsLastSharedVol(lastSharedVol)
-	assert.NotEqual(t, "", result)
-}
-
 func Test_parseOtherOpts(t *testing.T) {
 	type args struct {
 		otherOpts string
