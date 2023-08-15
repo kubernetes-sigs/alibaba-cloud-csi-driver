@@ -20,19 +20,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io/ioutil"
 	"k8s.io/client-go/dynamic"
 	k8smount "k8s.io/utils/mount"
-	"strconv"
-	"strings"
-	"sync"
 )
 
 type nodeServer struct {
@@ -367,8 +369,22 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err != nil {
 		return nil, err
 	}
-	if !IsOssfsMounted(mountPoint) {
-		log.Infof("Directory is not mounted: %s", mountPoint)
+
+	// check mount point with IsLikelyNotMountPoint first
+	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(mountPoint)
+	if err != nil {
+		log.Errorf("NodeUnpublishVolume:: use IsLikelyNotMountPoint to check if path %s mounted failed with error %v", mountPoint, err)
+		notmounted = !IsOssfsMounted(mountPoint)
+	}
+
+	if notmounted {
+		mountPoints := GetOssfsMountPoints()
+		log.Warnf("NodeUnpublishVolume: mount point %s is unmounted, got ossfs mount point list: %v", mountPoint, mountPoints)
+		if removeErr := os.Remove(mountPoint); removeErr != nil {
+			log.Errorf("NodeUnpublishVolume: Could not remove mount point %s with error %v", mountPoint, removeErr)
+			return nil, status.Errorf(codes.Internal, "Could not remove mount point %s: %v", mountPoint, removeErr)
+		}
+		log.Infof("NodeUnpublishVolume: %s is unmounted and empty, removed successfully", mountPoint)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
@@ -379,7 +395,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		log.Infof("NodeUnpublishVolume:: Starting umount a shared path oss volume: %s", req.TargetPath)
 		code, err := IsLastSharedVol(pvName)
 		if err != nil {
-			log.Errorf("Umount oss fail, with: %s", err.Error())
+			log.Errorf("NodeUnpublishVolume:: Umount oss fail, with: %s", err.Error())
 			return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
 		}
 		if code == "1" {
@@ -391,8 +407,22 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		umntCmd = fmt.Sprintf("umount -f %s", mountPoint)
 	}
 	if _, err := utils.ValidateRun(umntCmd); err != nil {
-		log.Errorf("Umount oss fail, with: %s", err.Error())
+		log.Errorf("NodeUnpublishVolume:: Umount oss fail, with: %s", err.Error())
 		return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
+	}
+
+	if IsOssfsMounted(mountPoint) {
+		log.Errorf("NodeUnpublishVolume: mount pointed %s mounted yet", mountPoint)
+		return nil, status.Error(codes.Internal, "NodeUnpublishVolume: mount point mounted yet "+mountPoint)
+	}
+
+	if empty, _ := IsDirEmpty(mountPoint); !empty {
+		log.Errorf("NodeUnpublishVolume: %s is unmounted but still not empty yet", mountPoint)
+		return nil, status.Error(codes.Internal, "NodeUnpublishVolume: is unmounted but still not empty yet "+mountPoint)
+	}
+	if removeErr := os.Remove(mountPoint); removeErr != nil {
+		log.Errorf("NodeUnpublishVolume: Could not remove mount point %s with error %v", mountPoint, removeErr)
+		return nil, status.Errorf(codes.Internal, "Could not remove mount point %s: %v", mountPoint, removeErr)
 	}
 
 	log.Infof("NodeUnpublishVolume:: Umount OSS Successful: %s", mountPoint)

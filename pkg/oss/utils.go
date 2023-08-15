@@ -19,11 +19,14 @@ package oss
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 const (
@@ -99,6 +102,19 @@ func IsOssfsMounted(mountPath string) bool {
 	return true
 }
 
+// GetOssfsMountPoints return all oss mountPoints
+func GetOssfsMountPoints() []string {
+	checkMountCountCmd := fmt.Sprintf("%s mount", NsenterCmd)
+	out, err := utils.RunWithFilter(checkMountCountCmd, "fuse.ossfs")
+	if err != nil {
+		return nil
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 // IsLastSharedVol return code status to help check if this oss volume uses UseSharedPath and is the last one
 func IsLastSharedVol(pvName string) (string, error) {
 	keyStr := fmt.Sprintf("volumes/kubernetes.io~csi/%s/mount", pvName)
@@ -108,4 +124,21 @@ func IsLastSharedVol(pvName string) (string, error) {
 		return "0", err
 	}
 	return string(rune(len(out))), nil
+}
+
+// IsDirEmpty check whether the given directory is empty
+func IsDirEmpty(name string) (bool, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	// read in ONLY one file
+	_, err = f.Readdir(1)
+	// and if the file is EOF... well, the dir is empty.
+	if err == io.EOF {
+		return true, nil
+	}
+	return false, err
 }
