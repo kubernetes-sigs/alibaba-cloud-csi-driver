@@ -132,24 +132,6 @@ type QueryResponse struct {
 
 // NewNodeServer creates node server
 func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
-	var maxVolumesNum int64 = MaxVolumesPerNode
-	volumeNum := os.Getenv("MAX_VOLUMES_PERNODE")
-	if "" != volumeNum {
-		num, err := strconv.ParseInt(volumeNum, 10, 64)
-		if err != nil {
-			log.Log.Fatalf("NewNodeServer: MAX_VOLUMES_PERNODE must be int64, but get: %s", volumeNum)
-		} else {
-			if num < 0 || num > 64 {
-				log.Log.Errorf("NewNodeServer: MAX_VOLUMES_PERNODE must between 0-15, but get: %s", volumeNum)
-			} else {
-				maxVolumesNum = num
-				log.Log.Infof("NewNodeServer: MAX_VOLUMES_PERNODE is set to(not default): %d", maxVolumesNum)
-			}
-		}
-	} else {
-		maxVolumesNum = getVolumeCount()
-	}
-
 	zoneID := GlobalConfigVar.ZoneID
 	nodeID := GlobalConfigVar.NodeID
 	internalMode := os.Getenv("INTERNAL_MODE")
@@ -168,6 +150,24 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 
 	if GlobalConfigVar.NodeID == "" {
 		GlobalConfigVar.NodeID = nodeID
+	}
+
+	var maxVolumesNum int64 = MaxVolumesPerNode
+	volumeNum := os.Getenv("MAX_VOLUMES_PERNODE")
+	if "" != volumeNum {
+		num, err := strconv.ParseInt(volumeNum, 10, 64)
+		if err != nil {
+			log.Log.Fatalf("NewNodeServer: MAX_VOLUMES_PERNODE must be int64, but get: %s", volumeNum)
+		} else {
+			if num < 0 || num > 64 {
+				log.Log.Errorf("NewNodeServer: MAX_VOLUMES_PERNODE must between 0-15, but get: %s", volumeNum)
+			} else {
+				maxVolumesNum = num
+				log.Log.Infof("NewNodeServer: MAX_VOLUMES_PERNODE is set to(not default): %d", maxVolumesNum)
+			}
+		}
+	} else {
+		maxVolumesNum = getVolumeCount()
 	}
 
 	// Create Directory
