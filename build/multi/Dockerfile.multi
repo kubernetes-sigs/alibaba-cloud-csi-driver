@@ -14,13 +14,11 @@ ARG TARGETPLATFORM
 COPY ./build/lib/ /csi
 
 RUN cp /csi/$(echo $TARGETPLATFORM | cut -f2 -d '/')-nsenter /usr/bin/nsenter; cp /csi/$(echo $TARGETPLATFORM | cut -f2 -d '/')-nsenter /nsenter
-RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "arm64" ]]; then cp /csi/$(echo $TARGETPLATFORM | cut -f2 -d '/')-ossfs /usr/bin/ossfs; cp /csi/$(echo $TARGETPLATFORM | cut -f2 -d '/')-ossfs /usr/local/bin/ossfs; fi
 
 RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then curl https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.2-3.x86_64.rpm -o /root/alinas-efc-1.2-3.x86_64.rpm; fi
 RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then curl https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-6.al7.noarch.rpm -o /root/aliyun-alinas-utils-1.1-6.al7.noarch.rpm; fi
 
 # RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then mv /csi/jindo-fuse-4.4.0-20220620.tar.gz /; tar zvxf /jindo-fuse-4.4.0-20220620.tar.gz -C /; fi
-RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "arm64" ]]; then mkdir /acs; mv /csi/$(echo $TARGETPLATFORM | cut -f2 -d '/')-fuse-2.9.2-11.el7.aarch64.rpm /acs/fuse-2.9.2-11.el7.aarch64.rpm; mv /csi/$(echo $TARGETPLATFORM | cut -f2 -d '/')-fuse-libs-2.9.2-11.el7.aarch64.rpm /acs/fuse-libs-2.9.2-11.el7.aarch64.rpm; fi
 RUN mv /csi/$(echo $TARGETPLATFORM | cut -f2 -d '/')-entrypoint.sh /entrypoint.sh
 COPY ./build/lib/csiplugin-connector.service /bin/csiplugin-connector.service
 COPY ./build/lib/freezefs.sh /freezefs.sh
