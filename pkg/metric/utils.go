@@ -201,22 +201,11 @@ func getDeviceByVolumeID(pvName, volumeID string) (device string, err error) {
 	}
 
 	if device, err = getDeviceBySymlink(volumeID); err != nil {
-		// strange logic... ignore findmnt error
-		mountPath := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/staging", pvName, volumeID)
-		cmd := fmt.Sprintf("findmnt -o SOURCE --noheadings %s", mountPath)
-		out, err := utils.Run(cmd)
+		device, err = utils.GetNvmeDeviceByVolumeID(volumeID)
 		if err != nil {
-			return "", nil
+			return "", fmt.Errorf("getDeviceByVolumeID failed: %v", err)
 		}
-		mountInfo := strings.TrimSpace(out)
-		if strings.HasPrefix(mountInfo, "devtmpfs[") && strings.HasSuffix(mountInfo, "]") {
-			deviceName := mountInfo[9 : len(mountInfo)-1]
-			devicePath := filepath.Join("/dev", deviceName)
-			if utils.IsFileExisting(devicePath) {
-				return devicePath, nil
-			}
-		}
-		return "", fmt.Errorf("getDeviceByVolumeID not get %s device ", volumeID)
+		return device, nil
 	}
 	return device, nil
 }
