@@ -384,7 +384,7 @@ func patchVscId2PV(fsId, vscId, mpId, nodeID string) error {
 
 func getPVBympId(mpId string) ([]v1.PersistentVolume, error) {
 	ctx := context.TODO()
-	labelPvs := labels.SelectorFromSet(labels.Set(map[string]string{labelAppendPrefix + labelmpId: mpId}))
+	labelPvs := labels.SelectorFromSet(labels.Set(map[string]string{labelmpId: mpId}))
 	listPvOpts := metav1.ListOptions{
 		LabelSelector: labelPvs.String(),
 	}

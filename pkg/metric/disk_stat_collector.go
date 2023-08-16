@@ -429,6 +429,9 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 			logrus.Errorf("Get dev name by diskID %s is failed, err:%s", diskID, err)
 			continue
 		}
+		if deviceName == "" {
+			continue
+		}
 		diskInfo := diskInfo{
 			DiskID:      diskID,
 			DeviceName:  deviceName,
