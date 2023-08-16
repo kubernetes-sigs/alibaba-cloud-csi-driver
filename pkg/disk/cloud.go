@@ -27,7 +27,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	log "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/pkg/errors"
+	perrors "github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -139,17 +139,17 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 
 			if GlobalConfigVar.DiskBdfEnable {
 				if allowed, err := forceDetachAllowed(ecsClient, disk, nodeID); err != nil {
-					err = errors.Wrapf(err, "forceDetachAllowed")
+					err = perrors.Wrapf(err, "forceDetachAllowed")
 					return "", status.Errorf(codes.Aborted, err.Error())
 				} else if !allowed {
-					err = errors.Errorf("AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.DiskId, disk.InstanceId)
+					err = perrors.Errorf("AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.DiskId, disk.InstanceId)
 					log.Log.Error(err)
 					return "", status.Errorf(codes.Aborted, err.Error())
 				}
 			}
 
 			if !GlobalConfigVar.DetachBeforeAttach {
-				err = errors.Errorf("AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
+				err = perrors.Errorf("AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
 				log.Log.Error(err)
 				return "", status.Errorf(codes.Aborted, err.Error())
 			}
@@ -449,10 +449,10 @@ func detachDisk(ecsClient *ecs.Client, diskID, nodeID string) error {
 	}
 	if GlobalConfigVar.DiskBdfEnable {
 		if allowed, err := forceDetachAllowed(ecsClient, disk, disk.InstanceId); err != nil {
-			err = errors.Wrapf(err, "detachDisk forceDetachAllowed")
+			err = perrors.Wrapf(err, "detachDisk forceDetachAllowed")
 			return status.Errorf(codes.Aborted, err.Error())
 		} else if !allowed {
-			err = errors.Errorf("detachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.InstanceId, disk.InstanceId)
+			err = perrors.Errorf("detachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.InstanceId, disk.InstanceId)
 			log.Log.Error(err)
 			return status.Errorf(codes.Aborted, err.Error())
 		}
