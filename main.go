@@ -151,7 +151,7 @@ func main() {
 		if _, err := strconv.Atoi(pprofPort); err == nil {
 			csilog.Log.Infof("enable pprof & start port at %v", pprofPort)
 			go func() {
-				err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%v", pprofPort), nil)
+				err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%v", pprofPort), nil)
 				csilog.Log.Errorf("start server err: %v", err)
 			}()
 		}
@@ -289,23 +289,23 @@ func main() {
 	metricConfig.serviceType = serviceType
 
 	csilog.Log.Info("CSI is running status.")
-	server := &http.Server{Addr: ":" + servicePort}
-
-	http.HandleFunc("/healthz", healthHandler)
+	csiMux := http.NewServeMux()
+	csiMux.HandleFunc("/healthz", healthHandler)
 	csilog.Log.Infof("Metric listening on address: /healthz")
 	if metricConfig.enableMetric {
 		metricHandler := metric.NewMetricHandler(metricConfig.serviceType, driverNames)
-		http.Handle("/metrics", metricHandler)
+		csiMux.Handle("/metrics", metricHandler)
 		csilog.Log.Infof("Metric listening on address: /metrics")
 	}
 
-	if err := server.ListenAndServe(); err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf(":%s", servicePort), csiMux); err != nil {
 		csilog.Log.Fatalf("Service port listen and serve err:%s", err.Error())
 	}
 
 	wg.Wait()
 	os.Exit(0)
 }
+
 func createPersistentStorage(persistentStoragePath string) error {
 	csilog.Log.Infof("Create Stroage Path: %s", persistentStoragePath)
 	return os.MkdirAll(persistentStoragePath, os.FileMode(0755))
