@@ -138,6 +138,11 @@ spec:
               readOnly: true
             - mountPath: /host/var/run/
               name: fuse-metrics-dir
+            - mountPath: /etc/csi-plugin/config
+              name: csi-plugin-cm
+            - name: host-mnt
+              mountPath: /mnt
+              mountPropagation: "Bidirectional"
       volumes:
         - name: fuse-metrics-dir
           hostPath:
@@ -167,6 +172,14 @@ spec:
         - name: ossconnectordir
           hostPath:
             path: /usr/
+        - name: host-mnt
+          hostPath:
+            path: /mnt
+            type: DirectoryOrCreate
+        - name: csi-plugin-cm
+          configMap:
+            name: csi-plugin
+            optional: true
         - name: addon-token
           secret:
             defaultMode: 420

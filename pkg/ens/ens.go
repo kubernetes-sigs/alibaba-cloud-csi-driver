@@ -2,17 +2,19 @@ package ens
 
 import (
 	"context"
+	"os"
+	"strconv"
+	"sync"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"strconv"
-	"sync"
 )
 
 const (
@@ -90,9 +92,7 @@ func NewDriver(nodeID, endpoint string) *ENS {
 
 func (ens *ENS) Run() {
 	log.Infof("Run: start csi-plugin driver: %s, version %s", driverName, csiVersion)
-	s := csicommon.NewNonBlockingGRPCServer()
-	s.Start(ens.endpoint, ens.idServer, ens.controllerServer, ens.nodeServer)
-	s.Wait()
+	common.RunCSIServer(ens.endpoint, ens.idServer, ens.controllerServer, ens.nodeServer)
 }
 
 func NewGlobalConfig() {

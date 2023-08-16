@@ -24,7 +24,8 @@ import (
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -194,10 +195,8 @@ func NewDriver(nodeID, endpoint string) *Local {
 }
 
 // Run start a new server
-func (lvm *Local) Run() {
-	server := csicommon.NewNonBlockingGRPCServer()
-	server.Start(lvm.endpoint, lvm.idServer, lvm.controllerServer, lvm.nodeServer)
-	server.Wait()
+func (local *Local) Run() {
+	common.RunCSIServer(local.endpoint, local.idServer, local.controllerServer, local.nodeServer)
 }
 
 // GlobalConfigSet set Global Config

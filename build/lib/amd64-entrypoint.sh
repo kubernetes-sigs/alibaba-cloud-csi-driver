@@ -239,7 +239,7 @@ if [ "$run_oss" = "true" ]; then
 fi
 
 # skip installing csiplugin-connector when DISABLE_CSIPLUGIN_CONNECTOR=true
-if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [ "$run_disk" = "true" ]); then
+if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [ "$run_disk" = "true" ] || [ "$run_nas" = "true" ]); then
     ## install/update csi connector
     updateConnector="true"
 	systemdDir="/host/usr/lib/systemd/system"
@@ -368,6 +368,42 @@ if [ "$run_nas" = "true" ]; then
     cp /root/aliyun-alinas-utils-1.1-6.al7.noarch.rpm /host/etc/csi-tool/
     # nas-rich-client rpm
     cp /root/alinas-efc-1.2-3.x86_64.rpm /host/etc/csi-tool/
+
+    install_utils="false"
+    install_efc="false"
+
+    if test -e /etc/csi-plugin/config/cpfs-nas-enable; then
+        install_utils="true"
+    fi
+
+    client_properties="/etc/csi-plugin/config/cnfs-client-properties"
+    if test -e $client_properties && grep -qE "enable=true|efc=true" $client_properties; then
+        install_utils="true"
+        install_efc="true"
+    fi
+
+    if [ $install_utils = "true" ]; then
+        if rpm -q aliyun-alinas-utils; then 
+            echo "upgrade aliyun-alinas-utils"
+            ${HOST_CMD} rpm -Uvh /etc/csi-tool/aliyun-alinas-utils-1.1-6.al7.noarch.rpm
+        else
+            echo "install aliyun-alinas-utils"
+            ${HOST_CMD} yum install -y /etc/csi-tool/aliyun-alinas-utils-1.1-6.al7.noarch.rpm
+        fi
+    fi
+
+    if [ $host_os != "alinux2" ] && [ $install_efc = "true" ]; then
+        echo "WARN: skip install efc because host os is not alinux2"
+        install_efc="false"
+    fi
+    if [ $install_efc = "true" ]; then
+        echo "installing alinas-efc"
+        ${HOST_CMD} rpm -Uvh /etc/csi-tool/alinas-efc-1.2-3.x86_64.rpm
+        echo "checking alinas-efc-1.2-3.x86_64 installed"
+        ${HOST_CMD} rpm -q alinas-efc-1.2-3.x86_64 || exit 1
+        echo "starting aliyun-alinas-mount-watchdog"
+        ${HOST_CMD} systemctl start aliyun-alinas-mount-watchdog || exit 1
+    fi
 fi
 
 ## Jindofs plugin setup
