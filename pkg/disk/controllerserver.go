@@ -331,9 +331,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		}
 	}
 
-	deleteDiskRequest := ecs.CreateDeleteDiskRequest()
-	deleteDiskRequest.DiskId = req.GetVolumeId()
-	response, err := ecsClient.DeleteDisk(deleteDiskRequest)
+	response, err := deleteDisk(ecsClient, req.VolumeId)
 	if err != nil {
 		newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
 		errMsg := fmt.Sprintf("DeleteVolume: Delete disk with error: %s", newErrMsg)
@@ -351,7 +349,6 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		delete(createdVolumeMap, value)
 		delete(diskIDPVMap, req.VolumeId)
 	}
-	log.Log.Infof("DeleteVolume: Successfully deleting volume: %s, with RequestId: %s", req.GetVolumeId(), response.RequestId)
 	delVolumeSnap.Delete(req.GetVolumeId())
 	return &csi.DeleteVolumeResponse{}, nil
 }

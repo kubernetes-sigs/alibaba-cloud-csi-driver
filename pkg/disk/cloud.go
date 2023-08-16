@@ -18,16 +18,18 @@ package disk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 	"time"
 
+	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	log "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/pkg/errors"
+	perrors "github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +41,8 @@ var DEFAULT_VMFATAL_EVENTS = []string{
 	"ecs_alarm_center.vm.guest_os_kernel_panic:fatal",
 	"ecs_alarm_center.vm.vmexit_exception_vm_hang:fatal",
 }
+
+const DISK_DELETE_MAX_RETRY = 60
 
 // attach alibaba cloud disk
 func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string, error) {
@@ -139,17 +143,17 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 
 			if GlobalConfigVar.DiskBdfEnable {
 				if allowed, err := forceDetachAllowed(ecsClient, disk, nodeID); err != nil {
-					err = errors.Wrapf(err, "forceDetachAllowed")
+					err = perrors.Wrapf(err, "forceDetachAllowed")
 					return "", status.Errorf(codes.Aborted, err.Error())
 				} else if !allowed {
-					err = errors.Errorf("AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.DiskId, disk.InstanceId)
+					err = perrors.Errorf("AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.DiskId, disk.InstanceId)
 					log.Log.Error(err)
 					return "", status.Errorf(codes.Aborted, err.Error())
 				}
 			}
 
 			if !GlobalConfigVar.DetachBeforeAttach {
-				err = errors.Errorf("AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
+				err = perrors.Errorf("AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
 				log.Log.Error(err)
 				return "", status.Errorf(codes.Aborted, err.Error())
 			}
@@ -449,10 +453,10 @@ func detachDisk(ecsClient *ecs.Client, diskID, nodeID string) error {
 	}
 	if GlobalConfigVar.DiskBdfEnable {
 		if allowed, err := forceDetachAllowed(ecsClient, disk, disk.InstanceId); err != nil {
-			err = errors.Wrapf(err, "detachDisk forceDetachAllowed")
+			err = perrors.Wrapf(err, "detachDisk forceDetachAllowed")
 			return status.Errorf(codes.Aborted, err.Error())
 		} else if !allowed {
-			err = errors.Errorf("detachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.InstanceId, disk.InstanceId)
+			err = perrors.Errorf("detachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.InstanceId, disk.InstanceId)
 			log.Log.Error(err)
 			return status.Errorf(codes.Aborted, err.Error())
 		}
@@ -1050,4 +1054,28 @@ func IsDiskCreatedByCsi(disk ecs.Disk) bool {
 		}
 	}
 	return false
+}
+
+func deleteDisk(ecsClient *ecs.Client, diskId string) (*ecs.DeleteDiskResponse, error) {
+	deleteDiskRequest := ecs.CreateDeleteDiskRequest()
+	deleteDiskRequest.DiskId = diskId
+
+	for attempt := 1; ; attempt++ {
+		response, err := ecsClient.DeleteDisk(deleteDiskRequest)
+		if err == nil {
+			log.Log.Infof("DeleteVolume: Successfully deleted volume: %s, with RequestId: %s", diskId, response.RequestId)
+			return response, nil
+		}
+
+		var aliErr *alicloudErr.ServerError
+		if attempt < DISK_DELETE_MAX_RETRY &&
+			errors.As(err, &aliErr) && aliErr.ErrorCode() == "IncorrectDiskStatus.Initializing" {
+
+			log.Log.Infof("DeleteVolume: disk %s is still initializing, retry after 5s, attempt %d", diskId, attempt)
+			time.Sleep(time.Second * 5)
+			continue
+		}
+
+		return response, err
+	}
 }
