@@ -57,6 +57,10 @@ done
 # skip installing csiplugin-connector when DISABLE_CSIPLUGIN_CONNECTOR=true
 if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [ "$run_disk" = "true" ] || [ "$run_nas" = "true" ]); then
     updateConnector="true"
+    systemdDir="/host/usr/lib/systemd/system"
+    if [[ ${host_os} == "lifsea" ]]; then
+        systemdDir="/host/etc/systemd/system"
+    fi
     if [ ! -f "/host/etc/csi-tool/csiplugin-connector" ]; then
       mkdir -p /host/etc/csi-tool/
 			echo "mkdir /etc/csi-tool/ directory ...."
