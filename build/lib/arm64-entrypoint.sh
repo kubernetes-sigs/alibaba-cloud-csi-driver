@@ -2,6 +2,7 @@
 
 run_oss="false"
 run_disk="false"
+run_nas="false"
 
 mkdir -p /var/log/alicloud/
 mkdir -p /host/etc/kubernetes/volumes/disk/uuid
@@ -34,6 +35,7 @@ do
       rm -rf /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
   elif [ "$item" = "--driver=nasplugin.csi.alibabacloud.com" ]; then
       echo "Running nas plugin...."
+      run_nas="true"
       mkdir -p /var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com
       rm -rf /var/lib/kubelet/plugins/nasplugin.csi.alibabacloud.com/csi.sock
   elif [[ $item==*--driver=* ]]; then
@@ -55,6 +57,7 @@ do
               rm -rf /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
           elif [ "$driver_type" = "nas" ]; then
               echo "Running nas plugin...."
+              run_nas="true"
               mkdir -p /var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com
               rm -rf /var/lib/kubelet/plugins/nasplugin.csi.alibabacloud.com/csi.sock
           fi
@@ -91,7 +94,7 @@ if [ "$run_oss" = "true" ]; then
 fi
 
 # skip installing csiplugin-connector when DISABLE_CSIPLUGIN_CONNECTOR=true
-if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [ "$run_disk" = "true" ]); then
+if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [ "$run_disk" = "true" ] || [ "$run_nas" = "true" ]); then
     updateConnector="true"
     if [ ! -f "/host/etc/csi-tool/csiplugin-connector" ]; then
       mkdir -p /host/etc/csi-tool/
