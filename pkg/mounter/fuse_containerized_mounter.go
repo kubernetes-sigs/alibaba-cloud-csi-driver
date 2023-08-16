@@ -28,6 +28,7 @@ const (
 	FuseTypeLabelKey          = "csi.alibabacloud.com/fuse-type"
 	FuseVolumeIdLabelKey      = "csi.alibabacloud.com/volume-id"
 	FuseMountPathHashLabelKey = "csi.alibabacloud.com/mount-path-hash"
+	FuseMountPathAnnoKey      = "csi.alibabacloud.com/mount-path"
 )
 
 type FuseMounterType interface {
@@ -195,17 +196,15 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 	ready := false
 	var startingPods []corev1.Pod
 	for _, pod := range podList.Items {
-		if !pod.DeletionTimestamp.IsZero() {
+		// compare target path to avoid hash conflict
+		if !pod.DeletionTimestamp.IsZero() || pod.Annotations[FuseMountPathAnnoKey] != target {
 			continue
 		}
 		switch pod.Status.Phase {
 		case corev1.PodSucceeded, corev1.PodFailed:
-			err := podClient.Delete(context.TODO(), pod.Name, metav1.DeleteOptions{})
-			if err != nil {
-				mounter.log.Errorf("delete exited fuse pod %s: %v", pod.Name, err)
-			} else {
-				mounter.log.Warnf("cleaned exited fuse pod %s", pod.Name)
-			}
+			// do not immediately delete the pod that has exited,
+			// as we may need to view its status or logs to troubleshoot.
+			mounter.log.Warnf("exited fuse pod %s, will be cleaned when unmount", pod.Name)
 		case corev1.PodRunning:
 			if isFusePodReady(&pod) {
 				ready = true
@@ -227,6 +226,7 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 		var rawPod corev1.Pod
 		rawPod.GenerateName = fmt.Sprintf("csi-fuse-%s-", mounter.name())
 		rawPod.Labels = labels
+		rawPod.Annotations = map[string]string{FuseMountPathAnnoKey: target}
 		rawPod.Spec, err = mounter.buildPodSpec(source, target, fstype, options, mountFlags, mounter.nodeName, mounter.fuseConfig)
 		if err != nil {
 			return err

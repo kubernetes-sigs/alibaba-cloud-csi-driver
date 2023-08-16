@@ -103,7 +103,8 @@ func (f *fuseOssfs) buildPodSpec(
 					},
 				},
 			},
-			PeriodSeconds: 1,
+			PeriodSeconds:    1,
+			FailureThreshold: 5,
 		},
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: pointer.BoolPtr(true),
