@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang as build
+FROM --platform=$BUILDPLATFORM golang:1.18 as build
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 ENV GOPROXY=https://goproxy.cn/,http://gomodule-repository.aone.alibaba-inc.com,https://mirrors.aliyun.com/goproxy/,direct \
