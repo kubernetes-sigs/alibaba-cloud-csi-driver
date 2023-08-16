@@ -594,32 +594,6 @@ func GetDiskFormat(disk string) (string, string, error) {
 	return fstype, "", nil
 }
 
-// Get NVME device name by diskID;
-// /dev/nvme0n1 0: means device index, 1: means namespace for nvme device;
-// udevadm info --query=all --name=/dev/nvme0n1 | grep ID_SERIAL_SHORT | awk -F= '{print $2}'
-// bp1bcfmvsobfauvxb3ow
-func getNvmeDeviceByVolumeID(volumeID string) (device string, err error) {
-	serialNumber := strings.TrimPrefix(volumeID, "d-")
-	files, _ := ioutil.ReadDir("/dev/")
-	for _, f := range files {
-		if strings.HasPrefix(f.Name(), "nvme") && !strings.Contains(f.Name(), "p") {
-			cmd := fmt.Sprintf("%s udevadm info --query=all --name=/dev/%s | grep ID_SERIAL_SHORT | awk -F= '{print $2}'", NsenterCmd, f.Name())
-			snumber, err := utils.Run(cmd)
-			if err != nil {
-				log.Warnf("GetNvmeDeviceByVolumeID: Get device with command %s and got error: %s", cmd, err.Error())
-				continue
-			}
-			snumber = strings.TrimSpace(snumber)
-			if serialNumber == strings.TrimSpace(snumber) {
-				device = filepath.Join("/dev/", f.Name())
-				log.Infof("GetNvmeDeviceByVolumeID: Get nvme device %s with volumeID %s", device, volumeID)
-				return device, nil
-			}
-		}
-	}
-	return "", nil
-}
-
 // GetDeviceByVolumeID First try to find the device by serial
 // If cannot find the device using the serial number, get device by volumeID, link file should be like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
@@ -638,7 +612,7 @@ func GetDeviceByVolumeID(volumeID string) (devices []string, err error) {
 	}
 
 	// Get NVME device name
-	device, err := getNvmeDeviceByVolumeID(volumeID)
+	device, err := utils.GetNvmeDeviceByVolumeID(volumeID)
 	if err == nil && device != "" {
 		return []string{device}, nil
 	}

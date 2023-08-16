@@ -1138,3 +1138,34 @@ func IsPrivateCloud() bool {
 	}
 	return privateBool
 }
+
+// Get NVME device name by diskID;
+// /dev/nvme0n1 0: means device index, 1: means namespace for nvme device;
+// udevadm info --query=all --name=/dev/nvme0n1 | grep ID_SERIAL_SHORT | awk -F= '{print $2}'
+// bp1bcfmvsobfauvxb3ow
+func GetNvmeDeviceByVolumeID(volumeID string) (device string, err error) {
+	serialNumber := strings.TrimPrefix(volumeID, "d-")
+	devNumFiles, err := filepath.Glob("/sys/block/*/dev")
+	if err != nil {
+		log.Infof("GetNvmeDeviceByVolumeID: List device number failed: %v", err)
+		return "", err
+	}
+	for _, deviceFile := range devNumFiles {
+		deviceName := filepath.Base(filepath.Dir(deviceFile))
+		if strings.HasPrefix(deviceName, "nvme") && !strings.Contains(deviceName, "p") {
+			cmd := fmt.Sprintf("%s udevadm info --query=all --name=/dev/%s | grep ID_SERIAL_SHORT | awk -F= '{print $2}'", NsenterCmd, deviceName)
+			snumber, err := Run(cmd)
+			if err != nil {
+				log.Warnf("GetNvmeDeviceByVolumeID: Get device with command %s and got error: %s", cmd, err.Error())
+				continue
+			}
+			snumber = strings.TrimSpace(snumber)
+			if serialNumber == strings.TrimSpace(snumber) {
+				device = filepath.Join("/dev/", deviceName)
+				log.Infof("GetNvmeDeviceByVolumeID: Get nvme device %s with volumeID %s", device, volumeID)
+				return device, nil
+			}
+		}
+	}
+	return "", nil
+}
