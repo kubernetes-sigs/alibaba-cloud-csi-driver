@@ -883,7 +883,7 @@ func (cs *controllerServer) getNasVolumeOptions(req *csi.CreateVolumeRequest) (*
 		// zoneId
 		if nasVolArgs.ZoneID, ok = volOptions[ZoneID]; !ok {
 			if nasVolArgs.ZoneID, ok = volOptions[strings.ToLower(ZoneID)]; !ok {
-				nasVolArgs.ZoneID = GetMetaData(ZoneIDTag)
+				nasVolArgs.ZoneID, _ = utils.GetMetaData(ZoneIDTag)
 			}
 		}
 

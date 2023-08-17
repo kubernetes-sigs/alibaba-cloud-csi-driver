@@ -20,6 +20,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -52,7 +53,7 @@ func NewDriver(nodeID, endpoint string) *LVM {
 	tmplvm.endpoint = endpoint
 
 	if nodeID == "" {
-		nodeID = GetMetaData(InstanceID)
+		nodeID, _ = utils.GetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, nodeID)

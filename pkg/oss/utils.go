@@ -20,8 +20,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -38,24 +36,10 @@ const (
 	RAMRoleResource = "ram/security-credentials/"
 )
 
-// GetMetaData get host regionid, zoneid
-func GetMetaData(resource string) string {
-	resp, err := http.Get(MetadataURL + resource)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ""
-	}
-	return string(body)
-}
-
 func GetMetaDataAsync(resource string) string {
 	c1 := make(chan string, 1)
 	go func(r string) {
-		ans := GetMetaData(r)
+		ans, _ := utils.GetMetaData(r)
 		c1 <- ans
 	}(resource)
 	select {
@@ -64,15 +48,6 @@ func GetMetaDataAsync(resource string) string {
 	case <-time.After(2 * time.Second):
 		return ""
 	}
-}
-
-// GetRegionID Get RegionID from Metadata first, then Environment Variables
-func GetRegionID() string {
-	regionID := GetMetaDataAsync(regionTag)
-	if regionID == "" {
-		regionID = os.Getenv("REGION_ID")
-	}
-	return regionID
 }
 
 func GetGlobalMountPath(volumeId string) string {
@@ -92,7 +67,7 @@ func GetGlobalMountPath(volumeId string) string {
 
 // GetRAMRoleOption get command line's ram_role option
 func GetRAMRoleOption() string {
-	ramRole := GetMetaData(RAMRoleResource)
+	ramRole, _ := utils.GetMetaData(RAMRoleResource)
 	ramRoleOpt := MetadataURL + RAMRoleResource + ramRole
 	mntCmdRamRole := fmt.Sprintf("-oram_role=%s", ramRoleOpt)
 	return mntCmdRamRole

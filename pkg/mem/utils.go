@@ -20,8 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"path/filepath"
 	"strings"
 
@@ -35,20 +33,6 @@ const (
 	// InstanceID is the instance id tag
 	InstanceID = "instance-id"
 )
-
-// GetMetaData get host regionid, zoneid
-func GetMetaData(resource string) string {
-	resp, err := http.Get(MetadataURL + resource)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ""
-	}
-	return string(body)
-}
 
 // GetPvNameFormMntPoint get pv name
 func GetPvNameFormMntPoint(mntPath string) string {

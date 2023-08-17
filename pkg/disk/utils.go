@@ -94,7 +94,7 @@ type RoleAuth struct {
 }
 
 func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
-	regionID := GetRegionID()
+	regionID, _ := utils.GetRegionID()
 	var err error
 	switch ac.UseMode {
 	case utils.AccessKey:
@@ -164,29 +164,6 @@ func SetEcsEndPoint(regionID string) {
 	if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
 		aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
 	}
-}
-
-// GetRegionID Get RegionID from Environment Variables or Metadata
-func GetRegionID() string {
-	regionID := os.Getenv("REGION_ID")
-	if regionID == "" {
-		regionID = GetMetaData(RegionIDTag)
-	}
-	return regionID
-}
-
-// GetMetaData get host regionid, zoneid
-func GetMetaData(resource string) string {
-	resp, err := http.Get(MetadataURL + resource)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ""
-	}
-	return string(body)
 }
 
 // GetDeviceByMntPoint return the device info from given mount point
@@ -847,7 +824,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 			diskVolArgs.ZoneID = pickZone(req.GetAccessibilityRequirements())
 			if diskVolArgs.ZoneID == "" {
 				log.Errorf("CreateVolume: Can't get topology info , please check your setup or set zone ID in storage class. Use zone from Meta service: %s", req.Name)
-				diskVolArgs.ZoneID = GetMetaData(ZoneIDTag)
+				diskVolArgs.ZoneID, _ = utils.GetMetaData(ZoneIDTag)
 			}
 		}
 	}
@@ -1385,7 +1362,8 @@ func createRoleClient(uid string) (cli *ecs.Client, err error) {
 		return nil, errors.New("role arn is empty")
 	}
 
-	roleCli, err := sts.NewClientWithAccessKey(GetRegionID(), ac.AccessKeyID, ac.AccessKeySecret)
+	regionID, _ := utils.GetRegionID()
+	roleCli, err := sts.NewClientWithAccessKey(regionID, ac.AccessKeyID, ac.AccessKeySecret)
 	if err != nil {
 		return nil, perrors.Wrapf(err, "sts.NewClientWithAccessKey")
 	}
