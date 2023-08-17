@@ -314,14 +314,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	targetPath := req.GetTargetPath()
 	log.Log.Infof("NodePublishVolume: Starting Mount Volume %s, source %s > target %s", req.VolumeId, sourcePath, targetPath)
-	if req.VolumeId == "" {
-		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: Volume ID must be provided")
-	}
 	if req.StagingTargetPath == "" {
 		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: Staging Target Path must be provided")
-	}
-	if req.VolumeCapability == nil {
-		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: Volume Capability must be provided")
 	}
 	// check if block volume
 	if isBlock {
@@ -520,18 +514,8 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
-	// Step 1: check input parameters
 	targetPath := req.StagingTargetPath
-	if req.VolumeId == "" {
-		return nil, status.Error(codes.InvalidArgument, "NodeStageVolume Volume ID must be provided")
-	}
 	// targetPath format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
-	if targetPath == "" {
-		return nil, status.Error(codes.InvalidArgument, "NodeStageVolume Staging Target Path must be provided")
-	}
-	if req.VolumeCapability == nil {
-		return nil, status.Error(codes.InvalidArgument, "NodeStageVolume Volume Capability must be provided")
-	}
 
 	isBlock := req.GetVolumeCapability().GetBlock() != nil
 	if isBlock {
@@ -746,12 +730,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 // target format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	log.Log.Infof("NodeUnstageVolume:: Starting to Unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
-	if req.VolumeId == "" {
-		return nil, status.Error(codes.InvalidArgument, "NodeUnstageVolume Volume ID must be provided")
-	}
-	if req.StagingTargetPath == "" {
-		return nil, status.Error(codes.InvalidArgument, "NodeUnstageVolume Staging Target Path must be provided")
-	}
 
 	// check block device mountpoint
 	targetPath := req.GetStagingTargetPath()
@@ -872,12 +850,6 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 
 	volExpandBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	requestGB := float64((volExpandBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
-	if len(req.GetVolumeId()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Volume ID is empty")
-	}
-	if len(req.GetVolumePath()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Volume path is empty")
-	}
 
 	volumePath := req.GetVolumePath()
 	diskID := req.GetVolumeId()
@@ -992,13 +964,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 
 // NodeGetVolumeStats used for csi metrics
 func (ns *nodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	var err error
 	targetPath := req.GetVolumePath()
-	if targetPath == "" {
-		err = fmt.Errorf("NodeGetVolumeStats targetpath %v is empty", targetPath)
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-
 	return utils.GetMetrics(targetPath)
 }
 
