@@ -401,16 +401,34 @@ func GetRegionAndInstanceID() (string, string, error) {
 	return regionID, instanceID, nil
 }
 
+// GetRegionID Get RegionID from Environment Variables or Metadata
+func GetRegionID() (string, error) {
+	var err error
+	regionID := os.Getenv("REGION_ID")
+	if regionID == "" {
+		regionID, err = GetMetaData(RegionIDTag)
+	}
+	return regionID, err
+}
+
 // GetMetaData get metadata from ecs meta-server
 func GetMetaData(resource string) (string, error) {
 	resp, err := http.Get(MetadataURL + resource)
 	if err != nil {
 		return "", err
 	}
+	if resp.StatusCode != 200 {
+		msg := fmt.Sprintf("GetMetaData Response StatusCode %d, Response: %++v", resp.StatusCode, resp)
+		return "", errors.New(msg)
+	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
+	}
+	if strings.Contains(string(body), "Error 500 Internal Server Error") {
+		msg := fmt.Sprintf("GetMetaData Response StatusCode %d, Response: %++v", resp.StatusCode, resp)
+		return "", errors.New(msg)
 	}
 	return string(body), nil
 }
@@ -420,12 +438,12 @@ func RetryGetMetaData(resource string) string {
 	var nodeID string
 	for i := 0; i < MetadataMaxRetrycount; i++ {
 		nodeID, _ = GetMetaData(resource)
-		if nodeID != "" && !strings.Contains(nodeID, "Error 500 Internal Server Error") {
+		if nodeID != "" {
 			break
 		}
 		time.Sleep(1 * time.Second)
 	}
-	if nodeID == "" || strings.Contains(nodeID, "Error 500 Internal Server Error") {
+	if nodeID == "" {
 		log.Fatalf("RetryGetMetadata: failed to get instanceId: %s from metadataserver %s after 4 retrys", nodeID, MetadataURL+resource)
 	}
 	log.Infof("RetryGetMetaData: successful get metadata %v: %v", resource, nodeID)

@@ -20,6 +20,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
@@ -27,15 +32,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io/ioutil"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"net/http"
-	"os/exec"
-	"path/filepath"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -51,20 +50,6 @@ const (
 
 // ErrParse is an error that is returned when parse operation fails
 var ErrParse = errors.New("Cannot parse output of blkid")
-
-// GetMetaData get host regionid, zoneid
-func GetMetaData(resource string) string {
-	resp, err := http.Get(MetadataURL + resource)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ""
-	}
-	return string(body)
-}
 
 func formatDevice(devicePath, fstype string) error {
 	output, err := exec.Command("mkfs", "-t", fstype, devicePath).CombinedOutput()
@@ -89,8 +74,8 @@ func isVgExist(vgName string) (bool, error) {
 // Get Local Disk Number from ecs API
 // Requirements: The instance must have role which contains ecs::DescribeInstances, ecs::DescribeInstancesType.
 func getLocalDeviceNum() (int, error) {
-	instanceID := GetMetaData(InstanceID)
-	regionID := GetMetaData(RegionIDTag)
+	instanceID, _ := utils.GetMetaData(InstanceID)
+	regionID, _ := utils.GetMetaData(RegionIDTag)
 	localDeviceNum := 0
 	ac := utils.GetAccessControl()
 	client := utils.NewEcsClient(ac)

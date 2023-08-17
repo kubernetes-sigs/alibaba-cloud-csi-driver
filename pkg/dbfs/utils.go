@@ -19,6 +19,11 @@ package dbfs
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
@@ -27,12 +32,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io/ioutil"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
 )
 
 const (
@@ -115,17 +114,8 @@ func getDBFSPath(volumeID string) (string, error) {
 	return strings.TrimSuffix(line, "\n"), nil
 }
 
-// GetRegionID Get RegionID from Environment Variables or Metadata
-func GetRegionID() string {
-	regionID := os.Getenv("REGION_ID")
-	if regionID == "" {
-		regionID = GetMetaData(RegionTag)
-	}
-	return regionID
-}
-
 func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
-	regionID := GetRegionID()
+	regionID, _ := utils.GetRegionID()
 	var err error
 	switch ac.UseMode {
 	case utils.AccessKey:
@@ -233,20 +223,6 @@ func getVolumeCount() int64 {
 //	}
 //	return nil
 //}
-
-// GetMetaData get host regionid, zoneid
-func GetMetaData(resource string) string {
-	resp, err := http.Get(MetadataURL + resource)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ""
-	}
-	return string(body)
-}
 
 func updateDbfsClient(client *dbfs.Client) *dbfs.Client {
 	ac := utils.GetAccessControl()

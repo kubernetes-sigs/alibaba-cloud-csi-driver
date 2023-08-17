@@ -19,8 +19,6 @@ package lvm
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -44,20 +42,6 @@ const (
 
 // ErrParse is an error that is returned when parse operation fails
 var ErrParse = errors.New("Cannot parse output of blkid")
-
-// GetMetaData get host regionid, zoneid
-func GetMetaData(resource string) string {
-	resp, err := http.Get(MetadataURL + resource)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ""
-	}
-	return string(body)
-}
 
 func formatDevice(devicePath, fstype string) error {
 	output, err := exec.Command("mkfs", "-t", fstype, devicePath).CombinedOutput()
@@ -114,8 +98,8 @@ func isVgExist(vgName string) (bool, error) {
 // Get Local Disk Number from ecs API
 // Requirements: The instance must have role which contains ecs::DescribeInstances, ecs::DescribeInstancesType.
 func getLocalDeviceNum() (int, error) {
-	instanceID := GetMetaData(InstanceID)
-	regionID := GetMetaData(RegionIDTag)
+	instanceID, _ := utils.GetMetaData(InstanceID)
+	regionID, _ := utils.GetMetaData(RegionIDTag)
 	localDeviceNum := 0
 	ac := utils.GetAccessControl()
 	client := utils.NewEcsClient(ac)
