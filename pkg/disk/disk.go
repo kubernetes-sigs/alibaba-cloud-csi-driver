@@ -334,7 +334,7 @@ func GlobalConfigSet(nodeID string) *restclient.Config {
 	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		log.Log.Errorf("GlobalConfigSet: get node %s with error: %s", nodeName, err.Error())
-		regionID = GetRegionID()
+		regionID, _ = utils.GetRegionID()
 	} else {
 		if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime"]; ok && strings.TrimSpace(value) == "Sandboxed-Container.runv" {
 			if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime-version"]; ok && strings.HasPrefix(strings.TrimSpace(value), "1.") {

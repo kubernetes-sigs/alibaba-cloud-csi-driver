@@ -227,10 +227,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, errors.New("Mount is failed, with create path err: " + err.Error() + mountPath)
 		}
 
-		metaZoneID := GetMetaDataAsync(regionTag)
-		if strings.Contains(opt.URL, metaZoneID) && !strings.Contains(opt.URL, "internal") && !utils.IsPrivateCloud() {
+		regionID, _ := utils.GetRegionID()
+		if regionID == "" {
+			log.Warnf("Failed to get region id from both env and metadata, use original URL: %s", opt.URL)
+		}
+		if regionID != "" && strings.Contains(opt.URL, regionID) &&
+			!strings.Contains(opt.URL, "internal") && !utils.IsPrivateCloud() {
 			originUrl := opt.URL
-			opt.URL = strings.ReplaceAll(originUrl, metaZoneID, metaZoneID+"-internal")
+			opt.URL = strings.ReplaceAll(originUrl, regionID, regionID+"-internal")
 		}
 
 		mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s %s", opt.Bucket, opt.Path, mountPath, opt.URL, opt.OtherOpts, credentialProvider)

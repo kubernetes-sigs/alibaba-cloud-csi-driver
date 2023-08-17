@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -209,20 +208,6 @@ func GetNfsDetails(nfsServersString string) (string, string) {
 	return nfsServer, nfsPath
 }
 
-// GetMetaData get host regionid, zoneid
-func GetMetaData(resource string) string {
-	resp, err := http.Get(MetadataURL + resource)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ""
-	}
-	return string(body)
-}
-
 func updateNasClient(client *aliNas.Client, regionID string) *aliNas.Client {
 	ac := utils.GetAccessControl()
 	if ac.UseMode == utils.EcsRAMRole || ac.UseMode == utils.ManagedToken {
@@ -342,7 +327,7 @@ func setNasVolumeCapacity(nfsServer, nfsPath string, volSizeBytes int64) error {
 	quotaRequest.UserType = "AllUsers"
 	quotaRequest.QuotaType = "Enforcement"
 	quotaRequest.SizeLimit = requests.NewInteger64((volSizeBytes + GiB - 1) / GiB)
-	quotaRequest.RegionId = GetMetaData(RegionTag)
+	quotaRequest.RegionId, _ = utils.GetMetaData(RegionTag)
 	_, err := nasClient.SetDirQuota(quotaRequest)
 	if err != nil {
 		if strings.Contains(err.Error(), "The specified FileSystem does not exist.") {

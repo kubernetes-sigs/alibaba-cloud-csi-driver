@@ -100,7 +100,7 @@ func NewDriver(nodeID, endpoint, serviceType string) *NAS {
 
 	regionID := os.Getenv("REGION_ID")
 	if len(regionID) == 0 {
-		regionID = GetMetaData(RegionTag)
+		regionID, _ = utils.GetMetaData(RegionTag)
 	}
 	ac := utils.GetAccessControl()
 	c := newNasClient(ac, regionID)
