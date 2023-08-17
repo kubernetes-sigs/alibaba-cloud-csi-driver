@@ -18,11 +18,9 @@ package lvm
 
 import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type controllerServer struct {
@@ -40,12 +38,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME); err != nil {
 		log.Infof("invalid create volume req: %v", req)
 		return nil, err
-	}
-	if len(req.Name) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Volume Name cannot be empty")
-	}
-	if req.VolumeCapabilities == nil {
-		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
 	}
 
 	volumeID := req.GetName()
