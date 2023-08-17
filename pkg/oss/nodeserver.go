@@ -453,10 +453,10 @@ func (ns *nodeServer) NodeUnstageVolume(
 	mountpoint := GetGlobalMountPath(req.VolumeId)
 	err := ns.cleanupMountPoint(ctx, req.VolumeId, mountpoint)
 	if err != nil {
-		log.Errorf("NodeUnpublishVolume: failed to unmount %q: %v", mountpoint, err)
+		log.Errorf("NodeUnstageVolume: failed to unmount %q: %v", mountpoint, err)
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", mountpoint, err)
 	}
-	log.Infof("NodeUnpublishVolume: Umount OSS Successful: %s", mountpoint)
+	log.Infof("NodeUnstageVolume: umount OSS Successful: %s", mountpoint)
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 

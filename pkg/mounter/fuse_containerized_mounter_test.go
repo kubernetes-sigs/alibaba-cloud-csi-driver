@@ -21,7 +21,7 @@ func Test_extractFuseContainerConfig(t *testing.T) {
 			`,
 		},
 	}
-	config := extractFuseContainerConfig(configmap, FuseOssfs)
+	config := extractFuseContainerConfig(configmap, "ossfs")
 	expected := FuseContainerConfig{
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{

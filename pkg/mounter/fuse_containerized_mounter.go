@@ -33,9 +33,7 @@ const (
 
 type FuseMounterType interface {
 	name() string
-	buildPodSpec(
-		source, target, fstype string, options, mountFlags []string, nodeName string, config FuseContainerConfig,
-	) (corev1.PodSpec, error)
+	buildPodSpec(source, target, fstype string, options, mountFlags []string, nodeName string) (corev1.PodSpec, error)
 }
 
 type FuseContainerConfig struct {
@@ -44,10 +42,10 @@ type FuseContainerConfig struct {
 	Extra     map[string]string
 }
 
-func extractFuseContainerConfig(configmap *corev1.ConfigMap, fuseType FuseMounterType) (config FuseContainerConfig) {
+func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (config FuseContainerConfig) {
 	config.Resources.Requests = make(corev1.ResourceList)
 	config.Resources.Limits = make(corev1.ResourceList)
-	content := configmap.Data["fuse-"+fuseType.name()]
+	content := configmap.Data["fuse-"+name]
 	for _, line := range strings.Split(content, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -88,20 +86,17 @@ func extractFuseContainerConfig(configmap *corev1.ConfigMap, fuseType FuseMounte
 
 type ContainerizedFuseMounterFactory struct {
 	fuseType            FuseMounterType
-	config              FuseContainerConfig
 	nodeName, namespace string
 	client              kubernetes.Interface
 }
 
 func NewContainerizedFuseMounterFactory(
 	fuseType FuseMounterType,
-	configmap *corev1.ConfigMap,
 	client kubernetes.Interface,
 	nodeName string,
 ) *ContainerizedFuseMounterFactory {
 	return &ContainerizedFuseMounterFactory{
 		fuseType:  fuseType,
-		config:    extractFuseContainerConfig(configmap, fuseType),
 		nodeName:  nodeName,
 		namespace: "kube-system",
 		client:    client,
@@ -120,19 +115,17 @@ func (fac *ContainerizedFuseMounterFactory) NewFuseMounter(ctx context.Context, 
 			"volume-id": volumeId,
 		}),
 		FuseMounterType: fac.fuseType,
-		fuseConfig:      fac.config,
 		Interface:       mountutils.New(""),
 	}
 }
 
 type ContainerizedFuseMounter struct {
-	ctx        context.Context
-	volumeId   string
-	nodeName   string
-	namespace  string
-	client     kubernetes.Interface
-	log        *logrus.Entry
-	fuseConfig FuseContainerConfig
+	ctx       context.Context
+	volumeId  string
+	nodeName  string
+	namespace string
+	client    kubernetes.Interface
+	log       *logrus.Entry
 	FuseMounterType
 	mountutils.Interface
 }
@@ -227,7 +220,7 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 		rawPod.GenerateName = fmt.Sprintf("csi-fuse-%s-", mounter.name())
 		rawPod.Labels = labels
 		rawPod.Annotations = map[string]string{FuseMountPathAnnoKey: target}
-		rawPod.Spec, err = mounter.buildPodSpec(source, target, fstype, options, mountFlags, mounter.nodeName, mounter.fuseConfig)
+		rawPod.Spec, err = mounter.buildPodSpec(source, target, fstype, options, mountFlags, mounter.nodeName)
 		if err != nil {
 			return err
 		}
