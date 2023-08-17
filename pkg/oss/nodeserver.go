@@ -174,10 +174,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		log.Errorf("Check oss input error: %s", err.Error())
 		return nil, errors.New("Check oss input error: " + err.Error())
 	}
-	if mountPath == "" {
-		log.Errorf("Check oss input error: mountPath is empty")
-		return nil, errors.New("mountPath is empty")
-	}
 
 	argStr := fmt.Sprintf("Bucket: %s, url: %s, OtherOpts: %s, Path: %s, UseSharedPath: %s, authType: %s, encrypted: %s", opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType, opt.Encrypted)
 	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
