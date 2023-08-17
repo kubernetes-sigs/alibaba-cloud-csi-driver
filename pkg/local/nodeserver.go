@@ -341,13 +341,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 
 // NodeGetVolumeStats used for csi metrics
 func (ns *nodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	var err error
 	targetPath := req.GetVolumePath()
-	if targetPath == "" {
-		err = fmt.Errorf("NodeGetVolumeStats target local path %v is empty", targetPath)
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-
 	return utils.GetMetrics(targetPath)
 }
 
