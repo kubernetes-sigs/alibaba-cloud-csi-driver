@@ -136,7 +136,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient)
 
 	if !runAsController {
-		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, m)
+		tmpdisk.nodeServer = NewNodeServer(m)
 	}
 
 	return tmpdisk
