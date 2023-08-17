@@ -32,6 +32,7 @@ import (
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -54,7 +55,7 @@ type nodeServer struct {
 	mounter    utils.Mounter
 	k8smounter k8smount.Interface
 	clientSet  *kubernetes.Clientset
-	*csicommon.DefaultNodeServer
+	common.GenericNodeServer
 }
 
 const (
@@ -172,12 +173,14 @@ func NewNodeServer(d *csicommon.CSIDriver, m metadata.MetadataProvider) csi.Node
 	}
 
 	return &nodeServer{
-		metadata:          m,
-		nodeID:            GlobalConfigVar.NodeID,
-		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
-		mounter:           utils.NewMounter(),
-		k8smounter:        k8smount.New(""),
-		clientSet:         GlobalConfigVar.ClientSet,
+		metadata:   m,
+		nodeID:     GlobalConfigVar.NodeID,
+		mounter:    utils.NewMounter(),
+		k8smounter: k8smount.New(""),
+		clientSet:  GlobalConfigVar.ClientSet,
+		GenericNodeServer: common.GenericNodeServer{
+			NodeId: GlobalConfigVar.NodeID,
+		},
 	}
 }
 
@@ -999,12 +1002,6 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return &csi.NodeExpandVolumeResponse{}, nil
 	}
 	return nil, status.Errorf(codes.Internal, "requestGB: %v, diskCapacity: %v not in range", requestGB, diskCapacity)
-}
-
-// NodeGetVolumeStats used for csi metrics
-func (ns *nodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	targetPath := req.GetVolumePath()
-	return utils.GetMetrics(targetPath)
 }
 
 // umount path and not remove
