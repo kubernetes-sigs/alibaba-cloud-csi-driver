@@ -205,16 +205,7 @@ func addAdditionalParams(params map[string]string, fsId string, mpId string) map
 }
 
 func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
-	volName := req.GetName()
-	if len(volName) == 0 {
-		return status.Error(codes.InvalidArgument, "Volume name not provided")
-	}
-
 	volCaps := req.GetVolumeCapabilities()
-	if len(volCaps) == 0 {
-		return status.Error(codes.InvalidArgument, "Volume capabilities not provided")
-	}
-
 	if !isValidVolumeCapabilities(volCaps) {
 		modes := utils.GetAccessModes(volCaps)
 		stringModes := strings.Join(*modes, ", ")
@@ -300,10 +291,6 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 }
 
 func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	if err := validateControllerPublishVolumeRequest(req); err != nil {
-		return nil, err
-	}
-
 	pvs, err := getPVBympId(req.GetVolumeId())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to get pv by mpId: %s err: %v", req.GetVolumeId(), err))
@@ -396,35 +383,10 @@ func getPVBympId(mpId string) ([]v1.PersistentVolume, error) {
 	return pvs.Items, nil
 }
 
-func validateControllerPublishVolumeRequest(req *csi.ControllerPublishVolumeRequest) error {
-	if len(req.GetVolumeId()) == 0 {
-		return status.Error(codes.InvalidArgument, "Volume ID not provided")
-	}
-
-	if len(req.GetNodeId()) == 0 {
-		return status.Error(codes.InvalidArgument, "Node ID not provided")
-	}
-
-	volCap := req.GetVolumeCapability()
-	if volCap == nil {
-		return status.Error(codes.InvalidArgument, "Volume capability not provided")
-	}
-
-	return nil
-}
-
 func (d *controllerService) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 
 	if os.Getenv("ENABLE_SINGLE_TENANT") == "true" {
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
-	}
-
-	if len(req.GetVolumeId()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "MountPoint ID not provided")
-	}
-
-	if len(req.GetNodeId()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Node ID not provided")
 	}
 
 	mpId := req.GetVolumeId()
