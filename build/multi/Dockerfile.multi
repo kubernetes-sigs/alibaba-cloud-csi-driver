@@ -1,29 +1,39 @@
-FROM --platform=$BUILDPLATFORM golang:1.18 as build
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
-ENV GOPATH=/go
-ADD . /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/
+# syntax=docker/dockerfile:1.4
+FROM --platform=$BUILDPLATFORM golang:1.20.7 as build
 WORKDIR /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
-RUN env GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GOOS=linux CGO_ENABLED=0 go build --mod=vendor -ldflags "-X main._BRANCH_='v1.0.0' -X main._VERSION_='v1.14.5' -X main._BUILDTIME_=`date '+%Y-%m-%d-%H:%M:%S'`" -o plugin.csi.alibabacloud.com && env GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GOOS=linux CGO_ENABLED=0 go build --mod=vendor ./build/lib/csiplugin-connector.go
+ARG TARGETARCH
+ARG TARGETOS
+RUN --mount=type=bind,target=. \
+    --mount=type=cache,target=/root/.cache/go-build \
+    export GOOS=$TARGETOS && \
+    export GOARCH=$TARGETARCH && \
+    export CGO_ENABLED=0 && \
+    go build -ldflags "-X main._BRANCH_='v1.0.0' -X main._VERSION_='v1.14.5' -X main._BUILDTIME_=`date '+%Y-%m-%d-%H:%M:%S'`" -o /out/plugin.csi.alibabacloud.com && \
+    go build -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
+
 
 FROM registry.eu-west-1.aliyuncs.com/acs/alinux:3-update
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
-RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace cloud-utils-growpart gdisk nc telnet tar cpio
-ARG BUILDPLATFORM 
-ARG TARGETPLATFORM
-COPY ./build/lib/ /csi
 
-RUN cp /csi/$(echo $TARGETPLATFORM | cut -f2 -d '/')-nsenter /usr/bin/nsenter; cp /csi/$(echo $TARGETPLATFORM | cut -f2 -d '/')-nsenter /nsenter
-
-RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then curl https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.2-3.x86_64.rpm -o /root/alinas-efc-1.2-3.x86_64.rpm; fi
-RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then curl https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-6.al7.noarch.rpm -o /root/aliyun-alinas-utils-1.1-6.al7.noarch.rpm; fi
-
-# RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "amd64" ]]; then mv /csi/jindo-fuse-4.4.0-20220620.tar.gz /; tar zvxf /jindo-fuse-4.4.0-20220620.tar.gz -C /; fi
-RUN mv /csi/$(echo $TARGETPLATFORM | cut -f2 -d '/')-entrypoint.sh /entrypoint.sh
-COPY ./build/lib/csiplugin-connector.service /bin/csiplugin-connector.service
-COPY ./build/lib/freezefs.sh /freezefs.sh
-COPY --from=build /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/csiplugin-connector /csi/csiplugin-connector
-COPY --from=build /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/plugin.csi.alibabacloud.com /bin/plugin.csi.alibabacloud.com
-RUN chmod +x /bin/plugin.csi.alibabacloud.com && chmod +x /entrypoint.sh && chmod +x /csi/csiplugin-connector && chmod +x /bin/csiplugin-connector.service && chmod +x /usr/bin/nsenter && chmod +x /nsenter && chmod +x /freezefs.sh
+RUN yum install -y tzdata nfs-utils xfsprogs e4fsprogs pciutils cloud-utils-growpart tar && yum clean all
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
+
+ARG TARGETARCH
+WORKDIR /root
+RUN if [[ $TARGETARCH == "amd64" ]]; then \
+        curl -O https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.2-3.x86_64.rpm && \
+        curl -O https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-6.al7.noarch.rpm; \
+    fi
+RUN --mount=type=bind,source=build/lib,target=/csi-lib \
+    cp /csi-lib/$TARGETARCH-nsenter /usr/bin/nsenter && \
+    ln -s /usr/bin/nsenter /nsenter && \
+    cp /csi-lib/$TARGETARCH-entrypoint.sh /entrypoint.sh && \
+    chmod +x /entrypoint.sh && \
+    cp /csi-lib/freezefs.sh /freezefs.sh && \
+    mkdir /csi && \
+    cp /csi-lib/csiplugin-connector.service /csi/csiplugin-connector.service
+COPY --link --from=build /out/csiplugin-connector /csi/csiplugin-connector
+COPY --link --from=build /out/plugin.csi.alibabacloud.com /usr/bin/plugin.csi.alibabacloud.com
+
 ENTRYPOINT ["/entrypoint.sh"]
+
