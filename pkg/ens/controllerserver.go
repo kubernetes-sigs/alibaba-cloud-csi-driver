@@ -47,14 +47,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		log.Errorf("CreateVolume: driver not support Create volume: %v", err)
 		return nil, err
 	}
-	if req.Name == "" {
-		log.Errorf("CreateVolume: Volume Name cannot be empty")
-		return nil, status.Error(codes.InvalidArgument, "Volume Name cannot be empty")
-	}
-	if req.VolumeCapabilities == nil {
-		log.Errorf("CreateVolume: Volume Capabilities cannot be empty")
-		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
-	}
 	if value, ok := cs.createdVolumeMap[req.Name]; ok {
 		log.Infof("CreateVolume: volume already be created pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, value.VolumeId, value.VolumeContext)
 		return &csi.CreateVolumeResponse{Volume: value}, nil
@@ -128,9 +120,6 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		log.Infof("ControllerPublishVolume: ADController Disable to attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
-	if req.VolumeId == "" || req.NodeId == "" {
-		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume missing VolumeId/NodeId in request")
-	}
 	_, err := attachDisk(req.VolumeId, req.NodeId)
 	if err != nil {
 		log.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
@@ -150,10 +139,6 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	}
 
 	log.Infof("ControllerUnpublishVolume: detach disk: %s from node: %s", req.VolumeId, req.NodeId)
-	if req.VolumeId == "" || req.NodeId == "" {
-		return nil, status.Error(codes.InvalidArgument, "ControllerUnpublishVolume missing VolumeId/NodeId in request")
-	}
-
 	err := detachDisk(req.VolumeId, req.NodeId)
 	if err != nil {
 		log.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
