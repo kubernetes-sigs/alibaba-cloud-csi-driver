@@ -34,6 +34,7 @@ import (
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/rund/directvolume"
 	log "github.com/sirupsen/logrus"
@@ -56,7 +57,7 @@ type nodeServer struct {
 	kataBMIOType MachineType
 	k8smounter   k8smount.Interface
 	clientSet    *kubernetes.Clientset
-	*csicommon.DefaultNodeServer
+	common.GenericNodeServer
 }
 
 const (
@@ -190,13 +191,15 @@ func NewNodeServer(d *csicommon.CSIDriver, m metadata.MetadataProvider) csi.Node
 	}
 
 	return &nodeServer{
-		metadata:          m,
-		nodeID:            GlobalConfigVar.NodeID,
-		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
-		mounter:           utils.NewMounter(),
-		kataBMIOType:      kataBMIOType,
-		k8smounter:        k8smount.New(""),
-		clientSet:         GlobalConfigVar.ClientSet,
+		metadata:     m,
+		nodeID:       GlobalConfigVar.NodeID,
+		mounter:      utils.NewMounter(),
+		kataBMIOType: kataBMIOType,
+		k8smounter:   k8smount.New(""),
+		clientSet:    GlobalConfigVar.ClientSet,
+		GenericNodeServer: common.GenericNodeServer{
+			NodeId: GlobalConfigVar.NodeID,
+		},
 	}
 }
 
@@ -950,12 +953,6 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	return &csi.NodeExpandVolumeResponse{
 		CapacityBytes: deviceCapacity,
 	}, nil
-}
-
-// NodeGetVolumeStats used for csi metrics
-func (ns *nodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	targetPath := req.GetVolumePath()
-	return utils.GetMetrics(targetPath)
 }
 
 // umount path and not remove
