@@ -67,8 +67,6 @@ type Options struct {
 const (
 	// OssfsCredentialFile is the path of oss ak credential file
 	OssfsCredentialFile = "/host/etc/passwd-ossfs"
-	// NsenterCmd is nsenter mount command
-	NsenterCmd = "nsenter --mount=/proc/1/ns/mnt"
 	// AkID is Ak ID
 	AkID = "akId"
 	// AkSecret is Ak Secret
@@ -85,7 +83,7 @@ const (
 
 func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	return &csi.NodeGetCapabilitiesResponse{Capabilities: []*csi.NodeServiceCapability{
-		&csi.NodeServiceCapability{
+		{
 			Type: &csi.NodeServiceCapability_Rpc{
 				Rpc: &csi.NodeServiceCapability_RPC{
 					Type: csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
@@ -256,13 +254,15 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		mountOptions = append(mountOptions, "ro")
 	}
 
-	metaZoneID := GetMetaDataAsync(regionTag)
-	if strings.Contains(opt.URL, metaZoneID) && !strings.Contains(opt.URL, "internal") && !utils.IsPrivateCloud() {
+	regionID, _ := utils.GetRegionID()
+	if regionID == "" {
+		log.Warnf("Failed to get region id from both env and metadata, use original URL: %s", opt.URL)
+	} else if strings.Contains(opt.URL, regionID) && !strings.Contains(opt.URL, "internal") && !utils.IsPrivateCloud() {
 		originUrl := opt.URL
-		opt.URL = strings.ReplaceAll(originUrl, metaZoneID, metaZoneID+"-internal")
+		opt.URL = strings.ReplaceAll(originUrl, regionID, regionID+"-internal")
 	}
+
 	if opt.UseSharedPath {
-		// TODO: how to collect sharedPath metrics !!!
 		sharedPath := GetGlobalMountPath(req.GetVolumeId())
 		notMnt, err := ossMounter.IsLikelyNotMountPoint(sharedPath)
 		if err != nil {
