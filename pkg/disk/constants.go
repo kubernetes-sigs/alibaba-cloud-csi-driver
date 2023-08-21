@@ -3,6 +3,8 @@ package disk
 import (
 	"fmt"
 	"time"
+
+	k8sv1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -55,6 +57,8 @@ const (
 	MinimumDiskSizeInGB = 20
 	// MinimumDiskSizeInBytes ...
 	MinimumDiskSizeInBytes = 21474836480
+
+	DiskExtendedResourceName = k8sv1.ResourceName("alibabacloud.com/disk")
 
 	// LastApplyKey key
 	LastApplyKey = "kubectl.kubernetes.io/last-applied-configuration"

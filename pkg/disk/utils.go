@@ -53,6 +53,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	k8smount "k8s.io/mount-utils"
@@ -1150,7 +1151,7 @@ func getBlockDeviceCapacity(devicePath string) float64 {
 }
 
 // UpdateNode ...
-func UpdateNode(nodeID string, c *ecs.Client) {
+func UpdateNode(nodeID string, c *ecs.Client, maxDiskCount int64) {
 	instanceStorageLabels := []string{}
 	ctx := context.Background()
 	nodeName := os.Getenv(kubeNodeName)
@@ -1238,6 +1239,28 @@ func UpdateNode(nodeID string, c *ecs.Client) {
 	})
 	if waitErr != nil {
 		log.Errorf("UpdateNode:: failed to update node status: err: %v", lastUpdateError)
+	}
+
+	diskCountQuantity := resource.NewQuantity(maxDiskCount, resource.BinarySI)
+	if !diskCountQuantity.Equal(nodeInfo.Status.Capacity[DiskExtendedResourceName]) {
+		patch, err := json.Marshal(map[string]interface{}{
+			"status": map[string]interface{}{
+				"capacity": v1.ResourceList{
+					DiskExtendedResourceName: *diskCountQuantity,
+				},
+				"allocatable": v1.ResourceList{
+					DiskExtendedResourceName: *diskCountQuantity,
+				},
+			},
+		})
+		if err != nil {
+			log.Fatalf("UpdateNode:: failed to marshal patch json")
+		}
+		_, err = GlobalConfigVar.ClientSet.CoreV1().Nodes().PatchStatus(ctx, nodeName, patch)
+		if err != nil {
+			log.Errorf("UpdateNode:: failed to update node disk count: err: %v", err)
+		}
+		log.Infof("UpdateNode:: node disk count updated to %d", maxDiskCount)
 	}
 }
 
