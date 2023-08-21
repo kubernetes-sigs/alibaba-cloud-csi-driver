@@ -205,7 +205,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	case JindoFsType:
 		ossMounter = mounter.NewConnectorMounter(mountutils.New(""), "/etc/jindofs-tool/jindo-fuse")
 	case OssFsType, "":
-		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId)
+		// When useSharedPath options is set to false,
+		// mount operations need to be atomic to ensure that no fuse pods are left behind in case of failure.
+		// Because kubelet will not call NodeUnpublishVolume when NodePublishVolume never succeeded.
+		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId, !opt.UseSharedPath)
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "unknown fuseType: %q", opt.FuseType)
 	}
@@ -476,7 +479,7 @@ func (ns *nodeServer) cleanupMountPoint(ctx context.Context, volumeId string, mo
 	}
 
 	// always try to clean fuse pod for mountpoint
-	cleanPodErr := ns.ossfsMounterFac.NewFuseMounter(ctx, volumeId).Unmount(mountpoint)
+	cleanPodErr := ns.ossfsMounterFac.NewFuseMounter(ctx, volumeId, false).Unmount(mountpoint)
 
 	if umountErr != nil {
 		return umountErr

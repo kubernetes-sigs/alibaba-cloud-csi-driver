@@ -103,9 +103,15 @@ func NewContainerizedFuseMounterFactory(
 	}
 }
 
-func (fac *ContainerizedFuseMounterFactory) NewFuseMounter(ctx context.Context, volumeId string) *ContainerizedFuseMounter {
+// NewFuseMounter creates a mounter for the volume id.
+// When atomic is true, mount operations are responsible for cleaning up inflight fuse pods in case a timeout error occurs.
+// This implies that mount operations will either succeed when the fuse pod is ready,
+// or fail and ensure that no fuse pods are left behind.
+func (fac *ContainerizedFuseMounterFactory) NewFuseMounter(
+	ctx context.Context, volumeId string, atomic bool) *ContainerizedFuseMounter {
 	return &ContainerizedFuseMounter{
 		ctx:       ctx,
+		atomic:    atomic,
 		volumeId:  volumeId,
 		nodeName:  fac.nodeName,
 		namespace: fac.namespace,
@@ -121,6 +127,7 @@ func (fac *ContainerizedFuseMounterFactory) NewFuseMounter(ctx context.Context, 
 
 type ContainerizedFuseMounter struct {
 	ctx       context.Context
+	atomic    bool
 	volumeId  string
 	nodeName  string
 	namespace string
@@ -265,6 +272,13 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 		return pod.Status.Phase == corev1.PodRunning && isFusePodReady(pod), nil
 	})
 	if err != nil {
+		if mounter.atomic {
+			mounter.log.Warnf("failed to wait for pod %s to be ready, deleting fuse pods for %s", fusePod.Name, target)
+			deleteErr := podClient.DeleteCollection(context.Background(), metav1.DeleteOptions{}, listOptions)
+			if deleteErr != nil {
+				mounter.log.Errorf("delete fuse pods for %s: %v", target, deleteErr)
+			}
+		}
 		return err
 	}
 	mounter.log.Infof("fuse pod %s is ready", fusePod.Name)
