@@ -137,8 +137,6 @@ spec:
               value: "15"
             - name: SERVICE_TYPE
               value: "provisioner"
-            - name: "CLUSTER_ID"
-              value: "{{.ClusterID}}"
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:
