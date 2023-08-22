@@ -227,7 +227,7 @@ spec:
         - name: csi-provisioner
           securityContext:
             privileged: true
-          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-plugin:v1.26.4-e7e52e9-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.26.4-e7e52e9-aliyun
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=2"
@@ -244,6 +244,16 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
+            - name: ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: csi-access-key
+                  key: id
+            - name: ACCESS_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: csi-access-key
+                  key: secret
           livenessProbe:
             httpGet:
               path: /healthz
@@ -271,9 +281,6 @@ spec:
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
             - name: oss-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/ossplugin.csi.alibabacloud.com
-            - mountPath: /var/addon
-              name: addon-token
-              readOnly: true
             - mountPath: /mnt
               mountPropagation: Bidirectional
               name: host-mnt
@@ -304,11 +311,3 @@ spec:
           hostPath:
             path: /mnt
             type: ""
-        - name: addon-token
-          secret:
-            defaultMode: 420
-            optional: true
-            items:
-            - key: addon.token.config
-              path: token-config
-            secretName: addon.csi.token

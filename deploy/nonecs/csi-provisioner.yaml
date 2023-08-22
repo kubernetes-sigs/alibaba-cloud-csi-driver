@@ -124,7 +124,7 @@ spec:
         - name: csi-provisioner
           securityContext:
             privileged: true
-          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-plugin:v1.24.9-74f8490-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.24.9-74f8490-aliyun
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=2"
@@ -167,9 +167,6 @@ spec:
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
             - name: oss-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/ossplugin.csi.alibabacloud.com
-            - mountPath: /var/addon
-              name: addon-token
-              readOnly: true
             - mountPath: /mnt
               mountPropagation: Bidirectional
               name: host-dev
@@ -198,11 +195,3 @@ spec:
           hostPath:
             path: /mnt
             type: ""
-        - name: addon-token
-          secret:
-            defaultMode: 420
-            optional: true
-            items:
-              - key: addon.token.config
-                path: token-config
-            secretName: addon.csi.token

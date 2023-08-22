@@ -90,7 +90,7 @@ spec:
           securityContext:
             privileged: true
             allowPrivilegeEscalation: true
-          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-plugin:v1.26.4-e7e52e9-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.26.4-e7e52e9-aliyun
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=2"
@@ -107,6 +107,16 @@ spec:
               value: "plugin"
             - name: MAX_VOLUMES_PERNODE
               value: "15"
+            - name: ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: csi-access-key
+                  key: id
+            - name: ACCESS_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: csi-access-key
+                  key: secret
           resources:
             requests:
               cpu: 100m
@@ -150,9 +160,6 @@ spec:
             - name: host-dev
               mountPath: /dev
               mountPropagation: "HostToContainer"
-            - mountPath: /var/addon
-              name: addon-token
-              readOnly: true
             - mountPath: /host/var/run/ossfs
               name: ossfs-metrics-dir
             - mountPath: /host/var/run/efc
@@ -203,14 +210,6 @@ spec:
           configMap:
             name: csi-plugin
             optional: true
-        - name: addon-token
-          secret:
-            defaultMode: 420
-            optional: true
-            items:
-            - key: addon.token.config
-              path: token-config
-            secretName: addon.csi.token
   updateStrategy:
     rollingUpdate:
       maxUnavailable: 20%
