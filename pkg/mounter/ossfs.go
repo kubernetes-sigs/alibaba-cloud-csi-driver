@@ -2,6 +2,7 @@ package mounter
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -21,8 +22,11 @@ func NewFuseOssfs(configmap *corev1.ConfigMap) FuseMounterType {
 	config := extractFuseContainerConfig(configmap, "ossfs")
 	// set default image
 	if config.Image == "" {
-		regionId := utils.RetryGetMetaData("region-id")
-		config.Image = fmt.Sprintf("registry-vpc.%s.aliyuncs.com/acs/csi-ossfs:%s", regionId, defaultOssfsImageTag)
+		registry := os.Getenv("DEFAULT_REGISTRY")
+		if registry == "" {
+			registry = fmt.Sprintf("registry-vpc.%s.aliyuncs.com", utils.RetryGetMetaData("region-id"))
+		}
+		config.Image = fmt.Sprintf("%s/acs/csi-ossfs:%s", registry, defaultOssfsImageTag)
 	}
 	// set default memory request
 	if _, ok := config.Resources.Requests[corev1.ResourceMemory]; !ok {
