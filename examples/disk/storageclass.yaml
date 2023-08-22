@@ -1,10 +1,10 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: alicloud-disk-ssd-beijing-b
+  name: alicloud-disk-topology-alltype
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
-    zoneId: cn-beijing-b
-    regionId: cn-beijing
-    type: cloud_ssd
-reclaimPolicy: Retain
+  type: cloud_essd,cloud_ssd,cloud_efficiency
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
