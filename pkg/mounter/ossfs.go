@@ -6,6 +6,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	mountutils "k8s.io/mount-utils"
 	"k8s.io/utils/pointer"
 )
@@ -18,9 +19,14 @@ type fuseOssfs struct {
 
 func NewFuseOssfs(configmap *corev1.ConfigMap) FuseMounterType {
 	config := extractFuseContainerConfig(configmap, "ossfs")
+	// set default image
 	if config.Image == "" {
 		regionId := utils.RetryGetMetaData("region-id")
 		config.Image = fmt.Sprintf("registry-vpc.%s.aliyuncs.com/acs/csi-ossfs:%s", regionId, defaultOssfsImageTag)
+	}
+	// set default memory request
+	if _, ok := config.Resources.Requests[corev1.ResourceMemory]; !ok {
+		config.Resources.Requests[corev1.ResourceMemory] = resource.MustParse("50Mi")
 	}
 	return &fuseOssfs{config: config}
 }
