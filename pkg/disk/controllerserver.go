@@ -70,7 +70,7 @@ type diskVolumeArgs struct {
 	PerformanceLevel        string              `json:"performanceLevel"`
 	ResourceGroupID         string              `json:"resourceGroupId"`
 	StorageClusterID        string              `json:"storageClusterId"`
-	DiskTags                []string            `json:"diskTags"`
+	DiskTags                map[string]string   `json:"diskTags"`
 	NodeSelected            string              `json:"nodeSelected"`
 	DelAutoSnap             string              `json:"delAutoSnap"`
 	ARN                     []ecs.CreateDiskArn `json:"arn"`

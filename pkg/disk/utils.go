@@ -814,7 +814,9 @@ func validateDiskVolumeCreateOptions(kv map[string]string) error {
 // getDiskVolumeOptions
 func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error) {
 	var ok bool
-	diskVolArgs := &diskVolumeArgs{}
+	diskVolArgs := &diskVolumeArgs{
+		DiskTags: map[string]string{},
+	}
 	volOptions := req.GetParameters()
 
 	validateDiskVolumeCreateOptions(volOptions)
@@ -912,7 +914,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 			if len(tagParts) != 2 {
 				return nil, status.Errorf(codes.Internal, "Invalid diskTags format name: %s tags: %s", req.GetName(), diskTags)
 			}
-			diskVolArgs.DiskTags = append(diskVolArgs.DiskTags, tag)
+			diskVolArgs.DiskTags[tagParts[0]] = tagParts[1]
 		}
 	}
 

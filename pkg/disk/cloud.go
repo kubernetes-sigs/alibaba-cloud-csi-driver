@@ -1038,9 +1038,8 @@ func getDefaultDiskTags(diskVol *diskVolumeArgs) []ecs.CreateDiskTag {
 	}
 	// set config tags in sc
 	if len(diskVol.DiskTags) != 0 {
-		for _, tag := range diskVol.DiskTags {
-			tagParts := strings.Split(tag, ":")
-			diskTagTmp := ecs.CreateDiskTag{Key: tagParts[0], Value: tagParts[1]}
+		for k, v := range diskVol.DiskTags {
+			diskTagTmp := ecs.CreateDiskTag{Key: k, Value: v}
 			diskTags = append(diskTags, diskTagTmp)
 		}
 	}
