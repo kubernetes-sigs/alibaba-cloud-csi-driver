@@ -911,11 +911,11 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	diskTags, ok := volOptions["diskTags"]
 	if ok {
 		for _, tag := range strings.Split(diskTags, ",") {
-			tagParts := strings.Split(tag, ":")
-			if len(tagParts) != 2 {
-				return nil, status.Errorf(codes.Internal, "Invalid diskTags format name: %s tags: %s", req.GetName(), diskTags)
+			k, v, found := strings.Cut(tag, ":")
+			if !found {
+				return nil, status.Errorf(codes.InvalidArgument, "Invalid diskTags format name: %s tags: %s", req.GetName(), diskTags)
 			}
-			diskVolArgs.DiskTags[tagParts[0]] = tagParts[1]
+			diskVolArgs.DiskTags[k] = v
 		}
 	}
 	// k8s PV info as disk tags
