@@ -47,6 +47,7 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	volumeSnapshotV1 "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	proto "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	perrors "github.com/pkg/errors"
@@ -917,6 +918,21 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 			diskVolArgs.DiskTags[tagParts[0]] = tagParts[1]
 		}
 	}
+	// k8s PV info as disk tags
+	{
+		pvcName, ok := volOptions[common.PVCNameKey]
+		if ok {
+			diskVolArgs.DiskTags[common.PVCNameTag] = pvcName
+		}
+		pvName, ok := volOptions[common.PVNameKey]
+		if ok {
+			diskVolArgs.DiskTags[common.PVNameTag] = pvName
+		}
+		ns, ok := volOptions[common.PVCNamespaceKey]
+		if ok {
+			diskVolArgs.DiskTags[common.PVCNamespaceTag] = ns
+		}
+	}
 
 	// kmsKeyId
 	diskVolArgs.KMSKeyID, ok = volOptions["kmsKeyId"]
@@ -1496,7 +1512,10 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.V
 // updateVolumeContext remove unnecessary volume context
 func updateVolumeContext(volumeContext map[string]string) map[string]string {
 	for _, key := range []string{
-		LastApplyKey, PvNameKey, PvcNameKey, PvcNamespaceKey,
+		LastApplyKey,
+		common.PVNameKey,
+		common.PVCNameKey,
+		common.PVCNamespaceKey,
 		StorageProvisionerKey, "csi.alibabacloud.com/reclaimPolicy",
 		"csi.alibabacloud.com/storageclassName",
 		"allowVolumeExpansion", "volume.kubernetes.io/selected-node"} {

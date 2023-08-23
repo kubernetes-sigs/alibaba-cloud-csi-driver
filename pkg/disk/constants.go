@@ -58,12 +58,6 @@ const (
 
 	// LastApplyKey key
 	LastApplyKey = "kubectl.kubernetes.io/last-applied-configuration"
-	// PvNameKey key
-	PvNameKey = "csi.storage.k8s.io/pv/name"
-	// PvcNameKey key
-	PvcNameKey = "csi.storage.k8s.io/pvc/name"
-	// PvcNamespaceKey key
-	PvcNamespaceKey = "csi.storage.k8s.io/pvc/namespace"
 	// StorageProvisionerKey key
 	StorageProvisionerKey = "volume.beta.kubernetes.io/storage-provisioner"
 
