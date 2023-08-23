@@ -72,7 +72,7 @@ spec:
           securityContext:
             privileged: true
             allowPrivilegeEscalation: true
-          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-plugin:v1.24.9-74f8490-aliyun
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.24.9-74f8490-aliyun
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=2"
@@ -133,9 +133,6 @@ spec:
             - name: host-dev
               mountPath: /dev
               mountPropagation: "HostToContainer"
-            - mountPath: /var/addon
-              name: addon-token
-              readOnly: true
             - mountPath: /host/var/run/
               name: fuse-metrics-dir
             - mountPath: /etc/csi-plugin/config
@@ -180,14 +177,6 @@ spec:
           configMap:
             name: csi-plugin
             optional: true
-        - name: addon-token
-          secret:
-            defaultMode: 420
-            optional: true
-            items:
-              - key: addon.token.config
-                path: token-config
-            secretName: addon.csi.token
   updateStrategy:
     rollingUpdate:
       maxUnavailable: 20%
