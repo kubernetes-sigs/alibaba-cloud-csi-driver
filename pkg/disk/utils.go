@@ -1519,9 +1519,8 @@ func updateVolumeContext(volumeContext map[string]string) map[string]string {
 		StorageProvisionerKey, "csi.alibabacloud.com/reclaimPolicy",
 		"csi.alibabacloud.com/storageclassName",
 		"allowVolumeExpansion", "volume.kubernetes.io/selected-node"} {
-		if _, ok := volumeContext[key]; ok {
-			delete(volumeContext, key)
-		}
+
+		delete(volumeContext, key)
 	}
 
 	return volumeContext
