@@ -13,7 +13,7 @@ require (
 	github.com/emirpasic/gods v1.12.0
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/gogo/protobuf v1.3.2
-	github.com/golang/mock v1.4.4
+	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2
 	github.com/kubernetes-csi/drivers v1.0.2
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.2.0
@@ -100,7 +100,6 @@ require (
 replace (
 	github.com/beorn7/perks => github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
 	github.com/evanphx/json-patch => github.com/evanphx/json-patch v3.0.0+incompatible
-	github.com/golang/mock => github.com/golang/mock v1.1.1
 	github.com/google/go-cmp => github.com/google/go-cmp v0.5.0
 	github.com/google/gofuzz => github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.2.0
