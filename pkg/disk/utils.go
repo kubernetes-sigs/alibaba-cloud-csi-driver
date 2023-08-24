@@ -235,11 +235,6 @@ func run(cmd string) (string, error) {
 	return string(out), nil
 }
 
-func execCommand(command string, args []string) ([]byte, error) {
-	cmd := exec.Command(command, args...)
-	return cmd.CombinedOutput()
-}
-
 func createDest(dest string) error {
 	fi, err := os.Lstat(dest)
 
