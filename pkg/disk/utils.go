@@ -55,6 +55,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
@@ -1145,12 +1146,58 @@ func getBlockDeviceCapacity(devicePath string) float64 {
 	return float64(pos) / GBSIZE
 }
 
-// UpdateNode ...
+func GetAvailableDiskTypes(ctx context.Context, c ECSInterface, instanceType, zoneID string) (types []string, err error) {
+	request := ecs.CreateDescribeAvailableResourceRequest()
+	request.InstanceType = instanceType
+	request.DestinationResource = describeResourceType
+	request.ZoneId = zoneID
+	request.ResourceType = "disk"
+	var response *ecs.DescribeAvailableResourceResponse
+	backoff := wait.Backoff{
+		Duration: time.Second,
+		Factor:   2.,
+		Steps:    9, // 512 seconds max
+	}
+	for {
+		if err = ctx.Err(); err != nil {
+			return nil, err
+		}
+		response, err = c.DescribeAvailableResource(request)
+		if err == nil {
+			break
+		}
+		log.Errorf("UpdateNode:: failed to describe available resource for instance type %s: %v", instanceType, err)
+		time.Sleep(backoff.Step())
+	}
+	log.Infof("UpdateNode: record ecs openapi req: %+v, resp: %+v", request, response)
+	availableZones := response.AvailableZones.AvailableZone
+	if len(availableZones) != 1 {
+		return nil, fmt.Errorf("UpdateNode:: multi available zones error: %v", availableZones)
+	}
+
+	availableZone := availableZones[0]
+	availableResources := availableZone.AvailableResources.AvailableResource
+	if len(availableResources) != 1 {
+		return nil, fmt.Errorf("UpdateNode:: multi available resource error: %v", availableResources)
+	}
+
+	dataDisk := availableResources[0]
+	if dataDisk.Type != describeResourceType {
+		return nil, fmt.Errorf("UpdateNode:: unexpect available resource type: %v", dataDisk)
+	}
+
+	for _, resource := range dataDisk.SupportedResources.SupportedResource {
+		types = append(types, resource.Value)
+	}
+	return types, nil
+}
+
+// Retries for at most 1 hour if ECS OpenAPI or k8s API server is unavailable
 func UpdateNode(nodes corev1.NodeInterface, c ECSInterface) {
-	instanceStorageLabels := []string{}
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), UpdateNodeTimeout)
+	defer cancel()
 	nodeName := os.Getenv(kubeNodeName)
-	nodeInfo, err := nodes.Get(context.Background(), nodeName, metav1.GetOptions{})
+	nodeInfo, err := nodes.Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("UpdateNode:: get node info error : %s", err.Error())
 		return
@@ -1161,81 +1208,65 @@ func UpdateNode(nodes corev1.NodeInterface, c ECSInterface) {
 		instanceType = nodeInfo.Labels[sigmaInstanceTypeLabel]
 		zoneID = nodeInfo.Labels[sigmaLabelZoneId]
 	}
-	request := ecs.CreateDescribeAvailableResourceRequest()
-	request.InstanceType = instanceType
-	request.DestinationResource = describeResourceType
-	request.ZoneId = zoneID
-	request.ResourceType = "disk"
-	var response *ecs.DescribeAvailableResourceResponse
-	waitErr := wait.PollImmediate(updatePollInterval, 30*time.Second, func() (bool, error) {
-		response, err = c.DescribeAvailableResource(request)
+
+	instanceStorageLabels := map[string]string{}
+	if instanceType != "" && zoneID != "" {
+		ecsCtx, cancel := context.WithTimeout(ctx, GetDiskTypeTimeout)
+		defer cancel()
+		diskTypes, err := GetAvailableDiskTypes(ecsCtx, c, instanceType, zoneID)
 		if err != nil {
-			log.Errorf("UpdateNode:: describe available resource with nodeID: %s", instanceType)
-			return false, err
-		}
-		return true, nil
-	})
-	log.Infof("UpdateNode: record ecs openapi req: %+v, resp: %+v", request, response)
-	availableZones := response.AvailableZones.AvailableZone
-	if len(availableZones) == 1 {
-		availableZone := availableZones[0]
-		availableResources := availableZone.AvailableResources.AvailableResource
-		if len(availableResources) == 1 {
-			dataDisk := availableResources[0]
-			if dataDisk.Type == describeResourceType {
-				for _, resource := range dataDisk.SupportedResources.SupportedResource {
-					labelKey := fmt.Sprintf(nodeStorageLabel, resource.Value)
-					instanceStorageLabels = append(instanceStorageLabels, labelKey)
-				}
-			} else {
-				log.Errorf("UpdateNode:: multi available datadisk error: %v", availableResources)
-				return
-			}
+			log.Errorf("UpdateNode:: failed to get available disk types: %v", err)
 		} else {
-			log.Errorf("UpdateNode:: multi available resource error: %v", availableResources)
-			return
+			for _, diskType := range diskTypes {
+				labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
+				instanceStorageLabels[labelKey] = "available"
+			}
 		}
 	} else {
-		log.Errorf("UpdateNode:: multi available zones error: %v", availableZones)
-		return
+		log.Warnf("UpdateNode:: instanceType or zoneID is empty, skipping disk label update, instanceType: %s, zoneID: %s", instanceType, zoneID)
 	}
+
 	needUpdate := false
-	needUpdateLabels := []string{}
-	for _, storageLabel := range instanceStorageLabels {
-		if _, ok := nodeInfo.Labels[storageLabel]; ok {
-			continue
-		} else {
+	for l, v := range instanceStorageLabels {
+		if nodeInfo.Labels[l] != v {
 			needUpdate = true
-			needUpdateLabels = append(needUpdateLabels, storageLabel)
+			break
 		}
 	}
 
-	// Retry the update on error, until we hit a timeout.
-	// TODO: Determine whether "retry with timeout" is appropriate here. Maybe we should only retry on version conflict.
-	var lastUpdateError error
-	waitErr = wait.PollImmediate(updatePollInterval, 30*time.Second, func() (bool, error) {
-		if needUpdate {
-			newNode, err := nodes.Get(context.Background(), nodeName, metav1.GetOptions{})
-			if err != nil {
-				lastUpdateError = err
-				return false, err
-			}
-			for _, updatedLabel := range needUpdateLabels {
-				newNode.Labels[updatedLabel] = "available"
-			}
-			_, err = nodes.Update(ctx, newNode, metav1.UpdateOptions{})
-			if err != nil {
-				lastUpdateError = err
-				return false, err
-			}
-		} else {
-			log.Info("UpdateNode:: need not to update node label")
-		}
-		return true, nil
-	})
-	if waitErr != nil {
-		log.Errorf("UpdateNode:: failed to update node status: err: %v", lastUpdateError)
+	if !needUpdate {
+		log.Info("UpdateNode:: no need to update node")
+		return
 	}
+
+	// always send all metadata that we care about, so no need to worry about conflict
+	patch, err := json.Marshal(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"labels": instanceStorageLabels,
+		},
+	})
+	if err != nil {
+		log.Fatalf("UpdateNode:: failed to marshal patch json")
+	}
+
+	backoff := wait.Backoff{
+		Duration: time.Second,
+		Factor:   2.,
+		Steps:    9, // 512 seconds max
+	}
+	for {
+		_, err = nodes.Patch(ctx, nodeName, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+
+		if err == nil {
+			break
+		}
+		log.Errorf("UpdateNode:: failed to update node status: %v", err)
+		if err == ctx.Err() {
+			return
+		}
+		time.Sleep(backoff.Step())
+	}
+	log.Info("UpdateNode:: finished")
 }
 
 func getMeta(node *v1.Node) (string, string, string) {
