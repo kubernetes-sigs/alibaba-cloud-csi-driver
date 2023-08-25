@@ -1193,7 +1193,7 @@ func GetAvailableDiskTypes(ctx context.Context, c ECSInterface, instanceType, zo
 }
 
 // Retries for at most 1 hour if ECS OpenAPI or k8s API server is unavailable
-func UpdateNode(nodes corev1.NodeInterface, c ECSInterface) {
+func UpdateNode(nodes corev1.NodeInterface, c ECSInterface, maxDiskCount int64) {
 	ctx, cancel := context.WithTimeout(context.Background(), UpdateNodeTimeout)
 	defer cancel()
 	nodeName := os.Getenv(kubeNodeName)
@@ -1234,6 +1234,9 @@ func UpdateNode(nodes corev1.NodeInterface, c ECSInterface) {
 		}
 	}
 
+	maxDiskCountStr := strconv.FormatInt(maxDiskCount, 10)
+	needUpdate = needUpdate || nodeInfo.Annotations[nodeDiskCountAnnotation] != maxDiskCountStr
+
 	if !needUpdate {
 		log.Info("UpdateNode:: no need to update node")
 		return
@@ -1243,6 +1246,9 @@ func UpdateNode(nodes corev1.NodeInterface, c ECSInterface) {
 	patch, err := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"labels": instanceStorageLabels,
+			"annotations": map[string]string{
+				nodeDiskCountAnnotation: maxDiskCountStr,
+			},
 		},
 	})
 	if err != nil {
