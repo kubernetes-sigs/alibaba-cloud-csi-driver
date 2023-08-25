@@ -1145,7 +1145,7 @@ func getBlockDeviceCapacity(devicePath string) float64 {
 }
 
 // UpdateNode ...
-func UpdateNode(nodeID string, c *ecs.Client) {
+func UpdateNode(nodeID string, c ECSInterface) {
 	instanceStorageLabels := []string{}
 	ctx := context.Background()
 	nodeName := os.Getenv(kubeNodeName)

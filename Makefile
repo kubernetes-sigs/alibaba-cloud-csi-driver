@@ -15,7 +15,6 @@
 PKG=github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 
 GO111MODULE=on
-GOPROXY=direct
 REPONAME="$(shell pwd | rev | awk -F \/ '{ print $$2 }' | rev)"
 
 .EXPORT_ALL_VARIABLES:
@@ -55,3 +54,6 @@ build-nas:
 .PHONY: build-disk
 build-disk:
 	./build/build-disk.sh "" $(REPONAME)
+
+pkg/disk/ecsmock.go: pkg/disk/ecsinterface.go
+	mockgen -source pkg/disk/ecsinterface.go -destination $@ -package disk
