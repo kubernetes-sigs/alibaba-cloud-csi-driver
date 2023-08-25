@@ -1169,7 +1169,7 @@ func UpdateNode(nodeID string, c *ecs.Client) {
 	request.InstanceType = instanceType
 	request.DestinationResource = describeResourceType
 	request.ZoneId = zoneID
-	request.ResourceType = "Disk"
+	request.ResourceType = "disk"
 	var response *ecs.DescribeAvailableResourceResponse
 	waitErr := wait.PollImmediate(updatePollInterval, 30*time.Second, func() (bool, error) {
 		response, err = c.DescribeAvailableResource(request)
