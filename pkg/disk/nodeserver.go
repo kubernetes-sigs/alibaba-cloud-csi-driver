@@ -180,7 +180,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	} else {
 		log.Log.Infof("Currently node is NOT VF model")
 	}
-	go UpdateNode(GlobalConfigVar.NodeID, c)
+	go UpdateNode(GlobalConfigVar.ClientSet.CoreV1().Nodes(), c)
 
 	if GlobalConfigVar.CheckBDFHotPlugin {
 		go checkVfhpOnlineReconcile()

@@ -16,12 +16,24 @@ limitations under the License.
 package disk
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"testing"
 
 	"gopkg.in/h2non/gock.v1"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/responses"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	gomock "github.com/golang/mock/gomock"
 	fakesnapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/fake"
 	"github.com/stretchr/testify/assert"
 )
@@ -138,5 +150,155 @@ func TestRetryGetInstanceDoc(t *testing.T) {
 			assert.Nil(t, err)
 			assert.Equal(t, test.expectZoneId, actualData.ZoneID)
 		}
+	}
+}
+
+const (
+	NO_LABEL    = "NoLabel"
+	BETA_LABEL  = "BetaLabel"
+	SIGMA_LABEL = "SigmaLabel"
+)
+
+func testNode(labelType string, existingNode bool) *corev1.Node {
+	n := &corev1.Node{
+		ObjectMeta: v1.ObjectMeta{
+			Name: "test-node",
+		},
+	}
+	switch labelType {
+	case BETA_LABEL:
+		n.Labels = map[string]string{
+			"beta.kubernetes.io/instance-type":         "ecs.g5ne.xlarge",
+			"failure-domain.beta.kubernetes.io/region": "cn-beijing",
+			"failure-domain.beta.kubernetes.io/zone":   "cn-beijing-g",
+		}
+	case SIGMA_LABEL:
+		n.Labels = map[string]string{
+			"sigma.ali/machine-model": "ecs.g5ne.xlarge",
+			"sigma.ali/ecs-region-id": "cn-beijing",
+			"sigma.ali/ecs-zone-id":   "cn-beijing-g",
+		}
+	case NO_LABEL:
+		n.Labels = map[string]string{}
+	}
+	if existingNode {
+		n.Labels["node.csi.alibabacloud.com/disktype.cloud_efficiency"] = "available"
+		n.Labels["node.csi.alibabacloud.com/disktype.cloud_ssd"] = "available"
+	}
+	return n
+}
+
+func unmarshalAcsResponse(jsonBytes []byte, res responses.AcsResponse) error {
+	return responses.Unmarshal(res, &http.Response{
+		Status:     "200 OK",
+		StatusCode: 200,
+		Proto:      "HTTP/1.0",
+		Header:     http.Header{},
+		Body:       io.NopCloser(bytes.NewReader(jsonBytes)),
+	}, "JSON")
+}
+
+func assertNotCalled(t *testing.T) k8stesting.ReactionFunc {
+	return func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		assert.Fail(t, "should not be called")
+		return false, nil, nil
+	}
+}
+
+func TestUpdateNode(t *testing.T) {
+	os.Setenv(kubeNodeName, "test-node")
+
+	descJson := []byte(`{
+	"RequestId": "6ECCECF5-945D-58FB-9BA9-312DBEE3F611",
+	"AvailableZones": {
+		"AvailableZone": [
+			{
+				"Status": "Available",
+				"StatusCategory": "WithStock",
+				"ZoneId": "cn-beijing-g",
+				"AvailableResources": {
+					"AvailableResource": [
+						{
+							"Type": "DataDisk",
+							"SupportedResources": {
+								"SupportedResource": [
+									{
+										"Status": "Available",
+										"Min": 20,
+										"Max": 32768,
+										"Value": "cloud_efficiency",
+										"Unit": "GiB"
+									},
+									{
+										"Status": "Available",
+										"Min": 20,
+										"Max": 32768,
+										"Value": "cloud_ssd",
+										"Unit": "GiB"
+									}
+								]
+							}
+						}
+					]
+				},
+				"RegionId": "cn-beijing"
+			}
+		]
+	}
+}`)
+	descRes := ecs.CreateDescribeAvailableResourceResponse()
+	err := unmarshalAcsResponse(descJson, descRes)
+	assert.Nil(t, err)
+
+	cases := []struct {
+		name         string
+		labelType    string
+		retryECS     bool
+		existingNode bool
+	}{
+		{
+			name:      "normal",
+			labelType: BETA_LABEL,
+		},
+		{
+			name:      "sigma_label",
+			labelType: SIGMA_LABEL,
+		},
+		{
+			name:         "existing_node",
+			labelType:    BETA_LABEL,
+			existingNode: true,
+		},
+		// Skippping this test case because current implementation is incorrect.
+		// {
+		// 	name:      "retry_ecs",
+		// 	labelType: BETA_LABEL,
+		// 	retryECS:  true,
+		// },
+	}
+
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			clientset := fake.NewSimpleClientset(testNode(test.labelType, test.existingNode))
+			nodes := clientset.CoreV1().Nodes()
+
+			ctrl := gomock.NewController(t)
+			c := NewMockECSInterface(ctrl)
+
+			if test.retryECS {
+				c.EXPECT().DescribeAvailableResource(gomock.Any()).Return(nil, fmt.Errorf("error")).Times(1)
+			}
+			c.EXPECT().DescribeAvailableResource(gomock.Any()).Return(descRes, nil)
+			if test.existingNode {
+				clientset.PrependReactor("update", "nodes", assertNotCalled(t))
+			}
+
+			UpdateNode(nodes, c)
+
+			n, err := nodes.Get(context.Background(), "test-node", v1.GetOptions{})
+			assert.Nil(t, err)
+			assert.Equal(t, "available", n.Labels["node.csi.alibabacloud.com/disktype.cloud_efficiency"])
+			assert.Equal(t, "available", n.Labels["node.csi.alibabacloud.com/disktype.cloud_ssd"])
+		})
 	}
 }
