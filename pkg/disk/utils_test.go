@@ -182,6 +182,9 @@ func testNode(labelType string, existingNode bool) *corev1.Node {
 		n.Labels = map[string]string{}
 	}
 	if existingNode {
+		n.Annotations = map[string]string{
+			"node.csi.alibabacloud.com/allocatable-disk": "16",
+		}
 		n.Labels["node.csi.alibabacloud.com/disktype.cloud_efficiency"] = "available"
 		n.Labels["node.csi.alibabacloud.com/disktype.cloud_ssd"] = "available"
 	}
@@ -319,7 +322,7 @@ func TestUpdateNode(t *testing.T) {
 				clientset.PrependReactor("patch", "nodes", assertNotCalled(t))
 			}
 
-			UpdateNode(nodes, c)
+			UpdateNode(nodes, c, 16)
 
 			n, err := nodes.Get(context.Background(), "test-node", v1.GetOptions{})
 			assert.Nil(t, err)
@@ -327,6 +330,7 @@ func TestUpdateNode(t *testing.T) {
 				assert.Equal(t, "available", n.Labels["node.csi.alibabacloud.com/disktype.cloud_efficiency"])
 				assert.Equal(t, "available", n.Labels["node.csi.alibabacloud.com/disktype.cloud_ssd"])
 			}
+			assert.Equal(t, "16", n.Annotations["node.csi.alibabacloud.com/allocatable-disk"])
 		})
 	}
 }
