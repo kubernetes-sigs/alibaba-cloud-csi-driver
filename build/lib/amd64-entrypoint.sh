@@ -110,7 +110,7 @@ if [ "$run_oss" = "true" ]; then
     echo "ossfsArch:"${ossfsArch}
 
     # ensure openssl
-    if [[ ${host_os} = "lifsea" ]]; then
+    if [[ ${host_os} != "lifsea" ]]; then
         opensslVer=`${HOST_CMD}   openssl version | awk '{print $2}'` 
         if [ ! `${HOST_CMD}  which openssl` ] || [[ "$opensslVer" =~ ^0.* ]]; then
             for((i=1;i<=10;i++));
