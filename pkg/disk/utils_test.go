@@ -198,6 +198,16 @@ func unmarshalAcsResponse(jsonBytes []byte, res responses.AcsResponse) error {
 	}, "JSON")
 }
 
+func injectError(times int) k8stesting.ReactionFunc {
+	return func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		if times > 0 {
+			times--
+			return true, nil, fmt.Errorf("error")
+		}
+		return false, nil, nil
+	}
+}
+
 func assertNotCalled(t *testing.T) k8stesting.ReactionFunc {
 	return func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		assert.Fail(t, "should not be called")
@@ -251,10 +261,12 @@ func TestUpdateNode(t *testing.T) {
 	assert.Nil(t, err)
 
 	cases := []struct {
-		name         string
-		labelType    string
-		retryECS     bool
-		existingNode bool
+		name          string
+		labelType     string
+		retryECS      bool
+		retryPatch    bool
+		skipDiskLabel bool
+		existingNode  bool
 	}{
 		{
 			name:      "normal",
@@ -269,12 +281,21 @@ func TestUpdateNode(t *testing.T) {
 			labelType:    BETA_LABEL,
 			existingNode: true,
 		},
-		// Skippping this test case because current implementation is incorrect.
-		// {
-		// 	name:      "retry_ecs",
-		// 	labelType: BETA_LABEL,
-		// 	retryECS:  true,
-		// },
+		{
+			name:      "retry_ecs",
+			labelType: BETA_LABEL,
+			retryECS:  true,
+		},
+		{
+			name:       "retry_patch",
+			labelType:  BETA_LABEL,
+			retryPatch: true,
+		},
+		{
+			name:          "non-ack_node",
+			labelType:     NO_LABEL,
+			skipDiskLabel: true,
+		},
 	}
 
 	for _, test := range cases {
@@ -285,20 +306,27 @@ func TestUpdateNode(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			c := NewMockECSInterface(ctrl)
 
-			if test.retryECS {
-				c.EXPECT().DescribeAvailableResource(gomock.Any()).Return(nil, fmt.Errorf("error")).Times(1)
+			if !test.skipDiskLabel {
+				if test.retryECS {
+					c.EXPECT().DescribeAvailableResource(gomock.Any()).Return(nil, fmt.Errorf("error")).Times(1)
+				}
+				c.EXPECT().DescribeAvailableResource(gomock.Any()).Return(descRes, nil)
 			}
-			c.EXPECT().DescribeAvailableResource(gomock.Any()).Return(descRes, nil)
+			if test.retryPatch {
+				clientset.PrependReactor("patch", "nodes", injectError(1))
+			}
 			if test.existingNode {
-				clientset.PrependReactor("update", "nodes", assertNotCalled(t))
+				clientset.PrependReactor("patch", "nodes", assertNotCalled(t))
 			}
 
 			UpdateNode(nodes, c)
 
 			n, err := nodes.Get(context.Background(), "test-node", v1.GetOptions{})
 			assert.Nil(t, err)
-			assert.Equal(t, "available", n.Labels["node.csi.alibabacloud.com/disktype.cloud_efficiency"])
-			assert.Equal(t, "available", n.Labels["node.csi.alibabacloud.com/disktype.cloud_ssd"])
+			if !test.skipDiskLabel {
+				assert.Equal(t, "available", n.Labels["node.csi.alibabacloud.com/disktype.cloud_efficiency"])
+				assert.Equal(t, "available", n.Labels["node.csi.alibabacloud.com/disktype.cloud_ssd"])
+			}
 		})
 	}
 }

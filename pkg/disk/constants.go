@@ -175,10 +175,11 @@ const (
 	// RetryMaxTimes ...
 	RetryMaxTimes = 5
 
-	// updatePollInterval means retry after n seconds
-	retryTimeout = 30 * time.Second
-	// updatePollInterval means retry after n seconds
-	updatePollInterval = 2 * time.Second
+	// timeout for UpdateNode goroutine
+	UpdateNodeTimeout = 1 * time.Hour
+	// timeout for get supported disk types of ECS
+	// should be less than UpdateNodeTimeout
+	GetDiskTypeTimeout = 30 * time.Minute
 	// RemoteSnapshotLabelKey ...
 	RemoteSnapshotLabelKey = "csi.alibabacloud.com/snapshot.targetregion"
 	// SnapshotVolumeKey ...
