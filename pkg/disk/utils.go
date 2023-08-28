@@ -37,6 +37,7 @@ import (
 
 	"golang.org/x/sys/unix"
 	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
@@ -233,11 +234,6 @@ func run(cmd string) (string, error) {
 		return "", fmt.Errorf("Failed to run cmd: %s, with out: %s, error: %s ", cmd, out, err.Error())
 	}
 	return string(out), nil
-}
-
-func execCommand(command string, args []string) ([]byte, error) {
-	cmd := exec.Command(command, args...)
-	return cmd.CombinedOutput()
 }
 
 func createDest(dest string) error {
@@ -1150,11 +1146,11 @@ func getBlockDeviceCapacity(devicePath string) float64 {
 }
 
 // UpdateNode ...
-func UpdateNode(nodeID string, c *ecs.Client) {
+func UpdateNode(nodes corev1.NodeInterface, c ECSInterface) {
 	instanceStorageLabels := []string{}
 	ctx := context.Background()
 	nodeName := os.Getenv(kubeNodeName)
-	nodeInfo, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	nodeInfo, err := nodes.Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("UpdateNode:: get node info error : %s", err.Error())
 		return
@@ -1219,7 +1215,7 @@ func UpdateNode(nodeID string, c *ecs.Client) {
 	var lastUpdateError error
 	waitErr = wait.PollImmediate(updatePollInterval, 30*time.Second, func() (bool, error) {
 		if needUpdate {
-			newNode, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+			newNode, err := nodes.Get(context.Background(), nodeName, metav1.GetOptions{})
 			if err != nil {
 				lastUpdateError = err
 				return false, err
@@ -1227,7 +1223,7 @@ func UpdateNode(nodeID string, c *ecs.Client) {
 			for _, updatedLabel := range needUpdateLabels {
 				newNode.Labels[updatedLabel] = "available"
 			}
-			_, err = GlobalConfigVar.ClientSet.CoreV1().Nodes().Update(ctx, newNode, metav1.UpdateOptions{})
+			_, err = nodes.Update(ctx, newNode, metav1.UpdateOptions{})
 			if err != nil {
 				lastUpdateError = err
 				return false, err
