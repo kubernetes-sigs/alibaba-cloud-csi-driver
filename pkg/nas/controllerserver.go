@@ -17,6 +17,7 @@ limitations under the License.
 package nas
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -33,7 +34,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"go.uber.org/ratelimit"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"

@@ -17,10 +17,11 @@ limitations under the License.
 package mem
 
 import (
+	"context"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 type controllerServer struct {

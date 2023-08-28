@@ -19,6 +19,7 @@ limitations under the License.
 package server
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/csv"
 	"errors"
@@ -35,7 +36,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 const (
