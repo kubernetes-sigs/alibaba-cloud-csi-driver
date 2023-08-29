@@ -17,9 +17,10 @@ limitations under the License.
 package dbfs
 
 import (
+	"context"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"golang.org/x/net/context"
+	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 )
 
 type identityServer struct {
