@@ -18,6 +18,8 @@ package oss
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -29,7 +31,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"strings"
 )
 
 // controller server try to create/delete volumes
@@ -97,11 +98,6 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 	return ossVolArgs
 }
 func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
-	volName := req.GetName()
-	if len(volName) == 0 {
-		return status.Error(codes.InvalidArgument, "Volume name not provided")
-	}
-
 	log.Infof("Starting oss validate create volume request: %s, %v", req.Name, req)
 	valid, err := utils.CheckRequestArgs(req.GetParameters())
 	if !valid {

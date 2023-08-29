@@ -169,14 +169,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		log.Log.Errorf("CreateVolume: driver not support Create volume: %v", err)
 		return nil, err
 	}
-	if req.Name == "" {
-		log.Log.Errorf("CreateVolume: Volume Name cannot be empty")
-		return nil, status.Error(codes.InvalidArgument, "Volume Name cannot be empty")
-	}
-	if req.VolumeCapabilities == nil {
-		log.Log.Errorf("CreateVolume: Volume Capabilities cannot be empty")
-		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
-	}
 	if value, ok := createdVolumeMap[req.Name]; ok {
 		log.Log.Infof("CreateVolume: volume already be created pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, value.VolumeId, value.VolumeContext)
 		return &csi.CreateVolumeResponse{Volume: value}, nil
@@ -407,9 +399,6 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 			isSharedDisk = true
 		}
 	}
-	if req.VolumeId == "" || req.NodeId == "" {
-		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume missing VolumeId/NodeId in request")
-	}
 
 	_, err := attachDisk(req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk)
 	if err != nil {
@@ -448,10 +437,6 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	}
 
 	log.Log.Infof("ControllerUnpublishVolume: detach disk: %s from node: %s", req.VolumeId, req.NodeId)
-	if req.VolumeId == "" || req.NodeId == "" {
-		return nil, status.Error(codes.InvalidArgument, "ControllerUnpublishVolume missing VolumeId/NodeId in request")
-	}
-
 	err = detachDisk(ecsClient, req.VolumeId, req.NodeId)
 	if err != nil {
 		log.Log.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
@@ -564,17 +549,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
 		return nil, err
 	}
-	// Check arguments
-	if len(req.GetName()) == 0 {
-		err := status.Error(codes.InvalidArgument, "CreateSnapshot: Name missing in request")
-		return nil, err
-	}
 	sourceVolumeID := strings.Trim(req.GetSourceVolumeId(), " ")
-	if len(sourceVolumeID) == 0 {
-		err := status.Error(codes.InvalidArgument, "CreateSnapshot: SourceVolumeId missing in request")
-		return nil, err
-	}
-
 	// Need to check for already existing snapshot name
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshots, snapNum, err := findSnapshotByName(req.GetName())
@@ -756,10 +731,6 @@ func updateSnapshotIAStatus(req *csi.CreateSnapshotRequest, status string) error
 func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
 
 	// Check arguments
-	if len(req.GetSnapshotId()) == 0 {
-		err := status.Error(codes.InvalidArgument, "Snapshot ID missing in request")
-		return nil, err
-	}
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
 		return nil, err
 	}

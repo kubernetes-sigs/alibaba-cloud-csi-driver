@@ -112,14 +112,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		log.Errorf("CreateVolume: Invalid create local volume req: %v", req)
 		return nil, err
 	}
-	if req.Name == "" {
-		log.Errorf("CreateVolume: local volume Name is empty")
-		return nil, status.Error(codes.InvalidArgument, "CreateVolume: local Volume Name cannot be empty")
-	}
-	if req.VolumeCapabilities == nil {
-		log.Errorf("CreateVolume: local Volume Capabilities cannot be empty")
-		return nil, status.Error(codes.InvalidArgument, "Volume Capabilities cannot be empty")
-	}
 	pvcName, pvcNameSpace, volumeType, nodeSelected, storageSelected := "", "", "", "", ""
 
 	volumeID := req.GetName()
