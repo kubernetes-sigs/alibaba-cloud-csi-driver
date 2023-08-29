@@ -143,9 +143,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	if !strings.HasSuffix(targetPath, "/mount") {
-		return nil, status.Errorf(codes.InvalidArgument, "NodePublishVolume: volume %s malformed the value of target path: %s", req.VolumeId, targetPath)
-	}
 	if err := ns.mounter.EnsureFolder(targetPath); err != nil {
 		log.Errorf("NodePublishVolume: create volume %s path %s error: %v", req.VolumeId, targetPath, err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -271,6 +268,10 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if utils.IsMounted(targetPath) {
 		log.Errorf("NodeUnpublishVolume: TargetPath mounted yet, volumeId %s with target %s", req.VolumeId, targetPath)
 		return nil, status.Error(codes.Internal, "NodeUnpublishVolume: TargetPath mounted yet with target "+targetPath)
+	}
+	err = os.Remove(targetPath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("NodeUnpublishVolume: Cannot remove targetPath %s: %v", targetPath, err))
 	}
 
 	// below directory can not be umounted by kubelet in ack
