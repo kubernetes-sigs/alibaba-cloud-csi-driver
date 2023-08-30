@@ -55,5 +55,5 @@ build-nas:
 build-disk:
 	./build/build-disk.sh "" $(REPONAME)
 
-pkg/disk/ecsmock.go: pkg/disk/ecsinterface.go
-	mockgen -source pkg/disk/ecsinterface.go -destination $@ -package disk
+pkg/cloud/ecsmock.go: pkg/cloud/ecsinterface.go
+	mockgen -source pkg/cloud/ecsinterface.go -destination $@ -package cloud

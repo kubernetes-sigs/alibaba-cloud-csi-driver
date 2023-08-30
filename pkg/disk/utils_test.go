@@ -35,6 +35,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	gomock "github.com/golang/mock/gomock"
 	fakesnapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/fake"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -307,7 +308,7 @@ func TestUpdateNode(t *testing.T) {
 			nodes := clientset.CoreV1().Nodes()
 
 			ctrl := gomock.NewController(t)
-			c := NewMockECSInterface(ctrl)
+			c := cloud.NewMockECSInterface(ctrl)
 
 			if !test.skipDiskLabel {
 				if test.retryECS {

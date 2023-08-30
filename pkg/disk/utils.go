@@ -48,6 +48,7 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	volumeSnapshotV1 "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	proto "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -1170,7 +1171,7 @@ func getBlockDeviceCapacity(devicePath string) float64 {
 	return float64(pos) / GBSIZE
 }
 
-func GetAvailableDiskTypes(ctx context.Context, c ECSInterface, instanceType, zoneID string) (types []string, err error) {
+func GetAvailableDiskTypes(ctx context.Context, c cloud.ECSInterface, instanceType, zoneID string) (types []string, err error) {
 	request := ecs.CreateDescribeAvailableResourceRequest()
 	request.InstanceType = instanceType
 	request.DestinationResource = describeResourceType
@@ -1217,7 +1218,7 @@ func GetAvailableDiskTypes(ctx context.Context, c ECSInterface, instanceType, zo
 }
 
 // Retries for at most 1 hour if ECS OpenAPI or k8s API server is unavailable
-func UpdateNode(nodes corev1.NodeInterface, c ECSInterface, maxDiskCount int64) {
+func UpdateNode(nodes corev1.NodeInterface, c cloud.ECSInterface, maxDiskCount int64) {
 	ctx, cancel := context.WithTimeout(context.Background(), UpdateNodeTimeout)
 	defer cancel()
 	nodeName := os.Getenv(kubeNodeName)
