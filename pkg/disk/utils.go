@@ -119,9 +119,13 @@ func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 	}
 
 	if os.Getenv("INTERNAL_MODE") == "true" {
-		ecsClient.Network = "openapi-share"
 		if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
 			aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
+		} else {
+			err := cloud.ECSQueryEndpoint(regionID, ecsClient)
+			if err != nil {
+				log.Fatalf("Internal mode, but query for ECS endpoint failed: %v", err)
+			}
 		}
 	} else {
 		// Set Unitized Endpoint for hangzhou region
@@ -138,9 +142,6 @@ func updateEcsClient(client *ecs.Client) *ecs.Client {
 	}
 	if client.Client.GetConfig() != nil {
 		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
-	}
-	if os.Getenv("INTERNAL_MODE") == "true" {
-		client.Network = "openapi-share"
 	}
 	return client
 }

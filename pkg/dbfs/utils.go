@@ -28,6 +28,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -130,9 +131,13 @@ func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 	}
 
 	if os.Getenv("INTERNAL_MODE") == "true" {
-		ecsClient.Network = "openapi-share"
 		if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
 			aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
+		} else {
+			err := cloud.ECSQueryEndpoint(regionID, ecsClient)
+			if err != nil {
+				log.Log.Fatalf("Internal mode, but query for ECS endpoint failed: %v", err)
+			}
 		}
 	} else {
 		// use environment endpoint setting first;
