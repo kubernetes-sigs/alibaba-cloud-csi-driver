@@ -23,6 +23,7 @@ import (
 )
 
 const fuseMountTimeout = time.Second * 30
+const fuseMountNamespace = "kube-system"
 
 const (
 	FuseTypeLabelKey          = "csi.alibabacloud.com/fuse-type"
@@ -33,7 +34,7 @@ const (
 
 type FuseMounterType interface {
 	name() string
-	buildPodSpec(source, target, fstype string, options, mountFlags []string, nodeName string) (corev1.PodSpec, error)
+	buildPodSpec(source, target, fstype string, options, mountFlags []string, nodeName, volumeId string) (corev1.PodSpec, error)
 }
 
 type FuseContainerConfig struct {
@@ -98,7 +99,7 @@ func NewContainerizedFuseMounterFactory(
 	return &ContainerizedFuseMounterFactory{
 		fuseType:  fuseType,
 		nodeName:  nodeName,
-		namespace: "kube-system",
+		namespace: fuseMountNamespace,
 		client:    client,
 	}
 }
@@ -227,7 +228,7 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 		rawPod.GenerateName = fmt.Sprintf("csi-fuse-%s-", mounter.name())
 		rawPod.Labels = labels
 		rawPod.Annotations = map[string]string{FuseMountPathAnnoKey: target}
-		rawPod.Spec, err = mounter.buildPodSpec(source, target, fstype, options, mountFlags, mounter.nodeName)
+		rawPod.Spec, err = mounter.buildPodSpec(source, target, fstype, options, mountFlags, mounter.nodeName, mounter.volumeId)
 		if err != nil {
 			return err
 		}

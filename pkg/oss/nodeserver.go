@@ -20,11 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -36,15 +34,17 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	mountutils "k8s.io/mount-utils"
 )
 
 type nodeServer struct {
 	*csicommon.DefaultNodeServer
-	writeCredentialMutex sync.Mutex
-	dynamicClient        dynamic.Interface
-	sharedPathLock       *utils.VolumeLocks
-	ossfsMounterFac      *mounter.ContainerizedFuseMounterFactory
+	nodeName        string
+	clientset       kubernetes.Interface
+	dynamicClient   dynamic.Interface
+	sharedPathLock  *utils.VolumeLocks
+	ossfsMounterFac *mounter.ContainerizedFuseMounterFactory
 }
 
 // Options contains options for target oss
@@ -77,8 +77,6 @@ const (
 	JindoFsType = "jindofs"
 	// metricsPathPrefix
 	metricsPathPrefix = "/host/var/run/ossfs/"
-	// regionTag
-	regionTag = "region-id"
 )
 
 func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
@@ -239,8 +237,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// If you do not use sts authentication, save ak
 	if opt.AuthType != "sts" {
 		if opt.FuseType == OssFsType {
-			if err := ns.saveOssCredential(opt); err != nil {
-				return nil, errors.New("Save ossfs ak is failed, err: " + err.Error())
+			// ossfs fuse pod will mount the secret to access credentials
+			err := mounter.SetupOssfsCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId, opt.Bucket, opt.AkID, opt.AkSecret)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to setup ossfs credential secret: %v", err)
 			}
 		} else if opt.FuseType == JindoFsType {
 			mountOptions = append(mountOptions, fmt.Sprintf("fs.oss.accessKeyId=%s,fs.oss.accessKeySecret=%s", opt.AkID, opt.AkSecret))
@@ -312,65 +312,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
-// save ak file: bucket:ak_id:ak_secret
-func saveOssfsCredential(options *Options) error {
-	oldContentByte := []byte{}
-	if utils.IsFileExisting(OssfsCredentialFile) {
-		tmpValue, err := ioutil.ReadFile(OssfsCredentialFile)
-		if err != nil {
-			return err
-		}
-		oldContentByte = tmpValue
-	}
-
-	oldContentStr := string(oldContentByte[:])
-	newContentStr := ""
-	for _, line := range strings.Split(oldContentStr, "\n") {
-		lineList := strings.Split(line, ":")
-		if len(lineList) != 3 || lineList[0] == options.Bucket {
-			continue
-		}
-		newContentStr += line + "\n"
-	}
-
-	newContentStr = options.Bucket + ":" + options.AkID + ":" + options.AkSecret + "\n" + newContentStr
-	if err := utils.WriteAndSyncFile(OssfsCredentialFile, []byte(newContentStr), 0640); err != nil {
-		log.Errorf("Save ossfs passwd-ossfs credential file is failed, err: %s", err)
-		return err
-	}
-	return nil
-}
-
-func uniqOssfsCredential() {
-	curOssInfoByte := []byte{}
-	if utils.IsFileExisting(OssfsCredentialFile) {
-		curOssInfoByte, _ = ioutil.ReadFile(OssfsCredentialFile)
-	}
-	curOssInfoStr := string(curOssInfoByte[:])
-	curOssInfoStrArray := strings.Split(curOssInfoStr, "\n")
-	uniqOssInfoStrArray := removeDuplicateElement(curOssInfoStrArray)
-	uniqOssInfoStr := ""
-	for _, line := range uniqOssInfoStrArray {
-		uniqOssInfoStr = uniqOssInfoStr + line + "\n"
-	}
-	if err := utils.WriteAndSyncFile(OssfsCredentialFile, []byte(uniqOssInfoStr), 0640); err != nil {
-		log.Errorf("Uniq credential file is failed, %s, %s", uniqOssInfoStr, err)
-		return
-	}
-}
-
-func removeDuplicateElement(languages []string) []string {
-	result := make([]string, 0, len(languages))
-	temp := map[string]struct{}{}
-	for _, item := range languages {
-		if _, ok := temp[item]; !ok {
-			temp[item] = struct{}{}
-			result = append(result, item)
-		}
-	}
-	return result
-}
-
 // Check oss options
 func checkOssOptions(opt *Options) error {
 	if opt.URL == "" || opt.Bucket == "" {
@@ -397,19 +338,6 @@ func checkOssOptions(opt *Options) error {
 		}
 	}
 
-	return nil
-}
-
-func (ns *nodeServer) saveOssCredential(opt *Options) error {
-	// Save ak file for ossfs, exist same entry
-	ns.writeCredentialMutex.Lock()
-	defer ns.writeCredentialMutex.Unlock()
-	if err := saveOssfsCredential(opt); err != nil {
-		log.Errorf("Save ossfs ak is failed, err: %s", err.Error())
-		return errors.New("Save ossfs ak is failed, err: " + err.Error())
-	}
-	//The same entry will exist concurrently, will to uniq same entry.
-	uniqOssfsCredential()
 	return nil
 }
 
@@ -460,6 +388,10 @@ func (ns *nodeServer) NodeUnstageVolume(
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", mountpoint, err)
 	}
 	log.Infof("NodeUnstageVolume: umount OSS Successful: %s", mountpoint)
+	err = mounter.CleanupOssfsCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to cleanup ossfs credential secret: %v", err)
+	}
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 

@@ -123,6 +123,8 @@ func newNodeServer(driver *csicommon.CSIDriver) *nodeServer {
 
 	return &nodeServer{
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(driver),
+		nodeName:          nodeName,
+		clientset:         clientset,
 		dynamicClient:     crdClient,
 		sharedPathLock:    utils.NewVolumeLocks(),
 		ossfsMounterFac:   mounter.NewContainerizedFuseMounterFactory(mounter.NewFuseOssfs(configmap), clientset, nodeName),
