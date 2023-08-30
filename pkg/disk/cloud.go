@@ -27,6 +27,7 @@ import (
 	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	log "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	perrors "github.com/pkg/errors"
@@ -1050,7 +1051,7 @@ func IsDiskCreatedByCsi(disk ecs.Disk) bool {
 	return false
 }
 
-func deleteDisk(ecsClient ECSInterface, diskId string) (*ecs.DeleteDiskResponse, error) {
+func deleteDisk(ecsClient cloud.ECSInterface, diskId string) (*ecs.DeleteDiskResponse, error) {
 	deleteDiskRequest := ecs.CreateDeleteDiskRequest()
 	deleteDiskRequest.DiskId = diskId
 
