@@ -806,7 +806,7 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 		return newListSnapshotsResponse(snapshot)
 	case snapNum > 1:
 		log.Log.Errorf("ListSnapshots:: Find Snapshot id[%s], but get more than 1 instance", req.SnapshotId)
-		err := status.Error(codes.Internal, fmt.Sprint("ListSnapshots:: Find Snapshot id but get more than 1 instance"))
+		err := status.Error(codes.Internal, "ListSnapshots:: Find Snapshot id but get more than 1 instance")
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotTooMany, err.Error())
 		return nil, err
 	case err != nil:
@@ -833,7 +833,7 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 			entries := []*csi.ListSnapshotsResponse_Entry{entry}
 			return &csi.ListSnapshotsResponse{Entries: entries}, nil
 		}
-		return nil, status.Error(codes.Internal, fmt.Sprint("ListSnapshots:: Expect to find snapshot by volumeID but get volumeID is null"))
+		return nil, status.Error(codes.Internal, "ListSnapshots:: Expect to find snapshot by volumeID but get volumeID is null")
 	}
 	nextToken := req.GetStartingToken()
 	maxEntries := int(req.GetMaxEntries())
