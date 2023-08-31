@@ -1056,7 +1056,7 @@ func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
 			return nil
 		}
 		if newVolumeID != volumeID {
-			return status.Error(codes.Internal, fmt.Sprintf("device [%s] associate with volumeID: [%s] rather than volumeID: [%s]", device, newVolumeID, volumeID))
+			return status.Errorf(codes.Internal, "device [%s] associate with volumeID: [%s] rather than volumeID: [%s]", device, newVolumeID, volumeID)
 		}
 
 		return nil
