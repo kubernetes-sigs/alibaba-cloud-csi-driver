@@ -110,34 +110,36 @@ if [ "$run_oss" = "true" ]; then
     echo "ossfsArch:"${ossfsArch}
 
     # ensure openssl
-    opensslVer=`${HOST_CMD}   openssl version | awk '{print $2}'` 
-    if [ ! `${HOST_CMD}  which openssl` ] || [[ "$opensslVer" =~ ^0.* ]]; then
-        for((i=1;i<=10;i++));
-        do
-            ${HOST_CMD} yum install -y openssl
-            if [ $? -eq 0 ]; then
-                opensslVer=`${HOST_CMD}   openssl version | awk '{print $2}'` 
-                echo "OpenSSL has installed : $opensslVer"
-                break
-            else
-                echo "Starting retry install OpenSSL .retry count:$i"
-            fi
-        done
-    fi  
+    if [[ ${host_os} != "lifsea" ]]; then
+        opensslVer=`${HOST_CMD}   openssl version | awk '{print $2}'` 
+        if [ ! `${HOST_CMD}  which openssl` ] || [[ "$opensslVer" =~ ^0.* ]]; then
+            for((i=1;i<=10;i++));
+            do
+                ${HOST_CMD} yum install -y openssl
+                if [ $? -eq 0 ]; then
+                    opensslVer=`${HOST_CMD}   openssl version | awk '{print $2}'` 
+                    echo "OpenSSL has installed : $opensslVer"
+                    break
+                else
+                    echo "Starting retry install OpenSSL .retry count:$i"
+                fi
+            done
+        fi  
 
-    sslDevelVer=`${HOST_CMD}  rpm -q openssl-devel`
-    if [ $? -ne 0 ]; then
-        for((i=1;i<=10;i++));
-        do
-            ${HOST_CMD} yum install -y openssl-devel
-            if [ $? -eq 0 ]; then
-                sslDevelVer=`${HOST_CMD}  rpm -q openssl-devel`
-                echo "OpenSSL-devel has installed : $sslDevelVer"
-                break
-            else
-                echo "Starting retry install OpenSSL-devel .retry count:$i"
-            fi
-        done
+        sslDevelVer=`${HOST_CMD}  rpm -q openssl-devel`
+        if [ $? -ne 0 ]; then
+            for((i=1;i<=10;i++));
+            do
+                ${HOST_CMD} yum install -y openssl-devel
+                if [ $? -eq 0 ]; then
+                    sslDevelVer=`${HOST_CMD}  rpm -q openssl-devel`
+                    echo "OpenSSL-devel has installed : $sslDevelVer"
+                    break
+                else
+                    echo "Starting retry install OpenSSL-devel .retry count:$i"
+                fi
+            done
+        fi
     fi
 
 
@@ -162,19 +164,17 @@ if [ "$run_oss" = "true" ]; then
 
 	if [[ ${reconcileOssFS} == "install" ]]; then
       if [[ ${host_os} == "lifsea" ]]; then
-          for((i=1;i<=5;i++));
-          do
-            echo "Starting install ossfs in ${host_os}."
+        echo "Starting install ossfs in ${host_os}."
+        ${HOST_CMD} rpm2cpio /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | ${HOST_CMD} cpio -idmv
+        if [ $? -ne 0 ]; then
             rpm2cpio /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | cpio -idmv
             if [ $? -eq 0 ]; then
-                break
+                cp ./usr/local/bin/ossfs /host/etc/csi-tool/
+                ${HOST_CMD} cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
             else
-                echo "Starting retry again install ossfs in ${host_os}.retry count:$i"
-                sleep 2
+                echo "Install ossfs failed in ${host_os}."
             fi
-          done
-          cp ./usr/local/bin/ossfs /host/etc/csi-tool/
-          ${HOST_CMD} cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
+        fi
       else
           for((i=1;i<=5;i++));
           do
@@ -192,20 +192,17 @@ if [ "$run_oss" = "true" ]; then
 
     if [[ ${reconcileOssFS} == "upgrade" ]]; then
       if [[ ${host_os} == "lifsea" ]]; then
-          ${HOST_CMD}  rm /usr/local/bin/ossfs
-          for((i=1;i<=5;i++));
-          do
-            echo "Starting upgrade ossfs in ${host_os}."
+        ${HOST_CMD}  rm /usr/local/bin/ossfs
+        ${HOST_CMD} rpm2cpio /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | ${HOST_CMD} cpio -idmv
+        if [ $? -ne 0 ]; then
             rpm2cpio /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | cpio -idmv
             if [ $? -eq 0 ]; then
-                break
+                cp ./usr/local/bin/ossfs /host/etc/csi-tool/
+                ${HOST_CMD} cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
             else
-                echo "Starting retry again upgrade ossfs in ${host_os}.retry count:$i"
-                sleep 2
+                echo "Install ossfs failed in ${host_os}."
             fi
-          done
-          cp ./usr/local/bin/ossfs /host/etc/csi-tool/
-          ${HOST_CMD}  cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
+        fi
       else
           ${HOST_CMD}  yum remove -y ossfs
           for((i=1;i<=5;i++));

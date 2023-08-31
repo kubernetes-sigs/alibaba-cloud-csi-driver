@@ -130,11 +130,18 @@ if [ "$run_oss" = "true" ]; then
         fi
     fi
 
-		if [[ ${reconcileOssFS} == "install" ]]; then
+	if [[ ${reconcileOssFS} == "install" ]]; then
       if [[ ${host_os} == "lifsea" ]]; then
-          rpm2cpio /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | cpio -idmv
-          cp ./usr/local/bin/ossfs /host/etc/csi-tool/
-          /nsenter --mount=/proc/1/ns/mnt cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
+        ${HOST_CMD} rpm2cpio /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | ${HOST_CMD} cpio -idmv
+        if [ $? -ne 0 ]; then
+            rpm2cpio /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | cpio -idmv
+            if [ $? -eq 0 ]; then
+                cp ./usr/local/bin/ossfs /host/etc/csi-tool/
+                ${HOST_CMD} cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
+            else
+                echo "Install ossfs failed in ${host_os}."
+            fi
+        fi
       else
           /nsenter --mount=/proc/1/ns/mnt rpm -ivh --nodeps /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
       fi
@@ -142,10 +149,17 @@ if [ "$run_oss" = "true" ]; then
 
     if [[ ${reconcileOssFS} == "upgrade" ]]; then
       if [[ ${host_os} == "lifsea" ]]; then
-          /nsenter --mount=/proc/1/ns/mnt rm /usr/local/bin/ossfs
-          rpm2cpio /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | cpio -idmv
-          cp ./usr/local/bin/ossfs /host/etc/csi-tool/
-          /nsenter --mount=/proc/1/ns/mnt cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
+        /nsenter --mount=/proc/1/ns/mnt rm /usr/local/bin/ossfs
+        ${HOST_CMD} rpm2cpio /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | ${HOST_CMD} cpio -idmv
+        if [ $? -ne 0 ]; then
+            rpm2cpio /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | cpio -idmv
+            if [ $? -eq 0 ]; then
+                cp ./usr/local/bin/ossfs /host/etc/csi-tool/
+                ${HOST_CMD} cp /etc/csi-tool/ossfs /usr/local/bin/ossfs
+            else
+                echo "Install ossfs failed in ${host_os}."
+            fi
+        fi
       else
           /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
           /nsenter --mount=/proc/1/ns/mnt rpm -ivh --nodeps /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
