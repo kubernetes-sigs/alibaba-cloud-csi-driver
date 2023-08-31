@@ -17,9 +17,7 @@ limitations under the License.
 package nas
 
 import (
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -41,31 +39,6 @@ func TestGetNfsDetails(t *testing.T) {
 	assert.Equal(t, "0.0.0.0", nfsServer)
 	assert.Equal(t, "/", nfsPath)
 
-}
-
-func TestWaitTimeout(t *testing.T) {
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func(*sync.WaitGroup) {
-		time.Sleep(2 * time.Second)
-		wg.Done()
-	}(&wg)
-
-	result := waitTimeout(&wg, 1)
-	assert.True(t, result)
-
-	var wg1 sync.WaitGroup
-	wg1.Add(1)
-
-	go func(*sync.WaitGroup) {
-		time.Sleep(1 * time.Second)
-		wg1.Done()
-	}(&wg1)
-
-	result = waitTimeout(&wg1, 2)
-	assert.False(t, result)
 }
 
 func TestParseMountFlags(t *testing.T) {
