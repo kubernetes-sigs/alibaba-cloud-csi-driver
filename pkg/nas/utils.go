@@ -32,6 +32,7 @@ import (
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
@@ -386,7 +387,7 @@ func ParseMountFlags(mntOptions []string) (string, string) {
 	var vers string
 	var otherOptions []string
 	for _, options := range mntOptions {
-		for _, option := range strings.Split(options, ",") {
+		for _, option := range mounter.SplitMountOptions(options) {
 			if option == "" {
 				continue
 			}
