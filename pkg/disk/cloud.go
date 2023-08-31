@@ -963,7 +963,6 @@ func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (r
 	}
 	log.Log.Infof("request: request content: %++v", *createDiskRequest)
 	volumeRes, err := ecsClient.CreateDisk(createDiskRequest)
-	log.Log.Errorf("request: err: %v", err)
 	if err == nil {
 		log.Log.Infof("request: diskId: %s, reqId: %s", volumeRes.DiskId, volumeRes.RequestId)
 		return true, volumeRes.DiskId, nil
@@ -979,7 +978,7 @@ func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (r
 	} else {
 		log.Log.Errorf("request: create disk for volume %s with type: %s err: %v", createDiskRequest.DiskName, createDiskRequest.DiskCategory, err)
 		newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskProvision)
-		return true, "", status.Error(codes.Internal, newErrMsg)
+		return true, "", fmt.Errorf("%s: %w", newErrMsg, err)
 	}
 }
 
