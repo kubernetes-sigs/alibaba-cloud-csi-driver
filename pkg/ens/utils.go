@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
@@ -19,12 +20,6 @@ import (
 const (
 	// LastApplyKey key
 	LastApplyKey = "kubectl.kubernetes.io/last-applied-configuration"
-	// PvNameKey key
-	PvNameKey = "csi.storage.k8s.io/pv/name"
-	// PvcNameKey key
-	PvcNameKey = "csi.storage.k8s.io/pvc/name"
-	// PvcNamespaceKey key
-	PvcNamespaceKey = "csi.storage.k8s.io/pvc/namespace"
 	// StorageProvisionerKey key
 	StorageProvisionerKey = "volume.beta.kubernetes.io/storage-provisioner"
 	// labelAppendPrefix key
@@ -114,10 +109,14 @@ func ValidateCreateVolumeParams(params map[string]string) (*DiskParams, error) {
 
 // updateVolumeContext remove unnecessary volume context
 func updateVolumeContext(volumeContext map[string]string) map[string]string {
-	for _, key := range []string{LastApplyKey, PvNameKey, PvcNameKey, PvcNamespaceKey, StorageProvisionerKey, "csi.alibabacloud.com/reclaimPolicy", "csi.alibabacloud.com/storageclassName", "allowVolumeExpansion", "volume.kubernetes.io/selected-node"} {
-		if _, ok := volumeContext[key]; ok {
-			delete(volumeContext, key)
-		}
+	for _, key := range []string{
+		LastApplyKey,
+		common.PVNameKey,
+		common.PVCNameKey,
+		common.PVCNamespaceKey,
+		StorageProvisionerKey, "csi.alibabacloud.com/reclaimPolicy", "csi.alibabacloud.com/storageclassName", "allowVolumeExpansion", "volume.kubernetes.io/selected-node"} {
+
+		delete(volumeContext, key)
 	}
 
 	return volumeContext

@@ -48,6 +48,7 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	volumeSnapshotV1 "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	proto "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	perrors "github.com/pkg/errors"
@@ -811,7 +812,9 @@ func validateDiskVolumeCreateOptions(kv map[string]string) error {
 // getDiskVolumeOptions
 func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error) {
 	var ok bool
-	diskVolArgs := &diskVolumeArgs{}
+	diskVolArgs := &diskVolumeArgs{
+		DiskTags: map[string]string{},
+	}
 	volOptions := req.GetParameters()
 
 	validateDiskVolumeCreateOptions(volOptions)
@@ -905,11 +908,26 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	diskTags, ok := volOptions["diskTags"]
 	if ok {
 		for _, tag := range strings.Split(diskTags, ",") {
-			tagParts := strings.Split(tag, ":")
-			if len(tagParts) != 2 {
-				return nil, status.Errorf(codes.Internal, "Invalid diskTags format name: %s tags: %s", req.GetName(), diskTags)
+			k, v, found := strings.Cut(tag, ":")
+			if !found {
+				return nil, status.Errorf(codes.InvalidArgument, "Invalid diskTags format name: %s tags: %s", req.GetName(), diskTags)
 			}
-			diskVolArgs.DiskTags = append(diskVolArgs.DiskTags, tag)
+			diskVolArgs.DiskTags[k] = v
+		}
+	}
+	// k8s PV info as disk tags
+	{
+		pvcName, ok := volOptions[common.PVCNameKey]
+		if ok {
+			diskVolArgs.DiskTags[common.PVCNameTag] = pvcName
+		}
+		pvName, ok := volOptions[common.PVNameKey]
+		if ok {
+			diskVolArgs.DiskTags[common.PVNameTag] = pvName
+		}
+		ns, ok := volOptions[common.PVCNamespaceKey]
+		if ok {
+			diskVolArgs.DiskTags[common.PVCNamespaceTag] = ns
 		}
 	}
 
@@ -1522,13 +1540,15 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.V
 // updateVolumeContext remove unnecessary volume context
 func updateVolumeContext(volumeContext map[string]string) map[string]string {
 	for _, key := range []string{
-		LastApplyKey, PvNameKey, PvcNameKey, PvcNamespaceKey,
+		LastApplyKey,
+		common.PVNameKey,
+		common.PVCNameKey,
+		common.PVCNamespaceKey,
 		StorageProvisionerKey, "csi.alibabacloud.com/reclaimPolicy",
 		"csi.alibabacloud.com/storageclassName",
 		"allowVolumeExpansion", "volume.kubernetes.io/selected-node"} {
-		if _, ok := volumeContext[key]; ok {
-			delete(volumeContext, key)
-		}
+
+		delete(volumeContext, key)
 	}
 
 	return volumeContext
