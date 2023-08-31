@@ -293,10 +293,10 @@ func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi
 func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	pvs, err := getPVBympId(req.GetVolumeId())
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to get pv by mpId: %s err: %v", req.GetVolumeId(), err))
+		return nil, status.Errorf(codes.InvalidArgument, "failed to get pv by mpId: %s err: %v", req.GetVolumeId(), err)
 	}
 	if len(pvs) == 0 {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to get pv by mpId: %s", req.GetVolumeId()))
+		return nil, status.Errorf(codes.InvalidArgument, "failed to get pv by mpId: %s", req.GetVolumeId())
 	}
 
 	var fsId string
@@ -304,7 +304,7 @@ func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *cs
 		log.Log.Infof("ControllerPublishVolume: pv:[%s]'s fsId: %s", pvs[0].Name, value)
 		fsId = value
 	} else {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("failed to get fsId by mpId: %s, pvs: %+v", req.GetVolumeId(), pvs))
+		return nil, status.Errorf(codes.InvalidArgument, "failed to get fsId by mpId: %s, pvs: %+v", req.GetVolumeId(), pvs)
 	}
 
 	requestID, err := d.cloud.AttachVscMountPoint(ctx, req.GetVolumeId(), fsId, req.GetNodeId())
@@ -336,7 +336,7 @@ VSCREADY:
 		}
 	}
 	if vscId == "" {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("can't get vscId by fsId: %s, mpId: %s, instanceId: %s", fsId, req.GetVolumeId(), req.GetNodeId()))
+		return nil, status.Errorf(codes.Internal, "can't get vscId by fsId: %s, mpId: %s, instanceId: %s", fsId, req.GetVolumeId(), req.GetNodeId())
 	}
 	log.Log.Infof("ControllerPublishVolume: patch pv vsc vscid: %v mpId: %v", vscId, req.GetVolumeId())
 	if err := patchVscId2PV(fsId, vscId, req.GetVolumeId(), req.GetNodeId()); err != nil {

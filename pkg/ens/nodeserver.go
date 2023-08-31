@@ -265,7 +265,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 	err = os.Remove(targetPath)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("NodeUnpublishVolume: Cannot remove targetPath %s: %v", targetPath, err))
+		return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume: Cannot remove targetPath %s: %v", targetPath, err)
 	}
 
 	// below directory can not be umounted by kubelet in ack
@@ -345,7 +345,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		if err != nil {
 			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
 			log.Errorf("NodeStageVolume: Attach volume: %s with error: %s", req.VolumeId, fullErrorMessage)
-			return nil, status.Error(codes.Aborted, fmt.Sprintf("NodeStageVolume: Attach volume: %s with error: %+v", req.VolumeId, err))
+			return nil, status.Errorf(codes.Aborted, "NodeStageVolume: Attach volume: %s with error: %+v", req.VolumeId, err)
 		}
 	}
 
