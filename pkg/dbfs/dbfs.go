@@ -52,9 +52,6 @@ type DBFS struct {
 	idServer         *csicommon.DefaultIdentityServer
 	nodeServer       *nodeServer
 	controllerServer csi.ControllerServer
-
-	cap   []*csi.VolumeCapability_AccessMode
-	cscap []*csi.ControllerServiceCapability
 }
 
 // NewDriver create the identity/node/controller server and dbfs driver

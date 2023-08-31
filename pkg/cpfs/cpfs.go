@@ -38,9 +38,6 @@ type CPFS struct {
 	idServer         *csicommon.DefaultIdentityServer
 	nodeServer       *nodeServer
 	controllerServer csi.ControllerServer
-
-	cap   []*csi.VolumeCapability_AccessMode
-	cscap []*csi.ControllerServiceCapability
 }
 
 // NewDriver create a cpfs driver object

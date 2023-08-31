@@ -27,7 +27,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
@@ -41,8 +40,7 @@ import (
 )
 
 type nodeServer struct {
-	dbfsClient dbfs.Client
-	clientSet  *kubernetes.Clientset
+	clientSet *kubernetes.Clientset
 	*csicommon.DefaultNodeServer
 	nodeID            string
 	maxVolumesPerNode int64

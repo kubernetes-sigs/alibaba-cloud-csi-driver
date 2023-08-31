@@ -18,8 +18,6 @@ const (
 	OSSSocketPath = "/run/csi-tool/connector/connector.sock"
 	// DiskSocketPath socket path
 	DiskSocketPath = "/run/csi-tool/connector/diskconnector.sock"
-	// ShellPath is the fsfreeze shell path
-	ShellPath = "/etc/csi-tool/fsfreeze.sh"
 	// GetPathDevice get the device of specific path
 	GetPathDevice = "df --output=source %s"
 )

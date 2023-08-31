@@ -36,20 +36,6 @@ import (
 )
 
 const (
-	// DRIVER tag
-	DRIVER = "driver"
-	// SERVER tag
-	SERVER = "server"
-	// MODE tag
-	MODE = "mode"
-	// ModeType tag
-	ModeType = "modeType"
-	// PATH tag
-	PATH = "path"
-	// ProtocolType tag
-	ProtocolType = "protocolType"
-	// FileSystemType tag
-	FileSystemType = "fileSystemType"
 	// ZoneID tag
 	ZoneID = "zoneId"
 	// ZoneIDTag tag

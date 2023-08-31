@@ -31,25 +31,17 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 const (
-	// MetadataURL is metadata url
-	MetadataURL = "http://100.100.100.200/latest/meta-data/"
 	// RegionTag is region id
 	RegionTag = "region-id"
 	// NsenterCmd is the nsenter command
 	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
 	// GetDBFSMountCmd get dbfs mount path
 	GetDBFSMountCmd = "/usr/sbin/get_dbfs_mount_path"
-)
-
-var (
-	// KubernetesAlicloudIdentity is the system identity for ecs client request
-	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Nas-%s", version.VERSION)
 )
 
 func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint string, volumeID string) error {
@@ -303,19 +295,6 @@ func isPodMounted(pvName string) (bool, error) {
 		return false, nil
 	}
 	return true, nil
-}
-
-// GetPvNameFormMntPoint get pv name
-func GetPvNameFormMntPoint(mntPath string) string {
-	if mntPath == "" {
-		return ""
-	}
-	if strings.HasSuffix(mntPath, "/mount") {
-		tmpPath := mntPath[0 : len(mntPath)-6]
-		pvName := filepath.Base(tmpPath)
-		return pvName
-	}
-	return ""
 }
 
 // getDbfsVersion get dbfs config version from config file
