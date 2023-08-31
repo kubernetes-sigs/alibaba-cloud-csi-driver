@@ -97,7 +97,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	if actualDiskType == "" || actualDiskID == "" {
 		log.Errorf("CreateVolume: no disk created")
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("no disk created by regionID: %s, diskType: %s, requestGB: %s", diskParams.RegionID, diskParams.DiskType, requestGB))
+		return nil, status.Errorf(codes.InvalidArgument, "no disk created by regionID: %s, diskType: %s, requestGB: %s", diskParams.RegionID, diskParams.DiskType, requestGB)
 	}
 	volumeContext := updateVolumeContext(req.GetParameters())
 	volumeContext["type"] = actualDiskType

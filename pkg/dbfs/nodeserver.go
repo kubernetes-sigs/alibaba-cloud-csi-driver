@@ -247,7 +247,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	// Do mount
 	if err := ns.DoDBFSMount(req, req.StagingTargetPath, req.VolumeId); err != nil {
 		log.Log.Errorf("NodeStageVolume: Stage DBFS %s with error: %s", req.VolumeId, err.Error())
-		return nil, status.Error(codes.Internal, fmt.Sprintf("NodeStageVolume: Stage DBFS volumeid: %s, err: %v", req.VolumeId, err.Error()))
+		return nil, status.Errorf(codes.Internal, "NodeStageVolume: Stage DBFS volumeid: %s, err: %v", req.VolumeId, err.Error())
 	}
 
 	log.Log.Infof("NodeStageVolume: Stage DBFS Successful, volumeId: %s target %v", req.VolumeId, req.StagingTargetPath)

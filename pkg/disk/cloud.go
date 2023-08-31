@@ -814,7 +814,7 @@ func requestAndCreateSnapshot(ecsClient *ecs.Client, sourceVolumeID, snapshotNam
 	// Do Snapshot create
 	snapshotResponse, err := ecsClient.CreateSnapshot(createSnapshotRequest)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed create snapshot: %v", err))
+		return nil, status.Errorf(codes.Internal, "failed create snapshot: %v", err)
 	}
 	return snapshotResponse, nil
 }
@@ -828,7 +828,7 @@ func requestAndDeleteSnapshot(snapshotID string, forceDelete bool) (*ecs.DeleteS
 	}
 	response, err := GlobalConfigVar.EcsClient.DeleteSnapshot(deleteSnapshotRequest)
 	if err != nil {
-		return response, status.Error(codes.Internal, fmt.Sprintf("failed delete snapshot: %v", err))
+		return response, status.Errorf(codes.Internal, "failed delete snapshot: %v", err)
 	}
 	return response, nil
 }
@@ -928,7 +928,7 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 		}
 		err = rerr
 	}
-	return "", "", "", status.Error(codes.Internal, fmt.Sprintf("createDisk: err: %v, the zone:[%s] is not support specific disk type, please change the request disktype: %s or disk pl: %s", err, diskVol.ZoneID, diskTypes, diskPLs))
+	return "", "", "", status.Errorf(codes.Internal, "createDisk: err: %v, the zone:[%s] is not support specific disk type, please change the request disktype: %s or disk pl: %s", err, diskVol.ZoneID, diskTypes, diskPLs)
 }
 
 // reuse rpcrequest in ecs sdk is forbidden, because parameters can't be reassigned with empty string.(ecs sdk bug)
@@ -1008,7 +1008,7 @@ cusDiskType:
 		provisionDiskTypes = intersect(nodeSupportDiskType, allTypes)
 		if len(provisionDiskTypes) == 0 {
 			log.Log.Errorf("CreateVolume:: node(%s) support type: [%v] is incompatible with provision disk type: [%s]", diskVol.NodeSelected, nodeSupportDiskType, allTypes)
-			return nil, nil, status.Error(codes.InvalidArgument, fmt.Sprintf("CreateVolume:: node support type: [%v] is incompatible with provision disk type: [%s]", nodeSupportDiskType, allTypes))
+			return nil, nil, status.Errorf(codes.InvalidArgument, "CreateVolume:: node support type: [%v] is incompatible with provision disk type: [%s]", nodeSupportDiskType, allTypes)
 		}
 	} else {
 		provisionDiskTypes = allTypes

@@ -461,7 +461,7 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, st
 	if value, ok := params[RETENTIONDAYS]; ok {
 		days, err := strconv.Atoi(value)
 		if err != nil {
-			err := status.Error(codes.InvalidArgument, fmt.Sprintf("CreateSnapshot: retentiondays err %s", value))
+			err := status.Errorf(codes.InvalidArgument, "CreateSnapshot: retentiondays err %s", value)
 			return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
 		}
 		retentionDays = days
@@ -469,7 +469,7 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, st
 	if value, ok := params[INSTANTACCESSRETENTIONDAYS]; ok {
 		days, err := strconv.Atoi(value)
 		if err != nil {
-			err := status.Error(codes.InvalidArgument, fmt.Sprintf("CreateSnapshot: retentiondays err %s", value))
+			err := status.Errorf(codes.InvalidArgument, "CreateSnapshot: retentiondays err %s", value)
 			return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
 		}
 		instantAccessRetentionDays = days
@@ -576,7 +576,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 			}, nil
 		}
 		log.Log.Errorf("CreateSnapshot:: Snapshot already exist with same name: name[%s], volumeID[%s]", req.Name, existsSnapshot.SourceDiskId)
-		err := status.Error(codes.AlreadyExists, fmt.Sprintf("snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName()))
+		err := status.Errorf(codes.AlreadyExists, "snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName())
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotAlreadyExist, err.Error())
 		return nil, err
 	case snapNum > 1:
@@ -586,7 +586,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		return nil, err
 	case err != nil:
 		log.Log.Errorf("CreateSnapshot:: Expect to find Snapshot name[%s], but get error: %v", req.Name, err)
-		e := status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot: get snapshot with error: %s", err.Error()))
+		e := status.Errorf(codes.Internal, "CreateSnapshot: get snapshot with error: %s", err.Error())
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
 		return nil, e
 	}
@@ -606,14 +606,14 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	disks := getDisk(sourceVolumeID, ecsClient)
 	if len(disks) == 0 {
 		log.Log.Warnf("CreateSnapshot: no disk found: %s", sourceVolumeID)
-		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID))
+		return nil, status.Errorf(codes.Internal, "CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID)
 	} else if len(disks) != 1 {
 		log.Log.Warnf("CreateSnapshot: multi disk found: %s", sourceVolumeID)
-		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID))
+		return nil, status.Errorf(codes.Internal, "CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID)
 	}
 	// if disks[0].Status != "In_use" {
 	// 	log.Errorf("CreateSnapshot: disk [%s] not attached, status: [%s]", sourceVolumeID, disks[0].Status)
-	// 	e := status.Error(codes.InvalidArgument, fmt.Sprintf("CreateSnapshot:: target disk: %v must be attached", sourceVolumeID))
+	// 	e := status.Errorf(codes.InvalidArgument, "CreateSnapshot:: target disk: %v must be attached", sourceVolumeID)
 	// 	utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
 	// 	return nil, e
 	// }
@@ -757,7 +757,7 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 		return &csi.DeleteSnapshotResponse{}, nil
 	case snapNum > 1:
 		log.Log.Errorf("DeleteSnapshot: snapShot cannot be deleted %s, with more than 1 snapshot", snapshotID)
-		err = status.Error(codes.Internal, fmt.Sprintf("snapShot cannot be deleted %s, with more than 1 snapshot", snapshotID))
+		err = status.Errorf(codes.Internal, "snapShot cannot be deleted %s, with more than 1 snapshot", snapshotID)
 		return nil, err
 	}
 
@@ -806,12 +806,12 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 		return newListSnapshotsResponse(snapshot)
 	case snapNum > 1:
 		log.Log.Errorf("ListSnapshots:: Find Snapshot id[%s], but get more than 1 instance", req.SnapshotId)
-		err := status.Error(codes.Internal, fmt.Sprint("ListSnapshots:: Find Snapshot id but get more than 1 instance"))
+		err := status.Error(codes.Internal, "ListSnapshots:: Find Snapshot id but get more than 1 instance")
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotTooMany, err.Error())
 		return nil, err
 	case err != nil:
 		log.Log.Errorf("CreateSnapshot:: Expect to find Snapshot id[%s], but get error: %v", req.SnapshotId, err)
-		e := status.Error(codes.Internal, fmt.Sprintf("ListSnapshots:: Expect to find Snapshot id but get error: %v", err.Error()))
+		e := status.Errorf(codes.Internal, "ListSnapshots:: Expect to find Snapshot id but get error: %v", err.Error())
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
 		return nil, e
 	}
@@ -833,7 +833,7 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 			entries := []*csi.ListSnapshotsResponse_Entry{entry}
 			return &csi.ListSnapshotsResponse{Entries: entries}, nil
 		}
-		return nil, status.Error(codes.Internal, fmt.Sprint("ListSnapshots:: Expect to find snapshot by volumeID but get volumeID is null"))
+		return nil, status.Error(codes.Internal, "ListSnapshots:: Expect to find snapshot by volumeID but get volumeID is null")
 	}
 	nextToken := req.GetStartingToken()
 	maxEntries := int(req.GetMaxEntries())
@@ -845,7 +845,7 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 	describeRequest.DiskId = volumeID
 	response, err := GlobalConfigVar.EcsClient.DescribeSnapshots(describeRequest)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("ListSnapshots:: Request describeSnapshots error: %+v", err))
+		return nil, status.Errorf(codes.Internal, "ListSnapshots:: Request describeSnapshots error: %+v", err)
 	}
 	if response.PageSize == 0 {
 		return &csi.ListSnapshotsResponse{}, nil
@@ -1143,7 +1143,7 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 	if err != nil {
 		log.Log.Errorf("ControllerExpandVolume:: volumeExpandAutoSnapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", volumeExpandAutoSnapshotName, sourceVolumeID, err.Error())
 		cs.recorder.Event(pvc, v1.EventTypeWarning, snapshotCreateError, err.Error())
-		return nil, status.Error(codes.Internal, fmt.Sprintf("volumeExpandAutoSnapshot create Failed: %v", err))
+		return nil, status.Errorf(codes.Internal, "volumeExpandAutoSnapshot create Failed: %v", err)
 	}
 
 	// as a IA snapshot, volumeExpandAutoSnapshot should be ready immediately
@@ -1183,7 +1183,7 @@ func (cs *controllerServer) deleteVolumeExpandAutoSnapshot(ctx context.Context, 
 		}
 
 		cs.recorder.Event(pvc, v1.EventTypeWarning, snapshotDeleteError, err.Error())
-		return status.Error(codes.Internal, fmt.Sprintf("volumeExpandAutoSnapshot delete Failed: %v", err))
+		return status.Errorf(codes.Internal, "volumeExpandAutoSnapshot delete Failed: %v", err)
 	}
 
 	str := fmt.Sprintf("ControllerExpandVolume:: Successfully delete snapshot %s", snapshotID)
