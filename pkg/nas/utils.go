@@ -399,45 +399,25 @@ func checkSystemNasConfig() {
 
 // ParseMountFlags parse mountOptions
 func ParseMountFlags(mntOptions []string) (string, string) {
-	if len(mntOptions) > 0 {
-		mntOptionsStr := strings.Join(mntOptions, ",")
-		// mntOptions should re-split, as some like ["a,b,c", "d"]
-		mntOptionsList := strings.Split(mntOptionsStr, ",")
-		tmpOptionsList := []string{}
-
-		if strings.Contains(mntOptionsStr, "vers=3.0") {
-			for _, tmpOptions := range mntOptionsList {
-				if tmpOptions != "vers=3.0" {
-					tmpOptionsList = append(tmpOptionsList, tmpOptions)
-				}
+	var vers string
+	var otherOptions []string
+	for _, options := range mntOptions {
+		for _, option := range strings.Split(options, ",") {
+			if option == "" {
+				continue
 			}
-			return "3", strings.Join(tmpOptionsList, ",")
-		} else if strings.Contains(mntOptionsStr, "vers=3") {
-			for _, tmpOptions := range mntOptionsList {
-				if tmpOptions != "vers=3" {
-					tmpOptionsList = append(tmpOptionsList, tmpOptions)
-				}
+			key, value, found := strings.Cut(option, "=")
+			if found && key == "vers" {
+				vers = value
+			} else {
+				otherOptions = append(otherOptions, option)
 			}
-			return "3", strings.Join(tmpOptionsList, ",")
-		} else if strings.Contains(mntOptionsStr, "vers=4.0") {
-			for _, tmpOptions := range mntOptionsList {
-				if tmpOptions != "vers=4.0" {
-					tmpOptionsList = append(tmpOptionsList, tmpOptions)
-				}
-			}
-			return "4.0", strings.Join(tmpOptionsList, ",")
-		} else if strings.Contains(mntOptionsStr, "vers=4.1") {
-			for _, tmpOptions := range mntOptionsList {
-				if tmpOptions != "vers=4.1" {
-					tmpOptionsList = append(tmpOptionsList, tmpOptions)
-				}
-			}
-			return "4.1", strings.Join(tmpOptionsList, ",")
-		} else {
-			return "", strings.Join(mntOptions, ",")
 		}
 	}
-	return "", ""
+	if vers == "3.0" {
+		vers = "3"
+	}
+	return vers, strings.Join(otherOptions, ",")
 }
 
 func createLosetupPv(fullPath string, volSizeBytes int64) error {
