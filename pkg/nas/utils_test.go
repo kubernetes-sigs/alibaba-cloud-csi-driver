@@ -24,12 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDoMount(t *testing.T) {
-	//err := DoMount(MountProtocolNFS, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, "podUID", "false")
-	//assert.NotNil(t, err)
-
-}
-
 func TestGetNfsDetails(t *testing.T) {
 
 	nfsServerString := "0.0.0.0"
@@ -75,32 +69,55 @@ func TestWaitTimeout(t *testing.T) {
 }
 
 func TestParseMountFlags(t *testing.T) {
-
-	mntOptions1 := []string{"mnt=/test", "vers=3.0"}
-
-	ver, result := ParseMountFlags(mntOptions1)
-
-	assert.Equal(t, "3", ver)
-	assert.Equal(t, "mnt=/test", result)
-
-	mntOptions2 := []string{"mnt=/test", "vers=3"}
-
-	ver, result = ParseMountFlags(mntOptions2)
-
-	assert.Equal(t, "3", ver)
-	assert.Equal(t, "mnt=/test", result)
-
-	mntOptions3 := []string{"mnt=/test", "vers=4.0"}
-
-	ver, result = ParseMountFlags(mntOptions3)
-
-	assert.Equal(t, "4.0", ver)
-	assert.Equal(t, "mnt=/test", result)
-
-	mntOptions4 := []string{"mnt=/test", "vers=4.1"}
-
-	ver, result = ParseMountFlags(mntOptions4)
-
-	assert.Equal(t, "4.1", ver)
-	assert.Equal(t, "mnt=/test", result)
+	type args struct {
+		mntOptions []string
+	}
+	tests := []struct {
+		name  string
+		args  args
+		want  string
+		want1 string
+	}{
+		{
+			"vers=3",
+			args{[]string{"mnt=/test", "vers=3.0"}},
+			"3", "mnt=/test",
+		},
+		{
+			"vers=3.0",
+			args{[]string{"mnt=/test", "vers=3.0"}},
+			"3", "mnt=/test",
+		},
+		{
+			"vers=4",
+			args{[]string{"mnt=/test", "vers=4"}},
+			"4", "mnt=/test",
+		},
+		{
+			"vers=4.0",
+			args{[]string{"mnt=/test", "vers=4.0"}},
+			"4.0", "mnt=/test",
+		},
+		{
+			"vers=4.1",
+			args{[]string{"mnt=/test", "vers=4.1"}},
+			"4.1", "mnt=/test",
+		},
+		{
+			"no vers",
+			args{[]string{"mnt=/test", "a=b,,c=d"}},
+			"", "mnt=/test,a=b,c=d",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1 := ParseMountFlags(tt.args.mntOptions)
+			if got != tt.want {
+				t.Errorf("ParseMountFlags() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("ParseMountFlags() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
 }
