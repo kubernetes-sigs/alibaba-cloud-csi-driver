@@ -20,13 +20,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
@@ -256,20 +254,6 @@ func SetNasEndPoint(regionID string) {
 	}
 }
 
-func waitTimeout(wg *sync.WaitGroup, timeout int) bool {
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		wg.Wait()
-	}()
-	select {
-	case <-c:
-		return false
-	case <-time.After(time.Duration(timeout) * time.Second):
-		return true
-	}
-}
-
 func createSubDir(mounter mountutils.Interface, nfsProtocol, nfsServer, nfsPath string, nfsOptions []string, volumeID string) error {
 	rootPath := "/"
 	usePath := nfsPath
@@ -487,7 +471,7 @@ func mountLosetupPv(mounter mountutils.Interface, mountPoint string, opt *Option
 		return fmt.Errorf("mountLosetupPv: mount nfs losetup error %s", err.Error())
 	}
 	lockContent := GlobalConfigVar.NodeID + ":" + GlobalConfigVar.NodeIP
-	if err := ioutil.WriteFile(lockFile, ([]byte)(lockContent), 0644); err != nil {
+	if err := os.WriteFile(lockFile, ([]byte)(lockContent), 0644); err != nil {
 		return err
 	}
 	return nil
