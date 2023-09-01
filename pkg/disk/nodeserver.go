@@ -1138,7 +1138,7 @@ func deleteVolumeExpandAutoSnapshot(ctx context.Context, volumeExpandAutoSnapsho
 
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 
-	response, err := requestAndDeleteSnapshot(volumeExpandAutoSnapshotID, veasp.ForceDelete)
+	response, err := requestAndDeleteSnapshot(volumeExpandAutoSnapshotID)
 	if err != nil {
 		if response != nil {
 			log.Log.Errorf("NodeExpandVolume:: fail to delete %s with error: %s", volumeExpandAutoSnapshotID, err.Error())

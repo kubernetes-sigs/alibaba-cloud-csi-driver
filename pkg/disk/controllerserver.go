@@ -80,35 +80,13 @@ type diskVolumeArgs struct {
 	BurstingEnabled         bool                `json:"burstingEnabled"`
 }
 
-// Alicloud disk snapshot parameters
-type diskSnapshot struct {
-	Name         string               `json:"name"`
-	ID           string               `json:"id"`
-	VolID        string               `json:"volID"`
-	Path         string               `json:"path"`
-	CreationTime *timestamp.Timestamp `json:"creationTime"`
-	SizeBytes    int64                `json:"sizeBytes"`
-	ReadyToUse   bool                 `json:"readyToUse"`
-	SnapshotTags []ecs.Tag            `json:"snapshotTags"`
-}
-
-type volumeExpandAutoSnapshotParam struct {
-	IDKey                       string
-	Prefix                      string
-	InstantAccess               bool
-	ForceDelete                 bool
-	RetentionDays               int
-	InstanceAccessRetentionDays int
-}
-
 var veasp = struct {
 	IDKey                       string
 	Prefix                      string
 	InstantAccess               bool
-	ForceDelete                 bool
 	RetentionDays               int
 	InstanceAccessRetentionDays int
-}{"volumeExpandAutoSnapshotID", "volume-expand-auto-snapshot-", true, true, 1, 1}
+}{"volumeExpandAutoSnapshotID", "volume-expand-auto-snapshot-", true, 1, 1}
 
 var delVolumeSnap sync.Map
 
@@ -637,11 +615,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 
 	// init createSnapshotRequest and parameters
 	createAt := ptypes.TimestampNow()
-	forceDelete := false
-	if value, ok := req.Parameters[SNAPSHOTFORCETAG]; ok && value == "true" {
-		forceDelete = true
-	}
-	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, sourceVolumeID, req.GetName(), resourceGroupID, retentionDays, instantAccessRetentionDays, useInstanceAccess, forceDelete)
+	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, sourceVolumeID, req.GetName(), resourceGroupID, retentionDays, instantAccessRetentionDays, useInstanceAccess)
 
 	if err != nil {
 		log.Log.Errorf("CreateSnapshot:: Snapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", req.Name, req.GetSourceVolumeId(), err.Error())
@@ -698,7 +672,7 @@ func snapshotBeforeDelete(volumeID string, ecsClient *ecs.Client) error {
 	if value, ok := delVolumeSnap.Load(volumeID); ok {
 		return createStaticSnap(volumeID, value.(string), GlobalConfigVar.SnapClient)
 	}
-	resp, err := requestAndCreateSnapshot(ecsClient, volumeID, deleteVolumeSnapshotName, "", iValue, iValue, true, true)
+	resp, err := requestAndCreateSnapshot(ecsClient, volumeID, deleteVolumeSnapshotName, "", iValue, iValue, true)
 	if err != nil {
 		return err
 	}
@@ -747,9 +721,8 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	snapshotID := req.GetSnapshotId()
 	log.Log.Infof("DeleteSnapshot:: starting delete snapshot %s", snapshotID)
 
-	// Check Snapshot exist and forceDelete tag;
+	// Check Snapshot exist
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-	forceDelete := false
 	snapshot, snapNum, err := findDiskSnapshotByID(req.SnapshotId)
 	if err != nil {
 		return nil, err
@@ -757,12 +730,6 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 
 	existsSnapshots := snapshot.Snapshots.Snapshot
 	switch {
-	case snapNum == 1 && existsSnapshots != nil:
-		for _, tag := range existsSnapshots[0].Tags.Tag {
-			if tag.TagKey == SNAPSHOTTAGKEY1 && tag.TagValue == "true" {
-				forceDelete = true
-			}
-		}
 	case snapNum == 0 && err == nil:
 		log.Log.Infof("DeleteSnapshot: snapShot not exist for expect %s, return successful", snapshotID)
 		return &csi.DeleteSnapshotResponse{}, nil
@@ -782,7 +749,7 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	// log.Log snapshot
 	log.Log.Infof("DeleteSnapshot: Snapshot %s exist with Info: %+v, %+v", snapshotID, existsSnapshots[0], err)
 
-	response, err := requestAndDeleteSnapshot(snapshotID, forceDelete)
+	response, err := requestAndDeleteSnapshot(snapshotID)
 	if err != nil {
 		if response != nil {
 			log.Log.Errorf("DeleteSnapshot: fail to delete %s: with RequestId: %s, error: %s", snapshotID, response.RequestId, err.Error())
@@ -1150,7 +1117,7 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 
 	// init createSnapshotRequest and parameters
 	createAt := timestamppb.New(cur)
-	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, sourceVolumeID, volumeExpandAutoSnapshotName, "", veasp.RetentionDays, veasp.InstanceAccessRetentionDays, veasp.InstantAccess, veasp.ForceDelete)
+	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, sourceVolumeID, volumeExpandAutoSnapshotName, "", veasp.RetentionDays, veasp.InstanceAccessRetentionDays, veasp.InstantAccess)
 	if err != nil {
 		log.Log.Errorf("ControllerExpandVolume:: volumeExpandAutoSnapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", volumeExpandAutoSnapshotName, sourceVolumeID, err.Error())
 		cs.recorder.Event(pvc, v1.EventTypeWarning, snapshotCreateError, err.Error())
@@ -1183,11 +1150,10 @@ func (cs *controllerServer) deleteVolumeExpandAutoSnapshot(ctx context.Context, 
 		return err
 	}
 
-	// Check Snapshot exist and forceDelete tag;
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 
 	// Delete Snapshot
-	response, err := requestAndDeleteSnapshot(snapshotID, veasp.ForceDelete)
+	response, err := requestAndDeleteSnapshot(snapshotID)
 	if err != nil {
 		if response != nil {
 			log.Log.Errorf("ControllerExpandVolume:: fail to delete %s with error: %s", snapshotID, err.Error())
