@@ -51,7 +51,7 @@ rules:
     verbs: ["get", "list", "watch", "create", "update", "patch"]
   - apiGroups: [""]
     resources: ["nodes"]
-    verbs: ["get", "update", "list"]
+    verbs: ["get", "update", "patch", "list"]
   - apiGroups: ["csi.storage.k8s.io"]
     resources: ["csinodeinfos"]
     verbs: ["get", "list", "watch"]
