@@ -2,7 +2,7 @@ package mounter
 
 import (
 	"context"
-	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -179,12 +179,16 @@ func SetupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Interf
 		return nil
 	}
 	// patch secret
-	_, err = secretClient.Patch(
-		ctx,
-		OssfsCredentialSecretName,
-		types.StrategicMergePatchType,
-		[]byte(fmt.Sprintf(`{"data": {"%s": "%s"}}`, key, base64.StdEncoding.EncodeToString([]byte(value)))),
-		metav1.PatchOptions{})
+	patch := corev1.Secret{
+		Data: map[string][]byte{
+			key: []byte(value),
+		},
+	}
+	patchData, err := json.Marshal(patch)
+	if err != nil {
+		return err
+	}
+	_, err = secretClient.Patch(ctx, OssfsCredentialSecretName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
 	if err == nil {
 		log.WithField("volumeId", volumeId).Infof("patched secret %s", OssfsCredentialSecretName)
 	}
@@ -206,12 +210,16 @@ func CleanupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Inte
 		return nil
 	}
 	// patch secret
-	_, err = secretClient.Patch(
-		ctx,
-		OssfsCredentialSecretName,
-		types.StrategicMergePatchType,
-		[]byte(fmt.Sprintf(`{"data": {"%s": null}}`, key)),
-		metav1.PatchOptions{})
+	patch := corev1.Secret{
+		Data: map[string][]byte{
+			key: nil,
+		},
+	}
+	patchData, err := json.Marshal(patch)
+	if err != nil {
+		return err
+	}
+	_, err = secretClient.Patch(ctx, OssfsCredentialSecretName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
 	if err == nil {
 		log.WithField("volumeId", volumeId).Infof("patched secret %s to remove credentials", OssfsCredentialSecretName)
 	}
