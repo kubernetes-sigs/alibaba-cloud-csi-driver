@@ -787,7 +787,7 @@ func DescribeDiskInstanceEvents(instanceId string, ecsClient *ecs.Client) (event
 }
 
 func requestAndCreateSnapshot(ecsClient *ecs.Client, sourceVolumeID, snapshotName, resourceGroupID string, retentionDays, instantAccessRetentionDays int,
-	instantAccess, forceDelete bool) (*ecs.CreateSnapshotResponse, error) {
+	instantAccess bool) (*ecs.CreateSnapshotResponse, error) {
 	// init createSnapshotRequest and parameters
 	createSnapshotRequest := ecs.CreateCreateSnapshotRequest()
 	createSnapshotRequest.DiskId = sourceVolumeID
@@ -805,10 +805,8 @@ func requestAndCreateSnapshot(ecsClient *ecs.Client, sourceVolumeID, snapshotNam
 	snapshotTags := []ecs.CreateSnapshotTag{}
 	tag1 := ecs.CreateSnapshotTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
 	snapshotTags = append(snapshotTags, tag1)
-	if forceDelete {
-		tag2 := ecs.CreateSnapshotTag{Key: SNAPSHOTTAGKEY1, Value: "true"}
-		snapshotTags = append(snapshotTags, tag2)
-	}
+	tag2 := ecs.CreateSnapshotTag{Key: SNAPSHOTTAGKEY1, Value: "true"}
+	snapshotTags = append(snapshotTags, tag2)
 	createSnapshotRequest.Tag = &snapshotTags
 
 	// Do Snapshot create
@@ -819,13 +817,11 @@ func requestAndCreateSnapshot(ecsClient *ecs.Client, sourceVolumeID, snapshotNam
 	return snapshotResponse, nil
 }
 
-func requestAndDeleteSnapshot(snapshotID string, forceDelete bool) (*ecs.DeleteSnapshotResponse, error) {
+func requestAndDeleteSnapshot(snapshotID string) (*ecs.DeleteSnapshotResponse, error) {
 	// Delete Snapshot
 	deleteSnapshotRequest := ecs.CreateDeleteSnapshotRequest()
 	deleteSnapshotRequest.SnapshotId = snapshotID
-	if forceDelete {
-		deleteSnapshotRequest.Force = requests.NewBoolean(true)
-	}
+	deleteSnapshotRequest.Force = requests.NewBoolean(true)
 	response, err := GlobalConfigVar.EcsClient.DeleteSnapshot(deleteSnapshotRequest)
 	if err != nil {
 		return response, status.Errorf(codes.Internal, "failed delete snapshot: %v", err)
