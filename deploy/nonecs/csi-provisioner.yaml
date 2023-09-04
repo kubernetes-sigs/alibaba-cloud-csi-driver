@@ -64,7 +64,7 @@ spec:
       priorityClassName: system-node-critical
       containers:
         - name: external-nas-provisioner
-          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-provisioner:v3.0.0-080f01e64-aliyun
+          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-provisioner:v3.5.0-e7da67e52-aliyun
           resources:
             requests:
               cpu: 10m
@@ -117,7 +117,7 @@ spec:
           env:
           - name: ADDRESS
             value: /var/lib/kubelet/csi-provisioner/ossplugin.csi.alibabacloud.com/csi.sock
-          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-provisioner:v3.0.0-080f01e64-aliyun
+          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-provisioner:v3.5.0-e7da67e52-aliyun
           resources:
             limits:
               cpu: 500m
