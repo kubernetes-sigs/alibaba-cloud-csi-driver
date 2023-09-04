@@ -1050,7 +1050,7 @@ func IsDiskCreatedByCsi(disk ecs.Disk) bool {
 	return false
 }
 
-func deleteDisk(ecsClient *ecs.Client, diskId string) (*ecs.DeleteDiskResponse, error) {
+func deleteDisk(ecsClient ECSInterface, diskId string) (*ecs.DeleteDiskResponse, error) {
 	deleteDiskRequest := ecs.CreateDeleteDiskRequest()
 	deleteDiskRequest.DiskId = diskId
 
