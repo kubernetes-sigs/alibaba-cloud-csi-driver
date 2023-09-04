@@ -285,10 +285,16 @@ func getInstanceDoc() (*instanceDocument, error) {
 	if err != nil {
 		return nil, err
 	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("getInstanceDoc: failed to get instance doc, status code: %d, body: %s", resp.StatusCode, string(body))
+	}
 
 	result := &instanceDocument{}
 	if err = json.Unmarshal(body, result); err != nil {
 		return nil, err
+	}
+	if result.InstanceID == "" || result.RegionID == "" || result.ZoneID == "" {
+		return nil, fmt.Errorf("getInstanceDoc: got invalid instance doc, body: %s", string(body))
 	}
 
 	return result, nil
