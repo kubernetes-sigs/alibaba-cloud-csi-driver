@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -918,21 +917,13 @@ func IsPathAvailiable(path string) error {
 	return nil
 }
 
-func RemoveAll(deletePath string) error {
-	return os.RemoveAll(deletePath)
-}
-
-func MkdirAll(path string, mode fs.FileMode) error {
-	return os.MkdirAll(path, mode)
-}
-
 func WriteMetricsInfo(metricsPathPrefix string, req *csi.NodePublishVolumeRequest, metricsTop string, clientName string, storageBackendName string, fsName string) {
 	podUIDPath := metricsPathPrefix + req.VolumeContext["csi.storage.k8s.io/pod.uid"] + "/"
 	mountPointPath := podUIDPath + req.GetVolumeId() + "/"
 	podInfoName := "pod_info"
 	mountPointName := "mount_point_info"
 	if !IsFileExisting(mountPointPath) {
-		_ = MkdirAll(mountPointPath, os.FileMode(0755))
+		_ = os.MkdirAll(mountPointPath, os.FileMode(0755))
 	}
 	if !IsFileExisting(podUIDPath + podInfoName) {
 		info := req.VolumeContext["csi.storage.k8s.io/pod.namespace"] + " " +
