@@ -68,6 +68,7 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 	ossVolArgs := &Options{}
 	volOptions := req.GetParameters()
 	secret := req.GetSecrets()
+	volCaps := req.GetVolumeCapabilities()
 	ossVolArgs.Path = "/"
 	for k, v := range volOptions {
 		key := strings.TrimSpace(strings.ToLower(k))
@@ -97,6 +98,13 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 			ossVolArgs.AkID = value
 		} else if key == "aksecret" {
 			ossVolArgs.AkSecret = value
+		}
+	}
+	ossVolArgs.ReadOnly = true
+	for _, c := range volCaps {
+		switch c.AccessMode.GetMode() {
+		case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER, csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER, csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER:
+			ossVolArgs.ReadOnly = false
 		}
 	}
 	return ossVolArgs
