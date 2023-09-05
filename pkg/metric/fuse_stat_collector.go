@@ -479,7 +479,7 @@ func NewFuseStatCollector() (Collector, error) {
 func getPodUID(fsClientPathPrefix string, fsClientType string) ([]string, error) {
 	fsClientPath := fsClientPathPrefix + fsClientType
 	if !utils.IsFileExisting(fsClientPath) {
-		_ = utils.MkdirAll(fsClientPath, os.FileMode(0755))
+		_ = os.MkdirAll(fsClientPath, os.FileMode(0755))
 	}
 	return listDirectory(fsClientPathPrefix + fsClientType)
 }
