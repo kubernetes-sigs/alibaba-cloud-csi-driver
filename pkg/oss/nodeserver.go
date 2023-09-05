@@ -236,6 +236,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				return nil, errors.New("Create OSS volume fail: " + err.Error())
 			}
 			mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s %s %s", opt.Bucket, opt.Path, sharedPath, opt.URL, opt.OtherOpts, credentialProvider, useSse)
+			if opt.ReadOnly {
+				mntCmd = mntCmd + " -oro"
+			}
 			if opt.FuseType == JindoFsType {
 				mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s %s", sharedPath, opt.Bucket, opt.Path, opt.URL, credentialProvider, useSse)
 			}
