@@ -56,6 +56,7 @@ type Options struct {
 	AuthType      string `json:"authType"`
 	FuseType      string `json:"fuseType"`
 	MetricsTop    string `json:"metricsTop"`
+	ReadOnly      bool   `json:"readOnly"`
 }
 
 const (
@@ -129,6 +130,17 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.MetricsTop = strings.ToLower(strings.TrimSpace(value))
 		} else if key == "containernetworkfilesystem" {
 			cnfsName = value
+		}
+	}
+
+	if req.Readonly {
+		opt.ReadOnly = true
+	} else {
+		switch req.VolumeCapability.AccessMode.GetMode() {
+		case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER, csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER, csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER:
+			opt.ReadOnly = false
+		default:
+			opt.ReadOnly = true
 		}
 	}
 
@@ -212,6 +224,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 		log.Infof("NodePublishVolume:: Start mount operation from source [%s] to dest [%s]", sharedPath, mountPath)
 		options := []string{"bind"}
+		if opt.ReadOnly {
+			options = append(options, "ro")
+		}
 		if err := ns.k8smounter.Mount(sharedPath, mountPath, "", options); err != nil {
 			log.Errorf("Ossfs mount error: %v", err.Error())
 			return nil, errors.New("Create oss volume fail: " + err.Error())
@@ -234,6 +249,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 
 		mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s %s", opt.Bucket, opt.Path, mountPath, opt.URL, opt.OtherOpts, credentialProvider)
+		if opt.ReadOnly {
+			mntCmd = mntCmd + " -oro"
+		}
 		if opt.FuseType == JindoFsType {
 			mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s", mountPath, opt.Bucket, opt.Path, opt.URL, credentialProvider)
 		}
