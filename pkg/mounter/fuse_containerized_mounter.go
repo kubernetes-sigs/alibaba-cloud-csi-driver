@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -167,12 +168,10 @@ func (mounter *ContainerizedFuseMounter) Mount(source string, target string, fst
 }
 
 func (mounter *ContainerizedFuseMounter) Unmount(target string) error {
-	_, listOptions := mounter.labelsAndListOptionsFor(target)
-	err := mounter.client.CoreV1().Pods(mounter.namespace).DeleteCollection(mounter.ctx, metav1.DeleteOptions{}, listOptions)
+	err := mounter.cleanupFusePods(mounter.ctx, target)
 	if err != nil {
-		return fmt.Errorf("delete fuse pod: %w", err)
+		return fmt.Errorf("cleanup fuse pods: %w", err)
 	}
-	mounter.log.Infof("deleted fuse pod for %s", target)
 	return nil
 }
 
@@ -277,16 +276,34 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 	})
 	if err != nil {
 		if mounter.atomic {
-			mounter.log.Warnf("failed to wait for pod %s to be ready, deleting fuse pods for %s", fusePod.Name, target)
-			deleteErr := podClient.DeleteCollection(context.Background(), metav1.DeleteOptions{}, listOptions)
+			mounter.log.Warnf("failed to wait for pod %s to be ready, deleting it", fusePod.Name)
+			deleteErr := podClient.Delete(context.Background(), fusePod.Name, metav1.DeleteOptions{})
 			if deleteErr != nil {
-				mounter.log.Errorf("delete fuse pods for %s: %v", target, deleteErr)
+				mounter.log.WithError(deleteErr).Errorf("delete fuse pod %s", fusePod.Name)
 			}
 		}
 		return err
 	}
 	mounter.log.Infof("fuse pod %s is ready", fusePod.Name)
 	return nil
+}
+
+func (mounter *ContainerizedFuseMounter) cleanupFusePods(ctx context.Context, target string) error {
+	podClient := mounter.client.CoreV1().Pods(mounter.namespace)
+	_, listOptions := mounter.labelsAndListOptionsFor(target)
+	podList, err := podClient.List(ctx, listOptions)
+	if err != nil {
+		return err
+	}
+	var errs []error
+	for _, pod := range podList.Items {
+		if pod.Annotations[FuseMountPathAnnoKey] == target {
+			mounter.log.WithField("target", target).Infof("deleting fuse pod %s", pod.Name)
+			err := podClient.Delete(ctx, pod.Name, metav1.DeleteOptions{})
+			errs = append(errs, err)
+		}
+	}
+	return utilerrors.NewAggregate(errs)
 }
 
 func isFusePodReady(pod *corev1.Pod) bool {
