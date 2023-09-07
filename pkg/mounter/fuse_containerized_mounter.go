@@ -44,6 +44,9 @@ type FuseContainerConfig struct {
 }
 
 func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (config FuseContainerConfig) {
+	if configmap == nil {
+		return
+	}
 	config.Resources.Requests = make(corev1.ResourceList)
 	config.Resources.Limits = make(corev1.ResourceList)
 	content := configmap.Data["fuse-"+name]
@@ -82,7 +85,7 @@ func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 			logrus.Warnf("ignore invalid configuration line: %q", line)
 		}
 	}
-	return config
+	return
 }
 
 type ContainerizedFuseMounterFactory struct {

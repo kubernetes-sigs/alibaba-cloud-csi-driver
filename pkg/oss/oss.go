@@ -27,6 +27,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -112,7 +113,7 @@ func newNodeServer(driver *csicommon.CSIDriver) *nodeServer {
 		log.Fatalf("Create client set is failed, err: %v", err)
 	}
 	configmap, err := clientset.CoreV1().ConfigMaps("kube-system").Get(context.Background(), "csi-plugin", metav1.GetOptions{})
-	if err != nil {
+	if err != nil && !errors.IsNotFound(err) {
 		log.Fatalf("failed to get configmap kube-system/csi-plugin: %v", err)
 	}
 
