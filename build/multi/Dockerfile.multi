@@ -3,12 +3,16 @@ FROM --platform=$BUILDPLATFORM golang:1.20.7 as build
 WORKDIR /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 ARG TARGETARCH
 ARG TARGETOS
+ARG CSI_VERSION=unknown
 RUN --mount=type=bind,target=. \
     --mount=type=cache,target=/root/.cache/go-build \
     export GOOS=$TARGETOS && \
     export GOARCH=$TARGETARCH && \
     export CGO_ENABLED=0 && \
-    go build -ldflags "-X main._BRANCH_='v1.0.0' -X main._VERSION_='v1.14.5' -X main._BUILDTIME_=`date '+%Y-%m-%d-%H:%M:%S'`" -o /out/plugin.csi.alibabacloud.com && \
+    go build \
+        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=${CSI_VERSION}" \
+        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.BUILDTIME=$(date -Iseconds)" \
+        -o /out/plugin.csi.alibabacloud.com && \
     go build -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
 

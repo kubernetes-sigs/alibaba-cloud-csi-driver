@@ -32,6 +32,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -43,7 +44,6 @@ import (
 // PluginFolder defines the location of diskplugin
 const (
 	driverName              = "diskplugin.csi.alibabacloud.com"
-	csiVersion              = "1.0.0"
 	TopologyZoneKey         = "topology." + driverName + "/zone"
 	TopologyMultiZonePrefix = TopologyZoneKey + "-"
 )
@@ -111,7 +111,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 	// Config Global vars
 	cfg := GlobalConfigSet(m)
 
-	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, GlobalConfigVar.NodeID)
+	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, GlobalConfigVar.NodeID)
 	tmpdisk.driver = csiDriver
 	tmpdisk.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
@@ -150,7 +150,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 
 // Run start a new NodeServer
 func (disk *DISK) Run() {
-	log.Log.Infof("Starting csi-plugin Driver: %v version: %v", driverName, csiVersion)
+	log.Log.Infof("Starting csi-plugin Driver: %v version: %v", driverName, version.VERSION)
 	common.RunCSIServer(disk.endpoint, disk.idServer, disk.controllerServer, disk.nodeServer)
 }
 

@@ -31,6 +31,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -47,12 +48,8 @@ const (
 )
 
 var (
-	// VERSION should be updated by hand at each release
-	VERSION = "v1.14.8"
-	// GITCOMMIT will be overwritten automatically by the build system
-	GITCOMMIT = "HEAD"
 	// KubernetesAlicloudIdentity is the system identity for ecs client request
-	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Nas-%s", VERSION)
+	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Nas-%s", version.VERSION)
 )
 
 func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint string, volumeID string) error {

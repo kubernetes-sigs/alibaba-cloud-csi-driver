@@ -1,10 +1,17 @@
 FROM --platform=$BUILDPLATFORM golang:1.18 as build
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
-ENV GOPATH=/go
 ADD . /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/
 WORKDIR /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
-RUN env GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GOOS=linux CGO_ENABLED=0 go build -ldflags "-X main._BRANCH_='v1.0.0' -X main._VERSION_='v1.14.5' -X main._BUILDTIME_=`date '+%Y-%m-%d-%H:%M:%S'`" -o plugin.csi.alibabacloud.com && env GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GOOS=linux CGO_ENABLED=0 go build ./build/multi-private/csiplugin-connector.go
+ARG TARGETARCH
+ARG TARGETOS
+ARG CSI_VERSION=unknown
+RUN export GOOS=$TARGETOS && \
+    export GOARCH=$TARGETARCH && \
+    export CGO_ENABLED=0 && \
+    go build \
+        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=${CSI_VERSION}" \
+        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.BUILDTIME=$(date -Iseconds)" \
+        -o plugin.csi.alibabacloud.com && \
+    go build ./build/multi-private/csiplugin-connector.go
 
 FROM registry.cn-hangzhou.aliyuncs.com/acs/centos:7-update
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"

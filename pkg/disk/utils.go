@@ -52,6 +52,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	proto "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	perrors "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -65,12 +66,8 @@ import (
 )
 
 var (
-	// VERSION should be updated by hand at each release
-	VERSION = "v1.14.6"
-	// GITCOMMIT will be overwritten automatically by the build system
-	GITCOMMIT = "HEAD"
 	// KubernetesAlicloudIdentity is the system identity for ecs client request
-	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", VERSION)
+	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", version.VERSION)
 
 	// All available disk types
 	AvailableDiskTypes = sets.NewString(DiskCommon, DiskESSD, DiskEfficiency, DiskSSD, DiskSharedSSD, DiskSharedEfficiency, DiskPPerf, DiskSPerf, DiskESSDAuto, DiskESSDEntry)

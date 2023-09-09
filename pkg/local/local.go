@@ -29,6 +29,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -50,7 +51,6 @@ const (
 	defaultDriverName = "localplugin.csi.alibabacloud.com"
 	localDriverName   = "localplugin.csi.alibabacloud.com"
 	yodaDriverName    = "yodaplugin.csi.alibabacloud.com"
-	csiVersion        = "1.0.0"
 )
 
 const (
@@ -171,7 +171,7 @@ func NewDriver(nodeID, endpoint string) *Local {
 	// GlobalConfig Set
 	GlobalConfigSet("", nodeID, driverName)
 
-	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, nodeID)
+	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, nodeID)
 	tmplvm.driver = csiDriver
 	tmplvm.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,

@@ -34,6 +34,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,12 +67,8 @@ const (
 )
 
 var (
-	// VERSION should be updated by hand at each release
-	VERSION = "v1.14.8"
-	// GITCOMMIT will be overwritten automatically by the build system
-	GITCOMMIT = "HEAD"
 	// KubernetesAlicloudIdentity is the system identity for ecs client request
-	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Nas-%s", VERSION)
+	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Nas-%s", version.VERSION)
 )
 
 // RoleAuth define STS Token Response
