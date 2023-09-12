@@ -46,6 +46,7 @@ type nodeServer struct {
 	crdClient dynamic.Interface
 	*csicommon.DefaultNodeServer
 	mounter mountutils.Interface
+	locks   *utils.VolumeLocks
 }
 
 // Options struct definition
@@ -120,6 +121,7 @@ func newNodeServer(d *NAS) *nodeServer {
 		crdClient:         GlobalConfigVar.DynamicClient,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
 		mounter:           NewNasMounter(),
+		locks:             utils.NewVolumeLocks(),
 	}
 }
 
@@ -179,8 +181,25 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, err
 	}
 
-	if utils.IsMounted(mountPath) {
-		log.Infof("Nas, Mount Path Already Mount, options: %s", mountPath)
+	if !ns.locks.TryAcquire(mountPath) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", mountPath)
+	}
+	defer ns.locks.Release(mountPath)
+	notMounted, err := ns.mounter.IsLikelyNotMountPoint(mountPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if err := os.MkdirAll(mountPath, os.ModePerm); err != nil {
+				log.Errorf("NodePublishVolume: mkdir %s: %v", mountPath, err)
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			notMounted = true
+		} else {
+			log.Errorf("NodePublishVolume: check mountpoint %s: %v", mountPath, err)
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if !notMounted {
+		log.Infof("NodePublishVolume: %s already mounted", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -212,7 +231,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	err := isValidCnfsParameter(opt.Server, cnfsName)
+	err = isValidCnfsParameter(opt.Server, cnfsName)
 	if err != nil {
 		return nil, err
 	}
@@ -368,16 +387,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	notMounted, err := ns.mounter.IsLikelyNotMountPoint(mountPath)
-	if err != nil {
-		log.Errorf("check mount point %s: %v", mountPath, err)
-		return &csi.NodePublishVolumeResponse{}, status.Errorf(codes.Internal, err.Error())
-	}
-	if !notMounted {
-		log.Infof("Nas, Mount Path Already Mount, options: %s", mountPath)
-		return &csi.NodePublishVolumeResponse{}, nil
-	}
-
 	// if system not set nas, config it.
 	checkSystemNasConfig()
 
@@ -467,43 +476,37 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err != nil {
 		return nil, err
 	}
-	// check runtime mode
-	if GlobalConfigVar.RunTimeClass == MixRunTimeMode && utils.IsMountPointRunv(req.TargetPath) {
-		fileName := filepath.Join(req.TargetPath, utils.CsiPluginRunTimeFlagFile)
-		if err := os.Remove(fileName); err != nil {
-			log.Errorf("NodeUnpublishVolume(runv):  Remove local runv file with error %s", err.Error())
-			return nil, status.Error(codes.InvalidArgument, "NodeUnpublishVolume(runv): Remove local file with error "+err.Error())
-		}
-		log.Infof("NodeUnpublishVolume(runv): Remove runv file successful: %s", fileName)
-		return &csi.NodeUnpublishVolumeResponse{}, nil
+
+	targetPath := req.TargetPath
+	if !ns.locks.TryAcquire(targetPath) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", targetPath)
 	}
-	mountPoint := req.TargetPath
-	isNotMounted, err := ns.mounter.IsLikelyNotMountPoint(mountPoint)
-	if (isNotMounted && err == nil) || os.IsNotExist(err) {
-		log.Infof("Umount mountpoint %s is not mounted, skipping.", mountPoint)
-		if GlobalConfigVar.LosetupEnable {
-			if err := unmountLosetupPv(ns.mounter, mountPoint); err != nil {
-				log.Errorf("Check and umount losetup volume is failed, err: %v", err)
-				return nil, errors.New("Check ans umount losetup is failed: " + err.Error())
+	defer ns.locks.Release(targetPath)
+
+	if err := cleanupMountpoint(ns.mounter, targetPath); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to unmount %s: %v", targetPath, err)
+	}
+	log.Infof("NodeUnpublishVolume: unmount volume on %s successfully", targetPath)
+
+	// when mixruntime mode enabled, try to remove ../alibabacloudcsiplugin.json
+	if GlobalConfigVar.RunTimeClass == MixRunTimeMode {
+		fileName := filepath.Join(targetPath, utils.CsiPluginRunTimeFlagFile)
+		err := os.Remove(fileName)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume(runv): remove %s: %v", fileName, err)
 			}
+		} else {
+			log.Infof("NodeUnpublishVolume(runv): Remove runv file successful: %s", fileName)
 		}
-		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
-	if err := ns.mounter.Unmount(mountPoint); err != nil {
-		msg := fmt.Sprintf("Umount nfs %s is failed, err: %s", mountPoint, err.Error())
-		log.Error(msg)
-		return nil, errors.New(msg)
-	}
-
+	// when losetup enabled, try to cleanup mountpoint under /mnt/nasplugin.alibabacloud.com/
 	if GlobalConfigVar.LosetupEnable {
-		if err := unmountLosetupPv(ns.mounter, mountPoint); err != nil {
-			log.Errorf("Nas: umount lostup volume with error: %v", err)
-			return nil, errors.New("Check umount losetup is failed, err: " + err.Error())
+		if err := unmountLosetupPv(ns.mounter, targetPath); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	log.Infof("Umount %s is successfully.", mountPoint)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
