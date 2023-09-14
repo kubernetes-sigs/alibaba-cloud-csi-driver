@@ -249,7 +249,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		RunTimeClass:          runtimeValue,
 		DetachDisabled:        csiCfg.GetBool("disk-detach-disable", "DISK_DETACH_DISABLE", false),
 		DetachBeforeDelete:    csiCfg.GetBool("disk-detach-before-delete", "DISK_DETACH_BEFORE_DELETE", true),
-		DetachBeforeAttach:    csiCfg.GetBool("disk-detach-before-attach", "DISK_FORCE_DETACHED", true),
+		DetachBeforeAttach:    csiCfg.GetBool("disk-detach-before-attach", "DISK_FORCE_DETACHED", false),
 		ClientSet:             kubeClient,
 		SnapClient:            snapClient,
 		FilesystemLosePercent: fileSystemLosePercent,
@@ -270,6 +270,10 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		log.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
 	} else {
 		log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
+	}
+	if GlobalConfigVar.DetachBeforeAttach {
+		log.Warnf("DISK_FORCE_DETACHED env variable is deprecated, KCM will handle force detach if node is abnormal." +
+			"Please refer to https://kubernetes.io/docs/concepts/architecture/nodes/#non-graceful-node-shutdown")
 	}
 	log.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
 		GlobalConfigVar.ADControllerEnable,
