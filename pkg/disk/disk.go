@@ -65,9 +65,8 @@ type GlobalConfig struct {
 	Region                string
 	NodeID                string
 	ZoneID                string
-	CanAttach             bool
 	DiskTagEnable         bool
-	AttachMutex           sync.RWMutex
+	AttachMutex           sync.Mutex
 	ADControllerEnable    bool
 	DetachDisabled        bool
 	MetricEnable          bool
@@ -410,7 +409,6 @@ func GlobalConfigSet(nodeID string) *restclient.Config {
 		Region:                regionID,
 		NodeID:                nodeID,
 		ZoneID:                zoneID,
-		CanAttach:             true,
 		ADControllerEnable:    isADControllerEnable,
 		DiskTagEnable:         isDiskTagEnable,
 		DiskBdfEnable:         isDiskBdfEnable,

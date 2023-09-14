@@ -60,21 +60,12 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 	}
 
 	if !GlobalConfigVar.ADControllerEnable {
-		// NodeStageVolume should be called by sequence
-		// In order no to block to caller, use boolean canAttach to check whether to continue.
-		GlobalConfigVar.AttachMutex.Lock()
-		if !GlobalConfigVar.CanAttach {
-			GlobalConfigVar.AttachMutex.Unlock()
-			log.Log.Errorf("NodeStageVolume: Previous attach action is still in process, VolumeId: %s", diskID)
-			return "", status.Error(codes.Aborted, "NodeStageVolume: Previous attach action is still in process: "+diskID)
+		// NodeStageVolume/NodeUnstageVolume should be called by sequence
+		if GlobalConfigVar.AttachMutex.TryLock() {
+			defer GlobalConfigVar.AttachMutex.Unlock()
+		} else {
+			return "", status.Errorf(codes.Aborted, "NodeStageVolume: Previous attach/detach action is still in process. volume: %s", diskID)
 		}
-		GlobalConfigVar.CanAttach = false
-		GlobalConfigVar.AttachMutex.Unlock()
-		defer func() {
-			GlobalConfigVar.AttachMutex.Lock()
-			GlobalConfigVar.CanAttach = true
-			GlobalConfigVar.AttachMutex.Unlock()
-		}()
 	}
 
 	// tag disk as k8s.aliyun.com=true
@@ -436,20 +427,12 @@ func detachDisk(ecsClient *ecs.Client, diskID, nodeID string) error {
 		return nil
 	}
 	// NodeStageVolume/NodeUnstageVolume should be called by sequence
-	// In order no to block to caller, use boolean canAttach to check whether to continue.
 	if !GlobalConfigVar.ADControllerEnable {
-		GlobalConfigVar.AttachMutex.Lock()
-		if !GlobalConfigVar.CanAttach {
-			GlobalConfigVar.AttachMutex.Unlock()
-			return status.Error(codes.Aborted, "DetachDisk: Previous attach/detach action is still in process, volume: "+diskID)
+		if GlobalConfigVar.AttachMutex.TryLock() {
+			defer GlobalConfigVar.AttachMutex.Unlock()
+		} else {
+			return status.Errorf(codes.Aborted, "DetachDisk: Previous attach/detach action is still in process, volume: %s", diskID)
 		}
-		GlobalConfigVar.CanAttach = false
-		GlobalConfigVar.AttachMutex.Unlock()
-		defer func() {
-			GlobalConfigVar.AttachMutex.Lock()
-			GlobalConfigVar.CanAttach = true
-			GlobalConfigVar.AttachMutex.Unlock()
-		}()
 	}
 	if GlobalConfigVar.DiskBdfEnable {
 		if allowed, err := forceDetachAllowed(ecsClient, disk, disk.InstanceId); err != nil {
