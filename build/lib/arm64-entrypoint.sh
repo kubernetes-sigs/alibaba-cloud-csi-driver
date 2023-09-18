@@ -184,9 +184,9 @@ if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [
 fi
 
 echo "Start checking if the rpm package needs to be installed"
-if [ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]; then
+if ([ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]) || [ "$run_pov" = "true" ]; then
     isbdf="false"
-    for i in $(${HOST_CMD} lspci -D | grep "storage controller" | grep "1ded" | awk '{print $1}' |  sed -n '/0$/p');
+    for i in $(${HOST_CMD} lspci -D | grep "storage controller" | grep "1ded\|Alibaba" | awk '{print $1}' |  sed -n '/0$/p');
     do
         out=`${HOST_CMD} lspci -s $i -v`;
         if [[ $out == *"Single Root I/O Virtualization"* ]]; then
