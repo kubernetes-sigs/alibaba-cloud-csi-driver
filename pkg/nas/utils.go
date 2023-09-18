@@ -313,12 +313,10 @@ func setNasVolumeCapacity(nfsServer, nfsPath string, volSizeBytes int64) error {
 	quotaRequest.QuotaType = "Enforcement"
 	quotaRequest.SizeLimit = requests.NewInteger64((volSizeBytes + GiB - 1) / GiB)
 	quotaRequest.RegionId, _ = utils.GetMetaData(RegionTag)
+	log.Infof("SetDirQuotaRequest: %+v", quotaRequest)
 	_, err := nasClient.SetDirQuota(quotaRequest)
 	if err != nil {
-		if strings.Contains(err.Error(), "The specified FileSystem does not exist.") {
-			return fmt.Errorf("extreme did not support quota, please change %s to General Purpose NAS", nfsServer)
-		}
-		return fmt.Errorf("volume set nas quota with error: %s", err.Error())
+		return fmt.Errorf("SetDirQuota: %w", err)
 	}
 	return nil
 }
@@ -528,17 +526,16 @@ func unmountLosetupPv(mounter mountutils.Interface, mountPoint string) error {
 	imgFile := filepath.Join(nfsPath, LoopImgFile)
 	lockFile := filepath.Join(nfsPath, LoopLockFile)
 	if utils.IsFileExisting(imgFile) {
+		log.Infof("cleanup the losetup mountpoint due to the existence of image file %s", imgFile)
 		if utils.IsFileExisting(lockFile) {
 			if err := os.Remove(lockFile); err != nil {
 				return fmt.Errorf("checkLosetupUnmount: remove lock file error %v", err)
 			}
 		}
-		if err := mounter.Unmount(nfsPath); err != nil {
+		if err := cleanupMountpoint(mounter, nfsPath); err != nil {
 			return fmt.Errorf("checkLosetupUnmount: umount nfs path error %v", err)
 		}
 		log.Infof("Losetup Unmount successful %s", mountPoint)
-	} else {
-		log.Infof("Losetup Unmount, image file not exist, skipping %s", mountPoint)
 	}
 	return nil
 }
@@ -615,4 +612,14 @@ func saveVolumeData(opt *Options, mountPath string) {
 			log.Warnf("NodePublishVolume: append nas volume spec to %s with error: %s", fileName, err.Error())
 		}
 	}
+}
+
+func cleanupMountpoint(mounter mountutils.Interface, mountPath string) (err error) {
+	forceUnmounter, ok := mounter.(mountutils.MounterForceUnmounter)
+	if ok {
+		err = mountutils.CleanupMountWithForce(mountPath, forceUnmounter, false, time.Second*30)
+	} else {
+		err = mountutils.CleanupMountPoint(mountPath, mounter, false)
+	}
+	return
 }
