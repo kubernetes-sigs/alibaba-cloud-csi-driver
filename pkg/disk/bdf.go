@@ -423,7 +423,7 @@ func IsVFNode() bool {
 			if err != nil {
 				log.Fatalf("[IsVFNode] lspci -D: %v", err)
 			}
-			// 0000:4b:00.0 SCSI storage controller: Device 1ded:1001
+			// 0000:4b:00.0 SCSI storage controller: Device 1ded:1001 or SCSI storage controller: Alibaba (China) Co., Ltd.
 			matched := FindLines(output, "storage controller")
 			if len(matched) == 0 {
 				log.Errorf("[IsVFNode] not found storage controller")

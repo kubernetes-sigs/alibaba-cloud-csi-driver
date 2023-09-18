@@ -146,7 +146,7 @@ func isVFNode() bool {
 		}
 		for _, line := range matched {
 			// 1ded: is alibaba cloud
-			if !strings.Contains(line, "1ded:") {
+			if !strings.Contains(line, "1ded:") && !strings.Contains(line, "Alibaba") {
 				continue
 			}
 			bdf := strings.SplitN(line, " ", 2)[0]
