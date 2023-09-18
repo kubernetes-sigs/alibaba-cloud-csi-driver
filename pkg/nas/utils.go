@@ -313,12 +313,10 @@ func setNasVolumeCapacity(nfsServer, nfsPath string, volSizeBytes int64) error {
 	quotaRequest.QuotaType = "Enforcement"
 	quotaRequest.SizeLimit = requests.NewInteger64((volSizeBytes + GiB - 1) / GiB)
 	quotaRequest.RegionId, _ = utils.GetMetaData(RegionTag)
+	log.Infof("SetDirQuotaRequest: %+v", quotaRequest)
 	_, err := nasClient.SetDirQuota(quotaRequest)
 	if err != nil {
-		if strings.Contains(err.Error(), "The specified FileSystem does not exist.") {
-			return fmt.Errorf("extreme did not support quota, please change %s to General Purpose NAS", nfsServer)
-		}
-		return fmt.Errorf("volume set nas quota with error: %s", err.Error())
+		return fmt.Errorf("SetDirQuota: %w", err)
 	}
 	return nil
 }
