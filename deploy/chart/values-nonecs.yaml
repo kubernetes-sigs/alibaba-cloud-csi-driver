@@ -1,0 +1,8 @@
+deploy:
+  accessKey:
+    enabled: true
+  ack: false
+
+csi:
+  disk:
+    enabled: false
