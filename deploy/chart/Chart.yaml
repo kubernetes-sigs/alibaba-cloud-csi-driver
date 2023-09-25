@@ -1,0 +1,4 @@
+name: alibaba-cloud-csi-driver
+apiVersion: v2
+version: 0.1.0
+type: application

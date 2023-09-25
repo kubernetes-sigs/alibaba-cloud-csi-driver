@@ -1,3 +1,4 @@
+{{- if .Values.controller.enabled -}}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -63,8 +64,9 @@ spec:
       hostPID: true
       priorityClassName: system-node-critical
       containers:
+{{- if .Values.csi.disk.enabled }}
         - name: external-disk-provisioner
-          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-provisioner:v3.5.0-e7da67e52-aliyun
+          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalProvisioner) }}
           resources:
             requests:
               cpu: 10m
@@ -89,7 +91,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-attacher
-          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-attacher:v3.3-72dd428b-aliyun
+          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalAttacher) }}
           resources:
             requests:
               cpu: 10m
@@ -108,7 +110,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-resizer
-          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-resizer:v1.3-ca84e84-aliyun
+          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalResizer) }}
           resources:
             requests:
               cpu: 10m
@@ -127,8 +129,42 @@ spec:
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
+        - name: external-csi-snapshotter
+          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalSnapshotter) }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election=true"
+            - "--extra-create-metadata=true"
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+          volumeMounts:
+            - name: disk-provisioner-dir
+              mountPath: /csi
+        - name: external-snapshot-controller
+          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalSnapshotController) }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          args:
+            - "--v=5"
+            - "--leader-election=true"
+{{- end -}}
+{{- if .Values.csi.nas.enabled }}
         - name: external-nas-provisioner
-          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-provisioner:v3.5.0-e7da67e52-aliyun
+          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalProvisioner) }}
           resources:
             requests:
               cpu: 10m
@@ -151,7 +187,7 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-nas-resizer
-          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-resizer:v1.3-ca84e84-aliyun
+          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalResizer) }}
           resources:
             requests:
               cpu: 10m
@@ -170,6 +206,8 @@ spec:
           volumeMounts:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
+{{- end -}}
+{{- if .Values.csi.oss.enabled }}
         - name: external-oss-provisioner
           args:
             - --csi-address=$(ADDRESS)
@@ -182,7 +220,7 @@ spec:
           env:
           - name: ADDRESS
             value: /var/lib/kubelet/csi-provisioner/ossplugin.csi.alibabacloud.com/csi.sock
-          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-provisioner:v3.5.0-e7da67e52-aliyun
+          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalProvisioner) }}
           resources:
             limits:
               cpu: 500m
@@ -193,66 +231,87 @@ spec:
           volumeMounts:
           - mountPath: /var/lib/kubelet/csi-provisioner/ossplugin.csi.alibabacloud.com
             name: oss-provisioner-dir
-        - name: external-csi-snapshotter
-          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-snapshotter:v4.0.0-a230d5b3-aliyun
-          resources:
-            requests:
-              cpu: 10m
-              memory: 16Mi
-            limits:
-              cpu: 500m
-              memory: 1024Mi
-          args:
-            - "--v=5"
-            - "--csi-address=$(ADDRESS)"
-            - "--leader-election=true"
-            - "--extra-create-metadata=true"
+{{- end -}}
+{{- if .Values.csi.local.enabled }}
+        - name: external-local-provisioner
+          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalProvisioner) }}
+          imagePullPolicy: Always
           env:
             - name: ADDRESS
-              value: /csi/csi.sock
-          volumeMounts:
-            - name: disk-provisioner-dir
-              mountPath: /csi
-        - name: external-snapshot-controller
-          image: registry-cn-hangzhou.ack.aliyuncs.com/acs/snapshot-controller:v4.0.0-a230d5b3-aliyun
-          resources:
-            requests:
-              cpu: 10m
-              memory: 16Mi
-            limits:
-              cpu: 500m
-              memory: 1024Mi
+              value:  /var/lib/kubelet/csi-provisioner/localplugin.csi.alibabacloud.com/csi.sock
           args:
-            - "--v=5"
-            - "--leader-election=true"
+            - --csi-address=$(ADDRESS)
+            - --feature-gates=Topology=True
+            - --volume-name-prefix=local
+            - --strict-topology=true
+            - --timeout=150s
+            - --extra-create-metadata=true
+            - --enable-leader-election=true
+            - --leader-election-type=leases
+            - --retry-interval-start=500ms
+            - --default-fstype=ext4
+            - --v=5
+          volumeMounts:
+            - name: local-provisioner-dir
+              mountPath: /var/lib/kubelet/csi-provisioner/localplugin.csi.alibabacloud.com
+        - name: external-local-resizer
+          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalResizer) }}
+          imagePullPolicy: Always
+          env:
+            - name: ADDRESS
+              value: /var/lib/kubelet/csi-provisioner/localplugin.csi.alibabacloud.com/csi.sock
+          args:
+            - --v=5
+            - --csi-address=$(ADDRESS)
+            - --leader-election
+          volumeMounts:
+            - name: local-provisioner-dir
+              mountPath: /var/lib/kubelet/csi-provisioner/localplugin.csi.alibabacloud.com
+{{- end }}
         - name: csi-provisioner
           securityContext:
             privileged: true
-          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.26.4-e7e52e9-aliyun
+          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.controller) }}
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=2"
-            - "--driver=nas,disk,oss"
+            - "--driver={{ include "enabledDrivers" .Values.csi }}"
           env:
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/csi-provisioner/driverplugin.csi.alibabacloud.com-replace/csi.sock
             - name: SERVICE_TYPE
               value: "provisioner"
+{{- if .Values.deploy.ack }}
+            - name: "CLUSTER_ID"
+              value: "{{ .Values.deploy.clusterID }}"
+{{- end }}
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
+{{- if .Values.deploy.ecsEndpoint }}
+            - name: ECS_ENDPOINT
+              value: {{ .Values.deploy.ecsEndpoint }}
+{{- end }}
+{{- if .Values.deploy.privateCloud }}
+            - name: ALICLOUD_CLIENT_SCHEME
+              value: HTTP
+            - name: PRIVATE_CLOUD_TAG
+              value: "true"
+{{- end }}
+{{- if .Values.deploy.accessKey.enabled }}
             - name: ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: csi-access-key
+                  name: {{ .Values.deploy.accessKey.secretName }}
                   key: id
             - name: ACCESS_KEY_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: csi-access-key
+                  name: {{ .Values.deploy.accessKey.secretName }}
                   key: secret
+{{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -274,12 +333,17 @@ spec:
           volumeMounts:
             - name: host-log
               mountPath: /var/log/
-            - name: disk-provisioner-dir
-              mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
-            - name: nas-provisioner-dir
-              mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
-            - name: oss-provisioner-dir
-              mountPath: /var/lib/kubelet/csi-provisioner/ossplugin.csi.alibabacloud.com
+{{- range $key, $val := .Values.csi }}
+{{- if $val.enabled }}
+            - name: {{ $key }}-provisioner-dir
+              mountPath: /var/lib/kubelet/csi-provisioner/{{ $key }}plugin.csi.alibabacloud.com
+{{- end -}}
+{{- end }}
+{{- if .Values.deploy.ack }}
+            - mountPath: /var/addon
+              name: addon-token
+              readOnly: true
+{{- end }}
             - mountPath: /mnt
               mountPropagation: Bidirectional
               name: host-mnt
@@ -293,12 +357,12 @@ spec:
               cpu: 100m
               memory: 128Mi
       volumes:
-        - name: disk-provisioner-dir
+{{- range $key, $val := .Values.csi }}
+{{- if $val.enabled }}
+        - name: {{ $key }}-provisioner-dir
           emptyDir: {}
-        - name: nas-provisioner-dir
-          emptyDir: {}
-        - name: oss-provisioner-dir
-          emptyDir: {}
+{{- end -}}
+{{- end }}
         - name: host-log
           hostPath:
             path: /var/log/
@@ -310,3 +374,14 @@ spec:
           hostPath:
             path: /mnt
             type: ""
+{{- if .Values.deploy.ack }}
+        - name: addon-token
+          secret:
+            defaultMode: 420
+            optional: true
+            items:
+            - key: addon.token.config
+              path: token-config
+            secretName: addon.csi.token
+{{- end -}}
+{{- end -}}

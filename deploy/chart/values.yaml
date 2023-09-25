@@ -1,0 +1,60 @@
+controller:
+  enabled: true
+
+plugin:
+  enabled: true
+
+csi:
+  disk:
+    enabled: true
+  nas:
+    enabled: true
+  oss:
+    enabled: true
+  local:
+    enabled: false
+
+defaultStorageClass:
+  enabled: true
+
+deploy:
+  privateCloud: false
+  ecsEndpoint: null  # most useful on private cloud
+
+  ack: true  # deployed on Alibaba Cloud Container Service for Kubernetes
+  clusterID: null  # will be injected on installation on ACK
+
+  # To access Alibaba Cloud OpenAPI in self-deployed Kubernetes cluster, use a secret with "id" and "secret" set.
+  accessKey:
+    enabled: false
+    secretName: csi-access-key
+
+images:
+  registry: registry-cn-hangzhou.ack.aliyuncs.com
+  controller:
+    repo: acs/csi-plugin
+    tag: "v1.26.5-92f859a-aliyun"
+  plugin:
+    repo: acs/csi-plugin
+    tag: "v1.26.5-92f859a-aliyun"
+  pluginInit:
+    repo: acs/csi-plugin
+    tag: "v1.26.5-92f859a-aliyun-init"
+  externalAttacher:
+    repo: acs/csi-attacher
+    tag: "v3.3-72dd428b-aliyun"
+  externalProvisioner:
+    repo: acs/csi-provisioner
+    tag: "v3.5.0-e7da67e52-aliyun"
+  externalResizer:
+    repo: acs/csi-resizer
+    tag: "v1.3-ca84e84-aliyun"
+  externalSnapshotter:
+    repo: acs/csi-snapshotter
+    tag: "v4.0.0-a230d5b3-aliyun"
+  externalSnapshotController:
+    repo: acs/snapshot-controller
+    tag: "v4.0.0-a230d5b3-aliyun"
+  pluginRegistrar:
+    repo: acs/csi-node-driver-registrar
+    tag: "v2.3.1-038aeb6-aliyun"

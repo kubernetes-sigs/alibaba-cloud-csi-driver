@@ -1,0 +1,116 @@
+{{- if .Values.defaultStorageClass.enabled -}}
+{{- if .Values.csi.disk.enabled -}}
+{{- if .Values.deploy.privateCloud -}}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: alicloud-disk-cloud-sperf
+provisioner: diskplugin.csi.alibabacloud.com
+parameters:
+    type: cloud_sperf
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: alicloud-disk-cloud-pperf
+provisioner: diskplugin.csi.alibabacloud.com
+parameters:
+    type: cloud_pperf
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+    name: alicloud-disk-topology-alltype
+parameters:
+    type: cloud_essd,cloud_ssd,cloud_efficiency,cloud_sperf,cloud_pperf
+provisioner: diskplugin.csi.alibabacloud.com
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+{{ else }}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+    name: alicloud-disk-topology-alltype
+parameters:
+    type: cloud_essd,cloud_ssd,cloud_efficiency
+provisioner: diskplugin.csi.alibabacloud.com
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+{{ end }}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: alicloud-disk-available
+provisioner: diskplugin.csi.alibabacloud.com
+parameters:
+    type: available
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: alicloud-disk-essd
+provisioner: diskplugin.csi.alibabacloud.com
+parameters:
+    type: cloud_essd
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: alicloud-disk-ssd
+provisioner: diskplugin.csi.alibabacloud.com
+parameters:
+    type: cloud_ssd
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: alicloud-disk-efficiency
+provisioner: diskplugin.csi.alibabacloud.com
+parameters:
+    type: cloud_efficiency
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: alicloud-disk-topology
+provisioner: diskplugin.csi.alibabacloud.com
+parameters:
+    type: available
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+{{- end }}
+{{- if .Values.csi.local.enabled }}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: csi-local-lvm
+parameters:
+  fsType: ext4
+  lvmType: striping
+  vgName: volumegroup1
+  volumeType: LVM
+provisioner: localplugin.csi.alibabacloud.com
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+{{- end -}}
+{{- end -}}

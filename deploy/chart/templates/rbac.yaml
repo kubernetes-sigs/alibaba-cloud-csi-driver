@@ -1,3 +1,4 @@
+{{- if .Values.controller.enabled -}}
 # csi-provisioner
 ---
 apiVersion: v1
@@ -114,14 +115,14 @@ roleRef:
   name: alicloud-csi-provisioner
   apiGroup: rbac.authorization.k8s.io
 
-
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: csi-fuse-ossfs
   namespace: kube-system
-
+{{- end }}
+{{- if .Values.plugin.enabled }}
 # csi-plugin
 ---
 apiVersion: v1
@@ -258,3 +259,4 @@ subjects:
 - kind: ServiceAccount
   name: alicloud-csi-plugin
   namespace: kube-system
+{{- end }}
