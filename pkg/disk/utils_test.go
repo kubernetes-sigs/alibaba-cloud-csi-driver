@@ -16,11 +16,8 @@ limitations under the License.
 package disk
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"testing"
 
@@ -31,10 +28,10 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
-	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/responses"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	gomock "github.com/golang/mock/gomock"
 	fakesnapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/fake"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -191,16 +188,6 @@ func testNode(labelType string, existingNode bool) *corev1.Node {
 	return n
 }
 
-func unmarshalAcsResponse(jsonBytes []byte, res responses.AcsResponse) error {
-	return responses.Unmarshal(res, &http.Response{
-		Status:     "200 OK",
-		StatusCode: 200,
-		Proto:      "HTTP/1.0",
-		Header:     http.Header{},
-		Body:       io.NopCloser(bytes.NewReader(jsonBytes)),
-	}, "JSON")
-}
-
 func injectError(times int) k8stesting.ReactionFunc {
 	return func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		if times > 0 {
@@ -260,8 +247,7 @@ func TestUpdateNode(t *testing.T) {
 	}
 }`)
 	descRes := ecs.CreateDescribeAvailableResourceResponse()
-	err := unmarshalAcsResponse(descJson, descRes)
-	assert.Nil(t, err)
+	cloud.UnmarshalAcsResponse(descJson, descRes)
 
 	cases := []struct {
 		name          string
@@ -307,7 +293,7 @@ func TestUpdateNode(t *testing.T) {
 			nodes := clientset.CoreV1().Nodes()
 
 			ctrl := gomock.NewController(t)
-			c := NewMockECSInterface(ctrl)
+			c := cloud.NewMockECSInterface(ctrl)
 
 			if !test.skipDiskLabel {
 				if test.retryECS {

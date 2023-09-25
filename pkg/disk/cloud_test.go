@@ -6,6 +6,7 @@ import (
 	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	gomock "github.com/golang/mock/gomock"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	csilog "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -14,8 +15,8 @@ import (
 var deleteDiskResponse = ecs.CreateDeleteDiskResponse()
 
 func init() {
-	unmarshalAcsResponse([]byte(`{
-	"RequestId": "B6B6D6B6-6B6B-6B6B-6B6B-6B6B6B6B6B6",
+	cloud.UnmarshalAcsResponse([]byte(`{
+	"RequestId": "B6B6D6B6-6B6B-6B6B-6B6B-6B6B6B6B6B6"
 }`), deleteDiskResponse)
 
 	csilog.Log = logrus.New()
@@ -23,7 +24,7 @@ func init() {
 
 func TestDeleteDisk(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	c := NewMockECSInterface(ctrl)
+	c := cloud.NewMockECSInterface(ctrl)
 
 	c.EXPECT().DeleteDisk(gomock.Any()).Return(deleteDiskResponse, nil)
 
@@ -33,7 +34,7 @@ func TestDeleteDisk(t *testing.T) {
 
 func TestDeleteDiskRetryOnInitError(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	c := NewMockECSInterface(ctrl)
+	c := cloud.NewMockECSInterface(ctrl)
 
 	initErr := alicloudErr.NewServerError(400, `{"Code": "IncorrectDiskStatus.Initializing"}`, "")
 	c.EXPECT().DeleteDisk(gomock.Any()).Return(nil, initErr)
@@ -45,7 +46,7 @@ func TestDeleteDiskRetryOnInitError(t *testing.T) {
 
 func TestDeleteDiskPassthroughError(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	c := NewMockECSInterface(ctrl)
+	c := cloud.NewMockECSInterface(ctrl)
 
 	serverErr := alicloudErr.NewServerError(400, `{"Code": "AnyOtherErrors"}`, "")
 	c.EXPECT().DeleteDisk(gomock.Any()).Return(nil, serverErr)
