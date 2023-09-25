@@ -172,7 +172,6 @@ func NewGlobalConfig() {
 		EnableAttachDetachController: attachDetachController,
 		DetachBeforeAttach:           detachBeforeAttach,
 		ControllerService:            controllerServerType,
-		Attachable:                   true,
 	}
 }
 
@@ -180,7 +179,6 @@ type GlobalConfig struct {
 	RegionID           string
 	InstanceID         string
 	ClusterID          string
-	Attachable         bool
 	DetachBeforeAttach bool
 	ControllerService  bool
 
@@ -188,5 +186,5 @@ type GlobalConfig struct {
 	EnableAttachDetachController string
 	KClient                      kubernetes.Interface
 	ENSCli                       ENSClient
-	AttachMutex                  sync.RWMutex
+	AttachMutex                  sync.Mutex
 }

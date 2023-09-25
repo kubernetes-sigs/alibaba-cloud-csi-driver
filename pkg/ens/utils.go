@@ -15,6 +15,8 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -166,21 +168,12 @@ func attachDisk(diskID, nodeID string) (string, error) {
 	}
 
 	if GlobalConfigVar.EnableAttachDetachController == "false" {
-		// NodeStageVolume should be called by sequence
-		// In order no to block to caller, use boolean canAttach to check whether to continue.
-		GlobalConfigVar.AttachMutex.Lock()
-		if !GlobalConfigVar.Attachable {
-			GlobalConfigVar.AttachMutex.Unlock()
-			log.Errorf("NodeStageVolume: Previous attach action is still in process, VolumeId: %s", diskID)
-			return "", fmt.Errorf("NodeStageVolume: Previous attach action is still in process: " + diskID)
+		// NodeStageVolume/NodeUnstageVolume should be called by sequence
+		if GlobalConfigVar.AttachMutex.TryLock() {
+			defer GlobalConfigVar.AttachMutex.Unlock()
+		} else {
+			return "", status.Errorf(codes.Aborted, "NodeStageVolume: Previous attach/detach action is still in process. volume: %s", diskID)
 		}
-		GlobalConfigVar.Attachable = false
-		GlobalConfigVar.AttachMutex.Unlock()
-		defer func() {
-			GlobalConfigVar.AttachMutex.Lock()
-			GlobalConfigVar.Attachable = true
-			GlobalConfigVar.AttachMutex.Unlock()
-		}()
 	}
 	// detach disk first if attached
 	if *disk.Status == DISK_IN_USE {
@@ -293,20 +286,12 @@ func detachDisk(diskID, nodeID string) error {
 	if *disk.InstanceId != "" {
 		if *disk.InstanceId == nodeID {
 			// NodeStageVolume/NodeUnstageVolume should be called by sequence
-			// In order no to block to caller, use boolean canAttach to check whether to continue.
 			if GlobalConfigVar.EnableAttachDetachController == "false" {
-				GlobalConfigVar.AttachMutex.Lock()
-				if !GlobalConfigVar.Attachable {
-					GlobalConfigVar.AttachMutex.Unlock()
-					return fmt.Errorf("DetachDisk: Previous attach/detach action is still in process, volume: " + diskID)
+				if GlobalConfigVar.AttachMutex.TryLock() {
+					defer GlobalConfigVar.AttachMutex.Unlock()
+				} else {
+					return status.Errorf(codes.Aborted, "DetachDisk: Previous attach/detach action is still in process, volume: %s", diskID)
 				}
-				GlobalConfigVar.Attachable = false
-				GlobalConfigVar.AttachMutex.Unlock()
-				defer func() {
-					GlobalConfigVar.AttachMutex.Lock()
-					GlobalConfigVar.Attachable = true
-					GlobalConfigVar.AttachMutex.Unlock()
-				}()
 			}
 			log.Infof("DetachDisk: Starting to Detach Disk %s from node %s", diskID, nodeID)
 			err := GlobalConfigVar.ENSCli.DetachVolume(diskID, nodeID)
