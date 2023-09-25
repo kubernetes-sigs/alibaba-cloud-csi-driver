@@ -15,7 +15,7 @@ var deleteDiskResponse = ecs.CreateDeleteDiskResponse()
 
 func init() {
 	unmarshalAcsResponse([]byte(`{
-	"RequestId": "B6B6D6B6-6B6B-6B6B-6B6B-6B6B6B6B6B6",
+	"RequestId": "B6B6D6B6-6B6B-6B6B-6B6B-6B6B6B6B6B6"
 }`), deleteDiskResponse)
 
 	csilog.Log = logrus.New()
