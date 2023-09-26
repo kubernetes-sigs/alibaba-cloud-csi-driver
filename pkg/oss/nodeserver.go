@@ -138,8 +138,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			cnfsName = value
 		} else if key == "encrypted" {
 			opt.Encrypted = strings.ToLower(strings.TrimSpace(value))
-		} else if key == "kmsKeyId" {
-			opt.KmsKeyId = strings.ToLower(strings.TrimSpace(value))
+		} else if key == "kmskeyid" {
+			opt.KmsKeyId = value
 		}
 	}
 
@@ -187,7 +187,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("Check oss input error: " + err.Error())
 	}
 
-	argStr := fmt.Sprintf("Bucket: %s, url: %s, OtherOpts: %s, Path: %s, UseSharedPath: %s, authType: %s, encrypted: %s", opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType, opt.Encrypted)
+	argStr := fmt.Sprintf("Bucket: %s, url: %s, OtherOpts: %s, Path: %s, UseSharedPath: %s, authType: %s, encrypted: %s, kmsid: %s", opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType, opt.Encrypted, opt.KmsKeyId)
 	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
 
 	if IsOssfsMounted(mountPath) {
@@ -240,7 +240,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				mntCmd = mntCmd + " -oro"
 			}
 			if opt.FuseType == JindoFsType {
-				mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s %s", sharedPath, opt.Bucket, opt.Path, opt.URL, credentialProvider, useSse)
+				mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s", sharedPath, opt.Bucket, opt.Path, opt.URL, credentialProvider)
 			}
 			if err := utils.DoMountInHost(mntCmd); err != nil {
 				return nil, err
@@ -277,7 +277,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			mntCmd = mntCmd + " -oro"
 		}
 		if opt.FuseType == JindoFsType {
-			mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s %s", mountPath, opt.Bucket, opt.Path, opt.URL, credentialProvider, useSse)
+			mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s", mountPath, opt.Bucket, opt.Path, opt.URL, credentialProvider)
 		}
 		utils.WriteMetricsInfo(metricsPathPrefix, req, opt.MetricsTop, OssFsType, "oss", opt.Bucket)
 		if err := utils.DoMountInHost(mntCmd); err != nil {
