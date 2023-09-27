@@ -22,6 +22,23 @@ func TestEnvCredential(t *testing.T) {
 	assert.Equal(t, "test-accessKeySecret", *m.AccessKeySecret)
 }
 
+func TestDeprecatedEnvCredential(t *testing.T) {
+	t.Setenv("ACCESS_KEY_ID", "test-accessKeyId")
+	t.Setenv("ACCESS_KEY_SECRET", "test-accessKeySecret")
+	// To enable cleanup, also set the new env var
+	t.Setenv("ALIBABA_CLOUD_ACCESS_KEY_ID", "")
+	t.Setenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET", "")
+
+	cred, err := NewCredential()
+	assert.NoError(t, err)
+
+	m, err := cred.GetCredential()
+	assert.NoError(t, err)
+
+	assert.Equal(t, "test-accessKeyId", *m.AccessKeyId)
+	assert.Equal(t, "test-accessKeySecret", *m.AccessKeySecret)
+}
+
 func TestManagedToken(t *testing.T) {
 	tokenPath := t.TempDir() + "/token-config"
 	t.Setenv(TokenPathEnvName, tokenPath)

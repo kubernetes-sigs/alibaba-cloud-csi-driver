@@ -6,10 +6,34 @@ import (
 
 	alicred_old "github.com/aliyun/credentials-go/credentials"
 	alicred "github.com/aliyun/credentials-go/credentials/providers"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 )
 
+const (
+	EnvVarAccessKeyId     = "ALIBABA_CLOUD_ACCESS_KEY_ID"
+	EnvVarAccessKeySecret = "ALIBABA_CLOUD_ACCESS_KEY_SECRET"
+)
+
+func MigrateEnv() {
+	accessKeyID := os.Getenv("ACCESS_KEY_ID")
+	accessSecret := os.Getenv("ACCESS_KEY_SECRET")
+	if accessKeyID != "" || accessSecret != "" {
+		klog.Warningf("environment variable ACCESS_KEY_ID and ACCESS_KEY_SECRET is deprecated, please use %s and %s instead.", EnvVarAccessKeyId, EnvVarAccessKeySecret)
+
+		// if ALIBABA_CLOUD_* not set, use ACCESS_KEY_ID and ACCESS_KEY_SECRET
+		if os.Getenv(EnvVarAccessKeyId) == "" && accessKeyID != "" {
+			os.Setenv(EnvVarAccessKeyId, accessKeyID)
+		}
+		if os.Getenv(EnvVarAccessKeySecret) == "" && accessSecret != "" {
+			os.Setenv(EnvVarAccessKeySecret, accessSecret)
+		}
+	}
+}
+
 func NewProvider() (alicred.CredentialsProvider, error) {
+	MigrateEnv()
+
 	// try managed token credential
 	provider, err := NewManagedTokenProvider(clock.RealClock{}, GetManagedTokenPath())
 	if err == nil {
