@@ -7,6 +7,7 @@ require (
 	github.com/alibabacloud-go/ens-20171110/v4 v4.0.10
 	github.com/alibabacloud-go/tea v1.1.19
 	github.com/aliyun/alibaba-cloud-sdk-go v1.62.401
+	github.com/aliyun/credentials-go v1.3.1
 	github.com/container-storage-interface/spec v1.1.0
 	github.com/containerd/ttrpc v1.1.0
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
@@ -50,7 +51,6 @@ require (
 	github.com/alibabacloud-go/tea-utils v1.4.3 // indirect
 	github.com/alibabacloud-go/tea-utils/v2 v2.0.3 // indirect
 	github.com/alibabacloud-go/tea-xml v1.1.2 // indirect
-	github.com/aliyun/credentials-go v1.3.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/clbanning/mxj/v2 v2.5.5 // indirect

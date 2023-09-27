@@ -6,7 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
 	"time"
+
+	"github.com/alibabacloud-go/tea/tea"
+	alicred "github.com/aliyun/credentials-go/credentials"
+	"github.com/sirupsen/logrus"
+	"k8s.io/utils/clock"
 )
 
 const (
@@ -115,4 +121,77 @@ func ParseManagedTokens(content []byte) (ManageTokens, error) {
 	}
 	tokens.RoleArn = akInfo.RoleArn
 	return tokens, nil
+}
+
+type ManagedTokenCredential struct {
+	tokens     ManageTokens
+	tokenPath  string
+	reloadTime time.Time
+	clock      clock.PassiveClock
+}
+
+func (m *ManagedTokenCredential) reloadToken() error {
+	encodedTokens, err := os.ReadFile(m.tokenPath)
+	if err != nil {
+		return fmt.Errorf("failed to read token config: %w", err)
+	}
+
+	tokens, err := ParseManagedTokens(encodedTokens)
+	if err != nil {
+		return err
+	}
+	m.tokens = tokens
+	m.reloadTime = m.clock.Now()
+
+	if m.tokens.Expiration.Before(m.reloadTime) {
+		logrus.Warnf("token already expired at %s on load", m.tokens.Expiration)
+	}
+
+	return nil
+}
+
+func (m *ManagedTokenCredential) reloadTokenIfNeeded() error {
+	now := m.clock.Now()
+	// reload token every 5 minutes, or 10 minutes before expiration
+	if now.After(m.reloadTime.Add(5*time.Minute)) || m.tokens.Expiration.Before(now.Add(10*time.Minute)) {
+		return m.reloadToken()
+	}
+	return nil
+}
+
+func GetManagedTokenPath() string {
+	tokenPath := os.Getenv(TokenPathEnvName)
+	if tokenPath == "" {
+		tokenPath = DefaultTokenPath
+	}
+	return tokenPath
+}
+
+func NewManagedTokenCredential(clk clock.PassiveClock, tokenPath string) (alicred.Credential, error) {
+	c := &ManagedTokenCredential{
+		clock:     clk,
+		tokenPath: tokenPath,
+	}
+	err := c.reloadToken()
+	if err != nil {
+		return nil, err
+	}
+	return &oldCredentialAdaptor{c}, nil
+}
+
+func (m *ManagedTokenCredential) GetType() *string {
+	return tea.String("sts")
+}
+
+func (m *ManagedTokenCredential) GetCredential() (*alicred.CredentialModel, error) {
+	err := m.reloadTokenIfNeeded()
+	if err != nil {
+		return nil, err
+	}
+	return &alicred.CredentialModel{
+		Type:            m.GetType(),
+		AccessKeyId:     &m.tokens.AccessKeyID,
+		AccessKeySecret: &m.tokens.AccessKeySecret,
+		SecurityToken:   &m.tokens.SecurityToken,
+	}, nil
 }
