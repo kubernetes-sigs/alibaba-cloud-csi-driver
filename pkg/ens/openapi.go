@@ -1,8 +1,8 @@
 package ens
 
 import (
-	http "github.com/alibabacloud-go/darabonba-openapi/client"
-	ensCli "github.com/alibabacloud-go/ens-20171110/v3/client"
+	http "github.com/alibabacloud-go/darabonba-openapi/v2/client"
+	ensCli "github.com/alibabacloud-go/ens-20171110/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"

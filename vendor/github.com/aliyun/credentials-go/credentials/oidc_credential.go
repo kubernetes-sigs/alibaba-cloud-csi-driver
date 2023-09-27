@@ -2,9 +2,9 @@ package credentials
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"strconv"
+	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/alibabacloud-go/tea/tea"
@@ -12,61 +12,50 @@ import (
 	"github.com/aliyun/credentials-go/credentials/utils"
 )
 
-const defaultDurationSeconds = 3600
+const defaultOIDCDurationSeconds = 3600
 
-// RAMRoleArnCredential is a kind of credentials
-type RAMRoleArnCredential struct {
+// OIDCCredential is a kind of credentials
+type OIDCCredential struct {
 	*credentialUpdater
 	AccessKeyId           string
 	AccessKeySecret       string
 	RoleArn               string
+	OIDCProviderArn       string
+	OIDCTokenFilePath     string
+	Policy                string
 	RoleSessionName       string
 	RoleSessionExpiration int
-	Policy                string
-	ExternalId            string
 	sessionCredential     *sessionCredential
 	runtime               *utils.Runtime
 }
 
-type ramRoleArnResponse struct {
+type OIDCResponse struct {
 	Credentials *credentialsInResponse `json:"Credentials" xml:"Credentials"`
 }
 
-type credentialsInResponse struct {
+type OIDCcredentialsInResponse struct {
 	AccessKeyId     string `json:"AccessKeyId" xml:"AccessKeyId"`
 	AccessKeySecret string `json:"AccessKeySecret" xml:"AccessKeySecret"`
 	SecurityToken   string `json:"SecurityToken" xml:"SecurityToken"`
 	Expiration      string `json:"Expiration" xml:"Expiration"`
 }
 
-func newRAMRoleArnCredential(accessKeyId, accessKeySecret, roleArn, roleSessionName, policy string, roleSessionExpiration int, runtime *utils.Runtime) *RAMRoleArnCredential {
-	return &RAMRoleArnCredential{
+func newOIDCRoleArnCredential(accessKeyId, accessKeySecret, roleArn, OIDCProviderArn, OIDCTokenFilePath, RoleSessionName, policy string, RoleSessionExpiration int, runtime *utils.Runtime) *OIDCCredential {
+	return &OIDCCredential{
 		AccessKeyId:           accessKeyId,
 		AccessKeySecret:       accessKeySecret,
 		RoleArn:               roleArn,
-		RoleSessionName:       roleSessionName,
-		RoleSessionExpiration: roleSessionExpiration,
+		OIDCProviderArn:       OIDCProviderArn,
+		OIDCTokenFilePath:     OIDCTokenFilePath,
+		RoleSessionName:       RoleSessionName,
 		Policy:                policy,
+		RoleSessionExpiration: RoleSessionExpiration,
 		credentialUpdater:     new(credentialUpdater),
 		runtime:               runtime,
 	}
 }
 
-func newRAMRoleArnWithExternalIdCredential(accessKeyId, accessKeySecret, roleArn, roleSessionName, policy string, roleSessionExpiration int, externalId string, runtime *utils.Runtime) *RAMRoleArnCredential {
-	return &RAMRoleArnCredential{
-		AccessKeyId:           accessKeyId,
-		AccessKeySecret:       accessKeySecret,
-		RoleArn:               roleArn,
-		RoleSessionName:       roleSessionName,
-		RoleSessionExpiration: roleSessionExpiration,
-		Policy:                policy,
-		ExternalId:            externalId,
-		credentialUpdater:     new(credentialUpdater),
-		runtime:               runtime,
-	}
-}
-
-func (e *RAMRoleArnCredential) GetCredential() (*CredentialModel, error) {
+func (e *OIDCCredential) GetCredential() (*CredentialModel, error) {
 	if e.sessionCredential == nil || e.needUpdateCredential() {
 		err := e.updateCredential()
 		if err != nil {
@@ -77,14 +66,14 @@ func (e *RAMRoleArnCredential) GetCredential() (*CredentialModel, error) {
 		AccessKeyId:     tea.String(e.sessionCredential.AccessKeyId),
 		AccessKeySecret: tea.String(e.sessionCredential.AccessKeySecret),
 		SecurityToken:   tea.String(e.sessionCredential.SecurityToken),
-		Type:            tea.String("ram_role_arn"),
+		Type:            tea.String("oidc_role_arn"),
 	}
 	return credential, nil
 }
 
-// GetAccessKeyId reutrns RamRoleArnCredential's AccessKeyId
+// GetAccessKeyId reutrns OIDCCredential's AccessKeyId
 // if AccessKeyId is not exist or out of date, the function will update it.
-func (r *RAMRoleArnCredential) GetAccessKeyId() (*string, error) {
+func (r *OIDCCredential) GetAccessKeyId() (*string, error) {
 	if r.sessionCredential == nil || r.needUpdateCredential() {
 		err := r.updateCredential()
 		if err != nil {
@@ -94,9 +83,9 @@ func (r *RAMRoleArnCredential) GetAccessKeyId() (*string, error) {
 	return tea.String(r.sessionCredential.AccessKeyId), nil
 }
 
-// GetAccessSecret reutrns RamRoleArnCredential's AccessKeySecret
+// GetAccessSecret reutrns OIDCCredential's AccessKeySecret
 // if AccessKeySecret is not exist or out of date, the function will update it.
-func (r *RAMRoleArnCredential) GetAccessKeySecret() (*string, error) {
+func (r *OIDCCredential) GetAccessKeySecret() (*string, error) {
 	if r.sessionCredential == nil || r.needUpdateCredential() {
 		err := r.updateCredential()
 		if err != nil {
@@ -106,9 +95,9 @@ func (r *RAMRoleArnCredential) GetAccessKeySecret() (*string, error) {
 	return tea.String(r.sessionCredential.AccessKeySecret), nil
 }
 
-// GetSecurityToken reutrns RamRoleArnCredential's SecurityToken
+// GetSecurityToken reutrns OIDCCredential's SecurityToken
 // if SecurityToken is not exist or out of date, the function will update it.
-func (r *RAMRoleArnCredential) GetSecurityToken() (*string, error) {
+func (r *OIDCCredential) GetSecurityToken() (*string, error) {
 	if r.sessionCredential == nil || r.needUpdateCredential() {
 		err := r.updateCredential()
 		if err != nil {
@@ -118,17 +107,33 @@ func (r *RAMRoleArnCredential) GetSecurityToken() (*string, error) {
 	return tea.String(r.sessionCredential.SecurityToken), nil
 }
 
-// GetBearerToken is useless RamRoleArnCredential
-func (r *RAMRoleArnCredential) GetBearerToken() *string {
+// GetBearerToken is useless OIDCCredential
+func (r *OIDCCredential) GetBearerToken() *string {
 	return tea.String("")
 }
 
-// GetType reutrns RamRoleArnCredential's type
-func (r *RAMRoleArnCredential) GetType() *string {
-	return tea.String("ram_role_arn")
+// GetType reutrns OIDCCredential's type
+func (r *OIDCCredential) GetType() *string {
+	return tea.String("oidc_role_arn")
 }
 
-func (r *RAMRoleArnCredential) updateCredential() (err error) {
+func (r *OIDCCredential) GetOIDCToken(OIDCTokenFilePath string) *string {
+	tokenPath := OIDCTokenFilePath
+	_, err := os.Stat(tokenPath)
+	if os.IsNotExist(err) {
+		tokenPath = os.Getenv("ALIBABA_CLOUD_OIDC_TOKEN_FILE")
+		if tokenPath == "" {
+			return nil
+		}
+	}
+	byt, err := ioutil.ReadFile(tokenPath)
+	if err != nil {
+		return nil
+	}
+	return tea.String(string(byt))
+}
+
+func (r *OIDCCredential) updateCredential() (err error) {
 	if r.runtime == nil {
 		r.runtime = new(utils.Runtime)
 	}
@@ -138,43 +143,29 @@ func (r *RAMRoleArnCredential) updateCredential() (err error) {
 		request.Domain = r.runtime.STSEndpoint
 	}
 	request.Scheme = "HTTPS"
-	request.Method = "GET"
-	request.QueryParams["AccessKeyId"] = r.AccessKeyId
-	request.QueryParams["Action"] = "AssumeRole"
+	request.Method = "POST"
+	request.QueryParams["Timestamp"] = utils.GetTimeInFormatISO8601()
+	request.QueryParams["Action"] = "AssumeRoleWithOIDC"
 	request.QueryParams["Format"] = "JSON"
-	if r.RoleSessionExpiration > 0 {
-		if r.RoleSessionExpiration >= 900 && r.RoleSessionExpiration <= 3600 {
-			request.QueryParams["DurationSeconds"] = strconv.Itoa(r.RoleSessionExpiration)
-		} else {
-			err = errors.New("[InvalidParam]:Assume Role session duration should be in the range of 15min - 1Hr")
-			return
-		}
-	} else {
-		request.QueryParams["DurationSeconds"] = strconv.Itoa(defaultDurationSeconds)
-	}
-	request.QueryParams["RoleArn"] = r.RoleArn
+	request.BodyParams["RoleArn"] = r.RoleArn
+	request.BodyParams["OIDCProviderArn"] = r.OIDCProviderArn
+	token := r.GetOIDCToken(r.OIDCTokenFilePath)
+	request.BodyParams["OIDCToken"] = tea.StringValue(token)
 	if r.Policy != "" {
 		request.QueryParams["Policy"] = r.Policy
 	}
-	if r.ExternalId != "" {
-		request.QueryParams["ExternalId"] = r.ExternalId
-	}
 	request.QueryParams["RoleSessionName"] = r.RoleSessionName
-	request.QueryParams["SignatureMethod"] = "HMAC-SHA1"
-	request.QueryParams["SignatureVersion"] = "1.0"
 	request.QueryParams["Version"] = "2015-04-01"
-	request.QueryParams["Timestamp"] = utils.GetTimeInFormatISO8601()
 	request.QueryParams["SignatureNonce"] = utils.GetUUID()
-	signature := utils.ShaHmac1(request.BuildStringToSign(), r.AccessKeySecret+"&")
-	request.QueryParams["Signature"] = signature
 	request.Headers["Host"] = request.Domain
 	request.Headers["Accept-Encoding"] = "identity"
+	request.Headers["content-type"] = "application/x-www-form-urlencoded"
 	request.URL = request.BuildURL()
 	content, err := doAction(request, r.runtime)
 	if err != nil {
 		return fmt.Errorf("refresh RoleArn sts token err: %s", err.Error())
 	}
-	var resp *ramRoleArnResponse
+	var resp *OIDCResponse
 	err = json.Unmarshal(content, &resp)
 	if err != nil {
 		return fmt.Errorf("refresh RoleArn sts token err: Json.Unmarshal fail: %s", err.Error())
