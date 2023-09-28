@@ -29,6 +29,7 @@ import (
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -124,13 +125,11 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 	tmpdisk.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
 
 	// Init ECS Client
-	accessControl := utils.GetAccessControl()
-	client := newEcsClient(accessControl)
-	if accessControl.UseMode == utils.EcsRAMRole || accessControl.UseMode == utils.ManagedToken {
-		log.Log.Infof("Starting csi-plugin with sts.")
-	} else {
-		log.Log.Infof("Starting csi-plugin without sts.")
+	cred, err := credentials.NewCredential()
+	if err != nil {
+		log.Log.Fatalf("Error building credential: %s", err.Error())
 	}
+	client := newEcsClient(credentials.NewSignerAdaptor(cred))
 	GlobalConfigVar.EcsClient = client
 
 	apiExtentionClient, err := crd.NewForConfig(cfg)

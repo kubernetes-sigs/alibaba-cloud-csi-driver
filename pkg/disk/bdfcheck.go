@@ -15,7 +15,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 )
 
@@ -295,7 +295,6 @@ func addDiskBdfTag(devices []string) ([]string, error) {
 	}
 
 	// filter untaged disks
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	disksResponse, err := getDiskList(disks)
 	if err != nil {
 		return disks, err
