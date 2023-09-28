@@ -32,6 +32,10 @@ func MigrateEnv() {
 }
 
 func NewProvider() (alicred.CredentialsProvider, error) {
+	if os.Getenv("USE_OIDC_AUTH_INNER") == "true" {
+		return nil, errors.New("USE_OIDC_AUTH_INNER is no longer supported")
+	}
+
 	MigrateEnv()
 
 	// try managed token credential

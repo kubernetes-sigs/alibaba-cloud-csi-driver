@@ -83,3 +83,10 @@ func TestConfigFile(t *testing.T) {
 	assert.Equal(t, "bar", *m.AccessKeySecret)
 	assert.Empty(t, m.SecurityToken)
 }
+
+func TestOidcUnsupported(t *testing.T) {
+	t.Setenv("USE_OIDC_AUTH_INNER", "true")
+
+	_, err := NewCredential()
+	assert.Error(t, err)
+}
