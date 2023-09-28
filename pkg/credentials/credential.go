@@ -27,6 +27,10 @@ func MigrateEnv() {
 }
 
 func NewCredential() (alicred.Credential, error) {
+	if os.Getenv("USE_OIDC_AUTH_INNER") == "true" {
+		return nil, errors.New("USE_OIDC_AUTH_INNER is no longer supported")
+	}
+
 	MigrateEnv()
 
 	credential, err := alicred.NewCredential(nil)
