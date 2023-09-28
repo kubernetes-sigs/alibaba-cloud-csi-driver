@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 
+	alicred_v1 "github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	alicred_old "github.com/aliyun/credentials-go/credentials"
 	alicred "github.com/aliyun/credentials-go/credentials/providers"
 	"k8s.io/klog/v2"
@@ -56,4 +57,25 @@ func NewCredential() (alicred_old.Credential, error) {
 		return nil, err
 	}
 	return alicred_old.FromCredentialsProvider("default", provider), nil
+}
+
+type v1Provider struct {
+	alicred.CredentialsProvider
+}
+
+func (p v1Provider) GetCredentials() (*alicred_v1.Credentials, error) {
+	cred, err := p.CredentialsProvider.GetCredentials()
+	if err != nil {
+		return nil, err
+	}
+	return &alicred_v1.Credentials{
+		AccessKeyId:     cred.AccessKeyId,
+		AccessKeySecret: cred.AccessKeySecret,
+		SecurityToken:   cred.SecurityToken,
+		ProviderName:    cred.ProviderName,
+	}, nil
+}
+
+func V1ProviderAdaptor(provider alicred.CredentialsProvider) alicred_v1.CredentialsProvider {
+	return v1Provider{provider}
 }

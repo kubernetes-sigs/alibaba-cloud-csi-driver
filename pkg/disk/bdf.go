@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"github.com/pkg/errors"
@@ -292,7 +293,7 @@ func storeBdfInfo(diskID, bdf string) (err error) {
 	addTagsRequest.ResourceType = "disk"
 	addTagsRequest.ResourceId = diskID
 	addTagsRequest.RegionId = GlobalConfigVar.Region
-	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
+	ecsClient := GlobalConfigVar.EcsClient
 	_, err = ecsClient.AddTags(addTagsRequest)
 	if err != nil {
 		klog.Warningf("storeBdfInfo: AddTags error: %s, %s", diskID, err.Error())
@@ -305,7 +306,7 @@ func storeBdfInfo(diskID, bdf string) (err error) {
 func clearBdfInfo(diskID, bdf string) (err error) {
 
 	klog.Infof("clearBdfInfo: bdf: %s", bdf)
-	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
+	ecsClient := GlobalConfigVar.EcsClient
 
 	bdfInfoString := ""
 	if bdf == "" {
@@ -352,7 +353,7 @@ func clearBdfInfo(diskID, bdf string) (err error) {
 	return nil
 }
 
-func forceDetachAllowed(ecsClient *ecs.Client, disk *ecs.Disk) (allowed bool, err error) {
+func forceDetachAllowed(ecsClient cloud.ECSInterface, disk *ecs.Disk) (allowed bool, err error) {
 	// The following case allow detach:
 	// 1. no depend bdf
 	// 2. instance status is stopped

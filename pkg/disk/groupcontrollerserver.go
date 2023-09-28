@@ -64,8 +64,6 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 	for index, id := range sourceVolumeIds {
 		sourceVolumeIds[index] = strings.TrimSpace(id)
 	}
-	// Need to check for already existing snapshot name
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	// check if groupvolumesnapshot has already exists
 	existsGroupSnapshot, err := findSnapshotGroup(req.GetName(), "")
 
@@ -135,7 +133,6 @@ func (cs *groupControllerServer) DeleteVolumeGroupSnapshot(ctx context.Context, 
 	klog.Infof("DeleteVolumeGroupSnapshot:: starting delete group snapshot %s. snapshot ids: %v", groupSnapshotId, snapshotIds)
 
 	// Check if Snapshot exist
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	existsGroupSnapshots, err := findSnapshotGroup("", groupSnapshotId)
 	if err != nil {
 		var aliErr *alicloudErr.ServerError
@@ -182,7 +179,6 @@ func (cs *groupControllerServer) GetVolumeGroupSnapshot(ctx context.Context, req
 	klog.Infof("GetVolumeGroupSnapshot:: starting get group snapshot %s. snapshot ids: %v", groupSnapshotId, snapshotIds)
 
 	// Check Snapshot exist
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	existsGroupSnapshots, err := findSnapshotGroup("", groupSnapshotId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "GetVolumeGroupSnapshot:: failed to find Snapshot id %s: %v", groupSnapshotId, err.Error())
