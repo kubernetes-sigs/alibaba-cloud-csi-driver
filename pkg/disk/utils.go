@@ -26,7 +26,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -168,27 +167,6 @@ func SetEcsEndPoint(regionID string) {
 	}
 }
 
-// GetDeviceMountNum get the device mount number
-func GetDeviceMountNum(targetPath string) int {
-	deviceCmd := fmt.Sprintf("mount | grep %s | awk '{print $1}'", targetPath)
-	deviceCmdOut, err := run(deviceCmd)
-	if err != nil {
-		return 0
-	}
-	deviceCmdOut = strings.TrimSuffix(deviceCmdOut, "\n")
-	deviceNumCmd := fmt.Sprintf("mount | grep \"%s \" | wc -l", deviceCmdOut)
-	deviceNumOut, err := run(deviceNumCmd)
-	if err != nil {
-		return 0
-	}
-	deviceNumOut = strings.TrimSuffix(deviceNumOut, "\n")
-	num, err := strconv.Atoi(deviceNumOut)
-	if err != nil {
-		return 0
-	}
-	return num
-}
-
 // IsFileExisting check file exist in volume driver
 func IsFileExisting(filename string) bool {
 	_, err := os.Stat(filename)
@@ -217,14 +195,6 @@ func IsDirEmpty(name string) (bool, error) {
 		return true, nil
 	}
 	return false, err
-}
-
-func run(cmd string) (string, error) {
-	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("Failed to run cmd: %s, with out: %s, error: %s ", cmd, out, err.Error())
-	}
-	return string(out), nil
 }
 
 func createDest(dest string) error {

@@ -339,30 +339,6 @@ func IsMounted(mountPath string) bool {
 	return true
 }
 
-// IsMountedInHost return status of host mounted or not
-func IsMountedInHost(mountPath string) bool {
-	cmd := fmt.Sprintf("%s mount", NsenterCmd)
-	stdout, err := RunWithFilter(cmd, mountPath)
-	if err != nil {
-		log.Infof("IsMounted: Exec command %s is failed, err: %s", cmd, err.Error())
-		return false
-	}
-	if len(stdout) == 0 {
-		return false
-	}
-	return true
-}
-
-// UmountInHost do an unmount operation
-func UmountInHost(mountPath string) error {
-	cmd := fmt.Sprintf("%s umount %s", NsenterCmd, mountPath)
-	_, err := Run(cmd)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // Umount do an unmount operation
 func Umount(mountPath string) error {
 	cmd := fmt.Sprintf("umount %s", mountPath)
