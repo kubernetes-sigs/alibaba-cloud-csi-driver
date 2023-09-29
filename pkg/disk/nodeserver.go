@@ -37,6 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/mount-utils"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
 )
@@ -357,14 +358,21 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	devicePaths := GetVolumeDeviceName(req.VolumeId)
 	rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
 	expectName := ChooseDevice(rootDevice, subDevice)
-	realDevice := GetDeviceByMntPoint(sourcePath)
+
+	realDevice, _, err := mount.GetDeviceNameFromMount(ns.k8smounter, sourcePath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", sourcePath, err.Error())
+	}
 	if realDevice == "" {
 		opts := append(mnt.MountFlags, "shared")
 		if err := ns.k8smounter.Mount(expectName, sourcePath, fsType, opts); err != nil {
 			log.Log.Errorf("NodePublishVolume: mount source error: %s, %s, %s", expectName, sourcePath, err.Error())
 			return nil, status.Error(codes.Internal, "NodePublishVolume: mount source error: "+expectName+", "+sourcePath+", "+err.Error())
 		}
-		realDevice = GetDeviceByMntPoint(sourcePath)
+		realDevice, _, err = mount.GetDeviceNameFromMount(ns.k8smounter, sourcePath)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", sourcePath, err.Error())
+		}
 	}
 	if (expectName != realDevice && realDevice != "tmpfs") || realDevice == "" {
 		log.Log.Errorf("NodePublishVolume: Volume: %s, sourcePath: %s real Device: %s not same with expected: %s", req.VolumeId, sourcePath, realDevice, expectName)
@@ -537,7 +545,10 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 
 		// check device available
-		deviceName := GetDeviceByMntPoint(targetPath)
+		deviceName, _, err := mount.GetDeviceNameFromMount(ns.k8smounter, targetPath)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", targetPath, err.Error())
+		}
 		if err := checkDeviceAvailable(deviceName, req.VolumeId, targetPath); err != nil {
 			log.Log.Errorf("NodeStageVolume: mountPath is mounted %s, but check device available error: %s", targetPath, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())

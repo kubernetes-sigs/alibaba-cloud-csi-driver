@@ -168,16 +168,6 @@ func SetEcsEndPoint(regionID string) {
 	}
 }
 
-// GetDeviceByMntPoint return the device info from given mount point
-func GetDeviceByMntPoint(targetPath string) string {
-	deviceCmd := fmt.Sprintf("mount | grep \"on %s\" | awk 'NR==1 {print $1}'", targetPath)
-	deviceCmdOut, err := run(deviceCmd)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(deviceCmdOut)
-}
-
 // GetDeviceMountNum get the device mount number
 func GetDeviceMountNum(targetPath string) int {
 	deviceCmd := fmt.Sprintf("mount | grep %s | awk '{print $1}'", targetPath)
