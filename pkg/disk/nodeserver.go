@@ -17,10 +17,12 @@ limitations under the License.
 package disk
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -934,18 +936,17 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 			log.Log.Errorf("NodeExpandVolume:: GetDeviceRootAndIndex: %s with error: %s", diskID, err.Error())
 			return nil, status.Errorf(codes.InvalidArgument, "Volume %s GetDeviceRootAndIndex with error %s ", diskID, err.Error())
 		}
-		cmd := fmt.Sprintf("growpart %s %d", rootPath, index)
-		if _, err := utils.Run(cmd); err != nil {
-			if strings.Contains(err.Error(), "NOCHANGE") {
-				if strings.Contains(err.Error(), "it cannot be grown") || strings.Contains(err.Error(), "could only be grown by") {
+		output, err := exec.Command("growpart", rootPath, strconv.Itoa(index)).CombinedOutput()
+		if err != nil {
+			if bytes.Contains(output, []byte("NOCHANGE")) {
+				if bytes.Contains(output, []byte("it cannot be grown")) || bytes.Contains(output, []byte("could only be grown by")) {
 					deviceCapacity := getBlockDeviceCapacity(devicePath)
 					rootCapacity := getBlockDeviceCapacity(rootPath)
 					log.Log.Infof("NodeExpandVolume: Volume %s with Device Partition %s no need to grown, with requestSize: %v, rootBlockSize: %v, partition BlockDevice size: %v", diskID, devicePath, requestGB, rootCapacity, deviceCapacity)
 					return &csi.NodeExpandVolumeResponse{}, nil
 				}
 			}
-			log.Log.Errorf("NodeExpandVolume: expand volume %s partition command: %s with error: %s", diskID, cmd, err.Error())
-			return nil, status.Errorf(codes.InvalidArgument, "NodeExpandVolume: expand volume %s partition with error: %s ", diskID, err.Error())
+			return nil, status.Errorf(codes.InvalidArgument, "NodeExpandVolume: expand volume %s at %s %d failed: %s, with output %s", diskID, rootPath, index, err.Error(), string(output))
 		}
 		log.Log.Infof("NodeExpandVolume: Successful expand partition for volume: %s device: %s partition: %d", diskID, rootPath, index)
 	}
