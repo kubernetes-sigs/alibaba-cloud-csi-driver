@@ -628,12 +628,12 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			keyValue := strings.Split(configStr, "=")
 			if len(keyValue) == 2 {
 				fileName := filepath.Join("/sys/block/", filepath.Base(device), keyValue[0])
-				configCmd := "echo '" + keyValue[1] + "' > " + fileName
-				if _, err := utils.Run(configCmd); err != nil {
-					log.Log.Errorf("NodeStageVolume: Volume Block System Config with cmd: %s, get error: %v", configCmd, err)
-					return nil, status.Error(codes.Aborted, "NodeStageVolume: Volume Block System Config with cmd:"+configCmd+", error with: "+err.Error())
+				err := utils.WriteTrunc(fileName, keyValue[1])
+				if err != nil {
+					return nil, status.Errorf(codes.Internal,
+						"NodeStageVolume: Volume Block System Config failed, failed to write %s to %s: %v", keyValue[1], fileName, err)
 				}
-				log.Log.Infof("NodeStageVolume: Volume Block System Config Successful with command: %s, for volume: %v", configCmd, req.VolumeId)
+				log.Log.Infof("NodeStageVolume: set sysConfig %s=%s", keyValue[0], keyValue[1])
 			} else {
 				log.Log.Errorf("NodeStageVolume: Volume Block System Config with format error: %s", configStr)
 				return nil, status.Error(codes.Aborted, "NodeStageVolume: Volume Block System Config with format error "+configStr)
