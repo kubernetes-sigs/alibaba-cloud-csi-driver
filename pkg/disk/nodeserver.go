@@ -739,7 +739,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), InputOutputErr) {
 				if err = isPathAvailiable(targetPath); err != nil {
-					if err = utils.Umount(targetPath); err != nil {
+					if err = ns.k8smounter.Unmount(targetPath); err != nil {
 						log.Log.Errorf("NodeUnstageVolume: umount target %s(input/output error) with error: %v", targetPath, err)
 						return nil, status.Errorf(codes.InvalidArgument, "NodeUnstageVolume umount target %s with errror: %v", targetPath, err)
 					}
@@ -1103,7 +1103,7 @@ func (ns *nodeServer) unmountDuplicationPath(globalPath string) error {
 	refs, err := ns.k8smounter.GetMountRefs(globalPath)
 	if err == nil && !ns.mounter.HasMountRefs(globalPath, refs) {
 		log.Log.Infof("NodeUnpublishVolume: VolumeId Unmount global path %s for ack with kubelet data disk", globalPath)
-		if err := utils.Umount(globalPath); err != nil {
+		if err := ns.k8smounter.Unmount(globalPath); err != nil {
 			log.Log.Errorf("NodeUnpublishVolume: volumeId: unmount global path %s failed with err: %v", globalPath, err)
 			return status.Error(codes.Internal, err.Error())
 		}
@@ -1120,7 +1120,7 @@ func (ns *nodeServer) forceUnmountPath(globalPath string) error {
 		log.Log.Warnf("Global Path is not mounted: %s", globalPath)
 		return nil
 	}
-	if err := utils.Umount(globalPath); err != nil {
+	if err := ns.k8smounter.Unmount(globalPath); err != nil {
 		log.Log.Errorf("NodeUnpublishVolume: volumeId: unmount global path %s failed with err: %v", globalPath, err)
 		return status.Error(codes.Internal, err.Error())
 	} else {
