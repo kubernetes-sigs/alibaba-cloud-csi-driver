@@ -44,6 +44,8 @@ import (
 	utilexec "k8s.io/utils/exec"
 )
 
+const mountInfoPath = "/proc/self/mountinfo"
+
 type nodeServer struct {
 	metadata   metadata.MetadataProvider
 	nodeID     string
@@ -551,7 +553,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", targetPath, err.Error())
 		}
-		if err := checkDeviceAvailable(deviceName, req.VolumeId, targetPath); err != nil {
+		if err := checkDeviceAvailable(mountInfoPath, deviceName, req.VolumeId, targetPath); err != nil {
 			log.Log.Errorf("NodeStageVolume: mountPath is mounted %s, but check device available error: %s", targetPath, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -613,7 +615,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 	}
 
-	if err := checkDeviceAvailable(device, req.VolumeId, targetPath); err != nil {
+	if err := checkDeviceAvailable(mountInfoPath, device, req.VolumeId, targetPath); err != nil {
 		log.Log.Errorf("NodeStageVolume: check device %s for volume %s with error: %s", device, req.VolumeId, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}

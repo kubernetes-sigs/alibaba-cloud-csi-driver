@@ -17,15 +17,11 @@ package disk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"path"
 	"testing"
-
-	"gopkg.in/h2non/gock.v1"
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	gomock "github.com/golang/mock/gomock"
@@ -33,6 +29,12 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/h2non/gock.v1"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/mount-utils"
 )
 
 func TestIsFileExisting(t *testing.T) {
@@ -426,4 +428,86 @@ func TestPatchForNodeExisting(t *testing.T) {
 	}
 	patch := patchForNode(node, 16, []string{"cloud_efficiency", "cloud_ssd"})
 	assert.Nil(t, patch)
+}
+
+func writeMountinfo(t *testing.T, mountInfo string) string {
+	mountInfoPath := path.Join(os.TempDir(), "mountinfo")
+	err := os.WriteFile(mountInfoPath, []byte(mountInfo), 0o644)
+	assert.NoError(t, err)
+	return mountInfoPath
+}
+
+func parseMountinfo(t *testing.T, mountInfo string) []mount.MountInfo {
+	mountInfoPath := writeMountinfo(t, mountInfo)
+	mnts, err := mount.ParseMountInfo(mountInfoPath)
+	assert.NoError(t, err)
+	return mnts
+}
+
+func TestGetMountedVolumeDevice(t *testing.T) {
+	cases := []struct {
+		name      string
+		mountInfo []mount.MountInfo
+		device    string
+	}{
+		{
+			name:      "mounted",
+			mountInfo: parseMountinfo(t, "707 97 0:5 /vdc /path/to/volumeDevice rw,nosuid shared:21 - devtmpfs devtmpfs rw,size=7901960k,nr_inodes=1975490,mode=755"),
+			device:    "/vdc",
+		},
+		{
+			name:      "not mounted",
+			mountInfo: parseMountinfo(t, "707 97 0:5 /vdc /path/to/another_volumeDevice rw,nosuid shared:21 - devtmpfs devtmpfs rw,size=7901960k,nr_inodes=1975490,mode=755"),
+			device:    "",
+		},
+	}
+
+	for _, test := range cases {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			device := getMountedVolumeDevice(test.mountInfo, "/path/to/volumeDevice")
+			assert.Equal(t, test.device, device)
+		})
+	}
+}
+
+func TestIsDeviceMountedAt(t *testing.T) {
+	cases := []struct {
+		name      string
+		mountInfo []mount.MountInfo
+		mounted   bool
+	}{
+		{
+			name:      "mounted",
+			mountInfo: parseMountinfo(t, "291 97 253:16 / /path/to/mountpoint rw,relatime shared:160 - ext4 /dev/vdb rw"),
+			mounted:   true,
+		},
+		{
+			name:      "wrong device",
+			mountInfo: parseMountinfo(t, "291 97 253:16 / /path/to/mountpoint rw,relatime shared:160 - ext4 /dev/vdc rw"),
+			mounted:   false,
+		},
+		{
+			name:      "wrong path",
+			mountInfo: parseMountinfo(t, "291 97 253:16 / /path/to/another/mountpoint rw,relatime shared:160 - ext4 /dev/vdb rw"),
+			mounted:   false,
+		},
+	}
+
+	for _, test := range cases {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			mounted := isDeviceMountedAt(test.mountInfo, "/dev/vdb", "/path/to/mountpoint")
+			assert.Equal(t, test.mounted, mounted)
+		})
+	}
+}
+
+func TestCheckDeviceAvailableError(t *testing.T) {
+	err := checkDeviceAvailable("/not/exist", "/dev/vdc", "d-2zedmdfyiz2num45yx60", "/path/to/mountpoint")
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("expected os.ErrNotExist, got %v", err)
+	}
 }

@@ -57,6 +57,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/mount-utils"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
 )
@@ -1014,20 +1015,38 @@ func validateDiskPerformanceLevel(opts map[string]string) (performanceLevel []st
 	return
 }
 
-func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
+func getMountedVolumeDevice(mnts []k8smount.MountInfo, targetPath string) string {
+	for _, mnt := range mnts {
+		if mnt.MountPoint == targetPath {
+			return mnt.Root
+		}
+	}
+	return ""
+}
+
+func isDeviceMountedAt(mnts []k8smount.MountInfo, device, targetPath string) bool {
+	for _, mnt := range mnts {
+		if mnt.MountPoint == targetPath && mnt.Source == device {
+			return true
+		}
+	}
+	return false
+}
+
+func checkDeviceAvailable(mountinfoPath, devicePath, volumeID, targetPath string) error {
 	if devicePath == "" {
 		msg := "devicePath is empty, cannot used for Volume"
 		return status.Error(codes.Internal, msg)
 	}
 
+	mnts, err := mount.ParseMountInfo(mountinfoPath)
+	if err != nil {
+		return err
+	}
+
 	// block volume
 	if devicePath == "devtmpfs" {
-		findmntCmd := fmt.Sprintf("findmnt %s | awk '{if(NR>1)print $2}'", targetPath)
-		output, err := utils.Run(findmntCmd)
-		if err != nil {
-			return status.Error(codes.Internal, err.Error())
-		}
-		device := output[len("devtmpfs")+1 : len(output)-1]
+		device := getMountedVolumeDevice(mnts, targetPath)
 		newVolumeID, err := GetVolumeIDByDevice(device)
 		if err != nil {
 			return nil
@@ -1050,11 +1069,7 @@ func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
 		return status.Error(codes.Internal, msg)
 	}
 
-	checkCmd := fmt.Sprintf("mount | grep \"%s on %s type\" | wc -l", devicePath, utils.KubeletRootDir)
-	if out, err := utils.Run(checkCmd); err != nil {
-		msg := fmt.Sprintf("devicePath(%s) is used to kubelet", devicePath)
-		return status.Error(codes.Internal, msg)
-	} else if strings.TrimSpace(out) != "0" {
+	if isDeviceMountedAt(mnts, devicePath, utils.KubeletRootDir) {
 		msg := fmt.Sprintf("devicePath(%s) is used as DataDisk for kubelet, cannot used fo Volume", devicePath)
 		return status.Error(codes.Internal, msg)
 	}
