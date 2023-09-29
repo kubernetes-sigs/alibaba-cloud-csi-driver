@@ -15,7 +15,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 )
 
@@ -60,30 +60,44 @@ func BdfHealthCheck() {
 	log.Infof("Bdf Health Check Starting, with Interval %d minutes...", interTime)
 
 	// running in loop
-	// if bdf hang exist, unused not be checked.
+	// if bdf hang, unused is not checked.
+	checkDone := make(chan struct{})
+	isHang := false
 	for {
 		if !IsVFNode() {
 			break
 		}
-		isHang := checkBdfHang(recorder)
-		if doUnusedCheck && !isHang {
+		if !isHang {
+			go checkBdfHangCmd(checkDone)
+			timer := time.NewTimer(10 * time.Second)
+			select {
+			case <-checkDone:
+				timer.Stop()
+			case <-timer.C:
+				isHang = true
+			}
+		} else {
+			select {
+			case <-checkDone:
+				isHang = false
+			default:
+			}
+		}
+		if isHang {
+			notifyBdfHang(recorder)
+		} else if doUnusedCheck {
 			checkDiskUnused(recorder)
 		}
 		time.Sleep(time.Duration(interTime) * time.Minute)
 	}
 }
 
-// check if bdf hang in host
 // record events if bdf hang;
-func checkBdfHang(recorder record.EventRecorder) bool {
-	if isHang, err := isBdfHang(); isHang {
-		errMsg := fmt.Sprintf("Find BDF Hang in Node %s, with message: %v", GlobalConfigVar.NodeID, err)
-		log.Errorf(errMsg)
-		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeHang, errMsg)
-		DingTalk(errMsg)
-		return true
-	}
-	return false
+func notifyBdfHang(recorder record.EventRecorder) {
+	errMsg := fmt.Sprintf("Find BDF Hang in Node %s", GlobalConfigVar.NodeID)
+	log.Errorf(errMsg)
+	utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeHang, errMsg)
+	DingTalk(errMsg)
 }
 
 // check disk attached but not used in host;
@@ -104,51 +118,15 @@ func checkDiskUnused(recorder record.EventRecorder) {
 }
 
 // go routine for bdf check command;
-func checkBdfHangCmd() error {
-	chckHang := "cat /sys/block/*/serial &"
-	err := utils.RunTimeout(chckHang, 3)
+func checkBdfHangCmd(finished chan<- struct{}) {
+	files, err := filepath.Glob("/sys/block/*/serial")
 	if err != nil {
-		log.Errorf("BdfCheck: command exec: %s with error: %v", chckHang, err)
-		return err
+		panic(err) // the only error Glob can return is ErrBadPattern, which should not happen
 	}
-	return nil
-}
-
-// check bdf hang exist in host
-// suppose cat /sys/block/ will be hang, if bdf hang;
-func isBdfHang() (bool, error) {
-	cmdHang := "ps -ef | grep \"cat /sys/block/\" | grep -v grep | wc -l"
-	psOut, err := utils.Run(cmdHang)
-	if err != nil {
-		return true, err
+	for _, file := range files {
+		os.ReadFile(file) // ignore error
 	}
-	if strings.TrimSpace(psOut) != "0" {
-		return true, fmt.Errorf("Process cat /sys/block/ already exist ")
-	}
-
-	// run cat /sys/block/*/serial
-	// go routine avoid command hang
-	// sleep 50ms sometimes too short to wait command stop
-	go checkBdfHangCmd()
-	time.Sleep(time.Duration(50) * time.Millisecond)
-
-	psOut, err = utils.Run(cmdHang)
-	if err != nil {
-		return true, err
-	}
-	if strings.TrimSpace(psOut) != "0" {
-		// double check if bdf is hang
-		// sleep 3s to wait cat command finished.
-		time.Sleep(time.Duration(2) * time.Second)
-		psOut, err = utils.Run(cmdHang)
-		if err != nil {
-			return true, err
-		}
-		if strings.TrimSpace(psOut) != "0" {
-			return true, fmt.Errorf("Process cat /sys/block/ exist after exec ")
-		}
-	}
-	return false, nil
+	finished <- struct{}{}
 }
 
 // get disk unused
