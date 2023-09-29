@@ -677,13 +677,18 @@ func Ping(ipAddress string) (*ping.Statistics, error) {
 }
 
 // IsDirTmpfs check path is tmpfs mounted or not
-func IsDirTmpfs(path string) bool {
-	cmd := fmt.Sprintf("findmnt %s -o FSTYPE -n", path)
-	fsType, err := Run(cmd)
-	if err == nil && strings.TrimSpace(fsType) == "tmpfs" {
-		return true
+func IsDirTmpfs(mounter k8smount.Interface, path string) (bool, error) {
+	mnts, err := mounter.List()
+	if err != nil {
+		return false, err
 	}
-	return false
+	for _, mnt := range mnts {
+		// in case of multiple mounts stack on the same path, we only check the first one
+		if mnt.Path == path {
+			return mnt.Type == "tmpfs", nil
+		}
+	}
+	return false, nil
 }
 
 // WriteAndSyncFile behaves just like ioutil.WriteFile in the standard library,

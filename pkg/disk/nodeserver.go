@@ -543,7 +543,11 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 	if !notmounted {
 		// if target path is mounted tmpfs, return
-		if utils.IsDirTmpfs(req.StagingTargetPath) {
+		isTmpfs, err := utils.IsDirTmpfs(ns.k8smounter, req.StagingTargetPath)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "NodeStageVolume: failed to check %s for tmpfs: %v", req.StagingTargetPath, err)
+		}
+		if isTmpfs {
 			log.Log.Infof("NodeStageVolume: TargetPath(%s) is mounted as tmpfs, not need mount again", req.StagingTargetPath)
 			return &csi.NodeStageVolumeResponse{}, nil
 		}
