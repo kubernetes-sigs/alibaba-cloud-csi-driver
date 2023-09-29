@@ -94,8 +94,7 @@ func ParseManagedTokens(content []byte) (ManageTokens, error) {
 		return ManageTokens{}, fmt.Errorf("failed to decode SecurityToken: %w", err)
 	}
 
-	layout := "2006-01-02T15:04:05Z"
-	t, err := time.Parse(layout, akInfo.Expiration)
+	t, err := time.Parse(time.RFC3339, akInfo.Expiration)
 	if err != nil {
 		return ManageTokens{}, fmt.Errorf("parse expiration failed: %w", err)
 	}
