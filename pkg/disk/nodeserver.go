@@ -92,8 +92,6 @@ const (
 	InputOutputErr = "input/output error"
 	// FileSystemLoseCapacityPercent is the env of container
 	FileSystemLoseCapacityPercent = "FILE_SYSTEM_LOSE_PERCENT"
-	// NsenterCmd run command on host
-	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
 	// DiskMultiTenantEnable Enable disk multi-tenant mode
 	DiskMultiTenantEnable = "DISK_MULTI_TENANT_ENABLE"
 	// TenantUserUID tag
