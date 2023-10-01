@@ -391,7 +391,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 		realDevice = GetDeviceByMntPoint(sourcePath)
 	}
-	if expectName != realDevice || realDevice == "" {
+	if (expectName != realDevice && realDevice != "tmpfs") || realDevice == "" {
 		log.Log.Errorf("NodePublishVolume: Volume: %s, sourcePath: %s real Device: %s not same with expected: %s", req.VolumeId, sourcePath, realDevice, expectName)
 		return nil, status.Error(codes.Internal, "NodePublishVolume: sourcePath: "+sourcePath+" real Device: "+realDevice+" not same with Saved: "+expectName)
 	}
