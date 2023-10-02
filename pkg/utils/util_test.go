@@ -17,7 +17,6 @@ limitations under the License.
 package utils
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -122,35 +121,4 @@ func TestCmdValid(t *testing.T) {
 	cmd = "chmod -R 755 /mnt/abc; echo abc"
 	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
 	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))*/
-}
-
-func TestParseProviderID(t *testing.T) {
-	examples := []struct {
-		provider     string
-		expectNodeID string
-	}{
-		{
-			provider:     "cn-hangzhou.i-123456787894",
-			expectNodeID: "i-123456787894",
-		},
-		{
-			provider:     "alicloud://cn-hangzhou.i-123456787894",
-			expectNodeID: "i-123456787894",
-		},
-		{
-			provider:     "alicloud://cn-hangzhou",
-			expectNodeID: "",
-		},
-		{
-			provider:     "alicloud://cn-hangzhou.i-xxxxxx.aaa",
-			expectNodeID: "",
-		},
-	}
-
-	for _, example := range examples {
-		t.Run(example.provider, func(t *testing.T) {
-			actualNodeId := ParseProviderID(example.provider)
-			assert.Equal(t, example.expectNodeID, actualNodeId)
-		})
-	}
 }

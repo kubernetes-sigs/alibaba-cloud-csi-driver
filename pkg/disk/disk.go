@@ -27,6 +27,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
@@ -102,13 +103,13 @@ func initDriver() {
 }
 
 // NewDriver create the identity/node/controller server and disk driver
-func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
+func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController bool) *DISK {
 	initDriver()
 	tmpdisk := &DISK{}
 	tmpdisk.endpoint = endpoint
 
 	// Config Global vars
-	cfg := GlobalConfigSet(nodeID)
+	cfg := GlobalConfigSet(m)
 
 	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, GlobalConfigVar.NodeID)
 	tmpdisk.driver = csiDriver
@@ -154,7 +155,7 @@ func (disk *DISK) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(nodeID string) *restclient.Config {
+func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	configMapName := "csi-plugin"
 	isADControllerEnable := false
 	isDiskTagEnable := false
@@ -329,11 +330,9 @@ func GlobalConfigSet(nodeID string) *restclient.Config {
 
 	nodeName := os.Getenv(kubeNodeName)
 	runtimeValue := "runc"
-	var regionID, zoneID, vmID string
 	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		log.Log.Errorf("GlobalConfigSet: get node %s with error: %s", nodeName, err.Error())
-		regionID, _ = utils.GetRegionID()
 	} else {
 		if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime"]; ok && strings.TrimSpace(value) == "Sandboxed-Container.runv" {
 			if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime-version"]; ok && strings.HasPrefix(strings.TrimSpace(value), "1.") {
@@ -341,21 +340,6 @@ func GlobalConfigSet(nodeID string) *restclient.Config {
 			}
 		}
 		log.Log.Infof("Describe node %s and Set RunTimeClass to %s", nodeName, runtimeValue)
-
-		regionID, zoneID, vmID = getMeta(nodeInfo)
-		log.Log.Infof("NewNodeServer: get instance meta info from metadataserver, regionID: %s, zoneID: %s, vmID: %s", regionID, zoneID, vmID)
-
-		if nodeID == "" {
-			nodeID = vmID
-		}
-	}
-	if zoneID == "" || !strings.HasPrefix(vmID, "i-") {
-		doc, err := retryGetInstanceDoc()
-		log.Log.Infof("NewNodeServer: get instance meta info failed from metadataserver, err: %v, doc: %v", err, doc)
-		if err == nil {
-			zoneID = doc.ZoneID
-			nodeID = doc.InstanceID
-		}
 	}
 	runtimeEnv := os.Getenv("RUNTIME")
 	if runtimeEnv == MixRunTimeMode {
@@ -403,12 +387,12 @@ func GlobalConfigSet(nodeID string) *restclient.Config {
 		omitFsCheck = true
 	}
 
-	log.Log.Infof("Starting with GlobalConfigVar: region(%s), zone(%s), NodeID(%s), ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)", regionID, zoneID, nodeID, isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete, clustID)
+	log.Log.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)", isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete, clustID)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
-		Region:                regionID,
-		NodeID:                nodeID,
-		ZoneID:                zoneID,
+		Region:                metadata.MustGet(m, metadata.RegionID),
+		NodeID:                metadata.MustGet(m, metadata.InstanceID),
+		ZoneID:                metadata.MustGet(m, metadata.ZoneID),
 		ADControllerEnable:    isADControllerEnable,
 		DiskTagEnable:         isDiskTagEnable,
 		DiskBdfEnable:         isDiskBdfEnable,

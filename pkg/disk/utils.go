@@ -1301,22 +1301,6 @@ func UpdateNode(nodes corev1.NodeInterface, c cloud.ECSInterface, maxDiskCount i
 	log.Info("UpdateNode:: finished")
 }
 
-func getMeta(node *v1.Node) (string, string, string) {
-	zoneID := ""
-	regionID := ""
-	if value := node.Labels[zoneIDLabelNew]; value != "" {
-		zoneID = value
-	}
-	if value := node.Labels[regionIDLabelNew]; value != "" {
-		log.Infof("getZoneID:: fix regionid value by: %s", value)
-		regionID = value
-	}
-	providerID := node.Spec.ProviderID
-	nodeID := utils.ParseProviderID(providerID)
-
-	return regionID, zoneID, nodeID
-}
-
 // getZoneID ...
 func getZoneID(c *ecs.Client, instanceID string) (string, string) {
 

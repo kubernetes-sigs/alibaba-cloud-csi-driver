@@ -228,7 +228,7 @@ func main() {
 		case TypePluginDISK:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := disk.NewDriver(*nodeID, endPoint, *runAsController)
+				driver := disk.NewDriver(meta, endPoint, *runAsController)
 				driver.Run()
 			}(endPointName)
 
