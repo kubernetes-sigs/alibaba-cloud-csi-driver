@@ -60,24 +60,24 @@ type controllerServer struct {
 
 // Alicloud disk parameters
 type diskVolumeArgs struct {
-	Type                    string              `json:"type"`
-	RegionID                string              `json:"regionId"`
-	ZoneID                  string              `json:"zoneId"`
-	FsType                  string              `json:"fsType"`
-	ReadOnly                bool                `json:"readOnly"`
-	MultiAttach             string              `json:"multiAttach"`
-	Encrypted               bool                `json:"encrypted"`
-	KMSKeyID                string              `json:"kmsKeyId"`
-	PerformanceLevel        string              `json:"performanceLevel"`
-	ResourceGroupID         string              `json:"resourceGroupId"`
-	StorageClusterID        string              `json:"storageClusterId"`
-	DiskTags                map[string]string   `json:"diskTags"`
-	NodeSelected            string              `json:"nodeSelected"`
-	DelAutoSnap             string              `json:"delAutoSnap"`
-	ARN                     []ecs.CreateDiskArn `json:"arn"`
-	VolumeSizeAutoAvailable bool                `json:"volumeSizeAutoAvailable"`
-	ProvisionedIops         int                 `json:"provisionedIops"`
-	BurstingEnabled         bool                `json:"burstingEnabled"`
+	Type                    string
+	RegionID                string
+	ZoneID                  string
+	FsType                  string
+	ReadOnly                bool
+	MultiAttach             string
+	Encrypted               bool
+	KMSKeyID                string
+	PerformanceLevel        string
+	ResourceGroupID         string
+	StorageClusterID        string
+	DiskTags                map[string]string
+	NodeSelected            string
+	DelAutoSnap             string
+	ARN                     []ecs.CreateDiskArn
+	VolumeSizeAutoAvailable bool
+	ProvisionedIops         int
+	BurstingEnabled         bool
 }
 
 var veasp = struct {
