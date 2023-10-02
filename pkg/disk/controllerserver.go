@@ -60,7 +60,7 @@ type controllerServer struct {
 
 // Alicloud disk parameters
 type diskVolumeArgs struct {
-	Type                    string
+	Type                    []string
 	RegionID                string
 	ZoneID                  string
 	FsType                  string
@@ -68,7 +68,7 @@ type diskVolumeArgs struct {
 	MultiAttach             string
 	Encrypted               bool
 	KMSKeyID                string
-	PerformanceLevel        string
+	PerformanceLevel        []string
 	ResourceGroupID         string
 	StorageClusterID        string
 	DiskTags                map[string]string
@@ -200,7 +200,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		requestGB = MinimumDiskSizeInGB
 		volSizeBytes = MinimumDiskSizeInBytes
 	}
-	sharedDisk := diskVol.Type == DiskSharedEfficiency || diskVol.Type == DiskSharedSSD
+	sharedDisk := len(diskVol.Type) == 1 && (diskVol.Type[0] == DiskSharedEfficiency || diskVol.Type[0] == DiskSharedSSD)
 
 	diskType, diskID, diskPL, err := createDisk(req.GetName(), snapshotID, requestGB, diskVol, req.Parameters[TenantUserUID])
 	if err != nil {

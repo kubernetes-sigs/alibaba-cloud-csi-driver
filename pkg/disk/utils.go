@@ -874,7 +874,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	// disk Type
 	diskType, err := validateDiskType(volOptions)
 	if err != nil {
-		return nil, fmt.Errorf("Illegal required parameter type: " + diskVolArgs.Type)
+		return nil, fmt.Errorf("Illegal required parameter type: " + volOptions["type"])
 	}
 	diskVolArgs.Type = diskType
 	pls, err := validateDiskPerformanceLevel(volOptions)
@@ -966,7 +966,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	if diskVolArgs.StorageClusterID != "" {
-		if diskVolArgs.PerformanceLevel == "" {
+		if len(diskVolArgs.PerformanceLevel) == 0 {
 			return nil, fmt.Errorf("performanceLevel is necessary when storageClusterID: '%s' specified", diskVolArgs.StorageClusterID)
 		}
 	}
@@ -1022,9 +1022,9 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	return diskVolArgs, nil
 }
 
-func validateDiskType(opts map[string]string) (diskType string, err error) {
+func validateDiskType(opts map[string]string) (diskType []string, err error) {
 	if value, ok := opts["type"]; !ok || (ok && value == DiskHighAvail) {
-		diskType = strings.Join([]string{DiskSSD, DiskEfficiency}, ",")
+		diskType = []string{DiskSSD, DiskEfficiency}
 		return
 	}
 	if strings.Contains(opts["type"], ",") {
@@ -1036,33 +1036,32 @@ func validateDiskType(opts map[string]string) (diskType string, err error) {
 				return diskType, fmt.Errorf("Illegal required parameter type: " + cusType)
 			}
 		}
-		diskType = strings.Join(orderedList, ",")
+		diskType = orderedList
 		return
 	}
 	t := opts["type"]
 	if AvailableDiskTypes.Has(t) {
-		diskType = t
+		diskType = []string{t}
 	}
-	if diskType == "" {
+	if len(diskType) == 0 {
 		return diskType, fmt.Errorf("Illegal required parameter type: " + opts["type"])
 	}
 	return
 }
 
-func validateDiskPerformanceLevel(opts map[string]string) (performanceLevel string, err error) {
+func validateDiskPerformanceLevel(opts map[string]string) (performanceLevel []string, err error) {
 	pl, ok := opts[ESSD_PERFORMANCE_LEVEL]
 	if !ok || pl == "" {
-		return "", nil
+		return
 	}
 	log.Infof("validateDiskPerformanceLevel: pl: %v", pl)
-	if strings.Contains(pl, ",") {
-		for _, cusPer := range strings.Split(pl, ",") {
-			if _, ok := CustomDiskPerfermance[cusPer]; !ok {
-				return "", fmt.Errorf("illegal performance level type: %s", cusPer)
-			}
+	performanceLevel = strings.Split(pl, ",")
+	for _, cusPer := range performanceLevel {
+		if _, ok := CustomDiskPerfermance[cusPer]; !ok {
+			return nil, fmt.Errorf("illegal performance level type: %s", cusPer)
 		}
 	}
-	return pl, nil
+	return
 }
 
 func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
