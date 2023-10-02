@@ -101,31 +101,17 @@ const (
 	GBSIZE = 1024 * MBSIZE
 	// ZoneID ...
 	ZoneID = "zoneId"
-	// instanceTypeLabel ...
-	instanceTypeLabel = "beta.kubernetes.io/instance-type"
-	// zoneIDLabel ...
-	zoneIDLabel = "failure-domain.beta.kubernetes.io/zone"
-	// sigmaLabel instance type ...
-	sigmaInstanceTypeLabel = "sigma.ali/machine-model"
-	// sigmaLabel zoneid ....
-	sigmaLabelZoneId = "sigma.ali/ecs-zone-id"
-	// nodeStorageLabel ...
-	nodeStorageLabel = "node.csi.alibabacloud.com/disktype.%s"
 
 	nodeDiskCountAnnotation = "node.csi.alibabacloud.com/allocatable-disk"
 	// kubeNodeName ...
 	kubeNodeName = "KUBE_NODE_NAME"
 	// describeResourceType ...
 	describeResourceType = "DataDisk"
-	// NodeSchedueTag in annotations
-	NodeSchedueTag = "volume.kubernetes.io/selected-node"
 	// RetryMaxTimes ...
 	RetryMaxTimes = 5
 
 	labelAppendPrefix = "csi.alibabacloud.com/label-prefix/"
-	annVolumeTopoKey  = "csi.alibabacloud.com/volume-topology"
 	labelVolumeType   = "csi.alibabacloud.com/disktype"
-	annAppendPrefix   = "csi.alibabacloud.com/annotation-prefix/"
 
 	VolumeDeleteAutoSnapshotKey                    = "csi.alibabacloud.com/volume-delete-autosnapshot-retentiondays"
 	VOLUME_EXPAND_AUTO_SNAPSHOT_OP_KEY             = "volumeExpandAutoSnapshot"

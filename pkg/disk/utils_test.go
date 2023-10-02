@@ -113,6 +113,58 @@ func TestRetryGetInstanceDoc(t *testing.T) {
 	}
 }
 
+func TestPickDiskTypes(t *testing.T) {
+	cases := []struct {
+		name      string
+		prefered  map[string]string
+		requested []Category
+		expected  []Category
+		err       bool
+	}{
+		{
+			name:      "empty_topo",
+			requested: []Category{"cloud_essd"},
+			expected:  []Category{"cloud_essd"},
+		},
+		{
+			name:      "no_intersection",
+			prefered:  map[string]string{"node.csi.alibabacloud.com/disktype.cloud_essd": "available"},
+			requested: []Category{"cloud_ssd"},
+			err:       true,
+		},
+		{
+			name: "intersection",
+			prefered: map[string]string{
+				"topology.diskplugin.csi.alibabacloud.com/zone": "cn-beijing-g",
+				"node.csi.alibabacloud.com/disktype.cloud_essd": "available",
+				"node.csi.alibabacloud.com/disktype.cloud_auto": "available",
+			},
+			requested: []Category{"cloud_essd", "cloud_ssd"},
+			expected:  []Category{"cloud_essd"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			topo := &csi.TopologyRequirement{}
+			if c.prefered != nil {
+				topo.Requisite = []*csi.Topology{
+					{Segments: c.prefered},
+				}
+				topo.Preferred = []*csi.Topology{
+					{Segments: c.prefered},
+				}
+			}
+			actual, err := pickDiskTypes(topo, c.requested)
+			if c.err {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, c.expected, actual)
+			}
+		})
+	}
+}
+
 func testNode() *corev1.Node {
 	n := &corev1.Node{
 		ObjectMeta: v1.ObjectMeta{
@@ -416,11 +468,9 @@ func TestPatchForNode(t *testing.T) {
 	node := testNode()
 	clientset := fake.NewSimpleClientset(node)
 
-	patch := patchForNode(node, 16, []string{"cloud_efficiency", "cloud_ssd"})
+	patch := patchForNode(node, 16)
 	node, err := clientset.CoreV1().Nodes().Patch(context.Background(), "test-node", types.StrategicMergePatchType, patch, v1.PatchOptions{})
 	assert.NoError(t, err)
-	assert.Equal(t, "available", node.Labels["node.csi.alibabacloud.com/disktype.cloud_efficiency"])
-	assert.Equal(t, "available", node.Labels["node.csi.alibabacloud.com/disktype.cloud_ssd"])
 	assert.Equal(t, "16", node.Annotations["node.csi.alibabacloud.com/allocatable-disk"])
 }
 
@@ -431,11 +481,7 @@ func TestPatchForNodeExisting(t *testing.T) {
 	node.Annotations = map[string]string{
 		"node.csi.alibabacloud.com/allocatable-disk": "16",
 	}
-	node.Labels = map[string]string{
-		"node.csi.alibabacloud.com/disktype.cloud_efficiency": "available",
-		"node.csi.alibabacloud.com/disktype.cloud_ssd":        "available",
-	}
-	patch := patchForNode(node, 16, []string{"cloud_efficiency", "cloud_ssd"})
+	patch := patchForNode(node, 16)
 	assert.Nil(t, patch)
 }
 

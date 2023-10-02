@@ -40,9 +40,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -920,7 +917,7 @@ func clientToken(name string) string {
 // So we just assume they are not supported.
 var vaildDiskNameRegexp = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9:_-]{1,127}$`)
 
-func createDisk(ecsClient cloud.ECSInterface, diskName, snapshotID string, diskVol *diskVolumeArgs, supportedTypes sets.Set[Category]) (string, createAttempt, error) {
+func createDisk(ecsClient cloud.ECSInterface, diskName, snapshotID string, diskVol *diskVolumeArgs) (string, createAttempt, error) {
 	// 需要配置external-provisioner启动参数--extra-create-metadata=true，然后ACK的external-provisioner才会将PVC的Annotations传过来
 	createDiskRequest := buildCreateDiskRequest(diskVol)
 	if vaildDiskNameRegexp.MatchString(diskName) {
@@ -935,12 +932,6 @@ func createDisk(ecsClient cloud.ECSInterface, diskName, snapshotID string, diskV
 
 	messages := []string{}
 	for _, attempt := range generateCreateAttempts(diskVol) {
-		if len(supportedTypes) > 0 {
-			if !supportedTypes.Has(attempt.Category) {
-				messages = append(messages, fmt.Sprintf("%s: not supported by node %s", attempt, diskVol.NodeSelected))
-				continue
-			}
-		}
 		limit := GetSizeRange(attempt.Category, attempt.PerformanceLevel)
 		if limit.Min > 0 && diskVol.RequestGB < limit.Min {
 			messages = append(messages, fmt.Sprintf("%s: requested size %dGiB is less than minimum %dGiB", attempt, diskVol.RequestGB, limit.Min))
@@ -1096,27 +1087,6 @@ func generateCreateAttempts(diskVol *diskVolumeArgs) (a []createAttempt) {
 		}
 	}
 	return
-}
-
-func getSupportedDiskTypes(node string) (sets.Set[Category], error) {
-	types := sets.New[Category]()
-	client := GlobalConfigVar.ClientSet
-	nodeInfo, err := client.CoreV1().Nodes().Get(context.Background(), node, metav1.GetOptions{})
-	if err != nil {
-		log.Infof("getDiskType: failed to get node labels: %v", err)
-		if apierrors.IsNotFound(err) {
-			return nil, status.Errorf(codes.ResourceExhausted, "CreateVolume:: get node info by name: %s failed with err: %v, start rescheduling", node, err)
-		}
-		return nil, status.Errorf(codes.InvalidArgument, "CreateVolume:: get node info by name: %s failed with err: %v", node, err)
-	}
-	re := regexp.MustCompile(`node.csi.alibabacloud.com/disktype.(.*)`)
-	for key := range nodeInfo.Labels {
-		if result := re.FindStringSubmatch(key); len(result) != 0 {
-			types.Insert(Category(result[1]))
-		}
-	}
-	log.Infof("CreateVolume:: node support disk types: %v, nodeSelected: %v", types, node)
-	return types, nil
 }
 
 func getDefaultDiskTags(diskVol *diskVolumeArgs) []ecs.CreateDiskTag {

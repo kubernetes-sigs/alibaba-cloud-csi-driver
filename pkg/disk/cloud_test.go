@@ -11,7 +11,6 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var (
@@ -328,27 +327,13 @@ func TestCheckExistingDisk(t *testing.T) {
 func TestCreateDisk_Basic(t *testing.T) {
 	cases := []struct {
 		name       string
-		supports   sets.Set[Category]
 		args       *diskVolumeArgs
 		err        bool
 		serverFail bool
 	}{
 		{
-			name:     "success",
-			supports: sets.New(DiskESSD),
-			args:     &diskVolumeArgs{Type: []Category{DiskESSD}, RequestGB: 20},
-		}, {
-			name:     "success - fallback",
-			supports: sets.New(DiskESSD),
-			args:     &diskVolumeArgs{Type: []Category{DiskSSD, DiskESSD}, RequestGB: 20},
-		}, {
-			name: "success - empty supports",
+			name: "success",
 			args: &diskVolumeArgs{Type: []Category{DiskESSD}, RequestGB: 20},
-		}, {
-			name:     "unsupported",
-			supports: sets.New(DiskSSD),
-			args:     &diskVolumeArgs{Type: []Category{DiskESSD}, RequestGB: 20},
-			err:      true,
 		}, {
 			name: "too small",
 			args: &diskVolumeArgs{Type: []Category{DiskSSD}, RequestGB: 1},
@@ -374,7 +359,7 @@ func TestCreateDisk_Basic(t *testing.T) {
 				client.EXPECT().CreateDisk(gomock.Any()).Return(nil, alicloudErr.NewServerError(400, `{"Code": "AnyOtherErrors"}`, ""))
 			}
 
-			diskID, attempt, err := createDisk(client, "disk-name", "", c.args, c.supports)
+			diskID, attempt, err := createDisk(client, "disk-name", "", c.args)
 			if c.err {
 				assert.Error(t, err)
 			} else {
@@ -397,7 +382,7 @@ func TestCreateDisk_ServerFailFallback(t *testing.T) {
 	}, nil)
 
 	args := &diskVolumeArgs{Type: []Category{DiskESSD, DiskESSDAuto}, RequestGB: 20}
-	diskID, attempt, err := createDisk(client, "disk-name", "", args, nil)
+	diskID, attempt, err := createDisk(client, "disk-name", "", args)
 	assert.NoError(t, err)
 	assert.Equal(t, "d-123", diskID)
 	assert.Equal(t, DiskESSDAuto, attempt.Category)
@@ -451,7 +436,7 @@ func TestCreateDisk_ParameterMismatch(t *testing.T) {
 			}
 
 			args := &diskVolumeArgs{Type: []Category{DiskESSD, DiskESSDAuto}, RequestGB: 20}
-			diskID, attempt, err := createDisk(client, "disk-name", "", args, nil)
+			diskID, attempt, err := createDisk(client, "disk-name", "", args)
 			if c.err {
 				assert.Error(t, err)
 			} else {
@@ -482,6 +467,6 @@ func TestCreateDisk_NoInfinitLoop(t *testing.T) {
 	}, nil)
 
 	args := &diskVolumeArgs{Type: []Category{DiskESSD}, RequestGB: 20}
-	_, _, err := createDisk(client, "disk-name", "", args, nil)
+	_, _, err := createDisk(client, "disk-name", "", args)
 	assert.Error(t, err)
 }
