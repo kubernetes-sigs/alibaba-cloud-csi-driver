@@ -64,6 +64,21 @@ func (mr *MockECSInterfaceMockRecorder) DescribeAvailableResource(request interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeAvailableResource", reflect.TypeOf((*MockECSInterface)(nil).DescribeAvailableResource), request)
 }
 
+// DescribeInstances mocks base method.
+func (m *MockECSInterface) DescribeInstances(request *ecs.DescribeInstancesRequest) (*ecs.DescribeInstancesResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DescribeInstances", request)
+	ret0, _ := ret[0].(*ecs.DescribeInstancesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DescribeInstances indicates an expected call of DescribeInstances.
+func (mr *MockECSInterfaceMockRecorder) DescribeInstances(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeInstances", reflect.TypeOf((*MockECSInterface)(nil).DescribeInstances), request)
+}
+
 // DescribeRegions mocks base method.
 func (m *MockECSInterface) DescribeRegions(request *ecs.DescribeRegionsRequest) (*ecs.DescribeRegionsResponse, error) {
 	m.ctrl.T.Helper()

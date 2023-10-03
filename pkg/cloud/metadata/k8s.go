@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"context"
+	"os"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -41,6 +42,14 @@ var MetadataLabels = map[MetadataKey][]string{
 	ZoneID:       ZoneIDLabels,
 	InstanceType: InstanceTypeLabels,
 	InstanceID:   InstanceIdLabels,
+}
+
+func init() {
+	envInstanceIdKey := os.Getenv("NODE_LABEL_ECS_ID_KEY")
+	if envInstanceIdKey != "" {
+		InstanceIdLabels = append([]string{envInstanceIdKey}, InstanceIdLabels...)
+		MetadataLabels[InstanceID] = InstanceIdLabels
+	}
 }
 
 func NewKubernetesNodeMetadata(nodeName string, nodeClient corev1.NodeInterface) (*KubernetesNodeMetadata, error) {

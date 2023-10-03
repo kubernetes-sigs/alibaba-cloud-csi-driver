@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/sirupsen/logrus"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -101,6 +102,20 @@ func (m *Metadata) EnableKubernetes(nodeClient corev1.NodeInterface) {
 		fetcher: &KubernetesMetadataFetcher{
 			client:   nodeClient,
 			nodeName: nodeName,
+		},
+	})
+}
+
+func (m *Metadata) EnableOpenAPI(ecsClient cloud.ECSInterface) {
+	mPre := Metadata{
+		// use the previous providers to get region id and instance id,
+		// do not recurse into ourselves
+		providers: m.providers,
+	}
+	m.providers = append(m.providers, &lazyInitProvider{
+		fetcher: &OpenAPIFetcher{
+			client: ecsClient,
+			mPre:   &mPre,
 		},
 	})
 }

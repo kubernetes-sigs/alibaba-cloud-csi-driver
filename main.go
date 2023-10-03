@@ -190,6 +190,10 @@ func main() {
 		}
 	}
 
+	ac := utils.GetAccessControl()
+	ecsClient := utils.NewEcsClient(ac)
+	meta.EnableOpenAPI(ecsClient)
+
 	for i, driverName := range driverNames {
 		if !strings.Contains(driverName, TypePluginSuffix) && driverName != ExtenderAgent {
 			driverNames[i] = joinCsiPluginSuffix(driverName)

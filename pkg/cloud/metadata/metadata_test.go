@@ -6,10 +6,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/jarcoal/httpmock"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/stretchr/testify/assert"
 	fake "k8s.io/client-go/kubernetes/fake"
 )
+
+type fakeProvider struct {
+	values map[MetadataKey]string
+}
+
+func (p *fakeProvider) Get(key MetadataKey) (string, error) {
+	if v, ok := p.values[key]; ok {
+		return v, nil
+	}
+	return "", ErrUnknownMetadataKey
+}
 
 func TestEcsUnreachable(t *testing.T) {
 	t.Parallel()
@@ -56,6 +69,75 @@ func TestGetFromEnv(t *testing.T) {
 	t.Setenv("REGION_ID", "cn-hangzhou")
 	m := NewMetadata()
 	assert.Equal(t, "cn-hangzhou", MustGet(m, RegionID))
+}
+
+func TestCreateOpenAPI(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name      string
+		values    map[MetadataKey]string
+		available bool
+	}{
+		{
+			name: "ok",
+			values: map[MetadataKey]string{
+				RegionID:   "cn-beijing",
+				InstanceID: "i-2zec1slzwdzrwmvlr4w2",
+			},
+			available: true,
+		},
+		{
+			name: "no region",
+			values: map[MetadataKey]string{
+				InstanceID: "i-2zec1slzwdzrwmvlr4w2",
+			},
+			available: false,
+		},
+		{
+			name: "no instance",
+			values: map[MetadataKey]string{
+				RegionID: "cn-beijing",
+			},
+			available: false,
+		},
+	}
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			ctrl := gomock.NewController(t)
+			var ecsClient cloud.ECSInterface
+			if c.available {
+				ecsClient = testEcsClient(ctrl)
+			} else {
+				ecsClient = cloud.NewMockECSInterface(ctrl)
+			}
+
+			m := NewMetadata()
+			m.providers = append(m.providers, &fakeProvider{values: c.values})
+
+			m.EnableOpenAPI(ecsClient)
+			zone, err := m.Get(ZoneID)
+			if c.available {
+				assert.Equal(t, "cn-beijing-k", zone)
+				assert.NoError(t, err)
+			} else {
+				assert.True(t, errors.Is(err, ErrUnknownMetadataKey))
+			}
+		})
+	}
+}
+
+func TestCreateOpenAPIFromEnv(t *testing.T) {
+	t.Setenv("REGION_ID", "cn-beijing")
+	t.Setenv("KUBE_NODE_NAME", "i-2zec1slzwdzrwmvlr4w2")
+	ctrl := gomock.NewController(t)
+	ecsClient := testEcsClient(ctrl)
+
+	m := NewMetadata()
+	m.EnableOpenAPI(ecsClient)
+	assert.Equal(t, "cn-beijing-k", MustGet(m, ZoneID))
 }
 
 func fakeMetadata(t *testing.T) *Metadata {
