@@ -36,7 +36,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/ens"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local"
 	csilog "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/lvm"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mem"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
@@ -76,8 +75,6 @@ const (
 	TypePluginOSS = "ossplugin.csi.alibabacloud.com"
 	// TypePluginCPFS CPFS type plugin
 	TypePluginCPFS = "cpfsplugin.csi.alibabacloud.com"
-	// TypePluginLVM LVM type plugin
-	TypePluginLVM = "lvmplugin.csi.alibabacloud.com"
 	// TypePluginMEM memory type plugin
 	TypePluginMEM = "memplugin.csi.alibabacloud.com"
 	// TypePluginLOCAL local type plugin
@@ -211,13 +208,6 @@ func main() {
 			go func(endPoint string) {
 				defer wg.Done()
 				driver := disk.NewDriver(meta, endPoint, *runAsController)
-				driver.Run()
-			}(endPointName)
-
-		case TypePluginLVM:
-			go func(endPoint string) {
-				defer wg.Done()
-				driver := lvm.NewDriver(*nodeID, endPoint)
 				driver.Run()
 			}(endPointName)
 		case TypePluginCPFS:
