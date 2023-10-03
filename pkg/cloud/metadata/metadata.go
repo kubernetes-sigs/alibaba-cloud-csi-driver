@@ -20,6 +20,13 @@ const (
 	ZoneID       MetadataKey = iota
 	InstanceID   MetadataKey = iota
 	InstanceType MetadataKey = iota
+	Runtime      MetadataKey = iota
+)
+
+// Possible values for Runtime
+const (
+	MixRuntimeMode  = "runc-runv"
+	RuncRuntimeMode = "runc"
 )
 
 func (k MetadataKey) String() string {

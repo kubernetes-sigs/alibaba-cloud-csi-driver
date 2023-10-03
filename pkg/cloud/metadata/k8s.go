@@ -61,6 +61,16 @@ func NewKubernetesNodeMetadata(nodeName string, nodeClient corev1.NodeInterface)
 }
 
 func (m *KubernetesNodeMetadata) Get(key MetadataKey) (string, error) {
+	switch key {
+	case Runtime:
+		if m.node.Labels["alibabacloud.com/container-runtime"] == "Sandboxed-Container.runv" &&
+			strings.HasPrefix(m.node.Labels["alibabacloud.com/container-runtime-version"], "1.") {
+			return MixRuntimeMode, nil
+		} else {
+			return RuncRuntimeMode, nil
+		}
+	}
+
 	labels := MetadataLabels[key]
 	for _, label := range labels {
 		if value, ok := m.node.Labels[label]; ok {
@@ -87,7 +97,7 @@ type KubernetesMetadataFetcher struct {
 }
 
 func (f *KubernetesMetadataFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
-	if _, ok := MetadataLabels[key]; !ok {
+	if _, ok := MetadataLabels[key]; !ok && key != Runtime {
 		return nil, ErrUnknownMetadataKey
 	}
 	p, err := NewKubernetesNodeMetadata(f.nodeName, f.client)

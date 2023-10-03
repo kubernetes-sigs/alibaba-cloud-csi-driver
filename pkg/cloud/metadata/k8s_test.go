@@ -105,3 +105,55 @@ func TestGetK8s(t *testing.T) {
 		})
 	}
 }
+
+func TestRuntime(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name   string
+		labels map[string]string
+		expect string
+	}{
+		{
+			name:   "default",
+			expect: RuncRuntimeMode,
+		},
+		{
+			name: "runv",
+			labels: map[string]string{
+				"alibabacloud.com/container-runtime":         "Sandboxed-Container.runv",
+				"alibabacloud.com/container-runtime-version": "1.0.0",
+			},
+			expect: MixRuntimeMode,
+		},
+		{
+			name: "unknown",
+			labels: map[string]string{
+				"alibabacloud.com/container-runtime":         "unknown",
+				"alibabacloud.com/container-runtime-version": "1.0.0",
+			},
+			expect: RuncRuntimeMode,
+		},
+		{
+			name: "unknown version",
+			labels: map[string]string{
+				"alibabacloud.com/container-runtime":         "Sandboxed-Container.runv",
+				"alibabacloud.com/container-runtime-version": "9.0.0",
+			},
+			expect: RuncRuntimeMode,
+		},
+	}
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			node := testNode.DeepCopy()
+			node.Labels = c.labels
+
+			client := fake.NewSimpleClientset(node).CoreV1().Nodes()
+			m, err := NewKubernetesNodeMetadata(node.Name, client)
+			assert.NoError(t, err)
+
+			assert.Equal(t, c.expect, MustGet(m, Runtime))
+		})
+	}
+}
