@@ -21,7 +21,6 @@ const (
 // keys used in CreateSnapshotRequest.Parameters
 const (
 	SNAPSHOTTYPE               = "snapshotType"
-	INSTANTACCESS              = "InstantAccess"
 	RETENTIONDAYS              = "retentionDays"
 	INSTANTACCESSRETENTIONDAYS = "instantAccessRetentionDays"
 	SNAPSHOTRESOURCEGROUPID    = "resourceGroupId"

@@ -82,12 +82,10 @@ type diskVolumeArgs struct {
 }
 
 var veasp = struct {
-	IDKey                       string
-	Prefix                      string
-	InstantAccess               bool
-	RetentionDays               int
-	InstanceAccessRetentionDays int
-}{"volumeExpandAutoSnapshotID", "volume-expand-auto-snapshot-", true, 1, 1}
+	IDKey         string
+	Prefix        string
+	RetentionDays int
+}{"volumeExpandAutoSnapshotID", "volume-expand-auto-snapshot-", 1}
 
 var delVolumeSnap sync.Map
 
@@ -467,19 +465,15 @@ func parseSnapshotParameters(params map[string]string, ecsParams *createSnapshot
 	for k, v := range params {
 		switch k {
 		case SNAPSHOTTYPE:
-			if v == INSTANTACCESS {
-				ecsParams.InstantAccess = true
-			}
+			// no-op: InstantAccess is no longer needed
 		case RETENTIONDAYS:
 			ecsParams.RetentionDays, err = strconv.Atoi(v)
 			if err != nil {
 				return fmt.Errorf("failed to parse retentionDays: %w", err)
 			}
 		case INSTANTACCESSRETENTIONDAYS:
-			ecsParams.InstantAccessRetentionDays, err = strconv.Atoi(v)
-			if err != nil {
-				return fmt.Errorf("failed to parse instantAccessRetentionDays: %w", err)
-			}
+			// no-op: InstantAccess is no longer needed
+			log.Warnf("InstantAccessRetentionDays is no longer needed, please remove it from parameters")
 		case SNAPSHOTRESOURCEGROUPID:
 			ecsParams.ResourceGroupID = v
 		case common.VolumeSnapshotNameKey:
@@ -514,27 +508,14 @@ func parseSnapshotParameters(params map[string]string, ecsParams *createSnapshot
 
 // if volumesnapshot have Annotations, use it first.
 // storage.alibabacloud.com/snapshot-ttl
-// storage.alibabacloud.com/ia-snapshot
-// storage.alibabacloud.com/ia-snapshot-ttl
 func parseSnapshotAnnotations(anno map[string]string, ecsParams *createSnapshotParams) error {
 	snapshotTTL := anno["storage.alibabacloud.com/snapshot-ttl"]
-	iaEnable := anno["storage.alibabacloud.com/ia-snapshot"]
-	iaTTL := anno["storage.alibabacloud.com/ia-snapshot-ttl"]
 	var err error
 
 	if snapshotTTL != "" {
 		ecsParams.RetentionDays, err = strconv.Atoi(snapshotTTL)
 		if err != nil {
 			return fmt.Errorf("failed to parse annotation snapshot-ttl: %w", err)
-		}
-	}
-	if strings.ToLower(iaEnable) == "true" {
-		ecsParams.InstantAccess = true
-	}
-	if iaTTL != "" {
-		ecsParams.InstantAccessRetentionDays, err = strconv.Atoi(iaTTL)
-		if err != nil {
-			return fmt.Errorf("failed to parse annotation ia-snapshot-ttl: %w", err)
 		}
 	}
 	return nil
@@ -639,12 +620,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	// 	return nil, e
 	// }
 
-	// if disk type is not essd and IA set disable
-	if params.InstantAccess && !AllCategories[Category(disks[0].Category)].InstantAccessSnapshot {
-		log.Warnf("CreateSnapshot: Snapshot(%s) set as not IA type, because disk Category %s", req.Name, disks[0].Category)
-		params.InstantAccess = false
-	}
-
 	// init createSnapshotRequest and parameters
 	createAt := timestamppb.Now()
 	params.SourceVolumeID = sourceVolumeID
@@ -657,20 +632,13 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		return nil, err
 	}
 
-	// if is IA snapshot, snapshot ready immediately
-	tmpReadyToUse := false
-	if params.InstantAccess {
-		//updateSnapshotIAStatus(req, "completed")
-		tmpReadyToUse = true
-		delete(SnapshotRequestMap, req.Name)
-	}
 	str := fmt.Sprintf("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotResponse.SnapshotId)
 	log.Infof(str)
 	csiSnapshot := &csi.Snapshot{
 		SnapshotId:     snapshotResponse.SnapshotId,
 		SourceVolumeId: sourceVolumeID,
 		CreationTime:   createAt,
-		ReadyToUse:     tmpReadyToUse,
+		ReadyToUse:     false, // even if instant access is available, the snapshot is not ready to use immediately
 		SizeBytes:      utils.Gi2Bytes(int64(disks[0].Size)),
 	}
 
@@ -707,11 +675,9 @@ func snapshotBeforeDelete(volumeID string, ecsClient *ecs.Client) error {
 		return createStaticSnap(volumeID, value.(string), GlobalConfigVar.SnapClient)
 	}
 	resp, err := requestAndCreateSnapshot(ecsClient, &createSnapshotParams{
-		SourceVolumeID:             volumeID,
-		SnapshotName:               deleteVolumeSnapshotName,
-		RetentionDays:              iValue,
-		InstantAccessRetentionDays: iValue,
-		InstantAccess:              true,
+		SourceVolumeID: volumeID,
+		SnapshotName:   deleteVolumeSnapshotName,
+		RetentionDays:  iValue,
 	})
 	if err != nil {
 		return err
@@ -1088,11 +1054,9 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 	// init createSnapshotRequest and parameters
 	createAt := timestamppb.New(cur)
 	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, &createSnapshotParams{
-		SourceVolumeID:             sourceVolumeID,
-		SnapshotName:               volumeExpandAutoSnapshotName,
-		RetentionDays:              veasp.RetentionDays,
-		InstantAccessRetentionDays: veasp.InstanceAccessRetentionDays,
-		InstantAccess:              veasp.InstantAccess,
+		SourceVolumeID: sourceVolumeID,
+		SnapshotName:   volumeExpandAutoSnapshotName,
+		RetentionDays:  veasp.RetentionDays,
 	})
 	if err != nil {
 		log.Errorf("ControllerExpandVolume:: volumeExpandAutoSnapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", volumeExpandAutoSnapshotName, sourceVolumeID, err.Error())
@@ -1100,18 +1064,13 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 		return nil, status.Errorf(codes.Internal, "volumeExpandAutoSnapshot create Failed: %v", err)
 	}
 
-	// as a IA snapshot, volumeExpandAutoSnapshot should be ready immediately
-	tmpReadyToUse := false
-	if veasp.InstantAccess {
-		tmpReadyToUse = true
-	}
 	str := fmt.Sprintf("ControllerExpandVolume:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", volumeExpandAutoSnapshotName, sourceVolumeID, snapshotResponse.SnapshotId)
 	log.Infof(str)
 	csiSnapshot := &csi.Snapshot{
 		SnapshotId:     snapshotResponse.SnapshotId,
 		SourceVolumeId: sourceVolumeID,
 		CreationTime:   createAt,
-		ReadyToUse:     tmpReadyToUse,
+		ReadyToUse:     false, // even if instant access is available, the snapshot is not ready to use immediately
 		SizeBytes:      utils.Gi2Bytes(int64(disk.Size)),
 	}
 	cs.recorder.Event(pvc, v1.EventTypeNormal, snapshotCreatedSuccessfully, str)
