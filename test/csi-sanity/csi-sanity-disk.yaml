@@ -1,0 +1,136 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: csi-test-config
+  namespace: kube-system
+data:
+  volume-parameters.yaml: |
+    type: cloud_essd
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: csi-testing
+  namespace: kube-system
+  labels:
+    name: csi-testing
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node.csi.alibabacloud.com/disktype.cloud_essd
+            operator: In
+            values:
+            - available
+  hostIPC: true
+  hostPID: true
+  serviceAccount: csi-admin
+  serviceAccountName: csi-admin
+  restartPolicy: Never
+  volumes:
+  - name: fuse-metrics-dir
+    hostPath:
+      path: /var/run/
+      type: DirectoryOrCreate
+  - name: registration-dir
+    hostPath:
+      path: /var/lib/kubelet/plugins_registry
+      type: DirectoryOrCreate
+  - name: container-dir
+    hostPath:
+      path: /var/lib/container
+      type: DirectoryOrCreate
+  - name: kubelet-dir
+    hostPath:
+      path: /var/lib/kubelet
+      type: Directory
+  - name: host-dev
+    hostPath:
+      path: /dev
+  - name: etc
+    hostPath:
+      path: /etc
+  - name: ossconnectordir
+    hostPath:
+      path: /usr/
+  - name: csi-sanity
+    emptyDir: {}
+  - name: addon-token
+    secret:
+      items:
+      - key: addon.token.config
+        path: token-config
+      secretName: addon.csi.token
+  - name: csi-test-config
+    configMap:
+      name: csi-test-config
+  containers:
+  - name: csi-testing
+    image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.26.4-e7e52e9-aliyun
+    args: [--endpoint=unix://var/lib/kubelet/csi-sanity/csi.sock --v=2 --driver=disk]
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    ports:
+    - name: http
+      containerPort: 13260
+      protocol: TCP
+    env:
+    - name: KUBE_NODE_NAME
+      valueFrom:
+        fieldRef:
+          apiVersion: v1
+          fieldPath: spec.nodeName
+    - name: MAX_VOLUMES_PERNODE
+      value: "7"
+    - name: SERVICE_PORT
+      value: "13260"
+    securityContext:
+      allowPrivilegeEscalation: true
+      privileged: true
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+    - mountPath: /host/etc
+      name: etc
+    - mountPath: /host/usr/
+      name: ossconnectordir
+    - mountPath: /dev
+      mountPropagation: HostToContainer
+      name: host-dev
+    - mountPath: /var/addon
+      name: addon-token
+      readOnly: true
+    - name: csi-sanity
+      mountPath: /var/lib/kubelet/csi-sanity
+  - name: csi-sanity
+    image: registry-cn-hangzhou.ack.aliyuncs.com/test/csi-sanity:v1.1.0-667-g38c23552
+    args: [
+      "--csi.endpoint", "/var/lib/kubelet/csi-sanity/csi.sock",
+      "--csi.testvolumesize", "21474836480",
+      "--csi.mountdir", "/var/lib/kubelet/csi-sanity/csi-mount",
+      "--csi.stagingdir", "/var/lib/kubelet/csi-sanity/csi-staging",
+      "--csi.testvolumeparameters", "/etc/csi-test/volume-parameters.yaml",
+      "--ginkgo.junit-report", "/var/lib/kubelet/csi-sanity/report.xml",
+      "--ginkgo.no-color",
+      "--ginkgo.v",
+    ]
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "10m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    volumeMounts:
+    - name: csi-sanity
+      mountPath: /var/lib/kubelet/csi-sanity
+    - name: csi-test-config
+      mountPath: /etc/csi-test
+      readOnly: true
