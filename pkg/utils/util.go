@@ -943,14 +943,6 @@ func WriteMetricsInfo(metricsPathPrefix string, req *csi.NodePublishVolumeReques
 	}
 }
 
-func ParseProviderID(providerID string) string {
-	providers := strings.Split(providerID, ".")
-	if len(providers) != 2 {
-		return ""
-	}
-	return providers[1]
-}
-
 // formatAndMount uses unix utils to format and mount the given disk
 func FormatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, target string, fstype string, mkfsOptions []string, mountOptions []string, omitFsCheck bool) error {
 	log.Infof("formatAndMount: mount options : %+v", mountOptions)

@@ -132,26 +132,6 @@ type QueryResponse struct {
 
 // NewNodeServer creates node server
 func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
-	zoneID := GlobalConfigVar.ZoneID
-	nodeID := GlobalConfigVar.NodeID
-	internalMode := os.Getenv("INTERNAL_MODE")
-	if internalMode == "true" {
-		zoneID, nodeID = getZoneID(c, nodeID)
-	} else {
-		if zoneID == "" || nodeID == "" {
-			zoneID, nodeID = getZoneID(c, nodeID)
-		}
-	}
-	log.Log.Infof("NewNodeServer: zone id: %+v, GlobalConfigVar.zoneID: %s", zoneID, GlobalConfigVar.ZoneID)
-	// !strings.HasPrefix(zoneID, GlobalConfigVar.Region) is forbidden ex: regionId: ap-southeast-1 zoneId: ap-southeast-x
-	if GlobalConfigVar.ZoneID == "" {
-		GlobalConfigVar.ZoneID = zoneID
-	}
-
-	if GlobalConfigVar.NodeID == "" {
-		GlobalConfigVar.NodeID = nodeID
-	}
-
 	var maxVolumesNum int64 = MaxVolumesPerNode
 	volumeNum := os.Getenv("MAX_VOLUMES_PERNODE")
 	if "" != volumeNum {

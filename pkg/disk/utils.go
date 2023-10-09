@@ -1301,59 +1301,6 @@ func UpdateNode(nodes corev1.NodeInterface, c cloud.ECSInterface, maxDiskCount i
 	log.Info("UpdateNode:: finished")
 }
 
-func getMeta(node *v1.Node) (string, string, string) {
-	zoneID := ""
-	regionID := ""
-	if value := node.Labels[zoneIDLabelNew]; value != "" {
-		zoneID = value
-	}
-	if value := node.Labels[regionIDLabelNew]; value != "" {
-		log.Infof("getZoneID:: fix regionid value by: %s", value)
-		regionID = value
-	}
-	providerID := node.Spec.ProviderID
-	nodeID := utils.ParseProviderID(providerID)
-
-	return regionID, zoneID, nodeID
-}
-
-// getZoneID ...
-func getZoneID(c *ecs.Client, instanceID string) (string, string) {
-
-	node, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(context.Background(), instanceID, metav1.GetOptions{})
-	if err != nil {
-		log.Fatalf("getZoneID:: get node error: %v", err)
-	}
-	ecsKey := os.Getenv("NODE_LABEL_ECS_ID_KEY")
-	ecsID := ""
-	if ecsKey == "" {
-		ecsID = instanceID
-	} else {
-		ecsID = node.Labels[ecsKey]
-	}
-	if value := node.Labels[zoneIDLabelNew]; value != "" {
-		return value, ecsID
-	}
-	request := ecs.CreateDescribeInstancesRequest()
-
-	request.RegionId = GlobalConfigVar.Region
-	request.InstanceIds = "[\"" + ecsID + "\"]"
-
-	if endpoint := os.Getenv("ECS_ENDPOINT"); endpoint != "" {
-		request.Domain = endpoint
-	} else {
-		request.Domain = fmt.Sprintf("ecs-openapi-share.%s.aliyuncs.com", GlobalConfigVar.Region)
-	}
-	instanceResponse, err := c.DescribeInstances(request)
-	if err != nil {
-		log.Fatalf("getZoneID:: describe instance id error: %s ecsID: %s", err.Error(), ecsID)
-	}
-	if len(instanceResponse.Instances.Instance) != 1 {
-		log.Fatalf("getZoneID:: describe instance returns error instance count: %v, ecsID: %v", len(instanceResponse.Instances.Instance), ecsID)
-	}
-	return instanceResponse.Instances.Instance[0].ZoneId, ecsID
-}
-
 func intersect(slice1, slice2 []string) []string {
 	m := make(map[string]int)
 	nn := make([]string, 0)

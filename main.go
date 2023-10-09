@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cpfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dbfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
@@ -40,11 +41,14 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/om"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/pov"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/common/version"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 func init() {
@@ -170,6 +174,26 @@ func main() {
 	// Storage devops
 	go om.StorageOM()
 
+	// initialize node metadata
+	meta := metadata.NewMetadata()
+	meta.EnableEcs(http.DefaultTransport)
+
+	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
+	if err != nil {
+		csilog.Log.Warnf("newGlobalConfig: build kubeconfig failed: %v", err)
+	} else {
+		kubeClient, err := kubernetes.NewForConfig(cfg)
+		if err != nil {
+			csilog.Log.Warnf("Error building kubernetes clientset: %v", err)
+		} else {
+			meta.EnableKubernetes(kubeClient.CoreV1().Nodes())
+		}
+	}
+
+	ac := utils.GetAccessControl()
+	ecsClient := utils.NewEcsClient(ac)
+	meta.EnableOpenAPI(ecsClient)
+
 	for i, driverName := range driverNames {
 		if !strings.Contains(driverName, TypePluginSuffix) && driverName != ExtenderAgent {
 			driverNames[i] = joinCsiPluginSuffix(driverName)
@@ -208,7 +232,7 @@ func main() {
 		case TypePluginDISK:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := disk.NewDriver(*nodeID, endPoint, *runAsController)
+				driver := disk.NewDriver(meta, endPoint, *runAsController)
 				driver.Run()
 			}(endPointName)
 
