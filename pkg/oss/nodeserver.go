@@ -46,6 +46,8 @@ type nodeServer struct {
 
 // Options contains options for target oss
 type Options struct {
+	directAssigned bool
+
 	Bucket        string `json:"bucket"`
 	URL           string `json:"url"`
 	OtherOpts     string `json:"otherOpts"`
@@ -130,6 +132,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.MetricsTop = strings.ToLower(strings.TrimSpace(value))
 		} else if key == "containernetworkfilesystem" {
 			cnfsName = value
+		} else if key == optDirectAssigned {
+			opt.directAssigned, _ = strconv.ParseBool(strings.TrimSpace(value))
 		}
 	}
 
@@ -180,6 +184,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	argStr := fmt.Sprintf("Bucket: %s, url: %s, , OtherOpts: %s, Path: %s, UseSharedPath: %s, authType: %s", opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType)
 	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
 
+	if opt.directAssigned {
+		return ns.publishDirectVolume(ctx, req, opt)
+	}
 	if IsOssfsMounted(mountPath) {
 		log.Infof("NodePublishVolume: The mountpoint is mounted: %s", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
@@ -389,6 +396,9 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	err := validateNodeUnpublishVolumeRequest(req)
 	if err != nil {
 		return nil, err
+	}
+	if isDirectVolumePath(mountPoint) {
+		return ns.unPublishDirectVolume(ctx, req)
 	}
 
 	// check mount point with IsLikelyNotMountPoint first
