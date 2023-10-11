@@ -22,6 +22,21 @@ const (
 	InstanceType MetadataKey = iota
 )
 
+func (k MetadataKey) String() string {
+	switch k {
+	case RegionID:
+		return "RegionID"
+	case ZoneID:
+		return "ZoneID"
+	case InstanceID:
+		return "InstanceID"
+	case InstanceType:
+		return "InstanceType"
+	default:
+		return fmt.Sprintf("MetadataKey(%d)", k)
+	}
+}
+
 var ErrUnknownMetadataKey = errors.New("unknown metadata key")
 
 const DISABLE_ECS_ENV = "ALIBABA_CLOUD_NO_ECS_METADATA"
@@ -73,10 +88,44 @@ func (p *lazyInitProvider) Get(key MetadataKey) (string, error) {
 	return p.provider.Get(key)
 }
 
+type immutableProvider struct {
+	provider MetadataProvider
+	name     string
+	mu       sync.Mutex
+	values   map[MetadataKey]string
+}
+
+func (p *immutableProvider) Get(key MetadataKey) (string, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if v, ok := p.values[key]; ok {
+		return v, nil
+	}
+	v, err := p.provider.Get(key)
+	if err != nil {
+		return "", err
+	}
+	logrus.WithFields(logrus.Fields{
+		"provider": p.name,
+		"key":      key,
+		"value":    v,
+	}).Info("retrive metadata")
+	p.values[key] = v
+	return v, nil
+}
+
+func newImmutableProvider(provider MetadataProvider, name string) *immutableProvider {
+	return &immutableProvider{
+		provider: provider,
+		name:     name,
+		values:   map[MetadataKey]string{},
+	}
+}
+
 func NewMetadata() *Metadata {
 	return &Metadata{
 		providers: []MetadataProvider{
-			&ENVMetadata{},
+			newImmutableProvider(&ENVMetadata{}, "env"),
 		},
 	}
 }

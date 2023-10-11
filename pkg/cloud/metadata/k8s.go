@@ -90,5 +90,9 @@ func (f *KubernetesMetadataFetcher) FetchFor(key MetadataKey) (MetadataProvider,
 	if _, ok := MetadataLabels[key]; !ok {
 		return nil, ErrUnknownMetadataKey
 	}
-	return NewKubernetesNodeMetadata(f.nodeName, f.client)
+	p, err := NewKubernetesNodeMetadata(f.nodeName, f.client)
+	if err != nil {
+		return nil, err
+	}
+	return newImmutableProvider(p, "Kubernetes"), nil
 }
