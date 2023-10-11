@@ -78,5 +78,9 @@ func (f *OpenAPIFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("instance ID is not available: %w", err)
 	}
-	return NewOpenAPIMetadata(f.client, regionId, instanceId)
+	p, err := NewOpenAPIMetadata(f.client, regionId, instanceId)
+	if err != nil {
+		return nil, err
+	}
+	return newImmutableProvider(p, "OpenAPI"), nil
 }
