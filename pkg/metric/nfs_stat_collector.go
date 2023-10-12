@@ -1,7 +1,6 @@
 package metric
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -174,7 +173,7 @@ type nfsStatCollector struct {
 	lastPvStatsMap              sync.Map
 	clientSet                   *kubernetes.Clientset
 	crdClient                   dynamic.Interface
-	httpClient                  *HTTPClient
+	monitorClient               *StorageMonitorClient
 	recorder                    record.EventRecorder
 	alertSwtichSet              *hashset.Set
 	capacityPercentageThreshold float64
@@ -213,8 +212,6 @@ func NewNfsStatCollector() (Collector, error) {
 		log.Fatalf("Failed to create crd client: %v", err)
 	}
 
-	httpClient := NewHTTPClient()
-
 	alertSet, capacityPercentageThreshold := parseNfsThreshold(nfsDefaultsCapacityPercentageThreshold)
 
 	return &nfsStatCollector{
@@ -247,7 +244,7 @@ func NewNfsStatCollector() (Collector, error) {
 		clientSet:                   clientset,
 		crdClient:                   crdClient,
 		recorder:                    recorder,
-		httpClient:                  httpClient,
+		monitorClient:               NewStorageMonitorClient(clientset),
 		alertSwtichSet:              alertSet,
 		capacityPercentageThreshold: capacityPercentageThreshold,
 	}, nil
@@ -423,22 +420,14 @@ func addNfsStat(pvNameStatMapping *map[string][]string, mountPath string, operat
 }
 
 func getNfsCapacityStat(pvName string, info nfsInfo, p *nfsStatCollector) ([]string, error) {
-	response, err := p.httpClient.Get("multi-cnfs-nas", pvName)
+	capacityInfo, err := p.monitorClient.GetNasCapacityInfo(pvName)
 	if err != nil {
 		return nil, err
 	}
-	body := p.httpClient.ReadBody(response)
-	defer p.httpClient.Close(response)
-	m := make(map[string]nfsCapacityInfo, 0)
-	err = json.Unmarshal([]byte(body), &m)
-	if err != nil {
-		return nil, fmt.Errorf("parse response: %w", err)
-	}
-	value, ok := m[pvName]
-	if ok && value.TotalSize != -1 && value.UsedSize != -1 {
-		p.capacityEventAlert(value.TotalSize, value.UsedSize, pvName, info)
-		total := value.TotalSize * GBSIZE
-		used := value.UsedSize * GBSIZE
+	if capacityInfo != nil && capacityInfo.TotalSize != -1 && capacityInfo.UsedSize != -1 {
+		p.capacityEventAlert(capacityInfo.TotalSize, capacityInfo.UsedSize, pvName, info)
+		total := capacityInfo.TotalSize * GBSIZE
+		used := capacityInfo.UsedSize * GBSIZE
 		return []string{
 			strconv.FormatInt(total, 10),
 			strconv.FormatInt(used, 10),
