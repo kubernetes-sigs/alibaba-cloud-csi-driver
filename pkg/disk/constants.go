@@ -126,7 +126,7 @@ const (
 	DiskESSDAuto = "cloud_auto"
 	// DiskHighPerformance
 	DiskPPerf = "cloud_pperf"
-	// DiskStandPerformace
+	// DiskStandPerformance
 	DiskSPerf = "cloud_sperf"
 	// DiskSharedSSD shared sdd disk type
 	DiskSharedSSD = "san_ssd"
