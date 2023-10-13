@@ -17,8 +17,10 @@ import (
 )
 
 const (
-	storageMonitorSvcName   = "storage-monitor-service"
-	monitorIPUpdateInterval = time.Minute * 30
+	storageMonitorSvcName       = "storage-monitor-service"
+	storageMonitorPort          = "11280"
+	storageMonitorClientTimeout = time.Millisecond * 500
+	monitorIPUpdateInterval     = time.Minute * 30
 )
 
 type StorageMonitorClient struct {
@@ -56,11 +58,11 @@ func (c *StorageMonitorClient) GetNasCapacityInfo(pv string) (*nfsCapacityInfo, 
 	params := url.Values{"multi-cnfs-nas": []string{pv}}
 	uri := url.URL{
 		Scheme:   "http",
-		Host:     net.JoinHostPort(clusterIP, "11280"),
+		Host:     net.JoinHostPort(clusterIP, storageMonitorPort),
 		Path:     "/metrics",
 		RawQuery: params.Encode(),
 	}
-	resp, err := (&http.Client{Timeout: time.Millisecond * 500}).Get(uri.String())
+	resp, err := (&http.Client{Timeout: storageMonitorClientTimeout}).Get(uri.String())
 	if err != nil {
 		return nil, err
 	}
