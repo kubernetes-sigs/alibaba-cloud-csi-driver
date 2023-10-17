@@ -969,7 +969,7 @@ func getDiskType(diskVol *diskVolumeArgs) ([]string, []string, error) {
 		nodeInfo, err := client.CoreV1().Nodes().Get(context.Background(), diskVol.NodeSelected, metav1.GetOptions{})
 		if err != nil {
 			log.Log.Infof("getDiskType: failed to get node labels: %v", err)
-			goto cusDiskType
+			return nil, nil, status.Errorf(codes.ResourceExhausted, "CreateVolume:: get node info by name: %s failed with err: %v, start to reschedule", diskVol.NodeSelected, err)
 		}
 		re := regexp.MustCompile(`node.csi.alibabacloud.com/disktype.(.*)`)
 		for key := range nodeInfo.Labels {
@@ -980,14 +980,13 @@ func getDiskType(diskVol *diskVolumeArgs) ([]string, []string, error) {
 		log.Log.Infof("CreateVolume:: node support disk types: %v, nodeSelected: %v", nodeSupportDiskType, diskVol.NodeSelected)
 	}
 
-cusDiskType:
 	provisionDiskTypes := []string{}
 	allTypes := deleteEmpty(strings.Split(diskVol.Type, ","))
 	if len(nodeSupportDiskType) != 0 {
 		provisionDiskTypes = intersect(nodeSupportDiskType, allTypes)
 		if len(provisionDiskTypes) == 0 {
 			log.Log.Errorf("CreateVolume:: node(%s) support type: [%v] is incompatible with provision disk type: [%s]", diskVol.NodeSelected, nodeSupportDiskType, allTypes)
-			return nil, nil, status.Errorf(codes.InvalidArgument, "CreateVolume:: node support type: [%v] is incompatible with provision disk type: [%s]", nodeSupportDiskType, allTypes)
+			return nil, nil, status.Errorf(codes.ResourceExhausted, "CreateVolume:: node support type: [%v] is incompatible with provision disk type: [%s]", nodeSupportDiskType, allTypes)
 		}
 	} else {
 		provisionDiskTypes = allTypes
