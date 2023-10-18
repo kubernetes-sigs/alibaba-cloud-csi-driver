@@ -25,6 +25,7 @@ import (
 	"time"
 
 	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
+
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
@@ -33,6 +34,7 @@ import (
 	perrors "github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	apiErr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -969,7 +971,10 @@ func getDiskType(diskVol *diskVolumeArgs) ([]string, []string, error) {
 		nodeInfo, err := client.CoreV1().Nodes().Get(context.Background(), diskVol.NodeSelected, metav1.GetOptions{})
 		if err != nil {
 			log.Log.Infof("getDiskType: failed to get node labels: %v", err)
-			return nil, nil, status.Errorf(codes.ResourceExhausted, "CreateVolume:: get node info by name: %s failed with err: %v, start to reschedule", diskVol.NodeSelected, err)
+			if apiErr.IsNotFound(err) {
+				return nil, nil, status.Errorf(codes.ResourceExhausted, "CreateVolume:: get node info by name: %s failed with err: %v, start rescheduling", diskVol.NodeSelected, err)
+			}
+			return nil, nil, status.Errorf(codes.InvalidArgument, "CreateVolume:: get node info by name: %s failed with err: %v", diskVol.NodeSelected, err)
 		}
 		re := regexp.MustCompile(`node.csi.alibabacloud.com/disktype.(.*)`)
 		for key := range nodeInfo.Labels {
