@@ -3,12 +3,13 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	log "github.com/sirupsen/logrus"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	log "github.com/sirupsen/logrus"
 )
 
 // SetVolumeIOLimit config io limit for device
@@ -70,11 +71,15 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 	}
 	// /sys/fs/cgroup/blkio/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-podaadcc749_6776_4933_990d_d50f260f5d46.slice/blkio.throttle.write_bps_device
 	podUID = strings.ReplaceAll(podUID, "-", "_")
-	podBlkIOPath := filepath.Join("/sys/fs/cgroup/blkio/kubepods.slice/kubepods-besteffort.slice", "kubepods-besteffort-pod"+podUID+".slice")
-	if !IsHostFileExist(podBlkIOPath) {
-		podBlkIOPath = filepath.Join("/sys/fs/cgroup/blkio/kubepods.slice/kubepods-burstable.slice", "kubepods-besteffort-pod"+podUID+".slice")
+	podBlkIOPath := ""
+	for _, qosClass := range []string{"besteffort", "burstable", "guaranteed"} {
+		p := fmt.Sprintf("/sys/fs/cgroup/blkio/kubepods.slice/kubepods-%s.slice/kubepods-%s-pod%s.slice", qosClass, qosClass, podUID)
+		if IsHostFileExist(p) {
+			podBlkIOPath = p
+			break
+		}
 	}
-	if !IsHostFileExist(podBlkIOPath) {
+	if podBlkIOPath == "" {
 		log.Errorf("Volume(%s), Cannot get pod blkio/cgroup path: %s", req.VolumeId, podBlkIOPath)
 		return errors.New("Cannot get pod blkio/cgroup path: " + podBlkIOPath)
 	}

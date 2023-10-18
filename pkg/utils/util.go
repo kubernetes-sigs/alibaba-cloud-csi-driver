@@ -242,10 +242,11 @@ func CommandOnNode(args ...string) *exec.Cmd {
 // run shell command
 func Run(cmd string) (string, error) {
 	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
+	strOut := string(out)
 	if err != nil {
-		return "", fmt.Errorf("Failed to run cmd: " + cmd + ", with out: " + string(out) + ", with error: " + err.Error())
+		err = fmt.Errorf("Failed to run cmd: %s, with out: %s: %w", cmd, strOut, err)
 	}
-	return string(out), nil
+	return strOut, err
 }
 
 func RunWithFilter(cmd string, filter ...string) ([]string, error) {
