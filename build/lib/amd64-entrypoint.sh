@@ -383,12 +383,16 @@ if [ "$run_nas" = "true" ]; then
     fi
 
     if [ $install_utils = "true" ]; then
-        if rpm -q aliyun-alinas-utils; then 
+        if ${HOST_CMD} rpm -q aliyun-alinas-utils; then 
             echo "upgrade aliyun-alinas-utils"
             ${HOST_CMD} rpm -Uvh /etc/csi-tool/aliyun-alinas-utils-1.1-6.al7.noarch.rpm
         else
             echo "install aliyun-alinas-utils"
             ${HOST_CMD} yum install -y /etc/csi-tool/aliyun-alinas-utils-1.1-6.al7.noarch.rpm
+        fi
+        if ! ${HOST_CMD} rpm -q aliyun-alinas-utils | grep -E "^aliyun-alinas-utils-1.1-6" >/dev/null; then
+            echo "failed to install aliyun-alinas-utils"
+            exit 1
         fi
     fi
 
