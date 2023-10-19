@@ -101,7 +101,7 @@ const (
 
 	// These are error codes of ECS OpenAPI
 
-	DiskNotAvailable             = "InvalidDataDiskCategory.NotSupported"
+	DiskNotAvailable             = "InvalidDataDiskCategory" // InvalidDataDiskCategory.ValueNotSupported/NotSupported
 	DiskNotAvailableVer2         = "'DataDisk.n.Category' is not valid in this region."
 	DiskSizeNotAvailable         = "InvalidDiskSize.NotSupported"
 	DiskPerformanceLevelNotMatch = "OperationDenied.PerformanceLevelNotMatch"
