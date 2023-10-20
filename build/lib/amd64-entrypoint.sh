@@ -9,7 +9,6 @@ mkdir -p /host/etc/kubernetes/volumes/disk/uuid
 
 HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
 
-
 host_os="centos"
 ${HOST_CMD} ls /etc/os-release
 os_release_exist=$?
@@ -17,10 +16,7 @@ os_release_exist=$?
 if [[ "$os_release_exist" = "0" ]]; then
     osID=`${HOST_CMD} cat /etc/os-release | grep "ID=" | grep -v "VERSION_ID"`
     if [[ `echo ${osID} | grep "alinux" | wc -l` != "0" ]]; then
-        osVersion=`${HOST_CMD} cat /etc/os-release | grep "VERSION_ID=" | grep "^VERSION_ID=\"3"`
-        if [[ "${osVersion}" ]]; then
-            host_os="alinux3"
-        fi
+        host_os="alinux$(eval $($HOST_CMD cat /etc/os-release); echo ${VERSION_ID} | cut -d'.' -f1)"
     fi
 		if [[ `echo ${osID} | grep "lifsea" | wc -l` != "0" ]]; then
         host_os="lifsea"
@@ -32,6 +28,7 @@ if [[ "$os_release_exist" = "0" ]]; then
         fi
     fi
 fi
+echo "detected host os: $host_os"
 
 ## check which plugin is running
 for item in $@;
