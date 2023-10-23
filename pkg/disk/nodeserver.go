@@ -892,16 +892,6 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return &csi.NodeExpandVolumeResponse{}, nil
 	}
 
-	_, pvc, err := getPvPvcFromDiskId(diskID)
-	if err != nil {
-		klog.Errorf("NodeExpandVolume:: failed to get pvc from apiserver: %s", err.Error())
-	}
-
-	volumeExpandAutoSnapshotID := ""
-	if pvc != nil && pvc.Annotations != nil {
-		volumeExpandAutoSnapshotID = pvc.Annotations[veasp.IDKey]
-	}
-
 	// volume resize in rund type will transfer to guest os
 	isRund, err := checkRundVolumeExpand(req)
 	if isRund && err == nil {
@@ -912,18 +902,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	snapshotEnable := volumeExpandAutoSnapshotID != ""
-	defer func() {
-		if snapshotEnable {
-			deleteUntagAutoSnapshot(volumeExpandAutoSnapshotID, diskID)
-		}
-	}()
-	resp, err := localExpandVolume(ctx, req)
-	if err != nil && snapshotEnable {
-		klog.Warningf("NodeExpandVolume:: Please use the snapshot %s for data recovery. The retentionDays is %d", volumeExpandAutoSnapshotID, veasp.RetentionDays)
-		snapshotEnable = false
-	}
-	return resp, err
+	return localExpandVolume(ctx, req)
 }
 
 func localExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
@@ -1123,42 +1102,6 @@ func collectMountOptions(fsType string, mntFlags []string) (options []string) {
 	}
 	return
 
-}
-
-// func  handle error : event( autoSnapshot ID return) + error
-func deleteVolumeExpandAutoSnapshot(ctx context.Context, volumeExpandAutoSnapshotID string) error {
-	klog.Infof("NodeExpandVolume:: Starting to delete volumeExpandAutoSnapshot with id: %s", volumeExpandAutoSnapshotID)
-
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-
-	response, err := requestAndDeleteSnapshot(volumeExpandAutoSnapshotID)
-	if err != nil {
-		if response != nil {
-			klog.Errorf("NodeExpandVolume:: fail to delete %s with error: %s", volumeExpandAutoSnapshotID, err.Error())
-		}
-		return status.Errorf(codes.Internal, "failed delete snapshot: %v", err)
-	}
-	str := fmt.Sprintf("NodeExpandVolume:: Successfully delete snapshot %s", volumeExpandAutoSnapshotID)
-	klog.Info(str)
-	//utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
-	return nil
-}
-
-// deleteUntagAutoSnapshot deletes and untags volumeExpandAutoSnapshot facing expand error
-func deleteUntagAutoSnapshot(snapshotID, diskID string) {
-	klog.Infof("Deleted volumeExpandAutoSnapshot with id: %s", snapshotID)
-	_, pvc, err := getPvPvcFromDiskId(diskID)
-	if err != nil {
-		klog.Errorf("NodeExpandVolume:: failed to get pvc from apiserver: %s", err.Error())
-	}
-	err = deleteVolumeExpandAutoSnapshot(context.Background(), snapshotID)
-	if err != nil {
-		klog.Errorf("NodeExpandVolume:: failed to delete volumeExpandAutoSnapshot: %s", err.Error())
-	}
-	err = updateVolumeExpandAutoSnapshotID(pvc, snapshotID, "delete")
-	if err != nil {
-		klog.Errorf("NodeExpandVolume:: failed to untag volumeExpandAutoSnapshot: %s", err.Error())
-	}
 }
 
 // umountRunDVolumes umount runD volumes
