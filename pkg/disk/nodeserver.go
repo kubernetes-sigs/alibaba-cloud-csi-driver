@@ -855,11 +855,6 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	}
 
 	snapshotEnable := volumeExpandAutoSnapshotID != ""
-	defer func() {
-		if snapshotEnable {
-			deleteUntagAutoSnapshot(volumeExpandAutoSnapshotID, diskID)
-		}
-	}()
 	devicePaths := GetVolumeDeviceName(diskID)
 	if len(devicePaths) == 0 {
 		log.Log.Errorf("NodeExpandVolume:: can't get devicePath: %s", diskID)
@@ -909,7 +904,6 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		log.Log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", diskID, devicePath, volumePath, err.Error())
 		if snapshotEnable {
 			log.Log.Warnf("NodeExpandVolume:: Please use the snapshot %s for data recovery。 The retentionDays is %d", volumeExpandAutoSnapshotID, veasp.RetentionDays)
-			snapshotEnable = false
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -917,7 +911,6 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		log.Log.Errorf("NodeExpandVolume:: Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
 		if snapshotEnable {
 			log.Log.Warnf("NodeExpandVolume:: Please use the snapshot %s for data recovery。 The retentionDays is %d", volumeExpandAutoSnapshotID, veasp.RetentionDays)
-			snapshotEnable = false
 		}
 		return nil, status.Error(codes.Internal, "Fail to resize volume fs")
 	}
@@ -1088,40 +1081,4 @@ func collectMountOptions(fsType string, mntFlags []string) (options []string) {
 	}
 	return
 
-}
-
-// func  handle error : event( autoSnapshot ID return) + error
-func deleteVolumeExpandAutoSnapshot(ctx context.Context, volumeExpandAutoSnapshotID string) error {
-	log.Log.Infof("NodeExpandVolume:: Starting to delete volumeExpandAutoSnapshot with id: %s", volumeExpandAutoSnapshotID)
-
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-
-	response, err := requestAndDeleteSnapshot(volumeExpandAutoSnapshotID)
-	if err != nil {
-		if response != nil {
-			log.Log.Errorf("NodeExpandVolume:: fail to delete %s with error: %s", volumeExpandAutoSnapshotID, err.Error())
-		}
-		return err
-	}
-	str := fmt.Sprintf("NodeExpandVolume:: Successfully delete snapshot %s", volumeExpandAutoSnapshotID)
-	log.Log.Info(str)
-	//utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
-	return nil
-}
-
-// deleteUntagAutoSnapshot deletes and untags volumeExpandAutoSnapshot facing expand error
-func deleteUntagAutoSnapshot(snapshotID, diskID string) {
-	log.Log.Infof("Deleted volumeExpandAutoSnapshot with id: %s", snapshotID)
-	_, pvc, err := getPvPvcFromDiskId(diskID)
-	if err != nil {
-		log.Log.Errorf("NodeExpandVolume:: failed to get pvc from apiserver: %s", err.Error())
-	}
-	err = deleteVolumeExpandAutoSnapshot(context.Background(), snapshotID)
-	if err != nil {
-		log.Log.Errorf("NodeExpandVolume:: failed to delete volumeExpandAutoSnapshot: %s", err.Error())
-	}
-	err = updateVolumeExpandAutoSnapshotID(pvc, snapshotID, "delete")
-	if err != nil {
-		log.Log.Errorf("NodeExpandVolume:: failed to untag volumeExpandAutoSnapshot: %s", err.Error())
-	}
 }
