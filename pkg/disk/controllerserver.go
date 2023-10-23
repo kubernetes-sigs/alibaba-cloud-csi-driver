@@ -36,7 +36,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -71,12 +70,6 @@ type diskVolumeArgs struct {
 	BurstingEnabled  bool
 	RequestGB        int64
 }
-
-var veasp = struct {
-	IDKey         string
-	Prefix        string
-	RetentionDays int
-}{"volumeExpandAutoSnapshotID", "volume-expand-auto-snapshot-", 1}
 
 var delVolumeSnap sync.Map
 
@@ -820,46 +813,6 @@ func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 		ReadyToUse:      ecsSnapshot.Available,
 		GroupSnapshotId: groupSnapshotId,
 	}, nil
-}
-
-func updateVolumeExpandAutoSnapshotID(pvc *v1.PersistentVolumeClaim, snapshotID, option string) error {
-	var err error
-
-	volumeExpandAutoSnapshotMap := map[string]string{
-		veasp.IDKey: snapshotID,
-	}
-	for n := 1; n < RetryMaxTimes; n++ {
-		_, err = updatePvcWithAnnotations(context.Background(), pvc, volumeExpandAutoSnapshotMap, option)
-		if err != nil {
-			continue
-		}
-		break
-	}
-	if err != nil {
-		return status.Errorf(codes.Internal, "failed to %s snapshotID on pvc", option)
-	}
-	return nil
-}
-
-func (cs *controllerServer) deleteVolumeExpandAutoSnapshot(ctx context.Context, pvc *v1.PersistentVolumeClaim, snapshotID string) error {
-	klog.Infof("ControllerExpandVolume:: Starting to delete volumeExpandAutoSnapshot with id: %s", snapshotID)
-
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-
-	// Delete Snapshot
-	response, err := requestAndDeleteSnapshot(snapshotID)
-	if err != nil {
-		if response != nil {
-			klog.Errorf("ControllerExpandVolume:: fail to delete %s with error: %s", snapshotID, err.Error())
-		}
-
-		cs.recorder.Event(pvc, v1.EventTypeWarning, snapshotDeleteError, err.Error())
-		return status.Errorf(codes.Internal, "volumeExpandAutoSnapshot delete Failed: %v", err)
-	}
-
-	str := fmt.Sprintf("ControllerExpandVolume:: Successfully delete snapshot %s", snapshotID)
-	cs.recorder.Event(pvc, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
-	return nil
 }
 
 func (cs *controllerServer) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest,
