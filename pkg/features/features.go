@@ -14,7 +14,7 @@ const (
 var (
 	FunctionalMutableFeatureGate = featuregate.NewFeatureGate()
 	defaultDiskFeatureGate       = map[featuregate.Feature]featuregate.FeatureSpec{
-		DiskADController: {Default: false, PreRelease: featuregate.Alpha},
+		DiskADController: {Default: true, PreRelease: featuregate.Beta},
 	}
 	defaultDBFSFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
 		DBFSMetricByPlugin: {Default: false, PreRelease: featuregate.Alpha},
