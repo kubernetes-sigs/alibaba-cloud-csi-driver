@@ -60,7 +60,6 @@ type GlobalConfig struct {
 	NodeID                string
 	DiskTagEnable         bool
 	AttachDetachSlots     AttachDetachSlots
-	ADControllerEnable    bool
 	DetachDisabled        bool
 	MetricEnable          bool
 	DetachBeforeAttach    bool
@@ -194,7 +193,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) {
 	GlobalConfigVar = GlobalConfig{
 		Region:                metadata.MustGet(m, metadata.RegionID),
 		NodeID:                nodeID,
-		ADControllerEnable:    features.FunctionalMutableFeatureGate.Enabled(features.DiskADController),
 		DiskTagEnable:         csiCfg.GetBool("disk-tag-by-plugin", "DISK_TAGED_BY_PLUGIN", false),
 		DiskBdfEnable:         csiCfg.GetBool("disk-bdf-enable", "DISK_BDF_ENABLE", false),
 		MetricEnable:          csiCfg.GetBool("disk-metric-by-plugin", "DISK_METRIC_BY_PLUGIN", true),
@@ -215,15 +213,9 @@ func GlobalConfigSet(m metadata.MetadataProvider) {
 		OmitFilesystemCheck:   csiCfg.GetBool("disable-fs-check", "DISABLE_FS_CHECK", false),
 		DiskAllowAllType:      csiCfg.GetBool("disk-allow-all-type", "DISK_ALLOW_ALL_TYPE", false),
 	}
-	if GlobalConfigVar.ADControllerEnable {
-		klog.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
-	} else {
-		klog.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
-	}
 	DefaultDeviceManager.EnableDiskPartition = csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true)
 	DefaultDeviceManager.DisableSerial = !controllerServerType && IsVFNode()
-	klog.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
-		GlobalConfigVar.ADControllerEnable,
+	klog.Infof("Starting with GlobalConfigVar: DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
 		GlobalConfigVar.DiskTagEnable,
 		GlobalConfigVar.DiskBdfEnable,
 		GlobalConfigVar.MetricEnable,

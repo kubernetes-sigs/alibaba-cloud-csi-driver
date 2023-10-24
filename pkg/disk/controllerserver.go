@@ -360,11 +360,6 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 
-	if !GlobalConfigVar.ADControllerEnable {
-		klog.Infof("ControllerPublishVolume: ADController Disable to attach disk: %s to node: %s", req.VolumeId, req.NodeId)
-		return &csi.ControllerPublishVolumeResponse{}, nil
-	}
-
 	klog.Infof("ControllerPublishVolume: start attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 	isSharedDisk := false
 	if value, ok := req.VolumeContext[SharedEnable]; ok {
@@ -379,7 +374,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		isSingleInstance = AllCategories[Category(value)].SingleInstance
 	}
 
-	_, err := attachDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk, isSingleInstance)
+	err := attachDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk, isSingleInstance)
 	if err != nil {
 		klog.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
@@ -401,11 +396,6 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		return nil, err
 	} else if isMultiAttach {
 		klog.Infof("ControllerUnpublishVolume: Successful detach multiAttach disk: %s from node: %s", req.VolumeId, req.NodeId)
-		return &csi.ControllerUnpublishVolumeResponse{}, nil
-	}
-
-	if !GlobalConfigVar.ADControllerEnable {
-		klog.Infof("ControllerUnpublishVolume: ADController Disable to detach disk: %s from node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 

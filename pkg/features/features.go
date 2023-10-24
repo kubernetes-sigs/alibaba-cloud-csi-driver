@@ -43,7 +43,7 @@ const (
 var (
 	FunctionalMutableFeatureGate = featuregate.NewFeatureGate()
 	defaultDiskFeatureGate       = map[featuregate.Feature]featuregate.FeatureSpec{
-		DiskADController:           {Default: true, PreRelease: featuregate.Beta},
+		DiskADController:           {Default: true, PreRelease: featuregate.GA, LockToDefault: true},
 		DiskParallelAttach:         {Default: false, PreRelease: featuregate.Alpha},
 		DiskParallelDetach:         {Default: false, PreRelease: featuregate.Alpha},
 		DisableExpandAutoSnapshots: {Default: false, PreRelease: featuregate.Alpha},
