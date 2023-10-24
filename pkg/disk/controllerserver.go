@@ -391,7 +391,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	_, err := attachDisk(req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk)
 	if err != nil {
 		log.Log.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
-		return nil, status.Error(codes.Aborted, err.Error())
+		return nil, err
 	}
 	log.Log.Infof("ControllerPublishVolume: Successful attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 	return &csi.ControllerPublishVolumeResponse{}, nil
