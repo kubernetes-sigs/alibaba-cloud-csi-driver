@@ -28,7 +28,6 @@ import (
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
@@ -64,7 +63,6 @@ type GlobalConfig struct {
 	NodeID                string
 	DiskTagEnable         bool
 	AttachDetachSlots     AttachDetachSlots
-	ADControllerEnable    bool
 	DetachDisabled        bool
 	MetricEnable          bool
 	DetachBeforeAttach    bool
@@ -214,7 +212,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	GlobalConfigVar = GlobalConfig{
 		Region:                metadata.MustGet(m, metadata.RegionID),
 		NodeID:                nodeID,
-		ADControllerEnable:    features.FunctionalMutableFeatureGate.Enabled(features.DiskADController),
 		DiskTagEnable:         csiCfg.GetBool("disk-tag-by-plugin", "DISK_TAGED_BY_PLUGIN", false),
 		DiskBdfEnable:         csiCfg.GetBool("disk-bdf-enable", "DISK_BDF_ENABLE", false),
 		MetricEnable:          csiCfg.GetBool("disk-metric-by-plugin", "DISK_METRIC_BY_PLUGIN", true),
@@ -235,15 +232,9 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		OmitFilesystemCheck:   csiCfg.GetBool("disable-fs-check", "DISABLE_FS_CHECK", false),
 		DiskAllowAllType:      csiCfg.GetBool("disk-allow-all-type", "DISK_ALLOW_ALL_TYPE", false),
 	}
-	if GlobalConfigVar.ADControllerEnable {
-		log.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
-	} else {
-		log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
-	}
 	DefaultDeviceManager.EnableDiskPartition = csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true)
 	DefaultDeviceManager.DisableSerial = IsVFNode()
-	log.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
-		GlobalConfigVar.ADControllerEnable,
+	log.Infof("Starting with GlobalConfigVar: DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
 		GlobalConfigVar.DiskTagEnable,
 		GlobalConfigVar.DiskBdfEnable,
 		GlobalConfigVar.MetricEnable,
