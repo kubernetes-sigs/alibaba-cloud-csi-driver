@@ -843,7 +843,7 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 	diskTags = append(diskTags, ecs.CreateDiskTag{Key: common.VolumeNameTag, Value: diskName})
 	createDiskRequest.Tag = &diskTags
 
-	if strings.ToLower(diskVol.MultiAttach) == "true" || strings.ToLower(diskVol.MultiAttach) == "enabled" {
+	if diskVol.MultiAttach {
 		createDiskRequest.MultiAttach = "Enabled"
 	}
 
