@@ -188,12 +188,18 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 	}
 	response, err := ecsClient.AttachDisk(attachRequest)
 	if err != nil {
-		if strings.Contains(err.Error(), DiskLimitExceeded) {
-			return "", status.Error(codes.Internal, err.Error()+", Node("+nodeID+")exceed the limit attachments of disk")
-		} else if strings.Contains(err.Error(), DiskNotPortable) {
-			return "", status.Error(codes.Internal, err.Error()+", Disk("+diskID+") should be \"Pay by quantity\", not be \"Annual package\", please check and modify the charge type, and refer to: https://help.aliyun.com/document_detail/134767.html")
-		} else if strings.Contains(err.Error(), NotSupportDiskCategory) {
-			return "", status.Error(codes.Internal, err.Error()+", Disk("+diskID+") is not supported by instance, please refer to: https://help.aliyun.com/document_detail/25378.html")
+		var aliErr *alicloudErr.ServerError
+		if errors.As(err, &aliErr) {
+			switch aliErr.ErrorCode() {
+			case InstanceNotFound:
+				return "", status.Errorf(codes.NotFound, "Node(%s) not found, request ID: %s", nodeID, aliErr.RequestId())
+			case DiskLimitExceeded:
+				return "", status.Errorf(codes.Internal, "%v, Node(%s) exceed the limit attachments of disk", err, nodeID)
+			case DiskNotPortable:
+				return "", status.Errorf(codes.Internal, "%v, Disk(%s) should be \"Pay by quantity\", not be \"Annual package\", please check and modify the charge type, and refer to: https://help.aliyun.com/document_detail/134767.html", err, diskID)
+			case NotSupportDiskCategory:
+				return "", status.Errorf(codes.Internal, "%v, Disk(%s) is not supported by instance, please refer to: https://help.aliyun.com/document_detail/25378.html", err, diskID)
+			}
 		}
 		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happens to attach disk %s to instance %s, %v", diskID, nodeID, err)
 	}
