@@ -157,19 +157,6 @@ func (disk *DISK) Run() {
 // GlobalConfigSet set Global Config
 func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	configMapName := "csi-plugin"
-	isADControllerEnable := false
-	isDiskTagEnable := false
-	isDiskMetricEnable := true
-	isDiskDetachDisable := false
-	isDiskDetachBeforeDelete := true
-	isDiskBdfEnable := false
-	isDiskMultiTenantEnable := false
-	isNodeMultiZoneEnable := false
-
-	isWaitBeforeAttach := false
-	if waitBeforeAttach := os.Getenv("WAIT_BEFORE_ATTACH"); waitBeforeAttach == "true" {
-		isWaitBeforeAttach = true
-	}
 
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
@@ -199,58 +186,12 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		log.Log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
+	csiCfg := utils.Config{}
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
 		log.Log.Infof("Not found configmap named as csi-plugin under kube-system, with: %v", err)
 	} else {
-		if value, ok := configMap.Data["disk-adcontroller-enable"]; ok {
-			if checkOption(value) {
-				log.Log.Infof("AD-Controller is enabled by configMap(%s), CSI Disk Plugin running in AD Controller mode.", value)
-				isADControllerEnable = true
-			} else if checkOptionFalse(value) {
-				log.Log.Infof("AD-Controller is disable by configMap(%s), CSI Disk Plugin running in kubelet mode.", value)
-				isADControllerEnable = false
-			}
-		}
-		if value, ok := configMap.Data["disk-tag-enable"]; ok {
-			if checkOption(value) {
-				log.Log.Infof("Disk Tag is enabled by configMap(%s).", value)
-				isDiskTagEnable = true
-			}
-		}
-		if value, ok := configMap.Data["disk-metric-enable"]; ok {
-			if checkOption(value) {
-				log.Log.Infof("Disk Metric is enabled by configMap(%s).", value)
-				isDiskMetricEnable = true
-			}
-		}
-		if value, ok := configMap.Data["disk-detach-disable"]; ok {
-			if checkOption(value) {
-				log.Log.Infof("Disk Detach is disabled by configMap(%s), this tag only works when adcontroller enabled.", value)
-				isDiskDetachDisable = true
-			} else if checkOptionFalse(value) {
-				log.Log.Infof("Disk Detach is enable by configMap(%s), this tag only works when adcontroller enabled.", value)
-				isDiskDetachDisable = false
-			}
-		}
-		if value, ok := configMap.Data["disk-detach-before-delete"]; ok {
-			if checkOption(value) {
-				log.Log.Infof("Disk Detach before delete is enabled by configMap(%s).", value)
-				isDiskDetachBeforeDelete = true
-			} else if checkOptionFalse(value) {
-				log.Log.Infof("Disk Detach before delete is diskable by configMap(%s).", value)
-				isDiskDetachBeforeDelete = false
-			}
-		}
-		if value, ok := configMap.Data["disk-bdf-enable"]; ok {
-			if checkOption(value) {
-				log.Log.Infof("Disk Bdf is enabled by configMap(%s).", value)
-				isDiskBdfEnable = true
-			} else if checkOptionFalse(value) {
-				log.Log.Infof("Disk Bdf is disable by configMap(%s).", value)
-				isDiskBdfEnable = false
-			}
-		}
+		csiCfg.ConfigMap = configMap.Data
 	}
 
 	// Env variables
@@ -262,61 +203,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		} else {
 			fatalEvents = []string{avmfe}
 		}
-	}
-
-	adEnable := os.Getenv(DiskAttachByController)
-	if adEnable == "true" || adEnable == "yes" {
-		log.Log.Infof("AD-Controller is enabled by Env(%s), CSI Disk Plugin running in AD Controller mode.", adEnable)
-		isADControllerEnable = true
-	} else if adEnable == "false" || adEnable == "no" {
-		log.Log.Infof("AD-Controller is disabled by Env(%s), CSI Disk Plugin running in kubelet mode.", adEnable)
-		isADControllerEnable = false
-	}
-	if isADControllerEnable {
-		log.Log.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
-	} else {
-		log.Log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
-	}
-
-	isDetachBeforeAttached := true
-	forceDetached := os.Getenv(DiskForceDetached)
-	if forceDetached == "false" || forceDetached == "no" {
-		isDetachBeforeAttached = false
-	}
-
-	tagDiskConf := os.Getenv(DiskTagedByPlugin)
-	if tagDiskConf == "true" || tagDiskConf == "yes" {
-		isDiskTagEnable = true
-	} else if tagDiskConf == "false" || tagDiskConf == "no" {
-		isDiskTagEnable = false
-	}
-
-	metricDiskConf := os.Getenv(DiskMetricByPlugin)
-	if metricDiskConf == "true" || metricDiskConf == "yes" {
-		isDiskMetricEnable = true
-	} else if metricDiskConf == "false" || metricDiskConf == "no" {
-		isDiskMetricEnable = false
-	}
-
-	diskDetachDisable := os.Getenv(DiskDetachDisable)
-	if diskDetachDisable == "true" || diskDetachDisable == "yes" {
-		isDiskDetachDisable = true
-	} else if diskDetachDisable == "false" || diskDetachDisable == "no" {
-		isDiskDetachDisable = false
-	}
-
-	bdfDiskConf := os.Getenv(DiskBdfEnable)
-	if bdfDiskConf == "true" || bdfDiskConf == "yes" {
-		isDiskBdfEnable = true
-	} else if bdfDiskConf == "false" || bdfDiskConf == "no" {
-		isDiskBdfEnable = false
-	}
-
-	diskDetachBeforeDelete := os.Getenv(DiskDetachBeforeDelete)
-	if diskDetachBeforeDelete == "true" || diskDetachBeforeDelete == "yes" {
-		isDiskDetachBeforeDelete = true
-	} else if diskDetachBeforeDelete == "false" || diskDetachBeforeDelete == "no" {
-		isDiskDetachBeforeDelete = false
 	}
 
 	// fileSystemLosePercent ...
@@ -347,74 +233,54 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	}
 	clustID := os.Getenv("CLUSTER_ID")
 
-	partition := true
-	if partitionEn := os.Getenv("DISK_PARTITION_ENABLE"); partitionEn == "false" {
-		partition = false
-	}
-
 	controllerServerType := false
 	if os.Getenv(utils.ServiceType) == utils.ProvisionerService {
 		controllerServerType = true
 	}
 
-	bdfCheck := true
-	if os.Getenv("BDF_HEALTH_CHECK") == "false" {
-		bdfCheck = false
-	}
-	diskMultiTenantEnable := os.Getenv(DiskMultiTenantEnable)
-	if diskMultiTenantEnable == "true" || diskMultiTenantEnable == "yes" {
-		log.Log.Infof("Multi tenant is Enabled")
-		isDiskMultiTenantEnable = true
-	} else if diskMultiTenantEnable == "false" || diskMultiTenantEnable == "no" {
-		isDiskMultiTenantEnable = false
-	}
-
-	nodeMultiZoneEnable := os.Getenv(NodeMultiZoneEnable)
-	if nodeMultiZoneEnable == "true" || nodeMultiZoneEnable == "yes" {
-		log.Log.Infof("Multi zone node is Enabled")
-		isNodeMultiZoneEnable = true
-	}
-
-	delAutoSnap := false
-	volumeDelAutoSnap := os.Getenv("VOLUME_DEL_AUTO_SNAP")
-	if volumeDelAutoSnap == "true" {
-		delAutoSnap = true
-	}
-
-	omitFsCheck := false
-	disableFsCheck := os.Getenv("DISABLE_FS_CHECK")
-	if disableFsCheck == "true" {
-		omitFsCheck = true
-	}
-
-	log.Log.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)", isADControllerEnable, isDiskTagEnable, isDiskBdfEnable, isDiskMetricEnable, runtimeValue, isDiskDetachDisable, isDiskDetachBeforeDelete, clustID)
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
 		Region:                metadata.MustGet(m, metadata.RegionID),
 		NodeID:                metadata.MustGet(m, metadata.InstanceID),
 		ZoneID:                metadata.MustGet(m, metadata.ZoneID),
-		ADControllerEnable:    isADControllerEnable,
-		DiskTagEnable:         isDiskTagEnable,
-		DiskBdfEnable:         isDiskBdfEnable,
-		MetricEnable:          isDiskMetricEnable,
+		ADControllerEnable:    csiCfg.GetBool("disk-adcontroller-enable", "DISK_AD_CONTROLLER", false),
+		DiskTagEnable:         csiCfg.GetBool("disk-tag-by-plugin", "DISK_TAGED_BY_PLUGIN", false),
+		DiskBdfEnable:         csiCfg.GetBool("disk-bdf-enable", "DISK_BDF_ENABLE", false),
+		MetricEnable:          csiCfg.GetBool("disk-metric-by-plugin", "DISK_METRIC_BY_PLUGIN", true),
 		RunTimeClass:          runtimeValue,
-		DetachDisabled:        isDiskDetachDisable,
-		DetachBeforeDelete:    isDiskDetachBeforeDelete,
-		DetachBeforeAttach:    isDetachBeforeAttached,
+		DetachDisabled:        csiCfg.GetBool("disk-detach-disable", "DISK_DETACH_DISABLE", false),
+		DetachBeforeDelete:    csiCfg.GetBool("disk-detach-before-delete", "DISK_DETACH_BEFORE_DELETE", true),
+		DetachBeforeAttach:    csiCfg.GetBool("disk-detach-before-attach", "DISK_FORCE_DETACHED", true),
 		ClientSet:             kubeClient,
 		SnapClient:            snapClient,
 		FilesystemLosePercent: fileSystemLosePercent,
 		ClusterID:             clustID,
-		DiskPartitionEnable:   partition,
+		DiskPartitionEnable:   csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true),
 		ControllerService:     controllerServerType,
-		BdfHealthCheck:        bdfCheck,
-		DiskMultiTenantEnable: isDiskMultiTenantEnable,
-		NodeMultiZoneEnable:   isNodeMultiZoneEnable,
-		WaitBeforeAttach:      isWaitBeforeAttach,
+		BdfHealthCheck:        csiCfg.GetBool("bdf-health-check", "BDF_HEALTH_CHECK", true),
+		DiskMultiTenantEnable: csiCfg.GetBool("disk-multi-tenant-enable", "DISK_MULTI_TENANT_ENABLE", false),
+		NodeMultiZoneEnable:   csiCfg.GetBool("node-multi-zone-enable", "NODE_MULTI_ZONE_ENABLE", false),
+		WaitBeforeAttach:      csiCfg.GetBool("wait-before-attach", "WAIT_BEFORE_ATTACH", false),
 		AddonVMFatalEvents:    fatalEvents,
-		SnapshotBeforeDelete:  delAutoSnap,
+		SnapshotBeforeDelete:  csiCfg.GetBool("volume-del-auto-snap", "VOLUME_DEL_AUTO_SNAP", false),
 		RequestBaseInfo:       map[string]string{"owner": "alibaba-cloud-csi-driver", "nodeName": nodeName},
-		OmitFilesystemCheck:   omitFsCheck,
+		OmitFilesystemCheck:   csiCfg.GetBool("disable-fs-check", "DISABLE_FS_CHECK", false),
 	}
+	if GlobalConfigVar.ADControllerEnable {
+		log.Log.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
+	} else {
+		log.Log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
+	}
+	log.Log.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
+		GlobalConfigVar.ADControllerEnable,
+		GlobalConfigVar.DiskTagEnable,
+		GlobalConfigVar.DiskBdfEnable,
+		GlobalConfigVar.MetricEnable,
+		GlobalConfigVar.RunTimeClass,
+		GlobalConfigVar.DetachDisabled,
+		GlobalConfigVar.DetachBeforeDelete,
+		GlobalConfigVar.ClusterID,
+	)
+
 	return cfg
 }

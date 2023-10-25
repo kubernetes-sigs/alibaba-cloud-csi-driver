@@ -66,20 +66,6 @@ const (
 	OmitFilesystemCheck = "omitfsck"
 	// MkfsOptions tag
 	MkfsOptions = "mkfsOptions"
-	// DiskTagedByPlugin tag
-	DiskTagedByPlugin = "DISK_TAGED_BY_PLUGIN"
-	// DiskMetricByPlugin tag
-	DiskMetricByPlugin = "DISK_METRIC_BY_PLUGIN"
-	// DiskDetachDisable tag
-	DiskDetachDisable = "DISK_DETACH_DISABLE"
-	// DiskBdfEnable tag
-	DiskBdfEnable = "DISK_BDF_ENABLE"
-	// DiskDetachBeforeDelete tag
-	DiskDetachBeforeDelete = "DISK_DETACH_BEFORE_DELETE"
-	// DiskAttachByController tag
-	DiskAttachByController = "DISK_AD_CONTROLLER"
-	// DiskForceDetached tag
-	DiskForceDetached = "DISK_FORCE_DETACHED"
 	// DiskAttachedKey attached key
 	DiskAttachedKey = "k8s.aliyun.com"
 	// DiskAttachedValue attached value
