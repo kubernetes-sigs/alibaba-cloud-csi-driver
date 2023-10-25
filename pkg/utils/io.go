@@ -72,16 +72,19 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 	// /sys/fs/cgroup/blkio/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-podaadcc749_6776_4933_990d_d50f260f5d46.slice/blkio.throttle.write_bps_device
 	podUID = strings.ReplaceAll(podUID, "-", "_")
 	podBlkIOPath := ""
-	for _, qosClass := range []string{"besteffort", "burstable", "guaranteed"} {
-		p := fmt.Sprintf("/sys/fs/cgroup/blkio/kubepods.slice/kubepods-%s.slice/kubepods-%s-pod%s.slice", qosClass, qosClass, podUID)
+	for _, p := range []string{
+		fmt.Sprintf("/sys/fs/cgroup/blkio/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod%s.slice", podUID),
+		fmt.Sprintf("/sys/fs/cgroup/blkio/kubepods.slice/kubepods-burstable.slice/kubepods-burstable-pod%s.slice", podUID),
+		fmt.Sprintf("/sys/fs/cgroup/blkio/kubepods.slice/kubepods-pod%s.slice", podUID),
+	} {
 		if IsHostFileExist(p) {
 			podBlkIOPath = p
 			break
 		}
 	}
 	if podBlkIOPath == "" {
-		log.Errorf("Volume(%s), Cannot get pod blkio/cgroup path: %s", req.VolumeId, podBlkIOPath)
-		return errors.New("Cannot get pod blkio/cgroup path: " + podBlkIOPath)
+		log.Errorf("Volume(%s), pod blkio/cgroup path not found", req.VolumeId)
+		return errors.New("pod blkio/cgroup path not found")
 	}
 
 	// io limit set to blkio limit files
