@@ -906,7 +906,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		for _, tag := range strings.Split(diskTags, ",") {
 			k, v, found := strings.Cut(tag, ":")
 			if !found {
-				return nil, status.Errorf(codes.InvalidArgument, "Invalid diskTags format name: %s tags: %s", req.GetName(), diskTags)
+				return nil, fmt.Errorf("invalid diskTags format name: %s tags: %s", req.GetName(), diskTags)
 			}
 			diskVolArgs.DiskTags[k] = v
 		}
