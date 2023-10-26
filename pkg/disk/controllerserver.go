@@ -438,69 +438,65 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 // storage.alibabacloud.com/snapshot-ttl
 // storage.alibabacloud.com/ia-snapshot
 // storage.alibabacloud.com/ia-snapshot-ttl
-func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (int, bool, int, string, error) {
-	retentionDays := -1
-	useInstanceAccess := false
-	var instantAccessRetentionDays int
-
+func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (*createSnapshotParams, error) {
+	ecsParams := createSnapshotParams{}
+	var err error
 	params := req.GetParameters()
 	if value, ok := params[SNAPSHOTTYPE]; ok && value == INSTANTACCESS {
-		useInstanceAccess = true
+		ecsParams.InstantAccess = true
 	}
 	if value, ok := params[RETENTIONDAYS]; ok {
-		days, err := strconv.Atoi(value)
+		ecsParams.RetentionDays, err = strconv.Atoi(value)
 		if err != nil {
 			err := status.Errorf(codes.InvalidArgument, "CreateSnapshot: retentiondays err %s", value)
-			return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
+			return nil, err
 		}
-		retentionDays = days
 	}
 	if value, ok := params[INSTANTACCESSRETENTIONDAYS]; ok {
-		days, err := strconv.Atoi(value)
+		ecsParams.InstantAccessRetentionDays, err = strconv.Atoi(value)
 		if err != nil {
 			err := status.Errorf(codes.InvalidArgument, "CreateSnapshot: retentiondays err %s", value)
-			return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
+			return nil, err
 		}
-		instantAccessRetentionDays = days
 	} else {
-		instantAccessRetentionDays = retentionDays
+		ecsParams.InstantAccessRetentionDays = ecsParams.RetentionDays
 	}
 
 	vsName := req.Parameters[VolumeSnapshotName]
 	vsNameSpace := req.Parameters[VolumeSnapshotNamespace]
 	// volumesnapshot not in parameters, just retrun
 	if vsName == "" || vsNameSpace == "" {
-		return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", nil
+		return &ecsParams, nil
 	}
 
 	volumeSnapshot, err := GlobalConfigVar.SnapClient.SnapshotV1().VolumeSnapshots(vsNameSpace).Get(context.Background(), vsName, metav1.GetOptions{})
 	if err != nil {
 		log.Log.Warnf("CreateSnapshot: cannot get volumeSnapshot: %s, with error: %v", req.Name, err.Error())
-		return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
+		return nil, err
 	}
 	snapshotTTL := volumeSnapshot.Annotations["storage.alibabacloud.com/snapshot-ttl"]
 	iaEnable := volumeSnapshot.Annotations["storage.alibabacloud.com/ia-snapshot"]
 	iaTTL := volumeSnapshot.Annotations["storage.alibabacloud.com/ia-snapshot-ttl"]
 
 	if snapshotTTL != "" {
-		retentionDays, err = strconv.Atoi(snapshotTTL)
+		ecsParams.RetentionDays, err = strconv.Atoi(snapshotTTL)
 		if err != nil {
 			log.Log.Warnf("CreateSnapshot: Snapshot(%s) ttl format error: %v", req.Name, err.Error())
-			return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
+			return nil, err
 		}
 	}
 	if strings.ToLower(iaEnable) == "true" {
-		useInstanceAccess = true
+		ecsParams.InstantAccess = true
 	}
 	if iaTTL != "" {
-		instantAccessRetentionDays, err = strconv.Atoi(iaTTL)
+		ecsParams.InstantAccessRetentionDays, err = strconv.Atoi(iaTTL)
 		if err != nil {
 			log.Log.Warnf("CreateSnapshot: IA ttl(%s) format error: %v", req.Name, err.Error())
-			return retentionDays, useInstanceAccess, instantAccessRetentionDays, "", err
+			return nil, err
 		}
 	}
-	resourceGroupID := req.Parameters[SNAPSHOTRESOURCEGROUPID]
-	return retentionDays, useInstanceAccess, instantAccessRetentionDays, resourceGroupID, nil
+	ecsParams.ResourceGroupID = req.Parameters[SNAPSHOTRESOURCEGROUPID]
+	return &ecsParams, nil
 }
 
 // CreateSnapshot ...
@@ -527,7 +523,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	// parse snapshot Retention Days
-	retentionDays, useInstanceAccess, instantAccessRetentionDays, resourceGroupID, err := getVolumeSnapshotConfig(req)
+	params, err := getVolumeSnapshotConfig(req)
 	if err != nil {
 		log.Log.Errorf("CreateSnapshot:: Snapshot name[%s], parse retention days error: %v", req.Name, err)
 		return nil, err
@@ -608,14 +604,16 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	// }
 
 	// if disk type is not essd and IA set disable
-	if useInstanceAccess && disks[0].Category != DiskESSD && disks[0].Category != DiskESSDAuto {
+	if params.InstantAccess && disks[0].Category != DiskESSD && disks[0].Category != DiskESSDAuto {
 		log.Log.Warnf("CreateSnapshot: Snapshot(%s) set as not IA type, because disk Category %s", req.Name, disks[0].Category)
-		useInstanceAccess = false
+		params.InstantAccess = false
 	}
 
 	// init createSnapshotRequest and parameters
 	createAt := ptypes.TimestampNow()
-	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, sourceVolumeID, req.GetName(), resourceGroupID, retentionDays, instantAccessRetentionDays, useInstanceAccess)
+	params.SourceVolumeID = sourceVolumeID
+	params.SnapshotName = req.Name
+	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, params)
 
 	if err != nil {
 		log.Log.Errorf("CreateSnapshot:: Snapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", req.Name, req.GetSourceVolumeId(), err.Error())
@@ -625,7 +623,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 
 	// if is IA snapshot, snapshot ready immediately
 	tmpReadyToUse := false
-	if useInstanceAccess {
+	if params.InstantAccess {
 		//updateSnapshotIAStatus(req, "completed")
 		tmpReadyToUse = true
 		delete(SnapshotRequestMap, req.Name)
@@ -672,7 +670,13 @@ func snapshotBeforeDelete(volumeID string, ecsClient *ecs.Client) error {
 	if value, ok := delVolumeSnap.Load(volumeID); ok {
 		return createStaticSnap(volumeID, value.(string), GlobalConfigVar.SnapClient)
 	}
-	resp, err := requestAndCreateSnapshot(ecsClient, volumeID, deleteVolumeSnapshotName, "", iValue, iValue, true)
+	resp, err := requestAndCreateSnapshot(ecsClient, &createSnapshotParams{
+		SourceVolumeID:             volumeID,
+		SnapshotName:               deleteVolumeSnapshotName,
+		RetentionDays:              iValue,
+		InstantAccessRetentionDays: iValue,
+		InstantAccess:              true,
+	})
 	if err != nil {
 		return err
 	}
@@ -1117,7 +1121,13 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 
 	// init createSnapshotRequest and parameters
 	createAt := timestamppb.New(cur)
-	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, sourceVolumeID, volumeExpandAutoSnapshotName, "", veasp.RetentionDays, veasp.InstanceAccessRetentionDays, veasp.InstantAccess)
+	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, &createSnapshotParams{
+		SourceVolumeID:             sourceVolumeID,
+		SnapshotName:               volumeExpandAutoSnapshotName,
+		RetentionDays:              veasp.RetentionDays,
+		InstantAccessRetentionDays: veasp.InstanceAccessRetentionDays,
+		InstantAccess:              veasp.InstantAccess,
+	})
 	if err != nil {
 		log.Log.Errorf("ControllerExpandVolume:: volumeExpandAutoSnapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", volumeExpandAutoSnapshotName, sourceVolumeID, err.Error())
 		cs.recorder.Event(pvc, v1.EventTypeWarning, snapshotCreateError, err.Error())
