@@ -31,7 +31,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -74,9 +73,9 @@ func NewDriver(nodeID, endpoint string) *OSS {
 }
 
 func newControllerServer(driver *csicommon.CSIDriver) csi.ControllerServer {
-	config, err := rest.InClusterConfig()
+	config, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
-		log.Fatalf("Create create kube config is failed, err: %v", err)
+		log.Fatalf("failed to build kubeconfig: %v", err)
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
