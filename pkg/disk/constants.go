@@ -105,8 +105,9 @@ const (
 
 	DiskNotAvailable             = "InvalidDataDiskCategory.NotSupported"
 	DiskNotAvailableVer2         = "'DataDisk.n.Category' is not valid in this region."
-	DiskSizeNotAvailable         = "InvalidDiskSize.NotSupported"
-	DiskPerformanceLevelNotMatch = "OperationDenied.PerformanceLevelNotMatch"
+	DiskSizeNotAvailable1        = "InvalidDiskSize.NotSupported"             // for cloud/cloud_efficiency/cloud_ssd
+	DiskSizeNotAvailable2        = "InvalidDataDiskSize.ValueNotSupported"    // for cloud_auto
+	DiskPerformanceLevelNotMatch = "OperationDenied.PerformanceLevelNotMatch" // for cloud_essd
 	DiskIopsLimitExceeded        = "InvalidProvisionedIops.LimitExceed"
 	DiskLimitExceeded            = "InstanceDiskLimitExceeded"
 	NotSupportDiskCategory       = "NotSupportDiskCategory"
@@ -206,12 +207,11 @@ const (
 
 	DISK_CLOUD_EFFICIENT_MIN_CAPACITY    = 20
 	DISK_CLOUD_SSD_MIN_CAPACITY          = 20
-	DISK_CLOUD_ESSD_PL0_MIN_CAPACITY     = 40
+	DISK_CLOUD_ESSD_PL0_MIN_CAPACITY     = 1
 	DISK_CLOUD_ESSD_PL1_MIN_CAPACITY     = 20
 	DISK_CLOUD_ESSD_PL2_MIN_CAPACITY     = 461
 	DISK_CLOUD_ESSD_PL3_MIN_CAPACITY     = 1261
-	DISK_CLOUD_ESSD_PLX_MIN_CAPACITY     = 40
-	DISK_CLOUD_ESSD_AUTO_PL_MIN_CAPACITY = 40
+	DISK_CLOUD_ESSD_AUTO_PL_MIN_CAPACITY = 1
 )
 
 var DiskCapacityMapping = map[string]int{
