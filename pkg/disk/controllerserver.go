@@ -434,32 +434,14 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
-// if volumesnapshot have Annotations, use it first.
-// storage.alibabacloud.com/snapshot-ttl
-// storage.alibabacloud.com/ia-snapshot
-// storage.alibabacloud.com/ia-snapshot-ttl
 func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (*createSnapshotParams, error) {
-	ecsParams := createSnapshotParams{}
-	var err error
-	params := req.GetParameters()
-	if value, ok := params[SNAPSHOTTYPE]; ok && value == INSTANTACCESS {
-		ecsParams.InstantAccess = true
-	}
-	if value, ok := params[RETENTIONDAYS]; ok {
-		ecsParams.RetentionDays, err = strconv.Atoi(value)
+	var ecsParams createSnapshotParams
+	if req.Parameters != nil {
+		err := parseSnapshotParameters(req.Parameters, &ecsParams)
 		if err != nil {
-			err := status.Errorf(codes.InvalidArgument, "CreateSnapshot: retentiondays err %s", value)
-			return nil, err
+			log.Log.Errorf("CreateSnapshot:: Snapshot name[%s], parse config failed: %v", req.Name, err)
+			return nil, status.Errorf(codes.InvalidArgument, err.Error())
 		}
-	}
-	if value, ok := params[INSTANTACCESSRETENTIONDAYS]; ok {
-		ecsParams.InstantAccessRetentionDays, err = strconv.Atoi(value)
-		if err != nil {
-			err := status.Errorf(codes.InvalidArgument, "CreateSnapshot: retentiondays err %s", value)
-			return nil, err
-		}
-	} else {
-		ecsParams.InstantAccessRetentionDays = ecsParams.RetentionDays
 	}
 
 	vsName := req.Parameters[VolumeSnapshotName]
@@ -471,18 +453,54 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (*createSnapshotPar
 
 	volumeSnapshot, err := GlobalConfigVar.SnapClient.SnapshotV1().VolumeSnapshots(vsNameSpace).Get(context.Background(), vsName, metav1.GetOptions{})
 	if err != nil {
-		log.Log.Warnf("CreateSnapshot: cannot get volumeSnapshot: %s, with error: %v", req.Name, err.Error())
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "failed to get VolumeSnapshot: %s/%s: %v", vsNameSpace, vsName, err)
 	}
-	snapshotTTL := volumeSnapshot.Annotations["storage.alibabacloud.com/snapshot-ttl"]
-	iaEnable := volumeSnapshot.Annotations["storage.alibabacloud.com/ia-snapshot"]
-	iaTTL := volumeSnapshot.Annotations["storage.alibabacloud.com/ia-snapshot-ttl"]
+	err = parseSnapshotAnnotations(volumeSnapshot.Annotations, &ecsParams)
+	if err != nil {
+		log.Log.Errorf("CreateSnapshot:: Snapshot name[%s], parse annotation failed: %v", req.Name, err)
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	return &ecsParams, nil
+}
+
+func parseSnapshotParameters(params map[string]string, ecsParams *createSnapshotParams) (err error) {
+	for k, v := range params {
+		switch k {
+		case SNAPSHOTTYPE:
+			if v == INSTANTACCESS {
+				ecsParams.InstantAccess = true
+			}
+		case RETENTIONDAYS:
+			ecsParams.RetentionDays, err = strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("failed to parse retentionDays: %w", err)
+			}
+		case INSTANTACCESSRETENTIONDAYS:
+			ecsParams.InstantAccessRetentionDays, err = strconv.Atoi(v)
+			if err != nil {
+				return fmt.Errorf("failed to parse instantAccessRetentionDays: %w", err)
+			}
+		case SNAPSHOTRESOURCEGROUPID:
+			ecsParams.ResourceGroupID = v
+		}
+	}
+	return nil
+}
+
+// if volumesnapshot have Annotations, use it first.
+// storage.alibabacloud.com/snapshot-ttl
+// storage.alibabacloud.com/ia-snapshot
+// storage.alibabacloud.com/ia-snapshot-ttl
+func parseSnapshotAnnotations(anno map[string]string, ecsParams *createSnapshotParams) error {
+	snapshotTTL := anno["storage.alibabacloud.com/snapshot-ttl"]
+	iaEnable := anno["storage.alibabacloud.com/ia-snapshot"]
+	iaTTL := anno["storage.alibabacloud.com/ia-snapshot-ttl"]
+	var err error
 
 	if snapshotTTL != "" {
 		ecsParams.RetentionDays, err = strconv.Atoi(snapshotTTL)
 		if err != nil {
-			log.Log.Warnf("CreateSnapshot: Snapshot(%s) ttl format error: %v", req.Name, err.Error())
-			return nil, err
+			return fmt.Errorf("failed to parse annotation snapshot-ttl: %w", err)
 		}
 	}
 	if strings.ToLower(iaEnable) == "true" {
@@ -491,12 +509,10 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (*createSnapshotPar
 	if iaTTL != "" {
 		ecsParams.InstantAccessRetentionDays, err = strconv.Atoi(iaTTL)
 		if err != nil {
-			log.Log.Warnf("CreateSnapshot: IA ttl(%s) format error: %v", req.Name, err.Error())
-			return nil, err
+			return fmt.Errorf("failed to parse annotation ia-snapshot-ttl: %w", err)
 		}
 	}
-	ecsParams.ResourceGroupID = req.Parameters[SNAPSHOTRESOURCEGROUPID]
-	return &ecsParams, nil
+	return nil
 }
 
 // CreateSnapshot ...
@@ -522,10 +538,8 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		Namespace: snapshotNamespace,
 	}
 
-	// parse snapshot Retention Days
 	params, err := getVolumeSnapshotConfig(req)
 	if err != nil {
-		log.Log.Errorf("CreateSnapshot:: Snapshot name[%s], parse retention days error: %v", req.Name, err)
 		return nil, err
 	}
 
