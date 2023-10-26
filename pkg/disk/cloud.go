@@ -779,6 +779,7 @@ type createSnapshotParams struct {
 	RetentionDays              int
 	InstantAccessRetentionDays int
 	InstantAccess              bool
+	SnapshotTags               []ecs.CreateSnapshotTag
 }
 
 func requestAndCreateSnapshot(ecsClient *ecs.Client, params *createSnapshotParams) (*ecs.CreateSnapshotResponse, error) {
@@ -794,11 +795,14 @@ func requestAndCreateSnapshot(ecsClient *ecs.Client, params *createSnapshotParam
 	createSnapshotRequest.ResourceGroupId = params.ResourceGroupID
 
 	// Set tags
-	snapshotTags := []ecs.CreateSnapshotTag{}
-	tag1 := ecs.CreateSnapshotTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
-	snapshotTags = append(snapshotTags, tag1)
-	tag2 := ecs.CreateSnapshotTag{Key: SNAPSHOTTAGKEY1, Value: "true"}
-	snapshotTags = append(snapshotTags, tag2)
+	snapshotTags := []ecs.CreateSnapshotTag{
+		{Key: DISKTAGKEY2, Value: DISKTAGVALUE2},
+		{Key: SNAPSHOTTAGKEY1, Value: "true"},
+	}
+	if GlobalConfigVar.ClusterID != "" {
+		snapshotTags = append(snapshotTags, ecs.CreateSnapshotTag{Key: DISKTAGKEY3, Value: GlobalConfigVar.ClusterID})
+	}
+	snapshotTags = append(snapshotTags, params.SnapshotTags...)
 	createSnapshotRequest.Tag = &snapshotTags
 
 	// Do Snapshot create

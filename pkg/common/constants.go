@@ -13,6 +13,12 @@ const (
 	PVNameKey = "csi.storage.k8s.io/pv/name"
 )
 
+// constants of keys in volume snapshot parameters
+const (
+	VolumeSnapshotNamespaceKey = "csi.storage.k8s.io/volumesnapshot/namespace"
+	VolumeSnapshotNameKey      = "csi.storage.k8s.io/volumesnapshot/name"
+)
+
 const (
 	// PVCNameTag is tag applied to provisioned alibaba cloud disk for compatibility
 	// with in-tree volume plugin. Value of the tag is PVC name. It is applied only when
@@ -31,4 +37,10 @@ const (
 	// the external provisioner sidecar is started with --extra-create-metadata=true and
 	// thus provides such metadata to the CSI driver.
 	PVNameTag = "kubernetes.io/created-for/pv/name"
+)
+
+// Tags that will be added to ECS snapshots
+const (
+	VolumeSnapshotNameTag      = "csi.alibabacloud.com/snapshot/name"
+	VolumeSnapshotNamespaceTag = "csi.alibabacloud.com/snapshot/namespace"
 )

@@ -37,6 +37,7 @@ import (
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	volumeSnasphotV1 "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/crds"
 	log "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -444,8 +445,8 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (*createSnapshotPar
 		}
 	}
 
-	vsName := req.Parameters[VolumeSnapshotName]
-	vsNameSpace := req.Parameters[VolumeSnapshotNamespace]
+	vsName := req.Parameters[common.VolumeSnapshotNameKey]
+	vsNameSpace := req.Parameters[common.VolumeSnapshotNamespaceKey]
 	// volumesnapshot not in parameters, just retrun
 	if vsName == "" || vsNameSpace == "" {
 		return &ecsParams, nil
@@ -482,6 +483,23 @@ func parseSnapshotParameters(params map[string]string, ecsParams *createSnapshot
 			}
 		case SNAPSHOTRESOURCEGROUPID:
 			ecsParams.ResourceGroupID = v
+		case common.VolumeSnapshotNameKey:
+			ecsParams.SnapshotTags = append(ecsParams.SnapshotTags, ecs.CreateSnapshotTag{
+				Key:   common.VolumeSnapshotNameTag,
+				Value: v,
+			})
+		case common.VolumeSnapshotNamespaceKey:
+			ecsParams.SnapshotTags = append(ecsParams.SnapshotTags, ecs.CreateSnapshotTag{
+				Key:   common.VolumeSnapshotNamespaceTag,
+				Value: v,
+			})
+		default:
+			if strings.HasPrefix(k, SNAPSHOT_TAG_PREFIX) {
+				ecsParams.SnapshotTags = append(ecsParams.SnapshotTags, ecs.CreateSnapshotTag{
+					Key:   k[len(SNAPSHOT_TAG_PREFIX):],
+					Value: v,
+				})
+			}
 		}
 	}
 	return nil
@@ -528,8 +546,8 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	SnapshotRequestMap[req.Name] = cur
 
 	// used for snapshot events
-	snapshotName := req.Parameters[VolumeSnapshotName]
-	snapshotNamespace := req.Parameters[VolumeSnapshotNamespace]
+	snapshotName := req.Parameters[common.VolumeSnapshotNameKey]
+	snapshotNamespace := req.Parameters[common.VolumeSnapshotNamespaceKey]
 
 	ref := &v1.ObjectReference{
 		Kind:      "VolumeSnapshot",
@@ -700,33 +718,6 @@ func snapshotBeforeDelete(volumeID string, ecsClient *ecs.Client) error {
 	}
 	delVolumeSnap.Store(volumeID, resp.SnapshotId)
 	return createStaticSnap(volumeID, resp.SnapshotId, GlobalConfigVar.SnapClient)
-}
-
-func updateSnapshotIAStatus(req *csi.CreateSnapshotRequest, status string) error {
-	volumeSnapshotName := req.Parameters[VolumeSnapshotName]
-	volumeSnapshotNameSpace := req.Parameters[VolumeSnapshotNamespace]
-	if volumeSnapshotName == "" || volumeSnapshotNameSpace == "" {
-		log.Log.Infof("CreateSnapshot: cannot get volumesnapshot name and namespace: %s, %s, %s", volumeSnapshotName, volumeSnapshotNameSpace, req.Name)
-		return nil
-	}
-
-	volumeSnapshot, err := GlobalConfigVar.SnapClient.SnapshotV1().VolumeSnapshots(volumeSnapshotNameSpace).Get(context.Background(), volumeSnapshotName, metav1.GetOptions{})
-	if err != nil {
-		log.Log.Warnf("CreateSnapshot: get volumeSnapshot(%s/%s) labels error: %s", volumeSnapshotNameSpace, volumeSnapshotName, err.Error())
-		return err
-	}
-	if volumeSnapshot.Labels == nil {
-		volumeSnapshot.Labels = map[string]string{}
-	}
-	volumeSnapshot.Labels[IAVolumeSnapshotKey] = status
-
-	_, err = GlobalConfigVar.SnapClient.SnapshotV1().VolumeSnapshots(volumeSnapshotNameSpace).Update(context.Background(), volumeSnapshot, metav1.UpdateOptions{})
-	if err != nil {
-		log.Log.Warnf("CreateSnapshot: Update VolumeSnapshot(%s/%s) IA Status error: %s", volumeSnapshotNameSpace, volumeSnapshotName, err.Error())
-		return err
-	}
-	log.Log.Infof("CreateSnapshot: updateSnapshot(%s/%s) IA Status successful %s", volumeSnapshotNameSpace, volumeSnapshotName, req.Name)
-	return nil
 }
 
 // DeleteSnapshot ...
