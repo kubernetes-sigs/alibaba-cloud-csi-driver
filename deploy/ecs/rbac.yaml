@@ -25,6 +25,10 @@ rules:
   resources: ["configmaps"]
   resourceNames: ["csi-plugin", "ack-cluster-profile"]
   verbs: ["get"]
+- apiGroups: [""]
+  resources: ["services"]
+  resourceNames: ["storage-monitor-service"]
+  verbs: ["get"]
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
