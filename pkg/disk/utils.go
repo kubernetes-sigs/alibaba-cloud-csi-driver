@@ -58,6 +58,7 @@ import (
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
@@ -70,11 +71,13 @@ var (
 	GITCOMMIT = "HEAD"
 	// KubernetesAlicloudIdentity is the system identity for ecs client request
 	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", VERSION)
-	// AvailableDiskTypes ...
-	AvailableDiskTypes = []string{DiskCommon, DiskESSD, DiskEfficiency, DiskSSD, DiskSharedSSD, DiskSharedEfficiency, DiskPPerf, DiskSPerf, DiskESSDAuto}
+
+	// All available disk types
+	AvailableDiskTypes = sets.NewString(DiskCommon, DiskESSD, DiskEfficiency, DiskSSD, DiskSharedSSD, DiskSharedEfficiency, DiskPPerf, DiskSPerf, DiskESSDAuto, DiskESSDEntry)
 	// CustomDiskTypes ...
-	CustomDiskTypes       = map[string]int{DiskESSD: 0, DiskSSD: 1, DiskEfficiency: 2, DiskPPerf: 3, DiskSPerf: 4, DiskESSDAuto: 5}
-	CustomDiskPerfermance = map[string]string{DISK_PERFORMANCE_LEVEL0: "", DISK_PERFORMANCE_LEVEL1: "", DISK_PERFORMANCE_LEVEL2: "", DISK_PERFORMANCE_LEVEL3: ""}
+	CustomDiskTypes = sets.NewString(DiskESSD, DiskSSD, DiskEfficiency, DiskPPerf, DiskSPerf, DiskESSDAuto, DiskESSDEntry)
+	// Performance Level for ESSD
+	CustomDiskPerfermance = sets.NewString(DISK_PERFORMANCE_LEVEL0, DISK_PERFORMANCE_LEVEL1, DISK_PERFORMANCE_LEVEL2, DISK_PERFORMANCE_LEVEL3)
 )
 
 // DefaultOptions is the struct for access key
@@ -1036,10 +1039,9 @@ func validateDiskType(opts map[string]string) (diskType string, err error) {
 		diskType = strings.Join(orderedList, ",")
 		return
 	}
-	for _, t := range AvailableDiskTypes {
-		if opts["type"] == t {
-			diskType = t
-		}
+	t := opts["type"]
+	if AvailableDiskTypes.Has(t) {
+		diskType = t
 	}
 	if diskType == "" {
 		return diskType, fmt.Errorf("Illegal required parameter type: " + opts["type"])

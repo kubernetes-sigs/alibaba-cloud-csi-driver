@@ -124,6 +124,8 @@ const (
 	DiskESSD = "cloud_essd"
 	// DiskESSDAuto  essd autopl disk type
 	DiskESSDAuto = "cloud_auto"
+	// DiskESSDEntry  essd entry disk type
+	DiskESSDEntry = "cloud_essd_entry"
 	// DiskHighPerformance
 	DiskPPerf = "cloud_pperf"
 	// DiskStandPerformace
