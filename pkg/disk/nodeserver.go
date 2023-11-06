@@ -990,62 +990,30 @@ func (ns *nodeServer) mountDeviceToGlobal(capability *csi.VolumeCapability, volu
 
 func (ns *nodeServer) unmountDuplicateMountPoint(targetPath, volumeId string) error {
 	log.Log.Infof("unmountDuplicateMountPoint: start to unmount remains data: %s", targetPath)
-	pathParts := strings.Split(targetPath, "/")
+	pathParts := strings.Split(targetPath, string(os.PathSeparator))
 	partsLen := len(pathParts)
 	if partsLen > 2 && pathParts[partsLen-1] == "mount" {
-		globalPath2 := filepath.Join("/var/lib/container/kubelet/plugins/kubernetes.io/csi/pv/", pathParts[partsLen-2], "/globalmount")
+		// V1 used in Kubernetes 1.23 and earlier
+		globalPathV1 := filepath.Join(utils.KubeletRootDir, "plugins/kubernetes.io/csi/pv/", pathParts[partsLen-2], "/globalmount")
+		// V2 used in Kubernetes 1.24 and later, see https://github.com/kubernetes/kubernetes/pull/107065
+		// If a volume is mounted at globalPathV1 then kubelet is upgraded, kubelet will also mount the same volume at globalPathV2.
+		volSha := fmt.Sprintf("%x", sha256.Sum256([]byte(volumeId)))
+		globalPathV2 := filepath.Join(utils.KubeletRootDir, "plugins/kubernetes.io/csi/", driverName, volSha, "/globalmount")
 
-		result := sha256.Sum256([]byte(volumeId))
-		volSha := fmt.Sprintf("%x", result)
-		globalPath3 := filepath.Join("/var/lib/container/kubelet/plugins/kubernetes.io/csi/", driverName, volSha, "/globalmount")
-		var err error
-		oldExists := utils.IsFileExisting(globalPath2)
-		if oldExists {
-			err = ns.unmountDuplicationPath(globalPath2)
-		}
-		newExists := utils.IsFileExisting(globalPath3)
-		if newExists {
-			err = ns.unmountDuplicationPath(globalPath3)
-		}
-		if oldExists && newExists {
+		v1Exists := utils.IsFileExisting(globalPathV1)
+		v2Exists := utils.IsFileExisting(globalPathV2)
+		// Community requires the node to be drained before upgrading, but we do not. So clean the V1 mountpoint here if both exists.
+		if v1Exists && v2Exists {
 			log.Log.Info("unmountDuplicateMountPoint: oldPath & newPath exists at same time")
-			globalPath4 := filepath.Join("/var/lib/kubelet/plugins/kubernetes.io/csi/pv/", pathParts[partsLen-2], "/globalmount")
-			exists := utils.IsFileExisting(globalPath4)
-			if exists {
-				err = ns.forceUnmountPath(globalPath4)
-			}
-			err = ns.unmountDuplicationPath(globalPath3)
+			return ns.forceUnmountPath(globalPathV1)
 		}
-		return err
 	} else {
 		log.Log.Warnf("Target Path is illegal format: %s", targetPath)
 	}
 	return nil
 }
 
-func (ns *nodeServer) unmountDuplicationPath(globalPath string) error {
-	// check globalPath2 is mountpoint
-	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(globalPath)
-	if err != nil || notmounted {
-		log.Log.Warnf("Global Path is not mounted: %s", globalPath)
-		return nil
-	}
-	// check device is used by others
-	refs, err := ns.k8smounter.GetMountRefs(globalPath)
-	if err == nil && !ns.mounter.HasMountRefs(globalPath, refs) {
-		log.Log.Infof("NodeUnpublishVolume: VolumeId Unmount global path %s for ack with kubelet data disk", globalPath)
-		if err := utils.Umount(globalPath); err != nil {
-			log.Log.Errorf("NodeUnpublishVolume: volumeId: unmount global path %s failed with err: %v", globalPath, err)
-			return status.Error(codes.Internal, err.Error())
-		}
-	} else {
-		log.Log.Infof("Global Path %s is mounted by others: %v", globalPath, refs)
-	}
-	return nil
-}
-
 func (ns *nodeServer) forceUnmountPath(globalPath string) error {
-	// check globalPath2 is mountpoint
 	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(globalPath)
 	if err != nil || notmounted {
 		log.Log.Warnf("Global Path is not mounted: %s", globalPath)
