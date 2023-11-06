@@ -37,6 +37,22 @@ if [[ "$os_release_exist" = "0" ]]; then
 fi
 echo "detected host os: $host_os"
 
+# Host may have /var/lib/kubelet bind mounted to /var/lib/container/kubelet in shared mode,
+# where /var/lib/container is the data disk configured in node pool.
+# Fix this by making /var/lib/container private and unmounting the duplicate mount in it.
+if [ /var/lib/kubelet -ef /var/lib/container/kubelet ] && awk '{print $5}' /proc/1/mountinfo | grep -q "^/var/lib/container$"; then
+    # They refer to the same device and inode numbers and /var/lib/container is a mountpoint
+    echo "fixing mountpoints in /var/lib/container"
+    # Note that we make /var/lib/container private, but not /var/lib/kubelet,
+    # because the latter is also shared with CSI plugins.
+    $HOST_CMD mount --make-private /var/lib/container || exit 1
+    DUPICATE_MNTS=$(awk '{print $5}' /proc/1/mountinfo | grep "^/var/lib/container/kubelet")
+    if [ -n "$DUPICATE_MNTS" ]; then
+        echo "umounting $DUPICATE_MNTS"
+        $HOST_CMD umount $DUPICATE_MNTS || exit 1
+    fi
+fi
+
 ## check which plugin is running
 for item in $@;
 do

@@ -154,9 +154,6 @@ spec:
               mountPath: /var/log/
             - name: ossconnectordir
               mountPath: /host/usr/
-            - name: container-dir
-              mountPath: /var/lib/container
-              mountPropagation: "Bidirectional"
             - name: host-dev
               mountPath: /dev
               mountPropagation: "HostToContainer"
@@ -181,10 +178,6 @@ spec:
         - name: registration-dir
           hostPath:
             path: /var/lib/kubelet/plugins_registry
-            type: DirectoryOrCreate
-        - name: container-dir
-          hostPath:
-            path: /var/lib/container
             type: DirectoryOrCreate
         - name: kubelet-dir
           hostPath:
