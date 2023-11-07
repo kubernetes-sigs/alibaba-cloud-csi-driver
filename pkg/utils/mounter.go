@@ -347,26 +347,20 @@ func (m *mounter) SafePathRemove(targetPath string) error {
 	return nil
 }
 
+const kubernetesPluginPathPrefix = "/plugins/kubernetes.io/"
+
 func (m *mounter) HasMountRefs(mountPath string, mountRefs []string) bool {
-	count := 0
-	for _, refPath := range mountRefs {
-		if !strings.Contains(refPath, mountPath) {
-			if strings.HasPrefix(mountPath, "/var/lib/kubelet/") {
-				mountPathSuffix := strings.Replace(mountPath, "/var/lib/kubelet/", "", 1)
-				refPathSuffix := strings.Replace(refPath, "/var/lib/container/kubelet/", "", 1)
-				if refPathSuffix != mountPathSuffix {
-					count = count + 1
-				}
-			} else if strings.HasPrefix(mountPath, "/var/lib/container/kubelet/") {
-				mountPathSuffix := strings.Replace(mountPath, "/var/lib/container/kubelet/", "", 1)
-				refPathSuffix := strings.Replace(refPath, "/var/lib/kubelet/", "", 1)
-				if refPathSuffix != mountPathSuffix {
-					count = count + 1
-				}
-			}
+	// Copied from https://github.com/kubernetes/kubernetes/blob/53902ce5ede4/pkg/volume/util/util.go#L680-L706
+	pathToFind := mountPath
+	if i := strings.Index(mountPath, kubernetesPluginPathPrefix); i > -1 {
+		pathToFind = mountPath[i:]
+	}
+	for _, ref := range mountRefs {
+		if !strings.Contains(ref, pathToFind) {
+			return true
 		}
 	}
-	return count > 0
+	return false
 }
 
 // IsDirEmpty return status of dir empty or not
