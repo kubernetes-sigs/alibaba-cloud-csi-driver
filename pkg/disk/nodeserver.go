@@ -716,8 +716,12 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 				log.Log.Errorf("NodeUnstageVolume: lstat mountpoint: %s with error: %s", tmpPath, err.Error())
 				return nil, status.Error(codes.InvalidArgument, "NodeUnstageVolume: stat mountpoint error: "+err.Error())
 			}
-		} else if (fileInfo.Mode() & os.ModeDevice) != 0 {
-			log.Log.Infof("NodeUnstageVolume: mountpoint %s, is block device", tmpPath)
+		} else {
+			if (fileInfo.Mode() & os.ModeDevice) != 0 {
+				log.Log.Infof("NodeUnstageVolume: mountpoint %s, is block device", tmpPath)
+			}
+			// if mountpoint not a block device, maybe something wrong happened in VolumeStageVolume.
+			// when pod deleted, the volume should be detached
 			targetPath = tmpPath
 		}
 	}
