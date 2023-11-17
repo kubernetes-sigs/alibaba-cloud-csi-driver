@@ -296,19 +296,6 @@ func isExceedLatencyThreshold(stats []string, lastStats []string, iopsIndex int,
 	return incrementLatency / incrementIOPS, false
 }
 
-func isIOHang(stats []string, lastStats []string) bool {
-	if len(stats) < 10 || len(lastStats) < 10 {
-		logrus.Errorf("stats and last stats array length is less than 10")
-		return false
-	}
-	if (stats[0] == lastStats[0]) &&
-		(stats[4] == lastStats[4]) &&
-		(stats[9] != lastStats[9]) {
-		return true
-	}
-	return false
-}
-
 func (p *diskStatCollector) latencyEventAlert(pvName string, pvcName string, pvcNamespace string, stats []string, index int) {
 	lastStats, ok := p.lastPvStatsMap.Load(pvName)
 	if p.alertSwtichSet.Contains(latencySwitch) && ok {
@@ -322,23 +309,6 @@ func (p *diskStatCollector) latencyEventAlert(pvName string, pvcName string, pvc
 			}
 			reason := fmt.Sprintf("Pvc %s latency load is too high, nodeName: %s, namespace: %s, latency:%.2f ms, threshold:%.2f ms", pvcName, p.nodeName, pvcNamespace, thisLatency, p.milliSecondsLatencyThreshold)
 			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, latencyTooHigh, reason)
-		}
-	}
-}
-
-func (p *diskStatCollector) ioHangEventAlert(pvName string, info diskInfo, stats []string) {
-	lastStats, ok := p.lastPvStatsMap.Load(pvName)
-	if ok {
-		isHang := isIOHang(stats, lastStats.([]string))
-		if isHang {
-			ref := &v1.ObjectReference{
-				Kind:      "PersistentVolumeClaim",
-				Name:      info.PvcName,
-				UID:       "",
-				Namespace: info.PvcNamespace,
-			}
-			reason := fmt.Sprintf("IO Hang on Persistent Volume %s, nodeName:%s, diskID:%s, Device:%s", pvName, p.nodeName, info.DiskID, info.DeviceName)
-			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, ioHang, reason)
 		}
 	}
 }
@@ -385,10 +355,6 @@ func (p *diskStatCollector) setDiskMetric(pvName string, info diskInfo, stats []
 
 		if i == 7 { //7：diskWriteTimeMilliSecondsDesc
 			p.latencyEventAlert(pvName, info.PvcName, info.PvcNamespace, stats, 4)
-		}
-
-		if i == 9 { //9: ioTimeSecondsDesc
-			p.ioHangEventAlert(pvName, info, stats)
 		}
 
 		if i == 12 { //12：diskCapacityUsedDesc
