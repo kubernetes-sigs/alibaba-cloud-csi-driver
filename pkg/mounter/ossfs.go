@@ -152,6 +152,7 @@ func (f *fuseOssfs) buildPodSpec(
 	spec.NodeName = nodeName
 	spec.HostNetwork = true
 	spec.PriorityClassName = "system-node-critical"
+	spec.Tolerations = []corev1.Toleration{{Operator: corev1.TolerationOpExists}}
 	return
 }
 
