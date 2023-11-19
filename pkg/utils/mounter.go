@@ -88,8 +88,6 @@ type Mounter interface {
 
 	IsNotMountPoint(file string) (bool, error)
 
-	SafePathRemove(target string) error
-
 	HasMountRefs(mountPath string, mountRefs []string) bool
 }
 
@@ -317,34 +315,6 @@ func (m *mounter) IsMounted(target string) (bool, error) {
 		return true, nil
 	}
 	return false, nil
-}
-
-func (m *mounter) SafePathRemove(targetPath string) error {
-	fo, err := os.Lstat(targetPath)
-	if err != nil {
-		return err
-	}
-	isMounted, err := m.IsMounted(targetPath)
-	if err != nil {
-		return err
-	}
-	if isMounted {
-		return errors.New("Path is mounted, not remove: " + targetPath)
-	}
-	if fo.IsDir() {
-		empty, err := IsDirEmpty(targetPath)
-		if err != nil {
-			return errors.New("Check path empty error: " + targetPath + err.Error())
-		}
-		if !empty {
-			return errors.New("Cannot remove Path not empty: " + targetPath)
-		}
-	}
-	err = os.Remove(targetPath)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 const kubernetesPluginPathPrefix = "/plugins/kubernetes.io/"

@@ -286,12 +286,6 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		} else {
 			msgLog = fmt.Sprintf("NodeUnstageVolume: VolumeId: %s, mountpoint: %s not mounted, skipping", req.VolumeId, req.StagingTargetPath)
 		}
-		// safe remove mountpoint
-		err = ns.mounter.SafePathRemove(req.StagingTargetPath)
-		if err != nil {
-			log.Log.Errorf("NodeUnstageVolume: VolumeId: %s, Remove targetPath failed, target %v", req.VolumeId, req.StagingTargetPath)
-			return nil, status.Error(codes.Internal, err.Error())
-		}
 	} else {
 		msgLog = fmt.Sprintf("NodeUnstageVolume: VolumeId: %s, Path %s doesn't exist, skip", req.VolumeId, req.StagingTargetPath)
 	}
