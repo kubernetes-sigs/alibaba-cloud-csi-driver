@@ -18,6 +18,7 @@ func Test_extractFuseContainerConfig(t *testing.T) {
 				memory-request=500Mi
 				memory-limit=2Gi
 				dbglevel=info
+				mime-support=false
 			`,
 		},
 	}
@@ -36,6 +37,7 @@ func Test_extractFuseContainerConfig(t *testing.T) {
 		Image: "ossfs:latest",
 		Extra: map[string]string{
 			"dbglevel": "info",
+			"mime-support":"false",
 		},
 	}
 	if !reflect.DeepEqual(config, expected) {

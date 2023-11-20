@@ -22,7 +22,10 @@ import (
 
 var defaultOssfsImageTag = "be77d6f-aliyun"
 
-const OssfsCredentialSecretName = "csi-ossfs-credentials"
+const (
+	OssfsCredentialSecretName = "csi-ossfs-credentials"
+	OssfsMimeTypesFilePath    = "/etc/mime.types"
+)
 
 type fuseOssfs struct {
 	config FuseContainerConfig
@@ -52,6 +55,21 @@ func (f *fuseOssfs) name() string {
 func (f *fuseOssfs) buildPodSpec(
 	source, target, fstype string, options, mountFlags []string, nodeName, volumeId string,
 ) (spec corev1.PodSpec, _ error) {
+
+	var mimeSupport bool = false
+	if strings.ToLower(f.config.Extra["mime-support"]) == "true" {
+		if !utils.IsFileExisting(OssfsMimeTypesFilePath) {
+			body := []byte(getEntireMimeTypesFileContext())
+			err := utils.WriteAndSyncFile(OssfsMimeTypesFilePath, body, 0644)
+			if err != nil {
+				log.Errorf("WriteFile mime.types is failed, file:%s, err:%s", OssfsMimeTypesFilePath, err)
+			}
+		}
+	}
+	if utils.IsFileExisting(OssfsMimeTypesFilePath) {
+		mimeSupport = true
+	}
+
 	targetVolume := corev1.Volume{
 		Name: "kubelet-dir",
 		VolumeSource: corev1.VolumeSource{
@@ -90,7 +108,22 @@ func (f *fuseOssfs) buildPodSpec(
 			},
 		},
 	}
+	mimeMountDir := "/etc/mime.types"
+	mimeDirVolume := corev1.Volume{
+		Name: "mime-types-dir",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: mimeMountDir,
+				Type: new(corev1.HostPathType),
+			},
+		},
+	}
+	*mimeDirVolume.HostPath.Type = corev1.HostPathFileOrCreate
+
 	spec.Volumes = []corev1.Volume{targetVolume, metricsDirVolume, passwdSecretVolume}
+	if mimeSupport {
+		spec.Volumes = append(spec.Volumes, mimeDirVolume)
+	}
 
 	switch dbglevel := f.config.Extra["dbglevel"]; dbglevel {
 	case "":
@@ -146,6 +179,13 @@ func (f *fuseOssfs) buildPodSpec(
 		SecurityContext: &corev1.SecurityContext{
 			Privileged: pointer.BoolPtr(true),
 		},
+	}
+	if mimeSupport {
+		mimeVolumeMount := corev1.VolumeMount{
+			Name:      mimeDirVolume.Name,
+			MountPath: mimeMountDir,
+		}
+		container.VolumeMounts = append(container.VolumeMounts, mimeVolumeMount)
 	}
 	spec.Containers = []corev1.Container{container}
 	spec.RestartPolicy = corev1.RestartPolicyOnFailure
