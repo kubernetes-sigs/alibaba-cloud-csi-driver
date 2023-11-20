@@ -1,12 +1,15 @@
 module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 
-go 1.18
+go 1.19
 
 require (
 	github.com/alibabacloud-go/darabonba-openapi v0.1.16
+	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.2
 	github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
-	github.com/alibabacloud-go/tea v1.1.17
+	github.com/alibabacloud-go/nas-20170626/v3 v3.0.0-00010101000000-000000000000
+	github.com/alibabacloud-go/tea v1.1.19
 	github.com/aliyun/alibaba-cloud-sdk-go v1.62.401
+	github.com/aliyun/credentials-go v1.3.1
 	github.com/container-storage-interface/spec v1.1.0
 	github.com/containerd/ttrpc v1.2.3
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
@@ -21,7 +24,7 @@ require (
 	github.com/prometheus/client_golang v1.14.0
 	github.com/prometheus/common v0.37.0
 	github.com/prometheus/procfs v0.8.0
-	github.com/sirupsen/logrus v1.8.1
+	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.1
 	go.uber.org/ratelimit v0.1.0
 	golang.org/x/net v0.17.0
@@ -39,15 +42,18 @@ require (
 )
 
 require (
-	github.com/Microsoft/go-winio v0.4.14 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
+	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/alibabacloud-go/alibabacloud-gateway-spi v0.0.4 // indirect
 	github.com/alibabacloud-go/debug v0.0.0-20190504072949-9472017b5c68 // indirect
 	github.com/alibabacloud-go/endpoint-util v1.1.0 // indirect
-	github.com/alibabacloud-go/openapi-util v0.0.11 // indirect
+	github.com/alibabacloud-go/openapi-util v0.1.0 // indirect
 	github.com/alibabacloud-go/tea-utils v1.4.3 // indirect
-	github.com/aliyun/credentials-go v1.1.2 // indirect
+	github.com/alibabacloud-go/tea-utils/v2 v2.0.4 // indirect
+	github.com/alibabacloud-go/tea-xml v1.1.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/clbanning/mxj/v2 v2.5.5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v0.0.0-20170905204447-5db89f0ca686 // indirect
 	github.com/docker/go-connections v0.3.0 // indirect
@@ -84,10 +90,12 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tjfoc/gmsm v1.3.2 // indirect
+	golang.org/x/mod v0.8.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
 	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
+	golang.org/x/tools v0.6.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230731190214-cbb8c96f2d6d // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
@@ -117,3 +125,5 @@ replace (
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.2
 	sigs.k8s.io/yaml => sigs.k8s.io/yaml v1.1.0
 )
+
+replace github.com/alibabacloud-go/nas-20170626/v3 => ./staging/src/github.com/alibabacloud-go/nas-20170626

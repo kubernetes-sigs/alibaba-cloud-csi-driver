@@ -20,44 +20,58 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dadi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 	mountutils "k8s.io/mount-utils"
 )
 
 type nodeServer struct {
-	clientSet *kubernetes.Clientset
-	crdClient dynamic.Interface
-	*csicommon.DefaultNodeServer
+	config  *internal.NodeConfig
 	mounter mountutils.Interface
 	locks   *utils.VolumeLocks
+}
+
+func newNodeServer(config *internal.NodeConfig) *nodeServer {
+	// configure efc dadi service discovery
+	if config.EnableEFCCache {
+		go dadi.Run(config.KubeClient)
+	}
+	if err := checkSystemNasConfig(); err != nil {
+		log.Errorf("failed to config /proc/sys/sunrpc/tcp_slot_table_entries: %v", err)
+	}
+	return &nodeServer{
+		config:  config,
+		mounter: NewNasMounter(),
+		locks:   utils.NewVolumeLocks(),
+	}
 }
 
 // Options struct definition
 type Options struct {
 	Server        string `json:"server"`
+	Accesspoint   string `json:"accesspoint"`
 	Path          string `json:"path"`
 	Vers          string `json:"vers"`
 	Mode          string `json:"mode"`
 	ModeType      string `json:"modeType"`
 	Options       string `json:"options"`
 	MountType     string `json:"mountType"`
+	LoopImageSize int    `json:"loopImageSize"`
 	LoopLock      string `json:"loopLock"`
 	MountProtocol string `json:"mountProtocol"`
 	ClientType    string `json:"clientType"`
@@ -82,12 +96,6 @@ const (
 	NasTempMntPath = "/mnt/acs_mnt/k8s_nas/temp"
 	// NasPortnum is nas port
 	NasPortnum = "2049"
-	// NasMetricByPlugin tag
-	NasMetricByPlugin = "NAS_METRIC_BY_PLUGIN"
-	// MixRunTimeMode support both runc and runv
-	MixRunTimeMode = "runc-runv"
-	// RunvRunTimeMode tag
-	RunvRunTimeMode = "runv"
 	// NasMntPoint tag
 	NasMntPoint = "/mnt/nasplugin.alibabacloud.com"
 	// MountProtocolNFS common nfs protocol
@@ -113,20 +121,6 @@ const (
 	//NativeClient
 	NativeClient = "nativeclient"
 )
-
-// newNodeServer create the csi node server
-func newNodeServer(d *NAS) *nodeServer {
-	if err := checkSystemNasConfig(); err != nil {
-		log.Errorf("failed to config /proc/sys/sunrpc/tcp_slot_table_entries: %v", err)
-	}
-	return &nodeServer{
-		clientSet:         GlobalConfigVar.KubeClient,
-		crdClient:         GlobalConfigVar.DynamicClient,
-		DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
-		mounter:           NewNasMounter(),
-		locks:             utils.NewVolumeLocks(),
-	}
-}
 
 func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
 	valid, err := utils.CheckRequest(req.GetVolumeContext(), req.GetTargetPath())
@@ -184,10 +178,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, err
 	}
 
-	if !ns.locks.TryAcquire(mountPath) {
-		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", mountPath)
+	if !ns.locks.TryAcquire(req.VolumeId) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
-	defer ns.locks.Release(mountPath)
+	defer ns.locks.Release(req.VolumeId)
 	notMounted, err := ns.mounter.IsLikelyNotMountPoint(mountPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -210,37 +204,40 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	opt := &Options{}
 	var cnfsName string
 	for key, value := range req.VolumeContext {
-		key = strings.ToLower(key)
-		if key == "server" {
+		switch strings.ToLower(key) {
+		case "server":
 			opt.Server = value
-		} else if key == "path" {
+		case "accesspoint":
+			opt.Accesspoint = value
+		case "path":
 			opt.Path = value
-		} else if key == "vers" {
+		case "vers":
 			opt.Vers = value
-		} else if key == "mode" {
+		case "mode":
 			opt.Mode = value
-		} else if key == "options" {
+		case "options":
 			opt.Options = value
-		} else if key == "modetype" {
+		case "modetype":
 			opt.ModeType = value
-		} else if key == "mounttype" {
+		case "mounttype":
 			opt.MountType = value
-		} else if key == "looplock" {
+		case "looplock":
 			opt.LoopLock = value
-		} else if key == "containernetworkfilesystem" {
+		case "loopimagesize":
+			size, err := strconv.Atoi(value)
+			if err != nil {
+				return nil, status.Errorf(codes.InvalidArgument, "invalid loopImageSize: %q", value)
+			}
+			opt.LoopImageSize = size
+		case "containernetworkfilesystem":
 			cnfsName = value
-		} else if key == strings.ToLower(MountProtocolTag) {
+		case "mountprotocol":
 			opt.MountProtocol = strings.TrimSpace(value)
 		}
 	}
 
-	err = isValidCnfsParameter(opt.Server, cnfsName)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(opt.Server) == 0 {
-		cnfs, err := v1beta1.GetCnfsObject(ns.crdClient, cnfsName)
+	if cnfsName != "" {
+		cnfs, err := ns.config.CNFSGetter.GetCNFS(ctx, cnfsName)
 		if err != nil {
 			return nil, err
 		}
@@ -248,6 +245,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, err
 		}
+	}
+	if opt.Server != "" && opt.Accesspoint != "" {
+		return nil, status.Error(codes.InvalidArgument, "failed to determine nas mount target or accesspoint")
 	}
 
 	if opt.LoopLock != "false" {
@@ -280,13 +280,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// running in runc/runv mode
-	if GlobalConfigVar.RunTimeClass == MixRunTimeMode {
-		if runtime, err := utils.GetPodRunTime(req, ns.clientSet); err != nil {
+	if ns.config.EnableMixRuntime {
+		if runtime, err := utils.GetPodRunTime(req, ns.config.KubeClient); err != nil {
 			return nil, status.Errorf(codes.Internal, "NodePublishVolume: cannot get pod runtime: %v", err)
-		} else if runtime == RunvRunTimeMode {
-			if err := utils.CreateDest(mountPath); err != nil {
-				return nil, errors.New("NodePublishVolume: create dest directory error: " + err.Error())
-			}
+		} else if runtime == utils.RunvRunTimeTag {
 			fileName := filepath.Join(mountPath, utils.CsiPluginRunTimeFlagFile)
 			runvOptions := RunvNasOptions{}
 			runvOptions.Options = opt.Options
@@ -306,19 +303,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	// check parameters
-	if mountPath == "" {
-		return nil, errors.New("mountPath is empty")
-	}
-	if opt.Server == "" {
-		return nil, errors.New("host is empty, should input nas domain")
-	}
 	// check network connection
-	doNfsPortCheck := GlobalConfigVar.NasPortCheck
-	if opt.MountType == SkipMountType {
-		doNfsPortCheck = false
-	}
-	if (opt.MountProtocol == MountProtocolNFS || opt.MountProtocol == MountProtocolAliNas) && doNfsPortCheck {
+	if ns.config.EnablePortCheck && opt.Server != "" && opt.MountType != SkipMountType &&
+		(opt.MountProtocol == MountProtocolNFS || opt.MountProtocol == MountProtocolAliNas) {
 		conn, err := net.DialTimeout("tcp", opt.Server+":"+NasPortnum, time.Second*time.Duration(30))
 		if err != nil {
 			log.Errorf("NAS: Cannot connect to nas host: %s", opt.Server)
@@ -381,21 +368,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// do losetup nas logical
-	if GlobalConfigVar.LosetupEnable && opt.MountType == LosetupType {
-		if err := mountLosetupPv(ns.mounter, mountPath, opt, req.VolumeId); err != nil {
+	if ns.config.EnableLosetup && opt.MountType == LosetupType {
+		if err := ns.mountLosetupPv(mountPath, opt, req.VolumeId); err != nil {
 			log.Errorf("NodePublishVolume: mount losetup volume(%s) error %s", req.VolumeId, err.Error())
 			return nil, errors.New("NodePublishVolume, mount Losetup volume error with: " + err.Error())
 		}
 		log.Infof("NodePublishVolume: nas losetup volume successful %s", req.VolumeId)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
-
-	//cpfs-nfs check valid
-	/*if opt.FSType == "cpfs" {
-		if !strings.HasPrefix(opt.Path, "/share") {
-			return nil, errors.New("The cpfs2.0 mount path must start with /share.")
-		}
-	}*/
 
 	// Do mount
 	podUID := req.VolumeContext["csi.storage.k8s.io/pod.uid"]
@@ -404,9 +384,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("Cannot get poduid and cannot set volume limit: " + req.VolumeId)
 	}
 	//mount nas client
-	if err := DoMount(ns.mounter, opt.FSType, opt.ClientType, opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, mountPath, req.VolumeId, podUID); err != nil {
-		log.Errorf("Nas, Mount Nfs error: %s", err.Error())
-		return nil, errors.New("Nas, Mount Nfs error:" + err.Error())
+	if err := doMount(ns.mounter, opt, mountPath, req.VolumeId, podUID); err != nil {
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 	if opt.MountProtocol == "efc" {
 		if strings.Contains(opt.Server, ".nas.aliyuncs.com") {
@@ -462,6 +441,106 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
+// /var/lib/kubelet/pods/5e03c7f7-2946-4ee1-ad77-2efbc4fdb16c/volumes/kubernetes.io~csi/nas-f5308354-725a-4fd3-b613-0f5b384bd00e/mount
+func (ns *nodeServer) mountLosetupPv(mountPoint string, opt *Options, volumeID string) error {
+	pathList := strings.Split(mountPoint, "/")
+	if len(pathList) != 10 {
+		return fmt.Errorf("mountLosetupPv: mountPoint format error, %s", mountPoint)
+	}
+
+	podID := pathList[5]
+	pvName := pathList[8]
+
+	// /mnt/nasplugin.alibabacloud.com/6c690876-74aa-46f6-a301-da7f4353665d/pv-losetup/
+	nfsPath := filepath.Join(NasMntPoint, podID, pvName)
+	if err := utils.CreateDest(nfsPath); err != nil {
+		return fmt.Errorf("mountLosetupPv: create nfs mountPath error %s ", err.Error())
+	}
+	//mount nas to use losetup dev
+	err := doMount(ns.mounter, opt, nfsPath, volumeID, podID)
+	if err != nil {
+		return fmt.Errorf("mountLosetupPv: mount losetup volume failed: %s", err.Error())
+	}
+
+	lockFile := filepath.Join(nfsPath, LoopLockFile)
+	if opt.LoopLock == "true" && ns.isLosetupUsed(lockFile, opt, volumeID) {
+		return fmt.Errorf("mountLosetupPv: nfs losetup file is used by others %s", lockFile)
+	}
+	imgFile := filepath.Join(nfsPath, LoopImgFile)
+	_, err = os.Stat(imgFile)
+	if err != nil {
+		if os.IsNotExist(err) && opt.LoopImageSize != 0 {
+			if err := createLosetupPv(nfsPath, int64(opt.LoopImageSize)); err != nil {
+				return fmt.Errorf("init loop image file: %w", err)
+			}
+			log.Infof("created loop image file for %s, size: %d", pvName, opt.LoopImageSize)
+		} else {
+			return err
+		}
+	}
+	failedFile := filepath.Join(nfsPath, Resize2fsFailedFilename)
+	if utils.IsFileExisting(failedFile) {
+		// path/to/whatever does not exist
+		cmd := exec.Command("fsck", "-a", imgFile)
+		// cmd := fmt.Sprintf(Resize2fsFailedFixCmd, NsenterCmd, imgFile)
+		err := cmd.Run()
+		if err != nil {
+			return fmt.Errorf("mountLosetupPv: mount nfs losetup error %s", err.Error())
+		}
+		err = os.Remove(failedFile)
+		if err != nil {
+			log.Errorf("mountLosetupPv: failed to remove failed file: %v", err)
+		}
+	}
+	err = ns.mounter.Mount(imgFile, mountPoint, "", []string{"loop"})
+	if err != nil {
+		return fmt.Errorf("mountLosetupPv: mount nfs losetup error %s", err.Error())
+	}
+	lockContent := ns.config.NodeName + ":" + ns.config.NodeIP
+	if err := os.WriteFile(lockFile, ([]byte)(lockContent), 0644); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ns *nodeServer) isLosetupUsed(lockFile string, opt *Options, volumeID string) bool {
+	if !utils.IsFileExisting(lockFile) {
+		return false
+	}
+	fileCotent := utils.GetFileContent(lockFile)
+	contentParts := strings.Split(fileCotent, ":")
+	if len(contentParts) != 2 || contentParts[0] == "" || contentParts[1] == "" {
+		return true
+	}
+
+	oldNodeName := contentParts[0]
+	oldNodeIP := contentParts[1]
+	if ns.config.NodeName == oldNodeName {
+		mounted, err := isLosetupMount(volumeID)
+		if err != nil {
+			log.Errorf("can not determine whether %s losetup image used: %v", volumeID, err)
+			return true
+		}
+		if !mounted {
+			log.Warnf("Lockfile(%s) exist, but Losetup image not mounted %s.", lockFile, opt.Path)
+			return false
+		}
+		log.Warnf("Lockfile(%s) exist, but Losetup image mounted %s.", lockFile, opt.Path)
+		return true
+	}
+
+	stat, err := utils.Ping(oldNodeIP)
+	if err != nil {
+		log.Warnf("Ping node %s, but get error: %s, consider as volume used", oldNodeIP, err.Error())
+		return true
+	}
+	if stat.PacketLoss == 100 {
+		log.Warnf("Cannot connect to node %s, consider the node as shutdown(%s).", oldNodeIP, lockFile)
+		return false
+	}
+	return true
+}
+
 func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) error {
 	valid, err := utils.ValidatePath(req.GetTargetPath())
 	if !valid {
@@ -478,10 +557,10 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	targetPath := req.TargetPath
-	if !ns.locks.TryAcquire(targetPath) {
-		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", targetPath)
+	if !ns.locks.TryAcquire(req.VolumeId) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
-	defer ns.locks.Release(targetPath)
+	defer ns.locks.Release(req.VolumeId)
 
 	if err := cleanupMountpoint(ns.mounter, targetPath); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount %s: %v", targetPath, err)
@@ -489,7 +568,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	log.Infof("NodeUnpublishVolume: unmount volume on %s successfully", targetPath)
 
 	// when mixruntime mode enabled, try to remove ../alibabacloudcsiplugin.json
-	if GlobalConfigVar.RunTimeClass == MixRunTimeMode {
+	if ns.config.EnableMixRuntime {
 		fileName := filepath.Join(targetPath, utils.CsiPluginRunTimeFlagFile)
 		err := os.Remove(fileName)
 		if err != nil {
@@ -502,7 +581,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	// when losetup enabled, try to cleanup mountpoint under /mnt/nasplugin.alibabacloud.com/
-	if GlobalConfigVar.LosetupEnable {
+	if ns.config.EnableLosetup {
 		if err := unmountLosetupPv(ns.mounter, targetPath); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -527,7 +606,7 @@ func (ns *nodeServer) NodeUnstageVolume(
 func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (
 	*csi.NodeExpandVolumeResponse, error) {
 	log.Infof("NodeExpandVolume: nas expand volume with %v", req)
-	if GlobalConfigVar.LosetupEnable {
+	if ns.config.EnableLosetup {
 		if err := ns.LosetupExpandVolume(req); err != nil {
 			return nil, fmt.Errorf("NodeExpandVolume: error with %v", err)
 		}
@@ -579,7 +658,7 @@ func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) erro
 			failedFile := filepath.Join(nfsPath, Resize2fsFailedFilename)
 			if !utils.IsFileExisting(failedFile) {
 				// path/to/whatever does not exist
-				if werr := ioutil.WriteFile(failedFile, ([]byte)(""), 0644); werr != nil {
+				if werr := os.WriteFile(failedFile, ([]byte)(""), 0644); werr != nil {
 					return fmt.Errorf("NodeExpandVolume: write file err %s, resizefs err: %s", werr, err)
 				}
 			}
@@ -612,7 +691,7 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 
 	// Nas Metric enable config
 	nodeSvcCap := []*csi.NodeServiceCapability{nscap2}
-	if GlobalConfigVar.MetricEnable {
+	if ns.config.EnableVolumeStats {
 		nodeSvcCap = []*csi.NodeServiceCapability{nscap, nscap2}
 	}
 
@@ -625,4 +704,8 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 func (ns *nodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
 	targetPath := req.GetVolumePath()
 	return utils.GetMetrics(targetPath)
+}
+
+func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+	return &csi.NodeGetInfoResponse{NodeId: ns.config.NodeName}, nil
 }

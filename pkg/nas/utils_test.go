@@ -22,25 +22,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetNfsDetails(t *testing.T) {
-
-	nfsServerString := "0.0.0.0"
-	nfsServer, nfsPath := GetNfsDetails(nfsServerString)
-	assert.Equal(t, "0.0.0.0", nfsServer)
-	assert.Equal(t, "/", nfsPath)
-
-	nfsServerString = "0.0.0.0:/test"
-	nfsServer, nfsPath = GetNfsDetails(nfsServerString)
-	assert.Equal(t, "0.0.0.0", nfsServer)
-	assert.Equal(t, "/test", nfsPath)
-
-	nfsServerString = "0.0.0.0,0.0.0.1:/test/"
-	nfsServer, nfsPath = GetNfsDetails(nfsServerString)
-	assert.Equal(t, "0.0.0.0", nfsServer)
-	assert.Equal(t, "/", nfsPath)
-
-}
-
 func TestParseMountFlags(t *testing.T) {
 	type args struct {
 		mntOptions []string
@@ -91,6 +72,33 @@ func TestParseMountFlags(t *testing.T) {
 			if got1 != tt.want1 {
 				t.Errorf("ParseMountFlags() got1 = %v, want %v", got1, tt.want1)
 			}
+		})
+	}
+}
+
+func Test_addTLSMountOptions(t *testing.T) {
+	type args struct {
+		baseOptions []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{
+			"already set tls",
+			args{[]string{"vers=3,tls"}},
+			[]string{"vers=3,tls"},
+		},
+		{
+			"tls not set",
+			args{[]string{"vers=3", "nolock"}},
+			[]string{"vers=3", "nolock", "tls"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, addTLSMountOptions(tt.args.baseOptions))
 		})
 	}
 }

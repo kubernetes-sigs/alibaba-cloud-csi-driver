@@ -88,9 +88,7 @@ func (f *fuseOssfs) addPodMeta(pod *corev1.Pod) {
 func (f *fuseOssfs) buildPodSpec(
 	source, target, fstype string, authCfg *AuthConfig, options, mountFlags []string, nodeName, volumeId string,
 ) (spec corev1.PodSpec, _ error) {
-
 	spec.TerminationGracePeriodSeconds = tea.Int64(120)
-
 	targetVolume := corev1.Volume{
 		Name: "kubelet-dir",
 		VolumeSource: corev1.VolumeSource{
