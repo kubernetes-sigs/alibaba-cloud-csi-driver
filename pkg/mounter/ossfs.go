@@ -112,11 +112,12 @@ func (f *fuseOssfs) buildPodSpec(
 		Name: "mime-types-dir",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: hostPrefix + mimeMountDir,
+				Path: mimeMountDir,
 				Type: new(corev1.HostPathType),
 			},
 		},
 	}
+	*mimeDirVolume.HostPath.Type = corev1.HostPathFileOrCreate
 	if mimeMountDir == OssfsDefMimeTypesFilePath {
 		spec.Volumes = append(spec.Volumes, mimeDirVolume)
 	}
