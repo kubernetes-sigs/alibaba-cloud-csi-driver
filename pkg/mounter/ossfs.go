@@ -23,8 +23,10 @@ import (
 var defaultOssfsImageTag = "be77d6f-aliyun"
 
 const (
+	hostPrefix                = "/host"
 	OssfsCredentialSecretName = "csi-ossfs-credentials"
-	OssfsMimeTypesFilePath    = "/etc/mime.types"
+	OssfsDefMimeTypesFilePath = "/etc/mime.types"
+	OssfsCsiMimeTypesFilePath = "/etc/csi-mime.types"
 )
 
 type fuseOssfs struct {
@@ -55,20 +57,6 @@ func (f *fuseOssfs) name() string {
 func (f *fuseOssfs) buildPodSpec(
 	source, target, fstype string, options, mountFlags []string, nodeName, volumeId string,
 ) (spec corev1.PodSpec, _ error) {
-
-	var mimeSupport bool = false
-	if strings.ToLower(f.config.Extra["mime-support"]) == "true" {
-		if !utils.IsFileExisting(OssfsMimeTypesFilePath) {
-			body := []byte(getEntireMimeTypesFileContext())
-			err := utils.WriteAndSyncFile(OssfsMimeTypesFilePath, body, 0644)
-			if err != nil {
-				log.Errorf("WriteFile mime.types is failed, file:%s, err:%s", OssfsMimeTypesFilePath, err)
-			}
-		}
-	}
-	if utils.IsFileExisting(OssfsMimeTypesFilePath) {
-		mimeSupport = true
-	}
 
 	targetVolume := corev1.Volume{
 		Name: "kubelet-dir",
@@ -108,20 +96,28 @@ func (f *fuseOssfs) buildPodSpec(
 			},
 		},
 	}
-	mimeMountDir := "/etc/mime.types"
+	spec.Volumes = []corev1.Volume{targetVolume, metricsDirVolume, passwdSecretVolume}
+
+	var mimeMountDir string
+	if utils.IsFileExisting(hostPrefix + OssfsDefMimeTypesFilePath) {
+		// mime.types already exists on host
+		mimeMountDir = OssfsDefMimeTypesFilePath
+	} else if strings.ToLower(f.config.Extra["mime-support"]) == "true" {
+		// mime.types not exists, use csi-mime.types
+		options = append(options, fmt.Sprintf("mime_types_file=%s", OssfsCsiMimeTypesFilePath))
+		mimeMountDir = OssfsCsiMimeTypesFilePath
+	}
+
 	mimeDirVolume := corev1.Volume{
 		Name: "mime-types-dir",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: mimeMountDir,
+				Path: hostPrefix + mimeMountDir,
 				Type: new(corev1.HostPathType),
 			},
 		},
 	}
-	*mimeDirVolume.HostPath.Type = corev1.HostPathFileOrCreate
-
-	spec.Volumes = []corev1.Volume{targetVolume, metricsDirVolume, passwdSecretVolume}
-	if mimeSupport {
+	if mimeMountDir == OssfsDefMimeTypesFilePath {
 		spec.Volumes = append(spec.Volumes, mimeDirVolume)
 	}
 
@@ -180,7 +176,7 @@ func (f *fuseOssfs) buildPodSpec(
 			Privileged: pointer.BoolPtr(true),
 		},
 	}
-	if mimeSupport {
+	if mimeMountDir == OssfsDefMimeTypesFilePath {
 		mimeVolumeMount := corev1.VolumeMount{
 			Name:      mimeDirVolume.Name,
 			MountPath: mimeMountDir,

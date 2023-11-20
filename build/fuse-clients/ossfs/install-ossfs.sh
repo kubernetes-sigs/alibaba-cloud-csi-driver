@@ -4,7 +4,7 @@ echo "TARGETPLATFORM: $TARGETPLATFORM"
 echo "installing ossfs"
 case $TARGETPLATFORM in
     linux/amd64)
-        yum install -y http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_1.88.2_centos8.0_x86_64.rpm
+        yum install -y http://sys-pecking-test.oss-cn-beijing.aliyuncs.com/ossfs-test-rpm/ossfs_1.88.3_centos8.0_x86_64.rpm
         ;;
     linux/arm64)
         yum install -y \
@@ -21,4 +21,5 @@ case $TARGETPLATFORM in
 esac
 
 echo "installing util-linux" # mount, findmnt ...
-yum install -y util-linux && yum clean all 
+yum install -y util-linux mailcap && yum clean all 
+mv /etc/mime.types /etc/csi-mime.types
