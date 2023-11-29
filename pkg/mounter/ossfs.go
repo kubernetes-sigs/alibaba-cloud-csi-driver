@@ -20,7 +20,7 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-var defaultOssfsImageTag = "be77d6f-aliyun"
+var defaultOssfsImageTag = "81b7e56-aliyun"
 
 const (
 	hostPrefix                = "/host"
