@@ -269,7 +269,7 @@ type instanceDocument struct {
 func retryGetInstanceDoc() (*instanceDocument, error) {
 	var err error
 	var doc *instanceDocument
-	for i := 0; i < utils.MetadataMaxRetrycount; i++ {
+	for i := 0; i < utils.MetadataMaxRetryCount; i++ {
 		doc, err = getInstanceDoc()
 		if err != nil {
 			log.Errorf("retryGetInstanceDoc: failed to get instance doc for %v try, err: %v", i, err)

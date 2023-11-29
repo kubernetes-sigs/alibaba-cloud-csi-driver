@@ -92,8 +92,8 @@ const (
 	ProvisionerService = "provisioner"
 	// InstallSnapshotCRD tag
 	InstallSnapshotCRD = "INSTALL_SNAPSHOT_CRD"
-	// MetadataMaxRetrycount ...
-	MetadataMaxRetrycount = 4
+	// MetadataMaxRetryCount ...
+	MetadataMaxRetryCount = 4
 	// VolDataFileName file
 	VolDataFileName = "vol_data.json"
 	// fsckErrorsCorrected tag
@@ -435,19 +435,19 @@ func GetMetaData(resource string) (string, error) {
 
 // RetryGetMetaData ...
 func RetryGetMetaData(resource string) string {
-	var nodeID string
-	for i := 0; i < MetadataMaxRetrycount; i++ {
-		nodeID, _ = GetMetaData(resource)
-		if nodeID != "" {
+	var response string
+	for i := 0; i < MetadataMaxRetryCount; i++ {
+		response, _ = GetMetaData(resource)
+		if response != "" {
 			break
 		}
 		time.Sleep(1 * time.Second)
 	}
-	if nodeID == "" {
-		log.Fatalf("RetryGetMetadata: failed to get instanceId: %s from metadataserver %s after 4 retrys", nodeID, MetadataURL+resource)
+	if response == "" {
+		log.Fatalf("RetryGetMetadata: failed to get metadata %s%s after %d retries", MetadataURL, resource, MetadataMaxRetryCount)
 	}
-	log.Infof("RetryGetMetaData: successful get metadata %v: %v", resource, nodeID)
-	return nodeID
+	log.Infof("RetryGetMetaData: successful get metadata %v: %v", resource, response)
+	return response
 }
 
 // GetRegionIDAndInstanceID get regionID and instanceID object
