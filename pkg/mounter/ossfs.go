@@ -99,7 +99,7 @@ func (f *fuseOssfs) buildPodSpec(
 	spec.Volumes = []corev1.Volume{targetVolume, metricsDirVolume, passwdSecretVolume}
 
 	var mimeMountDir string
-	if utils.IsFileExisting(hostPrefix + OssfsDefMimeTypesFilePath) {
+	if utils.IsFileExisting(filepath.Join(hostPrefix, OssfsDefMimeTypesFilePath)) {
 		// mime.types already exists on host
 		mimeMountDir = OssfsDefMimeTypesFilePath
 	} else if strings.ToLower(f.config.Extra["mime-support"]) == "true" {
@@ -117,7 +117,7 @@ func (f *fuseOssfs) buildPodSpec(
 			},
 		},
 	}
-	*mimeDirVolume.HostPath.Type = corev1.HostPathFileOrCreate
+	*mimeDirVolume.HostPath.Type = corev1.HostPathFile
 	if mimeMountDir == OssfsDefMimeTypesFilePath {
 		spec.Volumes = append(spec.Volumes, mimeDirVolume)
 	}
