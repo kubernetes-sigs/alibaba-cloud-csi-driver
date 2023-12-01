@@ -116,11 +116,12 @@ spec:
               memory: 16Mi
             limits:
               cpu: 500m
-              memory: 8Gi
+              memory: 1Gi
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
             - "--leader-election"
+            - "--handle-volume-inuse-error=false"
           env:
             - name: ADDRESS
               value: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com/csi.sock
@@ -158,11 +159,12 @@ spec:
               memory: 16Mi
             limits:
               cpu: 500m
-              memory: 8Gi
+              memory: 1Gi
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
             - "--leader-election"
+            - "--handle-volume-inuse-error=false"
           env:
             - name: ADDRESS
               value: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com/csi.sock
