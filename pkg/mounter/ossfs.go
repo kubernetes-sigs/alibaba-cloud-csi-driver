@@ -39,7 +39,7 @@ func NewFuseOssfs(configmap *corev1.ConfigMap) FuseMounterType {
 	if config.Image == "" {
 		registry := os.Getenv("DEFAULT_REGISTRY")
 		if registry == "" {
-			registry = fmt.Sprintf("registry-vpc.%s.aliyuncs.com", utils.RetryGetMetaData("region-id"))
+			registry = fmt.Sprintf("registry-%s-vpc.ack.aliyuncs.com", utils.RetryGetMetaData("region-id"))
 		}
 		config.Image = fmt.Sprintf("%s/acs/csi-ossfs:%s", registry, defaultOssfsImageTag)
 	}

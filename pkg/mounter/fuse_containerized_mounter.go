@@ -308,8 +308,8 @@ func (mounter *ContainerizedFuseMounter) cleanupFusePods(ctx context.Context, ta
 
 func isFusePodReady(pod *corev1.Pod) bool {
 	for _, cond := range pod.Status.Conditions {
-		if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
-			return true
+		if cond.Type == corev1.PodReady {
+			return cond.Status == corev1.ConditionTrue
 		}
 	}
 	return false

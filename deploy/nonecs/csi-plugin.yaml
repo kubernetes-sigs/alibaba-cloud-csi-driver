@@ -83,6 +83,8 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
+            - name: DEFAULT_REGISTRY
+              value: registry-cn-hangzhou-vpc.ack.aliyuncs.com
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/csi-plugins/driverplugin.csi.alibabacloud.com-replace/csi.sock
             - name: SERVICE_TYPE

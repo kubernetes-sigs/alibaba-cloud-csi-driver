@@ -137,6 +137,8 @@ spec:
             - "--v=2"
             - "--driver=nas,oss"
           env:
+            - name: DEFAULT_REGISTRY
+              value: registry-cn-hangzhou-vpc.ack.aliyuncs.com
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/csi-provisioner/driverplugin.csi.alibabacloud.com-replace/csi.sock
             - name: SERVICE_TYPE
