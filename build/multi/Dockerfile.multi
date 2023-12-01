@@ -15,7 +15,8 @@ RUN --mount=type=bind,target=. \
 FROM registry.eu-west-1.aliyuncs.com/acs/alinux:3-update
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 
-RUN yum install -y tzdata nfs-utils xfsprogs e4fsprogs pciutils cloud-utils-growpart tar && yum clean all
+RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace cloud-utils-growpart gdisk nc telnet tar cpio && \
+    yum clean all
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
 
 ARG TARGETARCH
