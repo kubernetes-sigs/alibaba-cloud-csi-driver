@@ -84,7 +84,7 @@ done
 if [ "$run_oss" = "true" ]; then
     ossfsVer="1.80.6.ack.1"
     if [ "$USE_UPDATE_OSSFS" == "" ]; then
-        ossfsVer="1.88.1"
+        ossfsVer="1.88.2"
     fi
 
     ossfsArch="centos7.0"
@@ -93,12 +93,12 @@ if [ "$run_oss" = "true" ]; then
         ossfsArch="centos8"
     fi
     if [[ ${host_os} == "kylin" ]] || [[ ${host_os} == "uos" ]]; then
-        ossfsVer="1.88.1"
+        ossfsVer="1.88.2"
         ossfsArch="centos8"
     fi
     if [[ ${host_os} == "anolis8" ]]; then 
         ${HOST_CMD} yum install -y libcurl-devel libxml2-devel fuse-devel openssl-devel
-        ossfsVer="1.88.1"
+        ossfsVer="1.88.2"
         ossfsArch="centos8"
     fi
 	if [[ ${host_os} == "lifsea" ]]; then

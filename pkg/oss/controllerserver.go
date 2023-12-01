@@ -23,7 +23,6 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -31,7 +30,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 // controller server try to create/delete volumes
@@ -40,29 +38,6 @@ type controllerServer struct {
 	client kubernetes.Interface
 	*csicommon.DefaultControllerServer
 	crdClient dynamic.Interface
-}
-
-func NewControllerServer(d *csicommon.CSIDriver) csi.ControllerServer {
-	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
-	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
-	clientset, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		log.Fatalf("Create client set is failed, err: %v", err)
-	}
-
-	crdClient, err := dynamic.NewForConfig(cfg)
-	if err != nil {
-		log.Fatalf("Create dynamic client is failed, err: %v", err)
-	}
-
-	c := &controllerServer{
-		client:                  clientset,
-		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
-		crdClient:               crdClient,
-	}
-	return c
 }
 
 func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {

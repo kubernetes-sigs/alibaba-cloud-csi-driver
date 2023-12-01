@@ -20,28 +20,31 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
-	"sync"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/dynamic"
-	k8smount "k8s.io/utils/mount"
+	"k8s.io/client-go/kubernetes"
+	mountutils "k8s.io/mount-utils"
 )
 
 type nodeServer struct {
-	k8smounter k8smount.Interface
 	*csicommon.DefaultNodeServer
-	dynamicClient        dynamic.Interface
-	writeCredentialMutex sync.Mutex
+	nodeName        string
+	clientset       kubernetes.Interface
+	dynamicClient   dynamic.Interface
+	sharedPathLock  *utils.VolumeLocks
+	ossfsMounterFac *mounter.ContainerizedFuseMounterFactory
 }
 
 // Options contains options for target oss
@@ -64,8 +67,6 @@ type Options struct {
 const (
 	// OssfsCredentialFile is the path of oss ak credential file
 	OssfsCredentialFile = "/host/etc/passwd-ossfs"
-	// NsenterCmd is nsenter mount command
-	NsenterCmd = "nsenter --mount=/proc/1/ns/mnt"
 	// AkID is Ak ID
 	AkID = "akId"
 	// AkSecret is Ak Secret
@@ -76,11 +77,19 @@ const (
 	JindoFsType = "jindofs"
 	// metricsPathPrefix
 	metricsPathPrefix = "/host/var/run/ossfs/"
-	// metricsTop
-	metricsTop = "10"
-	// regionTag
-	regionTag = "region-id"
 )
+
+func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
+	return &csi.NodeGetCapabilitiesResponse{Capabilities: []*csi.NodeServiceCapability{
+		{
+			Type: &csi.NodeServiceCapability_Rpc{
+				Rpc: &csi.NodeServiceCapability_RPC{
+					Type: csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
+				},
+			},
+		},
+	}}, nil
+}
 
 func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
 	valid, err := utils.CheckRequest(req.GetVolumeContext(), req.GetTargetPath())
@@ -99,7 +108,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	var cnfsName string
 	opt := &Options{}
-	opt.UseSharedPath = false
+	opt.UseSharedPath = true
 	opt.FuseType = OssFsType
 	opt.MetricsTop = "10"
 	for key, value := range req.VolumeContext {
@@ -121,8 +130,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				opt.Path = v
 			}
 		} else if key == "usesharedpath" {
-			if strings.TrimSpace(value) == "true" || strings.TrimSpace(value) == "True" || strings.TrimSpace(value) == "1" {
-				opt.UseSharedPath = true
+			if useSharedPath, err := strconv.ParseBool(value); err == nil {
+				opt.UseSharedPath = useSharedPath
+			} else {
+				log.Warnf("invalid useSharedPath: %q", value)
 			}
 		} else if key == "authtype" {
 			opt.AuthType = strings.ToLower(strings.TrimSpace(value))
@@ -187,151 +198,118 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if opt.directAssigned {
 		return ns.publishDirectVolume(ctx, req, opt)
 	}
-	if IsOssfsMounted(mountPath) {
-		log.Infof("NodePublishVolume: The mountpoint is mounted: %s", mountPath)
+	var ossMounter mountutils.Interface
+	switch opt.FuseType {
+	case JindoFsType:
+		ossMounter = mounter.NewConnectorMounter(mountutils.New(""), "/etc/jindofs-tool/jindo-fuse")
+	case OssFsType, "":
+		// When useSharedPath options is set to false,
+		// mount operations need to be atomic to ensure that no fuse pods are left behind in case of failure.
+		// Because kubelet will not call NodeUnpublishVolume when NodePublishVolume never succeeded.
+		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId, !opt.UseSharedPath)
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "unknown fuseType: %q", opt.FuseType)
+	}
+
+	notMnt, err := mountutils.IsNotMountPoint(ossMounter, mountPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if err := os.MkdirAll(mountPath, os.ModePerm); err != nil {
+				log.Errorf("NodePublishVolume: mkdir %s: %v", mountPath, err)
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			notMnt = true
+		} else {
+			log.Errorf("NodePublishVolume: check mountpoint %s: %v", mountPath, err)
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if !notMnt {
+		log.Infof("NodePublishVolume: %s already mounted", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
+	var mountOptions []string
+	if req.VolumeCapability != nil && req.VolumeCapability.GetMount() != nil {
+		mountOptions = req.VolumeCapability.GetMount().MountFlags
+	}
+
 	// If you do not use sts authentication, save ak
-	credentialProvider := ""
 	if opt.AuthType != "sts" {
 		if opt.FuseType == OssFsType {
-			if err := ns.saveOssCredential(opt); err != nil {
-				return nil, errors.New("Save ossfs ak is failed, err: " + err.Error())
+			// ossfs fuse pod will mount the secret to access credentials
+			err := mounter.SetupOssfsCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId, opt.Bucket, opt.AkID, opt.AkSecret)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to setup ossfs credential secret: %v", err)
 			}
 		} else if opt.FuseType == JindoFsType {
-			credentialProvider = fmt.Sprintf("-ofs.oss.accessKeyId=%s -ofs.oss.accessKeySecret=%s", opt.AkID, opt.AkSecret)
+			mountOptions = append(mountOptions, fmt.Sprintf("fs.oss.accessKeyId=%s,fs.oss.accessKeySecret=%s", opt.AkID, opt.AkSecret))
 		}
 	} else {
 		if opt.FuseType == OssFsType {
-			credentialProvider = GetRAMRoleOption()
+			mountOptions = append(mountOptions, GetRAMRoleOption())
 		} else if opt.FuseType == JindoFsType {
-			credentialProvider = "-ofs.oss.provider.endpoint=ECS_ROLE"
+			mountOptions = append(mountOptions, "fs.oss.provider.endpoint=ECS_ROLE")
 		}
 	}
 
-	// default use allow_other
-	var mntCmd string
+	if opt.ReadOnly {
+		mountOptions = append(mountOptions, "ro")
+	}
+
+	regionID, _ := utils.GetRegionID()
+	if regionID == "" {
+		log.Warnf("Failed to get region id from both env and metadata, use original URL: %s", opt.URL)
+	} else if strings.Contains(opt.URL, regionID) && !strings.Contains(opt.URL, "internal") && !utils.IsPrivateCloud() {
+		originUrl := opt.URL
+		opt.URL = strings.ReplaceAll(originUrl, regionID, regionID+"-internal")
+	}
+
 	if opt.UseSharedPath {
 		sharedPath := GetGlobalMountPath(req.GetVolumeId())
-		if IsOssfsMounted(sharedPath) {
-			log.Infof("NodePublishVolume: The shared path: %s is already mounted", sharedPath)
-		} else {
-			if err := utils.CreateDest(sharedPath); err != nil {
-				log.Errorf("Ossfs mount is failed, err: %v", err.Error())
-				return nil, errors.New("Create OSS volume fail: " + err.Error())
+		notMnt, err := ossMounter.IsLikelyNotMountPoint(sharedPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				if err := os.MkdirAll(sharedPath, os.ModePerm); err != nil {
+					log.Errorf("NodePublishVolume: mkdir %s: %v", sharedPath, err)
+					return nil, status.Error(codes.Internal, err.Error())
+				}
+				notMnt = true
+			} else {
+				log.Errorf("NodePublishVolume: check mountpoint %s: %v", sharedPath, err)
+				return nil, status.Error(codes.Internal, err.Error())
 			}
-			mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s %s", opt.Bucket, opt.Path, sharedPath, opt.URL, opt.OtherOpts, credentialProvider)
-			if opt.ReadOnly {
-				mntCmd = mntCmd + " -oro"
+		}
+		if notMnt {
+			// serialize node publish operations on the same volume when using sharedpath
+			if lock := ns.sharedPathLock.TryAcquire(req.VolumeId); !lock {
+				log.Errorf("NodePublishVolume: aborted because failed to acquire volume %s lock", req.VolumeId)
+				return nil, status.Errorf(codes.Aborted, "NodePublishVolume operation on shared path of volume %s already exists", req.VolumeId)
 			}
-			if opt.FuseType == JindoFsType {
-				mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s", sharedPath, opt.Bucket, opt.Path, opt.URL, credentialProvider)
-			}
-			if err := utils.DoMountInHost(mntCmd); err != nil {
+			defer ns.sharedPathLock.Release(req.VolumeId)
+			if err := doMount(ossMounter, sharedPath, *opt, mountOptions); err != nil {
+				log.Errorf("NodePublishVolume: failed to mount")
 				return nil, err
 			}
+		} else {
+			log.Infof("NodePublishVolume: sharedpath %s already mounted", sharedPath)
 		}
 		log.Infof("NodePublishVolume:: Start mount operation from source [%s] to dest [%s]", sharedPath, mountPath)
-		options := []string{"bind"}
-		if opt.ReadOnly {
-			options = append(options, "ro")
-		}
-		if err := ns.k8smounter.Mount(sharedPath, mountPath, "", options); err != nil {
+		if err := ossMounter.Mount(sharedPath, mountPath, "", []string{"bind"}); err != nil {
 			log.Errorf("Ossfs mount error: %v", err.Error())
 			return nil, errors.New("Create oss volume fail: " + err.Error())
 		}
 	} else {
-		// Create Mount Path
-		if err := utils.CreateDest(mountPath); err != nil {
-			log.Errorf("Create directory is failed, err: %s", err.Error())
-			return nil, errors.New("Mount is failed, with create path err: " + err.Error() + mountPath)
+		if opt.FuseType == OssFsType {
+			utils.WriteMetricsInfo(metricsPathPrefix, req, opt.MetricsTop, OssFsType, "oss", opt.Bucket)
 		}
-
-		regionID, _ := utils.GetRegionID()
-		if regionID == "" {
-			log.Warnf("Failed to get region id from both env and metadata, use original URL: %s", opt.URL)
-		}
-		if regionID != "" && strings.Contains(opt.URL, regionID) &&
-			!strings.Contains(opt.URL, "internal") && !utils.IsPrivateCloud() {
-			originUrl := opt.URL
-			opt.URL = strings.ReplaceAll(originUrl, regionID, regionID+"-internal")
-		}
-
-		mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s %s", opt.Bucket, opt.Path, mountPath, opt.URL, opt.OtherOpts, credentialProvider)
-		if opt.ReadOnly {
-			mntCmd = mntCmd + " -oro"
-		}
-		if opt.FuseType == JindoFsType {
-			mntCmd = fmt.Sprintf("systemd-run --scope -- /etc/jindofs-tool/jindo-fuse %s -ouri=oss://%s%s -ofs.oss.endpoint=%s %s", mountPath, opt.Bucket, opt.Path, opt.URL, credentialProvider)
-		}
-		utils.WriteMetricsInfo(metricsPathPrefix, req, opt.MetricsTop, OssFsType, "oss", opt.Bucket)
-		if err := utils.DoMountInHost(mntCmd); err != nil {
+		if err := doMount(ossMounter, mountPath, *opt, mountOptions); err != nil {
 			return nil, err
 		}
 	}
 
-	log.Infof("NodePublishVolume:: Mount oss is successfully, volume %s, targetPath: %s, with Command: %s", req.VolumeId, mountPath, mntCmd)
+	log.Infof("NodePublishVolume: mounted oss successfully, volume %s, targetPath: %s", req.VolumeId, mountPath)
 	return &csi.NodePublishVolumeResponse{}, nil
-}
-
-// save ak file: bucket:ak_id:ak_secret
-func saveOssfsCredential(options *Options) error {
-	oldContentByte := []byte{}
-	if utils.IsFileExisting(OssfsCredentialFile) {
-		tmpValue, err := ioutil.ReadFile(OssfsCredentialFile)
-		if err != nil {
-			return err
-		}
-		oldContentByte = tmpValue
-	}
-
-	oldContentStr := string(oldContentByte[:])
-	newContentStr := ""
-	for _, line := range strings.Split(oldContentStr, "\n") {
-		lineList := strings.Split(line, ":")
-		if len(lineList) != 3 || lineList[0] == options.Bucket {
-			continue
-		}
-		newContentStr += line + "\n"
-	}
-
-	newContentStr = options.Bucket + ":" + options.AkID + ":" + options.AkSecret + "\n" + newContentStr
-	if err := utils.WriteAndSyncFile(OssfsCredentialFile, []byte(newContentStr), 0640); err != nil {
-		log.Errorf("Save ossfs passwd-ossfs credential file is failed, err: %s", err)
-		return err
-	}
-	return nil
-}
-
-func uniqOssfsCredential() {
-	curOssInfoByte := []byte{}
-	if utils.IsFileExisting(OssfsCredentialFile) {
-		curOssInfoByte, _ = ioutil.ReadFile(OssfsCredentialFile)
-	}
-	curOssInfoStr := string(curOssInfoByte[:])
-	curOssInfoStrArray := strings.Split(curOssInfoStr, "\n")
-	uniqOssInfoStrArray := removeDuplicateElement(curOssInfoStrArray)
-	uniqOssInfoStr := ""
-	for _, line := range uniqOssInfoStrArray {
-		uniqOssInfoStr = uniqOssInfoStr + line + "\n"
-	}
-	if err := utils.WriteAndSyncFile(OssfsCredentialFile, []byte(uniqOssInfoStr), 0640); err != nil {
-		log.Errorf("Uniq credential file is failed, %s, %s", uniqOssInfoStr, err)
-		return
-	}
-}
-
-func removeDuplicateElement(languages []string) []string {
-	result := make([]string, 0, len(languages))
-	temp := map[string]struct{}{}
-	for _, item := range languages {
-		if _, ok := temp[item]; !ok {
-			temp[item] = struct{}{}
-			result = append(result, item)
-		}
-	}
-	return result
 }
 
 // Check oss options
@@ -360,25 +338,6 @@ func checkOssOptions(opt *Options) error {
 		}
 	}
 
-	if opt.OtherOpts != "" {
-		if !strings.HasPrefix(opt.OtherOpts, "-o ") {
-			return errors.New("Oss OtherOpts error: start with -o ")
-		}
-	}
-
-	return nil
-}
-
-func (ns *nodeServer) saveOssCredential(opt *Options) error {
-	// Save ak file for ossfs, exist same entry
-	ns.writeCredentialMutex.Lock()
-	defer ns.writeCredentialMutex.Unlock()
-	if err := saveOssfsCredential(opt); err != nil {
-		log.Errorf("Save ossfs ak is failed, err: %s", err.Error())
-		return errors.New("Save ossfs ak is failed, err: " + err.Error())
-	}
-	//The same entry will exist concurrently, will to uniq same entry.
-	uniqOssfsCredential()
 	return nil
 }
 
@@ -391,7 +350,7 @@ func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) err
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	log.Infof("NodeUnpublishVolume:: Starting Umount OSS: %s mount with req: %+v", req.TargetPath, req)
+	log.Infof("NodeUnpublishVolume: Starting Umount OSS: %s mount with req: %+v", req.TargetPath, req)
 	mountPoint := req.TargetPath
 	err := validateNodeUnpublishVolumeRequest(req)
 	if err != nil {
@@ -400,63 +359,12 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if isDirectVolumePath(mountPoint) {
 		return ns.unPublishDirectVolume(ctx, req)
 	}
-
-	// check mount point with IsLikelyNotMountPoint first
-	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(mountPoint)
+	err = ns.cleanupMountPoint(ctx, req.VolumeId, req.TargetPath)
 	if err != nil {
-		log.Errorf("NodeUnpublishVolume:: use IsLikelyNotMountPoint to check if path %s mounted failed with error %v", mountPoint, err)
-		notmounted = !IsOssfsMounted(mountPoint)
+		log.Errorf("NodeUnpublishVolume: failed to unmount %q: %v", mountPoint, err)
+		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", mountPoint, err)
 	}
-
-	if notmounted {
-		mountPoints := GetOssfsMountPoints()
-		log.Warnf("NodeUnpublishVolume: mount point %s is unmounted, got ossfs mount point list: %v", mountPoint, mountPoints)
-		if removeErr := os.Remove(mountPoint); removeErr != nil {
-			log.Errorf("NodeUnpublishVolume: Could not remove mount point %s with error %v", mountPoint, removeErr)
-			return nil, status.Errorf(codes.Internal, "Could not remove mount point %s: %v", mountPoint, removeErr)
-		}
-		log.Infof("NodeUnpublishVolume: %s is unmounted and empty, removed successfully", mountPoint)
-		return &csi.NodeUnpublishVolumeResponse{}, nil
-	}
-
-	pvName := req.GetVolumeId()
-	var umntCmd string
-	sharedMountPoint := GetGlobalMountPath(req.GetVolumeId())
-	if IsOssfsMounted(sharedMountPoint) {
-		log.Infof("NodeUnpublishVolume:: Starting umount a shared path oss volume: %s", req.TargetPath)
-		code, err := IsLastSharedVol(pvName)
-		if err != nil {
-			log.Errorf("NodeUnpublishVolume:: Umount oss fail, with: %s", err.Error())
-			return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
-		}
-		if code == "1" {
-			umntCmd = fmt.Sprintf("umount %s && umount -f %s", mountPoint, sharedMountPoint)
-		} else {
-			umntCmd = fmt.Sprintf("umount %s", mountPoint)
-		}
-	} else {
-		umntCmd = fmt.Sprintf("umount -f %s", mountPoint)
-	}
-	if _, err := utils.ValidateRun(umntCmd); err != nil {
-		log.Errorf("NodeUnpublishVolume:: Umount oss fail, with: %s", err.Error())
-		return nil, errors.New("Oss, Umount oss Fail: " + err.Error())
-	}
-
-	if IsOssfsMounted(mountPoint) {
-		log.Errorf("NodeUnpublishVolume: mount pointed %s mounted yet", mountPoint)
-		return nil, status.Error(codes.Internal, "NodeUnpublishVolume: mount point mounted yet "+mountPoint)
-	}
-
-	if empty, _ := IsDirEmpty(mountPoint); !empty {
-		log.Errorf("NodeUnpublishVolume: %s is unmounted but still not empty yet", mountPoint)
-		return nil, status.Error(codes.Internal, "NodeUnpublishVolume: is unmounted but still not empty yet "+mountPoint)
-	}
-	if removeErr := os.Remove(mountPoint); removeErr != nil {
-		log.Errorf("NodeUnpublishVolume: Could not remove mount point %s with error %v", mountPoint, removeErr)
-		return nil, status.Errorf(codes.Internal, "Could not remove mount point %s: %v", mountPoint, removeErr)
-	}
-
-	log.Infof("NodeUnpublishVolume:: Umount OSS Successful: %s", mountPoint)
+	log.Infof("NodeUnpublishVolume: Umount OSS Successful: %s", mountPoint)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
@@ -471,10 +379,45 @@ func (ns *nodeServer) NodeUnstageVolume(
 	ctx context.Context,
 	req *csi.NodeUnstageVolumeRequest) (
 	*csi.NodeUnstageVolumeResponse, error) {
+	log.Infof("NodeUnstageVolume: starting to unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
+	// unmount for sharedPath
+	mountpoint := GetGlobalMountPath(req.VolumeId)
+	err := ns.cleanupMountPoint(ctx, req.VolumeId, mountpoint)
+	if err != nil {
+		log.Errorf("NodeUnstageVolume: failed to unmount %q: %v", mountpoint, err)
+		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", mountpoint, err)
+	}
+	log.Infof("NodeUnstageVolume: umount OSS Successful: %s", mountpoint)
+	err = mounter.CleanupOssfsCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to cleanup ossfs credential secret: %v", err)
+	}
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
 func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (
 	*csi.NodeExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
+}
+
+func (ns *nodeServer) cleanupMountPoint(ctx context.Context, volumeId string, mountpoint string) error {
+	m := mountutils.New("")
+	var umountErr error
+	forceUnmounter, ok := m.(mountutils.MounterForceUnmounter)
+	if ok {
+		umountErr = mountutils.CleanupMountWithForce(mountpoint, forceUnmounter, true, time.Minute)
+	} else {
+		umountErr = mountutils.CleanupMountPoint(mountpoint, m, true)
+	}
+
+	// always try to clean fuse pod for mountpoint
+	cleanPodErr := ns.ossfsMounterFac.NewFuseMounter(ctx, volumeId, false).Unmount(mountpoint)
+
+	if umountErr != nil {
+		return umountErr
+	}
+	if cleanPodErr != nil {
+		return cleanPodErr
+	}
+	return nil
 }

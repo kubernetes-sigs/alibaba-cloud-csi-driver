@@ -12,6 +12,13 @@ metadata:
 rules:
 - apiGroups: [""]
   resources: ["secrets"]
+  resourceNames: ["csi-ossfs-credentials"]
+  verbs: ["get", "create", "patch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch", "create", "delete" ]
+- apiGroups: [""]
+  resources: ["secrets"]
   resourceNames: ["csi-local-plugin-cert"]
   verbs: ["get"]
 - apiGroups: [""]
@@ -125,3 +132,4 @@ subjects:
 - kind: ServiceAccount
   name: csi-admin
   namespace: kube-system
+---

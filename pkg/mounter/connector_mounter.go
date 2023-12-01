@@ -9,12 +9,19 @@ import (
 )
 
 type ConnectorMounter struct {
+	mounterPath string
 	mountutils.Interface
 }
 
 func (m *ConnectorMounter) Mount(source string, target string, fstype string, options []string) error {
 	args := mountutils.MakeMountArgs(source, target, fstype, options)
-	mntCmd := "systemd-run --scope -- mount " + strings.Join(args, " ")
+	mntCmd := "systemd-run --scope -- "
+	if m.mounterPath == "" {
+		mntCmd += "mount "
+	} else {
+		mntCmd += m.mounterPath + " "
+	}
+	mntCmd += strings.Join(args, " ")
 	out, err := utils.ConnectorRun(mntCmd)
 	if len(out) > 0 {
 		log.Infof("ConnectorRun: %q, output: %s", mntCmd, string(out))
@@ -22,8 +29,9 @@ func (m *ConnectorMounter) Mount(source string, target string, fstype string, op
 	return err
 }
 
-func NewConnectorMounter(inner mountutils.Interface) mountutils.Interface {
+func NewConnectorMounter(inner mountutils.Interface, mounterPath string) mountutils.Interface {
 	return &ConnectorMounter{
-		Interface: inner,
+		mounterPath: mounterPath,
+		Interface:   inner,
 	}
 }
