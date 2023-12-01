@@ -36,8 +36,8 @@ func Test_extractFuseContainerConfig(t *testing.T) {
 		},
 		Image: "ossfs:latest",
 		Extra: map[string]string{
-			"dbglevel": "info",
-			"mime-support":"false",
+			"dbglevel":     "info",
+			"mime-support": "false",
 		},
 	}
 	if !reflect.DeepEqual(config, expected) {
