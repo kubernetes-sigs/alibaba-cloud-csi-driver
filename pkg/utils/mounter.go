@@ -76,8 +76,6 @@ type Mounter interface {
 	IsMounted(target string) (bool, error)
 
 	IsNotMountPoint(file string) (bool, error)
-
-	HasMountRefs(mountPath string, mountRefs []string) bool
 }
 
 // TODO(arslan): this is Linux only for now. Refactor this into a package with
@@ -304,22 +302,6 @@ func (m *mounter) IsMounted(target string) (bool, error) {
 		return true, nil
 	}
 	return false, nil
-}
-
-const kubernetesPluginPathPrefix = "/plugins/kubernetes.io/"
-
-func (m *mounter) HasMountRefs(mountPath string, mountRefs []string) bool {
-	// Copied from https://github.com/kubernetes/kubernetes/blob/53902ce5ede4/pkg/volume/util/util.go#L680-L706
-	pathToFind := mountPath
-	if i := strings.Index(mountPath, kubernetesPluginPathPrefix); i > -1 {
-		pathToFind = mountPath[i:]
-	}
-	for _, ref := range mountRefs {
-		if !strings.Contains(ref, pathToFind) {
-			return true
-		}
-	}
-	return false
 }
 
 // IsDirEmpty return status of dir empty or not
