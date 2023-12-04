@@ -62,26 +62,24 @@ type lazyInitProvider struct {
 }
 
 func (p *lazyInitProvider) Get(key MetadataKey) (string, error) {
+	p.initMu.Lock()
 	if p.provider == nil && p.err == nil {
-		p.initMu.Lock()
-		if p.provider == nil && p.err == nil {
-			provider, err := p.fetcher.FetchFor(key)
-			if err == ErrUnknownMetadataKey {
-				p.initMu.Unlock()
-				return "", err
-			}
-			if err != nil {
-				err = fmt.Errorf("%T failed: %w", p.fetcher, err)
-				// print a warning if we failed to get a value,
-				// because the error is hide if other providers succeed
-				logrus.Warn(err)
-			}
-			p.fetcher = nil
-			p.provider = provider
-			p.err = err
+		provider, err := p.fetcher.FetchFor(key)
+		if err == ErrUnknownMetadataKey {
+			p.initMu.Unlock()
+			return "", err
 		}
-		p.initMu.Unlock()
+		if err != nil {
+			err = fmt.Errorf("%T failed: %w", p.fetcher, err)
+			// print a warning if we failed to get a value,
+			// because the error is hide if other providers succeed
+			logrus.Warn(err)
+		}
+		p.fetcher = nil
+		p.provider = provider
+		p.err = err
 	}
+	p.initMu.Unlock()
 	if p.err != nil {
 		return "", p.err
 	}

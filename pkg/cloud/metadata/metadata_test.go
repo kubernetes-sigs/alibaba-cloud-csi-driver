@@ -3,6 +3,7 @@ package metadata
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -163,4 +164,55 @@ func TestGetUnknownKey(t *testing.T) {
 
 	_, err := m.Get(99999)
 	assert.Equal(t, ErrUnknownMetadataKey, err)
+}
+
+type noopFetcher struct{}
+
+func (f *noopFetcher) FetchFor(MetadataKey) (MetadataProvider, error) {
+	time.Sleep(10 * time.Millisecond)
+	return &fakeProvider{
+		values: map[MetadataKey]string{
+			RegionID: "cn-beijing",
+		},
+	}, nil
+}
+
+// Run this with "-race"
+func TestParallelLazyInit(t *testing.T) {
+	t.Parallel()
+	m := lazyInitProvider{fetcher: &noopFetcher{}}
+
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			region, err := m.Get(RegionID)
+			assert.NoError(t, err)
+			assert.Equal(t, "cn-beijing", region)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
+
+// Run this with "-race"
+func TestParallelImmutableProvider(t *testing.T) {
+	t.Parallel()
+	m := newImmutableProvider(&fakeProvider{
+		values: map[MetadataKey]string{
+			RegionID: "cn-beijing",
+		},
+	}, "fake")
+
+	wg := sync.WaitGroup{}
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			region, err := m.Get(RegionID)
+			assert.NoError(t, err)
+			assert.Equal(t, "cn-beijing", region)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }
