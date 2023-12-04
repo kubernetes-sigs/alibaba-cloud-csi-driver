@@ -127,7 +127,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		if err != nil {
 			log.Log.Fatalf("NewNodeServer: MAX_VOLUMES_PERNODE must be int64, but get: %s", volumeNum)
 		} else {
-			if num < 0 || num > int64(MaxVolumesPerNodeLimit) {
+			if num < 0 || num > MaxVolumesPerNodeLimit {
 				log.Log.Errorf("NewNodeServer: MAX_VOLUMES_PERNODE must between 0-%d, but get: %s", int64(MaxVolumesPerNodeLimit), volumeNum)
 			} else {
 				maxVolumesNum = num
