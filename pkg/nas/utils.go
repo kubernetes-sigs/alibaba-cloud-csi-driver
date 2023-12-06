@@ -60,6 +60,9 @@ const (
 	Resize2fsFailedFixCmd = "%s fsck -a %s"
 
 	GiB = 1 << 30
+	// see https://help.aliyun.com/zh/nas/modify-the-maximum-number-of-concurrent-nfs-requests
+	TcpSlotTableEntries      = "/proc/sys/sunrpc/tcp_slot_table_entries"
+	TcpSlotTableEntriesValue = "128\n"
 )
 
 var (
@@ -350,34 +353,12 @@ func setNasVolumeCapacityWithID(pvObj *v1.PersistentVolume, crdClient dynamic.In
 
 // check system config,
 // if tcp_slot_table_entries not set to 128, just config.
-func checkSystemNasConfig() {
-	sunRPCFile := "/etc/modprobe.d/sunrpc.conf"
-	if utils.IsFileExisting(sunRPCFile) {
-		data, err := os.ReadFile(sunRPCFile)
-		if err != nil {
-			log.Warnf("Update Nas system config check error: %s", err.Error())
-			return
-		}
-		for _, line := range strings.Split(string(data), "\n") {
-			if strings.Contains(line, "tcp_slot_table_entries") && strings.Contains(line, "128") {
-				return
-			}
-		}
+func checkSystemNasConfig() error {
+	data, err := os.ReadFile(TcpSlotTableEntries)
+	if err == nil && string(data) == TcpSlotTableEntriesValue {
+		return nil
 	}
-
-	sunRpcConfig := "\"options sunrpc tcp_slot_table_entries=128\"\n\"options sunrpc tcp_max_slot_table_entries=128\""
-	// startRpcConfig := "sysctl -w sunrpc.tcp_slot_table_entries=128"
-	err := utils.WriteAndSyncFile(sunRPCFile, []byte(sunRpcConfig), 0755)
-	if err != nil {
-		log.Warnf("Write nas rpcconfig %s is failed, err: %s", sunRPCFile, err.Error())
-		return
-	}
-	err = exec.Command("sysctl", "-w", "sunrpc.tcp_slot_table_entries=128").Run()
-	if err != nil {
-		log.Warnf("Start nas rpcconfig is failed, err: %s", err.Error())
-		return
-	}
-	log.Warnf("Update nas system config is successfully.")
+	return os.WriteFile(TcpSlotTableEntries, []byte(TcpSlotTableEntriesValue), os.ModePerm)
 }
 
 // ParseMountFlags parse mountOptions

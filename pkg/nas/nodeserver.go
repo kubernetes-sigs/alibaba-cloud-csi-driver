@@ -116,6 +116,9 @@ const (
 
 // newNodeServer create the csi node server
 func newNodeServer(d *NAS) *nodeServer {
+	if err := checkSystemNasConfig(); err != nil {
+		log.Errorf("failed to config /proc/sys/sunrpc/tcp_slot_table_entries: %v", err)
+	}
 	return &nodeServer{
 		clientSet:         GlobalConfigVar.KubeClient,
 		crdClient:         GlobalConfigVar.DynamicClient,
@@ -386,9 +389,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		log.Infof("NodePublishVolume: nas losetup volume successful %s", req.VolumeId)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
-
-	// if system not set nas, config it.
-	checkSystemNasConfig()
 
 	//cpfs-nfs check valid
 	/*if opt.FSType == "cpfs" {
