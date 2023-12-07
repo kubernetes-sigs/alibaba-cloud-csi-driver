@@ -1578,7 +1578,7 @@ func getVolumeCount() int64 {
 		// if auth failed, return with default
 		if err != nil && strings.Contains(err.Error(), "Forbidden") {
 			log.Errorf("getVolumeCount: describe instance type with error: %s", err.Error())
-			return MaxVolumesPerNode
+			return DefaultMaxVolumesPerNode
 			// not forbidden error, retry
 		} else if err != nil && !strings.Contains(err.Error(), "Forbidden") {
 			time.Sleep(time.Duration(1) * time.Second)
@@ -1586,7 +1586,7 @@ func getVolumeCount() int64 {
 		}
 		if len(response.InstanceTypes.InstanceType) != 1 {
 			log.Warnf("getVolumeCount: get instance max volume failed type with %v", response)
-			return MaxVolumesPerNode
+			return DefaultMaxVolumesPerNode
 		}
 		availableVolumeCount = response.InstanceTypes.InstanceType[0].DiskQuantity - existsDiskCount
 		log.Infof("getVolumeCount: get instance max volume %d type with response %v", availableVolumeCount, response)

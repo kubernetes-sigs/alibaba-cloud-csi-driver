@@ -94,8 +94,10 @@ const (
 	CreateDiskARN = "alibabacloud.com/createdisk-arn"
 	// SocketPath is path of connector sock
 	SocketPath = "/host/etc/csi-tool/diskconnector.sock"
-	// MaxVolumesPerNode define max ebs one node
-	MaxVolumesPerNode = 15
+	// DefaultMaxVolumesPerNode define default max ebs one node
+	DefaultMaxVolumesPerNode = 15
+	// MaxVolumesPerNodeLimit define limit max ebs one node
+	MaxVolumesPerNodeLimit = 64
 	// NOUUID is xfs fs mount opts
 	NOUUID = "nouuid"
 	// NodeMultiZoneEnable Enable node multi-zone mode
@@ -118,15 +120,15 @@ type QueryResponse struct {
 
 // NewNodeServer creates node server
 func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
-	var maxVolumesNum int64 = MaxVolumesPerNode
+	var maxVolumesNum int64 = DefaultMaxVolumesPerNode
 	volumeNum := os.Getenv("MAX_VOLUMES_PERNODE")
 	if "" != volumeNum {
 		num, err := strconv.ParseInt(volumeNum, 10, 64)
 		if err != nil {
 			log.Log.Fatalf("NewNodeServer: MAX_VOLUMES_PERNODE must be int64, but get: %s", volumeNum)
 		} else {
-			if num < 0 || num > 64 {
-				log.Log.Errorf("NewNodeServer: MAX_VOLUMES_PERNODE must between 0-15, but get: %s", volumeNum)
+			if num < 0 || num > MaxVolumesPerNodeLimit {
+				log.Log.Errorf("NewNodeServer: MAX_VOLUMES_PERNODE must between 0-%d, but get: %s", MaxVolumesPerNodeLimit, volumeNum)
 			} else {
 				maxVolumesNum = num
 				log.Log.Infof("NewNodeServer: MAX_VOLUMES_PERNODE is set to(not default): %d", maxVolumesNum)
