@@ -402,22 +402,15 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 
 func (ns *nodeServer) cleanupMountPoint(ctx context.Context, volumeId string, mountpoint string) error {
 	m := mountutils.New("")
-	var umountErr error
+	var err error
 	forceUnmounter, ok := m.(mountutils.MounterForceUnmounter)
 	if ok {
-		umountErr = mountutils.CleanupMountWithForce(mountpoint, forceUnmounter, true, time.Minute)
+		err = mountutils.CleanupMountWithForce(mountpoint, forceUnmounter, true, time.Minute)
 	} else {
-		umountErr = mountutils.CleanupMountPoint(mountpoint, m, true)
+		err = mountutils.CleanupMountPoint(mountpoint, m, true)
 	}
-
-	// always try to clean fuse pod for mountpoint
-	cleanPodErr := ns.ossfsMounterFac.NewFuseMounter(ctx, volumeId, false).Unmount(mountpoint)
-
-	if umountErr != nil {
-		return umountErr
+	if err != nil {
+		return err
 	}
-	if cleanPodErr != nil {
-		return cleanPodErr
-	}
-	return nil
+	return ns.ossfsMounterFac.NewFuseMounter(ctx, volumeId, false).Unmount(mountpoint)
 }
