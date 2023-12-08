@@ -83,10 +83,8 @@ if [ -z "$KUBELET_ROOT_DIR" ]; then
 fi
 if [ "$SKIP_UPDATEDB_CONFIG" != "true" ]; then
     ## check cron.daily dir
-    stat /host/etc/cron.daily/mlocate >> /dev/null
-    if [ $? -eq 0 ]; then
-        stat /host/etc/updatedb.conf >> /dev/null
-        if [ $? -eq 0 ]; then
+    if [ -f /host/etc/cron.daily/mlocate ]; then
+        if [ -f /host/etc/updatedb.conf ]; then
             PRUNEFS=`sed '/^PRUNEFS =/!d; s/.*= //' /host/etc/updatedb.conf | sed 's/\"//g'`
             PRUNEPATHS=`sed '/^PRUNEPATHS =/!d; s/.*= //' /host/etc/updatedb.conf | sed 's/\"//g'`
 
@@ -103,7 +101,7 @@ if [ "$SKIP_UPDATEDB_CONFIG" != "true" ]; then
                     PRUNEPATHS="\"${PRUNEPATHS} /var/lib/kubelet /var/lib/container/kubelet\""
                     echo "add PRUNEPATHS:/var/lib/kubelet /var/lib/container/kubelet in /etc/updatedb.conf"
                 else
-                    PRUNEPATHS="\"${PRUNEPATHS} ${KUBELET_ROOT_DIR} /var/lib/container/kubelet\""
+                    PRUNEPATHS="\"${PRUNEPATHS} ${KUBELET_ROOT_DIR}\""
                     echo "add PRUNEPATHS:${KUBELET_ROOT_DIR} in /etc/updatedb.conf"
                 fi
                 sed -i 's#PRUNEPATHS.*$#PRUNEPATHS = '"${PRUNEPATHS}"'#g' /host/etc/updatedb.conf
