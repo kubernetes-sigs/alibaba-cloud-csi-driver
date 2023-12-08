@@ -54,6 +54,41 @@ do
   fi
 done
 
+# config /etc/updatedb.config if needed
+if [ -z "$KUBELET_DIR" ]; then
+    KUBELET_DIR="/var/lib/kubelet"
+fi
+if [ "$SKIP_UPDATEDB_CONFIG" != "true" ]; then
+    ## check cron.daily dir
+    ${HOST_CMD} stat /etc/cron.daily/mlocate >> /dev/null
+    if [ $? -eq 0 ]; then
+        ${HOST_CMD} stat /etc/updatedb.conf >> /dev/null
+        if [ $? -eq 0 ]; then
+            PRUNEFS=`${HOST_CMD} sed '/^PRUNEFS =/!d; s/.*= //' /etc/updatedb.conf | sed 's/\"//g'`
+            PRUNEPATHS=`${HOST_CMD} sed '/^PRUNEPATHS =/!d; s/.*= //' /etc/updatedb.conf | sed 's/\"//g'`
+
+            ${HOST_CMD} sed -i 's/PRUNE_BIND_MOUNTS.*$/PRUNE_BIND_MOUNTS = \"yes\"/g' /etc/updatedb.conf
+            if [[ `echo ${PRUNEFS} | grep "fuse.ossfs" | wc -l` == "0" ]]; then
+                echo "original PRUNEFS=${PRUNEFS}"
+                echo "add PRUNEFS:fuse.ossfs in /etc/updatedb.conf"
+                PRUNEFS="\"${PRUNEFS} fuse.ossfs\""
+                ${HOST_CMD} sed -i 's/PRUNEFS.*$/PRUNEFS = '"${PRUNEFS}"'/g' /etc/updatedb.conf
+            fi
+            if [[ `echo ${PRUNEPATHS} | grep ${KUBELET_DIR} | wc -l` == "0" ]]; then
+                echo "original PRUNEPATHS=${PRUNEPATHS}"
+                if [ "$KUBELET_DIR" == "/var/lib/kubelet" ]; then
+                    PRUNEPATHS="\"${PRUNEPATHS} /var/lib/kubelet /var/lib/container/kubelet\""
+                    echo "add PRUNEPATHS:/var/lib/kubelet /var/lib/container/kubelet in /etc/updatedb.conf"
+                else
+                    PRUNEPATHS="\"${PRUNEPATHS} ${KUBELET_DIR} /var/lib/container/kubelet\""
+                    echo "add PRUNEPATHS:${KUBELET_DIR} in /etc/updatedb.conf"
+                fi
+                ${HOST_CMD} sed -i 's#PRUNEPATHS.*$#PRUNEPATHS = '"${PRUNEPATHS}"'#g' /etc/updatedb.conf
+            fi
+        fi
+    fi
+fi
+
 # skip installing csiplugin-connector when DISABLE_CSIPLUGIN_CONNECTOR=true
 if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [ "$run_disk" = "true" ] || [ "$run_nas" = "true" ]); then
     updateConnector="true"
