@@ -55,35 +55,35 @@ do
 done
 
 # config /etc/updatedb.config if needed
-if [ -z "$KUBELET_DIR" ]; then
-    KUBELET_DIR="/var/lib/kubelet"
+if [ -z "$KUBELET_ROOT_DIR" ]; then
+    KUBELET_ROOT_DIR="/var/lib/kubelet"
 fi
 if [ "$SKIP_UPDATEDB_CONFIG" != "true" ]; then
     ## check cron.daily dir
-    ${HOST_CMD} stat /etc/cron.daily/mlocate >> /dev/null
+    stat /host/etc/cron.daily/mlocate >> /dev/null
     if [ $? -eq 0 ]; then
-        ${HOST_CMD} stat /etc/updatedb.conf >> /dev/null
+        stat /host/etc/updatedb.conf >> /dev/null
         if [ $? -eq 0 ]; then
-            PRUNEFS=`${HOST_CMD} sed '/^PRUNEFS =/!d; s/.*= //' /etc/updatedb.conf | sed 's/\"//g'`
-            PRUNEPATHS=`${HOST_CMD} sed '/^PRUNEPATHS =/!d; s/.*= //' /etc/updatedb.conf | sed 's/\"//g'`
+            PRUNEFS=`sed '/^PRUNEFS =/!d; s/.*= //' /host/etc/updatedb.conf | sed 's/\"//g'`
+            PRUNEPATHS=`sed '/^PRUNEPATHS =/!d; s/.*= //' /host/etc/updatedb.conf | sed 's/\"//g'`
 
-            ${HOST_CMD} sed -i 's/PRUNE_BIND_MOUNTS.*$/PRUNE_BIND_MOUNTS = \"yes\"/g' /etc/updatedb.conf
+            sed -i 's/PRUNE_BIND_MOUNTS.*$/PRUNE_BIND_MOUNTS = \"yes\"/g' /host/etc/updatedb.conf
             if [[ `echo ${PRUNEFS} | grep "fuse.ossfs" | wc -l` == "0" ]]; then
                 echo "original PRUNEFS=${PRUNEFS}"
                 echo "add PRUNEFS:fuse.ossfs in /etc/updatedb.conf"
                 PRUNEFS="\"${PRUNEFS} fuse.ossfs\""
-                ${HOST_CMD} sed -i 's/PRUNEFS.*$/PRUNEFS = '"${PRUNEFS}"'/g' /etc/updatedb.conf
+                sed -i 's/PRUNEFS.*$/PRUNEFS = '"${PRUNEFS}"'/g' /host/etc/updatedb.conf
             fi
-            if [[ `echo ${PRUNEPATHS} | grep ${KUBELET_DIR} | wc -l` == "0" ]]; then
+            if [[ `echo ${PRUNEPATHS} | grep ${KUBELET_ROOT_DIR} | wc -l` == "0" ]]; then
                 echo "original PRUNEPATHS=${PRUNEPATHS}"
-                if [ "$KUBELET_DIR" == "/var/lib/kubelet" ]; then
+                if [ "$KUBELET_ROOT_DIR" == "/var/lib/kubelet" ]; then
                     PRUNEPATHS="\"${PRUNEPATHS} /var/lib/kubelet /var/lib/container/kubelet\""
                     echo "add PRUNEPATHS:/var/lib/kubelet /var/lib/container/kubelet in /etc/updatedb.conf"
                 else
-                    PRUNEPATHS="\"${PRUNEPATHS} ${KUBELET_DIR} /var/lib/container/kubelet\""
-                    echo "add PRUNEPATHS:${KUBELET_DIR} in /etc/updatedb.conf"
+                    PRUNEPATHS="\"${PRUNEPATHS} ${KUBELET_ROOT_DIR} /var/lib/container/kubelet\""
+                    echo "add PRUNEPATHS:${KUBELET_ROOT_DIR} in /etc/updatedb.conf"
                 fi
-                ${HOST_CMD} sed -i 's#PRUNEPATHS.*$#PRUNEPATHS = '"${PRUNEPATHS}"'#g' /etc/updatedb.conf
+                sed -i 's#PRUNEPATHS.*$#PRUNEPATHS = '"${PRUNEPATHS}"'#g' /host/etc/updatedb.conf
             fi
         fi
     fi
