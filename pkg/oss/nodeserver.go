@@ -206,7 +206,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		// When useSharedPath options is set to false,
 		// mount operations need to be atomic to ensure that no fuse pods are left behind in case of failure.
 		// Because kubelet will not call NodeUnpublishVolume when NodePublishVolume never succeeded.
-		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId, !opt.UseSharedPath)
+		authCfg := &mounter.AuthConfig{AuthType: opt.AuthType}
+		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId, authCfg, !opt.UseSharedPath)
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "unknown fuseType: %q", opt.FuseType)
 	}
@@ -234,8 +235,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		mountOptions = req.VolumeCapability.GetMount().MountFlags
 	}
 
-	// If you do not use sts authentication, save ak
-	if opt.AuthType != "sts" {
+	switch opt.AuthType {
+	case mounter.AuthTypeSTS:
+		if opt.FuseType == OssFsType {
+			mountOptions = append(mountOptions, GetRAMRoleOption())
+		} else if opt.FuseType == JindoFsType {
+			mountOptions = append(mountOptions, "fs.oss.provider.endpoint=ECS_ROLE")
+		}
+	default:
 		if opt.FuseType == OssFsType {
 			// ossfs fuse pod will mount the secret to access credentials
 			err := mounter.SetupOssfsCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId, opt.Bucket, opt.AkID, opt.AkSecret)
@@ -244,12 +251,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			}
 		} else if opt.FuseType == JindoFsType {
 			mountOptions = append(mountOptions, fmt.Sprintf("fs.oss.accessKeyId=%s,fs.oss.accessKeySecret=%s", opt.AkID, opt.AkSecret))
-		}
-	} else {
-		if opt.FuseType == OssFsType {
-			mountOptions = append(mountOptions, GetRAMRoleOption())
-		} else if opt.FuseType == JindoFsType {
-			mountOptions = append(mountOptions, "fs.oss.provider.endpoint=ECS_ROLE")
 		}
 	}
 
@@ -326,15 +327,17 @@ func checkOssOptions(opt *Options) error {
 		return nil
 	}
 
-	// if not input ak from user, use the default ak value
-	if opt.AkID == "" || opt.AkSecret == "" {
-		ac := utils.GetEnvAK()
-		opt.AkID = ac.AccessKeyID
-		opt.AkSecret = ac.AccessKeySecret
-	}
-	if opt.AkID == "" || opt.AkSecret == "" {
-		if opt.AuthType == "" {
-			return errors.New("Oss Parametes error: AK and authType are both empty ")
+	switch opt.AuthType {
+	case mounter.AuthTypeSTS:
+	default:
+		// if not input ak from user, use the default ak value
+		if opt.AkID == "" || opt.AkSecret == "" {
+			ac := utils.GetEnvAK()
+			opt.AkID = ac.AccessKeyID
+			opt.AkSecret = ac.AccessKeySecret
+		}
+		if opt.AkID == "" || opt.AkSecret == "" {
+			return errors.New("Oss Parametes error: AK and authType are both empty or invalid ")
 		}
 	}
 
@@ -412,5 +415,5 @@ func (ns *nodeServer) cleanupMountPoint(ctx context.Context, volumeId string, mo
 	if err != nil {
 		return err
 	}
-	return ns.ossfsMounterFac.NewFuseMounter(ctx, volumeId, false).Unmount(mountpoint)
+	return ns.ossfsMounterFac.NewFuseMounter(ctx, volumeId, nil, false).Unmount(mountpoint)
 }

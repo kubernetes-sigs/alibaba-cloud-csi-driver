@@ -55,7 +55,7 @@ func (f *fuseOssfs) name() string {
 }
 
 func (f *fuseOssfs) buildPodSpec(
-	source, target, fstype string, options, mountFlags []string, nodeName, volumeId string,
+	source, target, fstype string, authCfg *AuthConfig, options, mountFlags []string, nodeName, volumeId string,
 ) (spec corev1.PodSpec, _ error) {
 
 	targetVolume := corev1.Volume{
@@ -78,25 +78,7 @@ func (f *fuseOssfs) buildPodSpec(
 		},
 	}
 	*metricsDirVolume.HostPath.Type = corev1.HostPathDirectoryOrCreate
-	passwdMountDir := "/etc/ossfs"
-	passwdFilename := "passwd-ossfs"
-	passwdSecretVolume := corev1.Volume{
-		Name: "passwd-ossfs",
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: OssfsCredentialSecretName,
-				Items: []corev1.KeyToPath{
-					{
-						Key:  fmt.Sprintf("%s.%s", nodeName, volumeId),
-						Path: passwdFilename,
-						Mode: pointer.Int32Ptr(0600),
-					},
-				},
-				Optional: pointer.BoolPtr(true),
-			},
-		},
-	}
-	spec.Volumes = []corev1.Volume{targetVolume, metricsDirVolume, passwdSecretVolume}
+	spec.Volumes = []corev1.Volume{targetVolume, metricsDirVolume}
 
 	var mimeMountDir string
 	if utils.IsFileExisting(filepath.Join(hostPrefix, OssfsDefMimeTypesFilePath)) {
@@ -138,16 +120,10 @@ func (f *fuseOssfs) buildPodSpec(
 	default:
 		return spec, fmt.Errorf("invalid ossfs dbglevel: %q", dbglevel)
 	}
-	options = append(options, fmt.Sprintf("passwd_file=%s", filepath.Join(passwdMountDir, passwdFilename)))
-	args := mountutils.MakeMountArgs(source, target, "", options)
-	args = append(args, mountFlags...)
-	// FUSE foreground option - do not run as daemon
-	args = append(args, "-f")
 	bidirectional := corev1.MountPropagationBidirectional
 	container := corev1.Container{
 		Name:      "fuse-mounter",
 		Image:     f.config.Image,
-		Args:      args,
 		Resources: f.config.Resources,
 		VolumeMounts: []corev1.VolumeMount{
 			{
@@ -157,9 +133,6 @@ func (f *fuseOssfs) buildPodSpec(
 			}, {
 				Name:      metricsDirVolume.Name,
 				MountPath: metricsDirVolume.HostPath.Path,
-			}, {
-				Name:      passwdSecretVolume.Name,
-				MountPath: passwdMountDir,
 			},
 		},
 		StartupProbe: &corev1.Probe{
@@ -184,6 +157,41 @@ func (f *fuseOssfs) buildPodSpec(
 		}
 		container.VolumeMounts = append(container.VolumeMounts, mimeVolumeMount)
 	}
+
+	if authCfg == nil || authCfg.AuthType != AuthTypeSTS{
+		passwdMountDir := "/etc/ossfs"
+		passwdFilename := "passwd-ossfs"
+		passwdSecretVolume := corev1.Volume{
+			Name: "passwd-ossfs",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: OssfsCredentialSecretName,
+					Items: []corev1.KeyToPath{
+						{
+							Key:  fmt.Sprintf("%s.%s", nodeName, volumeId),
+							Path: passwdFilename,
+							Mode: pointer.Int32Ptr(0600),
+						},
+					},
+					Optional: pointer.BoolPtr(true),
+				},
+			},
+		}
+		spec.Volumes = append(spec.Volumes, passwdSecretVolume)
+		passwdVolumeMont := corev1.VolumeMount{
+			Name:      passwdSecretVolume.Name,
+			MountPath: passwdMountDir,
+		}
+		container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
+		options = append(options, fmt.Sprintf("passwd_file=%s", filepath.Join(passwdMountDir, passwdFilename)))
+	}
+
+	args := mountutils.MakeMountArgs(source, target, "", options)
+	args = append(args, mountFlags...)
+	// FUSE foreground option - do not run as daemon
+	args = append(args, "-f")
+	container.Args = args
+	
 	spec.Containers = []corev1.Container{container}
 	spec.RestartPolicy = corev1.RestartPolicyOnFailure
 	spec.NodeName = nodeName

@@ -33,9 +33,20 @@ const (
 	FuseMountPathAnnoKey      = "csi.alibabacloud.com/mount-path"
 )
 
+type AuthConfig struct {
+	AuthType string
+	// TODO: for RRSA
+	// RoleName           string
+	// ServiceAccountName string
+}
+
+const (
+	AuthTypeSTS = "sts"
+)
+
 type FuseMounterType interface {
 	name() string
-	buildPodSpec(source, target, fstype string, options, mountFlags []string, nodeName, volumeId string) (corev1.PodSpec, error)
+	buildPodSpec(source, target, fstype string, authCfg *AuthConfig, options, mountFlags []string, nodeName, volumeId string) (corev1.PodSpec, error)
 }
 
 type FuseContainerConfig struct {
@@ -113,13 +124,14 @@ func NewContainerizedFuseMounterFactory(
 // This implies that mount operations will either succeed when the fuse pod is ready,
 // or fail and ensure that no fuse pods are left behind.
 func (fac *ContainerizedFuseMounterFactory) NewFuseMounter(
-	ctx context.Context, volumeId string, atomic bool) *ContainerizedFuseMounter {
+	ctx context.Context, volumeId string, authCfg *AuthConfig, atomic bool) *ContainerizedFuseMounter {
 	return &ContainerizedFuseMounter{
 		ctx:       ctx,
 		atomic:    atomic,
 		volumeId:  volumeId,
 		nodeName:  fac.nodeName,
 		namespace: fac.namespace,
+		authCfg:   authCfg,
 		client:    fac.client,
 		log: logrus.WithFields(logrus.Fields{
 			"fuse-type": fac.fuseType.name(),
@@ -136,6 +148,7 @@ type ContainerizedFuseMounter struct {
 	volumeId  string
 	nodeName  string
 	namespace string
+	authCfg   *AuthConfig
 	client    kubernetes.Interface
 	log       *logrus.Entry
 	FuseMounterType
@@ -151,7 +164,7 @@ func (mounter *ContainerizedFuseMounter) Mount(source string, target string, fst
 
 	ctx, cancel := context.WithTimeout(mounter.ctx, fuseMountTimeout)
 	defer cancel()
-	err := mounter.launchFusePod(ctx, source, target, fstype, options, nil)
+	err := mounter.launchFusePod(ctx, source, target, fstype, mounter.authCfg, options, nil)
 	if err != nil {
 		return err
 	}
@@ -188,7 +201,7 @@ func (mounter *ContainerizedFuseMounter) labelsAndListOptionsFor(target string) 
 	return labels, listOptions
 }
 
-func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, source, target, fstype string, options, mountFlags []string) error {
+func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, source, target, fstype string, authCfg *AuthConfig, options, mountFlags []string) error {
 	podClient := mounter.client.CoreV1().Pods(mounter.namespace)
 	labels, listOptions := mounter.labelsAndListOptionsFor(target)
 	podList, err := podClient.List(ctx, listOptions)
@@ -230,7 +243,7 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 		rawPod.GenerateName = fmt.Sprintf("csi-fuse-%s-", mounter.name())
 		rawPod.Labels = labels
 		rawPod.Annotations = map[string]string{FuseMountPathAnnoKey: target}
-		rawPod.Spec, err = mounter.buildPodSpec(source, target, fstype, options, mountFlags, mounter.nodeName, mounter.volumeId)
+		rawPod.Spec, err = mounter.buildPodSpec(source, target, fstype, authCfg, options, mountFlags, mounter.nodeName, mounter.volumeId)
 		if err != nil {
 			return err
 		}
