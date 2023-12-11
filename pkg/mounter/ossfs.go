@@ -158,7 +158,7 @@ func (f *fuseOssfs) buildPodSpec(
 		container.VolumeMounts = append(container.VolumeMounts, mimeVolumeMount)
 	}
 
-	if authCfg == nil || authCfg.AuthType != AuthTypeSTS{
+	if authCfg == nil || authCfg.AuthType != AuthTypeSTS {
 		passwdMountDir := "/etc/ossfs"
 		passwdFilename := "passwd-ossfs"
 		passwdSecretVolume := corev1.Volume{
@@ -191,7 +191,7 @@ func (f *fuseOssfs) buildPodSpec(
 	// FUSE foreground option - do not run as daemon
 	args = append(args, "-f")
 	container.Args = args
-	
+
 	spec.Containers = []corev1.Container{container}
 	spec.RestartPolicy = corev1.RestartPolicyOnFailure
 	spec.NodeName = nodeName
