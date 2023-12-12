@@ -62,26 +62,19 @@ if [ "$SKIP_UPDATEDB_CONFIG" != "true" ]; then
     ## check cron.daily dir
     if [ -f /host/etc/cron.daily/mlocate ]; then
         if [ -f /host/etc/updatedb.conf ]; then
-            PRUNEFS=`sed '/^PRUNEFS =/!d; s/.*= //' /host/etc/updatedb.conf | sed 's/\"//g'`
-            PRUNEPATHS=`sed '/^PRUNEPATHS =/!d; s/.*= //' /host/etc/updatedb.conf | sed 's/\"//g'`
-
             sed -i 's/PRUNE_BIND_MOUNTS.*$/PRUNE_BIND_MOUNTS = \"yes\"/g' /host/etc/updatedb.conf
-            if [[ `echo ${PRUNEFS} | grep "fuse.ossfs" | wc -l` == "0" ]]; then
-                echo "original PRUNEFS=${PRUNEFS}"
-                echo "add PRUNEFS:fuse.ossfs in /etc/updatedb.conf"
-                PRUNEFS="\"${PRUNEFS} fuse.ossfs\""
-                sed -i 's/PRUNEFS.*$/PRUNEFS = '"${PRUNEFS}"'/g' /host/etc/updatedb.conf
+            if ! grep "^PRUNEFS" /host/etc/updatedb.conf | grep -q --fixed-strings "fuse.ossfs"; then
+                PRUNEFS="fuse.ossfs"
+                echo "add PRUNEFS: $PRUNEFS to /etc/updatedb.conf"
+                sed -i "s|PRUNEFS\s*=\s*\"|&${PRUNEFS//|/\\|} |" /host/etc/updatedb.conf
             fi
-            if [[ `echo ${PRUNEPATHS} | grep ${KUBELET_ROOT_DIR} | wc -l` == "0" ]]; then
-                echo "original PRUNEPATHS=${PRUNEPATHS}"
-                if [ "$KUBELET_ROOT_DIR" == "/var/lib/kubelet" ]; then
-                    PRUNEPATHS="\"${PRUNEPATHS} /var/lib/kubelet /var/lib/container/kubelet\""
-                    echo "add PRUNEPATHS:/var/lib/kubelet /var/lib/container/kubelet in /etc/updatedb.conf"
-                else
-                    PRUNEPATHS="\"${PRUNEPATHS} ${KUBELET_ROOT_DIR}\""
-                    echo "add PRUNEPATHS:${KUBELET_ROOT_DIR} in /etc/updatedb.conf"
+            if ! grep "^PRUNEPATHS" /host/etc/updatedb.conf | grep -q --fixed-strings "$KUBELET_ROOT_DIR"; then
+                PRUNEPATHS="$KUBELET_ROOT_DIR"
+                if [ "$KUBELET_ROOT_DIR" = "/var/lib/kubelet" ]; then
+                    PRUNEPATHS="$PRUNEPATHS /var/lib/container/kubelet"
                 fi
-                sed -i 's#PRUNEPATHS.*$#PRUNEPATHS = '"${PRUNEPATHS}"'#g' /host/etc/updatedb.conf
+                echo "add PRUNEPATHS: $PRUNEPATHS to /etc/updatedb.conf"
+                sed -i "s|PRUNEPATHS\s*=\s*\"|&${PRUNEPATHS//|/\\|} |" /host/etc/updatedb.conf
             fi
         fi
     fi
