@@ -158,33 +158,7 @@ func (f *fuseOssfs) buildPodSpec(
 		container.VolumeMounts = append(container.VolumeMounts, mimeVolumeMount)
 	}
 
-	if authCfg == nil || authCfg.AuthType != AuthTypeSTS {
-		passwdMountDir := "/etc/ossfs"
-		passwdFilename := "passwd-ossfs"
-		passwdSecretVolume := corev1.Volume{
-			Name: "passwd-ossfs",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: OssfsCredentialSecretName,
-					Items: []corev1.KeyToPath{
-						{
-							Key:  fmt.Sprintf("%s.%s", nodeName, volumeId),
-							Path: passwdFilename,
-							Mode: pointer.Int32Ptr(0600),
-						},
-					},
-					Optional: pointer.BoolPtr(true),
-				},
-			},
-		}
-		spec.Volumes = append(spec.Volumes, passwdSecretVolume)
-		passwdVolumeMont := corev1.VolumeMount{
-			Name:      passwdSecretVolume.Name,
-			MountPath: passwdMountDir,
-		}
-		container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
-		options = append(options, fmt.Sprintf("passwd_file=%s", filepath.Join(passwdMountDir, passwdFilename)))
-	}
+	buildAuthSpec(nodeName, volumeId, authCfg, &spec, &container, &options)
 
 	args := mountutils.MakeMountArgs(source, target, "", options)
 	args = append(args, mountFlags...)
@@ -270,4 +244,39 @@ func CleanupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Inte
 		log.WithField("volumeId", volumeId).Infof("patched secret %s to remove credentials", OssfsCredentialSecretName)
 	}
 	return err
+}
+
+func buildAuthSpec(nodeName, volumeId string, authCfg *AuthConfig,
+	spec *corev1.PodSpec, container *corev1.Container, options *[]string) {
+	if spec == nil || container == nil || options == nil {
+		return
+	}
+	if authCfg != nil && authCfg.AuthType == AuthTypeSTS {
+		return
+	}
+	passwdMountDir := "/etc/ossfs"
+	passwdFilename := "passwd-ossfs"
+	passwdSecretVolume := corev1.Volume{
+		Name: "passwd-ossfs",
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: OssfsCredentialSecretName,
+				Items: []corev1.KeyToPath{
+					{
+						Key:  fmt.Sprintf("%s.%s", nodeName, volumeId),
+						Path: passwdFilename,
+						Mode: pointer.Int32Ptr(0600),
+					},
+				},
+				Optional: pointer.BoolPtr(true),
+			},
+		},
+	}
+	spec.Volumes = append(spec.Volumes, passwdSecretVolume)
+	passwdVolumeMont := corev1.VolumeMount{
+		Name:      passwdSecretVolume.Name,
+		MountPath: passwdMountDir,
+	}
+	container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
+	*options = append(*options, fmt.Sprintf("passwd_file=%s", filepath.Join(passwdMountDir, passwdFilename)))
 }
