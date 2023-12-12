@@ -39,7 +39,7 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 	options.URL = "1.1.1.1"
 	options.AkID = ""
 	err = checkOssOptions(options)
-	assert.Equal(t, "Oss Parametes error: AK and authType are both empty ", err.Error())
+	assert.Equal(t, "Oss Parametes error: AK and authType are both empty or invalid ", err.Error())
 
 	options.AkID = "2222"
 	// reset AkSecret in checkOssOptions when AkID = ""
