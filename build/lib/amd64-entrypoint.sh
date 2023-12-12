@@ -77,6 +77,32 @@ do
     fi
 done
 
+# config /etc/updatedb.config if needed
+if [ -z "$KUBELET_ROOT_DIR" ]; then
+    KUBELET_ROOT_DIR="/var/lib/kubelet"
+fi
+if [ "$SKIP_UPDATEDB_CONFIG" != "true" ]; then
+    ## check cron.daily dir
+    if [ -f /host/etc/cron.daily/mlocate ]; then
+        if [ -f /host/etc/updatedb.conf ]; then
+            sed -i 's/PRUNE_BIND_MOUNTS.*$/PRUNE_BIND_MOUNTS = \"yes\"/g' /host/etc/updatedb.conf
+            if ! grep "^PRUNEFS" /host/etc/updatedb.conf | grep -q --fixed-strings "fuse.ossfs"; then
+                PRUNEFS="fuse.ossfs"
+                echo "add PRUNEFS: $PRUNEFS to /etc/updatedb.conf"
+                sed -i "s|PRUNEFS\s*=\s*\"|&${PRUNEFS//|/\\|} |" /host/etc/updatedb.conf
+            fi
+            if ! grep "^PRUNEPATHS" /host/etc/updatedb.conf | grep -q --fixed-strings "$KUBELET_ROOT_DIR"; then
+                PRUNEPATHS="$KUBELET_ROOT_DIR"
+                if [ "$KUBELET_ROOT_DIR" = "/var/lib/kubelet" ]; then
+                    PRUNEPATHS="$PRUNEPATHS /var/lib/container/kubelet"
+                fi
+                echo "add PRUNEPATHS: $PRUNEPATHS to /etc/updatedb.conf"
+                sed -i "s|PRUNEPATHS\s*=\s*\"|&${PRUNEPATHS//|/\\|} |" /host/etc/updatedb.conf
+            fi
+        fi
+    fi
+fi
+
 # skip installing csiplugin-connector when DISABLE_CSIPLUGIN_CONNECTOR=true
 if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [ "$run_disk" = "true" ] || [ "$run_nas" = "true" ]); then
     ## install/update csi connector
