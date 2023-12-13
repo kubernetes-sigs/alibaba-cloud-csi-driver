@@ -62,6 +62,8 @@ type Options struct {
 	FuseType      string `json:"fuseType"`
 	MetricsTop    string `json:"metricsTop"`
 	ReadOnly      bool   `json:"readOnly"`
+	Encrypted     string `json:"encrypted"`
+	KmsKeyId      string `json:"kmsKeyId"`
 }
 
 const (
@@ -77,6 +79,11 @@ const (
 	JindoFsType = "jindofs"
 	// metricsPathPrefix
 	metricsPathPrefix = "/host/var/run/ossfs/"
+)
+
+const (
+	EncryptedTypeKms    = "kms"
+	EncryptedTypeAes256 = "aes256"
 )
 
 func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
@@ -145,6 +152,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			cnfsName = value
 		} else if key == optDirectAssigned {
 			opt.directAssigned, _ = strconv.ParseBool(strings.TrimSpace(value))
+		} else if key == "encrypted" {
+			opt.Encrypted = strings.ToLower(strings.TrimSpace(value))
+		} else if key == "kmskeyid" {
+			opt.KmsKeyId = value
 		}
 	}
 
@@ -192,7 +203,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("Check oss input error: " + err.Error())
 	}
 
-	argStr := fmt.Sprintf("Bucket: %s, url: %s, , OtherOpts: %s, Path: %s, UseSharedPath: %s, authType: %s", opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType)
+	argStr := fmt.Sprintf("Bucket: %s, url: %s, , OtherOpts: %s, Path: %s, UseSharedPath: %s, authType: %s, encrypted: %s, kmsid: %s",
+		opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType, opt.Encrypted, opt.KmsKeyId)
 	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
 
 	if opt.directAssigned {
@@ -251,6 +263,21 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			}
 		} else if opt.FuseType == JindoFsType {
 			mountOptions = append(mountOptions, fmt.Sprintf("fs.oss.accessKeyId=%s,fs.oss.accessKeySecret=%s", opt.AkID, opt.AkSecret))
+		}
+	}
+
+	switch opt.Encrypted {
+	case EncryptedTypeAes256:
+		if opt.FuseType == OssFsType {
+			mountOptions = append(mountOptions, "use_sse")
+		}
+	case EncryptedTypeKms:
+		if opt.FuseType == OssFsType {
+			if opt.KmsKeyId == "" {
+				mountOptions = append(mountOptions, "use_sse=kmsid")
+			} else {
+				mountOptions = append(mountOptions, fmt.Sprintf("use_sse=kmsid:%s", opt.KmsKeyId))
+			}
 		}
 	}
 
@@ -339,6 +366,10 @@ func checkOssOptions(opt *Options) error {
 		if opt.AkID == "" || opt.AkSecret == "" {
 			return errors.New("Oss Parametes error: AK and authType are both empty or invalid ")
 		}
+	}
+
+	if opt.Encrypted != "" && opt.Encrypted != EncryptedTypeKms && opt.Encrypted != EncryptedTypeAes256 {
+		return errors.New("Oss Encrypted error: invalid SSE encryted type ")
 	}
 
 	return nil
