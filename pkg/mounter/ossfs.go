@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -30,10 +31,14 @@ const (
 	OssfsCsiMimeTypesFilePath = "/etc/csi-mime.types"
 
 	defaultRegistry = "registry-cn-hangzhou.ack.aliyuncs.com"
+	
+	CsiSecretStoreDriver      = "secrets-store.csi.k8s.io"
+	SecretProviderClassKey    = "secretProviderClass"
 )
 
 type fuseOssfs struct {
-	config FuseContainerConfig
+	config     FuseContainerConfig
+	rrsaConfig RrsaConfig
 }
 
 func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) FuseMounterType {
@@ -56,7 +61,11 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) Fuse
 	if _, ok := config.Resources.Requests[corev1.ResourceMemory]; !ok {
 		config.Resources.Requests[corev1.ResourceMemory] = resource.MustParse("50Mi")
 	}
-	return &fuseOssfs{config: config}
+	rrsaConfig := RrsaConfig{
+		ClusterId: clusterId,
+		aliUid:    aliUid,
+	}
+	return &fuseOssfs{config: config, rrsaConfig: rrsaConfig}
 }
 
 func (f *fuseOssfs) name() string {
@@ -187,7 +196,7 @@ func (f *fuseOssfs) buildPodSpec(
 		container.VolumeMounts = append(container.VolumeMounts, mimeVolumeMount)
 	}
 
-	buildAuthSpec(nodeName, volumeId, authCfg, &spec, &container, &options)
+	buildAuthSpec(nodeName, volumeId, target, authCfg, &f.rrsaConfig, &spec, &container, &options)
 
 	args := mountutils.MakeMountArgs(source, target, "", options)
 	args = append(args, mountFlags...)
@@ -275,37 +284,111 @@ func CleanupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Inte
 	return err
 }
 
-func buildAuthSpec(nodeName, volumeId string, authCfg *AuthConfig,
+func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig, rrsaCfg *RrsaConfig,
 	spec *corev1.PodSpec, container *corev1.Container, options *[]string) {
 	if spec == nil || container == nil || options == nil {
 		return
 	}
-	if authCfg != nil && authCfg.AuthType == AuthTypeSTS {
-		return
+	if authCfg == nil {
+		authCfg = &AuthConfig{}
 	}
-	passwdMountDir := "/etc/ossfs"
-	passwdFilename := "passwd-ossfs"
-	passwdSecretVolume := corev1.Volume{
-		Name: "passwd-ossfs",
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: OssfsCredentialSecretName,
-				Items: []corev1.KeyToPath{
-					{
-						Key:  fmt.Sprintf("%s.%s", nodeName, volumeId),
-						Path: passwdFilename,
-						Mode: pointer.Int32Ptr(0600),
+
+	switch authCfg.AuthType {
+	case AuthTypeSTS:
+	case AuthTypeRRSA:
+		if rrsaCfg == nil {
+			return
+		}
+		spec.ServiceAccountName = authCfg.ServiceAccountName
+		rrsaMountDir := "/var/run/secrets/ack.alibabacloud.com/rrsa-tokens"
+		rrsaVolume := corev1.Volume{
+			Name: "rrsa-oidc-token",
+			VolumeSource: corev1.VolumeSource{
+				Projected: &corev1.ProjectedVolumeSource{
+					DefaultMode: tea.Int32(420),
+					Sources: []corev1.VolumeProjection{
+						{
+							ServiceAccountToken: &corev1.ServiceAccountTokenProjection{
+								Audience:          "sts.aliyuncs.com",
+								ExpirationSeconds: tea.Int64(3600),
+								Path:              "token",
+							},
+						},
 					},
 				},
-				Optional: pointer.BoolPtr(true),
 			},
-		},
+		}
+		spec.Volumes = append(spec.Volumes, rrsaVolume)
+		rrsaVolumeMont := corev1.VolumeMount{
+			Name:      rrsaVolume.Name,
+			MountPath: rrsaMountDir,
+		}
+		container.VolumeMounts = append(container.VolumeMounts, rrsaVolumeMont)
+		roleArn, providerArn := utils.GetArn(rrsaCfg.ClusterId, rrsaCfg.aliUid, authCfg.RoleName)
+		envs := []corev1.EnvVar{
+			{
+				Name:  "ALIBABA_CLOUD_ROLE_ARN",
+				Value: roleArn,
+			},
+			{
+				Name:  "ALIBABA_CLOUD_OIDC_PROVIDER_ARN",
+				Value: providerArn,
+			},
+			{
+				Name:  "ALIBABA_CLOUD_OIDC_TOKEN_FILE",
+				Value: rrsaMountDir + "/token",
+			},
+			{
+				Name:  "ROLE_SESSION_NAME",
+				Value: getRoleSessionName(volumeId, target),
+			},
+		}
+		container.Env = envs
+	case AuthTypeCSS:
+		secretStoreMountDir := "/etc/ossfs/secrets-store"
+		secretStoreVolume := corev1.Volume{
+			Name: "secrets-store",
+			VolumeSource: corev1.VolumeSource{
+				CSI: &corev1.CSIVolumeSource{
+					Driver:           CsiSecretStoreDriver,
+					ReadOnly:         pointer.BoolPtr(true),
+					VolumeAttributes: map[string]string{SecretProviderClassKey: authCfg.SecretProviderClassName},
+				},
+			},
+		}
+		spec.Volumes = append(spec.Volumes, secretStoreVolume)
+		secretStoreVolumeMount := corev1.VolumeMount{
+			Name:      secretStoreVolume.Name,
+			MountPath: secretStoreMountDir,
+			ReadOnly:  true,
+		}
+		container.VolumeMounts = append(container.VolumeMounts, secretStoreVolumeMount)
+		*options = append(*options, fmt.Sprintf("secret_store_dir=%s", secretStoreMountDir))
+	default:
+		passwdMountDir := "/etc/ossfs"
+		passwdFilename := "passwd-ossfs"
+		passwdSecretVolume := corev1.Volume{
+			Name: "passwd-ossfs",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: OssfsCredentialSecretName,
+					Items: []corev1.KeyToPath{
+						{
+							Key:  fmt.Sprintf("%s.%s", nodeName, volumeId),
+							Path: passwdFilename,
+							Mode: pointer.Int32Ptr(0600),
+						},
+					},
+					Optional: pointer.BoolPtr(true),
+				},
+			},
+		}
+		spec.Volumes = append(spec.Volumes, passwdSecretVolume)
+		passwdVolumeMont := corev1.VolumeMount{
+			Name:      passwdSecretVolume.Name,
+			MountPath: passwdMountDir,
+		}
+		container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
+		*options = append(*options, fmt.Sprintf("passwd_file=%s", filepath.Join(passwdMountDir, passwdFilename)))
 	}
-	spec.Volumes = append(spec.Volumes, passwdSecretVolume)
-	passwdVolumeMont := corev1.VolumeMount{
-		Name:      passwdSecretVolume.Name,
-		MountPath: passwdMountDir,
-	}
-	container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
-	*options = append(*options, fmt.Sprintf("passwd_file=%s", filepath.Join(passwdMountDir, passwdFilename)))
 }

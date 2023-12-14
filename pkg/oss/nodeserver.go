@@ -51,19 +51,21 @@ type nodeServer struct {
 type Options struct {
 	directAssigned bool
 
-	Bucket        string `json:"bucket"`
-	URL           string `json:"url"`
-	OtherOpts     string `json:"otherOpts"`
-	AkID          string `json:"akId"`
-	AkSecret      string `json:"akSecret"`
-	Path          string `json:"path"`
-	UseSharedPath bool   `json:"useSharedPath"`
-	AuthType      string `json:"authType"`
-	FuseType      string `json:"fuseType"`
-	MetricsTop    string `json:"metricsTop"`
-	ReadOnly      bool   `json:"readOnly"`
-	Encrypted     string `json:"encrypted"`
-	KmsKeyId      string `json:"kmsKeyId"`
+	Bucket              string `json:"bucket"`
+	URL                 string `json:"url"`
+	OtherOpts           string `json:"otherOpts"`
+	AkID                string `json:"akId"`
+	AkSecret            string `json:"akSecret"`
+	Path                string `json:"path"`
+	UseSharedPath       bool   `json:"useSharedPath"`
+	AuthType            string `json:"authType"`
+	RoleName            string `json:"roleName"`
+	SecretProviderClass string `json:"secretProviderClass"`
+	FuseType            string `json:"fuseType"`
+	MetricsTop          string `json:"metricsTop"`
+	ReadOnly            bool   `json:"readOnly"`
+	Encrypted           string `json:"encrypted"`
+	KmsKeyId            string `json:"kmsKeyId"`
 }
 
 const (
@@ -81,6 +83,8 @@ const (
 	metricsPathPrefix = "/host/var/run/ossfs/"
 	// defaultMetricsTop
 	defaultMetricsTop = "10"
+	// fuseServieAccountName
+	fuseServieAccountName = "csi-fuse-ossfs"
 )
 
 const (
@@ -145,6 +149,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			}
 		} else if key == "authtype" {
 			opt.AuthType = strings.ToLower(strings.TrimSpace(value))
+		} else if key == "rolename" {
+			opt.RoleName = strings.TrimSpace(value)
+		} else if key == "secretproviderclass" {
+			opt.SecretProviderClass = strings.TrimSpace(value)
 		} else if key == "fusetype" {
 			opt.FuseType = strings.ToLower(strings.TrimSpace(value))
 		} else if key == "metricstop" {
@@ -219,7 +227,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		// When useSharedPath options is set to false,
 		// mount operations need to be atomic to ensure that no fuse pods are left behind in case of failure.
 		// Because kubelet will not call NodeUnpublishVolume when NodePublishVolume never succeeded.
-		authCfg := &mounter.AuthConfig{AuthType: opt.AuthType}
+		authCfg := &mounter.AuthConfig{AuthType: opt.AuthType, RoleName: opt.RoleName, ServiceAccountName: fuseServieAccountName, SecretProviderClassName: opt.SecretProviderClass}
 		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId, authCfg, !opt.UseSharedPath)
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "unknown fuseType: %q", opt.FuseType)
@@ -248,12 +256,27 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		mountOptions = req.VolumeCapability.GetMount().MountFlags
 	}
 
+	regionID, _ := utils.GetRegionID()
 	switch opt.AuthType {
 	case mounter.AuthTypeSTS:
 		if opt.FuseType == OssFsType {
 			mountOptions = append(mountOptions, GetRAMRoleOption())
 		} else if opt.FuseType == JindoFsType {
 			mountOptions = append(mountOptions, "fs.oss.provider.endpoint=ECS_ROLE")
+		}
+	case mounter.AuthTypeRRSA:
+		if opt.FuseType == OssFsType {
+			if regionID == "" {
+				mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=https://sts.aliyuncs.com"))
+			} else {
+				mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=https://sts-vpc.%s.aliyuncs.com", regionID))
+			}
+		} else if opt.FuseType == JindoFsType {
+			return nil, status.Errorf(codes.Internal, "jindo fs do not support RRSA")
+		}
+	case mounter.AuthTypeCSS:
+		if opt.FuseType == JindoFsType {
+			return nil, status.Errorf(codes.Internal, "jindo fs do not support CsiSecretStore")
 		}
 	default:
 		if opt.FuseType == OssFsType {
@@ -286,7 +309,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		mountOptions = append(mountOptions, "ro")
 	}
 
-	regionID, _ := utils.GetRegionID()
 	if regionID == "" {
 		log.Warnf("NodePublishVolume:: failed to get region id from both env and metadata, use original URL: %s", opt.URL)
 	} else if url, done := setNetworkType(opt.URL, regionID); done {
@@ -376,6 +398,14 @@ func checkOssOptions(opt *Options) error {
 
 	switch opt.AuthType {
 	case mounter.AuthTypeSTS:
+	case mounter.AuthTypeRRSA:
+		if opt.RoleName == "" {
+			return errors.New("Oss Parametes error: use RRSA but roleName is empty ")
+		}
+	case mounter.AuthTypeCSS:
+		if opt.SecretProviderClass == "" {
+			return errors.New("Oss Parametes error: use CsiSecretStore but secretProviderClass is empty ")
+		}
 	default:
 		// if not input ak from user, use the default ak value
 		if opt.AkID == "" || opt.AkSecret == "" {

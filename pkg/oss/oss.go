@@ -40,6 +40,16 @@ const (
 	driverName = "ossplugin.csi.alibabacloud.com"
 )
 
+var (
+	GlobalConfigVar GlobalConfig
+)
+
+// GlobalConfig save global values for plugin
+type GlobalConfig struct {
+	ClusterID string
+	AliUID    string
+}
+
 // OSS the OSS object
 type OSS struct {
 	driver   *csicommon.CSIDriver
@@ -68,6 +78,13 @@ func NewDriver(nodeID, endpoint string, m metadata.MetadataProvider, runAsContro
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_UNKNOWN,
 	})
+
+	GlobalConfigVar.ClusterID = clusterID
+	GlobalConfigVar.AliUID = aliUID
+
+	if clusterID == "" || aliUID == "" {
+		log.Warnf("Get cluster id: %s, user id: %s, cannot use RRSA to authorize fuse pods", clusterID, aliUID)
+	}
 
 	d.driver = csiDriver
 

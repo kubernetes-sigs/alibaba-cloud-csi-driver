@@ -41,6 +41,14 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 	err = checkOssOptions(options)
 	assert.Equal(t, "Oss Parametes error: AK and authType are both empty or invalid ", err.Error())
 
+	options.AuthType = "rrsa"
+	err = checkOssOptions(options)
+	assert.Equal(t, "Oss Parametes error: use RRSA but roleName is empty ", err.Error())
+
+	options.AuthType = "csi-secret-store"
+	err = checkOssOptions(options)
+	assert.Equal(t, "Oss Parametes error: use CsiSecretStore but secretProviderClass is empty ", err.Error())
+
 	options.AkID = "2222"
 	// reset AkSecret in checkOssOptions when AkID = ""
 	options.AkSecret = "11111"

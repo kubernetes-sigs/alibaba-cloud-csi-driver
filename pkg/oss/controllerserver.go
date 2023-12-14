@@ -60,6 +60,10 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 			ossVolArgs.UseSharedPath = true
 		} else if key == "authtype" {
 			ossVolArgs.AuthType = value
+		} else if key == "rolename" {
+			ossVolArgs.RoleName = value
+		} else if key == "secretproviderclass" {
+			ossVolArgs.SecretProviderClass = value
 		} else if key == "encrypted" {
 			ossVolArgs.Encrypted = value
 		} else if key == "kmsKeyId" {

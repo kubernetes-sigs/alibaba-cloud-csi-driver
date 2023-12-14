@@ -11,6 +11,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	apiErr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -37,13 +38,22 @@ const (
 
 type AuthConfig struct {
 	AuthType string
-	// TODO: for RRSA
-	// RoleName           string
-	// ServiceAccountName string
+	// for RRSA
+	RoleName           string
+	ServiceAccountName string
+	// for csi-secret-store
+	SecretProviderClassName string
+}
+
+type RrsaConfig struct {
+	ClusterId string
+	aliUid    string
 }
 
 const (
-	AuthTypeSTS = "sts"
+	AuthTypeSTS  = "sts"
+	AuthTypeRRSA = "rrsa"
+	AuthTypeCSS  = "csi-secret-store"
 )
 
 type FuseMounterType interface {
@@ -195,6 +205,12 @@ func (mounter *ContainerizedFuseMounter) Mount(source string, target string, fst
 
 	ctx, cancel := context.WithTimeout(mounter.ctx, fuseMountTimeout)
 	defer cancel()
+	if mounter.authCfg != nil && mounter.authCfg.AuthType == AuthTypeRRSA {
+		err := mounter.ensureSeriveAccount(ctx)
+		if err != nil {
+			return err
+		}
+	}
 	err := mounter.launchFusePod(ctx, source, target, fstype, mounter.authCfg, options, nil)
 	if err != nil {
 		return err
@@ -230,6 +246,46 @@ func (mounter *ContainerizedFuseMounter) labelsAndListOptionsFor(target string) 
 		LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: labels}),
 	}
 	return labels, listOptions
+}
+
+func (mounter *ContainerizedFuseMounter) ensureSeriveAccount(ctx context.Context) error {
+	saClient := mounter.client.CoreV1().ServiceAccounts(mounter.namespace)
+	_, err := saClient.Get(ctx, mounter.authCfg.ServiceAccountName, metav1.GetOptions{})
+	if err != nil && !apiErr.IsNotFound(err) {
+		return err
+	}
+	if err != nil {
+		var nSa corev1.ServiceAccount
+		nSa.Name = mounter.authCfg.ServiceAccountName
+		nSa.Namespace = mounter.namespace
+		_, err = saClient.Create(ctx, &nSa, metav1.CreateOptions{})
+		return err
+	}
+	return err
+}
+
+func (mounter *ContainerizedFuseMounter) deleteSaFinalizers(ctx context.Context, finalizer string) error {
+	saClient := mounter.client.CoreV1().ServiceAccounts(mounter.namespace)
+	sa, err := saClient.Get(ctx, mounter.authCfg.ServiceAccountName, metav1.GetOptions{})
+	if err != nil && !apiErr.IsNotFound(err) {
+		return err
+	}
+	if err != nil {
+		return nil
+	}
+	var nFinalizers []string
+	for _, f := range sa.Finalizers {
+		if finalizer == f {
+			continue
+		}
+		nFinalizers = append(nFinalizers, f)
+	}
+	if len(nFinalizers) == len(sa.Finalizers) {
+		return nil
+	}
+	sa.Finalizers = nFinalizers
+	_, err = saClient.Update(ctx, sa, metav1.UpdateOptions{})
+	return err
 }
 
 func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, source, target, fstype string, authCfg *AuthConfig, options, mountFlags []string) error {
@@ -364,4 +420,8 @@ func computeMountPathHash(target string) string {
 	hasher := fnv.New32a()
 	hasher.Write([]byte(target))
 	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
+}
+
+func getRoleSessionName(volumeId, target string) string {
+	return fmt.Sprintf("ossfs.%s.%s", volumeId, computeMountPathHash(target))
 }
