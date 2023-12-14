@@ -264,30 +264,6 @@ func (mounter *ContainerizedFuseMounter) ensureSeriveAccount(ctx context.Context
 	return err
 }
 
-func (mounter *ContainerizedFuseMounter) deleteSaFinalizers(ctx context.Context, finalizer string) error {
-	saClient := mounter.client.CoreV1().ServiceAccounts(mounter.namespace)
-	sa, err := saClient.Get(ctx, mounter.authCfg.ServiceAccountName, metav1.GetOptions{})
-	if err != nil && !apiErr.IsNotFound(err) {
-		return err
-	}
-	if err != nil {
-		return nil
-	}
-	var nFinalizers []string
-	for _, f := range sa.Finalizers {
-		if finalizer == f {
-			continue
-		}
-		nFinalizers = append(nFinalizers, f)
-	}
-	if len(nFinalizers) == len(sa.Finalizers) {
-		return nil
-	}
-	sa.Finalizers = nFinalizers
-	_, err = saClient.Update(ctx, sa, metav1.UpdateOptions{})
-	return err
-}
-
 func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, source, target, fstype string, authCfg *AuthConfig, options, mountFlags []string) error {
 	podClient := mounter.client.CoreV1().Pods(mounter.namespace)
 	labels, listOptions := mounter.labelsAndListOptionsFor(target)
