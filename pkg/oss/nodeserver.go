@@ -267,7 +267,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	case mounter.AuthTypeRRSA:
 		if opt.FuseType == OssFsType {
 			if regionID == "" {
-				mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=https://sts.aliyuncs.com"))
+				mountOptions = append(mountOptions, "rrsa_endpoint=https://sts.aliyuncs.com")
 			} else {
 				mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=https://sts-vpc.%s.aliyuncs.com", regionID))
 			}

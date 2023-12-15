@@ -319,11 +319,11 @@ func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig, rrsaC
 			},
 		}
 		spec.Volumes = append(spec.Volumes, rrsaVolume)
-		rrsaVolumeMont := corev1.VolumeMount{
+		rrsaVolumeMount := corev1.VolumeMount{
 			Name:      rrsaVolume.Name,
 			MountPath: rrsaMountDir,
 		}
-		container.VolumeMounts = append(container.VolumeMounts, rrsaVolumeMont)
+		container.VolumeMounts = append(container.VolumeMounts, rrsaVolumeMount)
 		roleArn, providerArn := utils.GetArn(rrsaCfg.ClusterId, rrsaCfg.aliUid, authCfg.RoleName)
 		envs := []corev1.EnvVar{
 			{

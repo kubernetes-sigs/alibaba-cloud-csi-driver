@@ -11,7 +11,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	apiErr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -251,7 +251,7 @@ func (mounter *ContainerizedFuseMounter) labelsAndListOptionsFor(target string) 
 func (mounter *ContainerizedFuseMounter) ensureSeriveAccount(ctx context.Context) error {
 	saClient := mounter.client.CoreV1().ServiceAccounts(mounter.namespace)
 	_, err := saClient.Get(ctx, mounter.authCfg.ServiceAccountName, metav1.GetOptions{})
-	if err != nil && !apiErr.IsNotFound(err) {
+	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 	if err != nil {
