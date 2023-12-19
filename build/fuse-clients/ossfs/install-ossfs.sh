@@ -4,7 +4,7 @@ echo "TARGETPLATFORM: $TARGETPLATFORM"
 echo "installing ossfs"
 case $TARGETPLATFORM in
     linux/amd64)
-        yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_1.88.3_centos8.0_x86_64.rpm
+        yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_1.88.4_centos8.0_x86_64.rpm
         ;;
     linux/arm64)
         yum install -y \

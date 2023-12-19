@@ -912,7 +912,7 @@ func IsPathAvailiable(path string) error {
 	return nil
 }
 
-func WriteSharedMetricsInfo(metricsPathPrefix string, req *csi.NodePublishVolumeRequest, metricsTop string, clientName string, storageBackendName string, fsName string) {
+func WriteSharedMetricsInfo(metricsPathPrefix string, req *csi.NodePublishVolumeRequest, clientName string, storageBackendName string, fsName string, sharedPath string) {
 	mountPointPath := filepath.Join(metricsPathPrefix, fmt.Sprintf("%x", sha256.Sum256([]byte(req.GetVolumeId()))))
 	mountPointName := "mount_point_info"
 	if !IsFileExisting(mountPointPath) {
@@ -923,7 +923,7 @@ func WriteSharedMetricsInfo(metricsPathPrefix string, req *csi.NodePublishVolume
 			storageBackendName + " " +
 			fsName + " " +
 			req.GetVolumeId() + " " +
-			req.TargetPath
+			sharedPath
 		_ = WriteAndSyncFile(filepath.Join(mountPointPath, mountPointName), []byte(info), os.FileMode(0644))
 	}
 }

@@ -79,6 +79,8 @@ const (
 	JindoFsType = "jindofs"
 	// metricsPathPrefix
 	metricsPathPrefix = "/host/var/run/ossfs/"
+	// defaultMetricsTop
+	defaultMetricsTop = "10"
 )
 
 const (
@@ -117,7 +119,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	opt := &Options{}
 	opt.UseSharedPath = true
 	opt.FuseType = OssFsType
-	opt.MetricsTop = "10"
 	for key, value := range req.VolumeContext {
 		key = strings.ToLower(key)
 		if key == "bucket" {
@@ -322,7 +323,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				return nil, status.Errorf(codes.Aborted, "NodePublishVolume operation on shared path of volume %s already exists", req.VolumeId)
 			}
 			defer ns.sharedPathLock.Release(req.VolumeId)
-			utils.WriteSharedMetricsInfo(metricsPathPrefix, req, opt.MetricsTop, OssFsType, "oss", opt.Bucket)
+			utils.WriteSharedMetricsInfo(metricsPathPrefix, req, OssFsType, "oss", opt.Bucket, sharedPath)
+			if opt.MetricsTop != "" {
+				mountOptions = append(mountOptions, fmt.Sprintf("metrics_top=%s", opt.MetricsTop))
+			}
 			if err := doMount(ossMounter, sharedPath, *opt, mountOptions); err != nil {
 				log.Errorf("NodePublishVolume: failed to mount")
 				return nil, err
@@ -337,7 +341,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	} else {
 		if opt.FuseType == OssFsType {
-			utils.WriteMetricsInfo(metricsPathPrefix, req, opt.MetricsTop, OssFsType, "oss", opt.Bucket)
+			metricsTop := defaultMetricsTop
+			if opt.MetricsTop != "" {
+				metricsTop = opt.MetricsTop
+			}
+			utils.WriteMetricsInfo(metricsPathPrefix, req, metricsTop, OssFsType, "oss", opt.Bucket)
 		}
 		if err := doMount(ossMounter, mountPath, *opt, mountOptions); err != nil {
 			return nil, err
