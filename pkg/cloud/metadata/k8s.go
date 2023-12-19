@@ -34,6 +34,7 @@ var (
 	}
 	InstanceIdLabels = []string{
 		"alibabacloud.com/ecs-instance-id",
+		"sigma.ali/ecs-instance-id",
 	}
 )
 

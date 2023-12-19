@@ -44,12 +44,10 @@ func TestGetK8s(t *testing.T) {
 		{
 			name: "sigma",
 			Labels: map[string]string{
-				"sigma.ali/ecs-region-id": "cn-hangzhou",
-				"sigma.ali/ecs-zone-id":   "cn-hangzhou-a",
-				"sigma.ali/machine-model": "ecs.g7.xlarge",
-			},
-			NotFound: map[MetadataKey]bool{
-				InstanceID: true,
+				"sigma.ali/ecs-region-id":   "cn-hangzhou",
+				"sigma.ali/ecs-zone-id":     "cn-hangzhou-a",
+				"sigma.ali/machine-model":   "ecs.g7.xlarge",
+				"sigma.ali/ecs-instance-id": "i-2zec1slzwdzrwmvlr4w2",
 			},
 		},
 		{
