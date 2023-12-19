@@ -54,6 +54,24 @@ func (f *fuseOssfs) name() string {
 	return "ossfs"
 }
 
+func (f *fuseOssfs) addPodMeta(pod *corev1.Pod) {
+	if pod == nil {
+		return
+	}
+	if f.config.Annotations != nil && pod.Annotations == nil {
+		pod.Annotations = make(map[string]string)
+	}
+	for k, v := range f.config.Annotations {
+		pod.Annotations[k] = v
+	}
+	if f.config.Labels != nil && pod.Labels == nil {
+		pod.Labels = make(map[string]string)
+	}
+	for k, v := range f.config.Labels {
+		pod.Labels[k] = v
+	}
+}
+
 func (f *fuseOssfs) buildPodSpec(
 	source, target, fstype string, authCfg *AuthConfig, options, mountFlags []string, nodeName, volumeId string,
 ) (spec corev1.PodSpec, _ error) {

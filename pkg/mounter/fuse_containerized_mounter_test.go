@@ -19,6 +19,8 @@ func Test_extractFuseContainerConfig(t *testing.T) {
 				memory-limit=2Gi
 				dbglevel=info
 				mime-support=false
+				annotations={"anno1": "val1", "anno2": "val2"}
+				labels={"label1": "val1", "label2": "val2"}
 			`,
 		},
 	}
@@ -38,6 +40,14 @@ func Test_extractFuseContainerConfig(t *testing.T) {
 		Extra: map[string]string{
 			"dbglevel":     "info",
 			"mime-support": "false",
+		},
+		Annotations: map[string]string{
+			"anno1": "val1",
+			"anno2": "val2",
+		},
+		Labels: map[string]string{
+			"label1": "val1",
+			"label2": "val2",
 		},
 	}
 	if !reflect.DeepEqual(config, expected) {

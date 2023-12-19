@@ -1,6 +1,15 @@
 package mounter
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+
+	"k8s.io/apimachinery/pkg/util/validation"
+)
+
+// https://github.com/kubernetes/kubernetes/blob/b5ba7bc4f5f49760c821cae2f152a8000922e72e/staging/src/k8s.io/apimachinery/pkg/api/validation/objectmeta.go#L36
+// TotalAnnotationSizeLimitB only takes 128 kB here, and the rest is reserved for the default annotations.
+const TotalAnnotationSizeLimitB int = 128 * (1 << 10) // 128 kB
 
 // Copy from https://github.com/kubernetes/mount-utils/blob/41e8de37ef8a3782f9cd6c915699b98b2b24b2c4/mount_helper_unix.go#L164
 func SplitMountOptions(s string) []string {
@@ -13,4 +22,62 @@ func SplitMountOptions(s string) []string {
 		return r == ',' && !inQuotes
 	})
 	return list
+}
+
+// Copy from https://github.com/kubernetes/kubernetes/blob/b5ba7bc4f5f49760c821cae2f152a8000922e72e/staging/src/k8s.io/apimachinery/pkg/api/validation/objectmeta.go#L43
+// ValidateAnnotations validates that a set of annotations are correctly defined.
+func ValidateAnnotations(annotations map[string]string) error {
+	for k := range annotations {
+		// The rule is QualifiedName except that case doesn't matter, so convert to lowercase before checking.
+		err := ValidateKey(strings.ToLower(k))
+		if err != nil {
+			return err
+		}
+	}
+	if err := ValidateAnnotationsSize(annotations); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Copy from https://github.com/kubernetes/kubernetes/blob/b5ba7bc4f5f49760c821cae2f152a8000922e72e/staging/src/k8s.io/apimachinery/pkg/apis/meta/v1/validation/validation.go#L105
+// ValidateLabels validates that a set of labels are correctly defined.
+func ValidateLabels(labels map[string]string) error {
+	for k, v := range labels {
+		err := ValidateKey(k)
+		if err != nil {
+			return err
+		}
+		err = ValidateLabelValue(k, v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ValidateKey(k string) error {
+	if errs := validation.IsQualifiedName(k); len(errs) != 0 {
+		return fmt.Errorf("invalid key %q: %s", k, strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+func ValidateLabelValue(k, v string) error {
+	if errs := validation.IsValidLabelValue(v); len(errs) != 0 {
+		return fmt.Errorf("invalid label value: %q: at key: %q: %s", v, k, strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+// Copy from https://github.com/kubernetes/kubernetes/blob/b5ba7bc4f5f49760c821cae2f152a8000922e72e/staging/src/k8s.io/apimachinery/pkg/api/validation/objectmeta.go#L58
+func ValidateAnnotationsSize(annotations map[string]string) error {
+	var totalSize int64
+	for k, v := range annotations {
+		totalSize += (int64)(len(k)) + (int64)(len(v))
+	}
+	if totalSize > (int64)(TotalAnnotationSizeLimitB) {
+		return fmt.Errorf("annotations size %d is larger than limit %d", totalSize, TotalAnnotationSizeLimitB)
+	}
+	return nil
 }
