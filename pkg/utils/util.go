@@ -18,6 +18,7 @@ package utils
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -909,6 +910,22 @@ func IsPathAvailiable(path string) error {
 		return fmt.Errorf("Read Path (%s) with error: %v ", path, err)
 	}
 	return nil
+}
+
+func WriteSharedMetricsInfo(metricsPathPrefix string, req *csi.NodePublishVolumeRequest, metricsTop string, clientName string, storageBackendName string, fsName string) {
+	mountPointPath := filepath.Join(metricsPathPrefix, fmt.Sprintf("%x", sha256.Sum256([]byte(req.GetVolumeId()))))
+	mountPointName := "mount_point_info"
+	if !IsFileExisting(mountPointPath) {
+		_ = os.MkdirAll(mountPointPath, os.FileMode(0755))
+	}
+	if !IsFileExisting(filepath.Join(mountPointPath, mountPointName)) {
+		info := clientName + " " +
+			storageBackendName + " " +
+			fsName + " " +
+			req.GetVolumeId() + " " +
+			req.TargetPath
+		_ = WriteAndSyncFile(filepath.Join(mountPointPath, mountPointName), []byte(info), os.FileMode(0644))
+	}
 }
 
 func WriteMetricsInfo(metricsPathPrefix string, req *csi.NodePublishVolumeRequest, metricsTop string, clientName string, storageBackendName string, fsName string) {

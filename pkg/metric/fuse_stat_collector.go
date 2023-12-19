@@ -1,7 +1,10 @@
 package metric
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -12,7 +15,7 @@ import (
 
 var (
 	fsClientPathPrefix      = "/host/var/run/"
-	fsClientTypeArray       = []string{"ossfs", "efc"}
+	fsClientTypeArray       = []string{"efc", "ossfs"}
 	podInfo                 = "pod_info"
 	mountPointInfo          = "mount_point_info"
 	counterTypeArray        = []string{"capacity_counter", "inodes_counter", "throughput_counter", "iops_counter", "latency_counter", "posix_counter", "oss_object_counter"}
@@ -476,7 +479,7 @@ func NewFuseStatCollector() (Collector, error) {
 	}, nil
 }
 
-func getPodUID(fsClientPathPrefix string, fsClientType string) ([]string, error) {
+func getSubDirArray(fsClientPathPrefix string, fsClientType string) ([]string, error) {
 	fsClientPath := fsClientPathPrefix + fsClientType
 	if !utils.IsFileExisting(fsClientPath) {
 		_ = os.MkdirAll(fsClientPath, os.FileMode(0755))
@@ -612,71 +615,95 @@ func (p *usFsStatCollector) Update(ch chan<- prometheus.Metric) error {
 	fsClientInfo := new(fuseInfo)
 	// foreach fuse client type
 	for _, fsClientType := range fsClientTypeArray {
-		// get pod uid
-		podUIDArray, err := getPodUID(fsClientPathPrefix, fsClientType)
+		// exclusive case: podid
+		// shared case: sha256(pvname)
+		subDirArray, err := getSubDirArray(fsClientPathPrefix, fsClientType)
 		if err != nil {
 			continue
 		}
 		//foreach pod uid
-		for _, podUID := range podUIDArray {
-			//get pod info
-			podInfoArray, err := readFirstLines(fsClientPathPrefix + fsClientType + "/" + podUID + "/" + podInfo)
-			if err != nil {
+		for _, subDir := range subDirArray {
+			//stat pod_info, if exists, updateExclusiveMetrics; else updateSharedMetrics
+			if utils.IsFileExisting(filepath.Join(fsClientPathPrefix, fsClientType, subDir, podInfo)) {
+				// subDir -> podUid
+				p.updateExclusiveMetrics(fsClientType, subDir, fsClientInfo, ch)
 				continue
 			}
-			//namespace pod_name uid top_number
-			if len(podInfoArray) < 4 {
-				continue
-			}
-			fsClientInfo.Namespace = podInfoArray[0]
-			fsClientInfo.PodName = podInfoArray[1]
-			fsClientInfo.PodUID = podInfoArray[2]
-			// list volume from pod
-			volumeArray, err := listDirectory(fsClientPathPrefix + fsClientType + "/" + podUID + "/")
-			if err != nil {
-				continue
-			}
-			// foreach volume
-			for _, volume := range volumeArray {
-				mountPointInfoArray, err := readFirstLines(fsClientPathPrefix + fsClientType + "/" + podUID + "/" + volume + "/" + mountPointInfo)
-				if err != nil {
-					continue
-				}
-				//fuse_client storage_type filesystem_id pv_name mount_point
-				if len(mountPointInfoArray) < 5 {
-					continue
-				}
-				fsClientInfo.ClientName = mountPointInfoArray[0]
-				fsClientInfo.BackendStorage = mountPointInfoArray[1]
-				fsClientInfo.BucketName = mountPointInfoArray[2]
-				fsClientInfo.PvName = mountPointInfoArray[3]
-				fsClientInfo.MountPoint = mountPointInfoArray[4]
-				// foreach counter metrics
-				for _, counterType := range counterTypeArray {
-					metricsArray, err := readFirstLines(fsClientPathPrefix + fsClientType + "/" + podUID + "/" + volume + "/" + counterType)
-					if err != nil {
-						continue
-					}
-					p.postCounterMetrics(counterType, fsClientInfo, metricsArray, ch)
-				}
-				// foreach hot_top_file metrics
-				for _, hotSpotType := range hotSpotArray {
-					metricsArray, err := readFirstLines(fsClientPathPrefix + fsClientType + "/" + podUID + "/" + volume + "/" + hotSpotType)
-					if err != nil {
-						continue
-					}
-					p.postHotTopFileMetrics(hotSpotType, fsClientInfo, metricsArray, ch)
-				}
-				// foreach backend counter metrics
-				for _, backendCounterType := range backendCounterTypeArray {
-					metricsArray, err := readFirstLines(fsClientPathPrefix + fsClientType + "/" + podUID + "/" + volume + "/" + backendCounterType)
-					if err != nil {
-						continue
-					}
-					p.postBackendCounterMetrics(backendCounterType, fsClientInfo, metricsArray, ch)
-				}
-			}
+			// subDir -> shaVol
+			p.updateSharedMetrics(fsClientType, subDir, fsClientInfo, ch)
 		}
 	}
 	return nil
+}
+
+func (p *usFsStatCollector) updateExclusiveMetrics(fsClientType, podUid string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
+	//get pod info
+	podInfoArray, err := readFirstLines(filepath.Join(fsClientPathPrefix, fsClientType, podUid, podInfo))
+	if err != nil {
+		return
+	}
+	//namespace pod_name uid top_number
+	if len(podInfoArray) < 4 {
+		return
+	}
+	fsClientInfo.Namespace = podInfoArray[0]
+	fsClientInfo.PodName = podInfoArray[1]
+	fsClientInfo.PodUID = podInfoArray[2]
+	// list volume from pod
+	volumeArray, err := listDirectory(filepath.Join(fsClientPathPrefix, fsClientType, podUid))
+	if err != nil {
+		return
+	}
+	// foreach volume
+	for _, volume := range volumeArray {
+		volPath := filepath.Join(fsClientPathPrefix, fsClientType, podUid, volume)
+		p.postVolMetrics(volPath, fsClientInfo, ch)
+	}
+}
+
+func (p *usFsStatCollector) updateSharedMetrics(fsClientType, subDir string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
+
+	volSha := fmt.Sprintf("%x", sha256.Sum256([]byte(subDir)))
+	volPath := filepath.Join(fsClientPathPrefix, fsClientType, volSha)
+	p.postVolMetrics(volPath, fsClientInfo, ch)
+}
+
+func (p *usFsStatCollector) postVolMetrics(volPath string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
+	mountPointInfoArray, err := readFirstLines(volPath)
+	if err != nil {
+		return
+	}
+	//fuse_client storage_type filesystem_id pv_name mount_point
+	if len(mountPointInfoArray) < 5 {
+		return
+	}
+	fsClientInfo.ClientName = mountPointInfoArray[0]
+	fsClientInfo.BackendStorage = mountPointInfoArray[1]
+	fsClientInfo.BucketName = mountPointInfoArray[2]
+	fsClientInfo.PvName = mountPointInfoArray[3]
+	fsClientInfo.MountPoint = mountPointInfoArray[4]
+	// foreach counter metrics
+	for _, counterType := range counterTypeArray {
+		metricsArray, err := readFirstLines(filepath.Join(volPath, counterType))
+		if err != nil {
+			continue
+		}
+		p.postCounterMetrics(counterType, fsClientInfo, metricsArray, ch)
+	}
+	// foreach hot_top_file metrics
+	for _, hotSpotType := range hotSpotArray {
+		metricsArray, err := readFirstLines(filepath.Join(volPath, hotSpotType))
+		if err != nil {
+			continue
+		}
+		p.postHotTopFileMetrics(hotSpotType, fsClientInfo, metricsArray, ch)
+	}
+	// foreach backend counter metrics
+	for _, backendCounterType := range backendCounterTypeArray {
+		metricsArray, err := readFirstLines(filepath.Join(volPath, backendCounterType))
+		if err != nil {
+			continue
+		}
+		p.postBackendCounterMetrics(backendCounterType, fsClientInfo, metricsArray, ch)
+	}
 }

@@ -322,6 +322,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				return nil, status.Errorf(codes.Aborted, "NodePublishVolume operation on shared path of volume %s already exists", req.VolumeId)
 			}
 			defer ns.sharedPathLock.Release(req.VolumeId)
+			utils.WriteSharedMetricsInfo(metricsPathPrefix, req, opt.MetricsTop, OssFsType, "oss", opt.Bucket)
 			if err := doMount(ossMounter, sharedPath, *opt, mountOptions); err != nil {
 				log.Errorf("NodePublishVolume: failed to mount")
 				return nil, err
