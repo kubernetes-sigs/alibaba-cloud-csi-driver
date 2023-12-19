@@ -53,4 +53,20 @@ func Test_extractFuseContainerConfig(t *testing.T) {
 	if !reflect.DeepEqual(config, expected) {
 		t.Fail()
 	}
+
+	// invalid value
+	configmap = &corev1.ConfigMap{
+		Data: map[string]string{
+			"fuse-ossfs": `
+				annotations={"anno1": "val1", "anno2": "invalid@#$%^"}
+				labels={"label1": "val1", "label2": "invalid@#$%^"}
+			`,
+		},
+	}
+	config = extractFuseContainerConfig(configmap, "ossfs")
+	expected = FuseContainerConfig{}
+	if !reflect.DeepEqual(config.Annotations, expected.Annotations) ||
+		!reflect.DeepEqual(config.Labels, expected.Labels) {
+		t.Fail()
+	}
 }
