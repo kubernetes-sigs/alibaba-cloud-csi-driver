@@ -2,6 +2,7 @@ package mounter
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/fnv"
@@ -31,6 +32,7 @@ const (
 	FuseVolumeIdLabelKey      = "csi.alibabacloud.com/volume-id"
 	FuseMountPathHashLabelKey = "csi.alibabacloud.com/mount-path-hash"
 	FuseMountPathAnnoKey      = "csi.alibabacloud.com/mount-path"
+	FuseSafeToEvictAnnoKey    = "cluster-autoscaler.kubernetes.io/safe-to-evict"
 )
 
 type AuthConfig struct {
@@ -46,13 +48,16 @@ const (
 
 type FuseMounterType interface {
 	name() string
+	addPodMeta(pod *corev1.Pod)
 	buildPodSpec(source, target, fstype string, authCfg *AuthConfig, options, mountFlags []string, nodeName, volumeId string) (corev1.PodSpec, error)
 }
 
 type FuseContainerConfig struct {
-	Resources corev1.ResourceRequirements
-	Image     string
-	Extra     map[string]string
+	Resources   corev1.ResourceRequirements
+	Image       string
+	Annotations map[string]string
+	Labels      map[string]string
+	Extra       map[string]string
 }
 
 func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (config FuseContainerConfig) {
@@ -87,6 +92,32 @@ func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 			case "limit":
 				config.Resources.Limits[corev1.ResourceName(resourceName)] = quantity
 			}
+		case "annotations":
+			annotations := make(map[string]string)
+			err := json.Unmarshal([]byte(value), &annotations)
+			if err != nil {
+				invalid = true
+				break
+			}
+			err = ValidateAnnotations(annotations)
+			if err != nil {
+				invalid = true
+				break
+			}
+			config.Annotations = annotations
+		case "labels":
+			labels := make(map[string]string)
+			err := json.Unmarshal([]byte(value), &labels)
+			if err != nil {
+				invalid = true
+				break
+			}
+			err = ValidateLabels(labels)
+			if err != nil {
+				invalid = true
+				break
+			}
+			config.Labels = labels
 		default:
 			if config.Extra == nil {
 				config.Extra = make(map[string]string)
@@ -242,7 +273,8 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 		var rawPod corev1.Pod
 		rawPod.GenerateName = fmt.Sprintf("csi-fuse-%s-", mounter.name())
 		rawPod.Labels = labels
-		rawPod.Annotations = map[string]string{FuseMountPathAnnoKey: target}
+		rawPod.Annotations = map[string]string{FuseMountPathAnnoKey: target, FuseSafeToEvictAnnoKey: "true"}
+		mounter.addPodMeta(&rawPod)
 		rawPod.Spec, err = mounter.buildPodSpec(source, target, fstype, authCfg, options, mountFlags, mounter.nodeName, mounter.volumeId)
 		if err != nil {
 			return err

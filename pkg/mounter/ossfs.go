@@ -20,7 +20,7 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-var defaultOssfsImageTag = "81b7e56-aliyun"
+var defaultOssfsImageTag = "3071afa-aliyun"
 
 const (
 	hostPrefix                = "/host"
@@ -54,9 +54,29 @@ func (f *fuseOssfs) name() string {
 	return "ossfs"
 }
 
+func (f *fuseOssfs) addPodMeta(pod *corev1.Pod) {
+	if pod == nil {
+		return
+	}
+	if f.config.Annotations != nil && pod.Annotations == nil {
+		pod.Annotations = make(map[string]string)
+	}
+	for k, v := range f.config.Annotations {
+		pod.Annotations[k] = v
+	}
+	if f.config.Labels != nil && pod.Labels == nil {
+		pod.Labels = make(map[string]string)
+	}
+	for k, v := range f.config.Labels {
+		pod.Labels[k] = v
+	}
+}
+
 func (f *fuseOssfs) buildPodSpec(
 	source, target, fstype string, authCfg *AuthConfig, options, mountFlags []string, nodeName, volumeId string,
 ) (spec corev1.PodSpec, _ error) {
+
+	spec.TerminationGracePeriodSeconds = pointer.Int64Ptr(120)
 
 	targetVolume := corev1.Volume{
 		Name: "kubelet-dir",
