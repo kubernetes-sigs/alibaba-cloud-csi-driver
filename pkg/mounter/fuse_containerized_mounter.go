@@ -32,6 +32,7 @@ const (
 	FuseVolumeIdLabelKey      = "csi.alibabacloud.com/volume-id"
 	FuseMountPathHashLabelKey = "csi.alibabacloud.com/mount-path-hash"
 	FuseMountPathAnnoKey      = "csi.alibabacloud.com/mount-path"
+	FuseSafeToEvictAnnoKey    = "cluster-autoscaler.kubernetes.io/safe-to-evict"
 )
 
 type AuthConfig struct {
@@ -272,7 +273,7 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 		var rawPod corev1.Pod
 		rawPod.GenerateName = fmt.Sprintf("csi-fuse-%s-", mounter.name())
 		rawPod.Labels = labels
-		rawPod.Annotations = map[string]string{FuseMountPathAnnoKey: target}
+		rawPod.Annotations = map[string]string{FuseMountPathAnnoKey: target, FuseSafeToEvictAnnoKey: "true"}
 		mounter.addPodMeta(&rawPod)
 		rawPod.Spec, err = mounter.buildPodSpec(source, target, fstype, authCfg, options, mountFlags, mounter.nodeName, mounter.volumeId)
 		if err != nil {
