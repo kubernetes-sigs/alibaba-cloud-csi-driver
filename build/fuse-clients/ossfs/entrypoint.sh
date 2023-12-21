@@ -1,6 +1,6 @@
 #!/bin/bash
 SIGTERM_DELAY="${SIGTERM_DELAY:-60}"
-sigterm_handler() {
+delay_term() {
     echo "Received SIGTERM signal. Delaying termination for ${SIGTERM_DELAY} seconds..."
     while true; do
         if ! kill -0 $INTERNAL_PROCESS_PID 2>/dev/null; then
@@ -16,6 +16,14 @@ sigterm_handler() {
         sleep 1
         ((SIGTERM_DELAY--))
     done
+}
+sigterm_handler() {
+    if [ -z $(findmnt -t fuse.ossfs -n -o TARGET) ]; then
+        echo "could not find ossfs mountpoint"
+        exit 1
+    else
+        delay_term
+    fi
 }
 trap 'sigterm_handler' SIGTERM
 ossfs "$@" &
