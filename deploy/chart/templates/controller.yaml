@@ -39,6 +39,10 @@ spec:
                 operator: NotIn
                 values:
                 - virtual-kubelet
+              - key: alibabacloud.com/is-edge-worker
+                operator: NotIn
+                values:
+                - "true"
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100
@@ -64,9 +68,9 @@ spec:
       hostPID: true
       priorityClassName: system-node-critical
       containers:
-{{- if .Values.csi.disk.enabled }}
+{{- if and .Values.csi.disk.enabled .Values.csi.disk.controller.enabled }}
         - name: external-disk-provisioner
-          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalProvisioner) }}
+          image: {{ include "imageSpec" (list .Values.images "externalProvisioner") }}
           resources:
             requests:
               cpu: 10m
@@ -91,7 +95,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-attacher
-          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalAttacher) }}
+          image: {{ include "imageSpec" (list .Values.images "externalAttacher") }}
           resources:
             requests:
               cpu: 10m
@@ -110,7 +114,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-disk-resizer
-          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalResizer) }}
+          image: {{ include "imageSpec" (list .Values.images "externalResizer") }}
           resources:
             requests:
               cpu: 10m
@@ -130,7 +134,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
         - name: external-csi-snapshotter
-          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalSnapshotter) }}
+          image: {{ include "imageSpec" (list .Values.images "externalSnapshotter") }}
           resources:
             requests:
               cpu: 10m
@@ -150,7 +154,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /csi
         - name: external-snapshot-controller
-          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalSnapshotController) }}
+          image: {{ include "imageSpec" (list .Values.images "externalSnapshotController") }}
           resources:
             requests:
               cpu: 10m
@@ -162,9 +166,9 @@ spec:
             - "--v=5"
             - "--leader-election=true"
 {{- end -}}
-{{- if .Values.csi.nas.enabled }}
+{{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
         - name: external-nas-provisioner
-          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalProvisioner) }}
+          image: {{ include "imageSpec" (list .Values.images "externalProvisioner") }}
           resources:
             requests:
               cpu: 10m
@@ -187,7 +191,7 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
         - name: external-nas-resizer
-          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalResizer) }}
+          image: {{ include "imageSpec" (list .Values.images "externalResizer") }}
           resources:
             requests:
               cpu: 10m
@@ -207,7 +211,7 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
 {{- end -}}
-{{- if .Values.csi.oss.enabled }}
+{{- if and .Values.csi.oss.enabled .Values.csi.oss.controller.enabled }}
         - name: external-oss-provisioner
           args:
             - --csi-address=$(ADDRESS)
@@ -220,7 +224,7 @@ spec:
           env:
           - name: ADDRESS
             value: /var/lib/kubelet/csi-provisioner/ossplugin.csi.alibabacloud.com/csi.sock
-          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalProvisioner) }}
+          image: {{ include "imageSpec" (list .Values.images "externalProvisioner") }}
           resources:
             limits:
               cpu: 500m
@@ -232,16 +236,15 @@ spec:
           - mountPath: /var/lib/kubelet/csi-provisioner/ossplugin.csi.alibabacloud.com
             name: oss-provisioner-dir
 {{- end -}}
-{{- if .Values.csi.local.enabled }}
+{{- if and .Values.csi.local.enabled .Values.csi.local.controller.enabled }}
         - name: external-local-provisioner
-          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalProvisioner) }}
+          image: {{ include "imageSpec" (list .Values.images "externalProvisioner") }}
           imagePullPolicy: Always
           env:
             - name: ADDRESS
               value:  /var/lib/kubelet/csi-provisioner/localplugin.csi.alibabacloud.com/csi.sock
           args:
             - --csi-address=$(ADDRESS)
-            - --feature-gates=Topology=True
             - --volume-name-prefix=local
             - --strict-topology=true
             - --timeout=150s
@@ -251,11 +254,18 @@ spec:
             - --retry-interval-start=500ms
             - --default-fstype=ext4
             - --v=5
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
           volumeMounts:
             - name: local-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/localplugin.csi.alibabacloud.com
         - name: external-local-resizer
-          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.externalResizer) }}
+          image: {{ include "imageSpec" (list .Values.images "externalResizer") }}
           imagePullPolicy: Always
           env:
             - name: ADDRESS
@@ -271,11 +281,14 @@ spec:
         - name: csi-provisioner
           securityContext:
             privileged: true
-          image: {{ include "imageSpec" (list .Values.images.registry .Values.images.controller) }}
+          image: {{ include "imageSpec" (list .Values.images "controller") }}
           args:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=2"
-            - "--driver={{ include "enabledDrivers" .Values.csi }}"
+            - "--driver={{ include "enabledControllers" .Values.csi }}"
+{{- if not .Values.deploy.ecs }}
+            - --nodeid=$(KUBE_NODE_NAME)
+{{- end }}
           env:
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/csi-provisioner/driverplugin.csi.alibabacloud.com-replace/csi.sock
@@ -283,7 +296,7 @@ spec:
               value: "provisioner"
 {{- if .Values.deploy.ack }}
             - name: "CLUSTER_ID"
-              value: "{{ .Values.deploy.clusterID }}"
+              value: {{ .Values.deploy.clusterID | quote }}
 {{- end }}
             - name: KUBE_NODE_NAME
               valueFrom:
@@ -292,7 +305,7 @@ spec:
                   fieldPath: spec.nodeName
 {{- if .Values.deploy.ecsEndpoint }}
             - name: ECS_ENDPOINT
-              value: {{ .Values.deploy.ecsEndpoint }}
+              value: {{ .Values.deploy.ecsEndpoint | quote }}
 {{- end }}
 {{- if .Values.deploy.privateCloud }}
             - name: ALICLOUD_CLIENT_SCHEME
@@ -334,7 +347,7 @@ spec:
             - name: host-log
               mountPath: /var/log/
 {{- range $key, $val := .Values.csi }}
-{{- if $val.enabled }}
+{{- if and $val.enabled $val.controller.enabled }}
             - name: {{ $key }}-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/{{ $key }}plugin.csi.alibabacloud.com
 {{- end -}}
@@ -358,7 +371,7 @@ spec:
               memory: 128Mi
       volumes:
 {{- range $key, $val := .Values.csi }}
-{{- if $val.enabled }}
+{{- if and $val.enabled $val.controller.enabled }}
         - name: {{ $key }}-provisioner-dir
           emptyDir: {}
 {{- end -}}
