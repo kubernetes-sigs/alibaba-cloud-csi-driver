@@ -11,7 +11,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -206,7 +205,7 @@ func (mounter *ContainerizedFuseMounter) Mount(source string, target string, fst
 	ctx, cancel := context.WithTimeout(mounter.ctx, fuseMountTimeout)
 	defer cancel()
 	if mounter.authCfg != nil && mounter.authCfg.AuthType == AuthTypeRRSA {
-		err := mounter.ensureSeriveAccount(ctx)
+		err := mounter.checkSeriveAccount(ctx)
 		if err != nil {
 			return err
 		}
@@ -248,20 +247,13 @@ func (mounter *ContainerizedFuseMounter) labelsAndListOptionsFor(target string) 
 	return labels, listOptions
 }
 
-func (mounter *ContainerizedFuseMounter) ensureSeriveAccount(ctx context.Context) error {
+func (mounter *ContainerizedFuseMounter) checkSeriveAccount(ctx context.Context) error {
 	saClient := mounter.client.CoreV1().ServiceAccounts(mounter.namespace)
 	_, err := saClient.Get(ctx, mounter.authCfg.ServiceAccountName, metav1.GetOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
 	if err != nil {
-		var nSa corev1.ServiceAccount
-		nSa.Name = mounter.authCfg.ServiceAccountName
-		nSa.Namespace = mounter.namespace
-		_, err = saClient.Create(ctx, &nSa, metav1.CreateOptions{})
-		return err
+		return fmt.Errorf("check service account %s for RRSA: %w", mounter.authCfg.ServiceAccountName, err)
 	}
-	return err
+	return nil
 }
 
 func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, source, target, fstype string, authCfg *AuthConfig, options, mountFlags []string) error {
