@@ -1607,12 +1607,15 @@ func hasMountOption(options []string, opt string) bool {
 
 // checkRundVolumeExpand
 func checkRundVolumeExpand(req *csi.NodeExpandVolumeRequest) (bool, error) {
+	log.Infof("checkRundVolumeExpand: volumePath: %s", req.VolumePath)
 	pvName := utils.GetPvNameFormPodMnt(req.VolumePath)
 	if pvName == "" {
+		log.Errorf("checkRundVolumeExpand: cannot get pvname from volumePath %s", req.VolumePath)
 		return false, perrors.Errorf("cannot get pvname from volumePath %s for volume %s", req.VolumePath, req.VolumeId)
 	}
 	socketFile := filepath.Join(RundSocketDir, pvName)
 	if !utils.IsFileExisting(socketFile) {
+		log.Infof("checkRundVolumeExpand: socketfile: %s not exists, fallback to runc expanding", socketFile)
 		return false, nil
 	}
 
