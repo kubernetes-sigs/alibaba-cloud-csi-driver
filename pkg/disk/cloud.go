@@ -18,6 +18,7 @@ package disk
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"regexp"
@@ -824,6 +825,16 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 
 	createDiskRequest := ecs.CreateCreateDiskRequest()
 	createDiskRequest.DiskName = diskName
+	// CSI requires idempotent: one name can only create one disk. We may issue fallback requests to ECS if the initial
+	// attempt failed, so we should generate a fixed sequence of tokens from name.
+	// However, not every ECS request would record the ClientToken. To ensure every token in the sequence is recorded,
+	// and no recorded token is reused in the fallback requests, we experimented with each fallback case and empirically
+	// found out whether the server would record the token.
+	// CSI name supports Unicode characters at maximum length 128, ECS ClientToken only support 64 ASCII characters,
+	// So use HEX of hash of name as the token
+	tokenGen := sha256.New()
+	tokenGen.Write([]byte(diskName)) // should not fail
+	createDiskRequest.ClientToken = fmt.Sprintf("%x", tokenGen.Sum(nil))
 	createDiskRequest.Size = requests.NewInteger(requestGB)
 	createDiskRequest.RegionId = diskVol.RegionID
 	createDiskRequest.ZoneId = diskVol.ZoneID
@@ -853,8 +864,12 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 	if err != nil {
 		return "", "", "", err
 	}
+
+	nextToken := func() {
+		tokenGen.Write([]byte{0})
+		createDiskRequest.ClientToken = fmt.Sprintf("%x", tokenGen.Sum(nil))
+	}
 	for _, dType := range diskTypes {
-		createDiskRequest.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID)
 		createDiskRequest.DiskCategory = dType
 		if dType == DiskESSD {
 			newReq := generateNewRequest(createDiskRequest)
@@ -862,9 +877,8 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 			for _, diskPL := range diskPLs {
 				log.Log.Infof("createDisk: start to create disk by diskName: %s, valid disktype: %v, pl: %s", diskName, dType, diskPL)
 
-				newReq.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID, diskPL)
 				newReq.PerformanceLevel = diskPL
-				returned, diskId, rerr := request(newReq, ecsClient)
+				returned, diskId, rerr := request(newReq, ecsClient, nextToken)
 				if returned {
 					if diskId != "" && rerr == nil {
 						return dType, diskId, diskPL, nil
@@ -882,12 +896,11 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 		createDiskRequest.PerformanceLevel = ""
 		if dType == DiskESSDAuto {
 			newReq := generateNewRequest(createDiskRequest)
-			createDiskRequest.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s/%d/%t", diskName, dType, diskVol.RegionID, diskVol.ZoneID, diskVol.ProvisionedIops, diskVol.BurstingEnabled)
 			if diskVol.ProvisionedIops != -1 {
 				newReq.ProvisionedIops = requests.NewInteger(diskVol.ProvisionedIops)
 			}
 			newReq.BurstingEnabled = requests.NewBoolean(diskVol.BurstingEnabled)
-			returned, diskId, rerr := request(newReq, ecsClient)
+			returned, diskId, rerr := request(newReq, ecsClient, nextToken)
 			if returned {
 				if diskId != "" && rerr == nil {
 					return dType, diskId, "", nil
@@ -899,7 +912,7 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 			err = rerr
 			continue
 		}
-		returned, diskId, rerr := request(createDiskRequest, ecsClient)
+		returned, diskId, rerr := request(createDiskRequest, ecsClient, nextToken)
 		if returned {
 			if diskId != "" && rerr == nil {
 				return dType, diskId, "", nil
@@ -919,6 +932,7 @@ func generateNewRequest(oldReq *ecs.CreateDiskRequest) *ecs.CreateDiskRequest {
 
 	createDiskRequest.DiskCategory = oldReq.DiskCategory
 	createDiskRequest.DiskName = oldReq.DiskName
+	createDiskRequest.ClientToken = oldReq.ClientToken
 	createDiskRequest.Size = oldReq.Size
 	createDiskRequest.RegionId = oldReq.RegionId
 	createDiskRequest.ZoneId = oldReq.ZoneId
@@ -933,7 +947,7 @@ func generateNewRequest(oldReq *ecs.CreateDiskRequest) *ecs.CreateDiskRequest {
 	return createDiskRequest
 }
 
-func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (returned bool, diskId string, err error) {
+func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client, nextToken func()) (returned bool, diskId string, err error) {
 	cata := strings.Trim(fmt.Sprintf("%s.%s", createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel), ".")
 	log.Log.Infof("request: Create Disk for volume: %s with cata: %s", createDiskRequest.DiskName, cata)
 	if minCap, ok := DiskCapacityMapping[cata]; ok {
@@ -950,12 +964,15 @@ func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (r
 		return true, volumeRes.DiskId, nil
 	} else if strings.Contains(err.Error(), DiskNotAvailable) || strings.Contains(err.Error(), DiskNotAvailableVer2) {
 		log.Log.Infof("request: Create Disk for volume %s with diskCatalog: %s is not supported in zone: %s", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.ZoneId)
+		nextToken()
 		return false, "", err
 	} else if strings.Contains(err.Error(), DiskPerformanceLevelNotMatch) && createDiskRequest.DiskCategory == DiskESSD {
 		log.Log.Infof("request: Create Disk for volume %s with diskCatalog: %s , pl: %s has invalid disk size: %s", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel, createDiskRequest.Size)
+		// This error case does not record the token, so reuse it
 		return false, "", err
 	} else if strings.Contains(err.Error(), DiskIopsLimitExceeded) && createDiskRequest.DiskCategory == DiskESSDAuto {
 		log.Log.Infof("request: Create Disk for volume %s with diskCatalog: %s , provisioned iops %s has exceeded limit", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.ProvisionedIops)
+		nextToken()
 		return false, "", err
 	} else {
 		log.Log.Errorf("request: create disk for volume %s with type: %s err: %v", createDiskRequest.DiskName, createDiskRequest.DiskCategory, err)
