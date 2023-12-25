@@ -873,10 +873,8 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	resizeDiskRequest.RegionId = GlobalConfigVar.Region
 	resizeDiskRequest.DiskId = disk.DiskId
 	resizeDiskRequest.NewSize = requests.NewInteger(requestGB)
-	if disk.Category == DiskSSD || disk.Category == DiskEfficiency || disk.Category == DiskESSD || disk.Category == DiskESSDAuto {
-		if disk.Status == DiskStatusInuse {
-			resizeDiskRequest.Type = "online"
-		}
+	if disk.Status == DiskStatusInuse {
+		resizeDiskRequest.Type = "online"
 	}
 
 	response, err := ecsClient.ResizeDisk(resizeDiskRequest)
