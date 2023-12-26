@@ -452,6 +452,18 @@ func (cs *controllerServer) getNodeConn(nodeSelected string, caCertFile string, 
 		return nil, err
 	}
 	conn, err := client.NewGrpcConnection(addr, connectTimeout, caCertFile, clientCertFile, clientKeyFile)
+	if errors.Is(err, context.DeadlineExceeded) {
+		// Node IP may be changed, try to get new IP
+		utils.ClearNodeIPCache(nodeSelected)
+		addr2, err := utils.GetNodeAddr(cs.client, nodeSelected, server.GetLvmdPort())
+		if err != nil {
+			log.Errorf("CreateVolume: Get node %s address with error: %s", nodeSelected, err.Error())
+			return nil, err
+		}
+		if addr2 != addr {
+			return client.NewGrpcConnection(addr2, connectTimeout, caCertFile, clientCertFile, clientKeyFile)
+		}
+	}
 	return conn, err
 }
 

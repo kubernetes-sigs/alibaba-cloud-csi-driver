@@ -736,6 +736,10 @@ func Fsync(f *os.File) error {
 	return f.Sync()
 }
 
+func ClearNodeIPCache(nodeID string) {
+	nodeAddrMap.Delete(nodeID)
+}
+
 // GetNodeAddr get node address
 func GetNodeAddr(client kubernetes.Interface, node string, port string) (string, error) {
 	ip, err := GetNodeIP(client, node)
