@@ -115,10 +115,7 @@ const (
 var KubernetesAlicloudIdentity = "Kubernetes.Alicloud/CsiPlugin"
 
 var (
-	// NodeAddrMap map for NodeID and its Address
-	NodeAddrMap = map[string]string{}
-	// NodeAddrMutex Mutex for NodeAddr map
-	NodeAddrMutex sync.RWMutex
+	nodeAddrMap = sync.Map{}
 )
 
 // RoleAuth define STS Token Response
@@ -739,13 +736,6 @@ func Fsync(f *os.File) error {
 	return f.Sync()
 }
 
-// SetNodeAddrMap set map with mutex
-func SetNodeAddrMap(key string, value string) {
-	NodeAddrMutex.Lock()
-	NodeAddrMap[key] = value
-	NodeAddrMutex.Unlock()
-}
-
 // GetNodeAddr get node address
 func GetNodeAddr(client kubernetes.Interface, node string, port string) (string, error) {
 	ip, err := GetNodeIP(client, node)
@@ -757,8 +747,8 @@ func GetNodeAddr(client kubernetes.Interface, node string, port string) (string,
 
 // GetNodeIP get node address
 func GetNodeIP(client kubernetes.Interface, nodeID string) (net.IP, error) {
-	if value, ok := NodeAddrMap[nodeID]; ok && value != "" {
-		return net.ParseIP(value), nil
+	if value, ok := nodeAddrMap.Load(nodeID); ok {
+		return value.(net.IP), nil
 	}
 	node, err := client.CoreV1().Nodes().Get(context.Background(), nodeID, metav1.GetOptions{})
 	if err != nil {
@@ -769,13 +759,12 @@ func GetNodeIP(client kubernetes.Interface, nodeID string) (net.IP, error) {
 	for i := range addresses {
 		addressMap[addresses[i].Type] = append(addressMap[addresses[i].Type], addresses[i])
 	}
-	if addresses, ok := addressMap[v1.NodeInternalIP]; ok {
-		SetNodeAddrMap(nodeID, addresses[0].Address)
-		return net.ParseIP(addresses[0].Address), nil
-	}
-	if addresses, ok := addressMap[v1.NodeExternalIP]; ok {
-		SetNodeAddrMap(nodeID, addresses[0].Address)
-		return net.ParseIP(addresses[0].Address), nil
+	for _, t := range []v1.NodeAddressType{v1.NodeInternalIP, v1.NodeExternalIP} {
+		if addresses, ok := addressMap[t]; ok {
+			ip := net.ParseIP(addresses[0].Address)
+			nodeAddrMap.Store(nodeID, ip)
+			return ip, nil
+		}
 	}
 	return nil, fmt.Errorf("Node IP unknown; known addresses: %v", addresses)
 }
