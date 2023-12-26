@@ -746,7 +746,7 @@ func GetNodeAddr(client kubernetes.Interface, node string, port string) (string,
 	if err != nil {
 		return "", err
 	}
-	return ip.String() + ":" + port, nil
+	return net.JoinHostPort(ip.String(), port), nil
 }
 
 // GetNodeIP get node address
