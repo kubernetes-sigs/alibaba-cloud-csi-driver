@@ -448,7 +448,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 func (cs *controllerServer) getNodeConn(nodeSelected string, caCertFile string, clientCertFile string, clientKeyFile string) (client.Connection, error) {
 	addr, err := utils.GetNodeAddr(cs.client, nodeSelected, server.GetLvmdPort())
 	if err != nil {
-		log.Errorf("CreateVolume: Get node %s address with error: %s", nodeSelected, err.Error())
+		log.Errorf("Get node %s address with error: %s", nodeSelected, err.Error())
 		return nil, err
 	}
 	conn, err := client.NewGrpcConnection(addr, connectTimeout, caCertFile, clientCertFile, clientKeyFile)
@@ -457,11 +457,15 @@ func (cs *controllerServer) getNodeConn(nodeSelected string, caCertFile string, 
 		utils.ClearNodeIPCache(nodeSelected)
 		addr2, err := utils.GetNodeAddr(cs.client, nodeSelected, server.GetLvmdPort())
 		if err != nil {
-			log.Errorf("CreateVolume: Get node %s address with error: %s", nodeSelected, err.Error())
+			log.Errorf("Get node %s address without cache failed: %s", nodeSelected, err.Error())
 			return nil, err
 		}
 		if addr2 != addr {
+			log.Infof("Node %s address changed from %s to %s, re-connecting", nodeSelected, addr, addr2)
 			return client.NewGrpcConnection(addr2, connectTimeout, caCertFile, clientCertFile, clientKeyFile)
+		} else {
+			log.Errorf("Node %s address %s verified from Kubernetes, but failed to connect", nodeSelected, addr)
+			return nil, err
 		}
 	}
 	return conn, err
