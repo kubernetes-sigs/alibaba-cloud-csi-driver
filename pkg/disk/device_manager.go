@@ -1,6 +1,7 @@
 package disk
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
 func getDeviceSerial(serial string) (device string) {
@@ -39,8 +41,8 @@ func adaptDevicePartition(devicePath string) ([]string, error) {
 	if !GlobalConfigVar.DiskPartitionEnable {
 		return []string{devicePath}, nil
 	}
-	if devicePath == "" || !strings.HasPrefix(devicePath, "/dev/") {
-		return []string{}, fmt.Errorf("DevicePath is empty or format error %s", devicePath)
+	if !strings.HasPrefix(devicePath, "/dev/") {
+		return nil, fmt.Errorf("DevicePath format error %s", devicePath)
 	}
 
 	// example: /dev/vdb
@@ -74,13 +76,68 @@ func adaptDevicePartition(devicePath string) ([]string, error) {
 
 }
 
-// GetDeviceByVolumeID First try to find the device by serial
-// If cannot find the device using the serial number, get device by volumeID, link file should be like:
+func getDeviceByLink(linkPath string) (devices []string, err error) {
+	resolved, err := filepath.EvalSymlinks(linkPath)
+	if err != nil {
+		return nil, err
+	}
+	if !strings.HasPrefix(resolved, "/dev") {
+		return nil, fmt.Errorf("resolved to unexpected path: %q", resolved)
+	}
+
+	if devices, err = adaptDevicePartition(resolved); err != nil {
+		return nil, fmt.Errorf("adapt partition for %q failed: %w", resolved, err)
+	}
+	return devices, nil
+}
+
+var idPrefixes = []string{"virtio-", "nvme-Alibaba_Cloud_Elastic_Block_Storage_"}
+
+// GetDeviceByVolumeID first try to find the device by device link like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
+// If that fails, query the kernel by sysfs to find the device by serial.
 func GetDeviceByVolumeID(volumeID string) (devices []string, err error) {
+	errs := []error{}
+
+	byIDPath := "/dev/disk/by-id/"
+	idSuffix := strings.TrimPrefix(volumeID, "d-")
+	fileFound := false
+	for _, p := range idPrefixes {
+		volumeLinkPath := byIDPath + p + idSuffix
+		devices, err = getDeviceByLink(volumeLinkPath)
+		if err == nil {
+			log.Infof("GetDevice: device link %q to %q", volumeLinkPath, devices)
+			return devices, nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			fileFound = true
+		}
+		errs = append(errs, fmt.Errorf("get by link %q failed: %w", volumeLinkPath, err))
+	}
+
+	// fallback to scan all links
+	if !fileFound {
+		files, err := os.ReadDir(byIDPath)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("read dir %q failed: %w", byIDPath, err))
+		} else {
+			for _, f := range files {
+				if strings.Contains(f.Name(), idSuffix) {
+					volumeLinkPath := filepath.Join(byIDPath, f.Name())
+					devices, err = getDeviceByLink(volumeLinkPath)
+					if err == nil {
+						log.Infof("GetDevice: scanned device link %q to %s", volumeLinkPath, devices)
+						return devices, nil
+					}
+					errs = append(errs, fmt.Errorf("get by scanned link %q failed: %w", volumeLinkPath, err))
+				}
+			}
+		}
+	}
+
 	// this is danger in Bdf mode
 	if !IsVFNode() {
-		device := getDeviceSerial(strings.TrimPrefix(volumeID, "d-"))
+		device := getDeviceSerial(idSuffix)
 		if device != "" {
 			if devices, err = adaptDevicePartition(device); err != nil {
 				log.Warnf("GetDevice: Get volume %s device %s by Serial, but validate error %s", volumeID, device, err.Error())
@@ -89,62 +146,17 @@ func GetDeviceByVolumeID(volumeID string) (devices []string, err error) {
 			log.Infof("GetDevice: Use the serial to find device, got %s, volumeID: %s, devices: %v", device, volumeID, devices)
 			return devices, nil
 		}
+		errs = append(errs, fmt.Errorf("find by serial: not found"))
 	}
 
 	// Get NVME device name
 	device, err := utils.GetNvmeDeviceByVolumeID(volumeID)
 	if err == nil && device != "" {
+		log.Infof("GetDevice: Use udevadm to find device, got %s, volumeID: %s", device, volumeID)
 		return []string{device}, nil
+	} else {
+		errs = append(errs, fmt.Errorf("find by udevadm: %w", err))
 	}
 
-	byIDPath := "/dev/disk/by-id/"
-	volumeLinkName := strings.Replace(volumeID, "d-", "virtio-", -1)
-	volumeLinPath := filepath.Join(byIDPath, volumeLinkName)
-
-	stat, err := os.Lstat(volumeLinPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// in some os, link file is not begin with virtio-,
-			// but diskPart will always be part of link file.
-			isSearched := false
-			files, _ := os.ReadDir(byIDPath)
-			diskPart := strings.Replace(volumeID, "d-", "", -1)
-			for _, f := range files {
-				if strings.Contains(f.Name(), diskPart) {
-					volumeLinPath = filepath.Join(byIDPath, f.Name())
-					stat, _ = os.Lstat(volumeLinPath)
-					isSearched = true
-					break
-				}
-			}
-			if !isSearched {
-				log.Warnf("volumeID link path %q not found", volumeLinPath)
-				return []string{}, fmt.Errorf("volumeID link path %q not found", volumeLinPath)
-			}
-		} else {
-			return []string{}, fmt.Errorf("error getting stat of %q: %v", volumeLinPath, err)
-		}
-	}
-
-	if stat.Mode()&os.ModeSymlink != os.ModeSymlink {
-		log.Warningf("volumeID link file %q found, but was not a symlink", volumeLinPath)
-		return []string{}, fmt.Errorf("volumeID link file %q found, but was not a symlink", volumeLinPath)
-	}
-	// Find the target, resolving to an absolute path
-	// For example, /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
-	resolved, err := filepath.EvalSymlinks(volumeLinPath)
-	if err != nil {
-		return []string{}, fmt.Errorf("error reading target of symlink %q: %v", volumeLinPath, err)
-	}
-	if !strings.HasPrefix(resolved, "/dev") {
-		return []string{}, fmt.Errorf("resolved symlink for %q was unexpected: %q", volumeLinPath, resolved)
-	}
-
-	if devices, err = adaptDevicePartition(resolved); err != nil {
-		log.Warnf("GetDevice: Get volume %s device %s by ID, but validate error %s", volumeID, resolved, err.Error())
-		return []string{}, fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", volumeID, resolved, err.Error())
-	}
-
-	log.Infof("GetDevice: Device Link Info: %s link to %s", volumeLinPath, devices)
-	return devices, nil
+	return nil, utilerrors.NewAggregate(errs)
 }
