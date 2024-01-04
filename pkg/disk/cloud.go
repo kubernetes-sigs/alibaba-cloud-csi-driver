@@ -214,7 +214,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 	var devicePaths []string
 	// step 5: diff device with previous files under /dev
 	if !GlobalConfigVar.ADControllerEnable {
-		devicePaths, _ = GetDeviceByVolumeID(diskID)
+		devicePaths, _ = DefaultDeviceManager.GetDeviceByVolumeID(diskID)
 		rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
 		if err == nil {
 			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device", diskID, nodeID, devicePaths)
@@ -233,7 +233,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 				return "", status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf: %v", err)
 			}
 
-			devicePaths, err = GetDeviceByVolumeID(diskID)
+			devicePaths, err = DefaultDeviceManager.GetDeviceByVolumeID(diskID)
 			deviceName := ""
 			if len(devicePaths) == 0 && bdf != "" {
 				deviceName, err = GetDeviceByBdf(bdf, true)

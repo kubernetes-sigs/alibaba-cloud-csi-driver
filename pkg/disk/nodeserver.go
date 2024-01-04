@@ -245,7 +245,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				log.Errorf("NodePublishVolume(runv): unmountStageTarget %s with error: %s", sourcePath, err.Error())
 				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: unmountStageTarget "+sourcePath+" with error: "+err.Error())
 			}
-			devicePaths, err := GetDeviceByVolumeID(req.VolumeId)
+			devicePaths, err := DefaultDeviceManager.GetDeviceByVolumeID(req.VolumeId)
 			deviceName, _, err := GetRootSubDevicePath(devicePaths)
 			if err != nil && len(devicePaths) == 0 {
 				deviceName = getVolumeConfig(req.VolumeId)
@@ -335,7 +335,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if sourceNotMounted {
-		devicePaths, getDeviceErr := GetDeviceByVolumeID(req.GetVolumeId())
+		devicePaths, getDeviceErr := DefaultDeviceManager.GetDeviceByVolumeID(req.GetVolumeId())
 		rootDevice, subDevice, chooseDeviceErr := GetRootSubDevicePath(devicePaths)
 		if getDeviceErr == nil && chooseDeviceErr == nil {
 			device := ChooseDevice(rootDevice, subDevice)
@@ -589,7 +589,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	// Step 4 Attach volume
 	if GlobalConfigVar.ADControllerEnable || isMultiAttach {
 		var bdf string
-		devicePaths, err := GetDeviceByVolumeID(req.GetVolumeId())
+		devicePaths, err := DefaultDeviceManager.GetDeviceByVolumeID(req.GetVolumeId())
 		if IsVFNode() && len(devicePaths) == 0 {
 			if bdf, err = bindBdfDisk(req.GetVolumeId()); err != nil {
 				if err := unbindBdfDisk(req.GetVolumeId()); err != nil {
