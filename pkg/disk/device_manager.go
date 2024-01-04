@@ -13,8 +13,23 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
-func getDeviceSerial(serial string) (device string) {
-	serialFiles, err := filepath.Glob("/sys/block/*/serial")
+type DeviceManager struct {
+	// The path to the directory containing the device files.
+	// This is usually /dev.
+	DevicePath string
+
+	// The path to the directory mounted as sysfs.
+	// This is usually /sys.
+	SysfsPath string
+}
+
+var DefaultDeviceManager = &DeviceManager{
+	DevicePath: "/dev",
+	SysfsPath:  "/sys",
+}
+
+func (m *DeviceManager) getDeviceBySerial(serial string) string {
+	serialFiles, err := filepath.Glob(filepath.Join(m.SysfsPath, "block/*/serial"))
 	if err != nil {
 		log.Infof("List device serial failed: %v", err)
 		return ""
@@ -27,7 +42,7 @@ func getDeviceSerial(serial string) (device string) {
 			continue
 		}
 		if strings.TrimSpace(string(body)) == serial {
-			return filepath.Join("/dev", filepath.Base(filepath.Dir(serialFile)))
+			return filepath.Join(m.DevicePath, filepath.Base(filepath.Dir(serialFile)))
 		}
 	}
 	return ""
@@ -36,26 +51,17 @@ func getDeviceSerial(serial string) (device string) {
 // if device has no partition, just return;
 // if device has one partition, return the multi partition;
 // if device has more than one partition, return error;
-func adaptDevicePartition(devicePath string) ([]string, error) {
+func adaptDevicePartition(devicePath string) (deviceList []string, err error) {
 	// check disk partition is enabled.
 	if !GlobalConfigVar.DiskPartitionEnable {
 		return []string{devicePath}, nil
 	}
-	if !strings.HasPrefix(devicePath, "/dev/") {
-		return nil, fmt.Errorf("DevicePath format error %s", devicePath)
-	}
-
-	// example: /dev/vdb
-	rootDevicePath := ""
-	// device rootPath and partitions
-	deviceList := []string{}
 
 	// Get RootDevice path
-	tmpRootPath, _, err := getDeviceRootAndIndex(devicePath)
+	rootDevicePath, _, err := getDeviceRootAndIndex(devicePath)
 	if err != nil {
-		return deviceList, err
+		return
 	}
-	rootDevicePath = tmpRootPath
 
 	// Get all device path relate to root device
 	globDevices, err := filepath.Glob(rootDevicePath + "*")
@@ -76,12 +82,12 @@ func adaptDevicePartition(devicePath string) ([]string, error) {
 
 }
 
-func getDeviceByLink(linkPath string) (devices []string, err error) {
+func (m *DeviceManager) getDeviceByLink(linkPath string) (devices []string, err error) {
 	resolved, err := filepath.EvalSymlinks(linkPath)
 	if err != nil {
 		return nil, err
 	}
-	if !strings.HasPrefix(resolved, "/dev") {
+	if !strings.HasPrefix(resolved, m.DevicePath) {
 		return nil, fmt.Errorf("resolved to unexpected path: %q", resolved)
 	}
 
@@ -96,15 +102,15 @@ var idPrefixes = []string{"virtio-", "nvme-Alibaba_Cloud_Elastic_Block_Storage_"
 // GetDeviceByVolumeID first try to find the device by device link like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
 // If that fails, query the kernel by sysfs to find the device by serial.
-func GetDeviceByVolumeID(volumeID string) (devices []string, err error) {
+func (m *DeviceManager) GetDeviceByVolumeID(volumeID string) (devices []string, err error) {
 	errs := []error{}
 
-	byIDPath := "/dev/disk/by-id/"
+	byIDPath := filepath.Join(m.DevicePath, "disk", "by-id")
 	idSuffix := strings.TrimPrefix(volumeID, "d-")
 	fileFound := false
 	for _, p := range idPrefixes {
 		volumeLinkPath := byIDPath + p + idSuffix
-		devices, err = getDeviceByLink(volumeLinkPath)
+		devices, err = m.getDeviceByLink(volumeLinkPath)
 		if err == nil {
 			log.Infof("GetDevice: device link %q to %q", volumeLinkPath, devices)
 			return devices, nil
@@ -124,7 +130,7 @@ func GetDeviceByVolumeID(volumeID string) (devices []string, err error) {
 			for _, f := range files {
 				if strings.Contains(f.Name(), idSuffix) {
 					volumeLinkPath := filepath.Join(byIDPath, f.Name())
-					devices, err = getDeviceByLink(volumeLinkPath)
+					devices, err = m.getDeviceByLink(volumeLinkPath)
 					if err == nil {
 						log.Infof("GetDevice: scanned device link %q to %s", volumeLinkPath, devices)
 						return devices, nil
@@ -137,7 +143,7 @@ func GetDeviceByVolumeID(volumeID string) (devices []string, err error) {
 
 	// this is danger in Bdf mode
 	if !IsVFNode() {
-		device := getDeviceSerial(idSuffix)
+		device := m.getDeviceBySerial(idSuffix)
 		if device != "" {
 			if devices, err = adaptDevicePartition(device); err != nil {
 				log.Warnf("GetDevice: Get volume %s device %s by Serial, but validate error %s", volumeID, device, err.Error())

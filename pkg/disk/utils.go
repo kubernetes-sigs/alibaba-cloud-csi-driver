@@ -965,7 +965,7 @@ func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
 
 // GetVolumeDeviceName get device name
 func GetVolumeDeviceName(diskID string) []string {
-	devices, err := GetDeviceByVolumeID(diskID)
+	devices, err := DefaultDeviceManager.GetDeviceByVolumeID(diskID)
 	if err != nil {
 		deviceName := getVolumeConfig(diskID)
 		devices = []string{deviceName}
