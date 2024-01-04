@@ -2,7 +2,6 @@ package disk
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -20,7 +19,7 @@ func getDeviceSerial(serial string) (device string) {
 	}
 
 	for _, serialFile := range serialFiles {
-		body, err := ioutil.ReadFile(serialFile)
+		body, err := os.ReadFile(serialFile)
 		if err != nil {
 			log.Errorf("Read serial(%s): %v", serialFile, err)
 			continue
@@ -59,14 +58,14 @@ func adaptDevicePartition(devicePath string) ([]string, error) {
 	// Get all device path relate to root device
 	globDevices, err := filepath.Glob(rootDevicePath + "*")
 	if err != nil {
-		return deviceList, fmt.Errorf("Get Device List by Glob for %s with error %v ", devicePath, err)
+		return deviceList, fmt.Errorf("get Device List by Glob for %s with error %v ", devicePath, err)
 	}
-	digitPattern := "^(\\d+)$"
+	digitPattern := regexp.MustCompile(`^\d+$`)
 	for _, tmpDevice := range globDevices {
 		// find all device partitions
-		if result, err := regexp.MatchString(digitPattern, strings.TrimPrefix(tmpDevice, rootDevicePath)); err == nil && result == true {
+		if tmpDevice == rootDevicePath {
 			deviceList = append(deviceList, tmpDevice)
-		} else if tmpDevice == rootDevicePath {
+		} else if digitPattern.MatchString(strings.TrimPrefix(tmpDevice, rootDevicePath)) {
 			deviceList = append(deviceList, tmpDevice)
 		}
 	}
@@ -108,7 +107,7 @@ func GetDeviceByVolumeID(volumeID string) (devices []string, err error) {
 			// in some os, link file is not begin with virtio-,
 			// but diskPart will always be part of link file.
 			isSearched := false
-			files, _ := ioutil.ReadDir(byIDPath)
+			files, _ := os.ReadDir(byIDPath)
 			diskPart := strings.Replace(volumeID, "d-", "", -1)
 			for _, f := range files {
 				if strings.Contains(f.Name(), diskPart) {
