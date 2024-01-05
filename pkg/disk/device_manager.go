@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -52,61 +51,64 @@ func (m *DeviceManager) getDeviceBySerial(serial string) (string, error) {
 	return "", errors.New("not found")
 }
 
-// if device has no partition, just return;
-// if device has one partition, return the multi partition;
-// if device has more than one partition, return error;
-func adaptDevicePartition(devicePath string) (deviceList []string, err error) {
-	// check disk partition is enabled.
-	if !GlobalConfigVar.DiskPartitionEnable {
-		return []string{devicePath}, nil
-	}
-
-	// Get RootDevice path
-	rootDevicePath, _, err := getDeviceRootAndIndex(devicePath)
-	if err != nil {
-		return
-	}
-
+// We only support static volume with exactly one partition, and is manually formatted.
+// Return the partition block device if it is OK to use.
+func (m *DeviceManager) adaptDevicePartition(rootDevicePath string) (string, error) {
+	devName := filepath.Base(rootDevicePath)
+	partitionPattern := filepath.Join(m.SysfsPath, "block", devName, devName+"*", "partition")
 	// Get all device path relate to root device
-	globDevices, err := filepath.Glob(rootDevicePath + "*")
+	globDevices, err := filepath.Glob(partitionPattern)
 	if err != nil {
-		return deviceList, fmt.Errorf("get Device List by Glob for %s with error %v ", devicePath, err)
+		return "", fmt.Errorf("get partition list by glob for %s failed: %w", partitionPattern, err)
 	}
-	digitPattern := regexp.MustCompile(`^\d+$`)
-	for _, tmpDevice := range globDevices {
-		// find all device partitions
-		if tmpDevice == rootDevicePath {
-			deviceList = append(deviceList, tmpDevice)
-		} else if digitPattern.MatchString(strings.TrimPrefix(tmpDevice, rootDevicePath)) {
-			deviceList = append(deviceList, tmpDevice)
-		}
+	if len(globDevices) == 0 {
+		return rootDevicePath, nil
+	}
+	if len(globDevices) > 1 {
+		return "", fmt.Errorf("%d partitions found for %s", len(globDevices), rootDevicePath)
 	}
 
-	return deviceList, nil
-
+	// partition found, check if it is formatted
+	partitionDevicePath := filepath.Join(m.DevicePath, filepath.Base(filepath.Dir(globDevices[0])))
+	if err := checkRootAndSubDeviceFS(rootDevicePath, partitionDevicePath); err != nil {
+		return "", err
+	}
+	return partitionDevicePath, nil
 }
 
-func (m *DeviceManager) getDeviceByLink(linkPath string) (devices []string, err error) {
+func (m *DeviceManager) getDeviceByLink(linkPath string) (string, error) {
 	resolved, err := filepath.EvalSymlinks(linkPath)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	if !strings.HasPrefix(resolved, m.DevicePath) {
-		return nil, fmt.Errorf("resolved to unexpected path: %q", resolved)
+		return "", fmt.Errorf("resolved to unexpected path: %q", resolved)
+	}
+	return resolved, nil
+}
+
+func (m *DeviceManager) GetDeviceByVolumeID(volumeID string) (string, error) {
+	device, err := m.GetRootBlockByVolumeID(volumeID)
+	if err != nil {
+		return "", err
+	}
+	if !GlobalConfigVar.DiskPartitionEnable {
+		return device, nil
 	}
 
-	if devices, err = adaptDevicePartition(resolved); err != nil {
-		return nil, fmt.Errorf("adapt partition for %q failed: %w", resolved, err)
+	partition, err := m.adaptDevicePartition(device)
+	if err != nil {
+		return "", fmt.Errorf("volume %s resolved to device %s, but adapt partition failed: %w", volumeID, device, err)
 	}
-	return devices, nil
+	return partition, nil
 }
 
 var idPrefixes = []string{"virtio-", "nvme-Alibaba_Cloud_Elastic_Block_Storage_"}
 
-// GetDeviceByVolumeID first try to find the device by device link like:
+// GetRootBlockByVolumeID first try to find the device by device link like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
 // If that fails, query the kernel by sysfs to find the device by serial.
-func (m *DeviceManager) GetDeviceByVolumeID(volumeID string) (devices []string, err error) {
+func (m *DeviceManager) GetRootBlockByVolumeID(volumeID string) (string, error) {
 	errs := []error{}
 
 	byIDPath := filepath.Join(m.DevicePath, "disk", "by-id")
@@ -114,10 +116,10 @@ func (m *DeviceManager) GetDeviceByVolumeID(volumeID string) (devices []string, 
 	fileFound := false
 	for _, p := range idPrefixes {
 		volumeLinkPath := byIDPath + p + idSuffix
-		devices, err = m.getDeviceByLink(volumeLinkPath)
+		device, err := m.getDeviceByLink(volumeLinkPath)
 		if err == nil {
-			log.Infof("GetDevice: device link %q to %q", volumeLinkPath, devices)
-			return devices, nil
+			log.Infof("GetDevice: device link %q to %q", volumeLinkPath, device)
+			return device, nil
 		}
 		if !errors.Is(err, os.ErrNotExist) {
 			fileFound = true
@@ -134,10 +136,10 @@ func (m *DeviceManager) GetDeviceByVolumeID(volumeID string) (devices []string, 
 			for _, f := range files {
 				if strings.Contains(f.Name(), idSuffix) {
 					volumeLinkPath := filepath.Join(byIDPath, f.Name())
-					devices, err = m.getDeviceByLink(volumeLinkPath)
+					device, err := m.getDeviceByLink(volumeLinkPath)
 					if err == nil {
-						log.Infof("GetDevice: scanned device link %q to %s", volumeLinkPath, devices)
-						return devices, nil
+						log.Infof("GetDevice: scanned device link %q to %s", volumeLinkPath, device)
+						return device, nil
 					}
 					errs = append(errs, fmt.Errorf("get by scanned link %q failed: %w", volumeLinkPath, err))
 				}
@@ -149,15 +151,11 @@ func (m *DeviceManager) GetDeviceByVolumeID(volumeID string) (devices []string, 
 	if !IsVFNode() {
 		device, err := m.getDeviceBySerial(idSuffix)
 		if err == nil {
-			if devices, err = adaptDevicePartition(device); err != nil {
-				log.Warnf("GetDevice: Get volume %s device %s by Serial, but validate error %s", volumeID, device, err.Error())
-				return []string{}, fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", volumeID, device, err.Error())
-			}
-			log.Infof("GetDevice: Use the serial to find device, got %s, volumeID: %s, devices: %v", device, volumeID, devices)
-			return devices, nil
+			log.Infof("GetDevice: Use the serial to find device, volumeID: %s, device: %s", volumeID, device)
+			return device, nil
 		}
 		errs = append(errs, fmt.Errorf("find by serial: %w", err))
 	}
 
-	return nil, utilerrors.NewAggregate(errs)
+	return "", utilerrors.NewAggregate(errs)
 }

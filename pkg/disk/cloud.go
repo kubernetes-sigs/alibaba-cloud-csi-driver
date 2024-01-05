@@ -107,10 +107,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 					log.Infof("AttachDisk: Disk %s is already attached to Instance %s, skipping", diskID, disk.InstanceId)
 					return "", nil
 				}
-				devicePaths := GetVolumeDeviceName(diskID)
-				rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
-				log.Infof("attachDisk: rootDevice: %s, subDevice: %s, err: %+v", rootDevice, subDevice, err)
-				deviceName := ChooseDevice(rootDevice, subDevice)
+				deviceName, err := GetVolumeDeviceName(diskID)
 				if err == nil && deviceName != "" && IsFileExisting(deviceName) {
 					log.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
 					return deviceName, nil
@@ -118,9 +115,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 					// wait for pci attach ready
 					time.Sleep(5 * time.Second)
 					log.Infof("AttachDisk: find disk dev after 5 seconds")
-					devicePaths := GetVolumeDeviceName(diskID)
-					rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
-					deviceName = ChooseDevice(rootDevice, subDevice)
+					deviceName, err := GetVolumeDeviceName(diskID)
 					if err == nil && deviceName != "" && IsFileExisting(deviceName) {
 						log.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
 						return deviceName, nil
@@ -210,15 +205,13 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 			return "", err
 		}
 	}
-	// devices indicated the volume devices associated with specific volumeid
-	var devicePaths []string
+
 	// step 5: diff device with previous files under /dev
 	if !GlobalConfigVar.ADControllerEnable {
-		devicePaths, _ = DefaultDeviceManager.GetDeviceByVolumeID(diskID)
-		rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
+		device, err := DefaultDeviceManager.GetDeviceByVolumeID(diskID)
 		if err == nil {
-			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device", diskID, nodeID, devicePaths)
-			return ChooseDevice(rootDevice, subDevice), nil
+			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device", diskID, nodeID, device)
+			return device, nil
 		}
 		after := getDevices()
 		devicePaths := calcNewDevices(before, after)
@@ -233,9 +226,9 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 				return "", status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf: %v", err)
 			}
 
-			devicePaths, err = DefaultDeviceManager.GetDeviceByVolumeID(diskID)
+			_, err := DefaultDeviceManager.GetRootBlockByVolumeID(diskID)
 			deviceName := ""
-			if len(devicePaths) == 0 && bdf != "" {
+			if err != nil && bdf != "" {
 				deviceName, err = GetDeviceByBdf(bdf, true)
 			}
 			if err == nil && deviceName != "" {
