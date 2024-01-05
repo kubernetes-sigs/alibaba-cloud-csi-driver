@@ -28,24 +28,29 @@ var DefaultDeviceManager = &DeviceManager{
 	SysfsPath:  "/sys",
 }
 
-func (m *DeviceManager) getDeviceBySerial(serial string) string {
-	serialFiles, err := filepath.Glob(filepath.Join(m.SysfsPath, "block/*/serial"))
+func (m *DeviceManager) getDeviceBySerial(serial string) (string, error) {
+	sysBlock := filepath.Join(m.SysfsPath, "block")
+	allBlocks, err := os.ReadDir(sysBlock)
 	if err != nil {
-		log.Infof("List device serial failed: %v", err)
-		return ""
+		return "", err
 	}
-
-	for _, serialFile := range serialFiles {
-		body, err := os.ReadFile(serialFile)
+	for _, block := range allBlocks {
+		serialPath := filepath.Join(sysBlock, block.Name(), "serial")
+		// NVMe block device is a namespace (e.g. nvme0n1). It does not have a serial file.
+		// Instead, we need to read the serial from the device (nvme0).
+		if strings.HasPrefix(block.Name(), "nvme") {
+			serialPath = filepath.Join(sysBlock, block.Name(), "device", "serial")
+		}
+		body, err := os.ReadFile(serialPath)
 		if err != nil {
-			log.Errorf("Read serial(%s): %v", serialFile, err)
+			log.Errorf("Read serial(%s): %v", serialPath, err)
 			continue
 		}
 		if strings.TrimSpace(string(body)) == serial {
-			return filepath.Join(m.DevicePath, filepath.Base(filepath.Dir(serialFile)))
+			return filepath.Join(m.DevicePath, block.Name()), nil
 		}
 	}
-	return ""
+	return "", errors.New("not found")
 }
 
 // if device has no partition, just return;
@@ -143,8 +148,8 @@ func (m *DeviceManager) GetDeviceByVolumeID(volumeID string) (devices []string, 
 
 	// this is danger in Bdf mode
 	if !IsVFNode() {
-		device := m.getDeviceBySerial(idSuffix)
-		if device != "" {
+		device, err := m.getDeviceBySerial(idSuffix)
+		if err == nil {
 			if devices, err = adaptDevicePartition(device); err != nil {
 				log.Warnf("GetDevice: Get volume %s device %s by Serial, but validate error %s", volumeID, device, err.Error())
 				return []string{}, fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", volumeID, device, err.Error())
@@ -152,7 +157,7 @@ func (m *DeviceManager) GetDeviceByVolumeID(volumeID string) (devices []string, 
 			log.Infof("GetDevice: Use the serial to find device, got %s, volumeID: %s, devices: %v", device, volumeID, devices)
 			return devices, nil
 		}
-		errs = append(errs, fmt.Errorf("find by serial: not found"))
+		errs = append(errs, fmt.Errorf("find by serial: %w", err))
 	}
 
 	// Get NVME device name
