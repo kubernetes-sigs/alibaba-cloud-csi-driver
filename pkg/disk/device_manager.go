@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 )
@@ -158,15 +157,6 @@ func (m *DeviceManager) GetDeviceByVolumeID(volumeID string) (devices []string, 
 			return devices, nil
 		}
 		errs = append(errs, fmt.Errorf("find by serial: %w", err))
-	}
-
-	// Get NVME device name
-	device, err := utils.GetNvmeDeviceByVolumeID(volumeID)
-	if err == nil && device != "" {
-		log.Infof("GetDevice: Use udevadm to find device, got %s, volumeID: %s", device, volumeID)
-		return []string{device}, nil
-	} else {
-		errs = append(errs, fmt.Errorf("find by udevadm: %w", err))
 	}
 
 	return nil, utilerrors.NewAggregate(errs)
