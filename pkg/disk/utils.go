@@ -338,49 +338,6 @@ func GetDeviceByBdf(bdf string, enLog bool) (device string, err error) {
 	return "", fmt.Errorf("virtio device not found, bdf: %s", bdf)
 }
 
-// GetRootSubDevicePath ...
-func GetRootSubDevicePath(deviceList []string) (rootDevicePath, subDevicePath string, err error) {
-
-	if len(deviceList) == 0 {
-		return "", "", fmt.Errorf("List Device Path empty for %v", deviceList)
-	}
-	// Get RootDevice path
-	rootDevicePath, _, err = getDeviceRootAndIndex(deviceList[0])
-	if err != nil {
-		return "", "", err
-	}
-	// check disk is partition or not
-	isPartation := false
-	// set isPartation and check partition
-	if len(deviceList) == 1 {
-		isPartation = false
-	} else if len(deviceList) == 2 {
-		isPartation = true
-		if rootDevicePath == deviceList[0] {
-			subDevicePath = deviceList[1]
-		} else {
-			subDevicePath = deviceList[0]
-		}
-	} else if len(deviceList) > 2 {
-		return "", "", fmt.Errorf("Devices %s has more than 1 partition", deviceList)
-	}
-
-	if isPartation == true {
-		if err := checkRootAndSubDeviceFS(rootDevicePath, subDevicePath); err != nil {
-			return "", "", err
-		}
-		return rootDevicePath, subDevicePath, nil
-	}
-	return rootDevicePath, "", nil
-}
-
-func ChooseDevice(rootDevice, subDevice string) string {
-	if subDevice != "" {
-		return subDevice
-	}
-	return rootDevice
-}
-
 func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
 	if !strings.HasPrefix(subDevicePath, rootDevicePath) {
 		return fmt.Errorf("DeviceNotAvailable: input devices is not root&sub device path: %s, %s ", rootDevicePath, subDevicePath)
@@ -964,14 +921,18 @@ func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
 }
 
 // GetVolumeDeviceName get device name
-func GetVolumeDeviceName(diskID string) []string {
-	devices, err := DefaultDeviceManager.GetDeviceByVolumeID(diskID)
+func GetVolumeDeviceName(diskID string) (string, error) {
+	device, err := DefaultDeviceManager.GetDeviceByVolumeID(diskID)
 	if err != nil {
-		deviceName := getVolumeConfig(diskID)
-		devices = []string{deviceName}
-		log.Infof("GetVolumeDeviceName, Get Device Name by Config File %s, DeviceName: %s", diskID, deviceName)
+		device = getVolumeConfig(diskID)
+		if device != "" {
+			err = nil
+		} else {
+			log.Infof("GetVolumeDeviceName: got disk %s device name %s by config file", diskID, device)
+		}
 	}
-	return devices
+	// return error from GetDeviceByVolumeID if config file not found
+	return device, err
 }
 
 // isPathAvailiable

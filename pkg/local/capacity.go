@@ -98,13 +98,11 @@ func updateLocalDiskList() {
 	}
 	for _, disk := range diskResponse.Disks.Disk {
 		if disk.Category == "local_ssd_pro" || disk.Category == "local_hdd_pro" {
-			devicePaths, err := disk2.DefaultDeviceManager.GetDeviceByVolumeID(disk.DiskId)
-			rootDevice, subDevice, err := disk2.GetRootSubDevicePath(devicePaths)
+			deviceName, err := disk2.DefaultDeviceManager.GetDeviceByVolumeID(disk.DiskId)
 			if err != nil {
 				log.Errorf("updateLocalDiskList: get device by VolumeID(%s) with error: %s", disk.DiskId, err.Error())
 				return
 			}
-			deviceName := disk2.ChooseDevice(rootDevice, subDevice)
 			capacity := &StorageCapacity{
 				Capacity:   uint64(utils.Gi2Bytes(int64(disk.Size))),
 				Type:       "device",
