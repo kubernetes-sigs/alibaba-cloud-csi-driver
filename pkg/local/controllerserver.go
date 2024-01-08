@@ -37,12 +37,15 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/record"
 )
 
 type controllerServer struct {
 	*csicommon.DefaultControllerServer
 	client         kubernetes.Interface
+	recorder       record.EventRecorder
 	caCertFile     string
 	clientCertFile string
 	clientKeyFile  string
@@ -100,6 +103,7 @@ func newControllerServer(d *csicommon.CSIDriver, caCertFile string, clientCertFi
 	return &controllerServer{
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
 		client:                  types.GlobalConfigVar.KubeClient,
+		recorder:                utils.NewEventRecorder(),
 		caCertFile:              caCertFile,
 		clientCertFile:          clientCertFile,
 		clientKeyFile:           clientKeyFile,
@@ -444,11 +448,34 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 func (cs *controllerServer) getNodeConn(nodeSelected string, caCertFile string, clientCertFile string, clientKeyFile string) (client.Connection, error) {
 	addr, err := utils.GetNodeAddr(cs.client, nodeSelected, server.GetLvmdPort())
 	if err != nil {
-		log.Errorf("CreateVolume: Get node %s address with error: %s", nodeSelected, err.Error())
+		log.Errorf("Get node %s address with error: %s", nodeSelected, err.Error())
 		return nil, err
 	}
 	conn, err := client.NewGrpcConnection(addr, connectTimeout, caCertFile, clientCertFile, clientKeyFile)
+	if errors.Is(err, context.DeadlineExceeded) {
+		// Node IP may be changed, try to get new IP
+		utils.ClearNodeIPCache(nodeSelected)
+		addr2, err := utils.GetNodeAddr(cs.client, nodeSelected, server.GetLvmdPort())
+		if err != nil {
+			log.Errorf("Get node %s address without cache failed: %s", nodeSelected, err.Error())
+			return nil, err
+		}
+		if addr2 != addr {
+			log.Infof("Node %s address changed from %s to %s, re-connecting", nodeSelected, addr, addr2)
+			return client.NewGrpcConnection(addr2, connectTimeout, caCertFile, clientCertFile, clientKeyFile)
+		} else {
+			log.Errorf("Node %s address %s verified from Kubernetes, but failed to connect", nodeSelected, addr)
+			return nil, err
+		}
+	}
 	return conn, err
+}
+
+// Send an event then return success
+func (cs *controllerServer) handleNodeDeleted(pvObj *v1.PersistentVolume, volumeDesc, nodeName string) (*csi.DeleteVolumeResponse, error) {
+	log.Infof("DeleteVolume: Node %s deleted, skipping delete volume %s (%s)", nodeName, pvObj.Name, volumeDesc)
+	cs.recorder.Eventf(pvObj, v1.EventTypeWarning, "VolumeOnDeletedNode", "Volume data may still present in %s at deleted node %s", volumeDesc, nodeName)
+	return &csi.DeleteVolumeResponse{}, nil
 }
 
 // DeleteVolume csi interface
@@ -474,6 +501,9 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		if types.GlobalConfigVar.GrpcProvision && nodeName != "" {
 			conn, err := cs.getNodeConn(nodeName, cs.caCertFile, cs.clientCertFile, cs.clientKeyFile)
 			if err != nil {
+				if apierrors.IsNotFound(err) {
+					return cs.handleNodeDeleted(pvObj, fmt.Sprintf("LVM logical volume %s/%s", vgName, volumeID), nodeName)
+				}
 				log.Errorf("DeleteVolume: New lvm %s Connection at node %s with error: %s", req.GetVolumeId(), nodeName, err.Error())
 				return nil, err
 			}
@@ -536,20 +566,20 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				return nil, errors.New("MountPoint Pv is illegal, No node info")
 			}
 			nodeName := nodes[0]
-			conn, err := cs.getNodeConn(nodeName, cs.caCertFile, cs.clientCertFile, cs.clientKeyFile)
-			if err != nil {
-				log.Errorf("DeleteVolume: New mountpoint %s Connection error: %s", req.GetVolumeId(), err.Error())
-				return nil, err
-			}
-			defer conn.Close()
-			path := ""
-			if value, ok := pvObj.Spec.CSI.VolumeAttributes[MountPointType]; ok {
-				path = value
-			}
+			path := pvObj.Spec.CSI.VolumeAttributes[MountPointType]
 			if path == "" {
 				log.Errorf("DeleteVolume: Get MountPoint Path for volume %s, with empty", volumeID)
 				return nil, errors.New("MountPoint Path is empty")
 			}
+			conn, err := cs.getNodeConn(nodeName, cs.caCertFile, cs.clientCertFile, cs.clientKeyFile)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					return cs.handleNodeDeleted(pvObj, fmt.Sprintf("mount point %s", path), nodeName)
+				}
+				log.Errorf("DeleteVolume: New mountpoint %s Connection error: %s", req.GetVolumeId(), err.Error())
+				return nil, err
+			}
+			defer conn.Close()
 			if err := conn.CleanPath(ctx, path); err != nil {
 				log.Errorf("DeleteVolume: Remove mountpoint for %s with error: %s", req.GetVolumeId(), err.Error())
 				return nil, errors.New("DeleteVolume: Delete mountpoint Failed: " + err.Error())
@@ -560,17 +590,20 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		log.Infof("DeleteVolume: successful delete Device volume(%s)...", volumeID)
 	case PmemVolumeType:
 		if nodeName != "" {
+			namespace, ok := pvObj.Spec.CSI.VolumeAttributes["pmemNameSpace"]
+			if !ok {
+				log.Errorf("DeleteVolume: Direct PMEM volume can not found NameSpace: %s", volumeID)
+				return nil, errors.New("DeleteVolume Direct PMEM volume can not found NameSpace " + volumeID)
+			}
 			conn, err := cs.getNodeConn(nodeName, cs.caCertFile, cs.clientCertFile, cs.clientKeyFile)
 			if err != nil {
+				if apierrors.IsNotFound(err) {
+					return cs.handleNodeDeleted(pvObj, fmt.Sprintf("PMEM namespace %s", namespace), nodeName)
+				}
 				log.Errorf("DeleteVolume: New PMEM %s Connection at node %s with error: %s", req.GetVolumeId(), nodeName, err.Error())
 				return nil, err
 			}
 			defer conn.Close()
-			if _, ok := pvObj.Spec.CSI.VolumeAttributes["pmemNameSpace"]; !ok {
-				log.Errorf("DeleteVolume: Direct PMEM volume can not found NameSpace: %s", volumeID)
-				return nil, errors.New("DeleteVolume Direct PMEM volume can not found NameSpace " + volumeID)
-			}
-			namespace := pvObj.Spec.CSI.VolumeAttributes["pmemNameSpace"]
 			if pmemName, err := conn.GetNameSpace(ctx, "", volumeID); err == nil && pmemName != "" {
 				if err := conn.DeleteNameSpace(ctx, namespace); err != nil {
 					log.Errorf("DeleteVolume: Remove PMEM direct volume %s at node %s with error: %s", volumeID, nodeName, err.Error())
@@ -588,18 +621,21 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		}
 	case QuotaPathVolumeType:
 		if nodeName != "" {
+			quotaPath, ok := pvObj.Spec.CSI.VolumeAttributes[ProjQuotaFullPath]
+			if !ok {
+				log.Errorf("DeleteVolume: QuotaPath volume %s not have projQuotaFullPath parameter", req.VolumeId)
+				return nil, fmt.Errorf("DeleteVolume: QuotaPath volume %s not have projQuotaFullPath parameter", req.VolumeId)
+			}
 			conn, err := cs.getNodeConn(nodeName, cs.caCertFile, cs.clientCertFile, cs.clientKeyFile)
 			if err != nil {
+				if apierrors.IsNotFound(err) {
+					return cs.handleNodeDeleted(pvObj, fmt.Sprintf("path %s", quotaPath), nodeName)
+				}
 				log.Errorf("DeleteVolume: get QuotaPath volume %s Connection at node %s with error: %s", req.VolumeId, nodeName, err.Error())
 				return nil, err
 			}
 			defer conn.Close()
 
-			if _, ok := pvObj.Spec.CSI.VolumeAttributes[ProjQuotaFullPath]; !ok {
-				log.Errorf("DeleteVolume: QuotaPath volume %s not have projQuotaFullPath parameter", req.VolumeId)
-				return nil, fmt.Errorf("DeleteVolume: QuotaPath volume %s not have projQuotaFullPath parameter", req.VolumeId)
-			}
-			quotaPath := pvObj.Spec.CSI.VolumeAttributes[ProjQuotaFullPath]
 			_, err = conn.RemoveProjQuotaSubpath(ctx, quotaPath)
 			if err != nil {
 				log.Errorf("DeleteVolume: Remove QuotaPath volume %s at node %s with error %s", req.VolumeId, nodeName, err.Error())
@@ -611,18 +647,21 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		}
 	case LoopDeviceVolumeType:
 		if nodeName != "" {
+			loopdevicePath, ok := pvObj.Spec.CSI.VolumeAttributes[LoopDeviceFullPath]
+			if !ok {
+				log.Errorf("DeleteVolume: LoopDevice volume %s not have loopDeviceFullPath parameter", req.VolumeId)
+				return nil, fmt.Errorf("DeleteVolume: loopdevice volume %s not have loopDeviceFullPath parameter", req.VolumeId)
+			}
 			conn, err := cs.getNodeConn(nodeName, cs.caCertFile, cs.clientCertFile, cs.clientKeyFile)
 			if err != nil {
+				if apierrors.IsNotFound(err) {
+					return cs.handleNodeDeleted(pvObj, fmt.Sprintf("loop device path %s", loopdevicePath), nodeName)
+				}
 				log.Errorf("DeleteVolume: get loopdevice volume %s Connection at node %s with error: %s", req.VolumeId, nodeName, err.Error())
 				return nil, err
 			}
 			defer conn.Close()
 
-			if _, ok := pvObj.Spec.CSI.VolumeAttributes[LoopDeviceFullPath]; !ok {
-				log.Errorf("DeleteVolume: LoopDevice volume %s not have loopDeviceFullPath parameter", req.VolumeId)
-				return nil, fmt.Errorf("DeleteVolume: loopdevice volume %s not have loopDeviceFullPath parameter", req.VolumeId)
-			}
-			loopdevicePath := pvObj.Spec.CSI.VolumeAttributes[LoopDeviceFullPath]
 			log.Errorf("DeleteVolume: LoopDevice volume associated with devices: %s", loopdevicePath)
 			_, err = conn.DeleteLoopDevice(ctx, pvObj.Name)
 			if err != nil {

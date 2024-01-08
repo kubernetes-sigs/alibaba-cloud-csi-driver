@@ -20,16 +20,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"strings"
+	"time"
+
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/lib"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/manager"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
-	"net"
-	"strings"
-	"time"
 )
 
 // Connection lvm connection interface
@@ -103,30 +103,17 @@ func connect(address string, timeout time.Duration, creds credentials.TransportC
 		grpc.WithTransportCredentials(creds),
 		grpc.WithBackoffMaxDelay(time.Second),
 		grpc.WithUnaryInterceptor(logGRPC),
+		grpc.WithBlock(),
 	}
 	if strings.HasPrefix(address, "/") {
 		dialOptions = append(dialOptions, grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
 			return net.DialTimeout("unix", addr, timeout)
 		}))
 	}
-	conn, err := grpc.Dial(address, dialOptions...)
-
-	if err != nil {
-		return nil, err
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	for {
-		if !conn.WaitForStateChange(ctx, conn.GetState()) {
-			log.Warnf("Connection to %s timed out", address)
-			return conn, nil // return nil, subsequent GetPluginInfo will show the real connection error
-		}
-		if conn.GetState() == connectivity.Ready {
-			log.Warnf("Connected to %s", address)
-			return conn, nil
-		}
-		log.Infof("Still trying to connect %s, connection is %s", address, conn.GetState())
-	}
+
+	return grpc.DialContext(ctx, address, dialOptions...)
 }
 
 func (c *workerConnection) CreateLoopDevice(ctx context.Context, pvName, quotaSize string) (string, error) {
