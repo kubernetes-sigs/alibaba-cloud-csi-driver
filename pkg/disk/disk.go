@@ -73,7 +73,6 @@ type GlobalConfig struct {
 	ClientSet             *kubernetes.Clientset
 	FilesystemLosePercent float64
 	ClusterID             string
-	DiskPartitionEnable   bool
 	ControllerService     bool
 	BdfHealthCheck        bool
 	DiskMultiTenantEnable bool
@@ -254,7 +253,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		SnapClient:            snapClient,
 		FilesystemLosePercent: fileSystemLosePercent,
 		ClusterID:             clustID,
-		DiskPartitionEnable:   csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true),
 		ControllerService:     controllerServerType,
 		BdfHealthCheck:        csiCfg.GetBool("bdf-health-check", "BDF_HEALTH_CHECK", true),
 		DiskMultiTenantEnable: csiCfg.GetBool("disk-multi-tenant-enable", "DISK_MULTI_TENANT_ENABLE", false),
@@ -271,6 +269,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	} else {
 		log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
 	}
+	DefaultDeviceManager.EnableDiskPartition = csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true)
 	log.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
 		GlobalConfigVar.ADControllerEnable,
 		GlobalConfigVar.DiskTagEnable,

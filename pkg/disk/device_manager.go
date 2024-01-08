@@ -6,12 +6,38 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	log "github.com/sirupsen/logrus"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
+type DevTmpFS interface {
+	DevFor(path string) (int32, int32, error)
+}
+
+type realDevTmpFS struct {
+}
+
+// DevFor returns the major and minor numbers for the device.
+func (d realDevTmpFS) DevFor(path string) (int32, int32, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, 0, err
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, 0, errors.New("unsupported stat type")
+	}
+	if stat.Mode&syscall.S_IFMT != syscall.S_IFBLK {
+		return 0, 0, errors.New("not a block device")
+	}
+	return int32(stat.Rdev / 256), int32(stat.Rdev % 256), nil
+}
+
 type DeviceManager struct {
+	DevTmpFS DevTmpFS
+
 	// The path to the directory containing the device files.
 	// This is usually /dev.
 	DevicePath string
@@ -19,18 +45,29 @@ type DeviceManager struct {
 	// The path to the directory mounted as sysfs.
 	// This is usually /sys.
 	SysfsPath string
+
+	// Disable read serial from sysfs
+	DisableSerial bool
+
+	// Support sole alreadly formatted disk partition
+	EnableDiskPartition bool
 }
 
 var DefaultDeviceManager = &DeviceManager{
-	DevicePath: "/dev",
-	SysfsPath:  "/sys",
+	DevTmpFS:      realDevTmpFS{},
+	DevicePath:    "/dev",
+	SysfsPath:     "/sys",
+	DisableSerial: IsVFNode(),
 }
 
+var ErrNotFound = errors.New("device not found")
+
+// returns the block device name (e.g. vda) or error
 func (m *DeviceManager) getDeviceBySerial(serial string) (string, error) {
 	sysBlock := filepath.Join(m.SysfsPath, "block")
 	allBlocks, err := os.ReadDir(sysBlock)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("read dir %q failed: %w", sysBlock, err)
 	}
 	for _, block := range allBlocks {
 		serialPath := filepath.Join(sysBlock, block.Name(), "serial")
@@ -45,30 +82,46 @@ func (m *DeviceManager) getDeviceBySerial(serial string) (string, error) {
 			continue
 		}
 		if strings.TrimSpace(string(body)) == serial {
-			return filepath.Join(m.DevicePath, block.Name()), nil
+			return block.Name(), nil
 		}
 	}
-	return "", errors.New("not found")
+	return "", ErrNotFound
+}
+
+func (m *DeviceManager) deviceName(devicePath string) (string, error) {
+	major, minor, err := m.DevTmpFS.DevFor(devicePath)
+	if err != nil {
+		return "", err
+	}
+	sysfsPath := filepath.Join(m.SysfsPath, "dev/block", fmt.Sprintf("%d:%d", major, minor))
+	link, err := os.Readlink(sysfsPath)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Base(link), nil
 }
 
 // We only support static volume with exactly one partition, and is manually formatted.
-// Return the partition block device if it is OK to use.
+// Return the root or partition block device path if it is OK to use.
 func (m *DeviceManager) adaptDevicePartition(rootDevicePath string) (string, error) {
-	devName := filepath.Base(rootDevicePath)
+	devName, err := m.deviceName(rootDevicePath)
+	if err != nil {
+		return "", fmt.Errorf("get device name for %s failed: %w", rootDevicePath, err)
+	}
 	partitionPattern := filepath.Join(m.SysfsPath, "block", devName, devName+"*", "partition")
-	// Get all device path relate to root device
 	globDevices, err := filepath.Glob(partitionPattern)
 	if err != nil {
 		return "", fmt.Errorf("get partition list by glob for %s failed: %w", partitionPattern, err)
 	}
+
 	if len(globDevices) == 0 {
 		return rootDevicePath, nil
 	}
 	if len(globDevices) > 1 {
-		return "", fmt.Errorf("%d partitions found for %s", len(globDevices), rootDevicePath)
+		return "", fmt.Errorf("%d partitions found for %s", len(globDevices), devName)
 	}
 
-	// partition found, check if it is formatted
+	// exactly one partition found, check if it is formatted
 	partitionDevicePath := filepath.Join(m.DevicePath, filepath.Base(filepath.Dir(globDevices[0])))
 	if err := checkRootAndSubDeviceFS(rootDevicePath, partitionDevicePath); err != nil {
 		return "", err
@@ -76,29 +129,18 @@ func (m *DeviceManager) adaptDevicePartition(rootDevicePath string) (string, err
 	return partitionDevicePath, nil
 }
 
-func (m *DeviceManager) getDeviceByLink(linkPath string) (string, error) {
-	resolved, err := filepath.EvalSymlinks(linkPath)
-	if err != nil {
-		return "", err
-	}
-	if !strings.HasPrefix(resolved, m.DevicePath) {
-		return "", fmt.Errorf("resolved to unexpected path: %q", resolved)
-	}
-	return resolved, nil
-}
-
 func (m *DeviceManager) GetDeviceByVolumeID(volumeID string) (string, error) {
-	device, err := m.GetRootBlockByVolumeID(volumeID)
+	path, err := m.GetRootBlockByVolumeID(volumeID)
 	if err != nil {
 		return "", err
 	}
-	if !GlobalConfigVar.DiskPartitionEnable {
-		return device, nil
+	if !m.EnableDiskPartition {
+		return path, nil
 	}
 
-	partition, err := m.adaptDevicePartition(device)
+	partition, err := m.adaptDevicePartition(path)
 	if err != nil {
-		return "", fmt.Errorf("volume %s resolved to device %s, but adapt partition failed: %w", volumeID, device, err)
+		return "", fmt.Errorf("volume %s resolved to device %s, but adapt partition failed: %w", volumeID, path, err)
 	}
 	return partition, nil
 }
@@ -115,11 +157,11 @@ func (m *DeviceManager) GetRootBlockByVolumeID(volumeID string) (string, error) 
 	idSuffix := strings.TrimPrefix(volumeID, "d-")
 	fileFound := false
 	for _, p := range idPrefixes {
-		volumeLinkPath := byIDPath + p + idSuffix
-		device, err := m.getDeviceByLink(volumeLinkPath)
+		volumeLinkPath := filepath.Join(byIDPath, p+idSuffix)
+		major, minor, err := m.DevTmpFS.DevFor(volumeLinkPath)
 		if err == nil {
-			log.Infof("GetDevice: device link %q to %q", volumeLinkPath, device)
-			return device, nil
+			log.Infof("GetDevice: device link %q: %d:%d", volumeLinkPath, major, minor)
+			return volumeLinkPath, nil
 		}
 		if !errors.Is(err, os.ErrNotExist) {
 			fileFound = true
@@ -136,10 +178,10 @@ func (m *DeviceManager) GetRootBlockByVolumeID(volumeID string) (string, error) 
 			for _, f := range files {
 				if strings.Contains(f.Name(), idSuffix) {
 					volumeLinkPath := filepath.Join(byIDPath, f.Name())
-					device, err := m.getDeviceByLink(volumeLinkPath)
+					major, minor, err := m.DevTmpFS.DevFor(volumeLinkPath)
 					if err == nil {
-						log.Infof("GetDevice: scanned device link %q to %s", volumeLinkPath, device)
-						return device, nil
+						log.Infof("GetDevice: scanned device link %q: %d:%d", volumeLinkPath, major, minor)
+						return volumeLinkPath, nil
 					}
 					errs = append(errs, fmt.Errorf("get by scanned link %q failed: %w", volumeLinkPath, err))
 				}
@@ -148,11 +190,11 @@ func (m *DeviceManager) GetRootBlockByVolumeID(volumeID string) (string, error) 
 	}
 
 	// this is danger in Bdf mode
-	if !IsVFNode() {
-		device, err := m.getDeviceBySerial(idSuffix)
+	if !m.DisableSerial {
+		name, err := m.getDeviceBySerial(idSuffix)
 		if err == nil {
-			log.Infof("GetDevice: Use the serial to find device, volumeID: %s, device: %s", volumeID, device)
-			return device, nil
+			log.Infof("GetDevice: Use the serial to find device, volumeID: %s, device: %s", volumeID, name)
+			return filepath.Join(m.DevicePath, name), nil
 		}
 		errs = append(errs, fmt.Errorf("find by serial: %w", err))
 	}
