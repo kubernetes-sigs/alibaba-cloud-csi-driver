@@ -112,6 +112,7 @@ const (
 	DiskNotPortable              = "DiskNotPortable"
 	IdempotentParameterMismatch  = "IdempotentParameterMismatch"
 	SnapshotNotFound             = "InvalidSnapshotId.NotFound"
+	InstanceNotFound             = "InvalidInstanceId.NotFound"
 
 	// DiskHighAvail tag
 	DiskHighAvail = "available"
