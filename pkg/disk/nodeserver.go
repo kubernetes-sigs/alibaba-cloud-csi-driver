@@ -378,9 +378,24 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", sourcePath, err.Error())
 		}
 	}
-	if (expectName != realDevice && realDevice != "tmpfs") || realDevice == "" {
-		log.Errorf("NodePublishVolume: Volume: %s, sourcePath: %s real Device: %s not same with expected: %s", req.VolumeId, sourcePath, realDevice, expectName)
-		return nil, status.Error(codes.Internal, "NodePublishVolume: sourcePath: "+sourcePath+" real Device: "+realDevice+" not same with Saved: "+expectName)
+	if realDevice != "tmpfs" {
+		matched := false
+		if realDevice != "" {
+			realMajor, realMinor, err := DefaultDeviceManager.DevTmpFS.DevFor(realDevice)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "NodePublishVolume: VolumeId: %s, stat real failed: %s", req.VolumeId, err.Error())
+			}
+			expectMajor, expectMinor, err := DefaultDeviceManager.DevTmpFS.DevFor(expectName)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "NodePublishVolume: VolumeId: %s, stat expect failed: %s", req.VolumeId, err.Error())
+			}
+			if realMajor == expectMajor && realMinor == expectMinor {
+				matched = true
+			}
+		}
+		if !matched {
+			return nil, status.Errorf(codes.Internal, "NodePublishVolume: VolumeId: %s, real Device: %s not same with expected: %s", req.VolumeId, realDevice, expectName)
+		}
 	}
 
 	// Set volume IO Limit
