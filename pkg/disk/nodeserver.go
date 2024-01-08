@@ -948,7 +948,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	}
 
 	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
-	if GlobalConfigVar.DiskPartitionEnable && !IsDeviceNvme(devicePath) && isDevicePartition(devicePath) {
+	if DefaultDeviceManager.EnableDiskPartition && !IsDeviceNvme(devicePath) && isDevicePartition(devicePath) {
 		rootPath, index, err := getDeviceRootAndIndex(devicePath)
 		if err != nil {
 			log.Errorf("NodeExpandVolume:: GetDeviceRootAndIndex: %s with error: %s", diskID, err.Error())

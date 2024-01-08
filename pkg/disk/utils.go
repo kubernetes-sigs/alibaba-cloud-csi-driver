@@ -302,22 +302,24 @@ func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
 	if !strings.HasPrefix(subDevicePath, rootDevicePath) {
 		return fmt.Errorf("DeviceNotAvailable: input devices is not root&sub device path: %s, %s ", rootDevicePath, subDevicePath)
 	}
-	digitPattern := "^(\\d+)$"
-	if result, err := regexp.MatchString(digitPattern, strings.TrimPrefix(subDevicePath, rootDevicePath)); err != nil || result != true {
-		return fmt.Errorf("checkRootAndSubDeviceFS: input devices not meet root&sub device path: %s, %s ", rootDevicePath, subDevicePath)
-	}
 
 	if !utils.IsFileExisting(rootDevicePath) || !utils.IsFileExisting(subDevicePath) {
-		return fmt.Errorf("Input device path is illegal format: %s, %s ", rootDevicePath, subDevicePath)
+		return fmt.Errorf("input device path does not exist: %s, %s ", rootDevicePath, subDevicePath)
 	}
-	fstype, pptype, _ := GetDiskFormat(rootDevicePath)
+	fstype, pptype, err := GetDiskFormat(rootDevicePath)
+	if err != nil {
+		return fmt.Errorf("GetDiskFormat of root device %s failed: %w", rootDevicePath, err)
+	}
 	if fstype != "" {
-		return fmt.Errorf("Root device %s, has filesystem exist: %s, and pptype: %s, disk is not supported ", rootDevicePath, fstype, pptype)
+		return fmt.Errorf("root device %s has filesystem: %s, and pptype: %s, disk is not supported ", rootDevicePath, fstype, pptype)
 	}
 
-	fstype, _, _ = GetDiskFormat(subDevicePath)
+	fstype, _, err = GetDiskFormat(subDevicePath)
+	if err != nil {
+		return fmt.Errorf("GetDiskFormat of sub device %s failed: %w", subDevicePath, err)
+	}
 	if fstype == "" {
-		return fmt.Errorf("Root device %s is partition, and you should format %s by hands ", rootDevicePath, subDevicePath)
+		return fmt.Errorf("root device %s has partition, and you should format %s by hands ", rootDevicePath, subDevicePath)
 	}
 	return nil
 }
