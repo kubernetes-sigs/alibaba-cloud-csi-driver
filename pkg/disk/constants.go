@@ -129,7 +129,7 @@ const (
 	DiskESSDEntry = "cloud_essd_entry"
 	// DiskHighPerformance
 	DiskPPerf = "cloud_pperf"
-	// DiskStandPerformace
+	// DiskStandPerformance
 	DiskSPerf = "cloud_sperf"
 	// DiskSharedSSD shared sdd disk type
 	DiskSharedSSD = "san_ssd"

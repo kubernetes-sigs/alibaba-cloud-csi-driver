@@ -100,7 +100,7 @@ const (
 	MountProtocolCPFSNFS = "cpfs-nfs"
 	// MountProtocolCPFSNative cpfs-native protocol
 	MountProtocolCPFSNative = "cpfs-native"
-	// MountProtocolAliNas alinas protocal
+	// MountProtocolAliNas alinas protocol
 	MountProtocolAliNas = "alinas"
 	// MountProtocolTag tag
 	MountProtocolTag = "mountProtocol"

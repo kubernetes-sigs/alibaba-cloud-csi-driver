@@ -189,7 +189,7 @@ func attachDisk(diskID, nodeID string) (string, error) {
 					return deviceName, nil
 				}
 			} else {
-				err := fmt.Errorf("AttachDisk: disk device cannot be found in node, diskid: %s, devicenName: %s", diskID, deviceName)
+				err := fmt.Errorf("AttachDisk: disk device cannot be found in node, diskid: %s, deviceName: %s", diskID, deviceName)
 				return "", err
 			}
 		}

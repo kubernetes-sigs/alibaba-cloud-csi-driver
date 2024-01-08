@@ -130,7 +130,7 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 							return deviceName, nil
 						}
 					}
-					err = fmt.Errorf("AttachDisk: disk device cannot be found in node, diskid: %s, devicenName: %s, err: %+v", diskID, deviceName, err)
+					err = fmt.Errorf("AttachDisk: disk device cannot be found in node, diskid: %s, deviceName: %s, err: %+v", diskID, deviceName, err)
 					return "", err
 				}
 			}
