@@ -20,7 +20,7 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-var defaultOssfsImageTag = "705dbf0-aliyun"
+var defaultOssfsImageTag = "36f22e0-aliyun"
 
 const (
 	hostPrefix                = "/host"
@@ -106,7 +106,7 @@ func (f *fuseOssfs) buildPodSpec(
 		mimeMountDir = OssfsDefMimeTypesFilePath
 	} else if strings.ToLower(f.config.Extra["mime-support"]) == "true" {
 		// mime.types not exists, use csi-mime.types
-		options = append(options, fmt.Sprintf("mime_types_file=%s", OssfsCsiMimeTypesFilePath))
+		options = append(options, fmt.Sprintf("mime=%s", OssfsCsiMimeTypesFilePath))
 		mimeMountDir = OssfsCsiMimeTypesFilePath
 	}
 
