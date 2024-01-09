@@ -106,7 +106,7 @@ func (f *fuseOssfs) buildPodSpec(
 		mimeMountDir = OssfsDefMimeTypesFilePath
 	} else if strings.ToLower(f.config.Extra["mime-support"]) == "true" {
 		// mime.types not exists, use csi-mime.types
-		options = append(options, fmt.Sprintf("mime_types_file=%s", OssfsCsiMimeTypesFilePath))
+		options = append(options, fmt.Sprintf("mime=%s", OssfsCsiMimeTypesFilePath))
 		mimeMountDir = OssfsCsiMimeTypesFilePath
 	}
 
