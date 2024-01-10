@@ -156,7 +156,7 @@ func (f *fuseOssfs) buildPodSpec(
 			},
 		},
 		StartupProbe: &corev1.Probe{
-			Handler: corev1.Handler{
+			ProbeHandler: corev1.ProbeHandler{
 				Exec: &corev1.ExecAction{
 					Command: []string{
 						"findmnt", "-t", "fuse.ossfs", target,
