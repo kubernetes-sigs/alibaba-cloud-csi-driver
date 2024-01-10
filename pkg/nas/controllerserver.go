@@ -656,7 +656,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			describeMountTargetRequest.MountTargetDomain = nfsServer
 			_, err := cs.nasClient.DescribeMountTargets(describeMountTargetRequest)
 			if err != nil {
-				if strings.Contains(err.Error(), "InvalidMountTarget.NotFound") {
+				if strings.Contains(err.Error(), "InvalidParam.MountTargetDomain") || strings.Contains(err.Error(), "InvalidMountTarget.NotFound") {
 					log.Infof("DeleteVolume: Volume %s MountTarget %s already delete", req.VolumeId, nfsServer)
 					isMountTargetDelete = true
 				}
