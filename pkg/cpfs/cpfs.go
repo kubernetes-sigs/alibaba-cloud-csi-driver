@@ -21,6 +21,7 @@ import (
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -28,10 +29,6 @@ const (
 	driverName = "cpfsplugin.csi.alibabacloud.com"
 	// InstanceID is instance id tag
 	InstanceID = "instance-id"
-)
-
-var (
-	version = "1.0.0"
 )
 
 // CPFS the CPFS object
@@ -48,7 +45,7 @@ type CPFS struct {
 
 // NewDriver create a cpfs driver object
 func NewDriver(nodeID, endpoint string) *CPFS {
-	log.Infof("Driver: %v version: %v", driverName, version)
+	log.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
 	d := &CPFS{}
 	d.endpoint = endpoint
@@ -56,7 +53,7 @@ func NewDriver(nodeID, endpoint string) *CPFS {
 		nodeID = utils.RetryGetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
-	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
+	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, nodeID)
 	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
 	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,

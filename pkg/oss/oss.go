@@ -25,6 +25,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -38,10 +39,6 @@ const (
 	driverName = "ossplugin.csi.alibabacloud.com"
 )
 
-var (
-	version = "1.0.0"
-)
-
 // OSS the OSS object
 type OSS struct {
 	driver   *csicommon.CSIDriver
@@ -50,7 +47,7 @@ type OSS struct {
 
 // NewDriver init oss type of csi driver
 func NewDriver(nodeID, endpoint string) *OSS {
-	log.Infof("Driver: %v version: %v", driverName, version)
+	log.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
 	d := &OSS{}
 	d.endpoint = endpoint
@@ -59,7 +56,7 @@ func NewDriver(nodeID, endpoint string) *OSS {
 		nodeID = utils.RetryGetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
-	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
+	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, nodeID)
 	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{
 		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
 	})

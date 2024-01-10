@@ -21,6 +21,7 @@ import (
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -38,7 +39,6 @@ type LVM struct {
 
 const (
 	driverName = "lvmplugin.csi.alibabacloud.com"
-	csiVersion = "1.0.0"
 )
 
 // Init checks for the persistent volume file and loads all found volumes
@@ -56,7 +56,7 @@ func NewDriver(nodeID, endpoint string) *LVM {
 		nodeID, _ = utils.GetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
-	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, nodeID)
+	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, nodeID)
 	tmplvm.driver = csiDriver
 	tmplvm.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,

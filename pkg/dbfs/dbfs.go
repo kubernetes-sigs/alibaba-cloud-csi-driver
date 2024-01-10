@@ -11,6 +11,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -27,7 +28,6 @@ const (
 )
 
 var (
-	version = "1.0.0"
 	// GlobalConfigVar Global Config
 	GlobalConfigVar GlobalConfig
 )
@@ -59,7 +59,7 @@ type DBFS struct {
 
 // NewDriver create the identity/node/controller server and dbfs driver
 func NewDriver(nodeID, endpoint string) *DBFS {
-	log.Log.Infof("Driver: %v version: %v", driverName, version)
+	log.Log.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
 	d := &DBFS{}
 	d.endpoint = endpoint
@@ -67,7 +67,7 @@ func NewDriver(nodeID, endpoint string) *DBFS {
 		nodeID = utils.RetryGetMetaData(InstanceID)
 		log.Log.Infof("DBFS Use node id : %s", nodeID)
 	}
-	csiDriver := csicommon.NewCSIDriver(driverName, version, nodeID)
+	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, nodeID)
 	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
 	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,

@@ -11,6 +11,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -19,7 +20,6 @@ import (
 
 const (
 	driverName            = "ensplugin.csi.alibabacloud.com"
-	csiVersion            = "1.0.0"
 	ensInstanceIDLabelKey = "alibabacloud.com/ens-instance-id"
 	clusterProfileKey     = "ack-cluster-profile"
 	clusterIdKey          = "clusterid"
@@ -70,7 +70,7 @@ func NewDriver(nodeID, endpoint string) *ENS {
 
 	NewGlobalConfig()
 
-	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, GlobalConfigVar.InstanceID)
+	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, GlobalConfigVar.InstanceID)
 	tmpENS.driver = csiDriver
 
 	tmpENS.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
@@ -91,7 +91,7 @@ func NewDriver(nodeID, endpoint string) *ENS {
 }
 
 func (ens *ENS) Run() {
-	log.Infof("Run: start csi-plugin driver: %s, version %s", driverName, csiVersion)
+	log.Infof("Run: start csi-plugin driver: %s, version %s", driverName, version.VERSION)
 	common.RunCSIServer(ens.endpoint, ens.idServer, ens.controllerServer, ens.nodeServer)
 }
 

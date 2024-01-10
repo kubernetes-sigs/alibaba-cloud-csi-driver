@@ -26,6 +26,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -46,7 +47,6 @@ type MEM struct {
 
 const (
 	driverName = "memplugin.csi.alibabacloud.com"
-	csiVersion = "1.0.0"
 )
 
 // Init checks for the persistent volume file and loads all found volumes
@@ -65,7 +65,7 @@ func NewDriver(nodeID, endpoint string) *MEM {
 		log.Infof("Use node id : %s", nodeID)
 	}
 	GlobalConfigSet("", nodeID, driverName)
-	csiDriver := csicommon.NewCSIDriver(driverName, csiVersion, nodeID)
+	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, nodeID)
 	tmpmem.driver = csiDriver
 	tmpmem.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,

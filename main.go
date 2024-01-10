@@ -46,20 +46,13 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/pov"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/prometheus/common/version"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 func init() {
 	flag.Set("logtostderr", "true")
-}
-
-func setPrometheusVersion() {
-	version.Version = VERSION
-	version.Revision = REVISION
-	version.Branch = BRANCH
-	version.BuildDate = BUILDTIME
 }
 
 const (
@@ -98,21 +91,6 @@ const (
 	// ExtenderAgent agent component
 	ExtenderAgent = "agent"
 )
-
-// BRANCH is CSI Driver Branch
-var BRANCH = ""
-
-// VERSION is CSI Driver Version
-var VERSION = ""
-
-// COMMITID is CSI Driver CommitID
-var COMMITID = ""
-
-// BUILDTIME is CSI Driver Buildtime
-var BUILDTIME = ""
-
-// REVISION is CSI Driver Revision
-var REVISION = ""
 
 var (
 	endpoint        = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
@@ -165,7 +143,7 @@ func main() {
 	// log.AddHook(rotateHook(logAttribute))
 
 	csilog.Log.Infof("Multi CSI Driver Name: %s, nodeID: %s, endPoints: %s", *driver, *nodeID, *endpoint)
-	csilog.Log.Infof("CSI Driver Branch: %s, Version: %s, Build time: %s\n", BRANCH, VERSION, BUILDTIME)
+	csilog.Log.Infof("CSI Driver, Version: %s, Build time: %s", version.VERSION, version.BUILDTIME)
 
 	multiDriverNames := *driver
 	driverNames := strings.Split(multiDriverNames, ",")
@@ -306,7 +284,7 @@ func main() {
 	}
 
 	enableMetric := os.Getenv("ENABLE_METRIC")
-	setPrometheusVersion()
+	version.SetPrometheusVersion()
 	if enableMetric == "false" {
 		metricConfig.enableMetric = false
 	}
