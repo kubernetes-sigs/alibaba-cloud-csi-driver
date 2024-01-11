@@ -28,6 +28,7 @@ import (
 	"time"
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
+	sdkerrors "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
@@ -603,4 +604,13 @@ func cleanupMountpoint(mounter mountutils.Interface, mountPath string) (err erro
 		err = mountutils.CleanupMountPoint(mountPath, mounter, false)
 	}
 	return
+}
+
+func isMountTargetNotFoundError(err error) bool {
+	var serverErr *sdkerrors.ServerError
+	if !errors.As(err, &serverErr) || serverErr == nil {
+		return false
+	}
+	code := serverErr.ErrorCode()
+	return code == "InvalidParam.MountTargetDomain" || code == "InvalidMountTarget.NotFound"
 }
