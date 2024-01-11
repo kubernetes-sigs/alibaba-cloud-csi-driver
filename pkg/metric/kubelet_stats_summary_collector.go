@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	saTokenFile        = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-	kubeletHttpTimeout = time.Second * 5
+	saTokenFile            = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+	kubeletStatsSummaryUrl = "https://localhost:10250/stats/summary"
+	kubeletHttpTimeout     = time.Second * 5
 )
 
 type fsStatsMetric struct {
@@ -82,7 +83,7 @@ type kubeletStatsSummaryCollector struct {
 }
 
 func (c *kubeletStatsSummaryCollector) Update(ch chan<- prometheus.Metric) error {
-	resp, err := c.client.Get("https://localhost:10250/stats/summary")
+	resp, err := c.client.Get(kubeletStatsSummaryUrl)
 	if err != nil {
 		return err
 	}
