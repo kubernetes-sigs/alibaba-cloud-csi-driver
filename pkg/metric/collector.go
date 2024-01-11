@@ -55,14 +55,19 @@ func newCSICollector(metricType string, driverNames []string) error {
 			enabledDrivers[d] = struct{}{}
 		}
 		for _, reg := range registry {
+			enabled := len(reg.RelatedDrivers) == 0
 			for _, d := range reg.RelatedDrivers {
 				if _, ok := enabledDrivers[d]; ok {
-					collector, err := reg.Factory()
-					if err != nil {
-						return err
-					}
-					collectors[reg.Name] = collector
+					enabled = true
+					break
 				}
+			}
+			if enabled {
+				collector, err := reg.Factory()
+				if err != nil {
+					return err
+				}
+				collectors[reg.Name] = collector
 			}
 		}
 
