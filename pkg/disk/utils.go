@@ -745,27 +745,6 @@ func removeVolumeConfig(volumeID string) error {
 	return nil
 }
 
-// IsDeviceUsedOthers check if the given device attached by other instance
-func IsDeviceUsedOthers(deviceName, volumeID string) (bool, error) {
-	files, err := ioutil.ReadDir(VolumeDir)
-	if err != nil {
-		return true, err
-	}
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		} else {
-			if strings.HasSuffix(file.Name(), ".conf") {
-				tmpVolID := strings.Replace(file.Name(), ".conf", "", 1)
-				if tmpVolID != volumeID && getVolumeConfig(tmpVolID) == deviceName {
-					return true, nil
-				}
-			}
-		}
-	}
-	return false, nil
-}
-
 func getMultiZones(segments map[string]string) (string, bool) {
 	parseZone := func(key string) string {
 		return key[len(TopologyMultiZonePrefix):]
