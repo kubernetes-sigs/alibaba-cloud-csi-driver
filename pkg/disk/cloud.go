@@ -999,7 +999,7 @@ func getDiskType(diskVol *diskVolumeArgs) ([]string, []string, error) {
 	}
 
 	provisionDiskTypes := []string{}
-	allTypes := deleteEmpty(strings.Split(diskVol.Type, ","))
+	allTypes := deleteEmpty(diskVol.Type)
 	if len(nodeSupportDiskType) != 0 {
 		provisionDiskTypes = intersect(nodeSupportDiskType, allTypes)
 		if len(provisionDiskTypes) == 0 {
@@ -1009,10 +1009,7 @@ func getDiskType(diskVol *diskVolumeArgs) ([]string, []string, error) {
 	} else {
 		provisionDiskTypes = allTypes
 	}
-	provisionPerformanceLevel := []string{}
-	if diskVol.PerformanceLevel != "" {
-		provisionPerformanceLevel = strings.Split(diskVol.PerformanceLevel, ",")
-	}
+	provisionPerformanceLevel := diskVol.PerformanceLevel
 	return provisionDiskTypes, provisionPerformanceLevel, nil
 }
 
