@@ -380,12 +380,18 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if notmounted {
 		mountPoints := GetOssfsMountPoints()
 		log.Warnf("NodeUnpublishVolume: mount point %s is unmounted, got ossfs mount point list: %v", mountPoint, mountPoints)
-		if removeErr := os.Remove(mountPoint); removeErr != nil {
-			log.Errorf("NodeUnpublishVolume: Could not remove mount point %s with error %v", mountPoint, removeErr)
-			return nil, status.Errorf(codes.Internal, "Could not remove mount point %s: %v", mountPoint, removeErr)
+		removeErr := os.Remove(mountPoint)
+		if removeErr == nil {
+			log.Infof("NodeUnpublishVolume: %s is unmounted and empty, removed successfully", mountPoint)
+			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
-		log.Infof("NodeUnpublishVolume: %s is unmounted and empty, removed successfully", mountPoint)
-		return &csi.NodeUnpublishVolumeResponse{}, nil
+		if os.IsNotExist(err) {
+			log.Infof("NodeUnpublishVolume: %s does not exist, skip removal", mountPoint)
+			return &csi.NodeUnpublishVolumeResponse{}, nil
+		}
+		log.Errorf("NodeUnpublishVolume: Could not remove mount point %s with error %v", mountPoint, removeErr)
+		return nil, status.Errorf(codes.Internal, "Could not remove mount point %s: %v", mountPoint, removeErr)
+
 	}
 
 	pvName := req.GetVolumeId()
@@ -420,13 +426,17 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		log.Errorf("NodeUnpublishVolume: %s is unmounted but still not empty yet", mountPoint)
 		return nil, status.Error(codes.Internal, "NodeUnpublishVolume: is unmounted but still not empty yet "+mountPoint)
 	}
-	if removeErr := os.Remove(mountPoint); removeErr != nil {
-		log.Errorf("NodeUnpublishVolume: Could not remove mount point %s with error %v", mountPoint, removeErr)
-		return nil, status.Errorf(codes.Internal, "Could not remove mount point %s: %v", mountPoint, removeErr)
+	removeErr := os.Remove(mountPoint)
+	if removeErr == nil {
+		log.Infof("NodeUnpublishVolume:: Umount OSS Successful: %s", mountPoint)
+		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
-
-	log.Infof("NodeUnpublishVolume:: Umount OSS Successful: %s", mountPoint)
-	return &csi.NodeUnpublishVolumeResponse{}, nil
+	if os.IsNotExist(err) {
+		log.Infof("NodeUnpublishVolume: %s does not exist, skip removal", mountPoint)
+		return &csi.NodeUnpublishVolumeResponse{}, nil
+	}
+	log.Errorf("NodeUnpublishVolume: Could not remove mount point %s with error %v", mountPoint, removeErr)
+	return nil, status.Errorf(codes.Internal, "Could not remove mount point %s: %v", mountPoint, removeErr)
 }
 
 func (ns *nodeServer) NodeStageVolume(
