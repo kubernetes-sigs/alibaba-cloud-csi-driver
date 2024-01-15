@@ -2,6 +2,7 @@ package metric
 
 import (
 	"errors"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -98,6 +99,11 @@ func (csi CSICollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func execute(name string, c Collector, ch chan<- prometheus.Metric) {
+	defer func() {
+		if err := recover(); err != nil {
+			logrus.Errorf("Collecotor panic occurred: %v. stacktrace: %s", err, string(debug.Stack()))
+		}
+	}()
 	begin := time.Now()
 	err := c.Update(ch)
 	duration := time.Since(begin)
