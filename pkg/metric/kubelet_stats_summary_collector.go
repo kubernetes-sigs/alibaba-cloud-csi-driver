@@ -97,18 +97,22 @@ func (c *kubeletStatsSummaryCollector) Update(ch chan<- prometheus.Metric) error
 		return err
 	}
 	for _, pod := range summary.Pods {
-		for _, m := range ephemeralStorageMetrics {
-			metric := m.Metric(pod.EphemeralStorage, pod.PodRef.Namespace, pod.PodRef.Name, pod.PodRef.UID)
-			if metric != nil {
-				ch <- metric
+		if pod.EphemeralStorage != nil {
+			for _, m := range ephemeralStorageMetrics {
+				metric := m.Metric(pod.EphemeralStorage, pod.PodRef.Namespace, pod.PodRef.Name, pod.PodRef.UID)
+				if metric != nil {
+					ch <- metric
+				}
 			}
 		}
 
 		for _, container := range pod.Containers {
-			for _, m := range rootfsMetrics {
-				metric := m.Metric(container.Rootfs, pod.PodRef.Namespace, pod.PodRef.Name, pod.PodRef.UID, container.Name)
-				if metric != nil {
-					ch <- metric
+			if container.Rootfs != nil {
+				for _, m := range rootfsMetrics {
+					metric := m.Metric(container.Rootfs, pod.PodRef.Namespace, pod.PodRef.Name, pod.PodRef.UID, container.Name)
+					if metric != nil {
+						ch <- metric
+					}
 				}
 			}
 		}
