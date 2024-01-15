@@ -113,10 +113,8 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 				log.Log.Infof("attachDisk: rootDevice: %s, subDevice: %s, err: %+v", rootDevice, subDevice, err)
 				deviceName := ChooseDevice(rootDevice, subDevice)
 				if err == nil && deviceName != "" && IsFileExisting(deviceName) {
-					if used, err := IsDeviceUsedOthers(deviceName, diskID); err == nil && used == false {
-						log.Log.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
-						return deviceName, nil
-					}
+					log.Log.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
+					return deviceName, nil
 				} else {
 					// wait for pci attach ready
 					time.Sleep(5 * time.Second)
@@ -125,10 +123,8 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 					rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
 					deviceName = ChooseDevice(rootDevice, subDevice)
 					if err == nil && deviceName != "" && IsFileExisting(deviceName) {
-						if used, err := IsDeviceUsedOthers(deviceName, diskID); err == nil && used == false {
-							log.Log.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
-							return deviceName, nil
-						}
+						log.Log.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
+						return deviceName, nil
 					}
 					err = fmt.Errorf("AttachDisk: disk device cannot be found in node, diskid: %s, deviceName: %s, err: %+v", diskID, deviceName, err)
 					return "", err
