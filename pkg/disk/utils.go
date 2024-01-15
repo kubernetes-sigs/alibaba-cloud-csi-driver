@@ -940,9 +940,9 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	// kmsKeyId
-	diskVolArgs.KMSKeyID, ok = volOptions["kmsKeyId"]
+	diskVolArgs.KMSKeyID, ok = volOptions[KMSKeyID]
 	if !ok {
-		diskVolArgs.KMSKeyID = ""
+		diskVolArgs.KMSKeyID = volOptions["kmsKeyId"]
 	}
 
 	if arnStr, ok := volOptions[CreateDiskARN]; ok {
