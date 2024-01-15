@@ -28,11 +28,12 @@ const fuseMountTimeout = time.Second * 30
 const fuseMountNamespace = "kube-system"
 
 const (
-	FuseTypeLabelKey          = "csi.alibabacloud.com/fuse-type"
-	FuseVolumeIdLabelKey      = "csi.alibabacloud.com/volume-id"
-	FuseMountPathHashLabelKey = "csi.alibabacloud.com/mount-path-hash"
-	FuseMountPathAnnoKey      = "csi.alibabacloud.com/mount-path"
-	FuseSafeToEvictAnnoKey    = "cluster-autoscaler.kubernetes.io/safe-to-evict"
+	FuseTypeLabelKey           = "csi.alibabacloud.com/fuse-type"
+	FuseVolumeIdLabelKey       = "csi.alibabacloud.com/volume-id"
+	FuseMountPathHashLabelKey  = "csi.alibabacloud.com/mount-path-hash"
+	FuseMountPathAnnoKey       = "csi.alibabacloud.com/mount-path"
+	FuseSafeToEvictAnnoKey     = "cluster-autoscaler.kubernetes.io/safe-to-evict"
+	FuseUsedByPodAnnoKeyPrefix = "csi.alibabacloud.com/used-by-pod"
 )
 
 type AuthConfig struct {
@@ -155,12 +156,13 @@ func NewContainerizedFuseMounterFactory(
 // This implies that mount operations will either succeed when the fuse pod is ready,
 // or fail and ensure that no fuse pods are left behind.
 func (fac *ContainerizedFuseMounterFactory) NewFuseMounter(
-	ctx context.Context, volumeId string, authCfg *AuthConfig, atomic bool) *ContainerizedFuseMounter {
+	ctx context.Context, volumeId, podUid string, authCfg *AuthConfig, atomic bool) *ContainerizedFuseMounter {
 	return &ContainerizedFuseMounter{
 		ctx:       ctx,
 		atomic:    atomic,
 		volumeId:  volumeId,
 		nodeName:  fac.nodeName,
+		podUid:    podUid,
 		namespace: fac.namespace,
 		authCfg:   authCfg,
 		client:    fac.client,
@@ -178,6 +180,7 @@ type ContainerizedFuseMounter struct {
 	atomic    bool
 	volumeId  string
 	nodeName  string
+	podUid    string
 	namespace string
 	authCfg   *AuthConfig
 	client    kubernetes.Interface
@@ -187,15 +190,21 @@ type ContainerizedFuseMounter struct {
 }
 
 func (mounter *ContainerizedFuseMounter) Mount(source string, target string, fstype string, options []string) error {
+	ctx, cancel := context.WithTimeout(mounter.ctx, fuseMountTimeout)
+	defer cancel()
+
 	for _, option := range options {
 		if option == "bind" {
-			return mounter.Interface.Mount(source, target, fstype, options)
+			err := mounter.Interface.Mount(source, target, fstype, options)
+			if err != nil {
+				return err
+			}
+			mounter.addPodAnnotation(ctx, target, mounter.podUid)
+			return nil
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(mounter.ctx, fuseMountTimeout)
-	defer cancel()
-	err := mounter.launchFusePod(ctx, source, target, fstype, mounter.authCfg, options, nil)
+	err := mounter.launchFusePod(ctx, source, target, fstype, options, nil)
 	if err != nil {
 		return err
 	}
@@ -232,7 +241,7 @@ func (mounter *ContainerizedFuseMounter) labelsAndListOptionsFor(target string) 
 	return labels, listOptions
 }
 
-func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, source, target, fstype string, authCfg *AuthConfig, options, mountFlags []string) error {
+func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, source, target, fstype string, options, mountFlags []string) error {
 	podClient := mounter.client.CoreV1().Pods(mounter.namespace)
 	labels, listOptions := mounter.labelsAndListOptionsFor(target)
 	podList, err := podClient.List(ctx, listOptions)
@@ -273,9 +282,9 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 		var rawPod corev1.Pod
 		rawPod.GenerateName = fmt.Sprintf("csi-fuse-%s-", mounter.name())
 		rawPod.Labels = labels
-		rawPod.Annotations = map[string]string{FuseMountPathAnnoKey: target, FuseSafeToEvictAnnoKey: "true"}
+		rawPod.Annotations = map[string]string{FuseMountPathAnnoKey: target, FuseSafeToEvictAnnoKey: "true", getUsedByPodAnnoKey(mounter.podUid): time.Now().Format("2006-01-02-15:04:05")}
 		mounter.addPodMeta(&rawPod)
-		rawPod.Spec, err = mounter.buildPodSpec(source, target, fstype, authCfg, options, mountFlags, mounter.nodeName, mounter.volumeId)
+		rawPod.Spec, err = mounter.buildPodSpec(source, target, fstype, mounter.authCfg, options, mountFlags, mounter.nodeName, mounter.volumeId)
 		if err != nil {
 			return err
 		}
@@ -333,6 +342,25 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 	return nil
 }
 
+func (mounter *ContainerizedFuseMounter) addPodAnnotation(ctx context.Context, target, podUid string) error {
+	podClient := mounter.client.CoreV1().Pods(mounter.namespace)
+	_, listOptions := mounter.labelsAndListOptionsFor(target)
+	podList, err := podClient.List(ctx, listOptions)
+	if err != nil {
+		return err
+	}
+	var errs []error
+	for _, pod := range podList.Items {
+		if pod.Annotations == nil {
+			pod.Annotations = make(map[string]string)
+		}
+		pod.Annotations[getUsedByPodAnnoKey(podUid)] = time.Now().Format("2006-01-02-15:04:05")
+		_, err := podClient.Update(ctx, &pod, metav1.UpdateOptions{})
+		errs = append(errs, err)
+	}
+	return utilerrors.NewAggregate(errs)
+}
+
 func (mounter *ContainerizedFuseMounter) cleanupFusePods(ctx context.Context, target string) error {
 	podClient := mounter.client.CoreV1().Pods(mounter.namespace)
 	_, listOptions := mounter.labelsAndListOptionsFor(target)
@@ -345,6 +373,12 @@ func (mounter *ContainerizedFuseMounter) cleanupFusePods(ctx context.Context, ta
 		if pod.Annotations[FuseMountPathAnnoKey] == target {
 			mounter.log.WithField("target", target).Infof("deleting fuse pod %s", pod.Name)
 			err := podClient.Delete(ctx, pod.Name, metav1.DeleteOptions{})
+			errs = append(errs, err)
+			continue
+		}
+		if _, ok := pod.Annotations[getUsedByPodAnnoKey(mounter.podUid)]; ok {
+			delete(pod.Annotations, getUsedByPodAnnoKey(mounter.podUid))
+			_, err := podClient.Update(ctx, &pod, metav1.UpdateOptions{})
 			errs = append(errs, err)
 		}
 	}
@@ -364,4 +398,8 @@ func computeMountPathHash(target string) string {
 	hasher := fnv.New32a()
 	hasher.Write([]byte(target))
 	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
+}
+
+func getUsedByPodAnnoKey(podUid string) string {
+	return strings.Join([]string{FuseUsedByPodAnnoKeyPrefix, podUid}, "-")
 }

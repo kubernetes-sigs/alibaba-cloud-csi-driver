@@ -110,6 +110,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// logout oss paras
 	log.Infof("NodePublishVolume:: Starting Mount volume: %s mount with req: %+v", req.VolumeId, req)
 	mountPath := req.GetTargetPath()
+	podUid := getPodUid(mountPath, req.VolumeId)
+
 	if err := validateNodePublishVolumeRequest(req); err != nil {
 		return nil, err
 	}
@@ -219,7 +221,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		// mount operations need to be atomic to ensure that no fuse pods are left behind in case of failure.
 		// Because kubelet will not call NodeUnpublishVolume when NodePublishVolume never succeeded.
 		authCfg := &mounter.AuthConfig{AuthType: opt.AuthType}
-		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId, authCfg, !opt.UseSharedPath)
+		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId, podUid, authCfg, !opt.UseSharedPath)
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "unknown fuseType: %q", opt.FuseType)
 	}
@@ -453,5 +455,5 @@ func (ns *nodeServer) cleanupMountPoint(ctx context.Context, volumeId string, mo
 	if err != nil {
 		return err
 	}
-	return ns.ossfsMounterFac.NewFuseMounter(ctx, volumeId, nil, false).Unmount(mountpoint)
+	return ns.ossfsMounterFac.NewFuseMounter(ctx, volumeId, getPodUid(mountpoint, volumeId), nil, false).Unmount(mountpoint)
 }
