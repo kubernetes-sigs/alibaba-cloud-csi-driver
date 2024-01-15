@@ -707,6 +707,23 @@ func saveVolumeConfig(volumeID, devicePath string) error {
 	if err := removeVolumeConfig(volumeID); err != nil {
 		return err
 	}
+	// cleanup all config files that is pointing to devicePath. Such files may be leaked
+	// if previous UnstageVolume is skipped. This is possible if the VolumeDevice is
+	// detached by others (e.g. DeleteVolume).
+	files, err := os.ReadDir(VolumeDir)
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		if file.Type().IsRegular() && strings.HasSuffix(file.Name(), ".conf") {
+			tmpVolID := strings.TrimSuffix(file.Name(), ".conf")
+			if getVolumeConfig(tmpVolID) == devicePath {
+				if err := removeVolumeConfig(tmpVolID); err != nil {
+					return fmt.Errorf("failed to remove volume config for %s: %w", tmpVolID, err)
+				}
+			}
+		}
+	}
 
 	volumeFile := path.Join(VolumeDir, volumeID+".conf")
 	if err := ioutil.WriteFile(volumeFile, []byte(devicePath), 0644); err != nil {
