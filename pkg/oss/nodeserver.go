@@ -385,7 +385,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 			log.Infof("NodeUnpublishVolume: %s is unmounted and empty, removed successfully", mountPoint)
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
-		if os.IsNotExist(err) {
+		if os.IsNotExist(removeErr) {
 			log.Infof("NodeUnpublishVolume: %s does not exist, skip removal", mountPoint)
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
@@ -431,7 +431,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		log.Infof("NodeUnpublishVolume:: Umount OSS Successful: %s", mountPoint)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
-	if os.IsNotExist(err) {
+	if os.IsNotExist(removeErr) {
 		log.Infof("NodeUnpublishVolume: %s does not exist, skip removal", mountPoint)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
