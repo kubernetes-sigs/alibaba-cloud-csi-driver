@@ -966,20 +966,27 @@ func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (r
 	if err == nil {
 		log.Log.Infof("request: diskId: %s, reqId: %s", volumeRes.DiskId, volumeRes.RequestId)
 		return true, volumeRes.DiskId, nil
-	} else if strings.Contains(err.Error(), DiskNotAvailable) || strings.Contains(err.Error(), DiskNotAvailableVer2) {
-		log.Log.Infof("request: Create Disk for volume %s with diskCatalog: %s is not supported in zone: %s", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.ZoneId)
-		return false, "", err
-	} else if strings.Contains(err.Error(), DiskPerformanceLevelNotMatch) && createDiskRequest.DiskCategory == DiskESSD {
-		log.Log.Infof("request: Create Disk for volume %s with diskCatalog: %s , pl: %s has invalid disk size: %s", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel, createDiskRequest.Size)
-		return false, "", err
-	} else if strings.Contains(err.Error(), DiskIopsLimitExceeded) && createDiskRequest.DiskCategory == DiskESSDAuto {
-		log.Log.Infof("request: Create Disk for volume %s with diskCatalog: %s , provisioned iops %s has exceeded limit", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.ProvisionedIops)
-		return false, "", err
-	} else {
-		log.Log.Errorf("request: create disk for volume %s with type: %s err: %v", createDiskRequest.DiskName, createDiskRequest.DiskCategory, err)
-		newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskProvision)
-		return true, "", fmt.Errorf("%s: %w", newErrMsg, err)
 	}
+	var aliErr *alicloudErr.ServerError
+	if errors.As(err, &aliErr) {
+		if strings.HasPrefix(aliErr.ErrorCode(), DiskNotAvailable) || strings.Contains(aliErr.Message(), DiskNotAvailableVer2) {
+			log.Log.Infof("request: Create Disk for volume %s with diskCatalog: %s is not supported in zone: %s", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.ZoneId)
+			return false, "", err
+		} else if aliErr.ErrorCode() == DiskSizeNotAvailable1 || aliErr.ErrorCode() == DiskSizeNotAvailable2 {
+			// although we have checked the size above, but these limits are subject to change, so we may still encounter this error
+			log.Log.Infof("request: Create Disk for volume %s with diskCatalog: %s has invalid disk size: %s", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.Size)
+			return false, "", err
+		} else if aliErr.ErrorCode() == DiskPerformanceLevelNotMatch && createDiskRequest.DiskCategory == DiskESSD {
+			log.Log.Infof("request: Create Disk for volume %s with diskCatalog: %s , pl: %s has invalid disk size: %s", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel, createDiskRequest.Size)
+			return false, "", err
+		} else if aliErr.ErrorCode() == DiskIopsLimitExceeded && createDiskRequest.DiskCategory == DiskESSDAuto {
+			log.Log.Infof("request: Create Disk for volume %s with diskCatalog: %s , provisioned iops %s has exceeded limit", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.ProvisionedIops)
+			return false, "", err
+		}
+	}
+	log.Log.Errorf("request: create disk for volume %s with type: %s err: %v", createDiskRequest.DiskName, createDiskRequest.DiskCategory, err)
+	newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskProvision)
+	return true, "", fmt.Errorf("%s: %w", newErrMsg, err)
 }
 
 func getDiskType(diskVol *diskVolumeArgs) ([]string, []string, error) {
