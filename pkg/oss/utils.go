@@ -100,7 +100,8 @@ func parseOtherOpts(otherOpts string) (mountOptions []string, err error) {
 }
 
 func getPodUid(targetPath, volumeID string) (podUid string) {
-	prefix := filepath.Join(utils.KubeletRootDir, "pods/")
+	prefix := filepath.Join(utils.KubeletRootDir, "pods")
+	prefix = prefix + "/"
 	suffix := filepath.Join("/volumes/kubernetes.io~csi", volumeID, "mount")
 	podUid = strings.TrimSuffix(strings.TrimPrefix(targetPath, prefix), suffix)
 	return

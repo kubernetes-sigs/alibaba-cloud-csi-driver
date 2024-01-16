@@ -33,7 +33,7 @@ const (
 	FuseMountPathHashLabelKey  = "csi.alibabacloud.com/mount-path-hash"
 	FuseMountPathAnnoKey       = "csi.alibabacloud.com/mount-path"
 	FuseSafeToEvictAnnoKey     = "cluster-autoscaler.kubernetes.io/safe-to-evict"
-	FuseUsedByPodAnnoKeyPrefix = "csi.alibabacloud.com/used-by-pod"
+	FuseUsedByPodAnnoKeyPrefix = "used-by-pod"
 )
 
 type AuthConfig struct {
@@ -199,7 +199,10 @@ func (mounter *ContainerizedFuseMounter) Mount(source string, target string, fst
 			if err != nil {
 				return err
 			}
-			mounter.addPodAnnotation(ctx, target, mounter.podUid)
+			err = mounter.addPodAnnotation(ctx, source, mounter.podUid)
+			if err != nil {
+				mounter.log.Warnf("addPodAnnotation failed err: %v", err)
+			}
 			return nil
 		}
 	}
@@ -343,6 +346,9 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 }
 
 func (mounter *ContainerizedFuseMounter) addPodAnnotation(ctx context.Context, target, podUid string) error {
+	if podUid == "" {
+		return fmt.Errorf("podUid is empty, skip adding pod annotation")
+	}
 	podClient := mounter.client.CoreV1().Pods(mounter.namespace)
 	_, listOptions := mounter.labelsAndListOptionsFor(target)
 	podList, err := podClient.List(ctx, listOptions)
@@ -379,7 +385,9 @@ func (mounter *ContainerizedFuseMounter) cleanupFusePods(ctx context.Context, ta
 		if _, ok := pod.Annotations[getUsedByPodAnnoKey(mounter.podUid)]; ok {
 			delete(pod.Annotations, getUsedByPodAnnoKey(mounter.podUid))
 			_, err := podClient.Update(ctx, &pod, metav1.UpdateOptions{})
-			errs = append(errs, err)
+			if err != nil {
+				mounter.log.Warnf("removePodAnnotation failed err: %v", err)
+			}
 		}
 	}
 	return utilerrors.NewAggregate(errs)
@@ -401,5 +409,5 @@ func computeMountPathHash(target string) string {
 }
 
 func getUsedByPodAnnoKey(podUid string) string {
-	return strings.Join([]string{FuseUsedByPodAnnoKeyPrefix, podUid}, "-")
+	return strings.Join([]string{FuseUsedByPodAnnoKeyPrefix, podUid}, "/")
 }
