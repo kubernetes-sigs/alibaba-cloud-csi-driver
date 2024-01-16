@@ -93,8 +93,6 @@ var (
 	nodeID          = flag.String("nodeid", "", "node id")
 	runAsController = flag.Bool("run-as-controller", false, "Only run as controller service")
 	driver          = flag.String("driver", TypePluginDISK, "CSI Driver")
-	clusterID       = flag.String("clusterid", "", "cluster id")
-	aliUID          = flag.String("aliuid", "", "aliyun user id")
 	// Deprecated: rootDir is instead by KUBELET_ROOT_DIR env.
 	rootDir = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
 )

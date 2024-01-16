@@ -45,8 +45,8 @@ type AuthConfig struct {
 }
 
 type RrsaConfig struct {
-	ClusterId string
-	aliUid    string
+	aliUid   string
+	provider string
 }
 
 const (

@@ -61,9 +61,15 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) Fuse
 	if _, ok := config.Resources.Requests[corev1.ResourceMemory]; !ok {
 		config.Resources.Requests[corev1.ResourceMemory] = resource.MustParse("50Mi")
 	}
+
+	provider, _ := GetOIDCProvider()
+	aliUid := GetAliUid()
+	if provider == "" || aliUid == "" {
+		log.Warnf("Get OIDC provider: %s, user id: %s, cannot use RRSA to authorize fuse pods", provider, aliUid)
+	}
 	rrsaConfig := RrsaConfig{
-		ClusterId: clusterId,
-		aliUid:    aliUid,
+		provider: provider,
+		aliUid:   aliUid,
 	}
 	return &fuseOssfs{config: config, rrsaConfig: rrsaConfig}
 }
@@ -324,7 +330,7 @@ func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig, rrsaC
 			MountPath: rrsaMountDir,
 		}
 		container.VolumeMounts = append(container.VolumeMounts, rrsaVolumeMount)
-		roleArn, providerArn := utils.GetArn(rrsaCfg.ClusterId, rrsaCfg.aliUid, authCfg.RoleName)
+		roleArn, providerArn := GetArn(rrsaCfg.provider, rrsaCfg.aliUid, authCfg.RoleName)
 		envs := []corev1.EnvVar{
 			{
 				Name:  "ALIBABA_CLOUD_ROLE_ARN",

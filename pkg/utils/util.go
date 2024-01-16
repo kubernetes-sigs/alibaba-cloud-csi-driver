@@ -1097,13 +1097,3 @@ func GetNvmeDeviceByVolumeID(volumeID string) (device string, err error) {
 	}
 	return "", nil
 }
-
-// GetArn get rrsa config for fuse contianer's env setting
-func GetArn(clusterId, aliUid, roleName string) (roleArn, providerArn string) {
-	if clusterId == "" || aliUid == "" || roleName == "" {
-		return
-	}
-	roleArn = fmt.Sprintf("acs:ram::%s:role/%s", aliUid, roleName)
-	providerArn = fmt.Sprintf("acs:ram::%s:oidc-provider/ack-rrsa-%s", aliUid, clusterId)
-	return
-}

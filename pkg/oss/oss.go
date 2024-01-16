@@ -17,6 +17,7 @@ limitations under the License.
 package oss
 
 import (
+	"context"
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -28,7 +29,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
@@ -39,16 +39,6 @@ import (
 const (
 	driverName = "ossplugin.csi.alibabacloud.com"
 )
-
-var (
-	GlobalConfigVar GlobalConfig
-)
-
-// GlobalConfig save global values for plugin
-type GlobalConfig struct {
-	ClusterID string
-	AliUID    string
-}
 
 // OSS the OSS object
 type OSS struct {
@@ -78,13 +68,6 @@ func NewDriver(nodeID, endpoint string, m metadata.MetadataProvider, runAsContro
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_UNKNOWN,
 	})
-
-	GlobalConfigVar.ClusterID = clusterID
-	GlobalConfigVar.AliUID = aliUID
-
-	if clusterID == "" || aliUID == "" {
-		log.Warnf("Get cluster id: %s, user id: %s, cannot use RRSA to authorize fuse pods", clusterID, aliUID)
-	}
 
 	d.driver = csiDriver
 
