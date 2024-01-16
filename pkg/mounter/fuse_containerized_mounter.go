@@ -225,7 +225,13 @@ func (mounter *ContainerizedFuseMounter) Mount(source string, target string, fst
 }
 
 func (mounter *ContainerizedFuseMounter) Unmount(target string) error {
-	err := mounter.cleanupFusePods(mounter.ctx, target)
+	ctx, cancel := context.WithTimeout(mounter.ctx, fuseMountTimeout)
+	defer cancel()
+	err := mounter.removePodAnnotation(ctx, mounter.podUid)
+	if err != nil {
+		mounter.log.Warnf("removePodAnnotation failed err: %v", err)
+	}
+	err = mounter.cleanupFusePods(mounter.ctx, target)
 	if err != nil {
 		return fmt.Errorf("cleanup fuse pods: %w", err)
 	}
@@ -354,7 +360,7 @@ type PatchStringValue struct {
 
 func (mounter *ContainerizedFuseMounter) addPodAnnotation(ctx context.Context, target, podUid string) error {
 	if podUid == "" {
-		return fmt.Errorf("podUid is empty, skip adding pod annotation")
+		return nil
 	}
 	podClient := mounter.client.CoreV1().Pods(mounter.namespace)
 	_, listOptions := mounter.labelsAndListOptionsFor(target)
@@ -377,6 +383,39 @@ func (mounter *ContainerizedFuseMounter) addPodAnnotation(ctx context.Context, t
 	return utilerrors.NewAggregate(errs)
 }
 
+func (mounter *ContainerizedFuseMounter) removePodAnnotation(ctx context.Context, podUid string) error {
+	if podUid == "" {
+		return nil
+	}
+	podClient := mounter.client.CoreV1().Pods(mounter.namespace)
+	labels := map[string]string{
+		FuseTypeLabelKey:     mounter.name(),
+		FuseVolumeIdLabelKey: mounter.volumeId,
+	}
+	listOptions := metav1.ListOptions{
+		FieldSelector: fields.OneTermEqualSelector("spec.nodeName", mounter.nodeName).String(),
+		LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: labels}),
+	}
+	podList, err := podClient.List(ctx, listOptions)
+	if err != nil {
+		return err
+	}
+	var errs []error
+	for _, pod := range podList.Items {
+		if _, ok := pod.Annotations[getUsedByPodAnnoKey(mounter.podUid)]; ok {
+			payload := PatchStringValue{
+				Op:   "remove",
+				Path: "/metadata/annotations/" + strings.Replace(getUsedByPodAnnoKey(mounter.podUid), "/", "~1", -1),
+			}
+			payloads := []PatchStringValue{payload}
+			payloadBytes, _ := json.Marshal(payloads)
+			_, err := podClient.Patch(ctx, pod.Name, types.JSONPatchType, payloadBytes, metav1.PatchOptions{})
+			errs = append(errs, err)
+		}
+	}
+	return utilerrors.NewAggregate(errs)
+}
+
 func (mounter *ContainerizedFuseMounter) cleanupFusePods(ctx context.Context, target string) error {
 	podClient := mounter.client.CoreV1().Pods(mounter.namespace)
 	_, listOptions := mounter.labelsAndListOptionsFor(target)
@@ -390,19 +429,6 @@ func (mounter *ContainerizedFuseMounter) cleanupFusePods(ctx context.Context, ta
 			mounter.log.WithField("target", target).Infof("deleting fuse pod %s", pod.Name)
 			err := podClient.Delete(ctx, pod.Name, metav1.DeleteOptions{})
 			errs = append(errs, err)
-			continue
-		}
-		if _, ok := pod.Annotations[getUsedByPodAnnoKey(mounter.podUid)]; ok {
-			payload := PatchStringValue{
-				Op:   "remove",
-				Path: "/metadata/annotations/" + strings.Replace(getUsedByPodAnnoKey(mounter.podUid), "/", "~1", -1),
-			}
-			payloads := []PatchStringValue{payload}
-			payloadBytes, _ := json.Marshal(payloads)
-			_, err := podClient.Patch(ctx, pod.Name, types.JSONPatchType, payloadBytes, metav1.PatchOptions{})
-			if err != nil {
-				mounter.log.Warnf("removePodAnnotation failed err: %v", err)
-			}
 		}
 	}
 	return utilerrors.NewAggregate(errs)

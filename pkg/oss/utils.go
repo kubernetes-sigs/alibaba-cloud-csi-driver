@@ -103,7 +103,9 @@ func getPodUid(targetPath, volumeID string) (podUid string) {
 	prefix := filepath.Join(utils.KubeletRootDir, "pods")
 	prefix = prefix + "/"
 	suffix := filepath.Join("/volumes/kubernetes.io~csi", volumeID, "mount")
-	podUid = strings.TrimSuffix(strings.TrimPrefix(targetPath, prefix), suffix)
+	if strings.HasPrefix(targetPath, prefix) && strings.HasSuffix(targetPath, suffix) {
+		podUid = strings.TrimSuffix(strings.TrimPrefix(targetPath, prefix), suffix)
+	}
 	return
 }
 
