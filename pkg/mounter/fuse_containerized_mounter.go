@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/watch"
@@ -345,6 +346,12 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 	return nil
 }
 
+type PatchStringValue struct {
+	Op    string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value,omitempty"`
+}
+
 func (mounter *ContainerizedFuseMounter) addPodAnnotation(ctx context.Context, target, podUid string) error {
 	if podUid == "" {
 		return fmt.Errorf("podUid is empty, skip adding pod annotation")
@@ -357,11 +364,14 @@ func (mounter *ContainerizedFuseMounter) addPodAnnotation(ctx context.Context, t
 	}
 	var errs []error
 	for _, pod := range podList.Items {
-		if pod.Annotations == nil {
-			pod.Annotations = make(map[string]string)
+		payload := PatchStringValue{
+			Op:    "add",
+			Path:  "/metadata/annotations/" + strings.Replace(getUsedByPodAnnoKey(podUid), "/", "~1", -1),
+			Value: time.Now().Format("20060102150405"),
 		}
-		pod.Annotations[getUsedByPodAnnoKey(podUid)] = time.Now().Format("20060102150405")
-		_, err := podClient.Update(ctx, &pod, metav1.UpdateOptions{})
+		payloads := []PatchStringValue{payload}
+		payloadBytes, _ := json.Marshal(payloads)
+		_, err := podClient.Patch(ctx, pod.Name, types.JSONPatchType, payloadBytes, metav1.PatchOptions{})
 		errs = append(errs, err)
 	}
 	return utilerrors.NewAggregate(errs)
@@ -383,8 +393,13 @@ func (mounter *ContainerizedFuseMounter) cleanupFusePods(ctx context.Context, ta
 			continue
 		}
 		if _, ok := pod.Annotations[getUsedByPodAnnoKey(mounter.podUid)]; ok {
-			delete(pod.Annotations, getUsedByPodAnnoKey(mounter.podUid))
-			_, err := podClient.Update(ctx, &pod, metav1.UpdateOptions{})
+			payload := PatchStringValue{
+				Op:   "remove",
+				Path: "/metadata/annotations/" + strings.Replace(getUsedByPodAnnoKey(mounter.podUid), "/", "~1", -1),
+			}
+			payloads := []PatchStringValue{payload}
+			payloadBytes, _ := json.Marshal(payloads)
+			_, err := podClient.Patch(ctx, pod.Name, types.JSONPatchType, payloadBytes, metav1.PatchOptions{})
 			if err != nil {
 				mounter.log.Warnf("removePodAnnotation failed err: %v", err)
 			}
