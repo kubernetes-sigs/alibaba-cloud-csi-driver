@@ -126,7 +126,7 @@ func (f *fuseOssfs) buildPodSpec(
 
 	switch dbglevel := f.config.Extra["dbglevel"]; dbglevel {
 	case "":
-	case "info", "warn", "err", "crit":
+	case "debug", "info", "warn", "err", "crit":
 		alreadySet := false
 		for _, option := range options {
 			if strings.Contains(option, "dbglevel") {
