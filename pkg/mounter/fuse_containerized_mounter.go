@@ -292,7 +292,7 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 		var rawPod corev1.Pod
 		rawPod.GenerateName = fmt.Sprintf("csi-fuse-%s-", mounter.name())
 		rawPod.Labels = labels
-		rawPod.Annotations = map[string]string{FuseMountPathAnnoKey: target, FuseSafeToEvictAnnoKey: "true", getUsedByPodAnnoKey(mounter.podUid): time.Now().Format("20060102150405")}
+		rawPod.Annotations = map[string]string{FuseMountPathAnnoKey: target, FuseSafeToEvictAnnoKey: "true", getUsedByPodAnnoKey(mounter.podUid): time.Now().Format(time.RFC3339)}
 		mounter.addPodMeta(&rawPod)
 		rawPod.Spec, err = mounter.buildPodSpec(source, target, fstype, mounter.authCfg, options, mountFlags, mounter.nodeName, mounter.volumeId)
 		if err != nil {
@@ -373,7 +373,7 @@ func (mounter *ContainerizedFuseMounter) addPodAnnotation(ctx context.Context, t
 		payload := PatchStringValue{
 			Op:    "add",
 			Path:  "/metadata/annotations/" + strings.Replace(getUsedByPodAnnoKey(podUid), "/", "~1", -1),
-			Value: time.Now().Format("20060102150405"),
+			Value: time.Now().Format(time.RFC3339),
 		}
 		payloads := []PatchStringValue{payload}
 		payloadBytes, _ := json.Marshal(payloads)
