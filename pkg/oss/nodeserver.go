@@ -303,6 +303,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 					return nil, status.Error(codes.Internal, err.Error())
 				}
 				notMnt = true
+			} else if mountutils.IsCorruptedMnt(err) {
+				log.Warnf("Umount corrupted mountpoint %s", sharedPath)
+				err := mountutils.New("").Unmount(sharedPath)
+				if err != nil {
+					return nil, status.Errorf(codes.Internal, "umount corrupted mountpoint %s: %v", sharedPath, err)
+				}
+				notMnt = true
 			} else {
 				log.Errorf("NodePublishVolume: check mountpoint %s: %v", sharedPath, err)
 				return nil, status.Error(codes.Internal, err.Error())
