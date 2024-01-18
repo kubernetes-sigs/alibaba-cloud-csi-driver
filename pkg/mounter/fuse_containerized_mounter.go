@@ -34,7 +34,7 @@ const (
 	FuseMountPathHashLabelKey  = "csi.alibabacloud.com/mount-path-hash"
 	FuseMountPathAnnoKey       = "csi.alibabacloud.com/mount-path"
 	FuseSafeToEvictAnnoKey     = "cluster-autoscaler.kubernetes.io/safe-to-evict"
-	FuseUsedByPodAnnoKeyPrefix = "used-by-pod"
+	FuseUsedByPodAnnoKeyPrefix = "csi.alibabacloud.com/used-by-pod"
 )
 
 type AuthConfig struct {
@@ -450,5 +450,5 @@ func computeMountPathHash(target string) string {
 }
 
 func getUsedByPodAnnoKey(podUid string) string {
-	return strings.Join([]string{FuseUsedByPodAnnoKeyPrefix, podUid}, "/")
+	return strings.Join([]string{FuseUsedByPodAnnoKeyPrefix, podUid}, "-")
 }
