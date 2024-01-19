@@ -19,7 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	mountutils "k8s.io/mount-utils"
-	"k8s.io/utils/pointer"
 )
 
 var defaultOssfsImageTag = "4af1b0e-aliyun"
@@ -100,7 +99,7 @@ func (f *fuseOssfs) buildPodSpec(
 	source, target, fstype string, authCfg *AuthConfig, options, mountFlags []string, nodeName, volumeId string,
 ) (spec corev1.PodSpec, _ error) {
 
-	spec.TerminationGracePeriodSeconds = pointer.Int64Ptr(120)
+	spec.TerminationGracePeriodSeconds = tea.Int64(120)
 
 	targetVolume := corev1.Volume{
 		Name: "kubelet-dir",
@@ -191,7 +190,7 @@ func (f *fuseOssfs) buildPodSpec(
 			FailureThreshold: 5,
 		},
 		SecurityContext: &corev1.SecurityContext{
-			Privileged: pointer.BoolPtr(true),
+			Privileged: tea.Bool(true),
 		},
 	}
 	if mimeMountDir == OssfsDefMimeTypesFilePath {
@@ -311,7 +310,7 @@ func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig, rrsaC
 			Name: "rrsa-oidc-token",
 			VolumeSource: corev1.VolumeSource{
 				Projected: &corev1.ProjectedVolumeSource{
-					DefaultMode: tea.Int32(420),
+					DefaultMode: tea.Int32(0600),
 					Sources: []corev1.VolumeProjection{
 						{
 							ServiceAccountToken: &corev1.ServiceAccountTokenProjection{
@@ -357,7 +356,7 @@ func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig, rrsaC
 			VolumeSource: corev1.VolumeSource{
 				CSI: &corev1.CSIVolumeSource{
 					Driver:           CsiSecretStoreDriver,
-					ReadOnly:         pointer.BoolPtr(true),
+					ReadOnly:         tea.Bool(true),
 					VolumeAttributes: map[string]string{SecretProviderClassKey: authCfg.SecretProviderClassName},
 				},
 			},
@@ -382,10 +381,10 @@ func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig, rrsaC
 						{
 							Key:  fmt.Sprintf("%s.%s", nodeName, volumeId),
 							Path: passwdFilename,
-							Mode: pointer.Int32Ptr(0600),
+							Mode: tea.Int32(0600),
 						},
 					},
-					Optional: pointer.BoolPtr(true),
+					Optional: tea.Bool(true),
 				},
 			},
 		}
