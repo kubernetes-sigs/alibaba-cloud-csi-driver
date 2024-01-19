@@ -1,8 +1,6 @@
 package metric
 
 import (
-	"crypto/sha256"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -663,13 +661,12 @@ func (p *usFsStatCollector) updateExclusiveMetrics(fsClientType, podUid string, 
 
 func (p *usFsStatCollector) updateSharedMetrics(fsClientType, subDir string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
 
-	volSha := fmt.Sprintf("%x", sha256.Sum256([]byte(subDir)))
-	volPath := filepath.Join(fsClientPathPrefix, fsClientType, volSha)
+	volPath := filepath.Join(fsClientPathPrefix, fsClientType, subDir)
 	p.postVolMetrics(volPath, fsClientInfo, ch)
 }
 
 func (p *usFsStatCollector) postVolMetrics(volPath string, fsClientInfo *fuseInfo, ch chan<- prometheus.Metric) {
-	mountPointInfoArray, err := readFirstLines(volPath)
+	mountPointInfoArray, err := readFirstLines(filepath.Join(volPath, mountPointInfo))
 	if err != nil {
 		return
 	}
