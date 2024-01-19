@@ -55,7 +55,7 @@ func GetGlobalMountPath(volumeId string) string {
 
 // GetRAMRoleOption get command line's ram_role option
 func GetRAMRoleOption() string {
-	ramRole := utils.RetryGetMetaData(RAMRoleResource)
+	ramRole, _ := utils.GetMetaData(RAMRoleResource)
 	ramRoleOpt := MetadataURL + RAMRoleResource + ramRole
 	mntCmdRamRole := fmt.Sprintf("ram_role=%s", ramRoleOpt)
 	return mntCmdRamRole
