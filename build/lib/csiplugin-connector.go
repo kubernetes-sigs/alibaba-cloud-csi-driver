@@ -11,17 +11,9 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/sevlyar/go-daemon"
 )
 
 const (
-	// LogFilename name of log file
-	LogFilename = "/var/run/csiplugin/csi_connector.log"
-	// PIDFilename name of pid file
-	PIDFilename = "/var/run/csiplugin/connector.pid"
-	// WorkPath workspace
-	WorkPath = "./"
 	// OSSSocketPath socket path
 	OSSSocketPath = "/etc/csi-tool/connector.sock"
 	// DiskSocketPath socket path
@@ -33,25 +25,6 @@ const (
 )
 
 func main() {
-	// log file is: /var/run/csiplugin/csi_connector.log
-	cntxt := &daemon.Context{
-		PidFileName: PIDFilename,
-		PidFilePerm: 0644,
-		LogFileName: LogFilename,
-		LogFilePerm: 0640,
-		WorkDir:     WorkPath,
-		Umask:       027,
-		Args:        []string{"alibabacloud.csiplugin.connector"},
-	}
-
-	d, err := cntxt.Reborn()
-	if err != nil {
-		log.Fatalf("Unable to run connector: %s", err.Error())
-	}
-	if d != nil {
-		return
-	}
-	defer cntxt.Release()
 	log.Print("OSS Connector Daemon Is Starting...")
 
 	var wg sync.WaitGroup

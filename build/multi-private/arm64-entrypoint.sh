@@ -167,8 +167,8 @@ if [ "$run_disk" = "true" ] || [ "$run_oss" = "true" ]; then
 			else
 					rm -rf /host/etc/csi-tool/
 					rm -rf /host/etc/csi-tool/connector.sock
+                    rm -rf /host/etc/csi-tool/diskconnector.sock
 					rm -rf /var/log/alicloud/connector.pid
-					rm -rf /var/run/csiplugin/connector.pid
 					mkdir -p /host/etc/csi-tool/
 			fi
 		fi
@@ -185,8 +185,6 @@ if [ "$run_disk" = "true" ] || [ "$run_oss" = "true" ]; then
     if [[ ! -z "${PLUGINS_SOCKETS}" ]];then
         sed -i 's/Restart=always/Restart=on-failure/g' /bin/csiplugin-connector.service
         sed -i '/^\[Service\]/a Environment=\"WATCHDOG_SOCKETS_PATH='"${PLUGINS_SOCKETS}"'\"' /bin/csiplugin-connector.service
-        sed -i '/ExecStop=\/bin\/kill -s QUIT $MAINPID/d' /bin/csiplugin-connector.service
-        sed -i '/^\[Service\]/a ExecStop=sh -xc "if [ x$MAINPID != x ]; then /bin/kill -s QUIT $MAINPID; fi"' /bin/csiplugin-connector.service
     fi
     if [ -f "$systemdDir/csiplugin-connector.service" ];then
         echo "Check csiplugin-connector.service...."
@@ -206,7 +204,6 @@ if [ "$run_disk" = "true" ] || [ "$run_oss" = "true" ]; then
     fi
 
     rm -rf /var/log/alicloud/connector.pid
-    rm -rf /var/run/csiplugin/connector.pid
     /nsenter --mount=/proc/1/ns/mnt systemctl enable csiplugin-connector.service
     /nsenter --mount=/proc/1/ns/mnt systemctl restart csiplugin-connector.service
 
