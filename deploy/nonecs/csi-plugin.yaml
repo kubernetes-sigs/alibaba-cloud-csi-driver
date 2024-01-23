@@ -146,6 +146,8 @@ spec:
               name: ossfs-metrics-dir
             - mountPath: /host/var/run/efc
               name: efc-metrics-dir
+            - mountPath: /host/run/csi-tool
+              name: run-csi
             - mountPath: /etc/csi-plugin/config
               name: csi-plugin-cm
             - name: host-mnt
@@ -159,6 +161,10 @@ spec:
         - name: efc-metrics-dir
           hostPath:
             path: /var/run/efc
+            type: DirectoryOrCreate
+        - name: run-csi
+          hostPath:
+            path: /run/csi-tool
             type: DirectoryOrCreate
         - name: registration-dir
           hostPath:

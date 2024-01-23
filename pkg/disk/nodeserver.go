@@ -95,7 +95,7 @@ const (
 	// PVC annotation key of KMS key ID, override the storage class parameter kmsKeyId
 	KMSKeyID = "alibabacloud.com/kms-key-id"
 	// SocketPath is path of connector sock
-	SocketPath = "/host/etc/csi-tool/diskconnector.sock"
+	SocketPath = "/host/run/csi-tool/connector/diskconnector.sock"
 	// DefaultMaxVolumesPerNode define default max ebs one node
 	DefaultMaxVolumesPerNode = 15
 	// MaxVolumesPerNodeLimit define limit max ebs one node

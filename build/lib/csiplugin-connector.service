@@ -4,7 +4,7 @@ After=network.target remote-fs.target nss-lookup.target
 
 [Service]
 Type=simple
-RuntimeDirectory=csiplugin
+RuntimeDirectory=csi-tool/connector
 ExecStart=/etc/csi-tool/csiplugin-connector
 Restart=always
 RestartSec=5s

@@ -15,9 +15,9 @@ import (
 
 const (
 	// OSSSocketPath socket path
-	OSSSocketPath = "/etc/csi-tool/connector.sock"
+	OSSSocketPath = "/run/csi-tool/connector/connector.sock"
 	// DiskSocketPath socket path
-	DiskSocketPath = "/etc/csi-tool/diskconnector.sock"
+	DiskSocketPath = "/run/csi-tool/connector/diskconnector.sock"
 	// ShellPath is the fsfreeze shell path
 	ShellPath = "/etc/csi-tool/fsfreeze.sh"
 	// GetPathDevice get the device of specific path
@@ -54,7 +54,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		EnsureSocketPath(DiskSocketPath)
-		log.Printf("Socket path is ready: %s", OSSSocketPath)
+		log.Printf("Socket path is ready: %s", DiskSocketPath)
 		ln, err := net.Listen("unix", DiskSocketPath)
 		if err != nil {
 			log.Fatalf("runDiskProxy: server Listen error: %v", err.Error())
