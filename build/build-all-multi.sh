@@ -15,6 +15,4 @@ VERSION="v1.16.9"
 # GIT_BRANCH=`git symbolic-ref --short -q HEAD`
 # BUILD_TIME=`date +%FT%T%z`
 
-
-# docker build -t=registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:$VERSION-$GIT_SHA-arm64 --build-arg ARCH=arm64/ . -f ./build/arm/Dockerfile.arm
 docker buildx build --platform linux/amd64,linux/arm64 . -f ./build/multi/Dockerfile.multi
