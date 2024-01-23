@@ -226,11 +226,6 @@ fi
 
 ## CPFS-NAS plugin setup
 if [ "$run_nas" = "true" ]; then
-    # cpfs-nas nas-rich-client common rpm
-    cp /root/aliyun-alinas-utils-1.1-6.al7.noarch.rpm /host/etc/csi-tool/
-    # nas-rich-client rpm
-    cp /root/alinas-efc-1.2-3.x86_64.rpm /host/etc/csi-tool/
-
     install_utils="false"
     install_efc="false"
 
@@ -245,13 +240,11 @@ if [ "$run_nas" = "true" ]; then
     fi
 
     if [ $install_utils = "true" ]; then
-        if ${HOST_CMD} rpm -q aliyun-alinas-utils; then 
-            echo "upgrade aliyun-alinas-utils"
-            ${HOST_CMD} rpm -Uvh /etc/csi-tool/aliyun-alinas-utils-1.1-6.al7.noarch.rpm
-        else
-            echo "install aliyun-alinas-utils"
-            ${HOST_CMD} yum install -y /etc/csi-tool/aliyun-alinas-utils-1.1-6.al7.noarch.rpm
-        fi
+        # cpfs-nas nas-rich-client common rpm
+        echo "installing aliyun-alinas-utils"
+        cp /root/aliyun-alinas-utils-1.1-6.al7.noarch.rpm /host/etc/csi-tool/
+        ${HOST_CMD} yum install -y /etc/csi-tool/aliyun-alinas-utils-1.1-6.al7.noarch.rpm
+
         if ! ${HOST_CMD} rpm -q aliyun-alinas-utils | grep -E "^aliyun-alinas-utils-1.1-6" >/dev/null; then
             echo "failed to install aliyun-alinas-utils"
             exit 1
@@ -263,8 +256,11 @@ if [ "$run_nas" = "true" ]; then
         install_efc="false"
     fi
     if [ $install_efc = "true" ]; then
+        # nas-rich-client rpm
         echo "installing alinas-efc"
-        ${HOST_CMD} rpm -Uvh /etc/csi-tool/alinas-efc-1.2-3.x86_64.rpm
+        cp /root/alinas-efc-1.2-3.x86_64.rpm /host/etc/csi-tool/
+        ${HOST_CMD} yum install -y /etc/csi-tool/alinas-efc-1.2-3.x86_64.rpm
+
         echo "checking alinas-efc-1.2-3.x86_64 installed"
         ${HOST_CMD} rpm -q alinas-efc-1.2-3.x86_64 || exit 1
         echo "starting aliyun-alinas-mount-watchdog"
@@ -278,6 +274,8 @@ fi
 #    ${HOST_CMD} yum install -y fuse3 fuse3-devel
 #fi
 
+# place it here to remove leftover from previous version
+rm -rf /host/etc/csi-tool/*.rpm
 
 # start daemon
 /bin/plugin.csi.alibabacloud.com $@
