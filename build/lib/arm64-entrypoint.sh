@@ -98,8 +98,8 @@ if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [
 			else
 					rm -rf /host/etc/csi-tool/
 					rm -rf /host/etc/csi-tool/connector.sock
+                    rm -rf /host/etc/csi-tool/diskconnector.sock
 					rm -rf /var/log/alicloud/connector.pid
-					rm -rf /var/run/csiplugin/connector.pid
 					mkdir -p /host/etc/csi-tool/
 			fi
 		fi
@@ -116,8 +116,6 @@ if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [
     if [[ ! -z "${PLUGINS_SOCKETS}" ]];then
         sed -i 's/Restart=always/Restart=on-failure/g' /csi/csiplugin-connector.service
         sed -i '/^\[Service\]/a Environment=\"WATCHDOG_SOCKETS_PATH='"${PLUGINS_SOCKETS}"'\"' /csi/csiplugin-connector.service
-        sed -i '/ExecStop=\/bin\/kill -s QUIT $MAINPID/d' /csi/csiplugin-connector.service
-        sed -i '/^\[Service\]/a ExecStop=sh -xc "if [ x$MAINPID != x ]; then /bin/kill -s QUIT $MAINPID; fi"' /csi/csiplugin-connector.service
     fi
     if [ -f "$systemdDir/csiplugin-connector.service" ];then
         echo "Check csiplugin-connector.service...."
@@ -147,7 +145,6 @@ if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [
     fi
 
     rm -rf /var/log/alicloud/connector.pid
-    rm -rf /var/run/csiplugin/connector.pid
     echo "Starting systemctl enable csiplugin-connector.service."
     for((i=1;i<=5;i++));
     do

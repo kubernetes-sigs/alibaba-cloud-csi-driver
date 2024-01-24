@@ -3,11 +3,9 @@ Description=csiplugin connector
 After=network.target remote-fs.target nss-lookup.target
 
 [Service]
-Type=forking
-RuntimeDirectory=csiplugin
+Type=simple
+RuntimeDirectory=csi-tool/connector
 ExecStart=/etc/csi-tool/csiplugin-connector
-ExecReload=/bin/kill -s HUP $MAINPID
-ExecStop=/bin/kill -s QUIT $MAINPID
 Restart=always
 RestartSec=5s
 

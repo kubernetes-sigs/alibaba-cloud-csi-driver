@@ -105,7 +105,7 @@ const (
 	NsenterCmd = "nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts"
 
 	// socketPath is path of connector sock
-	socketPath = "/host/etc/csi-tool/connector.sock"
+	socketPath = "/host/run/csi-tool/connector/connector.sock"
 
 	// GiB ...
 	GiB = 1024 * 1024 * 1024

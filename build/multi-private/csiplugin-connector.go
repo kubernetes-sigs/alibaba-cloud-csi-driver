@@ -11,23 +11,13 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/sevlyar/go-daemon"
 )
 
 const (
-	// MBSIZE metrics
-	MBSIZE = 1024 * 1024
-	// LogFilename name of log file
-	LogFilename = "/var/run/csiplugin/csi_connector.log"
-	// PIDFilename name of pid file
-	PIDFilename = "/var/run/csiplugin/connector.pid"
-	// WorkPath workspace
-	WorkPath = "./"
 	// OSSSocketPath socket path
-	OSSSocketPath = "/etc/csi-tool/connector.sock"
+	OSSSocketPath = "/run/csi-tool/connector/connector.sock"
 	// DiskSocketPath socket path
-	DiskSocketPath = "/etc/csi-tool/diskconnector.sock"
+	DiskSocketPath = "/run/csi-tool/connector/diskconnector.sock"
 	// ShellPath is the fsfreeze shell path
 	ShellPath = "/etc/csi-tool/fsfreeze.sh"
 	// GetPathDevice get the device of specific path
@@ -35,25 +25,6 @@ const (
 )
 
 func main() {
-	// log file is: /var/log/alicloud/csi_connector.log
-	cntxt := &daemon.Context{
-		PidFileName: PIDFilename,
-		PidFilePerm: 0644,
-		LogFileName: LogFilename,
-		LogFilePerm: 0640,
-		WorkDir:     WorkPath,
-		Umask:       027,
-		Args:        []string{"alibabacloud.csiplugin.connector"},
-	}
-
-	d, err := cntxt.Reborn()
-	if err != nil {
-		log.Fatalf("Unable to run connector: %s", err.Error())
-	}
-	if d != nil {
-		return
-	}
-	defer cntxt.Release()
 	log.Print("OSS Connector Daemon Is Starting...")
 
 	var wg sync.WaitGroup
@@ -83,7 +54,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		EnsureSocketPath(DiskSocketPath)
-		log.Printf("Socket path is ready: %s", OSSSocketPath)
+		log.Printf("Socket path is ready: %s", DiskSocketPath)
 		ln, err := net.Listen("unix", DiskSocketPath)
 		if err != nil {
 			log.Fatalf("runDiskProxy: server Listen error: %v", err.Error())

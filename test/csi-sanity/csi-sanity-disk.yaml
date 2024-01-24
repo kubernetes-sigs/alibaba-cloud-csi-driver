@@ -30,9 +30,9 @@ spec:
   serviceAccountName: csi-admin
   restartPolicy: Never
   volumes:
-  - name: fuse-metrics-dir
+  - name: run-csi
     hostPath:
-      path: /var/run/
+      path: /run/csi-tool
       type: DirectoryOrCreate
   - name: registration-dir
     hostPath:
@@ -101,6 +101,8 @@ spec:
       name: etc
     - mountPath: /host/usr/
       name: ossconnectordir
+    - mountPath: /host/run/csi-tool
+      name: run-csi
     - mountPath: /dev
       mountPropagation: HostToContainer
       name: host-dev
