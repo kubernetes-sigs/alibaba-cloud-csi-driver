@@ -87,8 +87,6 @@ spec:
         fieldRef:
           apiVersion: v1
           fieldPath: spec.nodeName
-    - name: MAX_VOLUMES_PERNODE
-      value: "7"
     - name: SERVICE_PORT
       value: "13260"
     securityContext:
