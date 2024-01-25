@@ -90,6 +90,7 @@ type GlobalConfig struct {
 	RequestBaseInfo       map[string]string
 	SnapshotBeforeDelete  bool
 	OmitFilesystemCheck   bool
+	DiskAllowAllType      bool
 }
 
 // define global variable
@@ -142,7 +143,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient)
 
 	if !runAsController {
-		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, client)
+		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, m)
 	}
 
 	return tmpdisk
@@ -265,6 +266,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		SnapshotBeforeDelete:  csiCfg.GetBool("volume-del-auto-snap", "VOLUME_DEL_AUTO_SNAP", false),
 		RequestBaseInfo:       map[string]string{"owner": "alibaba-cloud-csi-driver", "nodeName": nodeName},
 		OmitFilesystemCheck:   csiCfg.GetBool("disable-fs-check", "DISABLE_FS_CHECK", false),
+		DiskAllowAllType:      csiCfg.GetBool("disk-allow-all-type", "DISK_ALLOW_ALL_TYPE", false),
 	}
 	if GlobalConfigVar.ADControllerEnable {
 		log.Log.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")

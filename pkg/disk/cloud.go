@@ -1035,15 +1035,6 @@ func getDefaultDiskTags(diskVol *diskVolumeArgs) []ecs.CreateDiskTag {
 	return diskTags
 }
 
-func IsDiskCreatedByCsi(disk ecs.Disk) bool {
-	for _, tag := range disk.Tags.Tag {
-		if tag.TagKey == DISKTAGKEY2 {
-			return tag.TagValue == DISKTAGVALUE2
-		}
-	}
-	return false
-}
-
 func deleteDisk(ecsClient cloud.ECSInterface, diskId string) (*ecs.DeleteDiskResponse, error) {
 	deleteDiskRequest := ecs.CreateDeleteDiskRequest()
 	deleteDiskRequest.DiskId = diskId

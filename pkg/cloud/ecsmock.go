@@ -64,6 +64,36 @@ func (mr *MockECSInterfaceMockRecorder) DescribeAvailableResource(request interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeAvailableResource", reflect.TypeOf((*MockECSInterface)(nil).DescribeAvailableResource), request)
 }
 
+// DescribeDisks mocks base method.
+func (m *MockECSInterface) DescribeDisks(request *ecs.DescribeDisksRequest) (*ecs.DescribeDisksResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DescribeDisks", request)
+	ret0, _ := ret[0].(*ecs.DescribeDisksResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DescribeDisks indicates an expected call of DescribeDisks.
+func (mr *MockECSInterfaceMockRecorder) DescribeDisks(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeDisks", reflect.TypeOf((*MockECSInterface)(nil).DescribeDisks), request)
+}
+
+// DescribeInstanceTypes mocks base method.
+func (m *MockECSInterface) DescribeInstanceTypes(request *ecs.DescribeInstanceTypesRequest) (*ecs.DescribeInstanceTypesResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DescribeInstanceTypes", request)
+	ret0, _ := ret[0].(*ecs.DescribeInstanceTypesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DescribeInstanceTypes indicates an expected call of DescribeInstanceTypes.
+func (mr *MockECSInterfaceMockRecorder) DescribeInstanceTypes(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeInstanceTypes", reflect.TypeOf((*MockECSInterface)(nil).DescribeInstanceTypes), request)
+}
+
 // DescribeInstances mocks base method.
 func (m *MockECSInterface) DescribeInstances(request *ecs.DescribeInstancesRequest) (*ecs.DescribeInstancesResponse, error) {
 	m.ctrl.T.Helper()

@@ -192,3 +192,15 @@ func MustGet(m MetadataProvider, key MetadataKey) string {
 	}
 	return value
 }
+
+// FakeProvider is a fake metadata provider for testing
+type FakeProvider struct {
+	Values map[MetadataKey]string
+}
+
+func (p FakeProvider) Get(key MetadataKey) (string, error) {
+	if v, ok := p.Values[key]; ok {
+		return v, nil
+	}
+	return "", ErrUnknownMetadataKey
+}
