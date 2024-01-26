@@ -29,6 +29,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	log "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	perrors "github.com/pkg/errors"
@@ -817,6 +818,10 @@ func requestAndDeleteSnapshot(snapshotID string) (*ecs.DeleteSnapshotResponse, e
 	return response, nil
 }
 
+// Docs say Chinese characters are supported, but the exactly range is not clear.
+// So we just assume they are not supported.
+var vaildDiskNameRegexp = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9:_-]{1,127}$`)
+
 func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeArgs, tenantUID string) (string, string, string, error) {
 	// 需要配置external-provisioner启动参数--extra-create-metadata=true，然后ACK的external-provisioner才会将PVC的Annotations传过来
 	ecsClient, err := getEcsClientByID("", tenantUID)
@@ -825,7 +830,9 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 	}
 
 	createDiskRequest := ecs.CreateCreateDiskRequest()
-	createDiskRequest.DiskName = diskName
+	if vaildDiskNameRegexp.MatchString(diskName) {
+		createDiskRequest.DiskName = diskName
+	}
 	createDiskRequest.Size = requests.NewInteger(requestGB)
 	createDiskRequest.RegionId = diskVol.RegionID
 	createDiskRequest.ZoneId = diskVol.ZoneID
@@ -838,6 +845,7 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 		createDiskRequest.SnapshotId = snapshotID
 	}
 	diskTags := getDefaultDiskTags(diskVol)
+	diskTags = append(diskTags, ecs.CreateDiskTag{Key: common.VolumeNameTag, Value: diskName})
 	createDiskRequest.Tag = &diskTags
 
 	if strings.ToLower(diskVol.MultiAttach) == "true" || strings.ToLower(diskVol.MultiAttach) == "enabled" {
