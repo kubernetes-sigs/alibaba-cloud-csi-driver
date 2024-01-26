@@ -18,10 +18,9 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     export GOARCH=$TARGETARCH && \
     export CGO_ENABLED=0 && \
     go build \
-        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version._VERSION_=${CSI_VERSION}" \
-        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version._BUILDTIME_=`date '+%Y-%m-%d-%H:%M:%S'`" \
+        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=${CSI_VERSION} \
+                  -X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.BUILDTIME=$(date -Iseconds)" \
         -o /out/plugin.csi.alibabacloud.com && \
-    \
     go build -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
 
