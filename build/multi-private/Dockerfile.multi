@@ -8,8 +8,8 @@ RUN export GOOS=$TARGETOS && \
     export GOARCH=$TARGETARCH && \
     export CGO_ENABLED=0 && \
     go build \
-        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=${CSI_VERSION}" \
-        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.BUILDTIME=$(date -Iseconds)" \
+        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=${CSI_VERSION} \
+                  -X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.BUILDTIME=$(date -Iseconds)" \
         -o plugin.csi.alibabacloud.com && \
     go build ./build/multi-private/csiplugin-connector.go
 
