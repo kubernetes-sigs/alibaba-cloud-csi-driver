@@ -1,5 +1,12 @@
 #!/bin/sh
 
+# skip all the setup if running in provisioner mode
+if [ "$SERVICE_TYPE" = "provisioner" ]; then
+    echo "Starting provisioner..."
+    /bin/plugin.csi.alibabacloud.com $@
+    exit $?
+fi
+
 run_oss="false"
 run_disk="false"
 
