@@ -24,14 +24,14 @@ import (
 	"gopkg.in/h2non/gock.v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
-	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	gomock "github.com/golang/mock/gomock"
 	fakesnapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/fake"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -153,64 +153,148 @@ func TestRetryGetInstanceDoc(t *testing.T) {
 	}
 }
 
-const (
-	NO_LABEL    = "NoLabel"
-	BETA_LABEL  = "BetaLabel"
-	SIGMA_LABEL = "SigmaLabel"
-)
-
-func testNode(labelType string, existingNode bool) *corev1.Node {
+func testNode() *corev1.Node {
 	n := &corev1.Node{
 		ObjectMeta: v1.ObjectMeta{
 			Name: "test-node",
 		},
-	}
-	switch labelType {
-	case BETA_LABEL:
-		n.Labels = map[string]string{
-			"beta.kubernetes.io/instance-type":         "ecs.g5ne.xlarge",
-			"failure-domain.beta.kubernetes.io/region": "cn-beijing",
-			"failure-domain.beta.kubernetes.io/zone":   "cn-beijing-g",
-		}
-	case SIGMA_LABEL:
-		n.Labels = map[string]string{
-			"sigma.ali/machine-model": "ecs.g5ne.xlarge",
-			"sigma.ali/ecs-region-id": "cn-beijing",
-			"sigma.ali/ecs-zone-id":   "cn-beijing-g",
-		}
-	case NO_LABEL:
-		n.Labels = map[string]string{}
-	}
-	if existingNode {
-		n.Annotations = map[string]string{
-			"node.csi.alibabacloud.com/allocatable-disk": "16",
-		}
-		n.Labels["node.csi.alibabacloud.com/disktype.cloud_efficiency"] = "available"
-		n.Labels["node.csi.alibabacloud.com/disktype.cloud_ssd"] = "available"
+		Status: corev1.NodeStatus{
+			VolumesInUse: []corev1.UniqueVolumeName{
+				"kubernetes.io/csi/diskplugin.csi.alibabacloud.com^d-2zeah0dj7hx3zk6unfbf",
+				"kubernetes.io/csi/diskplugin.csi.alibabacloud.com^d-testingusedbystaticpv",
+				"some-other-volume",
+			},
+			VolumesAttached: []corev1.AttachedVolume{
+				{
+					Name:       "kubernetes.io/csi/diskplugin.csi.alibabacloud.com^d-2zeah0dj7hx3zk6unfbf",
+					DevicePath: "",
+				},
+			},
+		},
 	}
 	return n
 }
 
-func injectError(times int) k8stesting.ReactionFunc {
-	return func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		if times > 0 {
-			times--
-			return true, nil, fmt.Errorf("error")
-		}
-		return false, nil, nil
-	}
+var testMetadata = metadata.FakeProvider{
+	Values: map[metadata.MetadataKey]string{
+		metadata.RegionID:     "cn-beijing",
+		metadata.ZoneID:       "cn-beijing-g",
+		metadata.InstanceType: "ecs.u1-c1m4.xlarge",
+		metadata.InstanceID:   "i-2ze0yyw7rf00yz9fttpg",
+	},
 }
 
-func assertNotCalled(t *testing.T) k8stesting.ReactionFunc {
-	return func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		assert.Fail(t, "should not be called")
-		return false, nil, nil
+const DescribeInstanceTypesResponse = `{
+	"RequestId": "F4FCC80A-D502-530C-B107-2726813FDE09",
+	"NextToken": "",
+	"InstanceTypes": {
+		"InstanceType": [
+			{
+				"InstancePpsTx": 500000,
+				"NvmeSupport": "unsupported",
+				"PrimaryEniQueueNumber": 2,
+				"TotalEniQueueQuantity": 6,
+				"EniTrunkSupported": true,
+				"InstanceTypeFamily": "ecs.u1",
+				"InstancePpsRx": 500000,
+				"EriQuantity": 0,
+				"InstanceBandwidthRx": 1536000,
+				"InstanceBandwidthTx": 1536000,
+				"SecondaryEniQueueNumber": 2,
+				"PhysicalProcessorModel": "Intel(R) Xeon(R) Platinum",
+				"LocalStorageCategory": "",
+				"GPUSpec": "",
+				"CpuArchitecture": "X86",
+				"InstanceTypeId": "ecs.u1-c1m4.xlarge",
+				"MemorySize": 16,
+				"EniIpv6AddressQuantity": 1,
+				"EniTotalQuantity": 6,
+				"CpuCoreCount": 4,
+				"InstanceCategory": "General-purpose",
+				"EniQuantity": 3,
+				"GPUAmount": 0,
+				"DiskQuantity": 9,
+				"CpuSpeedFrequency": 0,
+				"InstanceFamilyLevel": "EnterpriseLevel",
+				"CpuTurboFrequency": 0,
+				"EniPrivateIpAddressQuantity": 10
+			}
+		]
 	}
+}`
+
+const DescribeDisksResponse = `{
+	"TotalCount": 3,
+	"NextToken": "",
+	"PageSize": 10,
+	"RequestId": "8410064A-0E19-51D3-BC4B-DD15A46773BF",
+	"PageNumber": 1,
+	"Disks": {
+		"Disk": [
+			{
+				"Tags": {
+					"Tag": [
+						{
+							"TagKey": "createdby",
+							"TagValue": "alibabacloud-csi-plugin"
+						}
+					]
+				},
+				"DiskId": "d-2zeah0dj7hx3zk6unfbf"
+			},
+			{
+				"Tags": {
+					"Tag": []
+				},
+				"DiskId": "d-2zeh74nnxxrobxz49eug"
+			},
+			{
+				"Tags": {
+					"Tag": []
+				},
+				"DiskId": "d-testingusedbystaticpv"
+			},
+			{
+				"Tags": {
+					"Tag": [
+						{
+							"TagKey": "ack.aliyun.com",
+							"TagValue": "c50e414cb83a84760a3a36be7ea4884c2"
+						},
+						{
+							"TagKey": "ack.alibabacloud.com/nodepool-id",
+							"TagValue": "np29c8779601ce44afab9d766f1011d65f"
+						},
+						{
+							"TagKey": "acs:autoscaling:scalingGroupId",
+							"TagValue": "asg-2zecy0gko5zfvdeldt8z"
+						}
+					]
+				},
+				"DiskId": "d-2ze49fivxwkwxl36o1d3"
+			}
+		]
+	}
+}`
+
+func TestGetVolumeCountFromOpenAPI(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	c := cloud.NewMockECSInterface(ctrl)
+
+	describeDisksResponse := ecs.CreateDescribeDisksResponse()
+	cloud.UnmarshalAcsResponse([]byte(DescribeDisksResponse), describeDisksResponse)
+	c.EXPECT().DescribeDisks(gomock.Any()).Return(describeDisksResponse, nil)
+
+	describeInstanceTypesResponse := ecs.CreateDescribeInstanceTypesResponse()
+	cloud.UnmarshalAcsResponse([]byte(DescribeInstanceTypesResponse), describeInstanceTypesResponse)
+	c.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(describeInstanceTypesResponse, nil)
+
+	count, err := getVolumeCountFromOpenAPI(testNode(), c, testMetadata)
+	assert.NoError(t, err)
+	assert.Equal(t, 7, count) // 9 available disks - 1 system disk - 1 used by static pv
 }
 
-func TestUpdateNode(t *testing.T) {
-	os.Setenv(kubeNodeName, "test-node")
-
+func TestGetAvailableDiskTypes(t *testing.T) {
 	descJson := []byte(`{
 	"RequestId": "6ECCECF5-945D-58FB-9BA9-312DBEE3F611",
 	"AvailableZones": {
@@ -249,77 +333,97 @@ func TestUpdateNode(t *testing.T) {
 		]
 	}
 }`)
-	descRes := ecs.CreateDescribeAvailableResourceResponse()
-	cloud.UnmarshalAcsResponse(descJson, descRes)
-
 	cases := []struct {
-		name          string
-		labelType     string
-		retryECS      bool
-		retryPatch    bool
-		skipDiskLabel bool
-		existingNode  bool
+		name string
+		resp []byte
+		err  bool
 	}{
 		{
-			name:      "normal",
-			labelType: BETA_LABEL,
+			name: "normal",
+			resp: descJson,
 		},
 		{
-			name:      "sigma_label",
-			labelType: SIGMA_LABEL,
+			name: "empty",
+			resp: []byte(`{"AvailableZones":{}}`),
+			err:  true,
 		},
 		{
-			name:         "existing_node",
-			labelType:    BETA_LABEL,
-			existingNode: true,
-		},
-		{
-			name:      "retry_ecs",
-			labelType: BETA_LABEL,
-			retryECS:  true,
-		},
-		{
-			name:       "retry_patch",
-			labelType:  BETA_LABEL,
-			retryPatch: true,
-		},
-		{
-			name:          "non-ack_node",
-			labelType:     NO_LABEL,
-			skipDiskLabel: true,
+			name: "invalid zone/type",
+			resp: []byte(`{
+	"AvailableZones": {
+		"AvailableZone": [
+			{
+				"ZoneId": "cn-beijing-c",
+				"RegionId": "cn-beijing"
+			}, {
+				"ZoneId": "cn-beijing-g",
+				"RegionId": "cn-beijing",
+				"AvailableResources": {
+					"AvailableResource": [
+						{
+							"Type": "InstanceType",
+							"SupportedResources": {
+								"SupportedResource": [
+									{
+										"Status": "Available",
+										"Value": "ecs.u1-c1m2.2xlarge"
+									}
+								]
+							}
+						}
+					]
+				}
+			}
+		]
+	}
+}`), err: true,
 		},
 	}
-
-	for _, test := range cases {
-		t.Run(test.name, func(t *testing.T) {
-			clientset := fake.NewSimpleClientset(testNode(test.labelType, test.existingNode))
-			nodes := clientset.CoreV1().Nodes()
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			descRes := ecs.CreateDescribeAvailableResourceResponse()
+			cloud.UnmarshalAcsResponse(tc.resp, descRes)
 
 			ctrl := gomock.NewController(t)
 			c := cloud.NewMockECSInterface(ctrl)
+			c.EXPECT().DescribeAvailableResource(gomock.Any()).Return(descRes, nil)
 
-			if !test.skipDiskLabel {
-				if test.retryECS {
-					c.EXPECT().DescribeAvailableResource(gomock.Any()).Return(nil, fmt.Errorf("error")).Times(1)
-				}
-				c.EXPECT().DescribeAvailableResource(gomock.Any()).Return(descRes, nil)
+			diskTypes, err := GetAvailableDiskTypes(context.Background(), c, testMetadata)
+			if tc.err {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, []string{"cloud_efficiency", "cloud_ssd"}, diskTypes)
 			}
-			if test.retryPatch {
-				clientset.PrependReactor("patch", "nodes", injectError(1))
-			}
-			if test.existingNode {
-				clientset.PrependReactor("patch", "nodes", assertNotCalled(t))
-			}
-
-			UpdateNode(nodes, c, 16)
-
-			n, err := nodes.Get(context.Background(), "test-node", v1.GetOptions{})
-			assert.Nil(t, err)
-			if !test.skipDiskLabel {
-				assert.Equal(t, "available", n.Labels["node.csi.alibabacloud.com/disktype.cloud_efficiency"])
-				assert.Equal(t, "available", n.Labels["node.csi.alibabacloud.com/disktype.cloud_ssd"])
-			}
-			assert.Equal(t, "16", n.Annotations["node.csi.alibabacloud.com/allocatable-disk"])
 		})
 	}
+}
+
+func TestPatchForNode(t *testing.T) {
+	t.Setenv(kubeNodeName, "test-node")
+
+	node := testNode()
+	clientset := fake.NewSimpleClientset(node)
+
+	patch := patchForNode(node, 16, []string{"cloud_efficiency", "cloud_ssd"})
+	node, err := clientset.CoreV1().Nodes().Patch(context.Background(), "test-node", types.StrategicMergePatchType, patch, v1.PatchOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "available", node.Labels["node.csi.alibabacloud.com/disktype.cloud_efficiency"])
+	assert.Equal(t, "available", node.Labels["node.csi.alibabacloud.com/disktype.cloud_ssd"])
+	assert.Equal(t, "16", node.Annotations["node.csi.alibabacloud.com/allocatable-disk"])
+}
+
+func TestPatchForNodeExisting(t *testing.T) {
+	t.Setenv(kubeNodeName, "test-node")
+
+	node := testNode()
+	node.Annotations = map[string]string{
+		"node.csi.alibabacloud.com/allocatable-disk": "16",
+	}
+	node.Labels = map[string]string{
+		"node.csi.alibabacloud.com/disktype.cloud_efficiency": "available",
+		"node.csi.alibabacloud.com/disktype.cloud_ssd":        "available",
+	}
+	patch := patchForNode(node, 16, []string{"cloud_efficiency", "cloud_ssd"})
+	assert.Nil(t, patch)
 }

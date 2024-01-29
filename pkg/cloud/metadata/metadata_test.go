@@ -14,17 +14,6 @@ import (
 	fake "k8s.io/client-go/kubernetes/fake"
 )
 
-type fakeProvider struct {
-	values map[MetadataKey]string
-}
-
-func (p *fakeProvider) Get(key MetadataKey) (string, error) {
-	if v, ok := p.values[key]; ok {
-		return v, nil
-	}
-	return "", ErrUnknownMetadataKey
-}
-
 func TestEcsUnreachable(t *testing.T) {
 	t.Parallel()
 	trans := httpmock.NewMockTransport()
@@ -116,7 +105,7 @@ func TestCreateOpenAPI(t *testing.T) {
 			}
 
 			m := NewMetadata()
-			m.providers = append(m.providers, &fakeProvider{values: c.values})
+			m.providers = append(m.providers, FakeProvider{Values: c.values})
 
 			m.EnableOpenAPI(ecsClient)
 			zone, err := m.Get(ZoneID)
@@ -170,8 +159,8 @@ type noopFetcher struct{}
 
 func (f *noopFetcher) FetchFor(MetadataKey) (MetadataProvider, error) {
 	time.Sleep(10 * time.Millisecond)
-	return &fakeProvider{
-		values: map[MetadataKey]string{
+	return FakeProvider{
+		Values: map[MetadataKey]string{
 			RegionID: "cn-beijing",
 		},
 	}, nil
@@ -198,8 +187,8 @@ func TestParallelLazyInit(t *testing.T) {
 // Run this with "-race"
 func TestParallelImmutableProvider(t *testing.T) {
 	t.Parallel()
-	m := newImmutableProvider(&fakeProvider{
-		values: map[MetadataKey]string{
+	m := newImmutableProvider(FakeProvider{
+		Values: map[MetadataKey]string{
 			RegionID: "cn-beijing",
 		},
 	}, "fake")

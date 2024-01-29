@@ -31,4 +31,8 @@ const (
 	// the external provisioner sidecar is started with --extra-create-metadata=true and
 	// thus provides such metadata to the CSI driver.
 	PVNameTag = "kubernetes.io/created-for/pv/name"
+
+	// VolumeNameTag is tag applied to provisioned alibaba cloud disk
+	// Disk name have many restrictions, so we use this tag to store the original name
+	VolumeNameTag = "csi.alibabacloud.com/volume-name"
 )

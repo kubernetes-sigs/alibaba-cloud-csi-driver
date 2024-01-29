@@ -25,25 +25,28 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
 )
 
 type nodeServer struct {
-	zone              string
-	maxVolumesPerNode int64
-	nodeID            string
-	mounter           utils.Mounter
-	k8smounter        k8smount.Interface
-	clientSet         *kubernetes.Clientset
+	metadata   metadata.MetadataProvider
+	nodeID     string
+	mounter    utils.Mounter
+	k8smounter k8smount.Interface
+	clientSet  *kubernetes.Clientset
 	*csicommon.DefaultNodeServer
 }
 
@@ -120,26 +123,30 @@ type QueryResponse struct {
 	runtime    string
 }
 
-// NewNodeServer creates node server
-func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
-	var maxVolumesNum int64 = DefaultMaxVolumesPerNode
+func getVolumeCount(node *v1.Node, c cloud.ECSInterface, m metadata.MetadataProvider) (int, error) {
 	volumeNum := os.Getenv("MAX_VOLUMES_PERNODE")
-	if "" != volumeNum {
-		num, err := strconv.ParseInt(volumeNum, 10, 64)
+	if volumeNum != "" {
+		num, err := strconv.Atoi(volumeNum)
 		if err != nil {
-			log.Log.Fatalf("NewNodeServer: MAX_VOLUMES_PERNODE must be int64, but get: %s", volumeNum)
-		} else {
-			if num < 0 || num > MaxVolumesPerNodeLimit {
-				log.Log.Errorf("NewNodeServer: MAX_VOLUMES_PERNODE must between 0-%d, but get: %s", MaxVolumesPerNodeLimit, volumeNum)
-			} else {
-				maxVolumesNum = num
-				log.Log.Infof("NewNodeServer: MAX_VOLUMES_PERNODE is set to(not default): %d", maxVolumesNum)
-			}
+			return 0, fmt.Errorf("MAX_VOLUMES_PERNODE must be int, but get: %s", volumeNum)
 		}
+		if num < 0 || num > MaxVolumesPerNodeLimit {
+			return 0, fmt.Errorf("MAX_VOLUMES_PERNODE must between 0-%d, but get: %s", MaxVolumesPerNodeLimit, volumeNum)
+		}
+		log.Log.Infof("MAX_VOLUMES_PERNODE is set to (from env): %d", num)
+		return num, nil
 	} else {
-		maxVolumesNum = getVolumeCount()
+		num, err := getVolumeCountFromOpenAPI(node, c, m)
+		if err != nil {
+			return 0, fmt.Errorf("MAX_VOLUMES_PERNODE not set and failed to get volume count: %w", err)
+		}
+		log.Log.Infof("MAX_VOLUMES_PERNODE is set to (from OpenAPI): %d", num)
+		return num, nil
 	}
+}
 
+// NewNodeServer creates node server
+func NewNodeServer(d *csicommon.CSIDriver, m metadata.MetadataProvider) csi.NodeServer {
 	// Create Directory
 	os.MkdirAll(VolumeDir, os.FileMode(0755))
 	os.MkdirAll(VolumeDirRemove, os.FileMode(0755))
@@ -150,7 +157,6 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	} else {
 		log.Log.Infof("Currently node is NOT VF model")
 	}
-	go UpdateNode(GlobalConfigVar.ClientSet.CoreV1().Nodes(), c, maxVolumesNum)
 
 	if GlobalConfigVar.CheckBDFHotPlugin {
 		go checkVfhpOnlineReconcile()
@@ -161,8 +167,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 	}
 
 	return &nodeServer{
-		zone:              GlobalConfigVar.ZoneID,
-		maxVolumesPerNode: maxVolumesNum,
+		metadata:          m,
 		nodeID:            GlobalConfigVar.NodeID,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		mounter:           utils.NewMounter(),
@@ -806,13 +811,48 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 }
 
 func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+	nodeName := os.Getenv(kubeNodeName)
+	if nodeName == "" {
+		log.Log.Fatalf("NodeGetInfo: KUBE_NODE_NAME must be set")
+	}
+	node, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get node: %w", err)
+	}
+
+	c := updateEcsClient(GlobalConfigVar.EcsClient)
+	maxVolumesNum, err := getVolumeCount(node, c, ns.metadata)
+	if err != nil {
+		return nil, err
+	}
+	diskTypes := []string{}
+	if !GlobalConfigVar.DiskAllowAllType {
+		diskTypes, err = GetAvailableDiskTypes(ctx, c, ns.metadata)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"failed to get available disk types: %w\n"+
+					"Hint, set env DISK_ALLOW_ALL_TYPE=true to skip this and handle disk type manually", err)
+		}
+	}
+
+	patch := patchForNode(node, maxVolumesNum, diskTypes)
+	if patch != nil {
+		_, err = GlobalConfigVar.ClientSet.CoreV1().Nodes().Patch(ctx, nodeName, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to update node: %w", err)
+		}
+		log.Log.Infof("NewNodeServer: node updated")
+	} else {
+		log.Log.Info("NewNodeServer: no need to update node")
+	}
+
 	return &csi.NodeGetInfoResponse{
 		NodeId:            ns.nodeID,
-		MaxVolumesPerNode: ns.maxVolumesPerNode,
+		MaxVolumesPerNode: int64(maxVolumesNum),
 		// make sure that the driver works on this particular zone only
 		AccessibleTopology: &csi.Topology{
 			Segments: map[string]string{
-				TopologyZoneKey: ns.zone,
+				TopologyZoneKey: metadata.MustGet(ns.metadata, metadata.ZoneID),
 			},
 		},
 	}, nil

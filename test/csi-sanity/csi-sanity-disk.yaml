@@ -87,8 +87,6 @@ spec:
         fieldRef:
           apiVersion: v1
           fieldPath: spec.nodeName
-    - name: MAX_VOLUMES_PERNODE
-      value: "7"
     - name: SERVICE_PORT
       value: "13260"
     securityContext:
@@ -119,6 +117,7 @@ spec:
       "--csi.mountdir", "/var/lib/kubelet/csi-sanity/csi-mount",
       "--csi.stagingdir", "/var/lib/kubelet/csi-sanity/csi-staging",
       "--csi.testvolumeparameters", "/etc/csi-test/volume-parameters.yaml",
+      "--csi.testnodevolumeattachlimit",
       "--ginkgo.junit-report", "/var/lib/kubelet/csi-sanity/report.xml",
       "--ginkgo.no-color",
       "--ginkgo.v",

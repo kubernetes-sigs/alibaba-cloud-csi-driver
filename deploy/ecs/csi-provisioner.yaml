@@ -236,8 +236,6 @@ spec:
           env:
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/csi-provisioner/driverplugin.csi.alibabacloud.com-replace/csi.sock
-            - name: MAX_VOLUMES_PERNODE
-              value: "15"
             - name: SERVICE_TYPE
               value: "provisioner"
             - name: KUBE_NODE_NAME
