@@ -13,6 +13,12 @@ const (
 	PVNameKey = "csi.storage.k8s.io/pv/name"
 )
 
+// constants of keys in volume snapshot parameters
+const (
+	VolumeSnapshotNamespaceKey = "csi.storage.k8s.io/volumesnapshot/namespace"
+	VolumeSnapshotNameKey      = "csi.storage.k8s.io/volumesnapshot/name"
+)
+
 const (
 	// PVCNameTag is tag applied to provisioned alibaba cloud disk for compatibility
 	// with in-tree volume plugin. Value of the tag is PVC name. It is applied only when
@@ -35,4 +41,10 @@ const (
 	// VolumeNameTag is tag applied to provisioned alibaba cloud disk
 	// Disk name have many restrictions, so we use this tag to store the original name
 	VolumeNameTag = "csi.alibabacloud.com/volume-name"
+)
+
+// Tags that will be added to ECS snapshots
+const (
+	VolumeSnapshotNameTag      = "csi.alibabacloud.com/snapshot/name"
+	VolumeSnapshotNamespaceTag = "csi.alibabacloud.com/snapshot/namespace"
 )

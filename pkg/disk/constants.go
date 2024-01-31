@@ -21,22 +21,21 @@ const (
 	DISKTAGKEY3 = "ack.aliyun.com"
 	// ECS snapshot tag from old version, keep it for compatibility
 	SNAPSHOTTAGKEY1 = "force.delete.snapshot.k8s.aliyun.com"
-	// SNAPSHOTTYPE ...
-	SNAPSHOTTYPE = "snapshotType"
-	// INSTANTACCESS ...
-	INSTANTACCESS = "InstantAccess"
-	// RETENTIONDAYS ...
-	RETENTIONDAYS = "retentionDays"
-	// INSTANTACCESSRETENTIONDAYS ...
+)
+
+// keys used in CreateSnapshotRequest.Parameters
+const (
+	SNAPSHOTTYPE               = "snapshotType"
+	INSTANTACCESS              = "InstantAccess"
+	RETENTIONDAYS              = "retentionDays"
 	INSTANTACCESSRETENTIONDAYS = "instantAccessRetentionDays"
-	// SNAPSHOTRESOURCEGROUPID ...
-	SNAPSHOTRESOURCEGROUPID = "resourceGroupId"
+	SNAPSHOTRESOURCEGROUPID    = "resourceGroupId"
+	SNAPSHOT_TAG_PREFIX        = "snapshotTags/"
+)
+
+const (
 	// DiskSnapshotID means snapshot id
 	DiskSnapshotID = "csi.alibabacloud.com/disk-snapshot-id"
-	// VolumeSnapshotNamespace namespace
-	VolumeSnapshotNamespace = "csi.storage.k8s.io/volumesnapshot/namespace"
-	// VolumeSnapshotName tag
-	VolumeSnapshotName = "csi.storage.k8s.io/volumesnapshot/name"
 	// IAVolumeSnapshotKey tag
 	IAVolumeSnapshotKey = "csi.alibabacloud.com/snapshot-ia"
 	// SnapshotRequestTag interval limit
