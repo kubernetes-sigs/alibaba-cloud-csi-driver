@@ -143,7 +143,7 @@ func main() {
 	// log.AddHook(rotateHook(logAttribute))
 
 	csilog.Log.Infof("Multi CSI Driver Name: %s, nodeID: %s, endPoints: %s", *driver, *nodeID, *endpoint)
-	csilog.Log.Infof("CSI Driver, Version: %s, Build time: %s", version.VERSION, version.BUILDTIME)
+	csilog.Log.Infof("CSI Driver, Version: %s, Release time: %s", version.VERSION, version.GetTime())
 
 	multiDriverNames := *driver
 	driverNames := strings.Split(multiDriverNames, ",")
