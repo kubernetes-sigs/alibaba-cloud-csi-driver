@@ -21,7 +21,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -67,8 +66,6 @@ type GlobalConfig struct {
 	NodeID                string
 	ZoneID                string
 	DiskTagEnable         bool
-	AttachMutex           sync.Mutex
-	ADControllerEnable    bool
 	DetachDisabled        bool
 	MetricEnable          bool
 	RunTimeClass          string
@@ -244,7 +241,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		Region:                metadata.MustGet(m, metadata.RegionID),
 		NodeID:                metadata.MustGet(m, metadata.InstanceID),
 		ZoneID:                metadata.MustGet(m, metadata.ZoneID),
-		ADControllerEnable:    csiCfg.GetBool("disk-adcontroller-enable", "DISK_AD_CONTROLLER", false),
 		DiskTagEnable:         csiCfg.GetBool("disk-tag-by-plugin", "DISK_TAGED_BY_PLUGIN", false),
 		DiskBdfEnable:         csiCfg.GetBool("disk-bdf-enable", "DISK_BDF_ENABLE", false),
 		MetricEnable:          csiCfg.GetBool("disk-metric-by-plugin", "DISK_METRIC_BY_PLUGIN", true),
@@ -268,13 +264,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		OmitFilesystemCheck:   csiCfg.GetBool("disable-fs-check", "DISABLE_FS_CHECK", false),
 		DiskAllowAllType:      csiCfg.GetBool("disk-allow-all-type", "DISK_ALLOW_ALL_TYPE", false),
 	}
-	if GlobalConfigVar.ADControllerEnable {
-		log.Log.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
-	} else {
-		log.Log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
-	}
-	log.Log.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
-		GlobalConfigVar.ADControllerEnable,
+	log.Log.Infof("Starting with GlobalConfigVar: DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
 		GlobalConfigVar.DiskTagEnable,
 		GlobalConfigVar.DiskBdfEnable,
 		GlobalConfigVar.MetricEnable,
