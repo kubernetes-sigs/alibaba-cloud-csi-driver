@@ -20,10 +20,11 @@ If the matter is security related, please disclose it privately via https://kube
 #### Anything else we need to know?:
 
 #### Environment:
+- CSI driver version (image tag of csi-plugin container):
+- Deployment method (where you got the YAML files, what modifications you made, etc.):
 - Kubernetes version (use `kubectl version`):
-- Cloud provider or hardware configuration:
+- Cloud provider or hardware configuration (e.g. Alibaba Cloud ECS instance type):
 - OS (e.g: `cat /etc/os-release`):
 - Kernel (e.g. `uname -a`):
-- Install tools:
 - Network plugin and version (if this is a network-related bug):
 - Others:
