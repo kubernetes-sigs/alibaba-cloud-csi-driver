@@ -198,15 +198,15 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	log.Infof("NodePublishVolume: Starting mount volume %s with flags %v and fsType %s", req.VolumeId, options, fsType)
-	if err = ns.k8smounter.Mount(sourcePath, targetPath, fsType, options); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
 	// Set volume IO Limit
 	err = utils.SetVolumeIOLimit(realDevice, req)
 	if err != nil {
 		log.Errorf("NodePublishVolume: Set Disk Volume(%s) IO Limit with Error: %s", req.VolumeId, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	log.Infof("NodePublishVolume: Starting mount volume %s with flags %v and fsType %s", req.VolumeId, options, fsType)
+	if err = ns.k8smounter.Mount(sourcePath, targetPath, fsType, options); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
