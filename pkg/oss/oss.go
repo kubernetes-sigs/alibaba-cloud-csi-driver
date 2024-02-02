@@ -21,6 +21,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
@@ -43,10 +44,13 @@ const (
 type OSS struct {
 	driver   *csicommon.CSIDriver
 	endpoint string
+
+	controllerServer csi.ControllerServer
+	nodeServer       csi.NodeServer
 }
 
 // NewDriver init oss type of csi driver
-func NewDriver(nodeID, endpoint string) *OSS {
+func NewDriver(nodeID, endpoint string, m metadata.MetadataProvider, runAsController bool) *OSS {
 	log.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
 	d := &OSS{}
@@ -66,6 +70,11 @@ func NewDriver(nodeID, endpoint string) *OSS {
 	})
 
 	d.driver = csiDriver
+
+	d.controllerServer = newControllerServer(d.driver)
+	if !runAsController {
+		d.nodeServer = newNodeServer(d.driver, m)
+	}
 	return d
 }
 
@@ -93,7 +102,7 @@ func newControllerServer(driver *csicommon.CSIDriver) csi.ControllerServer {
 }
 
 // newNodeServer init oss type of csi nodeServer
-func newNodeServer(driver *csicommon.CSIDriver) *nodeServer {
+func newNodeServer(driver *csicommon.CSIDriver, m metadata.MetadataProvider) *nodeServer {
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	if nodeName == "" {
 		log.Fatal("env KUBE_NODE_NAME is empty")
@@ -124,11 +133,11 @@ func newNodeServer(driver *csicommon.CSIDriver) *nodeServer {
 		clientset:         clientset,
 		dynamicClient:     crdClient,
 		sharedPathLock:    utils.NewVolumeLocks(),
-		ossfsMounterFac:   mounter.NewContainerizedFuseMounterFactory(mounter.NewFuseOssfs(configmap), clientset, nodeName),
+		ossfsMounterFac:   mounter.NewContainerizedFuseMounterFactory(mounter.NewFuseOssfs(configmap, m), clientset, nodeName),
 	}
 }
 
 // Run start a newNodeServer
 func (d *OSS) Run() {
-	common.RunCSIServer(d.endpoint, csicommon.NewDefaultIdentityServer(d.driver), newControllerServer(d.driver), newNodeServer(d.driver))
+	common.RunCSIServer(d.endpoint, csicommon.NewDefaultIdentityServer(d.driver), d.controllerServer, d.nodeServer)
 }
