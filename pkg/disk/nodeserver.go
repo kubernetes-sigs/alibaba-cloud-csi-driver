@@ -631,19 +631,23 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	if value, ok := req.VolumeContext[SysConfigTag]; ok {
 		configList := strings.Split(strings.TrimSpace(value), ",")
 		for _, configStr := range configList {
-			keyValue := strings.Split(configStr, "=")
-			if len(keyValue) == 2 {
-				fileName := filepath.Join("/sys/block/", filepath.Base(device), keyValue[0])
-				err := utils.WriteTrunc(fileName, keyValue[1])
-				if err != nil {
-					return nil, status.Errorf(codes.Internal,
-						"NodeStageVolume: Volume Block System Config failed, failed to write %s to %s: %v", keyValue[1], fileName, err)
-				}
-				log.Log.Infof("NodeStageVolume: set sysConfig %s=%s", keyValue[0], keyValue[1])
-			} else {
+			key, value, found := strings.Cut(configStr, "=")
+			if !found {
 				log.Log.Errorf("NodeStageVolume: Volume Block System Config with format error: %s", configStr)
 				return nil, status.Error(codes.Aborted, "NodeStageVolume: Volume Block System Config with format error "+configStr)
 			}
+			base := fmt.Sprintf("/sys/block/%s/", filepath.Base(device))
+			fileName := filepath.Clean(base + key)
+			if !strings.HasPrefix(fileName, base) {
+				// Note this cannot prevent user from access other device through e.g. /sys/block/vda/subsystem/vdb
+				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: invalid relative path in sysConfig: %s", key)
+			}
+			err := utils.WriteTrunc(fileName, value)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal,
+					"NodeStageVolume: Volume Block System Config failed, failed to write %s to %s: %v", value, fileName, err)
+			}
+			log.Log.Infof("NodeStageVolume: set sysConfig %s=%s", key, value)
 		}
 	}
 	omitfsck := false
