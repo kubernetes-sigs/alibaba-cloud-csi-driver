@@ -202,14 +202,14 @@ func getDeviceInUse(mountinfoPath string) (map[string]struct{}, error) {
 	for _, mnt := range mnts {
 		if mnt.Source == "devtmpfs" {
 			// volumeDevices case
-			if strings.HasPrefix(mnt.MountPoint, "/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/staging") {
+			if strings.HasPrefix(mnt.MountPoint, utils.KubeletRootDir+"/plugins/kubernetes.io/csi/volumeDevices/staging") {
 				// devtmpfs is usually mounted on /dev
 				addDevice("/dev" + mnt.Root)
 			}
 		} else if strings.HasPrefix(mnt.Source, "/dev/") {
 			// normal mount case
-			if strings.HasPrefix(mnt.MountPoint, "/var/lib/kubelet/plugins/kubernetes.io/csi/pv/") ||
-				mnt.MountPoint == "/var/lib/kubelet" {
+			if strings.HasPrefix(mnt.MountPoint, utils.KubeletRootDir+"/plugins/kubernetes.io/csi/pv/") ||
+				mnt.MountPoint == utils.KubeletRootDir {
 
 				addDevice(mnt.Source)
 			}
