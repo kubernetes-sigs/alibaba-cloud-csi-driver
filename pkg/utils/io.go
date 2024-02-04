@@ -3,10 +3,11 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"os/exec"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	log "github.com/sirupsen/logrus"
@@ -57,10 +58,9 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 	}
 
 	// Get Device major/minor number
-	majMinNum := getMajMinDevice(devicePath)
-	if majMinNum == "" {
-		log.Errorf("Volume(%s) Cannot get major/minor device number: %s", req.VolumeId, devicePath)
-		return errors.New("Volume Cannot get major/minor device number: " + devicePath + req.VolumeId)
+	majMinNum, err := getMajMinDevice(devicePath)
+	if err != nil {
+		return fmt.Errorf("Volume Cannot get major/minor device number for %s: %w", devicePath, err)
 	}
 
 	// Get pod uid
@@ -148,12 +148,16 @@ func getBpsLimt(bpsLimt string) (int, error) {
 	return bpsIntValue * convertNumber, nil
 }
 
-func getMajMinDevice(devicePath string) string {
-	cmd := fmt.Sprintf("%s lsblk %s --noheadings --output MAJ:MIN", NsenterCmd, devicePath)
-	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
+func getMajMinDevice(devicePath string) (string, error) {
+	fileInfo, err := os.Stat(devicePath)
 	if err != nil {
-		log.Errorf("getMajMinDevice with error: %s", err.Error())
-		return ""
+		return "", err
 	}
-	return strings.TrimSpace(string(out))
+	stat, ok := fileInfo.Sys().(*syscall.Stat_t)
+	if !ok {
+		return "", errors.New("unsupported platform")
+	}
+	maj := stat.Rdev / 256
+	min := stat.Rdev % 256
+	return fmt.Sprintf("%d:%d", maj, min), nil
 }
