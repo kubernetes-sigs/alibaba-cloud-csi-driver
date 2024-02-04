@@ -119,13 +119,7 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 func writeIoLimit(majMinNum, podBlkIOPath, ioFile string, ioLimit int) error {
 	targetPath := filepath.Join(podBlkIOPath, ioFile)
 	content := majMinNum + " " + strconv.Itoa(ioLimit)
-	cmd := fmt.Sprintf("%s sh -c 'echo %s > %s'", NsenterCmd, content, targetPath)
-	_, err := exec.Command("sh", "-c", cmd).CombinedOutput()
-	if err != nil {
-		log.Errorf("WriteBps: Write file command(%s) error %v", cmd, err)
-		return err
-	}
-	return nil
+	return WriteTrunc(targetPath, content)
 }
 
 func getBpsLimt(bpsLimt string) (int, error) {
