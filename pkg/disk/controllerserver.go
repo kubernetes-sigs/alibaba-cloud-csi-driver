@@ -214,7 +214,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				return nil, status.Errorf(codes.NotFound, "snapshot %s not found", snapshotID)
 			}
 		}
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	volumeContext := req.GetParameters()

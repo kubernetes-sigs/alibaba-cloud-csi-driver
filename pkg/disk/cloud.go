@@ -930,7 +930,7 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 		}
 		err = rerr
 	}
-	return "", "", "", status.Errorf(codes.Internal, "createDisk: err: %v, the zone:[%s] is not support specific disk type, please change the request disktype: %s or disk pl: %s", err, diskVol.ZoneID, diskTypes, diskPLs)
+	return "", "", "", fmt.Errorf("createDisk: err: %v, the zone:[%s] is not support specific disk type, please change the request disktype: %s or disk pl: %s", err, diskVol.ZoneID, diskTypes, diskPLs)
 }
 
 // reuse rpcrequest in ecs sdk is forbidden, because parameters can't be reassigned with empty string.(ecs sdk bug)
