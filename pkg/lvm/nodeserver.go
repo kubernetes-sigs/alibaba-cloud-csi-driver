@@ -44,7 +44,7 @@ import (
 
 const (
 	// NsenterCmd is the nsenter command
-	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
+	NsenterCmd = "/usr/bin/nsenter --mount=/proc/1/ns/mnt"
 	// VgNameTag is the vg name tag
 	VgNameTag = "vgName"
 	// PvTypeTag is the pv type tag

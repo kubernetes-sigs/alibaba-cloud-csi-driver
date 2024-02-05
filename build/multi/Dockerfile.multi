@@ -28,6 +28,7 @@ LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 RUN yum install -y \
         ca-certificates-2023.2.60_v7.0.306-80.0.al8 \
         tzdata-2023c-1.0.1.al8 \
+        util-linux-2.32.1-42.0.1.al8 \
         nfs-utils-1:2.3.3-59.0.2.al8 \
         xfsprogs-5.0.0-11.0.1.al8 \
         e2fsprogs-1.46.0-1.0.1.al8 \
@@ -40,8 +41,6 @@ ARG TARGETARCH
 WORKDIR /root
 
 RUN --mount=type=bind,source=build/lib,target=/csi-lib \
-    cp /csi-lib/$TARGETARCH-nsenter /usr/bin/nsenter && \
-    ln -s /usr/bin/nsenter /nsenter && \
     cp /csi-lib/$TARGETARCH-entrypoint.sh /entrypoint.sh && \
     cp /csi-lib/freezefs.sh /freezefs.sh && \
     mkdir /csi && \

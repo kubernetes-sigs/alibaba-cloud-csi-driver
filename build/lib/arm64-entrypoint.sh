@@ -14,7 +14,7 @@ run_nas="false"
 mkdir -p /var/log/alicloud/
 mkdir -p /host/etc/kubernetes/volumes/disk/uuid
 
-HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
+HOST_CMD="/usr/bin/nsenter --mount=/proc/1/ns/mnt"
 
 ## check which plugin is running
 for item in $@;
