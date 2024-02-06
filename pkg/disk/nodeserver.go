@@ -371,6 +371,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.Internal, "NodePublishVolume: sourcePath: "+sourcePath+" real Device: "+realDevice+" not same with Saved: "+expectName)
 	}
 
+	// Set volume IO Limit
+	err = utils.SetVolumeIOLimit(realDevice, req)
+	if err != nil {
+		log.Log.Errorf("NodePublishVolume: Set Disk Volume(%s) IO Limit with Error: %s", req.VolumeId, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	log.Log.Infof("NodePublishVolume: Starting mount volume %s with flags %v and fsType %s", req.VolumeId, options, fsType)
 	if err = ns.k8smounter.Mount(sourcePath, targetPath, fsType, options); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -395,13 +402,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err = utils.AppendJSONData(fileName, volumeData); err != nil {
 			log.Log.Warnf("NodeStageVolume: append volume spec to %s with error: %s", fileName, err.Error())
 		}
-	}
-
-	// Set volume IO Limit
-	err = utils.SetVolumeIOLimit(realDevice, req)
-	if err != nil {
-		log.Log.Errorf("NodePublishVolume: Set Disk Volume(%s) IO Limit with Error: %s", req.VolumeId, err.Error())
-		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	log.Log.Infof("NodePublishVolume: Mount Successful Volume: %s, from source %s to target %v", req.VolumeId, sourcePath, targetPath)
