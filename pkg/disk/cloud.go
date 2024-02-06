@@ -49,7 +49,7 @@ var DEFAULT_VMFATAL_EVENTS = []string{
 const DISK_DELETE_MAX_RETRY = 60
 
 // attach alibaba cloud disk
-func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string, error) {
+func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string, error) {
 	log.Log.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
 	ecsClient, err := getEcsClientByID("", tenantUserUID)
@@ -63,14 +63,11 @@ func attachDisk(tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string
 		return "", status.Errorf(codes.NotFound, "AttachDisk: csi can't find disk: %s in region: %s, Please check if the cloud disk exists, if the region is correct, or if the csi permissions are correct", diskID, GlobalConfigVar.Region)
 	}
 
-	if !GlobalConfigVar.ADControllerEnable {
-		// NodeStageVolume/NodeUnstageVolume should be called by sequence
-		if GlobalConfigVar.AttachMutex.TryLock() {
-			defer GlobalConfigVar.AttachMutex.Unlock()
-		} else {
-			return "", status.Errorf(codes.Aborted, "NodeStageVolume: Previous attach/detach action is still in process. volume: %s", diskID)
-		}
+	slot := GlobalConfigVar.AttachDetachSlots.GetSlotFor(nodeID)
+	if err := slot.AquireAttach(ctx); err != nil {
+		return "", status.Errorf(codes.Aborted, "AttachDisk: get ad-slot for disk %s failed: %v", diskID, err)
 	}
+	defer slot.Release()
 
 	// tag disk as k8s.aliyun.com=true
 	if GlobalConfigVar.DiskTagEnable {
@@ -412,7 +409,7 @@ func detachMultiAttachDisk(ecsClient *ecs.Client, diskID, nodeID string) (isMult
 	return true, nil
 }
 
-func detachDisk(ecsClient *ecs.Client, diskID, nodeID string) error {
+func detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) error {
 	disk, err := findDiskByID(diskID, ecsClient)
 	if err != nil {
 		log.Log.Errorf("DetachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
@@ -433,13 +430,12 @@ func detachDisk(ecsClient *ecs.Client, diskID, nodeID string) error {
 		return nil
 	}
 	// NodeStageVolume/NodeUnstageVolume should be called by sequence
-	if !GlobalConfigVar.ADControllerEnable {
-		if GlobalConfigVar.AttachMutex.TryLock() {
-			defer GlobalConfigVar.AttachMutex.Unlock()
-		} else {
-			return status.Errorf(codes.Aborted, "DetachDisk: Previous attach/detach action is still in process, volume: %s", diskID)
-		}
+	slot := GlobalConfigVar.AttachDetachSlots.GetSlotFor(nodeID)
+	if err := slot.AquireDetach(ctx); err != nil {
+		return status.Errorf(codes.Aborted, "DetachDisk: get ad-slot for disk %s failed: %v", diskID, err)
 	}
+	defer slot.Release()
+
 	if GlobalConfigVar.DiskBdfEnable {
 		if allowed, err := forceDetachAllowed(ecsClient, disk, disk.InstanceId); err != nil {
 			err = perrors.Wrapf(err, "detachDisk forceDetachAllowed")

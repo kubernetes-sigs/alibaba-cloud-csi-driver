@@ -21,7 +21,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -67,7 +66,7 @@ type GlobalConfig struct {
 	NodeID                string
 	ZoneID                string
 	DiskTagEnable         bool
-	AttachMutex           sync.Mutex
+	AttachDetachSlots     AttachDetachSlots
 	ADControllerEnable    bool
 	DetachDisabled        bool
 	MetricEnable          bool
@@ -283,6 +282,13 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		GlobalConfigVar.DetachBeforeDelete,
 		GlobalConfigVar.ClusterID,
 	)
+
+	if controllerServerType && !csiCfg.GetBool("disk-serial-attach", "DISK_SERIAL_ATTACH", false) {
+		log.Log.Infof("Disk parallel attach/detach enabled, please set DISK_SERIAL_ATTACH if you see a lot of InvalidOperation.Conflict error.")
+		GlobalConfigVar.AttachDetachSlots = NewParallelAttachDetachSlots()
+	} else {
+		GlobalConfigVar.AttachDetachSlots = NewSerialAttachDetachSlots()
+	}
 
 	return cfg
 }
