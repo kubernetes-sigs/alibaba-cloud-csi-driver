@@ -37,7 +37,7 @@ import (
 
 const (
 	// NsenterCmd is the nsenter command
-	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
+	NsenterCmd = "/usr/bin/nsenter --mount=/proc/1/ns/mnt"
 	// NodeAffinity is the pv node schedule tag
 	NodeAffinity = "nodeAffinity"
 	// LocalDisk local disk

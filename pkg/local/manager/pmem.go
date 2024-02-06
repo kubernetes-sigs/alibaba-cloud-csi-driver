@@ -3,14 +3,14 @@ package manager
 import (
 	"errors"
 	"fmt"
-	k8smount "k8s.io/mount-utils"
-	utilexec "k8s.io/utils/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local/types"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	k8smount "k8s.io/mount-utils"
+	utilexec "k8s.io/utils/exec"
 )
 
 const (
@@ -70,7 +70,7 @@ type PmemNameSpace struct {
 
 const (
 	// NsenterCmd is the nsenter command
-	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
+	NsenterCmd = "/usr/bin/nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts "
 )
 
 // ErrParse is an error that is returned when parse operation fails

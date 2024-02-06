@@ -20,7 +20,6 @@ ARG BUILDPLATFORM
 ARG TARGETPLATFORM 
 COPY ./build/multi-private/ /multi_data
 
-RUN cp /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-nsenter /usr/bin/nsenter; cp /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-nsenter /nsenter
 RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "arm64" ]]; then cp /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-ossfs /usr/bin/ossfs; cp /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-ossfs-8u /usr/bin/ossfs-8u; cp /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-ossfs /usr/local/bin/ossfs; cp /multi_data/$(echo $TARGETPLATFORM | cut -f2 -d '/')-ossfs-8u /usr/local/bin/ossfs-8u;fi
 
 ARG ossfsVer=1.80.6.ack.1
@@ -37,7 +36,7 @@ COPY ./build/multi-private/csiplugin-connector.service /bin/csiplugin-connector.
 COPY ./build/multi-private/freezefs.sh /freezefs.sh
 COPY --from=build /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/csiplugin-connector /bin/csiplugin-connector
 COPY --from=build /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver/plugin.csi.alibabacloud.com /bin/plugin.csi.alibabacloud.com
-RUN chmod +x /bin/plugin.csi.alibabacloud.com && chmod +x /entrypoint.sh && chmod +x /bin/csiplugin-connector && chmod +x /bin/csiplugin-connector.service && chmod +x /usr/bin/nsenter && chmod +x /nsenter && chmod +x /freezefs.sh
+RUN chmod +x /bin/plugin.csi.alibabacloud.com && chmod +x /entrypoint.sh && chmod +x /bin/csiplugin-connector && chmod +x /bin/csiplugin-connector.service && chmod +x /freezefs.sh
 RUN if [[ $(echo $TARGETPLATFORM | cut -f2 -d '/') == "arm64" ]]; then chmod +x /usr/bin/ossfs* && chmod +x /usr/local/bin/ossfs*; fi
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
 ENTRYPOINT ["/entrypoint.sh"]

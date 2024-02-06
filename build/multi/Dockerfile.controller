@@ -7,9 +7,8 @@ WORKDIR /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 ARG CSI_VERSION=unknown
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
 RUN env GOARCH=$(echo $TARGETPLATFORM | cut -f2 -d '/') GOOS=linux CGO_ENABLED=0 \
-    go build \
-        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=${CSI_VERSION} \
-                  -X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.BUILDTIME=$(date -Iseconds)" \
+    go build -trimpath \
+        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=${CSI_VERSION}" \
     -o plugin.csi.alibabacloud.com
 
 FROM registry.cn-hangzhou.aliyuncs.com/acs/alpine:3.16-base
