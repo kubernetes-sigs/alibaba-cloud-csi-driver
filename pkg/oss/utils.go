@@ -127,12 +127,17 @@ func doMount(mounter mountutils.Interface, target string, opts Options, mountOpt
 	return nil
 }
 
-func modifiedURL(originURL, regionID string) (URL string, modified bool) {
+func setNetworkType(originURL, regionID string) (URL string, modified bool) {
 	URL = originURL
 	if strings.Contains(originURL, regionID) && !strings.Contains(originURL, "internal") && !utils.IsPrivateCloud() {
 		URL = strings.ReplaceAll(originURL, regionID, regionID+"-internal")
 		modified = true
 	}
+	return
+}
+
+func setTransmissionProtocol(originURL string) (URL string, modified bool) {
+	URL = originURL
 	if strings.HasPrefix(URL, "http://") || strings.HasPrefix(URL, "https://") {
 		return
 	}
