@@ -287,10 +287,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	regionID, _ := utils.GetRegionID()
 	if regionID == "" {
-		log.Warnf("Failed to get region id from both env and metadata, use original URL: %s", opt.URL)
-	} else if strings.Contains(opt.URL, regionID) && !strings.Contains(opt.URL, "internal") && !utils.IsPrivateCloud() {
-		originUrl := opt.URL
-		opt.URL = strings.ReplaceAll(originUrl, regionID, regionID+"-internal")
+		log.Warnf("NodePublishVolume:: failed to get region id from both env and metadata, use original URL: %s", opt.URL)
+	} else if url, done := modifiedURL(opt.URL, regionID); done {
+		log.Warnf("NodePublishVolume:: modified URL from %s to %s", opt.URL, url)
+		opt.URL = url
 	}
 
 	if opt.UseSharedPath {

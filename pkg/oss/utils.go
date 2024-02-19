@@ -126,3 +126,18 @@ func doMount(mounter mountutils.Interface, target string, opts Options, mountOpt
 	logger.Info("mounted successfully")
 	return nil
 }
+
+func modifiedURL(originURL, regionID string) (URL string, modified bool) {
+	URL = originURL
+	if strings.Contains(originURL, regionID) && !strings.Contains(originURL, "internal") && !utils.IsPrivateCloud() {
+		URL = strings.ReplaceAll(originURL, regionID, regionID+"-internal")
+		modified = true
+	}
+	if strings.HasPrefix(URL, "http://") || strings.HasPrefix(URL, "https://") {
+		return
+	}
+	if strings.HasSuffix(URL, "-internal.aliyuncs.com") {
+		return "http://" + URL, true
+	}
+	return "https://" + URL, true
+}
