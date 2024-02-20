@@ -3,10 +3,11 @@ module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 go 1.18
 
 require (
-	github.com/alibabacloud-go/darabonba-openapi v0.1.16
-	github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
-	github.com/alibabacloud-go/tea v1.1.17
+	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.4
+	github.com/alibabacloud-go/ens-20171110/v4 v4.0.10
+	github.com/alibabacloud-go/tea v1.1.19
 	github.com/aliyun/alibaba-cloud-sdk-go v1.62.401
+	github.com/aliyun/credentials-go v1.3.1
 	github.com/container-storage-interface/spec v1.1.0
 	github.com/containerd/ttrpc v1.1.0
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
@@ -46,11 +47,13 @@ require (
 	github.com/alibabacloud-go/alibabacloud-gateway-spi v0.0.4 // indirect
 	github.com/alibabacloud-go/debug v0.0.0-20190504072949-9472017b5c68 // indirect
 	github.com/alibabacloud-go/endpoint-util v1.1.0 // indirect
-	github.com/alibabacloud-go/openapi-util v0.0.11 // indirect
+	github.com/alibabacloud-go/openapi-util v0.1.0 // indirect
 	github.com/alibabacloud-go/tea-utils v1.4.3 // indirect
-	github.com/aliyun/credentials-go v1.1.2 // indirect
+	github.com/alibabacloud-go/tea-utils/v2 v2.0.3 // indirect
+	github.com/alibabacloud-go/tea-xml v1.1.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/clbanning/mxj/v2 v2.5.5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v0.0.0-20170905204447-5db89f0ca686 // indirect
 	github.com/docker/go-connections v0.3.0 // indirect

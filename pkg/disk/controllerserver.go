@@ -567,7 +567,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 	sourceVolumeID := strings.Trim(req.GetSourceVolumeId(), " ")
 	// Need to check for already existing snapshot name
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshots, snapNum, err := findSnapshotByName(req.GetName())
 	if snapNum == 0 {
 		snapshots, snapNum, err = findDiskSnapshotByID(req.GetName())
@@ -731,7 +730,6 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	log.Log.Infof("DeleteSnapshot:: starting delete snapshot %s", snapshotID)
 
 	// Check Snapshot exist
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshot, snapNum, err := findDiskSnapshotByID(req.SnapshotId)
 	if err != nil {
 		return nil, err
@@ -785,7 +783,6 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 		Namespace: "",
 	}
 	log.Log.Infof("ListSnapshots:: called with args: %+v", req)
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshotID := req.GetSnapshotId()
 	snapshot, snapNum, err := findDiskSnapshotByID(snapshotID)
 	switch {
@@ -1108,8 +1105,6 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 		return nil, err
 	}
 
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-
 	pvcName, pvcNamespace := pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace
 	pvc, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(ctx, pvcName, metav1.GetOptions{})
 	if err != nil {
@@ -1162,8 +1157,6 @@ func (cs *controllerServer) deleteVolumeExpandAutoSnapshot(ctx context.Context, 
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
 		return err
 	}
-
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 
 	// Delete Snapshot
 	response, err := requestAndDeleteSnapshot(snapshotID)

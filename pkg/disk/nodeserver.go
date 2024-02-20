@@ -820,7 +820,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		return nil, fmt.Errorf("failed to get node: %w", err)
 	}
 
-	c := updateEcsClient(GlobalConfigVar.EcsClient)
+	c := GlobalConfigVar.EcsClient
 	maxVolumesNum, err := getVolumeCount(node, c, ns.metadata)
 	if err != nil {
 		return nil, err
@@ -1131,8 +1131,6 @@ func collectMountOptions(fsType string, mntFlags []string) (options []string) {
 // func  handle error : event( autoSnapshot ID return) + error
 func deleteVolumeExpandAutoSnapshot(ctx context.Context, volumeExpandAutoSnapshotID string) error {
 	log.Log.Infof("NodeExpandVolume:: Starting to delete volumeExpandAutoSnapshot with id: %s", volumeExpandAutoSnapshotID)
-
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 
 	response, err := requestAndDeleteSnapshot(volumeExpandAutoSnapshotID)
 	if err != nil {

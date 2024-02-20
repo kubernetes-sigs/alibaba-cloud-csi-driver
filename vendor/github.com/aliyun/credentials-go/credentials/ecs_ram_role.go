@@ -28,12 +28,32 @@ type ecsRAMRoleResponse struct {
 	Expiration      string `json:"Expiration" xml:"Expiration"`
 }
 
-func newEcsRAMRoleCredential(roleName string, runtime *utils.Runtime) *EcsRAMRoleCredential {
+func newEcsRAMRoleCredential(roleName string, inAdvanceScale float64, runtime *utils.Runtime) *EcsRAMRoleCredential {
+	credentialUpdater := new(credentialUpdater)
+	if inAdvanceScale < 1 && inAdvanceScale > 0 {
+		credentialUpdater.inAdvanceScale = inAdvanceScale
+	}
 	return &EcsRAMRoleCredential{
 		RoleName:          roleName,
-		credentialUpdater: new(credentialUpdater),
+		credentialUpdater: credentialUpdater,
 		runtime:           runtime,
 	}
+}
+
+func (e *EcsRAMRoleCredential) GetCredential() (*CredentialModel, error) {
+	if e.sessionCredential == nil || e.needUpdateCredential() {
+		err := e.updateCredential()
+		if err != nil {
+			return nil, err
+		}
+	}
+	credential := &CredentialModel{
+		AccessKeyId:     tea.String(e.sessionCredential.AccessKeyId),
+		AccessKeySecret: tea.String(e.sessionCredential.AccessKeySecret),
+		SecurityToken:   tea.String(e.sessionCredential.SecurityToken),
+		Type:            tea.String("ecs_ram_role"),
+	}
+	return credential, nil
 }
 
 // GetAccessKeyId reutrns  EcsRAMRoleCredential's AccessKeyId
@@ -42,6 +62,9 @@ func (e *EcsRAMRoleCredential) GetAccessKeyId() (*string, error) {
 	if e.sessionCredential == nil || e.needUpdateCredential() {
 		err := e.updateCredential()
 		if err != nil {
+			if e.credentialExpiration > (int(time.Now().Unix()) - int(e.lastUpdateTimestamp)) {
+				return &e.sessionCredential.AccessKeyId, nil
+			}
 			return tea.String(""), err
 		}
 	}
@@ -54,6 +77,9 @@ func (e *EcsRAMRoleCredential) GetAccessKeySecret() (*string, error) {
 	if e.sessionCredential == nil || e.needUpdateCredential() {
 		err := e.updateCredential()
 		if err != nil {
+			if e.credentialExpiration > (int(time.Now().Unix()) - int(e.lastUpdateTimestamp)) {
+				return &e.sessionCredential.AccessKeySecret, nil
+			}
 			return tea.String(""), err
 		}
 	}
@@ -66,6 +92,9 @@ func (e *EcsRAMRoleCredential) GetSecurityToken() (*string, error) {
 	if e.sessionCredential == nil || e.needUpdateCredential() {
 		err := e.updateCredential()
 		if err != nil {
+			if e.credentialExpiration > (int(time.Now().Unix()) - int(e.lastUpdateTimestamp)) {
+				return &e.sessionCredential.SecurityToken, nil
+			}
 			return tea.String(""), err
 		}
 	}

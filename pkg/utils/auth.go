@@ -17,93 +17,24 @@ limitations under the License.
 package utils
 
 import (
-	"bytes"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/tls"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"time"
+
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth"
 	cre "github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials/provider"
 	"github.com/emirpasic/gods/sets/hashset"
 	oidc "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/auth"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/credentials"
-	"io/ioutil"
-	"math/big"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
-	"time"
 )
-
-const (
-	// ConfigPath the secret mount file
-	ConfigPath = "/var/addon/token-config"
-)
-
-// AKInfo access key info
-type AKInfo struct {
-	// AccessKeyId access key id
-	AccessKeyID string `json:"access.key.id"`
-	// AccessKeySecret access key secret
-	AccessKeySecret string `json:"access.key.secret"`
-	// SecurityToken security token
-	SecurityToken string `json:"security.token"`
-	// Expiration expiration duration
-	Expiration string `json:"expiration"`
-	// Keyring key ring
-	Keyring string `json:"keyring"`
-	// RoleAccessKeyId key
-	RoleAccessKeyID string `json:"role.access.key.id"`
-	// RoleAccessKeySecret key
-	RoleAccessKeySecret string `json:"role.access.key.secret"`
-	// RoleArn key
-	RoleArn string `json:"role.arn"`
-}
-
-// ManageTokens 定义资源账号 和 角色扮演账号
-type ManageTokens struct {
-	// AccessKeyId key
-	AccessKeyID string
-	// AccessKeySecret key
-	AccessKeySecret string
-	// SecurityToken key
-	SecurityToken string
-
-	// RoleAccessKeyId key
-	RoleAccessKeyID string
-	// RoleAccessKeySecret key
-	RoleAccessKeySecret string
-	// RoleArn key
-	RoleArn string
-}
-
-// KeyPairArtifacts is cert struct
-type KeyPairArtifacts struct {
-	Cert    *x509.Certificate
-	Key     *rsa.PrivateKey
-	CertPEM []byte
-	KeyPEM  []byte
-}
-
-// CertOption is cert option
-type CertOption struct {
-	CAName          string
-	CAOrganizations []string
-	DNSNames        []string
-	CommonName      string
-}
 
 // AccessControlMode is int, represents different modes
 type AccessControlMode int
@@ -378,98 +309,21 @@ func getStsToken() AccessControl {
 	return AccessControl{AccessKeyID: roleAuth.AccessKeyID, AccessKeySecret: roleAuth.AccessKeySecret, StsToken: roleAuth.SecurityToken, UseMode: EcsRAMRole, Config: config, Credential: credent}
 }
 
-// GetManagedToken get ak from csi secret
-func getManagedToken() (tokens ManageTokens) {
-	var akInfo AKInfo
-	if _, err := os.Stat(ConfigPath); err == nil {
-		encodeTokenCfg, err := ioutil.ReadFile(ConfigPath)
+func getManagedToken() (tokens credentials.ManageTokens) {
+	configPath := credentials.DefaultTokenPath
+	if _, err := os.Stat(configPath); err == nil {
+		encodeTokenCfg, err := os.ReadFile(configPath)
 		if err != nil {
 			log.Errorf("failed to read token config, err: %v", err)
-			return ManageTokens{}
+			return
 		}
-		err = json.Unmarshal(encodeTokenCfg, &akInfo)
+		tokens, err = credentials.ParseManagedTokens(encodeTokenCfg)
 		if err != nil {
-			log.Errorf("error unmarshal token config: %v", err)
-			return ManageTokens{}
+			log.Errorf("failed to parse token config, err: %v", err)
 		}
-		keyring := akInfo.Keyring
-		ak, err := Decrypt(akInfo.AccessKeyID, []byte(keyring))
-		if err != nil {
-			log.Errorf("failed to decode ak, err: %v", err)
-			return ManageTokens{}
-		}
-
-		sk, err := Decrypt(akInfo.AccessKeySecret, []byte(keyring))
-		if err != nil {
-			log.Errorf("failed to decode sk, err: %v", err)
-			return ManageTokens{}
-		}
-
-		token, err := Decrypt(akInfo.SecurityToken, []byte(keyring))
-		if err != nil {
-			log.Errorf("failed to decode token, err: %v", err)
-			return ManageTokens{}
-		}
-		layout := "2006-01-02T15:04:05Z"
-		t, err := time.Parse(layout, akInfo.Expiration)
-		if err != nil {
-			log.Errorf("Parse expiration error: %s", err.Error())
-		}
-		if t.Before(time.Now()) {
-			log.Errorf("invalid token which is expired, expiration as: %s", akInfo.Expiration)
-		}
-		tokens.AccessKeyID = string(ak)
-		tokens.AccessKeySecret = string(sk)
-		tokens.SecurityToken = string(token)
-
-		if akInfo.RoleAccessKeyID != "" && akInfo.RoleAccessKeySecret != "" {
-			roleAK, err := Decrypt(akInfo.RoleAccessKeyID, []byte(keyring))
-			if err != nil {
-				log.Errorf("failed to decode role ak, err: %v", err)
-				return ManageTokens{}
-			}
-			roleSK, err := Decrypt(akInfo.RoleAccessKeySecret, []byte(keyring))
-			if err != nil {
-				log.Errorf("failed to decode role sk, err : %v", err)
-				return ManageTokens{}
-			}
-			tokens.RoleAccessKeyID = string(roleAK)
-			tokens.RoleAccessKeySecret = string(roleSK)
-		}
-		tokens.RoleArn = akInfo.RoleArn
+		return
 	}
-	return tokens
-}
-
-// PKCS5UnPadding get pkc
-func PKCS5UnPadding(origData []byte) []byte {
-	length := len(origData)
-	unpadding := int(origData[length-1])
-	return origData[:(length - unpadding)]
-}
-
-// Decrypt secret Decrypt
-func Decrypt(s string, keyring []byte) ([]byte, error) {
-	cdata, err := base64.StdEncoding.DecodeString(s)
-	if err != nil {
-		log.Errorf("failed to decode base64 string, err: %v", err)
-		return nil, err
-	}
-	block, err := aes.NewCipher(keyring)
-	if err != nil {
-		log.Errorf("failed to new cipher, err: %v", err)
-		return nil, err
-	}
-	blockSize := block.BlockSize()
-
-	iv := cdata[:blockSize]
-	blockMode := cipher.NewCBCDecrypter(block, iv)
-	origData := make([]byte, len(cdata)-blockSize)
-
-	blockMode.CryptBlocks(origData, cdata[blockSize:])
-
-	origData = PKCS5UnPadding(origData)
-	return origData, nil
+	return
 }
 
 // GetDefaultRoleAK  返回角色扮演账号AK, SK, role arn
@@ -480,159 +334,6 @@ func GetDefaultRoleAK() AccessControl {
 		return AccessControl{AccessKeyID: tokens.RoleAccessKeyID, AccessKeySecret: tokens.RoleAccessKeySecret, RoleArn: tokens.RoleArn, UseMode: ManagedToken}
 	}
 	return AccessControl{AccessKeyID: roleAccessKeyID, AccessKeySecret: roleAccessKeySecret, RoleArn: roleArn, UseMode: RoleArnToken}
-}
-
-// CreateCACert function is create cacert
-func CreateCACert(option CertOption, begin, end time.Time) (*KeyPairArtifacts, error) {
-	templ := &x509.Certificate{
-		SerialNumber: big.NewInt(0),
-		Subject: pkix.Name{
-			CommonName:   option.CAName,
-			Organization: option.CAOrganizations,
-		},
-		DNSNames:              option.DNSNames,
-		NotBefore:             begin,
-		NotAfter:              end,
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageCertSign,
-		BasicConstraintsValid: true,
-		IsCA:                  true,
-	}
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, fmt.Errorf("generating key: %s", err)
-	}
-	der, err := x509.CreateCertificate(rand.Reader, templ, templ, key.Public(), key)
-	if err != nil {
-		return nil, fmt.Errorf("creating certificate: %s", err)
-	}
-	certPEM, keyPEM, err := pemEncode(der, key)
-	if err != nil {
-		return nil, fmt.Errorf("encoding PEM: %s", err)
-	}
-	cert, err := x509.ParseCertificate(der)
-	if err != nil {
-		return nil, fmt.Errorf("parsing certificate: %s", err)
-	}
-
-	return &KeyPairArtifacts{Cert: cert, Key: key, CertPEM: certPEM, KeyPEM: keyPEM}, nil
-}
-
-// CreateCertPEM function is create cacert pem
-func CreateCertPEM(option CertOption, ca *KeyPairArtifacts, begin, end time.Time, isClient bool) ([]byte, []byte, error) {
-	sn, err := genSerialNum()
-	if err != nil {
-		return nil, nil, err
-	}
-	eks := []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
-	dnsNames := option.DNSNames
-	if isClient {
-		eks = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
-		dnsNames = nil
-	}
-	templ := &x509.Certificate{
-		SerialNumber: sn,
-		Subject: pkix.Name{
-			CommonName: option.CommonName,
-		},
-		DNSNames:              dnsNames,
-		NotBefore:             begin,
-		NotAfter:              end,
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		ExtKeyUsage:           eks,
-		BasicConstraintsValid: true,
-	}
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, fmt.Errorf("generating key: %s", err)
-	}
-	der, err := x509.CreateCertificate(rand.Reader, templ, ca.Cert, key.Public(), ca.Key)
-	if err != nil {
-		return nil, nil, fmt.Errorf("creating certificate: %s", err)
-	}
-	certPEM, keyPEM, err := pemEncode(der, key)
-	if err != nil {
-		return nil, nil, fmt.Errorf("encoding PEM: %s", err)
-	}
-	return certPEM, keyPEM, nil
-}
-
-func pemEncode(certificateDER []byte, key *rsa.PrivateKey) ([]byte, []byte, error) {
-	certBuf := &bytes.Buffer{}
-	if err := pem.Encode(certBuf, &pem.Block{Type: "CERTIFICATE", Bytes: certificateDER}); err != nil {
-		return nil, nil, fmt.Errorf("encoding cert: %s", err)
-	}
-	keyBuf := &bytes.Buffer{}
-	if err := pem.Encode(keyBuf, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}); err != nil {
-		return nil, nil, fmt.Errorf("encoding key: %s", err)
-	}
-	return certBuf.Bytes(), keyBuf.Bytes(), nil
-}
-
-func genSerialNum() (*big.Int, error) {
-	serialNumLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serialNum, err := rand.Int(rand.Reader, serialNumLimit)
-	if err != nil {
-		return nil, fmt.Errorf("serial number generation failure (%v)", err)
-	}
-	return serialNum, nil
-}
-
-// NewClientTLSFromFile function is new client with tls
-func NewClientTLSFromFile(serverName, caFile, certFile, keyFile string) (credentials.TransportCredentials, error) {
-	// Load the certificates from disk
-	certificate, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return nil, fmt.Errorf("could not load server key pair: %s", err)
-	}
-
-	// Create a certificate pool from the certificate authority
-	certPool := x509.NewCertPool()
-	ca, err := ioutil.ReadFile(caFile)
-	if err != nil {
-		return nil, fmt.Errorf("could not read ca certificate: %s", err)
-	}
-
-	// Append the client certificates from the CA
-	if ok := certPool.AppendCertsFromPEM(ca); !ok {
-		return nil, errors.New("failed to append client certs")
-	}
-
-	// Create the TLS credentials
-	creds := credentials.NewTLS(&tls.Config{
-		ServerName:   serverName,
-		Certificates: []tls.Certificate{certificate},
-		RootCAs:      certPool,
-	})
-	return creds, nil
-}
-
-// NewServerTLSFromFile function is new server with tls
-func NewServerTLSFromFile(caFile, certFile, keyFile string) (credentials.TransportCredentials, error) {
-	// Load the certificates from disk
-	certificate, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return nil, fmt.Errorf("could not load server key pair: %s", err)
-	}
-
-	// Create a certificate pool from the certificate authority
-	certPool := x509.NewCertPool()
-	ca, err := ioutil.ReadFile(caFile)
-	if err != nil {
-		return nil, fmt.Errorf("could not read ca certificate: %s", err)
-	}
-
-	// Append the client certificates from the CA
-	if ok := certPool.AppendCertsFromPEM(ca); !ok {
-		return nil, errors.New("failed to append client certs")
-	}
-
-	// Create the TLS credentials
-	creds := credentials.NewTLS(&tls.Config{
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-		Certificates: []tls.Certificate{certificate},
-		ClientCAs:    certPool,
-	})
-	return creds, nil
 }
 
 // getCredentialAK get credential and config from credential files.

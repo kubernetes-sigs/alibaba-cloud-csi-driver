@@ -35,6 +35,9 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth"
+	oldAlicred "github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/signers"
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
@@ -94,26 +97,23 @@ type RoleAuth struct {
 	Code            string
 }
 
-func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
+func newEcsClient(signer auth.Signer) (ecsClient *ecs.Client) {
 	regionID, _ := utils.GetRegionID()
-	var err error
-	switch ac.UseMode {
-	case utils.AccessKey:
-		ecsClient, err = ecs.NewClientWithAccessKey(regionID, ac.AccessKeyID, ac.AccessKeySecret)
-	case utils.Credential:
-		ecsClient, err = ecs.NewClientWithOptions(regionID, ac.Config, ac.Credential)
-	default:
-		ecsClient, err = ecs.NewClientWithStsToken(regionID, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
+
+	// it wants a credential, but we will use custom signer.
+	// so just pass a dummy credential, which will never be used.
+	ecsClient, err := ecs.NewClientWithAccessKey(regionID, "", "")
+	if err != nil {
+		return nil
 	}
+	ecsClient.SetSigner(signer)
+
 	scheme := "HTTPS"
 	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
 		scheme = "HTTP"
 	}
 	ecsClient.SetHTTPSInsecure(false)
-	ecsClient.GetConfig().WithScheme(scheme)
-	if err != nil {
-		return nil
-	}
+	ecsClient.GetConfig().WithScheme(scheme).WithUserAgent(KubernetesAlicloudIdentity)
 
 	if os.Getenv("INTERNAL_MODE") == "true" {
 		if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
@@ -130,17 +130,6 @@ func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 	}
 
 	return
-}
-
-func updateEcsClient(client *ecs.Client) *ecs.Client {
-	ac := utils.GetAccessControl()
-	if ac.UseMode == utils.EcsRAMRole || ac.UseMode == utils.ManagedToken || ac.UseMode == utils.OIDCToken {
-		client = newEcsClient(ac)
-	}
-	if client.Client.GetConfig() != nil {
-		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
-	}
-	return client
 }
 
 // SetEcsEndPoint Set Endpoint for Ecs
@@ -1243,15 +1232,15 @@ func intersect(slice1, slice2 []string) []string {
 	return nn
 }
 
-func getEcsClientByID(volumeID, uid string) (ecsClient *ecs.Client, err error) {
+func getEcsClientByID(volumeID, uid string) (*ecs.Client, error) {
 	// feature gate not enable;
 	if !GlobalConfigVar.DiskMultiTenantEnable {
-		ecsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-		return ecsClient, nil
+		return GlobalConfigVar.EcsClient, nil
 	}
 
 	// volumeId not empty, get uid from pv;
 	if uid == "" && volumeID != "" {
+		var err error
 		uid, err = getTenantUIDByVolumeID(volumeID)
 		if err != nil {
 			return nil, perrors.Wrapf(err, "get uid by volumeId, volumeId=%s", volumeID)
@@ -1260,12 +1249,12 @@ func getEcsClientByID(volumeID, uid string) (ecsClient *ecs.Client, err error) {
 
 	// uid always empty after describe pv spec, use GlobalConfigVar.EcsClient
 	if uid == "" {
-		ecsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-		return ecsClient, nil
+		return GlobalConfigVar.EcsClient, nil
 	}
 
 	// create role client with uid;
-	if ecsClient, err = createRoleClient(uid); err != nil {
+	ecsClient, err := createRoleClient(uid)
+	if err != nil {
 		return nil, perrors.Wrapf(err, "createRoleClient, tenant uid=%s", uid)
 	}
 	return ecsClient, nil
@@ -1312,8 +1301,11 @@ func createRoleClient(uid string) (cli *ecs.Client, err error) {
 	if err != nil {
 		return nil, perrors.Wrapf(err, "AssumeRole")
 	}
-	ac = utils.AccessControl{AccessKeyID: resp.Credentials.AccessKeyId, AccessKeySecret: resp.Credentials.AccessKeySecret, StsToken: resp.Credentials.SecurityToken, UseMode: utils.EcsRAMRole}
-	cli = newEcsClient(ac)
+	cli = newEcsClient(signers.NewStsTokenSigner(&oldAlicred.StsTokenCredential{
+		AccessKeyId:       resp.Credentials.AccessKeyId,
+		AccessKeySecret:   resp.Credentials.AccessKeySecret,
+		AccessKeyStsToken: resp.Credentials.SecurityToken,
+	}))
 	if cli.Client.GetConfig() != nil {
 		cli.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
 	}

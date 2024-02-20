@@ -1,12 +1,11 @@
 package ens
 
 import (
-	http "github.com/alibabacloud-go/darabonba-openapi/client"
-	ensCli "github.com/alibabacloud-go/ens-20171110/v3/client"
+	http "github.com/alibabacloud-go/darabonba-openapi/v2/client"
+	ensCli "github.com/alibabacloud-go/ens-20171110/v4/client"
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	log "github.com/sirupsen/logrus"
-	"time"
 )
 
 type ENSClient struct {
@@ -14,17 +13,17 @@ type ENSClient struct {
 }
 
 func newENSClient() ENSClient {
-	accessControl := utils.GetAccessControl()
+	cred, err := credentials.NewCredential()
+	if err != nil {
+		log.Fatalf("newENSClient: failed to create credential: %+v", err)
+	}
 
-	config := new(http.Config)
+	config := http.Config{
+		Endpoint:   tea.String("ens.aliyuncs.com"),
+		Credential: cred,
+	}
 
-	config.AccessKeyId = &accessControl.AccessKeyID
-	config.AccessKeySecret = &accessControl.AccessKeySecret
-	config.SecurityToken = &accessControl.StsToken
-
-	config.Endpoint = tea.String("ens.aliyuncs.com")
-	// log.Infof("newENSClient: fortest, ak: %s, sk: %s, sts: %s", *config.AccessKeyId, *config.AccessKeySecret, *config.SecurityToken)
-	ec, err := ensCli.NewClient(config)
+	ec, err := ensCli.NewClient(&config)
 	if err != nil {
 		log.Fatalf("newENSClient: failed to create ens client: %+v", err)
 	}
@@ -36,14 +35,6 @@ func (ec *ENSClient) DescribeInstance(instanceId string) ([]*ensCli.DescribeInst
 		InstanceId: tea.String(instanceId),
 	}
 	resp, err := ec.c.DescribeInstances(dir)
-	if err != nil {
-		log.Errorf("DescribeInstance: describe instance failed err: %+v", err)
-		if ec.renewToken() != nil {
-			log.Errorf("DescribeInstance: describe instance failed err: %+v", err)
-			return []*ensCli.DescribeInstancesResponseBodyInstancesInstance{}, err
-		}
-		resp, err = ec.c.DescribeInstances(dir)
-	}
 	if err != nil {
 		log.Errorf("DescribeInstance: describe instance failed err: %+v", err)
 		return []*ensCli.DescribeInstancesResponseBodyInstancesInstance{}, err
@@ -60,14 +51,6 @@ func (ec *ENSClient) CreateVolume(regionID, diskType, size string) (string, erro
 	}
 
 	resp, err := ec.c.CreateDisk(cdr)
-	if err != nil {
-		log.Errorf("CreateVolume: create volume failed err: %+v", err)
-		if ec.renewToken() != nil {
-			log.Errorf("CreateVolume: create volume failed err: %+v", err)
-			return "", err
-		}
-		resp, err = ec.c.CreateDisk(cdr)
-	}
 	if err != nil {
 		log.Errorf("CreateVolume: create volume failed err: %+v, regionID: %s, category: %s, size: %s", err, regionID, diskType, size)
 		return "", err
@@ -89,14 +72,6 @@ func (ec *ENSClient) AttachVolume(diskID, instanceID string) error {
 	log.Infof("AttachVolume: attach disk resp: %+v", resp)
 	if err != nil {
 		log.Errorf("AttachVolume: attach volume failed err: %+v", err)
-		if ec.renewToken() != nil {
-			log.Errorf("AttachVolume: attach volume failed err: %+v", err)
-			return err
-		}
-		_, err = ec.c.AttachDisk(adr)
-	}
-	if err != nil {
-		log.Errorf("AttachVolume: attach volume failed err: %+v", err)
 		return err
 	}
 	return nil
@@ -109,15 +84,6 @@ func (ec *ENSClient) DescribeVolume(diskID string) (*ensCli.DescribeDisksRespons
 		EnsRegionId: tea.String(GlobalConfigVar.RegionID),
 	}
 	resp, err := ec.c.DescribeDisks(ddr)
-
-	if err != nil {
-		log.Errorf("DescribeVolume: describe volume failed err: %+v", err)
-		if ec.renewToken() != nil {
-			log.Errorf("DescribeVolume: describe volume failed err: %+v", err)
-			return nil, err
-		}
-		resp, err = ec.c.DescribeDisks(ddr)
-	}
 	if err != nil {
 		log.Errorf("DescribeVolume: describe volume failed err: %+v", err)
 		return nil, err
@@ -132,38 +98,9 @@ func (ec *ENSClient) DetachVolume(diskID, instanceID string) error {
 	}
 	resp, err := ec.c.DetachDisk(ddr)
 	log.Infof("DetachVolume: detach disk resp: %+v", resp)
-
-	if err != nil {
-		log.Errorf("DetachVolume: detach volume failed err: %+v", err)
-		if ec.renewToken() != nil {
-			log.Errorf("DetachVolume: detach volume failed err: %+v", err)
-			return err
-		}
-		resp, err = ec.c.DetachDisk(ddr)
-	}
 	if err != nil {
 		log.Errorf("DescribeVolume: describe volume failed err: %+v", err)
 		return err
 	}
-	return nil
-}
-
-func (ec *ENSClient) renewToken() error {
-	log.Infof("renewToken: currentTime: %s", time.Now().String())
-
-	accessControl := utils.GetAccessControl()
-
-	config := new(http.Config)
-	config.AccessKeyId = &accessControl.AccessKeyID
-	config.AccessKeySecret = &accessControl.AccessKeySecret
-	config.SecurityToken = &accessControl.StsToken
-	config.Endpoint = tea.String("ens.aliyuncs.com")
-	log.Infof("newENSClient: fortest, ak: %s, sk: %s, sts: %s", *config.AccessKeyId, *config.AccessKeySecret, *config.SecurityToken)
-	ensClient, err := ensCli.NewClient(config)
-	if err != nil {
-		log.Errorf("renewToken: failed to renew token: %+v", err)
-		return err
-	}
-	ec.c = ensClient
 	return nil
 }
