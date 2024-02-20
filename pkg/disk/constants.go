@@ -40,8 +40,6 @@ const (
 	IAVolumeSnapshotKey = "csi.alibabacloud.com/snapshot-ia"
 	// SnapshotRequestTag interval limit
 	SnapshotRequestTag = "SNAPSHOT_REQUEST_INTERVAL"
-	// VolumeSnapshotContentName ...
-	VolumeSnapshotContentName = "csi.storage.k8s.io/volumesnapshotcontent/name"
 	// DefaultVolumeSnapshotClass ...
 	DefaultVolumeSnapshotClass = "alibabacloud-disk-snapshot"
 	// annDiskID tag
@@ -71,18 +69,8 @@ const (
 	//snapshotDeletedSuccessfully means that the delete snapshot success
 	snapshotDeletedSuccessfully string = "SnapshotDeletedSuccessfully"
 
-	// KubernetesAlicloudDiskDriver driver name
-	KubernetesAlicloudDiskDriver = "alicloud/disk"
-	// MetadataURL metadata URL
-	MetadataURL = "http://100.100.100.200/latest/meta-data/"
 	// DocumentURL document URL
 	DocumentURL = "http://100.100.100.200/latest/dynamic/instance-identity/document"
-	// RegionIDTag region ID
-	RegionIDTag = "region-id"
-	// InstanceID instance ID
-	InstanceID = "instance-id"
-	// DiskConflict invalid operation type
-	DiskConflict = "InvalidOperation.Conflict"
 	// IncorrectDiskStatus incorrect disk status
 	IncorrectDiskStatus = "IncorrectDiskStatus"
 	// NeverAttached status belongs to IncorrectDiskStatus
@@ -91,12 +79,8 @@ const (
 	DiskCreatingSnapshot = "DiskCreatingSnapshot"
 	// UserNotInTheWhiteList tag
 	UserNotInTheWhiteList = "UserNotInTheWhiteList"
-	// TagK8sPV tag
-	TagK8sPV = "k8s-pv"
 	// ZoneIDTag tag
 	ZoneIDTag = "zone-id"
-	// LogfilePrefix tag
-	LogfilePrefix = "/var/log/alicloud/provisioner"
 
 	// These are error codes of ECS OpenAPI
 
@@ -139,10 +123,6 @@ const (
 	MBSIZE = 1024 * 1024
 	// GBSIZE tag
 	GBSIZE = 1024 * MBSIZE
-	// DefaultRegion is the default region id
-	DefaultRegion = "cn-hangzhou"
-	// DiskUUIDPath tag
-	DiskUUIDPath = "/host/etc/kubernetes/volumes/disk/uuid"
 	// ZoneID ...
 	ZoneID = "zoneId"
 	// instanceTypeLabel ...

@@ -54,9 +54,6 @@ type DISK struct {
 	idServer         csi.IdentityServer
 	nodeServer       csi.NodeServer
 	controllerServer csi.ControllerServer
-
-	cap   []*csi.VolumeCapability_AccessMode
-	cscap []*csi.ControllerServiceCapability
 }
 
 // GlobalConfig save global values for plugin

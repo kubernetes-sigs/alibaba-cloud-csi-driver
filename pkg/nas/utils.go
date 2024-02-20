@@ -44,14 +44,8 @@ import (
 )
 
 const (
-	// MetadataURL is metadata url
-	MetadataURL = "http://100.100.100.200/latest/meta-data/"
 	// RegionTag is region id
 	RegionTag = "region-id"
-	// NsenterCmd is nsenter mount command
-	NsenterCmd = "nsenter --mount=/proc/1/ns/mnt"
-	//Nsenter is nsenter binary command
-	Nsenter = "nsenter"
 	// LoopLockFile lock file for nas loopsetup
 	LoopLockFile = "loopsetup.nas.csi.alibabacloud.com.lck"
 	// LoopImgFile image file for nas loopsetup

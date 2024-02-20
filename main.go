@@ -54,8 +54,6 @@ func init() {
 }
 
 const (
-	// MBSIZE MB size
-	MBSIZE = 1024 * 1024
 	// TypePluginSuffix is the suffix of all storage plugins.
 	TypePluginSuffix = "plugin.csi.alibabacloud.com"
 	// TypePluginVar is the yaml variable that needs to be replaced.

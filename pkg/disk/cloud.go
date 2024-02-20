@@ -626,35 +626,6 @@ func waitForDiskInStatus(retryCount int, interval time.Duration, diskID string, 
 	return status.Errorf(codes.Aborted, "WaitForDiskInStatus: after %d times of check, disk %s is still not in expected status %v", retryCount, diskID, expectedStatus)
 }
 
-// return disk with the define name
-func findDiskByName(ecsClient *ecs.Client, name string, resourceGroupID string, sharedDisk bool) ([]ecs.Disk, error) {
-	resDisks := []ecs.Disk{}
-	describeDisksRequest := ecs.CreateDescribeDisksRequest()
-	describeDisksRequest.RegionId = GlobalConfigVar.Region
-	describeDisksRequest.DiskName = name
-	diskResponse, err := ecsClient.DescribeDisks(describeDisksRequest)
-
-	if err != nil {
-		return resDisks, err
-	}
-	if sharedDisk && len(diskResponse.Disks.Disk) == 0 {
-		describeDisksRequest.EnableShared = requests.NewBoolean(true)
-		diskResponse, err = ecsClient.DescribeDisks(describeDisksRequest)
-		if err != nil {
-			return resDisks, err
-		}
-		if diskResponse == nil {
-			return nil, status.Errorf(codes.Aborted, "Empty response when get disk %s", name)
-		}
-	}
-	for _, disk := range diskResponse.Disks.Disk {
-		if disk.DiskName == name {
-			resDisks = append(resDisks, disk)
-		}
-	}
-	return resDisks, err
-}
-
 func findDiskByID(diskID string, ecsClient *ecs.Client) (*ecs.Disk, error) {
 	describeDisksRequest := ecs.CreateDescribeDisksRequest()
 	describeDisksRequest.RegionId = GlobalConfigVar.Region

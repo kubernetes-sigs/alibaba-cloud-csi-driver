@@ -1,17 +1,13 @@
 package om
 
 import (
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-)
 
-const (
-	// MountInfo mount file
-	MountInfo = "/proc/mounts"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 // FixReferenceMountIssue remove reference links
