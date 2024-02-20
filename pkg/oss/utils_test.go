@@ -112,6 +112,13 @@ func Test_setNetworkType(t *testing.T) {
 			"oss-cn-beijing-internal.aliyuncs.com",
 			false,
 		},
+		{
+			"private",
+			"oss-cn-wulanchabu-xxx-xxxx.ops.xxx.com",
+			"cn-wulanchabu",
+			"oss-cn-wulanchabu-xxx-xxxx.ops.xxx.com",
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -151,8 +158,8 @@ func Test_setTransmissionProtocol(t *testing.T) {
 		},
 		{
 			"internal-modified",
-			"oss-cn-beijing-internal.aliyuncs.com",
-			"http://oss-cn-beijing-internal.aliyuncs.com",
+			"oss-cn-beijing-internal.aliyuncs.com//",
+			"http://oss-cn-beijing-internal.aliyuncs.com//",
 			true,
 		},
 	}

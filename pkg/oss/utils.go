@@ -129,7 +129,10 @@ func doMount(mounter mountutils.Interface, target string, opts Options, mountOpt
 
 func setNetworkType(originURL, regionID string) (URL string, modified bool) {
 	URL = originURL
-	if strings.Contains(originURL, regionID) && !strings.Contains(originURL, "internal") && !utils.IsPrivateCloud() {
+	if utils.IsPrivateCloud() || !strings.HasSuffix(strings.TrimRight(URL, "/"), ".aliyuncs.com") {
+		return
+	}
+	if strings.Contains(originURL, regionID) && !strings.Contains(originURL, "internal") {
 		URL = strings.ReplaceAll(originURL, regionID, regionID+"-internal")
 		modified = true
 	}
@@ -141,7 +144,7 @@ func setTransmissionProtocol(originURL string) (URL string, modified bool) {
 	if strings.HasPrefix(URL, "http://") || strings.HasPrefix(URL, "https://") {
 		return
 	}
-	if strings.HasSuffix(URL, "-internal.aliyuncs.com") {
+	if strings.HasSuffix(strings.TrimRight(URL, "/"), "-internal.aliyuncs.com") {
 		return "http://" + URL, true
 	}
 	return "https://" + URL, true
