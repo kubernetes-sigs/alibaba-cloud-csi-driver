@@ -64,7 +64,6 @@ type GlobalConfig struct {
 	EcsClient             *ecs.Client
 	Region                string
 	NodeID                string
-	ZoneID                string
 	DiskTagEnable         bool
 	AttachDetachSlots     AttachDetachSlots
 	ADControllerEnable    bool
@@ -242,7 +241,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	GlobalConfigVar = GlobalConfig{
 		Region:                metadata.MustGet(m, metadata.RegionID),
 		NodeID:                metadata.MustGet(m, metadata.InstanceID),
-		ZoneID:                metadata.MustGet(m, metadata.ZoneID),
 		ADControllerEnable:    csiCfg.GetBool("disk-adcontroller-enable", "DISK_AD_CONTROLLER", false),
 		DiskTagEnable:         csiCfg.GetBool("disk-tag-by-plugin", "DISK_TAGED_BY_PLUGIN", false),
 		DiskBdfEnable:         csiCfg.GetBool("disk-bdf-enable", "DISK_BDF_ENABLE", false),
