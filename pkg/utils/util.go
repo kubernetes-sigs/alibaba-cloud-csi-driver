@@ -1119,15 +1119,15 @@ func GetNvmeDeviceByVolumeID(volumeID string) (device string, err error) {
 }
 
 // Differs from os.WriteFile in that it does not or create file before writing.
-func WriteTrunc(filePath string, value string) error {
-	f, err := os.OpenFile(filePath, os.O_WRONLY|os.O_TRUNC, 0644)
+// Intended to write Linux virtual files: sysfs, cgroupfs, etc.
+func WriteTrunc(dirFd int, filePath string, value string) error {
+	fd, err := unix.Openat(dirFd, filePath, os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	_, err = f.WriteString(value)
-	if err1 := f.Close(); err1 != nil && err == nil {
+	_, err = unix.Write(fd, []byte(value))
+	if err1 := unix.Close(fd); err1 != nil && err == nil {
 		err = err1
 	}
 	return err

@@ -164,6 +164,8 @@ spec:
               name: efc-metrics-dir
             - mountPath: /host/run/csi-tool
               name: run-csi
+            - mountPath: /host/sys/fs/cgroup/blkio/kubepods.slice
+              name: cgroup-blkio
             - mountPath: /etc/csi-plugin/config
               name: csi-plugin-cm
             - name: host-mnt
@@ -193,6 +195,10 @@ spec:
         - name: kubelet-dir
           hostPath:
             path: /var/lib/kubelet
+            type: Directory
+        - name: cgroup-blkio
+          hostPath:
+            path: /sys/fs/cgroup/blkio/kubepods.slice
             type: Directory
         - name: host-dev
           hostPath:

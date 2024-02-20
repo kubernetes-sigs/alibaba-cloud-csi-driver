@@ -33,6 +33,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -642,7 +643,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 				// Note this cannot prevent user from access other device through e.g. /sys/block/vda/subsystem/vdb
 				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: invalid relative path in sysConfig: %s", key)
 			}
-			err := utils.WriteTrunc(fileName, value)
+			err := utils.WriteTrunc(unix.AT_FDCWD, fileName, value)
 			if err != nil {
 				return nil, status.Errorf(codes.Internal,
 					"NodeStageVolume: Volume Block System Config failed, failed to write %s to %s: %v", value, fileName, err)
