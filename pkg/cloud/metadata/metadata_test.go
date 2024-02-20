@@ -52,6 +52,7 @@ func TestCreateK8s(t *testing.T) {
 		t.Setenv(KUBE_NODE_NAME_ENV, testNode.Name)
 		m.EnableKubernetes(client)
 		assert.Equal(t, "cn-beijing", MustGet(m, RegionID))
+		assert.Equal(t, RuncRuntimeMode, MustGet(m, Runtime))
 	})
 }
 

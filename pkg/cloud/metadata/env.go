@@ -6,6 +6,7 @@ type ENVMetadata struct{}
 
 var MetadataEnv = map[MetadataKey]string{
 	RegionID: "REGION_ID",
+	Runtime:  "RUNTIME",
 }
 
 func (m *ENVMetadata) Get(key MetadataKey) (string, error) {
