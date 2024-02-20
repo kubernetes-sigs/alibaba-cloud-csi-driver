@@ -10,8 +10,8 @@ import (
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dfs"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -100,7 +100,7 @@ type cloud struct {
 func newCloud() (Cloud, error) {
 	// Init ECS Client
 	ac := utils.GetAccessControl()
-	log.Log.Infof("newCloud: ac: %+v", ac)
+	log.Infof("newCloud: ac: %+v", ac)
 	dfsClient, err := dfs.NewClientWithOptions(GlobalConfigVar.regionID, ac.Config, ac.Credential)
 	if err != nil {
 		return nil, err

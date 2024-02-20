@@ -29,8 +29,8 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -45,10 +45,10 @@ const (
 )
 
 func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint string, volumeID string) error {
-	log.Log.Infof("DoDBFSMount: mount volume %s to target %s", volumeID, mountPoint)
+	log.Infof("DoDBFSMount: mount volume %s to target %s", volumeID, mountPoint)
 	dbfsPath, isAttached, err := checkDbfsAttached(volumeID)
 	if err != nil {
-		log.Log.Errorf("DoDBFSMount: check Dbfs Attached error with: %s", err.Error())
+		log.Errorf("DoDBFSMount: check Dbfs Attached error with: %s", err.Error())
 		return err
 	}
 	if !isAttached {
@@ -59,7 +59,7 @@ func (ns *nodeServer) DoDBFSMount(req *csi.NodeStageVolumeRequest, mountPoint st
 	options := append(mnt.MountFlags, "bind")
 
 	fsType := ""
-	log.Log.Infof("DoDBFSMount: mount dbfsPath: %v, to path: %v , with fstype: %v, and options: %+v, at %+v", dbfsPath, mountPoint, fsType, options, time.Now())
+	log.Infof("DoDBFSMount: mount dbfsPath: %v, to path: %v , with fstype: %v, and options: %+v, at %+v", dbfsPath, mountPoint, fsType, options, time.Now())
 	if err = ns.k8smounter.Mount(dbfsPath, mountPoint, fsType, options); err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
@@ -74,7 +74,7 @@ func checkDbfsAttached(volumeID string) (string, bool, error) {
 		return "", false, err
 	}
 	actualPath := strings.TrimSpace(path)
-	log.Log.Infof("checkDbfsAttached: actualPath: %v", actualPath)
+	log.Infof("checkDbfsAttached: actualPath: %v", actualPath)
 	if !strings.HasPrefix(actualPath, "/mnt") {
 		return "", false, fmt.Errorf("checkDbfsAttached: checked err: %s", actualPath)
 	}
@@ -125,7 +125,7 @@ func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 		} else {
 			err := cloud.ECSQueryEndpoint(regionID, ecsClient)
 			if err != nil {
-				log.Log.Fatalf("Internal mode, but query for ECS endpoint failed: %v", err)
+				log.Fatalf("Internal mode, but query for ECS endpoint failed: %v", err)
 			}
 		}
 	} else {
@@ -153,7 +153,7 @@ func getVolumeCount() int64 {
 		if instanceType == "" {
 			instanceType, err = utils.GetMetaData("instance/instance-type")
 			if err != nil {
-				log.Log.Warnf("getVolumeCount: get instance type with error: %s", err.Error())
+				log.Warnf("getVolumeCount: get instance type with error: %s", err.Error())
 				time.Sleep(time.Duration(1) * time.Second)
 				continue
 			}
@@ -166,7 +166,7 @@ func getVolumeCount() int64 {
 		response, err := ecsClient.DescribeInstanceTypes(req)
 		// if auth failed, return with default
 		if err != nil && strings.Contains(err.Error(), "Forbidden") {
-			log.Log.Errorf("getVolumeCount: describe instance type with error: %s", err.Error())
+			log.Errorf("getVolumeCount: describe instance type with error: %s", err.Error())
 			return MaxVolumesPerNode
 			// not forbidden error, retry
 		} else if err != nil && !strings.Contains(err.Error(), "Forbidden") {
@@ -174,11 +174,11 @@ func getVolumeCount() int64 {
 			continue
 		}
 		if len(response.InstanceTypes.InstanceType) != 1 {
-			log.Log.Warnf("getVolumeCount: get instance max volume failed type with %v", response)
+			log.Warnf("getVolumeCount: get instance max volume failed type with %v", response)
 			return MaxVolumesPerNode
 		}
 		volumeCount = int64(response.InstanceTypes.InstanceType[0].DiskQuantity) - 2
-		log.Log.Infof("getVolumeCount: get instance max volume %d type with response %v", volumeCount, response)
+		log.Infof("getVolumeCount: get instance max volume %d type with response %v", volumeCount, response)
 		break
 	}
 	return volumeCount
@@ -302,7 +302,7 @@ func getDbfsVersion(dbfsID string) string {
 	cmd := fmt.Sprintf("%s cat /opt/dbfs/config/version.conf", NsenterCmd)
 	out, err := utils.Run(cmd)
 	if err != nil {
-		log.Log.Errorf("getDbfsVersion: %s with error: %s", dbfsID, err.Error())
+		log.Errorf("getDbfsVersion: %s with error: %s", dbfsID, err.Error())
 		return ""
 	}
 	return strings.TrimSpace(out)
