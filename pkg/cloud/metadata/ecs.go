@@ -107,7 +107,7 @@ func (f *EcsFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			logrus.Warnf("Hint: ECS metadata is only available when running on Alibaba Cloud ECS. "+
-				"Set %s environment variable to disable ECS metadata.", DISABLE_ECS_ENV)
+				"Set %s environment variable to disable ECS metadata for faster initialization.", DISABLE_ECS_ENV)
 		}
 		return nil, err
 	}

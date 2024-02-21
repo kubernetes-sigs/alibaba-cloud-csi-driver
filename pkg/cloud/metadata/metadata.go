@@ -188,6 +188,7 @@ func (m *Metadata) Get(key MetadataKey) (string, error) {
 func MustGet(m MetadataProvider, key MetadataKey) string {
 	value, err := m.Get(key)
 	if err != nil {
+		err = fmt.Errorf("failed to get metadata %s: %w", key, err)
 		panic(err)
 	}
 	return value
