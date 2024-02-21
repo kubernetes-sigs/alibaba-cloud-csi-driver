@@ -7,8 +7,6 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	gomock "github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
-	csilog "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,8 +16,6 @@ func init() {
 	cloud.UnmarshalAcsResponse([]byte(`{
 	"RequestId": "B6B6D6B6-6B6B-6B6B-6B6B-6B6B6B6B6B6"
 }`), deleteDiskResponse)
-
-	csilog.Log = logrus.New()
 }
 
 func TestDeleteDisk(t *testing.T) {
