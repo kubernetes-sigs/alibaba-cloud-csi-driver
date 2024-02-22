@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -30,9 +30,9 @@ const (
 	OssfsCsiMimeTypesFilePath = "/etc/csi-mime.types"
 
 	defaultRegistry = "registry-cn-hangzhou.ack.aliyuncs.com"
-	
-	CsiSecretStoreDriver      = "secrets-store.csi.k8s.io"
-	SecretProviderClassKey    = "secretProviderClass"
+
+	CsiSecretStoreDriver   = "secrets-store.csi.k8s.io"
+	SecretProviderClassKey = "secretProviderClass"
 )
 
 type fuseOssfs struct {
@@ -61,8 +61,8 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) Fuse
 		config.Resources.Requests[corev1.ResourceMemory] = resource.MustParse("50Mi")
 	}
 
+	aliUid, _ := m.Get(metadata.AliUID)
 	provider, _ := GetOIDCProvider()
-	aliUid := GetAliUid()
 	if provider == "" || aliUid == "" {
 		log.Warnf("Get OIDC provider: %s, user id: %s, cannot use RRSA to authorize fuse pods", provider, aliUid)
 	}

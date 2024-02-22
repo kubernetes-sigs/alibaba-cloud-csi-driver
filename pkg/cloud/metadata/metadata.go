@@ -20,6 +20,7 @@ const (
 	ZoneID       MetadataKey = iota
 	InstanceID   MetadataKey = iota
 	InstanceType MetadataKey = iota
+	AliUID       MetadataKey = iota
 )
 
 func (k MetadataKey) String() string {
@@ -32,6 +33,8 @@ func (k MetadataKey) String() string {
 		return "InstanceID"
 	case InstanceType:
 		return "InstanceType"
+	case AliUID:
+		return "AliUID"
 	default:
 		return fmt.Sprintf("MetadataKey(%d)", k)
 	}

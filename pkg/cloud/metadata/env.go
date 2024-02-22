@@ -5,7 +5,8 @@ import "os"
 type ENVMetadata struct{}
 
 var MetadataEnv = map[MetadataKey]string{
-	RegionID: "REGION_ID",
+	RegionID:  "REGION_ID",
+	AliUID:    "ALI_UID",
 }
 
 func (m *ENVMetadata) Get(key MetadataKey) (string, error) {

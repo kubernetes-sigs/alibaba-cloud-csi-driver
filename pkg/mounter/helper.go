@@ -98,16 +98,6 @@ func ValidateAnnotationsSize(annotations map[string]string) error {
 	return nil
 }
 
-// GetAliUid get aliUid from env or metadata server for RRSA
-func GetAliUid() (aliUid string) {
-	aliUid = os.Getenv("AlI_UID")
-	if aliUid != "" {
-		return
-	}
-	aliUid = utils.RetryGetMetaData(UidResource)
-	return
-}
-
 // GetClusterId get clusterId from env or profile for RRSA
 func GetClusterId() (clusterId string, err error) {
 	clusterId = os.Getenv("CLUSTER_ID")
