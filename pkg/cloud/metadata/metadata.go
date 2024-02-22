@@ -156,7 +156,7 @@ func (m *Metadata) EnableKubernetes(nodeClient corev1.NodeInterface) {
 	})
 }
 
-func (m *Metadata) EnableOpenAPI(ecsClient cloud.ECSInterface) {
+func (m *Metadata) EnableOpenAPI(ecsClient cloud.ECSInterface, stsClient cloud.STSInterface) {
 	mPre := Metadata{
 		// use the previous providers to get region id and instance id,
 		// do not recurse into ourselves
@@ -164,8 +164,9 @@ func (m *Metadata) EnableOpenAPI(ecsClient cloud.ECSInterface) {
 	}
 	m.providers = append(m.providers, &lazyInitProvider{
 		fetcher: &OpenAPIFetcher{
-			client: ecsClient,
-			mPre:   &mPre,
+			ecsClient: ecsClient,
+			stsClient: stsClient,
+			mPre:      &mPre,
 		},
 	})
 }

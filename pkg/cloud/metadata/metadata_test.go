@@ -98,16 +98,19 @@ func TestCreateOpenAPI(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 			var ecsClient cloud.ECSInterface
+			var stsClient cloud.STSInterface
 			if c.available {
 				ecsClient = testEcsClient(ctrl)
+				stsClient = testStsClient(ctrl)
 			} else {
 				ecsClient = cloud.NewMockECSInterface(ctrl)
+				stsClient = cloud.NewMockSTSInterface(ctrl)
 			}
 
 			m := NewMetadata()
 			m.providers = append(m.providers, FakeProvider{Values: c.values})
 
-			m.EnableOpenAPI(ecsClient)
+			m.EnableOpenAPI(ecsClient, stsClient)
 			zone, err := m.Get(ZoneID)
 			if c.available {
 				assert.Equal(t, "cn-beijing-k", zone)
@@ -124,9 +127,10 @@ func TestCreateOpenAPIFromEnv(t *testing.T) {
 	t.Setenv("KUBE_NODE_NAME", "i-2zec1slzwdzrwmvlr4w2")
 	ctrl := gomock.NewController(t)
 	ecsClient := testEcsClient(ctrl)
+	stsClient := testStsClient(ctrl)
 
 	m := NewMetadata()
-	m.EnableOpenAPI(ecsClient)
+	m.EnableOpenAPI(ecsClient, stsClient)
 	assert.Equal(t, "cn-beijing-k", MustGet(m, ZoneID))
 }
 

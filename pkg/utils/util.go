@@ -39,6 +39,7 @@ import (
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/go-ping/ping"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
@@ -447,6 +448,19 @@ func NewEcsClient(ac AccessControl) (ecsClient *ecs.Client) {
 
 	}
 
+	if err != nil {
+		return nil
+	}
+	return
+}
+
+// NewStsClient create a stsClient object
+func NewStsClient(ac AccessControl) (stsClient *sts.Client) {
+	var err error
+	if ac.UseMode != AccessKey {
+		return nil
+	}
+	stsClient, err = sts.NewClientWithAccessKey(DefaultRegion, ac.AccessKeyID, ac.AccessKeySecret)
 	if err != nil {
 		return nil
 	}
