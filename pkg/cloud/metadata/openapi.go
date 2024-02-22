@@ -35,7 +35,8 @@ func NewOpenAPIMetadata(c cloud.ECSInterface, s cloud.STSInterface, regionId, in
 	}
 
 	identityRequest := sts.CreateGetCallerIdentityRequest()
-	identityResponse, _ := s.GetCallerIdentity(identityRequest)
+	identityRequest.Scheme = "https"
+	identityResponse, err := s.GetCallerIdentity(identityRequest)
 	if err == nil {
 		return &OpenAPIMetadata{instance: &instanceResponse.Instances.Instance[0], identity: identityResponse}, nil
 	}

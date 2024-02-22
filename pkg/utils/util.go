@@ -457,10 +457,16 @@ func NewEcsClient(ac AccessControl) (ecsClient *ecs.Client) {
 // NewStsClient create a stsClient object
 func NewStsClient(ac AccessControl) (stsClient *sts.Client) {
 	var err error
-	if ac.UseMode != AccessKey {
-		return nil
+	switch ac.UseMode {
+	case AccessKey:
+		stsClient, err = sts.NewClientWithAccessKey(DefaultRegion, ac.AccessKeyID, ac.AccessKeySecret)
+	case Credential:
+		stsClient, err = sts.NewClientWithOptions(DefaultRegion, ac.Config, ac.Credential)
+	default:
+		stsClient, err = sts.NewClientWithStsToken(DefaultRegion, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
+
 	}
-	stsClient, err = sts.NewClientWithAccessKey(DefaultRegion, ac.AccessKeyID, ac.AccessKeySecret)
+
 	if err != nil {
 		return nil
 	}
