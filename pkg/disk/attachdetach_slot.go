@@ -5,13 +5,16 @@ import (
 	"sync"
 )
 
-type AttachDetachSlots struct {
-	mu          sync.RWMutex
-	nodes       map[string]slot
-	slotFactory func() slot
+type AttachDetachSlots interface {
+	GetSlotFor(node string) slot
 }
 
-func (a *AttachDetachSlots) GetSlotFor(node string) slot {
+type SerialAttachDetachSlots struct {
+	mu    sync.RWMutex
+	nodes map[string]slot
+}
+
+func (a *SerialAttachDetachSlots) GetSlotFor(node string) slot {
 	a.mu.RLock()
 	if s, ok := a.nodes[node]; ok {
 		a.mu.RUnlock()
@@ -24,7 +27,10 @@ func (a *AttachDetachSlots) GetSlotFor(node string) slot {
 	if s, ok := a.nodes[node]; ok {
 		return s
 	}
-	s := a.slotFactory()
+	s := &serialSlot{
+		highPriorityChannel: make(chan struct{}),
+		slot:                make(chan struct{}, 1),
+	}
 	a.nodes[node] = s
 	return s
 }
@@ -76,13 +82,7 @@ func (s *serialSlot) Release() {
 }
 
 func NewSerialAttachDetachSlots() AttachDetachSlots {
-	return AttachDetachSlots{
-		slotFactory: func() slot {
-			return &serialSlot{
-				highPriorityChannel: make(chan struct{}),
-				slot:                make(chan struct{}, 1),
-			}
-		},
+	return &SerialAttachDetachSlots{
 		nodes: map[string]slot{},
 	}
 }
@@ -93,10 +93,12 @@ func (s parallelSlot) AquireDetach(ctx context.Context) error { return nil }
 func (s parallelSlot) AquireAttach(ctx context.Context) error { return nil }
 func (s parallelSlot) Release()                               {}
 
+type ParallelAttachDetachSlots struct{}
+
+func (ParallelAttachDetachSlots) GetSlotFor(node string) slot {
+	return parallelSlot{}
+}
+
 func NewParallelAttachDetachSlots() AttachDetachSlots {
-	return AttachDetachSlots{
-		slotFactory: func() slot {
-			return parallelSlot{}
-		},
-	}
+	return ParallelAttachDetachSlots{}
 }
