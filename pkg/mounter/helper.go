@@ -18,11 +18,6 @@ import (
 // TotalAnnotationSizeLimitB only takes 128 kB here, and the rest is reserved for the default annotations.
 const TotalAnnotationSizeLimitB int = 128 * (1 << 10) // 128 kB
 
-const (
-	// UidResource is ali-uid url subpath
-	UidResource = "owner-account-id"
-)
-
 // Copy from https://github.com/kubernetes/mount-utils/blob/41e8de37ef8a3782f9cd6c915699b98b2b24b2c4/mount_helper_unix.go#L164
 func SplitMountOptions(s string) []string {
 	inQuotes := false
