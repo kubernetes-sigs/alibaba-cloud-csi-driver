@@ -174,7 +174,7 @@ func getLoopDeviceCapacity() []*StorageCapacity {
 	availableBytes := totalAvailableBytes - usedBytes
 	sc := StorageCapacity{
 		Name:     types.GlobalConfigVar.LocalSparseFileDir,
-		Type:     LoopDeviceVolumeType,
+		Type:     "loopdevice",
 		Capacity: uint64(availableBytes),
 	}
 	scList := []*StorageCapacity{}
