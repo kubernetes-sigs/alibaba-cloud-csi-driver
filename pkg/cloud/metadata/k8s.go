@@ -40,15 +40,15 @@ var (
 	}
 )
 
-const (
-	ClusterIdData = "clusterid"
-)
-
 var MetadataLabels = map[MetadataKey][]string{
 	RegionID:     RegionIDLabels,
 	ZoneID:       ZoneIDLabels,
 	InstanceType: InstanceTypeLabels,
 	InstanceID:   InstanceIdLabels,
+}
+
+var MetadataProfileDataKeys = map[MetadataKey]string{
+	ClusterID: "clusterid",
 }
 
 func init() {
@@ -73,9 +73,8 @@ func NewKubernetesMetadata(nodeName string, client kubernetes.Interface) (*Kuber
 
 func (m *KubernetesMetadata) Get(key MetadataKey) (string, error) {
 
-	// profile
-	if key == ClusterID && m.profile != nil {
-		return m.profile.Data[ClusterIdData], nil
+	if key, ok := MetadataProfileDataKeys[key]; ok && m.profile != nil {
+		return m.profile.Data[key], nil
 	}
 
 	labels := MetadataLabels[key]
@@ -104,7 +103,9 @@ type KubernetesMetadataFetcher struct {
 }
 
 func (f *KubernetesMetadataFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
-	if _, ok := MetadataLabels[key]; !ok {
+	_, ok1 := MetadataLabels[key]
+	_, ok2 := MetadataProfileDataKeys[key]
+	if !ok1 && !ok2 {
 		return nil, ErrUnknownMetadataKey
 	}
 	p, err := NewKubernetesMetadata(f.nodeName, f.client)

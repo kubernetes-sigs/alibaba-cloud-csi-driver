@@ -103,7 +103,7 @@ func TestGetK8s(t *testing.T) {
 			if c.isACK {
 				profile := testProfile.DeepCopy()
 				profile.Data = map[string]string{}
-				profile.Data[ClusterIdData] = "c12345678"
+				profile.Data["clusterid"] = "c12345678"
 				client = fake.NewSimpleClientset(node, profile)
 			}
 			m, err := NewKubernetesMetadata(node.Name, client)
