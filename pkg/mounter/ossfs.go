@@ -36,8 +36,7 @@ const (
 )
 
 type fuseOssfs struct {
-	config     FuseContainerConfig
-	rrsaConfig RrsaConfig
+	config FuseContainerConfig
 }
 
 func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) FuseMounterType {
@@ -61,16 +60,7 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) Fuse
 		config.Resources.Requests[corev1.ResourceMemory] = resource.MustParse("50Mi")
 	}
 
-	aliUid, _ := m.Get(metadata.AliUID)
-	provider, _ := GetOIDCProvider()
-	if provider == "" || aliUid == "" {
-		log.Warnf("Get OIDC provider: %s, user id: %s, cannot use RRSA to authorize fuse pods", provider, aliUid)
-	}
-	rrsaConfig := RrsaConfig{
-		provider: provider,
-		aliUid:   aliUid,
-	}
-	return &fuseOssfs{config: config, rrsaConfig: rrsaConfig}
+	return &fuseOssfs{config: config}
 }
 
 func (f *fuseOssfs) name() string {
@@ -201,7 +191,7 @@ func (f *fuseOssfs) buildPodSpec(
 		container.VolumeMounts = append(container.VolumeMounts, mimeVolumeMount)
 	}
 
-	buildAuthSpec(nodeName, volumeId, target, authCfg, &f.rrsaConfig, &spec, &container, &options)
+	buildAuthSpec(nodeName, volumeId, target, authCfg, &spec, &container, &options)
 
 	args := mountutils.MakeMountArgs(source, target, "", options)
 	args = append(args, mountFlags...)
@@ -289,7 +279,7 @@ func CleanupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Inte
 	return err
 }
 
-func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig, rrsaCfg *RrsaConfig,
+func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig,
 	spec *corev1.PodSpec, container *corev1.Container, options *[]string) {
 	if spec == nil || container == nil || options == nil {
 		return
@@ -301,10 +291,10 @@ func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig, rrsaC
 	switch authCfg.AuthType {
 	case AuthTypeSTS:
 	case AuthTypeRRSA:
-		if rrsaCfg == nil {
+		if authCfg.RrsaConfig == nil {
 			return
 		}
-		spec.ServiceAccountName = authCfg.ServiceAccountName
+		spec.ServiceAccountName = authCfg.RrsaConfig.ServiceAccountName
 		rrsaMountDir := "/var/run/secrets/ack.alibabacloud.com/rrsa-tokens"
 		rrsaVolume := corev1.Volume{
 			Name: "rrsa-oidc-token",
@@ -329,7 +319,7 @@ func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig, rrsaC
 			MountPath: rrsaMountDir,
 		}
 		container.VolumeMounts = append(container.VolumeMounts, rrsaVolumeMount)
-		roleArn, providerArn := GetArn(rrsaCfg.provider, rrsaCfg.aliUid, authCfg.RoleName)
+		roleArn, providerArn := GetArn(authCfg.RrsaConfig.Provider, authCfg.RrsaConfig.AccountId, authCfg.RrsaConfig.RoleName)
 		envs := []corev1.EnvVar{
 			{
 				Name:  "ALIBABA_CLOUD_ROLE_ARN",

@@ -134,6 +134,7 @@ func newNodeServer(driver *csicommon.CSIDriver, m metadata.MetadataProvider) *no
 		dynamicClient:     crdClient,
 		sharedPathLock:    utils.NewVolumeLocks(),
 		ossfsMounterFac:   mounter.NewContainerizedFuseMounterFactory(mounter.NewFuseOssfs(configmap, m), clientset, nodeName),
+		metadata:          m,
 	}
 }
 

@@ -27,6 +27,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -39,6 +40,7 @@ import (
 )
 
 type nodeServer struct {
+	metadata metadata.MetadataProvider
 	*csicommon.DefaultNodeServer
 	nodeName        string
 	clientset       kubernetes.Interface
@@ -227,7 +229,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		// When useSharedPath options is set to false,
 		// mount operations need to be atomic to ensure that no fuse pods are left behind in case of failure.
 		// Because kubelet will not call NodeUnpublishVolume when NodePublishVolume never succeeded.
-		authCfg := &mounter.AuthConfig{AuthType: opt.AuthType, RoleName: opt.RoleName, ServiceAccountName: fuseServieAccountName, SecretProviderClassName: opt.SecretProviderClass}
+		accountId, _ := ns.metadata.Get(metadata.AccountID)
+		provider, _ := mounter.GetOIDCProvider()
+		rrsaCfg := &mounter.RrsaConfig{AccountId: accountId, Provider: provider, RoleName: opt.RoleName, ServiceAccountName: fuseServieAccountName}
+		authCfg := &mounter.AuthConfig{AuthType: opt.AuthType, RrsaConfig: rrsaCfg, SecretProviderClassName: opt.SecretProviderClass}
 		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId, authCfg, !opt.UseSharedPath)
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "unknown fuseType: %q", opt.FuseType)
@@ -256,7 +261,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		mountOptions = req.VolumeCapability.GetMount().MountFlags
 	}
 
-	regionID, _ := utils.GetRegionID()
+	regionID, _ := ns.metadata.Get(metadata.RegionID)
 	switch opt.AuthType {
 	case mounter.AuthTypeSTS:
 		if opt.FuseType == OssFsType {

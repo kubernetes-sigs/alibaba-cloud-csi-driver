@@ -130,11 +130,11 @@ func GetOIDCProvider() (provider string, err error) {
 }
 
 // GetArn get rrsa config for fuse contianer's env setting
-func GetArn(provider, aliUid, roleName string) (roleArn, providerArn string) {
-	if provider == "" || aliUid == "" || roleName == "" {
+func GetArn(provider, accountId, roleName string) (roleArn, providerArn string) {
+	if provider == "" || accountId == "" || roleName == "" {
 		return
 	}
-	roleArn = fmt.Sprintf("acs:ram::%s:role/%s", aliUid, roleName)
-	providerArn = fmt.Sprintf("acs:ram::%s:oidc-provider/%s", aliUid, provider)
+	roleArn = fmt.Sprintf("acs:ram::%s:role/%s", accountId, roleName)
+	providerArn = fmt.Sprintf("acs:ram::%s:oidc-provider/%s", accountId, provider)
 	return
 }

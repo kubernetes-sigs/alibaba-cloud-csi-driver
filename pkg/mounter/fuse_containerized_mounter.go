@@ -38,15 +38,16 @@ const (
 type AuthConfig struct {
 	AuthType string
 	// for RRSA
-	RoleName           string
-	ServiceAccountName string
+	RrsaConfig *RrsaConfig
 	// for csi-secret-store
 	SecretProviderClassName string
 }
 
 type RrsaConfig struct {
-	aliUid   string
-	provider string
+	AccountId          string
+	Provider           string
+	RoleName           string
+	ServiceAccountName string
 }
 
 const (
@@ -248,10 +249,9 @@ func (mounter *ContainerizedFuseMounter) labelsAndListOptionsFor(target string) 
 }
 
 func (mounter *ContainerizedFuseMounter) checkSeriveAccount(ctx context.Context) error {
-	saClient := mounter.client.CoreV1().ServiceAccounts(mounter.namespace)
-	_, err := saClient.Get(ctx, mounter.authCfg.ServiceAccountName, metav1.GetOptions{})
+	_, err := mounter.client.CoreV1().ServiceAccounts(mounter.namespace).Get(ctx, mounter.authCfg.RrsaConfig.ServiceAccountName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("check service account %s for RRSA: %w", mounter.authCfg.ServiceAccountName, err)
+		return fmt.Errorf("check service account %s for RRSA: %w", mounter.authCfg.RrsaConfig.ServiceAccountName, err)
 	}
 	return nil
 }

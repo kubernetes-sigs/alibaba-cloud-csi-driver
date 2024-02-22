@@ -8,11 +8,11 @@ import (
 
 func TestGetEnv(t *testing.T) {
 	t.Setenv("REGION_ID", "cn-hangzhou")
-	t.Setenv("ALI_UID", "112233445566")
+	t.Setenv("ALIBABA_CLOUD_ACCOUNT_ID", "112233445566")
 	m := &ENVMetadata{}
 	expected := map[MetadataKey]string{
-		RegionID: "cn-hangzhou",
-		AliUID:   "112233445566",
+		RegionID:  "cn-hangzhou",
+		AccountID: "112233445566",
 	}
 	for k, v := range expected {
 		value, err := m.Get(k)

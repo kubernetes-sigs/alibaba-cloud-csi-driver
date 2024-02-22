@@ -60,10 +60,13 @@ func Test_buildAuthSpec(t *testing.T) {
 		MountPath: passwdMountDir,
 	}
 	rrsaCfg := RrsaConfig{
-		provider: "test-provider",
-		aliUid:   "test-aliuid",
+		Provider:           "test-provider",
+		AccountId:          "test-accountid",
+		ServiceAccountName: "csi-fuse-ossfs",
+		RoleName:           "test-rolename",
 	}
-	buildAuthSpec(nodeName, volumeId, "target", authCfg, &rrsaCfg, &spec, &container, &options)
+	authCfg.RrsaConfig = &rrsaCfg
+	buildAuthSpec(nodeName, volumeId, "target", authCfg, &spec, &container, &options)
 	assert.Contains(t, spec.Volumes, passwdSecretVolume)
 	assert.Contains(t, container.VolumeMounts, passwdVolumeMont)
 	assert.Contains(t, options, fmt.Sprintf("passwd_file=%s", filepath.Join(passwdMountDir, passwdFilename)))
