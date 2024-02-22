@@ -11,8 +11,8 @@ func TestGetEnv(t *testing.T) {
 	t.Setenv("ALI_UID", "112233445566")
 	m := &ENVMetadata{}
 	expected := map[MetadataKey]string{
-		RegionID:  "cn-hangzhou",
-		AliUID:    "112233445566",
+		RegionID: "cn-hangzhou",
+		AliUID:   "112233445566",
 	}
 	for k, v := range expected {
 		value, err := m.Get(k)
