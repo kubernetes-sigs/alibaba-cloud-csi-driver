@@ -152,7 +152,7 @@ func main() {
 		if err != nil {
 			log.Warnf("Error building kubernetes clientset: %v", err)
 		} else {
-			meta.EnableKubernetes(kubeClient.CoreV1().Nodes())
+			meta.EnableKubernetes(kubeClient)
 		}
 	}
 

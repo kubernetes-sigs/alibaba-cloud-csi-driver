@@ -6,12 +6,14 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
-type KubernetesNodeMetadata struct {
-	node v1.Node
+type KubernetesMetadata struct {
+	node    *v1.Node
+	profile *v1.ConfigMap
 }
 
 var (
@@ -38,6 +40,10 @@ var (
 	}
 )
 
+const (
+	ClusterIdData = "clusterid"
+)
+
 var MetadataLabels = map[MetadataKey][]string{
 	RegionID:     RegionIDLabels,
 	ZoneID:       ZoneIDLabels,
@@ -53,15 +59,25 @@ func init() {
 	}
 }
 
-func NewKubernetesNodeMetadata(nodeName string, nodeClient corev1.NodeInterface) (*KubernetesNodeMetadata, error) {
-	node, err := nodeClient.Get(context.Background(), nodeName, metav1.GetOptions{})
+func NewKubernetesMetadata(nodeName string, client kubernetes.Interface) (*KubernetesMetadata, error) {
+	node, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	return &KubernetesNodeMetadata{node: *node}, nil
+	profile, err := client.CoreV1().ConfigMaps("kube-system").Get(context.Background(), "ack-cluster-profile", metav1.GetOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return nil, err
+	}
+	return &KubernetesMetadata{node: node, profile: profile}, nil
 }
 
-func (m *KubernetesNodeMetadata) Get(key MetadataKey) (string, error) {
+func (m *KubernetesMetadata) Get(key MetadataKey) (string, error) {
+
+	// profile
+	if key == ClusterID && m.profile != nil {
+		return m.profile.Data[ClusterIdData], nil
+	}
+
 	labels := MetadataLabels[key]
 	for _, label := range labels {
 		if value, ok := m.node.Labels[label]; ok {
@@ -83,7 +99,7 @@ func (m *KubernetesNodeMetadata) Get(key MetadataKey) (string, error) {
 }
 
 type KubernetesMetadataFetcher struct {
-	client   corev1.NodeInterface
+	client   kubernetes.Interface
 	nodeName string
 }
 
@@ -91,7 +107,7 @@ func (f *KubernetesMetadataFetcher) FetchFor(key MetadataKey) (MetadataProvider,
 	if _, ok := MetadataLabels[key]; !ok {
 		return nil, ErrUnknownMetadataKey
 	}
-	p, err := NewKubernetesNodeMetadata(f.nodeName, f.client)
+	p, err := NewKubernetesMetadata(f.nodeName, f.client)
 	if err != nil {
 		return nil, err
 	}

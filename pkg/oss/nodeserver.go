@@ -230,7 +230,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		// mount operations need to be atomic to ensure that no fuse pods are left behind in case of failure.
 		// Because kubelet will not call NodeUnpublishVolume when NodePublishVolume never succeeded.
 		accountId, _ := ns.metadata.Get(metadata.AccountID)
-		provider, _ := mounter.GetOIDCProvider()
+		clusterId, _ := ns.metadata.Get(metadata.ClusterID)
+		provider, _ := mounter.GetOIDCProvider(clusterId)
 		rrsaCfg := &mounter.RrsaConfig{AccountId: accountId, Provider: provider, RoleName: opt.RoleName, ServiceAccountName: fuseServieAccountName}
 		authCfg := &mounter.AuthConfig{AuthType: opt.AuthType, RrsaConfig: rrsaCfg, SecretProviderClassName: opt.SecretProviderClass}
 		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId, authCfg, !opt.UseSharedPath)

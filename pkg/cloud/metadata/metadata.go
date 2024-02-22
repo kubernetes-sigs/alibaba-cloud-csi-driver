@@ -10,7 +10,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/sirupsen/logrus"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 type MetadataKey int
@@ -21,6 +21,7 @@ const (
 	InstanceID   MetadataKey = iota
 	InstanceType MetadataKey = iota
 	AccountID    MetadataKey = iota
+	ClusterID    MetadataKey = iota
 )
 
 func (k MetadataKey) String() string {
@@ -35,6 +36,8 @@ func (k MetadataKey) String() string {
 		return "InstanceType"
 	case AccountID:
 		return "AccountID"
+	case ClusterID:
+		return "ClusterID"
 	default:
 		return fmt.Sprintf("MetadataKey(%d)", k)
 	}
@@ -142,7 +145,7 @@ func (m *Metadata) EnableEcs(httpRT http.RoundTripper) {
 
 }
 
-func (m *Metadata) EnableKubernetes(nodeClient corev1.NodeInterface) {
+func (m *Metadata) EnableKubernetes(client kubernetes.Interface) {
 	nodeName := os.Getenv(KUBE_NODE_NAME_ENV)
 	if nodeName == "" {
 		logrus.Warnf("%s environment variable is not set, skipping Kubernetes metadata", KUBE_NODE_NAME_ENV)
@@ -150,7 +153,7 @@ func (m *Metadata) EnableKubernetes(nodeClient corev1.NodeInterface) {
 	}
 	m.providers = append(m.providers, &lazyInitProvider{
 		fetcher: &KubernetesMetadataFetcher{
-			client:   nodeClient,
+			client:   client,
 			nodeName: nodeName,
 		},
 	})
