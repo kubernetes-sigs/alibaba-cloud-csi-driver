@@ -22,6 +22,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -59,6 +61,19 @@ func GetRAMRoleOption() string {
 	ramRoleOpt := MetadataURL + RAMRoleResource + ramRole
 	mntCmdRamRole := fmt.Sprintf("ram_role=%s", ramRoleOpt)
 	return mntCmdRamRole
+}
+
+// GetRRSAConifg get oidcProviderArn and roleArn
+func GetRRSAConifg(opt *Options, m metadata.MetadataProvider) (oidcProviderArn, roleArn string) {
+	if opt.OidcProviderArn != "" && opt.RoleArn != "" {
+		return opt.OidcProviderArn, opt.RoleArn
+	}
+
+	accountId, _ := m.Get(metadata.AccountID)
+	clusterId, _ := m.Get(metadata.ClusterID)
+	provider, _ := mounter.GetOIDCProvider(clusterId)
+	oidcProviderArn, roleArn = mounter.GetArn(provider, accountId, opt.RoleName)
+	return
 }
 
 // parseOtherOpts extracts mount options from parameters.otherOpts string.

@@ -62,6 +62,10 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 			ossVolArgs.AuthType = value
 		} else if key == "rolename" {
 			ossVolArgs.RoleName = value
+		} else if key == "rolearn" {
+			ossVolArgs.RoleArn = strings.TrimSpace(value)
+		} else if key == "oidcproviderarn" {
+			ossVolArgs.OidcProviderArn = strings.TrimSpace(value)
 		} else if key == "secretproviderclass" {
 			ossVolArgs.SecretProviderClass = value
 		} else if key == "encrypted" {

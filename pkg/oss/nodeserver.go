@@ -62,6 +62,8 @@ type Options struct {
 	UseSharedPath       bool   `json:"useSharedPath"`
 	AuthType            string `json:"authType"`
 	RoleName            string `json:"roleName"`
+	RoleArn             string `json:"roleArn"`
+	OidcProviderArn     string `json:"oidcProviderArn"`
 	SecretProviderClass string `json:"secretProviderClass"`
 	FuseType            string `json:"fuseType"`
 	MetricsTop          string `json:"metricsTop"`
@@ -153,6 +155,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.AuthType = strings.ToLower(strings.TrimSpace(value))
 		} else if key == "rolename" {
 			opt.RoleName = strings.TrimSpace(value)
+		} else if key == "rolearn" {
+			opt.RoleArn = strings.TrimSpace(value)
+		} else if key == "providerarn" {
+			opt.RoleArn = strings.TrimSpace(value)
+		} else if key == "oidcproviderarn" {
+			opt.OidcProviderArn = strings.TrimSpace(value)
 		} else if key == "secretproviderclass" {
 			opt.SecretProviderClass = strings.TrimSpace(value)
 		} else if key == "fusetype" {
@@ -229,10 +237,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		// When useSharedPath options is set to false,
 		// mount operations need to be atomic to ensure that no fuse pods are left behind in case of failure.
 		// Because kubelet will not call NodeUnpublishVolume when NodePublishVolume never succeeded.
-		accountId, _ := ns.metadata.Get(metadata.AccountID)
-		clusterId, _ := ns.metadata.Get(metadata.ClusterID)
-		provider, _ := mounter.GetOIDCProvider(clusterId)
-		rrsaCfg := &mounter.RrsaConfig{AccountId: accountId, Provider: provider, RoleName: opt.RoleName, ServiceAccountName: fuseServieAccountName}
+
+		rrsaCfg := &mounter.RrsaConfig{ServiceAccountName: fuseServieAccountName}
+		rrsaCfg.OidcProviderArn, rrsaCfg.RoleArn = GetRRSAConifg(opt, ns.metadata)
 		authCfg := &mounter.AuthConfig{AuthType: opt.AuthType, RrsaConfig: rrsaCfg, SecretProviderClassName: opt.SecretProviderClass}
 		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId, authCfg, !opt.UseSharedPath)
 	default:
@@ -405,7 +412,7 @@ func checkOssOptions(opt *Options) error {
 	switch opt.AuthType {
 	case mounter.AuthTypeSTS:
 	case mounter.AuthTypeRRSA:
-		if opt.RoleName == "" {
+		if opt.RoleName == "" && (opt.RoleArn == "" || opt.OidcProviderArn == "") {
 			return errors.New("Oss Parametes error: use RRSA but roleName is empty ")
 		}
 	case mounter.AuthTypeCSS:

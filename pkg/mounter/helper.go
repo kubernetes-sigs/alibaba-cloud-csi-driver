@@ -2,7 +2,6 @@ package mounter
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -90,10 +89,6 @@ func ValidateAnnotationsSize(annotations map[string]string) error {
 
 // GetOIDCProvider get OIDC provider from env or ACK clusterId for RRSA
 func GetOIDCProvider(clusterId string) (provider string, err error) {
-	provider = os.Getenv("OIDC_PROVIDER")
-	if provider != "" {
-		return
-	}
 	if clusterId == "" {
 		return "", fmt.Errorf("failed to get OIDC provider as cluster id is empty")
 	}
@@ -102,7 +97,7 @@ func GetOIDCProvider(clusterId string) (provider string, err error) {
 }
 
 // GetArn get rrsa config for fuse contianer's env setting
-func GetArn(provider, accountId, roleName string) (roleArn, providerArn string) {
+func GetArn(provider, accountId, roleName string) (providerArn, roleArn string) {
 	if provider == "" || accountId == "" || roleName == "" {
 		return
 	}

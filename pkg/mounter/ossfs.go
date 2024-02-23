@@ -319,15 +319,14 @@ func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig,
 			MountPath: rrsaMountDir,
 		}
 		container.VolumeMounts = append(container.VolumeMounts, rrsaVolumeMount)
-		roleArn, providerArn := GetArn(authCfg.RrsaConfig.Provider, authCfg.RrsaConfig.AccountId, authCfg.RrsaConfig.RoleName)
 		envs := []corev1.EnvVar{
 			{
 				Name:  "ALIBABA_CLOUD_ROLE_ARN",
-				Value: roleArn,
+				Value: authCfg.RrsaConfig.RoleArn,
 			},
 			{
 				Name:  "ALIBABA_CLOUD_OIDC_PROVIDER_ARN",
-				Value: providerArn,
+				Value: authCfg.RrsaConfig.OidcProviderArn,
 			},
 			{
 				Name:  "ALIBABA_CLOUD_OIDC_TOKEN_FILE",

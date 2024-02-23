@@ -60,10 +60,8 @@ func Test_buildAuthSpec(t *testing.T) {
 		MountPath: passwdMountDir,
 	}
 	rrsaCfg := RrsaConfig{
-		Provider:           "test-provider",
-		AccountId:          "test-accountid",
-		ServiceAccountName: "csi-fuse-ossfs",
-		RoleName:           "test-rolename",
+		OidcProviderArn: "test-oidc-provider-arn",
+		RoleArn:         "test-role-arn",
 	}
 	authCfg.RrsaConfig = &rrsaCfg
 	buildAuthSpec(nodeName, volumeId, "target", authCfg, &spec, &container, &options)

@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -78,6 +79,57 @@ func Test_parseOtherOpts(t *testing.T) {
 			}
 			if !reflect.DeepEqual(gotMountOptions, tt.wantMountOptions) {
 				t.Errorf("parseOtherOpts() = %v, want %v", gotMountOptions, tt.wantMountOptions)
+			}
+		})
+	}
+}
+
+func Test_GetRRSAConifg(t *testing.T) {
+	m := metadata.NewMetadata()
+	t.Setenv("ALIBABA_CLOUD_ACCOUNT_ID", "112233445566")
+	t.Setenv("CLUSTER_ID", "c12345678")
+	tests := []struct {
+		name            string
+		opt             Options
+		wantProviderArn string
+		wantRoleArn     string
+	}{
+		{
+			"rolename",
+			Options{RoleName: "test-role-name"},
+			"acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678",
+			"acs:ram::112233445566:role/test-role-name",
+		},
+		{
+			"specified-arns",
+			Options{RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
+			"test-oidc-provider-arn",
+			"test-role-arn",
+		},
+		{
+			"arns-first",
+			Options{RoleName: "test-role-name", RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
+			"test-oidc-provider-arn",
+			"test-role-arn",
+		},
+		{
+			"missing-arn-with-rolename",
+			Options{RoleName: "test-role-name", OidcProviderArn: "test-oidc-provider-arn"},
+			"acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678",
+			"acs:ram::112233445566:role/test-role-name",
+		},
+		{
+			"missing-arn-without-rolename",
+			Options{OidcProviderArn: "test-oidc-provider-arn"},
+			"",
+			"",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			oidcProviderArn, roleArn := GetRRSAConifg(&tt.opt, m)
+			if oidcProviderArn != tt.wantProviderArn || roleArn != tt.wantRoleArn {
+				t.Errorf("GetRRSAConifg(opt(%v)) = %v, %v, want %v, %v", tt.opt, oidcProviderArn, roleArn, tt.wantProviderArn, tt.wantRoleArn)
 			}
 		})
 	}
@@ -173,3 +225,4 @@ func Test_setTransmissionProtocol(t *testing.T) {
 		})
 	}
 }
+

@@ -44,9 +44,8 @@ type AuthConfig struct {
 }
 
 type RrsaConfig struct {
-	AccountId          string
-	Provider           string
-	RoleName           string
+	OidcProviderArn    string
+	RoleArn            string
 	ServiceAccountName string
 }
 
