@@ -46,3 +46,35 @@ func BenchmarkGetSlot(b *testing.B) {
 		slots.GetSlotFor(nodeName)
 	}
 }
+
+func TestParallelGetSlot(t *testing.T) {
+	slots := NewParallelAttachDetachSlots()
+	nodeName := "node1"
+	wg := sync.WaitGroup{}
+	wg.Add(10)
+	for i := 0; i < 10; i++ {
+		go func() {
+			slots.GetSlotFor(nodeName)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+}
+
+func TestCancel(t *testing.T) {
+	slots := NewSerialAttachDetachSlots()
+	s := slots.GetSlotFor("node1")
+	ctx, cancel := context.WithCancel(context.Background())
+	err := s.AquireDetach(ctx) // occupy the slot
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cancel()
+	if err := s.AquireDetach(ctx); err != context.Canceled {
+		t.Fatalf("Expected context.Canceled, got %v", err)
+	}
+	if err := s.AquireAttach(ctx); err != context.Canceled {
+		t.Fatalf("Expected context.Canceled, got %v", err)
+	}
+}
