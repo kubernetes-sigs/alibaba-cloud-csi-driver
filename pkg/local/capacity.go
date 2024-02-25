@@ -156,12 +156,13 @@ func getLoopDeviceCapacity() []*StorageCapacity {
 			log.Errorf("getLoopDevice: failed to get totalcapacity: %v. err: %v", totalBytes, err)
 			return nil
 		}
-		percent := 0.9
+		percentFraction := 0.9
 		if types.GlobalConfigVar.LocalSparseTotalAvailablePercent != "" {
-			p, _ := strconv.Atoi(types.GlobalConfigVar.LocalSparseTotalAvailablePercent)
-			percent = float64(p)
+			if p, err := strconv.ParseFloat(types.GlobalConfigVar.LocalSparseTotalAvailablePercent, 32); err == nil && p < 1 {
+				percentFraction = p
+			}
 		}
-		totalAvailableBytes = int64(float64(totalBytes) * percent)
+		totalAvailableBytes = int64(float64(totalBytes) * percentFraction)
 	} else {
 		totalGi, err := strconv.Atoi(types.GlobalConfigVar.LocalSparseTotalGi)
 		if err != nil {
