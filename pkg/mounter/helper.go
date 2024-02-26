@@ -88,12 +88,8 @@ func ValidateAnnotationsSize(annotations map[string]string) error {
 }
 
 // GetOIDCProvider get OIDC provider from env or ACK clusterId for RRSA
-func GetOIDCProvider(clusterId string) (provider string, err error) {
-	if clusterId == "" {
-		return "", fmt.Errorf("failed to get OIDC provider as cluster id is empty")
-	}
-	provider = fmt.Sprintf("ack-rrsa-%s", clusterId)
-	return
+func GetOIDCProvider(clusterId string) string {
+	return fmt.Sprintf("ack-rrsa-%s", clusterId)
 }
 
 // GetArn get rrsa config for fuse contianer's env setting

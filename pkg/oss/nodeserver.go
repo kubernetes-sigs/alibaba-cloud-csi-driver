@@ -239,7 +239,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		// mount operations need to be atomic to ensure that no fuse pods are left behind in case of failure.
 		// Because kubelet will not call NodeUnpublishVolume when NodePublishVolume never succeeded.
 
-		rrsaCfg := GetRRSAConifg(opt, ns.metadata)
+		var rrsaCfg *mounter.RrsaConfig
+		var err error
+		if opt.AuthType == mounter.AuthTypeRRSA {
+			rrsaCfg, err = getRRSAConfig(opt, ns.metadata)
+			if err != nil {
+				return nil, errors.New("Get RoleArn and OidcProviderArn for RRSA error: " + err.Error())
+			}
+		}
 		authCfg := &mounter.AuthConfig{AuthType: opt.AuthType, RrsaConfig: rrsaCfg, SecretProviderClassName: opt.SecretProviderClass}
 		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId, authCfg, !opt.UseSharedPath)
 	default:
@@ -398,11 +405,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 // Check oss options
 func checkOssOptions(opt *Options) error {
 	if opt.URL == "" || opt.Bucket == "" {
-		return errors.New("Oss Parametes error: Url/Bucket empty ")
+		return errors.New("Oss parameters error: Url/Bucket empty")
 	}
 
 	if !strings.HasPrefix(opt.Path, "/") {
-		return errors.New("Oss path error: start with " + opt.Path + ", should start with / ")
+		return errors.New("Oss path error: start with " + opt.Path + ", should start with /")
 	}
 
 	if opt.FuseType == JindoFsType {
@@ -412,12 +419,12 @@ func checkOssOptions(opt *Options) error {
 	switch opt.AuthType {
 	case mounter.AuthTypeSTS:
 	case mounter.AuthTypeRRSA:
-		if opt.RoleName == "" && (opt.RoleArn == "" || opt.OidcProviderArn == "") {
-			return errors.New("Oss Parametes error: use RRSA but roleName is empty ")
+		if err := checkRRSAParams(opt); err != nil {
+			return err
 		}
 	case mounter.AuthTypeCSS:
 		if opt.SecretProviderClass == "" {
-			return errors.New("Oss Parametes error: use CsiSecretStore but secretProviderClass is empty ")
+			return errors.New("Oss parameters error: use CsiSecretStore but secretProviderClass is empty")
 		}
 	default:
 		// if not input ak from user, use the default ak value
@@ -427,12 +434,12 @@ func checkOssOptions(opt *Options) error {
 			opt.AkSecret = ac.AccessKeySecret
 		}
 		if opt.AkID == "" || opt.AkSecret == "" {
-			return errors.New("Oss Parametes error: AK and authType are both empty or invalid ")
+			return errors.New("Oss parameters error: AK and authType are both empty or invalid")
 		}
 	}
 
 	if opt.Encrypted != "" && opt.Encrypted != EncryptedTypeKms && opt.Encrypted != EncryptedTypeAes256 {
-		return errors.New("Oss Encrypted error: invalid SSE encryted type ")
+		return errors.New("Oss encrypted error: invalid SSE encryted type")
 	}
 
 	return nil

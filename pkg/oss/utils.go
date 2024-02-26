@@ -18,6 +18,7 @@ package oss
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -63,22 +64,42 @@ func GetRAMRoleOption() string {
 	return mntCmdRamRole
 }
 
-// GetRRSAConifg get oidcProviderArn and roleArn
-func GetRRSAConifg(opt *Options, m metadata.MetadataProvider) *mounter.RrsaConfig {
+// checkRRSAParams check parameters of RRSA
+func checkRRSAParams(opt *Options) error {
+	if opt.RoleArn != "" && opt.OidcProviderArn != "" {
+		return nil
+	}
+	if opt.RoleArn != "" || opt.OidcProviderArn != "" {
+		return errors.New("Oss parameters error: use RRSA but one of the ARNs is empty, roleArn:" + opt.RoleArn + ", oidcProviderArn:" + opt.OidcProviderArn)
+	}
+	if opt.RoleName == "" {
+		return errors.New("Oss parameters error: use RRSA but roleName is empty")
+	}
+	return nil
+}
+
+// getRRSAConfig get oidcProviderArn and roleArn
+func getRRSAConfig(opt *Options, m metadata.MetadataProvider) (rrsaCfg *mounter.RrsaConfig, err error) {
 	saName := fuseServieAccountName
 	if opt.ServiceAccountName != "" {
 		saName = opt.ServiceAccountName
 	}
 
 	if opt.OidcProviderArn != "" && opt.RoleArn != "" {
-		return &mounter.RrsaConfig{ServiceAccountName: saName, OidcProviderArn: opt.OidcProviderArn, RoleArn: opt.RoleArn}
+		return &mounter.RrsaConfig{ServiceAccountName: saName, OidcProviderArn: opt.OidcProviderArn, RoleArn: opt.RoleArn}, nil
 	}
 
-	accountId, _ := m.Get(metadata.AccountID)
-	clusterId, _ := m.Get(metadata.ClusterID)
-	provider, _ := mounter.GetOIDCProvider(clusterId)
+	accountId, err := m.Get(metadata.AccountID)
+	if err != nil {
+		return nil, errors.New("Get accountId error: " + err.Error())
+	}
+	clusterId, err := m.Get(metadata.ClusterID)
+	if err != nil {
+		return nil, errors.New("Get clusterId error: " + err.Error())
+	}
+	provider := mounter.GetOIDCProvider(clusterId)
 	oidcProviderArn, roleArn := mounter.GetArn(provider, accountId, opt.RoleName)
-	return &mounter.RrsaConfig{ServiceAccountName: saName, OidcProviderArn: oidcProviderArn, RoleArn: roleArn}
+	return &mounter.RrsaConfig{ServiceAccountName: saName, OidcProviderArn: oidcProviderArn, RoleArn: roleArn}, nil
 }
 
 // parseOtherOpts extracts mount options from parameters.otherOpts string.

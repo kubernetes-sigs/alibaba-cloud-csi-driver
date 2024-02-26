@@ -34,26 +34,35 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 
 	options.URL = ""
 	err = checkOssOptions(options)
-	assert.Equal(t, "Oss Parametes error: Url/Bucket empty ", err.Error())
+	assert.Equal(t, "Oss parameters error: Url/Bucket empty", err.Error())
 
 	options.URL = "1.1.1.1"
 	options.AkID = ""
 	err = checkOssOptions(options)
-	assert.Equal(t, "Oss Parametes error: AK and authType are both empty or invalid ", err.Error())
+	assert.Equal(t, "Oss parameters error: AK and authType are both empty or invalid", err.Error())
 
 	options.AuthType = "rrsa"
 	err = checkOssOptions(options)
-	assert.Equal(t, "Oss Parametes error: use RRSA but roleName is empty ", err.Error())
+	assert.Equal(t, "Oss parameters error: use RRSA but roleName is empty", err.Error())
+
+	options.OidcProviderArn = "test-oidc-provider-arn"
+	err = checkOssOptions(options)
+	assert.Equal(t, "Oss parameters error: use RRSA but one of the ARNs is empty, roleArn:"+options.RoleArn+", oidcProviderArn:"+options.OidcProviderArn, err.Error())
 
 	options.AuthType = "csi-secret-store"
 	err = checkOssOptions(options)
-	assert.Equal(t, "Oss Parametes error: use CsiSecretStore but secretProviderClass is empty ", err.Error())
+	assert.Equal(t, "Oss parameters error: use CsiSecretStore but secretProviderClass is empty", err.Error())
 
+	options.AuthType = ""
 	options.AkID = "2222"
 	// reset AkSecret in checkOssOptions when AkID = ""
 	options.AkSecret = "11111"
+	options.Encrypted = "test"
+	err = checkOssOptions(options)
+	assert.Equal(t, "Oss encrypted error: invalid SSE encryted type", err.Error())
+
+	options.Encrypted = "kms"
 	options.Path = "errorpath"
 	err = checkOssOptions(options)
-	assert.Equal(t, "Oss path error: start with "+options.Path+", should start with / ", err.Error())
-
+	assert.Equal(t, "Oss path error: start with "+options.Path+", should start with /", err.Error())
 }
