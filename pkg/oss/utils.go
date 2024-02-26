@@ -64,16 +64,21 @@ func GetRAMRoleOption() string {
 }
 
 // GetRRSAConifg get oidcProviderArn and roleArn
-func GetRRSAConifg(opt *Options, m metadata.MetadataProvider) (oidcProviderArn, roleArn string) {
+func GetRRSAConifg(opt *Options, m metadata.MetadataProvider) *mounter.RrsaConfig {
+	saName := fuseServieAccountName
+	if opt.ServiceAccountName != "" {
+		saName = opt.ServiceAccountName
+	}
+
 	if opt.OidcProviderArn != "" && opt.RoleArn != "" {
-		return opt.OidcProviderArn, opt.RoleArn
+		return &mounter.RrsaConfig{ServiceAccountName: saName, OidcProviderArn: opt.OidcProviderArn, RoleArn: opt.RoleArn}
 	}
 
 	accountId, _ := m.Get(metadata.AccountID)
 	clusterId, _ := m.Get(metadata.ClusterID)
 	provider, _ := mounter.GetOIDCProvider(clusterId)
-	oidcProviderArn, roleArn = mounter.GetArn(provider, accountId, opt.RoleName)
-	return
+	oidcProviderArn, roleArn := mounter.GetArn(provider, accountId, opt.RoleName)
+	return &mounter.RrsaConfig{ServiceAccountName: saName, OidcProviderArn: oidcProviderArn, RoleArn: roleArn}
 }
 
 // parseOtherOpts extracts mount options from parameters.otherOpts string.

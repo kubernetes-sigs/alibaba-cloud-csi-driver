@@ -89,47 +89,60 @@ func Test_GetRRSAConifg(t *testing.T) {
 	t.Setenv("ALIBABA_CLOUD_ACCOUNT_ID", "112233445566")
 	t.Setenv("CLUSTER_ID", "c12345678")
 	tests := []struct {
-		name            string
-		opt             Options
-		wantProviderArn string
-		wantRoleArn     string
+		name                   string
+		opt                    Options
+		wantProviderArn        string
+		wantRoleArn            string
+		wantServiceAccountName string
 	}{
 		{
 			"rolename",
 			Options{RoleName: "test-role-name"},
 			"acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678",
 			"acs:ram::112233445566:role/test-role-name",
+			fuseServieAccountName,
 		},
 		{
 			"specified-arns",
 			Options{RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
 			"test-oidc-provider-arn",
 			"test-role-arn",
+			fuseServieAccountName,
 		},
 		{
 			"arns-first",
 			Options{RoleName: "test-role-name", RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
 			"test-oidc-provider-arn",
 			"test-role-arn",
+			fuseServieAccountName,
 		},
 		{
 			"missing-arn-with-rolename",
 			Options{RoleName: "test-role-name", OidcProviderArn: "test-oidc-provider-arn"},
 			"acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678",
 			"acs:ram::112233445566:role/test-role-name",
+			fuseServieAccountName,
 		},
 		{
 			"missing-arn-without-rolename",
 			Options{OidcProviderArn: "test-oidc-provider-arn"},
 			"",
 			"",
+			fuseServieAccountName,
+		},
+		{
+			"serviceaccount",
+			Options{RoleName: "test-role-name", ServiceAccountName: "test-service-account"},
+			"acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678",
+			"acs:ram::112233445566:role/test-role-name",
+			"test-service-account",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			oidcProviderArn, roleArn := GetRRSAConifg(&tt.opt, m)
-			if oidcProviderArn != tt.wantProviderArn || roleArn != tt.wantRoleArn {
-				t.Errorf("GetRRSAConifg(opt(%v)) = %v, %v, want %v, %v", tt.opt, oidcProviderArn, roleArn, tt.wantProviderArn, tt.wantRoleArn)
+			cfg := GetRRSAConifg(&tt.opt, m)
+			if cfg.OidcProviderArn != tt.wantProviderArn || cfg.RoleArn != tt.wantRoleArn || cfg.ServiceAccountName != tt.wantServiceAccountName {
+				t.Errorf("GetRRSAConifg(opt(%v)) = %v, want %v, %v, %v", tt.opt, cfg, tt.wantProviderArn, tt.wantRoleArn, tt.opt.ServiceAccountName)
 			}
 		})
 	}

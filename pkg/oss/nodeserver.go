@@ -64,6 +64,7 @@ type Options struct {
 	RoleName            string `json:"roleName"`
 	RoleArn             string `json:"roleArn"`
 	OidcProviderArn     string `json:"oidcProviderArn"`
+	ServiceAccountName  string `json:"serviceAccountName"`
 	SecretProviderClass string `json:"secretProviderClass"`
 	FuseType            string `json:"fuseType"`
 	MetricsTop          string `json:"metricsTop"`
@@ -157,10 +158,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.RoleName = strings.TrimSpace(value)
 		} else if key == "rolearn" {
 			opt.RoleArn = strings.TrimSpace(value)
-		} else if key == "providerarn" {
-			opt.RoleArn = strings.TrimSpace(value)
 		} else if key == "oidcproviderarn" {
 			opt.OidcProviderArn = strings.TrimSpace(value)
+		} else if key == "serviceaccountname" {
+			opt.ServiceAccountName = strings.TrimSpace(value)
 		} else if key == "secretproviderclass" {
 			opt.SecretProviderClass = strings.TrimSpace(value)
 		} else if key == "fusetype" {
@@ -238,8 +239,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		// mount operations need to be atomic to ensure that no fuse pods are left behind in case of failure.
 		// Because kubelet will not call NodeUnpublishVolume when NodePublishVolume never succeeded.
 
-		rrsaCfg := &mounter.RrsaConfig{ServiceAccountName: fuseServieAccountName}
-		rrsaCfg.OidcProviderArn, rrsaCfg.RoleArn = GetRRSAConifg(opt, ns.metadata)
+		rrsaCfg := GetRRSAConifg(opt, ns.metadata)
 		authCfg := &mounter.AuthConfig{AuthType: opt.AuthType, RrsaConfig: rrsaCfg, SecretProviderClassName: opt.SecretProviderClass}
 		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId, authCfg, !opt.UseSharedPath)
 	default:
