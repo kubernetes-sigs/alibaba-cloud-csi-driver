@@ -18,14 +18,11 @@ package utils
 
 import (
 	"bytes"
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -36,6 +33,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials/provider"
 	"github.com/emirpasic/gods/sets/hashset"
 	oidc "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/auth"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/crypto"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/credentials"
 	"io/ioutil"
@@ -380,7 +378,7 @@ func getStsToken() AccessControl {
 
 // GetManagedToken get ak from csi secret
 func getManagedToken() (tokens ManageTokens) {
-	var akInfo AKInfo
+	var akInfo crypto.RamToken
 	if _, err := os.Stat(ConfigPath); err == nil {
 		encodeTokenCfg, err := ioutil.ReadFile(ConfigPath)
 		if err != nil {
@@ -389,87 +387,19 @@ func getManagedToken() (tokens ManageTokens) {
 		}
 		err = json.Unmarshal(encodeTokenCfg, &akInfo)
 		if err != nil {
-			log.Errorf("error unmarshal token config: %v", err)
+			log.Errorf("failed to unmarshal token config: %v", err)
 			return ManageTokens{}
 		}
-		keyring := akInfo.Keyring
-		ak, err := Decrypt(akInfo.AccessKeyID, []byte(keyring))
+		newToken, err := crypto.RamTokenDecrypt(&akInfo)
 		if err != nil {
-			log.Errorf("failed to decode ak, err: %v", err)
+			log.Errorf("failed to decrypt new token: %v", err)
 			return ManageTokens{}
 		}
-
-		sk, err := Decrypt(akInfo.AccessKeySecret, []byte(keyring))
-		if err != nil {
-			log.Errorf("failed to decode sk, err: %v", err)
-			return ManageTokens{}
-		}
-
-		token, err := Decrypt(akInfo.SecurityToken, []byte(keyring))
-		if err != nil {
-			log.Errorf("failed to decode token, err: %v", err)
-			return ManageTokens{}
-		}
-		layout := "2006-01-02T15:04:05Z"
-		t, err := time.Parse(layout, akInfo.Expiration)
-		if err != nil {
-			log.Errorf("Parse expiration error: %s", err.Error())
-		}
-		if t.Before(time.Now()) {
-			log.Errorf("invalid token which is expired, expiration as: %s", akInfo.Expiration)
-		}
-		tokens.AccessKeyID = string(ak)
-		tokens.AccessKeySecret = string(sk)
-		tokens.SecurityToken = string(token)
-
-		if akInfo.RoleAccessKeyID != "" && akInfo.RoleAccessKeySecret != "" {
-			roleAK, err := Decrypt(akInfo.RoleAccessKeyID, []byte(keyring))
-			if err != nil {
-				log.Errorf("failed to decode role ak, err: %v", err)
-				return ManageTokens{}
-			}
-			roleSK, err := Decrypt(akInfo.RoleAccessKeySecret, []byte(keyring))
-			if err != nil {
-				log.Errorf("failed to decode role sk, err : %v", err)
-				return ManageTokens{}
-			}
-			tokens.RoleAccessKeyID = string(roleAK)
-			tokens.RoleAccessKeySecret = string(roleSK)
-		}
-		tokens.RoleArn = akInfo.RoleArn
+		tokens.AccessKeyID = newToken.AccessKeyId
+		tokens.AccessKeySecret = newToken.AccessKeySecret
+		tokens.SecurityToken = newToken.SecurityToken
 	}
 	return tokens
-}
-
-// PKCS5UnPadding get pkc
-func PKCS5UnPadding(origData []byte) []byte {
-	length := len(origData)
-	unpadding := int(origData[length-1])
-	return origData[:(length - unpadding)]
-}
-
-// Decrypt secret Decrypt
-func Decrypt(s string, keyring []byte) ([]byte, error) {
-	cdata, err := base64.StdEncoding.DecodeString(s)
-	if err != nil {
-		log.Errorf("failed to decode base64 string, err: %v", err)
-		return nil, err
-	}
-	block, err := aes.NewCipher(keyring)
-	if err != nil {
-		log.Errorf("failed to new cipher, err: %v", err)
-		return nil, err
-	}
-	blockSize := block.BlockSize()
-
-	iv := cdata[:blockSize]
-	blockMode := cipher.NewCBCDecrypter(block, iv)
-	origData := make([]byte, len(cdata)-blockSize)
-
-	blockMode.CryptBlocks(origData, cdata[blockSize:])
-
-	origData = PKCS5UnPadding(origData)
-	return origData, nil
 }
 
 // GetDefaultRoleAK  返回角色扮演账号AK, SK, role arn
