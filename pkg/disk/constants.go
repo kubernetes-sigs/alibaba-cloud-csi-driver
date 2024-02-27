@@ -89,6 +89,7 @@ const (
 	DiskSizeNotAvailable1        = "InvalidDiskSize.NotSupported"             // for cloud/cloud_efficiency/cloud_ssd
 	DiskSizeNotAvailable2        = "InvalidDataDiskSize.ValueNotSupported"    // for cloud_auto
 	DiskPerformanceLevelNotMatch = "OperationDenied.PerformanceLevelNotMatch" // for cloud_essd
+	DiskInvalidPL                = "InvalidPerformanceLevel.Malformed"
 	DiskIopsLimitExceeded        = "InvalidProvisionedIops.LimitExceed"
 	DiskLimitExceeded            = "InstanceDiskLimitExceeded"
 	NotSupportDiskCategory       = "NotSupportDiskCategory"
