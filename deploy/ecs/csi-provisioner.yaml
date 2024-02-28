@@ -74,6 +74,7 @@ spec:
               memory: 1024Mi
           args:
             - "--csi-address=$(ADDRESS)"
+            - "--feature-gates=Topology=True"
             - "--volume-name-prefix=disk"
             - "--strict-topology=true"
             - "--timeout=150s"
