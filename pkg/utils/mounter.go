@@ -39,17 +39,6 @@ const (
 	expectedNumFieldsPerLine = 6
 )
 
-type findmntResponse struct {
-	FileSystems []fileSystem `json:"filesystems"`
-}
-
-type fileSystem struct {
-	Target      string `json:"target"`
-	Propagation string `json:"propagation"`
-	FsType      string `json:"fstype"`
-	Options     string `json:"options"`
-}
-
 // MountPoint represents a single line in /proc/mounts or /etc/fstab.
 type MountPoint struct { // nolint: golint
 	Device string

@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -38,20 +37,6 @@ const (
 	// RAMRoleResource is ram-role url subpath
 	RAMRoleResource = "ram/security-credentials/"
 )
-
-func GetMetaDataAsync(resource string) string {
-	c1 := make(chan string, 1)
-	go func(r string) {
-		ans, _ := utils.GetMetaData(r)
-		c1 <- ans
-	}(resource)
-	select {
-	case res := <-c1:
-		return res
-	case <-time.After(2 * time.Second):
-		return ""
-	}
-}
 
 func GetGlobalMountPath(volumeId string) string {
 

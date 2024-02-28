@@ -28,10 +28,6 @@ const (
 	MKFS_OPTIONS = "mkfsOptions"
 	// NOUUID is xfs fs mount opts
 	NOUUID = "nouuid"
-	// fsckErrorsCorrected tag
-	FSCK_ERRORS_CORRECTED = 1
-	// fsckErrorsUncorrected tag
-	FSCK_ERRORS_UNCORRECTED = 4
 	// SysConfigTag tag
 	SYS_CONFIG_TAG = "sysConfig"
 	// INPUT_OUTPUT_ERR tag

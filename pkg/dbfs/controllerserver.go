@@ -26,8 +26,8 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/dbfs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
@@ -36,20 +36,6 @@ import (
 )
 
 const (
-	// DRIVER tag
-	DRIVER = "driver"
-	// SERVER tag
-	SERVER = "server"
-	// MODE tag
-	MODE = "mode"
-	// ModeType tag
-	ModeType = "modeType"
-	// PATH tag
-	PATH = "path"
-	// ProtocolType tag
-	ProtocolType = "protocolType"
-	// FileSystemType tag
-	FileSystemType = "fileSystemType"
 	// ZoneID tag
 	ZoneID = "zoneId"
 	// ZoneIDTag tag
@@ -84,11 +70,11 @@ var pvcProcessSuccess = map[string]*csi.Volume{}
 func NewControllerServer(d *csicommon.CSIDriver, client *dbfs.Client, region string) csi.ControllerServer {
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		log.Log.Fatalf("NewControllerServer: Failed to create config: %v", err)
+		log.Fatalf("NewControllerServer: Failed to create config: %v", err)
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		log.Log.Fatalf("NewControllerServer: Failed to create client: %v", err)
+		log.Fatalf("NewControllerServer: Failed to create client: %v", err)
 	}
 
 	c := &controllerServer{
@@ -103,24 +89,24 @@ func NewControllerServer(d *csicommon.CSIDriver, client *dbfs.Client, region str
 
 // provisioner: create/delete dbfs volume
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	log.Log.Infof("CreateVolume: DBFS Start to CreateVolume, %s, %v", req.Name, req)
+	log.Infof("CreateVolume: DBFS Start to CreateVolume, %s, %v", req.Name, req)
 
 	if valid, err := utils.ValidateRequest(req.Parameters); !valid {
 		msg := fmt.Sprintf("CreateVolume: failed to check request args: %v", err)
-		log.Log.Infof(msg)
+		log.Infof(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
 	// step1: check pvc is created or not.
 	if value, ok := pvcProcessSuccess[req.Name]; ok && value != nil {
-		log.Log.Infof("CreateVolume: DBFS Volume %s has Created Already: %v", req.Name, value)
+		log.Infof("CreateVolume: DBFS Volume %s has Created Already: %v", req.Name, value)
 		return &csi.CreateVolumeResponse{Volume: value}, nil
 	}
 
 	pvName := req.Name
 	dbfsOpts, err := cs.getDbfsVolumeOptions(req)
 	if err != nil {
-		log.Log.Errorf("CreateVolume: error dbfs parameters from input: %s, with error: %v", req.Name, err)
+		log.Errorf("CreateVolume: error dbfs parameters from input: %s, with error: %v", req.Name, err)
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %s, with error: %v", req.Name, err)
 	}
 
@@ -150,7 +136,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	GlobalConfigVar.DbfsClient = updateDbfsClient(GlobalConfigVar.DbfsClient)
 	response, err := GlobalConfigVar.DbfsClient.CreateDbfs(createDbfsRequest)
 	if err != nil {
-		log.Log.Errorf("CreateVolume: Create DBFS %s, with error: %v", req.Name, err)
+		log.Errorf("CreateVolume: Create DBFS %s, with error: %v", req.Name, err)
 		return nil, status.Errorf(codes.InvalidArgument, "CreateVolume: Create DBFS: %v, with error: %v", req.Name, err)
 	}
 
@@ -179,22 +165,22 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 
 	pvcProcessSuccess[pvName] = tmpVol
-	log.Log.Infof("CreateVolume: DBFS Volume Provision Successful: %s, with PV: %v", req.Name, tmpVol)
+	log.Infof("CreateVolume: DBFS Volume Provision Successful: %s, with PV: %v", req.Name, tmpVol)
 	return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 }
 
 // call dbfs api to delete disk
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	log.Log.Infof("DeleteVolume: Starting to Delete dbfs volume %s", req.GetVolumeId())
+	log.Infof("DeleteVolume: Starting to Delete dbfs volume %s", req.GetVolumeId())
 	if strings.HasSuffix(req.VolumeId, "-config") {
-		log.Log.Infof("DeleteVolume: dbfs config volume not do delete: %s", req.VolumeId)
+		log.Infof("DeleteVolume: dbfs config volume not do delete: %s", req.VolumeId)
 		return &csi.DeleteVolumeResponse{}, nil
 	}
 
 	GlobalConfigVar.DbfsClient = updateDbfsClient(GlobalConfigVar.DbfsClient)
 	response, err := describeDbfs(req.VolumeId)
 	if err != nil {
-		log.Log.Errorf("DeleteVolume: describe dbfs(%s) with error: %s", req.VolumeId, err.Error())
+		log.Errorf("DeleteVolume: describe dbfs(%s) with error: %s", req.VolumeId, err.Error())
 		return nil, status.Error(codes.InvalidArgument, "DeleteVolume with describe error: "+err.Error())
 	}
 	if response.DBFSInfo.Status != "unattached" {
@@ -205,10 +191,10 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			detachDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
 			detachDbfsRequest.ECSInstanceId = response.DBFSInfo.EcsList[0].EcsId
 			GlobalConfigVar.DbfsClient.DetachDbfs(detachDbfsRequest)
-			log.Log.Infof("DeleteVolume: dbfs %s is attahced to %s, detach it first", req.VolumeId, detachDbfsRequest.ECSInstanceId)
+			log.Infof("DeleteVolume: dbfs %s is attahced to %s, detach it first", req.VolumeId, detachDbfsRequest.ECSInstanceId)
 			return nil, status.Error(codes.InvalidArgument, "DeleteVolume: dbfs "+req.VolumeId+" is attached to "+detachDbfsRequest.ECSInstanceId+", detach first")
 		}
-		log.Log.Infof("DeleteVolume: dbfs %s not unattahced, cannot be delete in current status %v", req.VolumeId, response)
+		log.Infof("DeleteVolume: dbfs %s not unattahced, cannot be delete in current status %v", req.VolumeId, response)
 		return nil, status.Error(codes.InvalidArgument, "DeleteVolume with dbfs not unattached, but error status: "+req.VolumeId)
 	}
 
@@ -218,7 +204,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	deleteDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
 	_, err = GlobalConfigVar.DbfsClient.DeleteDbfs(deleteDbfsRequest)
 	if err != nil {
-		log.Log.Errorf("DeleteVolume: delete dbfs volume(%s) with error: %s", req.VolumeId, err.Error())
+		log.Errorf("DeleteVolume: delete dbfs volume(%s) with error: %s", req.VolumeId, err.Error())
 		return nil, status.Errorf(codes.InvalidArgument, "DeleteVolume: delete dbfs volume(%s) with error: %v", req.VolumeId, err)
 	}
 
@@ -226,7 +212,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	if _, ok := pvcProcessSuccess[req.VolumeId]; ok {
 		delete(pvcProcessSuccess, req.VolumeId)
 	}
-	log.Log.Infof("DeleteVolume: Successful delete DBFS volume %s", req.VolumeId)
+	log.Infof("DeleteVolume: Successful delete DBFS volume %s", req.VolumeId)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
@@ -244,33 +230,33 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 }
 
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	log.Log.Infof("ControllerPublishVolume: Starting Attach dbfs %s to node %s", req.VolumeId, req.NodeId)
+	log.Infof("ControllerPublishVolume: Starting Attach dbfs %s to node %s", req.VolumeId, req.NodeId)
 	if strings.HasSuffix(req.VolumeId, "-config") {
-		log.Log.Infof("ControllerPublishVolume: DBFS config volume not do attach: %s to node %s", req.VolumeId, req.NodeId)
+		log.Infof("ControllerPublishVolume: DBFS config volume not do attach: %s to node %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 
 	if valid, err := utils.ValidateRequest(req.VolumeContext); !valid {
 		msg := fmt.Sprintf("ControllerPublishVolume: failed to check request args: %v", err)
-		log.Log.Infof(msg)
+		log.Infof(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
 	GlobalConfigVar.DbfsClient = updateDbfsClient(GlobalConfigVar.DbfsClient)
 	dbfsInfo, err := describeDbfs(req.VolumeId)
 	if err != nil {
-		log.Log.Errorf("ControllerPublishVolume: describe dbfs(%s) volume with error %s", req.VolumeId, err.Error())
+		log.Errorf("ControllerPublishVolume: describe dbfs(%s) volume with error %s", req.VolumeId, err.Error())
 		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume describe dbfs volume with error: "+err.Error())
 	}
 	if dbfsInfo.DBFSInfo.Status == "attached" {
 		for _, ecsItem := range dbfsInfo.DBFSInfo.EcsList {
 			if ecsItem.EcsId == req.NodeId {
-				log.Log.Infof("ControllerPublishVolume: DBFS volume %s already attach to node %s", req.VolumeId, req.NodeId)
+				log.Infof("ControllerPublishVolume: DBFS volume %s already attach to node %s", req.VolumeId, req.NodeId)
 				return &csi.ControllerPublishVolumeResponse{}, nil
 			}
 		}
 	} else if dbfsInfo.DBFSInfo.Status != "unattached" {
-		log.Log.Errorf("ControllerPublishVolume: dbfs(%s) volume can not be attached with status (%v)", req.VolumeId, dbfsInfo)
+		log.Errorf("ControllerPublishVolume: dbfs(%s) volume can not be attached with status (%v)", req.VolumeId, dbfsInfo)
 		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume dbfs status can not be attached: "+req.VolumeId)
 	}
 
@@ -280,15 +266,15 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	attachDbfsRequest.FsId = req.VolumeId
 	attachDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
 	resp, err := GlobalConfigVar.DbfsClient.AttachDbfs(attachDbfsRequest)
-	log.Log.Infof("ControllerPublishVolume: attachDbfs resp:  %s", resp.GetHttpContentString())
+	log.Infof("ControllerPublishVolume: attachDbfs resp:  %s", resp.GetHttpContentString())
 	if err != nil {
 		if strings.Contains(err.Error(), "InvalidStatus.DBFS") {
 			response, _ := describeDbfs(req.VolumeId)
 			if response != nil {
-				log.Log.Errorf("ControllerPublishVolume: DBFS(%s) Attach error with InvalidStatus status %s", req.VolumeId, response)
+				log.Errorf("ControllerPublishVolume: DBFS(%s) Attach error with InvalidStatus status %s", req.VolumeId, response)
 			}
 		}
-		log.Log.Errorf("ControllerPublishVolume: Attach dbfs(%s) to node(%s) with error: %v", req.VolumeId, req.NodeId, err)
+		log.Errorf("ControllerPublishVolume: Attach dbfs(%s) to node(%s) with error: %v", req.VolumeId, req.NodeId, err)
 		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume Attach dbfs "+req.VolumeId+" with error: "+err.Error())
 	}
 	// check dbfs ready
@@ -302,28 +288,28 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}
 		time.Sleep(2000 * time.Millisecond)
 	}
-	log.Log.Infof("ControllerPublishVolume: Successful attach dbfs %s to node %s", req.VolumeId, req.NodeId)
+	log.Infof("ControllerPublishVolume: Successful attach dbfs %s to node %s", req.VolumeId, req.NodeId)
 
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	log.Log.Infof("ControllerUnpublishVolume: Detach DBFS Target %s from %s", req.VolumeId, req.NodeId)
+	log.Infof("ControllerUnpublishVolume: Detach DBFS Target %s from %s", req.VolumeId, req.NodeId)
 
 	if strings.HasSuffix(req.VolumeId, "-config") {
-		log.Log.Infof("ControllerUnpublishVolume: DBFS config volume just skip, %s", req.VolumeId)
+		log.Infof("ControllerUnpublishVolume: DBFS config volume just skip, %s", req.VolumeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
 	// not detach dbfs volume if global config set;
 	if !GlobalConfigVar.ADControllerEnable {
-		log.Log.Infof("ControllerUnpublishVolume: ADController Disable to detach dbfs: %s from node: %s", req.VolumeId, req.NodeId)
+		log.Infof("ControllerUnpublishVolume: ADController Disable to detach dbfs: %s from node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
 	// detach dbfs volume is disabled
 	if GlobalConfigVar.DBFSDetachDisable {
-		log.Log.Infof("ControllerUnpublishVolume: DBFS disable to detach dbfs: %s from node: %s", req.VolumeId, req.NodeId)
+		log.Infof("ControllerUnpublishVolume: DBFS disable to detach dbfs: %s from node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
@@ -332,10 +318,10 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	response, err := describeDbfs(req.VolumeId)
 	if err != nil {
 		if strings.Contains(err.Error(), "EntityNotExist.DBFS") {
-			log.Log.Infof("ControllerUnpublishVolume: DBFS not exist %s, just skip the detach (%s)", req.VolumeId, err.Error())
+			log.Infof("ControllerUnpublishVolume: DBFS not exist %s, just skip the detach (%s)", req.VolumeId, err.Error())
 			return &csi.ControllerUnpublishVolumeResponse{}, nil
 		}
-		log.Log.Errorf("ControllerUnpublishVolume: describe dbfs %s with error: %s", req.VolumeId, err.Error())
+		log.Errorf("ControllerUnpublishVolume: describe dbfs %s with error: %s", req.VolumeId, err.Error())
 		return nil, status.Error(codes.InvalidArgument, "ControllerUnpublishVolume detach dbfs "+req.VolumeId+" with check error: "+err.Error())
 	}
 	if response.DBFSInfo.Status == "attached" || response.DBFSInfo.Status == "unattached" {
@@ -346,11 +332,11 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 			}
 		}
 		if nodeAttached == false {
-			log.Log.Infof("ControllerUnpublishVolume: dbfs %s not attahced to node %s, skip", req.VolumeId, req.NodeId)
+			log.Infof("ControllerUnpublishVolume: dbfs %s not attahced to node %s, skip", req.VolumeId, req.NodeId)
 			return &csi.ControllerUnpublishVolumeResponse{}, nil
 		}
 	} else {
-		log.Log.Errorf("ControllerUnpublishVolume: dbfs(%s) status not stable: %v", req.VolumeId, response)
+		log.Errorf("ControllerUnpublishVolume: dbfs(%s) status not stable: %v", req.VolumeId, response)
 		return nil, status.Error(codes.InvalidArgument, "ControllerUnpublishVolume: dbfs "+req.VolumeId+" not stable status, cannot be detach")
 	}
 
@@ -363,28 +349,28 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	_, err = GlobalConfigVar.DbfsClient.DetachDbfs(detachDbfsRequest)
 	if err != nil {
 		if strings.Contains(err.Error(), "EntityNotExist.DBFS") {
-			log.Log.Infof("ControllerUnpublishVolume: DBFS not exist %s, just skip(%s)", req.VolumeId, err.Error())
+			log.Infof("ControllerUnpublishVolume: DBFS not exist %s, just skip(%s)", req.VolumeId, err.Error())
 			return &csi.ControllerUnpublishVolumeResponse{}, nil
 		}
 		if strings.Contains(err.Error(), "NotAttachedStatus.DBFS") {
-			log.Log.Infof("ControllerUnpublishVolume: DBFS not attached %s, just skip(%s)", req.VolumeId, err.Error())
+			log.Infof("ControllerUnpublishVolume: DBFS not attached %s, just skip(%s)", req.VolumeId, err.Error())
 			return &csi.ControllerUnpublishVolumeResponse{}, nil
 		}
-		log.Log.Errorf("ControllerPublishVolume: detach dbfs(%s) from node(%s) with error: %s", req.VolumeId, req.NodeId, err.Error())
+		log.Errorf("ControllerPublishVolume: detach dbfs(%s) from node(%s) with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume detach dbfs "+req.VolumeId+" with error: "+err.Error())
 	}
 
-	log.Log.Infof("ControllerUnpublishVolume: Successful Detach dbfs %s from Node %s", req.VolumeId, req.NodeId)
+	log.Infof("ControllerUnpublishVolume: Successful Detach dbfs %s from Node %s", req.VolumeId, req.NodeId)
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	log.Log.Infof("CreateSnapshot is called, do nothing now")
+	log.Infof("CreateSnapshot is called, do nothing now")
 	return &csi.CreateSnapshotResponse{}, nil
 }
 
 func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
-	log.Log.Infof("DeleteSnapshot is called, do nothing now")
+	log.Infof("DeleteSnapshot is called, do nothing now")
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
@@ -392,10 +378,10 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 ) (*csi.ControllerExpandVolumeResponse, error) {
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	newSize := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
-	log.Log.Infof("ControllerExpandVolume: Expand dbfs volume(%s) to size: %dGi", req.VolumeId, newSize)
+	log.Infof("ControllerExpandVolume: Expand dbfs volume(%s) to size: %dGi", req.VolumeId, newSize)
 
 	if strings.HasSuffix(req.VolumeId, "-config") {
-		log.Log.Infof("ControllerExpandVolume: expand dbfs config volume(%s) just skip", req.VolumeId)
+		log.Infof("ControllerExpandVolume: expand dbfs config volume(%s) just skip", req.VolumeId)
 		return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: false}, nil
 	}
 
@@ -406,7 +392,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	getDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
 	response, err := GlobalConfigVar.DbfsClient.GetDbfs(getDbfsRequest)
 	if err != nil {
-		log.Log.Errorf("ControllerExpandVolume: describe dbfs %s with error %s", req.VolumeId, err.Error())
+		log.Errorf("ControllerExpandVolume: describe dbfs %s with error %s", req.VolumeId, err.Error())
 		return nil, status.Error(codes.InvalidArgument, "ControllerExpandVolume: Get DBFS "+req.VolumeId+" with error: "+err.Error())
 	}
 	oldSize := response.DBFSInfo.SizeG
@@ -418,10 +404,10 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	resizeDbfsRequest.Domain = GlobalConfigVar.DBFSDomain
 	_, err = GlobalConfigVar.DbfsClient.ResizeDbfs(resizeDbfsRequest)
 	if err != nil {
-		log.Log.Infof("ControllerExpandVolume: DBFS volume(%s) resize with error: %s", req.VolumeId, err.Error())
+		log.Infof("ControllerExpandVolume: DBFS volume(%s) resize with error: %s", req.VolumeId, err.Error())
 		return nil, status.Error(codes.InvalidArgument, "ControllerPublishVolume resize dbfs "+req.VolumeId+" error: "+err.Error())
 	}
-	log.Log.Infof("ControllerExpandVolume: DBFS(%s) resize from %dGB to %dGB", req.VolumeId, oldSize, newSize)
+	log.Infof("ControllerExpandVolume: DBFS(%s) resize from %dGB to %dGB", req.VolumeId, oldSize, newSize)
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: false}, nil
 }
 

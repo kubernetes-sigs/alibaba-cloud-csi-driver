@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -27,19 +28,27 @@ const (
 	OssfsCredentialSecretName = "csi-ossfs-credentials"
 	OssfsDefMimeTypesFilePath = "/etc/mime.types"
 	OssfsCsiMimeTypesFilePath = "/etc/csi-mime.types"
+
+	defaultRegistry = "registry-cn-hangzhou.ack.aliyuncs.com"
 )
 
 type fuseOssfs struct {
 	config FuseContainerConfig
 }
 
-func NewFuseOssfs(configmap *corev1.ConfigMap) FuseMounterType {
+func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) FuseMounterType {
 	config := extractFuseContainerConfig(configmap, "ossfs")
 	// set default image
 	if config.Image == "" {
 		registry := os.Getenv("DEFAULT_REGISTRY")
 		if registry == "" {
-			registry = fmt.Sprintf("registry-%s-vpc.ack.aliyuncs.com", utils.RetryGetMetaData("region-id"))
+			region, err := m.Get(metadata.RegionID)
+			if err == nil {
+				registry = fmt.Sprintf("registry-%s-vpc.ack.aliyuncs.com", region)
+			} else {
+				log.Warnf("DEFAULT_REGISTRY env not set, failed to get current region: %v, fallback to default registry: %s", err, defaultRegistry)
+				registry = defaultRegistry
+			}
 		}
 		config.Image = fmt.Sprintf("%s/acs/csi-ossfs:%s", registry, defaultOssfsImageTag)
 	}

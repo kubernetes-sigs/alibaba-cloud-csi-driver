@@ -57,3 +57,10 @@ build-disk:
 
 pkg/cloud/ecsmock.go: pkg/cloud/ecsinterface.go
 	mockgen -source pkg/cloud/ecsinterface.go -destination $@ -package cloud
+
+PROTOC=protoc
+pkg/disk/proto/disk.pb.go pkg/disk/proto/disk_ttrpc.pb.go: pkg/disk/disk.proto
+	go install -mod=mod \
+		google.golang.org/protobuf/cmd/protoc-gen-go \
+		github.com/containerd/ttrpc/cmd/protoc-gen-go-ttrpc
+	$(PROTOC) -I pkg/disk disk.proto --go_out=pkg/disk --go-ttrpc_out=pkg/disk

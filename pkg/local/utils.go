@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -38,8 +37,6 @@ import (
 )
 
 const (
-	// MetadataURL is metadata server url
-	MetadataURL = "http://100.100.100.200/latest/meta-data/"
 	// InstanceID is the instance id tag
 	InstanceID = "instance-id"
 	// RegionIDTag is the region id tag
@@ -47,29 +44,6 @@ const (
 	// MkfsOptions tag
 	MkfsOptions = "mkfsOptions"
 )
-
-// ErrParse is an error that is returned when parse operation fails
-var ErrParse = errors.New("Cannot parse output of blkid")
-
-func formatDevice(devicePath, fstype string) error {
-	output, err := exec.Command("mkfs", "-t", fstype, devicePath).CombinedOutput()
-	if err != nil {
-		return errors.New("FormatDevice error: " + string(output))
-	}
-	return nil
-}
-
-func isVgExist(vgName string) (bool, error) {
-	vgCmd := fmt.Sprintf("%s vgdisplay %s 2>&1 | grep 'VG Name' | grep %s | grep -v grep | wc -l", NsenterCmd, vgName, vgName)
-	vgline, err := utils.Run(vgCmd)
-	if err != nil {
-		return false, err
-	}
-	if strings.TrimSpace(vgline) == "1" {
-		return true, nil
-	}
-	return false, nil
-}
 
 // Get Local Disk Number from ecs API
 // Requirements: The instance must have role which contains ecs::DescribeInstances, ecs::DescribeInstancesType.

@@ -34,7 +34,6 @@ import (
 
 // controller server try to create/delete volumes
 type controllerServer struct {
-	region string
 	client kubernetes.Interface
 	*csicommon.DefaultControllerServer
 	crdClient dynamic.Interface

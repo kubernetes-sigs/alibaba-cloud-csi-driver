@@ -55,21 +55,7 @@ import (
 	"k8s.io/utils/mount"
 )
 
-// DefaultOptions used for global ak
-type DefaultOptions struct {
-	Global struct {
-		KubernetesClusterTag string
-		AccessKeyID          string `json:"accessKeyID"`
-		AccessKeySecret      string `json:"accessKeySecret"`
-		Region               string `json:"region"`
-	}
-}
-
 const (
-	// UserAKID is user AK ID
-	UserAKID = "/etc/.volumeak/akId"
-	// UserAKSecret is user AK Secret
-	UserAKSecret = "/etc/.volumeak/akSecret"
 	// MetadataURL is metadata url
 	MetadataURL = "http://100.100.100.200/latest/meta-data/"
 	// RegionIDTag is region id
@@ -111,9 +97,6 @@ const (
 	GiB = 1024 * 1024 * 1024
 )
 
-// KubernetesAlicloudIdentity set a identity label
-var KubernetesAlicloudIdentity = "Kubernetes.Alicloud/CsiPlugin"
-
 var (
 	nodeAddrMap = sync.Map{}
 )
@@ -153,37 +136,6 @@ func NewEventRecorder() record.EventRecorder {
 		broadcaster.StartRecordingToSink(sink)
 	}
 	return broadcaster.NewRecorder(scheme.Scheme, source)
-}
-
-// Succeed return a Succeed Result
-func Succeed(a ...interface{}) Result {
-	return Result{
-		Status:  "Success",
-		Message: fmt.Sprint(a...),
-	}
-}
-
-// NotSupport return a NotSupport Result
-func NotSupport(a ...interface{}) Result {
-	return Result{
-		Status:  "Not supported",
-		Message: fmt.Sprint(a...),
-	}
-}
-
-// Fail return a Fail Result
-func Fail(a ...interface{}) Result {
-	return Result{
-		Status:  "Failure",
-		Message: fmt.Sprint(a...),
-	}
-}
-
-// Result struct definition
-type Result struct {
-	Status  string `json:"status"`
-	Message string `json:"message,omitempty"`
-	Device  string `json:"device,omitempty"`
 }
 
 // CommandRunFunc define the run function in utils for ut

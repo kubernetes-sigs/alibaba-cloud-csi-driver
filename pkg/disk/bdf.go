@@ -48,13 +48,6 @@ const (
 	VfhpReconcilePeriod = 600
 )
 
-// PatchStringValue type
-type PatchStringValue struct {
-	Op    string      `json:"op"`
-	Path  string      `json:"path"`
-	Value interface{} `json:"value"`
-}
-
 // BdfAttachInfo type
 type BdfAttachInfo struct {
 	Depend             bool   `json:"depend"`

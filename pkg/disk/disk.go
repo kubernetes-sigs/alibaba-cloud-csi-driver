@@ -28,10 +28,10 @@ import (
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
+	log "github.com/sirupsen/logrus"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -54,9 +54,6 @@ type DISK struct {
 	idServer         csi.IdentityServer
 	nodeServer       csi.NodeServer
 	controllerServer csi.ControllerServer
-
-	cap   []*csi.VolumeCapability_AccessMode
-	cscap []*csi.ControllerServiceCapability
 }
 
 // GlobalConfig save global values for plugin
@@ -64,7 +61,6 @@ type GlobalConfig struct {
 	EcsClient             *ecs.Client
 	Region                string
 	NodeID                string
-	ZoneID                string
 	DiskTagEnable         bool
 	AttachDetachSlots     AttachDetachSlots
 	ADControllerEnable    bool
@@ -126,15 +122,15 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 	accessControl := utils.GetAccessControl()
 	client := newEcsClient(accessControl)
 	if accessControl.UseMode == utils.EcsRAMRole || accessControl.UseMode == utils.ManagedToken {
-		log.Log.Infof("Starting csi-plugin with sts.")
+		log.Infof("Starting csi-plugin with sts.")
 	} else {
-		log.Log.Infof("Starting csi-plugin without sts.")
+		log.Infof("Starting csi-plugin without sts.")
 	}
 	GlobalConfigVar.EcsClient = client
 
 	apiExtentionClient, err := crd.NewForConfig(cfg)
 	if err != nil {
-		log.Log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
 	// Create GRPC servers
@@ -150,7 +146,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 
 // Run start a new NodeServer
 func (disk *DISK) Run() {
-	log.Log.Infof("Starting csi-plugin Driver: %v version: %v", driverName, version.VERSION)
+	log.Infof("Starting csi-plugin Driver: %v version: %v", driverName, version.VERSION)
 	common.RunCSIServer(disk.endpoint, disk.idServer, disk.controllerServer, disk.nodeServer)
 }
 
@@ -161,7 +157,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
-		log.Log.Fatalf("Error building kubeconfig: %s", err.Error())
+		log.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
 	if qps := os.Getenv("KUBE_CLI_API_QPS"); qps != "" {
 		if qpsi, err := strconv.Atoi(qps); err == nil {
@@ -177,19 +173,19 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	// snapshotClient does not support protobuf
 	snapClient, err := snapClientset.NewForConfig(cfg)
 	if err != nil {
-		log.Log.Fatalf("Error building kubernetes snapclientset: %s", err.Error())
+		log.Fatalf("Error building kubernetes snapclientset: %s", err.Error())
 	}
 
 	cfg.ContentType = runtime.ContentTypeProtobuf
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		log.Log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
 	csiCfg := utils.Config{}
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
-		log.Log.Infof("Not found configmap named as csi-plugin under kube-system, with: %v", err)
+		log.Infof("Not found configmap named as csi-plugin under kube-system, with: %v", err)
 	} else {
 		csiCfg.ConfigMap = configMap.Data
 	}
@@ -218,14 +214,14 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	runtimeValue := "runc"
 	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
-		log.Log.Errorf("GlobalConfigSet: get node %s with error: %s", nodeName, err.Error())
+		log.Errorf("GlobalConfigSet: get node %s with error: %s", nodeName, err.Error())
 	} else {
 		if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime"]; ok && strings.TrimSpace(value) == "Sandboxed-Container.runv" {
 			if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime-version"]; ok && strings.HasPrefix(strings.TrimSpace(value), "1.") {
 				runtimeValue = MixRunTimeMode
 			}
 		}
-		log.Log.Infof("Describe node %s and Set RunTimeClass to %s", nodeName, runtimeValue)
+		log.Infof("Describe node %s and Set RunTimeClass to %s", nodeName, runtimeValue)
 	}
 	runtimeEnv := os.Getenv("RUNTIME")
 	if runtimeEnv == MixRunTimeMode {
@@ -234,15 +230,18 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	clustID := os.Getenv("CLUSTER_ID")
 
 	controllerServerType := false
+	nodeID := ""
 	if os.Getenv(utils.ServiceType) == utils.ProvisionerService {
 		controllerServerType = true
+		nodeID = "controller" // make csi-common happy
+	} else {
+		nodeID = metadata.MustGet(m, metadata.InstanceID)
 	}
 
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
 		Region:                metadata.MustGet(m, metadata.RegionID),
-		NodeID:                metadata.MustGet(m, metadata.InstanceID),
-		ZoneID:                metadata.MustGet(m, metadata.ZoneID),
+		NodeID:                nodeID,
 		ADControllerEnable:    csiCfg.GetBool("disk-adcontroller-enable", "DISK_AD_CONTROLLER", false),
 		DiskTagEnable:         csiCfg.GetBool("disk-tag-by-plugin", "DISK_TAGED_BY_PLUGIN", false),
 		DiskBdfEnable:         csiCfg.GetBool("disk-bdf-enable", "DISK_BDF_ENABLE", false),
@@ -268,11 +267,11 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		DiskAllowAllType:      csiCfg.GetBool("disk-allow-all-type", "DISK_ALLOW_ALL_TYPE", false),
 	}
 	if GlobalConfigVar.ADControllerEnable {
-		log.Log.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
+		log.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
 	} else {
-		log.Log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
+		log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
 	}
-	log.Log.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
+	log.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
 		GlobalConfigVar.ADControllerEnable,
 		GlobalConfigVar.DiskTagEnable,
 		GlobalConfigVar.DiskBdfEnable,
@@ -284,7 +283,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	)
 
 	if controllerServerType && !csiCfg.GetBool("disk-serial-attach", "DISK_SERIAL_ATTACH", false) {
-		log.Log.Infof("Disk parallel attach/detach enabled, please set DISK_SERIAL_ATTACH if you see a lot of InvalidOperation.Conflict error.")
+		log.Infof("Disk parallel attach/detach enabled, please set DISK_SERIAL_ATTACH if you see a lot of InvalidOperation.Conflict error.")
 		GlobalConfigVar.AttachDetachSlots = NewParallelAttachDetachSlots()
 	} else {
 		GlobalConfigVar.AttachDetachSlots = NewSerialAttachDetachSlots()
