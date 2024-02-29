@@ -39,7 +39,6 @@ import (
 )
 
 const (
-	finalizerFieldManager    = "nas-subpath-deletion-controller"
 	subpathArchiveFinalizer  = "csi.alibabacloud.com/nas-subpath-archive"
 	subpathDeletionFinalizer = "csi.alibabacloud.com/nas-subpath-deletion"
 )
@@ -209,8 +208,8 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 			return nil, status.Errorf(codes.Internal, "nas:CancelDirQuota failed: %v", err)
 		}
 	}
-	if cs.config.DisableSubpathFinalizer {
-		logrus.Warnf("deletion finalizer not enabled, skip subpath deletion for %s", req.VolumeId)
+	if !cs.config.EnableSubpathFinalizer {
+		logrus.Infof("deletion finalizer not enabled, skip subpath deletion for %s", req.VolumeId)
 		return &csi.DeleteVolumeResponse{}, nil
 	}
 

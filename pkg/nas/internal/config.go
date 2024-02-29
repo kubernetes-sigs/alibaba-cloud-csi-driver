@@ -30,8 +30,8 @@ type ControllerConfig struct {
 	ClusterID string
 
 	// subpath configs
-	SkipSubpathCreation     bool
-	DisableSubpathFinalizer bool
+	SkipSubpathCreation    bool
+	EnableSubpathFinalizer bool
 
 	// clients for kubernetes
 	KubeClient kubernetes.Interface
@@ -64,7 +64,8 @@ func GetControllerConfig(meta *metadata.Metadata) (*ControllerConfig, error) {
 	} else {
 		config.SkipSubpathCreation, _ = parseBool(cm.Data["nas-fake-provision"])
 	}
-	// TODO: support DisableSubpathFinalizer
+
+	config.EnableSubpathFinalizer, _ = parseBool(os.Getenv("ENABLE_NAS_SUBPATH_FINALIZER"))
 
 	return config, nil
 }
@@ -153,9 +154,9 @@ func GetNodeConfig() (*NodeConfig, error) {
 
 func parseBool(str string) (bool, error) {
 	switch str {
-	case "enable", "yes":
+	case "enable", "enabled", "yes":
 		return true, nil
-	case "no":
+	case "no", "":
 		return false, nil
 	}
 	return strconv.ParseBool(str)
