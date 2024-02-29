@@ -84,7 +84,7 @@ type ManageTokens struct {
 	RoleArn string
 
 	// expire time
-	expireAt time.Time
+	ExpireAt time.Time
 }
 
 // AccessControlMode is int, represents different modes
@@ -378,9 +378,15 @@ func getManagedToken() (tokens ManageTokens) {
 			log.Errorf("failed to decrypt new token: %v", err)
 			return ManageTokens{}
 		}
+		expireAt, err := time.Parse("2006-01-02T15:04:05Z", newToken.Expiration)
+		if err != nil {
+			log.Errorf("failed to parse expiration: %q: %v", newToken.Expiration, err)
+			return ManageTokens{}
+		}
 		tokens.AccessKeyID = newToken.AccessKeyId
 		tokens.AccessKeySecret = newToken.AccessKeySecret
 		tokens.SecurityToken = newToken.SecurityToken
+		tokens.ExpireAt = expireAt
 	}
 	return tokens
 }
@@ -432,7 +438,7 @@ func (cred *managedAddonTokenCredv2) needUpdate() bool {
 		return true
 	}
 	duration := time.Since(cred.lastUpdateAt)
-	expiration := cred.token.expireAt.Sub(cred.lastUpdateAt)
+	expiration := cred.token.ExpireAt.Sub(cred.lastUpdateAt)
 	return duration >= time.Duration(float64(expiration)*cred.scale)
 }
 
