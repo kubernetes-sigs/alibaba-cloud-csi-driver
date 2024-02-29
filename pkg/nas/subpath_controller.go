@@ -18,6 +18,7 @@ package nas
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -34,7 +35,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	acv1 "k8s.io/client-go/applyconfigurations/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -296,19 +297,25 @@ func (cs *subpathController) ControllerExpandVolume(ctx context.Context, req *cs
 }
 
 func (cs *subpathController) patchFinalizerOnPV(ctx context.Context, pv *corev1.PersistentVolume, finalizer string) error {
-	ac, err := acv1.ExtractPersistentVolume(pv, finalizerFieldManager)
-	if err != nil {
-		return err
-	}
-	for _, f := range ac.Finalizers {
+	for _, f := range pv.Finalizers {
 		if f == finalizer {
 			return nil
 		}
 	}
-	ac.WithFinalizers(finalizer)
-	_, err = cs.config.KubeClient.CoreV1().PersistentVolumes().Apply(ctx, ac, metav1.ApplyOptions{FieldManager: finalizerFieldManager, Force: true})
+
+	patch := corev1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Finalizers: []string{finalizer},
+		},
+	}
+	patchData, err := json.Marshal(patch)
 	if err != nil {
-		return status.Error(codes.Internal, err.Error())
+		return err
+	}
+
+	_, err = cs.config.KubeClient.CoreV1().PersistentVolumes().Patch(ctx, pv.Name, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
+	if err != nil {
+		return status.Errorf(codes.Internal, "patch pv: %v", err)
 	}
 	logrus.Infof("patched finalizer %s on pv %s", finalizer, pv.Name)
 	return nil
