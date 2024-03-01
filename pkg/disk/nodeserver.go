@@ -19,6 +19,7 @@ package disk
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -913,6 +914,9 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePaths, volumePath)
 	beforeResizeDiskCapacity, err := getDiskCapacity(volumePath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, status.Error(codes.NotFound, fmt.Sprintf("volumePath does not exist: %v", err))
+		}
 		log.Errorf("NodeExpandVolume:: get diskCapacity error %+v", err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
