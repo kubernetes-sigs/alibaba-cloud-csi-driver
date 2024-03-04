@@ -80,7 +80,7 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 		fmt.Sprintf("%s/kubepods-burstable.slice/kubepods-burstable-pod%s.slice", PodBlkIOCgroupPath, podUID),
 		fmt.Sprintf("%s/kubepods-pod%s.slice", PodBlkIOCgroupPath, podUID),
 	} {
-		fd, err := unix.Open(p, unix.O_PATH, 0)
+		fd, err := unix.Open(p, flag_O_PATH, 0)
 		if err == nil {
 			podBlkIOPathFd = fd
 			defer unix.Close(podBlkIOPathFd)
