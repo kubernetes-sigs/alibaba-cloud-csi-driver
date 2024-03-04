@@ -111,3 +111,26 @@ func doMount(mounter mountutils.Interface, target string, opts Options, mountOpt
 	logger.Info("mounted successfully")
 	return nil
 }
+
+func setNetworkType(originURL, regionID string) (URL string, modified bool) {
+	URL = originURL
+	if utils.IsPrivateCloud() || !strings.HasSuffix(strings.TrimRight(URL, "/"), ".aliyuncs.com") {
+		return
+	}
+	if strings.Contains(originURL, regionID) && !strings.Contains(originURL, "internal") {
+		URL = strings.ReplaceAll(originURL, regionID, regionID+"-internal")
+		modified = true
+	}
+	return
+}
+
+func setTransmissionProtocol(originURL string) (URL string, modified bool) {
+	URL = originURL
+	if strings.HasPrefix(URL, "http://") || strings.HasPrefix(URL, "https://") {
+		return
+	}
+	if strings.HasSuffix(strings.TrimRight(URL, "/"), "-internal.aliyuncs.com") {
+		return "http://" + URL, true
+	}
+	return "https://" + URL, true
+}
