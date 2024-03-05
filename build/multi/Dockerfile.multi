@@ -30,8 +30,6 @@ RUN if [[ $TARGETARCH == "amd64" ]]; then \
         curl -O https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-6.al7.noarch.rpm; \
     fi
 RUN --mount=type=bind,source=build/lib,target=/csi-lib \
-    cp /csi-lib/$TARGETARCH-nsenter /usr/bin/nsenter && \
-    ln -s /usr/bin/nsenter /nsenter && \
     cp /csi-lib/$TARGETARCH-entrypoint.sh /entrypoint.sh && \
     chmod +x /entrypoint.sh && \
     cp /csi-lib/freezefs.sh /freezefs.sh && \
