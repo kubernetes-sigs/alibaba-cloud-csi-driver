@@ -15,6 +15,7 @@ import (
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	k8smount "k8s.io/mount-utils"
@@ -363,19 +364,23 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	if value, ok := req.VolumeContext[SYS_CONFIG_TAG]; ok {
 		configList := strings.Split(strings.TrimSpace(value), ",")
 		for _, configStr := range configList {
-			keyValue := strings.Split(configStr, "=")
-			if len(keyValue) == 2 {
-				fileName := filepath.Join("/sys/block/", filepath.Base(device), keyValue[0])
-				configCmd := "echo '" + keyValue[1] + "' > " + fileName
-				if _, err := utils.Run(configCmd); err != nil {
-					log.Errorf("NodeStageVolume: Volume Block System Config with cmd: %s, get error: %v", configCmd, err)
-					return nil, status.Error(codes.Aborted, "NodeStageVolume: Volume Block System Config with cmd:"+configCmd+", error with: "+err.Error())
-				}
-				log.Infof("NodeStageVolume: Volume Block System Config Successful with command: %s, for volume: %v", configCmd, req.VolumeId)
-			} else {
+			key, value, found := strings.Cut(configStr, "=")
+			if !found {
 				log.Errorf("NodeStageVolume: Volume Block System Config with format error: %s", configStr)
 				return nil, status.Error(codes.Aborted, "NodeStageVolume: Volume Block System Config with format error "+configStr)
 			}
+			base := fmt.Sprintf("/sys/block/%s/", filepath.Base(device))
+			fileName := filepath.Clean(base + key)
+			if !strings.HasPrefix(fileName, base) {
+				// Note this cannot prevent user from access other device through e.g. /sys/block/vda/subsystem/vdb
+				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: invalid relative path in sysConfig: %s", key)
+			}
+			err := utils.WriteTrunc(unix.AT_FDCWD, fileName, value)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal,
+					"NodeStageVolume: Volume Block System Config failed, failed to write %s to %s: %v", value, fileName, err)
+			}
+			log.Infof("NodeStageVolume: set sysConfig %s=%s", key, value)
 		}
 	}
 
