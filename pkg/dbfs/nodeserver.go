@@ -208,8 +208,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
-	umntCmd := fmt.Sprintf("umount %s", mountPoint)
-	if _, err := utils.Run(umntCmd); err != nil {
+	if err := ns.k8smounter.Unmount(mountPoint); err != nil {
 		log.Errorf("NodeUnpublishVolume: Umount DBFS Fail %s", err.Error())
 		return nil, errors.New("NodeUnpublishVolume: Umount DBFS Fail: " + err.Error())
 	}
