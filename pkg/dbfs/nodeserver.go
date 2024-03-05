@@ -163,15 +163,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				dbfsVersion = "1.0.0.2"
 			}
 		}
-		cmd := fmt.Sprintf("%s /opt/dbfs/app/%s/bin/dbfs_get_home_path.sh %s", NsenterCmd, dbfsVersion, dbfsID)
-		out, err := utils.Run(cmd)
+		out, err := utils.CommandOnNode(fmt.Sprintf("/opt/dbfs/app/%s/bin/dbfs_get_home_path.sh", dbfsVersion), dbfsID).CombinedOutput()
 		if err != nil {
-			log.Errorf("NodePublishVolume: get dbfs config volume path %s with error: %s", req.VolumeId, err.Error())
+			log.Errorf("NodePublishVolume: get dbfs config volume path %s with error: %s, with output: %s", req.VolumeId, err.Error(), string(out))
 			return nil, errors.New("NodePublishVolume: Get DBFS Config Path with error: " + err.Error())
 		}
 
 		// mount dbfs config path to target
-		homePath := strings.TrimSpace(out)
+		homePath := strings.TrimSpace(string(out))
 		log.Infof("NodePublishVolume: mount path: %v, to %v, with fstype: %v, and options: %v at: %+v", homePath, mountPath, fsType, options, time.Now())
 		if err := ns.k8smounter.Mount(homePath, mountPath, fsType, options); err != nil {
 			log.Errorf("NodePublishVolume: mount dbfs config volume from %s to %s with error: %s", homePath, mountPath, err.Error())
