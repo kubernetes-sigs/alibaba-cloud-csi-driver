@@ -96,12 +96,12 @@ func checkVolumeIDAvailiable(volumeID string) bool {
 }
 
 func getDBFSPath(volumeID string) (string, error) {
-	cmd := fmt.Sprintf("%s %s %s", NsenterCmd, GetDBFSMountCmd, volumeID)
-	line, err := utils.Run(cmd)
+	line, err := utils.CommandOnNode(GetDBFSMountCmd, volumeID).CombinedOutput()
+	output := string(line)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("get dbfs path failed: %s (%s)", output, err.Error())
 	}
-	return strings.TrimSuffix(line, "\n"), nil
+	return strings.TrimSuffix(output, "\n"), nil
 }
 
 func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
