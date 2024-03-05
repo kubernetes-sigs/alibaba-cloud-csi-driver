@@ -53,7 +53,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
-	"k8s.io/utils/mount"
 )
 
 const (
@@ -163,15 +162,12 @@ func ValidateRun(cmd string) (string, error) {
 			return "", err
 		}
 	}
-	safeMount := mount.SafeFormatAndMount{
-		Interface: mount.New(""),
-		Exec:      utilexec.New(),
-	}
+	exec := utilexec.New()
 	var command utilexec.Cmd
 	if withArgs {
-		command = safeMount.Exec.Command(name, args...)
+		command = exec.Command(name, args...)
 	} else {
-		command = safeMount.Exec.Command(name)
+		command = exec.Command(name)
 	}
 
 	stdout, err := command.CombinedOutput()
