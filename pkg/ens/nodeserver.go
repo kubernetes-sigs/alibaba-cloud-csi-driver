@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/mount-utils"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
 )
@@ -179,7 +180,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// check device name available
-	realDevice := GetDeviceByMntPoint(sourcePath)
+	realDevice, _, err := mount.GetDeviceNameFromMount(ns.k8smounter, sourcePath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", sourcePath, err.Error())
+	}
 	if realDevice == "" {
 		opts := append(mnt.MountFlags, "shared")
 		if err := ns.k8smounter.Mount(expectDevice, sourcePath, fsType, opts); err != nil {
@@ -187,7 +191,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			log.Error(errMsg)
 			return nil, status.Error(codes.Internal, errMsg)
 		}
-		realDevice = GetDeviceByMntPoint(sourcePath)
+		realDevice, _, err = mount.GetDeviceNameFromMount(ns.k8smounter, sourcePath)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", sourcePath, err.Error())
+		}
 	}
 	if expectDevice != realDevice || realDevice == "" {
 		err := fmt.Errorf("NodePublishVolume: Volume: %s, sourcePath: %s real Device: %s not same with expected: %s", req.VolumeId, sourcePath, realDevice, expectDevice)
@@ -323,7 +330,10 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 
 		// check device available
-		deviceName := GetDeviceByMntPoint(targetPath)
+		deviceName, _, err := mount.GetDeviceNameFromMount(ns.k8smounter, targetPath)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", targetPath, err.Error())
+		}
 		if err := checkDeviceAvailable(deviceName, req.VolumeId, targetPath); err != nil {
 			log.Errorf("NodeStageVolume: mountPath is mounted %s, but check device available error: %s", targetPath, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
@@ -522,16 +532,6 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 			},
 		},
 	}, nil
-}
-
-// GetDeviceByMntPoint return the device info from given mount point
-func GetDeviceByMntPoint(targetPath string) string {
-	deviceCmd := fmt.Sprintf("mount | grep \"on %s\" | awk 'NR==1 {print $1}'", targetPath)
-	deviceCmdOut, err := utils.Run(deviceCmd)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(deviceCmdOut)
 }
 
 func (ns *nodeServer) mountDeviceToGlobal(capability *csi.VolumeCapability, volumeContext map[string]string, device, sourcePath string) error {
