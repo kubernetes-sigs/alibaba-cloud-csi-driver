@@ -84,6 +84,16 @@ func parseOtherOpts(otherOpts string) (mountOptions []string, err error) {
 	return mountOptions, nil
 }
 
+func getPodUid(targetPath, volumeID string) (podUid string) {
+	prefix := filepath.Join(utils.KubeletRootDir, "pods")
+	prefix = prefix + "/"
+	suffix := filepath.Join("/volumes/kubernetes.io~csi", volumeID, "mount")
+	if strings.HasPrefix(targetPath, prefix) && strings.HasSuffix(targetPath, suffix) {
+		podUid = strings.TrimSuffix(strings.TrimPrefix(targetPath, prefix), suffix)
+	}
+	return
+}
+
 func doMount(mounter mountutils.Interface, target string, opts Options, mountOptions []string) error {
 	var source string
 	if opts.FuseType == JindoFsType {
