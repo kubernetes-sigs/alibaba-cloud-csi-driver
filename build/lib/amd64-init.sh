@@ -2,9 +2,7 @@
 
 # skip all the setup if running in provisioner mode
 if [ "$SERVICE_TYPE" = "provisioner" ]; then
-    echo "Starting provisioner..."
-    /bin/plugin.csi.alibabacloud.com $@
-    exit $?
+    exit 0
 fi
 
 run_oss="false"
@@ -296,6 +294,3 @@ fi
 
 # place it here to remove leftover from previous version
 rm -rf /host/etc/csi-tool/*.rpm
-
-# start daemon
-/bin/plugin.csi.alibabacloud.com $@

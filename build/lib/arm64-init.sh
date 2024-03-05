@@ -2,9 +2,7 @@
 
 # skip all the setup if running in provisioner mode
 if [ "$SERVICE_TYPE" = "provisioner" ]; then
-    echo "Starting provisioner..."
-    /bin/plugin.csi.alibabacloud.com $@
-    exit $?
+    exit 0
 fi
 
 run_oss="false"
@@ -217,7 +215,3 @@ if ([ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]) || [ "$run_pov"
         fi
     fi
 fi
-
-
-# start daemon
-/bin/plugin.csi.alibabacloud.com $@
