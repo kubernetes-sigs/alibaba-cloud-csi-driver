@@ -34,7 +34,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dbfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/ens"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/local"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/om"
@@ -72,14 +71,6 @@ const (
 	TypePluginOSS = "ossplugin.csi.alibabacloud.com"
 	// TypePluginCPFS CPFS type plugin
 	TypePluginCPFS = "cpfsplugin.csi.alibabacloud.com"
-	// TypePluginLVM LVM type plugin
-	TypePluginLVM = "lvmplugin.csi.alibabacloud.com"
-	// TypePluginMEM memory type plugin
-	TypePluginMEM = "memplugin.csi.alibabacloud.com"
-	// TypePluginLOCAL local type plugin
-	TypePluginLOCAL = "localplugin.csi.alibabacloud.com"
-	// TypePluginYODA local type plugin
-	TypePluginYODA = "yodaplugin.csi.alibabacloud.com"
 	// TypePluginENS ENS type plugins
 	TypePluginENS = "ensplugin.csi.alibabacloud.com"
 	// TypePluginPOV POV type plugins
@@ -171,9 +162,6 @@ func main() {
 		endPointName := replaceCsiEndpoint(driverName, *endpoint)
 		log.Infof("CSI endpoint for driver %s: %s", driverName, endPointName)
 
-		if driverName == TypePluginYODA {
-			driverName = TypePluginLOCAL
-		}
 		if err := createPersistentStorage(path.Join(utils.KubeletRootDir, "/csi-plugins", driverName, "controller")); err != nil {
 			log.Errorf("failed to create persistent storage for controller: %v", err)
 			os.Exit(1)
@@ -206,12 +194,6 @@ func main() {
 			go func(endPoint string) {
 				defer wg.Done()
 				driver := cpfs.NewDriver(*nodeID, endPoint)
-				driver.Run()
-			}(endPointName)
-		case TypePluginLOCAL:
-			go func(endPoint string) {
-				defer wg.Done()
-				driver := local.NewDriver(*nodeID, endPoint)
 				driver.Run()
 			}(endPointName)
 		case TypePluginDBFS:

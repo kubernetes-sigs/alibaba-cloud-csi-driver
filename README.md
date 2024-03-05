@@ -49,13 +49,6 @@ OSS CSI Plugin support OSS bucket mount, but does not support provision volume. 
 More detail information pls refer to [OSS](./docs/oss.md).
 
 
-### LVM CSI Plugin
-
-LVM CSI Plugin support LVM volume provision and mount. LVM volume is a type of local storage and should not be used in high availability scenario.
-
-More detail information pls refer to [LVM](./docs/lvm.md).
-
-
 ## Community, discussion, contribution, and support
 
 Learn how to engage with the Kubernetes community on the [community page](https://kubernetes.io/community/).
