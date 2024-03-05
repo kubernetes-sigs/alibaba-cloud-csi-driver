@@ -18,11 +18,9 @@ package dbfs
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -200,10 +198,6 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	// check runtime mode
 	mountPoint := req.TargetPath
 	if !utils.IsMounted(mountPoint) {
-		if err := ns.umountGlobalPath(req.VolumeId, mountPoint); err != nil {
-			log.Errorf("NodeUnpublishVolume: Umount DBFS Globalpath Fail with %s", err.Error())
-			return nil, errors.New("NodeUnpublishVolume: Umount DBFS Globalpath Fail: " + err.Error())
-		}
 		log.Infof("NodeUnpublishVolume: Dbfs mountpoint not mounted, skipping: %s, %s", mountPoint, req.VolumeId)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
@@ -211,11 +205,6 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err := ns.k8smounter.Unmount(mountPoint); err != nil {
 		log.Errorf("NodeUnpublishVolume: Umount DBFS Fail %s", err.Error())
 		return nil, errors.New("NodeUnpublishVolume: Umount DBFS Fail: " + err.Error())
-	}
-
-	if err := ns.umountGlobalPath(req.VolumeId, mountPoint); err != nil {
-		log.Errorf("NodeUnpublishVolume: Umount DBFS Globalpath Fail %s", err.Error())
-		return nil, errors.New("NodeUnpublishVolume: Umount DBFS Globalpath Fail: " + err.Error())
 	}
 
 	log.Infof("NodeUnpublishVolume: Umount DBFS Successful on: %s, %s", mountPoint, req.VolumeId)
@@ -353,35 +342,4 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 			},
 		},
 	}, nil
-}
-
-func (ns *nodeServer) umountPath(globalPath string) error {
-	return k8smount.CleanupMountPoint(globalPath, ns.k8smounter, false)
-}
-
-func (ns *nodeServer) umountGlobalPath(volumeID, targetPath string) error {
-	pathParts := strings.Split(targetPath, "/")
-	partsLen := len(pathParts)
-	if partsLen > 2 && pathParts[partsLen-1] == "mount" {
-		pvName := pathParts[partsLen-2]
-		globalPathVer1 := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/pv/", pvName, "/globalmount")
-		if podMounted, err := isPodMounted(pvName); err == nil && !podMounted {
-			if err = ns.umountPath(globalPathVer1); err != nil {
-				result := sha256.Sum256([]byte(volumeID))
-				volSha := fmt.Sprintf("%x", result)
-				globalPathVer2 := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/", driverName, volSha, "/globalmount")
-				err = ns.umountPath(globalPathVer2)
-				if err != nil {
-					return fmt.Errorf("umountGlobalPath: unmount globalPathVer2 failed: %+v", err)
-				}
-			}
-		} else {
-			log.Errorf("umountGlobalPath: Target Path is mounted by others: %s", targetPath)
-			return fmt.Errorf("umountGlobalPath: Target Path is mounted by others: %s", targetPath)
-		}
-	} else {
-		log.Errorf("umountGlobalPath: Target Path is illegal format: %s", targetPath)
-		return fmt.Errorf("umountGlobalPath: Target Path is illegal format: %s", targetPath)
-	}
-	return nil
 }

@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -282,19 +281,6 @@ func describeDbfs(fsID string) (*dbfs.GetDbfsResponse, error) {
 	}
 
 	return getResponse, nil
-}
-
-func isPodMounted(pvName string) (bool, error) {
-	mountFlag := filepath.Join("volumes/kubernetes.io~csi", pvName, "mount")
-	cmd := fmt.Sprintf("mount | grep fuse.dbfs_server | grep %s | wc -l", mountFlag)
-	out, err := utils.Run(cmd)
-	if err != nil {
-		return false, err
-	}
-	if strings.TrimSpace(out) == "0" {
-		return false, nil
-	}
-	return true, nil
 }
 
 // getDbfsVersion get dbfs config version from config file
