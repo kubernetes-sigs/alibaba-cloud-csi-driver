@@ -38,7 +38,7 @@ const (
 	// RegionTag is region id
 	RegionTag = "region-id"
 	// NsenterCmd is the nsenter command
-	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
+	NsenterCmd = "/usr/bin/nsenter --mount=/proc/1/ns/mnt"
 	// GetDBFSMountCmd get dbfs mount path
 	GetDBFSMountCmd = "/usr/sbin/get_dbfs_mount_path"
 )

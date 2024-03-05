@@ -13,7 +13,7 @@ run_disk="false"
 mkdir -p /var/log/alicloud/
 mkdir -p /host/etc/kubernetes/volumes/disk/uuid
 
-HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
+HOST_CMD="/usr/bin/nsenter --mount=/proc/1/ns/mnt"
 
 
 host_os="centos"
@@ -120,17 +120,17 @@ if [ "$run_oss" = "true" ]; then
     # install OSSFS
     mkdir -p /host/etc/csi-tool/
 		reconcileOssFS="skip"
-    if [ ! `/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
+    if [ ! `${HOST_CMD} which ossfs` ]; then
         echo "First install ossfs, ossfsVersion: $ossfsVer"
         cp /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm /host/etc/csi-tool/
 				reconcileOssFS="install"
     # update OSSFS
     else
         echo "Check ossfs Version...."
-        oss_info=`/nsenter --mount=/proc/1/ns/mnt ossfs --version | grep -E -o "V[0-9.a-z]+" | cut -d"V" -f2`
+        oss_info=`${HOST_CMD} ossfs --version | grep -E -o "V[0-9.a-z]+" | cut -d"V" -f2`
         if [ "$oss_info" != "$ossfsVer" ]; then
             echo "Upgrade ossfs, ossfsVersion: $ossfsVer"
-            /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
+            ${HOST_CMD} yum remove -y ossfs
             cp /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm /host/etc/csi-tool/
 						reconcileOssFS="upgrade"
         fi
@@ -149,13 +149,13 @@ if [ "$run_oss" = "true" ]; then
             fi
         fi
       else
-          /nsenter --mount=/proc/1/ns/mnt rpm -ivh --nodeps /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+          ${HOST_CMD} rpm -ivh --nodeps /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
       fi
     fi
 
     if [[ ${reconcileOssFS} == "upgrade" ]]; then
       if [[ ${host_os} == "lifsea" ]]; then
-        /nsenter --mount=/proc/1/ns/mnt rm /usr/local/bin/ossfs
+        ${HOST_CMD} rm /usr/local/bin/ossfs
         ${HOST_CMD} rpm2cpio /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | ${HOST_CMD} cpio -idmv
         if [ $? -ne 0 ]; then
             rpm2cpio /root/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm | cpio -idmv
@@ -167,8 +167,8 @@ if [ "$run_oss" = "true" ]; then
             fi
         fi
       else
-          /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
-          /nsenter --mount=/proc/1/ns/mnt rpm -ivh --nodeps /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
+          ${HOST_CMD} yum remove -y ossfs
+          ${HOST_CMD} rpm -ivh --nodeps /etc/csi-tool/ossfs_${ossfsVer}_${ossfsArch}_x86_64.rpm
       fi
     fi
 
@@ -240,12 +240,12 @@ if [ "$run_oss" = "true" ] || ["$run_disk" = "true" ]; then
     if [ "$updateConnectorService" = "true" ]; then
         echo "Install csiplugin connector service...."
         cp /bin/csiplugin-connector.service $systemdDir/csiplugin-connector.service
-        /nsenter --mount=/proc/1/ns/mnt systemctl daemon-reload
+        ${HOST_CMD} systemctl daemon-reload
     fi
 
     rm -rf /var/log/alicloud/connector.pid
-    /nsenter --mount=/proc/1/ns/mnt systemctl enable csiplugin-connector.service
-    /nsenter --mount=/proc/1/ns/mnt systemctl restart csiplugin-connector.service
+    ${HOST_CMD} systemctl enable csiplugin-connector.service
+    ${HOST_CMD} systemctl restart csiplugin-connector.service
 fi
 
 

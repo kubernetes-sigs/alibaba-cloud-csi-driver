@@ -179,7 +179,7 @@ var NsenterArgs = []string{"--target=1", "--mount", "--ipc", "--net", "--uts", "
 
 func CommandOnNode(args ...string) *exec.Cmd {
 	allArgs := append(NsenterArgs, args...)
-	return exec.Command("/nsenter", allArgs...)
+	return exec.Command("/usr/bin/nsenter", allArgs...)
 }
 
 // CreateDest create de destination dir

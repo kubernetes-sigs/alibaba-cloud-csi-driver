@@ -12,7 +12,7 @@ run_nas="false"
 mkdir -p /var/log/alicloud/
 mkdir -p /host/etc/kubernetes/volumes/disk/uuid
 
-HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
+HOST_CMD="/usr/bin/nsenter --mount=/proc/1/ns/mnt"
 
 host_os="centos"
 ${HOST_CMD} ls /etc/os-release

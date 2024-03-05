@@ -4,7 +4,6 @@ LABEL description="Alibaba Cloud CSI Plugin"
 
 RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils
 
-COPY nsenter /nsenter
 COPY entrypoint.sh /entrypoint.sh
 COPY plugin.csi.alibabacloud.com /bin/plugin.csi.alibabacloud.com
 RUN chmod +x /bin/plugin.csi.alibabacloud.com && chmod +x /entrypoint.sh
