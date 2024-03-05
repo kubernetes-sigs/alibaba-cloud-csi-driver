@@ -1033,6 +1033,12 @@ func isDeviceMountedAt(mnts []k8smount.MountInfo, device, targetPath string) boo
 	return false
 }
 
+const mountInfoPath = "/proc/self/mountinfo"
+
+func CheckDeviceAvailable(devicePath, volumeID, targetPath string) error {
+	return checkDeviceAvailable(mountInfoPath, devicePath, volumeID, targetPath)
+}
+
 func checkDeviceAvailable(mountinfoPath, devicePath, volumeID, targetPath string) error {
 	if devicePath == "" {
 		msg := "devicePath is empty, cannot used for Volume"
