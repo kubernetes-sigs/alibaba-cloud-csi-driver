@@ -34,8 +34,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
-	"syscall"
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
@@ -96,10 +94,6 @@ const (
 
 	// GiB ...
 	GiB = 1024 * 1024 * 1024
-)
-
-var (
-	nodeAddrMap = sync.Map{}
 )
 
 // RoleAuth define STS Token Response
@@ -186,37 +180,6 @@ func CommandOnNode(args ...string) *exec.Cmd {
 	return exec.Command("/nsenter", allArgs...)
 }
 
-// run shell command
-func Run(cmd string) (string, error) {
-	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
-	strOut := string(out)
-	if err != nil {
-		err = fmt.Errorf("Failed to run cmd: %s, with out: %s: %w", cmd, strOut, err)
-	}
-	return strOut, err
-}
-
-func RunWithFilter(cmd string, filter ...string) ([]string, error) {
-	ans := make([]string, 0)
-	stdout, err := Run(cmd)
-	if err != nil {
-		return nil, err
-	}
-	stdoutArr := strings.Split(string(stdout), "\n")
-	for _, stdout := range stdoutArr {
-		find := true
-		for _, f := range filter {
-			if !strings.Contains(stdout, f) {
-				find = false
-			}
-		}
-		if find {
-			ans = append(ans, stdout)
-		}
-	}
-	return ans, nil
-}
-
 // CreateDest create de destination dir
 func CreateDest(dest string) error {
 	fi, err := os.Lstat(dest)
@@ -235,54 +198,6 @@ func CreateDest(dest string) error {
 	return nil
 }
 
-// IsLikelyNotMountPoint return status of mount point,this function fix IsMounted return 0 bug
-// IsLikelyNotMountPoint determines if a directory is not a mountpoint.
-// It is fast but not necessarily ALWAYS correct. If the path is in fact
-// a bind mount from one part of a mount to another it will not be detected.
-// It also can not distinguish between mountpoints and symbolic links.
-// mkdir /tmp/a /tmp/b; mount --bind /tmp/a /tmp/b; IsLikelyNotMountPoint("/tmp/b")
-// will return true. When in fact /tmp/b is a mount point. If this situation
-// is of interest to you, don't use this function...
-func IsLikelyNotMountPoint(file string) (bool, error) {
-	stat, err := os.Stat(file)
-	if err != nil {
-		return true, err
-	}
-	rootStat, err := os.Stat(filepath.Dir(strings.TrimSuffix(file, "/")))
-	if err != nil {
-		return true, err
-	}
-	// If the directory has a different device as parent, then it is a mountpoint.
-	if stat.Sys().(*syscall.Stat_t).Dev != rootStat.Sys().(*syscall.Stat_t).Dev {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-// IsMounted return status of mount operation
-func IsMounted(mountPath string) bool {
-	stdout, err := RunWithFilter("mount", mountPath)
-	if err != nil {
-		log.Infof("IsMounted: Exec command mount is failed, err: %s, %s", stdout, err.Error())
-		return false
-	}
-	if len(stdout) == 0 {
-		return false
-	}
-	return true
-}
-
-// Umount do an unmount operation
-func Umount(mountPath string) error {
-	cmd := fmt.Sprintf("umount %s", mountPath)
-	_, err := Run(cmd)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // IsFileExisting check file exist in volume driver or not
 func IsFileExisting(filename string) bool {
 	_, err := os.Stat(filename)
@@ -290,19 +205,6 @@ func IsFileExisting(filename string) bool {
 		return true
 	}
 	return !os.IsNotExist(err)
-}
-
-// GetRegionAndInstanceID get region and instanceID object
-func GetRegionAndInstanceID() (string, string, error) {
-	regionID, err := GetMetaData(RegionIDTag)
-	if err != nil {
-		return "", "", err
-	}
-	instanceID, err := GetMetaData(InstanceIDTag)
-	if err != nil {
-		return "", "", err
-	}
-	return regionID, instanceID, nil
 }
 
 // GetRegionID Get RegionID from Environment Variables or Metadata
@@ -354,15 +256,6 @@ func RetryGetMetaData(resource string) string {
 	return response
 }
 
-// GetRegionIDAndInstanceID get regionID and instanceID object
-func GetRegionIDAndInstanceID(nodeName string) (string, string, error) {
-	strs := strings.SplitN(nodeName, ".", 2)
-	if len(strs) < 2 {
-		return "", "", fmt.Errorf("failed to get regionID and instanceId from nodeName")
-	}
-	return strs[0], strs[1], nil
-}
-
 func Gi2Bytes(gb int64) int64 {
 	return gb * GiB
 }
@@ -378,24 +271,9 @@ func RoundUpBytes(volumeSizeBytes int64) int64 {
 	return roundUpSize(volumeSizeBytes, GiB) * GiB
 }
 
-// RoundUpGiB rounds up the volume size in bytes upto multiplications of GiB
-// in the unit of GiB
-func RoundUpGiB(volumeSizeBytes int64) int64 {
-	return roundUpSize(volumeSizeBytes, GiB)
-}
-
-// BytesToGiB converts Bytes to GiB
-func BytesToGiB(volumeSizeBytes int64) int64 {
-	return volumeSizeBytes / GiB
-}
-
 // TODO: check division by zero and int overflow
 func roundUpSize(volumeSizeBytes int64, allocationUnitBytes int64) int64 {
 	return (volumeSizeBytes + allocationUnitBytes - 1) / allocationUnitBytes
-}
-
-func KBlock2Bytes(kblocks int64) int64 {
-	return kblocks * 1024
 }
 
 // ReadJSONFile return a json object
@@ -665,10 +543,6 @@ func Fsync(f *os.File) error {
 	return f.Sync()
 }
 
-func ClearNodeIPCache(nodeID string) {
-	nodeAddrMap.Delete(nodeID)
-}
-
 // CheckParameterValidate is check parameter validating in csi-plugin
 func CheckParameterValidate(inputs []string) bool {
 	for _, input := range inputs {
@@ -676,18 +550,6 @@ func CheckParameterValidate(inputs []string) bool {
 			return false
 		}
 	}
-	return true
-}
-
-// IsHostFileExist is check host file is existing in lvm
-func IsHostFileExist(path string) bool {
-	args := []string{NsenterCmd, "stat", path}
-	cmd := strings.Join(args, " ")
-	out, err := Run(cmd)
-	if err != nil && strings.Contains(out, "No such file or directory") {
-		return false
-	}
-
 	return true
 }
 

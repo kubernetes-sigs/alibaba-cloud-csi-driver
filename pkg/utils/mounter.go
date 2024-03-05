@@ -22,12 +22,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strconv"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	utilio "k8s.io/utils/io"
 )
 
 const (
@@ -65,17 +62,6 @@ type Mounter interface {
 	MountBlock(source, target string, options ...string) error
 	// Unmount unmounts the given target
 	Unmount(target string) error
-
-	// IsFormatted checks whether the source device is formatted or not. It
-	// returns true if the source device is already formatted.
-	IsFormatted(source string) (bool, error)
-
-	// IsMounted checks whether the target path is a correct mount (i.e:
-	// propagated). It returns true if it's mounted. An error is returned in
-	// case of system errors or if it's mounted incorrectly.
-	IsMounted(target string) (bool, error)
-
-	IsNotMountPoint(file string) (bool, error)
 
 	HasMountRefs(mountPath string, mountRefs []string) bool
 }
@@ -255,57 +241,6 @@ func (m *mounter) Unmount(target string) error {
 	return nil
 }
 
-func (m *mounter) IsFormatted(source string) (bool, error) {
-	if source == "" {
-		return false, errors.New("source is not specified")
-	}
-
-	fileCmd := "file"
-	_, err := exec.LookPath(fileCmd)
-	if err != nil {
-		if err == exec.ErrNotFound {
-			return false, fmt.Errorf("%q executable not found in $PATH", fileCmd)
-		}
-		return false, err
-	}
-
-	args := []string{"-sL", source}
-
-	out, err := exec.Command(fileCmd, args...).CombinedOutput()
-	if err != nil {
-		return false, fmt.Errorf("checking formatting failed: %v cmd: %q output: %q",
-			err, fileCmd, string(out))
-	}
-
-	output := strings.TrimPrefix(string(out), fmt.Sprintf("%s:", source))
-	if strings.TrimSpace(output) == "data" {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-func (m *mounter) IsMounted(target string) (bool, error) {
-	if target == "" {
-		return false, errors.New("target is not specified for checking the mount")
-	}
-	findmntCmd := "grep"
-	findmntArgs := []string{target, "/proc/mounts"}
-	out, err := exec.Command(findmntCmd, findmntArgs...).CombinedOutput()
-	outStr := strings.TrimSpace(string(out))
-	if err != nil {
-		if outStr == "" {
-			return false, nil
-		}
-		return false, fmt.Errorf("checking mounted failed: %v cmd: %q output: %q",
-			err, findmntCmd, outStr)
-	}
-	if strings.Contains(outStr, target) {
-		return true, nil
-	}
-	return false, nil
-}
-
 const kubernetesPluginPathPrefix = "/plugins/kubernetes.io/"
 
 func (m *mounter) HasMountRefs(mountPath string, mountRefs []string) bool {
@@ -337,97 +272,4 @@ func IsDirEmpty(name string) (bool, error) {
 		return true, nil
 	}
 	return false, err
-}
-
-func (m *mounter) IsNotMountPoint(file string) (bool, error) {
-	// IsLikelyNotMountPoint provides a quick check
-	// to determine whether file IS A mountpoint.
-	notMnt, notMntErr := IsLikelyNotMountPoint(file)
-	if notMntErr != nil && os.IsPermission(notMntErr) {
-		// We were not allowed to do the simple stat() check, e.g. on NFS with
-		// root_squash. Fall back to /proc/mounts check below.
-		notMnt = true
-		notMntErr = nil
-	}
-	if notMntErr != nil {
-		return notMnt, notMntErr
-	}
-	// identified as mountpoint, so return this fact.
-	if notMnt == false {
-		return notMnt, nil
-	}
-
-	// Resolve any symlinks in file, kernel would do the same and use the resolved path in /proc/mounts.
-	resolvedFile, err := filepath.EvalSymlinks(file)
-	if err != nil {
-		return true, err
-	}
-
-	// check all mountpoints since IsLikelyNotMountPoint
-	// is not reliable for some mountpoint types.
-	mountPoints, mountPointsErr := ListProcMounts()
-	if mountPointsErr != nil {
-		return notMnt, mountPointsErr
-	}
-	for _, mp := range mountPoints {
-		if isMountPointMatch(mp, resolvedFile) {
-			notMnt = false
-			break
-		}
-	}
-	return notMnt, nil
-}
-
-// isMountPointMatch returns true if the path in mp is the same as dir.
-// Handles case where mountpoint dir has been renamed due to stale NFS mount.
-func isMountPointMatch(mp MountPoint, dir string) bool {
-	deletedDir := fmt.Sprintf("%s\\040(deleted)", dir)
-	return ((mp.Path == dir) || (mp.Path == deletedDir))
-}
-
-// ListProcMounts is shared with NsEnterMounter
-func ListProcMounts() ([]MountPoint, error) {
-	content, err := utilio.ConsistentRead(procMountsPath, maxListTries)
-	if err != nil {
-		return nil, err
-	}
-	return parseProcMounts(content)
-}
-
-func parseProcMounts(content []byte) ([]MountPoint, error) {
-	out := []MountPoint{}
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
-		if line == "" {
-			// the last split() item is empty string following the last \n
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) != expectedNumFieldsPerLine {
-			// Do not log line in case it contains sensitive Mount options
-			return nil, fmt.Errorf("wrong number of fields (expected %d, got %d)", expectedNumFieldsPerLine, len(fields))
-		}
-
-		mp := MountPoint{
-			Device: fields[0],
-			Path:   fields[1],
-			Type:   fields[2],
-			Opts:   strings.Split(fields[3], ","),
-		}
-
-		freq, err := strconv.Atoi(fields[4])
-		if err != nil {
-			return nil, err
-		}
-		mp.Freq = freq
-
-		pass, err := strconv.Atoi(fields[5])
-		if err != nil {
-			return nil, err
-		}
-		mp.Pass = pass
-
-		out = append(out, mp)
-	}
-	return out, nil
 }
