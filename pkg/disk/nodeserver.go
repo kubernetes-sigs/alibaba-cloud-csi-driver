@@ -17,11 +17,13 @@ limitations under the License.
 package disk
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -32,15 +34,19 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/mount-utils"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
 )
+
+const mountInfoPath = "/proc/self/mountinfo"
 
 type nodeServer struct {
 	metadata   metadata.MetadataProvider
@@ -88,8 +94,6 @@ const (
 	InputOutputErr = "input/output error"
 	// FileSystemLoseCapacityPercent is the env of container
 	FileSystemLoseCapacityPercent = "FILE_SYSTEM_LOSE_PERCENT"
-	// NsenterCmd run command on host
-	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
 	// DiskMultiTenantEnable Enable disk multi-tenant mode
 	DiskMultiTenantEnable = "DISK_MULTI_TENANT_ENABLE"
 	// TenantUserUID tag
@@ -358,14 +362,21 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	devicePaths := GetVolumeDeviceName(req.VolumeId)
 	rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
 	expectName := ChooseDevice(rootDevice, subDevice)
-	realDevice := GetDeviceByMntPoint(sourcePath)
+
+	realDevice, _, err := mount.GetDeviceNameFromMount(ns.k8smounter, sourcePath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", sourcePath, err.Error())
+	}
 	if realDevice == "" {
 		opts := append(mnt.MountFlags, "shared")
 		if err := ns.k8smounter.Mount(expectName, sourcePath, fsType, opts); err != nil {
 			log.Errorf("NodePublishVolume: mount source error: %s, %s, %s", expectName, sourcePath, err.Error())
 			return nil, status.Error(codes.Internal, "NodePublishVolume: mount source error: "+expectName+", "+sourcePath+", "+err.Error())
 		}
-		realDevice = GetDeviceByMntPoint(sourcePath)
+		realDevice, _, err = mount.GetDeviceNameFromMount(ns.k8smounter, sourcePath)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", sourcePath, err.Error())
+		}
 	}
 	if (expectName != realDevice && realDevice != "tmpfs") || realDevice == "" {
 		log.Errorf("NodePublishVolume: Volume: %s, sourcePath: %s real Device: %s not same with expected: %s", req.VolumeId, sourcePath, realDevice, expectName)
@@ -532,14 +543,21 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 	if !notmounted {
 		// if target path is mounted tmpfs, return
-		if utils.IsDirTmpfs(req.StagingTargetPath) {
+		isTmpfs, err := utils.IsDirTmpfs(ns.k8smounter, req.StagingTargetPath)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "NodeStageVolume: failed to check %s for tmpfs: %v", req.StagingTargetPath, err)
+		}
+		if isTmpfs {
 			log.Infof("NodeStageVolume: TargetPath(%s) is mounted as tmpfs, not need mount again", req.StagingTargetPath)
 			return &csi.NodeStageVolumeResponse{}, nil
 		}
 
 		// check device available
-		deviceName := GetDeviceByMntPoint(targetPath)
-		if err := checkDeviceAvailable(deviceName, req.VolumeId, targetPath); err != nil {
+		deviceName, _, err := mount.GetDeviceNameFromMount(ns.k8smounter, targetPath)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", targetPath, err.Error())
+		}
+		if err := checkDeviceAvailable(mountInfoPath, deviceName, req.VolumeId, targetPath); err != nil {
 			log.Errorf("NodeStageVolume: mountPath is mounted %s, but check device available error: %s", targetPath, err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -601,7 +619,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 	}
 
-	if err := checkDeviceAvailable(device, req.VolumeId, targetPath); err != nil {
+	if err := checkDeviceAvailable(mountInfoPath, device, req.VolumeId, targetPath); err != nil {
 		log.Errorf("NodeStageVolume: check device %s for volume %s with error: %s", device, req.VolumeId, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -615,19 +633,23 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	if value, ok := req.VolumeContext[SysConfigTag]; ok {
 		configList := strings.Split(strings.TrimSpace(value), ",")
 		for _, configStr := range configList {
-			keyValue := strings.Split(configStr, "=")
-			if len(keyValue) == 2 {
-				fileName := filepath.Join("/sys/block/", filepath.Base(device), keyValue[0])
-				configCmd := "echo '" + keyValue[1] + "' > " + fileName
-				if _, err := utils.Run(configCmd); err != nil {
-					log.Errorf("NodeStageVolume: Volume Block System Config with cmd: %s, get error: %v", configCmd, err)
-					return nil, status.Error(codes.Aborted, "NodeStageVolume: Volume Block System Config with cmd:"+configCmd+", error with: "+err.Error())
-				}
-				log.Infof("NodeStageVolume: Volume Block System Config Successful with command: %s, for volume: %v", configCmd, req.VolumeId)
-			} else {
+			key, value, found := strings.Cut(configStr, "=")
+			if !found {
 				log.Errorf("NodeStageVolume: Volume Block System Config with format error: %s", configStr)
 				return nil, status.Error(codes.Aborted, "NodeStageVolume: Volume Block System Config with format error "+configStr)
 			}
+			base := fmt.Sprintf("/sys/block/%s/", filepath.Base(device))
+			fileName := filepath.Clean(base + key)
+			if !strings.HasPrefix(fileName, base) {
+				// Note this cannot prevent user from access other device through e.g. /sys/block/vda/subsystem/vdb
+				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: invalid relative path in sysConfig: %s", key)
+			}
+			err := utils.WriteTrunc(unix.AT_FDCWD, fileName, value)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal,
+					"NodeStageVolume: Volume Block System Config failed, failed to write %s to %s: %v", value, fileName, err)
+			}
+			log.Infof("NodeStageVolume: set sysConfig %s=%s", key, value)
 		}
 	}
 	omitfsck := false
@@ -721,7 +743,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), InputOutputErr) {
 				if err = isPathAvailiable(targetPath); err != nil {
-					if err = utils.Umount(targetPath); err != nil {
+					if err = ns.k8smounter.Unmount(targetPath); err != nil {
 						log.Errorf("NodeUnstageVolume: umount target %s(input/output error) with error: %v", targetPath, err)
 						return nil, status.Errorf(codes.InvalidArgument, "NodeUnstageVolume umount target %s with errror: %v", targetPath, err)
 					}
@@ -927,18 +949,17 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 			log.Errorf("NodeExpandVolume:: GetDeviceRootAndIndex: %s with error: %s", diskID, err.Error())
 			return nil, status.Errorf(codes.InvalidArgument, "Volume %s GetDeviceRootAndIndex with error %s ", diskID, err.Error())
 		}
-		cmd := fmt.Sprintf("growpart %s %d", rootPath, index)
-		if _, err := utils.Run(cmd); err != nil {
-			if strings.Contains(err.Error(), "NOCHANGE") {
-				if strings.Contains(err.Error(), "it cannot be grown") || strings.Contains(err.Error(), "could only be grown by") {
+		output, err := exec.Command("growpart", rootPath, strconv.Itoa(index)).CombinedOutput()
+		if err != nil {
+			if bytes.Contains(output, []byte("NOCHANGE")) {
+				if bytes.Contains(output, []byte("it cannot be grown")) || bytes.Contains(output, []byte("could only be grown by")) {
 					deviceCapacity := getBlockDeviceCapacity(devicePath)
 					rootCapacity := getBlockDeviceCapacity(rootPath)
 					log.Infof("NodeExpandVolume: Volume %s with Device Partition %s no need to grown, with requestSize: %v, rootBlockSize: %v, partition BlockDevice size: %v", diskID, devicePath, requestGB, rootCapacity, deviceCapacity)
 					return &csi.NodeExpandVolumeResponse{}, nil
 				}
 			}
-			log.Errorf("NodeExpandVolume: expand volume %s partition command: %s with error: %s", diskID, cmd, err.Error())
-			return nil, status.Errorf(codes.InvalidArgument, "NodeExpandVolume: expand volume %s partition with error: %s ", diskID, err.Error())
+			return nil, status.Errorf(codes.InvalidArgument, "NodeExpandVolume: expand volume %s at %s %d failed: %s, with output %s", diskID, rootPath, index, err.Error(), string(output))
 		}
 		log.Infof("NodeExpandVolume: Successful expand partition for volume: %s device: %s partition: %d", diskID, rootPath, index)
 	}
@@ -1089,7 +1110,7 @@ func (ns *nodeServer) unmountDuplicationPath(globalPath string) error {
 	refs, err := ns.k8smounter.GetMountRefs(globalPath)
 	if err == nil && !ns.mounter.HasMountRefs(globalPath, refs) {
 		log.Infof("NodeUnpublishVolume: VolumeId Unmount global path %s for ack with kubelet data disk", globalPath)
-		if err := utils.Umount(globalPath); err != nil {
+		if err := ns.k8smounter.Unmount(globalPath); err != nil {
 			log.Errorf("NodeUnpublishVolume: volumeId: unmount global path %s failed with err: %v", globalPath, err)
 			return status.Error(codes.Internal, err.Error())
 		}
@@ -1106,7 +1127,7 @@ func (ns *nodeServer) forceUnmountPath(globalPath string) error {
 		log.Warnf("Global Path is not mounted: %s", globalPath)
 		return nil
 	}
-	if err := utils.Umount(globalPath); err != nil {
+	if err := ns.k8smounter.Unmount(globalPath); err != nil {
 		log.Errorf("NodeUnpublishVolume: volumeId: unmount global path %s failed with err: %v", globalPath, err)
 		return status.Error(codes.Internal, err.Error())
 	} else {

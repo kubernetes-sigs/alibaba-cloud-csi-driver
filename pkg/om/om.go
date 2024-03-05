@@ -1,22 +1,19 @@
 package om
 
 import (
-	log "github.com/sirupsen/logrus"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
 	// SysLog log file
 	SysLog = "/var/log/messages"
-	// IssueMessageFile tag
-	IssueMessageFile = "ISSUE_MESSAGE_FILE"
 	// IssueBlockReference tag
 	IssueBlockReference = "ISSUE_BLOCK_REFERENCE"
-	// IssueOrphanedPod tag
-	IssueOrphanedPod = "ISSUE_ORPHANED_POD"
 	// MessageFileLines tag
 	MessageFileLines = "MESSAGE_FILE_LINES"
 )
@@ -28,10 +25,8 @@ var (
 
 // GlobalConfig save global values for om
 type GlobalConfig struct {
-	IssueMessageFile     bool
 	MessageFileTailLines int
 	IssueBlockReference  bool
-	IssueOrphanedPod     bool
 }
 
 // StorageOM storage Operation and Maintenance
@@ -62,23 +57,12 @@ func CheckMessageFileIssue() {
 			if FixReferenceMountIssue(line) {
 
 			}
-			// Fix Orphaned Pod Issue
-		} else if GlobalConfigVar.IssueOrphanedPod && strings.Contains(line, "rphaned pod") && strings.Contains(line, "found, but volume paths are still present on disk") {
-			if FixOrphanedPodIssue(line) {
-
-			}
 		}
 	}
 }
 
 // GlobalConfigSet set Global Config
 func GlobalConfigSet() {
-	GlobalConfigVar.IssueMessageFile = false
-	messageFile := os.Getenv(IssueMessageFile)
-	if messageFile == "true" {
-		GlobalConfigVar.IssueMessageFile = true
-	}
-
 	GlobalConfigVar.MessageFileTailLines = 20
 	messageFileLine := os.Getenv(MessageFileLines)
 	if messageFileLine != "" {
@@ -97,11 +81,5 @@ func GlobalConfigSet() {
 	blockRef := os.Getenv(IssueBlockReference)
 	if blockRef == "true" {
 		GlobalConfigVar.IssueBlockReference = true
-	}
-
-	GlobalConfigVar.IssueOrphanedPod = false
-	orphanedPod := os.Getenv(IssueOrphanedPod)
-	if orphanedPod == "true" {
-		GlobalConfigVar.IssueOrphanedPod = true
 	}
 }

@@ -1,31 +1,20 @@
 package om
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
 // ReadFileLinesFromHost read file from /var/log/messages
 func ReadFileLinesFromHost(fname string) []string {
-	lineList := []string{}
-	out := ""
-	var err error
-	cmd := fmt.Sprintf("tail -n %d %s", GlobalConfigVar.MessageFileTailLines, fname)
-	if out, err = Run(cmd); err != nil {
-		return lineList
-	}
-	return strings.Split(out, "\n")
-}
-
-// Run run shell command
-func Run(cmd string) (string, error) {
-	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
+	cmd := exec.Command("tail", "-n", strconv.Itoa(GlobalConfigVar.MessageFileTailLines), fname)
+	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("Failed to run cmd: " + cmd + ", with out: " + string(out) + ", with error: " + err.Error())
+		return nil
 	}
-	return string(out), nil
+	return strings.Split(string(out), "\n")
 }
 
 // IsFileExisting check file exist in volume driver;

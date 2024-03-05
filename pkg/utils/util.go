@@ -220,22 +220,6 @@ func RunWithFilter(cmd string, filter ...string) ([]string, error) {
 	return ans, nil
 }
 
-// RunTimeout tag
-func RunTimeout(cmd string, timeout int) error {
-	ctx := context.Background()
-	if timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
-		defer cancel()
-	}
-
-	cmdCont := exec.CommandContext(ctx, "sh", "-c", cmd)
-	if err := cmdCont.Run(); err != nil {
-		return err
-	}
-	return nil
-}
-
 // CreateDest create de destination dir
 func CreateDest(dest string) error {
 	fi, err := os.Lstat(dest)
@@ -630,13 +614,18 @@ func Ping(ipAddress string) (*ping.Statistics, error) {
 }
 
 // IsDirTmpfs check path is tmpfs mounted or not
-func IsDirTmpfs(path string) bool {
-	cmd := fmt.Sprintf("findmnt %s -o FSTYPE -n", path)
-	fsType, err := Run(cmd)
-	if err == nil && strings.TrimSpace(fsType) == "tmpfs" {
-		return true
+func IsDirTmpfs(mounter k8smount.Interface, path string) (bool, error) {
+	mnts, err := mounter.List()
+	if err != nil {
+		return false, err
 	}
-	return false
+	for _, mnt := range mnts {
+		// in case of multiple mounts stack on the same path, we only check the first one
+		if mnt.Path == path {
+			return mnt.Type == "tmpfs", nil
+		}
+	}
+	return false, nil
 }
 
 // WriteAndSyncFile behaves just like ioutil.WriteFile in the standard library,
@@ -1096,4 +1085,19 @@ func GetNvmeDeviceByVolumeID(volumeID string) (device string, err error) {
 		}
 	}
 	return "", nil
+}
+
+// Differs from os.WriteFile in that it does not or create file before writing.
+// Intended to write Linux virtual files: sysfs, cgroupfs, etc.
+func WriteTrunc(dirFd int, filePath string, value string) error {
+	fd, err := unix.Openat(dirFd, filePath, os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+
+	_, err = unix.Write(fd, []byte(value))
+	if err1 := unix.Close(fd); err1 != nil && err == nil {
+		err = err1
+	}
+	return err
 }

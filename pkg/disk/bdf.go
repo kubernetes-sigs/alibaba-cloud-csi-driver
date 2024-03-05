@@ -464,8 +464,7 @@ func checkVfhpOnlineReconcile() {
 }
 
 func checkVfhpOnline() {
-	cmd := fmt.Sprintf("%s iohub-vfhp-helper -s", NsenterCmd)
-	_, err := utils.Run(cmd)
+	err := utils.CommandOnNode("iohub-vfhp-helper", "-s").Run()
 	if err == nil {
 		isVF = false
 		return

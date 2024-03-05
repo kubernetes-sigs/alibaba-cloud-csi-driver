@@ -3,14 +3,18 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"os/exec"
-	"path/filepath"
+	"io/fs"
+	"os"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
+
+const PodBlkIOCgroupPath = "/host/sys/fs/cgroup/blkio/kubepods.slice"
 
 // SetVolumeIOLimit config io limit for device
 // readIOPS: 1000
@@ -57,10 +61,9 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 	}
 
 	// Get Device major/minor number
-	majMinNum := getMajMinDevice(devicePath)
-	if majMinNum == "" {
-		log.Errorf("Volume(%s) Cannot get major/minor device number: %s", req.VolumeId, devicePath)
-		return errors.New("Volume Cannot get major/minor device number: " + devicePath + req.VolumeId)
+	majMinNum, err := getMajMinDevice(devicePath)
+	if err != nil {
+		return fmt.Errorf("Volume Cannot get major/minor device number for %s: %w", devicePath, err)
 	}
 
 	// Get pod uid
@@ -71,43 +74,48 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 	}
 	// /sys/fs/cgroup/blkio/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-podaadcc749_6776_4933_990d_d50f260f5d46.slice/blkio.throttle.write_bps_device
 	podUID = strings.ReplaceAll(podUID, "-", "_")
-	podBlkIOPath := ""
+	podBlkIOPathFd := -1
 	for _, p := range []string{
-		fmt.Sprintf("/sys/fs/cgroup/blkio/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-pod%s.slice", podUID),
-		fmt.Sprintf("/sys/fs/cgroup/blkio/kubepods.slice/kubepods-burstable.slice/kubepods-burstable-pod%s.slice", podUID),
-		fmt.Sprintf("/sys/fs/cgroup/blkio/kubepods.slice/kubepods-pod%s.slice", podUID),
+		fmt.Sprintf("%s/kubepods-besteffort.slice/kubepods-besteffort-pod%s.slice", PodBlkIOCgroupPath, podUID),
+		fmt.Sprintf("%s/kubepods-burstable.slice/kubepods-burstable-pod%s.slice", PodBlkIOCgroupPath, podUID),
+		fmt.Sprintf("%s/kubepods-pod%s.slice", PodBlkIOCgroupPath, podUID),
 	} {
-		if IsHostFileExist(p) {
-			podBlkIOPath = p
+		fd, err := unix.Open(p, flag_O_PATH, 0)
+		if err == nil {
+			podBlkIOPathFd = fd
+			defer unix.Close(podBlkIOPathFd)
 			break
 		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("Volume(%s) Cannot open pod blkio path: %w", req.VolumeId, err)
+		}
 	}
-	if podBlkIOPath == "" {
+	if podBlkIOPathFd == -1 {
 		log.Errorf("Volume(%s), pod blkio/cgroup path not found", req.VolumeId)
 		return errors.New("pod blkio/cgroup path not found")
 	}
 
 	// io limit set to blkio limit files
 	if readIOPSInt != 0 {
-		err := writeIoLimit(majMinNum, podBlkIOPath, "blkio.throttle.read_iops_device", readIOPSInt)
+		err := writeIoLimit(majMinNum, podBlkIOPathFd, "blkio.throttle.read_iops_device", readIOPSInt)
 		if err != nil {
 			return err
 		}
 	}
 	if writeIOPSInt != 0 {
-		err := writeIoLimit(majMinNum, podBlkIOPath, "blkio.throttle.write_iops_device", writeIOPSInt)
+		err := writeIoLimit(majMinNum, podBlkIOPathFd, "blkio.throttle.write_iops_device", writeIOPSInt)
 		if err != nil {
 			return err
 		}
 	}
 	if readBPSInt != 0 {
-		err := writeIoLimit(majMinNum, podBlkIOPath, "blkio.throttle.read_bps_device", readBPSInt)
+		err := writeIoLimit(majMinNum, podBlkIOPathFd, "blkio.throttle.read_bps_device", readBPSInt)
 		if err != nil {
 			return err
 		}
 	}
 	if writeBPSInt != 0 {
-		err := writeIoLimit(majMinNum, podBlkIOPath, "blkio.throttle.write_bps_device", writeBPSInt)
+		err := writeIoLimit(majMinNum, podBlkIOPathFd, "blkio.throttle.write_bps_device", writeBPSInt)
 		if err != nil {
 			return err
 		}
@@ -116,16 +124,9 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 	return nil
 }
 
-func writeIoLimit(majMinNum, podBlkIOPath, ioFile string, ioLimit int) error {
-	targetPath := filepath.Join(podBlkIOPath, ioFile)
+func writeIoLimit(majMinNum string, podBlkIOPathFd int, ioFile string, ioLimit int) error {
 	content := majMinNum + " " + strconv.Itoa(ioLimit)
-	cmd := fmt.Sprintf("%s sh -c 'echo %s > %s'", NsenterCmd, content, targetPath)
-	_, err := exec.Command("sh", "-c", cmd).CombinedOutput()
-	if err != nil {
-		log.Errorf("WriteBps: Write file command(%s) error %v", cmd, err)
-		return err
-	}
-	return nil
+	return WriteTrunc(podBlkIOPathFd, ioFile, content)
 }
 
 func getBpsLimt(bpsLimt string) (int, error) {
@@ -154,12 +155,16 @@ func getBpsLimt(bpsLimt string) (int, error) {
 	return bpsIntValue * convertNumber, nil
 }
 
-func getMajMinDevice(devicePath string) string {
-	cmd := fmt.Sprintf("%s lsblk %s --noheadings --output MAJ:MIN", NsenterCmd, devicePath)
-	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
+func getMajMinDevice(devicePath string) (string, error) {
+	fileInfo, err := os.Stat(devicePath)
 	if err != nil {
-		log.Errorf("getMajMinDevice with error: %s", err.Error())
-		return ""
+		return "", err
 	}
-	return strings.TrimSpace(string(out))
+	stat, ok := fileInfo.Sys().(*syscall.Stat_t)
+	if !ok {
+		return "", errors.New("unsupported platform")
+	}
+	maj := stat.Rdev / 256
+	min := stat.Rdev % 256
+	return fmt.Sprintf("%d:%d", maj, min), nil
 }

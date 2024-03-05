@@ -312,7 +312,11 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 	if !notmounted {
 		// if target path is mounted tmpfs, return
-		if utils.IsDirTmpfs(req.StagingTargetPath) {
+		isTmpfs, err := utils.IsDirTmpfs(ns.k8smounter, req.StagingTargetPath)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "NodeStageVolume: failed to check %s for tmpfs: %v", req.StagingTargetPath, err)
+		}
+		if isTmpfs {
 			log.Infof("NodeStageVolume: TargetPath(%s) is mounted as tmpfs, not need mount again", req.StagingTargetPath)
 			return &csi.NodeStageVolumeResponse{}, nil
 		}
@@ -437,7 +441,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), INPUT_OUTPUT_ERR) {
 				if err = utils.IsPathAvailiable(targetPath); err != nil {
-					if err = utils.Umount(targetPath); err != nil {
+					if err = ns.k8smounter.Unmount(targetPath); err != nil {
 						log.Errorf("NodeUnstageVolume: umount target %s(input/output error) with error: %v", targetPath, err)
 						return nil, status.Errorf(codes.InvalidArgument, "NodeUnstageVolume umount target %s with errror: %v", targetPath, err)
 					}
@@ -599,7 +603,7 @@ func (ns *nodeServer) unmountDuplicateMountPoint(targetPath string) error {
 				refs, err := ns.k8smounter.GetMountRefs(globalPath2)
 				if err == nil && !ns.mounter.HasMountRefs(globalPath2, refs) {
 					log.Infof("NodeUnpublishVolume: VolumeId Unmount global path %s for ack with kubelet data disk", globalPath2)
-					if err := utils.Umount(globalPath2); err != nil {
+					if err := ns.k8smounter.Unmount(globalPath2); err != nil {
 						log.Errorf("NodeUnpublishVolume: volumeId: unmount global path %s failed with err: %v", globalPath2, err)
 						return status.Error(codes.Internal, err.Error())
 					}

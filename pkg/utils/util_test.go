@@ -18,6 +18,9 @@ package utils
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	k8smount "k8s.io/mount-utils"
 )
 
 //go test ./*.go -v util_test.go
@@ -121,4 +124,38 @@ func TestCmdValid(t *testing.T) {
 	cmd = "chmod -R 755 /mnt/abc; echo abc"
 	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
 	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))*/
+}
+
+func TestIsDirTmpfs(t *testing.T) {
+	mounter := k8smount.NewFakeMounter([]k8smount.MountPoint{
+		{
+			Path: "/",
+		},
+		{
+			Path: "/some/tmpfs",
+			Type: "tmpfs",
+		},
+		{
+			Path: "/some/other",
+			Type: "ext4",
+		},
+	})
+	isTmpfs, err := IsDirTmpfs(mounter, "/some/tmpfs")
+	assert.Nil(t, err)
+	assert.True(t, isTmpfs)
+}
+
+func TestIsDirTmpfsFalse(t *testing.T) {
+	mounter := k8smount.NewFakeMounter([]k8smount.MountPoint{
+		{
+			Path: "/",
+		},
+		{
+			Path: "/some/other",
+			Type: "ext4",
+		},
+	})
+	isTmpfs, err := IsDirTmpfs(mounter, "/some/tmpfs")
+	assert.Nil(t, err)
+	assert.False(t, isTmpfs)
 }
