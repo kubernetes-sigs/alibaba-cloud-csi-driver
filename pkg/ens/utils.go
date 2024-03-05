@@ -386,7 +386,7 @@ func getVolumeDeviceByDiskID(diskID string) (string, error) {
 	}
 
 	// Get NVME device name
-	device, err := getNvmeDeviceByVolumeID(diskID)
+	device, err := utils.GetNvmeDeviceByVolumeID(diskID)
 	if err == nil && device != "" {
 		return device, nil
 	}
@@ -607,32 +607,6 @@ func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
 		return fmt.Errorf("Root device %s is partition, and you should format %s by hands ", rootDevicePath, subDevicePath)
 	}
 	return nil
-}
-
-// Get NVME device name by diskID;
-// /dev/nvme0n1 0: means device index, 1: means namespace for nvme device;
-// udevadm info --query=all --name=/dev/nvme0n1 | grep ID_SERIAL_SHORT | awk -F= '{print $2}'
-// bp1bcfmvsobfauvxb3ow
-func getNvmeDeviceByVolumeID(volumeID string) (device string, err error) {
-	serialNumber := strings.TrimPrefix(volumeID, "d-")
-	files, _ := ioutil.ReadDir("/dev/")
-	for _, f := range files {
-		if strings.HasPrefix(f.Name(), "nvme") && !strings.Contains(f.Name(), "p") {
-			cmd := fmt.Sprintf("%s udevadm info --query=all --name=/dev/%s | grep ID_SERIAL_SHORT | awk -F= '{print $2}'", NsenterCmd, f.Name())
-			snumber, err := utils.Run(cmd)
-			if err != nil {
-				log.Warnf("GetNvmeDeviceByVolumeID: Get device with command %s and got error: %s", cmd, err.Error())
-				continue
-			}
-			snumber = strings.TrimSpace(snumber)
-			if serialNumber == strings.TrimSpace(snumber) {
-				device = filepath.Join("/dev/", f.Name())
-				log.Infof("GetNvmeDeviceByVolumeID: Get nvme device %s with volumeID %s", device, volumeID)
-				return device, nil
-			}
-		}
-	}
-	return "", nil
 }
 
 func waitForDiskInStatus(retryCount int, interval time.Duration, diskID string, expectedStatus string) error {
