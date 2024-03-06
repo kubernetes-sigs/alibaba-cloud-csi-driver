@@ -36,7 +36,7 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	k8smount "k8s.io/utils/mount"
+	k8smount "k8s.io/mount-utils"
 )
 
 type nodeServer struct {
