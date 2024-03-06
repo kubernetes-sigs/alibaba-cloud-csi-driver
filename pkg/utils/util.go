@@ -590,11 +590,9 @@ func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet kubernetes.Inter
 	return runTimeValue, nil
 }
 
-// IsMountPointRunv check the mountpoint is runv style
+// IsMountPointRunv check the mountpoint is runv style.
+// Remember to check this is not a regular mountpoint before calling this function.
 func IsMountPointRunv(mountPoint string) bool {
-	if IsMounted(mountPoint) {
-		return false
-	}
 	mountFileName := filepath.Join(mountPoint, CsiPluginRunTimeFlagFile)
 	if IsFileExisting(mountFileName) {
 		mountInfo := GetFileContent(mountFileName)

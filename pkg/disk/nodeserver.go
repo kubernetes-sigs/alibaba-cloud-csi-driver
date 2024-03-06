@@ -439,22 +439,23 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
-	// check runtime mode
-	if GlobalConfigVar.RunTimeClass == MixRunTimeMode && utils.IsMountPointRunv(targetPath) {
-		fileName := filepath.Join(targetPath, utils.CsiPluginRunTimeFlagFile)
-		if err := os.Remove(fileName); err != nil {
-			msg := fmt.Sprintf("NodeUnpublishVolume: Remove Runv File %s with error: %s", fileName, err.Error())
-			return nil, status.Error(codes.InvalidArgument, msg)
-		}
-		log.Infof("NodeUnpublishVolume(runv): Remove Runv File Successful: %s", fileName)
-		return &csi.NodeUnpublishVolumeResponse{}, nil
-	}
 	// Step 2: check mount point
 	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if notmounted {
+		// check runtime mode
+		if GlobalConfigVar.RunTimeClass == MixRunTimeMode && utils.IsMountPointRunv(targetPath) {
+			fileName := filepath.Join(targetPath, utils.CsiPluginRunTimeFlagFile)
+			if err := os.Remove(fileName); err != nil {
+				msg := fmt.Sprintf("NodeUnpublishVolume: Remove Runv File %s with error: %s", fileName, err.Error())
+				return nil, status.Error(codes.InvalidArgument, msg)
+			}
+			log.Infof("NodeUnpublishVolume(runv): Remove Runv File Successful: %s", fileName)
+			return &csi.NodeUnpublishVolumeResponse{}, nil
+		}
+
 		if empty, _ := IsDirEmpty(targetPath); empty {
 			if err := ns.unmountDuplicateMountPoint(targetPath, req.VolumeId); err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
