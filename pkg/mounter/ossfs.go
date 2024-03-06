@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -18,7 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	mountutils "k8s.io/mount-utils"
-	"k8s.io/utils/pointer"
 )
 
 var defaultOssfsImageTag = "4af1b0e-aliyun"
@@ -30,6 +30,9 @@ const (
 	OssfsCsiMimeTypesFilePath = "/etc/csi-mime.types"
 
 	defaultRegistry = "registry-cn-hangzhou.ack.aliyuncs.com"
+
+	CsiSecretStoreDriver   = "secrets-store.csi.k8s.io"
+	SecretProviderClassKey = "secretProviderClass"
 )
 
 type fuseOssfs struct {
@@ -56,6 +59,7 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) Fuse
 	if _, ok := config.Resources.Requests[corev1.ResourceMemory]; !ok {
 		config.Resources.Requests[corev1.ResourceMemory] = resource.MustParse("50Mi")
 	}
+
 	return &fuseOssfs{config: config}
 }
 
@@ -85,7 +89,7 @@ func (f *fuseOssfs) buildPodSpec(
 	source, target, fstype string, authCfg *AuthConfig, options, mountFlags []string, nodeName, volumeId string,
 ) (spec corev1.PodSpec, _ error) {
 
-	spec.TerminationGracePeriodSeconds = pointer.Int64Ptr(120)
+	spec.TerminationGracePeriodSeconds = tea.Int64(120)
 
 	targetVolume := corev1.Volume{
 		Name: "kubelet-dir",
@@ -176,7 +180,7 @@ func (f *fuseOssfs) buildPodSpec(
 			FailureThreshold: 5,
 		},
 		SecurityContext: &corev1.SecurityContext{
-			Privileged: pointer.BoolPtr(true),
+			Privileged: tea.Bool(true),
 		},
 	}
 	if mimeMountDir == OssfsDefMimeTypesFilePath {
@@ -187,7 +191,7 @@ func (f *fuseOssfs) buildPodSpec(
 		container.VolumeMounts = append(container.VolumeMounts, mimeVolumeMount)
 	}
 
-	buildAuthSpec(nodeName, volumeId, authCfg, &spec, &container, &options)
+	buildAuthSpec(nodeName, volumeId, target, authCfg, &spec, &container, &options)
 
 	args := mountutils.MakeMountArgs(source, target, "", options)
 	args = append(args, mountFlags...)
@@ -275,37 +279,110 @@ func CleanupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Inte
 	return err
 }
 
-func buildAuthSpec(nodeName, volumeId string, authCfg *AuthConfig,
+func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig,
 	spec *corev1.PodSpec, container *corev1.Container, options *[]string) {
 	if spec == nil || container == nil || options == nil {
 		return
 	}
-	if authCfg != nil && authCfg.AuthType == AuthTypeSTS {
-		return
+	if authCfg == nil {
+		authCfg = &AuthConfig{}
 	}
-	passwdMountDir := "/etc/ossfs"
-	passwdFilename := "passwd-ossfs"
-	passwdSecretVolume := corev1.Volume{
-		Name: "passwd-ossfs",
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: OssfsCredentialSecretName,
-				Items: []corev1.KeyToPath{
-					{
-						Key:  fmt.Sprintf("%s.%s", nodeName, volumeId),
-						Path: passwdFilename,
-						Mode: pointer.Int32Ptr(0600),
+
+	switch authCfg.AuthType {
+	case AuthTypeSTS:
+	case AuthTypeRRSA:
+		if authCfg.RrsaConfig == nil {
+			return
+		}
+		spec.ServiceAccountName = authCfg.RrsaConfig.ServiceAccountName
+		rrsaMountDir := "/var/run/secrets/ack.alibabacloud.com/rrsa-tokens"
+		rrsaVolume := corev1.Volume{
+			Name: "rrsa-oidc-token",
+			VolumeSource: corev1.VolumeSource{
+				Projected: &corev1.ProjectedVolumeSource{
+					DefaultMode: tea.Int32(0600),
+					Sources: []corev1.VolumeProjection{
+						{
+							ServiceAccountToken: &corev1.ServiceAccountTokenProjection{
+								Audience:          "sts.aliyuncs.com",
+								ExpirationSeconds: tea.Int64(3600),
+								Path:              "token",
+							},
+						},
 					},
 				},
-				Optional: pointer.BoolPtr(true),
 			},
-		},
+		}
+		spec.Volumes = append(spec.Volumes, rrsaVolume)
+		rrsaVolumeMount := corev1.VolumeMount{
+			Name:      rrsaVolume.Name,
+			MountPath: rrsaMountDir,
+		}
+		container.VolumeMounts = append(container.VolumeMounts, rrsaVolumeMount)
+		envs := []corev1.EnvVar{
+			{
+				Name:  "ALIBABA_CLOUD_ROLE_ARN",
+				Value: authCfg.RrsaConfig.RoleArn,
+			},
+			{
+				Name:  "ALIBABA_CLOUD_OIDC_PROVIDER_ARN",
+				Value: authCfg.RrsaConfig.OidcProviderArn,
+			},
+			{
+				Name:  "ALIBABA_CLOUD_OIDC_TOKEN_FILE",
+				Value: rrsaMountDir + "/token",
+			},
+			{
+				Name:  "ROLE_SESSION_NAME",
+				Value: getRoleSessionName(volumeId, target),
+			},
+		}
+		container.Env = envs
+	case AuthTypeCSS:
+		secretStoreMountDir := "/etc/ossfs/secrets-store"
+		secretStoreVolume := corev1.Volume{
+			Name: "secrets-store",
+			VolumeSource: corev1.VolumeSource{
+				CSI: &corev1.CSIVolumeSource{
+					Driver:           CsiSecretStoreDriver,
+					ReadOnly:         tea.Bool(true),
+					VolumeAttributes: map[string]string{SecretProviderClassKey: authCfg.SecretProviderClassName},
+				},
+			},
+		}
+		spec.Volumes = append(spec.Volumes, secretStoreVolume)
+		secretStoreVolumeMount := corev1.VolumeMount{
+			Name:      secretStoreVolume.Name,
+			MountPath: secretStoreMountDir,
+			ReadOnly:  true,
+		}
+		container.VolumeMounts = append(container.VolumeMounts, secretStoreVolumeMount)
+		*options = append(*options, fmt.Sprintf("secret_store_dir=%s", secretStoreMountDir))
+	default:
+		passwdMountDir := "/etc/ossfs"
+		passwdFilename := "passwd-ossfs"
+		passwdSecretVolume := corev1.Volume{
+			Name: "passwd-ossfs",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: OssfsCredentialSecretName,
+					Items: []corev1.KeyToPath{
+						{
+							Key:  fmt.Sprintf("%s.%s", nodeName, volumeId),
+							Path: passwdFilename,
+							Mode: tea.Int32(0600),
+						},
+					},
+					Optional: tea.Bool(true),
+				},
+			},
+		}
+		spec.Volumes = append(spec.Volumes, passwdSecretVolume)
+		passwdVolumeMont := corev1.VolumeMount{
+			Name:      passwdSecretVolume.Name,
+			MountPath: passwdMountDir,
+		}
+		container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
+		*options = append(*options, fmt.Sprintf("passwd_file=%s", filepath.Join(passwdMountDir, passwdFilename)))
 	}
-	spec.Volumes = append(spec.Volumes, passwdSecretVolume)
-	passwdVolumeMont := corev1.VolumeMount{
-		Name:      passwdSecretVolume.Name,
-		MountPath: passwdMountDir,
-	}
-	container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
-	*options = append(*options, fmt.Sprintf("passwd_file=%s", filepath.Join(passwdMountDir, passwdFilename)))
 }

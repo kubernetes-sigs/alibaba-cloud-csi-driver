@@ -4,6 +4,12 @@ metadata:
   name: csi-admin
   namespace: kube-system
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-fuse-ossfs
+  namespace: kube-system
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -24,6 +30,10 @@ rules:
 - apiGroups: [""]
   resources: ["secrets"]
   verbs: ["create"]
+- apiGroups: [""]
+  resources: ["serviceaccounts"]
+  resourceNames: ["csi-fuse-ossfs"]
+  verbs: ["get"]
 - apiGroups: [""]
   resources: ["endpoints"]
   resourceNames: ["cnfs-cache-ds-service"]

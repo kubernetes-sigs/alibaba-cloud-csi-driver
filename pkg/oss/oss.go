@@ -17,6 +17,7 @@ limitations under the License.
 package oss
 
 import (
+	"context"
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -28,7 +29,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
@@ -134,6 +134,7 @@ func newNodeServer(driver *csicommon.CSIDriver, m metadata.MetadataProvider) *no
 		dynamicClient:     crdClient,
 		sharedPathLock:    utils.NewVolumeLocks(),
 		ossfsMounterFac:   mounter.NewContainerizedFuseMounterFactory(mounter.NewFuseOssfs(configmap, m), clientset, nodeName),
+		metadata:          m,
 	}
 }
 

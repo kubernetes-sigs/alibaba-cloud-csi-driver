@@ -7,31 +7,41 @@ import (
 	"strings"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 )
 
 type OpenAPIMetadata struct {
 	instance *ecs.Instance
+	identity *sts.GetCallerIdentityResponse
 }
 
-func NewOpenAPIMetadata(c cloud.ECSInterface, regionId, instanceId string) (*OpenAPIMetadata, error) {
-	request := ecs.CreateDescribeInstancesRequest()
+func NewOpenAPIMetadata(c cloud.ECSInterface, s cloud.STSInterface, regionId, instanceId string) (*OpenAPIMetadata, error) {
+	instanceRequest := ecs.CreateDescribeInstancesRequest()
 
-	request.RegionId = regionId
+	instanceRequest.RegionId = regionId
 	ids, err := json.Marshal([]string{instanceId})
 	if err != nil {
 		panic(err)
 	}
-	request.InstanceIds = string(ids)
+	instanceRequest.InstanceIds = string(ids)
 
-	instanceResponse, err := c.DescribeInstances(request)
+	instanceResponse, err := c.DescribeInstances(instanceRequest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe instance %s: %w", instanceId, err)
 	}
 	if len(instanceResponse.Instances.Instance) != 1 {
 		return nil, fmt.Errorf("instance not found: %s", instanceId)
 	}
-	return &OpenAPIMetadata{instance: &instanceResponse.Instances.Instance[0]}, nil
+
+	identityRequest := sts.CreateGetCallerIdentityRequest()
+	identityRequest.Scheme = "https"
+	identityResponse, err := s.GetCallerIdentity(identityRequest)
+	if err == nil {
+		return &OpenAPIMetadata{instance: &instanceResponse.Instances.Instance[0], identity: identityResponse}, nil
+	}
+
+	return &OpenAPIMetadata{instance: &instanceResponse.Instances.Instance[0], identity: nil}, nil
 }
 
 func (m *OpenAPIMetadata) Get(key MetadataKey) (string, error) {
@@ -44,18 +54,23 @@ func (m *OpenAPIMetadata) Get(key MetadataKey) (string, error) {
 		return m.instance.InstanceId, nil
 	case InstanceType:
 		return m.instance.InstanceType, nil
+	case AccountID:
+		if m.identity != nil {
+			return m.identity.AccountId, nil
+		}
 	}
 	return "", ErrUnknownMetadataKey
 }
 
 type OpenAPIFetcher struct {
-	client cloud.ECSInterface
-	mPre   MetadataProvider
+	ecsClient cloud.ECSInterface
+	stsClient cloud.STSInterface
+	mPre      MetadataProvider
 }
 
 func (f *OpenAPIFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
 	switch key {
-	case RegionID, InstanceID, ZoneID, InstanceType:
+	case RegionID, InstanceID, ZoneID, InstanceType, AccountID:
 	default:
 		return nil, ErrUnknownMetadataKey
 	}
@@ -78,7 +93,7 @@ func (f *OpenAPIFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
 	if err != nil {
 		return nil, fmt.Errorf("instance ID is not available: %w", err)
 	}
-	p, err := NewOpenAPIMetadata(f.client, regionId, instanceId)
+	p, err := NewOpenAPIMetadata(f.ecsClient, f.stsClient, regionId, instanceId)
 	if err != nil {
 		return nil, err
 	}

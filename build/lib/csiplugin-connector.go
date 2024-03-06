@@ -224,10 +224,10 @@ func checkJindofsCmd(cmd string) error {
 		if strings.Contains(cmd, ";") {
 			return errors.New("Jindofs Options: command cannot contains ; " + cmd)
 		}
-		cmdParametes := strings.TrimPrefix(cmd, jindofsPrefix)
-		cmdParametes = strings.TrimSpace(cmdParametes)
-		cmdParametes = strings.Join(strings.Fields(cmdParametes), " ")
-		parameteList := strings.Split(cmdParametes, " ")
+		cmdParameters := strings.TrimPrefix(cmd, jindofsPrefix)
+		cmdParameters = strings.TrimSpace(cmdParameters)
+		cmdParameters = strings.Join(strings.Fields(cmdParameters), " ")
+		parameteList := strings.Split(cmdParameters, " ")
 		for _, value := range parameteList {
 			if !strings.HasPrefix(value, "-o") && !strings.HasPrefix(value, "/") {
 				return errors.New("Jindofs Options: must start with -o :" + cmd)
@@ -270,11 +270,11 @@ func checkOssfsCmd(cmd string) error {
 
 	// check oss command options
 	if ossCmdPrefix != "" {
-		cmdParametes := strings.TrimPrefix(cmd, ossCmdPrefix)
-		cmdParametes = strings.TrimSpace(cmdParametes)
-		cmdParametes = strings.Join(strings.Fields(cmdParametes), " ")
+		cmdParameters := strings.TrimPrefix(cmd, ossCmdPrefix)
+		cmdParameters = strings.TrimSpace(cmdParameters)
+		cmdParameters = strings.Join(strings.Fields(cmdParameters), " ")
 
-		parameteList := strings.Split(cmdParametes, " ")
+		parameteList := strings.Split(cmdParameters, " ")
 		if len(parameteList) < 3 {
 			return errors.New("Oss Options: parameters less than 3: " + cmd)
 		}

@@ -18,10 +18,13 @@ package oss
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -59,6 +62,44 @@ func GetRAMRoleOption() string {
 	ramRoleOpt := MetadataURL + RAMRoleResource + ramRole
 	mntCmdRamRole := fmt.Sprintf("ram_role=%s", ramRoleOpt)
 	return mntCmdRamRole
+}
+
+// checkRRSAParams check parameters of RRSA
+func checkRRSAParams(opt *Options) error {
+	if opt.RoleArn != "" && opt.OidcProviderArn != "" {
+		return nil
+	}
+	if opt.RoleArn != "" || opt.OidcProviderArn != "" {
+		return errors.New("Oss parameters error: use RRSA but one of the ARNs is empty, roleArn:" + opt.RoleArn + ", oidcProviderArn:" + opt.OidcProviderArn)
+	}
+	if opt.RoleName == "" {
+		return errors.New("Oss parameters error: use RRSA but roleName is empty")
+	}
+	return nil
+}
+
+// getRRSAConfig get oidcProviderArn and roleArn
+func getRRSAConfig(opt *Options, m metadata.MetadataProvider) (rrsaCfg *mounter.RrsaConfig, err error) {
+	saName := fuseServieAccountName
+	if opt.ServiceAccountName != "" {
+		saName = opt.ServiceAccountName
+	}
+
+	if opt.OidcProviderArn != "" && opt.RoleArn != "" {
+		return &mounter.RrsaConfig{ServiceAccountName: saName, OidcProviderArn: opt.OidcProviderArn, RoleArn: opt.RoleArn}, nil
+	}
+
+	accountId, err := m.Get(metadata.AccountID)
+	if err != nil {
+		return nil, errors.New("Get accountId error: " + err.Error())
+	}
+	clusterId, err := m.Get(metadata.ClusterID)
+	if err != nil {
+		return nil, errors.New("Get clusterId error: " + err.Error())
+	}
+	provider := mounter.GetOIDCProvider(clusterId)
+	oidcProviderArn, roleArn := mounter.GetArn(provider, accountId, opt.RoleName)
+	return &mounter.RrsaConfig{ServiceAccountName: saName, OidcProviderArn: oidcProviderArn, RoleArn: roleArn}, nil
 }
 
 // parseOtherOpts extracts mount options from parameters.otherOpts string.

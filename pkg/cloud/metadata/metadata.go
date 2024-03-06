@@ -10,7 +10,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/sirupsen/logrus"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 type MetadataKey int
@@ -20,6 +20,8 @@ const (
 	ZoneID       MetadataKey = iota
 	InstanceID   MetadataKey = iota
 	InstanceType MetadataKey = iota
+	AccountID    MetadataKey = iota
+	ClusterID    MetadataKey = iota
 )
 
 func (k MetadataKey) String() string {
@@ -32,6 +34,10 @@ func (k MetadataKey) String() string {
 		return "InstanceID"
 	case InstanceType:
 		return "InstanceType"
+	case AccountID:
+		return "AccountID"
+	case ClusterID:
+		return "ClusterID"
 	default:
 		return fmt.Sprintf("MetadataKey(%d)", k)
 	}
@@ -139,7 +145,7 @@ func (m *Metadata) EnableEcs(httpRT http.RoundTripper) {
 
 }
 
-func (m *Metadata) EnableKubernetes(nodeClient corev1.NodeInterface) {
+func (m *Metadata) EnableKubernetes(client kubernetes.Interface) {
 	nodeName := os.Getenv(KUBE_NODE_NAME_ENV)
 	if nodeName == "" {
 		logrus.Warnf("%s environment variable is not set, skipping Kubernetes metadata", KUBE_NODE_NAME_ENV)
@@ -147,13 +153,13 @@ func (m *Metadata) EnableKubernetes(nodeClient corev1.NodeInterface) {
 	}
 	m.providers = append(m.providers, &lazyInitProvider{
 		fetcher: &KubernetesMetadataFetcher{
-			client:   nodeClient,
+			client:   client,
 			nodeName: nodeName,
 		},
 	})
 }
 
-func (m *Metadata) EnableOpenAPI(ecsClient cloud.ECSInterface) {
+func (m *Metadata) EnableOpenAPI(ecsClient cloud.ECSInterface, stsClient cloud.STSInterface) {
 	mPre := Metadata{
 		// use the previous providers to get region id and instance id,
 		// do not recurse into ourselves
@@ -161,8 +167,9 @@ func (m *Metadata) EnableOpenAPI(ecsClient cloud.ECSInterface) {
 	}
 	m.providers = append(m.providers, &lazyInitProvider{
 		fetcher: &OpenAPIFetcher{
-			client: ecsClient,
-			mPre:   &mPre,
+			ecsClient: ecsClient,
+			stsClient: stsClient,
+			mPre:      &mPre,
 		},
 	})
 }

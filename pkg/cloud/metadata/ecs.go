@@ -18,11 +18,12 @@ const (
 )
 
 type InstanceIdentityDocument struct {
-	ZoneID       string `json:"zone-id"`
-	RegionID     string `json:"region-id"`
-	InstanceID   string `json:"instance-id"`
-	InstanceType string `json:"instance-type"`
-	SerialNumber string `json:"serial-number"`
+	ZoneID         string `json:"zone-id"`
+	RegionID       string `json:"region-id"`
+	InstanceID     string `json:"instance-id"`
+	InstanceType   string `json:"instance-type"`
+	SerialNumber   string `json:"serial-number"`
+	OwnerAccountID string `json:"owner-account-id"`
 }
 
 type ECSMetadata struct {
@@ -87,6 +88,8 @@ func (m *ECSMetadata) Get(key MetadataKey) (string, error) {
 		return m.idDoc.InstanceID, nil
 	case InstanceType:
 		return m.idDoc.InstanceType, nil
+	case AccountID:
+		return m.idDoc.OwnerAccountID, nil
 	default:
 		return "", ErrUnknownMetadataKey
 	}
@@ -98,7 +101,7 @@ type EcsFetcher struct {
 
 func (f *EcsFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
 	switch key {
-	case RegionID, ZoneID, InstanceID, InstanceType:
+	case RegionID, ZoneID, InstanceID, InstanceType, AccountID:
 	default:
 		return nil, ErrUnknownMetadataKey
 	}

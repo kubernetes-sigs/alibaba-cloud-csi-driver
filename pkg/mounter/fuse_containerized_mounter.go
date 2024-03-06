@@ -26,6 +26,7 @@ import (
 
 const fuseMountTimeout = time.Second * 30
 const fuseMountNamespace = "kube-system"
+const fuseServieAccountName = "csi-fuse-ossfs"
 
 const (
 	FuseTypeLabelKey          = "csi.alibabacloud.com/fuse-type"
@@ -37,13 +38,22 @@ const (
 
 type AuthConfig struct {
 	AuthType string
-	// TODO: for RRSA
-	// RoleName           string
-	// ServiceAccountName string
+	// for RRSA
+	RrsaConfig *RrsaConfig
+	// for csi-secret-store
+	SecretProviderClassName string
+}
+
+type RrsaConfig struct {
+	OidcProviderArn    string
+	RoleArn            string
+	ServiceAccountName string
 }
 
 const (
-	AuthTypeSTS = "sts"
+	AuthTypeSTS  = "sts"
+	AuthTypeRRSA = "rrsa"
+	AuthTypeCSS  = "csi-secret-store"
 )
 
 type FuseMounterType interface {
@@ -195,6 +205,16 @@ func (mounter *ContainerizedFuseMounter) Mount(source string, target string, fst
 
 	ctx, cancel := context.WithTimeout(mounter.ctx, fuseMountTimeout)
 	defer cancel()
+	if mounter.authCfg != nil && mounter.authCfg.AuthType == AuthTypeRRSA {
+		if mounter.authCfg.RrsaConfig.ServiceAccountName == fuseServieAccountName {
+			err := mounter.checkServiceAccount(ctx)
+			if err != nil {
+				return err
+			}
+		} else {
+			mounter.log.Infof("serviceAccountName has set to %s, skip service account check", mounter.authCfg.RrsaConfig.ServiceAccountName)
+		}
+	}
 	err := mounter.launchFusePod(ctx, source, target, fstype, mounter.authCfg, options, nil)
 	if err != nil {
 		return err
@@ -230,6 +250,14 @@ func (mounter *ContainerizedFuseMounter) labelsAndListOptionsFor(target string) 
 		LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: labels}),
 	}
 	return labels, listOptions
+}
+
+func (mounter *ContainerizedFuseMounter) checkServiceAccount(ctx context.Context) error {
+	_, err := mounter.client.CoreV1().ServiceAccounts(mounter.namespace).Get(ctx, mounter.authCfg.RrsaConfig.ServiceAccountName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("check service account %s for RRSA: %w", mounter.authCfg.RrsaConfig.ServiceAccountName, err)
+	}
+	return nil
 }
 
 func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, source, target, fstype string, authCfg *AuthConfig, options, mountFlags []string) error {
@@ -364,4 +392,8 @@ func computeMountPathHash(target string) string {
 	hasher := fnv.New32a()
 	hasher.Write([]byte(target))
 	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
+}
+
+func getRoleSessionName(volumeId, target string) string {
+	return fmt.Sprintf("ossfs.%s.%s", volumeId, computeMountPathHash(target))
 }

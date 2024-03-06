@@ -143,13 +143,14 @@ func main() {
 		if err != nil {
 			log.Warnf("Error building kubernetes clientset: %v", err)
 		} else {
-			meta.EnableKubernetes(kubeClient.CoreV1().Nodes())
+			meta.EnableKubernetes(kubeClient)
 		}
 	}
 
 	ac := utils.GetAccessControl()
 	ecsClient := utils.NewEcsClient(ac)
-	meta.EnableOpenAPI(ecsClient)
+	stsClient := utils.NewStsClient(ac)
+	meta.EnableOpenAPI(ecsClient, stsClient)
 
 	for i, driverName := range driverNames {
 		if !strings.Contains(driverName, TypePluginSuffix) && driverName != ExtenderAgent {

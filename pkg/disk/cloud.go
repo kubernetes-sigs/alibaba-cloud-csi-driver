@@ -36,7 +36,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	apiErr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -974,7 +974,7 @@ func getDiskType(diskVol *diskVolumeArgs) ([]string, []string, error) {
 		nodeInfo, err := client.CoreV1().Nodes().Get(context.Background(), diskVol.NodeSelected, metav1.GetOptions{})
 		if err != nil {
 			log.Infof("getDiskType: failed to get node labels: %v", err)
-			if apiErr.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				return nil, nil, status.Errorf(codes.ResourceExhausted, "CreateVolume:: get node info by name: %s failed with err: %v, start rescheduling", diskVol.NodeSelected, err)
 			}
 			return nil, nil, status.Errorf(codes.InvalidArgument, "CreateVolume:: get node info by name: %s failed with err: %v", diskVol.NodeSelected, err)

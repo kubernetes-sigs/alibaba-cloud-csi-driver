@@ -86,3 +86,18 @@ func ValidateAnnotationsSize(annotations map[string]string) error {
 	}
 	return nil
 }
+
+// GetOIDCProvider get OIDC provider from env or ACK clusterId for RRSA
+func GetOIDCProvider(clusterId string) string {
+	return fmt.Sprintf("ack-rrsa-%s", clusterId)
+}
+
+// GetArn get rrsa config for fuse contianer's env setting
+func GetArn(provider, accountId, roleName string) (oidcProviderArn, roleArn string) {
+	if provider == "" || accountId == "" || roleName == "" {
+		return
+	}
+	roleArn = fmt.Sprintf("acs:ram::%s:role/%s", accountId, roleName)
+	oidcProviderArn = fmt.Sprintf("acs:ram::%s:oidc-provider/%s", accountId, provider)
+	return
+}

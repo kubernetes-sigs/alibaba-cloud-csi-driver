@@ -89,6 +89,7 @@ func TestGetEcs(t *testing.T) {
 		ZoneID:       "cn-beijing-k",
 		InstanceID:   "i-2zec1slzwdzrwmvlr4w2",
 		InstanceType: "ecs.g7.xlarge",
+		AccountID:    "1857888888888866",
 	}
 	for k, v := range expected {
 		value, err := m.Get(k)

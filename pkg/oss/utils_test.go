@@ -20,6 +20,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -78,6 +80,89 @@ func Test_parseOtherOpts(t *testing.T) {
 			}
 			if !reflect.DeepEqual(gotMountOptions, tt.wantMountOptions) {
 				t.Errorf("parseOtherOpts() = %v, want %v", gotMountOptions, tt.wantMountOptions)
+			}
+		})
+	}
+}
+
+func Test_checkRRSAParams(t *testing.T) {
+	tests := []struct {
+		name    string
+		opt     Options
+		wantErr bool
+	}{
+		{
+			"rolename",
+			Options{RoleName: "test-role-name"},
+			false,
+		},
+		{
+			"arns",
+			Options{RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
+			false,
+		},
+		{
+			"arn",
+			Options{RoleArn: "test-role-arn"},
+			true,
+		},
+		{
+			"arn-and-rolename",
+			Options{RoleName: "test-role-name", OidcProviderArn: "test-oidc-provider-arn"},
+			true,
+		},
+		{
+			"arns-and-rolename",
+			Options{RoleName: "test-role-name", RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checkRRSAParams(&tt.opt)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("checkRRSAParams(%v) error = %v, wantErr %v", tt.opt, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_getRRSAConfig(t *testing.T) {
+	m := metadata.NewMetadata()
+	t.Setenv("ALIBABA_CLOUD_ACCOUNT_ID", "112233445566")
+	t.Setenv("CLUSTER_ID", "c12345678")
+	tests := []struct {
+		name    string
+		opt     Options
+		wantCfg *mounter.RrsaConfig
+	}{
+		{
+			"rolename",
+			Options{RoleName: "test-role-name"},
+			&mounter.RrsaConfig{OidcProviderArn: "acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678", RoleArn: "acs:ram::112233445566:role/test-role-name", ServiceAccountName: fuseServieAccountName},
+		},
+		{
+			"specified-arns",
+			Options{RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
+			&mounter.RrsaConfig{OidcProviderArn: "test-oidc-provider-arn", RoleArn: "test-role-arn", ServiceAccountName: fuseServieAccountName},
+		},
+		{
+			"arns-first",
+			Options{RoleName: "test-role-name", RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
+			&mounter.RrsaConfig{OidcProviderArn: "test-oidc-provider-arn", RoleArn: "test-role-arn", ServiceAccountName: fuseServieAccountName},
+		},
+		{
+			"serviceaccount",
+			Options{RoleName: "test-role-name", ServiceAccountName: "test-service-account"},
+			&mounter.RrsaConfig{OidcProviderArn: "acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678", RoleArn: "acs:ram::112233445566:role/test-role-name", ServiceAccountName: "test-service-account"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, err := getRRSAConfig(&tt.opt, m)
+			assert.Nil(t, err)
+			if !reflect.DeepEqual(cfg, tt.wantCfg) {
+				t.Errorf("getRRSAConfig() = %v, want %v", cfg, tt.wantCfg)
 			}
 		})
 	}

@@ -41,7 +41,11 @@ func TestCreateK8s(t *testing.T) {
 	node.Labels = map[string]string{
 		"topology.kubernetes.io/region": "cn-beijing",
 	}
-	client := fake.NewSimpleClientset(node).CoreV1().Nodes()
+	profile := testProfile.DeepCopy()
+	profile.Data = map[string]string{}
+	profile.Data["clusterid"] = "c12345678"
+
+	client := fake.NewSimpleClientset(node, profile)
 	t.Run("no node name", func(t *testing.T) {
 		m.EnableKubernetes(client)
 		_, err := m.Get(RegionID)
@@ -52,6 +56,11 @@ func TestCreateK8s(t *testing.T) {
 		t.Setenv(KUBE_NODE_NAME_ENV, testNode.Name)
 		m.EnableKubernetes(client)
 		assert.Equal(t, "cn-beijing", MustGet(m, RegionID))
+	})
+
+	t.Run("profile", func(t *testing.T) {
+		m.EnableKubernetes(client)
+		assert.Equal(t, "c12345678", MustGet(m, ClusterID))
 	})
 }
 
@@ -98,16 +107,19 @@ func TestCreateOpenAPI(t *testing.T) {
 			t.Parallel()
 			ctrl := gomock.NewController(t)
 			var ecsClient cloud.ECSInterface
+			var stsClient cloud.STSInterface
 			if c.available {
 				ecsClient = testEcsClient(ctrl)
+				stsClient = testStsClient(ctrl)
 			} else {
 				ecsClient = cloud.NewMockECSInterface(ctrl)
+				stsClient = cloud.NewMockSTSInterface(ctrl)
 			}
 
 			m := NewMetadata()
 			m.providers = append(m.providers, FakeProvider{Values: c.values})
 
-			m.EnableOpenAPI(ecsClient)
+			m.EnableOpenAPI(ecsClient, stsClient)
 			zone, err := m.Get(ZoneID)
 			if c.available {
 				assert.Equal(t, "cn-beijing-k", zone)
@@ -124,9 +136,10 @@ func TestCreateOpenAPIFromEnv(t *testing.T) {
 	t.Setenv("KUBE_NODE_NAME", "i-2zec1slzwdzrwmvlr4w2")
 	ctrl := gomock.NewController(t)
 	ecsClient := testEcsClient(ctrl)
+	stsClient := testStsClient(ctrl)
 
 	m := NewMetadata()
-	m.EnableOpenAPI(ecsClient)
+	m.EnableOpenAPI(ecsClient, stsClient)
 	assert.Equal(t, "cn-beijing-k", MustGet(m, ZoneID))
 }
 
