@@ -2,9 +2,12 @@ package metric
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,6 +19,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/mount-utils"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -254,7 +258,7 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return err
 	}
-	p.updateMap(&p.lastPvDiskInfoMap, volJSONPaths, diskDriverName, "volumes")
+	p.updateMap(&p.lastPvDiskInfoMap, volJSONPaths, diskDriverName)
 
 	wg := sync.WaitGroup{}
 	for pvName, info := range p.lastPvDiskInfoMap {
@@ -366,14 +370,9 @@ func (p *diskStatCollector) setDiskMetric(pvName string, info diskInfo, stats []
 
 }
 
-func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, jsonPaths []string, driverName string, keyword string) {
+func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, jsonPaths []string, driverName string) {
 	thisPvDiskInfoMap := make(map[string]diskInfo, 0)
-	lineArr, err := utils.RunWithFilter("mount", "csi", keyword)
-	if err != nil {
-		logrus.Errorf("Failed to execute 'mount': %v", err)
-		p.updateDiskInfoMap(thisPvDiskInfoMap, lastPvDiskInfoMap)
-		return
-	}
+	mounter := mount.New("")
 	for _, path := range jsonPaths {
 		//Get disk pvName
 		pvName, diskID, err := getVolumeInfoByJSON(path, driverName)
@@ -384,10 +383,16 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 			continue
 		}
 
-		for _, line := range lineArr {
-			if !strings.Contains(line, "/"+pvName+"/") {
-				continue
+		mountPoint := filepath.Join(path, "../mount")
+		notMounted, err := mounter.IsLikelyNotMountPoint(mountPoint)
+		if err != nil {
+			if !errors.Is(err, fs.ErrNotExist) {
+				logrus.Errorf("Check if %s is mount point failed: %v", mountPoint, err)
 			}
+			continue
+		}
+		if notMounted {
+			continue // may be leaked volume
 		}
 
 		deviceName, err := getDeviceByVolumeID(pvName, diskID)
