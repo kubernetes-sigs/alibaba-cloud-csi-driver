@@ -198,8 +198,6 @@ func (c *accesspointController) DeleteVolume(ctx context.Context, req *csi.Delet
 		return nil, status.Error(codes.InvalidArgument, "missing accesspointId in VolumeAttributes")
 	}
 
-	// TODO: skip if accesspoint not found
-
 	// cancel dir quota
 	if attributes["volumeCapacity"] == "true" {
 		apInfo, err := c.nasClient.DescribeAccesspoint(filesystemId, accesspointId)

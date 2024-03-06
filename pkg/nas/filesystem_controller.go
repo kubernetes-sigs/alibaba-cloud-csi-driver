@@ -76,7 +76,6 @@ const (
 	csiAlibabaCloudName = "csi.alibabacloud.com"
 )
 
-// TODO: do not use map
 var pvcMountTargetMap = map[string]string{}
 var pvcFileSystemIDMap = map[string]string{}
 var pvcProcessSuccess = map[string]*csi.Volume{}

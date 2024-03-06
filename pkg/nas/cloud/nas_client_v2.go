@@ -51,7 +51,6 @@ type NasClientV2 struct {
 	client  *sdk.Client
 }
 
-// TODO: ensure idempotence
 func (c *NasClientV2) CreateDir(req *sdk.CreateDirRequest) error {
 	c.limiter.Take()
 	resp, err := c.client.CreateDir(req)
@@ -109,6 +108,14 @@ func (c *NasClientV2) CancelDirQuota(req *sdk.CancelDirQuotaRequest) error {
 		log.Errorf("nas:CancelDirQuota failed: %v", err)
 	}
 	return err
+}
+
+func (c *NasClientV2) DescribeFileSystem(filesystemId string) (*sdk.DescribeFileSystemsResponse, error) {
+	c.limiter.Take()
+	req := &sdk.DescribeFileSystemsRequest{
+		FileSystemId: &filesystemId,
+	}
+	return c.client.DescribeFileSystems(req)
 }
 
 func (c *NasClientV2) DescribeFileSystemBriefInfo(filesystemId string) (*sdk.DescribeFileSystemBriefInfosResponse, error) {

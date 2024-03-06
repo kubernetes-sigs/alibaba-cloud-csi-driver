@@ -97,7 +97,7 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 	} else {
 		var server string
 		server, path = muxServerSelector.SelectNfsServer(parameters["server"])
-		filesystemId, _, _ := strings.Cut(server, "-")
+		filesystemId, _, _ = strings.Cut(server, "-")
 		if server == "" || filesystemId == "" {
 			return nil, status.Error(codes.InvalidArgument, "invalid nas server")
 		}
@@ -321,16 +321,16 @@ func (cs *subpathController) patchFinalizerOnPV(ctx context.Context, pv *corev1.
 }
 
 func (cs *subpathController) getFilesystemType(filesystemId string) (string, error) {
-	resp, err := cs.nasClient.DescribeFileSystemBriefInfo(filesystemId)
+	resp, err := cs.nasClient.DescribeFileSystem(filesystemId)
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "nas:DescribeFileSystemBriefInfos failed: %v", err)
+		return "", status.Errorf(codes.Internal, "nas:DescribeFileSystem failed: %v", err)
 	}
 	if resp.Body == nil || resp.Body.FileSystems == nil || len(resp.Body.FileSystems.FileSystem) == 0 {
 		return "", status.Errorf(codes.InvalidArgument, "filesystemId %q not found", filesystemId)
 	}
 	filesystemInfo := resp.Body.FileSystems.FileSystem[0]
 	filesystemType := tea.StringValue(filesystemInfo.FileSystemType)
-	logrus.Infof("nas:DescribeFileSystemBriefInfos succeeded, filesystemType of %s is %q", filesystemId, filesystemType)
+	logrus.Infof("nas:DescribeFileSystem succeeded, filesystemType of %s is %q", filesystemId, filesystemType)
 	return filesystemType, nil
 }
 
