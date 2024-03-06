@@ -2,7 +2,9 @@ package ens
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path"
@@ -123,7 +125,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	// check if block volume
 	if isBlock {
-		if !utils.IsMounted(targetPath) {
+		notMounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return nil, status.Errorf(codes.Internal, "failed to check if %s is a mount point: %v", targetPath, err)
+		}
+		if notMounted {
 			if err := ns.mounter.EnsureBlock(targetPath); err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
@@ -294,7 +300,11 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	isBlock := req.GetVolumeCapability().GetBlock() != nil
 	if isBlock {
 		targetPath = filepath.Join(targetPath, req.VolumeId)
-		if utils.IsMounted(targetPath) {
+		notMounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return nil, status.Errorf(codes.Internal, "failed to check if %s is a mount point: %v", targetPath, err)
+		}
+		if !notMounted {
 			log.Infof("NodeStageVolume: Block Already Mounted: volumeId: %s target %s", req.VolumeId, targetPath)
 			return &csi.NodeStageVolumeResponse{}, nil
 		}
@@ -393,7 +403,11 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 
 	// Block volume not need to format
 	if isBlock {
-		if utils.IsMounted(targetPath) {
+		notMounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to check if %s is a mount point: %v", targetPath, err)
+		}
+		if !notMounted {
 			log.Infof("NodeStageVolume: Block Already Mounted: volumeId: %s with target %s", req.VolumeId, targetPath)
 			return &csi.NodeStageVolumeResponse{}, nil
 		}
@@ -483,7 +497,11 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 				log.Errorf("NodeUnstageVolume: VolumeId: %s, umount path: %s failed with: %v", req.VolumeId, targetPath, err)
 				return nil, status.Error(codes.Internal, err.Error())
 			}
-			if utils.IsMounted(targetPath) {
+			notMounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to check if %s is a mount point after umount: %v", targetPath, err)
+			}
+			if !notMounted {
 				log.Errorf("NodeUnstageVolume: TargetPath mounted yet, volumeId: %s, Target: %s", req.VolumeId, targetPath)
 				return nil, status.Error(codes.Internal, "NodeUnstageVolume: TargetPath mounted yet with target"+targetPath)
 			}
