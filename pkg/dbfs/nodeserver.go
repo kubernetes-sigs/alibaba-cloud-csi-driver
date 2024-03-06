@@ -197,14 +197,9 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	log.Infof("NodeUnpublishVolume:: Starting Umount DBFS Volume %s from path %s", req.VolumeId, req.TargetPath)
 	// check runtime mode
 	mountPoint := req.TargetPath
-	if !utils.IsMounted(mountPoint) {
-		log.Infof("NodeUnpublishVolume: Dbfs mountpoint not mounted, skipping: %s, %s", mountPoint, req.VolumeId)
-		return &csi.NodeUnpublishVolumeResponse{}, nil
-	}
-
-	if err := ns.k8smounter.Unmount(mountPoint); err != nil {
-		log.Errorf("NodeUnpublishVolume: Umount DBFS Fail %s", err.Error())
-		return nil, errors.New("NodeUnpublishVolume: Umount DBFS Fail: " + err.Error())
+	err := k8smount.CleanupMountPoint(mountPoint, ns.k8smounter, false)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume: Cleanup DBFS mountpoint %s failed: %v", mountPoint, err)
 	}
 
 	log.Infof("NodeUnpublishVolume: Umount DBFS Successful on: %s, %s", mountPoint, req.VolumeId)
