@@ -126,7 +126,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("FileSystemID is empty, should input the useful dbfsID: " + req.VolumeId)
 	}
 
-	if utils.IsMounted(mountPath) {
+	notMounted, err := ns.k8smounter.IsLikelyNotMountPoint(mountPath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to check if %s is a mount point: %v", mountPath, err)
+	}
+	if !notMounted {
 		log.Infof("NodePublishVolume: Dbfs Mount Path Already Mounted, options: %s", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
@@ -184,7 +188,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// check mount
-	if !utils.IsMounted(mountPath) {
+	notMounted, err = ns.k8smounter.IsLikelyNotMountPoint(mountPath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to check if %s is a mount point: %v", mountPath, err)
+	}
+	if notMounted {
 		log.Errorf("NodePublishVolume: mount DBFS %s finished, check failed", req.VolumeId)
 		return nil, errors.New("NodePublishVolume: Check DBFS mount fail after mount:" + mountPath)
 	}
@@ -259,7 +267,11 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 				log.Errorf("NodeUnstageVolume: VolumeId: %s, target: %s umount failed with: %v", req.VolumeId, req.StagingTargetPath, err)
 				return nil, status.Error(codes.Internal, err.Error())
 			}
-			if utils.IsMounted(req.StagingTargetPath) {
+			notMounted, err := ns.k8smounter.IsLikelyNotMountPoint(req.StagingTargetPath)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to check if %s is a mount point: %v", req.StagingTargetPath, err)
+			}
+			if !notMounted {
 				log.Errorf("NodeUnstageVolume: TargetPath mounted yet: volumeId: %s with target %s", req.VolumeId, req.StagingTargetPath)
 				return nil, status.Error(codes.Internal, "NodeUnstageVolume: TargetPath mounted yet with target"+req.StagingTargetPath)
 			}
