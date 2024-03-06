@@ -1029,18 +1029,23 @@ func GetNvmeDeviceByVolumeID(volumeID string) (device string, err error) {
 	for _, deviceFile := range devNumFiles {
 		deviceName := filepath.Base(filepath.Dir(deviceFile))
 		if strings.HasPrefix(deviceName, "nvme") && !strings.Contains(deviceName, "p") {
-			cmd := fmt.Sprintf("%s udevadm info --query=all --name=/dev/%s | grep ID_SERIAL_SHORT | awk -F= '{print $2}'", NsenterCmd, deviceName)
-			snumber, err := Run(cmd)
+			out, err := CommandOnNode("udevadm", "info", "--query=property", "--name=/dev/"+deviceName).CombinedOutput()
 			if err != nil {
-				log.Warnf("GetNvmeDeviceByVolumeID: Get device with command %s and got error: %s", cmd, err.Error())
+				log.Warnf("GetNvmeDeviceByVolumeID: udevadm failed: %s (%v)", string(out), err)
 				continue
 			}
-			snumber = strings.TrimSpace(snumber)
-			if serialNumber == strings.TrimSpace(snumber) {
-				device = filepath.Join("/dev/", deviceName)
-				log.Infof("GetNvmeDeviceByVolumeID: Get nvme device %s with volumeID %s", device, volumeID)
-				return device, nil
+			for _, line := range strings.Split(string(out), "\n") {
+				const prefix = "ID_SERIAL_SHORT="
+				if strings.HasPrefix(line, prefix) {
+					snumber := line[len(prefix):]
+					if serialNumber == snumber {
+						device = filepath.Join("/dev/", deviceName)
+						log.Infof("GetNvmeDeviceByVolumeID: Get nvme device %s with volumeID %s", device, volumeID)
+						return device, nil
+					}
+				}
 			}
+			log.Warnf("GetNvmeDeviceByVolumeID: udevadm did not know serial number for %s", deviceName)
 		}
 	}
 	return "", nil
