@@ -109,8 +109,7 @@ func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.Cont
 		SnapshotRequestInterval = interval
 	}
 
-	serviceType := os.Getenv(utils.ServiceType)
-	if serviceType == utils.ProvisionerService && installCRD {
+	if installCRD {
 		checkInstallCRD(client)
 		checkInstallDefaultVolumeSnapshotClass(GlobalConfigVar.SnapClient)
 	}
