@@ -17,9 +17,11 @@ limitations under the License.
 package utils
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/klog/v2"
 	k8smount "k8s.io/mount-utils"
 )
 
@@ -124,6 +126,84 @@ func TestCmdValid(t *testing.T) {
 	cmd = "chmod -R 755 /mnt/abc; echo abc"
 	assert.Nil(t, CheckCmd(cmd, strings.Split(cmd, " ")[0]))
 	assert.Nil(t, CheckCmdArgs(cmd, strings.Split(cmd, " ")[1:]...))*/
+}
+
+func TestGetServiceType(t *testing.T) {
+	defer func() { klog.OsExit = os.Exit }()
+	klog.OsExit = func(c int) { panic(c) }
+	tests := []struct {
+		name                 string
+		runAsController      bool
+		runControllerService bool
+		runNodeService       bool
+		serviceTypeEnv       string
+		want                 ServiceType
+		fatal                bool
+	}{
+		{
+			name:                 "default",
+			runControllerService: true,
+			runNodeService:       true,
+			want:                 Controller | Node,
+		},
+		{
+			name:            "Run as controller",
+			runAsController: true,
+			want:            Controller,
+		},
+		{
+			name:           "env provisioner",
+			serviceTypeEnv: ProvisionerService,
+			want:           Controller,
+		},
+		{
+			name:           "env plugin",
+			serviceTypeEnv: PluginService,
+			want:           Node,
+		},
+		{
+			name:                 "Run controller",
+			runControllerService: true,
+			runNodeService:       false,
+			want:                 Controller,
+		},
+		{
+			name:                 "Run node",
+			runControllerService: false,
+			runNodeService:       true,
+			want:                 Node,
+		},
+		{
+			name:                 "nothing",
+			runControllerService: false,
+			runNodeService:       false,
+			want:                 0,
+		},
+		{
+			name:           "invalid env",
+			serviceTypeEnv: "invalid",
+			fatal:          true,
+		},
+		{
+			name:            "conflict env and run-as-controller",
+			runAsController: true,
+			serviceTypeEnv:  PluginService,
+			fatal:           true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("SERVICE_TYPE", tt.serviceTypeEnv)
+			if tt.fatal {
+				assert.Panics(t, func() {
+					GetServiceType(tt.runAsController, tt.runControllerService, tt.runNodeService)
+				})
+				return
+			}
+			got := GetServiceType(tt.runAsController, tt.runControllerService, tt.runNodeService)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
 
 func TestIsDirTmpfs(t *testing.T) {

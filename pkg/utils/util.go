@@ -74,7 +74,7 @@ const (
 	// RunvRunTimeTag tag
 	RundRunTimeTag = "rund"
 	// ServiceType tag
-	ServiceType = "SERVICE_TYPE"
+	ServiceTypeEnv = "SERVICE_TYPE"
 	// PluginService represents the csi-plugin type.
 	PluginService = "plugin"
 	// ProvisionerService represents the csi-provisioner type.
@@ -93,6 +93,54 @@ const (
 	// GiB ...
 	GiB = 1024 * 1024 * 1024
 )
+
+type ServiceType int
+
+const (
+	Controller ServiceType = 1 << iota
+	Node
+)
+
+func GetServiceType(runAsController, runControllerService, runNodeService bool) ServiceType {
+	serviceType := ServiceType(0)
+	if runAsController {
+		klog.Warning("-run-as-controller is deprecated, use -run-node-service=false instead")
+		serviceType = Controller
+	}
+	if st := os.Getenv(ServiceTypeEnv); st != "" {
+		klog.Warningf("%s env support is deprecated, use -run-controller-service and -run-node-service instead", ServiceTypeEnv)
+		switch st {
+		case PluginService:
+			if runAsController {
+				klog.Fatalf("%s env is set to %s, but -run-as-controller is also set", ServiceTypeEnv, st)
+			}
+			serviceType = Node
+		case ProvisionerService:
+			serviceType = Controller
+		default:
+			klog.Fatalf("invalid %s env value: %s", ServiceTypeEnv, st)
+		}
+	}
+	if serviceType == 0 {
+		// nothing deprecated was set, use new flags
+		if runControllerService {
+			serviceType |= Controller
+		}
+		if runNodeService {
+			serviceType |= Node
+		}
+	}
+	if serviceType == 0 {
+		klog.Warning("no service type activated, this configuration may not be useful")
+	}
+	if serviceType&Controller == 0 {
+		klog.Infof("activate CSI controller service")
+	}
+	if serviceType&Node == 0 {
+		klog.Infof("activate CSI node service")
+	}
+	return serviceType
+}
 
 // RoleAuth define STS Token Response
 type RoleAuth struct {

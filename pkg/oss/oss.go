@@ -49,21 +49,14 @@ type OSS struct {
 }
 
 // NewDriver init oss type of csi driver
-func NewDriver(endpoint string, m metadata.MetadataProvider, runAsController bool) *OSS {
+func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.ServiceType) *OSS {
 	klog.Infof("Driver: %v version: %v", driverName, version.VERSION)
-
-	switch os.Getenv(utils.ServiceType) {
-	case utils.ProvisionerService:
-		runAsController = true
-	case utils.PluginService:
-		runAsController = false
-	}
 
 	d := &OSS{}
 	d.endpoint = endpoint
 
 	nodeName := os.Getenv("KUBE_NODE_NAME")
-	if !runAsController {
+	if serviceType&utils.Node > 0 {
 		if nodeName == "" {
 			klog.Fatal("env KUBE_NODE_NAME is empty")
 		}
@@ -83,14 +76,15 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, runAsController boo
 	ossfs := mounter.NewFuseOssfs(configmap, m)
 	fusePodManager := mounter.NewFusePodManager(ossfs, clientset)
 
-	if runAsController {
+	if serviceType&utils.Controller > 0 {
 		d.controllerServer = &controllerServer{
 			client:         clientset,
 			cnfsGetter:     cnfsGetter,
 			metadata:       m,
 			fusePodManager: fusePodManager,
 		}
-	} else {
+	}
+	if serviceType&utils.Node > 0 {
 		d.nodeServer = &nodeServer{
 			metadata:   m,
 			locks:      utils.NewVolumeLocks(),

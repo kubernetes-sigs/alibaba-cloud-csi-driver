@@ -39,9 +39,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // NewMetricHandler method returns a promHttp object
-func NewMetricHandler(serviceType string, driverNames []string) *Handler {
+func NewMetricHandler(driverNames []string) *Handler {
 	//csi collector singleton
-	err := newCSICollector(serviceType, driverNames)
+	err := newCSICollector(driverNames)
 	if err != nil {
 		klog.Errorf("Couldn't create collector: %s", err)
 	}

@@ -37,14 +37,14 @@ type NAS struct {
 	nodeServer       *nodeServer
 }
 
-func NewDriver(meta *metadata.Metadata, endpoint, serviceType string) *NAS {
+func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType) *NAS {
 	klog.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
 	var d NAS
 	d.endpoint = endpoint
 	d.identityServer = newIdentityServer()
 
-	if serviceType == utils.ProvisionerService {
+	if serviceType&utils.Controller != 0 {
 		config, err := internal.GetControllerConfig(meta)
 		if err != nil {
 			klog.Fatalf("Get nas controller config: %v", err)
@@ -54,14 +54,14 @@ func NewDriver(meta *metadata.Metadata, endpoint, serviceType string) *NAS {
 			klog.Fatalf("Failed to init nas controller server: %v", err)
 		}
 		d.controllerServer = cs
-	} else {
+	}
+	if serviceType&utils.Node != 0 {
 		config, err := internal.GetNodeConfig()
 		if err != nil {
 			klog.Fatalf("Get nas node config: %v", err)
 		}
 		d.nodeServer = newNodeServer(config)
 	}
-
 	return &d
 }
 

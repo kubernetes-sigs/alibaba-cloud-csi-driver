@@ -57,7 +57,7 @@ type ENS struct {
 
 func initDriver() {}
 
-func NewDriver(nodeID, endpoint string) *ENS {
+func NewDriver(nodeID, endpoint string, serviceType utils.ServiceType) *ENS {
 
 	initDriver()
 	tmpENS := &ENS{}
@@ -66,9 +66,10 @@ func NewDriver(nodeID, endpoint string) *ENS {
 	NewGlobalConfig()
 
 	tmpENS.idServer = NewIdentityServer()
-	if GlobalConfigVar.ControllerService {
+	if serviceType&utils.Controller != 0 {
 		tmpENS.controllerServer = NewControllerServer()
-	} else {
+	}
+	if serviceType&utils.Node != 0 {
 		tmpENS.nodeServer = NewNodeServer()
 	}
 	return tmpENS
@@ -142,11 +143,6 @@ func NewGlobalConfig() {
 		detachBeforeAttach = true
 	}
 
-	controllerServerType := false
-	if os.Getenv(utils.ServiceType) == utils.ProvisionerService {
-		controllerServerType = true
-	}
-
 	GlobalConfigVar = GlobalConfig{
 		KClient:                      kubeClient,
 		InstanceID:                   instanceID,
@@ -155,7 +151,6 @@ func NewGlobalConfig() {
 		RegionID:                     regionID,
 		EnableAttachDetachController: attachDetachController,
 		DetachBeforeAttach:           detachBeforeAttach,
-		ControllerService:            controllerServerType,
 	}
 }
 
@@ -164,7 +159,6 @@ type GlobalConfig struct {
 	InstanceID         string
 	ClusterID          string
 	DetachBeforeAttach bool
-	ControllerService  bool
 
 	EnableDiskPartition          string
 	EnableAttachDetachController string
