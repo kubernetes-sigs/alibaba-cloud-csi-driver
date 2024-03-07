@@ -6,6 +6,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -27,15 +28,16 @@ type PoV struct {
 
 func initDriver() {}
 
-func NewDriver(nodeID, endpoint string, runAsController bool) *PoV {
+func NewDriver(nodeID, endpoint string, serviceType utils.ServiceType) *PoV {
 	initDriver()
 	poV := &PoV{}
 	poV.endpoint = endpoint
-	newGlobalConfig(runAsController)
+	newGlobalConfig()
 
-	if runAsController {
+	if serviceType&utils.Controller != 0 {
 		poV.controllerService = newControllerService()
-	} else {
+	}
+	if serviceType&utils.Node != 0 {
 		poV.nodeService = newNodeService()
 	}
 
@@ -48,7 +50,7 @@ func (p *PoV) Run() {
 	common.RunCSIServer(p.endpoint, p, &p.controllerService, &p.nodeService)
 }
 
-func newGlobalConfig(runAsController bool) {
+func newGlobalConfig() {
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
 		log.Fatalf("newGlobalConfig: build kubeconfig failed: %v", err)
@@ -76,18 +78,16 @@ func newGlobalConfig(runAsController bool) {
 	}
 
 	GlobalConfigVar = GlobalConfig{
-		controllerService: runAsController,
-		client:            kubeClient,
-		regionID:          doc.RegionID,
-		instanceID:        doc.InstanceID,
-		zoneID:            doc.ZoneID,
+		client:     kubeClient,
+		regionID:   doc.RegionID,
+		instanceID: doc.InstanceID,
+		zoneID:     doc.ZoneID,
 	}
 }
 
 type GlobalConfig struct {
-	regionID          string
-	instanceID        string
-	zoneID            string
-	controllerService bool
-	client            kubernetes.Interface
+	regionID   string
+	instanceID string
+	zoneID     string
+	client     kubernetes.Interface
 }
