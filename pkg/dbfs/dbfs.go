@@ -55,7 +55,7 @@ type DBFS struct {
 }
 
 // NewDriver create the identity/node/controller server and dbfs driver
-func NewDriver(nodeID, endpoint string) *DBFS {
+func NewDriver(nodeID, endpoint string, serviceType utils.ServiceType) *DBFS {
 	log.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
 	d := &DBFS{}
@@ -81,7 +81,12 @@ func NewDriver(nodeID, endpoint string) *DBFS {
 	if region == "" {
 		region, _ = utils.GetMetaData(RegionTag)
 	}
-	d.controllerServer = NewControllerServer(d.driver, c, region)
+	if serviceType&utils.Controller != 0 {
+		d.controllerServer = NewControllerServer(d.driver, c, region)
+	}
+	if serviceType&utils.Node != 0 {
+		d.nodeServer = newNodeServer(d)
+	}
 	GlobalConfigVar.DbfsClient = c
 
 	// Global Configs Set
@@ -91,7 +96,7 @@ func NewDriver(nodeID, endpoint string) *DBFS {
 
 // Run start a new NodeServer
 func (d *DBFS) Run() {
-	common.RunCSIServer(d.endpoint, NewIdentityServer(d.driver), d.controllerServer, newNodeServer(d))
+	common.RunCSIServer(d.endpoint, NewIdentityServer(d.driver), d.controllerServer, d.nodeServer)
 }
 
 // GlobalConfigSet set global config

@@ -180,7 +180,7 @@ func NewNodeServer(d *csicommon.CSIDriver, m metadata.MetadataProvider) csi.Node
 		go checkVfhpOnlineReconcile()
 	}
 
-	if !GlobalConfigVar.ControllerService && IsVFNode() && GlobalConfigVar.BdfHealthCheck {
+	if IsVFNode() && GlobalConfigVar.BdfHealthCheck {
 		go BdfHealthCheck()
 	}
 

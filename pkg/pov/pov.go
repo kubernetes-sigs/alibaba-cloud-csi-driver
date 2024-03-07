@@ -7,6 +7,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -26,14 +27,15 @@ type PoV struct {
 	nodeService
 }
 
-func NewDriver(meta *metadata.Metadata, nodeID, endpoint string, runAsController bool) *PoV {
+func NewDriver(meta *metadata.Metadata, nodeID, endpoint string, serviceType utils.ServiceType) *PoV {
 	poV := &PoV{}
 	poV.endpoint = endpoint
-	newGlobalConfig(meta, runAsController)
+	newGlobalConfig(meta, serviceType)
 
-	if runAsController {
+	if serviceType&utils.Controller != 0 {
 		poV.controllerService = newControllerService()
-	} else {
+	}
+	if serviceType&utils.Node != 0 {
 		poV.nodeService = newNodeService()
 	}
 
@@ -46,7 +48,7 @@ func (p *PoV) Run() {
 	common.RunCSIServer(p.endpoint, p, &p.controllerService, &p.nodeService)
 }
 
-func newGlobalConfig(meta *metadata.Metadata, runAsController bool) {
+func newGlobalConfig(meta *metadata.Metadata, serviceType utils.ServiceType) {
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
 		log.Fatalf("newGlobalConfig: build kubeconfig failed: %v", err)
@@ -68,19 +70,16 @@ func newGlobalConfig(meta *metadata.Metadata, runAsController bool) {
 	}
 
 	GlobalConfigVar = GlobalConfig{
-		controllerService: runAsController,
-		client:            kubeClient,
-		regionID:          metadata.MustGet(meta, metadata.RegionID),
+		client:   kubeClient,
+		regionID: metadata.MustGet(meta, metadata.RegionID),
 	}
-
-	if !runAsController {
+	if serviceType&utils.Node != 0 {
 		GlobalConfigVar.instanceID = metadata.MustGet(meta, metadata.InstanceID)
 	}
 }
 
 type GlobalConfig struct {
-	regionID          string
-	instanceID        string
-	controllerService bool
-	client            kubernetes.Interface
+	regionID   string
+	instanceID string
+	client     kubernetes.Interface
 }
