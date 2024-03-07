@@ -172,7 +172,7 @@ func (cs *controllerServer) ControllerGetVolume(ctx context.Context, req *csi.Co
 }
 
 func (cs *controllerServer) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest,
-)(*csi.ControllerModifyVolumeResponse, error) {
+) (*csi.ControllerModifyVolumeResponse, error) {
 	log.Infof("ControllerGetVolume is called, do nothing now")
 	return &csi.ControllerModifyVolumeResponse{}, nil
 }

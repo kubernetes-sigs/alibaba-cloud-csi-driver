@@ -49,43 +49,45 @@ const (
 
 // DISK the DISK object
 type DISK struct {
-	driver           *csicommon.CSIDriver
-	endpoint         string
-	idServer         csi.IdentityServer
-	nodeServer       csi.NodeServer
-	controllerServer csi.ControllerServer
+	driver                *csicommon.CSIDriver
+	endpoint              string
+	idServer              csi.IdentityServer
+	nodeServer            csi.NodeServer
+	controllerServer      csi.ControllerServer
+	groupControllerServer csi.GroupControllerServer
 }
 
 // GlobalConfig save global values for plugin
 type GlobalConfig struct {
-	EcsClient             *ecs.Client
-	Region                string
-	NodeID                string
-	DiskTagEnable         bool
-	AttachDetachSlots     AttachDetachSlots
-	ADControllerEnable    bool
-	DetachDisabled        bool
-	MetricEnable          bool
-	RunTimeClass          string
-	DetachBeforeAttach    bool
-	DetachBeforeDelete    bool
-	DiskBdfEnable         bool
-	ClientSet             *kubernetes.Clientset
-	FilesystemLosePercent float64
-	ClusterID             string
-	DiskPartitionEnable   bool
-	ControllerService     bool
-	BdfHealthCheck        bool
-	DiskMultiTenantEnable bool
-	CheckBDFHotPlugin     bool
-	SnapClient            *snapClientset.Clientset
-	NodeMultiZoneEnable   bool
-	WaitBeforeAttach      bool
-	AddonVMFatalEvents    []string
-	RequestBaseInfo       map[string]string
-	SnapshotBeforeDelete  bool
-	OmitFilesystemCheck   bool
-	DiskAllowAllType      bool
+	EcsClient                 *ecs.Client
+	Region                    string
+	NodeID                    string
+	DiskTagEnable             bool
+	AttachDetachSlots         AttachDetachSlots
+	ADControllerEnable        bool
+	DetachDisabled            bool
+	MetricEnable              bool
+	RunTimeClass              string
+	DetachBeforeAttach        bool
+	DetachBeforeDelete        bool
+	DiskBdfEnable             bool
+	ClientSet                 *kubernetes.Clientset
+	FilesystemLosePercent     float64
+	ClusterID                 string
+	DiskPartitionEnable       bool
+	ControllerService         bool
+	BdfHealthCheck            bool
+	VolumeGroupSnapshotEnable bool
+	DiskMultiTenantEnable     bool
+	CheckBDFHotPlugin         bool
+	SnapClient                *snapClientset.Clientset
+	NodeMultiZoneEnable       bool
+	WaitBeforeAttach          bool
+	AddonVMFatalEvents        []string
+	RequestBaseInfo           map[string]string
+	SnapshotBeforeDelete      bool
+	OmitFilesystemCheck       bool
+	DiskAllowAllType          bool
 }
 
 // define global variable
@@ -136,6 +138,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
 	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient)
+	tmpdisk.groupControllerServer = NewGroupControllerServer(apiExtentionClient)
 
 	if !runAsController {
 		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, m)
@@ -257,6 +260,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		DiskPartitionEnable:   csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true),
 		ControllerService:     controllerServerType,
 		BdfHealthCheck:        csiCfg.GetBool("bdf-health-check", "BDF_HEALTH_CHECK", true),
+		VolumeGroupSnapshotEnable:   csiCfg.GetBool("enable-volume-group-snapshots", "ENABLE_VOLUME_GROUP_SNAPSHOTS", false),
 		DiskMultiTenantEnable: csiCfg.GetBool("disk-multi-tenant-enable", "DISK_MULTI_TENANT_ENABLE", false),
 		NodeMultiZoneEnable:   csiCfg.GetBool("node-multi-zone-enable", "NODE_MULTI_ZONE_ENABLE", false),
 		WaitBeforeAttach:      csiCfg.GetBool("wait-before-attach", "WAIT_BEFORE_ATTACH", false),
