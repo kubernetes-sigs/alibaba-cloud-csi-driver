@@ -568,9 +568,9 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	sourceVolumeID := strings.Trim(req.GetSourceVolumeId(), " ")
 	// Need to check for already existing snapshot name
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-	snapshots, snapNum, err := findSnapshotByName(req.GetName())
+	snapshots, snapNum, err := findSnapshot(req.GetName(), "")
 	if snapNum == 0 {
-		snapshots, snapNum, err = findDiskSnapshotByID(req.GetName())
+		snapshots, snapNum, err = findSnapshot("", req.GetName())
 	}
 	switch {
 	case snapNum == 1:
@@ -636,7 +636,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	// }
 
 	// if disk type is not essd and IA set disable
-	if params.InstantAccess && disks[0].Category != DiskESSD && disks[0].Category != DiskESSDAuto {
+	if params.InstantAccess && disks[0].Category != DiskESSD && disks[0].Category != DiskESSDAuto && disks[0].Category != DiskESSDEntry {
 		log.Warnf("CreateSnapshot: Snapshot(%s) set as not IA type, because disk Category %s", req.Name, disks[0].Category)
 		params.InstantAccess = false
 	}
@@ -648,7 +648,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, params)
 
 	if err != nil {
-		log.Errorf("CreateSnapshot:: Snapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", req.Name, req.GetSourceVolumeId(), err.Error())
+		log.Errorf("CreateSnapshot:: Snapshot create failed: snapshotName[%s], sourceId[%s], error[%s]", req.Name, req.GetSourceVolumeId(), err.Error())
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, err.Error())
 		return nil, err
 	}
@@ -732,7 +732,7 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 
 	// Check Snapshot exist
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-	snapshot, snapNum, err := findDiskSnapshotByID(req.SnapshotId)
+	snapshot, snapNum, err := findSnapshot("", req.SnapshotId)
 	if err != nil {
 		return nil, err
 	}
@@ -787,7 +787,7 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 	log.Infof("ListSnapshots:: called with args: %+v", req)
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshotID := req.GetSnapshotId()
-	snapshot, snapNum, err := findDiskSnapshotByID(snapshotID)
+	snapshot, snapNum, err := findSnapshot("", snapshotID)
 	switch {
 	case snapshot != nil && snapNum == 1:
 		return newListSnapshotsResponse(snapshot)
@@ -1205,7 +1205,7 @@ func (cs *controllerServer) ControllerGetVolume(ctx context.Context, req *csi.Co
 }
 
 func (cs *controllerServer) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest,
-)(*csi.ControllerModifyVolumeResponse, error) {
+) (*csi.ControllerModifyVolumeResponse, error) {
 	log.Infof("ControllerGetVolume is called, do nothing now")
 	return &csi.ControllerModifyVolumeResponse{}, nil
 }

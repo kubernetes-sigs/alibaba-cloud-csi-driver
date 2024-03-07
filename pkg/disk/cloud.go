@@ -678,11 +678,18 @@ func findDiskByID(diskID string, ecsClient *ecs.Client) (*ecs.Disk, error) {
 	return &disks[0], err
 }
 
-func findSnapshotByName(name string) (*ecs.DescribeSnapshotsResponse, int, error) {
+func findSnapshot(name string, id string) (*ecs.DescribeSnapshotsResponse, int, error) {
+	var snapshots *ecs.DescribeSnapshotsResponse
+	var err error
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
-	describeSnapShotRequest.SnapshotName = name
-	snapshots, err := GlobalConfigVar.EcsClient.DescribeSnapshots(describeSnapShotRequest)
+	if name != "" {
+		describeSnapShotRequest.SnapshotName = name
+	}
+	if id != "" {
+		describeSnapShotRequest.SnapshotIds = "[\"" + id + "\"]"
+	}
+	snapshots, err = GlobalConfigVar.EcsClient.DescribeSnapshots(describeSnapShotRequest)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -696,22 +703,26 @@ func findSnapshotByName(name string) (*ecs.DescribeSnapshotsResponse, int, error
 	return snapshots, 1, nil
 }
 
-func findDiskSnapshotByID(id string) (*ecs.DescribeSnapshotsResponse, int, error) {
-	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
-	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
-	describeSnapShotRequest.SnapshotIds = "[\"" + id + "\"]"
-	snapshots, err := GlobalConfigVar.EcsClient.DescribeSnapshots(describeSnapShotRequest)
+func findGroupSnapshot(name string, id string) (*ecs.DescribeSnapshotGroupsResponse, int, error) {
+	describeGroupSnapShotRequest := ecs.CreateDescribeSnapshotGroupsRequest()
+	describeGroupSnapShotRequest.RegionId = GlobalConfigVar.Region
+	if name != "" {
+		describeGroupSnapShotRequest.Name = name
+	}
+	if id != "" {
+		describeGroupSnapShotRequest.SnapshotGroupId = &[]string{id}
+	}
+	groupSnapshots, err := GlobalConfigVar.EcsClient.DescribeSnapshotGroups(describeGroupSnapShotRequest)
 	if err != nil {
 		return nil, 0, err
 	}
-	if len(snapshots.Snapshots.Snapshot) == 0 {
-		return snapshots, 0, nil
+	if len(groupSnapshots.SnapshotGroups.SnapshotGroup) == 0 {
+		return groupSnapshots, 0, nil
 	}
-
-	if len(snapshots.Snapshots.Snapshot) > 1 {
-		return snapshots, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with id "+id)
+	if len(groupSnapshots.SnapshotGroups.SnapshotGroup) > 1 {
+		return groupSnapshots, len(groupSnapshots.SnapshotGroups.SnapshotGroup), status.Error(codes.Internal, "find more than one groupSnapshot with name "+name)
 	}
-	return snapshots, 1, nil
+	return groupSnapshots, 1, nil
 }
 
 func StopDiskOperationRetry(instanceId string, ecsClient *ecs.Client) bool {
@@ -800,6 +811,32 @@ func requestAndCreateSnapshot(ecsClient *ecs.Client, params *createSnapshotParam
 	return snapshotResponse, nil
 }
 
+func requestAndCreateSnapshotGroup(ecsClient *ecs.Client, params *createGroupSnapshotParams) (*ecs.CreateSnapshotGroupResponse, error) {
+	// init createSnapshotRequest and parameters
+	createSnapshotGroupRequest := ecs.CreateCreateSnapshotGroupRequest()
+	createSnapshotGroupRequest.DiskId = &params.SourceVolumeIDs
+	createSnapshotGroupRequest.Name = params.SnapshotName
+	createSnapshotGroupRequest.ResourceGroupId = params.ResourceGroupID
+
+	// Set tags
+	snapshotTags := []ecs.CreateSnapshotGroupTag{
+		{Key: DISKTAGKEY2, Value: DISKTAGVALUE2},
+		{Key: SNAPSHOTTAGKEY1, Value: "true"},
+	}
+	if GlobalConfigVar.ClusterID != "" {
+		snapshotTags = append(snapshotTags, ecs.CreateSnapshotGroupTag{Key: DISKTAGKEY3, Value: GlobalConfigVar.ClusterID})
+	}
+	snapshotTags = append(snapshotTags, params.SnapshotTags...)
+	createSnapshotGroupRequest.Tag = &snapshotTags
+
+	// Do Snapshot create
+	snapshotResponse, err := ecsClient.CreateSnapshotGroup(createSnapshotGroupRequest)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed create groupSnapshot: %v", err)
+	}
+	return snapshotResponse, nil
+}
+
 func requestAndDeleteSnapshot(snapshotID string) (*ecs.DeleteSnapshotResponse, error) {
 	// Delete Snapshot
 	deleteSnapshotRequest := ecs.CreateDeleteSnapshotRequest()
@@ -810,6 +847,14 @@ func requestAndDeleteSnapshot(snapshotID string) (*ecs.DeleteSnapshotResponse, e
 		return response, status.Errorf(codes.Internal, "failed delete snapshot: %v", err)
 	}
 	return response, nil
+}
+
+type createGroupSnapshotParams struct {
+	SourceVolumeIDs []string
+	SnapshotName    string
+	ResourceGroupID string
+	//RetentionDays   int
+	SnapshotTags []ecs.CreateSnapshotGroupTag
 }
 
 // Docs say Chinese characters are supported, but the exactly range is not clear.

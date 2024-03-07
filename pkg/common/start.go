@@ -8,6 +8,7 @@ import (
 func RunCSIServer(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
 	ns = WrapNodeServerWithValidator(ns)
 	cs = WrapControllerServerWithValidator(cs)
+	// TODO: WrapGroupControllerServerWithValidator
 
 	// start grpc server
 	s := csicommon.NewNonBlockingGRPCServer()

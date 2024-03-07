@@ -42,6 +42,8 @@ const (
 	SnapshotRequestTag = "SNAPSHOT_REQUEST_INTERVAL"
 	// DefaultVolumeSnapshotClass ...
 	DefaultVolumeSnapshotClass = "alibabacloud-disk-snapshot"
+	// DefaultVolumeGroupSnapshotClass ...
+	DefaultVolumeGroupSnapshotClass = "alibabacloud-disk-group-snapshot"
 	// annDiskID tag
 	annDiskID = "volume.alibabacloud.com/disk-id"
 	// MultiAttach tag
