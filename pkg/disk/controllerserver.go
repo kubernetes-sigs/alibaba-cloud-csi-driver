@@ -33,8 +33,8 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
-	volumeSnasphotV1 "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
-	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
+	volumeSnasphotV1 "github.com/kubernetes-csi/external-snapshotter/client/v7/apis/volumesnapshot/v1"
+	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v7/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/crds"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -1196,4 +1196,16 @@ func (cs *controllerServer) deleteUntagAutoSnapshot(snapshotID, diskID string) {
 	if err != nil {
 		log.Errorf("ControllerExpandVolume:: failed to untag volumeExpandAutoSnapshot: %s", err.Error())
 	}
+}
+
+func (cs *controllerServer) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest,
+) (*csi.ControllerGetVolumeResponse, error) {
+	log.Infof("ControllerGetVolume is called, do nothing now")
+	return &csi.ControllerGetVolumeResponse{}, nil
+}
+
+func (cs *controllerServer) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest,
+)(*csi.ControllerModifyVolumeResponse, error) {
+	log.Infof("ControllerGetVolume is called, do nothing now")
+	return &csi.ControllerModifyVolumeResponse{}, nil
 }
