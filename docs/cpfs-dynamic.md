@@ -1,6 +1,8 @@
 
 ## Usage
 
+**Deprecated**
+
 ### Step 1: Create CSI plugin
 ```
 # kubectl create -f ./deploy/cpfs/cpfs-plugin.yaml

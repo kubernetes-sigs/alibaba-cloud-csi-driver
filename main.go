@@ -30,7 +30,6 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cpfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dbfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/ens"
@@ -192,11 +191,7 @@ func main() {
 			}(endPointName)
 
 		case TypePluginCPFS:
-			go func(endPoint string) {
-				defer wg.Done()
-				driver := cpfs.NewDriver(*nodeID, endPoint)
-				driver.Run()
-			}(endPointName)
+			log.Fatalf("%s is already deprecated, please switch to %s if you are using CPFS 2.0 protocol server", TypePluginCPFS, TypePluginNAS)
 		case TypePluginDBFS:
 			go func(endPoint string) {
 				defer wg.Done()
