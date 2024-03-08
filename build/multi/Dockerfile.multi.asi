@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.4
-FROM --platform=$BUILDPLATFORM golang:1.20.7 as build
+FROM --platform=$BUILDPLATFORM golang:1.21 as build
 WORKDIR /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 COPY . .
 RUN --mount=type=ssh \

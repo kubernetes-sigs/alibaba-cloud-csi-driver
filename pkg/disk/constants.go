@@ -73,7 +73,6 @@ const (
 	//snapshotGetError means that the get snapshot error occurred
 	snapshotGetError string = "SnapshotGetError"
 
-
 	// DocumentURL document URL
 	DocumentURL = "http://100.100.100.200/latest/dynamic/instance-identity/document"
 	// IncorrectDiskStatus incorrect disk status
