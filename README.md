@@ -37,10 +37,7 @@ More detail information please refer to [NAS](./docs/nas.md).
 
 ### CPFS CSI Plugin
 
-CPFS CSI Plugin can support CPFS volume provision and mount. Cloud Paralleled File System (CPFS) is a parallel file system, and can be mount by multi nodes at the same time.
-
-More detail information pls refer to [CPFS](./docs/cpfs.md).
-
+**Removed: Switch to NAS CSI plugin for CPFS 2.0**
 
 ### OSS CSI Plugin
 
