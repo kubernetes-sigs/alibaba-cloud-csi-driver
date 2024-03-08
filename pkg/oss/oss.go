@@ -21,7 +21,7 @@ import (
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
@@ -140,5 +140,10 @@ func newNodeServer(driver *csicommon.CSIDriver, m metadata.MetadataProvider) *no
 
 // Run start a newNodeServer
 func (d *OSS) Run() {
-	common.RunCSIServer(d.endpoint, csicommon.NewDefaultIdentityServer(d.driver), d.controllerServer, d.nodeServer)
+	servers := csicommon.Servers{
+		Ids: csicommon.NewDefaultIdentityServer(d.driver),
+		Cs:  d.controllerServer,
+		Ns:  d.nodeServer,
+	}
+	common.RunCSIServer(d.endpoint, servers)
 }

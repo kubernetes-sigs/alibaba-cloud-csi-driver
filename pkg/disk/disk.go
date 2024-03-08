@@ -24,8 +24,8 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v7/clientset/versioned"
+	csicommon "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
@@ -136,10 +136,15 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
 	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient)
-	tmpdisk.groupControllerServer = NewGroupControllerServer(apiExtentionClient)
 
 	if !runAsController {
 		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, m)
+	}
+	if GlobalConfigVar.VolumeGroupSnapshotEnable {
+		tmpdisk.driver.AddGroupControllerServiceCapabilities([]csi.GroupControllerServiceCapability_RPC_Type{
+			csi.GroupControllerServiceCapability_RPC_CREATE_DELETE_GET_VOLUME_GROUP_SNAPSHOT,
+		})
+		tmpdisk.groupControllerServer = NewGroupControllerServer(tmpdisk.driver, apiExtentionClient)
 	}
 
 	return tmpdisk
@@ -148,7 +153,13 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 // Run start a new NodeServer
 func (disk *DISK) Run() {
 	log.Infof("Starting csi-plugin Driver: %v version: %v", driverName, version.VERSION)
-	common.RunCSIServer(disk.endpoint, disk.idServer, disk.controllerServer, disk.nodeServer)
+	servers := csicommon.Servers{
+		Ids: disk.idServer,
+		Cs:  disk.controllerServer,
+		Ns:  disk.nodeServer,
+		Gcs: disk.groupControllerServer,
+	}
+	common.RunCSIServer(disk.endpoint, servers)
 }
 
 // GlobalConfigSet set Global Config

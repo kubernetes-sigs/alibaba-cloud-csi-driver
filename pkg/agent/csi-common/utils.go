@@ -34,7 +34,7 @@ func ParseEndpoint(ep string) (string, string, error) {
 			return s[0], s[1], nil
 		}
 	}
-	return "", "", fmt.Errorf("Invalid endpoint: %v", ep)
+	return "", "", fmt.Errorf("invalid endpoint: %v", ep)
 }
 
 func NewVolumeCapabilityAccessMode(mode csi.VolumeCapability_AccessMode_Mode) *csi.VolumeCapability_AccessMode {
@@ -59,6 +59,12 @@ func NewDefaultControllerServer(d *CSIDriver) *DefaultControllerServer {
 	}
 }
 
+func NewDefaultGroupControllerServer(d *CSIDriver) *DefaultGroupControllerServer {
+	return &DefaultGroupControllerServer{
+		Driver: d,
+	}
+}
+
 func NewControllerServiceCapability(cap csi.ControllerServiceCapability_RPC_Type) *csi.ControllerServiceCapability {
 	return &csi.ControllerServiceCapability{
 		Type: &csi.ControllerServiceCapability_Rpc{
@@ -69,28 +75,14 @@ func NewControllerServiceCapability(cap csi.ControllerServiceCapability_RPC_Type
 	}
 }
 
-func RunNodePublishServer(endpoint string, d *CSIDriver, ns csi.NodeServer) {
-	ids := NewDefaultIdentityServer(d)
-
-	s := NewNonBlockingGRPCServer()
-	s.Start(endpoint, ids, nil, ns)
-	s.Wait()
-}
-
-func RunControllerPublishServer(endpoint string, d *CSIDriver, cs csi.ControllerServer) {
-	ids := NewDefaultIdentityServer(d)
-
-	s := NewNonBlockingGRPCServer()
-	s.Start(endpoint, ids, cs, nil)
-	s.Wait()
-}
-
-func RunControllerandNodePublishServer(endpoint string, d *CSIDriver, cs csi.ControllerServer, ns csi.NodeServer) {
-	ids := NewDefaultIdentityServer(d)
-
-	s := NewNonBlockingGRPCServer()
-	s.Start(endpoint, ids, cs, ns)
-	s.Wait()
+func NewGroupControllerServiceCapability(gCap csi.GroupControllerServiceCapability_RPC_Type) *csi.GroupControllerServiceCapability {
+	return &csi.GroupControllerServiceCapability{
+		Type: &csi.GroupControllerServiceCapability_Rpc{
+			Rpc: &csi.GroupControllerServiceCapability_RPC{
+				Type: gCap,
+			},
+		},
+	}
 }
 
 func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {

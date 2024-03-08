@@ -27,10 +27,18 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 )
 
+// Servers holds the list of servers.
+type Servers struct {
+	Ids csi.IdentityServer
+	Cs  csi.ControllerServer
+	Ns  csi.NodeServer
+	Gcs csi.GroupControllerServer
+}
+
 // Defines Non blocking GRPC server interfaces
 type NonBlockingGRPCServer interface {
 	// Start services at the endpoint
-	Start(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer)
+	Start(endpoint string, servers Servers)
 	// Waits for the service to stop
 	Wait()
 	// Stops the service gracefully
@@ -49,13 +57,12 @@ type nonBlockingGRPCServer struct {
 	server *grpc.Server
 }
 
-func (s *nonBlockingGRPCServer) Start(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
+func (s *nonBlockingGRPCServer) Start(endpoint string, servers Servers) {
 
 	s.wg.Add(1)
 
-	go s.serve(endpoint, ids, cs, ns)
+	go s.serve(endpoint, servers)
 
-	return
 }
 
 func (s *nonBlockingGRPCServer) Wait() {
@@ -70,7 +77,7 @@ func (s *nonBlockingGRPCServer) ForceStop() {
 	s.server.Stop()
 }
 
-func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
+func (s *nonBlockingGRPCServer) serve(endpoint string, servers Servers) {
 
 	proto, addr, err := ParseEndpoint(endpoint)
 	if err != nil {
@@ -95,14 +102,17 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, c
 	server := grpc.NewServer(opts...)
 	s.server = server
 
-	if ids != nil {
-		csi.RegisterIdentityServer(server, ids)
+	if servers.Ids != nil {
+		csi.RegisterIdentityServer(server, servers.Ids)
 	}
-	if cs != nil {
-		csi.RegisterControllerServer(server, cs)
+	if servers.Cs != nil {
+		csi.RegisterControllerServer(server, servers.Cs)
 	}
-	if ns != nil {
-		csi.RegisterNodeServer(server, ns)
+	if servers.Ns != nil {
+		csi.RegisterNodeServer(server, servers.Ns)
+	}
+	if servers.Gcs != nil {
+		csi.RegisterGroupControllerServer(server, servers.Gcs)
 	}
 
 	glog.Infof("Listening for connections on address: %#v", listener.Addr())
