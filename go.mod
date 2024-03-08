@@ -39,7 +39,7 @@ require (
 	k8s.io/apimachinery v0.29.0
 	k8s.io/client-go v0.29.0
 	k8s.io/component-base v0.26.12
-	k8s.io/kubelet v0.26.12
+	k8s.io/kubelet v0.26.0-alpha.1
 	k8s.io/mount-utils v0.21.1
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 )
@@ -53,7 +53,6 @@ require (
 	github.com/alibabacloud-go/tea-utils/v2 v2.0.5 // indirect
 	github.com/alibabacloud-go/tea-xml v1.1.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/clbanning/mxj/v2 v2.5.5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -81,11 +80,11 @@ require (
 	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/google/gnostic-models v0.6.8 // indirect
+	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/gorilla/mux v1.7.0 // indirect
+	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af // indirect
@@ -132,5 +131,10 @@ replace (
 	github.com/stretchr/testify => github.com/stretchr/testify v1.3.0
 	google.golang.org/appengine => google.golang.org/appengine v1.4.0
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.2
+	k8s.io/api => k8s.io/api v0.26.12
+	k8s.io/apimachinery => k8s.io/apimachinery v0.26.12
+	k8s.io/client-go => k8s.io/client-go v0.26.12
+	k8s.io/component-base => k8s.io/component-base v0.23.0
+	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20230501164219-8b0f38b5fd1f
 	sigs.k8s.io/yaml => sigs.k8s.io/yaml v1.1.0
 )
