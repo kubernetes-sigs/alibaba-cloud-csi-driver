@@ -1,17 +1,18 @@
 package common
 
 import (
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent/csi-common"
 )
 
-func RunCSIServer(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
-	ns = WrapNodeServerWithValidator(ns)
-	cs = WrapControllerServerWithValidator(cs)
-	// TODO: WrapGroupControllerServerWithValidator
+func RunCSIServer(endpoint string, servers csicommon.Servers) {
+	servers.Ns = WrapNodeServerWithValidator(servers.Ns)
+	servers.Cs = WrapControllerServerWithValidator(servers.Cs)
+	if servers.Gcs != nil {
+		servers.Gcs = WrapGroupControllerServerWithValidator(servers.Gcs)
+	}
 
 	// start grpc server
 	s := csicommon.NewNonBlockingGRPCServer()
-	s.Start(endpoint, ids, cs, ns)
+	s.Start(endpoint, servers)
 	s.Wait()
 }

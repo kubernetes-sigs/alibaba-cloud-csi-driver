@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	csicommon "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -89,7 +89,12 @@ func NewDriver(nodeID, endpoint string) *ENS {
 
 func (ens *ENS) Run() {
 	log.Infof("Run: start csi-plugin driver: %s, version %s", driverName, version.VERSION)
-	common.RunCSIServer(ens.endpoint, ens.idServer, ens.controllerServer, ens.nodeServer)
+	servers := csicommon.Servers{
+		Ids: ens.idServer,
+		Cs:  ens.controllerServer,
+		Ns:  ens.nodeServer,
+	}
+	common.RunCSIServer(ens.endpoint, servers)
 }
 
 func NewGlobalConfig() {

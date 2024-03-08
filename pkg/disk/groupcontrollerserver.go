@@ -15,6 +15,7 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	groupVolumeSnasphotV1alpha1 "github.com/kubernetes-csi/external-snapshotter/client/v7/apis/volumegroupsnapshot/v1alpha1"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v7/clientset/versioned"
+	csicommon "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/crds"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -40,11 +41,12 @@ var groupControllerCaps = []csi.GroupControllerServiceCapability_RPC_Type{
 
 // groupcontroller server try to create/delete group snapshots
 type groupControllerServer struct {
+	*csicommon.DefaultGroupControllerServer
 	recorder record.EventRecorder
 }
 
 // NewGroupControllerServer is to create controller server
-func NewGroupControllerServer(client *crd.Clientset) csi.GroupControllerServer {
+func NewGroupControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.GroupControllerServer {
 	installCRD := true
 	installCRDStr := os.Getenv(utils.InstallSnapshotCRD)
 	if installCRDStr == "false" {
@@ -67,7 +69,8 @@ func NewGroupControllerServer(client *crd.Clientset) csi.GroupControllerServer {
 		checkInstallDefaultVolumeGroupSnapshotClass(GlobalConfigVar.SnapClient)
 	}
 	c := &groupControllerServer{
-		recorder: utils.NewEventRecorder(),
+		DefaultGroupControllerServer: csicommon.NewDefaultGroupControllerServer(d),
+		recorder:                     utils.NewEventRecorder(),
 	}
 	return c
 }
@@ -124,7 +127,11 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 	}
 
 	log.Infof("CreateVolumeGroupSnapshot:: Starting to create volumegroupsnapshot: %+v", req)
-	// TODO:: ValidateGroupControllerServiceRequest
+	if err := cs.Driver.ValidateGroupControllerServiceRequest(csi.GroupControllerServiceCapability_RPC_CREATE_DELETE_GET_VOLUME_GROUP_SNAPSHOT); err != nil {
+		log.Errorf("CreateVolumeGroupSnapshot: driver not support Create volume group snapshot: %v", err)
+		return nil, err
+	}
+
 	sourceVolumeIds := req.GetSourceVolumeIds()
 	for index, id := range sourceVolumeIds {
 		sourceVolumeIds[index] = strings.TrimSpace(id)

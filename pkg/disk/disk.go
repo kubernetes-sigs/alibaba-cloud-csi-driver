@@ -24,8 +24,8 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v7/clientset/versioned"
+	csicommon "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
@@ -138,10 +138,15 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
 	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient)
-	tmpdisk.groupControllerServer = NewGroupControllerServer(apiExtentionClient)
 
 	if !runAsController {
 		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, m)
+	}
+	if GlobalConfigVar.VolumeGroupSnapshotEnable {
+		tmpdisk.driver.AddGroupControllerServiceCapabilities([]csi.GroupControllerServiceCapability_RPC_Type{
+			csi.GroupControllerServiceCapability_RPC_CREATE_DELETE_GET_VOLUME_GROUP_SNAPSHOT,
+		})
+		tmpdisk.groupControllerServer = NewGroupControllerServer(tmpdisk.driver, apiExtentionClient)
 	}
 
 	return tmpdisk
@@ -150,7 +155,13 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 // Run start a new NodeServer
 func (disk *DISK) Run() {
 	log.Infof("Starting csi-plugin Driver: %v version: %v", driverName, version.VERSION)
-	common.RunCSIServer(disk.endpoint, disk.idServer, disk.controllerServer, disk.nodeServer)
+	servers := csicommon.Servers{
+		Ids: disk.idServer,
+		Cs:  disk.controllerServer,
+		Ns:  disk.nodeServer,
+		Gcs: disk.groupControllerServer,
+	}
+	common.RunCSIServer(disk.endpoint, servers)
 }
 
 // GlobalConfigSet set Global Config
@@ -243,32 +254,32 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
-		Region:                metadata.MustGet(m, metadata.RegionID),
-		NodeID:                nodeID,
-		ADControllerEnable:    csiCfg.GetBool("disk-adcontroller-enable", "DISK_AD_CONTROLLER", false),
-		DiskTagEnable:         csiCfg.GetBool("disk-tag-by-plugin", "DISK_TAGED_BY_PLUGIN", false),
-		DiskBdfEnable:         csiCfg.GetBool("disk-bdf-enable", "DISK_BDF_ENABLE", false),
-		MetricEnable:          csiCfg.GetBool("disk-metric-by-plugin", "DISK_METRIC_BY_PLUGIN", true),
-		RunTimeClass:          runtimeValue,
-		DetachDisabled:        csiCfg.GetBool("disk-detach-disable", "DISK_DETACH_DISABLE", false),
-		DetachBeforeDelete:    csiCfg.GetBool("disk-detach-before-delete", "DISK_DETACH_BEFORE_DELETE", true),
-		DetachBeforeAttach:    csiCfg.GetBool("disk-detach-before-attach", "DISK_FORCE_DETACHED", true),
-		ClientSet:             kubeClient,
-		SnapClient:            snapClient,
-		FilesystemLosePercent: fileSystemLosePercent,
-		ClusterID:             clustID,
-		DiskPartitionEnable:   csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true),
-		ControllerService:     controllerServerType,
-		BdfHealthCheck:        csiCfg.GetBool("bdf-health-check", "BDF_HEALTH_CHECK", true),
-		VolumeGroupSnapshotEnable:   csiCfg.GetBool("enable-volume-group-snapshots", "ENABLE_VOLUME_GROUP_SNAPSHOTS", false),
-		DiskMultiTenantEnable: csiCfg.GetBool("disk-multi-tenant-enable", "DISK_MULTI_TENANT_ENABLE", false),
-		NodeMultiZoneEnable:   csiCfg.GetBool("node-multi-zone-enable", "NODE_MULTI_ZONE_ENABLE", false),
-		WaitBeforeAttach:      csiCfg.GetBool("wait-before-attach", "WAIT_BEFORE_ATTACH", false),
-		AddonVMFatalEvents:    fatalEvents,
-		SnapshotBeforeDelete:  csiCfg.GetBool("volume-del-auto-snap", "VOLUME_DEL_AUTO_SNAP", false),
-		RequestBaseInfo:       map[string]string{"owner": "alibaba-cloud-csi-driver", "nodeName": nodeName},
-		OmitFilesystemCheck:   csiCfg.GetBool("disable-fs-check", "DISABLE_FS_CHECK", false),
-		DiskAllowAllType:      csiCfg.GetBool("disk-allow-all-type", "DISK_ALLOW_ALL_TYPE", false),
+		Region:                    metadata.MustGet(m, metadata.RegionID),
+		NodeID:                    nodeID,
+		ADControllerEnable:        csiCfg.GetBool("disk-adcontroller-enable", "DISK_AD_CONTROLLER", false),
+		DiskTagEnable:             csiCfg.GetBool("disk-tag-by-plugin", "DISK_TAGED_BY_PLUGIN", false),
+		DiskBdfEnable:             csiCfg.GetBool("disk-bdf-enable", "DISK_BDF_ENABLE", false),
+		MetricEnable:              csiCfg.GetBool("disk-metric-by-plugin", "DISK_METRIC_BY_PLUGIN", true),
+		RunTimeClass:              runtimeValue,
+		DetachDisabled:            csiCfg.GetBool("disk-detach-disable", "DISK_DETACH_DISABLE", false),
+		DetachBeforeDelete:        csiCfg.GetBool("disk-detach-before-delete", "DISK_DETACH_BEFORE_DELETE", true),
+		DetachBeforeAttach:        csiCfg.GetBool("disk-detach-before-attach", "DISK_FORCE_DETACHED", true),
+		ClientSet:                 kubeClient,
+		SnapClient:                snapClient,
+		FilesystemLosePercent:     fileSystemLosePercent,
+		ClusterID:                 clustID,
+		DiskPartitionEnable:       csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true),
+		ControllerService:         controllerServerType,
+		BdfHealthCheck:            csiCfg.GetBool("bdf-health-check", "BDF_HEALTH_CHECK", true),
+		VolumeGroupSnapshotEnable: common.DefaultFeatureGate.Enabled(common.VolumeGroupSnapshot),
+		DiskMultiTenantEnable:     csiCfg.GetBool("disk-multi-tenant-enable", "DISK_MULTI_TENANT_ENABLE", false),
+		NodeMultiZoneEnable:       csiCfg.GetBool("node-multi-zone-enable", "NODE_MULTI_ZONE_ENABLE", false),
+		WaitBeforeAttach:          csiCfg.GetBool("wait-before-attach", "WAIT_BEFORE_ATTACH", false),
+		AddonVMFatalEvents:        fatalEvents,
+		SnapshotBeforeDelete:      csiCfg.GetBool("volume-del-auto-snap", "VOLUME_DEL_AUTO_SNAP", false),
+		RequestBaseInfo:           map[string]string{"owner": "alibaba-cloud-csi-driver", "nodeName": nodeName},
+		OmitFilesystemCheck:       csiCfg.GetBool("disable-fs-check", "DISABLE_FS_CHECK", false),
+		DiskAllowAllType:          csiCfg.GetBool("disk-allow-all-type", "DISK_ALLOW_ALL_TYPE", false),
 	}
 	if GlobalConfigVar.ADControllerEnable {
 		log.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")

@@ -17,8 +17,6 @@ limitations under the License.
 package csicommon
 
 import (
-	"fmt"
-
 	"github.com/golang/glog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -31,6 +29,7 @@ type CSIDriver struct {
 	nodeID  string
 	version string
 	cap     []*csi.ControllerServiceCapability
+	gCap    []*csi.GroupControllerServiceCapability
 	vc      []*csi.VolumeCapability_AccessMode
 }
 
@@ -71,7 +70,7 @@ func (d *CSIDriver) ValidateControllerServiceRequest(c csi.ControllerServiceCapa
 			return nil
 		}
 	}
-	return status.Error(codes.InvalidArgument, fmt.Sprintf("%s", c))
+	return status.Error(codes.InvalidArgument, c.String())
 }
 
 func (d *CSIDriver) AddControllerServiceCapabilities(cl []csi.ControllerServiceCapability_RPC_Type) {
@@ -83,8 +82,6 @@ func (d *CSIDriver) AddControllerServiceCapabilities(cl []csi.ControllerServiceC
 	}
 
 	d.cap = csc
-
-	return
 }
 
 func (d *CSIDriver) AddVolumeCapabilityAccessModes(vc []csi.VolumeCapability_AccessMode_Mode) []*csi.VolumeCapability_AccessMode {
@@ -99,4 +96,28 @@ func (d *CSIDriver) AddVolumeCapabilityAccessModes(vc []csi.VolumeCapability_Acc
 
 func (d *CSIDriver) GetVolumeCapabilityAccessModes() []*csi.VolumeCapability_AccessMode {
 	return d.vc
+}
+
+func (d *CSIDriver) ValidateGroupControllerServiceRequest(c csi.GroupControllerServiceCapability_RPC_Type) error {
+	if c == csi.GroupControllerServiceCapability_RPC_UNKNOWN {
+		return nil
+	}
+
+	for _, cap := range d.gCap {
+		if c == cap.GetRpc().GetType() {
+			return nil
+		}
+	}
+	return status.Error(codes.InvalidArgument, c.String())
+}
+
+func (d *CSIDriver) AddGroupControllerServiceCapabilities(cl []csi.GroupControllerServiceCapability_RPC_Type) {
+	var csc []*csi.GroupControllerServiceCapability
+
+	for _, c := range cl {
+		glog.Infof("Enabling group controller service capability: %v", c.String())
+		csc = append(csc, NewGroupControllerServiceCapability(c))
+	}
+
+	d.gCap = csc
 }

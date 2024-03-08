@@ -235,6 +235,7 @@ spec:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=2"
             - "--driver=nas,disk,oss"
+            - "--enable-volume-group-snapshots=true"
           env:
             - name: CSI_ENDPOINT
               value: unix://var/lib/kubelet/csi-provisioner/driverplugin.csi.alibabacloud.com-replace/csi.sock
