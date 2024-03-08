@@ -35,12 +35,7 @@ NAS CSI插件更多详细说明请参考[NAS](./docs/nas.md)
 
 ### CPFS CSI插件
 
-**已废弃**
-
-CPFS CSI插件支持为应用负载挂载阿里云CPFS存储卷，也支持动态创建CPFS卷。CPFS是一种并行文件系统，提供共享存储，可以同时被多个应用负载使用(ReadWriteMany)。
-
-CPFS CSI插件更多详细说明请参考[CPFS](./docs/cpfs.md)
-
+**已删除：挂载 CPFS 2.0 请使用 NAS CSI 插件**
 
 ### OSS CSI插件
 

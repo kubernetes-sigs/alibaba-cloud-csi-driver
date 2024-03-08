@@ -191,7 +191,7 @@ func main() {
 			}(endPointName)
 
 		case TypePluginCPFS:
-			log.Fatalf("%s is already deprecated, please switch to %s if you are using CPFS 2.0 protocol server", TypePluginCPFS, TypePluginNAS)
+			log.Fatalf("%s is no longer supported, please switch to %s if you are using CPFS 2.0 protocol server", TypePluginCPFS, TypePluginNAS)
 		case TypePluginDBFS:
 			go func(endPoint string) {
 				defer wg.Done()
