@@ -4,10 +4,6 @@ import (
 	"strings"
 )
 
-// Template ...
-type Template struct {
-}
-
 // GetVolumeSnapshotsCRDv1 returns the VolumeSnapshot CRD Template
 func (temp *Template) GetVolumeSnapshotsCRDv1(kVersion string) string {
 	if strings.HasPrefix(kVersion, "v1.20") {
