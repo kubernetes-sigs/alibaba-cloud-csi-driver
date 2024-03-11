@@ -289,10 +289,7 @@ func IsFileExisting(filename string) bool {
 	if err == nil {
 		return true
 	}
-	if os.IsNotExist(err) {
-		return false
-	}
-	return true
+	return !os.IsNotExist(err)
 }
 
 // GetRegionAndInstanceID get region and instanceID object
@@ -547,7 +544,7 @@ func WriteJSONFile(obj interface{}, file string) error {
 
 // GetPodRunTime Get Pod runtimeclass config
 // Default as runc.
-func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet *kubernetes.Clientset) (string, error) {
+func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet kubernetes.Interface) (string, error) {
 	// if pod name namespace is empty, use default
 	podName, nameSpace := "", ""
 	if value, ok := req.VolumeContext["csi.storage.k8s.io/pod.name"]; ok {

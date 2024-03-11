@@ -2,38 +2,41 @@ package v1beta1
 
 import (
 	"context"
-	log "github.com/sirupsen/logrus"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/dynamic"
 )
 
-// getCnfsObject get cnfs crd
-func getCnfsObject(client dynamic.Interface, name string) (*ContainerNetworkFileSystem, error) {
-	utd, err := client.Resource(GVR).Get(context.TODO(), name, metav1.GetOptions{})
+// GetCnfsObject get cnfs's object
+func GetCnfsObject(client dynamic.Interface, name string) (*ContainerNetworkFileSystem, error) {
+	return NewCNFSGetter(client).GetCNFS(context.TODO(), name)
+}
+
+type CNFSGetter interface {
+	GetCNFS(ctx context.Context, name string) (*ContainerNetworkFileSystem, error)
+}
+
+func NewCNFSGetter(client dynamic.Interface) CNFSGetter {
+	return &dynamicClientCNFSGetter{client: client}
+}
+
+type dynamicClientCNFSGetter struct {
+	client dynamic.Interface
+}
+
+func (g *dynamicClientCNFSGetter) GetCNFS(ctx context.Context, name string) (*ContainerNetworkFileSystem, error) {
+	utd, err := g.client.Resource(GVR).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("Dynamic get cnfs %s is failed, err:%s", name, err)
 		return nil, err
 	}
 	data, err := utd.MarshalJSON()
 	if err != nil {
-		log.Errorf("MarshalJSON cnfs %s is failed, err:%s", name, err)
 		return nil, err
 	}
 	var cnfs ContainerNetworkFileSystem
 	if err := json.Unmarshal(data, &cnfs); err != nil {
-		log.Errorf("Unmarshal cnfs %s is failed, err:%s", name, err)
 		return nil, err
 	}
 	return &cnfs, nil
-}
-
-// GetCnfsObject get cnfs's object
-func GetCnfsObject(client dynamic.Interface, name string) (*ContainerNetworkFileSystem, error) {
-	cnfsObj, err := getCnfsObject(client, name)
-	if err != nil {
-		log.Errorf("Get cnfs %s is failed, err:%s", name, err)
-		return nil, err
-	}
-	return cnfsObj, nil
 }

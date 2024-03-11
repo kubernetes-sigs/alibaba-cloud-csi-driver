@@ -174,7 +174,7 @@ func main() {
 		case TypePluginNAS:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := nas.NewDriver(*nodeID, endPoint, serviceType)
+				driver := nas.NewDriver(meta, endPoint, serviceType)
 				driver.Run()
 			}(endPointName)
 		case TypePluginOSS:

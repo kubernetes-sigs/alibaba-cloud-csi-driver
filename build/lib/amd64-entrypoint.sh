@@ -245,14 +245,17 @@ if [ "$run_nas" = "true" ]; then
         install_utils="true"
         install_efc="true"
     fi
+    if test -e $client_properties && grep -qE "alinas-utils=true" $client_properties; then
+        install_utils="true"
+    fi
 
     if [ $install_utils = "true" ]; then
         # cpfs-nas nas-rich-client common rpm
         echo "installing aliyun-alinas-utils"
-        cp /root/aliyun-alinas-utils-1.1-6.al7.noarch.rpm /host/etc/csi-tool/
-        ${HOST_CMD} yum install -y /etc/csi-tool/aliyun-alinas-utils-1.1-6.al7.noarch.rpm
+        cp /root/aliyun-alinas-utils-1.1-8.al7.noarch.rpm /host/etc/csi-tool/
+        ${HOST_CMD} yum install -y /etc/csi-tool/aliyun-alinas-utils-1.1-8.al7.noarch.rpm
 
-        if ! ${HOST_CMD} rpm -q aliyun-alinas-utils | grep -E "^aliyun-alinas-utils-1.1-6" >/dev/null; then
+        if ! ${HOST_CMD} rpm -q aliyun-alinas-utils | grep -E "^aliyun-alinas-utils-1.1-8" >/dev/null; then
             echo "failed to install aliyun-alinas-utils"
             exit 1
         fi

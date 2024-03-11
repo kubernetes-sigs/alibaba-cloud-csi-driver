@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"time"
+
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"strconv"
-	"time"
 )
 
 const (
@@ -25,7 +26,7 @@ type DadiEndPoint struct {
 	ContainerEndPoints []string `json:"containerendpoints,omitempty"`
 }
 
-func getEndPoints(kubeClient *kubernetes.Clientset, namespace string) *corev1.Endpoints {
+func getEndPoints(kubeClient kubernetes.Interface, namespace string) *corev1.Endpoints {
 	endpoints, err := kubeClient.CoreV1().Endpoints(namespace).Get(context.Background(), cnfsCacheEndpointsName, metav1.GetOptions{})
 	if err != nil && errMaxCount < 5 {
 		errMaxCount++
@@ -63,7 +64,7 @@ func getEndPoint(endpoints *corev1.Endpoints) []string {
 	return endPoint
 }
 
-func Run(kubeClient *kubernetes.Clientset) {
+func Run(kubeClient kubernetes.Interface) {
 	for {
 		time.Sleep(time.Second * 10)
 		endpoint := getEndPoints(kubeClient, "kube-system")
@@ -76,7 +77,7 @@ func Run(kubeClient *kubernetes.Clientset) {
 		dadiEndPoint := DadiEndPoint{}
 		dadiEndPoint.ContainerEndPoints = getEndPoint(endpoint)
 		b, _ := json.Marshal(dadiEndPoint)
-		err := utils.WriteAndSyncFile(dadiHostPath+dadiEndPointFile, b, 644)
+		err := utils.WriteAndSyncFile(dadiHostPath+dadiEndPointFile, b, 0644)
 		if err != nil {
 			log.Errorf("Write %s json file is failed, err:%s", dadiHostPath+dadiEndPointFile, err.Error())
 		}

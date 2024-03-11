@@ -17,29 +17,18 @@ limitations under the License.
 package nas
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
-	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
-	sdkerrors "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
-	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
-	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -54,16 +43,11 @@ const (
 	Resize2fsFailedFilename = "resize2fs_failed.txt"
 	// Resize2fsFailedFixCmd ...
 	Resize2fsFailedFixCmd = "%s fsck -a %s"
-
+	// GiB bytes
 	GiB = 1 << 30
 	// see https://help.aliyun.com/zh/nas/modify-the-maximum-number-of-concurrent-nfs-requests
 	TcpSlotTableEntries      = "/proc/sys/sunrpc/tcp_slot_table_entries"
 	TcpSlotTableEntriesValue = "128\n"
-)
-
-var (
-	// KubernetesAlicloudIdentity is the system identity for ecs client request
-	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Nas-%s", version.VERSION)
 )
 
 // RoleAuth define STS Token Response
@@ -76,271 +60,95 @@ type RoleAuth struct {
 	Code            string
 }
 
-// DoMount execute the mount command for nas dir
-func DoMount(mounter mountutils.Interface, fsType, clientType, nfsProtocol, nfsServer, nfsPath, nfsVers, mountOptions, mountPoint, volumeID, podUID string) error {
-	if !utils.IsFileExisting(mountPoint) {
-		_ = CreateDest(mountPoint)
+func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, podUid string) error {
+	var (
+		mountFstype     string
+		source          string
+		combinedOptions []string
+		isPathNotFound  func(error) bool
+	)
+	if opt.Accesspoint != "" {
+		source = fmt.Sprintf("%s:%s", opt.Accesspoint, opt.Path)
+	} else {
+		source = fmt.Sprintf("%s:%s", opt.Server, opt.Path)
+	}
+	if opt.Options != "" {
+		combinedOptions = append(combinedOptions, opt.Options)
 	}
 
-	notMounted, err := mounter.IsLikelyNotMountPoint(mountPoint)
-	if err != nil {
-		return err
-	}
-	if !notMounted {
-		log.Infof("%s already mounted", mountPoint)
-		return nil
-	}
-
-	source := fmt.Sprintf("%s:%s", nfsServer, nfsPath)
-	var combinedOptions []string
-	if mountOptions != "" {
-		combinedOptions = append(combinedOptions, mountOptions)
-	}
-
-	switch clientType {
+	switch opt.ClientType {
 	case EFCClient:
-		combinedOptions = append(combinedOptions, "efc", fmt.Sprintf("bindtag=%s", volumeID), fmt.Sprintf("client_owner=%s", podUID))
-		switch fsType {
+		combinedOptions = append(combinedOptions, "efc", fmt.Sprintf("bindtag=%s", volumeId), fmt.Sprintf("client_owner=%s", podUid))
+		switch opt.FSType {
 		case "standard":
 		case "cpfs":
 			combinedOptions = append(combinedOptions, "protocol=nfs3")
 		default:
-			return errors.New("EFC Client don't support this storage type:" + fsType)
+			return errors.New("EFC Client don't support this storage type:" + opt.FSType)
 		}
-		err = mounter.Mount(source, mountPoint, "alinas", combinedOptions)
+		mountFstype = "alinas"
+		// err = mounter.Mount(source, mountPoint, "alinas", combinedOptions)
+		isPathNotFound = func(err error) bool {
+			return strings.Contains(err.Error(), "Failed to bind mount")
+		}
 	case NativeClient:
-		switch fsType {
+		switch opt.FSType {
 		case "cpfs":
 		default:
-			return errors.New("Native Client don't support this storage type:" + fsType)
+			return errors.New("Native Client don't support this storage type:" + opt.FSType)
 		}
-		err = mounter.Mount(source, mountPoint, "cpfs", combinedOptions)
+		mountFstype = "cpfs"
 	default:
 		//NFS Mount(Capacdity/Performance Extreme Nas、Cpfs2.0, AliNas)
-		versStr := fmt.Sprintf("vers=%s", nfsVers)
-		if !strings.Contains(mountOptions, versStr) {
+		versStr := fmt.Sprintf("vers=%s", opt.Vers)
+		if !strings.Contains(opt.Options, versStr) {
 			combinedOptions = append(combinedOptions, versStr)
 		}
-		//nfsProtocol: cpfs-nfs/nfs/alinas
-		err = mounter.Mount(source, mountPoint, nfsProtocol, combinedOptions)
-		//try mount nfsPath is successfully.
-		if err == nil {
-			break
+		if opt.Accesspoint != "" {
+			mountFstype = "alinas"
+			// must enable tls when using accesspoint
+			combinedOptions = addTLSMountOptions(combinedOptions)
+		} else {
+			mountFstype = opt.MountProtocol
 		}
-		//mount root-path is failed, return error
-		if nfsPath == "/" {
-			break
+		isPathNotFound = func(err error) bool {
+			return strings.Contains(err.Error(), "reason given by server: No such file or directory") || strings.Contains(err.Error(), "access denied by server while mounting")
 		}
-		//Other errors
-		if !strings.Contains(err.Error(), "reason given by server: No such file or directory") && !strings.Contains(err.Error(), "access denied by server while mounting") {
-			break
-		}
-		//mount sub-path is failed, if subpath is not exist or cpfs don't output subpath
-		if err := createSubDir(mounter, nfsProtocol, nfsServer, nfsPath, combinedOptions, volumeID); err != nil {
-			log.Errorf("DoMount: Create subpath is failed, err: %s", err.Error())
-			return err
-		}
-		err = mounter.Mount(source, mountPoint, nfsProtocol, combinedOptions)
 	}
-	if err != nil {
-		return err
-	}
-	log.WithFields(log.Fields{"source": source, "target": mountPoint, "client": clientType}).Info("mounted successfully")
-	return nil
-}
-
-// CreateDest create the target
-func CreateDest(dest string) error {
-	fi, err := os.Lstat(dest)
-	if os.IsNotExist(err) {
-		if err := os.MkdirAll(dest, 0777); err != nil {
-			return err
-		}
-	} else if err != nil {
-		return err
-	}
-
-	if fi != nil && !fi.IsDir() {
-		return fmt.Errorf("%v already exist but it's not a directory", dest)
-	}
-	return nil
-}
-
-// GetNfsDetails get nfs server's details
-func GetNfsDetails(nfsServersString string) (string, string) {
-	nfsServer, nfsPath := "", ""
-	nfsServerList := strings.Split(nfsServersString, ",")
-	serverNum := len(nfsServerList)
-
-	if _, ok := storageClassServerPos[nfsServersString]; !ok {
-		storageClassServerPos[nfsServersString] = 0
-	}
-	zoneIndex := storageClassServerPos[nfsServersString] % serverNum
-	selectedServer := nfsServerList[zoneIndex]
-	storageClassServerPos[nfsServersString]++
-
-	serverParts := strings.Split(selectedServer, ":")
-	if len(serverParts) == 1 {
-		nfsServer = serverParts[0]
-		nfsPath = "/"
-	} else if len(serverParts) == 2 {
-		nfsServer = serverParts[0]
-		nfsPath = serverParts[1]
-		if nfsPath == "" {
-			nfsPath = "/"
-		}
-	} else {
-		nfsServer = ""
-		nfsPath = ""
-	}
-
-	// remove / if path end with /;
-	if nfsPath != "/" && strings.HasSuffix(nfsPath, "/") {
-		nfsPath = nfsPath[0 : len(nfsPath)-1]
-	}
-
-	return nfsServer, nfsPath
-}
-
-func updateNasClient(client *aliNas.Client, regionID string) *aliNas.Client {
-	ac := utils.GetAccessControl()
-	if ac.UseMode == utils.EcsRAMRole || ac.UseMode == utils.ManagedToken {
-		client = newNasClient(ac, regionID)
-	}
-	if client.Client.GetConfig() != nil {
-		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
-	}
-	return client
-}
-
-func newNasClient(ac utils.AccessControl, regionID string) (nasClient *aliNas.Client) {
-	nasClient, err := aliNas.NewClientWithOptions(regionID, ac.Config, ac.Credential)
-	if err != nil {
+	err := mounter.Mount(source, targetPath, mountFstype, combinedOptions)
+	if err == nil {
 		return nil
 	}
-
-	if os.Getenv("ALICLOUD_CLIENT_SCHEME") != "HTTP" {
-		nasClient.SetHTTPSInsecure(false)
-		nasClient.GetConfig().WithScheme("HTTPS")
+	if isPathNotFound == nil || !isPathNotFound(err) {
+		return err
 	}
 
-	// Set Nas Endpoint
-	SetNasEndPoint(regionID)
-	return
-}
-
-// SetNasEndPoint Set Endpoint for Nas
-func SetNasEndPoint(regionID string) {
-	// use unitized region endpoint for blew regions.
-	// total 16 regions
-	unitizedRegions := []string{"cn-hangzhou", "cn-zhangjiakou", "cn-huhehaote", "cn-shenzhen", "ap-southeast-1", "ap-southeast-2",
-		"ap-southeast-3", "ap-southeast-5", "eu-central-1", "us-east-1", "ap-northeast-1", "ap-south-1",
-		"us-west-1", "eu-west-1", "cn-chengdu", "cn-north-2-gov-1", "cn-beijing", "cn-shanghai", "cn-hongkong",
-		"cn-shenzhen-finance-1", "cn-shanghai-finance-1", "cn-hangzhou-finance", "cn-qingdao"}
-	for _, tmpRegion := range unitizedRegions {
-		if regionID == tmpRegion {
-			aliyunep.AddEndpointMapping(regionID, "Nas", "nas-vpc."+regionID+".aliyuncs.com")
-			break
-		}
-	}
-
-	// use environment endpoint setting first;
-	if ep := os.Getenv("NAS_ENDPOINT"); ep != "" {
-		aliyunep.AddEndpointMapping(regionID, "Nas", ep)
-	}
-}
-
-func createSubDir(mounter mountutils.Interface, nfsProtocol, nfsServer, nfsPath string, nfsOptions []string, volumeID string) error {
 	rootPath := "/"
-	usePath := nfsPath
-	//The root directory of cpfs-nfs and extreme NAS is /share
-	if nfsProtocol == MountProtocolCPFSNFS || strings.Contains(nfsServer, "extreme.nas.aliyuncs.com") {
-		//1.No need to deal with the case where nfsPath only beginning with /share or /share/
-		//2.No need to deal with the case where nfspath does not contain /share or /share/ at the beginning
-		//3.Need to deal with the case where nfsPath is /share/subpath
-		if strings.HasPrefix(nfsPath, "/share/") && len(nfsPath) > len("/share/") {
-			rootPath = "/share/"
-			usePath = nfsPath[len("/share/"):]
-		}
+	if opt.FSType == "cpfs" || mountFstype == MountProtocolCPFSNFS || strings.Contains(opt.Server, "extreme.nas.aliyuncs.com") {
+		rootPath = "/share"
 	}
-
-	nasTmpPath := filepath.Join(NasTempMntPath, volumeID)
-	if err := utils.CreateDest(nasTmpPath); err != nil {
-		log.Infof("Create nas tempPath is failed, tmpPath:%s, err: %s", nasTmpPath, err.Error())
+	relPath, relErr := filepath.Rel(rootPath, opt.Path)
+	if relErr != nil || relPath == "." {
 		return err
 	}
-	notMounted, err := mounter.IsLikelyNotMountPoint(nasTmpPath)
+	rootSource := fmt.Sprintf("%s:%s", opt.Server, rootPath)
+	log.Infof("trying to create subpath %s", rootSource)
+	_ = os.MkdirAll(NasTempMntPath, os.ModePerm)
+	tmpPath, err := os.MkdirTemp(NasTempMntPath, volumeId+"_")
 	if err != nil {
-		return fmt.Errorf("check mountpoint %s: %w", nasTmpPath, err)
-	}
-	if !notMounted {
-		if err := mounter.Unmount(nasTmpPath); err != nil {
-			return err
-		}
-	}
-	err = mounter.Mount(fmt.Sprintf("%s:%s", nfsServer, rootPath), nasTmpPath, nfsProtocol, nfsOptions)
-	if err != nil {
-		log.Errorf("Mount rootPath is failed, rootPath:%s, err:%s", rootPath, err.Error())
 		return err
 	}
-	subPath := path.Join(nasTmpPath, usePath)
-	if err := utils.CreateDest(subPath); err != nil {
-		log.Infof("Create subPath is failed, subPath:%s, err: %s", subPath, err.Error())
+	defer os.Remove(tmpPath)
+	if err := mounter.Mount(rootSource, tmpPath, mountFstype, combinedOptions); err != nil {
 		return err
 	}
-	log.Infof("Create subPath is successfully, nfsPath:%s, subPath:%s", nfsPath, path.Join(nasTmpPath, usePath))
-	return mounter.Unmount(nasTmpPath)
-}
-
-func setNasVolumeCapacity(nfsServer, nfsPath string, volSizeBytes int64) error {
-	if nfsPath == "" || nfsPath == "/" {
-		return fmt.Errorf("Volume %s:%s not support set quota to root path ", nfsServer, nfsPath)
+	if err := os.MkdirAll(filepath.Join(tmpPath, relPath), os.ModePerm); err != nil {
+		return err
 	}
-	nasClient := updateNasClient(GlobalConfigVar.NasClient, GlobalConfigVar.Region)
-	fsList := strings.Split(nfsServer, "-")
-	if len(fsList) < 1 {
-		return fmt.Errorf("volume error nas server(%s) ", nfsServer)
+	if err := cleanupMountpoint(mounter, tmpPath); err != nil {
+		log.Errorf("failed to cleanup tmp mountpoint %s: %v", tmpPath, err)
 	}
-	quotaRequest := aliNas.CreateSetDirQuotaRequest()
-	quotaRequest.FileSystemId = fsList[0]
-	quotaRequest.Path = nfsPath
-	quotaRequest.UserType = "AllUsers"
-	quotaRequest.QuotaType = "Enforcement"
-	quotaRequest.SizeLimit = requests.NewInteger64((volSizeBytes + GiB - 1) / GiB)
-	quotaRequest.RegionId, _ = utils.GetMetaData(RegionTag)
-	log.Infof("SetDirQuotaRequest: %+v", quotaRequest)
-	_, err := nasClient.SetDirQuota(quotaRequest)
-	if err != nil {
-		return fmt.Errorf("SetDirQuota: %w", err)
-	}
-	return nil
-}
-
-func setNasVolumeCapacityWithID(pvObj *v1.PersistentVolume, crdClient dynamic.Interface, volSizeBytes int64) error {
-	if pvObj.Spec.CSI == nil {
-		return fmt.Errorf("Volume %s is not CSI type %v ", pvObj.Name, pvObj)
-	}
-
-	// Check Pv volume parameters
-	if value, ok := pvObj.Spec.CSI.VolumeAttributes["volumeCapacity"]; ok && value == "false" {
-		return fmt.Errorf("Volume %s not contain volumeCapacity parameters, not support expand, PV: %v ", pvObj.Name, pvObj)
-	}
-	nfsServer, nfsPath := "", ""
-	if value, ok := pvObj.Spec.CSI.VolumeAttributes["server"]; ok {
-		nfsServer = value
-	} else {
-		if value, ok := pvObj.Spec.CSI.VolumeAttributes["containerNetworkFileSystem"]; ok {
-			cnfs, err := v1beta1.GetCnfsObject(crdClient, value)
-			if err != nil {
-				return err
-			}
-			nfsServer = cnfs.Status.FsAttributes.Server
-		}
-	}
-	if value, ok := pvObj.Spec.CSI.VolumeAttributes["path"]; ok {
-		nfsPath = value
-	}
-	return setNasVolumeCapacity(nfsServer, nfsPath, volSizeBytes)
+	return mounter.Mount(source, targetPath, mountFstype, combinedOptions)
 }
 
 // check system config,
@@ -376,6 +184,21 @@ func ParseMountFlags(mntOptions []string) (string, string) {
 	return vers, strings.Join(otherOptions, ",")
 }
 
+func addTLSMountOptions(baseOptions []string) []string {
+	for _, options := range baseOptions {
+		for _, option := range mounter.SplitMountOptions(options) {
+			if option == "" {
+				continue
+			}
+			key, _, _ := strings.Cut(option, "=")
+			if key == "tls" {
+				return baseOptions
+			}
+		}
+	}
+	return append(baseOptions, "tls")
+}
+
 func createLosetupPv(fullPath string, volSizeBytes int64) error {
 	fileName := filepath.Join(fullPath, LoopImgFile)
 	if utils.IsFileExisting(fileName) {
@@ -386,105 +209,6 @@ func createLosetupPv(fullPath string, volSizeBytes int64) error {
 		return err
 	}
 	return exec.Command("mkfs.ext4", "-F", "-m0", fileName).Run()
-}
-
-// /var/lib/kubelet/pods/5e03c7f7-2946-4ee1-ad77-2efbc4fdb16c/volumes/kubernetes.io~csi/nas-f5308354-725a-4fd3-b613-0f5b384bd00e/mount
-func mountLosetupPv(mounter mountutils.Interface, mountPoint string, opt *Options, volumeID string) error {
-	// if target path mounted already, return
-	notMounted, err := mounter.IsLikelyNotMountPoint(mountPoint)
-	if err != nil {
-		return fmt.Errorf("check mount point %s: %w", mountPoint, err)
-	}
-	if !notMounted {
-		log.Infof("mountLosetupPv: TargetPath(%s) is mounted as tmpfs, not need mount again", mountPoint)
-		return nil
-	}
-
-	pathList := strings.Split(mountPoint, "/")
-	if len(pathList) != 10 {
-		return fmt.Errorf("mountLosetupPv: mountPoint format error, %s", mountPoint)
-	}
-
-	podID := pathList[5]
-	pvName := pathList[8]
-
-	// /mnt/nasplugin.alibabacloud.com/6c690876-74aa-46f6-a301-da7f4353665d/pv-losetup/
-	nfsPath := filepath.Join(NasMntPoint, podID, pvName)
-	if err := utils.CreateDest(nfsPath); err != nil {
-		return fmt.Errorf("mountLosetupPv: create nfs mountPath error %s ", err.Error())
-	}
-	//mount nas to use losetup dev
-	err = DoMount(mounter, "nas", "nfsclient", opt.MountProtocol, opt.Server, opt.Path, opt.Vers, opt.Options, nfsPath, volumeID, podID)
-	if err != nil {
-		return fmt.Errorf("mountLosetupPv: mount losetup volume failed: %s", err.Error())
-	}
-
-	lockFile := filepath.Join(nfsPath, LoopLockFile)
-	if opt.LoopLock == "true" && isLosetupUsed(mounter, lockFile, opt, volumeID) {
-		return fmt.Errorf("mountLosetupPv: nfs losetup file is used by others %s", lockFile)
-	}
-	imgFile := filepath.Join(nfsPath, LoopImgFile)
-	failedFile := filepath.Join(nfsPath, Resize2fsFailedFilename)
-	if utils.IsFileExisting(failedFile) {
-		// path/to/whatever does not exist
-		cmd := exec.Command("fsck", "-a", imgFile)
-		// cmd := fmt.Sprintf(Resize2fsFailedFixCmd, NsenterCmd, imgFile)
-		err := cmd.Run()
-		if err != nil {
-			return fmt.Errorf("mountLosetupPv: mount nfs losetup error %s", err.Error())
-		}
-		err = os.Remove(failedFile)
-		if err != nil {
-			log.Errorf("mountLosetupPv: failed to remove failed file: %v", err)
-		}
-	}
-	err = mounter.Mount(imgFile, mountPoint, "", []string{"loop"})
-	if err != nil {
-		return fmt.Errorf("mountLosetupPv: mount nfs losetup error %s", err.Error())
-	}
-	lockContent := GlobalConfigVar.NodeID + ":" + GlobalConfigVar.NodeIP
-	if err := os.WriteFile(lockFile, ([]byte)(lockContent), 0644); err != nil {
-		return err
-	}
-	return nil
-}
-
-func isLosetupUsed(mounter mountutils.Interface, lockFile string, opt *Options, volumeID string) bool {
-	if !utils.IsFileExisting(lockFile) {
-		return false
-	}
-	fileCotent := utils.GetFileContent(lockFile)
-	contentParts := strings.Split(fileCotent, ":")
-	if len(contentParts) != 2 || contentParts[0] == "" || contentParts[1] == "" {
-		return true
-	}
-
-	oldNodeID := contentParts[0]
-	oldNodeIP := contentParts[1]
-	if GlobalConfigVar.NodeID == oldNodeID {
-		mounted, err := isLosetupMount(volumeID)
-		if err != nil {
-			log.Errorf("can not determine whether %s losetup image used: %v", volumeID, err)
-			return true
-		}
-		if !mounted {
-			log.Warnf("Lockfile(%s) exist, but Losetup image not mounted %s.", lockFile, opt.Path)
-			return false
-		}
-		log.Warnf("Lockfile(%s) exist, but Losetup image mounted %s.", lockFile, opt.Path)
-		return true
-	}
-
-	stat, err := utils.Ping(oldNodeIP)
-	if err != nil {
-		log.Warnf("Ping node %s, but get error: %s, consider as volume used", oldNodeIP, err.Error())
-		return true
-	}
-	if stat.PacketLoss == 100 {
-		log.Warnf("Cannot connect to node %s, consider the node as shutdown(%s).", oldNodeIP, lockFile)
-		return false
-	}
-	return true
 }
 
 func unmountLosetupPv(mounter mountutils.Interface, mountPoint string) error {
@@ -524,25 +248,6 @@ func isLosetupMount(volumeID string) (bool, error) {
 		}
 	}
 	return false, nil
-}
-
-func getPvObj(volumeID string) (*v1.PersistentVolume, error) {
-	return GlobalConfigVar.KubeClient.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{})
-}
-
-func isValidCnfsParameter(server string, cnfsName string) error {
-	if len(server) == 0 && len(cnfsName) == 0 {
-		msg := "Server and Cnfs need to be configured at least one."
-		log.Errorf(msg)
-		return errors.New(msg)
-	}
-
-	if len(server) != 0 && len(cnfsName) != 0 {
-		msg := "Server and Cnfs can only be configured to use one."
-		log.Errorf(msg)
-		return errors.New(msg)
-	}
-	return nil
 }
 
 // GetFsIDByNasServer func is get fsID from serverName
@@ -595,13 +300,4 @@ func cleanupMountpoint(mounter mountutils.Interface, mountPath string) (err erro
 		err = mountutils.CleanupMountPoint(mountPath, mounter, false)
 	}
 	return
-}
-
-func isMountTargetNotFoundError(err error) bool {
-	var serverErr *sdkerrors.ServerError
-	if !errors.As(err, &serverErr) || serverErr == nil {
-		return false
-	}
-	code := serverErr.ErrorCode()
-	return code == "InvalidParam.MountTargetDomain" || code == "InvalidMountTarget.NotFound"
 }
