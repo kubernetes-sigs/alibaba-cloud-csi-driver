@@ -33,6 +33,9 @@ func NewNasClientFactory() *NasClientFactory {
 	}
 }
 
+// V2 gets a NAS OpenAPI client sourced from github.com/alibabacloud-go/nas-20170626.
+// As github.com/aliyun/alibaba-cloud-sdk-go/services/nas won't be updated with new NAS APIs (e.g., access points),
+// we will fully migrate to github.com/alibabacloud-go/nas-20170626 in the future.
 func (fac *NasClientFactory) V2(region string) (*NasClientV2, error) {
 	client, err := newNasClientV2(region)
 	if err != nil {
@@ -45,6 +48,7 @@ func (fac *NasClientFactory) V2(region string) (*NasClientV2, error) {
 	}, nil
 }
 
+// Deprecated: NAS openapi client provided by github.com/aliyun/alibaba-cloud-sdk-go/services/nas.
 func (fac *NasClientFactory) V1(region string) (*sdkv1.Client, error) {
 	return newNasClientV1(region)
 }

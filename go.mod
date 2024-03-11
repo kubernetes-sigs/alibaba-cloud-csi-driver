@@ -27,7 +27,6 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.1
 	go.uber.org/ratelimit v0.1.0
-	golang.org/x/net v0.17.0
 	golang.org/x/sys v0.13.0
 	google.golang.org/grpc v1.57.1
 	google.golang.org/protobuf v1.31.0
@@ -91,6 +90,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tjfoc/gmsm v1.3.2 // indirect
 	golang.org/x/mod v0.8.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
 	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
@@ -126,4 +126,5 @@ replace (
 	sigs.k8s.io/yaml => sigs.k8s.io/yaml v1.1.0
 )
 
+// TODO: Remove this once github.com/alibabacloud-go/nas-20170626 releases an update with support for AccessPoint-related APIs.
 replace github.com/alibabacloud-go/nas-20170626/v3 => ./staging/src/github.com/alibabacloud-go/nas-20170626
