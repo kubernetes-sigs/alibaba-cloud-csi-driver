@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
@@ -76,13 +77,8 @@ const (
 	csiAlibabaCloudName = "csi.alibabacloud.com"
 )
 
-var pvcMountTargetMap = map[string]string{}
-var pvcFileSystemIDMap = map[string]string{}
-var pvcProcessSuccess = map[string]*csi.Volume{}
-
 // Alibaba Cloud nas volume parameters
 type nasVolumeArgs struct {
-	VolumeAs        string           `json:"volumeAs"`
 	ProtocolType    string           `json:"protocolType"`
 	StorageType     string           `json:"storageType"`
 	FileSystemType  string           `json:"fileSystemType"`
@@ -102,6 +98,10 @@ type nasVolumeArgs struct {
 type filesystemController struct {
 	eventRecorder record.EventRecorder
 	config        *internal.ControllerConfig
+
+	pvcMountTargetMap  sync.Map
+	pvcFileSystemIDMap sync.Map
+	pvcProcessSuccess  sync.Map
 }
 
 func newFilesystemController(config *internal.ControllerConfig) (internal.Controller, error) {
@@ -123,9 +123,9 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 		Namespace: "",
 	}
 
-	if value, ok := pvcProcessSuccess[req.Name]; ok && value != nil {
+	if value, ok := cs.pvcProcessSuccess.Load(req.Name); ok && value != nil {
 		log.Infof("CreateVolume: Nfs Volume %s has Created Already: %v", req.Name, value)
-		return &csi.CreateVolumeResponse{Volume: value}, nil
+		return &csi.CreateVolumeResponse{Volume: value.(*csi.Volume)}, nil
 	}
 
 	// parse nfs parameters
@@ -166,9 +166,9 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 	}
 	fileSystemID := ""
 	// if the pvc mapped fileSystem is already create, skip creating a filesystem
-	if value, ok := pvcFileSystemIDMap[pvName]; ok && value != "" {
+	if value, ok := cs.pvcFileSystemIDMap.Load(pvName); ok && value != "" {
 		log.Warnf("CreateVolume: Nfs Volume(%s)'s filesystem %s has Created Already, try to create mountTarget", pvName, value)
-		fileSystemID = value
+		fileSystemID = value.(string)
 	} else {
 		createFileSystemsRequest := aliNas.CreateCreateFileSystemRequest()
 		createFileSystemsRequest.ProtocolType = nasVol.ProtocolType
@@ -197,7 +197,7 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 			return nil, status.Error(codes.Internal, errMsg)
 		}
 		fileSystemID = createFileSystemsResponse.FileSystemId
-		pvcFileSystemIDMap[pvName] = fileSystemID
+		cs.pvcFileSystemIDMap.Store(pvName, fileSystemID)
 		log.Infof("CreateVolume: Volume: %s, Successful Create Nas filesystem with ID: %s, with requestID: %s", pvName, fileSystemID, createFileSystemsResponse.RequestId)
 
 		// Set Default DiskTags
@@ -221,9 +221,9 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 
 	// if mountTarget is already created, skip create a mountTarget
 	mountTargetDomain := ""
-	if value, ok := pvcMountTargetMap[pvName]; ok && value != "" {
+	if value, ok := cs.pvcMountTargetMap.Load(pvName); ok && value != "" {
 		log.Warnf("CreateVolume: Nfs Volume (%s) mountTarget %s has Created Already, try to get mountTarget's status", pvName, value)
-		mountTargetDomain = value
+		mountTargetDomain = value.(string)
 	} else {
 		createMountTargetRequest := aliNas.CreateCreateMountTargetRequest()
 		createMountTargetRequest.FileSystemId = fileSystemID
@@ -273,7 +273,7 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 			}
 		}
 		mountTargetDomain = createMountTargetResponse.MountTargetDomain
-		pvcMountTargetMap[pvName] = mountTargetDomain
+		cs.pvcMountTargetMap.Store(pvName, mountTargetDomain)
 		log.Infof("CreateVolume: Volume: %s, Successful Create Nas mountTarget with: %s, with requestID: %s", pvName, mountTargetDomain, createMountTargetResponse.RequestId)
 	}
 
@@ -298,7 +298,6 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 		time.Sleep(time.Duration(2) * time.Second)
 	}
 
-	volumeContext["volumeAs"] = nasVol.VolumeAs
 	volumeContext["fileSystemId"] = fileSystemID
 	volumeContext["server"] = mountTargetDomain
 	volumeContext["path"] = filepath.Join("/")
@@ -317,7 +316,7 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 		CapacityBytes: int64(volSizeBytes),
 		VolumeContext: volumeContext,
 	}
-	pvcProcessSuccess[pvName] = csiTargetVol
+	cs.pvcProcessSuccess.Store(pvName, csiTargetVol)
 	return &csi.CreateVolumeResponse{Volume: csiTargetVol}, nil
 }
 
@@ -500,7 +499,7 @@ func (cs *filesystemController) DeleteVolume(ctx context.Context, req *csi.Delet
 			}
 		}
 		// remove the pvc mountTarget mapping if exist
-		delete(pvcMountTargetMap, req.VolumeId)
+		cs.pvcMountTargetMap.Delete(req.VolumeId)
 		log.Infof("DeleteVolume: Volume %s MountTarget %s deleted successfully and Start delete filesystem %s", req.VolumeId, nfsServer, fileSystemID)
 
 		deleteFileSystemRequest := aliNas.CreateDeleteFileSystemRequest()
@@ -512,14 +511,14 @@ func (cs *filesystemController) DeleteVolume(ctx context.Context, req *csi.Delet
 			return nil, status.Error(codes.Internal, errMsg)
 		}
 		// remove the pvc filesystem mapping if exist
-		delete(pvcFileSystemIDMap, req.VolumeId)
+		cs.pvcFileSystemIDMap.Delete(req.VolumeId)
 		log.Infof("DeleteVolume: Volume %s Filesystem %s deleted successfully", req.VolumeId, fileSystemID)
 	} else {
 		log.Infof("DeleteVolume: Nas Volume %s Filesystem's deleteVolume is [false], skip delete mountTarget and fileSystem", req.VolumeId)
 	}
 
 	// remove the pvc process mapping if exist
-	delete(pvcProcessSuccess, req.VolumeId)
+	cs.pvcProcessSuccess.Delete(req.VolumeId)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
