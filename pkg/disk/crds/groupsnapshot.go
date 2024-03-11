@@ -272,8 +272,7 @@ spec:
     storage: true
     subresources:
       status: {}
-
-	`
+`
 }
 
 // GetVolumeGroupSnapshotContentsCRDv1 returns the VolumeSnapshotContents CRD Template
@@ -593,7 +592,7 @@ spec:
     storage: true
     subresources:
       status: {}
-	`
+`
 }
 
 // GetVolumeGroupSnapshotClassesCRDv1 returns the VolumeSnapshotClasses CRD Template
@@ -682,6 +681,5 @@ spec:
     served: true
     storage: true
     subresources: {}
-
-	`
+`
 }

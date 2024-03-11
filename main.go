@@ -30,6 +30,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dbfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/ens"
@@ -46,6 +47,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	cliflag "k8s.io/component-base/cli/flag"
 )
 
 func init() {
@@ -80,6 +82,7 @@ const (
 )
 
 var (
+	featureGates    map[string]bool
 	endpoint        = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
 	nodeID          = flag.String("nodeid", "", "node id")
 	runAsController = flag.Bool("run-as-controller", false, "Only run as controller service")
@@ -87,6 +90,11 @@ var (
 	// Deprecated: rootDir is instead by KUBELET_ROOT_DIR env.
 	rootDir = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
 )
+
+func init() {
+	flag.CommandLine.Var(cliflag.NewMapStringBool(&featureGates), "feature-gates",
+		"A set of key=value pairs that describe feature gates for alpha/experimental features. ")
+}
 
 type globalMetricConfig struct {
 	enableMetric bool
@@ -99,6 +107,7 @@ func main() {
 		"Options are:\n"+strings.Join(features.FunctionalMutableFeatureGate.KnownFeatures(), "\n"))
 	flag.Parse()
 	serviceType := os.Getenv(utils.ServiceType)
+	common.DefaultMutableFeatureGate.SetFromMap(featureGates)
 
 	if len(serviceType) == 0 || serviceType == "" {
 		serviceType = utils.PluginService
