@@ -70,7 +70,6 @@ func (c *accesspointController) CreateVolume(ctx context.Context, req *csi.Creat
 	}
 
 	volumeContext := map[string]string{}
-	volumeContext["volumeAs"] = c.VolumeAs()
 	volumeContext["containerNetworkFileSystem"] = cnfs.Name
 	volumeContext["path"] = "/"
 	volumeContext["accesspoint"] = tea.StringValue(result.Body.AccessPoint.AccessPointDomain)
@@ -130,6 +129,8 @@ func (c *accesspointController) createAccesspoint(ctx context.Context, name, bas
 		VswId:           &vswId,
 		AccessPointName: &name,
 		RootDirectory:   tea.String(path.Join(basePath, name)),
+		OwnerUserId:     tea.Int32(0),
+		OwnerGroupId:    tea.Int32(0),
 	}
 
 	var invalidParameters []string
@@ -202,6 +203,10 @@ func (c *accesspointController) DeleteVolume(ctx context.Context, req *csi.Delet
 	if attributes["volumeCapacity"] == "true" {
 		apInfo, err := c.nasClient.DescribeAccesspoint(filesystemId, accesspointId)
 		if err != nil {
+			if cloud.IsAccessPointNotFoundError(err) {
+				logrus.Infof("accesspoint %s already deleted", accesspointId)
+				return &csi.DeleteVolumeResponse{}, nil
+			}
 			return nil, status.Errorf(codes.Internal, "nas:DescribeAccesspoint failed: %v", err)
 		}
 		if err := c.nasClient.CancelDirQuota(&sdk.CancelDirQuotaRequest{
@@ -218,7 +223,7 @@ func (c *accesspointController) DeleteVolume(ctx context.Context, req *csi.Delet
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "nas:DeleteAccesspoint failed: %v", err)
 	}
-	return nil, nil
+	return &csi.DeleteVolumeResponse{}, nil
 }
 
 func (c *accesspointController) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest, pv *corev1.PersistentVolume) (*csi.ControllerExpandVolumeResponse, error) {

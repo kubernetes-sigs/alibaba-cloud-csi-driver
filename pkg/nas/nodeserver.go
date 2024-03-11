@@ -246,9 +246,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, err
 		}
 	}
-	if opt.Server != "" && opt.Accesspoint != "" {
-		return nil, status.Error(codes.InvalidArgument, "failed to determine nas mount target or accesspoint")
-	}
 
 	if opt.LoopLock != "false" {
 		opt.LoopLock = "true"

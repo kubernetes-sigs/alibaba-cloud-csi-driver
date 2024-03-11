@@ -91,9 +91,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if err != nil {
 		return nil, err
 	}
-	log.WithField("response", resp).Info("CreateVolume: succeeded")
 
 	parameters := req.Parameters
+	resp.Volume.VolumeContext["volumeAs"] = controller.VolumeAs()
 	if mode := parameters["mode"]; mode != "" {
 		resp.Volume.VolumeContext["mode"] = mode
 		modeType := parameters["modeType"]
@@ -106,6 +106,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		resp.Volume.VolumeContext["options"] = options
 	}
 
+	log.WithField("response", resp).Info("CreateVolume: succeeded")
 	return resp, err
 }
 

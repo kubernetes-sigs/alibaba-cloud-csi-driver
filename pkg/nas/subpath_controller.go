@@ -114,7 +114,6 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 	}
 	// fill volumeContext
 	path = filepath.Join(path, req.Name)
-	volumeContext["volumeAs"] = "subpath"
 	volumeContext["path"] = path
 	if mountType := parameters["mountType"]; mountType != "" {
 		if mountType == "losetup" {
@@ -179,6 +178,10 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 		path              = attributes["path"]
 		recycleBinEnabled bool
 	)
+	// check if the subpath directory name is the same as volumeId
+	if !strings.HasSuffix(path, req.VolumeId) {
+		return nil, status.Errorf(codes.InvalidArgument, "unexpected volumeAttributes.path")
+	}
 	if cnfsName := attributes["containerNetworkFileSystem"]; cnfsName != "" {
 		cnfs, err := cs.config.CNFSGetter.GetCNFS(ctx, cnfsName)
 		if err != nil {

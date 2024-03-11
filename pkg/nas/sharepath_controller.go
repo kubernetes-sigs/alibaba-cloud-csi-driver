@@ -68,7 +68,6 @@ func (cs *sharepathController) CreateVolume(ctx context.Context, req *csi.Create
 	}
 
 	// fill volumeContext
-	volumeContext["volumeAs"] = "sharepath"
 	if mountType := parameters["mountType"]; mountType != "" {
 		volumeContext["mountType"] = mountType
 	}

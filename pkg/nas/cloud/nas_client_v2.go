@@ -150,8 +150,8 @@ func (c *NasClientV2) CreateAccesspoint(req *sdk.CreateAccessPointRequest) (*sdk
 func (c *NasClientV2) DeleteAccesspoint(filesystemId, accessPointId string) error {
 	c.limiter.Take()
 	req := &sdk.DeleteAccessPointRequest{
-		AccessPointId: &filesystemId,
-		FileSystemId:  &accessPointId,
+		AccessPointId: &accessPointId,
+		FileSystemId:  &filesystemId,
 	}
 	resp, err := c.client.DeleteAccessPoint(req)
 	log := logrus.WithFields(logrus.Fields{
@@ -172,4 +172,12 @@ func (c *NasClientV2) DescribeAccesspoint(filesystemId, accessPointId string) (*
 		AccessPointId: &accessPointId,
 		FileSystemId:  &filesystemId,
 	})
+}
+
+func IsAccessPointNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	sdkErr, ok := err.(*tea.SDKError)
+	return ok && tea.StringValue(sdkErr.Code) == "NotFound"
 }
