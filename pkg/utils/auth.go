@@ -356,6 +356,9 @@ func getManagedToken() (tokens ManageTokens) {
 		tokens.AccessKeySecret = newToken.AccessKeySecret
 		tokens.SecurityToken = newToken.SecurityToken
 		tokens.ExpireAt = expireAt
+		tokens.RoleAccessKeyID = newToken.RoleAccessKeyID
+		tokens.RoleAccessKeySecret = newToken.RoleAccessKeySecret
+		tokens.RoleArn = newToken.RoleArn
 	}
 	return tokens
 }

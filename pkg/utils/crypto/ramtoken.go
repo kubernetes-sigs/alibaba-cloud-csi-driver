@@ -15,6 +15,10 @@ type RamToken struct {
 	Expiration      string `json:"expiration"`
 	Keyring         string `json:"keyring"`
 	ClusterType     string `json:"cluster.type"`
+
+	RoleAccessKeyID     string `json:"role.access.key.id"`
+	RoleAccessKeySecret string `json:"role.access.key.secret"`
+	RoleArn             string `json:"role.arn"`
 }
 
 func RamTokenParse(encodedToken io.Reader) (*RamToken, error) {
@@ -73,6 +77,18 @@ func RamTokenDecrypt(token *RamToken) (*RamToken, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode security token: %w", err)
 	}
+
+	if token.RoleAccessKeyID != "" && token.RoleAccessKeySecret != "" {
+		newToken.RoleAccessKeyID, err = decodeCtx.Decode(token.RoleAccessKeyID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode role access key id: %w", err)
+		}
+		newToken.RoleAccessKeySecret, err = decodeCtx.Decode(token.RoleAccessKeySecret)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode role access key secret: %w", err)
+		}
+	}
+	newToken.RoleArn = token.RoleArn
 
 	return newToken, nil
 }
