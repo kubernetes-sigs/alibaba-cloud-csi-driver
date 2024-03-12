@@ -112,6 +112,7 @@ func formatGroupSnapshot(groupSnapshot *ecs.SnapshotGroup) (*csi.VolumeGroupSnap
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to parse groupSnapshot creation time: %s", groupSnapshot.CreationTime)
 	}
+	creationTime := timestamp.Timestamp{Seconds: t.Unix()}
 
 	readyToUse := true
 	snapshots := []*csi.Snapshot{}
@@ -120,7 +121,9 @@ func formatGroupSnapshot(groupSnapshot *ecs.SnapshotGroup) (*csi.VolumeGroupSnap
 		if err != nil {
 			return nil, err
 		}
-		if !snapshot.ReadyToUse && !ecsSnapshot.InstantAccess {
+		snapshot.CreationTime = &creationTime
+		snapshot.GroupSnapshotId = groupSnapshot.SnapshotGroupId
+		if !snapshot.ReadyToUse {
 			// set readyToUse for groupsnapshots according to each snapshot status
 			readyToUse = false
 		}
@@ -130,7 +133,7 @@ func formatGroupSnapshot(groupSnapshot *ecs.SnapshotGroup) (*csi.VolumeGroupSnap
 	return &csi.VolumeGroupSnapshot{
 		GroupSnapshotId: groupSnapshot.SnapshotGroupId,
 		Snapshots:       snapshots,
-		CreationTime:    &timestamp.Timestamp{Seconds: t.Unix()},
+		CreationTime:    &creationTime,
 		ReadyToUse:      readyToUse,
 	}, nil
 }
@@ -266,7 +269,7 @@ func requestAndDeleteGroupSnapshot(groupSnapshotID string) (*ecs.DeleteSnapshotG
 	deleteSnapshotGroupRequset.SnapshotGroupId = groupSnapshotID
 	response, err := GlobalConfigVar.EcsClient.DeleteSnapshotGroup(deleteSnapshotGroupRequset)
 	if err != nil {
-		return response, status.Errorf(codes.Internal, "failed delete group snapshot: %v", err)
+		return response, err
 	}
 	return response, nil
 }
