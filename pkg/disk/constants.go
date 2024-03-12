@@ -165,6 +165,9 @@ const (
 	labelVolumeType   = "csi.alibabacloud.com/disktype"
 	annAppendPrefix   = "csi.alibabacloud.com/annotation-prefix/"
 
+	volumeGroupSnapshotHandleKey = "volumeGroupSnapshotHandle"
+	volumeGroupSnapshotNameKey   = "volumeGroupSnapshotName"
+
 	VolumeDeleteAutoSnapshotKey                    = "csi.alibabacloud.com/volume-delete-autosnapshot-retentiondays"
 	VOLUME_EXPAND_AUTO_SNAPSHOT_OP_KEY             = "volumeExpandAutoSnapshot"
 	VOLUME_DELETE_AUTO_SNAPSHOT_OP_RETENT_DAYS_KEY = "volumeDeleteSnapshotRetentionDays"
