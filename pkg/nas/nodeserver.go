@@ -278,9 +278,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// running in runc/runv mode
 	if ns.config.EnableMixRuntime {
-		if runtime, err := utils.GetPodRunTime(req, ns.config.KubeClient); err != nil {
-			return nil, status.Errorf(codes.Internal, "NodePublishVolume: cannot get pod runtime: %v", err)
-		} else if runtime == utils.RunvRunTimeTag {
+		runtime := utils.GetPodRunTime(req, ns.config.KubeClient)
+		if runtime == utils.RunvRunTimeTag {
 			fileName := filepath.Join(mountPath, utils.CsiPluginRunTimeFlagFile)
 			runvOptions := RunvNasOptions{}
 			runvOptions.Options = opt.Options

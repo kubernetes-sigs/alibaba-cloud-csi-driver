@@ -546,7 +546,7 @@ func WriteJSONFile(obj interface{}, file string) error {
 
 // GetPodRunTime Get Pod runtimeclass config
 // Default as runc.
-func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet kubernetes.Interface) (string, error) {
+func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet kubernetes.Interface) string {
 	// if pod name namespace is empty, use default
 	runtimeValue := RuncRunTimeTag
 	podName, nameSpace := "", ""
