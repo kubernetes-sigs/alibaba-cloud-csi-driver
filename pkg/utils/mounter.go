@@ -37,6 +37,8 @@ const (
 	procMountsPath = "/proc/mounts"
 	// Number of fields per line in /proc/mounts as per the fstab man page.
 	expectedNumFieldsPerLine = 6
+
+	rundMountInfoFile = "vol_attr.json"
 )
 
 // MountPoint represents a single line in /proc/mounts or /etc/fstab.
