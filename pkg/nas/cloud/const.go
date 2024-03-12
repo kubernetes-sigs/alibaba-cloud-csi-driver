@@ -8,6 +8,8 @@ import (
 
 const (
 	FilesystemTypeStandard = "standard"
+	FilesystemTypeCpfs     = "cpfs"
+	FilesystemTypeExtreme  = "extreme"
 	DefaultAccessGroup     = "DEFAULT_VPC_GROUP_NAME"
 )
 
