@@ -721,8 +721,7 @@ func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
 
 	// check the device is used for system
 	if devicePath == "/dev/vda" || devicePath == "/dev/vda1" {
-		err := fmt.Errorf("devicePath(%s) is system device, cannot used for Volume", devicePath)
-		return err
+		log.Warnf("checkDeviceAvailable: devicePath(%s) may be system device: %s", devicePath, volumeID)
 	}
 
 	checkCmd := fmt.Sprintf("mount | grep \"%s on %s type\" | wc -l", devicePath, utils.KubeletRootDir)
