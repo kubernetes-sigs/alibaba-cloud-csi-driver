@@ -277,28 +277,25 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// running in runc/runv mode
-	if ns.config.EnableMixRuntime {
-		runtime := utils.GetPodRunTime(req, ns.config.KubeClient)
-		if runtime == utils.RunvRunTimeTag {
-			fileName := filepath.Join(mountPath, utils.CsiPluginRunTimeFlagFile)
-			runvOptions := RunvNasOptions{}
-			runvOptions.Options = opt.Options
-			runvOptions.Server = opt.Server
-			runvOptions.ModeType = opt.ModeType
-			runvOptions.Mode = opt.Mode
-			runvOptions.Vers = opt.Vers
-			runvOptions.Path = opt.Path
-			runvOptions.RunTime = "runv"
-			runvOptions.VolumeType = "nfs"
-			runvOptions.MountFile = fileName
-			if err := utils.WriteJSONFile(runvOptions, fileName); err != nil {
-				return nil, errors.New("NodePublishVolume: Write Json File error: " + err.Error())
-			}
-			log.Infof("Nas(Kata), Write Nfs Options to File Successful: %s", fileName)
-			return &csi.NodePublishVolumeResponse{}, nil
+	runtime := utils.GetPodRunTime(req, ns.config.KubeClient)
+	if runtime == utils.RunvRunTimeTag {
+		fileName := filepath.Join(mountPath, utils.CsiPluginRunTimeFlagFile)
+		runvOptions := RunvNasOptions{}
+		runvOptions.Options = opt.Options
+		runvOptions.Server = opt.Server
+		runvOptions.ModeType = opt.ModeType
+		runvOptions.Mode = opt.Mode
+		runvOptions.Vers = opt.Vers
+		runvOptions.Path = opt.Path
+		runvOptions.RunTime = "runv"
+		runvOptions.VolumeType = "nfs"
+		runvOptions.MountFile = fileName
+		if err := utils.WriteJSONFile(runvOptions, fileName); err != nil {
+			return nil, errors.New("NodePublishVolume: Write Json File error: " + err.Error())
 		}
+		log.Infof("Nas(Kata), Write Nfs Options to File Successful: %s", fileName)
+		return &csi.NodePublishVolumeResponse{}, nil
 	}
-
 	// check network connection
 	if ns.config.EnablePortCheck && opt.Server != "" && opt.MountType != SkipMountType &&
 		(opt.MountProtocol == MountProtocolNFS || opt.MountProtocol == MountProtocolAliNas) {
@@ -355,11 +352,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if opt.MountType == SkipMountType {
 		err := ns.mounter.Mount("tmpfs", mountPath, "tmpfs", []string{"size=1m"})
 		if err != nil {
-			log.Errorf("NAS: Mount volume(%s) path as tmpfs with err: %v", req.VolumeId, err.Error())
+			log.Errorf("NodePublishVolume: Mount volume(%s) path as tmpfs with err: %v", req.VolumeId, err.Error())
 			return nil, status.Error(codes.Internal, "NAS: Mount as tmpfs volume with err"+err.Error())
 		}
 		saveVolumeData(opt, mountPath)
-		log.Infof("NodePublishVolume:: Volume %s is Skip Mount type, just save the metadata: %s", req.VolumeId, mountPath)
+		log.Infof("NodePublishVolume:: Volume %s is in skip mount type, just save the metadata: %s", req.VolumeId, mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -431,7 +428,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("Check mount fail after mount:" + mountPath)
 	}
 
-	saveVolumeData(opt, mountPath)
 	log.Infof("NodePublishVolume:: Volume %s Mount success on mountpoint: %s", req.VolumeId, mountPath)
 
 	return &csi.NodePublishVolumeResponse{}, nil
@@ -563,17 +559,16 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 	log.Infof("NodeUnpublishVolume: unmount volume on %s successfully", targetPath)
 
-	// when mixruntime mode enabled, try to remove ../alibabacloudcsiplugin.json
-	if ns.config.EnableMixRuntime {
-		fileName := filepath.Join(targetPath, utils.CsiPluginRunTimeFlagFile)
-		err := os.Remove(fileName)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume(runv): remove %s: %v", fileName, err)
-			}
-		} else {
-			log.Infof("NodeUnpublishVolume(runv): Remove runv file successful: %s", fileName)
+	// always try to remove ../alibabacloudcsiplugin.json
+	// TODO: remove csi 2.0 vol_data.json
+	fileName := filepath.Join(targetPath, utils.CsiPluginRunTimeFlagFile)
+	err = os.Remove(fileName)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume(runv): remove %s: %v", fileName, err)
 		}
+	} else {
+		log.Infof("NodeUnpublishVolume(runv): Remove runv file successful: %s", fileName)
 	}
 
 	// when losetup enabled, try to cleanup mountpoint under /mnt/nasplugin.alibabacloud.com/

@@ -270,25 +270,23 @@ func GetFsIDByCpfsServer(server string) string {
 
 func saveVolumeData(opt *Options, mountPath string) {
 	// save volume data to json file
-	if utils.IsKataInstall() {
-		volumeData := map[string]string{}
-		volumeData["csi.alibabacloud.com/version"] = opt.Vers
-		if len(opt.Options) != 0 {
-			volumeData["csi.alibabacloud.com/options"] = opt.Options
-		}
-		if len(opt.Server) != 0 {
-			volumeData["csi.alibabacloud.com/server"] = opt.Server
-		}
-		if len(opt.Path) != 0 {
-			volumeData["csi.alibabacloud.com/path"] = opt.Path
-		}
-		fileName := filepath.Join(filepath.Dir(mountPath), utils.VolDataFileName)
-		if strings.HasSuffix(mountPath, "/") {
-			fileName = filepath.Join(filepath.Dir(filepath.Dir(mountPath)), utils.VolDataFileName)
-		}
-		if err := utils.AppendJSONData(fileName, volumeData); err != nil {
-			log.Warnf("NodePublishVolume: append nas volume spec to %s with error: %s", fileName, err.Error())
-		}
+	volumeData := map[string]string{}
+	volumeData["csi.alibabacloud.com/version"] = opt.Vers
+	if len(opt.Options) != 0 {
+		volumeData["csi.alibabacloud.com/options"] = opt.Options
+	}
+	if len(opt.Server) != 0 {
+		volumeData["csi.alibabacloud.com/server"] = opt.Server
+	}
+	if len(opt.Path) != 0 {
+		volumeData["csi.alibabacloud.com/path"] = opt.Path
+	}
+	fileName := filepath.Join(filepath.Dir(mountPath), utils.VolDataFileName)
+	if strings.HasSuffix(mountPath, "/") {
+		fileName = filepath.Join(filepath.Dir(filepath.Dir(mountPath)), utils.VolDataFileName)
+	}
+	if err := utils.AppendJSONData(fileName, volumeData); err != nil {
+		log.Warnf("NodePublishVolume: append nas volume spec to %s with error: %s", fileName, err.Error())
 	}
 }
 

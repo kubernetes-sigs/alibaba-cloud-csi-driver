@@ -66,7 +66,6 @@ type GlobalConfig struct {
 	ADControllerEnable    bool
 	DetachDisabled        bool
 	MetricEnable          bool
-	RunTimeClass          string
 	DetachBeforeAttach    bool
 	DetachBeforeDelete    bool
 	DiskBdfEnable         bool
@@ -254,12 +253,11 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	} else {
 		log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
 	}
-	log.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
+	log.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
 		GlobalConfigVar.ADControllerEnable,
 		GlobalConfigVar.DiskTagEnable,
 		GlobalConfigVar.DiskBdfEnable,
 		GlobalConfigVar.MetricEnable,
-		GlobalConfigVar.RunTimeClass,
 		GlobalConfigVar.DetachDisabled,
 		GlobalConfigVar.DetachBeforeDelete,
 		GlobalConfigVar.ClusterID,
