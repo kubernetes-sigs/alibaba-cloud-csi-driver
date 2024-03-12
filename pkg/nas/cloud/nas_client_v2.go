@@ -110,22 +110,6 @@ func (c *NasClientV2) CancelDirQuota(req *sdk.CancelDirQuotaRequest) error {
 	return err
 }
 
-func (c *NasClientV2) DescribeFileSystem(filesystemId string) (*sdk.DescribeFileSystemsResponse, error) {
-	c.limiter.Take()
-	req := &sdk.DescribeFileSystemsRequest{
-		FileSystemId: &filesystemId,
-	}
-	return c.client.DescribeFileSystems(req)
-}
-
-func (c *NasClientV2) DescribeFileSystemBriefInfo(filesystemId string) (*sdk.DescribeFileSystemBriefInfosResponse, error) {
-	c.limiter.Take()
-	req := &sdk.DescribeFileSystemBriefInfosRequest{
-		FileSystemId: &filesystemId,
-	}
-	return c.client.DescribeFileSystemBriefInfos(req)
-}
-
 func (c *NasClientV2) GetRecycleBinAttribute(filesystemId string) (*sdk.GetRecycleBinAttributeResponse, error) {
 	c.limiter.Take()
 	req := &sdk.GetRecycleBinAttributeRequest{FileSystemId: &filesystemId}

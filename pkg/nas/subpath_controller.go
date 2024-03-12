@@ -101,11 +101,7 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 		if server == "" || filesystemId == "" {
 			return nil, status.Error(codes.InvalidArgument, "invalid nas server")
 		}
-		var err error
-		filesystemType, err = cs.getFilesystemType(filesystemId)
-		if err != nil {
-			return nil, err
-		}
+		filesystemType = cloud.GetFilesystemTypeByMountTargetDomain(server)
 		// set volumeContext
 		if protocol := parameters["mountProtocol"]; protocol != "" {
 			volumeContext["mountProtocol"] = protocol
@@ -192,10 +188,16 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 	} else {
 		server := attributes["server"]
 		filesystemId, _, _ = strings.Cut(server, "-")
-		var err error
-		recycleBinEnabled, err = cs.isRecycleBinEnabled(filesystemId)
-		if err != nil {
-			return nil, err
+		filesystemType := cloud.GetFilesystemTypeByMountTargetDomain(server)
+		if filesystemType == cloud.FilesystemTypeStandard {
+			var err error
+			recycleBinEnabled, err = cs.isRecycleBinEnabled(filesystemId)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// only filesystems of standard type support recyclebin
+			recycleBinEnabled = false
 		}
 	}
 	if filesystemId == "" {
@@ -321,20 +323,6 @@ func (cs *subpathController) patchFinalizerOnPV(ctx context.Context, pv *corev1.
 	}
 	logrus.Infof("patched finalizer %s on pv %s", finalizer, pv.Name)
 	return nil
-}
-
-func (cs *subpathController) getFilesystemType(filesystemId string) (string, error) {
-	resp, err := cs.nasClient.DescribeFileSystem(filesystemId)
-	if err != nil {
-		return "", status.Errorf(codes.Internal, "nas:DescribeFileSystem failed: %v", err)
-	}
-	if resp.Body == nil || resp.Body.FileSystems == nil || len(resp.Body.FileSystems.FileSystem) == 0 {
-		return "", status.Errorf(codes.InvalidArgument, "filesystemId %q not found", filesystemId)
-	}
-	filesystemInfo := resp.Body.FileSystems.FileSystem[0]
-	filesystemType := tea.StringValue(filesystemInfo.FileSystemType)
-	logrus.Infof("nas:DescribeFileSystem succeeded, filesystemType of %s is %q", filesystemId, filesystemType)
-	return filesystemType, nil
 }
 
 func (cs *subpathController) isRecycleBinEnabled(filesystemId string) (bool, error) {
