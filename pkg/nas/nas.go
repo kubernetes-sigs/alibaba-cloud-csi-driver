@@ -17,6 +17,7 @@ limitations under the License.
 package nas
 
 import (
+	csicommon "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
@@ -66,5 +67,11 @@ func NewDriver(meta *metadata.Metadata, endpoint, serviceType string) *NAS {
 }
 
 func (d *NAS) Run() {
-	common.RunCSIServer(d.endpoint, d.identityServer, d.controllerServer, d.nodeServer)
+	log.Infof("Starting csi-plugin Driver: %v version: %v", driverName, version.VERSION)
+	servers := csicommon.Servers{
+		Ids: d.identityServer,
+		Cs:  d.controllerServer,
+		Ns:  d.nodeServer,
+	}
+	common.RunCSIServer(d.endpoint, servers)
 }
