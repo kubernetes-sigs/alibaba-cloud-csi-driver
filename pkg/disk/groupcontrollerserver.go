@@ -2,12 +2,14 @@ package disk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
@@ -129,9 +131,9 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 	// Need to check for already existing snapshot name
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	// check if groupvolumesnapshot has already exists
-	groupSnapshots, snapNum, err := findGroupSnapshot(req.GetName(), "")
+	groupSnapshots, snapNum, err := findGroupSnapshot(req.GetName(), "", 0)
 	if snapNum == 0 {
-		groupSnapshots, snapNum, err = findGroupSnapshot("", req.GetName())
+		groupSnapshots, snapNum, err = findGroupSnapshot("", req.GetName(), 0)
 	}
 	switch {
 	case snapNum == 1:
@@ -198,7 +200,7 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 		return nil, err
 	}
 
-	ecsGroupSnapshots, snapNum, err := findGroupSnapshot(req.GetName(), snapshotResponse.SnapshotGroupId)
+	ecsGroupSnapshots, snapNum, err := findGroupSnapshot(req.GetName(), snapshotResponse.SnapshotGroupId, len(sourceVolumeIds))
 	switch {
 	case err != nil || snapNum == 0:
 		log.Errorf("CreateVolumeGroupSnapshot:: find created groupSnapshot failed or not found: snapshotName[%s], sourceIds[%v], error[%s]", req.GetName(), sourceVolumeIds, err.Error())
@@ -241,8 +243,16 @@ func (cs *groupControllerServer) DeleteVolumeGroupSnapshot(ctx context.Context, 
 
 	// Check Snapshot exist
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-	groupSnapshot, snapNum, err := findGroupSnapshot("", groupSnapshotID)
+	groupSnapshot, snapNum, err := findGroupSnapshot("", groupSnapshotID, 0)
 	if err != nil {
+		var aliErr *alicloudErr.ServerError
+		if errors.As(err, &aliErr) {
+			switch aliErr.ErrorCode() {
+			case SnapshotNotFound:
+				log.Infof("DeleteVolumeGroupSnapshot: groupSnapShot not exist for expect %s, return successful", groupSnapshotID)
+				return &csi.DeleteVolumeGroupSnapshotResponse{}, nil
+			}
+		}
 		return nil, err
 	}
 
@@ -268,18 +278,24 @@ func (cs *groupControllerServer) DeleteVolumeGroupSnapshot(ctx context.Context, 
 	log.Infof("DeleteVolumeGroupSnapshot: groupSnapshot %s exist with Info: %+v, %+v", groupSnapshotID, existsGroupSnapshots[0], err)
 
 	response, err := requestAndDeleteGroupSnapshot(groupSnapshotID)
+	var requestId string
+	if response != nil {
+		requestId = response.RequestId
+	}
 	if err != nil {
-		if response != nil {
-			log.Errorf("DeleteVolumeGroupSnapshot: fail to delete %s: with RequestId: %s, error: %s", groupSnapshotID, response.RequestId, err.Error())
+		var aliErr *alicloudErr.ServerError
+		if !errors.As(err, &aliErr) || aliErr.ErrorCode() != SnapshotNotFound {
+			log.Errorf("DeleteVolumeGroupSnapshot: failed to delete %s: with RequestId: %s, error: %s", groupSnapshotID, requestId, err.Error())
+			utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotDeleteError, err.Error())
+			return nil, err
 		}
-		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotDeleteError, err.Error())
-		return nil, err
+		log.Infof("DeleteVolumeGroupSnapshot: groupSnapshot not exist for expect %s, see as successful", groupSnapshotID)
 	}
 
 	if existsGroupSnapshots != nil {
 		delete(createdGroupSnapshotMap, existsGroupSnapshots[0].Name)
 	}
-	str := fmt.Sprintf("DeleteVolumeGroupSnapshot:: Successfully delete groupSnapshot %s, requestId: %s", groupSnapshotID, response.RequestId)
+	str := fmt.Sprintf("DeleteVolumeGroupSnapshot:: Successfully delete groupSnapshot %s, requestId: %s", groupSnapshotID, requestId)
 	log.Info(str)
 	utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
 	return &csi.DeleteVolumeGroupSnapshotResponse{}, nil
@@ -297,7 +313,7 @@ func (cs *groupControllerServer) GetVolumeGroupSnapshot(ctx context.Context, req
 
 	// Check Snapshot exist
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-	groupSnapshot, snapNum, err := findGroupSnapshot("", groupSnapshotID)
+	groupSnapshot, snapNum, err := findGroupSnapshot("", groupSnapshotID, 0)
 	if err != nil {
 		return nil, err
 	}

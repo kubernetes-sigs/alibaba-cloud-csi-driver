@@ -51,6 +51,8 @@ var DEFAULT_VMFATAL_EVENTS = []string{
 const (
 	DISK_DELETE_INIT_TIMEOUT       = 5 * time.Minute
 	DISK_RESIZE_PROCESSING_TIMEOUT = 30 * time.Second
+	DISK_DELETE_MAX_RETRY = 60
+ 	GROUPSNAPSHOT_CREATE_MAX_RETRY = 30
 )
 
 // attach alibaba cloud disk
@@ -703,7 +705,9 @@ func findSnapshot(name string, id string) (*ecs.DescribeSnapshotsResponse, int, 
 	return snapshots, 1, nil
 }
 
-func findGroupSnapshot(name string, id string) (*ecs.DescribeSnapshotGroupsResponse, int, error) {
+func findGroupSnapshot(name string, id string, targetSnapNum int) (*ecs.DescribeSnapshotGroupsResponse, int, error) {
+	mustGet := targetSnapNum != 0
+
 	describeGroupSnapShotRequest := ecs.CreateDescribeSnapshotGroupsRequest()
 	describeGroupSnapShotRequest.RegionId = GlobalConfigVar.Region
 	if name != "" {
@@ -716,13 +720,48 @@ func findGroupSnapshot(name string, id string) (*ecs.DescribeSnapshotGroupsRespo
 	if err != nil {
 		return nil, 0, err
 	}
-	if len(groupSnapshots.SnapshotGroups.SnapshotGroup) == 0 {
-		return groupSnapshots, 0, nil
+
+	snapNum := len(groupSnapshots.SnapshotGroups.SnapshotGroup)
+
+	switch {
+	case snapNum > 1:
+		return groupSnapshots, len(groupSnapshots.SnapshotGroups.SnapshotGroup), status.Error(codes.Internal,
+			"find more than one groupSnapshot with name "+name)
+	case !mustGet:
+		return groupSnapshots, snapNum, nil
+	case snapNum == 1 && groupSnapshots.SnapshotGroups.SnapshotGroup[0].Status == "failed":
+		return groupSnapshots, snapNum, status.Errorf(codes.Internal, "created groupSnapshot is failed")
+	case snapNum == 1 &&
+		(groupSnapshots.SnapshotGroups.SnapshotGroup[0].Status == "accomplished" ||
+			len(groupSnapshots.SnapshotGroups.SnapshotGroup[0].Snapshots.Snapshot) == targetSnapNum):
+		return groupSnapshots, snapNum, nil
 	}
-	if len(groupSnapshots.SnapshotGroups.SnapshotGroup) > 1 {
-		return groupSnapshots, len(groupSnapshots.SnapshotGroups.SnapshotGroup), status.Error(codes.Internal, "find more than one groupSnapshot with name "+name)
+
+	// mustGet: not found or is progressing
+	for attempt := 1; attempt <= GROUPSNAPSHOT_CREATE_MAX_RETRY; attempt++ {
+		log.Infof("CreateVolumeGroupSnapshot: groupSnapshot (id: %s name: %s) is still processing, retry after 2s, attempt %d", id, name, attempt)
+		time.Sleep(2 * time.Second)
+		groupSnapshots, err = GlobalConfigVar.EcsClient.DescribeSnapshotGroups(describeGroupSnapShotRequest)
+		if err != nil {
+			return nil, 0, err
+		}
+		switch {
+		case snapNum > 1:
+			return groupSnapshots, len(groupSnapshots.SnapshotGroups.SnapshotGroup), status.Error(codes.Internal,
+				"find more than one groupSnapshot with name "+name)
+		case snapNum == 0:
+			continue
+		case groupSnapshots.SnapshotGroups.SnapshotGroup[0].Status == "accomplished" ||
+			len(groupSnapshots.SnapshotGroups.SnapshotGroup[0].Snapshots.Snapshot) == targetSnapNum:
+			return groupSnapshots, snapNum, nil
+		case groupSnapshots.SnapshotGroups.SnapshotGroup[0].Status == "failed":
+			return groupSnapshots, snapNum, status.Errorf(codes.Internal, "created groupSnapshot is failed")
+		default:
+			continue
+		}
 	}
-	return groupSnapshots, 1, nil
+	log.Warnf("CreateVolumeGroupSnapshot: groupSnapshot (id: %s name: %s) is still processing, after %d attempts, CSI will not create individual volumesnapshot", id, name, GROUPSNAPSHOT_CREATE_MAX_RETRY)
+	return groupSnapshots, len(groupSnapshots.SnapshotGroups.SnapshotGroup), nil
 }
 
 func StopDiskOperationRetry(instanceId string, ecsClient *ecs.Client) bool {
@@ -844,7 +883,7 @@ func requestAndDeleteSnapshot(snapshotID string) (*ecs.DeleteSnapshotResponse, e
 	deleteSnapshotRequest.Force = requests.NewBoolean(true)
 	response, err := GlobalConfigVar.EcsClient.DeleteSnapshot(deleteSnapshotRequest)
 	if err != nil {
-		return response, status.Errorf(codes.Internal, "failed delete snapshot: %v", err)
+		return response, err
 	}
 	return response, nil
 }

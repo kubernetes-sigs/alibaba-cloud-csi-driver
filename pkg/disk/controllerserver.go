@@ -111,7 +111,7 @@ func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.Cont
 
 	serviceType := os.Getenv(utils.ServiceType)
 	if serviceType == utils.ProvisionerService && installCRD {
-		checkInstallCRD(client)
+		checkInstallCRD(client, GlobalConfigVar.VolumeGroupSnapshotEnable)
 		checkInstallDefaultVolumeSnapshotClass(GlobalConfigVar.SnapClient)
 	}
 	c := &controllerServer{
@@ -736,17 +736,25 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshot, snapNum, err := findSnapshot("", req.SnapshotId)
 	if err != nil {
+		var aliErr *alicloudErr.ServerError
+		if errors.As(err, &aliErr) {
+			switch aliErr.ErrorCode() {
+			case SnapshotNotFound:
+				log.Infof("DeleteSnapshot: snapshot not exist for expect %s, return successful", snapshotID)
+				return &csi.DeleteSnapshotResponse{}, nil
+			}
+		}
 		return nil, err
 	}
 
 	existsSnapshots := snapshot.Snapshots.Snapshot
 	switch {
 	case snapNum == 0 && err == nil:
-		log.Infof("DeleteSnapshot: snapShot not exist for expect %s, return successful", snapshotID)
+		log.Infof("DeleteSnapshot: snapshot not exist for expect %s, return successful", snapshotID)
 		return &csi.DeleteSnapshotResponse{}, nil
 	case snapNum > 1:
-		log.Errorf("DeleteSnapshot: snapShot cannot be deleted %s, with more than 1 snapshot", snapshotID)
-		err = status.Errorf(codes.Internal, "snapShot cannot be deleted %s, with more than 1 snapshot", snapshotID)
+		log.Errorf("DeleteSnapshot: snapshot cannot be deleted %s, with more than 1 snapshot", snapshotID)
+		err = status.Errorf(codes.Internal, "snapshot cannot be deleted %s, with more than 1 snapshot", snapshotID)
 		return nil, err
 	}
 
@@ -761,18 +769,24 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	log.Infof("DeleteSnapshot: Snapshot %s exist with Info: %+v, %+v", snapshotID, existsSnapshots[0], err)
 
 	response, err := requestAndDeleteSnapshot(snapshotID)
+	var requestId string
+	if response != nil {
+		requestId = response.RequestId
+	}
 	if err != nil {
-		if response != nil {
-			log.Errorf("DeleteSnapshot: fail to delete %s: with RequestId: %s, error: %s", snapshotID, response.RequestId, err.Error())
+		var aliErr *alicloudErr.ServerError
+		if !errors.As(err, &aliErr) || aliErr.ErrorCode() != SnapshotNotFound {
+			log.Errorf("DeleteSnapshot: failed to delete %s: with RequestId: %s, error: %s", snapshotID, requestId, err.Error())
+			utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotDeleteError, err.Error())
+			return nil, err
 		}
-		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotDeleteError, err.Error())
-		return nil, err
+		log.Infof("DeleteSnapshot: Snapshot not exist for expect %s, see as successful", snapshotID)
 	}
 
 	if existsSnapshots != nil {
 		delete(createdSnapshotMap, existsSnapshots[0].SnapshotName)
 	}
-	str := fmt.Sprintf("DeleteSnapshot:: Successfully delete snapshot %s, requestId: %s", snapshotID, response.RequestId)
+	str := fmt.Sprintf("DeleteSnapshot:: Successfully delete snapshot %s, requestId: %s", snapshotID, requestId)
 	log.Info(str)
 	utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
 	return &csi.DeleteSnapshotResponse{}, nil
@@ -780,6 +794,15 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 
 // ListSnapshots ...
 func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
+	// TODO: groupSnapshotId is missing in ListSnapshotsResponse as we
+	// 	1.could not get groupsnapshotId from DescribeSnpshots API response
+	//  2.could not get volumesnapshot name from ListSnapshotsRequest
+	// this will case:
+	// volumesnapshot leased in cluster when volumegroupsnaoshot deleted,
+	//   as status.volumeGroupSnapshotHandle is missing in volumesnapshotcontent,
+	//   and "snapshot.storage.kubernetes.io/volumesnapshot-in-group-protection" finalizer
+	//   will not be removed in checkandRemoveSnapshotFinalizersAndCheckandDeleteContent
+	//   of external-csi-snapshotter
 	ref := &v1.ObjectReference{
 		Kind:      "VolumeSnapshot",
 		Name:      req.GetSnapshotId(),
@@ -934,7 +957,25 @@ func checkInstallDefaultVolumeSnapshotClass(snapClient *snapClientset.Clientset)
 	}
 }
 
-func checkInstallCRD(crdClient *crd.Clientset) {
+func filterCRD(snapshotCRDNames map[string]string, crd *crdv1.CustomResourceDefinition, volumeGroupSnapshotEnable bool) bool {
+	if crd == nil {
+		return true
+	}
+	if _, ok := snapshotCRDNames[crd.Name]; !ok {
+		return true
+	}
+	if !volumeGroupSnapshotEnable {
+		if len(crd.Spec.Versions) == 1 && crd.Spec.Versions[0].Name != "v1beta1" {
+			return true
+		}
+		return false
+	}
+
+	// v7 CRDs have shortnames
+	return len(crd.Spec.Names.ShortNames) != 0
+}
+
+func checkInstallCRD(crdClient *crd.Clientset, volumeGroupSnapshotEnable bool) {
 
 	snapshotCRDNames := map[string]string{
 		"volumesnapshotclasses.snapshot.storage.k8s.io":  "GetVolumeSnapshotClassesCRDv1",
@@ -950,7 +991,7 @@ func checkInstallCRD(crdClient *crd.Clientset) {
 		return
 	}
 	for _, crd := range crdList.Items {
-		if len(crd.Spec.Versions) == 1 && crd.Spec.Versions[0].Name == "v1beta1" {
+		if !filterCRD(snapshotCRDNames, &crd, volumeGroupSnapshotEnable) {
 			log.Infof("checkInstallCRD:: need to update crd version: %s", crd.Name)
 			continue
 		}
@@ -970,7 +1011,7 @@ func checkInstallCRD(crdClient *crd.Clientset) {
 	}
 	log.Infof("checkInstallCRD: need to create crd counts: %v", len(snapshotCRDNames))
 	for _, value := range snapshotCRDNames {
-		crdStrings := reflect.ValueOf(temp).MethodByName(value).Call([]reflect.Value{reflect.ValueOf(kVersion)})
+		crdStrings := reflect.ValueOf(temp).MethodByName(value).Call([]reflect.Value{reflect.ValueOf(kVersion), reflect.ValueOf(volumeGroupSnapshotEnable)})
 		crdToBeCreated := crdv1.CustomResourceDefinition{}
 		yamlString := crdStrings[0].Interface().(string)
 		crdDecoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader([]byte(yamlString)), 4096)
@@ -1012,10 +1053,14 @@ func newListSnapshotsResponse(snapshots *ecs.DescribeSnapshotsResponse) (*csi.Li
 }
 
 func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
-
-	t, err := time.Parse(time.RFC3339, ecsSnapshot.CreationTime)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", ecsSnapshot.CreationTime)
+	// creationTime == "" if created by snapshotGroup
+	creationTime := timestamp.Timestamp{}
+	if ecsSnapshot.CreationTime != "" {
+		t, err := time.Parse(time.RFC3339, ecsSnapshot.CreationTime)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", ecsSnapshot.CreationTime)
+		}
+		creationTime = timestamp.Timestamp{Seconds: t.Unix()}
 	}
 	sizeGb, _ := strconv.ParseInt(ecsSnapshot.SourceDiskSize, 10, 64)
 	sizeBytes := utils.Gi2Bytes(sizeGb)
