@@ -803,6 +803,7 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 	//   and "snapshot.storage.kubernetes.io/volumesnapshot-in-group-protection" finalizer
 	//   will not be removed in checkandRemoveSnapshotFinalizersAndCheckandDeleteContent
 	//   of external-csi-snapshotter
+	// In current version, we try to get snapshotGroupId by description or name of snapshot
 	ref := &v1.ObjectReference{
 		Kind:      "VolumeSnapshot",
 		Name:      req.GetSnapshotId(),
@@ -1052,6 +1053,13 @@ func newListSnapshotsResponse(snapshots *ecs.DescribeSnapshotsResponse) (*csi.Li
 	}, nil
 }
 
+func tryGetGroupSnapshotId(str string) string {
+	if !strings.HasPrefix(str, "Created from ssg-") {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(str, "Created from "))
+}
+
 func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 	// creationTime == "" if created by snapshotGroup
 	creationTime := timestamp.Timestamp{}
@@ -1068,12 +1076,17 @@ func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 	if ecsSnapshot.Status == "accomplished" || ecsSnapshot.InstantAccess {
 		readyToUse = true
 	}
+	groupSnapshotId := tryGetGroupSnapshotId(ecsSnapshot.SnapshotName)
+	if groupSnapshotId == "" {
+		groupSnapshotId = tryGetGroupSnapshotId(ecsSnapshot.Description)
+	}
 	return &csi.Snapshot{
-		SnapshotId:     ecsSnapshot.SnapshotId,
-		SourceVolumeId: ecsSnapshot.SourceDiskId,
-		SizeBytes:      sizeBytes,
-		CreationTime:   &timestamppb.Timestamp{Seconds: t.Unix()},
-		ReadyToUse:     readyToUse,
+		SnapshotId:      ecsSnapshot.SnapshotId,
+		SourceVolumeId:  ecsSnapshot.SourceDiskId,
+		SizeBytes:       sizeBytes,
+		CreationTime:    &creationTime,
+		ReadyToUse:      readyToUse,
+		GroupSnapshotId: groupSnapshotId,
 	}, nil
 }
 

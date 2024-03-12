@@ -51,6 +51,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/mount-utils"
@@ -1195,7 +1196,42 @@ func updateVolumeContext(volumeContext map[string]string) map[string]string {
 	return volumeContext
 }
 
-func getSnapshotInfoByID(snapshotID string) (string, string, *timestamppb.Timestamp) {
+func getGroupSnapshotId(name, namespace string) string {
+	snapshot, err := GlobalConfigVar.SnapClient.SnapshotV1().VolumeSnapshots(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("getGroupSnapshotId:: get snapshot in cluster err: %v", err)
+		return ""
+	}
+	if handle, ok := snapshot.Labels[volumeGroupSnapshotHandleKey]; ok {
+		return handle
+	}
+	groupName, ok := snapshot.Labels[volumeGroupSnapshotNameKey]
+	if !ok {
+		return ""
+	}
+	// in cluster
+	groupSnapshot, err := GlobalConfigVar.SnapClient.GroupsnapshotV1alpha1().VolumeGroupSnapshots(namespace).Get(context.TODO(), groupName, metav1.GetOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return ""
+	}
+	if err == nil && groupSnapshot.Status != nil && groupSnapshot.Status.BoundVolumeGroupSnapshotContentName != nil {
+		content, err := GlobalConfigVar.SnapClient.GroupsnapshotV1alpha1().VolumeGroupSnapshotContents().Get(context.TODO(), *groupSnapshot.Status.BoundVolumeGroupSnapshotContentName, metav1.GetOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return ""
+		}
+		if err == nil && content.Status != nil && content.Status.VolumeGroupSnapshotHandle != nil {
+			return *content.Status.VolumeGroupSnapshotHandle
+		}
+	}
+	// by api
+	groupSnapshots, snapNum, err := findGroupSnapshot(groupName, "", 0)
+	if err != nil || snapNum != 1 {
+		return ""
+	}
+	return groupSnapshots.SnapshotGroups.SnapshotGroup[0].SnapshotGroupId
+}
+
+func getSnapshotInfoByID(snapshotID string) (string, string, *timestamp.Timestamp) {
 	content, err := GlobalConfigVar.SnapClient.SnapshotV1().VolumeSnapshotContents().Get(context.TODO(), snapshotID, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("getSnapshotContentByID:: get snapshot content in cluster err: %v", err)

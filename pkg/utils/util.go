@@ -913,3 +913,60 @@ func WriteTrunc(dirFd int, filePath string, value string) error {
 	}
 	return err
 }
+
+// handle versionTag like "v0.4.0"
+type Version struct {
+	Major int
+	Minor int
+	Patch int
+}
+
+func parseVersion(versionStr string) (Version, error) {
+	re := regexp.MustCompile(`v?(\d+)\.(\d+)\.(\d+)`)
+	matches := re.FindStringSubmatch(versionStr)
+	if len(matches) != 4 {
+		return Version{}, fmt.Errorf("Invalid version format: %s", versionStr)
+	}
+
+	major, _ := strconv.Atoi(matches[1])
+	minor, _ := strconv.Atoi(matches[2])
+	patch, _ := strconv.Atoi(matches[3])
+
+	return Version{
+		Major: major,
+		Minor: minor,
+		Patch: patch,
+	}, nil
+}
+
+func CompareVersions(ver1, ver2 string) (int, error) {
+	v1, err := parseVersion(ver1)
+	if err != nil {
+		return 0, err
+	}
+	v2, err := parseVersion(ver2)
+	if err != nil {
+		return 0, err
+	}
+
+	if v1.Major > v2.Major {
+		return 1, nil
+	} else if v1.Major < v2.Major {
+		return -1, nil
+	}
+
+	if v1.Minor > v2.Minor {
+		return 1, nil
+	} else if v1.Minor < v2.Minor {
+		return -1, nil
+	}
+
+	if v1.Patch > v2.Patch {
+		return 1, nil
+	} else if v1.Patch < v2.Patch {
+		return -1, nil
+	}
+
+	return 0, nil
+}
+
