@@ -568,7 +568,7 @@ func GetPvNameFormPodMnt(mntPath string) string {
 
 // ConnectorRun Run shell command with host connector
 // host connector is daemon running in host.
-func ConnectorRun(cmd string) (string, error) {
+func ConnectorRun(cmd ...string) (string, error) {
 	c, err := net.Dial("unix", socketPath)
 	if err != nil {
 		log.Errorf("Oss connector Dial error: %s", err.Error())
@@ -576,7 +576,7 @@ func ConnectorRun(cmd string) (string, error) {
 	}
 	defer c.Close()
 
-	_, err = c.Write([]byte(cmd))
+	_, err = c.Write([]byte(strings.Join(cmd, "\x00")))
 	if err != nil {
 		log.Errorf("Oss connector write error: %s", err.Error())
 		return err.Error(), err

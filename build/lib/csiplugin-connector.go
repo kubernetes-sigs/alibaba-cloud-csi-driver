@@ -87,8 +87,15 @@ func echoServer(c net.Conn) {
 		return
 	}
 
-	cmd := string(buf[0:nr])
-	log.Printf("Server receive mount cmd: %s", cmd)
+	cmdStr := string(buf[0:nr])
+	// '\x00' is chosen as the delimiter because it is the only character that is not vaild in the command line arguments.
+	// The rationale is the same as `xargs -0`.
+	args := strings.Split(cmdStr, "\x00")
+	log.Printf("Server receive mount cmd: %q", args)
+
+	// Used when removing shell usage while be compatible with old code
+	// Should be removed eventually
+	cmd := strings.Join(args, " ")
 
 	if strings.Contains(cmd, "/usr/local/bin/ossfs") {
 		err = checkOssfsCmd(cmd)
@@ -107,7 +114,7 @@ func echoServer(c net.Conn) {
 		return
 	}
 	// run command
-	if out, err := run(cmd); err != nil {
+	if out, err := run(args...); err != nil {
 		reply := "Fail: " + cmd + ", error: " + err.Error()
 		_, err = c.Write([]byte(reply))
 		log.Print("Server Fail to run cmd:", reply)
@@ -219,10 +226,10 @@ func checkOssfsCmd(cmd string) error {
 	return errors.New("Oss Options: options with error prefix: " + cmd)
 }
 
-func run(cmd string) (string, error) {
-	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
+func run(args ...string) (string, error) {
+	out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("Failed to run cmd: " + cmd + ", with out: " + string(out) + ", with error: " + err.Error())
+		return "", fmt.Errorf("failed to run cmd: %q, with out: %q, with error: %v", args, string(out), err)
 	}
 	return string(out), nil
 }
