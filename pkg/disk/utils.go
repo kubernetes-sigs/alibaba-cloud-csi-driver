@@ -41,8 +41,8 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/containerd/ttrpc"
 	"github.com/golang/protobuf/ptypes/timestamp"
-	volumeSnapshotV1 "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
-	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
+	volumeSnapshotV1 "github.com/kubernetes-csi/external-snapshotter/client/v7/apis/volumesnapshot/v1"
+	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v7/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
@@ -55,6 +55,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/mount-utils"
@@ -1414,6 +1415,41 @@ func updateVolumeContext(volumeContext map[string]string) map[string]string {
 	}
 
 	return volumeContext
+}
+
+func getGroupSnapshotId(name, namespace string) string {
+	snapshot, err := GlobalConfigVar.SnapClient.SnapshotV1().VolumeSnapshots(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		log.Errorf("getGroupSnapshotId:: get snapshot in cluster err: %v", err)
+		return ""
+	}
+	if handle, ok := snapshot.Labels[volumeGroupSnapshotHandleKey]; ok {
+		return handle
+	}
+	groupName, ok := snapshot.Labels[volumeGroupSnapshotNameKey]
+	if !ok {
+		return ""
+	}
+	// in cluster
+	groupSnapshot, err := GlobalConfigVar.SnapClient.GroupsnapshotV1alpha1().VolumeGroupSnapshots(namespace).Get(context.TODO(), groupName, metav1.GetOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return ""
+	}
+	if err == nil && groupSnapshot.Status != nil && groupSnapshot.Status.BoundVolumeGroupSnapshotContentName != nil {
+		content, err := GlobalConfigVar.SnapClient.GroupsnapshotV1alpha1().VolumeGroupSnapshotContents().Get(context.TODO(), *groupSnapshot.Status.BoundVolumeGroupSnapshotContentName, metav1.GetOptions{})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return ""
+		}
+		if err == nil && content.Status != nil && content.Status.VolumeGroupSnapshotHandle != nil {
+			return *content.Status.VolumeGroupSnapshotHandle
+		}
+	}
+	// by api
+	groupSnapshots, snapNum, err := findGroupSnapshot(groupName, "", 0)
+	if err != nil || snapNum != 1 {
+		return ""
+	}
+	return groupSnapshots.SnapshotGroups.SnapshotGroup[0].SnapshotGroupId
 }
 
 func getSnapshotInfoByID(snapshotID string) (string, string, *timestamp.Timestamp) {

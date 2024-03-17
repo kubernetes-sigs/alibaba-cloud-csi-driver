@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 
+	csicommon "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	log "github.com/sirupsen/logrus"
@@ -45,7 +46,12 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *PoV {
 // Run start pov driver service
 func (p *PoV) Run() {
 	log.Infof("Starting pov driver service, endpoint: %s", p.endpoint)
-	common.RunCSIServer(p.endpoint, p, &p.controllerService, &p.nodeService)
+	servers := csicommon.Servers{
+		Ids: p,
+		Cs:  &p.controllerService,
+		Ns:  &p.nodeService,
+	}
+	common.RunCSIServer(p.endpoint, servers)
 }
 
 func newGlobalConfig(runAsController bool) {

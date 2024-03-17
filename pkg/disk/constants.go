@@ -42,6 +42,8 @@ const (
 	SnapshotRequestTag = "SNAPSHOT_REQUEST_INTERVAL"
 	// DefaultVolumeSnapshotClass ...
 	DefaultVolumeSnapshotClass = "alibabacloud-disk-snapshot"
+	// DefaultVolumeGroupSnapshotClass ...
+	DefaultVolumeGroupSnapshotClass = "alibabacloud-disk-group-snapshot"
 	// annDiskID tag
 	annDiskID = "volume.alibabacloud.com/disk-id"
 	// MultiAttach tag
@@ -68,6 +70,8 @@ const (
 	snapshotDeleteError string = "SnapshotDeleteError"
 	//snapshotDeletedSuccessfully means that the delete snapshot success
 	snapshotDeletedSuccessfully string = "SnapshotDeletedSuccessfully"
+	//snapshotGetError means that the get snapshot error occurred
+	snapshotGetError string = "SnapshotGetError"
 
 	// DocumentURL document URL
 	DocumentURL = "http://100.100.100.200/latest/dynamic/instance-identity/document"
@@ -160,6 +164,9 @@ const (
 	annVolumeTopoKey  = "csi.alibabacloud.com/volume-topology"
 	labelVolumeType   = "csi.alibabacloud.com/disktype"
 	annAppendPrefix   = "csi.alibabacloud.com/annotation-prefix/"
+
+	volumeGroupSnapshotHandleKey = "volumeGroupSnapshotHandle"
+	volumeGroupSnapshotNameKey   = "volumeGroupSnapshotName"
 
 	VolumeDeleteAutoSnapshotKey                    = "csi.alibabacloud.com/volume-delete-autosnapshot-retentiondays"
 	VOLUME_EXPAND_AUTO_SNAPSHOT_OP_KEY             = "volumeExpandAutoSnapshot"

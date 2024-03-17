@@ -210,3 +210,15 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
+
+func (cs *controllerServer) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest,
+) (*csi.ControllerGetVolumeResponse, error) {
+	log.Infof("ControllerGetVolume is called, do nothing now")
+	return &csi.ControllerGetVolumeResponse{}, nil
+}
+
+func (cs *controllerServer) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest,
+) (*csi.ControllerModifyVolumeResponse, error) {
+	log.Infof("ControllerModifyVolume is called, do nothing now")
+	return &csi.ControllerModifyVolumeResponse{}, nil
+}
