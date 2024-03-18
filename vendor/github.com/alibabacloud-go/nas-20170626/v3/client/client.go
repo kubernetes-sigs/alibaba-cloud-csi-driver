@@ -72,9 +72,9 @@ func (s *AddClientToBlackListResponseBody) SetRequestId(v string) *AddClientToBl
 }
 
 type AddClientToBlackListResponse struct {
-	Headers    map[string]*string                `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                            `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *AddClientToBlackListResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                            `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *AddClientToBlackListResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s AddClientToBlackListResponse) String() string {
@@ -168,9 +168,9 @@ func (s *AddTagsResponseBody) SetRequestId(v string) *AddTagsResponseBody {
 }
 
 type AddTagsResponse struct {
-	Headers    map[string]*string   `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32               `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *AddTagsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string   `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32               `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *AddTagsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s AddTagsResponse) String() string {
@@ -242,9 +242,9 @@ func (s *ApplyAutoSnapshotPolicyResponseBody) SetRequestId(v string) *ApplyAutoS
 }
 
 type ApplyAutoSnapshotPolicyResponse struct {
-	Headers    map[string]*string                   `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                               `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ApplyAutoSnapshotPolicyResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                   `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                               `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ApplyAutoSnapshotPolicyResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ApplyAutoSnapshotPolicyResponse) String() string {
@@ -271,21 +271,35 @@ func (s *ApplyAutoSnapshotPolicyResponse) SetBody(v *ApplyAutoSnapshotPolicyResp
 }
 
 type ApplyDataFlowAutoRefreshRequest struct {
+	// The automatic update interval. CPFS checks whether data is updated in the directory at the interval specified by this parameter. If data is updated, CPFS starts an automatic update task. Unit: minutes.
+	//
+	// Valid values: 5 to 526600. Default value: 10.
 	AutoRefreshInterval *int64 `json:"AutoRefreshInterval,omitempty" xml:"AutoRefreshInterval,omitempty"`
-	// *
-	// *
-	AutoRefreshPolicy *string                                        `json:"AutoRefreshPolicy,omitempty" xml:"AutoRefreshPolicy,omitempty"`
-	AutoRefreshs      []*ApplyDataFlowAutoRefreshRequestAutoRefreshs `json:"AutoRefreshs,omitempty" xml:"AutoRefreshs,omitempty" type:"Repeated"`
-	// [](~~25693~~)
+	// The automatic update policy. The updated data in the source storage is imported into the CPFS file system based on the policy. Valid values:
 	//
-	// **
+	// *   None (default): Updated data in the source storage is not automatically imported into the CPFS file system. You can run a dataflow task to import the updated data from the source storage.
+	// *   ImportChanged: Updated data in the source storage is automatically imported into the CPFS file system.
+	AutoRefreshPolicy *string `json:"AutoRefreshPolicy,omitempty" xml:"AutoRefreshPolicy,omitempty"`
+	// The automatic update configurations.
+	AutoRefreshs []*ApplyDataFlowAutoRefreshRequestAutoRefreshs `json:"AutoRefreshs,omitempty" xml:"AutoRefreshs,omitempty" type:"Repeated"`
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// ****
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
+	//
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The value of RequestId may be different for each API request.
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	DataFlowId  *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	// *
-	// *
-	DryRun       *bool   `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The dataflow ID.
+	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
+	// Specifies whether to perform a dry run.
+	//
+	// During the dry run, the system checks whether the request parameters are valid and whether the requested resources are available. During the dry run, no file system is created and no fee is incurred.
+	//
+	// Valid values:
+	//
+	// *   true: performs a dry run. The system checks the required parameters, request syntax, limits, and available NAS resources. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned. No value is returned for the FileSystemId parameter.
+	// *   false (default): performs a dry run and sends the request. If the request passes the dry run, a file system is created.
+	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The ID of the file system.
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 }
 
@@ -333,13 +347,15 @@ func (s *ApplyDataFlowAutoRefreshRequest) SetFileSystemId(v string) *ApplyDataFl
 }
 
 type ApplyDataFlowAutoRefreshRequestAutoRefreshs struct {
-	// *
-	// *
-	// *
+	// The automatic update directory. CPFS automatically checks whether the source data only in the directory is updated and imports the updated data.
 	//
-	// **
+	// Limits:
 	//
-	// ****
+	// *   The directory must be 2 to 1,024 characters in length.
+	// *   The directory must be encoded in UTF-8.
+	// *   The directory must start and end with a forward slash (/).
+	//
+	// >  The directory must be an existing directory in the CPFS file system and must be in a fileset where the dataflow is enabled.
 	RefreshPath *string `json:"RefreshPath,omitempty" xml:"RefreshPath,omitempty"`
 }
 
@@ -357,6 +373,7 @@ func (s *ApplyDataFlowAutoRefreshRequestAutoRefreshs) SetRefreshPath(v string) *
 }
 
 type ApplyDataFlowAutoRefreshResponseBody struct {
+	// The request ID.
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
@@ -374,9 +391,9 @@ func (s *ApplyDataFlowAutoRefreshResponseBody) SetRequestId(v string) *ApplyData
 }
 
 type ApplyDataFlowAutoRefreshResponse struct {
-	Headers    map[string]*string                    `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ApplyDataFlowAutoRefreshResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                    `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ApplyDataFlowAutoRefreshResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ApplyDataFlowAutoRefreshResponse) String() string {
@@ -398,909 +415,6 @@ func (s *ApplyDataFlowAutoRefreshResponse) SetStatusCode(v int32) *ApplyDataFlow
 }
 
 func (s *ApplyDataFlowAutoRefreshResponse) SetBody(v *ApplyDataFlowAutoRefreshResponseBody) *ApplyDataFlowAutoRefreshResponse {
-	s.Body = v
-	return s
-}
-
-type AttachVscMountPointRequest struct {
-	FileSystemId     *string                                     `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	MountPointDomain *string                                     `json:"MountPointDomain,omitempty" xml:"MountPointDomain,omitempty"`
-	VscAttachInfos   []*AttachVscMountPointRequestVscAttachInfos `json:"VscAttachInfos,omitempty" xml:"VscAttachInfos,omitempty" type:"Repeated"`
-}
-
-func (s AttachVscMountPointRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s AttachVscMountPointRequest) GoString() string {
-	return s.String()
-}
-
-func (s *AttachVscMountPointRequest) SetFileSystemId(v string) *AttachVscMountPointRequest {
-	s.FileSystemId = &v
-	return s
-}
-
-func (s *AttachVscMountPointRequest) SetMountPointDomain(v string) *AttachVscMountPointRequest {
-	s.MountPointDomain = &v
-	return s
-}
-
-func (s *AttachVscMountPointRequest) SetVscAttachInfos(v []*AttachVscMountPointRequestVscAttachInfos) *AttachVscMountPointRequest {
-	s.VscAttachInfos = v
-	return s
-}
-
-type AttachVscMountPointRequestVscAttachInfos struct {
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	VscId      *string `json:"VscId,omitempty" xml:"VscId,omitempty"`
-	VscType    *string `json:"VscType,omitempty" xml:"VscType,omitempty"`
-}
-
-func (s AttachVscMountPointRequestVscAttachInfos) String() string {
-	return tea.Prettify(s)
-}
-
-func (s AttachVscMountPointRequestVscAttachInfos) GoString() string {
-	return s.String()
-}
-
-func (s *AttachVscMountPointRequestVscAttachInfos) SetInstanceId(v string) *AttachVscMountPointRequestVscAttachInfos {
-	s.InstanceId = &v
-	return s
-}
-
-func (s *AttachVscMountPointRequestVscAttachInfos) SetVscId(v string) *AttachVscMountPointRequestVscAttachInfos {
-	s.VscId = &v
-	return s
-}
-
-func (s *AttachVscMountPointRequestVscAttachInfos) SetVscType(v string) *AttachVscMountPointRequestVscAttachInfos {
-	s.VscType = &v
-	return s
-}
-
-type AttachVscMountPointResponseBody struct {
-	AttachInfos *AttachVscMountPointResponseBodyAttachInfos `json:"AttachInfos,omitempty" xml:"AttachInfos,omitempty" type:"Struct"`
-	RequestId   *string                                     `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s AttachVscMountPointResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s AttachVscMountPointResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *AttachVscMountPointResponseBody) SetAttachInfos(v *AttachVscMountPointResponseBodyAttachInfos) *AttachVscMountPointResponseBody {
-	s.AttachInfos = v
-	return s
-}
-
-func (s *AttachVscMountPointResponseBody) SetRequestId(v string) *AttachVscMountPointResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type AttachVscMountPointResponseBodyAttachInfos struct {
-	AttachInfo []*AttachVscMountPointResponseBodyAttachInfosAttachInfo `json:"AttachInfo,omitempty" xml:"AttachInfo,omitempty" type:"Repeated"`
-}
-
-func (s AttachVscMountPointResponseBodyAttachInfos) String() string {
-	return tea.Prettify(s)
-}
-
-func (s AttachVscMountPointResponseBodyAttachInfos) GoString() string {
-	return s.String()
-}
-
-func (s *AttachVscMountPointResponseBodyAttachInfos) SetAttachInfo(v []*AttachVscMountPointResponseBodyAttachInfosAttachInfo) *AttachVscMountPointResponseBodyAttachInfos {
-	s.AttachInfo = v
-	return s
-}
-
-type AttachVscMountPointResponseBodyAttachInfosAttachInfo struct {
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	Status     *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	VscId      *string `json:"VscId,omitempty" xml:"VscId,omitempty"`
-	VscType    *string `json:"VscType,omitempty" xml:"VscType,omitempty"`
-}
-
-func (s AttachVscMountPointResponseBodyAttachInfosAttachInfo) String() string {
-	return tea.Prettify(s)
-}
-
-func (s AttachVscMountPointResponseBodyAttachInfosAttachInfo) GoString() string {
-	return s.String()
-}
-
-func (s *AttachVscMountPointResponseBodyAttachInfosAttachInfo) SetInstanceId(v string) *AttachVscMountPointResponseBodyAttachInfosAttachInfo {
-	s.InstanceId = &v
-	return s
-}
-
-func (s *AttachVscMountPointResponseBodyAttachInfosAttachInfo) SetStatus(v string) *AttachVscMountPointResponseBodyAttachInfosAttachInfo {
-	s.Status = &v
-	return s
-}
-
-func (s *AttachVscMountPointResponseBodyAttachInfosAttachInfo) SetVscId(v string) *AttachVscMountPointResponseBodyAttachInfosAttachInfo {
-	s.VscId = &v
-	return s
-}
-
-func (s *AttachVscMountPointResponseBodyAttachInfosAttachInfo) SetVscType(v string) *AttachVscMountPointResponseBodyAttachInfosAttachInfo {
-	s.VscType = &v
-	return s
-}
-
-type AttachVscMountPointResponse struct {
-	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *AttachVscMountPointResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s AttachVscMountPointResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s AttachVscMountPointResponse) GoString() string {
-	return s.String()
-}
-
-func (s *AttachVscMountPointResponse) SetHeaders(v map[string]*string) *AttachVscMountPointResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *AttachVscMountPointResponse) SetStatusCode(v int32) *AttachVscMountPointResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *AttachVscMountPointResponse) SetBody(v *AttachVscMountPointResponseBody) *AttachVscMountPointResponse {
-	s.Body = v
-	return s
-}
-
-type BindStoragePackageRequest struct {
-	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	PackageId    *string `json:"PackageId,omitempty" xml:"PackageId,omitempty"`
-	RegionId     *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-}
-
-func (s BindStoragePackageRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s BindStoragePackageRequest) GoString() string {
-	return s.String()
-}
-
-func (s *BindStoragePackageRequest) SetFileSystemId(v string) *BindStoragePackageRequest {
-	s.FileSystemId = &v
-	return s
-}
-
-func (s *BindStoragePackageRequest) SetPackageId(v string) *BindStoragePackageRequest {
-	s.PackageId = &v
-	return s
-}
-
-func (s *BindStoragePackageRequest) SetRegionId(v string) *BindStoragePackageRequest {
-	s.RegionId = &v
-	return s
-}
-
-type BindStoragePackageResponseBody struct {
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s BindStoragePackageResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s BindStoragePackageResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *BindStoragePackageResponseBody) SetRequestId(v string) *BindStoragePackageResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type BindStoragePackageResponse struct {
-	Headers    map[string]*string              `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                          `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *BindStoragePackageResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s BindStoragePackageResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s BindStoragePackageResponse) GoString() string {
-	return s.String()
-}
-
-func (s *BindStoragePackageResponse) SetHeaders(v map[string]*string) *BindStoragePackageResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *BindStoragePackageResponse) SetStatusCode(v int32) *BindStoragePackageResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *BindStoragePackageResponse) SetBody(v *BindStoragePackageResponseBody) *BindStoragePackageResponse {
-	s.Body = v
-	return s
-}
-
-type CPFSCreateFileSystemRequest struct {
-	Bandwidth   *int64  `json:"Bandwidth,omitempty" xml:"Bandwidth,omitempty"`
-	Capacity    *int64  `json:"Capacity,omitempty" xml:"Capacity,omitempty"`
-	FsDesc      *string `json:"FsDesc,omitempty" xml:"FsDesc,omitempty"`
-	FsSpec      *string `json:"FsSpec,omitempty" xml:"FsSpec,omitempty"`
-	NetworkType *string `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
-	VSwitchId   *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	VpcId       *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
-	ZoneId      *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
-}
-
-func (s CPFSCreateFileSystemRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSCreateFileSystemRequest) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSCreateFileSystemRequest) SetBandwidth(v int64) *CPFSCreateFileSystemRequest {
-	s.Bandwidth = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemRequest) SetCapacity(v int64) *CPFSCreateFileSystemRequest {
-	s.Capacity = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemRequest) SetFsDesc(v string) *CPFSCreateFileSystemRequest {
-	s.FsDesc = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemRequest) SetFsSpec(v string) *CPFSCreateFileSystemRequest {
-	s.FsSpec = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemRequest) SetNetworkType(v string) *CPFSCreateFileSystemRequest {
-	s.NetworkType = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemRequest) SetVSwitchId(v string) *CPFSCreateFileSystemRequest {
-	s.VSwitchId = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemRequest) SetVpcId(v string) *CPFSCreateFileSystemRequest {
-	s.VpcId = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemRequest) SetZoneId(v string) *CPFSCreateFileSystemRequest {
-	s.ZoneId = &v
-	return s
-}
-
-type CPFSCreateFileSystemResponseBody struct {
-	FileSystem *CPFSCreateFileSystemResponseBodyFileSystem `json:"FileSystem,omitempty" xml:"FileSystem,omitempty" type:"Struct"`
-	RequestId  *string                                     `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s CPFSCreateFileSystemResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSCreateFileSystemResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSCreateFileSystemResponseBody) SetFileSystem(v *CPFSCreateFileSystemResponseBodyFileSystem) *CPFSCreateFileSystemResponseBody {
-	s.FileSystem = v
-	return s
-}
-
-func (s *CPFSCreateFileSystemResponseBody) SetRequestId(v string) *CPFSCreateFileSystemResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type CPFSCreateFileSystemResponseBodyFileSystem struct {
-	Bandwidth    *int64  `json:"bandwidth,omitempty" xml:"bandwidth,omitempty"`
-	Capacity     *int64  `json:"capacity,omitempty" xml:"capacity,omitempty"`
-	CreateTime   *string `json:"createTime,omitempty" xml:"createTime,omitempty"`
-	FsDesc       *string `json:"fsDesc,omitempty" xml:"fsDesc,omitempty"`
-	FsId         *string `json:"fsId,omitempty" xml:"fsId,omitempty"`
-	FsSpec       *string `json:"fsSpec,omitempty" xml:"fsSpec,omitempty"`
-	MeteredSize  *int64  `json:"meteredSize,omitempty" xml:"meteredSize,omitempty"`
-	MountTargets *string `json:"mountTargets,omitempty" xml:"mountTargets,omitempty"`
-	NetworkType  *string `json:"networkType,omitempty" xml:"networkType,omitempty"`
-	RegionId     *string `json:"regionId,omitempty" xml:"regionId,omitempty"`
-	VSwitchId    *string `json:"vSwitchId,omitempty" xml:"vSwitchId,omitempty"`
-	VpcId        *string `json:"vpcId,omitempty" xml:"vpcId,omitempty"`
-	ZoneId       *string `json:"zoneId,omitempty" xml:"zoneId,omitempty"`
-}
-
-func (s CPFSCreateFileSystemResponseBodyFileSystem) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSCreateFileSystemResponseBodyFileSystem) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSCreateFileSystemResponseBodyFileSystem) SetBandwidth(v int64) *CPFSCreateFileSystemResponseBodyFileSystem {
-	s.Bandwidth = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemResponseBodyFileSystem) SetCapacity(v int64) *CPFSCreateFileSystemResponseBodyFileSystem {
-	s.Capacity = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemResponseBodyFileSystem) SetCreateTime(v string) *CPFSCreateFileSystemResponseBodyFileSystem {
-	s.CreateTime = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemResponseBodyFileSystem) SetFsDesc(v string) *CPFSCreateFileSystemResponseBodyFileSystem {
-	s.FsDesc = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemResponseBodyFileSystem) SetFsId(v string) *CPFSCreateFileSystemResponseBodyFileSystem {
-	s.FsId = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemResponseBodyFileSystem) SetFsSpec(v string) *CPFSCreateFileSystemResponseBodyFileSystem {
-	s.FsSpec = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemResponseBodyFileSystem) SetMeteredSize(v int64) *CPFSCreateFileSystemResponseBodyFileSystem {
-	s.MeteredSize = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemResponseBodyFileSystem) SetMountTargets(v string) *CPFSCreateFileSystemResponseBodyFileSystem {
-	s.MountTargets = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemResponseBodyFileSystem) SetNetworkType(v string) *CPFSCreateFileSystemResponseBodyFileSystem {
-	s.NetworkType = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemResponseBodyFileSystem) SetRegionId(v string) *CPFSCreateFileSystemResponseBodyFileSystem {
-	s.RegionId = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemResponseBodyFileSystem) SetVSwitchId(v string) *CPFSCreateFileSystemResponseBodyFileSystem {
-	s.VSwitchId = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemResponseBodyFileSystem) SetVpcId(v string) *CPFSCreateFileSystemResponseBodyFileSystem {
-	s.VpcId = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemResponseBodyFileSystem) SetZoneId(v string) *CPFSCreateFileSystemResponseBodyFileSystem {
-	s.ZoneId = &v
-	return s
-}
-
-type CPFSCreateFileSystemResponse struct {
-	Headers    map[string]*string                `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                            `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CPFSCreateFileSystemResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s CPFSCreateFileSystemResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSCreateFileSystemResponse) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSCreateFileSystemResponse) SetHeaders(v map[string]*string) *CPFSCreateFileSystemResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *CPFSCreateFileSystemResponse) SetStatusCode(v int32) *CPFSCreateFileSystemResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *CPFSCreateFileSystemResponse) SetBody(v *CPFSCreateFileSystemResponseBody) *CPFSCreateFileSystemResponse {
-	s.Body = v
-	return s
-}
-
-type CPFSDeleteFileSystemRequest struct {
-	FsId *string `json:"FsId,omitempty" xml:"FsId,omitempty"`
-}
-
-func (s CPFSDeleteFileSystemRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSDeleteFileSystemRequest) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSDeleteFileSystemRequest) SetFsId(v string) *CPFSDeleteFileSystemRequest {
-	s.FsId = &v
-	return s
-}
-
-type CPFSDeleteFileSystemResponseBody struct {
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s CPFSDeleteFileSystemResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSDeleteFileSystemResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSDeleteFileSystemResponseBody) SetRequestId(v string) *CPFSDeleteFileSystemResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type CPFSDeleteFileSystemResponse struct {
-	Headers    map[string]*string                `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                            `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CPFSDeleteFileSystemResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s CPFSDeleteFileSystemResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSDeleteFileSystemResponse) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSDeleteFileSystemResponse) SetHeaders(v map[string]*string) *CPFSDeleteFileSystemResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *CPFSDeleteFileSystemResponse) SetStatusCode(v int32) *CPFSDeleteFileSystemResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *CPFSDeleteFileSystemResponse) SetBody(v *CPFSDeleteFileSystemResponseBody) *CPFSDeleteFileSystemResponse {
-	s.Body = v
-	return s
-}
-
-type CPFSDescribeFileSystemsRequest struct {
-	FsId       *string `json:"FsId,omitempty" xml:"FsId,omitempty"`
-	PageNumber *int32  `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	PageSize   *int32  `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-}
-
-func (s CPFSDescribeFileSystemsRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSDescribeFileSystemsRequest) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSDescribeFileSystemsRequest) SetFsId(v string) *CPFSDescribeFileSystemsRequest {
-	s.FsId = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsRequest) SetPageNumber(v int32) *CPFSDescribeFileSystemsRequest {
-	s.PageNumber = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsRequest) SetPageSize(v int32) *CPFSDescribeFileSystemsRequest {
-	s.PageSize = &v
-	return s
-}
-
-type CPFSDescribeFileSystemsResponseBody struct {
-	FileSystems []*CPFSDescribeFileSystemsResponseBodyFileSystems `json:"FileSystems,omitempty" xml:"FileSystems,omitempty" type:"Repeated"`
-	PageNumber  *int32                                            `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	PageSize    *int32                                            `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-	RequestId   *string                                           `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	TotalCount  *int32                                            `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
-}
-
-func (s CPFSDescribeFileSystemsResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSDescribeFileSystemsResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSDescribeFileSystemsResponseBody) SetFileSystems(v []*CPFSDescribeFileSystemsResponseBodyFileSystems) *CPFSDescribeFileSystemsResponseBody {
-	s.FileSystems = v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBody) SetPageNumber(v int32) *CPFSDescribeFileSystemsResponseBody {
-	s.PageNumber = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBody) SetPageSize(v int32) *CPFSDescribeFileSystemsResponseBody {
-	s.PageSize = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBody) SetRequestId(v string) *CPFSDescribeFileSystemsResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBody) SetTotalCount(v int32) *CPFSDescribeFileSystemsResponseBody {
-	s.TotalCount = &v
-	return s
-}
-
-type CPFSDescribeFileSystemsResponseBodyFileSystems struct {
-	Bandwidth    *int64  `json:"bandwidth,omitempty" xml:"bandwidth,omitempty"`
-	BizType      *string `json:"bizType,omitempty" xml:"bizType,omitempty"`
-	Capacity     *int64  `json:"capacity,omitempty" xml:"capacity,omitempty"`
-	CreateTime   *string `json:"createTime,omitempty" xml:"createTime,omitempty"`
-	FsDesc       *string `json:"fsDesc,omitempty" xml:"fsDesc,omitempty"`
-	FsId         *string `json:"fsId,omitempty" xml:"fsId,omitempty"`
-	FsSpec       *string `json:"fsSpec,omitempty" xml:"fsSpec,omitempty"`
-	LdapUrl      *string `json:"ldapUrl,omitempty" xml:"ldapUrl,omitempty"`
-	MeteredSize  *int64  `json:"meteredSize,omitempty" xml:"meteredSize,omitempty"`
-	MountTargets *string `json:"mountTargets,omitempty" xml:"mountTargets,omitempty"`
-	NetworkType  *string `json:"networkType,omitempty" xml:"networkType,omitempty"`
-	RegionId     *string `json:"regionId,omitempty" xml:"regionId,omitempty"`
-	Status       *string `json:"status,omitempty" xml:"status,omitempty"`
-	VSwitchId    *string `json:"vSwitchId,omitempty" xml:"vSwitchId,omitempty"`
-	VpcId        *string `json:"vpcId,omitempty" xml:"vpcId,omitempty"`
-	ZoneId       *string `json:"zoneId,omitempty" xml:"zoneId,omitempty"`
-}
-
-func (s CPFSDescribeFileSystemsResponseBodyFileSystems) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSDescribeFileSystemsResponseBodyFileSystems) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetBandwidth(v int64) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.Bandwidth = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetBizType(v string) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.BizType = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetCapacity(v int64) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.Capacity = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetCreateTime(v string) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.CreateTime = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetFsDesc(v string) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.FsDesc = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetFsId(v string) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.FsId = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetFsSpec(v string) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.FsSpec = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetLdapUrl(v string) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.LdapUrl = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetMeteredSize(v int64) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.MeteredSize = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetMountTargets(v string) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.MountTargets = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetNetworkType(v string) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.NetworkType = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetRegionId(v string) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.RegionId = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetStatus(v string) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.Status = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetVSwitchId(v string) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.VSwitchId = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetVpcId(v string) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.VpcId = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponseBodyFileSystems) SetZoneId(v string) *CPFSDescribeFileSystemsResponseBodyFileSystems {
-	s.ZoneId = &v
-	return s
-}
-
-type CPFSDescribeFileSystemsResponse struct {
-	Headers    map[string]*string                   `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                               `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CPFSDescribeFileSystemsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s CPFSDescribeFileSystemsResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSDescribeFileSystemsResponse) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSDescribeFileSystemsResponse) SetHeaders(v map[string]*string) *CPFSDescribeFileSystemsResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponse) SetStatusCode(v int32) *CPFSDescribeFileSystemsResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *CPFSDescribeFileSystemsResponse) SetBody(v *CPFSDescribeFileSystemsResponseBody) *CPFSDescribeFileSystemsResponse {
-	s.Body = v
-	return s
-}
-
-type CPFSDescribeRegionsRequest struct {
-	PageNumber *int32 `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	PageSize   *int32 `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-}
-
-func (s CPFSDescribeRegionsRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSDescribeRegionsRequest) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSDescribeRegionsRequest) SetPageNumber(v int32) *CPFSDescribeRegionsRequest {
-	s.PageNumber = &v
-	return s
-}
-
-func (s *CPFSDescribeRegionsRequest) SetPageSize(v int32) *CPFSDescribeRegionsRequest {
-	s.PageSize = &v
-	return s
-}
-
-type CPFSDescribeRegionsResponseBody struct {
-	PageNumber *int32                                    `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	PageSize   *int32                                    `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-	Regions    []*CPFSDescribeRegionsResponseBodyRegions `json:"Regions,omitempty" xml:"Regions,omitempty" type:"Repeated"`
-	RequestId  *string                                   `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	TotalCount *int32                                    `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
-}
-
-func (s CPFSDescribeRegionsResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSDescribeRegionsResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSDescribeRegionsResponseBody) SetPageNumber(v int32) *CPFSDescribeRegionsResponseBody {
-	s.PageNumber = &v
-	return s
-}
-
-func (s *CPFSDescribeRegionsResponseBody) SetPageSize(v int32) *CPFSDescribeRegionsResponseBody {
-	s.PageSize = &v
-	return s
-}
-
-func (s *CPFSDescribeRegionsResponseBody) SetRegions(v []*CPFSDescribeRegionsResponseBodyRegions) *CPFSDescribeRegionsResponseBody {
-	s.Regions = v
-	return s
-}
-
-func (s *CPFSDescribeRegionsResponseBody) SetRequestId(v string) *CPFSDescribeRegionsResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-func (s *CPFSDescribeRegionsResponseBody) SetTotalCount(v int32) *CPFSDescribeRegionsResponseBody {
-	s.TotalCount = &v
-	return s
-}
-
-type CPFSDescribeRegionsResponseBodyRegions struct {
-	LocalName      *string `json:"LocalName,omitempty" xml:"LocalName,omitempty"`
-	RegionEndpoint *string `json:"RegionEndpoint,omitempty" xml:"RegionEndpoint,omitempty"`
-	RegionId       *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-}
-
-func (s CPFSDescribeRegionsResponseBodyRegions) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSDescribeRegionsResponseBodyRegions) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSDescribeRegionsResponseBodyRegions) SetLocalName(v string) *CPFSDescribeRegionsResponseBodyRegions {
-	s.LocalName = &v
-	return s
-}
-
-func (s *CPFSDescribeRegionsResponseBodyRegions) SetRegionEndpoint(v string) *CPFSDescribeRegionsResponseBodyRegions {
-	s.RegionEndpoint = &v
-	return s
-}
-
-func (s *CPFSDescribeRegionsResponseBodyRegions) SetRegionId(v string) *CPFSDescribeRegionsResponseBodyRegions {
-	s.RegionId = &v
-	return s
-}
-
-type CPFSDescribeRegionsResponse struct {
-	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CPFSDescribeRegionsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s CPFSDescribeRegionsResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSDescribeRegionsResponse) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSDescribeRegionsResponse) SetHeaders(v map[string]*string) *CPFSDescribeRegionsResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *CPFSDescribeRegionsResponse) SetStatusCode(v int32) *CPFSDescribeRegionsResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *CPFSDescribeRegionsResponse) SetBody(v *CPFSDescribeRegionsResponseBody) *CPFSDescribeRegionsResponse {
-	s.Body = v
-	return s
-}
-
-type CPFSModifyFileSystemRequest struct {
-	FsDesc  *string `json:"FsDesc,omitempty" xml:"FsDesc,omitempty"`
-	FsId    *string `json:"FsId,omitempty" xml:"FsId,omitempty"`
-	LdapUrl *string `json:"LdapUrl,omitempty" xml:"LdapUrl,omitempty"`
-}
-
-func (s CPFSModifyFileSystemRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSModifyFileSystemRequest) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSModifyFileSystemRequest) SetFsDesc(v string) *CPFSModifyFileSystemRequest {
-	s.FsDesc = &v
-	return s
-}
-
-func (s *CPFSModifyFileSystemRequest) SetFsId(v string) *CPFSModifyFileSystemRequest {
-	s.FsId = &v
-	return s
-}
-
-func (s *CPFSModifyFileSystemRequest) SetLdapUrl(v string) *CPFSModifyFileSystemRequest {
-	s.LdapUrl = &v
-	return s
-}
-
-type CPFSModifyFileSystemResponseBody struct {
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s CPFSModifyFileSystemResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSModifyFileSystemResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSModifyFileSystemResponseBody) SetRequestId(v string) *CPFSModifyFileSystemResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type CPFSModifyFileSystemResponse struct {
-	Headers    map[string]*string                `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                            `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CPFSModifyFileSystemResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s CPFSModifyFileSystemResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CPFSModifyFileSystemResponse) GoString() string {
-	return s.String()
-}
-
-func (s *CPFSModifyFileSystemResponse) SetHeaders(v map[string]*string) *CPFSModifyFileSystemResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *CPFSModifyFileSystemResponse) SetStatusCode(v int32) *CPFSModifyFileSystemResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *CPFSModifyFileSystemResponse) SetBody(v *CPFSModifyFileSystemResponseBody) *CPFSModifyFileSystemResponse {
 	s.Body = v
 	return s
 }
@@ -1346,9 +460,9 @@ func (s *CancelAutoSnapshotPolicyResponseBody) SetRequestId(v string) *CancelAut
 }
 
 type CancelAutoSnapshotPolicyResponse struct {
-	Headers    map[string]*string                    `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CancelAutoSnapshotPolicyResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                    `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CancelAutoSnapshotPolicyResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CancelAutoSnapshotPolicyResponse) String() string {
@@ -1375,24 +489,34 @@ func (s *CancelAutoSnapshotPolicyResponse) SetBody(v *CancelAutoSnapshotPolicyRe
 }
 
 type CancelDataFlowAutoRefreshRequest struct {
-	// [](~~25693~~)
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// **
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
-	// ****
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The value of RequestId may be different for each API request.
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	DataFlowId  *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	// *
-	// *
-	DryRun       *bool   `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The dataflow ID.
+	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
+	// Specifies whether to perform a dry run.
+	//
+	// During the dry run, the system checks whether the request parameters are valid and whether the requested resources are available. During the dry run, no file system is created and no fee is incurred.
+	//
+	// Valid values:
+	//
+	// *   true: performs a dry run. The system checks the request format, service limits, prerequisites, and whether the required parameters are specified. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned. No value is returned for the DataFlowld parameter.
+	// *   false (default): performs a dry run and sends the request. If the request passes the dry run, a file system is created.
+	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The ID of the file system.
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// *
-	// *
-	// *
+	// The directory for which you want to cancel AutoRefresh configurations.
 	//
-	// **
+	// Limits:
 	//
-	// ****
+	// *   The directory must be 2 to 1,024 characters in length.
+	// *   The directory must be encoded in UTF-8.
+	// *   The directory must start and end with a forward slash (/).
+	//
+	// >  The directory must be an existing directory in the CPFS file system and must be in a fileset where the dataflow is enabled.
 	RefreshPath *string `json:"RefreshPath,omitempty" xml:"RefreshPath,omitempty"`
 }
 
@@ -1430,6 +554,7 @@ func (s *CancelDataFlowAutoRefreshRequest) SetRefreshPath(v string) *CancelDataF
 }
 
 type CancelDataFlowAutoRefreshResponseBody struct {
+	// The request ID.
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
@@ -1447,9 +572,9 @@ func (s *CancelDataFlowAutoRefreshResponseBody) SetRequestId(v string) *CancelDa
 }
 
 type CancelDataFlowAutoRefreshResponse struct {
-	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CancelDataFlowAutoRefreshResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CancelDataFlowAutoRefreshResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CancelDataFlowAutoRefreshResponse) String() string {
@@ -1476,18 +601,27 @@ func (s *CancelDataFlowAutoRefreshResponse) SetBody(v *CancelDataFlowAutoRefresh
 }
 
 type CancelDataFlowTaskRequest struct {
-	// [](~~25693~~)
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// **
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
-	// ****
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	DataFlowId  *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	// *
-	// *
-	DryRun       *bool   `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The dataflow ID.
+	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
+	// Specifies whether to perform only a dry run, without performing the actual request.
+	//
+	// During the dry run, the system checks whether the request parameters are valid and whether the requested resources are available. The dry run does not cancel the specified dataflow task or incur fees.
+	//
+	// Valid values:
+	//
+	// *   true: performs only a dry run. The system checks the required parameters, request syntax, service limits, and available NAS resources. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned.
+	// *   false (default): performs a dry run and sends the request. If the request passes the dry run, the specified dataflow task is canceled.
+	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The ID of the file system.
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	TaskId       *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
+	// The ID of the dataflow task.
+	TaskId *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
 }
 
 func (s CancelDataFlowTaskRequest) String() string {
@@ -1524,6 +658,7 @@ func (s *CancelDataFlowTaskRequest) SetTaskId(v string) *CancelDataFlowTaskReque
 }
 
 type CancelDataFlowTaskResponseBody struct {
+	// The request ID.
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
@@ -1541,9 +676,9 @@ func (s *CancelDataFlowTaskResponseBody) SetRequestId(v string) *CancelDataFlowT
 }
 
 type CancelDataFlowTaskResponse struct {
-	Headers    map[string]*string              `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                          `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CancelDataFlowTaskResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string              `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                          `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CancelDataFlowTaskResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CancelDataFlowTaskResponse) String() string {
@@ -1652,9 +787,9 @@ func (s *CancelDirQuotaResponseBody) SetSuccess(v bool) *CancelDirQuotaResponseB
 }
 
 type CancelDirQuotaResponse struct {
-	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CancelDirQuotaResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CancelDirQuotaResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CancelDirQuotaResponse) String() string {
@@ -1717,9 +852,9 @@ func (s *CancelLifecycleRetrieveJobResponseBody) SetRequestId(v string) *CancelL
 }
 
 type CancelLifecycleRetrieveJobResponse struct {
-	Headers    map[string]*string                      `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                  `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CancelLifecycleRetrieveJobResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                      `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                  `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CancelLifecycleRetrieveJobResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CancelLifecycleRetrieveJobResponse) String() string {
@@ -1782,9 +917,9 @@ func (s *CancelRecycleBinJobResponseBody) SetRequestId(v string) *CancelRecycleB
 }
 
 type CancelRecycleBinJobResponse struct {
-	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CancelRecycleBinJobResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CancelRecycleBinJobResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CancelRecycleBinJobResponse) String() string {
@@ -1806,6 +941,87 @@ func (s *CancelRecycleBinJobResponse) SetStatusCode(v int32) *CancelRecycleBinJo
 }
 
 func (s *CancelRecycleBinJobResponse) SetBody(v *CancelRecycleBinJobResponseBody) *CancelRecycleBinJobResponse {
+	s.Body = v
+	return s
+}
+
+type ChangeResourceGroupRequest struct {
+	NewResourceGroupId *string `json:"NewResourceGroupId,omitempty" xml:"NewResourceGroupId,omitempty"`
+	RegionId           *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	ResourceId         *string `json:"ResourceId,omitempty" xml:"ResourceId,omitempty"`
+	ResourceType       *string `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
+}
+
+func (s ChangeResourceGroupRequest) String() string {
+	return tea.Prettify(s)
+}
+
+func (s ChangeResourceGroupRequest) GoString() string {
+	return s.String()
+}
+
+func (s *ChangeResourceGroupRequest) SetNewResourceGroupId(v string) *ChangeResourceGroupRequest {
+	s.NewResourceGroupId = &v
+	return s
+}
+
+func (s *ChangeResourceGroupRequest) SetRegionId(v string) *ChangeResourceGroupRequest {
+	s.RegionId = &v
+	return s
+}
+
+func (s *ChangeResourceGroupRequest) SetResourceId(v string) *ChangeResourceGroupRequest {
+	s.ResourceId = &v
+	return s
+}
+
+func (s *ChangeResourceGroupRequest) SetResourceType(v string) *ChangeResourceGroupRequest {
+	s.ResourceType = &v
+	return s
+}
+
+type ChangeResourceGroupResponseBody struct {
+	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+}
+
+func (s ChangeResourceGroupResponseBody) String() string {
+	return tea.Prettify(s)
+}
+
+func (s ChangeResourceGroupResponseBody) GoString() string {
+	return s.String()
+}
+
+func (s *ChangeResourceGroupResponseBody) SetRequestId(v string) *ChangeResourceGroupResponseBody {
+	s.RequestId = &v
+	return s
+}
+
+type ChangeResourceGroupResponse struct {
+	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ChangeResourceGroupResponseBody `json:"body,omitempty" xml:"body,omitempty"`
+}
+
+func (s ChangeResourceGroupResponse) String() string {
+	return tea.Prettify(s)
+}
+
+func (s ChangeResourceGroupResponse) GoString() string {
+	return s.String()
+}
+
+func (s *ChangeResourceGroupResponse) SetHeaders(v map[string]*string) *ChangeResourceGroupResponse {
+	s.Headers = v
+	return s
+}
+
+func (s *ChangeResourceGroupResponse) SetStatusCode(v int32) *ChangeResourceGroupResponse {
+	s.StatusCode = &v
+	return s
+}
+
+func (s *ChangeResourceGroupResponse) SetBody(v *ChangeResourceGroupResponseBody) *ChangeResourceGroupResponse {
 	s.Body = v
 	return s
 }
@@ -1894,9 +1110,9 @@ func (s *CreateAccessGroupResponseBody) SetRequestId(v string) *CreateAccessGrou
 }
 
 type CreateAccessGroupResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateAccessGroupResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateAccessGroupResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateAccessGroupResponse) String() string {
@@ -1933,7 +1149,6 @@ type CreateAccessPointRequest struct {
 	PosixGroupId           *int32  `json:"PosixGroupId,omitempty" xml:"PosixGroupId,omitempty"`
 	PosixSecondaryGroupIds *string `json:"PosixSecondaryGroupIds,omitempty" xml:"PosixSecondaryGroupIds,omitempty"`
 	PosixUserId            *int32  `json:"PosixUserId,omitempty" xml:"PosixUserId,omitempty"`
-	ProtocolType           *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
 	RootDirectory          *string `json:"RootDirectory,omitempty" xml:"RootDirectory,omitempty"`
 	VpcId                  *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
 	VswId                  *string `json:"VswId,omitempty" xml:"VswId,omitempty"`
@@ -1994,11 +1209,6 @@ func (s *CreateAccessPointRequest) SetPosixSecondaryGroupIds(v string) *CreateAc
 
 func (s *CreateAccessPointRequest) SetPosixUserId(v int32) *CreateAccessPointRequest {
 	s.PosixUserId = &v
-	return s
-}
-
-func (s *CreateAccessPointRequest) SetProtocolType(v string) *CreateAccessPointRequest {
-	s.ProtocolType = &v
 	return s
 }
 
@@ -2064,9 +1274,9 @@ func (s *CreateAccessPointResponseBodyAccessPoint) SetAccessPointId(v string) *C
 }
 
 type CreateAccessPointResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateAccessPointResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateAccessPointResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateAccessPointResponse) String() string {
@@ -2210,9 +1420,9 @@ func (s *CreateAccessRuleResponseBody) SetRequestId(v string) *CreateAccessRuleR
 }
 
 type CreateAccessRuleResponse struct {
-	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateAccessRuleResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateAccessRuleResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateAccessRuleResponse) String() string {
@@ -2338,9 +1548,9 @@ func (s *CreateAutoSnapshotPolicyResponseBody) SetRequestId(v string) *CreateAut
 }
 
 type CreateAutoSnapshotPolicyResponse struct {
-	Headers    map[string]*string                    `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateAutoSnapshotPolicyResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                    `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateAutoSnapshotPolicyResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateAutoSnapshotPolicyResponse) String() string {
@@ -2367,18 +1577,74 @@ func (s *CreateAutoSnapshotPolicyResponse) SetBody(v *CreateAutoSnapshotPolicyRe
 }
 
 type CreateDataFlowRequest struct {
-	AutoRefreshInterval *int64                               `json:"AutoRefreshInterval,omitempty" xml:"AutoRefreshInterval,omitempty"`
-	AutoRefreshPolicy   *string                              `json:"AutoRefreshPolicy,omitempty" xml:"AutoRefreshPolicy,omitempty"`
-	AutoRefreshs        []*CreateDataFlowRequestAutoRefreshs `json:"AutoRefreshs,omitempty" xml:"AutoRefreshs,omitempty" type:"Repeated"`
-	ClientToken         *string                              `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	Description         *string                              `json:"Description,omitempty" xml:"Description,omitempty"`
-	DryRun              *bool                                `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
-	FileSystemId        *string                              `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// Fileset ID。
-	FsetId             *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
+	// The automatic update interval. CPFS checks whether data is updated in the directory at the interval specified by this parameter. If data is updated, CPFS starts an automatic update task. Unit: minutes.
+	//
+	// Valid values: 5 to 525600. Default value: 10.
+	AutoRefreshInterval *int64 `json:"AutoRefreshInterval,omitempty" xml:"AutoRefreshInterval,omitempty"`
+	// The automatic update policy. The updated data in the source storage is imported into the CPFS file system based on the policy.
+	//
+	// *   None (default): Updated data in the source storage is not automatically imported into the CPFS file system. You can run a dataflow task to import the updated data from the source storage.
+	// *   ImportChanged: Updated data in the source storage is automatically imported into the CPFS file system.
+	AutoRefreshPolicy *string `json:"AutoRefreshPolicy,omitempty" xml:"AutoRefreshPolicy,omitempty"`
+	// The automatic update configurations.
+	AutoRefreshs []*CreateDataFlowRequestAutoRefreshs `json:"AutoRefreshs,omitempty" xml:"AutoRefreshs,omitempty" type:"Repeated"`
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
+	//
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
+	//
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The value of RequestId may be different for each API request.
+	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
+	// The description of the dataflow.
+	//
+	// Limits:
+	//
+	// *   The description must be 2 to 128 characters in length.
+	// *   The description must start with a letter but cannot start with `http://` or `https://`.
+	// *   The description can contain letters, digits, colons (:), underscores (\_), and hyphens (-).
+	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	// Specifies whether to perform a dry run.
+	//
+	// During the dry run, the system checks whether the request parameters are valid and whether the requested resources are available. During the dry run, no file system is created and no fee is incurred.
+	//
+	// Valid values:
+	//
+	// *   true: performs a dry run. The system checks the required parameters, request syntax, limits, and available NAS resources. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned. No value is returned for the FileSystemId parameter.
+	// *   false (default): performs a dry run and sends the request. If the request passes the dry run, a file system is created.
+	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The ID of the file system.
+	FileSystemId   *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	FileSystemPath *string `json:"FileSystemPath,omitempty" xml:"FileSystemPath,omitempty"`
+	// The fileset ID.
+	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
+	// The type of security mechanism for the source storage. This parameter must be specified if the source storage is accessed with a security mechanism. Valid values:
+	//
+	// *   None (default): The source storage can be accessed without a security mechanism.
+	// *   SSL: The source storage must be accessed with an SSL certificate.
 	SourceSecurityType *string `json:"SourceSecurityType,omitempty" xml:"SourceSecurityType,omitempty"`
-	SourceStorage      *string `json:"SourceStorage,omitempty" xml:"SourceStorage,omitempty"`
-	Throughput         *int64  `json:"Throughput,omitempty" xml:"Throughput,omitempty"`
+	// The access path of the source storage. Format: `<storage type>://<path>`.
+	//
+	// Parameters:
+	//
+	// *   storage type: Only OSS is supported.
+	//
+	// *   path: the name of the OSS bucket. Limits:
+	//
+	//     *   The name can contain only lowercase letters, digits, and hyphens (-). The name must start and end with a lowercase letter or digit.
+	//     *   The name must be 8 to 128 characters in length.
+	//     *   The name must be encoded in UTF-8.
+	//     *   The name cannot start with `http://` or `https://`.
+	//
+	// >  The OSS bucket must be an existing bucket in the region.
+	SourceStorage     *string `json:"SourceStorage,omitempty" xml:"SourceStorage,omitempty"`
+	SourceStoragePath *string `json:"SourceStoragePath,omitempty" xml:"SourceStoragePath,omitempty"`
+	// The maximum dataflow throughput. Unit: MB/s. Valid values:
+	//
+	// *   600
+	// *   1,200
+	// *   1,500
+	//
+	// >  The dataflow throughput must be less than the I/O throughput of the file system
+	Throughput *int64 `json:"Throughput,omitempty" xml:"Throughput,omitempty"`
 }
 
 func (s CreateDataFlowRequest) String() string {
@@ -2424,6 +1690,11 @@ func (s *CreateDataFlowRequest) SetFileSystemId(v string) *CreateDataFlowRequest
 	return s
 }
 
+func (s *CreateDataFlowRequest) SetFileSystemPath(v string) *CreateDataFlowRequest {
+	s.FileSystemPath = &v
+	return s
+}
+
 func (s *CreateDataFlowRequest) SetFsetId(v string) *CreateDataFlowRequest {
 	s.FsetId = &v
 	return s
@@ -2439,12 +1710,27 @@ func (s *CreateDataFlowRequest) SetSourceStorage(v string) *CreateDataFlowReques
 	return s
 }
 
+func (s *CreateDataFlowRequest) SetSourceStoragePath(v string) *CreateDataFlowRequest {
+	s.SourceStoragePath = &v
+	return s
+}
+
 func (s *CreateDataFlowRequest) SetThroughput(v int64) *CreateDataFlowRequest {
 	s.Throughput = &v
 	return s
 }
 
 type CreateDataFlowRequestAutoRefreshs struct {
+	// The automatic update directory. CPFS registers the data update event in the source storage, and automatically checks whether the source data in the directory is updated and imports the updated data.
+	//
+	// This parameter is empty by default. Updated data in the source storage is not automatically imported into the CPFS file system. You must import the updated data by running a manual task.
+	//
+	// Limits:
+	//
+	// *   The directory must be 2 to 1,024 characters in length.
+	// *   The directory must be encoded in UTF-8.
+	// *   The directory must start and end with a forward slash (/).
+	// *   The directory must be an existing directory in the CPFS file system and must be in a fileset where the dataflow is enabled.
 	RefreshPath *string `json:"RefreshPath,omitempty" xml:"RefreshPath,omitempty"`
 }
 
@@ -2462,8 +1748,10 @@ func (s *CreateDataFlowRequestAutoRefreshs) SetRefreshPath(v string) *CreateData
 }
 
 type CreateDataFlowResponseBody struct {
+	// The dataflow ID.
 	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	RequestId  *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	// The request ID.
+	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
 func (s CreateDataFlowResponseBody) String() string {
@@ -2485,9 +1773,9 @@ func (s *CreateDataFlowResponseBody) SetRequestId(v string) *CreateDataFlowRespo
 }
 
 type CreateDataFlowResponse struct {
-	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateDataFlowResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateDataFlowResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateDataFlowResponse) String() string {
@@ -2519,7 +1807,8 @@ type CreateDataFlowTaskRequest struct {
 	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
 	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The value of RequestId may be different for each API request.
-	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
+	ClientToken    *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
+	ConflictPolicy *string `json:"ConflictPolicy,omitempty" xml:"ConflictPolicy,omitempty"`
 	// The dataflow ID.
 	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
 	// The type of data on which operations are performed by the dataflow task.
@@ -2582,6 +1871,11 @@ func (s CreateDataFlowTaskRequest) GoString() string {
 
 func (s *CreateDataFlowTaskRequest) SetClientToken(v string) *CreateDataFlowTaskRequest {
 	s.ClientToken = &v
+	return s
+}
+
+func (s *CreateDataFlowTaskRequest) SetConflictPolicy(v string) *CreateDataFlowTaskRequest {
+	s.ConflictPolicy = &v
 	return s
 }
 
@@ -2651,9 +1945,9 @@ func (s *CreateDataFlowTaskResponseBody) SetTaskId(v string) *CreateDataFlowTask
 }
 
 type CreateDataFlowTaskResponse struct {
-	Headers    map[string]*string              `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                          `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateDataFlowTaskResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string              `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                          `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateDataFlowTaskResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateDataFlowTaskResponse) String() string {
@@ -2744,9 +2038,9 @@ func (s *CreateDirResponseBody) SetRequestId(v string) *CreateDirResponseBody {
 }
 
 type CreateDirResponse struct {
-	Headers    map[string]*string     `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                 `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateDirResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string     `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateDirResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateDirResponse) String() string {
@@ -2846,9 +2140,9 @@ func (s *CreateFileResponseBody) SetRequestId(v string) *CreateFileResponseBody 
 }
 
 type CreateFileResponse struct {
-	Headers    map[string]*string      `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                  `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateFileResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string      `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                  `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateFileResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateFileResponse) String() string {
@@ -2953,7 +2247,8 @@ type CreateFileSystemRequest struct {
 	//
 	// *   If the FileSystemType parameter is set to standard, you can set the ProtocolType parameter to NFS or SMB.
 	// *   If the FileSystemType parameter is set to extreme, you can set the ProtocolType parameter to NFS.
-	ProtocolType *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
+	ProtocolType    *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
+	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
 	// The snapshot ID.
 	//
 	// This parameter is available only for Extreme NAS file systems.
@@ -3049,6 +2344,11 @@ func (s *CreateFileSystemRequest) SetProtocolType(v string) *CreateFileSystemReq
 	return s
 }
 
+func (s *CreateFileSystemRequest) SetResourceGroupId(v string) *CreateFileSystemRequest {
+	s.ResourceGroupId = &v
+	return s
+}
+
 func (s *CreateFileSystemRequest) SetSnapshotId(v string) *CreateFileSystemRequest {
 	s.SnapshotId = &v
 	return s
@@ -3100,9 +2400,9 @@ func (s *CreateFileSystemResponseBody) SetRequestId(v string) *CreateFileSystemR
 }
 
 type CreateFileSystemResponse struct {
-	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateFileSystemResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateFileSystemResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateFileSystemResponse) String() string {
@@ -3129,23 +2429,34 @@ func (s *CreateFileSystemResponse) SetBody(v *CreateFileSystemResponseBody) *Cre
 }
 
 type CreateFilesetRequest struct {
-	// [](~~25693~~)
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// **
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
-	// ****
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// *
-	// *   [](http://https://。)
-	// *
+	// The description of the fileset.
+	//
+	// *   The description must be 2 to 128 characters in length.
+	// *   The description must start with a letter but cannot start with http:// or https://.
+	// *   The description can contain letters, digits, colons (:), underscores (\_), and hyphens (-).
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// *
-	// *
-	DryRun       *bool   `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// Specifies whether to perform a dry run.
+	//
+	// During the dry run, the system checks whether the request parameters are valid and whether the requested resources are available. During the dry run, no fileset is created and no fee is incurred.
+	//
+	// Valid values:
+	//
+	// *   true: performs a dry run. The system checks the required parameters, request syntax, limits, and available NAS resources. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned. No value is returned for the FsetId parameter.
+	// *   false (default): performs a dry run and sends the request. If the request passes the dry run, a fileset is created.
+	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The ID of the file system.
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// *
-	// *
-	// *
+	// The absolute path of the fileset.
+	//
+	// *   The parent directory of the path that you specify must be an existing directory in the file system.
+	// *   The path must be 2 to 1,024 characters in length.
+	// *   The path must start and end with a forward slash (/).
 	FileSystemPath *string `json:"FileSystemPath,omitempty" xml:"FileSystemPath,omitempty"`
 }
 
@@ -3183,7 +2494,9 @@ func (s *CreateFilesetRequest) SetFileSystemPath(v string) *CreateFilesetRequest
 }
 
 type CreateFilesetResponseBody struct {
-	FsetId    *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
+	// The fileset ID.
+	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
+	// The request ID.
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
@@ -3206,9 +2519,9 @@ func (s *CreateFilesetResponseBody) SetRequestId(v string) *CreateFilesetRespons
 }
 
 type CreateFilesetResponse struct {
-	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateFilesetResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateFilesetResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateFilesetResponse) String() string {
@@ -3292,9 +2605,9 @@ func (s *CreateLDAPConfigResponseBody) SetRequestId(v string) *CreateLDAPConfigR
 }
 
 type CreateLDAPConfigResponse struct {
-	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateLDAPConfigResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateLDAPConfigResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateLDAPConfigResponse) String() string {
@@ -3419,9 +2732,9 @@ func (s *CreateLifecyclePolicyResponseBody) SetSuccess(v bool) *CreateLifecycleP
 }
 
 type CreateLifecyclePolicyResponse struct {
-	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateLifecyclePolicyResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateLifecyclePolicyResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateLifecyclePolicyResponse) String() string {
@@ -3498,9 +2811,9 @@ func (s *CreateLifecycleRetrieveJobResponseBody) SetRequestId(v string) *CreateL
 }
 
 type CreateLifecycleRetrieveJobResponse struct {
-	Headers    map[string]*string                      `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                  `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateLifecycleRetrieveJobResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                      `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                  `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateLifecycleRetrieveJobResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateLifecycleRetrieveJobResponse) String() string {
@@ -3570,9 +2883,9 @@ func (s *CreateLogAnalysisResponseBody) SetRequestId(v string) *CreateLogAnalysi
 }
 
 type CreateLogAnalysisResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateLogAnalysisResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateLogAnalysisResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateLogAnalysisResponse) String() string {
@@ -3742,9 +3055,9 @@ func (s *CreateMountTargetResponseBodyMountTargetExtra) SetDualStackMountTargetD
 }
 
 type CreateMountTargetResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateMountTargetResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateMountTargetResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateMountTargetResponse) String() string {
@@ -3771,40 +3084,61 @@ func (s *CreateMountTargetResponse) SetBody(v *CreateMountTargetResponseBody) *C
 }
 
 type CreateProtocolMountTargetRequest struct {
+	// The name of the permission group.
+	//
+	// Default value: DEFAULT_VPC_GROUP_NAME.
 	AccessGroupName *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
-	// [](~~25693~~)
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// **
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
-	// ****
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// ****
+	// The description of the export directory for the protocol service. The **name of the export directory** appears in the console.
 	//
-	// *
-	// *   ````
-	// *
+	// Limits:
+	//
+	// *   The description must be 2 to 128 characters in length.
+	// *   The description must start with a letter but cannot start with `http://` or `https://`.
+	// *   The description can contain letters, digits, colons (:), underscores (\_), and hyphens (-).
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// *
-	// *
-	DryRun       *bool   `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// Specifies whether to perform a dry run. The dry run checks parameter validity and prerequisites. The dry run does not create an export directory or incur fees.
+	//
+	// Valid values:
+	//
+	// *   true: performs a dry run. The system checks the request format, service limits, prerequisites, and whether the required parameters are specified. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned. No value is returned for the ExportId parameter.
+	// *   false (default): performs a dry run and sends the request. If the request passes the dry run, an export directory is created.
+	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The ID of the file system.
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// *
-	// *
-	// *
+	// The ID of the fileset that you want to export.
+	//
+	// Limits:
+	//
+	// *   The fileset already exists.
+	// *   You can create only one export directory for a fileset.
+	// *   You can specify either a fileset or a path.
 	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
-	// *
-	// *
-	// *
+	// The path of the CPFS directory that you want to export.
 	//
-	// <!---->
+	// Limits:
 	//
-	// *
-	// *
-	// *
-	Path              *string `json:"Path,omitempty" xml:"Path,omitempty"`
+	// *   The directory already exists in the CPFS file system.
+	// *   You can create only one export directory for a directory.
+	// *   You can specify either a fileset or a path.
+	//
+	// Format:
+	//
+	// *   The path must be 1 to 1,024 characters in length.
+	// *   The path must be encoded in UTF-8.
+	// *   The path must start and end with a forward slash (/). The root directory is `/`.
+	Path *string `json:"Path,omitempty" xml:"Path,omitempty"`
+	// The ID of the protocol service.
 	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
-	VSwitchId         *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	VpcId             *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
+	// The vSwitch ID of the export directory for the protocol service.
+	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// The VPC ID of the export directory for the protocol service.
+	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
 }
 
 func (s CreateProtocolMountTargetRequest) String() string {
@@ -3866,7 +3200,9 @@ func (s *CreateProtocolMountTargetRequest) SetVpcId(v string) *CreateProtocolMou
 }
 
 type CreateProtocolMountTargetResponseBody struct {
-	ExportId  *string `json:"ExportId,omitempty" xml:"ExportId,omitempty"`
+	// The ID of the export directory for the protocol service.
+	ExportId *string `json:"ExportId,omitempty" xml:"ExportId,omitempty"`
+	// The request ID.
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
@@ -3889,9 +3225,9 @@ func (s *CreateProtocolMountTargetResponseBody) SetRequestId(v string) *CreatePr
 }
 
 type CreateProtocolMountTargetResponse struct {
-	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateProtocolMountTargetResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateProtocolMountTargetResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateProtocolMountTargetResponse) String() string {
@@ -3918,39 +3254,53 @@ func (s *CreateProtocolMountTargetResponse) SetBody(v *CreateProtocolMountTarget
 }
 
 type CreateProtocolServiceRequest struct {
-	// [](~~25693~~)
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// **
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
-	// ****
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// *
-	// *   ````
-	// *
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// *
-	// *
-	DryRun                     *bool   `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
-	FileSystemId               *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	MountTargetAccessGroupName *string `json:"MountTargetAccessGroupName,omitempty" xml:"MountTargetAccessGroupName,omitempty"`
-	MountTargetDescription     *string `json:"MountTargetDescription,omitempty" xml:"MountTargetDescription,omitempty"`
-	MountTargetFsetId          *string `json:"MountTargetFsetId,omitempty" xml:"MountTargetFsetId,omitempty"`
-	MountTargetPath            *string `json:"MountTargetPath,omitempty" xml:"MountTargetPath,omitempty"`
-	MountTargetVSwitchId       *string `json:"MountTargetVSwitchId,omitempty" xml:"MountTargetVSwitchId,omitempty"`
-	MountTargetVpcId           *string `json:"MountTargetVpcId,omitempty" xml:"MountTargetVpcId,omitempty"`
-	// *   General
+	// The description of the protocol service. The name of the protocol service appears in the console.
 	//
-	// <!---->
+	// Limits:
+	//
+	// *   The description must be 2 to 128 characters in length.
+	// *   The description must start with a letter and cannot start with `http://` or `https://`.
+	// *   The description can contain letters, digits, colons (:), underscores (\_), and hyphens (-).
+	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	// Specifies whether to perform a dry run.
+	//
+	// The dry run checks parameter validity and prerequisites. The dry run does not create a protocol service or incur fees.
+	//
+	// Valid values:
+	//
+	// *   true: performs only a dry run and does not create the protocol service. The system checks the request format, service limits, prerequisites, and whether the required parameters are specified. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned. No value is returned for the ProtocolServiceId parameter.
+	// *   false (default): performs a dry run and sends the request. If the request passes the dry run, a protocol service is created.
+	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The ID of the file system.
+	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	// The specification of the protocol service.
+	//
+	// Set the value to General (default).
+	//
+	// Valid values:
 	//
 	// *   CL2
 	// *   General
 	// *   CL1
 	ProtocolSpec *string `json:"ProtocolSpec,omitempty" xml:"ProtocolSpec,omitempty"`
-	// *
+	// The protocol type of the protocol service.
+	//
+	// Valid value: NFS (default). Only NFSv3 is supported.
 	ProtocolType *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
-	Throughput   *int32  `json:"Throughput,omitempty" xml:"Throughput,omitempty"`
-	VSwitchId    *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	VpcId        *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
+	// The throughput of the protocol service.
+	//
+	// Unit: MB/s.
+	Throughput *int32 `json:"Throughput,omitempty" xml:"Throughput,omitempty"`
+	// The vSwitch ID of the protocol service.
+	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// The virtual private cloud (VPC) ID of the protocol service. The VPC ID of the protocol service must be the same as the VPC ID of the file system.
+	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
 }
 
 func (s CreateProtocolServiceRequest) String() string {
@@ -3981,36 +3331,6 @@ func (s *CreateProtocolServiceRequest) SetFileSystemId(v string) *CreateProtocol
 	return s
 }
 
-func (s *CreateProtocolServiceRequest) SetMountTargetAccessGroupName(v string) *CreateProtocolServiceRequest {
-	s.MountTargetAccessGroupName = &v
-	return s
-}
-
-func (s *CreateProtocolServiceRequest) SetMountTargetDescription(v string) *CreateProtocolServiceRequest {
-	s.MountTargetDescription = &v
-	return s
-}
-
-func (s *CreateProtocolServiceRequest) SetMountTargetFsetId(v string) *CreateProtocolServiceRequest {
-	s.MountTargetFsetId = &v
-	return s
-}
-
-func (s *CreateProtocolServiceRequest) SetMountTargetPath(v string) *CreateProtocolServiceRequest {
-	s.MountTargetPath = &v
-	return s
-}
-
-func (s *CreateProtocolServiceRequest) SetMountTargetVSwitchId(v string) *CreateProtocolServiceRequest {
-	s.MountTargetVSwitchId = &v
-	return s
-}
-
-func (s *CreateProtocolServiceRequest) SetMountTargetVpcId(v string) *CreateProtocolServiceRequest {
-	s.MountTargetVpcId = &v
-	return s
-}
-
 func (s *CreateProtocolServiceRequest) SetProtocolSpec(v string) *CreateProtocolServiceRequest {
 	s.ProtocolSpec = &v
 	return s
@@ -4037,9 +3357,9 @@ func (s *CreateProtocolServiceRequest) SetVpcId(v string) *CreateProtocolService
 }
 
 type CreateProtocolServiceResponseBody struct {
-	// null
+	// The ID of the protocol service.
 	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
-	// The ID of the request.
+	// The request ID.
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
@@ -4062,9 +3382,9 @@ func (s *CreateProtocolServiceResponseBody) SetRequestId(v string) *CreateProtoc
 }
 
 type CreateProtocolServiceResponse struct {
-	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateProtocolServiceResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateProtocolServiceResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateProtocolServiceResponse) String() string {
@@ -4154,9 +3474,9 @@ func (s *CreateRecycleBinDeleteJobResponseBody) SetRequestId(v string) *CreateRe
 }
 
 type CreateRecycleBinDeleteJobResponse struct {
-	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateRecycleBinDeleteJobResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateRecycleBinDeleteJobResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateRecycleBinDeleteJobResponse) String() string {
@@ -4253,9 +3573,9 @@ func (s *CreateRecycleBinRestoreJobResponseBody) SetRequestId(v string) *CreateR
 }
 
 type CreateRecycleBinRestoreJobResponse struct {
-	Headers    map[string]*string                      `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                  `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateRecycleBinRestoreJobResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                      `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                  `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateRecycleBinRestoreJobResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateRecycleBinRestoreJobResponse) String() string {
@@ -4277,75 +3597,6 @@ func (s *CreateRecycleBinRestoreJobResponse) SetStatusCode(v int32) *CreateRecyc
 }
 
 func (s *CreateRecycleBinRestoreJobResponse) SetBody(v *CreateRecycleBinRestoreJobResponseBody) *CreateRecycleBinRestoreJobResponse {
-	s.Body = v
-	return s
-}
-
-type CreateServicePolicyRequest struct {
-	ServiceLinkedRoleName *string `json:"ServiceLinkedRoleName,omitempty" xml:"ServiceLinkedRoleName,omitempty"`
-}
-
-func (s CreateServicePolicyRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CreateServicePolicyRequest) GoString() string {
-	return s.String()
-}
-
-func (s *CreateServicePolicyRequest) SetServiceLinkedRoleName(v string) *CreateServicePolicyRequest {
-	s.ServiceLinkedRoleName = &v
-	return s
-}
-
-type CreateServicePolicyResponseBody struct {
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	Success   *bool   `json:"Success,omitempty" xml:"Success,omitempty"`
-}
-
-func (s CreateServicePolicyResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CreateServicePolicyResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *CreateServicePolicyResponseBody) SetRequestId(v string) *CreateServicePolicyResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-func (s *CreateServicePolicyResponseBody) SetSuccess(v bool) *CreateServicePolicyResponseBody {
-	s.Success = &v
-	return s
-}
-
-type CreateServicePolicyResponse struct {
-	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateServicePolicyResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s CreateServicePolicyResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CreateServicePolicyResponse) GoString() string {
-	return s.String()
-}
-
-func (s *CreateServicePolicyResponse) SetHeaders(v map[string]*string) *CreateServicePolicyResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *CreateServicePolicyResponse) SetStatusCode(v int32) *CreateServicePolicyResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *CreateServicePolicyResponse) SetBody(v *CreateServicePolicyResponseBody) *CreateServicePolicyResponse {
 	s.Body = v
 	return s
 }
@@ -4434,9 +3685,9 @@ func (s *CreateSnapshotResponseBody) SetSnapshotId(v string) *CreateSnapshotResp
 }
 
 type CreateSnapshotResponse struct {
-	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateSnapshotResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *CreateSnapshotResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s CreateSnapshotResponse) String() string {
@@ -4458,87 +3709,6 @@ func (s *CreateSnapshotResponse) SetStatusCode(v int32) *CreateSnapshotResponse 
 }
 
 func (s *CreateSnapshotResponse) SetBody(v *CreateSnapshotResponseBody) *CreateSnapshotResponse {
-	s.Body = v
-	return s
-}
-
-type CreateVscMountPointRequest struct {
-	ClientToken  *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	Description  *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-}
-
-func (s CreateVscMountPointRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CreateVscMountPointRequest) GoString() string {
-	return s.String()
-}
-
-func (s *CreateVscMountPointRequest) SetClientToken(v string) *CreateVscMountPointRequest {
-	s.ClientToken = &v
-	return s
-}
-
-func (s *CreateVscMountPointRequest) SetDescription(v string) *CreateVscMountPointRequest {
-	s.Description = &v
-	return s
-}
-
-func (s *CreateVscMountPointRequest) SetFileSystemId(v string) *CreateVscMountPointRequest {
-	s.FileSystemId = &v
-	return s
-}
-
-type CreateVscMountPointResponseBody struct {
-	MountPointDomain *string `json:"MountPointDomain,omitempty" xml:"MountPointDomain,omitempty"`
-	RequestId        *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s CreateVscMountPointResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CreateVscMountPointResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *CreateVscMountPointResponseBody) SetMountPointDomain(v string) *CreateVscMountPointResponseBody {
-	s.MountPointDomain = &v
-	return s
-}
-
-func (s *CreateVscMountPointResponseBody) SetRequestId(v string) *CreateVscMountPointResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type CreateVscMountPointResponse struct {
-	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *CreateVscMountPointResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s CreateVscMountPointResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s CreateVscMountPointResponse) GoString() string {
-	return s.String()
-}
-
-func (s *CreateVscMountPointResponse) SetHeaders(v map[string]*string) *CreateVscMountPointResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *CreateVscMountPointResponse) SetStatusCode(v int32) *CreateVscMountPointResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *CreateVscMountPointResponse) SetBody(v *CreateVscMountPointResponseBody) *CreateVscMountPointResponse {
 	s.Body = v
 	return s
 }
@@ -4592,9 +3762,9 @@ func (s *DeleteAccessGroupResponseBody) SetRequestId(v string) *DeleteAccessGrou
 }
 
 type DeleteAccessGroupResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteAccessGroupResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DeleteAccessGroupResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DeleteAccessGroupResponse) String() string {
@@ -4661,9 +3831,9 @@ func (s *DeleteAccessPointResponseBody) SetRequestId(v string) *DeleteAccessPoin
 }
 
 type DeleteAccessPointResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteAccessPointResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DeleteAccessPointResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DeleteAccessPointResponse) String() string {
@@ -4745,9 +3915,9 @@ func (s *DeleteAccessRuleResponseBody) SetRequestId(v string) *DeleteAccessRuleR
 }
 
 type DeleteAccessRuleResponse struct {
-	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteAccessRuleResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DeleteAccessRuleResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DeleteAccessRuleResponse) String() string {
@@ -4814,9 +3984,9 @@ func (s *DeleteAutoSnapshotPolicyResponseBody) SetRequestId(v string) *DeleteAut
 }
 
 type DeleteAutoSnapshotPolicyResponse struct {
-	Headers    map[string]*string                    `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteAutoSnapshotPolicyResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                    `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DeleteAutoSnapshotPolicyResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DeleteAutoSnapshotPolicyResponse) String() string {
@@ -4843,9 +4013,24 @@ func (s *DeleteAutoSnapshotPolicyResponse) SetBody(v *DeleteAutoSnapshotPolicyRe
 }
 
 type DeleteDataFlowRequest struct {
-	ClientToken  *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	DataFlowId   *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	DryRun       *bool   `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
+	//
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
+	//
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The value of RequestId may be different for each API request.
+	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
+	// The dataflow ID.
+	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
+	// Specifies whether to perform a dry run.
+	//
+	// During the dry run, the system checks whether the request parameters are valid and whether the requested resources are available. During the dry run, no file system is created and no fee is incurred.
+	//
+	// Valid values:
+	//
+	// *   true: performs a dry run. The system checks the required parameters, request syntax, limits, and available NAS resources. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned. No value is returned for the FileSystemId parameter.
+	// *   false (default): performs a dry run and sends the request. If the request passes the dry run, a file system is created.
+	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The ID of the file system.
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 }
 
@@ -4878,6 +4063,7 @@ func (s *DeleteDataFlowRequest) SetFileSystemId(v string) *DeleteDataFlowRequest
 }
 
 type DeleteDataFlowResponseBody struct {
+	// The request ID.
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
@@ -4895,9 +4081,9 @@ func (s *DeleteDataFlowResponseBody) SetRequestId(v string) *DeleteDataFlowRespo
 }
 
 type DeleteDataFlowResponse struct {
-	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteDataFlowResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DeleteDataFlowResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DeleteDataFlowResponse) String() string {
@@ -4919,75 +4105,6 @@ func (s *DeleteDataFlowResponse) SetStatusCode(v int32) *DeleteDataFlowResponse 
 }
 
 func (s *DeleteDataFlowResponse) SetBody(v *DeleteDataFlowResponseBody) *DeleteDataFlowResponse {
-	s.Body = v
-	return s
-}
-
-type DeleteFileRequest struct {
-	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	Path         *string `json:"Path,omitempty" xml:"Path,omitempty"`
-}
-
-func (s DeleteFileRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DeleteFileRequest) GoString() string {
-	return s.String()
-}
-
-func (s *DeleteFileRequest) SetFileSystemId(v string) *DeleteFileRequest {
-	s.FileSystemId = &v
-	return s
-}
-
-func (s *DeleteFileRequest) SetPath(v string) *DeleteFileRequest {
-	s.Path = &v
-	return s
-}
-
-type DeleteFileResponseBody struct {
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s DeleteFileResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DeleteFileResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *DeleteFileResponseBody) SetRequestId(v string) *DeleteFileResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type DeleteFileResponse struct {
-	Headers    map[string]*string      `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                  `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteFileResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s DeleteFileResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DeleteFileResponse) GoString() string {
-	return s.String()
-}
-
-func (s *DeleteFileResponse) SetHeaders(v map[string]*string) *DeleteFileResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *DeleteFileResponse) SetStatusCode(v int32) *DeleteFileResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *DeleteFileResponse) SetBody(v *DeleteFileResponseBody) *DeleteFileResponse {
 	s.Body = v
 	return s
 }
@@ -5035,9 +4152,9 @@ func (s *DeleteFileSystemResponseBody) SetRequestId(v string) *DeleteFileSystemR
 }
 
 type DeleteFileSystemResponse struct {
-	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteFileSystemResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DeleteFileSystemResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DeleteFileSystemResponse) String() string {
@@ -5064,17 +4181,25 @@ func (s *DeleteFileSystemResponse) SetBody(v *DeleteFileSystemResponseBody) *Del
 }
 
 type DeleteFilesetRequest struct {
-	// [](~~25693~~)
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// **
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
-	// ****
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// *
-	// *
-	DryRun       *bool   `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// Specifies whether to perform only a dry run, without performing the actual request.
+	//
+	// During the dry run, the system checks whether the request parameters are valid and whether the requested resources are available. During the dry run, no fileset is deleted.
+	//
+	// Valid values:
+	//
+	// *   true: performs only a dry run. The system checks the required parameters, request syntax, and service limits. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned.
+	// *   false (default): performs a dry run and sends the request. If the request passes the dry run, a fileset is deleted.
+	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The ID of the file system.
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	FsetId       *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
+	// The fileset ID.
+	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
 }
 
 func (s DeleteFilesetRequest) String() string {
@@ -5106,6 +4231,7 @@ func (s *DeleteFilesetRequest) SetFsetId(v string) *DeleteFilesetRequest {
 }
 
 type DeleteFilesetResponseBody struct {
+	// The request ID.
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
@@ -5123,9 +4249,9 @@ func (s *DeleteFilesetResponseBody) SetRequestId(v string) *DeleteFilesetRespons
 }
 
 type DeleteFilesetResponse struct {
-	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteFilesetResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DeleteFilesetResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DeleteFilesetResponse) String() string {
@@ -5188,9 +4314,9 @@ func (s *DeleteLDAPConfigResponseBody) SetRequestId(v string) *DeleteLDAPConfigR
 }
 
 type DeleteLDAPConfigResponse struct {
-	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteLDAPConfigResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DeleteLDAPConfigResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DeleteLDAPConfigResponse) String() string {
@@ -5272,9 +4398,9 @@ func (s *DeleteLifecyclePolicyResponseBody) SetSuccess(v bool) *DeleteLifecycleP
 }
 
 type DeleteLifecyclePolicyResponse struct {
-	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteLifecyclePolicyResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DeleteLifecyclePolicyResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DeleteLifecyclePolicyResponse) String() string {
@@ -5344,9 +4470,9 @@ func (s *DeleteLogAnalysisResponseBody) SetRequestId(v string) *DeleteLogAnalysi
 }
 
 type DeleteLogAnalysisResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteLogAnalysisResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DeleteLogAnalysisResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DeleteLogAnalysisResponse) String() string {
@@ -5422,9 +4548,9 @@ func (s *DeleteMountTargetResponseBody) SetRequestId(v string) *DeleteMountTarge
 }
 
 type DeleteMountTargetResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteMountTargetResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DeleteMountTargetResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DeleteMountTargetResponse) String() string {
@@ -5451,17 +4577,24 @@ func (s *DeleteMountTargetResponse) SetBody(v *DeleteMountTargetResponseBody) *D
 }
 
 type DeleteProtocolMountTargetRequest struct {
-	// [](~~25693~~)
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// **
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
-	// ****
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// *
-	// *
-	DryRun            *bool   `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
-	ExportId          *string `json:"ExportId,omitempty" xml:"ExportId,omitempty"`
-	FileSystemId      *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	// Specifies whether to perform only a dry run, without performing the actual request. The dry run checks parameter validity and prerequisites. The dry run does not delete the specified export directory or incur fees.
+	//
+	// Valid values:
+	//
+	// *   true: performs only a dry run. The system checks the required parameters, request syntax, and service limits. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned.
+	// *   false (default): performs a dry run and sends the request. If the request passes the dry run, the specified export directory is deleted.
+	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The ID of the export directory.
+	ExportId *string `json:"ExportId,omitempty" xml:"ExportId,omitempty"`
+	// The ID of the file system.
+	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	// The ID of the protocol service.
 	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
 }
 
@@ -5499,6 +4632,7 @@ func (s *DeleteProtocolMountTargetRequest) SetProtocolServiceId(v string) *Delet
 }
 
 type DeleteProtocolMountTargetResponseBody struct {
+	// The request ID.
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
@@ -5516,9 +4650,9 @@ func (s *DeleteProtocolMountTargetResponseBody) SetRequestId(v string) *DeletePr
 }
 
 type DeleteProtocolMountTargetResponse struct {
-	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteProtocolMountTargetResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DeleteProtocolMountTargetResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DeleteProtocolMountTargetResponse) String() string {
@@ -5545,16 +4679,22 @@ func (s *DeleteProtocolMountTargetResponse) SetBody(v *DeleteProtocolMountTarget
 }
 
 type DeleteProtocolServiceRequest struct {
-	// [](~~25693~~)
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// **
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
-	// ****
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// *
-	// *
-	DryRun            *bool   `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
-	FileSystemId      *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	// Specifies whether to perform only a dry run, without performing the actual request. The dry run checks parameter validity and prerequisites. The dry run does not delete the specified protocol service.
+	//
+	// Valid values:
+	//
+	// *   true: performs only a dry run. The system checks the required parameters, request syntax, and service limits. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned.
+	// *   false (default): performs a dry run and sends the request. If the request passes the dry run, the specified protocol service is deleted.
+	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The ID of the file system.
+	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	// The ID of the protocol service.
 	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
 }
 
@@ -5587,6 +4727,7 @@ func (s *DeleteProtocolServiceRequest) SetProtocolServiceId(v string) *DeletePro
 }
 
 type DeleteProtocolServiceResponseBody struct {
+	// The request ID.
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
@@ -5604,9 +4745,9 @@ func (s *DeleteProtocolServiceResponseBody) SetRequestId(v string) *DeleteProtoc
 }
 
 type DeleteProtocolServiceResponse struct {
-	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteProtocolServiceResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DeleteProtocolServiceResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DeleteProtocolServiceResponse) String() string {
@@ -5671,9 +4812,9 @@ func (s *DeleteSnapshotResponseBody) SetRequestId(v string) *DeleteSnapshotRespo
 }
 
 type DeleteSnapshotResponse struct {
-	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteSnapshotResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DeleteSnapshotResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DeleteSnapshotResponse) String() string {
@@ -5695,75 +4836,6 @@ func (s *DeleteSnapshotResponse) SetStatusCode(v int32) *DeleteSnapshotResponse 
 }
 
 func (s *DeleteSnapshotResponse) SetBody(v *DeleteSnapshotResponseBody) *DeleteSnapshotResponse {
-	s.Body = v
-	return s
-}
-
-type DeleteVscMountPointRequest struct {
-	FileSystemId     *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	MountPointDomain *string `json:"MountPointDomain,omitempty" xml:"MountPointDomain,omitempty"`
-}
-
-func (s DeleteVscMountPointRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DeleteVscMountPointRequest) GoString() string {
-	return s.String()
-}
-
-func (s *DeleteVscMountPointRequest) SetFileSystemId(v string) *DeleteVscMountPointRequest {
-	s.FileSystemId = &v
-	return s
-}
-
-func (s *DeleteVscMountPointRequest) SetMountPointDomain(v string) *DeleteVscMountPointRequest {
-	s.MountPointDomain = &v
-	return s
-}
-
-type DeleteVscMountPointResponseBody struct {
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s DeleteVscMountPointResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DeleteVscMountPointResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *DeleteVscMountPointResponseBody) SetRequestId(v string) *DeleteVscMountPointResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type DeleteVscMountPointResponse struct {
-	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DeleteVscMountPointResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s DeleteVscMountPointResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DeleteVscMountPointResponse) GoString() string {
-	return s.String()
-}
-
-func (s *DeleteVscMountPointResponse) SetHeaders(v map[string]*string) *DeleteVscMountPointResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *DeleteVscMountPointResponse) SetStatusCode(v int32) *DeleteVscMountPointResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *DeleteVscMountPointResponse) SetBody(v *DeleteVscMountPointResponseBody) *DeleteVscMountPointResponse {
 	s.Body = v
 	return s
 }
@@ -5909,12 +4981,13 @@ type DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup struct {
 	// The time when the permission group was created.
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
 	// The description of the permission group.
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	Description    *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
 	// The number of mount targets to which the permission group is attached.
-	MountTargetCount *int32 `json:"MountTargetCount,omitempty" xml:"MountTargetCount,omitempty"`
+	MountTargetCount *int32  `json:"MountTargetCount,omitempty" xml:"MountTargetCount,omitempty"`
+	RegionId         *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
 	// The total number of rules in the permission group.
-	RuleCount *int32                                                       `json:"RuleCount,omitempty" xml:"RuleCount,omitempty"`
-	Tags      *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	RuleCount *int32 `json:"RuleCount,omitempty" xml:"RuleCount,omitempty"`
 }
 
 func (s DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup) String() string {
@@ -5945,8 +5018,18 @@ func (s *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup) SetDescription
 	return s
 }
 
+func (s *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup) SetFileSystemType(v string) *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup {
+	s.FileSystemType = &v
+	return s
+}
+
 func (s *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup) SetMountTargetCount(v int32) *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup {
 	s.MountTargetCount = &v
+	return s
+}
+
+func (s *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup) SetRegionId(v string) *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup {
+	s.RegionId = &v
 	return s
 }
 
@@ -5955,55 +5038,10 @@ func (s *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup) SetRuleCount(v
 	return s
 }
 
-func (s *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup) SetTags(v *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTags) *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroup {
-	s.Tags = v
-	return s
-}
-
-type DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTags struct {
-	Tag []*DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTagsTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
-}
-
-func (s DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTags) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTags) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTags) SetTag(v []*DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTagsTag) *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTags {
-	s.Tag = v
-	return s
-}
-
-type DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTagsTag struct {
-	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
-}
-
-func (s DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTagsTag) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTagsTag) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTagsTag) SetKey(v string) *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTagsTag {
-	s.Key = &v
-	return s
-}
-
-func (s *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTagsTag) SetValue(v string) *DescribeAccessGroupsResponseBodyAccessGroupsAccessGroupTagsTag {
-	s.Value = &v
-	return s
-}
-
 type DescribeAccessGroupsResponse struct {
-	Headers    map[string]*string                `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                            `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeAccessGroupsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                            `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeAccessGroupsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeAccessGroupsResponse) String() string {
@@ -6091,7 +5129,6 @@ type DescribeAccessPointResponseBodyAccessPoint struct {
 	RootPathPermission *DescribeAccessPointResponseBodyAccessPointRootPathPermission `json:"RootPathPermission,omitempty" xml:"RootPathPermission,omitempty" type:"Struct"`
 	RootPathStatus     *string                                                       `json:"RootPathStatus,omitempty" xml:"RootPathStatus,omitempty"`
 	Status             *string                                                       `json:"Status,omitempty" xml:"Status,omitempty"`
-	Tags               []*DescribeAccessPointResponseBodyAccessPointTags             `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 	VSwitchId          *string                                                       `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
 	VpcId              *string                                                       `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
 }
@@ -6179,11 +5216,6 @@ func (s *DescribeAccessPointResponseBodyAccessPoint) SetStatus(v string) *Descri
 	return s
 }
 
-func (s *DescribeAccessPointResponseBodyAccessPoint) SetTags(v []*DescribeAccessPointResponseBodyAccessPointTags) *DescribeAccessPointResponseBodyAccessPoint {
-	s.Tags = v
-	return s
-}
-
 func (s *DescribeAccessPointResponseBodyAccessPoint) SetVSwitchId(v string) *DescribeAccessPointResponseBodyAccessPoint {
 	s.VSwitchId = &v
 	return s
@@ -6252,33 +5284,10 @@ func (s *DescribeAccessPointResponseBodyAccessPointRootPathPermission) SetPermis
 	return s
 }
 
-type DescribeAccessPointResponseBodyAccessPointTags struct {
-	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
-}
-
-func (s DescribeAccessPointResponseBodyAccessPointTags) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeAccessPointResponseBodyAccessPointTags) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeAccessPointResponseBodyAccessPointTags) SetKey(v string) *DescribeAccessPointResponseBodyAccessPointTags {
-	s.Key = &v
-	return s
-}
-
-func (s *DescribeAccessPointResponseBodyAccessPointTags) SetValue(v string) *DescribeAccessPointResponseBodyAccessPointTags {
-	s.Value = &v
-	return s
-}
-
 type DescribeAccessPointResponse struct {
-	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeAccessPointResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeAccessPointResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeAccessPointResponse) String() string {
@@ -6540,9 +5549,9 @@ func (s *DescribeAccessPointsResponseBodyAccessPointsRootPathPermission) SetPerm
 }
 
 type DescribeAccessPointsResponse struct {
-	Headers    map[string]*string                `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                            `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeAccessPointsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                            `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeAccessPointsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeAccessPointsResponse) String() string {
@@ -6589,9 +5598,7 @@ type DescribeAccessRulesRequest struct {
 	// Valid values: 1 to 100.
 	//
 	// Default value: 10.
-	PageSize           *int32  `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-	SourceCidrIp       *string `json:"SourceCidrIp,omitempty" xml:"SourceCidrIp,omitempty"`
-	SourceCidrIpFilter *string `json:"SourceCidrIpFilter,omitempty" xml:"SourceCidrIpFilter,omitempty"`
+	PageSize *int32 `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
 }
 
 func (s DescribeAccessRulesRequest) String() string {
@@ -6624,16 +5631,6 @@ func (s *DescribeAccessRulesRequest) SetPageNumber(v int32) *DescribeAccessRules
 
 func (s *DescribeAccessRulesRequest) SetPageSize(v int32) *DescribeAccessRulesRequest {
 	s.PageSize = &v
-	return s
-}
-
-func (s *DescribeAccessRulesRequest) SetSourceCidrIp(v string) *DescribeAccessRulesRequest {
-	s.SourceCidrIp = &v
-	return s
-}
-
-func (s *DescribeAccessRulesRequest) SetSourceCidrIpFilter(v string) *DescribeAccessRulesRequest {
-	s.SourceCidrIpFilter = &v
 	return s
 }
 
@@ -6701,8 +5698,10 @@ func (s *DescribeAccessRulesResponseBodyAccessRules) SetAccessRule(v []*Describe
 }
 
 type DescribeAccessRulesResponseBodyAccessRulesAccessRule struct {
+	AccessGroupName *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
 	// The ID of the rule.
-	AccessRuleId *string `json:"AccessRuleId,omitempty" xml:"AccessRuleId,omitempty"`
+	AccessRuleId   *string `json:"AccessRuleId,omitempty" xml:"AccessRuleId,omitempty"`
+	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
 	// The IPv6 address or CIDR block of the authorized object.
 	Ipv6SourceCidrIp *string `json:"Ipv6SourceCidrIp,omitempty" xml:"Ipv6SourceCidrIp,omitempty"`
 	// The priority of the rule.
@@ -6718,6 +5717,7 @@ type DescribeAccessRulesResponseBodyAccessRulesAccessRule struct {
 	// *   RDWR (default): the read and write permissions
 	// *   RDONLY: the read-only permissions
 	RWAccess *string `json:"RWAccess,omitempty" xml:"RWAccess,omitempty"`
+	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
 	// The IP address or CIDR block of the authorized object.
 	SourceCidrIp *string `json:"SourceCidrIp,omitempty" xml:"SourceCidrIp,omitempty"`
 	// The access permissions for different types of users in the authorized object.
@@ -6740,8 +5740,18 @@ func (s DescribeAccessRulesResponseBodyAccessRulesAccessRule) GoString() string 
 	return s.String()
 }
 
+func (s *DescribeAccessRulesResponseBodyAccessRulesAccessRule) SetAccessGroupName(v string) *DescribeAccessRulesResponseBodyAccessRulesAccessRule {
+	s.AccessGroupName = &v
+	return s
+}
+
 func (s *DescribeAccessRulesResponseBodyAccessRulesAccessRule) SetAccessRuleId(v string) *DescribeAccessRulesResponseBodyAccessRulesAccessRule {
 	s.AccessRuleId = &v
+	return s
+}
+
+func (s *DescribeAccessRulesResponseBodyAccessRulesAccessRule) SetFileSystemType(v string) *DescribeAccessRulesResponseBodyAccessRulesAccessRule {
+	s.FileSystemType = &v
 	return s
 }
 
@@ -6760,6 +5770,11 @@ func (s *DescribeAccessRulesResponseBodyAccessRulesAccessRule) SetRWAccess(v str
 	return s
 }
 
+func (s *DescribeAccessRulesResponseBodyAccessRulesAccessRule) SetRegionId(v string) *DescribeAccessRulesResponseBodyAccessRulesAccessRule {
+	s.RegionId = &v
+	return s
+}
+
 func (s *DescribeAccessRulesResponseBodyAccessRulesAccessRule) SetSourceCidrIp(v string) *DescribeAccessRulesResponseBodyAccessRulesAccessRule {
 	s.SourceCidrIp = &v
 	return s
@@ -6771,9 +5786,9 @@ func (s *DescribeAccessRulesResponseBodyAccessRulesAccessRule) SetUserAccess(v s
 }
 
 type DescribeAccessRulesResponse struct {
-	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeAccessRulesResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeAccessRulesResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeAccessRulesResponse) String() string {
@@ -7006,9 +6021,9 @@ func (s *DescribeAutoSnapshotPoliciesResponseBodyAutoSnapshotPoliciesAutoSnapsho
 }
 
 type DescribeAutoSnapshotPoliciesResponse struct {
-	Headers    map[string]*string                        `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                    `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeAutoSnapshotPoliciesResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                        `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                    `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeAutoSnapshotPoliciesResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeAutoSnapshotPoliciesResponse) String() string {
@@ -7181,9 +6196,9 @@ func (s *DescribeAutoSnapshotTasksResponseBodyAutoSnapshotTasksAutoSnapshotTask)
 }
 
 type DescribeAutoSnapshotTasksResponse struct {
-	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeAutoSnapshotTasksResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeAutoSnapshotTasksResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeAutoSnapshotTasksResponse) String() string {
@@ -7274,9 +6289,9 @@ func (s *DescribeBlackListClientsResponseBody) SetRequestId(v string) *DescribeB
 }
 
 type DescribeBlackListClientsResponse struct {
-	Headers    map[string]*string                    `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeBlackListClientsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                    `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeBlackListClientsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeBlackListClientsResponse) String() string {
@@ -7431,6 +6446,7 @@ func (s *DescribeDataFlowTasksResponseBodyTaskInfo) SetTask(v []*DescribeDataFlo
 }
 
 type DescribeDataFlowTasksResponseBodyTaskInfoTask struct {
+	ConflictPolicy *string `json:"ConflictPolicy,omitempty" xml:"ConflictPolicy,omitempty"`
 	// The time when the task was created.
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
 	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
@@ -7439,7 +6455,8 @@ type DescribeDataFlowTasksResponseBodyTaskInfoTask struct {
 	// *   null null
 	// *   null
 	// *   null
-	DataType *string `json:"DataType,omitempty" xml:"DataType,omitempty"`
+	DataType  *string `json:"DataType,omitempty" xml:"DataType,omitempty"`
+	Directory *string `json:"Directory,omitempty" xml:"Directory,omitempty"`
 	// The time when the task ended.
 	EndTime *string `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
 	// *
@@ -7507,6 +6524,11 @@ func (s DescribeDataFlowTasksResponseBodyTaskInfoTask) GoString() string {
 	return s.String()
 }
 
+func (s *DescribeDataFlowTasksResponseBodyTaskInfoTask) SetConflictPolicy(v string) *DescribeDataFlowTasksResponseBodyTaskInfoTask {
+	s.ConflictPolicy = &v
+	return s
+}
+
 func (s *DescribeDataFlowTasksResponseBodyTaskInfoTask) SetCreateTime(v string) *DescribeDataFlowTasksResponseBodyTaskInfoTask {
 	s.CreateTime = &v
 	return s
@@ -7519,6 +6541,11 @@ func (s *DescribeDataFlowTasksResponseBodyTaskInfoTask) SetDataFlowId(v string) 
 
 func (s *DescribeDataFlowTasksResponseBodyTaskInfoTask) SetDataType(v string) *DescribeDataFlowTasksResponseBodyTaskInfoTask {
 	s.DataType = &v
+	return s
+}
+
+func (s *DescribeDataFlowTasksResponseBodyTaskInfoTask) SetDirectory(v string) *DescribeDataFlowTasksResponseBodyTaskInfoTask {
+	s.Directory = &v
 	return s
 }
 
@@ -7583,9 +6610,9 @@ func (s *DescribeDataFlowTasksResponseBodyTaskInfoTask) SetTaskId(v string) *Des
 }
 
 type DescribeDataFlowTasksResponse struct {
-	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeDataFlowTasksResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeDataFlowTasksResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeDataFlowTasksResponse) String() string {
@@ -7612,10 +6639,16 @@ func (s *DescribeDataFlowTasksResponse) SetBody(v *DescribeDataFlowTasksResponse
 }
 
 type DescribeDataFlowsRequest struct {
-	FileSystemId *string                            `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	Filters      []*DescribeDataFlowsRequestFilters `json:"Filters,omitempty" xml:"Filters,omitempty" type:"Repeated"`
-	MaxResults   *int64                             `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	NextToken    *string                            `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The ID of the file system.
+	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	// The filter that is used to query dataflows.
+	Filters []*DescribeDataFlowsRequestFilters `json:"Filters,omitempty" xml:"Filters,omitempty" type:"Repeated"`
+	// The number of results for each query.
+	//
+	// Valid values: 10 to 100. Default value: 20.
+	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
+	// The pagination token that is used in the next request to retrieve a new page of results. You do not need to specify this parameter for the first request. You must specify the token that is obtained from the previous query as the value of NextToken.
+	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
 }
 
 func (s DescribeDataFlowsRequest) String() string {
@@ -7647,7 +6680,25 @@ func (s *DescribeDataFlowsRequest) SetNextToken(v string) *DescribeDataFlowsRequ
 }
 
 type DescribeDataFlowsRequestFilters struct {
-	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The filter name. Valid values:
+	//
+	// *   DataFlowIds: filters dataflows by dataflow ID.
+	// *   FsetIds: filters dataflows by fileset ID.
+	// *   FileSystemPath: filters dataflows based on the path of a fileset in a CPFS file system.
+	// *   SourceStorage: filters dataflows based on the access path of the source storage.
+	// *   ThroughputList: filters dataflows based on dataflow throughput.
+	// *   Description: filters dataflows based on the fileset description.
+	// *   Status: filters dataflows based on dataflow status.
+	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The value of the filter. This parameter does not support wildcards.
+	//
+	// *   If Key is set to DataFlowIds, set Value to a data flow ID or a part of the data flow ID. You can specify a dataflow ID or a group of dataflow IDs. You can specify a maximum of 10 dataflow IDs. Example: `dfid-12345678` or `dfid-12345678,dfid-12345679`.
+	// *   If Key is set to FsetIds, set Value to a fileset ID or a part of the fileset ID. You can specify a fileset ID or a group of fileset IDs. You can specify a maximum of 10 fileset IDs. Example: `fset-12345678` or `fset-12345678,fset-12345679`.
+	// *   If Key set to FileSystemPath, set Value to the path or a part of the path of a fileset in a CPFS file system. The value must be 2 to 1,024 characters in length. The value must be encoded in UTF-8.
+	// *   If Key is set to SourceStorage, set Value to the access path or a part of the access path of the source storage. The value must be 8 to 128 characters in length. The value must be encoded in UTF-8 and comply with the naming conventions of Object Storage Service (OSS) buckets.
+	// *   If Key is set to ThroughputList, set Value to the dataflow throughput. Combined query is supported.
+	// *   If Key is set to Description, set Value to a dataflow description or a part of the dataflow description.
+	// *   If Key is set to Status, set Value to the dataflow status.
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
@@ -7670,9 +6721,12 @@ func (s *DescribeDataFlowsRequestFilters) SetValue(v string) *DescribeDataFlowsR
 }
 
 type DescribeDataFlowsResponseBody struct {
+	// The details about dataflows.
 	DataFlowInfo *DescribeDataFlowsResponseBodyDataFlowInfo `json:"DataFlowInfo,omitempty" xml:"DataFlowInfo,omitempty" type:"Struct"`
-	NextToken    *string                                    `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	RequestId    *string                                    `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	// A pagination token. It can be used in the next request to retrieve a new page of results.
+	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The request ID.
+	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
 func (s DescribeDataFlowsResponseBody) String() string {
@@ -7716,23 +6770,96 @@ func (s *DescribeDataFlowsResponseBodyDataFlowInfo) SetDataFlow(v []*DescribeDat
 }
 
 type DescribeDataFlowsResponseBodyDataFlowInfoDataFlow struct {
-	AutoRefresh         *DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefresh `json:"AutoRefresh,omitempty" xml:"AutoRefresh,omitempty" type:"Struct"`
-	AutoRefreshInterval *int64                                                        `json:"AutoRefreshInterval,omitempty" xml:"AutoRefreshInterval,omitempty"`
-	AutoRefreshPolicy   *string                                                       `json:"AutoRefreshPolicy,omitempty" xml:"AutoRefreshPolicy,omitempty"`
-	CreateTime          *string                                                       `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	DataFlowId          *string                                                       `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	Description         *string                                                       `json:"Description,omitempty" xml:"Description,omitempty"`
-	ErrorMessage        *string                                                       `json:"ErrorMessage,omitempty" xml:"ErrorMessage,omitempty"`
-	FileSystemId        *string                                                       `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	FileSystemPath      *string                                                       `json:"FileSystemPath,omitempty" xml:"FileSystemPath,omitempty"`
-	FsetDescription     *string                                                       `json:"FsetDescription,omitempty" xml:"FsetDescription,omitempty"`
-	// Fileset ID。
-	FsetId             *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
+	// The details about automatic update policies.
+	AutoRefresh *DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefresh `json:"AutoRefresh,omitempty" xml:"AutoRefresh,omitempty" type:"Struct"`
+	// The automatic update interval. CPFS checks whether data is updated in the directory at the interval specified by this parameter. If data is updated, CPFS starts an automatic update task. Unit: minutes.
+	//
+	// Valid values: 5 to 526600. Default value: 10.
+	AutoRefreshInterval *int64 `json:"AutoRefreshInterval,omitempty" xml:"AutoRefreshInterval,omitempty"`
+	// The automatic update policy. The updated data in the source storage is imported into the CPFS file system based on the policy. Valid values:
+	//
+	// *   None: Updated data in the source storage is not automatically imported to the CPFS file system. You can run a dataflow task to import the updated data from the source storage.
+	// *   ImportChanged: Updated data in the source storage is automatically imported to the CPFS file system.
+	AutoRefreshPolicy *string `json:"AutoRefreshPolicy,omitempty" xml:"AutoRefreshPolicy,omitempty"`
+	// The time when the fileset was created.
+	//
+	// The time follows the ISO 8601 standard in the `yyyy-MM-ddTHH:mm:ssZ` format.
+	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	// The dataflow ID.
+	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
+	// The description of the dataflow.
+	//
+	// Limits:
+	//
+	// *   The description must be 2 to 128 characters in length.
+	// *   The description must start with a letter but cannot start with `http://` or `https://`.
+	// *   The description can contain letters, digits, colons (:), underscores (\_), and hyphens (-).
+	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	// The error message returned. Valid values:
+	//
+	// *   None (default): The dataflow status is normal.
+	// *   SourceStorageUnreachable: The access path of the source storage is not found.
+	// *   ThroughputTooLow: The dataflow throughput is low.
+	ErrorMessage *string `json:"ErrorMessage,omitempty" xml:"ErrorMessage,omitempty"`
+	// The ID of the file system.
+	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	// The directory of the fileset in the CPFS file system.
+	//
+	// Limits:
+	//
+	// *   The directory must be 2 to 1,024 characters in length.
+	// *   The directory must be encoded in UTF-8.
+	// *   The directory must start and end with a forward slash (/).
+	// *   The directory must be a fileset directory in the CPFS file system.
+	FileSystemPath *string `json:"FileSystemPath,omitempty" xml:"FileSystemPath,omitempty"`
+	// The description of the automatic update.
+	FsetDescription *string `json:"FsetDescription,omitempty" xml:"FsetDescription,omitempty"`
+	// The fileset ID.
+	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
+	// The type of security mechanism for the source storage. This parameter must be specified if the source storage is accessed with a security mechanism. Valid values:
+	//
+	// *   None (default): The source storage can be accessed without a security mechanism.
+	// *   SSL: The source storage must be accessed with an SSL certificate.
 	SourceSecurityType *string `json:"SourceSecurityType,omitempty" xml:"SourceSecurityType,omitempty"`
-	SourceStorage      *string `json:"SourceStorage,omitempty" xml:"SourceStorage,omitempty"`
-	Status             *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	Throughput         *int64  `json:"Throughput,omitempty" xml:"Throughput,omitempty"`
-	UpdateTime         *string `json:"UpdateTime,omitempty" xml:"UpdateTime,omitempty"`
+	// The access path of the source storage. Format:://.
+	//
+	// Parameters:
+	//
+	// *   storage type: Only OSS is supported.
+	//
+	// *   path: the name of the OSS bucket.
+	//
+	//     *   The name can contain only lowercase letters, digits, and hyphens (-). The name must start and end with a lowercase letter or digit.
+	//     *   The name must be 8 to 128 characters in length.
+	//     *   The name must be encoded in UTF-8.
+	//     *   The name cannot start with http:// or https://.
+	//
+	// >  The OSS bucket must be an existing bucket in the region.
+	SourceStorage *string `json:"SourceStorage,omitempty" xml:"SourceStorage,omitempty"`
+	// 源端存储内的访问路径。
+	SourceStoragePath *string `json:"SourceStoragePath,omitempty" xml:"SourceStoragePath,omitempty"`
+	// The dataflow status. Valid values:
+	//
+	// *   Starting: The dataflow is being created or enabled.
+	// *   Running: The dataflow has been created and is running properly.
+	// *   Updating: The dataflow is being modified. For example, the dataflow throughput is increased and the automatic update interval is modified.
+	// *   Deleting: The dataflow is being deleted.
+	// *   Stopping: The dataflow is being disabled.
+	// *   Stopped: The dataflow has been disabled.
+	// *   Misconfigured: The dataflow configuration is abnormal. For example, the source storage is inaccessible, and the automatic update cannot be completed due to low dataflow throughput.
+	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The maximum dataflow throughput. Unit: MB/s. Valid values:
+	//
+	// *   600
+	// *   1,200
+	// *   1,500
+	//
+	// >  The dataflow throughput must be less than the I/O throughput of the file system.
+	Throughput *int64 `json:"Throughput,omitempty" xml:"Throughput,omitempty"`
+	// The time when the fileset was last updated.
+	//
+	// The time follows the ISO 8601 standard in the `yyyy-MM-ddTHH:mm:ssZ` format.
+	UpdateTime *string `json:"UpdateTime,omitempty" xml:"UpdateTime,omitempty"`
 }
 
 func (s DescribeDataFlowsResponseBodyDataFlowInfoDataFlow) String() string {
@@ -7808,6 +6935,11 @@ func (s *DescribeDataFlowsResponseBodyDataFlowInfoDataFlow) SetSourceStorage(v s
 	return s
 }
 
+func (s *DescribeDataFlowsResponseBodyDataFlowInfoDataFlow) SetSourceStoragePath(v string) *DescribeDataFlowsResponseBodyDataFlowInfoDataFlow {
+	s.SourceStoragePath = &v
+	return s
+}
+
 func (s *DescribeDataFlowsResponseBodyDataFlowInfoDataFlow) SetStatus(v string) *DescribeDataFlowsResponseBodyDataFlowInfoDataFlow {
 	s.Status = &v
 	return s
@@ -7841,6 +6973,15 @@ func (s *DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefresh) SetAutoRe
 }
 
 type DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefreshAutoRefresh struct {
+	// The automatic update directory. CPFS automatically checks whether the source data only in the directory is updated and imports the updated data.
+	//
+	// Limits:
+	//
+	// *   The directory must be 2 to 1,024 characters in length.
+	// *   The directory must be encoded in UTF-8.
+	// *   The directory must start and end with a forward slash (/).
+	//
+	// >  The directory must be an existing directory in the CPFS file system and must be in a fileset where the dataflow is enabled.
 	RefreshPath *string `json:"RefreshPath,omitempty" xml:"RefreshPath,omitempty"`
 }
 
@@ -7858,9 +6999,9 @@ func (s *DescribeDataFlowsResponseBodyDataFlowInfoDataFlowAutoRefreshAutoRefresh
 }
 
 type DescribeDataFlowsResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeDataFlowsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeDataFlowsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeDataFlowsResponse) String() string {
@@ -8080,9 +7221,9 @@ func (s *DescribeDirQuotasResponseBodyDirQuotaInfosUserQuotaInfos) SetUserType(v
 }
 
 type DescribeDirQuotasResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeDirQuotasResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeDirQuotasResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeDirQuotasResponse) String() string {
@@ -8104,282 +7245,6 @@ func (s *DescribeDirQuotasResponse) SetStatusCode(v int32) *DescribeDirQuotasRes
 }
 
 func (s *DescribeDirQuotasResponse) SetBody(v *DescribeDirQuotasResponseBody) *DescribeDirQuotasResponse {
-	s.Body = v
-	return s
-}
-
-type DescribeFileSystemBriefInfosRequest struct {
-	FileSystemId   *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	OrderByField   *string `json:"OrderByField,omitempty" xml:"OrderByField,omitempty"`
-	PageNumber     *int32  `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	PageSize       *int32  `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-	SortOrder      *string `json:"SortOrder,omitempty" xml:"SortOrder,omitempty"`
-	StorageType    *string `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
-}
-
-func (s DescribeFileSystemBriefInfosRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeFileSystemBriefInfosRequest) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeFileSystemBriefInfosRequest) SetFileSystemId(v string) *DescribeFileSystemBriefInfosRequest {
-	s.FileSystemId = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosRequest) SetFileSystemType(v string) *DescribeFileSystemBriefInfosRequest {
-	s.FileSystemType = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosRequest) SetOrderByField(v string) *DescribeFileSystemBriefInfosRequest {
-	s.OrderByField = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosRequest) SetPageNumber(v int32) *DescribeFileSystemBriefInfosRequest {
-	s.PageNumber = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosRequest) SetPageSize(v int32) *DescribeFileSystemBriefInfosRequest {
-	s.PageSize = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosRequest) SetSortOrder(v string) *DescribeFileSystemBriefInfosRequest {
-	s.SortOrder = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosRequest) SetStorageType(v string) *DescribeFileSystemBriefInfosRequest {
-	s.StorageType = &v
-	return s
-}
-
-type DescribeFileSystemBriefInfosResponseBody struct {
-	FileSystems *DescribeFileSystemBriefInfosResponseBodyFileSystems `json:"FileSystems,omitempty" xml:"FileSystems,omitempty" type:"Struct"`
-	PageNumber  *int32                                               `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	PageSize    *int32                                               `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-	RequestId   *string                                              `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	TotalCount  *int32                                               `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
-}
-
-func (s DescribeFileSystemBriefInfosResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeFileSystemBriefInfosResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBody) SetFileSystems(v *DescribeFileSystemBriefInfosResponseBodyFileSystems) *DescribeFileSystemBriefInfosResponseBody {
-	s.FileSystems = v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBody) SetPageNumber(v int32) *DescribeFileSystemBriefInfosResponseBody {
-	s.PageNumber = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBody) SetPageSize(v int32) *DescribeFileSystemBriefInfosResponseBody {
-	s.PageSize = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBody) SetRequestId(v string) *DescribeFileSystemBriefInfosResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBody) SetTotalCount(v int32) *DescribeFileSystemBriefInfosResponseBody {
-	s.TotalCount = &v
-	return s
-}
-
-type DescribeFileSystemBriefInfosResponseBodyFileSystems struct {
-	FileSystem []*DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem `json:"FileSystem,omitempty" xml:"FileSystem,omitempty" type:"Repeated"`
-}
-
-func (s DescribeFileSystemBriefInfosResponseBodyFileSystems) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeFileSystemBriefInfosResponseBodyFileSystems) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystems) SetFileSystem(v []*DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) *DescribeFileSystemBriefInfosResponseBodyFileSystems {
-	s.FileSystem = v
-	return s
-}
-
-type DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem struct {
-	AccessPointCount      *int32                                                                          `json:"AccessPointCount,omitempty" xml:"AccessPointCount,omitempty"`
-	Capacity              *int64                                                                          `json:"Capacity,omitempty" xml:"Capacity,omitempty"`
-	CreateTime            *string                                                                         `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	Description           *string                                                                         `json:"Description,omitempty" xml:"Description,omitempty"`
-	EncryptType           *int32                                                                          `json:"EncryptType,omitempty" xml:"EncryptType,omitempty"`
-	FileSystemId          *string                                                                         `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	FileSystemType        *string                                                                         `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	KMSKeyId              *string                                                                         `json:"KMSKeyId,omitempty" xml:"KMSKeyId,omitempty"`
-	MeteredIASize         *int64                                                                          `json:"MeteredIASize,omitempty" xml:"MeteredIASize,omitempty"`
-	MeteredSize           *int64                                                                          `json:"MeteredSize,omitempty" xml:"MeteredSize,omitempty"`
-	MountTargetCountLimit *int64                                                                          `json:"MountTargetCountLimit,omitempty" xml:"MountTargetCountLimit,omitempty"`
-	ProtocolType          *string                                                                         `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
-	RegionId              *string                                                                         `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	Status                *string                                                                         `json:"Status,omitempty" xml:"Status,omitempty"`
-	StorageType           *string                                                                         `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
-	SupportedFeatures     *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystemSupportedFeatures `json:"SupportedFeatures,omitempty" xml:"SupportedFeatures,omitempty" type:"Struct"`
-	Version               *string                                                                         `json:"Version,omitempty" xml:"Version,omitempty"`
-	ZoneId                *string                                                                         `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
-}
-
-func (s DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetAccessPointCount(v int32) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.AccessPointCount = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetCapacity(v int64) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.Capacity = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetCreateTime(v string) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.CreateTime = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetDescription(v string) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.Description = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetEncryptType(v int32) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.EncryptType = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetFileSystemId(v string) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.FileSystemId = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetFileSystemType(v string) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.FileSystemType = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetKMSKeyId(v string) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.KMSKeyId = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetMeteredIASize(v int64) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.MeteredIASize = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetMeteredSize(v int64) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.MeteredSize = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetMountTargetCountLimit(v int64) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.MountTargetCountLimit = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetProtocolType(v string) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.ProtocolType = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetRegionId(v string) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.RegionId = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetStatus(v string) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.Status = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetStorageType(v string) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.StorageType = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetSupportedFeatures(v *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystemSupportedFeatures) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.SupportedFeatures = v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetVersion(v string) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.Version = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem) SetZoneId(v string) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystem {
-	s.ZoneId = &v
-	return s
-}
-
-type DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystemSupportedFeatures struct {
-	SupportedFeature []*string `json:"SupportedFeature,omitempty" xml:"SupportedFeature,omitempty" type:"Repeated"`
-}
-
-func (s DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystemSupportedFeatures) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystemSupportedFeatures) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystemSupportedFeatures) SetSupportedFeature(v []*string) *DescribeFileSystemBriefInfosResponseBodyFileSystemsFileSystemSupportedFeatures {
-	s.SupportedFeature = v
-	return s
-}
-
-type DescribeFileSystemBriefInfosResponse struct {
-	Headers    map[string]*string                        `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                    `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeFileSystemBriefInfosResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s DescribeFileSystemBriefInfosResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeFileSystemBriefInfosResponse) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeFileSystemBriefInfosResponse) SetHeaders(v map[string]*string) *DescribeFileSystemBriefInfosResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponse) SetStatusCode(v int32) *DescribeFileSystemBriefInfosResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *DescribeFileSystemBriefInfosResponse) SetBody(v *DescribeFileSystemBriefInfosResponseBody) *DescribeFileSystemBriefInfosResponse {
 	s.Body = v
 	return s
 }
@@ -8766,9 +7631,9 @@ func (s *DescribeFileSystemStatisticsResponseBodyFileSystemsFileSystemPackagesPa
 }
 
 type DescribeFileSystemStatisticsResponse struct {
-	Headers    map[string]*string                        `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                    `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeFileSystemStatisticsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                        `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                    `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeFileSystemStatisticsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeFileSystemStatisticsResponse) String() string {
@@ -8795,8 +7660,6 @@ func (s *DescribeFileSystemStatisticsResponse) SetBody(v *DescribeFileSystemStat
 }
 
 type DescribeFileSystemsRequest struct {
-	ChargeType  *string `json:"ChargeType,omitempty" xml:"ChargeType,omitempty"`
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
 	// The ID of the file system.
 	//
 	// *   Sample ID of a General-purpose NAS file system: 31a8e4\*\*\*\*.
@@ -8804,8 +7667,7 @@ type DescribeFileSystemsRequest struct {
 	// *   The IDs of Cloud Parallel File Storage (CPFS) file systems must start with cpfs-, for example, cpfs-125487\*\*\*\*.
 	//
 	// > CPFS file systems are available only on the China site (aliyun.com).
-	FileSystemId  *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	FileSystemIds *string `json:"FileSystemIds,omitempty" xml:"FileSystemIds,omitempty"`
+	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 	// The type of the file system.
 	//
 	// Valid values:
@@ -8817,8 +7679,6 @@ type DescribeFileSystemsRequest struct {
 	//
 	// > CPFS file systems are available only on the China site (aliyun.com).
 	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	OrderByField   *string `json:"OrderByField,omitempty" xml:"OrderByField,omitempty"`
-	PackageIds     *string `json:"PackageIds,omitempty" xml:"PackageIds,omitempty"`
 	// The page number.
 	//
 	// Pages start from page 1. Default value: 1.
@@ -8828,12 +7688,10 @@ type DescribeFileSystemsRequest struct {
 	// Valid values: 1 to 100.
 	//
 	// Default value: 10.
-	PageSize    *int32  `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-	SortOrder   *string `json:"SortOrder,omitempty" xml:"SortOrder,omitempty"`
-	StorageType *string `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
+	PageSize        *int32  `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
+	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
 	// The details about the tags.
-	Tag            []*DescribeFileSystemsRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
-	UseUTCDateTime *bool                            `json:"UseUTCDateTime,omitempty" xml:"UseUTCDateTime,omitempty"`
+	Tag []*DescribeFileSystemsRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
 	// The ID of the virtual private cloud (VPC).
 	//
 	// If you want to mount the file system on an Elastic Compute Service (ECS) instance, the file system and the ECS instance must reside in the same VPC.
@@ -8848,38 +7706,13 @@ func (s DescribeFileSystemsRequest) GoString() string {
 	return s.String()
 }
 
-func (s *DescribeFileSystemsRequest) SetChargeType(v string) *DescribeFileSystemsRequest {
-	s.ChargeType = &v
-	return s
-}
-
-func (s *DescribeFileSystemsRequest) SetDescription(v string) *DescribeFileSystemsRequest {
-	s.Description = &v
-	return s
-}
-
 func (s *DescribeFileSystemsRequest) SetFileSystemId(v string) *DescribeFileSystemsRequest {
 	s.FileSystemId = &v
 	return s
 }
 
-func (s *DescribeFileSystemsRequest) SetFileSystemIds(v string) *DescribeFileSystemsRequest {
-	s.FileSystemIds = &v
-	return s
-}
-
 func (s *DescribeFileSystemsRequest) SetFileSystemType(v string) *DescribeFileSystemsRequest {
 	s.FileSystemType = &v
-	return s
-}
-
-func (s *DescribeFileSystemsRequest) SetOrderByField(v string) *DescribeFileSystemsRequest {
-	s.OrderByField = &v
-	return s
-}
-
-func (s *DescribeFileSystemsRequest) SetPackageIds(v string) *DescribeFileSystemsRequest {
-	s.PackageIds = &v
 	return s
 }
 
@@ -8893,23 +7726,13 @@ func (s *DescribeFileSystemsRequest) SetPageSize(v int32) *DescribeFileSystemsRe
 	return s
 }
 
-func (s *DescribeFileSystemsRequest) SetSortOrder(v string) *DescribeFileSystemsRequest {
-	s.SortOrder = &v
-	return s
-}
-
-func (s *DescribeFileSystemsRequest) SetStorageType(v string) *DescribeFileSystemsRequest {
-	s.StorageType = &v
+func (s *DescribeFileSystemsRequest) SetResourceGroupId(v string) *DescribeFileSystemsRequest {
+	s.ResourceGroupId = &v
 	return s
 }
 
 func (s *DescribeFileSystemsRequest) SetTag(v []*DescribeFileSystemsRequestTag) *DescribeFileSystemsRequest {
 	s.Tag = v
-	return s
-}
-
-func (s *DescribeFileSystemsRequest) SetUseUTCDateTime(v bool) *DescribeFileSystemsRequest {
-	s.UseUTCDateTime = &v
 	return s
 }
 
@@ -9021,8 +7844,7 @@ func (s *DescribeFileSystemsResponseBodyFileSystems) SetFileSystem(v []*Describe
 }
 
 type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
-	AccessPointCount     *string `json:"AccessPointCount,omitempty" xml:"AccessPointCount,omitempty"`
-	AutoSnapshotPolicyId *string `json:"AutoSnapshotPolicyId,omitempty" xml:"AutoSnapshotPolicyId,omitempty"`
+	AccessPointCount *string `json:"AccessPointCount,omitempty" xml:"AccessPointCount,omitempty"`
 	// The bandwidth of the file system.
 	//
 	// Unit: MB/s. This parameter is unavailable for General-purpose NAS file systems.
@@ -9064,9 +7886,7 @@ type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
 	// *   cpfs: CPFS file system
 	//
 	// > CPFS file systems are available only on the China site (aliyun.com).
-	FileSystemType *string                                                      `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	GuiInfo        *DescribeFileSystemsResponseBodyFileSystemsFileSystemGuiInfo `json:"GuiInfo,omitempty" xml:"GuiInfo,omitempty" type:"Struct"`
-	HpnZone        *string                                                      `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
+	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
 	// The ID of the key that is managed by Key Management Service (KMS).
 	KMSKeyId *string `json:"KMSKeyId,omitempty" xml:"KMSKeyId,omitempty"`
 	// The Lightweight Directory Access Protocol (LDAP) configurations.
@@ -9080,12 +7900,9 @@ type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
 	// The storage usage of the file system.
 	//
 	// The value of this parameter is the maximum storage usage of the file system over the last hour. Unit: bytes.
-	MeteredSize           *int64 `json:"MeteredSize,omitempty" xml:"MeteredSize,omitempty"`
-	MountTargetCountLimit *int64 `json:"MountTargetCountLimit,omitempty" xml:"MountTargetCountLimit,omitempty"`
+	MeteredSize *int64 `json:"MeteredSize,omitempty" xml:"MeteredSize,omitempty"`
 	// The information about mount targets.
-	MountTargets   *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargets `json:"MountTargets,omitempty" xml:"MountTargets,omitempty" type:"Struct"`
-	NasNamespaceId *string                                                           `json:"NasNamespaceId,omitempty" xml:"NasNamespaceId,omitempty"`
-	NodeNum        *int32                                                            `json:"NodeNum,omitempty" xml:"NodeNum,omitempty"`
+	MountTargets *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargets `json:"MountTargets,omitempty" xml:"MountTargets,omitempty" type:"Struct"`
 	// The information about storage plans.
 	Packages *DescribeFileSystemsResponseBodyFileSystemsFileSystemPackages `json:"Packages,omitempty" xml:"Packages,omitempty" type:"Struct"`
 	// The protocol type of the file system.
@@ -9099,7 +7916,8 @@ type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
 	// > CPFS file systems are available only on the China site (aliyun.com).
 	ProtocolType *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
 	// The region ID.
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	RegionId        *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
+	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
 	// The status of the file system. Valid values:
 	//
 	// *   Pending: The file system is being created or modified.
@@ -9126,9 +7944,7 @@ type DescribeFileSystemsResponseBodyFileSystemsFileSystem struct {
 	// The version number of the file system.
 	//
 	// This parameter is available only for Extreme NAS file systems.
-	Version *string                                                     `json:"Version,omitempty" xml:"Version,omitempty"`
-	VpcId   *string                                                     `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
-	VswIds  *DescribeFileSystemsResponseBodyFileSystemsFileSystemVswIds `json:"VswIds,omitempty" xml:"VswIds,omitempty" type:"Struct"`
+	Version *string `json:"Version,omitempty" xml:"Version,omitempty"`
 	// The ID of the zone where the file system resides.
 	ZoneId *string `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
 }
@@ -9143,11 +7959,6 @@ func (s DescribeFileSystemsResponseBodyFileSystemsFileSystem) GoString() string 
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetAccessPointCount(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
 	s.AccessPointCount = &v
-	return s
-}
-
-func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetAutoSnapshotPolicyId(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
-	s.AutoSnapshotPolicyId = &v
 	return s
 }
 
@@ -9196,16 +8007,6 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetFileSystemType
 	return s
 }
 
-func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetGuiInfo(v *DescribeFileSystemsResponseBodyFileSystemsFileSystemGuiInfo) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
-	s.GuiInfo = v
-	return s
-}
-
-func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetHpnZone(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
-	s.HpnZone = &v
-	return s
-}
-
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetKMSKeyId(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
 	s.KMSKeyId = &v
 	return s
@@ -9226,23 +8027,8 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetMeteredSize(v 
 	return s
 }
 
-func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetMountTargetCountLimit(v int64) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
-	s.MountTargetCountLimit = &v
-	return s
-}
-
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetMountTargets(v *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargets) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
 	s.MountTargets = v
-	return s
-}
-
-func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetNasNamespaceId(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
-	s.NasNamespaceId = &v
-	return s
-}
-
-func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetNodeNum(v int32) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
-	s.NodeNum = &v
 	return s
 }
 
@@ -9258,6 +8044,11 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetProtocolType(v
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetRegionId(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
 	s.RegionId = &v
+	return s
+}
+
+func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetResourceGroupId(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
+	s.ResourceGroupId = &v
 	return s
 }
 
@@ -9286,47 +8077,8 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetVersion(v stri
 	return s
 }
 
-func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetVpcId(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
-	s.VpcId = &v
-	return s
-}
-
-func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetVswIds(v *DescribeFileSystemsResponseBodyFileSystemsFileSystemVswIds) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
-	s.VswIds = v
-	return s
-}
-
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystem) SetZoneId(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystem {
 	s.ZoneId = &v
-	return s
-}
-
-type DescribeFileSystemsResponseBodyFileSystemsFileSystemGuiInfo struct {
-	Endpoint *string `json:"Endpoint,omitempty" xml:"Endpoint,omitempty"`
-	Password *string `json:"Password,omitempty" xml:"Password,omitempty"`
-	User     *string `json:"User,omitempty" xml:"User,omitempty"`
-}
-
-func (s DescribeFileSystemsResponseBodyFileSystemsFileSystemGuiInfo) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeFileSystemsResponseBodyFileSystemsFileSystemGuiInfo) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemGuiInfo) SetEndpoint(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystemGuiInfo {
-	s.Endpoint = &v
-	return s
-}
-
-func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemGuiInfo) SetPassword(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystemGuiInfo {
-	s.Password = &v
-	return s
-}
-
-func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemGuiInfo) SetUser(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystemGuiInfo {
-	s.User = &v
 	return s
 }
 
@@ -9392,7 +8144,6 @@ type DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTarget
 	DualStackMountTargetDomain *string `json:"DualStackMountTargetDomain,omitempty" xml:"DualStackMountTargetDomain,omitempty"`
 	// The domain name of the mount target.
 	MountTargetDomain *string `json:"MountTargetDomain,omitempty" xml:"MountTargetDomain,omitempty"`
-	MountTargetIp     *string `json:"MountTargetIp,omitempty" xml:"MountTargetIp,omitempty"`
 	// The network type. Valid value: vpc.
 	NetworkType *string `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
 	// The status of the mount target.
@@ -9439,11 +8190,6 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTa
 
 func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTarget) SetMountTargetDomain(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTarget {
 	s.MountTargetDomain = &v
-	return s
-}
-
-func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTarget) SetMountTargetIp(v string) *DescribeFileSystemsResponseBodyFileSystemsFileSystemMountTargetsMountTarget {
-	s.MountTargetIp = &v
 	return s
 }
 
@@ -9690,27 +8436,10 @@ func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemTagsTag) SetValue(v
 	return s
 }
 
-type DescribeFileSystemsResponseBodyFileSystemsFileSystemVswIds struct {
-	VswId []*string `json:"VswId,omitempty" xml:"VswId,omitempty" type:"Repeated"`
-}
-
-func (s DescribeFileSystemsResponseBodyFileSystemsFileSystemVswIds) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeFileSystemsResponseBodyFileSystemsFileSystemVswIds) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeFileSystemsResponseBodyFileSystemsFileSystemVswIds) SetVswId(v []*string) *DescribeFileSystemsResponseBodyFileSystemsFileSystemVswIds {
-	s.VswId = v
-	return s
-}
-
 type DescribeFileSystemsResponse struct {
-	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeFileSystemsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeFileSystemsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeFileSystemsResponse) String() string {
@@ -9737,10 +8466,16 @@ func (s *DescribeFileSystemsResponse) SetBody(v *DescribeFileSystemsResponseBody
 }
 
 type DescribeFilesetsRequest struct {
-	FileSystemId *string                           `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	Filters      []*DescribeFilesetsRequestFilters `json:"Filters,omitempty" xml:"Filters,omitempty" type:"Repeated"`
-	MaxResults   *int64                            `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	NextToken    *string                           `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The ID of the file system.
+	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	// The filter that is used to query filesets.
+	Filters []*DescribeFilesetsRequestFilters `json:"Filters,omitempty" xml:"Filters,omitempty" type:"Repeated"`
+	// The number of results for each query.
+	//
+	// Valid values: 10 to 100. Default value: 20.
+	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
+	// The pagination token that is used in the next request to retrieve a new page of results. You do not need to specify this parameter for the first request. You must specify the token that is obtained from the previous query as the value of NextToken.
+	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
 }
 
 func (s DescribeFilesetsRequest) String() string {
@@ -9772,13 +8507,17 @@ func (s *DescribeFilesetsRequest) SetNextToken(v string) *DescribeFilesetsReques
 }
 
 type DescribeFilesetsRequestFilters struct {
-	// *
-	// *
-	// *
+	// The filter name. Valid values:
+	//
+	// *   FsetIds: filters filesets by fileset ID.
+	// *   FileSystemPath: filters filesets based on the path of a fileset in a CPFS file system.
+	// *   Description: filters filesets based on the fileset description.
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// *   ````
-	// *
-	// *
+	// The filter value. This parameter does not support wildcards.
+	//
+	// *   If Key is set to FsetIds, set Value to a fileset ID or a part of the fileset ID. You can specify a fileset ID or a group of fileset IDs. You can specify a maximum of 10 fileset IDs. Example: `fset-12345678` or `fset-12345678,fset-12345679`.
+	// *   If Key is set to FileSystemPath, set Value to the path or a part of the path of a fileset in a CPFS file system. The value must be 2 to 1,024 characters in length. The value must be encoded in UTF-8.
+	// *   If Key is set to Description, set Value to a fileset description or a part of the fileset description.
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
@@ -9801,10 +8540,14 @@ func (s *DescribeFilesetsRequestFilters) SetValue(v string) *DescribeFilesetsReq
 }
 
 type DescribeFilesetsResponseBody struct {
-	Entries      *DescribeFilesetsResponseBodyEntries `json:"Entries,omitempty" xml:"Entries,omitempty" type:"Struct"`
-	FileSystemId *string                              `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	NextToken    *string                              `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	RequestId    *string                              `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	// The fileset information.
+	Entries *DescribeFilesetsResponseBodyEntries `json:"Entries,omitempty" xml:"Entries,omitempty" type:"Struct"`
+	// The ID of the file system.
+	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	// A pagination token. It can be used in the next request to retrieve a new page of results.
+	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The request ID.
+	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
 func (s DescribeFilesetsResponseBody) String() string {
@@ -9853,16 +8596,26 @@ func (s *DescribeFilesetsResponseBodyEntries) SetEntrie(v []*DescribeFilesetsRes
 }
 
 type DescribeFilesetsResponseBodyEntriesEntrie struct {
-	// ``
-	CreateTime     *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	Description    *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	// The time when the fileset was created.
+	//
+	// The time follows the ISO 8601 standard in the `yyyy-MM-ddTHH:mm:ssZ` format.
+	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	// The fileset description.
+	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	// The fileset path.
 	FileSystemPath *string `json:"FileSystemPath,omitempty" xml:"FileSystemPath,omitempty"`
-	FsetId         *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
-	// *
-	// *
-	// *
-	// *
-	Status     *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The fileset ID.
+	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
+	// The fileset status. Valid values:
+	//
+	// *   CREATING: The fileset is being created.
+	// *   CREATED: The fileset has been created and is running properly.
+	// *   RELEASING: The fileset is being released.
+	// *   RELEASED: The fileset has been deleted.
+	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The time when the fileset was last updated.
+	//
+	// The time follows the ISO 8601 standard in the yyyy-MM-ddTHH:mm:ssZ format.
 	UpdateTime *string `json:"UpdateTime,omitempty" xml:"UpdateTime,omitempty"`
 }
 
@@ -9905,9 +8658,9 @@ func (s *DescribeFilesetsResponseBodyEntriesEntrie) SetUpdateTime(v string) *Des
 }
 
 type DescribeFilesetsResponse struct {
-	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeFilesetsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeFilesetsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeFilesetsResponse) String() string {
@@ -9929,104 +8682,6 @@ func (s *DescribeFilesetsResponse) SetStatusCode(v int32) *DescribeFilesetsRespo
 }
 
 func (s *DescribeFilesetsResponse) SetBody(v *DescribeFilesetsResponseBody) *DescribeFilesetsResponse {
-	s.Body = v
-	return s
-}
-
-type DescribeLDAPConfigRequest struct {
-	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-}
-
-func (s DescribeLDAPConfigRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeLDAPConfigRequest) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeLDAPConfigRequest) SetFileSystemId(v string) *DescribeLDAPConfigRequest {
-	s.FileSystemId = &v
-	return s
-}
-
-type DescribeLDAPConfigResponseBody struct {
-	Ldap      *DescribeLDAPConfigResponseBodyLdap `json:"Ldap,omitempty" xml:"Ldap,omitempty" type:"Struct"`
-	RequestId *string                             `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s DescribeLDAPConfigResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeLDAPConfigResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeLDAPConfigResponseBody) SetLdap(v *DescribeLDAPConfigResponseBodyLdap) *DescribeLDAPConfigResponseBody {
-	s.Ldap = v
-	return s
-}
-
-func (s *DescribeLDAPConfigResponseBody) SetRequestId(v string) *DescribeLDAPConfigResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type DescribeLDAPConfigResponseBodyLdap struct {
-	BindDN     *string `json:"BindDN,omitempty" xml:"BindDN,omitempty"`
-	SearchBase *string `json:"SearchBase,omitempty" xml:"SearchBase,omitempty"`
-	URI        *string `json:"URI,omitempty" xml:"URI,omitempty"`
-}
-
-func (s DescribeLDAPConfigResponseBodyLdap) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeLDAPConfigResponseBodyLdap) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeLDAPConfigResponseBodyLdap) SetBindDN(v string) *DescribeLDAPConfigResponseBodyLdap {
-	s.BindDN = &v
-	return s
-}
-
-func (s *DescribeLDAPConfigResponseBodyLdap) SetSearchBase(v string) *DescribeLDAPConfigResponseBodyLdap {
-	s.SearchBase = &v
-	return s
-}
-
-func (s *DescribeLDAPConfigResponseBodyLdap) SetURI(v string) *DescribeLDAPConfigResponseBodyLdap {
-	s.URI = &v
-	return s
-}
-
-type DescribeLDAPConfigResponse struct {
-	Headers    map[string]*string              `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                          `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeLDAPConfigResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s DescribeLDAPConfigResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeLDAPConfigResponse) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeLDAPConfigResponse) SetHeaders(v map[string]*string) *DescribeLDAPConfigResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *DescribeLDAPConfigResponse) SetStatusCode(v int32) *DescribeLDAPConfigResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *DescribeLDAPConfigResponse) SetBody(v *DescribeLDAPConfigResponseBody) *DescribeLDAPConfigResponse {
 	s.Body = v
 	return s
 }
@@ -10195,9 +8850,9 @@ func (s *DescribeLifecyclePoliciesResponseBodyLifecyclePolicies) SetStorageType(
 }
 
 type DescribeLifecyclePoliciesResponse struct {
-	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeLifecyclePoliciesResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeLifecyclePoliciesResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeLifecyclePoliciesResponse) String() string {
@@ -10390,9 +9045,9 @@ func (s *DescribeLogAnalysisResponseBodyAnalysesAnalysisMetaValue) SetRoleArn(v 
 }
 
 type DescribeLogAnalysisResponse struct {
-	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeLogAnalysisResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeLogAnalysisResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeLogAnalysisResponse) String() string {
@@ -10555,7 +9210,6 @@ type DescribeMountTargetsResponseBodyMountTargetsMountTarget struct {
 	IPVersion *string `json:"IPVersion,omitempty" xml:"IPVersion,omitempty"`
 	// The IPv4 domain name of the mount target.
 	MountTargetDomain *string `json:"MountTargetDomain,omitempty" xml:"MountTargetDomain,omitempty"`
-	MountTargetIp     *string `json:"MountTargetIp,omitempty" xml:"MountTargetIp,omitempty"`
 	// The network type. Valid value: **Vpc**.
 	NetworkType *string `json:"NetworkType,omitempty" xml:"NetworkType,omitempty"`
 	// The status of the mount target.
@@ -10570,8 +9224,7 @@ type DescribeMountTargetsResponseBodyMountTargetsMountTarget struct {
 	// *   Hibernated: The mount target is hibernated.
 	//
 	// > You can mount a file system only when the mount target of the file system is in the Active state.
-	Status *string                                                      `json:"Status,omitempty" xml:"Status,omitempty"`
-	Tags   *DescribeMountTargetsResponseBodyMountTargetsMountTargetTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
+	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
 	// The ID of the virtual private cloud (VPC).
 	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
 	// The ID of the vSwitch.
@@ -10611,11 +9264,6 @@ func (s *DescribeMountTargetsResponseBodyMountTargetsMountTarget) SetMountTarget
 	return s
 }
 
-func (s *DescribeMountTargetsResponseBodyMountTargetsMountTarget) SetMountTargetIp(v string) *DescribeMountTargetsResponseBodyMountTargetsMountTarget {
-	s.MountTargetIp = &v
-	return s
-}
-
 func (s *DescribeMountTargetsResponseBodyMountTargetsMountTarget) SetNetworkType(v string) *DescribeMountTargetsResponseBodyMountTargetsMountTarget {
 	s.NetworkType = &v
 	return s
@@ -10623,11 +9271,6 @@ func (s *DescribeMountTargetsResponseBodyMountTargetsMountTarget) SetNetworkType
 
 func (s *DescribeMountTargetsResponseBodyMountTargetsMountTarget) SetStatus(v string) *DescribeMountTargetsResponseBodyMountTargetsMountTarget {
 	s.Status = &v
-	return s
-}
-
-func (s *DescribeMountTargetsResponseBodyMountTargetsMountTarget) SetTags(v *DescribeMountTargetsResponseBodyMountTargetsMountTargetTags) *DescribeMountTargetsResponseBodyMountTargetsMountTarget {
-	s.Tags = v
 	return s
 }
 
@@ -10690,50 +9333,10 @@ func (s *DescribeMountTargetsResponseBodyMountTargetsMountTargetClientMasterNode
 	return s
 }
 
-type DescribeMountTargetsResponseBodyMountTargetsMountTargetTags struct {
-	Tag []*DescribeMountTargetsResponseBodyMountTargetsMountTargetTagsTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
-}
-
-func (s DescribeMountTargetsResponseBodyMountTargetsMountTargetTags) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeMountTargetsResponseBodyMountTargetsMountTargetTags) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeMountTargetsResponseBodyMountTargetsMountTargetTags) SetTag(v []*DescribeMountTargetsResponseBodyMountTargetsMountTargetTagsTag) *DescribeMountTargetsResponseBodyMountTargetsMountTargetTags {
-	s.Tag = v
-	return s
-}
-
-type DescribeMountTargetsResponseBodyMountTargetsMountTargetTagsTag struct {
-	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
-}
-
-func (s DescribeMountTargetsResponseBodyMountTargetsMountTargetTagsTag) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeMountTargetsResponseBodyMountTargetsMountTargetTagsTag) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeMountTargetsResponseBodyMountTargetsMountTargetTagsTag) SetKey(v string) *DescribeMountTargetsResponseBodyMountTargetsMountTargetTagsTag {
-	s.Key = &v
-	return s
-}
-
-func (s *DescribeMountTargetsResponseBodyMountTargetsMountTargetTagsTag) SetValue(v string) *DescribeMountTargetsResponseBodyMountTargetsMountTargetTagsTag {
-	s.Value = &v
-	return s
-}
-
 type DescribeMountTargetsResponse struct {
-	Headers    map[string]*string                `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                            `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeMountTargetsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                            `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeMountTargetsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeMountTargetsResponse) String() string {
@@ -10903,9 +9506,9 @@ func (s *DescribeMountedClientsResponseBodyClientsClient) SetClientIP(v string) 
 }
 
 type DescribeMountedClientsResponse struct {
-	Headers    map[string]*string                  `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                              `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeMountedClientsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                  `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                              `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeMountedClientsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeMountedClientsResponse) String() string {
@@ -10996,9 +9599,9 @@ func (s *DescribeNfsAclResponseBodyAcl) SetEnabled(v bool) *DescribeNfsAclRespon
 }
 
 type DescribeNfsAclResponse struct {
-	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeNfsAclResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeNfsAclResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeNfsAclResponse) String() string {
@@ -11025,18 +9628,23 @@ func (s *DescribeNfsAclResponse) SetBody(v *DescribeNfsAclResponseBody) *Describ
 }
 
 type DescribeProtocolMountTargetRequest struct {
-	// [](~~25693~~)
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// **
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
-	// ****
-	ClientToken  *string                                      `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	FileSystemId *string                                      `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	Filters      []*DescribeProtocolMountTargetRequestFilters `json:"Filters,omitempty" xml:"Filters,omitempty" type:"Repeated"`
-	// *
-	// *
-	MaxResults *int64  `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	NextToken  *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
+	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
+	// The ID of the file system.
+	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	// The filter that is used to query the export directories of the protocol service.
+	Filters []*DescribeProtocolMountTargetRequestFilters `json:"Filters,omitempty" xml:"Filters,omitempty" type:"Repeated"`
+	// The number of results for each query.
+	//
+	// *   Value values: 10 to 100.
+	// *   Default value: 20.
+	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
+	// The pagination token that is used in the next request to retrieve a new page of results. You do not need to specify this parameter for the first request. You must specify the token that is obtained from the previous query as the value of NextToken.
+	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
 }
 
 func (s DescribeProtocolMountTargetRequest) String() string {
@@ -11073,20 +9681,24 @@ func (s *DescribeProtocolMountTargetRequest) SetNextToken(v string) *DescribePro
 }
 
 type DescribeProtocolMountTargetRequestFilters struct {
-	// *
-	// *
-	// *
-	// *
-	// *
-	// *
-	// *
+	// The filter name.
+	//
+	// *   ProtocolServiceIds: filters export directories by protocol service ID.
+	// *   ExportIds: filters export directories by export directory ID.
+	// *   VpcIds: filters export directories by virtual private cloud (VPC) ID.
+	// *   VSwitchIds: filters export directories by vSwitch ID.
+	// *   FsetIds: filters export directories by fileset ID.
+	// *   Paths: filters export directories based on the path of the file system corresponding to the mount target.
+	// *   AccessGroupNames: filters export directories by permission group name.
 	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// *   ````
-	// *   ````
-	// *   ````
-	// *   ````
-	// *   ````
-	// *   ````
+	// The filter value. This parameter does not support wildcards.
+	//
+	// *   If Key is set to ProtocolServiceIds, set Value to a protocol service ID. You can specify a maximum of 10 protocol service IDs. Example: `ptc-12345678` or `ptc-12345678,ptc-12345679`.
+	// *   If Key is set to ExportIds, set Value to an export directory ID. You can specify a maximum of 10 export directory IDs. For example, `exp-12345678` or `exp-12345678,exp-12345679`.
+	// *   If Key is set to VpcIds, set Value to a VPC ID of the protocol service. You can specify a maximum of 10 VPC IDs. Example: `vpc-12345678` or `vpc-12345678,vpc-12345679`.
+	// *   If Key is set to FsetIds, set Value to a fileset ID. You can specify a maximum of 10 fileset IDs. Example, `fset-12345678` or `fset-12345678,fset-12345679`.
+	// *   If Key is set to Paths, set Value to a path of the file system corresponding to the mount target. You can specify a maximum of 10 paths. Example: `/cpfs/mnt_1/` or `/cpfs/mnt_1/,/cpfs/mnt_2/`.
+	// *   If Key is set to AccessGroupNames, set Value to a permission group name for the protocol service. You can specify a maximum of 10 permission group names. Example: `ag-12345678` or `ag-12345678,ag-12345679`.
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
@@ -11109,9 +9721,12 @@ func (s *DescribeProtocolMountTargetRequestFilters) SetValue(v string) *Describe
 }
 
 type DescribeProtocolMountTargetResponseBody struct {
-	NextToken            *string                                                        `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// A pagination token. It can be used in the next request to retrieve a new page of results.
+	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The export directories of the protocol service.
 	ProtocolMountTargets []*DescribeProtocolMountTargetResponseBodyProtocolMountTargets `json:"ProtocolMountTargets,omitempty" xml:"ProtocolMountTargets,omitempty" type:"Repeated"`
-	RequestId            *string                                                        `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	// The request ID.
+	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
 func (s DescribeProtocolMountTargetResponseBody) String() string {
@@ -11138,18 +9753,30 @@ func (s *DescribeProtocolMountTargetResponseBody) SetRequestId(v string) *Descri
 }
 
 type DescribeProtocolMountTargetResponseBodyProtocolMountTargets struct {
-	AccessGroupName           *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
-	CreateTime                *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	Description               *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	ExportId                  *string `json:"ExportId,omitempty" xml:"ExportId,omitempty"`
-	FsetId                    *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
-	Path                      *string `json:"Path,omitempty" xml:"Path,omitempty"`
+	// The permission group that is associated with the export directory of the protocol service.
+	AccessGroupName *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
+	// The time when the export directory of the protocol service was created.
+	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	// The description of the export directory for the protocol service.
+	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	// The ID of the export directory for the protocol service.
+	ExportId *string `json:"ExportId,omitempty" xml:"ExportId,omitempty"`
+	// The fileset ID of the export directory for the protocol service.
+	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
+	// The export directory of the protocol service.
+	Path *string `json:"Path,omitempty" xml:"Path,omitempty"`
+	// The domain name of the export directory for the protocol service.
 	ProtocolMountTargetDomain *string `json:"ProtocolMountTargetDomain,omitempty" xml:"ProtocolMountTargetDomain,omitempty"`
-	ProtocolServiceId         *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
-	ProtocolType              *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
-	Status                    *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	VSwitchId                 *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	VpcId                     *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
+	// The ID of the protocol service.
+	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
+	// The protocol type supported by the protocol service.
+	ProtocolType *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
+	// The status of the mount target.
+	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// The vSwitch ID of the export directory for the protocol service.
+	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
+	// The VPC ID of the export directory for the protocol service.
+	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
 }
 
 func (s DescribeProtocolMountTargetResponseBodyProtocolMountTargets) String() string {
@@ -11221,9 +9848,9 @@ func (s *DescribeProtocolMountTargetResponseBodyProtocolMountTargets) SetVpcId(v
 }
 
 type DescribeProtocolMountTargetResponse struct {
-	Headers    map[string]*string                       `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                   `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeProtocolMountTargetResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                       `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                   `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeProtocolMountTargetResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeProtocolMountTargetResponse) String() string {
@@ -11250,32 +9877,46 @@ func (s *DescribeProtocolMountTargetResponse) SetBody(v *DescribeProtocolMountTa
 }
 
 type DescribeProtocolServiceRequest struct {
-	// [](~~25693~~)
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests. The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
-	// **
-	//
-	// ****
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// *
-	// *   ````
-	// *
-	Description  *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	// The description or a part of the description of the protocol service.
+	//
+	// Limits:
+	//
+	// *   The description must be 2 to 128 characters in length.
+	// *   The description must start with a letter and cannot start with `http://` or `https://`.
+	// *   The description can contain letters, digits, colons (:), underscores (\_), and hyphens (-).
+	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	// The ID of the file system.
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// *
-	// *
-	// *
-	MaxResults *int64  `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	NextToken  *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// *
-	// *
+	// The number of results for each query.
+	//
+	// *   Maximum value: 100.
+	// *   Minimum value: 10.
+	// *   Default value: 20.
+	MaxResults *int64 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
+	// The pagination token that is used in the next request to retrieve a new page of results. If not all dataflows are returned in a query, the return value of the NextToken parameter is not empty. You must specify the token that is obtained from the previous query as the value of NextToken.
+	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The ID of the protocol service.
+	//
+	// *   Format: CSV.
+	// *   Limit: You can specify a maximum of 10 protocol service IDs.
 	ProtocolServiceIds *string `json:"ProtocolServiceIds,omitempty" xml:"ProtocolServiceIds,omitempty"`
-	// *
-	// *
-	// *
-	// *
-	// *
-	// *
-	// *
+	// The status of the protocol service.
+	//
+	// Format: CSV.
+	//
+	// Valid values:
+	//
+	// *   Creating: The protocol service is being created.
+	// *   Starting: The protocol service is being started.
+	// *   Running: The protocol service is running.
+	// *   Updating: The protocol service is being updated.
+	// *   Deleting: The protocol service is being deleted.
+	// *   Stopping: The protocol service is being stopped.
+	// *   Stopped: The protocol service is stopped.
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
 }
 
@@ -11323,9 +9964,12 @@ func (s *DescribeProtocolServiceRequest) SetStatus(v string) *DescribeProtocolSe
 }
 
 type DescribeProtocolServiceResponseBody struct {
-	NextToken        *string                                                `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// A pagination token. It can be used in the next request to retrieve a new page of results.
+	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// The information about protocol services.
 	ProtocolServices []*DescribeProtocolServiceResponseBodyProtocolServices `json:"ProtocolServices,omitempty" xml:"ProtocolServices,omitempty" type:"Repeated"`
-	RequestId        *string                                                `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	// The request ID.
+	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
 func (s DescribeProtocolServiceResponseBody) String() string {
@@ -11352,31 +9996,54 @@ func (s *DescribeProtocolServiceResponseBody) SetRequestId(v string) *DescribePr
 }
 
 type DescribeProtocolServiceResponseBodyProtocolServices struct {
+	// The time when the protocol service was created. The time is displayed in UTC.
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	// *
-	// *   ````
-	// *
-	Description             *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	FileSystemId            *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	InstanceBaseThroughput  *int32  `json:"InstanceBaseThroughput,omitempty" xml:"InstanceBaseThroughput,omitempty"`
-	InstanceBurstThroughput *int32  `json:"InstanceBurstThroughput,omitempty" xml:"InstanceBurstThroughput,omitempty"`
-	InstanceRAM             *int32  `json:"InstanceRAM,omitempty" xml:"InstanceRAM,omitempty"`
-	ModifyTime              *string `json:"ModifyTime,omitempty" xml:"ModifyTime,omitempty"`
-	MountTargetCount        *int32  `json:"MountTargetCount,omitempty" xml:"MountTargetCount,omitempty"`
-	ProtocolServiceId       *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
-	// *
-	// *
-	ProtocolSpec       *string `json:"ProtocolSpec,omitempty" xml:"ProtocolSpec,omitempty"`
-	ProtocolThroughput *int32  `json:"ProtocolThroughput,omitempty" xml:"ProtocolThroughput,omitempty"`
-	// *
+	// The description of the protocol service.
+	//
+	// Limits:
+	//
+	// *   The description must be 2 to 128 characters in length.
+	// *   The description must start with a letter and cannot start with `http://` or `https://`.
+	// *   The description can contain letters, digits, colons (:), underscores (\_), and hyphens (-).
+	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	// The ID of the file system.
+	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	// The base throughput of the protocol service. Unit: MB/s.
+	InstanceBaseThroughput *int32 `json:"InstanceBaseThroughput,omitempty" xml:"InstanceBaseThroughput,omitempty"`
+	// The burst throughput of the protocol service. Unit: MB/s.
+	InstanceBurstThroughput *int32 `json:"InstanceBurstThroughput,omitempty" xml:"InstanceBurstThroughput,omitempty"`
+	// The memory cache size of the protocol service. Unit: GiB.
+	InstanceRAM *int32 `json:"InstanceRAM,omitempty" xml:"InstanceRAM,omitempty"`
+	// The time when the protocol service was modified. The time is displayed in UTC.
+	ModifyTime *string `json:"ModifyTime,omitempty" xml:"ModifyTime,omitempty"`
+	// The total number of CPFS directories and filesets exported in the protocol service.
+	MountTargetCount *int32 `json:"MountTargetCount,omitempty" xml:"MountTargetCount,omitempty"`
+	// The ID of the protocol service.
+	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
+	// The specification of the protocol service.
+	//
+	// *   Valid value: General.
+	// *   Default value: General.
+	ProtocolSpec *string `json:"ProtocolSpec,omitempty" xml:"ProtocolSpec,omitempty"`
+	// The throughput of the protocol service. Unit: MB/s.
+	ProtocolThroughput *int32 `json:"ProtocolThroughput,omitempty" xml:"ProtocolThroughput,omitempty"`
+	// The protocol type supported by the protocol service.
+	//
+	// Valid values:
+	//
+	// *   NFS: The protocol service supports access over the Network File System (NFS) protocol.
 	ProtocolType *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
-	// *
-	// *
-	// *
-	// *
-	// *
-	// *
-	// *
+	// The status of the protocol service.
+	//
+	// Valid values:
+	//
+	// *   Creating: The protocol service is being created.
+	// *   Starting: The protocol service is being started.
+	// *   Running: The protocol service is running.
+	// *   Updating: The protocol service is being updated.
+	// *   Deleting: The protocol service is being deleted.
+	// *   Stopping: The protocol service is being stopped.
+	// *   Stopped: The protocol service is stopped.
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
 }
 
@@ -11454,9 +10121,9 @@ func (s *DescribeProtocolServiceResponseBodyProtocolServices) SetStatus(v string
 }
 
 type DescribeProtocolServiceResponse struct {
-	Headers    map[string]*string                   `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                               `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeProtocolServiceResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                   `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                               `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeProtocolServiceResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeProtocolServiceResponse) String() string {
@@ -11625,9 +10292,9 @@ func (s *DescribeRegionsResponseBodyRegionsRegion) SetRegionId(v string) *Descri
 }
 
 type DescribeRegionsResponse struct {
-	Headers    map[string]*string           `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                       `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeRegionsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string           `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                       `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeRegionsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeRegionsResponse) String() string {
@@ -11649,443 +10316,6 @@ func (s *DescribeRegionsResponse) SetStatusCode(v int32) *DescribeRegionsRespons
 }
 
 func (s *DescribeRegionsResponse) SetBody(v *DescribeRegionsResponseBody) *DescribeRegionsResponse {
-	s.Body = v
-	return s
-}
-
-type DescribeResourceStatisticsRequest struct {
-	FileSystemType *string `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	PageNumber     *int32  `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	PageSize       *int32  `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-	RegionId       *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-}
-
-func (s DescribeResourceStatisticsRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeResourceStatisticsRequest) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeResourceStatisticsRequest) SetFileSystemType(v string) *DescribeResourceStatisticsRequest {
-	s.FileSystemType = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsRequest) SetPageNumber(v int32) *DescribeResourceStatisticsRequest {
-	s.PageNumber = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsRequest) SetPageSize(v int32) *DescribeResourceStatisticsRequest {
-	s.PageSize = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsRequest) SetRegionId(v string) *DescribeResourceStatisticsRequest {
-	s.RegionId = &v
-	return s
-}
-
-type DescribeResourceStatisticsResponseBody struct {
-	FileSystemStatistics []*DescribeResourceStatisticsResponseBodyFileSystemStatistics `json:"FileSystemStatistics,omitempty" xml:"FileSystemStatistics,omitempty" type:"Repeated"`
-	FileSystems          []*DescribeResourceStatisticsResponseBodyFileSystems          `json:"FileSystems,omitempty" xml:"FileSystems,omitempty" type:"Repeated"`
-	PageNumber           *int32                                                        `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	PageSize             *int32                                                        `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-	RequestId            *string                                                       `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	TotalCount           *int32                                                        `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
-}
-
-func (s DescribeResourceStatisticsResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeResourceStatisticsResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeResourceStatisticsResponseBody) SetFileSystemStatistics(v []*DescribeResourceStatisticsResponseBodyFileSystemStatistics) *DescribeResourceStatisticsResponseBody {
-	s.FileSystemStatistics = v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBody) SetFileSystems(v []*DescribeResourceStatisticsResponseBodyFileSystems) *DescribeResourceStatisticsResponseBody {
-	s.FileSystems = v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBody) SetPageNumber(v int32) *DescribeResourceStatisticsResponseBody {
-	s.PageNumber = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBody) SetPageSize(v int32) *DescribeResourceStatisticsResponseBody {
-	s.PageSize = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBody) SetRequestId(v string) *DescribeResourceStatisticsResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBody) SetTotalCount(v int32) *DescribeResourceStatisticsResponseBody {
-	s.TotalCount = &v
-	return s
-}
-
-type DescribeResourceStatisticsResponseBodyFileSystemStatistics struct {
-	BM_ADVANCE_400_Capacity       *int64                                                                                `json:"BM_ADVANCE_400_Capacity,omitempty" xml:"BM_ADVANCE_400_Capacity,omitempty"`
-	CPFSProtocolServiceThroughput *int64                                                                                `json:"CPFSProtocolServiceThroughput,omitempty" xml:"CPFSProtocolServiceThroughput,omitempty"`
-	CPFS_100_Capacity             *int64                                                                                `json:"CPFS_100_Capacity,omitempty" xml:"CPFS_100_Capacity,omitempty"`
-	CPFS_200_Capacity             *int64                                                                                `json:"CPFS_200_Capacity,omitempty" xml:"CPFS_200_Capacity,omitempty"`
-	CPFS_Throughput               *int64                                                                                `json:"CPFS_Throughput,omitempty" xml:"CPFS_Throughput,omitempty"`
-	CapacityMeteredSize           *int64                                                                                `json:"CapacityMeteredSize,omitempty" xml:"CapacityMeteredSize,omitempty"`
-	DcpfsExtremeNodeNum           *int32                                                                                `json:"DcpfsExtremeNodeNum,omitempty" xml:"DcpfsExtremeNodeNum,omitempty"`
-	ExtremeAdvanceCapacity        *int64                                                                                `json:"ExtremeAdvanceCapacity,omitempty" xml:"ExtremeAdvanceCapacity,omitempty"`
-	ExtremeCapacity               *int64                                                                                `json:"ExtremeCapacity,omitempty" xml:"ExtremeCapacity,omitempty"`
-	ExtremeStandardCapacity       *int64                                                                                `json:"ExtremeStandardCapacity,omitempty" xml:"ExtremeStandardCapacity,omitempty"`
-	FileSystemType                *string                                                                               `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	MeteredIASize                 *int64                                                                                `json:"MeteredIASize,omitempty" xml:"MeteredIASize,omitempty"`
-	MonthIArwSize                 *int64                                                                                `json:"MonthIArwSize,omitempty" xml:"MonthIArwSize,omitempty"`
-	PerformanceMeteredSize        *int64                                                                                `json:"PerformanceMeteredSize,omitempty" xml:"PerformanceMeteredSize,omitempty"`
-	StoragePackageStatistics      []*DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics `json:"StoragePackageStatistics,omitempty" xml:"StoragePackageStatistics,omitempty" type:"Repeated"`
-	TotalCount                    *int32                                                                                `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
-}
-
-func (s DescribeResourceStatisticsResponseBodyFileSystemStatistics) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeResourceStatisticsResponseBodyFileSystemStatistics) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetBM_ADVANCE_400_Capacity(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.BM_ADVANCE_400_Capacity = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetCPFSProtocolServiceThroughput(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.CPFSProtocolServiceThroughput = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetCPFS_100_Capacity(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.CPFS_100_Capacity = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetCPFS_200_Capacity(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.CPFS_200_Capacity = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetCPFS_Throughput(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.CPFS_Throughput = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetCapacityMeteredSize(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.CapacityMeteredSize = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetDcpfsExtremeNodeNum(v int32) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.DcpfsExtremeNodeNum = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetExtremeAdvanceCapacity(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.ExtremeAdvanceCapacity = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetExtremeCapacity(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.ExtremeCapacity = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetExtremeStandardCapacity(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.ExtremeStandardCapacity = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetFileSystemType(v string) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.FileSystemType = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetMeteredIASize(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.MeteredIASize = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetMonthIArwSize(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.MonthIArwSize = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetPerformanceMeteredSize(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.PerformanceMeteredSize = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetStoragePackageStatistics(v []*DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.StoragePackageStatistics = v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatistics) SetTotalCount(v int32) *DescribeResourceStatisticsResponseBodyFileSystemStatistics {
-	s.TotalCount = &v
-	return s
-}
-
-type DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics struct {
-	BoundFileSystemID       *string `json:"BoundFileSystemID,omitempty" xml:"BoundFileSystemID,omitempty"`
-	BoundMeteredIASize      *int64  `json:"BoundMeteredIASize,omitempty" xml:"BoundMeteredIASize,omitempty"`
-	BoundMeteredSize        *int64  `json:"BoundMeteredSize,omitempty" xml:"BoundMeteredSize,omitempty"`
-	BoundMonthIArwSize      *int64  `json:"BoundMonthIArwSize,omitempty" xml:"BoundMonthIArwSize,omitempty"`
-	EndTime                 *int64  `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
-	StartTime               *int64  `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-	StoragePackageID        *string `json:"StoragePackageID,omitempty" xml:"StoragePackageID,omitempty"`
-	StoragePackageSize      *int64  `json:"StoragePackageSize,omitempty" xml:"StoragePackageSize,omitempty"`
-	StoragePackageStatus    *string `json:"StoragePackageStatus,omitempty" xml:"StoragePackageStatus,omitempty"`
-	StoragePackageType      *string `json:"StoragePackageType,omitempty" xml:"StoragePackageType,omitempty"`
-	UndeductedMeteredIASize *int64  `json:"UndeductedMeteredIASize,omitempty" xml:"UndeductedMeteredIASize,omitempty"`
-	UndeductedMeteredSize   *int64  `json:"UndeductedMeteredSize,omitempty" xml:"UndeductedMeteredSize,omitempty"`
-}
-
-func (s DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics) SetBoundFileSystemID(v string) *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics {
-	s.BoundFileSystemID = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics) SetBoundMeteredIASize(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics {
-	s.BoundMeteredIASize = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics) SetBoundMeteredSize(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics {
-	s.BoundMeteredSize = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics) SetBoundMonthIArwSize(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics {
-	s.BoundMonthIArwSize = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics) SetEndTime(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics {
-	s.EndTime = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics) SetStartTime(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics {
-	s.StartTime = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics) SetStoragePackageID(v string) *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics {
-	s.StoragePackageID = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics) SetStoragePackageSize(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics {
-	s.StoragePackageSize = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics) SetStoragePackageStatus(v string) *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics {
-	s.StoragePackageStatus = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics) SetStoragePackageType(v string) *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics {
-	s.StoragePackageType = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics) SetUndeductedMeteredIASize(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics {
-	s.UndeductedMeteredIASize = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics) SetUndeductedMeteredSize(v int64) *DescribeResourceStatisticsResponseBodyFileSystemStatisticsStoragePackageStatistics {
-	s.UndeductedMeteredSize = &v
-	return s
-}
-
-type DescribeResourceStatisticsResponseBodyFileSystems struct {
-	Capacity       *int64                                                       `json:"Capacity,omitempty" xml:"Capacity,omitempty"`
-	ChargeType     *string                                                      `json:"ChargeType,omitempty" xml:"ChargeType,omitempty"`
-	CreateTime     *string                                                      `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	Description    *string                                                      `json:"Description,omitempty" xml:"Description,omitempty"`
-	ExpiredTime    *string                                                      `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
-	FileSystemId   *string                                                      `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	FileSystemType *string                                                      `json:"FileSystemType,omitempty" xml:"FileSystemType,omitempty"`
-	MeteredIASize  *int64                                                       `json:"MeteredIASize,omitempty" xml:"MeteredIASize,omitempty"`
-	MeteredSize    *int64                                                       `json:"MeteredSize,omitempty" xml:"MeteredSize,omitempty"`
-	Packages       []*DescribeResourceStatisticsResponseBodyFileSystemsPackages `json:"Packages,omitempty" xml:"Packages,omitempty" type:"Repeated"`
-	ProtocolType   *string                                                      `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
-	RegionId       *string                                                      `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-	Status         *string                                                      `json:"Status,omitempty" xml:"Status,omitempty"`
-	StorageType    *string                                                      `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
-	ZoneId         *string                                                      `json:"ZoneId,omitempty" xml:"ZoneId,omitempty"`
-}
-
-func (s DescribeResourceStatisticsResponseBodyFileSystems) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeResourceStatisticsResponseBodyFileSystems) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystems) SetCapacity(v int64) *DescribeResourceStatisticsResponseBodyFileSystems {
-	s.Capacity = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystems) SetChargeType(v string) *DescribeResourceStatisticsResponseBodyFileSystems {
-	s.ChargeType = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystems) SetCreateTime(v string) *DescribeResourceStatisticsResponseBodyFileSystems {
-	s.CreateTime = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystems) SetDescription(v string) *DescribeResourceStatisticsResponseBodyFileSystems {
-	s.Description = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystems) SetExpiredTime(v string) *DescribeResourceStatisticsResponseBodyFileSystems {
-	s.ExpiredTime = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystems) SetFileSystemId(v string) *DescribeResourceStatisticsResponseBodyFileSystems {
-	s.FileSystemId = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystems) SetFileSystemType(v string) *DescribeResourceStatisticsResponseBodyFileSystems {
-	s.FileSystemType = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystems) SetMeteredIASize(v int64) *DescribeResourceStatisticsResponseBodyFileSystems {
-	s.MeteredIASize = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystems) SetMeteredSize(v int64) *DescribeResourceStatisticsResponseBodyFileSystems {
-	s.MeteredSize = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystems) SetPackages(v []*DescribeResourceStatisticsResponseBodyFileSystemsPackages) *DescribeResourceStatisticsResponseBodyFileSystems {
-	s.Packages = v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystems) SetProtocolType(v string) *DescribeResourceStatisticsResponseBodyFileSystems {
-	s.ProtocolType = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystems) SetRegionId(v string) *DescribeResourceStatisticsResponseBodyFileSystems {
-	s.RegionId = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystems) SetStatus(v string) *DescribeResourceStatisticsResponseBodyFileSystems {
-	s.Status = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystems) SetStorageType(v string) *DescribeResourceStatisticsResponseBodyFileSystems {
-	s.StorageType = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystems) SetZoneId(v string) *DescribeResourceStatisticsResponseBodyFileSystems {
-	s.ZoneId = &v
-	return s
-}
-
-type DescribeResourceStatisticsResponseBodyFileSystemsPackages struct {
-	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
-	PackageId   *string `json:"PackageId,omitempty" xml:"PackageId,omitempty"`
-	Size        *int64  `json:"Size,omitempty" xml:"Size,omitempty"`
-	StartTime   *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-}
-
-func (s DescribeResourceStatisticsResponseBodyFileSystemsPackages) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeResourceStatisticsResponseBodyFileSystemsPackages) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemsPackages) SetExpiredTime(v string) *DescribeResourceStatisticsResponseBodyFileSystemsPackages {
-	s.ExpiredTime = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemsPackages) SetPackageId(v string) *DescribeResourceStatisticsResponseBodyFileSystemsPackages {
-	s.PackageId = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemsPackages) SetSize(v int64) *DescribeResourceStatisticsResponseBodyFileSystemsPackages {
-	s.Size = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponseBodyFileSystemsPackages) SetStartTime(v string) *DescribeResourceStatisticsResponseBodyFileSystemsPackages {
-	s.StartTime = &v
-	return s
-}
-
-type DescribeResourceStatisticsResponse struct {
-	Headers    map[string]*string                      `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                  `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeResourceStatisticsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s DescribeResourceStatisticsResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeResourceStatisticsResponse) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeResourceStatisticsResponse) SetHeaders(v map[string]*string) *DescribeResourceStatisticsResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponse) SetStatusCode(v int32) *DescribeResourceStatisticsResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *DescribeResourceStatisticsResponse) SetBody(v *DescribeResourceStatisticsResponseBody) *DescribeResourceStatisticsResponse {
 	s.Body = v
 	return s
 }
@@ -12134,8 +10364,6 @@ func (s *DescribeSmbAclResponseBody) SetRequestId(v string) *DescribeSmbAclRespo
 }
 
 type DescribeSmbAclResponseBodyAcl struct {
-	AuthCenter *string `json:"AuthCenter,omitempty" xml:"AuthCenter,omitempty"`
-	AuthMethod *string `json:"AuthMethod,omitempty" xml:"AuthMethod,omitempty"`
 	// Indicates whether the file system allows anonymous access. Valid values:
 	//
 	// *   true: The file system allows anonymous access.
@@ -12170,16 +10398,6 @@ func (s DescribeSmbAclResponseBodyAcl) GoString() string {
 	return s.String()
 }
 
-func (s *DescribeSmbAclResponseBodyAcl) SetAuthCenter(v string) *DescribeSmbAclResponseBodyAcl {
-	s.AuthCenter = &v
-	return s
-}
-
-func (s *DescribeSmbAclResponseBodyAcl) SetAuthMethod(v string) *DescribeSmbAclResponseBodyAcl {
-	s.AuthMethod = &v
-	return s
-}
-
 func (s *DescribeSmbAclResponseBodyAcl) SetEnableAnonymousAccess(v bool) *DescribeSmbAclResponseBodyAcl {
 	s.EnableAnonymousAccess = &v
 	return s
@@ -12211,9 +10429,9 @@ func (s *DescribeSmbAclResponseBodyAcl) SetSuperAdminSid(v string) *DescribeSmbA
 }
 
 type DescribeSmbAclResponse struct {
-	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeSmbAclResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeSmbAclResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeSmbAclResponse) String() string {
@@ -12516,9 +10734,9 @@ func (s *DescribeSnapshotsResponseBodySnapshotsSnapshot) SetStatus(v string) *De
 }
 
 type DescribeSnapshotsResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeSnapshotsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeSnapshotsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeSnapshotsResponse) String() string {
@@ -12730,9 +10948,9 @@ func (s *DescribeStoragePackagesResponseBodyPackagesPackage) SetStorageType(v st
 }
 
 type DescribeStoragePackagesResponse struct {
-	Headers    map[string]*string                   `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                               `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeStoragePackagesResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                   `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                               `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeStoragePackagesResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeStoragePackagesResponse) String() string {
@@ -12754,523 +10972,6 @@ func (s *DescribeStoragePackagesResponse) SetStatusCode(v int32) *DescribeStorag
 }
 
 func (s *DescribeStoragePackagesResponse) SetBody(v *DescribeStoragePackagesResponseBody) *DescribeStoragePackagesResponse {
-	s.Body = v
-	return s
-}
-
-type DescribeTagsRequest struct {
-	// The ID of the file system.
-	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The number of the page to return. Pages start from page 1.
-	PageNumber *int32 `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	// The number of tags to return on each page. Default value: 10.
-	PageSize *int32                    `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-	Tag      []*DescribeTagsRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
-}
-
-func (s DescribeTagsRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeTagsRequest) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeTagsRequest) SetFileSystemId(v string) *DescribeTagsRequest {
-	s.FileSystemId = &v
-	return s
-}
-
-func (s *DescribeTagsRequest) SetPageNumber(v int32) *DescribeTagsRequest {
-	s.PageNumber = &v
-	return s
-}
-
-func (s *DescribeTagsRequest) SetPageSize(v int32) *DescribeTagsRequest {
-	s.PageSize = &v
-	return s
-}
-
-func (s *DescribeTagsRequest) SetTag(v []*DescribeTagsRequestTag) *DescribeTagsRequest {
-	s.Tag = v
-	return s
-}
-
-type DescribeTagsRequestTag struct {
-	// The key (TagKey) of Tag N. The tag that you want to search by includes a TagKey and TagValue. You can specify a maximum of 10 tags at a time. A TagKey cannot be an empty string, but a TagValue can be an empty string.
-	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// The value (TagValue) of Tag N. The tag that you want to search by includes a TagKey and TagValue. You can specify a maximum of 10 tags at a time. A TagKey cannot be an empty string, but a TagValue can be an empty string.
-	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
-}
-
-func (s DescribeTagsRequestTag) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeTagsRequestTag) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeTagsRequestTag) SetKey(v string) *DescribeTagsRequestTag {
-	s.Key = &v
-	return s
-}
-
-func (s *DescribeTagsRequestTag) SetValue(v string) *DescribeTagsRequestTag {
-	s.Value = &v
-	return s
-}
-
-type DescribeTagsResponseBody struct {
-	// The number of the page to return.
-	PageNumber *int32 `json:"PageNumber,omitempty" xml:"PageNumber,omitempty"`
-	PageSize   *int32 `json:"PageSize,omitempty" xml:"PageSize,omitempty"`
-	// The ID of the request.
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// The tags that match all the filtering conditions.
-	Tags *DescribeTagsResponseBodyTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Struct"`
-	// The total number of file systems.
-	TotalCount *int32 `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
-}
-
-func (s DescribeTagsResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeTagsResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeTagsResponseBody) SetPageNumber(v int32) *DescribeTagsResponseBody {
-	s.PageNumber = &v
-	return s
-}
-
-func (s *DescribeTagsResponseBody) SetPageSize(v int32) *DescribeTagsResponseBody {
-	s.PageSize = &v
-	return s
-}
-
-func (s *DescribeTagsResponseBody) SetRequestId(v string) *DescribeTagsResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-func (s *DescribeTagsResponseBody) SetTags(v *DescribeTagsResponseBodyTags) *DescribeTagsResponseBody {
-	s.Tags = v
-	return s
-}
-
-func (s *DescribeTagsResponseBody) SetTotalCount(v int32) *DescribeTagsResponseBody {
-	s.TotalCount = &v
-	return s
-}
-
-type DescribeTagsResponseBodyTags struct {
-	Tag []*DescribeTagsResponseBodyTagsTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
-}
-
-func (s DescribeTagsResponseBodyTags) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeTagsResponseBodyTags) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeTagsResponseBodyTags) SetTag(v []*DescribeTagsResponseBodyTagsTag) *DescribeTagsResponseBodyTags {
-	s.Tag = v
-	return s
-}
-
-type DescribeTagsResponseBodyTagsTag struct {
-	// The IDs of the file systems with added tags.
-	FileSystemIds *DescribeTagsResponseBodyTagsTagFileSystemIds `json:"FileSystemIds,omitempty" xml:"FileSystemIds,omitempty" type:"Struct"`
-	// The key of the tag.
-	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	// The value of the tag.
-	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
-}
-
-func (s DescribeTagsResponseBodyTagsTag) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeTagsResponseBodyTagsTag) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeTagsResponseBodyTagsTag) SetFileSystemIds(v *DescribeTagsResponseBodyTagsTagFileSystemIds) *DescribeTagsResponseBodyTagsTag {
-	s.FileSystemIds = v
-	return s
-}
-
-func (s *DescribeTagsResponseBodyTagsTag) SetKey(v string) *DescribeTagsResponseBodyTagsTag {
-	s.Key = &v
-	return s
-}
-
-func (s *DescribeTagsResponseBodyTagsTag) SetValue(v string) *DescribeTagsResponseBodyTagsTag {
-	s.Value = &v
-	return s
-}
-
-type DescribeTagsResponseBodyTagsTagFileSystemIds struct {
-	FileSystemId []*string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty" type:"Repeated"`
-}
-
-func (s DescribeTagsResponseBodyTagsTagFileSystemIds) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeTagsResponseBodyTagsTagFileSystemIds) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeTagsResponseBodyTagsTagFileSystemIds) SetFileSystemId(v []*string) *DescribeTagsResponseBodyTagsTagFileSystemIds {
-	s.FileSystemId = v
-	return s
-}
-
-type DescribeTagsResponse struct {
-	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeTagsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s DescribeTagsResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeTagsResponse) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeTagsResponse) SetHeaders(v map[string]*string) *DescribeTagsResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *DescribeTagsResponse) SetStatusCode(v int32) *DescribeTagsResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *DescribeTagsResponse) SetBody(v *DescribeTagsResponseBody) *DescribeTagsResponse {
-	s.Body = v
-	return s
-}
-
-type DescribeVscMountPointAttachInfoRequest struct {
-	InstanceIds      []*string `json:"InstanceIds,omitempty" xml:"InstanceIds,omitempty" type:"Repeated"`
-	MaxResults       *int32    `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	MountPointDomain *string   `json:"MountPointDomain,omitempty" xml:"MountPointDomain,omitempty"`
-	NextToken        *string   `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	VscIds           []*string `json:"VscIds,omitempty" xml:"VscIds,omitempty" type:"Repeated"`
-}
-
-func (s DescribeVscMountPointAttachInfoRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeVscMountPointAttachInfoRequest) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeVscMountPointAttachInfoRequest) SetInstanceIds(v []*string) *DescribeVscMountPointAttachInfoRequest {
-	s.InstanceIds = v
-	return s
-}
-
-func (s *DescribeVscMountPointAttachInfoRequest) SetMaxResults(v int32) *DescribeVscMountPointAttachInfoRequest {
-	s.MaxResults = &v
-	return s
-}
-
-func (s *DescribeVscMountPointAttachInfoRequest) SetMountPointDomain(v string) *DescribeVscMountPointAttachInfoRequest {
-	s.MountPointDomain = &v
-	return s
-}
-
-func (s *DescribeVscMountPointAttachInfoRequest) SetNextToken(v string) *DescribeVscMountPointAttachInfoRequest {
-	s.NextToken = &v
-	return s
-}
-
-func (s *DescribeVscMountPointAttachInfoRequest) SetVscIds(v []*string) *DescribeVscMountPointAttachInfoRequest {
-	s.VscIds = v
-	return s
-}
-
-type DescribeVscMountPointAttachInfoResponseBody struct {
-	DescVscAttachInfos *DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfos `json:"DescVscAttachInfos,omitempty" xml:"DescVscAttachInfos,omitempty" type:"Struct"`
-	NextToken          *string                                                        `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	RequestId          *string                                                        `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	TotalCount         *int32                                                         `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
-}
-
-func (s DescribeVscMountPointAttachInfoResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeVscMountPointAttachInfoResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeVscMountPointAttachInfoResponseBody) SetDescVscAttachInfos(v *DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfos) *DescribeVscMountPointAttachInfoResponseBody {
-	s.DescVscAttachInfos = v
-	return s
-}
-
-func (s *DescribeVscMountPointAttachInfoResponseBody) SetNextToken(v string) *DescribeVscMountPointAttachInfoResponseBody {
-	s.NextToken = &v
-	return s
-}
-
-func (s *DescribeVscMountPointAttachInfoResponseBody) SetRequestId(v string) *DescribeVscMountPointAttachInfoResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-func (s *DescribeVscMountPointAttachInfoResponseBody) SetTotalCount(v int32) *DescribeVscMountPointAttachInfoResponseBody {
-	s.TotalCount = &v
-	return s
-}
-
-type DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfos struct {
-	DescVscAttachInfo []*DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfosDescVscAttachInfo `json:"DescVscAttachInfo,omitempty" xml:"DescVscAttachInfo,omitempty" type:"Repeated"`
-}
-
-func (s DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfos) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfos) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfos) SetDescVscAttachInfo(v []*DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfosDescVscAttachInfo) *DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfos {
-	s.DescVscAttachInfo = v
-	return s
-}
-
-type DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfosDescVscAttachInfo struct {
-	InstanceId       *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	MountPointDomain *string `json:"MountPointDomain,omitempty" xml:"MountPointDomain,omitempty"`
-	Status           *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	VscId            *string `json:"VscId,omitempty" xml:"VscId,omitempty"`
-	VscType          *string `json:"VscType,omitempty" xml:"VscType,omitempty"`
-}
-
-func (s DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfosDescVscAttachInfo) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfosDescVscAttachInfo) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfosDescVscAttachInfo) SetInstanceId(v string) *DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfosDescVscAttachInfo {
-	s.InstanceId = &v
-	return s
-}
-
-func (s *DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfosDescVscAttachInfo) SetMountPointDomain(v string) *DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfosDescVscAttachInfo {
-	s.MountPointDomain = &v
-	return s
-}
-
-func (s *DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfosDescVscAttachInfo) SetStatus(v string) *DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfosDescVscAttachInfo {
-	s.Status = &v
-	return s
-}
-
-func (s *DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfosDescVscAttachInfo) SetVscId(v string) *DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfosDescVscAttachInfo {
-	s.VscId = &v
-	return s
-}
-
-func (s *DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfosDescVscAttachInfo) SetVscType(v string) *DescribeVscMountPointAttachInfoResponseBodyDescVscAttachInfosDescVscAttachInfo {
-	s.VscType = &v
-	return s
-}
-
-type DescribeVscMountPointAttachInfoResponse struct {
-	Headers    map[string]*string                           `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                       `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeVscMountPointAttachInfoResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s DescribeVscMountPointAttachInfoResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeVscMountPointAttachInfoResponse) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeVscMountPointAttachInfoResponse) SetHeaders(v map[string]*string) *DescribeVscMountPointAttachInfoResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *DescribeVscMountPointAttachInfoResponse) SetStatusCode(v int32) *DescribeVscMountPointAttachInfoResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *DescribeVscMountPointAttachInfoResponse) SetBody(v *DescribeVscMountPointAttachInfoResponseBody) *DescribeVscMountPointAttachInfoResponse {
-	s.Body = v
-	return s
-}
-
-type DescribeVscMountPointsRequest struct {
-	FileSystemId     *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	MaxResults       *int32  `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	MountPointDomain *string `json:"MountPointDomain,omitempty" xml:"MountPointDomain,omitempty"`
-	NextToken        *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-}
-
-func (s DescribeVscMountPointsRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeVscMountPointsRequest) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeVscMountPointsRequest) SetFileSystemId(v string) *DescribeVscMountPointsRequest {
-	s.FileSystemId = &v
-	return s
-}
-
-func (s *DescribeVscMountPointsRequest) SetMaxResults(v int32) *DescribeVscMountPointsRequest {
-	s.MaxResults = &v
-	return s
-}
-
-func (s *DescribeVscMountPointsRequest) SetMountPointDomain(v string) *DescribeVscMountPointsRequest {
-	s.MountPointDomain = &v
-	return s
-}
-
-func (s *DescribeVscMountPointsRequest) SetNextToken(v string) *DescribeVscMountPointsRequest {
-	s.NextToken = &v
-	return s
-}
-
-type DescribeVscMountPointsResponseBody struct {
-	NextToken      *string                                           `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	RequestId      *string                                           `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	TotalCount     *int32                                            `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
-	VscMountPoints *DescribeVscMountPointsResponseBodyVscMountPoints `json:"VscMountPoints,omitempty" xml:"VscMountPoints,omitempty" type:"Struct"`
-}
-
-func (s DescribeVscMountPointsResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeVscMountPointsResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeVscMountPointsResponseBody) SetNextToken(v string) *DescribeVscMountPointsResponseBody {
-	s.NextToken = &v
-	return s
-}
-
-func (s *DescribeVscMountPointsResponseBody) SetRequestId(v string) *DescribeVscMountPointsResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-func (s *DescribeVscMountPointsResponseBody) SetTotalCount(v int32) *DescribeVscMountPointsResponseBody {
-	s.TotalCount = &v
-	return s
-}
-
-func (s *DescribeVscMountPointsResponseBody) SetVscMountPoints(v *DescribeVscMountPointsResponseBodyVscMountPoints) *DescribeVscMountPointsResponseBody {
-	s.VscMountPoints = v
-	return s
-}
-
-type DescribeVscMountPointsResponseBodyVscMountPoints struct {
-	VscMountPoint []*DescribeVscMountPointsResponseBodyVscMountPointsVscMountPoint `json:"VscMountPoint,omitempty" xml:"VscMountPoint,omitempty" type:"Repeated"`
-}
-
-func (s DescribeVscMountPointsResponseBodyVscMountPoints) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeVscMountPointsResponseBodyVscMountPoints) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeVscMountPointsResponseBodyVscMountPoints) SetVscMountPoint(v []*DescribeVscMountPointsResponseBodyVscMountPointsVscMountPoint) *DescribeVscMountPointsResponseBodyVscMountPoints {
-	s.VscMountPoint = v
-	return s
-}
-
-type DescribeVscMountPointsResponseBodyVscMountPointsVscMountPoint struct {
-	Description      *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	MountPointAlias  *string `json:"MountPointAlias,omitempty" xml:"MountPointAlias,omitempty"`
-	MountPointDomain *string `json:"MountPointDomain,omitempty" xml:"MountPointDomain,omitempty"`
-	Status           *string `json:"Status,omitempty" xml:"Status,omitempty"`
-}
-
-func (s DescribeVscMountPointsResponseBodyVscMountPointsVscMountPoint) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeVscMountPointsResponseBodyVscMountPointsVscMountPoint) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeVscMountPointsResponseBodyVscMountPointsVscMountPoint) SetDescription(v string) *DescribeVscMountPointsResponseBodyVscMountPointsVscMountPoint {
-	s.Description = &v
-	return s
-}
-
-func (s *DescribeVscMountPointsResponseBodyVscMountPointsVscMountPoint) SetMountPointAlias(v string) *DescribeVscMountPointsResponseBodyVscMountPointsVscMountPoint {
-	s.MountPointAlias = &v
-	return s
-}
-
-func (s *DescribeVscMountPointsResponseBodyVscMountPointsVscMountPoint) SetMountPointDomain(v string) *DescribeVscMountPointsResponseBodyVscMountPointsVscMountPoint {
-	s.MountPointDomain = &v
-	return s
-}
-
-func (s *DescribeVscMountPointsResponseBodyVscMountPointsVscMountPoint) SetStatus(v string) *DescribeVscMountPointsResponseBodyVscMountPointsVscMountPoint {
-	s.Status = &v
-	return s
-}
-
-type DescribeVscMountPointsResponse struct {
-	Headers    map[string]*string                  `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                              `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeVscMountPointsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s DescribeVscMountPointsResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DescribeVscMountPointsResponse) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeVscMountPointsResponse) SetHeaders(v map[string]*string) *DescribeVscMountPointsResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *DescribeVscMountPointsResponse) SetStatusCode(v int32) *DescribeVscMountPointsResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *DescribeVscMountPointsResponse) SetBody(v *DescribeVscMountPointsResponseBody) *DescribeVscMountPointsResponse {
 	s.Body = v
 	return s
 }
@@ -13480,9 +11181,9 @@ func (s *DescribeZonesResponseBodyZonesZonePerformance) SetProtocol(v []*string)
 }
 
 type DescribeZonesResponse struct {
-	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DescribeZonesResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DescribeZonesResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DescribeZonesResponse) String() string {
@@ -13504,110 +11205,6 @@ func (s *DescribeZonesResponse) SetStatusCode(v int32) *DescribeZonesResponse {
 }
 
 func (s *DescribeZonesResponse) SetBody(v *DescribeZonesResponseBody) *DescribeZonesResponse {
-	s.Body = v
-	return s
-}
-
-type DetachVscMountPointRequest struct {
-	Description      *string                                     `json:"Description,omitempty" xml:"Description,omitempty"`
-	FileSystemId     *string                                     `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	MountPointDomain *string                                     `json:"MountPointDomain,omitempty" xml:"MountPointDomain,omitempty"`
-	VscAttachInfos   []*DetachVscMountPointRequestVscAttachInfos `json:"VscAttachInfos,omitempty" xml:"VscAttachInfos,omitempty" type:"Repeated"`
-}
-
-func (s DetachVscMountPointRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DetachVscMountPointRequest) GoString() string {
-	return s.String()
-}
-
-func (s *DetachVscMountPointRequest) SetDescription(v string) *DetachVscMountPointRequest {
-	s.Description = &v
-	return s
-}
-
-func (s *DetachVscMountPointRequest) SetFileSystemId(v string) *DetachVscMountPointRequest {
-	s.FileSystemId = &v
-	return s
-}
-
-func (s *DetachVscMountPointRequest) SetMountPointDomain(v string) *DetachVscMountPointRequest {
-	s.MountPointDomain = &v
-	return s
-}
-
-func (s *DetachVscMountPointRequest) SetVscAttachInfos(v []*DetachVscMountPointRequestVscAttachInfos) *DetachVscMountPointRequest {
-	s.VscAttachInfos = v
-	return s
-}
-
-type DetachVscMountPointRequestVscAttachInfos struct {
-	InstanceId *string `json:"InstanceId,omitempty" xml:"InstanceId,omitempty"`
-	VscId      *string `json:"VscId,omitempty" xml:"VscId,omitempty"`
-}
-
-func (s DetachVscMountPointRequestVscAttachInfos) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DetachVscMountPointRequestVscAttachInfos) GoString() string {
-	return s.String()
-}
-
-func (s *DetachVscMountPointRequestVscAttachInfos) SetInstanceId(v string) *DetachVscMountPointRequestVscAttachInfos {
-	s.InstanceId = &v
-	return s
-}
-
-func (s *DetachVscMountPointRequestVscAttachInfos) SetVscId(v string) *DetachVscMountPointRequestVscAttachInfos {
-	s.VscId = &v
-	return s
-}
-
-type DetachVscMountPointResponseBody struct {
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s DetachVscMountPointResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DetachVscMountPointResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *DetachVscMountPointResponseBody) SetRequestId(v string) *DetachVscMountPointResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type DetachVscMountPointResponse struct {
-	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DetachVscMountPointResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s DetachVscMountPointResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s DetachVscMountPointResponse) GoString() string {
-	return s.String()
-}
-
-func (s *DetachVscMountPointResponse) SetHeaders(v map[string]*string) *DetachVscMountPointResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *DetachVscMountPointResponse) SetStatusCode(v int32) *DetachVscMountPointResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *DetachVscMountPointResponse) SetBody(v *DetachVscMountPointResponseBody) *DetachVscMountPointResponse {
 	s.Body = v
 	return s
 }
@@ -13649,9 +11246,9 @@ func (s *DisableAndCleanRecycleBinResponseBody) SetRequestId(v string) *DisableA
 }
 
 type DisableAndCleanRecycleBinResponse struct {
-	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DisableAndCleanRecycleBinResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DisableAndCleanRecycleBinResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DisableAndCleanRecycleBinResponse) String() string {
@@ -13714,9 +11311,9 @@ func (s *DisableNfsAclResponseBody) SetRequestId(v string) *DisableNfsAclRespons
 }
 
 type DisableNfsAclResponse struct {
-	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DisableNfsAclResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DisableNfsAclResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DisableNfsAclResponse) String() string {
@@ -13779,9 +11376,9 @@ func (s *DisableSmbAclResponseBody) SetRequestId(v string) *DisableSmbAclRespons
 }
 
 type DisableSmbAclResponse struct {
-	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *DisableSmbAclResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *DisableSmbAclResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s DisableSmbAclResponse) String() string {
@@ -13844,9 +11441,9 @@ func (s *EnableNfsAclResponseBody) SetRequestId(v string) *EnableNfsAclResponseB
 }
 
 type EnableNfsAclResponse struct {
-	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *EnableNfsAclResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *EnableNfsAclResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s EnableNfsAclResponse) String() string {
@@ -13920,9 +11517,9 @@ func (s *EnableRecycleBinResponseBody) SetRequestId(v string) *EnableRecycleBinR
 }
 
 type EnableRecycleBinResponse struct {
-	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *EnableRecycleBinResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *EnableRecycleBinResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s EnableRecycleBinResponse) String() string {
@@ -13949,8 +11546,6 @@ func (s *EnableRecycleBinResponse) SetBody(v *EnableRecycleBinResponseBody) *Ena
 }
 
 type EnableSmbAclRequest struct {
-	AuthCenter *string `json:"AuthCenter,omitempty" xml:"AuthCenter,omitempty"`
-	AuthMethod *string `json:"AuthMethod,omitempty" xml:"AuthMethod,omitempty"`
 	// The ID of the file system.
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 	// The string that is generated after the system encodes the keytab file by using Base64.
@@ -13965,16 +11560,6 @@ func (s EnableSmbAclRequest) String() string {
 
 func (s EnableSmbAclRequest) GoString() string {
 	return s.String()
-}
-
-func (s *EnableSmbAclRequest) SetAuthCenter(v string) *EnableSmbAclRequest {
-	s.AuthCenter = &v
-	return s
-}
-
-func (s *EnableSmbAclRequest) SetAuthMethod(v string) *EnableSmbAclRequest {
-	s.AuthMethod = &v
-	return s
 }
 
 func (s *EnableSmbAclRequest) SetFileSystemId(v string) *EnableSmbAclRequest {
@@ -14011,9 +11596,9 @@ func (s *EnableSmbAclResponseBody) SetRequestId(v string) *EnableSmbAclResponseB
 }
 
 type EnableSmbAclResponse struct {
-	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *EnableSmbAclResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *EnableSmbAclResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s EnableSmbAclResponse) String() string {
@@ -14212,9 +11797,9 @@ func (s *GetDirectoryOrFilePropertiesResponseBodyEntry) SetType(v string) *GetDi
 }
 
 type GetDirectoryOrFilePropertiesResponse struct {
-	Headers    map[string]*string                        `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                    `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *GetDirectoryOrFilePropertiesResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                        `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                    `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *GetDirectoryOrFilePropertiesResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s GetDirectoryOrFilePropertiesResponse) String() string {
@@ -14236,267 +11821,6 @@ func (s *GetDirectoryOrFilePropertiesResponse) SetStatusCode(v int32) *GetDirect
 }
 
 func (s *GetDirectoryOrFilePropertiesResponse) SetBody(v *GetDirectoryOrFilePropertiesResponseBody) *GetDirectoryOrFilePropertiesResponse {
-	s.Body = v
-	return s
-}
-
-type GetMountInvocationRequest struct {
-	InvokeId *string `json:"InvokeId,omitempty" xml:"InvokeId,omitempty"`
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-}
-
-func (s GetMountInvocationRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetMountInvocationRequest) GoString() string {
-	return s.String()
-}
-
-func (s *GetMountInvocationRequest) SetInvokeId(v string) *GetMountInvocationRequest {
-	s.InvokeId = &v
-	return s
-}
-
-func (s *GetMountInvocationRequest) SetRegionId(v string) *GetMountInvocationRequest {
-	s.RegionId = &v
-	return s
-}
-
-type GetMountInvocationResponseBody struct {
-	Invocation *GetMountInvocationResponseBodyInvocation `json:"Invocation,omitempty" xml:"Invocation,omitempty" type:"Struct"`
-	RequestId  *string                                   `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s GetMountInvocationResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetMountInvocationResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *GetMountInvocationResponseBody) SetInvocation(v *GetMountInvocationResponseBodyInvocation) *GetMountInvocationResponseBody {
-	s.Invocation = v
-	return s
-}
-
-func (s *GetMountInvocationResponseBody) SetRequestId(v string) *GetMountInvocationResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type GetMountInvocationResponseBodyInvocation struct {
-	ErrorCode        *string `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
-	ErrorMsg         *string `json:"ErrorMsg,omitempty" xml:"ErrorMsg,omitempty"`
-	InvocationStatus *string `json:"InvocationStatus,omitempty" xml:"InvocationStatus,omitempty"`
-}
-
-func (s GetMountInvocationResponseBodyInvocation) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetMountInvocationResponseBodyInvocation) GoString() string {
-	return s.String()
-}
-
-func (s *GetMountInvocationResponseBodyInvocation) SetErrorCode(v string) *GetMountInvocationResponseBodyInvocation {
-	s.ErrorCode = &v
-	return s
-}
-
-func (s *GetMountInvocationResponseBodyInvocation) SetErrorMsg(v string) *GetMountInvocationResponseBodyInvocation {
-	s.ErrorMsg = &v
-	return s
-}
-
-func (s *GetMountInvocationResponseBodyInvocation) SetInvocationStatus(v string) *GetMountInvocationResponseBodyInvocation {
-	s.InvocationStatus = &v
-	return s
-}
-
-type GetMountInvocationResponse struct {
-	Headers    map[string]*string              `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                          `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *GetMountInvocationResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s GetMountInvocationResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetMountInvocationResponse) GoString() string {
-	return s.String()
-}
-
-func (s *GetMountInvocationResponse) SetHeaders(v map[string]*string) *GetMountInvocationResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *GetMountInvocationResponse) SetStatusCode(v int32) *GetMountInvocationResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *GetMountInvocationResponse) SetBody(v *GetMountInvocationResponseBody) *GetMountInvocationResponse {
-	s.Body = v
-	return s
-}
-
-type GetQueryInvocationRequest struct {
-	InvokeId *string `json:"InvokeId,omitempty" xml:"InvokeId,omitempty"`
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-}
-
-func (s GetQueryInvocationRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetQueryInvocationRequest) GoString() string {
-	return s.String()
-}
-
-func (s *GetQueryInvocationRequest) SetInvokeId(v string) *GetQueryInvocationRequest {
-	s.InvokeId = &v
-	return s
-}
-
-func (s *GetQueryInvocationRequest) SetRegionId(v string) *GetQueryInvocationRequest {
-	s.RegionId = &v
-	return s
-}
-
-type GetQueryInvocationResponseBody struct {
-	Invocation *GetQueryInvocationResponseBodyInvocation `json:"Invocation,omitempty" xml:"Invocation,omitempty" type:"Struct"`
-	RequestId  *string                                   `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s GetQueryInvocationResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetQueryInvocationResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *GetQueryInvocationResponseBody) SetInvocation(v *GetQueryInvocationResponseBodyInvocation) *GetQueryInvocationResponseBody {
-	s.Invocation = v
-	return s
-}
-
-func (s *GetQueryInvocationResponseBody) SetRequestId(v string) *GetQueryInvocationResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type GetQueryInvocationResponseBodyInvocation struct {
-	ErrorCode        *string                                               `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
-	ErrorMsg         *string                                               `json:"ErrorMsg,omitempty" xml:"ErrorMsg,omitempty"`
-	InvocationStatus *string                                               `json:"InvocationStatus,omitempty" xml:"InvocationStatus,omitempty"`
-	MountInfos       []*GetQueryInvocationResponseBodyInvocationMountInfos `json:"MountInfos,omitempty" xml:"MountInfos,omitempty" type:"Repeated"`
-}
-
-func (s GetQueryInvocationResponseBodyInvocation) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetQueryInvocationResponseBodyInvocation) GoString() string {
-	return s.String()
-}
-
-func (s *GetQueryInvocationResponseBodyInvocation) SetErrorCode(v string) *GetQueryInvocationResponseBodyInvocation {
-	s.ErrorCode = &v
-	return s
-}
-
-func (s *GetQueryInvocationResponseBodyInvocation) SetErrorMsg(v string) *GetQueryInvocationResponseBodyInvocation {
-	s.ErrorMsg = &v
-	return s
-}
-
-func (s *GetQueryInvocationResponseBodyInvocation) SetInvocationStatus(v string) *GetQueryInvocationResponseBodyInvocation {
-	s.InvocationStatus = &v
-	return s
-}
-
-func (s *GetQueryInvocationResponseBodyInvocation) SetMountInfos(v []*GetQueryInvocationResponseBodyInvocationMountInfos) *GetQueryInvocationResponseBodyInvocation {
-	s.MountInfos = v
-	return s
-}
-
-type GetQueryInvocationResponseBodyInvocationMountInfos struct {
-	AutoMountOnBoot   *bool   `json:"AutoMountOnBoot,omitempty" xml:"AutoMountOnBoot,omitempty"`
-	EcsLocalPath      *string `json:"EcsLocalPath,omitempty" xml:"EcsLocalPath,omitempty"`
-	MountParam        *string `json:"MountParam,omitempty" xml:"MountParam,omitempty"`
-	MountTargetDomain *string `json:"MountTargetDomain,omitempty" xml:"MountTargetDomain,omitempty"`
-	NasRemotePath     *string `json:"NasRemotePath,omitempty" xml:"NasRemotePath,omitempty"`
-	ProtocolType      *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
-}
-
-func (s GetQueryInvocationResponseBodyInvocationMountInfos) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetQueryInvocationResponseBodyInvocationMountInfos) GoString() string {
-	return s.String()
-}
-
-func (s *GetQueryInvocationResponseBodyInvocationMountInfos) SetAutoMountOnBoot(v bool) *GetQueryInvocationResponseBodyInvocationMountInfos {
-	s.AutoMountOnBoot = &v
-	return s
-}
-
-func (s *GetQueryInvocationResponseBodyInvocationMountInfos) SetEcsLocalPath(v string) *GetQueryInvocationResponseBodyInvocationMountInfos {
-	s.EcsLocalPath = &v
-	return s
-}
-
-func (s *GetQueryInvocationResponseBodyInvocationMountInfos) SetMountParam(v string) *GetQueryInvocationResponseBodyInvocationMountInfos {
-	s.MountParam = &v
-	return s
-}
-
-func (s *GetQueryInvocationResponseBodyInvocationMountInfos) SetMountTargetDomain(v string) *GetQueryInvocationResponseBodyInvocationMountInfos {
-	s.MountTargetDomain = &v
-	return s
-}
-
-func (s *GetQueryInvocationResponseBodyInvocationMountInfos) SetNasRemotePath(v string) *GetQueryInvocationResponseBodyInvocationMountInfos {
-	s.NasRemotePath = &v
-	return s
-}
-
-func (s *GetQueryInvocationResponseBodyInvocationMountInfos) SetProtocolType(v string) *GetQueryInvocationResponseBodyInvocationMountInfos {
-	s.ProtocolType = &v
-	return s
-}
-
-type GetQueryInvocationResponse struct {
-	Headers    map[string]*string              `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                          `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *GetQueryInvocationResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s GetQueryInvocationResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetQueryInvocationResponse) GoString() string {
-	return s.String()
-}
-
-func (s *GetQueryInvocationResponse) SetHeaders(v map[string]*string) *GetQueryInvocationResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *GetQueryInvocationResponse) SetStatusCode(v int32) *GetQueryInvocationResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *GetQueryInvocationResponse) SetBody(v *GetQueryInvocationResponseBody) *GetQueryInvocationResponse {
 	s.Body = v
 	return s
 }
@@ -14598,9 +11922,9 @@ func (s *GetRecycleBinAttributeResponseBodyRecycleBinAttribute) SetStatus(v stri
 }
 
 type GetRecycleBinAttributeResponse struct {
-	Headers    map[string]*string                  `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                              `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *GetRecycleBinAttributeResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                  `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                              `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *GetRecycleBinAttributeResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s GetRecycleBinAttributeResponse) String() string {
@@ -14622,500 +11946,6 @@ func (s *GetRecycleBinAttributeResponse) SetStatusCode(v int32) *GetRecycleBinAt
 }
 
 func (s *GetRecycleBinAttributeResponse) SetBody(v *GetRecycleBinAttributeResponseBody) *GetRecycleBinAttributeResponse {
-	s.Body = v
-	return s
-}
-
-type GetUnmountInvocationRequest struct {
-	InvokeId *string `json:"InvokeId,omitempty" xml:"InvokeId,omitempty"`
-	RegionId *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-}
-
-func (s GetUnmountInvocationRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetUnmountInvocationRequest) GoString() string {
-	return s.String()
-}
-
-func (s *GetUnmountInvocationRequest) SetInvokeId(v string) *GetUnmountInvocationRequest {
-	s.InvokeId = &v
-	return s
-}
-
-func (s *GetUnmountInvocationRequest) SetRegionId(v string) *GetUnmountInvocationRequest {
-	s.RegionId = &v
-	return s
-}
-
-type GetUnmountInvocationResponseBody struct {
-	Invocation *GetUnmountInvocationResponseBodyInvocation `json:"Invocation,omitempty" xml:"Invocation,omitempty" type:"Struct"`
-	RequestId  *string                                     `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s GetUnmountInvocationResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetUnmountInvocationResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *GetUnmountInvocationResponseBody) SetInvocation(v *GetUnmountInvocationResponseBodyInvocation) *GetUnmountInvocationResponseBody {
-	s.Invocation = v
-	return s
-}
-
-func (s *GetUnmountInvocationResponseBody) SetRequestId(v string) *GetUnmountInvocationResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type GetUnmountInvocationResponseBodyInvocation struct {
-	ErrorCode        *string `json:"ErrorCode,omitempty" xml:"ErrorCode,omitempty"`
-	ErrorMsg         *string `json:"ErrorMsg,omitempty" xml:"ErrorMsg,omitempty"`
-	InvocationStatus *string `json:"InvocationStatus,omitempty" xml:"InvocationStatus,omitempty"`
-}
-
-func (s GetUnmountInvocationResponseBodyInvocation) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetUnmountInvocationResponseBodyInvocation) GoString() string {
-	return s.String()
-}
-
-func (s *GetUnmountInvocationResponseBodyInvocation) SetErrorCode(v string) *GetUnmountInvocationResponseBodyInvocation {
-	s.ErrorCode = &v
-	return s
-}
-
-func (s *GetUnmountInvocationResponseBodyInvocation) SetErrorMsg(v string) *GetUnmountInvocationResponseBodyInvocation {
-	s.ErrorMsg = &v
-	return s
-}
-
-func (s *GetUnmountInvocationResponseBodyInvocation) SetInvocationStatus(v string) *GetUnmountInvocationResponseBodyInvocation {
-	s.InvocationStatus = &v
-	return s
-}
-
-type GetUnmountInvocationResponse struct {
-	Headers    map[string]*string                `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                            `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *GetUnmountInvocationResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s GetUnmountInvocationResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetUnmountInvocationResponse) GoString() string {
-	return s.String()
-}
-
-func (s *GetUnmountInvocationResponse) SetHeaders(v map[string]*string) *GetUnmountInvocationResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *GetUnmountInvocationResponse) SetStatusCode(v int32) *GetUnmountInvocationResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *GetUnmountInvocationResponse) SetBody(v *GetUnmountInvocationResponseBody) *GetUnmountInvocationResponse {
-	s.Body = v
-	return s
-}
-
-type GetViperGrayConfigRequest struct {
-	Condition  *string `json:"Condition,omitempty" xml:"Condition,omitempty"`
-	ConfigName *string `json:"ConfigName,omitempty" xml:"ConfigName,omitempty"`
-	RegionId   *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-}
-
-func (s GetViperGrayConfigRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetViperGrayConfigRequest) GoString() string {
-	return s.String()
-}
-
-func (s *GetViperGrayConfigRequest) SetCondition(v string) *GetViperGrayConfigRequest {
-	s.Condition = &v
-	return s
-}
-
-func (s *GetViperGrayConfigRequest) SetConfigName(v string) *GetViperGrayConfigRequest {
-	s.ConfigName = &v
-	return s
-}
-
-func (s *GetViperGrayConfigRequest) SetRegionId(v string) *GetViperGrayConfigRequest {
-	s.RegionId = &v
-	return s
-}
-
-type GetViperGrayConfigResponseBody struct {
-	Config    *string `json:"Config,omitempty" xml:"Config,omitempty"`
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s GetViperGrayConfigResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetViperGrayConfigResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *GetViperGrayConfigResponseBody) SetConfig(v string) *GetViperGrayConfigResponseBody {
-	s.Config = &v
-	return s
-}
-
-func (s *GetViperGrayConfigResponseBody) SetRequestId(v string) *GetViperGrayConfigResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type GetViperGrayConfigResponse struct {
-	Headers    map[string]*string              `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                          `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *GetViperGrayConfigResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s GetViperGrayConfigResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s GetViperGrayConfigResponse) GoString() string {
-	return s.String()
-}
-
-func (s *GetViperGrayConfigResponse) SetHeaders(v map[string]*string) *GetViperGrayConfigResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *GetViperGrayConfigResponse) SetStatusCode(v int32) *GetViperGrayConfigResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *GetViperGrayConfigResponse) SetBody(v *GetViperGrayConfigResponseBody) *GetViperGrayConfigResponse {
-	s.Body = v
-	return s
-}
-
-type InvokeMountNasToEcsRequest struct {
-	AutoMountOnBoot   *bool   `json:"AutoMountOnBoot,omitempty" xml:"AutoMountOnBoot,omitempty"`
-	EcsInstanceId     *string `json:"EcsInstanceId,omitempty" xml:"EcsInstanceId,omitempty"`
-	EcsLocalPath      *string `json:"EcsLocalPath,omitempty" xml:"EcsLocalPath,omitempty"`
-	FileSystemId      *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	MountParam        *string `json:"MountParam,omitempty" xml:"MountParam,omitempty"`
-	MountTargetDomain *string `json:"MountTargetDomain,omitempty" xml:"MountTargetDomain,omitempty"`
-	NasRemotePath     *string `json:"NasRemotePath,omitempty" xml:"NasRemotePath,omitempty"`
-	ProtocolType      *string `json:"ProtocolType,omitempty" xml:"ProtocolType,omitempty"`
-	RegionId          *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-}
-
-func (s InvokeMountNasToEcsRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s InvokeMountNasToEcsRequest) GoString() string {
-	return s.String()
-}
-
-func (s *InvokeMountNasToEcsRequest) SetAutoMountOnBoot(v bool) *InvokeMountNasToEcsRequest {
-	s.AutoMountOnBoot = &v
-	return s
-}
-
-func (s *InvokeMountNasToEcsRequest) SetEcsInstanceId(v string) *InvokeMountNasToEcsRequest {
-	s.EcsInstanceId = &v
-	return s
-}
-
-func (s *InvokeMountNasToEcsRequest) SetEcsLocalPath(v string) *InvokeMountNasToEcsRequest {
-	s.EcsLocalPath = &v
-	return s
-}
-
-func (s *InvokeMountNasToEcsRequest) SetFileSystemId(v string) *InvokeMountNasToEcsRequest {
-	s.FileSystemId = &v
-	return s
-}
-
-func (s *InvokeMountNasToEcsRequest) SetMountParam(v string) *InvokeMountNasToEcsRequest {
-	s.MountParam = &v
-	return s
-}
-
-func (s *InvokeMountNasToEcsRequest) SetMountTargetDomain(v string) *InvokeMountNasToEcsRequest {
-	s.MountTargetDomain = &v
-	return s
-}
-
-func (s *InvokeMountNasToEcsRequest) SetNasRemotePath(v string) *InvokeMountNasToEcsRequest {
-	s.NasRemotePath = &v
-	return s
-}
-
-func (s *InvokeMountNasToEcsRequest) SetProtocolType(v string) *InvokeMountNasToEcsRequest {
-	s.ProtocolType = &v
-	return s
-}
-
-func (s *InvokeMountNasToEcsRequest) SetRegionId(v string) *InvokeMountNasToEcsRequest {
-	s.RegionId = &v
-	return s
-}
-
-type InvokeMountNasToEcsResponseBody struct {
-	InvokeId  *string `json:"InvokeId,omitempty" xml:"InvokeId,omitempty"`
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s InvokeMountNasToEcsResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s InvokeMountNasToEcsResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *InvokeMountNasToEcsResponseBody) SetInvokeId(v string) *InvokeMountNasToEcsResponseBody {
-	s.InvokeId = &v
-	return s
-}
-
-func (s *InvokeMountNasToEcsResponseBody) SetRequestId(v string) *InvokeMountNasToEcsResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type InvokeMountNasToEcsResponse struct {
-	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *InvokeMountNasToEcsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s InvokeMountNasToEcsResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s InvokeMountNasToEcsResponse) GoString() string {
-	return s.String()
-}
-
-func (s *InvokeMountNasToEcsResponse) SetHeaders(v map[string]*string) *InvokeMountNasToEcsResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *InvokeMountNasToEcsResponse) SetStatusCode(v int32) *InvokeMountNasToEcsResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *InvokeMountNasToEcsResponse) SetBody(v *InvokeMountNasToEcsResponseBody) *InvokeMountNasToEcsResponse {
-	s.Body = v
-	return s
-}
-
-type InvokeQueryMountStatusRequest struct {
-	EcsInstanceId     *string `json:"EcsInstanceId,omitempty" xml:"EcsInstanceId,omitempty"`
-	FileSystemId      *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	MountTargetDomain *string `json:"MountTargetDomain,omitempty" xml:"MountTargetDomain,omitempty"`
-	RegionId          *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-}
-
-func (s InvokeQueryMountStatusRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s InvokeQueryMountStatusRequest) GoString() string {
-	return s.String()
-}
-
-func (s *InvokeQueryMountStatusRequest) SetEcsInstanceId(v string) *InvokeQueryMountStatusRequest {
-	s.EcsInstanceId = &v
-	return s
-}
-
-func (s *InvokeQueryMountStatusRequest) SetFileSystemId(v string) *InvokeQueryMountStatusRequest {
-	s.FileSystemId = &v
-	return s
-}
-
-func (s *InvokeQueryMountStatusRequest) SetMountTargetDomain(v string) *InvokeQueryMountStatusRequest {
-	s.MountTargetDomain = &v
-	return s
-}
-
-func (s *InvokeQueryMountStatusRequest) SetRegionId(v string) *InvokeQueryMountStatusRequest {
-	s.RegionId = &v
-	return s
-}
-
-type InvokeQueryMountStatusResponseBody struct {
-	InvokeId  *string `json:"InvokeId,omitempty" xml:"InvokeId,omitempty"`
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s InvokeQueryMountStatusResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s InvokeQueryMountStatusResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *InvokeQueryMountStatusResponseBody) SetInvokeId(v string) *InvokeQueryMountStatusResponseBody {
-	s.InvokeId = &v
-	return s
-}
-
-func (s *InvokeQueryMountStatusResponseBody) SetRequestId(v string) *InvokeQueryMountStatusResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type InvokeQueryMountStatusResponse struct {
-	Headers    map[string]*string                  `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                              `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *InvokeQueryMountStatusResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s InvokeQueryMountStatusResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s InvokeQueryMountStatusResponse) GoString() string {
-	return s.String()
-}
-
-func (s *InvokeQueryMountStatusResponse) SetHeaders(v map[string]*string) *InvokeQueryMountStatusResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *InvokeQueryMountStatusResponse) SetStatusCode(v int32) *InvokeQueryMountStatusResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *InvokeQueryMountStatusResponse) SetBody(v *InvokeQueryMountStatusResponseBody) *InvokeQueryMountStatusResponse {
-	s.Body = v
-	return s
-}
-
-type InvokeUnmountNasFromEcsRequest struct {
-	CancelAutoMountOnBoot *bool   `json:"CancelAutoMountOnBoot,omitempty" xml:"CancelAutoMountOnBoot,omitempty"`
-	EcsInstanceId         *string `json:"EcsInstanceId,omitempty" xml:"EcsInstanceId,omitempty"`
-	EcsLocalPath          *string `json:"EcsLocalPath,omitempty" xml:"EcsLocalPath,omitempty"`
-	FileSystemId          *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	ForceUnmount          *bool   `json:"ForceUnmount,omitempty" xml:"ForceUnmount,omitempty"`
-	MountTargetDomain     *string `json:"MountTargetDomain,omitempty" xml:"MountTargetDomain,omitempty"`
-	RegionId              *string `json:"RegionId,omitempty" xml:"RegionId,omitempty"`
-}
-
-func (s InvokeUnmountNasFromEcsRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s InvokeUnmountNasFromEcsRequest) GoString() string {
-	return s.String()
-}
-
-func (s *InvokeUnmountNasFromEcsRequest) SetCancelAutoMountOnBoot(v bool) *InvokeUnmountNasFromEcsRequest {
-	s.CancelAutoMountOnBoot = &v
-	return s
-}
-
-func (s *InvokeUnmountNasFromEcsRequest) SetEcsInstanceId(v string) *InvokeUnmountNasFromEcsRequest {
-	s.EcsInstanceId = &v
-	return s
-}
-
-func (s *InvokeUnmountNasFromEcsRequest) SetEcsLocalPath(v string) *InvokeUnmountNasFromEcsRequest {
-	s.EcsLocalPath = &v
-	return s
-}
-
-func (s *InvokeUnmountNasFromEcsRequest) SetFileSystemId(v string) *InvokeUnmountNasFromEcsRequest {
-	s.FileSystemId = &v
-	return s
-}
-
-func (s *InvokeUnmountNasFromEcsRequest) SetForceUnmount(v bool) *InvokeUnmountNasFromEcsRequest {
-	s.ForceUnmount = &v
-	return s
-}
-
-func (s *InvokeUnmountNasFromEcsRequest) SetMountTargetDomain(v string) *InvokeUnmountNasFromEcsRequest {
-	s.MountTargetDomain = &v
-	return s
-}
-
-func (s *InvokeUnmountNasFromEcsRequest) SetRegionId(v string) *InvokeUnmountNasFromEcsRequest {
-	s.RegionId = &v
-	return s
-}
-
-type InvokeUnmountNasFromEcsResponseBody struct {
-	InvokeId  *string `json:"InvokeId,omitempty" xml:"InvokeId,omitempty"`
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s InvokeUnmountNasFromEcsResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s InvokeUnmountNasFromEcsResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *InvokeUnmountNasFromEcsResponseBody) SetInvokeId(v string) *InvokeUnmountNasFromEcsResponseBody {
-	s.InvokeId = &v
-	return s
-}
-
-func (s *InvokeUnmountNasFromEcsResponseBody) SetRequestId(v string) *InvokeUnmountNasFromEcsResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type InvokeUnmountNasFromEcsResponse struct {
-	Headers    map[string]*string                   `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                               `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *InvokeUnmountNasFromEcsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s InvokeUnmountNasFromEcsResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s InvokeUnmountNasFromEcsResponse) GoString() string {
-	return s.String()
-}
-
-func (s *InvokeUnmountNasFromEcsResponse) SetHeaders(v map[string]*string) *InvokeUnmountNasFromEcsResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *InvokeUnmountNasFromEcsResponse) SetStatusCode(v int32) *InvokeUnmountNasFromEcsResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *InvokeUnmountNasFromEcsResponse) SetBody(v *InvokeUnmountNasFromEcsResponseBody) *InvokeUnmountNasFromEcsResponse {
 	s.Body = v
 	return s
 }
@@ -15272,7 +12102,6 @@ type ListDirectoriesAndFilesResponseBodyEntries struct {
 	//
 	// Valid values:
 	//
-	// *   standard: General-purpose NAS file system
 	// *   InfrequentAccess: IA storage medium
 	StorageType *string `json:"StorageType,omitempty" xml:"StorageType,omitempty"`
 	// The type of the query result.
@@ -15353,9 +12182,9 @@ func (s *ListDirectoriesAndFilesResponseBodyEntries) SetType(v string) *ListDire
 }
 
 type ListDirectoriesAndFilesResponse struct {
-	Headers    map[string]*string                   `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                               `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ListDirectoriesAndFilesResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                   `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                               `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ListDirectoriesAndFilesResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ListDirectoriesAndFilesResponse) String() string {
@@ -15553,9 +12382,9 @@ func (s *ListLifecycleRetrieveJobsResponseBodyLifecycleRetrieveJobs) SetUpdateTi
 }
 
 type ListLifecycleRetrieveJobsResponse struct {
-	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ListLifecycleRetrieveJobsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ListLifecycleRetrieveJobsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ListLifecycleRetrieveJobsResponse) String() string {
@@ -15693,9 +12522,9 @@ func (s *ListRecentlyRecycledDirectoriesResponseBodyEntries) SetPath(v string) *
 }
 
 type ListRecentlyRecycledDirectoriesResponse struct {
-	Headers    map[string]*string                           `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                       `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ListRecentlyRecycledDirectoriesResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                           `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                       `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ListRecentlyRecycledDirectoriesResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ListRecentlyRecycledDirectoriesResponse) String() string {
@@ -15742,9 +12571,9 @@ type ListRecycleBinJobsRequest struct {
 	// *   Defragmenting: The job is defragmenting data.
 	// *   PartialSuccess: The job is partially completed.
 	// *   Success: The job is completed.
-	// *   Failed: The job failed.
+	// *   Fail: The job failed.
 	// *   Cancelled: The job is canceled.
-	// *   All: all.
+	// *   All: all.Default value:All.
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
 }
 
@@ -15854,7 +12683,7 @@ type ListRecycleBinJobsResponseBodyJobs struct {
 	// *   Defragmenting: The job is defragmenting data.
 	// *   PartialSuccess: The job is partially completed.
 	// *   Success: The job is completed.
-	// *   Failed: The job failed.
+	// *   Fail: The job failed.
 	// *   Cancelled: The job is canceled.
 	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
 	// The type of the job. Valid values:
@@ -15918,9 +12747,9 @@ func (s *ListRecycleBinJobsResponseBodyJobs) SetType(v string) *ListRecycleBinJo
 }
 
 type ListRecycleBinJobsResponse struct {
-	Headers    map[string]*string              `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                          `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ListRecycleBinJobsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string              `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                          `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ListRecycleBinJobsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ListRecycleBinJobsResponse) String() string {
@@ -16107,9 +12936,9 @@ func (s *ListRecycledDirectoriesAndFilesResponseBodyEntries) SetType(v string) *
 }
 
 type ListRecycledDirectoriesAndFilesResponse struct {
-	Headers    map[string]*string                           `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                       `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ListRecycledDirectoriesAndFilesResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                           `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                       `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ListRecycledDirectoriesAndFilesResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ListRecycledDirectoriesAndFilesResponse) String() string {
@@ -16131,87 +12960,6 @@ func (s *ListRecycledDirectoriesAndFilesResponse) SetStatusCode(v int32) *ListRe
 }
 
 func (s *ListRecycledDirectoriesAndFilesResponse) SetBody(v *ListRecycledDirectoriesAndFilesResponseBody) *ListRecycledDirectoriesAndFilesResponse {
-	s.Body = v
-	return s
-}
-
-type ListTagKeysRequest struct {
-	NextToken    *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	ResourceType *string `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
-}
-
-func (s ListTagKeysRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s ListTagKeysRequest) GoString() string {
-	return s.String()
-}
-
-func (s *ListTagKeysRequest) SetNextToken(v string) *ListTagKeysRequest {
-	s.NextToken = &v
-	return s
-}
-
-func (s *ListTagKeysRequest) SetResourceType(v string) *ListTagKeysRequest {
-	s.ResourceType = &v
-	return s
-}
-
-type ListTagKeysResponseBody struct {
-	Keys      []*string `json:"Keys,omitempty" xml:"Keys,omitempty" type:"Repeated"`
-	NextToken *string   `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	RequestId *string   `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s ListTagKeysResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s ListTagKeysResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *ListTagKeysResponseBody) SetKeys(v []*string) *ListTagKeysResponseBody {
-	s.Keys = v
-	return s
-}
-
-func (s *ListTagKeysResponseBody) SetNextToken(v string) *ListTagKeysResponseBody {
-	s.NextToken = &v
-	return s
-}
-
-func (s *ListTagKeysResponseBody) SetRequestId(v string) *ListTagKeysResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type ListTagKeysResponse struct {
-	Headers    map[string]*string       `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                   `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ListTagKeysResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s ListTagKeysResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s ListTagKeysResponse) GoString() string {
-	return s.String()
-}
-
-func (s *ListTagKeysResponse) SetHeaders(v map[string]*string) *ListTagKeysResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *ListTagKeysResponse) SetStatusCode(v int32) *ListTagKeysResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *ListTagKeysResponse) SetBody(v *ListTagKeysResponseBody) *ListTagKeysResponse {
 	s.Body = v
 	return s
 }
@@ -16384,9 +13132,9 @@ func (s *ListTagResourcesResponseBodyTagResourcesTagResource) SetTagValue(v stri
 }
 
 type ListTagResourcesResponse struct {
-	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ListTagResourcesResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ListTagResourcesResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ListTagResourcesResponse) String() string {
@@ -16408,93 +13156,6 @@ func (s *ListTagResourcesResponse) SetStatusCode(v int32) *ListTagResourcesRespo
 }
 
 func (s *ListTagResourcesResponse) SetBody(v *ListTagResourcesResponseBody) *ListTagResourcesResponse {
-	s.Body = v
-	return s
-}
-
-type ListTagValuesRequest struct {
-	Key          *string `json:"Key,omitempty" xml:"Key,omitempty"`
-	NextToken    *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	ResourceType *string `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
-}
-
-func (s ListTagValuesRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s ListTagValuesRequest) GoString() string {
-	return s.String()
-}
-
-func (s *ListTagValuesRequest) SetKey(v string) *ListTagValuesRequest {
-	s.Key = &v
-	return s
-}
-
-func (s *ListTagValuesRequest) SetNextToken(v string) *ListTagValuesRequest {
-	s.NextToken = &v
-	return s
-}
-
-func (s *ListTagValuesRequest) SetResourceType(v string) *ListTagValuesRequest {
-	s.ResourceType = &v
-	return s
-}
-
-type ListTagValuesResponseBody struct {
-	NextToken *string   `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	RequestId *string   `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	Values    []*string `json:"Values,omitempty" xml:"Values,omitempty" type:"Repeated"`
-}
-
-func (s ListTagValuesResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s ListTagValuesResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *ListTagValuesResponseBody) SetNextToken(v string) *ListTagValuesResponseBody {
-	s.NextToken = &v
-	return s
-}
-
-func (s *ListTagValuesResponseBody) SetRequestId(v string) *ListTagValuesResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-func (s *ListTagValuesResponseBody) SetValues(v []*string) *ListTagValuesResponseBody {
-	s.Values = v
-	return s
-}
-
-type ListTagValuesResponse struct {
-	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ListTagValuesResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s ListTagValuesResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s ListTagValuesResponse) GoString() string {
-	return s.String()
-}
-
-func (s *ListTagValuesResponse) SetHeaders(v map[string]*string) *ListTagValuesResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *ListTagValuesResponse) SetStatusCode(v int32) *ListTagValuesResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *ListTagValuesResponse) SetBody(v *ListTagValuesResponseBody) *ListTagValuesResponse {
 	s.Body = v
 	return s
 }
@@ -16566,9 +13227,9 @@ func (s *ModifyAccessGroupResponseBody) SetRequestId(v string) *ModifyAccessGrou
 }
 
 type ModifyAccessGroupResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ModifyAccessGroupResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ModifyAccessGroupResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ModifyAccessGroupResponse) String() string {
@@ -16653,9 +13314,9 @@ func (s *ModifyAccessPointResponseBody) SetRequestId(v string) *ModifyAccessPoin
 }
 
 type ModifyAccessPointResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ModifyAccessPointResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ModifyAccessPointResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ModifyAccessPointResponse) String() string {
@@ -16797,9 +13458,9 @@ func (s *ModifyAccessRuleResponseBody) SetRequestId(v string) *ModifyAccessRuleR
 }
 
 type ModifyAccessRuleResponse struct {
-	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ModifyAccessRuleResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ModifyAccessRuleResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ModifyAccessRuleResponse) String() string {
@@ -16915,9 +13576,9 @@ func (s *ModifyAutoSnapshotPolicyResponseBody) SetRequestId(v string) *ModifyAut
 }
 
 type ModifyAutoSnapshotPolicyResponse struct {
-	Headers    map[string]*string                    `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ModifyAutoSnapshotPolicyResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                    `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ModifyAutoSnapshotPolicyResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ModifyAutoSnapshotPolicyResponse) String() string {
@@ -17038,9 +13699,9 @@ func (s *ModifyDataFlowResponseBody) SetRequestId(v string) *ModifyDataFlowRespo
 }
 
 type ModifyDataFlowResponse struct {
-	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ModifyDataFlowResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ModifyDataFlowResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ModifyDataFlowResponse) String() string {
@@ -17131,9 +13792,9 @@ func (s *ModifyDataFlowAutoRefreshResponseBody) SetRequestId(v string) *ModifyDa
 }
 
 type ModifyDataFlowAutoRefreshResponse struct {
-	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ModifyDataFlowAutoRefreshResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ModifyDataFlowAutoRefreshResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ModifyDataFlowAutoRefreshResponse) String() string {
@@ -17155,81 +13816,6 @@ func (s *ModifyDataFlowAutoRefreshResponse) SetStatusCode(v int32) *ModifyDataFl
 }
 
 func (s *ModifyDataFlowAutoRefreshResponse) SetBody(v *ModifyDataFlowAutoRefreshResponseBody) *ModifyDataFlowAutoRefreshResponse {
-	s.Body = v
-	return s
-}
-
-type ModifyFileMetaRequest struct {
-	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	Owner        *string `json:"Owner,omitempty" xml:"Owner,omitempty"`
-	Path         *string `json:"Path,omitempty" xml:"Path,omitempty"`
-}
-
-func (s ModifyFileMetaRequest) String() string {
-	return tea.Prettify(s)
-}
-
-func (s ModifyFileMetaRequest) GoString() string {
-	return s.String()
-}
-
-func (s *ModifyFileMetaRequest) SetFileSystemId(v string) *ModifyFileMetaRequest {
-	s.FileSystemId = &v
-	return s
-}
-
-func (s *ModifyFileMetaRequest) SetOwner(v string) *ModifyFileMetaRequest {
-	s.Owner = &v
-	return s
-}
-
-func (s *ModifyFileMetaRequest) SetPath(v string) *ModifyFileMetaRequest {
-	s.Path = &v
-	return s
-}
-
-type ModifyFileMetaResponseBody struct {
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s ModifyFileMetaResponseBody) String() string {
-	return tea.Prettify(s)
-}
-
-func (s ModifyFileMetaResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *ModifyFileMetaResponseBody) SetRequestId(v string) *ModifyFileMetaResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-type ModifyFileMetaResponse struct {
-	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ModifyFileMetaResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
-}
-
-func (s ModifyFileMetaResponse) String() string {
-	return tea.Prettify(s)
-}
-
-func (s ModifyFileMetaResponse) GoString() string {
-	return s.String()
-}
-
-func (s *ModifyFileMetaResponse) SetHeaders(v map[string]*string) *ModifyFileMetaResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *ModifyFileMetaResponse) SetStatusCode(v int32) *ModifyFileMetaResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *ModifyFileMetaResponse) SetBody(v *ModifyFileMetaResponseBody) *ModifyFileMetaResponse {
 	s.Body = v
 	return s
 }
@@ -17289,9 +13875,9 @@ func (s *ModifyFileSystemResponseBody) SetRequestId(v string) *ModifyFileSystemR
 }
 
 type ModifyFileSystemResponse struct {
-	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ModifyFileSystemResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ModifyFileSystemResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ModifyFileSystemResponse) String() string {
@@ -17318,18 +13904,27 @@ func (s *ModifyFileSystemResponse) SetBody(v *ModifyFileSystemResponseBody) *Mod
 }
 
 type ModifyFilesetRequest struct {
-	// [](~~25693~~)
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// **
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
-	// ****
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
+	// The fileset description.
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// *
-	// *
-	DryRun       *bool   `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// Specifies whether to perform only a dry run, without performing the actual request.
+	//
+	// During the dry run, the system checks whether the request parameters are valid and whether the requested resources are available. During the dry run, no file system is created and no fee is incurred.
+	//
+	// Valid values:
+	//
+	// *   true: performs only a dry run. The system checks the required parameters, request syntax, limits, and available NAS resources. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned. No value is returned for the FileSystemId parameter.
+	// *   false (default): performs a dry run and sends the request. If the request passes the dry run, a file system is created.
+	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The ID of the file system.
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	FsetId       *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
+	// The fileset ID.
+	FsetId *string `json:"FsetId,omitempty" xml:"FsetId,omitempty"`
 }
 
 func (s ModifyFilesetRequest) String() string {
@@ -17366,6 +13961,7 @@ func (s *ModifyFilesetRequest) SetFsetId(v string) *ModifyFilesetRequest {
 }
 
 type ModifyFilesetResponseBody struct {
+	// The request ID.
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
@@ -17383,9 +13979,9 @@ func (s *ModifyFilesetResponseBody) SetRequestId(v string) *ModifyFilesetRespons
 }
 
 type ModifyFilesetResponse struct {
-	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ModifyFilesetResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ModifyFilesetResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ModifyFilesetResponse) String() string {
@@ -17464,9 +14060,9 @@ func (s *ModifyLDAPConfigResponseBody) SetRequestId(v string) *ModifyLDAPConfigR
 }
 
 type ModifyLDAPConfigResponse struct {
-	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ModifyLDAPConfigResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ModifyLDAPConfigResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ModifyLDAPConfigResponse) String() string {
@@ -17582,9 +14178,9 @@ func (s *ModifyLifecyclePolicyResponseBody) SetSuccess(v bool) *ModifyLifecycleP
 }
 
 type ModifyLifecyclePolicyResponse struct {
-	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ModifyLifecyclePolicyResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ModifyLifecyclePolicyResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ModifyLifecyclePolicyResponse) String() string {
@@ -17685,9 +14281,9 @@ func (s *ModifyMountTargetResponseBody) SetRequestId(v string) *ModifyMountTarge
 }
 
 type ModifyMountTargetResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ModifyMountTargetResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ModifyMountTargetResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ModifyMountTargetResponse) String() string {
@@ -17714,22 +14310,32 @@ func (s *ModifyMountTargetResponse) SetBody(v *ModifyMountTargetResponseBody) *M
 }
 
 type ModifyProtocolMountTargetRequest struct {
-	AccessGroupName *string `json:"AccessGroupName,omitempty" xml:"AccessGroupName,omitempty"`
-	// [](~~25693~~)
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// **
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
-	// ****
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	// *
-	// *   ````
-	// *
+	// The description of the export directory for the protocol service.
+	//
+	// Limits:
+	//
+	// *   The description must be 2 to 128 characters in length.
+	// *   The description must start with a letter but cannot start with `http://` or `https://`.
+	// *   The description can contain letters, digits, colons (:), underscores (\_), and hyphens (-).
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// *
-	// *
-	DryRun            *bool   `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
-	ExportId          *string `json:"ExportId,omitempty" xml:"ExportId,omitempty"`
-	FileSystemId      *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	// Specifies whether to perform only a dry run, without performing the actual request. The dry run checks parameter validity and prerequisites. The dry run does not modify the specified export directory or incur fees.
+	//
+	// Valid values:
+	//
+	// *   true: performs only a dry run. The system checks the required parameters, request syntax, and service limits. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned.
+	// *   false (default): performs a dry run and sends the request.
+	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The ID of the export directory for the protocol service.
+	ExportId *string `json:"ExportId,omitempty" xml:"ExportId,omitempty"`
+	// The ID of the file system.
+	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
+	// The ID of the protocol service.
 	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
 }
 
@@ -17739,11 +14345,6 @@ func (s ModifyProtocolMountTargetRequest) String() string {
 
 func (s ModifyProtocolMountTargetRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ModifyProtocolMountTargetRequest) SetAccessGroupName(v string) *ModifyProtocolMountTargetRequest {
-	s.AccessGroupName = &v
-	return s
 }
 
 func (s *ModifyProtocolMountTargetRequest) SetClientToken(v string) *ModifyProtocolMountTargetRequest {
@@ -17777,6 +14378,7 @@ func (s *ModifyProtocolMountTargetRequest) SetProtocolServiceId(v string) *Modif
 }
 
 type ModifyProtocolMountTargetResponseBody struct {
+	// The request ID.
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
@@ -17794,9 +14396,9 @@ func (s *ModifyProtocolMountTargetResponseBody) SetRequestId(v string) *ModifyPr
 }
 
 type ModifyProtocolMountTargetResponse struct {
-	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ModifyProtocolMountTargetResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ModifyProtocolMountTargetResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ModifyProtocolMountTargetResponse) String() string {
@@ -17825,9 +14427,9 @@ func (s *ModifyProtocolMountTargetResponse) SetBody(v *ModifyProtocolMountTarget
 type ModifyProtocolServiceRequest struct {
 	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How to ensure idempotence](~~25693~~).
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
-	// > If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
 	// The description of the protocol service.
 	//
@@ -17837,7 +14439,7 @@ type ModifyProtocolServiceRequest struct {
 	// *   The description must start with a letter and cannot start with `http://` or `https://`.
 	// *   The description can contain letters, digits, colons (:), underscores (\_), and hyphens (-).
 	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// Specifies whether to perform a dry run. The dry run checks parameter validity and prerequisites. The dry run does not modify a file system or incur fees.
+	// Specifies whether to perform only a dry run, without performing the actual request. The dry run checks parameter validity and prerequisites. The dry run does not modify a file system or incur fees.
 	//
 	// Valid values:
 	//
@@ -17846,10 +14448,8 @@ type ModifyProtocolServiceRequest struct {
 	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
 	// The ID of the file system.
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
-	// The protocol service ID.
+	// The ID of the protocol service.
 	ProtocolServiceId *string `json:"ProtocolServiceId,omitempty" xml:"ProtocolServiceId,omitempty"`
-	ProtocolSpec      *string `json:"ProtocolSpec,omitempty" xml:"ProtocolSpec,omitempty"`
-	Throughput        *string `json:"Throughput,omitempty" xml:"Throughput,omitempty"`
 }
 
 func (s ModifyProtocolServiceRequest) String() string {
@@ -17885,16 +14485,6 @@ func (s *ModifyProtocolServiceRequest) SetProtocolServiceId(v string) *ModifyPro
 	return s
 }
 
-func (s *ModifyProtocolServiceRequest) SetProtocolSpec(v string) *ModifyProtocolServiceRequest {
-	s.ProtocolSpec = &v
-	return s
-}
-
-func (s *ModifyProtocolServiceRequest) SetThroughput(v string) *ModifyProtocolServiceRequest {
-	s.Throughput = &v
-	return s
-}
-
 type ModifyProtocolServiceResponseBody struct {
 	// The request ID.
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
@@ -17914,9 +14504,9 @@ func (s *ModifyProtocolServiceResponseBody) SetRequestId(v string) *ModifyProtoc
 }
 
 type ModifyProtocolServiceResponse struct {
-	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ModifyProtocolServiceResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ModifyProtocolServiceResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ModifyProtocolServiceResponse) String() string {
@@ -17943,8 +14533,6 @@ func (s *ModifyProtocolServiceResponse) SetBody(v *ModifyProtocolServiceResponse
 }
 
 type ModifySmbAclRequest struct {
-	AuthCenter *string `json:"AuthCenter,omitempty" xml:"AuthCenter,omitempty"`
-	AuthMethod *string `json:"AuthMethod,omitempty" xml:"AuthMethod,omitempty"`
 	// Specifies whether to allow anonymous access. Valid values:
 	//
 	// *   true: The file system allows anonymous access.
@@ -17992,16 +14580,6 @@ func (s ModifySmbAclRequest) String() string {
 
 func (s ModifySmbAclRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ModifySmbAclRequest) SetAuthCenter(v string) *ModifySmbAclRequest {
-	s.AuthCenter = &v
-	return s
-}
-
-func (s *ModifySmbAclRequest) SetAuthMethod(v string) *ModifySmbAclRequest {
-	s.AuthMethod = &v
-	return s
 }
 
 func (s *ModifySmbAclRequest) SetEnableAnonymousAccess(v bool) *ModifySmbAclRequest {
@@ -18063,9 +14641,9 @@ func (s *ModifySmbAclResponseBody) SetRequestId(v string) *ModifySmbAclResponseB
 }
 
 type ModifySmbAclResponse struct {
-	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ModifySmbAclResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ModifySmbAclResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ModifySmbAclResponse) String() string {
@@ -18117,9 +14695,9 @@ func (s *OpenNASServiceResponseBody) SetRequestId(v string) *OpenNASServiceRespo
 }
 
 type OpenNASServiceResponse struct {
-	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *OpenNASServiceResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *OpenNASServiceResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s OpenNASServiceResponse) String() string {
@@ -18199,9 +14777,9 @@ func (s *RemoveClientFromBlackListResponseBody) SetRequestId(v string) *RemoveCl
 }
 
 type RemoveClientFromBlackListResponse struct {
-	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *RemoveClientFromBlackListResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *RemoveClientFromBlackListResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s RemoveClientFromBlackListResponse) String() string {
@@ -18295,9 +14873,9 @@ func (s *RemoveTagsResponseBody) SetRequestId(v string) *RemoveTagsResponseBody 
 }
 
 type RemoveTagsResponse struct {
-	Headers    map[string]*string      `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                  `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *RemoveTagsResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string      `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                  `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *RemoveTagsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s RemoveTagsResponse) String() string {
@@ -18367,9 +14945,9 @@ func (s *ResetFileSystemResponseBody) SetRequestId(v string) *ResetFileSystemRes
 }
 
 type ResetFileSystemResponse struct {
-	Headers    map[string]*string           `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                       `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *ResetFileSystemResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string           `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                       `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *ResetFileSystemResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s ResetFileSystemResponse) String() string {
@@ -18432,9 +15010,9 @@ func (s *RetryLifecycleRetrieveJobResponseBody) SetRequestId(v string) *RetryLif
 }
 
 type RetryLifecycleRetrieveJobResponse struct {
-	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *RetryLifecycleRetrieveJobResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *RetryLifecycleRetrieveJobResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s RetryLifecycleRetrieveJobResponse) String() string {
@@ -18577,9 +15155,9 @@ func (s *SetDirQuotaResponseBody) SetSuccess(v bool) *SetDirQuotaResponseBody {
 }
 
 type SetDirQuotaResponse struct {
-	Headers    map[string]*string       `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                   `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *SetDirQuotaResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string       `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                   `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *SetDirQuotaResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s SetDirQuotaResponse) String() string {
@@ -18606,16 +15184,24 @@ func (s *SetDirQuotaResponse) SetBody(v *SetDirQuotaResponseBody) *SetDirQuotaRe
 }
 
 type StartDataFlowRequest struct {
-	// [](~~25693~~)
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// **
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
-	// ****
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The request ID may be different for each request.
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	DataFlowId  *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	// *
-	// *
-	DryRun       *bool   `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The dataflow ID.
+	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
+	// Specifies whether to perform only a dry run, without performing the actual request.
+	//
+	// During the dry run, the system checks whether the request parameters are valid and whether the requested resources are available. The dry run does not enable the specified dataflow or incur fees.
+	//
+	// Valid values:
+	//
+	// *   true: performs only a dry run. The system checks the required parameters, request syntax, service limits, and available NAS resources. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned.
+	// *   false (default): performs a dry run and sends the request. If the request passes the dry run, the specified dataflow is enabled.
+	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The ID of the file system.
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 }
 
@@ -18648,6 +15234,7 @@ func (s *StartDataFlowRequest) SetFileSystemId(v string) *StartDataFlowRequest {
 }
 
 type StartDataFlowResponseBody struct {
+	// The request ID.
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
@@ -18665,9 +15252,9 @@ func (s *StartDataFlowResponseBody) SetRequestId(v string) *StartDataFlowRespons
 }
 
 type StartDataFlowResponse struct {
-	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *StartDataFlowResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *StartDataFlowResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s StartDataFlowResponse) String() string {
@@ -18694,16 +15281,24 @@ func (s *StartDataFlowResponse) SetBody(v *StartDataFlowResponseBody) *StartData
 }
 
 type StopDataFlowRequest struct {
-	// [](~~25693~~)
+	// The client token that is used to ensure the idempotence of the request. You can use the client to generate the token, but you must make sure that the token is unique among different requests.
 	//
-	// **
+	// The token can contain only ASCII characters and cannot exceed 64 characters in length. For more information, see [How do I ensure the idempotence?](~~25693~~)
 	//
-	// ****
+	// >  If you do not specify this parameter, the system automatically uses the request ID as the client token. The value of RequestId may be different for each API request.
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
-	DataFlowId  *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
-	// *
-	// *
-	DryRun       *bool   `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The dataflow ID.
+	DataFlowId *string `json:"DataFlowId,omitempty" xml:"DataFlowId,omitempty"`
+	// Specifies whether to perform a dry run.
+	//
+	// During the dry run, the system checks whether the request parameters are valid and whether the requested resources are available. During the dry run, no file system is created and no fee is incurred.
+	//
+	// Valid values:
+	//
+	// *   true: performs a dry run. The system checks the required parameters, request syntax, limits, and available NAS resources. If the request fails the dry run, an error message is returned. If the request passes the dry run, the HTTP status code 200 is returned. No value is returned for the FileSystemId parameter.
+	// *   false (default): performs a dry run and sends the request. If the request passes the dry run, a file system is created.
+	DryRun *bool `json:"DryRun,omitempty" xml:"DryRun,omitempty"`
+	// The ID of the file system.
 	FileSystemId *string `json:"FileSystemId,omitempty" xml:"FileSystemId,omitempty"`
 }
 
@@ -18736,6 +15331,7 @@ func (s *StopDataFlowRequest) SetFileSystemId(v string) *StopDataFlowRequest {
 }
 
 type StopDataFlowResponseBody struct {
+	// The request ID.
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
@@ -18753,9 +15349,9 @@ func (s *StopDataFlowResponseBody) SetRequestId(v string) *StopDataFlowResponseB
 }
 
 type StopDataFlowResponse struct {
-	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *StopDataFlowResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *StopDataFlowResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s StopDataFlowResponse) String() string {
@@ -18872,9 +15468,9 @@ func (s *TagResourcesResponseBody) SetRequestId(v string) *TagResourcesResponseB
 }
 
 type TagResourcesResponse struct {
-	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *TagResourcesResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *TagResourcesResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s TagResourcesResponse) String() string {
@@ -18967,9 +15563,9 @@ func (s *UntagResourcesResponseBody) SetRequestId(v string) *UntagResourcesRespo
 }
 
 type UntagResourcesResponse struct {
-	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *UntagResourcesResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *UntagResourcesResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s UntagResourcesResponse) String() string {
@@ -19043,9 +15639,9 @@ func (s *UpdateRecycleBinAttributeResponseBody) SetRequestId(v string) *UpdateRe
 }
 
 type UpdateRecycleBinAttributeResponse struct {
-	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *UpdateRecycleBinAttributeResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string                     `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *UpdateRecycleBinAttributeResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s UpdateRecycleBinAttributeResponse) String() string {
@@ -19147,9 +15743,9 @@ func (s *UpgradeFileSystemResponseBody) SetRequestId(v string) *UpgradeFileSyste
 }
 
 type UpgradeFileSystemResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
-	Body       *UpgradeFileSystemResponseBody `json:"body,omitempty" xml:"body,omitempty" require:"true"`
+	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
+	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
+	Body       *UpgradeFileSystemResponseBody `json:"body,omitempty" xml:"body,omitempty"`
 }
 
 func (s UpgradeFileSystemResponse) String() string {
@@ -19441,17 +16037,17 @@ func (client *Client) ApplyAutoSnapshotPolicy(request *ApplyAutoSnapshotPolicyRe
 }
 
 /**
- * ###
- * *
- * *   ``
- * *
- * *   [](~~336901~~)
- * *   [](~~182246~~)
- * **
- * ****``
- * *
- * *
- * *
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support dataflows. You can view the version information on the file system details page in the console.
+ * *   You can add AutoRefresh configurations only to the dataflows that are in the `Running` state.
+ * *   You can add a maximum of five AutoRefresh configurations to a dataflow.
+ * *   It generally takes 2 to 5 minutes to create an AutoRefresh configuration. You can call the [DescribeDataFlows](~~336901~~) operation to query the dataflow status.
+ * *   AutoRefresh depends on the object modification events collected by EventBridge from the source Object Storage Service (OSS) bucket. You must first [activate EventBridge](~~182246~~).
+ *     **
+ *     **Note** The event buses and event rules created for CPFS in the EventBridge console contain the `Create for cpfs auto refresh` description. The event buses and event rules cannot be modified or deleted. Otherwise, AutoRefresh cannot work properly.
+ * *   The AutoRefresh configuration applies only to the prefix and is specified by the RefreshPath parameter. When you add an AutoRefresh configuration to the prefix for a CPFS dataflow, an event bus is created at the user side and an event rule is created for the prefix of the source OSS bucket. When an object is modified in the prefix of the source OSS bucket, an OSS event is generated in the EventBridge console. The event is processed by the CPFS dataflow.
+ * *   After AutoRefresh is configured, if the data in the source OSS bucket is updated, the updated metadata is automatically synchronized to the CPFS file system. You can load the updated data when you access files, or run a dataflow task to load the updated data.
+ * *   AutoRefreshInterval refers to the interval at which CPFS checks whether data is updated in the prefix of the source OSS bucket. If data is updated, CPFS runs an AutoRefresh task. If the frequency of triggering the object modification event in the source OSS bucket exceeds the processing capability of the CPFS dataflow, AutoRefresh tasks are accumulated, metadata updates are delayed, and the dataflow status becomes Misconfigured. To resolve these issues, you can increase the dataflow specifications or reduce the frequency of triggering the object modification event.
  *
  * @param request ApplyDataFlowAutoRefreshRequest
  * @param runtime runtime options for this request RuntimeOptions
@@ -19515,17 +16111,17 @@ func (client *Client) ApplyDataFlowAutoRefreshWithOptions(request *ApplyDataFlow
 }
 
 /**
- * ###
- * *
- * *   ``
- * *
- * *   [](~~336901~~)
- * *   [](~~182246~~)
- * **
- * ****``
- * *
- * *
- * *
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support dataflows. You can view the version information on the file system details page in the console.
+ * *   You can add AutoRefresh configurations only to the dataflows that are in the `Running` state.
+ * *   You can add a maximum of five AutoRefresh configurations to a dataflow.
+ * *   It generally takes 2 to 5 minutes to create an AutoRefresh configuration. You can call the [DescribeDataFlows](~~336901~~) operation to query the dataflow status.
+ * *   AutoRefresh depends on the object modification events collected by EventBridge from the source Object Storage Service (OSS) bucket. You must first [activate EventBridge](~~182246~~).
+ *     **
+ *     **Note** The event buses and event rules created for CPFS in the EventBridge console contain the `Create for cpfs auto refresh` description. The event buses and event rules cannot be modified or deleted. Otherwise, AutoRefresh cannot work properly.
+ * *   The AutoRefresh configuration applies only to the prefix and is specified by the RefreshPath parameter. When you add an AutoRefresh configuration to the prefix for a CPFS dataflow, an event bus is created at the user side and an event rule is created for the prefix of the source OSS bucket. When an object is modified in the prefix of the source OSS bucket, an OSS event is generated in the EventBridge console. The event is processed by the CPFS dataflow.
+ * *   After AutoRefresh is configured, if the data in the source OSS bucket is updated, the updated metadata is automatically synchronized to the CPFS file system. You can load the updated data when you access files, or run a dataflow task to load the updated data.
+ * *   AutoRefreshInterval refers to the interval at which CPFS checks whether data is updated in the prefix of the source OSS bucket. If data is updated, CPFS runs an AutoRefresh task. If the frequency of triggering the object modification event in the source OSS bucket exceeds the processing capability of the CPFS dataflow, AutoRefresh tasks are accumulated, metadata updates are delayed, and the dataflow status becomes Misconfigured. To resolve these issues, you can increase the dataflow specifications or reduce the frequency of triggering the object modification event.
  *
  * @param request ApplyDataFlowAutoRefreshRequest
  * @return ApplyDataFlowAutoRefreshResponse
@@ -19534,378 +16130,6 @@ func (client *Client) ApplyDataFlowAutoRefresh(request *ApplyDataFlowAutoRefresh
 	runtime := &util.RuntimeOptions{}
 	_result = &ApplyDataFlowAutoRefreshResponse{}
 	_body, _err := client.ApplyDataFlowAutoRefreshWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) AttachVscMountPointWithOptions(request *AttachVscMountPointRequest, runtime *util.RuntimeOptions) (_result *AttachVscMountPointResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
-		query["FileSystemId"] = request.FileSystemId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MountPointDomain)) {
-		query["MountPointDomain"] = request.MountPointDomain
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.VscAttachInfos)) {
-		query["VscAttachInfos"] = request.VscAttachInfos
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("AttachVscMountPoint"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &AttachVscMountPointResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) AttachVscMountPoint(request *AttachVscMountPointRequest) (_result *AttachVscMountPointResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &AttachVscMountPointResponse{}
-	_body, _err := client.AttachVscMountPointWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) BindStoragePackageWithOptions(request *BindStoragePackageRequest, runtime *util.RuntimeOptions) (_result *BindStoragePackageResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
-		query["FileSystemId"] = request.FileSystemId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.PackageId)) {
-		query["PackageId"] = request.PackageId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.RegionId)) {
-		query["RegionId"] = request.RegionId
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("BindStoragePackage"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &BindStoragePackageResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) BindStoragePackage(request *BindStoragePackageRequest) (_result *BindStoragePackageResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &BindStoragePackageResponse{}
-	_body, _err := client.BindStoragePackageWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) CPFSCreateFileSystemWithOptions(request *CPFSCreateFileSystemRequest, runtime *util.RuntimeOptions) (_result *CPFSCreateFileSystemResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.Bandwidth)) {
-		query["Bandwidth"] = request.Bandwidth
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.Capacity)) {
-		query["Capacity"] = request.Capacity
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.FsDesc)) {
-		query["FsDesc"] = request.FsDesc
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.FsSpec)) {
-		query["FsSpec"] = request.FsSpec
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.NetworkType)) {
-		query["NetworkType"] = request.NetworkType
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.VSwitchId)) {
-		query["VSwitchId"] = request.VSwitchId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.VpcId)) {
-		query["VpcId"] = request.VpcId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.ZoneId)) {
-		query["ZoneId"] = request.ZoneId
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("CPFSCreateFileSystem"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &CPFSCreateFileSystemResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) CPFSCreateFileSystem(request *CPFSCreateFileSystemRequest) (_result *CPFSCreateFileSystemResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &CPFSCreateFileSystemResponse{}
-	_body, _err := client.CPFSCreateFileSystemWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) CPFSDeleteFileSystemWithOptions(request *CPFSDeleteFileSystemRequest, runtime *util.RuntimeOptions) (_result *CPFSDeleteFileSystemResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.FsId)) {
-		query["FsId"] = request.FsId
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("CPFSDeleteFileSystem"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &CPFSDeleteFileSystemResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) CPFSDeleteFileSystem(request *CPFSDeleteFileSystemRequest) (_result *CPFSDeleteFileSystemResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &CPFSDeleteFileSystemResponse{}
-	_body, _err := client.CPFSDeleteFileSystemWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) CPFSDescribeFileSystemsWithOptions(request *CPFSDescribeFileSystemsRequest, runtime *util.RuntimeOptions) (_result *CPFSDescribeFileSystemsResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.FsId)) {
-		query["FsId"] = request.FsId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.PageNumber)) {
-		query["PageNumber"] = request.PageNumber
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.PageSize)) {
-		query["PageSize"] = request.PageSize
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("CPFSDescribeFileSystems"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &CPFSDescribeFileSystemsResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) CPFSDescribeFileSystems(request *CPFSDescribeFileSystemsRequest) (_result *CPFSDescribeFileSystemsResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &CPFSDescribeFileSystemsResponse{}
-	_body, _err := client.CPFSDescribeFileSystemsWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) CPFSDescribeRegionsWithOptions(request *CPFSDescribeRegionsRequest, runtime *util.RuntimeOptions) (_result *CPFSDescribeRegionsResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.PageNumber)) {
-		query["PageNumber"] = request.PageNumber
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.PageSize)) {
-		query["PageSize"] = request.PageSize
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("CPFSDescribeRegions"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &CPFSDescribeRegionsResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) CPFSDescribeRegions(request *CPFSDescribeRegionsRequest) (_result *CPFSDescribeRegionsResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &CPFSDescribeRegionsResponse{}
-	_body, _err := client.CPFSDescribeRegionsWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) CPFSModifyFileSystemWithOptions(request *CPFSModifyFileSystemRequest, runtime *util.RuntimeOptions) (_result *CPFSModifyFileSystemResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.FsDesc)) {
-		query["FsDesc"] = request.FsDesc
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.FsId)) {
-		query["FsId"] = request.FsId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.LdapUrl)) {
-		query["LdapUrl"] = request.LdapUrl
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("CPFSModifyFileSystem"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &CPFSModifyFileSystemResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) CPFSModifyFileSystem(request *CPFSModifyFileSystemRequest) (_result *CPFSModifyFileSystemResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &CPFSModifyFileSystemResponse{}
-	_body, _err := client.CPFSModifyFileSystemWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
 	}
@@ -19973,10 +16197,10 @@ func (client *Client) CancelAutoSnapshotPolicy(request *CancelAutoSnapshotPolicy
 }
 
 /**
- * ###
- * *
- * *   ````
- * *   [](~~336901~~)
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support dataflows. You can view the version information on the file system details page in the console.
+ * *   You can cancel AutoRefresh configurations only for the dataflows that are in the `Running` or `Stopped` state.
+ * *   It generally takes 2 to 5 minutes to cancel the AutoRefresh configurations. You can call the [DescribeDataFlows](~~336901~~) operation to query the status of the AutoRefresh tasks.
  *
  * @param request CancelDataFlowAutoRefreshRequest
  * @param runtime runtime options for this request RuntimeOptions
@@ -20032,10 +16256,10 @@ func (client *Client) CancelDataFlowAutoRefreshWithOptions(request *CancelDataFl
 }
 
 /**
- * ###
- * *
- * *   ````
- * *   [](~~336901~~)
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support dataflows. You can view the version information on the file system details page in the console.
+ * *   You can cancel AutoRefresh configurations only for the dataflows that are in the `Running` or `Stopped` state.
+ * *   It generally takes 2 to 5 minutes to cancel the AutoRefresh configurations. You can call the [DescribeDataFlows](~~336901~~) operation to query the status of the AutoRefresh tasks.
  *
  * @param request CancelDataFlowAutoRefreshRequest
  * @return CancelDataFlowAutoRefreshResponse
@@ -20052,11 +16276,10 @@ func (client *Client) CancelDataFlowAutoRefresh(request *CancelDataFlowAutoRefre
 }
 
 /**
- * ###
- * *
- * *
- * *   ````
- * *   [](~~336914~~)
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support dataflow tasks. You can view the version information on the file system details page in the console.
+ * *   You can cancel only the dataflow tasks that are in the `Pending` and `Executing` states.
+ * *   It generally takes 5 to 10 minutes to cancel a dataflow task. You can query the task execution status by calling the [DescribeDataFlowTasks](~~2402275~~) operation.
  *
  * @param request CancelDataFlowTaskRequest
  * @param runtime runtime options for this request RuntimeOptions
@@ -20112,11 +16335,10 @@ func (client *Client) CancelDataFlowTaskWithOptions(request *CancelDataFlowTaskR
 }
 
 /**
- * ###
- * *
- * *
- * *   ````
- * *   [](~~336914~~)
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support dataflow tasks. You can view the version information on the file system details page in the console.
+ * *   You can cancel only the dataflow tasks that are in the `Pending` and `Executing` states.
+ * *   It generally takes 5 to 10 minutes to cancel a dataflow task. You can query the task execution status by calling the [DescribeDataFlowTasks](~~2402275~~) operation.
  *
  * @param request CancelDataFlowTaskRequest
  * @return CancelDataFlowTaskResponse
@@ -20317,6 +16539,62 @@ func (client *Client) CancelRecycleBinJob(request *CancelRecycleBinJobRequest) (
 	return _result, _err
 }
 
+func (client *Client) ChangeResourceGroupWithOptions(request *ChangeResourceGroupRequest, runtime *util.RuntimeOptions) (_result *ChangeResourceGroupResponse, _err error) {
+	_err = util.ValidateModel(request)
+	if _err != nil {
+		return _result, _err
+	}
+	query := map[string]interface{}{}
+	if !tea.BoolValue(util.IsUnset(request.NewResourceGroupId)) {
+		query["NewResourceGroupId"] = request.NewResourceGroupId
+	}
+
+	if !tea.BoolValue(util.IsUnset(request.RegionId)) {
+		query["RegionId"] = request.RegionId
+	}
+
+	if !tea.BoolValue(util.IsUnset(request.ResourceId)) {
+		query["ResourceId"] = request.ResourceId
+	}
+
+	if !tea.BoolValue(util.IsUnset(request.ResourceType)) {
+		query["ResourceType"] = request.ResourceType
+	}
+
+	req := &openapi.OpenApiRequest{
+		Query: openapiutil.Query(query),
+	}
+	params := &openapi.Params{
+		Action:      tea.String("ChangeResourceGroup"),
+		Version:     tea.String("2017-06-26"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
+	}
+	_result = &ChangeResourceGroupResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
+}
+
+func (client *Client) ChangeResourceGroup(request *ChangeResourceGroupRequest) (_result *ChangeResourceGroupResponse, _err error) {
+	runtime := &util.RuntimeOptions{}
+	_result = &ChangeResourceGroupResponse{}
+	_body, _err := client.ChangeResourceGroupWithOptions(request, runtime)
+	if _err != nil {
+		return _result, _err
+	}
+	_result = _body
+	return _result, _err
+}
+
 func (client *Client) CreateAccessGroupWithOptions(request *CreateAccessGroupRequest, runtime *util.RuntimeOptions) (_result *CreateAccessGroupResponse, _err error) {
 	_err = util.ValidateModel(request)
 	if _err != nil {
@@ -20417,10 +16695,6 @@ func (client *Client) CreateAccessPointWithOptions(request *CreateAccessPointReq
 
 	if !tea.BoolValue(util.IsUnset(request.PosixUserId)) {
 		query["PosixUserId"] = request.PosixUserId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.ProtocolType)) {
-		query["ProtocolType"] = request.ProtocolType
 	}
 
 	if !tea.BoolValue(util.IsUnset(request.RootDirectory)) {
@@ -20628,6 +16902,47 @@ func (client *Client) CreateAutoSnapshotPolicy(request *CreateAutoSnapshotPolicy
 	return _result, _err
 }
 
+/**
+ * *   Billing
+ *     *   If you create a dataflow, you are charged for using the dataflow throughput. For more information, see [Billing methods and billable items of CPFS](~~111858~~).
+ *     *   When you configure the AutoRefresh feature for a dataflow, CPFS must use EventBridge to collect object modification events from the source Object Storage Service (OSS) bucket. Event fees are incurred. For more information, see [Billing of EventBridge](~~163752~~).
+ * *   Dataflow specifications
+ *     *   The dataflow throughput supports the following specifications: 600 MB/s, 1,200 MB/s, and 1,500 MB/s. The dataflow throughput is the maximum transmission bandwidth that can be reached when data is imported or exported for a dataflow.
+ *     *   When you create a dataflow, the vSwitch IP addresses used by a CPFS mount target are consumed. Make sure that the vSwitch can provide sufficient IP addresses.
+ *     *   Inventory query: If you set the DryRun parameter to true, you can check whether the resources for the dataflow whose throughput is changed meet the requirements.
+ * *   Fileset
+ *     *   The destination for a dataflow is a fileset in the CPFS file system. A fileset is a new directory tree structure (a small file directory) in a CPFS file system. Each fileset independently manages an inode space.
+ *     *   When you create a dataflow, the related fileset must already exist and cannot be nested with other filesets. Only one dataflow can be created in a fileset, which corresponds to one source storage.
+ *     *   A fileset supports a maximum of one million files. If the number of files imported from an OSS bucket into the fileset exceeds the upper limit, the `no space` error message is returned when you add new files.
+ *     **
+ *     **Note** If data already exists in the fileset, after you create a dataflow, the existing data in the fileset is cleared and replaced with the data synchronized from the OSS bucket.
+ * *   Source storage
+ *     *   The source storage is an OSS bucket. SourceStorage for a dataflow must be an OSS bucket. The prefix of an OSS bucket is not supported.
+ *     *   CPFS dataflows support both encrypted and unencrypted access to OSS. If you select SSL-encrypted access to OSS, make sure that encryption in transit for OSS buckets supports encrypted access.
+ *     *   If dataflows for multiple CPFS file systems or multiple dataflows for the same CPFS file system are stored in the same OSS bucket, you must enable versioning for the OSS bucket to prevent data conflicts caused by data export from multiple CPFS file systems to one OSS bucket.
+ *     *   Dataflows are not supported for OSS buckets across regions. The OSS bucket must reside in the same region as the CPFS file system.
+ *         **
+ *         **Note** Before you create a dataflow, you must configure a tag (key: cpfs-dataflow, value: true) for the source OSS bucket. This way, the created dataflow can access the data in the OSS bucket. When a dataflow is being used, do not delete or modify the tag. Otherwise, the dataflow for CPFS cannot access the data in the OSS bucket.
+ * *   AutoRefresh
+ *     *   After AutoRefresh is configured, if the data in the source OSS bucket is updated, the updated metadata is automatically synchronized to the CPFS file system. You can load the updated data when you access files, or run a dataflow task to load the updated data.
+ *     *   AutoRefresh depends on the object modification events collected by EventBridge from the source OSS bucket. You must first [activate EventBridge](~~182246~~).
+ *     *   The AutoRefresh configuration applies only to the prefix and is specified by the RefreshPath parameter. You can configure a maximum of five AutoRefresh directories for a dataflow.
+ *     *   AutoRefreshInterval refers to the interval at which CPFS checks whether data is updated in the prefix of the source OSS bucket. If data is updated, CPFS runs an AutoRefresh task. If the frequency of triggering the object modification event in the source OSS bucket exceeds the processing capability of the CPFS dataflow, AutoRefresh tasks are accumulated, metadata updates are delayed, and the dataflow status becomes `Misconfigured`. To resolve these issues, you can increase the dataflow specifications or reduce the frequency of triggering the object modification event.
+ *     *   When you add an AutoRefresh configuration to the prefix for a CPFS dataflow, an event bus is created at the user side and an event rule is created for the prefix of the source OSS bucket. When an object is modified in the prefix of the source OSS bucket, an OSS event is generated in the EventBridge console. The event is processed by the CPFS dataflow.
+ *     **
+ *     **Note** The event buses and event rules created for CPFS in the EventBridge console contain the `Create for cpfs auto refresh` description. The event buses and event rules cannot be modified or deleted. Otherwise, AutoRefresh cannot work properly
+ * *   Permissions
+ *     When you create a dataflow, CPFS obtains two service-linked roles: `AliyunServiceRoleForNasOssDataflow` and `AliyunServiceRoleForNasEventNotification`. For more information, see [CPFS service-linked roles](~~185138~~).
+ * *   Basic operations
+ *     *   Only CPFS V2.2.0 and later support dataflows.
+ *     *   You can create a dataflow only if the CPFS file system is in the Running state.
+ *     *   A maximum of 10 dataflows can be created for a CPFS file system.
+ *     *   It generally takes 2 to 5 minutes to create a dataflow. You can call the DescribeDataFlows operation to check whether the dataflow has been created.
+ *
+ * @param request CreateDataFlowRequest
+ * @param runtime runtime options for this request RuntimeOptions
+ * @return CreateDataFlowResponse
+ */
 func (client *Client) CreateDataFlowWithOptions(request *CreateDataFlowRequest, runtime *util.RuntimeOptions) (_result *CreateDataFlowResponse, _err error) {
 	_err = util.ValidateModel(request)
 	if _err != nil {
@@ -20662,6 +16977,10 @@ func (client *Client) CreateDataFlowWithOptions(request *CreateDataFlowRequest, 
 		query["FileSystemId"] = request.FileSystemId
 	}
 
+	if !tea.BoolValue(util.IsUnset(request.FileSystemPath)) {
+		query["FileSystemPath"] = request.FileSystemPath
+	}
+
 	if !tea.BoolValue(util.IsUnset(request.FsetId)) {
 		query["FsetId"] = request.FsetId
 	}
@@ -20672,6 +16991,10 @@ func (client *Client) CreateDataFlowWithOptions(request *CreateDataFlowRequest, 
 
 	if !tea.BoolValue(util.IsUnset(request.SourceStorage)) {
 		query["SourceStorage"] = request.SourceStorage
+	}
+
+	if !tea.BoolValue(util.IsUnset(request.SourceStoragePath)) {
+		query["SourceStoragePath"] = request.SourceStoragePath
 	}
 
 	if !tea.BoolValue(util.IsUnset(request.Throughput)) {
@@ -20701,6 +17024,46 @@ func (client *Client) CreateDataFlowWithOptions(request *CreateDataFlowRequest, 
 	return _result, _err
 }
 
+/**
+ * *   Billing
+ *     *   If you create a dataflow, you are charged for using the dataflow throughput. For more information, see [Billing methods and billable items of CPFS](~~111858~~).
+ *     *   When you configure the AutoRefresh feature for a dataflow, CPFS must use EventBridge to collect object modification events from the source Object Storage Service (OSS) bucket. Event fees are incurred. For more information, see [Billing of EventBridge](~~163752~~).
+ * *   Dataflow specifications
+ *     *   The dataflow throughput supports the following specifications: 600 MB/s, 1,200 MB/s, and 1,500 MB/s. The dataflow throughput is the maximum transmission bandwidth that can be reached when data is imported or exported for a dataflow.
+ *     *   When you create a dataflow, the vSwitch IP addresses used by a CPFS mount target are consumed. Make sure that the vSwitch can provide sufficient IP addresses.
+ *     *   Inventory query: If you set the DryRun parameter to true, you can check whether the resources for the dataflow whose throughput is changed meet the requirements.
+ * *   Fileset
+ *     *   The destination for a dataflow is a fileset in the CPFS file system. A fileset is a new directory tree structure (a small file directory) in a CPFS file system. Each fileset independently manages an inode space.
+ *     *   When you create a dataflow, the related fileset must already exist and cannot be nested with other filesets. Only one dataflow can be created in a fileset, which corresponds to one source storage.
+ *     *   A fileset supports a maximum of one million files. If the number of files imported from an OSS bucket into the fileset exceeds the upper limit, the `no space` error message is returned when you add new files.
+ *     **
+ *     **Note** If data already exists in the fileset, after you create a dataflow, the existing data in the fileset is cleared and replaced with the data synchronized from the OSS bucket.
+ * *   Source storage
+ *     *   The source storage is an OSS bucket. SourceStorage for a dataflow must be an OSS bucket. The prefix of an OSS bucket is not supported.
+ *     *   CPFS dataflows support both encrypted and unencrypted access to OSS. If you select SSL-encrypted access to OSS, make sure that encryption in transit for OSS buckets supports encrypted access.
+ *     *   If dataflows for multiple CPFS file systems or multiple dataflows for the same CPFS file system are stored in the same OSS bucket, you must enable versioning for the OSS bucket to prevent data conflicts caused by data export from multiple CPFS file systems to one OSS bucket.
+ *     *   Dataflows are not supported for OSS buckets across regions. The OSS bucket must reside in the same region as the CPFS file system.
+ *         **
+ *         **Note** Before you create a dataflow, you must configure a tag (key: cpfs-dataflow, value: true) for the source OSS bucket. This way, the created dataflow can access the data in the OSS bucket. When a dataflow is being used, do not delete or modify the tag. Otherwise, the dataflow for CPFS cannot access the data in the OSS bucket.
+ * *   AutoRefresh
+ *     *   After AutoRefresh is configured, if the data in the source OSS bucket is updated, the updated metadata is automatically synchronized to the CPFS file system. You can load the updated data when you access files, or run a dataflow task to load the updated data.
+ *     *   AutoRefresh depends on the object modification events collected by EventBridge from the source OSS bucket. You must first [activate EventBridge](~~182246~~).
+ *     *   The AutoRefresh configuration applies only to the prefix and is specified by the RefreshPath parameter. You can configure a maximum of five AutoRefresh directories for a dataflow.
+ *     *   AutoRefreshInterval refers to the interval at which CPFS checks whether data is updated in the prefix of the source OSS bucket. If data is updated, CPFS runs an AutoRefresh task. If the frequency of triggering the object modification event in the source OSS bucket exceeds the processing capability of the CPFS dataflow, AutoRefresh tasks are accumulated, metadata updates are delayed, and the dataflow status becomes `Misconfigured`. To resolve these issues, you can increase the dataflow specifications or reduce the frequency of triggering the object modification event.
+ *     *   When you add an AutoRefresh configuration to the prefix for a CPFS dataflow, an event bus is created at the user side and an event rule is created for the prefix of the source OSS bucket. When an object is modified in the prefix of the source OSS bucket, an OSS event is generated in the EventBridge console. The event is processed by the CPFS dataflow.
+ *     **
+ *     **Note** The event buses and event rules created for CPFS in the EventBridge console contain the `Create for cpfs auto refresh` description. The event buses and event rules cannot be modified or deleted. Otherwise, AutoRefresh cannot work properly
+ * *   Permissions
+ *     When you create a dataflow, CPFS obtains two service-linked roles: `AliyunServiceRoleForNasOssDataflow` and `AliyunServiceRoleForNasEventNotification`. For more information, see [CPFS service-linked roles](~~185138~~).
+ * *   Basic operations
+ *     *   Only CPFS V2.2.0 and later support dataflows.
+ *     *   You can create a dataflow only if the CPFS file system is in the Running state.
+ *     *   A maximum of 10 dataflows can be created for a CPFS file system.
+ *     *   It generally takes 2 to 5 minutes to create a dataflow. You can call the DescribeDataFlows operation to check whether the dataflow has been created.
+ *
+ * @param request CreateDataFlowRequest
+ * @return CreateDataFlowResponse
+ */
 func (client *Client) CreateDataFlow(request *CreateDataFlowRequest) (_result *CreateDataFlowResponse, _err error) {
 	runtime := &util.RuntimeOptions{}
 	_result = &CreateDataFlowResponse{}
@@ -20731,6 +17094,10 @@ func (client *Client) CreateDataFlowTaskWithOptions(request *CreateDataFlowTaskR
 	query := map[string]interface{}{}
 	if !tea.BoolValue(util.IsUnset(request.ClientToken)) {
 		query["ClientToken"] = request.ClientToken
+	}
+
+	if !tea.BoolValue(util.IsUnset(request.ConflictPolicy)) {
+		query["ConflictPolicy"] = request.ConflictPolicy
 	}
 
 	if !tea.BoolValue(util.IsUnset(request.DataFlowId)) {
@@ -21007,6 +17374,10 @@ func (client *Client) CreateFileSystemWithOptions(request *CreateFileSystemReque
 		query["ProtocolType"] = request.ProtocolType
 	}
 
+	if !tea.BoolValue(util.IsUnset(request.ResourceGroupId)) {
+		query["ResourceGroupId"] = request.ResourceGroupId
+	}
+
 	if !tea.BoolValue(util.IsUnset(request.SnapshotId)) {
 		query["SnapshotId"] = request.SnapshotId
 	}
@@ -21070,13 +17441,12 @@ func (client *Client) CreateFileSystem(request *CreateFileSystemRequest) (_resul
 }
 
 /**
- * ###
- * *
- * *
- * *
- * *
- * *
- * *   ``
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support fileset creation. You can view the version information on the file system details page in the console.
+ * *   A maximum of 10 filesets can be created for a CPFS file system.
+ * *   The maximum depth supported by a fileset is eight levels. The depth of the root directory / is 0 levels. For example, the /test/aaa/ccc/ fileset has three levels.
+ * *   Nested filesets are not supported. If a fileset is specified as a parent directory, its subdirectory cannot be a fileset.
+ * *   A fileset supports a maximum of one million files. If the number of files exceeds the upper limit, the `no space` error message is returned when you add new files.
  *
  * @param request CreateFilesetRequest
  * @param runtime runtime options for this request RuntimeOptions
@@ -21132,13 +17502,12 @@ func (client *Client) CreateFilesetWithOptions(request *CreateFilesetRequest, ru
 }
 
 /**
- * ###
- * *
- * *
- * *
- * *
- * *
- * *   ``
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support fileset creation. You can view the version information on the file system details page in the console.
+ * *   A maximum of 10 filesets can be created for a CPFS file system.
+ * *   The maximum depth supported by a fileset is eight levels. The depth of the root directory / is 0 levels. For example, the /test/aaa/ccc/ fileset has three levels.
+ * *   Nested filesets are not supported. If a fileset is specified as a parent directory, its subdirectory cannot be a fileset.
+ * *   A fileset supports a maximum of one million files. If the number of files exceeds the upper limit, the `no space` error message is returned when you add new files.
  *
  * @param request CreateFilesetRequest
  * @return CreateFilesetResponse
@@ -21488,13 +17857,14 @@ func (client *Client) CreateMountTarget(request *CreateMountTargetRequest) (_res
 }
 
 /**
- * ###
- * *
- * <!---->
- * *   *
- *     *
- *     *
- *     *
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Prerequisites
+ *     A protocol service is created.
+ * *   Others
+ *     *   The virtual private cloud (VPC) CIDR block of the export directory for the protocol service cannot overlap with the VPC CIDR block of the file system.
+ *     *   The VPC CIDR blocks of multiple export directories of a protocol service cannot overlap.
+ *     *   You can create a maximum of 10 export directories for a protocol service.
+ *     *   When you create export directories for a protocol service, a maximum of 32 IP addresses that are allocated by the specified vSwitch are used. Make sure that the vSwitch can provide sufficient IP addresses.
  *
  * @param request CreateProtocolMountTargetRequest
  * @param runtime runtime options for this request RuntimeOptions
@@ -21570,13 +17940,14 @@ func (client *Client) CreateProtocolMountTargetWithOptions(request *CreateProtoc
 }
 
 /**
- * ###
- * *
- * <!---->
- * *   *
- *     *
- *     *
- *     *
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Prerequisites
+ *     A protocol service is created.
+ * *   Others
+ *     *   The virtual private cloud (VPC) CIDR block of the export directory for the protocol service cannot overlap with the VPC CIDR block of the file system.
+ *     *   The VPC CIDR blocks of multiple export directories of a protocol service cannot overlap.
+ *     *   You can create a maximum of 10 export directories for a protocol service.
+ *     *   When you create export directories for a protocol service, a maximum of 32 IP addresses that are allocated by the specified vSwitch are used. Make sure that the vSwitch can provide sufficient IP addresses.
  *
  * @param request CreateProtocolMountTargetRequest
  * @return CreateProtocolMountTargetResponse
@@ -21593,12 +17964,18 @@ func (client *Client) CreateProtocolMountTarget(request *CreateProtocolMountTarg
 }
 
 /**
- * ###
- * *
- * *
- * *
- * *   *
- *     *
+ * *   This operation is available only to CPFS file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.3.0 and later support protocol services. You can query the version information of the file system by calling the [DescribeFileSystems](~~2402188.~~) operation.
+ * *   Protocol service types
+ *     Protocol services are classified into general-purpose protocol services and cache protocol services. Different from general-purpose protocol services, cache protocol services can cache hot data. If data exists in the cache, the bandwidth of the cache protocol service may exceed the bandwidth of the CPFS file system, reaching the maximum bandwidth specified for the protocol service.
+ *     *   General-purpose protocol services: provide NFS access and [directory-level mount targets](~~427175~~) for CPFS file systems. You do not need to configure a POSIX client to manage clusters. General-purpose protocol services are provided free of charge.
+ *     *   Cache protocol services: provide the server memory cache based on the least recently used (LRU) policy. When data is cached in the memory, CPFS provides higher internal bandwidth. Cache protocol services are divided into Cache L1 and Cache L2 specifications. The differences are the internal bandwidth size and memory cache size.
+ *        >   Note You are charged for using cache protocol services, which are in invitational preview. For more information about the billing method of cache protocol services, see [Billable items](~~111858~~). If you have any feedback or questions, you can join the DingTalk group (group number: 31045006299).
+ * *   Protocol type
+ *     Only NFSv3 is supported.
+ * *   Others
+ *     *   Only one protocol service can be created for a CPFS file system.
+ *     *   A protocol service can use a maximum of 32 IP addresses that are allocated by a specified vSwitch. Make sure that the vSwitch can provide sufficient IP addresses.
  *
  * @param request CreateProtocolServiceRequest
  * @param runtime runtime options for this request RuntimeOptions
@@ -21624,30 +18001,6 @@ func (client *Client) CreateProtocolServiceWithOptions(request *CreateProtocolSe
 
 	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
 		query["FileSystemId"] = request.FileSystemId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MountTargetAccessGroupName)) {
-		query["MountTargetAccessGroupName"] = request.MountTargetAccessGroupName
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MountTargetDescription)) {
-		query["MountTargetDescription"] = request.MountTargetDescription
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MountTargetFsetId)) {
-		query["MountTargetFsetId"] = request.MountTargetFsetId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MountTargetPath)) {
-		query["MountTargetPath"] = request.MountTargetPath
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MountTargetVSwitchId)) {
-		query["MountTargetVSwitchId"] = request.MountTargetVSwitchId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MountTargetVpcId)) {
-		query["MountTargetVpcId"] = request.MountTargetVpcId
 	}
 
 	if !tea.BoolValue(util.IsUnset(request.ProtocolSpec)) {
@@ -21694,12 +18047,18 @@ func (client *Client) CreateProtocolServiceWithOptions(request *CreateProtocolSe
 }
 
 /**
- * ###
- * *
- * *
- * *
- * *   *
- *     *
+ * *   This operation is available only to CPFS file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.3.0 and later support protocol services. You can query the version information of the file system by calling the [DescribeFileSystems](~~2402188.~~) operation.
+ * *   Protocol service types
+ *     Protocol services are classified into general-purpose protocol services and cache protocol services. Different from general-purpose protocol services, cache protocol services can cache hot data. If data exists in the cache, the bandwidth of the cache protocol service may exceed the bandwidth of the CPFS file system, reaching the maximum bandwidth specified for the protocol service.
+ *     *   General-purpose protocol services: provide NFS access and [directory-level mount targets](~~427175~~) for CPFS file systems. You do not need to configure a POSIX client to manage clusters. General-purpose protocol services are provided free of charge.
+ *     *   Cache protocol services: provide the server memory cache based on the least recently used (LRU) policy. When data is cached in the memory, CPFS provides higher internal bandwidth. Cache protocol services are divided into Cache L1 and Cache L2 specifications. The differences are the internal bandwidth size and memory cache size.
+ *        >   Note You are charged for using cache protocol services, which are in invitational preview. For more information about the billing method of cache protocol services, see [Billable items](~~111858~~). If you have any feedback or questions, you can join the DingTalk group (group number: 31045006299).
+ * *   Protocol type
+ *     Only NFSv3 is supported.
+ * *   Others
+ *     *   Only one protocol service can be created for a CPFS file system.
+ *     *   A protocol service can use a maximum of 32 IP addresses that are allocated by a specified vSwitch. Make sure that the vSwitch can provide sufficient IP addresses.
  *
  * @param request CreateProtocolServiceRequest
  * @return CreateProtocolServiceResponse
@@ -21833,50 +18192,6 @@ func (client *Client) CreateRecycleBinRestoreJob(request *CreateRecycleBinRestor
 	return _result, _err
 }
 
-func (client *Client) CreateServicePolicyWithOptions(request *CreateServicePolicyRequest, runtime *util.RuntimeOptions) (_result *CreateServicePolicyResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.ServiceLinkedRoleName)) {
-		query["ServiceLinkedRoleName"] = request.ServiceLinkedRoleName
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("CreateServicePolicy"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &CreateServicePolicyResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) CreateServicePolicy(request *CreateServicePolicyRequest) (_result *CreateServicePolicyResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &CreateServicePolicyResponse{}
-	_body, _err := client.CreateServicePolicyWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
 /**
  * *   The snapshot feature is in public preview and is provided free of charge. [Apsara File Storage NAS Service Level Agreement (SLA)](https://www.alibabacloud.com/help/zh/legal/latest/network-attached-storage-service-level-agreement) is not guaranteed in public preview.
  * *   Only advanced Extreme NAS file systems support the snapshot feature.
@@ -21955,58 +18270,6 @@ func (client *Client) CreateSnapshot(request *CreateSnapshotRequest) (_result *C
 	runtime := &util.RuntimeOptions{}
 	_result = &CreateSnapshotResponse{}
 	_body, _err := client.CreateSnapshotWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) CreateVscMountPointWithOptions(request *CreateVscMountPointRequest, runtime *util.RuntimeOptions) (_result *CreateVscMountPointResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.ClientToken)) {
-		query["ClientToken"] = request.ClientToken
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.Description)) {
-		query["Description"] = request.Description
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
-		query["FileSystemId"] = request.FileSystemId
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("CreateVscMountPoint"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &CreateVscMountPointResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) CreateVscMountPoint(request *CreateVscMountPointRequest) (_result *CreateVscMountPointResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &CreateVscMountPointResponse{}
-	_body, _err := client.CreateVscMountPointWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
 	}
@@ -22249,6 +18512,16 @@ func (client *Client) DeleteAutoSnapshotPolicy(request *DeleteAutoSnapshotPolicy
 	return _result, _err
 }
 
+/**
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   You can create filesets only in CPFS V2.2.0 and later. You can view the version information on the file system details page in the console.
+ * *   You can delete the dataflows that are only in the `Running` or `Stopped` state.
+ * *   After a dataflow is deleted, the resources related to the dataflow are released and cannot be restored. You must create a dataflow again if required.
+ *
+ * @param request DeleteDataFlowRequest
+ * @param runtime runtime options for this request RuntimeOptions
+ * @return DeleteDataFlowResponse
+ */
 func (client *Client) DeleteDataFlowWithOptions(request *DeleteDataFlowRequest, runtime *util.RuntimeOptions) (_result *DeleteDataFlowResponse, _err error) {
 	_err = util.ValidateModel(request)
 	if _err != nil {
@@ -22294,58 +18567,19 @@ func (client *Client) DeleteDataFlowWithOptions(request *DeleteDataFlowRequest, 
 	return _result, _err
 }
 
+/**
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   You can create filesets only in CPFS V2.2.0 and later. You can view the version information on the file system details page in the console.
+ * *   You can delete the dataflows that are only in the `Running` or `Stopped` state.
+ * *   After a dataflow is deleted, the resources related to the dataflow are released and cannot be restored. You must create a dataflow again if required.
+ *
+ * @param request DeleteDataFlowRequest
+ * @return DeleteDataFlowResponse
+ */
 func (client *Client) DeleteDataFlow(request *DeleteDataFlowRequest) (_result *DeleteDataFlowResponse, _err error) {
 	runtime := &util.RuntimeOptions{}
 	_result = &DeleteDataFlowResponse{}
 	_body, _err := client.DeleteDataFlowWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) DeleteFileWithOptions(request *DeleteFileRequest, runtime *util.RuntimeOptions) (_result *DeleteFileResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
-		query["FileSystemId"] = request.FileSystemId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.Path)) {
-		query["Path"] = request.Path
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("DeleteFile"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &DeleteFileResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) DeleteFile(request *DeleteFileRequest) (_result *DeleteFileResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &DeleteFileResponse{}
-	_body, _err := client.DeleteFileWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
 	}
@@ -22415,9 +18649,8 @@ func (client *Client) DeleteFileSystem(request *DeleteFileSystemRequest) (_resul
 }
 
 /**
- * ###
- * *
- * *
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support fileset deletion. After you delete a fileset, all data in the fileset is deleted and cannot be restored. Proceed with caution.
  *
  * @param request DeleteFilesetRequest
  * @param runtime runtime options for this request RuntimeOptions
@@ -22469,9 +18702,8 @@ func (client *Client) DeleteFilesetWithOptions(request *DeleteFilesetRequest, ru
 }
 
 /**
- * ###
- * *
- * *
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support fileset deletion. After you delete a fileset, all data in the fileset is deleted and cannot be restored. Proceed with caution.
  *
  * @param request DeleteFilesetRequest
  * @return DeleteFilesetResponse
@@ -22701,6 +18933,13 @@ func (client *Client) DeleteMountTarget(request *DeleteMountTargetRequest) (_res
 	return _result, _err
 }
 
+/**
+ * This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ *
+ * @param request DeleteProtocolMountTargetRequest
+ * @param runtime runtime options for this request RuntimeOptions
+ * @return DeleteProtocolMountTargetResponse
+ */
 func (client *Client) DeleteProtocolMountTargetWithOptions(request *DeleteProtocolMountTargetRequest, runtime *util.RuntimeOptions) (_result *DeleteProtocolMountTargetResponse, _err error) {
 	_err = util.ValidateModel(request)
 	if _err != nil {
@@ -22750,6 +18989,12 @@ func (client *Client) DeleteProtocolMountTargetWithOptions(request *DeleteProtoc
 	return _result, _err
 }
 
+/**
+ * This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ *
+ * @param request DeleteProtocolMountTargetRequest
+ * @return DeleteProtocolMountTargetResponse
+ */
 func (client *Client) DeleteProtocolMountTarget(request *DeleteProtocolMountTargetRequest) (_result *DeleteProtocolMountTargetResponse, _err error) {
 	runtime := &util.RuntimeOptions{}
 	_result = &DeleteProtocolMountTargetResponse{}
@@ -22761,6 +19006,14 @@ func (client *Client) DeleteProtocolMountTarget(request *DeleteProtocolMountTarg
 	return _result, _err
 }
 
+/**
+ * *   This operation is available only to CPFS file systems on the China site (aliyun.com).
+ * *   When you delete a protocol service, the export directories in the protocol service are also deleted.
+ *
+ * @param request DeleteProtocolServiceRequest
+ * @param runtime runtime options for this request RuntimeOptions
+ * @return DeleteProtocolServiceResponse
+ */
 func (client *Client) DeleteProtocolServiceWithOptions(request *DeleteProtocolServiceRequest, runtime *util.RuntimeOptions) (_result *DeleteProtocolServiceResponse, _err error) {
 	_err = util.ValidateModel(request)
 	if _err != nil {
@@ -22806,6 +19059,13 @@ func (client *Client) DeleteProtocolServiceWithOptions(request *DeleteProtocolSe
 	return _result, _err
 }
 
+/**
+ * *   This operation is available only to CPFS file systems on the China site (aliyun.com).
+ * *   When you delete a protocol service, the export directories in the protocol service are also deleted.
+ *
+ * @param request DeleteProtocolServiceRequest
+ * @return DeleteProtocolServiceResponse
+ */
 func (client *Client) DeleteProtocolService(request *DeleteProtocolServiceRequest) (_result *DeleteProtocolServiceResponse, _err error) {
 	runtime := &util.RuntimeOptions{}
 	_result = &DeleteProtocolServiceResponse{}
@@ -22869,54 +19129,6 @@ func (client *Client) DeleteSnapshot(request *DeleteSnapshotRequest) (_result *D
 	runtime := &util.RuntimeOptions{}
 	_result = &DeleteSnapshotResponse{}
 	_body, _err := client.DeleteSnapshotWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) DeleteVscMountPointWithOptions(request *DeleteVscMountPointRequest, runtime *util.RuntimeOptions) (_result *DeleteVscMountPointResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
-		query["FileSystemId"] = request.FileSystemId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MountPointDomain)) {
-		query["MountPointDomain"] = request.MountPointDomain
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("DeleteVscMountPoint"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &DeleteVscMountPointResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) DeleteVscMountPoint(request *DeleteVscMountPointRequest) (_result *DeleteVscMountPointResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &DeleteVscMountPointResponse{}
-	_body, _err := client.DeleteVscMountPointWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
 	}
@@ -23112,14 +19324,6 @@ func (client *Client) DescribeAccessRulesWithOptions(request *DescribeAccessRule
 
 	if !tea.BoolValue(util.IsUnset(request.PageSize)) {
 		query["PageSize"] = request.PageSize
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.SourceCidrIp)) {
-		query["SourceCidrIp"] = request.SourceCidrIp
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.SourceCidrIpFilter)) {
-		query["SourceCidrIpFilter"] = request.SourceCidrIpFilter
 	}
 
 	req := &openapi.OpenApiRequest{
@@ -23440,6 +19644,16 @@ func (client *Client) DescribeDataFlowTasks(request *DescribeDataFlowTasksReques
 	return _result, _err
 }
 
+/**
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support dataflows. You can view the version information on the file system details page in the console.
+ * *   In Filters, FsetIds, DataFlowlds, SourceStorage, ThroughputList, and Status support exact match only. FileSystemPath and Description support fuzzy match.
+ * *   Combined query is supported.
+ *
+ * @param request DescribeDataFlowsRequest
+ * @param runtime runtime options for this request RuntimeOptions
+ * @return DescribeDataFlowsResponse
+ */
 func (client *Client) DescribeDataFlowsWithOptions(request *DescribeDataFlowsRequest, runtime *util.RuntimeOptions) (_result *DescribeDataFlowsResponse, _err error) {
 	_err = util.ValidateModel(request)
 	if _err != nil {
@@ -23485,6 +19699,15 @@ func (client *Client) DescribeDataFlowsWithOptions(request *DescribeDataFlowsReq
 	return _result, _err
 }
 
+/**
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support dataflows. You can view the version information on the file system details page in the console.
+ * *   In Filters, FsetIds, DataFlowlds, SourceStorage, ThroughputList, and Status support exact match only. FileSystemPath and Description support fuzzy match.
+ * *   Combined query is supported.
+ *
+ * @param request DescribeDataFlowsRequest
+ * @return DescribeDataFlowsResponse
+ */
 func (client *Client) DescribeDataFlows(request *DescribeDataFlowsRequest) (_result *DescribeDataFlowsResponse, _err error) {
 	runtime := &util.RuntimeOptions{}
 	_result = &DescribeDataFlowsResponse{}
@@ -23565,74 +19788,6 @@ func (client *Client) DescribeDirQuotas(request *DescribeDirQuotasRequest) (_res
 	return _result, _err
 }
 
-func (client *Client) DescribeFileSystemBriefInfosWithOptions(request *DescribeFileSystemBriefInfosRequest, runtime *util.RuntimeOptions) (_result *DescribeFileSystemBriefInfosResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
-		query["FileSystemId"] = request.FileSystemId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.FileSystemType)) {
-		query["FileSystemType"] = request.FileSystemType
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.OrderByField)) {
-		query["OrderByField"] = request.OrderByField
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.PageNumber)) {
-		query["PageNumber"] = request.PageNumber
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.PageSize)) {
-		query["PageSize"] = request.PageSize
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.SortOrder)) {
-		query["SortOrder"] = request.SortOrder
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.StorageType)) {
-		query["StorageType"] = request.StorageType
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("DescribeFileSystemBriefInfos"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &DescribeFileSystemBriefInfosResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) DescribeFileSystemBriefInfos(request *DescribeFileSystemBriefInfosRequest) (_result *DescribeFileSystemBriefInfosResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &DescribeFileSystemBriefInfosResponse{}
-	_body, _err := client.DescribeFileSystemBriefInfosWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
 func (client *Client) DescribeFileSystemStatisticsWithOptions(request *DescribeFileSystemStatisticsRequest, runtime *util.RuntimeOptions) (_result *DescribeFileSystemStatisticsResponse, _err error) {
 	_err = util.ValidateModel(request)
 	if _err != nil {
@@ -23687,32 +19842,12 @@ func (client *Client) DescribeFileSystemsWithOptions(request *DescribeFileSystem
 		return _result, _err
 	}
 	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.ChargeType)) {
-		query["ChargeType"] = request.ChargeType
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.Description)) {
-		query["Description"] = request.Description
-	}
-
 	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
 		query["FileSystemId"] = request.FileSystemId
 	}
 
-	if !tea.BoolValue(util.IsUnset(request.FileSystemIds)) {
-		query["FileSystemIds"] = request.FileSystemIds
-	}
-
 	if !tea.BoolValue(util.IsUnset(request.FileSystemType)) {
 		query["FileSystemType"] = request.FileSystemType
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.OrderByField)) {
-		query["OrderByField"] = request.OrderByField
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.PackageIds)) {
-		query["PackageIds"] = request.PackageIds
 	}
 
 	if !tea.BoolValue(util.IsUnset(request.PageNumber)) {
@@ -23723,20 +19858,12 @@ func (client *Client) DescribeFileSystemsWithOptions(request *DescribeFileSystem
 		query["PageSize"] = request.PageSize
 	}
 
-	if !tea.BoolValue(util.IsUnset(request.SortOrder)) {
-		query["SortOrder"] = request.SortOrder
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.StorageType)) {
-		query["StorageType"] = request.StorageType
+	if !tea.BoolValue(util.IsUnset(request.ResourceGroupId)) {
+		query["ResourceGroupId"] = request.ResourceGroupId
 	}
 
 	if !tea.BoolValue(util.IsUnset(request.Tag)) {
 		query["Tag"] = request.Tag
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.UseUTCDateTime)) {
-		query["UseUTCDateTime"] = request.UseUTCDateTime
 	}
 
 	if !tea.BoolValue(util.IsUnset(request.VpcId)) {
@@ -23778,11 +19905,10 @@ func (client *Client) DescribeFileSystems(request *DescribeFileSystemsRequest) (
 }
 
 /**
- * ###
- * *
- * *
- * *
- * *
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support filesets. You can view the version information on the file system details page in the console.
+ * *   In Filters, FsetIds supports exact match only. FileSystemPath and Description support fuzzy match.
+ * *   Combined query is supported.
  *
  * @param request DescribeFilesetsRequest
  * @param runtime runtime options for this request RuntimeOptions
@@ -23834,11 +19960,10 @@ func (client *Client) DescribeFilesetsWithOptions(request *DescribeFilesetsReque
 }
 
 /**
- * ###
- * *
- * *
- * *
- * *
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support filesets. You can view the version information on the file system details page in the console.
+ * *   In Filters, FsetIds supports exact match only. FileSystemPath and Description support fuzzy match.
+ * *   Combined query is supported.
  *
  * @param request DescribeFilesetsRequest
  * @return DescribeFilesetsResponse
@@ -23847,65 +19972,6 @@ func (client *Client) DescribeFilesets(request *DescribeFilesetsRequest) (_resul
 	runtime := &util.RuntimeOptions{}
 	_result = &DescribeFilesetsResponse{}
 	_body, _err := client.DescribeFilesetsWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-/**
- * @deprecated
- *
- * @param request DescribeLDAPConfigRequest
- * @param runtime runtime options for this request RuntimeOptions
- * @return DescribeLDAPConfigResponse
- */
-// Deprecated
-func (client *Client) DescribeLDAPConfigWithOptions(request *DescribeLDAPConfigRequest, runtime *util.RuntimeOptions) (_result *DescribeLDAPConfigResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
-		query["FileSystemId"] = request.FileSystemId
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("DescribeLDAPConfig"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &DescribeLDAPConfigResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-/**
- * @deprecated
- *
- * @param request DescribeLDAPConfigRequest
- * @return DescribeLDAPConfigResponse
- */
-// Deprecated
-func (client *Client) DescribeLDAPConfig(request *DescribeLDAPConfigRequest) (_result *DescribeLDAPConfigResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &DescribeLDAPConfigResponse{}
-	_body, _err := client.DescribeLDAPConfigWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
 	}
@@ -24201,6 +20267,13 @@ func (client *Client) DescribeNfsAcl(request *DescribeNfsAclRequest) (_result *D
 	return _result, _err
 }
 
+/**
+ * This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ *
+ * @param request DescribeProtocolMountTargetRequest
+ * @param runtime runtime options for this request RuntimeOptions
+ * @return DescribeProtocolMountTargetResponse
+ */
 func (client *Client) DescribeProtocolMountTargetWithOptions(request *DescribeProtocolMountTargetRequest, runtime *util.RuntimeOptions) (_result *DescribeProtocolMountTargetResponse, _err error) {
 	_err = util.ValidateModel(request)
 	if _err != nil {
@@ -24250,6 +20323,12 @@ func (client *Client) DescribeProtocolMountTargetWithOptions(request *DescribePr
 	return _result, _err
 }
 
+/**
+ * This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ *
+ * @param request DescribeProtocolMountTargetRequest
+ * @return DescribeProtocolMountTargetResponse
+ */
 func (client *Client) DescribeProtocolMountTarget(request *DescribeProtocolMountTargetRequest) (_result *DescribeProtocolMountTargetResponse, _err error) {
 	runtime := &util.RuntimeOptions{}
 	_result = &DescribeProtocolMountTargetResponse{}
@@ -24261,6 +20340,13 @@ func (client *Client) DescribeProtocolMountTarget(request *DescribeProtocolMount
 	return _result, _err
 }
 
+/**
+ * This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ *
+ * @param request DescribeProtocolServiceRequest
+ * @param runtime runtime options for this request RuntimeOptions
+ * @return DescribeProtocolServiceResponse
+ */
 func (client *Client) DescribeProtocolServiceWithOptions(request *DescribeProtocolServiceRequest, runtime *util.RuntimeOptions) (_result *DescribeProtocolServiceResponse, _err error) {
 	_err = util.ValidateModel(request)
 	if _err != nil {
@@ -24318,6 +20404,12 @@ func (client *Client) DescribeProtocolServiceWithOptions(request *DescribeProtoc
 	return _result, _err
 }
 
+/**
+ * This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ *
+ * @param request DescribeProtocolServiceRequest
+ * @return DescribeProtocolServiceResponse
+ */
 func (client *Client) DescribeProtocolService(request *DescribeProtocolServiceRequest) (_result *DescribeProtocolServiceResponse, _err error) {
 	runtime := &util.RuntimeOptions{}
 	_result = &DescribeProtocolServiceResponse{}
@@ -24374,62 +20466,6 @@ func (client *Client) DescribeRegions(request *DescribeRegionsRequest) (_result 
 	runtime := &util.RuntimeOptions{}
 	_result = &DescribeRegionsResponse{}
 	_body, _err := client.DescribeRegionsWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) DescribeResourceStatisticsWithOptions(request *DescribeResourceStatisticsRequest, runtime *util.RuntimeOptions) (_result *DescribeResourceStatisticsResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.FileSystemType)) {
-		query["FileSystemType"] = request.FileSystemType
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.PageNumber)) {
-		query["PageNumber"] = request.PageNumber
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.PageSize)) {
-		query["PageSize"] = request.PageSize
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.RegionId)) {
-		query["RegionId"] = request.RegionId
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("DescribeResourceStatistics"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &DescribeResourceStatisticsResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) DescribeResourceStatistics(request *DescribeResourceStatisticsRequest) (_result *DescribeResourceStatisticsResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &DescribeResourceStatisticsResponse{}
-	_body, _err := client.DescribeResourceStatisticsWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
 	}
@@ -24624,193 +20660,6 @@ func (client *Client) DescribeStoragePackages(request *DescribeStoragePackagesRe
 	return _result, _err
 }
 
-/**
- * @deprecated
- *
- * @param request DescribeTagsRequest
- * @param runtime runtime options for this request RuntimeOptions
- * @return DescribeTagsResponse
- */
-// Deprecated
-func (client *Client) DescribeTagsWithOptions(request *DescribeTagsRequest, runtime *util.RuntimeOptions) (_result *DescribeTagsResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
-		query["FileSystemId"] = request.FileSystemId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.PageNumber)) {
-		query["PageNumber"] = request.PageNumber
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.PageSize)) {
-		query["PageSize"] = request.PageSize
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.Tag)) {
-		query["Tag"] = request.Tag
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("DescribeTags"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &DescribeTagsResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-/**
- * @deprecated
- *
- * @param request DescribeTagsRequest
- * @return DescribeTagsResponse
- */
-// Deprecated
-func (client *Client) DescribeTags(request *DescribeTagsRequest) (_result *DescribeTagsResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &DescribeTagsResponse{}
-	_body, _err := client.DescribeTagsWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) DescribeVscMountPointAttachInfoWithOptions(request *DescribeVscMountPointAttachInfoRequest, runtime *util.RuntimeOptions) (_result *DescribeVscMountPointAttachInfoResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.InstanceIds)) {
-		query["InstanceIds"] = request.InstanceIds
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MaxResults)) {
-		query["MaxResults"] = request.MaxResults
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MountPointDomain)) {
-		query["MountPointDomain"] = request.MountPointDomain
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.NextToken)) {
-		query["NextToken"] = request.NextToken
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.VscIds)) {
-		query["VscIds"] = request.VscIds
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("DescribeVscMountPointAttachInfo"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &DescribeVscMountPointAttachInfoResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) DescribeVscMountPointAttachInfo(request *DescribeVscMountPointAttachInfoRequest) (_result *DescribeVscMountPointAttachInfoResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &DescribeVscMountPointAttachInfoResponse{}
-	_body, _err := client.DescribeVscMountPointAttachInfoWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) DescribeVscMountPointsWithOptions(request *DescribeVscMountPointsRequest, runtime *util.RuntimeOptions) (_result *DescribeVscMountPointsResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
-		query["FileSystemId"] = request.FileSystemId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MaxResults)) {
-		query["MaxResults"] = request.MaxResults
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MountPointDomain)) {
-		query["MountPointDomain"] = request.MountPointDomain
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.NextToken)) {
-		query["NextToken"] = request.NextToken
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("DescribeVscMountPoints"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &DescribeVscMountPointsResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) DescribeVscMountPoints(request *DescribeVscMountPointsRequest) (_result *DescribeVscMountPointsResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &DescribeVscMountPointsResponse{}
-	_body, _err := client.DescribeVscMountPointsWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
 func (client *Client) DescribeZonesWithOptions(request *DescribeZonesRequest, runtime *util.RuntimeOptions) (_result *DescribeZonesResponse, _err error) {
 	_err = util.ValidateModel(request)
 	if _err != nil {
@@ -24852,62 +20701,6 @@ func (client *Client) DescribeZones(request *DescribeZonesRequest) (_result *Des
 	runtime := &util.RuntimeOptions{}
 	_result = &DescribeZonesResponse{}
 	_body, _err := client.DescribeZonesWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) DetachVscMountPointWithOptions(request *DetachVscMountPointRequest, runtime *util.RuntimeOptions) (_result *DetachVscMountPointResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.Description)) {
-		query["Description"] = request.Description
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
-		query["FileSystemId"] = request.FileSystemId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MountPointDomain)) {
-		query["MountPointDomain"] = request.MountPointDomain
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.VscAttachInfos)) {
-		query["VscAttachInfos"] = request.VscAttachInfos
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("DetachVscMountPoint"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &DetachVscMountPointResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) DetachVscMountPoint(request *DetachVscMountPointRequest) (_result *DetachVscMountPointResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &DetachVscMountPointResponse{}
-	_body, _err := client.DetachVscMountPointWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
 	}
@@ -25171,14 +20964,6 @@ func (client *Client) EnableSmbAclWithOptions(request *EnableSmbAclRequest, runt
 		return _result, _err
 	}
 	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.AuthCenter)) {
-		query["AuthCenter"] = request.AuthCenter
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.AuthMethod)) {
-		query["AuthMethod"] = request.AuthMethod
-	}
-
 	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
 		query["FileSystemId"] = request.FileSystemId
 	}
@@ -25286,86 +21071,6 @@ func (client *Client) GetDirectoryOrFileProperties(request *GetDirectoryOrFilePr
 	return _result, _err
 }
 
-func (client *Client) GetMountInvocationWithOptions(request *GetMountInvocationRequest, runtime *util.RuntimeOptions) (_result *GetMountInvocationResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := openapiutil.Query(util.ToMap(request))
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("GetMountInvocation"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("GET"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &GetMountInvocationResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) GetMountInvocation(request *GetMountInvocationRequest) (_result *GetMountInvocationResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &GetMountInvocationResponse{}
-	_body, _err := client.GetMountInvocationWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) GetQueryInvocationWithOptions(request *GetQueryInvocationRequest, runtime *util.RuntimeOptions) (_result *GetQueryInvocationResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := openapiutil.Query(util.ToMap(request))
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("GetQueryInvocation"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("GET"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &GetQueryInvocationResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) GetQueryInvocation(request *GetQueryInvocationRequest) (_result *GetQueryInvocationResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &GetQueryInvocationResponse{}
-	_body, _err := client.GetQueryInvocationWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
 func (client *Client) GetRecycleBinAttributeWithOptions(request *GetRecycleBinAttributeRequest, runtime *util.RuntimeOptions) (_result *GetRecycleBinAttributeResponse, _err error) {
 	_err = util.ValidateModel(request)
 	if _err != nil {
@@ -25399,298 +21104,6 @@ func (client *Client) GetRecycleBinAttribute(request *GetRecycleBinAttributeRequ
 	runtime := &util.RuntimeOptions{}
 	_result = &GetRecycleBinAttributeResponse{}
 	_body, _err := client.GetRecycleBinAttributeWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) GetUnmountInvocationWithOptions(request *GetUnmountInvocationRequest, runtime *util.RuntimeOptions) (_result *GetUnmountInvocationResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := openapiutil.Query(util.ToMap(request))
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("GetUnmountInvocation"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("GET"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &GetUnmountInvocationResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) GetUnmountInvocation(request *GetUnmountInvocationRequest) (_result *GetUnmountInvocationResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &GetUnmountInvocationResponse{}
-	_body, _err := client.GetUnmountInvocationWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) GetViperGrayConfigWithOptions(request *GetViperGrayConfigRequest, runtime *util.RuntimeOptions) (_result *GetViperGrayConfigResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.Condition)) {
-		query["Condition"] = request.Condition
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.ConfigName)) {
-		query["ConfigName"] = request.ConfigName
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.RegionId)) {
-		query["RegionId"] = request.RegionId
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("GetViperGrayConfig"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &GetViperGrayConfigResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) GetViperGrayConfig(request *GetViperGrayConfigRequest) (_result *GetViperGrayConfigResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &GetViperGrayConfigResponse{}
-	_body, _err := client.GetViperGrayConfigWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) InvokeMountNasToEcsWithOptions(request *InvokeMountNasToEcsRequest, runtime *util.RuntimeOptions) (_result *InvokeMountNasToEcsResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.AutoMountOnBoot)) {
-		query["AutoMountOnBoot"] = request.AutoMountOnBoot
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.EcsInstanceId)) {
-		query["EcsInstanceId"] = request.EcsInstanceId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.EcsLocalPath)) {
-		query["EcsLocalPath"] = request.EcsLocalPath
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
-		query["FileSystemId"] = request.FileSystemId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MountParam)) {
-		query["MountParam"] = request.MountParam
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MountTargetDomain)) {
-		query["MountTargetDomain"] = request.MountTargetDomain
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.NasRemotePath)) {
-		query["NasRemotePath"] = request.NasRemotePath
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.ProtocolType)) {
-		query["ProtocolType"] = request.ProtocolType
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.RegionId)) {
-		query["RegionId"] = request.RegionId
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("InvokeMountNasToEcs"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &InvokeMountNasToEcsResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) InvokeMountNasToEcs(request *InvokeMountNasToEcsRequest) (_result *InvokeMountNasToEcsResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &InvokeMountNasToEcsResponse{}
-	_body, _err := client.InvokeMountNasToEcsWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) InvokeQueryMountStatusWithOptions(request *InvokeQueryMountStatusRequest, runtime *util.RuntimeOptions) (_result *InvokeQueryMountStatusResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.EcsInstanceId)) {
-		query["EcsInstanceId"] = request.EcsInstanceId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
-		query["FileSystemId"] = request.FileSystemId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MountTargetDomain)) {
-		query["MountTargetDomain"] = request.MountTargetDomain
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.RegionId)) {
-		query["RegionId"] = request.RegionId
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("InvokeQueryMountStatus"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &InvokeQueryMountStatusResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) InvokeQueryMountStatus(request *InvokeQueryMountStatusRequest) (_result *InvokeQueryMountStatusResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &InvokeQueryMountStatusResponse{}
-	_body, _err := client.InvokeQueryMountStatusWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) InvokeUnmountNasFromEcsWithOptions(request *InvokeUnmountNasFromEcsRequest, runtime *util.RuntimeOptions) (_result *InvokeUnmountNasFromEcsResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.CancelAutoMountOnBoot)) {
-		query["CancelAutoMountOnBoot"] = request.CancelAutoMountOnBoot
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.EcsInstanceId)) {
-		query["EcsInstanceId"] = request.EcsInstanceId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.EcsLocalPath)) {
-		query["EcsLocalPath"] = request.EcsLocalPath
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
-		query["FileSystemId"] = request.FileSystemId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.ForceUnmount)) {
-		query["ForceUnmount"] = request.ForceUnmount
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.MountTargetDomain)) {
-		query["MountTargetDomain"] = request.MountTargetDomain
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.RegionId)) {
-		query["RegionId"] = request.RegionId
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("InvokeUnmountNasFromEcs"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &InvokeUnmountNasFromEcsResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) InvokeUnmountNasFromEcs(request *InvokeUnmountNasFromEcsRequest) (_result *InvokeUnmountNasFromEcsResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &InvokeUnmountNasFromEcsResponse{}
-	_body, _err := client.InvokeUnmountNasFromEcsWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
 	}
@@ -26005,54 +21418,6 @@ func (client *Client) ListRecycledDirectoriesAndFiles(request *ListRecycledDirec
 	return _result, _err
 }
 
-func (client *Client) ListTagKeysWithOptions(request *ListTagKeysRequest, runtime *util.RuntimeOptions) (_result *ListTagKeysResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.NextToken)) {
-		query["NextToken"] = request.NextToken
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.ResourceType)) {
-		query["ResourceType"] = request.ResourceType
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("ListTagKeys"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &ListTagKeysResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) ListTagKeys(request *ListTagKeysRequest) (_result *ListTagKeysResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &ListTagKeysResponse{}
-	_body, _err := client.ListTagKeysWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
 func (client *Client) ListTagResourcesWithOptions(request *ListTagResourcesRequest, runtime *util.RuntimeOptions) (_result *ListTagResourcesResponse, _err error) {
 	_err = util.ValidateModel(request)
 	if _err != nil {
@@ -26102,58 +21467,6 @@ func (client *Client) ListTagResources(request *ListTagResourcesRequest) (_resul
 	runtime := &util.RuntimeOptions{}
 	_result = &ListTagResourcesResponse{}
 	_body, _err := client.ListTagResourcesWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-func (client *Client) ListTagValuesWithOptions(request *ListTagValuesRequest, runtime *util.RuntimeOptions) (_result *ListTagValuesResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.Key)) {
-		query["Key"] = request.Key
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.NextToken)) {
-		query["NextToken"] = request.NextToken
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.ResourceType)) {
-		query["ResourceType"] = request.ResourceType
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("ListTagValues"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &ListTagValuesResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) ListTagValues(request *ListTagValuesRequest) (_result *ListTagValuesResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &ListTagValuesResponse{}
-	_body, _err := client.ListTagValuesWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
 	}
@@ -26603,58 +21916,6 @@ func (client *Client) ModifyDataFlowAutoRefresh(request *ModifyDataFlowAutoRefre
 	return _result, _err
 }
 
-func (client *Client) ModifyFileMetaWithOptions(request *ModifyFileMetaRequest, runtime *util.RuntimeOptions) (_result *ModifyFileMetaResponse, _err error) {
-	_err = util.ValidateModel(request)
-	if _err != nil {
-		return _result, _err
-	}
-	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.FileSystemId)) {
-		query["FileSystemId"] = request.FileSystemId
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.Owner)) {
-		query["Owner"] = request.Owner
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.Path)) {
-		query["Path"] = request.Path
-	}
-
-	req := &openapi.OpenApiRequest{
-		Query: openapiutil.Query(query),
-	}
-	params := &openapi.Params{
-		Action:      tea.String("ModifyFileMeta"),
-		Version:     tea.String("2017-06-26"),
-		Protocol:    tea.String("HTTPS"),
-		Pathname:    tea.String("/"),
-		Method:      tea.String("POST"),
-		AuthType:    tea.String("AK"),
-		Style:       tea.String("RPC"),
-		ReqBodyType: tea.String("formData"),
-		BodyType:    tea.String("json"),
-	}
-	_result = &ModifyFileMetaResponse{}
-	_body, _err := client.CallApi(params, req, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Convert(_body, &_result)
-	return _result, _err
-}
-
-func (client *Client) ModifyFileMeta(request *ModifyFileMetaRequest) (_result *ModifyFileMetaResponse, _err error) {
-	runtime := &util.RuntimeOptions{}
-	_result = &ModifyFileMetaResponse{}
-	_body, _err := client.ModifyFileMetaWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
 func (client *Client) ModifyFileSystemWithOptions(request *ModifyFileSystemRequest, runtime *util.RuntimeOptions) (_result *ModifyFileSystemResponse, _err error) {
 	_err = util.ValidateModel(request)
 	if _err != nil {
@@ -26704,9 +21965,8 @@ func (client *Client) ModifyFileSystem(request *ModifyFileSystemRequest) (_resul
 }
 
 /**
- * ###
- * *
- * *
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support fileset modification.
  *
  * @param request ModifyFilesetRequest
  * @param runtime runtime options for this request RuntimeOptions
@@ -26762,9 +22022,8 @@ func (client *Client) ModifyFilesetWithOptions(request *ModifyFilesetRequest, ru
 }
 
 /**
- * ###
- * *
- * *
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support fileset modification.
  *
  * @param request ModifyFilesetRequest
  * @return ModifyFilesetResponse
@@ -26982,16 +22241,19 @@ func (client *Client) ModifyMountTarget(request *ModifyMountTargetRequest) (_res
 	return _result, _err
 }
 
+/**
+ * This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ *
+ * @param request ModifyProtocolMountTargetRequest
+ * @param runtime runtime options for this request RuntimeOptions
+ * @return ModifyProtocolMountTargetResponse
+ */
 func (client *Client) ModifyProtocolMountTargetWithOptions(request *ModifyProtocolMountTargetRequest, runtime *util.RuntimeOptions) (_result *ModifyProtocolMountTargetResponse, _err error) {
 	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.AccessGroupName)) {
-		query["AccessGroupName"] = request.AccessGroupName
-	}
-
 	if !tea.BoolValue(util.IsUnset(request.ClientToken)) {
 		query["ClientToken"] = request.ClientToken
 	}
@@ -27039,6 +22301,12 @@ func (client *Client) ModifyProtocolMountTargetWithOptions(request *ModifyProtoc
 	return _result, _err
 }
 
+/**
+ * This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ *
+ * @param request ModifyProtocolMountTargetRequest
+ * @return ModifyProtocolMountTargetResponse
+ */
 func (client *Client) ModifyProtocolMountTarget(request *ModifyProtocolMountTargetRequest) (_result *ModifyProtocolMountTargetResponse, _err error) {
 	runtime := &util.RuntimeOptions{}
 	_result = &ModifyProtocolMountTargetResponse{}
@@ -27050,6 +22318,13 @@ func (client *Client) ModifyProtocolMountTarget(request *ModifyProtocolMountTarg
 	return _result, _err
 }
 
+/**
+ * This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ *
+ * @param request ModifyProtocolServiceRequest
+ * @param runtime runtime options for this request RuntimeOptions
+ * @return ModifyProtocolServiceResponse
+ */
 func (client *Client) ModifyProtocolServiceWithOptions(request *ModifyProtocolServiceRequest, runtime *util.RuntimeOptions) (_result *ModifyProtocolServiceResponse, _err error) {
 	_err = util.ValidateModel(request)
 	if _err != nil {
@@ -27076,14 +22351,6 @@ func (client *Client) ModifyProtocolServiceWithOptions(request *ModifyProtocolSe
 		query["ProtocolServiceId"] = request.ProtocolServiceId
 	}
 
-	if !tea.BoolValue(util.IsUnset(request.ProtocolSpec)) {
-		query["ProtocolSpec"] = request.ProtocolSpec
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.Throughput)) {
-		query["Throughput"] = request.Throughput
-	}
-
 	req := &openapi.OpenApiRequest{
 		Query: openapiutil.Query(query),
 	}
@@ -27107,6 +22374,12 @@ func (client *Client) ModifyProtocolServiceWithOptions(request *ModifyProtocolSe
 	return _result, _err
 }
 
+/**
+ * This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ *
+ * @param request ModifyProtocolServiceRequest
+ * @return ModifyProtocolServiceResponse
+ */
 func (client *Client) ModifyProtocolService(request *ModifyProtocolServiceRequest) (_result *ModifyProtocolServiceResponse, _err error) {
 	runtime := &util.RuntimeOptions{}
 	_result = &ModifyProtocolServiceResponse{}
@@ -27124,14 +22397,6 @@ func (client *Client) ModifySmbAclWithOptions(request *ModifySmbAclRequest, runt
 		return _result, _err
 	}
 	query := map[string]interface{}{}
-	if !tea.BoolValue(util.IsUnset(request.AuthCenter)) {
-		query["AuthCenter"] = request.AuthCenter
-	}
-
-	if !tea.BoolValue(util.IsUnset(request.AuthMethod)) {
-		query["AuthMethod"] = request.AuthMethod
-	}
-
 	if !tea.BoolValue(util.IsUnset(request.EnableAnonymousAccess)) {
 		query["EnableAnonymousAccess"] = request.EnableAnonymousAccess
 	}
@@ -27567,12 +22832,11 @@ func (client *Client) SetDirQuota(request *SetDirQuotaRequest) (_result *SetDirQ
 }
 
 /**
- * ###
- * *
- * *
- * *   ``
- * *   ``
- * *   [](~~336901~~)
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support dataflows. You can view the version information on the file system details page in the console.
+ * *   You can enable the dataflows that are only in the `Stopped` state.
+ * *   If the value of DryRun is `true`, you can check whether sufficient resources are available to enable the specified dataflow. If the resources are insufficient, the dataflow cannot be enabled.
+ * *   It generally takes 2 to 5 minutes to enable a dataflow. You can query the dataflow status by calling the [DescribeDataFlows](~~2402270~~) operation.
  *
  * @param request StartDataFlowRequest
  * @param runtime runtime options for this request RuntimeOptions
@@ -27624,12 +22888,11 @@ func (client *Client) StartDataFlowWithOptions(request *StartDataFlowRequest, ru
 }
 
 /**
- * ###
- * *
- * *
- * *   ``
- * *   ``
- * *   [](~~336901~~)
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support dataflows. You can view the version information on the file system details page in the console.
+ * *   You can enable the dataflows that are only in the `Stopped` state.
+ * *   If the value of DryRun is `true`, you can check whether sufficient resources are available to enable the specified dataflow. If the resources are insufficient, the dataflow cannot be enabled.
+ * *   It generally takes 2 to 5 minutes to enable a dataflow. You can query the dataflow status by calling the [DescribeDataFlows](~~2402270~~) operation.
  *
  * @param request StartDataFlowRequest
  * @return StartDataFlowResponse
@@ -27646,13 +22909,12 @@ func (client *Client) StartDataFlow(request *StartDataFlowRequest) (_result *Sta
 }
 
 /**
- * ###
- * *
- * *
- * *   ``
- * *
- * *
- * *   [](~~336901~~)
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support dataflows. You can view the version information on the file system details page in the console.
+ * *   You can disable only the dataflows that are in the `Running` state.
+ * *   After a dataflow is disabled, you cannot create a dataflow task for the dataflow. If AutoRefresh is configured, source data updates are not synchronized to CPFS.
+ * *   After a dataflow is disabled, the dataflow throughput is no longer billed because resources are reclaimed. However, the dataflow may fail to be restarted due to insufficient resources.
+ * *   It generally takes 2 to 5 minutes to disable a dataflow. You can call the [DescribeDataFlows](~~2402271~~) operation to query the dataflow status.
  *
  * @param request StopDataFlowRequest
  * @param runtime runtime options for this request RuntimeOptions
@@ -27704,13 +22966,12 @@ func (client *Client) StopDataFlowWithOptions(request *StopDataFlowRequest, runt
 }
 
 /**
- * ###
- * *
- * *
- * *   ``
- * *
- * *
- * *   [](~~336901~~)
+ * *   This operation is available only to Cloud Parallel File Storage (CPFS) file systems on the China site (aliyun.com).
+ * *   Only CPFS V2.2.0 and later support dataflows. You can view the version information on the file system details page in the console.
+ * *   You can disable only the dataflows that are in the `Running` state.
+ * *   After a dataflow is disabled, you cannot create a dataflow task for the dataflow. If AutoRefresh is configured, source data updates are not synchronized to CPFS.
+ * *   After a dataflow is disabled, the dataflow throughput is no longer billed because resources are reclaimed. However, the dataflow may fail to be restarted due to insufficient resources.
+ * *   It generally takes 2 to 5 minutes to disable a dataflow. You can call the [DescribeDataFlows](~~2402271~~) operation to query the dataflow status.
  *
  * @param request StopDataFlowRequest
  * @return StopDataFlowResponse
