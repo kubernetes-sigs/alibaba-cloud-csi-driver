@@ -32,7 +32,7 @@ func newNasClientV2(region string) (*sdk.Client, error) {
 	// set endpoint
 	ep := os.Getenv("NAS_ENDPOINT")
 	if ep == "" {
-		ep = fmt.Sprintf("nas-vpc.%s.aliyuncs.com", region)
+		ep = GetEndpointForRegion(region)
 	}
 	config = config.SetEndpoint(ep)
 	// set protocol

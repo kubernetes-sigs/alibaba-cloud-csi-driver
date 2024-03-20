@@ -13,11 +13,15 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
+func init() {
+	for region := range regionsCanUseVpcEndpoint {
+		_ = aliyunep.AddEndpointMapping(region, "Nas", fmt.Sprintf("nas-vpc.%s.aliyuncs.com", region))
+	}
+}
+
 func newNasClientV1(region string) (*nassdk.Client, error) {
 	if ep := os.Getenv("NAS_ENDPOINT"); ep != "" {
 		_ = aliyunep.AddEndpointMapping(region, "Nas", ep)
-	} else {
-		_ = aliyunep.AddEndpointMapping(region, "Nas", fmt.Sprintf("nas-vpc.%s.aliyuncs.com", region))
 	}
 
 	ac := utils.GetAccessControl()
