@@ -13,7 +13,7 @@ github.com/alibabacloud-go/alibabacloud-gateway-spi/client
 # github.com/alibabacloud-go/darabonba-openapi v0.1.16
 ## explicit; go 1.14
 github.com/alibabacloud-go/darabonba-openapi/client
-# github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.2
+# github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.6
 ## explicit; go 1.14
 github.com/alibabacloud-go/darabonba-openapi/v2/client
 # github.com/alibabacloud-go/debug v0.0.0-20190504072949-9472017b5c68
@@ -25,23 +25,23 @@ github.com/alibabacloud-go/endpoint-util/service
 # github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
 ## explicit; go 1.15
 github.com/alibabacloud-go/ens-20171110/v3/client
-# github.com/alibabacloud-go/nas-20170626/v3 v3.0.0-00010101000000-000000000000 => ./staging/src/github.com/alibabacloud-go/nas-20170626
+# github.com/alibabacloud-go/nas-20170626/v3 v3.2.0
 ## explicit; go 1.15
 github.com/alibabacloud-go/nas-20170626/v3/client
 # github.com/alibabacloud-go/openapi-util v0.1.0
 ## explicit; go 1.14
 github.com/alibabacloud-go/openapi-util/service
-# github.com/alibabacloud-go/tea v1.1.19
+# github.com/alibabacloud-go/tea v1.2.1
 ## explicit; go 1.14
 github.com/alibabacloud-go/tea/tea
 github.com/alibabacloud-go/tea/utils
 # github.com/alibabacloud-go/tea-utils v1.4.3
 ## explicit; go 1.14
 github.com/alibabacloud-go/tea-utils/service
-# github.com/alibabacloud-go/tea-utils/v2 v2.0.4
+# github.com/alibabacloud-go/tea-utils/v2 v2.0.5
 ## explicit; go 1.14
 github.com/alibabacloud-go/tea-utils/v2/service
-# github.com/alibabacloud-go/tea-xml v1.1.2
+# github.com/alibabacloud-go/tea-xml v1.1.3
 ## explicit; go 1.14
 github.com/alibabacloud-go/tea-xml/service
 # github.com/aliyun/alibaba-cloud-sdk-go v1.62.401
@@ -835,4 +835,3 @@ sigs.k8s.io/yaml
 # google.golang.org/appengine => google.golang.org/appengine v1.4.0
 # gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.2
 # sigs.k8s.io/yaml => sigs.k8s.io/yaml v1.1.0
-# github.com/alibabacloud-go/nas-20170626/v3 => ./staging/src/github.com/alibabacloud-go/nas-20170626
