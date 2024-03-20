@@ -861,9 +861,23 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	// MultiAttach
-	diskVolArgs.MultiAttach, ok = volOptions["multiAttach"]
-	if !ok {
-		diskVolArgs.MultiAttach = "Disabled"
+	{
+		multiAttachRequired, err := validateCapabilities(req.VolumeCapabilities)
+		if err != nil {
+			return nil, err
+		}
+		v, ok := volOptions["multiAttach"]
+		if ok {
+			switch v {
+			case "true", "enabled":
+				diskVolArgs.MultiAttach = true
+			default:
+				if multiAttachRequired {
+					return nil, errors.New("multiAttach is required for this access mode")
+				}
+				diskVolArgs.MultiAttach = false
+			}
+		}
 	}
 
 	// DiskTags
@@ -1031,6 +1045,33 @@ func isDeviceMountedAt(mnts []k8smount.MountInfo, device, targetPath string) boo
 		}
 	}
 	return false
+}
+
+// return if MultiAttach is required
+func validateCapabilities(capabilities []*csi.VolumeCapability) (bool, error) {
+	multiAttachRequired := false
+	for _, cap := range capabilities {
+		switch cap.AccessMode.Mode {
+		case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
+			csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
+			// single node mode is always supported
+			continue
+		case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY:
+			// multi node read only mode is always supported if MultiAttach is enabled
+			multiAttachRequired = true
+			continue
+		case csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+			csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER:
+			// only supported on block volume
+			multiAttachRequired = true
+			if _, ok := cap.AccessType.(*csi.VolumeCapability_Block); !ok {
+				return multiAttachRequired, errors.New("multi-node writing is only supported for block volume")
+			}
+		default:
+			return multiAttachRequired, fmt.Errorf("volume capability %v is not supported", cap.AccessMode.Mode)
+		}
+	}
+	return multiAttachRequired, nil
 }
 
 func checkDeviceAvailable(mountinfoPath, devicePath, volumeID, targetPath string) error {

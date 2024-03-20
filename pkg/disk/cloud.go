@@ -18,6 +18,7 @@ package disk
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"os"
@@ -50,7 +51,7 @@ var DEFAULT_VMFATAL_EVENTS = []string{
 const DISK_DELETE_MAX_RETRY = 60
 
 // attach alibaba cloud disk
-func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string, error) {
+func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk bool) error {
 	log.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
 	ecsClient, err := getEcsClientByID("", tenantUserUID)
@@ -58,15 +59,15 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 	disk, err := findDiskByID(diskID, ecsClient)
 	if err != nil {
 		log.Errorf("AttachDisk: find disk: %s with error: %s", diskID, err.Error())
-		return "", status.Errorf(codes.Internal, "AttachDisk: find disk: %s with error: %s", diskID, err.Error())
+		return status.Errorf(codes.Internal, "AttachDisk: find disk: %s with error: %s", diskID, err.Error())
 	}
 	if disk == nil {
-		return "", status.Errorf(codes.NotFound, "AttachDisk: csi can't find disk: %s in region: %s, Please check if the cloud disk exists, if the region is correct, or if the csi permissions are correct", diskID, GlobalConfigVar.Region)
+		return status.Errorf(codes.NotFound, "AttachDisk: csi can't find disk: %s in region: %s, Please check if the cloud disk exists, if the region is correct, or if the csi permissions are correct", diskID, GlobalConfigVar.Region)
 	}
 
 	slot := GlobalConfigVar.AttachDetachSlots.GetSlotFor(nodeID)
 	if err := slot.AquireAttach(ctx); err != nil {
-		return "", status.Errorf(codes.Aborted, "AttachDisk: get ad-slot for disk %s failed: %v", diskID, err)
+		return status.Errorf(codes.Aborted, "AttachDisk: get ad-slot for disk %s failed: %v", diskID, err)
 	}
 	defer slot.Release()
 
@@ -92,59 +93,36 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 			}
 			_, err = ecsClient.DetachDisk(detachRequest)
 			if err != nil {
-				return "", status.Errorf(codes.Aborted, "AttachDisk: Can't attach disk %s to instance %s: %v", diskID, disk.InstanceId, err)
+				return status.Errorf(codes.Aborted, "AttachDisk: Can't attach disk %s to instance %s: %v", diskID, disk.InstanceId, err)
 			}
 
 			if err := waitForSharedDiskInStatus(10, time.Second*3, diskID, nodeID, DiskStatusDetached, ecsClient); err != nil {
-				return "", err
+				return err
 			}
 		}
 	} else {
 		// disk is attached, means disk_ad_controller env is true, disk must be created after 2020.06
 		if disk.Status == DiskStatusInuse {
 			if disk.InstanceId == nodeID {
-				if GlobalConfigVar.ADControllerEnable {
-					log.Infof("AttachDisk: Disk %s is already attached to Instance %s, skipping", diskID, disk.InstanceId)
-					return "", nil
-				}
-				devicePaths := GetVolumeDeviceName(diskID)
-				rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
-				log.Infof("attachDisk: rootDevice: %s, subDevice: %s, err: %+v", rootDevice, subDevice, err)
-				deviceName := ChooseDevice(rootDevice, subDevice)
-				if err == nil && deviceName != "" && IsFileExisting(deviceName) {
-					log.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
-					return deviceName, nil
-				} else {
-					// wait for pci attach ready
-					time.Sleep(5 * time.Second)
-					log.Infof("AttachDisk: find disk dev after 5 seconds")
-					devicePaths := GetVolumeDeviceName(diskID)
-					rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
-					deviceName = ChooseDevice(rootDevice, subDevice)
-					if err == nil && deviceName != "" && IsFileExisting(deviceName) {
-						log.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
-						return deviceName, nil
-					}
-					err = fmt.Errorf("AttachDisk: disk device cannot be found in node, diskid: %s, deviceName: %s, err: %+v", diskID, deviceName, err)
-					return "", err
-				}
+				log.Infof("AttachDisk: Disk %s is already attached to Instance %s, skipping", diskID, disk.InstanceId)
+				return nil
 			}
 
 			if GlobalConfigVar.DiskBdfEnable {
 				if allowed, err := forceDetachAllowed(ecsClient, disk, nodeID); err != nil {
 					err = perrors.Wrapf(err, "forceDetachAllowed")
-					return "", status.Errorf(codes.Aborted, err.Error())
+					return status.Errorf(codes.Aborted, err.Error())
 				} else if !allowed {
 					err = perrors.Errorf("AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.DiskId, disk.InstanceId)
 					log.Error(err)
-					return "", status.Errorf(codes.Aborted, err.Error())
+					return status.Errorf(codes.Aborted, err.Error())
 				}
 			}
 
 			if !GlobalConfigVar.DetachBeforeAttach {
 				err = perrors.Errorf("AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
 				log.Error(err)
-				return "", status.Errorf(codes.Aborted, err.Error())
+				return status.Errorf(codes.Aborted, err.Error())
 			}
 			log.Infof("AttachDisk: Disk %s is already attached to instance %s, will be detached", diskID, disk.InstanceId)
 			detachRequest := ecs.CreateDetachDiskRequest()
@@ -156,23 +134,18 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 			_, err = ecsClient.DetachDisk(detachRequest)
 			if err != nil {
 				log.Errorf("AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
-				return "", status.Errorf(codes.Aborted, "AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
+				return status.Errorf(codes.Aborted, "AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
 			}
 		} else if disk.Status == DiskStatusAttaching {
-			return "", status.Errorf(codes.Aborted, "AttachDisk: Disk %s is attaching %v", diskID, disk)
+			return status.Errorf(codes.Aborted, "AttachDisk: Disk %s is attaching %v", diskID, disk)
 		}
 		// Step 2: wait for Detach
 		if disk.Status != DiskStatusAvailable {
 			log.Infof("AttachDisk: Wait for disk %s is detached", diskID)
 			if err := waitForDiskInStatus(15, time.Second*3, diskID, DiskStatusAvailable, ecsClient); err != nil {
-				return "", err
+				return err
 			}
 		}
-	}
-	// Step 3: Attach Disk, list device before attach disk
-	before := []string{}
-	if !GlobalConfigVar.ADControllerEnable {
-		before = getDevices()
 	}
 
 	attachRequest := ecs.CreateAttachDiskRequest()
@@ -187,96 +160,32 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 		if errors.As(err, &aliErr) {
 			switch aliErr.ErrorCode() {
 			case InstanceNotFound:
-				return "", status.Errorf(codes.NotFound, "Node(%s) not found, request ID: %s", nodeID, aliErr.RequestId())
+				return status.Errorf(codes.NotFound, "Node(%s) not found, request ID: %s", nodeID, aliErr.RequestId())
 			case DiskLimitExceeded:
-				return "", status.Errorf(codes.Internal, "%v, Node(%s) exceed the limit attachments of disk", err, nodeID)
+				return status.Errorf(codes.Internal, "%v, Node(%s) exceed the limit attachments of disk", err, nodeID)
 			case DiskNotPortable:
-				return "", status.Errorf(codes.Internal, "%v, Disk(%s) should be \"Pay by quantity\", not be \"Annual package\", please check and modify the charge type, and refer to: https://help.aliyun.com/document_detail/134767.html", err, diskID)
+				return status.Errorf(codes.Internal, "%v, Disk(%s) should be \"Pay by quantity\", not be \"Annual package\", please check and modify the charge type, and refer to: https://help.aliyun.com/document_detail/134767.html", err, diskID)
 			case NotSupportDiskCategory:
-				return "", status.Errorf(codes.Internal, "%v, Disk(%s) is not supported by instance, please refer to: https://help.aliyun.com/document_detail/25378.html", err, diskID)
+				return status.Errorf(codes.Internal, "%v, Disk(%s) is not supported by instance, please refer to: https://help.aliyun.com/document_detail/25378.html", err, diskID)
 			}
 		}
-		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happens to attach disk %s to instance %s, %v", diskID, nodeID, err)
+		return status.Errorf(codes.Aborted, "NodeStageVolume: Error happens to attach disk %s to instance %s, %v", diskID, nodeID, err)
 	}
 
 	// Step 4: wait for disk attached
 	log.Infof("AttachDisk: Waiting for Disk %s is Attached to instance %s with RequestId: %s", diskID, nodeID, response.RequestId)
 	if isSharedDisk {
 		if err := waitForSharedDiskInStatus(20, time.Second*3, diskID, nodeID, DiskStatusAttached, ecsClient); err != nil {
-			return "", err
+			return err
 		}
 	} else {
 		if err := waitForDiskInStatus(20, time.Second*3, diskID, DiskStatusInuse, ecsClient); err != nil {
-			return "", err
+			return err
 		}
-	}
-	// devices indicated the volume devices associated with specific volumeid
-	var devicePaths []string
-	// step 5: diff device with previous files under /dev
-	if !GlobalConfigVar.ADControllerEnable {
-		devicePaths, _ = GetDeviceByVolumeID(diskID)
-		rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
-		if err == nil {
-			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device", diskID, nodeID, devicePaths)
-			return ChooseDevice(rootDevice, subDevice), nil
-		}
-		after := getDevices()
-		devicePaths := calcNewDevices(before, after)
-
-		// BDF Disk Logical
-		if IsVFNode() && len(devicePaths) == 0 {
-			var bdf string
-			if bdf, err = bindBdfDisk(disk.DiskId); err != nil {
-				if err := unbindBdfDisk(disk.DiskId); err != nil {
-					return "", status.Errorf(codes.Aborted, "NodeStageVolume: failed to detach bdf: %v", err)
-				}
-				return "", status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf: %v", err)
-			}
-
-			devicePaths, err = GetDeviceByVolumeID(diskID)
-			deviceName := ""
-			if len(devicePaths) == 0 && bdf != "" {
-				deviceName, err = GetDeviceByBdf(bdf, true)
-			}
-			if err == nil && deviceName != "" {
-				log.Infof("AttachDisk: Successful attach bdf disk %s to node %s device %s by DiskID/Device mapping", diskID, nodeID, deviceName)
-				return deviceName, nil
-			}
-			after = getDevices()
-			devicePaths = calcNewDevices(before, after)
-		}
-
-		if len(devicePaths) == 2 {
-			if strings.HasPrefix(devicePaths[1], devicePaths[0]) {
-				subDevicePath := makeDevicePath(devicePaths[1])
-				rootDevicePath := makeDevicePath(devicePaths[0])
-				if err := checkRootAndSubDeviceFS(rootDevicePath, subDevicePath); err != nil {
-					log.Errorf("AttachDisk: volume %s get device with diff, and check partition error %s", diskID, err.Error())
-					return "", err
-				}
-				log.Infof("AttachDisk: get 2 devices and select 1 device, list with: %v for volume: %s", devicePaths, diskID)
-				return subDevicePath, nil
-			} else if strings.HasPrefix(devicePaths[0], devicePaths[1]) {
-				subDevicePath := makeDevicePath(devicePaths[0])
-				rootDevicePath := makeDevicePath(devicePaths[1])
-				if err := checkRootAndSubDeviceFS(rootDevicePath, subDevicePath); err != nil {
-					log.Errorf("AttachDisk: volume %s get device with diff, and check partition error %s", diskID, err.Error())
-					return "", err
-				}
-				log.Infof("AttachDisk: get 2 devices and select 0 device, list with: %v for volume: %s", devicePaths, diskID)
-				return subDevicePath, nil
-			}
-		}
-		if len(devicePaths) == 1 {
-			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by diff", diskID, nodeID, devicePaths[0])
-			return devicePaths[0], nil
-		}
-		// device count is not expected, should retry (later by detaching and attaching again)
-		return "", status.Error(codes.Aborted, "AttachDisk: after attaching to disk, but fail to get mounted device, will retry later")
 	}
 
 	log.Infof("AttachDisk: Successful attach disk %s to node %s", diskID, nodeID)
-	return "", nil
+	return nil
 }
 
 // Only called by controller
@@ -680,22 +589,22 @@ func findSnapshotByName(name string) (*ecs.DescribeSnapshotsResponse, int, error
 	return snapshots, 1, nil
 }
 
-func findDiskSnapshotByID(id string) (*ecs.DescribeSnapshotsResponse, int, error) {
+func findDiskSnapshotByID(id string) (*ecs.Snapshot, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
 	describeSnapShotRequest.SnapshotIds = "[\"" + id + "\"]"
 	snapshots, err := GlobalConfigVar.EcsClient.DescribeSnapshots(describeSnapShotRequest)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	if len(snapshots.Snapshots.Snapshot) == 0 {
-		return snapshots, 0, nil
+	s := snapshots.Snapshots.Snapshot
+	if len(s) == 0 {
+		return nil, nil
 	}
-
-	if len(snapshots.Snapshots.Snapshot) > 1 {
-		return snapshots, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with id "+id)
+	if len(s) > 1 {
+		return nil, status.Error(codes.Internal, "find more than one snapshot with id "+id)
 	}
-	return snapshots, 1, nil
+	return &s[0], nil
 }
 
 func StopDiskOperationRetry(instanceId string, ecsClient *ecs.Client) bool {
@@ -811,6 +720,16 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 	if vaildDiskNameRegexp.MatchString(diskName) {
 		createDiskRequest.DiskName = diskName
 	}
+	// CSI requires idempotent: one name can only create one disk. We may issue fallback requests to ECS if the initial
+	// attempt failed, so we should generate a fixed sequence of tokens from name.
+	// However, not every ECS request would record the ClientToken. To ensure every token in the sequence is recorded,
+	// and no recorded token is reused in the fallback requests, we experimented with each fallback case and empirically
+	// found out whether the server would record the token.
+	// CSI name supports Unicode characters at maximum length 128, ECS ClientToken only support 64 ASCII characters,
+	// So use HEX of hash of name as the token
+	tokenGen := sha256.New()
+	tokenGen.Write([]byte(diskName)) // should not fail
+	createDiskRequest.ClientToken = fmt.Sprintf("%x", tokenGen.Sum(nil))
 	createDiskRequest.Size = requests.NewInteger(requestGB)
 	createDiskRequest.RegionId = diskVol.RegionID
 	createDiskRequest.ZoneId = diskVol.ZoneID
@@ -826,7 +745,7 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 	diskTags = append(diskTags, ecs.CreateDiskTag{Key: common.VolumeNameTag, Value: diskName})
 	createDiskRequest.Tag = &diskTags
 
-	if strings.ToLower(diskVol.MultiAttach) == "true" || strings.ToLower(diskVol.MultiAttach) == "enabled" {
+	if diskVol.MultiAttach {
 		createDiskRequest.MultiAttach = "Enabled"
 	}
 
@@ -841,8 +760,12 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 	if err != nil {
 		return "", "", "", err
 	}
+
+	nextToken := func() {
+		tokenGen.Write([]byte{0})
+		createDiskRequest.ClientToken = fmt.Sprintf("%x", tokenGen.Sum(nil))
+	}
 	for _, dType := range diskTypes {
-		createDiskRequest.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID)
 		createDiskRequest.DiskCategory = dType
 		if dType == DiskESSD {
 			newReq := generateNewRequest(createDiskRequest)
@@ -850,9 +773,8 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 			for _, diskPL := range diskPLs {
 				log.Infof("createDisk: start to create disk by diskName: %s, valid disktype: %v, pl: %s", diskName, dType, diskPL)
 
-				newReq.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID, diskPL)
 				newReq.PerformanceLevel = diskPL
-				returned, diskId, rerr := request(newReq, ecsClient)
+				returned, diskId, rerr := request(newReq, ecsClient, nextToken)
 				if returned {
 					if diskId != "" && rerr == nil {
 						return dType, diskId, diskPL, nil
@@ -870,12 +792,11 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 		createDiskRequest.PerformanceLevel = ""
 		if dType == DiskESSDAuto {
 			newReq := generateNewRequest(createDiskRequest)
-			createDiskRequest.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s/%d/%t", diskName, dType, diskVol.RegionID, diskVol.ZoneID, diskVol.ProvisionedIops, diskVol.BurstingEnabled)
 			if diskVol.ProvisionedIops != -1 {
 				newReq.ProvisionedIops = requests.NewInteger(diskVol.ProvisionedIops)
 			}
 			newReq.BurstingEnabled = requests.NewBoolean(diskVol.BurstingEnabled)
-			returned, diskId, rerr := request(newReq, ecsClient)
+			returned, diskId, rerr := request(newReq, ecsClient, nextToken)
 			if returned {
 				if diskId != "" && rerr == nil {
 					return dType, diskId, "", nil
@@ -887,7 +808,7 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 			err = rerr
 			continue
 		}
-		returned, diskId, rerr := request(createDiskRequest, ecsClient)
+		returned, diskId, rerr := request(createDiskRequest, ecsClient, nextToken)
 		if returned {
 			if diskId != "" && rerr == nil {
 				return dType, diskId, "", nil
@@ -907,6 +828,7 @@ func generateNewRequest(oldReq *ecs.CreateDiskRequest) *ecs.CreateDiskRequest {
 
 	createDiskRequest.DiskCategory = oldReq.DiskCategory
 	createDiskRequest.DiskName = oldReq.DiskName
+	createDiskRequest.ClientToken = oldReq.ClientToken
 	createDiskRequest.Size = oldReq.Size
 	createDiskRequest.RegionId = oldReq.RegionId
 	createDiskRequest.ZoneId = oldReq.ZoneId
@@ -921,7 +843,7 @@ func generateNewRequest(oldReq *ecs.CreateDiskRequest) *ecs.CreateDiskRequest {
 	return createDiskRequest
 }
 
-func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (returned bool, diskId string, err error) {
+func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client, nextToken func()) (returned bool, diskId string, err error) {
 	cata := strings.Trim(fmt.Sprintf("%s.%s", createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel), ".")
 	log.Infof("request: Create Disk for volume: %s with cata: %s", createDiskRequest.DiskName, cata)
 	if minCap, ok := DiskCapacityMapping[cata]; ok {
@@ -945,13 +867,19 @@ func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (r
 	if errors.As(err, &aliErr) {
 		if strings.HasPrefix(aliErr.ErrorCode(), DiskNotAvailable) || strings.Contains(aliErr.Message(), DiskNotAvailableVer2) {
 			log.Infof("request: Create Disk for volume %s with diskCatalog: %s is not supported in zone: %s", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.ZoneId)
+			nextToken()
 			return false, "", err
 		} else if aliErr.ErrorCode() == DiskSizeNotAvailable1 || aliErr.ErrorCode() == DiskSizeNotAvailable2 {
 			// although we have checked the size above, but these limits are subject to change, so we may still encounter this error
 			log.Infof("request: Create Disk for volume %s with diskCatalog: %s has invalid disk size: %s", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.Size)
+			if aliErr.ErrorCode() == DiskSizeNotAvailable2 {
+				// DiskSizeNotAvailable1 does not record the token, but DiskSizeNotAvailable2 does
+				nextToken()
+			}
 			return false, "", err
 		} else if aliErr.ErrorCode() == DiskPerformanceLevelNotMatch && createDiskRequest.DiskCategory == DiskESSD {
 			log.Infof("request: Create Disk for volume %s with diskCatalog: %s , pl: %s has invalid disk size: %s", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.PerformanceLevel, createDiskRequest.Size)
+			// This error case does not record the token, so reuse it
 			return false, "", err
 		} else if aliErr.ErrorCode() == DiskInvalidPL && createDiskRequest.DiskCategory == DiskESSD {
 			// observed in cn-north-2-gov-1 region, PL0 is not supported
@@ -959,6 +887,7 @@ func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (r
 			return false, "", err
 		} else if aliErr.ErrorCode() == DiskIopsLimitExceeded && createDiskRequest.DiskCategory == DiskESSDAuto {
 			log.Infof("request: Create Disk for volume %s with diskCatalog: %s , provisioned iops %s has exceeded limit", createDiskRequest.DiskName, createDiskRequest.DiskCategory, createDiskRequest.ProvisionedIops)
+			nextToken()
 			return false, "", err
 		}
 	}
