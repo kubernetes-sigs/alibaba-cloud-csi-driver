@@ -8,6 +8,66 @@ data:
     type: cloud_essd
 ---
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-testing
+  namespace: kube-system
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: csi-provisioner-role-testing
+subjects:
+  - kind: ServiceAccount
+    name: csi-testing
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: alicloud-csi-provisioner
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: csi-provisioner-role-cfg-testing
+  namespace: kube-system
+subjects:
+  - kind: ServiceAccount
+    name: csi-testing
+    namespace: kube-system
+roleRef:
+  kind: Role
+  name: alicloud-csi-provisioner
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: alicloud-csi-plugin-testing
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: alicloud-csi-plugin
+subjects:
+- kind: ServiceAccount
+  name: csi-testing
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: alicloud-csi-plugin-testing
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: alicloud-csi-plugin
+subjects:
+- kind: ServiceAccount
+  name: csi-testing
+  namespace: kube-system
+---
+apiVersion: v1
 kind: Pod
 metadata:
   name: csi-testing
@@ -26,8 +86,7 @@ spec:
             - available
   hostIPC: true
   hostPID: true
-  serviceAccount: csi-admin
-  serviceAccountName: csi-admin
+  serviceAccountName: csi-testing
   restartPolicy: Never
   volumes:
   - name: run-csi

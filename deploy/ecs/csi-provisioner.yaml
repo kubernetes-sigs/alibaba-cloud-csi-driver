@@ -59,7 +59,7 @@ spec:
       - effect: NoSchedule
         operator: Exists
         key: node.cloudprovider.kubernetes.io/uninitialized
-      serviceAccount: csi-admin
+      serviceAccountName: alicloud-csi-provisioner
       hostPID: true
       priorityClassName: system-node-critical
       containers:

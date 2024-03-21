@@ -25,7 +25,7 @@ spec:
                 - virtual-kubelet
       nodeSelector:
         kubernetes.io/os: linux
-      serviceAccount: csi-admin
+      serviceAccountName: alicloud-csi-plugin
       priorityClassName: system-node-critical
       hostNetwork: true
       hostIPC: true
