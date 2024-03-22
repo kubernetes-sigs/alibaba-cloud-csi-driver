@@ -856,6 +856,9 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 				"failed to get available disk types: %w\n"+
 					"Hint, set env DISK_ALLOW_ALL_TYPE=true to skip this and handle disk type manually", err)
 		}
+		log.Infof("NodeGetInfo: Supported disk types: %v", diskTypes)
+	} else {
+		log.Warn("NodeGetInfo: DISK_ALLOW_ALL_TYPE is set, you need to ensure the EBS disk type is compatible with the ECS instance type yourself!")
 	}
 
 	patch := patchForNode(node, maxVolumesNum, diskTypes)
@@ -864,9 +867,9 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		if err != nil {
 			return nil, fmt.Errorf("failed to update node: %w", err)
 		}
-		log.Infof("NewNodeServer: node updated")
+		log.Infof("NodeGetInfo: node updated")
 	} else {
-		log.Info("NewNodeServer: no need to update node")
+		log.Info("NodeGetInfo: no need to update node")
 	}
 
 	return &csi.NodeGetInfoResponse{
