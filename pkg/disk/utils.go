@@ -1431,7 +1431,7 @@ func getSnapshotInfoByID(snapshotID string) (string, string, *timestamp.Timestam
 	return "", "", nil
 }
 
-func getAttachedDisks(ecsClient cloud.ECSInterface, m metadata.MetadataProvider) (diskIds []string, err error) {
+func getAttachedCloudDisks(ecsClient cloud.ECSInterface, m metadata.MetadataProvider) (diskIds []string, err error) {
 	req := ecs.CreateDescribeDisksRequest()
 	req.InstanceId = metadata.MustGet(m, metadata.InstanceID)
 	req.RegionId = metadata.MustGet(m, metadata.RegionID)
@@ -1444,7 +1444,10 @@ func getAttachedDisks(ecsClient cloud.ECSInterface, m metadata.MetadataProvider)
 		req.NextToken = resp.NextToken
 
 		for _, disk := range resp.Disks.Disk {
-			diskIds = append(diskIds, disk.DiskId)
+			// local disks have their own quota in LocalStorageAmount, and are not counted for DiskQuantity
+			if strings.HasPrefix(disk.Category, "cloud") {
+				diskIds = append(diskIds, disk.DiskId)
+			}
 		}
 
 		if len(req.NextToken) == 0 {
@@ -1473,7 +1476,7 @@ func getAvailableDiskCount(ecsClient cloud.ECSInterface, m metadata.MetadataProv
 }
 
 func getVolumeCountFromOpenAPI(node *v1.Node, ecsClient cloud.ECSInterface, m metadata.MetadataProvider) (int, error) {
-	attachedDisks, err := getAttachedDisks(ecsClient, m)
+	attachedDisks, err := getAttachedCloudDisks(ecsClient, m)
 	if err != nil {
 		return 0, err
 	}

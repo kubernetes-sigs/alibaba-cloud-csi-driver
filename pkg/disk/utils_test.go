@@ -242,19 +242,29 @@ const DescribeDisksResponse = `{
 						}
 					]
 				},
+				"Category": "cloud_essd",
 				"DiskId": "d-2zeah0dj7hx3zk6unfbf"
 			},
 			{
 				"Tags": {
 					"Tag": []
 				},
+				"Category": "cloud",
 				"DiskId": "d-2zeh74nnxxrobxz49eug"
 			},
 			{
 				"Tags": {
 					"Tag": []
 				},
+				"Category": "cloud_essd",
 				"DiskId": "d-testingusedbystaticpv"
+			},
+			{
+				"Tags": {
+					"Tag": []
+				},
+				"Category": "local_hdd_pro",
+				"DiskId": "d-testinglocaldisk"
 			},
 			{
 				"Tags": {
@@ -273,6 +283,7 @@ const DescribeDisksResponse = `{
 						}
 					]
 				},
+				"Category": "cloud_auto",
 				"DiskId": "d-2ze49fivxwkwxl36o1d3"
 			}
 		]
