@@ -848,8 +848,10 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	if err != nil {
 		return nil, err
 	}
-	diskTypes := []string{}
-	if !GlobalConfigVar.DiskAllowAllType {
+	var diskTypes []string
+	if GlobalConfigVar.DiskAllowAllType {
+		diskTypes = CustomDiskTypes.UnsortedList()
+	} else {
 		diskTypes, err = GetAvailableDiskTypes(ctx, c, ns.metadata)
 		if err != nil {
 			return nil, fmt.Errorf(
@@ -860,8 +862,13 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	} else {
 		log.Warn("NodeGetInfo: DISK_ALLOW_ALL_TYPE is set, you need to ensure the EBS disk type is compatible with the ECS instance type yourself!")
 	}
+	segs := make(map[string]string, len(diskTypes)+1)
+	segs[TopologyZoneKey] = metadata.MustGet(ns.metadata, metadata.ZoneID)
+	for _, t := range diskTypes {
+		segs[TopologyDiskTypePrefix+t] = TopologyDiskTypeAvailable
+	}
 
-	patch := patchForNode(node, maxVolumesNum, diskTypes)
+	patch := patchForNode(node, maxVolumesNum)
 	if patch != nil {
 		_, err = GlobalConfigVar.ClientSet.CoreV1().Nodes().Patch(ctx, nodeName, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
@@ -877,9 +884,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		MaxVolumesPerNode: int64(maxVolumesNum),
 		// make sure that the driver works on this particular zone only
 		AccessibleTopology: &csi.Topology{
-			Segments: map[string]string{
-				TopologyZoneKey: metadata.MustGet(ns.metadata, metadata.ZoneID),
-			},
+			Segments: segs,
 		},
 	}, nil
 }

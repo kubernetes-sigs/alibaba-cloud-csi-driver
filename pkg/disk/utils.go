@@ -763,6 +763,37 @@ func pickZone(requirement *csi.TopologyRequirement) string {
 	return ""
 }
 
+func pickDiskTypes(requirement *csi.TopologyRequirement, types []string) ([]string, error) {
+	if requirement == nil || len(requirement.Preferred) == 0 {
+		return types, nil
+	}
+	// We only consider the first preferred topology, as this is the host selected by the Kubernetes scheduler,
+	// and must be able to access the volume. Although this is not in the CSI spec.
+	topoTypes := sets.New[string]()
+	for k, v := range requirement.Preferred[0].Segments {
+		if v == TopologyDiskTypeAvailable && strings.HasPrefix(k, TopologyDiskTypePrefix) {
+			topoTypes.Insert(k[len(TopologyDiskTypePrefix):])
+		}
+	}
+
+	pickedTypes := []string{}
+	for _, t := range types {
+		if topoTypes.Has(t) {
+			pickedTypes = append(pickedTypes, t)
+		}
+	}
+
+	if len(pickedTypes) == 0 {
+		topoTypesStr := make([]string, 0, len(topoTypes))
+		for k := range topoTypes {
+			topoTypesStr = append(topoTypesStr, k)
+		}
+		return nil, fmt.Errorf("no disk type satisfies the topology requirement: requested %v, topology %v", types, topoTypesStr)
+	}
+
+	return pickedTypes, nil
+}
+
 func validateDiskVolumeCreateOptions(kv map[string]string) error {
 	valid, err := utils.ValidateRequest(kv)
 	if !valid {
@@ -807,8 +838,6 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		diskVolArgs.RegionID = GlobalConfigVar.Region
 	}
 
-	diskVolArgs.NodeSelected, _ = volOptions[NodeSchedueTag]
-
 	// fstype
 	// https://github.com/kubernetes-csi/external-provisioner/releases/tag/v1.0.1
 	diskVolArgs.FsType, ok = volOptions[CSI_DEFAULT_FS_TYPE]
@@ -825,7 +854,11 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	// disk Type
 	diskType, err := validateDiskType(volOptions)
 	if err != nil {
-		return nil, fmt.Errorf("Illegal required parameter type: " + volOptions["type"])
+		return nil, fmt.Errorf("illegal required parameter type: %s", volOptions["type"])
+	}
+	diskType, err = pickDiskTypes(req.GetAccessibilityRequirements(), diskType)
+	if err != nil {
+		return nil, err
 	}
 	diskVolArgs.Type = diskType
 	pls, err := validateDiskPerformanceLevel(volOptions)
@@ -1169,28 +1202,15 @@ func GetAvailableDiskTypes(ctx context.Context, c cloud.ECSInterface, m metadata
 	return types, nil
 }
 
-func patchForNode(node *v1.Node, maxVolumesNum int, diskTypes []string) []byte {
+func patchForNode(node *v1.Node, maxVolumesNum int) []byte {
 	maxVolumesNumStr := strconv.Itoa(maxVolumesNum)
 	needUpdate := node.Annotations[nodeDiskCountAnnotation] != maxVolumesNumStr
-
-	instanceStorageLabels := map[string]string{}
-	for _, diskType := range diskTypes {
-		labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
-		instanceStorageLabels[labelKey] = "available"
-	}
-	for l, v := range instanceStorageLabels {
-		if node.Labels[l] != v {
-			needUpdate = true
-			break
-		}
-	}
 
 	if !needUpdate {
 		return nil
 	}
 	patch, err := json.Marshal(map[string]interface{}{
 		"metadata": map[string]interface{}{
-			"labels": instanceStorageLabels,
 			"annotations": map[string]string{
 				nodeDiskCountAnnotation: maxVolumesNumStr,
 			},
@@ -1200,21 +1220,6 @@ func patchForNode(node *v1.Node, maxVolumesNum int, diskTypes []string) []byte {
 		log.Fatalf("failed to marshal patch json")
 	}
 	return patch
-}
-
-func intersect(slice1, slice2 []string) []string {
-	m := make(map[string]int)
-	nn := make([]string, 0)
-	for _, v := range slice1 {
-		m[v]++
-	}
-	for _, v := range slice2 {
-		times, _ := m[v]
-		if times == 1 {
-			nn = append(nn, v)
-		}
-	}
-	return nn
 }
 
 func getEcsClientByID(volumeID, uid string) (ecsClient *ecs.Client, err error) {
@@ -1326,20 +1331,9 @@ func volumeCreate(diskType, diskID string, volSizeBytes int64, volumeContext map
 		// delete(volumeContext, "type")
 
 		// Add PV NodeAffinity
-		labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
-		expressions := []v1.NodeSelectorRequirement{{
-			Key:      labelKey,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{"available"},
-		}}
-		terms := []v1.NodeSelectorTerm{{
-			MatchExpressions: expressions,
-		}}
-		diskTypeTopo := &v1.NodeSelector{
-			NodeSelectorTerms: terms,
+		for _, topo := range accessibleTopology {
+			topo.Segments[TopologyDiskTypePrefix+diskType] = TopologyDiskTypeAvailable
 		}
-		diskTypeTopoBytes, _ := json.Marshal(diskTypeTopo)
-		volumeContext[annAppendPrefix+annVolumeTopoKey] = string(diskTypeTopoBytes)
 	}
 
 	log.Infof("volumeCreate: volumeContext: %+v", volumeContext)

@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	gomock "github.com/golang/mock/gomock"
 	fakesnapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/fake"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
@@ -152,6 +153,58 @@ func TestRetryGetInstanceDoc(t *testing.T) {
 			assert.Nil(t, err)
 			assert.Equal(t, test.expectZoneId, actualData.ZoneID)
 		}
+	}
+}
+
+func TestPickDiskTypes(t *testing.T) {
+	cases := []struct {
+		name      string
+		prefered  map[string]string
+		requested []string
+		expected  []string
+		err       bool
+	}{
+		{
+			name:      "empty_topo",
+			requested: []string{"cloud_essd"},
+			expected:  []string{"cloud_essd"},
+		},
+		{
+			name:      "no_intersection",
+			prefered:  map[string]string{"node.csi.alibabacloud.com/disktype.cloud_essd": "available"},
+			requested: []string{"cloud_ssd"},
+			err:       true,
+		},
+		{
+			name: "intersection",
+			prefered: map[string]string{
+				"topology.diskplugin.csi.alibabacloud.com/zone": "cn-beijing-g",
+				"node.csi.alibabacloud.com/disktype.cloud_essd": "available",
+				"node.csi.alibabacloud.com/disktype.cloud_auto": "available",
+			},
+			requested: []string{"cloud_essd", "cloud_ssd"},
+			expected:  []string{"cloud_essd"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			topo := &csi.TopologyRequirement{}
+			if c.prefered != nil {
+				topo.Requisite = []*csi.Topology{
+					{Segments: c.prefered},
+				}
+				topo.Preferred = []*csi.Topology{
+					{Segments: c.prefered},
+				}
+			}
+			actual, err := pickDiskTypes(topo, c.requested)
+			if c.err {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, c.expected, actual)
+			}
+		})
 	}
 }
 
@@ -418,11 +471,9 @@ func TestPatchForNode(t *testing.T) {
 	node := testNode()
 	clientset := fake.NewSimpleClientset(node)
 
-	patch := patchForNode(node, 16, []string{"cloud_efficiency", "cloud_ssd"})
+	patch := patchForNode(node, 16)
 	node, err := clientset.CoreV1().Nodes().Patch(context.Background(), "test-node", types.StrategicMergePatchType, patch, v1.PatchOptions{})
 	assert.NoError(t, err)
-	assert.Equal(t, "available", node.Labels["node.csi.alibabacloud.com/disktype.cloud_efficiency"])
-	assert.Equal(t, "available", node.Labels["node.csi.alibabacloud.com/disktype.cloud_ssd"])
 	assert.Equal(t, "16", node.Annotations["node.csi.alibabacloud.com/allocatable-disk"])
 }
 
@@ -433,11 +484,7 @@ func TestPatchForNodeExisting(t *testing.T) {
 	node.Annotations = map[string]string{
 		"node.csi.alibabacloud.com/allocatable-disk": "16",
 	}
-	node.Labels = map[string]string{
-		"node.csi.alibabacloud.com/disktype.cloud_efficiency": "available",
-		"node.csi.alibabacloud.com/disktype.cloud_ssd":        "available",
-	}
-	patch := patchForNode(node, 16, []string{"cloud_efficiency", "cloud_ssd"})
+	patch := patchForNode(node, 16)
 	assert.Nil(t, patch)
 }
 
