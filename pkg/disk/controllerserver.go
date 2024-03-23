@@ -47,6 +47,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -453,14 +454,19 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (*createSnapshotPar
 	}
 
 	volumeSnapshot, err := GlobalConfigVar.SnapClient.SnapshotV1().VolumeSnapshots(vsNameSpace).Get(context.Background(), vsName, metav1.GetOptions{})
-	if err != nil {
+	if err == nil {
+		err = parseSnapshotAnnotations(volumeSnapshot.Annotations, &ecsParams)
+		if err != nil {
+			log.Errorf("CreateSnapshot:: Snapshot name[%s], parse annotation failed: %v", req.Name, err)
+			return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		}
+	}
+	if !apierrors.IsNotFound(err) {
 		return nil, status.Errorf(codes.Internal, "failed to get VolumeSnapshot: %s/%s: %v", vsNameSpace, vsName, err)
 	}
-	err = parseSnapshotAnnotations(volumeSnapshot.Annotations, &ecsParams)
-	if err != nil {
-		log.Errorf("CreateSnapshot:: Snapshot name[%s], parse annotation failed: %v", req.Name, err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
-	}
+	// If the VolumeSnapshot is already deleted, we still need to create the snapshot at ECS
+	// to get the snapshot ID, so that the external-snapshotter can delete the snapshot.
+	// TODO: What if the snapshot is recreated with the same name? we may get the wrong parameters.
 	return &ecsParams, nil
 }
 
