@@ -66,7 +66,6 @@ type GlobalConfig struct {
 	ADControllerEnable    bool
 	DetachDisabled        bool
 	MetricEnable          bool
-	RunTimeClass          string
 	DetachBeforeAttach    bool
 	DetachBeforeDelete    bool
 	DiskBdfEnable         bool
@@ -211,22 +210,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	}
 
 	nodeName := os.Getenv(kubeNodeName)
-	runtimeValue := "runc"
-	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
-	if err != nil {
-		log.Errorf("GlobalConfigSet: get node %s with error: %s", nodeName, err.Error())
-	} else {
-		if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime"]; ok && strings.TrimSpace(value) == "Sandboxed-Container.runv" {
-			if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime-version"]; ok && strings.HasPrefix(strings.TrimSpace(value), "1.") {
-				runtimeValue = MixRunTimeMode
-			}
-		}
-		log.Infof("Describe node %s and Set RunTimeClass to %s", nodeName, runtimeValue)
-	}
-	runtimeEnv := os.Getenv("RUNTIME")
-	if runtimeEnv == MixRunTimeMode {
-		runtimeValue = MixRunTimeMode
-	}
 	clustID := os.Getenv("CLUSTER_ID")
 
 	controllerServerType := false
@@ -246,7 +229,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		DiskTagEnable:         csiCfg.GetBool("disk-tag-by-plugin", "DISK_TAGED_BY_PLUGIN", false),
 		DiskBdfEnable:         csiCfg.GetBool("disk-bdf-enable", "DISK_BDF_ENABLE", false),
 		MetricEnable:          csiCfg.GetBool("disk-metric-by-plugin", "DISK_METRIC_BY_PLUGIN", true),
-		RunTimeClass:          runtimeValue,
 		DetachDisabled:        csiCfg.GetBool("disk-detach-disable", "DISK_DETACH_DISABLE", false),
 		DetachBeforeDelete:    csiCfg.GetBool("disk-detach-before-delete", "DISK_DETACH_BEFORE_DELETE", true),
 		DetachBeforeAttach:    csiCfg.GetBool("disk-detach-before-attach", "DISK_FORCE_DETACHED", true),
@@ -271,12 +253,11 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	} else {
 		log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
 	}
-	log.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), RunTimeClass(%s), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
+	log.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
 		GlobalConfigVar.ADControllerEnable,
 		GlobalConfigVar.DiskTagEnable,
 		GlobalConfigVar.DiskBdfEnable,
 		GlobalConfigVar.MetricEnable,
-		GlobalConfigVar.RunTimeClass,
 		GlobalConfigVar.DetachDisabled,
 		GlobalConfigVar.DetachBeforeDelete,
 		GlobalConfigVar.ClusterID,
