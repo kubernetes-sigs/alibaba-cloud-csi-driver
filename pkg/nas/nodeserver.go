@@ -282,16 +282,17 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, status.Errorf(codes.Internal, "NodePublishVolume: cannot get pod runtime: %v", err)
 		} else if runtime == utils.RunvRunTimeTag {
 			fileName := filepath.Join(mountPath, utils.CsiPluginRunTimeFlagFile)
-			runvOptions := RunvNasOptions{}
-			runvOptions.Options = opt.Options
-			runvOptions.Server = opt.Server
-			runvOptions.ModeType = opt.ModeType
-			runvOptions.Mode = opt.Mode
-			runvOptions.Vers = opt.Vers
-			runvOptions.Path = opt.Path
-			runvOptions.RunTime = "runv"
-			runvOptions.VolumeType = "nfs"
-			runvOptions.MountFile = fileName
+			runvOptions := RunvNasOptions{
+				Options:    opt.Options,
+				Server:     opt.Server,
+				ModeType:   opt.ModeType,
+				Mode:       opt.Mode,
+				Vers:       opt.Vers,
+				Path:       opt.Path,
+				RunTime:    "runv",
+				VolumeType: "nfs",
+				MountFile:  fileName,
+			}
 			if err := utils.WriteJSONFile(runvOptions, fileName); err != nil {
 				return nil, errors.New("NodePublishVolume: Write Json File error: " + err.Error())
 			}
