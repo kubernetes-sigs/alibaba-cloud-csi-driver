@@ -74,7 +74,6 @@ type GlobalConfig struct {
 	FilesystemLosePercent float64
 	ClusterID             string
 	DiskPartitionEnable   bool
-	ControllerService     bool
 	BdfHealthCheck        bool
 	DiskMultiTenantEnable bool
 	CheckBDFHotPlugin     bool
@@ -99,13 +98,19 @@ func initDriver() {
 }
 
 // NewDriver create the identity/node/controller server and disk driver
-func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController bool) *DISK {
+func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.ServiceType) *DISK {
 	initDriver()
 	tmpdisk := &DISK{}
 	tmpdisk.endpoint = endpoint
 
 	// Config Global vars
 	cfg := GlobalConfigSet(m)
+
+	if serviceType&utils.Node != 0 {
+		GlobalConfigVar.NodeID = metadata.MustGet(m, metadata.InstanceID)
+	} else {
+		GlobalConfigVar.NodeID = "not-retrieved" // make csi-common happy
+	}
 
 	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, GlobalConfigVar.NodeID)
 	tmpdisk.driver = csiDriver
@@ -135,9 +140,10 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
-	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient)
-
-	if !runAsController {
+	if serviceType&utils.Controller != 0 {
+		tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient)
+	}
+	if serviceType&utils.Node != 0 {
 		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, m)
 	}
 
@@ -229,19 +235,9 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	}
 	clustID := os.Getenv("CLUSTER_ID")
 
-	controllerServerType := false
-	nodeID := ""
-	if os.Getenv(utils.ServiceType) == utils.ProvisionerService {
-		controllerServerType = true
-		nodeID = "controller" // make csi-common happy
-	} else {
-		nodeID = metadata.MustGet(m, metadata.InstanceID)
-	}
-
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
 		Region:                metadata.MustGet(m, metadata.RegionID),
-		NodeID:                nodeID,
 		ADControllerEnable:    csiCfg.GetBool("disk-adcontroller-enable", "DISK_AD_CONTROLLER", false),
 		DiskTagEnable:         csiCfg.GetBool("disk-tag-by-plugin", "DISK_TAGED_BY_PLUGIN", false),
 		DiskBdfEnable:         csiCfg.GetBool("disk-bdf-enable", "DISK_BDF_ENABLE", false),
@@ -255,7 +251,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		FilesystemLosePercent: fileSystemLosePercent,
 		ClusterID:             clustID,
 		DiskPartitionEnable:   csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true),
-		ControllerService:     controllerServerType,
 		BdfHealthCheck:        csiCfg.GetBool("bdf-health-check", "BDF_HEALTH_CHECK", true),
 		DiskMultiTenantEnable: csiCfg.GetBool("disk-multi-tenant-enable", "DISK_MULTI_TENANT_ENABLE", false),
 		NodeMultiZoneEnable:   csiCfg.GetBool("node-multi-zone-enable", "NODE_MULTI_ZONE_ENABLE", false),
@@ -282,11 +277,12 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		GlobalConfigVar.ClusterID,
 	)
 
-	if controllerServerType && !csiCfg.GetBool("disk-serial-attach", "DISK_SERIAL_ATTACH", false) {
+	// if ADController is not enabled, we need SERIAL_ATTACH to recognize old disk
+	if !GlobalConfigVar.ADControllerEnable || csiCfg.GetBool("disk-serial-attach", "DISK_SERIAL_ATTACH", false) {
+		GlobalConfigVar.AttachDetachSlots = NewSerialAttachDetachSlots()
+	} else {
 		log.Infof("Disk parallel attach/detach enabled, please set DISK_SERIAL_ATTACH if you see a lot of InvalidOperation.Conflict error.")
 		GlobalConfigVar.AttachDetachSlots = NewParallelAttachDetachSlots()
-	} else {
-		GlobalConfigVar.AttachDetachSlots = NewSerialAttachDetachSlots()
 	}
 
 	return cfg
