@@ -97,10 +97,6 @@ spec:
     hostPath:
       path: /var/lib/kubelet/plugins_registry
       type: DirectoryOrCreate
-  - name: container-dir
-    hostPath:
-      path: /var/lib/container
-      type: DirectoryOrCreate
   - name: kubelet-dir
     hostPath:
       path: /var/lib/kubelet

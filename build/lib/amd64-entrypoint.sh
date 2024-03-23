@@ -37,6 +37,16 @@ if [[ "$os_release_exist" = "0" ]]; then
 fi
 echo "detected host os: $host_os"
 
+OLD_STAGING_PATH=/var/lib/kubelet/plugins/kubernetes.io/csi/pv
+if [ -d "$OLD_STAGING_PATH" ]; then
+    echo unmount old volume staging path.  # kubelet will mount the new path at startup.
+    echo $OLD_STAGING_PATH/*/globalmount
+    umount $OLD_STAGING_PATH/*/globalmount
+    rmdir $OLD_STAGING_PATH/*/globalmount
+    rmdir $OLD_STAGING_PATH/*/
+    rmdir $OLD_STAGING_PATH
+fi
+
 ## check which plugin is running
 for item in $@;
 do
