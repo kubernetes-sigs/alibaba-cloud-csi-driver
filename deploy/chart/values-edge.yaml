@@ -1,0 +1,11 @@
+deploy:
+  ecs: false
+
+csi:
+  disk:
+    enabled: false
+  local:
+    enabled: true
+  oss:
+    controller:
+      enabled: false

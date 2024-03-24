@@ -1,0 +1,316 @@
+{{- if .Values.plugin.enabled -}}
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: csi-plugin
+spec:
+  selector:
+    matchLabels:
+      app: csi-plugin
+  template:
+    metadata:
+      labels:
+        app: csi-plugin
+    spec:
+      tolerations:
+        - operator: Exists
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: type
+                operator: NotIn
+                values:
+                - virtual-kubelet
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: alicloud-csi-plugin
+      priorityClassName: system-node-critical
+      hostNetwork: true
+      hostIPC: true
+      hostPID: true
+      dnsPolicy: ClusterFirst
+      containers:
+{{- if .Values.csi.disk.enabled }}
+        - name: disk-driver-registrar
+          image: {{ include "workerImageSpec" (list .Values.images "pluginRegistrar") }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          args:
+            - "--v=5"
+            - "--csi-address=/var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com/csi.sock"
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet
+            - name: registration-dir
+              mountPath: /registration
+{{- end -}}
+{{- if .Values.csi.nas.enabled }}
+        - name: nas-driver-registrar
+          image: {{ include "workerImageSpec" (list .Values.images "pluginRegistrar") }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          args:
+            - "--v=5"
+            - "--csi-address=/var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com/csi.sock"
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet/
+            - name: registration-dir
+              mountPath: /registration
+{{- end -}}
+{{- if .Values.csi.oss.enabled }}
+        - name: oss-driver-registrar
+          image: {{ include "workerImageSpec" (list .Values.images "pluginRegistrar") }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          args:
+            - "--v=5"
+            - "--csi-address=/var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com/csi.sock"
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet/
+            - name: registration-dir
+              mountPath: /registration
+{{- end -}}
+{{- if .Values.csi.local.enabled }}
+        - name: local-driver-registrar
+          image: {{ include "workerImageSpec" (list .Values.images "pluginRegistrar") }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          args:
+            - "--v=5"
+            - "--csi-address=/var/lib/kubelet/csi-plugins/localplugin.csi.alibabacloud.com/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/localplugin.csi.alibabacloud.com/csi.sock"
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - mountPath: /var/lib/kubelet/
+              name: kubelet-dir
+            - mountPath: /registration
+              name: registration-dir
+{{- end }}
+        - name: csi-plugin
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+          image: {{ include "workerImageSpec" (list .Values.images "plugin") }}
+          args:
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v=2"
+            - "--driver={{ include "enabledPlugins" .Values.csi }}"
+{{- if not .Values.deploy.ecs }}
+            - --nodeid=$(KUBE_NODE_NAME)
+{{- end }}
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            - name: CSI_ENDPOINT
+              value: unix://var/lib/kubelet/csi-plugins/driverplugin.csi.alibabacloud.com-replace/csi.sock
+            - name: SERVICE_TYPE
+              value: "plugin"
+            - name: "DEFAULT_REGISTRY"
+              value: {{ .Values.images.workerRegistry | default .Values.images.registry | quote }}
+{{- if .Values.deploy.ecsEndpoint }}
+            - name: ECS_ENDPOINT
+              value: {{ .Values.deploy.ecsEndpoint | quote }}
+{{- end -}}
+{{- if .Values.deploy.privateCloud }}
+            - name: ALICLOUD_CLIENT_SCHEME
+              value: HTTP
+            - name: PRIVATE_CLOUD_TAG
+              value: "true"
+{{- end -}}
+{{- if .Values.deploy.accessKey.enabled }}
+            - name: ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.deploy.accessKey.secretName }}
+                  key: id
+            - name: ACCESS_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.deploy.accessKey.secretName }}
+                  key: secret
+{{- end }}
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+          ports:
+            - name: healthz
+              containerPort: 11260
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet/
+              mountPropagation: "Bidirectional"
+            - name: etc
+              mountPath: /host/etc
+            - name: host-log
+              mountPath: /var/log/
+            - name: ossconnectordir
+              mountPath: /host/usr/
+            - name: container-dir
+              mountPath: /var/lib/container
+              mountPropagation: "Bidirectional"
+            - name: host-dev
+              mountPath: /dev
+              mountPropagation: "HostToContainer"
+            - mountPath: /run/kata-containers/shared/direct-volumes
+              name: kata-direct-volumes
+{{- if .Values.deploy.ack }}
+            - mountPath: /var/addon
+              name: addon-token
+              readOnly: true
+{{- end -}}
+{{- if .Values.csi.oss.enabled }}
+            - mountPath: /host/var/run/ossfs
+              name: ossfs-metrics-dir
+{{- end -}}
+{{- if .Values.csi.nas.enabled }}
+            - mountPath: /host/var/run/efc
+              name: efc-metrics-dir
+{{- end }}
+            - mountPath: /host/run/csi-tool
+              name: run-csi
+            - mountPath: /host/sys/fs/cgroup/blkio/kubepods.slice
+              name: cgroupv1-blkio
+{{- if .Values.csi.local.enabled }}
+            - mountPath: /tls/local/grpc
+              name: tls-token-dir
+              readOnly: true
+{{- end }}
+            - mountPath: /etc/csi-plugin/config
+              name: csi-plugin-cm
+            - name: host-mnt
+              mountPath: /mnt
+              mountPropagation: "Bidirectional"
+      volumes:
+{{- if .Values.csi.oss.enabled }}
+        - name: ossfs-metrics-dir
+          hostPath:
+            path: /var/run/ossfs
+            type: DirectoryOrCreate
+{{- end -}}
+{{- if .Values.csi.nas.enabled }}
+        - name: efc-metrics-dir
+          hostPath:
+            path: /var/run/efc
+            type: DirectoryOrCreate
+{{- end }}
+        - name: run-csi
+          hostPath:
+            path: /run/csi-tool
+            type: DirectoryOrCreate
+{{- if .Values.csi.local.enabled }}
+        - name: tls-token-dir
+          secret:
+            defaultMode: 420
+            secretName: csi-local-plugin-cert
+{{- end }}
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: DirectoryOrCreate
+        - name: container-dir
+          hostPath:
+            path: /var/lib/container
+            type: DirectoryOrCreate
+        - name: kubelet-dir
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        - name: cgroupv1-blkio
+          hostPath:
+            path: /sys/fs/cgroup/blkio/kubepods.slice
+            type: DirectoryOrCreate
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: host-log
+          hostPath:
+            path: /var/log/
+        - name: etc
+          hostPath:
+            path: /etc
+        - name: ossconnectordir
+          hostPath:
+            path: /usr/
+        - name: host-mnt
+          hostPath:
+            path: /mnt
+            type: DirectoryOrCreate
+        - name: csi-plugin-cm
+          configMap:
+            name: csi-plugin
+            optional: true
+        - hostPath:
+            path: /run/kata-containers/shared/direct-volumes
+            type: DirectoryOrCreate
+          name: kata-direct-volumes
+{{- if .Values.deploy.ack }}
+        - name: addon-token
+          secret:
+            defaultMode: 420
+            optional: true
+            items:
+            - key: addon.token.config
+              path: token-config
+            secretName: addon.csi.token
+{{- end }}
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 20%
+    type: RollingUpdate
+{{- end -}}
