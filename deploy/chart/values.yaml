@@ -1,5 +1,6 @@
 controller:
   enabled: true
+  replicas: 2
 
 plugin:
   enabled: true
