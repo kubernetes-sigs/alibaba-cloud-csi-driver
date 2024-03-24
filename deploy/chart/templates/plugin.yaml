@@ -207,6 +207,8 @@ spec:
             - name: host-dev
               mountPath: /dev
               mountPropagation: "HostToContainer"
+            - mountPath: /run/kata-containers/shared/direct-volumes
+              name: kata-direct-volumes
 {{- if .Values.deploy.ack }}
             - mountPath: /var/addon
               name: addon-token
@@ -223,7 +225,7 @@ spec:
             - mountPath: /host/run/csi-tool
               name: run-csi
             - mountPath: /host/sys/fs/cgroup/blkio/kubepods.slice
-              name: cgroup-blkio
+              name: cgroupv1-blkio
 {{- if .Values.csi.local.enabled }}
             - mountPath: /tls/local/grpc
               name: tls-token-dir
@@ -269,10 +271,10 @@ spec:
           hostPath:
             path: /var/lib/kubelet
             type: Directory
-        - name: cgroup-blkio
+        - name: cgroupv1-blkio
           hostPath:
             path: /sys/fs/cgroup/blkio/kubepods.slice
-            type: Directory
+            type: DirectoryOrCreate
         - name: host-dev
           hostPath:
             path: /dev
@@ -293,6 +295,10 @@ spec:
           configMap:
             name: csi-plugin
             optional: true
+        - hostPath:
+            path: /run/kata-containers/shared/direct-volumes
+            type: DirectoryOrCreate
+          name: kata-direct-volumes
 {{- if .Values.deploy.ack }}
         - name: addon-token
           secret:
