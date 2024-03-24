@@ -33,11 +33,9 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	log "github.com/sirupsen/logrus"
-	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
-	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -103,7 +101,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 	tmpdisk.endpoint = endpoint
 
 	// Config Global vars
-	cfg := GlobalConfigSet(m)
+	GlobalConfigSet(m)
 
 	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, GlobalConfigVar.NodeID)
 	tmpdisk.driver = csiDriver
@@ -126,14 +124,9 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 	}
 	GlobalConfigVar.EcsClient = client
 
-	apiExtentionClient, err := crd.NewForConfig(cfg)
-	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
-	}
-
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
-	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient)
+	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver)
 
 	if !runAsController {
 		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, m)
@@ -149,7 +142,7 @@ func (disk *DISK) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
+func GlobalConfigSet(m metadata.MetadataProvider) {
 	configMapName := "csi-plugin"
 
 	// Global Configs Set
@@ -266,6 +259,4 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 	} else {
 		GlobalConfigVar.AttachDetachSlots = NewSlots(true, true)
 	}
-
-	return cfg
 }
