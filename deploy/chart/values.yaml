@@ -53,19 +53,19 @@ images:
     tag: "v1.26.5-92f859a-aliyun-init"
   externalAttacher:
     repo: acs/csi-attacher
-    tag: "v3.3-72dd428b-aliyun"
+    tag: "v4.5.0-4a01fda6-aliyun"
   externalProvisioner:
     repo: acs/csi-provisioner
     tag: "v3.5.0-e7da67e52-aliyun"
   externalResizer:
     repo: acs/csi-resizer
-    tag: "v1.3-ca84e84-aliyun"
+    tag: "v1.3-e48d981-aliyun"
   externalSnapshotter:
     repo: acs/csi-snapshotter
-    tag: "v4.0.0-a230d5b3-aliyun"
+    tag: "v4.0.0-a230d5b-aliyun"
   externalSnapshotController:
     repo: acs/snapshot-controller
-    tag: "v4.0.0-a230d5b3-aliyun"
+    tag: "v4.0.0-a230d5b-aliyun"
   pluginRegistrar:
     repo: acs/csi-node-driver-registrar
-    tag: "v2.3.1-038aeb6-aliyun"
+    tag: "v2.9.0-d48d2e0-aliyun"
