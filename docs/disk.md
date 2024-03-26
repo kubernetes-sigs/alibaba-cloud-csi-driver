@@ -113,7 +113,7 @@ kubectl create secret -n kube-system generic csi-access-key \
 
 Create the service account, RBAC role, deploy the CSI provisioner and CSI plugin.
 ```shell
-helm install csi-driver ./deploy/chart --values deploy/chart/values-ecs.yaml
+helm install csi-driver ./deploy/chart --values deploy/chart/values-ecs.yaml --namespace kube-system
 ```
 
 Note: this will also deploy OSS and NAS CSI driver. Edit the manifests before applying if you want to disable them.
