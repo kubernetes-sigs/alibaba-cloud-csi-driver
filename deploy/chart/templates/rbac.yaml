@@ -116,6 +116,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 {{- end }}
 {{- if .Values.plugin.enabled }}
+---
 # csi-plugin
 ---
 apiVersion: v1

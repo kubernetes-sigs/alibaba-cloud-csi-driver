@@ -5,29 +5,29 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: alicloud-disk-cloud-sperf
+  name: alicloud-disk-cloud-sperf
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
-    type: cloud_sperf
+  type: cloud_sperf
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: alicloud-disk-cloud-pperf
+  name: alicloud-disk-cloud-pperf
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
-    type: cloud_pperf
+  type: cloud_pperf
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-    name: alicloud-disk-topology-alltype
+  name: alicloud-disk-topology-alltype
 parameters:
-    type: cloud_essd,cloud_ssd,cloud_efficiency,cloud_sperf,cloud_pperf
+  type: cloud_essd,cloud_ssd,cloud_efficiency,cloud_sperf,cloud_pperf
 provisioner: diskplugin.csi.alibabacloud.com
 reclaimPolicy: Delete
 allowVolumeExpansion: true
@@ -37,9 +37,9 @@ volumeBindingMode: WaitForFirstConsumer
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-    name: alicloud-disk-topology-alltype
+  name: alicloud-disk-topology-alltype
 parameters:
-    type: cloud_essd,cloud_ssd,cloud_efficiency
+  type: cloud_essd,cloud_ssd,cloud_efficiency
 provisioner: diskplugin.csi.alibabacloud.com
 reclaimPolicy: Delete
 allowVolumeExpansion: true
@@ -49,50 +49,50 @@ volumeBindingMode: WaitForFirstConsumer
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: alicloud-disk-available
+  name: alicloud-disk-available
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
-    type: available
+  type: available
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: alicloud-disk-essd
+  name: alicloud-disk-essd
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
-    type: cloud_essd
+  type: cloud_essd
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: alicloud-disk-ssd
+  name: alicloud-disk-ssd
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
-    type: cloud_ssd
+  type: cloud_ssd
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: alicloud-disk-efficiency
+  name: alicloud-disk-efficiency
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
-    type: cloud_efficiency
+  type: cloud_efficiency
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: alicloud-disk-topology
+  name: alicloud-disk-topology
 provisioner: diskplugin.csi.alibabacloud.com
 parameters:
-    type: available
+  type: available
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
