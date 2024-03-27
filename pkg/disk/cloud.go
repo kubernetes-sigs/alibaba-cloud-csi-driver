@@ -56,6 +56,20 @@ const (
 	DISK_RESIZE_PROCESSING_TIMEOUT = 30 * time.Second
 )
 
+var tenantUserUIDKey int
+
+func GetTenantUserUID(ctx context.Context) string {
+	v := ctx.Value(&tenantUserUIDKey)
+	if v == nil {
+		return ""
+	}
+	return v.(string)
+}
+
+func WithTenantUserUID(ctx context.Context, tenantUserUID string) context.Context {
+	return context.WithValue(ctx, &tenantUserUIDKey, tenantUserUID)
+}
+
 // attach alibaba cloud disk
 func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk, isSingleInstance bool) (string, error) {
 	klog.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
