@@ -33,6 +33,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dbfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/ens"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/om"
@@ -94,6 +95,7 @@ type globalMetricConfig struct {
 
 // Nas CSI Plugin
 func main() {
+	flag.Var(features.FunctionalMutableFeatureGate, "featuregate", "Enable or disable specific feature gates")
 	flag.Parse()
 	serviceType := os.Getenv(utils.ServiceType)
 

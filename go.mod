@@ -34,6 +34,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.18.8
 	k8s.io/apimachinery v0.26.12
 	k8s.io/client-go v0.26.12
+	k8s.io/component-base v0.26.12
 	k8s.io/kubelet v0.26.12
 	k8s.io/mount-utils v0.21.1
 	k8s.io/utils v0.0.0-20221107191617-1a15be271d1d
@@ -111,5 +112,6 @@ replace (
 	github.com/stretchr/testify => github.com/stretchr/testify v1.3.0
 	google.golang.org/appengine => google.golang.org/appengine v1.4.0
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.2
+	k8s.io/component-base => k8s.io/component-base v0.23.16
 	sigs.k8s.io/yaml => sigs.k8s.io/yaml v1.1.0
 )
