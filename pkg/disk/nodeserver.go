@@ -59,6 +59,7 @@ type nodeServer struct {
 	k8smounter   k8smount.Interface
 	podCGroup    *utils.PodCGroup
 	clientSet    *kubernetes.Clientset
+	ad           DiskAttachDetach
 	locks        *utils.VolumeLocks
 	common.GenericNodeServer
 }
@@ -212,7 +213,12 @@ func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 		k8smounter:   k8smount.New(""),
 		podCGroup:    podCgroup,
 		clientSet:    GlobalConfigVar.ClientSet,
-		locks:        utils.NewVolumeLocks(),
+		ad: DiskAttachDetach{
+			waiter: newDiskStatusWaiter(true),
+			// if ADController is not enabled, we need serial attach to recognize old disk
+			slots: NewSlots(1, 1),
+		},
+		locks: utils.NewVolumeLocks(),
 		GenericNodeServer: common.GenericNodeServer{
 			NodeID: GlobalConfigVar.NodeID,
 		},
@@ -557,7 +563,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			}
 		}
 	} else {
-		device, err = attachDisk(ctx, req.GetVolumeId(), ns.NodeID, isSharedDisk, isSingleInstance, true)
+		device, err = ns.ad.attachDisk(ctx, req.GetVolumeId(), ns.NodeID, isSharedDisk, isSingleInstance, true)
 		if err != nil {
 			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
 			klog.Errorf("NodeStageVolume: Attach volume: %s with error: %s", req.VolumeId, fullErrorMessage)
@@ -786,7 +792,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			return &csi.NodeUnstageVolumeResponse{}, nil
 		}
 		ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
-		err = detachDisk(ctx, ecsClient, req.VolumeId, ns.NodeID)
+		err = ns.ad.detachDisk(ctx, ecsClient, req.VolumeId, ns.NodeID)
 		if err != nil {
 			klog.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
 			return nil, err
