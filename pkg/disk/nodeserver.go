@@ -1002,11 +1002,6 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	log.Infof(
 		"NodeExpandVolume:: filesystem resize context device capacity: %v, before resize fs capacity: %v resize fs capacity: %v, requestGB: %v. file system lose percent: %v",
 		deviceCapacity, beforeResizeDiskCapacity, diskCapacity, requestGB, GlobalConfigVar.FilesystemLosePercent)
-	if diskCapacity >= requestGB*GlobalConfigVar.FilesystemLosePercent {
-		// delete autoSnapshot
-		log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
-		return &csi.NodeExpandVolumeResponse{}, nil
-	}
 	return nil, status.Errorf(codes.Internal, "requestGB: %v, diskCapacity: %v not in range", requestGB, diskCapacity)
 }
 
