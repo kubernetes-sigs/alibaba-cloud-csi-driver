@@ -363,6 +363,8 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		log.Infof("ControllerPublishVolume: sleep 5s")
 	}
 
+	ctx = WithTenantUserUID(ctx, req.VolumeContext[TenantUserUID])
+
 	isMultiAttach := false
 	if value, ok := req.VolumeContext[MultiAttach]; ok {
 		value = strings.ToLower(value)
@@ -411,7 +413,12 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 // ControllerUnpublishVolume do detach
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	// Describe Disk Info
-	ecsClient, err := getEcsClientByID(req.VolumeId, "")
+	uid, err := getTenantUIDByVolumeID(req.VolumeId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	ctx = WithTenantUserUID(ctx, uid)
+	ecsClient, err := getEcsClientByID(req.VolumeId, uid)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
