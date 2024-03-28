@@ -34,6 +34,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	perrors "github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
@@ -76,8 +77,13 @@ func WithTenantUserUID(ctx context.Context, tenantUserUID string) context.Contex
 	return context.WithValue(ctx, &tenantUserUIDKey, tenantUserUID)
 }
 
+type DiskAttachDetach struct {
+	slots  AttachDetachSlots
+	waiter waitstatus.StatusWaiter[ecs.Disk]
+}
+
 // attach alibaba cloud disk
-func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk, isSingleInstance bool, fromNode bool) (string, error) {
+func (ad *DiskAttachDetach) attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk, isSingleInstance bool, fromNode bool) (string, error) {
 	klog.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
 	ecsClient, err := getEcsClientByID("", tenantUserUID)
@@ -91,7 +97,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 		return "", status.Errorf(codes.NotFound, "AttachDisk: csi can't find disk: %s in region: %s, Please check if the cloud disk exists, if the region is correct, or if the csi permissions are correct", diskID, GlobalConfigVar.Region)
 	}
 
-	slot := GlobalConfigVar.AttachDetachSlots.GetSlotFor(nodeID).Attach()
+	slot := ad.slots.GetSlotFor(nodeID).Attach()
 	if err := slot.Aquire(ctx); err != nil {
 		return "", status.Errorf(codes.Aborted, "AttachDisk: get ad-slot for disk %s failed: %v", diskID, err)
 	}
@@ -303,7 +309,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 }
 
 // Only called by controller
-func attachSharedDisk(ctx context.Context, tenantUserUID, diskID, nodeID string) (string, error) {
+func (ad *DiskAttachDetach) attachSharedDisk(ctx context.Context, tenantUserUID, diskID, nodeID string) (string, error) {
 	klog.Infof("AttachDisk: Starting Do AttachSharedDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
 	ecsClient, err := getEcsClientByID("", tenantUserUID)
@@ -350,7 +356,7 @@ func attachSharedDisk(ctx context.Context, tenantUserUID, diskID, nodeID string)
 	return "", nil
 }
 
-func detachMultiAttachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) (isMultiAttach bool, err error) {
+func (ad *DiskAttachDetach) detachMultiAttachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) (isMultiAttach bool, err error) {
 	disk, err := findDiskByID(diskID, ecsClient)
 	if err != nil {
 		klog.Errorf("DetachSharedDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
@@ -437,7 +443,7 @@ func detachMultiAttachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, n
 	return true, nil
 }
 
-func detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) error {
+func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) error {
 	disk, err := findDiskByID(diskID, ecsClient)
 	if err != nil {
 		klog.Errorf("DetachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
@@ -458,7 +464,7 @@ func detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID strin
 		return nil
 	}
 	// NodeStageVolume/NodeUnstageVolume should be called by sequence
-	slot := GlobalConfigVar.AttachDetachSlots.GetSlotFor(nodeID).Detach()
+	slot := ad.slots.GetSlotFor(nodeID).Detach()
 	if err := slot.Aquire(ctx); err != nil {
 		return status.Errorf(codes.Aborted, "DetachDisk: get ad-slot for disk %s failed: %v", diskID, err)
 	}
