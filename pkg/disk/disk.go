@@ -27,6 +27,7 @@ import (
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -36,6 +37,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/clock"
 )
 
 // PluginFolder defines the location of diskplugin
@@ -59,7 +61,6 @@ type GlobalConfig struct {
 	Region                string
 	NodeID                string
 	DiskTagEnable         bool
-	AttachDetachSlots     AttachDetachSlots
 	ADControllerEnable    bool
 	DetachDisabled        bool
 	MetricEnable          bool
@@ -232,18 +233,19 @@ func GlobalConfigSet(m metadata.MetadataProvider) {
 		GlobalConfigVar.DetachBeforeDelete,
 		GlobalConfigVar.ClusterID,
 	)
+}
 
-	if controllerServerType {
-		pDetach := features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelDetach)
-		pAttach := features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelAttach)
-		GlobalConfigVar.AttachDetachSlots = NewSlots(!pDetach, !pAttach)
-		if pAttach {
-			klog.Infof("Disk parallel attach enabled")
+func newDiskStatusWaiter() waitstatus.DiskStatusWaiter {
+	if GlobalConfigVar.DiskMultiTenantEnable {
+		waiter := waitstatus.NewSimple(GlobalConfigVar.EcsClient, clock.RealClock{})
+		waiter.ClientFactory = func(ctx context.Context) (waitstatus.ECSDescribeDisks, error) {
+			tenantUserUID := GetTenantUserUID(ctx)
+			return getEcsClientByID("", tenantUserUID)
 		}
-		if pDetach {
-			klog.Infof("Disk parallel detach enabled")
-		}
+		return waiter
 	} else {
-		GlobalConfigVar.AttachDetachSlots = NewSlots(true, true)
+		waiter := waitstatus.NewBatched(GlobalConfigVar.EcsClient, clock.RealClock{})
+		go waiter.Run(context.Background())
+		return waiter
 	}
 }

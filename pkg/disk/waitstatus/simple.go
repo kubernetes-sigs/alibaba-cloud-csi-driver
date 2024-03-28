@@ -12,6 +12,8 @@ import (
 type Simple struct {
 	client ECSDescribeDisks
 	clk    clock.WithTicker
+
+	ClientFactory func(context.Context) (ECSDescribeDisks, error)
 }
 
 func NewSimple(client ECSDescribeDisks, clk clock.WithTicker) *Simple {
@@ -22,13 +24,21 @@ func NewSimple(client ECSDescribeDisks, clk clock.WithTicker) *Simple {
 }
 
 func (w *Simple) WaitForDisk(ctx context.Context, diskID string, pred DiskStatusPredicate) (*ecs.Disk, error) {
+	client := w.client
+	if w.ClientFactory != nil {
+		var err error
+		client, err = w.ClientFactory(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
 	ticker := w.clk.NewTicker(pollInterval)
 	defer ticker.Stop()
 	for {
 		req := ecs.CreateDescribeDisksRequest()
 		req.DiskIds = "[\"" + diskID + "\"]"
 		req.PageSize = requests.NewInteger(batchSize)
-		resp, err := w.client.DescribeDisks(req)
+		resp, err := client.DescribeDisks(req)
 		if err != nil {
 			return nil, err
 		}
