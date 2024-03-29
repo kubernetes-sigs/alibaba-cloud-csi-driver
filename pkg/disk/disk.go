@@ -21,11 +21,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/batcher"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
@@ -236,7 +238,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 	return csiCfg
 }
 
-func newDiskStatusWaiter() waitstatus.StatusWaiter[ecs.Disk] {
+func newBatcher() (waitstatus.StatusWaiter[ecs.Disk], batcher.Batcher[ecs.Disk]) {
 	client := desc.Disk{Client: GlobalConfigVar.EcsClient}
 	if GlobalConfigVar.DiskMultiTenantEnable {
 		waiter := waitstatus.NewSimple(client, clock.RealClock{})
@@ -248,10 +250,13 @@ func newDiskStatusWaiter() waitstatus.StatusWaiter[ecs.Disk] {
 			}
 			return desc.Disk{Client: client}, nil
 		}
-		return waiter
+		return waiter, waiter
 	} else {
+		ctx := context.Background()
 		waiter := waitstatus.NewBatched(client, clock.RealClock{})
-		go waiter.Run(context.Background())
-		return waiter
+		go waiter.Run(ctx)
+		b := batcher.NewLowLatency(client, clock.RealClock{}, 2*time.Second, 10)
+		go b.Run(ctx)
+		return waiter, b
 	}
 }
