@@ -22,6 +22,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -888,8 +889,8 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	*csi.NodeExpandVolumeResponse, error) {
 	log.Infof("NodeExpandVolume: node expand volume: %v", req)
 
-	volExpandBytes := int64(req.GetCapacityRange().GetRequiredBytes())
-	requestGB := float64((volExpandBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
+	volExpandBytes := float64(req.GetCapacityRange().GetRequiredBytes())
+	requestGB := math.Floor(volExpandBytes / float64(1024*1024*1024))
 
 	volumePath := req.GetVolumePath()
 	diskID := req.GetVolumeId()
@@ -993,14 +994,14 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	deviceCapacity := getBlockDeviceCapacity(devicePath)
+	if deviceCapacity < requestGB {
+		// After calling openapi to expansion cloud disk, the size of the underlying block device may not change. need to retry
+		log.Errorf("NodeExpandVolume:: Actual block size: %v is smaller than expected block size: %v, need to retry waiting", deviceCapacity, requestGB)
+		return nil, status.Errorf(codes.Aborted, "deviceCapacity: %v, requestGB: %v not in range", deviceCapacity, requestGB)
+	}
 	log.Infof(
 		"NodeExpandVolume:: filesystem resize context device capacity: %v, before resize fs capacity: %v resize fs capacity: %v, requestGB: %v. file system lose percent: %v",
 		deviceCapacity, beforeResizeDiskCapacity, diskCapacity, requestGB, GlobalConfigVar.FilesystemLosePercent)
-	if diskCapacity >= requestGB*GlobalConfigVar.FilesystemLosePercent {
-		// delete autoSnapshot
-		log.Infof("NodeExpandVolume:: resizefs successful volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
-		return &csi.NodeExpandVolumeResponse{}, nil
-	}
 	return nil, status.Errorf(codes.Internal, "requestGB: %v, diskCapacity: %v not in range", requestGB, diskCapacity)
 }
 
