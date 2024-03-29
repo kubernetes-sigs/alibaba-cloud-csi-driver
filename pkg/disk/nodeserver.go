@@ -206,6 +206,7 @@ func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 		klog.Fatalf("Failed to initialize pod cgroup: %v", err)
 	}
 
+	waiter, batcher := newBatcher(true)
 	return &nodeServer{
 		metadata:     m,
 		mounter:      utils.NewMounter(),
@@ -214,7 +215,8 @@ func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 		podCGroup:    podCgroup,
 		clientSet:    GlobalConfigVar.ClientSet,
 		ad: DiskAttachDetach{
-			waiter: newDiskStatusWaiter(true),
+			waiter:  waiter,
+			batcher: batcher,
 			// if ADController is not enabled, we need serial attach to recognize old disk
 			slots: NewSlots(1, 1),
 		},

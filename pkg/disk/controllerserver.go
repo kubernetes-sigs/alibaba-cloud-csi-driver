@@ -83,10 +83,12 @@ var delVolumeSnap sync.Map
 
 // NewControllerServer is to create controller server
 func NewControllerServer(csiCfg utils.Config) csi.ControllerServer {
+	waiter, batcher := newBatcher(false)
 	c := &controllerServer{
 		recorder: utils.NewEventRecorder(),
 		ad: DiskAttachDetach{
-			waiter: newDiskStatusWaiter(false),
+			waiter:  waiter,
+			batcher: batcher,
 		},
 	}
 	detachConcurrency := 1
