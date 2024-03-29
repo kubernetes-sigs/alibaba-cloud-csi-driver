@@ -29,6 +29,7 @@ import (
 	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/batcher"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	log "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -48,7 +49,8 @@ var DEFAULT_VMFATAL_EVENTS = []string{
 const DISK_DELETE_MAX_RETRY = 60
 
 type DiskAttachDetach struct {
-	waiter waitstatus.StatusWaiter[ecs.Disk]
+	waiter  waitstatus.StatusWaiter[ecs.Disk]
+	batcher batcher.Batcher[ecs.Disk]
 }
 
 // attach alibaba cloud disk
@@ -57,7 +59,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, tenantUserUID, diskI
 
 	ecsClient, err := getEcsClientByID("", tenantUserUID)
 	// Step 1: check disk status
-	disk, err := findDiskByID(diskID, ecsClient)
+	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
 		log.Log.Errorf("AttachDisk: find disk: %s with error: %s", diskID, err.Error())
 		return "", status.Errorf(codes.Internal, "AttachDisk: find disk: %s with error: %s", diskID, err.Error())
@@ -287,7 +289,7 @@ func (ad *DiskAttachDetach) attachSharedDisk(ctx context.Context, tenantUserUID,
 
 	ecsClient, err := getEcsClientByID("", tenantUserUID)
 	// Step 1: check disk status
-	disk, err := findDiskByID(diskID, ecsClient)
+	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
 		log.Log.Errorf("AttachDisk: find disk: %s with error: %s", diskID, err.Error())
 		return "", status.Errorf(codes.Internal, "AttachSharedDisk: find disk: %s with error: %s", diskID, err.Error())
@@ -330,7 +332,7 @@ func (ad *DiskAttachDetach) attachSharedDisk(ctx context.Context, tenantUserUID,
 }
 
 func (ad *DiskAttachDetach) detachMultiAttachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) (isMultiAttach bool, err error) {
-	disk, err := findDiskByID(diskID, ecsClient)
+	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
 		log.Log.Errorf("DetachSharedDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
 		return false, status.Error(codes.Aborted, err.Error())
@@ -372,7 +374,7 @@ func (ad *DiskAttachDetach) detachMultiAttachDisk(ctx context.Context, ecsClient
 }
 
 func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) error {
-	disk, err := findDiskByID(diskID, ecsClient)
+	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
 		log.Log.Errorf("DetachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
 		return status.Error(codes.Aborted, err.Error())
@@ -548,6 +550,10 @@ func findDiskByName(ecsClient *ecs.Client, name string, resourceGroupID string, 
 		}
 	}
 	return resDisks, err
+}
+
+func (ad *DiskAttachDetach) findDiskByID(ctx context.Context, diskID string) (*ecs.Disk, error) {
+	return ad.batcher.Describe(ctx, diskID)
 }
 
 func findDiskByID(diskID string, ecsClient *ecs.Client) (*ecs.Disk, error) {

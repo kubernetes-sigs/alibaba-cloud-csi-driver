@@ -29,6 +29,7 @@ import (
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/batcher"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
@@ -441,13 +442,16 @@ func GlobalConfigSet(nodeID string) *restclient.Config {
 	return cfg
 }
 
-func newDiskStatusWaiter(fromNode bool) waitstatus.StatusWaiter[ecs.Disk] {
+func newBatcher(fromNode bool) (waitstatus.StatusWaiter[ecs.Disk], batcher.Batcher[ecs.Disk]) {
 	client := desc.Disk{Client: GlobalConfigVar.EcsClient}
+	ctx := context.Background()
 	interval := 1 * time.Second
 	if fromNode {
 		interval = 2 * time.Second // We have many nodes, use longer interval to avoid throttling
 	}
 	waiter := waitstatus.NewBatched(client, clock.RealClock{}, interval, 3*time.Second)
-	go waiter.Run(context.Background())
-	return waiter
+	go waiter.Run(ctx)
+	b := batcher.NewLowLatency(client, clock.RealClock{}, 1*time.Second, 8)
+	go b.Run(ctx)
+	return waiter, b
 }

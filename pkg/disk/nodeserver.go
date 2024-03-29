@@ -193,13 +193,15 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		go BdfHealthCheck()
 	}
 
+	waiter, batcher := newBatcher(true)
 	return &nodeServer{
 		zone:              GlobalConfigVar.ZoneID,
 		maxVolumesPerNode: maxVolumesNum,
 		nodeID:            GlobalConfigVar.NodeID,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		ad: DiskAttachDetach{
-			waiter: newDiskStatusWaiter(true),
+			waiter:  waiter,
+			batcher: batcher,
 		},
 		mounter:    utils.NewMounter(),
 		k8smounter: k8smount.New(""),

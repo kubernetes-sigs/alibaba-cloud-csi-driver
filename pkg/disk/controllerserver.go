@@ -111,11 +111,13 @@ func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.Cont
 		checkInstallCRD(client)
 		checkInstallDefaultVolumeSnapshotClass(GlobalConfigVar.SnapClient)
 	}
+	waiter, batcher := newBatcher(false)
 	c := &controllerServer{
 		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
 		recorder:                utils.NewEventRecorder(),
 		ad: DiskAttachDetach{
-			waiter: newDiskStatusWaiter(false),
+			waiter:  waiter,
+			batcher: batcher,
 		},
 	}
 	return c
