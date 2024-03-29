@@ -82,7 +82,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, tenantUserUID, diskI
 
 	ecsClient, err := getEcsClientByID("", tenantUserUID)
 	// Step 1: check disk status
-	disk, err := findDiskByID(diskID, ecsClient)
+	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
 		klog.Errorf("AttachDisk: find disk: %s with error: %s", diskID, err.Error())
 		return "", status.Errorf(codes.Internal, "AttachDisk: find disk: %s with error: %s", diskID, err.Error())
@@ -302,7 +302,7 @@ func (ad *DiskAttachDetach) attachSharedDisk(ctx context.Context, tenantUserUID,
 
 	ecsClient, err := getEcsClientByID("", tenantUserUID)
 	// Step 1: check disk status
-	disk, err := findDiskByID(diskID, ecsClient)
+	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
 		klog.Errorf("AttachDisk: find disk: %s with error: %s", diskID, err.Error())
 		return "", status.Errorf(codes.Internal, "AttachSharedDisk: find disk: %s with error: %s", diskID, err.Error())
@@ -345,7 +345,7 @@ func (ad *DiskAttachDetach) attachSharedDisk(ctx context.Context, tenantUserUID,
 }
 
 func (ad *DiskAttachDetach) detachMultiAttachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) (isMultiAttach bool, err error) {
-	disk, err := findDiskByID(diskID, ecsClient)
+	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
 		klog.Errorf("DetachSharedDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
 		return false, status.Error(codes.Aborted, err.Error())
@@ -387,7 +387,7 @@ func (ad *DiskAttachDetach) detachMultiAttachDisk(ctx context.Context, ecsClient
 }
 
 func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) error {
-	disk, err := findDiskByID(diskID, ecsClient)
+	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
 		klog.Errorf("DetachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
 		return status.Error(codes.Aborted, err.Error())
@@ -552,6 +552,12 @@ func (ad *DiskAttachDetach) waitForDiskDetached(ctx context.Context, diskID, nod
 		return nil
 	}
 	return nil
+}
+
+func (ad *DiskAttachDetach) findDiskByID(ctx context.Context, diskID string) (*ecs.Disk, error) {
+	return ad.waiter.WaitForDisk(ctx, diskID, func(disk *ecs.Disk) bool {
+		return true
+	})
 }
 
 func findDiskByID(diskID string, ecsClient *ecs.Client) (*ecs.Disk, error) {
