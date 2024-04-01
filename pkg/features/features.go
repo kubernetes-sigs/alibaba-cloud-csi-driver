@@ -6,19 +6,15 @@ import (
 )
 
 const (
-	DiskADController       featuregate.Feature = "DiskADController"
-	DiskDetachBeforeAttach featuregate.Feature = "DetachBeforeAttach"
-	DiskDetachBeforeDelete featuregate.Feature = "DetachBeforeDelete"
-	DBFSMetricByPlugin     featuregate.Feature = "DBFSMetricByPlugin"
-	DBFSADController       featuregate.Feature = "DBFSADController"
+	DiskADController   featuregate.Feature = "DiskADController"
+	DBFSMetricByPlugin featuregate.Feature = "DBFSMetricByPlugin"
+	DBFSADController   featuregate.Feature = "DBFSADController"
 )
 
 var (
 	FunctionalMutableFeatureGate = featuregate.NewFeatureGate()
 	defaultDiskFeatureGate       = map[featuregate.Feature]featuregate.FeatureSpec{
-		DiskADController:       {Default: false, PreRelease: featuregate.Alpha},
-		DiskDetachBeforeAttach: {Default: true, PreRelease: featuregate.Alpha},
-		DiskDetachBeforeDelete: {Default: true, PreRelease: featuregate.Alpha},
+		DiskADController: {Default: false, PreRelease: featuregate.Alpha},
 	}
 	defaultDBFSFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
 		DBFSMetricByPlugin: {Default: false, PreRelease: featuregate.Alpha},

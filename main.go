@@ -95,7 +95,8 @@ type globalMetricConfig struct {
 
 // Nas CSI Plugin
 func main() {
-	flag.Var(features.FunctionalMutableFeatureGate, "featuregate", "Enable or disable specific feature gates")
+	flag.Var(features.FunctionalMutableFeatureGate, "feature-gates", "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
+		"Options are:\n"+strings.Join(features.FunctionalMutableFeatureGate.KnownFeatures(), "\n"))
 	flag.Parse()
 	serviceType := os.Getenv(utils.ServiceType)
 
