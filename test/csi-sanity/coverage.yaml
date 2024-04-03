@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: csi-testing
+  namespace: kube-system
+spec:
+  containers:
+    - name: csi-testing
+      env:
+        - name: GOCOVERDIR
+          value: /var/gocover
+      volumeMounts:
+        - name: gocover
+          mountPath: /var/gocover
+  volumes:
+    - name: gocover
+      hostPath:
+        path: /opt/csi/gocover
+        type: DirectoryOrCreate
