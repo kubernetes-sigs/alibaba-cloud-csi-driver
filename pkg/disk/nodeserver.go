@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -40,6 +39,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -92,8 +92,6 @@ const (
 	RunvRunTimeMode = "runv"
 	// InputOutputErr tag
 	InputOutputErr = "input/output error"
-	// FileSystemLoseCapacityPercent is the env of container
-	FileSystemLoseCapacityPercent = "FILE_SYSTEM_LOSE_PERCENT"
 	// DiskMultiTenantEnable Enable disk multi-tenant mode
 	DiskMultiTenantEnable = "DISK_MULTI_TENANT_ENABLE"
 	// TenantUserUID tag
@@ -903,8 +901,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	*csi.NodeExpandVolumeResponse, error) {
 	log.Infof("NodeExpandVolume: node expand volume: %v", req)
 
-	volExpandBytes := float64(req.GetCapacityRange().GetRequiredBytes())
-	requestGB := math.Floor(volExpandBytes / float64(1024*1024*1024))
+	requestBytes := req.GetCapacityRange().GetRequiredBytes()
 
 	volumePath := req.GetVolumePath()
 	diskID := req.GetVolumeId()
@@ -942,7 +939,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	devicePaths := GetVolumeDeviceName(diskID)
 	if len(devicePaths) == 0 {
 		log.Errorf("NodeExpandVolume:: can't get devicePath: %s", diskID)
-		return nil, status.Error(codes.InvalidArgument, "can't get devicePath for "+diskID)
+		return nil, status.Errorf(codes.NotFound, "can't get devicePath for: %s", diskID)
 	}
 	rootDevice, subDevice, err := GetRootSubDevicePath(devicePaths)
 	if err != nil {
@@ -952,15 +949,6 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	devicePath := ChooseDevice(rootDevice, subDevice)
 
 	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePaths, volumePath)
-	beforeResizeDiskCapacity, err := getDiskCapacity(volumePath)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, status.Error(codes.NotFound, fmt.Sprintf("volumePath does not exist: %v", err))
-		}
-		log.Errorf("NodeExpandVolume:: get diskCapacity error %+v", err)
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
 	if GlobalConfigVar.DiskPartitionEnable && !IsDeviceNvme(devicePath) && isDevicePartition(devicePath) {
 		rootPath, index, err := getDeviceRootAndIndex(devicePath)
 		if err != nil {
@@ -973,7 +961,8 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 				if bytes.Contains(output, []byte("it cannot be grown")) || bytes.Contains(output, []byte("could only be grown by")) {
 					deviceCapacity := getBlockDeviceCapacity(devicePath)
 					rootCapacity := getBlockDeviceCapacity(rootPath)
-					log.Infof("NodeExpandVolume: Volume %s with Device Partition %s no need to grown, with requestSize: %v, rootBlockSize: %v, partition BlockDevice size: %v", diskID, devicePath, requestGB, rootCapacity, deviceCapacity)
+					log.Infof("NodeExpandVolume: Volume %s with Device Partition %s no need to grown, with requestSize: %d, rootBlockSize: %d, partition BlockDevice size: %d",
+						diskID, devicePath, requestBytes, rootCapacity, deviceCapacity)
 					return &csi.NodeExpandVolumeResponse{}, nil
 				}
 			}
@@ -1002,21 +991,18 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		}
 		return nil, status.Error(codes.Internal, "Fail to resize volume fs")
 	}
-	diskCapacity, err := getDiskCapacity(volumePath)
-	if err != nil {
-		log.Errorf("NodeExpandVolume:: get diskCapacity error %+v", err)
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+
 	deviceCapacity := getBlockDeviceCapacity(devicePath)
-	if deviceCapacity < requestGB {
-		// After calling openapi to expansion cloud disk, the size of the underlying block device may not change. need to retry
-		log.Errorf("NodeExpandVolume:: Actual block size: %v is smaller than expected block size: %v, need to retry waiting", deviceCapacity, requestGB)
-		return nil, status.Errorf(codes.Aborted, "deviceCapacity: %v, requestGB: %v not in range", deviceCapacity, requestGB)
+	if requestBytes > 0 && deviceCapacity < requestBytes {
+		// After calling OpenAPI to expand cloud disk, the size of the underlying block device may not change immediately.
+		// return error and CO will retry later.
+		return nil, status.Errorf(codes.Aborted, "requested %v, but actual block size %v is smaller. Not updated yet?",
+			resource.NewQuantity(requestBytes, resource.BinarySI), resource.NewQuantity(deviceCapacity, resource.BinarySI))
 	}
-	log.Infof(
-		"NodeExpandVolume:: filesystem resize context device capacity: %v, before resize fs capacity: %v resize fs capacity: %v, requestGB: %v. file system lose percent: %v",
-		deviceCapacity, beforeResizeDiskCapacity, diskCapacity, requestGB, GlobalConfigVar.FilesystemLosePercent)
-	return &csi.NodeExpandVolumeResponse{}, nil
+	log.Infof("NodeExpandVolume:: Expand %s to %d bytes successful", diskID, deviceCapacity)
+	return &csi.NodeExpandVolumeResponse{
+		CapacityBytes: deviceCapacity,
+	}, nil
 }
 
 // NodeGetVolumeStats used for csi metrics

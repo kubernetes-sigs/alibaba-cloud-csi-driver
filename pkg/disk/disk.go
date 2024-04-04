@@ -71,7 +71,6 @@ type GlobalConfig struct {
 	DetachBeforeDelete    bool
 	DiskBdfEnable         bool
 	ClientSet             *kubernetes.Clientset
-	FilesystemLosePercent float64
 	ClusterID             string
 	DiskPartitionEnable   bool
 	ControllerService     bool
@@ -201,15 +200,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		}
 	}
 
-	// fileSystemLosePercent ...
-	fileSystemLosePercent := float64(0.90)
-	if fileSystemLoseCapacityPercent := os.Getenv(FileSystemLoseCapacityPercent); fileSystemLoseCapacityPercent != "" {
-		percent, err := strconv.ParseFloat(fileSystemLoseCapacityPercent, 64)
-		if err == nil {
-			fileSystemLosePercent = percent
-		}
-	}
-
 	nodeName := os.Getenv(kubeNodeName)
 	runtimeValue := "runc"
 	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
@@ -252,7 +242,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		DetachBeforeAttach:    csiCfg.GetBool("disk-detach-before-attach", "DISK_FORCE_DETACHED", true),
 		ClientSet:             kubeClient,
 		SnapClient:            snapClient,
-		FilesystemLosePercent: fileSystemLosePercent,
 		ClusterID:             clustID,
 		DiskPartitionEnable:   csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true),
 		ControllerService:     controllerServerType,
