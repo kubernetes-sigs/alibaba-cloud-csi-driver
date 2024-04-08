@@ -125,10 +125,33 @@ spec:
   - name: csi-test-config
     configMap:
       name: csi-test-config
+  initContainers:
+  - name: init
+    image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.26.4-e7e52e9-init
+    args:
+    - --driver=disk
+    securityContext:
+      privileged: true
+      allowPrivilegeEscalation: true
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+    volumeMounts:
+      - mountPath: /host/etc
+        name: etc
+      - mountPath: /host/usr/
+        name: ossconnectordir
   containers:
   - name: csi-testing
     image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.26.4-e7e52e9-aliyun
-    args: [--endpoint=unix://var/lib/kubelet/csi-sanity/csi.sock --v=2 --driver=disk]
+    args:
+      - --endpoint=unix://var/lib/kubelet/csi-sanity/csi.sock
+      - --v=2
+      - --driver=disk
     resources:
       requests:
         memory: "128Mi"
@@ -156,8 +179,6 @@ spec:
     volumeMounts:
     - mountPath: /host/etc
       name: etc
-    - mountPath: /host/usr/
-      name: ossconnectordir
     - mountPath: /host/run/csi-tool
       name: run-csi
     - mountPath: /dev

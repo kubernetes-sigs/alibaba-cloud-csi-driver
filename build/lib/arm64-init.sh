@@ -2,9 +2,7 @@
 
 # skip all the setup if running in provisioner mode
 if [ "$SERVICE_TYPE" = "provisioner" ]; then
-    echo "Starting provisioner..."
-    /bin/plugin.csi.alibabacloud.com $@
-    exit $?
+    exit 0
 fi
 
 run_oss="false"
@@ -15,6 +13,16 @@ mkdir -p /var/log/alicloud/
 mkdir -p /host/etc/kubernetes/volumes/disk/uuid
 
 HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
+
+OLD_STAGING_PATH=/var/lib/kubelet/plugins/kubernetes.io/csi/pv
+if [ -d "$OLD_STAGING_PATH" ]; then
+    echo unmount old volume staging path.  # kubelet will mount the new path at startup.
+    echo $OLD_STAGING_PATH/*/globalmount
+    umount $OLD_STAGING_PATH/*/globalmount
+    rmdir $OLD_STAGING_PATH/*/globalmount
+    rmdir $OLD_STAGING_PATH/*/
+    rmdir $OLD_STAGING_PATH
+fi
 
 ## check which plugin is running
 for item in $@;
@@ -207,7 +215,3 @@ if ([ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]) || [ "$run_pov"
         fi
     fi
 fi
-
-
-# start daemon
-/bin/plugin.csi.alibabacloud.com $@

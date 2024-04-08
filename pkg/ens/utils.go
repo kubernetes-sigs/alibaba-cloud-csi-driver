@@ -386,7 +386,7 @@ func getVolumeDeviceByDiskID(diskID string) (string, error) {
 	}
 
 	// Get NVME device name
-	device, err := getNvmeDeviceByVolumeID(diskID)
+	device, err := utils.GetNvmeDeviceByVolumeID(diskID)
 	if err == nil && device != "" {
 		return device, nil
 	}
@@ -609,32 +609,6 @@ func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
 	return nil
 }
 
-// Get NVME device name by diskID;
-// /dev/nvme0n1 0: means device index, 1: means namespace for nvme device;
-// udevadm info --query=all --name=/dev/nvme0n1 | grep ID_SERIAL_SHORT | awk -F= '{print $2}'
-// bp1bcfmvsobfauvxb3ow
-func getNvmeDeviceByVolumeID(volumeID string) (device string, err error) {
-	serialNumber := strings.TrimPrefix(volumeID, "d-")
-	files, _ := ioutil.ReadDir("/dev/")
-	for _, f := range files {
-		if strings.HasPrefix(f.Name(), "nvme") && !strings.Contains(f.Name(), "p") {
-			cmd := fmt.Sprintf("%s udevadm info --query=all --name=/dev/%s | grep ID_SERIAL_SHORT | awk -F= '{print $2}'", NsenterCmd, f.Name())
-			snumber, err := utils.Run(cmd)
-			if err != nil {
-				log.Warnf("GetNvmeDeviceByVolumeID: Get device with command %s and got error: %s", cmd, err.Error())
-				continue
-			}
-			snumber = strings.TrimSpace(snumber)
-			if serialNumber == strings.TrimSpace(snumber) {
-				device = filepath.Join("/dev/", f.Name())
-				log.Infof("GetNvmeDeviceByVolumeID: Get nvme device %s with volumeID %s", device, volumeID)
-				return device, nil
-			}
-		}
-	}
-	return "", nil
-}
-
 func waitForDiskInStatus(retryCount int, interval time.Duration, diskID string, expectedStatus string) error {
 	for i := 0; i < retryCount; i++ {
 		time.Sleep(interval)
@@ -685,89 +659,4 @@ func makeDevicePath(name string) string {
 		return name
 	}
 	return filepath.Join("/dev/", name)
-}
-
-func checkDeviceAvailable(devicePath, volumeID, targetPath string) error {
-	if devicePath == "" {
-		err := fmt.Errorf("devicePath is empty, cannot used for Volume")
-		log.Error(err)
-		return err
-	}
-
-	// block volume
-	if devicePath == "devtmpfs" {
-		findmntCmd := fmt.Sprintf("findmnt %s | awk '{if(NR>1)print $2}'", targetPath)
-		output, err := utils.Run(findmntCmd)
-		if err != nil {
-			return err
-		}
-		device := output[len("devtmpfs")+1 : len(output)-1]
-		newVolumeID, err := GetVolumeIDByDevice(device)
-		if err != nil {
-			return nil
-		}
-		if newVolumeID != volumeID {
-			err := fmt.Errorf("device [%s] associate with volumeID: [%s] rather than volumeID: [%s]", device, newVolumeID, volumeID)
-			return err
-		}
-
-		return nil
-	}
-
-	if !utils.IsFileExisting(devicePath) {
-		err := fmt.Errorf("devicePath(%s) is empty, cannot used for Volume", devicePath)
-		return err
-	}
-
-	// check the device is used for system
-	if devicePath == "/dev/vda" || devicePath == "/dev/vda1" {
-		log.Warnf("checkDeviceAvailable: devicePath(%s) may be system device: %s", devicePath, volumeID)
-	}
-
-	checkCmd := fmt.Sprintf("mount | grep \"%s on %s type\" | wc -l", devicePath, utils.KubeletRootDir)
-	if out, err := utils.Run(checkCmd); err != nil {
-		err = fmt.Errorf("devicePath(%s) is used to kubelet", devicePath)
-		return err
-	} else if strings.TrimSpace(out) != "0" {
-		err = fmt.Errorf("devicePath(%s) is used as DataDisk for kubelet, cannot used fo Volume", devicePath)
-		return err
-	}
-	return nil
-}
-
-// GetVolumeIDByDevice get volumeID by specific deivce name according to by-id dictionary
-func GetVolumeIDByDevice(device string) (volumeID string, err error) {
-	// get volume by serial number feature
-	deviceName := device
-	if strings.HasPrefix(device, "/dev/") {
-		deviceName = strings.TrimPrefix(device, "/dev/")
-	} else if strings.HasPrefix(device, "/") {
-		deviceName = strings.TrimPrefix(device, "/")
-	}
-
-	serialFile := filepath.Join("/sys/block/", deviceName, "/serial")
-	volumeIDContent := utils.GetFileContent(serialFile)
-	if volumeIDContent != "" {
-		return "d-" + volumeIDContent, nil
-	}
-
-	// Get volume by disk by-id feature
-	byIDPath := "/dev/disk/by-id/"
-	files, _ := ioutil.ReadDir(byIDPath)
-	for _, f := range files {
-		filePath := filepath.Join(byIDPath, f.Name())
-		stat, _ := os.Lstat(filePath)
-		if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
-			resolved, err := filepath.EvalSymlinks(filePath)
-			if err != nil {
-				log.Errorf("GetVolumeIDByDevice: error reading target of symlink %q: %v", filePath, err)
-				continue
-			}
-			if strings.HasSuffix(resolved, device) {
-				volumeID = strings.Replace(f.Name(), "virtio-", "d-", -1)
-				return volumeID, nil
-			}
-		}
-	}
-	return "", nil
 }

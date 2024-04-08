@@ -31,6 +31,30 @@ spec:
       hostIPC: true
       hostPID: true
       dnsPolicy: ClusterFirst
+      initContainers:
+        - name: init
+          image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.26.4-e7e52e9-init
+          args:
+            - --driver=oss,nas,disk
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          volumeMounts:
+            - name: etc
+              mountPath: /host/etc
+            - name: csi-plugin-cm
+              mountPath: /etc/csi-plugin/config
+            - name: host-log
+              mountPath: /var/log/
+            - name: ossconnectordir
+              mountPath: /host/usr/
       containers:
         - name: nas-driver-registrar
           image: registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-node-driver-registrar:v2.3.1-038aeb6-aliyun
@@ -134,8 +158,6 @@ spec:
               mountPath: /host/etc
             - name: host-log
               mountPath: /var/log/
-            - name: ossconnectordir
-              mountPath: /host/usr/
             - name: container-dir
               mountPath: /var/lib/container
               mountPropagation: "Bidirectional"

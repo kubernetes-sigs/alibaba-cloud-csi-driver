@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -96,12 +95,12 @@ func checkVolumeIDAvailiable(volumeID string) bool {
 }
 
 func getDBFSPath(volumeID string) (string, error) {
-	cmd := fmt.Sprintf("%s %s %s", NsenterCmd, GetDBFSMountCmd, volumeID)
-	line, err := utils.Run(cmd)
+	line, err := utils.CommandOnNode(GetDBFSMountCmd, volumeID).CombinedOutput()
+	output := string(line)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("get dbfs path failed: %s (%s)", output, err.Error())
 	}
-	return strings.TrimSuffix(line, "\n"), nil
+	return strings.TrimSuffix(output, "\n"), nil
 }
 
 func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
@@ -284,26 +283,12 @@ func describeDbfs(fsID string) (*dbfs.GetDbfsResponse, error) {
 	return getResponse, nil
 }
 
-func isPodMounted(pvName string) (bool, error) {
-	mountFlag := filepath.Join("volumes/kubernetes.io~csi", pvName, "mount")
-	cmd := fmt.Sprintf("mount | grep fuse.dbfs_server | grep %s | wc -l", mountFlag)
-	out, err := utils.Run(cmd)
-	if err != nil {
-		return false, err
-	}
-	if strings.TrimSpace(out) == "0" {
-		return false, nil
-	}
-	return true, nil
-}
-
 // getDbfsVersion get dbfs config version from config file
 func getDbfsVersion(dbfsID string) string {
-	cmd := fmt.Sprintf("%s cat /opt/dbfs/config/version.conf", NsenterCmd)
-	out, err := utils.Run(cmd)
+	out, err := os.ReadFile("/proc/1/root/opt/dbfs/config/version.conf")
 	if err != nil {
 		log.Errorf("getDbfsVersion: %s with error: %s", dbfsID, err.Error())
 		return ""
 	}
-	return strings.TrimSpace(out)
+	return strings.TrimSpace(string(out))
 }

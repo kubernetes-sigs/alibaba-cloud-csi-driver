@@ -2,9 +2,7 @@
 
 # skip all the setup if running in provisioner mode
 if [ "$SERVICE_TYPE" = "provisioner" ]; then
-    echo "Starting provisioner..."
-    /bin/plugin.csi.alibabacloud.com $@
-    exit $?
+    exit 0
 fi
 
 run_oss="false"
@@ -36,6 +34,16 @@ if [[ "$os_release_exist" = "0" ]]; then
     fi
 fi
 echo "detected host os: $host_os"
+
+OLD_STAGING_PATH=/var/lib/kubelet/plugins/kubernetes.io/csi/pv
+if [ -d "$OLD_STAGING_PATH" ]; then
+    echo unmount old volume staging path.  # kubelet will mount the new path at startup.
+    echo $OLD_STAGING_PATH/*/globalmount
+    umount $OLD_STAGING_PATH/*/globalmount
+    rmdir $OLD_STAGING_PATH/*/globalmount
+    rmdir $OLD_STAGING_PATH/*/
+    rmdir $OLD_STAGING_PATH
+fi
 
 ## check which plugin is running
 for item in $@;
@@ -286,6 +294,3 @@ fi
 
 # place it here to remove leftover from previous version
 rm -rf /host/etc/csi-tool/*.rpm
-
-# start daemon
-/bin/plugin.csi.alibabacloud.com $@

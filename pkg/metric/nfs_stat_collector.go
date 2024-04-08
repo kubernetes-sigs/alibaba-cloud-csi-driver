@@ -1,8 +1,11 @@
 package metric
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -10,7 +13,6 @@ import (
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
@@ -18,6 +20,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/mount-utils"
 )
 
 var (
@@ -265,7 +268,7 @@ func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
 		return err
 	}
 	//log.Infof("volJSONPaths:%+v", volJSONPaths)
-	p.updateMap(&p.lastPvNfsInfoMap, volJSONPaths, nasDriverName, "volumes")
+	p.updateMap(&p.lastPvNfsInfoMap, volJSONPaths, nasDriverName)
 	//log.Infof("lastPvNfsInfoMap:%+v", p.lastPvNfsInfoMap)
 	wg := sync.WaitGroup{}
 	for pvName, stats := range pvNameStatsMap {
@@ -311,14 +314,9 @@ func (p *nfsStatCollector) setNfsMetric(pvName string, pvcNamespace string, pvcN
 	}
 }
 
-func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonPaths []string, deriverName string, keyword string) {
+func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonPaths []string, deriverName string) {
 	thisPvNfsInfoMap := make(map[string]nfsInfo, 0)
-	lineArr, err := utils.RunWithFilter("mount", "nfs", "csi", keyword)
-	if err != nil {
-		log.Errorf("Failed to execute 'mount': %v", err)
-		p.updateNfsInfoMap(thisPvNfsInfoMap, lastPvNfsInfoMap)
-		return
-	}
+	mounter := mount.New("")
 	for _, path := range jsonPaths {
 		//Get nfs pvName
 		pvName, _, err := getVolumeInfoByJSON(path, deriverName)
@@ -329,10 +327,16 @@ func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonP
 			continue
 		}
 
-		for _, line := range lineArr {
-			if !strings.Contains(line, "/"+pvName+"/") {
-				continue
+		mountPoint := filepath.Join(path, "../mount")
+		notMounted, err := mounter.IsLikelyNotMountPoint(mountPoint)
+		if err != nil {
+			if !errors.Is(err, fs.ErrNotExist) {
+				log.Errorf("Check if %s is mount point failed: %v", mountPoint, err)
 			}
+			continue
+		}
+		if notMounted {
+			continue // may be leaked volume
 		}
 
 		nfsInfo := nfsInfo{
