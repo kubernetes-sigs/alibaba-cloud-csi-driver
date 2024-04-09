@@ -961,8 +961,8 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 				if bytes.Contains(output, []byte("it cannot be grown")) || bytes.Contains(output, []byte("could only be grown by")) {
 					deviceCapacity := getBlockDeviceCapacity(devicePath)
 					rootCapacity := getBlockDeviceCapacity(rootPath)
-					log.Infof("NodeExpandVolume: Volume %s with Device Partition %s no need to grown, with requestSize: %d, rootBlockSize: %d, partition BlockDevice size: %d",
-						diskID, devicePath, requestBytes, rootCapacity, deviceCapacity)
+					log.Infof("NodeExpandVolume: Volume %s with Device Partition %s no need to grown, with request: %v, root: %v, partition: %v",
+						diskID, devicePath, DiskSize{requestBytes}, DiskSize{rootCapacity}, DiskSize{deviceCapacity})
 					return &csi.NodeExpandVolumeResponse{}, nil
 				}
 			}
@@ -999,7 +999,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return nil, status.Errorf(codes.Aborted, "requested %v, but actual block size %v is smaller. Not updated yet?",
 			resource.NewQuantity(requestBytes, resource.BinarySI), resource.NewQuantity(deviceCapacity, resource.BinarySI))
 	}
-	log.Infof("NodeExpandVolume:: Expand %s to %d bytes successful", diskID, deviceCapacity)
+	log.Infof("NodeExpandVolume:: Expand %s to %v successful", diskID, DiskSize{deviceCapacity})
 	return &csi.NodeExpandVolumeResponse{
 		CapacityBytes: deviceCapacity,
 	}, nil

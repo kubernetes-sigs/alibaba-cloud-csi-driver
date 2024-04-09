@@ -1684,3 +1684,16 @@ func createStaticSnap(volumeID, snapshotID string, snapClient snapClientset.Inte
 	}
 	return nil
 }
+
+// Logging disk block device size
+type DiskSize struct {
+	Bytes int64
+}
+
+func (d DiskSize) String() string {
+	// Alibaba cloud disks are at least in the order of GiB
+	if d.Bytes%GBSIZE == 0 {
+		return fmt.Sprintf("%d GiB", d.Bytes/GBSIZE)
+	}
+	return fmt.Sprintf("%.3f GiB (0x%X)", float64(d.Bytes)/GBSIZE, d.Bytes)
+}

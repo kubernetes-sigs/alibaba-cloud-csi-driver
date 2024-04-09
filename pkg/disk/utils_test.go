@@ -522,3 +522,13 @@ func TestCheckDeviceAvailableError(t *testing.T) {
 		t.Errorf("expected os.ErrNotExist, got %v", err)
 	}
 }
+
+func TestDiskSize(t *testing.T) {
+	size := DiskSize{22014345216}
+	assert.Equal(t, "20.502 GiB (0x520284000)", size.String())
+}
+
+func TestDiskSizeGiOnly(t *testing.T) {
+	size := DiskSize{20 * GBSIZE}
+	assert.Equal(t, "20 GiB", size.String())
+}
