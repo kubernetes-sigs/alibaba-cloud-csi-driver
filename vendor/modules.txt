@@ -61,6 +61,9 @@ github.com/aliyun/credentials-go/credentials/utils
 # github.com/beorn7/perks v1.0.1 => github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
 ## explicit
 github.com/beorn7/perks/quantile
+# github.com/blang/semver/v4 v4.0.0
+## explicit; go 1.14
+github.com/blang/semver/v4
 # github.com/cespare/xxhash/v2 v2.2.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
@@ -212,9 +215,10 @@ github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
-# github.com/prometheus/client_golang v1.14.0 => github.com/prometheus/client_golang v1.11.1
-## explicit; go 1.13
+# github.com/prometheus/client_golang v1.14.0
+## explicit; go 1.17
 github.com/prometheus/client_golang/prometheus
+github.com/prometheus/client_golang/prometheus/collectors
 github.com/prometheus/client_golang/prometheus/internal
 github.com/prometheus/client_golang/prometheus/promhttp
 # github.com/prometheus/client_model v0.3.0
@@ -691,6 +695,14 @@ k8s.io/client-go/util/flowcontrol
 k8s.io/client-go/util/homedir
 k8s.io/client-go/util/keyutil
 k8s.io/client-go/util/workqueue
+# k8s.io/component-base v0.26.12
+## explicit; go 1.19
+k8s.io/component-base/featuregate
+k8s.io/component-base/metrics
+k8s.io/component-base/metrics/legacyregistry
+k8s.io/component-base/metrics/prometheus/feature
+k8s.io/component-base/metrics/prometheusextension
+k8s.io/component-base/version
 # k8s.io/klog/v2 v2.80.1
 ## explicit; go 1.13
 k8s.io/klog/v2
@@ -754,7 +766,6 @@ sigs.k8s.io/yaml
 # github.com/json-iterator/go => github.com/json-iterator/go v1.1.5
 # github.com/modern-go/reflect2 => github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742
 # github.com/pkg/errors => github.com/pkg/errors v0.8.1
-# github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.11.1
 # github.com/spf13/pflag => github.com/spf13/pflag v1.0.3
 # github.com/stretchr/testify => github.com/stretchr/testify v1.3.0
 # google.golang.org/appengine => google.golang.org/appengine v1.4.0

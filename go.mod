@@ -34,6 +34,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.18.8
 	k8s.io/apimachinery v0.26.12
 	k8s.io/client-go v0.26.12
+	k8s.io/component-base v0.26.12
 	k8s.io/kubelet v0.26.12
 	k8s.io/mount-utils v0.21.1
 	k8s.io/utils v0.0.0-20221107191617-1a15be271d1d
@@ -48,6 +49,7 @@ require (
 	github.com/alibabacloud-go/tea-utils/v2 v2.0.5 // indirect
 	github.com/alibabacloud-go/tea-xml v1.1.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/clbanning/mxj/v2 v2.5.5 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -106,7 +108,6 @@ replace (
 	github.com/json-iterator/go => github.com/json-iterator/go v1.1.5
 	github.com/modern-go/reflect2 => github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742
 	github.com/pkg/errors => github.com/pkg/errors v0.8.1
-	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.11.1
 	github.com/spf13/pflag => github.com/spf13/pflag v1.0.3
 	github.com/stretchr/testify => github.com/stretchr/testify v1.3.0
 	google.golang.org/appengine => google.golang.org/appengine v1.4.0

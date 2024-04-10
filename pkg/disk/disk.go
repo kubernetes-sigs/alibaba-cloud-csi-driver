@@ -28,6 +28,7 @@ import (
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
@@ -230,9 +231,10 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
-		Region:                metadata.MustGet(m, metadata.RegionID),
-		NodeID:                nodeID,
-		ADControllerEnable:    csiCfg.GetBool("disk-adcontroller-enable", "DISK_AD_CONTROLLER", false),
+		Region: metadata.MustGet(m, metadata.RegionID),
+		NodeID: nodeID,
+		ADControllerEnable: features.FunctionalMutableFeatureGate.Enabled(features.DiskADController) ||
+			csiCfg.GetBool("disk-adcontroller-enable", "DISK_AD_CONTROLLER", false),
 		DiskTagEnable:         csiCfg.GetBool("disk-tag-by-plugin", "DISK_TAGED_BY_PLUGIN", false),
 		DiskBdfEnable:         csiCfg.GetBool("disk-bdf-enable", "DISK_BDF_ENABLE", false),
 		MetricEnable:          csiCfg.GetBool("disk-metric-by-plugin", "DISK_METRIC_BY_PLUGIN", true),
