@@ -51,7 +51,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	perrors "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -1086,6 +1085,9 @@ func GetVolumeDeviceName(diskID string) []string {
 	devices, err := GetDeviceByVolumeID(diskID)
 	if err != nil {
 		deviceName := getVolumeConfig(diskID)
+		if deviceName == "" {
+			return nil
+		}
 		devices = []string{deviceName}
 		log.Infof("GetVolumeDeviceName, Get Device Name by Config File %s, DeviceName: %s", diskID, deviceName)
 	}
@@ -1116,19 +1118,7 @@ func deleteEmpty(s []string) []string {
 	return r
 }
 
-func getDiskCapacity(devicePath string) (float64, error) {
-	statfs := &unix.Statfs_t{}
-	err := unix.Statfs(devicePath, statfs)
-
-	if err != nil {
-		log.Errorf("getDiskCapacity:: get device error: %+v", err)
-		return 0, fmt.Errorf("getDiskCapacity:: get device error: %w", err)
-	}
-
-	return float64(statfs.Blocks*uint64(statfs.Bsize)) / GBSIZE, nil
-}
-
-func getBlockDeviceCapacity(devicePath string) float64 {
+func getBlockDeviceCapacity(devicePath string) int64 {
 
 	file, err := os.Open(devicePath)
 	if err != nil {
@@ -1140,7 +1130,7 @@ func getBlockDeviceCapacity(devicePath string) float64 {
 		log.Errorf("getBlockDeviceCapacity:: failed to read devicePath: %v", devicePath)
 		return 0
 	}
-	return float64(pos) / GBSIZE
+	return pos
 }
 
 func GetAvailableDiskTypes(ctx context.Context, c cloud.ECSInterface, m metadata.MetadataProvider) (types []string, err error) {
@@ -1693,4 +1683,17 @@ func createStaticSnap(volumeID, snapshotID string, snapClient snapClientset.Inte
 		return err
 	}
 	return nil
+}
+
+// Logging disk block device size
+type DiskSize struct {
+	Bytes int64
+}
+
+func (d DiskSize) String() string {
+	// Alibaba cloud disks are at least in the order of GiB
+	if d.Bytes%GBSIZE == 0 {
+		return fmt.Sprintf("%d GiB", d.Bytes/GBSIZE)
+	}
+	return fmt.Sprintf("%.3f GiB (0x%X)", float64(d.Bytes)/GBSIZE, d.Bytes)
 }
