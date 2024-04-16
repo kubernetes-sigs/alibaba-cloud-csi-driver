@@ -15,7 +15,7 @@ require (
 	github.com/emirpasic/gods v1.12.0
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/golang/mock v1.6.0
-	github.com/golang/protobuf v1.5.3
+	github.com/golang/protobuf v1.5.4
 	github.com/jarcoal/httpmock v1.3.1
 	github.com/kubernetes-csi/drivers v1.0.2
 	github.com/kubernetes-csi/external-snapshotter/client/v4 v4.2.0
@@ -28,7 +28,7 @@ require (
 	go.uber.org/ratelimit v0.1.0
 	golang.org/x/sys v0.13.0
 	google.golang.org/grpc v1.57.1
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/protobuf v1.33.0
 	gopkg.in/h2non/gock.v1 v1.1.2
 	k8s.io/api v0.26.12
 	k8s.io/apiextensions-apiserver v0.18.8
