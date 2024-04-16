@@ -6,9 +6,10 @@ import (
 )
 
 const (
-	DiskADController   featuregate.Feature = "DiskADController"
-	DBFSMetricByPlugin featuregate.Feature = "DBFSMetricByPlugin"
-	DBFSADController   featuregate.Feature = "DBFSADController"
+	DiskADController    featuregate.Feature = "DiskADController"
+	DBFSMetricByPlugin  featuregate.Feature = "DBFSMetricByPlugin"
+	DBFSADController    featuregate.Feature = "DBFSADController"
+	UpdatedOssfsVersion featuregate.Feature = "UpdatedOssfsVersion"
 )
 
 var (
@@ -20,9 +21,13 @@ var (
 		DBFSMetricByPlugin: {Default: false, PreRelease: featuregate.Alpha},
 		DBFSADController:   {Default: false, PreRelease: featuregate.Alpha},
 	}
+	defaultUpdatedOssfsVersionFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
+		UpdatedOssfsVersion: {Default: false, PreRelease: featuregate.Alpha},
+	}
 )
 
 func init() {
 	runtime.Must(FunctionalMutableFeatureGate.Add(defaultDiskFeatureGate))
 	runtime.Must(FunctionalMutableFeatureGate.Add(defaultDBFSFeatureGate))
+	runtime.Must(FunctionalMutableFeatureGate.Add(defaultUpdatedOssfsVersionFeatureGate))
 }
