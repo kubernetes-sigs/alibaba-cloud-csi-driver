@@ -63,3 +63,6 @@ Please submit an issue at: [Issues](https://github.com/kubernetes-sigs/alibaba-c
 
 [GoReportCard Widget]: https://goreportcard.com/badge/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 [GoReportCardResult]: https://goreportcard.com/report/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
+
+## Security
+Please report vulnerabilities by email to kubernetes-security@service.aliyun.com. Also see our [SECURITY.md](./SECURITY.md) file for details.

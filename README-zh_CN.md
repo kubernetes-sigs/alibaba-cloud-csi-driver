@@ -70,3 +70,6 @@ LVM CSI插件更多详细说明请参考[LVM](./docs/lvm.md)
 [GoReportCard Widget]: https://goreportcard.com/badge/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 [GoReportCardResult]: https://goreportcard.com/report/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 
+
+## 安全
+对于发现的安全漏洞，请邮件发送至kubernetes-security@service.aliyun.com，您可在[SECURITY.md](./SECURITY.md)文件中找到更多信息。
