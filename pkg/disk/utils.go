@@ -50,8 +50,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	perrors "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -861,8 +859,7 @@ func CheckDeviceAvailable(devicePath, volumeID, targetPath string) error {
 
 func checkDeviceAvailable(mountinfoPath, devicePath, volumeID, targetPath string) error {
 	if devicePath == "" {
-		msg := "devicePath is empty, cannot used for Volume"
-		return status.Error(codes.Internal, msg)
+		return fmt.Errorf("devicePath is empty, cannot used for Volume")
 	}
 
 	mnts, err := mount.ParseMountInfo(mountinfoPath)
@@ -878,15 +875,14 @@ func checkDeviceAvailable(mountinfoPath, devicePath, volumeID, targetPath string
 			return nil
 		}
 		if newVolumeID != volumeID {
-			return status.Errorf(codes.Internal, "device [%s] associate with volumeID: [%s] rather than volumeID: [%s]", device, newVolumeID, volumeID)
+			return fmt.Errorf("device [%s] associate with volumeID: [%s] rather than volumeID: [%s]", device, newVolumeID, volumeID)
 		}
 
 		return nil
 	}
 
 	if !utils.IsFileExisting(devicePath) {
-		msg := fmt.Sprintf("devicePath(%s) is empty, cannot used for Volume", devicePath)
-		return status.Error(codes.Internal, msg)
+		return fmt.Errorf("devicePath(%s) is empty, cannot used for Volume", devicePath)
 	}
 
 	// check the device is used for system
@@ -895,8 +891,7 @@ func checkDeviceAvailable(mountinfoPath, devicePath, volumeID, targetPath string
 	}
 
 	if isDeviceMountedAt(mnts, devicePath, utils.KubeletRootDir) {
-		msg := fmt.Sprintf("devicePath(%s) is used as DataDisk for kubelet, cannot used fo Volume", devicePath)
-		return status.Error(codes.Internal, msg)
+		return fmt.Errorf("devicePath(%s) is used as DataDisk for kubelet, cannot used fo Volume", devicePath)
 	}
 	return nil
 }
