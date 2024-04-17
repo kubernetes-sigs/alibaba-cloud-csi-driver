@@ -11,6 +11,8 @@
 **DO NOT CREATE AN ISSUE** to report a security problem. Instead, please
 send an email to kubernetes-security@service.aliyun.com. Also see our SECURITY.md file for details.
 
+Please follow the [embargo-policy](embargo-policy.md) for all security-related problems.
+
 <a name="vulnerability-management"></a>
 ## Vulnerability Management Plans
 
