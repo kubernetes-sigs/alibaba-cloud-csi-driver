@@ -113,16 +113,14 @@ kubectl create secret -n kube-system generic csi-access-key \
 
 Create the service account, RBAC role, deploy the CSI provisioner and CSI plugin.
 ```shell
-kubectl apply -f deploy/ecs
+helm install csi-driver ./deploy/chart --values deploy/chart/values-ecs.yaml --namespace kube-system
 ```
 
 Note: this will also deploy OSS and NAS CSI driver. Edit the manifests before applying if you want to disable them.
 
 ### Step 4: Create StorageClass
-```shell
-kubectl apply -f examples/disk/storageclass.yaml
-```
-Storage class is necessary for dynamic volume provisioning. Please refer to [Aliyun docs](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/use-dynamically-provisioned-disk-volumes?#6d16e8a415nie) for more about the parameters.
+Storage class is necessary for dynamic volume provisioning.
+We already provided some predefined storage classes in the previous step. For more advanced features, please refer to [Aliyun docs](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/use-dynamically-provisioned-disk-volumes?#6d16e8a415nie).
 
 ### Step 5: Check the Status of CSI driver
 
