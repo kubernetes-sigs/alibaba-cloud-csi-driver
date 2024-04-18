@@ -292,7 +292,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			}
 		}
 		if disk != nil && disk.Status == DiskStatusInuse && canDetach {
-			err := detachDisk(ecsClient, req.VolumeId, disk.InstanceId)
+			err := detachDisk(ctx, ecsClient, req.VolumeId, disk.InstanceId)
 			if err != nil {
 				newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
 				log.Log.Errorf("DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, newErrMsg)
@@ -362,7 +362,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}
 	}
 	if isMultiAttach {
-		_, err := attachSharedDisk(req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId)
+		_, err := attachSharedDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId)
 		if err != nil {
 			log.Log.Errorf("ControllerPublishVolume: attach shared disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 			return nil, err
@@ -385,7 +385,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}
 	}
 
-	_, err := attachDisk(req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk)
+	_, err := attachDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk)
 	if err != nil {
 		log.Log.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, status.Error(codes.Aborted, err.Error())
@@ -401,7 +401,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	isMultiAttach, err := detachMultiAttachDisk(ecsClient, req.VolumeId, req.NodeId)
+	isMultiAttach, err := detachMultiAttachDisk(ctx, ecsClient, req.VolumeId, req.NodeId)
 	if isMultiAttach && err != nil {
 		log.Log.Errorf("ControllerUnpublishVolume: detach multiAttach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
@@ -422,7 +422,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	}
 
 	log.Log.Infof("ControllerUnpublishVolume: detach disk: %s from node: %s", req.VolumeId, req.NodeId)
-	err = detachDisk(ecsClient, req.VolumeId, req.NodeId)
+	err = detachDisk(ctx, ecsClient, req.VolumeId, req.NodeId)
 	if err != nil {
 		log.Log.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err

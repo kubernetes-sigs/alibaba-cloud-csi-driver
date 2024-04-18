@@ -623,7 +623,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			device = ChooseDevice(rootDevice, subDevice)
 		}
 	} else {
-		device, err = attachDisk(req.VolumeContext[TenantUserUID], req.GetVolumeId(), ns.nodeID, isSharedDisk)
+		device, err = attachDisk(ctx, req.VolumeContext[TenantUserUID], req.GetVolumeId(), ns.nodeID, isSharedDisk)
 		if err != nil {
 			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
 			log.Log.Errorf("NodeStageVolume: Attach volume: %s with error: %s", req.VolumeId, fullErrorMessage)
@@ -838,7 +838,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		err = detachDisk(ecsClient, req.VolumeId, ns.nodeID)
+		err = detachDisk(ctx, ecsClient, req.VolumeId, ns.nodeID)
 		if err != nil {
 			log.Log.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
 			return nil, err
