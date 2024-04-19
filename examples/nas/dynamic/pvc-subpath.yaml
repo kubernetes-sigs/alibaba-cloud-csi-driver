@@ -5,7 +5,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany
-  storageClassName: alicloud-nas-sp
+  storageClassName: alicloud-nas-subpath
   resources:
     requests:
       storage: 20Gi

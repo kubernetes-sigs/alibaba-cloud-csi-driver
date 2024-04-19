@@ -1,46 +1,59 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx
+  name: mysql
   labels:
-    app: nginx
+    app: mysql
 spec:
   ports:
-  - port: 80
-    name: web
+    - port: 3306
   clusterIP: None
   selector:
-    app: nginx
+    app: mysql
 ---
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: web
+  name: mysql
 spec:
   selector:
     matchLabels:
-      app: nginx
-  serviceName: "nginx"
+      app: mysql
+  serviceName: "mysql"
   replicas: 1
   template:
     metadata:
       labels:
-        app: nginx
+        app: mysql
     spec:
       containers:
-      - name: nginx
-        image: nginx
-        command: ["sh", "-c"]
-        args: ["sleep 10000"]
-        volumeMounts:
-        - name: disk-ssd
-          mountPath: /data
+        - name: mysql
+          image: mysql:5.7
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-pass
+                  key: password
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: disk
+              mountPath: /data
   volumeClaimTemplates:
-  - metadata:
-      name: disk-ssd
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      storageClassName: alicloud-disk-ssd
-      resources:
-        requests:
-          storage: 20Gi
+    - metadata:
+        name: disk
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: "alicloud-disk-topology-alltype"
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-pass
+type: Opaque
+data:
+  username: dGVz****
+  password: dGVzdDEt****

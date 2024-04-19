@@ -2,10 +2,11 @@
 
 Volume attach limits feature is for the maximum number of volumes that can be attached to one Node.
 
-| Feature | Kubernetes Version | Status |
-| ------ | ------ | ------ |
-| AttachVolumeLimit  | 1.11   | Alpha |
-| AttachVolumeLimit  | 	1.12   | Beta |
+| Feature           | From | To   | Status |
+|-------------------|------|------|--------|
+| AttachVolumeLimit | 1.11 | 1.11 | Alpha  |
+| AttachVolumeLimit | 1.12 | 1.16 | Beta   |
+| AttachVolumeLimit | 1.17 | 1.21 | GA     |
 
 ## DiskPlugin Configuration
 
@@ -59,6 +60,7 @@ spec:
   selector:
     matchLabels:
       app: nginx
+  replicas: 6
   template:
     metadata:
       labels:
@@ -110,4 +112,3 @@ Events:
 ```
 
 We can find event "1 node(s) exceed max volume count", which indicates volume limit works.
-

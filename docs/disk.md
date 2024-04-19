@@ -7,11 +7,11 @@ workloads.
 
 ## Features Support
 
-**Disk Snapshot:** [disk-snapshot](./disk-snapshot.md)
+**Disk Snapshot:** [disk-snapshot](./disk-snapshot-restore.md)
 
 **Block Volumes:** [disk-block](./disk-block.md)
 
-**Shared Disk:** [disk-shared](./disk-shared.md)
+**Resize Volume:** [disk-shared](./disk-resizer.md)
 
 **Volume Attach Limits:** [volume-attach-limits](./disk-volume-limits.md)
 
@@ -39,10 +39,10 @@ Alternatively, you can try to deploy it manually on [ECS](https://www.alibabaclo
 
 ### Step 1: Create RAM User with Required Permissions
 
-CSI will create disks, attach disk to ECS, etc, on behave of you. To do so, we need authorizations.
+CSI will create disks, attach disk to ECS, etc., on behalf of you. To do so, we need authorizations.
 
 1. Create a RAM user, enable OpenAPI access. Once the user is created, record the AccessKey ID and AccessKey Secret.
-1. Create a policy, paste in the following script
+2. Create a policy, paste in the following script
    ```json
    {
        "Version": "1",
@@ -98,7 +98,7 @@ CSI will create disks, attach disk to ECS, etc, on behave of you. To do so, we n
        ]
    }
    ```
-1. Authorize the new policy for the new RAM user.
+3. Authorize the new policy for the new RAM user.
 
 ### Step 2: Config the AccessKey to Cluster
 

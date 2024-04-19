@@ -9,11 +9,14 @@ CSI Block Volume: [https://kubernetes-csi.github.io/docs/raw-block.html](https:/
 
 ## Feature Supports
 
-| Feature | Kubernetes Version | Status |
-| ------ | ------ | ------ |
-| BlockVolume  | 1.9   | Alpha |
-| BlockVolume  | 	1.13   | Beta |
-| CSIBlockVolume | 1.11   | Alpha |
+| Feature        | Default | From | To   | Stage |
+|----------------|---------|------|------|-------|
+| CSIBlockVolume | false   | 1.11 | 1.13 | Alpha |
+| CSIBlockVolume | true    | 1.14 | 1.17 | Beta  |
+| CSIBlockVolume | true    | 1.18 | 1.21 | GA    |
+| BlockVolume    | false   | 1.9  | 1.12 | Alpha |
+| BlockVolume    | true    | 1.13 | 1.17 | Beta  |
+| BlockVolume    | true    | 1.18 | 1.21 | GA    |
 
 
 ## How to Deploy
@@ -40,7 +43,7 @@ Other parts are same as common disk.
 
 ### 1. Template
 
-Storageclass: No changed.
+StorageClass: No changed.
 
 PVC: volumeMode is configured "Block"
 

@@ -1,8 +1,9 @@
-apiVersion: snapshot.storage.k8s.io/v1beta1
+apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshot
 metadata:
   name: new-snapshot-demo
+  namespace: default
 spec:
   volumeSnapshotClassName: default-snapclass
   source:
-    persistentVolumeClaimName: disk-ssd-web-0
+    persistentVolumeClaimName: disk-mysql-0
