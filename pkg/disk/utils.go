@@ -45,9 +45,11 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	proto "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	perrors "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1275,6 +1277,11 @@ func getAttachedCloudDisks(ecsClient cloud.ECSInterface, m metadata.MetadataProv
 		req.NextToken = resp.NextToken
 
 		for _, disk := range resp.Disks.Disk {
+			// Don't include detaching disks here
+			// The device node for them in /dev may not present
+			if disk.Status == "Detaching" {
+				continue
+			}
 			// local disks have their own quota in LocalStorageAmount, and are not counted for DiskQuantity
 			if strings.HasPrefix(disk.Category, "cloud") {
 				diskIds = append(diskIds, disk.DiskId)
@@ -1306,21 +1313,51 @@ func getAvailableDiskCount(ecsClient cloud.ECSInterface, m metadata.MetadataProv
 	return 0, fmt.Errorf("unexpected DescribeInstanceTypes response for %s: %s", instanceType, response.GetHttpContentString())
 }
 
-func getVolumeCountFromOpenAPI(node *v1.Node, ecsClient cloud.ECSInterface, m metadata.MetadataProvider) (int, error) {
-	attachedDisks, err := getAttachedCloudDisks(ecsClient, m)
+func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInterface, m metadata.MetadataProvider, dev *DeviceManager) (int, error) {
+	// An attached disk is not managed by us if:
+	// 1. it is not in node.Status.VolumesInUse or node.Status.VolumesAttached; and
+	// 2. it does not have the xattr set.
+	// 1 may fail because the info in node.Status is removed before ControllerUnpublishVolume.
+	// 2 may fail because the disk may be just attached and not have the xattr set yet.
+	// Combine 1 and 2 to get the accurate "not managed" disk list.
+	// We should exclude these disks from available count.
+	// e.g. static/dynamic PVs are managed, OS disk or manually attached disks are not managed.
+
+	managedDisks := sets.New[string]()
+
+	devices, err := os.ReadDir(dev.DevicePath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to list devices: %w", err)
+	}
+	for _, entry := range devices {
+		if entry.IsDir() {
+			continue
+		}
+		var diskID [32]byte
+		sz, err := unix.Getxattr(filepath.Join(dev.DevicePath, entry.Name()), DiskXattrName, diskID[:])
+		if err == nil {
+			// this disk has xattr, it is managed by us
+			managedDisks.Insert(string(diskID[:sz]))
+		} else if !utilsio.IsXattrNotFound(err) {
+			log.Warnf("getVolumeCount: failed to get xattr of %s, assuming not managed by us: %s", entry.Name(), err)
+		}
+	}
+
+	// To ensure all the managed attachedDisks also present in managedDisks,
+	// ECS OpenAPI should goes after ReadDir because the just detached disk should
+	// disappear from ReadDir after OpenAPI;
+	// ECS OpenAPI should goes before getNode because the just attached disk should
+	// appear in node before OpenAPI;
+	attachedDisks, err := getAttachedCloudDisks(c, m)
 	if err != nil {
 		return 0, err
 	}
 	log.Infof("getVolumeCount: found %d attached disks", len(attachedDisks))
 
-	availableCount, err := getAvailableDiskCount(ecsClient, m)
+	availableCount, err := getAvailableDiskCount(c, m)
 	if err != nil {
 		return 0, err
 	}
-
-	// A disk is not managed by us if it is attached but not in node.Status.VolumesInUse or node.Status.VolumesAttached.
-	// We should exclude these disks from available count.
-	// e.g. static/dynamic PVs are managed, OS disk or manually attached disks are not managed.
 
 	prefix := fmt.Sprintf("kubernetes.io/csi/%s^", driverName)
 	getDiskId := func(n v1.UniqueVolumeName) string {
@@ -1330,7 +1367,10 @@ func getVolumeCountFromOpenAPI(node *v1.Node, ecsClient cloud.ECSInterface, m me
 		return ""
 	}
 
-	managedDisks := sets.New[string]()
+	node, err := getNode()
+	if err != nil {
+		return 0, err
+	}
 	for _, volume := range node.Status.VolumesInUse {
 		if disk := getDiskId(volume); disk != "" {
 			managedDisks.Insert(disk)
@@ -1341,6 +1381,7 @@ func getVolumeCountFromOpenAPI(node *v1.Node, ecsClient cloud.ECSInterface, m me
 			managedDisks.Insert(disk)
 		}
 	}
+
 	for _, disk := range attachedDisks {
 		if !managedDisks.Has(disk) {
 			log.Infof("getVolumeCount: disk %s is not managed by us", disk)
