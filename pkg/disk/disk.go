@@ -254,8 +254,13 @@ func newBatcher() (waitstatus.StatusWaiter[ecs.Disk], batcher.Batcher[ecs.Disk])
 	} else {
 		ctx := context.Background()
 		waiter := waitstatus.NewBatched(client, clock.RealClock{})
+		waiter.PollHook = func() desc.Client[ecs.Disk] {
+			return desc.Disk{Client: updateEcsClient(GlobalConfigVar.EcsClient)}
+		}
 		go waiter.Run(ctx)
+
 		b := batcher.NewLowLatency(client, clock.RealClock{}, 2*time.Second, 10)
+		b.PollHook = waiter.PollHook
 		go b.Run(ctx)
 		return waiter, b
 	}
