@@ -34,6 +34,8 @@ type waitRequest struct {
 
 type BatchedDiskStatusWaiter struct {
 	ecsClient cloud.ECSInterface
+	// remove this once we have a ecsClient that can refresh its credentials
+	PollHook func() cloud.ECSInterface
 
 	requestChan chan *waitRequest
 	requests    map[string][]*waitRequest
@@ -91,6 +93,9 @@ func (w *BatchedDiskStatusWaiter) Run(ctx context.Context) {
 				pollChan = w.clk.After(pollInterval - w.clk.Since(lastPollTime))
 			}
 		case t := <-pollChan:
+			if w.PollHook != nil {
+				w.ecsClient = w.PollHook()
+			}
 			var err error
 			w.idQueue, err = w.poll(w.idQueue)
 			lastPollTime = t
