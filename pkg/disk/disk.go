@@ -247,8 +247,14 @@ func newBatcher(fromNode bool) (waitstatus.StatusWaiter[ecs.Disk], batcher.Batch
 		interval = 2 * time.Second // We have many nodes, use longer interval to avoid throttling
 	}
 	waiter := waitstatus.NewBatched(client, clock.RealClock{}, interval, 3*time.Second)
+	waiter.PollHook = func() desc.Client[ecs.Disk] {
+		return desc.Disk{Client: updateEcsClient(GlobalConfigVar.EcsClient)}
+	}
 	go waiter.Run(ctx)
+
 	b := batcher.NewLowLatency(client, clock.RealClock{}, 1*time.Second, 8)
+	b.PollHook = waiter.PollHook
 	go b.Run(ctx)
+
 	return waiter, b
 }
