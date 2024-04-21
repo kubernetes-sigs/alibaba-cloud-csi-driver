@@ -25,6 +25,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
@@ -249,6 +250,9 @@ func newDiskStatusWaiter() DiskStatusWaiter {
 		return &SimpleDiskStatusWaiter{}
 	} else {
 		waiter := NewBatchedDiskStatusWaiter(GlobalConfigVar.EcsClient, clock.RealClock{})
+		waiter.PollHook = func() cloud.ECSInterface {
+			return updateEcsClient(GlobalConfigVar.EcsClient)
+		}
 		go waiter.Run(context.Background())
 		return waiter
 	}
