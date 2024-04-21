@@ -21,6 +21,8 @@ type waitRequest struct {
 
 type Batched struct {
 	ecsClient ECSDescribeDisks
+	// remove this once we have a ecsClient that can refresh its credentials
+	PollHook func() ECSDescribeDisks
 
 	requestChan chan *waitRequest
 	requests    map[string][]*waitRequest
@@ -78,6 +80,9 @@ func (w *Batched) Run(ctx context.Context) {
 				pollChan = w.clk.After(pollInterval - w.clk.Since(lastPollTime))
 			}
 		case t := <-pollChan:
+			if w.PollHook != nil {
+				w.ecsClient = w.PollHook()
+			}
 			var err error
 			w.idQueue, err = w.poll(w.idQueue)
 			lastPollTime = t

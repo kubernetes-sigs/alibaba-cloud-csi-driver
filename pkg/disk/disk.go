@@ -245,6 +245,9 @@ func newDiskStatusWaiter() waitstatus.DiskStatusWaiter {
 		return waiter
 	} else {
 		waiter := waitstatus.NewBatched(GlobalConfigVar.EcsClient, clock.RealClock{})
+		waiter.PollHook = func() waitstatus.ECSDescribeDisks {
+			return updateEcsClient(GlobalConfigVar.EcsClient)
+		}
 		go waiter.Run(context.Background())
 		return waiter
 	}
