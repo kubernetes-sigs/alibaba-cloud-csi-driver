@@ -11,8 +11,8 @@ You can create a pv with csi configuration, and the pvc, pod defines as usual.
 ossplugin.csi.alibabacloud.com can be compiled in a form of a container.
 
 To build a container:
-```
-$ cd build && sh build-oss.sh
+```shell
+cd build && sh build-oss.sh
 ```
 
 ## Usage
@@ -31,24 +31,35 @@ Same as diskplugin.csi.alibabacloud.com;
 
 ### Step 1: Create pv/pvc/deploy with csi
 
-```
-# kubectl create -f ./examples/oss/pv.yaml
-# kubectl create -f ./examples/oss/pvc.yaml
-# kubectl create -f ./examples/oss/deploy.yaml
+```shell
+kubectl create -f ./examples/oss/pv.yaml
+kubectl create -f ./examples/oss/pvc.yaml
+kubectl create -f ./examples/oss/deploy.yaml
 ```
 
 ### Step 3: Check status of PVC/PV
 
+Check pvc status
+```shell
+kubectl get pvc | grep oss
 ```
-# kubectl get pvc | grep oss
+Expected output:
+```
 oss-pvc    Bound    oss-csi-pv      5Gi        RWO        5m18s
-
-# kubectl get pv | grep oss
+```
+Check pv status
+```shell
+kubectl get pv | grep oss
+```
+Expected output:
+```
 oss-csi-pv      5Gi        RWO        Retain       Bound    default/oss-pvc                                 5m21s
 ```
-
+```shell
+kubectl get pv oss-csi-pv -o yaml
 ```
-# kubectl get pv oss-csi-pv -o yaml
+Expected output:
+```
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -71,5 +82,4 @@ spec:
       url: oss-cn-shenzhen-internal.aliyuncs.com
     volumeHandle: oss-csi-pv
   persistentVolumeReclaimPolicy: Retain
-
 ```

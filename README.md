@@ -17,7 +17,7 @@ Current Support: ***Cloud Disk, NAS, CPFS, OSS, LVM, DBFS***;
 | Feature         | Stage | Min Kubernetes Version | Min Driver Version |
 |-----------------|-------|------------------------|--------------------|
 | Topology        | GA    | 1.17                   | v1.0.2             |
-| Resize (Expand) | Beta  | 1.16                   | v1.0.5             |
+| Resize (Expand) | GA    | 1.16                   | v1.0.5             |
 | Snapshots       | GA    | 1.20                   | v1.1.2             |
 
 

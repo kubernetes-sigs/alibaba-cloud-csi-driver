@@ -13,7 +13,7 @@ parameters:
   storageType: Performance
   regionId: cn-hangzhou
   # zoneId is optional, default value is the kubernetes cluster's worker's zoneId
-  zoneId: cn-hangzhou-f
+  # zoneId: cn-hangzhou-f
   # vpcId is required
   vpcId: "vpc-xxxxxxxx"
   # vSwitchId is required

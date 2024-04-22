@@ -13,8 +13,6 @@ workloads.
 
 **Resize Volume:** [disk-shared](./disk-resizer.md)
 
-**Volume Attach Limits:** [volume-attach-limits](./disk-volume-limits.md)
-
 ## Configuration Requirements
 
 * Authorizations to access related cloud resources
@@ -125,12 +123,19 @@ We already provided some predefined storage classes in the previous step. For mo
 ### Step 5: Check the Status of CSI driver
 
 Checks that all pods are running and ready.
+```shell
+kubectl get pods -n kube-system -l app=csi-plugin
 ```
-$ kubectl get pods -n kube-system -l app=csi-plugin
+Expected output:
+```
 NAME               READY   STATUS    RESTARTS   AGE
 csi-plugin-jmxz8   4/4     Running   0          170m
-
-$ kubectl get pods -n kube-system -l app=csi-provisioner
+```
+```shell
+kubectl get pods -n kube-system -l app=csi-provisioner
+```
+Expected output:
+```
 NAME                               READY   STATUS    RESTARTS   AGE
 csi-provisioner-76fcb8b894-5gmc2   9/9     Running   0          7d8h
 csi-provisioner-76fcb8b894-mlgj5   9/9     Running   0          7d8h

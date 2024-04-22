@@ -11,8 +11,8 @@ You can create a pv with csi configuration, and the pvc, pod defines as usual.
 nasplugin.csi.alibabacloud.com can be compiled in a form of a container.
 
 To build a container:
-```
-$ cd build && sh build-nas.sh
+```shell
+cd build && sh build-nas.sh
 ```
 
 ## Usage
@@ -30,34 +30,44 @@ Same as diskplugin.csi.alibabacloud.com;
 > "both": default option, log will be printed both to stdout and host file.
 
 ### Step 1: Create a statically provisioned PV.
-```
-# kubectl apply -f ./examples/nas/pv.yaml
+```shell
+kubectl apply -f ./examples/nas/pv.yaml
 ```
 
 ### Step 2: Create a statically provisioned PVC.
-```
-# kubectl create -f ./deploy/nas/pvc.yaml
+```shell
+kubectl create -f ./deploy/nas/pvc.yaml
 ```
 ### Step 3: Deploy an application named nas-static and associate the PVC with the application.
 
-```
-# kubectl create -f ./examples/nas/deploy.yaml
+```shell
+kubectl create -f ./examples/nas/deploy.yaml
 ```
 
 ### Step 4: Check status of PVC/PV
+Check status of PVC
+```shell
+kubectl get pvc
 ```
-# kubectl get pvc
+Expected output:
+```
 NAME      STATUS    VOLUME       CAPACITY   ACCESS MODES   STORAGECLASS   AGE
 nas-pvc   Bound     nas-csi-pv   5Gi        RWO                           3m
 ```
-
+Check status of PV
+```shell
+kubectl get pv
 ```
-# kubectl get pv
+Expected output:
+```
 NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS        CLAIM              STORAGECLASS   REASON    AGE
 nas-csi-pv                                 5Gi        RWO            Retain           Bound         default/nas-pvc                             3m
 ```
+```shell
+kubectl describe pv nas-csi-pv
 ```
-# kubectl describe pv nas-csi-pv
+Expected output:
+```
 Name:            nas-csi-pv
 Labels:          <none>
 Annotations:     pv.kubernetes.io/bound-by-controller=yes
@@ -79,8 +89,8 @@ Events:            <none>
 ```
 
 ### Step 5: Run the following command to query the pods that run the application:
-```
-# kubectl get pod
+```shell
+kubectl get pod
 ```
 ```
 NAME                          READY   STATUS    RESTARTS   AGE

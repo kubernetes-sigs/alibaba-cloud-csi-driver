@@ -7,8 +7,8 @@ Same as diskplugin.csi.alibabacloud.com;
 #### Step 1: Create a StorageClass.
 The `subpath` type nas volume require you to create a nas fileSystem and mountTarget firstly
 
-```
-# kubectl create -f ./examples/nas/dynamic/sc-subpath.yaml
+```shell
+kubectl create -f ./examples/nas/dynamic/sc-subpath.yaml
 ```
 
 Parameters:
@@ -26,19 +26,31 @@ Parameters:
 > archiveOnDelete: Optional. decide how to process removal path, if reclaimPolicy defined as delete. If set 'true', the removal path will be archived and not removed really, and if set 'false', the removal path will be removed when pv is deleted.
 
 ### Step 2: Run the following command to create a PVC:
-```
+Create pvc
+```shell
 kubectl create -f ./examples/nas/dynamic/pvc-subpath.yaml
 ```
+Check status of pvc
+```shell
+kubectl get pvc | grep nas
 ```
-# kubectl get pvc | grep nas
+Expected output:
+```
 nas-csi           Bound    nas-d42d38ba-fb5e-4e05-9eb8-f16ef4047ec2    20Gi       RWX            alicloud-nas        6s
-
-# kubectl get pv | grep nas
+```
+Check status of pv
+```shell
+kubectl get pv | grep nas
+```
+Expected output:
+```
 nas-d42d38ba-fb5e-4e05-9eb8-f16ef4047ec2    20Gi       RWX            Delete           Bound    default/nas-csi           alicloud-nas                 21s
 ```
-
+Describe pv
+```shell
+kubectl describe pv nas-d42d38ba-fb5e-4e05-9eb8-f16ef4047ec2
 ```
-# kubectl describe pv nas-d42d38ba-fb5e-4e05-9eb8-f16ef4047ec2
+```
 Name:            nas-d42d38ba-fb5e-4e05-9eb8-f16ef4047ec2
 Labels:          csi.alibabacloud.com/nas-id=960b448c84
 Annotations:     pv.kubernetes.io/provisioned-by: nasplugin.csi.alibabacloud.com
@@ -70,8 +82,8 @@ Events:                <none>
 ### Step 1: Create `filesystem` type nas volume
 The `filesystem` type nas volume will create/delete a nas fileSystem and mountTarget automatically.
 
-```
-# kubectl create -f ./examples/nas/dynamic/sc-filesystem.yaml
+```shell
+kubectl create -f ./examples/nas/dynamic/sc-filesystem.yaml
 ```
 >fileSystemType: The type of NAS file system. 
 > Valid values: 
@@ -91,6 +103,6 @@ The `filesystem` type nas volume will create/delete a nas fileSystem and mountTa
 > If fileSystemType is set to extreme, the valid values are standard and advance. Default value: standard.
 
 ### Step 2: Create a PVC and pods to mount a NAS volume.
-```
-# kubectl create -f ./examples/nas/dynamic/pvc-filesystem.yaml
+```shell
+kubectl create -f ./examples/nas/dynamic/pvc-filesystem.yaml
 ```

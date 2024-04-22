@@ -23,20 +23,22 @@ volumesnapshots.snapshot.storage.k8s.io:        the claim of one snapshot, like:
 
 ## Usage
 ### 1. Create a VolumeSnapshotClass.
+```shell
+kubectl apply -f examples/disk/snapshot-restore/snapshotclass.yaml
+kubectl get volumesnapshotclasses.snapshot.storage.k8s.io
 ```
-# kubectl apply -f examples/disk/snapshot-restore/snapshotclass.yaml
-
-# kubectl get volumesnapshotclasses.snapshot.storage.k8s.io
+Expected output:
+```
 NAME                AGE
 default-snapclass   15s
 ```
 ### 2. Create an application and write data to the application.
 Create pvc, using disk volume.
 
-```
-# kubectl apply -f examples/disk/snapshot-restore/sts.yaml
-# kubectl exec -it mysql-0 -- touch /data/test
-# kubectl exec -it mysql-0 -- ls /data
+```shell
+kubectl apply -f examples/disk/snapshot-restore/sts.yaml
+kubectl exec -it mysql-0 -- touch /data/test
+kubectl exec -it mysql-0 -- ls /data
 ```
 Expected output:
 ```
@@ -44,14 +46,24 @@ lost+found test
 ```
 
 ### 3. Create a VolumeSnapshot.
+```shell
+kubectl apply -f examples/disk/snapshot-restore/snapshot.yaml
 ```
-# kubectl apply -f examples/disk/snapshot-restore/snapshot.yaml
-
-# kubectl get volumesnapshots.snapshot.storage.k8s.io
+Check the VolumeSnapshot
+```shell
+kubectl get volumesnapshots.snapshot.storage.k8s.io
+```
+Expected output:
+```
 NAME                AGE
 new-snapshot-demo   2m53s
-
-# kubectl get volumesnapshotcontents.snapshot.storage.k8s.io
+```
+Check the VolumeSnapshotContent
+```shell
+kubectl get volumesnapshotcontents.snapshot.storage.k8s.io
+```
+Expected output:
+```
 NAME               AGE
 snapcontent-****   3m22s
 ```
@@ -59,13 +71,13 @@ snapcontent-****   3m22s
 > You can check disk snapshot in alibaba cloud ecs console.
 ### 4. Restore data.
 
-```
-# kubectl apply -f examples/disk/snapshot-restore/sts-restore.yaml           Delete           Bound    default/disk-ssd-web-restore-0   alicloud-disk-ssd            114s
+```shell
+kubectl apply -f examples/disk/snapshot-restore/sts-restore.yaml
 ```
 
 ### 5. Run the following command to view the application data in pod mysql-restore-0:
-```
-# kubectl exec -it mysql-restore-0 -- ls /data
+```shell
+kubectl exec -it mysql-restore-0 -- ls /data
 ```
 Expected output:
 ```
