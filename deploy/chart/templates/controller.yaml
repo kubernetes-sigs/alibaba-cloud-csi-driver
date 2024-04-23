@@ -268,14 +268,21 @@ spec:
               mountPath: /var/lib/kubelet/csi-provisioner/localplugin.csi.alibabacloud.com
         - name: external-local-resizer
           image: {{ include "imageSpec" (list .Values.images "externalResizer") }}
-          imagePullPolicy: Always
-          env:
-            - name: ADDRESS
-              value: /var/lib/kubelet/csi-provisioner/localplugin.csi.alibabacloud.com/csi.sock
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
           args:
             - --v=5
             - --csi-address=$(ADDRESS)
             - --leader-election
+            - --handle-volume-inuse-error=false
+          env:
+            - name: ADDRESS
+              value: /var/lib/kubelet/csi-provisioner/localplugin.csi.alibabacloud.com/csi.sock
           volumeMounts:
             - name: local-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/localplugin.csi.alibabacloud.com
@@ -322,7 +329,6 @@ spec:
             httpGet:
               path: /healthz
               port: healthz
-              scheme: HTTP
             initialDelaySeconds: 10
             periodSeconds: 30
             timeoutSeconds: 5
@@ -339,11 +345,13 @@ spec:
           volumeMounts:
             - name: host-log
               mountPath: /var/log/
-{{- range $key, $val := .Values.csi }}
-{{- if and $val.enabled $val.controller.enabled }}
+{{- range $key := tuple "disk" "nas" "oss" }}
+  {{- with index $.Values.csi $key -}}
+    {{- if and .enabled .controller.enabled }}
             - name: {{ $key }}-provisioner-dir
               mountPath: /var/lib/kubelet/csi-provisioner/{{ $key }}plugin.csi.alibabacloud.com
-{{- end -}}
+    {{- end -}}
+  {{- end -}}
 {{- end }}
 {{- if .Values.deploy.ack }}
             - mountPath: /var/addon
@@ -362,6 +370,72 @@ spec:
             requests:
               cpu: 100m
               memory: 128Mi
+{{- if .Values.csi.local.enabled }}
+        - name: local-csi-provisioner
+          securityContext:
+            privileged: true
+          image: {{ include "imageSpec" (list .Values.images "localController") }}
+          args:
+            - --endpoint=unix://csi/csi.sock
+            - --http-endpoint=:11271
+            - --run-node-service=false
+            - --run-controller-service=true
+            - --v=2
+            - --node-id=$(KUBE_NODE_NAME)
+          env:
+{{- if .Values.deploy.ack }}
+            - name: "CLUSTER_ID"
+              value: {{ .Values.deploy.clusterID | quote }}
+{{- end }}
+            - name: "DEFAULT_REGISTRY"
+              value: {{ .Values.images.registry | quote }}
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+{{- if .Values.deploy.ecsEndpoint }}
+            - name: ECS_ENDPOINT
+              value: {{ .Values.deploy.ecsEndpoint | quote }}
+{{- end }}
+{{- if .Values.deploy.privateCloud }}
+            - name: ALICLOUD_CLIENT_SCHEME
+              value: HTTP
+{{- end }}
+{{- include "akEnv" .Values.deploy.accessKey | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          ports:
+            - name: http
+              containerPort: 11271
+          volumeMounts:
+            - name: local-provisioner-dir
+              mountPath: /csi
+{{- if .Values.deploy.ack }}
+            - mountPath: /var/addon
+              name: addon-token
+              readOnly: true
+{{- end }}
+          resources:
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+{{- end }}
       volumes:
 {{- range $key, $val := .Values.csi }}
 {{- if and $val.enabled $val.controller.enabled }}

@@ -125,7 +125,6 @@ spec:
             httpGet:
               path: /healthz
               port: healthz
-              scheme: HTTP
             initialDelaySeconds: 10
             periodSeconds: 30
             timeoutSeconds: 5
@@ -174,16 +173,86 @@ spec:
               name: run-csi
             - mountPath: /host/sys/fs/cgroup/blkio/kubepods.slice
               name: cgroupv1-blkio
-{{- if .Values.csi.local.enabled }}
-            - mountPath: /tls/local/grpc
-              name: tls-token-dir
-              readOnly: true
-{{- end }}
             - mountPath: /etc/csi-plugin/config
               name: csi-plugin-cm
             - name: host-mnt
               mountPath: /mnt
               mountPropagation: "Bidirectional"
+{{- if .Values.csi.local.enabled }}
+        - name: local-csi-plugin
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+          image: {{ include "workerImageSpec" (list .Values.images "localPlugin") }}
+          args:
+            - --endpoint=unix://var/lib/kubelet/csi-plugins/localplugin.csi.alibabacloud.com/csi.sock
+            - --http-endpoint=:11261
+            - --run-node-service=true
+            - --run-controller-service=false
+            - --v=2
+            - --node-id=$(KUBE_NODE_NAME)
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+{{- if .Values.deploy.ecsEndpoint }}
+            - name: ECS_ENDPOINT
+              value: {{ .Values.deploy.ecsEndpoint | quote }}
+{{- end -}}
+{{- if .Values.deploy.privateCloud }}
+            - name: ALICLOUD_CLIENT_SCHEME
+              value: HTTP
+{{- end -}}
+{{- include "akEnv" .Values.deploy.accessKey | nindent 12 }}
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 5
+          ports:
+            - name: http
+              containerPort: 11261
+          volumeMounts:
+            - name: kubelet-dir
+              mountPath: /var/lib/kubelet/
+              mountPropagation: "Bidirectional"
+            - name: host-dev
+              mountPath: /dev
+              mountPropagation: "HostToContainer"
+{{- if .Values.deploy.ack }}
+            - mountPath: /var/addon
+              name: addon-token
+              readOnly: true
+{{- end }}
+            - mountPath: /host/run/csi-tool
+              name: run-csi
+            - mountPath: /tls/local/grpc
+              name: tls-token-dir
+              readOnly: true
+            - name: host-mnt
+              mountPath: /mnt
+              mountPropagation: "Bidirectional"
+{{- end }}
       volumes:
 {{- if .Values.csi.oss.enabled }}
         - name: ossfs-metrics-dir
