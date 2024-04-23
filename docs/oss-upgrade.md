@@ -48,18 +48,24 @@ Design:
 
 ### 1. Create Pod using oss volume:
 
+```shell
+kubectl get pod
 ```
-# kubectl get pod
+```
 NAME                        READY   STATUS    RESTARTS   AGE
 csi-external-runner-oss-0   1/1     Running   0          2d23h
 csi-ossplugin-2lsqm         2/2     Running   0          143m
 csi-ossplugin-k6mhv         2/2     Running   0          143m
 csi-ossplugin-wc4r5         2/2     Running   0          143m
-
-# kubectl create -f deploy.yaml
-deployment.apps/nginx-deployment created
-
-# kubectl get pod
+```
+```shell
+kubectl create -f deploy.yaml
+```
+```shell
+kubectl get pod
+```
+Expected output:
+```
 NAME                               READY   STATUS    RESTARTS   AGE
 csi-external-runner-oss-0          1/1     Running   0          2d23h
 csi-ossplugin-2lsqm                2/2     Running   0          144m
@@ -70,23 +76,43 @@ nginx-deployment-7d7d7447f-n2mjv   1/1     Running   0          20s
 
 ### 2. Check oss mount path:
 
+Command:
+```shell
+kubectl exec -ti nginx-deployment-7d7d7447f-n2mjv sh
 ```
-# kubectl exec -ti nginx-deployment-7d7d7447f-n2mjv sh
-# ls data
+```shell
+ls data
+```
+Expected output:
+```
 test
-# mount | grep oss
+```
+Command:
+```shell
+mount | grep oss
+```
+Expected output:
+```
 ossfs on /data type fuse.ossfs (rw,nosuid,nodev,relatime,user_id=0,group_id=0,allow_other)
 ```
 
 ### 3. Delete oss csi-plugin pods(upgrade):
 
+```shell
+kubectl delete pod csi-ossplugin-2lsqm csi-ossplugin-k6mhv csi-ossplugin-wc4r5
 ```
-# kubectl delete pod csi-ossplugin-2lsqm csi-ossplugin-k6mhv csi-ossplugin-wc4r5
+Expected output:
+```
 pod "csi-ossplugin-2lsqm" deleted
 pod "csi-ossplugin-k6mhv" deleted
 pod "csi-ossplugin-wc4r5" deleted
-
-# kubectl get pod
+```
+Check pods status:
+```shell
+kubectl get pod
+```
+Expected output:
+```
 NAME                               READY   STATUS    RESTARTS   AGE
 csi-external-runner-oss-0          1/1     Running   0          2d23h
 csi-ossplugin-9r5dx                2/2     Running   0          39s
@@ -97,29 +123,62 @@ nginx-deployment-7d7d7447f-n2mjv   1/1     Running   0          2m17s
 
 > Check the oss mount path:
 
+Command:
+
+```shell
+kubectl exec -ti nginx-deployment-7d7d7447f-n2mjv sh
 ```
-# kubectl exec -ti nginx-deployment-7d7d7447f-n2mjv sh
-# ls data
+```shell
+ls data
+```
+Expected output:
+```
 test
-# mount | grep oss
+```
+Command:
+```shell
+mount | grep oss
+```
+Expected output:
+```
 ossfs on /data type fuse.ossfs (rw,nosuid,nodev,relatime,user_id=0,group_id=0,allow_other)
 ```
 
 ### 4. Restart kubelet on the host(oss pod running on it):
 
+Command:
+```shell
+mount | grep oss
 ```
-# mount | grep oss
+Expected output:
+```
 ossfs on /var/lib/kubelet/pods/4f2de2c4-4ed3-11e9-983f-00163e0b8d64/volumes/kubernetes.io~csi/oss-csi-pv/mount type fuse.ossfs (rw,nosuid,nodev,relatime,user_id=0,group_id=0,allow_other)
-# service kubelet restart
+```
+```shell
+service kubelet restart
+```
+```
 Redirecting to /bin/systemctl restart kubelet.service
 ```
 
 > Check the oss mount path:
 
+Command:
 ``` 
-# kubectl exec -ti nginx-deployment-7d7d7447f-n2mjv sh
-# ls data
+kubectl exec -ti nginx-deployment-7d7d7447f-n2mjv sh
+```
+```shell
+ls data
+```
+Expected output:
+```
 test
-# mount | grep oss
+```
+Command:
+```shell
+mount | grep oss
+```
+Expected output:
+```
 ossfs on /data type fuse.ossfs (rw,nosuid,nodev,relatime,user_id=0,group_id=0,allow_other)
 ```

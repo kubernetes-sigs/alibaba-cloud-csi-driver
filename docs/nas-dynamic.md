@@ -1,49 +1,14 @@
+## Mount a dynamically provisioned NAS volume
 
-## Usage
+### Prerequisite
+Same as diskplugin.csi.alibabacloud.com;
+## Mount a dynamically provisioned NAS volume in subpath mode
 
-### Step 1: Create CSI plugin
-```
-# kubectl create -f ./deploy/nas/nas-plugin.yaml
-```
-
-### Step 2: Create CSI provisioner
-```
-# kubectl create -f ./deploy/nas/nas-provisioner.yaml
-```
-
-> Note: The plugin log style can be configured by environment variable: LOG_TYPE.
-
-> "host": logs will be printed into files which save to host(/var/log/alicloud/nasplugin.csi.alibabacloud.com.log);
-
-> "stdout": logs will be printed to stdout, can be printed by docker logs or kubectl logs.
-
-> "both": default option, log will be printed both to stdout and host file.
-
-### Step 3: Create StorageClass for nas csi
-
-#### 3.1 Create `subpath` type nas volume
+#### Step 1: Create a StorageClass.
 The `subpath` type nas volume require you to create a nas fileSystem and mountTarget firstly
 
-```
-# kubectl create -f ./examples/nas/dynamic/sc-subpath.yaml
-```
-
-Below is a storageclass example:
-
-```
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: alicloud-nas
-mountOptions:
-- nolock,tcp,noresvport
-- vers=3
-parameters:
-  volumeAs: subpath
-  server: "2564f49129-ysu87.cn-shenzhen.nas.aliyuncs.com:/nasroot1/"
-  archiveOnDelete: "false"
-provisioner: nasplugin.csi.alibabacloud.com
-reclaimPolicy: Delete
+```shell
+kubectl create -f ./examples/nas/dynamic/sc-subpath.yaml
 ```
 
 Parameters:
@@ -60,88 +25,84 @@ Parameters:
 >
 > archiveOnDelete: Optional. decide how to process removal path, if reclaimPolicy defined as delete. If set 'true', the removal path will be archived and not removed really, and if set 'false', the removal path will be removed when pv is deleted.
 
-#### 3.2 Create `filesystem` type nas volume
-The `filesystem` type nas volume will create/delete a nas fileSystem and mountTarget automatically.
-
+### Step 2: Run the following command to create a PVC:
+Create pvc
+```shell
+kubectl create -f ./examples/nas/dynamic/pvc-subpath.yaml
 ```
-# kubectl create -f ./examples/nas/dynamic/sc-filesystem.yaml
+Check status of pvc
+```shell
+kubectl get pvc | grep nas
 ```
-
-Below is a storageclass example:
-
+Expected output:
 ```
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: alicloud-nas-fs
-mountOptions:
-- nolock,tcp,noresvport
-- vers=4
-parameters:
-  volumeAs: filesystem
-  #storageType: Performance
-  #zoneId: cn-hangzhou-f
-  vpcId: "vpc-xxxxxxxx"
-  vSwitchId: "vsw-xxxxxxxx"
-  #accessGroupName: "DEFAULT_VPC_GROUP_NAME"
-  #deleteVolume: "true"
-provisioner: nasplugin.csi.alibabacloud.com
-reclaimPolicy: Delete
+nas-csi           Bound    nas-d42d38ba-fb5e-4e05-9eb8-f16ef4047ec2    20Gi       RWX            alicloud-nas        6s
 ```
-
-Parameters:
-
-> mountOptions: optional. specify the options for nfs mount.
->
-> volumeAs: optional. Default as 'subpath'; specify the provision type: 'subpath' means the provision volume use subpath of exist nfs filesystem as target. And 'filesystem' means the provision volume use new created nfs filesystem as target.
->
-> storageType: storageType is optional, should be 'Performance' or 'Capacity', default value is 'Performance'.
->
-> zoneId: zoneId is optional, default value is the kubernetes cluster's worker's zoneId
->
-> vpcId: vpcId is required, it is the node's vpc id you want to mount to
->
-> vSwitchId: vSwitchId is required, it is the node's vSwitchId id you want to mount to
->
-> accessGroupName: accessGroupName is optional, default value is 'DEFAULT_VPC_GROUP_NAME'
->
-> deleteVolume: deleteVolume is optional, default value is 'true'
-
-
-### Step 4: Check status of PVC
+Check status of pv
+```shell
+kubectl get pv | grep nas
 ```
-# kubectl get pvc | grep nas
-nas-csi           Bound    nas-872f797c-ca1c-11e9-b9da-00163e063505    20Gi       RWX            alicloud-nas        6s
-
-# kubectl get pv | grep nas
-nas-872f797c-ca1c-11e9-b9da-00163e063505    20Gi       RWX            Delete           Bound    default/nas-csi           alicloud-nas                 21s
+Expected output:
 ```
-
-
+nas-d42d38ba-fb5e-4e05-9eb8-f16ef4047ec2    20Gi       RWX            Delete           Bound    default/nas-csi           alicloud-nas                 21s
 ```
-# kubectl describe pv nas-csi-pv
-Name:            nas-872f797c-ca1c-11e9-b9da-00163e063505
-Labels:          <none>
+Describe pv
+```shell
+kubectl describe pv nas-d42d38ba-fb5e-4e05-9eb8-f16ef4047ec2
+```
+```
+Name:            nas-d42d38ba-fb5e-4e05-9eb8-f16ef4047ec2
+Labels:          csi.alibabacloud.com/nas-id=960b448c84
 Annotations:     pv.kubernetes.io/provisioned-by: nasplugin.csi.alibabacloud.com
+                 volume.kubernetes.io/provisioner-deletion-secret-name: 
+                 volume.kubernetes.io/provisioner-deletion-secret-namespace: 
 Finalizers:      [kubernetes.io/pv-protection]
-StorageClass:    alicloud-nas
+StorageClass:    alicloud-nas-subpath
 Status:          Bound
-Claim:           default/nas-csi
+Claim:           default/nas-csi-pvc
 Reclaim Policy:  Delete
 Access Modes:    RWX
 VolumeMode:      Filesystem
 Capacity:        20Gi
 Node Affinity:   <none>
-Message:
+Message:         
 Source:
     Type:              CSI (a Container Storage Interface (CSI) volume source)
     Driver:            nasplugin.csi.alibabacloud.com
-    VolumeHandle:      nas-872f797c-ca1c-11e9-b9da-00163e063505
+    FSType:            nfs
+    VolumeHandle:      nas-d42d38ba-fb5e-4e05-9eb8-f16ef4047ec2
     ReadOnly:          false
-    VolumeAttributes:      mode=755
-                           path=/nasroot1/nas-872f797c-ca1c-11e9-b9da-00163e063505
-                           server=2564f49129-ysu87.cn-shenzhen.nas.aliyuncs.com
-                           storage.kubernetes.io/csiProvisionerIdentity=1567055848005-8081-nasplugin.csi.alibabacloud.com
-                           vers=3
+    VolumeAttributes:      path=/nas-d42d38ba-fb5e-4e05-9eb8-f16ef4047ec2/share
+                           server=960b448c84-ygd8.cn-zhangjiakou.nas.aliyuncs.com
+                           storage.kubernetes.io/csiProvisionerIdentity=1713419709568-7229-nasplugin.csi.alibabacloud.com
+                           volumeAs=subpath
 Events:                <none>
+```
+## Mount a dynamically provisioned NAS volume in filesystem mode
+### Step 1: Create `filesystem` type nas volume
+The `filesystem` type nas volume will create/delete a nas fileSystem and mountTarget automatically.
+
+```shell
+kubectl create -f ./examples/nas/dynamic/sc-filesystem.yaml
+```
+>fileSystemType: The type of NAS file system. 
+> Valid values: 
+> standard: General-purpose NAS file system 
+> extreme: Extreme NAS file system
+> 
+> regionId: The ID of the region to which the NAS file system belongs.
+> 
+> zoneId: The ID of the zone to which the NAS file system belongs.
+>
+> vpcId: The ID of the VPC to which the mount target of the NAS file system belongs.
+>
+> vSwitchId: The ID of the vSwitch to which the mount target of the NAS file system belongs.
+>
+> storageType: The storage type of NAS file system.
+> If fileSystemType is set to standard, the valid values are Performance and Capacity. Default value: Performance.
+> If fileSystemType is set to extreme, the valid values are standard and advance. Default value: standard.
+
+### Step 2: Create a PVC and pods to mount a NAS volume.
+```shell
+kubectl create -f ./examples/nas/dynamic/pvc-filesystem.yaml
 ```

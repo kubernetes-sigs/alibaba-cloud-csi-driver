@@ -9,11 +9,14 @@ CSI Block Volume: [https://kubernetes-csi.github.io/docs/raw-block.html](https:/
 
 ## Feature Supports
 
-| Feature | Kubernetes Version | Status |
-| ------ | ------ | ------ |
-| BlockVolume  | 1.9   | Alpha |
-| BlockVolume  | 	1.13   | Beta |
-| CSIBlockVolume | 1.11   | Alpha |
+| Feature        | Default | From | To   | Stage |
+|----------------|---------|------|------|-------|
+| CSIBlockVolume | false   | 1.11 | 1.13 | Alpha |
+| CSIBlockVolume | true    | 1.14 | 1.17 | Beta  |
+| CSIBlockVolume | true    | 1.18 | 1.21 | GA    |
+| BlockVolume    | false   | 1.9  | 1.12 | Alpha |
+| BlockVolume    | true    | 1.13 | 1.17 | Beta  |
+| BlockVolume    | true    | 1.18 | 1.21 | GA    |
 
 
 ## How to Deploy
@@ -30,8 +33,8 @@ Other Requirements same as common disk.
 
 The different between Block and FileSystem for disk-plugin: block type need volumeDevices volume mount;
 
-```
-# kubectl create -f ./deploy/disk/block/disk-plugin.yaml
+```shell
+kubectl create -f ./deploy/disk/block/disk-plugin.yaml
 ```
 
 Other parts are same as common disk.
@@ -40,11 +43,11 @@ Other parts are same as common disk.
 
 ### 1. Template
 
-Storageclass: No changed.
+StorageClass: No changed.
 
 PVC: volumeMode is configured "Block"
 
-```
+```yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -61,7 +64,7 @@ spec:
 
 Use volumeDevices to define the target file.
 
-```
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -93,15 +96,26 @@ spec:
 
 ### 2. Create PV, PVC
 
-Check that: "VolumeMode:    Block" for PV and PVC.
+Check that: "VolumeMode: Block" for PV and PVC.
 
-```
 Create PVC, PV
-# kubectl create -f pvc.yaml
-
-# kubectl get pvc | grep csi-disk
+```shell
+kubectl create -f pvc.yaml
+```
+Check pvc status
+```shell
+kubectl get pvc | grep csi-disk
+```
+Expected output:
+```
 block-pvc         Bound    pvc-6017e55c-4168-11e9-983f-00163e0b8d64   20Gi       RWO            csi-disk       8s
-# kubectl describe pvc block-pvc
+```
+Describe pvc
+```shell
+kubectl describe pvc block-pvc
+```
+Expected output:
+```
 Name:          block-pvc
 Namespace:     default
 StorageClass:  csi-disk
@@ -116,11 +130,22 @@ Capacity:      20Gi
 Access Modes:  RWO
 VolumeMode:    Block
 Events:
-
-# kubectl get pv
+```
+Check pv status
+```shell
+kubectl get pv
+```
+Expected output:
+```
 NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                     STORAGECLASS   REASON   AGE
 pvc-6017e55c-4168-11e9-983f-00163e0b8d64   20Gi       RWO            Delete           Bound    default/block-pvc         csi-disk                17m
-# kubectl describe pv pvc-6017e55c-4168-11e9-983f-00163e0b8d64
+```
+Describe pv
+```shell
+kubectl describe pv pvc-6017e55c-4168-11e9-983f-00163e0b8d64
+```
+Expected output:
+```
 Name:            pvc-6017e55c-4168-11e9-983f-00163e0b8d64
 Labels:          <none>
 Annotations:     pv.kubernetes.io/provisioned-by: diskplugin.csi.alibabacloud.com
@@ -148,22 +173,38 @@ Source:
 Events:                <none>
 ```
 
-
 ### 3. Create Workload
 
 The disk is attached in Pod and be writable with dd command.
 
+```shell
+kubectl create -f deploy.yaml
 ```
-# kubectl create -f deploy.yaml
-
-# kubectl get pod | grep nginx-block
+```shell
+kubectl get pod | grep nginx-block
+```
+Expected output:
+```
 nginx-block-86ddb74484-sz2hm   1/1     Running   0          24s
+```
 
-# kubectl exec -ti nginx-block-86ddb74484-sz2hm sh
-# ls -l /dev/sdc
+Run the following command to list the block device
+```shell
+kubectl exec -it nginx-block-86ddb74484-sz2hm sh
+```
+```shell
+ls -l /dev/sdc
+```
+Expected output:
+```
 brw-rw---- 1 root disk 253, 16 Mar  8 06:07 /dev/sdc
-
-# dd if=/dev/zero of=/dev/sdc bs=1024k count=100
+```
+Run the following command to check the disk is writable
+```shell
+dd if=/dev/zero of=/dev/sdc bs=1024k count=100
+```
+Expected output:
+```
 100+0 records in
 100+0 records out
 104857600 bytes (105 MB) copied, 0.0584359 s, 1.8 GB/s

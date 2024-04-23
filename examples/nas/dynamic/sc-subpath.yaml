@@ -1,13 +1,13 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: alicloud-nas-sp
+  name: alicloud-nas-subpath
 mountOptions:
 - nolock,tcp,noresvport
 - vers=3
 parameters:
   volumeAs: subpath
-  server: "2564f49129-ysu87.cn-shenzhen.nas.aliyuncs.com:/nasroot1/"
+  server: "960b448c84-ygd8.cn-zhangjiakou.nas.aliyuncs.com:/share/"
   archiveOnDelete: "true"
 provisioner: nasplugin.csi.alibabacloud.com
 reclaimPolicy: Delete

@@ -12,11 +12,11 @@
 
 ## 版本说明
 
-| Feature         | Stage | Min Kubernetes Version |  Min Driver Version  |
-|-----------------|-------|---------------------------|-------------------|
-| Topology        | Beta  | 1.14                       | v1.0.2           |
-| Resize (Expand) | Beta  | 1.16                       | v1.0.5           |
-| Snapshots       | Beta  | 1.17                       | v1.1.2           |
+| Feature         | Stage | Min Kubernetes Version | Min Driver Version |
+|-----------------|-------|------------------------|--------------------|
+| Topology        | GA    | 1.17                   | v1.0.2             |
+| Resize (Expand) | GA    | 1.16                   | v1.0.5             |
+| Snapshots       | GA    | 1.20                   | v1.1.2             |
 
 
 ### 云盘CSI插件
@@ -42,14 +42,6 @@ NAS CSI插件更多详细说明请参考[NAS](./docs/nas.md)
 OSS CSI插件支持为应用负载挂载阿里云OSS Bucket，目前不支持动态创建OSS Bucket。OSS存储是一种共享存储，可以同时被多个应用负载使用(ReadWriteMany)。
 
 OSS CSI插件更多详细说明请参考[OSS](./docs/oss.md)
-
-
-### LVM CSI插件
-
-LVM CSI插件支持创建LVM卷，并挂载。LVM不是高可用存储类型，使用时应用需要注意是否容忍。
-
-LVM CSI插件更多详细说明请参考[LVM](./docs/lvm.md)
-
 
 ## 社区, 贡献, 讨论, 支持
 

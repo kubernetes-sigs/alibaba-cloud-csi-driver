@@ -7,13 +7,11 @@ workloads.
 
 ## Features Support
 
-**Disk Snapshot:** [disk-snapshot](./disk-snapshot.md)
+**Disk Snapshot:** [disk-snapshot](./disk-snapshot-restore.md)
 
 **Block Volumes:** [disk-block](./disk-block.md)
 
-**Shared Disk:** [disk-shared](./disk-shared.md)
-
-**Volume Attach Limits:** [volume-attach-limits](./disk-volume-limits.md)
+**Resize Volume:** [disk-shared](./disk-resizer.md)
 
 ## Configuration Requirements
 
@@ -39,10 +37,10 @@ Alternatively, you can try to deploy it manually on [ECS](https://www.alibabaclo
 
 ### Step 1: Create RAM User with Required Permissions
 
-CSI will create disks, attach disk to ECS, etc, on behave of you. To do so, we need authorizations.
+CSI will create disks, attach disk to ECS, etc., on behalf of you. To do so, we need authorizations.
 
 1. Create a RAM user, enable OpenAPI access. Once the user is created, record the AccessKey ID and AccessKey Secret.
-1. Create a policy, paste in the following script
+2. Create a policy, paste in the following script
    ```json
    {
        "Version": "1",
@@ -98,7 +96,7 @@ CSI will create disks, attach disk to ECS, etc, on behave of you. To do so, we n
        ]
    }
    ```
-1. Authorize the new policy for the new RAM user.
+3. Authorize the new policy for the new RAM user.
 
 ### Step 2: Config the AccessKey to Cluster
 
@@ -125,12 +123,19 @@ We already provided some predefined storage classes in the previous step. For mo
 ### Step 5: Check the Status of CSI driver
 
 Checks that all pods are running and ready.
+```shell
+kubectl get pods -n kube-system -l app=csi-plugin
 ```
-$ kubectl get pods -n kube-system -l app=csi-plugin
+Expected output:
+```
 NAME               READY   STATUS    RESTARTS   AGE
 csi-plugin-jmxz8   4/4     Running   0          170m
-
-$ kubectl get pods -n kube-system -l app=csi-provisioner
+```
+```shell
+kubectl get pods -n kube-system -l app=csi-provisioner
+```
+Expected output:
+```
 NAME                               READY   STATUS    RESTARTS   AGE
 csi-provisioner-76fcb8b894-5gmc2   9/9     Running   0          7d8h
 csi-provisioner-76fcb8b894-mlgj5   9/9     Running   0          7d8h

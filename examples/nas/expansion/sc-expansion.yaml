@@ -1,0 +1,16 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: alicloud-nas-quota-sc
+mountOptions:
+  - nolock,tcp,noresvport
+  - vers=3
+parameters:
+  volumeAs: subpath
+  server: "xxx.cn-hangzhou.nas.aliyuncs.com:/"
+  archiveOnDelete: "false"
+  path: "/abc"
+  volumeCapacity: "true" # The quota feature is enabled for a volume that is dynamically provisioned based on the StorageClass.
+provisioner: nasplugin.csi.alibabacloud.com
+reclaimPolicy: Delete
+allowVolumeExpansion: true # Enable dynamic volume expansion.
