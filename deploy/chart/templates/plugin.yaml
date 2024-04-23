@@ -113,18 +113,7 @@ spec:
             - name: PRIVATE_CLOUD_TAG
               value: "true"
 {{- end -}}
-{{- if .Values.deploy.accessKey.enabled }}
-            - name: ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.deploy.accessKey.secretName }}
-                  key: id
-            - name: ACCESS_KEY_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.deploy.accessKey.secretName }}
-                  key: secret
-{{- end }}
+{{- include "akEnv" .Values.deploy.accessKey | nindent 12 }}
           resources:
             requests:
               cpu: 100m

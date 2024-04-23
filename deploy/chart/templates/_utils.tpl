@@ -31,3 +31,18 @@
     {{- end -}}
     {{- $drivers | join "," -}}
 {{- end -}}
+
+{{- define "akEnv" -}}
+{{- if .enabled }}
+- name: ACCESS_KEY_ID
+  valueFrom:
+  secretKeyRef:
+    name: {{ .secretName }}
+    key: id
+- name: ACCESS_KEY_SECRET
+  valueFrom:
+  secretKeyRef:
+    name: {{ .secretName }}
+    key: secret
+{{- end }}
+{{- end -}}

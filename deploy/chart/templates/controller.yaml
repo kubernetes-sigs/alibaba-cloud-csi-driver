@@ -317,18 +317,7 @@ spec:
 {{- end }}
             - name: ENABLE_NAS_SUBPATH_FINALIZER
               value: "true"
-{{- if .Values.deploy.accessKey.enabled }}
-            - name: ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.deploy.accessKey.secretName }}
-                  key: id
-            - name: ACCESS_KEY_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.deploy.accessKey.secretName }}
-                  key: secret
-{{- end }}
+{{- include "akEnv" .Values.deploy.accessKey | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /healthz
