@@ -21,14 +21,6 @@ cd build && sh build-nas.sh
 
 Same as diskplugin.csi.alibabacloud.com;
 
-> Note: The plugin log style can be configured by environment variable: LOG_TYPE.
-
-> "host": logs will be printed into files which save to host(/var/log/alicloud/nasplugin.csi.alibabacloud.com.log);
-
-> "stdout": logs will be printed to stdout, can be printed by docker logs or kubectl logs.
-
-> "both": default option, log will be printed both to stdout and host file.
-
 ### Step 1: Create a statically provisioned PV.
 ```shell
 kubectl apply -f ./examples/nas/pv.yaml
