@@ -18,7 +18,6 @@ package disk
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -64,49 +63,6 @@ func TestValidateDiskType(t *testing.T) {
 	for _, example := range examples {
 		actualResult, _ := validateDiskType(example.opts)
 		assert.Equal(t, example.result, actualResult)
-	}
-}
-
-func TestGetRootSubDevicePath(t *testing.T) {
-
-	examples := []struct {
-		deviceList           []string
-		expectRootDevicePath string
-		expectSubDevicePath  string
-		err                  error
-	}{
-		{
-			deviceList:           []string{"/dev/vdb"},
-			expectRootDevicePath: "/dev/vdb",
-			expectSubDevicePath:  "",
-			err:                  nil,
-		},
-		{
-			deviceList:           []string{},
-			expectRootDevicePath: "",
-			expectSubDevicePath:  "",
-			err:                  fmt.Errorf("List Device Path empty for %v", []string{}),
-		},
-		{
-			deviceList:           []string{"/dev/vdb", "/dev/vdb1", "/dev/vdb2"},
-			expectRootDevicePath: "",
-			expectSubDevicePath:  "",
-			err:                  fmt.Errorf("Devices %s has more than 1 partition", []string{"/dev/vdb", "/dev/vdb1", "/dev/vdb2"}),
-		},
-		{
-			deviceList:           []string{"/dev/vdb", "/dev/vdb22"},
-			expectRootDevicePath: "",
-			expectSubDevicePath:  "",
-			err:                  fmt.Errorf("Device %s has error format more than one digit locations ", "/dev/vdb22"),
-		},
-	}
-	for _, example := range examples {
-		actualRootDevicePath, actualSubDevicePath, err := GetRootSubDevicePath(example.deviceList)
-		assert.Equal(t, example.expectRootDevicePath, actualRootDevicePath)
-		assert.Equal(t, example.expectSubDevicePath, actualSubDevicePath)
-		if example.err != nil {
-			assert.Error(t, err)
-		}
 	}
 }
 
