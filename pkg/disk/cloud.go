@@ -521,6 +521,24 @@ func getDisk(diskID string, ecsClient *ecs.Client) []ecs.Disk {
 	return diskResponse.Disks.Disk
 }
 
+func tagDiskUserTags(diskID string, ecsClient *ecs.Client, tags map[string]string) {
+	addTagsReq := ecs.CreateAddTagsRequest()
+	var userTags []ecs.AddTagsTag
+	for k, v := range tags {
+		userTags = append(userTags, ecs.AddTagsTag{Key: k, Value: v})
+	}
+	addTagsReq.Tag = &userTags
+	addTagsReq.ResourceType = "disk"
+	addTagsReq.ResourceId = diskID
+	addTagsReq.RegionId = GlobalConfigVar.Region
+	_, err := ecsClient.AddTags(addTagsReq)
+	if err != nil {
+		log.Warnf("tagDiskUserTags: AddTags error: %s, %s", diskID, err.Error())
+		return
+	}
+	log.Info("tagDiskUserTags: Success to tag disk %s", diskID)
+}
+
 // tag disk with: k8s.aliyun.com=true
 func tagDiskAsK8sAttached(diskID string, ecsClient *ecs.Client) {
 	// Step 1: Describe disk, if tag exist, return;
