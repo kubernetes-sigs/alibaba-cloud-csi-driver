@@ -537,7 +537,7 @@ func tagDiskUserTags(diskID string, tags map[string]string, tenantUID string) {
 		log.Warnf("tagDiskUserTags: AddTags error: %s, %s", diskID, err.Error())
 		return
 	}
-	log.Info("tagDiskUserTags: Success to tag disk %s", diskID)
+	log.Infof("tagDiskUserTags: Success to tag disk %s", diskID)
 }
 
 // tag disk with: k8s.aliyun.com=true
