@@ -185,7 +185,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, err
 	}
 	if csiVolume != nil {
-		tagDiskUserTags(csiVolume.VolumeId, GlobalConfigVar.EcsClient, diskVol.DiskTags)
+		tagDiskUserTags(csiVolume.VolumeId, diskVol.DiskTags, req.Parameters[TenantUserUID])
 		log.Infof("CreateVolume: static volume create successful, pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, csiVolume.VolumeId, csiVolume.VolumeContext)
 		return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 	}
