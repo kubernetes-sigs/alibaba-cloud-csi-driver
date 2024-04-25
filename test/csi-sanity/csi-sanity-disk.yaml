@@ -43,12 +43,12 @@ roleRef:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: alicloud-csi-plugin-testing
+  name: alicloud-csi-node-testing
   namespace: kube-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: alicloud-csi-plugin
+  name: alicloud-csi-node
 subjects:
 - kind: ServiceAccount
   name: csi-testing
@@ -57,11 +57,11 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: alicloud-csi-plugin-testing
+  name: alicloud-csi-node-testing
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: alicloud-csi-plugin
+  name: alicloud-csi-node
 subjects:
 - kind: ServiceAccount
   name: csi-testing
