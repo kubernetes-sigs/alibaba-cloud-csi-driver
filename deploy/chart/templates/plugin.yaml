@@ -90,6 +90,8 @@ spec:
             - "--endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock"
             - "--v=2"
             - "--driver={{ include "enabledPlugins" $nodePool.csi }}"
+            - --run-controller-service=false
+            - --run-node-service=true
 {{- if $nodePool.deploy.featureGates }}
             - "--feature-gates={{ $nodePool.deploy.featureGates }}"
 {{- end -}}
@@ -102,8 +104,6 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
-            - name: SERVICE_TYPE
-              value: "plugin"
             - name: "DEFAULT_REGISTRY"
               value: {{ $nodePool.images.workerRegistry | default $nodePool.images.registry | quote }}
 {{- if $nodePool.deploy.ecsEndpoint }}
