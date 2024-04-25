@@ -1,0 +1,53 @@
+{
+    "Version": "1",
+    "Statement": [
+        {
+            "Action": [
+                "ecs:AttachDisk",
+                "ecs:DetachDisk",
+                "ecs:DescribeDisks",
+                "ecs:CreateDisk",
+                "ecs:ResizeDisk",
+                "ecs:CreateSnapshot",
+                "ecs:DeleteSnapshot",
+                "ecs:CreateAutoSnapshotPolicy",
+                "ecs:ApplyAutoSnapshotPolicy",
+                "ecs:CancelAutoSnapshotPolicy",
+                "ecs:DeleteAutoSnapshotPolicy",
+                "ecs:DescribeAutoSnapshotPolicyEX",
+                "ecs:ModifyAutoSnapshotPolicyEx",
+                "ecs:AddTags",
+                "ecs:RemoveTags",
+                "ecs:DescribeTags",
+                "ecs:DescribeSnapshots",
+                "ecs:ListTagResources",
+                "ecs:TagResources",
+                "ecs:UntagResources",
+                "ecs:ModifyDiskSpec",
+                "ecs:CreateSnapshot",
+                "ecs:DescribeSnapshotGroups",
+                "ecs:CreateSnapshotGroup",
+                "ecs:DeleteSnapshotGroup",
+                "ecs:CopySnapshot",
+                "ecs:DeleteDisk",
+                "ecs:DescribeInstanceAttribute",
+                "ecs:DescribeInstanceHistoryEvents",
+                "ecs:DescribeTaskAttribute",
+                "ecs:DescribeInstances"
+            ],
+            "Resource": [
+                "*"
+            ],
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "kms:ListAliases"
+            ],
+            "Resource": [
+                "*"
+            ],
+            "Effect": "Allow"
+        }
+    ]
+}

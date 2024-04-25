@@ -35,92 +35,17 @@ Alternatively, you can try to deploy it manually on [ECS](https://www.alibabaclo
 * A working Kubernetes cluster deployed on ECS.
 * Local `kubectl` configured to communicate with this cluster.
 
-### Step 1: Create RAM User with Required Permissions
+### Step 1: Install the CSI driver
 
-CSI will create disks, attach disk to ECS, etc., on behalf of you. To do so, we need authorizations.
+Please refer to the [installation guide](./install.md) for detailed instructions.
 
-1. Create a RAM user, enable OpenAPI access. Once the user is created, record the AccessKey ID and AccessKey Secret.
-2. Create a policy, paste in the following script
-   ```json
-   {
-       "Version": "1",
-       "Statement": [
-           {
-               "Action": [
-                   "ecs:AttachDisk",
-                   "ecs:DetachDisk",
-                   "ecs:DescribeDisks",
-                   "ecs:CreateDisk",
-                   "ecs:ResizeDisk",
-                   "ecs:CreateSnapshot",
-                   "ecs:DeleteSnapshot",
-                   "ecs:CreateAutoSnapshotPolicy",
-                   "ecs:ApplyAutoSnapshotPolicy",
-                   "ecs:CancelAutoSnapshotPolicy",
-                   "ecs:DeleteAutoSnapshotPolicy",
-                   "ecs:DescribeAutoSnapshotPolicyEX",
-                   "ecs:ModifyAutoSnapshotPolicyEx",
-                   "ecs:AddTags",
-                   "ecs:RemoveTags",
-                   "ecs:DescribeTags",
-                   "ecs:DescribeSnapshots",
-                   "ecs:ListTagResources",
-                   "ecs:TagResources",
-                   "ecs:UntagResources",
-                   "ecs:ModifyDiskSpec",
-                   "ecs:CreateSnapshot",
-                   "ecs:DescribeSnapshotGroups",
-                   "ecs:CreateSnapshotGroup",
-                   "ecs:DeleteSnapshotGroup",
-                   "ecs:CopySnapshot",
-                   "ecs:DeleteDisk",
-                   "ecs:DescribeInstanceAttribute",
-                   "ecs:DescribeInstanceHistoryEvents",
-                   "ecs:DescribeTaskAttribute",
-                   "ecs:DescribeInstances"
-               ],
-               "Resource": [
-                   "*"
-               ],
-               "Effect": "Allow"
-           },
-           {
-               "Action": [
-                   "kms:ListAliases"
-               ],
-               "Resource": [
-                   "*"
-               ],
-               "Effect": "Allow"
-           }
-       ]
-   }
-   ```
-3. Authorize the new policy for the new RAM user.
+Note: this will also deploy OSS and NAS CSI driver. You may use configuration values to disable them.
 
-### Step 2: Config the AccessKey to Cluster
-
-Store the access key of just created RAM user in the cluster.
-```shell
-kubectl create secret -n kube-system generic csi-access-key \
-    --from-literal=id='LTA******************GWN' \
-    --from-literal=secret='***********'
-```
-
-### Step 3: Apply Necessary Resources
-
-Create the service account, RBAC role, deploy the CSI provisioner and CSI plugin.
-```shell
-helm install csi-driver ./deploy/chart --values deploy/chart/values-ecs.yaml --namespace kube-system
-```
-
-Note: this will also deploy OSS and NAS CSI driver. Edit the manifests before applying if you want to disable them.
-
-### Step 4: Create StorageClass
+### Step 2: Create StorageClass
 Storage class is necessary for dynamic volume provisioning.
 We already provided some predefined storage classes in the previous step. For more advanced features, please refer to [Aliyun docs](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/use-dynamically-provisioned-disk-volumes?#6d16e8a415nie).
 
-### Step 5: Check the Status of CSI driver
+### Step 3: Check the Status of CSI driver
 
 Checks that all pods are running and ready.
 ```shell
@@ -141,7 +66,7 @@ csi-provisioner-76fcb8b894-5gmc2   9/9     Running   0          7d8h
 csi-provisioner-76fcb8b894-mlgj5   9/9     Running   0          7d8h
 ```
 
-### Step 6: Test the Deployment
+### Step 4: Test the Deployment
 
 To make sure your CSI plugin is working, create a simple workload to test it out:
 ```shell

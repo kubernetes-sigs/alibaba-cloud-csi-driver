@@ -8,39 +8,8 @@ Aliyun EBS support to expand size of disk, this feature will show how to resize 
 
 ## Requirements
 
-* CSI resizer external runner (registry.cn-hangzhou.aliyuncs.com/acs/csi-resizer).
-* Disk resizer plugin depends on csi-plugin (registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin).
-* Service Accounts with required RBAC permissions.
-* Feature Gate Enable: ExpandCSIVolumes=true(kube-controller, kubelet), this is Beta feature in kubernetes 1.16+;
-
-## Compiling and Package
-Csi-resizer can be compiled in a form of a container.
-
-To build a container:
-```shell
-cd build && sh build-all.sh
-```
-
-## Deploy
-
-### 1. Requirements
-Kubernetes cluster, api-server, kubelet configuration, please refer to [disk-plugin](./README-disk.md)
-
-The resizer runner is working with CSI Plugin, so you should deploy the base plugin first. Please refer to [disk-plugin](./README-disk.md)
-
-The API Authority:
-
-The process of expand disk need to call aliyun ecs api, and your AK should have the ability to do it.
-
-If you use STS in the csi plugin, the RAM should have the Authority of ResizeDisk.
-
-### 2. Deploy Resizer and StorageClass
-
-You can use below command to deploy csi resizer.
-
-```
-helm install csi-driver ./deploy/chart --values deploy/chart/values-ecs.yaml --namespace kube-system
-```
+Working Disk CSI driver,
+Please refer to the [disk driver doc](./disk.md) for details.
 
 ## Usage
 
