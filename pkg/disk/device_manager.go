@@ -226,3 +226,27 @@ func (m *DeviceManager) GetRootBlockByVolumeID(volumeID string) (string, error) 
 
 	return "", utilerrors.Flatten(utilerrors.NewAggregate(errs))
 }
+
+func (m *DeviceManager) GetDeviceRootAndPartitionIndex(devicePath string) (root string, partitionIndex string, err error) {
+	if !m.EnableDiskPartition {
+		return devicePath, "", nil
+	}
+	major, minor, err := m.DevTmpFS.DevFor(devicePath)
+	if err != nil {
+		return "", "", err
+	}
+	devSysfsPath := fmt.Sprintf("%s/dev/block/%d:%d", m.SysfsPath, major, minor)
+	idx, err := os.ReadFile(devSysfsPath + "/partition")
+	if err == nil {
+		link, err := os.Readlink(devSysfsPath) // /sys/dev/block/253:3 -> ../../devices/pci0000:00/0000:00:05.0/virtio2/block/vda/vda3
+		if err != nil {
+			return "", "", fmt.Errorf("readlink %q failed: %w", devSysfsPath, err)
+		}
+		rootDevName := filepath.Base(filepath.Dir(link)) // vda
+		return filepath.Join(m.DevicePath, rootDevName), strings.TrimSpace(string(idx)), nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return devicePath, "", nil
+	}
+	return "", "", fmt.Errorf("read partition from sysfs %q failed: %w", devSysfsPath+"/partition", err)
+}

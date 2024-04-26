@@ -28,11 +28,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
@@ -329,54 +327,6 @@ func makeDevicePath(name string) string {
 		return name
 	}
 	return filepath.Join("/dev/", name)
-}
-
-// return root device name, the partition index
-// input /dev/vdb,   output: /dev/vdb, -1, nil
-// input /dev/vdb1,  output: /dev/vdb, 1,  nil
-// input /dev/vdb22, output: /dev/vdb, 22, nil
-func getDeviceRootAndIndex(devicePath string) (string, int, error) {
-	rootDevicePath := ""
-	index := -1
-	if IsDeviceNvme(devicePath) {
-		return devicePath, -1, nil
-	}
-	re := regexp.MustCompile(`\d+`)
-	regexpRes := re.FindAllStringSubmatch(devicePath, -1)
-	if len(regexpRes) == 0 {
-		// no digit find in device name
-		rootDevicePath = devicePath
-		index = -1
-	} else if len(regexpRes) == 1 {
-		if len(regexpRes[0]) == 0 {
-			return "", -1, fmt.Errorf("GetDeviceRootAndIndex: Device %s has error format %s ", devicePath, regexpRes[0])
-		}
-		numStr := regexpRes[0][0]
-		if !strings.HasSuffix(devicePath, numStr) {
-			return "", -1, fmt.Errorf("GetDeviceRootAndIndex: Device %s has error format, not endwith %s ", devicePath, numStr)
-		}
-		rootDevicePath = strings.TrimSuffix(devicePath, numStr)
-		indexTmp, err := strconv.Atoi(numStr)
-		if err != nil {
-			return "", -1, fmt.Errorf("GetDeviceRootAndIndex: Device %s strconv %s, with error: %s ", devicePath, numStr, err.Error())
-		}
-		index = indexTmp
-	} else {
-		// the partition format is end with digit, so never more than one digit locations
-		return "", -1, fmt.Errorf("Device %s has error format more than one digit locations ", devicePath)
-	}
-	return rootDevicePath, index, nil
-}
-
-func isDevicePartition(device string) bool {
-	if len(device) == 0 {
-		return false
-	}
-	lastChar := rune(device[len(device)-1])
-	if unicode.IsDigit(lastChar) {
-		return true
-	}
-	return false
 }
 
 // GetDiskFormat uses 'blkid' to see if the given disk is unformatted
@@ -1401,15 +1351,6 @@ func checkOptionFalse(opt string) bool {
 	default:
 		return false
 	}
-}
-
-// IsDeviceNvme check device is nvme type or not;
-func IsDeviceNvme(deviceName string) bool {
-	fileName := filepath.Base(deviceName)
-	if strings.HasPrefix(fileName, "nvme") {
-		return true
-	}
-	return false
 }
 
 // getPvPvcFromDiskId returns a pv instance with specified disk ID

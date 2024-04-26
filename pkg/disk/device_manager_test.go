@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,6 +36,11 @@ var (
 		Minor: 16,
 		Path:  "disk/by-id/virtio-mydiskserial",
 	}
+	virtIOPart = fakeDev{
+		Major: 253,
+		Minor: 23,
+		Path:  "vdb23",
+	}
 	nvmeDev = fakeDev{
 		Major: 259,
 		Minor: 2,
@@ -44,6 +50,11 @@ var (
 		Major: 259,
 		Minor: 2,
 		Path:  "disk/by-id/nvme-Alibaba_Cloud_Elastic_Block_Storage_mydiskserial",
+	}
+	nvmePart = fakeDev{
+		Major: 259,
+		Minor: 29,
+		Path:  "nvme1n1p27",
 	}
 	otherDev = fakeDev{
 		Major: 123,
@@ -108,7 +119,8 @@ func TestGetDeviceBySerialNotFound(t *testing.T) {
 }
 
 func setupVirtIOBlockDevice(t *testing.T, sysfsPath string) string {
-	sysfsDevicePath := filepath.Join(sysfsPath, "devices/pci0000:00/0000:00:0a.0/virtio7/block/vdb")
+	sysfsDev := "devices/pci0000:00/0000:00:0a.0/virtio7/block/vdb"
+	sysfsDevicePath := filepath.Join(sysfsPath, sysfsDev)
 	err := os.MkdirAll(sysfsDevicePath, 0o755)
 	assert.NoError(t, err)
 	err = os.WriteFile(filepath.Join(sysfsDevicePath, "serial"), []byte("mydiskserial\n"), 0o644)
@@ -118,11 +130,12 @@ func setupVirtIOBlockDevice(t *testing.T, sysfsPath string) string {
 	err = os.Symlink("../../devices/pci0000:00/0000:00:0a.0/virtio7/block/vdb", filepath.Join(sysfsPath, "dev/block/253:16"))
 	assert.NoError(t, err)
 
-	return sysfsDevicePath
+	return sysfsDev
 }
 
 func setupNVMeBlockDevice(t *testing.T, sysfsPath string) string {
-	sysfsDevicePath := filepath.Join(sysfsPath, "devices/pci0000:00/0000:00:07.0/nvme/nvme1/nvme1n1")
+	sysfsDev := "devices/pci0000:00/0000:00:07.0/nvme/nvme1/nvme1n1"
+	sysfsDevicePath := filepath.Join(sysfsPath, sysfsDev)
 	err := os.MkdirAll(sysfsDevicePath, 0o755)
 	assert.NoError(t, err)
 	err = os.Symlink("../../nvme1", filepath.Join(sysfsDevicePath, "device"))
@@ -134,7 +147,7 @@ func setupNVMeBlockDevice(t *testing.T, sysfsPath string) string {
 	err = os.Symlink("../../devices/pci0000:00/0000:00:07.0/nvme/nvme1/nvme1n1", filepath.Join(sysfsPath, "dev/block/259:2"))
 	assert.NoError(t, err)
 
-	return sysfsDevicePath
+	return sysfsDev
 }
 
 func TestGetDeviceBySerialVirtIO(t *testing.T) {
@@ -173,15 +186,23 @@ func extractGzip(t *testing.T, src, dst string) {
 	assert.NoError(t, err)
 }
 
+func sysfsSetupPartition(t *testing.T, sysfs, sysfsDev, deviceName string, dev *fakeDev, partitionIndex int) {
+	err := os.Mkdir(filepath.Join(sysfs, sysfsDev, deviceName), 0o755)
+	assert.NoError(t, err)
+	err = os.WriteFile(filepath.Join(sysfs, sysfsDev, deviceName, "partition"), []byte(strconv.Itoa(partitionIndex)+"\n"), 0o644)
+	assert.NoError(t, err)
+	err = os.Symlink(fmt.Sprintf("../%s/%s", sysfsDev, deviceName), fmt.Sprintf("%s/block/%s", sysfs, deviceName))
+	assert.NoError(t, err)
+	err = os.Symlink(fmt.Sprintf("../../%s/%s", sysfsDev, deviceName), fmt.Sprintf("%s/dev/block/%d:%d", sysfs, dev.Major, dev.Minor))
+	assert.NoError(t, err)
+}
+
 // returns the single formatted partition
 func TestAdaptDevicePartitionPositive(t *testing.T) {
 	m := testingManager(t)
 	// Create a fake NVMe block device.
 	sysfsDev := setupNVMeBlockDevice(t, m.SysfsPath)
-	err := os.Mkdir(filepath.Join(sysfsDev, "nvme1n1p27"), 0o755)
-	assert.NoError(t, err)
-	err = os.WriteFile(filepath.Join(sysfsDev, "nvme1n1p27/partition"), []byte("27\n"), 0o644)
-	assert.NoError(t, err)
+	sysfsSetupPartition(t, m.SysfsPath, sysfsDev, "nvme1n1p27", &nvmePart, 27)
 	m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{nvmeDev}
 
 	extractGzip(t, "testdata/parted_disk.img.gz", filepath.Join(m.DevicePath, "nvme1n1"))
@@ -210,17 +231,11 @@ func TestAdaptDevicePartitionMultiplePartitions(t *testing.T) {
 	m := testingManager(t)
 	// Create a fake NVMe block device.
 	sysfsDev := setupNVMeBlockDevice(t, m.SysfsPath)
-	err := os.Mkdir(filepath.Join(sysfsDev, "nvme1n1p27"), 0o755)
-	assert.NoError(t, err)
-	err = os.WriteFile(filepath.Join(sysfsDev, "nvme1n1p27/partition"), []byte("27\n"), 0o644)
-	assert.NoError(t, err)
-	err = os.Mkdir(filepath.Join(sysfsDev, "nvme1n1p28"), 0o755)
-	assert.NoError(t, err)
-	err = os.WriteFile(filepath.Join(sysfsDev, "nvme1n1p28/partition"), []byte("28\n"), 0o644)
-	assert.NoError(t, err)
+	sysfsSetupPartition(t, m.SysfsPath, sysfsDev, "nvme1n1p27", &nvmePart, 27)
+	sysfsSetupPartition(t, m.SysfsPath, sysfsDev, "nvme1n1p28", &fakeDev{Major: 259, Minor: 28}, 28)
 	m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{nvmeDev}
 
-	_, err = m.adaptDevicePartition(filepath.Join(m.DevicePath, "nvme1n1"))
+	_, err := m.adaptDevicePartition(filepath.Join(m.DevicePath, "nvme1n1"))
 	assert.Error(t, err)
 }
 
@@ -343,6 +358,96 @@ func TestGetDeviceByVolumeID_Positive(t *testing.T) {
 			devicePath, err := m.GetDeviceByVolumeID("mydiskserial")
 			assert.NoError(t, err)
 			assert.Equal(t, filepath.Join(m.DevicePath, "disk/by-id/virtio-mydiskserial"), devicePath)
+		})
+	}
+}
+
+func TestGetDeviceRootAndPartitionIndex_NoPartition(t *testing.T) {
+	cases := []struct {
+		name             string
+		partitionEnabled bool
+		init             func(t *testing.T, m *DeviceManager)
+		devicePath       string
+	}{
+		{
+			name:             "virtio",
+			partitionEnabled: true,
+			init: func(t *testing.T, m *DeviceManager) {
+				setupVirtIOBlockDevice(t, m.SysfsPath)
+				m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{virtIODev, virtIOLink}
+			},
+			devicePath: "disk/by-id/virtio-mydiskserial",
+		}, {
+			name:             "nvme",
+			partitionEnabled: true,
+			init: func(t *testing.T, m *DeviceManager) {
+				setupNVMeBlockDevice(t, m.SysfsPath)
+				m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{nvmeDev, nvmeLink}
+			},
+			devicePath: "disk/by-id/nvme-Alibaba_Cloud_Elastic_Block_Storage_mydiskserial",
+		}, {
+			name:             "disabled",
+			partitionEnabled: false,
+			init:             func(t *testing.T, m *DeviceManager) {},
+			devicePath:       "any-device",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			m := testingManager(t)
+			m.EnableDiskPartition = c.partitionEnabled
+			c.init(t, m)
+
+			devPath := filepath.Join(m.DevicePath, c.devicePath)
+			root, index, err := m.GetDeviceRootAndPartitionIndex(devPath)
+			assert.NoError(t, err)
+			assert.Equal(t, devPath, root)
+			assert.Equal(t, "", index)
+		})
+	}
+}
+
+func TestGetDeviceRootAndPartitionIndex_Partition(t *testing.T) {
+	cases := []struct {
+		name           string
+		init           func(t *testing.T, m *DeviceManager)
+		rootPath       string
+		partitionPath  string
+		partitionIndex string
+	}{
+		{
+			name: "virtio",
+			init: func(t *testing.T, m *DeviceManager) {
+				sysfsDev := setupVirtIOBlockDevice(t, m.SysfsPath)
+				sysfsSetupPartition(t, m.SysfsPath, sysfsDev, "vdb23", &virtIOPart, 23)
+				m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{virtIODev, virtIOPart}
+			},
+			rootPath:       "vdb",
+			partitionPath:  "vdb23",
+			partitionIndex: "23",
+		}, {
+			name: "nvme",
+			init: func(t *testing.T, m *DeviceManager) {
+				sysfsDev := setupNVMeBlockDevice(t, m.SysfsPath)
+				sysfsSetupPartition(t, m.SysfsPath, sysfsDev, "nvme1n1p27", &nvmePart, 27)
+				m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{nvmeDev, nvmePart}
+			},
+			rootPath:       "nvme1n1",
+			partitionPath:  "nvme1n1p27",
+			partitionIndex: "27",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			m := testingManager(t)
+			m.EnableDiskPartition = true
+			c.init(t, m)
+
+			part := filepath.Join(m.DevicePath, c.partitionPath)
+			root, index, err := m.GetDeviceRootAndPartitionIndex(part)
+			assert.NoError(t, err)
+			assert.Equal(t, filepath.Join(m.DevicePath, c.rootPath), root)
+			assert.Equal(t, c.partitionIndex, index)
 		})
 	}
 }

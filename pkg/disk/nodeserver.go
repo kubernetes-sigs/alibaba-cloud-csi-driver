@@ -948,13 +948,12 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	}
 
 	log.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
-	if DefaultDeviceManager.EnableDiskPartition && !IsDeviceNvme(devicePath) && isDevicePartition(devicePath) {
-		rootPath, index, err := getDeviceRootAndIndex(devicePath)
-		if err != nil {
-			log.Errorf("NodeExpandVolume:: GetDeviceRootAndIndex: %s with error: %s", diskID, err.Error())
-			return nil, status.Errorf(codes.InvalidArgument, "Volume %s GetDeviceRootAndIndex with error %s ", diskID, err.Error())
-		}
-		output, err := exec.Command("growpart", rootPath, strconv.Itoa(index)).CombinedOutput()
+	rootPath, index, err := DefaultDeviceManager.GetDeviceRootAndPartitionIndex(devicePath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "GetDeviceRootAndIndex(%s) failed: %v", diskID, err)
+	}
+	if index != "" {
+		output, err := exec.Command("growpart", rootPath, index).CombinedOutput()
 		if err != nil {
 			if bytes.Contains(output, []byte("NOCHANGE")) {
 				if bytes.Contains(output, []byte("it cannot be grown")) || bytes.Contains(output, []byte("could only be grown by")) {
@@ -965,9 +964,9 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 					return &csi.NodeExpandVolumeResponse{}, nil
 				}
 			}
-			return nil, status.Errorf(codes.InvalidArgument, "NodeExpandVolume: expand volume %s at %s %d failed: %s, with output %s", diskID, rootPath, index, err.Error(), string(output))
+			return nil, status.Errorf(codes.InvalidArgument, "NodeExpandVolume: expand volume %s at %s %s failed: %s, with output %s", diskID, rootPath, index, err.Error(), string(output))
 		}
-		log.Infof("NodeExpandVolume: Successful expand partition for volume: %s device: %s partition: %d", diskID, rootPath, index)
+		log.Infof("NodeExpandVolume: Successful expand partition for volume: %s device: %s partition: %s", diskID, rootPath, index)
 	}
 
 	// use resizer to expand volume filesystem
