@@ -241,75 +241,71 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
-	// running in runc/runv mode
-	if GlobalConfigVar.RunTimeClass == MixRunTimeMode {
-		// if target path mounted already, return
-		notMounted, err := ns.k8smounter.IsLikelyNotMountPoint(req.TargetPath)
+	targetPath := req.GetTargetPath()
+	// if target path mounted already, return
+	notMounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to check if %s is a mount point: %v", targetPath, err)
+	}
+	if !notMounted {
+		log.Infof("NodePublishVolume: TargetPath(%s) is mounted, not need mount again", targetPath)
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
+	runtime := utils.GetPodRunTime(req, ns.clientSet)
+
+	// check pod runtime
+	if runtime == RunvRunTimeMode {
+		log.Infof("NodePublishVolume:: Kata Disk Volume %s Mount with: %v", req.VolumeId, req)
+		// umount the stage path, which is mounted in Stage (tmpfs)
+		if err := ns.unmountStageTarget(sourcePath); err != nil {
+			log.Errorf("NodePublishVolume(runv): unmountStageTarget %s with error: %s", sourcePath, err.Error())
+			return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: unmountStageTarget "+sourcePath+" with error: "+err.Error())
+		}
+		deviceName, err := DefaultDeviceManager.GetRootBlockByVolumeID(req.VolumeId)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to check if %s is a mount point: %v", req.TargetPath, err)
+			deviceName = getVolumeConfig(req.VolumeId)
 		}
-		if !notMounted {
-			log.Infof("NodePublishVolume: TargetPath(%s) is mounted, not need mount again", req.TargetPath)
-			return &csi.NodePublishVolumeResponse{}, nil
+		if deviceName == "" {
+			log.Errorf("NodePublishVolume(runv): cannot get local deviceName for volume:  %s", req.VolumeId)
+			return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot get local deviceName for volume: "+req.VolumeId)
 		}
 
-		// check pod runtime
-		if runtime, err := utils.GetPodRunTime(req, ns.clientSet); err != nil {
-			return nil, status.Errorf(codes.Internal, "NodePublishVolume: cannot get pod runtime: %v", err)
-		} else if runtime == RunvRunTimeMode {
-			log.Infof("NodePublishVolume:: Kata Disk Volume %s Mount with: %v", req.VolumeId, req)
-			// umount the stage path, which is mounted in Stage (tmpfs)
-			if err := ns.unmountStageTarget(sourcePath); err != nil {
-				log.Errorf("NodePublishVolume(runv): unmountStageTarget %s with error: %s", sourcePath, err.Error())
-				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: unmountStageTarget "+sourcePath+" with error: "+err.Error())
-			}
-			deviceName, err := DefaultDeviceManager.GetRootBlockByVolumeID(req.VolumeId)
-			if err != nil {
-				deviceName = getVolumeConfig(req.VolumeId)
-			}
-			if deviceName == "" {
-				log.Errorf("NodePublishVolume(runv): cannot get local deviceName for volume:  %s", req.VolumeId)
-				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot get local deviceName for volume: "+req.VolumeId)
-			}
-
-			// save volume info to local file
-			mountFile := filepath.Join(req.GetTargetPath(), utils.CsiPluginRunTimeFlagFile)
-			if err := utils.CreateDest(req.GetTargetPath()); err != nil {
-				log.Errorf("NodePublishVolume(runv): Create Dest %s error: %s", req.GetTargetPath(), err.Error())
-				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Create Dest "+req.GetTargetPath()+" with error: "+err.Error())
-			}
-
-			qResponse := QueryResponse{}
-			qResponse.device = deviceName
-			qResponse.identity = req.GetTargetPath()
-			qResponse.volumeType = "block"
-			qResponse.mountfile = mountFile
-			qResponse.runtime = RunvRunTimeMode
-			if err := utils.WriteJSONFile(qResponse, mountFile); err != nil {
-				log.Errorf("NodePublishVolume(runv): Write Json File error: %s", err.Error())
-				return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Write Json File error: "+err.Error())
-			}
-			// save volume status to stage json file
-			volumeStatus := map[string]string{}
-			volumeStatus["csi.alibabacloud.com/disk-mounted"] = "true"
-			fileName := filepath.Join(filepath.Dir(sourcePath), utils.VolDataFileName)
-			if strings.HasSuffix(sourcePath, "/") {
-				fileName = filepath.Join(filepath.Dir(filepath.Dir(sourcePath)), utils.VolDataFileName)
-			}
-			if err = utils.AppendJSONData(fileName, volumeStatus); err != nil {
-				log.Warnf("NodePublishVolume: append kata volume attached info to %s with error: %s", fileName, err.Error())
-			}
-
-			log.Infof("NodePublishVolume:: Kata Disk Volume %s Mount Successful", req.VolumeId)
-			return &csi.NodePublishVolumeResponse{}, nil
+		// save volume info to local file
+		mountFile := filepath.Join(req.GetTargetPath(), utils.CsiPluginRunTimeFlagFile)
+		if err := utils.CreateDest(req.GetTargetPath()); err != nil {
+			log.Errorf("NodePublishVolume(runv): Create Dest %s error: %s", req.GetTargetPath(), err.Error())
+			return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Create Dest "+req.GetTargetPath()+" with error: "+err.Error())
 		}
+
+		qResponse := QueryResponse{}
+		qResponse.device = deviceName
+		qResponse.identity = req.GetTargetPath()
+		qResponse.volumeType = "block"
+		qResponse.mountfile = mountFile
+		qResponse.runtime = RunvRunTimeMode
+		if err := utils.WriteJSONFile(qResponse, mountFile); err != nil {
+			log.Errorf("NodePublishVolume(runv): Write Json File error: %s", err.Error())
+			return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Write Json File error: "+err.Error())
+		}
+		// save volume status to stage json file
+		volumeStatus := map[string]string{}
+		volumeStatus["csi.alibabacloud.com/disk-mounted"] = "true"
+		fileName := filepath.Join(filepath.Dir(sourcePath), utils.VolDataFileName)
+		if strings.HasSuffix(sourcePath, "/") {
+			fileName = filepath.Join(filepath.Dir(filepath.Dir(sourcePath)), utils.VolDataFileName)
+		}
+		if err = utils.AppendJSONData(fileName, volumeStatus); err != nil {
+			log.Warnf("NodePublishVolume: append kata volume attached info to %s with error: %s", fileName, err.Error())
+		}
+
+		log.Infof("NodePublishVolume:: Kata Disk Volume %s Mount Successful", req.VolumeId)
+		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	isBlock := req.GetVolumeCapability().GetBlock() != nil
 	if isBlock {
 		sourcePath = filepath.Join(req.StagingTargetPath, req.VolumeId)
 	}
-	targetPath := req.GetTargetPath()
 	log.Infof("NodePublishVolume: Starting Mount Volume %s, source %s > target %s", req.VolumeId, sourcePath, targetPath)
 	if req.StagingTargetPath == "" {
 		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: Staging Target Path must be provided")
@@ -472,7 +468,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 	if notmounted {
 		// check runtime mode
-		if GlobalConfigVar.RunTimeClass == MixRunTimeMode && utils.IsMountPointRunv(targetPath) {
+		if utils.IsMountPointRunv(targetPath) {
 			fileName := filepath.Join(targetPath, utils.CsiPluginRunTimeFlagFile)
 			if err := os.Remove(fileName); err != nil {
 				msg := fmt.Sprintf("NodeUnpublishVolume: Remove Runv File %s with error: %s", fileName, err.Error())

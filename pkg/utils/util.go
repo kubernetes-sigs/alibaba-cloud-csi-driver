@@ -69,6 +69,8 @@ const (
 	RuncRunTimeTag = "runc"
 	// RunvRunTimeTag tag
 	RunvRunTimeTag = "runv"
+	// RunvRunTimeTag tag
+	RundRunTimeTag = "rund"
 	// ServiceType tag
 	ServiceType = "SERVICE_TYPE"
 	// PluginService represents the csi-plugin type.
@@ -422,8 +424,9 @@ func WriteJSONFile(obj interface{}, file string) error {
 
 // GetPodRunTime Get Pod runtimeclass config
 // Default as runc.
-func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet kubernetes.Interface) (string, error) {
+func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet kubernetes.Interface) string {
 	// if pod name namespace is empty, use default
+	runtimeVal := RuncRunTimeTag
 	podName, nameSpace := "", ""
 	if value, ok := req.VolumeContext["csi.storage.k8s.io/pod.name"]; ok {
 		podName = value
@@ -433,39 +436,32 @@ func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet kubernetes.Inter
 	}
 	if podName == "" || nameSpace == "" {
 		log.Warnf("GetPodRunTime: Rreceive Request with Empty name or namespace: %s, %s", podName, nameSpace)
-		return "", fmt.Errorf("GetPodRunTime: Rreceive Request with Empty name or namespace")
+		return runtimeVal
 	}
 
 	podInfo, err := clientSet.CoreV1().Pods(nameSpace).Get(context.Background(), podName, metav1.GetOptions{})
 	if err != nil {
 		log.Errorf("GetPodRunTime: Get PodInfo(%s, %s) with error: %s", podName, nameSpace, err.Error())
-		return "", fmt.Errorf("GetPodRunTime: Get PodInfo(%s, %s) with error: %s", podName, nameSpace, err.Error())
+		return runtimeVal
 	}
-	runTimeValue := RuncRunTimeTag
 
 	// check pod.Spec.RuntimeClassName == "runv"
-	if podInfo.Spec.RuntimeClassName == nil {
-		log.Infof("GetPodRunTime: Get without runtime(nil), %s, %s", podName, nameSpace)
-	} else if *podInfo.Spec.RuntimeClassName == "" {
-		log.Infof("GetPodRunTime: Get with empty runtime: %s, %s", podName, nameSpace)
+	if podInfo.Spec.RuntimeClassName == nil || *podInfo.Spec.RuntimeClassName == "" {
+		log.Infof("GetPodRunTime: Get default runtime(nil), %s, %s", podName, nameSpace)
+		return runtimeVal
 	} else {
-		log.Infof("GetPodRunTime: Get PodInfo Successful: %s, %s, with runtime: %s", podName, nameSpace, *podInfo.Spec.RuntimeClassName)
-		if strings.TrimSpace(*podInfo.Spec.RuntimeClassName) == RunvRunTimeTag {
-			runTimeValue = RunvRunTimeTag
+		runtimeClassName := strings.TrimSpace(*podInfo.Spec.RuntimeClassName)
+		log.Infof("GetPodRunTime: Get PodInfo Successful: %s, %s, with runtime: %s", podName, nameSpace, runtimeClassName)
+		if runtimeClassName == RunvRunTimeTag || runtimeClassName == RundRunTimeTag {
+			runtimeVal = runtimeClassName
 		}
 	}
-
-	// Deprecated pouch为了支持k8s 1.12以前没有RuntimeClass的情况做的特殊逻辑，为了代码健壮性，这里做下支持
-	if podInfo.Annotations["io.kubernetes.runtime"] == "kata-runtime" {
-		log.Infof("RunTime: Send with runtime: %s, %s, %s", podName, nameSpace, "runv")
-		runTimeValue = RunvRunTimeTag
-	}
-
 	// check Annotation[io.kubernetes.cri.untrusted-workload] = true
 	if value, ok := podInfo.Annotations["io.kubernetes.cri.untrusted-workload"]; ok && strings.TrimSpace(value) == "true" {
-		runTimeValue = RunvRunTimeTag
+		log.Infof("GetPodRunTime: namespace: %s, name: %s pod has untrusted workload tag, use runv runtime logic", nameSpace, podName)
+		runtimeVal = RunvRunTimeTag
 	}
-	return runTimeValue, nil
+	return runtimeVal
 }
 
 // IsMountPointRunv check the mountpoint is runv style.

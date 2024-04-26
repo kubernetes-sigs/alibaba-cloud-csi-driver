@@ -376,6 +376,25 @@ func GetDiskFormat(disk string) (string, string, error) {
 	return fstype, "", nil
 }
 
+func prepareMountInfos(req *csi.NodePublishVolumeRequest) ([]string, string) {
+	mnt := req.VolumeCapability.GetMount()
+
+	options := []string{"bind"}
+	fsType := "ext4"
+	if mnt != nil {
+		options = append(options, mnt.MountFlags...)
+		if mnt.FsType != "" {
+			fsType = mnt.FsType
+		}
+	}
+
+	log.Infof("prepareMountInfos: VolumeCapability: %+v, req.ReadOnly: %+v", mnt, req.Readonly)
+	if req.Readonly {
+		options = append(options, "ro")
+	}
+	return options, fsType
+}
+
 // GetVolumeIDByDevice get volumeID by specific deivce name according to by-id dictionary
 func GetVolumeIDByDevice(device string) (volumeID string, err error) {
 	// get volume by serial number feature
