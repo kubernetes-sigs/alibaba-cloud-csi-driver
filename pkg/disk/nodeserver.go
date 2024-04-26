@@ -107,6 +107,25 @@ const (
 	NOUUID = "nouuid"
 	// NodeMultiZoneEnable Enable node multi-zone mode
 	NodeMultiZoneEnable = "NODE_MULTI_ZONE_ENABLE"
+
+	// RundVolumeType specific which volume type is passed to rund
+	rundBlockVolumeType = "block"
+	// BDFTypeDevice defines the prefix of bdf number 
+	BDFTypeDevice   = "0000:"
+	// BDFTypeBus defines bdf bus type  
+	BDFTypeBus      = "pci"
+	// DFBusTypeDevice defines the prefix of dfnumber  
+	DFBusTypeDevice = "dfvirtio"
+	// DFBusTypeBus defines df bus type  
+	DFBusTypeBus    = "dragonfly"
+	// DFBusTypeVFIO defines df bus vfio driver type   
+	DFBusTypeVFIO   = "vfio-dfbus"
+	// DFBusTypeVIRTIO defines df bus virtio driver type   
+	DFBusTypeVIRTIO = "dfbus-mmio"
+	// PCITypeVFIO defines pci bus vfio driver type   
+	PCITypeVFIO   = "vfio-pci"
+	// PCITypeVIRTIO defines pci bus virtio driver type   
+	PCITypeVIRTIO = "virtio-pci"
 )
 
 var (
