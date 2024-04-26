@@ -71,7 +71,6 @@ type diskVolumeArgs struct {
 	ResourceGroupID         string
 	StorageClusterID        string
 	DiskTags                map[string]string
-	NodeSelected            string
 	DelAutoSnap             string
 	ARN                     []ecs.CreateDiskArn
 	VolumeSizeAutoAvailable bool

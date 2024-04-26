@@ -36,8 +36,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var DEFAULT_VMFATAL_EVENTS = []string{
@@ -848,18 +846,13 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 	if diskVol.StorageClusterID != "" {
 		createDiskRequest.StorageClusterId = diskVol.StorageClusterID
 	}
-	diskTypes, diskPLs, err := getDiskType(diskVol)
-	log.Infof("createDisk: diskName: %s, valid disktype: %v, valid diskpls: %v", diskName, diskTypes, diskPLs)
-	if err != nil {
-		return "", "", "", err
-	}
-	for _, dType := range diskTypes {
+	for _, dType := range diskVol.Type {
 		createDiskRequest.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID)
 		createDiskRequest.DiskCategory = dType
 		if dType == DiskESSD {
 			newReq := generateNewRequest(createDiskRequest)
 			// when perforamceLevel is not setting, diskPLs is empty.
-			for _, diskPL := range diskPLs {
+			for _, diskPL := range diskVol.PerformanceLevel {
 				log.Infof("createDisk: start to create disk by diskName: %s, valid disktype: %v, pl: %s", diskName, dType, diskPL)
 
 				newReq.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID, diskPL)
@@ -875,7 +868,7 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 				}
 				err = rerr
 			}
-			if len(diskPLs) != 0 {
+			if len(diskVol.PerformanceLevel) != 0 {
 				continue
 			}
 		}
@@ -910,7 +903,7 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 		}
 		err = rerr
 	}
-	return "", "", "", status.Errorf(codes.Internal, "createDisk: err: %v, the zone:[%s] is not support specific disk type, please change the request disktype: %s or disk pl: %s", err, diskVol.ZoneID, diskTypes, diskPLs)
+	return "", "", "", status.Errorf(codes.Internal, "createDisk: err: %v, the zone:[%s] is not support specific disk type, please change the request disktype: %v or disk pl: %v", err, diskVol.ZoneID, diskVol.Type, diskVol.PerformanceLevel)
 }
 
 // reuse rpcrequest in ecs sdk is forbidden, because parameters can't be reassigned with empty string.(ecs sdk bug)
@@ -977,42 +970,6 @@ func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (r
 	log.Errorf("request: create disk for volume %s with type: %s err: %v", createDiskRequest.DiskName, createDiskRequest.DiskCategory, err)
 	newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskProvision)
 	return true, "", fmt.Errorf("%s: %w", newErrMsg, err)
-}
-
-func getDiskType(diskVol *diskVolumeArgs) ([]string, []string, error) {
-	nodeSupportDiskType := []string{}
-	if diskVol.NodeSelected != "" {
-		client := GlobalConfigVar.ClientSet
-		nodeInfo, err := client.CoreV1().Nodes().Get(context.Background(), diskVol.NodeSelected, metav1.GetOptions{})
-		if err != nil {
-			log.Infof("getDiskType: failed to get node labels: %v", err)
-			if apierrors.IsNotFound(err) {
-				return nil, nil, status.Errorf(codes.ResourceExhausted, "CreateVolume:: get node info by name: %s failed with err: %v, start rescheduling", diskVol.NodeSelected, err)
-			}
-			return nil, nil, status.Errorf(codes.InvalidArgument, "CreateVolume:: get node info by name: %s failed with err: %v", diskVol.NodeSelected, err)
-		}
-		re := regexp.MustCompile(`node.csi.alibabacloud.com/disktype.(.*)`)
-		for key := range nodeInfo.Labels {
-			if result := re.FindStringSubmatch(key); len(result) != 0 {
-				nodeSupportDiskType = append(nodeSupportDiskType, result[1])
-			}
-		}
-		log.Infof("CreateVolume:: node support disk types: %v, nodeSelected: %v", nodeSupportDiskType, diskVol.NodeSelected)
-	}
-
-	provisionDiskTypes := []string{}
-	allTypes := deleteEmpty(diskVol.Type)
-	if len(nodeSupportDiskType) != 0 {
-		provisionDiskTypes = intersect(nodeSupportDiskType, allTypes)
-		if len(provisionDiskTypes) == 0 {
-			log.Errorf("CreateVolume:: node(%s) support type: [%v] is incompatible with provision disk type: [%s]", diskVol.NodeSelected, nodeSupportDiskType, allTypes)
-			return nil, nil, status.Errorf(codes.ResourceExhausted, "CreateVolume:: node support type: [%v] is incompatible with provision disk type: [%s]", nodeSupportDiskType, allTypes)
-		}
-	} else {
-		provisionDiskTypes = allTypes
-	}
-	provisionPerformanceLevel := diskVol.PerformanceLevel
-	return provisionDiskTypes, provisionPerformanceLevel, nil
 }
 
 func getDefaultDiskTags(diskVol *diskVolumeArgs) []ecs.CreateDiskTag {
