@@ -85,10 +85,6 @@ const (
 	RundSocketDir = "/host/etc/kubernetes/volumes/rund/"
 	// VolumeDirRemove volume dir remove
 	VolumeDirRemove = "/host/etc/kubernetes/volumes/disk/remove"
-	// MixRunTimeMode support both runc and runv
-	MixRunTimeMode = "runc-runv"
-	// RunvRunTimeMode tag
-	RunvRunTimeMode = "runv"
 	// InputOutputErr tag
 	InputOutputErr = "input/output error"
 	// DiskMultiTenantEnable Enable disk multi-tenant mode
@@ -251,10 +247,20 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		log.Infof("NodePublishVolume: TargetPath(%s) is mounted, not need mount again", targetPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
+	options, fsType := prepareMountInfos(req)
+
+
 	runtime := utils.GetPodRunTime(req, ns.clientSet)
 
+	isBlock := req.GetVolumeCapability().GetBlock() != nil
+	if isBlock {
+		sourcePath = filepath.Join(req.StagingTargetPath, req.VolumeId)
+	}
+
+	log.Infof("NodePublishVolume: Starting Mount Volume %s, source %s > target %s", req.VolumeId, sourcePath, targetPath)
+
 	// check pod runtime
-	if runtime == RunvRunTimeMode {
+	if runtime == utils.RunvRunTimeTag {
 		log.Infof("NodePublishVolume:: Kata Disk Volume %s Mount with: %v", req.VolumeId, req)
 		// umount the stage path, which is mounted in Stage (tmpfs)
 		if err := ns.unmountStageTarget(sourcePath); err != nil {
@@ -282,7 +288,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		qResponse.identity = req.GetTargetPath()
 		qResponse.volumeType = "block"
 		qResponse.mountfile = mountFile
-		qResponse.runtime = RunvRunTimeMode
+		qResponse.runtime = utils.RunvRunTimeTag
 		if err := utils.WriteJSONFile(qResponse, mountFile); err != nil {
 			log.Errorf("NodePublishVolume(runv): Write Json File error: %s", err.Error())
 			return nil, status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Write Json File error: "+err.Error())
@@ -302,11 +308,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	isBlock := req.GetVolumeCapability().GetBlock() != nil
-	if isBlock {
-		sourcePath = filepath.Join(req.StagingTargetPath, req.VolumeId)
-	}
-	log.Infof("NodePublishVolume: Starting Mount Volume %s, source %s > target %s", req.VolumeId, sourcePath, targetPath)
 	if req.StagingTargetPath == "" {
 		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: Staging Target Path must be provided")
 	}
@@ -359,18 +360,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	// start to mount
-	mnt := req.VolumeCapability.GetMount()
-	options := append(mnt.MountFlags, "bind")
-	log.Infof("NodePublishVolume: VolumeCapability.MountFlags: %+v, req.ReadOnly: %+v", mnt.MountFlags, req.Readonly)
-	if req.Readonly {
-		options = append(options, "ro")
-	}
-	fsType := "ext4"
-	if mnt.FsType != "" {
-		fsType = mnt.FsType
-	}
-
 	// check device name available
 	expectName, err := GetVolumeDeviceName(req.VolumeId)
 	if err != nil {
@@ -382,7 +371,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", sourcePath, err.Error())
 	}
 	if realDevice == "" {
-		opts := append(mnt.MountFlags, "shared")
+		opts := append(options, "shared")
 		if err := ns.k8smounter.Mount(expectName, sourcePath, fsType, opts); err != nil {
 			log.Errorf("NodePublishVolume: mount source error: %s, %s, %s", expectName, sourcePath, err.Error())
 			return nil, status.Error(codes.Internal, "NodePublishVolume: mount source error: "+expectName+", "+sourcePath+", "+err.Error())
