@@ -315,7 +315,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		}
 	}
 
-	response, err := deleteDisk(ecsClient, req.VolumeId)
+	response, err := deleteDisk(ctx, ecsClient, req.VolumeId)
 	if err != nil {
 		newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
 		errMsg := fmt.Sprintf("DeleteVolume: Delete disk with error: %s", newErrMsg)
@@ -886,7 +886,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 		resizeDiskRequest.Type = "online"
 	}
 
-	response, err := ecsClient.ResizeDisk(resizeDiskRequest)
+	response, err := resizeDisk(ctx, ecsClient, resizeDiskRequest)
 	if err != nil {
 		log.Errorf("ControllerExpandVolume:: resize got error: %s", err.Error())
 		if snapshotEnable {
