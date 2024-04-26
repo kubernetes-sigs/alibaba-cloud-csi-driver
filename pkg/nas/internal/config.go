@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
@@ -124,13 +123,6 @@ func GetNodeConfig() (*NodeConfig, error) {
 		return nil, err
 	}
 	config.NodeName = nodeName
-
-	// check container runtime
-	config.EnableMixRuntime = strings.TrimSpace(node.Labels["alibabacloud.com/container-runtime"]) == "Sandboxed-Container.runv" &&
-		strings.HasPrefix(strings.TrimSpace(node.Labels["alibabacloud.com/container-runtime-version"]), "1.")
-	if config.EnableMixRuntime {
-		logrus.Info("enabled nas mix runtime mode")
-	}
 
 	// check if losetup enabled
 	if value := os.Getenv("NAS_LOSETUP_ENABLE"); value != "" {
