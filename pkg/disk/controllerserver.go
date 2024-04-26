@@ -171,6 +171,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 	}
 
+	diskVol, err := getDiskVolumeOptions(req)
+	if err != nil {
+		log.Errorf("CreateVolume: error parameters from input: %v, with error: %v", req.Name, err)
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %v, with error: %v", req.Name, err)
+	}
+
 	// 兼容 serverless 拓扑感知场景；
 	// req参数里面包含了云盘ID，则直接使用云盘ID进行返回；
 	csiVolume, err := staticVolumeCreate(req, snapshotID)
@@ -179,15 +185,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, err
 	}
 	if csiVolume != nil {
+		tagDiskUserTags(csiVolume.VolumeId, diskVol.DiskTags, req.Parameters[TenantUserUID])
 		log.Infof("CreateVolume: static volume create successful, pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, csiVolume.VolumeId, csiVolume.VolumeContext)
 		return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 	}
 
-	diskVol, err := getDiskVolumeOptions(req)
-	if err != nil {
-		log.Errorf("CreateVolume: error parameters from input: %v, with error: %v", req.Name, err)
-		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %v, with error: %v", req.Name, err)
-	}
 	if req.GetCapacityRange() == nil {
 		log.Errorf("CreateVolume: error Capacity from input: %s", req.Name)
 		return nil, status.Errorf(codes.InvalidArgument, "CreateVolume: error Capacity from input: %v", req.Name)
