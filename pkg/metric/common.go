@@ -36,8 +36,6 @@ const (
 	nodeNamespace                           string = "node"
 	scrapeSubSystem                         string = "scrape"
 	volumeSubSystem                         string = "volume"
-	latencySwitch                                  = "latency"
-	capacitySwitch                                 = "capacity"
 	diskSectorSize                                 = 512
 	diskDefaultsLantencyThreshold                  = 10
 	diskDefaultsCapacityPercentageThreshold        = 85
