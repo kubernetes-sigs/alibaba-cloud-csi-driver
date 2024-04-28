@@ -21,7 +21,7 @@ var (
 		DBFSMetricByPlugin: {Default: false, PreRelease: featuregate.Alpha},
 		DBFSADController:   {Default: false, PreRelease: featuregate.Alpha},
 	}
-	defaultUpdatedOssfsVersionFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
+	defaultOSSFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
 		UpdatedOssfsVersion: {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
@@ -29,5 +29,5 @@ var (
 func init() {
 	runtime.Must(FunctionalMutableFeatureGate.Add(defaultDiskFeatureGate))
 	runtime.Must(FunctionalMutableFeatureGate.Add(defaultDBFSFeatureGate))
-	runtime.Must(FunctionalMutableFeatureGate.Add(defaultUpdatedOssfsVersionFeatureGate))
+	runtime.Must(FunctionalMutableFeatureGate.Add(defaultOSSFeatureGate))
 }
