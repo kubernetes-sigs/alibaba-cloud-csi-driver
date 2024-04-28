@@ -31,9 +31,11 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dadi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/rund/directvolume"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -351,6 +353,23 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// if volume set mountType as skipmount;
 	if opt.MountType == SkipMountType {
+		if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
+			mountInfo := directvolume.MountInfo{
+				Source:     opt.Server,
+				DeviceType: directvolume.DeviceTypeNFS,
+				FSType:     "",
+				MountOpts:  strings.Split(opt.Options, ","),
+				Extra:      map[string]string{},
+			}
+			log.Info("NodePublishVolume(rund3.0): Starting add mount info to DirectVolume")
+			err := directvolume.AddMountInfo(mountPath, mountInfo)
+			if err != nil {
+				log.Errorf("NodePublishVolume(rund3.0): Adding mount infomation to DirectVolume failed: %v", err)
+				return nil, status.Error(codes.Internal, "NAS: failed to mount volume in rund-csi 3.0")
+			}
+			return &csi.NodePublishVolumeResponse{}, nil
+		}
+
 		err := ns.mounter.Mount("tmpfs", mountPath, "tmpfs", []string{"size=1m"})
 		if err != nil {
 			log.Errorf("NAS: Mount volume(%s) path as tmpfs with err: %v", req.VolumeId, err.Error())
