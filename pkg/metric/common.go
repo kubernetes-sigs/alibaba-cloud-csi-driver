@@ -42,19 +42,10 @@ const (
 	diskDefaultsLantencyThreshold           = 10
 	diskDefaultsCapacityPercentageThreshold = 85
 	nfsDefaultsCapacityPercentageThreshold  = 85
-	float64EqualityThreshold                = 1e-9
-	diskStatsFileName                       = "diskstats"
 	nfsStatsFileName                        = "/proc/self/mountstats"
 	latencyTooHigh                          = "LatencyTooHigh"
 	capacityNotEnough                       = "NotEnoughDiskSpace"
 	ioHang                                  = "IOHang"
-)
-
-const (
-	// PluginService represents the csi-plugin type.
-	pluginService = "plugin"
-	// ProvisionerService represents the csi-provisioner type.
-	provisionerService = "provisioner"
 )
 
 const (

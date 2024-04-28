@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -263,10 +262,6 @@ func listDirectory(rootPath string) ([]string, error) {
 		fileLists = append(fileLists, f.Name())
 	}
 	return fileLists, nil
-}
-
-func almostEqualFloat64(a, b float64) bool {
-	return math.Abs(a-b) <= float64EqualityThreshold
 }
 
 func parseLantencyThreshold(s string, defaults float64) (float64, error) {
