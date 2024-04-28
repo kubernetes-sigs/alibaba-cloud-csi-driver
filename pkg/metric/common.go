@@ -38,8 +38,6 @@ const (
 	grpcSubsystem                           = "grpc"
 	scrapeSubsystem                         = "scrape"
 	volumeSubsystem                         = "volume"
-	latencySwitch                           = "latency"
-	capacitySwitch                          = "capacity"
 	diskSectorSize                          = 512
 	diskDefaultsLantencyThreshold           = 10
 	diskDefaultsCapacityPercentageThreshold = 85

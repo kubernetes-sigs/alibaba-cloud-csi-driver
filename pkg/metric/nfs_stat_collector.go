@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
@@ -179,7 +178,6 @@ type nfsStatCollector struct {
 	crdClient                   dynamic.Interface
 	monitorClient               *StorageMonitorClient
 	recorder                    record.EventRecorder
-	alertSwtichSet              *hashset.Set
 	capacityPercentageThreshold float64
 	mounter                     mount.Interface
 }
@@ -188,15 +186,13 @@ func init() {
 	registerCollector("nfs_stat", NewNfsStatCollector, nasDriverName)
 }
 
-func parseNfsThreshold(defaultCapacityPercentageThreshold float64) (*hashset.Set, float64) {
-	alertSet := hashset.New()
-	nfsCapacityThreshold := strings.ToLower(strings.Trim(os.Getenv("NFS_CAPACITY_THRESHOLD_PERCENTAGE"), " "))
-	if len(nfsCapacityThreshold) != 0 {
-		alertSet.Add(capacitySwitch)
-		defaultCapacityPercentageThreshold, _ = parseCapacityThreshold(nfsCapacityThreshold, defaultCapacityPercentageThreshold)
+func getNfsCapacityThreshold() float64 {
+	capacityStr := strings.ToLower(strings.Trim(os.Getenv("NFS_CAPACITY_THRESHOLD_PERCENTAGE"), " "))
+	if len(capacityStr) != 0 {
+		capacity, _ := parseCapacityThreshold(capacityStr, nfsDefaultsCapacityPercentageThreshold)
+		return capacity
 	}
-
-	return alertSet, defaultCapacityPercentageThreshold
+	return 0
 }
 
 // NewNfsStatCollector returns a new Collector exposing nfs stats.
@@ -216,8 +212,6 @@ func NewNfsStatCollector() (Collector, error) {
 	if err != nil {
 		klog.Fatalf("Failed to create crd client: %v", err)
 	}
-
-	alertSet, capacityPercentageThreshold := parseNfsThreshold(nfsDefaultsCapacityPercentageThreshold)
 
 	return &nfsStatCollector{
 		descs: []typedFactorDesc{
@@ -250,8 +244,7 @@ func NewNfsStatCollector() (Collector, error) {
 		crdClient:                   crdClient,
 		recorder:                    recorder,
 		monitorClient:               NewStorageMonitorClient(clientset),
-		alertSwtichSet:              alertSet,
-		capacityPercentageThreshold: capacityPercentageThreshold,
+		capacityPercentageThreshold: getNfsCapacityThreshold(),
 		mounter:                     mount.New(""),
 	}, nil
 }
@@ -453,7 +446,7 @@ func getTotalAndUsedSize(info *nfsCapacityInfo) (int64, int64) {
 
 func (p *nfsStatCollector) capacityEventAlert(totalSize int64, usedSize int64, pvName string, info nfsInfo) {
 	total, used, gibSize := float64(totalSize), float64(usedSize), float64(GiBSize)
-	if p.alertSwtichSet.Contains(capacitySwitch) {
+	if p.capacityPercentageThreshold > 0 {
 		usedPercentage := 100 * used / total
 		if usedPercentage >= float64(p.capacityPercentageThreshold) {
 			ref := &v1.ObjectReference{
