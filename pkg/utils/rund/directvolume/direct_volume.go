@@ -15,8 +15,8 @@ const (
 	DeviceTypePCI       = "pci"
 	DeviceTypeDFBusPort = "dfbus"
 
-	Kata2MountInfoFileName = "vol_data.json"
-	Kata3MountInfoFileName = "vol_attr.json"
+	RunD2MountInfoFileName = "vol_data.json"
+	RunD3MountInfoFileName = "vol_attr.json"
 
 	// BlockFileModeReadWrite decimal value of 660 (-rw-rw---)
 	BlockFileModeReadWrite = "432"
@@ -40,7 +40,7 @@ func Add(volumePath string, mountInfo string) error {
 	if err := json.Unmarshal([]byte(mountInfo), &deserialized); err != nil {
 		return err
 	}
-	filePath := filepath.Join(volumePath, Kata3MountInfoFileName)
+	filePath := filepath.Join(volumePath, RunD3MountInfoFileName)
 	if err := os.MkdirAll(filepath.Dir(filePath), 0600); err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func Add(volumePath string, mountInfo string) error {
 
 // Remove deletes the direct volume path including all the files inside it.
 func Remove(volumePath string) error {
-	if err := os.Remove(filepath.Join(volumePath, Kata3MountInfoFileName)); err != nil {
+	if err := os.Remove(filepath.Join(volumePath, RunD3MountInfoFileName)); err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
@@ -61,7 +61,7 @@ func Remove(volumePath string) error {
 
 // VolumeMountInfo retrieves the mount info of a direct volume.
 func VolumeMountInfo(volumePath string) (*MountInfo, error) {
-	mountInfoFilePath := filepath.Join(volumePath, Kata3MountInfoFileName)
+	mountInfoFilePath := filepath.Join(volumePath, RunD3MountInfoFileName)
 	if _, err := os.Stat(mountInfoFilePath); err != nil {
 		return nil, err
 	}

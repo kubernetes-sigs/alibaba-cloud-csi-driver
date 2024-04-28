@@ -282,13 +282,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 		return &csi.NodePublishVolumeResponse{}, nil
 	case utils.RundRunTimeTag:
-		if directvolume.IsKataVolumeModes(req.TargetPath) {
+		if directvolume.IsRunDVolumeAlreadyMount(req.TargetPath) {
 			log.Infof("NodePublishVolume: TargetPath: %s already mounted by csi3.0/csi2.0 protocol", req.TargetPath)
 			return &csi.NodePublishVolumeResponse{}, nil
 		}
 		log.Infof("NodePublishVolume: TargetPath: %s is umounted, start mount in kata mode", req.TargetPath)
 		mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
-		returned, err := ns.mountKataVolumes(req.VolumeId, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, mountFlags)
+		returned, err := ns.mountRunDVolumes(req.VolumeId, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, mountFlags)
 		if err != nil {
 			return nil, err
 		}
@@ -1152,8 +1152,8 @@ func deleteUntagAutoSnapshot(snapshotID, diskID string) {
 	}
 }
 
-// check umountKataVolumes
-func (ns *nodeServer) umountKataVolumes(volumePath string) (bool, error) {
+// umountRunDVolumes umount runD volumes
+func (ns *nodeServer) umountRunDVolumes(volumePath string) (bool, error) {
 	// check runtime mode
 	if utils.IsMountPointRunv(volumePath) {
 		fileName := filepath.Join(volumePath, utils.CsiPluginRunTimeFlagFile)
@@ -1164,10 +1164,10 @@ func (ns *nodeServer) umountKataVolumes(volumePath string) (bool, error) {
 		return true, nil
 	}
 
-	mountInfo, isKata3 := directvolume.IsKata3VolumePath(filepath.Dir(volumePath))
+	mountInfo, isRunD3 := directvolume.IsRunD3VolumePath(filepath.Dir(volumePath))
 	if ns.vmocMode {
-		if !isKata3 {
-			return false, status.Error(codes.Internal, "vmoc mode only support kata3")
+		if !isRunD3 {
+			return false, status.Error(codes.Internal, "vmoc mode only support csi-runD protocol 3.0")
 		}
 
 		d, _ := NewDeviceDriver("", mountInfo.Source, DFBus, nil)
@@ -1190,7 +1190,7 @@ func (ns *nodeServer) umountKataVolumes(volumePath string) (bool, error) {
 	}
 
 	log.Infof("NodeUnPublishVolume:: start delete mount info for KataVolume: %s", volumePath)
-	if isKata3 {
+	if isRunD3 {
 		err := directvolume.Remove(filepath.Dir(volumePath))
 		if err != nil {
 			log.Errorf("NodeUnPublishVolume:: Remove mount info for DirectVolume failed: %v", err)
@@ -1199,9 +1199,9 @@ func (ns *nodeServer) umountKataVolumes(volumePath string) (bool, error) {
 		return true, nil
 	}
 	log.Infof("NodeUnPublishVolume:: start delete mount info for DirectVolume: %s", volumePath)
-	if directvolume.IsKata2VolumePath(volumePath) {
-		log.Infof("NodeUnPublishVolume: Path: %s is already mounted in kata2.0 mode", volumePath)
-		if err := os.Remove(filepath.Join(volumePath, directvolume.Kata2MountInfoFileName)); err != nil {
+	if directvolume.IsRunD2VolumePath(volumePath) {
+		log.Infof("NodeUnPublishVolume: Path: %s is already mounted in csi runD 3.0 mode", volumePath)
+		if err := os.Remove(filepath.Join(volumePath, directvolume.RunD2MountInfoFileName)); err != nil {
 			if os.IsNotExist(err) {
 				return false, nil
 			}
@@ -1214,7 +1214,7 @@ func (ns *nodeServer) umountKataVolumes(volumePath string) (bool, error) {
 }
 
 func (ns *nodeServer) mountRunvVolumes(volumeId, sourcePath, targetPath, fsType, mkfsOptions string, isRawBlock bool, mountFlags []string) error {
-	log.Infof("NodePublishVolume:: Kata Disk Volume %s Mount with runv", volumeId)
+	log.Infof("NodePublishVolume:: Disk Volume %s Mount with runv", volumeId)
 	// umount the stage path, which is mounted in Stage (tmpfs)
 	if err := ns.unmountStageTarget(sourcePath); err != nil {
 		log.Errorf("NodePublishVolume(runv): unmountStageTarget %s with error: %s", sourcePath, err.Error())
@@ -1250,9 +1250,9 @@ func (ns *nodeServer) mountRunvVolumes(volumeId, sourcePath, targetPath, fsType,
 	// save volume status to stage json file
 	volumeStatus := map[string]string{}
 	volumeStatus["csi.alibabacloud.com/disk-mounted"] = "true"
-	fileName := filepath.Join(filepath.Dir(sourcePath), directvolume.Kata2MountInfoFileName)
+	fileName := filepath.Join(filepath.Dir(sourcePath), directvolume.RunD2MountInfoFileName)
 	if strings.HasSuffix(sourcePath, "/") {
-		fileName = filepath.Join(filepath.Dir(filepath.Dir(sourcePath)), directvolume.Kata2MountInfoFileName)
+		fileName = filepath.Join(filepath.Dir(filepath.Dir(sourcePath)), directvolume.RunD2MountInfoFileName)
 	}
 	if err = utils.AppendJSONData(fileName, volumeStatus); err != nil {
 		log.Warnf("NodePublishVolume: append runv volume attached info to %s with error: %s", fileName, err.Error())
@@ -1260,7 +1260,7 @@ func (ns *nodeServer) mountRunvVolumes(volumeId, sourcePath, targetPath, fsType,
 	return nil
 }
 
-func (ns *nodeServer) mountKataVolumes(volumeId, sourcePath, targetPath, fsType, mkfsOptions string, isRawBlock bool, mountFlags []string) (bool, error) {
+func (ns *nodeServer) mountRunDVolumes(volumeId, sourcePath, targetPath, fsType, mkfsOptions string, isRawBlock bool, mountFlags []string) (bool, error) {
 	log.Infof("NodePublishVolume:: Kata Disk Volume %s Mounted in csi3.0/csi2.0 protocol", volumeId)
 	deviceName, err := DefaultDeviceManager.GetDeviceByVolumeID(volumeId)
 	if err != nil {
@@ -1390,8 +1390,8 @@ func (ns *nodeServer) mountKataVolumes(volumeId, sourcePath, targetPath, fsType,
 		return true, nil
 	}
 
-	// (kata2.0) Need write mountOptions(metadata) parameters to file, and run normal runc process
-	log.Infof("NodePublishVolume(rund): run kata2.0 logic")
+	// (runD2.0) Need write mountOptions(metadata) parameters to file, and run normal runc process
+	log.Infof("NodePublishVolume(rund): run csi runD protocol 2.0 logic")
 	volumeData := map[string]string{}
 	volumeData["csi.alibabacloud.com/fsType"] = fsType
 	if len(mountFlags) != 0 {
@@ -1401,9 +1401,9 @@ func (ns *nodeServer) mountKataVolumes(volumeId, sourcePath, targetPath, fsType,
 		volumeData["csi.alibabacloud.com/mkfsOptions"] = mkfsOptions
 	}
 	volumeData["csi.alibabacloud.com/disk-mounted"] = "true"
-	fileName := filepath.Join(filepath.Dir(targetPath), directvolume.Kata2MountInfoFileName)
+	fileName := filepath.Join(filepath.Dir(targetPath), directvolume.RunD2MountInfoFileName)
 	if strings.HasSuffix(targetPath, "/") {
-		fileName = filepath.Join(filepath.Dir(filepath.Dir(targetPath)), directvolume.Kata2MountInfoFileName)
+		fileName = filepath.Join(filepath.Dir(filepath.Dir(targetPath)), directvolume.RunD2MountInfoFileName)
 	}
 	if err = utils.AppendJSONData(fileName, volumeData); err != nil {
 		log.Warnf("NodeStageVolume: append volume spec to %s with error: %s", fileName, err.Error())
