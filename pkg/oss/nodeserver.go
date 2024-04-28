@@ -29,6 +29,7 @@ import (
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -327,6 +328,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	if opt.ReadOnly {
 		mountOptions = append(mountOptions, "ro")
+	}
+
+	// set use_metrics to enabled monitoring by default
+	if features.FunctionalMutableFeatureGate.Enabled(features.UpdatedOssfsVersion) {
+		mountOptions = append(mountOptions, "use_metrics")
 	}
 
 	if regionID == "" {

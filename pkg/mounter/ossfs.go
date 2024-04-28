@@ -10,6 +10,7 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -22,6 +23,7 @@ import (
 )
 
 var defaultOssfsImageTag = "4af1b0e-aliyun"
+var defaultOssfsUpdatedImageTag = "v1.91.2.ack.1-f804b1e-aliyun"
 
 const (
 	hostPrefix                = "/host"
@@ -53,7 +55,13 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) Fuse
 				registry = defaultRegistry
 			}
 		}
-		config.Image = fmt.Sprintf("%s/acs/csi-ossfs:%s", registry, defaultOssfsImageTag)
+		tag := defaultOssfsImageTag
+		// if enabled UpdatedOssfsVersion featuregate
+		if features.FunctionalMutableFeatureGate.Enabled(features.UpdatedOssfsVersion) {
+			log.Infof("UpdatedOssfsVersion is enabled by feature-gates, use %s", defaultOssfsUpdatedImageTag)
+			tag = defaultOssfsUpdatedImageTag
+		}
+		config.Image = fmt.Sprintf("%s/acs/csi-ossfs:%s", registry, tag)
 	}
 	// set default memory request
 	if _, ok := config.Resources.Requests[corev1.ResourceMemory]; !ok {
