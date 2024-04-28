@@ -268,7 +268,7 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 		if !ok {
 			continue
 		}
-		stats, _ = getDiskCapacityMetric(pvName, &info, stats)
+		stats, _ = getDiskCapacityMetric(&info, stats)
 		if scalerPvcMap != nil {
 			if _, ok := scalerPvcMap.Load(info.PvcName); !ok {
 				continue
@@ -459,8 +459,8 @@ func getDiskStats() (map[string][]string, error) {
 	return parseDiskStats(file)
 }
 
-func getDiskCapacityMetric(pvName string, info *diskInfo, stat []string) ([]string, error) {
-	getGlobalMountPathByPvName(pvName, info)
+func getDiskCapacityMetric(info *diskInfo, stat []string) ([]string, error) {
+	info.GlobalMountPath = getGlobalMountPathByDiskID(info.DiskID)
 	response, err := utils.GetMetrics(info.GlobalMountPath)
 	if err != nil {
 		klog.Errorf("Get pv %s metrics from kubelet is failed, err: %s", info.GlobalMountPath, err)
