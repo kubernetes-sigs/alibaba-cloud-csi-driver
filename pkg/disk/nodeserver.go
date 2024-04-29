@@ -422,13 +422,12 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 	if notmounted {
 		// check runtime mode
-		if utils.IsMountPointRunv(targetPath) {
-			fileName := filepath.Join(targetPath, utils.CsiPluginRunTimeFlagFile)
-			if err := os.Remove(fileName); err != nil {
-				msg := fmt.Sprintf("NodeUnpublishVolume: Remove Runv File %s with error: %s", fileName, err.Error())
-				return nil, status.Error(codes.InvalidArgument, msg)
-			}
-			log.Infof("NodeUnpublishVolume(runv): Remove Runv File Successful: %s", fileName)
+		isRunDType, err := ns.umountRunDVolumes(targetPath)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume: umountRunDVolumes with error: %s", err.Error())
+		}
+		if isRunDType && err == nil {
+			log.Infof("NodeUnpublishVolume: %s is runD volume and is removed successful", targetPath)
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
 
@@ -1261,7 +1260,7 @@ func (ns *nodeServer) mountRunvVolumes(volumeId, sourcePath, targetPath, fsType,
 }
 
 func (ns *nodeServer) mountRunDVolumes(volumeId, sourcePath, targetPath, fsType, mkfsOptions string, isRawBlock bool, mountFlags []string) (bool, error) {
-	log.Infof("NodePublishVolume:: Kata Disk Volume %s Mounted in csi3.0/csi2.0 protocol", volumeId)
+	log.Infof("NodePublishVolume:: Disk Volume %s Mounted in RunD csi 3.0/2.0 protocol", volumeId)
 	deviceName, err := DefaultDeviceManager.GetDeviceByVolumeID(volumeId)
 	if err != nil {
 		deviceName = getVolumeConfig(volumeId)

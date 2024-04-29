@@ -590,6 +590,13 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	} else {
 		log.Infof("NodeUnpublishVolume(runv): Remove runv file successful: %s", fileName)
 	}
+	// try to remove csi 3.0 file when featuregate is enabled 
+	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
+		if err := directvolume.Remove(targetPath); err != nil {
+			log.Errorf("NodeUnpublishVolume(rund3.0): Remove mount infomation to DirectVolume failed: %v", err)
+			return nil, status.Error(codes.Internal, "NAS: failed to unmount volume in rund-csi 3.0")
+		}
+	} 
 
 	// when losetup enabled, try to cleanup mountpoint under /mnt/nasplugin.alibabacloud.com/
 	if ns.config.EnableLosetup {
