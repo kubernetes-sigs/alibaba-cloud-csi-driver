@@ -33,6 +33,7 @@ deploy:
   ack: true  # deployed on managed Alibaba Cloud Container Service for Kubernetes (ACK)
   ecs: true  # use Alibaba Cloud Elastic Compute Service (ECS) for Node
   clusterID: null  # will be injected on installation on ACK
+  regionID: null  # useful when deploying on non-ECS, but need to access Alibaba Cloud OpenAPI
 
   # To access Alibaba Cloud OpenAPI in self-deployed Kubernetes cluster, use a secret with "id" and "secret" set.
   accessKey:

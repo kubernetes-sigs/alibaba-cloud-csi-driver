@@ -1,7 +1,11 @@
-## Mount a dynamically provisioned NAS volume
+# Mount a dynamically provisioned NAS volume
 
-### Prerequisite
-Same as diskplugin.csi.alibabacloud.com;
+## Prerequisite
+
+* A working Kubernetes cluster.
+* Local `kubectl` configured to communicate with this cluster.
+* CSI plugin with NAS driver and controller enabled. Please refer to the [installation guide](./install.md) for detailed instructions.
+
 ## Mount a dynamically provisioned NAS volume in subpath mode
 
 #### Step 1: Create a StorageClass.
