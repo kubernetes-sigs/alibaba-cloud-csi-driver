@@ -14,6 +14,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs/blockdevice"
+	"golang.org/x/sys/unix"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
@@ -77,7 +78,7 @@ var capStatDescs = map[csi.VolumeUsage_Unit]capDescs{
 type diskInfo struct {
 	PVCRef      *v1.ObjectReference
 	DiskID      string
-	DeviceName  string
+	Dev         uint64 // as in syscall.Stat_t.Dev
 	VolDataPath string
 }
 
@@ -86,7 +87,7 @@ type diskStatCollector struct {
 	capacityPercentageThreshold  float64
 	pvInfoLock                   sync.Mutex
 	lastPvDiskInfoMap            map[string]diskInfo
-	lastPvStatsMap               atomic.Pointer[map[string]*blockdevice.Diskstats]
+	lastPvStatsMap               atomic.Pointer[map[uint64]*blockdevice.Diskstats]
 	diskStats                    *ProcDiskStats
 	clientSet                    *kubernetes.Clientset
 	recorder                     record.EventRecorder
@@ -160,18 +161,19 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	if err != nil {
 		return fmt.Errorf("couldn't get diskstats: %s", err)
 	}
-	deviceNameStatsMap := make(map[string]*blockdevice.Diskstats, len(diskStats))
+	deviceNameStatsMap := make(map[uint64]*blockdevice.Diskstats, len(diskStats))
 	for i, s := range diskStats {
-		deviceNameStatsMap["/dev/"+s.DeviceName] = &diskStats[i]
+		dev := unix.Mkdev(s.MajorNumber, s.MinorNumber)
+		deviceNameStatsMap[dev] = &diskStats[i]
 	}
 	defer p.lastPvStatsMap.Store(&deviceNameStatsMap)
 
-	hungDevs := sets.New[string]()
+	hungDevs := sets.New[uint64]()
 	for _, info := range p.diskStats.GetHungDisks() {
-		hungDevs.Insert("/dev/" + info.DeviceName)
+		hungDevs.Insert(unix.Mkdev(info.MajorNumber, info.MinorNumber))
 	}
 
-	var lastStatsMap map[string]*blockdevice.Diskstats
+	var lastStatsMap map[uint64]*blockdevice.Diskstats
 	if m := p.lastPvStatsMap.Load(); m != nil {
 		lastStatsMap = *m
 	}
@@ -182,18 +184,19 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 				continue
 			}
 		}
-		stats, ok := deviceNameStatsMap[info.DeviceName]
+		stats, ok := deviceNameStatsMap[info.Dev]
 		if !ok {
 			continue
 		}
-		labels := []string{info.PVCRef.Namespace, info.PVCRef.Name, info.DeviceName}
+		devPath := "/dev/" + stats.DeviceName
+		labels := []string{info.PVCRef.Namespace, info.PVCRef.Name, devPath}
 		p.sendDiskStats(&stats.IOStats, labels, ch)
-		if lastStats, ok := lastStatsMap[info.DeviceName]; ok {
+		if lastStats, ok := lastStatsMap[info.Dev]; ok {
 			p.latencyEventAlert(&stats.IOStats, &lastStats.IOStats, info.PVCRef)
 		}
-		if hungDevs.Has(info.DeviceName) {
+		if hungDevs.Has(info.Dev) {
 			p.recorder.Eventf(info.PVCRef, v1.EventTypeWarning, ioHang, "IO Hang on Persistent Volume %s, nodeName:%s, diskID:%s, Device:%s",
-				pvName, p.nodeName, info.DiskID, info.DeviceName)
+				pvName, p.nodeName, info.DiskID, devPath)
 		}
 
 		capStats, err := getDiskCapacityMetric(info.DiskID)
@@ -292,17 +295,15 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 			continue // may be leaked volume
 		}
 
-		deviceName, err := getDeviceByVolumeID(pvName, diskID)
+		var stat unix.Stat_t
+		err = unix.Stat(mountPoint, &stat)
 		if err != nil {
-			klog.Errorf("Get dev name by diskID %s is failed, err:%s", diskID, err)
-			continue
-		}
-		if deviceName == "" {
+			klog.Errorf("Get stat of %s failed: %v", mountPoint, err)
 			continue
 		}
 		diskInfo := diskInfo{
 			DiskID:      diskID,
-			DeviceName:  deviceName,
+			Dev:         uint64(stat.Dev),
 			VolDataPath: path,
 		}
 		thisPvDiskInfoMap[pvName] = diskInfo
@@ -327,7 +328,7 @@ func (p *diskStatCollector) updateDiskInfoMap(thisPvDiskInfoMap map[string]diskI
 			updateInfo := diskInfo{
 				DiskID:      thisInfo.DiskID,
 				VolDataPath: thisInfo.VolDataPath,
-				DeviceName:  thisInfo.DeviceName,
+				Dev:         thisInfo.Dev,
 				PVCRef:      pvcRef,
 			}
 			(*lastPvDiskInfoMap)[pv] = updateInfo
