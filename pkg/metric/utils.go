@@ -47,18 +47,18 @@ func readFirstLines(path string) ([]string, error) {
 	return lineStrArray, scanner.Err()
 }
 
-func getPvcByPvNameByDisk(clientSet *kubernetes.Clientset, pvName string) (string, string, error) {
+func getDiskPvcByPvName(clientSet *kubernetes.Clientset, pvName string) (*apicorev1.ObjectReference, error) {
 	pv, err := clientSet.CoreV1().PersistentVolumes().Get(context.Background(), pvName, apismetav1.GetOptions{})
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
 	if pv.Status.Phase == apicorev1.VolumeBound {
-		return pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, nil
+		return pv.Spec.ClaimRef, nil
 	}
-	return "", "", errors.New("pvName:" + pv.Name + " status is not bound.")
+	return nil, errors.New("pvName:" + pv.Name + " status is not bound.")
 }
 
-func getPvcByPvName(clientSet *kubernetes.Clientset, cnfsClient dynamic.Interface, pvName string) (string, string, string, error) {
+func getNasPvcByPvName(clientSet *kubernetes.Clientset, cnfsClient dynamic.Interface, pvName string) (string, string, string, error) {
 	pv, err := clientSet.CoreV1().PersistentVolumes().Get(context.Background(), pvName, apismetav1.GetOptions{})
 	if err != nil {
 		return "", "", "", err

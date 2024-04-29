@@ -75,11 +75,10 @@ var capStatDescs = map[csi.VolumeUsage_Unit]capDescs{
 }
 
 type diskInfo struct {
-	PvcNamespace string
-	PvcName      string
-	DiskID       string
-	DeviceName   string
-	VolDataPath  string
+	PVCRef      *v1.ObjectReference
+	DiskID      string
+	DeviceName  string
+	VolDataPath string
 }
 
 type diskStatCollector struct {
@@ -179,27 +178,21 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 
 	for pvName, info := range p.lastPvDiskInfoMap {
 		if scalerPvcMap != nil {
-			if _, ok := scalerPvcMap.Load(info.PvcName); !ok {
+			if _, ok := scalerPvcMap.Load(info.PVCRef.Name); !ok {
 				continue
 			}
 		}
-		ref := v1.ObjectReference{
-			Kind:      "PersistentVolumeClaim",
-			Name:      info.PvcName,
-			Namespace: info.PvcNamespace,
-		}
-
 		stats, ok := deviceNameStatsMap[info.DeviceName]
 		if !ok {
 			continue
 		}
-		labels := []string{info.PvcNamespace, info.PvcName, info.DeviceName}
+		labels := []string{info.PVCRef.Namespace, info.PVCRef.Name, info.DeviceName}
 		p.sendDiskStats(&stats.IOStats, labels, ch)
 		if lastStats, ok := lastStatsMap[info.DeviceName]; ok {
-			p.latencyEventAlert(&stats.IOStats, &lastStats.IOStats, &ref)
+			p.latencyEventAlert(&stats.IOStats, &lastStats.IOStats, info.PVCRef)
 		}
 		if hungDevs.Has(info.DeviceName) {
-			p.recorder.Eventf(&ref, v1.EventTypeWarning, ioHang, "IO Hang on Persistent Volume %s, nodeName:%s, diskID:%s, Device:%s",
+			p.recorder.Eventf(info.PVCRef, v1.EventTypeWarning, ioHang, "IO Hang on Persistent Volume %s, nodeName:%s, diskID:%s, Device:%s",
 				pvName, p.nodeName, info.DiskID, info.DeviceName)
 		}
 
@@ -209,7 +202,7 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 			continue
 		}
 		p.sendCapStats(capStats, labels, ch)
-		p.capacityEventAlert(capStats, &ref)
+		p.capacityEventAlert(capStats, info.PVCRef)
 	}
 	//elapsedTime := time.Since(startTime)
 	//logrus.Info("DiskStat spent time:", elapsedTime)
@@ -327,16 +320,15 @@ func (p *diskStatCollector) updateDiskInfoMap(thisPvDiskInfoMap map[string]diskI
 		lastInfo, ok := (*lastPvDiskInfoMap)[pv]
 		// add and modify
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
-			pvcNamespace, pvcName, err := getPvcByPvNameByDisk(p.clientSet, pv)
+			pvcRef, err := getDiskPvcByPvName(p.clientSet, pv)
 			if err != nil {
 				continue
 			}
 			updateInfo := diskInfo{
-				DiskID:       thisInfo.DiskID,
-				VolDataPath:  thisInfo.VolDataPath,
-				DeviceName:   thisInfo.DeviceName,
-				PvcName:      pvcName,
-				PvcNamespace: pvcNamespace,
+				DiskID:      thisInfo.DiskID,
+				VolDataPath: thisInfo.VolDataPath,
+				DeviceName:  thisInfo.DeviceName,
+				PVCRef:      pvcRef,
 			}
 			(*lastPvDiskInfoMap)[pv] = updateInfo
 		}

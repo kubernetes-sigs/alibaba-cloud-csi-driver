@@ -351,7 +351,7 @@ func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo,
 		lastInfo, ok := (*lastPvNfsInfoMap)[pv]
 		// add and modify
 		if !ok || thisInfo.VolDataPath != lastInfo.VolDataPath {
-			pvcNamespace, pvcName, serverName, err := getPvcByPvName(p.clientSet, p.crdClient, pv)
+			pvcNamespace, pvcName, serverName, err := getNasPvcByPvName(p.clientSet, p.crdClient, pv)
 			if err != nil {
 				continue
 			}
