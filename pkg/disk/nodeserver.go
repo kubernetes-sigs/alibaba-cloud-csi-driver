@@ -277,7 +277,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	options, fsType := prepareMountInfos(req)
 
-
 	log.Infof("NodePublishVolume: Starting Mount Volume %s, source %s > target %s", req.VolumeId, sourcePath, targetPath)
 
 	mkfsOptions := req.VolumeContext[MkfsOptions]
@@ -321,7 +320,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		log.Infof("NodePublishVolume: Mount Successful Block Volume: %s, from source %s to target %v", req.VolumeId, sourcePath, targetPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
-
 
 	sourceNotMounted, err := ns.k8smounter.IsLikelyNotMountPoint(sourcePath)
 	if err != nil {

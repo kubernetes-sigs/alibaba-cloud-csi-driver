@@ -531,7 +531,7 @@ func NewDeviceDriver(blockDevice, deviceNumber string, _type MachineType, extras
 			return nil, err
 		}
 		for {
-			log.Infof("NewDeviceDriver: get symlink dir: %s, numberType: %s", dirEntry)
+			log.Infof("NewDeviceDriver: get symlink dir: %s", dirEntry)
 			if dirEntry == ".." || dirEntry == "." {
 				return nil, errors.Errorf("NewDeviceDriver: not found device number")
 			}
