@@ -80,6 +80,10 @@ func NewMounter() Mounter {
 }
 
 func (m *mounter) EnsureFolder(target string) error {
+
+	if fi, err := os.Stat(target); err == nil && fi.IsDir() {
+		return nil
+	}
 	mdkirCmd := "mkdir"
 	_, err := exec.LookPath(mdkirCmd)
 	if err != nil {

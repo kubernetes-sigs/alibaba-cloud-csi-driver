@@ -252,27 +252,36 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	targetPath := req.GetTargetPath()
+	isBlock := req.GetVolumeCapability().GetBlock() != nil
+	if isBlock {
+		sourcePath = filepath.Join(req.StagingTargetPath, req.VolumeId)
+		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	} else {
+		if err := ns.mounter.EnsureFolder(targetPath); err != nil {
+			log.Errorf("NodePublishVolume: create volume %s path %s error: %v", req.VolumeId, targetPath, err)
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	// if target path mounted already, return
 	notMounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
-	if err != nil {
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		log.Errorf("NodePublishVolume: failed to check if %s is a mount point err: %v", targetPath, err)
 		return nil, status.Errorf(codes.Internal, "failed to check if %s is a mount point: %v", targetPath, err)
 	}
 	if !notMounted {
 		log.Infof("NodePublishVolume: TargetPath(%s) is mounted, not need mount again", targetPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
+
 	options, fsType := prepareMountInfos(req)
 
-	runtime := utils.GetPodRunTime(req, ns.clientSet)
-
-	isBlock := req.GetVolumeCapability().GetBlock() != nil
-	if isBlock {
-		sourcePath = filepath.Join(req.StagingTargetPath, req.VolumeId)
-	}
 
 	log.Infof("NodePublishVolume: Starting Mount Volume %s, source %s > target %s", req.VolumeId, sourcePath, targetPath)
 
 	mkfsOptions := req.VolumeContext[MkfsOptions]
+	runtime := utils.GetPodRunTime(req, ns.clientSet)
 	// check pod runtime
 	switch runtime {
 	case utils.RunvRunTimeTag:
@@ -304,9 +313,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, status.Errorf(codes.Internal, "failed to check if %s is not a mount point: %v", targetPath, err)
 		}
 		if notMounted {
-			if err := ns.mounter.EnsureBlock(targetPath); err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
-			}
 			options := []string{"bind"}
 			if err := ns.mounter.MountBlock(sourcePath, targetPath, options...); err != nil {
 				return nil, err
@@ -316,19 +322,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	if err := ns.mounter.EnsureFolder(targetPath); err != nil {
-		log.Errorf("NodePublishVolume: create volume %s path %s error: %v", req.VolumeId, targetPath, err)
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
-	if err != nil {
-		log.Errorf("NodePublishVolume: check volume %s target path %s error: %v", req.VolumeId, targetPath, err)
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	if !notmounted {
-		log.Infof("NodePublishVolume: VolumeId: %s, Path %s is already mounted", req.VolumeId, targetPath)
-		return &csi.NodePublishVolumeResponse{}, nil
-	}
 
 	sourceNotMounted, err := ns.k8smounter.IsLikelyNotMountPoint(sourcePath)
 	if err != nil {
