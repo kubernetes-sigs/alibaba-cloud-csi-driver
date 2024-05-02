@@ -9,11 +9,13 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs/blockdevice"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -86,7 +88,7 @@ type diskStatCollector struct {
 	pvInfoLock                   sync.Mutex
 	lastPvDiskInfoMap            map[string]diskInfo
 	lastPvStatsMap               atomic.Pointer[map[string]*blockdevice.Diskstats]
-	diskStats                    blockdevice.FS
+	diskStats                    *ProcDiskStats
 	clientSet                    *kubernetes.Clientset
 	recorder                     record.EventRecorder
 	mounter                      mount.Interface
@@ -128,10 +130,11 @@ func NewDiskStatCollector() (Collector, error) {
 		return nil, err
 	}
 
-	diskStats, err := blockdevice.NewDefaultFS()
+	diskStats, err := NewDefaultProcDiskStats()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get diskstats: %s", err)
 	}
+	diskStats.HungDuration = 30 * time.Second
 
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	return &diskStatCollector{
@@ -154,7 +157,7 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	}
 	p.updateMap(&p.lastPvDiskInfoMap, volJSONPaths, diskDriverName)
 
-	diskStats, err := p.diskStats.ProcDiskstats()
+	diskStats, err := p.diskStats.GetStats()
 	if err != nil {
 		return fmt.Errorf("couldn't get diskstats: %s", err)
 	}
@@ -164,12 +167,17 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 	}
 	defer p.lastPvStatsMap.Store(&deviceNameStatsMap)
 
+	hungDevs := sets.New[string]()
+	for _, info := range p.diskStats.GetHungDisks() {
+		hungDevs.Insert("/dev/" + info.DeviceName)
+	}
+
 	var lastStatsMap map[string]*blockdevice.Diskstats
 	if m := p.lastPvStatsMap.Load(); m != nil {
 		lastStatsMap = *m
 	}
 
-	for _, info := range p.lastPvDiskInfoMap {
+	for pvName, info := range p.lastPvDiskInfoMap {
 		if scalerPvcMap != nil {
 			if _, ok := scalerPvcMap.Load(info.PvcName); !ok {
 				continue
@@ -189,6 +197,10 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 		p.sendDiskStats(&stats.IOStats, labels, ch)
 		if lastStats, ok := lastStatsMap[info.DeviceName]; ok {
 			p.latencyEventAlert(&stats.IOStats, &lastStats.IOStats, &ref)
+		}
+		if hungDevs.Has(info.DeviceName) {
+			p.recorder.Eventf(&ref, v1.EventTypeWarning, ioHang, "IO Hang on Persistent Volume %s, nodeName:%s, diskID:%s, Device:%s",
+				pvName, p.nodeName, info.DiskID, info.DeviceName)
 		}
 
 		capStats, err := getDiskCapacityMetric(info.DiskID)
