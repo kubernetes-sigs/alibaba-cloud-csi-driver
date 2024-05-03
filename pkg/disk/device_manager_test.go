@@ -19,8 +19,8 @@ type fakeDevTmpFS struct {
 }
 
 type fakeDev struct {
-	Major int32
-	Minor int32
+	Major uint32
+	Minor uint32
 	Path  string
 	Err   error
 }
@@ -72,7 +72,7 @@ var (
 	}
 )
 
-func (d *fakeDevTmpFS) DevFor(path string) (int32, int32, error) {
+func (d *fakeDevTmpFS) DevFor(path string) (uint32, uint32, error) {
 	relPath, err := filepath.Rel(d.DevicePath, path)
 	if err != nil {
 		panic(err)

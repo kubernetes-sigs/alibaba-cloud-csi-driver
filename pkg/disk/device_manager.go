@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -15,26 +14,24 @@ import (
 )
 
 type DevTmpFS interface {
-	DevFor(path string) (int32, int32, error)
+	DevFor(path string) (uint32, uint32, error)
 }
 
 type realDevTmpFS struct {
 }
 
 // DevFor returns the major and minor numbers for the device.
-func (d realDevTmpFS) DevFor(path string) (int32, int32, error) {
-	info, err := os.Stat(path)
+func (d realDevTmpFS) DevFor(path string) (uint32, uint32, error) {
+	var stat unix.Stat_t
+	err := unix.Stat(path, &stat)
 	if err != nil {
 		return 0, 0, err
 	}
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok {
-		return 0, 0, errors.New("unsupported stat type")
-	}
-	if stat.Mode&syscall.S_IFMT != syscall.S_IFBLK {
+	if stat.Mode&unix.S_IFMT != unix.S_IFBLK {
 		return 0, 0, errors.New("not a block device")
 	}
-	return int32(stat.Rdev / 256), int32(stat.Rdev % 256), nil
+	rdev := uint64(stat.Rdev)
+	return unix.Major(rdev), unix.Minor(rdev), nil
 }
 
 type DeviceManager struct {
@@ -89,7 +86,7 @@ func (m *DeviceManager) getDeviceBySerial(serial string) (string, error) {
 	return "", ErrNotFound
 }
 
-func (m *DeviceManager) sysfsDir(major, minor int32) string {
+func (m *DeviceManager) sysfsDir(major, minor uint32) string {
 	return fmt.Sprintf("%s/dev/block/%d:%d", m.SysfsPath, major, minor)
 }
 
