@@ -451,3 +451,32 @@ func TestGetDeviceRootAndPartitionIndex_Partition(t *testing.T) {
 		})
 	}
 }
+
+func TestWriteSysfs(t *testing.T) {
+	m := testingManager(t)
+	setupNVMeBlockDevice(t, m.SysfsPath)
+	m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{nvmeDev}
+
+	p := filepath.Join(m.SysfsPath, "devices/pci0000:00/0000:00:07.0/nvme/nvme1/nvme1n1/some/config")
+	err := os.MkdirAll(filepath.Dir(p), 0o755)
+	assert.NoError(t, err)
+	err = os.WriteFile(p, []byte("anything"), 0o644)
+	assert.NoError(t, err)
+
+	dev := filepath.Join(m.DevicePath, "nvme1n1")
+	err = m.WriteSysfs(dev, "some/config", "config-value")
+	assert.NoError(t, err)
+
+	err = m.WriteSysfs("/dev/no-such-device", "some/config", "config-value")
+	assert.True(t, errors.Is(err, os.ErrNotExist), err)
+
+	b, err := os.ReadFile(p)
+	assert.NoError(t, err)
+	assert.Equal(t, "config-value", string(b))
+
+	err = m.WriteSysfs(dev, "some/not-exist-config", "config-value")
+	assert.True(t, errors.Is(err, os.ErrNotExist), err)
+
+	err = m.WriteSysfs(dev, "../invaild/config", "config-value")
+	assert.Error(t, err)
+}

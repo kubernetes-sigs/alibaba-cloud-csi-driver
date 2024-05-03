@@ -8,7 +8,9 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
@@ -87,13 +89,16 @@ func (m *DeviceManager) getDeviceBySerial(serial string) (string, error) {
 	return "", ErrNotFound
 }
 
+func (m *DeviceManager) sysfsDir(major, minor int32) string {
+	return fmt.Sprintf("%s/dev/block/%d:%d", m.SysfsPath, major, minor)
+}
+
 func (m *DeviceManager) deviceName(devicePath string) (string, error) {
 	major, minor, err := m.DevTmpFS.DevFor(devicePath)
 	if err != nil {
 		return "", err
 	}
-	sysfsPath := fmt.Sprintf("%s/dev/block/%d:%d", m.SysfsPath, major, minor)
-	link, err := os.Readlink(sysfsPath)
+	link, err := os.Readlink(m.sysfsDir(major, minor))
 	if err != nil {
 		return "", err
 	}
@@ -193,6 +198,9 @@ func (m *DeviceManager) getDeviceByScanLinks(idSuffix string) (string, error) {
 // GetRootBlockByVolumeID first try to find the device by device link like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
 // If that fails, query the kernel by sysfs to find the device by serial.
+//
+// Returns the path to a block special file.
+// Caller should not assume any other special property of the returned path.
 func (m *DeviceManager) GetRootBlockByVolumeID(volumeID string) (string, error) {
 	errs := []error{}
 
@@ -235,7 +243,7 @@ func (m *DeviceManager) GetDeviceRootAndPartitionIndex(devicePath string) (root 
 	if err != nil {
 		return "", "", err
 	}
-	devSysfsPath := fmt.Sprintf("%s/dev/block/%d:%d", m.SysfsPath, major, minor)
+	devSysfsPath := m.sysfsDir(major, minor)
 	idx, err := os.ReadFile(devSysfsPath + "/partition")
 	if err == nil {
 		link, err := os.Readlink(devSysfsPath) // /sys/dev/block/253:3 -> ../../devices/pci0000:00/0000:00:05.0/virtio2/block/vda/vda3
@@ -249,4 +257,24 @@ func (m *DeviceManager) GetDeviceRootAndPartitionIndex(devicePath string) (root 
 		return devicePath, "", nil
 	}
 	return "", "", fmt.Errorf("read partition from sysfs %q failed: %w", devSysfsPath+"/partition", err)
+}
+
+func (m *DeviceManager) WriteSysfs(devicePath, name, value string) error {
+	major, minor, err := m.DevTmpFS.DevFor(devicePath)
+	if err != nil {
+		return fmt.Errorf("failed to stat %s: %w", devicePath, err)
+	}
+	base := m.sysfsDir(major, minor) + "/"
+	fileName := filepath.Clean(base + name)
+	if !strings.HasPrefix(fileName, base) {
+		// Note this cannot prevent user from accessing other devices through e.g. /sys/block/vda/subsystem/vdb
+		// But we cannot restrict symlink either because names like `bdi/read_ahead_kb` may be vaild, in which `bdi` is a symlink.
+		// Just reject obvious attacks like '../../../root/.ssh/id_rsa'.
+		return fmt.Errorf("invalid relative path in sysConfig: %s", name)
+	}
+	err = utils.WriteTrunc(unix.AT_FDCWD, fileName, value)
+	if err != nil {
+		return fmt.Errorf("failed to write %s to %s: %w", value, fileName, err)
+	}
+	return nil
 }
