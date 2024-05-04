@@ -35,7 +35,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -646,16 +645,9 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 				log.Errorf("NodeStageVolume: Volume Block System Config with format error: %s", configStr)
 				return nil, status.Error(codes.Aborted, "NodeStageVolume: Volume Block System Config with format error "+configStr)
 			}
-			base := fmt.Sprintf("/sys/block/%s/", filepath.Base(device))
-			fileName := filepath.Clean(base + key)
-			if !strings.HasPrefix(fileName, base) {
-				// Note this cannot prevent user from access other device through e.g. /sys/block/vda/subsystem/vdb
-				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: invalid relative path in sysConfig: %s", key)
-			}
-			err := utils.WriteTrunc(unix.AT_FDCWD, fileName, value)
+			err := DefaultDeviceManager.WriteSysfs(device, key, value)
 			if err != nil {
-				return nil, status.Errorf(codes.Internal,
-					"NodeStageVolume: Volume Block System Config failed, failed to write %s to %s: %v", value, fileName, err)
+				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: set sysConfig %s=%s failed: %v", key, value, err)
 			}
 			log.Infof("NodeStageVolume: set sysConfig %s=%s", key, value)
 		}
