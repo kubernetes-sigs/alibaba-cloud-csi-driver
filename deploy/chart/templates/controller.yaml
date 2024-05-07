@@ -300,6 +300,10 @@ spec:
             - name: "CLUSTER_ID"
               value: {{ .Values.deploy.clusterID | quote }}
 {{- end }}
+{{- if .Values.deploy.regionID }}
+            - name: REGION_ID
+              value: {{ .Values.deploy.regionID | quote }}
+{{- end }}
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:

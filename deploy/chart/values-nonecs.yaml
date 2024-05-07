@@ -7,3 +7,6 @@ deploy:
 csi:
   disk:
     enabled: false
+
+controller:
+  enabled: false
