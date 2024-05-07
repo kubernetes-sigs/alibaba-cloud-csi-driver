@@ -24,12 +24,19 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     go build -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
 
-FROM registry.eu-west-1.aliyuncs.com/acs/alinux:3-update
+FROM registry.eu-west-1.aliyuncs.com/acs/alinux:3-update as base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 
 RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace cloud-utils-growpart gdisk nc telnet tar cpio && \
     yum clean all
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
+
+ARG TARGETARCH
+RUN --mount=type=bind,source=build/lib,target=/csi-lib \
+    cp /csi-lib/$TARGETARCH-nsenter /usr/bin/nsenter && \
+    ln -s /usr/bin/nsenter /nsenter
+
+FROM base as init
 
 ARG TARGETARCH
 WORKDIR /root
@@ -38,15 +45,14 @@ RUN if [[ $TARGETARCH == "amd64" ]]; then \
         curl -O https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.al7.noarch.rpm; \
     fi
 RUN --mount=type=bind,source=build/lib,target=/csi-lib \
-    cp /csi-lib/$TARGETARCH-nsenter /usr/bin/nsenter && \
-    ln -s /usr/bin/nsenter /nsenter && \
-    cp /csi-lib/$TARGETARCH-entrypoint.sh /entrypoint.sh && \
-    chmod +x /entrypoint.sh && \
+    cp /csi-lib/$TARGETARCH-init.sh /init.sh && \
+    chmod +x /init.sh && \
     cp /csi-lib/freezefs.sh /freezefs.sh && \
     mkdir /csi && \
     cp /csi-lib/csiplugin-connector.service /csi/csiplugin-connector.service
 COPY --link --from=build /out/csiplugin-connector /csi/csiplugin-connector
+ENTRYPOINT ["/init.sh"]
+
+FROM base
 COPY --link --from=build /out/plugin.csi.alibabacloud.com /usr/bin/plugin.csi.alibabacloud.com
-
-ENTRYPOINT ["/entrypoint.sh"]
-
+ENTRYPOINT ["/usr/bin/plugin.csi.alibabacloud.com"]
