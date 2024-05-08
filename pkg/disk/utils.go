@@ -297,10 +297,6 @@ func GetDeviceByBdf(bdf string, enLog bool) (device string, err error) {
 }
 
 func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
-	if !strings.HasPrefix(subDevicePath, rootDevicePath) {
-		return fmt.Errorf("DeviceNotAvailable: input devices is not root&sub device path: %s, %s ", rootDevicePath, subDevicePath)
-	}
-
 	if !utils.IsFileExisting(rootDevicePath) || !utils.IsFileExisting(subDevicePath) {
 		return fmt.Errorf("input device path does not exist: %s, %s ", rootDevicePath, subDevicePath)
 	}

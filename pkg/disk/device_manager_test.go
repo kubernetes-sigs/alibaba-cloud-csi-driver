@@ -178,6 +178,8 @@ func extractGzip(t *testing.T, src, dst string) {
 	gz, err := gzip.NewReader(f)
 	assert.NoError(t, err)
 
+	err = os.MkdirAll(filepath.Dir(dst), 0o755)
+	assert.NoError(t, err)
 	f, err = os.Create(dst)
 	assert.NoError(t, err)
 	defer f.Close()
@@ -203,14 +205,19 @@ func TestAdaptDevicePartitionPositive(t *testing.T) {
 	// Create a fake NVMe block device.
 	sysfsDev := setupNVMeBlockDevice(t, m.SysfsPath)
 	sysfsSetupPartition(t, m.SysfsPath, sysfsDev, "nvme1n1p27", &nvmePart, 27)
-	m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{nvmeDev}
+	m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{nvmeDev, nvmeLink}
 
-	extractGzip(t, "testdata/parted_disk.img.gz", filepath.Join(m.DevicePath, "nvme1n1"))
 	extractGzip(t, "testdata/ext4_disk.img.gz", filepath.Join(m.DevicePath, "nvme1n1p27"))
 
-	devicePath, err := m.adaptDevicePartition(filepath.Join(m.DevicePath, "nvme1n1"))
-	assert.NoError(t, err)
-	assert.Equal(t, filepath.Join(m.DevicePath, "nvme1n1p27"), devicePath)
+	for _, dev := range []string{"nvme1n1", "disk/by-id/nvme-Alibaba_Cloud_Elastic_Block_Storage_mydiskserial"} {
+		t.Run(dev, func(t *testing.T) {
+			devPath := filepath.Join(m.DevicePath, dev)
+			extractGzip(t, "testdata/parted_disk.img.gz", devPath)
+			devicePath, err := m.adaptDevicePartition(devPath)
+			assert.NoError(t, err)
+			assert.Equal(t, filepath.Join(m.DevicePath, "nvme1n1p27"), devicePath)
+		})
+	}
 }
 
 // returns root device path if no partition found
