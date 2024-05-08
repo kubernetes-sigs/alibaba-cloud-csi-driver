@@ -34,6 +34,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/ens"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
+	csilog "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/om"
@@ -46,10 +47,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 )
 
 func init() {
-	flag.Set("logtostderr", "true")
+	err := flag.Set("logtostderr", "true")
+	if err != nil {
+		panic(err)
+	}
 }
 
 const (
@@ -95,9 +100,29 @@ type globalMetricConfig struct {
 
 // Nas CSI Plugin
 func main() {
+	csilog.RedirectLogrusToLogr(log.StandardLogger(), klog.Background())
+
 	flag.Var(features.FunctionalMutableFeatureGate, "feature-gates", "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
 		"Options are:\n"+strings.Join(features.FunctionalMutableFeatureGate.KnownFeatures(), "\n"))
 	flag.Parse()
+
+	// https://github.com/kubernetes/klog/blob/main/examples/coexist_glog/coexist_glog.go
+	// replace this when we remove csi-common
+	klogFlags := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(klogFlags)
+
+	// Sync the glog and klog flags.
+	flag.CommandLine.VisitAll(func(f1 *flag.Flag) {
+		f2 := klogFlags.Lookup(f1.Name)
+		if f2 != nil {
+			value := f1.Value.String()
+			err := f2.Value.Set(value)
+			if err != nil {
+				panic(err)
+			}
+		}
+	})
+
 	serviceType := os.Getenv(utils.ServiceType)
 
 	if len(serviceType) == 0 || serviceType == "" {
