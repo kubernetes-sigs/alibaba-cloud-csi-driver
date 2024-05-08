@@ -185,7 +185,7 @@ func NewNodeServer(d *csicommon.CSIDriver, m metadata.MetadataProvider) csi.Node
 	}
 
 	kataBMIOType := BDF
-	if bmType := os.Getenv("KATA_BM_IO_TYPE"); bmType == MachineTypeToBusName(DFBus) {
+	if bmType := os.Getenv("KATA_BM_IO_TYPE"); bmType == DFBus.BusName() {
 		kataBMIOType = DFBus
 	}
 

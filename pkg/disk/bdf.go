@@ -19,6 +19,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -484,27 +485,27 @@ const (
 	DFBus                    // 1
 )
 
-func MachineTypeToBusName(_type MachineType) string {
+func (_type MachineType) BusName() string {
 	busNames := [...]string{
 		BDFTypeBus,
 		DFBusTypeBus,
 	}
 
-	if _type < DFBus || _type > BDF {
-		return "Unknown"
+	if  _type < BDF || _type > DFBus {
+		return fmt.Sprintf("Unknown(%d)", _type)
 	}
 
 	return busNames[_type]
 }
 
-func MachineTypeToBusPrefix(_type MachineType) string {
+func (_type MachineType) BusPrefix() string {
 	busPrefixes := [...]string{
 		BDFTypeDevice,
 		DFBusTypeDevice,
 	}
 
-	if _type < DFBus || _type > BDF {
-		return "Unknown"
+	if  _type < BDF || _type > DFBus {
+		return fmt.Sprintf("Unknown(%d)", _type)
 	}
 
 	return busPrefixes[_type]
@@ -536,7 +537,7 @@ func NewDeviceDriver(blockDevice, deviceNumber string, _type MachineType, extras
 				return nil, errors.Errorf("NewDeviceDriver: not found device number")
 			}
 			parentDir := filepath.Base(filepath.Dir(dirEntry))
-			if strings.HasPrefix(parentDir, MachineTypeToBusPrefix(d.machineType)) {
+			if strings.HasPrefix(parentDir, d.machineType.BusPrefix()) {
 				deviceNumber = parentDir
 				d.deviceNumber = deviceNumber
 				return d, nil
@@ -560,7 +561,7 @@ func (d *driver) GetDeviceNumber() string {
 }
 
 func (d *driver) CurentDriver() (string, error) {
-	data, err := os.Readlink(filepath.Join(sysPrefix, "sys/bus/", MachineTypeToBusName(d.machineType), "devices", d.deviceNumber, "driver"))
+	data, err := os.Readlink(filepath.Join(sysPrefix, "sys/bus/", d.machineType.BusName(), "devices", d.deviceNumber, "driver"))
 	if err != nil {
 		log.Errorf("CurentDriver: read symlink err: %v", err)
 		return "", err
@@ -572,9 +573,9 @@ func (d *driver) CurentDriver() (string, error) {
 
 func (d *driver) UnbindDriver() error {
 	// Modify file under drivers would be fine either. just clarify different ways
-	return os.WriteFile(filepath.Join(sysPrefix, "sys/bus", MachineTypeToBusName(d.machineType), "devices", d.deviceNumber, "driver/unbind"), []byte(d.deviceNumber), 0600)
+	return utils.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "driver/unbind"), d.deviceNumber)
 }
 
 func (d *driver) BindDriver(targetDriver string) error {
-	return os.WriteFile(filepath.Join(sysPrefix, "sys/bus", MachineTypeToBusName(d.machineType), "drivers", targetDriver, "bind"), []byte(d.deviceNumber), 0600)
+	return utils.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "drivers", targetDriver, "bind"), d.deviceNumber)
 }
