@@ -526,25 +526,12 @@ func NewDeviceDriver(blockDevice, deviceNumber string, _type MachineType, extras
 		extras:       extras,
 	}
 	if d.deviceNumber == "" {
-		deviceName := filepath.Base(blockDevice)
-		dirEntry, err := filepath.EvalSymlinks(filepath.Join("/sys/block", deviceName))
+		deviceNumber, err := DefaultDeviceManager.GetDeviceNumberFromBlockDevice(blockDevice, d.machineType.BusPrefix())
 		if err != nil {
-			return nil, err
-		}
-		for {
-			log.Infof("NewDeviceDriver: get symlink dir: %s", dirEntry)
-			if dirEntry == ".." || dirEntry == "." {
-				return nil, errors.Errorf("NewDeviceDriver: not found device number")
-			}
-			parentDir := filepath.Base(filepath.Dir(dirEntry))
-			if strings.HasPrefix(parentDir, d.machineType.BusPrefix()) {
-				deviceNumber = parentDir
-				d.deviceNumber = deviceNumber
-				return d, nil
-			} else {
-				dirEntry = filepath.Dir(dirEntry)
-			}
-		}
+            log.Errorf("NewDeviceDriver: get device number from block device err: %v", err)
+            return nil, err
+        }
+        d.deviceNumber = deviceNumber
 	}
 	return d, nil
 }
