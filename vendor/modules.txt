@@ -91,8 +91,8 @@ github.com/emirpasic/gods/utils
 # github.com/evanphx/json-patch v4.12.0+incompatible
 ## explicit
 github.com/evanphx/json-patch
-# github.com/go-logr/logr v1.2.3
-## explicit; go 1.16
+# github.com/go-logr/logr v1.3.0
+## explicit; go 1.18
 github.com/go-logr/logr
 # github.com/go-openapi/jsonpointer v0.19.5
 ## explicit; go 1.13
