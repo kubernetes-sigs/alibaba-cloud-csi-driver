@@ -491,7 +491,7 @@ func (_type MachineType) BusName() string {
 		DFBusTypeBus,
 	}
 
-	if  _type < BDF || _type > DFBus {
+	if _type < BDF || _type > DFBus {
 		return fmt.Sprintf("Unknown(%d)", _type)
 	}
 
@@ -504,7 +504,7 @@ func (_type MachineType) BusPrefix() string {
 		DFBusTypeDevice,
 	}
 
-	if  _type < BDF || _type > DFBus {
+	if _type < BDF || _type > DFBus {
 		return fmt.Sprintf("Unknown(%d)", _type)
 	}
 
@@ -528,10 +528,10 @@ func NewDeviceDriver(blockDevice, deviceNumber string, _type MachineType, extras
 	if d.deviceNumber == "" {
 		deviceNumber, err := DefaultDeviceManager.GetDeviceNumberFromBlockDevice(blockDevice, d.machineType.BusPrefix())
 		if err != nil {
-            log.Errorf("NewDeviceDriver: get device number from block device err: %v", err)
-            return nil, err
-        }
-        d.deviceNumber = deviceNumber
+			log.Errorf("NewDeviceDriver: get device number from block device err: %v", err)
+			return nil, err
+		}
+		d.deviceNumber = deviceNumber
 	}
 	return d, nil
 }
