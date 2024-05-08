@@ -50,12 +50,12 @@ import (
 )
 
 type nodeServer struct {
-	metadata   metadata.MetadataProvider
-	nodeID     string
-	mounter    utils.Mounter
-	vmocMode   bool
-	k8smounter k8smount.Interface
-	clientSet  *kubernetes.Clientset
+	metadata     metadata.MetadataProvider
+	nodeID       string
+	mounter      utils.Mounter
+	kataBMIOType MachineType
+	k8smounter   k8smount.Interface
+	clientSet    *kubernetes.Clientset
 	*csicommon.DefaultNodeServer
 }
 
@@ -184,11 +184,9 @@ func NewNodeServer(d *csicommon.CSIDriver, m metadata.MetadataProvider) csi.Node
 		go BdfHealthCheck()
 	}
 
-	isVmoc := false
-	if vmoc, err := strconv.ParseBool(os.Getenv("VMOC_MODE")); err != nil {
-		log.Errorf("Failed to parse VMOC_MODE set default false")
-	} else {
-		isVmoc = vmoc
+	kataBMIOType := BDF
+	if bmType := os.Getenv("KATA_BM_IO_TYPE"); bmType == MachineTypeToBusName(DFBus) {
+		kataBMIOType = DFBus
 	}
 
 	return &nodeServer{
@@ -196,7 +194,7 @@ func NewNodeServer(d *csicommon.CSIDriver, m metadata.MetadataProvider) csi.Node
 		nodeID:            GlobalConfigVar.NodeID,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		mounter:           utils.NewMounter(),
-		vmocMode:          isVmoc,
+		kataBMIOType:      kataBMIOType,
 		k8smounter:        k8smount.New(""),
 		clientSet:         GlobalConfigVar.ClientSet,
 	}
@@ -1155,9 +1153,9 @@ func (ns *nodeServer) umountRunDVolumes(volumePath string) (bool, error) {
 	}
 
 	mountInfo, isRunD3 := directvolume.IsRunD3VolumePath(filepath.Dir(volumePath))
-	if ns.vmocMode {
+	if ns.kataBMIOType == DFBus {
 		if !isRunD3 {
-			return false, status.Error(codes.Internal, "vmoc mode only support csi-runD protocol 3.0")
+			return false, status.Error(codes.Internal, "vmoc(DFBus) mode only support csi-runD protocol 3.0")
 		}
 
 		d, _ := NewDeviceDriver("", mountInfo.Source, DFBus, nil)
@@ -1166,15 +1164,15 @@ func (ns *nodeServer) umountRunDVolumes(volumePath string) (bool, error) {
 			return true, status.Error(codes.Internal, err.Error())
 		}
 		if cDriver != DFBusTypeVFIO {
-			return true, status.Error(codes.Internal, "vmoc mode only support vfio")
+			return true, status.Error(codes.Internal, "vmoc(DFBus) mode only support vfio")
 		}
 		err = d.UnbindDriver()
 		if err != nil {
-			return true, status.Errorf(codes.Internal, "vmoc unbind err: %s", err.Error())
+			return true, status.Errorf(codes.Internal, "vmoc(DFBus) unbind err: %s", err.Error())
 		}
 		err = d.BindDriver(DFBusTypeVIRTIO)
 		if err != nil {
-			return true, status.Errorf(codes.Internal, "vmoc bind err: %s", err.Error())
+			return true, status.Errorf(codes.Internal, "vmoc(DFBus) bind err: %s", err.Error())
 		}
 		return true, nil
 	}
@@ -1271,7 +1269,7 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, sourcePath, targetPath, fsType,
 		log.Infof("NodePublishVolume(rund3.0): get bdf number by device: %s", deviceName)
 		deviceNumber := ""
 		deviceType := directvolume.DeviceTypePCI
-		if ns.vmocMode {
+		if ns.kataBMIOType == DFBus {
 			deviceType = directvolume.DeviceTypeDFBusPort
 			driver, err := NewDeviceDriver(deviceName, "", DFBus, map[string]string{})
 			if err != nil {
@@ -1333,11 +1331,11 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, sourcePath, targetPath, fsType,
 		return true, nil
 	}
 
-	if ns.vmocMode {
+	if ns.kataBMIOType == DFBus {
 		// umount the stage path, which is mounted in Stage
 		if err := ns.unmountStageTarget(sourcePath); err != nil {
-			log.Errorf("NodePublishVolume(rund3.0): unmountStageTarget in vmoc mode %s with error: %s", sourcePath, err.Error())
-			return true, status.Error(codes.InvalidArgument, "NodePublishVolume: unmountStageTarget in vmoc "+sourcePath+" with error: "+err.Error())
+			log.Errorf("NodePublishVolume(rund3.0): unmountStageTarget in vmoc(DFBus) mode %s with error: %s", sourcePath, err.Error())
+			return true, status.Error(codes.InvalidArgument, "NodePublishVolume: unmountStageTarget in vmoc(DFBus) "+sourcePath+" with error: "+err.Error())
 		}
 		log.Infof("NodePublishVolume(rund3.0): get dfbusport number by device: %s", deviceName)
 		driver, err := NewDeviceDriver(deviceName, "", DFBus, map[string]string{})
@@ -1370,13 +1368,13 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, sourcePath, targetPath, fsType,
 			FSType:     fsType,
 		}
 
-		log.Info("NodePublishVolume(rund3.0): Starting add vmoc mount info to DirectVolume")
+		log.Info("NodePublishVolume(rund3.0): Starting add vmoc(DFBus) mount info to DirectVolume")
 		err = directvolume.AddMountInfo(targetPath, mountInfo)
 		if err != nil {
-			log.Errorf("NodePublishVolume(rund3.0): vmoc Adding vmoc mount infomation to DirectVolume failed: %v", err)
+			log.Errorf("NodePublishVolume(rund3.0): vmoc(DFBus) Adding vmoc mount infomation to DirectVolume failed: %v", err)
 			return true, err
 		}
-		log.Info("NodePublishVolume(rund3.0): Adding vmoc mount information to DirectVolume succeeds, return immediately")
+		log.Info("NodePublishVolume(rund3.0): Adding vmoc(DFBus) mount information to DirectVolume succeeds, return immediately")
 		return true, nil
 	}
 
