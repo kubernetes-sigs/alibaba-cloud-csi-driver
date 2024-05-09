@@ -46,7 +46,7 @@ func NewECSMetadata(httpRT http.RoundTripper) (*ECSMetadata, error) {
 	}
 
 	var lastErr error
-	err = wait.PollImmediateUntil(1*time.Second, func() (bool, error) {
+	err = wait.PollImmediateUntilWithContext(ctx, 1*time.Second, func(ctx context.Context) (bool, error) {
 		if lastErr != nil {
 			logrus.Warnf("retrying ECS metadata: %v", lastErr)
 		}
@@ -58,8 +58,8 @@ func NewECSMetadata(httpRT http.RoundTripper) (*ECSMetadata, error) {
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
 			lastErr = fmt.Errorf("unexpected status code %d", resp.StatusCode)
-			if resp.StatusCode >= 500 {
-				return false, nil // retry on server errors
+			if resp.StatusCode >= 500 || resp.StatusCode == 429 {
+				return false, nil // retry on server errors/too many requests
 			} else {
 				return false, lastErr
 			}
@@ -71,7 +71,7 @@ func NewECSMetadata(httpRT http.RoundTripper) (*ECSMetadata, error) {
 			return false, fmt.Errorf("missing region-id in ECS instance identity document, possibly not running on ECS")
 		}
 		return true, nil
-	}, ctx.Done())
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch ECS instance identity document: %w", lastErr)
 	}
