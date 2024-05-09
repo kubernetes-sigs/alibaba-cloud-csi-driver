@@ -19,6 +19,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -475,4 +476,93 @@ func checkVfhpOnline() {
 // IsVFInstance check node is vf or not
 func IsVFInstance() bool {
 	return isVFInstance
+}
+
+type MachineType int
+
+const (
+	BDF   MachineType = iota // 0
+	DFBus                    // 1
+)
+
+func (_type MachineType) BusName() string {
+	busNames := [...]string{
+		BDFTypeBus,
+		DFBusTypeBus,
+	}
+
+	if _type < BDF || _type > DFBus {
+		return fmt.Sprintf("Unknown(%d)", _type)
+	}
+
+	return busNames[_type]
+}
+
+func (_type MachineType) BusPrefix() string {
+	busPrefixes := [...]string{
+		BDFTypeDevice,
+		DFBusTypeDevice,
+	}
+
+	if _type < BDF || _type > DFBus {
+		return fmt.Sprintf("Unknown(%d)", _type)
+	}
+
+	return busPrefixes[_type]
+}
+
+type Driver interface {
+	CurentDriver() (string, error)
+	UnbindDriver() error
+	BindDriver(targetDriver string) error
+	GetDeviceNumber() string
+}
+
+func NewDeviceDriver(blockDevice, deviceNumber string, _type MachineType, extras map[string]string) (Driver, error) {
+	d := &driver{
+		blockDevice:  blockDevice,
+		deviceNumber: deviceNumber,
+		machineType:  _type,
+		extras:       extras,
+	}
+	if d.deviceNumber == "" {
+		deviceNumber, err := DefaultDeviceManager.GetDeviceNumberFromBlockDevice(blockDevice, d.machineType.BusPrefix())
+		if err != nil {
+			log.Errorf("NewDeviceDriver: get device number from block device err: %v", err)
+			return nil, err
+		}
+		d.deviceNumber = deviceNumber
+	}
+	return d, nil
+}
+
+type driver struct {
+	blockDevice  string
+	deviceNumber string
+	machineType  MachineType
+	extras       map[string]string
+}
+
+func (d *driver) GetDeviceNumber() string {
+	return d.deviceNumber
+}
+
+func (d *driver) CurentDriver() (string, error) {
+	data, err := os.Readlink(filepath.Join(sysPrefix, "sys/bus/", d.machineType.BusName(), "devices", d.deviceNumber, "driver"))
+	if err != nil {
+		log.Errorf("CurentDriver: read symlink err: %v", err)
+		return "", err
+	}
+	driver := filepath.Base(data)
+
+	return driver, nil
+}
+
+func (d *driver) UnbindDriver() error {
+	// Modify file under drivers would be fine either. just clarify different ways
+	return utils.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "driver/unbind"), d.deviceNumber)
+}
+
+func (d *driver) BindDriver(targetDriver string) error {
+	return utils.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "drivers", targetDriver, "bind"), d.deviceNumber)
 }

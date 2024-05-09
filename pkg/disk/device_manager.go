@@ -278,3 +278,28 @@ func (m *DeviceManager) WriteSysfs(devicePath, name, value string) error {
 	}
 	return nil
 }
+
+func (m *DeviceManager) GetDeviceNumberFromBlockDevice(blockDevice, busPrefix string) (string, error) {
+
+	major, minor, err := m.DevTmpFS.DevFor(blockDevice)
+	if err != nil {
+		return "", err
+	}
+	// same as filepath.EvalSymlinks(filepath.Join("/sys/block", deviceName))
+	dirEntry, err := filepath.EvalSymlinks(fmt.Sprintf("%s/dev/block/%d:%d", m.SysfsPath, major, minor))
+	if err != nil {
+		return "", err
+	}
+	for {
+		log.Infof("NewDeviceDriver: get symlink dir: %s", dirEntry)
+		if dirEntry == ".." || dirEntry == "." {
+			return "", fmt.Errorf("NewDeviceDriver: not found device number, blockDevice: %s", blockDevice)
+		}
+		parentDir := filepath.Base(filepath.Dir(dirEntry))
+		if strings.HasPrefix(parentDir, busPrefix) {
+			return parentDir, nil
+		} else {
+			dirEntry = filepath.Dir(dirEntry)
+		}
+	}
+}

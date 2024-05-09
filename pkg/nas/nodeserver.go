@@ -31,9 +31,11 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dadi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/rund/directvolume"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -277,27 +279,24 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// running in runc/runv mode
-	if ns.config.EnableMixRuntime {
-		if runtime, err := utils.GetPodRunTime(req, ns.config.KubeClient); err != nil {
-			return nil, status.Errorf(codes.Internal, "NodePublishVolume: cannot get pod runtime: %v", err)
-		} else if runtime == utils.RunvRunTimeTag {
-			fileName := filepath.Join(mountPath, utils.CsiPluginRunTimeFlagFile)
-			runvOptions := RunvNasOptions{}
-			runvOptions.Options = opt.Options
-			runvOptions.Server = opt.Server
-			runvOptions.ModeType = opt.ModeType
-			runvOptions.Mode = opt.Mode
-			runvOptions.Vers = opt.Vers
-			runvOptions.Path = opt.Path
-			runvOptions.RunTime = "runv"
-			runvOptions.VolumeType = "nfs"
-			runvOptions.MountFile = fileName
-			if err := utils.WriteJSONFile(runvOptions, fileName); err != nil {
-				return nil, errors.New("NodePublishVolume: Write Json File error: " + err.Error())
-			}
-			log.Infof("Nas(Kata), Write Nfs Options to File Successful: %s", fileName)
-			return &csi.NodePublishVolumeResponse{}, nil
+	runtimeVal := utils.GetPodRunTime(req, ns.config.KubeClient)
+	if runtimeVal == utils.RunvRunTimeTag {
+		fileName := filepath.Join(mountPath, utils.CsiPluginRunTimeFlagFile)
+		runvOptions := RunvNasOptions{}
+		runvOptions.Options = opt.Options
+		runvOptions.Server = opt.Server
+		runvOptions.ModeType = opt.ModeType
+		runvOptions.Mode = opt.Mode
+		runvOptions.Vers = opt.Vers
+		runvOptions.Path = opt.Path
+		runvOptions.RunTime = utils.RunvRunTimeTag
+		runvOptions.VolumeType = "nfs"
+		runvOptions.MountFile = fileName
+		if err := utils.WriteJSONFile(runvOptions, fileName); err != nil {
+			return nil, errors.New("NodePublishVolume: Write Json File error: " + err.Error())
 		}
+		log.Infof("Nas(Kata), Write Nfs Options to File Successful: %s", fileName)
+		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	// check network connection
@@ -354,6 +353,23 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// if volume set mountType as skipmount;
 	if opt.MountType == SkipMountType {
+		if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
+			mountInfo := directvolume.MountInfo{
+				Source:     opt.Server,
+				DeviceType: directvolume.DeviceTypeNFS,
+				FSType:     "",
+				MountOpts:  strings.Split(opt.Options, ","),
+				Extra:      map[string]string{},
+			}
+			log.Info("NodePublishVolume(rund3.0): Starting add mount info to DirectVolume")
+			err := directvolume.AddMountInfo(mountPath, mountInfo)
+			if err != nil {
+				log.Errorf("NodePublishVolume(rund3.0): Adding mount infomation to DirectVolume failed: %v", err)
+				return nil, status.Error(codes.Internal, "NAS: failed to mount volume in rund-csi 3.0")
+			}
+			return &csi.NodePublishVolumeResponse{}, nil
+		}
+
 		err := ns.mounter.Mount("tmpfs", mountPath, "tmpfs", []string{"size=1m"})
 		if err != nil {
 			log.Errorf("NAS: Mount volume(%s) path as tmpfs with err: %v", req.VolumeId, err.Error())
@@ -432,7 +448,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, errors.New("Check mount fail after mount:" + mountPath)
 	}
 
-	saveVolumeData(opt, mountPath)
 	log.Infof("NodePublishVolume:: Volume %s Mount success on mountpoint: %s", req.VolumeId, mountPath)
 
 	return &csi.NodePublishVolumeResponse{}, nil
@@ -564,16 +579,22 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 	log.Infof("NodeUnpublishVolume: unmount volume on %s successfully", targetPath)
 
-	// when mixruntime mode enabled, try to remove ../alibabacloudcsiplugin.json
-	if ns.config.EnableMixRuntime {
-		fileName := filepath.Join(targetPath, utils.CsiPluginRunTimeFlagFile)
-		err := os.Remove(fileName)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume(runv): remove %s: %v", fileName, err)
-			}
-		} else {
-			log.Infof("NodeUnpublishVolume(runv): Remove runv file successful: %s", fileName)
+	// always try to remove ../alibabacloudcsiplugin.json
+	// TODO: remove csi 2.0 vol_data.json
+	fileName := filepath.Join(targetPath, utils.CsiPluginRunTimeFlagFile)
+	err = os.Remove(fileName)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume(runv): remove %s: %v", fileName, err)
+		}
+	} else {
+		log.Infof("NodeUnpublishVolume(runv): Remove runv file successful: %s", fileName)
+	}
+	// try to remove csi 3.0 file when featuregate is enabled
+	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
+		if err := directvolume.Remove(targetPath); err != nil {
+			log.Errorf("NodeUnpublishVolume(rund3.0): Remove mount infomation to DirectVolume failed: %v", err)
+			return nil, status.Error(codes.Internal, "NAS: failed to unmount volume in rund-csi 3.0")
 		}
 	}
 

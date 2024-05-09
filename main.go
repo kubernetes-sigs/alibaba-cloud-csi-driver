@@ -207,6 +207,7 @@ func main() {
 				driver := ens.NewDriver(*nodeID, endpoint)
 				driver.Run()
 			}(endPointName)
+		// TODO: remove entire rund-csi protocol 1.0
 		case ExtenderAgent:
 			go func() {
 				defer wg.Done()
