@@ -27,6 +27,7 @@ defaultStorageClass:
   enabled: true
 
 deploy:
+  featureGates: ""   # only for alpha feature
   privateCloud: false
   ecsEndpoint: null  # most useful on private cloud
 

@@ -288,6 +288,9 @@ spec:
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v=2"
             - "--driver={{ include "enabledControllers" .Values.csi }}"
+{{- if .Values.deploy.featureGates }}
+            - "--feature-gates={{ .Values.deploy.featureGates }}"
+{{- end -}}
 {{- if not .Values.deploy.ecs }}
             - --nodeid=$(KUBE_NODE_NAME)
 {{- end }}
