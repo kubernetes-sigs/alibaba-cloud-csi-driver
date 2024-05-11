@@ -19,7 +19,7 @@ func BenchmarkLogrus(b *testing.B) {
 func BenchmarkLogrusStructured(b *testing.B) {
 	logrus.SetOutput(io.Discard)
 	for i := 0; i < b.N; i++ {
-		logrus.WithField("index", i).Info("This is a structured log message")
+		klog.V(2).InfoS("This is a structured log message", "index", i)
 	}
 }
 
@@ -59,6 +59,6 @@ func BenchmarkLogrusRedirected(b *testing.B) {
 func BenchmarkLogrusStructuredRedirected(b *testing.B) {
 	setupRedirect(b)
 	for i := 0; i < b.N; i++ {
-		logrus.WithField("index", i).Info("This is a structured log message")
+		klog.V(2).InfoS("This is a structured log message", "index", i)
 	}
 }
