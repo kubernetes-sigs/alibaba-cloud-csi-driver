@@ -40,7 +40,6 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/go-ping/ping"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -120,7 +119,7 @@ func NewEventRecorder() record.EventRecorder {
 		klog.Fatalf("NewControllerServer: Failed to create client: %v", err)
 	}
 	broadcaster := record.NewBroadcaster()
-	broadcaster.StartLogging(log.Infof)
+	broadcaster.StartLogging(klog.Infof)
 	source := v1.EventSource{Component: "csi-controller-server"}
 	if broadcaster != nil {
 		sink := &v1core.EventSinkImpl{
