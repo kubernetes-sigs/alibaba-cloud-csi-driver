@@ -8,7 +8,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/kata/directvolume"
-	log "github.com/sirupsen/logrus"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -23,15 +23,15 @@ const (
 )
 
 func (ns *nodeServer) publishDirectVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, opt *Options) (*csi.NodePublishVolumeResponse, error) {
-	logger := log.WithFields(map[string]interface{}{
-		"NodeServer": "OSSNodeServer",
-		"VolumeId":   req.VolumeId,
-		"TargetPath": req.TargetPath,
-	})
+	logger := klog.FromContext(ctx).WithValues(
+		"nodeServer", "OSSNodeServer",
+		"volumeID", req.VolumeId,
+		"target", req.TargetPath,
+	)
 
 	volumePath := req.TargetPath
 	if isDirectVolumePath(volumePath) {
-		logger.Infof("NodePublishVolume: The mount info for DirectVolume is already exist: %s", volumePath)
+		logger.Info("NodePublishVolume: The mount info for DirectVolume already exist")
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -102,7 +102,7 @@ func (ns *nodeServer) publishDirectVolume(ctx context.Context, req *csi.NodePubl
 	logger.Info("NodePublishVolume:: Starting add mount info for DirectVolume")
 	err := directvolume.AddMountInfo(volumePath, mountInfo)
 	if err != nil {
-		logger.Errorf("NodePublishVolume:: Add mount info for DirectVolume failed: %v", err)
+		logger.Error(err, "NodePublishVolume:: Add mount info for DirectVolume failed")
 		return nil, err
 	}
 	logger.Info("NodePublishVolume:: Add mount info for DirectVolume is successfully")
@@ -111,16 +111,16 @@ func (ns *nodeServer) publishDirectVolume(ctx context.Context, req *csi.NodePubl
 }
 
 func (ns *nodeServer) unPublishDirectVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	logger := log.WithFields(map[string]interface{}{
-		"NodeServer": "OSSNodeServer",
-		"VolumeId":   req.VolumeId,
-		"TargetPath": req.TargetPath,
-	})
+	logger := klog.FromContext(ctx).WithValues(
+		"nodeServer", "OSSNodeServer",
+		"volumeID", req.VolumeId,
+		"target", req.TargetPath,
+	)
 
 	volumePath := req.TargetPath
 	err := directvolume.Remove(volumePath)
 	if err != nil {
-		logger.Errorf("NodeUnPublishVolume:: Remove mount info for DirectVolume failed: %v", err)
+		logger.Error(err, "NodeUnPublishVolume:: Remove mount info for DirectVolume failed")
 		return nil, err
 	}
 
