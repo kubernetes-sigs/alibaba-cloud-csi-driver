@@ -30,7 +30,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -136,10 +135,7 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 		klog.Infof("skip creating subpath directory for %s", req.Name)
 		return resp, nil
 	}
-	logrus.WithFields(logrus.Fields{
-		"filesystemId": filesystemId,
-		"path":         path,
-	}).Info("start to create subpath directory for volume")
+	klog.V(2).InfoS("start to create subpath directory for volume", "filesystemId", filesystemId, "path", path)
 	// create dir
 	if err := cs.nasClient.CreateDir(&sdk.CreateDirRequest{
 		FileSystemId:  &filesystemId,
@@ -244,11 +240,7 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 		finalizer = subpathArchiveFinalizer
 	} else {
 		if !recycleBinEnabled {
-			logrus.WithFields(logrus.Fields{
-				"filesystemId": filesystemId,
-				"pv":           pv.Name,
-				"skip":         cs.config.EnableRecycleBinCheck,
-			}).Warnf("Deleting a subpath PV without recycle bin enabled")
+			klog.V(1).InfoS("Deleting a subpath PV without recycle bin enabled", "filesystemId", filesystemId, "pv", pv.Name, "skip", cs.config.EnableRecycleBinCheck)
 			if cs.config.EnableRecycleBinCheck {
 				return &csi.DeleteVolumeResponse{}, nil
 			}

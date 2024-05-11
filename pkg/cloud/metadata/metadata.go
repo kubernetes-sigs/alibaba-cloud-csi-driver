@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
-	"github.com/sirupsen/logrus"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -110,11 +109,7 @@ func (p *immutableProvider) Get(key MetadataKey) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	logrus.WithFields(logrus.Fields{
-		"provider": p.name,
-		"key":      key,
-		"value":    v,
-	}).Info("retrive metadata")
+	klog.V(2).InfoS("retrived metadata", "provider", p.name, "key", key, "value", v)
 	p.values[key] = v
 	return v, nil
 }

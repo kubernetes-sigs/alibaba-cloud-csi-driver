@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 
-	log "github.com/sirupsen/logrus"
+	"k8s.io/klog/v2"
 )
 
 type LoopDevice struct {
@@ -63,6 +63,6 @@ func execWithLog(name string, arg ...string) ([]byte, error) {
 	if err != nil {
 		return output, fmt.Errorf("failed to execute %q: %w", cmd, err)
 	}
-	log.WithField("command", cmd).Infof(string(output))
+	klog.V(2).InfoS("command finished", "command", cmd, "output", string(output))
 	return output, nil
 }
