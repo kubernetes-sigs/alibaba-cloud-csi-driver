@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"k8s.io/klog/v2"
 )
 
@@ -39,7 +38,7 @@ func FixReferenceMountIssue(line string) bool {
 				klog.Infof("Remove Reference File %s Successful", file)
 			}
 		} else {
-			log.Debugf("Reference File %s not exist, skipping", file)
+			klog.V(4).Infof("Reference File %s not exist, skipping", file)
 		}
 	}
 	return true

@@ -49,7 +49,6 @@ import (
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	perrors "github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -974,7 +973,7 @@ func GetAvailableDiskTypes(ctx context.Context, c cloud.ECSInterface, m metadata
 		return nil, fmt.Errorf("failed to DescribeAvailableResource for instance type %s: %v", request.InstanceType, err)
 	}
 
-	log.Debugf("UpdateNode: record ecs openapi req: %+v, resp: %+v", request, response)
+	klog.V(4).Infof("UpdateNode: record ecs openapi req: %+v, resp: %+v", request, response)
 	for _, zone := range response.AvailableZones.AvailableZone {
 		if zone.ZoneId != request.ZoneId {
 			continue

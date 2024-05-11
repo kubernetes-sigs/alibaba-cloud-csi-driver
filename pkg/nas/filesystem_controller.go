@@ -31,7 +31,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -243,7 +242,7 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 			describeFSRequest.FileSystemType = "extreme"
 			describeFSRequest.FileSystemId = fileSystemID
 			for i := 1; i <= 30; i++ {
-				log.Debugf("CreateVolume: Waiting for nas mountTarget for filesystem %s, try %d times, max 30 times", fileSystemID, i)
+				klog.V(4).Infof("CreateVolume: Waiting for nas mountTarget for filesystem %s, try %d times, max 30 times", fileSystemID, i)
 				describeFSResponse, err := nasClient.DescribeFileSystems(describeFSRequest)
 				if err != nil {
 					klog.Errorf("CreateVolume: requestId[%s], fail to describe nas filesystem %s: with %v", describeFSResponse.RequestId, req.GetName(), err)
@@ -278,7 +277,7 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 	describeMountTargetsRequest.MountTargetDomain = mountTargetDomain
 	// describe mountTarget 3 times util its status is active
 	for i := 1; i <= 15; i++ {
-		log.Debugf("CreateVolume: Waiting for nas mountTarget %s active, try %d times total 3 times", mountTargetDomain, i)
+		klog.V(4).Infof("CreateVolume: Waiting for nas mountTarget %s active, try %d times total 3 times", mountTargetDomain, i)
 		describeMountTargetsResponse, err := nasClient.DescribeMountTargets(describeMountTargetsRequest)
 		if err != nil {
 			klog.Errorf("CreateVolume: Volume %s, requestId[%s], fail to describe nas mountTarget %s: with %v", pvName, describeMountTargetsResponse.RequestId, mountTargetDomain, err)
