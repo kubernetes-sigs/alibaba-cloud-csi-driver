@@ -54,6 +54,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
@@ -111,14 +112,14 @@ func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 	if os.Getenv("INTERNAL_MODE") == "true" {
 		ep := os.Getenv("ECS_ENDPOINT")
 		if ep != "" {
-			log.Infof("Use ECS_ENDPOINT: %s", ep)
+			klog.Infof("Use ECS_ENDPOINT: %s", ep)
 		} else {
 			var err error
 			ep, err = cloud.ECSQueryLocalEndpoint(regionID, ecsClient)
 			if err != nil {
-				log.Fatalf("Internal mode, but resolve ECS endpoint failed: %v", err)
+				klog.Fatalf("Internal mode, but resolve ECS endpoint failed: %v", err)
 			}
-			log.Infof("Resolved ECS localAPI endpoint: %s", ep)
+			klog.Infof("Resolved ECS localAPI endpoint: %s", ep)
 		}
 		aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
 	} else {
@@ -228,7 +229,7 @@ func retryGetInstanceDoc() (*instanceDocument, error) {
 	for i := 0; i < utils.MetadataMaxRetryCount; i++ {
 		doc, err = getInstanceDoc()
 		if err != nil {
-			log.Errorf("retryGetInstanceDoc: failed to get instance doc for %v try, err: %v", i, err)
+			klog.Errorf("retryGetInstanceDoc: failed to get instance doc for %v try, err: %v", i, err)
 			continue
 		}
 		return doc, nil
@@ -275,7 +276,7 @@ func GetDeviceByBdf(bdf string, enLog bool) (device string, err error) {
 		}
 	}
 	if enLog {
-		log.Infof("Device bdf: %s, virtio numbers: %v", bdf, virtioNumbers)
+		klog.Infof("Device bdf: %s, virtio numbers: %v", bdf, virtioNumbers)
 	}
 	if len(virtioNumbers) == 0 {
 		return "", fmt.Errorf("virtio device not found, bdf: %s", bdf)
@@ -292,7 +293,7 @@ func GetDeviceByBdf(bdf string, enLog bool) (device string, err error) {
 		if filepath.Base(targetPath) == virtioNumbers[0] {
 			devicePath := fmt.Sprintf("/dev/%s", filepath.Base(filepath.Dir(device)))
 			if enLog {
-				log.Infof("Device bdf: %s, device: %s", bdf, devicePath)
+				klog.Infof("Device bdf: %s, device: %s", bdf, devicePath)
 			}
 			return devicePath, nil
 		}
@@ -347,7 +348,7 @@ func GetDiskFormat(disk string) (string, string, error) {
 				return "", "", nil
 			}
 		}
-		log.Errorf("Could not determine if disk %q is formatted (%v)", disk, err)
+		klog.Errorf("Could not determine if disk %q is formatted (%v)", disk, err)
 		return "", "", err
 	}
 
@@ -392,7 +393,7 @@ func prepareMountInfos(req *csi.NodePublishVolumeRequest) ([]string, string) {
 		}
 	}
 
-	log.Infof("prepareMountInfos: VolumeCapability: %+v, req.ReadOnly: %+v", mnt, req.Readonly)
+	klog.Infof("prepareMountInfos: VolumeCapability: %+v, req.ReadOnly: %+v", mnt, req.Readonly)
 	if req.Readonly {
 		options = append(options, "ro")
 	}
@@ -424,7 +425,7 @@ func GetVolumeIDByDevice(device string) (volumeID string, err error) {
 		if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
 			resolved, err := filepath.EvalSymlinks(filePath)
 			if err != nil {
-				log.Errorf("GetVolumeIDByDevice: error reading target of symlink %q: %v", filePath, err)
+				klog.Errorf("GetVolumeIDByDevice: error reading target of symlink %q: %v", filePath, err)
 				continue
 			}
 			if strings.HasSuffix(resolved, device) {
@@ -606,7 +607,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 			// topology aware feature to get zoneid
 			diskVolArgs.ZoneID = pickZone(req.GetAccessibilityRequirements())
 			if diskVolArgs.ZoneID == "" {
-				log.Errorf("CreateVolume: Can't get topology info , please check your setup or set zone ID in storage class. Use zone from Meta service: %s", req.Name)
+				klog.Errorf("CreateVolume: Can't get topology info , please check your setup or set zone ID in storage class. Use zone from Meta service: %s", req.Name)
 				diskVolArgs.ZoneID, _ = utils.GetMetaData(ZoneIDTag)
 			}
 		}
@@ -779,7 +780,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	if requestGB < MinimumDiskSizeInGB {
 		switch strings.ToLower(volOptions["volumeSizeAutoAvailable"]) {
 		case "yes", "true", "1":
-			log.Infof("CreateVolume: volume size was less than allowed limit. Setting request Size to %vGB. volumeSizeAutoAvailable is set.", MinimumDiskSizeInGB)
+			klog.Infof("CreateVolume: volume size was less than allowed limit. Setting request Size to %vGB. volumeSizeAutoAvailable is set.", MinimumDiskSizeInGB)
 			requestGB = MinimumDiskSizeInGB
 			volSizeBytes = MinimumDiskSizeInBytes
 		}
@@ -813,7 +814,7 @@ func validateDiskPerformanceLevel(opts map[string]string) ([]PerformanceLevel, e
 	if opt == "" {
 		return nil, nil
 	}
-	log.Infof("validateDiskPerformanceLevel: pl: %v", opt)
+	klog.Infof("validateDiskPerformanceLevel: pl: %v", opt)
 	allPLs := AllCategories[DiskESSD].PerformanceLevel
 	plsStr := strings.Split(opt, ",")
 	pls := make([]PerformanceLevel, 0, len(plsStr))
@@ -908,7 +909,7 @@ func checkDeviceAvailable(mountinfoPath, devicePath, volumeID, targetPath string
 
 	// check the device is used for system
 	if devicePath == "/dev/vda" || devicePath == "/dev/vda1" {
-		log.Warnf("checkDeviceAvailable: devicePath(%s) may be system device: %s", devicePath, volumeID)
+		klog.Warningf("checkDeviceAvailable: devicePath(%s) may be system device: %s", devicePath, volumeID)
 	}
 
 	if isDeviceMountedAt(mnts, devicePath, utils.KubeletRootDir) {
@@ -925,7 +926,7 @@ func GetVolumeDeviceName(diskID string) (string, error) {
 	}
 	device = getVolumeConfig(diskID)
 	if device != "" {
-		log.Infof("GetVolumeDeviceName: got disk %s device name %s by config file", diskID, device)
+		klog.Infof("GetVolumeDeviceName: got disk %s device name %s by config file", diskID, device)
 		return device, nil
 	}
 	// return error from GetDeviceByVolumeID if config file not found
@@ -950,12 +951,12 @@ func getBlockDeviceCapacity(devicePath string) int64 {
 
 	file, err := os.Open(devicePath)
 	if err != nil {
-		log.Errorf("getBlockDeviceCapacity:: failed to open devicePath: %v", devicePath)
+		klog.Errorf("getBlockDeviceCapacity:: failed to open devicePath: %v", devicePath)
 		return 0
 	}
 	pos, err := file.Seek(0, io.SeekEnd)
 	if err != nil {
-		log.Errorf("getBlockDeviceCapacity:: failed to read devicePath: %v", devicePath)
+		klog.Errorf("getBlockDeviceCapacity:: failed to read devicePath: %v", devicePath)
 		return 0
 	}
 	return pos
@@ -1021,7 +1022,7 @@ func patchForNode(node *v1.Node, maxVolumesNum int, diskTypes []string) []byte {
 		},
 	})
 	if err != nil {
-		log.Fatalf("failed to marshal patch json")
+		klog.Fatalf("failed to marshal patch json")
 	}
 	return patch
 }
@@ -1151,7 +1152,7 @@ func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volu
 		volumeContext[annAppendPrefix+annVolumeTopoKey] = string(diskTypeTopoBytes)
 	}
 
-	log.Infof("volumeCreate: volumeContext: %+v", volumeContext)
+	klog.Infof("volumeCreate: volumeContext: %+v", volumeContext)
 	tmpVol := &csi.Volume{
 		CapacityBytes:      volSizeBytes,
 		VolumeId:           diskID,
@@ -1301,7 +1302,7 @@ func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInte
 			// this disk has xattr, it is managed by us
 			managedDisks.Insert(string(diskID[:sz]))
 		} else if !utilsio.IsXattrNotFound(err) {
-			log.Warnf("getVolumeCount: failed to get xattr of %s, assuming not managed by us: %s", p, err)
+			klog.Warningf("getVolumeCount: failed to get xattr of %s, assuming not managed by us: %s", p, err)
 		}
 	}
 
@@ -1314,7 +1315,7 @@ func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInte
 	if err != nil {
 		return 0, err
 	}
-	log.Infof("getVolumeCount: found %d attached disks", len(attachedDisks))
+	klog.Infof("getVolumeCount: found %d attached disks", len(attachedDisks))
 
 	availableCount, err := getAvailableDiskCount(c, m)
 	if err != nil {
@@ -1346,7 +1347,7 @@ func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInte
 
 	for _, disk := range attachedDisks {
 		if !managedDisks.Has(disk) {
-			log.Infof("getVolumeCount: disk %s is not managed by us", disk)
+			klog.Infof("getVolumeCount: disk %s is not managed by us", disk)
 			availableCount--
 		}
 	}
@@ -1366,22 +1367,22 @@ func hasMountOption(options []string, opt string) bool {
 
 // checkRundVolumeExpand
 func checkRundVolumeExpand(req *csi.NodeExpandVolumeRequest) (bool, error) {
-	log.Infof("checkRundVolumeExpand: volumePath: %s", req.VolumePath)
+	klog.Infof("checkRundVolumeExpand: volumePath: %s", req.VolumePath)
 	pvName := utils.GetPvNameFormPodMnt(req.VolumePath)
 	if pvName == "" {
-		log.Errorf("checkRundVolumeExpand: cannot get pvname from volumePath %s", req.VolumePath)
+		klog.Errorf("checkRundVolumeExpand: cannot get pvname from volumePath %s", req.VolumePath)
 		return false, perrors.Errorf("cannot get pvname from volumePath %s for volume %s", req.VolumePath, req.VolumeId)
 	}
 	socketFile := filepath.Join(RundSocketDir, pvName)
 	if !utils.IsFileExisting(socketFile) {
-		log.Infof("checkRundVolumeExpand: socketfile: %s not exists, fallback to runc expanding", socketFile)
+		klog.Infof("checkRundVolumeExpand: socketfile: %s not exists, fallback to runc expanding", socketFile)
 		return false, nil
 	}
 
 	// connect to rund server with timeout
 	clientConn, err := net.DialTimeout("unix", socketFile, 1*time.Second)
 	if err != nil {
-		log.Errorf("checkRundExpand: volume %s, volumepath %s, connect to rund server with error: %s", req.VolumeId, req.VolumePath, err.Error())
+		klog.Errorf("checkRundExpand: volume %s, volumepath %s, connect to rund server with error: %s", req.VolumeId, req.VolumePath, err.Error())
 		return true, perrors.Errorf("checkRundExpand: volume %s, volumepath %s, connect to rund server with error: %s", req.VolumeId, req.VolumePath, err.Error())
 	}
 	defer clientConn.Close()
@@ -1393,11 +1394,11 @@ func checkRundVolumeExpand(req *csi.NodeExpandVolumeRequest) (bool, error) {
 		Volume: pvName,
 	})
 	if err != nil {
-		log.Errorf("checkRundExpand: volume %s, volumepath %s, connect to rund server with error response: %s", req.VolumeId, req.VolumePath, err.Error())
+		klog.Errorf("checkRundExpand: volume %s, volumepath %s, connect to rund server with error response: %s", req.VolumeId, req.VolumePath, err.Error())
 		return true, perrors.Errorf("checkRundExpand: volume %s, volumepath %s, connect to rund server with error response: %s", req.VolumeId, req.VolumePath, err.Error())
 	}
 
-	log.Infof("RundVolumeExpand: Expand VolumeFS(%s) to(%s) successful with response: %s", pvName, volumeSize, resp)
+	klog.Infof("RundVolumeExpand: Expand VolumeFS(%s) to(%s) successful with response: %s", pvName, volumeSize, resp)
 	return true, nil
 }
 
@@ -1415,13 +1416,13 @@ func getPvPvcFromDiskId(diskId string) (*v1.PersistentVolume, *v1.PersistentVolu
 	ctx := context.Background()
 	pv, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Get(ctx, diskId, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("getPvcFromDiskId: failed to get pv from apiserver: %v", err)
+		klog.Errorf("getPvcFromDiskId: failed to get pv from apiserver: %v", err)
 		return nil, nil, err
 	}
 	pvcName, pvcNamespace := pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace
 	pvc, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(ctx, pvcName, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("getPvcFromDiskId: failed to get pvc from apiserver: %v", err)
+		klog.Errorf("getPvcFromDiskId: failed to get pvc from apiserver: %v", err)
 		return nil, nil, err
 	}
 	return pv, pvc, nil

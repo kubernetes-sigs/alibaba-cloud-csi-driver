@@ -30,10 +30,10 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -130,7 +130,7 @@ func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
 }
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	log.Infof("NodePublishVolume:: Starting Mount volume: %s mount with req: %+v", req.VolumeId, req)
+	klog.Infof("NodePublishVolume:: Starting Mount volume: %s mount with req: %+v", req.VolumeId, req)
 	if !ns.locks.TryAcquire(req.VolumeId) {
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
@@ -146,7 +146,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, err
 	}
 	if !notMnt {
-		log.Infof("NodePublishVolume: %s already mounted", targetPath)
+		klog.Infof("NodePublishVolume: %s already mounted", targetPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -217,14 +217,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		log.Infof("NodePublishVolume: successfully mounted volume %s on %s", req.VolumeId, attachPath)
+		klog.Infof("NodePublishVolume: successfully mounted volume %s on %s", req.VolumeId, attachPath)
 	}
 
 	// bind mount
 	if err := ns.rawMounter.Mount(attachPath, targetPath, "", []string{"bind"}); err != nil {
 		return nil, status.Errorf(codes.Internal, "bind mount failed: %v", err)
 	}
-	log.Infof("NodePublishVolume: bind mounted %s to %s", attachPath, targetPath)
+	klog.Infof("NodePublishVolume: bind mounted %s to %s", attachPath, targetPath)
 
 	return &csi.NodePublishVolumeResponse{}, nil
 }
@@ -284,7 +284,7 @@ func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) err
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	log.Infof("NodeUnpublishVolume: Starting Umount OSS: %s mount with req: %+v", req.TargetPath, req)
+	klog.Infof("NodeUnpublishVolume: Starting Umount OSS: %s mount with req: %+v", req.TargetPath, req)
 	if !ns.locks.TryAcquire(req.VolumeId) {
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
@@ -302,7 +302,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", targetPath, err)
 	}
-	log.Infof("NodeUnpublishVolume: Umount OSS Successful: %s", targetPath)
+	klog.Infof("NodeUnpublishVolume: Umount OSS Successful: %s", targetPath)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
@@ -317,7 +317,7 @@ func (ns *nodeServer) NodeUnstageVolume(
 	ctx context.Context,
 	req *csi.NodeUnstageVolumeRequest) (
 	*csi.NodeUnstageVolumeResponse, error) {
-	log.Infof("NodeUnstageVolume: starting to unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
+	klog.Infof("NodeUnstageVolume: starting to unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
 	if !ns.locks.TryAcquire(req.VolumeId) {
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
@@ -388,7 +388,7 @@ func parseOptions(req publishRequest, region string) *Options {
 			if res, err := strconv.ParseBool(value); err == nil {
 				opts.UseSharedPath = res
 			} else {
-				log.Warn(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
+				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
 			}
 		case "authtype":
 			opts.AuthType = strings.ToLower(value)
@@ -412,7 +412,7 @@ func parseOptions(req publishRequest, region string) *Options {
 			if res, err := strconv.ParseBool(value); err == nil {
 				opts.directAssigned = res
 			} else {
-				log.Warn(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
+				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
 			}
 		case "encrypted":
 			opts.Encrypted = strings.ToLower(value)
@@ -441,7 +441,7 @@ func parseOptions(req publishRequest, region string) *Options {
 	}
 	url, _ = setTransmissionProtocol(url)
 	if url != opts.URL {
-		log.Infof("Changed oss URL from %s to %s", opts.URL, url)
+		klog.Infof("Changed oss URL from %s to %s", opts.URL, url)
 		opts.URL = url
 	}
 

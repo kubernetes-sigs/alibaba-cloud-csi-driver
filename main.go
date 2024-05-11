@@ -107,16 +107,16 @@ func main() {
 
 	// When serviceType is neither plugin nor provisioner, the program will exits.
 	if serviceType != utils.PluginService && serviceType != utils.ProvisionerService {
-		log.Fatalf("Service type is unknown:%s", serviceType)
+		klog.Fatalf("Service type is unknown:%s", serviceType)
 	}
 	// enable pprof analyse
 	pprofPort := os.Getenv("PPROF_PORT")
 	if pprofPort != "" {
 		if _, err := strconv.Atoi(pprofPort); err == nil {
-			log.Infof("enable pprof & start port at %v", pprofPort)
+			klog.Infof("enable pprof & start port at %v", pprofPort)
 			go func() {
 				err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%v", pprofPort), nil)
-				log.Errorf("start server err: %v", err)
+				klog.Errorf("start server err: %v", err)
 			}()
 		}
 	}
@@ -124,8 +124,8 @@ func main() {
 	// setLogAttribute(logAttribute)
 	// log.AddHook(rotateHook(logAttribute))
 
-	log.Infof("Multi CSI Driver Name: %s, nodeID: %s, endPoints: %s", *driver, *nodeID, *endpoint)
-	log.Infof("CSI Driver, Version: %s, Build time: %s", version.VERSION, version.BUILDTIME)
+	klog.Infof("Multi CSI Driver Name: %s, nodeID: %s, endPoints: %s", *driver, *nodeID, *endpoint)
+	klog.Infof("CSI Driver, Version: %s, Build time: %s", version.VERSION, version.BUILDTIME)
 
 	multiDriverNames := *driver
 	driverNames := strings.Split(multiDriverNames, ",")
@@ -140,11 +140,11 @@ func main() {
 
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
-		log.Warnf("newGlobalConfig: build kubeconfig failed: %v", err)
+		klog.Warningf("newGlobalConfig: build kubeconfig failed: %v", err)
 	} else {
 		kubeClient, err := kubernetes.NewForConfig(cfg)
 		if err != nil {
-			log.Warnf("Error building kubernetes clientset: %v", err)
+			klog.Warningf("Error building kubernetes clientset: %v", err)
 		} else {
 			meta.EnableKubernetes(kubeClient)
 		}
@@ -164,14 +164,14 @@ func main() {
 	for _, driverName := range driverNames {
 		wg.Add(1)
 		endPointName := replaceCsiEndpoint(driverName, *endpoint)
-		log.Infof("CSI endpoint for driver %s: %s", driverName, endPointName)
+		klog.Infof("CSI endpoint for driver %s: %s", driverName, endPointName)
 
 		if err := createPersistentStorage(path.Join(utils.KubeletRootDir, "/csi-plugins", driverName, "controller")); err != nil {
-			log.Errorf("failed to create persistent storage for controller: %v", err)
+			klog.Errorf("failed to create persistent storage for controller: %v", err)
 			os.Exit(1)
 		}
 		if err := createPersistentStorage(path.Join(utils.KubeletRootDir, "/csi-plugins", driverName, "node")); err != nil {
-			log.Errorf("failed to create persistent storage for node: %v", err)
+			klog.Errorf("failed to create persistent storage for node: %v", err)
 			os.Exit(1)
 		}
 		switch driverName {
@@ -195,7 +195,7 @@ func main() {
 			}(endPointName)
 
 		case TypePluginCPFS:
-			log.Fatalf("%s is no longer supported, please switch to %s if you are using CPFS 2.0 protocol server", TypePluginCPFS, TypePluginNAS)
+			klog.Fatalf("%s is no longer supported, please switch to %s if you are using CPFS 2.0 protocol server", TypePluginCPFS, TypePluginNAS)
 		case TypePluginENS:
 			go func(endpoint string) {
 				defer wg.Done()
@@ -216,7 +216,7 @@ func main() {
 				driver.Run()
 			}(endPointName)
 		default:
-			log.Fatalf("CSI start failed, not support driver: %s", driverName)
+			klog.Fatalf("CSI start failed, not support driver: %s", driverName)
 		}
 	}
 
@@ -224,7 +224,7 @@ func main() {
 	signal.Notify(c, os.Interrupt, unix.SIGTERM)
 	go func() {
 		s := <-c
-		log.Infof("Got signal: %v, exiting...", s)
+		klog.Infof("Got signal: %v, exiting...", s)
 		os.Exit(0)
 	}()
 
@@ -252,25 +252,25 @@ func main() {
 	}
 	metricConfig.serviceType = serviceType
 
-	log.Info("CSI is running status.")
+	klog.Info("CSI is running status.")
 	csiMux := http.NewServeMux()
 	csiMux.HandleFunc("/healthz", healthHandler)
-	log.Infof("Metric listening on address: /healthz")
+	klog.Infof("Metric listening on address: /healthz")
 	if metricConfig.enableMetric {
 		metricHandler := metric.NewMetricHandler(metricConfig.serviceType, driverNames)
 		csiMux.Handle("/metrics", metricHandler)
-		log.Infof("Metric listening on address: /metrics")
+		klog.Infof("Metric listening on address: /metrics")
 	}
 
 	if err := http.ListenAndServe(fmt.Sprintf(":%s", servicePort), csiMux); err != nil {
-		log.Fatalf("Service port listen and serve err:%s", err.Error())
+		klog.Fatalf("Service port listen and serve err:%s", err.Error())
 	}
 
 	wg.Wait()
 }
 
 func createPersistentStorage(persistentStoragePath string) error {
-	log.Infof("Create Storage Path: %s", persistentStoragePath)
+	klog.Infof("Create Storage Path: %s", persistentStoragePath)
 	return os.MkdirAll(persistentStoragePath, os.FileMode(0755))
 }
 

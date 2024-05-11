@@ -14,9 +14,9 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -158,7 +158,7 @@ func formatVolumeCreated(diskType, diskID string, volSizeBytes int64, volumeCont
 
 // detachDisk attach disk to instance
 func attachDisk(diskID, nodeID string) (string, error) {
-	log.Infof("attachDisk: starting to attachdisk, diskid: %v, instance: %v", diskID, nodeID)
+	klog.Infof("attachDisk: starting to attachdisk, diskid: %v, instance: %v", diskID, nodeID)
 
 	disk, err := GlobalConfigVar.ENSCli.DescribeVolume(diskID)
 	if err != nil {
@@ -177,13 +177,13 @@ func attachDisk(diskID, nodeID string) (string, error) {
 	if *disk.Status == DISK_IN_USE {
 		if *disk.InstanceId == nodeID {
 			if GlobalConfigVar.EnableAttachDetachController == "true" {
-				log.Infof("AttachDisk: Disk %s is already attached to Instance %s, skipping", diskID, *disk.InstanceId)
+				klog.Infof("AttachDisk: Disk %s is already attached to Instance %s, skipping", diskID, *disk.InstanceId)
 				return "", nil
 			}
 			deviceName := getVolumeDeviceName(diskID)
 			if deviceName != "" && utils.IsFileExisting(deviceName) {
 				if used, err := deviceUsedByOthers(deviceName, diskID); err == nil && used == false {
-					log.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, *disk.InstanceId, deviceName)
+					klog.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, *disk.InstanceId, deviceName)
 					return deviceName, nil
 				}
 			} else {
@@ -193,10 +193,10 @@ func attachDisk(diskID, nodeID string) (string, error) {
 		}
 		if !GlobalConfigVar.DetachBeforeAttach {
 			err = fmt.Errorf("AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, *disk.InstanceId)
-			log.Error(err)
+			klog.Error(err)
 			return "", err
 		}
-		log.Infof("AttachDisk: Disk %s is already attached to instance %s, will be detached", diskID, *disk.InstanceId)
+		klog.Infof("AttachDisk: Disk %s is already attached to instance %s, will be detached", diskID, *disk.InstanceId)
 		err := GlobalConfigVar.ENSCli.DetachVolume(diskID, nodeID)
 		if err != nil {
 			return "", err
@@ -205,7 +205,7 @@ func attachDisk(diskID, nodeID string) (string, error) {
 		return "", fmt.Errorf("AttachDisk: disk: %s is attaching %v", diskID, disk)
 	}
 	if *disk.Status != DISK_AVAILABLE {
-		log.Infof("AttachDisk: Wait for disk %s is detached", diskID)
+		klog.Infof("AttachDisk: Wait for disk %s is detached", diskID)
 		if err := waitForDiskInStatus(15, time.Second*3, diskID, DISK_AVAILABLE); err != nil {
 			return "", err
 		}
@@ -224,13 +224,13 @@ func attachDisk(diskID, nodeID string) (string, error) {
 	if err := waitForDiskInStatus(20, time.Second*3, diskID, DISK_IN_USE); err != nil {
 		return "", err
 	}
-	log.Infof("AttachDisk: disk status is: %s", DISK_IN_USE)
+	klog.Infof("AttachDisk: disk status is: %s", DISK_IN_USE)
 
 	if GlobalConfigVar.EnableAttachDetachController == "false" {
-		log.Info("AttachDisk: start to get device")
+		klog.Info("AttachDisk: start to get device")
 		deviceName := getVolumeDeviceName(diskID)
 		if deviceName != "" {
-			log.Infof("AttachDisk: attachdisk [%s] successful to node [%s], deviceName: [%s]", diskID, nodeID, deviceName)
+			klog.Infof("AttachDisk: attachdisk [%s] successful to node [%s], deviceName: [%s]", diskID, nodeID, deviceName)
 			return deviceName, nil
 		}
 		afterDeviceList := getDevices()
@@ -240,31 +240,31 @@ func attachDisk(diskID, nodeID string) (string, error) {
 				subDevicePath := makeDevicePath(devicePaths[1])
 				rootDevicePath := makeDevicePath(devicePaths[0])
 				if err := checkRootAndSubDeviceFS(rootDevicePath, subDevicePath); err != nil {
-					log.Errorf("AttachDisk: volume %s get device with diff, and check partition error %s", diskID, err.Error())
+					klog.Errorf("AttachDisk: volume %s get device with diff, and check partition error %s", diskID, err.Error())
 					return "", err
 				}
-				log.Infof("AttachDisk: get 2 devices and select 1 device, list with: %v for volume: %s", devicePaths, diskID)
+				klog.Infof("AttachDisk: get 2 devices and select 1 device, list with: %v for volume: %s", devicePaths, diskID)
 				return subDevicePath, nil
 			} else if strings.HasPrefix(devicePaths[0], devicePaths[1]) {
 				subDevicePath := makeDevicePath(devicePaths[0])
 				rootDevicePath := makeDevicePath(devicePaths[1])
 				if err := checkRootAndSubDeviceFS(rootDevicePath, subDevicePath); err != nil {
-					log.Errorf("AttachDisk: volume %s get device with diff, and check partition error %s", diskID, err.Error())
+					klog.Errorf("AttachDisk: volume %s get device with diff, and check partition error %s", diskID, err.Error())
 					return "", err
 				}
-				log.Infof("AttachDisk: get 2 devices and select 0 device, list with: %v for volume: %s", devicePaths, diskID)
+				klog.Infof("AttachDisk: get 2 devices and select 0 device, list with: %v for volume: %s", devicePaths, diskID)
 				return subDevicePath, nil
 			}
 		}
 		if len(devicePaths) == 1 {
-			log.Infof("AttachDisk: attachdisk [%s] successful to node [%s], deviceName: [%s]", diskID, nodeID, deviceName)
+			klog.Infof("AttachDisk: attachdisk [%s] successful to node [%s], deviceName: [%s]", diskID, nodeID, deviceName)
 			return devicePaths[0], nil
 		}
-		log.Errorf("AttachDisk: Get Device Name error, with Before: %v, After: %v, diff: %s", beforeDevicelist, afterDeviceList, devicePaths)
+		klog.Errorf("AttachDisk: Get Device Name error, with Before: %v, After: %v, diff: %s", beforeDevicelist, afterDeviceList, devicePaths)
 		return "", fmt.Errorf("AttachDisk: after attaching to disk, but fail to get mounted device, will retry later")
 	}
 
-	log.Infof("AttachDisk: attachdisk [%s] successful to node [%s] ", diskID, nodeID)
+	klog.Infof("AttachDisk: attachdisk [%s] successful to node [%s] ", diskID, nodeID)
 	return "", nil
 }
 
@@ -273,11 +273,11 @@ func detachDisk(diskID, nodeID string) error {
 
 	disk, err := GlobalConfigVar.ENSCli.DescribeVolume(diskID)
 	if err != nil {
-		log.Errorf("DetachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
+		klog.Errorf("DetachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
 		return err
 	}
 	if disk == nil {
-		log.Infof("DetachDisk: Detach Disk %s from node %s describe and find disk not exist", diskID, nodeID)
+		klog.Infof("DetachDisk: Detach Disk %s from node %s describe and find disk not exist", diskID, nodeID)
 		return nil
 	}
 
@@ -291,7 +291,7 @@ func detachDisk(diskID, nodeID string) error {
 					return status.Errorf(codes.Aborted, "DetachDisk: Previous attach/detach action is still in process, volume: %s", diskID)
 				}
 			}
-			log.Infof("DetachDisk: Starting to Detach Disk %s from node %s", diskID, nodeID)
+			klog.Infof("DetachDisk: Starting to Detach Disk %s from node %s", diskID, nodeID)
 			err := GlobalConfigVar.ENSCli.DetachVolume(diskID, nodeID)
 			if err != nil {
 				return err
@@ -304,16 +304,16 @@ func detachDisk(diskID, nodeID string) error {
 					return err
 				}
 				if tmpDisk == nil {
-					log.Warnf("DetachDisk: DiskId %s is not found", diskID)
+					klog.Warningf("DetachDisk: DiskId %s is not found", diskID)
 					break
 				}
 				if *tmpDisk.InstanceId == "" {
-					log.Infof("DetachDisk: Disk %s has empty instanceId, detach finished", diskID)
+					klog.Infof("DetachDisk: Disk %s has empty instanceId, detach finished", diskID)
 					break
 				}
 				// Attached by other Instance
 				if *tmpDisk.InstanceId != nodeID {
-					log.Infof("DetachDisk: DiskId %s is attached by other instance %s, not as before %s", diskID, *tmpDisk.InstanceId, nodeID)
+					klog.Infof("DetachDisk: DiskId %s is attached by other instance %s, not as before %s", diskID, *tmpDisk.InstanceId, nodeID)
 					break
 				}
 				// Detach Finish
@@ -322,26 +322,26 @@ func detachDisk(diskID, nodeID string) error {
 				}
 				// Disk is InUse in same host, but is attached again.
 				if *tmpDisk.Status == DISK_IN_USE {
-					log.Infof("DetachDisk: DiskId %s is attached again", diskID)
+					klog.Infof("DetachDisk: DiskId %s is attached again", diskID)
 					break
 				}
 				if *tmpDisk.Status == DISK_ATTACHING {
-					log.Infof("DetachDisk: DiskId %s is attaching to: %s", diskID, *tmpDisk.InstanceId)
+					klog.Infof("DetachDisk: DiskId %s is attaching to: %s", diskID, *tmpDisk.InstanceId)
 					break
 				}
 				if i == 24 {
 					errMsg := fmt.Sprintf("DetachDisk: Detaching Disk %s with timeout", diskID)
-					log.Errorf(errMsg)
+					klog.Errorf(errMsg)
 					return fmt.Errorf(errMsg)
 				}
 				time.Sleep(2000 * time.Millisecond)
 			}
-			log.Infof("DetachDisk: Volume: %s Success to detach disk %s from Instance %s", diskID, *disk.DiskId, *disk.InstanceId)
+			klog.Infof("DetachDisk: Volume: %s Success to detach disk %s from Instance %s", diskID, *disk.DiskId, *disk.InstanceId)
 		} else {
-			log.Infof("DetachDisk: Skip Detach for volume: %s, disk %s is attached to other instance: %s", diskID, *disk.DiskId, *disk.InstanceId)
+			klog.Infof("DetachDisk: Skip Detach for volume: %s, disk %s is attached to other instance: %s", diskID, *disk.DiskId, *disk.InstanceId)
 		}
 	} else {
-		log.Infof("DetachDisk: Skip Detach, disk %s have not detachable instance", diskID)
+		klog.Infof("DetachDisk: Skip Detach, disk %s have not detachable instance", diskID)
 	}
 	return nil
 }
@@ -350,7 +350,7 @@ func getVolumeDeviceName(diskID string) string {
 	deviceName, err := getVolumeDeviceByDiskID(diskID)
 	if err != nil {
 		deviceName = getVolumeDeviceByConfig(diskID)
-		log.Infof("GetVolumeDeviceName, Get Device Name by Config File %s, DeviceName: %s", diskID, deviceName)
+		klog.Infof("GetVolumeDeviceName, Get Device Name by Config File %s, DeviceName: %s", diskID, deviceName)
 	}
 	return deviceName
 }
@@ -376,10 +376,10 @@ func getVolumeDeviceByDiskID(diskID string) (string, error) {
 	device := getDeviceSerial(strings.TrimPrefix(diskID, "d-"))
 	if device != "" {
 		if device, err := adaptDevicePartition(device); err != nil {
-			log.Warnf("GetDevice: Get volume %s device %s by Serial, but validate error %s", diskID, device, err.Error())
+			klog.Warningf("GetDevice: Get volume %s device %s by Serial, but validate error %s", diskID, device, err.Error())
 			return "", fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", diskID, device, err.Error())
 		}
-		log.Infof("GetDevice: Use the serial to find device, got %s, volumeID: %s", device, diskID)
+		klog.Infof("GetDevice: Use the serial to find device, got %s, volumeID: %s", device, diskID)
 		return device, nil
 	}
 
@@ -410,7 +410,7 @@ func getVolumeDeviceByDiskID(diskID string) (string, error) {
 				}
 			}
 			if !isSearched {
-				log.Warnf("volumeID link path %q not found", volumeLinPath)
+				klog.Warningf("volumeID link path %q not found", volumeLinPath)
 				return "", fmt.Errorf("volumeID link path %q not found", volumeLinPath)
 			}
 		} else {
@@ -419,7 +419,7 @@ func getVolumeDeviceByDiskID(diskID string) (string, error) {
 	}
 
 	if stat.Mode()&os.ModeSymlink != os.ModeSymlink {
-		log.Warningf("volumeID link file %q found, but was not a symlink", volumeLinPath)
+		klog.Warningf("volumeID link file %q found, but was not a symlink", volumeLinPath)
 		return "", fmt.Errorf("volumeID link file %q found, but was not a symlink", volumeLinPath)
 	}
 	// Find the target, resolving to an absolute path
@@ -433,11 +433,11 @@ func getVolumeDeviceByDiskID(diskID string) (string, error) {
 	}
 
 	if resolved, err = adaptDevicePartition(resolved); err != nil {
-		log.Warnf("GetDevice: Get volume %s device %s by ID, but validate error %s", diskID, resolved, err.Error())
+		klog.Warningf("GetDevice: Get volume %s device %s by ID, but validate error %s", diskID, resolved, err.Error())
 		return "", fmt.Errorf("PartitionError: Get volume %s device %s by Serial, but validate error %s ", diskID, resolved, err.Error())
 	}
 
-	log.Infof("GetDevice: Device Link Info: %s link to %s", volumeLinPath, resolved)
+	klog.Infof("GetDevice: Device Link Info: %s link to %s", volumeLinPath, resolved)
 	return resolved, nil
 }
 
@@ -464,14 +464,14 @@ func deviceUsedByOthers(deviceName, diskID string) (bool, error) {
 func getDeviceSerial(serial string) (device string) {
 	serialFiles, err := filepath.Glob("/sys/block/*/serial")
 	if err != nil {
-		log.Infof("List device serial failed: %v", err)
+		klog.Infof("List device serial failed: %v", err)
 		return ""
 	}
 
 	for _, serialFile := range serialFiles {
 		body, err := ioutil.ReadFile(serialFile)
 		if err != nil {
-			log.Errorf("Read serial(%s): %v", serialFile, err)
+			klog.Errorf("Read serial(%s): %v", serialFile, err)
 			continue
 		}
 		if strings.TrimSpace(string(body)) == serial {

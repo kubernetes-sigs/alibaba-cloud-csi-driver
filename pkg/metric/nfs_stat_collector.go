@@ -14,12 +14,12 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
-	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 )
 
@@ -213,7 +213,7 @@ func NewNfsStatCollector() (Collector, error) {
 
 	crdClient, err := dynamic.NewForConfig(config)
 	if err != nil {
-		log.Fatalf("Failed to create crd client: %v", err)
+		klog.Fatalf("Failed to create crd client: %v", err)
 	}
 
 	alertSet, capacityPercentageThreshold := parseNfsThreshold(nfsDefaultsCapacityPercentageThreshold)
@@ -274,10 +274,10 @@ func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
 	wg := sync.WaitGroup{}
 	for pvName, stats := range pvNameStatsMap {
 		nfsInfo := p.lastPvNfsInfoMap[pvName]
-		// log.Infof("pv: %s, stats: %v, nfsInfo: %+v", pvName, stats, nfsInfo)
+		//klog.Infof("pv: %s, stats: %v, nfsInfo: %+v", pvName, stats, nfsInfo)
 		capacityStats, err := getNfsCapacityStat(pvName, nfsInfo, p)
 		if err != nil {
-			// log.Errorf("get capacity of PV %s: %v", pvName, err)
+			//klog.Errorf("get capacity of PV %s: %v", pvName, err)
 			stats = append(stats, UnknownValue, UnknownValue, UnknownValue)
 		} else {
 			stats = append(stats, capacityStats...)
@@ -307,7 +307,7 @@ func (p *nfsStatCollector) setNfsMetric(pvName string, pvcNamespace string, pvcN
 
 		valueFloat64, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			log.Errorf("Convert value %s to float64 is failed, err:%s, stat:%+v", value, err, stats)
+			klog.Errorf("Convert value %s to float64 is failed, err:%s, stat:%+v", value, err, stats)
 			continue
 		}
 
@@ -323,7 +323,7 @@ func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonP
 		pvName, _, err := getVolumeInfoByJSON(path, deriverName)
 		if err != nil {
 			if err != ErrUnexpectedVolumeType {
-				log.Errorf("Get volume info by path %s is failed, err:%s", path, err)
+				klog.Errorf("Get volume info by path %s is failed, err:%s", path, err)
 			}
 			continue
 		}
@@ -332,7 +332,7 @@ func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonP
 		notMounted, err := mounter.IsLikelyNotMountPoint(mountPoint)
 		if err != nil {
 			if !errors.Is(err, fs.ErrNotExist) {
-				log.Errorf("Check if %s is mount point failed: %v", mountPoint, err)
+				klog.Errorf("Check if %s is mount point failed: %v", mountPoint, err)
 			}
 			continue
 		}

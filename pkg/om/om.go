@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -68,11 +68,11 @@ func GlobalConfigSet() {
 	if messageFileLine != "" {
 		lineNum, err := strconv.Atoi(messageFileLine)
 		if err != nil {
-			log.Errorf("OM GlobalConfigSet: MessageFileLines error format: %s", messageFileLine)
+			klog.Errorf("OM GlobalConfigSet: MessageFileLines error format: %s", messageFileLine)
 		} else {
 			GlobalConfigVar.MessageFileTailLines = lineNum
 			if GlobalConfigVar.MessageFileTailLines > 500 {
-				log.Warnf("OM GlobalConfigSet: MessageFileLines too large: %s", messageFileLine)
+				klog.Warningf("OM GlobalConfigSet: MessageFileLines too large: %s", messageFileLine)
 			}
 		}
 	}

@@ -12,7 +12,7 @@ import (
 func BenchmarkLogrus(b *testing.B) {
 	logrus.SetOutput(io.Discard)
 	for i := 0; i < b.N; i++ {
-		logrus.Infof("This is a log message %d", i)
+		klog.Infof("This is a log message %d", i)
 	}
 }
 
@@ -52,7 +52,7 @@ func setupRedirect(tb testing.TB) {
 func BenchmarkLogrusRedirected(b *testing.B) {
 	setupRedirect(b)
 	for i := 0; i < b.N; i++ {
-		logrus.Infof("This is a log message %d", i)
+		klog.Infof("This is a log message %d", i)
 	}
 }
 

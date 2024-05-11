@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -61,7 +62,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 	if !notMnt {
-		log.Infof("NodePublishVolume: %s already mounted", req.TargetPath)
+		klog.Infof("NodePublishVolume: %s already mounted", req.TargetPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 

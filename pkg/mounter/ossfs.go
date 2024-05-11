@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 var defaultOssfsImageTag = "v1.88.4-d9f3917-aliyun"
@@ -68,7 +69,7 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) Fuse
 			if err == nil {
 				registry = fmt.Sprintf("registry-%s-vpc.ack.aliyuncs.com", region)
 			} else {
-				log.Warnf("DEFAULT_REGISTRY env not set, failed to get current region: %v, fallback to default registry: %s", err, defaultRegistry)
+				klog.Warningf("DEFAULT_REGISTRY env not set, failed to get current region: %v, fallback to default registry: %s", err, defaultRegistry)
 				registry = defaultRegistry
 			}
 		}
@@ -80,7 +81,7 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) Fuse
 			}
 		}
 		config.Image = fmt.Sprintf("%s/acs/csi-ossfs:%s", registry, config.ImageTag)
-		log.Infof("Use ossfs image: %s", config.Image)
+		klog.Infof("Use ossfs image: %s", config.Image)
 	}
 	// set default memory request
 	if _, ok := config.Resources.Requests[corev1.ResourceMemory]; !ok {
@@ -211,7 +212,7 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 			options = append(options, fmt.Sprintf("dbglevel=%s", level))
 		} else {
 			if f.config.Dbglevel != "" {
-				log.Warnf("invalid dbglevel for ossfs: %q, use default dbglevel %s", f.config.Dbglevel, defaultDbglevel)
+				klog.Warningf("invalid dbglevel for ossfs: %q, use default dbglevel %s", f.config.Dbglevel, defaultDbglevel)
 			}
 			options = append(options, fmt.Sprintf("dbglevel=%s", ossfsDbglevels[defaultDbglevel]))
 		}
