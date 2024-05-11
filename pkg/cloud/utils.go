@@ -9,7 +9,7 @@ import (
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/responses"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/sirupsen/logrus"
+	"k8s.io/klog/v2"
 )
 
 // Create a response object from json, useful for testing.
@@ -41,7 +41,7 @@ func ECSQueryEndpoint(regionId string, ecsClient ECSInterface) error {
 	for _, region := range regions.Regions.Region {
 		if regionId == region.RegionId {
 			aliyunep.AddEndpointMapping(regionId, "Ecs", region.RegionEndpoint)
-			logrus.Infof("from DescribeRegions: region %s (%s) endpoint %s", regionId, region.LocalName, region.RegionEndpoint)
+			klog.Infof("from DescribeRegions: region %s (%s) endpoint %s", regionId, region.LocalName, region.RegionEndpoint)
 			return nil
 		}
 	}

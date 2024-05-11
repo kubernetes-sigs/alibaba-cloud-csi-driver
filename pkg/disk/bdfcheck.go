@@ -13,9 +13,9 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 )
 
@@ -46,7 +46,7 @@ func BdfHealthCheck() {
 	}
 	interTime, err := strconv.Atoi(interval)
 	if err != nil {
-		log.Errorf("Format BDF_CHECK_INTERVAL error: %v", err)
+		klog.Errorf("Format BDF_CHECK_INTERVAL error: %v", err)
 		return
 	}
 	recorder := utils.NewEventRecorder()
@@ -57,7 +57,7 @@ func BdfHealthCheck() {
 	if unusedCheck == "false" {
 		doUnusedCheck = false
 	}
-	log.Infof("Bdf Health Check Starting, with Interval %d minutes...", interTime)
+	klog.Infof("Bdf Health Check Starting, with Interval %d minutes...", interTime)
 
 	// running in loop
 	// if bdf hang, unused is not checked.
@@ -95,7 +95,7 @@ func BdfHealthCheck() {
 // record events if bdf hang;
 func notifyBdfHang(recorder record.EventRecorder) {
 	errMsg := fmt.Sprintf("Find BDF Hang in Node %s", GlobalConfigVar.NodeID)
-	log.Errorf(errMsg)
+	klog.Errorf(errMsg)
 	utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeHang, errMsg)
 	DingTalk(errMsg)
 }
@@ -106,12 +106,12 @@ func checkDiskUnused(recorder record.EventRecorder) {
 	deviceList, err := getDiskUnUsedAndAddTag()
 	if err != nil && len(deviceList) == 0 {
 		errMsg := fmt.Sprintf("Get UnUsed BDF Device in Node %s, with error: %v", GlobalConfigVar.NodeID, err)
-		log.Warnf(errMsg)
+		klog.Warningf(errMsg)
 		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeUnUsed, errMsg)
 		DingTalk(errMsg)
 	} else if err != nil && len(deviceList) != 0 {
 		errMsg := fmt.Sprintf("Get UnUsed BDF Device in Node %s, DeviceList: %v, with message: %v", GlobalConfigVar.NodeID, deviceList, err)
-		log.Warnf(errMsg)
+		klog.Warningf(errMsg)
 		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeUnUsed, errMsg)
 		DingTalk(errMsg)
 	}
@@ -229,7 +229,7 @@ func addDiskBdfTag(devices []string) ([]string, error) {
 		disks = append(disks, diskID)
 	}
 	if len(devices) != len(disks) {
-		log.Errorf("BdfCheck: disks %v not same with devices %v", disks, devices)
+		klog.Errorf("BdfCheck: disks %v not same with devices %v", disks, devices)
 	}
 	if len(disks) == 0 {
 		return disks, nil
@@ -272,7 +272,7 @@ func addDiskBdfTag(devices []string) ([]string, error) {
 		time.Sleep(time.Duration(50) * time.Millisecond)
 	}
 
-	log.Infof("BdfCheck: Disks %v add bdf tag successful, Disks %v add bdf tag failed ", sucAddDisk, errAddDisk)
+	klog.Infof("BdfCheck: Disks %v add bdf tag successful, Disks %v add bdf tag failed ", sucAddDisk, errAddDisk)
 	return disks, fmt.Errorf("Disks %v add bdf tag successful, Disks %v add bdf tag failed ", sucAddDisk, errAddDisk)
 }
 
@@ -288,7 +288,7 @@ func getDiskList(diskList []string) ([]ecs.Disk, error) {
 	describeDisksRequest.PageSize = requests.NewInteger(100)
 	diskResponse, err := GlobalConfigVar.EcsClient.DescribeDisks(describeDisksRequest)
 	if err != nil {
-		log.Warnf("getDiskList: DescribeDisks error with: %s, %s", diskList, err.Error())
+		klog.Warningf("getDiskList: DescribeDisks error with: %s, %s", diskList, err.Error())
 		return []ecs.Disk{}, err
 	}
 	return diskResponse.Disks.Disk, nil
@@ -311,10 +311,10 @@ func addBdfTagToDisk(diskID string) (err error) {
 	addTagsRequest.RegionId = GlobalConfigVar.Region
 	_, err = GlobalConfigVar.EcsClient.AddTags(addTagsRequest)
 	if err != nil {
-		log.Warnf("BDFCheck: disk %s attached to instance %s, but not used, add bdf tag error: %s", diskID, GlobalConfigVar.NodeID, err.Error())
+		klog.Warningf("BDFCheck: disk %s attached to instance %s, but not used, add bdf tag error: %s", diskID, GlobalConfigVar.NodeID, err.Error())
 		return err
 	}
-	log.Infof("BDFCheck: disk %s attached to instance %s, but not used, add bdf tag successfully", diskID, GlobalConfigVar.NodeID)
+	klog.Infof("BDFCheck: disk %s attached to instance %s, but not used, add bdf tag successfully", diskID, GlobalConfigVar.NodeID)
 	return nil
 }
 
@@ -338,13 +338,13 @@ func DingTalk(msg string) {
 	dingMsg := DingMsg{Mstype: "text", Text: content}
 	bytpes, err := json.Marshal(dingMsg)
 	if err != nil {
-		log.Warnf("Marshal message get error: %v", err)
+		klog.Warningf("Marshal message get error: %v", err)
 		return
 	}
 	resp, err := http.Post(DingURL, "Content-Type: application/json", strings.NewReader(string(bytpes)))
 	if err != nil {
-		log.Warnf("Connect to DingTalk get error: %v", err)
+		klog.Warningf("Connect to DingTalk get error: %v", err)
 		return
 	}
-	log.Infof("DingTalk get response: %v", resp)
+	klog.Infof("DingTalk get response: %v", resp)
 }

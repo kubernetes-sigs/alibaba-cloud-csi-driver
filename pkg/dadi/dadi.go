@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -30,7 +30,7 @@ func getEndPoints(kubeClient kubernetes.Interface, namespace string) *corev1.End
 	endpoints, err := kubeClient.CoreV1().Endpoints(namespace).Get(context.Background(), cnfsCacheEndpointsName, metav1.GetOptions{})
 	if err != nil && errMaxCount < 5 {
 		errMaxCount++
-		log.Errorf("Get %s endpoints is failed, error:%s", cnfsCacheEndpointsName, err.Error())
+		klog.Errorf("Get %s endpoints is failed, error:%s", cnfsCacheEndpointsName, err.Error())
 		return nil
 	}
 	return endpoints
@@ -39,13 +39,13 @@ func getEndPoints(kubeClient kubernetes.Interface, namespace string) *corev1.End
 func checkEndPoints(endpoints *corev1.Endpoints) bool {
 	if len(endpoints.Subsets) == 0 {
 		msg := fmt.Sprintf("%s endpoints.Subsets is empty.endpoints:%+v", cnfsCacheEndpointsName, endpoints)
-		log.Errorf(msg)
+		klog.Errorf(msg)
 		return false
 	}
 	for _, endpointSubset := range endpoints.Subsets {
 		if len(endpointSubset.Addresses) == 0 {
 			msg := fmt.Sprintf("%s endpoints.Subsets.Addresses is empty.endpoints:%+v", cnfsCacheEndpointsName, endpoints)
-			log.Errorf(msg)
+			klog.Errorf(msg)
 			return false
 		}
 	}
@@ -79,7 +79,7 @@ func Run(kubeClient kubernetes.Interface) {
 		b, _ := json.Marshal(dadiEndPoint)
 		err := utils.WriteAndSyncFile(dadiHostPath+dadiEndPointFile, b, 0644)
 		if err != nil {
-			log.Errorf("Write %s json file is failed, err:%s", dadiHostPath+dadiEndPointFile, err.Error())
+			klog.Errorf("Write %s json file is failed, err:%s", dadiHostPath+dadiEndPointFile, err.Error())
 		}
 	}
 }

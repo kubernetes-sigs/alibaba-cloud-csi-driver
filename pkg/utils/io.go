@@ -10,8 +10,8 @@ import (
 	"syscall"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
+	"k8s.io/klog/v2"
 )
 
 const PodBlkIOCgroupPath = "/host/sys/fs/cgroup/blkio/kubepods.slice"
@@ -35,19 +35,19 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 	// io limit parse
 	readBPSInt, err := getBpsLimt(readBPS)
 	if err != nil {
-		log.Errorf("Volume(%s) Input Read BPS Limit format error: %s", req.VolumeId, err.Error())
+		klog.Errorf("Volume(%s) Input Read BPS Limit format error: %s", req.VolumeId, err.Error())
 		return err
 	}
 	writeBPSInt, err := getBpsLimt(writeBPS)
 	if err != nil {
-		log.Errorf("Volume(%s) Input Write BPS Limit format error: %s", req.VolumeId, err.Error())
+		klog.Errorf("Volume(%s) Input Write BPS Limit format error: %s", req.VolumeId, err.Error())
 		return err
 	}
 	readIOPSInt := 0
 	if readIOPS != "" {
 		readIOPSInt, err = strconv.Atoi(readIOPS)
 		if err != nil {
-			log.Errorf("Volume(%s) Input Read IOPS Limit format error: %s", req.VolumeId, err.Error())
+			klog.Errorf("Volume(%s) Input Read IOPS Limit format error: %s", req.VolumeId, err.Error())
 			return err
 		}
 	}
@@ -55,7 +55,7 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 	if writeIOPS != "" {
 		writeIOPSInt, err = strconv.Atoi(writeIOPS)
 		if err != nil {
-			log.Errorf("Volume(%s) Input Write IOPS Limit format error: %s", req.VolumeId, err.Error())
+			klog.Errorf("Volume(%s) Input Write IOPS Limit format error: %s", req.VolumeId, err.Error())
 			return err
 		}
 	}
@@ -69,7 +69,7 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 	// Get pod uid
 	podUID := req.VolumeContext["csi.storage.k8s.io/pod.uid"]
 	if podUID == "" {
-		log.Errorf("Volume(%s) Cannot get poduid and cannot set volume limit", req.VolumeId)
+		klog.Errorf("Volume(%s) Cannot get poduid and cannot set volume limit", req.VolumeId)
 		return errors.New("Cannot get poduid and cannot set volume limit: " + req.VolumeId)
 	}
 	// /sys/fs/cgroup/blkio/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-podaadcc749_6776_4933_990d_d50f260f5d46.slice/blkio.throttle.write_bps_device
@@ -91,7 +91,7 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 		}
 	}
 	if podBlkIOPathFd == -1 {
-		log.Errorf("Volume(%s), pod blkio/cgroup path not found", req.VolumeId)
+		klog.Errorf("Volume(%s), pod blkio/cgroup path not found", req.VolumeId)
 		return errors.New("pod blkio/cgroup path not found")
 	}
 
@@ -120,7 +120,7 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 			return err
 		}
 	}
-	log.Infof("Seccessful Set Volume(%s) IO Limit: readIOPS(%d), writeIOPS(%d), readBPS(%d), writeBPS(%d)", req.VolumeId, readIOPSInt, writeIOPSInt, readBPSInt, writeBPSInt)
+	klog.Infof("Seccessful Set Volume(%s) IO Limit: readIOPS(%d), writeIOPS(%d), readBPS(%d), writeBPS(%d)", req.VolumeId, readIOPSInt, writeIOPSInt, readBPSInt, writeBPSInt)
 	return nil
 }
 

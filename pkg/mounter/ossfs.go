@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -51,14 +52,14 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) Fuse
 			if err == nil {
 				registry = fmt.Sprintf("registry-%s-vpc.ack.aliyuncs.com", region)
 			} else {
-				log.Warnf("DEFAULT_REGISTRY env not set, failed to get current region: %v, fallback to default registry: %s", err, defaultRegistry)
+				klog.Warningf("DEFAULT_REGISTRY env not set, failed to get current region: %v, fallback to default registry: %s", err, defaultRegistry)
 				registry = defaultRegistry
 			}
 		}
 		tag := defaultOssfsImageTag
 		// if enabled UpdatedOssfsVersion featuregate
 		if features.FunctionalMutableFeatureGate.Enabled(features.UpdatedOssfsVersion) {
-			log.Infof("UpdatedOssfsVersion is enabled by feature-gates, use %s", defaultOssfsUpdatedImageTag)
+			klog.Infof("UpdatedOssfsVersion is enabled by feature-gates, use %s", defaultOssfsUpdatedImageTag)
 			tag = defaultOssfsUpdatedImageTag
 		}
 		config.Image = fmt.Sprintf("%s/acs/csi-ossfs:%s", registry, tag)

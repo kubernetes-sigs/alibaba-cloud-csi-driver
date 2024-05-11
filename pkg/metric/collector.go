@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -101,7 +101,7 @@ func (csi CSICollector) Collect(ch chan<- prometheus.Metric) {
 func execute(name string, c Collector, ch chan<- prometheus.Metric) {
 	defer func() {
 		if err := recover(); err != nil {
-			logrus.Errorf("Collecotor panic occurred: %v. stacktrace: %s", err, string(debug.Stack()))
+			klog.Errorf("Collecotor panic occurred: %v. stacktrace: %s", err, string(debug.Stack()))
 		}
 	}()
 	begin := time.Now()
@@ -110,9 +110,9 @@ func execute(name string, c Collector, ch chan<- prometheus.Metric) {
 	var success float64
 	if err != nil {
 		if IsNoDataError(err) {
-			logrus.Infof("Collector returned no data,name: %s, duration_seconds: %f, err: %s", name, duration.Seconds(), err.Error())
+			klog.Infof("Collector returned no data,name: %s, duration_seconds: %f, err: %s", name, duration.Seconds(), err.Error())
 		} else {
-			logrus.Errorf("Collector failed, name: %s, duration_seconds: %f, err: %s", name, duration.Seconds(), err.Error())
+			klog.Errorf("Collector failed, name: %s, duration_seconds: %f, err: %s", name, duration.Seconds(), err.Error())
 		}
 		success = 0
 	} else {

@@ -12,9 +12,9 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -40,12 +40,12 @@ type QueryServer struct {
 func NewQueryServer() *QueryServer {
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
+		klog.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+		klog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 	return &QueryServer{
 		client: kubeClient,
@@ -58,12 +58,12 @@ func (ks *QueryServer) RunQueryServer() {
 	os.Remove(socketAddr.Name)
 	lis, err := net.ListenUnix("unix", socketAddr)
 	if err != nil {
-		log.Errorf("Listen Unix error: %s", err.Error())
+		klog.Errorf("Listen Unix error: %s", err.Error())
 		return
 	}
 
 	// set router
-	log.Infof("Started Query Server with unix socket: %s", QueryServerSocket)
+	klog.Infof("Started Query Server with unix socket: %s", QueryServerSocket)
 	http.HandleFunc("/api/v1/volumeinfo", ks.volumeInfoHandler)
 	//	http.HandleFunc("/api/v1/podruntime", ks.podRunTimeHander)
 	http.HandleFunc("/api/v1/ping", ks.pingHandler)
@@ -72,9 +72,9 @@ func (ks *QueryServer) RunQueryServer() {
 	svr := &http.Server{Handler: http.DefaultServeMux}
 	err = svr.Serve(lis)
 	if err != nil {
-		log.Errorf("Query Server Starting error: %s", err.Error())
+		klog.Errorf("Query Server Starting error: %s", err.Error())
 	}
-	log.Infof("Query Server Ending ....")
+	klog.Infof("Query Server Ending ....")
 }
 
 // volumeInfoHandler reply with volume options.
@@ -82,16 +82,16 @@ func (ks *QueryServer) volumeInfoHandler(w http.ResponseWriter, r *http.Request)
 	reqInfo := QueryRequest{}
 	content, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Errorf("Request volumeInfo: Receive request read body error: %s", err.Error())
+		klog.Errorf("Request volumeInfo: Receive request read body error: %s", err.Error())
 		fmt.Fprintf(w, "null")
 		return
 	}
 	if err := json.Unmarshal(content, &reqInfo); err != nil {
-		log.Errorf("Request volumeInfo: Unmarshal request body(%s) error: %s", string(content), err.Error())
+		klog.Errorf("Request volumeInfo: Unmarshal request body(%s) error: %s", string(content), err.Error())
 		fmt.Fprintf(w, "null")
 		return
 	}
-	log.Infof("Request volumeInfo: Receive Request with identity: %s", reqInfo.Identity)
+	klog.Infof("Request volumeInfo: Receive Request with identity: %s", reqInfo.Identity)
 	if reqInfo.Identity == "" {
 		fmt.Fprintf(w, "null")
 		return
@@ -105,7 +105,7 @@ func (ks *QueryServer) volumeInfoHandler(w http.ResponseWriter, r *http.Request)
 		fileContent = strings.ToLower(fileContent)
 		volInfoMapFrom := map[string]string{}
 		if err := json.Unmarshal([]byte(fileContent), &volInfoMapFrom); err != nil {
-			log.Errorf("Request volumeInfo: Unmarshal fileContent (%s) error: %s", fileContent, err.Error())
+			klog.Errorf("Request volumeInfo: Unmarshal fileContent (%s) error: %s", fileContent, err.Error())
 			fmt.Fprintf(w, "null")
 			return
 		}
@@ -149,26 +149,26 @@ func (ks *QueryServer) volumeInfoHandler(w http.ResponseWriter, r *http.Request)
 			}
 			volInfoMapResponse["volumeType"] = "nfs"
 		} else {
-			log.Errorf("Request volumeInfo: get error volumeType: %s for identity: %s", volumeType, reqInfo.Identity)
+			klog.Errorf("Request volumeInfo: get error volumeType: %s for identity: %s", volumeType, reqInfo.Identity)
 			fmt.Fprintf(w, "null")
 			return
 		}
 
 		responseStr, err := json.Marshal(volInfoMapResponse)
 		if err != nil {
-			log.Errorf("Request volumeInfo: Marshal volInfoResp error: %s", err.Error())
+			klog.Errorf("Request volumeInfo: Marshal volInfoResp error: %s", err.Error())
 			fmt.Fprintf(w, "null")
 			return
 		}
 
 		// Send response
 		fmt.Fprintf(w, string(responseStr))
-		log.Infof("Request volumeInfo: Send Successful Response with: %s", responseStr)
+		klog.Infof("Request volumeInfo: Send Successful Response with: %s", responseStr)
 		return
 	}
 
 	// no found volume
-	log.Warnf("Request volumeInfo: Send Fail Response with: no found volume, %s", fileName)
+	klog.Warningf("Request volumeInfo: Send Fail Response with: no found volume, %s", fileName)
 	fmt.Fprintf(w, "no found volume: %s", fileName)
 	return
 

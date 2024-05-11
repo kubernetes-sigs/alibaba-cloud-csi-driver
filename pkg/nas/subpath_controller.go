@@ -36,6 +36,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -131,7 +132,7 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 		return resp, nil
 	}
 	if cs.config.SkipSubpathCreation {
-		logrus.Infof("skip creating subpath directory for %s", req.Name)
+		klog.Infof("skip creating subpath directory for %s", req.Name)
 		return resp, nil
 	}
 	logrus.WithFields(logrus.Fields{
@@ -214,7 +215,7 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 		}
 	}
 	if !cs.config.EnableSubpathFinalizer {
-		logrus.Infof("deletion finalizer not enabled, skip subpath deletion for %s", req.VolumeId)
+		klog.Infof("deletion finalizer not enabled, skip subpath deletion for %s", req.VolumeId)
 		return &csi.DeleteVolumeResponse{}, nil
 	}
 
@@ -296,7 +297,7 @@ func (cs *subpathController) ControllerExpandVolume(ctx context.Context, req *cs
 			NodeExpansionRequired: true,
 		}, nil
 	}
-	logrus.Warn("volume capacity not enabled when provision, skip quota expandsion")
+	klog.Warning("volume capacity not enabled when provision, skip quota expandsion")
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: capacity}, nil
 }
 
@@ -321,7 +322,7 @@ func (cs *subpathController) patchFinalizerOnPV(ctx context.Context, pv *corev1.
 	if err != nil {
 		return status.Errorf(codes.Internal, "patch pv: %v", err)
 	}
-	logrus.Infof("patched finalizer %s on pv %s", finalizer, pv.Name)
+	klog.Infof("patched finalizer %s on pv %s", finalizer, pv.Name)
 	return nil
 }
 

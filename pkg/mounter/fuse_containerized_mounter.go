@@ -21,6 +21,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	watchtools "k8s.io/client-go/tools/watch"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -135,7 +136,7 @@ func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 			config.Extra[key] = value
 		}
 		if invalid {
-			logrus.Warnf("ignore invalid configuration line: %q", line)
+			klog.Warningf("ignore invalid configuration line: %q", line)
 		}
 	}
 	return

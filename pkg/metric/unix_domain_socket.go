@@ -2,10 +2,11 @@ package metric
 
 import (
 	"context"
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net"
 	"net/http"
+
+	"k8s.io/klog/v2"
 )
 
 // UDSClient is unix domain socket client with server client
@@ -27,7 +28,7 @@ func NewUDSClient(socketPath string) *UDSClient {
 func (u *UDSClient) Get(url string) (*http.Response, error) {
 	resp, err := u.client.Get(url)
 	if err != nil {
-		log.Errorf("Get url %s is failed, err: %s ", url, err)
+		klog.Errorf("Get url %s is failed, err: %s ", url, err)
 		return nil, err
 	}
 	return resp, nil
@@ -37,7 +38,7 @@ func (u *UDSClient) Get(url string) (*http.Response, error) {
 func (u *UDSClient) ReadBody(resp *http.Response) string {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Errorf("Get resp.body is failed, resp:%+v, err:%s", resp, err.Error())
+		klog.Errorf("Get resp.body is failed, resp:%+v, err:%s", resp, err.Error())
 		return string("")
 	}
 	return string(body)

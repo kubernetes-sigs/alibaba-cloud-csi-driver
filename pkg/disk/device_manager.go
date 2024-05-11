@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/klog/v2"
 )
 
 type DevTmpFS interface {
@@ -76,7 +76,7 @@ func (m *DeviceManager) getDeviceBySerial(serial string) (string, error) {
 		}
 		body, err := os.ReadFile(serialPath)
 		if err != nil {
-			log.Errorf("Read serial(%s): %v", serialPath, err)
+			klog.Errorf("Read serial(%s): %v", serialPath, err)
 			continue
 		}
 		if strings.TrimSpace(string(body)) == serial {
@@ -156,7 +156,7 @@ func (m *DeviceManager) getDeviceByLink(idSuffix string) (string, error) {
 		volumeLinkPath := filepath.Join(byIDPath, p+idSuffix)
 		major, minor, err := m.DevTmpFS.DevFor(volumeLinkPath)
 		if err == nil {
-			log.Infof("GetDevice: device link %q: %d:%d", volumeLinkPath, major, minor)
+			klog.Infof("GetDevice: device link %q: %d:%d", volumeLinkPath, major, minor)
 			return volumeLinkPath, nil
 		}
 		errw := fmt.Errorf("get by link %q failed: %w", volumeLinkPath, err)
@@ -184,7 +184,7 @@ func (m *DeviceManager) getDeviceByScanLinks(idSuffix string) (string, error) {
 		volumeLinkPath := filepath.Join(byIDPath, f.Name())
 		major, minor, err := m.DevTmpFS.DevFor(volumeLinkPath)
 		if err == nil {
-			log.Infof("GetDevice: scanned device link %q: %d:%d", volumeLinkPath, major, minor)
+			klog.Infof("GetDevice: scanned device link %q: %d:%d", volumeLinkPath, major, minor)
 			return volumeLinkPath, nil
 		}
 		errs = append(errs, fmt.Errorf("get by scanned link %q failed: %w", volumeLinkPath, err))
@@ -223,7 +223,7 @@ func (m *DeviceManager) GetRootBlockByVolumeID(volumeID string) (string, error) 
 	if !m.DisableSerial {
 		name, err := m.getDeviceBySerial(idSuffix)
 		if err == nil {
-			log.Infof("GetDevice: Use the serial to find device, volumeID: %s, device: %s", volumeID, name)
+			klog.Infof("GetDevice: Use the serial to find device, volumeID: %s, device: %s", volumeID, name)
 			return filepath.Join(m.DevicePath, name), nil
 		}
 		errs = append(errs, fmt.Errorf("find by serial: %w", err))
@@ -288,7 +288,7 @@ func (m *DeviceManager) GetDeviceNumberFromBlockDevice(blockDevice, busPrefix st
 		return "", err
 	}
 	for {
-		log.Infof("NewDeviceDriver: get symlink dir: %s", dirEntry)
+		klog.Infof("NewDeviceDriver: get symlink dir: %s", dirEntry)
 		if dirEntry == ".." || dirEntry == "." {
 			return "", fmt.Errorf("NewDeviceDriver: not found device number, blockDevice: %s", blockDevice)
 		}

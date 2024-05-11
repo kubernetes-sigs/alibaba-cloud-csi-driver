@@ -17,12 +17,12 @@ limitations under the License.
 package utils
 
 import (
-	log "github.com/sirupsen/logrus"
-	"gopkg.in/h2non/gock.v1"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/h2non/gock.v1"
+	"k8s.io/klog/v2"
 )
 
 func TestGetAccessControl(t *testing.T) {
@@ -80,9 +80,9 @@ func TestGetOIDCToken(t *testing.T) {
 			newProvider: true,
 		},
 	}
-	defer func() { log.StandardLogger().ExitFunc = nil }()
+	defer func() { klog.OsExit = os.Exit }()
 	var fatal bool
-	log.StandardLogger().ExitFunc = func(int) { fatal = true }
+	klog.OsExit = func(code int) { fatal = true }
 	for _, test := range testExamples {
 		if test.newProvider {
 			oidcProvider = nil

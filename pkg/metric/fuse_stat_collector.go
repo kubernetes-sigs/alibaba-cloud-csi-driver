@@ -8,7 +8,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
-	log "github.com/sirupsen/logrus"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -505,7 +505,7 @@ func (p *usFsStatCollector) postHotTopFileMetrics(hotSpotType string, fsClientIn
 		case "hot_spot_head_file_top":
 			ch <- prometheus.MustNewConstMetric(p.hotSpotHeadFileTop, prometheus.GaugeValue, valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, fileName)
 		default:
-			log.Errorf("Unknow hotSpotType:%s", hotSpotType)
+			klog.Errorf("Unknow hotSpotType:%s", hotSpotType)
 		}
 	}
 }
@@ -521,7 +521,7 @@ func (p *usFsStatCollector) postCounterMetrics(counterType string, fsClientInfo 
 		}
 		valueFloat64, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			log.Errorf("Convert value %s to float64 is failed, err:%s, counterType:%s, metricsArray:%+v", value, err, counterType, metricsArray)
+			klog.Errorf("Convert value %s to float64 is failed, err:%s, counterType:%s, metricsArray:%+v", value, err, counterType, metricsArray)
 			continue
 		}
 
@@ -562,7 +562,7 @@ func (p *usFsStatCollector) postCounterMetrics(counterType string, fsClientInfo 
 			}
 			ch <- p.ossObjectCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
 		default:
-			log.Errorf("Unknow counterType:%s", counterType)
+			klog.Errorf("Unknow counterType:%s", counterType)
 		}
 	}
 }
@@ -578,7 +578,7 @@ func (p *usFsStatCollector) postBackendCounterMetrics(counterType string, fsClie
 		}
 		valueFloat64, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			log.Errorf("Convert value %s to float64 is failed, err:%s, counterType:%s, metricsArray:%+v", value, err, counterType, metricsArray)
+			klog.Errorf("Convert value %s to float64 is failed, err:%s, counterType:%s, metricsArray:%+v", value, err, counterType, metricsArray)
 			continue
 		}
 
@@ -604,7 +604,7 @@ func (p *usFsStatCollector) postBackendCounterMetrics(counterType string, fsClie
 			}
 			ch <- p.backendThroughputBytesCounterDesc.descs[i].mustNewConstMetric(valueFloat64, fsClientInfo.ClientName, fsClientInfo.BackendStorage, fsClientInfo.BucketName, fsClientInfo.Namespace, fsClientInfo.PodName, fsClientInfo.PvName, fsClientInfo.MountPoint, "")
 		default:
-			log.Errorf("Unknow counterType:%s", counterType)
+			klog.Errorf("Unknow counterType:%s", counterType)
 		}
 	}
 }

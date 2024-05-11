@@ -28,12 +28,12 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
-	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -51,14 +51,14 @@ type OSS struct {
 
 // NewDriver init oss type of csi driver
 func NewDriver(nodeID, endpoint string, m metadata.MetadataProvider, runAsController bool) *OSS {
-	log.Infof("Driver: %v version: %v", driverName, version.VERSION)
+	klog.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
 	d := &OSS{}
 	d.endpoint = endpoint
 
 	if nodeID == "" {
 		nodeID = utils.RetryGetMetaData(InstanceID)
-		log.Infof("Use node id : %s", nodeID)
+		klog.Infof("Use node id : %s", nodeID)
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, nodeID)
 	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{
@@ -81,16 +81,16 @@ func NewDriver(nodeID, endpoint string, m metadata.MetadataProvider, runAsContro
 func newControllerServer(driver *csicommon.CSIDriver) csi.ControllerServer {
 	config, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
-		log.Fatalf("failed to build kubeconfig: %v", err)
+		klog.Fatalf("failed to build kubeconfig: %v", err)
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		log.Fatalf("Create client set is failed, err: %v", err)
+		klog.Fatalf("Create client set is failed, err: %v", err)
 	}
 
 	crdClient, err := dynamic.NewForConfig(config)
 	if err != nil {
-		log.Fatalf("Create dynamic client is failed, err: %v", err)
+		klog.Fatalf("Create dynamic client is failed, err: %v", err)
 	}
 
 	c := &controllerServer{
@@ -105,26 +105,26 @@ func newControllerServer(driver *csicommon.CSIDriver) csi.ControllerServer {
 func newNodeServer(driver *csicommon.CSIDriver, m metadata.MetadataProvider) *nodeServer {
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	if nodeName == "" {
-		log.Fatal("env KUBE_NODE_NAME is empty")
+		klog.Fatal("env KUBE_NODE_NAME is empty")
 	}
 
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
-		log.Fatalf("Build kubeconfig is failed, err: %s", err.Error())
+		klog.Fatalf("Build kubeconfig is failed, err: %s", err.Error())
 	}
 
 	clientset, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		log.Fatalf("Create client set is failed, err: %v", err)
+		klog.Fatalf("Create client set is failed, err: %v", err)
 	}
 	configmap, err := clientset.CoreV1().ConfigMaps("kube-system").Get(context.Background(), "csi-plugin", metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
-		log.Fatalf("failed to get configmap kube-system/csi-plugin: %v", err)
+		klog.Fatalf("failed to get configmap kube-system/csi-plugin: %v", err)
 	}
 
 	crdClient, err := dynamic.NewForConfig(cfg)
 	if err != nil {
-		log.Fatalf("Create crd client is failed, err: %v", err)
+		klog.Fatalf("Create crd client is failed, err: %v", err)
 	}
 
 	return &nodeServer{
