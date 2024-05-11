@@ -12,7 +12,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -229,7 +228,7 @@ func SetupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Interf
 			secret.Data = map[string][]byte{key: []byte(value)}
 			_, err = secretClient.Create(ctx, secret, metav1.CreateOptions{})
 			if err == nil {
-				log.WithField("volumeId", volumeId).Infof("created secret %s to add credentials", OssfsCredentialSecretName)
+				klog.V(2).InfoS("created secret to add credentials", "secret", OssfsCredentialSecretName, "volumeId", volumeId)
 			}
 			return err
 		}
@@ -250,7 +249,7 @@ func SetupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Interf
 	}
 	_, err = secretClient.Patch(ctx, OssfsCredentialSecretName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
 	if err == nil {
-		log.WithField("volumeId", volumeId).Infof("patched secret %s", OssfsCredentialSecretName)
+		klog.V(2).InfoS("patched secret", "secret", OssfsCredentialSecretName, "volumeId", volumeId)
 	}
 	return err
 }
@@ -281,7 +280,7 @@ func CleanupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Inte
 	}
 	_, err = secretClient.Patch(ctx, OssfsCredentialSecretName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
 	if err == nil {
-		log.WithField("volumeId", volumeId).Infof("patched secret %s to remove credentials", OssfsCredentialSecretName)
+		klog.V(2).InfoS("patched secret to remove credentials", "secret", OssfsCredentialSecretName, "volumeId", volumeId)
 	}
 	return err
 }
