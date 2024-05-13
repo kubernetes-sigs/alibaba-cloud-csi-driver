@@ -57,16 +57,12 @@ func getVolumeGroupSnapshotConfig(req *csi.CreateVolumeGroupSnapshotRequest) (*c
 func parseGroupSnapshotParameters(params map[string]string, ecsParams *createGroupSnapshotParams) (err error) {
 	for k, v := range params {
 		switch k {
-		case SNAPSHOTTYPE:
-			// use instanctAccess by default
 		case RETENTIONDAYS:
 			//ecsParams.RetentionDays, err = strconv.Atoi(v)
 			//if err != nil {
 			//	return fmt.Errorf("failed to parse retentionDays: %w", err)
 			//}
 			return fmt.Errorf("groupSnapshot do not support retentionDays: %w", err)
-		case INSTANTACCESSRETENTIONDAYS:
-			// instantAccess RetentionDays always equals to RetentionDays
 		case SNAPSHOTRESOURCEGROUPID:
 			ecsParams.ResourceGroupID = v
 		case common.VolumeGroupSnapshotNameKey:
@@ -143,6 +139,9 @@ func ifExistsGroupSnapshotMatch(existsGroupSnapshot *ecs.SnapshotGroup, sourceVo
 	for _, snapshot := range existsGroupSnapshot.Snapshots.Snapshot {
 		existsSnapshotSourceIdsMap[snapshot.SourceDiskId] = struct{}{}
 	}
+	if len(existsSnapshotSourceIdsMap) != len(sourceVolumeIds) {
+		return false
+	}
 	matach := true
 	for _, id := range sourceVolumeIds {
 		if _, ok := existsSnapshotSourceIdsMap[id]; !ok {
@@ -158,17 +157,16 @@ func checkSourceVolumes(sourceVolumeIds []string) error {
 	var capacityInGiB int
 	for _, sourceVolumeId := range sourceVolumeIds {
 		disks := getDisk(sourceVolumeId, GlobalConfigVar.EcsClient)
-		if len(disks) == 0 {
+		switch len(disks) {
+		case 0:
 			return fmt.Errorf("no disk found: %s", sourceVolumeId)
-		} else if len(disks) != 1 {
+		case 1:
+		default:
 			return fmt.Errorf("multi disk found: %s", sourceVolumeId)
 		}
 
-		// TODO: skip status check as CreateSnapshot
-
 		switch disks[0].Category {
 		case DiskESSD, DiskESSDAuto, DiskESSDEntry:
-			// do nothing
 		default:
 			return fmt.Errorf("groupSnapshot only support ESSD disks, but disk %s is %s: %v", sourceVolumeId, disks[0].Category)
 		}

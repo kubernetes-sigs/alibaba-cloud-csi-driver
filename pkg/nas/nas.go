@@ -69,9 +69,9 @@ func NewDriver(meta *metadata.Metadata, endpoint, serviceType string) *NAS {
 func (d *NAS) Run() {
 	log.Infof("Starting csi-plugin Driver: %v version: %v", driverName, version.VERSION)
 	servers := csicommon.Servers{
-		Ids: d.identityServer,
-		Cs:  d.controllerServer,
-		Ns:  d.nodeServer,
+		IdentityServer:   d.identityServer,
+		ControllerServer: d.controllerServer,
+		NodeServer:       d.nodeServer,
 	}
 	common.RunCSIServer(d.endpoint, servers)
 }

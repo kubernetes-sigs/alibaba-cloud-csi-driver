@@ -90,9 +90,9 @@ func NewDriver(nodeID, endpoint string) *ENS {
 func (ens *ENS) Run() {
 	log.Infof("Run: start csi-plugin driver: %s, version %s", driverName, version.VERSION)
 	servers := csicommon.Servers{
-		Ids: ens.idServer,
-		Cs:  ens.controllerServer,
-		Ns:  ens.nodeServer,
+		IdentityServer:   ens.idServer,
+		ControllerServer: ens.controllerServer,
+		NodeServer:       ens.nodeServer,
 	}
 	common.RunCSIServer(ens.endpoint, servers)
 }

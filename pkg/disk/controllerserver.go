@@ -32,13 +32,13 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	volumeSnasphotV1 "github.com/kubernetes-csi/external-snapshotter/client/v7/apis/volumesnapshot/v1"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v7/clientset/versioned"
 	csicommon "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/crds"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -93,11 +93,7 @@ var delVolumeSnap sync.Map
 
 // NewControllerServer is to create controller server
 func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.ControllerServer {
-	installCRD := true
-	installCRDStr := os.Getenv(utils.InstallSnapshotCRD)
-	if installCRDStr == "false" {
-		installCRD = false
-	}
+	installCRD := os.Getenv(utils.InstallSnapshotCRD) != "false"
 
 	// parse input snapshot request interval
 	intervalStr := os.Getenv(SnapshotRequestTag)
@@ -111,7 +107,7 @@ func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.Cont
 
 	serviceType := os.Getenv(utils.ServiceType)
 	if serviceType == utils.ProvisionerService && installCRD {
-		checkInstallCRD(client, GlobalConfigVar.VolumeGroupSnapshotEnable)
+		checkInstallCRD(client, features.FunctionalMutableFeatureGate.Enabled(features.DiskADController))
 		checkInstallDefaultVolumeSnapshotClass(GlobalConfigVar.SnapClient)
 	}
 	c := &controllerServer{
@@ -670,6 +666,8 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		CreationTime:   createAt,
 		ReadyToUse:     tmpReadyToUse,
 		SizeBytes:      utils.Gi2Bytes(int64(disks[0].Size)),
+		// snapshots created by CreateSnapshot do not have GroupSnapshotId
+		GroupSnapshotId: "",
 	}
 
 	createdSnapshotMap[req.Name] = csiSnapshot
@@ -794,10 +792,10 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 
 // ListSnapshots ...
 func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-	// TODO: groupSnapshotId is missing in ListSnapshotsResponse as we
+	// TODO: groupSnapshotId is missing in ListSnapshotsResponse so we
 	// 	1.could not get groupsnapshotId from DescribeSnpshots API response
 	//  2.could not get volumesnapshot name from ListSnapshotsRequest
-	// this will case:
+	// this will cause:
 	// volumesnapshot leased in cluster when volumegroupsnaoshot deleted,
 	//   as status.volumeGroupSnapshotHandle is missing in volumesnapshotcontent,
 	//   and "snapshot.storage.kubernetes.io/volumesnapshot-in-group-protection" finalizer

@@ -29,10 +29,10 @@ import (
 
 // Servers holds the list of servers.
 type Servers struct {
-	Ids csi.IdentityServer
-	Cs  csi.ControllerServer
-	Ns  csi.NodeServer
-	Gcs csi.GroupControllerServer
+	IdentityServer        csi.IdentityServer
+	ControllerServer      csi.ControllerServer
+	NodeServer            csi.NodeServer
+	GroupControllerServer csi.GroupControllerServer
 }
 
 // Defines Non blocking GRPC server interfaces
@@ -102,17 +102,17 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, servers Servers) {
 	server := grpc.NewServer(opts...)
 	s.server = server
 
-	if servers.Ids != nil {
-		csi.RegisterIdentityServer(server, servers.Ids)
+	if servers.IdentityServer != nil {
+		csi.RegisterIdentityServer(server, servers.IdentityServer)
 	}
-	if servers.Cs != nil {
-		csi.RegisterControllerServer(server, servers.Cs)
+	if servers.ControllerServer != nil {
+		csi.RegisterControllerServer(server, servers.ControllerServer)
 	}
-	if servers.Ns != nil {
-		csi.RegisterNodeServer(server, servers.Ns)
+	if servers.NodeServer != nil {
+		csi.RegisterNodeServer(server, servers.NodeServer)
 	}
-	if servers.Gcs != nil {
-		csi.RegisterGroupControllerServer(server, servers.Gcs)
+	if servers.GroupControllerServer != nil {
+		csi.RegisterGroupControllerServer(server, servers.GroupControllerServer)
 	}
 
 	glog.Infof("Listening for connections on address: %#v", listener.Addr())

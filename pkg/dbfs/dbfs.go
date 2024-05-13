@@ -92,9 +92,9 @@ func NewDriver(nodeID, endpoint string) *DBFS {
 // Run start a new NodeServer
 func (d *DBFS) Run() {
 	servers := csicommon.Servers{
-		Ids: NewIdentityServer(d.driver),
-		Cs:  d.controllerServer,
-		Ns:  newNodeServer(d),
+		IdentityServer:   NewIdentityServer(d.driver),
+		ControllerServer: d.controllerServer,
+		NodeServer:       newNodeServer(d),
 	}
 	common.RunCSIServer(d.endpoint, servers)
 }

@@ -47,9 +47,9 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *PoV {
 func (p *PoV) Run() {
 	log.Infof("Starting pov driver service, endpoint: %s", p.endpoint)
 	servers := csicommon.Servers{
-		Ids: p,
-		Cs:  &p.controllerService,
-		Ns:  &p.nodeService,
+		IdentityServer:   p,
+		ControllerServer: &p.controllerService,
+		NodeServer:       &p.nodeService,
 	}
 	common.RunCSIServer(p.endpoint, servers)
 }

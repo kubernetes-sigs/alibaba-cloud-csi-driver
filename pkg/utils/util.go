@@ -969,4 +969,3 @@ func CompareVersions(ver1, ver2 string) (int, error) {
 
 	return 0, nil
 }
-

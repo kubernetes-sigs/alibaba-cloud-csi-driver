@@ -141,9 +141,9 @@ func newNodeServer(driver *csicommon.CSIDriver, m metadata.MetadataProvider) *no
 // Run start a newNodeServer
 func (d *OSS) Run() {
 	servers := csicommon.Servers{
-		Ids: csicommon.NewDefaultIdentityServer(d.driver),
-		Cs:  d.controllerServer,
-		Ns:  d.nodeServer,
+		IdentityServer:   csicommon.NewDefaultIdentityServer(d.driver),
+		ControllerServer: d.controllerServer,
+		NodeServer:       d.nodeServer,
 	}
 	common.RunCSIServer(d.endpoint, servers)
 }

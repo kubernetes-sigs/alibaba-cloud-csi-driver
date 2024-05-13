@@ -5,10 +5,10 @@ import (
 )
 
 func RunCSIServer(endpoint string, servers csicommon.Servers) {
-	servers.Ns = WrapNodeServerWithValidator(servers.Ns)
-	servers.Cs = WrapControllerServerWithValidator(servers.Cs)
-	if servers.Gcs != nil {
-		servers.Gcs = WrapGroupControllerServerWithValidator(servers.Gcs)
+	servers.NodeServer = WrapNodeServerWithValidator(servers.NodeServer)
+	servers.ControllerServer = WrapControllerServerWithValidator(servers.ControllerServer)
+	if servers.GroupControllerServer != nil {
+		servers.GroupControllerServer = WrapGroupControllerServerWithValidator(servers.GroupControllerServer)
 	}
 
 	// start grpc server
