@@ -158,6 +158,11 @@ func setNetworkType(originURL, regionID string) (URL string, modified bool) {
 	if utils.IsPrivateCloud() || !strings.HasSuffix(strings.TrimRight(URL, "/"), ".aliyuncs.com") {
 		return
 	}
+	// compatible with the old OSS accelerator endpoint, remove after it is deprecated
+	endpoint := strings.TrimPrefix(strings.TrimPrefix(originURL, "https://"), "http://")
+	if strings.HasPrefix(endpoint, "oss-cache-") {
+		return
+	}
 	if strings.Contains(originURL, regionID) && !strings.Contains(originURL, "internal") {
 		URL = strings.ReplaceAll(originURL, regionID, regionID+"-internal")
 		modified = true
