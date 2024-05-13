@@ -280,7 +280,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	} else {
-		if err := ns.mounter.EnsureFolder(targetPath); err != nil {
+		if err := os.MkdirAll(targetPath, 0755); err != nil {
 			klog.Errorf("NodePublishVolume: create volume %s path %s error: %v", req.VolumeId, targetPath, err)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -630,7 +630,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		fsType = mnt.FsType
 	}
 	mountOptions := collectMountOptions(fsType, options)
-	if err := ns.mounter.EnsureFolder(targetPath); err != nil {
+	if err := os.MkdirAll(targetPath, 0755); err != nil {
 		return nil, status.Error(defaultErrCode, err.Error())
 	}
 
@@ -1009,7 +1009,7 @@ func (ns *nodeServer) mountDeviceToGlobal(capability *csi.VolumeCapability, volu
 		fsType = mnt.FsType
 	}
 	mountOptions := collectMountOptions(fsType, options)
-	if err := ns.mounter.EnsureFolder(sourcePath); err != nil {
+	if err := os.MkdirAll(sourcePath, 0755); err != nil {
 		return status.Error(codes.Internal, err.Error())
 	}
 
@@ -1460,7 +1460,7 @@ func (ns *nodeServer) ensurePathExistsAndCheckMounted(volumeId, targetPath strin
 			return false, status.Error(codes.Internal, err.Error())
 		}
 	} else {
-		if err := ns.mounter.EnsureFolder(targetPath); err != nil {
+		if err := os.MkdirAll(targetPath, 0755); err != nil {
 			klog.Errorf("NodeStageVolume: create volume %s path %s error: %v", volumeId, targetPath, err)
 			return false, status.Error(codes.Internal, err.Error())
 		}
