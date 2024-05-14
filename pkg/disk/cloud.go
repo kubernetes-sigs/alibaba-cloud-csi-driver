@@ -727,8 +727,6 @@ func findGroupSnapshot(name string, id string, expectedSnapNum int) (*ecs.Descri
 	mustGet := expectedSnapNum != 0
 	// DescribeSnapshotGroupResponse might not return enough snapshot ids during processing
 	for attempt := 1; attempt <= GROUPSNAPSHOT_CREATE_MAX_RETRY; attempt++ {
-		log.Infof("CreateVolumeGroupSnapshot: groupSnapshot (id: %s name: %s) is still processing, retry after 2s, attempt %d", id, name, attempt)
-		time.Sleep(2 * time.Second)
 		groupSnapshots, err = GlobalConfigVar.EcsClient.DescribeSnapshotGroups(describeGroupSnapShotRequest)
 		if err != nil {
 			return nil, 0, err
@@ -747,7 +745,8 @@ func findGroupSnapshot(name string, id string, expectedSnapNum int) (*ecs.Descri
 			len(groupSnapshots.SnapshotGroups.SnapshotGroup[0].Snapshots.Snapshot) > expectedSnapNum:
 			return groupSnapshots, snapNum, status.Errorf(codes.Internal, "created groupSnapshot is failed or get unexpected created snapshots")
 		default:
-			continue
+			log.Infof("CreateVolumeGroupSnapshot: groupSnapshot (id: %s name: %s) is still processing, retry after 2s, attempt %d", id, name, attempt)
+			time.Sleep(2 * time.Second)
 		}
 	}
 	log.Warnf("CreateVolumeGroupSnapshot: groupSnapshot (id: %s name: %s) is still processing, after %d attempts, CSI will not create individual volumesnapshot", id, name, GROUPSNAPSHOT_CREATE_MAX_RETRY)
