@@ -131,7 +131,7 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 		// Since err is nil, it means the groupSnapshot with the same name already exists need
 		// to check if the sourceVolumeIds of existing groupSnapshot are the same as in new request.
 		existsGroupSnapshot := groupSnapshots.SnapshotGroups.SnapshotGroup[0]
-		match := ifExistsGroupSnapshotMatch(&existsGroupSnapshot, sourceVolumeIds)
+		match := ifExistsGroupSnapshotMatchSourceVolume(&existsGroupSnapshot, sourceVolumeIds)
 		if !match {
 			log.Errorf("CreateVolumeGroupSnapshot:: GroupSnapshot already exist with same name: name[%s], volumeIDs[%v]", req.Name, sourceVolumeIds)
 			err := status.Errorf(codes.AlreadyExists, "groupSnapshot with the same name: %s but with different SourceVolumeIds already exist", req.GetName())
@@ -274,7 +274,8 @@ func (cs *groupControllerServer) DeleteVolumeGroupSnapshot(ctx context.Context, 
 		Namespace: "",
 	}
 
-	match := ifExistsGroupSnapshotMatch(&existsGroupSnapshots[0], snapshotIds)
+	// part of snapshots may be deleted before
+	match := ifExistsGroupSnapshotMatch(&existsGroupSnapshots[0], snapshotIds, false)
 	if !match {
 		log.Errorf("DeleteVolumeGroupSnapshot:: snapshots of GroupSnapshot to delete ID[%s], do not equal to requested snapshotIDs[%v]", req.GetGroupSnapshotId(), req.GetSnapshotIds())
 		err := status.Errorf(codes.InvalidArgument, "snapshots of GroupSnapshot to delete ID[%s] do not equal to requested snapshotIDs", req.GetGroupSnapshotId())
@@ -285,6 +286,7 @@ func (cs *groupControllerServer) DeleteVolumeGroupSnapshot(ctx context.Context, 
 	// log.Log snapshot
 	log.Infof("DeleteVolumeGroupSnapshot: groupSnapshot %s exist with Info: %+v, %+v", groupSnapshotId, existsGroupSnapshots[0], err)
 
+	// no need to delete each snapshot through ECS client
 	response, err := requestAndDeleteGroupSnapshot(groupSnapshotId)
 	var requestId string
 	if response != nil {
@@ -346,7 +348,8 @@ func (cs *groupControllerServer) GetVolumeGroupSnapshot(ctx context.Context, req
 		Namespace: "",
 	}
 
-	match := ifExistsGroupSnapshotMatch(&existsGroupSnapshots[0], snapshotIds)
+	// part of snapshots may be deleted before
+	match := ifExistsGroupSnapshotMatch(&existsGroupSnapshots[0], snapshotIds, false)
 	if !match {
 		log.Errorf("DeleteVolumeGroupSnapshot:: snapshots of GroupSnapshot to delete ID[%s], do not equal to requested snapshotIDs[%v]", req.GetGroupSnapshotId(), req.GetSnapshotIds())
 		err := status.Errorf(codes.InvalidArgument, "snapshots of GroupSnapshot to delete ID[%s] do not equal to requested snapshotIDs", req.GetGroupSnapshotId())

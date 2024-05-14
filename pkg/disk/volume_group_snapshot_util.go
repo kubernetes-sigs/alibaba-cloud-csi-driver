@@ -134,17 +134,41 @@ func formatGroupSnapshot(groupSnapshot *ecs.SnapshotGroup) (*csi.VolumeGroupSnap
 	}, nil
 }
 
-func ifExistsGroupSnapshotMatch(existsGroupSnapshot *ecs.SnapshotGroup, sourceVolumeIds []string) bool {
+func ifExistsGroupSnapshotMatchSourceVolume(existsGroupSnapshot *ecs.SnapshotGroup, sourceVolumeIds []string) bool {
+	if len(existsGroupSnapshot.Snapshots.Snapshot) != len(sourceVolumeIds) {
+		return false
+	}
 	existsSnapshotSourceIdsMap := make(map[string]struct{})
 	for _, snapshot := range existsGroupSnapshot.Snapshots.Snapshot {
 		existsSnapshotSourceIdsMap[snapshot.SourceDiskId] = struct{}{}
 	}
-	if len(existsSnapshotSourceIdsMap) != len(sourceVolumeIds) {
-		return false
-	}
 	matach := true
 	for _, id := range sourceVolumeIds {
 		if _, ok := existsSnapshotSourceIdsMap[id]; !ok {
+			matach = false
+			break
+		}
+	}
+	return matach
+}
+
+// ifExistsGroupSnapshotMatch checks whether there snapshotIDs in `snapshotIds`
+// that correspond to all related snapshots in `existsGroupSnapshot`.
+// If `requireExactMatch` is true, the function requires an exact match between
+// the related snapshotIDs and `snapshotIds`, including the same number of elements.
+// If `requireExactMatch` is false, it only checks if each related snapshotID
+// can be found in the `snapshotIds`, that means actual snapshots in group can be a subset of `snapshotIds`
+func ifExistsGroupSnapshotMatch(existsGroupSnapshot *ecs.SnapshotGroup, snapshotIds []string, requireExactMatch bool) bool {
+	if requireExactMatch && len(snapshotIds) != len(existsGroupSnapshot.Snapshots.Snapshot) {
+		return false
+	}
+	sourceSnapshotIdMap := make(map[string]struct{})
+	for _, id := range snapshotIds {
+		sourceSnapshotIdMap[id] = struct{}{}
+	}
+	matach := true
+	for _, snapshot := range existsGroupSnapshot.Snapshots.Snapshot {
+		if _, ok := sourceSnapshotIdMap[snapshot.SnapshotId]; !ok {
 			matach = false
 			break
 		}
