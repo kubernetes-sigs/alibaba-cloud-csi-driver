@@ -51,6 +51,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	v1 "k8s.io/api/core/v1"
+	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -1506,4 +1507,19 @@ func (d DiskSize) String() string {
 		return fmt.Sprintf("%d GiB", d.Bytes/GBSIZE)
 	}
 	return fmt.Sprintf("%.3f GiB (0x%X)", float64(d.Bytes)/GBSIZE, d.Bytes)
+}
+
+func checkIfNeedUpdate(snapshotCRDNames map[string]string, crd *crdv1.CustomResourceDefinition, volumeGroupSnapshotEnable bool) bool {
+	if crd == nil {
+		return false
+	}
+	if _, ok := snapshotCRDNames[crd.Name]; !ok {
+		return false
+	}
+	// v1beta1 removed in Kubernetes v1.24
+	if len(crd.Spec.Versions) == 1 && crd.Spec.Versions[0].Name != "v1beta1" {
+		return true
+	}
+	// TODO: always need to update in Alpha stage
+	return volumeGroupSnapshotEnable
 }

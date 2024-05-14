@@ -107,7 +107,7 @@ func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.Cont
 
 	serviceType := os.Getenv(utils.ServiceType)
 	if serviceType == utils.ProvisionerService && installCRD {
-		checkInstallCRD(client, features.FunctionalMutableFeatureGate.Enabled(features.DiskADController))
+		checkInstallCRD(client, features.FunctionalMutableFeatureGate.Enabled(features.VolumeGroupSnapshot))
 		checkInstallDefaultVolumeSnapshotClass(GlobalConfigVar.SnapClient)
 	}
 	c := &controllerServer{
@@ -956,24 +956,6 @@ func checkInstallDefaultVolumeSnapshotClass(snapClient *snapClientset.Clientset)
 	}
 }
 
-func filterCRD(snapshotCRDNames map[string]string, crd *crdv1.CustomResourceDefinition, volumeGroupSnapshotEnable bool) bool {
-	if crd == nil {
-		return true
-	}
-	if _, ok := snapshotCRDNames[crd.Name]; !ok {
-		return true
-	}
-	if !volumeGroupSnapshotEnable {
-		if len(crd.Spec.Versions) == 1 && crd.Spec.Versions[0].Name != "v1beta1" {
-			return true
-		}
-		return false
-	}
-
-	// v7 CRDs have shortnames
-	return len(crd.Spec.Names.ShortNames) != 0
-}
-
 func checkInstallCRD(crdClient *crd.Clientset, volumeGroupSnapshotEnable bool) {
 
 	snapshotCRDNames := map[string]string{
@@ -990,7 +972,7 @@ func checkInstallCRD(crdClient *crd.Clientset, volumeGroupSnapshotEnable bool) {
 		return
 	}
 	for _, crd := range crdList.Items {
-		if !filterCRD(snapshotCRDNames, &crd, volumeGroupSnapshotEnable) {
+		if checkIfNeedUpdate(snapshotCRDNames, &crd, volumeGroupSnapshotEnable) {
 			log.Infof("checkInstallCRD:: need to update crd version: %s", crd.Name)
 			continue
 		}

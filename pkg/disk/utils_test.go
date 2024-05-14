@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/h2non/gock.v1"
 	corev1 "k8s.io/api/core/v1"
+	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
@@ -487,4 +488,42 @@ func TestDiskSize(t *testing.T) {
 func TestDiskSizeGiOnly(t *testing.T) {
 	size := DiskSize{20 * GBSIZE}
 	assert.Equal(t, "20 GiB", size.String())
+}
+
+func Test_checkIfNeedUpdate(t *testing.T) {
+	// Test case 1: crd is nil
+	result := checkIfNeedUpdate(make(map[string]string), nil, false)
+	if result != false {
+		t.Errorf("Expected false, but got %v", result)
+	}
+
+	// Test case 2: crd name not in snapshotCRDNames
+	snapshotCRDNames := make(map[string]string)
+	crd := &crdv1.CustomResourceDefinition{ObjectMeta: v1.ObjectMeta{Name: "crd1"}}
+	result = checkIfNeedUpdate(snapshotCRDNames, crd, false)
+	if result != false {
+		t.Errorf("Expected false, but got %v", result)
+	}
+
+	// Test case 3: crd has only one version "v1beta1"
+	snapshotCRDNames = map[string]string{"crd1": ""}
+	crd = &crdv1.CustomResourceDefinition{ObjectMeta: v1.ObjectMeta{Name: "crd1"}, Spec: crdv1.CustomResourceDefinitionSpec{Versions: []crdv1.CustomResourceDefinitionVersion{{Name: "v1beta1"}}}}
+	result = checkIfNeedUpdate(snapshotCRDNames, crd, false)
+	if result != false {
+		t.Errorf("Expected false, but got %v", result)
+	}
+
+	// Test case 4: crd has only one version not "v1beta1"
+	crd = &crdv1.CustomResourceDefinition{ObjectMeta: v1.ObjectMeta{Name: "crd1"}, Spec: crdv1.CustomResourceDefinitionSpec{Versions: []crdv1.CustomResourceDefinitionVersion{{Name: "v1"}}}}
+	result = checkIfNeedUpdate(snapshotCRDNames, crd, false)
+	if result != true {
+		t.Errorf("Expected true, but got %v", result)
+	}
+
+	// Test case 5: volumeGroupSnapshotEnable is true
+	crd = &crdv1.CustomResourceDefinition{ObjectMeta: v1.ObjectMeta{Name: "crd1"}, Spec: crdv1.CustomResourceDefinitionSpec{Versions: []crdv1.CustomResourceDefinitionVersion{{Name: "v1beta1"}}}}
+	result = checkIfNeedUpdate(snapshotCRDNames, crd, true)
+	if result != true {
+		t.Errorf("Expected true, but got %v", result)
+	}
 }
