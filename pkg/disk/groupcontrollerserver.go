@@ -177,7 +177,7 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 		log.Errorf("CreateVolumeGroupSnapshot:: source volumes do not meet the requirements for creating group snapshot, err: %v", err)
 		e := status.Errorf(codes.Internal, "CreateVolumeGroupSnapshot:: source volumes do not meet the requirements for creating group snapshot: %s", err.Error())
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
-		return nil, err
+		return nil, e
 	}
 
 	// init createSnapshotGroupRequest and parameters
