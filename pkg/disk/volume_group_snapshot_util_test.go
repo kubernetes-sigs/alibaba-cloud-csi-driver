@@ -34,7 +34,7 @@ func Test_parseGroupSnapshotAnnotations(t *testing.T) {
 func Test_formatGroupSnapshot(t *testing.T) {
 	// Create a mock groupSnapshot object
 	mockGroupSnapshot := &ecs.SnapshotGroup{
-		CreationTime:    "2006-01-02T15:04:05Z07:00",
+		CreationTime:    "2006-01-02T15:04:05Z",
 		SnapshotGroupId: "snapshotGroup1",
 		Snapshots: ecs.SnapshotsInDescribeSnapshotGroups{
 			Snapshot: []ecs.Snapshot{
@@ -65,12 +65,16 @@ func Test_formatGroupSnapshot(t *testing.T) {
 		GroupSnapshotId: "snapshotGroup1",
 		Snapshots: []*csi.Snapshot{
 			{
-				SnapshotId: "snapshot1",
-				ReadyToUse: true,
+				SnapshotId:      "snapshot1",
+				ReadyToUse:      true,
+				CreationTime:    &timestamp.Timestamp{Seconds: stamp.Unix()},
+				GroupSnapshotId: "snapshotGroup1",
 			},
 			{
-				SnapshotId: "snapshot2",
-				ReadyToUse: false,
+				SnapshotId:      "snapshot2",
+				ReadyToUse:      false,
+				CreationTime:    &timestamp.Timestamp{Seconds: stamp.Unix()},
+				GroupSnapshotId: "snapshotGroup1",
 			},
 		},
 		CreationTime: &timestamp.Timestamp{Seconds: stamp.Unix()},

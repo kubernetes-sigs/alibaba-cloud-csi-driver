@@ -192,7 +192,7 @@ func checkSourceVolumes(sourceVolumeIds []string) error {
 		switch disks[0].Category {
 		case DiskESSD, DiskESSDAuto, DiskESSDEntry:
 		default:
-			return fmt.Errorf("groupSnapshot only support ESSD disks, but disk %s is %s: %v", sourceVolumeId, disks[0].Category)
+			return fmt.Errorf("groupSnapshot only support ESSD disks, but disk %s is %v", sourceVolumeId, disks[0].Category)
 		}
 
 		if zoneId == "" {

@@ -63,10 +63,10 @@ images:
     tag: "v1.3-e48d981-aliyun"
   externalSnapshotter:
     repo: acs/csi-snapshotter
-    tag: "v4.0.0-a230d5b-aliyun"
+    tag: "v7.0.0-24bf1f3-aliyun"
   externalSnapshotController:
     repo: acs/snapshot-controller
-    tag: "v4.0.0-a230d5b-aliyun"
+    tag: "v7.0.0-24bf1f3-aliyun"
   pluginRegistrar:
     repo: acs/csi-node-driver-registrar
     tag: "v2.9.0-d48d2e0-aliyun"

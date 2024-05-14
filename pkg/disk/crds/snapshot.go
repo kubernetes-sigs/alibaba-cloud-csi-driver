@@ -239,8 +239,8 @@ func (temp *Template) GetVolumeSnapshotsCRDv1(kVersion string, volumeGroupSnapsh
         storedVersions: []
 `
 	}
-  if volumeGroupSnapshotEnable{
-    return `
+	if volumeGroupSnapshotEnable {
+		return `
       apiVersion: apiextensions.k8s.io/v1
       kind: CustomResourceDefinition
       metadata:
@@ -555,7 +555,7 @@ func (temp *Template) GetVolumeSnapshotsCRDv1(kVersion string, volumeGroupSnapsh
         conditions: []
         storedVersions: []
 `
-  }
+	}
 	return `
     apiVersion: apiextensions.k8s.io/v1
     kind: CustomResourceDefinition
@@ -1091,8 +1091,8 @@ func (temp *Template) GetVolumeSnapshotContentsCRDv1(kVersion string, volumeGrou
         storedVersions: []
 `
 	}
-  if volumeGroupSnapshotEnable{
-    return `
+	if volumeGroupSnapshotEnable {
+		return `
       apiVersion: apiextensions.k8s.io/v1
       kind: CustomResourceDefinition
       metadata:
@@ -1496,7 +1496,7 @@ func (temp *Template) GetVolumeSnapshotContentsCRDv1(kVersion string, volumeGrou
         conditions: []
         storedVersions: []
 `
-  }
+	}
 	return `
     apiVersion: apiextensions.k8s.io/v1
     kind: CustomResourceDefinition
@@ -1917,8 +1917,8 @@ func (temp *Template) GetVolumeSnapshotClassesCRDv1(kVersion string, volumeGroup
         storedVersions: []
 `
 	}
-  if volumeGroupSnapshotEnable {
-    return `
+	if volumeGroupSnapshotEnable {
+		return `
       apiVersion: apiextensions.k8s.io/v1
       kind: CustomResourceDefinition
       metadata:
@@ -2055,7 +2055,7 @@ func (temp *Template) GetVolumeSnapshotClassesCRDv1(kVersion string, volumeGroup
         conditions: []
         storedVersions: []
 `
-  }
+	}
 	return `
     apiVersion: apiextensions.k8s.io/v1
     kind: CustomResourceDefinition
