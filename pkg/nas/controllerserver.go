@@ -22,11 +22,11 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 const defaultVolumeAs = "subpath"
@@ -74,7 +74,7 @@ func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
 }
 
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	log.WithField("request", req).Info("CreateVolume: starting")
+	klog.V(2).InfoS("CreateVolume: starting", "request", req)
 	if err := validateCreateVolumeRequest(req); err != nil {
 		return nil, err
 	}
@@ -106,12 +106,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		resp.Volume.VolumeContext["options"] = options
 	}
 
-	log.WithField("response", resp).Info("CreateVolume: succeeded")
+	klog.V(2).InfoS("CreateVolume: succeeded", "response", resp)
 	return resp, err
 }
 
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	log.Infof("DeleteVolume: Starting deleting volume %s", req.GetVolumeId())
+	klog.Infof("DeleteVolume: Starting deleting volume %s", req.GetVolumeId())
 	if !cs.locks.TryAcquire(req.VolumeId) {
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for volume %s", req.VolumeId)
 	}
@@ -128,13 +128,13 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 	resp, err := controller.DeleteVolume(ctx, req, pv)
 	if err == nil {
-		log.WithField("volumeId", req.VolumeId).Info("DeleteVolume: succeeded")
+		klog.V(2).InfoS("DeleteVolume: succeeded", "volumeId", req.VolumeId)
 	}
 	return resp, err
 }
 
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
-	log.Infof("ControllerExpandVolume: starting to expand nas volume with %v", req)
+	klog.Infof("ControllerExpandVolume: starting to expand nas volume with %v", req)
 	if !cs.locks.TryAcquire(req.VolumeId) {
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for volume %s", req.VolumeId)
 	}
@@ -151,7 +151,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	}
 	resp, err := controller.ControllerExpandVolume(ctx, req, pv)
 	if err == nil {
-		log.WithField("response", resp).Info("ControllerExpandVolume: succeeded")
+		klog.V(2).InfoS("ControllerExpandVolume: succeeded", "response", resp)
 	}
 	return resp, err
 }

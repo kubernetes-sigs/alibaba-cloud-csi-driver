@@ -32,11 +32,11 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -120,7 +120,7 @@ func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	// logout oss paras
-	log.Infof("NodePublishVolume:: Starting Mount volume: %s mount with req: %+v", req.VolumeId, req)
+	klog.Infof("NodePublishVolume:: Starting Mount volume: %s mount with req: %+v", req.VolumeId, req)
 	mountPath := req.GetTargetPath()
 	if err := validateNodePublishVolumeRequest(req); err != nil {
 		return nil, err
@@ -151,7 +151,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if useSharedPath, err := strconv.ParseBool(value); err == nil {
 				opt.UseSharedPath = useSharedPath
 			} else {
-				log.Warnf("invalid useSharedPath: %q", value)
+				klog.Warningf("invalid useSharedPath: %q", value)
 			}
 		} else if key == "authtype" {
 			opt.AuthType = strings.ToLower(strings.TrimSpace(value))
@@ -220,13 +220,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// check parameters
 	if err := checkOssOptions(opt); err != nil {
-		log.Errorf("Check oss input error: %s", err.Error())
+		klog.Errorf("Check oss input error: %s", err.Error())
 		return nil, errors.New("Check oss input error: " + err.Error())
 	}
 
 	argStr := fmt.Sprintf("Bucket: %s, url: %s, , OtherOpts: %s, Path: %s, UseSharedPath: %s, authType: %s, encrypted: %s, kmsid: %s",
 		opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType, opt.Encrypted, opt.KmsKeyId)
-	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
+	klog.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
 
 	if opt.directAssigned {
 		return ns.publishDirectVolume(ctx, req, opt)
@@ -258,17 +258,17 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err != nil {
 		if os.IsNotExist(err) {
 			if err := os.MkdirAll(mountPath, os.ModePerm); err != nil {
-				log.Errorf("NodePublishVolume: mkdir %s: %v", mountPath, err)
+				klog.Errorf("NodePublishVolume: mkdir %s: %v", mountPath, err)
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 			notMnt = true
 		} else {
-			log.Errorf("NodePublishVolume: check mountpoint %s: %v", mountPath, err)
+			klog.Errorf("NodePublishVolume: check mountpoint %s: %v", mountPath, err)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 	if !notMnt {
-		log.Infof("NodePublishVolume: %s already mounted", mountPath)
+		klog.Infof("NodePublishVolume: %s already mounted", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -336,13 +336,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	if regionID == "" {
-		log.Warnf("NodePublishVolume:: failed to get region id from both env and metadata, use original URL: %s", opt.URL)
+		klog.Warningf("NodePublishVolume:: failed to get region id from both env and metadata, use original URL: %s", opt.URL)
 	} else if url, done := setNetworkType(opt.URL, regionID); done {
-		log.Warnf("NodePublishVolume:: setNetworkType: modified URL from %s to %s", opt.URL, url)
+		klog.Warningf("NodePublishVolume:: setNetworkType: modified URL from %s to %s", opt.URL, url)
 		opt.URL = url
 	}
 	if url, done := setTransmissionProtocol(opt.URL); done {
-		log.Warnf("NodePublishVolume:: setTransmissionProtocol: modified URL from %s to %s", opt.URL, url)
+		klog.Warningf("NodePublishVolume:: setTransmissionProtocol: modified URL from %s to %s", opt.URL, url)
 		opt.URL = url
 	}
 
@@ -352,26 +352,26 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			if os.IsNotExist(err) {
 				if err := os.MkdirAll(sharedPath, os.ModePerm); err != nil {
-					log.Errorf("NodePublishVolume: mkdir %s: %v", sharedPath, err)
+					klog.Errorf("NodePublishVolume: mkdir %s: %v", sharedPath, err)
 					return nil, status.Error(codes.Internal, err.Error())
 				}
 				notMnt = true
 			} else if mountutils.IsCorruptedMnt(err) {
-				log.Warnf("Umount corrupted mountpoint %s", sharedPath)
+				klog.Warningf("Umount corrupted mountpoint %s", sharedPath)
 				err := mountutils.New("").Unmount(sharedPath)
 				if err != nil {
 					return nil, status.Errorf(codes.Internal, "umount corrupted mountpoint %s: %v", sharedPath, err)
 				}
 				notMnt = true
 			} else {
-				log.Errorf("NodePublishVolume: check mountpoint %s: %v", sharedPath, err)
+				klog.Errorf("NodePublishVolume: check mountpoint %s: %v", sharedPath, err)
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 		}
 		if notMnt {
 			// serialize node publish operations on the same volume when using sharedpath
 			if lock := ns.sharedPathLock.TryAcquire(req.VolumeId); !lock {
-				log.Errorf("NodePublishVolume: aborted because failed to acquire volume %s lock", req.VolumeId)
+				klog.Errorf("NodePublishVolume: aborted because failed to acquire volume %s lock", req.VolumeId)
 				return nil, status.Errorf(codes.Aborted, "NodePublishVolume operation on shared path of volume %s already exists", req.VolumeId)
 			}
 			defer ns.sharedPathLock.Release(req.VolumeId)
@@ -380,15 +380,15 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				mountOptions = append(mountOptions, fmt.Sprintf("metrics_top=%s", opt.MetricsTop))
 			}
 			if err := doMount(ossMounter, sharedPath, *opt, mountOptions); err != nil {
-				log.Errorf("NodePublishVolume: failed to mount")
+				klog.Errorf("NodePublishVolume: failed to mount")
 				return nil, err
 			}
 		} else {
-			log.Infof("NodePublishVolume: sharedpath %s already mounted", sharedPath)
+			klog.Infof("NodePublishVolume: sharedpath %s already mounted", sharedPath)
 		}
-		log.Infof("NodePublishVolume:: Start mount operation from source [%s] to dest [%s]", sharedPath, mountPath)
+		klog.Infof("NodePublishVolume:: Start mount operation from source [%s] to dest [%s]", sharedPath, mountPath)
 		if err := ossMounter.Mount(sharedPath, mountPath, "", []string{"bind"}); err != nil {
-			log.Errorf("Ossfs mount error: %v", err.Error())
+			klog.Errorf("Ossfs mount error: %v", err.Error())
 			return nil, errors.New("Create oss volume fail: " + err.Error())
 		}
 	} else {
@@ -404,7 +404,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	log.Infof("NodePublishVolume: mounted oss successfully, volume %s, targetPath: %s", req.VolumeId, mountPath)
+	klog.Infof("NodePublishVolume: mounted oss successfully, volume %s, targetPath: %s", req.VolumeId, mountPath)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
@@ -460,7 +460,7 @@ func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) err
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	log.Infof("NodeUnpublishVolume: Starting Umount OSS: %s mount with req: %+v", req.TargetPath, req)
+	klog.Infof("NodeUnpublishVolume: Starting Umount OSS: %s mount with req: %+v", req.TargetPath, req)
 	mountPoint := req.TargetPath
 	err := validateNodeUnpublishVolumeRequest(req)
 	if err != nil {
@@ -471,10 +471,10 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 	err = ns.cleanupMountPoint(ctx, req.VolumeId, req.TargetPath)
 	if err != nil {
-		log.Errorf("NodeUnpublishVolume: failed to unmount %q: %v", mountPoint, err)
+		klog.Errorf("NodeUnpublishVolume: failed to unmount %q: %v", mountPoint, err)
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", mountPoint, err)
 	}
-	log.Infof("NodeUnpublishVolume: Umount OSS Successful: %s", mountPoint)
+	klog.Infof("NodeUnpublishVolume: Umount OSS Successful: %s", mountPoint)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
@@ -489,15 +489,15 @@ func (ns *nodeServer) NodeUnstageVolume(
 	ctx context.Context,
 	req *csi.NodeUnstageVolumeRequest) (
 	*csi.NodeUnstageVolumeResponse, error) {
-	log.Infof("NodeUnstageVolume: starting to unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
+	klog.Infof("NodeUnstageVolume: starting to unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
 	// unmount for sharedPath
 	mountpoint := GetGlobalMountPath(req.VolumeId)
 	err := ns.cleanupMountPoint(ctx, req.VolumeId, mountpoint)
 	if err != nil {
-		log.Errorf("NodeUnstageVolume: failed to unmount %q: %v", mountpoint, err)
+		klog.Errorf("NodeUnstageVolume: failed to unmount %q: %v", mountpoint, err)
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", mountpoint, err)
 	}
-	log.Infof("NodeUnstageVolume: umount OSS Successful: %s", mountpoint)
+	klog.Infof("NodeUnstageVolume: umount OSS Successful: %s", mountpoint)
 	err = mounter.CleanupOssfsCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to cleanup ossfs credential secret: %v", err)

@@ -28,7 +28,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -132,7 +132,7 @@ func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, p
 		return err
 	}
 	rootSource := fmt.Sprintf("%s:%s", opt.Server, rootPath)
-	log.Infof("trying to create subpath %s", rootSource)
+	klog.Infof("trying to create subpath %s", rootSource)
 	_ = os.MkdirAll(NasTempMntPath, os.ModePerm)
 	tmpPath, err := os.MkdirTemp(NasTempMntPath, volumeId+"_")
 	if err != nil {
@@ -146,7 +146,7 @@ func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, p
 		return err
 	}
 	if err := cleanupMountpoint(mounter, tmpPath); err != nil {
-		log.Errorf("failed to cleanup tmp mountpoint %s: %v", tmpPath, err)
+		klog.Errorf("failed to cleanup tmp mountpoint %s: %v", tmpPath, err)
 	}
 	return mounter.Mount(source, targetPath, mountFstype, combinedOptions)
 }
@@ -202,7 +202,7 @@ func addTLSMountOptions(baseOptions []string) []string {
 func createLosetupPv(fullPath string, volSizeBytes int64) error {
 	fileName := filepath.Join(fullPath, LoopImgFile)
 	if utils.IsFileExisting(fileName) {
-		log.Infof("createLosetupPv: image file is exist, just skip: %s", fileName)
+		klog.Infof("createLosetupPv: image file is exist, just skip: %s", fileName)
 		return nil
 	}
 	if err := losetup.TruncateFile(fileName, volSizeBytes); err != nil {
@@ -214,7 +214,7 @@ func createLosetupPv(fullPath string, volSizeBytes int64) error {
 func unmountLosetupPv(mounter mountutils.Interface, mountPoint string) error {
 	pathList := strings.Split(mountPoint, "/")
 	if len(pathList) != 10 {
-		log.Infof("MountPoint not format as losetup type: %s", mountPoint)
+		klog.Infof("MountPoint not format as losetup type: %s", mountPoint)
 		return nil
 	}
 	podID := pathList[5]
@@ -223,7 +223,7 @@ func unmountLosetupPv(mounter mountutils.Interface, mountPoint string) error {
 	imgFile := filepath.Join(nfsPath, LoopImgFile)
 	lockFile := filepath.Join(nfsPath, LoopLockFile)
 	if utils.IsFileExisting(imgFile) {
-		log.Infof("cleanup the losetup mountpoint due to the existence of image file %s", imgFile)
+		klog.Infof("cleanup the losetup mountpoint due to the existence of image file %s", imgFile)
 		if utils.IsFileExisting(lockFile) {
 			if err := os.Remove(lockFile); err != nil {
 				return fmt.Errorf("checkLosetupUnmount: remove lock file error %v", err)
@@ -232,7 +232,7 @@ func unmountLosetupPv(mounter mountutils.Interface, mountPoint string) error {
 		if err := cleanupMountpoint(mounter, nfsPath); err != nil {
 			return fmt.Errorf("checkLosetupUnmount: umount nfs path error %v", err)
 		}
-		log.Infof("Losetup Unmount successful %s", mountPoint)
+		klog.Infof("Losetup Unmount successful %s", mountPoint)
 	}
 	return nil
 }
@@ -287,7 +287,7 @@ func saveVolumeData(opt *Options, mountPath string) {
 		fileName = filepath.Join(filepath.Dir(filepath.Dir(mountPath)), utils.VolDataFileName)
 	}
 	if err := utils.AppendJSONData(fileName, volumeData); err != nil {
-		log.Warnf("NodePublishVolume: append nas volume spec to %s with error: %s", fileName, err.Error())
+		klog.Warningf("NodePublishVolume: append nas volume spec to %s with error: %s", fileName, err.Error())
 	}
 }
 

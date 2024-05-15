@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	sdkv1 "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
-	"github.com/sirupsen/logrus"
 	"go.uber.org/ratelimit"
+	"k8s.io/klog/v2"
 )
 
 const defaultQps = 2
@@ -22,10 +22,10 @@ func NewNasClientFactory() *NasClientFactory {
 	if ok {
 		v, err := strconv.Atoi(value)
 		if err != nil {
-			logrus.Errorf("invalid NAS_LIMIT_PERSECOND %q", value)
+			klog.Errorf("invalid NAS_LIMIT_PERSECOND %q", value)
 		} else {
 			qps = v
-			logrus.Infof("set nas QPS to %d", qps)
+			klog.Infof("set nas QPS to %d", qps)
 		}
 	}
 	return &NasClientFactory{

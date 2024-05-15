@@ -22,7 +22,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
-	log "github.com/sirupsen/logrus"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -38,7 +38,7 @@ type NAS struct {
 }
 
 func NewDriver(meta *metadata.Metadata, endpoint, serviceType string) *NAS {
-	log.Infof("Driver: %v version: %v", driverName, version.VERSION)
+	klog.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
 	var d NAS
 	d.endpoint = endpoint
@@ -47,17 +47,17 @@ func NewDriver(meta *metadata.Metadata, endpoint, serviceType string) *NAS {
 	if serviceType == utils.ProvisionerService {
 		config, err := internal.GetControllerConfig(meta)
 		if err != nil {
-			log.Fatalf("Get nas controller config: %v", err)
+			klog.Fatalf("Get nas controller config: %v", err)
 		}
 		cs, err := newControllerServer(config)
 		if err != nil {
-			log.Fatalf("Failed to init nas controller server: %v", err)
+			klog.Fatalf("Failed to init nas controller server: %v", err)
 		}
 		d.controllerServer = cs
 	} else {
 		config, err := internal.GetNodeConfig()
 		if err != nil {
-			log.Fatalf("Get nas node config: %v", err)
+			klog.Fatalf("Get nas node config: %v", err)
 		}
 		d.nodeServer = newNodeServer(config)
 	}

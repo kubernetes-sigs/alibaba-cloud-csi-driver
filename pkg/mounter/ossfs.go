@@ -12,13 +12,13 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -51,14 +51,14 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) Fuse
 			if err == nil {
 				registry = fmt.Sprintf("registry-%s-vpc.ack.aliyuncs.com", region)
 			} else {
-				log.Warnf("DEFAULT_REGISTRY env not set, failed to get current region: %v, fallback to default registry: %s", err, defaultRegistry)
+				klog.Warningf("DEFAULT_REGISTRY env not set, failed to get current region: %v, fallback to default registry: %s", err, defaultRegistry)
 				registry = defaultRegistry
 			}
 		}
 		tag := defaultOssfsImageTag
 		// if enabled UpdatedOssfsVersion featuregate
 		if features.FunctionalMutableFeatureGate.Enabled(features.UpdatedOssfsVersion) {
-			log.Infof("UpdatedOssfsVersion is enabled by feature-gates, use %s", defaultOssfsUpdatedImageTag)
+			klog.Infof("UpdatedOssfsVersion is enabled by feature-gates, use %s", defaultOssfsUpdatedImageTag)
 			tag = defaultOssfsUpdatedImageTag
 		}
 		config.Image = fmt.Sprintf("%s/acs/csi-ossfs:%s", registry, tag)
@@ -228,7 +228,7 @@ func SetupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Interf
 			secret.Data = map[string][]byte{key: []byte(value)}
 			_, err = secretClient.Create(ctx, secret, metav1.CreateOptions{})
 			if err == nil {
-				log.WithField("volumeId", volumeId).Infof("created secret %s to add credentials", OssfsCredentialSecretName)
+				klog.V(2).InfoS("created secret to add credentials", "secret", OssfsCredentialSecretName, "volumeId", volumeId)
 			}
 			return err
 		}
@@ -249,7 +249,7 @@ func SetupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Interf
 	}
 	_, err = secretClient.Patch(ctx, OssfsCredentialSecretName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
 	if err == nil {
-		log.WithField("volumeId", volumeId).Infof("patched secret %s", OssfsCredentialSecretName)
+		klog.V(2).InfoS("patched secret", "secret", OssfsCredentialSecretName, "volumeId", volumeId)
 	}
 	return err
 }
@@ -280,7 +280,7 @@ func CleanupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Inte
 	}
 	_, err = secretClient.Patch(ctx, OssfsCredentialSecretName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
 	if err == nil {
-		log.WithField("volumeId", volumeId).Infof("patched secret %s to remove credentials", OssfsCredentialSecretName)
+		klog.V(2).InfoS("patched secret to remove credentials", "secret", OssfsCredentialSecretName, "volumeId", volumeId)
 	}
 	return err
 }

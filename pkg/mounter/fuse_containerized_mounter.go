@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,6 +21,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	watchtools "k8s.io/client-go/tools/watch"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -135,7 +136,7 @@ func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 			config.Extra[key] = value
 		}
 		if invalid {
-			logrus.Warnf("ignore invalid configuration line: %q", line)
+			klog.Warningf("ignore invalid configuration line: %q", line)
 		}
 	}
 	return
@@ -174,10 +175,10 @@ func (fac *ContainerizedFuseMounterFactory) NewFuseMounter(
 		namespace: fac.namespace,
 		authCfg:   authCfg,
 		client:    fac.client,
-		log: logrus.WithFields(logrus.Fields{
-			"fuse-type": fac.fuseType.name(),
-			"volume-id": volumeId,
-		}),
+		log: klog.FromContext(ctx).WithValues(
+			"fuseType", fac.fuseType.name(),
+			"volumeID", volumeId,
+		),
 		FuseMounterType: fac.fuseType,
 		Interface:       mountutils.New(""),
 	}
@@ -191,7 +192,7 @@ type ContainerizedFuseMounter struct {
 	namespace string
 	authCfg   *AuthConfig
 	client    kubernetes.Interface
-	log       *logrus.Entry
+	log       logr.Logger
 	FuseMounterType
 	mountutils.Interface
 }
@@ -212,7 +213,7 @@ func (mounter *ContainerizedFuseMounter) Mount(source string, target string, fst
 				return err
 			}
 		} else {
-			mounter.log.Infof("serviceAccountName has set to %s, skip service account check", mounter.authCfg.RrsaConfig.ServiceAccountName)
+			mounter.log.V(2).Info("serviceAccountName set, skip service account check", "serviceAccount", mounter.authCfg.RrsaConfig.ServiceAccountName)
 		}
 	}
 	err := mounter.launchFusePod(ctx, source, target, fstype, mounter.authCfg, options, nil)
@@ -279,11 +280,11 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 		case corev1.PodSucceeded, corev1.PodFailed:
 			// do not immediately delete the pod that has exited,
 			// as we may need to view its status or logs to troubleshoot.
-			mounter.log.Warnf("exited fuse pod %s, will be cleaned when unmount", pod.Name)
+			mounter.log.V(1).Info("exited fuse pod, will be cleaned when unmount", "pod", pod.Name)
 		case corev1.PodRunning:
 			if isFusePodReady(&pod) {
 				ready = true
-				mounter.log.Infof("%s already mounted by pod %s", target, pod.Name)
+				mounter.log.V(2).Info("already mounted", "target", target, "pod", pod.Name)
 			} else {
 				startingPods = append(startingPods, pod)
 			}
@@ -307,22 +308,22 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 		if err != nil {
 			return err
 		}
-		mounter.log.Infof("creating fuse pod for %s", target)
+		mounter.log.V(3).Info("creating fuse pod", "target", target)
 		createdPod, err := podClient.Create(ctx, &rawPod, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
-		mounter.log.Infof("created fuse pod %s for %s", createdPod.Name, target)
+		mounter.log.V(2).Info("created fuse pod", "pod", createdPod.Name, "target", target)
 		fusePod = createdPod
 	} else {
 		if len(startingPods) > 1 {
-			mounter.log.Warnf("%d duplicated fuse pods for %s", len(startingPods), target)
+			mounter.log.V(1).Info("duplicated fuse pods", "numPods", len(startingPods), "target", target)
 		}
-		mounter.log.Infof("found existed fuse pod %s for %s", startingPods[0].Name, target)
+		mounter.log.V(2).Info("found existed fuse pod", "pod", startingPods[0].Name, "target", target)
 		fusePod = &startingPods[0]
 	}
 
-	mounter.log.Infof("wait util pod %s is ready", fusePod.Name)
+	mounter.log.V(2).Info("waiting until pod ready", "pod", fusePod.Name)
 	fieldSelector := fields.OneTermEqualSelector("metadata.name", fusePod.Name).String()
 	lw := &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
@@ -349,15 +350,15 @@ func (mounter *ContainerizedFuseMounter) launchFusePod(ctx context.Context, sour
 	})
 	if err != nil {
 		if mounter.atomic {
-			mounter.log.Warnf("failed to wait for pod %s to be ready, deleting it", fusePod.Name)
+			mounter.log.V(1).Info("failed to wait for pod ready, deleting it", "pod", fusePod.Name)
 			deleteErr := podClient.Delete(context.Background(), fusePod.Name, metav1.DeleteOptions{})
 			if deleteErr != nil {
-				mounter.log.WithError(deleteErr).Errorf("delete fuse pod %s", fusePod.Name)
+				mounter.log.Error(deleteErr, "delete fuse pod", "pod", fusePod.Name)
 			}
 		}
 		return err
 	}
-	mounter.log.Infof("fuse pod %s is ready", fusePod.Name)
+	mounter.log.V(2).Info("fuse pod ready", "pod", fusePod.Name)
 	return nil
 }
 
@@ -371,7 +372,7 @@ func (mounter *ContainerizedFuseMounter) cleanupFusePods(ctx context.Context, ta
 	var errs []error
 	for _, pod := range podList.Items {
 		if pod.Annotations[FuseMountPathAnnoKey] == target {
-			mounter.log.WithField("target", target).Infof("deleting fuse pod %s", pod.Name)
+			mounter.log.V(2).Info("deleting fuse pod", "pod", pod.Name, "target", target)
 			err := podClient.Delete(ctx, pod.Name, metav1.DeleteOptions{})
 			errs = append(errs, err)
 		}

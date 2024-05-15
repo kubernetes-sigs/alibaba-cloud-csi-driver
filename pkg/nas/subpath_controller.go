@@ -29,13 +29,13 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -131,13 +131,10 @@ func (cs *subpathController) CreateVolume(ctx context.Context, req *csi.CreateVo
 		return resp, nil
 	}
 	if cs.config.SkipSubpathCreation {
-		logrus.Infof("skip creating subpath directory for %s", req.Name)
+		klog.Infof("skip creating subpath directory for %s", req.Name)
 		return resp, nil
 	}
-	logrus.WithFields(logrus.Fields{
-		"filesystemId": filesystemId,
-		"path":         path,
-	}).Info("start to create subpath directory for volume")
+	klog.V(2).InfoS("start to create subpath directory for volume", "filesystemId", filesystemId, "path", path)
 	// create dir
 	if err := cs.nasClient.CreateDir(&sdk.CreateDirRequest{
 		FileSystemId:  &filesystemId,
@@ -214,7 +211,7 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 		}
 	}
 	if !cs.config.EnableSubpathFinalizer {
-		logrus.Infof("deletion finalizer not enabled, skip subpath deletion for %s", req.VolumeId)
+		klog.Infof("deletion finalizer not enabled, skip subpath deletion for %s", req.VolumeId)
 		return &csi.DeleteVolumeResponse{}, nil
 	}
 
@@ -242,10 +239,8 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 		finalizer = subpathArchiveFinalizer
 	} else {
 		if !recycleBinEnabled {
-			logrus.WithFields(logrus.Fields{
-				"filesystemId": filesystemId,
-				"pv":           pv.Name,
-			}).Warnf("skip subpath deletion because recycle bin of filesystem not enabled")
+			klog.V(1).InfoS("skip subpath deletion because recycle bin of filesystem not enabled",
+				"filesystemId", filesystemId, "pv", pv.Name)
 			return &csi.DeleteVolumeResponse{}, nil
 		}
 		finalizer = subpathDeletionFinalizer
@@ -296,7 +291,7 @@ func (cs *subpathController) ControllerExpandVolume(ctx context.Context, req *cs
 			NodeExpansionRequired: true,
 		}, nil
 	}
-	logrus.Warn("volume capacity not enabled when provision, skip quota expandsion")
+	klog.Warning("volume capacity not enabled when provision, skip quota expandsion")
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: capacity}, nil
 }
 
@@ -321,7 +316,7 @@ func (cs *subpathController) patchFinalizerOnPV(ctx context.Context, pv *corev1.
 	if err != nil {
 		return status.Errorf(codes.Internal, "patch pv: %v", err)
 	}
-	logrus.Infof("patched finalizer %s on pv %s", finalizer, pv.Name)
+	klog.Infof("patched finalizer %s on pv %s", finalizer, pv.Name)
 	return nil
 }
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
+	"k8s.io/klog/v2"
 )
 
 // FixReferenceMountIssue remove reference links
@@ -15,7 +15,7 @@ import (
 func FixReferenceMountIssue(line string) bool {
 	linkFiles := parseReferenceMount(line)
 	if len(linkFiles) == 0 {
-		log.Errorf("ReferenceMountIssue: Error Format for line: %s", line)
+		klog.Errorf("ReferenceMountIssue: Error Format for line: %s", line)
 		return false
 	}
 
@@ -23,22 +23,22 @@ func FixReferenceMountIssue(line string) bool {
 	for _, file := range linkFiles {
 		if IsFileExisting(file) {
 			if !isFileBlockLink(file) {
-				log.Infof("Reference File %s not expect", file)
+				klog.Infof("Reference File %s not expect", file)
 				continue
 			}
 			if removable, podInfo := isFileRemovable(file); !removable {
-				log.Infof("Reference File %s cannot be removed as pod(%s) is running", file, podInfo)
+				klog.Infof("Reference File %s cannot be removed as pod(%s) is running", file, podInfo)
 				continue
 			}
 
 			err := os.Remove(file)
 			if err != nil {
-				log.Errorf("Remove Reference File %s with error %s", file, err.Error())
+				klog.Errorf("Remove Reference File %s with error %s", file, err.Error())
 			} else {
-				log.Infof("Remove Reference File %s Successful", file)
+				klog.Infof("Remove Reference File %s Successful", file)
 			}
 		} else {
-			log.Debugf("Reference File %s not exist, skipping", file)
+			klog.V(4).Infof("Reference File %s not exist, skipping", file)
 		}
 	}
 	return true

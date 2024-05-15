@@ -10,8 +10,8 @@ import (
 	sdk "github.com/alibabacloud-go/nas-20170626/v3/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/sirupsen/logrus"
 	"go.uber.org/ratelimit"
+	"k8s.io/klog/v2"
 )
 
 func newNasClientV2(region string) (*sdk.Client, error) {
@@ -54,14 +54,11 @@ type NasClientV2 struct {
 func (c *NasClientV2) CreateDir(req *sdk.CreateDirRequest) error {
 	c.limiter.Take()
 	resp, err := c.client.CreateDir(req)
-	log := logrus.WithFields(logrus.Fields{
-		"request":  req,
-		"response": resp,
-	})
+	logger := klog.Background().WithValues("request", req, "response", resp)
 	if err == nil {
-		log.Info("nas:CreateDir succeeded")
+		logger.V(2).Info("nas:CreateDir succeeded")
 	} else {
-		log.Errorf("nas:CreateDir failed: %v", err)
+		logger.Error(err, "nas:CreateDir failed")
 	}
 	return err
 }
@@ -72,14 +69,11 @@ func (c *NasClientV2) SetDirQuota(req *sdk.SetDirQuotaRequest) error {
 	if err == nil && resp.Body != nil && !tea.BoolValue(resp.Body.Success) {
 		err = errors.New("response indicates a failure")
 	}
-	log := logrus.WithFields(logrus.Fields{
-		"request":  req,
-		"response": resp,
-	})
+	logger := klog.Background().WithValues("request", req, "response", resp)
 	if err == nil {
-		log.Info("nas:SetDirQuota succeeded")
+		logger.V(2).Info("nas:SetDirQuota succeeded")
 	} else {
-		log.Errorf("nas:SetDirQuota failed: %v", err)
+		logger.Error(err, "nas:SetDirQuota failed")
 	}
 	return err
 }
@@ -98,14 +92,11 @@ func (c *NasClientV2) CancelDirQuota(req *sdk.CancelDirQuotaRequest) error {
 			err = nil
 		}
 	}
-	log := logrus.WithFields(logrus.Fields{
-		"request":  req,
-		"response": resp,
-	})
+	logger := klog.Background().WithValues("request", req, "response", resp)
 	if err == nil {
-		log.Info("nas:CancelDirQuota succeeded")
+		logger.V(2).Info("nas:CancelDirQuota succeeded")
 	} else {
-		log.Errorf("nas:CancelDirQuota failed: %v", err)
+		logger.Error(err, "nas:CancelDirQuota failed")
 	}
 	return err
 }
@@ -119,14 +110,11 @@ func (c *NasClientV2) GetRecycleBinAttribute(filesystemId string) (*sdk.GetRecyc
 func (c *NasClientV2) CreateAccesspoint(req *sdk.CreateAccessPointRequest) (*sdk.CreateAccessPointResponse, error) {
 	c.limiter.Take()
 	resp, err := c.client.CreateAccessPoint(req)
-	log := logrus.WithFields(logrus.Fields{
-		"request":  req,
-		"response": resp,
-	})
+	logger := klog.Background().WithValues("request", req, "response", resp)
 	if err == nil {
-		log.Info("nas:CreateAccessPoint succeeded")
+		logger.V(2).Info("nas:CreateAccessPoint succeeded")
 	} else {
-		log.Errorf("nas:CreateAccessPoint failed: %v", err)
+		logger.Error(err, "nas:CreateAccessPoint failed")
 	}
 	return resp, err
 }
@@ -138,14 +126,11 @@ func (c *NasClientV2) DeleteAccesspoint(filesystemId, accessPointId string) erro
 		FileSystemId:  &filesystemId,
 	}
 	resp, err := c.client.DeleteAccessPoint(req)
-	log := logrus.WithFields(logrus.Fields{
-		"request":  req,
-		"response": resp,
-	})
+	logger := klog.Background().WithValues("request", req, "response", resp)
 	if err == nil {
-		log.Info("nas:DeleteAccessPoint succeeded")
+		logger.V(2).Info("nas:DeleteAccessPoint succeeded")
 	} else {
-		log.Errorf("nas:DeleteAccessPoint failed: %v", err)
+		logger.Error(err, "nas:DeleteAccessPoint failed")
 	}
 	return err
 }

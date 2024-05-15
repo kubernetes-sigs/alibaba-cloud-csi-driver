@@ -26,9 +26,9 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -138,15 +138,15 @@ func doMount(mounter mountutils.Interface, target string, opts Options, mountOpt
 		}
 		mountOptions = append(mountOptions, otherOpts...)
 	}
-	logger := log.WithFields(log.Fields{
-		"source":  source,
-		"target":  target,
-		"options": mountOptions,
-		"fstype":  opts.FuseType,
-	})
+	logger := klog.Background().WithValues(
+		"source", source,
+		"target", target,
+		"options", mountOptions,
+		"fstype", opts.FuseType,
+	)
 	err := mounter.Mount(source, target, "", mountOptions)
 	if err != nil {
-		logger.Errorf("failed to mount: %v", err)
+		logger.Error(err, "failed to mount")
 		return status.Errorf(codes.Internal, "failed to mount: %v", err)
 	}
 	logger.Info("mounted successfully")

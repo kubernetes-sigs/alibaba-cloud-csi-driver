@@ -24,12 +24,12 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 // controller server try to create/delete volumes
@@ -95,7 +95,7 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 	return ossVolArgs
 }
 func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
-	log.Infof("Starting oss validate create volume request: %s, %v", req.Name, req)
+	klog.Infof("Starting oss validate create volume request: %s, %v", req.Name, req)
 	valid, err := utils.CheckRequestArgs(req.GetParameters())
 	if !valid {
 		return status.Errorf(codes.InvalidArgument, err.Error())
@@ -123,44 +123,44 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		VolumeContext: volumeContext,
 	}
 
-	log.Infof("Provision oss volume is successfully: %s,pvName: %v", req.Name, csiTargetVolume)
+	klog.Infof("Provision oss volume is successfully: %s,pvName: %v", req.Name, csiTargetVolume)
 	return &csi.CreateVolumeResponse{Volume: csiTargetVolume}, nil
 
 }
 
 // call nas api to delete oss volume
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	log.Infof("DeleteVolume: Starting deleting volume %s", req.GetVolumeId())
+	klog.Infof("DeleteVolume: Starting deleting volume %s", req.GetVolumeId())
 	_, err := cs.client.CoreV1().PersistentVolumes().Get(context.Background(), req.VolumeId, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("DeleteVolume: Get volume %s is failed, err: %s", req.VolumeId, err.Error())
 	}
-	log.Infof("Delete volume %s is successfully", req.VolumeId)
+	klog.Infof("Delete volume %s is successfully", req.VolumeId)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	log.Infof("ControllerUnpublishVolume is called, do nothing by now")
+	klog.Infof("ControllerUnpublishVolume is called, do nothing by now")
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	log.Infof("ControllerPublishVolume is called, do nothing by now")
+	klog.Infof("ControllerPublishVolume is called, do nothing by now")
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	log.Infof("CreateSnapshot is called, do nothing now")
+	klog.Infof("CreateSnapshot is called, do nothing now")
 	return &csi.CreateSnapshotResponse{}, nil
 }
 
 func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
-	log.Infof("DeleteSnapshot is called, do nothing now")
+	klog.Infof("DeleteSnapshot is called, do nothing now")
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest,
 ) (*csi.ControllerExpandVolumeResponse, error) {
-	log.Infof("ControllerExpandVolume is called, do nothing now")
+	klog.Infof("ControllerExpandVolume is called, do nothing now")
 	return &csi.ControllerExpandVolumeResponse{}, nil
 }
