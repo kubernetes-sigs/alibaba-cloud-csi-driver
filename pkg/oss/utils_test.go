@@ -204,6 +204,20 @@ func Test_setNetworkType(t *testing.T) {
 			"oss-cn-wulanchabu-xxx-xxxx.ops.xxx.com",
 			false,
 		},
+		{
+			"old-oss-accelerator",
+			"oss-cache-cn-beijing-h.aliyuncs.com",
+			"cn-beijing",
+			"oss-cache-cn-beijing-h.aliyuncs.com",
+			false,
+		},
+		{
+			"new-oss-accelerator",
+			"cn-hangzhou.oss-data-acc.aliyuncs.com",
+			"cn-hangzhou",
+			"cn-hangzhou-internal.oss-data-acc.aliyuncs.com",
+			true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
