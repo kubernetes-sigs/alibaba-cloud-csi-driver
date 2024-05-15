@@ -1258,6 +1258,7 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, sourcePath, targetPath, fsType,
 		log.Errorf("NodePublishVolume(rund): cannot get local deviceName for volume:  %s", volumeId)
 		return true, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot get local deviceName for volume: "+volumeId)
 	}
+	volumePath := filepath.Dir(targetPath)
 
 	// Block runs csi3.0 protocol
 	if isRawBlock {
@@ -1322,7 +1323,7 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, sourcePath, targetPath, fsType,
 		}
 
 		log.Info("NodePublishVolume(rund3.0): Starting add mount info to DirectVolume")
-		err = directvolume.AddMountInfo(targetPath, mountInfo)
+		err = directvolume.AddMountInfo(volumePath, mountInfo)
 		if err != nil {
 			log.Errorf("NodePublishVolume(rund3.0): Adding mount infomation to DirectVolume failed: %v", err)
 			return true, err
@@ -1369,7 +1370,7 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, sourcePath, targetPath, fsType,
 		}
 
 		log.Info("NodePublishVolume(rund3.0): Starting add vmoc(DFBus) mount info to DirectVolume")
-		err = directvolume.AddMountInfo(targetPath, mountInfo)
+		err = directvolume.AddMountInfo(volumePath, mountInfo)
 		if err != nil {
 			log.Errorf("NodePublishVolume(rund3.0): vmoc(DFBus) Adding vmoc mount infomation to DirectVolume failed: %v", err)
 			return true, err
