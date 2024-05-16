@@ -25,11 +25,6 @@ spec:
           - weight: 1
             preference:
               matchExpressions:
-              - key: node-role.kubernetes.io/master
-                operator: Exists
-          - weight: 1
-            preference:
-              matchExpressions:
               - key: node-role.kubernetes.io/control-plane
                 operator: Exists
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -55,9 +50,6 @@ spec:
                   - csi-provisioner
               topologyKey: kubernetes.io/hostname
       tolerations:
-      - effect: NoSchedule
-        operator: Exists
-        key: node-role.kubernetes.io/master
       - effect: NoSchedule
         operator: Exists
         key: node-role.kubernetes.io/control-plane
