@@ -11,12 +11,14 @@ const (
 	DBFSADController    featuregate.Feature = "DBFSADController"
 	UpdatedOssfsVersion featuregate.Feature = "UpdatedOssfsVersion"
 	RundCSIProtocol3    featuregate.Feature = "RundCSIProtocol3"
+	VolumeGroupSnapshot featuregate.Feature = "VolumeGroupSnapshot"
 )
 
 var (
 	FunctionalMutableFeatureGate = featuregate.NewFeatureGate()
 	defaultDiskFeatureGate       = map[featuregate.Feature]featuregate.FeatureSpec{
-		DiskADController: {Default: false, PreRelease: featuregate.Alpha},
+		DiskADController:    {Default: false, PreRelease: featuregate.Alpha},
+		VolumeGroupSnapshot: {Default: false, PreRelease: featuregate.Alpha},
 	}
 	defaultDBFSFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
 		DBFSMetricByPlugin: {Default: false, PreRelease: featuregate.Alpha},

@@ -159,3 +159,106 @@ func TestIsDirTmpfsFalse(t *testing.T) {
 	assert.Nil(t, err)
 	assert.False(t, isTmpfs)
 }
+
+func Test_parseVersion(t *testing.T) {
+	testCases := []struct {
+		versionStr string
+		expected   Version
+		errMsg     string
+	}{
+		{
+			versionStr: "1.0.0",
+			expected: Version{
+				Major: 1,
+				Minor: 0,
+				Patch: 0,
+			},
+			errMsg: "",
+		},
+		{
+			versionStr: "v2.3.4",
+			expected: Version{
+				Major: 2,
+				Minor: 3,
+				Patch: 4,
+			},
+			errMsg: "",
+		},
+		{
+			versionStr: "v10.20.30",
+			expected: Version{
+				Major: 10,
+				Minor: 20,
+				Patch: 30,
+			},
+			errMsg: "",
+		},
+		{
+			versionStr: "invalid",
+			expected:   Version{},
+			errMsg:     "Invalid version format: invalid",
+		},
+	}
+
+	for _, tc := range testCases {
+		actual, err := parseVersion(tc.versionStr)
+		if err != nil {
+			if tc.errMsg == "" {
+				t.Errorf("ParseVersion(%s): unexpected error: %v", tc.versionStr, err)
+			} else if err.Error() != tc.errMsg {
+				t.Errorf("ParseVersion(%s): expected error message '%s', got '%s'", tc.versionStr, tc.errMsg, err.Error())
+			}
+		} else {
+			if actual != tc.expected {
+				t.Errorf("ParseVersion(%s): expected %v, got %v", tc.versionStr, tc.expected, actual)
+			}
+		}
+	}
+}
+
+func Test_CompareVersions(t *testing.T) {
+	// Test case 1: ver1 is greater than ver2
+	result, err := CompareVersions("1.2.3", "1.2.2")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if result != 1 {
+		t.Errorf("Expected result to be 1, got %d", result)
+	}
+
+	// Test case 2: ver1 is less than ver2
+	result, err = CompareVersions("1.2.1", "1.2.2")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if result != -1 {
+		t.Errorf("Expected result to be -1, got %d", result)
+	}
+
+	// Test case 3: ver1 is equal to ver2
+	result, err = CompareVersions("1.2.3", "1.2.3")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if result != 0 {
+		t.Errorf("Expected result to be 0, got %d", result)
+	}
+
+	// Test case 4: ver1 is not a valid version
+	_, err = CompareVersions("abc", "1.2.3")
+	if err == nil {
+		t.Errorf("Expected error, but got nil")
+	}
+
+	// Test case 5: ver2 is not a valid version
+	_, err = CompareVersions("1.2.3", "xyz")
+	if err == nil {
+		t.Errorf("Expected error, but got nil")
+	}
+
+	// Test case 6: both ver1 and ver2 are not valid versions
+	_, err = CompareVersions("abc", "xyz")
+	if err == nil {
+		t.Errorf("Expected error, but got nil")
+	}
+}
