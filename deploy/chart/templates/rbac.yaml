@@ -93,6 +93,15 @@ rules:
   resources: ["configmaps"]
   resourceNames: ["csi-plugin", "ack-cluster-profile"]
   verbs: ["get"]
+{{- if .Values.csi.local.enabled }}
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["csi-local-plugin-cert"]
+  verbs: ["get", "patch", "update"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create"]
+{{- end }}
 ---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1

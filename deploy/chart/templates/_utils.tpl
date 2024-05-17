@@ -14,9 +14,10 @@
 
 {{- define "enabledPlugins" -}}
     {{- $drivers := list -}}
-    {{- range $key, $val := . }}
-        {{- if $val.enabled -}}
-        {{- $drivers = append $drivers $key -}}
+    {{- $csi := . -}}
+    {{- range $key := tuple "disk" "nas" "oss" }}
+        {{- if (index $csi $key).enabled -}}
+            {{- $drivers = append $drivers $key -}}
         {{- end -}}
     {{- end -}}
     {{- $drivers | join "," -}}
@@ -24,10 +25,27 @@
 
 {{- define "enabledControllers" -}}
     {{- $drivers := list -}}
-    {{- range $key, $val := . }}
-        {{- if and $val.enabled (ne $val.controller.enabled false) -}}
-        {{- $drivers = append $drivers $key -}}
+    {{- $csi := . -}}
+    {{- range $key := tuple "disk" "nas" "oss" }}
+        {{- $val := index $csi $key -}}
+        {{- if and $val.enabled $val.controller.enabled -}}
+            {{- $drivers = append $drivers $key -}}
         {{- end -}}
     {{- end -}}
     {{- $drivers | join "," -}}
+{{- end -}}
+
+{{- define "akEnv" -}}
+{{- if .enabled }}
+- name: ACCESS_KEY_ID
+  valueFrom:
+  secretKeyRef:
+    name: {{ .secretName }}
+    key: id
+- name: ACCESS_KEY_SECRET
+  valueFrom:
+  secretKeyRef:
+    name: {{ .secretName }}
+    key: secret
+{{- end }}
 {{- end -}}
