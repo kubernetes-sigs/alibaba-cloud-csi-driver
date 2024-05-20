@@ -299,17 +299,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	// check network connection
-	if ns.config.EnablePortCheck && opt.Server != "" && opt.MountType != SkipMountType &&
-		(opt.MountProtocol == MountProtocolNFS || opt.MountProtocol == MountProtocolAliNas) {
-		conn, err := net.DialTimeout("tcp", opt.Server+":"+NasPortnum, time.Second*time.Duration(30))
-		if err != nil {
-			log.Errorf("NAS: Cannot connect to nas host: %s", opt.Server)
-			return nil, errors.New("NAS: Cannot connect to nas host: " + opt.Server)
-		}
-		defer conn.Close()
-	}
-
 	if opt.Path == "" {
 		opt.Path = "/"
 	}
@@ -352,19 +341,19 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// if volume set mountType as skipmount;
-	if opt.MountType == SkipMountType {
+	if opt.MountType == SkipMountType || runtimeVal == utils.RundRunTimeTag {
 		if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 			mountInfo := directvolume.MountInfo{
 				Source:     opt.Server,
 				DeviceType: directvolume.DeviceTypeNFS,
 				FSType:     "",
-				MountOpts:  strings.Split(opt.Options, ","),
+				MountOpts:  []string{opt.Options},
 				Extra:      map[string]string{},
 			}
 			log.Info("NodePublishVolume(rund3.0): Starting add mount info to DirectVolume")
 			err := directvolume.AddMountInfo(filepath.Dir(mountPath), mountInfo)
 			if err != nil {
-				log.Errorf("NodePublishVolume(rund3.0): Adding mount infomation to DirectVolume failed: %v", err)
+				log.Errorf("NodePublishVolume(rund3.0): Adding mount information to DirectVolume failed: %v", err)
 				return nil, status.Error(codes.Internal, "NAS: failed to mount volume in rund-csi 3.0")
 			}
 			return &csi.NodePublishVolumeResponse{}, nil
@@ -396,6 +385,16 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		log.Errorf("Volume(%s) Cannot get poduid and cannot set volume limit", req.VolumeId)
 		return nil, errors.New("Cannot get poduid and cannot set volume limit: " + req.VolumeId)
 	}
+
+	// check network connection
+	if ns.config.EnablePortCheck && opt.Server != "" && (opt.MountProtocol == MountProtocolNFS || opt.MountProtocol == MountProtocolAliNas) {
+		conn, err := net.DialTimeout("tcp", opt.Server+":"+NasPortnum, time.Second*time.Duration(30))
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "cannot connect to nas host %s: %v", opt.Server, err)
+		}
+		defer conn.Close()
+	}
+
 	//mount nas client
 	if err := doMount(ns.mounter, opt, mountPath, req.VolumeId, podUID); err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
@@ -593,7 +592,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	// try to remove csi 3.0 file when featuregate is enabled
 	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 		if err := directvolume.Remove(filepath.Dir(targetPath)); err != nil {
-			log.Errorf("NodeUnpublishVolume(rund3.0): Remove mount infomation to DirectVolume failed: %v", err)
+			log.Errorf("NodeUnpublishVolume(rund3.0): Remove mount information to DirectVolume failed: %v", err)
 			return nil, status.Error(codes.Internal, "NAS: failed to unmount volume in rund-csi 3.0")
 		}
 	}
