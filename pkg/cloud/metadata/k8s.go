@@ -35,6 +35,7 @@ var (
 		"sigma.ali/machine-model",
 	}
 	InstanceIdLabels = []string{
+		"alibabacloud.com/instance-id", // lingjun node label
 		"alibabacloud.com/ecs-instance-id",
 		"sigma.ali/ecs-instance-id",
 	}
