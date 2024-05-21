@@ -79,7 +79,7 @@ spec:
               cpu: 500m
               memory: 1024Mi
           args:
-            - "--csi-address=$(ADDRESS)"
+            - "--csi-address=/csi/csi.sock"
             - "--feature-gates=Topology=True"
             - "--volume-name-prefix=disk"
             - "--strict-topology=true"
@@ -89,12 +89,9 @@ spec:
             - "--extra-create-metadata=true"
             - "--default-fstype=ext4"
             - "--v=5"
-          env:
-            - name: ADDRESS
-              value: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com/csi.sock
           volumeMounts:
             - name: disk-provisioner-dir
-              mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
+              mountPath: /csi
         - name: external-disk-attacher
           image: {{ include "imageSpec" (list .Values.images "externalAttacher") }}
           resources:
@@ -106,14 +103,11 @@ spec:
               memory: 1024Mi
           args:
             - "--v=5"
-            - "--csi-address=$(ADDRESS)"
+            - "--csi-address=/csi/csi.sock"
             - "--leader-election=true"
-          env:
-            - name: ADDRESS
-              value: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com/csi.sock
           volumeMounts:
             - name: disk-provisioner-dir
-              mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
+              mountPath: /csi
         - name: external-disk-resizer
           image: {{ include "imageSpec" (list .Values.images "externalResizer") }}
           resources:
@@ -125,15 +119,12 @@ spec:
               memory: 1Gi
           args:
             - "--v=5"
-            - "--csi-address=$(ADDRESS)"
+            - "--csi-address=/csi/csi.sock"
             - "--leader-election"
             - "--handle-volume-inuse-error=false"
-          env:
-            - name: ADDRESS
-              value: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com/csi.sock
           volumeMounts:
             - name: disk-provisioner-dir
-              mountPath: /var/lib/kubelet/csi-provisioner/diskplugin.csi.alibabacloud.com
+              mountPath: /csi
         - name: external-csi-snapshotter
           image: {{ include "imageSpec" (list .Values.images "externalSnapshotter") }}
           resources:
@@ -145,12 +136,9 @@ spec:
               memory: 1024Mi
           args:
             - "--v=5"
-            - "--csi-address=$(ADDRESS)"
+            - "--csi-address=/csi/csi.sock"
             - "--leader-election=true"
             - "--extra-create-metadata=true"
-          env:
-            - name: ADDRESS
-              value: /csi/csi.sock
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
@@ -178,19 +166,16 @@ spec:
               cpu: 500m
               memory: 1024Mi
           args:
-            - "--csi-address=$(ADDRESS)"
+            - "--csi-address=/csi/csi.sock"
             - "--volume-name-prefix=nas"
             - "--timeout=150s"
             - "--leader-election=true"
             - "--retry-interval-start=500ms"
             - "--default-fstype=nfs"
             - "--v=5"
-          env:
-            - name: ADDRESS
-              value: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com/csi.sock
           volumeMounts:
             - name: nas-provisioner-dir
-              mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
+              mountPath: /csi
         - name: external-nas-resizer
           image: {{ include "imageSpec" (list .Values.images "externalResizer") }}
           resources:
@@ -202,29 +187,23 @@ spec:
               memory: 1Gi
           args:
             - "--v=5"
-            - "--csi-address=$(ADDRESS)"
+            - "--csi-address=/csi/csi.sock"
             - "--leader-election"
             - "--handle-volume-inuse-error=false"
-          env:
-            - name: ADDRESS
-              value: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com/csi.sock
           volumeMounts:
             - name: nas-provisioner-dir
-              mountPath: /var/lib/kubelet/csi-provisioner/nasplugin.csi.alibabacloud.com
+              mountPath: /csi
 {{- end -}}
 {{- if and .Values.csi.oss.enabled .Values.csi.oss.controller.enabled }}
         - name: external-oss-provisioner
           args:
-            - --csi-address=$(ADDRESS)
+            - --csi-address=/csi/csi.sock
             - --volume-name-prefix=oss
             - --timeout=150s
             - --leader-election=true
             - --retry-interval-start=500ms
             - --default-fstype=ossfs
             - --v=5
-          env:
-          - name: ADDRESS
-            value: /var/lib/kubelet/csi-provisioner/ossplugin.csi.alibabacloud.com/csi.sock
           image: {{ include "imageSpec" (list .Values.images "externalProvisioner") }}
           resources:
             limits:
@@ -234,18 +213,15 @@ spec:
               cpu: 10m
               memory: 16Mi
           volumeMounts:
-          - mountPath: /var/lib/kubelet/csi-provisioner/ossplugin.csi.alibabacloud.com
+          - mountPath: /csi
             name: oss-provisioner-dir
 {{- end -}}
 {{- if and .Values.csi.local.enabled .Values.csi.local.controller.enabled }}
         - name: external-local-provisioner
           image: {{ include "imageSpec" (list .Values.images "externalProvisioner") }}
           imagePullPolicy: Always
-          env:
-            - name: ADDRESS
-              value:  /var/lib/kubelet/csi-provisioner/localplugin.csi.alibabacloud.com/csi.sock
           args:
-            - --csi-address=$(ADDRESS)
+            - --csi-address=/csi/csi.sock
             - --feature-gates=Topology=True
             - --volume-name-prefix=local
             - --strict-topology=true
@@ -265,7 +241,7 @@ spec:
               memory: 1024Mi
           volumeMounts:
             - name: local-provisioner-dir
-              mountPath: /var/lib/kubelet/csi-provisioner/localplugin.csi.alibabacloud.com
+              mountPath: /csi
         - name: external-local-resizer
           image: {{ include "imageSpec" (list .Values.images "externalResizer") }}
           resources:
@@ -277,22 +253,19 @@ spec:
               memory: 1Gi
           args:
             - --v=5
-            - --csi-address=$(ADDRESS)
+            - --csi-address=/csi/csi.sock
             - --leader-election
             - --handle-volume-inuse-error=false
-          env:
-            - name: ADDRESS
-              value: /var/lib/kubelet/csi-provisioner/localplugin.csi.alibabacloud.com/csi.sock
           volumeMounts:
             - name: local-provisioner-dir
-              mountPath: /var/lib/kubelet/csi-provisioner/localplugin.csi.alibabacloud.com
+              mountPath: /csi
 {{- end }}
         - name: csi-provisioner
           securityContext:
             privileged: true
           image: {{ include "imageSpec" (list .Values.images "controller") }}
           args:
-            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock"
             - "--v=2"
             - "--driver={{ include "enabledControllers" .Values.csi }}"
 {{- if .Values.deploy.featureGates }}
@@ -302,8 +275,6 @@ spec:
             - --nodeid=$(KUBE_NODE_NAME)
 {{- end }}
           env:
-            - name: CSI_ENDPOINT
-              value: unix://var/lib/kubelet/csi-provisioner/driverplugin.csi.alibabacloud.com-replace/csi.sock
             - name: SERVICE_TYPE
               value: "provisioner"
 {{- if .Values.deploy.ack }}
@@ -356,7 +327,7 @@ spec:
   {{- with index $.Values.csi $key -}}
     {{- if and .enabled .controller.enabled }}
             - name: {{ $key }}-provisioner-dir
-              mountPath: /var/lib/kubelet/csi-provisioner/{{ $key }}plugin.csi.alibabacloud.com
+              mountPath: /csi/{{ $key }}plugin.csi.alibabacloud.com
     {{- end -}}
   {{- end -}}
 {{- end }}

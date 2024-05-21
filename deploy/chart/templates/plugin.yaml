@@ -70,11 +70,11 @@ spec:
               memory: 1024Mi
           args:
             - "--v=5"
-            - "--csi-address=/var/lib/kubelet/csi-plugins/{{$key}}plugin.csi.alibabacloud.com/csi.sock"
+            - "--csi-address=/csi/csi.sock"
             - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/{{$key}}plugin.csi.alibabacloud.com/csi.sock"
           volumeMounts:
-            - name: kubelet-dir
-              mountPath: /var/lib/kubelet
+            - name: {{$key}}-plugin-dir
+              mountPath: /csi
             - name: registration-dir
               mountPath: /registration
 {{- end -}}
@@ -85,7 +85,7 @@ spec:
             allowPrivilegeEscalation: true
           image: {{ include "workerImageSpec" (list .Values.images "plugin") }}
           args:
-            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock"
             - "--v=2"
             - "--driver={{ include "enabledPlugins" .Values.csi }}"
 {{- if .Values.deploy.featureGates }}
@@ -100,8 +100,6 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
-            - name: CSI_ENDPOINT
-              value: unix://var/lib/kubelet/csi-plugins/driverplugin.csi.alibabacloud.com-replace/csi.sock
             - name: SERVICE_TYPE
               value: "plugin"
             - name: "DEFAULT_REGISTRY"
@@ -147,6 +145,14 @@ spec:
             - name: kubelet-dir
               mountPath: /var/lib/kubelet/
               mountPropagation: "Bidirectional"
+{{- range $key := tuple "disk" "nas" "oss" }}
+  {{- with index $.Values.csi $key -}}
+    {{- if .enabled }}
+            - name: {{ $key }}-plugin-dir
+              mountPath: /csi/{{ $key }}plugin.csi.alibabacloud.com
+    {{- end -}}
+  {{- end -}}
+{{- end }}
             - name: etc
               mountPath: /host/etc
             - name: host-log
@@ -188,7 +194,7 @@ spec:
             allowPrivilegeEscalation: true
           image: {{ include "workerImageSpec" (list .Values.images "localPlugin") }}
           args:
-            - --endpoint=unix://var/lib/kubelet/csi-plugins/localplugin.csi.alibabacloud.com/csi.sock
+            - --endpoint=unix://csi/csi.sock
             - --http-endpoint=:11261
             - --run-node-service=true
             - --run-controller-service=false
@@ -236,6 +242,8 @@ spec:
             - name: http
               containerPort: 11261
           volumeMounts:
+            - name: local-plugin-dir
+              mountPath: /csi
             - name: kubelet-dir
               mountPath: /var/lib/kubelet/
               mountPropagation: "Bidirectional"
@@ -291,6 +299,14 @@ spec:
           hostPath:
             path: /var/lib/kubelet
             type: Directory
+{{- range $key, $val := .Values.csi }}
+{{- if $val.enabled }}
+        - name: {{ $key }}-plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/csi-plugins/{{$key}}plugin.csi.alibabacloud.com
+            type: DirectoryOrCreate
+{{- end -}}
+{{- end }}
         - name: cgroupv1-blkio
           hostPath:
             path: /sys/fs/cgroup/blkio/kubepods.slice
