@@ -71,15 +71,16 @@ func newGlobalConfig(meta *metadata.Metadata, runAsController bool) {
 		controllerService: runAsController,
 		client:            kubeClient,
 		regionID:          metadata.MustGet(meta, metadata.RegionID),
-		instanceID:        metadata.MustGet(meta, metadata.InstanceID),
-		zoneID:            metadata.MustGet(meta, metadata.ZoneID),
+	}
+
+	if !runAsController {
+		GlobalConfigVar.instanceID = metadata.MustGet(meta, metadata.InstanceID)
 	}
 }
 
 type GlobalConfig struct {
 	regionID          string
 	instanceID        string
-	zoneID            string
 	controllerService bool
 	client            kubernetes.Interface
 }
