@@ -1,12 +1,12 @@
-{{- range $key, $nodepool := .Values.nodepools -}}
-{{- if and $.Values.plugin.enabled (ne $nodepool nil) }}
+{{- range $key, $nodePool := .Values.nodePools -}}
+{{- if and $.Values.plugin.enabled (ne $nodePool nil) }}
 ---
 {{- $values := deepCopy $.Values }}
-{{- $nodepool := mergeOverwrite $values $nodepool }}
+{{- $nodePool := mergeOverwrite $values $nodePool }}
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: {{ $nodepool.pluginname }}
+  name: {{ $nodePool.pluginname }}
   namespace: {{ $.Release.Namespace }}
 spec:
   selector:
@@ -25,7 +25,7 @@ spec:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
-{{- toYaml $nodepool.nodeSelectorTerms | nindent 12 }}
+{{- toYaml $nodePool.nodeSelectorTerms | nindent 12 }}
       nodeSelector:
         kubernetes.io/os: linux
       serviceAccountName: alicloud-csi-node
@@ -36,9 +36,9 @@ spec:
       dnsPolicy: ClusterFirst
       initContainers:
         - name: init
-          image: {{ include "workerImageSpec" (list $nodepool.images "pluginInit") }}
+          image: {{ include "workerImageSpec" (list $nodePool.images "pluginInit") }}
           args:
-            - "--driver={{ include "enabledPlugins" $nodepool.csi }}"
+            - "--driver={{ include "enabledPlugins" $nodePool.csi }}"
           securityContext:
             privileged: true
             allowPrivilegeEscalation: true
@@ -59,10 +59,10 @@ spec:
             - name: ossconnectordir
               mountPath: /host/usr/
       containers:
-{{- range $key, $val := $nodepool.csi }}
+{{- range $key, $val := $nodePool.csi }}
 {{- if $val.enabled }}
         - name: {{$key}}-driver-registrar
-          image: {{ include "workerImageSpec" (list $nodepool.images "pluginRegistrar") }}
+          image: {{ include "workerImageSpec" (list $nodePool.images "pluginRegistrar") }}
           resources:
             requests:
               cpu: 10m
@@ -85,15 +85,15 @@ spec:
           securityContext:
             privileged: true
             allowPrivilegeEscalation: true
-          image: {{ include "workerImageSpec" (list $nodepool.images "plugin") }}
+          image: {{ include "workerImageSpec" (list $nodePool.images "plugin") }}
           args:
             - "--endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock"
             - "--v=2"
-            - "--driver={{ include "enabledPlugins" $nodepool.csi }}"
-{{- if $nodepool.deploy.featureGates }}
-            - "--feature-gates={{ $nodepool.deploy.featureGates }}"
+            - "--driver={{ include "enabledPlugins" $nodePool.csi }}"
+{{- if $nodePool.deploy.featureGates }}
+            - "--feature-gates={{ $nodePool.deploy.featureGates }}"
 {{- end -}}
-{{- if not $nodepool.deploy.ecs }}
+{{- if not $nodePool.deploy.ecs }}
             - --nodeid=$(KUBE_NODE_NAME)
 {{- end }}
           env:
@@ -105,18 +105,18 @@ spec:
             - name: SERVICE_TYPE
               value: "plugin"
             - name: "DEFAULT_REGISTRY"
-              value: {{ $nodepool.images.workerRegistry | default $nodepool.images.registry | quote }}
-{{- if $nodepool.deploy.ecsEndpoint }}
+              value: {{ $nodePool.images.workerRegistry | default $nodePool.images.registry | quote }}
+{{- if $nodePool.deploy.ecsEndpoint }}
             - name: ECS_ENDPOINT
-              value: {{ $nodepool.deploy.ecsEndpoint | quote }}
+              value: {{ $nodePool.deploy.ecsEndpoint | quote }}
 {{- end -}}
-{{- if $nodepool.deploy.privateCloud }}
+{{- if $nodePool.deploy.privateCloud }}
             - name: ALICLOUD_CLIENT_SCHEME
               value: HTTP
             - name: PRIVATE_CLOUD_TAG
               value: "true"
 {{- end -}}
-{{- include "akEnv" $nodepool.deploy.accessKey | nindent 12 }}
+{{- include "akEnv" $nodePool.deploy.accessKey | nindent 12 }}
           resources:
             requests:
               cpu: 100m
@@ -167,16 +167,16 @@ spec:
               mountPropagation: "HostToContainer"
             - mountPath: /run/kata-containers/shared/direct-volumes
               name: kata-direct-volumes
-{{- if $nodepool.deploy.ack }}
+{{- if $nodePool.deploy.ack }}
             - mountPath: /var/addon
               name: addon-token
               readOnly: true
 {{- end -}}
-{{- if $nodepool.csi.oss.enabled }}
+{{- if $nodePool.csi.oss.enabled }}
             - mountPath: /host/var/run/ossfs
               name: ossfs-metrics-dir
 {{- end -}}
-{{- if $nodepool.csi.nas.enabled }}
+{{- if $nodePool.csi.nas.enabled }}
             - mountPath: /host/var/run/efc
               name: efc-metrics-dir
 {{- end }}
@@ -189,12 +189,12 @@ spec:
             - name: host-mnt
               mountPath: /mnt
               mountPropagation: "Bidirectional"
-{{- if $nodepool.csi.local.enabled }}
+{{- if $nodePool.csi.local.enabled }}
         - name: local-csi-plugin
           securityContext:
             privileged: true
             allowPrivilegeEscalation: true
-          image: {{ include "workerImageSpec" (list $nodepool.images "localPlugin") }}
+          image: {{ include "workerImageSpec" (list $nodePool.images "localPlugin") }}
           args:
             - --endpoint=unix://csi/csi.sock
             - --http-endpoint=:11261
@@ -208,15 +208,15 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
-{{- if $nodepool.deploy.ecsEndpoint }}
+{{- if $nodePool.deploy.ecsEndpoint }}
             - name: ECS_ENDPOINT
-              value: {{ $nodepool.deploy.ecsEndpoint | quote }}
+              value: {{ $nodePool.deploy.ecsEndpoint | quote }}
 {{- end -}}
-{{- if $nodepool.deploy.privateCloud }}
+{{- if $nodePool.deploy.privateCloud }}
             - name: ALICLOUD_CLIENT_SCHEME
               value: HTTP
 {{- end -}}
-{{- include "akEnv" $nodepool.deploy.accessKey | nindent 12 }}
+{{- include "akEnv" $nodePool.deploy.accessKey | nindent 12 }}
           resources:
             requests:
               cpu: 100m
@@ -252,7 +252,7 @@ spec:
             - name: host-dev
               mountPath: /dev
               mountPropagation: "HostToContainer"
-{{- if $nodepool.deploy.ack }}
+{{- if $nodePool.deploy.ack }}
             - mountPath: /var/addon
               name: addon-token
               readOnly: true
@@ -267,13 +267,13 @@ spec:
               mountPropagation: "Bidirectional"
 {{- end }}
       volumes:
-{{- if $nodepool.csi.oss.enabled }}
+{{- if $nodePool.csi.oss.enabled }}
         - name: ossfs-metrics-dir
           hostPath:
             path: /var/run/ossfs
             type: DirectoryOrCreate
 {{- end -}}
-{{- if $nodepool.csi.nas.enabled }}
+{{- if $nodePool.csi.nas.enabled }}
         - name: efc-metrics-dir
           hostPath:
             path: /var/run/efc
@@ -283,7 +283,7 @@ spec:
           hostPath:
             path: /run/csi-tool
             type: DirectoryOrCreate
-{{- if $nodepool.csi.local.enabled }}
+{{- if $nodePool.csi.local.enabled }}
         - name: tls-token-dir
           secret:
             defaultMode: 420
@@ -337,7 +337,7 @@ spec:
             path: /run/kata-containers/shared/direct-volumes
             type: DirectoryOrCreate
           name: kata-direct-volumes
-{{- if $nodepool.deploy.ack }}
+{{- if $nodePool.deploy.ack }}
         - name: addon-token
           secret:
             defaultMode: 420

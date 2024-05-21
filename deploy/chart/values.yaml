@@ -23,7 +23,7 @@ csi:
     controller:
       enabled: true
 
-nodepools:
+nodePools:
   default:
     pluginname: csi-plugin
     nodeSelectorTerms:

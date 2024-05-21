@@ -7,7 +7,7 @@ csi:
       enabled: false
 
 # daemonset
-nodepools:
+nodePools:
   default:
     pluginname: csi-plugin-cloud
     nodeSelectorTerms:
@@ -22,6 +22,8 @@ nodepools:
             - "false"
   edge:
     pluginname: csi-plugin
+    deploy:
+      ecs: false
     csi:
       disk:
         enabled: false
@@ -31,4 +33,4 @@ nodepools:
           operator: In
           values:
             - "true"
-  # other nodepools
+  # other nodePools
