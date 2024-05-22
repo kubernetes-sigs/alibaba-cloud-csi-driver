@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	log "github.com/sirupsen/logrus"
@@ -25,13 +26,10 @@ type PoV struct {
 	nodeService
 }
 
-func initDriver() {}
-
-func NewDriver(nodeID, endpoint string, runAsController bool) *PoV {
-	initDriver()
+func NewDriver(meta *metadata.Metadata, nodeID, endpoint string, runAsController bool) *PoV {
 	poV := &PoV{}
 	poV.endpoint = endpoint
-	newGlobalConfig(runAsController)
+	newGlobalConfig(meta, runAsController)
 
 	if runAsController {
 		poV.controllerService = newControllerService()
@@ -48,7 +46,7 @@ func (p *PoV) Run() {
 	common.RunCSIServer(p.endpoint, p, &p.controllerService, &p.nodeService)
 }
 
-func newGlobalConfig(runAsController bool) {
+func newGlobalConfig(meta *metadata.Metadata, runAsController bool) {
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
 		log.Fatalf("newGlobalConfig: build kubeconfig failed: %v", err)
@@ -69,25 +67,20 @@ func newGlobalConfig(runAsController bool) {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	ms := NewMetadataService()
-	doc, err := ms.GetDoc()
-	if err != nil {
-		log.Fatalf("Failed to get baseinfo from metadataserver: %+v", err)
-	}
-
 	GlobalConfigVar = GlobalConfig{
 		controllerService: runAsController,
 		client:            kubeClient,
-		regionID:          doc.RegionID,
-		instanceID:        doc.InstanceID,
-		zoneID:            doc.ZoneID,
+		regionID:          metadata.MustGet(meta, metadata.RegionID),
+	}
+
+	if !runAsController {
+		GlobalConfigVar.instanceID = metadata.MustGet(meta, metadata.InstanceID)
 	}
 }
 
 type GlobalConfig struct {
 	regionID          string
 	instanceID        string
-	zoneID            string
 	controllerService bool
 	client            kubernetes.Interface
 }

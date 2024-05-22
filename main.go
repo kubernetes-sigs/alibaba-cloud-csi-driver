@@ -217,7 +217,7 @@ func main() {
 		case TypePluginPOV:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := pov.NewDriver(*nodeID, endPoint, *runAsController)
+				driver := pov.NewDriver(meta, *nodeID, endPoint, *runAsController)
 				driver.Run()
 			}(endPointName)
 		default:
