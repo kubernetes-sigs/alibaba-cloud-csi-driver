@@ -148,7 +148,7 @@ spec:
               mountPath: /var/lib/kubelet/
               mountPropagation: "Bidirectional"
 {{- range $key := tuple "disk" "nas" "oss" }}
-  {{- with index $.Values.csi $key -}}
+  {{- with index $nodePool.csi $key -}}
     {{- if .enabled }}
             - name: {{ $key }}-plugin-dir
               mountPath: /csi/{{ $key }}plugin.csi.alibabacloud.com
@@ -301,7 +301,7 @@ spec:
           hostPath:
             path: /var/lib/kubelet
             type: Directory
-{{- range $key, $val := .Values.csi }}
+{{- range $key, $val := $nodePool.csi }}
 {{- if $val.enabled }}
         - name: {{ $key }}-plugin-dir
           hostPath:
