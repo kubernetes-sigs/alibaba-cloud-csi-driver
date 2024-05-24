@@ -493,7 +493,6 @@ func (ns *nodeServer) mountLosetupPv(mountPoint string, opt *Options, volumeID s
 	if utils.IsFileExisting(failedFile) {
 		// path/to/whatever does not exist
 		cmd := exec.Command("fsck", "-a", imgFile)
-		// cmd := fmt.Sprintf(Resize2fsFailedFixCmd, NsenterCmd, imgFile)
 		err := cmd.Run()
 		if err != nil {
 			return fmt.Errorf("mountLosetupPv: mount nfs losetup error %s", err.Error())
@@ -665,11 +664,6 @@ func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) erro
 			return fmt.Errorf("NodeExpandVolume: resize device file error, %v", err)
 		}
 
-		// chkCmd := fmt.Sprintf("%s fsck -a %s", NsenterCmd, imgFile)
-		// _, err = utils.Run(chkCmd)
-		// if err != nil {
-		// 	return fmt.Errorf("Check losetup image error %s", err.Error())
-		// }
 		if err := exec.Command("resize2fs", loopDev).Run(); err != nil {
 			log.Errorf("NodeExpandVolume: resize filesystem error %v", err)
 			failedFile := filepath.Join(nfsPath, Resize2fsFailedFilename)

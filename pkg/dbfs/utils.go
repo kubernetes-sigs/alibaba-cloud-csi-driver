@@ -37,8 +37,6 @@ import (
 const (
 	// RegionTag is region id
 	RegionTag = "region-id"
-	// NsenterCmd is the nsenter command
-	NsenterCmd = "/usr/bin/nsenter --mount=/proc/1/ns/mnt"
 	// GetDBFSMountCmd get dbfs mount path
 	GetDBFSMountCmd = "/usr/sbin/get_dbfs_mount_path"
 )
@@ -182,40 +180,6 @@ func getVolumeCount() int64 {
 	}
 	return volumeCount
 }
-
-//func saveDbfsConfig(volumeId, mountpoint string) bool {
-//	targetFile := filepath.Join(mountpoint, "")
-//	if utils.IsFileExisting(targetFile) {
-//		return true
-//	}
-//	cmd := fmt.Sprintf("%s /opt/dbfs/app/1.0.0.1/bin/dbfs_get_home_path.sh %s", NsenterCmd, volumeId)
-//	configPath, err := utils.Run(cmd)
-//	if err != nil {
-//		log.Errorf("saveDbfsConfig: run command with error: %s", err)
-//	}
-//
-//	if err := ioutil.WriteFile(targetFile, []byte(configPath), 0644); err != nil {
-//		return false
-//	}
-//	return true
-//}
-
-//CreateDest create the target
-//func CreateDest(dest string) error {
-//	fi, err := os.Lstat(dest)
-//	if os.IsNotExist(err) {
-//		if err := os.MkdirAll(dest, 0777); err != nil {
-//			return err
-//		}
-//	} else if err != nil {
-//		return err
-//	}
-//
-//	if fi != nil && !fi.IsDir() {
-//		return fmt.Errorf("%v already exist but it's not a directory", dest)
-//	}
-//	return nil
-//}
 
 func updateDbfsClient(client *dbfs.Client) *dbfs.Client {
 	ac := utils.GetAccessControl()
