@@ -22,6 +22,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
 	"path"
 	"strconv"
 	"strings"
@@ -44,6 +45,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -224,6 +226,15 @@ func main() {
 			log.Fatalf("CSI start failed, not support driver: %s", driverName)
 		}
 	}
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, unix.SIGTERM)
+	go func() {
+		s := <-c
+		log.Infof("Got signal: %v, exiting...", s)
+		os.Exit(0)
+	}()
+
 	servicePort := os.Getenv("SERVICE_PORT")
 
 	if len(servicePort) == 0 || servicePort == "" {
@@ -263,7 +274,6 @@ func main() {
 	}
 
 	wg.Wait()
-	os.Exit(0)
 }
 
 func createPersistentStorage(persistentStoragePath string) error {

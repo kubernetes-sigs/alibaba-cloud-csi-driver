@@ -1,0 +1,88 @@
+{
+    "name": $cluster_name,
+    "cluster_type": "ManagedKubernetes",
+    "kubernetes_version": "1.28.9-aliyun.1",
+    "region_id": $region,
+    "snat_entry": true,
+    "cloud_monitor_flags": false,
+    "endpoint_public_access": true,
+    "deletion_protection": false,
+    "proxy_mode": "ipvs",
+    "cis_enable_risk_check": false,
+    "tags": [
+        {
+            "key": "created-for",
+            "value": "csi-daily"
+        }
+    ],
+    "timezone": "Asia/Shanghai",
+    "addons": [
+        {
+            "name": "terway-eniip",
+            "config": "{\"IPVlan\":\"false\",\"NetworkPolicy\":\"false\",\"ENITrunking\":\"false\"}"
+        },
+        {
+            "name": "csi-plugin",
+            "disabled": true
+        },
+        {
+            "name": "csi-provisioner",
+            "disabled": true
+        },
+        {
+            "name": "storage-operator",
+            "disabled": true
+        },
+        {
+            "name": "nginx-ingress-controller",
+            "disabled": true
+        }
+    ],
+    "cluster_spec": "ack.pro.small",
+    "load_balancer_spec": "slb.s1.small",
+    "pod_vswitch_ids": $vswitch_ids,
+    "charge_type": "PostPaid",
+    "vpcid": $vpc_id,
+    "service_cidr": "192.168.0.0/16",
+    "vswitch_ids": $vswitch_ids,
+    "ip_stack": "ipv4",
+    "maintenance_window": {
+        "enable": false
+    },
+    "nodepools": [
+        {
+            "nodepool_info": {
+                "name": "default-nodepool"
+            },
+            "scaling_group": {
+                "vswitch_ids": $vswitch_ids,
+                "system_disk_category": "cloud_essd",
+                "system_disk_size": 60,
+                "system_disk_performance_level": "PL0",
+                "system_disk_encrypted": false,
+                "instance_types": [
+                    "ecs.u1-c1m2.xlarge"
+                ],
+                "instance_charge_type": "PostPaid",
+                "key_pair": $cluster_name,
+                "soc_enabled": false,
+                "cis_enabled": false,
+                "login_as_non_root": false,
+                "platform": "AliyunLinux",
+                "image_id": "aliyun_3_9_x64_20G_alibase_20231219.vhd",
+                "image_type": "AliyunLinux3"
+            },
+            "kubernetes_config": {
+                "cpu_policy": "none",
+                "cms_enabled": false,
+                "unschedulable": false,
+                "runtime": "containerd",
+                "runtime_version": "1.6.28"
+            },
+            "count": $n_nodes,
+            "management": {
+                "enable": false
+            }
+        }
+    ]
+}
