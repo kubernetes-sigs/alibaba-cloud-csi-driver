@@ -124,6 +124,21 @@ func (mr *MockECSInterfaceMockRecorder) DescribeRegions(request interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeRegions", reflect.TypeOf((*MockECSInterface)(nil).DescribeRegions), request)
 }
 
+// DescribeSnapshots mocks base method.
+func (m *MockECSInterface) DescribeSnapshots(request *ecs.DescribeSnapshotsRequest) (*ecs.DescribeSnapshotsResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DescribeSnapshots", request)
+	ret0, _ := ret[0].(*ecs.DescribeSnapshotsResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DescribeSnapshots indicates an expected call of DescribeSnapshots.
+func (mr *MockECSInterfaceMockRecorder) DescribeSnapshots(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeSnapshots", reflect.TypeOf((*MockECSInterface)(nil).DescribeSnapshots), request)
+}
+
 // ResizeDisk mocks base method.
 func (m *MockECSInterface) ResizeDisk(request *ecs.ResizeDiskRequest) (*ecs.ResizeDiskResponse, error) {
 	m.ctrl.T.Helper()

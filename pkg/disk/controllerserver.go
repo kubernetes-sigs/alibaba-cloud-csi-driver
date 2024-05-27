@@ -569,9 +569,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	// Need to check for already existing snapshot name
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshots, snapNum, err := findSnapshotByName(req.GetName())
-	if snapNum == 0 {
-		snapshots, snapNum, err = findDiskSnapshotByID(req.GetName())
-	}
 	switch {
 	case snapNum == 1:
 		// Since err is nil, it means the snapshot with the same name already exists need
@@ -732,31 +729,25 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 
 	// Check Snapshot exist
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-	snapshot, snapNum, err := findDiskSnapshotByID(req.SnapshotId)
+	snapshot, err := findDiskSnapshotByID(req.SnapshotId)
 	if err != nil {
 		return nil, err
 	}
 
-	existsSnapshots := snapshot.Snapshots.Snapshot
-	switch {
-	case snapNum == 0 && err == nil:
+	if snapshot == nil {
 		log.Infof("DeleteSnapshot: snapShot not exist for expect %s, return successful", snapshotID)
 		return &csi.DeleteSnapshotResponse{}, nil
-	case snapNum > 1:
-		log.Errorf("DeleteSnapshot: snapShot cannot be deleted %s, with more than 1 snapshot", snapshotID)
-		err = status.Errorf(codes.Internal, "snapShot cannot be deleted %s, with more than 1 snapshot", snapshotID)
-		return nil, err
 	}
 
 	ref := &v1.ObjectReference{
 		Kind:      "VolumeSnapshotContent",
-		Name:      existsSnapshots[0].SnapshotName,
+		Name:      snapshot.SnapshotName,
 		UID:       "",
 		Namespace: "",
 	}
 
 	// log.Log snapshot
-	log.Infof("DeleteSnapshot: Snapshot %s exist with Info: %+v, %+v", snapshotID, existsSnapshots[0], err)
+	log.Infof("DeleteSnapshot: Snapshot %s exist with Info: %+v, %+v", snapshotID, snapshot, err)
 
 	response, err := requestAndDeleteSnapshot(snapshotID)
 	if err != nil {
@@ -767,9 +758,7 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 		return nil, err
 	}
 
-	if existsSnapshots != nil {
-		delete(createdSnapshotMap, existsSnapshots[0].SnapshotName)
-	}
+	delete(createdSnapshotMap, snapshot.SnapshotName)
 	str := fmt.Sprintf("DeleteSnapshot:: Successfully delete snapshot %s, requestId: %s", snapshotID, response.RequestId)
 	log.Info(str)
 	utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
@@ -778,66 +767,33 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 
 // ListSnapshots ...
 func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-	ref := &v1.ObjectReference{
-		Kind:      "VolumeSnapshot",
-		Name:      req.GetSnapshotId(),
-		UID:       "",
-		Namespace: "",
-	}
 	log.Infof("ListSnapshots:: called with args: %+v", req)
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshotID := req.GetSnapshotId()
-	snapshot, snapNum, err := findDiskSnapshotByID(snapshotID)
-	switch {
-	case snapshot != nil && snapNum == 1:
-		return newListSnapshotsResponse(snapshot)
-	case snapNum > 1:
-		log.Errorf("ListSnapshots:: Find Snapshot id[%s], but get more than 1 instance", req.SnapshotId)
-		err := status.Error(codes.Internal, "ListSnapshots:: Find Snapshot id but get more than 1 instance")
-		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotTooMany, err.Error())
-		return nil, err
-	case err != nil:
-		log.Errorf("CreateSnapshot:: Expect to find Snapshot id[%s], but get error: %v", req.SnapshotId, err)
-		e := status.Errorf(codes.Internal, "ListSnapshots:: Expect to find Snapshot id but get error: %v", err.Error())
-		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
-		return nil, e
+	if len(snapshotID) > 0 {
+		snapshot, err := findDiskSnapshotByID(snapshotID)
+		if err != nil {
+			log.Errorf("CreateSnapshot:: failed to find Snapshot id %s: %v", req.SnapshotId, err)
+			e := status.Errorf(codes.Internal, "ListSnapshots:: failed to find Snapshot id %s: %v", req.SnapshotId, err.Error())
+			return nil, e
+		}
+		snapshots := make([]ecs.Snapshot, 0, 1)
+		if snapshot != nil {
+			snapshots = append(snapshots, *snapshot)
+		}
+		return newListSnapshotsResponse(snapshots, "")
 	}
 	volumeID := req.GetSourceVolumeId()
-	log.Infof("ListSnapshots: failed to get snapshot with snapshotid: %s, start get snapshot by volumeid: %s", snapshotID, volumeID)
-	if len(volumeID) == 0 {
-		snapshotRegion, volumeID, cTime := getSnapshotInfoByID(snapshotID)
-		log.Infof("ListSnapshots:: snapshotRegion: %s, snapshotID: %v", snapshotRegion, snapshotID)
-		if snapshotRegion != "" {
-			csiSnapshot := &csi.Snapshot{
-				SnapshotId:     snapshotID,
-				SourceVolumeId: volumeID,
-				ReadyToUse:     true,
-				CreationTime:   cTime,
-			}
-			entry := &csi.ListSnapshotsResponse_Entry{
-				Snapshot: csiSnapshot,
-			}
-			entries := []*csi.ListSnapshotsResponse_Entry{entry}
-			return &csi.ListSnapshotsResponse{Entries: entries}, nil
-		}
-		return nil, status.Error(codes.Internal, "ListSnapshots:: Expect to find snapshot by volumeID but get volumeID is null")
+	if volumeID == "" && GlobalConfigVar.ClusterID == "" {
+		// We don't want to expose all snapshots of the current user, which may be too many.
+		return nil, status.Errorf(codes.InvalidArgument, "At least one of snapshot ID, volume ID, cluster ID must be specified")
 	}
-	nextToken := req.GetStartingToken()
-	maxEntries := int(req.GetMaxEntries())
-	describeRequest := ecs.CreateDescribeSnapshotsRequest()
-	describeRequest.MaxResults = requests.NewInteger(maxEntries)
-	if len(nextToken) != 0 {
-		describeRequest.NextToken = nextToken
-	}
-	describeRequest.DiskId = volumeID
-	response, err := GlobalConfigVar.EcsClient.DescribeSnapshots(describeRequest)
+	snapshots, nextToken, err := listSnapshots(GlobalConfigVar.EcsClient,
+		volumeID, GlobalConfigVar.ClusterID, req.GetStartingToken(), int(req.GetMaxEntries()))
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "ListSnapshots:: Request describeSnapshots error: %+v", err)
+		return nil, err
 	}
-	if response.PageSize == 0 {
-		return &csi.ListSnapshotsResponse{}, nil
-	}
-	return newListSnapshotsResponse(response)
+	return newListSnapshotsResponse(snapshots, nextToken)
 }
 
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest,
@@ -990,10 +946,10 @@ func checkInstallCRD(crdClient *crd.Clientset) {
 	}
 }
 
-func newListSnapshotsResponse(snapshots *ecs.DescribeSnapshotsResponse) (*csi.ListSnapshotsResponse, error) {
+func newListSnapshotsResponse(snapshots []ecs.Snapshot, nextToken string) (*csi.ListSnapshotsResponse, error) {
 
 	var entries []*csi.ListSnapshotsResponse_Entry
-	for _, snapshot := range snapshots.Snapshots.Snapshot {
+	for _, snapshot := range snapshots {
 		csiSnapshot, err := formatCSISnapshot(&snapshot)
 		if err != nil {
 			return nil, err
@@ -1005,7 +961,7 @@ func newListSnapshotsResponse(snapshots *ecs.DescribeSnapshotsResponse) (*csi.Li
 	}
 	return &csi.ListSnapshotsResponse{
 		Entries:   entries,
-		NextToken: snapshots.NextToken,
+		NextToken: nextToken,
 	}, nil
 }
 
