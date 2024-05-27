@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.4
+# syntax=docker/dockerfile:1.6
 FROM --platform=$BUILDPLATFORM golang:1.20.7 as build
 WORKDIR /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 ARG TARGETARCH
@@ -19,14 +19,31 @@ RUN --mount=type=bind,target=. \
 FROM registry.eu-west-1.aliyuncs.com/acs/alinux:3-update as base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 
-RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace cloud-utils-growpart gdisk nc telnet tar cpio && \
-    yum clean all
-RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
-
 ARG TARGETARCH
+RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked,id=dnf-cache-$TARGETARCH \
+    dnf install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace cloud-utils-growpart gdisk nc telnet tar cpio && \
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
+
 RUN --mount=type=bind,source=build/lib,target=/csi-lib \
     cp /csi-lib/$TARGETARCH-nsenter /usr/bin/nsenter && \
     ln -s /usr/bin/nsenter /nsenter
+
+FROM base as build-util-linux
+ARG TARGETARCH
+RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked,id=dnf-cache-$TARGETARCH \
+    dnf install -y tar xz make gcc diffutils
+
+ADD --link --checksum=sha256:59e676aa53ccb44b6c39f0ffe01a8fa274891c91bef1474752fad92461def24f \
+    https://www.kernel.org/pub/linux/utils/util-linux/v2.40/util-linux-2.40.1.tar.xz /src.tar.xz
+RUN mkdir -p /src && tar -C /src --strip-components=1 -xf /src.tar.xz
+
+# Ideally we should do cross-compilation here, but no easy solution on alinux. Re-consider if we switch to Debian
+RUN cd /src && \
+    ./configure --disable-all-programs --enable-blkid --enable-libblkid --prefix=/usr/local \
+        --disable-nls --disable-bash-completion --disable-asciidoc --disable-dependency-tracking --disable-static && \
+    make -j && \
+    make install-strip DESTDIR=/out && \
+    cd /out/usr/local && rm -r include share lib/pkgconfig
 
 FROM base as init
 
@@ -46,5 +63,6 @@ COPY --link --from=build /out/csiplugin-connector /csi/csiplugin-connector
 ENTRYPOINT ["/init.sh"]
 
 FROM base
+COPY --link --from=build-util-linux /out /
 COPY --link --from=build /out/plugin.csi.alibabacloud.com /usr/bin/plugin.csi.alibabacloud.com
 ENTRYPOINT ["/usr/bin/plugin.csi.alibabacloud.com"]
