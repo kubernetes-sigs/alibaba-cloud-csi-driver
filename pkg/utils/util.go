@@ -863,6 +863,16 @@ func IsPrivateCloud() bool {
 	return privateBool
 }
 
+func parseUdevadmInfoSerial(out string) string {
+	for _, line := range strings.Split(string(out), "\n") {
+		const prefix = "ID_SERIAL_SHORT="
+		if strings.HasPrefix(line, prefix) {
+			return line[len(prefix):]
+		}
+	}
+	return ""
+}
+
 // Get NVME device name by diskID;
 // /dev/nvme0n1 0: means device index, 1: means namespace for nvme device;
 // udevadm info --query=all --name=/dev/nvme0n1 | grep ID_SERIAL_SHORT | awk -F= '{print $2}'
@@ -882,18 +892,14 @@ func GetNvmeDeviceByVolumeID(volumeID string) (device string, err error) {
 				log.Warnf("GetNvmeDeviceByVolumeID: udevadm failed: %s (%v)", string(out), err)
 				continue
 			}
-			for _, line := range strings.Split(string(out), "\n") {
-				const prefix = "ID_SERIAL_SHORT="
-				if strings.HasPrefix(line, prefix) {
-					snumber := line[len(prefix):]
-					if serialNumber == snumber {
-						device = filepath.Join("/dev/", deviceName)
-						log.Infof("GetNvmeDeviceByVolumeID: Get nvme device %s with volumeID %s", device, volumeID)
-						return device, nil
-					}
-				}
+			snumber := parseUdevadmInfoSerial(string(out))
+			if snumber == "" {
+				log.Warnf("GetNvmeDeviceByVolumeID: udevadm did not know serial number for %s", deviceName)
+			} else if serialNumber == snumber {
+				device = filepath.Join("/dev/", deviceName)
+				log.Infof("GetNvmeDeviceByVolumeID: Get nvme device %s with volumeID %s", device, volumeID)
+				return device, nil
 			}
-			log.Warnf("GetNvmeDeviceByVolumeID: udevadm did not know serial number for %s", deviceName)
 		}
 	}
 	return "", nil
