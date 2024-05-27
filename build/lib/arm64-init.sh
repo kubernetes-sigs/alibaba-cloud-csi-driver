@@ -12,7 +12,7 @@ run_nas="false"
 mkdir -p /var/log/alicloud/
 mkdir -p /host/etc/kubernetes/volumes/disk/uuid
 
-HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
+HOST_CMD="/usr/bin/nsenter --mount=/proc/1/ns/mnt"
 
 OLD_STAGING_PATH=/var/lib/kubelet/plugins/kubernetes.io/csi/pv
 if [ -d "$OLD_STAGING_PATH" ]; then
@@ -53,7 +53,7 @@ do
               run_oss="true"
               mkdir -p /var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com
               rm -rf /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
-              /usr/bin/nsenter --mount=/proc/1/ns/mnt yum install -y fuse-devel
+              ${HOST_CMD} yum install -y fuse-devel
           elif [ "$driver_type" = "disk" ]; then
               echo "Running disk plugin...."
 							run_disk="true"

@@ -87,10 +87,6 @@ const (
 	fsckErrorsCorrected = 1
 	// fsckErrorsUncorrected tag
 	fsckErrorsUncorrected = 4
-
-	// NsenterCmd is the nsenter command
-	NsenterCmd = "nsenter --mount=/proc/1/ns/mnt --ipc=/proc/1/ns/ipc --net=/proc/1/ns/net --uts=/proc/1/ns/uts"
-
 	// socketPath is path of connector sock
 	socketPath = "/host/run/csi-tool/connector/connector.sock"
 
@@ -179,7 +175,7 @@ var NsenterArgs = []string{"--target=1", "--mount", "--ipc", "--net", "--uts", "
 
 func CommandOnNode(args ...string) *exec.Cmd {
 	allArgs := append(NsenterArgs, args...)
-	return exec.Command("/nsenter", allArgs...)
+	return exec.Command("/usr/bin/nsenter", allArgs...)
 }
 
 // CreateDest create de destination dir

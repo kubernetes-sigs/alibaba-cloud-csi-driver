@@ -18,7 +18,7 @@ mv /acs/which-2.20-7.el7.aarch64.rpm /var/lib/kubelet/which-2.20-7.el7.aarch64.r
 ossfsVer="1.80.6.ack.1"
 armfsVer="1.80.6"
 
-HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
+HOST_CMD="/usr/bin/nsenter --mount=/proc/1/ns/mnt"
 
 host_os="centos"
 ${HOST_CMD} ls /etc/os-release
@@ -63,13 +63,13 @@ do
       run_oss="true"
       mkdir -p /var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com
       rm -rf /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
-      /usr/bin/nsenter yum localinstall -y /var/lib/kubelet/which-2.20-7.el7.aarch64.rpm
-			/usr/bin/nsenter yum localinstall -y /var/lib/kubelet/fuse-libs-2.9.2-11.el7.aarch64.rpm
-      /usr/bin/nsenter yum localinstall -y /var/lib/kubelet/fuse-2.9.2-11.el7.aarch64.rpm
-      if [ ! `/usr/bin/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
+      ${HOST_CMD} yum localinstall -y /var/lib/kubelet/which-2.20-7.el7.aarch64.rpm
+			${HOST_CMD} yum localinstall -y /var/lib/kubelet/fuse-libs-2.9.2-11.el7.aarch64.rpm
+      ${HOST_CMD} yum localinstall -y /var/lib/kubelet/fuse-2.9.2-11.el7.aarch64.rpm
+      if [ ! `${HOST_CMD} which ossfs` ]; then
           echo "First install ossfs...."
           cp $ossPath /host/usr/bin/
-          echo "cp result -- `/usr/bin/nsenter --mount=/proc/1/ns/mnt which ossfs` --"
+          echo "cp result -- `${HOST_CMD} which ossfs` --"
       else
           echo "ossfs is already on host"
       fi
@@ -93,13 +93,13 @@ do
               run_oss="true"
               mkdir -p /var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com
               rm -rf /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
-							/usr/bin/nsenter yum localinstall -y /var/lib/kubelet/which-2.20-7.el7.aarch64.rpm
-							/usr/bin/nsenter yum localinstall -y /var/lib/kubelet/fuse-libs-2.9.2-11.el7.aarch64.rpm
-              /usr/bin/nsenter yum localinstall -y /var/lib/kubelet/fuse-2.9.2-11.el7.aarch64.rpm
-							if [ ! `/usr/bin/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
+							${HOST_CMD} yum localinstall -y /var/lib/kubelet/which-2.20-7.el7.aarch64.rpm
+							${HOST_CMD} yum localinstall -y /var/lib/kubelet/fuse-libs-2.9.2-11.el7.aarch64.rpm
+              ${HOST_CMD} yum localinstall -y /var/lib/kubelet/fuse-2.9.2-11.el7.aarch64.rpm
+							if [ ! `${HOST_CMD} which ossfs` ]; then
 									echo "First install ossfs...."
 									cp $ossPath /host/usr/bin/
-									echo "cp result -- `/usr/bin/nsenter --mount=/proc/1/ns/mnt which ossfs` --"
+									echo "cp result -- `${HOST_CMD} which ossfs` --"
 							else
 									echo "ossfs is already on host"
 							fi
@@ -126,8 +126,8 @@ if [ "$run_oss" = "true" ]; then
       if [[ `strings /usr/lib64/libstdc++.so.6 | grep GLIBCXX | grep 3.4.26 | wc -l` != "1" ]]; then
         echo "update libstdc++ version, link libstdc++.so.6.0.28 to /lib64"
         /bin/cp -f /acs/libstdc++.so.6.0.28 /host/usr/lib64/libstdc++.so.6.0.28
-        /nsenter --mount=/proc/1/ns/mnt unlink /lib64/libstdc++.so.6
-        /nsenter --mount=/proc/1/ns/mnt ln -sf /lib64/libstdc++.so.6.0.28 /lib64/libstdc++.so.6
+        ${HOST_CMD} unlink /lib64/libstdc++.so.6
+        ${HOST_CMD} ln -sf /lib64/libstdc++.so.6.0.28 /lib64/libstdc++.so.6
       fi
     fi
 
@@ -144,19 +144,19 @@ if [ "$run_oss" = "true" ]; then
     fi
     # install OSSFS
     mkdir -p /host/etc/csi-tool/
-    if [ ! `/nsenter --mount=/proc/1/ns/mnt which ossfs` ]; then
+    if [ ! `${HOST_CMD} which ossfs` ]; then
         echo "First install ossfs...."
-        /nsenter --mount=/proc/1/ns/mnt yum install -y ossfs
-        /nsenter --mount=/proc/1/ns/mnt ln -sf $ossPath /usr/local/bin/ossfs
+        ${HOST_CMD} yum install -y ossfs
+        ${HOST_CMD} ln -sf $ossPath /usr/local/bin/ossfs
     # update OSSFS
     else
         echo "Check ossfs Version...."
-        oss_info=`/nsenter --mount=/proc/1/ns/mnt ossfs --version | grep -E -o "V[0-9.a-z]+" | cut -d"V" -f2`
+        oss_info=`${HOST_CMD} ossfs --version | grep -E -o "V[0-9.a-z]+" | cut -d"V" -f2`
         if [ "$oss_info" != "$ossfsVer" ] || [ "$oss_info" != "$armfsVer" ]; then
             echo "Upgrade ossfs...."
-            /nsenter --mount=/proc/1/ns/mnt yum remove -y ossfs
-            /nsenter --mount=/proc/1/ns/mnt yum install -y ossfs
-            /nsenter --mount=/proc/1/ns/mnt ln -sf $ossPath /usr/local/bin/ossfs
+            ${HOST_CMD} yum remove -y ossfs
+            ${HOST_CMD} yum install -y ossfs
+            ${HOST_CMD} ln -sf $ossPath /usr/local/bin/ossfs
         fi
     fi
 fi
@@ -207,12 +207,12 @@ if [ "$run_disk" = "true" ] || [ "$run_oss" = "true" ]; then
     if [ "$updateConnectorService" = "true" ]; then
         echo "Install csiplugin connector service...."
         cp /bin/csiplugin-connector.service $systemdDir/csiplugin-connector.service
-        /nsenter --mount=/proc/1/ns/mnt systemctl daemon-reload
+        ${HOST_CMD} systemctl daemon-reload
     fi
 
     rm -rf /var/log/alicloud/connector.pid
-    /nsenter --mount=/proc/1/ns/mnt systemctl enable csiplugin-connector.service
-    /nsenter --mount=/proc/1/ns/mnt systemctl restart csiplugin-connector.service
+    ${HOST_CMD} systemctl enable csiplugin-connector.service
+    ${HOST_CMD} systemctl restart csiplugin-connector.service
 
 fi
 

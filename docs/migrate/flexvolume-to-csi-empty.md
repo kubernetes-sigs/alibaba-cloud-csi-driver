@@ -91,8 +91,8 @@ spec:
                 echo "current value is $curValue, change to expect "$enableADController;
             fi;
             if [ "$restartKubelet" = "true" ]; then
-                /nsenter --mount=/proc/1/ns/mnt systemctl daemon-reload;
-                /nsenter --mount=/proc/1/ns/mnt service kubelet restart;
+                nsenter --mount=/proc/1/ns/mnt systemctl daemon-reload;
+                nsenter --mount=/proc/1/ns/mnt service kubelet restart;
                 echo "restart kubelet";
             fi;
             while true;

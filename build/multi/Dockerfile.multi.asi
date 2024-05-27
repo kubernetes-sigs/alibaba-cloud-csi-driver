@@ -31,11 +31,6 @@ RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciu
     yum clean all
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
 
-ARG TARGETARCH
-RUN --mount=type=bind,source=build/lib,target=/csi-lib \
-    cp /csi-lib/$TARGETARCH-nsenter /usr/bin/nsenter && \
-    ln -s /usr/bin/nsenter /nsenter
-
 FROM base as init
 
 ARG TARGETARCH

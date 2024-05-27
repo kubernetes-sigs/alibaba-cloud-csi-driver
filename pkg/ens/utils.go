@@ -28,8 +28,6 @@ const (
 	labelAppendPrefix = "csi.alibabacloud.com/label-prefix/"
 	// labelVolumeType key
 	labelVolumeType = "csi.alibabacloud.com/disktype"
-	// NsenterCmd run command on host
-	NsenterCmd = "/nsenter --mount=/proc/1/ns/mnt"
 	// VolumeDir volume dir
 	VolumeDir = "/host/etc/kubernetes/volumes/disk/"
 	// VolumeDirRemove volume dir remove
