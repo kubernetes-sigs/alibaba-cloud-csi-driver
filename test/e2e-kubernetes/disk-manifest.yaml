@@ -1,0 +1,29 @@
+StorageClass:
+  FromExistingClassName: alicloud-disk-topology-alltype
+SnapshotClass:
+  FromExistingClassName: alibabacloud-disk-snapshot
+DriverInfo:
+  Name: diskplugin.csi.alibabacloud.com
+  SupportedSizeRange:
+    Min: 20Gi
+    Max: 32Ti
+  StressTestOptions:
+    NumPods: 10
+    NumRestarts: 10
+  SupportedFsType:
+    xfs: {}
+    ext4: {}
+  TopologyKeys:
+  - topology.diskplugin.csi.alibabacloud.com/zone
+  Capabilities:
+    persistence: true
+    fsGroup: true
+    block: true
+    exec: true
+    snapshotDataSource: true
+    pvcDataSource: false
+    multipods: true
+    controllerExpansion: true
+    nodeExpansion: true
+    volumeLimits: true
+    topology: true
