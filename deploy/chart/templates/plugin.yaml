@@ -1,17 +1,23 @@
-{{- if .Values.plugin.enabled -}}
+{{- range $key, $nodePool := .Values.nodePools -}}
+{{- if and $.Values.plugin.enabled (ne $nodePool nil) }}
+---
+{{- $values := deepCopy $.Values }}
+{{- $nodePool := mergeOverwrite $values $nodePool }}
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: csi-plugin
-  namespace: {{ .Release.Namespace }}
+  name: {{ $nodePool.pluginname }}
+  namespace: {{ $.Release.Namespace }}
 spec:
   selector:
     matchLabels:
       app: csi-plugin
+      nodepool: {{ $key }}
   template:
     metadata:
       labels:
         app: csi-plugin
+        nodepool: {{ $key }}
     spec:
       tolerations:
         - operator: Exists
@@ -19,11 +25,7 @@ spec:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
-            - matchExpressions:
-              - key: type
-                operator: NotIn
-                values:
-                - virtual-kubelet
+{{- toYaml $nodePool.nodeSelectorTerms | nindent 12 }}
       nodeSelector:
         kubernetes.io/os: linux
       serviceAccountName: alicloud-csi-node
@@ -34,9 +36,9 @@ spec:
       dnsPolicy: ClusterFirst
       initContainers:
         - name: init
-          image: {{ include "workerImageSpec" (list .Values.images "pluginInit") }}
+          image: {{ include "workerImageSpec" (list $nodePool.images "pluginInit") }}
           args:
-            - "--driver={{ include "enabledPlugins" .Values.csi }}"
+            - "--driver={{ include "enabledPlugins" $nodePool.csi }}"
           securityContext:
             privileged: true
             allowPrivilegeEscalation: true
@@ -57,10 +59,10 @@ spec:
             - name: ossconnectordir
               mountPath: /host/usr/
       containers:
-{{- range $key, $val := .Values.csi }}
+{{- range $key, $val := $nodePool.csi }}
 {{- if $val.enabled }}
         - name: {{$key}}-driver-registrar
-          image: {{ include "workerImageSpec" (list $.Values.images "pluginRegistrar") }}
+          image: {{ include "workerImageSpec" (list $nodePool.images "pluginRegistrar") }}
           resources:
             requests:
               cpu: 10m
@@ -83,15 +85,15 @@ spec:
           securityContext:
             privileged: true
             allowPrivilegeEscalation: true
-          image: {{ include "workerImageSpec" (list .Values.images "plugin") }}
+          image: {{ include "workerImageSpec" (list $nodePool.images "plugin") }}
           args:
             - "--endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock"
             - "--v=2"
-            - "--driver={{ include "enabledPlugins" .Values.csi }}"
-{{- if .Values.deploy.featureGates }}
-            - "--feature-gates={{ .Values.deploy.featureGates }}"
+            - "--driver={{ include "enabledPlugins" $nodePool.csi }}"
+{{- if $nodePool.deploy.featureGates }}
+            - "--feature-gates={{ $nodePool.deploy.featureGates }}"
 {{- end -}}
-{{- if not .Values.deploy.ecs }}
+{{- if not $nodePool.deploy.ecs }}
             - --nodeid=$(KUBE_NODE_NAME)
 {{- end }}
           env:
@@ -103,18 +105,18 @@ spec:
             - name: SERVICE_TYPE
               value: "plugin"
             - name: "DEFAULT_REGISTRY"
-              value: {{ .Values.images.workerRegistry | default .Values.images.registry | quote }}
-{{- if .Values.deploy.ecsEndpoint }}
+              value: {{ $nodePool.images.workerRegistry | default $nodePool.images.registry | quote }}
+{{- if $nodePool.deploy.ecsEndpoint }}
             - name: ECS_ENDPOINT
-              value: {{ .Values.deploy.ecsEndpoint | quote }}
+              value: {{ $nodePool.deploy.ecsEndpoint | quote }}
 {{- end -}}
-{{- if .Values.deploy.privateCloud }}
+{{- if $nodePool.deploy.privateCloud }}
             - name: ALICLOUD_CLIENT_SCHEME
               value: HTTP
             - name: PRIVATE_CLOUD_TAG
               value: "true"
 {{- end -}}
-{{- include "akEnv" .Values.deploy.accessKey | nindent 12 }}
+{{- include "akEnv" $nodePool.deploy.accessKey | nindent 12 }}
           resources:
             requests:
               cpu: 100m
@@ -146,7 +148,7 @@ spec:
               mountPath: /var/lib/kubelet/
               mountPropagation: "Bidirectional"
 {{- range $key := tuple "disk" "nas" "oss" }}
-  {{- with index $.Values.csi $key -}}
+  {{- with index $nodePool.csi $key -}}
     {{- if .enabled }}
             - name: {{ $key }}-plugin-dir
               mountPath: /csi/{{ $key }}plugin.csi.alibabacloud.com
@@ -165,16 +167,16 @@ spec:
               mountPropagation: "HostToContainer"
             - mountPath: /run/kata-containers/shared/direct-volumes
               name: kata-direct-volumes
-{{- if .Values.deploy.ack }}
+{{- if $nodePool.deploy.ack }}
             - mountPath: /var/addon
               name: addon-token
               readOnly: true
 {{- end -}}
-{{- if .Values.csi.oss.enabled }}
+{{- if $nodePool.csi.oss.enabled }}
             - mountPath: /host/var/run/ossfs
               name: ossfs-metrics-dir
 {{- end -}}
-{{- if .Values.csi.nas.enabled }}
+{{- if $nodePool.csi.nas.enabled }}
             - mountPath: /host/var/run/efc
               name: efc-metrics-dir
 {{- end }}
@@ -187,12 +189,12 @@ spec:
             - name: host-mnt
               mountPath: /mnt
               mountPropagation: "Bidirectional"
-{{- if .Values.csi.local.enabled }}
+{{- if $nodePool.csi.local.enabled }}
         - name: local-csi-plugin
           securityContext:
             privileged: true
             allowPrivilegeEscalation: true
-          image: {{ include "workerImageSpec" (list .Values.images "localPlugin") }}
+          image: {{ include "workerImageSpec" (list $nodePool.images "localPlugin") }}
           args:
             - --endpoint=unix://csi/csi.sock
             - --http-endpoint=:11261
@@ -206,15 +208,15 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
-{{- if .Values.deploy.ecsEndpoint }}
+{{- if $nodePool.deploy.ecsEndpoint }}
             - name: ECS_ENDPOINT
-              value: {{ .Values.deploy.ecsEndpoint | quote }}
+              value: {{ $nodePool.deploy.ecsEndpoint | quote }}
 {{- end -}}
-{{- if .Values.deploy.privateCloud }}
+{{- if $nodePool.deploy.privateCloud }}
             - name: ALICLOUD_CLIENT_SCHEME
               value: HTTP
 {{- end -}}
-{{- include "akEnv" .Values.deploy.accessKey | nindent 12 }}
+{{- include "akEnv" $nodePool.deploy.accessKey | nindent 12 }}
           resources:
             requests:
               cpu: 100m
@@ -250,7 +252,7 @@ spec:
             - name: host-dev
               mountPath: /dev
               mountPropagation: "HostToContainer"
-{{- if .Values.deploy.ack }}
+{{- if $nodePool.deploy.ack }}
             - mountPath: /var/addon
               name: addon-token
               readOnly: true
@@ -265,13 +267,13 @@ spec:
               mountPropagation: "Bidirectional"
 {{- end }}
       volumes:
-{{- if .Values.csi.oss.enabled }}
+{{- if $nodePool.csi.oss.enabled }}
         - name: ossfs-metrics-dir
           hostPath:
             path: /var/run/ossfs
             type: DirectoryOrCreate
 {{- end -}}
-{{- if .Values.csi.nas.enabled }}
+{{- if $nodePool.csi.nas.enabled }}
         - name: efc-metrics-dir
           hostPath:
             path: /var/run/efc
@@ -281,7 +283,7 @@ spec:
           hostPath:
             path: /run/csi-tool
             type: DirectoryOrCreate
-{{- if .Values.csi.local.enabled }}
+{{- if $nodePool.csi.local.enabled }}
         - name: tls-token-dir
           secret:
             defaultMode: 420
@@ -299,7 +301,7 @@ spec:
           hostPath:
             path: /var/lib/kubelet
             type: Directory
-{{- range $key, $val := .Values.csi }}
+{{- range $key, $val := $nodePool.csi }}
 {{- if $val.enabled }}
         - name: {{ $key }}-plugin-dir
           hostPath:
@@ -335,7 +337,7 @@ spec:
             path: /run/kata-containers/shared/direct-volumes
             type: DirectoryOrCreate
           name: kata-direct-volumes
-{{- if .Values.deploy.ack }}
+{{- if $nodePool.deploy.ack }}
         - name: addon-token
           secret:
             defaultMode: 420
@@ -349,4 +351,5 @@ spec:
     rollingUpdate:
       maxUnavailable: 20%
     type: RollingUpdate
+{{- end -}}
 {{- end -}}

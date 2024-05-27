@@ -23,6 +23,16 @@ csi:
     controller:
       enabled: true
 
+nodePools:
+  default:
+    pluginname: csi-plugin
+    nodeSelectorTerms:
+      - matchExpressions:
+        - key: type
+          operator: NotIn
+          values:
+            - virtual-kubelet
+
 defaultStorageClass:
   enabled: true
 

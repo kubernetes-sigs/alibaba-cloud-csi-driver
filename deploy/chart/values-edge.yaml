@@ -1,11 +1,36 @@
-deploy:
-  ecs: false
-
+# deployment
 csi:
-  disk:
-    enabled: false
   local:
     enabled: true
   oss:
     controller:
       enabled: false
+
+# daemonset
+nodePools:
+  default:
+    pluginname: csi-plugin-cloud
+    nodeSelectorTerms:
+      - matchExpressions:
+        - key: type
+          operator: NotIn
+          values:
+            - virtual-kubelet
+        - key: alibabacloud.com/is-edge-worker
+          operator: In
+          values:
+            - "false"
+  edge:
+    pluginname: csi-plugin
+    deploy:
+      ecs: false
+    csi:
+      disk:
+        enabled: false
+    nodeSelectorTerms:
+      - matchExpressions:
+        - key: alibabacloud.com/is-edge-worker
+          operator: In
+          values:
+            - "true"
+  # other nodePools
