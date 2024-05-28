@@ -69,6 +69,8 @@ var (
 	CustomDiskPerfermance = sets.NewString(DISK_PERFORMANCE_LEVEL0, DISK_PERFORMANCE_LEVEL1, DISK_PERFORMANCE_LEVEL2, DISK_PERFORMANCE_LEVEL3)
 )
 
+const DISK_TAG_PREFIX = "diskTags/"
+
 // DefaultOptions is the struct for access key
 type DefaultOptions struct {
 	Global struct {
@@ -663,29 +665,28 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	// DiskTags
-	diskTags, ok := volOptions["diskTags"]
-	if ok {
-		for _, tag := range strings.Split(diskTags, ",") {
-			k, v, found := strings.Cut(tag, ":")
-			if !found {
-				return nil, fmt.Errorf("invalid diskTags format name: %s tags: %s", req.GetName(), diskTags)
+	for k, v := range volOptions {
+		switch k {
+		case "diskTags":
+			for _, tag := range strings.Split(v, ",") {
+				k, v, found := strings.Cut(tag, ":")
+				if !found {
+					return nil, fmt.Errorf("invalid diskTags format name: %s tag: %s", req.GetName(), tag)
+				}
+				diskVolArgs.DiskTags[k] = v
 			}
-			diskVolArgs.DiskTags[k] = v
-		}
-	}
-	// k8s PV info as disk tags
-	{
-		pvcName, ok := volOptions[common.PVCNameKey]
-		if ok {
-			diskVolArgs.DiskTags[common.PVCNameTag] = pvcName
-		}
-		pvName, ok := volOptions[common.PVNameKey]
-		if ok {
-			diskVolArgs.DiskTags[common.PVNameTag] = pvName
-		}
-		ns, ok := volOptions[common.PVCNamespaceKey]
-		if ok {
-			diskVolArgs.DiskTags[common.PVCNamespaceTag] = ns
+		// k8s PV info as disk tags
+		case common.PVCNameKey:
+			diskVolArgs.DiskTags[common.PVCNameTag] = v
+		case common.PVNameKey:
+			diskVolArgs.DiskTags[common.PVNameTag] = v
+		case common.PVCNamespaceKey:
+			diskVolArgs.DiskTags[common.PVCNamespaceTag] = v
+		default:
+			// new custom tags
+			if strings.HasPrefix(k, DISK_TAG_PREFIX) {
+				diskVolArgs.DiskTags[k[len(DISK_TAG_PREFIX):]] = v
+			}
 		}
 	}
 
