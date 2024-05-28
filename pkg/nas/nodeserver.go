@@ -354,7 +354,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, status.Errorf(codes.Internal, "(rund2.0) failed to setup vol_data.json: %v", err)
 		}
 		if notMounted {
-			err := ns.mounter.Mount("tmpfs", mountPath, "tmpfs", []string{"size=1m"})
+			err := ns.mounter.Mount("tmpfs", mountPath, "tmpfs", []string{"ro"})
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "(rund2.0) failed to mount tmpfs: %v", err)
 			}
