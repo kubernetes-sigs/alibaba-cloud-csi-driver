@@ -64,7 +64,7 @@ type diskVolumeArgs struct {
 	ZoneID                  string
 	FsType                  string
 	ReadOnly                bool
-	MultiAttach             string
+	MultiAttach             bool
 	Encrypted               bool
 	KMSKeyID                string
 	PerformanceLevel        []string
@@ -338,10 +338,28 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 }
 
 func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
-	for _, cap := range req.VolumeCapabilities {
-		if cap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
-			return &csi.ValidateVolumeCapabilitiesResponse{Message: ""}, nil
-		}
+	ecsClient, err := getEcsClientByID(req.VolumeId, "")
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	disk, err := findDiskByID(req.VolumeId, ecsClient)
+	if err != nil {
+		return nil, err
+	}
+	if disk == nil {
+		return nil, status.Errorf(codes.NotFound, "disk(%s) not found", req.VolumeId)
+	}
+
+	multiAttachRequired, err := validateCapabilities(req.VolumeCapabilities)
+	if err != nil {
+		return &csi.ValidateVolumeCapabilitiesResponse{
+			Message: err.Error(),
+		}, nil
+	}
+	if multiAttachRequired && disk.MultiAttach == "Disabled" {
+		return &csi.ValidateVolumeCapabilitiesResponse{
+			Message: "multi-attach is not enabled for this disk",
+		}, nil
 	}
 	return &csi.ValidateVolumeCapabilitiesResponse{
 		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{

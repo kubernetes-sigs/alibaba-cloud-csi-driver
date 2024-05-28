@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	gomock "github.com/golang/mock/gomock"
 	fakesnapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned/fake"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
@@ -487,4 +488,68 @@ func TestDiskSize(t *testing.T) {
 func TestDiskSizeGiOnly(t *testing.T) {
 	size := DiskSize{20 * GBSIZE}
 	assert.Equal(t, "20 GiB", size.String())
+}
+
+func TestValidateCapabilities(t *testing.T) {
+	cases := []struct {
+		name         string
+		capabilities []*csi.VolumeCapability
+		err          bool
+		multiAttach  bool
+	}{
+		{
+			name: "RWO",
+			capabilities: []*csi.VolumeCapability{{
+				AccessType: &csi.VolumeCapability_Mount{},
+				AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER},
+			}},
+		}, {
+			name: "ROX",
+			capabilities: []*csi.VolumeCapability{{
+				AccessType: &csi.VolumeCapability_Mount{},
+				AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY},
+			}},
+			multiAttach: true,
+		}, {
+			name: "RWO+ROX",
+			capabilities: []*csi.VolumeCapability{{
+				AccessType: &csi.VolumeCapability_Mount{},
+				AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER},
+			}, {
+				AccessType: &csi.VolumeCapability_Mount{},
+				AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY},
+			}},
+			multiAttach: true,
+		}, {
+			name: "RWX-mount",
+			capabilities: []*csi.VolumeCapability{{
+				AccessType: &csi.VolumeCapability_Mount{},
+				AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER},
+			}},
+			multiAttach: true,
+			err:         true,
+		}, {
+			name: "RWX-block",
+			capabilities: []*csi.VolumeCapability{{
+				AccessType: &csi.VolumeCapability_Block{},
+				AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER},
+			}},
+			multiAttach: true,
+		}, {
+			name: "unknown",
+			capabilities: []*csi.VolumeCapability{{
+				AccessType: &csi.VolumeCapability_Block{},
+				AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_Mode(12345)},
+			}},
+			multiAttach: false,
+			err:         true,
+		},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			multiAttachRequired, err := validateCapabilities(test.capabilities)
+			assert.Equal(t, test.err, err != nil)
+			assert.Equal(t, test.multiAttach, multiAttachRequired)
+		})
+	}
 }

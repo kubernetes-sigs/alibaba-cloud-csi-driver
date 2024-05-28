@@ -644,9 +644,22 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	// MultiAttach
-	diskVolArgs.MultiAttach, ok = volOptions["multiAttach"]
-	if !ok {
-		diskVolArgs.MultiAttach = "Disabled"
+	{
+		multiAttachRequired, err := validateCapabilities(req.VolumeCapabilities)
+		if err != nil {
+			return nil, err
+		}
+		diskVolArgs.MultiAttach = false
+		if v, ok := volOptions["multiAttach"]; ok {
+			switch strings.ToLower(v) {
+			case "true", "enabled":
+				diskVolArgs.MultiAttach = true
+			}
+		}
+		if multiAttachRequired && !diskVolArgs.MultiAttach {
+			return nil, errors.New("multiAttach is required for this access mode." +
+				"Please note the limits in https://www.alibabacloud.com/help/en/ecs/user-guide/enable-multi-attach before enabling multiAttach")
+		}
 	}
 
 	// DiskTags
@@ -796,6 +809,33 @@ func validateDiskPerformanceLevel(opts map[string]string) (performanceLevel []st
 		}
 	}
 	return
+}
+
+// return if MultiAttach is required
+func validateCapabilities(capabilities []*csi.VolumeCapability) (bool, error) {
+	multiAttachRequired := false
+	for _, cap := range capabilities {
+		switch cap.AccessMode.Mode {
+		case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
+			csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
+			// single node mode is always supported
+			continue
+		case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY:
+			// multi node read only mode is always supported if MultiAttach is enabled
+			multiAttachRequired = true
+			continue
+		case csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+			csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER:
+			// only supported on block volume
+			multiAttachRequired = true
+			if _, ok := cap.AccessType.(*csi.VolumeCapability_Block); !ok {
+				return multiAttachRequired, errors.New("multi-node writing is only supported for block volume")
+			}
+		default:
+			return multiAttachRequired, fmt.Errorf("volume capability %v is not supported", cap.AccessMode.Mode)
+		}
+	}
+	return multiAttachRequired, nil
 }
 
 func getMountedVolumeDevice(mnts []k8smount.MountInfo, targetPath string) string {
