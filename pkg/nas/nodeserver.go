@@ -184,23 +184,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
 	defer ns.locks.Release(req.VolumeId)
-	notMounted, err := ns.mounter.IsLikelyNotMountPoint(mountPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			if err := os.MkdirAll(mountPath, os.ModePerm); err != nil {
-				log.Errorf("NodePublishVolume: mkdir %s: %v", mountPath, err)
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-			notMounted = true
-		} else {
-			log.Errorf("NodePublishVolume: check mountpoint %s: %v", mountPath, err)
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-	}
-	if !notMounted {
-		log.Infof("NodePublishVolume: %s already mounted", mountPath)
-		return &csi.NodePublishVolumeResponse{}, nil
-	}
 
 	// parse parameters
 	opt := &Options{}
@@ -335,12 +318,21 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		opt.Options = ""
 	}
 
-	// Create Mount Path
-	if err := utils.CreateDest(mountPath); err != nil {
-		return nil, errors.New("Create mount path is failed, mountPath: " + mountPath + ", err:" + err.Error())
+	notMounted, err := ns.mounter.IsLikelyNotMountPoint(mountPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if err := os.MkdirAll(mountPath, os.ModePerm); err != nil {
+				log.Errorf("NodePublishVolume: mkdir %s: %v", mountPath, err)
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			notMounted = true
+		} else {
+			log.Errorf("NodePublishVolume: check mountpoint %s: %v", mountPath, err)
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 
-	// if volume set mountType as skipmount;
+	// setup volume according to rund protocol 2.0 or 3.0
 	if opt.MountType == SkipMountType || runtimeVal == utils.RundRunTimeTag {
 		if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 			mountInfo := directvolume.MountInfo{
@@ -358,14 +350,21 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			}
 			return &csi.NodePublishVolumeResponse{}, nil
 		}
-
-		err := ns.mounter.Mount("tmpfs", mountPath, "tmpfs", []string{"size=1m"})
-		if err != nil {
-			log.Errorf("NAS: Mount volume(%s) path as tmpfs with err: %v", req.VolumeId, err.Error())
-			return nil, status.Error(codes.Internal, "NAS: Mount as tmpfs volume with err"+err.Error())
+		if err := saveVolumeData(opt, mountPath); err != nil {
+			return nil, status.Errorf(codes.Internal, "(rund2.0) failed to setup vol_data.json: %v", err)
 		}
-		saveVolumeData(opt, mountPath)
+		if notMounted {
+			err := ns.mounter.Mount("tmpfs", mountPath, "tmpfs", []string{"size=1m"})
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "(rund2.0) failed to mount tmpfs: %v", err)
+			}
+		}
 		log.Infof("NodePublishVolume:: Volume %s is Skip Mount type, just save the metadata: %s", req.VolumeId, mountPath)
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
+
+	if !notMounted {
+		log.Infof("NodePublishVolume: %s already mounted", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 

@@ -269,7 +269,7 @@ func GetFsIDByCpfsServer(server string) string {
 }
 
 // rund-csi 2.0
-func saveVolumeData(opt *Options, mountPath string) {
+func saveVolumeData(opt *Options, mountPath string) error {
 	// save volume data to json file
 	volumeData := map[string]string{}
 	volumeData["csi.alibabacloud.com/version"] = opt.Vers
@@ -286,9 +286,7 @@ func saveVolumeData(opt *Options, mountPath string) {
 	if strings.HasSuffix(mountPath, "/") {
 		fileName = filepath.Join(filepath.Dir(filepath.Dir(mountPath)), utils.VolDataFileName)
 	}
-	if err := utils.AppendJSONData(fileName, volumeData); err != nil {
-		log.Warnf("NodePublishVolume: append nas volume spec to %s with error: %s", fileName, err.Error())
-	}
+	return utils.AppendJSONData(fileName, volumeData)
 }
 
 func cleanupMountpoint(mounter mountutils.Interface, mountPath string) (err error) {
