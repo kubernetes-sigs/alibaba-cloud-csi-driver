@@ -101,9 +101,7 @@ func echoServer(c net.Conn) {
 		err = checkOssfsCmd(cmd)
 	} else if strings.Contains(cmd, "mount -t alinas") {
 		err = checkRichNasClientCmd(cmd)
-	} else if strings.Contains(cmd, "/etc/jindofs-tool/jindo-fuse") {
-		err = checkJindofsCmd(cmd)
-	}
+	} 
 
 	if err != nil {
 		out := "Fail: " + err.Error()
@@ -123,25 +121,6 @@ func echoServer(c net.Conn) {
 		_, err = c.Write([]byte(out))
 		log.Printf("Success: %s", out)
 	}
-}
-
-func checkJindofsCmd(cmd string) error {
-	jindofsPrefix := "systemd-run --scope -- /etc/jindofs-tool/jindo-fuse "
-	if strings.HasPrefix(cmd, jindofsPrefix) {
-		if strings.Contains(cmd, ";") {
-			return errors.New("Jindofs Options: command cannot contains ; " + cmd)
-		}
-		cmdParameters := strings.TrimPrefix(cmd, jindofsPrefix)
-		cmdParameters = strings.TrimSpace(cmdParameters)
-		cmdParameters = strings.Join(strings.Fields(cmdParameters), " ")
-		parameteList := strings.Split(cmdParameters, " ")
-		for _, value := range parameteList {
-			if !strings.HasPrefix(value, "-o") && !strings.HasPrefix(value, "/") {
-				return errors.New("Jindofs Options: must start with -o :" + cmd)
-			}
-		}
-	}
-	return nil
 }
 
 // systemd-run --scope -- mount -t alinas -o unas -o client_owner=podUID nfsServer:nfsPath mountPoint

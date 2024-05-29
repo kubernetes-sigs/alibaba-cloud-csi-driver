@@ -83,8 +83,6 @@ const (
 	AkSecret = "akSecret"
 	// OssFsType is the oss filesystem type
 	OssFsType = "ossfs"
-	// JindoFsType tag
-	JindoFsType = "jindofs"
 	// metricsPathPrefix
 	metricsPathPrefix = "/host/var/run/ossfs/"
 	// defaultMetricsTop
@@ -233,8 +231,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	var ossMounter mountutils.Interface
 	switch opt.FuseType {
-	case JindoFsType:
-		ossMounter = mounter.NewConnectorMounter(mountutils.New(""), "/etc/jindofs-tool/jindo-fuse")
 	case OssFsType, "":
 		// When useSharedPath options is set to false,
 		// mount operations need to be atomic to ensure that no fuse pods are left behind in case of failure.
@@ -280,34 +276,19 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	regionID, _ := ns.metadata.Get(metadata.RegionID)
 	switch opt.AuthType {
 	case mounter.AuthTypeSTS:
-		if opt.FuseType == OssFsType {
-			mountOptions = append(mountOptions, GetRAMRoleOption())
-		} else if opt.FuseType == JindoFsType {
-			mountOptions = append(mountOptions, "fs.oss.provider.endpoint=ECS_ROLE")
-		}
+		mountOptions = append(mountOptions, GetRAMRoleOption())
 	case mounter.AuthTypeRRSA:
-		if opt.FuseType == OssFsType {
-			if regionID == "" {
-				mountOptions = append(mountOptions, "rrsa_endpoint=https://sts.aliyuncs.com")
-			} else {
-				mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=https://sts-vpc.%s.aliyuncs.com", regionID))
-			}
-		} else if opt.FuseType == JindoFsType {
-			return nil, status.Errorf(codes.Internal, "jindo fs do not support RRSA")
+		if regionID == "" {
+			mountOptions = append(mountOptions, "rrsa_endpoint=https://sts.aliyuncs.com")
+		} else {
+			mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=https://sts-vpc.%s.aliyuncs.com", regionID))
 		}
 	case mounter.AuthTypeCSS:
-		if opt.FuseType == JindoFsType {
-			return nil, status.Errorf(codes.Internal, "jindo fs do not support CsiSecretStore")
-		}
 	default:
-		if opt.FuseType == OssFsType {
-			// ossfs fuse pod will mount the secret to access credentials
-			err := mounter.SetupOssfsCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId, opt.Bucket, opt.AkID, opt.AkSecret)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to setup ossfs credential secret: %v", err)
-			}
-		} else if opt.FuseType == JindoFsType {
-			mountOptions = append(mountOptions, fmt.Sprintf("fs.oss.accessKeyId=%s,fs.oss.accessKeySecret=%s", opt.AkID, opt.AkSecret))
+		// ossfs fuse pod will mount the secret to access credentials
+		err := mounter.SetupOssfsCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId, opt.Bucket, opt.AkID, opt.AkSecret)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to setup ossfs credential secret: %v", err)
 		}
 	}
 
@@ -416,10 +397,6 @@ func checkOssOptions(opt *Options) error {
 
 	if !strings.HasPrefix(opt.Path, "/") {
 		return errors.New("Oss path error: start with " + opt.Path + ", should start with /")
-	}
-
-	if opt.FuseType == JindoFsType {
-		return nil
 	}
 
 	switch opt.AuthType {
