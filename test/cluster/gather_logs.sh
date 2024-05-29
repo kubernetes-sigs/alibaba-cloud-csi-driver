@@ -25,7 +25,7 @@ if [ -f ~/.ssh/id_rsa ]; then
         PRIVATE_IP=$(echo $NODES | jq -r ".items[] | select(.metadata.name==\"$node\") | .status.addresses[] | select(.type==\"InternalIP\") | .address")
         echo "Gathering logs of node $node ($PRIVATE_IP)"
         ssh -o StrictHostKeyChecking=no root@$PRIVATE_IP 'journalctl -o export --since "8 hours ago" | gzip' > $OUTPUT_DIR/$node.journal.gz
-        ssh -o StrictHostKeyChecking=no root@$PRIVATE_IP 'cd /var/log/containers && shopt -s nullglob && tar -czf - {csi,storage,terway}-*' > $OUTPUT_DIR/$node-containers.tar.gz
+        ssh -o StrictHostKeyChecking=no root@$PRIVATE_IP 'cd /var/log/containers && shopt -s nullglob && tar --dereference -czf - {csi,storage,terway}-*' > $OUTPUT_DIR/$node-containers.tar.gz
         scp -o StrictHostKeyChecking=no -r root@$PRIVATE_IP:/opt/csi/gocover $OUTPUT_DIR/gocover/$node || true
     done
     covdata
