@@ -213,7 +213,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 
 	// step 5: diff device with previous files under /dev
 	if !GlobalConfigVar.ADControllerEnable {
-		device, err := DefaultDeviceManager.GetDeviceByVolumeID(diskID)
+		device, err := DefaultDeviceManager.GetRootBlockByVolumeID(diskID)
 		if err == nil {
 			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device", diskID, nodeID, device)
 			return device, nil
@@ -244,32 +244,23 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 			devicePaths = calcNewDevices(before, after)
 		}
 
-		if len(devicePaths) == 2 {
-			if strings.HasPrefix(devicePaths[1], devicePaths[0]) {
-				subDevicePath := makeDevicePath(devicePaths[1])
-				rootDevicePath := makeDevicePath(devicePaths[0])
-				if err := checkRootAndSubDeviceFS(rootDevicePath, subDevicePath); err != nil {
-					log.Errorf("AttachDisk: volume %s get device with diff, and check partition error %s", diskID, err.Error())
-					return "", err
+		if len(devicePaths) > 0 {
+			// the shortest path should be the root device
+			root := devicePaths[0]
+			for _, d := range devicePaths[1:] {
+				if len(d) < len(root) {
+					root = d
 				}
-				log.Infof("AttachDisk: get 2 devices and select 1 device, list with: %v for volume: %s", devicePaths, diskID)
-				return subDevicePath, nil
-			} else if strings.HasPrefix(devicePaths[0], devicePaths[1]) {
-				subDevicePath := makeDevicePath(devicePaths[0])
-				rootDevicePath := makeDevicePath(devicePaths[1])
-				if err := checkRootAndSubDeviceFS(rootDevicePath, subDevicePath); err != nil {
-					log.Errorf("AttachDisk: volume %s get device with diff, and check partition error %s", diskID, err.Error())
-					return "", err
-				}
-				log.Infof("AttachDisk: get 2 devices and select 0 device, list with: %v for volume: %s", devicePaths, diskID)
-				return subDevicePath, nil
 			}
+			// verify it is the root device
+			for _, d := range devicePaths {
+				if !strings.HasPrefix(d, root) {
+					return "", status.Errorf(codes.Aborted, "AttachDisk: diff got multiple devices, but %s and %s seems unrelated", root, d)
+				}
+			}
+			log.Infof("AttachDisk: Successfully attached disk %s to node %s device %s by diff", diskID, nodeID, root)
 		}
-		if len(devicePaths) == 1 {
-			log.Infof("AttachDisk: Successful attach disk %s to node %s device %s by diff", diskID, nodeID, devicePaths[0])
-			return devicePaths[0], nil
-		}
-		// device count is not expected, should retry (later by detaching and attaching again)
+		// no device found, should retry (later by detaching and attaching again)
 		return "", status.Error(codes.Aborted, "AttachDisk: after attaching to disk, but fail to get mounted device, will retry later")
 	}
 
