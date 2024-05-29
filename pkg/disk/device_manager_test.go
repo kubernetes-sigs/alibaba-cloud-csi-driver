@@ -102,9 +102,10 @@ func testingManager(t *testing.T) *DeviceManager {
 	err = os.MkdirAll(devPath, 0o755)
 	assert.NoError(t, err)
 	return &DeviceManager{
-		DevTmpFS:   &fakeDevTmpFS{DevicePath: devPath},
-		DevicePath: devPath,
-		SysfsPath:  filepath.Join(dir, "sys"),
+		DevTmpFS:            &fakeDevTmpFS{DevicePath: devPath},
+		DevicePath:          devPath,
+		SysfsPath:           filepath.Join(dir, "sys"),
+		EnableDiskPartition: true,
 	}
 }
 
