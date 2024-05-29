@@ -108,14 +108,14 @@ func testingManager(t *testing.T) *DeviceManager {
 func TestGetDeviceBySerialNotFound(t *testing.T) {
 	m := testingManager(t)
 	_, err := m.getDeviceBySerial("mydiskserial")
-	assert.Equal(t, err, ErrNotFound)
+	assert.Equal(t, err, os.ErrNotExist)
 
 	// ignore block that has no serial
 	err = os.MkdirAll(filepath.Join(m.SysfsPath, "block/loop0"), 0o755)
 	assert.NoError(t, err)
 
 	_, err = m.getDeviceBySerial("mydiskserial")
-	assert.Equal(t, err, ErrNotFound)
+	assert.Equal(t, err, os.ErrNotExist)
 }
 
 func setupVirtIOBlockDevice(t *testing.T, sysfsPath string) string {
