@@ -40,8 +40,7 @@ RUN if [[ $TARGETARCH == "amd64" ]]; then \
         curl -O https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.al7.noarch.rpm; \
     fi
 RUN --mount=type=bind,source=build/lib,target=/csi-lib \
-    cp /csi-lib/$TARGETARCH-init.sh /init.sh && \
-    chmod +x /init.sh && \
+    cp /csi-lib/init.sh /init.sh && \
     cp /csi-lib/freezefs.sh /freezefs.sh && \
     mkdir /csi && \
     cp /csi-lib/csiplugin-connector.service /csi/csiplugin-connector.service

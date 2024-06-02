@@ -35,6 +35,9 @@ if [[ "$os_release_exist" = "0" ]]; then
 fi
 echo "detected host os: $host_os"
 
+ARCH=$(uname -m)
+echo "detected host arch: $ARCH"
+
 OLD_STAGING_PATH=/var/lib/kubelet/plugins/kubernetes.io/csi/pv
 if [ -d "$OLD_STAGING_PATH" ]; then
     echo unmount old volume staging path.  # kubelet will mount the new path at startup.
@@ -126,7 +129,7 @@ if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [
     if [[ ${host_os} == "lifsea" ]]; then
         systemdDir="/host/etc/systemd/system"
     fi
-    if [ ! -f "/host/etc/csi-tool/csiplugin-connector" ];then
+    if [ ! -f "/host/etc/csi-tool/csiplugin-connector" ]; then
         mkdir -p /host/etc/csi-tool/
         echo "mkdir /etc/csi-tool/ directory..."
     else
@@ -224,9 +227,9 @@ if ([ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]) || [ "$run_pov"
     echo "isbdf node: $isbdf"
     if [ $isbdf = "true" ]; then
         echo "start install vfhp"
-        ${HOST_CMD} yum install -y "http://yum.tbsite.net/taobao/7/x86_64/current/iohub-vfhp-helper/iohub-vfhp-helper-0.1.9-20231121192230.x86_64.rpm"
+        ${HOST_CMD} yum install -y "http://yum.tbsite.net/taobao/7/$ARCH/current/iohub-vfhp-helper/iohub-vfhp-helper-0.1.9-20231121192230.$ARCH.rpm"
         if [ $? -ne 0 ]; then
-            ${HOST_CMD} yum install -y "https://iohub-vfhp-helper.oss-rg-china-mainland.aliyuncs.com/iohub-vfhp-helper-0.1.9-20231121192230.x86_64.rpm"
+            ${HOST_CMD} yum install -y "https://iohub-vfhp-helper.oss-rg-china-mainland.aliyuncs.com/iohub-vfhp-helper-0.1.9-20231121192230.$ARCH.rpm"
         fi
         # takes 10s
         output=`${HOST_CMD} iohub-vfhp-helper -s`
@@ -240,7 +243,7 @@ if ([ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]) || [ "$run_pov"
 fi
 
 ## CPFS-NAS plugin setup
-if [ "$run_nas" = "true" ]; then
+if [ "$ARCH" = "x86_64" ] && [ "$run_nas" = "true" ]; then
     install_utils="false"
     install_efc="false"
 
