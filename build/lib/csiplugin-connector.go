@@ -101,7 +101,7 @@ func echoServer(c net.Conn) {
 		err = checkOssfsCmd(cmd)
 	} else if strings.Contains(cmd, "mount -t alinas") {
 		err = checkRichNasClientCmd(cmd)
-	} 
+	}
 
 	if err != nil {
 		out := "Fail: " + err.Error()
