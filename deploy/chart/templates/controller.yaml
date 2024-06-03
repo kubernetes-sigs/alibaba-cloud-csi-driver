@@ -21,6 +21,9 @@ spec:
     spec:
       affinity:
         nodeAffinity:
+        {{- if .Values.controller.nodeAffinity }}
+          {{- toYaml .Values.controller.nodeAffinity | nindent 10 }}
+        {{- else }}
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 1
             preference:
@@ -43,6 +46,7 @@ spec:
                 operator: NotIn
                 values:
                 - "true"
+        {{- end }}
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100

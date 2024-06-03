@@ -1,0 +1,56 @@
+# Values for register clusters
+# NOTE: on-cloud nodes created by register clusters will have alibabacloud.com/external=true label
+
+# deployment
+controller:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: type
+          operator: NotIn
+          values:
+          - virtual-kubelet
+        # csi-provisioner should be scheduled to on-cloud nodes
+        - key: alibabacloud.com/external
+          operator: In
+          values:
+          - "true"
+
+csi:
+  local:
+    enabled: false
+  oss:
+    controller:
+      enabled: false
+
+# daemonset
+nodePools:
+  default:
+    pluginname: csi-plugin
+    nodeSelectorTerms:
+      - matchExpressions:
+        - key: type
+          operator: NotIn
+          values:
+            - virtual-kubelet
+        - key: alibabacloud.com/external
+          operator: In
+          values:
+            - "true"
+  external:
+    pluginname: ack-csi-plugin
+    deploy:
+      ecs: false
+    csi:
+      disk:
+        enabled: false
+    nodeSelectorTerms:
+      - matchExpressions:
+        - key: type
+          operator: NotIn
+          values:
+            - virtual-kubelet
+        - key: alibabacloud.com/external
+          operator: DoesNotExist
+
