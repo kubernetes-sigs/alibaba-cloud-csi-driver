@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -483,6 +484,7 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (*createSnapshotPar
 }
 
 func parseSnapshotParameters(params map[string]string, ecsParams *createSnapshotParams) (err error) {
+	tags := make(map[string]string)
 	for k, v := range params {
 		switch k {
 		case SNAPSHOTTYPE:
@@ -502,22 +504,30 @@ func parseSnapshotParameters(params map[string]string, ecsParams *createSnapshot
 		case SNAPSHOTRESOURCEGROUPID:
 			ecsParams.ResourceGroupID = v
 		case common.VolumeSnapshotNameKey:
-			ecsParams.SnapshotTags = append(ecsParams.SnapshotTags, ecs.CreateSnapshotTag{
-				Key:   common.VolumeSnapshotNameTag,
-				Value: v,
-			})
+			tags[common.VolumeSnapshotNameTag] = v
 		case common.VolumeSnapshotNamespaceKey:
-			ecsParams.SnapshotTags = append(ecsParams.SnapshotTags, ecs.CreateSnapshotTag{
-				Key:   common.VolumeSnapshotNamespaceTag,
-				Value: v,
-			})
+			tags[common.VolumeSnapshotNamespaceTag] = v
 		default:
 			if strings.HasPrefix(k, SNAPSHOT_TAG_PREFIX) {
-				ecsParams.SnapshotTags = append(ecsParams.SnapshotTags, ecs.CreateSnapshotTag{
-					Key:   k[len(SNAPSHOT_TAG_PREFIX):],
-					Value: v,
-				})
+				k = k[len(SNAPSHOT_TAG_PREFIX):]
+				// don't override built-in tags
+				if _, ok := tags[k]; !ok {
+					tags[k] = v
+				}
 			}
+		}
+	}
+	if len(tags) > 0 {
+		keys := make([]string, 0, len(tags))
+		for k := range tags {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			ecsParams.SnapshotTags = append(ecsParams.SnapshotTags, ecs.CreateSnapshotTag{
+				Key:   k,
+				Value: tags[k],
+			})
 		}
 	}
 	return nil
