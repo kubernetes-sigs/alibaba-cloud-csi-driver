@@ -556,6 +556,38 @@ func validateDiskVolumeCreateOptions(kv map[string]string) error {
 	return nil
 }
 
+func parseTags(params map[string]string) (map[string]string, error) {
+	// Note that we cannot assume the iteration order of the map, we must ensure consistent output.
+	seenTags := map[string]string{}
+	// process old diskTags format first, so that new custom tags can override them consistently
+	if v := params["diskTags"]; v != "" {
+		for _, tag := range strings.Split(v, ",") {
+			k, v, found := strings.Cut(tag, ":")
+			if !found {
+				return nil, fmt.Errorf("invalid diskTags %q, no \":\" found", tag)
+			}
+			seenTags[k] = v
+		}
+	}
+	// new custom tags
+	for k, v := range params {
+		if strings.HasPrefix(k, DISK_TAG_PREFIX) {
+			seenTags[k[len(DISK_TAG_PREFIX):]] = v
+		}
+	}
+	// k8s PV info as disk tags, override any custom tags
+	if v := params[common.PVCNameKey]; v != "" {
+		seenTags[common.PVCNameTag] = v
+	}
+	if v := params[common.PVNameKey]; v != "" {
+		seenTags[common.PVNameTag] = v
+	}
+	if v := params[common.PVCNamespaceKey]; v != "" {
+		seenTags[common.PVCNamespaceTag] = v
+	}
+	return seenTags, nil
+}
+
 // getDiskVolumeOptions
 func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error) {
 	var ok bool
@@ -665,29 +697,9 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	// DiskTags
-	for k, v := range volOptions {
-		switch k {
-		case "diskTags":
-			for _, tag := range strings.Split(v, ",") {
-				k, v, found := strings.Cut(tag, ":")
-				if !found {
-					return nil, fmt.Errorf("invalid diskTags format name: %s tag: %s", req.GetName(), tag)
-				}
-				diskVolArgs.DiskTags[k] = v
-			}
-		// k8s PV info as disk tags
-		case common.PVCNameKey:
-			diskVolArgs.DiskTags[common.PVCNameTag] = v
-		case common.PVNameKey:
-			diskVolArgs.DiskTags[common.PVNameTag] = v
-		case common.PVCNamespaceKey:
-			diskVolArgs.DiskTags[common.PVCNamespaceTag] = v
-		default:
-			// new custom tags
-			if strings.HasPrefix(k, DISK_TAG_PREFIX) {
-				diskVolArgs.DiskTags[k[len(DISK_TAG_PREFIX):]] = v
-			}
-		}
+	diskVolArgs.DiskTags, err = parseTags(volOptions)
+	if err != nil {
+		return nil, err
 	}
 
 	// kmsKeyId

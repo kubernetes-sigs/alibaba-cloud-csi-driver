@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1038,9 +1039,14 @@ func getDefaultDiskTags(diskVol *diskVolumeArgs) []ecs.CreateDiskTag {
 	}
 	// set config tags in sc
 	if len(diskVol.DiskTags) != 0 {
-		for k, v := range diskVol.DiskTags {
-			diskTagTmp := ecs.CreateDiskTag{Key: k, Value: v}
-			diskTags = append(diskTags, diskTagTmp)
+		keys := make([]string, 0, len(diskVol.DiskTags))
+		for k := range diskVol.DiskTags {
+			keys = append(keys, k)
+		}
+		// sort keys to make sure the order is consistent, to avoid idempotent issue
+		sort.Strings(keys)
+		for _, k := range keys {
+			diskTags = append(diskTags, ecs.CreateDiskTag{Key: k, Value: diskVol.DiskTags[k]})
 		}
 	}
 	return diskTags

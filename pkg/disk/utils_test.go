@@ -554,22 +554,19 @@ func TestValidateCapabilities(t *testing.T) {
 	}
 }
 
-func TestGetDiskVolumeOptions(t *testing.T) {
-	req := &csi.CreateVolumeRequest{
-		Parameters: map[string]string{
-			"zoneId":                           "cn-beijing-i",
-			"diskTags":                         "key1:value1,key2:v:value2",
-			"diskTags/key3":                    "value3",
-			"diskTags/key/abc=4":               "v4:asdf,qwer",
-			"csi.storage.k8s.io/pvc/name":      "pvc-123",
-			"csi.storage.k8s.io/pvc/namespace": "default",
-			"csi.storage.k8s.io/pv/name":       "pv-123",
-		},
+func TestParseTags(t *testing.T) {
+	params := map[string]string{
+		"diskTags":           "key1:value1,key2:v:value2,key3:value-overridden",
+		"diskTags/key3":      "value3",
+		"diskTags/key/abc=4": "v4:asdf,qwer",
+		"diskTags/kubernetes.io/created-for/pvc/namespace": "should-have-no-effect",
+		"csi.storage.k8s.io/pvc/name":                      "pvc-123",
+		"csi.storage.k8s.io/pvc/namespace":                 "default",
+		"csi.storage.k8s.io/pv/name":                       "pv-123",
 	}
-	args, err := getDiskVolumeOptions(req)
+	tags, err := parseTags(params)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "cn-beijing-i", args.ZoneID)
 	assert.Equal(t, map[string]string{
 		"key1":      "value1",
 		"key2":      "v:value2",
@@ -579,5 +576,27 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 		"kubernetes.io/created-for/pvc/name":      "pvc-123",
 		"kubernetes.io/created-for/pvc/namespace": "default",
 		"kubernetes.io/created-for/pv/name":       "pv-123",
-	}, args.DiskTags)
+	}, tags)
+}
+
+func TestParseTagsInvalid(t *testing.T) {
+	params := map[string]string{
+		"diskTags": "key1,value1",
+	}
+	tags, err := parseTags(params)
+	assert.Error(t, err)
+	assert.Nil(t, tags)
+}
+
+func TestGetDiskVolumeOptions(t *testing.T) {
+	req := &csi.CreateVolumeRequest{
+		Parameters: map[string]string{
+			"zoneId":     "cn-beijing-i",
+			"diskTags/a": "b",
+		},
+	}
+	opts, err := getDiskVolumeOptions(req)
+	assert.NoError(t, err)
+	assert.Equal(t, "cn-beijing-i", opts.ZoneID)
+	assert.Equal(t, map[string]string{"a": "b"}, opts.DiskTags)
 }
