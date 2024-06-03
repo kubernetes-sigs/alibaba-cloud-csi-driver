@@ -53,7 +53,6 @@ do
               run_oss="true"
               mkdir -p /var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com
               rm -rf /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
-              ${HOST_CMD} yum install -y fuse-devel
           elif [ "$driver_type" = "disk" ]; then
               echo "Running disk plugin...."
 							run_disk="true"
