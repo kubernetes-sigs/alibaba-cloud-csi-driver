@@ -172,21 +172,6 @@ if [ "$run_oss" = "true" ]; then
       fi
     fi
 
-    # install Jindofs
-    if [ ! -f "/host/etc/jindofs-tool/jindofs-fuse" ];then
-        mkdir -p /host/etc/jindofs-tool/
-        cp /jindofs-fuse /host/etc/jindofs-tool/jindofs-fuse
-        echo "install jindofs..."
-    else
-        oldmd5=`md5sum /host/etc/jindofs-tool/jindofs-fuse | awk '{print $1}'`
-        newmd5=`md5sum /jindofs-fuse | awk '{print $1}'`
-        if [ "$oldmd5" != "$newmd5" ]; then
-            rm -rf /host/etc/jindofs-tool/jindofs-fuse
-            cp /jindofs-fuse /host/etc/jindofs-tool/jindofs-fuse
-            echo "upgrade jindofs..."
-        fi
-    fi
-
 fi
 
 if [ "$run_oss" = "true" ] || ["$run_disk" = "true" ]; then

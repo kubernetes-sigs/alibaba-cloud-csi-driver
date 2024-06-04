@@ -286,11 +286,5 @@ if [ "$run_nas" = "true" ]; then
     fi
 fi
 
-## Jindofs plugin setup
-#if [ "$run_oss" = "true" ]; then
-#    # jindofs common rpm
-#    ${HOST_CMD} yum install -y fuse3 fuse3-devel
-#fi
-
 # place it here to remove leftover from previous version
 rm -rf /host/etc/csi-tool/*.rpm
