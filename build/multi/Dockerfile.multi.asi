@@ -4,7 +4,8 @@ WORKDIR /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 COPY . .
 RUN --mount=type=ssh \
     git config --global url."git@gitlab.alibaba-inc.com:".insteadOf "https://gitlab.alibaba-inc.com/" && \
-    ssh-keyscan gitlab.alibaba-inc.com >> /etc/ssh/ssh_known_hosts && \
+    echo "gitlab.alibaba-inc.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA01FuPXfm8QYGA8t5DFkB0ZliZS6zL+emAbaz7i/TYWnfWiC6fgLLzpbyBvMC+6M72vVjzv/j+cauzU446g2Zh+Pg6Tv6b8dKmHpQf+IU79Y8PjfHsOTsyqi8CS7eEj6P8MBSY+LwkmvaKU/U72ZQDk+fGtaE/7ZWbWD5f97sZp6rUAV22xqYxiIgsFYR6U2lBlOljYSpriMuvG6Qi+ewv5GDuwySECgRfkN2ey8cH+S2SxJYVwseByo/g9BwegptPh/6TaiqOZCFRy3RsJXmpCwaBCY+NUyG1hTTxRs6dPD0CAa7INZaHrxrF9MsqRF1nvgoI8aHFLGE1Tt9DHbKJw==" \
+        > /etc/ssh/ssh_known_hosts && \
     export GOPROXY=https://goproxy.cn/,http://gomodule-repository.aone.alibaba-inc.com,https://mirrors.aliyun.com/goproxy/,direct && \
     export GOPRIVATE="gitlab.alibaba-inc.com" && \
     go get gitlab.alibaba-inc.com/idaas/go-cloud-token-isolate-consumer@v0.0.6-nok8s-nokeepalive && \
@@ -23,28 +24,34 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
         -o /out/plugin.csi.alibabacloud.com && \
     go build -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
+FROM --platform=$BUILDPLATFORM buildpack-deps:curl as download
+
+ARG TARGETARCH
+RUN mkdir /downloads && cd /downloads && \
+    if [[ $TARGETARCH == "amd64" ]]; then \
+        curl -O https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.2-3.x86_64.rpm && \
+        curl -O https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.al7.noarch.rpm; \
+    fi
 
 FROM registry.eu-west-1.aliyuncs.com/acs/alinux:3-update as base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 
-RUN yum install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace cloud-utils-growpart gdisk nc telnet tar cpio && \
-    yum clean all
-RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
+RUN yum install -y ca-certificates tzdata nfs-utils xfsprogs e4fsprogs pciutils cloud-utils-growpart && \
+    yum clean all && \
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
 
 FROM base as init
 
 ARG TARGETARCH
 WORKDIR /root
-RUN if [[ $TARGETARCH == "amd64" ]]; then \
-        curl -O https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.2-3.x86_64.rpm && \
-        curl -O https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.al7.noarch.rpm; \
-    fi
 RUN --mount=type=bind,source=build/lib,target=/csi-lib \
     cp /csi-lib/$TARGETARCH-init.sh /init.sh && \
-    chmod +x /init.sh && \
     cp /csi-lib/freezefs.sh /freezefs.sh && \
     mkdir /csi && \
     cp /csi-lib/csiplugin-connector.service /csi/csiplugin-connector.service
+
+COPY --link --from=download /downloads /root
+
 COPY --link --from=build /out/csiplugin-connector /csi/csiplugin-connector
 ENTRYPOINT ["/init.sh"]
 

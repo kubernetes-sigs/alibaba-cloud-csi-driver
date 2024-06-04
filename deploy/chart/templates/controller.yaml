@@ -277,6 +277,8 @@ spec:
           env:
             - name: SERVICE_TYPE
               value: "provisioner"
+            - name: DISK_SERIAL_ATTACH
+              value: "true"
 {{- if .Values.deploy.ack }}
             - name: "CLUSTER_ID"
               value: {{ .Values.deploy.clusterID | quote }}
