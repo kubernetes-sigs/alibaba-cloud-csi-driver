@@ -186,9 +186,6 @@ spec:
               name: cgroupv1-blkio
             - mountPath: /etc/csi-plugin/config
               name: csi-plugin-cm
-            - name: host-mnt
-              mountPath: /mnt
-              mountPropagation: "Bidirectional"
 {{- if $nodePool.csi.local.enabled }}
         - name: local-csi-plugin
           securityContext:
@@ -264,7 +261,7 @@ spec:
               readOnly: true
             - name: host-mnt
               mountPath: /mnt
-              mountPropagation: "Bidirectional"
+              mountPropagation: HostToContainer
 {{- end }}
       volumes:
 {{- if $nodePool.csi.oss.enabled }}
@@ -288,6 +285,10 @@ spec:
           secret:
             defaultMode: 420
             secretName: csi-local-plugin-cert
+        - name: host-mnt
+          hostPath:
+            path: /mnt
+            type: DirectoryOrCreate
 {{- end }}
         - name: registration-dir
           hostPath:
@@ -325,10 +326,6 @@ spec:
         - name: ossconnectordir
           hostPath:
             path: /usr/
-        - name: host-mnt
-          hostPath:
-            path: /mnt
-            type: DirectoryOrCreate
         - name: csi-plugin-cm
           configMap:
             name: csi-plugin

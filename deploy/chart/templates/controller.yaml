@@ -336,9 +336,6 @@ spec:
               name: addon-token
               readOnly: true
 {{- end }}
-            - mountPath: /mnt
-              mountPropagation: Bidirectional
-              name: host-mnt
             - mountPath: /host/etc
               name: etc
           resources:
@@ -427,10 +424,6 @@ spec:
         - name: etc
           hostPath:
             path: /etc
-            type: ""
-        - name: host-mnt
-          hostPath:
-            path: /mnt
             type: ""
 {{- if .Values.deploy.ack }}
         - name: addon-token
