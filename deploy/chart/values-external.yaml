@@ -1,6 +1,13 @@
 # Values for register clusters
 # NOTE: on-cloud nodes created by register clusters will have alibabacloud.com/external=true label
 
+deploy:
+  accessKey:
+    enabled: true
+    secretName: alibaba-addon-secret
+    idKey: access-key-id
+    secretKey: access-key-secret
+
 # deployment
 controller:
   nodeAffinity:
@@ -42,6 +49,9 @@ nodePools:
     pluginname: ack-csi-plugin
     deploy:
       ecs: false
+      # don't need the accessKey on off-cloud nodes
+      accessKey:
+        enabled: false
     csi:
       disk:
         enabled: false

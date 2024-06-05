@@ -41,11 +41,11 @@
   valueFrom:
   secretKeyRef:
     name: {{ .secretName }}
-    key: id
+    key: {{ default "id" .idKey }}
 - name: ACCESS_KEY_SECRET
   valueFrom:
   secretKeyRef:
     name: {{ .secretName }}
-    key: secret
-{{- end }}
+    key: {{ default "secret" .secretKey }}
+{{- end -}}
 {{- end -}}
