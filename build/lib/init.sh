@@ -13,23 +13,22 @@ mkdir -p /var/log/alicloud/
 mkdir -p /host/etc/kubernetes/volumes/disk/uuid
 
 HOST_CMD="/usr/bin/nsenter --mount=/proc/1/ns/mnt"
+HOST_ROOT="/proc/1/root"
 
 host_os="centos"
-${HOST_CMD} ls /etc/os-release
-os_release_exist=$?
 
-if [[ "$os_release_exist" = "0" ]]; then
-    osID=`${HOST_CMD} cat /etc/os-release | grep "ID=" | grep -v "VERSION_ID"`
-    if [[ `echo ${osID} | grep "alinux" | wc -l` != "0" ]]; then
-        host_os="alinux$(eval $($HOST_CMD cat /etc/os-release); echo ${VERSION_ID} | cut -d'.' -f1)"
-    fi
-		if [[ `echo ${osID} | grep "lifsea" | wc -l` != "0" ]]; then
-        host_os="lifsea"
-    fi
-    if [[ `echo ${osID} | grep "anolis" | wc -l` != "0" ]]; then
-        osVersion=`${HOST_CMD} cat /etc/os-release | grep "VERSION_ID=" | grep "^VERSION_ID=\"8"`
-        if [[ "${osVersion}" ]]; then
-            host_os="anolis8"
+OS_RELEASE=/etc/os-release
+if ! [ -f $HOST_ROOT$OS_RELEASE ]; then
+    OS_RELEASE=/usr/lib/os-release
+fi
+if [ -f $HOST_ROOT$OS_RELEASE ]; then
+    OS_RELEASE_ID=$(grep -oP '(?<=^ID=).+' $HOST_ROOT$OS_RELEASE | tr -d '"')
+    if [ -n "$OS_RELEASE_ID" ]; then
+        host_os="$OS_RELEASE_ID"
+
+        if [[ $OS_RELEASE_ID = alinux ]]; then
+            OS_RELEASE_VERSION_ID=$(grep -oP '(?<=^VERSION_ID=).+' $HOST_ROOT$OS_RELEASE | tr -d '"')
+            host_os="alinux$(echo $OS_RELEASE_VERSION_ID | cut -d'.' -f1)"
         fi
     fi
 fi
@@ -212,7 +211,18 @@ if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [
     done
 fi
 
-echo "Start checking if the rpm package needs to be installed"
+echo "Start checking if the host system packages needs to be installed"
+
+if $HOST_CMD yum --version; then
+    echo "yum is available"
+    PKG_CMD="yum install -y"
+    HAS_YUM=true
+elif $HOST_CMD apt-get --version; then
+    echo "apt-get is available"
+    PKG_CMD="apt-get install -y"
+    HAS_APT=true
+fi
+
 if ([ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]) || [ "$run_pov" = "true" ]; then
     isbdf="false"
     for i in $(${HOST_CMD} lspci -D | grep "storage controller" | grep "1ded\|Alibaba" | awk '{print $1}' |  sed -n '/0$/p'); 
@@ -263,12 +273,20 @@ if [ "$ARCH" = "x86_64" ] && [ "$run_nas" = "true" ]; then
     if [ $install_utils = "true" ]; then
         # cpfs-nas nas-rich-client common rpm
         echo "installing aliyun-alinas-utils"
-        cp /root/aliyun-alinas-utils-1.1-8.al7.noarch.rpm /host/etc/csi-tool/
-        ${HOST_CMD} yum install -y /etc/csi-tool/aliyun-alinas-utils-1.1-8.al7.noarch.rpm
-
-        if ! ${HOST_CMD} rpm -q aliyun-alinas-utils | grep -E "^aliyun-alinas-utils-1.1-8" >/dev/null; then
-            echo "failed to install aliyun-alinas-utils"
-            exit 1
+        if [ "$HAS_YUM" = "true" ]; then
+            PKG=aliyun-alinas-utils-1.1-8.al7.noarch.rpm
+        elif [ "$HAS_APT" = "true" ]; then
+            PKG=aliyun-alinas-utils-1.1-8.deb
+        else
+            echo "WARN: no package manager found, skip install aliyun-alinas-utils"
+            install_utils="false"
+        fi
+        if [ $install_utils = "true" ]; then
+            cp /root/$PKG /host/etc/csi-tool/
+            ${HOST_CMD} $PKG_CMD /etc/csi-tool/$PKG || {
+                echo "failed to install aliyun-alinas-utils"
+                exit 1
+            }
         fi
     fi
 
@@ -290,4 +308,4 @@ if [ "$ARCH" = "x86_64" ] && [ "$run_nas" = "true" ]; then
 fi
 
 # place it here to remove leftover from previous version
-rm -rf /host/etc/csi-tool/*.rpm
+rm -rf /host/etc/csi-tool/*.{rpm,deb}

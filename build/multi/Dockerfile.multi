@@ -17,6 +17,16 @@ RUN --mount=type=bind,target=. \
     go build -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
 
+FROM --platform=$BUILDPLATFORM registry.eu-west-1.aliyuncs.com/acs/alinux:3-update as download
+ARG TARGETARCH
+WORKDIR /downloads
+RUN CURL="curl --remote-time --remote-name --fail" && \
+    if [[ $TARGETARCH == "amd64" ]]; then \
+        $CURL -H "If-Match: D7AE0A7E48FBB6CF7BDB33C770B5EE0C" https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.2-3.x86_64.rpm && \
+        $CURL -H "If-Match: 9E3E94108EE24C522319B14EF74BDCFC" https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.al7.noarch.rpm && \
+        $CURL -H "If-Match: 259C07CF1C83C71DD78B705BC2E3FAE2" https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.deb; \
+    fi
+
 FROM registry.eu-west-1.aliyuncs.com/acs/alinux:3-update as base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 
@@ -46,16 +56,13 @@ FROM base as init
 
 ARG TARGETARCH
 WORKDIR /root
-RUN if [[ $TARGETARCH == "amd64" ]]; then \
-        curl -O https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.2-3.x86_64.rpm && \
-        curl -O https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.al7.noarch.rpm; \
-    fi
 RUN --mount=type=bind,source=build/lib,target=/csi-lib \
     cp /csi-lib/init.sh /init.sh && \
     cp /csi-lib/freezefs.sh /freezefs.sh && \
     mkdir /csi && \
     cp /csi-lib/csiplugin-connector.service /csi/csiplugin-connector.service
 COPY --link --from=build /out/csiplugin-connector /csi/csiplugin-connector
+COPY --link --from=download /downloads /root
 ENTRYPOINT ["/init.sh"]
 
 FROM base
