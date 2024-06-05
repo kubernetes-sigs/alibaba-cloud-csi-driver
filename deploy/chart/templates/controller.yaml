@@ -304,8 +304,10 @@ spec:
             - name: PRIVATE_CLOUD_TAG
               value: "true"
 {{- end }}
+{{- if .Values.deploy.withStorageController }}
             - name: ENABLE_NAS_SUBPATH_FINALIZER
               value: "true"
+{{- end }}
 {{- include "akEnv" .Values.deploy.accessKey | nindent 12 }}
           livenessProbe:
             httpGet:
