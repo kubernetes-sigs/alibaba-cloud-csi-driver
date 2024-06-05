@@ -21,6 +21,9 @@ spec:
     spec:
       affinity:
         nodeAffinity:
+        {{- if .Values.controller.nodeAffinity }}
+          {{- toYaml .Values.controller.nodeAffinity | nindent 10 }}
+        {{- else }}
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 1
             preference:
@@ -43,6 +46,7 @@ spec:
                 operator: NotIn
                 values:
                 - "true"
+        {{- end }}
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100
@@ -300,8 +304,10 @@ spec:
             - name: PRIVATE_CLOUD_TAG
               value: "true"
 {{- end }}
+{{- if .Values.deploy.withStorageController }}
             - name: ENABLE_NAS_SUBPATH_FINALIZER
               value: "true"
+{{- end }}
 {{- include "akEnv" .Values.deploy.accessKey | nindent 12 }}
           livenessProbe:
             httpGet:

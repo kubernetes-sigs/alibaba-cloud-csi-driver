@@ -36,16 +36,16 @@
 {{- end -}}
 
 {{- define "akEnv" -}}
-{{- if .enabled }}
+{{- if .enabled -}}
 - name: ACCESS_KEY_ID
   valueFrom:
-  secretKeyRef:
-    name: {{ .secretName }}
-    key: id
+    secretKeyRef:
+      name: {{ .secretName }}
+      key: {{ default "id" .idKey }}
 - name: ACCESS_KEY_SECRET
   valueFrom:
-  secretKeyRef:
-    name: {{ .secretName }}
-    key: secret
-{{- end }}
+    secretKeyRef:
+      name: {{ .secretName }}
+      key: {{ default "secret" .secretKey }}
+{{- end -}}
 {{- end -}}

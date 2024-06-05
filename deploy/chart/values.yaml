@@ -37,6 +37,13 @@ defaultStorageClass:
   enabled: true
 
 deploy:
+  # By default, the controller server does not delete NAS subpaths when DeleteVolume, that means
+  # the files created in the volume will remain in the filesystem after PV deleted.
+  # You can set "withStorageController" to true in ACK clusters with storage-operator addon installed, 
+  # then the controller server will patch a finalizer on NAS subpath-type PV when DeleteVolume 
+  # and the storage-controller will handle the cleanup of the subpath in NAS filesystem.
+  withStorageController: false
+
   featureGates: ""   # only for alpha feature
   privateCloud: false
   ecsEndpoint: null  # most useful on private cloud
@@ -46,10 +53,12 @@ deploy:
   clusterID: null  # will be injected on installation on ACK
   regionID: null  # useful when deploying on non-ECS, but need to access Alibaba Cloud OpenAPI
 
-  # To access Alibaba Cloud OpenAPI in self-deployed Kubernetes cluster, use a secret with "id" and "secret" set.
+  # To access Alibaba Cloud OpenAPI in self-deployed Kubernetes cluster, use a Secret with "id" and "secret" set.
   accessKey:
     enabled: false
     secretName: csi-access-key
+    idKey: id # the key of AccessKey id in the k8s Secret
+    secretkey: secret # the key of AccessKey secret in the k8s Secret
 
 images:
   registry: registry-cn-hangzhou.ack.aliyuncs.com

@@ -219,7 +219,7 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 	}
 
 	// Patch finalizer on PV if need delete or archive subpath. The actual deletion/archiving will be executed
-	// by storage-controller who is responsible to remove the finalzier.
+	// by storage-controller who is responsible to remove the finalizer.
 
 	// Delete subpath only when parameters["archiveOnDelete"] exists and has a false value.
 	// If StorageClass not found, always archive on delete.
