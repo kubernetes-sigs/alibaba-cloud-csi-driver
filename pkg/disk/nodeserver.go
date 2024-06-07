@@ -602,7 +602,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 				log.Errorf("NodeStageVolume: Volume Block System Config with format error: %s", configStr)
 				return nil, status.Error(codes.Aborted, "NodeStageVolume: Volume Block System Config with format error "+configStr)
 			}
-			err := DefaultDeviceManager.WriteSysfs(device, key, value)
+			err := DefaultDeviceManager.WriteSysfs(device, key, []byte(value))
 			if err != nil {
 				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: set sysConfig %s=%s failed: %v", key, value, err)
 			}

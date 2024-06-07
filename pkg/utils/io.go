@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -80,7 +81,7 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 		fmt.Sprintf("%s/kubepods-burstable.slice/kubepods-burstable-pod%s.slice", PodBlkIOCgroupPath, podUID),
 		fmt.Sprintf("%s/kubepods-pod%s.slice", PodBlkIOCgroupPath, podUID),
 	} {
-		fd, err := unix.Open(p, flag_O_PATH, 0)
+		fd, err := unix.Open(p, utilsio.O_PATH, 0)
 		if err == nil {
 			podBlkIOPathFd = fd
 			defer unix.Close(podBlkIOPathFd)
@@ -126,7 +127,7 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 
 func writeIoLimit(majMinNum string, podBlkIOPathFd int, ioFile string, ioLimit int) error {
 	content := majMinNum + " " + strconv.Itoa(ioLimit)
-	return WriteTrunc(podBlkIOPathFd, ioFile, content)
+	return utilsio.WriteTrunc(podBlkIOPathFd, ioFile, []byte(content))
 }
 
 func getBpsLimt(bpsLimt string) (int, error) {

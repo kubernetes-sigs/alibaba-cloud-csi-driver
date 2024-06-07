@@ -471,19 +471,20 @@ func TestWriteSysfs(t *testing.T) {
 	assert.NoError(t, err)
 
 	dev := filepath.Join(m.DevicePath, "nvme1n1")
-	err = m.WriteSysfs(dev, "some/config", "config-value")
+	v := []byte("config-value")
+	err = m.WriteSysfs(dev, "some/config", v)
 	assert.NoError(t, err)
 
-	err = m.WriteSysfs("/dev/no-such-device", "some/config", "config-value")
+	err = m.WriteSysfs("/dev/no-such-device", "some/config", v)
 	assert.True(t, errors.Is(err, os.ErrNotExist), err)
 
 	b, err := os.ReadFile(p)
 	assert.NoError(t, err)
-	assert.Equal(t, "config-value", string(b))
+	assert.Equal(t, v, b)
 
-	err = m.WriteSysfs(dev, "some/not-exist-config", "config-value")
+	err = m.WriteSysfs(dev, "some/not-exist-config", v)
 	assert.True(t, errors.Is(err, os.ErrNotExist), err)
 
-	err = m.WriteSysfs(dev, "../invaild/config", "config-value")
+	err = m.WriteSysfs(dev, "../invaild/config", v)
 	assert.Error(t, err)
 }
