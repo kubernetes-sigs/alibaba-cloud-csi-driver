@@ -55,6 +55,7 @@ type nodeServer struct {
 	mounter      utils.Mounter
 	kataBMIOType MachineType
 	k8smounter   k8smount.Interface
+	podCGroup    *utils.PodCGroup
 	clientSet    *kubernetes.Clientset
 	*csicommon.DefaultNodeServer
 }
@@ -189,6 +190,11 @@ func NewNodeServer(d *csicommon.CSIDriver, m metadata.MetadataProvider) csi.Node
 		kataBMIOType = DFBus
 	}
 
+	podCgroup, err := utils.NewPodCGroup()
+	if err != nil {
+		log.Fatalf("Failed to initialize pod cgroup: %v", err)
+	}
+
 	return &nodeServer{
 		metadata:          m,
 		nodeID:            GlobalConfigVar.NodeID,
@@ -196,6 +202,7 @@ func NewNodeServer(d *csicommon.CSIDriver, m metadata.MetadataProvider) csi.Node
 		mounter:           utils.NewMounter(),
 		kataBMIOType:      kataBMIOType,
 		k8smounter:        k8smount.New(""),
+		podCGroup:         podCgroup,
 		clientSet:         GlobalConfigVar.ClientSet,
 	}
 }
@@ -377,7 +384,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// Set volume IO Limit
-	err = utils.SetVolumeIOLimit(realDevice, req)
+	err = ns.podCGroup.ApplyConfig(realDevice, req)
 	if err != nil {
 		log.Errorf("NodePublishVolume: Set Disk Volume(%s) IO Limit with Error: %s", req.VolumeId, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())

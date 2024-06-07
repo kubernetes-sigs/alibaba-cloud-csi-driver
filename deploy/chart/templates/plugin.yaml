@@ -182,8 +182,9 @@ spec:
 {{- end }}
             - mountPath: /host/run/csi-tool
               name: run-csi
-            - mountPath: /host/sys/fs/cgroup/blkio/kubepods.slice
-              name: cgroupv1-blkio
+            - mountPath: /host/sys/fs/cgroup
+              name: cgroup
+              mountPropagation: "HostToContainer"
             - mountPath: /etc/csi-plugin/config
               name: csi-plugin-cm
 {{- if $nodePool.csi.local.enabled }}
@@ -310,10 +311,10 @@ spec:
             type: DirectoryOrCreate
 {{- end -}}
 {{- end }}
-        - name: cgroupv1-blkio
+        - name: cgroup
           hostPath:
-            path: /sys/fs/cgroup/blkio/kubepods.slice
-            type: DirectoryOrCreate
+            path: /sys/fs/cgroup
+            type: Directory
         - name: host-dev
           hostPath:
             path: /dev

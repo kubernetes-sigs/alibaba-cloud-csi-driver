@@ -17,6 +17,7 @@ import (
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
@@ -48,6 +49,7 @@ type nodeServer struct {
 	MaxVolumePerNode int64
 	mounter          utils.Mounter
 	k8smounter       k8smount.Interface
+	podCgroup        *utils.PodCGroup
 	*csicommon.DefaultNodeServer
 }
 
@@ -72,10 +74,16 @@ func NewNodeServer(d *csicommon.CSIDriver) csi.NodeServer {
 	os.MkdirAll(VolumeDir, os.FileMode(0755))
 	os.MkdirAll(VolumeDirRemove, os.FileMode(0755))
 
+	podCgroup, err := utils.NewPodCGroup()
+	if err != nil {
+		log.Fatalf("Failed to initialize pod cgroup: %v", err)
+	}
+
 	return &nodeServer{
 		MaxVolumePerNode:  maxVolumesNum,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		mounter:           utils.NewMounter(),
+		podCgroup:         podCgroup,
 		k8smounter:        k8smount.New(""),
 	}
 }
@@ -210,7 +218,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// Set volume IO Limit
-	err = utils.SetVolumeIOLimit(realDevice, req)
+	err = ns.podCgroup.ApplyConfig(realDevice, req)
 	if err != nil {
 		log.Errorf("NodePublishVolume: Set Disk Volume(%s) IO Limit with Error: %s", req.VolumeId, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
@@ -392,7 +400,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 				// Note this cannot prevent user from access other device through e.g. /sys/block/vda/subsystem/vdb
 				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: invalid relative path in sysConfig: %s", key)
 			}
-			err := utils.WriteTrunc(unix.AT_FDCWD, fileName, value)
+			err := utilsio.WriteTrunc(unix.AT_FDCWD, fileName, []byte(value))
 			if err != nil {
 				return nil, status.Errorf(codes.Internal,
 					"NodeStageVolume: Volume Block System Config failed, failed to write %s to %s: %v", value, fileName, err)
