@@ -182,3 +182,22 @@ func TestListSnapshotsInvalidToken(t *testing.T) {
 	_, _, err := listSnapshots(client, "test-disk", "my-cluster", "invalid-token", 0)
 	assert.Error(t, err)
 }
+
+func TestClientToken(t *testing.T) {
+	// we should keep the token stable across versions
+	assert.Equal(t, "n:disk-dcd6fdde-8c1e-45eb-8ec7-786a8b2e0b61", clientToken("disk-dcd6fdde-8c1e-45eb-8ec7-786a8b2e0b61"))
+	// only ASCII characters are allowed
+	assert.Equal(t, "h:LGH7vCPQbR31I47I1eCW7g", clientToken("disk-磁盘名称-1"))
+
+	// the length should be <= 64
+	assert.Equal(t, "n:01234567890123456789012345678901234567890123456789012345678901",
+		clientToken("01234567890123456789012345678901234567890123456789012345678901"))
+	assert.Equal(t, "h:NDeYXVDChDCom5xYgHLVQA",
+		clientToken("012345678901234567890123456789012345678901234567890123456789012"))
+}
+
+func BenchmarkClientToken(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		clientToken("disk-dcd6fdde-8c1e-45eb-8ec7-786a8b2e0b61")
+	}
+}
