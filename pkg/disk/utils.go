@@ -61,13 +61,6 @@ import (
 var (
 	// KubernetesAlicloudIdentity is the system identity for ecs client request
 	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", version.VERSION)
-
-	// All available disk types
-	AvailableDiskTypes = sets.NewString(DiskCommon, DiskESSD, DiskEfficiency, DiskSSD, DiskSharedSSD, DiskSharedEfficiency, DiskPPerf, DiskSPerf, DiskESSDAuto, DiskESSDEntry)
-	// CustomDiskTypes ...
-	CustomDiskTypes = sets.NewString(DiskESSD, DiskSSD, DiskEfficiency, DiskPPerf, DiskSPerf, DiskESSDAuto, DiskESSDEntry)
-	// Performance Level for ESSD
-	CustomDiskPerfermance = sets.NewString(DISK_PERFORMANCE_LEVEL0, DISK_PERFORMANCE_LEVEL1, DISK_PERFORMANCE_LEVEL2, DISK_PERFORMANCE_LEVEL3)
 )
 
 const DISK_TAG_PREFIX = "diskTags/"
@@ -782,26 +775,18 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	return diskVolArgs, nil
 }
 
-func validateDiskType(opts map[string]string) (diskType []string, err error) {
+func validateDiskType(opts map[string]string) (diskType []Category, err error) {
 	if value, ok := opts["type"]; !ok || (ok && value == DiskHighAvail) {
-		diskType = []string{DiskSSD, DiskEfficiency}
+		diskType = []Category{DiskSSD, DiskEfficiency}
 		return
 	}
-	if strings.Contains(opts["type"], ",") {
-		orderedList := []string{}
-		for _, cusType := range strings.Split(opts["type"], ",") {
-			if _, ok := CustomDiskTypes[cusType]; ok {
-				orderedList = append(orderedList, cusType)
-			} else {
-				return diskType, fmt.Errorf("Illegal required parameter type: " + cusType)
-			}
+	for _, cusType := range strings.Split(opts["type"], ",") {
+		c := Category(cusType)
+		if _, ok := AllCategories[c]; ok {
+			diskType = append(diskType, c)
+		} else {
+			return nil, fmt.Errorf("Illegal required parameter type: " + cusType)
 		}
-		diskType = orderedList
-		return
-	}
-	t := opts["type"]
-	if AvailableDiskTypes.Has(t) {
-		diskType = []string{t}
 	}
 	if len(diskType) == 0 {
 		return diskType, fmt.Errorf("Illegal required parameter type: " + opts["type"])
@@ -809,15 +794,15 @@ func validateDiskType(opts map[string]string) (diskType []string, err error) {
 	return
 }
 
-func validateDiskPerformanceLevel(opts map[string]string) (performanceLevel []string, err error) {
+func validateDiskPerformanceLevel(opts map[string]string) (performanceLevel []PerformanceLevel, err error) {
 	pl, ok := opts[ESSD_PERFORMANCE_LEVEL]
 	if !ok || pl == "" {
 		return
 	}
 	log.Infof("validateDiskPerformanceLevel: pl: %v", pl)
-	performanceLevel = strings.Split(pl, ",")
-	for _, cusPer := range performanceLevel {
-		if _, ok := CustomDiskPerfermance[cusPer]; !ok {
+	allPLs := AllCategories[DiskESSD].PerformanceLevel
+	for _, cusPer := range strings.Split(pl, ",") {
+		if _, ok := allPLs[PerformanceLevel(cusPer)]; !ok {
 			return nil, fmt.Errorf("illegal performance level type: %s", cusPer)
 		}
 	}
@@ -943,16 +928,6 @@ func isPathAvailiable(path string) error {
 	return nil
 }
 
-func deleteEmpty(s []string) []string {
-	var r []string
-	for _, str := range s {
-		if str != "" {
-			r = append(r, str)
-		}
-	}
-	return r
-}
-
 func getBlockDeviceCapacity(devicePath string) int64 {
 
 	file, err := os.Open(devicePath)
@@ -1033,21 +1008,6 @@ func patchForNode(node *v1.Node, maxVolumesNum int, diskTypes []string) []byte {
 	return patch
 }
 
-func intersect(slice1, slice2 []string) []string {
-	m := make(map[string]int)
-	nn := make([]string, 0)
-	for _, v := range slice1 {
-		m[v]++
-	}
-	for _, v := range slice2 {
-		times, _ := m[v]
-		if times == 1 {
-			nn = append(nn, v)
-		}
-	}
-	return nn
-}
-
 func getEcsClientByID(volumeID, uid string) (ecsClient *ecs.Client, err error) {
 	// feature gate not enable;
 	if !GlobalConfigVar.DiskMultiTenantEnable {
@@ -1125,7 +1085,7 @@ func createRoleClient(uid string) (cli *ecs.Client, err error) {
 	return cli, nil
 }
 
-func volumeCreate(diskType, diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, contextSource *csi.VolumeContentSource) *csi.Volume {
+func volumeCreate(diskType Category, diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, contextSource *csi.VolumeContentSource) *csi.Volume {
 	accessibleTopology := []*csi.Topology{
 		{
 			Segments: map[string]string{
@@ -1142,7 +1102,7 @@ func volumeCreate(diskType, diskID string, volSizeBytes int64, volumeContext map
 	}
 	if diskType != "" {
 		// Add PV Label
-		diskTypePL := diskType
+		diskTypePL := string(diskType)
 		if diskType == DiskESSD {
 			if pl, ok := volumeContext[ESSD_PERFORMANCE_LEVEL]; ok && pl != "" {
 				diskTypePL = fmt.Sprintf("%s.%s", DiskESSD, pl)
@@ -1227,7 +1187,7 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.V
 		}
 	}
 
-	return volumeCreate(disk.Category, diskID, volSizeBytes, volumeContext, disk.ZoneId, src), nil
+	return volumeCreate(Category(disk.Category), diskID, volSizeBytes, volumeContext, disk.ZoneId, src), nil
 }
 
 // updateVolumeContext remove unnecessary volume context

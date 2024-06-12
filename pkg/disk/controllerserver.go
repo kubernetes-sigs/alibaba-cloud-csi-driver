@@ -60,7 +60,7 @@ type controllerServer struct {
 
 // Alicloud disk parameters
 type diskVolumeArgs struct {
-	Type                    []string
+	Type                    []Category
 	RegionID                string
 	ZoneID                  string
 	FsType                  string
@@ -68,7 +68,7 @@ type diskVolumeArgs struct {
 	MultiAttach             bool
 	Encrypted               bool
 	KMSKeyID                string
-	PerformanceLevel        []string
+	PerformanceLevel        []PerformanceLevel
 	ResourceGroupID         string
 	StorageClusterID        string
 	DiskTags                map[string]string
@@ -226,11 +226,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		volumeContext[SharedEnable] = "enable"
 	}
 	if diskType != "" {
-		volumeContext["type"] = diskType
+		volumeContext["type"] = string(diskType)
 	}
 	log.Infof("CreateVolume: volume: %s created diskpl: %s", req.GetName(), diskPL)
 	if diskPL != "" {
-		volumeContext[ESSD_PERFORMANCE_LEVEL] = diskPL
+		volumeContext[ESSD_PERFORMANCE_LEVEL] = string(diskPL)
 	}
 
 	if tenantUserUID := req.Parameters[TenantUserUID]; tenantUserUID != "" {
@@ -661,7 +661,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	// }
 
 	// if disk type is not essd and IA set disable
-	if params.InstantAccess && disks[0].Category != DiskESSD && disks[0].Category != DiskESSDAuto {
+	if params.InstantAccess && !AllCategories[Category(disks[0].Category)].InstantAccessSnapshot {
 		log.Warnf("CreateSnapshot: Snapshot(%s) set as not IA type, because disk Category %s", req.Name, disks[0].Category)
 		params.InstantAccess = false
 	}
@@ -707,8 +707,8 @@ func snapshotBeforeDelete(volumeID string, ecsClient *ecs.Client) error {
 	if err != nil {
 		return err
 	}
-	if disk.Category != DiskESSD && disk.Category != DiskESSDAuto {
-		log.Infof("snapshotBeforeDelete: only supports essd type which current disk.Catagory is: %s", disk.Category)
+	if !AllCategories[Category(disk.Category)].InstantAccessSnapshot {
+		log.Infof("snapshotBeforeDelete: Instant Access snapshot required, but current disk.Catagory is: %s", disk.Category)
 		return nil
 	}
 
@@ -1036,7 +1036,7 @@ func updateVolumeExpandAutoSnapshotID(pvc *v1.PersistentVolumeClaim, snapshotID,
 // autoSnapshot is used in volume expanding of ESSD,
 // returns if the volume expanding should be continued
 func (cs *controllerServer) autoSnapshot(ctx context.Context, disk *ecs.Disk) (bool, *csi.Snapshot, error) {
-	if disk.Category != DiskESSD && disk.Category != DiskESSDAuto {
+	if !AllCategories[Category(disk.Category)].InstantAccessSnapshot {
 		return true, nil, nil
 	}
 	pv, pvc, err := getPvPvcFromDiskId(disk.DiskId)

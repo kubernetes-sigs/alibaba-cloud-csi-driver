@@ -55,12 +55,12 @@ func TestIsFileExisting(t *testing.T) {
 func TestValidateDiskType(t *testing.T) {
 	examples := []struct {
 		opts   map[string]string
-		result []string
+		result []Category
 	}{
-		{result: []string{"cloud_ssd", "cloud_efficiency"}},
+		{result: []Category{"cloud_ssd", "cloud_efficiency"}},
 		{opts: map[string]string{"type": "a,b,c"}, result: nil},
-		{opts: map[string]string{"type": "available"}, result: []string{"cloud_ssd", "cloud_efficiency"}},
-		{opts: map[string]string{"type": "cloud_ssd,cloud_essd"}, result: []string{"cloud_ssd", "cloud_essd"}},
+		{opts: map[string]string{"type": "available"}, result: []Category{"cloud_ssd", "cloud_efficiency"}},
+		{opts: map[string]string{"type": "cloud_ssd,cloud_essd"}, result: []Category{"cloud_ssd", "cloud_essd"}},
 	}
 	for _, example := range examples {
 		actualResult, _ := validateDiskType(example.opts)
