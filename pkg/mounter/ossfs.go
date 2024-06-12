@@ -23,7 +23,7 @@ import (
 )
 
 var defaultOssfsImageTag = "4af1b0e-aliyun"
-var defaultOssfsUpdatedImageTag = "v1.91.2.ack.1-f804b1e-aliyun"
+var defaultOssfsUpdatedImageTag = "v1.91.3.ack.1-1a5c93e-aliyun"
 
 const (
 	hostPrefix                = "/host"
