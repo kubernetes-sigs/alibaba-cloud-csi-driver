@@ -724,18 +724,6 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 			return nil, fmt.Errorf("performanceLevel is necessary when storageClusterID: '%s' specified", diskVolArgs.StorageClusterID)
 		}
 	}
-	// volumeSizeAutoAvailable
-	value, ok = volOptions["volumeSizeAutoAvailable"]
-	if !ok {
-		diskVolArgs.VolumeSizeAutoAvailable = false
-	} else {
-		value = strings.ToLower(value)
-		if value == "yes" || value == "true" || value == "1" {
-			diskVolArgs.VolumeSizeAutoAvailable = true
-		} else {
-			diskVolArgs.VolumeSizeAutoAvailable = false
-		}
-	}
 
 	// volumeExpandAutoSnapshot, default closed
 	if value, ok = volOptions[VOLUME_EXPAND_AUTO_SNAPSHOT_OP_KEY]; ok {
@@ -756,7 +744,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 
 	value, ok = volOptions[PROVISIONED_IOPS_KEY]
 	if ok {
-		iValue, err := strconv.Atoi(value)
+		iValue, err := strconv.ParseInt(value, 10, 64)
 		if err != nil || iValue < 0 {
 			return nil, fmt.Errorf("getDiskVolumeOptions: parameters provisionedIops[%s] is illegal", value)
 		}
@@ -771,6 +759,21 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 			diskVolArgs.BurstingEnabled = true
 		}
 	}
+
+	if req.GetCapacityRange() == nil {
+		return nil, fmt.Errorf("capacity range is required")
+	}
+	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
+	requestGB := (volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024)
+	if requestGB < MinimumDiskSizeInGB {
+		switch strings.ToLower(volOptions["volumeSizeAutoAvailable"]) {
+		case "yes", "true", "1":
+			log.Infof("CreateVolume: volume size was less than allowed limit. Setting request Size to %vGB. volumeSizeAutoAvailable is set.", MinimumDiskSizeInGB)
+			requestGB = MinimumDiskSizeInGB
+			volSizeBytes = MinimumDiskSizeInBytes
+		}
+	}
+	diskVolArgs.RequestGB = requestGB
 
 	return diskVolArgs, nil
 }
@@ -1085,7 +1088,7 @@ func createRoleClient(uid string) (cli *ecs.Client, err error) {
 	return cli, nil
 }
 
-func volumeCreate(diskType Category, diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, contextSource *csi.VolumeContentSource) *csi.Volume {
+func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, contextSource *csi.VolumeContentSource) *csi.Volume {
 	accessibleTopology := []*csi.Topology{
 		{
 			Segments: map[string]string{
@@ -1100,24 +1103,19 @@ func volumeCreate(diskType Category, diskID string, volSizeBytes int64, volumeCo
 			},
 		})
 	}
-	if diskType != "" {
+	if attempt.Category != "" {
 		// Add PV Label
-		diskTypePL := string(diskType)
-		if diskType == DiskESSD {
-			if pl, ok := volumeContext[ESSD_PERFORMANCE_LEVEL]; ok && pl != "" {
-				diskTypePL = fmt.Sprintf("%s.%s", DiskESSD, pl)
-				// TODO delete performanceLevel key
-				// delete(volumeContext, "performanceLevel")
-			} else {
-				diskTypePL = fmt.Sprintf("%s.%s", DiskESSD, "PL1")
-			}
+		if attempt.Category == DiskESSD && attempt.PerformanceLevel == "" {
+			attempt.PerformanceLevel = "PL1"
 		}
-		volumeContext[labelAppendPrefix+labelVolumeType] = diskTypePL
+		// TODO delete performanceLevel key
+		// delete(volumeContext, "performanceLevel")
+		volumeContext[labelAppendPrefix+labelVolumeType] = attempt.String()
 		// TODO delete type key
 		// delete(volumeContext, "type")
 
 		// Add PV NodeAffinity
-		labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
+		labelKey := fmt.Sprintf(nodeStorageLabel, attempt.Category)
 		expressions := []v1.NodeSelectorRequirement{{
 			Key:      labelKey,
 			Operator: v1.NodeSelectorOpIn,
@@ -1187,7 +1185,8 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.V
 		}
 	}
 
-	return volumeCreate(Category(disk.Category), diskID, volSizeBytes, volumeContext, disk.ZoneId, src), nil
+	attempt := createAttempt{Category(disk.Category), PerformanceLevel(disk.PerformanceLevel)}
+	return volumeCreate(attempt, diskID, volSizeBytes, volumeContext, disk.ZoneId, src), nil
 }
 
 // updateVolumeContext remove unnecessary volume context

@@ -18,8 +18,10 @@ package disk
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"regexp"
 	"slices"
@@ -681,6 +683,27 @@ func findDiskByID(diskID string, ecsClient *ecs.Client) (*ecs.Disk, error) {
 	return &disks[0], err
 }
 
+func findDiskByName(name string, ecsClient *ecs.Client) (*ecs.Disk, error) {
+	describeDisksRequest := ecs.CreateDescribeDisksRequest()
+	describeDisksRequest.RegionId = GlobalConfigVar.Region
+	tags := []ecs.DescribeDisksTag{{Key: common.VolumeNameTag, Value: name}}
+	describeDisksRequest.Tag = &tags
+
+	diskResponse, err := ecsClient.DescribeDisks(describeDisksRequest)
+	if err != nil {
+		return nil, err
+	}
+	disks := diskResponse.Disks.Disk
+
+	if len(disks) == 0 {
+		return nil, nil
+	}
+	if len(disks) > 1 {
+		return nil, fmt.Errorf("find more than one disk with name %s", name)
+	}
+	return &disks[0], err
+}
+
 func findSnapshotByName(name string) (*ecs.DescribeSnapshotsResponse, int, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
@@ -815,220 +838,298 @@ func requestAndDeleteSnapshot(snapshotID string) (*ecs.DeleteSnapshotResponse, e
 	return response, nil
 }
 
+func checkExistingDisk(existingDisk *ecs.Disk, diskVol *diskVolumeArgs) (createAttempt, error) {
+	if int64(existingDisk.Size) != diskVol.RequestGB {
+		return createAttempt{}, fmt.Errorf("%dGiB != requested %dGiB", existingDisk.Size, diskVol.RequestGB)
+	}
+	if existingDisk.Encrypted != diskVol.Encrypted {
+		return createAttempt{}, fmt.Errorf("encrypted: %t != requested %t", existingDisk.Encrypted, diskVol.Encrypted)
+	}
+	if diskVol.Encrypted {
+		if existingDisk.KMSKeyId != diskVol.KMSKeyID {
+			return createAttempt{}, fmt.Errorf("KMSKeyId: %s != requested %s", existingDisk.KMSKeyId, diskVol.KMSKeyID)
+		}
+	}
+	if diskVol.MultiAttach != (existingDisk.MultiAttach == "Enabled") {
+		return createAttempt{}, fmt.Errorf("multiAttach: %s != requested %t", existingDisk.MultiAttach, diskVol.MultiAttach)
+	}
+	if diskVol.StorageClusterID != existingDisk.StorageClusterId {
+		return createAttempt{}, fmt.Errorf("storageClusterId: %s != requested %s", existingDisk.StorageClusterId, diskVol.StorageClusterID)
+	}
+	if diskVol.ResourceGroupID != existingDisk.ResourceGroupId {
+		return createAttempt{}, fmt.Errorf("resourceGroupId: %s != requested %s", existingDisk.ResourceGroupId, diskVol.ResourceGroupID)
+	}
+
+	attempt := createAttempt{}
+	for _, category := range diskVol.Type {
+		if existingDisk.Category != string(category) {
+			continue
+		}
+		attempt.Category = category
+		pl := PerformanceLevel(existingDisk.PerformanceLevel)
+		attempt.PerformanceLevel = pl
+
+		if len(diskVol.PerformanceLevel) > 0 && len(pl) > 0 {
+			if !slices.Contains(diskVol.PerformanceLevel, pl) {
+				return createAttempt{}, fmt.Errorf("performanceLevel: %s not in requested %v", pl, diskVol.PerformanceLevel)
+			}
+		}
+		break
+	}
+	if attempt.Category == "" {
+		return createAttempt{}, fmt.Errorf("category: %s not in requested %v", existingDisk.Category, diskVol.Type)
+	}
+	cateDesc := AllCategories[Category(existingDisk.Category)]
+
+	if diskVol.ZoneID != existingDisk.ZoneId {
+		return createAttempt{}, fmt.Errorf("zoneId: %s != requested %s", existingDisk.ZoneId, diskVol.ZoneID)
+	}
+	if cateDesc.ProvisionedIops && existingDisk.ProvisionedIops != diskVol.ProvisionedIops {
+		return createAttempt{}, fmt.Errorf("provisionedIops: %d != requested %d", existingDisk.ProvisionedIops, diskVol.ProvisionedIops)
+	}
+	if cateDesc.Bursting && diskVol.BurstingEnabled != existingDisk.BurstingEnabled {
+		return createAttempt{}, fmt.Errorf("burstingEnabled: %t != requested %t", existingDisk.BurstingEnabled, diskVol.BurstingEnabled)
+	}
+
+	existingTags := make(map[string]string, len(existingDisk.Tags.Tag))
+	for _, tag := range existingDisk.Tags.Tag {
+		existingTags[tag.Key] = tag.Value
+	}
+	for k, v := range diskVol.DiskTags {
+		if existingTags[k] != v {
+			return createAttempt{}, fmt.Errorf("tag %s: %s != requested %s", k, existingTags[k], v)
+		}
+	}
+
+	return attempt, nil
+}
+
+func clientToken(name string) string {
+	b := []byte(name)
+	if len(b) <= 62 && !slices.ContainsFunc(b, func(r byte) bool { return r > 0x7f }) {
+		return "n:" + name
+	}
+	// CSI name supports Unicode characters at maximum length 128, ECS ClientToken only support 64 ASCII characters,
+	// So use hash of name as the token.
+	hash := fnv.New128a()
+	hash.Write(b)
+	return "h:" + base64.RawStdEncoding.EncodeToString(hash.Sum(nil))
+}
+
 // Docs say Chinese characters are supported, but the exactly range is not clear.
 // So we just assume they are not supported.
 var vaildDiskNameRegexp = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9:_-]{1,127}$`)
 
-func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeArgs, tenantUID string) (Category, string, PerformanceLevel, error) {
+func createDisk(diskName, snapshotID string, diskVol *diskVolumeArgs, tenantUID string) (string, createAttempt, error) {
 	// 需要配置external-provisioner启动参数--extra-create-metadata=true，然后ACK的external-provisioner才会将PVC的Annotations传过来
 	ecsClient, err := getEcsClientByID("", tenantUID)
 	if err != nil {
-		return "", "", "", status.Error(codes.Internal, err.Error())
+		return "", createAttempt{}, status.Error(codes.Internal, err.Error())
 	}
 
-	createDiskRequest := ecs.CreateCreateDiskRequest()
+	var supportedTypes sets.Set[Category]
+	if diskVol.NodeSelected != "" {
+		supportedTypes, err = getSupportedDiskTypes(diskVol.NodeSelected)
+		if err != nil {
+			return "", createAttempt{}, err
+		}
+	}
+
+	createDiskRequest := buildCreateDiskRequest(diskVol)
 	if vaildDiskNameRegexp.MatchString(diskName) {
 		createDiskRequest.DiskName = diskName
 	}
-	createDiskRequest.Size = requests.NewInteger(requestGB)
-	createDiskRequest.RegionId = diskVol.RegionID
-	createDiskRequest.ZoneId = diskVol.ZoneID
-	createDiskRequest.Encrypted = requests.NewBoolean(diskVol.Encrypted)
-	if len(diskVol.ARN) > 0 {
-		createDiskRequest.Arn = &diskVol.ARN
-	}
-	createDiskRequest.ResourceGroupId = diskVol.ResourceGroupID
+	createDiskRequest.ClientToken = clientToken(diskName)
+	*createDiskRequest.Tag = append(*createDiskRequest.Tag, ecs.CreateDiskTag{Key: common.VolumeNameTag, Value: diskName})
+
 	if snapshotID != "" {
 		createDiskRequest.SnapshotId = snapshotID
 	}
-	diskTags := getDefaultDiskTags(diskVol)
-	diskTags = append(diskTags, ecs.CreateDiskTag{Key: common.VolumeNameTag, Value: diskName})
-	createDiskRequest.Tag = &diskTags
 
-	if diskVol.MultiAttach {
-		createDiskRequest.MultiAttach = "Enabled"
-	}
-
-	if diskVol.Encrypted == true && diskVol.KMSKeyID != "" {
-		createDiskRequest.KMSKeyId = diskVol.KMSKeyID
-	}
-	if diskVol.StorageClusterID != "" {
-		createDiskRequest.StorageClusterId = diskVol.StorageClusterID
-	}
-	diskTypes, diskPLs, err := getDiskType(diskVol)
-	log.Infof("createDisk: diskName: %s, valid disktype: %v, valid diskpls: %v", diskName, diskTypes, diskPLs)
-	if err != nil {
-		return "", "", "", err
-	}
-	for _, dType := range diskTypes {
-		createDiskRequest.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID)
-		createDiskRequest.DiskCategory = string(dType)
-		if dType == DiskESSD {
-			newReq := generateNewRequest(createDiskRequest)
-			// when perforamceLevel is not setting, diskPLs is empty.
-			for _, diskPL := range diskPLs {
-				log.Infof("createDisk: start to create disk by diskName: %s, valid disktype: %v, pl: %s", diskName, dType, diskPL)
-
-				newReq.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s/%s", diskName, dType, diskVol.RegionID, diskVol.ZoneID, diskPL)
-				newReq.PerformanceLevel = string(diskPL)
-				returned, diskId, rerr := request(newReq, ecsClient)
-				if returned {
-					if diskId != "" && rerr == nil {
-						return dType, diskId, diskPL, nil
-					}
-					if rerr != nil {
-						return "", "", "", rerr
-					}
-				}
-				err = rerr
-			}
-			if len(diskPLs) != 0 {
+	messages := []string{}
+	for _, attempt := range generateCreateAttempts(diskVol) {
+		if len(supportedTypes) > 0 {
+			if !supportedTypes.Has(attempt.Category) {
+				messages = append(messages, fmt.Sprintf("%s: not supported by node %s", attempt, diskVol.NodeSelected))
 				continue
 			}
 		}
-		createDiskRequest.PerformanceLevel = ""
-		if dType == DiskESSDAuto {
-			newReq := generateNewRequest(createDiskRequest)
-			createDiskRequest.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s/%d/%t", diskName, dType, diskVol.RegionID, diskVol.ZoneID, diskVol.ProvisionedIops, diskVol.BurstingEnabled)
-			if diskVol.ProvisionedIops > 0 {
-				newReq.ProvisionedIops = requests.NewInteger(diskVol.ProvisionedIops)
-			}
-			newReq.BurstingEnabled = requests.NewBoolean(diskVol.BurstingEnabled)
-			returned, diskId, rerr := request(newReq, ecsClient)
-			if returned {
-				if diskId != "" && rerr == nil {
-					return dType, diskId, "", nil
-				}
-				if rerr != nil {
-					return "", "", "", rerr
-				}
-			}
-			err = rerr
+		limit := GetSizeRange(attempt.Category, attempt.PerformanceLevel)
+		if limit.Min > 0 && diskVol.RequestGB < limit.Min {
+			messages = append(messages, fmt.Sprintf("%s: requested size %dGiB is less than minimum %dGiB", attempt, diskVol.RequestGB, limit.Min))
 			continue
 		}
-		returned, diskId, rerr := request(createDiskRequest, ecsClient)
-		if returned {
-			if diskId != "" && rerr == nil {
-				return dType, diskId, "", nil
+	retry:
+		diskID, final, err := createDiskAttempt(createDiskRequest, attempt, ecsClient)
+		if err != nil {
+			if final {
+				return "", attempt, err
 			}
-			if rerr != nil {
-				return "", "", "", rerr
-			}
-		}
-		err = rerr
-	}
-	return "", "", "", status.Errorf(codes.Internal, "createDisk: err: %v, the zone:[%s] is not support specific disk type, please change the request disktype: %s or disk pl: %s", err, diskVol.ZoneID, diskTypes, diskPLs)
-}
-
-// reuse rpcrequest in ecs sdk is forbidden, because parameters can't be reassigned with empty string.(ecs sdk bug)
-func generateNewRequest(oldReq *ecs.CreateDiskRequest) *ecs.CreateDiskRequest {
-	createDiskRequest := ecs.CreateCreateDiskRequest()
-
-	createDiskRequest.DiskCategory = oldReq.DiskCategory
-	createDiskRequest.DiskName = oldReq.DiskName
-	createDiskRequest.Size = oldReq.Size
-	createDiskRequest.RegionId = oldReq.RegionId
-	createDiskRequest.ZoneId = oldReq.ZoneId
-	createDiskRequest.Encrypted = oldReq.Encrypted
-	createDiskRequest.Arn = oldReq.Arn
-	createDiskRequest.ResourceGroupId = oldReq.ResourceGroupId
-	createDiskRequest.SnapshotId = oldReq.SnapshotId
-	createDiskRequest.Tag = oldReq.Tag
-	createDiskRequest.MultiAttach = oldReq.MultiAttach
-	createDiskRequest.KMSKeyId = oldReq.KMSKeyId
-	createDiskRequest.StorageClusterId = oldReq.StorageClusterId
-	return createDiskRequest
-}
-
-func request(createDiskRequest *ecs.CreateDiskRequest, ecsClient *ecs.Client) (returned bool, diskId string, err error) {
-	category := Category(createDiskRequest.DiskCategory)
-	pl := PerformanceLevel(createDiskRequest.PerformanceLevel)
-
-	limit := GetSizeRange(category, pl)
-	if limit.Min > 0 {
-		if rValue, err := createDiskRequest.Size.GetValue(); err == nil {
-			if int64(rValue) < limit.Min {
-				c := string(category)
-				if pl != "" {
-					c = fmt.Sprintf("%s.%s", c, pl)
+			if errors.Is(err, ErrParameterMismatch) {
+				if createDiskRequest.ClientToken == "" {
+					// protect us from infinite loop
+					return "", attempt, fmt.Errorf("unexpected parameter mismatch")
 				}
-				return false, "", fmt.Errorf("request: to request %s type disk you needs at least %dGB size which the provided size %dGB does not meet the needs, please resize the size up.", c, limit.Min, rValue)
+				existingDisk, err := findDiskByName(diskName, ecsClient)
+				if err != nil {
+					return "", attempt, fmt.Errorf("parameter mismatch detected, but fetch existing node failed: %w", err)
+				}
+				if existingDisk == nil {
+					// No existing disk, retry without client token
+					createDiskRequest.ClientToken = ""
+					goto retry
+				}
+				// Check if the existing disk matches the request
+				attempt, err := checkExistingDisk(existingDisk, diskVol)
+				if err != nil {
+					return "", attempt, fmt.Errorf("%w: %w", ErrParameterMismatch, err)
+				}
+				return existingDisk.DiskId, attempt, nil
 			}
+			messages = append(messages, fmt.Sprintf("%s: %v", attempt, err))
+			continue
 		}
+		return diskID, attempt, nil
 	}
+	return "", createAttempt{}, status.Errorf(codes.Internal, "all attempts failed: %s", strings.Join(messages, "; "))
+}
+
+func buildCreateDiskRequest(diskVol *diskVolumeArgs) *ecs.CreateDiskRequest {
+	req := ecs.CreateCreateDiskRequest()
+
+	req.Size = requests.NewInteger64(diskVol.RequestGB)
+	req.RegionId = diskVol.RegionID
+	req.ZoneId = diskVol.ZoneID
+	req.Encrypted = requests.NewBoolean(diskVol.Encrypted)
+	if len(diskVol.ARN) > 0 {
+		req.Arn = &diskVol.ARN
+	}
+	req.ResourceGroupId = diskVol.ResourceGroupID
+	diskTags := getDefaultDiskTags(diskVol)
+	req.Tag = &diskTags
+
+	if diskVol.MultiAttach {
+		req.MultiAttach = "Enabled"
+	}
+
+	if diskVol.Encrypted && diskVol.KMSKeyID != "" {
+		req.KMSKeyId = diskVol.KMSKeyID
+	}
+	req.StorageClusterId = diskVol.StorageClusterID
+	if diskVol.ProvisionedIops > 0 {
+		req.ProvisionedIops = requests.NewInteger64(diskVol.ProvisionedIops)
+	}
+	req.BurstingEnabled = requests.NewBoolean(diskVol.BurstingEnabled)
+	return req
+}
+
+func finalizeCreateDiskRequest(template *ecs.CreateDiskRequest, attempt createAttempt) *ecs.CreateDiskRequest {
+	req := *template
+	req.DiskCategory = string(attempt.Category)
+	req.PerformanceLevel = string(attempt.PerformanceLevel)
+
+	cateDesc := AllCategories[attempt.Category]
+	if !cateDesc.Bursting {
+		req.BurstingEnabled = ""
+	}
+	if !cateDesc.ProvisionedIops {
+		req.ProvisionedIops = ""
+	}
+
+	tmp := ecs.CreateCreateDiskRequest()
+	req.RpcRequest = tmp.RpcRequest
+	// We want to keep each request independent. But once sent, the req.QueryParams is modified by the SDK.
+	// to avoid modifying template, create a new RpcRequest
+
 	// for private cloud
 	if ascmContext := os.Getenv("X-ACSPROXY-ASCM-CONTEXT"); ascmContext != "" {
-		createDiskRequest.GetHeaders()["x-acsproxy-ascm-context"] = ascmContext
+		req.GetHeaders()["x-acsproxy-ascm-context"] = ascmContext
 	}
-	log.Infof("request: request content: %++v", *createDiskRequest)
-	volumeRes, err := ecsClient.CreateDisk(createDiskRequest)
+	return &req
+}
+
+var ErrParameterMismatch = errors.New("parameter mismatch")
+
+func createDiskAttempt(req *ecs.CreateDiskRequest, attempt createAttempt, ecsClient *ecs.Client) (diskId string, final bool, err error) {
+	req = finalizeCreateDiskRequest(req, attempt)
+	log.Infof("request: request content: %++v", req)
+
+	volumeRes, err := ecsClient.CreateDisk(req)
 	if err == nil {
 		log.Infof("request: diskId: %s, reqId: %s", volumeRes.DiskId, volumeRes.RequestId)
-		return true, volumeRes.DiskId, nil
+		return volumeRes.DiskId, true, nil
 	}
 	var aliErr *alicloudErr.ServerError
 	if errors.As(err, &aliErr) {
+		log.Infof("request: Create Disk for volume %s failed: %v", req.DiskName, err)
 		if strings.HasPrefix(aliErr.ErrorCode(), DiskNotAvailable) || strings.Contains(aliErr.Message(), DiskNotAvailableVer2) {
-			log.Infof("request: Create Disk for volume %s with diskCatalog: %s is not supported in zone: %s", createDiskRequest.DiskName, category, createDiskRequest.ZoneId)
-			return false, "", err
+			return "", false, fmt.Errorf("not supported in zone: %s", req.ZoneId)
 		} else if aliErr.ErrorCode() == DiskSizeNotAvailable1 || aliErr.ErrorCode() == DiskSizeNotAvailable2 {
 			// although we have checked the size above, but these limits are subject to change, so we may still encounter this error
-			log.Infof("request: Create Disk for volume %s with diskCatalog: %s has invalid disk size: %s", createDiskRequest.DiskName, category, createDiskRequest.Size)
-			return false, "", err
-		} else if aliErr.ErrorCode() == DiskPerformanceLevelNotMatch && category == DiskESSD {
-			log.Infof("request: Create Disk for volume %s with diskCatalog: %s , pl: %s has invalid disk size: %s", createDiskRequest.DiskName, category, createDiskRequest.PerformanceLevel, createDiskRequest.Size)
-			return false, "", err
-		} else if aliErr.ErrorCode() == DiskInvalidPL && category == DiskESSD {
+			return "", false, fmt.Errorf("invalid disk size: %s", req.Size)
+		} else if aliErr.ErrorCode() == DiskPerformanceLevelNotMatch && attempt.Category == DiskESSD {
+			return "", false, fmt.Errorf("invalid disk size: %s", req.Size)
+		} else if aliErr.ErrorCode() == DiskInvalidPL && attempt.Category == DiskESSD {
 			// observed in cn-north-2-gov-1 region, PL0 is not supported
-			log.Infof("request: Create Disk for volume %s with diskCatalog: %s , pl: %s unsupported", createDiskRequest.DiskName, category, createDiskRequest.PerformanceLevel)
-			return false, "", err
-		} else if aliErr.ErrorCode() == DiskIopsLimitExceeded && category == DiskESSDAuto {
-			log.Infof("request: Create Disk for volume %s with diskCatalog: %s , provisioned iops %s has exceeded limit", createDiskRequest.DiskName, category, createDiskRequest.ProvisionedIops)
-			return false, "", err
+			return "", false, fmt.Errorf("performance level %s unsupported", req.PerformanceLevel)
+		} else if aliErr.ErrorCode() == DiskIopsLimitExceeded && attempt.Category == DiskESSDAuto {
+			return "", false, fmt.Errorf("provisioned iops %s has exceeded limit", req.ProvisionedIops)
+		} else if aliErr.ErrorCode() == IdempotentParameterMismatch {
+			return "", false, ErrParameterMismatch
 		}
 	}
-	log.Errorf("request: create disk for volume %s with type: %s err: %v", createDiskRequest.DiskName, category, err)
+	log.Errorf("request: create disk for volume %s with type: %s err: %v", req.DiskName, attempt, err)
 	newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskProvision)
-	return true, "", fmt.Errorf("%s: %w", newErrMsg, err)
+	return "", true, fmt.Errorf("%s: %w", newErrMsg, err)
 }
 
-func getDiskType(diskVol *diskVolumeArgs) ([]Category, []PerformanceLevel, error) {
-	nodeSupportDiskType := sets.New[string]()
-	if diskVol.NodeSelected != "" {
-		client := GlobalConfigVar.ClientSet
-		nodeInfo, err := client.CoreV1().Nodes().Get(context.Background(), diskVol.NodeSelected, metav1.GetOptions{})
-		if err != nil {
-			log.Infof("getDiskType: failed to get node labels: %v", err)
-			if apierrors.IsNotFound(err) {
-				return nil, nil, status.Errorf(codes.ResourceExhausted, "CreateVolume:: get node info by name: %s failed with err: %v, start rescheduling", diskVol.NodeSelected, err)
-			}
-			return nil, nil, status.Errorf(codes.InvalidArgument, "CreateVolume:: get node info by name: %s failed with err: %v", diskVol.NodeSelected, err)
-		}
-		re := regexp.MustCompile(`node.csi.alibabacloud.com/disktype.(.*)`)
-		for key := range nodeInfo.Labels {
-			if result := re.FindStringSubmatch(key); len(result) != 0 {
-				nodeSupportDiskType.Insert(result[1])
-			}
-		}
-		log.Infof("CreateVolume:: node support disk types: %v, nodeSelected: %v", nodeSupportDiskType, diskVol.NodeSelected)
-	}
+type createAttempt struct {
+	Category         Category
+	PerformanceLevel PerformanceLevel
+}
 
-	provisionDiskTypes := []Category{}
-	allTypes := diskVol.Type
-	if len(nodeSupportDiskType) != 0 {
-		for _, c := range allTypes {
-			if nodeSupportDiskType.Has(string(c)) {
-				provisionDiskTypes = append(provisionDiskTypes, c)
+func (a createAttempt) String() string {
+	if a.PerformanceLevel == "" {
+		return string(a.Category)
+	}
+	return fmt.Sprintf("%s.%s", a.Category, a.PerformanceLevel)
+}
+
+func generateCreateAttempts(diskVol *diskVolumeArgs) (a []createAttempt) {
+	for _, c := range diskVol.Type {
+		desc := AllCategories[c]
+		if len(desc.PerformanceLevel) == 0 || len(diskVol.PerformanceLevel) == 0 {
+			a = append(a, createAttempt{Category: c})
+		} else {
+			for _, pl := range diskVol.PerformanceLevel {
+				if _, ok := desc.PerformanceLevel[pl]; ok {
+					a = append(a, createAttempt{Category: c, PerformanceLevel: pl})
+				}
 			}
 		}
-		if len(provisionDiskTypes) == 0 {
-			log.Errorf("CreateVolume:: node(%s) support type: [%v] is incompatible with provision disk type: [%s]", diskVol.NodeSelected, nodeSupportDiskType, allTypes)
-			return nil, nil, status.Errorf(codes.ResourceExhausted, "CreateVolume:: node support type: [%v] is incompatible with provision disk type: [%s]", nodeSupportDiskType, allTypes)
-		}
-	} else {
-		provisionDiskTypes = allTypes
 	}
-	return provisionDiskTypes, diskVol.PerformanceLevel, nil
+	return
+}
+
+func getSupportedDiskTypes(node string) (sets.Set[Category], error) {
+	types := sets.New[Category]()
+	client := GlobalConfigVar.ClientSet
+	nodeInfo, err := client.CoreV1().Nodes().Get(context.Background(), node, metav1.GetOptions{})
+	if err != nil {
+		log.Infof("getDiskType: failed to get node labels: %v", err)
+		if apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.ResourceExhausted, "CreateVolume:: get node info by name: %s failed with err: %v, start rescheduling", node, err)
+		}
+		return nil, status.Errorf(codes.InvalidArgument, "CreateVolume:: get node info by name: %s failed with err: %v", node, err)
+	}
+	re := regexp.MustCompile(`node.csi.alibabacloud.com/disktype.(.*)`)
+	for key := range nodeInfo.Labels {
+		if result := re.FindStringSubmatch(key); len(result) != 0 {
+			types.Insert(Category(result[1]))
+		}
+	}
+	log.Infof("CreateVolume:: node support disk types: %v, nodeSelected: %v", types, node)
+	return types, nil
 }
 
 func getDefaultDiskTags(diskVol *diskVolumeArgs) []ecs.CreateDiskTag {

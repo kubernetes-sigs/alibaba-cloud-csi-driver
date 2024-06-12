@@ -35,6 +35,8 @@ type CategoryDesc struct {
 	Size                  SizeRange
 	PerformanceLevel      map[PerformanceLevel]PerformanceLevelDesc
 	InstantAccessSnapshot bool
+	ProvisionedIops       bool
+	Bursting              bool
 }
 
 var AllCategories = map[Category]CategoryDesc{
@@ -58,6 +60,8 @@ var AllCategories = map[Category]CategoryDesc{
 	DiskESSDAuto: {
 		Size:                  SizeRange{Min: 1, Max: 65536},
 		InstantAccessSnapshot: true,
+		ProvisionedIops:       true,
+		Bursting:              true,
 	},
 	DiskESSDEntry: {
 		Size: SizeRange{Min: 10, Max: 65536},

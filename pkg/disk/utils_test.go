@@ -631,6 +631,9 @@ func TestParseTagsInvalid(t *testing.T) {
 
 func TestGetDiskVolumeOptions(t *testing.T) {
 	req := &csi.CreateVolumeRequest{
+		CapacityRange: &csi.CapacityRange{
+			RequiredBytes: 20*GBSIZE - 100,
+		},
 		Parameters: map[string]string{
 			"zoneId":     "cn-beijing-i",
 			"diskTags/a": "b",
@@ -640,4 +643,5 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "cn-beijing-i", opts.ZoneID)
 	assert.Equal(t, map[string]string{"a": "b"}, opts.DiskTags)
+	assert.Equal(t, int64(20), opts.RequestGB)
 }

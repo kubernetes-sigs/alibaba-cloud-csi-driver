@@ -60,24 +60,24 @@ type controllerServer struct {
 
 // Alicloud disk parameters
 type diskVolumeArgs struct {
-	Type                    []Category
-	RegionID                string
-	ZoneID                  string
-	FsType                  string
-	ReadOnly                bool
-	MultiAttach             bool
-	Encrypted               bool
-	KMSKeyID                string
-	PerformanceLevel        []PerformanceLevel
-	ResourceGroupID         string
-	StorageClusterID        string
-	DiskTags                map[string]string
-	NodeSelected            string
-	DelAutoSnap             string
-	ARN                     []ecs.CreateDiskArn
-	VolumeSizeAutoAvailable bool
-	ProvisionedIops         int
-	BurstingEnabled         bool
+	Type             []Category
+	RegionID         string
+	ZoneID           string
+	FsType           string
+	ReadOnly         bool
+	MultiAttach      bool
+	Encrypted        bool
+	KMSKeyID         string
+	PerformanceLevel []PerformanceLevel
+	ResourceGroupID  string
+	StorageClusterID string
+	DiskTags         map[string]string
+	NodeSelected     string
+	DelAutoSnap      string
+	ARN              []ecs.CreateDiskArn
+	ProvisionedIops  int64
+	BurstingEnabled  bool
+	RequestGB        int64
 }
 
 var veasp = struct {
@@ -191,26 +191,16 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 	}
 
-	if req.GetCapacityRange() == nil {
-		log.Errorf("CreateVolume: error Capacity from input: %s", req.Name)
-		return nil, status.Errorf(codes.InvalidArgument, "CreateVolume: error Capacity from input: %v", req.Name)
-	}
-	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
-	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
-	if diskVol.VolumeSizeAutoAvailable && requestGB < MinimumDiskSizeInGB {
-		log.Infof("CreateVolume: volume size was less than allowed limit. Setting request Size to %vGB. volumeSizeAutoAvailable is set.", MinimumDiskSizeInGB)
-		requestGB = MinimumDiskSizeInGB
-		volSizeBytes = MinimumDiskSizeInBytes
-	}
 	sharedDisk := len(diskVol.Type) == 1 && (diskVol.Type[0] == DiskSharedEfficiency || diskVol.Type[0] == DiskSharedSSD)
 
-	diskType, diskID, diskPL, err := createDisk(req.GetName(), snapshotID, requestGB, diskVol, req.Parameters[TenantUserUID])
+	diskID, attempt, err := createDisk(req.GetName(), snapshotID, diskVol, req.Parameters[TenantUserUID])
 	if err != nil {
+		if errors.Is(err, ErrParameterMismatch) {
+			return nil, status.Errorf(codes.AlreadyExists, "volume %s already created but %v", req.Name, err)
+		}
 		var aliErr *alicloudErr.ServerError
 		if errors.As(err, &aliErr) {
 			switch aliErr.ErrorCode() {
-			case IdempotentParameterMismatch:
-				return nil, status.Errorf(codes.AlreadyExists, "volume %s already created with different parameters", req.Name)
 			case SnapshotNotFound:
 				return nil, status.Errorf(codes.NotFound, "snapshot %s not found", snapshotID)
 			}
@@ -225,12 +215,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if sharedDisk {
 		volumeContext[SharedEnable] = "enable"
 	}
-	if diskType != "" {
-		volumeContext["type"] = string(diskType)
-	}
-	log.Infof("CreateVolume: volume: %s created diskpl: %s", req.GetName(), diskPL)
-	if diskPL != "" {
-		volumeContext[ESSD_PERFORMANCE_LEVEL] = string(diskPL)
+	volumeContext["type"] = string(attempt.Category)
+	if attempt.PerformanceLevel != "" {
+		volumeContext[ESSD_PERFORMANCE_LEVEL] = string(attempt.PerformanceLevel)
 	}
 
 	if tenantUserUID := req.Parameters[TenantUserUID]; tenantUserUID != "" {
@@ -238,7 +225,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	volumeContext = updateVolumeContext(volumeContext)
 
-	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], snapshotID[%s]", req.GetName(), diskID, diskVol.ZoneID, diskType, requestGB, snapshotID)
+	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], snapshotID[%s]", req.GetName(), diskID, diskVol.ZoneID, attempt, snapshotID)
 
 	// Set VolumeContentSource
 	var src *csi.VolumeContentSource
@@ -252,7 +239,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 	}
 
-	tmpVol := volumeCreate(diskType, diskID, volSizeBytes, volumeContext, diskVol.ZoneID, src)
+	tmpVol := volumeCreate(attempt, diskID, utils.Gi2Bytes(int64(diskVol.RequestGB)), volumeContext, diskVol.ZoneID, src)
 
 	diskIDPVMap[diskID] = req.Name
 	createdVolumeMap[req.Name] = tmpVol
