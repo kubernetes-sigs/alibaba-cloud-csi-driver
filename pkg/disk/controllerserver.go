@@ -123,15 +123,8 @@ func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.Cont
 // the map of req.Name and csi.Snapshot
 var createdSnapshotMap = map[string]*csi.Snapshot{}
 
-// the map of req.Name and csi.Volume
-var createdVolumeMap = map[string]*csi.Volume{}
-
 // the map of multizone and index
 var storageClassZonePos = map[string]int{}
-
-// the map of diskId and pvName
-// diskId and pvName is not same under csi plugin
-var diskIDPVMap = map[string]string{}
 
 // SnapshotRequestMap snapshot request limit
 var SnapshotRequestMap = map[string]int64{}
@@ -147,10 +140,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME); err != nil {
 		log.Errorf("CreateVolume: driver not support Create volume: %v", err)
 		return nil, err
-	}
-	if value, ok := createdVolumeMap[req.Name]; ok {
-		log.Infof("CreateVolume: volume already be created pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, value.VolumeId, value.VolumeContext)
-		return &csi.CreateVolumeResponse{Volume: value}, nil
 	}
 
 	snapshotID := ""
@@ -241,8 +230,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	tmpVol := volumeCreate(attempt, diskID, utils.Gi2Bytes(int64(diskVol.RequestGB)), volumeContext, diskVol.ZoneID, src)
 
-	diskIDPVMap[diskID] = req.Name
-	createdVolumeMap[req.Name] = tmpVol
 	return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 }
 
@@ -267,11 +254,6 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			log.Error(errMsg)
 			return nil, status.Error(codes.Internal, errMsg)
 		} else if disk == nil {
-			// TODO Optimize concurrent access problems
-			if value, ok := diskIDPVMap[req.VolumeId]; ok {
-				delete(createdVolumeMap, value)
-				delete(diskIDPVMap, req.VolumeId)
-			}
 			log.Infof("DeleteVolume: disk(%s) already deleted", req.VolumeId)
 			return &csi.DeleteVolumeResponse{}, nil
 		}
@@ -317,10 +299,6 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		return nil, status.Errorf(codes.Internal, errMsg)
 	}
 
-	if value, ok := diskIDPVMap[req.VolumeId]; ok {
-		delete(createdVolumeMap, value)
-		delete(diskIDPVMap, req.VolumeId)
-	}
 	delVolumeSnap.Delete(req.GetVolumeId())
 	return &csi.DeleteVolumeResponse{}, nil
 }
