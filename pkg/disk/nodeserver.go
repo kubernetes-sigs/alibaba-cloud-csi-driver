@@ -925,7 +925,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	if err != nil {
 		log.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", diskID, devicePath, volumePath, err.Error())
 		if snapshotEnable {
-			log.Warnf("NodeExpandVolume:: Please use the snapshot %s for data recovery。 The retentionDays is %d", volumeExpandAutoSnapshotID, veasp.RetentionDays)
+			log.Warnf("NodeExpandVolume:: Please use the snapshot %s for data recovery. The retentionDays is %d", volumeExpandAutoSnapshotID, veasp.RetentionDays)
 			snapshotEnable = false
 		}
 		return nil, status.Error(codes.Internal, err.Error())
@@ -933,7 +933,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	if !ok {
 		log.Errorf("NodeExpandVolume:: Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
 		if snapshotEnable {
-			log.Warnf("NodeExpandVolume:: Please use the snapshot %s for data recovery。 The retentionDays is %d", volumeExpandAutoSnapshotID, veasp.RetentionDays)
+			log.Warnf("NodeExpandVolume:: Please use the snapshot %s for data recovery. The retentionDays is %d", volumeExpandAutoSnapshotID, veasp.RetentionDays)
 			snapshotEnable = false
 		}
 		return nil, status.Error(codes.Internal, "Fail to resize volume fs")

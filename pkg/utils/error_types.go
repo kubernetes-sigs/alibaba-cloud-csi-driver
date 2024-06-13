@@ -43,12 +43,12 @@ var DiskProvisionErrors = map[string]*errorInfo{
 	"disk size is not supported.": {
 		errorName:           "SpecificSizeNotValid",
 		errorTypicalMessage: "disk size is not supported.",
-		errorSuggestion:     "faq：https://help.aliyun.com/document_detail/286495.htm?spm=a2c4g.11186623.0.0.77bc690cSyWVYM#section-r6k-e7i-l78",
+		errorSuggestion:     "faq: https://help.aliyun.com/document_detail/286495.htm#section-r6k-e7i-l78",
 	},
 	"The specified AZone inventory is insufficient": {
 		errorName:           "InsufficientInventory",
 		errorTypicalMessage: "The specified AZone inventory is insufficient",
-		errorSuggestion:     "faq：https://help.aliyun.com/document_detail/286495.htm?spm=a2c4g.11186623.0.0.77bc690clAAUic#section-6n3-8ue-fyf",
+		errorSuggestion:     "faq: https://help.aliyun.com/document_detail/286495.htm#section-6n3-8ue-fyf",
 	},
 }
 
@@ -57,22 +57,22 @@ var DiskAttachDetachErrors = map[string]*errorInfo{
 	"had volume node affinity conflict": {
 		errorName:           "VolumeNodeAffinityConflict",
 		errorTypicalMessage: "had volume node affinity conflict",
-		errorSuggestion:     "faq: https://help.aliyun.com/document_detail/286495.htm?spm=a2c4g.11186623.0.0.77bc690cSyWVYM#section-7o2-zf7-eff",
+		errorSuggestion:     "faq: https://help.aliyun.com/document_detail/286495.htm#section-7o2-zf7-eff",
 	},
 	"can't find disk:": {
 		errorName:           "VolumeDiskIDError",
 		errorTypicalMessage: "can't find disk:",
-		errorSuggestion:     "faq: https://help.aliyun.com/document_detail/286495.htm?spm=a2c4g.11186623.0.0.77bc690cSyWVYM#section-7o2-zf7-eff",
+		errorSuggestion:     "faq: https://help.aliyun.com/document_detail/286495.htm#section-7o2-zf7-eff",
 	},
 	"instance does not support this disk category.": {
 		errorName:           "NotSupportDiskCategory",
 		errorTypicalMessage: "instance does not support this disk category.",
-		errorSuggestion:     "faq: https://help.aliyun.com/document_detail/286495.htm?spm=a2c4g.11186623.0.0.77bc690cSyWVYM#section-ihn-gds-9mm",
+		errorSuggestion:     "faq: https://help.aliyun.com/document_detail/286495.htm#section-ihn-gds-9mm",
 	},
 	"The specified disk is not a portable disk.": {
 		errorName:           "DiskNotPortable",
 		errorTypicalMessage: "The specified disk is not a portable disk.",
-		errorSuggestion:     "faq: https://help.aliyun.com/document_detail/286495.htm?spm=a2c4g.11186623.0.0.77bc690cSyWVYM#section-s48-866-q58",
+		errorSuggestion:     "faq: https://help.aliyun.com/document_detail/286495.htm#section-s48-866-q58",
 	},
 }
 

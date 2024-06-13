@@ -353,15 +353,15 @@ func (p *diskStatCollector) setDiskMetric(pvName string, info diskInfo, stats []
 			logrus.Errorf("Convert value %s to float64 is failed, err:%s", value, err)
 			continue
 		}
-		if i == 3 { //3：diskReadTimeMilliSecondsDesc
+		if i == 3 { //3: diskReadTimeMilliSecondsDesc
 			p.latencyEventAlert(pvName, info.PvcName, info.PvcNamespace, stats, 0)
 		}
 
-		if i == 7 { //7：diskWriteTimeMilliSecondsDesc
+		if i == 7 { //7: diskWriteTimeMilliSecondsDesc
 			p.latencyEventAlert(pvName, info.PvcName, info.PvcNamespace, stats, 4)
 		}
 
-		if i == 12 { //12：diskCapacityUsedDesc
+		if i == 12 { //12: diskCapacityUsedDesc
 			p.capacityEventAlert(valueFloat64, info.PvcName, info.PvcNamespace, stats)
 		}
 

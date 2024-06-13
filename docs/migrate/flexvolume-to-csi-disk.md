@@ -7,7 +7,7 @@
 > 4. 此版本文档只适用于 statefulset 版本的应用
 
 ### 背景介绍
-csi, flexvolume 简介： https://help.aliyun.com/document_detail/157025.html?spm=5176.2020520152.0.dexternal.52a116ddjh5Afv
+csi, flexvolume 简介： https://help.aliyun.com/document_detail/157025.html
 
 csi 插件体系为 csi-provisioner deployment + csi-plugin daemonset 组合而成
 
