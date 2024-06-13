@@ -889,7 +889,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	if requestGB != checkDisk.Size {
 		log.Infof("ControllerExpandVolume:: resize disk err with excepted size: %vGB, actual size: %vGB", requestGB, checkDisk.Size)
 		if snapshotEnable {
-			log.Warnf("ControllerExpandVolume:: Please use the snapshot %s for data recovery。 The retentionDays is %d", snapshot.SnapshotId, veasp.RetentionDays)
+			log.Warnf("ControllerExpandVolume:: Please use the snapshot %s for data recovery. The retentionDays is %d", snapshot.SnapshotId, veasp.RetentionDays)
 		}
 		return nil, status.Errorf(codes.Internal, "resize disk err with excepted size: %vGB, actual size: %vGB", requestGB, checkDisk.Size)
 	}
