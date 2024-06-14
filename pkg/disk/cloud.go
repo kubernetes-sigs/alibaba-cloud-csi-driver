@@ -889,7 +889,7 @@ func createDisk(diskName, snapshotID string, requestGB int, diskVol *diskVolumeA
 		if dType == DiskESSDAuto {
 			newReq := generateNewRequest(createDiskRequest)
 			createDiskRequest.ClientToken = fmt.Sprintf("token:%s/%s/%s/%s/%d/%t", diskName, dType, diskVol.RegionID, diskVol.ZoneID, diskVol.ProvisionedIops, diskVol.BurstingEnabled)
-			if diskVol.ProvisionedIops != -1 {
+			if diskVol.ProvisionedIops > 0 {
 				newReq.ProvisionedIops = requests.NewInteger(diskVol.ProvisionedIops)
 			}
 			newReq.BurstingEnabled = requests.NewBoolean(diskVol.BurstingEnabled)

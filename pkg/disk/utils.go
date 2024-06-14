@@ -761,7 +761,6 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		}
 	}
 
-	diskVolArgs.ProvisionedIops = -1
 	value, ok = volOptions[PROVISIONED_IOPS_KEY]
 	if ok {
 		iValue, err := strconv.Atoi(value)
