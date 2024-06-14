@@ -683,7 +683,7 @@ func findDiskByID(diskID string, ecsClient *ecs.Client) (*ecs.Disk, error) {
 	return &disks[0], err
 }
 
-func findDiskByName(name string, ecsClient *ecs.Client) (*ecs.Disk, error) {
+func findDiskByName(name string, ecsClient cloud.ECSInterface) (*ecs.Disk, error) {
 	describeDisksRequest := ecs.CreateDescribeDisksRequest()
 	describeDisksRequest.RegionId = GlobalConfigVar.Region
 	tags := []ecs.DescribeDisksTag{{Key: common.VolumeNameTag, Value: name}}
@@ -920,21 +920,8 @@ func clientToken(name string) string {
 // So we just assume they are not supported.
 var vaildDiskNameRegexp = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9:_-]{1,127}$`)
 
-func createDisk(diskName, snapshotID string, diskVol *diskVolumeArgs, tenantUID string) (string, createAttempt, error) {
+func createDisk(ecsClient cloud.ECSInterface, diskName, snapshotID string, diskVol *diskVolumeArgs, supportedTypes sets.Set[Category]) (string, createAttempt, error) {
 	// 需要配置external-provisioner启动参数--extra-create-metadata=true，然后ACK的external-provisioner才会将PVC的Annotations传过来
-	ecsClient, err := getEcsClientByID("", tenantUID)
-	if err != nil {
-		return "", createAttempt{}, status.Error(codes.Internal, err.Error())
-	}
-
-	var supportedTypes sets.Set[Category]
-	if diskVol.NodeSelected != "" {
-		supportedTypes, err = getSupportedDiskTypes(diskVol.NodeSelected)
-		if err != nil {
-			return "", createAttempt{}, err
-		}
-	}
-
 	createDiskRequest := buildCreateDiskRequest(diskVol)
 	if vaildDiskNameRegexp.MatchString(diskName) {
 		createDiskRequest.DiskName = diskName
@@ -1050,7 +1037,7 @@ func finalizeCreateDiskRequest(template *ecs.CreateDiskRequest, attempt createAt
 
 var ErrParameterMismatch = errors.New("parameter mismatch")
 
-func createDiskAttempt(req *ecs.CreateDiskRequest, attempt createAttempt, ecsClient *ecs.Client) (diskId string, final bool, err error) {
+func createDiskAttempt(req *ecs.CreateDiskRequest, attempt createAttempt, ecsClient cloud.ECSInterface) (diskId string, final bool, err error) {
 	req = finalizeCreateDiskRequest(req, attempt)
 	log.Infof("request: request content: %++v", req)
 
