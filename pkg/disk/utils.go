@@ -318,13 +318,6 @@ func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
 	return nil
 }
 
-func makeDevicePath(name string) string {
-	if strings.HasPrefix(name, "/dev/") {
-		return name
-	}
-	return filepath.Join("/dev/", name)
-}
-
 // GetDiskFormat uses 'blkid' to see if the given disk is unformatted
 func GetDiskFormat(disk string) (string, string, error) {
 	args := []string{"-p", "-s", "TYPE", "-s", "PTTYPE", "-o", "export", disk}
@@ -915,6 +908,8 @@ func checkDeviceAvailable(mountinfoPath, devicePath, volumeID, targetPath string
 }
 
 // GetVolumeDeviceName get device name
+//
+// Only call this function if the volume is a mount volume (not block volume).
 func GetVolumeDeviceName(diskID string) (string, error) {
 	device, err := DefaultDeviceManager.GetDeviceByVolumeID(diskID)
 	if err == nil {

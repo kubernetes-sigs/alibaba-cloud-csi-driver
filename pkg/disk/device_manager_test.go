@@ -99,9 +99,10 @@ func testingManager(t *testing.T) *DeviceManager {
 	err = os.MkdirAll(devPath, 0o755)
 	assert.NoError(t, err)
 	return &DeviceManager{
-		DevTmpFS:   &fakeDevTmpFS{DevicePath: devPath},
-		DevicePath: devPath,
-		SysfsPath:  filepath.Join(dir, "sys"),
+		DevTmpFS:            &fakeDevTmpFS{DevicePath: devPath},
+		DevicePath:          devPath,
+		SysfsPath:           filepath.Join(dir, "sys"),
+		EnableDiskPartition: true,
 	}
 }
 
@@ -213,7 +214,7 @@ func TestAdaptDevicePartitionPositive(t *testing.T) {
 		t.Run(dev, func(t *testing.T) {
 			devPath := filepath.Join(m.DevicePath, dev)
 			extractGzip(t, "testdata/parted_disk.img.gz", devPath)
-			devicePath, err := m.adaptDevicePartition(devPath)
+			devicePath, err := m.AdaptDevicePartition(devPath)
 			assert.NoError(t, err)
 			assert.Equal(t, filepath.Join(m.DevicePath, "nvme1n1p27"), devicePath)
 		})
@@ -228,7 +229,7 @@ func TestAdaptDevicePartitionNoPartition(t *testing.T) {
 	setupNVMeBlockDevice(t, m.SysfsPath)
 	m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{nvmeDev}
 
-	devicePath, err := m.adaptDevicePartition(filepath.Join(m.DevicePath, "nvme1n1"))
+	devicePath, err := m.AdaptDevicePartition(filepath.Join(m.DevicePath, "nvme1n1"))
 	assert.NoError(t, err)
 	assert.Equal(t, filepath.Join(m.DevicePath, "nvme1n1"), devicePath)
 }
@@ -242,7 +243,7 @@ func TestAdaptDevicePartitionMultiplePartitions(t *testing.T) {
 	sysfsSetupPartition(t, m.SysfsPath, sysfsDev, "nvme1n1p28", &fakeDev{Major: 259, Minor: 28}, 28)
 	m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{nvmeDev}
 
-	_, err := m.adaptDevicePartition(filepath.Join(m.DevicePath, "nvme1n1"))
+	_, err := m.AdaptDevicePartition(filepath.Join(m.DevicePath, "nvme1n1"))
 	assert.Error(t, err)
 }
 
