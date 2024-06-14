@@ -6,10 +6,12 @@ import (
 	"testing"
 
 	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	gomock "github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var (
@@ -200,4 +202,286 @@ func BenchmarkClientToken(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		clientToken("disk-dcd6fdde-8c1e-45eb-8ec7-786a8b2e0b61")
 	}
+}
+
+func TestBuildCreateDiskRequest(t *testing.T) {
+	args := &diskVolumeArgs{
+		ZoneID: "cn-hangzhou",
+	}
+	req := buildCreateDiskRequest(args)
+	assert.Equal(t, "cn-hangzhou", req.ZoneId)
+
+	req2 := finalizeCreateDiskRequest(req, createAttempt{
+		Category:         DiskESSD,
+		PerformanceLevel: PERFORMANCE_LEVEL0,
+	})
+	assert.Equal(t, "cloud_essd", req2.DiskCategory)
+	assert.Equal(t, "PL0", req2.PerformanceLevel)
+	// fields is copied
+	assert.Equal(t, "cn-hangzhou", req2.ZoneId)
+
+	// send req2 should not affect req
+	requests.InitParams(req2)
+	assert.Greater(t, len(req2.QueryParams), len(req.QueryParams))
+}
+
+func TestGenerateAttempts(t *testing.T) {
+	cases := []struct {
+		name     string
+		args     *diskVolumeArgs
+		attempts []createAttempt
+	}{
+		{
+			name: "no PL",
+			args: &diskVolumeArgs{
+				Type: []Category{DiskESSD, DiskESSDAuto},
+			},
+			attempts: []createAttempt{
+				{Category: DiskESSD},
+				{Category: DiskESSDAuto},
+			},
+		}, {
+			name: "with PL",
+			args: &diskVolumeArgs{
+				Type:             []Category{DiskESSDEntry, DiskESSD, DiskESSDAuto},
+				PerformanceLevel: []PerformanceLevel{PERFORMANCE_LEVEL0, PERFORMANCE_LEVEL1},
+			},
+			attempts: []createAttempt{
+				{Category: DiskESSDEntry},
+				{Category: DiskESSD, PerformanceLevel: PERFORMANCE_LEVEL0},
+				{Category: DiskESSD, PerformanceLevel: PERFORMANCE_LEVEL1},
+				{Category: DiskESSDAuto},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			attempts := generateCreateAttempts(c.args)
+			assert.Equal(t, c.attempts, attempts)
+		})
+	}
+}
+
+func TestCheckExistingDisk(t *testing.T) {
+	disk := &ecs.Disk{
+		Size:             20,
+		Category:         "cloud_essd",
+		PerformanceLevel: "PL0",
+		Tags: ecs.TagsInDescribeDisks{
+			Tag: []ecs.Tag{
+				{Key: "k1", Value: "v1"},
+			},
+		},
+	}
+	cases := []struct {
+		name  string
+		args  *diskVolumeArgs
+		match bool
+	}{
+		{
+			name:  "match",
+			args:  &diskVolumeArgs{RequestGB: 20, Type: []Category{DiskESSD, DiskESSDAuto}, PerformanceLevel: []PerformanceLevel{PERFORMANCE_LEVEL0}},
+			match: true,
+		}, {
+			name: "mismatch category",
+			args: &diskVolumeArgs{RequestGB: 20, Type: []Category{DiskESSDAuto}, PerformanceLevel: []PerformanceLevel{PERFORMANCE_LEVEL0}},
+		}, {
+			name: "mismatch PL",
+			args: &diskVolumeArgs{RequestGB: 20, Type: []Category{DiskESSD}, PerformanceLevel: []PerformanceLevel{PERFORMANCE_LEVEL1}},
+		}, {
+			name: "mismatch MultiAttach",
+			args: &diskVolumeArgs{
+				RequestGB: 20, Type: []Category{DiskESSD}, PerformanceLevel: []PerformanceLevel{PERFORMANCE_LEVEL0},
+				MultiAttach: true,
+			},
+		}, {
+			name: "mismatch tag key",
+			args: &diskVolumeArgs{
+				RequestGB: 20, Type: []Category{DiskESSD}, PerformanceLevel: []PerformanceLevel{PERFORMANCE_LEVEL0},
+				DiskTags: map[string]string{"k2": "v1"},
+			},
+		}, {
+			name: "mismatch tag value",
+			args: &diskVolumeArgs{
+				RequestGB: 20, Type: []Category{DiskESSD}, PerformanceLevel: []PerformanceLevel{PERFORMANCE_LEVEL0},
+				DiskTags: map[string]string{"k1": "v2"},
+			},
+		}, {
+			name:  "match no PL requested",
+			args:  &diskVolumeArgs{RequestGB: 20, Type: []Category{DiskESSD}},
+			match: true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			createAttempt, err := checkExistingDisk(disk, c.args)
+			assert.Equal(t, c.match, err == nil)
+			if c.match {
+				assert.Equal(t, disk.Category, string(createAttempt.Category))
+				assert.Equal(t, disk.PerformanceLevel, string(createAttempt.PerformanceLevel))
+			}
+		})
+	}
+}
+
+// Cases that only hit the server at most once
+func TestCreateDisk_Basic(t *testing.T) {
+	cases := []struct {
+		name       string
+		supports   sets.Set[Category]
+		args       *diskVolumeArgs
+		err        bool
+		serverFail bool
+	}{
+		{
+			name:     "success",
+			supports: sets.New(DiskESSD),
+			args:     &diskVolumeArgs{Type: []Category{DiskESSD}, RequestGB: 20},
+		}, {
+			name:     "success - fallback",
+			supports: sets.New(DiskESSD),
+			args:     &diskVolumeArgs{Type: []Category{DiskSSD, DiskESSD}, RequestGB: 20},
+		}, {
+			name: "success - empty supports",
+			args: &diskVolumeArgs{Type: []Category{DiskESSD}, RequestGB: 20},
+		}, {
+			name:     "unsupported",
+			supports: sets.New(DiskSSD),
+			args:     &diskVolumeArgs{Type: []Category{DiskESSD}, RequestGB: 20},
+			err:      true,
+		}, {
+			name: "too small",
+			args: &diskVolumeArgs{Type: []Category{DiskSSD}, RequestGB: 1},
+			err:  true,
+		}, {
+			name:       "server fail",
+			args:       &diskVolumeArgs{Type: []Category{DiskESSD}, RequestGB: 20},
+			err:        true,
+			serverFail: true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			client := cloud.NewMockECSInterface(ctrl)
+
+			if !c.err {
+				client.EXPECT().CreateDisk(gomock.Any()).Return(&ecs.CreateDiskResponse{
+					DiskId: "d-123",
+				}, nil)
+			}
+			if c.serverFail {
+				client.EXPECT().CreateDisk(gomock.Any()).Return(nil, alicloudErr.NewServerError(400, `{"Code": "AnyOtherErrors"}`, ""))
+			}
+
+			diskID, attempt, err := createDisk(client, "disk-name", "", c.args, c.supports)
+			if c.err {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, "d-123", diskID)
+				assert.Equal(t, DiskESSD, attempt.Category)
+				assert.Empty(t, attempt.PerformanceLevel)
+			}
+		})
+	}
+}
+
+func TestCreateDisk_ServerFailFallback(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	client := cloud.NewMockECSInterface(ctrl)
+
+	client.EXPECT().CreateDisk(gomock.Any()).Return(nil, alicloudErr.NewServerError(400, `{"Code": "InvalidDataDiskSize.ValueNotSupported"}`, ""))
+	client.EXPECT().CreateDisk(gomock.Any()).Return(&ecs.CreateDiskResponse{
+		DiskId: "d-123",
+	}, nil)
+
+	args := &diskVolumeArgs{Type: []Category{DiskESSD, DiskESSDAuto}, RequestGB: 20}
+	diskID, attempt, err := createDisk(client, "disk-name", "", args, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, "d-123", diskID)
+	assert.Equal(t, DiskESSDAuto, attempt.Category)
+	assert.Empty(t, attempt.PerformanceLevel)
+}
+
+func TestCreateDisk_ParameterMismatch(t *testing.T) {
+	cases := []struct {
+		name     string
+		existing []ecs.Disk
+		err      bool
+	}{
+		{
+			name: "retry",
+		}, {
+			name: "reuse",
+			existing: []ecs.Disk{{
+				DiskId:   "d-124",
+				Category: "cloud_auto",
+				Size:     20,
+			}},
+		}, {
+			name: "mismatch",
+			existing: []ecs.Disk{{
+				DiskId:   "d-124",
+				Category: "cloud_essd_entry",
+				Size:     20,
+			}},
+			err: true,
+		}, {
+			name:     "multiple existing",
+			existing: []ecs.Disk{{}, {}},
+			err:      true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			client := cloud.NewMockECSInterface(ctrl)
+
+			r1 := client.EXPECT().CreateDisk(gomock.Any()).Return(nil, alicloudErr.NewServerError(400, `{"Code": "IdempotentParameterMismatch"}`, ""))
+			r2 := client.EXPECT().DescribeDisks(gomock.Any()).Return(&ecs.DescribeDisksResponse{
+				Disks: ecs.DisksInDescribeDisks{
+					Disk: c.existing,
+				},
+			}, nil).After(r1)
+			if c.existing == nil {
+				client.EXPECT().CreateDisk(gomock.Any()).Return(&ecs.CreateDiskResponse{
+					DiskId: "d-123",
+				}, nil).After(r2)
+			}
+
+			args := &diskVolumeArgs{Type: []Category{DiskESSD, DiskESSDAuto}, RequestGB: 20}
+			diskID, attempt, err := createDisk(client, "disk-name", "", args, nil)
+			if c.err {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				if c.existing == nil {
+					assert.Equal(t, "d-123", diskID)
+					assert.Equal(t, DiskESSD, attempt.Category)
+					assert.Empty(t, attempt.PerformanceLevel)
+				} else {
+					d := c.existing[0]
+					assert.Equal(t, d.DiskId, diskID)
+					assert.Equal(t, Category(d.Category), attempt.Category)
+				}
+			}
+		})
+	}
+}
+
+func TestCreateDisk_NoInfinitLoop(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	client := cloud.NewMockECSInterface(ctrl)
+
+	client.EXPECT().CreateDisk(gomock.Any()).Return(nil, alicloudErr.NewServerError(400, `{"Code": "IdempotentParameterMismatch"}`, "")).Times(2)
+	client.EXPECT().DescribeDisks(gomock.Any()).Return(&ecs.DescribeDisksResponse{
+		Disks: ecs.DisksInDescribeDisks{
+			Disk: []ecs.Disk{},
+		},
+	}, nil)
+
+	args := &diskVolumeArgs{Type: []Category{DiskESSD}, RequestGB: 20}
+	_, _, err := createDisk(client, "disk-name", "", args, nil)
+	assert.Error(t, err)
 }

@@ -48,6 +48,7 @@ import (
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/tools/record"
 )
@@ -182,7 +183,20 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	sharedDisk := len(diskVol.Type) == 1 && (diskVol.Type[0] == DiskSharedEfficiency || diskVol.Type[0] == DiskSharedSSD)
 
-	diskID, attempt, err := createDisk(req.GetName(), snapshotID, diskVol, req.Parameters[TenantUserUID])
+	var supportedTypes sets.Set[Category]
+	if diskVol.NodeSelected != "" {
+		supportedTypes, err = getSupportedDiskTypes(diskVol.NodeSelected)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	ecsClient, err := getEcsClientByID("", req.Parameters[TenantUserUID])
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	diskID, attempt, err := createDisk(ecsClient, req.GetName(), snapshotID, diskVol, supportedTypes)
 	if err != nil {
 		if errors.Is(err, ErrParameterMismatch) {
 			return nil, status.Errorf(codes.AlreadyExists, "volume %s already created but %v", req.Name, err)
