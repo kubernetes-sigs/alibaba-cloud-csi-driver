@@ -1,0 +1,32 @@
+{
+    "Version": "1",
+    "Statement": [
+        {
+            "Action": [
+                "nas:DescribeFileSystems",
+                "nas:DescribeMountTargets",
+                "nas:AddTags",
+                "nas:DescribeTags",
+                "nas:RemoveTags",
+                "nas:CreateFileSystem",
+                "nas:DeleteFileSystem",
+                "nas:ModifyFileSystem",
+                "nas:CreateMountTarget",
+                "nas:DeleteMountTarget",
+                "nas:ModifyMountTarget",
+                "nas:TagResources",
+                "nas:SetDirQuota",
+                "nas:EnableRecycleBin",
+                "nas:GetRecycleBinAttribute",
+                "nas:DescribeProtocolMountTarget",
+                "nas:CancelDirQuota",
+                "nas:CreateDir",
+                "nas:DescribeDirQuotas"
+            ],
+            "Resource": [
+                "*"
+            ],
+            "Effect": "Allow"
+        },
+    ]
+}
