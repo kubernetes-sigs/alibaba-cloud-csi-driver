@@ -1,7 +1,7 @@
 //go:build linux
 
-package utils
+package io
 
 import "golang.org/x/sys/unix"
 
-const flag_O_PATH = unix.O_PATH
+const O_PATH = unix.O_PATH

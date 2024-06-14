@@ -3,65 +3,96 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"io/fs"
-	"os"
+	"math"
+	"math/bits"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/cgroup"
+	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
-const PodBlkIOCgroupPath = "/host/sys/fs/cgroup/blkio/kubepods.slice"
+// CGROUPFS_MOUNT_PATH is the path to the host cgroupfs mounted in the container
+const CGROUPFS_MOUNT_PATH = "/host/sys/fs/cgroup"
 
-// SetVolumeIOLimit config io limit for device
+type PodCGroup struct {
+	slice cgroup.PodCGroupSlice
+	io    cgroup.IO
+	dev   utilsio.DevTmpFS
+}
+
+func NewPodCGroup() (*PodCGroup, error) {
+	slice, io, err := cgroup.DetectCgroupVersion(CGROUPFS_MOUNT_PATH)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PodCGroup{
+		slice: slice,
+		io:    io,
+		dev:   utilsio.RealDevTmpFS{},
+	}, nil
+}
+
+func (cg *PodCGroup) ApplyConfig(devicePath string, req *csi.NodePublishVolumeRequest) error {
+	return cg.setVolumeIOLimit(devicePath, req)
+}
+
+// parseIOLimits config io limit for device
 // readIOPS: 1000
 // writeIOPS: 10000
 // readBPS: 100K
 // writeBPS: 1M
-func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) error {
-	readIOPS := req.VolumeContext["readIOPS"]
-	writeIOPS := req.VolumeContext["writeIOPS"]
-	readBPS := req.VolumeContext["readBPS"]
-	writeBPS := req.VolumeContext["writeBPS"]
+func parseIOLimits(ctx map[string]string) (*cgroup.IOLimits, error) {
+	readIOPS := ctx["readIOPS"]
+	writeIOPS := ctx["writeIOPS"]
+	readBPS := ctx["readBPS"]
+	writeBPS := ctx["writeBPS"]
 
 	// if no quota set, return;
 	if readIOPS == "" && writeIOPS == "" && readBPS == "" && writeBPS == "" {
-		return nil
+		return nil, nil
 	}
 
 	// io limit parse
-	readBPSInt, err := getBpsLimt(readBPS)
+	limit := cgroup.MaxIOLimits()
+	var err error
+	limit.BPS.Read, err = getBpsLimit(readBPS)
 	if err != nil {
-		log.Errorf("Volume(%s) Input Read BPS Limit format error: %s", req.VolumeId, err.Error())
+		return nil, fmt.Errorf("failed to parse readBPS: %w", err)
+	}
+
+	limit.BPS.Write, err = getBpsLimit(writeBPS)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse writeBPS: %w", err)
+	}
+
+	limit.IOPS.Read, err = getIOPSLimit(readIOPS)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse readIOPS: %w", err)
+	}
+
+	limit.IOPS.Write, err = getIOPSLimit(writeIOPS)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse writeIOPS: %w", err)
+	}
+	return &limit, nil
+}
+
+func (cg *PodCGroup) setVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) (err error) {
+	limits, err := parseIOLimits(req.VolumeContext)
+	if err != nil {
 		return err
 	}
-	writeBPSInt, err := getBpsLimt(writeBPS)
-	if err != nil {
-		log.Errorf("Volume(%s) Input Write BPS Limit format error: %s", req.VolumeId, err.Error())
-		return err
-	}
-	readIOPSInt := 0
-	if readIOPS != "" {
-		readIOPSInt, err = strconv.Atoi(readIOPS)
-		if err != nil {
-			log.Errorf("Volume(%s) Input Read IOPS Limit format error: %s", req.VolumeId, err.Error())
-			return err
-		}
-	}
-	writeIOPSInt := 0
-	if writeIOPS != "" {
-		writeIOPSInt, err = strconv.Atoi(writeIOPS)
-		if err != nil {
-			log.Errorf("Volume(%s) Input Write IOPS Limit format error: %s", req.VolumeId, err.Error())
-			return err
-		}
+	if limits == nil {
+		return nil
 	}
 
 	// Get Device major/minor number
-	majMinNum, err := getMajMinDevice(devicePath)
+	maj, min, err := cg.dev.DevFor(devicePath)
 	if err != nil {
 		return fmt.Errorf("Volume Cannot get major/minor device number for %s: %w", devicePath, err)
 	}
@@ -72,99 +103,64 @@ func SetVolumeIOLimit(devicePath string, req *csi.NodePublishVolumeRequest) erro
 		log.Errorf("Volume(%s) Cannot get poduid and cannot set volume limit", req.VolumeId)
 		return errors.New("Cannot get poduid and cannot set volume limit: " + req.VolumeId)
 	}
-	// /sys/fs/cgroup/blkio/kubepods.slice/kubepods-besteffort.slice/kubepods-besteffort-podaadcc749_6776_4933_990d_d50f260f5d46.slice/blkio.throttle.write_bps_device
-	podUID = strings.ReplaceAll(podUID, "-", "_")
-	podBlkIOPathFd := -1
-	for _, p := range []string{
-		fmt.Sprintf("%s/kubepods-besteffort.slice/kubepods-besteffort-pod%s.slice", PodBlkIOCgroupPath, podUID),
-		fmt.Sprintf("%s/kubepods-burstable.slice/kubepods-burstable-pod%s.slice", PodBlkIOCgroupPath, podUID),
-		fmt.Sprintf("%s/kubepods-pod%s.slice", PodBlkIOCgroupPath, podUID),
-	} {
-		fd, err := unix.Open(p, flag_O_PATH, 0)
-		if err == nil {
-			podBlkIOPathFd = fd
-			defer unix.Close(podBlkIOPathFd)
-			break
-		}
-		if !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("Volume(%s) Cannot open pod blkio path: %w", req.VolumeId, err)
-		}
-	}
-	if podBlkIOPathFd == -1 {
-		log.Errorf("Volume(%s), pod blkio/cgroup path not found", req.VolumeId)
-		return errors.New("pod blkio/cgroup path not found")
-	}
 
-	// io limit set to blkio limit files
-	if readIOPSInt != 0 {
-		err := writeIoLimit(majMinNum, podBlkIOPathFd, "blkio.throttle.read_iops_device", readIOPSInt)
-		if err != nil {
-			return err
-		}
+	fd, err := cg.slice.FindPodDir(podUID)
+	if err != nil {
+		return err
 	}
-	if writeIOPSInt != 0 {
-		err := writeIoLimit(majMinNum, podBlkIOPathFd, "blkio.throttle.write_iops_device", writeIOPSInt)
-		if err != nil {
-			return err
+	defer func() {
+		if err := unix.Close(fd); err != nil {
+			log.Errorf("Volume(%s) close fd(%d) failed: %v", req.VolumeId, fd, err)
 		}
+	}()
+
+	if err := cg.io.SetLimits(fd, maj, min, limits); err != nil {
+		return err
 	}
-	if readBPSInt != 0 {
-		err := writeIoLimit(majMinNum, podBlkIOPathFd, "blkio.throttle.read_bps_device", readBPSInt)
-		if err != nil {
-			return err
-		}
-	}
-	if writeBPSInt != 0 {
-		err := writeIoLimit(majMinNum, podBlkIOPathFd, "blkio.throttle.write_bps_device", writeBPSInt)
-		if err != nil {
-			return err
-		}
-	}
-	log.Infof("Seccessful Set Volume(%s) IO Limit: readIOPS(%d), writeIOPS(%d), readBPS(%d), writeBPS(%d)", req.VolumeId, readIOPSInt, writeIOPSInt, readBPSInt, writeBPSInt)
+	log.Infof("Successfully Set Volume(%s) IO Limit: %+v", req.VolumeId, limits)
 	return nil
 }
 
-func writeIoLimit(majMinNum string, podBlkIOPathFd int, ioFile string, ioLimit int) error {
-	content := majMinNum + " " + strconv.Itoa(ioLimit)
-	return WriteTrunc(podBlkIOPathFd, ioFile, content)
-}
-
-func getBpsLimt(bpsLimt string) (int, error) {
-	if bpsLimt == "" {
-		return 0, nil
+func getBpsLimit(limit string) (uint64, error) {
+	if limit == "" {
+		return math.MaxUint64, nil
 	}
 
-	bpsLimt = strings.ToLower(bpsLimt)
-	convertNumber := 1
-	intBpsStr := bpsLimt
-	if strings.HasSuffix(bpsLimt, "k") && len(bpsLimt) > 1 {
+	limit = strings.ToLower(limit)
+	var convertNumber uint64 = 1
+	switch limit[len(limit)-1] {
+	case 'k', 'K':
 		convertNumber = 1024
-		intBpsStr = strings.TrimSuffix(bpsLimt, "k")
-	} else if strings.HasSuffix(bpsLimt, "m") && len(bpsLimt) > 1 {
+	case 'm', 'M':
 		convertNumber = 1024 * 1024
-		intBpsStr = strings.TrimSuffix(bpsLimt, "m")
-	} else if strings.HasSuffix(bpsLimt, "g") && len(bpsLimt) > 1 {
+	case 'g', 'G':
 		convertNumber = 1024 * 1024 * 1024
-		intBpsStr = strings.TrimSuffix(bpsLimt, "g")
 	}
 
-	bpsIntValue, err := strconv.Atoi(intBpsStr)
+	intStr := limit
+	if convertNumber != 1 {
+		intStr = limit[:len(limit)-1]
+	}
+
+	intValue, err := strconv.ParseUint(intStr, 10, 64)
 	if err != nil {
 		return 0, err
 	}
-	return bpsIntValue * convertNumber, nil
+	hi, intValue := bits.Mul64(intValue, convertNumber)
+	if hi > 0 {
+		return 0, fmt.Errorf("%s %w", limit, strconv.ErrRange)
+	}
+	return intValue, nil
 }
 
-func getMajMinDevice(devicePath string) (string, error) {
-	fileInfo, err := os.Stat(devicePath)
+func getIOPSLimit(limit string) (uint32, error) {
+	if limit == "" {
+		return math.MaxUint32, nil
+	}
+
+	intValue, err := strconv.ParseUint(limit, 10, 32)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
-	stat, ok := fileInfo.Sys().(*syscall.Stat_t)
-	if !ok {
-		return "", errors.New("unsupported platform")
-	}
-	maj := stat.Rdev / 256
-	min := stat.Rdev % 256
-	return fmt.Sprintf("%d:%d", maj, min), nil
+	return uint32(intValue), nil
 }

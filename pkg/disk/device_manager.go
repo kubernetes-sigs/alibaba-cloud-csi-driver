@@ -7,35 +7,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
-type DevTmpFS interface {
-	DevFor(path string) (uint32, uint32, error)
-}
-
-type realDevTmpFS struct {
-}
-
-// DevFor returns the major and minor numbers for the device.
-func (d realDevTmpFS) DevFor(path string) (uint32, uint32, error) {
-	var stat unix.Stat_t
-	err := unix.Stat(path, &stat)
-	if err != nil {
-		return 0, 0, err
-	}
-	if stat.Mode&unix.S_IFMT != unix.S_IFBLK {
-		return 0, 0, errors.New("not a block device")
-	}
-	rdev := uint64(stat.Rdev)
-	return unix.Major(rdev), unix.Minor(rdev), nil
-}
-
 type DeviceManager struct {
-	DevTmpFS DevTmpFS
+	DevTmpFS utilsio.DevTmpFS
 
 	// The path to the directory containing the device files.
 	// This is usually /dev.
@@ -53,7 +32,7 @@ type DeviceManager struct {
 }
 
 var DefaultDeviceManager = &DeviceManager{
-	DevTmpFS:   realDevTmpFS{},
+	DevTmpFS:   utilsio.RealDevTmpFS{},
 	DevicePath: "/dev",
 	SysfsPath:  "/sys",
 }
@@ -256,7 +235,7 @@ func (m *DeviceManager) GetDeviceRootAndPartitionIndex(devicePath string) (root 
 	return "", "", fmt.Errorf("read partition from sysfs %q failed: %w", devSysfsPath+"/partition", err)
 }
 
-func (m *DeviceManager) WriteSysfs(devicePath, name, value string) error {
+func (m *DeviceManager) WriteSysfs(devicePath, name string, value []byte) error {
 	major, minor, err := m.DevTmpFS.DevFor(devicePath)
 	if err != nil {
 		return fmt.Errorf("failed to stat %s: %w", devicePath, err)
@@ -269,7 +248,7 @@ func (m *DeviceManager) WriteSysfs(devicePath, name, value string) error {
 		// Just reject obvious attacks like '../../../root/.ssh/id_rsa'.
 		return fmt.Errorf("invalid relative path in sysConfig: %s", name)
 	}
-	err = utils.WriteTrunc(unix.AT_FDCWD, fileName, value)
+	err = utilsio.WriteTrunc(unix.AT_FDCWD, fileName, value)
 	if err != nil {
 		return fmt.Errorf("failed to write %s to %s: %w", value, fileName, err)
 	}

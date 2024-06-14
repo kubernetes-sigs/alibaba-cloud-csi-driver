@@ -17,6 +17,7 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -560,9 +561,9 @@ func (d *driver) CurentDriver() (string, error) {
 
 func (d *driver) UnbindDriver() error {
 	// Modify file under drivers would be fine either. just clarify different ways
-	return utils.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "driver/unbind"), d.deviceNumber)
+	return utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "driver/unbind"), []byte(d.deviceNumber))
 }
 
 func (d *driver) BindDriver(targetDriver string) error {
-	return utils.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "drivers", targetDriver, "bind"), d.deviceNumber)
+	return utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "drivers", targetDriver, "bind"), []byte(d.deviceNumber))
 }
