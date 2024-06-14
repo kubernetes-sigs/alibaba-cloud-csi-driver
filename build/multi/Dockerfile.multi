@@ -23,7 +23,7 @@ WORKDIR /downloads
 RUN CURL="curl --remote-time --remote-name --fail" && \
     if [[ $TARGETARCH == "amd64" ]]; then \
         $CURL -H "If-Match: D7AE0A7E48FBB6CF7BDB33C770B5EE0C" https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.2-3.x86_64.rpm && \
-        $CURL -H "If-Match: 9E3E94108EE24C522319B14EF74BDCFC" https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.al7.noarch.rpm && \
+        $CURL -H "If-Match: 766DCD5965BF89DE927DC3975728F676" https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.20240527201444.2012cc.al7.noarch.rpm && \
         $CURL -H "If-Match: 259C07CF1C83C71DD78B705BC2E3FAE2" https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.deb; \
     fi
 
