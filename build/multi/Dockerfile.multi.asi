@@ -37,7 +37,7 @@ ARG TARGETARCH
 WORKDIR /root
 RUN if [[ $TARGETARCH == "amd64" ]]; then \
         curl -O https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.2-3.x86_64.rpm && \
-        curl -O https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.al7.noarch.rpm; \
+        curl -O https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.20240527201444.2012cc.al7.noarch.rpm; \
     fi
 RUN --mount=type=bind,source=build/lib,target=/csi-lib \
     cp /csi-lib/init.sh /init.sh && \

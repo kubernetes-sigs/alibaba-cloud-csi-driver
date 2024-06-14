@@ -274,7 +274,7 @@ if [ "$ARCH" = "x86_64" ] && [ "$run_nas" = "true" ]; then
         # cpfs-nas nas-rich-client common rpm
         echo "installing aliyun-alinas-utils"
         if [ "$HAS_YUM" = "true" ]; then
-            PKG=aliyun-alinas-utils-1.1-8.al7.noarch.rpm
+            PKG=aliyun-alinas-utils-1.1-8.20240527201444.2012cc.al7.noarch.rpm
         elif [ "$HAS_APT" = "true" ]; then
             PKG=aliyun-alinas-utils-1.1-8.deb
         else
