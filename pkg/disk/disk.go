@@ -242,7 +242,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
 	}
 	DefaultDeviceManager.EnableDiskPartition = csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true)
-	DefaultDeviceManager.DisableSerial = IsVFNode()
+	DefaultDeviceManager.DisableSerial = !controllerServerType && IsVFNode()
 	log.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
 		GlobalConfigVar.ADControllerEnable,
 		GlobalConfigVar.DiskTagEnable,
