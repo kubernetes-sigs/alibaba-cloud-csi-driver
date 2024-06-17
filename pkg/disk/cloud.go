@@ -222,7 +222,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 		devicePaths := calcNewDevices(before, after)
 
 		// BDF Disk Logical
-		if IsVFNode() && len(devicePaths) == 0 {
+		if !GlobalConfigVar.ControllerService && IsVFNode() && len(devicePaths) == 0 {
 			var bdf string
 			if bdf, err = bindBdfDisk(disk.DiskId); err != nil {
 				if err := unbindBdfDisk(disk.DiskId); err != nil {
