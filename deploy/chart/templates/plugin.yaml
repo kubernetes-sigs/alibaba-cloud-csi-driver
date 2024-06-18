@@ -8,15 +8,24 @@ apiVersion: apps/v1
 metadata:
   name: {{ $nodePool.pluginname }}
   namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: csi-plugin
 spec:
   selector:
     matchLabels:
+{{- if eq $key "default" }}
       app: csi-plugin
+{{- else }}
+      app.kubernetes.io/name: csi-plugin
       nodepool: {{ $key }}
+{{- end }}
   template:
     metadata:
       labels:
+{{- if eq $key "default" }}
         app: csi-plugin
+{{- end }}
+        app.kubernetes.io/name: csi-plugin
         nodepool: {{ $key }}
     spec:
       tolerations:
