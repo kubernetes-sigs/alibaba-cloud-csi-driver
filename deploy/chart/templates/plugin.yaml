@@ -8,6 +8,8 @@ apiVersion: apps/v1
 metadata:
   name: {{ $nodePool.pluginname }}
   namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: csi-plugin
 spec:
   selector:
     matchLabels:
