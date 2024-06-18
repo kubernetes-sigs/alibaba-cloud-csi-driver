@@ -13,7 +13,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-{{- if eq $key "default" }}
+{{- if eq $nodePool.pluginname "csi-plugin" }}
       app: csi-plugin
 {{- else }}
       app.kubernetes.io/name: csi-plugin
@@ -22,7 +22,7 @@ spec:
   template:
     metadata:
       labels:
-{{- if eq $key "default" }}
+{{- if eq $nodePool.pluginname "csi-plugin" }}
         app: csi-plugin
 {{- end }}
         app.kubernetes.io/name: csi-plugin
