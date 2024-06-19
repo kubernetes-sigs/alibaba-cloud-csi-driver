@@ -94,8 +94,6 @@ type RunvNasOptions struct {
 }
 
 const (
-	// NasTempMntPath used for create sub directory
-	NasTempMntPath = "/mnt/acs_mnt/k8s_nas/temp"
 	// NasPortnum is nas port
 	NasPortnum = "2049"
 	// NasMntPoint tag
