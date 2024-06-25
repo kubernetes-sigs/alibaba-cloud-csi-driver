@@ -146,6 +146,7 @@ spec:
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
+{{ if .Values.volumeSnapshot.controller.enabled }}
         - name: external-snapshot-controller
           image: {{ include "imageSpec" (list .Values.images "externalSnapshotController") }}
           resources:
@@ -158,6 +159,7 @@ spec:
           args:
             - "--v=5"
             - "--leader-election=true"
+{{- end -}}
 {{- end -}}
 {{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
         - name: external-nas-provisioner
