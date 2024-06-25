@@ -50,7 +50,7 @@ type OSS struct {
 }
 
 // NewDriver init oss type of csi driver
-func NewDriver(nodeID, endpoint string, m metadata.MetadataProvider, runAsController bool) *OSS {
+func NewDriver(nodeID, endpoint string, m metadata.MetadataProvider, serviceType utils.ServiceType) *OSS {
 	log.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
 	d := &OSS{}
@@ -71,8 +71,10 @@ func NewDriver(nodeID, endpoint string, m metadata.MetadataProvider, runAsContro
 
 	d.driver = csiDriver
 
-	d.controllerServer = newControllerServer(d.driver)
-	if !runAsController {
+	if serviceType&utils.Controller != 0 {
+		d.controllerServer = newControllerServer(d.driver)
+	}
+	if serviceType&utils.Node != 0 {
 		d.nodeServer = newNodeServer(d.driver, m)
 	}
 	return d
