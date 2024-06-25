@@ -1276,7 +1276,7 @@ func getAttachedCloudDisks(ecsClient cloud.ECSInterface, m metadata.MetadataProv
 
 		for _, disk := range resp.Disks.Disk {
 			// local disks have their own quota in LocalStorageAmount, and are not counted for DiskQuantity
-			if strings.HasPrefix(disk.Category, "cloud") {
+			if strings.HasPrefix(disk.Category, "cloud") || strings.HasPrefix(disk.Category, "elastic_ephemeral_disk") {
 				diskIds = append(diskIds, disk.DiskId)
 			}
 		}
