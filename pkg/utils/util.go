@@ -131,46 +131,6 @@ func NewEventRecorder() record.EventRecorder {
 	return broadcaster.NewRecorder(scheme.Scheme, source)
 }
 
-// CommandRunFunc define the run function in utils for ut
-type CommandRunFunc func(cmd string) (string, error)
-
-// Run command
-func ValidateRun(cmd string) (string, error) {
-	arr := strings.Split(cmd, " ")
-	withArgs := false
-	if len(arr) >= 2 {
-		withArgs = true
-	}
-
-	name := arr[0]
-	var args []string
-	err := CheckCmd(cmd, name)
-	if err != nil {
-		return "", err
-	}
-	if withArgs {
-		args = arr[1:]
-		err = CheckCmdArgs(cmd, args...)
-		if err != nil {
-			return "", err
-		}
-	}
-	exec := utilexec.New()
-	var command utilexec.Cmd
-	if withArgs {
-		command = exec.Command(name, args...)
-	} else {
-		command = exec.Command(name)
-	}
-
-	stdout, err := command.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("Failed to exec command:%s, name:%s, args:%+v, stdout:%s, stderr:%s", cmd, name, args, string(stdout), err.Error())
-	}
-	log.Infof("Exec command %s is successfully, name:%s, args:%+v", cmd, name, args)
-	return string(stdout), nil
-}
-
 var NsenterArgs = []string{"--target=1", "--mount", "--ipc", "--net", "--uts", "--"}
 
 func CommandOnNode(args ...string) *exec.Cmd {
