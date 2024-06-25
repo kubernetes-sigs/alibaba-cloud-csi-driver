@@ -29,6 +29,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/sys/unix"
 	"gopkg.in/h2non/gock.v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -220,6 +221,21 @@ const DescribeDisksResponse = `{
 				"Tags": {
 					"Tag": []
 				},
+				"Category": "cloud_essd",
+				"DiskId": "d-testingdetachingdisk"
+			},
+			{
+				"Tags": {
+					"Tag": []
+				},
+				"Category": "cloud_essd",
+				"DiskId": "d-testingdetacheddisk",
+				"Status": "Detaching"
+			},
+			{
+				"Tags": {
+					"Tag": []
+				},
 				"Category": "local_hdd_pro",
 				"DiskId": "d-testinglocaldisk"
 			},
@@ -248,6 +264,12 @@ const DescribeDisksResponse = `{
 }`
 
 func TestGetVolumeCountFromOpenAPI(t *testing.T) {
+	orgiDiskXattrName := DiskXattrName
+	DiskXattrName = "user.testing-csi-managed-disk"
+	t.Cleanup(func() {
+		DiskXattrName = orgiDiskXattrName
+	})
+
 	ctrl := gomock.NewController(t)
 	c := cloud.NewMockECSInterface(ctrl)
 
@@ -259,9 +281,28 @@ func TestGetVolumeCountFromOpenAPI(t *testing.T) {
 	cloud.UnmarshalAcsResponse([]byte(DescribeInstanceTypesResponse), describeInstanceTypesResponse)
 	c.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(describeInstanceTypesResponse, nil)
 
-	count, err := getVolumeCountFromOpenAPI(testNode(), c, testMetadata)
+	dev := testingManager(t)
+	// add xattr to CSI attached disk
+	err := os.WriteFile(dev.DevicePath+"/node-for-testingdetachingdisk", []byte{}, 0o644)
 	assert.NoError(t, err)
-	assert.Equal(t, 7, count) // 9 available disks - 1 system disk - 1 used by static pv
+	err = unix.Setxattr(dev.DevicePath+"/node-for-testingdetachingdisk", DiskXattrName, []byte("d-testingdetachingdisk"), 0)
+	assert.NoError(t, err)
+	// manually attached disk has no xattr
+	err = os.WriteFile(dev.DevicePath+"/node-for-2zeh74nnxxrobxz49eug", []byte{}, 0o644)
+	assert.NoError(t, err)
+	// we should ignore dir
+	err = os.Mkdir(dev.DevicePath+"/disk", 0o755)
+	assert.NoError(t, err)
+	// an arbirary error for getxattr, we should ignore it
+	err = os.WriteFile(dev.DevicePath+"/node-for-testinglocaldisk", []byte{}, 0o644)
+	assert.NoError(t, err)
+	err = unix.Setxattr(dev.DevicePath+"/node-for-testinglocaldisk", DiskXattrName, []byte("d-some-very-looooog-value-that-cause-getxattr-to-fail"), 0)
+	assert.NoError(t, err)
+
+	getNode := func() (*corev1.Node, error) { return testNode(), nil }
+	count, err := getVolumeCountFromOpenAPI(getNode, c, testMetadata, dev)
+	assert.NoError(t, err)
+	assert.Equal(t, 7, count) // 7 = 9 available disks - 1 system disk (d-2ze49fivxwkwxl36o1d3) - 1 manually attached (d-2zeh74nnxxrobxz49eug)
 }
 
 func TestGetAvailableDiskTypes(t *testing.T) {
