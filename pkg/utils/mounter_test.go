@@ -17,6 +17,7 @@ limitations under the License.
 package utils
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,7 +39,7 @@ func TestMount(t *testing.T) {
 	mountErrDir := ".tmp/"
 	mountedDevice := ".mounted/block"
 	testMounter := NewMounter()
-	err := testMounter.EnsureFolder(mountErrDir)
+	err := os.MkdirAll(mountErrDir, 0755)
 	assert.Nil(t, err)
 	err = testMounter.MountBlock(mountedDevice, mountErrDir)
 	assert.NotNil(t, err)
