@@ -150,17 +150,14 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 }
 
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	log.Infof("CreateSnapshot is called, do nothing now")
-	return &csi.CreateSnapshotResponse{}, nil
+	return nil, status.Error(codes.Unimplemented, "")
 }
 
 func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
-	log.Infof("DeleteSnapshot is called, do nothing now")
-	return &csi.DeleteSnapshotResponse{}, nil
+	return nil, status.Error(codes.Unimplemented, "")
 }
 
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest,
 ) (*csi.ControllerExpandVolumeResponse, error) {
-	log.Infof("ControllerExpandVolume is called, do nothing now")
-	return &csi.ControllerExpandVolumeResponse{}, nil
+	return nil, status.Error(codes.Unimplemented, "")
 }
