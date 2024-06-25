@@ -207,11 +207,15 @@ func (mounter *ContainerizedFuseMounter) Mount(source string, target string, fst
 	defer cancel()
 	if mounter.authCfg != nil && mounter.authCfg.AuthType == AuthTypeRRSA {
 		if mounter.authCfg.RrsaConfig.ServiceAccountName == fuseServieAccountName {
-			err := mounter.checkServiceAccount(ctx)
+			err := mounter.checkDefaultServiceAccountExists(ctx)
 			if err != nil {
 				return err
 			}
 		} else {
+			err := mounter.checkServiceAccountName(mounter.authCfg.RrsaConfig.ServiceAccountName)
+			if err != nil {
+				return err
+			}
 			mounter.log.Infof("serviceAccountName has set to %s, skip service account check", mounter.authCfg.RrsaConfig.ServiceAccountName)
 		}
 	}
@@ -252,10 +256,17 @@ func (mounter *ContainerizedFuseMounter) labelsAndListOptionsFor(target string) 
 	return labels, listOptions
 }
 
-func (mounter *ContainerizedFuseMounter) checkServiceAccount(ctx context.Context) error {
+func (mounter *ContainerizedFuseMounter) checkDefaultServiceAccountExists(ctx context.Context) error {
 	_, err := mounter.client.CoreV1().ServiceAccounts(mounter.namespace).Get(ctx, mounter.authCfg.RrsaConfig.ServiceAccountName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("check service account %s for RRSA: %w", mounter.authCfg.RrsaConfig.ServiceAccountName, err)
+	}
+	return nil
+}
+
+func (mounter *ContainerizedFuseMounter) checkServiceAccountName(name string) error {
+	if !strings.HasPrefix(name, "csi-fuse-") {
+		return fmt.Errorf("service account name %s must start with csi-fuse-", name)
 	}
 	return nil
 }
