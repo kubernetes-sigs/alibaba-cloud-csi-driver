@@ -253,11 +253,16 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		GlobalConfigVar.ClusterID,
 	)
 
-	if controllerServerType && !csiCfg.GetBool("disk-serial-attach", "DISK_SERIAL_ATTACH", false) {
-		log.Infof("Disk parallel attach/detach enabled, please set DISK_SERIAL_ATTACH if you see a lot of InvalidOperation.Conflict error.")
-		GlobalConfigVar.AttachDetachSlots = NewParallelAttachDetachSlots()
-	} else {
-		GlobalConfigVar.AttachDetachSlots = NewSerialAttachDetachSlots()
+	GlobalConfigVar.AttachDetachSlots = NewSerialDetachSlots()
+	if controllerServerType {
+		if features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelAttach) {
+			log.Infof("Disk parallel attach enabled")
+			GlobalConfigVar.AttachDetachSlots = NewSerialDetachSlots()
+		}
+		if features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelAD) {
+			log.Infof("Disk parallel attach/detach enabled")
+			GlobalConfigVar.AttachDetachSlots = NewParallelAttachDetachSlots()
+		}
 	}
 
 	return cfg

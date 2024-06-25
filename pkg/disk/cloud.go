@@ -70,8 +70,8 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 		return "", status.Errorf(codes.NotFound, "AttachDisk: csi can't find disk: %s in region: %s, Please check if the cloud disk exists, if the region is correct, or if the csi permissions are correct", diskID, GlobalConfigVar.Region)
 	}
 
-	slot := GlobalConfigVar.AttachDetachSlots.GetSlotFor(nodeID)
-	if err := slot.AquireAttach(ctx); err != nil {
+	slot := GlobalConfigVar.AttachDetachSlots.GetSlotFor(nodeID).Attach()
+	if err := slot.Aquire(ctx); err != nil {
 		return "", status.Errorf(codes.Aborted, "AttachDisk: get ad-slot for disk %s failed: %v", diskID, err)
 	}
 	defer slot.Release()
@@ -430,8 +430,8 @@ func detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID strin
 		return nil
 	}
 	// NodeStageVolume/NodeUnstageVolume should be called by sequence
-	slot := GlobalConfigVar.AttachDetachSlots.GetSlotFor(nodeID)
-	if err := slot.AquireDetach(ctx); err != nil {
+	slot := GlobalConfigVar.AttachDetachSlots.GetSlotFor(nodeID).Detach()
+	if err := slot.Aquire(ctx); err != nil {
 		return status.Errorf(codes.Aborted, "DetachDisk: get ad-slot for disk %s failed: %v", diskID, err)
 	}
 	defer slot.Release()

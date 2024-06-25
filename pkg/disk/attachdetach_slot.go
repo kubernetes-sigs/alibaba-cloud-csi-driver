@@ -6,15 +6,23 @@ import (
 )
 
 type AttachDetachSlots interface {
-	GetSlotFor(node string) slot
+	GetSlotFor(node string) adSlot
 }
 
-type SerialAttachDetachSlots struct {
-	mu    sync.RWMutex
-	nodes map[string]slot
+type PerNodeSlots struct {
+	mu       sync.RWMutex
+	nodes    map[string]adSlot
+	makeSlot func() adSlot
 }
 
-func (a *SerialAttachDetachSlots) GetSlotFor(node string) slot {
+func NewPerNodeSlots(makeSlot func() adSlot) AttachDetachSlots {
+	return &PerNodeSlots{
+		nodes:    map[string]adSlot{},
+		makeSlot: makeSlot,
+	}
+}
+
+func (a *PerNodeSlots) GetSlotFor(node string) adSlot {
 	a.mu.RLock()
 	if s, ok := a.nodes[node]; ok {
 		a.mu.RUnlock()
@@ -27,17 +35,18 @@ func (a *SerialAttachDetachSlots) GetSlotFor(node string) slot {
 	if s, ok := a.nodes[node]; ok {
 		return s
 	}
-	s := &serialSlot{
-		highPriorityChannel: make(chan struct{}),
-		slot:                make(chan struct{}, 1),
-	}
+	s := a.makeSlot()
 	a.nodes[node] = s
 	return s
 }
 
+type adSlot interface {
+	Attach() slot
+	Detach() slot
+}
+
 type slot interface {
-	AquireDetach(ctx context.Context) error
-	AquireAttach(ctx context.Context) error
+	Aquire(ctx context.Context) error
 	Release()
 }
 
@@ -51,7 +60,10 @@ type serialSlot struct {
 	highPriorityChannel chan struct{}
 }
 
-func (s *serialSlot) AquireDetach(ctx context.Context) error {
+type serialAD_DetachSlot struct{ *serialSlot }
+type serialAD_AttachSlot struct{ *serialSlot }
+
+func (s serialAD_DetachSlot) Aquire(ctx context.Context) error {
 	select {
 	case s.highPriorityChannel <- struct{}{}:
 		return nil
@@ -62,7 +74,7 @@ func (s *serialSlot) AquireDetach(ctx context.Context) error {
 	}
 }
 
-func (s *serialSlot) AquireAttach(ctx context.Context) error {
+func (s serialAD_AttachSlot) Aquire(ctx context.Context) error {
 	select {
 	case s.slot <- struct{}{}:
 		return nil
@@ -81,24 +93,68 @@ func (s *serialSlot) Release() {
 	}
 }
 
+func (s *serialSlot) Detach() slot { return serialAD_DetachSlot{s} }
+func (s *serialSlot) Attach() slot { return serialAD_AttachSlot{s} }
+
 func NewSerialAttachDetachSlots() AttachDetachSlots {
-	return &SerialAttachDetachSlots{
-		nodes: map[string]slot{},
-	}
+	return NewPerNodeSlots(func() adSlot {
+		return &serialSlot{
+			highPriorityChannel: make(chan struct{}),
+			slot:                make(chan struct{}, 1),
+		}
+	})
 }
 
 type parallelSlot struct{}
 
-func (s parallelSlot) AquireDetach(ctx context.Context) error { return nil }
-func (s parallelSlot) AquireAttach(ctx context.Context) error { return nil }
-func (s parallelSlot) Release()                               {}
+func (s parallelSlot) GetSlotFor(node string) adSlot { return s }
 
-type ParallelAttachDetachSlots struct{}
+func (parallelSlot) Detach() slot { return noOpSlot{} }
+func (parallelSlot) Attach() slot { return noOpSlot{} }
 
-func (ParallelAttachDetachSlots) GetSlotFor(node string) slot {
+type noOpSlot struct{}
+
+func (noOpSlot) Aquire(ctx context.Context) error { return nil }
+func (noOpSlot) Release()                         {}
+
+func NewParallelAttachDetachSlots() AttachDetachSlots {
 	return parallelSlot{}
 }
 
-func NewParallelAttachDetachSlots() AttachDetachSlots {
-	return ParallelAttachDetachSlots{}
+type serialDetachSlot struct {
+	parallelSlot
+	detach serialDetach_DetachSlot
+}
+
+func (s *serialDetachSlot) Detach() slot {
+	return s.detach
+}
+
+type serialDetach_DetachSlot struct {
+	// slot is a buffered channel with size 1.
+	// The buffer is filled if and only if a detach is in progress.
+	slot chan struct{}
+}
+
+func (s serialDetach_DetachSlot) Aquire(ctx context.Context) error {
+	select {
+	case s.slot <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (s serialDetach_DetachSlot) Release() {
+	<-s.slot
+}
+
+func NewSerialDetachSlots() AttachDetachSlots {
+	return NewPerNodeSlots(func() adSlot {
+		return &serialDetachSlot{
+			detach: serialDetach_DetachSlot{
+				slot: make(chan struct{}, 1),
+			},
+		}
+	})
 }
