@@ -76,7 +76,9 @@ type DescribeCommandsRequest struct {
 	Type                 string                 `position:"Query" name:"Type"`
 	CommandId            string                 `position:"Query" name:"CommandId"`
 	PageNumber           requests.Integer       `position:"Query" name:"PageNumber"`
+	ResourceGroupId      string                 `position:"Query" name:"ResourceGroupId"`
 	Provider             string                 `position:"Query" name:"Provider"`
+	NextToken            string                 `position:"Query" name:"NextToken"`
 	ContentEncoding      string                 `position:"Query" name:"ContentEncoding"`
 	PageSize             requests.Integer       `position:"Query" name:"PageSize"`
 	Tag                  *[]DescribeCommandsTag `position:"Query" name:"Tag"  type:"Repeated"`
@@ -85,6 +87,7 @@ type DescribeCommandsRequest struct {
 	OwnerAccount         string                 `position:"Query" name:"OwnerAccount"`
 	OwnerId              requests.Integer       `position:"Query" name:"OwnerId"`
 	Name                 string                 `position:"Query" name:"Name"`
+	MaxResults           requests.Integer       `position:"Query" name:"MaxResults"`
 }
 
 // DescribeCommandsTag is a repeated param struct in DescribeCommandsRequest
@@ -100,6 +103,7 @@ type DescribeCommandsResponse struct {
 	RequestId  string   `json:"RequestId" xml:"RequestId"`
 	PageNumber int64    `json:"PageNumber" xml:"PageNumber"`
 	TotalCount int64    `json:"TotalCount" xml:"TotalCount"`
+	NextToken  string   `json:"NextToken" xml:"NextToken"`
 	Commands   Commands `json:"Commands" xml:"Commands"`
 }
 
