@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -918,10 +917,11 @@ func checkInstallDefaultVolumeSnapshotClass(snapClient *snapClientset.Clientset)
 
 func checkInstallCRD(crdClient *crd.Clientset) {
 
-	snapshotCRDNames := map[string]string{
-		"volumesnapshotclasses.snapshot.storage.k8s.io":  "GetVolumeSnapshotClassesCRDv1",
-		"volumesnapshotcontents.snapshot.storage.k8s.io": "GetVolumeSnapshotContentsCRDv1",
-		"volumesnapshots.snapshot.storage.k8s.io":        "GetVolumeSnapshotsCRDv1",
+	temp := &crds.Template{}
+	snapshotCRDNames := map[string]func(string) string{
+		"volumesnapshotclasses.snapshot.storage.k8s.io":  temp.GetVolumeSnapshotClassesCRDv1,
+		"volumesnapshotcontents.snapshot.storage.k8s.io": temp.GetVolumeSnapshotContentsCRDv1,
+		"volumesnapshots.snapshot.storage.k8s.io":        temp.GetVolumeSnapshotsCRDv1,
 	}
 
 	ctx := context.Background()
@@ -941,7 +941,6 @@ func checkInstallCRD(crdClient *crd.Clientset) {
 			return
 		}
 	}
-	temp := &crds.Template{}
 	info, err := GlobalConfigVar.ClientSet.ServerVersion()
 	kVersion := ""
 	if err != nil || info == nil {
@@ -951,10 +950,9 @@ func checkInstallCRD(crdClient *crd.Clientset) {
 		kVersion = info.GitVersion
 	}
 	log.Infof("checkInstallCRD: need to create crd counts: %v", len(snapshotCRDNames))
-	for _, value := range snapshotCRDNames {
-		crdStrings := reflect.ValueOf(temp).MethodByName(value).Call([]reflect.Value{reflect.ValueOf(kVersion)})
+	for _, f := range snapshotCRDNames {
+		yamlString := f(kVersion)
 		crdToBeCreated := crdv1.CustomResourceDefinition{}
-		yamlString := crdStrings[0].Interface().(string)
 		crdDecoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader([]byte(yamlString)), 4096)
 		err := crdDecoder.Decode(&crdToBeCreated)
 		if err != nil {

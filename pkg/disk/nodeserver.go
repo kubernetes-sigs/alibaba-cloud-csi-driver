@@ -135,11 +135,11 @@ var (
 
 // QueryResponse response struct for query server
 type QueryResponse struct {
-	device     string
-	volumeType string
-	identity   string
-	mountfile  string
-	runtime    string
+	Device     string `json:"device"`
+	VolumeType string `json:"volumeType"`
+	Identity   string `json:"identity"`
+	MountFile  string `json:"mountfile"`
+	Runtime    string `json:"runtime"`
 }
 
 func getVolumeCount(node *v1.Node, c cloud.ECSInterface, m metadata.MetadataProvider) (int, error) {
@@ -1232,12 +1232,13 @@ func (ns *nodeServer) mountRunvVolumes(volumeId, sourcePath, targetPath, fsType,
 		return status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Create Dest "+targetPath+" with error: "+err.Error())
 	}
 
-	qResponse := QueryResponse{}
-	qResponse.device = deviceName
-	qResponse.identity = targetPath
-	qResponse.volumeType = "block"
-	qResponse.mountfile = mountFile
-	qResponse.runtime = utils.RunvRunTimeTag
+	qResponse := QueryResponse{
+		Device:     deviceName,
+		Identity:   targetPath,
+		VolumeType: "block",
+		MountFile:  mountFile,
+		Runtime:    utils.RunvRunTimeTag,
+	}
 	if err := utils.WriteJSONFile(qResponse, mountFile); err != nil {
 		log.Errorf("NodePublishVolume(runv): Write Json File error: %s", err.Error())
 		return status.Error(codes.InvalidArgument, "NodePublishVolume(runv): Write Json File error: "+err.Error())
