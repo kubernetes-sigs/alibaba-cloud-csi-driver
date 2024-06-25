@@ -9,6 +9,10 @@
 
 支持的阿里云存储：***云盘、NAS、CPFS、OSS、LVM***
 
+警告：不建议在 ACK 集群中手动部署该驱动程序。用户应使用 ACK 组件中心自动部署和管理 [Alibaba Cloud CSI Driver](https://help.aliyun.com/zh/ack/product-overview/csi-plugin)。 flexvolume 迁移场景除外, 请按照[迁移文档](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/use-csi-compatible-controller-to-migrate-from-flexvolume-to-csi)进行迁移。
+
+免责声明：ACK 官方不支持在集群中手动部署该驱动程序。
+
 
 ## 版本说明
 
