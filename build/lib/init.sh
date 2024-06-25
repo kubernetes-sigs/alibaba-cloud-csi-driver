@@ -213,15 +213,42 @@ fi
 
 echo "Start checking if the host system packages needs to be installed"
 
-if $HOST_CMD yum --version; then
+if $HOST_CMD dnf --version; then
+    echo "dnf is available"
+    PKG_CMD=(dnf install -y)
+    HAS_DNF=true
+    HAS_YUM=true
+elif $HOST_CMD yum --version; then
     echo "yum is available"
-    PKG_CMD="yum install -y"
+    # yum install is not idempotent, so we need to check if the package is already installed.
+    # yum also fails if the already installed version is newer, so we need to downgrade.
+    # fail if both install and downgrade fail
+    PKG_CMD=(sh -c 'if rpm --query $(rpm --query --package $1); then
+        echo $1 already installed;
+    else
+        yum install -y $1 || yum downgrade -y $1;
+    fi' install_pkg)
     HAS_YUM=true
 elif $HOST_CMD apt-get --version; then
     echo "apt-get is available"
-    PKG_CMD="apt-get install -y"
+    PKG_CMD=(apt-get install -y --allow-downgrades)
     HAS_APT=true
 fi
+
+# idempotent package installation
+# downgrade if the already installed version is newer than the one we want to install
+function install_package() {
+    cp /root/$1 /host/etc/csi-tool/
+    if [ -z $PKG_CMD ]; then
+        echo "no package manager found"
+        return 1
+    fi
+    ${HOST_CMD} "${PKG_CMD[@]}" /etc/csi-tool/$1 || {
+        echo "failed to install $1"
+        return 1
+    }
+    rm -f /host/etc/csi-tool/$1
+}
 
 if ([ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]) || [ "$run_pov" = "true" ]; then
     isbdf="false"
@@ -278,15 +305,11 @@ if [ "$ARCH" = "x86_64" ] && [ "$run_nas" = "true" ]; then
         elif [ "$HAS_APT" = "true" ]; then
             PKG=aliyun-alinas-utils-1.1-8.deb
         else
-            echo "WARN: no package manager found, skip install aliyun-alinas-utils"
+            echo "WARN: no supported package manager found, skip install aliyun-alinas-utils"
             install_utils="false"
         fi
         if [ $install_utils = "true" ]; then
-            cp /root/$PKG /host/etc/csi-tool/
-            ${HOST_CMD} $PKG_CMD /etc/csi-tool/$PKG || {
-                echo "failed to install aliyun-alinas-utils"
-                exit 1
-            }
+            install_package $PKG || exit $?
         fi
     fi
 
