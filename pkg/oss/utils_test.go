@@ -139,17 +139,17 @@ func Test_getRRSAConfig(t *testing.T) {
 		{
 			"rolename",
 			Options{RoleName: "test-role-name"},
-			&mounter.RrsaConfig{OidcProviderArn: "acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678", RoleArn: "acs:ram::112233445566:role/test-role-name", ServiceAccountName: fuseServieAccountName},
+			&mounter.RrsaConfig{OidcProviderArn: "acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678", RoleArn: "acs:ram::112233445566:role/test-role-name", ServiceAccountName: fuseServiceAccountName},
 		},
 		{
 			"specified-arns",
 			Options{RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
-			&mounter.RrsaConfig{OidcProviderArn: "test-oidc-provider-arn", RoleArn: "test-role-arn", ServiceAccountName: fuseServieAccountName},
+			&mounter.RrsaConfig{OidcProviderArn: "test-oidc-provider-arn", RoleArn: "test-role-arn", ServiceAccountName: fuseServiceAccountName},
 		},
 		{
 			"arns-first",
 			Options{RoleName: "test-role-name", RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
-			&mounter.RrsaConfig{OidcProviderArn: "test-oidc-provider-arn", RoleArn: "test-role-arn", ServiceAccountName: fuseServieAccountName},
+			&mounter.RrsaConfig{OidcProviderArn: "test-oidc-provider-arn", RoleArn: "test-role-arn", ServiceAccountName: fuseServiceAccountName},
 		},
 		{
 			"serviceaccount",
