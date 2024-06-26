@@ -66,6 +66,7 @@ COPY --link --from=download /downloads /root
 ENTRYPOINT ["/init.sh"]
 
 FROM base
+RUN rm -f /{bin,usr/bin}/{bash,sh,yum,dnf,cat,vi}
 COPY --link --from=build-util-linux /out /
 COPY --link --from=build /out/plugin.csi.alibabacloud.com /usr/bin/plugin.csi.alibabacloud.com
 ENTRYPOINT ["/usr/bin/plugin.csi.alibabacloud.com"]
