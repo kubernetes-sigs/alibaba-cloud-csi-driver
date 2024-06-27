@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -ex
 
-BUILD_ARGS=( \
-    --frontend dockerfile.v0 \
-    --local context=. \
-    --local dockerfile=build/multi \
-    --opt filename=Dockerfile.multi \
-    --opt platform=linux/amd64,linux/arm64 \
-    --opt build-arg:CSI_VERSION=$(git describe --tags --always --dirty)
+BUILD_ARGS=(
+    --frontend dockerfile.v0
+    --local context=.
+    --local dockerfile=build/multi
+    --opt filename=Dockerfile.multi
+    --opt "platform=linux/amd64,linux/arm64"
+    --opt "build-arg:CSI_VERSION=$(git describe --tags --always --dirty)"
+    --opt "build-arg:SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)"
 )
 BUILD_ARGS+=("$@")
 
