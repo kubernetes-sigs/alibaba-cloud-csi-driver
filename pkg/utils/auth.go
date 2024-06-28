@@ -109,39 +109,6 @@ type AccessControl struct {
 	UseMode         AccessControlMode
 }
 
-// CheckRequestArgs is check string is valid in args map
-func CheckRequestArgs(m map[string]string) (bool, error) {
-	valid := true
-	var msg string
-	for _, value := range m {
-		if strings.Contains(value, "&") || strings.Contains(value, "|") || strings.Contains(value, ";") ||
-			strings.Contains(value, "$") || strings.Contains(value, "'") || strings.Contains(value, "`") ||
-			strings.Contains(value, "(") || strings.Contains(value, ")") {
-			valid = false
-			msg = msg + fmt.Sprintf("Args %s has illegal access.", value)
-		}
-	}
-	return valid, errors.New(msg)
-}
-
-func ValidateRequest(m map[string]string) (bool, error) {
-	valid := true
-	var msg string
-	for _, value := range m {
-		if strings.Contains(value, "&") || strings.Contains(value, "|") || strings.Contains(value, ";") ||
-			strings.Contains(value, "$") || strings.Contains(value, "'") || strings.Contains(value, "`") ||
-			strings.Contains(value, "(") || strings.Contains(value, ")") {
-			valid = false
-			msg = msg + fmt.Sprintf("ValidateRequest: Args %s has illegal access.", value)
-		}
-		if pathValid, _ := ValidatePath(value); !pathValid {
-			msg = msg + fmt.Sprintf("ValidateRequest: Args %s has illegal path", value)
-			valid = false
-		}
-	}
-	return valid, errors.New(msg)
-}
-
 // ValidatePath is check path string is valid
 func ValidatePath(path string) (bool, error) {
 	var msg string
@@ -155,18 +122,6 @@ func ValidatePath(path string) (bool, error) {
 	}
 
 	return true, nil
-}
-
-func CheckRequest(m map[string]string, path string) (bool, error) {
-	valid, err := CheckRequestArgs(m)
-	if !valid {
-		return valid, err
-	}
-	valid, err = ValidatePath(path)
-	if !valid {
-		return valid, err
-	}
-	return valid, nil
 }
 
 func getManagedAddonToken() AccessControl {
