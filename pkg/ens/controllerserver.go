@@ -45,11 +45,6 @@ func (cs *controllerServer) ControllerGetCapabilities(context.Context, *csi.Cont
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 
 	klog.Infof("CreateVolume: Starting CreateVolume: %+v", req)
-	if valid, err := utils.ValidateRequest(req.Parameters); !valid {
-		msg := fmt.Sprintf("CreateVolume: check request args failed: %v", err)
-		klog.Errorf(msg)
-		return nil, status.Error(codes.InvalidArgument, msg)
-	}
 
 	if value, ok := cs.createdVolumeMap[req.Name]; ok {
 		klog.Infof("CreateVolume: volume already be created pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, value.VolumeId, value.VolumeContext)

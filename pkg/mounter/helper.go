@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
@@ -34,10 +33,6 @@ func ValidateAnnotations(annotations map[string]string) error {
 		if err != nil {
 			return err
 		}
-	}
-	valid, err := utils.CheckRequestArgs(annotations)
-	if !valid {
-		return err
 	}
 	if err := ValidateAnnotationsSize(annotations); err != nil {
 		return err
