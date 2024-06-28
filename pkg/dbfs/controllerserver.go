@@ -91,12 +91,6 @@ func NewControllerServer(d *csicommon.CSIDriver, client *dbfs.Client, region str
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	log.Infof("CreateVolume: DBFS Start to CreateVolume, %s, %v", req.Name, req)
 
-	if valid, err := utils.ValidateRequest(req.Parameters); !valid {
-		msg := fmt.Sprintf("CreateVolume: failed to check request args: %v", err)
-		log.Infof(msg)
-		return nil, status.Error(codes.InvalidArgument, msg)
-	}
-
 	// step1: check pvc is created or not.
 	if value, ok := pvcProcessSuccess[req.Name]; ok && value != nil {
 		log.Infof("CreateVolume: DBFS Volume %s has Created Already: %v", req.Name, value)
@@ -234,12 +228,6 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	if strings.HasSuffix(req.VolumeId, "-config") {
 		log.Infof("ControllerPublishVolume: DBFS config volume not do attach: %s to node %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerPublishVolumeResponse{}, nil
-	}
-
-	if valid, err := utils.ValidateRequest(req.VolumeContext); !valid {
-		msg := fmt.Sprintf("ControllerPublishVolume: failed to check request args: %v", err)
-		log.Infof(msg)
-		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
 	GlobalConfigVar.DbfsClient = updateDbfsClient(GlobalConfigVar.DbfsClient)
