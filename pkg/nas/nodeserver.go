@@ -128,7 +128,7 @@ const (
 )
 
 func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
-	valid, err := utils.CheckRequest(req.GetVolumeContext(), req.GetTargetPath())
+	valid, err := utils.ValidatePath(req.GetTargetPath())
 	if !valid {
 		return status.Errorf(codes.InvalidArgument, err.Error())
 	}

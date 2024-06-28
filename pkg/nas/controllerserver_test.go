@@ -54,55 +54,6 @@ const (
 }`
 )
 
-func TestValidateCreateVolumeRequestValid(t *testing.T) {
-	type args struct {
-		name       string
-		parameters map[string]string
-	}
-
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "Valid volume request",
-			args: args{
-				name: "ValidVolume",
-				parameters: map[string]string{
-					"key": "value",
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "Invalid volume request",
-			args: args{
-				name: "InvalidVolume",
-				parameters: map[string]string{
-					"key": "(invalid-value)",
-				},
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := &csi.CreateVolumeRequest{
-				Name:       tt.args.name,
-				Parameters: tt.args.parameters,
-			}
-			err := validateCreateVolumeRequest(req)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
 func TestControllerServer_CreateVolume(t *testing.T) {
 	cs := newMockControllerServer()
 	assert.NotNil(t, cs)

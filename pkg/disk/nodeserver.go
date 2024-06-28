@@ -258,12 +258,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume: Staging Target Path must be provided")
 	}
 
-	if valid, err := utils.ValidateRequest(req.VolumeContext); !valid {
-		msg := fmt.Sprintf("NodePublishVolume: failed to check request args: %v", err)
-		klog.Errorf(msg)
-		return nil, status.Error(codes.InvalidArgument, msg)
-	}
-
 	targetPath := req.GetTargetPath()
 	isBlock := req.GetVolumeCapability().GetBlock() != nil
 	if isBlock {
@@ -489,12 +483,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
 	defer ns.locks.Release(req.VolumeId)
-
-	if valid, err := utils.ValidateRequest(req.VolumeContext); !valid {
-		msg := fmt.Sprintf("NodeStageVolume: failed to check request parameters: %v", err)
-		klog.Errorf(msg)
-		return nil, status.Error(codes.InvalidArgument, msg)
-	}
 
 	targetPath := req.StagingTargetPath
 	// targetPath format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
