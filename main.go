@@ -31,7 +31,6 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dbfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/ens"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
@@ -63,8 +62,6 @@ const (
 	PluginServicePort = "11260"
 	// ProvisionerServicePort default port is 11270.
 	ProvisionerServicePort = "11270"
-	// TypePluginDBFS local type plugin
-	TypePluginDBFS = "dbfsplugin.csi.alibabacloud.com"
 	// TypePluginDISK DISK type plugin
 	TypePluginDISK = "diskplugin.csi.alibabacloud.com"
 	// TypePluginNAS NAS type plugin
@@ -197,12 +194,6 @@ func main() {
 
 		case TypePluginCPFS:
 			log.Fatalf("%s is no longer supported, please switch to %s if you are using CPFS 2.0 protocol server", TypePluginCPFS, TypePluginNAS)
-		case TypePluginDBFS:
-			go func(endPoint string) {
-				defer wg.Done()
-				driver := dbfs.NewDriver(*nodeID, endPoint)
-				driver.Run()
-			}(endPointName)
 		case TypePluginENS:
 			go func(endpoint string) {
 				defer wg.Done()
