@@ -17,7 +17,6 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/pov/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/template"
 )
 
 const (
@@ -31,14 +30,7 @@ const (
 	THROUGHPUTMODE               = "throughputmode"
 	PROVISIONEDTHROUGHPUTINMIBPS = "provisionedthroughputinmibps"
 	FILESYSTEMID                 = "filesystemid"
-	// PVCNameKey contains name of the PVC for which is a volume provisioned.
-	PVCNameKey = "csi.storage.k8s.io/pvc/name"
-	// PVCNamespaceKey contains namespace of the PVC for which is a volume provisioned.
-	PVCNamespaceKey = "csi.storage.k8s.io/pvc/namespace"
-	// PVNameKey contains name of the final PV that will be used for the dynamically
-	// provisioned volume
-	PVNameKey   = "csi.storage.k8s.io/pv/name"
-	TopologyKey = "topology.kubernetes.io/region"
+	TopologyKey                  = "topology.kubernetes.io/region"
 
 	// volumeContext starting with labelAppendPrefix will automatically added to pv lables
 	labelAppendPrefix = "csi.alibabacloud.com/label-prefix/"
@@ -109,7 +101,6 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 		// volumeTags = map[string]string{}
 	)
-	pvProps := new(template.PVProps)
 
 	for key, value := range req.GetParameters() {
 		switch strings.ToLower(key) {
@@ -127,12 +118,6 @@ func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVol
 			throughputMode = value
 		case PROVISIONEDTHROUGHPUTINMIBPS:
 			provisionedThroughputInMiBps = value
-		case PVCNameKey:
-			pvProps.PVCName = value
-		case PVCNamespaceKey:
-			pvProps.PVCNamespace = value
-		case PVNameKey:
-			pvProps.PVName = value
 		case FILESYSTEMID:
 			filesystemID = value
 			// default:

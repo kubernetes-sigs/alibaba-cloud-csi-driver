@@ -3,8 +3,6 @@ package pov
 import (
 	"context"
 	"encoding/json"
-	"io/ioutil"
-	"net/http"
 	"os"
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
@@ -13,65 +11,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
-
-const (
-	MetadataURL = "http://100.100.100.200/latest/meta-data/"
-	DocumentURL = "http://100.100.100.200/latest/dynamic/instance-identity/document"
-
-	defaultRetryCount = 5
-)
-
-type MetadataService interface {
-	GetDoc() (*InstanceDocument, error)
-}
-
-// MetadataService ...
-type metadataService struct {
-	retryCount int
-}
-
-func NewMetadataService() MetadataService {
-	return metadataService{
-		retryCount: defaultRetryCount,
-	}
-}
-
-type InstanceDocument struct {
-	RegionID   string `json:"region-id"`
-	InstanceID string `json:"instance-id"`
-	ZoneID     string `json:"zone-id"`
-}
-
-func (ms metadataService) getDoc() (*InstanceDocument, error) {
-	resp, err := http.Get(DocumentURL)
-	if err != nil {
-		return &InstanceDocument{}, err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return &InstanceDocument{}, err
-	}
-
-	result := &InstanceDocument{}
-	if err = json.Unmarshal(body, result); err != nil {
-		return &InstanceDocument{}, err
-	}
-	return result, nil
-}
-
-func (ms metadataService) GetDoc() (*InstanceDocument, error) {
-	var err error
-	var doc *InstanceDocument
-	for i := 0; i < ms.retryCount; i++ {
-		doc, err = ms.getDoc()
-		if err != nil {
-			continue
-		}
-		return doc, nil
-	}
-	return doc, err
-}
 
 type PovOptions struct {
 	zoneID                       string
