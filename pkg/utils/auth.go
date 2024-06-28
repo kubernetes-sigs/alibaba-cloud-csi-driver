@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +32,6 @@ import (
 	cre "github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials/provider"
 	crev2 "github.com/aliyun/credentials-go/credentials"
-	"github.com/emirpasic/gods/sets/hashset"
 	oidc "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/auth"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/crypto"
 	log "github.com/sirupsen/logrus"
@@ -109,33 +107,6 @@ type AccessControl struct {
 	Config          *sdk.Config
 	Credential      auth.Credential
 	UseMode         AccessControlMode
-}
-
-var (
-	// cmdSet is support cmd set
-	cmdSet = hashset.New("mount", "lctl", "umount", "nsenter", "findmnt", "chmod", "dd", "mkfs.ext4", "cat", "ps", "hostname", "sysctl")
-	// cmdRegexp is not support cmd args
-	cmdRegexp = "[|$&;`'<>()%+\\\\]"
-)
-
-func CheckCmdArgs(cmd string, args ...string) error {
-	for _, element := range args {
-		match, err := regexp.MatchString(cmdRegexp, element)
-		if err != nil {
-			return fmt.Errorf("Command %s is regexp is failed, args:%s, err:%s.", cmd, element, err)
-		}
-		if match {
-			return fmt.Errorf("Command %s has illegal access, args:%s.", cmd, element)
-		}
-	}
-	return nil
-}
-
-func CheckCmd(cmd string, name string) error {
-	if !cmdSet.Contains(name) {
-		return fmt.Errorf("Command %s has illegal access, base command:%s.", cmd, name)
-	}
-	return nil
 }
 
 // CheckRequestArgs is check string is valid in args map

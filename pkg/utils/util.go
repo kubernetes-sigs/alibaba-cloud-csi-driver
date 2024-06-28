@@ -31,7 +31,6 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -129,46 +128,6 @@ func NewEventRecorder() record.EventRecorder {
 		broadcaster.StartRecordingToSink(sink)
 	}
 	return broadcaster.NewRecorder(scheme.Scheme, source)
-}
-
-// CommandRunFunc define the run function in utils for ut
-type CommandRunFunc func(cmd string) (string, error)
-
-// Run command
-func ValidateRun(cmd string) (string, error) {
-	arr := strings.Split(cmd, " ")
-	withArgs := false
-	if len(arr) >= 2 {
-		withArgs = true
-	}
-
-	name := arr[0]
-	var args []string
-	err := CheckCmd(cmd, name)
-	if err != nil {
-		return "", err
-	}
-	if withArgs {
-		args = arr[1:]
-		err = CheckCmdArgs(cmd, args...)
-		if err != nil {
-			return "", err
-		}
-	}
-	exec := utilexec.New()
-	var command utilexec.Cmd
-	if withArgs {
-		command = exec.Command(name, args...)
-	} else {
-		command = exec.Command(name)
-	}
-
-	stdout, err := command.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("Failed to exec command:%s, name:%s, args:%+v, stdout:%s, stderr:%s", cmd, name, args, string(stdout), err.Error())
-	}
-	log.Infof("Exec command %s is successfully, name:%s, args:%+v", cmd, name, args)
-	return string(stdout), nil
 }
 
 var NsenterArgs = []string{"--target=1", "--mount", "--ipc", "--net", "--uts", "--"}
@@ -533,16 +492,6 @@ func WriteAndSyncFile(filename string, data []byte, perm os.FileMode) error {
 // Fsync is a wrapper around file.Sync(). Special handling is needed on darwin platform.
 func Fsync(f *os.File) error {
 	return f.Sync()
-}
-
-// CheckParameterValidate is check parameter validating in csi-plugin
-func CheckParameterValidate(inputs []string) bool {
-	for _, input := range inputs {
-		if matched, err := regexp.MatchString("^[A-Za-z0-9=._@:~/-]*$", input); err != nil || !matched {
-			return false
-		}
-	}
-	return true
 }
 
 // GetPvNameFormPodMnt get pv name
