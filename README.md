@@ -10,7 +10,7 @@ volumes and attach it to workloads.
 
 Current implementation of CSI plugins has been tested in Kubernetes environment (requires Kubernetes 1.14+).
 
-Current Support: ***Cloud Disk, NAS, CPFS, OSS, LVM, DBFS***;
+Current Support: ***Cloud Disk, NAS, CPFS, OSS***;
 
 ## Features in Development
 
