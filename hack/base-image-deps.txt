@@ -4,11 +4,8 @@ e2fsprogs 1.47.0-2+b2
 fdisk 2.38.1-5+deb12u3
 grep 3.8-5
 libblkid1 2.38.1-5+deb12u3
-libbsd0 0.11.7-2
 libc6 2.36-9+deb12u13
 libcom-err2 1.47.0-2+b2
-libdevmapper1.02.1 2:1.02.185-2
-libedit2 3.1-20221030-2
 libext2fs2 1.47.0-2+b2
 libfdisk1 2.38.1-5+deb12u3
 libgssapi-krb5-2 1.20.1-2+deb12u4
@@ -19,7 +16,6 @@ libkmod2 30+20221128-1
 libkrb5-3 1.20.1-2+deb12u4
 libkrb5support0 1.20.1-2+deb12u4
 liblzma5 5.4.1-1
-libmd0 1.0.4-2
 libmount1 2.38.1-5+deb12u3
 libpci3 1:3.9.0-4
 libpcre2-8-0 10.42-1
