@@ -518,6 +518,12 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	targetPath := req.StagingTargetPath
 	// targetPath format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
 
+	if strings.HasPrefix(targetPath, filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi", driverName)) {
+		// if we see the new globalmount path, we must have upgraded the kubelet
+		// so we can safely cleanup the old globalmount path
+		TriggerCleanupOldGlobalMount()
+	}
+
 	isBlock := req.GetVolumeCapability().GetBlock() != nil
 	if isBlock {
 		targetPath = filepath.Join(targetPath, req.VolumeId)
