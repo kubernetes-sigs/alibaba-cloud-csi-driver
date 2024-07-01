@@ -102,6 +102,7 @@ type controllerServer struct {
 	recorder    record.EventRecorder
 	rateLimiter ratelimit.Limiter
 	mounter     mountutils.Interface
+	locks       *utils.VolumeLocks
 }
 
 // Alibaba Cloud nas volume parameters
@@ -153,6 +154,7 @@ func NewControllerServer(d *csicommon.CSIDriver, client *aliNas.Client, region, 
 		recorder:                utils.NewEventRecorder(),
 		rateLimiter:             ratelimit.New(intLimit),
 		mounter:                 NewNasMounter(),
+		locks:                   utils.NewVolumeLocks(),
 	}
 	return c
 }
@@ -177,6 +179,11 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if err := validateCreateVolumeRequest(req); err != nil {
 		return nil, err
 	}
+	if !cs.locks.TryAcquire(req.Name) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for volume %s", req.Name)
+	}
+	defer cs.locks.Release(req.Name)
+
 	// step1: check pvc is created or not.
 	if value, ok := pvcProcessSuccess[req.Name]; ok && value != nil {
 		log.Infof("CreateVolume: Nfs Volume %s has Created Already: %v", req.Name, value)
@@ -559,9 +566,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	return &csi.CreateVolumeResponse{Volume: csiTargetVol}, nil
 }
 
-// call nas api to delete disk
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	log.Infof("DeleteVolume: Starting deleting volume %s", req.GetVolumeId())
+	if !cs.locks.TryAcquire(req.VolumeId) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for volume %s", req.VolumeId)
+	}
+	defer cs.locks.Release(req.VolumeId)
 
 	pvInfo, err := cs.client.CoreV1().PersistentVolumes().Get(context.Background(), req.VolumeId, metav1.GetOptions{})
 	if err != nil {
@@ -1034,6 +1044,11 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest,
 ) (*csi.ControllerExpandVolumeResponse, error) {
 	log.Infof("ControllerExpandVolume: starting to expand nas volume with %v", req)
+	if !cs.locks.TryAcquire(req.VolumeId) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for volume %s", req.VolumeId)
+	}
+	defer cs.locks.Release(req.VolumeId)
+
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	pvObj, err := getPvObj(req.VolumeId)
 	if err != nil {
