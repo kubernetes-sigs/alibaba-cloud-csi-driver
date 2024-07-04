@@ -246,6 +246,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 				createFileSystemsRequest.ZoneId = nasVol.ZoneID
 			}
 			log.Infof("CreateVolume: Volume: %s, Create Nas filesystem with: %v, %v", pvName, cs.region, nasVol)
+			// for private cloud
+			if ascmContext := os.Getenv("X-ACSPROXY-ASCM-CONTEXT"); ascmContext != "" {
+				createFileSystemsRequest.GetHeaders()["x-acsproxy-ascm-context"] = ascmContext
+			}
 
 			createFileSystemsResponse, err := cs.nasClient.CreateFileSystem(createFileSystemsRequest)
 			if err != nil {
