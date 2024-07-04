@@ -32,6 +32,11 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 	err := checkOssOptions(options)
 	assert.Nil(t, err)
 
+	options.AssumeRoleArn = "test-assume-role-arn"
+	err = checkOssOptions(options)
+	assert.Equal(t, "Oss parameters error: only support access OSS through STS AssumeRole when authType is RRSA", err.Error())
+
+	options.AssumeRoleArn = ""
 	options.URL = ""
 	err = checkOssOptions(options)
 	assert.Equal(t, "Oss parameters error: Url/Bucket empty", err.Error())
