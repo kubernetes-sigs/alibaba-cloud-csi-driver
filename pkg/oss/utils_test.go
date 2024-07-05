@@ -70,6 +70,18 @@ func Test_parseOtherOpts(t *testing.T) {
 			nil,
 			true,
 		},
+		{
+			"concatenated options with ,",
+			args{"-omax_stat_cache_size=0 -o allow_other -o gid=1000,uid=1000"},
+			[]string{"max_stat_cache_size=0", "allow_other", "gid=1000", "uid=1000"},
+			false,
+		},
+		{
+			"merged -o and concatenated options with ,",
+			args{"-omax_stat_cache_size=0 -o allow_other -ogid=1000,uid=1000"},
+			[]string{"max_stat_cache_size=0", "allow_other", "gid=1000", "uid=1000"},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

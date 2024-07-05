@@ -103,19 +103,21 @@ func getRRSAConfig(opt *Options, m metadata.MetadataProvider) (rrsaCfg *mounter.
 }
 
 // parseOtherOpts extracts mount options from parameters.otherOpts string.
-// example: "-o max_stat_cache_size=0 -o allow_other" => {"max_stat_cache_size=0", "allow_other"}
+// example: "-o max_stat_cache_size=0 -o allow_other -ogid=1000,uid=1000" => {"max_stat_cache_size=0", "allow_other", "uid=1000", "gid=1000"}
 func parseOtherOpts(otherOpts string) (mountOptions []string, err error) {
 	elements := strings.Fields(otherOpts)
 	accepting := false
 	for _, ele := range elements {
 		if accepting {
-			mountOptions = append(mountOptions, ele)
+			eles := strings.Split(ele, ",")
+			mountOptions = append(mountOptions, eles...)
 			accepting = false
 		} else {
 			if ele == "-o" {
 				accepting = true
 			} else if strings.HasPrefix(ele, "-o") {
-				mountOptions = append(mountOptions, strings.TrimPrefix(ele, "-o"))
+				eles := strings.Split(strings.TrimPrefix(ele, "-o"), ",")
+				mountOptions = append(mountOptions, eles...)
 			} else {
 				// missing -o
 				return nil, status.Errorf(codes.InvalidArgument, "invalid otherOpts: %q", otherOpts)
