@@ -66,7 +66,7 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 			}
 		case "authtype":
 			ossVolArgs.AuthType = value
-		case "rolename":
+		case "rolename", "ramrole":
 			ossVolArgs.RoleName = value
 		case "rolearn":
 			ossVolArgs.RoleArn = value
