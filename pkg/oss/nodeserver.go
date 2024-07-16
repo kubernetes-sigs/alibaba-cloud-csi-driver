@@ -54,24 +54,37 @@ type nodeServer struct {
 type Options struct {
 	directAssigned bool
 
-	Bucket              string `json:"bucket"`
-	URL                 string `json:"url"`
-	OtherOpts           string `json:"otherOpts"`
-	AkID                string `json:"akId"`
-	AkSecret            string `json:"akSecret"`
-	Path                string `json:"path"`
-	UseSharedPath       bool   `json:"useSharedPath"`
-	AuthType            string `json:"authType"`
-	RoleName            string `json:"roleName"`
-	RoleArn             string `json:"roleArn"`
-	OidcProviderArn     string `json:"oidcProviderArn"`
-	ServiceAccountName  string `json:"serviceAccountName"`
+	// oss options
+	Bucket string `json:"bucket"`
+	URL    string `json:"url"`
+	Path   string `json:"path"`
+
+	// authorization options
+	// accesskey
+	AkID     string `json:"akId"`
+	AkSecret string `json:"akSecret"`
+	// RRSA
+	RoleName           string `json:"roleName"`
+	RoleArn            string `json:"roleArn"`
+	OidcProviderArn    string `json:"oidcProviderArn"`
+	ServiceAccountName string `json:"serviceAccountName"`
+	// assume role
+	AssumeRoleArn string `json:"assumeRoleArn"`
+	ExternalId    string `json:"externalId"`
+	// csi secret store
 	SecretProviderClass string `json:"secretProviderClass"`
-	FuseType            string `json:"fuseType"`
-	MetricsTop          string `json:"metricsTop"`
-	ReadOnly            bool   `json:"readOnly"`
-	Encrypted           string `json:"encrypted"`
-	KmsKeyId            string `json:"kmsKeyId"`
+
+	// ossfs options
+	OtherOpts  string `json:"otherOpts"`
+	MetricsTop string `json:"metricsTop"`
+	Encrypted  string `json:"encrypted"`
+	KmsKeyId   string `json:"kmsKeyId"`
+
+	// mount options
+	UseSharedPath bool   `json:"useSharedPath"`
+	AuthType      string `json:"authType"`
+	FuseType      string `json:"fuseType"`
+	ReadOnly      bool   `json:"readOnly"`
 }
 
 const (
@@ -124,57 +137,72 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, err
 	}
 	var cnfsName string
-	opt := &Options{}
-	opt.UseSharedPath = true
-	opt.FuseType = OssFsType
-	for key, value := range req.VolumeContext {
-		key = strings.ToLower(key)
-		if key == "bucket" {
-			opt.Bucket = strings.TrimSpace(value)
-		} else if key == "url" {
-			opt.URL = strings.TrimSpace(value)
-		} else if key == "otheropts" {
-			opt.OtherOpts = strings.TrimSpace(value)
-		} else if key == "akid" {
-			opt.AkID = strings.TrimSpace(value)
-		} else if key == "aksecret" {
-			opt.AkSecret = strings.TrimSpace(value)
-		} else if key == "path" {
-			if v := strings.TrimSpace(value); v == "" {
-				opt.Path = "/"
+	opt := &Options{
+		UseSharedPath: true,
+		FuseType:      OssFsType,
+		Path:          "/",
+		AkID:          req.Secrets[AkID],
+		AkSecret:      req.Secrets[AkSecret],
+	}
+	for k, v := range req.VolumeContext {
+		key := strings.TrimSpace(strings.ToLower(k))
+		value := strings.TrimSpace(v)
+		if value == "" {
+			continue
+		}
+		switch key {
+		case "bucket":
+			opt.Bucket = value
+		case "url":
+			opt.URL = value
+		case "otheropts":
+			opt.OtherOpts = value
+		case "akid":
+			opt.AkID = value
+		case "aksecret":
+			opt.AkSecret = value
+		case "path":
+			opt.Path = value
+		case "usesharedpath":
+			if res, err := strconv.ParseBool(value); err == nil {
+				opt.UseSharedPath = res
 			} else {
-				opt.Path = v
+				log.Warnf("Oss parameters error: the value(%q) of %q is invalid", v, k)
 			}
-		} else if key == "usesharedpath" {
-			if useSharedPath, err := strconv.ParseBool(value); err == nil {
-				opt.UseSharedPath = useSharedPath
-			} else {
-				log.Warnf("invalid useSharedPath: %q", value)
-			}
-		} else if key == "authtype" {
-			opt.AuthType = strings.ToLower(strings.TrimSpace(value))
-		} else if key == "rolename" {
-			opt.RoleName = strings.TrimSpace(value)
-		} else if key == "rolearn" {
-			opt.RoleArn = strings.TrimSpace(value)
-		} else if key == "oidcproviderarn" {
-			opt.OidcProviderArn = strings.TrimSpace(value)
-		} else if key == "serviceaccountname" {
-			opt.ServiceAccountName = strings.TrimSpace(value)
-		} else if key == "secretproviderclass" {
-			opt.SecretProviderClass = strings.TrimSpace(value)
-		} else if key == "fusetype" {
-			opt.FuseType = strings.ToLower(strings.TrimSpace(value))
-		} else if key == "metricstop" {
-			opt.MetricsTop = strings.ToLower(strings.TrimSpace(value))
-		} else if key == "containernetworkfilesystem" {
+		case "authtype":
+			opt.AuthType = strings.ToLower(value)
+		case "rolename":
+			opt.RoleName = value
+		case "rolearn":
+			opt.RoleArn = value
+		case "oidcproviderarn":
+			opt.OidcProviderArn = value
+		case "serviceaccountname":
+			opt.ServiceAccountName = value
+		case "secretproviderclass":
+			opt.SecretProviderClass = value
+		case "fusetype":
+			opt.FuseType = strings.ToLower(value)
+		case "metricstop":
+			opt.MetricsTop = strings.ToLower(value)
+		case "containernetworkfilesystem":
 			cnfsName = value
-		} else if key == optDirectAssigned {
-			opt.directAssigned, _ = strconv.ParseBool(strings.TrimSpace(value))
-		} else if key == "encrypted" {
-			opt.Encrypted = strings.ToLower(strings.TrimSpace(value))
-		} else if key == "kmskeyid" {
+		case optDirectAssigned:
+			if res, err := strconv.ParseBool(value); err == nil {
+				opt.directAssigned = res
+			} else {
+				log.Warnf("Oss parameters error: the value(%q) of %q is invalid", v, k)
+			}
+		case "encrypted":
+			opt.Encrypted = strings.ToLower(value)
+		case "kmskeyid":
 			opt.KmsKeyId = value
+		case "assumerolearn":
+			opt.AssumeRoleArn = value
+		case "externalid":
+			opt.ExternalId = value
+		default:
+			log.Warnf("Oss parameters error: the key(%q) is unknown", k)
 		}
 	}
 
@@ -201,28 +229,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		opt.URL = cnfs.Status.FsAttributes.EndPoint.Internal
 	}
 
-	// Default oss path
-	if opt.Path == "" {
-		opt.Path = "/"
-	}
-
-	// support set ak by secret
-	if opt.AkID == "" || opt.AkSecret == "" {
-		if value, ok := req.Secrets[AkID]; ok {
-			opt.AkID = value
-		}
-		if value, ok := req.Secrets[AkSecret]; ok {
-			opt.AkSecret = value
-		}
-	}
-
 	// check parameters
 	if err := checkOssOptions(opt); err != nil {
 		log.Errorf("Check oss input error: %s", err.Error())
 		return nil, errors.New("Check oss input error: " + err.Error())
 	}
 
-	argStr := fmt.Sprintf("Bucket: %s, url: %s, , OtherOpts: %s, Path: %s, UseSharedPath: %s, authType: %s, encrypted: %s, kmsid: %s",
+	argStr := fmt.Sprintf("Bucket: %s, url: %s, OtherOpts: %s, Path: %s, UseSharedPath: %s, authType: %s, encrypted: %s, kmsid: %s",
 		opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType, opt.Encrypted, opt.KmsKeyId)
 	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
 
@@ -282,6 +295,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			mountOptions = append(mountOptions, "rrsa_endpoint=https://sts.aliyuncs.com")
 		} else {
 			mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=https://sts-vpc.%s.aliyuncs.com", regionID))
+		}
+		if opt.AssumeRoleArn != "" {
+			mountOptions = append(mountOptions, fmt.Sprintf("assume_role_arn=%s", opt.AssumeRoleArn))
+			if opt.ExternalId != "" {
+				mountOptions = append(mountOptions, fmt.Sprintf("assume_role_external_id=%s", opt.ExternalId))
+			}
 		}
 	case mounter.AuthTypeCSS:
 	default:
@@ -423,6 +442,10 @@ func checkOssOptions(opt *Options) error {
 
 	if opt.Encrypted != "" && opt.Encrypted != EncryptedTypeKms && opt.Encrypted != EncryptedTypeAes256 {
 		return errors.New("Oss encrypted error: invalid SSE encryted type")
+	}
+
+	if opt.AssumeRoleArn != "" && opt.AuthType != mounter.AuthTypeRRSA {
+		return errors.New("Oss parameters error: only support access OSS through STS AssumeRole when authType is RRSA")
 	}
 
 	return nil

@@ -19,6 +19,7 @@ package oss
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -48,41 +49,51 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 	for k, v := range volOptions {
 		key := strings.TrimSpace(strings.ToLower(k))
 		value := strings.TrimSpace(v)
-		if key == "bucket" {
+		switch key {
+		case "bucket":
 			ossVolArgs.Bucket = value
-		} else if key == "url" {
+		case "url":
 			ossVolArgs.URL = value
-		} else if key == "otheropts" {
+		case "otheropts":
 			ossVolArgs.OtherOpts = value
-		} else if key == "path" {
+		case "path":
 			ossVolArgs.Path = value
-		} else if key == "usesharedpath" && value == "true" {
-			ossVolArgs.UseSharedPath = true
-		} else if key == "authtype" {
+		case "usesharedpath":
+			if res, err := strconv.ParseBool(value); err == nil {
+				ossVolArgs.UseSharedPath = res
+			} else {
+				log.Warnf("Oss parameters error: the value(%q) of %q is invalid", v, k)
+			}
+		case "authtype":
 			ossVolArgs.AuthType = value
-		} else if key == "rolename" {
+		case "rolename":
 			ossVolArgs.RoleName = value
-		} else if key == "rolearn" {
-			ossVolArgs.RoleArn = strings.TrimSpace(value)
-		} else if key == "oidcproviderarn" {
-			ossVolArgs.OidcProviderArn = strings.TrimSpace(value)
-		} else if key == "serviceaccountname" {
-			ossVolArgs.ServiceAccountName = strings.TrimSpace(value)
-		} else if key == "secretproviderclass" {
+		case "rolearn":
+			ossVolArgs.RoleArn = value
+		case "oidcproviderarn":
+			ossVolArgs.OidcProviderArn = value
+		case "serviceaccountname":
+			ossVolArgs.ServiceAccountName = value
+		case "secretproviderclass":
 			ossVolArgs.SecretProviderClass = value
-		} else if key == "encrypted" {
+		case "encrypted":
 			ossVolArgs.Encrypted = value
-		} else if key == "kmsKeyId" {
+		case "kmskeyid":
 			ossVolArgs.KmsKeyId = value
+		default:
+			log.Warnf("Oss parameters error: the key(%q) is unknown", k)
 		}
 	}
 	for k, v := range secret {
 		key := strings.TrimSpace(strings.ToLower(k))
 		value := strings.TrimSpace(v)
-		if key == "akid" {
+		switch key {
+		case "akid":
 			ossVolArgs.AkID = value
-		} else if key == "aksecret" {
+		case "aksecret":
 			ossVolArgs.AkSecret = value
+		default:
+			log.Warnf("Oss authorization error: the key(%q) is unknown", k)
 		}
 	}
 	ossVolArgs.ReadOnly = true
