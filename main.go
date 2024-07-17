@@ -277,7 +277,7 @@ func main() {
 }
 
 func createPersistentStorage(persistentStoragePath string) error {
-	log.Infof("Create Stroage Path: %s", persistentStoragePath)
+	log.Infof("Create Storage Path: %s", persistentStoragePath)
 	return os.MkdirAll(persistentStoragePath, os.FileMode(0755))
 }
 
