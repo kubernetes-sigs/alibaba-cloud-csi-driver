@@ -32,11 +32,11 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/rund/directvolume"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -131,6 +131,12 @@ const (
 var (
 	// BLOCKVOLUMEPREFIX block volume mount prefix
 	BLOCKVOLUMEPREFIX = filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/publish")
+
+	// DiskXattrName xattr is applied on the block device file to indicate that it is managed by the CSI driver.
+	// Value is the disk ID.
+	// Linux only support trusted namespace xattr in tmpfs before kernel v6.6,
+	// but setting trusted xaattr requires CAP_SYS_ADMIN capability, we may use user namespace instead in unit tests.
+	DiskXattrName = "trusted.csi-managed-disk"
 )
 
 // QueryResponse response struct for query server
@@ -142,7 +148,7 @@ type QueryResponse struct {
 	runtime    string
 }
 
-func getVolumeCount(node *v1.Node, c cloud.ECSInterface, m metadata.MetadataProvider) (int, error) {
+func parseVolumeCountEnv() (int, error) {
 	volumeNum := os.Getenv("MAX_VOLUMES_PERNODE")
 	if volumeNum != "" {
 		num, err := strconv.Atoi(volumeNum)
@@ -154,14 +160,8 @@ func getVolumeCount(node *v1.Node, c cloud.ECSInterface, m metadata.MetadataProv
 		}
 		log.Infof("MAX_VOLUMES_PERNODE is set to (from env): %d", num)
 		return num, nil
-	} else {
-		num, err := getVolumeCountFromOpenAPI(node, c, m)
-		if err != nil {
-			return 0, fmt.Errorf("MAX_VOLUMES_PERNODE not set and failed to get volume count: %w", err)
-		}
-		log.Infof("MAX_VOLUMES_PERNODE is set to (from OpenAPI): %d", num)
-		return num, nil
 	}
+	return 0, nil
 }
 
 // NewNodeServer creates node server
@@ -703,6 +703,20 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
+func addDiskXattr(diskID string) (err error) {
+	defer func() {
+		if errors.Is(err, os.ErrNotExist) {
+			log.Infof("addDiskXattr: disk %s not found, skip", diskID)
+			err = nil
+		}
+	}()
+	device, err := GetVolumeDeviceName(diskID)
+	if err != nil {
+		return
+	}
+	return unix.Setxattr(device, DiskXattrName, []byte(diskID), 0)
+}
+
 // target format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	log.Infof("NodeUnstageVolume:: Starting to Unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
@@ -787,6 +801,11 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		}
 	}
 
+	err := addDiskXattr(req.VolumeId)
+	if err != nil {
+		log.Errorf("NodeUnstageVolume: addDiskXattr %s failed: %v", req.VolumeId, err)
+	}
+
 	// Do detach if ADController disable
 	if !GlobalConfigVar.ADControllerEnable {
 		// if DetachDisabled is set to true, return
@@ -810,17 +829,28 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 }
 
 func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+	maxVolumesNum, err := parseVolumeCountEnv()
+	if err != nil {
+		return nil, err
+	}
+
 	nodeName := os.Getenv(kubeNodeName)
 	if nodeName == "" {
 		log.Fatalf("NodeGetInfo: KUBE_NODE_NAME must be set")
 	}
-	node, err := GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get node: %w", err)
+	var node *v1.Node
+	getNode := func() (*v1.Node, error) {
+		var err error
+		node, err = GlobalConfigVar.ClientSet.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+		return node, err
 	}
 
 	c := updateEcsClient(GlobalConfigVar.EcsClient)
-	maxVolumesNum, err := getVolumeCount(node, c, ns.metadata)
+	if maxVolumesNum == 0 {
+		maxVolumesNum, err = getVolumeCountFromOpenAPI(getNode, c, ns.metadata, DefaultDeviceManager)
+	} else {
+		node, err = getNode()
+	}
 	if err != nil {
 		return nil, err
 	}

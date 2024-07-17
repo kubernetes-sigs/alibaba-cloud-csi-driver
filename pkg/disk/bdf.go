@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -409,10 +410,14 @@ var isVFInstance = false
 // IsVFNode returns whether the current node is vf
 func IsVFNode() bool {
 	vfOnce.Do(func() {
-		is_bdf := os.Getenv("IS_BDF")
-		if is_bdf == "true" {
-			isVF = true
-			isVFInstance = true
+		is_bdf_str, ok := os.LookupEnv("IS_BDF")
+		if ok {
+			is_bdf, err := strconv.ParseBool(is_bdf_str)
+			if err != nil {
+				log.Fatalf("[IsVFNode] parse IS_BDF=%s: %v", is_bdf_str, err)
+			}
+			isVF = is_bdf
+			isVFInstance = is_bdf
 		} else {
 			output, err := ExecCheckOutput("lspci", "-D")
 			if err != nil {

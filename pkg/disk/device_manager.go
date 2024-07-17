@@ -37,8 +37,6 @@ var DefaultDeviceManager = &DeviceManager{
 	SysfsPath:  "/sys",
 }
 
-var ErrNotFound = errors.New("device not found")
-
 // returns the block device name (e.g. vda) or error
 func (m *DeviceManager) getDeviceBySerial(serial string) (string, error) {
 	sysBlock := m.SysfsPath + "/block"
@@ -62,7 +60,7 @@ func (m *DeviceManager) getDeviceBySerial(serial string) (string, error) {
 			return block.Name(), nil
 		}
 	}
-	return "", ErrNotFound
+	return "", os.ErrNotExist
 }
 
 func (m *DeviceManager) sysfsDir(major, minor uint32) string {
@@ -178,24 +176,24 @@ func (m *DeviceManager) getDeviceByScanLinks(idSuffix string) (string, error) {
 // Returns the path to a block special file.
 // Caller should not assume any other special property of the returned path.
 func (m *DeviceManager) GetRootBlockByVolumeID(volumeID string) (string, error) {
-	errs := []error{}
-
 	idSuffix := strings.TrimPrefix(volumeID, "d-")
 	linkPath, err := m.getDeviceByLink(idSuffix)
 	if err == nil {
 		return linkPath, nil
 	}
-	errs = append(errs, err)
+	if !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+
+	errs := []error{err}
 
 	// fallback to scan all links if no known link found
-	if errors.Is(err, os.ErrNotExist) {
-		linkPath, err = m.getDeviceByScanLinks(idSuffix)
-		if linkPath != "" {
-			return linkPath, nil
-		}
-		if err != nil {
-			errs = append(errs, err)
-		}
+	linkPath, err = m.getDeviceByScanLinks(idSuffix)
+	if linkPath != "" {
+		return linkPath, nil
+	}
+	if err != nil {
+		errs = append(errs, err)
 	}
 
 	// this is danger in Bdf mode
