@@ -50,7 +50,6 @@ import (
 	perrors "github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -1249,21 +1248,6 @@ func updateVolumeContext(volumeContext map[string]string) map[string]string {
 	return volumeContext
 }
 
-func getSnapshotInfoByID(snapshotID string) (string, string, *timestamppb.Timestamp) {
-	content, err := GlobalConfigVar.SnapClient.SnapshotV1().VolumeSnapshotContents().Get(context.TODO(), snapshotID, metav1.GetOptions{})
-	if err != nil {
-		log.Errorf("getSnapshotContentByID:: get snapshot content in cluster err: %v", err)
-		return "", "", nil
-	}
-	if targetRegion, ok := content.Labels[RemoteSnapshotLabelKey]; ok {
-		if volumeID, ok := content.Labels[SnapshotVolumeKey]; ok {
-			return targetRegion, volumeID, &timestamppb.Timestamp{Seconds: int64(content.CreationTimestamp.Second())}
-		}
-	}
-
-	return "", "", nil
-}
-
 func getAttachedCloudDisks(ecsClient cloud.ECSInterface, m metadata.MetadataProvider) (diskIds []string, err error) {
 	req := ecs.CreateDescribeDisksRequest()
 	req.InstanceId = metadata.MustGet(m, metadata.InstanceID)
@@ -1442,15 +1426,6 @@ func checkRundVolumeExpand(req *csi.NodeExpandVolumeRequest) (bool, error) {
 func checkOption(opt string) bool {
 	switch opt {
 	case "enable", "true", "yes":
-		return true
-	default:
-		return false
-	}
-}
-
-func checkOptionFalse(opt string) bool {
-	switch opt {
-	case "disable", "false", "no":
 		return true
 	default:
 		return false

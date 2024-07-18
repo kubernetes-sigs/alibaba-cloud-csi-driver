@@ -2,7 +2,6 @@ package disk
 
 import (
 	"fmt"
-	"time"
 )
 
 const (
@@ -147,15 +146,6 @@ const (
 	// RetryMaxTimes ...
 	RetryMaxTimes = 5
 
-	// timeout for UpdateNode goroutine
-	UpdateNodeTimeout = 1 * time.Hour
-	// timeout for get supported disk types of ECS
-	// should be less than UpdateNodeTimeout
-	GetDiskTypeTimeout = 30 * time.Minute
-	// RemoteSnapshotLabelKey ...
-	RemoteSnapshotLabelKey = "csi.alibabacloud.com/snapshot.targetregion"
-	// SnapshotVolumeKey ...
-	SnapshotVolumeKey = "csi.alibabacloud.com/snapshot.volumeid"
 	labelAppendPrefix = "csi.alibabacloud.com/label-prefix/"
 	annVolumeTopoKey  = "csi.alibabacloud.com/volume-topology"
 	labelVolumeType   = "csi.alibabacloud.com/disktype"
