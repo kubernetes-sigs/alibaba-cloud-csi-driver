@@ -61,8 +61,9 @@ type Options struct {
 
 	// authorization options
 	// accesskey
-	AkID     string `json:"akId"`
-	AkSecret string `json:"akSecret"`
+	AkID      string `json:"akId"`
+	AkSecret  string `json:"akSecret"`
+	SecretRef string `json:"secretRef"`
 	// RRSA
 	RoleName           string `json:"roleName"`
 	RoleArn            string `json:"roleArn"`
@@ -161,6 +162,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.AkID = value
 		case "aksecret":
 			opt.AkSecret = value
+		case "secretref":
+			opt.SecretRef = value
 		case "path":
 			opt.Path = value
 		case "usesharedpath":
@@ -257,7 +260,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				return nil, errors.New("Get RoleArn and OidcProviderArn for RRSA error: " + err.Error())
 			}
 		}
-		authCfg := &mounter.AuthConfig{AuthType: opt.AuthType, RrsaConfig: rrsaCfg, SecretProviderClassName: opt.SecretProviderClass}
+		authCfg := &mounter.AuthConfig{AuthType: opt.AuthType, RrsaConfig: rrsaCfg, SecretProviderClassName: opt.SecretProviderClass, SecretRef: opt.SecretRef}
 		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId, authCfg, !opt.UseSharedPath)
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "unknown fuseType: %q", opt.FuseType)
@@ -305,9 +308,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	case mounter.AuthTypeCSS:
 	default:
 		// ossfs fuse pod will mount the secret to access credentials
-		err := mounter.SetupOssfsCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId, opt.Bucket, opt.AkID, opt.AkSecret)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to setup ossfs credential secret: %v", err)
+		if opt.SecretRef == "" {
+			err := mounter.SetupOssfsCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId, opt.Bucket, opt.AkID, opt.AkSecret)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to setup ossfs credential secret: %v", err)
+			}
 		}
 	}
 
@@ -435,8 +440,11 @@ func checkOssOptions(opt *Options) error {
 			opt.AkID = ac.AccessKeyID
 			opt.AkSecret = ac.AccessKeySecret
 		}
-		if opt.AkID == "" || opt.AkSecret == "" {
+		if (opt.AkID == "" || opt.AkSecret == "") && opt.SecretRef != "" {
 			return errors.New("Oss parameters error: AK and authType are both empty or invalid")
+		}
+		if opt.SecretRef == mounter.OssfsCredentialSecretName {
+			return errors.New("Oss parameters error: invalid SecretRef")
 		}
 	}
 
@@ -498,6 +506,7 @@ func (ns *nodeServer) NodeUnstageVolume(
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", mountpoint, err)
 	}
 	log.Infof("NodeUnstageVolume: umount OSS Successful: %s", mountpoint)
+	// if secretRef set, return nil directly as default secret or related key not found here
 	err = mounter.CleanupOssfsCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to cleanup ossfs credential secret: %v", err)

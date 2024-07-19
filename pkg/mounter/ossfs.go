@@ -1,8 +1,6 @@
 package mounter
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,11 +12,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -214,77 +208,6 @@ func (f *fuseOssfs) buildPodSpec(
 	return
 }
 
-func SetupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Interface, node, volumeId, bucket, akId, akSecret string) error {
-	key := fmt.Sprintf("%s.%s", node, volumeId)
-	value := fmt.Sprintf("%s:%s:%s", bucket, akId, akSecret)
-	secretClient := clientset.CoreV1().Secrets(fuseMountNamespace)
-	secret, err := secretClient.Get(ctx, OssfsCredentialSecretName, metav1.GetOptions{})
-	if err != nil {
-		// if secret not found, create it
-		if errors.IsNotFound(err) {
-			secret = new(corev1.Secret)
-			secret.Name = OssfsCredentialSecretName
-			secret.Namespace = fuseMountNamespace
-			secret.Data = map[string][]byte{key: []byte(value)}
-			_, err = secretClient.Create(ctx, secret, metav1.CreateOptions{})
-			if err == nil {
-				log.WithField("volumeId", volumeId).Infof("created secret %s to add credentials", OssfsCredentialSecretName)
-			}
-			return err
-		}
-		return err
-	}
-	if string(secret.Data[key]) == value {
-		return nil
-	}
-	// patch secret
-	patch := corev1.Secret{
-		Data: map[string][]byte{
-			key: []byte(value),
-		},
-	}
-	patchData, err := json.Marshal(patch)
-	if err != nil {
-		return err
-	}
-	_, err = secretClient.Patch(ctx, OssfsCredentialSecretName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
-	if err == nil {
-		log.WithField("volumeId", volumeId).Infof("patched secret %s", OssfsCredentialSecretName)
-	}
-	return err
-}
-
-func CleanupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Interface, node, volumeId string) error {
-	key := fmt.Sprintf("%s.%s", node, volumeId)
-	secretClient := clientset.CoreV1().Secrets(fuseMountNamespace)
-	secret, err := secretClient.Get(ctx, OssfsCredentialSecretName, metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
-	_, exists := secret.Data[key]
-	if !exists {
-		return nil
-	}
-	// patch secret
-	patch := corev1.Secret{
-		Data: map[string][]byte{
-			key: nil,
-		},
-	}
-	patchData, err := json.Marshal(patch)
-	if err != nil {
-		return err
-	}
-	_, err = secretClient.Patch(ctx, OssfsCredentialSecretName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
-	if err == nil {
-		log.WithField("volumeId", volumeId).Infof("patched secret %s to remove credentials", OssfsCredentialSecretName)
-	}
-	return err
-}
-
 func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig,
 	spec *corev1.PodSpec, container *corev1.Container, options *[]string) {
 	if spec == nil || container == nil || options == nil {
@@ -367,20 +290,11 @@ func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig,
 	default:
 		passwdMountDir := "/etc/ossfs"
 		passwdFilename := "passwd-ossfs"
+		secretVolumeSource := getPasswdSecretVolume(authCfg.SecretRef, nodeName, volumeId)
 		passwdSecretVolume := corev1.Volume{
 			Name: "passwd-ossfs",
 			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: OssfsCredentialSecretName,
-					Items: []corev1.KeyToPath{
-						{
-							Key:  fmt.Sprintf("%s.%s", nodeName, volumeId),
-							Path: passwdFilename,
-							Mode: tea.Int32(0600),
-						},
-					},
-					Optional: tea.Bool(true),
-				},
+				Secret: secretVolumeSource,
 			},
 		}
 		spec.Volumes = append(spec.Volumes, passwdSecretVolume)
@@ -390,5 +304,8 @@ func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig,
 		}
 		container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
 		*options = append(*options, fmt.Sprintf("passwd_file=%s", filepath.Join(passwdMountDir, passwdFilename)))
+		if authCfg.SecretRef != "" {
+			*options = append(*options, "use_session_token")
+		}
 	}
 }

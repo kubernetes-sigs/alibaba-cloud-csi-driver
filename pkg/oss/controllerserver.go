@@ -56,6 +56,8 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 			ossVolArgs.URL = value
 		case "otheropts":
 			ossVolArgs.OtherOpts = value
+		case "secretref":
+			ossVolArgs.SecretRef = value
 		case "path":
 			ossVolArgs.Path = value
 		case "usesharedpath":

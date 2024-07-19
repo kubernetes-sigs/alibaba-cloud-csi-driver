@@ -18,18 +18,28 @@ package oss
 import (
 	"testing"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGetDiskVolumeOptions(t *testing.T) {
 	options := &Options{}
-	options.AkSecret = "11111"
-	options.AkID = "2222"
 	options.URL = "1.1.1.1"
 	options.Bucket = "aliyun"
 	options.Path = "/path"
 
+	options.SecretRef = "secret"
 	err := checkOssOptions(options)
+	assert.Nil(t, err)
+
+	options.SecretRef = mounter.OssfsCredentialSecretName
+	err = checkOssOptions(options)
+	assert.Equal(t, "Oss parameters error: invalid SecretRe", err.Error())
+
+	options.SecretRef = ""
+	options.AkSecret = "11111"
+	options.AkID = "2222"
+	err = checkOssOptions(options)
 	assert.Nil(t, err)
 
 	options.AssumeRoleArn = "test-assume-role-arn"

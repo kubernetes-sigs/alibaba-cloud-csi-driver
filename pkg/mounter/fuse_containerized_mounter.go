@@ -42,6 +42,8 @@ type AuthConfig struct {
 	RrsaConfig *RrsaConfig
 	// for csi-secret-store
 	SecretProviderClassName string
+	// for AKSK
+	SecretRef string
 }
 
 type RrsaConfig struct {
