@@ -3,6 +3,7 @@ package cloud
 import (
 	"errors"
 	"fmt"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"os"
 	"strings"
 
@@ -48,7 +49,7 @@ func newNasClientV2(region string) (*sdk.Client, error) {
 type NasClientV2 struct {
 	region  string
 	limiter ratelimit.Limiter
-	client  *sdk.Client
+	client  interfaces.NasInterface
 }
 
 func (c *NasClientV2) CreateDir(req *sdk.CreateDirRequest) error {
