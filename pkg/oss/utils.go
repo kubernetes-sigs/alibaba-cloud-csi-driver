@@ -70,10 +70,10 @@ func checkRRSAParams(opt *Options) error {
 		return nil
 	}
 	if opt.RoleArn != "" || opt.OidcProviderArn != "" {
-		return errors.New("Oss parameters error: use RRSA but one of the ARNs is empty, roleArn:" + opt.RoleArn + ", oidcProviderArn:" + opt.OidcProviderArn)
+		return errors.New("use RRSA but one of the ARNs is empty, roleArn:" + opt.RoleArn + ", oidcProviderArn:" + opt.OidcProviderArn)
 	}
 	if opt.RoleName == "" {
-		return errors.New("Oss parameters error: use RRSA but roleName is empty")
+		return errors.New("use RRSA but roleName is empty")
 	}
 	return nil
 }

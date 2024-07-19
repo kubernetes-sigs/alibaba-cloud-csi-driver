@@ -416,22 +416,22 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 // Check oss options
 func checkOssOptions(opt *Options) error {
 	if opt.URL == "" || opt.Bucket == "" {
-		return errors.New("Oss parameters error: Url/Bucket empty")
+		return WrapOssError(ParamError, "Oss parameters error: Url/Bucket empty")
 	}
 
 	if !strings.HasPrefix(opt.Path, "/") {
-		return errors.New("Oss path error: start with " + opt.Path + ", should start with /")
+		return WrapOssError(PathError, "start with "+opt.Path+", should start with /")
 	}
 
 	switch opt.AuthType {
 	case mounter.AuthTypeSTS:
 	case mounter.AuthTypeRRSA:
 		if err := checkRRSAParams(opt); err != nil {
-			return err
+			return WrapOssError(AuthError, err.Error())
 		}
 	case mounter.AuthTypeCSS:
 		if opt.SecretProviderClass == "" {
-			return errors.New("Oss parameters error: use CsiSecretStore but secretProviderClass is empty")
+			return WrapOssError(AuthError, "use CsiSecretStore but secretProviderClass is empty")
 		}
 	default:
 		// if not input ak from user, use the default ak value
@@ -440,20 +440,23 @@ func checkOssOptions(opt *Options) error {
 			opt.AkID = ac.AccessKeyID
 			opt.AkSecret = ac.AccessKeySecret
 		}
-		if (opt.AkID == "" || opt.AkSecret == "") && opt.SecretRef != "" {
-			return errors.New("Oss parameters error: AK and authType are both empty or invalid")
+		if (opt.AkID == "" || opt.AkSecret == "") && opt.SecretRef == "" {
+			return WrapOssError(AuthError, "AK and authType are both empty or invalid")
+		}
+		if (opt.AkID != "" || opt.AkSecret != "") && opt.SecretRef != "" {
+			return WrapOssError(AuthError, "AK and secretRef cannot be set at the same time")
 		}
 		if opt.SecretRef == mounter.OssfsCredentialSecretName {
-			return errors.New("Oss parameters error: invalid SecretRef")
+			return WrapOssError(ParamError, "invalid SecretRef")
 		}
 	}
 
 	if opt.Encrypted != "" && opt.Encrypted != EncryptedTypeKms && opt.Encrypted != EncryptedTypeAes256 {
-		return errors.New("Oss encrypted error: invalid SSE encryted type")
+		return WrapOssError(EncryptError, "invalid SSE encryted type")
 	}
 
 	if opt.AssumeRoleArn != "" && opt.AuthType != mounter.AuthTypeRRSA {
-		return errors.New("Oss parameters error: only support access OSS through STS AssumeRole when authType is RRSA")
+		return WrapOssError(AuthError, "only support access OSS through STS AssumeRole when authType is RRSA")
 	}
 
 	return nil

@@ -16,68 +16,179 @@ limitations under the License.
 package oss
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
-	"github.com/stretchr/testify/assert"
 )
 
-func TestGetDiskVolumeOptions(t *testing.T) {
-	options := &Options{}
-	options.URL = "1.1.1.1"
-	options.Bucket = "aliyun"
-	options.Path = "/path"
+func isErrorType(err, errorType error) bool {
+	return (err == nil && errorType == nil) || strings.HasPrefix(err.Error(), errorType.Error())
+}
 
-	options.SecretRef = "secret"
-	err := checkOssOptions(options)
-	assert.Nil(t, err)
-
-	options.SecretRef = mounter.OssfsCredentialSecretName
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss parameters error: invalid SecretRe", err.Error())
-
-	options.SecretRef = ""
-	options.AkSecret = "11111"
-	options.AkID = "2222"
-	err = checkOssOptions(options)
-	assert.Nil(t, err)
-
-	options.AssumeRoleArn = "test-assume-role-arn"
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss parameters error: only support access OSS through STS AssumeRole when authType is RRSA", err.Error())
-
-	options.AssumeRoleArn = ""
-	options.URL = ""
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss parameters error: Url/Bucket empty", err.Error())
-
-	options.URL = "1.1.1.1"
-	options.AkID = ""
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss parameters error: AK and authType are both empty or invalid", err.Error())
-
-	options.AuthType = "rrsa"
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss parameters error: use RRSA but roleName is empty", err.Error())
-
-	options.OidcProviderArn = "test-oidc-provider-arn"
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss parameters error: use RRSA but one of the ARNs is empty, roleArn:"+options.RoleArn+", oidcProviderArn:"+options.OidcProviderArn, err.Error())
-
-	options.AuthType = "csi-secret-store"
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss parameters error: use CsiSecretStore but secretProviderClass is empty", err.Error())
-
-	options.AuthType = ""
-	options.AkID = "2222"
-	// reset AkSecret in checkOssOptions when AkID = ""
-	options.AkSecret = "11111"
-	options.Encrypted = "test"
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss encrypted error: invalid SSE encryted type", err.Error())
-
-	options.Encrypted = "kms"
-	options.Path = "errorpath"
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss path error: start with "+options.Path+", should start with /", err.Error())
+func Test_checkOssOptions(t *testing.T) {
+	tests := []struct {
+		name    string
+		opts    *Options
+		errType error
+	}{
+		{
+			name: "invalid path",
+			opts: &Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "abc/",
+				AkID:     "11111",
+				AkSecret: "22222",
+			},
+			errType: PathError,
+		},
+		{
+			name: "empty URL",
+			opts: &Options{
+				Bucket:   "aliyun",
+				Path:     "/path",
+				AkID:     "11111",
+				AkSecret: "22222",
+			},
+			errType: ParamError,
+		},
+		{
+			name: "success with accessKey",
+			opts: &Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				AkID:     "11111",
+				AkSecret: "22222",
+			},
+			errType: nil,
+		},
+		{
+			name: "success with secretRef",
+			opts: &Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				SecretRef: "secret",
+			},
+			errType: nil,
+		},
+		{
+			name: "conflict between accessKey and secretRef",
+			opts: &Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				SecretRef: "secret",
+				AkID:      "11111",
+			},
+			errType: AuthError,
+		},
+		{
+			name: "empty authType, accessKey, secretRef",
+			opts: &Options{
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+			},
+			errType: AuthError,
+		},
+		{
+			name: "invalid secretRef",
+			opts: &Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				SecretRef: mounter.OssfsCredentialSecretName,
+			},
+			errType: ParamError,
+		},
+		{
+			name: "use assumeRole with non-RRSA authType",
+			opts: &Options{
+				URL:           "1.1.1.1",
+				Bucket:        "aliyun",
+				Path:          "/path",
+				SecretRef:     "secret",
+				AkID:          "11111",
+				AssumeRoleArn: "test-assume-role-arn",
+			},
+			errType: AuthError,
+		},
+		{
+			name: "empty roleName, ARNs",
+			opts: &Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				AuthType: mounter.AuthTypeRRSA,
+			},
+			errType: AuthError,
+		},
+		{
+			name: "empty roleName, ARNs",
+			opts: &Options{
+				URL:             "1.1.1.1",
+				Bucket:          "aliyun",
+				Path:            "/path",
+				AuthType:        mounter.AuthTypeRRSA,
+				OidcProviderArn: "test-oidc-provider-arn",
+			},
+			errType: AuthError,
+		},
+		{
+			name: "success with csi-secret-store",
+			opts: &Options{
+				URL:                 "1.1.1.1",
+				Bucket:              "aliyun",
+				Path:                "/path",
+				AuthType:            mounter.AuthTypeCSS,
+				SecretProviderClass: "test-secret-provider-class",
+			},
+			errType: nil,
+		},
+		{
+			name: "empty secretProviderClass",
+			opts: &Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				AuthType: mounter.AuthTypeCSS,
+			},
+			errType: AuthError,
+		},
+		{
+			name: "invalid encrypted type",
+			opts: &Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				AkID:      "11111",
+				AkSecret:  "22222",
+				Encrypted: "invalid",
+			},
+			errType: EncryptError,
+		},
+		{
+			name: "valid kms sse",
+			opts: &Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				AkID:      "11111",
+				AkSecret:  "22222",
+				Encrypted: EncryptedTypeKms,
+			},
+			errType: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checkOssOptions(tt.opts)
+			if !isErrorType(err, tt.errType) {
+				t.Errorf("checkOssOptions() error = %v, wantErrType %v", err, tt.errType)
+			}
+		})
+	}
 }
