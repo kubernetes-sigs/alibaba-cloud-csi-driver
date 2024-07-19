@@ -64,7 +64,7 @@ type Options struct {
 	AkID     string `json:"akId"`
 	AkSecret string `json:"akSecret"`
 	// RRSA
-	RoleName           string `json:"roleName"`
+	RoleName           string `json:"roleName"` // also for STS
 	RoleArn            string `json:"roleArn"`
 	OidcProviderArn    string `json:"oidcProviderArn"`
 	ServiceAccountName string `json:"serviceAccountName"`
@@ -171,7 +171,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			}
 		case "authtype":
 			opt.AuthType = strings.ToLower(value)
-		case "rolename":
+		case "rolename", "ramrole":
 			opt.RoleName = value
 		case "rolearn":
 			opt.RoleArn = value
@@ -289,7 +289,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	regionID, _ := ns.metadata.Get(metadata.RegionID)
 	switch opt.AuthType {
 	case mounter.AuthTypeSTS:
-		mountOptions = append(mountOptions, GetRAMRoleOption())
+		mountOptions = append(mountOptions, GetRAMRoleOption(opt.RoleName))
 	case mounter.AuthTypeRRSA:
 		if regionID == "" {
 			mountOptions = append(mountOptions, "rrsa_endpoint=https://sts.aliyuncs.com")

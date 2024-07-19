@@ -26,8 +26,11 @@ import (
 )
 
 func TestGetRAMRoleOption(t *testing.T) {
-	result := GetRAMRoleOption()
+	result := GetRAMRoleOption("")
 	assert.NotEqual(t, "", result)
+
+	result = GetRAMRoleOption("role")
+	assert.Equal(t, "ram_role=role", result)
 }
 
 func Test_parseOtherOpts(t *testing.T) {
