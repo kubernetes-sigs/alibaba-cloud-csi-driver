@@ -23,7 +23,13 @@ import (
 )
 
 func isErrorType(err, errorType error) bool {
-	return (err == nil && errorType == nil) || strings.HasPrefix(err.Error(), errorType.Error())
+	if err == nil && errorType == nil {
+		return true
+	}
+	if err == nil || errorType == nil {
+		return false
+	}
+	return strings.HasPrefix(err.Error(), errorType.Error())
 }
 
 func Test_checkOssOptions(t *testing.T) {

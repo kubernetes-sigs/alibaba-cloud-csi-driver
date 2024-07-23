@@ -440,14 +440,15 @@ func checkOssOptions(opt *Options) error {
 			opt.AkID = ac.AccessKeyID
 			opt.AkSecret = ac.AccessKeySecret
 		}
-		if (opt.AkID == "" || opt.AkSecret == "") && opt.SecretRef == "" {
+		if opt.SecretRef != "" {
+			if opt.AkID != "" || opt.AkSecret != "" {
+				return WrapOssError(AuthError, "AK and secretRef cannot be set at the same time")
+			}
+			if opt.SecretRef == mounter.OssfsCredentialSecretName {
+				return WrapOssError(ParamError, "invalid SecretRef")
+			}
+		} else if opt.AkID == "" || opt.AkSecret == "" {
 			return WrapOssError(AuthError, "AK and authType are both empty or invalid")
-		}
-		if (opt.AkID != "" || opt.AkSecret != "") && opt.SecretRef != "" {
-			return WrapOssError(AuthError, "AK and secretRef cannot be set at the same time")
-		}
-		if opt.SecretRef == mounter.OssfsCredentialSecretName {
-			return WrapOssError(ParamError, "invalid SecretRef")
 		}
 	}
 
