@@ -254,8 +254,8 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 					return nil, status.Error(codes.Internal, err.Error())
 				}
 				if describeFSResponse.TotalCount != 1 || len(describeFSResponse.FileSystems.FileSystem) != 1 {
-					log.Errorf("CreateVolume: requestId[%s], fail to describe nas filesystem %s: with more 1 response", describeFSResponse.RequestId, req.GetName())
-					return nil, status.Error(codes.Internal, err.Error())
+					log.Errorf("CreateVolume: requestId[%s], fail to describe nas filesystem %s: with more than 1 response", describeFSResponse.RequestId, req.GetName())
+					return nil, status.Errorf(codes.Internal, "CreateVolume: failed to describe nas filesystem %s: with more than 1 response", req.GetName())
 				}
 				fs := describeFSResponse.FileSystems.FileSystem[0]
 				if len(fs.MountTargets.MountTarget) == 1 && fs.MountTargets.MountTarget[0].MountTargetDomain != "" {
@@ -524,5 +524,10 @@ func (cs *filesystemController) DeleteVolume(ctx context.Context, req *csi.Delet
 
 func (cs *filesystemController) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest, pv *corev1.PersistentVolume) (*csi.ControllerExpandVolumeResponse, error) {
 	log.Warn("skip expansion for volume as filesystem")
-	return &csi.ControllerExpandVolumeResponse{CapacityBytes: req.CapacityRange.RequiredBytes}, nil
+	if capacityRange := req.GetCapacityRange(); capacityRange != nil {
+		return &csi.ControllerExpandVolumeResponse{
+			CapacityBytes: req.CapacityRange.RequiredBytes,
+		}, nil
+	}
+	return &csi.ControllerExpandVolumeResponse{CapacityBytes: 0}, nil
 }

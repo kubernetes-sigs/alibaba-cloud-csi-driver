@@ -49,7 +49,7 @@ func newNasClientV2(region string) (*sdk.Client, error) {
 type NasClientV2 struct {
 	region  string
 	limiter ratelimit.Limiter
-	client  interfaces.NasInterface
+	client  interfaces.NasV2Interface
 }
 
 func (c *NasClientV2) CreateDir(req *sdk.CreateDirRequest) error {

@@ -3,6 +3,7 @@ package cloud
 import (
 	"errors"
 	"fmt"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"os"
 	"strings"
 
@@ -19,7 +20,7 @@ func init() {
 	}
 }
 
-func newNasClientV1(region string) (*nassdk.Client, error) {
+func newNasClientV1(region string) (interfaces.NasV1Interface, error) {
 	if ep := os.Getenv("NAS_ENDPOINT"); ep != "" {
 		_ = aliyunep.AddEndpointMapping(region, "Nas", ep)
 	}
@@ -34,7 +35,8 @@ func newNasClientV1(region string) (*nassdk.Client, error) {
 		scheme = "HTTPS"
 	}
 	config = config.WithScheme(scheme).WithUserAgent(KubernetesAlicloudIdentity)
-	return nassdk.NewClientWithOptions(region, config, ac.Credential)
+	client, err := nassdk.NewClientWithOptions(region, config, ac.Credential)
+	return client, err
 }
 
 func IsMountTargetNotFoundError(err error) bool {

@@ -19,6 +19,7 @@ package nas
 import (
 	"context"
 	"encoding/json"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -45,7 +46,7 @@ const (
 
 type subpathController struct {
 	config    *internal.ControllerConfig
-	nasClient *cloud.NasClientV2
+	nasClient interfaces.NasClientV2Interface
 }
 
 func newSubpathController(config *internal.ControllerConfig) (internal.Controller, error) {

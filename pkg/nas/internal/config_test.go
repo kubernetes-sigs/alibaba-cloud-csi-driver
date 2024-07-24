@@ -73,8 +73,8 @@ func TestGetControllerConfigSuccess(t *testing.T) {
 	metadataProviders := metadata.NewMetadata()
 	config, err := GetControllerConfig(metadataProviders)
 
-	assert.NotNil(t, config)
 	assert.NoError(t, err)
+	assert.NotNil(t, config)
 }
 
 func prepareFakeRegionEnvVar(t *testing.T) {
@@ -95,8 +95,8 @@ func TestGetControllerConfigError(t *testing.T) {
 	prepareFakeRegionEnvVar(t)
 	metadataProviders := metadata.NewMetadata()
 	config, err := GetControllerConfig(metadataProviders)
-	assert.Nil(t, config)
 	assert.Error(t, err)
+	assert.Nil(t, config)
 }
 
 func TestGetNodeConfigSuccess(t *testing.T) {
@@ -108,8 +108,8 @@ func TestGetNodeConfigSuccess(t *testing.T) {
 	prepareNodeConfigEnvVars(t)
 
 	config, err := GetNodeConfig()
-	assert.NotNil(t, config)
 	assert.NoError(t, err)
+	assert.NotNil(t, config)
 }
 
 func registerNodeWithAddressResponder() {
@@ -131,8 +131,8 @@ func prepareNodeConfigEnvVars(t *testing.T) {
 func TestGetNodeConfigConfigMapGetError(t *testing.T) {
 	prepareFakeK8sContext()
 	config, err := GetNodeConfig()
-	assert.Nil(t, config)
 	assert.Error(t, err)
+	assert.Nil(t, config)
 }
 
 func TestGetNodeConfigNodeGetError(t *testing.T) {
@@ -142,8 +142,8 @@ func TestGetNodeConfigNodeGetError(t *testing.T) {
 	prepareFakeK8sContext()
 
 	config, err := GetNodeConfig()
-	assert.Nil(t, config)
 	assert.Error(t, err)
+	assert.Nil(t, config)
 }
 
 func TestGetNodeConfigLosetupError(t *testing.T) {
@@ -155,8 +155,8 @@ func TestGetNodeConfigLosetupError(t *testing.T) {
 	prepareNodeConfigEnvVars(t)
 
 	config, err := GetNodeConfig()
-	assert.Nil(t, config)
 	assert.Error(t, err)
+	assert.Nil(t, config)
 }
 
 func registerNodeWithoutAddressResponder() {
@@ -170,33 +170,39 @@ func registerNodeWithoutAddressResponder() {
 
 func TestParseBool(t *testing.T) {
 	tests := []struct {
+		name     string
 		arg      string
 		expected bool
 		wantErr  bool
 	}{
 		{
+			name:     `Parse "enable"`,
 			arg:      "enable",
 			expected: true,
 			wantErr:  false,
 		},
 		{
+			name:     `Parse "no"`,
 			arg:      "no",
 			expected: false,
 			wantErr:  false,
 		},
 		{
+			name:     `Parse "test"`,
 			arg:      "test",
 			expected: false,
 			wantErr:  true,
 		},
 	}
 	for _, tt := range tests {
-		actual, err := parseBool(tt.arg)
-		assert.Equal(t, tt.expected, actual)
-		if tt.wantErr {
-			assert.Error(t, err)
-		} else {
-			assert.NoError(t, err)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			actual, err := parseBool(tt.arg)
+			assert.Equal(t, tt.expected, actual)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
 	}
 }
