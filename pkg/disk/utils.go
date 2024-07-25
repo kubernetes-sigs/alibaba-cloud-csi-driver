@@ -636,7 +636,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 			diskVolArgs.FsType = EXT4_FSTYPE
 		}
 	}
-	if diskVolArgs.FsType != EXT4_FSTYPE && diskVolArgs.FsType != EXT3_FSTYPE && diskVolArgs.FsType != XFS_FSTYPE {
+	if diskVolArgs.FsType != EXT4_FSTYPE && diskVolArgs.FsType != EXT3_FSTYPE && diskVolArgs.FsType != XFS_FSTYPE && diskVolArgs.FsType != NTFS_FSTYPE {
 		return nil, fmt.Errorf("illegal required parameter fsType, only support ext3, ext4 and xfs, the input is: %s", diskVolArgs.FsType)
 	}
 

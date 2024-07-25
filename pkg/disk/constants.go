@@ -163,6 +163,7 @@ const (
 	EXT4_FSTYPE         = "ext4"
 	EXT3_FSTYPE         = "ext3"
 	XFS_FSTYPE          = "xfs"
+	NTFS_FSTYPE         = "ntfs"
 
 	DISK_PERFORMANCE_LEVEL0 = "PL0"
 	DISK_PERFORMANCE_LEVEL1 = "PL1"
