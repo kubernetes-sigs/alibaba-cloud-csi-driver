@@ -48,6 +48,7 @@ import (
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/tools/record"
 )
@@ -60,24 +61,24 @@ type controllerServer struct {
 
 // Alicloud disk parameters
 type diskVolumeArgs struct {
-	Type                    []string
-	RegionID                string
-	ZoneID                  string
-	FsType                  string
-	ReadOnly                bool
-	MultiAttach             bool
-	Encrypted               bool
-	KMSKeyID                string
-	PerformanceLevel        []string
-	ResourceGroupID         string
-	StorageClusterID        string
-	DiskTags                map[string]string
-	NodeSelected            string
-	DelAutoSnap             string
-	ARN                     []ecs.CreateDiskArn
-	VolumeSizeAutoAvailable bool
-	ProvisionedIops         int
-	BurstingEnabled         bool
+	Type             []Category
+	RegionID         string
+	ZoneID           string
+	FsType           string
+	ReadOnly         bool
+	MultiAttach      bool
+	Encrypted        bool
+	KMSKeyID         string
+	PerformanceLevel []PerformanceLevel
+	ResourceGroupID  string
+	StorageClusterID string
+	DiskTags         map[string]string
+	NodeSelected     string
+	DelAutoSnap      string
+	ARN              []ecs.CreateDiskArn
+	ProvisionedIops  int64
+	BurstingEnabled  bool
+	RequestGB        int64
 }
 
 var veasp = struct {
@@ -123,15 +124,8 @@ func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.Cont
 // the map of req.Name and csi.Snapshot
 var createdSnapshotMap = map[string]*csi.Snapshot{}
 
-// the map of req.Name and csi.Volume
-var createdVolumeMap = map[string]*csi.Volume{}
-
 // the map of multizone and index
 var storageClassZonePos = map[string]int{}
-
-// the map of diskId and pvName
-// diskId and pvName is not same under csi plugin
-var diskIDPVMap = map[string]string{}
 
 // SnapshotRequestMap snapshot request limit
 var SnapshotRequestMap = map[string]int64{}
@@ -147,10 +141,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME); err != nil {
 		log.Errorf("CreateVolume: driver not support Create volume: %v", err)
 		return nil, err
-	}
-	if value, ok := createdVolumeMap[req.Name]; ok {
-		log.Infof("CreateVolume: volume already be created pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, value.VolumeId, value.VolumeContext)
-		return &csi.CreateVolumeResponse{Volume: value}, nil
 	}
 
 	snapshotID := ""
@@ -191,26 +181,29 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 	}
 
-	if req.GetCapacityRange() == nil {
-		log.Errorf("CreateVolume: error Capacity from input: %s", req.Name)
-		return nil, status.Errorf(codes.InvalidArgument, "CreateVolume: error Capacity from input: %v", req.Name)
-	}
-	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
-	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
-	if diskVol.VolumeSizeAutoAvailable && requestGB < MinimumDiskSizeInGB {
-		log.Infof("CreateVolume: volume size was less than allowed limit. Setting request Size to %vGB. volumeSizeAutoAvailable is set.", MinimumDiskSizeInGB)
-		requestGB = MinimumDiskSizeInGB
-		volSizeBytes = MinimumDiskSizeInBytes
-	}
 	sharedDisk := len(diskVol.Type) == 1 && (diskVol.Type[0] == DiskSharedEfficiency || diskVol.Type[0] == DiskSharedSSD)
 
-	diskType, diskID, diskPL, err := createDisk(req.GetName(), snapshotID, requestGB, diskVol, req.Parameters[TenantUserUID])
+	var supportedTypes sets.Set[Category]
+	if diskVol.NodeSelected != "" {
+		supportedTypes, err = getSupportedDiskTypes(diskVol.NodeSelected)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	ecsClient, err := getEcsClientByID("", req.Parameters[TenantUserUID])
 	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	diskID, attempt, err := createDisk(ecsClient, req.GetName(), snapshotID, diskVol, supportedTypes)
+	if err != nil {
+		if errors.Is(err, ErrParameterMismatch) {
+			return nil, status.Errorf(codes.AlreadyExists, "volume %s already created but %v", req.Name, err)
+		}
 		var aliErr *alicloudErr.ServerError
 		if errors.As(err, &aliErr) {
 			switch aliErr.ErrorCode() {
-			case IdempotentParameterMismatch:
-				return nil, status.Errorf(codes.AlreadyExists, "volume %s already created with different parameters", req.Name)
 			case SnapshotNotFound:
 				return nil, status.Errorf(codes.NotFound, "snapshot %s not found", snapshotID)
 			}
@@ -225,12 +218,9 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if sharedDisk {
 		volumeContext[SharedEnable] = "enable"
 	}
-	if diskType != "" {
-		volumeContext["type"] = diskType
-	}
-	log.Infof("CreateVolume: volume: %s created diskpl: %s", req.GetName(), diskPL)
-	if diskPL != "" {
-		volumeContext[ESSD_PERFORMANCE_LEVEL] = diskPL
+	volumeContext["type"] = string(attempt.Category)
+	if attempt.PerformanceLevel != "" {
+		volumeContext[ESSD_PERFORMANCE_LEVEL] = string(attempt.PerformanceLevel)
 	}
 
 	if tenantUserUID := req.Parameters[TenantUserUID]; tenantUserUID != "" {
@@ -238,7 +228,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	volumeContext = updateVolumeContext(volumeContext)
 
-	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], size[%d], snapshotID[%s]", req.GetName(), diskID, diskVol.ZoneID, diskType, requestGB, snapshotID)
+	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], snapshotID[%s]", req.GetName(), diskID, diskVol.ZoneID, attempt, snapshotID)
 
 	// Set VolumeContentSource
 	var src *csi.VolumeContentSource
@@ -252,10 +242,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 	}
 
-	tmpVol := volumeCreate(diskType, diskID, volSizeBytes, volumeContext, diskVol.ZoneID, src)
+	tmpVol := volumeCreate(attempt, diskID, utils.Gi2Bytes(int64(diskVol.RequestGB)), volumeContext, diskVol.ZoneID, src)
 
-	diskIDPVMap[diskID] = req.Name
-	createdVolumeMap[req.Name] = tmpVol
 	return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 }
 
@@ -280,11 +268,6 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			log.Error(errMsg)
 			return nil, status.Error(codes.Internal, errMsg)
 		} else if disk == nil {
-			// TODO Optimize concurrent access problems
-			if value, ok := diskIDPVMap[req.VolumeId]; ok {
-				delete(createdVolumeMap, value)
-				delete(diskIDPVMap, req.VolumeId)
-			}
 			log.Infof("DeleteVolume: disk(%s) already deleted", req.VolumeId)
 			return &csi.DeleteVolumeResponse{}, nil
 		}
@@ -330,10 +313,6 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		return nil, status.Errorf(codes.Internal, errMsg)
 	}
 
-	if value, ok := diskIDPVMap[req.VolumeId]; ok {
-		delete(createdVolumeMap, value)
-		delete(diskIDPVMap, req.VolumeId)
-	}
 	delVolumeSnap.Delete(req.GetVolumeId())
 	return &csi.DeleteVolumeResponse{}, nil
 }
@@ -661,7 +640,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	// }
 
 	// if disk type is not essd and IA set disable
-	if params.InstantAccess && disks[0].Category != DiskESSD && disks[0].Category != DiskESSDAuto {
+	if params.InstantAccess && !AllCategories[Category(disks[0].Category)].InstantAccessSnapshot {
 		log.Warnf("CreateSnapshot: Snapshot(%s) set as not IA type, because disk Category %s", req.Name, disks[0].Category)
 		params.InstantAccess = false
 	}
@@ -707,8 +686,8 @@ func snapshotBeforeDelete(volumeID string, ecsClient *ecs.Client) error {
 	if err != nil {
 		return err
 	}
-	if disk.Category != DiskESSD && disk.Category != DiskESSDAuto {
-		log.Infof("snapshotBeforeDelete: only supports essd type which current disk.Catagory is: %s", disk.Category)
+	if !AllCategories[Category(disk.Category)].InstantAccessSnapshot {
+		log.Infof("snapshotBeforeDelete: Instant Access snapshot required, but current disk.Catagory is: %s", disk.Category)
 		return nil
 	}
 
@@ -1036,7 +1015,7 @@ func updateVolumeExpandAutoSnapshotID(pvc *v1.PersistentVolumeClaim, snapshotID,
 // autoSnapshot is used in volume expanding of ESSD,
 // returns if the volume expanding should be continued
 func (cs *controllerServer) autoSnapshot(ctx context.Context, disk *ecs.Disk) (bool, *csi.Snapshot, error) {
-	if disk.Category != DiskESSD && disk.Category != DiskESSDAuto {
+	if !AllCategories[Category(disk.Category)].InstantAccessSnapshot {
 		return true, nil, nil
 	}
 	pv, pvc, err := getPvPvcFromDiskId(disk.DiskId)

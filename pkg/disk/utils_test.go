@@ -55,12 +55,12 @@ func TestIsFileExisting(t *testing.T) {
 func TestValidateDiskType(t *testing.T) {
 	examples := []struct {
 		opts   map[string]string
-		result []string
+		result []Category
 	}{
-		{result: []string{"cloud_ssd", "cloud_efficiency"}},
+		{result: []Category{"cloud_ssd", "cloud_efficiency"}},
 		{opts: map[string]string{"type": "a,b,c"}, result: nil},
-		{opts: map[string]string{"type": "available"}, result: []string{"cloud_ssd", "cloud_efficiency"}},
-		{opts: map[string]string{"type": "cloud_ssd,cloud_essd"}, result: []string{"cloud_ssd", "cloud_essd"}},
+		{opts: map[string]string{"type": "available"}, result: []Category{"cloud_ssd", "cloud_efficiency"}},
+		{opts: map[string]string{"type": "cloud_ssd,cloud_essd"}, result: []Category{"cloud_ssd", "cloud_essd"}},
 	}
 	for _, example := range examples {
 		actualResult, _ := validateDiskType(example.opts)
@@ -631,6 +631,9 @@ func TestParseTagsInvalid(t *testing.T) {
 
 func TestGetDiskVolumeOptions(t *testing.T) {
 	req := &csi.CreateVolumeRequest{
+		CapacityRange: &csi.CapacityRange{
+			RequiredBytes: 20*GBSIZE - 100,
+		},
 		Parameters: map[string]string{
 			"zoneId":     "cn-beijing-i",
 			"diskTags/a": "b",
@@ -640,4 +643,5 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "cn-beijing-i", opts.ZoneID)
 	assert.Equal(t, map[string]string{"a": "b"}, opts.DiskTags)
+	assert.Equal(t, int64(20), opts.RequestGB)
 }

@@ -34,6 +34,21 @@ func (m *MockECSInterface) EXPECT() *MockECSInterfaceMockRecorder {
 	return m.recorder
 }
 
+// CreateDisk mocks base method.
+func (m *MockECSInterface) CreateDisk(request *ecs.CreateDiskRequest) (*ecs.CreateDiskResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateDisk", request)
+	ret0, _ := ret[0].(*ecs.CreateDiskResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateDisk indicates an expected call of CreateDisk.
+func (mr *MockECSInterfaceMockRecorder) CreateDisk(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDisk", reflect.TypeOf((*MockECSInterface)(nil).CreateDisk), request)
+}
+
 // DeleteDisk mocks base method.
 func (m *MockECSInterface) DeleteDisk(request *ecs.DeleteDiskRequest) (*ecs.DeleteDiskResponse, error) {
 	m.ctrl.T.Helper()

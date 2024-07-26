@@ -1,9 +1,5 @@
 package disk
 
-import (
-	"fmt"
-)
-
 const (
 
 	// ESSD_PERFORMANCE_LEVEL is storage class
@@ -99,26 +95,6 @@ const (
 
 	// DiskHighAvail tag
 	DiskHighAvail = "available"
-	// DiskCommon common disk type
-	DiskCommon = "cloud"
-	// DiskEfficiency efficiency disk type
-	DiskEfficiency = "cloud_efficiency"
-	// DiskSSD ssd disk type
-	DiskSSD = "cloud_ssd"
-	// DiskESSD essd disk type
-	DiskESSD = "cloud_essd"
-	// DiskESSDAuto  essd autopl disk type
-	DiskESSDAuto = "cloud_auto"
-	// DiskESSDEntry  essd entry disk type
-	DiskESSDEntry = "cloud_essd_entry"
-	// DiskHighPerformance
-	DiskPPerf = "cloud_pperf"
-	// DiskStandPerformance
-	DiskSPerf = "cloud_sperf"
-	// DiskSharedSSD shared sdd disk type
-	DiskSharedSSD = "san_ssd"
-	// DiskSharedEfficiency shared efficiency disk type
-	DiskSharedEfficiency = "san_efficiency"
 	// MBSIZE tag
 	MBSIZE = 1024 * 1024
 	// GBSIZE tag
@@ -164,30 +140,6 @@ const (
 	EXT3_FSTYPE         = "ext3"
 	XFS_FSTYPE          = "xfs"
 
-	DISK_PERFORMANCE_LEVEL0 = "PL0"
-	DISK_PERFORMANCE_LEVEL1 = "PL1"
-	DISK_PERFORMANCE_LEVEL2 = "PL2"
-	DISK_PERFORMANCE_LEVEL3 = "PL3"
-
 	SNAPSHOT_MAX_RETENTION_DAYS = 65536
 	SNAPSHOT_MIN_RETENTION_DAYS = 1
-
-	DISK_CLOUD_EFFICIENT_MIN_CAPACITY    = 20
-	DISK_CLOUD_SSD_MIN_CAPACITY          = 20
-	DISK_CLOUD_ESSD_PL0_MIN_CAPACITY     = 1
-	DISK_CLOUD_ESSD_PL1_MIN_CAPACITY     = 20
-	DISK_CLOUD_ESSD_PL2_MIN_CAPACITY     = 461
-	DISK_CLOUD_ESSD_PL3_MIN_CAPACITY     = 1261
-	DISK_CLOUD_ESSD_AUTO_PL_MIN_CAPACITY = 1
 )
-
-var DiskCapacityMapping = map[string]int{
-	DiskEfficiency: DISK_CLOUD_EFFICIENT_MIN_CAPACITY,
-	DiskSSD:        DISK_CLOUD_SSD_MIN_CAPACITY,
-	fmt.Sprintf("%s.%s", DiskESSD, DISK_PERFORMANCE_LEVEL0): DISK_CLOUD_ESSD_PL0_MIN_CAPACITY,
-	fmt.Sprintf("%s.%s", DiskESSD, DISK_PERFORMANCE_LEVEL1): DISK_CLOUD_ESSD_PL1_MIN_CAPACITY,
-	fmt.Sprintf("%s.%s", DiskESSD, DISK_PERFORMANCE_LEVEL2): DISK_CLOUD_ESSD_PL2_MIN_CAPACITY,
-	fmt.Sprintf("%s.%s", DiskESSD, DISK_PERFORMANCE_LEVEL3): DISK_CLOUD_ESSD_PL3_MIN_CAPACITY,
-	DiskESSDAuto: DISK_CLOUD_ESSD_AUTO_PL_MIN_CAPACITY,
-	DiskESSD:     DISK_CLOUD_ESSD_PL1_MIN_CAPACITY,
-}
