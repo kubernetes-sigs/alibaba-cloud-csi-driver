@@ -2,6 +2,7 @@ package nas
 
 import (
 	"context"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -31,7 +32,7 @@ func newAccesspointController(config *internal.ControllerConfig) (internal.Contr
 }
 
 type accesspointController struct {
-	nasClient *cloud.NasClientV2
+	nasClient interfaces.NasClientV2Interface
 	config    *internal.ControllerConfig
 }
 

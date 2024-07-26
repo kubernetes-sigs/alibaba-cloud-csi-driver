@@ -24,7 +24,7 @@ func RegisterControllerMode(f ControllerInitFunc) {
 }
 
 type ControllerFactory struct {
-	modes map[string]Controller
+	Modes map[string]Controller
 }
 
 func NewControllerFactory(config *ControllerConfig, defaultVolumeAs string) (*ControllerFactory, error) {
@@ -40,11 +40,11 @@ func NewControllerFactory(config *ControllerConfig, defaultVolumeAs string) (*Co
 			modes[""] = mode
 		}
 	}
-	return &ControllerFactory{modes: modes}, nil
+	return &ControllerFactory{Modes: modes}, nil
 }
 
 func (fac *ControllerFactory) VolumeAs(what string) (Controller, error) {
-	c, ok := fac.modes[what]
+	c, ok := fac.Modes[what]
 	if !ok {
 		return nil, fmt.Errorf("invalid volumeAs: %q", what)
 	}

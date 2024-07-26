@@ -3,7 +3,7 @@ package nas
 import (
 	"context"
 
-	csi "github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 )
 
 type identityServer struct {

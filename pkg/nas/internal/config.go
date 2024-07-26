@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"errors"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"os"
 	"strconv"
 
@@ -37,7 +38,7 @@ type ControllerConfig struct {
 	CNFSGetter cnfsv1beta1.CNFSGetter
 
 	// clients for alibaba cloud
-	NasClientFactory *cloud.NasClientFactory
+	NasClientFactory interfaces.NasClientFactoryInterface
 }
 
 func mustGetKubeClients() (kubernetes.Interface, cnfsv1beta1.CNFSGetter) {
