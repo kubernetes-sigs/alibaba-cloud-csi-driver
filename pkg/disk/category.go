@@ -10,6 +10,7 @@ const (
 	DiskESSD       Category = "cloud_essd"
 	DiskESSDAuto   Category = "cloud_auto"
 	DiskESSDEntry  Category = "cloud_essd_entry"
+	DiskRegional   Category = "cloud_auto_regional"
 
 	DiskPPerf            Category = "cloud_pperf"
 	DiskSPerf            Category = "cloud_sperf"
@@ -40,8 +41,8 @@ type CategoryDesc struct {
 	InstantAccessSnapshot bool
 	ProvisionedIops       bool
 	Bursting              bool
-	// Cannot be attached to another instance once it is attached.
-	SingleInstance bool
+	SingleInstance        bool // Cannot be attached to another instance once it is attached.
+	Regional              bool
 }
 
 var AllCategories = map[Category]CategoryDesc{
@@ -78,6 +79,11 @@ var AllCategories = map[Category]CategoryDesc{
 	DiskEEDPremium: {
 		Size:           SizeRange{Min: 64, Max: 8192},
 		SingleInstance: true,
+	},
+	DiskRegional: {
+		Size:                  SizeRange{Min: 10, Max: 65536},
+		InstantAccessSnapshot: true,
+		Regional:              true,
 	},
 
 	// Deprecated shared disk
