@@ -1089,19 +1089,23 @@ func createRoleClient(uid string) (cli *ecs.Client, err error) {
 }
 
 func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, contextSource *csi.VolumeContentSource) *csi.Volume {
-	accessibleTopology := []*csi.Topology{
-		{
-			Segments: map[string]string{
-				TopologyZoneKey: zoneID,
+	cateDesc := AllCategories[attempt.Category]
+	var accessibleTopology []*csi.Topology
+	if !cateDesc.Regional {
+		accessibleTopology = []*csi.Topology{
+			{
+				Segments: map[string]string{
+					TopologyZoneKey: zoneID,
+				},
 			},
-		},
-	}
-	if GlobalConfigVar.NodeMultiZoneEnable {
-		accessibleTopology = append(accessibleTopology, &csi.Topology{
-			Segments: map[string]string{
-				TopologyMultiZonePrefix + zoneID: "true",
-			},
-		})
+		}
+		if GlobalConfigVar.NodeMultiZoneEnable {
+			accessibleTopology = append(accessibleTopology, &csi.Topology{
+				Segments: map[string]string{
+					TopologyMultiZonePrefix + zoneID: "true",
+				},
+			})
+		}
 	}
 	if attempt.Category != "" {
 		// Add PV Label
