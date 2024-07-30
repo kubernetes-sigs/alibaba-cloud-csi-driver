@@ -26,9 +26,9 @@ import (
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -41,13 +41,13 @@ import (
 )
 
 type nodeServer struct {
-	metadata metadata.MetadataProvider
-	*csicommon.DefaultNodeServer
+	metadata        metadata.MetadataProvider
 	nodeName        string
 	clientset       kubernetes.Interface
 	dynamicClient   dynamic.Interface
 	sharedPathLock  *utils.VolumeLocks
 	ossfsMounterFac *mounter.ContainerizedFuseMounterFactory
+	common.GenericNodeServer
 }
 
 // Options contains options for target oss

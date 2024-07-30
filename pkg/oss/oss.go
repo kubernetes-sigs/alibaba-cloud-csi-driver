@@ -73,7 +73,7 @@ func NewDriver(nodeID, endpoint string, m metadata.MetadataProvider, runAsContro
 
 	d.controllerServer = newControllerServer(d.driver)
 	if !runAsController {
-		d.nodeServer = newNodeServer(d.driver, m)
+		d.nodeServer = newNodeServer(nodeID, m)
 	}
 	return d
 }
@@ -102,7 +102,7 @@ func newControllerServer(driver *csicommon.CSIDriver) csi.ControllerServer {
 }
 
 // newNodeServer init oss type of csi nodeServer
-func newNodeServer(driver *csicommon.CSIDriver, m metadata.MetadataProvider) *nodeServer {
+func newNodeServer(nodeID string, m metadata.MetadataProvider) *nodeServer {
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	if nodeName == "" {
 		log.Fatal("env KUBE_NODE_NAME is empty")
@@ -128,13 +128,15 @@ func newNodeServer(driver *csicommon.CSIDriver, m metadata.MetadataProvider) *no
 	}
 
 	return &nodeServer{
-		DefaultNodeServer: csicommon.NewDefaultNodeServer(driver),
-		nodeName:          nodeName,
-		clientset:         clientset,
-		dynamicClient:     crdClient,
-		sharedPathLock:    utils.NewVolumeLocks(),
-		ossfsMounterFac:   mounter.NewContainerizedFuseMounterFactory(mounter.NewFuseOssfs(configmap, m), clientset, nodeName),
-		metadata:          m,
+		nodeName:        nodeName,
+		clientset:       clientset,
+		dynamicClient:   crdClient,
+		sharedPathLock:  utils.NewVolumeLocks(),
+		ossfsMounterFac: mounter.NewContainerizedFuseMounterFactory(mounter.NewFuseOssfs(configmap, m), clientset, nodeName),
+		metadata:        m,
+		GenericNodeServer: common.GenericNodeServer{
+			NodeID: nodeID,
+		},
 	}
 }
 
