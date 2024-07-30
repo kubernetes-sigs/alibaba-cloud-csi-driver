@@ -7,6 +7,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
+	mytesting "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/testing"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
@@ -309,7 +310,7 @@ func TestControllerServer_ValidateVolumeCapabilitiesNotConfirmed(t *testing.T) {
 	resp, err := cs.ValidateVolumeCapabilities(context.Background(), req)
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
-	assert.Equal(t, csi.ValidateVolumeCapabilitiesResponse{}, *resp)
+	mytesting.AssertProtoEqual(t, &csi.ValidateVolumeCapabilitiesResponse{}, resp)
 }
 
 func TestControllerServer_ControllerGetCapabilities(t *testing.T) {
