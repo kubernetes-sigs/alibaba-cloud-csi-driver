@@ -2,19 +2,24 @@ package pov
 
 import (
 	"context"
+
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 )
 
-func (p *PoV) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
-	resp := &csi.GetPluginInfoResponse{
-		Name:          DriverName,
-		VendorVersion: "v1.0.0",
-	}
-
-	return resp, nil
+type identityServer struct {
+	common.GenericIdentityServer
 }
 
-func (p *PoV) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
+func newIdentityServer() *identityServer {
+	return &identityServer{
+		GenericIdentityServer: common.GenericIdentityServer{
+			Name: DriverName,
+		},
+	}
+}
+
+func (p *identityServer) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
 	resp := &csi.GetPluginCapabilitiesResponse{
 		Capabilities: []*csi.PluginCapability{
 			{
@@ -41,8 +46,4 @@ func (p *PoV) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapab
 		},
 	}
 	return resp, nil
-}
-
-func (p *PoV) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi.ProbeResponse, error) {
-	return &csi.ProbeResponse{}, nil
 }
