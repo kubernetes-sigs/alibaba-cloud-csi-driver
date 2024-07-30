@@ -107,14 +107,6 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 
 	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, GlobalConfigVar.NodeID)
 	tmpdisk.driver = csiDriver
-	tmpdisk.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
-		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
-		csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
-		csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
-		csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
-		csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
-	})
-	tmpdisk.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
 
 	// Init ECS Client
 	accessControl := utils.GetAccessControl()
@@ -133,7 +125,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
-	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient)
+	tmpdisk.controllerServer = NewControllerServer(apiExtentionClient)
 
 	if !runAsController {
 		tmpdisk.nodeServer = NewNodeServer(m)
