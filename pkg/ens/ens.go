@@ -82,7 +82,7 @@ func NewDriver(nodeID, endpoint string) *ENS {
 	if GlobalConfigVar.ControllerService {
 		tmpENS.controllerServer = NewControllerServer(tmpENS.driver)
 	} else {
-		tmpENS.nodeServer = NewNodeServer(tmpENS.driver)
+		tmpENS.nodeServer = NewNodeServer()
 	}
 	return tmpENS
 }
