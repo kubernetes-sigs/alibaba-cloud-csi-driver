@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
@@ -50,10 +50,10 @@ type nodeServer struct {
 	mounter          utils.Mounter
 	k8smounter       k8smount.Interface
 	podCgroup        *utils.PodCGroup
-	*csicommon.DefaultNodeServer
+	common.GenericNodeServer
 }
 
-func NewNodeServer(d *csicommon.CSIDriver) csi.NodeServer {
+func NewNodeServer() csi.NodeServer {
 
 	var maxVolumesNum int64 = MAX_VOLUMES_PERNODE
 	volumeNum := os.Getenv("MAX_VOLUMES_PERNODE")
@@ -80,11 +80,13 @@ func NewNodeServer(d *csicommon.CSIDriver) csi.NodeServer {
 	}
 
 	return &nodeServer{
-		MaxVolumePerNode:  maxVolumesNum,
-		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
-		mounter:           utils.NewMounter(),
-		podCgroup:         podCgroup,
-		k8smounter:        k8smount.New(""),
+		MaxVolumePerNode: maxVolumesNum,
+		mounter:          utils.NewMounter(),
+		podCgroup:        podCgroup,
+		k8smounter:       k8smount.New(""),
+		GenericNodeServer: common.GenericNodeServer{
+			NodeID: GlobalConfigVar.InstanceID,
+		},
 	}
 }
 
