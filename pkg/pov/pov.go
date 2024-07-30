@@ -43,7 +43,7 @@ func NewDriver(meta *metadata.Metadata, endpoint string, runAsController bool) *
 // Run start pov driver service
 func (p *PoV) Run() {
 	log.Infof("Starting pov driver service, endpoint: %s", p.endpoint)
-	common.RunCSIServer(p.endpoint, p, &p.controllerService, &p.nodeService)
+	common.RunCSIServer(p.endpoint, newIdentityServer(), &p.controllerService, &p.nodeService)
 }
 
 func newGlobalConfig(meta *metadata.Metadata, runAsController bool) {
