@@ -61,24 +61,17 @@ func NewDriver(nodeID, endpoint string, m metadata.MetadataProvider, runAsContro
 		log.Infof("Use node id : %s", nodeID)
 	}
 	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, nodeID)
-	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{
-		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
-	})
-	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
-		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
-		csi.ControllerServiceCapability_RPC_UNKNOWN,
-	})
 
 	d.driver = csiDriver
 
-	d.controllerServer = newControllerServer(d.driver)
+	d.controllerServer = newControllerServer()
 	if !runAsController {
 		d.nodeServer = newNodeServer(nodeID, m)
 	}
 	return d
 }
 
-func newControllerServer(driver *csicommon.CSIDriver) csi.ControllerServer {
+func newControllerServer() csi.ControllerServer {
 	config, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
 		log.Fatalf("failed to build kubeconfig: %v", err)
@@ -94,9 +87,8 @@ func newControllerServer(driver *csicommon.CSIDriver) csi.ControllerServer {
 	}
 
 	c := &controllerServer{
-		client:                  clientset,
-		DefaultControllerServer: csicommon.NewDefaultControllerServer(driver),
-		crdClient:               crdClient,
+		client:    clientset,
+		crdClient: crdClient,
 	}
 	return c
 }

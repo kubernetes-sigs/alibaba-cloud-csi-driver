@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -35,9 +35,17 @@ import (
 
 // controller server try to create/delete volumes
 type controllerServer struct {
-	client kubernetes.Interface
-	*csicommon.DefaultControllerServer
+	client    kubernetes.Interface
 	crdClient dynamic.Interface
+	common.GenericControllerServer
+}
+
+func (*controllerServer) ControllerGetCapabilities(context.Context, *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
+	return &csi.ControllerGetCapabilitiesResponse{
+		Capabilities: common.ControllerRPCCapabilities(
+			csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+		),
+	}, nil
 }
 
 func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
