@@ -23,9 +23,9 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -42,11 +42,21 @@ const (
 
 // controller server try to create/delete volumes
 type controllerServer struct {
-	client kubernetes.Interface
-	*csicommon.DefaultControllerServer
+	client         kubernetes.Interface
 	cnfsGetter     cnfsv1beta1.CNFSGetter
 	metadata       metadata.MetadataProvider
 	fusePodManager *mounter.FusePodManager
+	common.GenericControllerServer
+}
+
+func (*controllerServer) ControllerGetCapabilities(context.Context, *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
+	return &csi.ControllerGetCapabilitiesResponse{
+		Capabilities: common.ControllerRPCCapabilities(
+			csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+			csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+			csi.ControllerServiceCapability_RPC_PUBLISH_READONLY,
+		),
+	}, nil
 }
 
 func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {

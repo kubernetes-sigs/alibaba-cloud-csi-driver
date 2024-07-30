@@ -75,15 +75,6 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, runAsController boo
 	// use nodeName as csi nodeId
 	// ControllerPublish needs node name for creating ossfs pod on the node
 	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, nodeName)
-	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{
-		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
-	})
-	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
-		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
-		csi.ControllerServiceCapability_RPC_UNKNOWN,
-		csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
-		csi.ControllerServiceCapability_RPC_PUBLISH_READONLY,
-	})
 
 	d.driver = csiDriver
 
@@ -101,11 +92,10 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, runAsController boo
 
 	if runAsController {
 		d.controllerServer = &controllerServer{
-			client:                  clientset,
-			DefaultControllerServer: csicommon.NewDefaultControllerServer(d.driver),
-			cnfsGetter:              cnfsGetter,
-			metadata:                m,
-			fusePodManager:          fusePodManager,
+			client:         clientset,
+			cnfsGetter:     cnfsGetter,
+			metadata:       m,
+			fusePodManager: fusePodManager,
 		}
 	} else {
 		d.nodeServer = &nodeServer{
