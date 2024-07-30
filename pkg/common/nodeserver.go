@@ -104,6 +104,7 @@ func filepathContains(basePath, path string) (bool, error) {
 }
 
 type GenericNodeServer struct {
+	csi.UnimplementedNodeServer
 	NodeID string
 }
 
@@ -123,16 +124,4 @@ func (*GenericNodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeG
 		return nil, status.Errorf(codes.NotFound, "VolumePath %s not found: %v", req.VolumePath, err)
 	}
 	return resp, err
-}
-
-func (*GenericNodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
-}
-
-func (*GenericNodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
-}
-
-func (*GenericNodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
 }
