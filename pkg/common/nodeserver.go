@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -100,4 +101,38 @@ func filepathContains(basePath, path string) (bool, error) {
 		return false, err
 	}
 	return !strings.HasPrefix(relPath, ".."+string(os.PathSeparator)), nil
+}
+
+type GenericNodeServer struct {
+	NodeID string
+}
+
+func (ns *GenericNodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+	return &csi.NodeGetInfoResponse{
+		NodeId: ns.NodeID,
+	}, nil
+}
+
+func (ns *GenericNodeServer) NodeGetCapabilities(context context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
+	return &csi.NodeGetCapabilitiesResponse{}, nil
+}
+
+func (*GenericNodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	resp, err := utils.GetMetrics(req.VolumePath)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, status.Errorf(codes.NotFound, "VolumePath %s not found: %v", req.VolumePath, err)
+	}
+	return resp, err
+}
+
+func (*GenericNodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
+}
+
+func (*GenericNodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
+}
+
+func (*GenericNodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
 }
