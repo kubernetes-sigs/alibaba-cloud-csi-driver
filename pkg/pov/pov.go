@@ -26,7 +26,7 @@ type PoV struct {
 	nodeService
 }
 
-func NewDriver(meta *metadata.Metadata, nodeID, endpoint string, runAsController bool) *PoV {
+func NewDriver(meta *metadata.Metadata, endpoint string, runAsController bool) *PoV {
 	poV := &PoV{}
 	poV.endpoint = endpoint
 	newGlobalConfig(meta, runAsController)
@@ -34,7 +34,7 @@ func NewDriver(meta *metadata.Metadata, nodeID, endpoint string, runAsController
 	if runAsController {
 		poV.controllerService = newControllerService()
 	} else {
-		poV.nodeService = newNodeService()
+		poV.nodeService = newNodeService(meta)
 	}
 
 	return poV
@@ -72,15 +72,10 @@ func newGlobalConfig(meta *metadata.Metadata, runAsController bool) {
 		client:            kubeClient,
 		regionID:          metadata.MustGet(meta, metadata.RegionID),
 	}
-
-	if !runAsController {
-		GlobalConfigVar.instanceID = metadata.MustGet(meta, metadata.InstanceID)
-	}
 }
 
 type GlobalConfig struct {
 	regionID          string
-	instanceID        string
 	controllerService bool
 	client            kubernetes.Interface
 }
