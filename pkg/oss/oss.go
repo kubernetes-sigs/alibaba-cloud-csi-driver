@@ -109,14 +109,16 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, runAsController boo
 		}
 	} else {
 		d.nodeServer = &nodeServer{
-			metadata:          m,
-			DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
-			locks:             utils.NewVolumeLocks(),
-			nodeName:          nodeName,
-			clientset:         clientset,
-			cnfsGetter:        cnfsGetter,
-			rawMounter:        mountutils.New(""),
-			ossfs:             ossfs,
+			metadata:   m,
+			locks:      utils.NewVolumeLocks(),
+			nodeName:   nodeName,
+			clientset:  clientset,
+			cnfsGetter: cnfsGetter,
+			rawMounter: mountutils.New(""),
+			ossfs:      ossfs,
+			GenericNodeServer: common.GenericNodeServer{
+				NodeID: nodeName,
+			},
 		}
 	}
 
