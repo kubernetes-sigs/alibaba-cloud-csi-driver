@@ -30,6 +30,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dadi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
@@ -46,6 +47,7 @@ type nodeServer struct {
 	config  *internal.NodeConfig
 	mounter mountutils.Interface
 	locks   *utils.VolumeLocks
+	common.GenericNodeServer
 }
 
 func newNodeServer(config *internal.NodeConfig) *nodeServer {
@@ -60,6 +62,9 @@ func newNodeServer(config *internal.NodeConfig) *nodeServer {
 		config:  config,
 		mounter: NewNasMounter(),
 		locks:   utils.NewVolumeLocks(),
+		GenericNodeServer: common.GenericNodeServer{
+			NodeID: config.NodeName,
+		},
 	}
 }
 
@@ -706,14 +711,4 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: nodeSvcCap,
 	}, nil
-}
-
-// NodeGetVolumeStats used for csi metrics
-func (ns *nodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	targetPath := req.GetVolumePath()
-	return utils.GetMetrics(targetPath)
-}
-
-func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
-	return &csi.NodeGetInfoResponse{NodeId: ns.config.NodeName}, nil
 }
