@@ -61,6 +61,7 @@ import (
 var (
 	// KubernetesAlicloudIdentity is the system identity for ecs client request
 	KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Disk-%s", version.VERSION)
+	SupportedFilesystemTypes   = sets.New(EXT4_FSTYPE, EXT3_FSTYPE, XFS_FSTYPE, NTFS_FSTYPE)
 )
 
 const DISK_TAG_PREFIX = "diskTags/"
@@ -629,8 +630,9 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 			diskVolArgs.FsType = EXT4_FSTYPE
 		}
 	}
-	if diskVolArgs.FsType != EXT4_FSTYPE && diskVolArgs.FsType != EXT3_FSTYPE && diskVolArgs.FsType != XFS_FSTYPE {
-		return nil, fmt.Errorf("illegal required parameter fsType, only support ext3, ext4 and xfs, the input is: %s", diskVolArgs.FsType)
+
+	if !SupportedFilesystemTypes.Has(diskVolArgs.FsType) {
+		return nil, fmt.Errorf("illegal required parameter fsType, only support %v, the input is: %s", SupportedFilesystemTypes.UnsortedList(), diskVolArgs.FsType)
 	}
 
 	// disk Type
