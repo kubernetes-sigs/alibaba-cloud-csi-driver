@@ -70,17 +70,9 @@ func NewDriver(nodeID, endpoint string) *ENS {
 	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, GlobalConfigVar.InstanceID)
 	tmpENS.driver = csiDriver
 
-	tmpENS.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
-		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
-		csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
-		// volume expansion is not support
-		// csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
-	})
-	tmpENS.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
-
 	tmpENS.idServer = NewIdentityServer(tmpENS.driver)
 	if GlobalConfigVar.ControllerService {
-		tmpENS.controllerServer = NewControllerServer(tmpENS.driver)
+		tmpENS.controllerServer = NewControllerServer()
 	} else {
 		tmpENS.nodeServer = NewNodeServer()
 	}

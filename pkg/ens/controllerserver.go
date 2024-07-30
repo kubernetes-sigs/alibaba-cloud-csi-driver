@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -17,21 +17,29 @@ import (
 
 // controller server try to create/delete volumes/snapshots
 type controllerServer struct {
-	*csicommon.DefaultControllerServer
 	recorder record.EventRecorder
 
 	createdVolumeMap map[string]*csi.Volume
+	common.GenericControllerServer
 }
 
-func NewControllerServer(d *csicommon.CSIDriver) csi.ControllerServer {
+func NewControllerServer() csi.ControllerServer {
 
 	c := &controllerServer{
-		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
-		recorder:                utils.NewEventRecorder(),
-		createdVolumeMap:        map[string]*csi.Volume{},
+		recorder:         utils.NewEventRecorder(),
+		createdVolumeMap: map[string]*csi.Volume{},
 	}
 
 	return c
+}
+
+func (cs *controllerServer) ControllerGetCapabilities(context.Context, *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
+	return &csi.ControllerGetCapabilitiesResponse{
+		Capabilities: common.ControllerRPCCapabilities(
+			csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+			csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+		),
+	}, nil
 }
 
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
@@ -43,10 +51,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
-	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME); err != nil {
-		log.Errorf("CreateVolume: driver not support Create volume: %v", err)
-		return nil, err
-	}
 	if value, ok := cs.createdVolumeMap[req.Name]; ok {
 		log.Infof("CreateVolume: volume already be created pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, value.VolumeId, value.VolumeContext)
 		return &csi.CreateVolumeResponse{Volume: value}, nil
