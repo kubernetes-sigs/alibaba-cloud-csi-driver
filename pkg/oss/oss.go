@@ -21,7 +21,6 @@ import (
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
@@ -42,7 +41,6 @@ const (
 
 // OSS the OSS object
 type OSS struct {
-	driver   *csicommon.CSIDriver
 	endpoint string
 
 	controllerServer csi.ControllerServer
@@ -60,9 +58,6 @@ func NewDriver(nodeID, endpoint string, m metadata.MetadataProvider, runAsContro
 		nodeID = utils.RetryGetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
-	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, nodeID)
-
-	d.driver = csiDriver
 
 	d.controllerServer = newControllerServer()
 	if !runAsController {
@@ -132,7 +127,19 @@ func newNodeServer(nodeID string, m metadata.MetadataProvider) *nodeServer {
 	}
 }
 
+type identityServer struct {
+	common.GenericIdentityServer
+}
+
+func newIdentityServer() *identityServer {
+	return &identityServer{
+		GenericIdentityServer: common.GenericIdentityServer{
+			Name: driverName,
+		},
+	}
+}
+
 // Run start a newNodeServer
 func (d *OSS) Run() {
-	common.RunCSIServer(d.endpoint, csicommon.NewDefaultIdentityServer(d.driver), d.controllerServer, d.nodeServer)
+	common.RunCSIServer(d.endpoint, newIdentityServer(), d.controllerServer, d.nodeServer)
 }
