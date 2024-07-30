@@ -42,7 +42,7 @@ func NewDriver(meta *metadata.Metadata, endpoint, serviceType string) *NAS {
 
 	var d NAS
 	d.endpoint = endpoint
-	d.identityServer = newIdentityServer(driverName, version.VERSION)
+	d.identityServer = newIdentityServer()
 
 	if serviceType == utils.ProvisionerService {
 		config, err := internal.GetControllerConfig(meta)
