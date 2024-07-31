@@ -11,6 +11,7 @@ import (
 const (
 	DeviceTypeBlock     = "block"
 	DeviceTypeNFS       = "nfs"
+	DeviceTypeOSS       = "oss"
 	DeviceTypeCPFS      = "cpfs-nfs"
 	DeviceTypePCI       = "pci"
 	DeviceTypeDFBusPort = "dfbus"

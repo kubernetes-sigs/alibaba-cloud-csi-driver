@@ -18,9 +18,11 @@ package oss
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -32,6 +34,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/rund/directvolume"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -238,6 +241,28 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	argStr := fmt.Sprintf("Bucket: %s, url: %s, OtherOpts: %s, Path: %s, UseSharedPath: %s, authType: %s, encrypted: %s, kmsid: %s",
 		opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType, opt.Encrypted, opt.KmsKeyId)
 	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
+
+	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
+		opts, err := json.Marshal(opt)
+		if err != nil {
+			log.Errorf("NodePublishVolume:: marshal opt error: %v", err)
+			return nil, status.Error(codes.Internal, fmt.Sprintf("OSS: failed to mount volume in rund-csi 3.0, err: %s", err.Error()))
+		}
+		mountInfo := directvolume.MountInfo{
+			Source:     opt.Bucket,
+			DeviceType: directvolume.DeviceTypeOSS,
+			FSType:     "",
+			MountOpts:  []string{string(opts)},
+			Extra:      map[string]string{},
+		}
+		log.Info("NodePublishVolume(rund3.0): Starting add mount info to DirectVolume")
+		err = directvolume.AddMountInfo(filepath.Dir(mountPath), mountInfo)
+		if err != nil {
+			log.Errorf("NodePublishVolume(rund3.0): Adding mount information to DirectVolume failed: %v", err)
+			return nil, status.Error(codes.Internal, fmt.Sprintf("OSS: failed to mount volume in rund-csi 3.0, err: %s", err.Error()))
+		}
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
 
 	if opt.directAssigned {
 		return ns.publishDirectVolume(ctx, req, opt)
