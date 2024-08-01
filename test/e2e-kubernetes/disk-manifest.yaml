@@ -1,5 +1,5 @@
 StorageClass:
-  FromExistingClassName: alicloud-disk-topology-alltype
+  FromExistingClassName: alibabacloud-disk
 SnapshotClass:
   FromExistingClassName: alibabacloud-disk-snapshot
 DriverInfo:
