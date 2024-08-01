@@ -636,9 +636,9 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	// disk Type
-	diskType, err := validateDiskType(volOptions)
+	diskType, err := validateDiskType(volOptions["type"])
 	if err != nil {
-		return nil, fmt.Errorf("Illegal required parameter type: " + volOptions["type"])
+		return nil, err
 	}
 	diskVolArgs.Type = diskType
 	pls, err := validateDiskPerformanceLevel(volOptions)
@@ -780,21 +780,21 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	return diskVolArgs, nil
 }
 
-func validateDiskType(opts map[string]string) (diskType []Category, err error) {
-	if value, ok := opts["type"]; !ok || (ok && value == DiskHighAvail) {
-		diskType = []Category{DiskSSD, DiskEfficiency}
-		return
+func validateDiskType(value string) (diskType []Category, err error) {
+	if value == "" {
+		return []Category{DiskESSDAuto, DiskESSD, DiskSSD, DiskEfficiency}, nil
 	}
-	for _, cusType := range strings.Split(opts["type"], ",") {
+	if value == DiskHighAvail {
+		log.Warnf("disk type %q is deprecated", DiskHighAvail)
+		return []Category{DiskSSD, DiskEfficiency}, nil
+	}
+	for _, cusType := range strings.Split(value, ",") {
 		c := Category(cusType)
 		if _, ok := AllCategories[c]; ok {
 			diskType = append(diskType, c)
 		} else {
-			return nil, fmt.Errorf("Illegal required parameter type: " + cusType)
+			return nil, fmt.Errorf("unknown disk type %s", cusType)
 		}
-	}
-	if len(diskType) == 0 {
-		return diskType, fmt.Errorf("Illegal required parameter type: " + opts["type"])
 	}
 	return
 }
