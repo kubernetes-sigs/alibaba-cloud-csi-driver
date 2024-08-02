@@ -11,6 +11,9 @@ const (
 	// PVNameKey contains name of the final PV that will be used for the dynamically
 	// provisioned volume
 	PVNameKey = "csi.storage.k8s.io/pv/name"
+
+	// ClusterIDKey contains the cluster id key of the PV cities in
+	ClusterIDKey = "csi.storage.k8s.io/clusterid"
 )
 
 // constants of keys in volume snapshot parameters

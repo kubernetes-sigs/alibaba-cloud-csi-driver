@@ -813,7 +813,7 @@ func requestAndCreateSnapshot(ecsClient *ecs.Client, params *createSnapshotParam
 		{Key: SNAPSHOTTAGKEY1, Value: "true"},
 	}
 	if GlobalConfigVar.ClusterID != "" {
-		snapshotTags = append(snapshotTags, ecs.CreateSnapshotTag{Key: DISKTAGKEY3, Value: GlobalConfigVar.ClusterID})
+		snapshotTags = append(snapshotTags, ecs.CreateSnapshotTag{Key: common.ClusterIDKey, Value: GlobalConfigVar.ClusterID})
 	}
 	snapshotTags = append(snapshotTags, params.SnapshotTags...)
 	createSnapshotRequest.Tag = &snapshotTags
@@ -1124,11 +1124,12 @@ func getDefaultDiskTags(diskVol *diskVolumeArgs) []ecs.CreateDiskTag {
 	diskTags := []ecs.CreateDiskTag{}
 	tag1 := ecs.CreateDiskTag{Key: DISKTAGKEY1, Value: DISKTAGVALUE1}
 	tag2 := ecs.CreateDiskTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
-	tag3 := ecs.CreateDiskTag{Key: DISKTAGKEY3, Value: GlobalConfigVar.ClusterID}
+	// Remove tag3, release note is required
+	tag4 := ecs.CreateDiskTag{Key: common.ClusterIDKey, Value: GlobalConfigVar.ClusterID}
 	diskTags = append(diskTags, tag1)
 	diskTags = append(diskTags, tag2)
 	if GlobalConfigVar.ClusterID != "" {
-		diskTags = append(diskTags, tag3)
+		diskTags = append(diskTags, tag4)
 	}
 	// if switch is setting in sc, assign the tag to disk tags
 	if diskVol.DelAutoSnap != "" {
@@ -1220,6 +1221,7 @@ func listSnapshots(ecsClient cloud.ECSInterface, diskID, clusterID, nextToken st
 	if clusterID != "" {
 		describeRequest.Tag = &[]ecs.DescribeSnapshotsTag{
 			{Key: DISKTAGKEY3, Value: clusterID},
+			{Key: common.ClusterIDKey, Value: clusterID},
 		}
 	}
 	describeRequest.NextToken = token
