@@ -37,6 +37,8 @@ defaultStorageClass:
   enabled: true
 
 deploy:
+  kubeletRootDir: /var/lib/kubelet
+
   # By default, the controller server does not delete NAS subpaths when DeleteVolume, that means
   # the files created in the volume will remain in the filesystem after PV deleted.
   # You can set "withStorageController" to true in ACK clusters with storage-operator addon installed, 

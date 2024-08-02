@@ -48,6 +48,8 @@ spec:
           image: {{ include "workerImageSpec" (list $nodePool.images "pluginInit") }}
           args:
             - "--driver={{ include "enabledPlugins" $nodePool.csi }}"
+          env:
+            {{- include "kubeletDirEnv" $nodePool.deploy.kubeletRootDir | nindent 12 }}
           securityContext:
             privileged: true
             allowPrivilegeEscalation: true
@@ -82,7 +84,7 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/csi-plugins/{{$key}}plugin.csi.alibabacloud.com/csi.sock"
+            - {{ printf "--kubelet-registration-path=%s/csi-plugins/%splugin.csi.alibabacloud.com/csi.sock" $nodePool.deploy.kubeletRootDir $key | quote }}
           volumeMounts:
             - name: {{$key}}-plugin-dir
               mountPath: /csi
@@ -126,6 +128,7 @@ spec:
               value: "true"
 {{- end -}}
 {{- include "akEnv" $nodePool.deploy.accessKey | nindent 12 }}
+{{- include "kubeletDirEnv" $nodePool.deploy.kubeletRootDir | nindent 12 }}
           resources:
             requests:
               cpu: 100m
@@ -154,7 +157,7 @@ spec:
               containerPort: 11260
           volumeMounts:
             - name: kubelet-dir
-              mountPath: /var/lib/kubelet/
+              mountPath: {{ $nodePool.deploy.kubeletRootDir | quote }}
               mountPropagation: "Bidirectional"
 {{- range $key := tuple "disk" "nas" "oss" }}
   {{- with index $nodePool.csi $key -}}
@@ -224,6 +227,7 @@ spec:
               value: HTTP
 {{- end -}}
 {{- include "akEnv" $nodePool.deploy.accessKey | nindent 12 }}
+{{- include "kubeletDirEnv" $nodePool.deploy.kubeletRootDir | nindent 12 }}
           resources:
             requests:
               cpu: 100m
@@ -254,7 +258,7 @@ spec:
             - name: local-plugin-dir
               mountPath: /csi
             - name: kubelet-dir
-              mountPath: /var/lib/kubelet/
+              mountPath: {{ $nodePool.deploy.kubeletRootDir | quote }}
               mountPropagation: "Bidirectional"
             - name: host-dev
               mountPath: /dev
@@ -302,7 +306,7 @@ spec:
 {{- end }}
         - name: registration-dir
           hostPath:
-            path: /var/lib/kubelet/plugins_registry
+            path: {{ printf "%s/plugins_registry" $nodePool.deploy.kubeletRootDir | quote }}
             type: DirectoryOrCreate
         - name: container-dir
           hostPath:
@@ -310,13 +314,13 @@ spec:
             type: DirectoryOrCreate
         - name: kubelet-dir
           hostPath:
-            path: /var/lib/kubelet
+            path: {{ $nodePool.deploy.kubeletRootDir | quote }}
             type: Directory
 {{- range $key, $val := $nodePool.csi }}
 {{- if $val.enabled }}
         - name: {{ $key }}-plugin-dir
           hostPath:
-            path: /var/lib/kubelet/csi-plugins/{{$key}}plugin.csi.alibabacloud.com
+            path: {{ printf "%s/csi-plugins/%splugin.csi.alibabacloud.com" $nodePool.deploy.kubeletRootDir $key | quote }}
             type: DirectoryOrCreate
 {{- end -}}
 {{- end }}
