@@ -11,6 +11,7 @@ const (
 	// PVNameKey contains name of the final PV that will be used for the dynamically
 	// provisioned volume
 	PVNameKey = "csi.storage.k8s.io/pv/name"
+
 )
 
 // constants of keys in volume snapshot parameters
@@ -41,6 +42,9 @@ const (
 	// VolumeNameTag is tag applied to provisioned alibaba cloud disk
 	// Disk name have many restrictions, so we use this tag to store the original name
 	VolumeNameTag = "csi.alibabacloud.com/volume-name"
+
+	// ClusterIDKey contains the cluster id key of the PV cities in
+	ClusterIDKey = "csi.alibabacloud.com/cluster-id"
 )
 
 // Tags that will be added to ECS snapshots

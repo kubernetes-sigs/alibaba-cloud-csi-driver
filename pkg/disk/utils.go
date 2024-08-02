@@ -579,6 +579,7 @@ func parseTags(params map[string]string) (map[string]string, error) {
 	if v := params[common.PVCNamespaceKey]; v != "" {
 		seenTags[common.PVCNamespaceTag] = v
 	}
+	seenTags[common.ClusterIDKey] = GlobalConfigVar.ClusterID
 	return seenTags, nil
 }
 

@@ -813,7 +813,7 @@ func requestAndCreateSnapshot(ecsClient *ecs.Client, params *createSnapshotParam
 		{Key: SNAPSHOTTAGKEY1, Value: "true"},
 	}
 	if GlobalConfigVar.ClusterID != "" {
-		snapshotTags = append(snapshotTags, ecs.CreateSnapshotTag{Key: DISKTAGKEY3, Value: GlobalConfigVar.ClusterID})
+		snapshotTags = append(snapshotTags, ecs.CreateSnapshotTag{Key: common.ClusterIDKey, Value: GlobalConfigVar.ClusterID})
 	}
 	snapshotTags = append(snapshotTags, params.SnapshotTags...)
 	createSnapshotRequest.Tag = &snapshotTags
@@ -1124,11 +1124,12 @@ func getDefaultDiskTags(diskVol *diskVolumeArgs) []ecs.CreateDiskTag {
 	diskTags := []ecs.CreateDiskTag{}
 	tag1 := ecs.CreateDiskTag{Key: DISKTAGKEY1, Value: DISKTAGVALUE1}
 	tag2 := ecs.CreateDiskTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
-	tag3 := ecs.CreateDiskTag{Key: DISKTAGKEY3, Value: GlobalConfigVar.ClusterID}
+	// Remove tag3, release note is required
+	tag4 := ecs.CreateDiskTag{Key: common.ClusterIDKey, Value: GlobalConfigVar.ClusterID}
 	diskTags = append(diskTags, tag1)
 	diskTags = append(diskTags, tag2)
 	if GlobalConfigVar.ClusterID != "" {
-		diskTags = append(diskTags, tag3)
+		diskTags = append(diskTags, tag4)
 	}
 	// if switch is setting in sc, assign the tag to disk tags
 	if diskVol.DelAutoSnap != "" {
@@ -1192,19 +1193,25 @@ func resizeDisk(ctx context.Context, ecsClient cloud.ECSInterface, req *ecs.Resi
 	return resp, err
 }
 
-func encodeNextToken(pos int, token string) string {
-	return fmt.Sprintf("%d@%s", pos, token)
+func encodeNextToken(pos int, token string, newTag string) string {
+	return fmt.Sprintf("%d@%s@%s", pos, token, newTag)
 }
 
-func parseNextToken(t string) (pos int, token string, err error) {
+func parseNextToken(t string) (pos int, token string, newTag string, err error) {
 	if len(t) == 0 {
-		return 0, "", nil
+		return 0, "", "false", nil
 	}
-	posStr, token, found := strings.Cut(t, "@")
-	if !found {
+	infos := strings.Split(t, "@")
+	if len(infos) == 1 {
 		err = errors.New("@ not found in token")
 	} else {
-		pos, err = strconv.Atoi(posStr)
+		pos, err = strconv.Atoi(infos[0])
+		token = infos[1]
+		if len(infos) == 3 {
+			newTag = infos[2]
+		} else {
+			newTag = "false"
+		}
 	}
 	return
 }
@@ -1212,14 +1219,20 @@ func parseNextToken(t string) (pos int, token string, err error) {
 // listSnapshots list all snapshots of diskID (if specified) or clusterID (if specified)
 func listSnapshots(ecsClient cloud.ECSInterface, diskID, clusterID, nextToken string, maxEntries int) ([]ecs.Snapshot, string, error) {
 	log.Infof("ListSnapshots: no snapshot id specified, get snapshot by DiskID: %s", diskID)
-	pos, token, err := parseNextToken(nextToken)
+	pos, token, newTag, err := parseNextToken(nextToken)
 	if err != nil {
 		return nil, "", status.Errorf(codes.Aborted, "Invalid StartingToken %s: %v", nextToken, err)
 	}
 	describeRequest := ecs.CreateDescribeSnapshotsRequest()
 	if clusterID != "" {
-		describeRequest.Tag = &[]ecs.DescribeSnapshotsTag{
-			{Key: DISKTAGKEY3, Value: clusterID},
+		if ok, _ := strconv.ParseBool(newTag); ok {
+			describeRequest.Tag = &[]ecs.DescribeSnapshotsTag{
+				{Key: common.ClusterIDKey, Value: clusterID},
+			}
+		} else {
+			describeRequest.Tag = &[]ecs.DescribeSnapshotsTag{
+				{Key: DISKTAGKEY3, Value: clusterID},
+			}
 		}
 	}
 	describeRequest.NextToken = token
@@ -1232,16 +1245,37 @@ func listSnapshots(ecsClient cloud.ECSInterface, diskID, clusterID, nextToken st
 		return nil, "", status.Errorf(codes.Internal, "ListSnapshots:: Request describeSnapshots error: %v", err)
 	}
 	nextToken = ""
-	if response.NextToken != "" {
-		nextToken = encodeNextToken(0, response.NextToken)
+	if ok, _ := strconv.ParseBool(newTag); ok || response.NextToken != "" {
+		nextToken = encodeNextToken(0, response.NextToken, newTag)
+		snapshots := response.Snapshots.Snapshot[pos:]
+		if maxEntries > 0 && len(snapshots) > maxEntries {
+			// If MaxEntries is less than 10, ECS will return 10 results.
+			// But CSI spec requires "the Plugin MUST NOT return more entries than this number in the response"
+			// in this case, we record the previous token, and how nany results we have returned from that token
+			nextToken = encodeNextToken(pos+maxEntries, token, newTag)
+			snapshots = snapshots[:maxEntries]
+		}
+		return snapshots, nextToken, nil
+	} 
+	
+	var newDescribeResponse *ecs.DescribeSnapshotsResponse
+	describeRequest.Tag = &[]ecs.DescribeSnapshotsTag{
+		{Key: common.ClusterIDKey, Value: clusterID},
 	}
-	snapshots := response.Snapshots.Snapshot[pos:]
-	if maxEntries > 0 && len(snapshots) > maxEntries {
+	newDescribeResponse, err = ecsClient.DescribeSnapshots(describeRequest)
+	if err != nil {
+		return nil, "", status.Errorf(codes.Internal, "ListSnapshots:: Request describeSnapshots error: %v", err)
+	}
+	totalSnapshots := response.Snapshots.Snapshot
+	totalSnapshots = append(totalSnapshots, newDescribeResponse.Snapshots.Snapshot...)
+	if maxEntries > 0 && len(totalSnapshots) > maxEntries {
 		// If MaxEntries is less than 10, ECS will return 10 results.
 		// But CSI spec requires "the Plugin MUST NOT return more entries than this number in the response"
 		// in this case, we record the previous token, and how nany results we have returned from that token
-		nextToken = encodeNextToken(pos+maxEntries, token)
-		snapshots = snapshots[:maxEntries]
+		nextToken = encodeNextToken(pos+maxEntries, "", "true")
+		totalSnapshots = totalSnapshots[:maxEntries]
+	} else {
+		nextToken = encodeNextToken(0, newDescribeResponse.NextToken, "true")
 	}
-	return snapshots, nextToken, nil
+	return totalSnapshots, nextToken, nil
 }
