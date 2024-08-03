@@ -5,6 +5,10 @@ if [ "$SERVICE_TYPE" = "provisioner" ]; then
     exit 0
 fi
 
+if [ -z "$KUBELET_ROOT_DIR" ]; then
+    KUBELET_ROOT_DIR="/var/lib/kubelet"
+fi
+
 run_oss="false"
 run_disk="false"
 run_nas="false"
@@ -37,14 +41,14 @@ echo "detected host os: $host_os"
 ARCH=$(uname -m)
 echo "detected host arch: $ARCH"
 
-OLD_STAGING_PATH=/var/lib/kubelet/plugins/kubernetes.io/csi/pv
+OLD_STAGING_PATH=${KUBELET_ROOT_DIR}/plugins/kubernetes.io/csi/pv
 if [ -d "$OLD_STAGING_PATH" ]; then
     echo unmount old volume staging path.  # kubelet will mount the new path at startup.
-    echo $OLD_STAGING_PATH/*/globalmount
-    umount $OLD_STAGING_PATH/*/globalmount
-    rmdir $OLD_STAGING_PATH/*/globalmount
-    rmdir $OLD_STAGING_PATH/*/
-    rmdir $OLD_STAGING_PATH
+    echo "$OLD_STAGING_PATH"/*/globalmount
+    umount "$OLD_STAGING_PATH"/*/globalmount
+    rmdir "$OLD_STAGING_PATH"/*/globalmount
+    rmdir "$OLD_STAGING_PATH"/*/
+    rmdir "$OLD_STAGING_PATH"
 fi
 
 ## check which plugin is running
@@ -53,18 +57,18 @@ do
     if [ "$item" = "--driver=ossplugin.csi.alibabacloud.com" ]; then
         echo "Running oss plugin...."
         run_oss="true"
-        mkdir -p /var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com
-        rm -rf /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
+        mkdir -p "$KUBELET_ROOT_DIR/csi-plugins/ossplugin.csi.alibabacloud.com"
+        rm -rf "$KUBELET_ROOT_DIR/plugins/ossplugin.csi.alibabacloud.com/csi.sock"
     elif [ "$item" = "--driver=diskplugin.csi.alibabacloud.com" ]; then
         echo "Running disk plugin...."
 	    run_disk="true"
-        mkdir -p /var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com
-        rm -rf /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
+        mkdir -p "$KUBELET_ROOT_DIR/csi-plugins/diskplugin.csi.alibabacloud.com"
+        rm -rf "$KUBELET_ROOT_DIR/plugins/diskplugin.csi.alibabacloud.com/csi.sock"
     elif [ "$item" = "--driver=nasplugin.csi.alibabacloud.com" ]; then
         echo "Running nas plugin...."
         run_nas="true"
-        mkdir -p /var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com
-        rm -rf /var/lib/kubelet/plugins/nasplugin.csi.alibabacloud.com/csi.sock
+        mkdir -p "$KUBELET_ROOT_DIR/csi-plugins/nasplugin.csi.alibabacloud.com"
+        rm -rf "$KUBELET_ROOT_DIR/plugins/nasplugin.csi.alibabacloud.com/csi.sock"
     elif [[ $item==*--driver=* ]]; then
         tmp=${item}
         driver_types=${tmp#*--driver=}
@@ -74,18 +78,18 @@ do
             if [ "$driver_type" = "oss" ]; then
                 echo "Running oss plugin...."
                 run_oss="true"
-                mkdir -p /var/lib/kubelet/csi-plugins/ossplugin.csi.alibabacloud.com
-                rm -rf /var/lib/kubelet/plugins/ossplugin.csi.alibabacloud.com/csi.sock
+                mkdir -p "$KUBELET_ROOT_DIR/csi-plugins/ossplugin.csi.alibabacloud.com"
+                rm -rf "$KUBELET_ROOT_DIR/plugins/ossplugin.csi.alibabacloud.com/csi.sock"
             elif [ "$driver_type" = "disk" ]; then
                 echo "Running disk plugin...."
 				run_disk="true"
-                mkdir -p /var/lib/kubelet/csi-plugins/diskplugin.csi.alibabacloud.com
-                rm -rf /var/lib/kubelet/plugins/diskplugin.csi.alibabacloud.com/csi.sock
+                mkdir -p "$KUBELET_ROOT_DIR/csi-plugins/diskplugin.csi.alibabacloud.com"
+                rm -rf "$KUBELET_ROOT_DIR/plugins/diskplugin.csi.alibabacloud.com/csi.sock"
             elif [ "$driver_type" = "nas" ]; then
                 echo "Running nas plugin...."
                 run_nas="true"
-                mkdir -p /var/lib/kubelet/csi-plugins/nasplugin.csi.alibabacloud.com
-                rm -rf /var/lib/kubelet/plugins/nasplugin.csi.alibabacloud.com/csi.sock
+                mkdir -p "$KUBELET_ROOT_DIR/csi-plugins/nasplugin.csi.alibabacloud.com"
+                rm -rf "$KUBELET_ROOT_DIR/plugins/nasplugin.csi.alibabacloud.com/csi.sock"
             elif [ "$driver_type" = "pov" ]; then
                 echo "Running pov plugin...."
                 run_pov="true"
@@ -95,9 +99,6 @@ do
 done
 
 # config /etc/updatedb.config if needed
-if [ -z "$KUBELET_ROOT_DIR" ]; then
-    KUBELET_ROOT_DIR="/var/lib/kubelet"
-fi
 if [ "$SKIP_UPDATEDB_CONFIG" != "true" ]; then
     ## check cron.daily dir
     if [ -f /host/etc/cron.daily/mlocate ]; then

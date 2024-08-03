@@ -49,3 +49,10 @@
       key: {{ default "secret" .secretKey }}
 {{- end -}}
 {{- end -}}
+
+{{- define "kubeletDirEnv" -}}
+{{- if ne . "/var/lib/kubelet" -}}
+- name: KUBELET_ROOT_DIR
+  value: {{ . }}
+{{- end -}}
+{{- end -}}
