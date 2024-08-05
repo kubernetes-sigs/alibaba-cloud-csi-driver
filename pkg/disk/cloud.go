@@ -533,7 +533,12 @@ func getDisk(diskID string, ecsClient *ecs.Client) []ecs.Disk {
 func tagDiskUserTags(diskID string, tags map[string]string, tenantUID string) {
 	ecsClient, err := getEcsClientByID("", tenantUID)
 	addTagsReq := ecs.CreateAddTagsRequest()
-	userTags := make([]ecs.AddTagsTag, 0, len(tags))
+	userTags := []ecs.AddTagsTag{
+		{
+			Key:   DISKTAGKEY3,
+			Value: GlobalConfigVar.ClusterID,
+		},
+	}
 	for k, v := range tags {
 		userTags = append(userTags, ecs.AddTagsTag{Key: k, Value: v})
 	}
