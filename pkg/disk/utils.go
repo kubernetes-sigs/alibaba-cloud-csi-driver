@@ -1257,7 +1257,7 @@ func getAvailableDiskCount(ecsClient cloud.ECSInterface, m metadata.MetadataProv
 	return 0, fmt.Errorf("unexpected DescribeInstanceTypes response for %s: %s", instanceType, response.GetHttpContentString())
 }
 
-func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInterface, m metadata.MetadataProvider, dev *DeviceManager) (int, error) {
+func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInterface, m metadata.MetadataProvider, dev utilsio.DiskLister) (int, error) {
 	// An attached disk is not managed by us if:
 	// 1. it is not in node.Status.VolumesInUse or node.Status.VolumesAttached; and
 	// 2. it does not have the xattr set.
@@ -1269,27 +1269,24 @@ func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInte
 
 	managedDisks := sets.New[string]()
 
-	devices, err := os.ReadDir(dev.DevicePath)
+	diskPaths, err := dev.ListDisks()
 	if err != nil {
 		return 0, fmt.Errorf("failed to list devices: %w", err)
 	}
-	for _, entry := range devices {
-		if entry.IsDir() {
-			continue
-		}
+	for _, p := range diskPaths {
 		var diskID [32]byte
-		sz, err := unix.Getxattr(filepath.Join(dev.DevicePath, entry.Name()), DiskXattrName, diskID[:])
+		sz, err := unix.Getxattr(p, DiskXattrName, diskID[:])
 		if err == nil {
 			// this disk has xattr, it is managed by us
 			managedDisks.Insert(string(diskID[:sz]))
 		} else if !utilsio.IsXattrNotFound(err) {
-			log.Warnf("getVolumeCount: failed to get xattr of %s, assuming not managed by us: %s", entry.Name(), err)
+			log.Warnf("getVolumeCount: failed to get xattr of %s, assuming not managed by us: %s", p, err)
 		}
 	}
 
 	// To ensure all the managed attachedDisks also present in managedDisks,
-	// ECS OpenAPI should goes after ReadDir because the just detached disk should
-	// disappear from ReadDir after OpenAPI;
+	// ECS OpenAPI should goes after ListDisks because the just detached disk should
+	// disappear from ListDisks after OpenAPI;
 	// ECS OpenAPI should goes before getNode because the just attached disk should
 	// appear in node before OpenAPI;
 	attachedDisks, err := getAttachedCloudDisks(c, m)
