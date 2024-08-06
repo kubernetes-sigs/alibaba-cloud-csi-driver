@@ -84,6 +84,20 @@ func TestGetK8s(t *testing.T) {
 			},
 			isACK: false,
 		},
+		{
+			name: "empty label",
+			Labels: map[string]string{
+				"topology.kubernetes.io/region":    "",
+				"topology.kubernetes.io/zone":      "",
+				"node.kubernetes.io/instance-type": "",
+			},
+			NotFound: map[MetadataKey]bool{
+				RegionID:     true,
+				ZoneID:       true,
+				InstanceType: true,
+				InstanceID:   true,
+			},
+		},
 	}
 	expectedValues := map[MetadataKey]string{
 		RegionID:     "cn-hangzhou",
