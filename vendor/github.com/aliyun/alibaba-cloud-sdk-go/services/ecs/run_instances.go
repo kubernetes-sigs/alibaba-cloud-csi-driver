@@ -122,6 +122,7 @@ type RunInstancesRequest struct {
 	Isp                                      string                          `position:"Query" name:"Isp"`
 	KeyPairName                              string                          `position:"Query" name:"KeyPairName"`
 	SpotPriceLimit                           requests.Float                  `position:"Query" name:"SpotPriceLimit"`
+	CpuOptionsTopologyType                   string                          `position:"Query" name:"CpuOptions.TopologyType"`
 	StorageSetPartitionNumber                requests.Integer                `position:"Query" name:"StorageSetPartitionNumber"`
 	Tag                                      *[]RunInstancesTag              `position:"Query" name:"Tag"  type:"Repeated"`
 	PrivatePoolOptionsId                     string                          `position:"Query" name:"PrivatePoolOptions.Id"`
@@ -148,6 +149,7 @@ type RunInstancesRequest struct {
 	DeploymentSetId                          string                          `position:"Query" name:"DeploymentSetId"`
 	NetworkInterface                         *[]RunInstancesNetworkInterface `position:"Query" name:"NetworkInterface"  type:"Repeated"`
 	Amount                                   requests.Integer                `position:"Query" name:"Amount"`
+	AutoPay                                  requests.Boolean                `position:"Query" name:"AutoPay"`
 	OwnerAccount                             string                          `position:"Query" name:"OwnerAccount"`
 	Tenancy                                  string                          `position:"Query" name:"Tenancy"`
 	RamRoleName                              string                          `position:"Query" name:"RamRoleName"`
@@ -216,6 +218,10 @@ type RunInstancesNetworkInterface struct {
 	Ipv6AddressCount            string    `name:"Ipv6AddressCount"`
 	Ipv6Address                 *[]string `name:"Ipv6Address" type:"Repeated"`
 	NetworkCardIndex            string    `name:"NetworkCardIndex"`
+	DeleteOnRelease             string    `name:"DeleteOnRelease"`
+	NetworkInterfaceId          string    `name:"NetworkInterfaceId"`
+	RxQueueSize                 string    `name:"RxQueueSize"`
+	TxQueueSize                 string    `name:"TxQueueSize"`
 }
 
 // RunInstancesDataDisk is a repeated param struct in RunInstancesRequest

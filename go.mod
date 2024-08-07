@@ -8,7 +8,7 @@ require (
 	github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
 	github.com/alibabacloud-go/nas-20170626/v3 v3.2.0
 	github.com/alibabacloud-go/tea v1.2.1
-	github.com/aliyun/alibaba-cloud-sdk-go v1.62.401
+	github.com/aliyun/alibaba-cloud-sdk-go v1.62.719
 	github.com/aliyun/credentials-go v1.3.1
 	github.com/container-storage-interface/spec v1.1.0
 	github.com/containerd/ttrpc v1.2.3
@@ -67,7 +67,7 @@ require (
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
-	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kubernetes-csi/csi-lib-utils v0.7.1 // indirect
@@ -89,7 +89,7 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230731190214-cbb8c96f2d6d // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/ini.v1 v1.66.2 // indirect
+	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect

@@ -980,16 +980,12 @@ func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 	}
 	sizeGb, _ := strconv.ParseInt(ecsSnapshot.SourceDiskSize, 10, 64)
 	sizeBytes := utils.Gi2Bytes(sizeGb)
-	readyToUse := false
-	if ecsSnapshot.Status == "accomplished" || ecsSnapshot.InstantAccess {
-		readyToUse = true
-	}
 	return &csi.Snapshot{
 		SnapshotId:     ecsSnapshot.SnapshotId,
 		SourceVolumeId: ecsSnapshot.SourceDiskId,
 		SizeBytes:      sizeBytes,
 		CreationTime:   &timestamppb.Timestamp{Seconds: t.Unix()},
-		ReadyToUse:     readyToUse,
+		ReadyToUse:     ecsSnapshot.Available,
 	}, nil
 }
 
