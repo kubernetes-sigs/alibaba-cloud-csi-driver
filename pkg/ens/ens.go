@@ -59,7 +59,7 @@ type ENS struct {
 
 func initDriver() {}
 
-func NewDriver(nodeID, endpoint string) *ENS {
+func NewDriver(nodeID, endpoint string, serviceType utils.ServiceType) *ENS {
 
 	initDriver()
 	tmpENS := &ENS{}
@@ -79,9 +79,10 @@ func NewDriver(nodeID, endpoint string) *ENS {
 	tmpENS.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
 
 	tmpENS.idServer = NewIdentityServer(tmpENS.driver)
-	if GlobalConfigVar.ControllerService {
+	if serviceType&utils.Controller != 0 {
 		tmpENS.controllerServer = NewControllerServer(tmpENS.driver)
-	} else {
+	}
+	if serviceType&utils.Node != 0 {
 		tmpENS.nodeServer = NewNodeServer(tmpENS.driver)
 	}
 	return tmpENS
@@ -155,11 +156,6 @@ func NewGlobalConfig() {
 		detachBeforeAttach = true
 	}
 
-	controllerServerType := false
-	if os.Getenv(utils.ServiceType) == utils.ProvisionerService {
-		controllerServerType = true
-	}
-
 	GlobalConfigVar = GlobalConfig{
 		KClient:                      kubeClient,
 		InstanceID:                   instanceID,
@@ -168,7 +164,6 @@ func NewGlobalConfig() {
 		RegionID:                     regionID,
 		EnableAttachDetachController: attachDetachController,
 		DetachBeforeAttach:           detachBeforeAttach,
-		ControllerService:            controllerServerType,
 	}
 }
 
@@ -177,7 +172,6 @@ type GlobalConfig struct {
 	InstanceID         string
 	ClusterID          string
 	DetachBeforeAttach bool
-	ControllerService  bool
 
 	EnableDiskPartition          string
 	EnableAttachDetachController string
