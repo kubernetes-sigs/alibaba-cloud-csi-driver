@@ -17,13 +17,13 @@ import (
 func TestEcsUnreachable(t *testing.T) {
 	t.Parallel()
 	trans := httpmock.NewMockTransport()
-	trans.RegisterResponder("GET", ECSIdentityEndpoint,
+	trans.RegisterResponder("PUT", ECSTokenEndpoint,
 		httpmock.NewErrorResponder(errors.New("what ever")).Delay(11*time.Second))
 	// Should print a suggestion about disabling ECS metadata
 	m := NewMetadata()
 	m.EnableEcs(trans)
 	_, err := m.Get(RegionID)
-	assert.True(t, errors.Is(err, context.DeadlineExceeded))
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
 func TestEcsDisableByEnv(t *testing.T) {
@@ -145,6 +145,7 @@ func TestCreateOpenAPIFromEnv(t *testing.T) {
 
 func fakeMetadata(t *testing.T) *Metadata {
 	trans := httpmock.NewMockTransport()
+	trans.RegisterResponder("PUT", ECSTokenEndpoint, httpmock.NewStringResponder(200, "fake_metadata_token"))
 	trans.RegisterResponder("GET", ECSIdentityEndpoint, httpmock.NewStringResponder(200, testIdDoc))
 
 	m := NewMetadata()
