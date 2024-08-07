@@ -80,7 +80,7 @@ func (m *KubernetesMetadata) Get(key MetadataKey) (string, error) {
 
 	labels := MetadataLabels[key]
 	for _, label := range labels {
-		if value, ok := m.node.Labels[label]; ok {
+		if value := m.node.Labels[label]; value != "" {
 			return value, nil
 		}
 	}
