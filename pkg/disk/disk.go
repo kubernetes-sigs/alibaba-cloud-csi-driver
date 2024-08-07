@@ -26,6 +26,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
@@ -39,6 +40,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/utils/clock"
 )
 
 // PluginFolder defines the location of diskplugin
@@ -63,7 +65,6 @@ type GlobalConfig struct {
 	Region                string
 	NodeID                string
 	DiskTagEnable         bool
-	AttachDetachSlots     AttachDetachSlots
 	ADControllerEnable    bool
 	DetachDisabled        bool
 	MetricEnable          bool
@@ -84,6 +85,7 @@ type GlobalConfig struct {
 	SnapshotBeforeDelete  bool
 	OmitFilesystemCheck   bool
 	DiskAllowAllType      bool
+	DiskSerialAttach      bool
 }
 
 // define global variable
@@ -235,6 +237,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		RequestBaseInfo:       map[string]string{"owner": "alibaba-cloud-csi-driver", "nodeName": nodeName},
 		OmitFilesystemCheck:   csiCfg.GetBool("disable-fs-check", "DISABLE_FS_CHECK", false),
 		DiskAllowAllType:      csiCfg.GetBool("disk-allow-all-type", "DISK_ALLOW_ALL_TYPE", false),
+		DiskSerialAttach:      csiCfg.GetBool("disk-serial-attach", "DISK_SERIAL_ATTACH", false),
 	}
 	if GlobalConfigVar.ADControllerEnable {
 		log.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
@@ -252,20 +255,18 @@ func GlobalConfigSet(m metadata.MetadataProvider) *restclient.Config {
 		GlobalConfigVar.DetachBeforeDelete,
 		GlobalConfigVar.ClusterID,
 	)
-
-	if controllerServerType {
-		pDetach := features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelDetach)
-		pAttach := features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelAttach)
-		GlobalConfigVar.AttachDetachSlots = NewSlots(!pDetach, !pAttach)
-		if pAttach {
-			log.Infof("Disk parallel attach enabled")
-		}
-		if pDetach {
-			log.Infof("Disk parallel detach enabled")
-		}
-	} else {
-		GlobalConfigVar.AttachDetachSlots = NewSlots(true, true)
-	}
-
 	return cfg
+}
+
+func newDiskStatusWaiter() DiskStatusWaiter {
+	if GlobalConfigVar.DiskMultiTenantEnable {
+		return &SimpleDiskStatusWaiter{}
+	} else {
+		waiter := NewBatchedDiskStatusWaiter(GlobalConfigVar.EcsClient, clock.RealClock{})
+		waiter.PollHook = func() cloud.ECSInterface {
+			return updateEcsClient(GlobalConfigVar.EcsClient)
+		}
+		go waiter.Run(context.Background())
+		return waiter
+	}
 }
