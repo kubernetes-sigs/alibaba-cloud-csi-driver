@@ -28,9 +28,8 @@ var (
 )
 
 const (
-	// GBSIZE metrics
-	GBSIZE          = 1024 * 1024 * 1024
 	NFSMetricsCount = 16
+	GiBSize         = 1024 * 1024 * 1024
 )
 
 var (
@@ -163,10 +162,12 @@ type nfsInfo struct {
 }
 
 type nfsCapacityInfo struct {
-	TotalInodeCount int64 `json:"totalInodeCount"`
-	UsedInodeCount  int64 `json:"usedInodeCount"`
-	TotalSize       int64 `json:"totalSize"`
-	UsedSize        int64 `json:"usedSize"`
+	TotalInodeCount  int64  `json:"totalInodeCount"`
+	UsedInodeCount   int64  `json:"usedInodeCount"`
+	TotalSize        int64  `json:"totalSize"`
+	TotalSizeInBytes *int64 `json:"totalSizeInBytes"`
+	UsedSize         int64  `json:"usedSize"`
+	UsedSizeInBytes  *int64 `json:"usedSizeInBytes"`
 }
 
 type nfsStatCollector struct {
@@ -429,9 +430,8 @@ func getNfsCapacityStat(pvName string, info nfsInfo, p *nfsStatCollector) ([]str
 		return nil, err
 	}
 	if capacityInfo != nil && capacityInfo.TotalSize != -1 && capacityInfo.UsedSize != -1 {
-		p.capacityEventAlert(capacityInfo.TotalSize, capacityInfo.UsedSize, pvName, info)
-		total := capacityInfo.TotalSize * GBSIZE
-		used := capacityInfo.UsedSize * GBSIZE
+		total, used := getTotalAndUsedSize(capacityInfo)
+		p.capacityEventAlert(total, used, pvName, info)
 		return []string{
 			strconv.FormatInt(total, 10),
 			strconv.FormatInt(used, 10),
@@ -443,9 +443,17 @@ func getNfsCapacityStat(pvName string, info nfsInfo, p *nfsStatCollector) ([]str
 	return nil, errors.New("capacity metrics from storage-monitor missing or invalid")
 }
 
+func getTotalAndUsedSize(info *nfsCapacityInfo) (int64, int64) {
+	if info.TotalSizeInBytes != nil && info.UsedSizeInBytes != nil {
+		return *info.TotalSizeInBytes, *info.UsedSizeInBytes
+	}
+	return info.TotalSize * GiBSize, info.UsedSize * GiBSize
+}
+
 func (p *nfsStatCollector) capacityEventAlert(totalSize int64, usedSize int64, pvName string, info nfsInfo) {
+	total, used, gibSize := float64(totalSize), float64(usedSize), float64(GiBSize)
 	if p.alertSwtichSet.Contains(capacitySwitch) {
-		usedPercentage := (float64(usedSize) / float64(totalSize)) * 100
+		usedPercentage := 100 * used / total
 		if usedPercentage >= float64(p.capacityPercentageThreshold) {
 			ref := &v1.ObjectReference{
 				Kind:      "PersistentVolumeClaim",
@@ -453,8 +461,8 @@ func (p *nfsStatCollector) capacityEventAlert(totalSize int64, usedSize int64, p
 				UID:       "",
 				Namespace: info.PvcNamespace,
 			}
-			reason := fmt.Sprintf("Pvc %s is not enough disk space, namespace: %s, totalSize:%dGi, usedSize:%dGi, usedPercentage:%.2f%%, threshold:%.2f%%",
-				info.PvcName, info.PvcNamespace, totalSize, usedSize, usedPercentage, p.capacityPercentageThreshold)
+			reason := fmt.Sprintf("Pvc %s is running out of disk space, namespace: %s, totalSize:%fGi, usedSize:%fGi, usedPercentage:%.2f%%, threshold:%.2f%%",
+				info.PvcName, info.PvcNamespace, total/gibSize, used/gibSize, usedPercentage, p.capacityPercentageThreshold)
 			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, capacityNotEnough, reason)
 		}
 	}
