@@ -41,27 +41,31 @@ func TestCreateK8s(t *testing.T) {
 	node.Labels = map[string]string{
 		"topology.kubernetes.io/region": "cn-beijing",
 	}
-	profile := testProfile.DeepCopy()
-	profile.Data = map[string]string{}
-	profile.Data["clusterid"] = "c12345678"
 
-	client := fake.NewSimpleClientset(node, profile)
+	client := fake.NewSimpleClientset(node, &testProfile)
 	t.Run("no node name", func(t *testing.T) {
 		m.EnableKubernetes(client)
 		_, err := m.Get(RegionID)
 		assert.Equal(t, ErrUnknownMetadataKey, err)
+		assert.Equal(t, "c12345678", MustGet(m, ClusterID))
 	})
 
 	t.Run("ok", func(t *testing.T) {
 		t.Setenv(KUBE_NODE_NAME_ENV, testNode.Name)
 		m.EnableKubernetes(client)
 		assert.Equal(t, "cn-beijing", MustGet(m, RegionID))
-	})
-
-	t.Run("profile", func(t *testing.T) {
-		m.EnableKubernetes(client)
 		assert.Equal(t, "c12345678", MustGet(m, ClusterID))
 	})
+}
+
+func TestK8sNoProfile(t *testing.T) {
+	m := NewMetadata()
+
+	client := fake.NewSimpleClientset()
+	m.EnableKubernetes(client)
+	_, err := m.Get(ClusterID)
+	assert.ErrorContains(t, err, "ack-cluster-profile")
+	assert.ErrorContains(t, err, "not found")
 }
 
 func TestGetFromEnv(t *testing.T) {

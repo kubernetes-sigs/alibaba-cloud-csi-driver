@@ -6,14 +6,12 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-type KubernetesMetadata struct {
-	node    *v1.Node
-	profile *v1.ConfigMap
+type KubernetesNodeMetadata struct {
+	node *v1.Node
 }
 
 var (
@@ -48,10 +46,6 @@ var MetadataLabels = map[MetadataKey][]string{
 	InstanceID:   InstanceIdLabels,
 }
 
-var MetadataProfileDataKeys = map[MetadataKey]string{
-	ClusterID: "clusterid",
-}
-
 func init() {
 	envInstanceIdKey := os.Getenv("NODE_LABEL_ECS_ID_KEY")
 	if envInstanceIdKey != "" {
@@ -60,24 +54,15 @@ func init() {
 	}
 }
 
-func NewKubernetesMetadata(nodeName string, client kubernetes.Interface) (*KubernetesMetadata, error) {
-	node, err := client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+func NewKubernetesNodeMetadata(nodeName string, nodeClient corev1.NodeInterface) (*KubernetesNodeMetadata, error) {
+	node, err := nodeClient.Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
-	profile, err := client.CoreV1().ConfigMaps("kube-system").Get(context.Background(), "ack-cluster-profile", metav1.GetOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return nil, err
-	}
-	return &KubernetesMetadata{node: node, profile: profile}, nil
+	return &KubernetesNodeMetadata{node: node}, nil
 }
 
-func (m *KubernetesMetadata) Get(key MetadataKey) (string, error) {
-
-	if key, ok := MetadataProfileDataKeys[key]; ok && m.profile != nil {
-		return m.profile.Data[key], nil
-	}
-
+func (m *KubernetesNodeMetadata) Get(key MetadataKey) (string, error) {
 	labels := MetadataLabels[key]
 	for _, label := range labels {
 		if value, ok := m.node.Labels[label]; ok {
@@ -98,18 +83,17 @@ func (m *KubernetesMetadata) Get(key MetadataKey) (string, error) {
 	return "", ErrUnknownMetadataKey
 }
 
-type KubernetesMetadataFetcher struct {
-	client   kubernetes.Interface
+type KubernetesNodeMetadataFetcher struct {
+	client   corev1.NodeInterface
 	nodeName string
 }
 
-func (f *KubernetesMetadataFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
-	_, ok1 := MetadataLabels[key]
-	_, ok2 := MetadataProfileDataKeys[key]
-	if !ok1 && !ok2 {
+func (f *KubernetesNodeMetadataFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
+	_, ok := MetadataLabels[key]
+	if !ok {
 		return nil, ErrUnknownMetadataKey
 	}
-	p, err := NewKubernetesMetadata(f.nodeName, f.client)
+	p, err := NewKubernetesNodeMetadata(f.nodeName, f.client)
 	if err != nil {
 		return nil, err
 	}
