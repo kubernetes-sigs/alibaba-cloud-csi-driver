@@ -15,13 +15,6 @@ var testNode = v1.Node{
 	},
 }
 
-var testProfile = v1.ConfigMap{
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "ack-cluster-profile",
-		Namespace: "kube-system",
-	},
-}
-
 func TestGetK8s(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -29,7 +22,6 @@ func TestGetK8s(t *testing.T) {
 		ProviderID string
 		Labels     map[string]string
 		NotFound   map[MetadataKey]bool
-		isACK      bool
 	}{
 		{
 			name:       "normal",
@@ -39,7 +31,6 @@ func TestGetK8s(t *testing.T) {
 				"topology.kubernetes.io/zone":      "cn-hangzhou-a",
 				"node.kubernetes.io/instance-type": "ecs.g7.xlarge",
 			},
-			isACK: true,
 		},
 		{
 			name:       "beta",
@@ -49,7 +40,6 @@ func TestGetK8s(t *testing.T) {
 				"failure-domain.beta.kubernetes.io/zone":   "cn-hangzhou-a",
 				"beta.kubernetes.io/instance-type":         "ecs.g7.xlarge",
 			},
-			isACK: true,
 		},
 		{
 			name: "sigma",
@@ -59,7 +49,6 @@ func TestGetK8s(t *testing.T) {
 				"sigma.ali/machine-model":   "ecs.g7.xlarge",
 				"sigma.ali/ecs-instance-id": "i-2zec1slzwdzrwmvlr4w2",
 			},
-			isACK: true,
 		},
 		{
 			name:       "alibabacloud",
@@ -72,17 +61,15 @@ func TestGetK8s(t *testing.T) {
 			NotFound: map[MetadataKey]bool{
 				InstanceType: true,
 			},
-			isACK: true,
 		},
 		{
-			name:       "no label and non-ACK",
+			name:       "no label",
 			ProviderID: "alicloud://cn-hangzhou.i-2zec1slzwdzrwmvlr4w2",
 			Labels:     map[string]string{},
 			NotFound: map[MetadataKey]bool{
 				ZoneID:       true,
 				InstanceType: true,
 			},
-			isACK: false,
 		},
 	}
 	expectedValues := map[MetadataKey]string{
@@ -99,14 +86,8 @@ func TestGetK8s(t *testing.T) {
 			node.Spec.ProviderID = c.ProviderID
 			node.Labels = c.Labels
 
-			client := fake.NewSimpleClientset(node)
-			if c.isACK {
-				profile := testProfile.DeepCopy()
-				profile.Data = map[string]string{}
-				profile.Data["clusterid"] = "c12345678"
-				client = fake.NewSimpleClientset(node, profile)
-			}
-			m, err := NewKubernetesMetadata(node.Name, client)
+			client := fake.NewSimpleClientset(node).CoreV1().Nodes()
+			m, err := NewKubernetesNodeMetadata(node.Name, client)
 			assert.NoError(t, err)
 
 			for k, v := range expectedValues {
@@ -118,14 +99,6 @@ func TestGetK8s(t *testing.T) {
 					assert.NoError(t, err, k)
 					assert.Equal(t, v, value)
 				}
-			}
-
-			value, err := m.Get(ClusterID)
-			if c.isACK {
-				assert.NoError(t, err)
-				assert.Equal(t, "c12345678", value)
-			} else {
-				assert.Equal(t, ErrUnknownMetadataKey, err)
 			}
 		})
 	}
