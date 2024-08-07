@@ -1027,6 +1027,9 @@ func finalizeCreateDiskRequest(template *ecs.CreateDiskRequest, attempt createAt
 	if !cateDesc.ProvisionedIops {
 		req.ProvisionedIops = ""
 	}
+	if cateDesc.Regional {
+		req.ZoneId = ""
+	}
 
 	tmp := ecs.CreateCreateDiskRequest()
 	req.RpcRequest = tmp.RpcRequest

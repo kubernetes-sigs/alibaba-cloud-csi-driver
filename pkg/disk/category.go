@@ -10,6 +10,7 @@ const (
 	DiskESSD       Category = "cloud_essd"
 	DiskESSDAuto   Category = "cloud_auto"
 	DiskESSDEntry  Category = "cloud_essd_entry"
+	DiskRegional   Category = "cloud_auto_regional"
 
 	DiskPPerf            Category = "cloud_pperf"
 	DiskSPerf            Category = "cloud_sperf"
@@ -37,6 +38,7 @@ type CategoryDesc struct {
 	InstantAccessSnapshot bool
 	ProvisionedIops       bool
 	Bursting              bool
+	Regional              bool
 }
 
 var AllCategories = map[Category]CategoryDesc{
@@ -65,6 +67,11 @@ var AllCategories = map[Category]CategoryDesc{
 	},
 	DiskESSDEntry: {
 		Size: SizeRange{Min: 10, Max: 65536},
+	},
+	DiskRegional: {
+		Size:                  SizeRange{Min: 10, Max: 65536},
+		InstantAccessSnapshot: true,
+		Regional:              true,
 	},
 
 	// Deprecated shared disk
