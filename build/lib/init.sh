@@ -122,7 +122,7 @@ if [ "$SKIP_UPDATEDB_CONFIG" != "true" ]; then
 fi
 
 # skip installing csiplugin-connector when DISABLE_CSIPLUGIN_CONNECTOR=true
-if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && ([ "$run_oss" = "true" ] || [ "$run_disk" = "true" ] || [ "$run_nas" = "true" ]); then
+if [ "$DISABLE_CSIPLUGIN_CONNECTOR" != "true" ] && [ "$run_nas" = "true" ]; then
     ## install/update csi connector
     updateConnector="true"
 	systemdDir="/host/usr/lib/systemd/system"
