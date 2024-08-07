@@ -92,3 +92,21 @@ func (cs *ControllerServerWithValidator) ControllerExpandVolume(context context.
 	}
 	return cs.ControllerServer.ControllerExpandVolume(context, req)
 }
+
+type GenericControllerServer struct {
+	csi.UnimplementedControllerServer
+}
+
+func ControllerRPCCapabilities(capsRPC ...csi.ControllerServiceCapability_RPC_Type) []*csi.ControllerServiceCapability {
+	caps := make([]*csi.ControllerServiceCapability, 0, len(capsRPC))
+	for _, c := range capsRPC {
+		caps = append(caps, &csi.ControllerServiceCapability{
+			Type: &csi.ControllerServiceCapability_Rpc{
+				Rpc: &csi.ControllerServiceCapability_RPC{
+					Type: c,
+				},
+			},
+		})
+	}
+	return caps
+}

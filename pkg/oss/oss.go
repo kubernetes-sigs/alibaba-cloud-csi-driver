@@ -21,7 +21,6 @@ import (
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
@@ -42,7 +41,6 @@ const (
 
 // OSS the OSS object
 type OSS struct {
-	driver   *csicommon.CSIDriver
 	endpoint string
 
 	controllerServer csi.ControllerServer
@@ -60,25 +58,15 @@ func NewDriver(nodeID, endpoint string, m metadata.MetadataProvider, runAsContro
 		nodeID = utils.RetryGetMetaData(InstanceID)
 		log.Infof("Use node id : %s", nodeID)
 	}
-	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, nodeID)
-	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{
-		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
-	})
-	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
-		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
-		csi.ControllerServiceCapability_RPC_UNKNOWN,
-	})
 
-	d.driver = csiDriver
-
-	d.controllerServer = newControllerServer(d.driver)
+	d.controllerServer = newControllerServer()
 	if !runAsController {
-		d.nodeServer = newNodeServer(d.driver, m)
+		d.nodeServer = newNodeServer(nodeID, m)
 	}
 	return d
 }
 
-func newControllerServer(driver *csicommon.CSIDriver) csi.ControllerServer {
+func newControllerServer() csi.ControllerServer {
 	config, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
 		log.Fatalf("failed to build kubeconfig: %v", err)
@@ -94,15 +82,14 @@ func newControllerServer(driver *csicommon.CSIDriver) csi.ControllerServer {
 	}
 
 	c := &controllerServer{
-		client:                  clientset,
-		DefaultControllerServer: csicommon.NewDefaultControllerServer(driver),
-		crdClient:               crdClient,
+		client:    clientset,
+		crdClient: crdClient,
 	}
 	return c
 }
 
 // newNodeServer init oss type of csi nodeServer
-func newNodeServer(driver *csicommon.CSIDriver, m metadata.MetadataProvider) *nodeServer {
+func newNodeServer(nodeID string, m metadata.MetadataProvider) *nodeServer {
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	if nodeName == "" {
 		log.Fatal("env KUBE_NODE_NAME is empty")
@@ -128,17 +115,31 @@ func newNodeServer(driver *csicommon.CSIDriver, m metadata.MetadataProvider) *no
 	}
 
 	return &nodeServer{
-		DefaultNodeServer: csicommon.NewDefaultNodeServer(driver),
-		nodeName:          nodeName,
-		clientset:         clientset,
-		dynamicClient:     crdClient,
-		sharedPathLock:    utils.NewVolumeLocks(),
-		ossfsMounterFac:   mounter.NewContainerizedFuseMounterFactory(mounter.NewFuseOssfs(configmap, m), clientset, nodeName),
-		metadata:          m,
+		nodeName:        nodeName,
+		clientset:       clientset,
+		dynamicClient:   crdClient,
+		sharedPathLock:  utils.NewVolumeLocks(),
+		ossfsMounterFac: mounter.NewContainerizedFuseMounterFactory(mounter.NewFuseOssfs(configmap, m), clientset, nodeName),
+		metadata:        m,
+		GenericNodeServer: common.GenericNodeServer{
+			NodeID: nodeID,
+		},
+	}
+}
+
+type identityServer struct {
+	common.GenericIdentityServer
+}
+
+func newIdentityServer() *identityServer {
+	return &identityServer{
+		GenericIdentityServer: common.GenericIdentityServer{
+			Name: driverName,
+		},
 	}
 }
 
 // Run start a newNodeServer
 func (d *OSS) Run() {
-	common.RunCSIServer(d.endpoint, csicommon.NewDefaultIdentityServer(d.driver), d.controllerServer, d.nodeServer)
+	common.RunCSIServer(d.endpoint, newIdentityServer(), d.controllerServer, d.nodeServer)
 }

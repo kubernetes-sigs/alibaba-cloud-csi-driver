@@ -31,8 +31,8 @@ import (
 	"syscall"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/rund/directvolume"
@@ -52,13 +52,12 @@ import (
 
 type nodeServer struct {
 	metadata     metadata.MetadataProvider
-	nodeID       string
 	mounter      utils.Mounter
 	kataBMIOType MachineType
 	k8smounter   k8smount.Interface
 	podCGroup    *utils.PodCGroup
 	clientSet    *kubernetes.Clientset
-	*csicommon.DefaultNodeServer
+	common.GenericNodeServer
 }
 
 const (
@@ -166,7 +165,7 @@ func parseVolumeCountEnv() (int, error) {
 }
 
 // NewNodeServer creates node server
-func NewNodeServer(d *csicommon.CSIDriver, m metadata.MetadataProvider) csi.NodeServer {
+func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 	// Create Directory
 	os.MkdirAll(VolumeDir, os.FileMode(0755))
 	os.MkdirAll(VolumeDirRemove, os.FileMode(0755))
@@ -197,14 +196,15 @@ func NewNodeServer(d *csicommon.CSIDriver, m metadata.MetadataProvider) csi.Node
 	}
 
 	return &nodeServer{
-		metadata:          m,
-		nodeID:            GlobalConfigVar.NodeID,
-		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
-		mounter:           utils.NewMounter(),
-		kataBMIOType:      kataBMIOType,
-		k8smounter:        k8smount.New(""),
-		podCGroup:         podCgroup,
-		clientSet:         GlobalConfigVar.ClientSet,
+		metadata:     m,
+		mounter:      utils.NewMounter(),
+		kataBMIOType: kataBMIOType,
+		k8smounter:   k8smount.New(""),
+		podCGroup:    podCgroup,
+		clientSet:    GlobalConfigVar.ClientSet,
+		GenericNodeServer: common.GenericNodeServer{
+			NodeID: GlobalConfigVar.NodeID,
+		},
 	}
 }
 
@@ -584,7 +584,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			}
 		}
 	} else {
-		device, err = attachDisk(ctx, req.VolumeContext[TenantUserUID], req.GetVolumeId(), ns.nodeID, isSharedDisk)
+		device, err = attachDisk(ctx, req.VolumeContext[TenantUserUID], req.GetVolumeId(), ns.NodeID, isSharedDisk)
 		if err != nil {
 			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
 			log.Errorf("NodeStageVolume: Attach volume: %s with error: %s", req.VolumeId, fullErrorMessage)
@@ -603,7 +603,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		log.Errorf("NodeStageVolume: saveVolumeConfig %s for volume %s with error: %s", device, req.VolumeId, err.Error())
 		return nil, status.Error(defaultErrCode, "NodeStageVolume: saveVolumeConfig for ("+req.VolumeId+device+") error with: "+err.Error())
 	}
-	log.Infof("NodeStageVolume: Volume Successful Attached: %s, to Node: %s, Device: %s", req.VolumeId, ns.nodeID, device)
+	log.Infof("NodeStageVolume: Volume Successful Attached: %s, to Node: %s, Device: %s", req.VolumeId, ns.NodeID, device)
 
 	// sysConfig
 	if value, ok := req.VolumeContext[SysConfigTag]; ok {
@@ -818,7 +818,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		err = detachDisk(ctx, ecsClient, req.VolumeId, ns.nodeID)
+		err = detachDisk(ctx, ecsClient, req.VolumeId, ns.NodeID)
 		if err != nil {
 			log.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
 			return nil, err
@@ -880,7 +880,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	}
 
 	return &csi.NodeGetInfoResponse{
-		NodeId:            ns.nodeID,
+		NodeId:            ns.NodeID,
 		MaxVolumesPerNode: int64(maxVolumesNum),
 		// make sure that the driver works on this particular zone only
 		AccessibleTopology: &csi.Topology{
@@ -992,12 +992,6 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	return &csi.NodeExpandVolumeResponse{
 		CapacityBytes: deviceCapacity,
 	}, nil
-}
-
-// NodeGetVolumeStats used for csi metrics
-func (ns *nodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	targetPath := req.GetVolumePath()
-	return utils.GetMetrics(targetPath)
 }
 
 // umount path and not remove

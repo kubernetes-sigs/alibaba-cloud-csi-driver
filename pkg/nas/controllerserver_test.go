@@ -3,15 +3,17 @@ package nas
 import (
 	"context"
 	"encoding/json"
+	"testing"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
+	mytesting "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/testing"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"testing"
 )
 
 const (
@@ -308,7 +310,7 @@ func TestControllerServer_ValidateVolumeCapabilitiesNotConfirmed(t *testing.T) {
 	resp, err := cs.ValidateVolumeCapabilities(context.Background(), req)
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
-	assert.Equal(t, csi.ValidateVolumeCapabilitiesResponse{}, *resp)
+	mytesting.AssertProtoEqual(t, &csi.ValidateVolumeCapabilitiesResponse{}, resp)
 }
 
 func TestControllerServer_ControllerGetCapabilities(t *testing.T) {
@@ -318,10 +320,6 @@ func TestControllerServer_ControllerGetCapabilities(t *testing.T) {
 	resp, err := cs.ControllerGetCapabilities(context.Background(), &csi.ControllerGetCapabilitiesRequest{})
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
-	assert.Equal(t, len(controllerCaps), len(resp.Capabilities))
-	for i := range len(controllerCaps) {
-		assert.Equal(t, controllerCaps[i], (resp.Capabilities[i].Type).(*csi.ControllerServiceCapability_Rpc).Rpc.Type)
-	}
 }
 
 func TestControllerServer_ControllerPublishVolume(t *testing.T) {

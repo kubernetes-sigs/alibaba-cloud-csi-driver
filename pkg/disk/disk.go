@@ -24,7 +24,6 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
@@ -50,7 +49,6 @@ const (
 
 // DISK the DISK object
 type DISK struct {
-	driver           *csicommon.CSIDriver
 	endpoint         string
 	idServer         csi.IdentityServer
 	nodeServer       csi.NodeServer
@@ -105,17 +103,6 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 	// Config Global vars
 	cfg := GlobalConfigSet(m)
 
-	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, GlobalConfigVar.NodeID)
-	tmpdisk.driver = csiDriver
-	tmpdisk.driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
-		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
-		csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
-		csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
-		csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
-		csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
-	})
-	tmpdisk.driver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER})
-
 	// Init ECS Client
 	accessControl := utils.GetAccessControl()
 	client := newEcsClient(accessControl)
@@ -132,11 +119,11 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 	}
 
 	// Create GRPC servers
-	tmpdisk.idServer = NewIdentityServer(tmpdisk.driver)
-	tmpdisk.controllerServer = NewControllerServer(tmpdisk.driver, apiExtentionClient)
+	tmpdisk.idServer = NewIdentityServer()
+	tmpdisk.controllerServer = NewControllerServer(apiExtentionClient)
 
 	if !runAsController {
-		tmpdisk.nodeServer = NewNodeServer(tmpdisk.driver, m)
+		tmpdisk.nodeServer = NewNodeServer(m)
 	}
 
 	return tmpdisk

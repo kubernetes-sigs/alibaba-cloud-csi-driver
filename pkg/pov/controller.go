@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/pov/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
@@ -42,21 +43,15 @@ const (
 // volumeCaps represents how the volume could be accessed.
 // It is SINGLE_NODE_WRITER since EBS volume could only be
 // attached to a single node at any given time.
-var volumeCaps = []csi.VolumeCapability_AccessMode{
-	{
-		Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
-	},
-}
-
-var controllerCaps = []csi.ControllerServiceCapability_RPC_Type{
-	csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
-	csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+var volumeCaps = []csi.VolumeCapability_AccessMode_Mode{
+	csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
 }
 
 type controllerService struct {
 	attachDescribeTimes int
 	cloud               Cloud
 	inFlight            *internal.InFlight
+	common.GenericControllerServer
 }
 
 func newControllerService() controllerService {
@@ -72,7 +67,7 @@ func newControllerService() controllerService {
 }
 
 func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	log.Infof("CreateVolume: called args: %+v", *req)
+	log.Infof("CreateVolume: called args: %+v", req)
 	if err := validateCreateVolumeRequest(req); err != nil {
 		return nil, err
 	}
@@ -203,7 +198,7 @@ func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
 func isValidVolumeCapabilities(volCaps []*csi.VolumeCapability) bool {
 	hasSupport := func(cap *csi.VolumeCapability) bool {
 		for _, c := range volumeCaps {
-			if c.GetMode() == cap.AccessMode.GetMode() {
+			if c == cap.AccessMode.GetMode() {
 				return true
 			}
 		}
@@ -257,18 +252,12 @@ func newCreateVolumeResponse(mpId string, blockSize int64, params map[string]str
 }
 
 func (d *controllerService) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
-	var caps []*csi.ControllerServiceCapability
-	for _, cap := range controllerCaps {
-		c := &csi.ControllerServiceCapability{
-			Type: &csi.ControllerServiceCapability_Rpc{
-				Rpc: &csi.ControllerServiceCapability_RPC{
-					Type: cap,
-				},
-			},
-		}
-		caps = append(caps, c)
-	}
-	return &csi.ControllerGetCapabilitiesResponse{Capabilities: caps}, nil
+	return &csi.ControllerGetCapabilitiesResponse{
+		Capabilities: common.ControllerRPCCapabilities(
+			csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+			csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
+		),
+	}, nil
 }
 
 func (d *controllerService) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {

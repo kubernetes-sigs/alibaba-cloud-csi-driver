@@ -47,11 +47,8 @@ import (
 	"golang.org/x/sys/unix"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 )
-
-func init() {
-	flag.Set("logtostderr", "true")
-}
 
 const (
 	// TypePluginSuffix is the suffix of all storage plugins.
@@ -96,6 +93,7 @@ type globalMetricConfig struct {
 func main() {
 	flag.Var(features.FunctionalMutableFeatureGate, "feature-gates", "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
 		"Options are:\n"+strings.Join(features.FunctionalMutableFeatureGate.KnownFeatures(), "\n"))
+	klog.InitFlags(nil)
 	flag.Parse()
 	serviceType := os.Getenv(utils.ServiceType)
 
@@ -210,7 +208,7 @@ func main() {
 		case TypePluginPOV:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := pov.NewDriver(meta, *nodeID, endPoint, *runAsController)
+				driver := pov.NewDriver(meta, endPoint, *runAsController)
 				driver.Run()
 			}(endPointName)
 		default:
