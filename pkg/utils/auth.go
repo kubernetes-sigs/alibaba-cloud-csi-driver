@@ -41,29 +41,8 @@ const (
 	// ConfigPath the secret mount file
 	ConfigPath = "/var/addon/token-config"
 
-	addonTokenExpirationFormat = "2006-01-02T15:04:05Z"
-	addonTokenExpirationScale  = 0.9
+	addonTokenExpirationScale = 0.9
 )
-
-// AKInfo access key info
-type AKInfo struct {
-	// AccessKeyId access key id
-	AccessKeyID string `json:"access.key.id"`
-	// AccessKeySecret access key secret
-	AccessKeySecret string `json:"access.key.secret"`
-	// SecurityToken security token
-	SecurityToken string `json:"security.token"`
-	// Expiration expiration duration
-	Expiration string `json:"expiration"`
-	// Keyring key ring
-	Keyring string `json:"keyring"`
-	// RoleAccessKeyId key
-	RoleAccessKeyID string `json:"role.access.key.id"`
-	// RoleAccessKeySecret key
-	RoleAccessKeySecret string `json:"role.access.key.secret"`
-	// RoleArn key
-	RoleArn string `json:"role.arn"`
-}
 
 // ManageTokens 定义资源账号 和 角色扮演账号
 type ManageTokens struct {
@@ -332,24 +311,14 @@ func getStsToken() AccessControl {
 
 // GetManagedToken get ak from csi secret
 func getManagedToken() (tokens ManageTokens) {
-	var akInfo crypto.RamToken
-	if _, err := os.Stat(ConfigPath); err == nil {
-		encodeTokenCfg, err := os.ReadFile(ConfigPath)
-		if err != nil {
-			log.Errorf("failed to read token config, err: %v", err)
-			return ManageTokens{}
-		}
-		err = json.Unmarshal(encodeTokenCfg, &akInfo)
-		if err != nil {
-			log.Errorf("failed to unmarshal token config: %v", err)
-			return ManageTokens{}
-		}
-		newToken, err := crypto.RamTokenDecrypt(&akInfo)
+	if f, err := os.Open(ConfigPath); err == nil {
+		defer f.Close()
+		newToken, err := crypto.RamTokenParse(f)
 		if err != nil {
 			log.Errorf("failed to decrypt new token: %v", err)
 			return ManageTokens{}
 		}
-		expireAt, err := time.Parse("2006-01-02T15:04:05Z", newToken.Expiration)
+		expireAt, err := time.Parse(time.RFC3339, newToken.Expiration)
 		if err != nil {
 			log.Errorf("failed to parse expiration: %q: %v", newToken.Expiration, err)
 			return ManageTokens{}
@@ -358,6 +327,9 @@ func getManagedToken() (tokens ManageTokens) {
 		tokens.AccessKeySecret = newToken.AccessKeySecret
 		tokens.SecurityToken = newToken.SecurityToken
 		tokens.ExpireAt = expireAt
+		tokens.RoleAccessKeyID = newToken.RoleAccessKeyID
+		tokens.RoleAccessKeySecret = newToken.RoleAccessKeySecret
+		tokens.RoleArn = newToken.RoleArn
 	}
 	return tokens
 }
