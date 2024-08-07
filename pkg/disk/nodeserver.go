@@ -33,6 +33,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/rund/directvolume"
 	log "github.com/sirupsen/logrus"
@@ -57,7 +58,7 @@ type nodeServer struct {
 	k8smounter   k8smount.Interface
 	podCGroup    *utils.PodCGroup
 	clientSet    *kubernetes.Clientset
-	*csicommon.DefaultNodeServer
+	common.GenericNodeServer
 }
 
 const (
@@ -196,14 +197,16 @@ func NewNodeServer(d *csicommon.CSIDriver, m metadata.MetadataProvider) csi.Node
 	}
 
 	return &nodeServer{
-		metadata:          m,
-		nodeID:            GlobalConfigVar.NodeID,
-		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
-		mounter:           utils.NewMounter(),
-		kataBMIOType:      kataBMIOType,
-		k8smounter:        k8smount.New(""),
-		podCGroup:         podCgroup,
-		clientSet:         GlobalConfigVar.ClientSet,
+		metadata:     m,
+		nodeID:       GlobalConfigVar.NodeID,
+		mounter:      utils.NewMounter(),
+		kataBMIOType: kataBMIOType,
+		k8smounter:   k8smount.New(""),
+		podCGroup:    podCgroup,
+		clientSet:    GlobalConfigVar.ClientSet,
+		GenericNodeServer: common.GenericNodeServer{
+			NodeId: GlobalConfigVar.NodeID,
+		},
 	}
 }
 
@@ -545,53 +548,27 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 
 	device := ""
-	isSharedDisk := false
-	if value, ok := req.VolumeContext[SharedEnable]; ok {
-		value = strings.ToLower(value)
-		if checkOption(value) {
-			isSharedDisk = true
-		}
-	}
-	isMultiAttach := false
-	if value, ok := req.VolumeContext[MultiAttach]; ok {
-		value = strings.ToLower(value)
-		if checkOption(value) {
-			isMultiAttach = true
-		}
-	}
-
-	// Step 4 Attach volume
 	defaultErrCode := codes.Internal
-	if GlobalConfigVar.ADControllerEnable || isMultiAttach {
-		device, err = DefaultDeviceManager.GetDeviceByVolumeID(req.GetVolumeId())
-		if err != nil {
-			if IsVFNode() {
-				bdf, err := bindBdfDisk(req.GetVolumeId())
-				if err != nil {
-					if err := unbindBdfDisk(req.GetVolumeId()); err != nil {
-						return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to detach bdf disk: %v", err)
-					}
-					return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf disk: %v", err)
+
+	// Step 4 Get device
+	device, err = DefaultDeviceManager.GetDeviceByVolumeID(req.GetVolumeId())
+	if err != nil {
+		if IsVFNode() {
+			bdf, err := bindBdfDisk(req.GetVolumeId())
+			if err != nil {
+				if err := unbindBdfDisk(req.GetVolumeId()); err != nil {
+					return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to detach bdf disk: %v", err)
 				}
-				// devicePaths, err = GetDeviceByVolumeID(req.GetVolumeId())
-				if bdf != "" {
-					device, err = GetDeviceByBdf(bdf, true)
-				}
-				log.Infof("NodeStageVolume: enabled bdf mode, device: %s, bdf: %s", device, bdf)
-			} else {
-				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: ADController Enabled, but disk %s can't be found: %s", req.VolumeId, err.Error())
+				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf disk: %v", err)
 			}
+			// devicePaths, err = GetDeviceByVolumeID(req.GetVolumeId())
+			if bdf != "" {
+				device, err = GetDeviceByBdf(bdf, true)
+			}
+			log.Infof("NodeStageVolume: enabled bdf mode, device: %s, bdf: %s", device, bdf)
+		} else {
+			return nil, status.Errorf(codes.Aborted, "NodeStageVolume: disk %s can't be found: %s", req.VolumeId, err.Error())
 		}
-	} else {
-		device, err = attachDisk(ctx, req.VolumeContext[TenantUserUID], req.GetVolumeId(), ns.nodeID, isSharedDisk)
-		if err != nil {
-			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
-			log.Errorf("NodeStageVolume: Attach volume: %s with error: %s", req.VolumeId, fullErrorMessage)
-			return nil, status.Errorf(codes.Aborted, "NodeStageVolume: Attach volume: %s with error: %+v", req.VolumeId, err)
-		}
-		// Now we have attached the disk, if we fail later, NodeStageVolume is in-progress.
-		// Return Aborted so that the CO will call NodeUnstageVolume later to detach.
-		defaultErrCode = codes.Aborted
 	}
 
 	if err := CheckDeviceAvailable(device, req.VolumeId, targetPath); err != nil {
@@ -602,6 +579,9 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		log.Errorf("NodeStageVolume: saveVolumeConfig %s for volume %s with error: %s", device, req.VolumeId, err.Error())
 		return nil, status.Error(defaultErrCode, "NodeStageVolume: saveVolumeConfig for ("+req.VolumeId+device+") error with: "+err.Error())
 	}
+	// Now we have persisted volume config, if we fail later, NodeStageVolume is in-progress.
+	// Return Aborted so that the CO will call NodeUnstageVolume later to detach.
+	defaultErrCode = codes.Aborted
 	log.Infof("NodeStageVolume: Volume Successful Attached: %s, to Node: %s, Device: %s", req.VolumeId, ns.nodeID, device)
 
 	// sysConfig
@@ -806,24 +786,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		log.Errorf("NodeUnstageVolume: addDiskXattr %s failed: %v", req.VolumeId, err)
 	}
 
-	// Do detach if ADController disable
-	if !GlobalConfigVar.ADControllerEnable {
-		// if DetachDisabled is set to true, return
-		if GlobalConfigVar.DetachDisabled {
-			log.Infof("NodeUnstageVolume: ADController is Disable, Detach Flag Set to false, PV %s", req.VolumeId)
-			return &csi.NodeUnstageVolumeResponse{}, nil
-		}
-		ecsClient, err := getEcsClientByID(req.VolumeId, "")
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		err = detachDisk(ctx, ecsClient, req.VolumeId, ns.nodeID)
-		if err != nil {
-			log.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
-			return nil, err
-		}
-		removeVolumeConfig(req.VolumeId)
-	}
+	removeVolumeConfig(req.VolumeId)
 
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
@@ -991,12 +954,6 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	return &csi.NodeExpandVolumeResponse{
 		CapacityBytes: deviceCapacity,
 	}, nil
-}
-
-// NodeGetVolumeStats used for csi metrics
-func (ns *nodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	targetPath := req.GetVolumePath()
-	return utils.GetMetrics(targetPath)
 }
 
 // umount path and not remove
