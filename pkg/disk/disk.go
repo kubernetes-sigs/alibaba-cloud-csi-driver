@@ -43,9 +43,11 @@ import (
 
 // PluginFolder defines the location of diskplugin
 const (
-	driverName              = "diskplugin.csi.alibabacloud.com"
-	TopologyZoneKey         = "topology." + driverName + "/zone"
-	TopologyMultiZonePrefix = TopologyZoneKey + "-"
+	driverName                = "diskplugin.csi.alibabacloud.com"
+	TopologyZoneKey           = "topology." + driverName + "/zone"
+	TopologyMultiZonePrefix   = TopologyZoneKey + "-"
+	TopologyDiskTypePrefix    = "node.csi.alibabacloud.com/disktype."
+	TopologyDiskTypeAvailable = "available"
 )
 
 // DISK the DISK object
