@@ -41,14 +41,22 @@ echo "detected host os: $host_os"
 ARCH=$(uname -m)
 echo "detected host arch: $ARCH"
 
+cleanup_old_staging_path() (
+    echo cleaning up old volume staging path.  # kubelet will mount the new path at startup.
+    cd "$OLD_STAGING_PATH" || return 1
+    for i in *; do
+        echo "$i"
+        umount "$i/globalmount"
+        rmdir "$i/globalmount"
+        rm -f "$i/vol_data.json"
+        rmdir "$i"
+    done
+)
+
 OLD_STAGING_PATH=${KUBELET_ROOT_DIR}/plugins/kubernetes.io/csi/pv
 if [ -d "$OLD_STAGING_PATH" ]; then
-    echo unmount old volume staging path.  # kubelet will mount the new path at startup.
-    echo "$OLD_STAGING_PATH"/*/globalmount
-    umount "$OLD_STAGING_PATH"/*/globalmount
-    rmdir "$OLD_STAGING_PATH"/*/globalmount
-    rmdir "$OLD_STAGING_PATH"/*/
-    rmdir "$OLD_STAGING_PATH"
+    cleanup_old_staging_path
+    rmdir "$OLD_STAGING_PATH" && echo "removed $OLD_STAGING_PATH, finished cleanup."
 fi
 
 ## check which plugin is running
