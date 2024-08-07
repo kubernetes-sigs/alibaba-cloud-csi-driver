@@ -34,6 +34,7 @@ import (
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/rund/directvolume"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -847,7 +848,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 
 	c := updateEcsClient(GlobalConfigVar.EcsClient)
 	if maxVolumesNum == 0 {
-		maxVolumesNum, err = getVolumeCountFromOpenAPI(getNode, c, ns.metadata, DefaultDeviceManager)
+		maxVolumesNum, err = getVolumeCountFromOpenAPI(getNode, c, ns.metadata, utilsio.RealDevTmpFS{})
 	} else {
 		node, err = getNode()
 	}

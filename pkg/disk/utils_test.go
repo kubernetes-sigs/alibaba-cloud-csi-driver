@@ -20,6 +20,7 @@ import (
 	"errors"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
@@ -263,6 +264,24 @@ const DescribeDisksResponse = `{
 	}
 }`
 
+type MockDisks struct {
+	disks []string
+	base  string
+}
+
+func (m *MockDisks) ListDisks() ([]string, error) {
+	return m.disks, nil
+}
+
+func (m *MockDisks) AddDisk(t testing.TB, path string, diskID []byte) {
+	p := filepath.Join(m.base, path)
+	m.disks = append(m.disks, p)
+	assert.NoError(t, os.WriteFile(p, []byte{}, 0644))
+	if diskID != nil {
+		assert.NoError(t, unix.Setxattr(p, DiskXattrName, diskID, 0))
+	}
+}
+
 func TestGetVolumeCountFromOpenAPI(t *testing.T) {
 	orgiDiskXattrName := DiskXattrName
 	DiskXattrName = "user.testing-csi-managed-disk"
@@ -281,26 +300,18 @@ func TestGetVolumeCountFromOpenAPI(t *testing.T) {
 	cloud.UnmarshalAcsResponse([]byte(DescribeInstanceTypesResponse), describeInstanceTypesResponse)
 	c.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(describeInstanceTypesResponse, nil)
 
-	dev := testingManager(t)
+	dev := MockDisks{base: t.TempDir() + "/dev"}
+	assert.NoError(t, os.MkdirAll(dev.base, 0755))
+
 	// add xattr to CSI attached disk
-	err := os.WriteFile(dev.DevicePath+"/node-for-testingdetachingdisk", []byte{}, 0o644)
-	assert.NoError(t, err)
-	err = unix.Setxattr(dev.DevicePath+"/node-for-testingdetachingdisk", DiskXattrName, []byte("d-testingdetachingdisk"), 0)
-	assert.NoError(t, err)
+	dev.AddDisk(t, "node-for-testingdetachingdisk", []byte("d-testingdetachingdisk"))
 	// manually attached disk has no xattr
-	err = os.WriteFile(dev.DevicePath+"/node-for-2zeh74nnxxrobxz49eug", []byte{}, 0o644)
-	assert.NoError(t, err)
-	// we should ignore dir
-	err = os.Mkdir(dev.DevicePath+"/disk", 0o755)
-	assert.NoError(t, err)
+	dev.AddDisk(t, "node-for-2zeh74nnxxrobxz49eug", nil)
 	// an arbirary error for getxattr, we should ignore it
-	err = os.WriteFile(dev.DevicePath+"/node-for-testinglocaldisk", []byte{}, 0o644)
-	assert.NoError(t, err)
-	err = unix.Setxattr(dev.DevicePath+"/node-for-testinglocaldisk", DiskXattrName, []byte("d-some-very-looooog-value-that-cause-getxattr-to-fail"), 0)
-	assert.NoError(t, err)
+	dev.AddDisk(t, "node-for-testinglocaldisk", []byte("d-some-very-looooog-value-that-cause-getxattr-to-fail"))
 
 	getNode := func() (*corev1.Node, error) { return testNode(), nil }
-	count, err := getVolumeCountFromOpenAPI(getNode, c, testMetadata, dev)
+	count, err := getVolumeCountFromOpenAPI(getNode, c, testMetadata, &dev)
 	assert.NoError(t, err)
 	assert.Equal(t, 7, count) // 7 = 9 available disks - 1 system disk (d-2ze49fivxwkwxl36o1d3) - 1 manually attached (d-2zeh74nnxxrobxz49eug)
 }
