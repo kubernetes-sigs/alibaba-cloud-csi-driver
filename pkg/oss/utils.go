@@ -83,7 +83,7 @@ func checkRRSAParams(opt *Options) error {
 
 // getRRSAConfig get oidcProviderArn and roleArn
 func getRRSAConfig(opt *Options, m metadata.MetadataProvider) (rrsaCfg *mounter.RrsaConfig, err error) {
-	saName := fuseServieAccountName
+	saName := fuseServiceAccountName
 	if opt.ServiceAccountName != "" {
 		saName = opt.ServiceAccountName
 	}

@@ -70,3 +70,19 @@ func Test_extractFuseContainerConfig(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func Test_checkServiceAccountName(t *testing.T) {
+	mounter := &ContainerizedFuseMounter{}
+
+	// Test case 1: service account name starts with "csi-fuse-"
+	err := mounter.checkServiceAccountName("csi-fuse-test")
+	if err != nil {
+		t.Errorf("checkServiceAccountName() with name csi-fuse-test should not return error, got %v", err)
+	}
+
+	// Test case 2: service account name does not start with "csi-fuse-"
+	err = mounter.checkServiceAccountName("test-account")
+	if err == nil {
+		t.Errorf("checkServiceAccountName() with name test-account should return error")
+	}
+}
