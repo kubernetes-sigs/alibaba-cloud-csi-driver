@@ -16,21 +16,11 @@ limitations under the License.
 package oss
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/stretchr/testify/assert"
 )
-
-func isErrorType(err, errorType error) bool {
-	if err == nil && errorType == nil {
-		return true
-	}
-	if err == nil || errorType == nil {
-		return false
-	}
-	return strings.HasPrefix(err.Error(), errorType.Error())
-}
 
 func Test_checkOssOptions(t *testing.T) {
 	tests := []struct {
@@ -192,9 +182,7 @@ func Test_checkOssOptions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := checkOssOptions(tt.opts)
-			if !isErrorType(err, tt.errType) {
-				t.Errorf("checkOssOptions() error = %v, wantErrType %v", err, tt.errType)
-			}
+			assert.ErrorIs(t, err, tt.errType)
 		})
 	}
 }

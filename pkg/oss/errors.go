@@ -5,11 +5,11 @@ import (
 	"fmt"
 )
 
-var ParamError = errors.New("Oss parameters error")
-var AuthError = errors.New("Oss authorization error")
-var EncryptError = errors.New("Oss encrypted error")
-var PathError = errors.New("Oss path error")
+var ParamError = errors.New("OSS parameters error")
+var AuthError = errors.New("OSS authorization error")
+var EncryptError = errors.New("OSS encrypted error")
+var PathError = errors.New("OSS path error")
 
-func WrapOssError(errType error, message string) error {
-	return fmt.Errorf("%w: %s", errType, message)
+func WrapOssError(errType error, format string, args ...interface{}) error {
+	return fmt.Errorf("%w: %s", errType, fmt.Sprintf(format, args...))
 }

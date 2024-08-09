@@ -18,7 +18,6 @@ package oss
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -170,7 +169,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if res, err := strconv.ParseBool(value); err == nil {
 				opt.UseSharedPath = res
 			} else {
-				log.Warnf("Oss parameters error: the value(%q) of %q is invalid", v, k)
+				log.Warn(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
 			}
 		case "authtype":
 			opt.AuthType = strings.ToLower(value)
@@ -194,7 +193,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if res, err := strconv.ParseBool(value); err == nil {
 				opt.directAssigned = res
 			} else {
-				log.Warnf("Oss parameters error: the value(%q) of %q is invalid", v, k)
+				log.Warn(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
 			}
 		case "encrypted":
 			opt.Encrypted = strings.ToLower(value)
@@ -205,7 +204,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		case "externalid":
 			opt.ExternalId = value
 		default:
-			log.Warnf("Oss parameters error: the key(%q) is unknown", k)
+			log.Warn(WrapOssError(ParamError, "the key(%q) is unknown", k).Error())
 		}
 	}
 
@@ -226,7 +225,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, err
 		}
 		if cnfs.Status.FsAttributes.EndPoint == nil {
-			return nil, errors.New("Cnfs " + cnfsName + " is not ready, endpoint is empty.")
+			return nil, fmt.Errorf("Cnfs: %s is not ready, endpoint is empty.", cnfsName)
 		}
 		opt.Bucket = cnfs.Status.FsAttributes.BucketName
 		opt.URL = cnfs.Status.FsAttributes.EndPoint.Internal
@@ -235,12 +234,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// check parameters
 	if err := checkOssOptions(opt); err != nil {
 		log.Errorf("Check oss input error: %s", err.Error())
-		return nil, errors.New("Check oss input error: " + err.Error())
+		return nil, fmt.Errorf("Check oss input error: %v", err)
 	}
 
 	argStr := fmt.Sprintf("Bucket: %s, url: %s, OtherOpts: %s, Path: %s, UseSharedPath: %s, authType: %s, encrypted: %s, kmsid: %s",
 		opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType, opt.Encrypted, opt.KmsKeyId)
-	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
+	log.Infof("NodePublishVolume:: Starting OSS Mount: %s", argStr)
 
 	if opt.directAssigned {
 		return ns.publishDirectVolume(ctx, req, opt)
@@ -257,7 +256,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if opt.AuthType == mounter.AuthTypeRRSA {
 			rrsaCfg, err = getRRSAConfig(opt, ns.metadata)
 			if err != nil {
-				return nil, errors.New("Get RoleArn and OidcProviderArn for RRSA error: " + err.Error())
+				return nil, fmt.Errorf("Get RoleArn and OidcProviderArn for RRSA error: %v", err)
 			}
 		}
 		authCfg := &mounter.AuthConfig{AuthType: opt.AuthType, RrsaConfig: rrsaCfg, SecretProviderClassName: opt.SecretProviderClass, SecretRef: opt.SecretRef}
@@ -394,7 +393,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		log.Infof("NodePublishVolume:: Start mount operation from source [%s] to dest [%s]", sharedPath, mountPath)
 		if err := ossMounter.Mount(sharedPath, mountPath, "", []string{"bind"}); err != nil {
 			log.Errorf("Ossfs mount error: %v", err.Error())
-			return nil, errors.New("Create oss volume fail: " + err.Error())
+			return nil, fmt.Errorf("Create oss volume fail: %v", err)
 		}
 	} else {
 		if opt.FuseType == OssFsType {
@@ -416,7 +415,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 // Check oss options
 func checkOssOptions(opt *Options) error {
 	if opt.URL == "" || opt.Bucket == "" {
-		return WrapOssError(ParamError, "Oss parameters error: Url/Bucket empty")
+		return WrapOssError(ParamError, "Url/Bucket empty")
 	}
 
 	if !strings.HasPrefix(opt.Path, "/") {

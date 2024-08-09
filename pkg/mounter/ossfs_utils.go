@@ -49,7 +49,6 @@ func getPasswdSecretVolume(secretRef, nodeName, volumeId string) (secret *corev1
 		secret = &corev1.SecretVolumeSource{
 			SecretName: secretRef,
 			Items:      items,
-			Optional:   tea.Bool(true),
 		}
 	}
 	return
