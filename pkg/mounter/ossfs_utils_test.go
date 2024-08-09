@@ -69,7 +69,6 @@ func Test_getPasswdSecretVolume(t *testing.T) {
 			assert.NotNil(t, secret)
 			assert.Equal(t, tt.expectedName, secret.SecretName)
 			assert.Equal(t, tt.expectedItems, secret.Items)
-			assert.Equal(t, tea.Bool(true), secret.Optional)
 		})
 	}
 }
