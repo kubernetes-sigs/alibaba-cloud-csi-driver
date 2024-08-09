@@ -18,7 +18,6 @@ package oss
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -61,8 +60,9 @@ type Options struct {
 
 	// authorization options
 	// accesskey
-	AkID     string `json:"akId"`
-	AkSecret string `json:"akSecret"`
+	AkID      string `json:"akId"`
+	AkSecret  string `json:"akSecret"`
+	SecretRef string `json:"secretRef"`
 	// RRSA
 	RoleName           string `json:"roleName"` // also for STS
 	RoleArn            string `json:"roleArn"`
@@ -161,13 +161,15 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opt.AkID = value
 		case "aksecret":
 			opt.AkSecret = value
+		case "secretref":
+			opt.SecretRef = value
 		case "path":
 			opt.Path = value
 		case "usesharedpath":
 			if res, err := strconv.ParseBool(value); err == nil {
 				opt.UseSharedPath = res
 			} else {
-				log.Warnf("Oss parameters error: the value(%q) of %q is invalid", v, k)
+				log.Warn(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
 			}
 		case "authtype":
 			opt.AuthType = strings.ToLower(value)
@@ -191,7 +193,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			if res, err := strconv.ParseBool(value); err == nil {
 				opt.directAssigned = res
 			} else {
-				log.Warnf("Oss parameters error: the value(%q) of %q is invalid", v, k)
+				log.Warn(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
 			}
 		case "encrypted":
 			opt.Encrypted = strings.ToLower(value)
@@ -202,7 +204,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		case "externalid":
 			opt.ExternalId = value
 		default:
-			log.Warnf("Oss parameters error: the key(%q) is unknown", k)
+			log.Warn(WrapOssError(ParamError, "the key(%q) is unknown", k).Error())
 		}
 	}
 
@@ -223,7 +225,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			return nil, err
 		}
 		if cnfs.Status.FsAttributes.EndPoint == nil {
-			return nil, errors.New("Cnfs " + cnfsName + " is not ready, endpoint is empty.")
+			return nil, fmt.Errorf("Cnfs: %s is not ready, endpoint is empty.", cnfsName)
 		}
 		opt.Bucket = cnfs.Status.FsAttributes.BucketName
 		opt.URL = cnfs.Status.FsAttributes.EndPoint.Internal
@@ -232,12 +234,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// check parameters
 	if err := checkOssOptions(opt); err != nil {
 		log.Errorf("Check oss input error: %s", err.Error())
-		return nil, errors.New("Check oss input error: " + err.Error())
+		return nil, fmt.Errorf("Check oss input error: %v", err)
 	}
 
 	argStr := fmt.Sprintf("Bucket: %s, url: %s, OtherOpts: %s, Path: %s, UseSharedPath: %s, authType: %s, encrypted: %s, kmsid: %s",
 		opt.Bucket, opt.URL, opt.OtherOpts, opt.Path, strconv.FormatBool(opt.UseSharedPath), opt.AuthType, opt.Encrypted, opt.KmsKeyId)
-	log.Infof("NodePublishVolume:: Starting Oss Mount: %s", argStr)
+	log.Infof("NodePublishVolume:: Starting OSS Mount: %s", argStr)
 
 	if opt.directAssigned {
 		return ns.publishDirectVolume(ctx, req, opt)
@@ -254,10 +256,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if opt.AuthType == mounter.AuthTypeRRSA {
 			rrsaCfg, err = getRRSAConfig(opt, ns.metadata)
 			if err != nil {
-				return nil, errors.New("Get RoleArn and OidcProviderArn for RRSA error: " + err.Error())
+				return nil, fmt.Errorf("Get RoleArn and OidcProviderArn for RRSA error: %v", err)
 			}
 		}
-		authCfg := &mounter.AuthConfig{AuthType: opt.AuthType, RrsaConfig: rrsaCfg, SecretProviderClassName: opt.SecretProviderClass}
+		authCfg := &mounter.AuthConfig{AuthType: opt.AuthType, RrsaConfig: rrsaCfg, SecretProviderClassName: opt.SecretProviderClass, SecretRef: opt.SecretRef}
 		ossMounter = ns.ossfsMounterFac.NewFuseMounter(ctx, req.VolumeId, authCfg, !opt.UseSharedPath)
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "unknown fuseType: %q", opt.FuseType)
@@ -305,9 +307,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	case mounter.AuthTypeCSS:
 	default:
 		// ossfs fuse pod will mount the secret to access credentials
-		err := mounter.SetupOssfsCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId, opt.Bucket, opt.AkID, opt.AkSecret)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to setup ossfs credential secret: %v", err)
+		if opt.SecretRef == "" {
+			err := mounter.SetupOssfsCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId, opt.Bucket, opt.AkID, opt.AkSecret)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "failed to setup ossfs credential secret: %v", err)
+			}
 		}
 	}
 
@@ -389,7 +393,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		log.Infof("NodePublishVolume:: Start mount operation from source [%s] to dest [%s]", sharedPath, mountPath)
 		if err := ossMounter.Mount(sharedPath, mountPath, "", []string{"bind"}); err != nil {
 			log.Errorf("Ossfs mount error: %v", err.Error())
-			return nil, errors.New("Create oss volume fail: " + err.Error())
+			return nil, fmt.Errorf("Create oss volume fail: %v", err)
 		}
 	} else {
 		if opt.FuseType == OssFsType {
@@ -411,41 +415,50 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 // Check oss options
 func checkOssOptions(opt *Options) error {
 	if opt.URL == "" || opt.Bucket == "" {
-		return errors.New("Oss parameters error: Url/Bucket empty")
+		return WrapOssError(ParamError, "Url/Bucket empty")
 	}
 
 	if !strings.HasPrefix(opt.Path, "/") {
-		return errors.New("Oss path error: start with " + opt.Path + ", should start with /")
+		return WrapOssError(PathError, "start with "+opt.Path+", should start with /")
 	}
 
 	switch opt.AuthType {
 	case mounter.AuthTypeSTS:
 	case mounter.AuthTypeRRSA:
 		if err := checkRRSAParams(opt); err != nil {
-			return err
+			return WrapOssError(AuthError, err.Error())
 		}
 	case mounter.AuthTypeCSS:
 		if opt.SecretProviderClass == "" {
-			return errors.New("Oss parameters error: use CsiSecretStore but secretProviderClass is empty")
+			return WrapOssError(AuthError, "use CsiSecretStore but secretProviderClass is empty")
 		}
 	default:
 		// if not input ak from user, use the default ak value
 		if opt.AkID == "" || opt.AkSecret == "" {
 			ac := utils.GetEnvAK()
-			opt.AkID = ac.AccessKeyID
-			opt.AkSecret = ac.AccessKeySecret
+			if ac.AccessKeyID != "" && ac.AccessKeySecret != "" {
+				opt.AkID = ac.AccessKeyID
+				opt.AkSecret = ac.AccessKeySecret
+			}
 		}
-		if opt.AkID == "" || opt.AkSecret == "" {
-			return errors.New("Oss parameters error: AK and authType are both empty or invalid")
+		if opt.SecretRef != "" {
+			if opt.AkID != "" || opt.AkSecret != "" {
+				return WrapOssError(AuthError, "AK and secretRef cannot be set at the same time")
+			}
+			if opt.SecretRef == mounter.OssfsCredentialSecretName {
+				return WrapOssError(ParamError, "invalid SecretRef")
+			}
+		} else if opt.AkID == "" || opt.AkSecret == "" {
+			return WrapOssError(AuthError, "AK and authType are both empty or invalid")
 		}
 	}
 
 	if opt.Encrypted != "" && opt.Encrypted != EncryptedTypeKms && opt.Encrypted != EncryptedTypeAes256 {
-		return errors.New("Oss encrypted error: invalid SSE encryted type")
+		return WrapOssError(EncryptError, "invalid SSE encryted type")
 	}
 
 	if opt.AssumeRoleArn != "" && opt.AuthType != mounter.AuthTypeRRSA {
-		return errors.New("Oss parameters error: only support access OSS through STS AssumeRole when authType is RRSA")
+		return WrapOssError(AuthError, "only support access OSS through STS AssumeRole when authType is RRSA")
 	}
 
 	return nil
@@ -498,6 +511,7 @@ func (ns *nodeServer) NodeUnstageVolume(
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", mountpoint, err)
 	}
 	log.Infof("NodeUnstageVolume: umount OSS Successful: %s", mountpoint)
+	// if secretRef set, return nil directly as default secret or related key not found here
 	err = mounter.CleanupOssfsCredentialSecret(ctx, ns.clientset, ns.nodeName, req.VolumeId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to cleanup ossfs credential secret: %v", err)

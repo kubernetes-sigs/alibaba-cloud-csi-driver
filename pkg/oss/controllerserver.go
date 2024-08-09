@@ -56,13 +56,15 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 			ossVolArgs.URL = value
 		case "otheropts":
 			ossVolArgs.OtherOpts = value
+		case "secretref":
+			ossVolArgs.SecretRef = value
 		case "path":
 			ossVolArgs.Path = value
 		case "usesharedpath":
 			if res, err := strconv.ParseBool(value); err == nil {
 				ossVolArgs.UseSharedPath = res
 			} else {
-				log.Warnf("Oss parameters error: the value(%q) of %q is invalid", v, k)
+				log.Warn(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
 			}
 		case "authtype":
 			ossVolArgs.AuthType = value
@@ -81,7 +83,7 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 		case "kmskeyid":
 			ossVolArgs.KmsKeyId = value
 		default:
-			log.Warnf("Oss parameters error: the key(%q) is unknown", k)
+			log.Warn(WrapOssError(ParamError, "the key(%q) is unknown", k).Error())
 		}
 	}
 	for k, v := range secret {
@@ -93,7 +95,7 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 		case "aksecret":
 			ossVolArgs.AkSecret = value
 		default:
-			log.Warnf("Oss authorization error: the key(%q) is unknown", k)
+			log.Warn(WrapOssError(AuthError, "the key(%q) is unknown", k).Error())
 		}
 	}
 	ossVolArgs.ReadOnly = true
