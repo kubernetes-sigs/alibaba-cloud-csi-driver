@@ -109,8 +109,7 @@ func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.Cont
 		SnapshotRequestInterval = interval
 	}
 
-	serviceType := os.Getenv(utils.ServiceType)
-	if serviceType == utils.ProvisionerService && installCRD {
+	if installCRD {
 		checkInstallCRD(client)
 		checkInstallDefaultVolumeSnapshotClass(GlobalConfigVar.SnapClient)
 	}
@@ -387,7 +386,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}
 	}
 
-	_, err := attachDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk)
+	_, err := attachDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk, true)
 	if err != nil {
 		log.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
