@@ -2,6 +2,8 @@ package common
 
 const (
 	ECSInstanceIDTopologyKey = "alibabacloud.com/ecs-instance-id"
+	TopologyKeyZone          = "topology.kubernetes.io/zone"
+	TopologyKeyRegion        = "topology.kubernetes.io/region"
 )
 
 // constants of keys in volume parameters
