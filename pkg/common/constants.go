@@ -1,5 +1,9 @@
 package common
 
+const (
+	ECSInstanceIDTopologyKey = "alibabacloud.com/ecs-instance-id"
+)
+
 // constants of keys in volume parameters
 const (
 	// PVCNameKey contains name of the PVC for which is a volume provisioned.
