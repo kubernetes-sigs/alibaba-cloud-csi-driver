@@ -115,8 +115,14 @@ spec:
                   fieldPath: spec.nodeName
             - name: SERVICE_TYPE
               value: "plugin"
+{{- if $nodePool.deploy.regionID }}
+            - name: REGION_ID
+              value: {{ $nodePool.deploy.regionID | quote }}
+{{- end }}
+{{- if $nodePool.csi.oss.enabled }}
             - name: "DEFAULT_REGISTRY"
               value: {{ $nodePool.images.workerRegistry | default $nodePool.images.registry | quote }}
+{{- end }}
 {{- if $nodePool.deploy.ecsEndpoint }}
             - name: ECS_ENDPOINT
               value: {{ $nodePool.deploy.ecsEndpoint | quote }}

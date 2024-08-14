@@ -117,12 +117,14 @@ roleRef:
   name: alicloud-csi-provisioner
   apiGroup: rbac.authorization.k8s.io
 
+{{- if .Values.csi.oss.enabled }}
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: csi-fuse-ossfs
   namespace: {{ .Release.Namespace }}
+{{- end }}
 {{- end }}
 {{- if .Values.plugin.enabled }}
 ---
