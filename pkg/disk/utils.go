@@ -1102,7 +1102,9 @@ func createRoleClient(uid string) (cli *ecs.Client, err error) {
 func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, contextSource *csi.VolumeContentSource) *csi.Volume {
 	segments := map[string]string{}
 	cateDesc := AllCategories[attempt.Category]
-	if !cateDesc.Regional {
+	if cateDesc.Regional {
+		segments[common.TopologyKeyRegion] = GlobalConfigVar.Region
+	} else {
 		segments[TopologyZoneKey] = zoneID
 	}
 	if attempt.Instance != "" {
