@@ -16,6 +16,9 @@ const (
 	DiskSharedSSD        Category = "san_ssd"
 	DiskSharedEfficiency Category = "san_efficiency"
 
+	DiskEEDStandard Category = "elastic_ephemeral_disk_standard"
+	DiskEEDPremium  Category = "elastic_ephemeral_disk_premium"
+
 	PERFORMANCE_LEVEL0 PerformanceLevel = "PL0"
 	PERFORMANCE_LEVEL1 PerformanceLevel = "PL1"
 	PERFORMANCE_LEVEL2 PerformanceLevel = "PL2"
@@ -37,6 +40,8 @@ type CategoryDesc struct {
 	InstantAccessSnapshot bool
 	ProvisionedIops       bool
 	Bursting              bool
+	// Cannot be attached to another instance once it is attached.
+	SingleInstance bool
 }
 
 var AllCategories = map[Category]CategoryDesc{
@@ -65,6 +70,14 @@ var AllCategories = map[Category]CategoryDesc{
 	},
 	DiskESSDEntry: {
 		Size: SizeRange{Min: 10, Max: 65536},
+	},
+	DiskEEDStandard: {
+		Size:           SizeRange{Min: 64, Max: 8192},
+		SingleInstance: true,
+	},
+	DiskEEDPremium: {
+		Size:           SizeRange{Min: 64, Max: 8192},
+		SingleInstance: true,
 	},
 
 	// Deprecated shared disk

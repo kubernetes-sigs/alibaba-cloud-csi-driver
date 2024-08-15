@@ -46,6 +46,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -184,11 +185,19 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	sharedDisk := len(diskVol.Type) == 1 && (diskVol.Type[0] == DiskSharedEfficiency || diskVol.Type[0] == DiskSharedSSD)
 
 	var supportedTypes sets.Set[Category]
+	var selectedInstance string
 	if diskVol.NodeSelected != "" {
-		supportedTypes, err = getSupportedDiskTypes(diskVol.NodeSelected)
+		client := GlobalConfigVar.ClientSet
+		node, err := client.CoreV1().Nodes().Get(context.Background(), diskVol.NodeSelected, metav1.GetOptions{})
 		if err != nil {
-			return nil, err
+			log.Infof("getDiskType: failed to get node labels: %v", err)
+			if apierrors.IsNotFound(err) {
+				return nil, status.Errorf(codes.ResourceExhausted, "CreateVolume:: get node info by name: %s failed with err: %v, start rescheduling", node, err)
+			}
+			return nil, status.Errorf(codes.InvalidArgument, "CreateVolume:: get node info by name: %s failed with err: %v", node, err)
 		}
+		supportedTypes = getSupportedDiskTypes(node)
+		selectedInstance = node.Labels[common.ECSInstanceIDTopologyKey]
 	}
 
 	ecsClient, err := getEcsClientByID("", req.Parameters[TenantUserUID])
@@ -196,7 +205,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	diskID, attempt, err := createDisk(ecsClient, req.GetName(), snapshotID, diskVol, supportedTypes)
+	diskID, attempt, err := createDisk(ecsClient, req.GetName(), snapshotID, diskVol, supportedTypes, selectedInstance)
 	if err != nil {
 		if errors.Is(err, ErrParameterMismatch) {
 			return nil, status.Errorf(codes.AlreadyExists, "volume %s already created but %v", req.Name, err)
