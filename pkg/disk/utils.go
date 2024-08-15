@@ -799,19 +799,23 @@ func validateDiskType(opts map[string]string) (diskType []Category, err error) {
 	return
 }
 
-func validateDiskPerformanceLevel(opts map[string]string) (performanceLevel []PerformanceLevel, err error) {
-	pl, ok := opts[ESSD_PERFORMANCE_LEVEL]
-	if !ok || pl == "" {
-		return
+func validateDiskPerformanceLevel(opts map[string]string) ([]PerformanceLevel, error) {
+	opt := opts[ESSD_PERFORMANCE_LEVEL]
+	if opt == "" {
+		return nil, nil
 	}
-	log.Infof("validateDiskPerformanceLevel: pl: %v", pl)
+	log.Infof("validateDiskPerformanceLevel: pl: %v", opt)
 	allPLs := AllCategories[DiskESSD].PerformanceLevel
-	for _, cusPer := range strings.Split(pl, ",") {
-		if _, ok := allPLs[PerformanceLevel(cusPer)]; !ok {
-			return nil, fmt.Errorf("illegal performance level type: %s", cusPer)
+	plsStr := strings.Split(opt, ",")
+	pls := make([]PerformanceLevel, 0, len(plsStr))
+	for _, plStr := range plsStr {
+		pl := PerformanceLevel(plStr)
+		if _, ok := allPLs[pl]; !ok {
+			return nil, fmt.Errorf("illegal performance level type: %s", plStr)
 		}
+		pls = append(pls, pl)
 	}
-	return
+	return pls, nil
 }
 
 // return if MultiAttach is required
