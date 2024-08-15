@@ -69,6 +69,24 @@ func TestValidateDiskType(t *testing.T) {
 	}
 }
 
+func TestValidatePerformanceLevel(t *testing.T) {
+	examples := []struct {
+		opts   map[string]string
+		result []PerformanceLevel
+		err    bool
+	}{
+		{result: nil},
+		{opts: map[string]string{"performanceLevel": "invalid"}, err: true},
+		{opts: map[string]string{"performanceLevel": "PL0"}, result: []PerformanceLevel{PERFORMANCE_LEVEL0}},
+		{opts: map[string]string{"performanceLevel": "PL2,PL1"}, result: []PerformanceLevel{PERFORMANCE_LEVEL2, PERFORMANCE_LEVEL1}},
+	}
+	for _, example := range examples {
+		actualResult, err := validateDiskPerformanceLevel(example.opts)
+		assert.Equal(t, example.result, actualResult)
+		assert.Equal(t, example.err, err != nil)
+	}
+}
+
 func TestCreateStaticSnap(t *testing.T) {
 	tables := []struct {
 		volumeID   string
