@@ -45,6 +45,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	proto "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	utilshttp "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/http"
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	perrors "github.com/pkg/errors"
@@ -121,6 +122,10 @@ func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 		SetEcsEndPoint(regionID)
 	}
 
+	header := utilshttp.MustParseHeaderEnv("ECS_HEADERS")
+	if len(header) > 0 {
+		ecsClient.SetTransport(utilshttp.RoundTripperWithHeader(nil, header))
+	}
 	return
 }
 
