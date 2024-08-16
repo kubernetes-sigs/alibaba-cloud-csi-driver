@@ -3,7 +3,6 @@ package cloud
 import (
 	"errors"
 	"fmt"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"os"
 	"strings"
 
@@ -11,7 +10,9 @@ import (
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	sdkerrors "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	nassdk "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	utilshttp "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/http"
 )
 
 func init() {
@@ -35,6 +36,10 @@ func newNasClientV1(region string) (interfaces.NasV1Interface, error) {
 		scheme = "HTTPS"
 	}
 	config = config.WithScheme(scheme).WithUserAgent(KubernetesAlicloudIdentity)
+	headers := utilshttp.MustParseHeaderEnv("NAS_HEADERS")
+	if len(headers) > 0 {
+		config.Transport = utilshttp.RoundTripperWithHeader(config.Transport, headers)
+	}
 	client, err := nassdk.NewClientWithOptions(region, config, ac.Credential)
 	return client, err
 }

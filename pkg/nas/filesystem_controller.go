@@ -19,7 +19,6 @@ package nas
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -185,10 +184,6 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 			createFileSystemsRequest.ZoneId = nasVol.ZoneID
 		}
 		log.Infof("CreateVolume: Volume: %s, Create Nas filesystem with: %v, %v", pvName, cs.config.Region, nasVol)
-		// for private cloud
-		if ascmContext := os.Getenv("X-ACSPROXY-ASCM-CONTEXT"); ascmContext != "" {
-			createFileSystemsRequest.GetHeaders()["x-acsproxy-ascm-context"] = ascmContext
-		}
 
 		createFileSystemsResponse, err := nasClient.CreateFileSystem(createFileSystemsRequest)
 		if err != nil {
