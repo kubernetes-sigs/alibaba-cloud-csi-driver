@@ -300,6 +300,8 @@ spec:
               value: HTTP
             - name: PRIVATE_CLOUD_TAG
               value: "true"
+            - name: X_ACSPROXY_ASCM_CONTEXT
+              value: {{ .Values.deploy.acsProxyASCMContext | quote }}
 {{- end }}
 {{- if .Values.deploy.withStorageController }}
             - name: ENABLE_NAS_SUBPATH_FINALIZER
