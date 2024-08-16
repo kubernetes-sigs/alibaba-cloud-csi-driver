@@ -61,3 +61,17 @@ func RoundTripperWithHeader(rt http.RoundTripper, header http.Header) http.Round
 		Header:       header,
 	}
 }
+
+func MustToV2SDKHeaders(headers http.Header) map[string]*string {
+	headersV2 := make(map[string]*string, len(headers))
+	for k, v := range headers {
+		if len(v) == 0 {
+			continue
+		}
+		if len(v) > 1 {
+			log.Fatalf("Multi-value header %s is not supported", k)
+		}
+		headersV2[k] = &v[0]
+	}
+	return headersV2
+}
