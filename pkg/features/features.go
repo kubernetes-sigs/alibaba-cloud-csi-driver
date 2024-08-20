@@ -30,7 +30,8 @@ const (
 	DiskParallelDetach featuregate.Feature = "DiskParallelDetach"
 
 	UpdatedOssfsVersion featuregate.Feature = "UpdatedOssfsVersion"
-	RundCSIProtocol3    featuregate.Feature = "RundCSIProtocol3"
+
+	RundCSIProtocol3 featuregate.Feature = "RundCSIProtocol3"
 )
 
 var (
@@ -41,7 +42,7 @@ var (
 		DiskParallelDetach: {Default: false, PreRelease: featuregate.Alpha},
 	}
 	defaultOSSFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
-		UpdatedOssfsVersion: {Default: false, PreRelease: featuregate.Alpha},
+		UpdatedOssfsVersion: {Default: true, PreRelease: featuregate.Beta},
 	}
 	defaultNASFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
 		RundCSIProtocol3: {Default: false, PreRelease: featuregate.Alpha},
