@@ -3,19 +3,25 @@ package cloud
 import (
 	"errors"
 	"fmt"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"os"
 	"strings"
 
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	sdk "github.com/alibabacloud-go/nas-20170626/v3/client"
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	utilshttp "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/http"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/ratelimit"
 )
 
 func newNasClientV2(region string) (*sdk.Client, error) {
+	headers := utilshttp.MustParseHeaderEnv("NAS_HEADERS")
+	var headersV2 map[string]*string
+	if headers != nil {
+		headersV2 = utilshttp.MustToV2SDKHeaders(headers)
+	}
 	config := new(openapi.Config).
 		SetUserAgent(KubernetesAlicloudIdentity).
 		SetRegionId(region).
@@ -23,6 +29,7 @@ func newNasClientV2(region string) (*sdk.Client, error) {
 			Queries: map[string]*string{
 				"RegionId": &region,
 			},
+			Headers: headersV2,
 		})
 	// set credential
 	cred, err := utils.GetCredentialV2()

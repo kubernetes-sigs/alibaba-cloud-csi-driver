@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
-	"os"
 	"regexp"
 	"slices"
 	"strconv"
@@ -1033,10 +1032,6 @@ func finalizeCreateDiskRequest(template *ecs.CreateDiskRequest, attempt createAt
 	// We want to keep each request independent. But once sent, the req.QueryParams is modified by the SDK.
 	// to avoid modifying template, create a new RpcRequest
 
-	// for private cloud
-	if ascmContext := os.Getenv("X-ACSPROXY-ASCM-CONTEXT"); ascmContext != "" {
-		req.GetHeaders()["x-acsproxy-ascm-context"] = ascmContext
-	}
 	return &req
 }
 
