@@ -194,6 +194,9 @@ spec:
 {{- if $nodePool.csi.oss.enabled }}
             - mountPath: /host/var/run/ossfs
               name: ossfs-metrics-dir
+            - mountPath: /run/fuse.ossfs
+              name: ossfs-attach-dir
+              mountPropagation: "Bidirectional"
 {{- end -}}
 {{- if $nodePool.csi.nas.enabled }}
             - mountPath: /host/var/run/efc
@@ -290,6 +293,10 @@ spec:
         - name: ossfs-metrics-dir
           hostPath:
             path: /var/run/ossfs
+            type: DirectoryOrCreate
+        - name: ossfs-attach-dir
+          hostPath:
+            path: /run/fuse.ossfs
             type: DirectoryOrCreate
 {{- end -}}
 {{- if $nodePool.csi.nas.enabled }}

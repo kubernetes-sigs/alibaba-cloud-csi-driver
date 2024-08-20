@@ -17,7 +17,7 @@ csi:
   oss:
     enabled: true
     controller:
-      enabled: true  # only useful for CNFS now
+      enabled: true
   local:
     enabled: false
     controller:
@@ -45,6 +45,9 @@ deploy:
   # then the controller server will patch a finalizer on NAS subpath-type PV when DeleteVolume 
   # and the storage-controller will handle the cleanup of the subpath in NAS filesystem.
   withStorageController: false
+
+  # Which namespace holds ossfs pods
+  fuseNamespace: ack-csi-fuse
 
   featureGates: ""   # only for alpha feature
   privateCloud: false

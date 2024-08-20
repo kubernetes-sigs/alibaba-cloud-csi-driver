@@ -1,0 +1,58 @@
+{{- if .Values.deploy.fuseNamespace }}
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.deploy.fuseNamespace }}
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-fuse-ossfs
+  namespace: {{ .Values.deploy.fuseNamespace }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: alicloud-csi-provisioner
+  namespace: {{ .Values.deploy.fuseNamespace }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - create
+  - delete
+  - deletecollection
+  - watch
+- apiGroups:
+  - ""
+  resourceNames:
+  - csi-fuse-ossfs
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: alicloud-csi-provisioner
+  namespace: {{ .Values.deploy.fuseNamespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: alicloud-csi-provisioner
+subjects:
+- kind: ServiceAccount
+  name: alicloud-csi-provisioner
+  namespace: {{ .Release.Namespace }}
+
+{{- end }}
