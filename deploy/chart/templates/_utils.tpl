@@ -51,8 +51,9 @@
 {{- end -}}
 
 {{- define "kubeletDirEnv" -}}
-{{- if ne . "/var/lib/kubelet" -}}
+{{- $d := clean . -}}
+{{- if ne $d "/var/lib/kubelet" -}}
 - name: KUBELET_ROOT_DIR
-  value: {{ . }}
+  value: {{ $d }}
 {{- end -}}
 {{- end -}}

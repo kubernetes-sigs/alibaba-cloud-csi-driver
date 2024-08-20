@@ -84,7 +84,7 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
-            - {{ printf "--kubelet-registration-path=%s/csi-plugins/%splugin.csi.alibabacloud.com/csi.sock" $nodePool.deploy.kubeletRootDir $key | quote }}
+            - {{ printf "--kubelet-registration-path=%s/csi-plugins/%splugin.csi.alibabacloud.com/csi.sock" (clean $nodePool.deploy.kubeletRootDir) $key | quote }}
           volumeMounts:
             - name: {{$key}}-plugin-dir
               mountPath: /csi
@@ -163,7 +163,8 @@ spec:
               containerPort: 11260
           volumeMounts:
             - name: kubelet-dir
-              mountPath: {{ $nodePool.deploy.kubeletRootDir | quote }}
+              # keep the trailing slash to be compatible with old ACK installations
+              mountPath: {{ print (clean $nodePool.deploy.kubeletRootDir) "/" | quote }}
               mountPropagation: "Bidirectional"
 {{- range $key := tuple "disk" "nas" "oss" }}
   {{- with index $nodePool.csi $key -}}
@@ -264,7 +265,8 @@ spec:
             - name: local-plugin-dir
               mountPath: /csi
             - name: kubelet-dir
-              mountPath: {{ $nodePool.deploy.kubeletRootDir | quote }}
+              # keep the trailing slash to be compatible with old ACK installations
+              mountPath: {{ print (clean $nodePool.deploy.kubeletRootDir) "/" | quote }}
               mountPropagation: "Bidirectional"
             - name: host-dev
               mountPath: /dev
@@ -312,7 +314,7 @@ spec:
 {{- end }}
         - name: registration-dir
           hostPath:
-            path: {{ printf "%s/plugins_registry" $nodePool.deploy.kubeletRootDir | quote }}
+            path: {{ printf "%s/plugins_registry" (clean $nodePool.deploy.kubeletRootDir) | quote }}
             type: DirectoryOrCreate
         - name: container-dir
           hostPath:
@@ -320,13 +322,13 @@ spec:
             type: DirectoryOrCreate
         - name: kubelet-dir
           hostPath:
-            path: {{ $nodePool.deploy.kubeletRootDir | quote }}
+            path: {{ (clean $nodePool.deploy.kubeletRootDir) | quote }}
             type: Directory
 {{- range $key, $val := $nodePool.csi }}
 {{- if $val.enabled }}
         - name: {{ $key }}-plugin-dir
           hostPath:
-            path: {{ printf "%s/csi-plugins/%splugin.csi.alibabacloud.com" $nodePool.deploy.kubeletRootDir $key | quote }}
+            path: {{ printf "%s/csi-plugins/%splugin.csi.alibabacloud.com" (clean $nodePool.deploy.kubeletRootDir) $key | quote }}
             type: DirectoryOrCreate
 {{- end -}}
 {{- end }}
