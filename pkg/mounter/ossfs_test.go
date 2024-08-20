@@ -1,8 +1,8 @@
 package mounter
 
 import (
+	"context"
 	"fmt"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,7 +35,6 @@ func Test_buildAuthSpec(t *testing.T) {
 	}
 	spec := corev1.PodSpec{}
 	spec.Volumes = []corev1.Volume{targetVolume}
-	options := []string{"allow_other", "dbglevel=debug"}
 	// ak
 	passwdMountDir := "/etc/ossfs"
 	passwdFilename := "passwd-ossfs"
@@ -64,8 +63,13 @@ func Test_buildAuthSpec(t *testing.T) {
 		RoleArn:         "test-role-arn",
 	}
 	authCfg.RrsaConfig = &rrsaCfg
-	buildAuthSpec(nodeName, volumeId, "target", authCfg, &spec, &container, &options)
+	buildAuthSpec(&FusePodContext{
+		Context:    context.Background(),
+		Namespace:  LegacyFusePodNamespace,
+		NodeName:   nodeName,
+		VolumeId:   volumeId,
+		AuthConfig: authCfg,
+	}, "target", &spec, &container)
 	assert.Contains(t, spec.Volumes, passwdSecretVolume)
 	assert.Contains(t, container.VolumeMounts, passwdVolumeMont)
-	assert.Contains(t, options, fmt.Sprintf("passwd_file=%s", filepath.Join(passwdMountDir, passwdFilename)))
 }

@@ -56,6 +56,8 @@ import (
 const (
 	// MetadataURL is metadata url
 	MetadataURL = "http://100.100.100.200/latest/meta-data/"
+	// ECS worker role resource url in metadata server
+	WorkerRoleResource = "ram/security-credentials/"
 	// RegionIDTag is region id
 	RegionIDTag = "region-id"
 	// InstanceIDTag is instance id

@@ -24,20 +24,29 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+)
+
+const (
+	fusePodNamespace = "ack-csi-fuse"
+	mountProxySocket = "mountPorxySocket"
 )
 
 // controller server try to create/delete volumes
 type controllerServer struct {
 	client kubernetes.Interface
 	*csicommon.DefaultControllerServer
-	crdClient dynamic.Interface
+	cnfsGetter     cnfsv1beta1.CNFSGetter
+	metadata       metadata.MetadataProvider
+	fusePodManager *mounter.FusePodManager
 }
 
 func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
@@ -151,13 +160,81 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 }
 
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	log.Infof("ControllerUnpublishVolume is called, do nothing by now")
+	log.Infof("ControllerUnpublishVolume: volume %s on node %s", req.VolumeId, req.NodeId)
+	if err := cs.fusePodManager.Delete(&mounter.FusePodContext{
+		Context:   ctx,
+		Namespace: fusePodNamespace,
+		NodeName:  req.NodeId,
+		VolumeId:  req.VolumeId,
+	}, ""); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	// To maintain the compatibility, cleanup fuse pods in kube-system namespace
+	if err := cs.fusePodManager.Delete(&mounter.FusePodContext{
+		Context:   ctx,
+		Namespace: mounter.LegacyFusePodNamespace,
+		NodeName:  req.NodeId,
+		VolumeId:  req.VolumeId,
+	}, ""); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	log.Infof("ControllerUnpublishVolume: successfully unpublished volume %s on node %s", req.VolumeId, req.NodeId)
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	log.Infof("ControllerPublishVolume is called, do nothing by now")
-	return &csi.ControllerPublishVolumeResponse{}, nil
+	log.Infof("ControllerPublishVolume: volume %s on node %s", req.VolumeId, req.NodeId)
+	// parse options
+	nodeName := req.NodeId
+	region, _ := cs.metadata.Get(metadata.RegionID)
+	opts := parseOptions(req, region)
+	if err := setCNFSOptions(ctx, cs.cnfsGetter, opts); err != nil {
+		return nil, err
+	}
+	// skip for virtual kubelet nodes
+	node, err := cs.client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "failed to get node %s: %v", nodeName, err)
+	}
+	if node.Labels["type"] == "virtual-kubelet" {
+		return &csi.ControllerPublishVolumeResponse{}, nil
+	}
+	// options validation
+	if err := checkOssOptions(opts); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	// Skip controller publish for PVs with attribute direct=true.
+	// The actual mounting of these volumes will be handled by rund.
+	if opts.directAssigned {
+		log.Infof("ControllerPublishVolume: skip DirectVolume: %s", req.VolumeId)
+		return &csi.ControllerPublishVolumeResponse{}, nil
+	}
+	// make mount options
+	controllerPublishPath := mounter.GetOssfsAttachPath(req.VolumeId)
+	_, authCfg, err := opts.MakeMountOptionsAndAuthConfig(cs.metadata, req.VolumeCapability)
+	if err != nil {
+		return nil, err
+	}
+	// launch ossfs pod
+	err = cs.fusePodManager.Create(&mounter.FusePodContext{
+		Context:    ctx,
+		Namespace:  fusePodNamespace,
+		NodeName:   nodeName,
+		VolumeId:   req.VolumeId,
+		AuthConfig: authCfg,
+	}, controllerPublishPath, false)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to create ossfs pod: %v", err)
+	}
+
+	log.Infof("ControllerPublishVolume: successfully published volume %s on node %s", req.VolumeId, req.NodeId)
+	return &csi.ControllerPublishVolumeResponse{
+		PublishContext: map[string]string{
+			mountProxySocket: mounter.GetOssfsMountProxySocketPath(req.VolumeId),
+		},
+	}, nil
 }
 
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
