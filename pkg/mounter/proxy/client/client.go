@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	defaultTimeout = time.Second * 30
+	// this should be longer than default timeout in server
+	defaultTimeout = time.Second * 35
 )
 
 type Client interface {
