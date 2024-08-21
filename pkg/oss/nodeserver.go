@@ -46,6 +46,7 @@ type nodeServer struct {
 	rawMounter mountutils.Interface
 	ossfs      mounter.FuseMounterType
 	common.GenericNodeServer
+	skipAttach bool
 }
 
 // Options contains options for target oss
@@ -131,6 +132,11 @@ func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.Infof("NodePublishVolume:: Starting Mount volume: %s mount with req: %+v", req.VolumeId, req)
+	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
+		log.Infof("NodePublishVolume: skip as the rund 3.0 protocol enabled")
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
+
 	if !ns.locks.TryAcquire(req.VolumeId) {
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
@@ -192,20 +198,35 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// make mount options and auth config
 	mountSource := fmt.Sprintf("%s:%s", opts.Bucket, opts.Path)
-	attachPath := mounter.GetOssfsAttachPath(req.VolumeId)
 	mountOptions, authCfg, err := opts.MakeMountOptionsAndAuthConfig(ns.metadata, req.VolumeCapability)
 	if err != nil {
 		return nil, err
 	}
-	mountOptions = ns.ossfs.AddDefaultMountOptions(mountOptions)
+	if ns.ossfs != nil {
+		mountOptions = ns.ossfs.AddDefaultMountOptions(mountOptions)
+	}
 
 	// get mount proxy socket path
 	socketPath := req.PublishContext[mountProxySocket]
 	if socketPath == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "%s not found in publishContext", mountProxySocket)
 	}
+	proxyMounter := mounter.NewProxyMounter(socketPath, ns.rawMounter)
 
+	// When work as csi-agent, directly mount on the target path.
+	if ns.skipAttach {
+		utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, OssFsType, "oss", opts.Bucket)
+		err := proxyMounter.MountWithSecrets(mountSource, targetPath, opts.FuseType, mountOptions, authCfg.Secrets)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		log.Infof("NodePublishVolume(csi-agent): successfully mounted %s on %s", mountSource, targetPath)
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
+
+	// When work as csi nodeserver, mount on the attach path under /run/fuse.ossfs and then perform the bind mount.
 	// check whether the attach path is mounted
+	attachPath := mounter.GetOssfsAttachPath(req.VolumeId)
 	notMnt, err = isNotMountPoint(ns.rawMounter, attachPath, false)
 	if err != nil {
 		return nil, err
@@ -290,6 +311,11 @@ func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) err
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.Infof("NodeUnpublishVolume: Starting Umount OSS: %s mount with req: %+v", req.TargetPath, req)
+	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
+		log.Infof("NodeUnpublishVolume: skip as the rund 3.0 protocol enabled")
+		return &csi.NodeUnpublishVolumeResponse{}, nil
+	}
+
 	if !ns.locks.TryAcquire(req.VolumeId) {
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
