@@ -76,6 +76,8 @@ var (
 	CustomDiskPerfermance = map[string]string{DISK_PERFORMANCE_LEVEL0: "", DISK_PERFORMANCE_LEVEL1: "", DISK_PERFORMANCE_LEVEL2: "", DISK_PERFORMANCE_LEVEL3: ""}
 )
 
+const DISK_TAG_PREFIX = "diskTags/"
+
 // DefaultOptions is the struct for access key
 type DefaultOptions struct {
 	Global struct {
@@ -805,6 +807,38 @@ func validateDiskVolumeCreateOptions(kv map[string]string) error {
 	return nil
 }
 
+func parseTags(params map[string]string) (map[string]string, error) {
+	// Note that we cannot assume the iteration order of the map, we must ensure consistent output.
+	seenTags := map[string]string{}
+	// process old diskTags format first, so that new custom tags can override them consistently
+	if v := params["diskTags"]; v != "" {
+		for _, tag := range strings.Split(v, ",") {
+			k, v, found := strings.Cut(tag, ":")
+			if !found {
+				return nil, fmt.Errorf("invalid diskTags %q, no \":\" found", tag)
+			}
+			seenTags[k] = v
+		}
+	}
+	// new custom tags
+	for k, v := range params {
+		if strings.HasPrefix(k, DISK_TAG_PREFIX) {
+			seenTags[k[len(DISK_TAG_PREFIX):]] = v
+		}
+	}
+	// k8s PV info as disk tags, override any custom tags
+	if v := params[common.PVCNameKey]; v != "" {
+		seenTags[common.PVCNameTag] = v
+	}
+	if v := params[common.PVNameKey]; v != "" {
+		seenTags[common.PVNameTag] = v
+	}
+	if v := params[common.PVCNamespaceKey]; v != "" {
+		seenTags[common.PVCNamespaceTag] = v
+	}
+	return seenTags, nil
+}
+
 // getDiskVolumeOptions
 func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error) {
 	var ok bool
@@ -901,30 +935,9 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	// DiskTags
-	diskTags, ok := volOptions["diskTags"]
-	if ok {
-		for _, tag := range strings.Split(diskTags, ",") {
-			k, v, found := strings.Cut(tag, ":")
-			if !found {
-				return nil, status.Errorf(codes.InvalidArgument, "Invalid diskTags format name: %s tags: %s", req.GetName(), diskTags)
-			}
-			diskVolArgs.DiskTags[k] = v
-		}
-	}
-	// k8s PV info as disk tags
-	{
-		pvcName, ok := volOptions[common.PVCNameKey]
-		if ok {
-			diskVolArgs.DiskTags[common.PVCNameTag] = pvcName
-		}
-		pvName, ok := volOptions[common.PVNameKey]
-		if ok {
-			diskVolArgs.DiskTags[common.PVNameTag] = pvName
-		}
-		ns, ok := volOptions[common.PVCNamespaceKey]
-		if ok {
-			diskVolArgs.DiskTags[common.PVCNamespaceTag] = ns
-		}
+	diskVolArgs.DiskTags, err = parseTags(volOptions)
+	if err != nil {
+		return nil, err
 	}
 
 	// kmsKeyId
