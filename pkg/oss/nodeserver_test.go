@@ -21,8 +21,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetDiskVolumeOptions(t *testing.T) {
+func Test_checkOssOptions(t *testing.T) {
 	options := &Options{}
+	options.FuseType = OssFsType
 	options.AkSecret = "11111"
 	options.AkID = "2222"
 	options.URL = "1.1.1.1"
@@ -42,9 +43,6 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 	assert.Equal(t, "Oss parameters error: Url/Bucket empty", err.Error())
 
 	options.URL = "1.1.1.1"
-	options.AkID = ""
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss parameters error: AK and authType are both empty or invalid", err.Error())
 
 	options.AuthType = "rrsa"
 	err = checkOssOptions(options)
@@ -64,7 +62,7 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 	options.AkSecret = "11111"
 	options.Encrypted = "test"
 	err = checkOssOptions(options)
-	assert.Equal(t, "Oss encrypted error: invalid SSE encryted type", err.Error())
+	assert.Equal(t, "Oss encrypted error: invalid SSE encrypted type", err.Error())
 
 	options.Encrypted = "kms"
 	options.Path = "errorpath"

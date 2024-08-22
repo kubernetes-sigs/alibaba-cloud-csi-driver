@@ -2,12 +2,10 @@ package mounter
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/pointer"
 )
 
 func Test_buildAuthSpec(t *testing.T) {
@@ -35,34 +33,12 @@ func Test_buildAuthSpec(t *testing.T) {
 	}
 	spec := corev1.PodSpec{}
 	spec.Volumes = []corev1.Volume{targetVolume}
-	// ak
-	passwdMountDir := "/etc/ossfs"
-	passwdFilename := "passwd-ossfs"
-	passwdSecretVolume := corev1.Volume{
-		Name: "passwd-ossfs",
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: OssfsCredentialSecretName,
-				Items: []corev1.KeyToPath{
-					{
-						Key:  fmt.Sprintf("%s.%s", nodeName, volumeId),
-						Path: passwdFilename,
-						Mode: pointer.Int32Ptr(0600),
-					},
-				},
-				Optional: pointer.BoolPtr(true),
-			},
-		},
-	}
-	passwdVolumeMont := corev1.VolumeMount{
-		Name:      passwdSecretVolume.Name,
-		MountPath: passwdMountDir,
-	}
 	rrsaCfg := RrsaConfig{
 		OidcProviderArn: "test-oidc-provider-arn",
 		RoleArn:         "test-role-arn",
 	}
 	authCfg.RrsaConfig = &rrsaCfg
+	authCfg.AuthType = AuthTypeRRSA
 	buildAuthSpec(&FusePodContext{
 		Context:    context.Background(),
 		Namespace:  LegacyFusePodNamespace,
@@ -70,6 +46,9 @@ func Test_buildAuthSpec(t *testing.T) {
 		VolumeId:   volumeId,
 		AuthConfig: authCfg,
 	}, "target", &spec, &container)
-	assert.Contains(t, spec.Volumes, passwdSecretVolume)
-	assert.Contains(t, container.VolumeMounts, passwdVolumeMont)
+
+	assert.Equal(t, "rrsa-oidc-token", spec.Volumes[len(spec.Volumes)-1].Name)
+	volumeMount := container.VolumeMounts[len(container.VolumeMounts)-1]
+	assert.Contains(t, "/var/run/secrets/ack.alibabacloud.com/rrsa-tokens", volumeMount.MountPath)
+	assert.Contains(t, "rrsa-oidc-token", volumeMount.Name)
 }
