@@ -35,9 +35,9 @@ func ParseEndpoint(ep string) (string, string, error) {
 	return "", "", fmt.Errorf("Invalid endpoint: %v", ep)
 }
 
-func RunCSIServer(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
-	ns = WrapNodeServerWithValidator(ns)
-	cs = WrapControllerServerWithValidator(cs)
+func RunCSIServer(driverType, endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
+	ns = WrapNodeServerWithValidator(WrapNodeServerWithMetricRecorder(driverType, ns))
+	cs = WrapControllerServerWithValidator(WrapControllerServerWithMetricRecorder(driverType, cs))
 
 	proto, addr, err := ParseEndpoint(endpoint)
 	if err != nil {

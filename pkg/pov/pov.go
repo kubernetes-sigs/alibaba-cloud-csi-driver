@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	driverType = "pov"
 	DriverName = "povplugin.csi.alibabacloud.com"
 )
 
@@ -45,7 +46,7 @@ func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.Servi
 // Run start pov driver service
 func (p *PoV) Run() {
 	klog.Infof("Starting pov driver service, endpoint: %s", p.endpoint)
-	common.RunCSIServer(p.endpoint, newIdentityServer(), &p.controllerService, &p.nodeService)
+	common.RunCSIServer(driverType, p.endpoint, newIdentityServer(), &p.controllerService, &p.nodeService)
 }
 
 func newGlobalConfig(meta *metadata.Metadata, serviceType utils.ServiceType) {

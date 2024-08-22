@@ -37,6 +37,7 @@ import (
 )
 
 const (
+	driverType = "oss"
 	driverName = "ossplugin.csi.alibabacloud.com"
 )
 
@@ -116,5 +117,5 @@ func newIdentityServer() *identityServer {
 
 // Run start a newNodeServer
 func (d *OSS) Run() {
-	common.RunCSIServer(d.endpoint, newIdentityServer(), d.controllerServer, d.nodeServer)
+	common.RunCSIServer(driverType, d.endpoint, newIdentityServer(), d.controllerServer, d.nodeServer)
 }
