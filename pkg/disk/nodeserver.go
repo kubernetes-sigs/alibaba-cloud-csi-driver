@@ -743,8 +743,14 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	log.Log.Infof("NodeUnstageVolume:: Starting to Unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
 
-	// check block device mountpoint
 	targetPath := req.GetStagingTargetPath()
+	if strings.HasPrefix(targetPath, filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi", driverName)) {
+		// if we see the new globalmount path, we must have upgraded the kubelet
+		// so we can safely cleanup the old globalmount path
+		TriggerCleanupOldGlobalMount()
+	}
+
+	// check block device mountpoint
 	tmpPath := filepath.Join(req.GetStagingTargetPath(), req.VolumeId)
 	if IsFileExisting(tmpPath) {
 		fileInfo, err := os.Lstat(tmpPath)
