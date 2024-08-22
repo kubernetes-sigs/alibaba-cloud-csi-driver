@@ -132,11 +132,6 @@ func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.Infof("NodePublishVolume:: Starting Mount volume: %s mount with req: %+v", req.VolumeId, req)
-	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
-		log.Infof("NodePublishVolume: skip as the rund 3.0 protocol enabled")
-		return &csi.NodePublishVolumeResponse{}, nil
-	}
-
 	if !ns.locks.TryAcquire(req.VolumeId) {
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
@@ -175,8 +170,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opts.AkID = ac.AccessKeyID
 			opts.AkSecret = ac.AccessKeySecret
 		}
-		if opts.SecretRef == "" && (opts.AkID == "" || opts.AkSecret == "") {
-			return nil, status.Error(codes.InvalidArgument, "missing access key in node publish secret")
+		if !features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
+			if opts.SecretRef == "" && (opts.AkID == "" || opts.AkSecret == "") {
+				return nil, status.Error(codes.InvalidArgument, "missing access key in node publish secret")
+			}
 		}
 	case mounter.AuthTypeSTS:
 		// try to get default ECS worker role from metadata server
@@ -206,6 +203,14 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		mountOptions = ns.ossfs.AddDefaultMountOptions(mountOptions)
 	}
 
+	// rund 3.0 protocol
+	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
+		if ns.clientset != nil && utils.GetPodRunTime(req, ns.clientset) == utils.RundRunTimeTag {
+			klog.Infof("NodePublishVolume: skip as %s enabled", features.RundCSIProtocol3)
+			return &csi.NodePublishVolumeResponse{}, nil
+		}
+	}
+
 	// get mount proxy socket path
 	socketPath := req.PublishContext[mountProxySocket]
 	if socketPath == "" {
@@ -220,7 +225,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		log.Infof("NodePublishVolume(csi-agent): successfully mounted %s on %s", mountSource, targetPath)
+		klog.Infof("NodePublishVolume(csi-agent): successfully mounted %s on %s", mountSource, targetPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -291,7 +296,7 @@ func checkOssOptions(opt *Options) error {
 	}
 
 	if opt.Encrypted != "" && opt.Encrypted != EncryptedTypeKms && opt.Encrypted != EncryptedTypeAes256 {
-		return WrapOssError(EncryptError, "invalid SSE encryted type")
+		return WrapOssError(EncryptError, "invalid SSE encrypted type")
 	}
 
 	if opt.AssumeRoleArn != "" && opt.AuthType != mounter.AuthTypeRRSA {
@@ -311,11 +316,6 @@ func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) err
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.Infof("NodeUnpublishVolume: Starting Umount OSS: %s mount with req: %+v", req.TargetPath, req)
-	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
-		log.Infof("NodeUnpublishVolume: skip as the rund 3.0 protocol enabled")
-		return &csi.NodeUnpublishVolumeResponse{}, nil
-	}
-
 	if !ns.locks.TryAcquire(req.VolumeId) {
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}
