@@ -182,7 +182,7 @@ func main() {
 		case TypePluginOSS:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := oss.NewDriver(*nodeID, endPoint, meta, *runAsController)
+				driver := oss.NewDriver(endPoint, meta, *runAsController)
 				driver.Run()
 			}(endPointName)
 		case TypePluginDISK:

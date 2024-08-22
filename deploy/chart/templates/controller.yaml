@@ -218,6 +218,22 @@ spec:
           volumeMounts:
           - mountPath: /csi
             name: oss-provisioner-dir
+        - name: external-oss-attacher
+          image: {{ include "imageSpec" (list .Values.images "externalAttacher") }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          args:
+            - "--v=5"
+            - "--csi-address=/csi/csi.sock"
+            - "--leader-election=true"
+          volumeMounts:
+            - name: oss-provisioner-dir
+              mountPath: /csi
 {{- end -}}
 {{- if and .Values.csi.local.enabled .Values.csi.local.controller.enabled }}
         - name: external-local-provisioner

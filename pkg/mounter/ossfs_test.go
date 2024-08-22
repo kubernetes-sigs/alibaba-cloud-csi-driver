@@ -1,13 +1,11 @@
 package mounter
 
 import (
-	"fmt"
-	"path/filepath"
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/pointer"
 )
 
 func Test_buildAuthSpec(t *testing.T) {
@@ -35,37 +33,22 @@ func Test_buildAuthSpec(t *testing.T) {
 	}
 	spec := corev1.PodSpec{}
 	spec.Volumes = []corev1.Volume{targetVolume}
-	options := []string{"allow_other", "dbglevel=debug"}
-	// ak
-	passwdMountDir := "/etc/ossfs"
-	passwdFilename := "passwd-ossfs"
-	passwdSecretVolume := corev1.Volume{
-		Name: "passwd-ossfs",
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: OssfsCredentialSecretName,
-				Items: []corev1.KeyToPath{
-					{
-						Key:  fmt.Sprintf("%s.%s", nodeName, volumeId),
-						Path: passwdFilename,
-						Mode: pointer.Int32Ptr(0600),
-					},
-				},
-				Optional: pointer.BoolPtr(true),
-			},
-		},
-	}
-	passwdVolumeMont := corev1.VolumeMount{
-		Name:      passwdSecretVolume.Name,
-		MountPath: passwdMountDir,
-	}
 	rrsaCfg := RrsaConfig{
 		OidcProviderArn: "test-oidc-provider-arn",
 		RoleArn:         "test-role-arn",
 	}
 	authCfg.RrsaConfig = &rrsaCfg
-	buildAuthSpec(nodeName, volumeId, "target", authCfg, &spec, &container, &options)
-	assert.Contains(t, spec.Volumes, passwdSecretVolume)
-	assert.Contains(t, container.VolumeMounts, passwdVolumeMont)
-	assert.Contains(t, options, fmt.Sprintf("passwd_file=%s", filepath.Join(passwdMountDir, passwdFilename)))
+	authCfg.AuthType = AuthTypeRRSA
+	buildAuthSpec(&FusePodContext{
+		Context:    context.Background(),
+		Namespace:  LegacyFusePodNamespace,
+		NodeName:   nodeName,
+		VolumeId:   volumeId,
+		AuthConfig: authCfg,
+	}, "target", &spec, &container)
+
+	assert.Equal(t, "rrsa-oidc-token", spec.Volumes[len(spec.Volumes)-1].Name)
+	volumeMount := container.VolumeMounts[len(container.VolumeMounts)-1]
+	assert.Contains(t, "/var/run/secrets/ack.alibabacloud.com/rrsa-tokens", volumeMount.MountPath)
+	assert.Contains(t, "rrsa-oidc-token", volumeMount.Name)
 }

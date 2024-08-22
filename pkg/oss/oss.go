@@ -23,6 +23,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
@@ -33,7 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
+	mountutils "k8s.io/mount-utils"
 )
 
 const (
@@ -50,95 +51,78 @@ type OSS struct {
 }
 
 // NewDriver init oss type of csi driver
-func NewDriver(nodeID, endpoint string, m metadata.MetadataProvider, runAsController bool) *OSS {
+func NewDriver(endpoint string, m metadata.MetadataProvider, runAsController bool) *OSS {
 	log.Infof("Driver: %v version: %v", driverName, version.VERSION)
+
+	switch os.Getenv(utils.ServiceType) {
+	case utils.ProvisionerService:
+		runAsController = true
+	case utils.PluginService:
+		runAsController = false
+	}
 
 	d := &OSS{}
 	d.endpoint = endpoint
 
-	if nodeID == "" {
-		nodeID = utils.RetryGetMetaData(InstanceID)
-		log.Infof("Use node id : %s", nodeID)
+	nodeName := os.Getenv("KUBE_NODE_NAME")
+	if !runAsController {
+		if nodeName == "" {
+			log.Fatal("env KUBE_NODE_NAME is empty")
+		}
+	} else {
+		nodeName = "controller" // any non-empty value to avoid csi-common panic
 	}
-	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, nodeID)
+	// use nodeName as csi nodeId
+	// ControllerPublish needs node name for creating ossfs pod on the node
+	csiDriver := csicommon.NewCSIDriver(driverName, version.VERSION, nodeName)
 	csiDriver.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{
 		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
 	})
 	csiDriver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_UNKNOWN,
+		csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+		csi.ControllerServiceCapability_RPC_PUBLISH_READONLY,
 	})
 
 	d.driver = csiDriver
 
-	d.controllerServer = newControllerServer(d.driver)
-	if !runAsController {
-		d.nodeServer = newNodeServer(d.driver, m)
-	}
-	return d
-}
+	cfg := options.MustGetRestConfig()
+	clientset := kubernetes.NewForConfigOrDie(cfg)
+	cnfsGetter := cnfsv1beta1.NewCNFSGetter(dynamic.NewForConfigOrDie(cfg))
 
-func newControllerServer(driver *csicommon.CSIDriver) csi.ControllerServer {
-	config, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
-	if err != nil {
-		log.Fatalf("failed to build kubeconfig: %v", err)
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Fatalf("Create client set is failed, err: %v", err)
-	}
-
-	crdClient, err := dynamic.NewForConfig(config)
-	if err != nil {
-		log.Fatalf("Create dynamic client is failed, err: %v", err)
-	}
-
-	c := &controllerServer{
-		client:                  clientset,
-		DefaultControllerServer: csicommon.NewDefaultControllerServer(driver),
-		crdClient:               crdClient,
-	}
-	return c
-}
-
-// newNodeServer init oss type of csi nodeServer
-func newNodeServer(driver *csicommon.CSIDriver, m metadata.MetadataProvider) *nodeServer {
-	nodeName := os.Getenv("KUBE_NODE_NAME")
-	if nodeName == "" {
-		log.Fatal("env KUBE_NODE_NAME is empty")
-	}
-
-	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
-	if err != nil {
-		log.Fatalf("Build kubeconfig is failed, err: %s", err.Error())
-	}
-
-	clientset, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		log.Fatalf("Create client set is failed, err: %v", err)
-	}
 	configmap, err := clientset.CoreV1().ConfigMaps("kube-system").Get(context.Background(), "csi-plugin", metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		log.Fatalf("failed to get configmap kube-system/csi-plugin: %v", err)
 	}
 
-	crdClient, err := dynamic.NewForConfig(cfg)
-	if err != nil {
-		log.Fatalf("Create crd client is failed, err: %v", err)
+	ossfs := mounter.NewFuseOssfs(configmap, m)
+	fusePodManager := mounter.NewFusePodManager(ossfs, clientset)
+
+	if runAsController {
+		d.controllerServer = &controllerServer{
+			client:                  clientset,
+			DefaultControllerServer: csicommon.NewDefaultControllerServer(d.driver),
+			cnfsGetter:              cnfsGetter,
+			metadata:                m,
+			fusePodManager:          fusePodManager,
+		}
+	} else {
+		d.nodeServer = &nodeServer{
+			metadata:          m,
+			DefaultNodeServer: csicommon.NewDefaultNodeServer(d.driver),
+			locks:             utils.NewVolumeLocks(),
+			nodeName:          nodeName,
+			clientset:         clientset,
+			cnfsGetter:        cnfsGetter,
+			rawMounter:        mountutils.New(""),
+			ossfs:             ossfs,
+		}
 	}
 
-	return &nodeServer{
-		DefaultNodeServer: csicommon.NewDefaultNodeServer(driver),
-		nodeName:          nodeName,
-		clientset:         clientset,
-		dynamicClient:     crdClient,
-		sharedPathLock:    utils.NewVolumeLocks(),
-		ossfsMounterFac:   mounter.NewContainerizedFuseMounterFactory(mounter.NewFuseOssfs(configmap, m), clientset, nodeName),
-		metadata:          m,
-	}
+	return d
 }
 
-// Run start a newNodeServer
 func (d *OSS) Run() {
 	common.RunCSIServer(d.endpoint, csicommon.NewDefaultIdentityServer(d.driver), d.controllerServer, d.nodeServer)
 }

@@ -93,6 +93,14 @@ rules:
   resources: ["configmaps"]
   resourceNames: ["csi-plugin", "ack-cluster-profile"]
   verbs: ["get"]
+{{- if .Values.csi.oss.enabled }}
+# TODO: remove this in the future
+# Need this for oss driver compatibility.
+# ControllerUnpublishVolume cleans up ossfs pods in kube-system namespace.
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list", "delete", "deletecollection", "get"]
+{{- end }}
 {{- if .Values.csi.local.enabled }}
 - apiGroups: [""]
   resources: ["secrets"]
@@ -125,7 +133,9 @@ metadata:
   name: csi-fuse-ossfs
   namespace: {{ .Release.Namespace }}
 {{- end }}
+
 {{- end }}
+
 {{- if .Values.plugin.enabled }}
 ---
 # csi-plugin
@@ -148,7 +158,7 @@ rules:
   verbs: ["get", "patch"]
 - apiGroups: [""]
   resources: ["pods"]
-  verbs: ["get", "list", "watch", "create", "delete" ]
+  verbs: [ "get" ]
 - apiGroups: [""]
   resources: ["endpoints"]
   resourceNames: ["cnfs-cache-ds-service"]
@@ -164,10 +174,6 @@ rules:
 - apiGroups: [""]
   resources: ["secrets"]
   verbs: ["create"]
-- apiGroups: [""]
-  resources: ["serviceaccounts"]
-  resourceNames: ["csi-fuse-ossfs"]
-  verbs: ["get"]
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1

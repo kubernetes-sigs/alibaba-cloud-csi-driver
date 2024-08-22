@@ -2,6 +2,8 @@ package mounter
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,27 +16,29 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	mountutils "k8s.io/mount-utils"
 )
 
-var defaultOssfsImageTag = "4af1b0e-aliyun"
-var defaultOssfsUpdatedImageTag = "v1.91.3.ack.2-2239f3b-aliyun"
+var defaultOssfsImageTag = "v1.88.4-d9f3917-aliyun"
+var defaultOssfsUpdatedImageTag = "v1.91.3-d9f3917-aliyun"
 
 const (
 	hostPrefix                = "/host"
 	OssfsCredentialSecretName = "csi-ossfs-credentials"
 	OssfsDefMimeTypesFilePath = "/etc/mime.types"
 	OssfsCsiMimeTypesFilePath = "/etc/csi-mime.types"
+	OssfsPasswdFile           = "passwd-ossfs"
 
 	defaultRegistry = "registry-cn-hangzhou.ack.aliyuncs.com"
 
 	CsiSecretStoreDriver   = "secrets-store.csi.k8s.io"
 	SecretProviderClassKey = "secretProviderClass"
+
+	OssfsAttachDir = "/run/fuse.ossfs"
 )
 
 type fuseOssfs struct {
@@ -55,13 +59,15 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) Fuse
 				registry = defaultRegistry
 			}
 		}
-		tag := defaultOssfsImageTag
-		// if enabled UpdatedOssfsVersion featuregate
-		if features.FunctionalMutableFeatureGate.Enabled(features.UpdatedOssfsVersion) {
-			log.Infof("UpdatedOssfsVersion is enabled by feature-gates, use %s", defaultOssfsUpdatedImageTag)
-			tag = defaultOssfsUpdatedImageTag
+		if config.ImageTag == "" {
+			if features.FunctionalMutableFeatureGate.Enabled(features.UpdatedOssfsVersion) {
+				config.ImageTag = defaultOssfsUpdatedImageTag
+			} else {
+				config.ImageTag = defaultOssfsImageTag
+			}
 		}
-		config.Image = fmt.Sprintf("%s/acs/csi-ossfs:%s", registry, tag)
+		config.Image = fmt.Sprintf("%s/acs/csi-ossfs:%s", registry, config.ImageTag)
+		log.Infof("Use ossfs image: %s", config.Image)
 	}
 	// set default memory request
 	if _, ok := config.Resources.Requests[corev1.ResourceMemory]; !ok {
@@ -71,42 +77,42 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) Fuse
 	return &fuseOssfs{config: config}
 }
 
-func (f *fuseOssfs) name() string {
+func (f *fuseOssfs) Name() string {
 	return "ossfs"
 }
 
-func (f *fuseOssfs) addPodMeta(pod *corev1.Pod) {
-	if pod == nil {
-		return
+func (f *fuseOssfs) PodTemplateSpec(c *FusePodContext, target string) (*corev1.PodTemplateSpec, error) {
+	spec, err := f.buildPodSpec(c, target)
+	if err != nil {
+		return nil, err
 	}
-	if f.config.Annotations != nil && pod.Annotations == nil {
-		pod.Annotations = make(map[string]string)
-	}
+
+	pod := new(corev1.PodTemplateSpec)
+	pod.Spec = spec
+
+	pod.Annotations = make(map[string]string)
 	for k, v := range f.config.Annotations {
 		pod.Annotations[k] = v
 	}
-	if f.config.Labels != nil && pod.Labels == nil {
-		pod.Labels = make(map[string]string)
-	}
+	pod.Labels = make(map[string]string)
 	for k, v := range f.config.Labels {
 		pod.Labels[k] = v
 	}
+	return pod, nil
 }
 
-func (f *fuseOssfs) buildPodSpec(
-	source, target, fstype string, authCfg *AuthConfig, options, mountFlags []string, nodeName, volumeId string,
-) (spec corev1.PodSpec, _ error) {
-	spec.TerminationGracePeriodSeconds = tea.Int64(120)
-	targetVolume := corev1.Volume{
-		Name: "kubelet-dir",
+func (f *fuseOssfs) buildPodSpec(c *FusePodContext, target string) (spec corev1.PodSpec, _ error) {
+	targetDir := filepath.Dir(target)
+	targetDirVolume := corev1.Volume{
+		Name: "target-dir",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: target,
+				Path: targetDir,
 				Type: new(corev1.HostPathType),
 			},
 		},
 	}
-	*targetVolume.HostPath.Type = corev1.HostPathDirectory
+	*targetDirVolume.HostPath.Type = corev1.HostPathDirectoryOrCreate
 	metricsDirVolume := corev1.Volume{
 		Name: "metrics-dir",
 		VolumeSource: corev1.VolumeSource{
@@ -117,32 +123,68 @@ func (f *fuseOssfs) buildPodSpec(
 		},
 	}
 	*metricsDirVolume.HostPath.Type = corev1.HostPathDirectoryOrCreate
-	spec.Volumes = []corev1.Volume{targetVolume, metricsDirVolume}
-
-	var mimeMountDir string
-	if utils.IsFileExisting(filepath.Join(hostPrefix, OssfsDefMimeTypesFilePath)) {
-		// mime.types already exists on host
-		mimeMountDir = OssfsDefMimeTypesFilePath
-	} else if strings.ToLower(f.config.Extra["mime-support"]) == "true" {
-		// mime.types not exists, use csi-mime.types
-		options = append(options, fmt.Sprintf("mime=%s", OssfsCsiMimeTypesFilePath))
-		mimeMountDir = OssfsCsiMimeTypesFilePath
-	}
-
-	mimeDirVolume := corev1.Volume{
-		Name: "mime-types-dir",
+	// mime.types/csi-mime.types in /etc is used
+	etcDirVolume := corev1.Volume{
+		Name: "host-etc",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: mimeMountDir,
+				Path: "/etc",
 				Type: new(corev1.HostPathType),
 			},
 		},
 	}
-	*mimeDirVolume.HostPath.Type = corev1.HostPathFile
-	if mimeMountDir == OssfsDefMimeTypesFilePath {
-		spec.Volumes = append(spec.Volumes, mimeDirVolume)
+	*etcDirVolume.HostPath.Type = corev1.HostPathDirectory
+
+	spec.Volumes = []corev1.Volume{targetDirVolume, metricsDirVolume, etcDirVolume}
+
+	bidirectional := corev1.MountPropagationBidirectional
+	socketPath := GetOssfsMountProxySocketPath(c.VolumeId)
+	container := corev1.Container{
+		Name:      "ossfs",
+		Image:     f.config.Image,
+		Resources: f.config.Resources,
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:             targetDirVolume.Name,
+				MountPath:        targetDir,
+				MountPropagation: &bidirectional,
+			}, {
+				Name:      metricsDirVolume.Name,
+				MountPath: metricsDirVolume.HostPath.Path,
+			}, {
+				Name:      etcDirVolume.Name,
+				MountPath: etcDirVolume.HostPath.Path,
+			},
+		},
+		SecurityContext: &corev1.SecurityContext{
+			Privileged: tea.Bool(true),
+		},
+		ReadinessProbe: &corev1.Probe{
+			ProbeHandler: corev1.ProbeHandler{
+				Exec: &corev1.ExecAction{
+					Command: []string{
+						"test", "-S", socketPath,
+					},
+				},
+			},
+			PeriodSeconds:    2,
+			FailureThreshold: 5,
+		},
 	}
 
+	buildAuthSpec(c, target, &spec, &container)
+
+	container.Args = []string{"-socket=" + socketPath, "-v=4"}
+
+	spec.Containers = []corev1.Container{container}
+	spec.NodeName = c.NodeName
+	spec.HostNetwork = true
+	spec.PriorityClassName = "system-node-critical"
+	spec.Tolerations = []corev1.Toleration{{Operator: corev1.TolerationOpExists}}
+	return
+}
+
+func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 	switch dbglevel := f.config.Extra["dbglevel"]; dbglevel {
 	case "":
 	case "debug", "info", "warn", "err", "crit":
@@ -157,141 +199,24 @@ func (f *fuseOssfs) buildPodSpec(
 			options = append(options, "dbglevel="+dbglevel)
 		}
 	default:
-		return spec, fmt.Errorf("invalid ossfs dbglevel: %q", dbglevel)
-	}
-	bidirectional := corev1.MountPropagationBidirectional
-	container := corev1.Container{
-		Name:      "fuse-mounter",
-		Image:     f.config.Image,
-		Resources: f.config.Resources,
-		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:             targetVolume.Name,
-				MountPath:        target,
-				MountPropagation: &bidirectional,
-			}, {
-				Name:      metricsDirVolume.Name,
-				MountPath: metricsDirVolume.HostPath.Path,
-			},
-		},
-		StartupProbe: &corev1.Probe{
-			ProbeHandler: corev1.ProbeHandler{
-				Exec: &corev1.ExecAction{
-					Command: []string{
-						"findmnt", "-t", "fuse.ossfs", target,
-					},
-				},
-			},
-			PeriodSeconds:    1,
-			FailureThreshold: 5,
-		},
-		SecurityContext: &corev1.SecurityContext{
-			Privileged: tea.Bool(true),
-		},
-	}
-	if mimeMountDir == OssfsDefMimeTypesFilePath {
-		mimeVolumeMount := corev1.VolumeMount{
-			Name:      mimeDirVolume.Name,
-			MountPath: mimeMountDir,
-		}
-		container.VolumeMounts = append(container.VolumeMounts, mimeVolumeMount)
+		log.Warnf("invalid ossfs dbglevel: %q", dbglevel)
 	}
 
-	buildAuthSpec(nodeName, volumeId, target, authCfg, &spec, &container, &options)
+	if !utils.IsFileExisting(filepath.Join(hostPrefix, OssfsDefMimeTypesFilePath)) && strings.ToLower(f.config.Extra["mime-support"]) == "true" {
+		// mime.types not exists, use csi-mime.types
+		options = append(options, fmt.Sprintf("mime=%s", OssfsCsiMimeTypesFilePath))
+	}
 
-	args := mountutils.MakeMountArgs(source, target, "", options)
-	args = append(args, mountFlags...)
-	// FUSE foreground option - do not run as daemon
-	args = append(args, "-f")
-	container.Args = args
-
-	spec.Containers = []corev1.Container{container}
-	spec.RestartPolicy = corev1.RestartPolicyOnFailure
-	spec.NodeName = nodeName
-	spec.HostNetwork = true
-	spec.PriorityClassName = "system-node-critical"
-	spec.Tolerations = []corev1.Toleration{{Operator: corev1.TolerationOpExists}}
-	return
+	return options
 }
 
-func SetupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Interface, node, volumeId, bucket, akId, akSecret string) error {
-	key := fmt.Sprintf("%s.%s", node, volumeId)
-	value := fmt.Sprintf("%s:%s:%s", bucket, akId, akSecret)
-	secretClient := clientset.CoreV1().Secrets(fuseMountNamespace)
-	secret, err := secretClient.Get(ctx, OssfsCredentialSecretName, metav1.GetOptions{})
-	if err != nil {
-		// if secret not found, create it
-		if errors.IsNotFound(err) {
-			secret = new(corev1.Secret)
-			secret.Name = OssfsCredentialSecretName
-			secret.Namespace = fuseMountNamespace
-			secret.Data = map[string][]byte{key: []byte(value)}
-			_, err = secretClient.Create(ctx, secret, metav1.CreateOptions{})
-			if err == nil {
-				log.WithField("volumeId", volumeId).Infof("created secret %s to add credentials", OssfsCredentialSecretName)
-			}
-			return err
-		}
-		return err
-	}
-	if string(secret.Data[key]) == value {
-		return nil
-	}
-	// patch secret
-	patch := corev1.Secret{
-		Data: map[string][]byte{
-			key: []byte(value),
-		},
-	}
-	patchData, err := json.Marshal(patch)
-	if err != nil {
-		return err
-	}
-	_, err = secretClient.Patch(ctx, OssfsCredentialSecretName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
-	if err == nil {
-		log.WithField("volumeId", volumeId).Infof("patched secret %s", OssfsCredentialSecretName)
-	}
-	return err
-}
-
-func CleanupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Interface, node, volumeId string) error {
-	key := fmt.Sprintf("%s.%s", node, volumeId)
-	secretClient := clientset.CoreV1().Secrets(fuseMountNamespace)
-	secret, err := secretClient.Get(ctx, OssfsCredentialSecretName, metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
-	_, exists := secret.Data[key]
-	if !exists {
-		return nil
-	}
-	// patch secret
-	patch := corev1.Secret{
-		Data: map[string][]byte{
-			key: nil,
-		},
-	}
-	patchData, err := json.Marshal(patch)
-	if err != nil {
-		return err
-	}
-	_, err = secretClient.Patch(ctx, OssfsCredentialSecretName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
-	if err == nil {
-		log.WithField("volumeId", volumeId).Infof("patched secret %s to remove credentials", OssfsCredentialSecretName)
-	}
-	return err
-}
-
-func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig,
-	spec *corev1.PodSpec, container *corev1.Container, options *[]string) {
-	if spec == nil || container == nil || options == nil {
+func buildAuthSpec(c *FusePodContext, target string, spec *corev1.PodSpec, container *corev1.Container) {
+	if spec == nil || container == nil {
 		return
 	}
+	authCfg := c.AuthConfig
 	if authCfg == nil {
-		authCfg = &AuthConfig{}
+		return
 	}
 
 	switch authCfg.AuthType {
@@ -340,10 +265,10 @@ func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig,
 			},
 			{
 				Name:  "ROLE_SESSION_NAME",
-				Value: getRoleSessionName(volumeId, target),
+				Value: getRoleSessionName(c.VolumeId, target),
 			},
 		}
-		container.Env = envs
+		container.Env = append(container.Env, envs...)
 	case AuthTypeCSS:
 		secretStoreMountDir := "/etc/ossfs/secrets-store"
 		secretStoreVolume := corev1.Volume{
@@ -363,32 +288,51 @@ func buildAuthSpec(nodeName, volumeId, target string, authCfg *AuthConfig,
 			ReadOnly:  true,
 		}
 		container.VolumeMounts = append(container.VolumeMounts, secretStoreVolumeMount)
-		*options = append(*options, fmt.Sprintf("secret_store_dir=%s", secretStoreMountDir))
 	default:
-		passwdMountDir := "/etc/ossfs"
-		passwdFilename := "passwd-ossfs"
-		passwdSecretVolume := corev1.Volume{
-			Name: "passwd-ossfs",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: OssfsCredentialSecretName,
-					Items: []corev1.KeyToPath{
-						{
-							Key:  fmt.Sprintf("%s.%s", nodeName, volumeId),
-							Path: passwdFilename,
-							Mode: tea.Int32(0600),
-						},
-					},
-					Optional: tea.Bool(true),
-				},
-			},
-		}
-		spec.Volumes = append(spec.Volumes, passwdSecretVolume)
-		passwdVolumeMont := corev1.VolumeMount{
-			Name:      passwdSecretVolume.Name,
-			MountPath: passwdMountDir,
-		}
-		container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
-		*options = append(*options, fmt.Sprintf("passwd_file=%s", filepath.Join(passwdMountDir, passwdFilename)))
 	}
+}
+
+func CleanupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Interface, node, volumeId string) error {
+	key := fmt.Sprintf("%s.%s", node, volumeId)
+	secretClient := clientset.CoreV1().Secrets(LegacyFusePodNamespace)
+	secret, err := secretClient.Get(ctx, OssfsCredentialSecretName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	_, exists := secret.Data[key]
+	if !exists {
+		return nil
+	}
+	// patch secret
+	patch := corev1.Secret{
+		Data: map[string][]byte{
+			key: nil,
+		},
+	}
+	patchData, err := json.Marshal(patch)
+	if err != nil {
+		return err
+	}
+	_, err = secretClient.Patch(ctx, OssfsCredentialSecretName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
+	if err == nil {
+		log.WithField("volumeId", volumeId).Infof("patched secret %s to remove credentials", OssfsCredentialSecretName)
+	}
+	return err
+}
+
+func getRoleSessionName(volumeId, target string) string {
+	return fmt.Sprintf("ossfs.%s.%s", volumeId, computeMountPathHash(target))
+}
+
+func GetOssfsMountProxySocketPath(volumeId string) string {
+	volSha := sha256.Sum256([]byte(volumeId))
+	return filepath.Join(OssfsAttachDir, hex.EncodeToString(volSha[:]), "mounter.sock")
+}
+
+func GetOssfsAttachPath(volumeId string) string {
+	volSha := sha256.Sum256([]byte(volumeId))
+	return filepath.Join(OssfsAttachDir, hex.EncodeToString(volSha[:]), "globalmount")
 }

@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -36,7 +37,7 @@ func Test_extractFuseContainerConfig(t *testing.T) {
 				corev1.ResourceMemory: resource.MustParse("500Mi"),
 			},
 		},
-		Image: "ossfs:latest",
+		Image: "",
 		Extra: map[string]string{
 			"dbglevel":     "info",
 			"mime-support": "false",
@@ -50,9 +51,11 @@ func Test_extractFuseContainerConfig(t *testing.T) {
 			"label2": "val2",
 		},
 	}
-	if !reflect.DeepEqual(config, expected) {
-		t.Fail()
-	}
+
+	assert.Equal(t, expected, config)
+	// if !reflect.DeepEqual(config, expected) {
+	// 	t.Fail()
+	// }
 
 	// invalid value
 	configmap = &corev1.ConfigMap{

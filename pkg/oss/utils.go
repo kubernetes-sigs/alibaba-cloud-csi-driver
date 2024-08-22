@@ -17,10 +17,8 @@ limitations under the License.
 package oss
 
 import (
-	"crypto/sha256"
 	"errors"
-	"fmt"
-	"path/filepath"
+	"os"
 	"strings"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -31,41 +29,6 @@ import (
 	"google.golang.org/grpc/status"
 	mountutils "k8s.io/mount-utils"
 )
-
-const (
-	// MetadataURL is metadata url
-	MetadataURL = "http://100.100.100.200/latest/meta-data/"
-	// InstanceID is instance ID
-	InstanceID = "instance-id"
-	// RAMRoleResource is ram-role url subpath
-	RAMRoleResource = "ram/security-credentials/"
-)
-
-func GetGlobalMountPath(volumeId string) string {
-
-	result := sha256.Sum256([]byte(volumeId))
-	volSha := fmt.Sprintf("%x", result)
-
-	globalFileVer1 := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/pv/", volumeId, "/globalmount")
-	globalFileVer2 := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/", driverName, volSha, "/globalmount")
-
-	if utils.IsFileExisting(globalFileVer1) {
-		return globalFileVer1
-	} else {
-		return globalFileVer2
-	}
-}
-
-// GetRAMRoleOption get command line's ram_role option
-func GetRAMRoleOption(roleName string) string {
-	var ramRoleOpt string = roleName
-	if ramRoleOpt == "" {
-		ramRole, _ := utils.GetMetaData(RAMRoleResource)
-		ramRoleOpt = MetadataURL + RAMRoleResource + ramRole
-	}
-	mntCmdRamRole := fmt.Sprintf("ram_role=%s", ramRoleOpt)
-	return mntCmdRamRole
-}
 
 // checkRRSAParams check parameters of RRSA
 func checkRRSAParams(opt *Options) error {
@@ -130,28 +93,29 @@ func parseOtherOpts(otherOpts string) (mountOptions []string, err error) {
 	return mountOptions, nil
 }
 
-func doMount(mounter mountutils.Interface, target string, opts Options, mountOptions []string) error {
-	var source string
-	source = fmt.Sprintf("%s:%s", opts.Bucket, opts.Path)
-	mountOptions = append(mountOptions, fmt.Sprintf("url=%s", opts.URL))
-	otherOpts, err := parseOtherOpts(opts.OtherOpts)
-	if err != nil {
-		return err
+func isNotMountPoint(mounter mountutils.Interface, target string, expensive bool) (notMnt bool, err error) {
+	if expensive {
+		notMnt, err = mountutils.IsNotMountPoint(mounter, target)
+	} else {
+		notMnt, err = mounter.IsLikelyNotMountPoint(target)
 	}
-	mountOptions = append(mountOptions, otherOpts...)
-	logger := log.WithFields(log.Fields{
-		"source":  source,
-		"target":  target,
-		"options": mountOptions,
-		"fstype":  opts.FuseType,
-	})
-	err = mounter.Mount(source, target, "", mountOptions)
 	if err != nil {
-		logger.Errorf("failed to mount: %v", err)
-		return status.Errorf(codes.Internal, "failed to mount: %v", err)
+		if os.IsNotExist(err) {
+			if err := os.MkdirAll(target, os.ModePerm); err != nil {
+				return false, status.Errorf(codes.Internal, "mkdir: %v", err)
+			}
+			return true, nil
+		} else if mountutils.IsCorruptedMnt(err) {
+			log.Warnf("Umount corrupted mountpoint %s", target)
+			err := mounter.Unmount(target)
+			if err != nil {
+				return false, status.Errorf(codes.Internal, "umount corrupted mountpoint %s: %v", target, err)
+			}
+			return true, nil
+		}
+		return false, status.Errorf(codes.Internal, "check mountpoint: %v", err)
 	}
-	logger.Info("mounted successfully")
-	return nil
+	return notMnt, nil
 }
 
 func setNetworkType(originURL, regionID string) (URL string, modified bool) {
