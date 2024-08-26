@@ -32,6 +32,8 @@ func main() {
 
 	var agent CSIAgent
 	switch driver := os.Getenv("CSI_DRIVER"); driver {
+	case "test":
+		agent = &fakeAgent{}
 	case "ossplugin.csi.alibabacloud.com":
 		meta := metadata.NewMetadata()
 		agent = oss.NewCSIAgent(meta, mountProxySocket)
@@ -68,4 +70,10 @@ func printError(err error) error {
 	return printJson(struct {
 		Error string `json:"error"`
 	}{err.Error()})
+}
+
+type fakeAgent struct{}
+
+func (fakeagent *fakeAgent) NodePublishVolume(context.Context, *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	return &csi.NodePublishVolumeResponse{}, nil
 }
