@@ -129,6 +129,12 @@ func (GenericControllerServer) ListSnapshots(context.Context, *csi.ListSnapshots
 func (GenericControllerServer) ControllerExpandVolume(context.Context, *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
+func (GenericControllerServer) ControllerGetVolume(context.Context, *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
+}
+func (GenericControllerServer) ControllerModifyVolume(context.Context, *csi.ControllerModifyVolumeRequest) (*csi.ControllerModifyVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
+}
 
 func ControllerRPCCapabilities(capsRPC ...csi.ControllerServiceCapability_RPC_Type) []*csi.ControllerServiceCapability {
 	caps := make([]*csi.ControllerServiceCapability, 0, len(capsRPC))

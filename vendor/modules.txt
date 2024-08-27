@@ -69,8 +69,8 @@ github.com/cespare/xxhash/v2
 # github.com/clbanning/mxj/v2 v2.5.5
 ## explicit; go 1.15
 github.com/clbanning/mxj/v2
-# github.com/container-storage-interface/spec v1.1.0
-## explicit
+# github.com/container-storage-interface/spec v1.9.0
+## explicit; go 1.18
 github.com/container-storage-interface/spec/lib/go/csi
 # github.com/containerd/ttrpc v1.2.3
 ## explicit; go 1.19
@@ -290,7 +290,7 @@ google.golang.org/appengine/internal/log
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20230731190214-cbb8c96f2d6d
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20230803162519-f966b187b2e5
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.57.1
