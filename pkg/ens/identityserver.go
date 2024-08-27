@@ -4,18 +4,20 @@ import (
 	"context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	log "github.com/sirupsen/logrus"
 )
 
 type identityServer struct {
-	*csicommon.DefaultIdentityServer
+	common.GenericIdentityServer
 }
 
 // NewIdentityServer create identity server
-func NewIdentityServer(d *csicommon.CSIDriver) csi.IdentityServer {
+func NewIdentityServer() csi.IdentityServer {
 	return &identityServer{
-		csicommon.NewDefaultIdentityServer(d),
+		GenericIdentityServer: common.GenericIdentityServer{
+			Name: driverName,
+		},
 	}
 }
 

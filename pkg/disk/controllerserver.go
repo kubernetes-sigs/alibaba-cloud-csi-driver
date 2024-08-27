@@ -33,7 +33,6 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	volumeSnasphotV1 "github.com/kubernetes-csi/external-snapshotter/client/v4/apis/volumesnapshot/v1"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
@@ -55,8 +54,8 @@ import (
 
 // controller server try to create/delete volumes/snapshots
 type controllerServer struct {
-	*csicommon.DefaultControllerServer
 	recorder record.EventRecorder
+	common.GenericControllerServer
 }
 
 // Alicloud disk parameters
@@ -90,7 +89,7 @@ var veasp = struct {
 var delVolumeSnap sync.Map
 
 // NewControllerServer is to create controller server
-func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.ControllerServer {
+func NewControllerServer(client *crd.Clientset) csi.ControllerServer {
 	installCRD := true
 	installCRDStr := os.Getenv(utils.InstallSnapshotCRD)
 	if installCRDStr == "false" {
@@ -113,10 +112,21 @@ func NewControllerServer(d *csicommon.CSIDriver, client *crd.Clientset) csi.Cont
 		checkInstallDefaultVolumeSnapshotClass(GlobalConfigVar.SnapClient)
 	}
 	c := &controllerServer{
-		DefaultControllerServer: csicommon.NewDefaultControllerServer(d),
-		recorder:                utils.NewEventRecorder(),
+		recorder: utils.NewEventRecorder(),
 	}
 	return c
+}
+
+func (cs *controllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
+	return &csi.ControllerGetCapabilitiesResponse{
+		Capabilities: common.ControllerRPCCapabilities(
+			csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+			csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+			csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
+			csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
+			csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
+		),
+	}, nil
 }
 
 // the map of req.Name and csi.Snapshot
@@ -136,11 +146,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	log.Infof("CreateVolume: Starting CreateVolume, %s, %v", req.Name, req)
 
 	// Step 1: check parameters
-	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME); err != nil {
-		log.Errorf("CreateVolume: driver not support Create volume: %v", err)
-		return nil, err
-	}
-
 	snapshotID := ""
 	volumeSource := req.GetVolumeContentSource()
 	if volumeSource != nil {
@@ -249,11 +254,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	log.Infof("DeleteVolume: Starting deleting volume %s", req.VolumeId)
 
-	// Step 1: check inputs
-	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME); err != nil {
-		log.Warnf("DeleteVolume: invalid delete volume req: %v", req)
-		return nil, status.Errorf(codes.InvalidArgument, "DeleteVolume: invalid delete volume req: %v", req)
-	}
 	// For now the image get unconditionally deleted, but here retention policy can be checked
 	ecsClient, err := getEcsClientByID(req.VolumeId, "")
 	if err != nil {
@@ -550,9 +550,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	log.Infof("CreateSnapshot:: Starting to create snapshot: %+v", req)
-	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
-		return nil, err
-	}
 	sourceVolumeID := strings.Trim(req.GetSourceVolumeId(), " ")
 	// Need to check for already existing snapshot name
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
@@ -694,9 +691,6 @@ func snapshotBeforeDelete(volumeID string, ecsClient *ecs.Client) error {
 func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
 
 	// Check arguments
-	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
-		return nil, err
-	}
 	snapshotID := req.GetSnapshotId()
 	log.Infof("DeleteSnapshot:: starting delete snapshot %s", snapshotID)
 
@@ -1029,9 +1023,6 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 	sourceVolumeID := disk.DiskId
 
 	log.Infof("ControllerExpandVolume:: Starting to create volumeExpandAutoSnapshot with name: %s", volumeExpandAutoSnapshotName)
-	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
-		return nil, err
-	}
 
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 
@@ -1077,9 +1068,6 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 
 func (cs *controllerServer) deleteVolumeExpandAutoSnapshot(ctx context.Context, pvc *v1.PersistentVolumeClaim, snapshotID string) error {
 	log.Infof("ControllerExpandVolume:: Starting to delete volumeExpandAutoSnapshot with id: %s", snapshotID)
-	if err := cs.Driver.ValidateControllerServiceRequest(csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT); err != nil {
-		return err
-	}
 
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 

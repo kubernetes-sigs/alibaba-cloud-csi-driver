@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/pov/internal"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -16,12 +18,16 @@ import (
 type nodeService struct {
 	inFlight *internal.InFlight
 	mounter  mountutils.Interface
+	common.GenericNodeServer
 }
 
-func newNodeService() nodeService {
+func newNodeService(meta metadata.MetadataProvider) nodeService {
 	return nodeService{
 		inFlight: internal.NewInFlight(),
 		mounter:  mountutils.New(""),
+		GenericNodeServer: common.GenericNodeServer{
+			NodeID: metadata.MustGet(meta, metadata.InstanceID),
+		},
 	}
 }
 
@@ -96,7 +102,7 @@ func (d *nodeService) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	topology := &csi.Topology{Segments: segments}
 
 	return &csi.NodeGetInfoResponse{
-		NodeId:             GlobalConfigVar.instanceID,
+		NodeId:             d.NodeID,
 		MaxVolumesPerNode:  d.getVolumesLimit(),
 		AccessibleTopology: topology,
 	}, nil

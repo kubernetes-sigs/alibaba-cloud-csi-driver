@@ -3,6 +3,9 @@ package nas
 import (
 	"context"
 	"errors"
+	"sync"
+	"testing"
+
 	aliErrors "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -12,14 +15,13 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
+	mytesting "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/testing"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"sync"
-	"testing"
 )
 
 const (
@@ -256,7 +258,7 @@ func TestCreateVolume(t *testing.T) {
 			} else {
 				assert.NotNil(t, actual)
 				assert.NotNil(t, actual.Volume)
-				assert.Equal(t, *tt.expected, *actual.Volume)
+				mytesting.AssertProtoEqual(t, tt.expected, actual.Volume)
 			}
 			if tt.wantErr {
 				assert.Error(t, err)

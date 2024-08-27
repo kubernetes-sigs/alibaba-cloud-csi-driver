@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	log "github.com/sirupsen/logrus"
@@ -38,18 +39,11 @@ func init() {
 	internal.RegisterControllerMode(newAccesspointController)
 }
 
-var (
-	// controllerCaps represents the capability of controller service
-	controllerCaps = []csi.ControllerServiceCapability_RPC_Type{
-		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
-		csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
-	}
-)
-
 type controllerServer struct {
 	*internal.ControllerFactory
 	kubeClient kubernetes.Interface
 	locks      *utils.VolumeLocks
+	common.GenericControllerServer
 }
 
 func newControllerServer(config *internal.ControllerConfig) (*controllerServer, error) {
@@ -170,18 +164,11 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 }
 
 func (cs *controllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
-	var caps []*csi.ControllerServiceCapability
-	for _, cap := range controllerCaps {
-		c := &csi.ControllerServiceCapability{
-			Type: &csi.ControllerServiceCapability_Rpc{
-				Rpc: &csi.ControllerServiceCapability_RPC{
-					Type: cap,
-				},
-			},
-		}
-		caps = append(caps, c)
-	}
-	return &csi.ControllerGetCapabilitiesResponse{Capabilities: caps}, nil
+	return &csi.ControllerGetCapabilitiesResponse{
+		Capabilities: common.ControllerRPCCapabilities(
+			csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+			csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
+		)}, nil
 }
 
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {

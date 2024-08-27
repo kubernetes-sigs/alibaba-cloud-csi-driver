@@ -24,9 +24,9 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -38,14 +38,14 @@ import (
 )
 
 type nodeServer struct {
-	metadata metadata.MetadataProvider
-	*csicommon.DefaultNodeServer
+	metadata   metadata.MetadataProvider
 	locks      *utils.VolumeLocks
 	nodeName   string
 	clientset  kubernetes.Interface
 	cnfsGetter cnfsv1beta1.CNFSGetter
 	rawMounter mountutils.Interface
 	ossfs      mounter.FuseMounterType
+	common.GenericNodeServer
 }
 
 // Options contains options for target oss
