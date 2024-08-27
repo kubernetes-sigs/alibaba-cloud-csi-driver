@@ -3,13 +3,13 @@ package internal
 import (
 	"context"
 	"errors"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"os"
 	"strconv"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -32,6 +32,8 @@ type ControllerConfig struct {
 	// subpath configs
 	SkipSubpathCreation    bool
 	EnableSubpathFinalizer bool
+	// check whether recycle bin enabled before subpath deletion
+	EnableRecycleBinCheck bool
 
 	// clients for kubernetes
 	KubeClient kubernetes.Interface
@@ -66,6 +68,7 @@ func GetControllerConfig(meta *metadata.Metadata) (*ControllerConfig, error) {
 	}
 
 	config.EnableSubpathFinalizer, _ = parseBool(os.Getenv("ENABLE_NAS_SUBPATH_FINALIZER"))
+	config.EnableRecycleBinCheck, _ = parseBool(os.Getenv("ENABLE_NAS_RECYCLEBIN_CHECK"))
 
 	return config, nil
 }
