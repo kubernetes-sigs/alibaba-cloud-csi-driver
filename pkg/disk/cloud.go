@@ -790,13 +790,11 @@ func DescribeDiskInstanceEvents(instanceId string, ecsClient *ecs.Client) (event
 }
 
 type createSnapshotParams struct {
-	SourceVolumeID             string
-	SnapshotName               string
-	ResourceGroupID            string
-	RetentionDays              int
-	InstantAccessRetentionDays int
-	InstantAccess              bool
-	SnapshotTags               []ecs.CreateSnapshotTag
+	SourceVolumeID  string
+	SnapshotName    string
+	ResourceGroupID string
+	RetentionDays   int
+	SnapshotTags    []ecs.CreateSnapshotTag
 }
 
 func requestAndCreateSnapshot(ecsClient *ecs.Client, params *createSnapshotParams) (*ecs.CreateSnapshotResponse, error) {
@@ -804,8 +802,6 @@ func requestAndCreateSnapshot(ecsClient *ecs.Client, params *createSnapshotParam
 	createSnapshotRequest := ecs.CreateCreateSnapshotRequest()
 	createSnapshotRequest.DiskId = params.SourceVolumeID
 	createSnapshotRequest.SnapshotName = params.SnapshotName
-	createSnapshotRequest.InstantAccess = requests.NewBoolean(params.InstantAccess)
-	createSnapshotRequest.InstantAccessRetentionDays = requests.NewInteger(params.InstantAccessRetentionDays)
 	if params.RetentionDays != 0 {
 		createSnapshotRequest.RetentionDays = requests.NewInteger(params.RetentionDays)
 	}
