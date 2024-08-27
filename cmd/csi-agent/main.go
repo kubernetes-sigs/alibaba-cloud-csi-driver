@@ -8,6 +8,8 @@ import (
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/golang/protobuf/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
@@ -42,34 +44,35 @@ func main() {
 		os.Exit(1)
 	}
 
+	var resp proto.Message
+
 	switch cmd := os.Getenv("CSI_COMMAND"); cmd {
 	case "NodePublishVolume":
 		var req csi.NodePublishVolumeRequest
-		err := json.NewDecoder(os.Stdin).Decode(&req)
+		err := jsonpb.Unmarshal(os.Stdin, &req)
 		if err != nil {
 			printError(err)
 			os.Exit(1)
 		}
-		resp, err := agent.NodePublishVolume(context.Background(), &req)
+		resp, err = agent.NodePublishVolume(context.Background(), &req)
 		if err != nil {
 			printError(err)
 			os.Exit(2)
 		}
-		printJson(resp)
 	default:
 		printError(fmt.Errorf("invalid CSI_COMMAND: %q", cmd))
 		os.Exit(1)
 	}
+
+	_ = new(jsonpb.Marshaler).Marshal(os.Stdout, resp)
 }
 
-func printJson(data any) error {
-	return json.NewEncoder(os.Stdout).Encode(data)
-}
-
-func printError(err error) error {
-	return printJson(struct {
+func printError(err error) {
+	_ = json.NewEncoder(os.Stdout).Encode(struct {
 		Error string `json:"error"`
-	}{err.Error()})
+	}{
+		Error: err.Error(),
+	})
 }
 
 type fakeAgent struct{}

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -20,11 +19,10 @@ type CSIAgent struct {
 
 func NewCSIAgent(m metadata.MetadataProvider, socketPath string) *CSIAgent {
 	ns := &nodeServer{
-		metadata:          m,
-		DefaultNodeServer: csicommon.NewDefaultNodeServer(nil),
-		locks:             utils.NewVolumeLocks(),
-		rawMounter:        mountutils.New(""),
-		skipAttach:        true,
+		metadata:   m,
+		locks:      utils.NewVolumeLocks(),
+		rawMounter: mountutils.New(""),
+		skipAttach: true,
 	}
 	return &CSIAgent{
 		ns:         ns,
