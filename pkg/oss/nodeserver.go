@@ -18,8 +18,8 @@ package oss
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -60,8 +60,9 @@ type Options struct {
 
 	// authorization options
 	// accesskey
-	AkID     string `json:"akId"`
-	AkSecret string `json:"akSecret"`
+	AkID      string `json:"akId"`
+	AkSecret  string `json:"akSecret"`
+	SecretRef string `json:"secretRef"`
 	// RRSA
 	RoleName           string `json:"roleName"` // also for STS
 	RoleArn            string `json:"roleArn"`
@@ -163,12 +164,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	switch opts.AuthType {
 	case "":
 		// try to get ak/sk from env
-		if opts.AkID == "" || opts.AkSecret == "" {
+		if opts.SecretRef == "" && (opts.AkID == "" || opts.AkSecret == "") {
 			ac := utils.GetEnvAK()
 			opts.AkID = ac.AccessKeyID
 			opts.AkSecret = ac.AccessKeySecret
 		}
-		if opts.AkID == "" || opts.AkSecret == "" {
+		if opts.SecretRef == "" && (opts.AkID == "" || opts.AkSecret == "") {
 			return nil, status.Error(codes.InvalidArgument, "missing access key in node publish secret")
 		}
 	case mounter.AuthTypeSTS:
@@ -231,35 +232,44 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 // Check oss options
 func checkOssOptions(opt *Options) error {
 	if opt.FuseType != OssFsType {
-		return errors.New("only ossfs fuse type supported")
+		return WrapOssError(ParamError, "only ossfs fuse type supported")
 	}
 
 	if opt.URL == "" || opt.Bucket == "" {
-		return errors.New("Oss parameters error: Url/Bucket empty")
+		return WrapOssError(ParamError, "Url/Bucket empty")
 	}
 
 	if !strings.HasPrefix(opt.Path, "/") {
-		return errors.New("Oss path error: start with " + opt.Path + ", should start with /")
+		return WrapOssError(PathError, "start with "+opt.Path+", should start with /")
 	}
 
 	switch opt.AuthType {
 	case mounter.AuthTypeSTS:
 	case mounter.AuthTypeRRSA:
 		if err := checkRRSAParams(opt); err != nil {
-			return err
+			return WrapOssError(AuthError, err.Error())
 		}
 	case mounter.AuthTypeCSS:
 		if opt.SecretProviderClass == "" {
-			return errors.New("Oss parameters error: use CsiSecretStore but secretProviderClass is empty")
+			return WrapOssError(AuthError, "use CsiSecretStore but secretProviderClass is empty")
+		}
+	default:
+		if opt.SecretRef != "" {
+			if opt.AkID != "" || opt.AkSecret != "" {
+				return WrapOssError(AuthError, "AK and secretRef cannot be set at the same time")
+			}
+			if opt.SecretRef == mounter.OssfsCredentialSecretName {
+				return WrapOssError(ParamError, "invalid SecretRef name")
+			}
 		}
 	}
 
 	if opt.Encrypted != "" && opt.Encrypted != EncryptedTypeKms && opt.Encrypted != EncryptedTypeAes256 {
-		return errors.New("Oss encrypted error: invalid SSE encrypted type")
+		return WrapOssError(EncryptError, "invalid SSE encryted type")
 	}
 
 	if opt.AssumeRoleArn != "" && opt.AuthType != mounter.AuthTypeRRSA {
-		return errors.New("Oss parameters error: only support access OSS through STS AssumeRole when authType is RRSA")
+		return WrapOssError(AuthError, "only support access OSS through STS AssumeRole when authType is RRSA")
 	}
 
 	return nil
@@ -370,13 +380,15 @@ func parseOptions(req publishRequest, region string) *Options {
 			opts.AkID = value
 		case "aksecret":
 			opts.AkSecret = value
+		case "secretref":
+			opts.SecretRef = value
 		case "path":
 			opts.Path = value
 		case "usesharedpath":
 			if res, err := strconv.ParseBool(value); err == nil {
 				opts.UseSharedPath = res
 			} else {
-				log.Warnf("Oss parameters error: the value(%q) of %q is invalid", v, k)
+				log.Warn(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
 			}
 		case "authtype":
 			opts.AuthType = strings.ToLower(value)
@@ -400,7 +412,7 @@ func parseOptions(req publishRequest, region string) *Options {
 			if res, err := strconv.ParseBool(value); err == nil {
 				opts.directAssigned = res
 			} else {
-				log.Warnf("Oss parameters error: the value(%q) of %q is invalid", v, k)
+				log.Warn(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
 			}
 		case "encrypted":
 			opts.Encrypted = strings.ToLower(value)
@@ -516,8 +528,14 @@ func (o *Options) MakeMountOptionsAndAuthConfig(m metadata.MetadataProvider, vol
 			mountOptions = append(mountOptions, "ram_role="+o.RoleName)
 		}
 	default:
-		authCfg.Secrets = map[string]string{
-			mounter.OssfsPasswdFile: fmt.Sprintf("%s:%s:%s", o.Bucket, o.AkID, o.AkSecret),
+		if o.SecretRef != "" {
+			authCfg.SecretRef = o.SecretRef
+			mountOptions = append(mountOptions, fmt.Sprintf("passwd_file=%s", filepath.Join(mounter.PasswdMountDir, mounter.PasswdFilename)))
+			mountOptions = append(mountOptions, "use_session_token")
+		} else {
+			authCfg.Secrets = map[string]string{
+				mounter.OssfsPasswdFile: fmt.Sprintf("%s:%s:%s", o.Bucket, o.AkID, o.AkSecret),
+			}
 		}
 	}
 

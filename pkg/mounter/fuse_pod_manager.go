@@ -47,6 +47,8 @@ type AuthConfig struct {
 	SecretProviderClassName string
 	// for AK/SK
 	Secrets map[string]string
+	// for Token from Secret
+	SecretRef string
 	// for STS(ECS worker role)
 	RoleName string
 }

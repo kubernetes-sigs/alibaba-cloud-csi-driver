@@ -39,6 +39,9 @@ const (
 	SecretProviderClassKey = "secretProviderClass"
 
 	OssfsAttachDir = "/run/fuse.ossfs"
+
+	PasswdMountDir = "/etc/ossfs"
+	PasswdFilename = "passwd-ossfs"
 )
 
 type fuseOssfs struct {
@@ -301,6 +304,21 @@ func buildAuthSpec(c *FusePodContext, target string, spec *corev1.PodSpec, conta
 		}
 		container.VolumeMounts = append(container.VolumeMounts, secretStoreVolumeMount)
 	default:
+		secretVolumeSource := getPasswdSecretVolume(authCfg.SecretRef)
+		if secretVolumeSource != nil {
+			passwdSecretVolume := corev1.Volume{
+				Name: "passwd-ossfs",
+				VolumeSource: corev1.VolumeSource{
+					Secret: secretVolumeSource,
+				},
+			}
+			spec.Volumes = append(spec.Volumes, passwdSecretVolume)
+			passwdVolumeMont := corev1.VolumeMount{
+				Name:      passwdSecretVolume.Name,
+				MountPath: PasswdMountDir,
+			}
+			container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
+		}
 	}
 }
 
@@ -347,4 +365,33 @@ func GetOssfsMountProxySocketPath(volumeId string) string {
 func GetOssfsAttachPath(volumeId string) string {
 	volSha := sha256.Sum256([]byte(volumeId))
 	return filepath.Join(OssfsAttachDir, hex.EncodeToString(volSha[:]), "globalmount")
+}
+
+// keep consitent with RAM response
+var secretRefKeysToParse []string = []string{
+	"AccessKeyId",
+	"AccessKeySecret",
+	"Expiration",
+	"SecurityToken",
+}
+
+func getPasswdSecretVolume(secretRef string) (secret *corev1.SecretVolumeSource) {
+	passwdFilename := "passwd-ossfs"
+	if secretRef == "" {
+		return nil
+	}
+	items := []corev1.KeyToPath{}
+	for _, key := range secretRefKeysToParse {
+		item := corev1.KeyToPath{
+			Key:  key,
+			Path: fmt.Sprintf("%s/%s", passwdFilename, key),
+			Mode: tea.Int32(0600),
+		}
+		items = append(items, item)
+	}
+	secret = &corev1.SecretVolumeSource{
+		SecretName: secretRef,
+		Items:      items,
+	}
+	return
 }
