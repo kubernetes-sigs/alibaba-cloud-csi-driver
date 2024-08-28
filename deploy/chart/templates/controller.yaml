@@ -316,8 +316,9 @@ spec:
               value: HTTP
             - name: PRIVATE_CLOUD_TAG
               value: "true"
-            - name: X_ACSPROXY_ASCM_CONTEXT
-              value: {{ .Values.deploy.acsProxyASCMContext | quote }}
+            - name: ALIBABA_CLOUD_HTTP_HEADERS
+              value: |
+                X-Acsproxy-Ascm-Context: {{ .Values.deploy.acsProxyASCMContext }}
 {{- end }}
 {{- if .Values.deploy.withStorageController }}
             - name: ENABLE_NAS_SUBPATH_FINALIZER
