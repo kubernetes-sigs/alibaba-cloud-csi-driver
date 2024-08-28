@@ -97,16 +97,6 @@ func NewControllerServer(client *crd.Clientset) csi.ControllerServer {
 		installCRD = false
 	}
 
-	// parse input snapshot request interval
-	intervalStr := os.Getenv(SnapshotRequestTag)
-	if intervalStr != "" {
-		interval, err := strconv.ParseInt(intervalStr, 10, 64)
-		if err != nil {
-			log.Fatalf("Input SnapshotRequestTag is illegal: %s", intervalStr)
-		}
-		SnapshotRequestInterval = interval
-	}
-
 	serviceType := os.Getenv(utils.ServiceType)
 	if serviceType == utils.ProvisionerService && installCRD {
 		checkInstallCRD(client)
@@ -135,12 +125,6 @@ var createdSnapshotMap = map[string]*csi.Snapshot{}
 
 // the map of multizone and index
 var storageClassZonePos = map[string]int{}
-
-// SnapshotRequestMap snapshot request limit
-var SnapshotRequestMap = map[string]int64{}
-
-// SnapshotRequestInterval snapshot request limit
-var SnapshotRequestInterval = int64(10)
 
 // provisioner: create/delete disk
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
@@ -380,11 +364,6 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 
-	if !GlobalConfigVar.ADControllerEnable {
-		log.Infof("ControllerPublishVolume: ADController Disable to attach disk: %s to node: %s", req.VolumeId, req.NodeId)
-		return &csi.ControllerPublishVolumeResponse{}, nil
-	}
-
 	log.Infof("ControllerPublishVolume: start attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 	isSharedDisk := false
 	if value, ok := req.VolumeContext[SharedEnable]; ok {
@@ -394,7 +373,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}
 	}
 
-	_, err := attachDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk)
+	err := attachDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk)
 	if err != nil {
 		log.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
@@ -416,11 +395,6 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		return nil, err
 	} else if isMultiAttach {
 		log.Infof("ControllerUnpublishVolume: Successful detach multiAttach disk: %s from node: %s", req.VolumeId, req.NodeId)
-		return &csi.ControllerUnpublishVolumeResponse{}, nil
-	}
-
-	if !GlobalConfigVar.ADControllerEnable {
-		log.Infof("ControllerUnpublishVolume: ADController Disable to detach disk: %s from node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
@@ -532,16 +506,6 @@ func parseSnapshotAnnotations(anno map[string]string, ecsParams *createSnapshotP
 
 // CreateSnapshot ...
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	// request limit
-	cur := time.Now().Unix()
-	if initTime, ok := SnapshotRequestMap[req.Name]; ok {
-		if cur-initTime < SnapshotRequestInterval {
-			err := fmt.Errorf("CreateSnapshot: snapshot create request limit %s", req.Name)
-			return nil, err
-		}
-	}
-	SnapshotRequestMap[req.Name] = cur
-
 	// used for snapshot events
 	snapshotName := req.Parameters[common.VolumeSnapshotNameKey]
 	snapshotNamespace := req.Parameters[common.VolumeSnapshotNamespaceKey]
@@ -577,7 +541,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 			if csiSnapshot.ReadyToUse {
 				str := fmt.Sprintf("VolumeSnapshot: name: %s, id: %s is ready to use.", existsSnapshot.SnapshotName, existsSnapshot.SnapshotId)
 				utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotCreatedSuccessfully, str)
-				delete(SnapshotRequestMap, req.Name)
 			}
 			return &csi.CreateSnapshotResponse{
 				Snapshot: csiSnapshot,
