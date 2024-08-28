@@ -2,6 +2,7 @@ package mounter
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -51,4 +52,81 @@ func Test_buildAuthSpec(t *testing.T) {
 	volumeMount := container.VolumeMounts[len(container.VolumeMounts)-1]
 	assert.Contains(t, "/var/run/secrets/ack.alibabacloud.com/rrsa-tokens", volumeMount.MountPath)
 	assert.Contains(t, "rrsa-oidc-token", volumeMount.Name)
+}
+
+func Test_AddDefaultMountOptions(t *testing.T) {
+	tests := []struct {
+		name     string
+		options  []string
+		dbglevel string
+		mime     string
+		want     []string
+	}{
+		{
+			name:     "Debug level not set",
+			options:  []string{},
+			dbglevel: "",
+			mime:     "false",
+			want:     []string{"dbglevel=err"},
+		},
+		{
+			name:     "Debug level set by config",
+			options:  []string{},
+			dbglevel: "warn",
+			mime:     "false",
+			want:     []string{"dbglevel=warn"},
+		},
+		{
+			name:     "Debug level set by mount options",
+			options:  []string{"dbglevel=info"},
+			dbglevel: "warn",
+			mime:     "false",
+			want:     []string{"dbglevel=info"},
+		},
+		{
+			name:     "Invalid debug level",
+			options:  []string{},
+			dbglevel: "unknown",
+			mime:     "false",
+			want:     []string{"dbglevel=err"},
+		},
+		{
+			name:     "Mime support enabled without existing mime.types",
+			options:  []string{},
+			dbglevel: "",
+			mime:     "true",
+			want:     []string{"dbglevel=err", "mime=" + OssfsCsiMimeTypesFilePath},
+		},
+		{
+			name:     "Mime support disabled with existing mime.types",
+			options:  []string{},
+			dbglevel: "",
+			mime:     "false",
+			want:     []string{"dbglevel=err"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &fuseOssfs{
+				config: FuseContainerConfig{
+					Extra: map[string]string{
+						"dbglevel":     tt.dbglevel,
+						"mime-support": tt.mime,
+					},
+				},
+			}
+			got := f.AddDefaultMountOptions(tt.options)
+			if len(got) != len(tt.want) {
+				t.Errorf("AddDefaultMountOptions() got = %v, want %v", got, tt.want)
+				return
+			}
+			for i := range got {
+				if !strings.EqualFold(got[i], tt.want[i]) {
+					t.Errorf("AddDefaultMountOptions() got = %v, want %v", got, tt.want)
+					return
+				}
+			}
+		})
+	}
 }

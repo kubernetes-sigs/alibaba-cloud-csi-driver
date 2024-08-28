@@ -185,21 +185,23 @@ func (f *fuseOssfs) buildPodSpec(c *FusePodContext, target string) (spec corev1.
 }
 
 func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
+	alreadySet := false
+	for _, option := range options {
+		if strings.Contains(option, "dbglevel") {
+			alreadySet = true
+			break
+		}
+	}
+	setDbgLevel := "err"
 	switch dbglevel := f.config.Extra["dbglevel"]; dbglevel {
 	case "":
 	case "debug", "info", "warn", "err", "crit":
-		alreadySet := false
-		for _, option := range options {
-			if strings.Contains(option, "dbglevel") {
-				alreadySet = true
-				break
-			}
-		}
-		if !alreadySet {
-			options = append(options, "dbglevel="+dbglevel)
-		}
+		setDbgLevel = dbglevel
 	default:
 		log.Warnf("invalid ossfs dbglevel: %q", dbglevel)
+	}
+	if !alreadySet {
+		options = append(options, fmt.Sprintf("dbglevel=%s", setDbgLevel))
 	}
 
 	if !utils.IsFileExisting(filepath.Join(hostPrefix, OssfsDefMimeTypesFilePath)) && strings.ToLower(f.config.Extra["mime-support"]) == "true" {
