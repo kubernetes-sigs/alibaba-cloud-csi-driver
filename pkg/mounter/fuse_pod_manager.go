@@ -63,6 +63,14 @@ const (
 	AuthTypeCSS  = "csi-secret-store"
 )
 
+const (
+	DebugLevelFatal = "fatal"
+	DebugLevelError = "error"
+	DebugLevelWarn  = "warn"
+	DebugLevelInfo  = "info"
+	DebugLevelDebug = "debug"
+)
+
 type FusePodContext struct {
 	context.Context
 	Namespace  string
@@ -81,6 +89,7 @@ type FuseContainerConfig struct {
 	Resources   corev1.ResourceRequirements
 	Image       string
 	ImageTag    string
+	Dbglevel    string
 	Annotations map[string]string
 	Labels      map[string]string
 	Extra       map[string]string
@@ -103,6 +112,14 @@ func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 		switch key {
 		case "":
 			invalid = true
+		case "dbglevel":
+			switch value {
+			case DebugLevelFatal, DebugLevelError, DebugLevelWarn, DebugLevelInfo, DebugLevelDebug:
+				config.Dbglevel = value
+			default:
+				invalid = true
+				break
+			}
 		case "image":
 			logrus.Warn("'image' config in configmap no longer supported")
 		case "image-tag":

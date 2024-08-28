@@ -37,9 +37,9 @@ func Test_extractFuseContainerConfig(t *testing.T) {
 				corev1.ResourceMemory: resource.MustParse("500Mi"),
 			},
 		},
-		Image: "",
+		Image:    "",
+		Dbglevel: "info",
 		Extra: map[string]string{
-			"dbglevel":     "info",
 			"mime-support": "false",
 		},
 		Annotations: map[string]string{

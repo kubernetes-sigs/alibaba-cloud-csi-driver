@@ -2,7 +2,7 @@ package mounter
 
 import (
 	"context"
-	"strings"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -110,8 +110,8 @@ func Test_AddDefaultMountOptions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &fuseOssfs{
 				config: FuseContainerConfig{
+					Dbglevel: tt.dbglevel,
 					Extra: map[string]string{
-						"dbglevel":     tt.dbglevel,
 						"mime-support": tt.mime,
 					},
 				},
@@ -121,11 +121,9 @@ func Test_AddDefaultMountOptions(t *testing.T) {
 				t.Errorf("AddDefaultMountOptions() got = %v, want %v", got, tt.want)
 				return
 			}
-			for i := range got {
-				if !strings.EqualFold(got[i], tt.want[i]) {
-					t.Errorf("AddDefaultMountOptions() got = %v, want %v", got, tt.want)
-					return
-				}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AddDefaultMountOptions() got = %v, want %v", got, tt.want)
+				return
 			}
 		})
 	}
