@@ -148,13 +148,18 @@ func (m *Metadata) EnableEcs(httpRT http.RoundTripper) {
 func (m *Metadata) EnableKubernetes(client kubernetes.Interface) {
 	nodeName := os.Getenv(KUBE_NODE_NAME_ENV)
 	if nodeName == "" {
-		logrus.Warnf("%s environment variable is not set, skipping Kubernetes metadata", KUBE_NODE_NAME_ENV)
-		return
+		logrus.Warnf("%s environment variable is not set, skipping Kubernetes Node metadata", KUBE_NODE_NAME_ENV)
+	} else {
+		m.providers = append(m.providers, &lazyInitProvider{
+			fetcher: &KubernetesNodeMetadataFetcher{
+				client:   client.CoreV1().Nodes(),
+				nodeName: nodeName,
+			},
+		})
 	}
 	m.providers = append(m.providers, &lazyInitProvider{
-		fetcher: &KubernetesMetadataFetcher{
-			client:   client,
-			nodeName: nodeName,
+		fetcher: &ProfileFetcher{
+			client: client,
 		},
 	})
 }
