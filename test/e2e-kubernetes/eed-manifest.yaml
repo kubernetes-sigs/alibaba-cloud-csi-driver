@@ -1,0 +1,28 @@
+StorageClass:
+  FromFile: test/e2e-kubernetes/ephemeral-sc.yaml
+DriverInfo:
+  Name: eed.csi.alibabacloud.com
+  SupportedSizeRange:
+    Min: 64Gi
+    Max: 8Ti
+  StressTestOptions:
+    NumPods: 10
+    NumRestarts: 10
+  SupportedFsType:
+    xfs: {}
+    ext4: {}
+  TopologyKeys:
+  - topology.diskplugin.csi.alibabacloud.com/zone
+  - alibabacloud.com/ecs-instance-id
+  Capabilities:
+    persistence: true
+    fsGroup: true
+    block: true
+    exec: true
+    snapshotDataSource: false
+    pvcDataSource: false
+    multipods: true
+    controllerExpansion: true
+    nodeExpansion: true
+    volumeLimits: true
+    topology: true
