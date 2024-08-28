@@ -57,7 +57,7 @@ const (
 )
 
 // attach alibaba cloud disk
-func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk bool) (string, error) {
+func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk, isSingleInstance bool) (string, error) {
 	log.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
 	ecsClient, err := getEcsClientByID("", tenantUserUID)
@@ -180,6 +180,9 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 	attachRequest := ecs.CreateAttachDiskRequest()
 	attachRequest.InstanceId = nodeID
 	attachRequest.DiskId = diskID
+	if isSingleInstance {
+		attachRequest.DeleteWithInstance = requests.NewBoolean(true)
+	}
 	for key, value := range GlobalConfigVar.RequestBaseInfo {
 		attachRequest.AppendUserAgent(key, value)
 	}
