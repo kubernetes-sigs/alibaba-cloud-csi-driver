@@ -454,6 +454,9 @@ func detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID strin
 	detachDiskRequest := ecs.CreateDetachDiskRequest()
 	detachDiskRequest.DiskId = disk.DiskId
 	detachDiskRequest.InstanceId = disk.InstanceId
+	if AllCategories[Category(disk.Category)].SingleInstance {
+		detachDiskRequest.DeleteWithInstance = requests.NewBoolean(true)
+	}
 	for key, value := range GlobalConfigVar.RequestBaseInfo {
 		detachDiskRequest.AppendUserAgent(key, value)
 	}
