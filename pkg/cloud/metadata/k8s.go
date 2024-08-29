@@ -65,7 +65,7 @@ func NewKubernetesNodeMetadata(nodeName string, nodeClient corev1.NodeInterface)
 func (m *KubernetesNodeMetadata) Get(key MetadataKey) (string, error) {
 	labels := MetadataLabels[key]
 	for _, label := range labels {
-		if value, ok := m.node.Labels[label]; ok {
+		if value := m.node.Labels[label]; value != "" {
 			return value, nil
 		}
 	}
