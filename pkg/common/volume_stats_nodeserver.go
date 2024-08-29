@@ -47,7 +47,7 @@ func (ns *NodeServerWithMetricRecorder) observeExecTime(time int64, statType met
 		metric.VolumeStatTypeLabelName:    ns.driverType,
 		metric.VolumeStatIdLabelName:      volumeId,
 		metric.VolumeStatErrCodeLabelName: errCode,
-	}).Observe(float64(time))
+	}).Observe(float64(time) / 1000)
 }
 
 func (ns *NodeServerWithMetricRecorder) observeVolumeAttachmentTime(curTime int64, req *csi.NodePublishVolumeRequest, err error) {
@@ -75,7 +75,7 @@ func (ns *NodeServerWithMetricRecorder) observeVolumeAttachmentTime(curTime int6
 		metric.VolumeStatTypeLabelName:    ns.driverType,
 		metric.VolumeStatIdLabelName:      req.GetVolumeId(),
 		metric.VolumeStatErrCodeLabelName: errCode,
-	}).Observe(float64(curTime) - float64(podStartTime))
+	}).Observe((float64(curTime) - float64(podStartTime)) / 1000)
 }
 
 func getPodStartTimestamp(pod *v1.Pod) (int64, error) {
