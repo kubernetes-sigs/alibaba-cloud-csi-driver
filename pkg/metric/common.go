@@ -35,7 +35,7 @@ const (
 	clusterNamespace                        = "cluster"
 	csiNamespace                            = "csi"
 	nodeNamespace                           = "node"
-	execTimeSubsystem                       = "exec_time"
+	grpcSubsystem                           = "grpc"
 	scrapeSubsystem                         = "scrape"
 	volumeSubsystem                         = "volume"
 	latencySwitch                           = "latency"

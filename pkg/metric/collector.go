@@ -72,7 +72,7 @@ func newCSICollector(driverNames []string) error {
 			}
 		}
 	}
-	collectors[VolumeStatCollectorName] = &VolumeStatCollector
+	collectors[CsiGrpcExecTimeCollectorName] = &CsiGrpcExecTimeCollector
 	csiCollectorInstance = &CSICollector{Collectors: collectors}
 
 	return nil

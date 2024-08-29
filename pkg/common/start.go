@@ -8,22 +8,9 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
 )
-
-func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	klog.Infof("GRPC call: %s", info.FullMethod)
-	klog.V(4).Infof("GRPC request: %s", protosanitizer.StripSecrets(req))
-	resp, err := handler(ctx, req)
-	if err != nil {
-		klog.Errorf("GRPC error: %v", err)
-	} else {
-		klog.V(4).Infof("GRPC response: %s", protosanitizer.StripSecrets(resp))
-	}
-	return resp, err
-}
 
 func ParseEndpoint(ep string) (string, string, error) {
 	if strings.HasPrefix(strings.ToLower(ep), "unix://") || strings.HasPrefix(strings.ToLower(ep), "tcp://") {
@@ -36,8 +23,8 @@ func ParseEndpoint(ep string) (string, string, error) {
 }
 
 func RunCSIServer(driverType, endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
-	ns = WrapNodeServerWithValidator(WrapNodeServerWithMetricRecorder(driverType, ns))
-	cs = WrapControllerServerWithValidator(WrapControllerServerWithMetricRecorder(driverType, cs))
+	ns = WrapNodeServerWithValidator(ns)
+	cs = WrapControllerServerWithValidator(cs)
 
 	proto, addr, err := ParseEndpoint(endpoint)
 	if err != nil {
@@ -56,8 +43,12 @@ func RunCSIServer(driverType, endpoint string, ids csi.IdentityServer, cs csi.Co
 		klog.Fatalf("Failed to listen: %v", err)
 	}
 
+	instrumentClosure := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		return instrumentGRPC(ctx, req, info, handler, driverType)
+	}
+
 	opts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(logGRPC),
+		grpc.ChainUnaryInterceptor(logGRPC, instrumentClosure),
 	}
 	server := grpc.NewServer(opts...)
 
