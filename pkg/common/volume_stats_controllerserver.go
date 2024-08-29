@@ -26,7 +26,7 @@ func (cs *ControllerServerWithMetricRecorder) observeExecTime(time int64, statTy
 		metric.VolumeStatTypeLabelName:    cs.driverType,
 		metric.VolumeStatIdLabelName:      volumeId,
 		metric.VolumeStatErrCodeLabelName: errCode,
-	}).Observe(float64(time))
+	}).Observe(float64(time) / 1000)
 }
 
 func getCodeFromError(err error) codes.Code {
