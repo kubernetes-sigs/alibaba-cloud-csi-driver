@@ -45,6 +45,16 @@ type fuseOssfs struct {
 	config FuseContainerConfig
 }
 
+var ossfsDbglevels = map[string]string{
+	DebugLevelDebug: "debug",
+	DebugLevelInfo:  "info",
+	DebugLevelWarn:  "warn",
+	DebugLevelError: "err",
+	DebugLevelFatal: "crit",
+}
+
+const defaultDbglevel = DebugLevelError
+
 func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) FuseMounterType {
 	config := extractFuseContainerConfig(configmap, "ossfs")
 	// set default image
@@ -185,21 +195,23 @@ func (f *fuseOssfs) buildPodSpec(c *FusePodContext, target string) (spec corev1.
 }
 
 func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
-	switch dbglevel := f.config.Extra["dbglevel"]; dbglevel {
-	case "":
-	case "debug", "info", "warn", "err", "crit":
-		alreadySet := false
-		for _, option := range options {
-			if strings.Contains(option, "dbglevel") {
-				alreadySet = true
-				break
+	alreadySet := false
+	for _, option := range options {
+		if strings.Contains(option, "dbglevel") {
+			alreadySet = true
+			break
+		}
+	}
+	if !alreadySet {
+		level, ok := ossfsDbglevels[f.config.Dbglevel]
+		if ok {
+			options = append(options, fmt.Sprintf("dbglevel=%s", level))
+		} else {
+			if f.config.Dbglevel != "" {
+				log.Warnf("invalid dbglevel for ossfs: %q, use default dbglevel %s", f.config.Dbglevel, defaultDbglevel)
 			}
+			options = append(options, fmt.Sprintf("dbglevel=%s", ossfsDbglevels[defaultDbglevel]))
 		}
-		if !alreadySet {
-			options = append(options, "dbglevel="+dbglevel)
-		}
-	default:
-		log.Warnf("invalid ossfs dbglevel: %q", dbglevel)
 	}
 
 	if !utils.IsFileExisting(filepath.Join(hostPrefix, OssfsDefMimeTypesFilePath)) && strings.ToLower(f.config.Extra["mime-support"]) == "true" {
