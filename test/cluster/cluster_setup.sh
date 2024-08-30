@@ -2,7 +2,7 @@
 
 set -e
 
-N_NODES=${N_NODES:-2}
+N_NODES=${N_NODES:-3}
 ACK_REGION=${ACK_REGION:-cn-beijing}
 ACK_ZONE=${ACK_ZONE:-cn-beijing-h cn-beijing-i cn-beijing-j}
 
@@ -64,13 +64,14 @@ function cluster-setup {
         subnet=$((subnet+1))
     done
 
-    local cluster_params=$(jq -n \
-        --arg region $ACK_REGION \
-        --arg vpc_id $VPC_ID \
-        --arg cluster_name "$CASE_NAME" \
-        --argjson n_nodes $N_NODES \
-        --argjson vswitch_ids "$(jq -n '$ARGS.positional' --args "${vswitch_ids[@]}")" \
-        "$(cat $HERE/cluster-template.json)")
+    local cluster_params=$(jsonnet $HERE/cluster-template.jsonnet \
+        --ext-str region=$ACK_REGION \
+        --ext-str vpc_id=$VPC_ID \
+        --ext-str cluster_name="$CASE_NAME" \
+        --ext-str os_image_alinux3="${OS_IMAGE_ALINUX3:-aliyun_3_9_x64_20G_alibase_20231219.vhd}" \
+        --ext-str os_image_containeros3="${OS_IMAGE_CONTAINEROS3:-lifsea_3_x64_10G_containerd_1_6_28_alibase_20240202.vhd}" \
+        --ext-code n_nodes=$N_NODES \
+        --ext-code vswitch_ids="$(jq -n '$ARGS.positional' --args "${vswitch_ids[@]}")")
     CLUSTER_ID=$(aliyun --region $ACK_REGION cs POST /clusters --header "Content-Type=application/json" --body "$cluster_params" | jq -r .cluster_id)
 
     if [ -z "$CLUSTER_ID" ]; then
