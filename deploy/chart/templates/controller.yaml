@@ -331,16 +331,14 @@ spec:
             httpGet:
               path: /healthz
               port: healthz
-            initialDelaySeconds: 10
-            periodSeconds: 30
+            periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 5
           readinessProbe:
             httpGet:
               path: /healthz
               port: healthz
-            initialDelaySeconds: 5
-            periodSeconds: 20
+            periodSeconds: 10
           ports:
             - name: healthz
               containerPort: 11270
@@ -402,16 +400,14 @@ spec:
             httpGet:
               path: /healthz
               port: http
-            initialDelaySeconds: 10
-            periodSeconds: 30
+            periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 5
           readinessProbe:
             httpGet:
               path: /healthz
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 20
+            periodSeconds: 10
           ports:
             - name: http
               containerPort: 11271
