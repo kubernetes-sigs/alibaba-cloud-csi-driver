@@ -1100,24 +1100,20 @@ func createRoleClient(uid string) (cli *ecs.Client, err error) {
 }
 
 func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, contextSource *csi.VolumeContentSource) *csi.Volume {
-	accessibleTopology := []*csi.Topology{
-		{
-			Segments: map[string]string{
-				TopologyZoneKey: zoneID,
-			},
+	topo := &csi.Topology{
+		Segments: map[string]string{
+			TopologyZoneKey: zoneID,
 		},
 	}
+	if attempt.Instance != "" {
+		topo.Segments[common.ECSInstanceIDTopologyKey] = attempt.Instance
+	}
+
+	accessibleTopology := []*csi.Topology{topo}
 	if GlobalConfigVar.NodeMultiZoneEnable {
 		accessibleTopology = append(accessibleTopology, &csi.Topology{
 			Segments: map[string]string{
 				TopologyMultiZonePrefix + zoneID: "true",
-			},
-		})
-	}
-	if attempt.Instance != "" {
-		accessibleTopology = append(accessibleTopology, &csi.Topology{
-			Segments: map[string]string{
-				common.ECSInstanceIDTopologyKey: attempt.Instance,
 			},
 		})
 	}

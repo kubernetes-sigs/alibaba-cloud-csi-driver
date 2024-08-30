@@ -1,0 +1,10 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: alibabacloud-disk-ephemeral
+parameters:
+  type: elastic_ephemeral_disk_standard,elastic_ephemeral_disk_premium
+provisioner: diskplugin.csi.alibabacloud.com
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
