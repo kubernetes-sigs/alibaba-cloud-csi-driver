@@ -456,15 +456,14 @@ func setCNFSOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, opts
 }
 
 func (o *Options) MakeMountOptionsAndAuthConfig(m metadata.MetadataProvider, volumeCapability *csi.VolumeCapability) ([]string, *mounter.AuthConfig, error) {
-	var mountOptions []string
-	if volumeCapability != nil && volumeCapability.GetMount() != nil {
-		mountOptions = volumeCapability.GetMount().MountFlags
-	}
-
 	mountOptions, err := parseOtherOpts(o.OtherOpts)
 	if err != nil {
 		return nil, nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	if volumeCapability != nil && volumeCapability.GetMount() != nil {
+		mountOptions = append(mountOptions, volumeCapability.GetMount().MountFlags...)
+	}
+
 	switch o.Encrypted {
 	case EncryptedTypeAes256:
 		mountOptions = append(mountOptions, "use_sse")
