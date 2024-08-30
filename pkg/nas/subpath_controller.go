@@ -19,7 +19,6 @@ package nas
 import (
 	"context"
 	"encoding/json"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -29,6 +28,7 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -246,8 +246,11 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 			logrus.WithFields(logrus.Fields{
 				"filesystemId": filesystemId,
 				"pv":           pv.Name,
-			}).Warnf("skip subpath deletion because recycle bin of filesystem not enabled")
-			return &csi.DeleteVolumeResponse{}, nil
+				"skip":         cs.config.EnableRecycleBinCheck,
+			}).Warnf("Deleting a subpath PV without recycle bin enabled")
+			if cs.config.EnableRecycleBinCheck {
+				return &csi.DeleteVolumeResponse{}, nil
+			}
 		}
 		finalizer = subpathDeletionFinalizer
 	}
