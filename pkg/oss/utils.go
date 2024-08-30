@@ -17,7 +17,7 @@ limitations under the License.
 package oss
 
 import (
-	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -36,10 +36,10 @@ func checkRRSAParams(opt *Options) error {
 		return nil
 	}
 	if opt.RoleArn != "" || opt.OidcProviderArn != "" {
-		return errors.New("Oss parameters error: use RRSA but one of the ARNs is empty, roleArn:" + opt.RoleArn + ", oidcProviderArn:" + opt.OidcProviderArn)
+		return fmt.Errorf("use RRSA but one of the ARNs is empty, roleArn: %s, oidcProviderArn: %s", opt.RoleArn, opt.OidcProviderArn)
 	}
 	if opt.RoleName == "" {
-		return errors.New("Oss parameters error: use RRSA but roleName is empty")
+		return fmt.Errorf("use RRSA but roleName is empty")
 	}
 	return nil
 }
@@ -57,11 +57,11 @@ func getRRSAConfig(opt *Options, m metadata.MetadataProvider) (rrsaCfg *mounter.
 
 	accountId, err := m.Get(metadata.AccountID)
 	if err != nil {
-		return nil, errors.New("Get accountId error: " + err.Error())
+		return nil, fmt.Errorf("Get accountId error: %v", err)
 	}
 	clusterId, err := m.Get(metadata.ClusterID)
 	if err != nil {
-		return nil, errors.New("Get clusterId error: " + err.Error())
+		return nil, fmt.Errorf("Get clusterId error: %v", err)
 	}
 	provider := mounter.GetOIDCProvider(clusterId)
 	oidcProviderArn, roleArn := mounter.GetArn(provider, accountId, opt.RoleName)

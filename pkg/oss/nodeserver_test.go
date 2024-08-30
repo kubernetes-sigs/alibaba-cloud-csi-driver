@@ -18,54 +18,208 @@ package oss
 import (
 	"testing"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_checkOssOptions(t *testing.T) {
-	options := &Options{}
-	options.FuseType = OssFsType
-	options.AkSecret = "11111"
-	options.AkID = "2222"
-	options.URL = "1.1.1.1"
-	options.Bucket = "aliyun"
-	options.Path = "/path"
-
-	err := checkOssOptions(options)
-	assert.Nil(t, err)
-
-	options.AssumeRoleArn = "test-assume-role-arn"
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss parameters error: only support access OSS through STS AssumeRole when authType is RRSA", err.Error())
-
-	options.AssumeRoleArn = ""
-	options.URL = ""
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss parameters error: Url/Bucket empty", err.Error())
-
-	options.URL = "1.1.1.1"
-
-	options.AuthType = "rrsa"
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss parameters error: use RRSA but roleName is empty", err.Error())
-
-	options.OidcProviderArn = "test-oidc-provider-arn"
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss parameters error: use RRSA but one of the ARNs is empty, roleArn:"+options.RoleArn+", oidcProviderArn:"+options.OidcProviderArn, err.Error())
-
-	options.AuthType = "csi-secret-store"
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss parameters error: use CsiSecretStore but secretProviderClass is empty", err.Error())
-
-	options.AuthType = ""
-	options.AkID = "2222"
-	// reset AkSecret in checkOssOptions when AkID = ""
-	options.AkSecret = "11111"
-	options.Encrypted = "test"
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss encrypted error: invalid SSE encrypted type", err.Error())
-
-	options.Encrypted = "kms"
-	options.Path = "errorpath"
-	err = checkOssOptions(options)
-	assert.Equal(t, "Oss path error: start with "+options.Path+", should start with /", err.Error())
+	tests := []struct {
+		name    string
+		opts    *Options
+		errType error
+	}{
+		{
+			// should pass as may be accepted by mountOptions on PV,
+			//   or ENV in CSI running container
+			name: "empty aksk",
+			opts: &Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				FuseType: OssFsType,
+			},
+			errType: nil,
+		},
+		{
+			name: "empty fuse type",
+			opts: &Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				AkID:     "11111",
+				AkSecret: "22222",
+			},
+			errType: ParamError,
+		},
+		{
+			name: "invalid fuse type",
+			opts: &Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "abc/",
+				FuseType: "fakefs",
+			},
+			errType: ParamError,
+		},
+		{
+			name: "invalid path",
+			opts: &Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "abc/",
+				AkID:     "11111",
+				AkSecret: "22222",
+				FuseType: OssFsType,
+			},
+			errType: PathError,
+		},
+		{
+			name: "empty URL",
+			opts: &Options{
+				Bucket:   "aliyun",
+				Path:     "/path",
+				AkID:     "11111",
+				AkSecret: "22222",
+				FuseType: OssFsType,
+			},
+			errType: ParamError,
+		},
+		{
+			name: "success with accessKey",
+			opts: &Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				AkID:     "11111",
+				AkSecret: "22222",
+				FuseType: OssFsType,
+			},
+			errType: nil,
+		},
+		{
+			name: "success with secretRef",
+			opts: &Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				SecretRef: "secret",
+				FuseType:  OssFsType,
+			},
+			errType: nil,
+		},
+		{
+			name: "conflict between accessKey and secretRef",
+			opts: &Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				SecretRef: "secret",
+				AkID:      "11111",
+				FuseType:  OssFsType,
+			},
+			errType: AuthError,
+		},
+		{
+			name: "invalid secretRef",
+			opts: &Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				SecretRef: mounter.OssfsCredentialSecretName,
+				FuseType:  OssFsType,
+			},
+			errType: ParamError,
+		},
+		{
+			name: "use assumeRole with non-RRSA authType",
+			opts: &Options{
+				URL:           "1.1.1.1",
+				Bucket:        "aliyun",
+				Path:          "/path",
+				SecretRef:     "secret",
+				AkID:          "11111",
+				AssumeRoleArn: "test-assume-role-arn",
+				FuseType:      OssFsType,
+			},
+			errType: AuthError,
+		},
+		{
+			name: "empty roleName, ARNs",
+			opts: &Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				AuthType: mounter.AuthTypeRRSA,
+				FuseType: OssFsType,
+			},
+			errType: AuthError,
+		},
+		{
+			name: "empty roleName, ARNs",
+			opts: &Options{
+				URL:             "1.1.1.1",
+				Bucket:          "aliyun",
+				Path:            "/path",
+				AuthType:        mounter.AuthTypeRRSA,
+				OidcProviderArn: "test-oidc-provider-arn",
+				FuseType:        OssFsType,
+			},
+			errType: AuthError,
+		},
+		{
+			name: "success with csi-secret-store",
+			opts: &Options{
+				URL:                 "1.1.1.1",
+				Bucket:              "aliyun",
+				Path:                "/path",
+				AuthType:            mounter.AuthTypeCSS,
+				SecretProviderClass: "test-secret-provider-class",
+				FuseType:            OssFsType,
+			},
+			errType: nil,
+		},
+		{
+			name: "empty secretProviderClass",
+			opts: &Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				AuthType: mounter.AuthTypeCSS,
+				FuseType: OssFsType,
+			},
+			errType: AuthError,
+		},
+		{
+			name: "invalid encrypted type",
+			opts: &Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				AkID:      "11111",
+				AkSecret:  "22222",
+				Encrypted: "invalid",
+				FuseType:  OssFsType,
+			},
+			errType: EncryptError,
+		},
+		{
+			name: "valid kms sse",
+			opts: &Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				AkID:      "11111",
+				AkSecret:  "22222",
+				Encrypted: EncryptedTypeKms,
+				FuseType:  OssFsType,
+			},
+			errType: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checkOssOptions(tt.opts)
+			assert.ErrorIs(t, err, tt.errType)
+		})
+	}
 }
