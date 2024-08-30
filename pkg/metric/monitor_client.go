@@ -36,13 +36,26 @@ func NewStorageMonitorClient(kubeClient kubernetes.Interface) *StorageMonitorCli
 	if err := c.updateClusterIP(); err != nil {
 		log.Warnf("failed to get clusterIP of storage-monitor: %v", err)
 	}
+
+	var (
+		lastError   error
+		lastLogTime time.Time
+	)
+
 	go func() {
 		ticker := time.NewTicker(monitorIPUpdateInterval)
 		defer ticker.Stop()
 		for range ticker.C {
-			if err := c.updateClusterIP(); err != nil {
-				log.Warnf("failed to update clusterIP of storage-monitor: %v", err)
+			err := c.updateClusterIP()
+			if err != nil {
+				now := time.Now()
+				// ignore recent and duplicated error
+				if !(lastError != nil && lastError.Error() == err.Error() && now.Sub(lastLogTime) < monitorIPUpdateInterval*24) {
+					log.Warnf("failed to update clusterIP of storage-monitor: %v", err)
+					lastLogTime = now
+				}
 			}
+			lastError = err
 		}
 	}()
 	return c
