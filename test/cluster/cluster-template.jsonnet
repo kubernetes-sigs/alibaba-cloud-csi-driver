@@ -45,6 +45,7 @@ local nodePool = {
     cloud_monitor_flags: false,
     endpoint_public_access: true,
     deletion_protection: false,
+    node_cidr_mask: "26",
     proxy_mode: "ipvs",
     cis_enable_risk_check: false,
     tags: [
@@ -55,14 +56,6 @@ local nodePool = {
     ],
     timezone: "Asia/Shanghai",
     addons: [
-        {
-            name: "terway-eniip",
-            config: std.manifestJson({
-                IPVlan: "false",
-                NetworkPolicy: "false",
-                ENITrunking: "false"
-            })
-        },
         {
             name: "csi-plugin",
             disabled: true
@@ -82,9 +75,9 @@ local nodePool = {
     ],
     cluster_spec: "ack.pro.small",
     load_balancer_spec: "slb.s1.small",
-    pod_vswitch_ids: vswitchIDs,
     charge_type: "PostPaid",
     vpcid: std.extVar("vpc_id"),
+    container_cidr: "10.236.0.0/16",
     service_cidr: "192.168.0.0/16",
     vswitch_ids: vswitchIDs,
     ip_stack: "ipv4",
@@ -104,9 +97,9 @@ local nodePool = {
                 system_disk_category: "cloud_efficiency",
                 system_disk_performance_level: "",
                 instance_types: [
-                    "ecs.mn4.2xlarge",
+                    "ecs.mn4.xlarge",
                 ]
             }
-        }
+        },
     ]
 }
