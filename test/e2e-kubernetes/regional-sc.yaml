@@ -1,0 +1,10 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: alibabacloud-disk-regional
+parameters:
+  type: cloud_auto_regional
+provisioner: diskplugin.csi.alibabacloud.com
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true

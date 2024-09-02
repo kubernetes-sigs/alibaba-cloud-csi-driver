@@ -1,0 +1,27 @@
+StorageClass:
+  FromFile: test/e2e-kubernetes/regional-sc.yaml
+DriverInfo:
+  Name: regional.csi.alibabacloud.com
+  SupportedSizeRange:
+    Min: 10Gi
+    Max: 64Ti
+  StressTestOptions:
+    NumPods: 10
+    NumRestarts: 10
+  SupportedFsType:
+    xfs: {}
+    ext4: {}
+  TopologyKeys:
+  - topology.kubernetes.io/region
+  Capabilities:
+    persistence: true
+    fsGroup: true
+    block: true
+    exec: true
+    snapshotDataSource: true
+    pvcDataSource: false
+    multipods: true
+    controllerExpansion: true
+    nodeExpansion: true
+    volumeLimits: true
+    topology: true

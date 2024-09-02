@@ -889,8 +889,10 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		// make sure that the driver works on this particular zone only
 		AccessibleTopology: &csi.Topology{
 			Segments: map[string]string{
-				TopologyZoneKey:                 metadata.MustGet(ns.metadata, metadata.ZoneID),
 				common.ECSInstanceIDTopologyKey: metadata.MustGet(ns.metadata, metadata.InstanceID),
+				TopologyZoneKey:                 metadata.MustGet(ns.metadata, metadata.ZoneID),
+				common.TopologyKeyZone:          metadata.MustGet(ns.metadata, metadata.ZoneID),
+				common.TopologyKeyRegion:        metadata.MustGet(ns.metadata, metadata.RegionID),
 			},
 		},
 	}, nil
