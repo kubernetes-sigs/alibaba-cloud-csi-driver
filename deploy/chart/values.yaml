@@ -88,7 +88,7 @@ images:
     tag: "v4.5.0-4a01fda6-aliyun"
   externalProvisioner:
     repo: acs/csi-provisioner
-    tag: "v3.5.0-e7da67e52-aliyun"
+    tag: "v5.0.2-aliyun"
   externalResizer:
     repo: acs/csi-resizer
     tag: "v1.3-e48d981-aliyun"
