@@ -1,4 +1,4 @@
-{{- if .Values.deploy.fuseNamespace }}
+{{- if and .Values.csi.oss.enabled .Values.deploy.fuseNamespace }}
 
 ---
 apiVersion: v1
