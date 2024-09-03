@@ -11,7 +11,7 @@ RUN --mount=type=bind,target=. \
 
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as oss
 ARG TARGETPLATFORM
-ARG OSSFS_VERSION=v1.91.3
+ARG OSSFS_VERSION=v1.91.3.ack.3
 
 # install ossfs
 RUN set -ex; \
@@ -20,7 +20,7 @@ RUN set -ex; \
         linux/arm64) OSSFS_ARCH="aarch_64" ;; \
         *) echo "unknown platform"; exit 1 ;; \
     esac; \
-    yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}.ack.2_centos8.0_${OSSFS_ARCH}.rpm; \
+    yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${OSSFS_ARCH}.rpm; \
     yum install -y fuse-devel util-linux mailcap procps; \
     yum clean all
 
