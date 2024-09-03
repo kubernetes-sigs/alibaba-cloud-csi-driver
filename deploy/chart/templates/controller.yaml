@@ -294,6 +294,8 @@ spec:
           env:
             - name: SERVICE_TYPE
               value: "provisioner"
+            - name: "DEFAULT_REGISTRY"
+              value: {{ .Values.images.registry | quote }}
 {{- if .Values.deploy.ack }}
             - name: "CLUSTER_ID"
               value: {{ .Values.deploy.clusterID | quote }}
@@ -378,8 +380,6 @@ spec:
             - name: "CLUSTER_ID"
               value: {{ .Values.deploy.clusterID | quote }}
 {{- end }}
-            - name: "DEFAULT_REGISTRY"
-              value: {{ .Values.images.registry | quote }}
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:
