@@ -952,13 +952,15 @@ func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", ecsSnapshot.CreationTime)
 	}
-	sizeGb, _ := strconv.ParseInt(ecsSnapshot.SourceDiskSize, 10, 64)
-	sizeBytes := utils.Gi2Bytes(sizeGb)
+	sizeGB, err := strconv.ParseInt(ecsSnapshot.SourceDiskSize, 10, 64)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to parse snapshot size: %s", ecsSnapshot.SourceDiskSize)
+	}
 	return &csi.Snapshot{
 		SnapshotId:     ecsSnapshot.SnapshotId,
 		SourceVolumeId: ecsSnapshot.SourceDiskId,
-		SizeBytes:      sizeBytes,
-		CreationTime:   &timestamppb.Timestamp{Seconds: t.Unix()},
+		SizeBytes:      utils.Gi2Bytes(sizeGB),
+		CreationTime:   timestamppb.New(t),
 		ReadyToUse:     ecsSnapshot.Available,
 	}, nil
 }
