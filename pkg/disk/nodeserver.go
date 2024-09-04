@@ -499,6 +499,11 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 	defer ns.locks.Release(req.VolumeId)
 
+	sysConfigs, err := utilsio.ParseSysConfigs(req.VolumeContext[SysConfigTag], allowSysConfigKey)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	targetPath := req.StagingTargetPath
 	// targetPath format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
 
@@ -583,20 +588,17 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 	klog.Infof("NodeStageVolume: Volume Successful Attached: %s, to Node: %s, Device: %s", req.VolumeId, ns.NodeID, device)
 
-	// sysConfig
-	if value, ok := req.VolumeContext[SysConfigTag]; ok {
-		configList := strings.Split(strings.TrimSpace(value), ",")
-		for _, configStr := range configList {
-			key, value, found := strings.Cut(configStr, "=")
-			if !found {
-				klog.Errorf("NodeStageVolume: Volume Block System Config with format error: %s", configStr)
-				return nil, status.Error(defaultErrCode, "NodeStageVolume: Volume Block System Config with format error "+configStr)
+	// set sysConfigs
+	if len(sysConfigs) > 0 {
+		major, minor, err := DefaultDeviceManager.DevTmpFS.DevFor(device)
+		if err != nil {
+			return nil, status.Errorf(defaultErrCode, "failed to get device number: %v", err)
+		}
+		manager := utilsio.NewSysConfigManager(major, minor)
+		for key, value := range sysConfigs {
+			if err := manager.Set(key, value); err != nil {
+				return nil, status.Errorf(defaultErrCode, "set sysconfig: %v", err)
 			}
-			err := DefaultDeviceManager.WriteSysfs(device, key, []byte(value))
-			if err != nil {
-				return nil, status.Errorf(defaultErrCode, "NodeStageVolume: set sysConfig %s=%s failed: %v", key, value, err)
-			}
-			klog.Infof("NodeStageVolume: set sysConfig %s=%s", key, value)
 		}
 	}
 	omitfsck := false

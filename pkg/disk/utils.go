@@ -1542,3 +1542,7 @@ func (d DiskSize) String() string {
 	}
 	return fmt.Sprintf("%.3f GiB (0x%X)", float64(d.Bytes)/GBSIZE, d.Bytes)
 }
+
+func allowSysConfigKey(key string) bool {
+	return strings.HasPrefix(key, "queue/")
+}
