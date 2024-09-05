@@ -24,7 +24,7 @@ func BenchmarkLogrusStructured(b *testing.B) {
 }
 
 func BenchmarkKlog(b *testing.B) {
-	klogtest.InitKlog()
+	klogtest.InitKlog(b)
 	klog.SetOutput(io.Discard)
 	for i := 0; i < b.N; i++ {
 		klog.Infof("This is a log message %d", i)
@@ -32,7 +32,7 @@ func BenchmarkKlog(b *testing.B) {
 }
 
 func BenchmarkKlogStructured(b *testing.B) {
-	klogtest.InitKlog()
+	klogtest.InitKlog(b)
 	klog.SetOutput(io.Discard)
 	logger := klog.Background()
 	for i := 0; i < b.N; i++ {
@@ -41,7 +41,7 @@ func BenchmarkKlogStructured(b *testing.B) {
 }
 
 func setupRedirect(tb testing.TB) {
-	klogtest.InitKlog()
+	klogtest.InitKlog(tb)
 	klog.SetOutput(io.Discard)
 	RedirectLogrusToLogr(logrus.StandardLogger(), klog.Background())
 	tb.Cleanup(func() {
