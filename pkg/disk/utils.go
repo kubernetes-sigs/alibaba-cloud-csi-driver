@@ -109,14 +109,18 @@ func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 	}
 
 	if os.Getenv("INTERNAL_MODE") == "true" {
-		if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
-			aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
+		ep := os.Getenv("ECS_ENDPOINT")
+		if ep != "" {
+			log.Infof("Use ECS_ENDPOINT: %s", ep)
 		} else {
-			err := cloud.ECSQueryEndpoint(regionID, ecsClient)
+			var err error
+			ep, err = cloud.ECSQueryLocalEndpoint(regionID, ecsClient)
 			if err != nil {
-				log.Fatalf("Internal mode, but query for ECS endpoint failed: %v", err)
+				log.Fatalf("Internal mode, but resolve ECS endpoint failed: %v", err)
 			}
+			log.Infof("Resolved ECS localAPI endpoint: %s", ep)
 		}
+		aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
 	} else {
 		// Set Unitized Endpoint for hangzhou region
 		SetEcsEndPoint(regionID)

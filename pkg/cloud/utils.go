@@ -2,14 +2,12 @@ package cloud
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"io"
 	"net/http"
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/responses"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/sirupsen/logrus"
 )
 
 // Create a response object from json, useful for testing.
@@ -31,19 +29,24 @@ func UnmarshalAcsResponse(jsonBytes []byte, res responses.AcsResponse) {
 	}
 }
 
-func ECSQueryEndpoint(regionId string, ecsClient ECSInterface) error {
-	request := ecs.CreateDescribeRegionsRequest()
-	request.RegionId = "cn-hangzhou"
-	regions, err := ecsClient.DescribeRegions(request)
+func ECSQueryLocalEndpoint(regionId string, client Common) (string, error) {
+	return QueryLocalEndpoint("Ecs", "ecs", regionId, client)
+}
+
+func QueryLocalEndpoint(product, serviceCode, regionId string, client Common) (string, error) {
+	resolver := aliyunep.LocationResolver{} // only this resolver supports localAPI
+	ep, support, err := resolver.TryResolve(&aliyunep.ResolveParam{
+		RegionId:             regionId,
+		Product:              product,
+		LocationProduct:      serviceCode,
+		LocationEndpointType: "localAPI",
+		CommonApi:            client.ProcessCommonRequest,
+	})
 	if err != nil {
-		return err
+		return "", err
 	}
-	for _, region := range regions.Regions.Region {
-		if regionId == region.RegionId {
-			aliyunep.AddEndpointMapping(regionId, "Ecs", region.RegionEndpoint)
-			logrus.Infof("from DescribeRegions: region %s (%s) endpoint %s", regionId, region.LocalName, region.RegionEndpoint)
-			return nil
-		}
+	if !support {
+		return "", errors.New("resolve unsupported")
 	}
-	return fmt.Errorf("region %s not found", regionId)
+	return ep, nil
 }

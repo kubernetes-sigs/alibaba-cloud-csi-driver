@@ -1,69 +1,60 @@
 package cloud_test
 
 import (
-	"fmt"
 	"testing"
 
-	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/golang/mock/gomock"
+	aliErrors "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/responses"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/stretchr/testify/assert"
 )
 
-var describeRegionsResponse = ecs.CreateDescribeRegionsResponse()
+type endpointMockClient struct {
+}
 
-func init() {
-	cloud.UnmarshalAcsResponse([]byte(`{
-	"Regions": {
-		"Region": [
-			{
-				"LocalName": "华北2（北京）",
-				"RegionEndpoint": "ecs-for-ut.cn-beijing.aliyuncs.com",
-				"RegionId": "cn-beijing"
-			},
-			{
-				"LocalName": "华东1（杭州）",
-				"RegionEndpoint": "ecs.aliyuncs.com",
-				"RegionId": "cn-hangzhou"
-			}
-		]
-	},
-	"RequestId": "CFEB1202-E13C-5421-9A42-6CF5C9706433"
-}`), describeRegionsResponse)
+func (endpointMockClient) ProcessCommonRequest(request *requests.CommonRequest) (response *responses.CommonResponse, err error) {
+	if request.QueryParams["Id"] == "cn-region-for-ut" {
+		resp := responses.NewCommonResponse()
+		cloud.UnmarshalAcsResponse([]byte(`{
+  "Endpoints": {
+    "Endpoint": [
+      {
+        "Type": "localAPI",
+        "Protocols": {
+          "Protocols": [
+            "HTTP",
+            "HTTPS"
+          ]
+        },
+        "Endpoint": "ecs-openapi-share.cn-region-for-ut.aliyuncs.com",
+        "Id": "cn-region-for-ut",
+        "SerivceCode": "ecs",
+        "Namespace": ""
+      }
+    ]
+  },
+  "RequestId": "4F2F0CEF-74C9-525C-B869-4389B9D39A5E",
+  "Success": true
+}`), resp)
+		return resp, nil
+	}
+	return nil, aliErrors.NewServerError(404, `{
+  "RequestId": "8B48FA66-7B9B-5C17-9298-65D036A80702",
+  "HostId": "location-readonly.aliyuncs.com",
+  "Code": "InvalidRegionId",
+  "Message": "The specified region does not exist.",
+  "Recommend": "https://api.aliyun.com/troubleshoot?q=InvalidRegionId&product=Location&requestId=8B48FA66-7B9B-5C17-9298-65D036A80702"
+}`, "")
 }
 
 func TestECSQueryEndpoint(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	ecsClient := cloud.NewMockECSInterface(ctrl)
-
-	ecsClient.EXPECT().DescribeRegions(gomock.Any()).Do(func(request *ecs.DescribeRegionsRequest) {
-		assert.Equal(t, "cn-hangzhou", request.RegionId) // always query hangzhou for endpoint
-	}).Return(describeRegionsResponse, nil)
-
-	err := cloud.ECSQueryEndpoint("cn-beijing", ecsClient)
+	ep, err := cloud.ECSQueryLocalEndpoint("cn-region-for-ut", endpointMockClient{})
 	assert.Nil(t, err)
-	assert.Equal(t, "ecs-for-ut.cn-beijing.aliyuncs.com", aliyunep.GetEndpointFromMap("cn-beijing", "Ecs"))
+	assert.Equal(t, "ecs-openapi-share.cn-region-for-ut.aliyuncs.com", ep)
 }
 
 func TestECSQueryEndpointNotFound(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	ecsClient := cloud.NewMockECSInterface(ctrl)
-
-	ecsClient.EXPECT().DescribeRegions(gomock.Any()).Return(describeRegionsResponse, nil)
-
-	err := cloud.ECSQueryEndpoint("cn-not-exist", ecsClient)
-	assert.NotNil(t, err)
-	assert.Equal(t, "region cn-not-exist not found", err.Error())
-}
-
-func TestECSQueryEndpointError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	ecsClient := cloud.NewMockECSInterface(ctrl)
-
-	ecsClient.EXPECT().DescribeRegions(gomock.Any()).Return(describeRegionsResponse, fmt.Errorf("error"))
-
-	err := cloud.ECSQueryEndpoint("does-not-matter", ecsClient)
-	assert.NotNil(t, err)
-	assert.Equal(t, "error", err.Error())
+	ep, err := cloud.ECSQueryLocalEndpoint("cn-not-exist", endpointMockClient{})
+	assert.ErrorContains(t, err, "InvalidRegionId", ep)
 }
