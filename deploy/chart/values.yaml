@@ -102,5 +102,5 @@ images:
     repo: acs/csi-node-driver-registrar
     tag: "v2.9.0-d48d2e0-aliyun"
   ossfs:
-    repo: acs/ossfs
+    repo: acs/csi-ossfs
     tag: "v1.91.3.ack.3-7ebc8cd-aliyun"
