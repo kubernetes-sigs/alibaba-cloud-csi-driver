@@ -124,21 +124,6 @@ func (mr *MockECSInterfaceMockRecorder) DescribeInstances(request interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeInstances", reflect.TypeOf((*MockECSInterface)(nil).DescribeInstances), request)
 }
 
-// DescribeRegions mocks base method.
-func (m *MockECSInterface) DescribeRegions(request *ecs.DescribeRegionsRequest) (*ecs.DescribeRegionsResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DescribeRegions", request)
-	ret0, _ := ret[0].(*ecs.DescribeRegionsResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DescribeRegions indicates an expected call of DescribeRegions.
-func (mr *MockECSInterfaceMockRecorder) DescribeRegions(request interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeRegions", reflect.TypeOf((*MockECSInterface)(nil).DescribeRegions), request)
-}
-
 // DescribeSnapshots mocks base method.
 func (m *MockECSInterface) DescribeSnapshots(request *ecs.DescribeSnapshotsRequest) (*ecs.DescribeSnapshotsResponse, error) {
 	m.ctrl.T.Helper()
