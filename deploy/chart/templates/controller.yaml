@@ -106,9 +106,13 @@ spec:
               cpu: 500m
               memory: 1024Mi
           args:
-            - "--v=5"
-            - "--csi-address=/csi/csi.sock"
-            - "--leader-election=true"
+            - --v=5
+            - --csi-address=/csi/csi.sock
+            - --leader-election=true
+            - --kube-api-qps=50
+            - --kube-api-burst=100
+            - --worker-threads=32
+            - --timeout=30s
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
