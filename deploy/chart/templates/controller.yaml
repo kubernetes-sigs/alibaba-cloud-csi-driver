@@ -111,9 +111,9 @@ spec:
             - --v=5
             - --csi-address=/csi/csi.sock
             - --leader-election=true
-            - --kube-api-qps=10
-            - --kube-api-burst=20
-            - --worker-threads=16
+            - --kube-api-qps=50
+            - --kube-api-burst=100
+            - --worker-threads=32
             - --timeout=30s
           volumeMounts:
             - name: disk-provisioner-dir
