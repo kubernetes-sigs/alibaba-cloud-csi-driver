@@ -93,8 +93,8 @@ spec:
             - --extra-create-metadata=true
             - --default-fstype=ext4
             - --v=5
-            - --kube-api-qps=10
-            - --kube-api-burst=20
+            - --kube-api-qps=25
+            - --kube-api-burst=50
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
