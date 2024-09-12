@@ -84,15 +84,17 @@ spec:
               cpu: 500m
               memory: 1024Mi
           args:
-            - "--csi-address=/csi/csi.sock"
-            - "--volume-name-prefix=disk"
-            - "--strict-topology=true"
-            - "--timeout=150s"
-            - "--leader-election=true"
-            - "--retry-interval-start=500ms"
-            - "--extra-create-metadata=true"
-            - "--default-fstype=ext4"
-            - "--v=5"
+            - --csi-address=/csi/csi.sock
+            - --volume-name-prefix=disk
+            - --strict-topology=true
+            - --timeout=150s
+            - --leader-election=true
+            - --retry-interval-start=500ms
+            - --extra-create-metadata=true
+            - --default-fstype=ext4
+            - --v=5
+            - --kube-api-qps=25
+            - --kube-api-burst=50
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
