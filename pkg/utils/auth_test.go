@@ -17,12 +17,12 @@ limitations under the License.
 package utils
 
 import (
-	log "github.com/sirupsen/logrus"
-	"gopkg.in/h2non/gock.v1"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/h2non/gock.v1"
+	"k8s.io/klog/v2"
 )
 
 func TestGetAccessControl(t *testing.T) {
@@ -80,9 +80,8 @@ func TestGetOIDCToken(t *testing.T) {
 			newProvider: true,
 		},
 	}
-	defer func() { log.StandardLogger().ExitFunc = nil }()
-	var fatal bool
-	log.StandardLogger().ExitFunc = func(int) { fatal = true }
+	defer func() { klog.OsExit = os.Exit }()
+	klog.OsExit = func(c int) { panic(c) }
 	for _, test := range testExamples {
 		if test.newProvider {
 			oidcProvider = nil
@@ -92,11 +91,13 @@ func TestGetOIDCToken(t *testing.T) {
 		// os.Setenv("ACCOUNT_ID", test.ownerId)
 		gock.New("http://100.100.100.200").Get("/latest/meta-data/region-id").Reply(200).BodyString(test.regionId)
 		gock.New("http://100.100.100.200").Get("/latest/meta-data/owner-account-id").Reply(200).BodyString(test.ownerId)
-		fatal = false
-		ac := getOIDCToken()
-		assert.Equal(t, test.fatalError, fatal)
-		if ac.AccessKeyID != "" {
-			assert.Equal(t, test.expectKeyId, ac.AccessKeyID)
+		if test.fatalError {
+			assert.Panics(t, func() { getOIDCToken() })
+		} else {
+			ac := getOIDCToken()
+			if ac.AccessKeyID != "" {
+				assert.Equal(t, test.expectKeyId, ac.AccessKeyID)
+			}
 		}
 	}
 }
