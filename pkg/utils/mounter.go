@@ -48,8 +48,6 @@ type MountPoint struct { // nolint: golint
 
 // Mounter is responsible for formatting and mounting volumes
 type Mounter interface {
-	// If the folder doesn't exist, it will call 'mkdir -p'
-	EnsureFolder(target string) error
 	// If the block doesn't exist, create it
 	EnsureBlock(target string) error
 	// Format formats the source with the given filesystem type
@@ -75,29 +73,6 @@ type mounter struct {
 // NewMounter returns a new mounter instance
 func NewMounter() Mounter {
 	return &mounter{}
-}
-
-func (m *mounter) EnsureFolder(target string) error {
-
-	if fi, err := os.Stat(target); err == nil && fi.IsDir() {
-		return nil
-	}
-	mdkirCmd := "mkdir"
-	_, err := exec.LookPath(mdkirCmd)
-	if err != nil {
-		if err == exec.ErrNotFound {
-			return fmt.Errorf("%q executable not found in $PATH", mdkirCmd)
-		}
-		return err
-	}
-
-	mkdirArgs := []string{"-p", target}
-	//log.Infof("mkdir for folder, the command is %s %v", mdkirCmd, mkdirArgs)
-	_, err = exec.Command(mdkirCmd, mkdirArgs...).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("mkdir for folder error: %v", err)
-	}
-	return nil
 }
 
 func (m *mounter) EnsureBlock(target string) error {
