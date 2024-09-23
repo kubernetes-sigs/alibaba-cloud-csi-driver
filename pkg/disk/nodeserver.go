@@ -545,7 +545,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
 
-	device := ""
 	isSharedDisk := false
 	if value, ok := req.VolumeContext[SharedEnable]; ok {
 		value = strings.ToLower(value)
@@ -565,10 +564,11 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		isSingleInstance = AllCategories[Category(value)].SingleInstance
 	}
 
+	device := ""
 	// Step 4 Attach volume
 	defaultErrCode := codes.Internal
 	if GlobalConfigVar.ADControllerEnable || isMultiAttach {
-		device, err = DefaultDeviceManager.GetDeviceByVolumeID(req.GetVolumeId())
+		device, err = DefaultDeviceManager.GetRootBlockByVolumeID(req.GetVolumeId())
 		if err != nil {
 			if IsVFNode() {
 				bdf, err := bindBdfDisk(req.GetVolumeId())
@@ -597,6 +597,13 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		// Now we have attached the disk, if we fail later, NodeStageVolume is in-progress.
 		// Return Aborted so that the CO will call NodeUnstageVolume later to detach.
 		defaultErrCode = codes.Aborted
+	}
+
+	if req.VolumeCapability.GetMount() != nil {
+		device, err = DefaultDeviceManager.AdaptDevicePartition(device)
+		if err != nil {
+			return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to adapt partition %s: %v", device, err)
+		}
 	}
 
 	if err := CheckDeviceAvailable(device, req.VolumeId, targetPath); err != nil {
