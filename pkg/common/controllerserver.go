@@ -110,6 +110,20 @@ func (cs *ControllerServerWithValidator) ControllerExpandVolume(ctx context.Cont
 	return cs.ControllerServer.ControllerExpandVolume(ctx, req)
 }
 
+func (cs *ControllerServerWithValidator) ControllerGetVolume(context context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
+	if len(req.VolumeId) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "VolumeId is required")
+	}
+	return cs.ControllerServer.ControllerGetVolume(context, req)
+}
+
+func (cs *ControllerServerWithValidator) ControllerModifyVolume(context context.Context, req *csi.ControllerModifyVolumeRequest) (*csi.ControllerModifyVolumeResponse, error) {
+	if len(req.VolumeId) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "VolumeId is required")
+	}
+	return cs.ControllerServer.ControllerModifyVolume(context, req)
+}
+
 type GenericControllerServer struct {
 	csi.UnimplementedControllerServer
 }
