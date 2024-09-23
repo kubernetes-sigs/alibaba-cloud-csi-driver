@@ -29,8 +29,8 @@ const (
 	ControllerUnpublish = "ControllerUnpublishVolume"
 	NodeStage           = "NodeStageVolume"
 	NodeUnstage         = "NodeUnstageVolume"
-	NodePublish         = "NodePublish"
-	NodeUnpublish       = "NodeUnpublish"
+	NodePublish         = "NodePublishVolume"
+	NodeUnpublish       = "NodeUnpublishVolume"
 )
 
 var client *kubernetes.Clientset
