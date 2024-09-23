@@ -38,6 +38,8 @@ const (
 	UpdatedOssfsVersion featuregate.Feature = "UpdatedOssfsVersion"
 
 	RundCSIProtocol3 featuregate.Feature = "RundCSIProtocol3"
+
+	EnableVolumeGroupSnapshots featuregate.Feature = "EnableVolumeGroupSnapshots"
 )
 
 var (
@@ -46,7 +48,8 @@ var (
 		DiskADController:           {Default: false, PreRelease: featuregate.Alpha},
 		DiskParallelAttach:         {Default: false, PreRelease: featuregate.Alpha},
 		DiskParallelDetach:         {Default: false, PreRelease: featuregate.Alpha},
-		DisableExpandAutoSnapshots: {Default: true, PreRelease: featuregate.Beta},
+		DisableExpandAutoSnapshots: {Default: false, PreRelease: featuregate.Beta},
+		EnableVolumeGroupSnapshots: {Default: false, PreRelease: featuregate.Alpha},
 	}
 
 	defaultOSSFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
