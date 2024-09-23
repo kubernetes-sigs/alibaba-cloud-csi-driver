@@ -31,7 +31,6 @@ require (
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/h2non/gock.v1 v1.1.2
 	k8s.io/api v0.26.12
-	k8s.io/apiextensions-apiserver v0.18.8
 	k8s.io/apimachinery v0.26.12
 	k8s.io/client-go v0.26.12
 	k8s.io/component-base v0.26.12

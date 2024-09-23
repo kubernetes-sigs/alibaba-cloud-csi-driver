@@ -57,6 +57,16 @@ Please review the [values file](../deploy/chart/values.yaml) before installing. 
 * deploy.accessKey.enabled: if you are using instance RAM role, disable this.
 * csi.\<driver\>.enabled: enable or disable each driver.
 
+### Volume Snapshot
+
+disk driver supports volume snapshot feature. This helm chart installs the CRDs for you, but it will not upgrade them.
+You may need to manage the [CRDs](https://github.com/kubernetes-csi/external-snapshotter/tree/master/client/config/crd) manually.
+
+The Common Snapshot Controller only needs to be deployed once in a cluster.
+If you have other drivers that also supports volume snapshot, You can manage the controller yourself.
+Please set `volumeSnapshot.controller.enabled` to `false` and
+refer to [CSI Snapshotter Usage](https://github.com/kubernetes-csi/external-snapshotter/blob/master/README.md#usage) for how to deploy the controller.
+
 ## Verify
 
 Check the driver pods are running and ready:
