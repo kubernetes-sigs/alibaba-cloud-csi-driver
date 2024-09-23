@@ -14,13 +14,13 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 var defaultOssfsImageTag = "v1.88.4-d9f3917-aliyun"
@@ -68,7 +68,7 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) Fuse
 			if err == nil {
 				registry = fmt.Sprintf("registry-%s-vpc.ack.aliyuncs.com", region)
 			} else {
-				log.Warnf("DEFAULT_REGISTRY env not set, failed to get current region: %v, fallback to default registry: %s", err, defaultRegistry)
+				klog.Warningf("DEFAULT_REGISTRY env not set, failed to get current region: %v, fallback to default registry: %s", err, defaultRegistry)
 				registry = defaultRegistry
 			}
 		}
@@ -80,7 +80,7 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) Fuse
 			}
 		}
 		config.Image = fmt.Sprintf("%s/acs/csi-ossfs:%s", registry, config.ImageTag)
-		log.Infof("Use ossfs image: %s", config.Image)
+		klog.Infof("Use ossfs image: %s", config.Image)
 	}
 	// set default memory request
 	if _, ok := config.Resources.Requests[corev1.ResourceMemory]; !ok {
@@ -211,7 +211,7 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 			options = append(options, fmt.Sprintf("dbglevel=%s", level))
 		} else {
 			if f.config.Dbglevel != "" {
-				log.Warnf("invalid dbglevel for ossfs: %q, use default dbglevel %s", f.config.Dbglevel, defaultDbglevel)
+				klog.Warningf("invalid dbglevel for ossfs: %q, use default dbglevel %s", f.config.Dbglevel, defaultDbglevel)
 			}
 			options = append(options, fmt.Sprintf("dbglevel=%s", ossfsDbglevels[defaultDbglevel]))
 		}
@@ -348,7 +348,7 @@ func CleanupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Inte
 	}
 	_, err = secretClient.Patch(ctx, OssfsCredentialSecretName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
 	if err == nil {
-		log.WithField("volumeId", volumeId).Infof("patched secret %s to remove credentials", OssfsCredentialSecretName)
+		klog.V(2).InfoS("patched secret to remove credentials", "secret", OssfsCredentialSecretName, "volumeId", volumeId)
 	}
 	return err
 }

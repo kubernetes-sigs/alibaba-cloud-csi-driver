@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
 )
 
 func GetFilesystemTypeByMountTargetDomain(domain string) string {
@@ -61,6 +61,6 @@ func GetEndpointForRegion(region string) string {
 		return fmt.Sprintf("nas-vpc.%s.aliyuncs.com", region)
 	}
 	endpoint := fmt.Sprintf("nas.%s.aliyuncs.com", region)
-	logrus.Warnf("region %s do not support vpc endpoint, use public network endpoint: %s", region, endpoint)
+	klog.Warningf("region %s do not support vpc endpoint, use public network endpoint: %s", region, endpoint)
 	return endpoint
 }

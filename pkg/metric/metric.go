@@ -9,7 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
-	"github.com/sirupsen/logrus"
+	"k8s.io/klog/v2"
 )
 
 // Handler is a package of promHttp,metric entry
@@ -30,7 +30,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	handler, err := h.innerHandler()
 	if err != nil {
-		logrus.Errorf("Couldn't create filtered metrics handler, err:%s", err.Error())
+		klog.Errorf("Couldn't create filtered metrics handler, err:%s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(fmt.Sprintf("Couldn't create filtered metrics handler: %s", err)))
 		return
@@ -43,7 +43,7 @@ func NewMetricHandler(serviceType string, driverNames []string) *Handler {
 	//csi collector singleton
 	err := newCSICollector(serviceType, driverNames)
 	if err != nil {
-		logrus.Errorf("Couldn't create collector: %s", err)
+		klog.Errorf("Couldn't create collector: %s", err)
 	}
 	return newHandler()
 }
@@ -66,7 +66,7 @@ func (h *Handler) innerHandler() (http.Handler, error) {
 func newHandler() *Handler {
 	h := &Handler{}
 	if _, err := h.innerHandler(); err != nil {
-		logrus.Errorf("Couldn't create metrics handler: %s", err)
+		klog.Errorf("Couldn't create metrics handler: %s", err)
 	}
 	return h
 }

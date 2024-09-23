@@ -7,9 +7,9 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
-	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -42,14 +42,14 @@ func NewDriver(meta *metadata.Metadata, endpoint string, runAsController bool) *
 
 // Run start pov driver service
 func (p *PoV) Run() {
-	log.Infof("Starting pov driver service, endpoint: %s", p.endpoint)
+	klog.Infof("Starting pov driver service, endpoint: %s", p.endpoint)
 	common.RunCSIServer(p.endpoint, newIdentityServer(), &p.controllerService, &p.nodeService)
 }
 
 func newGlobalConfig(meta *metadata.Metadata, runAsController bool) {
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
-		log.Fatalf("newGlobalConfig: build kubeconfig failed: %v", err)
+		klog.Fatalf("newGlobalConfig: build kubeconfig failed: %v", err)
 	}
 
 	if qps := os.Getenv("KUBE_CLI_API_QPS"); qps != "" {
@@ -64,7 +64,7 @@ func newGlobalConfig(meta *metadata.Metadata, runAsController bool) {
 	}
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+		klog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
 	GlobalConfigVar = GlobalConfig{

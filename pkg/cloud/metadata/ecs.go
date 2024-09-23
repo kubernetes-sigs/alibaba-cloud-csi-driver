@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -48,7 +48,7 @@ func NewECSMetadata(httpRT http.RoundTripper) (*ECSMetadata, error) {
 	var lastErr error
 	err = wait.PollImmediateUntilWithContext(ctx, 1*time.Second, func(ctx context.Context) (bool, error) {
 		if lastErr != nil {
-			logrus.Warnf("retrying ECS metadata: %v", lastErr)
+			klog.Warningf("retrying ECS metadata: %v", lastErr)
 		}
 		resp, err := httpClient.Do(req)
 		if err != nil {
@@ -109,7 +109,7 @@ func (f *EcsFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
 	ecs, err := NewECSMetadata(f.httpRT)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			logrus.Warnf("Hint: ECS metadata is only available when running on Alibaba Cloud ECS. "+
+			klog.Warningf("Hint: ECS metadata is only available when running on Alibaba Cloud ECS. "+
 				"Set %s environment variable to disable ECS metadata for faster initialization.", DISABLE_ECS_ENV)
 		}
 		return nil, err

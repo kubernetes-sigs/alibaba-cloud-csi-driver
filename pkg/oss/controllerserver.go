@@ -28,11 +28,11 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -83,7 +83,7 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 			if res, err := strconv.ParseBool(value); err == nil {
 				ossVolArgs.UseSharedPath = res
 			} else {
-				log.Warn(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
+				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
 			}
 		case "authtype":
 			ossVolArgs.AuthType = value
@@ -102,7 +102,7 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 		case "kmskeyid":
 			ossVolArgs.KmsKeyId = value
 		default:
-			log.Warn(WrapOssError(ParamError, "the key(%q) is unknown", k).Error())
+			klog.Warning(WrapOssError(ParamError, "the key(%q) is unknown", k).Error())
 		}
 	}
 	for k, v := range secret {
@@ -114,7 +114,7 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 		case "aksecret":
 			ossVolArgs.AkSecret = value
 		default:
-			log.Warn(WrapOssError(AuthError, "the key(%q) is unknown", k).Error())
+			klog.Warning(WrapOssError(AuthError, "the key(%q) is unknown", k).Error())
 		}
 	}
 	ossVolArgs.ReadOnly = true
@@ -127,7 +127,7 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 	return ossVolArgs
 }
 func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
-	log.Infof("Starting oss validate create volume request: %s, %v", req.Name, req)
+	klog.Infof("Starting oss validate create volume request: %s, %v", req.Name, req)
 	valid, err := utils.CheckRequestArgs(req.GetParameters())
 	if !valid {
 		return status.Errorf(codes.InvalidArgument, err.Error())
@@ -155,24 +155,24 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		VolumeContext: volumeContext,
 	}
 
-	log.Infof("Provision oss volume is successfully: %s,pvName: %v", req.Name, csiTargetVolume)
+	klog.Infof("Provision oss volume is successfully: %s,pvName: %v", req.Name, csiTargetVolume)
 	return &csi.CreateVolumeResponse{Volume: csiTargetVolume}, nil
 
 }
 
 // call nas api to delete oss volume
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	log.Infof("DeleteVolume: Starting deleting volume %s", req.GetVolumeId())
+	klog.Infof("DeleteVolume: Starting deleting volume %s", req.GetVolumeId())
 	_, err := cs.client.CoreV1().PersistentVolumes().Get(context.Background(), req.VolumeId, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("DeleteVolume: Get volume %s is failed, err: %s", req.VolumeId, err.Error())
 	}
-	log.Infof("Delete volume %s is successfully", req.VolumeId)
+	klog.Infof("Delete volume %s is successfully", req.VolumeId)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	log.Infof("ControllerUnpublishVolume: volume %s on node %s", req.VolumeId, req.NodeId)
+	klog.Infof("ControllerUnpublishVolume: volume %s on node %s", req.VolumeId, req.NodeId)
 	if err := cs.fusePodManager.Delete(&mounter.FusePodContext{
 		Context:   ctx,
 		Namespace: fusePodNamespace,
@@ -192,12 +192,12 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	log.Infof("ControllerUnpublishVolume: successfully unpublished volume %s on node %s", req.VolumeId, req.NodeId)
+	klog.Infof("ControllerUnpublishVolume: successfully unpublished volume %s on node %s", req.VolumeId, req.NodeId)
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	log.Infof("ControllerPublishVolume: volume %s on node %s", req.VolumeId, req.NodeId)
+	klog.Infof("ControllerPublishVolume: volume %s on node %s", req.VolumeId, req.NodeId)
 	// parse options
 	nodeName := req.NodeId
 	region, _ := cs.metadata.Get(metadata.RegionID)
@@ -220,7 +220,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	// Skip controller publish for PVs with attribute direct=true.
 	// The actual mounting of these volumes will be handled by rund.
 	if opts.directAssigned {
-		log.Infof("ControllerPublishVolume: skip DirectVolume: %s", req.VolumeId)
+		klog.Infof("ControllerPublishVolume: skip DirectVolume: %s", req.VolumeId)
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 	// make mount options
@@ -241,7 +241,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Errorf(codes.Internal, "failed to create ossfs pod: %v", err)
 	}
 
-	log.Infof("ControllerPublishVolume: successfully published volume %s on node %s", req.VolumeId, req.NodeId)
+	klog.Infof("ControllerPublishVolume: successfully published volume %s on node %s", req.VolumeId, req.NodeId)
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: map[string]string{
 			mountProxySocket: mounter.GetOssfsMountProxySocketPath(req.VolumeId),
@@ -250,17 +250,17 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 }
 
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	log.Infof("CreateSnapshot is called, do nothing now")
+	klog.Infof("CreateSnapshot is called, do nothing now")
 	return &csi.CreateSnapshotResponse{}, nil
 }
 
 func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
-	log.Infof("DeleteSnapshot is called, do nothing now")
+	klog.Infof("DeleteSnapshot is called, do nothing now")
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest,
 ) (*csi.ControllerExpandVolumeResponse, error) {
-	log.Infof("ControllerExpandVolume is called, do nothing now")
+	klog.Infof("ControllerExpandVolume is called, do nothing now")
 	return &csi.ControllerExpandVolumeResponse{}, nil
 }

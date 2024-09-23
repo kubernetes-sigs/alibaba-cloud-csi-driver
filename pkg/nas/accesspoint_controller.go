@@ -2,10 +2,11 @@ package nas
 
 import (
 	"context"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"path"
 	"path/filepath"
 	"strconv"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 
 	sdk "github.com/alibabacloud-go/nas-20170626/v3/client"
 	"github.com/alibabacloud-go/tea/tea"
@@ -13,11 +14,11 @@ import (
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/klog/v2"
 )
 
 func newAccesspointController(config *internal.ControllerConfig) (internal.Controller, error) {
@@ -205,7 +206,7 @@ func (c *accesspointController) DeleteVolume(ctx context.Context, req *csi.Delet
 		apInfo, err := c.nasClient.DescribeAccesspoint(filesystemId, accesspointId)
 		if err != nil {
 			if cloud.IsAccessPointNotFoundError(err) {
-				logrus.Infof("accesspoint %s already deleted", accesspointId)
+				klog.Infof("accesspoint %s already deleted", accesspointId)
 				return &csi.DeleteVolumeResponse{}, nil
 			}
 			return nil, status.Errorf(codes.Internal, "nas:DescribeAccesspoint failed: %v", err)
@@ -264,6 +265,6 @@ func (c *accesspointController) ControllerExpandVolume(ctx context.Context, req 
 		}
 		return &csi.ControllerExpandVolumeResponse{CapacityBytes: quota << 30}, nil
 	}
-	logrus.Warn("volume capacity not enabled when provision, skip quota expandsion")
+	klog.Warning("volume capacity not enabled when provision, skip quota expandsion")
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: capacity}, nil
 }

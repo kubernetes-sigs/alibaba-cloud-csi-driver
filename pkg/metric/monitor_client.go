@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -34,7 +34,7 @@ func NewStorageMonitorClient(kubeClient kubernetes.Interface) *StorageMonitorCli
 		kubeClient: kubeClient,
 	}
 	if err := c.updateClusterIP(); err != nil {
-		log.Warnf("failed to get clusterIP of storage-monitor: %v", err)
+		klog.Warningf("failed to get clusterIP of storage-monitor: %v", err)
 	}
 
 	var (
@@ -51,7 +51,7 @@ func NewStorageMonitorClient(kubeClient kubernetes.Interface) *StorageMonitorCli
 				now := time.Now()
 				// ignore recent and duplicated error
 				if !(lastError != nil && lastError.Error() == err.Error() && now.Sub(lastLogTime) < monitorIPUpdateInterval*24) {
-					log.Warnf("failed to update clusterIP of storage-monitor: %v", err)
+					klog.Warningf("failed to update clusterIP of storage-monitor: %v", err)
 					lastLogTime = now
 				}
 			}
@@ -107,7 +107,7 @@ func (c *StorageMonitorClient) updateClusterIP() error {
 	c.Lock()
 	defer c.Unlock()
 	if c.clusterIP != currentClusterIP {
-		log.Infof("update storage-monitor IP: %s", currentClusterIP)
+		klog.Infof("update storage-monitor IP: %s", currentClusterIP)
 		c.clusterIP = currentClusterIP
 	}
 	return nil

@@ -21,7 +21,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
-	log "github.com/sirupsen/logrus"
+	"k8s.io/klog/v2"
 )
 
 type identityServer struct {
@@ -39,7 +39,7 @@ func NewIdentityServer() csi.IdentityServer {
 
 // GetPluginCapabilities returns available capabilities of the plugin
 func (iden *identityServer) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
-	log.Infof("Identity:GetPluginCapabilities is called")
+	klog.Infof("Identity:GetPluginCapabilities is called")
 	resp := &csi.GetPluginCapabilitiesResponse{
 		Capabilities: []*csi.PluginCapability{
 			{

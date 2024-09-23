@@ -34,7 +34,7 @@ import (
 	crev2 "github.com/aliyun/credentials-go/credentials"
 	oidc "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/auth"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/crypto"
-	log "github.com/sirupsen/logrus"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -190,34 +190,34 @@ func GetAccessControl() AccessControl {
 
 	oidcToken := getOIDCToken()
 	if oidcToken.AccessKeyID != "" {
-		log.Info("Get AK: USE OIDC token")
+		klog.Info("Get AK: USE OIDC token")
 		return oidcToken
 	}
 
 	//1、Get AK from Env
 	acLocalAK := GetEnvAK()
 	if len(acLocalAK.AccessKeyID) != 0 && len(acLocalAK.AccessKeySecret) != 0 {
-		log.Info("Get AK: use ENV AK")
+		klog.Info("Get AK: use ENV AK")
 		return acLocalAK
 	}
 
 	//2、Get AK from Credential Files
 	acCredentialAK := getCredentialAK()
 	if acCredentialAK.Config != nil && acCredentialAK.Credential != nil {
-		log.Info("Get AK: use Credential AK")
+		klog.Info("Get AK: use Credential AK")
 		return acCredentialAK
 	}
 
 	//3、Get AK from ManagedToken
 	acAddonToken := getManagedAddonToken()
 	if len(acAddonToken.AccessKeyID) != 0 {
-		log.Info("Get AK: use Managed Addon Token")
+		klog.Info("Get AK: use Managed Addon Token")
 		return acAddonToken
 	}
 
 	//4、Get AK from ECS StsToken
 	acStsToken := getStsToken()
-	log.Info("Get AK: use ECS RamRole Token")
+	klog.Info("Get AK: use ECS RamRole Token")
 	return acStsToken
 }
 
@@ -229,10 +229,10 @@ func getOIDCToken() AccessControl {
 		return AccessControl{}
 	}
 	if oidcProvider != nil {
-		log.Infof("getOIDCToken: use exists provider")
+		klog.Infof("getOIDCToken: use exists provider")
 		resp, err := oidcProvider.GetStsTokenWithCache()
 		if err != nil || resp == nil {
-			log.Errorf("getOIDCtoken: failed to assume role with oidc : %++v", err)
+			klog.Errorf("getOIDCtoken: failed to assume role with oidc : %++v", err)
 			return AccessControl{}
 		}
 		return AccessControl{AccessKeyID: strings.TrimSpace(resp.Credentials.AccessKeyId), AccessKeySecret: strings.TrimSpace(resp.Credentials.AccessKeySecret), StsToken: strings.TrimSpace(resp.Credentials.SecurityToken), UseMode: OIDCToken}
@@ -243,16 +243,16 @@ func getOIDCToken() AccessControl {
 		regionID = RetryGetMetaData("region-id")
 	}
 	if regionID == "" {
-		log.Error("getOIDCToken: failed to get regionid from metadata server")
+		klog.Error("getOIDCToken: failed to get regionid from metadata server")
 		return AccessControl{}
 	}
 	ownerId := os.Getenv("ACCOUNT_ID")
 	if ownerId == "" {
 		ownerId = RetryGetMetaData("owner-account-id")
 	}
-	log.Infof("getOIDCToken: cluster owner id: %v", ownerId)
+	klog.Infof("getOIDCToken: cluster owner id: %v", ownerId)
 	if ownerId == "" {
-		log.Error("getOIDCToken: failed to get cluster owner id from metadata server")
+		klog.Error("getOIDCToken: failed to get cluster owner id from metadata server")
 		return AccessControl{}
 	}
 
@@ -264,12 +264,12 @@ func getOIDCToken() AccessControl {
 		ownerId,
 		time.Duration(1000)*time.Second)
 	if oidcProvider == nil {
-		log.Errorf("getOIDCtoken: get empty provider")
+		klog.Errorf("getOIDCtoken: get empty provider")
 		return AccessControl{}
 	}
 	resp, err := oidcProvider.GetStsTokenWithCache()
 	if err != nil || resp == nil {
-		log.Errorf("getOIDCtoken: failed to assume role with oidc : %++v", err)
+		klog.Errorf("getOIDCtoken: failed to assume role with oidc : %++v", err)
 		return AccessControl{}
 	}
 	return AccessControl{AccessKeyID: strings.TrimSpace(resp.Credentials.AccessKeyId), AccessKeySecret: strings.TrimSpace(resp.Credentials.AccessKeySecret), StsToken: strings.TrimSpace(resp.Credentials.SecurityToken), UseMode: OIDCToken}
@@ -301,20 +301,20 @@ func getStsToken() AccessControl {
 	subpath := "ram/security-credentials/"
 	roleName, err := GetMetaData(subpath)
 	if err != nil {
-		log.Errorf("GetSTSToken: request roleName with error: %s", err.Error())
+		klog.Errorf("GetSTSToken: request roleName with error: %s", err.Error())
 		return AccessControl{}
 	}
 
 	fullPath := filepath.Join(subpath, roleName)
 	roleInfo, err := GetMetaData(fullPath)
 	if err != nil {
-		log.Errorf("GetSTSToken: request roleInfo with error: %s", err.Error())
+		klog.Errorf("GetSTSToken: request roleInfo with error: %s", err.Error())
 		return AccessControl{}
 	}
 
 	err = json.Unmarshal([]byte(roleInfo), &roleAuth)
 	if err != nil {
-		log.Errorf("GetSTSToken: unmarshal roleInfo: %s, with error: %s", roleInfo, err.Error())
+		klog.Errorf("GetSTSToken: unmarshal roleInfo: %s, with error: %s", roleInfo, err.Error())
 		return AccessControl{}
 	}
 	scheme := "https"
@@ -336,22 +336,22 @@ func getManagedToken() (tokens ManageTokens) {
 	if _, err := os.Stat(ConfigPath); err == nil {
 		encodeTokenCfg, err := os.ReadFile(ConfigPath)
 		if err != nil {
-			log.Errorf("failed to read token config, err: %v", err)
+			klog.Errorf("failed to read token config, err: %v", err)
 			return ManageTokens{}
 		}
 		err = json.Unmarshal(encodeTokenCfg, &akInfo)
 		if err != nil {
-			log.Errorf("failed to unmarshal token config: %v", err)
+			klog.Errorf("failed to unmarshal token config: %v", err)
 			return ManageTokens{}
 		}
 		newToken, err := crypto.RamTokenDecrypt(&akInfo)
 		if err != nil {
-			log.Errorf("failed to decrypt new token: %v", err)
+			klog.Errorf("failed to decrypt new token: %v", err)
 			return ManageTokens{}
 		}
 		expireAt, err := time.Parse("2006-01-02T15:04:05Z", newToken.Expiration)
 		if err != nil {
-			log.Errorf("failed to parse expiration: %q: %v", newToken.Expiration, err)
+			klog.Errorf("failed to parse expiration: %q: %v", newToken.Expiration, err)
 			return ManageTokens{}
 		}
 		tokens.AccessKeyID = newToken.AccessKeyId
@@ -380,7 +380,7 @@ func getCredentialAK() AccessControl {
 	credential, err := pc.Resolve()
 	if err != nil {
 		if !strings.Contains(err.Error(), "No credential found") {
-			log.Errorf("Failed to resolve an authentication provider: %v", err)
+			klog.Errorf("Failed to resolve an authentication provider: %v", err)
 		}
 	}
 	scheme := "https"
@@ -462,7 +462,7 @@ func GetCredentialV2() (crev2.Credential, error) {
 	// env variable
 	acLocalAK := GetEnvAK()
 	if len(acLocalAK.AccessKeyID) != 0 && len(acLocalAK.AccessKeySecret) != 0 {
-		log.Info("credential v2: using ak from env variables")
+		klog.Info("credential v2: using ak from env variables")
 		config := new(crev2.Config).SetType("access_key").
 			SetAccessKeyId(acLocalAK.AccessKeyID).
 			SetAccessKeySecret(acLocalAK.AccessKeySecret)
@@ -472,14 +472,14 @@ func GetCredentialV2() (crev2.Credential, error) {
 	// try default credential chain
 	cred, err := crev2.NewCredential(nil)
 	if err == nil {
-		log.Info("credential v2: using default credential chain")
+		klog.Info("credential v2: using default credential chain")
 		return cred, nil
 	}
 
 	// managed addon token
 	_, err = os.Stat(ConfigPath)
 	if err == nil {
-		log.Info("credential v2: using managed addon token")
+		klog.Info("credential v2: using managed addon token")
 		return newManagedAddonTokenCredv2(), nil
 	}
 	if !os.IsNotExist(err) {
@@ -487,7 +487,7 @@ func GetCredentialV2() (crev2.Credential, error) {
 	}
 
 	// ecs ram role
-	log.Info("credential v2: using ecs_ram_role")
+	klog.Info("credential v2: using ecs_ram_role")
 	config := new(crev2.Config).SetType("ecs_ram_role")
 	return crev2.NewCredential(config)
 }

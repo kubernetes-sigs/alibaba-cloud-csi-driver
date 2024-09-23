@@ -24,9 +24,9 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -106,7 +106,7 @@ func isNotMountPoint(mounter mountutils.Interface, target string, expensive bool
 			}
 			return true, nil
 		} else if mountutils.IsCorruptedMnt(err) {
-			log.Warnf("Umount corrupted mountpoint %s", target)
+			klog.Warningf("Umount corrupted mountpoint %s", target)
 			err := mounter.Unmount(target)
 			if err != nil {
 				return false, status.Errorf(codes.Internal, "umount corrupted mountpoint %s: %v", target, err)

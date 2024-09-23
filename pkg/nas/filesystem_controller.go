@@ -31,13 +31,13 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -123,7 +123,7 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 	}
 
 	if value, ok := cs.pvcProcessSuccess.Load(req.Name); ok && value != nil {
-		log.Infof("CreateVolume: Nfs Volume %s has Created Already: %v", req.Name, value)
+		klog.Infof("CreateVolume: Nfs Volume %s has Created Already: %v", req.Name, value)
 		return &csi.CreateVolumeResponse{Volume: value.(*csi.Volume)}, nil
 	}
 
@@ -151,7 +151,7 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 	// get nasVol information
 	nasVol, err := cs.getNasVolumeOptions(req)
 	if err != nil {
-		log.Errorf("CreateVolume: error parameters from input: %v, with error: %v", req.Name, err)
+		klog.Errorf("CreateVolume: error parameters from input: %v, with error: %v", req.Name, err)
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %v, with error: %v", req.Name, err)
 	}
 
@@ -166,7 +166,7 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 	fileSystemID := ""
 	// if the pvc mapped fileSystem is already create, skip creating a filesystem
 	if value, ok := cs.pvcFileSystemIDMap.Load(pvName); ok && value != "" {
-		log.Warnf("CreateVolume: Nfs Volume(%s)'s filesystem %s has Created Already, try to create mountTarget", pvName, value)
+		klog.Warningf("CreateVolume: Nfs Volume(%s)'s filesystem %s has Created Already, try to create mountTarget", pvName, value)
 		fileSystemID = value.(string)
 	} else {
 		createFileSystemsRequest := aliNas.CreateCreateFileSystemRequest()
@@ -183,17 +183,17 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 			createFileSystemsRequest.EncryptType = requests.Integer(nasVol.EncryptType)
 			createFileSystemsRequest.ZoneId = nasVol.ZoneID
 		}
-		log.Infof("CreateVolume: Volume: %s, Create Nas filesystem with: %v, %v", pvName, cs.config.Region, nasVol)
+		klog.Infof("CreateVolume: Volume: %s, Create Nas filesystem with: %v, %v", pvName, cs.config.Region, nasVol)
 
 		createFileSystemsResponse, err := nasClient.CreateFileSystem(createFileSystemsRequest)
 		if err != nil {
-			log.Errorf("CreateVolume: requestId[%s], fail to create nas filesystems %s: with %v", createFileSystemsResponse.RequestId, req.GetName(), err)
+			klog.Errorf("CreateVolume: requestId[%s], fail to create nas filesystems %s: with %v", createFileSystemsResponse.RequestId, req.GetName(), err)
 			errMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.NasFilesystemCreate)
 			return nil, status.Error(codes.Internal, errMsg)
 		}
 		fileSystemID = createFileSystemsResponse.FileSystemId
 		cs.pvcFileSystemIDMap.Store(pvName, fileSystemID)
-		log.Infof("CreateVolume: Volume: %s, Successful Create Nas filesystem with ID: %s, with requestID: %s", pvName, fileSystemID, createFileSystemsResponse.RequestId)
+		klog.Infof("CreateVolume: Volume: %s, Successful Create Nas filesystem with ID: %s, with requestID: %s", pvName, fileSystemID, createFileSystemsResponse.RequestId)
 
 		// Set Default DiskTags
 		tagResourcesRequest := aliNas.CreateTagResourcesRequest()
@@ -210,14 +210,14 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 			e := status.Error(codes.Internal, str)
 			utils.CreateEvent(cs.eventRecorder, ref, v1.EventTypeWarning, AddDefaultTagsError, e.Error())
 		} else {
-			log.Infof("CreateVolume: Volume: %s, Successful Add Nas filesystem tags with ID: %s, with requestID: %s", pvName, fileSystemID, createFileSystemsResponse.RequestId)
+			klog.Infof("CreateVolume: Volume: %s, Successful Add Nas filesystem tags with ID: %s, with requestID: %s", pvName, fileSystemID, createFileSystemsResponse.RequestId)
 		}
 	}
 
 	// if mountTarget is already created, skip create a mountTarget
 	mountTargetDomain := ""
 	if value, ok := cs.pvcMountTargetMap.Load(pvName); ok && value != "" {
-		log.Warnf("CreateVolume: Nfs Volume (%s) mountTarget %s has Created Already, try to get mountTarget's status", pvName, value)
+		klog.Warningf("CreateVolume: Nfs Volume (%s) mountTarget %s has Created Already, try to get mountTarget's status", pvName, value)
 		mountTargetDomain = value.(string)
 	} else {
 		createMountTargetRequest := aliNas.CreateCreateMountTargetRequest()
@@ -228,11 +228,11 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 			createMountTargetRequest.VSwitchId = nasVol.VSwitchID
 		}
 		createMountTargetRequest.AccessGroupName = nasVol.AccessGroupName
-		log.Infof("CreateVolume: Volume(%s), Create Nas mountTarget with: %v, %v, %v, %v, %v", pvName, fileSystemID, nasVol.NetworkType, nasVol.VpcID, nasVol.VSwitchID, nasVol.AccessGroupName)
+		klog.Infof("CreateVolume: Volume(%s), Create Nas mountTarget with: %v, %v, %v, %v, %v", pvName, fileSystemID, nasVol.NetworkType, nasVol.VpcID, nasVol.VSwitchID, nasVol.AccessGroupName)
 
 		createMountTargetResponse, err := nasClient.CreateMountTarget(createMountTargetRequest)
 		if err != nil {
-			log.Errorf("CreateVolume: requestId[%s], fail to create nas mountTarget %s: with %v", createMountTargetResponse.RequestId, req.GetName(), err)
+			klog.Errorf("CreateVolume: requestId[%s], fail to create nas mountTarget %s: with %v", createMountTargetResponse.RequestId, req.GetName(), err)
 			errMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.NasMountTargetCreate)
 			return nil, status.Error(codes.Internal, errMsg)
 		}
@@ -242,26 +242,26 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 			describeFSRequest.FileSystemType = "extreme"
 			describeFSRequest.FileSystemId = fileSystemID
 			for i := 1; i <= 30; i++ {
-				log.Debugf("CreateVolume: Waiting for nas mountTarget for filesystem %s, try %d times, max 30 times", fileSystemID, i)
+				klog.V(4).Infof("CreateVolume: Waiting for nas mountTarget for filesystem %s, try %d times, max 30 times", fileSystemID, i)
 				describeFSResponse, err := nasClient.DescribeFileSystems(describeFSRequest)
 				if err != nil {
-					log.Errorf("CreateVolume: requestId[%s], fail to describe nas filesystem %s: with %v", describeFSResponse.RequestId, req.GetName(), err)
+					klog.Errorf("CreateVolume: requestId[%s], fail to describe nas filesystem %s: with %v", describeFSResponse.RequestId, req.GetName(), err)
 					return nil, status.Error(codes.Internal, err.Error())
 				}
 				if describeFSResponse.TotalCount != 1 || len(describeFSResponse.FileSystems.FileSystem) != 1 {
-					log.Errorf("CreateVolume: requestId[%s], fail to describe nas filesystem %s: with more than 1 response", describeFSResponse.RequestId, req.GetName())
+					klog.Errorf("CreateVolume: requestId[%s], fail to describe nas filesystem %s: with more than 1 response", describeFSResponse.RequestId, req.GetName())
 					return nil, status.Errorf(codes.Internal, "CreateVolume: failed to describe nas filesystem %s: with more than 1 response", req.GetName())
 				}
 				fs := describeFSResponse.FileSystems.FileSystem[0]
 				if len(fs.MountTargets.MountTarget) == 1 && fs.MountTargets.MountTarget[0].MountTargetDomain != "" {
 					createMountTargetResponse.MountTargetDomain = fs.MountTargets.MountTarget[0].MountTargetDomain
-					log.Infof("CreateVolume: Nas Volume(%s) create mountTarget %s successful", pvName, createMountTargetResponse.MountTargetDomain)
+					klog.Infof("CreateVolume: Nas Volume(%s) create mountTarget %s successful", pvName, createMountTargetResponse.MountTargetDomain)
 					break
 				} else if len(fs.MountTargets.MountTarget) == 2 {
-					log.Errorf("CreateVolume: nas volume(%s) create mountTarget %s with 2 mountTarget", pvName, fileSystemID)
+					klog.Errorf("CreateVolume: nas volume(%s) create mountTarget %s with 2 mountTarget", pvName, fileSystemID)
 					return nil, status.Error(codes.Internal, "CreateVolume: nas mountTarget "+fileSystemID+" is 2")
 				} else if i == 30 {
-					log.Errorf("CreateVolume: wait nas volume(%s) for filesystem %s timeout", pvName, fileSystemID)
+					klog.Errorf("CreateVolume: wait nas volume(%s) for filesystem %s timeout", pvName, fileSystemID)
 					return nil, status.Error(codes.Internal, "CreateVolume: nas wait filesystem "+fileSystemID+" timeout")
 				}
 				time.Sleep(time.Duration(2) * time.Second)
@@ -269,7 +269,7 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 		}
 		mountTargetDomain = createMountTargetResponse.MountTargetDomain
 		cs.pvcMountTargetMap.Store(pvName, mountTargetDomain)
-		log.Infof("CreateVolume: Volume: %s, Successful Create Nas mountTarget with: %s, with requestID: %s", pvName, mountTargetDomain, createMountTargetResponse.RequestId)
+		klog.Infof("CreateVolume: Volume: %s, Successful Create Nas mountTarget with: %s, with requestID: %s", pvName, mountTargetDomain, createMountTargetResponse.RequestId)
 	}
 
 	describeMountTargetsRequest := aliNas.CreateDescribeMountTargetsRequest()
@@ -277,17 +277,17 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 	describeMountTargetsRequest.MountTargetDomain = mountTargetDomain
 	// describe mountTarget 3 times util its status is active
 	for i := 1; i <= 15; i++ {
-		log.Debugf("CreateVolume: Waiting for nas mountTarget %s active, try %d times total 3 times", mountTargetDomain, i)
+		klog.V(4).Infof("CreateVolume: Waiting for nas mountTarget %s active, try %d times total 3 times", mountTargetDomain, i)
 		describeMountTargetsResponse, err := nasClient.DescribeMountTargets(describeMountTargetsRequest)
 		if err != nil {
-			log.Errorf("CreateVolume: Volume %s, requestId[%s], fail to describe nas mountTarget %s: with %v", pvName, describeMountTargetsResponse.RequestId, mountTargetDomain, err)
+			klog.Errorf("CreateVolume: Volume %s, requestId[%s], fail to describe nas mountTarget %s: with %v", pvName, describeMountTargetsResponse.RequestId, mountTargetDomain, err)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		if describeMountTargetsResponse.MountTargets.MountTarget[0].Status == "Active" {
-			log.Infof("CreateVolume: Nas Volume(%s) mountTarget %s status active", pvName, mountTargetDomain)
+			klog.Infof("CreateVolume: Nas Volume(%s) mountTarget %s status active", pvName, mountTargetDomain)
 			break
 		} else if i == 15 {
-			log.Errorf("CreateVolume: nas volume(%s) mountTarget %s not active", pvName, mountTargetDomain)
+			klog.Errorf("CreateVolume: nas volume(%s) mountTarget %s not active", pvName, mountTargetDomain)
 			return nil, status.Error(codes.Internal, "CreateVolume: nas mountTarget "+mountTargetDomain+" is not active")
 		}
 		time.Sleep(time.Duration(2) * time.Second)
@@ -412,7 +412,7 @@ func (cs *filesystemController) getNasVolumeOptions(req *csi.CreateVolumeRequest
 		nasVolArgs.RegionID = ""
 	}
 	if nasVolArgs.RegionID != "" && nasVolArgs.RegionID != CnHangzhouFin {
-		log.Warnf("getNasVolumeOptions: RegionID is set, but is: %s", nasVolArgs.RegionID)
+		klog.Warningf("getNasVolumeOptions: RegionID is set, but is: %s", nasVolArgs.RegionID)
 	}
 
 	// deleteVolume
@@ -466,7 +466,7 @@ func (cs *filesystemController) DeleteVolume(ctx context.Context, req *csi.Delet
 		return nil, status.Errorf(codes.Internal, "init nas client: %v", err)
 	}
 	if deleteVolume == "true" {
-		log.Infof("DeleteVolume: Start delete mountTarget %s for volume %s", nfsServer, req.VolumeId)
+		klog.Infof("DeleteVolume: Start delete mountTarget %s for volume %s", nfsServer, req.VolumeId)
 		if fileSystemID == "" {
 			return nil, fmt.Errorf("DeleteVolume: Volume: %s in filesystem mode, with filesystemId empty", req.VolumeId)
 		}
@@ -478,7 +478,7 @@ func (cs *filesystemController) DeleteVolume(ctx context.Context, req *csi.Delet
 		_, err := nasClient.DescribeMountTargets(describeMountTargetRequest)
 		if err != nil {
 			if cloud.IsMountTargetNotFoundError(err) {
-				log.Infof("DeleteVolume: Volume %s MountTarget %s already delete", req.VolumeId, nfsServer)
+				klog.Infof("DeleteVolume: Volume %s MountTarget %s already delete", req.VolumeId, nfsServer)
 				isMountTargetDelete = true
 			}
 		}
@@ -488,28 +488,28 @@ func (cs *filesystemController) DeleteVolume(ctx context.Context, req *csi.Delet
 			deleteMountTargetRequest.MountTargetDomain = nfsServer
 			deleteMountTargetResponse, err := nasClient.DeleteMountTarget(deleteMountTargetRequest)
 			if err != nil {
-				log.Errorf("DeleteVolume: requestId[%s], volume[%s], fail to delete nas mountTarget %s: with %v", deleteMountTargetResponse.RequestId, req.VolumeId, nfsServer, err)
+				klog.Errorf("DeleteVolume: requestId[%s], volume[%s], fail to delete nas mountTarget %s: with %v", deleteMountTargetResponse.RequestId, req.VolumeId, nfsServer, err)
 				errMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.NasMountTargetDelete)
 				return nil, status.Error(codes.Internal, errMsg)
 			}
 		}
 		// remove the pvc mountTarget mapping if exist
 		cs.pvcMountTargetMap.Delete(req.VolumeId)
-		log.Infof("DeleteVolume: Volume %s MountTarget %s deleted successfully and Start delete filesystem %s", req.VolumeId, nfsServer, fileSystemID)
+		klog.Infof("DeleteVolume: Volume %s MountTarget %s deleted successfully and Start delete filesystem %s", req.VolumeId, nfsServer, fileSystemID)
 
 		deleteFileSystemRequest := aliNas.CreateDeleteFileSystemRequest()
 		deleteFileSystemRequest.FileSystemId = fileSystemID
 		deleteFileSystemResponse, err := nasClient.DeleteFileSystem(deleteFileSystemRequest)
 		if err != nil {
-			log.Errorf("DeleteVolume: requestId[%s], volume %s fail to delete nas filesystem %s: with %v", deleteFileSystemResponse.RequestId, req.VolumeId, fileSystemID, err)
+			klog.Errorf("DeleteVolume: requestId[%s], volume %s fail to delete nas filesystem %s: with %v", deleteFileSystemResponse.RequestId, req.VolumeId, fileSystemID, err)
 			errMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.NasFilesystemDelete)
 			return nil, status.Error(codes.Internal, errMsg)
 		}
 		// remove the pvc filesystem mapping if exist
 		cs.pvcFileSystemIDMap.Delete(req.VolumeId)
-		log.Infof("DeleteVolume: Volume %s Filesystem %s deleted successfully", req.VolumeId, fileSystemID)
+		klog.Infof("DeleteVolume: Volume %s Filesystem %s deleted successfully", req.VolumeId, fileSystemID)
 	} else {
-		log.Infof("DeleteVolume: Nas Volume %s Filesystem's deleteVolume is [false], skip delete mountTarget and fileSystem", req.VolumeId)
+		klog.Infof("DeleteVolume: Nas Volume %s Filesystem's deleteVolume is [false], skip delete mountTarget and fileSystem", req.VolumeId)
 	}
 
 	// remove the pvc process mapping if exist
@@ -518,7 +518,7 @@ func (cs *filesystemController) DeleteVolume(ctx context.Context, req *csi.Delet
 }
 
 func (cs *filesystemController) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest, pv *corev1.PersistentVolume) (*csi.ControllerExpandVolumeResponse, error) {
-	log.Warn("skip expansion for volume as filesystem")
+	klog.Warning("skip expansion for volume as filesystem")
 	if capacityRange := req.GetCapacityRange(); capacityRange != nil {
 		return &csi.ControllerExpandVolumeResponse{
 			CapacityBytes: req.CapacityRange.RequiredBytes,

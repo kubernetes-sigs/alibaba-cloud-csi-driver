@@ -8,9 +8,9 @@ import (
 	"sync"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
-	"github.com/sirupsen/logrus"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 type MetadataKey int
@@ -79,7 +79,7 @@ func (p *lazyInitProvider) Get(key MetadataKey) (string, error) {
 			err = fmt.Errorf("%T failed: %w", p.fetcher, err)
 			// print a warning if we failed to get a value,
 			// because the error is hide if other providers succeed
-			logrus.Warn(err)
+			klog.Warning(err)
 		}
 		p.fetcher = nil
 		p.provider = provider
@@ -109,11 +109,7 @@ func (p *immutableProvider) Get(key MetadataKey) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	logrus.WithFields(logrus.Fields{
-		"provider": p.name,
-		"key":      key,
-		"value":    v,
-	}).Info("retrive metadata")
+	klog.V(2).InfoS("retrived metadata", "provider", p.name, "key", key, "value", v)
 	p.values[key] = v
 	return v, nil
 }
@@ -136,7 +132,7 @@ func NewMetadata() *Metadata {
 
 func (m *Metadata) EnableEcs(httpRT http.RoundTripper) {
 	if os.Getenv(DISABLE_ECS_ENV) != "" {
-		logrus.Infof("ECS metadata is disabled by environment variable %s", DISABLE_ECS_ENV)
+		klog.Infof("ECS metadata is disabled by environment variable %s", DISABLE_ECS_ENV)
 		return
 	}
 	m.providers = append(m.providers, &lazyInitProvider{
@@ -148,7 +144,7 @@ func (m *Metadata) EnableEcs(httpRT http.RoundTripper) {
 func (m *Metadata) EnableKubernetes(client kubernetes.Interface) {
 	nodeName := os.Getenv(KUBE_NODE_NAME_ENV)
 	if nodeName == "" {
-		logrus.Warnf("%s environment variable is not set, skipping Kubernetes Node metadata", KUBE_NODE_NAME_ENV)
+		klog.Warningf("%s environment variable is not set, skipping Kubernetes Node metadata", KUBE_NODE_NAME_ENV)
 	} else {
 		m.providers = append(m.providers, &lazyInitProvider{
 			fetcher: &KubernetesNodeMetadataFetcher{

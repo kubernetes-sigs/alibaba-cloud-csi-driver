@@ -31,11 +31,11 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
-	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 )
 
 // PluginFolder defines the location of diskplugin
@@ -105,9 +105,9 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 	accessControl := utils.GetAccessControl()
 	client := newEcsClient(accessControl)
 	if accessControl.UseMode == utils.EcsRAMRole || accessControl.UseMode == utils.ManagedToken {
-		log.Infof("Starting csi-plugin with sts.")
+		klog.Infof("Starting csi-plugin with sts.")
 	} else {
-		log.Infof("Starting csi-plugin without sts.")
+		klog.Infof("Starting csi-plugin without sts.")
 	}
 	GlobalConfigVar.EcsClient = client
 
@@ -124,7 +124,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 
 // Run start a new NodeServer
 func (disk *DISK) Run() {
-	log.Infof("Starting csi-plugin Driver: %v version: %v", driverName, version.VERSION)
+	klog.Infof("Starting csi-plugin Driver: %v version: %v", driverName, version.VERSION)
 	common.RunCSIServer(disk.endpoint, disk.idServer, disk.controllerServer, disk.nodeServer)
 }
 
@@ -135,7 +135,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) {
 	// Global Configs Set
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
+		klog.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
 	if qps := os.Getenv("KUBE_CLI_API_QPS"); qps != "" {
 		if qpsi, err := strconv.Atoi(qps); err == nil {
@@ -151,19 +151,19 @@ func GlobalConfigSet(m metadata.MetadataProvider) {
 	// snapshotClient does not support protobuf
 	snapClient, err := snapClientset.NewForConfig(cfg)
 	if err != nil {
-		log.Fatalf("Error building kubernetes snapclientset: %s", err.Error())
+		klog.Fatalf("Error building kubernetes snapclientset: %s", err.Error())
 	}
 
 	cfg.ContentType = runtime.ContentTypeProtobuf
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+		klog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
 	csiCfg := utils.Config{}
 	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
-		log.Infof("Not found configmap named as csi-plugin under kube-system, with: %v", err)
+		klog.Infof("Not found configmap named as csi-plugin under kube-system, with: %v", err)
 	} else {
 		csiCfg.ConfigMap = configMap.Data
 	}
@@ -217,13 +217,13 @@ func GlobalConfigSet(m metadata.MetadataProvider) {
 		DiskAllowAllType:      csiCfg.GetBool("disk-allow-all-type", "DISK_ALLOW_ALL_TYPE", false),
 	}
 	if GlobalConfigVar.ADControllerEnable {
-		log.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
+		klog.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
 	} else {
-		log.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
+		klog.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
 	}
 	DefaultDeviceManager.EnableDiskPartition = csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true)
 	DefaultDeviceManager.DisableSerial = !controllerServerType && IsVFNode()
-	log.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
+	klog.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
 		GlobalConfigVar.ADControllerEnable,
 		GlobalConfigVar.DiskTagEnable,
 		GlobalConfigVar.DiskBdfEnable,
@@ -238,10 +238,10 @@ func GlobalConfigSet(m metadata.MetadataProvider) {
 		pAttach := features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelAttach)
 		GlobalConfigVar.AttachDetachSlots = NewSlots(!pDetach, !pAttach)
 		if pAttach {
-			log.Infof("Disk parallel attach enabled")
+			klog.Infof("Disk parallel attach enabled")
 		}
 		if pDetach {
-			log.Infof("Disk parallel detach enabled")
+			klog.Infof("Disk parallel detach enabled")
 		}
 	} else {
 		GlobalConfigVar.AttachDetachSlots = NewSlots(true, true)

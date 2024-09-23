@@ -2,7 +2,7 @@ package mounter
 
 import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -22,7 +22,7 @@ func (m *ConnectorMounter) Mount(source string, target string, fstype string, op
 	mntCmd = append(mntCmd, args...)
 	out, err := utils.ConnectorRun(mntCmd...)
 	if len(out) > 0 {
-		log.Infof("ConnectorRun: %q, output: %s", mntCmd, string(out))
+		klog.Infof("ConnectorRun: %q, output: %s", mntCmd, string(out))
 	}
 	return err
 }

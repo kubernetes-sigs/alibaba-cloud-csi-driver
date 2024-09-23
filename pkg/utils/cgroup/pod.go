@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
+	"k8s.io/klog/v2"
 )
 
 type PodCGroupSlice struct {
@@ -50,7 +50,7 @@ func DetectCgroupVersion(cgroupfsMountPath string) (PodCGroupSlice, IO, error) {
 	v2Path := filepath.Join(cgroupfsMountPath, "kubepods.slice")
 	_, err := os.Stat(v2Path + "/io.max")
 	if err == nil {
-		log.Infof("Detected cgroup v2 at %s", v2Path)
+		klog.Infof("Detected cgroup v2 at %s", v2Path)
 		return PodCGroupSlice{v2Path}, V2{}, nil
 	}
 	if !errors.Is(err, os.ErrNotExist) {
@@ -60,13 +60,13 @@ func DetectCgroupVersion(cgroupfsMountPath string) (PodCGroupSlice, IO, error) {
 	v1Path := filepath.Join(cgroupfsMountPath, "blkio/kubepods.slice")
 	_, err = os.Stat(v1Path + "/blkio.throttle.read_bps_device")
 	if err == nil {
-		log.Infof("Detected cgroup v1 at %s", v1Path)
+		klog.Infof("Detected cgroup v1 at %s", v1Path)
 		return PodCGroupSlice{v1Path}, V1{}, nil
 	}
 	if !errors.Is(err, os.ErrNotExist) {
 		return PodCGroupSlice{}, nil, err
 	}
 
-	log.Warnf("No cgroup detected at %s. IO limit will not work", cgroupfsMountPath)
+	klog.Warningf("No cgroup detected at %s. IO limit will not work", cgroupfsMountPath)
 	return PodCGroupSlice{}, nil, nil
 }

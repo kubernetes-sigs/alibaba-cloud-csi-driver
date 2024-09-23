@@ -28,11 +28,11 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
-	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -50,7 +50,7 @@ type OSS struct {
 
 // NewDriver init oss type of csi driver
 func NewDriver(endpoint string, m metadata.MetadataProvider, runAsController bool) *OSS {
-	log.Infof("Driver: %v version: %v", driverName, version.VERSION)
+	klog.Infof("Driver: %v version: %v", driverName, version.VERSION)
 
 	switch os.Getenv(utils.ServiceType) {
 	case utils.ProvisionerService:
@@ -65,7 +65,7 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, runAsController boo
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	if !runAsController {
 		if nodeName == "" {
-			log.Fatal("env KUBE_NODE_NAME is empty")
+			klog.Fatal("env KUBE_NODE_NAME is empty")
 		}
 	} else {
 		nodeName = "controller" // any non-empty value to avoid csi-common panic
@@ -77,7 +77,7 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, runAsController boo
 
 	configmap, err := clientset.CoreV1().ConfigMaps("kube-system").Get(context.Background(), "csi-plugin", metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
-		log.Fatalf("failed to get configmap kube-system/csi-plugin: %v", err)
+		klog.Fatalf("failed to get configmap kube-system/csi-plugin: %v", err)
 	}
 
 	ossfs := mounter.NewFuseOssfs(configmap, m)

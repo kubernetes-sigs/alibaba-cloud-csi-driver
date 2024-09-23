@@ -9,18 +9,18 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"k8s.io/klog/v2"
 )
 
 func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	log.Infof("GRPC call: %s", info.FullMethod)
-	log.Debugf("GRPC request: %s", protosanitizer.StripSecrets(req))
+	klog.Infof("GRPC call: %s", info.FullMethod)
+	klog.V(4).Infof("GRPC request: %s", protosanitizer.StripSecrets(req))
 	resp, err := handler(ctx, req)
 	if err != nil {
-		log.Errorf("GRPC error: %v", err)
+		klog.Errorf("GRPC error: %v", err)
 	} else {
-		log.Debugf("GRPC response: %s", protosanitizer.StripSecrets(resp))
+		klog.V(4).Infof("GRPC response: %s", protosanitizer.StripSecrets(resp))
 	}
 	return resp, err
 }
@@ -41,19 +41,19 @@ func RunCSIServer(endpoint string, ids csi.IdentityServer, cs csi.ControllerServ
 
 	proto, addr, err := ParseEndpoint(endpoint)
 	if err != nil {
-		log.Fatal(err.Error())
+		klog.Fatal(err.Error())
 	}
 
 	if proto == "unix" {
 		addr = "/" + addr
 		if err := os.Remove(addr); err != nil && !os.IsNotExist(err) {
-			log.Fatalf("Failed to remove %s, error: %s", addr, err.Error())
+			klog.Fatalf("Failed to remove %s, error: %s", addr, err.Error())
 		}
 	}
 
 	listener, err := net.Listen(proto, addr)
 	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
+		klog.Fatalf("Failed to listen: %v", err)
 	}
 
 	opts := []grpc.ServerOption{
@@ -71,7 +71,7 @@ func RunCSIServer(endpoint string, ids csi.IdentityServer, cs csi.ControllerServ
 		csi.RegisterNodeServer(server, ns)
 	}
 
-	log.Infof("Listening for connections on address: %#v", listener.Addr())
+	klog.Infof("Listening for connections on address: %#v", listener.Addr())
 
 	server.Serve(listener)
 }

@@ -14,11 +14,11 @@ import (
 
 	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
@@ -321,7 +321,7 @@ func (p *diskStatCollector) capacityEventAlert(valueFloat64 float64, pvcName str
 	if p.alertSwtichSet.Contains(capacitySwitch) {
 		capacityTotalFloat64, err := strconv.ParseFloat(stats[11], 64)
 		if err != nil {
-			logrus.Errorf("Convert diskCapacityTotalDesc %s to float64 is failed, err:%s", stats[10], err)
+			klog.Errorf("Convert diskCapacityTotalDesc %s to float64 is failed, err:%s", stats[10], err)
 			return
 		}
 		if almostEqualFloat64(capacityTotalFloat64, 0) {
@@ -350,7 +350,7 @@ func (p *diskStatCollector) setDiskMetric(pvName string, info diskInfo, stats []
 
 		valueFloat64, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			logrus.Errorf("Convert value %s to float64 is failed, err:%s", value, err)
+			klog.Errorf("Convert value %s to float64 is failed, err:%s", value, err)
 			continue
 		}
 		if i == 3 { //3: diskReadTimeMilliSecondsDesc
@@ -378,7 +378,7 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 		pvName, diskID, err := getVolumeInfoByJSON(path, driverName)
 		if err != nil {
 			if err != ErrUnexpectedVolumeType {
-				logrus.Errorf("Get volume info by path %s is failed, err:%s", path, err)
+				klog.Errorf("Get volume info by path %s is failed, err:%s", path, err)
 			}
 			continue
 		}
@@ -387,7 +387,7 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 		notMounted, err := mounter.IsLikelyNotMountPoint(mountPoint)
 		if err != nil {
 			if !errors.Is(err, fs.ErrNotExist) {
-				logrus.Errorf("Check if %s is mount point failed: %v", mountPoint, err)
+				klog.Errorf("Check if %s is mount point failed: %v", mountPoint, err)
 			}
 			continue
 		}
@@ -397,7 +397,7 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 
 		deviceName, err := getDeviceByVolumeID(pvName, diskID)
 		if err != nil {
-			logrus.Errorf("Get dev name by diskID %s is failed, err:%s", diskID, err)
+			klog.Errorf("Get dev name by diskID %s is failed, err:%s", diskID, err)
 			continue
 		}
 		if deviceName == "" {
@@ -462,7 +462,7 @@ func getDiskCapacityMetric(pvName string, info *diskInfo, stat []string) ([]stri
 	getGlobalMountPathByPvName(pvName, info)
 	response, err := utils.GetMetrics(info.GlobalMountPath)
 	if err != nil {
-		logrus.Errorf("Get pv %s metrics from kubelet is failed, err: %s", info.GlobalMountPath, err)
+		klog.Errorf("Get pv %s metrics from kubelet is failed, err: %s", info.GlobalMountPath, err)
 		return stat, err
 	}
 	for _, volumeUsage := range response.Usage {

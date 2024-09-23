@@ -9,9 +9,9 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/pov/internal"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -61,7 +61,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 	if !notMnt {
-		log.Infof("NodePublishVolume: %s already mounted", req.TargetPath)
+		klog.Infof("NodePublishVolume: %s already mounted", req.TargetPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -70,7 +70,7 @@ func (d *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "mount readonly tmpfs: %v", err)
 	}
 
-	log.WithFields(log.Fields{"volumeId": req.VolumeId, "targetPath": req.TargetPath}).Info("NodePublishVolume succeeded")
+	klog.V(2).InfoS("NodePublishVolume succeeded", "volumeId", req.VolumeId, "targetPath", req.TargetPath)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
@@ -91,7 +91,7 @@ func (d *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Errorf(codes.Internal, "umount %s: %v", req.TargetPath, err)
 	}
 
-	log.WithFields(log.Fields{"volumeId": req.VolumeId, "targetPath": req.TargetPath}).Info("NodeUnpublishVolume succeeded")
+	klog.V(2).InfoS("NodeUnpublishVolume succeeded", "volumeId", req.VolumeId, "targetPath", req.TargetPath)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

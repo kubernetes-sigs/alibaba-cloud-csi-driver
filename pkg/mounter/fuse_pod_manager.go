@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +21,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	watchtools "k8s.io/client-go/tools/watch"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -123,7 +123,7 @@ func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 				break
 			}
 		case "image":
-			logrus.Warn("'image' config in configmap no longer supported")
+			klog.Warning("'image' config in configmap no longer supported")
 		case "image-tag":
 			config.ImageTag = value
 		case "cpu-request", "cpu-limit", "memory-request", "memory-limit":
@@ -172,7 +172,7 @@ func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 			config.Extra[key] = value
 		}
 		if invalid {
-			logrus.Warnf("ignore invalid configuration line: %q", line)
+			klog.Warningf("ignore invalid configuration line: %q", line)
 		}
 	}
 	return
@@ -209,10 +209,10 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool)
 	ctx, cancel := context.WithTimeout(c, fusePodManagerTimeout)
 	defer cancel()
 
-	log := logrus.WithFields(logrus.Fields{
-		"volumeId": c.VolumeId,
-		"nodeName": c.NodeName,
-	})
+	logger := klog.Background().WithValues(
+		"volumeId", c.VolumeId,
+		"nodeName", c.NodeName,
+	)
 
 	podClient := fpm.client.CoreV1().Pods(c.Namespace)
 	labels, listOptions := fpm.labelsAndListOptionsFor(c, target)
@@ -232,11 +232,11 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool)
 		case corev1.PodSucceeded, corev1.PodFailed:
 			// do not immediately delete the pod that has exited,
 			// as we may need to view its status or logs to troubleshoot.
-			log.Warnf("exited fuse pod %s, will be cleaned when unmount", pod.Name)
+			logger.V(1).Info("fuse pod exited, will be cleaned when unmount", "pod", pod.Name)
 		case corev1.PodRunning:
 			if isFusePodReady(&pod) {
 				ready = true
-				log.Infof("already mounted by pod %s for %s", pod.Name, target)
+				logger.V(2).Info("already mounted by pod", "pod", pod.Name, "target", target)
 			} else {
 				startingPods = append(startingPods, pod)
 			}
@@ -271,22 +271,22 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool)
 			}
 		}
 
-		log.Infof("creating fuse pod for %s", target)
+		logger.V(2).Info("creating fuse pod", "target", target)
 		createdPod, err := podClient.Create(ctx, &rawPod, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
-		log.Infof("created fuse pod %s for %s", createdPod.Name, target)
+		logger.V(2).Info("created fuse pod", "pod", createdPod.Name, "target", target)
 		fusePod = createdPod
 	} else {
 		if len(startingPods) > 1 {
-			log.Warnf("%d duplicated fuse pods for %s", len(startingPods), target)
+			logger.V(1).Info("duplicated fuse pods", "num", len(startingPods), "target", target)
 		}
-		log.Infof("found existed fuse pod %s for %s", startingPods[0].Name, target)
+		logger.V(2).Info("found existing fuse pod", "pod", startingPods[0].Name, "target", target)
 		fusePod = &startingPods[0]
 	}
 
-	log.Infof("wait util pod %s is ready", fusePod.Name)
+	logger.V(2).Info("wait until pod is ready", "pod", fusePod.Name)
 	fieldSelector := fields.OneTermEqualSelector("metadata.name", fusePod.Name).String()
 	lw := &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
@@ -313,15 +313,15 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool)
 	})
 	if err != nil {
 		if atomic {
-			log.Warnf("failed to wait for pod %s to be ready, deleting it", fusePod.Name)
+			logger.V(1).Info("failed to wait for pod to be ready, deleting it", "pod", fusePod.Name)
 			deleteErr := podClient.Delete(context.Background(), fusePod.Name, metav1.DeleteOptions{})
 			if deleteErr != nil {
-				log.WithError(deleteErr).Errorf("delete fuse pod %s", fusePod.Name)
+				logger.Error(deleteErr, "delete fuse pod", "pod", fusePod.Name)
 			}
 		}
 		return err
 	}
-	log.Infof("fuse pod %s is ready", fusePod.Name)
+	logger.V(2).Info("fuse pod is ready", "pod", fusePod.Name)
 	return nil
 }
 
@@ -332,12 +332,12 @@ func (fpm *FusePodManager) Delete(c *FusePodContext, target string) error {
 	podClient := fpm.client.CoreV1().Pods(c.Namespace)
 	_, listOptions := fpm.labelsAndListOptionsFor(c, target)
 
-	log := logrus.WithFields(logrus.Fields{
-		"target":    target,
-		"node":      c.NodeName,
-		"volumeId":  c.VolumeId,
-		"namespace": c.Namespace,
-	})
+	logger := klog.Background().WithValues(
+		"target", target,
+		"node", c.NodeName,
+		"volumeId", c.VolumeId,
+		"namespace", c.Namespace,
+	)
 	if target != "" {
 		podList, err := podClient.List(ctx, listOptions)
 		if err != nil {
@@ -349,7 +349,7 @@ func (fpm *FusePodManager) Delete(c *FusePodContext, target string) error {
 		var errs []error
 		for _, pod := range podList.Items {
 			if pod.Annotations[FuseMountPathAnnoKey] == target {
-				log.Infof("deleting fuse pod %s", pod.Name)
+				logger.V(2).Info("deleting fuse pod", "pod", pod.Name)
 				err := podClient.Delete(ctx, pod.Name, metav1.DeleteOptions{})
 				errs = append(errs, err)
 			}
@@ -358,7 +358,7 @@ func (fpm *FusePodManager) Delete(c *FusePodContext, target string) error {
 			return utilerrors.NewAggregate(errs)
 		}
 	} else {
-		log.Info("deleting fuse pods")
+		logger.V(2).Info("deleting fuse pods")
 		err := podClient.DeleteCollection(ctx, metav1.DeleteOptions{}, listOptions)
 		if err != nil {
 			return err

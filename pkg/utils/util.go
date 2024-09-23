@@ -40,7 +40,6 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/go-ping/ping"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,6 +48,7 @@ import (
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
 )
@@ -112,14 +112,14 @@ func CreateEvent(recorder record.EventRecorder, objectRef *v1.ObjectReference, e
 func NewEventRecorder() record.EventRecorder {
 	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
-		log.Fatalf("Error building kubeconfig: %s", err.Error())
+		klog.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
 	clientset, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		log.Fatalf("NewControllerServer: Failed to create client: %v", err)
+		klog.Fatalf("NewControllerServer: Failed to create client: %v", err)
 	}
 	broadcaster := record.NewBroadcaster()
-	broadcaster.StartLogging(log.Infof)
+	broadcaster.StartLogging(klog.Infof)
 	source := v1.EventSource{Component: "csi-controller-server"}
 	if broadcaster != nil {
 		sink := &v1core.EventSinkImpl{
@@ -207,9 +207,9 @@ func RetryGetMetaData(resource string) string {
 		time.Sleep(1 * time.Second)
 	}
 	if response == "" {
-		log.Fatalf("RetryGetMetadata: failed to get metadata %s%s after %d retries", MetadataURL, resource, MetadataMaxRetryCount)
+		klog.Fatalf("RetryGetMetadata: failed to get metadata %s%s after %d retries", MetadataURL, resource, MetadataMaxRetryCount)
 	}
-	log.Infof("RetryGetMetaData: successful get metadata %v: %v", resource, response)
+	klog.Infof("RetryGetMetaData: successful get metadata %v: %v", resource, response)
 	return response
 }
 
@@ -390,30 +390,30 @@ func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet kubernetes.Inter
 		nameSpace = value
 	}
 	if podName == "" || nameSpace == "" {
-		log.Warnf("GetPodRunTime: Rreceive Request with Empty name or namespace: %s, %s", podName, nameSpace)
+		klog.Warningf("GetPodRunTime: Rreceive Request with Empty name or namespace: %s, %s", podName, nameSpace)
 		return runtimeVal
 	}
 
 	podInfo, err := clientSet.CoreV1().Pods(nameSpace).Get(context.Background(), podName, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("GetPodRunTime: Get PodInfo(%s, %s) with error: %s", podName, nameSpace, err.Error())
+		klog.Errorf("GetPodRunTime: Get PodInfo(%s, %s) with error: %s", podName, nameSpace, err.Error())
 		return runtimeVal
 	}
 
 	// check pod.Spec.RuntimeClassName == "runv"
 	if podInfo.Spec.RuntimeClassName == nil || *podInfo.Spec.RuntimeClassName == "" {
-		log.Infof("GetPodRunTime: Get default runtime(nil), %s, %s", podName, nameSpace)
+		klog.Infof("GetPodRunTime: Get default runtime(nil), %s, %s", podName, nameSpace)
 		return runtimeVal
 	} else {
 		runtimeClassName := strings.TrimSpace(*podInfo.Spec.RuntimeClassName)
-		log.Infof("GetPodRunTime: Get PodInfo Successful: %s, %s, with runtime: %s", podName, nameSpace, runtimeClassName)
+		klog.Infof("GetPodRunTime: Get PodInfo Successful: %s, %s, with runtime: %s", podName, nameSpace, runtimeClassName)
 		if runtimeClassName == RunvRunTimeTag || runtimeClassName == RundRunTimeTag {
 			runtimeVal = runtimeClassName
 		}
 	}
 	// check Annotation[io.kubernetes.cri.untrusted-workload] = true
 	if value, ok := podInfo.Annotations["io.kubernetes.cri.untrusted-workload"]; ok && strings.TrimSpace(value) == "true" {
-		log.Infof("GetPodRunTime: namespace: %s, name: %s pod has untrusted workload tag, use runv runtime logic", nameSpace, podName)
+		klog.Infof("GetPodRunTime: namespace: %s, name: %s pod has untrusted workload tag, use runv runtime logic", nameSpace, podName)
 		runtimeVal = RunvRunTimeTag
 	}
 	return runtimeVal
@@ -512,14 +512,14 @@ func GetPvNameFormPodMnt(mntPath string) string {
 func ConnectorRun(cmd ...string) (string, error) {
 	c, err := net.Dial("unix", socketPath)
 	if err != nil {
-		log.Errorf("Oss connector Dial error: %s", err.Error())
+		klog.Errorf("Oss connector Dial error: %s", err.Error())
 		return err.Error(), err
 	}
 	defer c.Close()
 
 	_, err = c.Write([]byte(strings.Join(cmd, "\x00")))
 	if err != nil {
-		log.Errorf("Oss connector write error: %s", err.Error())
+		klog.Errorf("Oss connector write error: %s", err.Error())
 		return err.Error(), err
 	}
 
@@ -549,7 +549,7 @@ func AppendJSONData(dataFilePath string, appData map[string]string) error {
 		return err
 	}
 
-	log.Infof("AppendJSONData: Json data file saved successfully [%s], content: %v", dataFilePath, curData)
+	klog.Infof("AppendJSONData: Json data file saved successfully [%s], content: %v", dataFilePath, curData)
 	return nil
 }
 
@@ -625,7 +625,7 @@ func WriteMetricsInfo(metricsPathPrefix string, req *csi.NodePublishVolumeReques
 
 // formatAndMount uses unix utils to format and mount the given disk
 func FormatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, target string, fstype string, mkfsOptions []string, mountOptions []string, omitFsCheck bool) error {
-	log.Infof("formatAndMount: mount options : %+v", mountOptions)
+	klog.Infof("formatAndMount: mount options : %+v", mountOptions)
 	readOnly := false
 	for _, option := range mountOptions {
 		if option == "ro" {
@@ -645,9 +645,9 @@ func FormatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 			ee, isExitError := err.(utilexec.ExitError)
 			switch {
 			case err == utilexec.ErrExecutableNotFound:
-				log.Warningf("'fsck' not found on system; continuing mount without running 'fsck'.")
+				klog.Warningf("'fsck' not found on system; continuing mount without running 'fsck'.")
 			case isExitError && ee.ExitStatus() == fsckErrorsCorrected:
-				log.Infof("Device %s has errors which were corrected by fsck.", source)
+				klog.Infof("Device %s has errors which were corrected by fsck.", source)
 			case isExitError && ee.ExitStatus() == fsckErrorsUncorrected:
 				return fmt.Errorf("'fsck' found errors on device %s but could not correct them: %s", source, string(out))
 			case isExitError && ee.ExitStatus() > fsckErrorsUncorrected:
@@ -674,7 +674,7 @@ func FormatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 		}
 		// Detect if an encrypted disk is empty disk, since atari type partition is detected by blkid.
 		if existingFormat == "unknown data, probably partitions" {
-			log.Infof("FormatAndMount: enter special partition logics")
+			klog.Infof("FormatAndMount: enter special partition logics")
 			fsType, ptType, _ := GetDiskPtypePTtype(source)
 			if fsType == "" && ptType == "atari" {
 				return FormatNewDisk(readOnly, source, fstype, target, mkfsOptions, mountOptions, diskMounter)
@@ -707,17 +707,17 @@ func FormatNewDisk(readOnly bool, source, fstype, target string, mkfsOptions, mo
 		args = append(args, source)
 	}
 
-	log.Infof("Disk %q appears to be unformatted, attempting to format as type: %q with options: %v", source, fstype, args)
+	klog.Infof("Disk %q appears to be unformatted, attempting to format as type: %q with options: %v", source, fstype, args)
 	startT := time.Now()
 
 	pvName := filepath.Base(source)
 	_, err := diskMounter.Exec.Command("mkfs."+fstype, args...).CombinedOutput()
 	if err == nil {
 		// the disk has been formatted successfully try to mount it again.
-		log.Infof("Disk format successed, pvName: %s elapsedTime: %+v ms", pvName, time.Now().Sub(startT).Milliseconds())
+		klog.Infof("Disk format successed, pvName: %s elapsedTime: %+v ms", pvName, time.Now().Sub(startT).Milliseconds())
 		return diskMounter.Interface.Mount(source, target, fstype, mountOptions)
 	}
-	log.Errorf("format of disk %q failed: type:(%q) target:(%q) options:(%q) error:(%v)", source, fstype, target, args, err)
+	klog.Errorf("format of disk %q failed: type:(%q) target:(%q) options:(%q) error:(%v)", source, fstype, target, args, err)
 	return err
 }
 
@@ -756,7 +756,7 @@ func GetDiskPtypePTtype(disk string) (fstype string, pttype string, err error) {
 				return "", "", nil
 			}
 		}
-		log.Errorf("Could not determine if disk %q is formatted (%v)", disk, err)
+		klog.Errorf("Could not determine if disk %q is formatted (%v)", disk, err)
 		return "", "", err
 	}
 
@@ -826,7 +826,7 @@ func GetNvmeDeviceByVolumeID(volumeID string) (device string, err error) {
 	serialNumber := strings.TrimPrefix(volumeID, "d-")
 	devNumFiles, err := filepath.Glob("/sys/block/*/dev")
 	if err != nil {
-		log.Infof("GetNvmeDeviceByVolumeID: List device number failed: %v", err)
+		klog.Infof("GetNvmeDeviceByVolumeID: List device number failed: %v", err)
 		return "", err
 	}
 	for _, deviceFile := range devNumFiles {
@@ -834,15 +834,15 @@ func GetNvmeDeviceByVolumeID(volumeID string) (device string, err error) {
 		if strings.HasPrefix(deviceName, "nvme") && !strings.Contains(deviceName, "p") {
 			out, err := CommandOnNode("udevadm", "info", "--query=property", "--name=/dev/"+deviceName).CombinedOutput()
 			if err != nil {
-				log.Warnf("GetNvmeDeviceByVolumeID: udevadm failed: %s (%v)", string(out), err)
+				klog.Warningf("GetNvmeDeviceByVolumeID: udevadm failed: %s (%v)", string(out), err)
 				continue
 			}
 			snumber := parseUdevadmInfoSerial(string(out))
 			if snumber == "" {
-				log.Warnf("GetNvmeDeviceByVolumeID: udevadm did not know serial number for %s", deviceName)
+				klog.Warningf("GetNvmeDeviceByVolumeID: udevadm did not know serial number for %s", deviceName)
 			} else if serialNumber == snumber {
 				device = filepath.Join("/dev/", deviceName)
-				log.Infof("GetNvmeDeviceByVolumeID: Get nvme device %s with volumeID %s", device, volumeID)
+				klog.Infof("GetNvmeDeviceByVolumeID: Get nvme device %s with volumeID %s", device, volumeID)
 				return device, nil
 			}
 		}

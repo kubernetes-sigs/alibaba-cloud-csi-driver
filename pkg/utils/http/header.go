@@ -8,7 +8,7 @@ import (
 	"net/textproto"
 	"os"
 
-	log "github.com/sirupsen/logrus"
+	"k8s.io/klog/v2"
 )
 
 func ParseHeaderConfig(hstr string) (http.Header, error) {
@@ -25,7 +25,7 @@ func mustParseHeaderTo(envName string, header http.Header) {
 	if hstr := os.Getenv(envName); hstr != "" {
 		h, err := ParseHeaderConfig(hstr)
 		if err != nil {
-			log.Fatalf("Invaild %s: %v", envName, err)
+			klog.Fatalf("Invaild %s: %v", envName, err)
 		}
 		maps.Copy(header, h)
 	}
@@ -69,7 +69,7 @@ func MustToV2SDKHeaders(headers http.Header) map[string]*string {
 			continue
 		}
 		if len(v) > 1 {
-			log.Fatalf("Multi-value header %s is not supported", k)
+			klog.Fatalf("Multi-value header %s is not supported", k)
 		}
 		headersV2[k] = &v[0]
 	}

@@ -22,10 +22,10 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 )
 
 type sharepathController struct{}
@@ -84,11 +84,11 @@ func (cs *sharepathController) CreateVolume(ctx context.Context, req *csi.Create
 }
 
 func (cs *sharepathController) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest, pv *corev1.PersistentVolume) (*csi.DeleteVolumeResponse, error) {
-	log.Warn("skip deleting volume as sharepath")
+	klog.Warning("skip deleting volume as sharepath")
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
 func (cs *sharepathController) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest, pv *corev1.PersistentVolume) (*csi.ControllerExpandVolumeResponse, error) {
-	log.Warn("skip expansion for volume as sharepath")
+	klog.Warning("skip expansion for volume as sharepath")
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: req.CapacityRange.RequiredBytes}, nil
 }

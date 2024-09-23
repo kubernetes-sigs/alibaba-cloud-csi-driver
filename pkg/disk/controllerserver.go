@@ -33,7 +33,6 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -42,6 +41,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
 )
 
 // controller server try to create/delete volumes/snapshots
@@ -87,7 +87,7 @@ func NewControllerServer() csi.ControllerServer {
 	if intervalStr != "" {
 		interval, err := strconv.ParseInt(intervalStr, 10, 64)
 		if err != nil {
-			log.Fatalf("Input SnapshotRequestTag is illegal: %s", intervalStr)
+			klog.Fatalf("Input SnapshotRequestTag is illegal: %s", intervalStr)
 		}
 		SnapshotRequestInterval = interval
 	}
@@ -124,7 +124,7 @@ var SnapshotRequestInterval = int64(10)
 
 // provisioner: create/delete disk
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	log.Infof("CreateVolume: Starting CreateVolume, %s, %v", req.Name, req)
+	klog.Infof("CreateVolume: Starting CreateVolume, %s, %v", req.Name, req)
 
 	// Step 1: check parameters
 	snapshotID := ""
@@ -148,7 +148,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	diskVol, err := getDiskVolumeOptions(req)
 	if err != nil {
-		log.Errorf("CreateVolume: error parameters from input: %v, with error: %v", req.Name, err)
+		klog.Errorf("CreateVolume: error parameters from input: %v, with error: %v", req.Name, err)
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %v, with error: %v", req.Name, err)
 	}
 
@@ -156,12 +156,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	// req参数里面包含了云盘ID，则直接使用云盘ID进行返回；
 	csiVolume, err := staticVolumeCreate(req, snapshotID)
 	if err != nil {
-		log.Errorf("CreateVolume: static volume(%s) describe with error: %s", req.Name, err.Error())
+		klog.Errorf("CreateVolume: static volume(%s) describe with error: %s", req.Name, err.Error())
 		return nil, err
 	}
 	if csiVolume != nil {
 		tagDiskUserTags(csiVolume.VolumeId, diskVol.DiskTags, req.Parameters[TenantUserUID])
-		log.Infof("CreateVolume: static volume create successful, pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, csiVolume.VolumeId, csiVolume.VolumeContext)
+		klog.Infof("CreateVolume: static volume create successful, pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, csiVolume.VolumeId, csiVolume.VolumeContext)
 		return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 	}
 
@@ -173,7 +173,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		client := GlobalConfigVar.ClientSet
 		node, err := client.CoreV1().Nodes().Get(context.Background(), diskVol.NodeSelected, metav1.GetOptions{})
 		if err != nil {
-			log.Infof("getDiskType: failed to get node labels: %v", err)
+			klog.Infof("getDiskType: failed to get node labels: %v", err)
 			if apierrors.IsNotFound(err) {
 				return nil, status.Errorf(codes.ResourceExhausted, "CreateVolume:: get node info by name: %s failed with err: %v, start rescheduling", node, err)
 			}
@@ -220,7 +220,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	}
 	volumeContext = updateVolumeContext(volumeContext)
 
-	log.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], snapshotID[%s]", req.GetName(), diskID, diskVol.ZoneID, attempt, snapshotID)
+	klog.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], snapshotID[%s]", req.GetName(), diskID, diskVol.ZoneID, attempt, snapshotID)
 
 	// Set VolumeContentSource
 	var src *csi.VolumeContentSource
@@ -241,7 +241,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 // call ecs api to delete disk
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	log.Infof("DeleteVolume: Starting deleting volume %s", req.VolumeId)
+	klog.Infof("DeleteVolume: Starting deleting volume %s", req.VolumeId)
 
 	// For now the image get unconditionally deleted, but here retention policy can be checked
 	ecsClient, err := getEcsClientByID(req.VolumeId, "")
@@ -252,10 +252,10 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		disk, err := findDiskByID(req.VolumeId, ecsClient)
 		if err != nil {
 			errMsg := fmt.Sprintf("DeleteVolume: find disk(%s) by id with error: %s", req.VolumeId, err.Error())
-			log.Error(errMsg)
+			klog.Error(errMsg)
 			return nil, status.Error(codes.Internal, errMsg)
 		} else if disk == nil {
-			log.Infof("DeleteVolume: disk(%s) already deleted", req.VolumeId)
+			klog.Infof("DeleteVolume: disk(%s) already deleted", req.VolumeId)
 			return &csi.DeleteVolumeResponse{}, nil
 		}
 
@@ -270,18 +270,18 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			err := detachDisk(ctx, ecsClient, req.VolumeId, disk.InstanceId)
 			if err != nil {
 				newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
-				log.Errorf("DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, newErrMsg)
+				klog.Errorf("DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, newErrMsg)
 				return nil, status.Errorf(codes.Internal, newErrMsg)
 			}
-			log.Infof("DeleteVolume: Successful Detach disk(%s) from node %s before remove", req.VolumeId, disk.InstanceId)
+			klog.Infof("DeleteVolume: Successful Detach disk(%s) from node %s before remove", req.VolumeId, disk.InstanceId)
 		}
 	}
 
 	if GlobalConfigVar.SnapshotBeforeDelete {
-		log.Infof("DeleteVolume: snapshot before delete configured")
+		klog.Infof("DeleteVolume: snapshot before delete configured")
 		err = snapshotBeforeDelete(req.GetVolumeId(), ecsClient)
 		if err != nil {
-			log.Errorf("DeleteVolume: failed to create snapshot before delete disk, err: %v", err)
+			klog.Errorf("DeleteVolume: failed to create snapshot before delete disk, err: %v", err)
 			return nil, status.Errorf(codes.Internal, err.Error())
 		}
 	}
@@ -293,7 +293,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		if response != nil {
 			errMsg = fmt.Sprintf("DeleteVolume: Delete disk with error: %s, with RequstId: %s", newErrMsg, response.RequestId)
 		}
-		log.Warnf(errMsg)
+		klog.Warningf(errMsg)
 		if strings.Contains(err.Error(), DiskCreatingSnapshot) || strings.Contains(err.Error(), IncorrectDiskStatus) {
 			return nil, status.Errorf(codes.Aborted, errMsg)
 		}
@@ -340,7 +340,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 
 	if GlobalConfigVar.WaitBeforeAttach {
 		time.Sleep(5 * time.Second)
-		log.Infof("ControllerPublishVolume: sleep 5s")
+		klog.Infof("ControllerPublishVolume: sleep 5s")
 	}
 
 	isMultiAttach := false
@@ -353,19 +353,19 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	if isMultiAttach {
 		_, err := attachSharedDisk(req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId)
 		if err != nil {
-			log.Errorf("ControllerPublishVolume: attach shared disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
+			klog.Errorf("ControllerPublishVolume: attach shared disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 			return nil, err
 		}
-		log.Infof("ControllerPublishVolume: Successful attach shared disk: %s to node: %s", req.VolumeId, req.NodeId)
+		klog.Infof("ControllerPublishVolume: Successful attach shared disk: %s to node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 
 	if !GlobalConfigVar.ADControllerEnable {
-		log.Infof("ControllerPublishVolume: ADController Disable to attach disk: %s to node: %s", req.VolumeId, req.NodeId)
+		klog.Infof("ControllerPublishVolume: ADController Disable to attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 
-	log.Infof("ControllerPublishVolume: start attach disk: %s to node: %s", req.VolumeId, req.NodeId)
+	klog.Infof("ControllerPublishVolume: start attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 	isSharedDisk := false
 	if value, ok := req.VolumeContext[SharedEnable]; ok {
 		value = strings.ToLower(value)
@@ -381,10 +381,10 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 
 	_, err := attachDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk, isSingleInstance)
 	if err != nil {
-		log.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
+		klog.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
 	}
-	log.Infof("ControllerPublishVolume: Successful attach disk: %s to node: %s", req.VolumeId, req.NodeId)
+	klog.Infof("ControllerPublishVolume: Successful attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
@@ -397,31 +397,31 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	}
 	isMultiAttach, err := detachMultiAttachDisk(ecsClient, req.VolumeId, req.NodeId)
 	if isMultiAttach && err != nil {
-		log.Errorf("ControllerUnpublishVolume: detach multiAttach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
+		klog.Errorf("ControllerUnpublishVolume: detach multiAttach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
 	} else if isMultiAttach {
-		log.Infof("ControllerUnpublishVolume: Successful detach multiAttach disk: %s from node: %s", req.VolumeId, req.NodeId)
+		klog.Infof("ControllerUnpublishVolume: Successful detach multiAttach disk: %s from node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
 	if !GlobalConfigVar.ADControllerEnable {
-		log.Infof("ControllerUnpublishVolume: ADController Disable to detach disk: %s from node: %s", req.VolumeId, req.NodeId)
+		klog.Infof("ControllerUnpublishVolume: ADController Disable to detach disk: %s from node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
 	// if DetachDisabled is set to true, return
 	if GlobalConfigVar.DetachDisabled {
-		log.Infof("ControllerUnpublishVolume: ADController is Enable, Detach Flag Set to false, PV %s, Node: %s", req.VolumeId, req.NodeId)
+		klog.Infof("ControllerUnpublishVolume: ADController is Enable, Detach Flag Set to false, PV %s, Node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
-	log.Infof("ControllerUnpublishVolume: detach disk: %s from node: %s", req.VolumeId, req.NodeId)
+	klog.Infof("ControllerUnpublishVolume: detach disk: %s from node: %s", req.VolumeId, req.NodeId)
 	err = detachDisk(ctx, ecsClient, req.VolumeId, req.NodeId)
 	if err != nil {
-		log.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
+		klog.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
 	}
-	log.Infof("ControllerUnpublishVolume: Successful detach disk: %s from node: %s", req.VolumeId, req.NodeId)
+	klog.Infof("ControllerUnpublishVolume: Successful detach disk: %s from node: %s", req.VolumeId, req.NodeId)
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
@@ -430,7 +430,7 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (*createSnapshotPar
 	if req.Parameters != nil {
 		err := parseSnapshotParameters(req.Parameters, &ecsParams)
 		if err != nil {
-			log.Errorf("CreateSnapshot:: Snapshot name[%s], parse config failed: %v", req.Name, err)
+			klog.Errorf("CreateSnapshot:: Snapshot name[%s], parse config failed: %v", req.Name, err)
 			return nil, status.Errorf(codes.InvalidArgument, err.Error())
 		}
 	}
@@ -448,7 +448,7 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (*createSnapshotPar
 	}
 	err = parseSnapshotAnnotations(volumeSnapshot.Annotations, &ecsParams)
 	if err != nil {
-		log.Errorf("CreateSnapshot:: Snapshot name[%s], parse annotation failed: %v", req.Name, err)
+		klog.Errorf("CreateSnapshot:: Snapshot name[%s], parse annotation failed: %v", req.Name, err)
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	return &ecsParams, nil
@@ -467,7 +467,7 @@ func parseSnapshotParameters(params map[string]string, ecsParams *createSnapshot
 			}
 		case INSTANTACCESSRETENTIONDAYS:
 			// no-op: InstantAccess is no longer needed
-			log.Warnf("InstantAccessRetentionDays is no longer needed, please remove it from parameters")
+			klog.Warningf("InstantAccessRetentionDays is no longer needed, please remove it from parameters")
 		case SNAPSHOTRESOURCEGROUPID:
 			ecsParams.ResourceGroupID = v
 		case common.VolumeSnapshotNameKey:
@@ -543,7 +543,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		return nil, err
 	}
 
-	log.Infof("CreateSnapshot:: Starting to create snapshot: %+v", req)
+	klog.Infof("CreateSnapshot:: Starting to create snapshot: %+v", req)
 	sourceVolumeID := strings.Trim(req.GetSourceVolumeId(), " ")
 	// Need to check for already existing snapshot name
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
@@ -558,7 +558,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 			if err != nil {
 				return nil, err
 			}
-			log.Infof("CreateSnapshot:: Snapshot already created: name[%s], sourceId[%s], status[%v]", req.Name, req.GetSourceVolumeId(), csiSnapshot.ReadyToUse)
+			klog.Infof("CreateSnapshot:: Snapshot already created: name[%s], sourceId[%s], status[%v]", req.Name, req.GetSourceVolumeId(), csiSnapshot.ReadyToUse)
 			if csiSnapshot.ReadyToUse {
 				str := fmt.Sprintf("VolumeSnapshot: name: %s, id: %s is ready to use.", existsSnapshot.SnapshotName, existsSnapshot.SnapshotId)
 				utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotCreatedSuccessfully, str)
@@ -568,17 +568,17 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 				Snapshot: csiSnapshot,
 			}, nil
 		}
-		log.Errorf("CreateSnapshot:: Snapshot already exist with same name: name[%s], volumeID[%s]", req.Name, existsSnapshot.SourceDiskId)
+		klog.Errorf("CreateSnapshot:: Snapshot already exist with same name: name[%s], volumeID[%s]", req.Name, existsSnapshot.SourceDiskId)
 		err := status.Errorf(codes.AlreadyExists, "snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName())
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotAlreadyExist, err.Error())
 		return nil, err
 	case snapNum > 1:
-		log.Errorf("CreateSnapshot:: Find Snapshot name[%s], but get more than 1 instance", req.Name)
+		klog.Errorf("CreateSnapshot:: Find Snapshot name[%s], but get more than 1 instance", req.Name)
 		err := status.Error(codes.Internal, "CreateSnapshot: get snapshot more than 1 instance")
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotTooMany, err.Error())
 		return nil, err
 	case err != nil:
-		log.Errorf("CreateSnapshot:: Expect to find Snapshot name[%s], but get error: %v", req.Name, err)
+		klog.Errorf("CreateSnapshot:: Expect to find Snapshot name[%s], but get error: %v", req.Name, err)
 		e := status.Errorf(codes.Internal, "CreateSnapshot: get snapshot with error: %s", err.Error())
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
 		return nil, e
@@ -587,7 +587,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	// check snapshot again, if ram has no auth to describe snapshot, there will always 0 response.
 	if value, ok := createdSnapshotMap[req.Name]; ok {
 		str := fmt.Sprintf("CreateSnapshot:: Snapshot already created, Name: %s, Info: %v", req.Name, value)
-		log.Info(str)
+		klog.Info(str)
 		return &csi.CreateSnapshotResponse{
 			Snapshot: value,
 		}, nil
@@ -598,14 +598,14 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 	disks := getDisk(sourceVolumeID, ecsClient)
 	if len(disks) == 0 {
-		log.Warnf("CreateSnapshot: no disk found: %s", sourceVolumeID)
+		klog.Warningf("CreateSnapshot: no disk found: %s", sourceVolumeID)
 		return nil, status.Errorf(codes.Internal, "CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID)
 	} else if len(disks) != 1 {
-		log.Warnf("CreateSnapshot: multi disk found: %s", sourceVolumeID)
+		klog.Warningf("CreateSnapshot: multi disk found: %s", sourceVolumeID)
 		return nil, status.Errorf(codes.Internal, "CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID)
 	}
 	// if disks[0].Status != "In_use" {
-	// 	log.Errorf("CreateSnapshot: disk [%s] not attached, status: [%s]", sourceVolumeID, disks[0].Status)
+	// klog.Errorf("CreateSnapshot: disk [%s] not attached, status: [%s]", sourceVolumeID, disks[0].Status)
 	// 	e := status.Errorf(codes.InvalidArgument, "CreateSnapshot:: target disk: %v must be attached", sourceVolumeID)
 	// 	utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
 	// 	return nil, e
@@ -618,13 +618,13 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, params)
 
 	if err != nil {
-		log.Errorf("CreateSnapshot:: Snapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", req.Name, req.GetSourceVolumeId(), err.Error())
+		klog.Errorf("CreateSnapshot:: Snapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", req.Name, req.GetSourceVolumeId(), err.Error())
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, err.Error())
 		return nil, err
 	}
 
 	str := fmt.Sprintf("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotResponse.SnapshotId)
-	log.Infof(str)
+	klog.Infof(str)
 	csiSnapshot := &csi.Snapshot{
 		SnapshotId:     snapshotResponse.SnapshotId,
 		SourceVolumeId: sourceVolumeID,
@@ -646,18 +646,18 @@ func snapshotBeforeDelete(volumeID string, ecsClient *ecs.Client) error {
 		return err
 	}
 	if !AllCategories[Category(disk.Category)].InstantAccessSnapshot {
-		log.Infof("snapshotBeforeDelete: Instant Access snapshot required, but current disk.Catagory is: %s", disk.Category)
+		klog.Infof("snapshotBeforeDelete: Instant Access snapshot required, but current disk.Catagory is: %s", disk.Category)
 		return nil
 	}
 
 	exists, value := utils.HasSpecificTagKey(VolumeDeleteAutoSnapshotKey, disk)
 	if !exists {
-		log.Infof("snapshotBeforeDelete: disk: %v didn't open the feature in related storageclass", volumeID)
+		klog.Infof("snapshotBeforeDelete: disk: %v didn't open the feature in related storageclass", volumeID)
 		return nil
 	}
 	iValue, err := strconv.Atoi(value)
 	if err != nil {
-		log.Errorf("snapshotBeforeDelete: disk tag retiondays illegal value: %v, failed to create snapshot", value)
+		klog.Errorf("snapshotBeforeDelete: disk tag retiondays illegal value: %v, failed to create snapshot", value)
 		return nil
 	}
 
@@ -674,7 +674,7 @@ func snapshotBeforeDelete(volumeID string, ecsClient *ecs.Client) error {
 		return err
 	}
 	if resp.SnapshotId == "" {
-		log.Infof("snapshotBeforeDelete: snapshotId is empty: %s", resp.SnapshotId)
+		klog.Infof("snapshotBeforeDelete: snapshotId is empty: %s", resp.SnapshotId)
 		return nil
 	}
 	delVolumeSnap.Store(volumeID, resp.SnapshotId)
@@ -686,7 +686,7 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 
 	// Check arguments
 	snapshotID := req.GetSnapshotId()
-	log.Infof("DeleteSnapshot:: starting delete snapshot %s", snapshotID)
+	klog.Infof("DeleteSnapshot:: starting delete snapshot %s", snapshotID)
 
 	// Check Snapshot exist
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
@@ -696,7 +696,7 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	}
 
 	if snapshot == nil {
-		log.Infof("DeleteSnapshot: snapShot not exist for expect %s, return successful", snapshotID)
+		klog.Infof("DeleteSnapshot: snapShot not exist for expect %s, return successful", snapshotID)
 		return &csi.DeleteSnapshotResponse{}, nil
 	}
 
@@ -708,12 +708,12 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	}
 
 	// log.Log snapshot
-	log.Infof("DeleteSnapshot: Snapshot %s exist with Info: %+v, %+v", snapshotID, snapshot, err)
+	klog.Infof("DeleteSnapshot: Snapshot %s exist with Info: %+v, %+v", snapshotID, snapshot, err)
 
 	response, err := requestAndDeleteSnapshot(snapshotID)
 	if err != nil {
 		if response != nil {
-			log.Errorf("DeleteSnapshot: fail to delete %s: with RequestId: %s, error: %s", snapshotID, response.RequestId, err.Error())
+			klog.Errorf("DeleteSnapshot: fail to delete %s: with RequestId: %s, error: %s", snapshotID, response.RequestId, err.Error())
 		}
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotDeleteError, err.Error())
 		return nil, err
@@ -721,20 +721,20 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 
 	delete(createdSnapshotMap, snapshot.SnapshotName)
 	str := fmt.Sprintf("DeleteSnapshot:: Successfully delete snapshot %s, requestId: %s", snapshotID, response.RequestId)
-	log.Info(str)
+	klog.Info(str)
 	utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
 // ListSnapshots ...
 func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-	log.Infof("ListSnapshots:: called with args: %+v", req)
+	klog.Infof("ListSnapshots:: called with args: %+v", req)
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshotID := req.GetSnapshotId()
 	if len(snapshotID) > 0 {
 		snapshot, err := findDiskSnapshotByID(snapshotID)
 		if err != nil {
-			log.Errorf("CreateSnapshot:: failed to find Snapshot id %s: %v", req.SnapshotId, err)
+			klog.Errorf("CreateSnapshot:: failed to find Snapshot id %s: %v", req.SnapshotId, err)
 			e := status.Errorf(codes.Internal, "ListSnapshots:: failed to find Snapshot id %s: %v", req.SnapshotId, err.Error())
 			return nil, e
 		}
@@ -759,7 +759,7 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest,
 ) (*csi.ControllerExpandVolumeResponse, error) {
-	log.Infof("ControllerExpandVolume:: Starting expand disk with: %v", req)
+	klog.Infof("ControllerExpandVolume:: Starting expand disk with: %v", req)
 
 	// check resize conditions
 	ecsClient, err := getEcsClientByID(req.VolumeId, "")
@@ -772,19 +772,19 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 
 	disk, err := findDiskByID(diskID, ecsClient)
 	if err != nil {
-		log.Errorf("ControllerExpandVolume:: find disk(%s) with error: %s", diskID, err.Error())
+		klog.Errorf("ControllerExpandVolume:: find disk(%s) with error: %s", diskID, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if disk == nil {
-		log.Errorf("ControllerExpandVolume: expand disk find disk not exist: %s", diskID)
+		klog.Errorf("ControllerExpandVolume: expand disk find disk not exist: %s", diskID)
 		return nil, status.Error(codes.Internal, "expand disk find disk not exist "+diskID)
 	}
 	if requestGB == disk.Size {
-		log.Infof("ControllerExpandVolume:: expect size is same with current: %s, size: %dGi", req.VolumeId, requestGB)
+		klog.Infof("ControllerExpandVolume:: expect size is same with current: %s, size: %dGi", req.VolumeId, requestGB)
 		return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
 	}
 	if requestGB < disk.Size {
-		log.Infof("ControllerExpandVolume:: expect size is less than current: %d, expected: %d, disk: %s", disk.Size, requestGB, req.VolumeId)
+		klog.Infof("ControllerExpandVolume:: expect size is less than current: %d, expected: %d, disk: %s", disk.Size, requestGB, req.VolumeId)
 		return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
 	}
 
@@ -805,7 +805,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 
 	response, err := resizeDisk(ctx, ecsClient, resizeDiskRequest)
 	if err != nil {
-		log.Errorf("ControllerExpandVolume:: resize got error: %s", err.Error())
+		klog.Errorf("ControllerExpandVolume:: resize got error: %s", err.Error())
 		if snapshotEnable {
 			cs.deleteUntagAutoSnapshot(snapshot.SnapshotId, diskID)
 		}
@@ -813,21 +813,21 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	}
 	checkDisk, err := findDiskByID(disk.DiskId, ecsClient)
 	if err != nil {
-		log.Infof("ControllerExpandVolume:: find disk failed with error: %+v", err)
+		klog.Infof("ControllerExpandVolume:: find disk failed with error: %+v", err)
 		if snapshotEnable {
 			cs.deleteUntagAutoSnapshot(snapshot.SnapshotId, diskID)
 		}
 		return nil, status.Errorf(codes.Internal, "ControllerExpandVolume:: find disk failed with error: %+v", err)
 	}
 	if requestGB != checkDisk.Size {
-		log.Infof("ControllerExpandVolume:: resize disk err with excepted size: %vGB, actual size: %vGB", requestGB, checkDisk.Size)
+		klog.Infof("ControllerExpandVolume:: resize disk err with excepted size: %vGB, actual size: %vGB", requestGB, checkDisk.Size)
 		if snapshotEnable {
-			log.Warnf("ControllerExpandVolume:: Please use the snapshot %s for data recovery. The retentionDays is %d", snapshot.SnapshotId, veasp.RetentionDays)
+			klog.Warningf("ControllerExpandVolume:: Please use the snapshot %s for data recovery. The retentionDays is %d", snapshot.SnapshotId, veasp.RetentionDays)
 		}
 		return nil, status.Errorf(codes.Internal, "resize disk err with excepted size: %vGB, actual size: %vGB", requestGB, checkDisk.Size)
 	}
 
-	log.Infof("ControllerExpandVolume:: Success to resize volume: %s from %dG to %dG, RequestID: %s", req.VolumeId, disk.Size, requestGB, response.RequestId)
+	klog.Infof("ControllerExpandVolume:: Success to resize volume: %s from %dG to %dG, RequestID: %s", req.VolumeId, disk.Size, requestGB, response.RequestId)
 	return &csi.ControllerExpandVolumeResponse{CapacityBytes: volSizeBytes, NodeExpansionRequired: true}, nil
 }
 
@@ -893,12 +893,12 @@ func (cs *controllerServer) autoSnapshot(ctx context.Context, disk *ecs.Disk) (b
 	}
 	pv, pvc, err := getPvPvcFromDiskId(disk.DiskId)
 	if err != nil {
-		log.Errorf("ControllerExpandVolume:: failed to get pvc from apiserver: %s", err.Error())
+		klog.Errorf("ControllerExpandVolume:: failed to get pvc from apiserver: %s", err.Error())
 		return true, nil, nil
 	}
 
 	if pv.Spec.CSI == nil || pv.Spec.CSI.VolumeAttributes == nil {
-		log.Errorf("ControllerExpandVolume: pv.Spec.CSI/Spec.CSI.VolumeAttributes is nil, volumeId=%s", disk.DiskId)
+		klog.Errorf("ControllerExpandVolume: pv.Spec.CSI/Spec.CSI.VolumeAttributes is nil, volumeId=%s", disk.DiskId)
 		return true, nil, nil
 	}
 
@@ -909,7 +909,7 @@ func (cs *controllerServer) autoSnapshot(ctx context.Context, disk *ecs.Disk) (b
 	snapshotEnable := false
 	snapshot, err := cs.createVolumeExpandAutoSnapshot(ctx, pv, disk)
 	if err != nil {
-		log.Errorf("ControllerExpandVolume:: failed to create volumeExpandAutoSnapshot: %s", err.Error())
+		klog.Errorf("ControllerExpandVolume:: failed to create volumeExpandAutoSnapshot: %s", err.Error())
 		if strings.Contains(err.Error(), NeverAttached) {
 			return true, nil, err
 		}
@@ -917,10 +917,10 @@ func (cs *controllerServer) autoSnapshot(ctx context.Context, disk *ecs.Disk) (b
 		snapshotEnable = true
 		err = updateVolumeExpandAutoSnapshotID(pvc, snapshot.SnapshotId, "add")
 		if err != nil {
-			log.Errorf("ControllerExpandVolume:: failed to tag volumeExpandAutoSnapshot: %s", err.Error())
+			klog.Errorf("ControllerExpandVolume:: failed to tag volumeExpandAutoSnapshot: %s", err.Error())
 			err = cs.deleteVolumeExpandAutoSnapshot(ctx, pvc, snapshot.SnapshotId)
 			if err != nil {
-				log.Errorf("ControllerExpandVolume:: failed to delete volumeExpandAutoSnapshot: %s", err.Error())
+				klog.Errorf("ControllerExpandVolume:: failed to delete volumeExpandAutoSnapshot: %s", err.Error())
 			}
 			snapshotEnable = false
 		}
@@ -939,14 +939,14 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 	volumeExpandAutoSnapshotName := veasp.Prefix + pv.Name + timeStr
 	sourceVolumeID := disk.DiskId
 
-	log.Infof("ControllerExpandVolume:: Starting to create volumeExpandAutoSnapshot with name: %s", volumeExpandAutoSnapshotName)
+	klog.Infof("ControllerExpandVolume:: Starting to create volumeExpandAutoSnapshot with name: %s", volumeExpandAutoSnapshotName)
 
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 
 	pvcName, pvcNamespace := pv.Spec.ClaimRef.Name, pv.Spec.ClaimRef.Namespace
 	pvc, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumeClaims(pvcNamespace).Get(ctx, pvcName, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("ControllerExpandVolume:: failed to get pvc from apiserver: %v", err)
+		klog.Errorf("ControllerExpandVolume:: failed to get pvc from apiserver: %v", err)
 		return nil, err
 	}
 
@@ -963,13 +963,13 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 		RetentionDays:  veasp.RetentionDays,
 	})
 	if err != nil {
-		log.Errorf("ControllerExpandVolume:: volumeExpandAutoSnapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", volumeExpandAutoSnapshotName, sourceVolumeID, err.Error())
+		klog.Errorf("ControllerExpandVolume:: volumeExpandAutoSnapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", volumeExpandAutoSnapshotName, sourceVolumeID, err.Error())
 		cs.recorder.Event(pvc, v1.EventTypeWarning, snapshotCreateError, err.Error())
 		return nil, status.Errorf(codes.Internal, "volumeExpandAutoSnapshot create Failed: %v", err)
 	}
 
 	str := fmt.Sprintf("ControllerExpandVolume:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", volumeExpandAutoSnapshotName, sourceVolumeID, snapshotResponse.SnapshotId)
-	log.Infof(str)
+	klog.Infof(str)
 	csiSnapshot := &csi.Snapshot{
 		SnapshotId:     snapshotResponse.SnapshotId,
 		SourceVolumeId: sourceVolumeID,
@@ -984,7 +984,7 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 }
 
 func (cs *controllerServer) deleteVolumeExpandAutoSnapshot(ctx context.Context, pvc *v1.PersistentVolumeClaim, snapshotID string) error {
-	log.Infof("ControllerExpandVolume:: Starting to delete volumeExpandAutoSnapshot with id: %s", snapshotID)
+	klog.Infof("ControllerExpandVolume:: Starting to delete volumeExpandAutoSnapshot with id: %s", snapshotID)
 
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 
@@ -992,7 +992,7 @@ func (cs *controllerServer) deleteVolumeExpandAutoSnapshot(ctx context.Context, 
 	response, err := requestAndDeleteSnapshot(snapshotID)
 	if err != nil {
 		if response != nil {
-			log.Errorf("ControllerExpandVolume:: fail to delete %s with error: %s", snapshotID, err.Error())
+			klog.Errorf("ControllerExpandVolume:: fail to delete %s with error: %s", snapshotID, err.Error())
 		}
 
 		cs.recorder.Event(pvc, v1.EventTypeWarning, snapshotDeleteError, err.Error())
@@ -1006,17 +1006,17 @@ func (cs *controllerServer) deleteVolumeExpandAutoSnapshot(ctx context.Context, 
 
 // deleteUntagAutoSnapshot deletes and untags volumeExpandAutoSnapshot facing expand error
 func (cs *controllerServer) deleteUntagAutoSnapshot(snapshotID, diskID string) {
-	log.Infof("Deleted volumeExpandAutoSnapshot with id: %s", snapshotID)
+	klog.Infof("Deleted volumeExpandAutoSnapshot with id: %s", snapshotID)
 	_, pvc, err := getPvPvcFromDiskId(diskID)
 	if err != nil {
-		log.Errorf("ControllerExpandVolume:: failed to get pvc from apiserver: %s", err.Error())
+		klog.Errorf("ControllerExpandVolume:: failed to get pvc from apiserver: %s", err.Error())
 	}
 	err = cs.deleteVolumeExpandAutoSnapshot(context.Background(), pvc, snapshotID)
 	if err != nil {
-		log.Errorf("ControllerExpandVolume:: failed to delete volumeExpandAutoSnapshot: %s", err.Error())
+		klog.Errorf("ControllerExpandVolume:: failed to delete volumeExpandAutoSnapshot: %s", err.Error())
 	}
 	err = updateVolumeExpandAutoSnapshotID(pvc, snapshotID, "delete")
 	if err != nil {
-		log.Errorf("ControllerExpandVolume:: failed to untag volumeExpandAutoSnapshot: %s", err.Error())
+		klog.Errorf("ControllerExpandVolume:: failed to untag volumeExpandAutoSnapshot: %s", err.Error())
 	}
 }

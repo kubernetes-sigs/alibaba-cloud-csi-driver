@@ -18,11 +18,11 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	apicorev1 "k8s.io/api/core/v1"
 	apismetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -74,7 +74,7 @@ func getPvcByPvName(clientSet *kubernetes.Clientset, cnfsClient dynamic.Interfac
 		} else if value, ok := pv.Spec.CSI.VolumeAttributes[containerNetworkFileSystem]; ok {
 			cnfs, err := v1beta1.GetCnfsObject(cnfsClient, value)
 			if err != nil {
-				log.Errorf("Get cnfs %s server is failed, err:%s", value, err)
+				klog.Errorf("Get cnfs %s server is failed, err:%s", value, err)
 				return "", "", "", err
 			}
 			return pv.Spec.ClaimRef.Namespace, pv.Spec.ClaimRef.Name, cnfs.Status.FsAttributes.Server, nil
@@ -92,7 +92,7 @@ var ErrUnexpectedVolumeType = errors.New("VolumeType is not the expected type")
 func getVolumeInfoByJSON(volDataJSONPath string, volType string) (string, string, error) {
 	volDataMap, err := utils.ReadJSONFile(volDataJSONPath)
 	if err != nil {
-		log.Errorf("Read json path %s is failed, err:%s", volDataJSONPath, err)
+		klog.Errorf("Read json path %s is failed, err:%s", volDataJSONPath, err)
 		return "", "", err
 	}
 	if volDataMap["driverName"] == volType {
@@ -137,12 +137,12 @@ func isVFNode() bool {
 	vfOnce.Do(func() {
 		output, err := execCheckOutput("lspci", "-D")
 		if err != nil {
-			log.Fatalf("[IsVFNode] lspci -D: %v", err)
+			klog.Fatalf("[IsVFNode] lspci -D: %v", err)
 		}
 		// 0000:4b:00.0 SCSI storage controller: Device 1ded:1001
 		matched := findLines(output, "storage controller")
 		if len(matched) == 0 {
-			log.Error("[IsVFNode] not found storage controller")
+			klog.Error("[IsVFNode] not found storage controller")
 		}
 		for _, line := range matched {
 			// 1ded: is alibaba cloud
@@ -155,7 +155,7 @@ func isVFNode() bool {
 			}
 			output, err = execCheckOutput("lspci", "-s", bdf, "-v")
 			if err != nil {
-				log.Fatalf("[IsVFNode] lspic -s %s -v: %v", bdf, err)
+				klog.Fatalf("[IsVFNode] lspic -s %s -v: %v", bdf, err)
 			}
 			// Capabilities: [110] Single Root I/O Virtualization (SR-IOV)
 			matched = findLines(output, "Single Root I/O Virtualization")
@@ -171,14 +171,14 @@ func isVFNode() bool {
 func getDeviceSerial(serial string) (device string) {
 	serialFiles, err := filepath.Glob("/sys/block/*/serial")
 	if err != nil {
-		log.Infof("List device serial failed: %v", err)
+		klog.Infof("List device serial failed: %v", err)
 		return ""
 	}
 
 	for _, serialFile := range serialFiles {
 		body, err := ioutil.ReadFile(serialFile)
 		if err != nil {
-			log.Errorf("Read serial(%s): %v", serialFile, err)
+			klog.Errorf("Read serial(%s): %v", serialFile, err)
 			continue
 		}
 		if strings.TrimSpace(string(body)) == serial {
@@ -258,7 +258,7 @@ func listDirectory(rootPath string) ([]string, error) {
 	var fileLists []string
 	files, err := ioutil.ReadDir(rootPath)
 	if err != nil {
-		log.Errorf("List Directory %s is failed, err:%s", rootPath, err.Error())
+		klog.Errorf("List Directory %s is failed, err:%s", rootPath, err.Error())
 		return nil, err
 	}
 	for _, f := range files {
@@ -276,7 +276,7 @@ func parseLantencyThreshold(s string, defaults float64) (float64, error) {
 	var threshodUnit string
 	_, err := fmt.Sscanf(s, "%d%s", &thresholNum, &threshodUnit)
 	if err != nil {
-		log.Errorf("Parse latency threshold %s is failed, err:%s", s, err)
+		klog.Errorf("Parse latency threshold %s is failed, err:%s", s, err)
 		return defaults, err
 	}
 	switch threshodUnit {
@@ -295,7 +295,7 @@ func parseCapacityThreshold(s string, defaults float64) (float64, error) {
 	var thresholNum float64
 	_, err := fmt.Sscanf(s, "%f", &thresholNum)
 	if err != nil {
-		log.Errorf("Parse  threshold %s is failed, err:%s", s, err)
+		klog.Errorf("Parse  threshold %s is failed, err:%s", s, err)
 		return defaults, err
 	}
 	return thresholNum, nil

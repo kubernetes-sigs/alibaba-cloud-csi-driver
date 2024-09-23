@@ -8,12 +8,12 @@ import (
 	"time"
 
 	csi "github.com/container-storage-interface/spec/lib/go/csi"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/pov/internal"
@@ -59,7 +59,7 @@ type controllerService struct {
 func newControllerService() controllerService {
 	pov, err := newCloud()
 	if err != nil {
-		log.Fatalf("newControllerService: init cloud err: %v", err)
+		klog.Fatalf("newControllerService: init cloud err: %v", err)
 	}
 	return controllerService{
 		cloud:               pov,
@@ -69,7 +69,7 @@ func newControllerService() controllerService {
 }
 
 func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	log.Infof("CreateVolume: called args: %+v", *req)
+	klog.Infof("CreateVolume: called args: %+v", *req)
 	if err := validateCreateVolumeRequest(req); err != nil {
 		return nil, err
 	}
@@ -170,11 +170,11 @@ func (d *controllerService) getDefaultMountPoint(ctx context.Context, fsId strin
 
 	vmp, err := d.cloud.DescribeVscMountPoints(ctx, fsId, "")
 	if err != nil {
-		log.Errorf("getDefaultMountPoint: describe vsc mountpoint failed, fsId: %s err: %v", fsId, err)
+		klog.Errorf("getDefaultMountPoint: describe vsc mountpoint failed, fsId: %s err: %v", fsId, err)
 		return ""
 	}
 	if len(vmp.MountPoints) == 0 {
-		log.Infof("getDefaultMountPoint: get empty mountpoint by fsId: %s", fsId)
+		klog.Infof("getDefaultMountPoint: get empty mountpoint by fsId: %s", fsId)
 		return ""
 	}
 	return vmp.MountPoints[0].MountPointId
@@ -277,7 +277,7 @@ func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *cs
 
 	var fsId string
 	if value, ok := pvs[0].Labels[labelFilesystemID]; ok {
-		log.Infof("ControllerPublishVolume: pv:[%s]'s fsId: %s", pvs[0].Name, value)
+		klog.Infof("ControllerPublishVolume: pv:[%s]'s fsId: %s", pvs[0].Name, value)
 		fsId = value
 	} else {
 		return nil, status.Errorf(codes.InvalidArgument, "failed to get fsId by mpId: %s, pvs: %+v", req.GetVolumeId(), pvs)
@@ -287,7 +287,7 @@ func (d *controllerService) ControllerPublishVolume(ctx context.Context, req *cs
 	if err != nil {
 		return nil, err
 	}
-	log.Infof("ControllerPublishVolume: attach vsc volume: %s to node : %s success, requestid: %s", req.GetVolumeId(), req.GetNodeId(), requestID)
+	klog.Infof("ControllerPublishVolume: attach vsc volume: %s to node : %s success, requestid: %s", req.GetVolumeId(), req.GetNodeId(), requestID)
 
 	var vscId string
 VSCREADY:
@@ -297,7 +297,7 @@ VSCREADY:
 		if err != nil {
 			return nil, err
 		}
-		log.Infof("ControllerPublishVolume: describe vsc mountpoint success, volumeid: %s mountpointids: %v", req.GetVolumeId(), vmp.MountPoints)
+		klog.Infof("ControllerPublishVolume: describe vsc mountpoint success, volumeid: %s mountpointids: %v", req.GetVolumeId(), vmp.MountPoints)
 		for _, mp := range vmp.MountPoints {
 			for _, ins := range mp.Instances {
 				if ins.InstanceId == req.GetNodeId() {
@@ -314,7 +314,7 @@ VSCREADY:
 	if vscId == "" {
 		return nil, status.Errorf(codes.Internal, "can't get vscId by fsId: %s, mpId: %s, instanceId: %s", fsId, req.GetVolumeId(), req.GetNodeId())
 	}
-	log.Infof("ControllerPublishVolume: patch pv vsc vscid: %v mpId: %v", vscId, req.GetVolumeId())
+	klog.Infof("ControllerPublishVolume: patch pv vsc vscid: %v mpId: %v", vscId, req.GetVolumeId())
 	if err := patchVscId2PV(fsId, vscId, req.GetVolumeId(), req.GetNodeId()); err != nil {
 		return nil, err
 	}
@@ -327,7 +327,7 @@ func patchVscId2PV(fsId, vscId, mpId, nodeID string) error {
 		return err
 	}
 	if len(pvs) == 0 {
-		log.Errorf("patchVscId2PV: get invalid pv count by pov mpid labels, pv count: %d", len(pvs))
+		klog.Errorf("patchVscId2PV: get invalid pv count by pov mpid labels, pv count: %d", len(pvs))
 	}
 	for _, pv := range pvs {
 		npv := pv.DeepCopy()
@@ -341,7 +341,7 @@ func patchVscId2PV(fsId, vscId, mpId, nodeID string) error {
 			return err
 		}
 	}
-	log.Info("patchVscId2PV: Successfully updated vscid to pv's labels")
+	klog.Info("patchVscId2PV: Successfully updated vscid to pv's labels")
 	return nil
 }
 
@@ -383,7 +383,7 @@ func (d *controllerService) ControllerUnpublishVolume(ctx context.Context, req *
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "detach volumepoint: %s failed err: %v", req.GetVolumeId(), err)
 	}
-	log.Infof("ControllerUnpublishVolume: detach pov mountpoint: %s, fsId: %s success, reqid: %s", req.GetVolumeId(), fsId, requestID)
+	klog.Infof("ControllerUnpublishVolume: detach pov mountpoint: %s, fsId: %s success, reqid: %s", req.GetVolumeId(), fsId, requestID)
 
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }

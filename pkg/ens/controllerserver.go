@@ -9,10 +9,10 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
 )
 
 // controller server try to create/delete volumes/snapshots
@@ -44,21 +44,21 @@ func (cs *controllerServer) ControllerGetCapabilities(context.Context, *csi.Cont
 
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 
-	log.Infof("CreateVolume: Starting CreateVolume: %+v", req)
+	klog.Infof("CreateVolume: Starting CreateVolume: %+v", req)
 	if valid, err := utils.ValidateRequest(req.Parameters); !valid {
 		msg := fmt.Sprintf("CreateVolume: check request args failed: %v", err)
-		log.Errorf(msg)
+		klog.Errorf(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
 	if value, ok := cs.createdVolumeMap[req.Name]; ok {
-		log.Infof("CreateVolume: volume already be created pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, value.VolumeId, value.VolumeContext)
+		klog.Infof("CreateVolume: volume already be created pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, value.VolumeId, value.VolumeContext)
 		return &csi.CreateVolumeResponse{Volume: value}, nil
 	}
 	reqParams := req.GetParameters()
 	diskParams, err := ValidateCreateVolumeParams(reqParams)
 	if err != nil {
-		log.Errorf("CreateVolume: invalidate params err: %+v", err)
+		klog.Errorf("CreateVolume: invalidate params err: %+v", err)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -68,15 +68,15 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		instance, err := GlobalConfigVar.ENSCli.DescribeInstance(nodeID)
 		if err != nil {
 			err = fmt.Errorf("CreateVolume: failed to get region from target nodeID: %+v, err: %+v", nodeID, err)
-			log.Error(err.Error())
+			klog.Error(err.Error())
 			return nil, status.Error(codes.Aborted, err.Error())
 		}
 		if len(instance) == 1 {
-			log.Infof("CreateVolume: success to get region: %s from target node: %s", *instance[0].EnsRegionId, nodeID)
+			klog.Infof("CreateVolume: success to get region: %s from target node: %s", *instance[0].EnsRegionId, nodeID)
 			diskParams.RegionID = *instance[0].EnsRegionId
 		} else {
 			err = fmt.Errorf("CreateVolume: get wrong number of instances with instanceid: %s, resp: %+v", nodeID, instance)
-			log.Error(err)
+			klog.Error(err)
 			return nil, status.Error(codes.Aborted, err.Error())
 		}
 	}
@@ -92,15 +92,15 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			actualDiskID = diskID
 			break
 		} else {
-			log.Errorf("CreateVolume: failed to create volume: %+v", err)
+			klog.Errorf("CreateVolume: failed to create volume: %+v", err)
 			if strings.Contains(err.Error(), DiskNotAvailable) || strings.Contains(err.Error(), DiskNotAvailableVer2) {
-				log.Infof("CreateVolume: Create Disk for volume %s with diskCatalog: %s is not supported in region: %s", req.Name, dt, diskParams.RegionID)
+				klog.Infof("CreateVolume: Create Disk for volume %s with diskCatalog: %s is not supported in region: %s", req.Name, dt, diskParams.RegionID)
 				continue
 			}
 		}
 	}
 	if actualDiskType == "" || actualDiskID == "" {
-		log.Errorf("CreateVolume: no disk created")
+		klog.Errorf("CreateVolume: no disk created")
 		return nil, status.Errorf(codes.InvalidArgument, "no disk created by regionID: %s, diskType: %s, requestGB: %s", diskParams.RegionID, diskParams.DiskType, requestGB)
 	}
 	volumeContext := updateVolumeContext(req.GetParameters())
@@ -119,36 +119,36 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 
-	log.Infof("ControllerPublishVolume: Starting Publish Volume: %+v", req)
+	klog.Infof("ControllerPublishVolume: Starting Publish Volume: %+v", req)
 	if GlobalConfigVar.EnableAttachDetachController == "false" {
-		log.Infof("ControllerPublishVolume: ADController Disable to attach disk: %s to node: %s", req.VolumeId, req.NodeId)
+		klog.Infof("ControllerPublishVolume: ADController Disable to attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 	_, err := attachDisk(req.VolumeId, req.NodeId)
 	if err != nil {
-		log.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
+		klog.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	log.Infof("ControllerPublishVolume: Successful attach disk: %s to node: %s", req.VolumeId, req.NodeId)
+	klog.Infof("ControllerPublishVolume: Successful attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 
-	log.Infof("ControllerUnpublishVolume: Starting Unpublish Volume: %+v", req)
+	klog.Infof("ControllerUnpublishVolume: Starting Unpublish Volume: %+v", req)
 
 	if GlobalConfigVar.EnableAttachDetachController == "false" {
-		log.Infof("ControllerPublishVolume: ADController Disable to attach disk: %s to node: %s", req.VolumeId, req.NodeId)
+		klog.Infof("ControllerPublishVolume: ADController Disable to attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
-	log.Infof("ControllerUnpublishVolume: detach disk: %s from node: %s", req.VolumeId, req.NodeId)
+	klog.Infof("ControllerUnpublishVolume: detach disk: %s from node: %s", req.VolumeId, req.NodeId)
 	err := detachDisk(req.VolumeId, req.NodeId)
 	if err != nil {
-		log.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
+		klog.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	log.Infof("ControllerUnpublishVolume: Successful detach disk: %s from node: %s", req.VolumeId, req.NodeId)
+	klog.Infof("ControllerUnpublishVolume: Successful detach disk: %s from node: %s", req.VolumeId, req.NodeId)
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 

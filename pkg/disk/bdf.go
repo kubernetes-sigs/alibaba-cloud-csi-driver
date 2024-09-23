@@ -20,8 +20,8 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -198,28 +198,28 @@ func findBdf(diskID string) (bdf string, err error) {
 func unbindBdfDisk(diskID string) (err error) {
 	bdf, err := findBdf(diskID)
 	if err != nil {
-		log.Errorf("unbindBdfDisk: Disk %s bdf not found with error: %v", diskID, err)
+		klog.Errorf("unbindBdfDisk: Disk %s bdf not found with error: %v", diskID, err)
 		return errors.Wrapf(err, "findBdf, diskId=%s", diskID)
 	}
 	if bdf == "" {
-		log.Infof("unbindBdfDisk: Disk %s bdf not found, skip", diskID)
+		klog.Infof("unbindBdfDisk: Disk %s bdf not found, skip", diskID)
 		return nil
 	}
-	log.Infof("unbindBdfDisk: Disk %s bdf is %s", diskID, bdf)
+	klog.Infof("unbindBdfDisk: Disk %s bdf is %s", diskID, bdf)
 
 	if err := VirtioPciUnbind(bdf); err != nil && !IsNoSuchDeviceErr(err) {
-		log.Errorf("unbindBdfDisk: Disk %s bdf %s VirtioPciUnbind with error: %v", diskID, bdf, err)
+		klog.Errorf("unbindBdfDisk: Disk %s bdf %s VirtioPciUnbind with error: %v", diskID, bdf, err)
 		return errors.Wrapf(err, "VirtioPciUnbind, bdf=%s", bdf)
 	}
 
 	if err := IohubSriovBind(bdf); err != nil && !IsNoSuchDeviceErr(err) {
-		log.Errorf("unbindBdfDisk: Disk %s bdf %s IohubSriovBind with error: %v", diskID, bdf, err)
+		klog.Errorf("unbindBdfDisk: Disk %s bdf %s IohubSriovBind with error: %v", diskID, bdf, err)
 		return errors.Wrapf(err, "IohubSriovBind, bdf=%s", bdf)
 	}
-	log.Infof("unbindBdfDisk: Disk %s(%s) successfully", diskID, bdf)
+	klog.Infof("unbindBdfDisk: Disk %s(%s) successfully", diskID, bdf)
 
 	if err = clearBdfInfo(diskID, bdf); err != nil {
-		log.Errorf("unbindBdfDisk: Disk %s bdf %s clearBdfInfo with error: %v", diskID, bdf, err)
+		klog.Errorf("unbindBdfDisk: Disk %s bdf %s clearBdfInfo with error: %v", diskID, bdf, err)
 		return err
 	}
 	return nil
@@ -228,44 +228,44 @@ func unbindBdfDisk(diskID string) (err error) {
 func bindBdfDisk(diskID string) (bdf string, err error) {
 	bdf, err = findBdf(diskID)
 	if err != nil {
-		log.Errorf("bindBdfDisk: Disk %s bdf not found with error: %v", diskID, err)
+		klog.Errorf("bindBdfDisk: Disk %s bdf not found with error: %v", diskID, err)
 		return "", errors.Wrapf(err, "findBdf, diskId=%s", diskID)
 	}
 	if bdf == "" {
-		log.Infof("bindBdfDisk: Disk %s bdf not found, skip", diskID)
+		klog.Infof("bindBdfDisk: Disk %s bdf not found, skip", diskID)
 		return "", nil
 	}
-	log.Infof("bindBdfDisk: Disk %s bdf is %s", diskID, bdf)
+	klog.Infof("bindBdfDisk: Disk %s bdf is %s", diskID, bdf)
 
 	data, err := os.Readlink(sysPrefix + "/sys/bus/pci/devices/" + bdf + "/driver")
 	if err != nil {
-		log.Errorf("bindBdfDisk: Disk %s bdf %s Readlink with error: %v", diskID, bdf, err)
+		klog.Errorf("bindBdfDisk: Disk %s bdf %s Readlink with error: %v", diskID, bdf, err)
 		return bdf, errors.Wrapf(err, "read disk dirver, diskId=%s, bdf=%s", diskID, bdf)
 	}
 	driver := filepath.Base(data)
-	log.Infof("bindBdfDisk: Disk %s bdf %s, kernel driver in use: %s", diskID, bdf, driver)
+	klog.Infof("bindBdfDisk: Disk %s bdf %s, kernel driver in use: %s", diskID, bdf, driver)
 	switch driver {
 	case iohubSrviovDriver:
 		if err = IohubSriovUnbind(bdf); err != nil {
-			log.Errorf("bindBdfDisk: Disk %s bdf %s IohubSriovUnbind with error: %v", diskID, bdf, err)
+			klog.Errorf("bindBdfDisk: Disk %s bdf %s IohubSriovUnbind with error: %v", diskID, bdf, err)
 			return bdf, errors.Wrapf(err, "IohubSriovUnbind, bdf=%s", bdf)
 		}
 	case virtioPciDriver:
-		log.Infof("bindBdfDisk: Disk %s(%s) already bound virtio-pci", diskID, bdf)
+		klog.Infof("bindBdfDisk: Disk %s(%s) already bound virtio-pci", diskID, bdf)
 		if err = storeBdfInfo(diskID, bdf); err != nil {
-			log.Errorf("bindBdfDisk: Disk %s bdf %s storeBdfInfo with error: %v", diskID, bdf, err)
+			klog.Errorf("bindBdfDisk: Disk %s bdf %s storeBdfInfo with error: %v", diskID, bdf, err)
 			return bdf, err
 		}
 		return bdf, nil
 	}
 	if err = VirtioPciBind(bdf); err != nil && !IsNoSuchDeviceErr(err) {
-		log.Errorf("bindBdfDisk: Disk %s bdf %s VirtioPciBind with error: %v", diskID, bdf, err)
+		klog.Errorf("bindBdfDisk: Disk %s bdf %s VirtioPciBind with error: %v", diskID, bdf, err)
 		return bdf, errors.Wrapf(err, "VirtioPciBind, bdf=%s", bdf)
 	}
-	log.Infof("bindBdfDisk: Disk %s(%s) successfully", diskID, bdf)
+	klog.Infof("bindBdfDisk: Disk %s(%s) successfully", diskID, bdf)
 
 	if err = storeBdfInfo(diskID, bdf); err != nil {
-		log.Errorf("bindBdfDisk: Disk %s bdf %s storeBdfInfo at end with error: %v", diskID, bdf, err)
+		klog.Errorf("bindBdfDisk: Disk %s bdf %s storeBdfInfo at end with error: %v", diskID, bdf, err)
 		return bdf, err
 	}
 	return bdf, nil
@@ -291,16 +291,16 @@ func storeBdfInfo(diskID, bdf string) (err error) {
 	}
 	_, err = ecsClient.AddTags(addTagsRequest)
 	if err != nil {
-		log.Warnf("storeBdfInfo: AddTags error: %s, %s", diskID, err.Error())
+		klog.Warningf("storeBdfInfo: AddTags error: %s, %s", diskID, err.Error())
 		return
 	}
-	log.Info("Storing bdf information successfully")
+	klog.Info("Storing bdf information successfully")
 	return nil
 }
 
 func clearBdfInfo(diskID, bdf string) (err error) {
 
-	log.Infof("clearBdfInfo: bdf: %s", bdf)
+	klog.Infof("clearBdfInfo: bdf: %s", bdf)
 	ecsClient, err := getEcsClientByID(diskID, "")
 	if err != nil {
 		return err
@@ -310,7 +310,7 @@ func clearBdfInfo(diskID, bdf string) (err error) {
 	if bdf == "" {
 		diskInfo := getDisk(diskID, ecsClient)
 		if len(diskInfo) != 1 {
-			log.Warnf("clearBdfInfo: cannot get disk: %s", diskID)
+			klog.Warningf("clearBdfInfo: cannot get disk: %s", diskID)
 			return err
 		}
 		bdfTagExist := false
@@ -343,11 +343,11 @@ func clearBdfInfo(diskID, bdf string) (err error) {
 	removeTagsRequest.RegionId = GlobalConfigVar.Region
 	_, err = ecsClient.RemoveTags(removeTagsRequest)
 	if err != nil {
-		log.Warnf("storeBdfInfo: Remove error: %s, %s", diskID, err.Error())
+		klog.Warningf("storeBdfInfo: Remove error: %s, %s", diskID, err.Error())
 		return err
 	}
 
-	log.Infof("Deleting bdf information successfully for Disk: %s", diskID)
+	klog.Infof("Deleting bdf information successfully for Disk: %s", diskID)
 	return nil
 }
 
@@ -362,13 +362,13 @@ func forceDetachAllowed(ecsClient *ecs.Client, disk *ecs.Disk, nodeID string) (a
 	describeDisksRequest.DiskIds = "[\"" + disk.DiskId + "\"]"
 	diskResponse, err := ecsClient.DescribeDisks(describeDisksRequest)
 	if err != nil {
-		log.Warnf("forceDetachAllowed: error with DescribeDisks: %s, %s", disk.DiskId, err.Error())
+		klog.Warningf("forceDetachAllowed: error with DescribeDisks: %s, %s", disk.DiskId, err.Error())
 		return false, errors.Wrapf(err, "DescribeInstances, instanceId=%s", disk.InstanceId)
 	}
 	disks := diskResponse.Disks.Disk
-	log.Infof("forceDetachAllowed: diskResponse: %+v", diskResponse)
+	klog.Infof("forceDetachAllowed: diskResponse: %+v", diskResponse)
 	if len(disks) == 0 {
-		log.Warnf("forceDetachAllowed: no disk found: %s", disk.DiskId)
+		klog.Warningf("forceDetachAllowed: no disk found: %s", disk.DiskId)
 		return false, errors.Wrapf(err, "forceDetachAllowed: Get disk empty, ID=%s", disk.DiskId)
 	}
 	bdfTagExist := false
@@ -385,7 +385,7 @@ func forceDetachAllowed(ecsClient *ecs.Client, disk *ecs.Disk, nodeID string) (a
 	request.RegionId = disk.RegionId
 	request.InstanceIds = "[\"" + disk.InstanceId + "\"]"
 	instanceResponse, err := ecsClient.DescribeInstances(request)
-	log.Infof("forceDetachAllowed: instanceResponse: %+v", instanceResponse)
+	klog.Infof("forceDetachAllowed: instanceResponse: %+v", instanceResponse)
 	if err != nil {
 		return false, errors.Wrapf(err, "DescribeInstances, instanceId=%s", disk.InstanceId)
 	}
@@ -393,7 +393,7 @@ func forceDetachAllowed(ecsClient *ecs.Client, disk *ecs.Disk, nodeID string) (a
 		return false, errors.Errorf("Describe Instance with empty response: %s", disk.InstanceId)
 	}
 	inst := instanceResponse.Instances.Instance[0]
-	log.Infof("forceDetachAllowed: Instance status is %s", inst.Status)
+	klog.Infof("forceDetachAllowed: Instance status is %s", inst.Status)
 	// case 2
 	return inst.Status == InstanceStatusStopped, nil
 }
@@ -414,19 +414,19 @@ func IsVFNode() bool {
 		if ok {
 			is_bdf, err := strconv.ParseBool(is_bdf_str)
 			if err != nil {
-				log.Fatalf("[IsVFNode] parse IS_BDF=%s: %v", is_bdf_str, err)
+				klog.Fatalf("[IsVFNode] parse IS_BDF=%s: %v", is_bdf_str, err)
 			}
 			isVF = is_bdf
 			isVFInstance = is_bdf
 		} else {
 			output, err := ExecCheckOutput("lspci", "-D")
 			if err != nil {
-				log.Fatalf("[IsVFNode] lspci -D: %v", err)
+				klog.Fatalf("[IsVFNode] lspci -D: %v", err)
 			}
 			// 0000:4b:00.0 SCSI storage controller: Device 1ded:1001 or SCSI storage controller: Alibaba (China) Co., Ltd.
 			matched := FindLines(output, "storage controller")
 			if len(matched) == 0 {
-				log.Errorf("[IsVFNode] not found storage controller")
+				klog.Errorf("[IsVFNode] not found storage controller")
 				return
 			}
 			for _, line := range matched {
@@ -440,7 +440,7 @@ func IsVFNode() bool {
 				}
 				output, err = ExecCheckOutput("lspci", "-s", bdf, "-v")
 				if err != nil {
-					log.Errorf("[IsVFNode] lspic -s %s -v: %v", bdf, err)
+					klog.Errorf("[IsVFNode] lspic -s %s -v: %v", bdf, err)
 					return
 				}
 				// Capabilities: [110] Single Root I/O Virtualization (SR-IOV)
@@ -448,12 +448,12 @@ func IsVFNode() bool {
 				if len(matched) > 0 {
 					isVF = true
 					isVFInstance = true
-					log.Infof("[IsVFNode] change isVF to true isVF: %v", isVF)
+					klog.Infof("[IsVFNode] change isVF to true isVF: %v", isVF)
 					break
 				}
 			}
 		}
-		log.Infof("[IsVFNode] isVF: %v", isVF)
+		klog.Infof("[IsVFNode] isVF: %v", isVF)
 		checkVfhpOnline()
 	})
 	return isVF
@@ -464,7 +464,7 @@ func checkVfhpOnlineReconcile() {
 		vfRecord := isVF
 		checkVfhpOnline()
 		if vfRecord != isVF {
-			log.Infof("checkVfhpOnlineReconcile: Node iohub-vfhp-helper is changed, isVF flag from %t to %t", vfRecord, isVF)
+			klog.Infof("checkVfhpOnlineReconcile: Node iohub-vfhp-helper is changed, isVF flag from %t to %t", vfRecord, isVF)
 		}
 		time.Sleep(time.Duration(VfhpReconcilePeriod) * time.Second)
 	}
@@ -476,7 +476,7 @@ func checkVfhpOnline() {
 		isVF = false
 		return
 	}
-	log.Infof("checkVfhpOnline: check node vfhp helper cmd exec err: %+v", err)
+	klog.Infof("checkVfhpOnline: check node vfhp helper cmd exec err: %+v", err)
 }
 
 // IsVFInstance check node is vf or not
@@ -534,7 +534,7 @@ func NewDeviceDriver(blockDevice, deviceNumber string, _type MachineType, extras
 	if d.deviceNumber == "" {
 		deviceNumber, err := DefaultDeviceManager.GetDeviceNumberFromBlockDevice(blockDevice, d.machineType.BusPrefix())
 		if err != nil {
-			log.Errorf("NewDeviceDriver: get device number from block device err: %v", err)
+			klog.Errorf("NewDeviceDriver: get device number from block device err: %v", err)
 			return nil, err
 		}
 		d.deviceNumber = deviceNumber
@@ -556,7 +556,7 @@ func (d *driver) GetDeviceNumber() string {
 func (d *driver) CurentDriver() (string, error) {
 	data, err := os.Readlink(filepath.Join(sysPrefix, "sys/bus/", d.machineType.BusName(), "devices", d.deviceNumber, "driver"))
 	if err != nil {
-		log.Errorf("CurentDriver: read symlink err: %v", err)
+		klog.Errorf("CurentDriver: read symlink err: %v", err)
 		return "", err
 	}
 	driver := filepath.Base(data)

@@ -11,12 +11,12 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
-	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -117,7 +117,7 @@ func GetNodeConfig() (*NodeConfig, error) {
 		config.EnableVolumeStats, _ = parseBool(value)
 	}
 	if config.EnableVolumeStats {
-		logrus.Info("enabled nas volume stats")
+		klog.Info("enabled nas volume stats")
 	}
 
 	// get node info
@@ -133,7 +133,7 @@ func GetNodeConfig() (*NodeConfig, error) {
 		config.EnableLosetup, _ = parseBool(value)
 	}
 	if config.EnableLosetup {
-		logrus.Info("enabled nas losetup mode")
+		klog.Info("enabled nas losetup mode")
 		for _, addr := range node.Status.Addresses {
 			if addr.Type == corev1.NodeInternalIP {
 				config.NodeIP = addr.Address

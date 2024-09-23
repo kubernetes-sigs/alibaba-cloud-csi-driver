@@ -2,11 +2,12 @@ package http
 
 import (
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/alibabacloud-go/tea/tea"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/klog/v2"
 )
 
 func TestParseHttpHeaderEnv(t *testing.T) {
@@ -23,8 +24,8 @@ func TestParseHttpHeaderEnv(t *testing.T) {
 }
 
 func TestParseHttpHeaderEnvInvalid(t *testing.T) {
-	defer func() { log.StandardLogger().ExitFunc = nil }()
-	log.StandardLogger().ExitFunc = func(c int) { panic(c) }
+	defer func() { klog.OsExit = os.Exit }()
+	klog.OsExit = func(c int) { panic(c) }
 
 	t.Setenv("ALIBABA_CLOUD_HTTP_HEADERS", "not-http-header")
 	assert.Panics(t, func() {
@@ -48,8 +49,8 @@ func TestToV2SDKHeader(t *testing.T) {
 }
 
 func TestToV2SDKHeaderMulti(t *testing.T) {
-	defer func() { log.StandardLogger().ExitFunc = nil }()
-	log.StandardLogger().ExitFunc = func(c int) { panic(c) }
+	defer func() { klog.OsExit = os.Exit }()
+	klog.OsExit = func(c int) { panic(c) }
 
 	assert.Panics(t, func() {
 		MustToV2SDKHeaders(http.Header{

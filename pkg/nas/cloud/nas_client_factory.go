@@ -1,11 +1,12 @@
 package cloud
 
 import (
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"os"
 	"strconv"
 
-	"github.com/sirupsen/logrus"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
+	"k8s.io/klog/v2"
+
 	"go.uber.org/ratelimit"
 )
 
@@ -22,10 +23,10 @@ func NewNasClientFactory() *NasClientFactory {
 	if ok {
 		v, err := strconv.Atoi(value)
 		if err != nil {
-			logrus.Errorf("invalid NAS_LIMIT_PERSECOND %q", value)
+			klog.Errorf("invalid NAS_LIMIT_PERSECOND %q", value)
 		} else {
 			qps = v
-			logrus.Infof("set nas QPS to %d", qps)
+			klog.Infof("set nas QPS to %d", qps)
 		}
 	}
 	return &NasClientFactory{

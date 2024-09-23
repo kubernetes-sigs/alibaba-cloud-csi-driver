@@ -11,8 +11,8 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/cgroup"
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
-	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
+	"k8s.io/klog/v2"
 )
 
 // CGROUPFS_MOUNT_PATH is the path to the host cgroupfs mounted in the container
@@ -100,7 +100,7 @@ func (cg *PodCGroup) setVolumeIOLimit(devicePath string, req *csi.NodePublishVol
 	// Get pod uid
 	podUID := req.VolumeContext["csi.storage.k8s.io/pod.uid"]
 	if podUID == "" {
-		log.Errorf("Volume(%s) Cannot get poduid and cannot set volume limit", req.VolumeId)
+		klog.Errorf("Volume(%s) Cannot get poduid and cannot set volume limit", req.VolumeId)
 		return errors.New("Cannot get poduid and cannot set volume limit: " + req.VolumeId)
 	}
 
@@ -110,14 +110,14 @@ func (cg *PodCGroup) setVolumeIOLimit(devicePath string, req *csi.NodePublishVol
 	}
 	defer func() {
 		if err := unix.Close(fd); err != nil {
-			log.Errorf("Volume(%s) close fd(%d) failed: %v", req.VolumeId, fd, err)
+			klog.Errorf("Volume(%s) close fd(%d) failed: %v", req.VolumeId, fd, err)
 		}
 	}()
 
 	if err := cg.io.SetLimits(fd, maj, min, limits); err != nil {
 		return err
 	}
-	log.Infof("Successfully Set Volume(%s) IO Limit: %+v", req.VolumeId, limits)
+	klog.Infof("Successfully Set Volume(%s) IO Limit: %+v", req.VolumeId, limits)
 	return nil
 }
 

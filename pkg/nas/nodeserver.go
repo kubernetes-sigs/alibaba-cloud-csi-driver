@@ -37,9 +37,9 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/rund/directvolume"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -56,7 +56,7 @@ func newNodeServer(config *internal.NodeConfig) *nodeServer {
 		go dadi.Run(config.KubeClient)
 	}
 	if err := checkSystemNasConfig(); err != nil {
-		log.Errorf("failed to config /proc/sys/sunrpc/tcp_slot_table_entries: %v", err)
+		klog.Errorf("failed to config /proc/sys/sunrpc/tcp_slot_table_entries: %v", err)
 	}
 	return &nodeServer{
 		config:  config,
@@ -177,7 +177,7 @@ func DetermineClientTypeAndMountProtocol(cnfs *v1beta1.ContainerNetworkFileSyste
 }
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	log.Infof("NodePublishVolume:: Nas Volume %s mount with req: %+v", req.VolumeId, req)
+	klog.Infof("NodePublishVolume:: Nas Volume %s mount with req: %+v", req.VolumeId, req)
 	mountPath := req.GetTargetPath()
 	if err := validateNodePublishVolumeRequest(req); err != nil {
 		return nil, err
@@ -252,13 +252,13 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		parseVers, parseOptions := ParseMountFlags(mntOptions)
 		if parseVers != "" {
 			if opt.Vers != "" {
-				log.Warnf("NodePublishVolume: Vers(%s) (in volumeAttributes) is ignored as Vers(%s) also configured in mountOptions", opt.Vers, parseVers)
+				klog.Warningf("NodePublishVolume: Vers(%s) (in volumeAttributes) is ignored as Vers(%s) also configured in mountOptions", opt.Vers, parseVers)
 			}
 			opt.Vers = parseVers
 		}
 		if parseOptions != "" {
 			if opt.Options != "" {
-				log.Warnf("NodePublishVolume: Options(%s) (in volumeAttributes) is ignored as Options(%s) also configured in mountOptions", opt.Options, parseOptions)
+				klog.Warningf("NodePublishVolume: Options(%s) (in volumeAttributes) is ignored as Options(%s) also configured in mountOptions", opt.Options, parseOptions)
 			}
 			opt.Options = parseOptions
 		}
@@ -281,7 +281,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err := utils.WriteJSONFile(runvOptions, fileName); err != nil {
 			return nil, errors.New("NodePublishVolume: Write Json File error: " + err.Error())
 		}
-		log.Infof("Nas(Kata), Write Nfs Options to File Successful: %s", fileName)
+		klog.Infof("Nas(Kata), Write Nfs Options to File Successful: %s", fileName)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -325,12 +325,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err != nil {
 		if os.IsNotExist(err) {
 			if err := os.MkdirAll(mountPath, os.ModePerm); err != nil {
-				log.Errorf("NodePublishVolume: mkdir %s: %v", mountPath, err)
+				klog.Errorf("NodePublishVolume: mkdir %s: %v", mountPath, err)
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 			notMounted = true
 		} else {
-			log.Errorf("NodePublishVolume: check mountpoint %s: %v", mountPath, err)
+			klog.Errorf("NodePublishVolume: check mountpoint %s: %v", mountPath, err)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -345,10 +345,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				MountOpts:  []string{opt.Options},
 				Extra:      map[string]string{},
 			}
-			log.Info("NodePublishVolume(rund3.0): Starting add mount info to DirectVolume")
+			klog.Info("NodePublishVolume(rund3.0): Starting add mount info to DirectVolume")
 			err := directvolume.AddMountInfo(filepath.Dir(mountPath), mountInfo)
 			if err != nil {
-				log.Errorf("NodePublishVolume(rund3.0): Adding mount information to DirectVolume failed: %v", err)
+				klog.Errorf("NodePublishVolume(rund3.0): Adding mount information to DirectVolume failed: %v", err)
 				return nil, status.Error(codes.Internal, "NAS: failed to mount volume in rund-csi 3.0")
 			}
 			return &csi.NodePublishVolumeResponse{}, nil
@@ -362,29 +362,29 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				return nil, status.Errorf(codes.Internal, "(rund2.0) failed to mount tmpfs: %v", err)
 			}
 		}
-		log.Infof("NodePublishVolume:: Volume %s is Skip Mount type, just save the metadata: %s", req.VolumeId, mountPath)
+		klog.Infof("NodePublishVolume:: Volume %s is Skip Mount type, just save the metadata: %s", req.VolumeId, mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	if !notMounted {
-		log.Infof("NodePublishVolume: %s already mounted", mountPath)
+		klog.Infof("NodePublishVolume: %s already mounted", mountPath)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	// do losetup nas logical
 	if ns.config.EnableLosetup && opt.MountType == LosetupType {
 		if err := ns.mountLosetupPv(mountPath, opt, req.VolumeId); err != nil {
-			log.Errorf("NodePublishVolume: mount losetup volume(%s) error %s", req.VolumeId, err.Error())
+			klog.Errorf("NodePublishVolume: mount losetup volume(%s) error %s", req.VolumeId, err.Error())
 			return nil, errors.New("NodePublishVolume, mount Losetup volume error with: " + err.Error())
 		}
-		log.Infof("NodePublishVolume: nas losetup volume successful %s", req.VolumeId)
+		klog.Infof("NodePublishVolume: nas losetup volume successful %s", req.VolumeId)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	// Do mount
 	podUID := req.VolumeContext["csi.storage.k8s.io/pod.uid"]
 	if podUID == "" {
-		log.Errorf("Volume(%s) Cannot get poduid and cannot set volume limit", req.VolumeId)
+		klog.Errorf("Volume(%s) Cannot get poduid and cannot set volume limit", req.VolumeId)
 		return nil, errors.New("Cannot get poduid and cannot set volume limit: " + req.VolumeId)
 	}
 
@@ -426,30 +426,30 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		done := make(chan struct{})
 		go func() {
 			if err := cmd.Run(); err != nil {
-				log.Errorf("Nas chmod cmd fail: %s %s", cmd, err)
+				klog.Errorf("Nas chmod cmd fail: %s %s", cmd, err)
 			} else {
-				log.Infof("Nas chmod cmd success: %s", cmd)
+				klog.Infof("Nas chmod cmd success: %s", cmd)
 			}
 			close(done)
 		}()
 		select {
 		case <-done:
 		case <-time.After(time.Second):
-			log.Infof("Chmod use more than 1s, running in Concurrency: %s", mountPath)
+			klog.Infof("Chmod use more than 1s, running in Concurrency: %s", mountPath)
 		}
 	}
 
 	// check mount
 	notMounted, err = ns.mounter.IsLikelyNotMountPoint(mountPath)
 	if err != nil {
-		log.Errorf("check mount point %s: %v", mountPath, err)
+		klog.Errorf("check mount point %s: %v", mountPath, err)
 		return &csi.NodePublishVolumeResponse{}, status.Errorf(codes.Internal, err.Error())
 	}
 	if notMounted {
 		return nil, errors.New("Check mount fail after mount:" + mountPath)
 	}
 
-	log.Infof("NodePublishVolume:: Volume %s Mount success on mountpoint: %s", req.VolumeId, mountPath)
+	klog.Infof("NodePublishVolume:: Volume %s Mount success on mountpoint: %s", req.VolumeId, mountPath)
 
 	return &csi.NodePublishVolumeResponse{}, nil
 }
@@ -486,7 +486,7 @@ func (ns *nodeServer) mountLosetupPv(mountPoint string, opt *Options, volumeID s
 			if err := createLosetupPv(nfsPath, int64(opt.LoopImageSize)); err != nil {
 				return fmt.Errorf("init loop image file: %w", err)
 			}
-			log.Infof("created loop image file for %s, size: %d", pvName, opt.LoopImageSize)
+			klog.Infof("created loop image file for %s, size: %d", pvName, opt.LoopImageSize)
 		} else {
 			return err
 		}
@@ -501,7 +501,7 @@ func (ns *nodeServer) mountLosetupPv(mountPoint string, opt *Options, volumeID s
 		}
 		err = os.Remove(failedFile)
 		if err != nil {
-			log.Errorf("mountLosetupPv: failed to remove failed file: %v", err)
+			klog.Errorf("mountLosetupPv: failed to remove failed file: %v", err)
 		}
 	}
 	err = ns.mounter.Mount(imgFile, mountPoint, "", []string{"loop"})
@@ -530,24 +530,24 @@ func (ns *nodeServer) isLosetupUsed(lockFile string, opt *Options, volumeID stri
 	if ns.config.NodeName == oldNodeName {
 		mounted, err := isLosetupMount(volumeID)
 		if err != nil {
-			log.Errorf("can not determine whether %s losetup image used: %v", volumeID, err)
+			klog.Errorf("can not determine whether %s losetup image used: %v", volumeID, err)
 			return true
 		}
 		if !mounted {
-			log.Warnf("Lockfile(%s) exist, but Losetup image not mounted %s.", lockFile, opt.Path)
+			klog.Warningf("Lockfile(%s) exist, but Losetup image not mounted %s.", lockFile, opt.Path)
 			return false
 		}
-		log.Warnf("Lockfile(%s) exist, but Losetup image mounted %s.", lockFile, opt.Path)
+		klog.Warningf("Lockfile(%s) exist, but Losetup image mounted %s.", lockFile, opt.Path)
 		return true
 	}
 
 	stat, err := utils.Ping(oldNodeIP)
 	if err != nil {
-		log.Warnf("Ping node %s, but get error: %s, consider as volume used", oldNodeIP, err.Error())
+		klog.Warningf("Ping node %s, but get error: %s, consider as volume used", oldNodeIP, err.Error())
 		return true
 	}
 	if stat.PacketLoss == 100 {
-		log.Warnf("Cannot connect to node %s, consider the node as shutdown(%s).", oldNodeIP, lockFile)
+		klog.Warningf("Cannot connect to node %s, consider the node as shutdown(%s).", oldNodeIP, lockFile)
 		return false
 	}
 	return true
@@ -562,7 +562,7 @@ func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) err
 }
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	log.Infof("NodeUnpublishVolume:: Starting umount nas volume %s with req: %+v", req.VolumeId, req)
+	klog.Infof("NodeUnpublishVolume:: Starting umount nas volume %s with req: %+v", req.VolumeId, req)
 	err := validateNodeUnpublishVolumeRequest(req)
 	if err != nil {
 		return nil, err
@@ -577,7 +577,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err := cleanupMountpoint(ns.mounter, targetPath); err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount %s: %v", targetPath, err)
 	}
-	log.Infof("NodeUnpublishVolume: unmount volume on %s successfully", targetPath)
+	klog.Infof("NodeUnpublishVolume: unmount volume on %s successfully", targetPath)
 
 	// always try to remove ../alibabacloudcsiplugin.json
 	// TODO: remove csi 2.0 vol_data.json
@@ -588,12 +588,12 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 			return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume(runv): remove %s: %v", fileName, err)
 		}
 	} else {
-		log.Infof("NodeUnpublishVolume(runv): Remove runv file successful: %s", fileName)
+		klog.Infof("NodeUnpublishVolume(runv): Remove runv file successful: %s", fileName)
 	}
 	// try to remove csi 3.0 file when featuregate is enabled
 	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 		if err := directvolume.Remove(filepath.Dir(targetPath)); err != nil {
-			log.Errorf("NodeUnpublishVolume(rund3.0): Remove mount information to DirectVolume failed: %v", err)
+			klog.Errorf("NodeUnpublishVolume(rund3.0): Remove mount information to DirectVolume failed: %v", err)
 			return nil, status.Error(codes.Internal, "NAS: failed to unmount volume in rund-csi 3.0")
 		}
 	}
@@ -623,7 +623,7 @@ func (ns *nodeServer) NodeUnstageVolume(
 
 func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (
 	*csi.NodeExpandVolumeResponse, error) {
-	log.Infof("NodeExpandVolume: nas expand volume with %v", req)
+	klog.Infof("NodeExpandVolume: nas expand volume with %v", req)
 	if ns.config.EnableLosetup {
 		if err := ns.LosetupExpandVolume(req); err != nil {
 			return nil, fmt.Errorf("NodeExpandVolume: error with %v", err)
@@ -636,7 +636,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) error {
 	pathList := strings.Split(req.VolumePath, "/")
 	if len(pathList) != 10 {
-		log.Warnf("NodeExpandVolume: Mountpoint Format illegal, just skip expand %s", req.VolumePath)
+		klog.Warningf("NodeExpandVolume: Mountpoint Format illegal, just skip expand %s", req.VolumePath)
 		return nil
 	}
 	podID := pathList[5]
@@ -649,12 +649,12 @@ func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) erro
 		volSizeBytes := req.GetCapacityRange().GetRequiredBytes()
 		err := losetup.TruncateFile(imgFile, volSizeBytes)
 		if err != nil {
-			log.Errorf("NodeExpandVolume: nas resize img file error %v", err)
+			klog.Errorf("NodeExpandVolume: nas resize img file error %v", err)
 			return fmt.Errorf("NodeExpandVolume: nas resize img file error, %v", err)
 		}
 		devices, err := losetup.List(losetup.WithAssociatedFile(imgFile))
 		if err != nil {
-			log.Errorf("NodeExpandVolume: search losetup device error %v", err)
+			klog.Errorf("NodeExpandVolume: search losetup device error %v", err)
 			return fmt.Errorf("NodeExpandVolume: search losetup device error, %v", err)
 		}
 		if len(devices) == 0 {
@@ -662,12 +662,12 @@ func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) erro
 		}
 		loopDev := devices[0].Name
 		if err := losetup.Resize(loopDev); err != nil {
-			log.Errorf("NodeExpandVolume: resize device error %v", err)
+			klog.Errorf("NodeExpandVolume: resize device error %v", err)
 			return fmt.Errorf("NodeExpandVolume: resize device file error, %v", err)
 		}
 
 		if err := exec.Command("resize2fs", loopDev).Run(); err != nil {
-			log.Errorf("NodeExpandVolume: resize filesystem error %v", err)
+			klog.Errorf("NodeExpandVolume: resize filesystem error %v", err)
 			failedFile := filepath.Join(nfsPath, Resize2fsFailedFilename)
 			if !utils.IsFileExisting(failedFile) {
 				// path/to/whatever does not exist
@@ -677,9 +677,9 @@ func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) erro
 			}
 			return fmt.Errorf("NodeExpandVolume: resize filesystem error, %v", err)
 		}
-		log.Infof("NodeExpandVolume, losetup volume expand successful %s to %d B", req.VolumeId, volSizeBytes)
+		klog.Infof("NodeExpandVolume, losetup volume expand successful %s to %d B", req.VolumeId, volSizeBytes)
 	} else {
-		log.Infof("NodeExpandVolume, only support losetup nas pv type for volume expand %s", req.VolumeId)
+		klog.Infof("NodeExpandVolume, only support losetup nas pv type for volume expand %s", req.VolumeId)
 	}
 	return nil
 }
