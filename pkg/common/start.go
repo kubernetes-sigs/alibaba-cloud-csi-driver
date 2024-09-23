@@ -13,6 +13,14 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// Servers holds the list of servers.
+type Servers struct {
+	IdentityServer        csi.IdentityServer
+	ControllerServer      csi.ControllerServer
+	NodeServer            csi.NodeServer
+	GroupControllerServer csi.GroupControllerServer
+}
+
 func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	klog.Infof("GRPC call: %s", info.FullMethod)
 	klog.V(4).Infof("GRPC request: %s", protosanitizer.StripSecrets(req))
@@ -35,9 +43,10 @@ func ParseEndpoint(ep string) (string, string, error) {
 	return "", "", fmt.Errorf("Invalid endpoint: %v", ep)
 }
 
-func RunCSIServer(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
-	ns = WrapNodeServerWithValidator(ns)
-	cs = WrapControllerServerWithValidator(cs)
+func RunCSIServer(endpoint string, servers Servers) {
+	ns := WrapNodeServerWithValidator(servers.NodeServer)
+	cs := WrapControllerServerWithValidator(servers.ControllerServer)
+	gcs := WrapGroupControllerServerWithValidator(servers.GroupControllerServer)
 
 	proto, addr, err := ParseEndpoint(endpoint)
 	if err != nil {
@@ -61,14 +70,17 @@ func RunCSIServer(endpoint string, ids csi.IdentityServer, cs csi.ControllerServ
 	}
 	server := grpc.NewServer(opts...)
 
-	if ids != nil {
-		csi.RegisterIdentityServer(server, ids)
+	if servers.IdentityServer != nil {
+		csi.RegisterIdentityServer(server, servers.IdentityServer)
 	}
 	if cs != nil {
 		csi.RegisterControllerServer(server, cs)
 	}
 	if ns != nil {
 		csi.RegisterNodeServer(server, ns)
+	}
+	if gcs != nil {
+		csi.RegisterGroupControllerServer(server, gcs)
 	}
 
 	klog.Infof("Listening for connections on address: %#v", listener.Addr())
