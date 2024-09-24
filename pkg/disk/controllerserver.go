@@ -30,6 +30,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -645,6 +646,10 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshot, err := findDiskSnapshotByID(req.SnapshotId)
 	if err != nil {
+		var aliErr *alicloudErr.ServerError
+		if errors.As(err, &aliErr) && aliErr.ErrorCode() == SnapshotNotFound {
+			return &csi.DeleteSnapshotResponse{}, nil
+		}
 		return nil, status.Errorf(codes.Internal, "failed to find snapshot %s with error: %v", snapshotID, err)
 	}
 
@@ -792,22 +797,50 @@ func newListSnapshotsResponse(snapshots []ecs.Snapshot, nextToken string) (*csi.
 	}, nil
 }
 
-func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
+// TODO: groupSnapshotId is missing in ListSnapshotsResponse so we
+//  1.could not get groupsnapshotId from DescribeSnpshots API response
+//  2.could not get volumesnapshot name from ListSnapshotsRequest
+// this will cause:
+// volumesnapshot leased in cluster when volumegroupsnaoshot deleted,
+//   as status.volumeGroupSnapshotHandle is missing in volumesnapshotcontent,
+//   and "snapshot.storage.kubernetes.io/volumesnapshot-in-group-protection" finalizer
+//   will not be removed in checkandRemoveSnapshotFinalizersAndCheckandDeleteContent
+//   of external-csi-snapshotter
+// In current version, we try to get snapshotGroupId by description or name of snapshot
+func tryGetGroupSnapshotId(str string) string {
+	if !strings.HasPrefix(str, "Created from ssg-") {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(str, "Created from "))
+}
 
-	t, err := time.Parse(time.RFC3339, ecsSnapshot.CreationTime)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse snapshot creation time: %s", ecsSnapshot.CreationTime)
+func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
+	// creationTime == "" if created by snapshotGroup
+	var creationTime *timestamp.Timestamp
+	if ecsSnapshot.CreationTime != "" {
+		t, err := time.Parse(time.RFC3339, ecsSnapshot.CreationTime)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", ecsSnapshot.CreationTime)
+		}
+		creationTime = &timestamp.Timestamp{Seconds: t.Unix()}
 	}
 	sizeGB, err := strconv.ParseInt(ecsSnapshot.SourceDiskSize, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse snapshot size: %s", ecsSnapshot.SourceDiskSize)
 	}
+	sizeBytes := utils.Gi2Bytes(sizeGB)
+	groupSnapshotId := tryGetGroupSnapshotId(ecsSnapshot.SnapshotName)
+	if groupSnapshotId == "" {
+		groupSnapshotId = tryGetGroupSnapshotId(ecsSnapshot.Description)
+	}
+
 	return &csi.Snapshot{
-		SnapshotId:     ecsSnapshot.SnapshotId,
-		SourceVolumeId: ecsSnapshot.SourceDiskId,
-		SizeBytes:      utils.Gi2Bytes(sizeGB),
-		CreationTime:   timestamppb.New(t),
-		ReadyToUse:     ecsSnapshot.Available,
+		SnapshotId:      ecsSnapshot.SnapshotId,
+		SourceVolumeId:  ecsSnapshot.SourceDiskId,
+		SizeBytes:       sizeBytes,
+		CreationTime:    creationTime,
+		ReadyToUse:      ecsSnapshot.Available,
+		GroupSnapshotId: groupSnapshotId,
 	}, nil
 }
 
@@ -913,7 +946,7 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 	if err != nil {
 		klog.Errorf("ControllerExpandVolume:: volumeExpandAutoSnapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", volumeExpandAutoSnapshotName, sourceVolumeID, err.Error())
 		cs.recorder.Event(pvc, v1.EventTypeWarning, snapshotCreateError, err.Error())
-		return nil, status.Errorf(codes.Internal, "volumeExpandAutoSnapshot create Failed: %v", err)
+		return nil, status.Errorf(codes.Internal, "volumeExpandAutoSnapshot create failed: %v", err)
 	}
 
 	str := fmt.Sprintf("ControllerExpandVolume:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", volumeExpandAutoSnapshotName, sourceVolumeID, snapshotResponse.SnapshotId)
