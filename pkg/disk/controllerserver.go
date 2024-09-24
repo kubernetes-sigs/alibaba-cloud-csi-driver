@@ -31,6 +31,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -692,6 +693,11 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshot, err := findDiskSnapshotByID(req.SnapshotId)
 	if err != nil {
+		var aliErr *alicloudErr.ServerError
+		if errors.As(err, &aliErr) && aliErr.ErrorCode() == SnapshotNotFound {
+			klog.Infof("DeleteSnapshot: snapshot not exist for expect %s, return successful", snapshotID)
+			return &csi.DeleteSnapshotResponse{}, nil
+		}
 		return nil, err
 	}
 
@@ -711,16 +717,23 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	klog.Infof("DeleteSnapshot: Snapshot %s exist with Info: %+v, %+v", snapshotID, snapshot, err)
 
 	response, err := requestAndDeleteSnapshot(snapshotID)
+	var requestId string
+	if response != nil {
+		requestId = response.RequestId
+	}
 	if err != nil {
-		if response != nil {
-			klog.Errorf("DeleteSnapshot: fail to delete %s: with RequestId: %s, error: %s", snapshotID, response.RequestId, err.Error())
+		var aliErr *alicloudErr.ServerError
+		if errors.As(err, &aliErr) && aliErr.ErrorCode() == SnapshotNotFound {
+			klog.Infof("DeleteSnapshot: Snapshot not exist for expect %s, see as successful", snapshotID)
+			return nil, nil
 		}
+		klog.Errorf("DeleteSnapshot: fail to delete %s: with RequestId: %s, error: %s", snapshotID, requestId, err.Error())
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotDeleteError, err.Error())
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "failed delete snapshot: %v", err)
 	}
 
 	delete(createdSnapshotMap, snapshot.SnapshotName)
-	str := fmt.Sprintf("DeleteSnapshot:: Successfully delete snapshot %s, requestId: %s", snapshotID, response.RequestId)
+	str := fmt.Sprintf("DeleteSnapshot:: Successfully delete snapshot %s, requestId: %s", snapshotID, requestId)
 	klog.Info(str)
 	utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
 	return &csi.DeleteSnapshotResponse{}, nil
@@ -849,20 +862,47 @@ func newListSnapshotsResponse(snapshots []ecs.Snapshot, nextToken string) (*csi.
 	}, nil
 }
 
-func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
+// TODO: groupSnapshotId is missing in ListSnapshotsResponse so we
+//  1.could not get groupsnapshotId from DescribeSnpshots API response
+//  2.could not get volumesnapshot name from ListSnapshotsRequest
+// this will cause:
+// volumesnapshot leased in cluster when volumegroupsnaoshot deleted,
+//   as status.volumeGroupSnapshotHandle is missing in volumesnapshotcontent,
+//   and "snapshot.storage.kubernetes.io/volumesnapshot-in-group-protection" finalizer
+//   will not be removed in checkandRemoveSnapshotFinalizersAndCheckandDeleteContent
+//   of external-csi-snapshotter
+// In current version, we try to get snapshotGroupId by description or name of snapshot
+func tryGetGroupSnapshotId(str string) string {
+	if !strings.HasPrefix(str, "Created from ssg-") {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(str, "Created from "))
+}
 
-	t, err := time.Parse(time.RFC3339, ecsSnapshot.CreationTime)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", ecsSnapshot.CreationTime)
+func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
+	// creationTime == "" if created by snapshotGroup
+	var creationTime *timestamp.Timestamp
+	if ecsSnapshot.CreationTime != "" {
+		t, err := time.Parse(time.RFC3339, ecsSnapshot.CreationTime)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", ecsSnapshot.CreationTime)
+		}
+		creationTime = &timestamp.Timestamp{Seconds: t.Unix()}
 	}
 	sizeGb, _ := strconv.ParseInt(ecsSnapshot.SourceDiskSize, 10, 64)
 	sizeBytes := utils.Gi2Bytes(sizeGb)
+	groupSnapshotId := tryGetGroupSnapshotId(ecsSnapshot.SnapshotName)
+	if groupSnapshotId == "" {
+		groupSnapshotId = tryGetGroupSnapshotId(ecsSnapshot.Description)
+	}
+
 	return &csi.Snapshot{
-		SnapshotId:     ecsSnapshot.SnapshotId,
-		SourceVolumeId: ecsSnapshot.SourceDiskId,
-		SizeBytes:      sizeBytes,
-		CreationTime:   &timestamppb.Timestamp{Seconds: t.Unix()},
-		ReadyToUse:     ecsSnapshot.Available,
+		SnapshotId:      ecsSnapshot.SnapshotId,
+		SourceVolumeId:  ecsSnapshot.SourceDiskId,
+		SizeBytes:       sizeBytes,
+		CreationTime:    creationTime,
+		ReadyToUse:      ecsSnapshot.Available,
+		GroupSnapshotId: groupSnapshotId,
 	}, nil
 }
 
@@ -965,7 +1005,7 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 	if err != nil {
 		klog.Errorf("ControllerExpandVolume:: volumeExpandAutoSnapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", volumeExpandAutoSnapshotName, sourceVolumeID, err.Error())
 		cs.recorder.Event(pvc, v1.EventTypeWarning, snapshotCreateError, err.Error())
-		return nil, status.Errorf(codes.Internal, "volumeExpandAutoSnapshot create Failed: %v", err)
+		return nil, status.Errorf(codes.Internal, "volumeExpandAutoSnapshot create failed: %v", err)
 	}
 
 	str := fmt.Sprintf("ControllerExpandVolume:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", volumeExpandAutoSnapshotName, sourceVolumeID, snapshotResponse.SnapshotId)

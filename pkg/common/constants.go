@@ -23,6 +23,9 @@ const (
 const (
 	VolumeSnapshotNamespaceKey = "csi.storage.k8s.io/volumesnapshot/namespace"
 	VolumeSnapshotNameKey      = "csi.storage.k8s.io/volumesnapshot/name"
+
+	VolumeGroupSnapshotNamespaceKey = "csi.storage.k8s.io/volumegroupsnapshot/namespace"
+	VolumeGroupSnapshotNameKey      = "csi.storage.k8s.io/volumegroupsnapshot/name"
 )
 
 const (
@@ -53,4 +56,7 @@ const (
 const (
 	VolumeSnapshotNameTag      = "csi.alibabacloud.com/snapshot/name"
 	VolumeSnapshotNamespaceTag = "csi.alibabacloud.com/snapshot/namespace"
+
+	VolumeGroupSnapshotNameTag      = "csi.alibabacloud.com/group-snapshot/name"
+	VolumeGroupSnapshotNamespaceTag = "csi.alibabacloud.com/group-snapshot/namespace"
 )
