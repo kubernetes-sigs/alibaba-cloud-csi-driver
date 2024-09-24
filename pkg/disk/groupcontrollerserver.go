@@ -196,12 +196,9 @@ func (cs *groupControllerServer) DeleteVolumeGroupSnapshot(ctx context.Context, 
 	existsGroupSnapshots, err := findSnapshotGroup("", groupSnapshotId)
 	if err != nil {
 		var aliErr *alicloudErr.ServerError
-		if errors.As(err, &aliErr) {
-			switch aliErr.ErrorCode() {
-			case SnapshotNotFound:
-				log.Infof("DeleteVolumeGroupSnapshot: groupSnapshot[%s] do not exist, return successful", groupSnapshotId)
-				return &csi.DeleteVolumeGroupSnapshotResponse{}, nil
-			}
+		if errors.As(err, &aliErr) && aliErr.ErrorCode() == SnapshotNotFound {
+			log.Infof("DeleteVolumeGroupSnapshot: groupSnapshot[%s] do not exist, return successful", groupSnapshotId)
+			return &csi.DeleteVolumeGroupSnapshotResponse{}, nil
 		}
 		return nil, err
 	}

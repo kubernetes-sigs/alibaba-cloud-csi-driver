@@ -808,10 +808,10 @@ func newListSnapshotsResponse(snapshots []ecs.Snapshot, nextToken string) (*csi.
 //   of external-csi-snapshotter
 // In current version, we try to get snapshotGroupId by description or name of snapshot
 func tryGetGroupSnapshotId(str string) string {
-	if !strings.HasPrefix(str, "Created from ssg-") {
+	if !strings.HasPrefix(str, "Created_from_ssg-") {
 		return ""
 	}
-	return strings.TrimSpace(strings.TrimPrefix(str, "Created from "))
+	return strings.TrimSpace(strings.TrimPrefix(str, "Created_from_"))
 }
 
 func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
