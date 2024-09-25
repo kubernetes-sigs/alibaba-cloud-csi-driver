@@ -68,6 +68,21 @@ func getRRSAConfig(opt *Options, m metadata.MetadataProvider) (rrsaCfg *mounter.
 	return &mounter.RrsaConfig{ServiceAccountName: saName, OidcProviderArn: oidcProviderArn, RoleArn: roleArn}, nil
 }
 
+// getSTSEndpoint get STS endpoint
+func getSTSEndpoint(region string) (endpoint string) {
+
+	// for PrivateCloud
+	if os.Getenv("STS_ENDPOINT") != "" {
+		endpoint = os.Getenv("STS_ENDPOINT")
+		return
+	}
+
+	if region == "" {
+		return "https://sts.aliyuncs.com"
+	}
+	return fmt.Sprintf("https://sts-vpc.%s.aliyuncs.com", region)
+}
+
 // parseOtherOpts extracts mount options from parameters.otherOpts string.
 // example: "-o max_stat_cache_size=0 -o allow_other -ogid=1000,uid=1000" => {"max_stat_cache_size=0", "allow_other", "uid=1000", "gid=1000"}
 func parseOtherOpts(otherOpts string) (mountOptions []string, err error) {

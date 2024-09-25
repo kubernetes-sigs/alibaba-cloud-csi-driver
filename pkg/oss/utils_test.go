@@ -341,3 +341,44 @@ func Test_validateEndpoint(t *testing.T) {
 		})
 	}
 }
+
+func Test_getSTSEndpoint(t *testing.T) {
+	tests := []struct {
+		name        string
+		region      string
+		envEndpoint string
+		expected    string
+	}{
+		{
+			name:        "region and env are both empty",
+			region:      "",
+			envEndpoint: "",
+			expected:    "https://sts.aliyuncs.com",
+		},
+		{
+			name:        "env is empty",
+			region:      "cn-beijing",
+			envEndpoint: "",
+			expected:    "https://sts-vpc.cn-beijing.aliyuncs.com",
+		},
+		{
+			name:        "With STS_ENDPOINT environment variable",
+			region:      "cn-hangzhou",
+			envEndpoint: "sts-vpc.cn-beijing.aliyuncs.com",
+			expected:    "sts-vpc.cn-beijing.aliyuncs.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envEndpoint != "" {
+				t.Setenv("STS_ENDPOINT", tt.envEndpoint)
+			}
+
+			endpoint := getSTSEndpoint(tt.region)
+			if endpoint != tt.expected {
+				t.Errorf("Expected endpoint to be %s, got %s", tt.expected, endpoint)
+			}
+		})
+	}
+}

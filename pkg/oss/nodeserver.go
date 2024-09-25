@@ -514,11 +514,7 @@ func (o *Options) MakeMountOptionsAndAuthConfig(m metadata.MetadataProvider, vol
 		}
 		authCfg.RrsaConfig = rrsaCfg
 		region, _ := m.Get(metadata.RegionID)
-		if region == "" {
-			mountOptions = append(mountOptions, "rrsa_endpoint=https://sts.aliyuncs.com")
-		} else {
-			mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=https://sts-vpc.%s.aliyuncs.com", region))
-		}
+		mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=%s", getSTSEndpoint(region)))
 		if o.AssumeRoleArn != "" {
 			mountOptions = append(mountOptions, fmt.Sprintf("assume_role_arn=%s", o.AssumeRoleArn))
 			if o.ExternalId != "" {
