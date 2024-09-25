@@ -1,7 +1,6 @@
 package metric
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -26,9 +25,8 @@ var (
 )
 
 const (
-	// GBSIZE metrics
-	GBSIZE          = 1024 * 1024 * 1024
 	NFSMetricsCount = 16
+	GiBSize         = 1024 * 1024 * 1024
 )
 
 var (
@@ -161,10 +159,12 @@ type nfsInfo struct {
 }
 
 type nfsCapacityInfo struct {
-	TotalInodeCount int64 `json:"totalInodeCount"`
-	UsedInodeCount  int64 `json:"usedInodeCount"`
-	TotalSize       int64 `json:"totalSize"`
-	UsedSize        int64 `json:"usedSize"`
+	TotalInodeCount  int64  `json:"totalInodeCount"`
+	UsedInodeCount   int64  `json:"usedInodeCount"`
+	TotalSize        int64  `json:"totalSize"`
+	TotalSizeInBytes *int64 `json:"totalSizeInBytes"`
+	UsedSize         int64  `json:"usedSize"`
+	UsedSizeInBytes  *int64 `json:"usedSizeInBytes"`
 }
 
 type nfsStatCollector struct {
@@ -174,7 +174,7 @@ type nfsStatCollector struct {
 	lastPvStatsMap              sync.Map
 	clientSet                   *kubernetes.Clientset
 	crdClient                   dynamic.Interface
-	httpClient                  *HTTPClient
+	monitorClient               *StorageMonitorClient
 	recorder                    record.EventRecorder
 	alertSwtichSet              *hashset.Set
 	capacityPercentageThreshold float64
@@ -213,8 +213,6 @@ func NewNfsStatCollector() (Collector, error) {
 		log.Fatalf("Failed to create crd client: %v", err)
 	}
 
-	httpClient := NewHTTPClient()
-
 	alertSet, capacityPercentageThreshold := parseNfsThreshold(nfsDefaultsCapacityPercentageThreshold)
 
 	return &nfsStatCollector{
@@ -247,7 +245,7 @@ func NewNfsStatCollector() (Collector, error) {
 		clientSet:                   clientset,
 		crdClient:                   crdClient,
 		recorder:                    recorder,
-		httpClient:                  httpClient,
+		monitorClient:               NewStorageMonitorClient(clientset),
 		alertSwtichSet:              alertSet,
 		capacityPercentageThreshold: capacityPercentageThreshold,
 	}, nil
@@ -423,22 +421,13 @@ func addNfsStat(pvNameStatMapping *map[string][]string, mountPath string, operat
 }
 
 func getNfsCapacityStat(pvName string, info nfsInfo, p *nfsStatCollector) ([]string, error) {
-	response, err := p.httpClient.Get("multi-cnfs-nas", pvName)
+	capacityInfo, err := p.monitorClient.GetNasCapacityInfo(pvName)
 	if err != nil {
 		return nil, err
 	}
-	body := p.httpClient.ReadBody(response)
-	defer p.httpClient.Close(response)
-	m := make(map[string]nfsCapacityInfo, 0)
-	err = json.Unmarshal([]byte(body), &m)
-	if err != nil {
-		return nil, fmt.Errorf("parse response: %w", err)
-	}
-	value, ok := m[pvName]
-	if ok && value.TotalSize != -1 && value.UsedSize != -1 {
-		p.capacityEventAlert(value.TotalSize, value.UsedSize, pvName, info)
-		total := value.TotalSize * GBSIZE
-		used := value.UsedSize * GBSIZE
+	if capacityInfo != nil && capacityInfo.TotalSize != -1 && capacityInfo.UsedSize != -1 {
+		total, used := getTotalAndUsedSize(capacityInfo)
+		p.capacityEventAlert(total, used, pvName, info)
 		return []string{
 			strconv.FormatInt(total, 10),
 			strconv.FormatInt(used, 10),
@@ -450,9 +439,17 @@ func getNfsCapacityStat(pvName string, info nfsInfo, p *nfsStatCollector) ([]str
 	return nil, errors.New("capacity metrics from storage-monitor missing or invalid")
 }
 
+func getTotalAndUsedSize(info *nfsCapacityInfo) (int64, int64) {
+	if info.TotalSizeInBytes != nil && info.UsedSizeInBytes != nil {
+		return *info.TotalSizeInBytes, *info.UsedSizeInBytes
+	}
+	return info.TotalSize * GiBSize, info.UsedSize * GiBSize
+}
+
 func (p *nfsStatCollector) capacityEventAlert(totalSize int64, usedSize int64, pvName string, info nfsInfo) {
+	total, used, gibSize := float64(totalSize), float64(usedSize), float64(GiBSize)
 	if p.alertSwtichSet.Contains(capacitySwitch) {
-		usedPercentage := (float64(usedSize) / float64(totalSize)) * 100
+		usedPercentage := 100 * used / total
 		if usedPercentage >= float64(p.capacityPercentageThreshold) {
 			ref := &v1.ObjectReference{
 				Kind:      "PersistentVolumeClaim",
@@ -460,8 +457,8 @@ func (p *nfsStatCollector) capacityEventAlert(totalSize int64, usedSize int64, p
 				UID:       "",
 				Namespace: info.PvcNamespace,
 			}
-			reason := fmt.Sprintf("Pvc %s is not enough disk space, namespace: %s, totalSize:%dGi, usedSize:%dGi, usedPercentage:%.2f%%, threshold:%.2f%%",
-				info.PvcName, info.PvcNamespace, totalSize, usedSize, usedPercentage, p.capacityPercentageThreshold)
+			reason := fmt.Sprintf("Pvc %s is running out of disk space, namespace: %s, totalSize:%fGi, usedSize:%fGi, usedPercentage:%.2f%%, threshold:%.2f%%",
+				info.PvcName, info.PvcNamespace, total/gibSize, used/gibSize, usedPercentage, p.capacityPercentageThreshold)
 			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, capacityNotEnough, reason)
 		}
 	}
