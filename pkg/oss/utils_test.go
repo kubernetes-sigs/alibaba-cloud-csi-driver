@@ -17,6 +17,7 @@ limitations under the License.
 package oss
 
 import (
+	"os"
 	"reflect"
 	"testing"
 
@@ -275,6 +276,87 @@ func Test_setTransmissionProtocol(t *testing.T) {
 			if url != tt.wantURL || done != tt.wantModified {
 				t.Errorf("setTransmissionProtocol(%v) = %v, %v, want %v %v",
 					tt.originURL, url, done, tt.wantURL, tt.wantModified)
+			}
+		})
+	}
+}
+
+func setPrivateCloud(privateCloud bool) {
+	if privateCloud {
+		os.Setenv("PRIVATE_CLOUD_TAG", "true")
+		return
+	}
+	os.Setenv("PRIVATE_CLOUD_TAG", "false")
+}
+
+func Test_translateDomainToEndpoint(t *testing.T) {
+	testCases := []struct {
+		name      string
+		originURL string
+		bucket    string
+		isPrivate bool
+		expected  string
+		modified  bool
+	}{
+		{
+			name:      "origin-url-is-not-domain-with-protocol",
+			originURL: "http://oss-cn-beijing.aliyuncs.com",
+			bucket:    "my-bucket",
+			isPrivate: false,
+			expected:  "http://oss-cn-beijing.aliyuncs.com",
+			modified:  false,
+		},
+		{
+			name:      "origin-url-is-not-domain-without-protocol",
+			originURL: "oss-cn-beijing.aliyuncs.com",
+			bucket:    "my-bucket",
+			isPrivate: false,
+			expected:  "oss-cn-beijing.aliyuncs.com",
+			modified:  false,
+		},
+		{
+			name:      "origin-url-is-domain-with-protocol",
+			originURL: "https://my-bucket.oss-cn-beijing.aliyuncs.com",
+			bucket:    "my-bucket",
+			isPrivate: false,
+			expected:  "https://oss-cn-beijing.aliyuncs.com",
+			modified:  true,
+		},
+		{
+			name:      "origin-url-is-domain-without-protocol",
+			originURL: "my-bucket.oss-cn-beijing.aliyuncs.com",
+			bucket:    "my-bucket",
+			isPrivate: false,
+			expected:  "oss-cn-beijing.aliyuncs.com",
+			modified:  true,
+		},
+		{
+			name:      "origin-url-is-invalid",
+			originURL: "tcp://my-bucket.oss-accelerate.aliyuncs.com",
+			bucket:    "my-bucket",
+			isPrivate: false,
+			expected:  "tcp://my-bucket.oss-accelerate.aliyuncs.com",
+			modified:  false,
+		},
+		{
+			name:      "private-cloud",
+			originURL: "my-bucket.oss-cn-beijing.aliyuncs.com",
+			bucket:    "my-bucket",
+			isPrivate: true,
+			expected:  "my-bucket.oss-cn-beijing.aliyuncs.com",
+			modified:  false,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			setPrivateCloud(tt.isPrivate)
+			url, modified := translateDomainToEndpoint(tt.originURL, tt.bucket)
+			if url != tt.expected {
+				t.Errorf("Expected URL to be %s, got %s", tt.expected, url)
+			}
+			if modified != tt.modified {
+				t.Errorf("Expected modified to be %v, got %v", tt.modified, modified)
 			}
 		})
 	}

@@ -145,3 +145,29 @@ func setTransmissionProtocol(originURL string) (URL string, modified bool) {
 	}
 	return "https://" + URL, true
 }
+
+// translateDomainToEndpoint will trim the prefix with "bucket." to
+//
+//	translate the bucket domain name like: bucket.oss-cn-beijing.aliyuncs.com
+//	to endpoint like: oss-cn-beijing.aliyuncs.com
+func translateDomainToEndpoint(originURL, bucket string) (URL string, modified bool) {
+	URL = originURL
+	if utils.IsPrivateCloud() {
+		return
+	}
+	var protocol string
+	t := URL
+	switch {
+	case strings.HasPrefix(URL, "http://"):
+		t = strings.TrimPrefix(URL, "http://")
+		protocol = "http://"
+	case strings.HasPrefix(URL, "https://"):
+		t = strings.TrimPrefix(URL, "https://")
+		protocol = "https://"
+	}
+	if strings.HasPrefix(t, bucket+".") {
+		URL = protocol + strings.TrimPrefix(t, bucket+".")
+		modified = true
+	}
+	return
+}

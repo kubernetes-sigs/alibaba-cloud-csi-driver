@@ -439,6 +439,7 @@ func parseOptions(req publishRequest, region string) *Options {
 	if region != "" {
 		url, _ = setNetworkType(url, region)
 	}
+	url, _ = translateDomainToEndpoint(url, opts.Bucket)
 	url, _ = setTransmissionProtocol(url)
 	if url != opts.URL {
 		klog.Infof("Changed oss URL from %s to %s", opts.URL, url)
