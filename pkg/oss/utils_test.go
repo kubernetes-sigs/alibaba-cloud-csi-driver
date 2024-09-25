@@ -351,6 +351,7 @@ func Test_translateDomainToEndpoint(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			setPrivateCloud(tt.isPrivate)
+			defer os.Unsetenv("PRIVATE_CLOUD_TAG")
 			url, modified := translateDomainToEndpoint(tt.originURL, tt.bucket)
 			if url != tt.expected {
 				t.Errorf("Expected URL to be %s, got %s", tt.expected, url)
