@@ -59,6 +59,7 @@ const (
 const (
 	SnapshotStatusAccomplished = "accomplished"
 	DiskMultiAttachDisabled    = "Disabled"
+	DiskMultiAttachEnabled     = "Enabled"
 )
 
 // attach alibaba cloud disk

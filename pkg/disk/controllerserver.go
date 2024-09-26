@@ -797,23 +797,6 @@ func newListSnapshotsResponse(snapshots []ecs.Snapshot, nextToken string) (*csi.
 	}, nil
 }
 
-// TODO: groupSnapshotId is missing in ListSnapshotsResponse so we
-//  1.could not get groupsnapshotId from DescribeSnpshots API response
-//  2.could not get volumesnapshot name from ListSnapshotsRequest
-// this will cause:
-// volumesnapshot leased in cluster when volumegroupsnaoshot deleted,
-//   as status.volumeGroupSnapshotHandle is missing in volumesnapshotcontent,
-//   and "snapshot.storage.kubernetes.io/volumesnapshot-in-group-protection" finalizer
-//   will not be removed in checkandRemoveSnapshotFinalizersAndCheckandDeleteContent
-//   of external-csi-snapshotter
-// In current version, we try to get snapshotGroupId by description or name of snapshot
-func tryGetGroupSnapshotId(str string) string {
-	if !strings.HasPrefix(str, "Created_from_ssg-") {
-		return ""
-	}
-	return strings.TrimSpace(strings.TrimPrefix(str, "Created_from_"))
-}
-
 func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 	// creationTime == "" if created by snapshotGroup
 	var creationTime *timestamp.Timestamp
