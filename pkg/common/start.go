@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"google.golang.org/grpc"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
 
@@ -43,8 +45,10 @@ func RunCSIServer(driverType, endpoint string, ids csi.IdentityServer, cs csi.Co
 		klog.Fatalf("Failed to listen: %v", err)
 	}
 
+	config := options.MustGetRestConfig()
+	clientset := kubernetes.NewForConfigOrDie(config)
 	instrumentClosure := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		return instrumentGRPC(ctx, req, info, handler, driverType)
+		return instrumentGRPC(ctx, req, info, handler, driverType, clientset)
 	}
 
 	opts := []grpc.ServerOption{
