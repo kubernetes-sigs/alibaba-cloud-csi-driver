@@ -19,20 +19,19 @@ const (
 	DISKTAGVALUE2 = "alibabacloud-csi-plugin"
 	// DISKTAGKEY3 key
 	DISKTAGKEY3 = "ack.aliyun.com"
-	// SNAPSHOTFORCETAG tag
-	SNAPSHOTFORCETAG = "forceDelete"
-	// SNAPSHOTTAGKEY1 tag
+	// ECS snapshot tag from old version, keep it for compatibility
 	SNAPSHOTTAGKEY1 = "force.delete.snapshot.k8s.aliyun.com"
-	// SNAPSHOTTYPE ...
-	SNAPSHOTTYPE = "snapshotType"
-	// INSTANTACCESS ...
-	INSTANTACCESS = "InstantAccess"
-	// RETENTIONDAYS ...
-	RETENTIONDAYS = "retentionDays"
-	// INSTANTACCESSRETENTIONDAYS ...
+)
+
+// keys used in CreateSnapshotRequest.Parameters
+const (
+	SNAPSHOTTYPE               = "snapshotType"
+	RETENTIONDAYS              = "retentionDays"
 	INSTANTACCESSRETENTIONDAYS = "instantAccessRetentionDays"
-	// SNAPSHOTRESOURCEGROUPID ...
-	SNAPSHOTRESOURCEGROUPID = "resourceGroupId"
+	SNAPSHOTRESOURCEGROUPID    = "resourceGroupId"
+)
+
+const (
 	// DiskSnapshotID means snapshot id
 	DiskSnapshotID = "csi.alibabacloud.com/disk-snapshot-id"
 	// VolumeSnapshotNamespace namespace

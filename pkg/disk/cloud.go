@@ -784,29 +784,29 @@ func DescribeDiskInstanceEvents(instanceId string, ecsClient *ecs.Client) (event
 	return
 }
 
-func requestAndCreateSnapshot(ecsClient *ecs.Client, sourceVolumeID, snapshotName, resourceGroupID string, retentionDays, instantAccessRetentionDays int,
-	instantAccess, forceDelete bool) (*ecs.CreateSnapshotResponse, error) {
+type createSnapshotParams struct {
+	SourceVolumeID  string
+	SnapshotName    string
+	ResourceGroupID string
+	RetentionDays   int
+}
+
+func requestAndCreateSnapshot(ecsClient *ecs.Client, params *createSnapshotParams) (*ecs.CreateSnapshotResponse, error) {
 	// init createSnapshotRequest and parameters
 	createSnapshotRequest := ecs.CreateCreateSnapshotRequest()
-	createSnapshotRequest.DiskId = sourceVolumeID
-	createSnapshotRequest.SnapshotName = snapshotName
-	createSnapshotRequest.InstantAccess = requests.NewBoolean(instantAccess)
-	createSnapshotRequest.InstantAccessRetentionDays = requests.NewInteger(instantAccessRetentionDays)
-	if retentionDays != -1 {
-		createSnapshotRequest.RetentionDays = requests.NewInteger(retentionDays)
+	createSnapshotRequest.DiskId = params.SourceVolumeID
+	createSnapshotRequest.SnapshotName = params.SnapshotName
+	if params.RetentionDays != 0 {
+		createSnapshotRequest.RetentionDays = requests.NewInteger(params.RetentionDays)
 	}
-	if resourceGroupID != "" {
-		createSnapshotRequest.ResourceGroupId = resourceGroupID
-	}
+	createSnapshotRequest.ResourceGroupId = params.ResourceGroupID
 
 	// Set tags
 	snapshotTags := []ecs.CreateSnapshotTag{}
 	tag1 := ecs.CreateSnapshotTag{Key: DISKTAGKEY2, Value: DISKTAGVALUE2}
 	snapshotTags = append(snapshotTags, tag1)
-	if forceDelete {
-		tag2 := ecs.CreateSnapshotTag{Key: SNAPSHOTTAGKEY1, Value: "true"}
-		snapshotTags = append(snapshotTags, tag2)
-	}
+	tag2 := ecs.CreateSnapshotTag{Key: SNAPSHOTTAGKEY1, Value: "true"}
+	snapshotTags = append(snapshotTags, tag2)
 	createSnapshotRequest.Tag = &snapshotTags
 
 	// Do Snapshot create
@@ -817,13 +817,11 @@ func requestAndCreateSnapshot(ecsClient *ecs.Client, sourceVolumeID, snapshotNam
 	return snapshotResponse, nil
 }
 
-func requestAndDeleteSnapshot(snapshotID string, forceDelete bool) (*ecs.DeleteSnapshotResponse, error) {
+func requestAndDeleteSnapshot(snapshotID string) (*ecs.DeleteSnapshotResponse, error) {
 	// Delete Snapshot
 	deleteSnapshotRequest := ecs.CreateDeleteSnapshotRequest()
 	deleteSnapshotRequest.SnapshotId = snapshotID
-	if forceDelete {
-		deleteSnapshotRequest.Force = requests.NewBoolean(true)
-	}
+	deleteSnapshotRequest.Force = requests.NewBoolean(true)
 	response, err := GlobalConfigVar.EcsClient.DeleteSnapshot(deleteSnapshotRequest)
 	if err != nil {
 		return response, status.Errorf(codes.Internal, "failed delete snapshot: %v", err)
