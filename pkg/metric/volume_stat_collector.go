@@ -5,42 +5,45 @@ import "github.com/prometheus/client_golang/prometheus"
 const (
 	VolumeStatsCollectorName = "volume_stats"
 	VolumeStatsLabelType     = "type"
-	VolumeStatsLabelId       = "id"
 	VolumeStatsLabelCode     = "error_code"
 )
 
-var volumeStatLabels = []string{VolumeStatsLabelType, VolumeStatsLabelId, VolumeStatsLabelCode}
+var volumeStatLabels = []string{VolumeStatsLabelType, VolumeStatsLabelCode}
 
 type VolumeStatType uint8
 
 type volumeStatCollector struct {
-	Metrics map[VolumeStatType]*prometheus.HistogramVec
+	AttachmentCountMetric     *prometheus.CounterVec
+	AttachmentTimeTotalMetric *prometheus.CounterVec
 }
 
 const VolumeAttachTimeStat VolumeStatType = 0
 
 var VolumeStatCollector = volumeStatCollector{
-	Metrics: map[VolumeStatType]*prometheus.HistogramVec{
-		VolumeAttachTimeStat: prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Namespace: nodeNamespace,
-			Subsystem: volumeSubsystem,
-			Name:      "attachment_time",
-			Help:      "Volume attachment time.",
-		}, volumeStatLabels),
-	},
+	AttachmentCountMetric: prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: nodeNamespace,
+		Subsystem: volumeSubsystem,
+		Name:      "attachment_count",
+		Help:      "Volume attachment count.",
+	}, volumeStatLabels),
+	AttachmentTimeTotalMetric: prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: nodeNamespace,
+		Subsystem: volumeSubsystem,
+		Name:      "attachment_time_total",
+		Help:      "Volume attachment time in total.",
+	}, volumeStatLabels),
 }
 
 func init() {
-	registerCollector(VolumeStatsCollectorName, NewVolumeStatCollector, diskDriverName, nasDriverName, ossDriverName)
+	registerCollector(VolumeStatsCollectorName, GetVolumeStatCollector, diskDriverName, nasDriverName, ossDriverName)
 }
 
-func NewVolumeStatCollector() (Collector, error) {
+func GetVolumeStatCollector() (Collector, error) {
 	return &VolumeStatCollector, nil
 }
 
 func (c *volumeStatCollector) Update(ch chan<- prometheus.Metric) error {
-	for _, metric := range c.Metrics {
-		metric.Collect(ch)
-	}
+	c.AttachmentCountMetric.Collect(ch)
+	c.AttachmentTimeTotalMetric.Collect(ch)
 	return nil
 }

@@ -6,36 +6,43 @@ const (
 	CsiGrpcExecTimeCollectorName = "csi_grpc_exec_time"
 	CsiGrpcExecTimeLabelMethod   = "method"
 	CsiGrpcExecTimeLabelType     = "type"
-	CsiGrpcExecTimeLabelId       = "id"
 	CsiGrpcExecTimeLabelCode     = "code"
 )
 
 var csiGrpcExecTimeLabels = []string{
-	CsiGrpcExecTimeLabelMethod, CsiGrpcExecTimeLabelType, CsiGrpcExecTimeLabelId, CsiGrpcExecTimeLabelCode,
+	CsiGrpcExecTimeLabelMethod, CsiGrpcExecTimeLabelType, CsiGrpcExecTimeLabelCode,
 }
 
 type csiGrpcExecTimeCollector struct {
-	Metric *prometheus.HistogramVec
+	ExecCountMetric     *prometheus.CounterVec
+	ExecTimeTotalMetric *prometheus.CounterVec
 }
 
 var CsiGrpcExecTimeCollector = csiGrpcExecTimeCollector{
-	Metric: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+	ExecCountMetric: prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: csiNamespace,
 		Subsystem: grpcSubsystem,
-		Name:      "execution_time",
-		Help:      "Csi grpc execution time.",
+		Name:      "execution_count",
+		Help:      "CSI grpc execution count.",
+	}, csiGrpcExecTimeLabels),
+	ExecTimeTotalMetric: prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: csiNamespace,
+		Subsystem: grpcSubsystem,
+		Name:      "execution_time_total",
+		Help:      "CSI grpc execution time in total.",
 	}, csiGrpcExecTimeLabels),
 }
 
 func init() {
-	registerCollector(CsiGrpcExecTimeCollectorName, NewCsiGrpcExecTimeCollector, diskDriverName, nasDriverName, ossDriverName)
+	registerCollector(CsiGrpcExecTimeCollectorName, GetCsiGrpcExecTimeCollector, diskDriverName, nasDriverName, ossDriverName)
 }
 
-func NewCsiGrpcExecTimeCollector() (Collector, error) {
+func GetCsiGrpcExecTimeCollector() (Collector, error) {
 	return &CsiGrpcExecTimeCollector, nil
 }
 
 func (c *csiGrpcExecTimeCollector) Update(ch chan<- prometheus.Metric) error {
-	c.Metric.Collect(ch)
+	c.ExecCountMetric.Collect(ch)
+	c.ExecTimeTotalMetric.Collect(ch)
 	return nil
 }
