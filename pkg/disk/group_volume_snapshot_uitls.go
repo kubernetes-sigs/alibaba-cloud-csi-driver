@@ -169,10 +169,45 @@ func ifExistsGroupSnapshotMatch(existsGroupSnapshot *ecs.SnapshotGroup, snapshot
 	return matach
 }
 
+// checkSourceVolumes checks whether a single source volume is valid.
+func checkSourceVolume(disk *ecs.Disk, zoneId string, capacityInGiB int) (
+	nZoneId string, nCapacityInGiB int, err error) {
+	nZoneId = zoneId
+	nCapacityInGiB = capacityInGiB
+
+	switch disk.Category {
+	case string(DiskESSD), string(DiskESSDAuto):
+	default:
+		err = fmt.Errorf("groupSnapshot only support ESSD disks, but disk %s is %v", disk.DiskId, disk.Category)
+		return
+	}
+
+	if nZoneId == "" {
+		nZoneId = disk.ZoneId
+	}
+	if nZoneId != disk.ZoneId {
+		err = fmt.Errorf("groupSnapshot only support disks from one zone, but get disks from %s and %s", zoneId, disk.ZoneId)
+		return
+	}
+
+	if disk.MultiAttach != DiskMultiAttachDisabled {
+		err = fmt.Errorf("groupSnapshot do not support multiAttached disk, but disk %s enables multiAttached", disk.DiskId)
+		return
+	}
+
+	nCapacityInGiB += disk.Size
+	if nCapacityInGiB > MaxCapacityInGiB {
+		err = fmt.Errorf("total capacity is larger than %d", MaxCapacityInGiB)
+		return
+	}
+	return
+}
+
 // checkSourceVolumes checks whether the source volumes are valid.
 func checkSourceVolumes(sourceVolumeIds []string) error {
 	var zoneId string
 	var capacityInGiB int
+	var err error
 	for _, sourceVolumeId := range sourceVolumeIds {
 		disks := getDisk(sourceVolumeId, GlobalConfigVar.EcsClient)
 		switch len(disks) {
@@ -183,25 +218,9 @@ func checkSourceVolumes(sourceVolumeIds []string) error {
 			return fmt.Errorf("multi disk found: %s", sourceVolumeId)
 		}
 
-		switch disks[0].Category {
-		case string(DiskESSD), string(DiskESSDAuto):
-		default:
-			return fmt.Errorf("groupSnapshot only support ESSD disks, but disk %s is %v", sourceVolumeId, disks[0].Category)
-		}
-
-		if zoneId == "" {
-			zoneId = disks[0].ZoneId
-		} else if zoneId != disks[0].ZoneId {
-			return fmt.Errorf("groupSnapshot only support disks from one zone, but get disks from %s and %s", zoneId, disks[0].ZoneId)
-		}
-
-		if disks[0].MultiAttach != DiskMultiAttachDisabled {
-			return fmt.Errorf("groupSnapshot do not support multiAttached disk, but disk %s enables multiAttached", sourceVolumeId)
-		}
-
-		capacityInGiB += disks[0].Size
-		if capacityInGiB > MaxCapacityInGiB {
-			return fmt.Errorf("total capacity is larger than %d", MaxCapacityInGiB)
+		zoneId, capacityInGiB, err = checkSourceVolume(&disks[0], zoneId, capacityInGiB)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -216,4 +235,25 @@ func requestAndDeleteGroupSnapshot(groupSnapshotID string) (*ecs.DeleteSnapshotG
 		return response, err
 	}
 	return response, nil
+}
+
+// TODO: groupSnapshotId is missing in ListSnapshotsResponse so we
+//
+//	1.could not get groupsnapshotId from DescribeSnpshots API response
+//	2.could not get volumesnapshot name from ListSnapshotsRequest
+//
+// this will cause:
+// volumesnapshot leased in cluster when volumegroupsnaoshot deleted,
+//
+//	as status.volumeGroupSnapshotHandle is missing in volumesnapshotcontent,
+//	and "snapshot.storage.kubernetes.io/volumesnapshot-in-group-protection" finalizer
+//	will not be removed in checkandRemoveSnapshotFinalizersAndCheckandDeleteContent
+//	of external-csi-snapshotter
+//
+// In current version, we try to get snapshotGroupId by description or name of snapshot
+func tryGetGroupSnapshotId(str string) string {
+	if !strings.HasPrefix(str, "Created_from_ssg-") {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(str, "Created_from_"))
 }
