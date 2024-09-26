@@ -13,12 +13,12 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -42,7 +42,7 @@ func NewGroupControllerServer() csi.GroupControllerServer {
 	if intervalStr != "" {
 		interval, err := strconv.ParseInt(intervalStr, 10, 64)
 		if err != nil {
-			log.Fatalf("Input SnapshotRequestTag is illegal: %s", intervalStr)
+			klog.Fatalf("Input SnapshotRequestTag is illegal: %s", intervalStr)
 		}
 		SnapshotRequestInterval = interval
 	}
@@ -98,7 +98,7 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 		Namespace: groupSnapshotNamespace,
 	}
 
-	log.Infof("CreateVolumeGroupSnapshot:: Starting to create volumegroupsnapshot: %+v", req)
+	klog.Infof("CreateVolumeGroupSnapshot:: Starting to create volumegroupsnapshot: %+v", req)
 
 	sourceVolumeIds := req.GetSourceVolumeIds()
 	for index, id := range sourceVolumeIds {
@@ -111,7 +111,7 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 
 	// case 1: groupSnapshot with same name existes, but is failed or inprogress
 	if err != nil {
-		log.Errorf("CreateVolumeGroupSnapshot::  Snapshot already created: name[%s], and get error: %v", req.GetName(), err)
+		klog.Errorf("CreateVolumeGroupSnapshot::  Snapshot already created: name[%s], and get error: %v", req.GetName(), err)
 		e := status.Errorf(codes.Internal, "CreateVolumeGroupSnapshot: volumeGroupSnapshot with the same name: %s exists but with error: %s", req.GetName(), err.Error())
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
 		return nil, e
@@ -122,7 +122,7 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 		// check if snapshots in group match sourceVolumeIds for an accomplish volume group
 		match := ifExistsGroupSnapshotMatchSourceVolume(existsGroupSnapshot, sourceVolumeIds)
 		if !match {
-			log.Errorf("CreateVolumeGroupSnapshot:: GroupSnapshot already exist with same name: name[%s], but with different SourceVolumeIDs[%v]", req.Name, sourceVolumeIds)
+			klog.Errorf("CreateVolumeGroupSnapshot:: GroupSnapshot already exist with same name: name[%s], but with different SourceVolumeIDs[%v]", req.Name, sourceVolumeIds)
 			err := status.Errorf(codes.AlreadyExists, "groupSnapshot with the same name: %s but with different SourceVolumeIds already exist", req.GetName())
 			utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotAlreadyExist, err.Error())
 			return nil, err
@@ -131,7 +131,7 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 		if err != nil {
 			return nil, err
 		}
-		log.Infof("CreateVolumeGroupSnapshot:: GroupSnapshot already created: name[%s], sourceIds[%v], status[%v]", req.Name, sourceVolumeIds, groupSnapshot.ReadyToUse)
+		klog.Infof("CreateVolumeGroupSnapshot:: GroupSnapshot already created: name[%s], sourceIds[%v], status[%v]", req.Name, sourceVolumeIds, groupSnapshot.ReadyToUse)
 		if groupSnapshot.ReadyToUse {
 			utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotCreatedSuccessfully,
 				fmt.Sprintf("VolumeGroupSnapshot: name: %s, id: %s is ready to use.", req.GetName(), groupSnapshot.GroupSnapshotId))
@@ -145,7 +145,7 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 	// case 3: groupSnapshot with same name does not exist
 	// check groupsnapshot again, if ram has no auth to describe groupsnapshot, there will always 0 response.
 	if value, ok := createdGroupSnapshotMap[req.Name]; ok {
-		log.Infof("CreateVolumeGroupSnapshot:: groupSnapshot already created, Name: %s, Info: %v", req.Name, value)
+		klog.Infof("CreateVolumeGroupSnapshot:: groupSnapshot already created, Name: %s, Info: %v", req.Name, value)
 		return &csi.CreateVolumeGroupSnapshotResponse{
 			GroupSnapshot: value,
 		}, nil
@@ -153,7 +153,7 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 	// Check the status, AZ, type, whether it is multi-mounted of each disk, and the total capacity
 	err = checkSourceVolumes(sourceVolumeIds)
 	if err != nil {
-		log.Errorf("CreateVolumeGroupSnapshot:: source volumes do not meet the requirements for creating group snapshot, err: %v", err)
+		klog.Errorf("CreateVolumeGroupSnapshot:: source volumes do not meet the requirements for creating group snapshot, err: %v", err)
 		e := status.Errorf(codes.Internal, "CreateVolumeGroupSnapshot:: source volumes do not meet the requirements for creating group snapshot: %s", err.Error())
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
 		return nil, e
@@ -168,12 +168,12 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 	params.SnapshotName = req.GetName()
 	snapshotResponse, err := requestAndCreateSnapshotGroup(GlobalConfigVar.EcsClient, params)
 	if err != nil {
-		log.Errorf("CreateVolumeGroupSnapshot:: create groupSnapshot failed: snapshotName[%s], sourceIds[%v], error[%s]", req.GetName(), sourceVolumeIds, err.Error())
+		klog.Errorf("CreateVolumeGroupSnapshot:: create groupSnapshot failed: snapshotName[%s], sourceIds[%v], error[%s]", req.GetName(), sourceVolumeIds, err.Error())
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, err.Error())
 		return nil, err
 	}
 	str := fmt.Sprintf("CreateVolumeGroupSnapshot:: groupSnapshot create successful: snapshotName[%s], sourceIds[%s], snapshotGroupId[%s]", req.GetName(), sourceVolumeIds, snapshotResponse.SnapshotGroupId)
-	log.Infof(str)
+	klog.Infof(str)
 	csiSnapshot := &csi.VolumeGroupSnapshot{
 		GroupSnapshotId: snapshotResponse.SnapshotGroupId,
 		CreationTime:    createAt,
@@ -189,7 +189,7 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 func (cs *groupControllerServer) DeleteVolumeGroupSnapshot(ctx context.Context, req *csi.DeleteVolumeGroupSnapshotRequest) (*csi.DeleteVolumeGroupSnapshotResponse, error) {
 	groupSnapshotId := req.GetGroupSnapshotId()
 	snapshotIds := req.GetSnapshotIds()
-	log.Infof("DeleteVolumeGroupSnapshot:: starting delete group snapshot %s. snapshot ids: %v", groupSnapshotId, snapshotIds)
+	klog.Infof("DeleteVolumeGroupSnapshot:: starting delete group snapshot %s. snapshot ids: %v", groupSnapshotId, snapshotIds)
 
 	// Check if Snapshot exist
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
@@ -197,13 +197,13 @@ func (cs *groupControllerServer) DeleteVolumeGroupSnapshot(ctx context.Context, 
 	if err != nil {
 		var aliErr *alicloudErr.ServerError
 		if errors.As(err, &aliErr) && aliErr.ErrorCode() == SnapshotNotFound {
-			log.Infof("DeleteVolumeGroupSnapshot: groupSnapshot[%s] do not exist, return successful", groupSnapshotId)
+			klog.Infof("DeleteVolumeGroupSnapshot: groupSnapshot[%s] do not exist, return successful", groupSnapshotId)
 			return &csi.DeleteVolumeGroupSnapshotResponse{}, nil
 		}
 		return nil, err
 	}
 	if existsGroupSnapshots == nil {
-		log.Infof("DeleteVolumeGroupSnapshot: groupSnapshot[%s] do not exist, return successful", groupSnapshotId)
+		klog.Infof("DeleteVolumeGroupSnapshot: groupSnapshot[%s] do not exist, return successful", groupSnapshotId)
 		return &csi.DeleteVolumeGroupSnapshotResponse{}, nil
 	}
 
@@ -217,12 +217,12 @@ func (cs *groupControllerServer) DeleteVolumeGroupSnapshot(ctx context.Context, 
 	// part of snapshots may be deleted before
 	match := ifExistsGroupSnapshotMatch(existsGroupSnapshots, snapshotIds, false)
 	if !match {
-		log.Errorf("DeleteVolumeGroupSnapshot:: snapshots of GroupSnapshot to delete ID[%s], do not equal to requested snapshotIDs[%v]", req.GetGroupSnapshotId(), req.GetSnapshotIds())
+		klog.Errorf("DeleteVolumeGroupSnapshot:: snapshots of GroupSnapshot to delete ID[%s], do not equal to requested snapshotIDs[%v]", req.GetGroupSnapshotId(), req.GetSnapshotIds())
 		err := status.Errorf(codes.InvalidArgument, "snapshots of GroupSnapshot to delete ID[%s] do not equal to requested snapshotIDs", req.GetGroupSnapshotId())
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotDeleteError, err.Error())
 		return nil, err
 	}
-	log.Infof("DeleteVolumeGroupSnapshot: groupSnapshot %s exist with Info: %+v, %+v", groupSnapshotId, existsGroupSnapshots, err)
+	klog.Infof("DeleteVolumeGroupSnapshot: groupSnapshot %s exist with Info: %+v, %+v", groupSnapshotId, existsGroupSnapshots, err)
 
 	// no need to delete each snapshot through ECS client
 	response, err := requestAndDeleteGroupSnapshot(groupSnapshotId)
@@ -233,28 +233,28 @@ func (cs *groupControllerServer) DeleteVolumeGroupSnapshot(ctx context.Context, 
 	if err != nil {
 		var aliErr *alicloudErr.ServerError
 		if !errors.As(err, &aliErr) || aliErr.ErrorCode() != SnapshotNotFound {
-			log.Errorf("DeleteVolumeGroupSnapshot: failed to delete %s: with RequestId: %s, error: %s", groupSnapshotId, requestId, err.Error())
+			klog.Errorf("DeleteVolumeGroupSnapshot: failed to delete %s: with RequestId: %s, error: %s", groupSnapshotId, requestId, err.Error())
 			utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotDeleteError, err.Error())
 			return nil, err
 		}
-		log.Infof("DeleteVolumeGroupSnapshot: groupSnapshot[%s] do not exist, see as successful", groupSnapshotId)
+		klog.Infof("DeleteVolumeGroupSnapshot: groupSnapshot[%s] do not exist, see as successful", groupSnapshotId)
 	}
 	delete(createdGroupSnapshotMap, existsGroupSnapshots.Name)
 	str := fmt.Sprintf("DeleteVolumeGroupSnapshot:: Successfully delete groupSnapshot %s, requestId: %s", groupSnapshotId, requestId)
-	log.Info(str)
+	klog.Info(str)
 	utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
 	return &csi.DeleteVolumeGroupSnapshotResponse{}, nil
 }
 func (cs *groupControllerServer) GetVolumeGroupSnapshot(ctx context.Context, req *csi.GetVolumeGroupSnapshotRequest) (*csi.GetVolumeGroupSnapshotResponse, error) {
 	groupSnapshotId := req.GetGroupSnapshotId()
 	snapshotIds := req.GetSnapshotIds()
-	log.Infof("GetVolumeGroupSnapshot:: starting get group snapshot %s. snapshot ids: %v", groupSnapshotId, snapshotIds)
+	klog.Infof("GetVolumeGroupSnapshot:: starting get group snapshot %s. snapshot ids: %v", groupSnapshotId, snapshotIds)
 
 	// Check Snapshot exist
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	existsGroupSnapshots, err := findSnapshotGroup("", groupSnapshotId)
 	if err != nil {
-		log.Errorf("GetVolumeGroupSnapshot:: failed to find SnapshotGroup id %s: %v", req.GetGroupSnapshotId(), err)
+		klog.Errorf("GetVolumeGroupSnapshot:: failed to find SnapshotGroup id %s: %v", req.GetGroupSnapshotId(), err)
 		e := status.Errorf(codes.Internal, "GetVolumeGroupSnapshot:: failed to find Snapshot id %s: %v", req.GetGroupSnapshotId(), err.Error())
 		return nil, e
 	}
@@ -268,19 +268,19 @@ func (cs *groupControllerServer) GetVolumeGroupSnapshot(ctx context.Context, req
 	// part of snapshots may be deleted before, or still not created in inprogress status
 	match := ifExistsGroupSnapshotMatch(existsGroupSnapshots, snapshotIds, false)
 	if !match {
-		log.Errorf("GetVolumeGroupSnapshot:: snapshots of GroupSnapshot ID[%s], do not equal to requested snapshotIDs[%v]", req.GetGroupSnapshotId(), req.GetSnapshotIds())
+		klog.Errorf("GetVolumeGroupSnapshot:: snapshots of GroupSnapshot ID[%s], do not equal to requested snapshotIDs[%v]", req.GetGroupSnapshotId(), req.GetSnapshotIds())
 		err := status.Errorf(codes.InvalidArgument, "snapshots of GroupSnapshot ID[%s] do not equal to requested snapshotIDs", req.GetGroupSnapshotId())
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotGetError, err.Error())
 		return nil, err
 	}
-	log.Infof("GetVolumeGroupSnapshot: groupSnapshot %s exist with Info: %+v, %+v", groupSnapshotId, existsGroupSnapshots, err)
+	klog.Infof("GetVolumeGroupSnapshot: groupSnapshot %s exist with Info: %+v, %+v", groupSnapshotId, existsGroupSnapshots, err)
 	newGroupSnapshot, err := formatGroupSnapshot(existsGroupSnapshots)
 	if err != nil {
-		log.Errorf("GetVolumeGroupSnapshot:: format groupSnapshot %s failed %s", groupSnapshotId, err.Error())
+		klog.Errorf("GetVolumeGroupSnapshot:: format groupSnapshot %s failed %s", groupSnapshotId, err.Error())
 		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotGetError, err.Error())
 		return nil, err
 	}
-	log.Infof("GetVolumeGroupSnapshot:: get groupSnapshot %s successfully", groupSnapshotId)
+	klog.Infof("GetVolumeGroupSnapshot:: get groupSnapshot %s successfully", groupSnapshotId)
 	return &csi.GetVolumeGroupSnapshotResponse{
 		GroupSnapshot: newGroupSnapshot,
 	}, nil

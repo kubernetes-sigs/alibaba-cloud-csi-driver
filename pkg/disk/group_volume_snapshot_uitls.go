@@ -10,10 +10,10 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 func getVolumeGroupSnapshotConfig(req *csi.CreateVolumeGroupSnapshotRequest) (*createGroupSnapshotParams, error) {
@@ -21,7 +21,7 @@ func getVolumeGroupSnapshotConfig(req *csi.CreateVolumeGroupSnapshotRequest) (*c
 	if req.Parameters != nil {
 		err := parseGroupSnapshotParameters(req.Parameters, &ecsParams)
 		if err != nil {
-			log.Errorf("CreateSnapshot:: Snapshot name[%s], parse config failed: %v", req.Name, err)
+			klog.Errorf("CreateSnapshot:: Snapshot name[%s], parse config failed: %v", req.Name, err)
 			return nil, status.Errorf(codes.InvalidArgument, err.Error())
 		}
 	}
@@ -39,7 +39,7 @@ func getVolumeGroupSnapshotConfig(req *csi.CreateVolumeGroupSnapshotRequest) (*c
 	}
 	err = parseGroupSnapshotAnnotations(volumeGroupSnapshot.Annotations, &ecsParams)
 	if err != nil {
-		log.Errorf("CreateVolumeGroupSnapshot:: Snapshot name[%s], parse annotation failed: %v", req.Name, err)
+		klog.Errorf("CreateVolumeGroupSnapshot:: Snapshot name[%s], parse annotation failed: %v", req.Name, err)
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	return &ecsParams, nil
