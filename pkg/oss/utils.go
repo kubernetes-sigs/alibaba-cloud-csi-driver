@@ -69,12 +69,11 @@ func getRRSAConfig(opt *Options, m metadata.MetadataProvider) (rrsaCfg *mounter.
 }
 
 // getSTSEndpoint get STS endpoint
-func getSTSEndpoint(region string) (endpoint string) {
+func getSTSEndpoint(region string) string {
 
 	// for PrivateCloud
 	if os.Getenv("STS_ENDPOINT") != "" {
-		endpoint = os.Getenv("STS_ENDPOINT")
-		return
+		return os.Getenv("STS_ENDPOINT")
 	}
 
 	if region == "" {
