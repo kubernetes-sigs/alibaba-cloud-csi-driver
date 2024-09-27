@@ -35,6 +35,7 @@ import (
 	"strings"
 	"time"
 
+	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -268,14 +269,18 @@ func NewEcsClient(ac AccessControl) (ecsClient *ecs.Client) {
 
 // NewStsClient create a stsClient object
 func NewStsClient(ac AccessControl) (stsClient *sts.Client) {
+	regionID, _ := GetRegionID()
+	if ep := os.Getenv("STS_ENDPOINT"); ep != "" {
+		_ = aliyunep.AddEndpointMapping(regionID, "Sts", ep)
+	}
 	var err error
 	switch ac.UseMode {
 	case AccessKey:
-		stsClient, err = sts.NewClientWithAccessKey(DefaultRegion, ac.AccessKeyID, ac.AccessKeySecret)
+		stsClient, err = sts.NewClientWithAccessKey(regionID, ac.AccessKeyID, ac.AccessKeySecret)
 	case Credential:
-		stsClient, err = sts.NewClientWithOptions(DefaultRegion, ac.Config, ac.Credential)
+		stsClient, err = sts.NewClientWithOptions(regionID, ac.Config, ac.Credential)
 	default:
-		stsClient, err = sts.NewClientWithStsToken(DefaultRegion, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
+		stsClient, err = sts.NewClientWithStsToken(regionID, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
 
 	}
 
