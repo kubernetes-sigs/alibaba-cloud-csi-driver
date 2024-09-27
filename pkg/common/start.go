@@ -44,9 +44,6 @@ func ParseEndpoint(ep string) (string, string, error) {
 }
 
 func RunCSIServer(endpoint string, servers Servers) {
-	ns := WrapNodeServerWithValidator(servers.NodeServer)
-	cs := WrapControllerServerWithValidator(servers.ControllerServer)
-	gcs := WrapGroupControllerServerWithValidator(servers.GroupControllerServer)
 
 	proto, addr, err := ParseEndpoint(endpoint)
 	if err != nil {
@@ -73,14 +70,14 @@ func RunCSIServer(endpoint string, servers Servers) {
 	if servers.IdentityServer != nil {
 		csi.RegisterIdentityServer(server, servers.IdentityServer)
 	}
-	if cs != nil {
-		csi.RegisterControllerServer(server, cs)
+	if servers.ControllerServer != nil {
+		csi.RegisterControllerServer(server, WrapControllerServerWithValidator(servers.ControllerServer))
 	}
-	if ns != nil {
-		csi.RegisterNodeServer(server, ns)
+	if servers.NodeServer != nil {
+		csi.RegisterNodeServer(server, WrapNodeServerWithValidator(servers.NodeServer))
 	}
-	if gcs != nil {
-		csi.RegisterGroupControllerServer(server, gcs)
+	if servers.GroupControllerServer != nil {
+		csi.RegisterGroupControllerServer(server, WrapGroupControllerServerWithValidator(servers.GroupControllerServer))
 	}
 
 	klog.Infof("Listening for connections on address: %#v", listener.Addr())
