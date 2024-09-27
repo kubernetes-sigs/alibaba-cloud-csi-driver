@@ -360,8 +360,8 @@ func parseOptions(req publishRequest, region string) *Options {
 		UseSharedPath: true,
 		FuseType:      OssFsType,
 		Path:          "/",
-		AkID:          req.GetSecrets()[AkID],
-		AkSecret:      req.GetSecrets()[AkSecret],
+		AkID:          strings.TrimSpace(req.GetSecrets()[AkID]),
+		AkSecret:      strings.TrimSpace(req.GetSecrets()[AkSecret]),
 	}
 	for k, v := range req.GetVolumeContext() {
 		key := strings.TrimSpace(strings.ToLower(k))
