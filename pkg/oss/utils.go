@@ -146,28 +146,19 @@ func setTransmissionProtocol(originURL string) (URL string, modified bool) {
 	return "https://" + URL, true
 }
 
-// translateDomainToEndpoint will trim the prefix with "bucket." to
+// validateEndpoint will try to validate endpoint：
 //
-//	translate the bucket domain name like: bucket.oss-cn-beijing.aliyuncs.com
-//	to endpoint like: oss-cn-beijing.aliyuncs.com
-func translateDomainToEndpoint(originURL, bucket string) (URL string, modified bool) {
-	URL = originURL
+//	ban the bucket domain name like: bucket.oss-cn-beijing.aliyuncs.com
+func validateEndpoint(originURL, bucket string) error {
 	if utils.IsPrivateCloud() {
-		return
+		return nil
 	}
-	var protocol string
-	t := URL
-	switch {
-	case strings.HasPrefix(URL, "http://"):
-		t = strings.TrimPrefix(URL, "http://")
-		protocol = "http://"
-	case strings.HasPrefix(URL, "https://"):
-		t = strings.TrimPrefix(URL, "https://")
-		protocol = "https://"
+	if len(strings.Split(originURL, ".")) < 4 {
+		return nil
 	}
-	if strings.HasPrefix(t, bucket+".") {
-		URL = protocol + strings.TrimPrefix(t, bucket+".")
-		modified = true
+	woProtocol := strings.TrimPrefix(strings.TrimPrefix(originURL, "http://"), "https://")
+	if strings.HasPrefix(woProtocol, bucket+".") {
+		return fmt.Errorf("%s is a bucket domain name, please use endpoint instead", originURL)
 	}
-	return
+	return nil
 }
