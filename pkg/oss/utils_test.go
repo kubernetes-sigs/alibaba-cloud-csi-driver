@@ -17,7 +17,6 @@ limitations under the License.
 package oss
 
 import (
-	"os"
 	"reflect"
 	"testing"
 
@@ -311,10 +310,7 @@ func Test_getSTSEndpoint(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.envEndpoint != "" {
-				os.Setenv("STS_ENDPOINT", tt.envEndpoint)
-				defer os.Unsetenv("STS_ENDPOINT")
-			} else {
-				os.Unsetenv("STS_ENDPOINT")
+				t.Setenv("STS_ENDPOINT", tt.envEndpoint)
 			}
 
 			endpoint := getSTSEndpoint(tt.region)
