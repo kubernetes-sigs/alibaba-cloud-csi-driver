@@ -3,9 +3,9 @@
 
 English | [简体中文](./README-zh_CN.md)
 
-WARNING: Manual deployment of this driver to your ACK cluster is not recommended. Instead users should use ACK component center to automatically deploy and manage the [Alibaba Cloud CSI Driver](https://www.alibabacloud.com/help/en/ack/product-overview/csi-provisioner).
+WARNING: Deploying this driver to your ACK cluster manually is not recommended. Instead users should use ACK Add-ons to automatically deploy and manage the [Alibaba Cloud CSI Driver](https://www.alibabacloud.com/help/en/ack/product-overview/csi-plugin).
 
-DISCLAIMER: Manual deployment of the driver to your ACK cluster is not officially supported by AlibabaCloud.
+DISCLAIMER: Manual deployment of the driver in your ACK cluster is not officially supported by Alibaba Cloud.
 
 
 ## Introduction
