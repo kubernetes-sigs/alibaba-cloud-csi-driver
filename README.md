@@ -3,6 +3,11 @@
 
 English | [简体中文](./README-zh_CN.md)
 
+WARNING: Deploying this driver to your ACK cluster manually is not recommended. Instead users should use ACK Add-ons to automatically deploy and manage the [Alibaba Cloud CSI Driver](https://www.alibabacloud.com/help/en/ack/product-overview/csi-plugin).
+
+DISCLAIMER: Manual deployment of the driver in your ACK cluster is not officially supported by Alibaba Cloud.
+
+
 ## Introduction
 Alibaba Cloud CSI plugins implement an interface between CSI enabled Container
 Orchestrator and Alibaba Cloud Storage. It allows dynamically provision Disk
