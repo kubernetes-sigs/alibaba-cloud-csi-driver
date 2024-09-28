@@ -259,35 +259,6 @@ function install_package() {
     rm -f /host/etc/csi-tool/$1
 }
 
-if ([ "$DISK_BDF_ENABLE" = "true" ] && [ "$run_disk" = "true" ]) || [ "$run_pov" = "true" ]; then
-    isbdf="false"
-    for i in $(${HOST_CMD} lspci -D | grep "storage controller" | grep "1ded\|Alibaba" | awk '{print $1}' |  sed -n '/0$/p'); 
-    do 
-        out=`${HOST_CMD} lspci -s $i -v`;
-        if [[ $out == *"Single Root I/O Virtualization"* ]]; then
-            isbdf="true"
-            break
-        fi
-    done
-    export IS_BDF="$isbdf"
-    echo "isbdf node: $isbdf"
-    if [ $isbdf = "true" ]; then
-        echo "start install vfhp"
-        ${HOST_CMD} yum install -y "http://yum.tbsite.net/taobao/7/$ARCH/current/iohub-vfhp-helper/iohub-vfhp-helper-0.1.9-20231121192230.$ARCH.rpm"
-        if [ $? -ne 0 ]; then
-            ${HOST_CMD} yum install -y "https://iohub-vfhp-helper.oss-rg-china-mainland.aliyuncs.com/iohub-vfhp-helper-0.1.9-20231121192230.$ARCH.rpm"
-        fi
-        # takes 10s
-        output=`${HOST_CMD} iohub-vfhp-helper -s`
-        if [[ $output == *"backend support auto vf hotplug."* ]]; then
-            echo "backend support auto vf hotplugin"
-            ${HOST_CMD} sudo service iohub-vfhp-helper start
-        else
-            echo "backend not support auto vf hotplugin"
-        fi
-    fi
-fi
-
 ## CPFS-NAS plugin setup
 if [ "$ARCH" = "x86_64" ] && [ "$run_nas" = "true" ]; then
     install_utils="false"
