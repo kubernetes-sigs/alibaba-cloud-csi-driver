@@ -316,6 +316,8 @@ type publishRequest interface {
 }
 
 func (o *Options) MakeMountOptionsAndAuthConfig(m metadata.MetadataProvider, volumeCapability *csi.VolumeCapability) ([]string, *mounter.AuthConfig, error) {
+	region, _ := m.Get(metadata.RegionID)
+
 	mountOptions, err := parseOtherOpts(o.OtherOpts)
 	if err != nil {
 		return nil, nil, status.Error(codes.InvalidArgument, err.Error())
@@ -345,6 +347,17 @@ func (o *Options) MakeMountOptionsAndAuthConfig(m metadata.MetadataProvider, vol
 		mountOptions = append(mountOptions, fmt.Sprintf("metrics_top=%s", o.MetricsTop))
 	}
 
+	switch o.SigVersion {
+	case SigV1:
+		mountOptions = append(mountOptions, "sigv1")
+	case SigV4:
+		if region == "" {
+			return nil, nil, status.Errorf(codes.Internal, "SigV4 is not supported without region")
+		}
+		mountOptions = append(mountOptions, "sigv4")
+		mountOptions = append(mountOptions, fmt.Sprintf("region=%s", region))
+	}
+
 	mountOptions = append(mountOptions, fmt.Sprintf("url=%s", o.URL))
 
 	authCfg := &mounter.AuthConfig{AuthType: o.AuthType}
@@ -355,7 +368,6 @@ func (o *Options) MakeMountOptionsAndAuthConfig(m metadata.MetadataProvider, vol
 			return nil, nil, status.Errorf(codes.Internal, "Get RoleArn and OidcProviderArn for RRSA error: %v", err)
 		}
 		authCfg.RrsaConfig = rrsaCfg
-		region, _ := m.Get(metadata.RegionID)
 		if region == "" {
 			mountOptions = append(mountOptions, "rrsa_endpoint=https://sts.aliyuncs.com")
 		} else {
