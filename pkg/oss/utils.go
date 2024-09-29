@@ -34,6 +34,16 @@ import (
 	mountutils "k8s.io/mount-utils"
 )
 
+// SigVersion is the version of signature for ossfs
+type SigVersion string
+
+const (
+	// default version for ossfs
+	SigV1 SigVersion = "v1"
+	// need set region
+	SigV4 SigVersion = "v4"
+)
+
 // Options contains options for target oss
 type Options struct {
 	directAssigned bool
@@ -61,10 +71,11 @@ type Options struct {
 	SecretProviderClass string `json:"secretProviderClass"`
 
 	// ossfs options
-	OtherOpts  string `json:"otherOpts"`
-	MetricsTop string `json:"metricsTop"`
-	Encrypted  string `json:"encrypted"`
-	KmsKeyId   string `json:"kmsKeyId"`
+	OtherOpts  string     `json:"otherOpts"`
+	MetricsTop string     `json:"metricsTop"`
+	Encrypted  string     `json:"encrypted"`
+	KmsKeyId   string     `json:"kmsKeyId"`
+	SigVersion SigVersion `json:"sigVersion"`
 
 	// mount options
 	UseSharedPath bool   `json:"useSharedPath"`
@@ -155,6 +166,13 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 			opts.AssumeRoleArn = value
 		case "externalid":
 			opts.ExternalId = value
+		case "sigversion":
+			switch SigVersion(value) {
+			case SigV1, SigV4:
+				opts.SigVersion = SigVersion(value)
+			default:
+				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support v1 and v4", v, k).Error())
+			}
 		}
 	}
 	for _, c := range volCaps {
