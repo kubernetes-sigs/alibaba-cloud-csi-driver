@@ -21,10 +21,116 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/stretchr/testify/assert"
 )
+
+func Test_parseOptions(t *testing.T) {
+
+	var expectedOptions, gotOptions *Options
+	// CreateVolume
+	testCVReq := csi.CreateVolumeRequest{
+		Parameters: map[string]string{
+			"bucket": "test-bucket",
+			"url":    "oss-cn-beijing.aliyuncs.com",
+		},
+		Secrets: map[string]string{
+			AkID:     "test-akid",
+			AkSecret: "test-aksecret",
+		},
+		VolumeCapabilities: []*csi.VolumeCapability{
+			&csi.VolumeCapability{
+				AccessMode: &csi.VolumeCapability_AccessMode{
+					Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+				},
+			},
+		},
+	}
+	expectedOptions = &Options{
+		Bucket:        "test-bucket",
+		URL:           "https://oss-cn-beijing.aliyuncs.com",
+		AkID:          "test-akid",
+		AkSecret:      "test-aksecret",
+		FuseType:      "ossfs",
+		Path:          "/",
+		UseSharedPath: true,
+		MetricsTop:    defaultMetricsTop,
+	}
+	gotOptions = parseOptions(testCVReq.GetParameters(),
+		testCVReq.GetSecrets(), testCVReq.GetVolumeCapabilities(), false, "")
+	assert.Equal(t, expectedOptions, gotOptions)
+
+	// ControllerPublishVolume
+	testCPVReq := csi.ControllerPublishVolumeRequest{
+		VolumeContext: map[string]string{
+			"bucket":        "test-bucket",
+			"url":           "http://oss-cn-beijing.aliyuncs.com",
+			"path":          "/test",
+			"otheropts":     "-o max_stat_cache_size=0 -o allow_other",
+			"akid":          "test-akid",
+			"aksecret":      "test-aksecret",
+			"useSharedPath": "invalid",
+			"fuseType":      "Ossfs",
+		},
+		Readonly: false,
+		Secrets:  nil,
+		VolumeCapability: &csi.VolumeCapability{
+			AccessMode: &csi.VolumeCapability_AccessMode{
+				Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
+			},
+		},
+	}
+	expectedOptions = &Options{
+		Bucket:        "test-bucket",
+		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
+		OtherOpts:     "-o max_stat_cache_size=0 -o allow_other",
+		AkID:          "test-akid",
+		AkSecret:      "test-aksecret",
+		UseSharedPath: true,
+		FuseType:      "ossfs",
+		MetricsTop:    defaultMetricsTop,
+		Path:          "/test",
+		ReadOnly:      true,
+	}
+	gotOptions = parseOptions(testCPVReq.GetVolumeContext(),
+		testCPVReq.GetSecrets(), []*csi.VolumeCapability{testCPVReq.GetVolumeCapability()},
+		testCPVReq.Readonly, "cn-beijing")
+	assert.Equal(t, expectedOptions, gotOptions)
+
+	// NodePublishVolume
+	testNPReq := csi.NodePublishVolumeRequest{
+		VolumeContext: map[string]string{
+			"bucket":        "test-bucket",
+			"url":           "oss-cn-beijing.aliyuncs.com",
+			"otheropts":     "-o max_stat_cache_size=0 -o allow_other",
+			"authType":      "RRSA",
+			"UseSharedPath": "false",
+		},
+		VolumeCapability: &csi.VolumeCapability{
+			AccessMode: &csi.VolumeCapability_AccessMode{
+				Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+			},
+		},
+		Readonly: true,
+	}
+	expectedOptions = &Options{
+		Bucket:        "test-bucket",
+		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
+		OtherOpts:     "-o max_stat_cache_size=0 -o allow_other",
+		AuthType:      "rrsa",
+		FuseType:      "ossfs",
+		MetricsTop:    defaultMetricsTop,
+		Path:          "/",
+		ReadOnly:      true,
+		UseSharedPath: false,
+	}
+	gotOptions = parseOptions(testNPReq.GetVolumeContext(),
+		testNPReq.GetSecrets(), []*csi.VolumeCapability{testNPReq.GetVolumeCapability()},
+		testNPReq.Readonly, "cn-beijing")
+	assert.Equal(t, expectedOptions, gotOptions)
+}
 
 func Test_parseOtherOpts(t *testing.T) {
 	type args struct {

@@ -17,11 +17,15 @@ limitations under the License.
 package oss
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -29,6 +33,168 @@ import (
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
+
+// Options contains options for target oss
+type Options struct {
+	directAssigned bool
+	CNFSName       string
+
+	// oss options
+	Bucket string `json:"bucket"`
+	URL    string `json:"url"`
+	Path   string `json:"path"`
+
+	// authorization options
+	// accesskey
+	AkID      string `json:"akId"`
+	AkSecret  string `json:"akSecret"`
+	SecretRef string `json:"secretRef"`
+	// RRSA
+	RoleName           string `json:"roleName"` // also for STS
+	RoleArn            string `json:"roleArn"`
+	OidcProviderArn    string `json:"oidcProviderArn"`
+	ServiceAccountName string `json:"serviceAccountName"`
+	// assume role
+	AssumeRoleArn string `json:"assumeRoleArn"`
+	ExternalId    string `json:"externalId"`
+	// csi secret store
+	SecretProviderClass string `json:"secretProviderClass"`
+
+	// ossfs options
+	OtherOpts  string `json:"otherOpts"`
+	MetricsTop string `json:"metricsTop"`
+	Encrypted  string `json:"encrypted"`
+	KmsKeyId   string `json:"kmsKeyId"`
+
+	// mount options
+	UseSharedPath bool   `json:"useSharedPath"`
+	AuthType      string `json:"authType"`
+	FuseType      string `json:"fuseType"`
+	ReadOnly      bool   `json:"readOnly"`
+}
+
+// get Options for CreateVolume and PublishVolume
+// volOptions: CreateVolumeRequest.GetParameters, PublishVolumeRequest.GetVolumeContext
+// secrets: CreateVolumeRequest / PublishVolumeRequest.GetSecrets
+// volCaps: CreateVolumeRequest.GetVolumeCapabilities, []{PublishVolumeRequest.GetVolumeCapability}
+// readOnly: PublishVolumeRequest.GetReadonly
+func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
+	readOnly bool, region string) *Options {
+
+	if volOptions == nil {
+		volOptions = map[string]string{}
+	}
+	if secrets == nil {
+		secrets = map[string]string{}
+	}
+
+	opts := &Options{
+		UseSharedPath: true,
+		FuseType:      OssFsType,
+		Path:          "/",
+		AkID:          strings.TrimSpace(secrets[AkID]),
+		AkSecret:      strings.TrimSpace(secrets[AkSecret]),
+		MetricsTop:    defaultMetricsTop,
+	}
+	for k, v := range volOptions {
+		key := strings.TrimSpace(strings.ToLower(k))
+		value := strings.TrimSpace(v)
+		if value == "" {
+			continue
+		}
+		switch key {
+		case "bucket":
+			opts.Bucket = value
+		case "url":
+			opts.URL = value
+		case "otheropts":
+			opts.OtherOpts = value
+		case "akid":
+			opts.AkID = value
+		case "aksecret":
+			opts.AkSecret = value
+		case "secretref":
+			opts.SecretRef = value
+		case "path":
+			opts.Path = value
+		case "usesharedpath":
+			if res, err := strconv.ParseBool(value); err == nil {
+				opts.UseSharedPath = res
+			} else {
+				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
+			}
+		case "authtype":
+			opts.AuthType = strings.ToLower(value)
+		case "rolename", "ramrole":
+			opts.RoleName = value
+		case "rolearn":
+			opts.RoleArn = value
+		case "oidcproviderarn":
+			opts.OidcProviderArn = value
+		case "serviceaccountname":
+			opts.ServiceAccountName = value
+		case "secretproviderclass":
+			opts.SecretProviderClass = value
+		case "fusetype":
+			opts.FuseType = strings.ToLower(value)
+		case "metricstop":
+			opts.MetricsTop = strings.ToLower(value)
+		case "containernetworkfilesystem":
+			opts.CNFSName = value
+		case optDirectAssigned:
+			if res, err := strconv.ParseBool(value); err == nil {
+				opts.directAssigned = res
+			} else {
+				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
+			}
+		case "encrypted":
+			opts.Encrypted = strings.ToLower(value)
+		case "kmskeyid":
+			opts.KmsKeyId = value
+		case "assumerolearn":
+			opts.AssumeRoleArn = value
+		case "externalid":
+			opts.ExternalId = value
+		}
+	}
+	for _, c := range volCaps {
+		switch c.AccessMode.GetMode() {
+		case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY, csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
+			opts.ReadOnly = true
+		}
+	}
+	if readOnly {
+		opts.ReadOnly = true
+	}
+
+	url := opts.URL
+	if region != "" {
+		url, _ = setNetworkType(url, region)
+	}
+	url, _ = setTransmissionProtocol(url)
+	if url != opts.URL {
+		klog.Infof("Changed oss URL from %s to %s", opts.URL, url)
+		opts.URL = url
+	}
+
+	return opts
+}
+
+func setCNFSOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, opts *Options) error {
+	if opts.CNFSName == "" {
+		return nil
+	}
+	cnfs, err := cnfsGetter.GetCNFS(ctx, opts.CNFSName)
+	if err != nil {
+		return err
+	}
+	if cnfs.Status.FsAttributes.EndPoint == nil {
+		return fmt.Errorf("missing endpoint in status of CNFS %s", opts.CNFSName)
+	}
+	opts.Bucket = cnfs.Status.FsAttributes.BucketName
+	opts.URL = cnfs.Status.FsAttributes.EndPoint.Internal
+	return nil
+}
 
 // checkRRSAParams check parameters of RRSA
 func checkRRSAParams(opt *Options) error {
