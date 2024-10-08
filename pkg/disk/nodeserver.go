@@ -33,6 +33,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/rund/directvolume"
@@ -187,10 +188,15 @@ func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 	}
 
 	kataBMIOType := BDF
-	if bmType := os.Getenv("KATA_BM_IO_TYPE"); bmType == DFBus.BusName() {
+	value, err := m.Get(metadata.VmocType)
+	if err != nil {
+		klog.Errorf("get vmoc failed: %+v", err)
+	}
+	if err == nil && value == "true" {
 		kataBMIOType = DFBus
 	}
 
+	klog.Infof("KATA BFIO Type: %v", kataBMIOType)
 	podCgroup, err := utils.NewPodCGroup()
 	if err != nil {
 		klog.Fatalf("Failed to initialize pod cgroup: %v", err)
@@ -309,7 +315,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 		klog.Infof("NodePublishVolume: TargetPath: %s is umounted, start mount in kata mode", req.TargetPath)
 		mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
-		returned, err := ns.mountRunDVolumes(req.VolumeId, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, mountFlags)
+		pvName := utils.GetPvNameFormPodMnt(targetPath)
+		returned, err := ns.mountRunDVolumes(req.VolumeId, pvName, sourcePath, req.TargetPath, fsType, mkfsOptions, isBlock, mountFlags)
 		if err != nil {
 			return nil, err
 		}
@@ -1217,14 +1224,27 @@ func (ns *nodeServer) umountRunDVolumes(volumePath string) (bool, error) {
 			return false, status.Error(codes.Internal, "vmoc(DFBus) mode only support csi-runD protocol 3.0")
 		}
 
-		d, _ := NewDeviceDriver("", mountInfo.Source, DFBus, nil)
+		d, _ := NewDeviceDriver("", "", mountInfo.Source, DFBus, nil)
 		cDriver, err := d.CurentDriver()
 		if err != nil {
+			if IsNoSuchFileErr(err) {
+				klog.Infof("vmoc(DFBus) dfbus driver has been removed: %s", DFBus)
+				return true, nil
+			}
 			return true, status.Error(codes.Internal, err.Error())
 		}
-		if cDriver != DFBusTypeVFIO {
-			return true, status.Error(codes.Internal, "vmoc(DFBus) mode only support vfio")
+		klog.Infof("vmoc(DFBus) current dfbus driver : %v", DFBus)
+		if cDriver == DFBusTypeVIRTIO {
+			return true, nil
 		}
+		if cDriver != DFBusTypeVFIO {
+			return true, status.Error(codes.Internal, "vmoc(DFBus) mode only support vfio, virtio driver")
+		}
+		// Check driver usage before unbind 
+		if err = d.CheckVFIOUsage(); err != nil {
+			return true, status.Errorf(codes.Internal, "vmoc(DFBus) still being used, return immediately, err: %s", err.Error())
+		}
+
 		err = d.UnbindDriver()
 		if err != nil {
 			return true, status.Errorf(codes.Internal, "vmoc(DFBus) unbind err: %s", err.Error())
@@ -1233,7 +1253,6 @@ func (ns *nodeServer) umountRunDVolumes(volumePath string) (bool, error) {
 		if err != nil {
 			return true, status.Errorf(codes.Internal, "vmoc(DFBus) bind err: %s", err.Error())
 		}
-		return true, nil
 	}
 
 	klog.Infof("NodeUnPublishVolume:: start delete mount info for KataVolume: %s", volumePath)
@@ -1307,114 +1326,57 @@ func (ns *nodeServer) mountRunvVolumes(volumeId, sourcePath, targetPath, fsType,
 	return nil
 }
 
-func (ns *nodeServer) mountRunDVolumes(volumeId, sourcePath, targetPath, fsType, mkfsOptions string, isRawBlock bool, mountFlags []string) (bool, error) {
+func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath, fsType, mkfsOptions string, isRawBlock bool, mountFlags []string) (bool, error) {
 	klog.Infof("NodePublishVolume:: Disk Volume %s Mounted in RunD csi 3.0/2.0 protocol", volumeId)
 	deviceName, err := DefaultDeviceManager.GetDeviceByVolumeID(volumeId)
 	if err != nil {
 		deviceName = getVolumeConfig(volumeId)
 	}
-	if deviceName == "" {
-		klog.Errorf("NodePublishVolume(rund): cannot get local deviceName for volume:  %s", volumeId)
-		return true, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot get local deviceName for volume: "+volumeId)
-	}
+	deviceNumber := ""
 	volumePath := filepath.Dir(targetPath)
 
-	// Block runs csi3.0 protocol
-	if isRawBlock {
+	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 		// umount the stage path, which is mounted in Stage
 		if err := ns.unmountStageTarget(sourcePath); err != nil {
 			klog.Errorf("NodePublishVolume(rund3.0): unmountStageTarget %s with error: %s", sourcePath, err.Error())
 			return true, status.Error(codes.InvalidArgument, "NodePublishVolume: unmountStageTarget "+sourcePath+" with error: "+err.Error())
 		}
-		klog.Infof("NodePublishVolume(rund3.0): get bdf number by device: %s", deviceName)
-		deviceNumber := ""
+
+		driver, err := NewDeviceDriver(volumeId, deviceName, deviceNumber, ns.kataBMIOType, map[string]string{})
+		if err != nil {
+			klog.Errorf("NodePublishVolume(rund3.0): can't get bdf number of volume:  %s: err: %v", volumeId, err)
+			return true, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot get bdf number of volume: "+volumeId)
+		}
+		currentDriver, err := driver.CurentDriver()
+		if err != nil {
+			return true, status.Errorf(codes.Internal, "NodePublishVolume(rund3.0): can't get current volume driver: %+v", err)
+		}
 		deviceType := directvolume.DeviceTypePCI
 		if ns.kataBMIOType == DFBus {
 			deviceType = directvolume.DeviceTypeDFBusPort
-			driver, err := NewDeviceDriver(deviceName, "", DFBus, map[string]string{})
-			if err != nil {
-				klog.Errorf("NodePublishVolume(rund3.0): can't get dfbusport number of volume:  %s: err: %v", volumeId, err)
-				return true, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot get bdf number of volume: "+volumeId)
-			}
-			deviceNumber = driver.GetDeviceNumber()
-			// we can find deviceName means that device is bind to virtio driver
-			if err := driver.UnbindDriver(); err != nil {
-				klog.Errorf("NodePublishVolume(rund3.0): can't unbind current device driver: %s", deviceNumber)
-				return true, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot unbind current device driver: "+deviceNumber)
-			}
-			if err = driver.BindDriver(DFBusTypeVFIO); err != nil {
-				klog.Errorf("NodePublishVolume(rund3.0): can't bind vfio driver to device: %s", deviceNumber)
-			}
-		} else {
-			driver, err := NewDeviceDriver(deviceName, "", BDF, map[string]string{})
-			if err != nil {
-				klog.Errorf("NodePublishVolume(rund3.0): can't get bdf number of volume:  %s: err: %v", volumeId, err)
-				return true, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot get bdf number of volume: "+volumeId)
-			}
-			deviceNumber = driver.GetDeviceNumber()
-		}
-		deviceUid := 0
-		deviceGid := 0
-		deviceInfo, err := os.Stat(deviceName)
-		if err != nil {
-			klog.Errorf("NodePublishVolume(rund3.0): can't get device info of volume:  %s: err: %v", volumeId, err)
-		}
-		if stat, ok := deviceInfo.Sys().(*syscall.Stat_t); ok {
-			deviceUid = int(stat.Uid)
-			deviceGid = int(stat.Gid)
 		}
 		extras := make(map[string]string)
-		extras["Type"] = "b"
-		extras["FileMode"] = directvolume.BlockFileModeReadWrite
-		extras["Uid"] = strconv.Itoa(deviceUid)
-		extras["Gid"] = strconv.Itoa(deviceGid)
-		mountOptions := []string{}
-		if mountFlags != nil {
-			mountOptions = mountFlags
+		// for volume resize socket generation
+		extras["PVName"] = pvName
+		extras["DiskId"] = volumeId
+		if isRawBlock {
+			klog.V(2).Infof("NodePublishVolume(rund3.0): get bdf number by device: %s", deviceName)
+			deviceUid := 0
+			deviceGid := 0
+			deviceInfo, err := os.Stat(deviceName)
+			if err != nil {
+				klog.Errorf("NodePublishVolume(rund3.0): can't get device info of volume:  %s: err: %v", volumeId, err)
+			}
+			if stat, ok := deviceInfo.Sys().(*syscall.Stat_t); ok {
+				deviceUid = int(stat.Uid)
+				deviceGid = int(stat.Gid)
+			}
+			extras["Type"] = "b"
+			extras["FileMode"] = directvolume.BlockFileModeReadWrite
+			extras["Uid"] = strconv.Itoa(deviceUid)
+			extras["Gid"] = strconv.Itoa(deviceGid)
 		}
 
-		mountInfo := directvolume.MountInfo{
-			Source:     deviceNumber,
-			DeviceType: deviceType,
-			MountOpts:  mountOptions,
-			Extra:      extras,
-			FSType:     fsType,
-		}
-
-		klog.Info("NodePublishVolume(rund3.0): Starting add mount info to DirectVolume")
-		err = directvolume.AddMountInfo(volumePath, mountInfo)
-		if err != nil {
-			klog.Errorf("NodePublishVolume(rund3.0): Adding mount infomation to DirectVolume failed: %v", err)
-			return true, err
-		}
-		klog.Info("NodePublishVolume(rund3.0): Adding mount information to DirectVolume succeeds, return immediately")
-		return true, nil
-	}
-
-	if ns.kataBMIOType == DFBus {
-		// umount the stage path, which is mounted in Stage
-		if err := ns.unmountStageTarget(sourcePath); err != nil {
-			klog.Errorf("NodePublishVolume(rund3.0): unmountStageTarget in vmoc(DFBus) mode %s with error: %s", sourcePath, err.Error())
-			return true, status.Error(codes.InvalidArgument, "NodePublishVolume: unmountStageTarget in vmoc(DFBus) "+sourcePath+" with error: "+err.Error())
-		}
-		klog.Infof("NodePublishVolume(rund3.0): get dfbusport number by device: %s", deviceName)
-		driver, err := NewDeviceDriver(deviceName, "", DFBus, map[string]string{})
-		if err != nil {
-			klog.Errorf("NodePublishVolume(rund3.0): can't get dfbusport number of volume:  %s: err: %v", volumeId, err)
-			return true, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot get bdf number of volume: "+volumeId)
-		}
-		// we can find deviceName means that device is bind to virtio driver
-		if err := driver.UnbindDriver(); err != nil {
-			klog.Errorf("NodePublishVolume(rund3.0): can't unbind current device driver: %s", driver.GetDeviceNumber())
-			return true, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot unbind current device driver: "+driver.GetDeviceNumber())
-		}
-		if err = driver.BindDriver(DFBusTypeVFIO); err != nil {
-			klog.Errorf("NodePublishVolume(rund3.0): can't bind vfio driver to device: %s", driver.GetDeviceNumber())
-		}
-		if err != nil {
-			klog.Errorf("NodePublishVolume(rund3.0): can't get dfbusport number of volume:  %s: err: %v", volumeId, err)
-			return true, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot get dfbusport number of volume: "+volumeId)
-		}
 		mountOptions := []string{}
 		if mountFlags != nil {
 			mountOptions = mountFlags
@@ -1422,10 +1384,28 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, sourcePath, targetPath, fsType,
 
 		mountInfo := directvolume.MountInfo{
 			Source:     driver.GetDeviceNumber(),
-			DeviceType: directvolume.DeviceTypeDFBusPort,
+			DeviceType: deviceType,
 			MountOpts:  mountOptions,
-			Extra:      map[string]string{},
+			Extra:      extras,
 			FSType:     fsType,
+		}
+
+		if currentDriver == DFBusTypeVIRTIO || currentDriver == PCITypeVIRTIO {
+			if err := driver.UnbindDriver(); err != nil {
+				klog.Errorf("NodePublishVolume(rund3.0): can't unbind current device driver: %s", deviceNumber)
+				return true, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot unbind current device driver: "+deviceNumber)
+			}
+			if ns.kataBMIOType == DFBus {
+				if err = driver.BindDriver(DFBusTypeVFIO); err != nil {
+					klog.Errorf("NodePublishVolume(rund3.0): can't bind vfio driver to device: %s", deviceNumber)
+					return true, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot bind current device driver: "+deviceNumber)
+				}
+			} else {
+				if err = driver.BindDriver(PCITypeVFIO); err != nil {
+					klog.Errorf("NodePublishVolume(rund3.0): can't bind vfio driver to device: %s", deviceNumber)
+					return true, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot bind current device driver: "+deviceNumber)
+				}
+			}
 		}
 
 		klog.Info("NodePublishVolume(rund3.0): Starting add vmoc(DFBus) mount info to DirectVolume")
@@ -1437,7 +1417,6 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, sourcePath, targetPath, fsType,
 		klog.Info("NodePublishVolume(rund3.0): Adding vmoc(DFBus) mount information to DirectVolume succeeds, return immediately")
 		return true, nil
 	}
-
 	// (runD2.0) Need write mountOptions(metadata) parameters to file, and run normal runc process
 	klog.Infof("NodePublishVolume(rund): run csi runD protocol 2.0 logic")
 	volumeData := map[string]string{}
@@ -1454,7 +1433,7 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, sourcePath, targetPath, fsType,
 		fileName = filepath.Join(filepath.Dir(filepath.Dir(targetPath)), directvolume.RunD2MountInfoFileName)
 	}
 	if err = utils.AppendJSONData(fileName, volumeData); err != nil {
-		klog.Warningf("NodeStageVolume: append volume spec to %s with error: %s", fileName, err.Error())
+		klog.Warning("NodeStageVolume: append volume spec to %s with error: %s", fileName, err.Error())
 	}
 	return false, nil
 
