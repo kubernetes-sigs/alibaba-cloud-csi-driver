@@ -16,12 +16,13 @@ import (
 type MetadataKey int
 
 const (
-	RegionID     MetadataKey = iota
-	ZoneID       MetadataKey = iota
-	InstanceID   MetadataKey = iota
-	InstanceType MetadataKey = iota
-	AccountID    MetadataKey = iota
-	ClusterID    MetadataKey = iota
+	RegionID MetadataKey = iota
+	ZoneID
+	InstanceID
+	InstanceType
+	AccountID
+	ClusterID
+	VmocType
 )
 
 func (k MetadataKey) String() string {
@@ -38,6 +39,8 @@ func (k MetadataKey) String() string {
 		return "AccountID"
 	case ClusterID:
 		return "ClusterID"
+	case VmocType:
+		return "VmocType"
 	default:
 		return fmt.Sprintf("MetadataKey(%d)", k)
 	}
