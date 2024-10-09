@@ -294,6 +294,10 @@ spec:
             - --nodeid=$(KUBE_NODE_NAME)
 {{- end }}
           env:
+{{- if .Values.deploy.ecs }}
+            - name: ALIBABA_CLOUD_NETWORK_TYPE
+              value: vpc
+{{- end }}
             - name: SERVICE_TYPE
               value: "provisioner"
             - name: "DEFAULT_REGISTRY"
