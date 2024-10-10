@@ -845,7 +845,8 @@ func validateCapabilities(capabilities []*csi.VolumeCapability) (bool, error) {
 			// only supported on block volume
 			multiAttachRequired = true
 			if _, ok := cap.AccessType.(*csi.VolumeCapability_Block); !ok {
-				return multiAttachRequired, errors.New("multi-node writing is only supported for block volume")
+				return multiAttachRequired, errors.New("multi-node writing is only supported for block volume. " +
+					"For Kubernetes users, if unsure, use ReadWriteOnce access mode in PersistentVolumeClaim for disk volume")
 			}
 		default:
 			return multiAttachRequired, fmt.Errorf("volume capability %v is not supported", cap.AccessMode.Mode)
