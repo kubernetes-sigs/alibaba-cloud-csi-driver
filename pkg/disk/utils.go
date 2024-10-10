@@ -108,22 +108,25 @@ func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 		return nil
 	}
 
-	if os.Getenv("INTERNAL_MODE") == "true" {
-		ep := os.Getenv("ECS_ENDPOINT")
-		if ep != "" {
-			klog.Infof("Use ECS_ENDPOINT: %s", ep)
-		} else {
-			var err error
-			ep, err = cloud.ECSQueryLocalEndpoint(regionID, ecsClient)
-			if err != nil {
-				klog.Fatalf("Internal mode, but resolve ECS endpoint failed: %v", err)
-			}
-			klog.Infof("Resolved ECS localAPI endpoint: %s", ep)
+	ep := os.Getenv("ECS_ENDPOINT")
+	if ep != "" {
+		klog.Infof("Use ECS_ENDPOINT: %s", ep)
+	} else if os.Getenv("INTERNAL_MODE") == "true" {
+		var err error
+		ep, err = cloud.ECSQueryLocalEndpoint(regionID, ecsClient)
+		if err != nil {
+			klog.Fatalf("Internal mode, but resolve ECS endpoint failed: %v", err)
 		}
+		klog.Infof("Resolved ECS localAPI endpoint: %s", ep)
+	}
+	if ep != "" {
 		aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
-	} else {
-		// Set Unitized Endpoint for hangzhou region
-		SetEcsEndPoint(regionID)
+	}
+
+	network := os.Getenv("ALIBABA_CLOUD_NETWORK_TYPE")
+	if network != "" {
+		klog.Infof("Use ALIBABA_CLOUD_NETWORK_TYPE: %s", network)
+		ecsClient.SetEndpointRules(nil, "regional", network)
 	}
 
 	header := utilshttp.MustParseHeaderEnv("ECS_HEADERS")
@@ -142,31 +145,6 @@ func updateEcsClient(client *ecs.Client) *ecs.Client {
 		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
 	}
 	return client
-}
-
-// SetEcsEndPoint Set Endpoint for Ecs
-func SetEcsEndPoint(regionID string) {
-	// use unitized region endpoint for blew regions.
-	// total 19 regions
-	isEndpointSet := false
-	unitizedRegions := []string{"cn-hangzhou", "cn-zhangjiakou", "cn-huhehaote", "cn-shenzhen", "ap-southeast-1", "ap-southeast-2",
-		"ap-southeast-3", "ap-southeast-5", "eu-central-1", "us-east-1", "cn-hongkong", "ap-northeast-1", "ap-south-1",
-		"us-west-1", "me-east-1", "cn-north-2-gov-1", "eu-west-1", "cn-chengdu"}
-	for _, tmpRegion := range unitizedRegions {
-		if regionID == tmpRegion {
-			aliyunep.AddEndpointMapping(regionID, "Ecs", "ecs."+regionID+".aliyuncs.com")
-			isEndpointSet = true
-			break
-		}
-	}
-	if isEndpointSet == false {
-		aliyunep.AddEndpointMapping(regionID, "Ecs", "ecs-vpc."+regionID+".aliyuncs.com")
-	}
-
-	// use environment endpoint setting first;
-	if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
-		aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
-	}
 }
 
 // IsFileExisting check file exist in volume driver
