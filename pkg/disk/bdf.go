@@ -78,6 +78,13 @@ func IsNoSuchDeviceErr(err error) bool {
 	return strings.Contains(strings.ToLower(err.Error()), "no such device")
 }
 
+func IsNoSuchFileErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "no such file or directory")
+}
+
 // IohubSriovBind io hub bind
 func IohubSriovBind(bdf string) error {
 	return ioutil.WriteFile(iohubSriovAction+"bind", []byte(bdf), 0600)
@@ -491,6 +498,10 @@ const (
 	DFBus                    // 1
 )
 
+const (
+	dfBusDevicePathPattern = "/sys/bus/dragonfly/devices/dfvirtio*/type"
+)
+
 func (_type MachineType) BusName() string {
 	busNames := [...]string{
 		BDFTypeBus,
@@ -524,20 +535,55 @@ type Driver interface {
 	GetDeviceNumber() string
 }
 
-func NewDeviceDriver(blockDevice, deviceNumber string, _type MachineType, extras map[string]string) (Driver, error) {
+func NewDeviceDriver(volumeId, blockDevice, deviceNumber string, _type MachineType, extras map[string]string) (Driver, error) {
 	d := &driver{
 		blockDevice:  blockDevice,
 		deviceNumber: deviceNumber,
 		machineType:  _type,
 		extras:       extras,
 	}
-	if d.deviceNumber == "" {
-		deviceNumber, err := DefaultDeviceManager.GetDeviceNumberFromBlockDevice(blockDevice, d.machineType.BusPrefix())
-		if err != nil {
-			klog.Errorf("NewDeviceDriver: get device number from block device err: %v", err)
-			return nil, err
+	if blockDevice != "" {
+		if deviceNumber == "" {
+			deviceNumber, err := DefaultDeviceManager.GetDeviceNumberFromBlockDevice(blockDevice, d.machineType.BusPrefix())
+			if err != nil {
+				klog.Errorf("NewDeviceDriver: get device number from block device err: %v", err)
+				return nil, err
+			}
+			d.deviceNumber = deviceNumber
 		}
-		d.deviceNumber = deviceNumber
+	} 
+	if deviceNumber != "" {
+		return d, nil
+	}
+	if _type == DFBus {
+		matchesFile, err := filepath.Glob(dfBusDevicePathPattern)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to list DFbus type files path. err: %v", err)
+		}
+		for _, path := range matchesFile {
+			body, err := os.ReadFile(path)
+			if err != nil {
+				return nil, fmt.Errorf("Dfbus read type file %q failed: %v", path, err)
+			}
+			infos := strings.Split(string(body), " ")
+			if len(infos) != 2 {
+				return nil, fmt.Errorf("Dfbus type file format error")
+			}
+			if infos[0] != "block" {
+				continue
+			}
+			if infos[1] == strings.TrimPrefix(volumeId, "d-") {
+				DFNumber := filepath.Base(filepath.Dir(path))
+				d.deviceNumber = DFNumber
+				return d, nil
+			}
+		}
+	} else {
+		output, err := utils.CommandOnNode("xdragon-bdf", "--nvme", "-id=%s", volumeId).CombinedOutput()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to excute bdf command: %s, err: %v", volumeId, err) 
+		}
+		d.deviceNumber = string(output)
 	}
 	return d, nil
 }
