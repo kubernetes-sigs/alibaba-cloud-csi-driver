@@ -248,8 +248,7 @@ spec:
             - --strict-topology=true
             - --timeout=150s
             - --extra-create-metadata=true
-            - --enable-leader-election=true
-            - --leader-election-type=leases
+            - --leader-election=true
             - --retry-interval-start=500ms
             - --default-fstype=ext4
             - --v=5
