@@ -314,6 +314,10 @@ spec:
             - name: ECS_ENDPOINT
               value: {{ .Values.deploy.ecsEndpoint | quote }}
 {{- end }}
+{{- if .Values.deploy.stsEndpoint }}
+            - name: STS_ENDPOINT
+              value: {{ .Values.deploy.stsEndpoint | quote }}
+{{- end }}
 {{- if .Values.deploy.privateCloud }}
             - name: ALICLOUD_CLIENT_SCHEME
               value: HTTP
@@ -389,6 +393,10 @@ spec:
 {{- if .Values.deploy.ecsEndpoint }}
             - name: ECS_ENDPOINT
               value: {{ .Values.deploy.ecsEndpoint | quote }}
+{{- end }}
+{{- if .Values.deploy.stsEndpoint }}
+            - name: STS_ENDPOINT
+              value: {{ .Values.deploy.stsEndpoint | quote }}
 {{- end }}
 {{- if .Values.deploy.privateCloud }}
             - name: ALICLOUD_CLIENT_SCHEME
