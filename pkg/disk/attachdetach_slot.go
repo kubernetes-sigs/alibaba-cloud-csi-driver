@@ -64,6 +64,9 @@ type serialAD_DetachSlot struct{ *serialADSlot }
 type serialAD_AttachSlot struct{ *serialADSlot }
 
 func (s serialAD_DetachSlot) Aquire(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	select {
 	case s.highPriorityChannel <- struct{}{}:
 		return nil
@@ -75,6 +78,9 @@ func (s serialAD_DetachSlot) Aquire(ctx context.Context) error {
 }
 
 func (s serialAD_AttachSlot) Aquire(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	select {
 	case s.slot <- struct{}{}:
 		return nil
@@ -105,7 +111,7 @@ func (parallelSlot) Attach() slot { return noOpSlot{} }
 
 type noOpSlot struct{}
 
-func (noOpSlot) Aquire(ctx context.Context) error { return nil }
+func (noOpSlot) Aquire(ctx context.Context) error { return ctx.Err() }
 func (noOpSlot) Release()                         {}
 
 type serialOneDirSlot struct {
@@ -126,6 +132,9 @@ type serialSlot struct {
 }
 
 func (s serialSlot) Aquire(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	select {
 	case s.slot <- struct{}{}:
 		return nil

@@ -57,6 +57,7 @@ type nodeServer struct {
 	k8smounter   k8smount.Interface
 	podCGroup    *utils.PodCGroup
 	clientSet    *kubernetes.Clientset
+	locks        *utils.VolumeLocks
 	common.GenericNodeServer
 }
 
@@ -202,6 +203,7 @@ func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 		k8smounter:   k8smount.New(""),
 		podCGroup:    podCgroup,
 		clientSet:    GlobalConfigVar.ClientSet,
+		locks:        utils.NewVolumeLocks(),
 		GenericNodeServer: common.GenericNodeServer{
 			NodeID: GlobalConfigVar.NodeID,
 		},
@@ -245,6 +247,11 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 
 // csi disk driver: bind directory from global to pod.
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	if !ns.locks.TryAcquire(req.VolumeId) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
+	}
+	defer ns.locks.Release(req.VolumeId)
+
 	// check target mount path
 	sourcePath := req.StagingTargetPath
 	if sourcePath == "" {
@@ -403,6 +410,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	targetPath := req.GetTargetPath()
 	klog.Infof("NodeUnpublishVolume: Starting to Unmount Volume %s, Target %v", req.VolumeId, targetPath)
+
+	if !ns.locks.TryAcquire(req.VolumeId) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
+	}
+	defer ns.locks.Release(req.VolumeId)
+
 	// Step 1: check folder exists
 	if !IsFileExisting(targetPath) {
 		if err := ns.unmountDuplicateMountPoint(targetPath, req.VolumeId); err != nil {
@@ -471,6 +484,11 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	klog.Infof("NodeStageVolume: Stage VolumeId: %s, Target Path: %s, VolumeContext: %v", req.GetVolumeId(), req.StagingTargetPath, req.VolumeContext)
+
+	if !ns.locks.TryAcquire(req.VolumeId) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
+	}
+	defer ns.locks.Release(req.VolumeId)
 
 	if valid, err := utils.ValidateRequest(req.VolumeContext); !valid {
 		msg := fmt.Sprintf("NodeStageVolume: failed to check request parameters: %v", err)
@@ -718,6 +736,11 @@ func addDiskXattr(diskID string) (err error) {
 // target format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	klog.Infof("NodeUnstageVolume:: Starting to Unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
+
+	if !ns.locks.TryAcquire(req.VolumeId) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
+	}
+	defer ns.locks.Release(req.VolumeId)
 
 	// check block device mountpoint
 	targetPath := req.GetStagingTargetPath()

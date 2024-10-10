@@ -81,6 +81,27 @@ func TestCancel(t *testing.T) {
 	}
 }
 
+func TestCancelNoOccupy(t *testing.T) {
+	testSlot := func(t *testing.T, slots AttachDetachSlots) {
+		s := slots.GetSlotFor("node1")
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		if err := s.Detach().Aquire(ctx); err != context.Canceled {
+			t.Fatalf("Expected context.Canceled, got %v", err)
+		}
+		if err := s.Attach().Aquire(ctx); err != context.Canceled {
+			t.Fatalf("Expected context.Canceled, got %v", err)
+		}
+	}
+	t.Run("serial", func(t *testing.T) {
+		testSlot(t, NewSlots(true, true))
+	})
+	t.Run("parallel", func(t *testing.T) {
+		testSlot(t, NewSlots(false, false))
+	})
+}
+
 func TestSerialDetach(t *testing.T) {
 	slots := NewSlots(true, false)
 	s := slots.GetSlotFor("node1")
