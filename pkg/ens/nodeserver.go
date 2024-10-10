@@ -123,11 +123,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if isBlock {
 		sourcePath = filepath.Join(req.StagingTargetPath, req.VolumeId)
 	}
-	if valid, err := utils.ValidateRequest(req.VolumeContext); !valid {
-		msg := fmt.Sprintf("NodePublishVolume: failed to check request args: %v", err)
-		klog.Infof(msg)
-		return nil, status.Error(codes.InvalidArgument, msg)
-	}
 	targetPath := req.GetTargetPath()
 	klog.Infof("NodePublishVolume: Starting Mount Volume %s, source %s > target %s", req.VolumeId, sourcePath, targetPath)
 	if req.StagingTargetPath == "" {
@@ -297,12 +292,6 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	klog.Infof("NodeStageVolume: Stage VolumeId: %s, Target Path: %s, VolumeContext: %v", req.GetVolumeId(), req.StagingTargetPath, req.VolumeContext)
-
-	if valid, err := utils.ValidateRequest(req.PublishContext); !valid {
-		msg := fmt.Sprintf("NodeStageVolume: failed to check request args: %v", err)
-		klog.Infof(msg)
-		return nil, status.Error(codes.InvalidArgument, msg)
-	}
 
 	targetPath := req.StagingTargetPath
 	// targetPath format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount

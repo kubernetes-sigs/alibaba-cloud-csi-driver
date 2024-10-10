@@ -27,7 +27,6 @@ import (
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -126,21 +125,9 @@ func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
 	}
 	return ossVolArgs
 }
-func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
-	klog.Infof("Starting oss validate create volume request: %s, %v", req.Name, req)
-	valid, err := utils.CheckRequestArgs(req.GetParameters())
-	if !valid {
-		return status.Errorf(codes.InvalidArgument, err.Error())
-	}
-
-	return nil
-}
 
 // provisioner: create/delete oss volume
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	if err := validateCreateVolumeRequest(req); err != nil {
-		return nil, err
-	}
 	ossVol := getOssVolumeOptions(req)
 	csiTargetVolume := &csi.Volume{}
 	volumeContext := req.GetParameters()
