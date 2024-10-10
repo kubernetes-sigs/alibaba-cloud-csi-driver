@@ -35,103 +35,103 @@ const (
 var (
 	//0 - reads completed successfully
 	nfsReadsCompletedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_completed_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_completed_total"),
 		"The total number of reads completed successfully.",
 		nfsStatLabelNames, nil,
 	)
 	//1 - reads transmissions successfully
 	nfsReadsTransDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_transmissions_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_transmissions_total"),
 		"How many transmissions of this op type have been sent.",
 		nfsStatLabelNames, nil,
 	)
 	//2 - read timeout
 	nfsReadsTimeOutDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_timeouts_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_timeouts_total"),
 		"How many timeouts of this op type have occurred.",
 		nfsStatLabelNames, nil,
 	)
 	//3 - read send bytes
 	nfsReadsSentBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_sent_bytes_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_sent_bytes_total"),
 		"How many bytes have been sent for this op type.",
 		nfsStatLabelNames, nil,
 	)
 	//4 - read recv bytes
 	nfsReadsRecvBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_bytes_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_bytes_total"),
 		"The total number of bytes read successfully.",
 		nfsStatLabelNames, nil,
 	)
 	//5 - read queue time
 	nfsReadsQueueTimeMilliSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_queue_time_milliseconds_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_queue_time_milliseconds_total"),
 		"How long ops of this type have waited in queue before being transmitted (microsecond).",
 		nfsStatLabelNames, nil,
 	)
 	//6 - read rtt time
 	nfsReadsRttTimeMilliSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_rtt_time_milliseconds_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_rtt_time_milliseconds_total"),
 		"How long the client waited to receive replies of this op type from the server (microsecond).",
 		nfsStatLabelNames, nil,
 	)
 	//7 - read execute time
 	nfsReadsExecuteTimeMilliSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_time_milliseconds_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_time_milliseconds_total"),
 		"The total number of seconds spent by all reads.",
 		nfsStatLabelNames, nil,
 	)
 	//8 - writes completed successfully
 	nfsWritesCompletedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_completed_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_completed_total"),
 		"The total number of writes completed successfully.",
 		nfsStatLabelNames, nil,
 	)
 	//9 - writes transmissions successfully
 	nfsWritesTransDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_transmissions_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_transmissions_total"),
 		"How many transmissions of this op type have been sent.",
 		nfsStatLabelNames, nil,
 	)
 	//10 - writes timeout
 	nfsWritesTimeOutDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_timeouts_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_timeouts_total"),
 		"How many timeouts of this op type have occurred.",
 		nfsStatLabelNames, nil,
 	)
 	//11 - writes send bytes
 	nfsWritesSentBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_bytes_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_bytes_total"),
 		"The total number of bytes written successfully.",
 		nfsStatLabelNames, nil,
 	)
 	//12 - writes recv bytes
 	nfsWritesRecvBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_recv_bytes_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_recv_bytes_total"),
 		"How many bytes have been received for this op type.",
 		nfsStatLabelNames, nil,
 	)
 	//13 - writes queue time
 	nfsWritesQueueTimeMilliSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_queue_time_milliseconds_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_queue_time_milliseconds_total"),
 		"How long ops of this type have waited in queue before being transmitted (microsecond).",
 		nfsStatLabelNames, nil,
 	)
 	//14 - writes rtt time
 	nfsWritesRttTimeMilliSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_rtt_time_milliseconds_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_rtt_time_milliseconds_total"),
 		"How long the client waited to receive replies of this op type from the server (microsecond).",
 		nfsStatLabelNames, nil,
 	)
 	//15 - writes execute time
 	nfsWritesExecuteTimeMilliSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_time_milliseconds_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_time_milliseconds_total"),
 		"This is the total number of seconds spent by all writes.",
 		nfsStatLabelNames, nil,
 	)
 	//16 - capacity available
 	nfsCapacityAvailableDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "capacity_bytes_available"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "capacity_bytes_available"),
 		"The number of available size(bytes).",
 		nfsStatLabelNames,
 		nil,
@@ -139,7 +139,7 @@ var (
 
 	//17 - capacity total
 	nfsCapacityTotalDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "capacity_bytes_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "capacity_bytes_total"),
 		"The number of total size(bytes).",
 		nfsStatLabelNames,
 		nil,
@@ -147,7 +147,7 @@ var (
 
 	//18 - capacity used
 	nfsCapacityUsedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "capacity_bytes_used"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "capacity_bytes_used"),
 		"The number of used size(bytes).",
 		nfsStatLabelNames,
 		nil,
