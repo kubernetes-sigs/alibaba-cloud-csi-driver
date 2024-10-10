@@ -18,6 +18,7 @@ package oss
 
 import (
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -276,6 +277,67 @@ func Test_setTransmissionProtocol(t *testing.T) {
 				t.Errorf("setTransmissionProtocol(%v) = %v, %v, want %v %v",
 					tt.originURL, url, done, tt.wantURL, tt.wantModified)
 			}
+		})
+	}
+}
+
+func Test_validateEndpoint(t *testing.T) {
+	testCases := []struct {
+		name          string
+		originURL     string
+		bucket        string
+		isPrivate     bool
+		expectedError bool
+	}{
+		{
+			name:          "origin-url-is-not-domain-with-protocol",
+			originURL:     "http://oss-cn-beijing.aliyuncs.com",
+			bucket:        "my-bucket",
+			isPrivate:     false,
+			expectedError: false,
+		},
+		{
+			name:          "origin-url-is-not-domain-without-protocol",
+			originURL:     "oss-cn-beijing.aliyuncs.com",
+			bucket:        "my-bucket",
+			isPrivate:     false,
+			expectedError: false,
+		},
+		{
+			name:          "origin-url-is-domain-with-protocol",
+			originURL:     "https://my-bucket.oss-cn-beijing.aliyuncs.com",
+			bucket:        "my-bucket",
+			isPrivate:     false,
+			expectedError: true,
+		},
+		{
+			name:          "origin-url-is-domain-without-protocol",
+			originURL:     "my-bucket.oss-cn-beijing.aliyuncs.com",
+			bucket:        "my-bucket",
+			isPrivate:     false,
+			expectedError: true,
+		},
+		{
+			name:          "corner case",
+			originURL:     "oss-accelerate.aliyuncs.com",
+			bucket:        "oss-accelerate",
+			isPrivate:     false,
+			expectedError: false,
+		},
+		{
+			name:          "private-cloud",
+			originURL:     "my-bucket.oss-cn-beijing.aliyuncs.com",
+			bucket:        "my-bucket",
+			isPrivate:     true,
+			expectedError: false,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("PRIVATE_CLOUD_TAG", strconv.FormatBool(tt.isPrivate))
+			err := validateEndpoint(tt.originURL, tt.bucket)
+			assert.Equal(t, tt.expectedError, err != nil)
 		})
 	}
 }

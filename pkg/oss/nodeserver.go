@@ -239,6 +239,11 @@ func checkOssOptions(opt *Options) error {
 		return WrapOssError(ParamError, "Url/Bucket empty")
 	}
 
+	err := validateEndpoint(opt.URL, opt.Bucket)
+	if err != nil {
+		return WrapOssError(UrlError, "url is invalid, %v", err)
+	}
+
 	if !strings.HasPrefix(opt.Path, "/") {
 		return WrapOssError(PathError, "start with "+opt.Path+", should start with /")
 	}
@@ -439,6 +444,7 @@ func parseOptions(req publishRequest, region string) *Options {
 	if region != "" {
 		url, _ = setNetworkType(url, region)
 	}
+
 	url, _ = setTransmissionProtocol(url)
 	if url != opts.URL {
 		klog.Infof("Changed oss URL from %s to %s", opts.URL, url)

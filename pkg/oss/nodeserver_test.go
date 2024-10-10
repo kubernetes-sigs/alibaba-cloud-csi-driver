@@ -215,6 +215,18 @@ func Test_checkOssOptions(t *testing.T) {
 			},
 			errType: nil,
 		},
+		{
+			name: "invalid url",
+			opts: &Options{
+				URL:      "aliyun.oss-cn-hangzhou.aliyuncs.com",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				AkID:     "11111",
+				AkSecret: "22222",
+				FuseType: OssFsType,
+			},
+			errType: UrlError,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

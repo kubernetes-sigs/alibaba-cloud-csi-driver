@@ -145,3 +145,20 @@ func setTransmissionProtocol(originURL string) (URL string, modified bool) {
 	}
 	return "https://" + URL, true
 }
+
+// validateEndpoint will try to validate endpoint：
+//
+//	ban the bucket domain name like: bucket.oss-cn-beijing.aliyuncs.com
+func validateEndpoint(originURL, bucket string) error {
+	if utils.IsPrivateCloud() {
+		return nil
+	}
+	if len(strings.Split(originURL, ".")) < 4 {
+		return nil
+	}
+	woProtocol := strings.TrimPrefix(strings.TrimPrefix(originURL, "http://"), "https://")
+	if strings.HasPrefix(woProtocol, bucket+".") {
+		return fmt.Errorf("%s is a bucket domain name, please use endpoint instead", originURL)
+	}
+	return nil
+}
