@@ -32,6 +32,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -890,6 +891,9 @@ func updateVolumeExpandAutoSnapshotID(pvc *v1.PersistentVolumeClaim, snapshotID,
 // autoSnapshot is used in volume expanding of ESSD,
 // returns if the volume expanding should be continued
 func (cs *controllerServer) autoSnapshot(ctx context.Context, disk *ecs.Disk) (bool, *csi.Snapshot, error) {
+	if features.FunctionalMutableFeatureGate.Enabled(features.DisableExpandAutoSnapshot) {
+		return true, nil, nil
+	}
 	if !AllCategories[Category(disk.Category)].InstantAccessSnapshot {
 		return true, nil, nil
 	}
