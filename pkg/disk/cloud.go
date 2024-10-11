@@ -102,7 +102,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 				return "", status.Errorf(codes.Aborted, "AttachDisk: Can't attach disk %s to instance %s: %v", diskID, disk.InstanceId, err)
 			}
 
-			if err := waitForSharedDiskInStatus(10, time.Second*3, diskID, nodeID, DiskStatusDetached, ecsClient); err != nil {
+			if err := waitForSharedDiskInStatus(ctx, 10, time.Second*3, diskID, nodeID, DiskStatusDetached, ecsClient); err != nil {
 				return "", err
 			}
 		}
@@ -166,7 +166,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 		// Step 2: wait for Detach
 		if disk.Status != DiskStatusAvailable {
 			klog.Infof("AttachDisk: Wait for disk %s is detached", diskID)
-			if err := waitForDiskInStatus(15, time.Second*3, diskID, DiskStatusAvailable, ecsClient); err != nil {
+			if err := waitForDiskInStatus(ctx, 15, time.Second*3, diskID, DiskStatusAvailable, ecsClient); err != nil {
 				return "", err
 			}
 		}
@@ -207,11 +207,11 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 	// Step 4: wait for disk attached
 	klog.Infof("AttachDisk: Waiting for Disk %s is Attached to instance %s with RequestId: %s", diskID, nodeID, response.RequestId)
 	if isSharedDisk {
-		if err := waitForSharedDiskInStatus(20, time.Second*3, diskID, nodeID, DiskStatusAttached, ecsClient); err != nil {
+		if err := waitForSharedDiskInStatus(ctx, 20, time.Second*3, diskID, nodeID, DiskStatusAttached, ecsClient); err != nil {
 			return "", err
 		}
 	} else {
-		if err := waitForDiskInStatus(20, time.Second*3, diskID, DiskStatusInuse, ecsClient); err != nil {
+		if err := waitForDiskInStatus(ctx, 20, time.Second*3, diskID, DiskStatusInuse, ecsClient); err != nil {
 			return "", err
 		}
 	}
@@ -283,7 +283,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 }
 
 // Only called by controller
-func attachSharedDisk(tenantUserUID, diskID, nodeID string) (string, error) {
+func attachSharedDisk(ctx context.Context, tenantUserUID, diskID, nodeID string) (string, error) {
 	klog.Infof("AttachDisk: Starting Do AttachSharedDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
 	ecsClient, err := getEcsClientByID("", tenantUserUID)
@@ -322,7 +322,7 @@ func attachSharedDisk(tenantUserUID, diskID, nodeID string) (string, error) {
 
 	// Step 4: wait for disk attached
 	klog.Infof("AttachSharedDisk: Waiting for Disk %s is Attached to instance %s with RequestId: %s", diskID, nodeID, response.RequestId)
-	if err := waitForSharedDiskInStatus(20, time.Second*3, diskID, nodeID, DiskStatusAttached, ecsClient); err != nil {
+	if err := waitForSharedDiskInStatus(ctx, 20, time.Second*3, diskID, nodeID, DiskStatusAttached, ecsClient); err != nil {
 		return "", err
 	}
 
@@ -330,7 +330,7 @@ func attachSharedDisk(tenantUserUID, diskID, nodeID string) (string, error) {
 	return "", nil
 }
 
-func detachMultiAttachDisk(ecsClient *ecs.Client, diskID, nodeID string) (isMultiAttach bool, err error) {
+func detachMultiAttachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) (isMultiAttach bool, err error) {
 	disk, err := findDiskByID(diskID, ecsClient)
 	if err != nil {
 		klog.Errorf("DetachSharedDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
@@ -403,7 +403,11 @@ func detachMultiAttachDisk(ecsClient *ecs.Client, diskID, nodeID string) (isMult
 				klog.Errorf(errMsg)
 				return true, status.Error(codes.Aborted, errMsg)
 			}
-			time.Sleep(2000 * time.Millisecond)
+			select {
+			case <-ctx.Done():
+				return true, status.Errorf(codes.Aborted, "DetachSharedDisk: canceling waiting for disk %s detach: %v", diskID, ctx.Err())
+			case <-time.After(2000 * time.Millisecond):
+			}
 		}
 		klog.Infof("DetachSharedDisk: Volume: %s Success to detach disk %s from Instance %s, RequestId: %s", diskID, disk.DiskId, disk.InstanceId, response.RequestId)
 	} else {
@@ -515,7 +519,11 @@ func detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID strin
 			klog.Errorf(errMsg)
 			return status.Error(codes.Aborted, errMsg)
 		}
-		time.Sleep(2000 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			return status.Errorf(codes.Aborted, "DetachDisk: canceling waiting for disk %s detach: %v", diskID, ctx.Err())
+		case <-time.After(2000 * time.Millisecond):
+		}
 	}
 	klog.Infof("DetachDisk: Volume: %s Success to detach disk %s from Instance %s, RequestId: %s", diskID, disk.DiskId, disk.InstanceId, response.RequestId)
 	return nil
@@ -597,9 +605,13 @@ func tagDiskAsK8sAttached(diskID string, ecsClient *ecs.Client) {
 	klog.Infof("tagDiskAsK8sAttached:: add tag to disk: %s", diskID)
 }
 
-func waitForSharedDiskInStatus(retryCount int, interval time.Duration, diskID, nodeID string, expectStatus string, ecsClient *ecs.Client) error {
+func waitForSharedDiskInStatus(ctx context.Context, retryCount int, interval time.Duration, diskID, nodeID string, expectStatus string, ecsClient *ecs.Client) error {
 	for i := 0; i < retryCount; i++ {
-		time.Sleep(interval)
+		select {
+		case <-ctx.Done():
+			return status.Errorf(codes.Aborted, "waitForSharedDiskInStatus: canceling waiting for disk %s in status %s: %v", diskID, expectStatus, ctx.Err())
+		case <-time.After(interval):
+		}
 		disk, err := findDiskByID(diskID, ecsClient)
 		if err != nil {
 			return err
@@ -640,9 +652,13 @@ func waitForSharedDiskInStatus(retryCount int, interval time.Duration, diskID, n
 	return status.Errorf(codes.Aborted, "WaitForSharedDiskInStatus: after %d times of check, disk %s is still not attached", retryCount, diskID)
 }
 
-func waitForDiskInStatus(retryCount int, interval time.Duration, diskID string, expectedStatus string, ecsClient *ecs.Client) error {
+func waitForDiskInStatus(ctx context.Context, retryCount int, interval time.Duration, diskID string, expectedStatus string, ecsClient *ecs.Client) error {
 	for i := 0; i < retryCount; i++ {
-		time.Sleep(interval)
+		select {
+		case <-ctx.Done():
+			return status.Errorf(codes.Aborted, "WaitForDiskInStatus: canceling waiting for disk %s in status %s: %v", diskID, expectedStatus, ctx.Err())
+		case <-time.After(interval):
+		}
 		disk, err := findDiskByID(diskID, ecsClient)
 		if err != nil {
 			return err

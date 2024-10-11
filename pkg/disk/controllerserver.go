@@ -351,7 +351,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}
 	}
 	if isMultiAttach {
-		_, err := attachSharedDisk(req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId)
+		_, err := attachSharedDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId)
 		if err != nil {
 			klog.Errorf("ControllerPublishVolume: attach shared disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 			return nil, err
@@ -395,7 +395,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	isMultiAttach, err := detachMultiAttachDisk(ecsClient, req.VolumeId, req.NodeId)
+	isMultiAttach, err := detachMultiAttachDisk(ctx, ecsClient, req.VolumeId, req.NodeId)
 	if isMultiAttach && err != nil {
 		klog.Errorf("ControllerUnpublishVolume: detach multiAttach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
