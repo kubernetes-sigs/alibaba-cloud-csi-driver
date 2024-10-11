@@ -250,6 +250,9 @@ func ReadJSONFile(file string) (map[string]string, error) {
 
 // NewEcsClient create a ecsClient object
 func NewEcsClient(ac AccessControl) (ecsClient *ecs.Client) {
+	if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
+		_ = aliyunep.AddEndpointMapping(DefaultRegion, "Ecs", ep)
+	}
 	var err error
 	switch ac.UseMode {
 	case AccessKey:
@@ -268,19 +271,19 @@ func NewEcsClient(ac AccessControl) (ecsClient *ecs.Client) {
 }
 
 // NewStsClient create a stsClient object
+// TODO: The current region is set to the default value. Need to obtain the actual region.
 func NewStsClient(ac AccessControl) (stsClient *sts.Client) {
-	regionID, _ := GetRegionID()
 	if ep := os.Getenv("STS_ENDPOINT"); ep != "" {
-		_ = aliyunep.AddEndpointMapping(regionID, "Sts", ep)
+		_ = aliyunep.AddEndpointMapping(DefaultRegion, "Sts", ep)
 	}
 	var err error
 	switch ac.UseMode {
 	case AccessKey:
-		stsClient, err = sts.NewClientWithAccessKey(regionID, ac.AccessKeyID, ac.AccessKeySecret)
+		stsClient, err = sts.NewClientWithAccessKey(DefaultRegion, ac.AccessKeyID, ac.AccessKeySecret)
 	case Credential:
-		stsClient, err = sts.NewClientWithOptions(regionID, ac.Config, ac.Credential)
+		stsClient, err = sts.NewClientWithOptions(DefaultRegion, ac.Config, ac.Credential)
 	default:
-		stsClient, err = sts.NewClientWithStsToken(regionID, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
+		stsClient, err = sts.NewClientWithStsToken(DefaultRegion, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
 
 	}
 
