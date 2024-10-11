@@ -37,6 +37,7 @@ const (
 	FuseMountPathHashLabelKey = "csi.alibabacloud.com/mount-path-hash"
 	FuseMountPathAnnoKey      = "csi.alibabacloud.com/mount-path"
 	FuseSafeToEvictAnnoKey    = "cluster-autoscaler.kubernetes.io/safe-to-evict"
+	ACKDrainLabelKey          = "alibabacloud.com/drain-pod"
 )
 
 type AuthConfig struct {
@@ -267,6 +268,9 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool)
 				rawPod.Labels[key] = value
 			}
 		}
+		// make ack drain skip fuse pods
+		rawPod.Labels[ACKDrainLabelKey] = "skip"
+
 		if rawPod.Annotations == nil {
 			rawPod.Annotations = make(map[string]string)
 		}
