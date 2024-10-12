@@ -248,15 +248,25 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if GlobalConfigVar.DetachBeforeDelete {
-		disk, err := findDiskByID(req.VolumeId, ecsClient)
+
+	var disk *ecs.Disk
+	describeDisk := func() (*csi.DeleteVolumeResponse, error) {
+		var err error
+		disk, err = findDiskByID(req.VolumeId, ecsClient)
 		if err != nil {
-			errMsg := fmt.Sprintf("DeleteVolume: find disk(%s) by id with error: %s", req.VolumeId, err.Error())
-			klog.Error(errMsg)
-			return nil, status.Error(codes.Internal, errMsg)
-		} else if disk == nil {
+			return nil, status.Errorf(codes.Internal, "DeleteVolume: find disk(%s) by id with error: %v", req.VolumeId, err)
+		}
+		if disk == nil {
 			klog.Infof("DeleteVolume: disk(%s) already deleted", req.VolumeId)
 			return &csi.DeleteVolumeResponse{}, nil
+		}
+		return nil, nil
+	}
+
+	if GlobalConfigVar.DetachBeforeDelete {
+		resp, err := describeDisk()
+		if resp != nil || err != nil {
+			return resp, err
 		}
 
 		// if disk has bdf tag, it should not detach
@@ -266,7 +276,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				canDetach = false
 			}
 		}
-		if disk != nil && disk.Status == DiskStatusInuse && canDetach {
+		if disk.Status == DiskStatusInuse && canDetach {
 			err := detachDisk(ctx, ecsClient, req.VolumeId, disk.InstanceId)
 			if err != nil {
 				newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
@@ -278,8 +288,14 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 
 	if GlobalConfigVar.SnapshotBeforeDelete {
+		if disk == nil {
+			resp, err := describeDisk()
+			if resp != nil || err != nil {
+				return resp, err
+			}
+		}
 		klog.Infof("DeleteVolume: snapshot before delete configured")
-		err = snapshotBeforeDelete(req.GetVolumeId(), ecsClient)
+		err = snapshotBeforeDelete(disk, ecsClient)
 		if err != nil {
 			klog.Errorf("DeleteVolume: failed to create snapshot before delete disk, err: %v", err)
 			return nil, status.Errorf(codes.Internal, err.Error())
@@ -640,16 +656,13 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}, nil
 }
 
-func snapshotBeforeDelete(volumeID string, ecsClient *ecs.Client) error {
-	disk, err := findDiskByID(volumeID, ecsClient)
-	if err != nil {
-		return err
-	}
+func snapshotBeforeDelete(disk *ecs.Disk, ecsClient *ecs.Client) error {
 	if !AllCategories[Category(disk.Category)].InstantAccessSnapshot {
 		klog.Infof("snapshotBeforeDelete: Instant Access snapshot required, but current disk.Catagory is: %s", disk.Category)
 		return nil
 	}
 
+	volumeID := disk.DiskId
 	exists, value := utils.HasSpecificTagKey(VolumeDeleteAutoSnapshotKey, disk)
 	if !exists {
 		klog.Infof("snapshotBeforeDelete: disk: %v didn't open the feature in related storageclass", volumeID)
