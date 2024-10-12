@@ -84,15 +84,17 @@ spec:
               cpu: 500m
               memory: 1024Mi
           args:
-            - "--csi-address=/csi/csi.sock"
-            - "--volume-name-prefix=disk"
-            - "--strict-topology=true"
-            - "--timeout=150s"
-            - "--leader-election=true"
-            - "--retry-interval-start=500ms"
-            - "--extra-create-metadata=true"
-            - "--default-fstype=ext4"
-            - "--v=5"
+            - --csi-address=/csi/csi.sock
+            - --volume-name-prefix=disk
+            - --strict-topology=true
+            - --timeout=150s
+            - --leader-election=true
+            - --retry-interval-start=500ms
+            - --extra-create-metadata=true
+            - --default-fstype=ext4
+            - --v=5
+            - --kube-api-qps=10
+            - --kube-api-burst=20
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
@@ -106,9 +108,13 @@ spec:
               cpu: 500m
               memory: 1024Mi
           args:
-            - "--v=5"
-            - "--csi-address=/csi/csi.sock"
-            - "--leader-election=true"
+            - --v=5
+            - --csi-address=/csi/csi.sock
+            - --leader-election=true
+            - --kube-api-qps=10
+            - --kube-api-burst=20
+            - --worker-threads=16
+            - --timeout=30s
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
