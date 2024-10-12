@@ -28,6 +28,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -63,6 +64,14 @@ func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
 	if !valid {
 		return status.Errorf(codes.InvalidArgument, err.Error())
 	}
+	params := req.GetParameters()
+	if params == nil {
+		return nil
+	}
+	reclaimPolicy, ok := params[common.CsiAlibabaCloudPrefix+"/"+"reclaimPolicy"]
+	if ok && reclaimPolicy != string(corev1.PersistentVolumeReclaimRetain) {
+		return status.Errorf(codes.InvalidArgument, "ReclaimPolicy must be Retain. The current reclaimPolicy is %q", reclaimPolicy)
+	}
 
 	return nil
 }
@@ -73,7 +82,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, err
 	}
 	region, _ := cs.metadata.Get(metadata.RegionID)
-	ossVol := parseOptions(req.GetParameters(), req.GetSecrets(), req.GetVolumeCapabilities(), false, region)
+	ossVol := parseOptions(req.GetParameters(), req.GetSecrets(), req.GetVolumeCapabilities(), false, region, req.GetName())
 	csiTargetVolume := &csi.Volume{}
 	volumeContext := req.GetParameters()
 	if volumeContext == nil {
@@ -133,7 +142,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	// parse options
 	nodeName := req.NodeId
 	region, _ := cs.metadata.Get(metadata.RegionID)
-	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), region)
+	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), region, "")
 	if err := setCNFSOptions(ctx, cs.cnfsGetter, opts); err != nil {
 		return nil, err
 	}

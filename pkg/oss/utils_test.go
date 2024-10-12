@@ -33,8 +33,9 @@ func Test_parseOptions(t *testing.T) {
 	// CreateVolume
 	testCVReq := csi.CreateVolumeRequest{
 		Parameters: map[string]string{
-			"bucket": "test-bucket",
-			"url":    "oss-cn-beijing.aliyuncs.com",
+			"bucket":   "test-bucket",
+			"url":      "oss-cn-beijing.aliyuncs.com",
+			"volumeAs": "subpath",
 		},
 		Secrets: map[string]string{
 			AkID:     "test-akid",
@@ -54,12 +55,12 @@ func Test_parseOptions(t *testing.T) {
 		AkID:          "test-akid",
 		AkSecret:      "test-aksecret",
 		FuseType:      "ossfs",
-		Path:          "/",
+		Path:          "/volume-id",
 		UseSharedPath: true,
 		MetricsTop:    defaultMetricsTop,
 	}
 	gotOptions = parseOptions(testCVReq.GetParameters(),
-		testCVReq.GetSecrets(), testCVReq.GetVolumeCapabilities(), false, "")
+		testCVReq.GetSecrets(), testCVReq.GetVolumeCapabilities(), false, "", "volume-id")
 	assert.Equal(t, expectedOptions, gotOptions)
 
 	// ControllerPublishVolume
@@ -96,7 +97,7 @@ func Test_parseOptions(t *testing.T) {
 	}
 	gotOptions = parseOptions(testCPVReq.GetVolumeContext(),
 		testCPVReq.GetSecrets(), []*csi.VolumeCapability{testCPVReq.GetVolumeCapability()},
-		testCPVReq.Readonly, "cn-beijing")
+		testCPVReq.Readonly, "cn-beijing", "")
 	assert.Equal(t, expectedOptions, gotOptions)
 
 	// NodePublishVolume
@@ -128,7 +129,7 @@ func Test_parseOptions(t *testing.T) {
 	}
 	gotOptions = parseOptions(testNPReq.GetVolumeContext(),
 		testNPReq.GetSecrets(), []*csi.VolumeCapability{testNPReq.GetVolumeCapability()},
-		testNPReq.Readonly, "cn-beijing")
+		testNPReq.Readonly, "cn-beijing", "")
 	assert.Equal(t, expectedOptions, gotOptions)
 }
 
