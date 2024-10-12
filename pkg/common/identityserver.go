@@ -8,6 +8,7 @@ import (
 )
 
 type GenericIdentityServer struct {
+	csi.UnimplementedIdentityServer
 	Name string
 }
 
