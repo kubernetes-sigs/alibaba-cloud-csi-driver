@@ -46,6 +46,7 @@ type nodeServer struct {
 	rawMounter mountutils.Interface
 	ossfs      mounter.FuseMounterType
 	common.GenericNodeServer
+	skipAttach bool
 }
 
 // Options contains options for target oss
@@ -169,8 +170,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			opts.AkID = ac.AccessKeyID
 			opts.AkSecret = ac.AccessKeySecret
 		}
-		if opts.SecretRef == "" && (opts.AkID == "" || opts.AkSecret == "") {
-			return nil, status.Error(codes.InvalidArgument, "missing access key in node publish secret")
+		if !features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
+			if opts.SecretRef == "" && (opts.AkID == "" || opts.AkSecret == "") {
+				return nil, status.Error(codes.InvalidArgument, "missing access key in node publish secret")
+			}
 		}
 	case mounter.AuthTypeSTS:
 		// try to get default ECS worker role from metadata server
@@ -192,20 +195,43 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// make mount options and auth config
 	mountSource := fmt.Sprintf("%s:%s", opts.Bucket, opts.Path)
-	attachPath := mounter.GetOssfsAttachPath(req.VolumeId)
 	mountOptions, authCfg, err := opts.MakeMountOptionsAndAuthConfig(ns.metadata, req.VolumeCapability)
 	if err != nil {
 		return nil, err
 	}
-	mountOptions = ns.ossfs.AddDefaultMountOptions(mountOptions)
+	if ns.ossfs != nil {
+		mountOptions = ns.ossfs.AddDefaultMountOptions(mountOptions)
+	}
+
+	// rund 3.0 protocol
+	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
+		if ns.clientset != nil && utils.GetPodRunTime(req, ns.clientset) == utils.RundRunTimeTag {
+			klog.Infof("NodePublishVolume: skip as %s enabled", features.RundCSIProtocol3)
+			return &csi.NodePublishVolumeResponse{}, nil
+		}
+	}
 
 	// get mount proxy socket path
 	socketPath := req.PublishContext[mountProxySocket]
 	if socketPath == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "%s not found in publishContext", mountProxySocket)
 	}
+	proxyMounter := mounter.NewProxyMounter(socketPath, ns.rawMounter)
 
+	// When work as csi-agent, directly mount on the target path.
+	if ns.skipAttach {
+		utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, OssFsType, "oss", opts.Bucket)
+		err := proxyMounter.MountWithSecrets(mountSource, targetPath, opts.FuseType, mountOptions, authCfg.Secrets)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		klog.Infof("NodePublishVolume(csi-agent): successfully mounted %s on %s", mountSource, targetPath)
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
+
+	// When work as csi nodeserver, mount on the attach path under /run/fuse.ossfs and then perform the bind mount.
 	// check whether the attach path is mounted
+	attachPath := mounter.GetOssfsAttachPath(req.VolumeId)
 	notMnt, err = isNotMountPoint(ns.rawMounter, attachPath, false)
 	if err != nil {
 		return nil, err
@@ -270,7 +296,7 @@ func checkOssOptions(opt *Options) error {
 	}
 
 	if opt.Encrypted != "" && opt.Encrypted != EncryptedTypeKms && opt.Encrypted != EncryptedTypeAes256 {
-		return WrapOssError(EncryptError, "invalid SSE encryted type")
+		return WrapOssError(EncryptError, "invalid SSE encrypted type")
 	}
 
 	if opt.AssumeRoleArn != "" && opt.AuthType != mounter.AuthTypeRRSA {
