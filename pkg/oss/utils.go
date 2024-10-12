@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 
@@ -42,6 +43,16 @@ const (
 	SigV1 SigVersion = "v1"
 	// need set region
 	SigV4 SigVersion = "v4"
+)
+
+// VolumeAs determines the mounting tagret path in OSS
+type VolumeAsType string
+
+const (
+	// VolumeAsDirect means mount on the `path` directly
+	VolumeAsDirect VolumeAsType = "direct"
+	// VolumeAsSubpath means mount on the subpath of `path` which is automatically generated
+	VolumeAsSubpath VolumeAsType = "subpath"
 )
 
 // Options contains options for target oss
@@ -89,8 +100,10 @@ type Options struct {
 // secrets: CreateVolumeRequest / PublishVolumeRequest.GetSecrets
 // volCaps: CreateVolumeRequest.GetVolumeCapabilities, []{PublishVolumeRequest.GetVolumeCapability}
 // readOnly: PublishVolumeRequest.GetReadonly
+// region: for signature v4
+// reqName: for subpath generating, CreateVolumeRequest.GetName
 func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
-	readOnly bool, region string) *Options {
+	readOnly bool, region, reqName string) *Options {
 
 	if volOptions == nil {
 		volOptions = map[string]string{}
@@ -107,6 +120,8 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		AkSecret:      strings.TrimSpace(secrets[AkSecret]),
 		MetricsTop:    defaultMetricsTop,
 	}
+
+	var volumeAsSubpath bool
 	for k, v := range volOptions {
 		key := strings.TrimSpace(strings.ToLower(k))
 		value := strings.TrimSpace(v)
@@ -173,6 +188,15 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 			default:
 				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support v1 and v4", v, k).Error())
 			}
+		case "volumeas":
+			switch VolumeAsType(value) {
+			case VolumeAsDirect:
+				// do nothing
+			case VolumeAsSubpath:
+				volumeAsSubpath = true
+			default:
+				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support direct and subpath", v, k).Error())
+			}
 		}
 	}
 	for _, c := range volCaps {
@@ -193,6 +217,11 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	if url != opts.URL {
 		klog.Infof("Changed oss URL from %s to %s", opts.URL, url)
 		opts.URL = url
+	}
+
+	// only work for CreateVolume
+	if volumeAsSubpath {
+		opts.Path = path.Join(opts.Path, reqName)
 	}
 
 	return opts

@@ -73,7 +73,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, err
 	}
 	region, _ := cs.metadata.Get(metadata.RegionID)
-	ossVol := parseOptions(req.GetParameters(), req.GetSecrets(), req.GetVolumeCapabilities(), false, region)
+	ossVol := parseOptions(req.GetParameters(), req.GetSecrets(), req.GetVolumeCapabilities(), false, region, req.GetName())
 	csiTargetVolume := &csi.Volume{}
 	volumeContext := req.GetParameters()
 	if volumeContext == nil {
@@ -133,7 +133,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	// parse options
 	nodeName := req.NodeId
 	region, _ := cs.metadata.Get(metadata.RegionID)
-	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), region)
+	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), region, "")
 	if err := setCNFSOptions(ctx, cs.cnfsGetter, opts); err != nil {
 		return nil, err
 	}
