@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -47,45 +46,6 @@ type nodeServer struct {
 	ossfs      mounter.FuseMounterType
 	common.GenericNodeServer
 	skipAttach bool
-}
-
-// Options contains options for target oss
-type Options struct {
-	directAssigned bool
-	CNFSName       string
-
-	// oss options
-	Bucket string `json:"bucket"`
-	URL    string `json:"url"`
-	Path   string `json:"path"`
-
-	// authorization options
-	// accesskey
-	AkID      string `json:"akId"`
-	AkSecret  string `json:"akSecret"`
-	SecretRef string `json:"secretRef"`
-	// RRSA
-	RoleName           string `json:"roleName"` // also for STS
-	RoleArn            string `json:"roleArn"`
-	OidcProviderArn    string `json:"oidcProviderArn"`
-	ServiceAccountName string `json:"serviceAccountName"`
-	// assume role
-	AssumeRoleArn string `json:"assumeRoleArn"`
-	ExternalId    string `json:"externalId"`
-	// csi secret store
-	SecretProviderClass string `json:"secretProviderClass"`
-
-	// ossfs options
-	OtherOpts  string `json:"otherOpts"`
-	MetricsTop string `json:"metricsTop"`
-	Encrypted  string `json:"encrypted"`
-	KmsKeyId   string `json:"kmsKeyId"`
-
-	// mount options
-	UseSharedPath bool   `json:"useSharedPath"`
-	AuthType      string `json:"authType"`
-	FuseType      string `json:"fuseType"`
-	ReadOnly      bool   `json:"readOnly"`
 }
 
 const (
@@ -153,7 +113,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// parse options
 	region, _ := ns.metadata.Get(metadata.RegionID)
-	opts := parseOptions(req, region)
+	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), region)
 	if err := setCNFSOptions(ctx, ns.cnfsGetter, opts); err != nil {
 		return nil, err
 	}
@@ -386,120 +346,9 @@ type publishRequest interface {
 	GetSecrets() map[string]string
 }
 
-func parseOptions(req publishRequest, region string) *Options {
-	opts := &Options{
-		UseSharedPath: true,
-		FuseType:      OssFsType,
-		Path:          "/",
-		AkID:          strings.TrimSpace(req.GetSecrets()[AkID]),
-		AkSecret:      strings.TrimSpace(req.GetSecrets()[AkSecret]),
-	}
-	for k, v := range req.GetVolumeContext() {
-		key := strings.TrimSpace(strings.ToLower(k))
-		value := strings.TrimSpace(v)
-		if value == "" {
-			continue
-		}
-		switch key {
-		case "bucket":
-			opts.Bucket = value
-		case "url":
-			opts.URL = value
-		case "otheropts":
-			opts.OtherOpts = value
-		case "akid":
-			opts.AkID = value
-		case "aksecret":
-			opts.AkSecret = value
-		case "secretref":
-			opts.SecretRef = value
-		case "path":
-			opts.Path = value
-		case "usesharedpath":
-			if res, err := strconv.ParseBool(value); err == nil {
-				opts.UseSharedPath = res
-			} else {
-				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
-			}
-		case "authtype":
-			opts.AuthType = strings.ToLower(value)
-		case "rolename", "ramrole":
-			opts.RoleName = value
-		case "rolearn":
-			opts.RoleArn = value
-		case "oidcproviderarn":
-			opts.OidcProviderArn = value
-		case "serviceaccountname":
-			opts.ServiceAccountName = value
-		case "secretproviderclass":
-			opts.SecretProviderClass = value
-		case "fusetype":
-			opts.FuseType = strings.ToLower(value)
-		case "metricstop":
-			opts.MetricsTop = strings.ToLower(value)
-		case "containernetworkfilesystem":
-			opts.CNFSName = value
-		case optDirectAssigned:
-			if res, err := strconv.ParseBool(value); err == nil {
-				opts.directAssigned = res
-			} else {
-				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
-			}
-		case "encrypted":
-			opts.Encrypted = strings.ToLower(value)
-		case "kmskeyid":
-			opts.KmsKeyId = value
-		case "assumerolearn":
-			opts.AssumeRoleArn = value
-		case "externalid":
-			opts.ExternalId = value
-		}
-	}
-	if req.GetReadonly() {
-		opts.ReadOnly = true
-	} else if capability := req.GetVolumeCapability(); capability != nil {
-		switch capability.AccessMode.GetMode() {
-		case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER, csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER, csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER:
-			opts.ReadOnly = false
-		default:
-			opts.ReadOnly = true
-		}
-	}
-
-	url := opts.URL
-	if region != "" {
-		url, _ = setNetworkType(url, region)
-	}
-
-	url, _ = setTransmissionProtocol(url)
-	if url != opts.URL {
-		klog.Infof("Changed oss URL from %s to %s", opts.URL, url)
-		opts.URL = url
-	}
-
-	if opts.MetricsTop != "" {
-		opts.MetricsTop = defaultMetricsTop
-	}
-	return opts
-}
-
-func setCNFSOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, opts *Options) error {
-	if opts.CNFSName == "" {
-		return nil
-	}
-	cnfs, err := cnfsGetter.GetCNFS(ctx, opts.CNFSName)
-	if err != nil {
-		return err
-	}
-	if cnfs.Status.FsAttributes.EndPoint == nil {
-		return fmt.Errorf("missing endpoint in status of CNFS %s", opts.CNFSName)
-	}
-	opts.Bucket = cnfs.Status.FsAttributes.BucketName
-	opts.URL = cnfs.Status.FsAttributes.EndPoint.Internal
-	return nil
-}
-
 func (o *Options) MakeMountOptionsAndAuthConfig(m metadata.MetadataProvider, volumeCapability *csi.VolumeCapability) ([]string, *mounter.AuthConfig, error) {
+	region, _ := m.Get(metadata.RegionID)
+
 	mountOptions, err := parseOtherOpts(o.OtherOpts)
 	if err != nil {
 		return nil, nil, status.Error(codes.InvalidArgument, err.Error())
@@ -527,6 +376,17 @@ func (o *Options) MakeMountOptionsAndAuthConfig(m metadata.MetadataProvider, vol
 	}
 	if o.MetricsTop != "" {
 		mountOptions = append(mountOptions, fmt.Sprintf("metrics_top=%s", o.MetricsTop))
+	}
+
+	switch o.SigVersion {
+	case SigV1:
+		mountOptions = append(mountOptions, "sigv1")
+	case SigV4:
+		if region == "" {
+			return nil, nil, status.Errorf(codes.Internal, "SigV4 is not supported without region")
+		}
+		mountOptions = append(mountOptions, "sigv4")
+		mountOptions = append(mountOptions, fmt.Sprintf("region=%s", region))
 	}
 
 	mountOptions = append(mountOptions, fmt.Sprintf("url=%s", o.URL))

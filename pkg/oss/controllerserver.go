@@ -19,8 +19,6 @@ package oss
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -59,73 +57,6 @@ func (*controllerServer) ControllerGetCapabilities(context.Context, *csi.Control
 	}, nil
 }
 
-func getOssVolumeOptions(req *csi.CreateVolumeRequest) *Options {
-	ossVolArgs := &Options{}
-	volOptions := req.GetParameters()
-	secret := req.GetSecrets()
-	volCaps := req.GetVolumeCapabilities()
-	ossVolArgs.Path = "/"
-	for k, v := range volOptions {
-		key := strings.TrimSpace(strings.ToLower(k))
-		value := strings.TrimSpace(v)
-		switch key {
-		case "bucket":
-			ossVolArgs.Bucket = value
-		case "url":
-			ossVolArgs.URL = value
-		case "otheropts":
-			ossVolArgs.OtherOpts = value
-		case "secretref":
-			ossVolArgs.SecretRef = value
-		case "path":
-			ossVolArgs.Path = value
-		case "usesharedpath":
-			if res, err := strconv.ParseBool(value); err == nil {
-				ossVolArgs.UseSharedPath = res
-			} else {
-				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
-			}
-		case "authtype":
-			ossVolArgs.AuthType = value
-		case "rolename", "ramrole":
-			ossVolArgs.RoleName = value
-		case "rolearn":
-			ossVolArgs.RoleArn = value
-		case "oidcproviderarn":
-			ossVolArgs.OidcProviderArn = value
-		case "serviceaccountname":
-			ossVolArgs.ServiceAccountName = value
-		case "secretproviderclass":
-			ossVolArgs.SecretProviderClass = value
-		case "encrypted":
-			ossVolArgs.Encrypted = value
-		case "kmskeyid":
-			ossVolArgs.KmsKeyId = value
-		default:
-			klog.Warning(WrapOssError(ParamError, "the key(%q) is unknown", k).Error())
-		}
-	}
-	for k, v := range secret {
-		key := strings.TrimSpace(strings.ToLower(k))
-		value := strings.TrimSpace(v)
-		switch key {
-		case "akid":
-			ossVolArgs.AkID = value
-		case "aksecret":
-			ossVolArgs.AkSecret = value
-		default:
-			klog.Warning(WrapOssError(AuthError, "the key(%q) is unknown", k).Error())
-		}
-	}
-	ossVolArgs.ReadOnly = true
-	for _, c := range volCaps {
-		switch c.AccessMode.GetMode() {
-		case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER, csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER, csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER:
-			ossVolArgs.ReadOnly = false
-		}
-	}
-	return ossVolArgs
-}
 func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
 	klog.Infof("Starting oss validate create volume request: %s, %v", req.Name, req)
 	valid, err := utils.CheckRequestArgs(req.GetParameters())
@@ -141,7 +72,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if err := validateCreateVolumeRequest(req); err != nil {
 		return nil, err
 	}
-	ossVol := getOssVolumeOptions(req)
+	region, _ := cs.metadata.Get(metadata.RegionID)
+	ossVol := parseOptions(req.GetParameters(), req.GetSecrets(), req.GetVolumeCapabilities(), false, region)
 	csiTargetVolume := &csi.Volume{}
 	volumeContext := req.GetParameters()
 	if volumeContext == nil {
@@ -201,7 +133,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	// parse options
 	nodeName := req.NodeId
 	region, _ := cs.metadata.Get(metadata.RegionID)
-	opts := parseOptions(req, region)
+	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), region)
 	if err := setCNFSOptions(ctx, cs.cnfsGetter, opts); err != nil {
 		return nil, err
 	}
