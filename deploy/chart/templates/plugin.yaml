@@ -125,6 +125,10 @@ spec:
             - name: ECS_ENDPOINT
               value: {{ $nodePool.deploy.ecsEndpoint | quote }}
 {{- end -}}
+{{- if $nodePool.deploy.stsEndpoint }}
+            - name: STS_ENDPOINT
+              value: {{ $nodePool.deploy.stsEndpoint | quote }}
+{{- end }}
 {{- if $nodePool.deploy.privateCloud }}
             - name: ALICLOUD_CLIENT_SCHEME
               value: HTTP
@@ -228,6 +232,10 @@ spec:
             - name: ECS_ENDPOINT
               value: {{ $nodePool.deploy.ecsEndpoint | quote }}
 {{- end -}}
+{{- if $nodePool.deploy.stsEndpoint }}
+            - name: STS_ENDPOINT
+              value: {{ $nodePool.deploy.stsEndpoint | quote }}
+{{- end }}
 {{- if $nodePool.deploy.privateCloud }}
             - name: ALICLOUD_CLIENT_SCHEME
               value: HTTP

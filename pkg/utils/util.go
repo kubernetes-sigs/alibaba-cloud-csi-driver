@@ -35,6 +35,7 @@ import (
 	"strings"
 	"time"
 
+	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -249,6 +250,9 @@ func ReadJSONFile(file string) (map[string]string, error) {
 
 // NewEcsClient create a ecsClient object
 func NewEcsClient(ac AccessControl) (ecsClient *ecs.Client) {
+	if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
+		_ = aliyunep.AddEndpointMapping(DefaultRegion, "Ecs", ep)
+	}
 	var err error
 	switch ac.UseMode {
 	case AccessKey:
@@ -267,7 +271,11 @@ func NewEcsClient(ac AccessControl) (ecsClient *ecs.Client) {
 }
 
 // NewStsClient create a stsClient object
+// TODO: The current region is set to the default value. Need to obtain the actual region.
 func NewStsClient(ac AccessControl) (stsClient *sts.Client) {
+	if ep := os.Getenv("STS_ENDPOINT"); ep != "" {
+		_ = aliyunep.AddEndpointMapping(DefaultRegion, "Sts", ep)
+	}
 	var err error
 	switch ac.UseMode {
 	case AccessKey:
