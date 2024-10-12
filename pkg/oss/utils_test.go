@@ -42,7 +42,7 @@ func Test_parseOptions(t *testing.T) {
 			AkSecret: "test-aksecret",
 		},
 		VolumeCapabilities: []*csi.VolumeCapability{
-			&csi.VolumeCapability{
+			{
 				AccessMode: &csi.VolumeCapability_AccessMode{
 					Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
 				},

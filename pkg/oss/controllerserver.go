@@ -28,6 +28,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -62,6 +63,14 @@ func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
 	valid, err := utils.CheckRequestArgs(req.GetParameters())
 	if !valid {
 		return status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	params := req.GetParameters()
+	if params == nil {
+		return nil
+	}
+	reclaimPolicy, ok := params[common.CsiAlibabaCloudPrefix+"/"+"reclaimPolicy"]
+	if ok && reclaimPolicy != string(corev1.PersistentVolumeReclaimRetain) {
+		return status.Errorf(codes.InvalidArgument, "ReclaimPolicy must be Retain. The current reclaimPolicy is %q", reclaimPolicy)
 	}
 
 	return nil

@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -40,7 +41,7 @@ func (cs *sharepathController) VolumeAs() string {
 
 func (cs *sharepathController) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	parameters := req.Parameters
-	reclaimPolicy, ok := parameters[csiAlibabaCloudName+"/"+"reclaimPolicy"]
+	reclaimPolicy, ok := parameters[common.CsiAlibabaCloudPrefix+"/"+"reclaimPolicy"]
 	if ok && reclaimPolicy != string(corev1.PersistentVolumeReclaimRetain) {
 		return nil, status.Errorf(codes.InvalidArgument, "Use sharepath mode, reclaimPolicy must be Retain. The current reclaimPolicy is %q", reclaimPolicy)
 	}

@@ -72,8 +72,6 @@ const (
 	LosetupType = "losetup"
 	// SkipMountType tag
 	SkipMountType = "skipmount"
-
-	csiAlibabaCloudName = "csi.alibabacloud.com"
 )
 
 // Alibaba Cloud nas volume parameters
