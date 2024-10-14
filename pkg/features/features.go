@@ -29,6 +29,12 @@ const (
 	// Only effective when DiskADController is also enabled.
 	DiskParallelDetach featuregate.Feature = "DiskParallelDetach"
 
+	// Make volumeExpandAutoSnapshot parameter no-op.
+	//
+	// This feature is broken by new ECS intant available snapshot. And it is hard to fix it robustly.
+	// It is very rare (if any) that a disk is corrupted by expand.
+	DisableExpandAutoSnapshot featuregate.Feature = "DisableExpandAutoSnapshot"
+
 	UpdatedOssfsVersion featuregate.Feature = "UpdatedOssfsVersion"
 
 	RundCSIProtocol3 featuregate.Feature = "RundCSIProtocol3"
@@ -37,10 +43,12 @@ const (
 var (
 	FunctionalMutableFeatureGate = featuregate.NewFeatureGate()
 	defaultDiskFeatureGate       = map[featuregate.Feature]featuregate.FeatureSpec{
-		DiskADController:   {Default: false, PreRelease: featuregate.Alpha},
-		DiskParallelAttach: {Default: false, PreRelease: featuregate.Alpha},
-		DiskParallelDetach: {Default: false, PreRelease: featuregate.Alpha},
+		DiskADController:          {Default: false, PreRelease: featuregate.Alpha},
+		DiskParallelAttach:        {Default: false, PreRelease: featuregate.Alpha},
+		DiskParallelDetach:        {Default: false, PreRelease: featuregate.Alpha},
+		DisableExpandAutoSnapshot: {Default: false, PreRelease: featuregate.Alpha},
 	}
+
 	defaultOSSFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
 		UpdatedOssfsVersion: {Default: true, PreRelease: featuregate.Beta},
 	}

@@ -44,6 +44,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	proto "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/proto"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilshttp "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/http"
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
@@ -737,10 +738,12 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	// volumeExpandAutoSnapshot, default closed
-	if value, ok = volOptions[VOLUME_EXPAND_AUTO_SNAPSHOT_OP_KEY]; ok {
-		value = strings.ToLower(value)
-		if value != "forced" && value != "besteffort" && value != "closed" {
-			return nil, fmt.Errorf("illegal optional parameter volumeExpandAutoSnapshot, only support forced, besteffort and closed, the input is: %s", value)
+	if !features.FunctionalMutableFeatureGate.Enabled(features.DisableExpandAutoSnapshot) {
+		if value, ok = volOptions[VOLUME_EXPAND_AUTO_SNAPSHOT_OP_KEY]; ok {
+			value = strings.ToLower(value)
+			if value != "forced" && value != "besteffort" && value != "closed" {
+				return nil, fmt.Errorf("illegal optional parameter volumeExpandAutoSnapshot, only support forced, besteffort and closed, the input is: %s", value)
+			}
 		}
 	}
 	if value, ok = volOptions[VOLUME_DELETE_AUTO_SNAPSHOT_OP_RETENT_DAYS_KEY]; ok {
