@@ -3,7 +3,7 @@ kind: StorageClass
 metadata:
   name: alibabacloud-disk-regional
 parameters:
-  type: cloud_auto_regional
+  type: cloud_regional_disk_auto
 provisioner: diskplugin.csi.alibabacloud.com
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer

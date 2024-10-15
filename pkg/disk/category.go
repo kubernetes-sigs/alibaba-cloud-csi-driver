@@ -10,7 +10,7 @@ const (
 	DiskESSD       Category = "cloud_essd"
 	DiskESSDAuto   Category = "cloud_auto"
 	DiskESSDEntry  Category = "cloud_essd_entry"
-	DiskRegional   Category = "cloud_auto_regional"
+	DiskRegional   Category = "cloud_regional_disk_auto"
 
 	DiskPPerf            Category = "cloud_pperf"
 	DiskSPerf            Category = "cloud_sperf"
