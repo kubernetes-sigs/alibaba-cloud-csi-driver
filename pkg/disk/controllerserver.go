@@ -904,7 +904,7 @@ func updateVolumeExpandAutoSnapshotID(pvc *v1.PersistentVolumeClaim, snapshotID,
 // autoSnapshot is used in volume expanding of ESSD,
 // returns if the volume expanding should be continued
 func (cs *controllerServer) autoSnapshot(ctx context.Context, disk *ecs.Disk) (bool, *csi.Snapshot, error) {
-	if features.FunctionalMutableFeatureGate.Enabled(features.DisableExpandAutoSnapshot) {
+	if features.FunctionalMutableFeatureGate.Enabled(features.DisableExpandAutoSnapshots) {
 		return true, nil, nil
 	}
 	if !AllCategories[Category(disk.Category)].InstantAccessSnapshot {

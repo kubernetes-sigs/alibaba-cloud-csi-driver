@@ -738,7 +738,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	// volumeExpandAutoSnapshot, default closed
-	if !features.FunctionalMutableFeatureGate.Enabled(features.DisableExpandAutoSnapshot) {
+	if !features.FunctionalMutableFeatureGate.Enabled(features.DisableExpandAutoSnapshots) {
 		if value, ok = volOptions[VOLUME_EXPAND_AUTO_SNAPSHOT_OP_KEY]; ok {
 			value = strings.ToLower(value)
 			if value != "forced" && value != "besteffort" && value != "closed" {
