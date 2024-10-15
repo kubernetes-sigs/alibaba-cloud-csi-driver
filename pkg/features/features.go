@@ -33,7 +33,7 @@ const (
 	//
 	// This feature is broken by new ECS intant available snapshot. And it is hard to fix it robustly.
 	// It is very rare (if any) that a disk is corrupted by expand.
-	DisableExpandAutoSnapshot featuregate.Feature = "DisableExpandAutoSnapshot"
+	DisableExpandAutoSnapshots featuregate.Feature = "DisableExpandAutoSnapshots"
 
 	UpdatedOssfsVersion featuregate.Feature = "UpdatedOssfsVersion"
 
@@ -43,10 +43,10 @@ const (
 var (
 	FunctionalMutableFeatureGate = featuregate.NewFeatureGate()
 	defaultDiskFeatureGate       = map[featuregate.Feature]featuregate.FeatureSpec{
-		DiskADController:          {Default: false, PreRelease: featuregate.Alpha},
-		DiskParallelAttach:        {Default: false, PreRelease: featuregate.Alpha},
-		DiskParallelDetach:        {Default: false, PreRelease: featuregate.Alpha},
-		DisableExpandAutoSnapshot: {Default: false, PreRelease: featuregate.Alpha},
+		DiskADController:           {Default: false, PreRelease: featuregate.Alpha},
+		DiskParallelAttach:         {Default: false, PreRelease: featuregate.Alpha},
+		DiskParallelDetach:         {Default: false, PreRelease: featuregate.Alpha},
+		DisableExpandAutoSnapshots: {Default: false, PreRelease: featuregate.Alpha},
 	}
 
 	defaultOSSFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
