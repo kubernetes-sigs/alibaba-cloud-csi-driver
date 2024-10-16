@@ -43,10 +43,8 @@ const (
 // volumeCaps represents how the volume could be accessed.
 // It is SINGLE_NODE_WRITER since EBS volume could only be
 // attached to a single node at any given time.
-var volumeCaps = []csi.VolumeCapability_AccessMode{
-	{
-		Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
-	},
+var volumeCaps = []csi.VolumeCapability_AccessMode_Mode{
+	csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
 }
 
 type controllerService struct {
@@ -69,7 +67,7 @@ func newControllerService() controllerService {
 }
 
 func (d *controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	klog.Infof("CreateVolume: called args: %+v", *req)
+	klog.Infof("CreateVolume: called args: %+v", req)
 	if err := validateCreateVolumeRequest(req); err != nil {
 		return nil, err
 	}
@@ -200,7 +198,7 @@ func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
 func isValidVolumeCapabilities(volCaps []*csi.VolumeCapability) bool {
 	hasSupport := func(cap *csi.VolumeCapability) bool {
 		for _, c := range volumeCaps {
-			if c.GetMode() == cap.AccessMode.GetMode() {
+			if c == cap.AccessMode.GetMode() {
 				return true
 			}
 		}
