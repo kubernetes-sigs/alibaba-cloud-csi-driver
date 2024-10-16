@@ -564,57 +564,27 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 
 	device := ""
-	isSharedDisk := false
-	if value, ok := req.VolumeContext[SharedEnable]; ok {
-		value = strings.ToLower(value)
-		if checkOption(value) {
-			isSharedDisk = true
-		}
-	}
-	isMultiAttach := false
-	if value, ok := req.VolumeContext[MultiAttach]; ok {
-		value = strings.ToLower(value)
-		if checkOption(value) {
-			isMultiAttach = true
-		}
-	}
-	var isSingleInstance bool
-	if value, ok := req.VolumeContext["type"]; ok {
-		isSingleInstance = AllCategories[Category(value)].SingleInstance
-	}
-
-	// Step 4 Attach volume
 	defaultErrCode := codes.Internal
-	if GlobalConfigVar.ADControllerEnable || isMultiAttach {
-		device, err = DefaultDeviceManager.GetDeviceByVolumeID(req.GetVolumeId())
-		if err != nil {
-			if IsVFNode() {
-				bdf, err := bindBdfDisk(req.GetVolumeId())
-				if err != nil {
-					if err := unbindBdfDisk(req.GetVolumeId()); err != nil {
-						return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to detach bdf disk: %v", err)
-					}
-					return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf disk: %v", err)
+
+	// Step 4 Get device
+	device, err = DefaultDeviceManager.GetDeviceByVolumeID(req.GetVolumeId())
+	if err != nil {
+		if IsVFNode() {
+			bdf, err := bindBdfDisk(req.GetVolumeId())
+			if err != nil {
+				if err := unbindBdfDisk(req.GetVolumeId()); err != nil {
+					return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to detach bdf disk: %v", err)
 				}
-				// devicePaths, err = GetDeviceByVolumeID(req.GetVolumeId())
-				if bdf != "" {
-					device, err = GetDeviceByBdf(bdf, true)
-				}
-				klog.Infof("NodeStageVolume: enabled bdf mode, device: %s, bdf: %s", device, bdf)
-			} else {
-				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: ADController Enabled, but disk %s can't be found: %s", req.VolumeId, err.Error())
+				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf disk: %v", err)
 			}
+			// devicePaths, err = GetDeviceByVolumeID(req.GetVolumeId())
+			if bdf != "" {
+				device, err = GetDeviceByBdf(bdf, true)
+			}
+			klog.Infof("NodeStageVolume: enabled bdf mode, device: %s, bdf: %s", device, bdf)
+		} else {
+			return nil, status.Errorf(codes.Aborted, "NodeStageVolume: disk %s can't be found: %s", req.VolumeId, err.Error())
 		}
-	} else {
-		device, err = attachDisk(ctx, req.VolumeContext[TenantUserUID], req.GetVolumeId(), ns.NodeID, isSharedDisk, isSingleInstance)
-		if err != nil {
-			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
-			klog.Errorf("NodeStageVolume: Attach volume: %s with error: %s", req.VolumeId, fullErrorMessage)
-			return nil, status.Errorf(codes.Aborted, "NodeStageVolume: Attach volume: %s with error: %+v", req.VolumeId, err)
-		}
-		// Now we have attached the disk, if we fail later, NodeStageVolume is in-progress.
-		// Return Aborted so that the CO will call NodeUnstageVolume later to detach.
-		defaultErrCode = codes.Aborted
 	}
 
 	if err := CheckDeviceAvailable(device, req.VolumeId, targetPath); err != nil {
@@ -625,6 +595,9 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		klog.Errorf("NodeStageVolume: saveVolumeConfig %s for volume %s with error: %s", device, req.VolumeId, err.Error())
 		return nil, status.Error(defaultErrCode, "NodeStageVolume: saveVolumeConfig for ("+req.VolumeId+device+") error with: "+err.Error())
 	}
+	// Now we have persisted volume config, if we fail later, NodeStageVolume is in-progress.
+	// Return Aborted so that the CO will call NodeUnstageVolume later to detach.
+	defaultErrCode = codes.Aborted
 	klog.Infof("NodeStageVolume: Volume Successful Attached: %s, to Node: %s, Device: %s", req.VolumeId, ns.NodeID, device)
 
 	// sysConfig
@@ -827,24 +800,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		klog.Errorf("NodeUnstageVolume: addDiskXattr %s failed: %v", req.VolumeId, err)
 	}
 
-	// Do detach if ADController disable
-	if !GlobalConfigVar.ADControllerEnable {
-		// if DetachDisabled is set to true, return
-		if GlobalConfigVar.DetachDisabled {
-			klog.Infof("NodeUnstageVolume: ADController is Disable, Detach Flag Set to false, PV %s", req.VolumeId)
-			return &csi.NodeUnstageVolumeResponse{}, nil
-		}
-		ecsClient, err := getEcsClientByID(req.VolumeId, "")
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		err = detachDisk(ctx, ecsClient, req.VolumeId, ns.NodeID)
-		if err != nil {
-			klog.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
-			return nil, err
-		}
-		removeVolumeConfig(req.VolumeId)
-	}
+	removeVolumeConfig(req.VolumeId)
 
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
