@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -49,10 +48,8 @@ var (
 )
 
 type ENS struct {
-	endpoint         string
-	idServer         csi.IdentityServer
-	nodeServer       csi.NodeServer
-	controllerServer csi.ControllerServer
+	endpoint string
+	servers  common.Servers
 }
 
 func initDriver() {}
@@ -65,18 +62,20 @@ func NewDriver(nodeID, endpoint string) *ENS {
 
 	NewGlobalConfig()
 
-	tmpENS.idServer = NewIdentityServer()
+	var servers common.Servers
+	servers.IdentityServer = NewIdentityServer()
 	if GlobalConfigVar.ControllerService {
-		tmpENS.controllerServer = NewControllerServer()
+		servers.ControllerServer = NewControllerServer()
 	} else {
-		tmpENS.nodeServer = NewNodeServer()
+		servers.NodeServer = NewNodeServer()
 	}
+	tmpENS.servers = servers
 	return tmpENS
 }
 
 func (ens *ENS) Run() {
 	klog.Infof("Run: start csi-plugin driver: %s, version %s", driverName, version.VERSION)
-	common.RunCSIServer(ens.endpoint, ens.idServer, ens.controllerServer, ens.nodeServer)
+	common.RunCSIServer(ens.endpoint, ens.servers)
 }
 
 func NewGlobalConfig() {

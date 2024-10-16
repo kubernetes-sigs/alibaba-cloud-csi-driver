@@ -1,0 +1,6 @@
+apiVersion: groupsnapshot.storage.k8s.io/v1alpha1
+kind: VolumeGroupSnapshotClass
+metadata:
+  name: alibabacloud-disk-group-snapshot
+driver: diskplugin.csi.alibabacloud.com
+deletionPolicy: Delete

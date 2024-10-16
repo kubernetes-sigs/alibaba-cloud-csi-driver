@@ -21,9 +21,7 @@ var GlobalConfigVar GlobalConfig
 // Pangu Over Virtio
 type PoV struct {
 	endpoint string
-
-	controllerService
-	nodeService
+	servers  common.Servers
 }
 
 func NewDriver(meta *metadata.Metadata, endpoint string, runAsController bool) *PoV {
@@ -31,11 +29,16 @@ func NewDriver(meta *metadata.Metadata, endpoint string, runAsController bool) *
 	poV.endpoint = endpoint
 	newGlobalConfig(meta, runAsController)
 
+	var servers common.Servers
+	servers.IdentityServer = newIdentityServer()
 	if runAsController {
-		poV.controllerService = newControllerService()
+		cs := newControllerService()
+		servers.ControllerServer = &cs
 	} else {
-		poV.nodeService = newNodeService(meta)
+		ns := newNodeService(meta)
+		servers.NodeServer = &ns
 	}
+	poV.servers = servers
 
 	return poV
 }
@@ -43,7 +46,7 @@ func NewDriver(meta *metadata.Metadata, endpoint string, runAsController bool) *
 // Run start pov driver service
 func (p *PoV) Run() {
 	klog.Infof("Starting pov driver service, endpoint: %s", p.endpoint)
-	common.RunCSIServer(p.endpoint, newIdentityServer(), &p.controllerService, &p.nodeService)
+	common.RunCSIServer(p.endpoint, p.servers)
 }
 
 func newGlobalConfig(meta *metadata.Metadata, runAsController bool) {
