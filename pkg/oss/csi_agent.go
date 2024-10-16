@@ -6,12 +6,11 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	mountutils "k8s.io/mount-utils"
 )
 
 type CSIAgent struct {
+	csi.UnimplementedNodeServer
 	// mount-proxy socket path
 	socketPath string
 	ns         *nodeServer
@@ -31,9 +30,6 @@ func NewCSIAgent(m metadata.MetadataProvider, socketPath string) *CSIAgent {
 }
 
 func (a *CSIAgent) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	if req.TargetPath == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "TargetPath is required")
-	}
 	if req.PublishContext == nil {
 		req.PublishContext = map[string]string{}
 	}
