@@ -12,13 +12,13 @@ import (
 
 var (
 	scrapeDurationDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(clusterNamespace, scrapeSubSystem, "collector_duration_seconds"),
+		prometheus.BuildFQName(clusterNamespace, scrapeSubsystem, "collector_duration_seconds"),
 		"csi_metric: Duration of a collector scrape.",
 		[]string{"collector"},
 		nil,
 	)
 	scrapeSuccessDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(clusterNamespace, scrapeSubSystem, "collector_success"),
+		prometheus.BuildFQName(clusterNamespace, scrapeSubsystem, "collector_success"),
 		"csi_metric: Whether a collector succeeded.",
 		[]string{"collector"},
 		nil,
@@ -71,8 +71,8 @@ func newCSICollector(metricType string, driverNames []string) error {
 				collectors[reg.Name] = collector
 			}
 		}
-
 	}
+	collectors[CsiGrpcExecTimeCollectorName] = &CsiGrpcExecTimeCollector
 	csiCollectorInstance = &CSICollector{Collectors: collectors}
 
 	return nil

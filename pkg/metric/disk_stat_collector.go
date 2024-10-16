@@ -33,72 +33,72 @@ var (
 var (
 	// 4 - reads completed successfully
 	diskReadsCompletedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_completed_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_completed_total"),
 		"The total number of reads completed successfully.",
 		diskStatLabelNames, nil,
 	)
 	// 5 - reads merged
 	diskReadsMergeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_merged_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_merged_total"),
 		"The total number of reads merged.",
 		diskStatLabelNames,
 		nil,
 	)
 	// 6 - sectors read
 	diskReadBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_bytes_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_bytes_total"),
 		"The total number of bytes read successfully.",
 		diskStatLabelNames, nil,
 	)
 	// 7 - time spent reading (ms)
 	diskReadTimeMilliSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "read_time_milliseconds_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_time_milliseconds_total"),
 		"The total number of seconds spent by all reads.",
 		diskStatLabelNames,
 		nil,
 	)
 	// 8 - writes completed
 	diskWritesCompletedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_completed_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_completed_total"),
 		"The total number of writes completed successfully.",
 		diskStatLabelNames, nil,
 	)
 	//9 - writes merged
 	diskWriteMergeDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_merged_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_merged_total"),
 		"The number of writes merged.",
 		diskStatLabelNames,
 		nil,
 	)
 	//10 - sectors written
 	diskWrittenBytesDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_bytes_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_bytes_total"),
 		"The total number of bytes written successfully.",
 		diskStatLabelNames, nil,
 	)
 	//11 - time spent writing (ms)
 	diskWriteTimeMilliSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "write_time_milliseconds_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_time_milliseconds_total"),
 		"This is the total number of seconds spent by all writes.",
 		diskStatLabelNames,
 		nil,
 	)
 	//12 - I/Os currently in progress
 	diskIONowDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "io_now"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "io_now"),
 		"The number of I/Os currently in progress.",
 		diskStatLabelNames,
 		nil,
 	)
 	//13 - time spent doing I/Os (ms)
 	diskIOTimeSecondsDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "io_time_seconds_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "io_time_seconds_total"),
 		"Total seconds spent doing I/Os.",
 		diskStatLabelNames, nil,
 	)
 	//13 - capacity available
 	diskCapacityAvailableDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "capacity_bytes_available"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "capacity_bytes_available"),
 		"The number of available size(bytes).",
 		diskStatLabelNames,
 		nil,
@@ -106,7 +106,7 @@ var (
 
 	//14 - capacity total
 	diskCapacityTotalDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "capacity_bytes_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "capacity_bytes_total"),
 		"The number of total size(bytes).",
 		diskStatLabelNames,
 		nil,
@@ -114,21 +114,21 @@ var (
 
 	//15 - capacity used
 	diskCapacityUsedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "capacity_bytes_used"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "capacity_bytes_used"),
 		"The number of used size(bytes).",
 		diskStatLabelNames,
 		nil,
 	)
 	//16 - inode available
 	diskInodesAvailableDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "inodes_available"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "inodes_available"),
 		"The number of available inodes.",
 		diskStatLabelNames,
 		nil,
 	)
 	//17 - inode total
 	diskInodesTotalDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "inodes_total"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "inodes_total"),
 		"The number of total inodes.",
 		diskStatLabelNames,
 		nil,
@@ -136,7 +136,7 @@ var (
 
 	//18 - inode used
 	diskInodesUsedDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(nodeNamespace, volumeSubSystem, "inodes_used"),
+		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "inodes_used"),
 		"The number of used inodes.",
 		diskStatLabelNames,
 		nil,

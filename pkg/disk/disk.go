@@ -40,6 +40,7 @@ import (
 
 // PluginFolder defines the location of diskplugin
 const (
+	driverType              = "disk"
 	driverName              = "diskplugin.csi.alibabacloud.com"
 	TopologyZoneKey         = "topology." + driverName + "/zone"
 	TopologyMultiZonePrefix = TopologyZoneKey + "-"
@@ -125,7 +126,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 // Run start a new NodeServer
 func (disk *DISK) Run() {
 	klog.Infof("Starting csi-plugin Driver: %v version: %v", driverName, version.VERSION)
-	common.RunCSIServer(disk.endpoint, disk.idServer, disk.controllerServer, disk.nodeServer)
+	common.RunCSIServer(driverType, disk.endpoint, disk.idServer, disk.controllerServer, disk.nodeServer)
 }
 
 // GlobalConfigSet set Global Config
