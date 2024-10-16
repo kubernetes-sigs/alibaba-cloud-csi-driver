@@ -115,6 +115,10 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
+{{- if $nodePool.deploy.ecs }}
+            - name: ALIBABA_CLOUD_NETWORK_TYPE
+              value: vpc
+{{- end }}
             - name: SERVICE_TYPE
               value: "plugin"
 {{- if $nodePool.deploy.regionID }}
