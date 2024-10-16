@@ -103,6 +103,8 @@ spec:
             - "--endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock"
             - "--v=2"
             - "--driver={{ include "enabledPlugins" $nodePool.csi }}"
+            - --run-controller-service=false
+            - --run-node-service=true
 {{- if $nodePool.deploy.featureGates }}
             - "--feature-gates={{ $nodePool.deploy.featureGates }}"
 {{- end -}}
@@ -115,8 +117,6 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
-            - name: SERVICE_TYPE
-              value: "plugin"
 {{- if $nodePool.deploy.regionID }}
             - name: REGION_ID
               value: {{ $nodePool.deploy.regionID | quote }}

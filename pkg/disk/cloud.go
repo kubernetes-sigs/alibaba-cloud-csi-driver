@@ -57,7 +57,7 @@ const (
 )
 
 // attach alibaba cloud disk
-func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk, isSingleInstance bool) (string, error) {
+func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk, isSingleInstance bool, fromNode bool) (string, error) {
 	klog.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
 	ecsClient, err := getEcsClientByID("", tenantUserUID)
@@ -110,7 +110,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 		// disk is attached, means disk_ad_controller env is true, disk must be created after 2020.06
 		if disk.Status == DiskStatusInuse {
 			if disk.InstanceId == nodeID {
-				if GlobalConfigVar.ADControllerEnable {
+				if !fromNode {
 					klog.Infof("AttachDisk: Disk %s is already attached to Instance %s, skipping", diskID, disk.InstanceId)
 					return "", nil
 				}
@@ -173,7 +173,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 	}
 	// Step 3: Attach Disk, list device before attach disk
 	before := []string{}
-	if !GlobalConfigVar.ADControllerEnable {
+	if fromNode {
 		before = getDevices()
 	}
 
@@ -217,7 +217,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 	}
 
 	// step 5: diff device with previous files under /dev
-	if !GlobalConfigVar.ADControllerEnable {
+	if fromNode {
 		device, err := DefaultDeviceManager.GetDeviceByVolumeID(diskID)
 		if err == nil {
 			klog.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device", diskID, nodeID, device)
@@ -227,7 +227,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 		devicePaths := calcNewDevices(before, after)
 
 		// BDF Disk Logical
-		if !GlobalConfigVar.ControllerService && IsVFNode() && len(devicePaths) == 0 {
+		if IsVFNode() && len(devicePaths) == 0 {
 			var bdf string
 			if bdf, err = bindBdfDisk(disk.DiskId); err != nil {
 				if err := unbindBdfDisk(disk.DiskId); err != nil {

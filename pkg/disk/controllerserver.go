@@ -396,7 +396,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		isSingleInstance = AllCategories[Category(value)].SingleInstance
 	}
 
-	_, err := attachDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk, isSingleInstance)
+	_, err := attachDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk, isSingleInstance, false)
 	if err != nil {
 		klog.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
