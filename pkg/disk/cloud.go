@@ -29,8 +29,7 @@ import (
 	"sync"
 	"time"
 
-	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
-
+	alierrors "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
@@ -300,7 +299,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 		return err
 	})
 	if err != nil {
-		var aliErr *alicloudErr.ServerError
+		var aliErr *alierrors.ServerError
 		if errors.As(err, &aliErr) {
 			switch aliErr.ErrorCode() {
 			case InstanceNotFound:
@@ -421,6 +420,7 @@ func (ad *DiskAttachDetach) detachMultiAttachDisk(ctx context.Context, ecsClient
 }
 
 func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient cloud.ECSInterface, diskID, nodeID string, fromNode bool) (err error) {
+	logger := klog.FromContext(ctx)
 	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
 		klog.Errorf("DetachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
@@ -475,6 +475,18 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient cloud.ECSI
 		return err
 	})
 	if err != nil {
+		var aliErr *alierrors.ServerError
+		if errors.As(err, &aliErr) {
+			logger := logger.WithValues("code", aliErr.ErrorCode(), "requestID", aliErr.RequestId())
+			switch aliErr.ErrorCode() {
+			case InvalidOperation_Conflict, DisksDetachingOnEcsExceeded, IncorrectDiskStatus:
+				logger.V(2).Info("detach conflict, delaying retry for 1s")
+				slot.Block(time.Now().Add(1 * time.Second))
+			case DependencyViolation:
+				logger.V(2).Info("disk already detached")
+				return nil
+			}
+		}
 		return status.Errorf(codes.Aborted, "DetachDisk: Fail to detach %s: from Instance: %s with error: %v", disk.DiskId, disk.InstanceId, err)
 	}
 	if StopDiskOperationRetry(disk.InstanceId, ecsClient) {
@@ -485,6 +497,10 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient cloud.ECSI
 	// check disk detach
 	err = ad.waitForDiskDetached(ctx, diskID, nodeID)
 	if err != nil {
+		if errors.Is(err, ctx.Err()) {
+			logger.V(1).Info("detach not finished yet, delaying retry for 1s")
+			slot.Block(time.Now().Add(1 * time.Second))
+		}
 		return status.Errorf(codes.Aborted, "DetachDisk: Detaching Disk %s failed: %v", diskID, err)
 	}
 	klog.Infof("DetachDisk: Volume: %s Success to detach disk %s from Instance %s, RequestId: %s", diskID, disk.DiskId, disk.InstanceId, response.RequestId)
@@ -774,7 +790,7 @@ func requestAndCreateSnapshot(ecsClient cloud.ECSInterface, params *createSnapsh
 	// Do Snapshot create
 	snapshotResponse, err := ecsClient.CreateSnapshot(createSnapshotRequest)
 	if err != nil {
-		var aliErr *alicloudErr.ServerError
+		var aliErr *alierrors.ServerError
 		if errors.As(err, &aliErr) {
 			switch aliErr.ErrorCode() {
 			case IdempotentParameterMismatch:
@@ -1064,7 +1080,7 @@ func createDiskAttempt(req *ecs.CreateDiskRequest, attempt createAttempt, ecsCli
 		klog.Infof("request: diskId: %s, reqId: %s", volumeRes.DiskId, volumeRes.RequestId)
 		return volumeRes.DiskId, true, nil
 	}
-	var aliErr *alicloudErr.ServerError
+	var aliErr *alierrors.ServerError
 	if errors.As(err, &aliErr) {
 		klog.Infof("request: Create Disk for volume %s failed: %v", req.DiskName, err)
 		if strings.HasPrefix(aliErr.ErrorCode(), DiskNotAvailable) || strings.Contains(aliErr.Message(), DiskNotAvailableVer2) {
@@ -1174,7 +1190,7 @@ func deleteDisk(ctx context.Context, ecsClient cloud.ECSInterface, diskId string
 			return true, nil
 		}
 
-		var aliErr *alicloudErr.ServerError
+		var aliErr *alierrors.ServerError
 		if errors.As(err, &aliErr) && aliErr.ErrorCode() == "IncorrectDiskStatus.Initializing" {
 			klog.Infof("DeleteVolume: disk %s is still initializing, retrying", diskId)
 			return false, nil
@@ -1193,7 +1209,7 @@ func resizeDisk(ctx context.Context, ecsClient cloud.ECSInterface, req *ecs.Resi
 			return true, nil
 		}
 
-		var aliErr *alicloudErr.ServerError
+		var aliErr *alierrors.ServerError
 		if errors.As(err, &aliErr) && aliErr.ErrorCode() == "LastOrderProcessing" {
 			klog.Infof("ResizeDisk: last order processing, retrying")
 			return false, nil
