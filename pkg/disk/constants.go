@@ -46,14 +46,6 @@ const (
 	// StorageProvisionerKey key
 	StorageProvisionerKey = "volume.beta.kubernetes.io/storage-provisioner"
 
-	// IncorrectDiskStatus incorrect disk status
-	IncorrectDiskStatus = "IncorrectDiskStatus"
-	// NeverAttached status belongs to IncorrectDiskStatus
-	NeverAttached = "IncorrectDiskStatus.NeverAttached"
-	// DiskCreatingSnapshot ...
-	DiskCreatingSnapshot = "DiskCreatingSnapshot"
-	// UserNotInTheWhiteList tag
-	UserNotInTheWhiteList = "UserNotInTheWhiteList"
 	// ZoneIDTag tag
 	ZoneIDTag = "zone-id"
 
@@ -74,6 +66,24 @@ const (
 	InstanceNotFound             = "InvalidInstanceId.NotFound"
 
 	QuotaExceed_Snapshot = "QuotaExceed.Snapshot"
+
+	// Error codes for detach disk
+
+	// Concurrent attach not enabled, and another disk is detaching/attaching on the same instance
+	InvalidOperation_Conflict = "InvalidOperation.Conflict"
+	// Concurrent attach enabled, and another disk is detaching on the same instance (current detach is not supported now)
+	DisksDetachingOnEcsExceeded = "DisksDetachingOnEcsExceeded"
+	// The specified disk has not been attached on the specified instance.
+	DependencyViolation = "DependencyViolation"
+	// Maybe the disk is already detaching
+	IncorrectDiskStatus = "IncorrectDiskStatus"
+
+	// NeverAttached status belongs to IncorrectDiskStatus
+	NeverAttached = "IncorrectDiskStatus.NeverAttached"
+	// DiskCreatingSnapshot ...
+	DiskCreatingSnapshot = "DiskCreatingSnapshot"
+	// UserNotInTheWhiteList tag
+	UserNotInTheWhiteList = "UserNotInTheWhiteList"
 
 	// DiskHighAvail tag
 	DiskHighAvail = "available"
