@@ -6,6 +6,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog/v2"
 )
 
 func WrapControllerServerWithValidator(server csi.ControllerServer) csi.ControllerServer {
@@ -16,24 +17,28 @@ type ControllerServerWithValidator struct {
 	csi.ControllerServer
 }
 
-func (cs *ControllerServerWithValidator) CreateVolume(context context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+func (cs *ControllerServerWithValidator) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	if len(req.Name) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Name is required")
 	}
 	if len(req.VolumeCapabilities) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumeCapabilities is required")
 	}
-	return cs.ControllerServer.CreateVolume(context, req)
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("name", req.Name))
+	return cs.ControllerServer.CreateVolume(ctx, req)
 }
 
-func (cs *ControllerServerWithValidator) DeleteVolume(context context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
+func (cs *ControllerServerWithValidator) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	if len(req.VolumeId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumeId is required")
 	}
-	return cs.ControllerServer.DeleteVolume(context, req)
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("volumeID", req.VolumeId))
+	return cs.ControllerServer.DeleteVolume(ctx, req)
 }
 
-func (cs *ControllerServerWithValidator) ControllerPublishVolume(context context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
+func (cs *ControllerServerWithValidator) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	if len(req.VolumeId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumeId is required")
 	}
@@ -43,54 +48,66 @@ func (cs *ControllerServerWithValidator) ControllerPublishVolume(context context
 	if req.VolumeCapability == nil {
 		return nil, status.Error(codes.InvalidArgument, "VolumeCapability is required")
 	}
-	return cs.ControllerServer.ControllerPublishVolume(context, req)
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("volumeID", req.VolumeId, "nodeID", req.NodeId))
+	return cs.ControllerServer.ControllerPublishVolume(ctx, req)
 }
 
-func (cs *ControllerServerWithValidator) ControllerUnpublishVolume(context context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
+func (cs *ControllerServerWithValidator) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	if len(req.VolumeId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumeId is required")
 	}
 	if len(req.NodeId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "NodeId is required")
 	}
-	return cs.ControllerServer.ControllerUnpublishVolume(context, req)
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("volumeID", req.VolumeId, "nodeID", req.NodeId))
+	return cs.ControllerServer.ControllerUnpublishVolume(ctx, req)
 }
 
-func (cs *ControllerServerWithValidator) ValidateVolumeCapabilities(context context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
+func (cs *ControllerServerWithValidator) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
 	if len(req.VolumeId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumeId is required")
 	}
 	if len(req.VolumeCapabilities) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumeCapabilities is required")
 	}
-	return cs.ControllerServer.ValidateVolumeCapabilities(context, req)
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("volumeID", req.VolumeId))
+	return cs.ControllerServer.ValidateVolumeCapabilities(ctx, req)
 }
 
-func (cs *ControllerServerWithValidator) CreateSnapshot(context context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
+func (cs *ControllerServerWithValidator) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
 	if len(req.SourceVolumeId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "SourceVolumeId is required")
 	}
 	if len(req.Name) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Name is required")
 	}
-	return cs.ControllerServer.CreateSnapshot(context, req)
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("name", req.Name, "source", req.SourceVolumeId))
+	return cs.ControllerServer.CreateSnapshot(ctx, req)
 }
 
-func (cs *ControllerServerWithValidator) DeleteSnapshot(context context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
+func (cs *ControllerServerWithValidator) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
 	if len(req.SnapshotId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "SnapshotId is required")
 	}
-	return cs.ControllerServer.DeleteSnapshot(context, req)
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("SnapshotID", req.SnapshotId))
+	return cs.ControllerServer.DeleteSnapshot(ctx, req)
 }
 
-func (cs *ControllerServerWithValidator) ControllerExpandVolume(context context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
+func (cs *ControllerServerWithValidator) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	if len(req.VolumeId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumeId is required")
 	}
 	if req.CapacityRange == nil {
 		return nil, status.Error(codes.InvalidArgument, "CapacityRange is required")
 	}
-	return cs.ControllerServer.ControllerExpandVolume(context, req)
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("volumeID", req.VolumeId))
+	return cs.ControllerServer.ControllerExpandVolume(ctx, req)
 }
 
 type GenericControllerServer struct {
