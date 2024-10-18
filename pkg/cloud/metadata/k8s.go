@@ -37,6 +37,9 @@ var (
 		"alibabacloud.com/ecs-instance-id",
 		"sigma.ali/ecs-instance-id",
 	}
+	VmocLabels = []string {
+		"rm.alibaba-inc.com/vbm",
+	}
 )
 
 var MetadataLabels = map[MetadataKey][]string{
@@ -44,6 +47,7 @@ var MetadataLabels = map[MetadataKey][]string{
 	ZoneID:       ZoneIDLabels,
 	InstanceType: InstanceTypeLabels,
 	InstanceID:   InstanceIdLabels,
+	VmocType:     VmocLabels,
 }
 
 func init() {
