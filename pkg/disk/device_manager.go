@@ -260,8 +260,10 @@ func (m *DeviceManager) GetDeviceNumberFromBlockDevice(blockDevice, busPrefix st
 		return "", err
 	}
 	// same as filepath.EvalSymlinks(filepath.Join("/sys/block", deviceName))
-	dirEntry, err := filepath.EvalSymlinks(fmt.Sprintf("%s/dev/block/%d:%d", m.SysfsPath, major, minor))
-	if err != nil {
+	originPath := fmt.Sprintf("%s/dev/block/%d:%d", m.SysfsPath, major, minor)
+	klog.InfoS("GetDeviceNumberFromBlockDevice: ", "originPath", originPath)
+	dirEntry, err := filepath.EvalSymlinks(originPath)
+	if err != nil || dirEntry == "/" {
 		return "", err
 	}
 	for {
