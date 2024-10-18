@@ -308,7 +308,7 @@ func clearBdfInfo(diskID, bdf string) (err error) {
 
 	bdfInfoString := ""
 	if bdf == "" {
-		diskInfo := getDisk(diskID, ecsClient)
+		diskInfo := getDisks([]string{diskID}, ecsClient)
 		if len(diskInfo) != 1 {
 			klog.Warningf("clearBdfInfo: cannot get disk: %s", diskID)
 			return err

@@ -36,13 +36,14 @@ type PerformanceLevelDesc struct {
 }
 
 type CategoryDesc struct {
-	Size                  SizeRange
-	PerformanceLevel      map[PerformanceLevel]PerformanceLevelDesc
-	InstantAccessSnapshot bool
-	ProvisionedIops       bool
-	Bursting              bool
-	SingleInstance        bool // Cannot be attached to another instance once it is attached.
-	Regional              bool
+	Size                    SizeRange
+	PerformanceLevel        map[PerformanceLevel]PerformanceLevelDesc
+	InstantAccessSnapshot   bool
+	ProvisionedIops         bool
+	Bursting                bool
+	SingleInstance          bool // Cannot be attached to another instance once it is attached.
+	Regional                bool
+	SnapshotConsistentGroup bool
 }
 
 var AllCategories = map[Category]CategoryDesc{
@@ -61,16 +62,19 @@ var AllCategories = map[Category]CategoryDesc{
 			PERFORMANCE_LEVEL2: {Size: SizeRange{Min: 461, Max: 65536}},
 			PERFORMANCE_LEVEL3: {Size: SizeRange{Min: 1261, Max: 65536}},
 		},
-		InstantAccessSnapshot: true,
+		InstantAccessSnapshot:   true,
+		SnapshotConsistentGroup: true,
 	},
 	DiskESSDAuto: {
-		Size:                  SizeRange{Min: 1, Max: 65536},
-		InstantAccessSnapshot: true,
-		ProvisionedIops:       true,
-		Bursting:              true,
+		Size:                    SizeRange{Min: 1, Max: 65536},
+		InstantAccessSnapshot:   true,
+		ProvisionedIops:         true,
+		Bursting:                true,
+		SnapshotConsistentGroup: true,
 	},
 	DiskESSDEntry: {
-		Size: SizeRange{Min: 10, Max: 65536},
+		Size:                    SizeRange{Min: 10, Max: 65536},
+		SnapshotConsistentGroup: true,
 	},
 	DiskEEDStandard: {
 		Size:           SizeRange{Min: 64, Max: 8192},
