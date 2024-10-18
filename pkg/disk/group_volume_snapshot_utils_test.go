@@ -1,12 +1,14 @@
 package disk
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,12 +17,12 @@ func Test_parseGroupSnapshotAnnotations(t *testing.T) {
 	ecsParams := &createGroupSnapshotParams{}
 
 	// Test case 1: snapshotTTL is empty
-	annotations["storage.alibabacloud.com/snapshot-ttl"] = ""
+	annotations[common.SnapshotTTLKey] = ""
 	err := parseGroupSnapshotAnnotations(annotations, ecsParams)
 	assert.Nil(t, err)
 
 	// Test case 2: snapshotTTL is not empty
-	annotations["storage.alibabacloud.com/snapshot-ttl"] = "10"
+	annotations[common.SnapshotTTLKey] = "10"
 	err = parseGroupSnapshotAnnotations(annotations, ecsParams)
 	assert.Error(t, err)
 }
@@ -244,6 +246,7 @@ func Test_checkSourceVolume(t *testing.T) {
 				DiskId:      "disk-1",
 				Category:    string(DiskESSDAuto),
 				ZoneId:      "zone-a",
+				Status:      DiskStatusInuse,
 				MultiAttach: DiskMultiAttachDisabled,
 				Size:        10,
 			},
@@ -259,6 +262,7 @@ func Test_checkSourceVolume(t *testing.T) {
 				DiskId:      "disk-1",
 				Category:    string(DiskESSD),
 				ZoneId:      "zone-a",
+				Status:      DiskStatusInuse,
 				MultiAttach: DiskMultiAttachDisabled,
 				Size:        10,
 			},
@@ -276,6 +280,7 @@ func Test_checkSourceVolume(t *testing.T) {
 				ZoneId:      "zone-a",
 				MultiAttach: DiskMultiAttachDisabled,
 				Size:        10,
+				Status:      DiskStatusInuse,
 			},
 			zoneId:        "zone-a",
 			capacityInGiB: 100,
@@ -289,6 +294,7 @@ func Test_checkSourceVolume(t *testing.T) {
 				ZoneId:      "zone-a",
 				MultiAttach: DiskMultiAttachDisabled,
 				Size:        10,
+				Status:      DiskStatusInuse,
 			},
 			zoneId:        "zone-b",
 			capacityInGiB: 100,
@@ -302,6 +308,7 @@ func Test_checkSourceVolume(t *testing.T) {
 				ZoneId:      "zone-a",
 				MultiAttach: DiskMultiAttachEnabled,
 				Size:        10,
+				Status:      DiskStatusInuse,
 			},
 			zoneId:        "zone-a",
 			capacityInGiB: 100,
@@ -310,14 +317,27 @@ func Test_checkSourceVolume(t *testing.T) {
 		{
 			name: "exceed max capacity",
 			disk: &ecs.Disk{
-				DiskId:      "disk-1",
-				Category:    string(DiskESSD),
-				ZoneId:      "zone-a",
-				MultiAttach: DiskMultiAttachEnabled,
-				Size:        10,
+				DiskId:   "disk-1",
+				Category: string(DiskESSD),
+				ZoneId:   "zone-a",
+				Size:     10,
+				Status:   DiskStatusInuse,
 			},
 			zoneId:        "zone-a",
 			capacityInGiB: MaxCapacityInGiB,
+			expectedError: true,
+		},
+		{
+			name: "invalid disk status",
+			disk: &ecs.Disk{
+				DiskId:   "disk-2",
+				Category: string(DiskESSDEntry),
+				ZoneId:   "zone-a",
+				Size:     10,
+				Status:   DiskStatusAvailable,
+			},
+			zoneId:        "zone-a",
+			capacityInGiB: 100,
 			expectedError: true,
 		},
 	}
@@ -365,5 +385,85 @@ func Test_tryGetGroupSnapshotId(t *testing.T) {
 		if actual != test.expected {
 			t.Errorf("tryGetGroupSnapshotId(%q) = %q; expected %q", test.input, actual, test.expected)
 		}
+	}
+}
+
+func Test_parseGroupSnapshotParameters(t *testing.T) {
+	tests := []struct {
+		name          string
+		params        map[string]string
+		wantError     bool
+		wantECSParams *createGroupSnapshotParams
+	}{
+		{
+			name: "valid parameters",
+			params: map[string]string{
+				SNAPSHOTRESOURCEGROUPID: "resource-group-id",
+				"snapshotTags/Key1":     "value1",
+				"snapshotTags/Key2":     "value2",
+			},
+			wantError: false,
+			wantECSParams: &createGroupSnapshotParams{
+				ResourceGroupID: "resource-group-id",
+				SnapshotTags: []ecs.CreateSnapshotGroupTag{
+					{
+						Key:   "Key1",
+						Value: "value1",
+					},
+					{
+						Key:   "Key2",
+						Value: "value2",
+					},
+				},
+			},
+		},
+		{
+			name: "invalid parameter retentionDays",
+			params: map[string]string{
+				RETENTIONDAYS:           "10",
+				SNAPSHOTRESOURCEGROUPID: "resource-group-id",
+			},
+			wantError: true,
+		},
+		{
+			name:          "no parameters",
+			params:        map[string]string{},
+			wantError:     false,
+			wantECSParams: &createGroupSnapshotParams{},
+		},
+		{
+			name: "name and namespace",
+			params: map[string]string{
+				common.VolumeGroupSnapshotNameKey:      "name",
+				common.VolumeGroupSnapshotNamespaceKey: "namespace",
+			},
+			wantError: false,
+			wantECSParams: &createGroupSnapshotParams{
+				SnapshotTags: []ecs.CreateSnapshotGroupTag{
+					{
+						Key:   common.VolumeGroupSnapshotNameTag,
+						Value: "name",
+					},
+					{
+						Key:   common.VolumeGroupSnapshotNamespaceTag,
+						Value: "namespace",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ecsParams := &createGroupSnapshotParams{}
+
+			err := parseGroupSnapshotParameters(tt.params, ecsParams)
+
+			if tt.wantError {
+				assert.Error(t, err)
+			} else if !reflect.DeepEqual(tt.wantECSParams, ecsParams) {
+				t.Errorf("parseGroupSnapshotParameters() = %v, want %v", ecsParams, tt.wantECSParams)
+			}
+		})
 	}
 }

@@ -564,7 +564,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	disks := getDisk(sourceVolumeID, ecsClient)
+	disks := getDisks([]string{sourceVolumeID}, ecsClient)
 	if len(disks) == 0 {
 		return nil, status.Errorf(codes.Internal, "CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID)
 	} else if len(disks) != 1 {
@@ -807,10 +807,17 @@ func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 		}
 		creationTime = &timestamp.Timestamp{Seconds: t.Unix()}
 	}
-	sizeGB, err := strconv.ParseInt(ecsSnapshot.SourceDiskSize, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse snapshot size: %s", ecsSnapshot.SourceDiskSize)
+
+	var sizeGB int64
+	var err error
+	// SourceDiskSize is always empty for CreateSnapshotGroupResponse
+	if ecsSnapshot.SourceDiskSize != "" {
+		sizeGB, err = strconv.ParseInt(ecsSnapshot.SourceDiskSize, 10, 64)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to parse snapshot size: %s", ecsSnapshot.SourceDiskSize)
+		}
 	}
+
 	sizeBytes := utils.Gi2Bytes(sizeGB)
 	groupSnapshotId := tryGetGroupSnapshotId(ecsSnapshot.SnapshotName)
 	if groupSnapshotId == "" {

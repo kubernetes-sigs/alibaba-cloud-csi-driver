@@ -535,14 +535,23 @@ func detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID strin
 	return nil
 }
 
-func getDisk(diskID string, ecsClient *ecs.Client) []ecs.Disk {
-	// Step 1: Describe disk, if tag exist, return;
+func getDiskDescribeRequest(diskIDs []string) *ecs.DescribeDisksRequest {
+	var idList string
+	for _, id := range diskIDs {
+		idList += fmt.Sprintf("\"%s\",", id)
+	}
+	idList = strings.TrimSuffix(idList, ",")
 	describeDisksRequest := ecs.CreateDescribeDisksRequest()
 	describeDisksRequest.RegionId = GlobalConfigVar.Region
-	describeDisksRequest.DiskIds = "[\"" + diskID + "\"]"
+	describeDisksRequest.DiskIds = fmt.Sprintf("[%s]", idList)
+	return describeDisksRequest
+}
+
+func getDisks(diskIDs []string, ecsClient *ecs.Client) []ecs.Disk {
+	describeDisksRequest := getDiskDescribeRequest(diskIDs)
 	diskResponse, err := ecsClient.DescribeDisks(describeDisksRequest)
 	if err != nil {
-		klog.Warningf("getDisk: error with DescribeDisks: %s, %s", diskID, err.Error())
+		klog.Warningf("getDisks: error with DescribeDisks: %v, %s", diskIDs, err.Error())
 		return []ecs.Disk{}
 	}
 	return diskResponse.Disks.Disk
@@ -575,7 +584,7 @@ func tagDiskUserTags(diskID string, tags map[string]string, tenantUID string) {
 // tag disk with: k8s.aliyun.com=true
 func tagDiskAsK8sAttached(diskID string, ecsClient *ecs.Client) {
 	// Step 1: Describe disk, if tag exist, return;
-	disks := getDisk(diskID, ecsClient)
+	disks := getDisks([]string{diskID}, ecsClient)
 	if len(disks) == 0 {
 		klog.Warningf("tagAsK8sAttached: no disk found: %s", diskID)
 		return

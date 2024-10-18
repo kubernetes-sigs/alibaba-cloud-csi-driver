@@ -3,6 +3,7 @@ package disk
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -46,33 +47,38 @@ func getVolumeGroupSnapshotConfig(req *csi.CreateVolumeGroupSnapshotRequest) (*c
 }
 
 func parseGroupSnapshotParameters(params map[string]string, ecsParams *createGroupSnapshotParams) (err error) {
+	tags := make(map[string]string)
 	for k, v := range params {
 		switch k {
 		case RETENTIONDAYS:
-			//ecsParams.RetentionDays, err = strconv.Atoi(v)
-			//if err != nil {
-			//	return fmt.Errorf("failed to parse retentionDays: %w", err)
-			//}
 			return fmt.Errorf("groupSnapshot do not support retentionDays: %w", err)
 		case SNAPSHOTRESOURCEGROUPID:
 			ecsParams.ResourceGroupID = v
 		case common.VolumeGroupSnapshotNameKey:
-			ecsParams.SnapshotTags = append(ecsParams.SnapshotTags, ecs.CreateSnapshotGroupTag{
-				Key:   common.VolumeGroupSnapshotNameTag,
-				Value: v,
-			})
+			tags[common.VolumeGroupSnapshotNameTag] = v
 		case common.VolumeGroupSnapshotNamespaceKey:
-			ecsParams.SnapshotTags = append(ecsParams.SnapshotTags, ecs.CreateSnapshotGroupTag{
-				Key:   common.VolumeGroupSnapshotNamespaceTag,
-				Value: v,
-			})
+			tags[common.VolumeGroupSnapshotNamespaceTag] = v
 		default:
 			if strings.HasPrefix(k, SNAPSHOT_TAG_PREFIX) {
-				ecsParams.SnapshotTags = append(ecsParams.SnapshotTags, ecs.CreateSnapshotGroupTag{
-					Key:   k[len(SNAPSHOT_TAG_PREFIX):],
-					Value: v,
-				})
+				k = k[len(SNAPSHOT_TAG_PREFIX):]
+				// don't override built-in tags
+				if _, ok := tags[k]; !ok {
+					tags[k] = v
+				}
 			}
+		}
+	}
+	if len(tags) > 0 {
+		keys := make([]string, 0, len(tags))
+		for k := range tags {
+			keys = append(keys, k)
+		}
+		slices.Sort(keys)
+		for _, k := range keys {
+			ecsParams.SnapshotTags = append(ecsParams.SnapshotTags, ecs.CreateSnapshotGroupTag{
+				Key:   k,
+				Value: tags[k],
+			})
 		}
 	}
 	return nil
@@ -81,13 +87,9 @@ func parseGroupSnapshotParameters(params map[string]string, ecsParams *createGro
 // if volumesnapshot have Annotations, use it first.
 // storage.alibabacloud.com/snapshot-ttl
 func parseGroupSnapshotAnnotations(anno map[string]string, ecsParams *createGroupSnapshotParams) error {
-	snapshotTTL := anno["storage.alibabacloud.com/snapshot-ttl"]
+	snapshotTTL := anno[common.SnapshotTTLKey]
 
 	if snapshotTTL != "" {
-		//ecsParams.RetentionDays, err = strconv.Atoi(snapshotTTL)
-		//if err != nil {
-		//	return fmt.Errorf("failed to parse annotation snapshot-ttl: %w", err)
-		//}
 		return fmt.Errorf("groupSnapshot do not support retentionDays")
 	}
 
@@ -170,15 +172,19 @@ func ifExistsGroupSnapshotMatch(existsGroupSnapshot *ecs.SnapshotGroup, snapshot
 }
 
 // checkSourceVolumes checks whether a single source volume is valid.
+// ref: https://www.alibabacloud.com/help/en/ecs/user-guide/create-a-snapshot-consistent-group?spm=a2c63.p38356.0.0.172c75477J9Sxz#a383a34054gtz
 func checkSourceVolume(disk *ecs.Disk, zoneId string, capacityInGiB int) (
 	nZoneId string, nCapacityInGiB int, err error) {
 	nZoneId = zoneId
 	nCapacityInGiB = capacityInGiB
 
-	switch disk.Category {
-	case string(DiskESSD), string(DiskESSDAuto):
-	default:
+	if !AllCategories[Category(disk.Category)].SnapshotConsistentGroup {
 		err = fmt.Errorf("groupSnapshot only support ESSD disks, but disk %s is %v", disk.DiskId, disk.Category)
+		return
+	}
+
+	if disk.Status != DiskStatusInuse {
+		err = fmt.Errorf("groupSnapshot only support in-use disks, but disk %s is %s", disk.DiskId, disk.Status)
 		return
 	}
 
@@ -208,21 +214,18 @@ func checkSourceVolumes(sourceVolumeIds []string) error {
 	var zoneId string
 	var capacityInGiB int
 	var err error
-	for _, sourceVolumeId := range sourceVolumeIds {
-		disks := getDisk(sourceVolumeId, GlobalConfigVar.EcsClient)
-		switch len(disks) {
-		case 0:
-			return fmt.Errorf("no disk found: %s", sourceVolumeId)
-		case 1:
-		default:
-			return fmt.Errorf("multi disk found: %s", sourceVolumeId)
-		}
+	disks := getDisks(sourceVolumeIds, GlobalConfigVar.EcsClient)
+	if len(disks) != len(sourceVolumeIds) {
+		return fmt.Errorf("can not find enough disks: %v", sourceVolumeIds)
+	}
 
-		zoneId, capacityInGiB, err = checkSourceVolume(&disks[0], zoneId, capacityInGiB)
+	for _, disk := range disks {
+		zoneId, capacityInGiB, err = checkSourceVolume(&disk, zoneId, capacityInGiB)
 		if err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 

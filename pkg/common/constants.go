@@ -22,6 +22,8 @@ const (
 
 // constants of keys in volume snapshot parameters
 const (
+	SnapshotTTLKey = "storage.alibabacloud.com/snapshot-ttl"
+
 	VolumeSnapshotNamespaceKey = "csi.storage.k8s.io/volumesnapshot/namespace"
 	VolumeSnapshotNameKey      = "csi.storage.k8s.io/volumesnapshot/name"
 
