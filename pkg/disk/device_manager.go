@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"regexp"
 
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"golang.org/x/sys/unix"
@@ -253,7 +254,7 @@ func (m *DeviceManager) WriteSysfs(devicePath, name string, value []byte) error 
 	return nil
 }
 
-func (m *DeviceManager) GetDeviceNumberFromBlockDevice(blockDevice, busPrefix string) (string, error) {
+func (m *DeviceManager) GetDeviceNumberFromBlockDevice(blockDevice string, busRegex *regexp.Regexp) (string, error) {
 
 	major, minor, err := m.DevTmpFS.DevFor(blockDevice)
 	if err != nil {
@@ -266,11 +267,14 @@ func (m *DeviceManager) GetDeviceNumberFromBlockDevice(blockDevice, busPrefix st
 	}
 	for {
 		klog.Infof("NewDeviceDriver: get symlink dir: %s", dirEntry)
-		if dirEntry == ".." || dirEntry == "." {
+		if dirEntry == ".." || dirEntry == "." || dirEntry == "/" {
 			return "", fmt.Errorf("NewDeviceDriver: not found device number, blockDevice: %s", blockDevice)
 		}
 		parentDir := filepath.Base(filepath.Dir(dirEntry))
-		if strings.HasPrefix(parentDir, busPrefix) {
+		
+		matched := busRegex.MatchString(parentDir)
+		klog.Infof("NewDeviceDriver: busPrefix: %s, parentDir: %s, matched: %v", busRegex.String(), parentDir, matched)
+		if matched {
 			return parentDir, nil
 		} else {
 			dirEntry = filepath.Dir(dirEntry)

@@ -15,6 +15,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"regexp"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -515,17 +516,17 @@ func (_type MachineType) BusName() string {
 	return busNames[_type]
 }
 
-func (_type MachineType) BusPrefix() string {
-	busPrefixes := [...]string{
+func (_type MachineType) BusRegex() (*regexp.Regexp, error) {
+	busRegexes := [...]*regexp.Regexp{
 		BDFTypeDevice,
 		DFBusTypeDevice,
 	}
 
 	if _type < BDF || _type > DFBus {
-		return fmt.Sprintf("Unknown(%d)", _type)
+		return nil, fmt.Errorf("Unknown(%d)", _type)
 	}
 
-	return busPrefixes[_type]
+	return busRegexes[_type], nil
 }
 
 type Driver interface {
@@ -545,7 +546,12 @@ func NewDeviceDriver(volumeId, blockDevice, deviceNumber string, _type MachineTy
 	}
 	if blockDevice != "" {
 		if deviceNumber == "" {
-			deviceNumber, err := DefaultDeviceManager.GetDeviceNumberFromBlockDevice(blockDevice, d.machineType.BusPrefix())
+			busRegex, err := d.machineType.BusRegex()
+			if err != nil {
+				klog.Errorf("NewDeviceDriver: get device number from block device err: %v", err)
+				return nil, err
+			}
+			deviceNumber, err := DefaultDeviceManager.GetDeviceNumberFromBlockDevice(blockDevice, busRegex)
 			if err != nil {
 				klog.Errorf("NewDeviceDriver: get device number from block device err: %v", err)
 				return nil, err
@@ -553,7 +559,7 @@ func NewDeviceDriver(volumeId, blockDevice, deviceNumber string, _type MachineTy
 			d.deviceNumber = deviceNumber
 		}
 	} 
-	if deviceNumber != "" {
+	if d.deviceNumber != "" {
 		return d, nil
 	}
 	if _type == DFBus {

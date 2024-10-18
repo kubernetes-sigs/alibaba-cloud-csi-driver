@@ -29,6 +29,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"regexp"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -112,12 +113,8 @@ const (
 
 	// RundVolumeType specific which volume type is passed to rund
 	rundBlockVolumeType = "block"
-	// BDFTypeDevice defines the prefix of bdf number
-	BDFTypeDevice = "0000:"
 	// BDFTypeBus defines bdf bus type
 	BDFTypeBus = "pci"
-	// DFBusTypeDevice defines the prefix of dfnumber
-	DFBusTypeDevice = "dfvirtio"
 	// DFBusTypeBus defines df bus type
 	DFBusTypeBus = "dragonfly"
 	// DFBusTypeVFIO defines df bus vfio driver type
@@ -139,6 +136,12 @@ var (
 	// Linux only support trusted namespace xattr in tmpfs before kernel v6.6,
 	// but setting trusted xaattr requires CAP_SYS_ADMIN capability, we may use user namespace instead in unit tests.
 	DiskXattrName = "trusted.csi-managed-disk"
+
+
+	// BDFTypeDevice defines the regexp of bdf number
+  	BDFTypeDevice = regexp.MustCompile(`^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}`)
+	// DFBusTypeDevice defines the regexp of dfnumber
+	DFBusTypeDevice = regexp.MustCompile(`^dfvirtio.*`)
 )
 
 // QueryResponse response struct for query server
@@ -1342,6 +1345,7 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 			return true, status.Error(codes.InvalidArgument, "NodePublishVolume: unmountStageTarget "+sourcePath+" with error: "+err.Error())
 		}
 
+		klog.InfoS("mountRunDVolumes: ", "deviceName", deviceName)
 		driver, err := NewDeviceDriver(volumeId, deviceName, deviceNumber, ns.kataBMIOType, map[string]string{})
 		if err != nil {
 			klog.Errorf("NodePublishVolume(rund3.0): can't get bdf number of volume:  %s: err: %v", volumeId, err)
