@@ -17,14 +17,12 @@ limitations under the License.
 package disk
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -34,6 +32,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/sfdisk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
@@ -974,29 +973,22 @@ func localExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*
 		}
 		return nil, status.Errorf(codes.Internal, "NodeExpandVolume: VolumeId: %s, get device name error: %s", req.VolumeId, err.Error())
 	}
+	logger := klog.FromContext(ctx).WithValues("device", devicePath)
+	ctx = klog.NewContext(ctx, logger)
 
-	klog.Infof("NodeExpandVolume:: volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
 	rootPath, index, err := DefaultDeviceManager.GetDeviceRootAndPartitionIndex(devicePath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "GetDeviceRootAndIndex(%s) failed: %v", diskID, err)
 	}
 	if index != "" {
-		output, err := exec.Command("growpart", rootPath, index).CombinedOutput()
+		err := sfdisk.ExpandPartition(ctx, rootPath, index)
 		if err != nil {
-			if bytes.Contains(output, []byte("NOCHANGE")) {
-				if bytes.Contains(output, []byte("it cannot be grown")) || bytes.Contains(output, []byte("could only be grown by")) {
-					deviceCapacity := getBlockDeviceCapacity(devicePath)
-					rootCapacity := getBlockDeviceCapacity(rootPath)
-					klog.Infof("NodeExpandVolume: Volume %s with Device Partition %s no need to grown, with request: %v, root: %v, partition: %v",
-						diskID, devicePath, DiskSize{requestBytes}, DiskSize{rootCapacity}, DiskSize{deviceCapacity})
-					return &csi.NodeExpandVolumeResponse{}, nil
-				}
-			}
-			return nil, status.Errorf(codes.InvalidArgument, "NodeExpandVolume: expand volume %s at %s %s failed: %s, with output %s", diskID, rootPath, index, err.Error(), string(output))
+			return nil, status.Error(codes.Internal, err.Error())
 		}
-		klog.Infof("NodeExpandVolume: Successful expand partition for volume: %s device: %s partition: %s", diskID, rootPath, index)
+		logger.V(2).Info("Successful expand partition", "root", rootPath, "partition", index)
 	}
 
+	klog.V(2).Info("Expand filesystem start", "volumePath", volumePath)
 	// use resizer to expand volume filesystem
 	r := k8smount.NewResizeFs(utilexec.New())
 	ok, err := r.Resize(devicePath, volumePath)
