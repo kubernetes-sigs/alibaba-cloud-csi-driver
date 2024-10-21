@@ -430,8 +430,7 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (*createSnapshotPar
 	if req.Parameters != nil {
 		err := parseSnapshotParameters(req.Parameters, &ecsParams)
 		if err != nil {
-			klog.Errorf("CreateSnapshot:: Snapshot name[%s], parse config failed: %v", req.Name, err)
-			return nil, status.Errorf(codes.InvalidArgument, err.Error())
+			return nil, fmt.Errorf("parse snapshot parameters failed: %v", err)
 		}
 	}
 
@@ -444,12 +443,11 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (*createSnapshotPar
 
 	volumeSnapshot, err := GlobalConfigVar.SnapClient.SnapshotV1().VolumeSnapshots(vsNameSpace).Get(context.Background(), vsName, metav1.GetOptions{})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get VolumeSnapshot: %s/%s: %v", vsNameSpace, vsName, err)
+		return nil, fmt.Errorf("failed to get VolumeSnapshot: %s/%s: %v", vsNameSpace, vsName, err)
 	}
 	err = parseSnapshotAnnotations(volumeSnapshot.Annotations, &ecsParams)
 	if err != nil {
-		klog.Errorf("CreateSnapshot:: Snapshot name[%s], parse annotation failed: %v", req.Name, err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		return nil, fmt.Errorf("parse snapshot annotations failed: %v", err)
 	}
 	return &ecsParams, nil
 }
@@ -518,20 +516,10 @@ func parseSnapshotAnnotations(anno map[string]string, ecsParams *createSnapshotP
 // CreateSnapshot ...
 func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
 
-	// used for snapshot events
-	snapshotName := req.Parameters[common.VolumeSnapshotNameKey]
-	snapshotNamespace := req.Parameters[common.VolumeSnapshotNamespaceKey]
-
-	ref := &v1.ObjectReference{
-		Kind:      "VolumeSnapshot",
-		Name:      snapshotName,
-		UID:       "",
-		Namespace: snapshotNamespace,
-	}
-
 	params, err := getVolumeSnapshotConfig(req)
 	if err != nil {
-		return nil, err
+		klog.Errorf("CreateSnapshot:: get volumesnapshot config failed: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "get volumesnapshot config failed: %v", err)
 	}
 
 	klog.Infof("CreateSnapshot:: Starting to create snapshot: %+v", req)
@@ -547,31 +535,25 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		if existsSnapshot.SourceDiskId == req.GetSourceVolumeId() {
 			csiSnapshot, err := formatCSISnapshot(&existsSnapshot)
 			if err != nil {
-				return nil, err
+				klog.Errorf("CreateSnapshot:: format snapshot failed: %v", err)
+				return nil, status.Errorf(codes.Internal, "format snapshot failed: %v", err)
 			}
 			klog.Infof("CreateSnapshot:: Snapshot already created: name[%s], sourceId[%s], status[%v]", req.Name, req.GetSourceVolumeId(), csiSnapshot.ReadyToUse)
 			if csiSnapshot.ReadyToUse {
-				str := fmt.Sprintf("VolumeSnapshot: name: %s, id: %s is ready to use.", existsSnapshot.SnapshotName, existsSnapshot.SnapshotId)
-				utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotCreatedSuccessfully, str)
+				klog.Infof("VolumeSnapshot: name: %s, id: %s is ready to use.", existsSnapshot.SnapshotName, existsSnapshot.SnapshotId)
 			}
 			return &csi.CreateSnapshotResponse{
 				Snapshot: csiSnapshot,
 			}, nil
 		}
 		klog.Errorf("CreateSnapshot:: Snapshot already exist with same name: name[%s], volumeID[%s]", req.Name, existsSnapshot.SourceDiskId)
-		err := status.Errorf(codes.AlreadyExists, "snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName())
-		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotAlreadyExist, err.Error())
-		return nil, err
+		return nil, status.Errorf(codes.AlreadyExists, "snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName())
 	case snapNum > 1:
 		klog.Errorf("CreateSnapshot:: Find Snapshot name[%s], but get more than 1 instance", req.Name)
-		err := status.Error(codes.Internal, "CreateSnapshot: get snapshot more than 1 instance")
-		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotTooMany, err.Error())
-		return nil, err
+		return nil, status.Error(codes.Internal, "CreateSnapshot: get snapshot more than 1 instance")
 	case err != nil:
 		klog.Errorf("CreateSnapshot:: Expect to find Snapshot name[%s], but get error: %v", req.Name, err)
-		e := status.Errorf(codes.Internal, "CreateSnapshot: get snapshot with error: %s", err.Error())
-		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
-		return nil, e
+		return nil, status.Errorf(codes.Internal, "CreateSnapshot: get snapshot with error: %s", err.Error())
 	}
 
 	// check snapshot again, if ram has no auth to describe snapshot, there will always 0 response.
@@ -594,12 +576,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		klog.Warningf("CreateSnapshot: multi disk found: %s", sourceVolumeID)
 		return nil, status.Errorf(codes.Internal, "CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID)
 	}
-	// if disks[0].Status != "In_use" {
-	// klog.Errorf("CreateSnapshot: disk [%s] not attached, status: [%s]", sourceVolumeID, disks[0].Status)
-	// 	e := status.Errorf(codes.InvalidArgument, "CreateSnapshot:: target disk: %v must be attached", sourceVolumeID)
-	// 	utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
-	// 	return nil, e
-	// }
 
 	// init createSnapshotRequest and parameters
 	createAt := timestamppb.Now()
@@ -609,8 +585,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 
 	if err != nil {
 		klog.Errorf("CreateSnapshot:: Snapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", req.Name, req.GetSourceVolumeId(), err.Error())
-		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, err.Error())
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "create snapshot failed with error: %v", err)
 	}
 
 	str := fmt.Sprintf("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotResponse.SnapshotId)
@@ -624,7 +599,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	createdSnapshotMap[req.Name] = csiSnapshot
-	utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotCreatedSuccessfully, str)
 	return &csi.CreateSnapshotResponse{
 		Snapshot: csiSnapshot,
 	}, nil
@@ -679,7 +653,8 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshot, err := findDiskSnapshotByID(req.SnapshotId)
 	if err != nil {
-		return nil, err
+		klog.Errorf("DeleteSnapshot: fail to find snapshot %s with error: %v", snapshotID, err)
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
 	if snapshot == nil {
@@ -687,29 +662,21 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 		return &csi.DeleteSnapshotResponse{}, nil
 	}
 
-	ref := &v1.ObjectReference{
-		Kind:      "VolumeSnapshotContent",
-		Name:      snapshot.SnapshotName,
-		UID:       "",
-		Namespace: "",
-	}
-
 	// log.Log snapshot
 	klog.Infof("DeleteSnapshot: Snapshot %s exist with Info: %+v, %+v", snapshotID, snapshot, err)
 
+	var reqId string
 	response, err := requestAndDeleteSnapshot(snapshotID)
+	if response != nil {
+		reqId = response.RequestId
+	}
 	if err != nil {
-		if response != nil {
-			klog.Errorf("DeleteSnapshot: fail to delete %s: with RequestId: %s, error: %s", snapshotID, response.RequestId, err.Error())
-		}
-		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotDeleteError, err.Error())
-		return nil, err
+		klog.Errorf("DeleteSnapshot: failed to delete snapshot %s: with RequestId: %s, error: %s", snapshotID, reqId, err.Error())
+		return nil, status.Errorf(codes.Internal, "delete snapshot %s with RequestId: %s, error: %v", snapshotID, reqId, err)
 	}
 
 	delete(createdSnapshotMap, snapshot.SnapshotName)
-	str := fmt.Sprintf("DeleteSnapshot:: Successfully delete snapshot %s, requestId: %s", snapshotID, response.RequestId)
-	klog.Info(str)
-	utils.CreateEvent(cs.recorder, ref, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
+	klog.Infof("DeleteSnapshot:: Successfully delete snapshot %s, requestId: %s", snapshotID, reqId)
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
@@ -721,9 +688,8 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 	if len(snapshotID) > 0 {
 		snapshot, err := findDiskSnapshotByID(snapshotID)
 		if err != nil {
-			klog.Errorf("CreateSnapshot:: failed to find Snapshot id %s: %v", req.SnapshotId, err)
-			e := status.Errorf(codes.Internal, "ListSnapshots:: failed to find Snapshot id %s: %v", req.SnapshotId, err.Error())
-			return nil, e
+			klog.Errorf("ListSnapshots:: failed to find Snapshot id %s: %v", req.SnapshotId, err)
+			return nil, status.Errorf(codes.Internal, "failed to find Snapshot id %s: %v", req.SnapshotId, err.Error())
 		}
 		snapshots := make([]ecs.Snapshot, 0, 1)
 		if snapshot != nil {
@@ -734,11 +700,14 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 	volumeID := req.GetSourceVolumeId()
 	if volumeID == "" && GlobalConfigVar.ClusterID == "" {
 		// We don't want to expose all snapshots of the current user, which may be too many.
+		klog.Errorf("ListSnapshots:: failed to list snapshots as both volume ID and cluster ID is empty")
 		return nil, status.Errorf(codes.InvalidArgument, "At least one of snapshot ID, volume ID, cluster ID must be specified")
 	}
 	snapshots, nextToken, err := listSnapshots(GlobalConfigVar.EcsClient,
 		volumeID, GlobalConfigVar.ClusterID, req.GetStartingToken(), int(req.GetMaxEntries()))
 	if err != nil {
+		klog.Errorf("ListSnapshots:: failed to list snapshots: %v", err)
+		// pass through error with error code
 		return nil, err
 	}
 	return newListSnapshotsResponse(snapshots, nextToken)
@@ -823,7 +792,8 @@ func newListSnapshotsResponse(snapshots []ecs.Snapshot, nextToken string) (*csi.
 	for _, snapshot := range snapshots {
 		csiSnapshot, err := formatCSISnapshot(&snapshot)
 		if err != nil {
-			return nil, err
+			klog.Errorf("ListSnapshots:: format snapshot failed: %v", err)
+			return nil, status.Errorf(codes.Internal, "format snapshot failed: %v", err)
 		}
 		entry := &csi.ListSnapshotsResponse_Entry{
 			Snapshot: csiSnapshot,
@@ -840,11 +810,11 @@ func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 
 	t, err := time.Parse(time.RFC3339, ecsSnapshot.CreationTime)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", ecsSnapshot.CreationTime)
+		return nil, fmt.Errorf("failed to parse snapshot creation time: %s", ecsSnapshot.CreationTime)
 	}
 	sizeGB, err := strconv.ParseInt(ecsSnapshot.SourceDiskSize, 10, 64)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to parse snapshot size: %s", ecsSnapshot.SourceDiskSize)
+		return nil, fmt.Errorf("failed to parse snapshot size: %s", ecsSnapshot.SourceDiskSize)
 	}
 	return &csi.Snapshot{
 		SnapshotId:     ecsSnapshot.SnapshotId,
