@@ -10,12 +10,10 @@ import (
 
 	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 )
@@ -52,7 +50,7 @@ func NewGroupControllerServer() csi.GroupControllerServer {
 	return c
 }
 
-// the map of req.Name and csi.VolumeGroupSnapshot
+// the map of req.GetName() and csi.VolumeGroupSnapshot
 var createdGroupSnapshotMap = map[string]*csi.VolumeGroupSnapshot{}
 
 // GroupSnapshotRequestMap snapshot request limit
@@ -79,23 +77,12 @@ func (cs *groupControllerServer) GroupControllerGetCapabilities(ctx context.Cont
 func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, req *csi.CreateVolumeGroupSnapshotRequest) (*csi.CreateVolumeGroupSnapshotResponse, error) {
 	// request limit
 	cur := time.Now().Unix()
-	if initTime, ok := GroupSnapshotRequestMap[req.Name]; ok {
+	if initTime, ok := GroupSnapshotRequestMap[req.GetName()]; ok {
 		if cur-initTime < GroupSnapshotRequestInterval {
-			return nil, status.Errorf(codes.Aborted, "volume group snapshot create request limit %s", req.Name)
+			return nil, status.Errorf(codes.Aborted, "volume group snapshot create request limit %s", req.GetName())
 		}
 	}
-	GroupSnapshotRequestMap[req.Name] = cur
-
-	// used for snapshot events
-	groupSnapshotName := req.Parameters[common.VolumeGroupSnapshotNameKey]
-	groupSnapshotNamespace := req.Parameters[common.VolumeGroupSnapshotNamespaceKey]
-
-	ref := &v1.ObjectReference{
-		Kind:      "VolumeGroupSnapshot",
-		Name:      groupSnapshotName,
-		UID:       "",
-		Namespace: groupSnapshotNamespace,
-	}
+	GroupSnapshotRequestMap[req.GetName()] = cur
 
 	klog.Infof("CreateVolumeGroupSnapshot:: Starting to create volumegroupsnapshot: %+v", req)
 
@@ -110,10 +97,8 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 
 	// case 1: groupSnapshot with same name existes, but is failed or inprogress
 	if err != nil {
-		klog.Errorf("CreateVolumeGroupSnapshot::  Snapshot already created: name[%s], and get error: %v", req.GetName(), err)
-		e := status.Errorf(codes.Internal, "CreateVolumeGroupSnapshot: volumeGroupSnapshot with the same name: %s exists but with error: %s", req.GetName(), err.Error())
-		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, e.Error())
-		return nil, e
+		klog.Errorf("CreateVolumeGroupSnapshot:: Snapshot already created: name[%s], and get error: %v", req.GetName(), err)
+		return nil, status.Errorf(codes.Internal, "CreateVolumeGroupSnapshot: volumeGroupSnapshot with the same name: %s exists but with error: %s", req.GetName(), err.Error())
 	}
 
 	// case 2: groupSnapshot with same name existes, and is accomplished
@@ -121,19 +106,18 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 		// check if snapshots in group match sourceVolumeIds for an accomplish volume group
 		match := ifExistsGroupSnapshotMatchSourceVolume(existsGroupSnapshot, sourceVolumeIds)
 		if !match {
-			klog.Errorf("CreateVolumeGroupSnapshot:: GroupSnapshot already exist with same name: name[%s], but with different SourceVolumeIDs[%v]", req.Name, sourceVolumeIds)
-			err := status.Errorf(codes.AlreadyExists, "groupSnapshot with the same name: %s but with different SourceVolumeIds already exist", req.GetName())
-			utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotAlreadyExist, err.Error())
-			return nil, err
+			klog.Errorf("CreateVolumeGroupSnapshot:: GroupSnapshot already exist with same name: name[%s], but with different SourceVolumeIDs[%v]", req.GetName(), sourceVolumeIds)
+			return nil, status.Errorf(codes.AlreadyExists, "groupSnapshot with the same name: %s but with different SourceVolumeIds already exist", req.GetName())
 		}
 		groupSnapshot, err := formatGroupSnapshot(existsGroupSnapshot)
 		if err != nil {
-			return nil, err
+			klog.Errorf("CreateVolumeGroupSnapshot:: format groupSnapshot failed: name[%s], sourceIds[%v], error[%s]", req.GetName(), sourceVolumeIds, err.Error())
+			return nil, status.Errorf(codes.Internal, "CreateVolumeGroupSnapshot:: format groupSnapshot %s failed %s", req.GetName(), err.Error())
 		}
-		klog.Infof("CreateVolumeGroupSnapshot:: GroupSnapshot already created: name[%s], sourceIds[%v], status[%v]", req.Name, sourceVolumeIds, groupSnapshot.ReadyToUse)
+		klog.Infof("CreateVolumeGroupSnapshot:: GroupSnapshot already created: name[%s], sourceIds[%v], status[%v]", req.GetName(), sourceVolumeIds, groupSnapshot.ReadyToUse)
 		if groupSnapshot.ReadyToUse {
 			klog.Infof("VolumeGroupSnapshot: name: %s, id: %s is ready to use.", req.GetName(), groupSnapshot.GroupSnapshotId)
-			delete(GroupSnapshotRequestMap, req.Name)
+			delete(GroupSnapshotRequestMap, req.GetName())
 		}
 		return &csi.CreateVolumeGroupSnapshotResponse{
 			GroupSnapshot: groupSnapshot,
@@ -142,8 +126,8 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 
 	// case 3: groupSnapshot with same name does not exist
 	// check groupsnapshot again, if ram has no auth to describe groupsnapshot, there will always 0 response.
-	if value, ok := createdGroupSnapshotMap[req.Name]; ok {
-		klog.Infof("CreateVolumeGroupSnapshot:: groupSnapshot already created, Name: %s, Info: %v", req.Name, value)
+	if value, ok := createdGroupSnapshotMap[req.GetName()]; ok {
+		klog.Infof("CreateVolumeGroupSnapshot:: groupSnapshot already created, Name: %s, Info: %v", req.GetName(), value)
 		return &csi.CreateVolumeGroupSnapshotResponse{
 			GroupSnapshot: value,
 		}, nil
@@ -153,7 +137,8 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 	// init createSnapshotGroupRequest and parameters
 	params, err := getVolumeGroupSnapshotConfig(req)
 	if err != nil {
-		return nil, err
+		klog.Errorf("CreateVolumeGroupSnapshot:: getVolumeGroupSnapshotConfig failed: snapshotName[%s], sourceIds[%v], error[%s]", req.GetName(), sourceVolumeIds, err.Error())
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	createAt := timestamppb.Now()
 	params.SourceVolumeIDs = sourceVolumeIds
@@ -161,8 +146,7 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 	snapshotResponse, err := requestAndCreateSnapshotGroup(GlobalConfigVar.EcsClient, params)
 	if err != nil {
 		klog.Errorf("CreateVolumeGroupSnapshot:: create groupSnapshot failed: snapshotName[%s], sourceIds[%v], error[%s]", req.GetName(), sourceVolumeIds, err.Error())
-		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotCreateError, err.Error())
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "failed create groupSnapshot: %v", err)
 	}
 
 	klog.Infof("CreateVolumeGroupSnapshot:: groupSnapshot create successful: snapshotName[%s], sourceIds[%s], snapshotGroupId[%s]", req.GetName(), sourceVolumeIds, snapshotResponse.SnapshotGroupId)
@@ -171,7 +155,7 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 		CreationTime:    createAt,
 		ReadyToUse:      false,
 	}
-	createdGroupSnapshotMap[req.Name] = csiSnapshot
+	createdGroupSnapshotMap[req.GetName()] = csiSnapshot
 	return &csi.CreateVolumeGroupSnapshotResponse{
 		GroupSnapshot: csiSnapshot,
 	}, nil
@@ -191,27 +175,19 @@ func (cs *groupControllerServer) DeleteVolumeGroupSnapshot(ctx context.Context, 
 			klog.Infof("DeleteVolumeGroupSnapshot: groupSnapshot[%s] do not exist, return successful", groupSnapshotId)
 			return &csi.DeleteVolumeGroupSnapshotResponse{}, nil
 		}
-		return nil, err
+		klog.Errorf("DeleteVolumeGroupSnapshot:: findSnapshotGroup failed: name[%s], error[%s]", groupSnapshotId, err.Error())
+		return nil, status.Errorf(codes.Internal, "DeleteVolumeGroupSnapshot: find target snapshot group [%s] failed, error: %s", groupSnapshotId, err.Error())
 	}
 	if existsGroupSnapshots == nil {
 		klog.Infof("DeleteVolumeGroupSnapshot: groupSnapshot[%s] do not exist, return successful", groupSnapshotId)
 		return &csi.DeleteVolumeGroupSnapshotResponse{}, nil
 	}
 
-	ref := &v1.ObjectReference{
-		Kind:      "VolumeGroupSnapshotContent",
-		Name:      existsGroupSnapshots.Name,
-		UID:       "",
-		Namespace: "",
-	}
-
 	// part of snapshots may be deleted before
 	match := ifExistsGroupSnapshotMatch(existsGroupSnapshots, snapshotIds, false)
 	if !match {
 		klog.Errorf("DeleteVolumeGroupSnapshot:: snapshots of GroupSnapshot to delete ID[%s], do not equal to requested snapshotIDs[%v]", req.GetGroupSnapshotId(), req.GetSnapshotIds())
-		err := status.Errorf(codes.InvalidArgument, "snapshots of GroupSnapshot to delete ID[%s] do not equal to requested snapshotIDs", req.GetGroupSnapshotId())
-		utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotDeleteError, err.Error())
-		return nil, err
+		return nil, status.Errorf(codes.InvalidArgument, "snapshots of GroupSnapshot to delete ID[%s] do not equal to requested snapshotIDs", req.GetGroupSnapshotId())
 	}
 	klog.Infof("DeleteVolumeGroupSnapshot: groupSnapshot %s exist with Info: %+v, %+v", groupSnapshotId, existsGroupSnapshots, err)
 
@@ -225,9 +201,7 @@ func (cs *groupControllerServer) DeleteVolumeGroupSnapshot(ctx context.Context, 
 		var aliErr *alicloudErr.ServerError
 		if !errors.As(err, &aliErr) || aliErr.ErrorCode() != SnapshotNotFound {
 			klog.Errorf("DeleteVolumeGroupSnapshot: failed to delete %s: with RequestId: %s, error: %s", groupSnapshotId, requestId, err.Error())
-			utils.CreateEvent(cs.recorder, ref, v1.EventTypeWarning, snapshotDeleteError, err.Error())
-			e := status.Errorf(codes.Internal, "DeleteVolumeGroupSnapshot: failed to delete %s with error: %s", groupSnapshotId, err)
-			return nil, e
+			return nil, status.Errorf(codes.Internal, "DeleteVolumeGroupSnapshot: failed to delete %s with error: %s", groupSnapshotId, err)
 		}
 		klog.Infof("DeleteVolumeGroupSnapshot: groupSnapshot[%s] do not exist, see as successful", groupSnapshotId)
 	}

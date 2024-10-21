@@ -23,7 +23,7 @@ func getVolumeGroupSnapshotConfig(req *csi.CreateVolumeGroupSnapshotRequest) (*c
 		err := parseGroupSnapshotParameters(req.Parameters, &ecsParams)
 		if err != nil {
 			klog.Errorf("CreateSnapshot:: Snapshot name[%s], parse config failed: %v", req.Name, err)
-			return nil, status.Errorf(codes.InvalidArgument, err.Error())
+			return nil, err
 		}
 	}
 
@@ -41,7 +41,7 @@ func getVolumeGroupSnapshotConfig(req *csi.CreateVolumeGroupSnapshotRequest) (*c
 	err = parseGroupSnapshotAnnotations(volumeGroupSnapshot.Annotations, &ecsParams)
 	if err != nil {
 		klog.Errorf("CreateVolumeGroupSnapshot:: Snapshot name[%s], parse annotation failed: %v", req.Name, err)
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		return nil, err
 	}
 	return &ecsParams, nil
 }
@@ -99,7 +99,7 @@ func parseGroupSnapshotAnnotations(anno map[string]string, ecsParams *createGrou
 func formatGroupSnapshot(groupSnapshot *ecs.SnapshotGroup) (*csi.VolumeGroupSnapshot, error) {
 	t, err := time.Parse(time.RFC3339, groupSnapshot.CreationTime)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to parse groupSnapshot creation time: %s", groupSnapshot.CreationTime)
+		return nil, fmt.Errorf("failed to parse groupSnapshot creation time: %s", groupSnapshot.CreationTime)
 	}
 	creationTime := timestamp.Timestamp{Seconds: t.Unix()}
 
