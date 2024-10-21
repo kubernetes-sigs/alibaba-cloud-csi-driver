@@ -10,12 +10,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
-	"regexp"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -534,6 +534,7 @@ type Driver interface {
 	UnbindDriver() error
 	BindDriver(targetDriver string) error
 	GetDeviceNumber() string
+	GetPCIDeviceDriverType() string
 	CheckVFIOUsage() error
 }
 
@@ -544,21 +545,28 @@ func NewDeviceDriver(volumeId, blockDevice, deviceNumber string, _type MachineTy
 		machineType:  _type,
 		extras:       extras,
 	}
+	deviceNumberFromDevice := ""
 	if blockDevice != "" {
-		if deviceNumber == "" {
-			busRegex, err := d.machineType.BusRegex()
-			if err != nil {
-				klog.Errorf("NewDeviceDriver: get device number from block device err: %v", err)
-				return nil, err
-			}
-			deviceNumber, err := DefaultDeviceManager.GetDeviceNumberFromBlockDevice(blockDevice, busRegex)
-			if err != nil {
-				klog.Errorf("NewDeviceDriver: get device number from block device err: %v", err)
-				return nil, err
-			}
-			d.deviceNumber = deviceNumber
+		klog.Infof("NewDeviceDriver: start to get deviceNumber from device: %s", blockDevice)
+		busRegex, err := d.machineType.BusRegex()
+		if err != nil {
+			klog.Errorf("NewDeviceDriver: get bus type: %v", err)
+			return nil, err
 		}
-	} 
+		deviceNumberFromDevice, err = DefaultDeviceManager.GetDeviceNumberFromBlockDevice(blockDevice, busRegex)
+		if err != nil {
+			klog.Errorf("NewDeviceDriver: get device number from block device err: %v", err)
+			if deviceNumber == "" {
+				return nil, err
+			}
+		}
+	}
+	if deviceNumberFromDevice != "" {
+		if deviceNumber != "" && deviceNumberFromDevice != deviceNumber {
+			klog.Warningf("NewDeviceDriver: newGeneratedDeviceNumber: %s is different from the one from exists file: %s, override with new deviceNumber", deviceNumberFromDevice, deviceNumber)
+		}
+		d.deviceNumber = deviceNumberFromDevice
+	}
 	if d.deviceNumber != "" {
 		return d, nil
 	}
@@ -588,7 +596,7 @@ func NewDeviceDriver(volumeId, blockDevice, deviceNumber string, _type MachineTy
 	} else {
 		output, err := utils.CommandOnNode("xdragon-bdf", "--nvme", "-id=%s", volumeId).CombinedOutput()
 		if err != nil {
-			return nil, fmt.Errorf("Failed to excute bdf command: %s, err: %v", volumeId, err) 
+			return nil, fmt.Errorf("Failed to excute bdf command: %s, err: %v", volumeId, err)
 		}
 		d.deviceNumber = string(output)
 	}
@@ -623,7 +631,26 @@ func (d *driver) UnbindDriver() error {
 }
 
 func (d *driver) BindDriver(targetDriver string) error {
-	return utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "drivers", targetDriver, "bind"), []byte(d.deviceNumber))
+	err := utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "driver_override"), []byte(targetDriver))
+	if err != nil {
+		return err
+	}
+	if d.machineType == BDF {
+		return utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "drivers_probe"), []byte(d.deviceNumber))
+	}
+	return nil
+}
+
+func (d *driver) GetPCIDeviceDriverType() string {
+	output, _ := exec.Command("lspci", "-s", d.deviceNumber, "-n").CombinedOutput()
+	klog.InfoS("GetDeviceDriverType: get driver type output", "deviceNumber", d.deviceNumber, "output", output)
+	// #define PCI_DEVICE_ID_VIRTIO_BLOCK 0x1001
+	// #define PCI_DEVICE_ID_ALIBABA_NVME 0×5004
+	if strings.HasSuffix(strings.TrimSpace(string(output)), "1001") {
+		return PCITypeVIRTIO
+	} else {
+		return PCITypeNVME
+	}
 }
 
 func (d *driver) CheckVFIOUsage() error {
@@ -633,12 +660,10 @@ func (d *driver) CheckVFIOUsage() error {
 	}
 	klog.V(5).InfoS("CheckVFIOUsage: eval symlink success", "path", actualPath)
 	groupNumber := filepath.Base(actualPath)
-	output, err := exec.Command("lsof", filepath.Join(sysPrefix, "dev/vfio", groupNumber)).CombinedOutput()
-	if err != nil {
-		return err
-	}
-	if string(output) != "" {
-		return errors.Errorf("CheckVFIOUsage: device: %s is still be in used, return error", d.deviceNumber)
+	// the command returns -1 if nothing is returned
+	output, _ := exec.Command("lsof", filepath.Join("/dev/vfio", groupNumber)).CombinedOutput()
+	if strings.TrimSpace(string(output)) != "" {
+		return errors.Errorf("CheckVFIOUsage: device: %s is still be in used, output: %s", d.deviceNumber, output)
 	}
 	return nil
 }

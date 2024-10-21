@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"regexp"
+	"strings"
 
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"golang.org/x/sys/unix"
@@ -271,7 +271,7 @@ func (m *DeviceManager) GetDeviceNumberFromBlockDevice(blockDevice string, busRe
 			return "", fmt.Errorf("NewDeviceDriver: not found device number, blockDevice: %s", blockDevice)
 		}
 		parentDir := filepath.Base(filepath.Dir(dirEntry))
-		
+
 		matched := busRegex.MatchString(parentDir)
 		klog.Infof("NewDeviceDriver: busPrefix: %s, parentDir: %s, matched: %v", busRegex.String(), parentDir, matched)
 		if matched {

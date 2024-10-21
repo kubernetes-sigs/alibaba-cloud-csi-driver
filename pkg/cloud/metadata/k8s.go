@@ -37,7 +37,7 @@ var (
 		"alibabacloud.com/ecs-instance-id",
 		"sigma.ali/ecs-instance-id",
 	}
-	VmocLabels = []string {
+	VmocLabels = []string{
 		"rm.alibaba-inc.com/vbm",
 	}
 )
