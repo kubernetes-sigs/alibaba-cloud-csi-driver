@@ -181,6 +181,7 @@ type nfsStatCollector struct {
 	recorder                    record.EventRecorder
 	alertSwtichSet              *hashset.Set
 	capacityPercentageThreshold float64
+	mounter                     mount.Interface
 }
 
 func init() {
@@ -251,6 +252,7 @@ func NewNfsStatCollector() (Collector, error) {
 		monitorClient:               NewStorageMonitorClient(clientset),
 		alertSwtichSet:              alertSet,
 		capacityPercentageThreshold: capacityPercentageThreshold,
+		mounter:                     mount.New(""),
 	}, nil
 }
 
@@ -317,7 +319,6 @@ func (p *nfsStatCollector) setNfsMetric(pvName string, pvcNamespace string, pvcN
 
 func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonPaths []string, deriverName string) {
 	thisPvNfsInfoMap := make(map[string]nfsInfo, 0)
-	mounter := mount.New("")
 	for _, path := range jsonPaths {
 		//Get nfs pvName
 		pvName, _, err := getVolumeInfoByJSON(path, deriverName)
@@ -329,7 +330,7 @@ func (p *nfsStatCollector) updateMap(lastPvNfsInfoMap *map[string]nfsInfo, jsonP
 		}
 
 		mountPoint := filepath.Join(path, "../mount")
-		notMounted, err := mounter.IsLikelyNotMountPoint(mountPoint)
+		notMounted, err := p.mounter.IsLikelyNotMountPoint(mountPoint)
 		if err != nil {
 			if !errors.Is(err, fs.ErrNotExist) {
 				klog.Errorf("Check if %s is mount point failed: %v", mountPoint, err)
