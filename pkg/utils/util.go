@@ -683,7 +683,7 @@ func FormatAndMount(diskMounter *k8smount.SafeFormatAndMount, source string, tar
 		// Detect if an encrypted disk is empty disk, since atari type partition is detected by blkid.
 		if existingFormat == "unknown data, probably partitions" {
 			klog.Infof("FormatAndMount: enter special partition logics")
-			fsType, ptType, _ := GetDiskPtypePTtype(source)
+			fsType, ptType, _ := GetDiskFStypePTtype(source)
 			if fsType == "" && ptType == "atari" {
 				return FormatNewDisk(readOnly, source, fstype, target, mkfsOptions, mountOptions, diskMounter)
 			}
@@ -746,8 +746,8 @@ func mkfsDefaultArgs(fstype, source string) (args []string) {
 	return
 }
 
-// GetDiskPtypePTtype uses 'blkid' to see if the given disk is unformatted
-func GetDiskPtypePTtype(disk string) (fstype string, pttype string, err error) {
+// GetDiskFStypePTtype uses 'blkid' to see if the given disk is unformatted
+func GetDiskFStypePTtype(disk string) (fstype string, pttype string, err error) {
 	args := []string{"-p", "-s", "TYPE", "-s", "PTTYPE", "-o", "export", disk}
 
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: k8smount.New(""), Exec: utilexec.New()}

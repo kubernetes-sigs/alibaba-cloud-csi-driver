@@ -305,12 +305,12 @@ func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
 	if !utils.IsFileExisting(rootDevicePath) || !utils.IsFileExisting(subDevicePath) {
 		return fmt.Errorf("input device path does not exist: %s, %s ", rootDevicePath, subDevicePath)
 	}
-	fstype, pptype, err := GetDiskFormat(rootDevicePath)
+	fstype, pttype, err := GetDiskFormat(rootDevicePath)
 	if err != nil {
 		return fmt.Errorf("GetDiskFormat of root device %s failed: %w", rootDevicePath, err)
 	}
 	if fstype != "" {
-		return fmt.Errorf("root device %s has filesystem: %s, and pptype: %s, disk is not supported ", rootDevicePath, fstype, pptype)
+		return fmt.Errorf("root device %s has filesystem: %s, and ptType: %s, disk is not supported ", rootDevicePath, fstype, pttype)
 	}
 
 	fstype, _, err = GetDiskFormat(subDevicePath)
