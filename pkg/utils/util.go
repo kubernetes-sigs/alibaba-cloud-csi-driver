@@ -750,8 +750,7 @@ func mkfsDefaultArgs(fstype, source string) (args []string) {
 func GetDiskFStypePTtype(disk string) (fstype string, pttype string, err error) {
 	args := []string{"-p", "-s", "TYPE", "-s", "PTTYPE", "-o", "export", disk}
 
-	diskMounter := &k8smount.SafeFormatAndMount{Interface: k8smount.New(""), Exec: utilexec.New()}
-	dataOut, err := diskMounter.Exec.Command("blkid", args...).CombinedOutput()
+	dataOut, err := utilexec.New().Command("blkid", args...).CombinedOutput()
 	output := string(dataOut)
 
 	if err != nil {
