@@ -67,6 +67,9 @@ RUN mkdir -p /src && tar -C /src --strip-components=1 -xf /src.tar.xz
 RUN <<EOF
 set -e
 cd /src
+SOURCE_DATE_EPOCH=$(stat -c %Y /src.tar.xz)
+export SOURCE_DATE_EPOCH
+echo "util-linux released at $(date --date "@$SOURCE_DATE_EPOCH" --iso-8601=seconds)"
 ./configure --disable-all-programs --enable-blkid --enable-libblkid --prefix=/usr/local \
     --disable-nls --disable-bash-completion --disable-asciidoc --disable-dependency-tracking --disable-static --host=$HOST
 make -j
@@ -104,6 +107,8 @@ COPY <<"EOT" /out/usr/local/share/sbom/blkid.spdx.json
     ]
 }
 EOT
+
+RUN find /out -exec touch --reference=/src.tar.xz {} +
 
 FROM scratch as download-amd64
 ADD --link --checksum=sha256:79a41d1eab207a81285fdbb4cd02dd3fe8bf8192f9b1cb6d45317015a673439f \
