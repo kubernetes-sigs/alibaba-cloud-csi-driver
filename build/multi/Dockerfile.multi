@@ -16,7 +16,7 @@ RUN --mount=type=bind,target=. \
         -o /out/plugin.csi.alibabacloud.com && \
     go build -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
-FROM gcr.io/distroless/base-debian12:latest as distroless-base
+FROM gcr.io/distroless/base-debian12:latest@sha256:59844ce0155cf45831053d4ec75515119b04fdb784a092cc34a70f0ca0dff148 as distroless-base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 
 FROM distroless-base as csi-controller
@@ -29,7 +29,8 @@ ARG TARGETARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$TARGETARCH \
     --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib-$TARGETARCH \
     rm -f /etc/apt/apt.conf.d/docker-clean && \
-    sed -i s/deb.debian.org/mirrors.aliyun.com/ /etc/apt/sources.list.d/debian.sources && \
+    echo 'Acquire::Check-Valid-Until false;' > /etc/apt/apt.conf.d/snapshot && \
+    sed -i '/^URIs:/d; s|^# \(http://snapshot.debian.org/\)|URIs: \1|' /etc/apt/sources.list.d/debian.sources && \
     apt-get update && \
     apt-get install -y nfs-common e2fsprogs xfsprogs pciutils fdisk lsof
 
@@ -42,7 +43,8 @@ ARG BUILDARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$BUILDARCH \
     --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib-$BUILDARCH \
     rm -f /etc/apt/apt.conf.d/docker-clean && \
-    sed -i s/deb.debian.org/mirrors.aliyun.com/ /etc/apt/sources.list.d/debian.sources && \
+    echo 'Acquire::Check-Valid-Until false;' > /etc/apt/apt.conf.d/snapshot && \
+    sed -i '/^URIs:/d; s|^# \(http://snapshot.debian.org/\)|URIs: \1|' /etc/apt/sources.list.d/debian.sources && \
     apt-get update && \
     apt-get install -y tar xz-utils make diffutils
 
@@ -123,7 +125,7 @@ FROM scratch as download-arm64
 
 FROM download-$TARGETARCH as download
 
-FROM busybox:1.36.1 as init
+FROM busybox:1@sha256:0723be2745f64a2f9dc38288959c3080cb1f0d11495c17dff7a65cc41407d79a as init
 
 ARG TARGETARCH
 WORKDIR /root
