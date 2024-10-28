@@ -24,7 +24,7 @@ RUN set -ex; \
     yum install -y fuse-devel util-linux mailcap procps; \
     yum clean all
 
-RUN cp /etc/mime.types /etc/csi-mime.types
+RUN mkdir /csi && cp /etc/mime.types /csi/mime.types
 
 COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
 ENTRYPOINT ["csi-mount-proxy-server"]
@@ -51,8 +51,9 @@ RUN set -ex; \
             exit 1; \
             ;; \
     esac; \
-    yum install -y util-linux mailcap procps && yum clean all; \
-    mv /etc/mime.types /etc/csi-mime.types
+    yum install -y util-linux mailcap procps && yum clean all
+
+RUN mkdir /csi && cp /etc/mime.types /csi/mime.types
 
 COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
 ENTRYPOINT ["csi-mount-proxy-server"]
