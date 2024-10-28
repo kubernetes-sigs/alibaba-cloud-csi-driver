@@ -59,19 +59,8 @@ func newControllerServer(config *internal.ControllerConfig) (*controllerServer, 
 	return c, nil
 }
 
-func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
-	valid, err := utils.CheckRequestArgs(req.GetParameters())
-	if !valid {
-		return status.Errorf(codes.InvalidArgument, err.Error())
-	}
-	return nil
-}
-
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	klog.V(2).InfoS("CreateVolume: starting", "request", req)
-	if err := validateCreateVolumeRequest(req); err != nil {
-		return nil, err
-	}
 	if !cs.locks.TryAcquire(req.Name) {
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for volume %s", req.Name)
 	}
