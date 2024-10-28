@@ -23,14 +23,15 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var defaultOssfsImageTag = "v1.88.4-d9f3917-aliyun"
-var defaultOssfsUpdatedImageTag = "v1.91.4.ack.1-69cc774-aliyun"
+var defaultOssfsImageTag = "v1.88.4-80d165c-aliyun"
+var defaultOssfsUpdatedImageTag = "v1.91.4.ack.1-fe0b3a7-aliyun"
 
 const (
 	hostPrefix                = "/host"
 	OssfsCredentialSecretName = "csi-ossfs-credentials"
 	OssfsDefMimeTypesFilePath = "/etc/mime.types"
-	OssfsCsiMimeTypesFilePath = "/etc/csi-mime.types"
+	// The ossfs image includes a default MIME configuration located at /csi/mime.types
+	OssfsCsiMimeTypesFilePath = "/csi/mime.types"
 	OssfsPasswdFile           = "passwd-ossfs"
 
 	defaultRegistry = "registry-cn-hangzhou.ack.aliyuncs.com"
