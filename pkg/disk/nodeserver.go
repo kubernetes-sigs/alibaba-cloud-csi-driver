@@ -231,6 +231,8 @@ func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 
 			attachThrottler: defaultThrottler(),
 			detachThrottler: defaultThrottler(),
+
+			dev: DefaultDeviceManager,
 		},
 		locks: utils.NewVolumeLocks(),
 		GenericNodeServer: common.GenericNodeServer{
@@ -559,28 +561,15 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 
 	// Step 4 Attach volume
 	defaultErrCode := codes.Internal
-	if GlobalConfigVar.ADControllerEnable || isMultiAttach {
-		device, err = DefaultDeviceManager.WaitDevice(ctx, req.GetVolumeId())
+	serial := req.PublishContext[PUBLISH_CONTEXT_SERIAL]
+	if GlobalConfigVar.ADControllerEnable || isMultiAttach || serial != "" {
+		if serial == "" {
+			// for capability with old controller
+			serial = strings.TrimPrefix(req.VolumeId, "d-")
+		}
+		device, err = ns.ad.findDevice(ctx, req.VolumeId, serial, nil)
 		if err != nil {
-			if IsVFNode() {
-				bdf, err := bindBdfDisk(req.GetVolumeId())
-				if err != nil {
-					if err := unbindBdfDisk(req.GetVolumeId()); err != nil {
-						return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to detach bdf disk: %v", err)
-					}
-					return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf disk: %v", err)
-				}
-				// devicePaths, err = GetDeviceByVolumeID(req.GetVolumeId())
-				if bdf != "" {
-					device, err = GetDeviceByBdf(bdf, true)
-					if err != nil {
-						return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to get device by bdf: %v", err)
-					}
-				}
-				klog.Infof("NodeStageVolume: enabled bdf mode, device: %s, bdf: %s", device, bdf)
-			} else {
-				return nil, status.Errorf(codes.Aborted, "NodeStageVolume: ADController Enabled, but disk %s can't be found: %s", req.VolumeId, err.Error())
-			}
+			return nil, status.Errorf(defaultErrCode, "NodeStageVolume: ADController Enabled, but disk %s can't be found: %v", req.VolumeId, err)
 		}
 	} else {
 		device, err = ns.ad.attachDisk(ctx, req.GetVolumeId(), ns.NodeID, isSharedDisk, true)

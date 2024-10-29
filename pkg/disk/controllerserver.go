@@ -395,13 +395,17 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}
 	}
 
-	_, err := cs.ad.attachDisk(ctx, req.VolumeId, req.NodeId, isSharedDisk, false)
+	serial, err := cs.ad.attachDisk(ctx, req.VolumeId, req.NodeId, isSharedDisk, false)
 	if err != nil {
 		klog.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
 	}
-	klog.Infof("ControllerPublishVolume: Successful attach disk: %s to node: %s", req.VolumeId, req.NodeId)
-	return &csi.ControllerPublishVolumeResponse{}, nil
+	klog.Infof("ControllerPublishVolume: successfully attached disk: %s (serial %s) to node: %s", req.VolumeId, serial, req.NodeId)
+	return &csi.ControllerPublishVolumeResponse{
+		PublishContext: map[string]string{
+			PUBLISH_CONTEXT_SERIAL: serial,
+		},
+	}, nil
 }
 
 // ControllerUnpublishVolume do detach
@@ -424,7 +428,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 
 	// if DetachDisabled is set to true, return
 	if GlobalConfigVar.DetachDisabled {
-		klog.Infof("ControllerUnpublishVolume: ADController is Enable, Detach Flag Set to false, PV %s, Node: %s", req.VolumeId, req.NodeId)
+		klog.Infof("ControllerUnpublishVolume: Detach disabled, kept disk %s on node %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
