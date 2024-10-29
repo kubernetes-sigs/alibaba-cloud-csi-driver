@@ -242,7 +242,12 @@ func attachDisk(ctx context.Context, diskID, nodeID string, isSharedDisk, isSing
 				return "", status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf: %v", err)
 			}
 
-			_, err := DefaultDeviceManager.GetRootBlockByVolumeID(diskID)
+			var err error
+			if disk.SerialNumber != "" {
+				_, err = DefaultDeviceManager.GetRootBlockBySerial(disk.SerialNumber)
+			} else {
+				err = errors.New("no serial")
+			}
 			deviceName := ""
 			if err != nil && bdf != "" {
 				deviceName, err = GetDeviceByBdf(bdf, true)
