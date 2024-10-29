@@ -107,16 +107,16 @@ func testingManager(t *testing.T) *DeviceManager {
 	}
 }
 
-func TestGetDeviceBySerialNotFound(t *testing.T) {
+func TestGetDeviceBySysfsSerialNotFound(t *testing.T) {
 	m := testingManager(t)
-	_, err := m.getDeviceBySerial("mydiskserial")
+	_, err := m.getDeviceByScanSysfsSerial("mydiskserial")
 	assert.Equal(t, err, os.ErrNotExist)
 
 	// ignore block that has no serial
 	err = os.MkdirAll(filepath.Join(m.SysfsPath, "block/loop0"), 0o755)
 	assert.NoError(t, err)
 
-	_, err = m.getDeviceBySerial("mydiskserial")
+	_, err = m.getDeviceByScanSysfsSerial("mydiskserial")
 	assert.Equal(t, err, os.ErrNotExist)
 }
 
@@ -152,22 +152,22 @@ func setupNVMeBlockDevice(t *testing.T, sysfsPath string) string {
 	return sysfsDev
 }
 
-func TestGetDeviceBySerialVirtIO(t *testing.T) {
+func TestGetDeviceBySysfsSerialVirtIO(t *testing.T) {
 	m := testingManager(t)
 	// Create a fake virtio block device.
 	setupVirtIOBlockDevice(t, m.SysfsPath)
 
-	deviceName, err := m.getDeviceBySerial("mydiskserial")
+	deviceName, err := m.getDeviceByScanSysfsSerial("mydiskserial")
 	assert.NoError(t, err)
 	assert.Equal(t, "vdb", deviceName)
 }
 
-func TestGetDeviceBySerialNvme(t *testing.T) {
+func TestGetDeviceBySysfsSerialNvme(t *testing.T) {
 	m := testingManager(t)
 	// Create a fake NVMe block device.
 	setupNVMeBlockDevice(t, m.SysfsPath)
 
-	deviceName, err := m.getDeviceBySerial("mydiskserial")
+	deviceName, err := m.getDeviceByScanSysfsSerial("mydiskserial")
 	assert.NoError(t, err)
 	assert.Equal(t, "nvme1n1", deviceName)
 }
@@ -302,7 +302,7 @@ func TestGetRootBlockByVolumeID_Link(t *testing.T) {
 
 			c.init(t, m)
 
-			devicePath, err := m.GetRootBlockByVolumeID("mydiskserial")
+			devicePath, err := m.GetRootBlockBySerial("mydiskserial")
 			if c.err != nil {
 				assert.True(t, errors.Is(err, c.err), err)
 				assert.False(t, errors.Is(err, os.ErrNotExist), err) // bad link error should suppress os.ErrNotExist
@@ -314,11 +314,11 @@ func TestGetRootBlockByVolumeID_Link(t *testing.T) {
 	}
 }
 
-func getRoot(m *DeviceManager, volumeID string, wait bool) (string, error) {
+func getRoot(m *DeviceManager, serial string, wait bool) (string, error) {
 	if wait {
-		return m.WaitRootBlock(context.Background(), volumeID)
+		return m.WaitRootBlock(context.Background(), serial)
 	} else {
-		return m.GetRootBlockByVolumeID(volumeID)
+		return m.GetRootBlockBySerial(serial)
 	}
 }
 
@@ -392,7 +392,7 @@ func TestGetDeviceByVolumeID_Positive(t *testing.T) {
 				if wait {
 					devicePath, err = m.WaitDevice(context.Background(), "mydiskserial")
 				} else {
-					devicePath, err = m.GetDeviceByVolumeID("mydiskserial")
+					devicePath, err = m.GetDeviceBySerial("mydiskserial")
 				}
 				assert.NoError(t, err)
 				assert.Equal(t, filepath.Join(m.DevicePath, "disk/by-id/virtio-mydiskserial"), devicePath)
