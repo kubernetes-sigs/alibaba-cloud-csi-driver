@@ -17,35 +17,54 @@ limitations under the License.
 package disk
 
 import (
+	"errors"
 	"fmt"
-	"io/ioutil"
-	"strings"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"slices"
+
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
 )
 
-func getDevices() []string {
-	devices := []string{}
-	files, _ := ioutil.ReadDir("/dev")
-	for _, file := range files {
-		if !file.IsDir() && strings.HasPrefix(file.Name(), "vd") {
-			devices = append(devices, fmt.Sprintf("/dev/%s", file.Name()))
-		}
-	}
-	return devices
+func getNoSerialDevices() (sets.Set[string], error) {
+	return getNoSerialDevicesFromSysfs(DefaultDeviceManager.SysfsPath + "/block")
 }
 
-func calcNewDevices(old, new []string) []string {
-	var devicePaths []string
-	for _, d := range new {
-		var isNew = true
-		for _, a := range old {
-			if d == a {
-				isNew = false
-			}
+func deviceHasSerialNumber(devicePath string) (bool, error) {
+	return deviceNameHasSerialNumber(DefaultDeviceManager.SysfsPath+"/block", filepath.Base(devicePath))
+}
+
+func getNoSerialDevicesFromSysfs(sysfsBlockPath string) (sets.Set[string], error) {
+	devices := sets.New[string]()
+	entries, err := os.ReadDir(sysfsBlockPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to readdir %s: %v", sysfsBlockPath, err)
+	}
+	for _, entry := range entries {
+		hasSerial, err := deviceNameHasSerialNumber(sysfsBlockPath, entry.Name())
+		if err != nil {
+			return nil, err
 		}
-		if isNew {
-			devicePaths = append(devicePaths, d)
+		if !hasSerial {
+			devices.Insert(fmt.Sprintf("/dev/%s", entry.Name()))
 		}
 	}
+	klog.V(4).InfoS("got no serial devices", "devices", devices)
+	return devices, nil
+}
 
-	return devicePaths
+func deviceNameHasSerialNumber(sysfsBlockPath, name string) (bool, error) {
+	serial, err := os.ReadFile(fmt.Sprintf("%s/%s/serial", sysfsBlockPath, name))
+	if errors.Is(err, fs.ErrNotExist) {
+		serial, err = os.ReadFile(fmt.Sprintf("%s/%s/device/serial", sysfsBlockPath, name))
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to read serial for %s: %v", name, err)
+	}
+	return slices.ContainsFunc(serial, func(b byte) bool { return b != '\n' }), nil
 }
