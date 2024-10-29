@@ -1,6 +1,7 @@
 package disk
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"golang.org/x/sys/unix"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
@@ -41,6 +43,45 @@ var DefaultDeviceManager = &DeviceManager{
 	SysfsPath:  "/sys",
 }
 
+func (m *DeviceManager) ListBlocks() (sets.Set[string], error) {
+	sysBlock := m.SysfsPath + "/block"
+	entries, err := os.ReadDir(sysBlock)
+	if err != nil {
+		return nil, err
+	}
+	devices := make(sets.Set[string], len(entries))
+	for _, entry := range entries {
+		devices.Insert(entry.Name())
+	}
+	klog.V(4).InfoS("got block devices", "devices", devices)
+	return devices, nil
+}
+
+func (m *DeviceManager) GetDeviceSerial(blockName string) (string, error) {
+	if m.DisableSerial {
+		return "", nil // Assume no serial
+	}
+	return m.getDeviceSerial(blockName)
+}
+
+func (m *DeviceManager) getDeviceSerial(blockName string) (string, error) {
+	sysBlock := m.SysfsPath + "/block"
+	serialPath := fmt.Sprintf("%s/%s/serial", sysBlock, blockName)
+	// NVMe block device is a namespace (e.g. nvme0n1). It does not have a serial file.
+	// Instead, we need to read the serial from the device (nvme0).
+	if strings.HasPrefix(blockName, "nvme") {
+		serialPath = fmt.Sprintf("%s/%s/device/serial", sysBlock, blockName)
+	}
+	body, err := os.ReadFile(serialPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", nil
+		}
+		return "", err
+	}
+	return string(bytes.TrimSuffix(body, []byte{'\n'})), nil
+}
+
 // returns the block device name (e.g. vda) or error
 func (m *DeviceManager) getDeviceByScanSysfsSerial(serial string) (string, error) {
 	sysBlock := m.SysfsPath + "/block"
@@ -49,18 +90,12 @@ func (m *DeviceManager) getDeviceByScanSysfsSerial(serial string) (string, error
 		return "", fmt.Errorf("read dir %q failed: %w", sysBlock, err)
 	}
 	for _, block := range allBlocks {
-		serialPath := fmt.Sprintf("%s/%s/serial", sysBlock, block.Name())
-		// NVMe block device is a namespace (e.g. nvme0n1). It does not have a serial file.
-		// Instead, we need to read the serial from the device (nvme0).
-		if strings.HasPrefix(block.Name(), "nvme") {
-			serialPath = fmt.Sprintf("%s/%s/device/serial", sysBlock, block.Name())
-		}
-		body, err := os.ReadFile(serialPath)
+		got, err := m.getDeviceSerial(block.Name())
 		if err != nil {
-			klog.Errorf("Read serial(%s): %v", serialPath, err)
+			klog.Errorf("Read serial for %s failed: %v", block.Name(), err)
 			continue
 		}
-		if strings.TrimSpace(string(body)) == serial {
+		if got == serial {
 			return block.Name(), nil
 		}
 	}
@@ -86,6 +121,9 @@ func (m *DeviceManager) deviceName(devicePath string) (string, error) {
 // We only support static volume with exactly one partition, and is manually formatted.
 // Return the root or partition block device path if it is OK to use.
 func (m *DeviceManager) adaptDevicePartition(rootDevicePath string) (string, error) {
+	if !m.EnableDiskPartition {
+		return rootDevicePath, nil
+	}
 	devName, err := m.deviceName(rootDevicePath)
 	if err != nil {
 		return "", fmt.Errorf("get device name for %s failed: %w", rootDevicePath, err)
@@ -123,10 +161,6 @@ func (m *DeviceManager) GetDeviceBySerial(serial string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if !m.EnableDiskPartition {
-		return path, nil
-	}
-
 	partition, err := m.adaptDevicePartition(path)
 	if err != nil {
 		return "", fmt.Errorf("serial %s resolved to device %s, but adapt partition failed: %w", serial, path, err)
