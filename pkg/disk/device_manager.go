@@ -86,6 +86,9 @@ func (m *DeviceManager) deviceName(devicePath string) (string, error) {
 // We only support static volume with exactly one partition, and is manually formatted.
 // Return the root or partition block device path if it is OK to use.
 func (m *DeviceManager) adaptDevicePartition(rootDevicePath string) (string, error) {
+	if !m.EnableDiskPartition {
+		return rootDevicePath, nil
+	}
 	devName, err := m.deviceName(rootDevicePath)
 	if err != nil {
 		return "", fmt.Errorf("get device name for %s failed: %w", rootDevicePath, err)
@@ -123,10 +126,6 @@ func (m *DeviceManager) GetDeviceBySerial(serial string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if !m.EnableDiskPartition {
-		return path, nil
-	}
-
 	partition, err := m.adaptDevicePartition(path)
 	if err != nil {
 		return "", fmt.Errorf("serial %s resolved to device %s, but adapt partition failed: %w", serial, path, err)

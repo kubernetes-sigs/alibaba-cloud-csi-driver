@@ -204,6 +204,7 @@ func sysfsSetupPartition(t *testing.T, sysfs, sysfsDev, deviceName string, dev *
 // returns the single formatted partition
 func TestAdaptDevicePartitionPositive(t *testing.T) {
 	m := testingManager(t)
+	m.EnableDiskPartition = true
 	// Create a fake NVMe block device.
 	sysfsDev := setupNVMeBlockDevice(t, m.SysfsPath)
 	sysfsSetupPartition(t, m.SysfsPath, sysfsDev, "nvme1n1p27", &nvmePart, 27)
@@ -224,8 +225,8 @@ func TestAdaptDevicePartitionPositive(t *testing.T) {
 
 // returns root device path if no partition found
 func TestAdaptDevicePartitionNoPartition(t *testing.T) {
-	fmt.Print(os.Getenv("PATH"))
 	m := testingManager(t)
+	m.EnableDiskPartition = true
 	// Create a fake NVMe block device.
 	setupNVMeBlockDevice(t, m.SysfsPath)
 	m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{nvmeDev}
@@ -238,6 +239,7 @@ func TestAdaptDevicePartitionNoPartition(t *testing.T) {
 // returns error if more than one partition found
 func TestAdaptDevicePartitionMultiplePartitions(t *testing.T) {
 	m := testingManager(t)
+	m.EnableDiskPartition = true
 	// Create a fake NVMe block device.
 	sysfsDev := setupNVMeBlockDevice(t, m.SysfsPath)
 	sysfsSetupPartition(t, m.SysfsPath, sysfsDev, "nvme1n1p27", &nvmePart, 27)
