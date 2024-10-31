@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -76,6 +77,13 @@ func IsNoSuchDeviceErr(err error) bool {
 		return false
 	}
 	return strings.Contains(strings.ToLower(err.Error()), "no such device")
+}
+
+func IsNoSuchFileErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "no such file or directory")
 }
 
 // IohubSriovBind io hub bind
@@ -491,6 +499,10 @@ const (
 	DFBus                    // 1
 )
 
+const (
+	dfBusDevicePathPattern = "/sys/bus/dragonfly/devices/dfvirtio*/type"
+)
+
 func (_type MachineType) BusName() string {
 	busNames := [...]string{
 		BDFTypeBus,
@@ -504,17 +516,17 @@ func (_type MachineType) BusName() string {
 	return busNames[_type]
 }
 
-func (_type MachineType) BusPrefix() string {
-	busPrefixes := [...]string{
+func (_type MachineType) BusRegex() (*regexp.Regexp, error) {
+	busRegexes := [...]*regexp.Regexp{
 		BDFTypeDevice,
 		DFBusTypeDevice,
 	}
 
 	if _type < BDF || _type > DFBus {
-		return fmt.Sprintf("Unknown(%d)", _type)
+		return nil, fmt.Errorf("Unknown(%d)", _type)
 	}
 
-	return busPrefixes[_type]
+	return busRegexes[_type], nil
 }
 
 type Driver interface {
@@ -522,22 +534,71 @@ type Driver interface {
 	UnbindDriver() error
 	BindDriver(targetDriver string) error
 	GetDeviceNumber() string
+	GetPCIDeviceDriverType() string
+	CheckVFIOUsage() error
 }
 
-func NewDeviceDriver(blockDevice, deviceNumber string, _type MachineType, extras map[string]string) (Driver, error) {
+func NewDeviceDriver(volumeId, blockDevice, deviceNumber string, _type MachineType, extras map[string]string) (Driver, error) {
 	d := &driver{
 		blockDevice:  blockDevice,
 		deviceNumber: deviceNumber,
 		machineType:  _type,
 		extras:       extras,
 	}
-	if d.deviceNumber == "" {
-		deviceNumber, err := DefaultDeviceManager.GetDeviceNumberFromBlockDevice(blockDevice, d.machineType.BusPrefix())
+	deviceNumberFromDevice := ""
+	if blockDevice != "" {
+		klog.Infof("NewDeviceDriver: start to get deviceNumber from device: %s", blockDevice)
+		busRegex, err := d.machineType.BusRegex()
 		if err != nil {
-			klog.Errorf("NewDeviceDriver: get device number from block device err: %v", err)
+			klog.Errorf("NewDeviceDriver: get bus type: %v", err)
 			return nil, err
 		}
-		d.deviceNumber = deviceNumber
+		deviceNumberFromDevice, err = DefaultDeviceManager.GetDeviceNumberFromBlockDevice(blockDevice, busRegex)
+		if err != nil {
+			klog.Errorf("NewDeviceDriver: get device number from block device err: %v", err)
+			if deviceNumber == "" {
+				return nil, err
+			}
+		}
+	}
+	if deviceNumberFromDevice != "" {
+		if deviceNumber != "" && deviceNumberFromDevice != deviceNumber {
+			klog.Warningf("NewDeviceDriver: newGeneratedDeviceNumber: %s is different from the one from exists file: %s, override with new deviceNumber", deviceNumberFromDevice, deviceNumber)
+		}
+		d.deviceNumber = deviceNumberFromDevice
+	}
+	if d.deviceNumber != "" {
+		return d, nil
+	}
+	if _type == DFBus {
+		matchesFile, err := filepath.Glob(dfBusDevicePathPattern)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to list DFbus type files path. err: %v", err)
+		}
+		for _, path := range matchesFile {
+			body, err := os.ReadFile(path)
+			if err != nil {
+				return nil, fmt.Errorf("Dfbus read type file %q failed: %v", path, err)
+			}
+			infos := strings.Split(string(body), " ")
+			if len(infos) != 2 {
+				return nil, fmt.Errorf("Dfbus type file format error")
+			}
+			if infos[0] != "block" {
+				continue
+			}
+			if infos[1] == strings.TrimPrefix(volumeId, "d-") {
+				DFNumber := filepath.Base(filepath.Dir(path))
+				d.deviceNumber = DFNumber
+				return d, nil
+			}
+		}
+	} else {
+		output, err := utils.CommandOnNode("xdragon-bdf", "--nvme", "-id=%s", volumeId).CombinedOutput()
+		if err != nil {
+			return nil, fmt.Errorf("Failed to excute bdf command: %s, err: %v", volumeId, err)
+		}
+		d.deviceNumber = string(output)
 	}
 	return d, nil
 }
@@ -570,5 +631,39 @@ func (d *driver) UnbindDriver() error {
 }
 
 func (d *driver) BindDriver(targetDriver string) error {
-	return utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "drivers", targetDriver, "bind"), []byte(d.deviceNumber))
+	err := utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "driver_override"), []byte(targetDriver))
+	if err != nil {
+		return err
+	}
+	if d.machineType == BDF {
+		return utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "drivers_probe"), []byte(d.deviceNumber))
+	}
+	return nil
+}
+
+func (d *driver) GetPCIDeviceDriverType() string {
+	output, _ := exec.Command("lspci", "-s", d.deviceNumber, "-n").CombinedOutput()
+	klog.InfoS("GetDeviceDriverType: get driver type output", "deviceNumber", d.deviceNumber, "output", output)
+	// #define PCI_DEVICE_ID_VIRTIO_BLOCK 0x1001
+	// #define PCI_DEVICE_ID_ALIBABA_NVME 0×5004
+	if strings.HasSuffix(strings.TrimSpace(string(output)), "1001") {
+		return PCITypeVIRTIO
+	} else {
+		return PCITypeNVME
+	}
+}
+
+func (d *driver) CheckVFIOUsage() error {
+	actualPath, err := filepath.EvalSymlinks(filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "iommu_group"))
+	if err != nil {
+		return err
+	}
+	klog.V(5).InfoS("CheckVFIOUsage: eval symlink success", "path", actualPath)
+	groupNumber := filepath.Base(actualPath)
+	// the command returns -1 if nothing is returned
+	output, _ := exec.Command("lsof", filepath.Join("/dev/vfio", groupNumber)).CombinedOutput()
+	if strings.TrimSpace(string(output)) != "" {
+		return errors.Errorf("CheckVFIOUsage: device: %s is still be in used, output: %s", d.deviceNumber, output)
+	}
+	return nil
 }

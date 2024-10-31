@@ -32,7 +32,7 @@ LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 
 ARG TARGETARCH
 RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked,id=dnf-cache-$TARGETARCH \
-    dnf install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace cloud-utils-growpart gdisk nc telnet tar cpio && \
+    dnf install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace cloud-utils-growpart gdisk nc telnet tar cpio lsof && \
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
 
 FROM base as build-util-linux
