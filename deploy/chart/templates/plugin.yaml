@@ -209,87 +209,6 @@ spec:
               mountPropagation: "HostToContainer"
             - mountPath: /etc/csi-plugin/config
               name: csi-plugin-cm
-{{- if $nodePool.csi.local.enabled }}
-        - name: local-csi-plugin
-          securityContext:
-            privileged: true
-            allowPrivilegeEscalation: true
-          image: {{ include "workerImageSpec" (list $nodePool.images "localPlugin") }}
-          args:
-            - --endpoint=unix://csi/csi.sock
-            - --http-endpoint=:11261
-            - --run-node-service=true
-            - --run-controller-service=false
-            - --v=2
-            - --node-id=$(KUBE_NODE_NAME)
-          env:
-            - name: KUBE_NODE_NAME
-              valueFrom:
-                fieldRef:
-                  apiVersion: v1
-                  fieldPath: spec.nodeName
-{{- if $nodePool.deploy.ecsEndpoint }}
-            - name: ECS_ENDPOINT
-              value: {{ $nodePool.deploy.ecsEndpoint | quote }}
-{{- end -}}
-{{- if $nodePool.deploy.stsEndpoint }}
-            - name: STS_ENDPOINT
-              value: {{ $nodePool.deploy.stsEndpoint | quote }}
-{{- end }}
-{{- if $nodePool.deploy.privateCloud }}
-            - name: ALICLOUD_CLIENT_SCHEME
-              value: HTTP
-{{- end -}}
-{{- include "akEnv" $nodePool.deploy.accessKey | nindent 12 }}
-{{- include "kubeletDirEnv" $nodePool.deploy.kubeletRootDir | nindent 12 }}
-          resources:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 500m
-              memory: 1024Mi
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: http
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 5
-          readinessProbe:
-            httpGet:
-              path: /healthz
-              port: http
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 5
-          ports:
-            - name: http
-              containerPort: 11261
-          volumeMounts:
-            - name: local-plugin-dir
-              mountPath: /csi
-            - name: kubelet-dir
-              # keep the trailing slash to be compatible with old ACK installations
-              mountPath: {{ print (clean $nodePool.deploy.kubeletRootDir) "/" | quote }}
-              mountPropagation: "Bidirectional"
-            - name: host-dev
-              mountPath: /dev
-              mountPropagation: "HostToContainer"
-{{- if $nodePool.deploy.ack }}
-            - mountPath: /var/addon
-              name: addon-token
-              readOnly: true
-{{- end }}
-            - mountPath: /host/run/csi-tool
-              name: run-csi
-            - mountPath: /tls/local/grpc
-              name: tls-token-dir
-              readOnly: true
-            - name: host-mnt
-              mountPath: /mnt
-              mountPropagation: HostToContainer
-{{- end }}
       volumes:
 {{- if $nodePool.csi.oss.enabled }}
         - name: ossfs-metrics-dir
@@ -311,16 +230,6 @@ spec:
           hostPath:
             path: /run/csi-tool
             type: DirectoryOrCreate
-{{- if $nodePool.csi.local.enabled }}
-        - name: tls-token-dir
-          secret:
-            defaultMode: 420
-            secretName: csi-local-plugin-cert
-        - name: host-mnt
-          hostPath:
-            path: /mnt
-            type: DirectoryOrCreate
-{{- end }}
         - name: registration-dir
           hostPath:
             path: {{ printf "%s/plugins_registry" (clean $nodePool.deploy.kubeletRootDir) | quote }}

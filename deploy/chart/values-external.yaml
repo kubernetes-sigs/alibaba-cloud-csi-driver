@@ -25,8 +25,6 @@ controller:
           - "true"
 
 csi:
-  local:
-    enabled: false
   oss:
     controller:
       enabled: false
