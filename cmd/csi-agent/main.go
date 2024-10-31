@@ -5,21 +5,72 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 var mountProxySocket string
 
-type CSIAgent interface {
-	NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error)
+type FileGrpcServer struct {
+	input  io.Reader
+	output io.Writer
+	desc   *grpc.ServiceDesc
+	impl   any
+}
+
+func NewStdIOGrpcServer() *FileGrpcServer {
+	return &FileGrpcServer{
+		input:  os.Stdin,
+		output: os.Stdout,
+	}
+}
+
+func (s *FileGrpcServer) RegisterService(desc *grpc.ServiceDesc, impl interface{}) {
+	s.desc = desc
+	s.impl = impl
+}
+
+func (s *FileGrpcServer) decode(msg any) error {
+	pbmsg := msg.(proto.Message)
+	in, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return err
+	}
+	return protojson.Unmarshal(in, pbmsg)
+}
+
+func (s *FileGrpcServer) ServeOneRequest(method string) error {
+	for _, desc := range s.desc.Methods {
+		if desc.MethodName == method {
+			resp, err := desc.Handler(s.impl, context.Background(), s.decode, nil)
+			if err != nil {
+				return err
+			}
+			out, err := protojson.Marshal(resp.(proto.Message))
+			if err != nil {
+				return fmt.Errorf("failed to marshal response: %v", err)
+			}
+			_, err = s.output.Write(out)
+			if err != nil {
+				return fmt.Errorf("failed to write response: %v", err)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("unknown method: %q", method)
 }
 
 func main() {
@@ -32,51 +83,43 @@ func main() {
 		return
 	}
 
-	var agent CSIAgent
+	var agent csi.NodeServer
 	switch driver := os.Getenv("CSI_DRIVER"); driver {
 	case "test":
 		agent = &fakeAgent{}
 	case "ossplugin.csi.alibabacloud.com":
 		meta := metadata.NewMetadata()
 		agent = oss.NewCSIAgent(meta, mountProxySocket)
+	case "diskplugin.csi.alibabacloud.com":
+		agent = disk.NewCSIAgent()
 	default:
 		printError(fmt.Errorf("invalid CSI_DRIVER: %q", driver))
 		os.Exit(1)
 	}
 
-	var resp proto.Message
-
-	switch cmd := os.Getenv("CSI_COMMAND"); cmd {
-	case "NodePublishVolume":
-		var req csi.NodePublishVolumeRequest
-		err := jsonpb.Unmarshal(os.Stdin, &req)
-		if err != nil {
-			printError(err)
-			os.Exit(1)
-		}
-		resp, err = agent.NodePublishVolume(context.Background(), &req)
-		if err != nil {
-			printError(err)
-			os.Exit(2)
-		}
-	default:
-		printError(fmt.Errorf("invalid CSI_COMMAND: %q", cmd))
+	server := NewStdIOGrpcServer()
+	csi.RegisterNodeServer(server, common.WrapNodeServerWithValidator(agent))
+	err := server.ServeOneRequest(os.Getenv("CSI_COMMAND"))
+	if err != nil {
+		printError(err)
 		os.Exit(1)
 	}
-
-	_ = new(jsonpb.Marshaler).Marshal(os.Stdout, resp)
 }
 
 func printError(err error) {
-	_ = json.NewEncoder(os.Stdout).Encode(struct {
-		Error string `json:"error"`
+	s, _ := status.FromError(err)
+	encodeErr := json.NewEncoder(os.Stdout).Encode(struct {
+		Code  codes.Code `json:"code"`
+		Error string     `json:"error"`
 	}{
-		Error: err.Error(),
+		Code:  s.Code(),
+		Error: s.Message(),
 	})
+	if encodeErr != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v, failed to write error to stdout: %v", err, encodeErr)
+	}
 }
 
-type fakeAgent struct{}
-
-func (fakeagent *fakeAgent) NodePublishVolume(context.Context, *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	return &csi.NodePublishVolumeResponse{}, nil
+type fakeAgent struct {
+	csi.UnimplementedNodeServer
 }

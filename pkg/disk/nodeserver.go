@@ -921,8 +921,6 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	*csi.NodeExpandVolumeResponse, error) {
 	klog.Infof("NodeExpandVolume: node expand volume: %v", req)
 
-	requestBytes := req.GetCapacityRange().GetRequiredBytes()
-
 	volumePath := req.GetVolumePath()
 	diskID := req.GetVolumeId()
 	if strings.Contains(volumePath, BLOCKVOLUMEPREFIX) {
@@ -956,6 +954,19 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 			deleteUntagAutoSnapshot(volumeExpandAutoSnapshotID, diskID)
 		}
 	}()
+	resp, err := localExpandVolume(ctx, req)
+	if err != nil && snapshotEnable {
+		klog.Warningf("NodeExpandVolume:: Please use the snapshot %s for data recovery. The retentionDays is %d", volumeExpandAutoSnapshotID, veasp.RetentionDays)
+		snapshotEnable = false
+	}
+	return resp, err
+}
+
+func localExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
+	requestBytes := req.GetCapacityRange().GetRequiredBytes()
+	volumePath := req.GetVolumePath()
+	diskID := req.GetVolumeId()
+
 	devicePath, err := GetVolumeDeviceName(diskID)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -987,23 +998,14 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 	}
 
 	// use resizer to expand volume filesystem
-	mounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
-	r := k8smount.NewResizeFs(mounter.Exec)
+	r := k8smount.NewResizeFs(utilexec.New())
 	ok, err := r.Resize(devicePath, volumePath)
 	if err != nil {
 		klog.Errorf("NodeExpandVolume:: Resize Error, volumeId: %s, devicePath: %s, volumePath: %s, err: %s", diskID, devicePath, volumePath, err.Error())
-		if snapshotEnable {
-			klog.Warningf("NodeExpandVolume:: Please use the snapshot %s for data recovery. The retentionDays is %d", volumeExpandAutoSnapshotID, veasp.RetentionDays)
-			snapshotEnable = false
-		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if !ok {
 		klog.Errorf("NodeExpandVolume:: Resize failed, volumeId: %s, devicePath: %s, volumePath: %s", diskID, devicePath, volumePath)
-		if snapshotEnable {
-			klog.Warningf("NodeExpandVolume:: Please use the snapshot %s for data recovery. The retentionDays is %d", volumeExpandAutoSnapshotID, veasp.RetentionDays)
-			snapshotEnable = false
-		}
 		return nil, status.Error(codes.Internal, "Fail to resize volume fs")
 	}
 
