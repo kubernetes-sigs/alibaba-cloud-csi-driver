@@ -76,20 +76,4 @@ parameters:
 reclaimPolicy: Delete
 allowVolumeExpansion: true
 {{- end }}
-{{- if .Values.csi.local.enabled }}
----
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: csi-local-lvm
-parameters:
-  fsType: ext4
-  lvmType: striping
-  vgName: volumegroup1
-  volumeType: LVM
-provisioner: localplugin.csi.alibabacloud.com
-reclaimPolicy: Delete
-volumeBindingMode: WaitForFirstConsumer
-allowVolumeExpansion: true
-{{- end -}}
 {{- end -}}
