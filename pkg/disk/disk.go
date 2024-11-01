@@ -68,7 +68,6 @@ type GlobalConfig struct {
 	DiskBdfEnable         bool
 	ClientSet             *kubernetes.Clientset
 	ClusterID             string
-	ControllerService     bool
 	BdfHealthCheck        bool
 	DiskMultiTenantEnable bool
 	CheckBDFHotPlugin     bool
@@ -93,13 +92,20 @@ func initDriver() {
 }
 
 // NewDriver create the identity/node/controller server and disk driver
-func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController bool) *DISK {
+func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.ServiceType) *DISK {
 	initDriver()
 	tmpdisk := &DISK{}
 	tmpdisk.endpoint = endpoint
 
 	// Config Global vars
 	GlobalConfigSet(m)
+
+	if serviceType&utils.Node != 0 {
+		GlobalConfigVar.NodeID = metadata.MustGet(m, metadata.InstanceID)
+		DefaultDeviceManager.DisableSerial = IsVFNode()
+	} else {
+		GlobalConfigVar.NodeID = "not-retrieved" // make csi-common happy
+	}
 
 	// Init ECS Client
 	accessControl := utils.GetAccessControl()
@@ -113,9 +119,10 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, runAsController boo
 
 	// Create GRPC servers
 	tmpdisk.idServer = NewIdentityServer()
-	tmpdisk.controllerServer = NewControllerServer()
-
-	if !runAsController {
+	if serviceType&utils.Controller != 0 {
+		tmpdisk.controllerServer = NewControllerServer()
+	}
+	if serviceType&utils.Node != 0 {
 		tmpdisk.nodeServer = NewNodeServer(m)
 	}
 
@@ -181,19 +188,9 @@ func GlobalConfigSet(m metadata.MetadataProvider) {
 
 	nodeName := os.Getenv(kubeNodeName)
 
-	controllerServerType := false
-	nodeID := ""
-	if os.Getenv(utils.ServiceType) == utils.ProvisionerService {
-		controllerServerType = true
-		nodeID = "controller" // make csi-common happy
-	} else {
-		nodeID = metadata.MustGet(m, metadata.InstanceID)
-	}
-
 	// Global Config Set
 	GlobalConfigVar = GlobalConfig{
 		Region: metadata.MustGet(m, metadata.RegionID),
-		NodeID: nodeID,
 		ADControllerEnable: features.FunctionalMutableFeatureGate.Enabled(features.DiskADController) ||
 			csiCfg.GetBool("disk-adcontroller-enable", "DISK_AD_CONTROLLER", false),
 		DiskTagEnable:         csiCfg.GetBool("disk-tag-by-plugin", "DISK_TAGED_BY_PLUGIN", false),
@@ -205,7 +202,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) {
 		ClientSet:             kubeClient,
 		SnapClient:            snapClient,
 		ClusterID:             os.Getenv("CLUSTER_ID"),
-		ControllerService:     controllerServerType,
 		BdfHealthCheck:        csiCfg.GetBool("bdf-health-check", "BDF_HEALTH_CHECK", true),
 		DiskMultiTenantEnable: csiCfg.GetBool("disk-multi-tenant-enable", "DISK_MULTI_TENANT_ENABLE", false),
 		NodeMultiZoneEnable:   csiCfg.GetBool("node-multi-zone-enable", "NODE_MULTI_ZONE_ENABLE", false),
@@ -222,7 +218,6 @@ func GlobalConfigSet(m metadata.MetadataProvider) {
 		klog.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
 	}
 	DefaultDeviceManager.EnableDiskPartition = csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true)
-	DefaultDeviceManager.DisableSerial = !controllerServerType && IsVFNode()
 	klog.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",
 		GlobalConfigVar.ADControllerEnable,
 		GlobalConfigVar.DiskTagEnable,
@@ -233,7 +228,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) {
 		GlobalConfigVar.ClusterID,
 	)
 
-	if controllerServerType {
+	if GlobalConfigVar.ADControllerEnable {
 		pDetach := features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelDetach)
 		pAttach := features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelAttach)
 		GlobalConfigVar.AttachDetachSlots = NewSlots(!pDetach, !pAttach)
@@ -244,6 +239,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) {
 			klog.Infof("Disk parallel detach enabled")
 		}
 	} else {
+		// if ADController is not enabled, we need serial attach to recognize old disk
 		GlobalConfigVar.AttachDetachSlots = NewSlots(true, true)
 	}
 }

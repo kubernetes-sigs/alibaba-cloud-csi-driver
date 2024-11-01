@@ -45,34 +45,32 @@ type CSICollector struct {
 }
 
 // newCSICollector method returns the CSICollector object
-func newCSICollector(metricType string, driverNames []string) error {
+func newCSICollector(driverNames []string) error {
 	if csiCollectorInstance != nil {
 		return nil
 	}
 	collectors := make(map[string]Collector)
-	if metricType == pluginService {
-		enabledDrivers := map[string]struct{}{}
-		for _, d := range driverNames {
-			enabledDrivers[d] = struct{}{}
-		}
-		for _, reg := range registry {
-			enabled := len(reg.RelatedDrivers) == 0
-			for _, d := range reg.RelatedDrivers {
-				if _, ok := enabledDrivers[d]; ok {
-					enabled = true
-					break
-				}
-			}
-			if enabled {
-				collector, err := reg.Factory()
-				if err != nil {
-					return err
-				}
-				collectors[reg.Name] = collector
-			}
-		}
-
+	enabledDrivers := map[string]struct{}{}
+	for _, d := range driverNames {
+		enabledDrivers[d] = struct{}{}
 	}
+	for _, reg := range registry {
+		enabled := len(reg.RelatedDrivers) == 0
+		for _, d := range reg.RelatedDrivers {
+			if _, ok := enabledDrivers[d]; ok {
+				enabled = true
+				break
+			}
+		}
+		if enabled {
+			collector, err := reg.Factory()
+			if err != nil {
+				return err
+			}
+			collectors[reg.Name] = collector
+		}
+	}
+
 	csiCollectorInstance = &CSICollector{Collectors: collectors}
 
 	return nil

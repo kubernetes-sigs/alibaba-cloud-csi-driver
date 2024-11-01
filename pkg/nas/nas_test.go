@@ -2,12 +2,13 @@ package nas
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/jarcoal/httpmock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 const (
@@ -54,7 +55,7 @@ func TestNewDriverProvisioner(t *testing.T) {
 	prepareNasTestFakeK8sContext()
 	prepareFakeRegionEnvVar(t)
 
-	driver := NewDriver(metadata.NewMetadata(), "", utils.ProvisionerService)
+	driver := NewDriver(metadata.NewMetadata(), "", utils.Controller)
 	assert.NotNil(t, driver)
 }
 
@@ -83,7 +84,7 @@ func TestNewDriverPlugin(t *testing.T) {
 	prepareNasTestFakeK8sContext()
 	prepareNodeConfigEnvVars(t)
 
-	driver := NewDriver(metadata.NewMetadata(), "", utils.PluginService)
+	driver := NewDriver(metadata.NewMetadata(), "", utils.Node)
 	assert.NotNil(t, driver)
 }
 

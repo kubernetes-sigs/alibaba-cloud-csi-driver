@@ -191,7 +191,7 @@ func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 		go checkVfhpOnlineReconcile()
 	}
 
-	if !GlobalConfigVar.ControllerService && IsVFNode() && GlobalConfigVar.BdfHealthCheck {
+	if IsVFNode() && GlobalConfigVar.BdfHealthCheck {
 		go BdfHealthCheck()
 	}
 

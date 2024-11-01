@@ -252,6 +252,8 @@ spec:
             - "--endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock"
             - "--v=2"
             - "--driver={{ include "enabledControllers" .Values.csi }}"
+            - --run-controller-service=true
+            - --run-node-service=false
 {{- if .Values.deploy.featureGates }}
             - "--feature-gates={{ .Values.deploy.featureGates }}"
 {{- end -}}
@@ -259,8 +261,6 @@ spec:
             - --nodeid=$(KUBE_NODE_NAME)
 {{- end }}
           env:
-            - name: SERVICE_TYPE
-              value: "provisioner"
             - name: "DEFAULT_REGISTRY"
               value: {{ .Values.images.registry | quote }}
 {{- if .Values.deploy.ack }}

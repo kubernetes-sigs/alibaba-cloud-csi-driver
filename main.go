@@ -77,20 +77,16 @@ const (
 )
 
 var (
-	endpoint        = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
-	nodeID          = flag.String("nodeid", "", "node id")
-	runAsController = flag.Bool("run-as-controller", false, "Only run as controller service")
-	driver          = flag.String("driver", TypePluginDISK, "CSI Driver")
+	endpoint             = flag.String("endpoint", "unix://tmp/csi.sock", "CSI endpoint")
+	nodeID               = flag.String("nodeid", "", "node id")
+	runAsController      = flag.Bool("run-as-controller", false, "Only run as controller service (deprecated)")
+	runControllerService = flag.Bool("run-controller-service", true, "activate CSI controller service")
+	runNodeService       = flag.Bool("run-node-service", true, "activate CSI node service")
+	driver               = flag.String("driver", TypePluginDISK, "CSI Driver")
 	// Deprecated: rootDir is instead by KUBELET_ROOT_DIR env.
 	rootDir = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
 )
 
-type globalMetricConfig struct {
-	enableMetric bool
-	serviceType  string
-}
-
-// Nas CSI Plugin
 func main() {
 	csilog.RedirectLogrusToLogr(logrus.StandardLogger(), klog.Background())
 
@@ -98,17 +94,8 @@ func main() {
 		"Options are:\n"+strings.Join(features.FunctionalMutableFeatureGate.KnownFeatures(), "\n"))
 	klog.InitFlags(nil)
 	flag.Parse()
+	serviceType := utils.GetServiceType(*runAsController, *runControllerService, *runNodeService)
 
-	serviceType := os.Getenv(utils.ServiceType)
-
-	if len(serviceType) == 0 || serviceType == "" {
-		serviceType = utils.PluginService
-	}
-
-	// When serviceType is neither plugin nor provisioner, the program will exits.
-	if serviceType != utils.PluginService && serviceType != utils.ProvisionerService {
-		klog.Fatalf("Service type is unknown:%s", serviceType)
-	}
 	// enable pprof analyse
 	pprofPort := os.Getenv("PPROF_PORT")
 	if pprofPort != "" {
@@ -184,13 +171,13 @@ func main() {
 		case TypePluginOSS:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := oss.NewDriver(endPoint, meta, *runAsController)
+				driver := oss.NewDriver(endPoint, meta, serviceType)
 				driver.Run()
 			}(endPointName)
 		case TypePluginDISK:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := disk.NewDriver(meta, endPoint, *runAsController)
+				driver := disk.NewDriver(meta, endPoint, serviceType)
 				driver.Run()
 			}(endPointName)
 
@@ -199,7 +186,7 @@ func main() {
 		case TypePluginENS:
 			go func(endpoint string) {
 				defer wg.Done()
-				driver := ens.NewDriver(*nodeID, endpoint)
+				driver := ens.NewDriver(*nodeID, endpoint, serviceType)
 				driver.Run()
 			}(endPointName)
 		// TODO: remove entire rund-csi protocol 1.0
@@ -212,7 +199,7 @@ func main() {
 		case TypePluginPOV:
 			go func(endPoint string) {
 				defer wg.Done()
-				driver := pov.NewDriver(meta, endPoint, *runAsController)
+				driver := pov.NewDriver(meta, endPoint, serviceType)
 				driver.Run()
 			}(endPointName)
 		default:
@@ -230,34 +217,25 @@ func main() {
 
 	servicePort := os.Getenv("SERVICE_PORT")
 
-	if len(servicePort) == 0 || servicePort == "" {
-		switch serviceType {
-		case utils.PluginService:
-			servicePort = PluginServicePort
-		case utils.ProvisionerService:
+	if servicePort == "" {
+		servicePort = PluginServicePort
+		if serviceType&utils.Controller != 0 {
 			servicePort = ProvisionerServicePort
-		default:
 		}
 	}
 
-	metricConfig := &globalMetricConfig{
-		true,
-		"plugin",
-	}
-
-	enableMetric := os.Getenv("ENABLE_METRIC")
 	version.SetPrometheusVersion()
-	if enableMetric == "false" {
-		metricConfig.enableMetric = false
+	enableMetric := true
+	if os.Getenv("ENABLE_METRIC") == "false" {
+		enableMetric = false
 	}
-	metricConfig.serviceType = serviceType
 
 	klog.Info("CSI is running status.")
 	csiMux := http.NewServeMux()
 	csiMux.HandleFunc("/healthz", healthHandler)
 	klog.Infof("Metric listening on address: /healthz")
-	if metricConfig.enableMetric {
-		metricHandler := metric.NewMetricHandler(metricConfig.serviceType, driverNames)
+	if enableMetric && serviceType&utils.Node != 0 {
+		metricHandler := metric.NewMetricHandler(driverNames)
 		csiMux.Handle("/metrics", metricHandler)
 		klog.Infof("Metric listening on address: /metrics")
 	}
