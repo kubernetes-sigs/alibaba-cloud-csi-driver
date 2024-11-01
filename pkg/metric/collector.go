@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/klog/v2"
 )
@@ -45,12 +46,12 @@ type CSICollector struct {
 }
 
 // newCSICollector method returns the CSICollector object
-func newCSICollector(driverNames []string) error {
+func newCSICollector(driverNames []string, serviceType utils.ServiceType) error {
 	if csiCollectorInstance != nil {
 		return nil
 	}
 	collectors := make(map[string]Collector)
-	if metricType == pluginService {
+	if serviceType&utils.Node != 0 {
 		enabledDrivers := map[string]struct{}{}
 		for _, d := range driverNames {
 			enabledDrivers[d] = struct{}{}

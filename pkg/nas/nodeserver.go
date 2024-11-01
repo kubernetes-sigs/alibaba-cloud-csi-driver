@@ -265,7 +265,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// running in runc/runv mode
-	runtimeVal := utils.GetPodRunTime(req, ns.config.KubeClient)
+	runtimeVal := utils.GetPodRunTime(ctx, req, ns.config.KubeClient)
 	if runtimeVal == utils.RunvRunTimeTag {
 		fileName := filepath.Join(mountPath, utils.CsiPluginRunTimeFlagFile)
 		runvOptions := RunvNasOptions{}

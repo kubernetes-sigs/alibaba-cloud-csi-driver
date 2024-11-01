@@ -235,7 +235,7 @@ func main() {
 	csiMux.HandleFunc("/healthz", healthHandler)
 	klog.Infof("Metric listening on address: /healthz")
 	if enableMetric && serviceType&utils.Node != 0 {
-		metricHandler := metric.NewMetricHandler(driverNames)
+		metricHandler := metric.NewMetricHandler(driverNames, serviceType)
 		csiMux.Handle("/metrics", metricHandler)
 		klog.Infof("Metric listening on address: /metrics")
 	}

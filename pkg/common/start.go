@@ -25,7 +25,9 @@ func ParseEndpoint(ep string) (string, string, error) {
 }
 
 func RunCSIServer(driverType, endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
-	ns = WrapNodeServerWithValidator(ns)
+	config := options.MustGetRestConfig()
+	clientset := kubernetes.NewForConfigOrDie(config)
+	ns = WrapNodeServerWithValidator(WrapNodeServerWithMetricRecorder(ns, driverType, clientset))
 	cs = WrapControllerServerWithValidator(cs)
 
 	proto, addr, err := ParseEndpoint(endpoint)
@@ -45,8 +47,6 @@ func RunCSIServer(driverType, endpoint string, ids csi.IdentityServer, cs csi.Co
 		klog.Fatalf("Failed to listen: %v", err)
 	}
 
-	config := options.MustGetRestConfig()
-	clientset := kubernetes.NewForConfigOrDie(config)
 	instrumentClosure := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		return instrumentGRPC(ctx, req, info, handler, driverType, clientset)
 	}

@@ -92,9 +92,16 @@ const (
 
 	// GiB ...
 	GiB = 1024 * 1024 * 1024
+
+	PodNameKey      = "csi.storage.k8s.io/pod.name"
+	PodNamespaceKey = "csi.storage.k8s.io/pod.namespace"
 )
 
 type ServiceType int
+
+type podInfoKey struct{}
+
+var podInfo = podInfoKey{}
 
 const (
 	Controller ServiceType = 1 << iota
@@ -435,44 +442,61 @@ func WriteJSONFile(obj interface{}, file string) error {
 
 // GetPodRunTime Get Pod runtimeclass config
 // Default as runc.
-func GetPodRunTime(req *csi.NodePublishVolumeRequest, clientSet kubernetes.Interface) string {
+func GetPodRunTime(ctx context.Context, req *csi.NodePublishVolumeRequest, clientSet kubernetes.Interface) string {
 	// if pod name namespace is empty, use default
 	runtimeVal := RuncRunTimeTag
-	podName, nameSpace := "", ""
-	if value, ok := req.VolumeContext["csi.storage.k8s.io/pod.name"]; ok {
-		podName = value
-	}
-	if value, ok := req.VolumeContext["csi.storage.k8s.io/pod.namespace"]; ok {
-		nameSpace = value
-	}
-	if podName == "" || nameSpace == "" {
-		klog.Warningf("GetPodRunTime: Rreceive Request with Empty name or namespace: %s, %s", podName, nameSpace)
-		return runtimeVal
-	}
-
-	podInfo, err := clientSet.CoreV1().Pods(nameSpace).Get(context.Background(), podName, metav1.GetOptions{})
+	pod, err := GetPodFromContextOrK8s(ctx, clientSet, req)
 	if err != nil {
-		klog.Errorf("GetPodRunTime: Get PodInfo(%s, %s) with error: %s", podName, nameSpace, err.Error())
+		klog.Errorf("GetPodRunTime: failed to get pod: %v", err)
 		return runtimeVal
 	}
-
+	namespace, name := pod.Namespace, pod.Name
 	// check pod.Spec.RuntimeClassName == "runv"
-	if podInfo.Spec.RuntimeClassName == nil || *podInfo.Spec.RuntimeClassName == "" {
-		klog.Infof("GetPodRunTime: Get default runtime(nil), %s, %s", podName, nameSpace)
+	if pod.Spec.RuntimeClassName == nil || *pod.Spec.RuntimeClassName == "" {
+		klog.Infof("GetPodRunTime: Get default runtime(nil), %s, %s", name, namespace)
 		return runtimeVal
 	} else {
-		runtimeClassName := strings.TrimSpace(*podInfo.Spec.RuntimeClassName)
-		klog.Infof("GetPodRunTime: Get PodInfo Successful: %s, %s, with runtime: %s", podName, nameSpace, runtimeClassName)
+		runtimeClassName := strings.TrimSpace(*pod.Spec.RuntimeClassName)
+		klog.Infof("GetPodRunTime: Get PodInfo Successful: %s, %s, with runtime: %s", name, namespace, runtimeClassName)
 		if runtimeClassName == RunvRunTimeTag || runtimeClassName == RundRunTimeTag {
 			runtimeVal = runtimeClassName
 		}
 	}
 	// check Annotation[io.kubernetes.cri.untrusted-workload] = true
-	if value, ok := podInfo.Annotations["io.kubernetes.cri.untrusted-workload"]; ok && strings.TrimSpace(value) == "true" {
-		klog.Infof("GetPodRunTime: namespace: %s, name: %s pod has untrusted workload tag, use runv runtime logic", nameSpace, podName)
+	if value, ok := pod.Annotations["io.kubernetes.cri.untrusted-workload"]; ok && strings.TrimSpace(value) == "true" {
+		klog.Infof("GetPodRunTime: namespace: %s, name: %s pod has untrusted workload tag, use runv runtime logic", namespace, name)
 		runtimeVal = RunvRunTimeTag
 	}
 	return runtimeVal
+}
+
+func WithPodInfo(ctx context.Context, client kubernetes.Interface, req *csi.NodePublishVolumeRequest) (context.Context, *v1.Pod) {
+	pod, err := getPodFromK8s(ctx, client, req)
+	if err != nil {
+		klog.Errorf("WithPodInfo: failed to get pod: %v", err)
+		return ctx, nil
+	}
+	return context.WithValue(ctx, podInfo, pod), pod
+}
+
+func GetPodFromContextOrK8s(ctx context.Context, client kubernetes.Interface, req *csi.NodePublishVolumeRequest) (*v1.Pod, error) {
+	pod, ok := ctx.Value(podInfo).(*v1.Pod)
+	if ok {
+		return pod, nil
+	}
+	return getPodFromK8s(ctx, client, req)
+}
+
+func getPodFromK8s(ctx context.Context, client kubernetes.Interface, req *csi.NodePublishVolumeRequest) (*v1.Pod, error) {
+	name, namespace := req.VolumeContext[PodNameKey], req.VolumeContext[PodNamespaceKey]
+	if name == "" || namespace == "" {
+		return nil, fmt.Errorf("empty pod name or namespace: '%s', '%s'", name, namespace)
+	}
+	pod, err := client.CoreV1().Pods(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return pod, nil
 }
 
 // IsMountPointRunv check the mountpoint is runv style.

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/version"
@@ -39,9 +40,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // NewMetricHandler method returns a promHttp object
-func NewMetricHandler(driverNames []string) *Handler {
+func NewMetricHandler(driverNames []string, serviceType utils.ServiceType) *Handler {
 	//csi collector singleton
-	err := newCSICollector(driverNames)
+	err := newCSICollector(driverNames, serviceType)
 	if err != nil {
 		klog.Errorf("Couldn't create collector: %s", err)
 	}

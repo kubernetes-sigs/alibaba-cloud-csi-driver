@@ -6,12 +6,60 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
+
+func WrapNodeServerWithMetricRecorder(server csi.NodeServer, driverType string, client kubernetes.Interface) csi.NodeServer {
+	return &NodeServerWithMetricRecorder{
+		NodeServer: server,
+		driverType: driverType,
+		client:     client,
+	}
+}
+
+type NodeServerWithMetricRecorder struct {
+	csi.NodeServer
+	driverType string
+	client     kubernetes.Interface
+}
+
+func (s *NodeServerWithMetricRecorder) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	ctx, pod := utils.WithPodInfo(ctx, s.client, req)
+	resp, err := s.NodeServer.NodePublishVolume(ctx, req)
+	s.recordVolumeAttachmentTime(ctx, req, pod, err)
+	return resp, err
+}
+
+func (s *NodeServerWithMetricRecorder) recordVolumeAttachmentTime(ctx context.Context, req *csi.NodePublishVolumeRequest, pod *v1.Pod, respErr error) {
+	var err error
+	if pod == nil {
+		if pod, err = utils.GetPodFromContextOrK8s(ctx, s.client, req); err != nil {
+			klog.Errorf("recordVolumeAttachmentTime: failed to get pod from context or k8s: %v", err)
+			return
+		}
+	}
+	podStartTime := pod.Status.StartTime
+	if podStartTime == nil {
+		klog.Errorf("recordVolumeAttachmentTime: no start time found for pod %s/%s", pod.GetNamespace(), pod.GetName())
+		return
+	}
+	labels := prometheus.Labels{
+		metric.VolumeStatsLabelType: s.driverType,
+		metric.VolumeStatsLabelCode: status.Code(respErr).String(),
+	}
+	metric.VolumeStatCollector.AttachmentCountMetric.With(labels).Inc()
+	metric.VolumeStatCollector.AttachmentTimeTotalMetric.With(labels).Add(time.Since(podStartTime.Time).Seconds())
+}
 
 func WrapNodeServerWithValidator(server csi.NodeServer) csi.NodeServer {
 	return &NodeServerWithValidator{NodeServer: server}

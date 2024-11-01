@@ -34,7 +34,7 @@ var CsiGrpcExecTimeCollector = csiGrpcExecTimeCollector{
 }
 
 func init() {
-	registerCollector(CsiGrpcExecTimeCollectorName, GetCsiGrpcExecTimeCollector, diskDriverName, nasDriverName, ossDriverName)
+	registerCollector(CsiGrpcExecTimeCollectorName, GetCsiGrpcExecTimeCollector)
 }
 
 func GetCsiGrpcExecTimeCollector() (Collector, error) {
