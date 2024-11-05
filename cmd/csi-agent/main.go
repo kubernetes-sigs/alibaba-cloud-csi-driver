@@ -13,6 +13,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -74,6 +75,13 @@ func (s *FileGrpcServer) ServeOneRequest(method string) error {
 }
 
 func main() {
+	_, ok := os.LookupEnv("KUBELET_ROOT_DIR")
+	if !ok {
+		// This is nessesary to disable the check of sub-directory in NodeServerWithValidator.
+		// CSI-agent is not invoked by kubelet, so there is no usual kubelet directory structure.
+		utils.KubeletRootDir = "/"
+	}
+
 	logrus.SetOutput(os.Stderr)
 	flag.StringVar(&mountProxySocket, "mount-proxy-sock", "/run/kube-agent/csi-agent.sock", "socket path of mount proxy server")
 	flag.Parse()
