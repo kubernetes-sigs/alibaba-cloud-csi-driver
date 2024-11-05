@@ -364,7 +364,8 @@ func setNetworkType(originURL, regionID string) (URL string, modified bool) {
 
 func setTransmissionProtocol(originURL string) (URL string, modified bool) {
 	URL = originURL
-	if strings.HasPrefix(URL, "http://") || strings.HasPrefix(URL, "https://") {
+	// for PrivateCloud, use the default protocol (http) of ossfs if not set.
+	if utils.IsPrivateCloud() || strings.HasPrefix(URL, "http://") || strings.HasPrefix(URL, "https://") {
 		return
 	}
 	if strings.HasSuffix(strings.TrimRight(URL, "/"), "-internal.aliyuncs.com") {
