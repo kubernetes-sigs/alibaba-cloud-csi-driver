@@ -300,6 +300,94 @@ func (m *MockDisks) AddDisk(t testing.TB, path string, diskID []byte) {
 	}
 }
 
+func TestGetAvailableDiskCount(t *testing.T) {
+	resp := ecs.CreateDescribeInstanceTypesResponse()
+	cloud.UnmarshalAcsResponse([]byte(DescribeInstanceTypesResponse), resp)
+	ecsClient := cloud.NewMockECSInterface(gomock.NewController(t))
+	ecsClient.EXPECT().DescribeInstanceTypes(gomock.Any()).Return(resp, nil)
+	tests := []struct {
+		name     string
+		node     *corev1.Node
+		expected int
+	}{
+		{
+			name:     "Get from OpenAPI",
+			node:     &corev1.Node{},
+			expected: 9,
+		},
+		{
+			name: "Get from node annotation",
+			node: &corev1.Node{
+				ObjectMeta: v1.ObjectMeta{
+					Annotations: map[string]string{
+						instanceTypeInfoAnnotation: `{"DiskQuantity":8}`,
+					},
+				},
+			},
+			expected: 8,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual, _ := getAvailableDiskCount(tt.node, ecsClient, testMetadata)
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}
+
+func TestGetAvailableDiskCountFromAnnotation(t *testing.T) {
+	tests := []struct {
+		name     string
+		node     *corev1.Node
+		expected int
+		wantErr  bool
+	}{
+		{
+			name:     "Empty instance type info annotation",
+			node:     &corev1.Node{},
+			expected: 0,
+			wantErr:  true,
+		},
+		{
+			name: "Invalid instance type info annotation",
+			node: &corev1.Node{
+				ObjectMeta: v1.ObjectMeta{
+					Annotations: map[string]string{
+						instanceTypeInfoAnnotation: "invalid-json",
+					},
+				},
+			},
+			expected: 0,
+			wantErr:  true,
+		},
+		{
+			name: "Valid instance type info annotation",
+			node: &corev1.Node{
+				ObjectMeta: v1.ObjectMeta{
+					Annotations: map[string]string{
+						instanceTypeInfoAnnotation: `{"DiskQuantity":9}`,
+					},
+				},
+			},
+			expected: 9,
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual, err := getAvailableDiskCountFromAnnotation(tt.node)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
+}
+
 func TestGetVolumeCountFromOpenAPI(t *testing.T) {
 	orgiDiskXattrName := DiskXattrName
 	DiskXattrName = "user.testing-csi-managed-disk"
