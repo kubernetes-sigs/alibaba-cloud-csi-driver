@@ -7,6 +7,7 @@ import (
 
 	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -26,6 +27,7 @@ var groupControllerCaps = []csi.GroupControllerServiceCapability_RPC_Type{
 // groupcontroller server try to create/delete group snapshots
 type groupControllerServer struct {
 	recorder record.EventRecorder
+	common.GenericGroupControllerServer
 }
 
 // NewGroupControllerServer is to create controller server

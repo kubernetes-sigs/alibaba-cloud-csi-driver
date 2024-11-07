@@ -120,7 +120,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 	var servers common.Servers
 	servers.IdentityServer = NewIdentityServer()
 	if serviceType&utils.Controller != 0 {
-		servers.controllerServer = NewControllerServer()
+		servers.ControllerServer = NewControllerServer()
 	}
 	if serviceType&utils.Node != 0 {
 		servers.NodeServer = NewNodeServer(m)

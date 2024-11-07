@@ -47,18 +47,7 @@ func (gcs *GroupControllerServerWithValidator) GetVolumeGroupSnapshot(context co
 }
 
 type GenericGroupControllerServer struct {
-}
-
-func (GenericGroupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, req *csi.CreateVolumeGroupSnapshotRequest) (*csi.CreateVolumeGroupSnapshotResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
-}
-
-func (GenericGroupControllerServer) DeleteVolumeGroupSnapshot(ctx context.Context, req *csi.DeleteVolumeGroupSnapshotRequest) (*csi.DeleteVolumeGroupSnapshotResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
-}
-
-func (GenericGroupControllerServer) GetVolumeGroupSnapshot(ctx context.Context, req *csi.GetVolumeGroupSnapshotRequest) (*csi.GetVolumeGroupSnapshotResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	csi.UnimplementedGroupControllerServer
 }
 
 func GroupControllerRPCCapabilities(capsRPC ...csi.GroupControllerServiceCapability_RPC_Type) []*csi.GroupControllerServiceCapability {

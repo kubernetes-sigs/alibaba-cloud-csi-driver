@@ -48,7 +48,7 @@ var (
 		DiskADController:           {Default: false, PreRelease: featuregate.Alpha},
 		DiskParallelAttach:         {Default: false, PreRelease: featuregate.Alpha},
 		DiskParallelDetach:         {Default: false, PreRelease: featuregate.Alpha},
-		DisableExpandAutoSnapshots: {Default: false, PreRelease: featuregate.Beta},
+		DisableExpandAutoSnapshots: {Default: true, PreRelease: featuregate.Beta},
 		EnableVolumeGroupSnapshots: {Default: false, PreRelease: featuregate.Alpha},
 	}
 
