@@ -43,6 +43,8 @@ const (
 
 	PasswdMountDir = "/etc/ossfs"
 	PasswdFilename = "passwd-ossfs"
+
+	MaxRoleSessionNameLimit = 64
 )
 
 type fuseOssfs struct {
@@ -355,7 +357,11 @@ func CleanupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Inte
 }
 
 func getRoleSessionName(volumeId, target string) string {
-	return fmt.Sprintf("ossfs.%s.%s", volumeId, computeMountPathHash(target))
+	name := fmt.Sprintf("ossfs.%s.%s", volumeId, computeMountPathHash(target))
+	if len(name) > MaxRoleSessionNameLimit {
+		name = fmt.Sprintf("ossfs.%s", computeMountPathHash(target))
+	}
+	return name
 }
 
 func GetOssfsMountProxySocketPath(volumeId string) string {
