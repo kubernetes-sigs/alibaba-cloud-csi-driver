@@ -1,3 +1,4 @@
+//go:build !linux
 // +build !linux
 
 /*
@@ -36,5 +37,9 @@ func NewResizeFs(exec utilexec.Interface) *ResizeFs {
 
 // Resize perform resize of file system
 func (resizefs *ResizeFs) Resize(devicePath string, deviceMountPath string) (bool, error) {
+	return false, fmt.Errorf("Resize is not supported for this build")
+}
+
+func (resizefs *ResizeFs) NeedResize(devicePath string, deviceMountPath string) (bool, error) {
 	return false, fmt.Errorf("Resize is not supported for this build")
 }

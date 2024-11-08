@@ -66,7 +66,10 @@ var (
 	SupportedFilesystemTypes   = sets.New(EXT4_FSTYPE, EXT3_FSTYPE, XFS_FSTYPE, NTFS_FSTYPE)
 )
 
-const DISK_TAG_PREFIX = "diskTags/"
+const (
+	DISK_TAG_PREFIX            = "diskTags/"
+	instanceTypeInfoAnnotation = "alibabacloud.com/instance-type-info"
+)
 
 // DefaultOptions is the struct for access key
 type DefaultOptions struct {
@@ -86,6 +89,11 @@ type RoleAuth struct {
 	SecurityToken   string
 	LastUpdated     time.Time
 	Code            string
+}
+
+// InstanceTypeInfo is the annotation value of "alibabacloud.com/instance-type-info"
+type InstanceTypeInfo struct {
+	DiskQuantity int
 }
 
 func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
@@ -1255,7 +1263,28 @@ func getAttachedCloudDisks(ecsClient cloud.ECSInterface, m metadata.MetadataProv
 	return diskIds, nil
 }
 
-func getAvailableDiskCount(ecsClient cloud.ECSInterface, m metadata.MetadataProvider) (int, error) {
+func getAvailableDiskCount(node *v1.Node, ecsClient cloud.ECSInterface, m metadata.MetadataProvider) (int, error) {
+	if count, err := getAvailableDiskCountFromAnnotation(node); err == nil {
+		return count, nil
+	}
+	return getAvailableDiskCountFromOpenAPI(ecsClient, m)
+}
+
+func getAvailableDiskCountFromAnnotation(node *v1.Node) (int, error) {
+	if node == nil || node.Annotations[instanceTypeInfoAnnotation] == "" {
+		err := fmt.Errorf("empty instance type info annotation")
+		klog.Info(err)
+		return 0, err
+	}
+	var typeInfo InstanceTypeInfo
+	if err := json.Unmarshal([]byte(node.Annotations[instanceTypeInfoAnnotation]), &typeInfo); err != nil {
+		klog.Errorf("error unmarshaling instance type info annotation: %v", err)
+		return 0, err
+	}
+	return typeInfo.DiskQuantity, nil
+}
+
+func getAvailableDiskCountFromOpenAPI(ecsClient cloud.ECSInterface, m metadata.MetadataProvider) (int, error) {
 	req := ecs.CreateDescribeInstanceTypesRequest()
 	req.RegionId = metadata.MustGet(m, metadata.RegionID)
 	instanceType := metadata.MustGet(m, metadata.InstanceType)
@@ -1311,7 +1340,12 @@ func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInte
 	}
 	klog.Infof("getVolumeCount: found %d attached disks", len(attachedDisks))
 
-	availableCount, err := getAvailableDiskCount(c, m)
+	node, err := getNode()
+	if err != nil {
+		return 0, err
+	}
+
+	availableCount, err := getAvailableDiskCount(node, c, m)
 	if err != nil {
 		return 0, err
 	}
@@ -1324,10 +1358,6 @@ func getVolumeCountFromOpenAPI(getNode func() (*v1.Node, error), c cloud.ECSInte
 		return ""
 	}
 
-	node, err := getNode()
-	if err != nil {
-		return 0, err
-	}
 	for _, volume := range node.Status.VolumesInUse {
 		if disk := getDiskId(volume); disk != "" {
 			managedDisks.Insert(disk)
