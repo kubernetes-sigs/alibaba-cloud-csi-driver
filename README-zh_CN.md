@@ -69,3 +69,7 @@ OSS CSI插件更多详细说明请参考[OSS](./docs/oss.md)
 
 ## 安全
 对于发现的安全漏洞，请邮件发送至kubernetes-security@service.aliyun.com，您可在[SECURITY.md](./SECURITY.md)文件中找到更多信息。
+
+## 链接
+
+- [安装](./docs/install.md)
