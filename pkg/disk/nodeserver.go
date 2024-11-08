@@ -301,7 +301,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	klog.Infof("NodePublishVolume: Starting Mount Volume %s, source %s > target %s", req.VolumeId, sourcePath, targetPath)
 
 	mkfsOptions := req.VolumeContext[MkfsOptions]
-	runtime := utils.GetPodRunTime(req, ns.clientSet)
+	runtime := utils.GetPodRunTime(ctx, req, ns.clientSet)
 	// check pod runtime
 	switch runtime {
 	case utils.RunvRunTimeTag:

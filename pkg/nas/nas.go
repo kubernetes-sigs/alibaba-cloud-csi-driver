@@ -26,6 +26,7 @@ import (
 )
 
 const (
+	driverType = "nas"
 	driverName = "nasplugin.csi.alibabacloud.com"
 )
 
@@ -66,5 +67,5 @@ func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.Servi
 }
 
 func (d *NAS) Run() {
-	common.RunCSIServer(d.endpoint, d.identityServer, d.controllerServer, d.nodeServer)
+	common.RunCSIServer(driverType, d.endpoint, d.identityServer, d.controllerServer, d.nodeServer)
 }

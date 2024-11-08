@@ -165,7 +165,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// rund 3.0 protocol
 	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
-		if ns.clientset != nil && utils.GetPodRunTime(req, ns.clientset) == utils.RundRunTimeTag {
+		if ns.clientset != nil && utils.GetPodRunTime(ctx, req, ns.clientset) == utils.RundRunTimeTag {
 			klog.Infof("NodePublishVolume: skip as %s enabled", features.RundCSIProtocol3)
 			return &csi.NodePublishVolumeResponse{}, nil
 		}

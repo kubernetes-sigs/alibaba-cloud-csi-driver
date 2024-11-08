@@ -6,19 +6,20 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/klog/v2"
 )
 
 var (
 	scrapeDurationDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(clusterNamespace, scrapeSubSystem, "collector_duration_seconds"),
+		prometheus.BuildFQName(clusterNamespace, scrapeSubsystem, "collector_duration_seconds"),
 		"csi_metric: Duration of a collector scrape.",
 		[]string{"collector"},
 		nil,
 	)
 	scrapeSuccessDesc = prometheus.NewDesc(
-		prometheus.BuildFQName(clusterNamespace, scrapeSubSystem, "collector_success"),
+		prometheus.BuildFQName(clusterNamespace, scrapeSubsystem, "collector_success"),
 		"csi_metric: Whether a collector succeeded.",
 		[]string{"collector"},
 		nil,
@@ -45,32 +46,34 @@ type CSICollector struct {
 }
 
 // newCSICollector method returns the CSICollector object
-func newCSICollector(driverNames []string) error {
+func newCSICollector(driverNames []string, serviceType utils.ServiceType) error {
 	if csiCollectorInstance != nil {
 		return nil
 	}
 	collectors := make(map[string]Collector)
-	enabledDrivers := map[string]struct{}{}
-	for _, d := range driverNames {
-		enabledDrivers[d] = struct{}{}
-	}
-	for _, reg := range registry {
-		enabled := len(reg.RelatedDrivers) == 0
-		for _, d := range reg.RelatedDrivers {
-			if _, ok := enabledDrivers[d]; ok {
-				enabled = true
-				break
+	if serviceType&utils.Node != 0 {
+		enabledDrivers := map[string]struct{}{}
+		for _, d := range driverNames {
+			enabledDrivers[d] = struct{}{}
+		}
+		for _, reg := range registry {
+			enabled := len(reg.RelatedDrivers) == 0
+			for _, d := range reg.RelatedDrivers {
+				if _, ok := enabledDrivers[d]; ok {
+					enabled = true
+					break
+				}
+			}
+			if enabled {
+				collector, err := reg.Factory()
+				if err != nil {
+					return err
+				}
+				collectors[reg.Name] = collector
 			}
 		}
-		if enabled {
-			collector, err := reg.Factory()
-			if err != nil {
-				return err
-			}
-			collectors[reg.Name] = collector
-		}
 	}
-
+	collectors[CsiGrpcExecTimeCollectorName] = &CsiGrpcExecTimeCollector
 	csiCollectorInstance = &CSICollector{Collectors: collectors}
 
 	return nil

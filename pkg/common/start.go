@@ -8,22 +8,11 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"google.golang.org/grpc"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
-
-func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	klog.Infof("GRPC call: %s", info.FullMethod)
-	klog.V(4).Infof("GRPC request: %s", protosanitizer.StripSecrets(req))
-	resp, err := handler(ctx, req)
-	if err != nil {
-		klog.Errorf("GRPC error: %v", err)
-	} else {
-		klog.V(4).Infof("GRPC response: %s", protosanitizer.StripSecrets(resp))
-	}
-	return resp, err
-}
 
 func ParseEndpoint(ep string) (string, string, error) {
 	if strings.HasPrefix(strings.ToLower(ep), "unix://") || strings.HasPrefix(strings.ToLower(ep), "tcp://") {
@@ -35,8 +24,10 @@ func ParseEndpoint(ep string) (string, string, error) {
 	return "", "", fmt.Errorf("Invalid endpoint: %v", ep)
 }
 
-func RunCSIServer(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
-	ns = WrapNodeServerWithValidator(ns)
+func RunCSIServer(driverType, endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
+	config := options.MustGetRestConfig()
+	clientset := kubernetes.NewForConfigOrDie(config)
+	ns = WrapNodeServerWithValidator(WrapNodeServerWithMetricRecorder(ns, driverType, clientset))
 	cs = WrapControllerServerWithValidator(cs)
 
 	proto, addr, err := ParseEndpoint(endpoint)
@@ -56,8 +47,12 @@ func RunCSIServer(endpoint string, ids csi.IdentityServer, cs csi.ControllerServ
 		klog.Fatalf("Failed to listen: %v", err)
 	}
 
+	instrumentClosure := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		return instrumentGRPC(ctx, req, info, handler, driverType, clientset)
+	}
+
 	opts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(logGRPC),
+		grpc.ChainUnaryInterceptor(logGRPC, instrumentClosure),
 	}
 	server := grpc.NewServer(opts...)
 

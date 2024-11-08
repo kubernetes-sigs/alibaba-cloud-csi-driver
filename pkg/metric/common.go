@@ -32,22 +32,24 @@ const (
 )
 
 const (
-	clusterNamespace                        string = "cluster"
-	nodeNamespace                           string = "node"
-	scrapeSubSystem                         string = "scrape"
-	volumeSubSystem                         string = "volume"
-	latencySwitch                                  = "latency"
-	capacitySwitch                                 = "capacity"
-	diskSectorSize                                 = 512
-	diskDefaultsLantencyThreshold                  = 10
-	diskDefaultsCapacityPercentageThreshold        = 85
-	nfsDefaultsCapacityPercentageThreshold         = 85
-	float64EqualityThreshold                       = 1e-9
-	diskStatsFileName                              = "diskstats"
-	nfsStatsFileName                               = "/proc/self/mountstats"
-	latencyTooHigh                                 = "LatencyTooHigh"
-	capacityNotEnough                              = "NotEnoughDiskSpace"
-	ioHang                                         = "IOHang"
+	clusterNamespace                        = "cluster"
+	csiNamespace                            = "csi"
+	nodeNamespace                           = "node"
+	grpcSubsystem                           = "grpc"
+	scrapeSubsystem                         = "scrape"
+	volumeSubsystem                         = "volume"
+	latencySwitch                           = "latency"
+	capacitySwitch                          = "capacity"
+	diskSectorSize                          = 512
+	diskDefaultsLantencyThreshold           = 10
+	diskDefaultsCapacityPercentageThreshold = 85
+	nfsDefaultsCapacityPercentageThreshold  = 85
+	float64EqualityThreshold                = 1e-9
+	diskStatsFileName                       = "diskstats"
+	nfsStatsFileName                        = "/proc/self/mountstats"
+	latencyTooHigh                          = "LatencyTooHigh"
+	capacityNotEnough                       = "NotEnoughDiskSpace"
+	ioHang                                  = "IOHang"
 )
 
 const (

@@ -18,6 +18,7 @@ import (
 )
 
 const (
+	driverType            = "ens"
 	driverName            = "ensplugin.csi.alibabacloud.com"
 	ensInstanceIDLabelKey = "alibabacloud.com/ens-instance-id"
 	clusterProfileKey     = "ack-cluster-profile"
@@ -77,7 +78,7 @@ func NewDriver(nodeID, endpoint string, serviceType utils.ServiceType) *ENS {
 
 func (ens *ENS) Run() {
 	klog.Infof("Run: start csi-plugin driver: %s, version %s", driverName, version.VERSION)
-	common.RunCSIServer(ens.endpoint, ens.idServer, ens.controllerServer, ens.nodeServer)
+	common.RunCSIServer(driverType, ens.endpoint, ens.idServer, ens.controllerServer, ens.nodeServer)
 }
 
 func NewGlobalConfig() {
