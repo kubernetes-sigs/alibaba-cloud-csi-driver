@@ -27,6 +27,7 @@ import (
 const (
 	fusePodManagerTimeout = time.Second * 30
 	fuseServieAccountName = "csi-fuse-ossfs"
+	FusePodNamespace      = "ack-csi-fuse"
 	// deprecated
 	LegacyFusePodNamespace = "kube-system"
 )
@@ -85,7 +86,7 @@ type FusePodContext struct {
 type FuseMounterType interface {
 	Name() string
 	PodTemplateSpec(c *FusePodContext, target string) (*corev1.PodTemplateSpec, error)
-	AddDefaultMountOptions(options []string) []string
+	AddDefaultMountOptions(options []string, volumeId string) []string
 }
 
 type FuseContainerConfig struct {

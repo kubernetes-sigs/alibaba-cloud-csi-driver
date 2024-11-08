@@ -2,10 +2,13 @@ package mounter
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/alibabacloud-go/tea/tea"
+	"github.com/jarcoal/httpmock"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -111,7 +114,44 @@ func Test_getPasswdSecretVolume(t *testing.T) {
 	}
 }
 
+const (
+	masterUrl = "https://api-server-host:6443"
+
+	mockConfigMapJson = `
+{
+	"apiVersion": "v1",
+	"kind": "ConfigMap",
+	"metadata": {
+		"name": "ossfs-mime-config"
+	},
+	"data": {
+		"volumeId": "application/json json"
+	}
+}`
+)
+
+func prepareFakeK8sContext() {
+	options.MasterURL = masterUrl
+}
+
+func registerConfigMapResponder(exists bool) {
+	url := fmt.Sprintf("=~^%s/api/v1/namespaces/%s/configmaps/.*\\z", masterUrl, FusePodNamespace)
+	if !exists {
+		httpmock.RegisterResponder("GET", url, httpmock.NewStringResponder(404, ""))
+		return
+	}
+	responder := httpmock.NewStringResponder(200, mockConfigMapJson)
+	responder = responder.HeaderSet(map[string][]string{
+		"Content-Type": {"application/json"},
+	})
+	httpmock.RegisterResponder("GET", url, responder)
+}
+
 func Test_AddDefaultMountOptions(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	prepareFakeK8sContext()
+	registerConfigMapResponder(false)
 	tests := []struct {
 		name     string
 		options  []string
@@ -169,11 +209,11 @@ func Test_AddDefaultMountOptions(t *testing.T) {
 				config: FuseContainerConfig{
 					Dbglevel: tt.dbglevel,
 					Extra: map[string]string{
-						"mime-support": tt.mime,
+						OssfsCsiMimeKey: tt.mime,
 					},
 				},
 			}
-			got := f.AddDefaultMountOptions(tt.options)
+			got := f.AddDefaultMountOptions(tt.options, "volumeId")
 			if len(got) != len(tt.want) {
 				t.Errorf("AddDefaultMountOptions() got = %v, want %v", got, tt.want)
 				return
@@ -182,6 +222,48 @@ func Test_AddDefaultMountOptions(t *testing.T) {
 				t.Errorf("AddDefaultMountOptions() got = %v, want %v", got, tt.want)
 				return
 			}
+		})
+	}
+}
+
+func Test_getMimeOption(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	prepareFakeK8sContext()
+	tests := []struct {
+		name           string
+		extra          map[string]string
+		configMapExist bool
+		want           string
+	}{
+		{
+			name:           "ConfigMap exists with mime type",
+			extra:          map[string]string{},
+			configMapExist: true,
+			want:           "mime=/csi/mime.types",
+		},
+		{
+			name:           "ConfigMap not exists and extra enableCsiMime is true",
+			extra:          map[string]string{OssfsCsiMimeKey: "true"},
+			configMapExist: false,
+			want:           "mime=/csi/mime.types",
+		},
+		{
+			name:           "No ConfigMap and extra enableCsiMime is false",
+			extra:          map[string]string{OssfsCsiMimeKey: "false"},
+			configMapExist: false,
+			want:           "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &fuseOssfs{
+				config: FuseContainerConfig{
+					Extra: tt.extra,
+				},
+			}
+			registerConfigMapResponder(tt.configMapExist)
+			assert.Equal(t, tt.want, f.getMimeOption("volumeId"))
 		})
 	}
 }

@@ -34,7 +34,6 @@ import (
 )
 
 const (
-	fusePodNamespace = "ack-csi-fuse"
 	mountProxySocket = "mountPorxySocket"
 )
 
@@ -108,7 +107,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	klog.Infof("ControllerUnpublishVolume: volume %s on node %s", req.VolumeId, req.NodeId)
 	if err := cs.fusePodManager.Delete(&mounter.FusePodContext{
 		Context:   ctx,
-		Namespace: fusePodNamespace,
+		Namespace: mounter.FusePodNamespace,
 		NodeName:  req.NodeId,
 		VolumeId:  req.VolumeId,
 	}, ""); err != nil {
@@ -165,7 +164,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	// launch ossfs pod
 	err = cs.fusePodManager.Create(&mounter.FusePodContext{
 		Context:    ctx,
-		Namespace:  fusePodNamespace,
+		Namespace:  mounter.FusePodNamespace,
 		NodeName:   nodeName,
 		VolumeId:   req.VolumeId,
 		AuthConfig: authCfg,
