@@ -45,7 +45,7 @@ You can deploy the drivers using Helm.
 The default values mimic the config of the drivers in ACK cluster.
 We provides some configuration presets. Select one of them:
 * values-ecs.yaml: for deploy on self-built cluster on ECS.
-* values-nonecs.yaml: for deploy on non-ECS cluster. Disk driver is disabled; NAS and OSS drivers only support static volumes.
+* values-nonecs.yaml: for deploy on non-ECS cluster. Disk driver is disabled.
 
 ```shell
 git clone https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver.git
