@@ -822,11 +822,14 @@ func requestAndCreateSnapshot(ecsClient *ecs.Client, params *createSnapshotParam
 	// init createSnapshotRequest and parameters
 	createSnapshotRequest := ecs.CreateCreateSnapshotRequest()
 	createSnapshotRequest.DiskId = params.SourceVolumeID
-	createSnapshotRequest.SnapshotName = params.SnapshotName
+	if isValidSnapshotName(params.SnapshotName) {
+		createSnapshotRequest.SnapshotName = params.SnapshotName
+	}
 	if params.RetentionDays != 0 {
 		createSnapshotRequest.RetentionDays = requests.NewInteger(params.RetentionDays)
 	}
 	createSnapshotRequest.ResourceGroupId = params.ResourceGroupID
+	createSnapshotRequest.ClientToken = clientToken(params.SnapshotName)
 
 	// Set tags
 	snapshotTags := []ecs.CreateSnapshotTag{
@@ -942,6 +945,17 @@ var vaildDiskNameRegexp = regexp.MustCompile(`^\pL[\pL0-9:_.-]{1,127}$`)
 // https://help.aliyun.com/zh/ecs/developer-reference/api-ecs-2014-05-26-createdisk
 // 长度为 2~128 个字符，支持 Unicode 中 letter 分类下的字符（其中包括英文、中文等），ASCII 数字（0-9）。可以包含半角冒号（:）、下划线（_）、半角句号（.）或者短划线（-）。必须以 Unicode 中 letter 分类下的字符开头。
 func isValidDiskName(name string) bool {
+	return vaildDiskNameRegexp.MatchString(name)
+}
+
+// https://help.aliyun.com/zh/ecs/developer-reference/api-ecs-2014-05-26-createsnapshot
+// 长度为 2~128 个字符，必须以大小写字母或中文开头，支持 Unicode 中 letter 分类下的字符（其中包括英文、中文等），ASCII 数字（0-9）。可以包含半角冒号（:）、下划线（_）、半角句号（.）或者短划线（-）。
+// 不能以 http://和 https:// 开头。为防止和自动快照的名称冲突，不能以auto开头。
+// Note: 因为/本身不允许出现，所以无需特意检查http://和https://。
+func isValidSnapshotName(name string) bool {
+	if strings.HasPrefix(name, "auto") {
+		return false
+	}
 	return vaildDiskNameRegexp.MatchString(name)
 }
 
