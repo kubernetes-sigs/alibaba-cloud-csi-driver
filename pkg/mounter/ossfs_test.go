@@ -267,3 +267,40 @@ func Test_getMimeOption(t *testing.T) {
 		})
 	}
 }
+
+func Test_hasSetMimeConfigMap(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	prepareFakeK8sContext()
+	tests := []struct {
+		name           string
+		volumeId       string
+		configMapExist bool
+		want           bool
+	}{
+		{
+			name:           "ConfigMap exists with matched volumeId",
+			volumeId:       "volumeId",
+			configMapExist: true,
+			want:           true,
+		},
+		{
+			name:           "ConfigMap not exists",
+			volumeId:       "volumeId",
+			configMapExist: false,
+			want:           false,
+		},
+		{
+			name:           "ConfigMap exists without matched volumeId",
+			volumeId:       "fakeId",
+			configMapExist: true,
+			want:           false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			registerConfigMapResponder(tt.configMapExist)
+			assert.Equal(t, tt.want, hasSetMimeConfigMap(tt.volumeId))
+		})
+	}
+}
