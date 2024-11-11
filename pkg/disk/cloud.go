@@ -937,14 +937,18 @@ func clientToken(name string) string {
 	return "h:" + base64.RawStdEncoding.EncodeToString(hash.Sum(nil))
 }
 
-// Docs say Chinese characters are supported, but the exactly range is not clear.
-// So we just assume they are not supported.
-var vaildDiskNameRegexp = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9:_-]{1,127}$`)
+var vaildDiskNameRegexp = regexp.MustCompile(`^\pL[\pL0-9:_.-]{1,127}$`)
+
+// https://help.aliyun.com/zh/ecs/developer-reference/api-ecs-2014-05-26-createdisk
+// 长度为 2~128 个字符，支持 Unicode 中 letter 分类下的字符（其中包括英文、中文等），ASCII 数字（0-9）。可以包含半角冒号（:）、下划线（_）、半角句号（.）或者短划线（-）。必须以 Unicode 中 letter 分类下的字符开头。
+func isValidDiskName(name string) bool {
+	return vaildDiskNameRegexp.MatchString(name)
+}
 
 func createDisk(ecsClient cloud.ECSInterface, diskName, snapshotID string, diskVol *diskVolumeArgs, supportedTypes sets.Set[Category], selectedInstance string) (string, createAttempt, error) {
 	// 需要配置external-provisioner启动参数--extra-create-metadata=true，然后ACK的external-provisioner才会将PVC的Annotations传过来
 	createDiskRequest := buildCreateDiskRequest(diskVol)
-	if vaildDiskNameRegexp.MatchString(diskName) {
+	if isValidDiskName(diskName) {
 		createDiskRequest.DiskName = diskName
 	}
 	createDiskRequest.ClientToken = clientToken(diskName)
