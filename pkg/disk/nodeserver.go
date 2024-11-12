@@ -1169,13 +1169,17 @@ func (ns *nodeServer) umountRunDVolumes(volumePath string) (bool, error) {
 		return true, nil
 	}
 
-	mountInfo, isRunD3 := directvolume.IsRunD3VolumePath(filepath.Dir(volumePath))
+	mountInfo, isRunD3 := directvolume.IsRunD3VolumePath(volumePath)
 	if isRunD3 {
 		removeRunD3File := func() error {
 			klog.Infof("NodeUnPublishVolume:: start delete mount info for KataVolume: %s", volumePath)
-			err := directvolume.Remove(filepath.Dir(volumePath))
+			err := directvolume.Remove(volumePath)
 			if err != nil {
-				klog.Errorf("NodeUnPublishVolume:: Failed to remove DirectVolume mount info, potentially disrupting kubelet's next operation: %v", err)
+				klog.Errorf("NodeUnPublishVolume:: Failed to remove volumeDevice DirectVolume mount info, potentially disrupting kubelet's next operation: %v", err)
+			}
+			err = directvolume.Remove(filepath.Dir(volumePath))
+			if err != nil {
+				klog.Errorf("NodeUnPublishVolume:: Failed to remove volumeMount DirectVolume mount info, potentially disrupting kubelet's next operation: %v", err)
 			}
 			return err
 		}
@@ -1303,7 +1307,6 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 	if err != nil {
 		deviceName = getVolumeConfig(volumeId)
 	}
-	volumePath := filepath.Dir(targetPath)
 
 	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 		// umount the stage path, which is mounted in Stage
@@ -1313,7 +1316,7 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 		}
 
 		deviceNumber := ""
-		if volumeMount, exists := directvolume.IsRunD3VolumePath(volumePath); exists {
+		if volumeMount, exists := directvolume.IsRunD3VolumePath(targetPath); exists {
 			deviceNumber = volumeMount.Source
 		}
 
@@ -1372,7 +1375,7 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 
 		// write meta before changing the device driver, incase any error occurs
 		klog.Info("NodePublishVolume(rund3.0): Starting add vmoc(DFBus) mount info to DirectVolume")
-		err = directvolume.AddMountInfo(volumePath, mountInfo)
+		err = directvolume.AddMountInfo(directvolume.EnsureVolumeAttributesFileDir(targetPath, isRawBlock), mountInfo)
 		if err != nil {
 			klog.Errorf("NodePublishVolume(rund3.0): vmoc(DFBus) Adding vmoc mount infomation to DirectVolume failed: %v", err)
 			return true, err
