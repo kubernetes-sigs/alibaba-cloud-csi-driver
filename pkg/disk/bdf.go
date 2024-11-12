@@ -595,9 +595,9 @@ func NewDeviceDriver(volumeId, blockDevice, deviceNumber string, _type MachineTy
 		}
 	} else {
 		for _, pciDriver := range []string{"--nvme", "--blk"} {
-			output, err := utils.CommandOnNode("xdragon-bdf", pciDriver, "-id=%s", volumeId).CombinedOutput()
+			output, err := utils.CommandOnNode("xdragon-bdf", pciDriver, fmt.Sprintf("--id=%s", volumeId)).CombinedOutput()
 			if err != nil {
-				klog.ErrorS(err, "Failed to excute xdragon-bdf command", "volumeId", volumeId)
+				klog.ErrorS(err, "Failed to excute xdragon-bdf command", "volumeId", volumeId, "output", output)
 				continue
 			}
 			bdf := strings.TrimSpace(string(output))
