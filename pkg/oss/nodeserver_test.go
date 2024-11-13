@@ -49,3 +49,79 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 	assert.Equal(t, "Oss path error: start with "+options.Path+", should start with / ", err.Error())
 
 }
+
+func Test_setNetworkType(t *testing.T) {
+	tests := []struct {
+		name         string
+		originURL    string
+		regionID     string
+		wantURL      string
+		wantModified bool
+	}{
+		{
+			"internal-modified",
+			"http://oss-cn-beijing.aliyuncs.com",
+			"cn-beijing",
+			"http://oss-cn-beijing-internal.aliyuncs.com",
+			true,
+		},
+		{
+			"public-unmodified",
+			"https://oss-cn-beijing.aliyuncs.com",
+			"cn-hangzhou",
+			"https://oss-cn-beijing.aliyuncs.com",
+			false,
+		},
+		{
+			"internal-unmodified",
+			"oss-cn-beijing-internal.aliyuncs.com",
+			"cn-beijing",
+			"oss-cn-beijing-internal.aliyuncs.com",
+			false,
+		},
+		{
+			"private",
+			"oss-cn-wulanchabu-xxx-xxxx.ops.xxx.com",
+			"cn-wulanchabu",
+			"oss-cn-wulanchabu-xxx-xxxx.ops.xxx.com",
+			false,
+		},
+		{
+			"old-oss-accelerator",
+			"oss-cache-cn-beijing-h.aliyuncs.com",
+			"cn-beijing",
+			"oss-cache-cn-beijing-h.aliyuncs.com",
+			false,
+		},
+		{
+			"new-oss-accelerator",
+			"cn-hangzhou.oss-data-acc.aliyuncs.com",
+			"cn-hangzhou",
+			"cn-hangzhou-internal.oss-data-acc.aliyuncs.com",
+			true,
+		},
+		{
+			"vpc100",
+			"vpc100-oss-cn-beijing.aliyuncs.com",
+			"cn-beijing",
+			"vpc100-oss-cn-beijing.aliyuncs.com",
+			false,
+		},
+		{
+			"vpc100-with-protocol",
+			"http://vpc100-oss-cn-beijing.aliyuncs.com",
+			"cn-beijing",
+			"http://vpc100-oss-cn-beijing.aliyuncs.com",
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			url, done := setNetworkType(tt.originURL, tt.regionID)
+			if url != tt.wantURL || done != tt.wantModified {
+				t.Errorf("setNetworkType(%v, %v) = %v, %v, want %v %v",
+					tt.originURL, tt.regionID, url, done, tt.wantURL, tt.wantModified)
+			}
+		})
+	}
+}

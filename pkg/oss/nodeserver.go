@@ -227,10 +227,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if regionID == "" {
 			log.Warnf("Failed to get region id from both env and metadata, use original URL: %s", opt.URL)
 		}
-		if regionID != "" && strings.Contains(opt.URL, regionID) &&
-			!strings.Contains(opt.URL, "internal") && !utils.IsPrivateCloud() {
-			originUrl := opt.URL
-			opt.URL = strings.ReplaceAll(originUrl, regionID, regionID+"-internal")
+		url, modified := setNetworkType(opt.URL, regionID)
+		if modified {
+			log.Infof("Changed oss URL from %s to %s", opt.URL, url)
+			opt.URL = url
 		}
 
 		mntCmd = fmt.Sprintf("systemd-run --scope -- /usr/local/bin/ossfs %s:%s %s -ourl=%s %s %s", opt.Bucket, opt.Path, mountPath, opt.URL, opt.OtherOpts, credentialProvider)
@@ -245,6 +245,32 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	log.Infof("NodePublishVolume:: Mount oss is successfully, volume %s, targetPath: %s, with Command: %s", req.VolumeId, mountPath, mntCmd)
 	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func setNetworkType(originURL, regionID string) (URL string, modified bool) {
+	URL = originURL
+	if utils.IsPrivateCloud() || !strings.HasSuffix(strings.TrimRight(URL, "/"), ".aliyuncs.com") {
+		return
+	}
+	// compatible with the old OSS accelerator endpoint, remove after it is deprecated
+	var protocol string
+	if strings.HasPrefix(URL, "https://") {
+		protocol = "https://"
+	} else if strings.HasPrefix(URL, "http://") {
+		protocol = "http://"
+	}
+	endpoint := strings.TrimPrefix(URL, protocol)
+	if strings.HasPrefix(endpoint, "oss-cache-") {
+		return
+	}
+	if strings.HasPrefix(endpoint, "vpc100-") {
+		return
+	}
+	if strings.Contains(URL, regionID) && !strings.Contains(URL, "internal") {
+		URL = strings.ReplaceAll(URL, regionID, regionID+"-internal")
+		modified = true
+	}
+	return
 }
 
 // save ak file: bucket:ak_id:ak_secret
