@@ -118,10 +118,8 @@ func Test_setNetworkType(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			url, done := setNetworkType(tt.originURL, tt.regionID)
-			if url != tt.wantURL || done != tt.wantModified {
-				t.Errorf("setNetworkType(%v, %v) = %v, %v, want %v %v",
-					tt.originURL, tt.regionID, url, done, tt.wantURL, tt.wantModified)
-			}
+			assert.Equal(t, tt.wantURL, url)
+			assert.Equal(t, tt.wantModified, done)
 		})
 	}
 }
