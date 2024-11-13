@@ -11,23 +11,22 @@ deploy:
 # deployment
 controller:
   nodeAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      nodeSelectorTerms:
-      - matchExpressions:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 2
+      preference:
+        matchExpressions:
         - key: type
           operator: NotIn
           values:
           - virtual-kubelet
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
         # csi-provisioner should be scheduled to on-cloud nodes
         - key: alibabacloud.com/external
           operator: In
           values:
           - "true"
-
-csi:
-  oss:
-    controller:
-      enabled: false
 
 # daemonset
 nodePools:
