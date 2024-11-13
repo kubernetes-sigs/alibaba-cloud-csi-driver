@@ -184,7 +184,6 @@ const (
 	annAppendPrefix   = "csi.alibabacloud.com/annotation-prefix/"
 
 	VolumeDeleteAutoSnapshotKey                    = "csi.alibabacloud.com/volume-delete-autosnapshot-retentiondays"
-	VOLUME_EXPAND_AUTO_SNAPSHOT_OP_KEY             = "volumeExpandAutoSnapshot"
 	VOLUME_DELETE_AUTO_SNAPSHOT_OP_RETENT_DAYS_KEY = "volumeDeleteSnapshotRetentionDays"
 
 	PROVISIONED_IOPS_KEY = "provisionedIops"
