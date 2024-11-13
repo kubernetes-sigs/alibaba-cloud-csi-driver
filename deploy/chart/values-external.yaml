@@ -24,11 +24,6 @@ controller:
           values:
           - "true"
 
-csi:
-  oss:
-    controller:
-      enabled: false
-
 # daemonset
 nodePools:
   default:
