@@ -347,18 +347,27 @@ func isNotMountPoint(mounter mountutils.Interface, target string, expensive bool
 
 func setNetworkType(originURL, regionID string) (URL string, modified bool) {
 	URL = originURL
-	if utils.IsPrivateCloud() || !strings.HasSuffix(strings.TrimRight(URL, "/"), ".aliyuncs.com") {
+	if utils.IsPrivateCloud() {
 		return
 	}
-	// compatible with the old OSS accelerator endpoint, remove after it is deprecated
-	endpoint := strings.TrimPrefix(strings.TrimPrefix(originURL, "https://"), "http://")
-	if strings.HasPrefix(endpoint, "oss-cache-") {
+	var protocol string
+	if strings.HasPrefix(originURL, "https://") {
+		protocol = "https://"
+	} else if strings.HasPrefix(originURL, "http://") {
+		protocol = "http://"
+	}
+	endpoint := strings.TrimPrefix(originURL, protocol)
+
+	switch endpoint {
+	case fmt.Sprintf("oss-%s.aliyuncs.com", regionID):
+		endpoint = fmt.Sprintf("oss-%s-internal.aliyuncs.com", regionID)
+	case fmt.Sprintf("%s.oss-data-acc.aliyuncs.com", regionID):
+		endpoint = fmt.Sprintf("%s-internal.oss-data-acc.aliyuncs.com", regionID)
+	default:
 		return
 	}
-	if strings.Contains(originURL, regionID) && !strings.Contains(originURL, "internal") {
-		URL = strings.ReplaceAll(originURL, regionID, regionID+"-internal")
-		modified = true
-	}
+	URL = protocol + endpoint
+	modified = true
 	return
 }
 
