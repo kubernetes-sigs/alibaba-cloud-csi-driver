@@ -14,11 +14,28 @@ func AddMountInfo(volumePath string, mountInfo MountInfo) error {
 }
 
 func IsRunD3VolumePath(volumePath string) (*MountInfo, bool) {
+	// targetPath(publishPath) must contains poduid, which is the base path name of the volumeDevice path.
+	// thus, it diffs from volumeMount path
 	mountInfo, err := VolumeMountInfo(volumePath)
-	if err != nil {
-		return nil, false
+	if err == nil {
+		return mountInfo, true
 	}
-	return mountInfo, true
+	mountInfo, err = VolumeMountInfo(filepath.Dir(volumePath))
+	if err == nil {
+		return mountInfo, true
+	}
+	return nil, false
+}
+
+func EnsureVolumeAttributesFileDir(targetPath string, isBlock bool) string {
+	// targetPath(publishPath) must contains poduid, which is the base path name of the volumeDevice path.
+	// thus, it diffs from volumeMount path
+	if !isBlock {
+		return filepath.Dir(targetPath)
+	}
+	// remove volumeDevice file, volumeDevice dir will be created in the Add method
+	os.Remove(targetPath)
+	return targetPath
 }
 
 func IsRunD2VolumePath(volumePath string) bool {
@@ -51,6 +68,7 @@ func IsRunDVolumeAlreadyMount(volumePath string) bool {
 	if _, b := IsRunD3VolumePath(volumePath); b {
 		return true
 	}
+
 	if IsRunD2VolumePath(volumePath) {
 		return true
 	}

@@ -594,11 +594,21 @@ func NewDeviceDriver(volumeId, blockDevice, deviceNumber string, _type MachineTy
 			}
 		}
 	} else {
-		output, err := utils.CommandOnNode("xdragon-bdf", "--nvme", "-id=%s", volumeId).CombinedOutput()
-		if err != nil {
-			return nil, fmt.Errorf("Failed to excute bdf command: %s, err: %v", volumeId, err)
+		for _, pciDriver := range []string{"--nvme", "--blk"} {
+			output, err := utils.CommandOnNode("xdragon-bdf", pciDriver, fmt.Sprintf("--id=%s", volumeId)).CombinedOutput()
+			if err != nil {
+				klog.ErrorS(err, "Failed to excute xdragon-bdf command", "volumeId", volumeId, "output", output)
+				continue
+			}
+			bdf := strings.TrimSpace(string(output))
+			if bdf != "" {
+				d.deviceNumber = bdf
+				return d, nil
+			}
 		}
-		d.deviceNumber = string(output)
+	}
+	if d.deviceNumber == "" {
+		return nil, fmt.Errorf("Failed to find device number for %s", volumeId)
 	}
 	return d, nil
 }

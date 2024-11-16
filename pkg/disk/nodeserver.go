@@ -505,64 +505,17 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	isBlock := req.GetVolumeCapability().GetBlock() != nil
 	if isBlock {
 		targetPath = filepath.Join(targetPath, req.VolumeId)
-		notMounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
-		if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return nil, status.Errorf(codes.Internal, "failed to check if %s is not a mount point: %v", targetPath, err)
-		}
-		if !notMounted {
-			klog.Infof("NodeStageVolume: Block Already Mounted: volumeId: %s target %s", req.VolumeId, targetPath)
-			return &csi.NodeStageVolumeResponse{}, nil
-		}
-		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
-			klog.Errorf("NodeStageVolume: create block volume %s path %s error: %v", req.VolumeId, targetPath, err)
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-	} else {
-		if err := ns.mounter.EnsureFolder(targetPath); err != nil {
-			klog.Errorf("NodeStageVolume: create volume %s path %s error: %v", req.VolumeId, targetPath, err)
-			return nil, status.Error(codes.Internal, err.Error())
-		}
 	}
-	// check volume is mounted in kata mode;
-	fileName := filepath.Join(filepath.Dir(targetPath), utils.VolDataFileName)
-	if strings.HasSuffix(targetPath, "/") {
-		fileName = filepath.Join(filepath.Dir(filepath.Dir(targetPath)), utils.VolDataFileName)
-	}
-	volumeData, err := utils.LoadJSONData(fileName)
-	if err == nil {
-		if _, ok := volumeData["csi.alibabacloud.com/disk-mounted"]; ok {
-			klog.Infof("NodeStageVolume:  volumeId: %s, Path: %s is already mounted in kata mode", req.VolumeId, targetPath)
-			return &csi.NodeStageVolumeResponse{}, nil
-		}
-	}
-
-	// Step 2: check target path mounted
-	notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
+	// for runc & rund-csi2.0 kubelet restart
+	mounted, err := ns.ensurePathExistsAndCheckMounted(req.VolumeId, targetPath, isBlock)
 	if err != nil {
-		klog.Errorf("NodeStageVolume: check volume %s path %s error: %v", req.VolumeId, targetPath, err)
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, err
 	}
-	if !notmounted {
-		// if target path is mounted tmpfs, return
-		isTmpfs, err := utils.IsDirTmpfs(ns.k8smounter, req.StagingTargetPath)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "NodeStageVolume: failed to check %s for tmpfs: %v", req.StagingTargetPath, err)
-		}
-		if isTmpfs {
-			klog.Infof("NodeStageVolume: TargetPath(%s) is mounted as tmpfs, not need mount again", req.StagingTargetPath)
-			return &csi.NodeStageVolumeResponse{}, nil
-		}
-
-		// check device available
-		deviceName, _, err := mount.GetDeviceNameFromMount(ns.k8smounter, targetPath)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", targetPath, err.Error())
-		}
-		if err := CheckDeviceAvailable(deviceName, req.VolumeId, targetPath); err != nil {
-			klog.Errorf("NodeStageVolume: mountPath is mounted %s, but check device available error: %s", targetPath, err.Error())
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		klog.Infof("NodeStageVolume:  volumeId: %s, Path: %s is already mounted, device: %s", req.VolumeId, targetPath, deviceName)
+	if mounted {
+		return &csi.NodeStageVolumeResponse{}, nil
+	}
+	mounted = ns.checkMountedOfRunvAndRund(req.VolumeId, targetPath)
+	if mounted {
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
 
@@ -1216,13 +1169,17 @@ func (ns *nodeServer) umountRunDVolumes(volumePath string) (bool, error) {
 		return true, nil
 	}
 
-	mountInfo, isRunD3 := directvolume.IsRunD3VolumePath(filepath.Dir(volumePath))
+	mountInfo, isRunD3 := directvolume.IsRunD3VolumePath(volumePath)
 	if isRunD3 {
 		removeRunD3File := func() error {
 			klog.Infof("NodeUnPublishVolume:: start delete mount info for KataVolume: %s", volumePath)
-			err := directvolume.Remove(filepath.Dir(volumePath))
+			err := directvolume.Remove(volumePath)
 			if err != nil {
-				klog.Errorf("NodeUnPublishVolume:: Failed to remove DirectVolume mount info, potentially disrupting kubelet's next operation: %v", err)
+				klog.Errorf("NodeUnPublishVolume:: Failed to remove volumeDevice DirectVolume mount info, potentially disrupting kubelet's next operation: %v", err)
+			}
+			err = directvolume.Remove(filepath.Dir(volumePath))
+			if err != nil {
+				klog.Errorf("NodeUnPublishVolume:: Failed to remove volumeMount DirectVolume mount info, potentially disrupting kubelet's next operation: %v", err)
 			}
 			return err
 		}
@@ -1350,7 +1307,6 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 	if err != nil {
 		deviceName = getVolumeConfig(volumeId)
 	}
-	volumePath := filepath.Dir(targetPath)
 
 	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 		// umount the stage path, which is mounted in Stage
@@ -1360,7 +1316,7 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 		}
 
 		deviceNumber := ""
-		if volumeMount, exists := directvolume.IsRunD3VolumePath(volumePath); exists {
+		if volumeMount, exists := directvolume.IsRunD3VolumePath(targetPath); exists {
 			deviceNumber = volumeMount.Source
 		}
 
@@ -1419,7 +1375,7 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 
 		// write meta before changing the device driver, incase any error occurs
 		klog.Info("NodePublishVolume(rund3.0): Starting add vmoc(DFBus) mount info to DirectVolume")
-		err = directvolume.AddMountInfo(volumePath, mountInfo)
+		err = directvolume.AddMountInfo(directvolume.EnsureVolumeAttributesFileDir(targetPath, isRawBlock), mountInfo)
 		if err != nil {
 			klog.Errorf("NodePublishVolume(rund3.0): vmoc(DFBus) Adding vmoc mount infomation to DirectVolume failed: %v", err)
 			return true, err
@@ -1465,5 +1421,80 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 		klog.Warningf("NodeStageVolume: append volume spec to %s with error: %s", fileName, err.Error())
 	}
 	return false, nil
+
+}
+
+// ensurePathExistsAndCheckMounted check if targetPath is mounted or not
+// targeting for runc and rund-csi 2.0 protocol
+func (ns *nodeServer) ensurePathExistsAndCheckMounted(volumeId, targetPath string, isBlock bool) (bool, error) {
+	notMounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return false, status.Errorf(codes.Internal, "failed to check if %s is not a mount point: %v", targetPath, err)
+	}
+	if !notMounted {
+		// if target path is mounted tmpfs, return
+		isTmpfs, err := utils.IsDirTmpfs(ns.k8smounter, targetPath)
+		if err != nil {
+			return false, status.Errorf(codes.Internal, "NodeStageVolume: failed to check %s for tmpfs: %v", targetPath, err)
+		}
+		if isTmpfs {
+			klog.Infof("NodeStageVolume: TargetPath(%s) is mounted as tmpfs, not need mount again", targetPath)
+			return true, nil
+		}
+
+		// check device available
+		deviceName, _, err := mount.GetDeviceNameFromMount(ns.k8smounter, targetPath)
+		if err != nil {
+			return false, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", targetPath, err.Error())
+		}
+		if err := CheckDeviceAvailable(deviceName, volumeId, targetPath); err != nil {
+			klog.Errorf("NodeStageVolume: mountPath is mounted %s, but check device available error: %s", targetPath, err.Error())
+			return false, status.Error(codes.Internal, err.Error())
+		}
+		klog.Infof("NodeStageVolume:  volumeId: %s, Path: %s is already mounted, device: %s", volumeId, targetPath, deviceName)
+		return true, nil
+	}
+	if isBlock {
+		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
+			klog.Errorf("NodeStageVolume: create block volume %s path %s error: %v", volumeId, targetPath, err)
+			return false, status.Error(codes.Internal, err.Error())
+		}
+	} else {
+		if err := ns.mounter.EnsureFolder(targetPath); err != nil {
+			klog.Errorf("NodeStageVolume: create volume %s path %s error: %v", volumeId, targetPath, err)
+			return false, status.Error(codes.Internal, err.Error())
+		}
+	}
+	return false, nil
+}
+
+// checkMountedOfRunvAndRund check if targetVolume is used by runv or rund-csi3.0
+func (ns *nodeServer) checkMountedOfRunvAndRund(volumeId, targetPath string) bool {
+	// check volume is mounted in runv mode for kubelet restart;
+	fileName := filepath.Join(filepath.Dir(targetPath), utils.VolDataFileName)
+	if strings.HasSuffix(targetPath, "/") {
+		fileName = filepath.Join(filepath.Dir(filepath.Dir(targetPath)), utils.VolDataFileName)
+	}
+	volumeData, err := utils.LoadJSONData(fileName)
+	if err == nil {
+		if _, ok := volumeData["csi.alibabacloud.com/disk-mounted"]; ok {
+			klog.Infof("NodeStageVolume:  volumeId: %s, Path: %s is already mounted in kata mode", volumeId, targetPath)
+			return true
+		}
+	}
+	d, err := NewDeviceDriver(volumeId, "", "", ns.kataBMIOType, nil)
+	if err != nil {
+		klog.ErrorS(err, "NodeStageVolume:  Failed to get bdf number", "volumeId", volumeId)
+		return false
+	}
+	cDrvier, err := d.CurentDriver()
+	if err != nil {
+		klog.ErrorS(err, "NodeStageVolume:  Failed to get current driver", "volumeId", volumeId)
+		return false
+	}
+	if vfioDrivers.Has(cDrvier) {
+		return true
+	}
+	return false
 
 }
