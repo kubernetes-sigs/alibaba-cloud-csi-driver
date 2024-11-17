@@ -47,3 +47,21 @@ func recordExecTime(time time.Duration, method, driverType string, err error) {
 	metric.CsiGrpcExecTimeCollector.ExecCountMetric.With(labels).Inc()
 	metric.CsiGrpcExecTimeCollector.ExecTimeTotalMetric.With(labels).Add(time.Seconds())
 }
+
+// Timeout the request a little bit earlier, to get the error message out.
+// reduce the timeout by 1s or 10%, whichever is smaller.
+func earlyTimeout(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return handler(ctx, req)
+	}
+	timeout := time.Until(deadline)
+	if time.Second < timeout/10 {
+		deadline = deadline.Add(-time.Second)
+	} else {
+		deadline = deadline.Add(-timeout / 10)
+	}
+	ctx, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
+	return handler(ctx, req)
+}
