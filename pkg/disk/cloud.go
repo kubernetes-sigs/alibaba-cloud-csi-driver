@@ -181,7 +181,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 
 	slot := ad.slots.GetSlotFor(nodeID).Attach()
 	if err := slot.Acquire(ctx); err != nil {
-		return "", status.Errorf(codes.Aborted, "AttachDisk: get ad-slot for disk %s failed: %v", diskID, err)
+		return "", fmt.Errorf("failed to reserve node %s for attach: %w", nodeID, err)
 	}
 	defer slot.Release()
 
@@ -442,7 +442,7 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Clien
 	// NodeStageVolume/NodeUnstageVolume should be called by sequence
 	slot := ad.slots.GetSlotFor(nodeID).Detach()
 	if err := slot.Acquire(ctx); err != nil {
-		return status.Errorf(codes.Aborted, "DetachDisk: get ad-slot for disk %s failed: %v", diskID, err)
+		return fmt.Errorf("failed to reserve node %s for detach: %w", nodeID, err)
 	}
 	defer slot.Release()
 
