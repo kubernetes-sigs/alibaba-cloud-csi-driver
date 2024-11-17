@@ -230,17 +230,19 @@ func GlobalConfigSet(m metadata.MetadataProvider) {
 	)
 
 	if GlobalConfigVar.ADControllerEnable {
-		pDetach := features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelDetach)
-		pAttach := features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelAttach)
-		GlobalConfigVar.AttachDetachSlots = NewSlots(!pDetach, !pAttach)
-		if pAttach {
-			klog.Infof("Disk parallel attach enabled")
+		detachConcurrency := 1
+		attachConcurrency := 1
+		if features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelDetach) {
+			detachConcurrency = csiCfg.GetInt("disk-detach-concurrency", "DISK_DETACH_CONCURRENCY", 5)
+			klog.InfoS("Disk parallel detach enabled", "concurrency", detachConcurrency)
 		}
-		if pDetach {
-			klog.Infof("Disk parallel detach enabled")
+		if features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelAttach) {
+			attachConcurrency = csiCfg.GetInt("disk-attach-concurrency", "DISK_ATTACH_CONCURRENCY", 32)
+			klog.InfoS("Disk parallel attach enabled", "concurrency", attachConcurrency)
 		}
+		GlobalConfigVar.AttachDetachSlots = NewSlots(detachConcurrency, attachConcurrency)
 	} else {
 		// if ADController is not enabled, we need serial attach to recognize old disk
-		GlobalConfigVar.AttachDetachSlots = NewSlots(true, true)
+		GlobalConfigVar.AttachDetachSlots = NewSlots(1, 1)
 	}
 }

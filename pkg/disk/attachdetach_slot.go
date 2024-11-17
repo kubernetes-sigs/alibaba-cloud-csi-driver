@@ -102,6 +102,32 @@ func (s *serialADSlot) Release() {
 func (s *serialADSlot) Detach() slot { return serialAD_DetachSlot{s} }
 func (s *serialADSlot) Attach() slot { return serialAD_AttachSlot{s} }
 
+type maxConcurrentSlot struct {
+	slots chan struct{}
+}
+
+func newMaxConcurrentSlot(maxConcurrency int) maxConcurrentSlot {
+	return maxConcurrentSlot{
+		slots: make(chan struct{}, maxConcurrency),
+	}
+}
+
+func (s maxConcurrentSlot) Aquire(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	select {
+	case s.slots <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (s maxConcurrentSlot) Release() {
+	<-s.slots
+}
+
 type parallelSlot struct{}
 
 func (s parallelSlot) GetSlotFor(node string) adSlot { return s }
@@ -114,69 +140,44 @@ type noOpSlot struct{}
 func (noOpSlot) Aquire(ctx context.Context) error { return ctx.Err() }
 func (noOpSlot) Release()                         {}
 
-type serialOneDirSlot struct {
-	parallelSlot
-	serial serialSlot
+type independentSlot struct {
+	attach slot
+	detach slot
 }
 
-type serialDetachSlot serialOneDirSlot
-type serialAttachSlot serialOneDirSlot
+func (s *independentSlot) Detach() slot { return s.detach }
+func (s *independentSlot) Attach() slot { return s.attach }
 
-func (s serialDetachSlot) Detach() slot { return s.serial }
-func (s serialAttachSlot) Attach() slot { return s.serial }
-
-type serialSlot struct {
-	// slot is a buffered channel with size 1.
-	// The buffer is filled if and only if a detach is in progress.
-	slot chan struct{}
-}
-
-func (s serialSlot) Aquire(ctx context.Context) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
+func makeOneSide(concurrency int) slot {
+	if concurrency == 0 {
+		return noOpSlot{}
 	}
-	select {
-	case s.slot <- struct{}{}:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return newMaxConcurrentSlot(concurrency)
 }
 
-func (s serialSlot) Release() {
-	<-s.slot
-}
-
-func makeOneSideSlot() serialOneDirSlot {
-	return serialOneDirSlot{
-		serial: serialSlot{
-			slot: make(chan struct{}, 1),
-		},
-	}
-}
-
-func NewSlots(serialDetach, serialAttach bool) AttachDetachSlots {
-	if !serialAttach && !serialDetach {
+// NewSlots returns a new AttachDetachSlots that allows up to
+// detachConcurrency detach operations and attachConcurrency attach operations in parallel.
+// 0 means no limitation on concurrency.
+// As a special case, if both values are 1, only one of them can be in progress at a time.
+func NewSlots(detachConcurrency, attachConcurrency int) AttachDetachSlots {
+	if detachConcurrency == 0 && attachConcurrency == 0 {
 		return parallelSlot{}
 	}
 	var makeSlot func() adSlot
-	if serialDetach && serialAttach {
+	if detachConcurrency == 1 && attachConcurrency == 1 {
 		makeSlot = func() adSlot {
 			return &serialADSlot{
 				highPriorityChannel: make(chan struct{}),
 				slot:                make(chan struct{}, 1),
 			}
 		}
-	} else if serialDetach {
-		makeSlot = func() adSlot {
-			return serialDetachSlot(makeOneSideSlot())
-		}
-	} else if serialAttach {
-		makeSlot = func() adSlot {
-			return serialAttachSlot(makeOneSideSlot())
-		}
 	} else {
-		panic("unreachable")
+		makeSlot = func() adSlot {
+			return &independentSlot{
+				attach: makeOneSide(attachConcurrency),
+				detach: makeOneSide(detachConcurrency),
+			}
+		}
 	}
 	return NewPerNodeSlots(makeSlot)
 }
