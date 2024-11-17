@@ -1,7 +1,6 @@
 package common
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
@@ -47,12 +46,8 @@ func RunCSIServer(driverType, endpoint string, ids csi.IdentityServer, cs csi.Co
 		klog.Fatalf("Failed to listen: %v", err)
 	}
 
-	instrumentClosure := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		return instrumentGRPC(ctx, req, info, handler, driverType, clientset)
-	}
-
 	opts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(logGRPC, instrumentClosure),
+		grpc.ChainUnaryInterceptor(logGRPC, instrumentGRPC(driverType)),
 	}
 	server := grpc.NewServer(opts...)
 
