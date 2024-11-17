@@ -38,11 +38,18 @@ func instrumentGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServer
 }
 
 func recordExecTime(time time.Duration, method, driverType string, err error) {
-	errCode := status.Code(err).String()
+	// copied from google.golang.org/grpc/server.go
+	appStatus, ok := status.FromError(err)
+	if !ok {
+		// Convert non-status application error to a status error with code
+		// Unknown, but handle context errors specifically.
+		appStatus = status.FromContextError(err)
+	}
+
 	labels := prometheus.Labels{
 		metric.CsiGrpcExecTimeLabelMethod: method,
 		metric.CsiGrpcExecTimeLabelType:   driverType,
-		metric.CsiGrpcExecTimeLabelCode:   errCode,
+		metric.CsiGrpcExecTimeLabelCode:   appStatus.Code().String(),
 	}
 	metric.CsiGrpcExecTimeCollector.ExecCountMetric.With(labels).Inc()
 	metric.CsiGrpcExecTimeCollector.ExecTimeTotalMetric.With(labels).Add(time.Seconds())
