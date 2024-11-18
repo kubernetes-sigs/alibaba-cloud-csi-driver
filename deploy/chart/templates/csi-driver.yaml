@@ -29,3 +29,13 @@ spec:
   attachRequired: true
   podInfoOnMount: true
 {{- end }}
+---
+{{- if .Values.csi.local.enabled }}
+apiVersion: storage.k8s.io/v1
+kind: CSIDriver
+metadata:
+  name: localplugin.csi.alibabacloud.com
+spec:
+  attachRequired: false
+  podInfoOnMount: true
+{{- end }}
