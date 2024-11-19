@@ -46,7 +46,7 @@ var (
 		DiskADController:           {Default: false, PreRelease: featuregate.Alpha},
 		DiskParallelAttach:         {Default: false, PreRelease: featuregate.Alpha},
 		DiskParallelDetach:         {Default: false, PreRelease: featuregate.Alpha},
-		DisableExpandAutoSnapshots: {Default: false, PreRelease: featuregate.Alpha},
+		DisableExpandAutoSnapshots: {Default: true, PreRelease: featuregate.Beta},
 	}
 
 	defaultOSSFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
