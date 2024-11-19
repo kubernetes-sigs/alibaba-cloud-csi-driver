@@ -595,12 +595,12 @@ func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
 	if !utils.IsFileExisting(rootDevicePath) || !utils.IsFileExisting(subDevicePath) {
 		return fmt.Errorf("Input device path is illegal format: %s, %s ", rootDevicePath, subDevicePath)
 	}
-	fstype, pptype, _ := utils.GetDiskPtypePTtype(rootDevicePath)
+	fstype, pttype, _ := utils.GetDiskFStypePTtype(rootDevicePath)
 	if fstype != "" {
-		return fmt.Errorf("Root device %s, has filesystem exist: %s, and pptype: %s, disk is not supported ", rootDevicePath, fstype, pptype)
+		return fmt.Errorf("Root device %s, has filesystem exist: %s, and ptType: %s, disk is not supported ", rootDevicePath, fstype, pttype)
 	}
 
-	fstype, _, _ = utils.GetDiskPtypePTtype(subDevicePath)
+	fstype, _, _ = utils.GetDiskFStypePTtype(subDevicePath)
 	if fstype == "" {
 		return fmt.Errorf("Root device %s is partition, and you should format %s by hands ", rootDevicePath, subDevicePath)
 	}

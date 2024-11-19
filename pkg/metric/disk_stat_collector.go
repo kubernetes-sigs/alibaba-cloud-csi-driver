@@ -162,6 +162,7 @@ type diskStatCollector struct {
 	lastPvStatsMap               sync.Map
 	clientSet                    *kubernetes.Clientset
 	recorder                     record.EventRecorder
+	mounter                      mount.Interface
 	nodeName                     string
 }
 
@@ -244,6 +245,7 @@ func NewDiskStatCollector() (Collector, error) {
 		capacityPercentageThreshold:  capacityPercentageThreshold,
 		alertSwtichSet:               alertSet,
 		recorder:                     recorder,
+		mounter:                      mount.New(""),
 		nodeName:                     nodeName,
 	}, nil
 }
@@ -372,7 +374,6 @@ func (p *diskStatCollector) setDiskMetric(pvName string, info diskInfo, stats []
 
 func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, jsonPaths []string, driverName string) {
 	thisPvDiskInfoMap := make(map[string]diskInfo, 0)
-	mounter := mount.New("")
 	for _, path := range jsonPaths {
 		//Get disk pvName
 		pvName, diskID, err := getVolumeInfoByJSON(path, driverName)
@@ -384,7 +385,7 @@ func (p *diskStatCollector) updateMap(lastPvDiskInfoMap *map[string]diskInfo, js
 		}
 
 		mountPoint := filepath.Join(path, "../mount")
-		notMounted, err := mounter.IsLikelyNotMountPoint(mountPoint)
+		notMounted, err := p.mounter.IsLikelyNotMountPoint(mountPoint)
 		if err != nil {
 			if !errors.Is(err, fs.ErrNotExist) {
 				klog.Errorf("Check if %s is mount point failed: %v", mountPoint, err)
