@@ -350,12 +350,25 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	}
 	response, err := throttle.Throttled(ad.attachThrottler, ad.ecs.AttachDisk)(ctx, attachRequest)
 	if err != nil {
+		var aliErr *alierrors.ServerError
+		if errors.As(err, &aliErr) {
+			switch aliErr.ErrorCode() {
+			case InvalidOperation_Conflict, IncorrectDiskStatus:
+				logger := logger.WithValues("code", aliErr.ErrorCode(), "requestID", aliErr.RequestId())
+				logger.V(2).Info("attach conflict, delaying retry for 1s")
+				slot.Block(time.Now().Add(1 * time.Second))
+			}
+		}
 		return r, mapAttachError(err, nodeID, diskID)
 	}
 
 	// Step 4: wait for disk attached
 	logger.V(2).Info("waiting for disk to attach", "requestID", response.RequestId)
 	if disk, err = ad.waitForDiskAttached(ctx, diskID, nodeID); err != nil {
+		if errors.Is(err, ctx.Err()) {
+			logger.V(1).Info("attach not finished yet, delaying retry for 1s")
+			slot.Block(time.Now().Add(1 * time.Second))
+		}
 		return r, err
 	}
 	r.disk = disk
