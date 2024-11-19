@@ -3,6 +3,8 @@ package disk
 import (
 	"context"
 	"sync"
+	"sync/atomic"
+	"time"
 )
 
 type AttachDetachSlots interface {
@@ -41,13 +43,79 @@ func (a *PerNodeSlots) GetSlotFor(node string) adSlot {
 }
 
 type adSlot interface {
-	Attach() slot
-	Detach() slot
+	Attach() blockableSlot
+	Detach() blockableSlot
 }
 
 type slot interface {
 	Aquire(ctx context.Context) error
 	Release()
+}
+
+type blockableSlot interface {
+	slot
+
+	// Block blocks all the future Aquire() calls until the given time.
+	// Use this if the node is in an unusual state, and is not expected to recover if retried immediately.
+	Block(until time.Time)
+}
+
+type blockable struct {
+	until atomic.Pointer[time.Time]
+}
+
+func (s *blockable) Block(until time.Time) {
+	for {
+		old := s.until.Load()
+		if old != nil && old.After(until) {
+			return
+		}
+		swapped := s.until.CompareAndSwap(old, &until)
+		if swapped {
+			return
+		}
+	}
+}
+
+func (s *blockable) Aquire(ctx context.Context) error {
+	for {
+		until := s.until.Load()
+		if until == nil {
+			return nil
+		}
+		select {
+		case <-time.After(-time.Since(*until)):
+			swapped := s.until.CompareAndSwap(until, nil)
+			if swapped {
+				return nil
+			}
+			// if not swapped, the block time is extended while we are waiting or already cleared by another concurrent Aquire()
+			// we will see in the next iteration
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+type independentBlockableSlot[TSlot slot] struct {
+	slot TSlot
+	blockable
+}
+
+func (s *independentBlockableSlot[TSlot]) Aquire(ctx context.Context) error {
+	err := s.slot.Aquire(ctx)
+	if err != nil {
+		return err
+	}
+	return s.blockable.Aquire(ctx)
+}
+
+func (s *independentBlockableSlot[TSlot]) Release() {
+	s.slot.Release()
+}
+
+func newBlockable[TSlot slot](slot TSlot) *independentBlockableSlot[TSlot] {
+	return &independentBlockableSlot[TSlot]{slot: slot}
 }
 
 type serialADSlot struct {
@@ -58,6 +126,8 @@ type serialADSlot struct {
 	// highPriorityChannel is a channel without buffer.
 	// detach requests are fulfilled from this channel first.
 	highPriorityChannel chan struct{}
+
+	blockable
 }
 
 type serialAD_DetachSlot struct{ *serialADSlot }
@@ -69,12 +139,11 @@ func (s serialAD_DetachSlot) Aquire(ctx context.Context) error {
 	}
 	select {
 	case s.highPriorityChannel <- struct{}{}:
-		return nil
 	case s.slot <- struct{}{}:
-		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+	return s.blockable.Aquire(ctx)
 }
 
 func (s serialAD_AttachSlot) Aquire(ctx context.Context) error {
@@ -83,10 +152,10 @@ func (s serialAD_AttachSlot) Aquire(ctx context.Context) error {
 	}
 	select {
 	case s.slot <- struct{}{}:
-		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+	return s.blockable.Aquire(ctx)
 }
 
 func (s *serialADSlot) Release() {
@@ -99,8 +168,8 @@ func (s *serialADSlot) Release() {
 	}
 }
 
-func (s *serialADSlot) Detach() slot { return serialAD_DetachSlot{s} }
-func (s *serialADSlot) Attach() slot { return serialAD_AttachSlot{s} }
+func (s *serialADSlot) Detach() blockableSlot { return serialAD_DetachSlot{s} }
+func (s *serialADSlot) Attach() blockableSlot { return serialAD_AttachSlot{s} }
 
 type maxConcurrentSlot struct {
 	slots chan struct{}
@@ -128,31 +197,24 @@ func (s maxConcurrentSlot) Release() {
 	<-s.slots
 }
 
-type parallelSlot struct{}
-
-func (s parallelSlot) GetSlotFor(node string) adSlot { return s }
-
-func (parallelSlot) Detach() slot { return noOpSlot{} }
-func (parallelSlot) Attach() slot { return noOpSlot{} }
-
 type noOpSlot struct{}
 
 func (noOpSlot) Aquire(ctx context.Context) error { return ctx.Err() }
 func (noOpSlot) Release()                         {}
 
 type independentSlot struct {
-	attach slot
-	detach slot
+	attach blockableSlot
+	detach blockableSlot
 }
 
-func (s *independentSlot) Detach() slot { return s.detach }
-func (s *independentSlot) Attach() slot { return s.attach }
+func (s *independentSlot) Detach() blockableSlot { return s.detach }
+func (s *independentSlot) Attach() blockableSlot { return s.attach }
 
-func makeOneSide(concurrency int) slot {
+func makeOneSide(concurrency int) blockableSlot {
 	if concurrency == 0 {
-		return noOpSlot{}
+		return newBlockable(noOpSlot{})
 	}
-	return newMaxConcurrentSlot(concurrency)
+	return newBlockable(newMaxConcurrentSlot(concurrency))
 }
 
 // NewSlots returns a new AttachDetachSlots that allows up to
@@ -160,9 +222,6 @@ func makeOneSide(concurrency int) slot {
 // 0 means no limitation on concurrency.
 // As a special case, if both values are 1, only one of them can be in progress at a time.
 func NewSlots(detachConcurrency, attachConcurrency int) AttachDetachSlots {
-	if detachConcurrency == 0 && attachConcurrency == 0 {
-		return parallelSlot{}
-	}
 	var makeSlot func() adSlot
 	if detachConcurrency == 1 && attachConcurrency == 1 {
 		makeSlot = func() adSlot {
