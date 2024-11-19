@@ -59,6 +59,7 @@ const (
 
 // attach alibaba cloud disk
 func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk, isSingleInstance bool, fromNode bool) (string, error) {
+	logger := klog.FromContext(ctx)
 	klog.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
 	ecsClient, err := getEcsClientByID("", tenantUserUID)
@@ -191,6 +192,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 	if err != nil {
 		var aliErr *alicloudErr.ServerError
 		if errors.As(err, &aliErr) {
+			logger := logger.WithValues("code", aliErr.ErrorCode(), "requestID", aliErr.RequestId())
 			switch aliErr.ErrorCode() {
 			case InstanceNotFound:
 				return "", status.Errorf(codes.NotFound, "Node(%s) not found, request ID: %s", nodeID, aliErr.RequestId())
@@ -200,6 +202,9 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 				return "", status.Errorf(codes.Internal, "%v, Disk(%s) should be \"Pay by quantity\", not be \"Annual package\", please check and modify the charge type, and refer to: https://help.aliyun.com/document_detail/134767.html", err, diskID)
 			case NotSupportDiskCategory:
 				return "", status.Errorf(codes.Internal, "%v, Disk(%s) is not supported by instance, please refer to: https://help.aliyun.com/document_detail/25378.html", err, diskID)
+			case InvalidOperation_Conflict, IncorrectDiskStatus:
+				logger.V(2).Info("attach conflict, delaying retry for 1s")
+				slot.Block(time.Now().Add(1 * time.Second))
 			}
 		}
 		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happens to attach disk %s to instance %s, %v", diskID, nodeID, err)
@@ -208,13 +213,15 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 	// Step 4: wait for disk attached
 	klog.Infof("AttachDisk: Waiting for Disk %s is Attached to instance %s with RequestId: %s", diskID, nodeID, response.RequestId)
 	if isSharedDisk {
-		if err := waitForSharedDiskInStatus(ctx, 20, time.Second*3, diskID, nodeID, DiskStatusAttached, ecsClient); err != nil {
-			return "", err
-		}
+		err = waitForSharedDiskInStatus(ctx, 20, time.Second*3, diskID, nodeID, DiskStatusAttached, ecsClient)
 	} else {
-		if err := waitForDiskInStatus(ctx, 20, time.Second*3, diskID, DiskStatusInuse, ecsClient); err != nil {
-			return "", err
+		err = waitForDiskInStatus(ctx, 20, time.Second*3, diskID, DiskStatusInuse, ecsClient)
+	}
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			slot.Block(time.Now().Add(1 * time.Second))
 		}
+		return "", err
 	}
 
 	// step 5: diff device with previous files under /dev
