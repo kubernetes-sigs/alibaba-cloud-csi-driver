@@ -83,6 +83,8 @@ func (s *NodeServerWithValidator) NodeStageVolume(ctx context.Context, req *csi.
 	if err != nil || !ok {
 		return nil, status.Errorf(codes.InvalidArgument, "Staging path %q is not a subpath of %s", req.StagingTargetPath, utils.KubeletRootDir)
 	}
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("volumeID", req.VolumeId))
 	return s.NodeServer.NodeStageVolume(ctx, req)
 }
 
@@ -100,47 +102,57 @@ func (s *NodeServerWithValidator) NodePublishVolume(ctx context.Context, req *cs
 	if err != nil || !ok {
 		return nil, status.Errorf(codes.InvalidArgument, "Target path %q is not a subpath of %s", req.TargetPath, utils.KubeletRootDir)
 	}
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("volumeID", req.VolumeId))
 	return s.NodeServer.NodePublishVolume(ctx, req)
 }
 
-func (s *NodeServerWithValidator) NodeUnstageVolume(context context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+func (s *NodeServerWithValidator) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	if len(req.VolumeId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumeId is required")
 	}
 	if len(req.StagingTargetPath) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "StagingTargetPath is required")
 	}
-	return s.NodeServer.NodeUnstageVolume(context, req)
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("volumeID", req.VolumeId))
+	return s.NodeServer.NodeUnstageVolume(ctx, req)
 }
 
-func (s *NodeServerWithValidator) NodeUnpublishVolume(context context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+func (s *NodeServerWithValidator) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	if len(req.VolumeId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumeId is required")
 	}
 	if len(req.TargetPath) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "TargetPath is required")
 	}
-	return s.NodeServer.NodeUnpublishVolume(context, req)
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("volumeID", req.VolumeId))
+	return s.NodeServer.NodeUnpublishVolume(ctx, req)
 }
 
-func (s *NodeServerWithValidator) NodeGetVolumeStats(context context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+func (s *NodeServerWithValidator) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
 	if len(req.VolumeId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumeId is required")
 	}
 	if len(req.VolumePath) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumePath is required")
 	}
-	return s.NodeServer.NodeGetVolumeStats(context, req)
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("volumeID", req.VolumeId))
+	return s.NodeServer.NodeGetVolumeStats(ctx, req)
 }
 
-func (s *NodeServerWithValidator) NodeExpandVolume(context context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
+func (s *NodeServerWithValidator) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	if len(req.VolumeId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumeId is required")
 	}
 	if len(req.VolumePath) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumePath is required")
 	}
-	return s.NodeServer.NodeExpandVolume(context, req)
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("volumeID", req.VolumeId))
+	return s.NodeServer.NodeExpandVolume(ctx, req)
 }
 
 func filepathContains(basePath, path string) (bool, error) {

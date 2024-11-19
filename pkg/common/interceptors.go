@@ -16,13 +16,14 @@ import (
 )
 
 func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	klog.Infof("GRPC call: %s", info.FullMethod)
-	klog.V(4).Infof("GRPC request: %s", protosanitizer.StripSecrets(req))
-	resp, err := handler(ctx, req)
+	logger := klog.FromContext(ctx).WithValues("method", info.FullMethod)
+	logger.Info("GRPC call start")
+	logger.V(4).Info("GRPC request", "request", protosanitizer.StripSecrets(req))
+	resp, err := handler(klog.NewContext(ctx, logger), req)
 	if err != nil {
-		klog.Errorf("GRPC error: %v", err)
+		logger.Error(err, "GRPC error")
 	} else {
-		klog.V(4).Infof("GRPC response: %s", protosanitizer.StripSecrets(resp))
+		logger.V(4).Info("GRPC response", "response", protosanitizer.StripSecrets(resp))
 	}
 	return resp, err
 }
