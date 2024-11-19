@@ -498,3 +498,26 @@ func TestCreateDisk_NoInfinitLoop(t *testing.T) {
 	_, _, err := createDisk(client, "disk-name", "", args, nil, "")
 	assert.Error(t, err)
 }
+
+func TestValidDiskName(t *testing.T) {
+	test := func(name string) {
+		t.Run(name, func(t *testing.T) {
+			assert.True(t, isValidDiskName(name))
+		})
+	}
+	test("块存储")
+	test("disk_name-1")
+}
+
+func TestInvalidDiskName(t *testing.T) {
+	test := func(name string) {
+		t.Run(name, func(t *testing.T) {
+			assert.False(t, isValidDiskName(name))
+		})
+	}
+	test("a")     // too short
+	test("块")     // too short
+	test("???")   // ? not supported
+	test("0asdf") // must start with letter
+	test("😊😊😊")   // not letter
+}
