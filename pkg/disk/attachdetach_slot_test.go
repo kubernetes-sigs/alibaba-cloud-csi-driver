@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -92,8 +93,8 @@ func TestCancelWaiting(t *testing.T) {
 	})
 	t.Run("independent", func(t *testing.T) {
 		s := &independentSlot{
-			attach: newMaxConcurrentSlot(1),
-			detach: newMaxConcurrentSlot(1),
+			attach: newBlockable(newMaxConcurrentSlot(1)),
+			detach: newBlockable(newMaxConcurrentSlot(1)),
 		}
 		assert.NoError(t, s.attach.Acquire(context.Background()))
 		assert.NoError(t, s.detach.Acquire(context.Background()))
@@ -176,4 +177,52 @@ func TestWaitingADError(t *testing.T) {
 	err := s.Acquire(ctx)
 	assert.ErrorIs(t, err, waitingAD{})
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+func TestBlock(t *testing.T) { synctest.Test(t, testBlock_sync) }
+func testBlock_sync(t *testing.T) {
+	s := NewSlots(1, 1).GetSlotFor("node1")
+
+	now := time.Now()
+	until := now.Add(300 * time.Millisecond)
+	// regardless of the order, use the longest timeout
+	s.Attach().Block(until.Add(-100 * time.Millisecond))
+	s.Attach().Block(until)
+	s.Attach().Block(until.Add(-200 * time.Millisecond))
+
+	// multiple concurrent Acquire() should be fine. All of them are controlled by the same timeout
+	go func() {
+		assert.NoError(t, s.Attach().Acquire(context.Background()))
+		s.Attach().Release()
+		assert.Equal(t, until, time.Now())
+	}()
+	assert.NoError(t, s.Detach().Acquire(context.Background()))
+	s.Detach().Release()
+	assert.Equal(t, until, time.Now())
+}
+
+func TestBlockCancel(t *testing.T) {
+	for name, slots := range map[string]AttachDetachSlots{
+		"serial":      NewSlots(1, 1),
+		"independent": NewSlots(2, 1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				s := slots.GetSlotFor("node1")
+				s.Attach().Block(time.Now().Add(200 * time.Millisecond))
+
+				ctx, cancel := context.WithCancel(context.Background())
+				go func() {
+					time.Sleep(50 * time.Millisecond)
+					cancel()
+				}()
+				assert.ErrorIs(t, s.Attach().Acquire(ctx), context.Canceled)
+
+				// the cancelled Acquire must not hold the slot
+				if assert.NoError(t, s.Attach().Acquire(context.Background())) {
+					s.Attach().Release()
+				}
+			})
+		})
+	}
 }
