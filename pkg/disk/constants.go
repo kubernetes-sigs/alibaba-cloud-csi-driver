@@ -32,8 +32,6 @@ const (
 	DiskSnapshotID = "csi.alibabacloud.com/disk-snapshot-id"
 	// IAVolumeSnapshotKey tag
 	IAVolumeSnapshotKey = "csi.alibabacloud.com/snapshot-ia"
-	// SnapshotRequestTag interval limit
-	SnapshotRequestTag = "SNAPSHOT_REQUEST_INTERVAL"
 	// annDiskID tag
 	annDiskID = "volume.alibabacloud.com/disk-id"
 	// MultiAttach tag
