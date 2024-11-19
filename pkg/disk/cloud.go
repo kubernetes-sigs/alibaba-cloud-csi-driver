@@ -297,6 +297,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	if err != nil {
 		var aliErr *alierrors.ServerError
 		if errors.As(err, &aliErr) {
+			logger := logger.WithValues("code", aliErr.ErrorCode(), "requestID", aliErr.RequestId())
 			switch aliErr.ErrorCode() {
 			case InstanceNotFound:
 				return "", status.Errorf(codes.NotFound, "Node(%s) not found, request ID: %s", nodeID, aliErr.RequestId())
@@ -306,6 +307,9 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 				return "", status.Errorf(codes.Internal, "%v, Disk(%s) should be \"Pay by quantity\", not be \"Annual package\", please check and modify the charge type, and refer to: https://help.aliyun.com/document_detail/134767.html", err, diskID)
 			case NotSupportDiskCategory:
 				return "", status.Errorf(codes.Internal, "%v, Disk(%s) is not supported by instance, please refer to: https://help.aliyun.com/document_detail/25378.html", err, diskID)
+			case InvalidOperation_Conflict, IncorrectDiskStatus:
+				logger.V(2).Info("attach conflict, delaying retry for 1s")
+				slot.Block(time.Now().Add(1 * time.Second))
 			}
 		}
 		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happens to attach disk %s to instance %s, %v", diskID, nodeID, err)
@@ -314,6 +318,10 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	// Step 4: wait for disk attached
 	klog.Infof("AttachDisk: Waiting for Disk %s is Attached to instance %s with RequestId: %s", diskID, nodeID, response.RequestId)
 	if err := ad.waitForDiskAttached(ctx, diskID, nodeID); err != nil {
+		if errors.Is(err, ctx.Err()) {
+			logger.V(1).Info("attach not finished yet, delaying retry for 1s")
+			slot.Block(time.Now().Add(1 * time.Second))
+		}
 		return "", err
 	}
 
