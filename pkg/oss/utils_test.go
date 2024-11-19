@@ -288,6 +288,7 @@ func Test_setNetworkType(t *testing.T) {
 		name         string
 		originURL    string
 		regionID     string
+		isPrivate    bool
 		wantURL      string
 		wantModified bool
 	}{
@@ -295,6 +296,7 @@ func Test_setNetworkType(t *testing.T) {
 			"internal-modified",
 			"http://oss-cn-beijing.aliyuncs.com",
 			"cn-beijing",
+			false,
 			"http://oss-cn-beijing-internal.aliyuncs.com",
 			true,
 		},
@@ -302,6 +304,7 @@ func Test_setNetworkType(t *testing.T) {
 			"public-unmodified",
 			"https://oss-cn-beijing.aliyuncs.com",
 			"cn-hangzhou",
+			false,
 			"https://oss-cn-beijing.aliyuncs.com",
 			false,
 		},
@@ -309,6 +312,7 @@ func Test_setNetworkType(t *testing.T) {
 			"internal-unmodified",
 			"oss-cn-beijing-internal.aliyuncs.com",
 			"cn-beijing",
+			false,
 			"oss-cn-beijing-internal.aliyuncs.com",
 			false,
 		},
@@ -316,6 +320,7 @@ func Test_setNetworkType(t *testing.T) {
 			"private",
 			"oss-cn-wulanchabu-xxx-xxxx.ops.xxx.com",
 			"cn-wulanchabu",
+			false,
 			"oss-cn-wulanchabu-xxx-xxxx.ops.xxx.com",
 			false,
 		},
@@ -323,6 +328,7 @@ func Test_setNetworkType(t *testing.T) {
 			"old-oss-accelerator",
 			"oss-cache-cn-beijing-h.aliyuncs.com",
 			"cn-beijing",
+			false,
 			"oss-cache-cn-beijing-h.aliyuncs.com",
 			false,
 		},
@@ -330,12 +336,22 @@ func Test_setNetworkType(t *testing.T) {
 			"new-oss-accelerator",
 			"cn-hangzhou.oss-data-acc.aliyuncs.com",
 			"cn-hangzhou",
+			false,
 			"cn-hangzhou-internal.oss-data-acc.aliyuncs.com",
 			true,
+		},
+		{
+			"private-cloud",
+			"http://oss-cn-beijing.aliyuncs.com",
+			"cn-beijing",
+			true,
+			"http://oss-cn-beijing.aliyuncs.com",
+			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("PRIVATE_CLOUD_TAG", strconv.FormatBool(tt.isPrivate))
 			url, done := setNetworkType(tt.originURL, tt.regionID)
 			if url != tt.wantURL || done != tt.wantModified {
 				t.Errorf("setNetworkType(%v, %v) = %v, %v, want %v %v",
@@ -349,36 +365,49 @@ func Test_setTransmissionProtocol(t *testing.T) {
 	tests := []struct {
 		name         string
 		originURL    string
+		isPrivate    bool
 		wantURL      string
 		wantModified bool
 	}{
 		{
 			"http-unmodified",
 			"http://oss-cn-beijing.aliyuncs.com",
+			false,
 			"http://oss-cn-beijing.aliyuncs.com",
 			false,
 		},
 		{
 			"https-unmodified",
 			"https://oss-cn-beijing-internal.aliyuncs.com",
+			false,
 			"https://oss-cn-beijing-internal.aliyuncs.com",
 			false,
 		},
 		{
 			"public-modified",
 			"oss-cn-beijing.aliyuncs.com",
+			false,
 			"https://oss-cn-beijing.aliyuncs.com",
 			true,
 		},
 		{
 			"internal-modified",
 			"oss-cn-beijing-internal.aliyuncs.com//",
+			false,
 			"http://oss-cn-beijing-internal.aliyuncs.com//",
 			true,
+		},
+		{
+			"public-modified",
+			"oss-cn-beijing.aliyuncs.com",
+			true,
+			"oss-cn-beijing.aliyuncs.com",
+			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("PRIVATE_CLOUD_TAG", strconv.FormatBool(tt.isPrivate))
 			url, done := setTransmissionProtocol(tt.originURL)
 			if url != tt.wantURL || done != tt.wantModified {
 				t.Errorf("setTransmissionProtocol(%v) = %v, %v, want %v %v",
