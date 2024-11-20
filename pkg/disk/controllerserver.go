@@ -32,6 +32,8 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -43,11 +45,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/clock"
 )
 
 // controller server try to create/delete volumes/snapshots
 type controllerServer struct {
-	recorder record.EventRecorder
+	recorder       record.EventRecorder
+	snapshotWaiter waitstatus.StatusWaiter[ecs.Snapshot]
 	common.GenericControllerServer
 }
 
@@ -81,10 +85,38 @@ var veasp = struct {
 
 var delVolumeSnap sync.Map
 
+func newSnapshotStatusWaiter() waitstatus.StatusWaiter[ecs.Snapshot] {
+	client := desc.Snapshots{
+		Client: GlobalConfigVar.EcsClient,
+	}
+	if GlobalConfigVar.DiskMultiTenantEnable {
+		waiter := waitstatus.NewSimple(client, clock.RealClock{})
+		waiter.ClientFactory = func(ctx context.Context) (desc.Client[ecs.Snapshot], error) {
+			tenantUserUID := GetTenantUserUID(ctx)
+			ecsClient, err := getEcsClientByID("", tenantUserUID)
+			if err != nil {
+				return nil, err
+			}
+			return desc.Snapshots{Client: ecsClient}, nil
+		}
+		return waiter
+	} else {
+		waiter := waitstatus.NewBatched(client, clock.RealClock{})
+		waiter.PollHook = func() desc.Client[ecs.Snapshot] {
+			return desc.Snapshots{
+				Client: updateEcsClient(GlobalConfigVar.EcsClient),
+			}
+		}
+		go waiter.Run(context.Background())
+		return waiter
+	}
+}
+
 // NewControllerServer is to create controller server
 func NewControllerServer() csi.ControllerServer {
 	c := &controllerServer{
-		recorder: utils.NewEventRecorder(),
+		recorder:       utils.NewEventRecorder(),
+		snapshotWaiter: newSnapshotStatusWaiter(),
 	}
 	return c
 }
@@ -561,7 +593,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	// init createSnapshotRequest and parameters
-	createAt := timestamppb.Now()
 	params.SourceVolumeID = sourceVolumeID
 	params.SnapshotName = req.Name
 	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, params)
@@ -570,18 +601,20 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		return nil, status.Errorf(codes.Internal, "create snapshot[%s] with sourceId[%s] failed with error: %v", req.Name, req.GetSourceVolumeId(), err)
 	}
 
-	str := fmt.Sprintf("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotResponse.SnapshotId)
-	klog.Infof(str)
-	csiSnapshot := &csi.Snapshot{
-		SnapshotId:     snapshotResponse.SnapshotId,
-		SourceVolumeId: sourceVolumeID,
-		CreationTime:   createAt,
-		ReadyToUse:     false, // even if instant access is available, the snapshot is not ready to use immediately
-		SizeBytes:      utils.Gi2Bytes(int64(disks[0].Size)),
+	klog.Infof("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotResponse.SnapshotId)
+
+	snap, err := cs.snapshotWaiter.WaitFor(ctx, snapshotResponse.SnapshotId, waitstatus.SnapshotCut)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed while waiting for snapshot cut: %v", err)
+	}
+
+	csiSnap, err := formatCSISnapshot(snap)
+	if err != nil {
+		return nil, err
 	}
 
 	return &csi.CreateSnapshotResponse{
-		Snapshot: csiSnapshot,
+		Snapshot: csiSnap,
 	}, nil
 }
 
