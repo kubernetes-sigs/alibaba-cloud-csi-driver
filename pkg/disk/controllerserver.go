@@ -535,33 +535,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 
 	klog.Infof("CreateSnapshot:: Starting to create snapshot: %+v", req)
 	sourceVolumeID := strings.Trim(req.GetSourceVolumeId(), " ")
-	// Need to check for already existing snapshot name
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-	snapshots, snapNum, err := findSnapshotByName(req.GetName())
-	switch {
-	case snapNum == 1:
-		// Since err is nil, it means the snapshot with the same name already exists need
-		// to check if the sourceVolumeId of existing snapshot is the same as in new request.
-		existsSnapshot := snapshots.Snapshots.Snapshot[0]
-		if existsSnapshot.SourceDiskId == req.GetSourceVolumeId() {
-			csiSnapshot, err := formatCSISnapshot(&existsSnapshot)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "format snapshot failed: %v", err)
-			}
-			klog.Infof("CreateSnapshot:: Snapshot already created: name[%s], sourceId[%s], status[%v]", req.Name, req.GetSourceVolumeId(), csiSnapshot.ReadyToUse)
-			if csiSnapshot.ReadyToUse {
-				klog.Infof("VolumeSnapshot: name: %s, id: %s is ready to use.", existsSnapshot.SnapshotName, existsSnapshot.SnapshotId)
-			}
-			return &csi.CreateSnapshotResponse{
-				Snapshot: csiSnapshot,
-			}, nil
-		}
-		return nil, status.Errorf(codes.AlreadyExists, "snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName())
-	case snapNum > 1:
-		return nil, status.Errorf(codes.Internal, "CreateSnapshot: get snapshot %s more than 1 instance", req.Name)
-	case err != nil:
-		return nil, status.Errorf(codes.Internal, "CreateSnapshot: get snapshot %s with error: %s", req.GetName(), err.Error())
-	}
 
 	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 	disks := getDisks([]string{sourceVolumeID}, ecsClient)

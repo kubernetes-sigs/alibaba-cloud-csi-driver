@@ -612,25 +612,6 @@ func findDiskByName(name string, ecsClient cloud.ECSInterface) (*ecs.Disk, error
 	}
 	return &disks[0], err
 }
-
-func findSnapshotByName(name string) (*ecs.DescribeSnapshotsResponse, int, error) {
-	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
-	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
-	describeSnapShotRequest.SnapshotName = name
-	snapshots, err := GlobalConfigVar.EcsClient.DescribeSnapshots(describeSnapShotRequest)
-	if err != nil {
-		return nil, 0, err
-	}
-	if len(snapshots.Snapshots.Snapshot) == 0 {
-		return snapshots, 0, nil
-	}
-
-	if len(snapshots.Snapshots.Snapshot) > 1 {
-		return snapshots, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with name "+name)
-	}
-	return snapshots, 1, nil
-}
-
 func findDiskSnapshotByID(id string) (*ecs.Snapshot, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
