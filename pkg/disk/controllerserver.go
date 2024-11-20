@@ -100,9 +100,6 @@ func (cs *controllerServer) ControllerGetCapabilities(ctx context.Context, req *
 	}, nil
 }
 
-// the map of req.Name and csi.Snapshot
-var createdSnapshotMap = map[string]*csi.Snapshot{}
-
 // the map of multizone and index
 var storageClassZonePos = map[string]int{}
 
@@ -536,14 +533,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		return nil, status.Errorf(codes.Internal, "CreateSnapshot: get snapshot %s with error: %s", req.GetName(), err.Error())
 	}
 
-	// check snapshot again, if ram has no auth to describe snapshot, there will always 0 response.
-	if value, ok := createdSnapshotMap[req.Name]; ok {
-		str := fmt.Sprintf("CreateSnapshot:: Snapshot already created, Name: %s, Info: %v", req.Name, value)
-		klog.Info(str)
-		return &csi.CreateSnapshotResponse{
-			Snapshot: value,
-		}, nil
-	}
 	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 	disks := getDisks([]string{sourceVolumeID}, ecsClient)
 	if len(disks) == 0 {
@@ -572,7 +561,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		SizeBytes:      utils.Gi2Bytes(int64(disks[0].Size)),
 	}
 
-	createdSnapshotMap[req.Name] = csiSnapshot
 	return &csi.CreateSnapshotResponse{
 		Snapshot: csiSnapshot,
 	}, nil
@@ -655,7 +643,6 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 		klog.Infof("DeleteSnapshot: snapshot[%s] not exist, see as successful", snapshotID)
 	}
 
-	delete(createdSnapshotMap, snapshot.SnapshotName)
 	klog.Infof("DeleteSnapshot:: Successfully delete snapshot %s, requestId: %s", snapshotID, reqId)
 	return &csi.DeleteSnapshotResponse{}, nil
 }
