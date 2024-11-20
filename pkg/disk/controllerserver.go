@@ -31,6 +31,8 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -42,12 +44,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/clock"
 )
 
 // controller server try to create/delete volumes/snapshots
 type controllerServer struct {
-	recorder record.EventRecorder
-	ad       DiskAttachDetach
+	recorder       record.EventRecorder
+	ad             DiskAttachDetach
+	snapshotWaiter waitstatus.StatusWaiter[ecs.Snapshot]
 	common.GenericControllerServer
 }
 
@@ -81,6 +85,20 @@ var veasp = struct {
 
 var delVolumeSnap sync.Map
 
+func newSnapshotStatusWaiter() waitstatus.StatusWaiter[ecs.Snapshot] {
+	client := desc.Snapshots{
+		Client: GlobalConfigVar.EcsClient,
+	}
+	waiter := waitstatus.NewBatched(client, clock.RealClock{}, 1*time.Second, 3*time.Second)
+	waiter.PollHook = func() desc.Client[ecs.Snapshot] {
+		return desc.Snapshots{
+			Client: updateEcsClient(GlobalConfigVar.EcsClient),
+		}
+	}
+	go waiter.Run(context.Background())
+	return waiter
+}
+
 // NewControllerServer is to create controller server
 func NewControllerServer(csiCfg utils.Config) csi.ControllerServer {
 	waiter, batcher := newBatcher(false)
@@ -93,6 +111,7 @@ func NewControllerServer(csiCfg utils.Config) csi.ControllerServer {
 			attachThrottler: defaultThrottler(),
 			detachThrottler: defaultThrottler(),
 		},
+		snapshotWaiter: newSnapshotStatusWaiter(),
 	}
 	detachConcurrency := 1
 	attachConcurrency := 1
@@ -553,7 +572,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	// init createSnapshotRequest and parameters
-	createAt := timestamppb.Now()
 	params.SourceVolumeID = sourceVolumeID
 	params.SnapshotName = req.Name
 	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, params)
@@ -563,16 +581,19 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	klog.Infof("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotResponse.SnapshotId)
-	csiSnapshot := &csi.Snapshot{
-		SnapshotId:     snapshotResponse.SnapshotId,
-		SourceVolumeId: sourceVolumeID,
-		CreationTime:   createAt,
-		ReadyToUse:     false, // even if instant access is available, the snapshot is not ready to use immediately
-		SizeBytes:      utils.Gi2Bytes(int64(disks[0].Size)),
+
+	snap, err := cs.snapshotWaiter.WaitFor(ctx, snapshotResponse.SnapshotId, waitstatus.SnapshotCut)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed while waiting for snapshot cut: %v", err)
+	}
+
+	csiSnap, err := formatCSISnapshot(snap)
+	if err != nil {
+		return nil, err
 	}
 
 	return &csi.CreateSnapshotResponse{
-		Snapshot: csiSnapshot,
+		Snapshot: csiSnap,
 	}, nil
 }
 
