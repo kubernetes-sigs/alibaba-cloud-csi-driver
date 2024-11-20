@@ -10,6 +10,8 @@ import (
 type Simple[T any] struct {
 	client ECSDescribeResources[T]
 	clk    clock.WithTicker
+
+	ClientFactory func(context.Context) (ECSDescribeResources[T], error)
 }
 
 func NewSimple[T any](client ECSDescribeResources[T], clk clock.WithTicker) *Simple[T] {
@@ -20,10 +22,18 @@ func NewSimple[T any](client ECSDescribeResources[T], clk clock.WithTicker) *Sim
 }
 
 func (w *Simple[T]) WaitFor(ctx context.Context, id string, pred StatusPredicate[*T]) (*T, error) {
+	client := w.client
+	if w.ClientFactory != nil {
+		var err error
+		client, err = w.ClientFactory(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
 	ticker := w.clk.NewTicker(pollInterval)
 	defer ticker.Stop()
 	for {
-		resp, err := w.client.Describe([]string{id})
+		resp, err := client.Describe([]string{id})
 		if err != nil {
 			return nil, err
 		}
