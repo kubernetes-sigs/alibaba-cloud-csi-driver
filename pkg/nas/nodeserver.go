@@ -268,16 +268,17 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	runtimeVal := utils.GetPodRunTime(ctx, req, ns.config.KubeClient)
 	if runtimeVal == utils.RunvRunTimeTag {
 		fileName := filepath.Join(mountPath, utils.CsiPluginRunTimeFlagFile)
-		runvOptions := RunvNasOptions{}
-		runvOptions.Options = opt.Options
-		runvOptions.Server = opt.Server
-		runvOptions.ModeType = opt.ModeType
-		runvOptions.Mode = opt.Mode
-		runvOptions.Vers = opt.Vers
-		runvOptions.Path = opt.Path
-		runvOptions.RunTime = utils.RunvRunTimeTag
-		runvOptions.VolumeType = "nfs"
-		runvOptions.MountFile = fileName
+		runvOptions := RunvNasOptions{
+			Options:    opt.Options,
+			Server:     opt.Server,
+			ModeType:   opt.ModeType,
+			Mode:       opt.Mode,
+			Vers:       opt.Vers,
+			Path:       opt.Path,
+			RunTime:    utils.RunvRunTimeTag,
+			VolumeType: "nfs",
+			MountFile:  fileName,
+		}
 		if err := utils.WriteJSONFile(runvOptions, fileName); err != nil {
 			return nil, errors.New("NodePublishVolume: Write Json File error: " + err.Error())
 		}

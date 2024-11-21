@@ -30,7 +30,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -425,16 +424,11 @@ func GetAccessModes(caps []*csi.VolumeCapability) *[]string {
 
 // WriteJSONFile save json data to file
 func WriteJSONFile(obj interface{}, file string) error {
-	maps := make(map[string]interface{})
-	t := reflect.TypeOf(obj)
-	v := reflect.ValueOf(obj)
-	for i := 0; i < v.NumField(); i++ {
-		if v.Field(i).String() != "" {
-			maps[t.Field(i).Name] = v.Field(i).String()
-		}
+	rankingsJSON, err := json.Marshal(obj)
+	if err != nil {
+		return err
 	}
-	rankingsJSON, _ := json.Marshal(maps)
-	if err := ioutil.WriteFile(file, rankingsJSON, 0644); err != nil {
+	if err := os.WriteFile(file, rankingsJSON, 0644); err != nil {
 		return err
 	}
 	return nil
