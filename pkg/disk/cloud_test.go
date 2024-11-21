@@ -499,6 +499,26 @@ func TestCreateDisk_NoInfinitLoop(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestValidSnapshotName(t *testing.T) {
+	test := func(name string) {
+		t.Run(name, func(t *testing.T) {
+			assert.True(t, isValidSnapshotName(name))
+		})
+	}
+	test("快照")
+	test("snapshot_name-1")
+}
+
+func TestInvalidSnapshotName(t *testing.T) {
+	test := func(name string) {
+		t.Run(name, func(t *testing.T) {
+			assert.False(t, isValidSnapshotName(name))
+		})
+	}
+	test("autosnap") // not to be confused with real auto snapshots
+	test("a")        // too short
+}
+
 func TestValidDiskName(t *testing.T) {
 	test := func(name string) {
 		t.Run(name, func(t *testing.T) {
