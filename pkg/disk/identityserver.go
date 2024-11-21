@@ -21,6 +21,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"k8s.io/klog/v2"
 )
 
@@ -64,6 +65,16 @@ func (iden *identityServer) GetPluginCapabilities(ctx context.Context, req *csi.
 				},
 			},
 		},
+	}
+
+	if features.FunctionalMutableFeatureGate.Enabled(features.EnableVolumeGroupSnapshots) {
+		resp.Capabilities = append(resp.Capabilities, &csi.PluginCapability{
+			Type: &csi.PluginCapability_Service_{
+				Service: &csi.PluginCapability_Service{
+					Type: csi.PluginCapability_Service_GROUP_CONTROLLER_SERVICE,
+				},
+			},
+		})
 	}
 	return resp, nil
 }
