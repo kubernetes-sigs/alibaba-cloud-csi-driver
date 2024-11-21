@@ -518,7 +518,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 
 	params, err := getVolumeSnapshotConfig(req)
 	if err != nil {
-		klog.Errorf("CreateSnapshot:: get volumesnapshot config failed: %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, "get volumesnapshot config failed: %v", err)
 	}
 
@@ -535,7 +534,6 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		if existsSnapshot.SourceDiskId == req.GetSourceVolumeId() {
 			csiSnapshot, err := formatCSISnapshot(&existsSnapshot)
 			if err != nil {
-				klog.Errorf("CreateSnapshot:: format snapshot failed: %v", err)
 				return nil, status.Errorf(codes.Internal, "format snapshot failed: %v", err)
 			}
 			klog.Infof("CreateSnapshot:: Snapshot already created: name[%s], sourceId[%s], status[%v]", req.Name, req.GetSourceVolumeId(), csiSnapshot.ReadyToUse)
@@ -546,14 +544,11 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 				Snapshot: csiSnapshot,
 			}, nil
 		}
-		klog.Errorf("CreateSnapshot:: Snapshot already exist with same name: name[%s], volumeID[%s]", req.Name, existsSnapshot.SourceDiskId)
 		return nil, status.Errorf(codes.AlreadyExists, "snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName())
 	case snapNum > 1:
-		klog.Errorf("CreateSnapshot:: Find Snapshot name[%s], but get more than 1 instance", req.Name)
-		return nil, status.Error(codes.Internal, "CreateSnapshot: get snapshot more than 1 instance")
+		return nil, status.Errorf(codes.Internal, "CreateSnapshot: get snapshot %s more than 1 instance", req.Name)
 	case err != nil:
-		klog.Errorf("CreateSnapshot:: Expect to find Snapshot name[%s], but get error: %v", req.Name, err)
-		return nil, status.Errorf(codes.Internal, "CreateSnapshot: get snapshot with error: %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "CreateSnapshot: get snapshot %s with error: %s", req.GetName(), err.Error())
 	}
 
 	// check snapshot again, if ram has no auth to describe snapshot, there will always 0 response.
@@ -570,10 +565,8 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 	disks := getDisk(sourceVolumeID, ecsClient)
 	if len(disks) == 0 {
-		klog.Warningf("CreateSnapshot: no disk found: %s", sourceVolumeID)
 		return nil, status.Errorf(codes.Internal, "CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID)
 	} else if len(disks) != 1 {
-		klog.Warningf("CreateSnapshot: multi disk found: %s", sourceVolumeID)
 		return nil, status.Errorf(codes.Internal, "CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID)
 	}
 
@@ -584,8 +577,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, params)
 
 	if err != nil {
-		klog.Errorf("CreateSnapshot:: Snapshot create Failed: snapshotName[%s], sourceId[%s], error[%s]", req.Name, req.GetSourceVolumeId(), err.Error())
-		return nil, status.Errorf(codes.Internal, "create snapshot failed with error: %v", err)
+		return nil, status.Errorf(codes.Internal, "create snapshot[%s] with sourceId[%s] failed with error: %v", req.Name, req.GetSourceVolumeId(), err)
 	}
 
 	str := fmt.Sprintf("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotResponse.SnapshotId)
@@ -653,8 +645,7 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshot, err := findDiskSnapshotByID(req.SnapshotId)
 	if err != nil {
-		klog.Errorf("DeleteSnapshot: fail to find snapshot %s with error: %v", snapshotID, err)
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "failed to find snapshot %s with error: %v", snapshotID, err)
 	}
 
 	if snapshot == nil {
@@ -671,7 +662,6 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 		reqId = response.RequestId
 	}
 	if err != nil {
-		klog.Errorf("DeleteSnapshot: failed to delete snapshot %s: with RequestId: %s, error: %s", snapshotID, reqId, err.Error())
 		return nil, status.Errorf(codes.Internal, "delete snapshot %s with RequestId: %s, error: %v", snapshotID, reqId, err)
 	}
 
@@ -688,7 +678,6 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 	if len(snapshotID) > 0 {
 		snapshot, err := findDiskSnapshotByID(snapshotID)
 		if err != nil {
-			klog.Errorf("ListSnapshots:: failed to find Snapshot id %s: %v", req.SnapshotId, err)
 			return nil, status.Errorf(codes.Internal, "failed to find Snapshot id %s: %v", req.SnapshotId, err.Error())
 		}
 		snapshots := make([]ecs.Snapshot, 0, 1)
@@ -700,13 +689,11 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 	volumeID := req.GetSourceVolumeId()
 	if volumeID == "" && GlobalConfigVar.ClusterID == "" {
 		// We don't want to expose all snapshots of the current user, which may be too many.
-		klog.Errorf("ListSnapshots:: failed to list snapshots as both volume ID and cluster ID is empty")
 		return nil, status.Errorf(codes.InvalidArgument, "At least one of snapshot ID, volume ID, cluster ID must be specified")
 	}
 	snapshots, nextToken, err := listSnapshots(GlobalConfigVar.EcsClient,
 		volumeID, GlobalConfigVar.ClusterID, req.GetStartingToken(), int(req.GetMaxEntries()))
 	if err != nil {
-		klog.Errorf("ListSnapshots:: failed to list snapshots: %v", err)
 		// pass through error with error code
 		return nil, err
 	}
@@ -792,7 +779,6 @@ func newListSnapshotsResponse(snapshots []ecs.Snapshot, nextToken string) (*csi.
 	for _, snapshot := range snapshots {
 		csiSnapshot, err := formatCSISnapshot(&snapshot)
 		if err != nil {
-			klog.Errorf("ListSnapshots:: format snapshot failed: %v", err)
 			return nil, status.Errorf(codes.Internal, "format snapshot failed: %v", err)
 		}
 		entry := &csi.ListSnapshotsResponse_Entry{
