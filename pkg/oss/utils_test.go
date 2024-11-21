@@ -348,15 +348,29 @@ func Test_setNetworkType(t *testing.T) {
 			"http://oss-cn-beijing.aliyuncs.com",
 			false,
 		},
+		{
+			"vpc100",
+			"vpc100-oss-cn-beijing.aliyuncs.com",
+			"cn-beijing",
+			false,
+			"vpc100-oss-cn-beijing.aliyuncs.com",
+			false,
+		},
+		{
+			"vpc100-with-protocol",
+			"http://vpc100-oss-cn-beijing.aliyuncs.com",
+			"cn-beijing",
+			false,
+			"http://vpc100-oss-cn-beijing.aliyuncs.com",
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("PRIVATE_CLOUD_TAG", strconv.FormatBool(tt.isPrivate))
 			url, done := setNetworkType(tt.originURL, tt.regionID)
-			if url != tt.wantURL || done != tt.wantModified {
-				t.Errorf("setNetworkType(%v, %v) = %v, %v, want %v %v",
-					tt.originURL, tt.regionID, url, done, tt.wantURL, tt.wantModified)
-			}
+			assert.Equal(t, tt.wantURL, url)
+			assert.Equal(t, tt.wantModified, done)
 		})
 	}
 }
