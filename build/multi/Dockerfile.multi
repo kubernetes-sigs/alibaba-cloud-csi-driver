@@ -16,14 +16,14 @@ RUN --mount=type=bind,target=. \
         -o /out/plugin.csi.alibabacloud.com && \
     go build -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
-FROM gcr.io/distroless/base-debian12:latest@sha256:59844ce0155cf45831053d4ec75515119b04fdb784a092cc34a70f0ca0dff148 as distroless-base
+FROM gcr.io/distroless/base-debian12:latest@sha256:23878c981cb4409b6dd701563d2c1226dd69423d74a95acf56e671382523d0b0 as distroless-base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 
 FROM distroless-base as csi-controller
 COPY --link --from=build /out/plugin.csi.alibabacloud.com /usr/bin/plugin.csi.alibabacloud.com
 ENTRYPOINT ["/usr/bin/plugin.csi.alibabacloud.com"]
 
-FROM debian:bookworm-20241016-slim as debian
+FROM debian:bookworm-20241202-slim as debian
 
 ARG TARGETARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$TARGETARCH \
@@ -38,7 +38,7 @@ RUN --mount=type=bind,from=distroless-base,target=/base \
     --mount=type=bind,source=build/gather-node-deps.sh,target=/deps.sh \
     /deps.sh
 
-FROM --platform=$BUILDPLATFORM debian:bookworm-20241016-slim as build-0
+FROM --platform=$BUILDPLATFORM debian:bookworm-20241202-slim as build-0
 ARG BUILDARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$BUILDARCH \
     --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib-$BUILDARCH \
