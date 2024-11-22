@@ -577,7 +577,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, params)
 
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "create snapshot[%s] with sourceId[%s] failed with error: %v", req.Name, req.GetSourceVolumeId(), err)
+		return nil, err
 	}
 
 	klog.Infof("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotResponse.SnapshotId)

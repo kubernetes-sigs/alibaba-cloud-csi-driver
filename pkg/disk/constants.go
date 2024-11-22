@@ -90,6 +90,8 @@ const (
 	SnapshotNotFound             = "InvalidSnapshotId.NotFound"
 	InstanceNotFound             = "InvalidInstanceId.NotFound"
 
+	QuotaExceed_Snapshot = "QuotaExceed.Snapshot"
+
 	// DiskHighAvail tag
 	DiskHighAvail = "available"
 	// MBSIZE tag

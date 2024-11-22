@@ -760,7 +760,16 @@ func requestAndCreateSnapshot(ecsClient *ecs.Client, params *createSnapshotParam
 	// Do Snapshot create
 	snapshotResponse, err := ecsClient.CreateSnapshot(createSnapshotRequest)
 	if err != nil {
-		return nil, fmt.Errorf("create snapshot %s failed: %v", params.SnapshotName, err)
+		var aliErr *alicloudErr.ServerError
+		if errors.As(err, &aliErr) {
+			switch aliErr.ErrorCode() {
+			case IdempotentParameterMismatch:
+				return nil, status.Errorf(codes.AlreadyExists, "already created but parameter mismatch (RequestID: %s)", aliErr.RequestId())
+			case QuotaExceed_Snapshot:
+				return nil, status.Errorf(codes.ResourceExhausted, "snapshot quota exceeded: %v", err)
+			}
+		}
+		return nil, status.Errorf(codes.Internal, "create snapshot failed: %v", err)
 	}
 	return snapshotResponse, nil
 }
