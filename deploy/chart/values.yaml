@@ -95,7 +95,7 @@ images:
     tag: "v4.6.1-aliyun"
   externalProvisioner:
     repo: acs/csi-provisioner
-    tag: "v5.0.2-aliyun"
+    tag: "v5.0.3-aliyun"
   externalResizer:
     repo: acs/csi-resizer
     tag: "v1.11.2-aliyun"
