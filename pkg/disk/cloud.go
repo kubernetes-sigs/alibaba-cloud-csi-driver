@@ -760,7 +760,7 @@ func findDiskSnapshotByID(id string) (*ecs.Snapshot, error) {
 		return nil, nil
 	}
 	if len(s) > 1 {
-		return nil, status.Error(codes.Internal, "find more than one snapshot with id "+id)
+		return nil, fmt.Errorf("find more than one snapshot with id %s", id)
 	}
 	return &s[0], nil
 }
@@ -845,7 +845,7 @@ func requestAndCreateSnapshot(ecsClient *ecs.Client, params *createSnapshotParam
 	// Do Snapshot create
 	snapshotResponse, err := ecsClient.CreateSnapshot(createSnapshotRequest)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed create snapshot: %v", err)
+		return nil, fmt.Errorf("create snapshot %s failed: %v", params.SnapshotName, err)
 	}
 	return snapshotResponse, nil
 }
@@ -857,7 +857,7 @@ func requestAndDeleteSnapshot(snapshotID string) (*ecs.DeleteSnapshotResponse, e
 	deleteSnapshotRequest.Force = requests.NewBoolean(true)
 	response, err := GlobalConfigVar.EcsClient.DeleteSnapshot(deleteSnapshotRequest)
 	if err != nil {
-		return response, status.Errorf(codes.Internal, "failed delete snapshot: %v", err)
+		return response, fmt.Errorf("failed delete snapshot: %v", err)
 	}
 	return response, nil
 }
@@ -1250,7 +1250,6 @@ func parseNextToken(t string) (pos int, token string, err error) {
 
 // listSnapshots list all snapshots of diskID (if specified) or clusterID (if specified)
 func listSnapshots(ecsClient cloud.ECSInterface, diskID, clusterID, nextToken string, maxEntries int) ([]ecs.Snapshot, string, error) {
-	klog.Infof("ListSnapshots: no snapshot id specified, get snapshot by DiskID: %s", diskID)
 	pos, token, err := parseNextToken(nextToken)
 	if err != nil {
 		return nil, "", status.Errorf(codes.Aborted, "Invalid StartingToken %s: %v", nextToken, err)
