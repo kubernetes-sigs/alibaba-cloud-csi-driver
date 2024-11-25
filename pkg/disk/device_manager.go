@@ -39,7 +39,7 @@ var DefaultDeviceManager = &DeviceManager{
 }
 
 // returns the block device name (e.g. vda) or error
-func (m *DeviceManager) getDeviceBySerial(serial string) (string, error) {
+func (m *DeviceManager) getDeviceByScanSysfsSerial(serial string) (string, error) {
 	sysBlock := m.SysfsPath + "/block"
 	allBlocks, err := os.ReadDir(sysBlock)
 	if err != nil {
@@ -83,6 +83,9 @@ func (m *DeviceManager) deviceName(devicePath string) (string, error) {
 // We only support static volume with exactly one partition, and is manually formatted.
 // Return the root or partition block device path if it is OK to use.
 func (m *DeviceManager) adaptDevicePartition(rootDevicePath string) (string, error) {
+	if !m.EnableDiskPartition {
+		return rootDevicePath, nil
+	}
 	devName, err := m.deviceName(rootDevicePath)
 	if err != nil {
 		return "", fmt.Errorf("get device name for %s failed: %w", rootDevicePath, err)
@@ -108,30 +111,33 @@ func (m *DeviceManager) adaptDevicePartition(rootDevicePath string) (string, err
 	return partitionDevicePath, nil
 }
 
+// GetDeviceByVolumeID Assume the serial is the volume ID without "d-" prefix.
+//
+// Deprecated: use GetDeviceBySerial and pass in the serial returned by ECS OpenAPI.
 func (m *DeviceManager) GetDeviceByVolumeID(volumeID string) (string, error) {
-	path, err := m.GetRootBlockByVolumeID(volumeID)
+	return m.GetDeviceBySerial(strings.TrimPrefix(volumeID, "d-"))
+}
+
+func (m *DeviceManager) GetDeviceBySerial(serial string) (string, error) {
+	path, err := m.GetRootBlockBySerial(serial)
 	if err != nil {
 		return "", err
 	}
-	if !m.EnableDiskPartition {
-		return path, nil
-	}
-
 	partition, err := m.adaptDevicePartition(path)
 	if err != nil {
-		return "", fmt.Errorf("volume %s resolved to device %s, but adapt partition failed: %w", volumeID, path, err)
+		return "", fmt.Errorf("serial %s resolved to device %s, but adapt partition failed: %w", serial, path, err)
 	}
 	return partition, nil
 }
 
 var idPrefixes = [...]string{"virtio-", "nvme-Alibaba_Cloud_Elastic_Block_Storage_"}
 
-func (m *DeviceManager) getDeviceByLink(idSuffix string) (string, error) {
+func (m *DeviceManager) getDeviceByLink(serial string) (string, error) {
 	byIDPath := m.DevicePath + "/disk/by-id"
 
 	var errs []error
 	for _, p := range idPrefixes {
-		volumeLinkPath := filepath.Join(byIDPath, p+idSuffix)
+		volumeLinkPath := filepath.Join(byIDPath, p+serial)
 		major, minor, err := m.DevTmpFS.DevFor(volumeLinkPath)
 		if err == nil {
 			klog.Infof("GetDevice: device link %q: %d:%d", volumeLinkPath, major, minor)
@@ -146,7 +152,7 @@ func (m *DeviceManager) getDeviceByLink(idSuffix string) (string, error) {
 	return "", utilerrors.NewAggregate(errs)
 }
 
-func (m *DeviceManager) getDeviceByScanLinks(idSuffix string) (string, error) {
+func (m *DeviceManager) getDeviceByScanLinks(serial string) (string, error) {
 	byIDPath := m.DevicePath + "/disk/by-id"
 
 	files, err := os.ReadDir(byIDPath)
@@ -156,7 +162,7 @@ func (m *DeviceManager) getDeviceByScanLinks(idSuffix string) (string, error) {
 
 	errs := []error{}
 	for _, f := range files {
-		if !strings.Contains(f.Name(), idSuffix) {
+		if !strings.Contains(f.Name(), serial) {
 			continue
 		}
 		volumeLinkPath := filepath.Join(byIDPath, f.Name())
@@ -170,15 +176,14 @@ func (m *DeviceManager) getDeviceByScanLinks(idSuffix string) (string, error) {
 	return "", utilerrors.NewAggregate(errs)
 }
 
-// GetRootBlockByVolumeID first try to find the device by device link like:
+// GetRootBlockBySerial first try to find the device by device link like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
 // If that fails, query the kernel by sysfs to find the device by serial.
 //
 // Returns the path to a block special file.
 // Caller should not assume any other special property of the returned path.
-func (m *DeviceManager) GetRootBlockByVolumeID(volumeID string) (string, error) {
-	idSuffix := strings.TrimPrefix(volumeID, "d-")
-	linkPath, err := m.getDeviceByLink(idSuffix)
+func (m *DeviceManager) GetRootBlockBySerial(serial string) (string, error) {
+	linkPath, err := m.getDeviceByLink(serial)
 	if err == nil {
 		return linkPath, nil
 	}
@@ -189,7 +194,7 @@ func (m *DeviceManager) GetRootBlockByVolumeID(volumeID string) (string, error) 
 	errs := []error{err}
 
 	// fallback to scan all links if no known link found
-	linkPath, err = m.getDeviceByScanLinks(idSuffix)
+	linkPath, err = m.getDeviceByScanLinks(serial)
 	if linkPath != "" {
 		return linkPath, nil
 	}
@@ -199,9 +204,9 @@ func (m *DeviceManager) GetRootBlockByVolumeID(volumeID string) (string, error) 
 
 	// this is danger in Bdf mode
 	if !m.DisableSerial {
-		name, err := m.getDeviceBySerial(idSuffix)
+		name, err := m.getDeviceByScanSysfsSerial(serial)
 		if err == nil {
-			klog.Infof("GetDevice: Use the serial to find device, volumeID: %s, device: %s", volumeID, name)
+			klog.Infof("GetDevice: Use the serial to find device, serial: %s, device: %s", serial, name)
 			return filepath.Join(m.DevicePath, name), nil
 		}
 		errs = append(errs, fmt.Errorf("find by serial: %w", err))

@@ -56,7 +56,8 @@ const (
 	DISK_RESIZE_PROCESSING_TIMEOUT = 30 * time.Second
 )
 
-// attach alibaba cloud disk
+// Attach Alibaba Cloud disk.
+// Returns device path if fromNode, disk serial number otherwise.
 func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk, isSingleInstance bool, fromNode bool) (string, error) {
 	klog.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
@@ -69,6 +70,16 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 	}
 	if disk == nil {
 		return "", status.Errorf(codes.NotFound, "AttachDisk: csi can't find disk: %s in region: %s, Please check if the cloud disk exists, if the region is correct, or if the csi permissions are correct", diskID, GlobalConfigVar.Region)
+	}
+
+	if !fromNode && disk.SerialNumber == "" {
+		if GlobalConfigVar.ADControllerEnable {
+			return "", status.Errorf(codes.InvalidArgument,
+				"Disk %s does not have serial number but AD controller is enabled, we cannot attach this disk. "+
+					"Please open ticket to add serial number to this disk", diskID)
+		} else {
+			return "", nil // should defer attach to node
+		}
 	}
 
 	slot := GlobalConfigVar.AttachDetachSlots.GetSlotFor(nodeID).Attach()
@@ -112,13 +123,13 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 			if disk.InstanceId == nodeID {
 				if !fromNode {
 					klog.Infof("AttachDisk: Disk %s is already attached to Instance %s, skipping", diskID, disk.InstanceId)
-					return "", nil
+					return disk.SerialNumber, nil
 				}
 				deviceName, err := GetVolumeDeviceName(diskID)
 				if err == nil && deviceName != "" && IsFileExisting(deviceName) {
 					klog.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
 					return deviceName, nil
-				} else {
+				} else if disk.SerialNumber != "" {
 					// wait for pci attach ready
 					time.Sleep(5 * time.Second)
 					klog.Infof("AttachDisk: find disk dev after 5 seconds")
@@ -130,6 +141,7 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 					err = fmt.Errorf("AttachDisk: disk device cannot be found in node, diskid: %s, deviceName: %s, err: %+v", diskID, deviceName, err)
 					return "", err
 				}
+				klog.Warningf("AttachDisk: Disk (no serial) %s is already attached to instance %s, but device unknown, will be detached and try again", diskID, disk.InstanceId)
 			}
 
 			if GlobalConfigVar.DiskBdfEnable {
@@ -172,9 +184,12 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 		}
 	}
 	// Step 3: Attach Disk, list device before attach disk
-	before := []string{}
-	if fromNode {
-		before = getDevices()
+	var before sets.Set[string]
+	if fromNode && disk.SerialNumber == "" {
+		before, err = getNoSerialDevices()
+		if err != nil {
+			return "", status.Errorf(codes.Aborted, "AttachDisk: Can't list devices before attach: %v", err)
+		}
 	}
 
 	attachRequest := ecs.CreateAttachDiskRequest()
@@ -218,13 +233,20 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 
 	// step 5: diff device with previous files under /dev
 	if fromNode {
-		device, err := DefaultDeviceManager.GetDeviceByVolumeID(diskID)
-		if err == nil {
-			klog.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device", diskID, nodeID, device)
-			return device, nil
+		if disk.SerialNumber != "" {
+			device, err := DefaultDeviceManager.GetDeviceBySerial(disk.SerialNumber)
+			if err == nil {
+				klog.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device", diskID, nodeID, device)
+			} else {
+				err = status.Errorf(codes.Aborted, "NodeStageVolume: disk attached but cannot be found by serial %s", disk.SerialNumber)
+			}
+			return device, err
 		}
-		after := getDevices()
-		devicePaths := calcNewDevices(before, after)
+		after, err := getNoSerialDevices()
+		if err != nil {
+			return "", status.Errorf(codes.Aborted, "NodeStageVolume: cannot list devices after attach: %v", err)
+		}
+		devicePaths := after.Difference(before).UnsortedList()
 
 		// BDF Disk Logical
 		if IsVFNode() && len(devicePaths) == 0 {
@@ -236,7 +258,12 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 				return "", status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf: %v", err)
 			}
 
-			_, err := DefaultDeviceManager.GetRootBlockByVolumeID(diskID)
+			var err error
+			if disk.SerialNumber != "" {
+				_, err = DefaultDeviceManager.GetRootBlockBySerial(disk.SerialNumber)
+			} else {
+				err = errors.New("no serial")
+			}
 			deviceName := ""
 			if err != nil && bdf != "" {
 				deviceName, err = GetDeviceByBdf(bdf, true)
@@ -245,41 +272,26 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 				klog.Infof("AttachDisk: Successful attach bdf disk %s to node %s device %s by DiskID/Device mapping", diskID, nodeID, deviceName)
 				return deviceName, nil
 			}
-			after = getDevices()
-			devicePaths = calcNewDevices(before, after)
+			after, err := getNoSerialDevices()
+			if err != nil {
+				return "", status.Errorf(codes.Aborted, "NodeStageVolume: cannot list devices after attach: %v", err)
+			}
+			devicePaths = after.Difference(before).UnsortedList()
 		}
 
-		if len(devicePaths) == 2 {
-			if strings.HasPrefix(devicePaths[1], devicePaths[0]) {
-				subDevicePath := makeDevicePath(devicePaths[1])
-				rootDevicePath := makeDevicePath(devicePaths[0])
-				if err := checkRootAndSubDeviceFS(rootDevicePath, subDevicePath); err != nil {
-					klog.Errorf("AttachDisk: volume %s get device with diff, and check partition error %s", diskID, err.Error())
-					return "", err
-				}
-				klog.Infof("AttachDisk: get 2 devices and select 1 device, list with: %v for volume: %s", devicePaths, diskID)
-				return subDevicePath, nil
-			} else if strings.HasPrefix(devicePaths[0], devicePaths[1]) {
-				subDevicePath := makeDevicePath(devicePaths[0])
-				rootDevicePath := makeDevicePath(devicePaths[1])
-				if err := checkRootAndSubDeviceFS(rootDevicePath, subDevicePath); err != nil {
-					klog.Errorf("AttachDisk: volume %s get device with diff, and check partition error %s", diskID, err.Error())
-					return "", err
-				}
-				klog.Infof("AttachDisk: get 2 devices and select 0 device, list with: %v for volume: %s", devicePaths, diskID)
-				return subDevicePath, nil
-			}
+		if len(devicePaths) != 1 {
+			// device count is not expected, should retry (later by detaching and attaching again)
+			return "", status.Errorf(codes.Aborted, "AttachDisk: after attaching to disk, but got %d device, will retry later", len(devicePaths))
 		}
-		if len(devicePaths) == 1 {
-			klog.Infof("AttachDisk: Successful attach disk %s to node %s device %s by diff", diskID, nodeID, devicePaths[0])
-			return devicePaths[0], nil
+		device, err := DefaultDeviceManager.adaptDevicePartition(devicePaths[0])
+		if err != nil {
+			return "", status.Errorf(codes.Aborted, "got device %s by diff, but adapt partition failed: %v", devicePaths[0], err)
 		}
-		// device count is not expected, should retry (later by detaching and attaching again)
-		return "", status.Error(codes.Aborted, "AttachDisk: after attaching to disk, but fail to get mounted device, will retry later")
+		return device, nil
 	}
 
 	klog.Infof("AttachDisk: Successful attach disk %s to node %s", diskID, nodeID)
-	return "", nil
+	return disk.SerialNumber, nil
 }
 
 // Only called by controller
@@ -417,7 +429,7 @@ func detachMultiAttachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, n
 	return true, nil
 }
 
-func detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) error {
+func detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string, fromNode bool) error {
 	disk, err := findDiskByID(diskID, ecsClient)
 	if err != nil {
 		klog.Errorf("DetachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
@@ -425,6 +437,10 @@ func detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID strin
 	}
 	if disk == nil {
 		klog.Infof("DetachDisk: Detach Disk %s from node %s describe and find disk not exist", diskID, nodeID)
+		return nil
+	}
+	if fromNode && disk.SerialNumber != "" {
+		klog.V(2).InfoS("server say disk has serial number, defer detach to controller")
 		return nil
 	}
 	beforeAttachTime := disk.AttachedTime
