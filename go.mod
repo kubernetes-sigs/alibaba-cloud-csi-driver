@@ -12,7 +12,6 @@ require (
 	github.com/aliyun/credentials-go v1.3.1
 	github.com/container-storage-interface/spec v1.10.0
 	github.com/containerd/ttrpc v1.2.3
-	github.com/emirpasic/gods v1.12.0
 	github.com/go-logr/logr v1.4.1
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/golang/mock v1.6.0

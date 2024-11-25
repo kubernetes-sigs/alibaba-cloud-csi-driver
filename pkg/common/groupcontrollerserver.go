@@ -30,18 +30,12 @@ func (gcs *GroupControllerServerWithValidator) DeleteVolumeGroupSnapshot(context
 	if len(req.GroupSnapshotId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "GroupSnapshotId is required")
 	}
-	if len(req.SnapshotIds) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "SnapshotIds is required")
-	}
 	return gcs.GroupControllerServer.DeleteVolumeGroupSnapshot(context, req)
 }
 
 func (gcs *GroupControllerServerWithValidator) GetVolumeGroupSnapshot(context context.Context, req *csi.GetVolumeGroupSnapshotRequest) (*csi.GetVolumeGroupSnapshotResponse, error) {
 	if len(req.GroupSnapshotId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "GroupSnapshotId is required")
-	}
-	if len(req.SnapshotIds) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "SnapshotIds is required")
 	}
 	return gcs.GroupControllerServer.GetVolumeGroupSnapshot(context, req)
 }

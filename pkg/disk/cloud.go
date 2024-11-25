@@ -903,7 +903,7 @@ func requestAndDeleteSnapshot(snapshotID string) (*ecs.DeleteSnapshotResponse, e
 	deleteSnapshotRequest.Force = requests.NewBoolean(true)
 	response, err := GlobalConfigVar.EcsClient.DeleteSnapshot(deleteSnapshotRequest)
 	if err != nil {
-		return response, fmt.Errorf("failed delete snapshot: %v", err)
+		return response, err
 	}
 	return response, nil
 }

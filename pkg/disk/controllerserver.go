@@ -667,7 +667,11 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 		reqId = response.RequestId
 	}
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "delete snapshot %s with RequestId: %s, error: %v", snapshotID, reqId, err)
+		var aliErr *alicloudErr.ServerError
+		if !errors.As(err, &aliErr) || aliErr.ErrorCode() != SnapshotNotFound {
+			return nil, status.Errorf(codes.Internal, "DeleteSnapshot: failed to delete %s with error: %s, requestId: %s", snapshotID, err, reqId)
+		}
+		klog.Infof("DeleteSnapshot: snapshot[%s] not exist, see as successful", snapshotID)
 	}
 
 	delete(createdSnapshotMap, snapshot.SnapshotName)

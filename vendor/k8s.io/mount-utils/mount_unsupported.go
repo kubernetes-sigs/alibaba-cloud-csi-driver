@@ -1,4 +1,3 @@
-//go:build !linux && !windows
 // +build !linux,!windows
 
 /*
@@ -80,12 +79,4 @@ func (mounter *SafeFormatAndMount) formatAndMountSensitive(source string, target
 
 func (mounter *SafeFormatAndMount) diskLooksUnformatted(disk string) (bool, error) {
 	return true, errUnsupported
-}
-
-func (mounter *SafeFormatAndMount) GetDiskFormat(disk string) (string, error) {
-	return "", errUnsupported
-}
-
-func MakeMountArgs(source, target, fstype string, options []string) (mountArgs []string) {
-	panic("not implemented")
 }

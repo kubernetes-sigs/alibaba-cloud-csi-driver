@@ -150,13 +150,15 @@ func (cs *groupControllerServer) DeleteVolumeGroupSnapshot(ctx context.Context, 
 		return &csi.DeleteVolumeGroupSnapshotResponse{}, nil
 	}
 
-	// part of snapshots may be deleted before
-	match := ifExistsGroupSnapshotMatch(existsGroupSnapshots, snapshotIds, false)
-	if !match {
-		return nil, status.Errorf(codes.InvalidArgument, "snapshots of GroupSnapshot to delete ID[%s] do not equal to requested snapshotIDs", req.GetGroupSnapshotId())
+	if len(snapshotIds) != 0 {
+		// part of snapshots may be deleted before
+		match := ifExistsGroupSnapshotMatch(existsGroupSnapshots, snapshotIds, false)
+		if !match {
+			return nil, status.Errorf(codes.InvalidArgument, "snapshots of GroupSnapshot to delete ID[%s] do not equal to requested snapshotIDs", req.GetGroupSnapshotId())
+		}
 	}
-	klog.Infof("DeleteVolumeGroupSnapshot: groupSnapshot %s exist with Info: %+v, %+v", groupSnapshotId, existsGroupSnapshots, err)
 
+	klog.Infof("DeleteVolumeGroupSnapshot: groupSnapshot %s exist with Info: %+v, %+v", groupSnapshotId, existsGroupSnapshots, err)
 	// no need to delete each snapshot through ECS client
 	response, err := requestAndDeleteGroupSnapshot(groupSnapshotId)
 	var requestId string
@@ -183,14 +185,20 @@ func (cs *groupControllerServer) GetVolumeGroupSnapshot(ctx context.Context, req
 	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	existsGroupSnapshots, err := findSnapshotGroup("", groupSnapshotId)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "GetVolumeGroupSnapshot:: failed to find Snapshot id %s: %v", req.GetGroupSnapshotId(), err.Error())
+		return nil, status.Errorf(codes.Internal, "GetVolumeGroupSnapshot:: failed to find Snapshot id %s: %v", groupSnapshotId, err.Error())
+	}
+	if existsGroupSnapshots == nil {
+		return nil, status.Errorf(codes.NotFound, "GetVolumeGroupSnapshot:: group snapshot with id %s do not exist", groupSnapshotId)
 	}
 
-	// part of snapshots may be deleted before, or still not created in inprogress status
-	match := ifExistsGroupSnapshotMatch(existsGroupSnapshots, snapshotIds, false)
-	if !match {
-		return nil, status.Errorf(codes.InvalidArgument, "GetVolumeGroupSnapshot:: snapshots of GroupSnapshot ID[%s] do not equal to requested snapshotIDs", req.GetGroupSnapshotId())
+	if len(snapshotIds) != 0 {
+		// part of snapshots may be deleted before, or still not created in inprogress status
+		match := ifExistsGroupSnapshotMatch(existsGroupSnapshots, snapshotIds, false)
+		if !match {
+			return nil, status.Errorf(codes.InvalidArgument, "GetVolumeGroupSnapshot:: snapshots of GroupSnapshot ID[%s] do not equal to requested snapshotIDs", req.GetGroupSnapshotId())
+		}
 	}
+
 	klog.Infof("GetVolumeGroupSnapshot: groupSnapshot %s exist with Info: %+v, %+v", groupSnapshotId, existsGroupSnapshots, err)
 	newGroupSnapshot, err := formatGroupSnapshot(existsGroupSnapshots)
 	if err != nil {
