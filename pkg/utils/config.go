@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -37,4 +38,16 @@ func (c *Config) GetBool(configKey, env string, defaultValue bool) bool {
 	default:
 		panic(fmt.Sprintf("invalid bool value: %s for %s", strValue, configKey))
 	}
+}
+
+func (c *Config) GetInt(configKey, env string, defaultValue int) int {
+	s := c.Get(configKey, env, "")
+	if s == "" {
+		return defaultValue
+	}
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		panic(fmt.Sprintf("invalid int value: %s for %s: %v", s, configKey, err))
+	}
+	return i
 }
