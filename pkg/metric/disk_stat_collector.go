@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/emirpasic/gods/sets/hashset"
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -153,7 +152,6 @@ type diskInfo struct {
 }
 
 type diskStatCollector struct {
-	alertSwtichSet               *hashset.Set
 	milliSecondsLatencyThreshold float64 //Unit: milliseconds
 	capacityPercentageThreshold  float64
 	descs                        []typedFactorDesc
@@ -170,27 +168,26 @@ func init() {
 	registerCollector("disk_stat", NewDiskStatCollector, diskDriverName)
 }
 
-func parseDiskThreshold(defaultLatencyThreshold float64, defaultCapacityPercentageThreshold float64) (*hashset.Set, float64, float64) {
-	alertSet := hashset.New()
-
-	diskLantencyThreshold := strings.ToLower(strings.Trim(os.Getenv("DISK_LATENCY_THRESHOLD"), " "))
-	if len(diskLantencyThreshold) != 0 {
-		alertSet.Add(latencySwitch)
-		defaultLatencyThreshold, _ = parseLantencyThreshold(diskLantencyThreshold, defaultLatencyThreshold)
+func getDiskLatencyThreshold() float64 {
+	latencyStr := strings.ToLower(strings.Trim(os.Getenv("DISK_LATENCY_THRESHOLD"), " "))
+	if len(latencyStr) != 0 {
+		latency, _ := parseLantencyThreshold(latencyStr, diskDefaultsLantencyThreshold)
+		return latency
 	}
+	return 0
+}
 
-	diskCapacityThreshold := strings.ToLower(strings.Trim(os.Getenv("DISK_CAPACITY_THRESHOLD_PERCENTAGE"), " "))
-	if len(diskCapacityThreshold) != 0 {
-		alertSet.Add(capacitySwitch)
-		defaultCapacityPercentageThreshold, _ = parseCapacityThreshold(diskCapacityThreshold, defaultCapacityPercentageThreshold)
+func getDiskCapacityThreshold() float64 {
+	capacityStr := strings.ToLower(strings.Trim(os.Getenv("DISK_CAPACITY_THRESHOLD_PERCENTAGE"), " "))
+	if len(capacityStr) != 0 {
+		capacity, _ := parseCapacityThreshold(capacityStr, diskDefaultsCapacityPercentageThreshold)
+		return capacity
 	}
-
-	return alertSet, defaultLatencyThreshold, defaultCapacityPercentageThreshold
+	return 0
 }
 
 // NewDiskStatCollector returns a new Collector exposing disk stats.
 func NewDiskStatCollector() (Collector, error) {
-	alertSet, latencyThreshold, capacityPercentageThreshold := parseDiskThreshold(diskDefaultsLantencyThreshold, diskDefaultsCapacityPercentageThreshold)
 	recorder := utils.NewEventRecorder()
 	config, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
 	if err != nil {
@@ -241,9 +238,8 @@ func NewDiskStatCollector() (Collector, error) {
 		lastPvDiskInfoMap:            make(map[string]diskInfo, 0),
 		lastPvStatsMap:               sync.Map{},
 		clientSet:                    clientset,
-		milliSecondsLatencyThreshold: latencyThreshold,
-		capacityPercentageThreshold:  capacityPercentageThreshold,
-		alertSwtichSet:               alertSet,
+		milliSecondsLatencyThreshold: getDiskLatencyThreshold(),
+		capacityPercentageThreshold:  getDiskCapacityThreshold(),
 		recorder:                     recorder,
 		mounter:                      mount.New(""),
 		nodeName:                     nodeName,
@@ -268,7 +264,7 @@ func (p *diskStatCollector) Update(ch chan<- prometheus.Metric) error {
 		if !ok {
 			continue
 		}
-		stats, _ = getDiskCapacityMetric(pvName, &info, stats)
+		stats, _ = getDiskCapacityMetric(&info, stats)
 		if scalerPvcMap != nil {
 			if _, ok := scalerPvcMap.Load(info.PvcName); !ok {
 				continue
@@ -304,7 +300,7 @@ func isExceedLatencyThreshold(stats []string, lastStats []string, iopsIndex int,
 
 func (p *diskStatCollector) latencyEventAlert(pvName string, pvcName string, pvcNamespace string, stats []string, index int) {
 	lastStats, ok := p.lastPvStatsMap.Load(pvName)
-	if p.alertSwtichSet.Contains(latencySwitch) && ok {
+	if ok && p.milliSecondsLatencyThreshold > 0 {
 		thisLatency, exceed := isExceedLatencyThreshold(stats, lastStats.([]string), index, index+3, p.milliSecondsLatencyThreshold)
 		if exceed {
 			ref := &v1.ObjectReference{
@@ -320,7 +316,7 @@ func (p *diskStatCollector) latencyEventAlert(pvName string, pvcName string, pvc
 }
 
 func (p *diskStatCollector) capacityEventAlert(valueFloat64 float64, pvcName string, pvcNamespace string, stats []string) {
-	if p.alertSwtichSet.Contains(capacitySwitch) {
+	if p.capacityPercentageThreshold > 0 {
 		capacityTotalFloat64, err := strconv.ParseFloat(stats[11], 64)
 		if err != nil {
 			klog.Errorf("Convert diskCapacityTotalDesc %s to float64 is failed, err:%s", stats[10], err)
@@ -459,8 +455,8 @@ func getDiskStats() (map[string][]string, error) {
 	return parseDiskStats(file)
 }
 
-func getDiskCapacityMetric(pvName string, info *diskInfo, stat []string) ([]string, error) {
-	getGlobalMountPathByPvName(pvName, info)
+func getDiskCapacityMetric(info *diskInfo, stat []string) ([]string, error) {
+	info.GlobalMountPath = getGlobalMountPathByDiskID(info.DiskID)
 	response, err := utils.GetMetrics(info.GlobalMountPath)
 	if err != nil {
 		klog.Errorf("Get pv %s metrics from kubelet is failed, err: %s", info.GlobalMountPath, err)

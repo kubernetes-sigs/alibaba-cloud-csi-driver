@@ -23,7 +23,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	mountutils "k8s.io/mount-utils"
 )
 
 var vfOnce = new(sync.Once)
@@ -301,16 +300,7 @@ func parseCapacityThreshold(s string, defaults float64) (float64, error) {
 	return thresholNum, nil
 }
 
-func getGlobalMountPathByPvName(pvName string, info *diskInfo) {
-	result := sha256.Sum256([]byte(info.DiskID))
-	volSha := fmt.Sprintf("%x", result)
-	globalFileVer1 := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/pv/", pvName, "/globalmount")
-	globalFileVer2 := filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/", diskDriverName, volSha, "/globalmount")
-
-	notMounted, err := mountutils.New("").IsLikelyNotMountPoint(globalFileVer1)
-	if err == nil && !notMounted {
-		info.GlobalMountPath = globalFileVer1
-	} else {
-		info.GlobalMountPath = globalFileVer2
-	}
+func getGlobalMountPathByDiskID(diskID string) string {
+	hash := sha256.Sum256([]byte(diskID))
+	return fmt.Sprintf(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/%s/%x/globalmount", diskDriverName, hash)
 }
