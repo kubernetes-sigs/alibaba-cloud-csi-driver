@@ -206,7 +206,7 @@ func (fpm *FusePodManager) labelsAndListOptionsFor(c *FusePodContext, target str
 	return labels, listOptions
 }
 
-func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool) error {
+func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool) (*corev1.Pod, error) {
 	ctx, cancel := context.WithTimeout(c, fusePodManagerTimeout)
 	defer cancel()
 
@@ -219,10 +219,9 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool)
 	labels, listOptions := fpm.labelsAndListOptionsFor(c, target)
 	podList, err := podClient.List(ctx, listOptions)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	ready := false
 	var startingPods []corev1.Pod
 	for _, pod := range podList.Items {
 		// compare target path to avoid hash conflict
@@ -236,8 +235,8 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool)
 			logger.V(1).Info("fuse pod exited, will be cleaned when unmount", "pod", pod.Name)
 		case corev1.PodRunning:
 			if isFusePodReady(&pod) {
-				ready = true
 				logger.V(2).Info("already mounted by pod", "pod", pod.Name, "target", target)
+				return &pod, nil
 			} else {
 				startingPods = append(startingPods, pod)
 			}
@@ -245,16 +244,13 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool)
 			startingPods = append(startingPods, pod)
 		}
 	}
-	if ready {
-		return nil
-	}
 
 	var fusePod *corev1.Pod
 	if len(startingPods) == 0 {
 		// create fuse pod for target
 		template, err := fpm.PodTemplateSpec(c, target)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		rawPod := corev1.Pod{
 			ObjectMeta: template.ObjectMeta,
@@ -281,14 +277,14 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool)
 		if rawPod.Spec.ServiceAccountName != "" {
 			_, err := fpm.client.CoreV1().ServiceAccounts(c.Namespace).Get(c, rawPod.Spec.ServiceAccountName, metav1.GetOptions{})
 			if err != nil {
-				return fmt.Errorf("check service account %s for RRSA: %w", rawPod.Spec.ServiceAccountName, err)
+				return nil, fmt.Errorf("check service account %s for RRSA: %w", rawPod.Spec.ServiceAccountName, err)
 			}
 		}
 
 		logger.V(2).Info("creating fuse pod", "target", target)
 		createdPod, err := podClient.Create(ctx, &rawPod, metav1.CreateOptions{})
 		if err != nil {
-			return err
+			return nil, err
 		}
 		logger.V(2).Info("created fuse pod", "pod", createdPod.Name, "target", target)
 		fusePod = createdPod
@@ -320,6 +316,7 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool)
 		if !ok {
 			return false, errors.New("failed to cast event Object to Pod")
 		}
+		fusePod = pod
 		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
 			return false, fmt.Errorf("fuse pod %s exited", pod.Name)
 		}
@@ -333,10 +330,10 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool)
 				logger.Error(deleteErr, "delete fuse pod", "pod", fusePod.Name)
 			}
 		}
-		return err
+		return nil, err
 	}
 	logger.V(2).Info("fuse pod is ready", "pod", fusePod.Name)
-	return nil
+	return fusePod, nil
 }
 
 func (fpm *FusePodManager) Delete(c *FusePodContext, target string) error {

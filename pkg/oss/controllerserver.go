@@ -163,7 +163,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, err
 	}
 	// launch ossfs pod
-	err = cs.fusePodManager.Create(&mounter.FusePodContext{
+	ossfsPod, err := cs.fusePodManager.Create(&mounter.FusePodContext{
 		Context:    ctx,
 		Namespace:  fusePodNamespace,
 		NodeName:   nodeName,
@@ -178,6 +178,8 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: map[string]string{
 			mountProxySocket: mounter.GetOssfsMountProxySocketPath(req.VolumeId),
+			// make the OSSFS pod name visible in the VolumeAttachment status
+			"ossfsPod": fmt.Sprintf("%s/%s", ossfsPod.Namespace, ossfsPod.Name),
 		},
 	}, nil
 }
