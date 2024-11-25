@@ -51,6 +51,8 @@ type VolumeAsType string
 const (
 	// VolumeAsDirect means mount on the `path` directly
 	VolumeAsDirect VolumeAsType = "direct"
+	// VolumeAsSharePath is same with `direct`, keep compatible with CNFS-NAS
+	VolumeAsSharePath VolumeAsType = "sharepath"
 	// VolumeAsSubpath means mount on the subpath of `path` which is automatically generated
 	VolumeAsSubpath VolumeAsType = "subpath"
 )
@@ -190,7 +192,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 			}
 		case "volumeas":
 			switch VolumeAsType(value) {
-			case VolumeAsDirect:
+			case VolumeAsDirect, VolumeAsSharePath:
 				// do nothing
 			case VolumeAsSubpath:
 				volumeAsSubpath = true
