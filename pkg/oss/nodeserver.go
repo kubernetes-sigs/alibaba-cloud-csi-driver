@@ -160,7 +160,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, err
 	}
 	if ns.ossfs != nil {
-		mountOptions = ns.ossfs.AddDefaultMountOptions(mountOptions)
+		mountOptions = ns.ossfs.AddDefaultMountOptions(mountOptions, req.VolumeId)
 	}
 
 	// rund 3.0 protocol

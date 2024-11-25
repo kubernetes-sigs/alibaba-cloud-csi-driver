@@ -13,6 +13,7 @@ import (
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,6 +33,8 @@ const (
 	OssfsDefMimeTypesFilePath = "/etc/mime.types"
 	// The ossfs image includes a default MIME configuration located at /csi/mime.types
 	OssfsCsiMimeTypesFilePath = "/csi/mime.types"
+	OssfsCsiMimeKey           = "mime-support"
+	OssfsCsiMimeConfigMap     = "ossfs-mime-config"
 	OssfsPasswdFile           = "passwd-ossfs"
 
 	defaultRegistry = "registry-cn-hangzhou.ack.aliyuncs.com"
@@ -148,6 +151,25 @@ func (f *fuseOssfs) buildPodSpec(c *FusePodContext, target string) (spec corev1.
 		},
 	}
 	*etcDirVolume.HostPath.Type = corev1.HostPathDirectory
+	mimeFileVolume := corev1.Volume{
+		Name: "csi-mime",
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: OssfsCsiMimeConfigMap,
+				},
+				Items: []corev1.KeyToPath{
+					{
+						Key:  c.VolumeId,
+						Path: "mime.types",
+					},
+				},
+				DefaultMode: tea.Int32(0644),
+				Optional:    new(bool),
+			},
+		},
+	}
+	*mimeFileVolume.ConfigMap.Optional = true
 
 	spec.Volumes = []corev1.Volume{targetDirVolume, metricsDirVolume, etcDirVolume}
 
@@ -186,6 +208,14 @@ func (f *fuseOssfs) buildPodSpec(c *FusePodContext, target string) (spec corev1.
 		},
 	}
 
+	if hasSetMimeConfigMap(c.VolumeId) {
+		spec.Volumes = append(spec.Volumes, mimeFileVolume)
+		container.VolumeMounts = append(container.VolumeMounts, corev1.VolumeMount{
+			Name:      mimeFileVolume.Name,
+			MountPath: "/csi",
+		})
+	}
+
 	buildAuthSpec(c, target, &spec, &container)
 
 	container.Args = []string{"-socket=" + socketPath, "-v=4"}
@@ -198,15 +228,17 @@ func (f *fuseOssfs) buildPodSpec(c *FusePodContext, target string) (spec corev1.
 	return
 }
 
-func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
-	alreadySet := false
+func (f *fuseOssfs) AddDefaultMountOptions(options []string, volumeId string) []string {
+	alreadySet := map[string]struct{}{}
 	for _, option := range options {
-		if strings.Contains(option, "dbglevel") {
-			alreadySet = true
-			break
+		strs := strings.Split(option, "=")
+		if len(strs) == 0 {
+			continue
 		}
+		alreadySet[strs[0]] = struct{}{}
 	}
-	if !alreadySet {
+	// dbglevel
+	if _, ok := alreadySet["dbglevel"]; !ok {
 		level, ok := ossfsDbglevels[f.config.Dbglevel]
 		if ok {
 			options = append(options, fmt.Sprintf("dbglevel=%s", level))
@@ -217,13 +249,28 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 			options = append(options, fmt.Sprintf("dbglevel=%s", ossfsDbglevels[defaultDbglevel]))
 		}
 	}
-
-	if !utils.IsFileExisting(filepath.Join(hostPrefix, OssfsDefMimeTypesFilePath)) && strings.ToLower(f.config.Extra["mime-support"]) == "true" {
-		// mime.types not exists, use csi-mime.types
-		options = append(options, fmt.Sprintf("mime=%s", OssfsCsiMimeTypesFilePath))
+	if _, ok := alreadySet["mime"]; !ok {
+		opt := f.getMimeOption(volumeId)
+		if opt != "" {
+			options = append(options, opt)
+		}
 	}
 
 	return options
+}
+
+func (f *fuseOssfs) getMimeOption(volumeId string) string {
+
+	// if config has set for specified volume, use it
+	if hasSetMimeConfigMap(volumeId) {
+		return fmt.Sprintf("mime=%s", OssfsCsiMimeTypesFilePath)
+	}
+
+	if !utils.IsFileExisting(filepath.Join(hostPrefix, OssfsDefMimeTypesFilePath)) && strings.ToLower(f.config.Extra[OssfsCsiMimeKey]) == "true" {
+		// mime.types not exists, use csi-mime.types
+		return fmt.Sprintf("mime=%s", OssfsCsiMimeTypesFilePath)
+	}
+	return ""
 }
 
 func buildAuthSpec(c *FusePodContext, target string, spec *corev1.PodSpec, container *corev1.Container) {
@@ -395,4 +442,15 @@ func getPasswdSecretVolume(secretRef string) (secret *corev1.SecretVolumeSource)
 		Items:      items,
 	}
 	return
+}
+
+func hasSetMimeConfigMap(volumeId string) bool {
+	cfg := options.MustGetRestConfig()
+	clientset := kubernetes.NewForConfigOrDie(cfg)
+
+	configmap, err := clientset.CoreV1().ConfigMaps(FusePodNamespace).Get(context.Background(), OssfsCsiMimeConfigMap, metav1.GetOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		klog.Errorf("failed to get configmap %s/%s: %v", FusePodNamespace, OssfsCsiMimeConfigMap, err)
+	}
+	return configmap != nil && configmap.Data != nil && configmap.Data[volumeId] != ""
 }

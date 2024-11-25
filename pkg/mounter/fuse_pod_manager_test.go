@@ -39,7 +39,7 @@ func Test_extractFuseContainerConfig(t *testing.T) {
 		Image:    "",
 		Dbglevel: "info",
 		Extra: map[string]string{
-			"mime-support": "false",
+			OssfsCsiMimeKey: "false",
 		},
 		Annotations: map[string]string{
 			"anno1": "val1",
