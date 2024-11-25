@@ -185,3 +185,20 @@ func Test_AddDefaultMountOptions(t *testing.T) {
 		})
 	}
 }
+
+func Test_getRoleSessionName(t *testing.T) {
+	tests := []struct {
+		volumeId string
+		target   string
+		wantName string
+	}{
+		{"vol1", "/mnt/target1", "ossfs.vol1." + computeMountPathHash("/mnt/target1")},
+		{"hereisalonglongpvnamethatisalreadylongerthan64ibeleive", "/mnt/target2", "ossfs.hereisalonglongpvnamethatisalreadylongerthan64ibeleive.c85"},
+	}
+
+	for _, test := range tests {
+		sessionName := getRoleSessionName(test.volumeId, test.target)
+		assert.Equal(t, test.wantName, sessionName)
+		assert.True(t, len(sessionName) <= MaxRoleSessionNameLimit, "sessionName length should not exceed %d, got: %d", MaxRoleSessionNameLimit, len(sessionName))
+	}
+}
