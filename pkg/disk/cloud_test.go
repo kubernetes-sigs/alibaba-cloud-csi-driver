@@ -541,3 +541,35 @@ func TestInvalidDiskName(t *testing.T) {
 	test("0asdf") // must start with letter
 	test("😊😊😊")   // not letter
 }
+
+func Test_getDiskDescribeRequest(t *testing.T) {
+	tests := []struct {
+		name     string
+		diskIDs  []string
+		expected string
+	}{
+		{
+			name:     "single disk ID",
+			diskIDs:  []string{"disk-1"},
+			expected: "[\"disk-1\"]",
+		},
+		{
+			name:     "multiple disk IDs",
+			diskIDs:  []string{"disk-1", "disk-2"},
+			expected: "[\"disk-1\",\"disk-2\"]",
+		},
+		{
+			name:     "no disk IDs",
+			diskIDs:  []string{},
+			expected: "[]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := getDiskDescribeRequest(tt.diskIDs)
+			assert.NotNil(t, request)
+			assert.Equal(t, tt.expected, request.DiskIds)
+		})
+	}
+}

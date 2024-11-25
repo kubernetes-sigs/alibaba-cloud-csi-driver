@@ -32,10 +32,8 @@ const (
 
 // NAS the NAS object
 type NAS struct {
-	endpoint         string
-	identityServer   *identityServer
-	controllerServer *controllerServer
-	nodeServer       *nodeServer
+	endpoint string
+	servers  common.Servers
 }
 
 func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType) *NAS {
@@ -43,7 +41,8 @@ func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.Servi
 
 	var d NAS
 	d.endpoint = endpoint
-	d.identityServer = newIdentityServer()
+	var servers common.Servers
+	servers.IdentityServer = newIdentityServer()
 
 	if serviceType&utils.Controller != 0 {
 		config, err := internal.GetControllerConfig(meta)
@@ -54,18 +53,20 @@ func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.Servi
 		if err != nil {
 			klog.Fatalf("Failed to init nas controller server: %v", err)
 		}
-		d.controllerServer = cs
+		servers.ControllerServer = cs
 	}
 	if serviceType&utils.Node != 0 {
 		config, err := internal.GetNodeConfig()
 		if err != nil {
 			klog.Fatalf("Get nas node config: %v", err)
 		}
-		d.nodeServer = newNodeServer(config)
+		servers.NodeServer = newNodeServer(config)
 	}
+	d.servers = servers
+
 	return &d
 }
 
 func (d *NAS) Run() {
-	common.RunCSIServer(driverType, d.endpoint, d.identityServer, d.controllerServer, d.nodeServer)
+	common.RunCSIServer(driverType, d.endpoint, d.servers)
 }

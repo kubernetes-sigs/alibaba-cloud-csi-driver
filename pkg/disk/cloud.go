@@ -56,6 +56,12 @@ const (
 	DISK_RESIZE_PROCESSING_TIMEOUT = 30 * time.Second
 )
 
+const (
+	SnapshotStatusAccomplished = "accomplished"
+	DiskMultiAttachDisabled    = "Disabled"
+	DiskMultiAttachEnabled     = "Enabled"
+)
+
 // attach alibaba cloud disk
 func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk, isSingleInstance bool, fromNode bool) (string, error) {
 	klog.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
@@ -529,14 +535,23 @@ func detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID strin
 	return nil
 }
 
-func getDisk(diskID string, ecsClient *ecs.Client) []ecs.Disk {
-	// Step 1: Describe disk, if tag exist, return;
+func getDiskDescribeRequest(diskIDs []string) *ecs.DescribeDisksRequest {
+	var idList string
+	for _, id := range diskIDs {
+		idList += fmt.Sprintf("\"%s\",", id)
+	}
+	idList = strings.TrimSuffix(idList, ",")
 	describeDisksRequest := ecs.CreateDescribeDisksRequest()
 	describeDisksRequest.RegionId = GlobalConfigVar.Region
-	describeDisksRequest.DiskIds = "[\"" + diskID + "\"]"
+	describeDisksRequest.DiskIds = fmt.Sprintf("[%s]", idList)
+	return describeDisksRequest
+}
+
+func getDisks(diskIDs []string, ecsClient *ecs.Client) []ecs.Disk {
+	describeDisksRequest := getDiskDescribeRequest(diskIDs)
 	diskResponse, err := ecsClient.DescribeDisks(describeDisksRequest)
 	if err != nil {
-		klog.Warningf("getDisk: error with DescribeDisks: %s, %s", diskID, err.Error())
+		klog.Warningf("getDisks: error with DescribeDisks: %v, %s", diskIDs, err.Error())
 		return []ecs.Disk{}
 	}
 	return diskResponse.Disks.Disk
@@ -569,7 +584,7 @@ func tagDiskUserTags(diskID string, tags map[string]string, tenantUID string) {
 // tag disk with: k8s.aliyun.com=true
 func tagDiskAsK8sAttached(diskID string, ecsClient *ecs.Client) {
 	// Step 1: Describe disk, if tag exist, return;
-	disks := getDisk(diskID, ecsClient)
+	disks := getDisks([]string{diskID}, ecsClient)
 	if len(disks) == 0 {
 		klog.Warningf("tagAsK8sAttached: no disk found: %s", diskID)
 		return
@@ -765,6 +780,37 @@ func findDiskSnapshotByID(id string) (*ecs.Snapshot, error) {
 	return &s[0], nil
 }
 
+// findSnapshotGroup finds groupSnapshot by name or/and id
+func findSnapshotGroup(name, id string) (snapshotGroup *ecs.SnapshotGroup, err error) {
+	describeGroupSnapShotRequest := ecs.CreateDescribeSnapshotGroupsRequest()
+	describeGroupSnapShotRequest.RegionId = GlobalConfigVar.Region
+	if name != "" {
+		describeGroupSnapShotRequest.Name = name
+	}
+	if id != "" {
+		describeGroupSnapShotRequest.SnapshotGroupId = &[]string{id}
+	}
+	groupSnapshots, err := GlobalConfigVar.EcsClient.DescribeSnapshotGroups(describeGroupSnapShotRequest)
+	if err != nil {
+		return nil, err
+	}
+	snapNum := len(groupSnapshots.SnapshotGroups.SnapshotGroup)
+	switch {
+	case snapNum > 1:
+		return nil, status.Error(codes.Internal,
+			"find more than one groupSnapshot with id "+id)
+	case snapNum == 0:
+		// not found
+		return nil, nil
+	case groupSnapshots.SnapshotGroups.SnapshotGroup[0].Status == SnapshotStatusAccomplished:
+		return &groupSnapshots.SnapshotGroups.SnapshotGroup[0], nil
+	default:
+		// failed or inprogress, throw error to trigger retry,
+		// as we could not check if an inporgress snapshot group will contain snapshots of all the source volume ids
+		return nil, status.Errorf(codes.Internal, "created groupSnapshot is %s", groupSnapshots.SnapshotGroups.SnapshotGroup[0].Status)
+	}
+}
+
 func StopDiskOperationRetry(instanceId string, ecsClient *ecs.Client) bool {
 	eventMaps, err := DescribeDiskInstanceEvents(instanceId, ecsClient)
 	klog.Infof("StopDiskOperationRetry: resp eventMaps: %+v", eventMaps)
@@ -857,9 +903,43 @@ func requestAndDeleteSnapshot(snapshotID string) (*ecs.DeleteSnapshotResponse, e
 	deleteSnapshotRequest.Force = requests.NewBoolean(true)
 	response, err := GlobalConfigVar.EcsClient.DeleteSnapshot(deleteSnapshotRequest)
 	if err != nil {
-		return response, fmt.Errorf("failed delete snapshot: %v", err)
+		return response, err
 	}
 	return response, nil
+}
+
+type createGroupSnapshotParams struct {
+	SourceVolumeIDs []string
+	SnapshotName    string
+	ResourceGroupID string
+	//RetentionDays   int
+	SnapshotTags []ecs.CreateSnapshotGroupTag
+}
+
+func requestAndCreateSnapshotGroup(ecsClient *ecs.Client, params *createGroupSnapshotParams) (*ecs.CreateSnapshotGroupResponse, error) {
+	// init createSnapshotRequest and parameters
+	createSnapshotGroupRequest := ecs.CreateCreateSnapshotGroupRequest()
+	createSnapshotGroupRequest.DiskId = &params.SourceVolumeIDs
+	createSnapshotGroupRequest.Name = params.SnapshotName
+	createSnapshotGroupRequest.ResourceGroupId = params.ResourceGroupID
+
+	// Set tags
+	snapshotTags := []ecs.CreateSnapshotGroupTag{
+		{Key: DISKTAGKEY2, Value: DISKTAGVALUE2},
+		{Key: SNAPSHOTTAGKEY1, Value: "true"},
+	}
+	if GlobalConfigVar.ClusterID != "" {
+		snapshotTags = append(snapshotTags, ecs.CreateSnapshotGroupTag{Key: DISKTAGKEY3, Value: GlobalConfigVar.ClusterID})
+	}
+	snapshotTags = append(snapshotTags, params.SnapshotTags...)
+	createSnapshotGroupRequest.Tag = &snapshotTags
+
+	// Do Snapshot create
+	snapshotResponse, err := ecsClient.CreateSnapshotGroup(createSnapshotGroupRequest)
+	if err != nil {
+		return nil, err
+	}
+	return snapshotResponse, nil
 }
 
 func checkExistingDisk(existingDisk *ecs.Disk, diskVol *diskVolumeArgs) (createAttempt, error) {

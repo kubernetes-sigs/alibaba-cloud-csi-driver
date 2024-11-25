@@ -14,6 +14,14 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// Servers holds the list of servers.
+type Servers struct {
+	IdentityServer        csi.IdentityServer
+	ControllerServer      csi.ControllerServer
+	NodeServer            csi.NodeServer
+	GroupControllerServer csi.GroupControllerServer
+}
+
 func ParseEndpoint(ep string) (string, string, error) {
 	if strings.HasPrefix(strings.ToLower(ep), "unix://") || strings.HasPrefix(strings.ToLower(ep), "tcp://") {
 		s := strings.SplitN(ep, "://", 2)
@@ -24,11 +32,9 @@ func ParseEndpoint(ep string) (string, string, error) {
 	return "", "", fmt.Errorf("Invalid endpoint: %v", ep)
 }
 
-func RunCSIServer(driverType, endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
+func RunCSIServer(driverType, endpoint string, servers Servers) {
 	config := options.MustGetRestConfig()
 	clientset := kubernetes.NewForConfigOrDie(config)
-	ns = WrapNodeServerWithValidator(WrapNodeServerWithMetricRecorder(ns, driverType, clientset))
-	cs = WrapControllerServerWithValidator(cs)
 
 	proto, addr, err := ParseEndpoint(endpoint)
 	if err != nil {
@@ -56,14 +62,17 @@ func RunCSIServer(driverType, endpoint string, ids csi.IdentityServer, cs csi.Co
 	}
 	server := grpc.NewServer(opts...)
 
-	if ids != nil {
-		csi.RegisterIdentityServer(server, ids)
+	if servers.IdentityServer != nil {
+		csi.RegisterIdentityServer(server, servers.IdentityServer)
 	}
-	if cs != nil {
-		csi.RegisterControllerServer(server, cs)
+	if servers.ControllerServer != nil {
+		csi.RegisterControllerServer(server, WrapControllerServerWithValidator(servers.ControllerServer))
 	}
-	if ns != nil {
-		csi.RegisterNodeServer(server, ns)
+	if servers.NodeServer != nil {
+		csi.RegisterNodeServer(server, WrapNodeServerWithValidator(WrapNodeServerWithMetricRecorder(servers.NodeServer, driverType, clientset)))
+	}
+	if servers.GroupControllerServer != nil {
+		csi.RegisterGroupControllerServer(server, WrapGroupControllerServerWithValidator(servers.GroupControllerServer))
 	}
 
 	klog.Infof("Listening for connections on address: %#v", listener.Addr())

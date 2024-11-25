@@ -199,3 +199,13 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	klog.Infof("ControllerExpandVolume is called, do nothing now")
 	return &csi.ControllerExpandVolumeResponse{}, nil
 }
+
+func (cs *controllerServer) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest,
+) (*csi.ControllerGetVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
+}
+
+func (cs *controllerServer) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest,
+) (*csi.ControllerModifyVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
+}

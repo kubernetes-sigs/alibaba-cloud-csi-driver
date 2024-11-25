@@ -20,7 +20,6 @@ import (
 	"context"
 	"os"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
@@ -44,9 +43,7 @@ const (
 // OSS the OSS object
 type OSS struct {
 	endpoint string
-
-	controllerServer csi.ControllerServer
-	nodeServer       csi.NodeServer
+	servers  common.Servers
 }
 
 // NewDriver init oss type of csi driver
@@ -77,16 +74,19 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 	ossfs := mounter.NewFuseOssfs(configmap, m)
 	fusePodManager := mounter.NewFusePodManager(ossfs, clientset)
 
-	if serviceType&utils.Controller > 0 {
-		d.controllerServer = &controllerServer{
+	var servers common.Servers
+	servers.IdentityServer = newIdentityServer()
+
+	if serviceType&utils.Controller != 0 {
+		servers.ControllerServer = &controllerServer{
 			client:         clientset,
 			cnfsGetter:     cnfsGetter,
 			metadata:       m,
 			fusePodManager: fusePodManager,
 		}
 	}
-	if serviceType&utils.Node > 0 {
-		d.nodeServer = &nodeServer{
+	if serviceType&utils.Node != 0 {
+		servers.NodeServer = &nodeServer{
 			metadata:   m,
 			locks:      utils.NewVolumeLocks(),
 			nodeName:   nodeName,
@@ -99,6 +99,7 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 			},
 		}
 	}
+	d.servers = servers
 
 	return d
 }
@@ -117,5 +118,5 @@ func newIdentityServer() *identityServer {
 
 // Run start a newNodeServer
 func (d *OSS) Run() {
-	common.RunCSIServer(driverType, d.endpoint, newIdentityServer(), d.controllerServer, d.nodeServer)
+	common.RunCSIServer(driverType, d.endpoint, d.servers)
 }

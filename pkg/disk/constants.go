@@ -58,6 +58,8 @@ const (
 	snapshotDeleteError string = "SnapshotDeleteError"
 	//snapshotDeletedSuccessfully means that the delete snapshot success
 	snapshotDeletedSuccessfully string = "SnapshotDeletedSuccessfully"
+	//snapshotGetError means that the get snapshot error occurred
+	snapshotGetError string = "SnapshotGetError"
 
 	// DocumentURL document URL
 	DocumentURL = "http://100.100.100.200/latest/dynamic/instance-identity/document"

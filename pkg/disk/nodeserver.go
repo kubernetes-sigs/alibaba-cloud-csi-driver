@@ -1132,7 +1132,7 @@ func deleteVolumeExpandAutoSnapshot(ctx context.Context, volumeExpandAutoSnapsho
 		if response != nil {
 			klog.Errorf("NodeExpandVolume:: fail to delete %s with error: %s", volumeExpandAutoSnapshotID, err.Error())
 		}
-		return err
+		return status.Errorf(codes.Internal, "failed delete snapshot: %v", err)
 	}
 	str := fmt.Sprintf("NodeExpandVolume:: Successfully delete snapshot %s", volumeExpandAutoSnapshotID)
 	klog.Info(str)

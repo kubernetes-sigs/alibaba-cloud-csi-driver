@@ -23,8 +23,7 @@ import (
 	"strings"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
+	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
@@ -48,10 +47,8 @@ const (
 
 // DISK the DISK object
 type DISK struct {
-	endpoint         string
-	idServer         csi.IdentityServer
-	nodeServer       csi.NodeServer
-	controllerServer csi.ControllerServer
+	endpoint string
+	servers  common.Servers
 }
 
 // GlobalConfig save global values for plugin
@@ -69,6 +66,7 @@ type GlobalConfig struct {
 	DiskBdfEnable         bool
 	ClientSet             *kubernetes.Clientset
 	ClusterID             string
+	ControllerService     bool
 	BdfHealthCheck        bool
 	DiskMultiTenantEnable bool
 	CheckBDFHotPlugin     bool
@@ -119,13 +117,18 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 	GlobalConfigVar.EcsClient = client
 
 	// Create GRPC servers
-	tmpdisk.idServer = NewIdentityServer()
+	var servers common.Servers
+	servers.IdentityServer = NewIdentityServer()
 	if serviceType&utils.Controller != 0 {
-		tmpdisk.controllerServer = NewControllerServer()
+		servers.ControllerServer = NewControllerServer()
 	}
 	if serviceType&utils.Node != 0 {
-		tmpdisk.nodeServer = NewNodeServer(m)
+		servers.NodeServer = NewNodeServer(m)
 	}
+	if features.FunctionalMutableFeatureGate.Enabled(features.EnableVolumeGroupSnapshots) {
+		servers.GroupControllerServer = NewGroupControllerServer()
+	}
+	tmpdisk.servers = servers
 
 	return tmpdisk
 }
@@ -133,7 +136,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 // Run start a new NodeServer
 func (disk *DISK) Run() {
 	klog.Infof("Starting csi-plugin Driver: %v version: %v", driverName, version.VERSION)
-	common.RunCSIServer(driverType, disk.endpoint, disk.idServer, disk.controllerServer, disk.nodeServer)
+	common.RunCSIServer(driverType, disk.endpoint, disk.servers)
 }
 
 // GlobalConfigSet set Global Config
