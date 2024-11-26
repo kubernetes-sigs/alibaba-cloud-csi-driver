@@ -3,9 +3,9 @@ module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 go 1.22.9
 
 require (
-	github.com/alibabacloud-go/darabonba-openapi v0.1.16
+	github.com/alibabacloud-go/darabonba-openapi v0.2.0
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.6
-	github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
+	github.com/alibabacloud-go/ens-20171110/v3 v3.0.8
 	github.com/alibabacloud-go/nas-20170626/v3 v3.2.0
 	github.com/alibabacloud-go/tea v1.2.1
 	github.com/aliyun/alibaba-cloud-sdk-go v1.62.719
