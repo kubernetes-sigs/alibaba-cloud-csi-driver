@@ -75,7 +75,10 @@ github.com/container-storage-interface/spec/lib/go/csi
 # github.com/containerd/ttrpc v1.2.3
 ## explicit; go 1.19
 github.com/containerd/ttrpc
-# github.com/davecgh/go-spew v1.1.1
+# github.com/coreos/go-systemd/v22 v22.5.0
+## explicit; go 1.12
+github.com/coreos/go-systemd/v22/dbus
+# github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 ## explicit
 github.com/davecgh/go-spew/spew
 # github.com/emicklei/go-restful/v3 v3.11.0
@@ -85,7 +88,7 @@ github.com/emicklei/go-restful/v3/log
 # github.com/evanphx/json-patch v5.6.0+incompatible
 ## explicit
 github.com/evanphx/json-patch
-# github.com/go-logr/logr v1.4.1
+# github.com/go-logr/logr v1.4.2
 ## explicit; go 1.18
 github.com/go-logr/logr
 # github.com/go-openapi/jsonpointer v0.19.6
@@ -101,6 +104,9 @@ github.com/go-openapi/swag
 # github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 ## explicit; go 1.14
 github.com/go-ping/ping
+# github.com/godbus/dbus/v5 v5.1.0
+## explicit; go 1.12
+github.com/godbus/dbus/v5
 # github.com/gogo/protobuf v1.3.2
 ## explicit; go 1.15
 github.com/gogo/protobuf/proto
@@ -184,6 +190,9 @@ github.com/mailru/easyjson/jwriter
 # github.com/matttproud/golang_protobuf_extensions v1.0.2
 ## explicit; go 1.9
 github.com/matttproud/golang_protobuf_extensions/pbutil
+# github.com/moby/sys/mountinfo v0.7.1
+## explicit; go 1.16
+github.com/moby/sys/mountinfo
 # github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
 ## explicit
 github.com/modern-go/concurrent
@@ -193,6 +202,15 @@ github.com/modern-go/reflect2
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
+# github.com/opencontainers/runc v1.1.13
+## explicit; go 1.18
+github.com/opencontainers/runc/libcontainer/configs
+github.com/opencontainers/runc/libcontainer/devices
+github.com/opencontainers/runc/libcontainer/user
+github.com/opencontainers/runc/libcontainer/userns
+# github.com/opencontainers/runtime-spec v1.0.3-0.20220909204839-494a5a6aca78
+## explicit
+github.com/opencontainers/runtime-spec/specs-go
 # github.com/opentracing/opentracing-go v1.2.1-0.20220228012449-10b1cf09e00b
 ## explicit; go 1.14
 github.com/opentracing/opentracing-go
@@ -201,7 +219,7 @@ github.com/opentracing/opentracing-go/log
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
-# github.com/pmezard/go-difflib v1.0.0
+# github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 ## explicit
 github.com/pmezard/go-difflib/difflib
 # github.com/prometheus/client_golang v1.14.0
@@ -224,14 +242,14 @@ github.com/prometheus/common/version
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/sirupsen/logrus v1.9.0
+# github.com/sirupsen/logrus v1.9.3
 ## explicit; go 1.13
 github.com/sirupsen/logrus
 # github.com/spf13/pflag v1.0.5
 ## explicit; go 1.12
 github.com/spf13/pflag
-# github.com/stretchr/testify v1.8.4
-## explicit; go 1.20
+# github.com/stretchr/testify v1.9.0
+## explicit; go 1.17
 github.com/stretchr/testify/assert
 # github.com/tjfoc/gmsm v1.3.2
 ## explicit; go 1.12
@@ -240,7 +258,7 @@ github.com/tjfoc/gmsm/sm3
 ## explicit
 go.uber.org/ratelimit
 go.uber.org/ratelimit/internal/clock
-# golang.org/x/net v0.23.0
+# golang.org/x/net v0.24.0
 ## explicit; go 1.18
 golang.org/x/net/bpf
 golang.org/x/net/context
@@ -261,7 +279,7 @@ golang.org/x/net/trace
 ## explicit; go 1.17
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sys v0.19.0
+# golang.org/x/sys v0.21.0
 ## explicit; go 1.18
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
@@ -703,7 +721,7 @@ k8s.io/component-base/metrics/legacyregistry
 k8s.io/component-base/metrics/prometheus/feature
 k8s.io/component-base/metrics/prometheusextension
 k8s.io/component-base/version
-# k8s.io/klog/v2 v2.120.1
+# k8s.io/klog/v2 v2.130.1
 ## explicit; go 1.18
 k8s.io/klog/v2
 k8s.io/klog/v2/internal/buffer
@@ -729,10 +747,10 @@ k8s.io/kube-openapi/pkg/validation/spec
 # k8s.io/kubelet v0.26.12
 ## explicit; go 1.19
 k8s.io/kubelet/pkg/apis/stats/v1alpha1
-# k8s.io/mount-utils v0.21.1
-## explicit; go 1.16
+# k8s.io/mount-utils v0.31.3
+## explicit; go 1.22.0
 k8s.io/mount-utils
-# k8s.io/utils v0.0.0-20230726121419-3b25d923346b
+# k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 ## explicit; go 1.18
 k8s.io/utils/buffer
 k8s.io/utils/clock
