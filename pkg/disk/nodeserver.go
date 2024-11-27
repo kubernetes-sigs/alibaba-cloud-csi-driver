@@ -105,8 +105,6 @@ const (
 	KMSKeyID = "alibabacloud.com/kms-key-id"
 	// DefaultMaxVolumesPerNode define default max ebs one node
 	DefaultMaxVolumesPerNode = 15
-	// MaxVolumesPerNodeLimit define limit max ebs one node
-	MaxVolumesPerNodeLimit = 64
 	// NOUUID is xfs fs mount opts
 	NOUUID = "nouuid"
 	// NodeMultiZoneEnable Enable node multi-zone mode
@@ -165,8 +163,8 @@ func parseVolumeCountEnv() (int, error) {
 		if err != nil {
 			return 0, fmt.Errorf("MAX_VOLUMES_PERNODE must be int, but get: %s", volumeNum)
 		}
-		if num < 0 || num > MaxVolumesPerNodeLimit {
-			return 0, fmt.Errorf("MAX_VOLUMES_PERNODE must between 0-%d, but get: %s", MaxVolumesPerNodeLimit, volumeNum)
+		if num < 0 {
+			return 0, fmt.Errorf("MAX_VOLUMES_PERNODE must be greater than 0, but got: %s", volumeNum)
 		}
 		klog.Infof("MAX_VOLUMES_PERNODE is set to (from env): %d", num)
 		return num, nil
