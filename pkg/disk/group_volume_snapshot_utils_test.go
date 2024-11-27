@@ -7,9 +7,9 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func Test_parseGroupSnapshotAnnotations(t *testing.T) {
@@ -67,19 +67,19 @@ func Test_formatGroupSnapshot(t *testing.T) {
 			{
 				SnapshotId:      "snapshot1",
 				ReadyToUse:      true,
-				CreationTime:    &timestamp.Timestamp{Seconds: stamp.Unix()},
+				CreationTime:    timestamppb.New(stamp),
 				GroupSnapshotId: "snapshotGroup1",
 				SizeBytes:       10 * 1024 * 1024 * 1024,
 			},
 			{
 				SnapshotId:      "snapshot2",
 				ReadyToUse:      false,
-				CreationTime:    &timestamp.Timestamp{Seconds: stamp.Unix()},
+				CreationTime:    timestamppb.New(stamp),
 				GroupSnapshotId: "snapshotGroup1",
 				SizeBytes:       10 * 1024 * 1024 * 1024,
 			},
 		},
-		CreationTime: &timestamp.Timestamp{Seconds: stamp.Unix()},
+		CreationTime: timestamppb.New(stamp),
 		ReadyToUse:   false,
 	}
 
