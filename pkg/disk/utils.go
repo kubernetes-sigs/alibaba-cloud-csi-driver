@@ -944,13 +944,22 @@ func GetAvailableDiskTypes(ctx context.Context, c cloud.ECSInterface, m metadata
 	return types, nil
 }
 
+func hasDiskTypeLabel(node *v1.Node) bool {
+	for k := range node.Labels {
+		if strings.HasPrefix(k, nodeDiskTypeLabelPrefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func patchForNode(node *v1.Node, maxVolumesNum int, diskTypes []string) []byte {
 	maxVolumesNumStr := strconv.Itoa(maxVolumesNum)
 	needUpdate := node.Annotations[nodeDiskCountAnnotation] != maxVolumesNumStr
 
 	instanceStorageLabels := map[string]string{}
 	for _, diskType := range diskTypes {
-		labelKey := fmt.Sprintf(nodeStorageLabel, diskType)
+		labelKey := nodeDiskTypeLabelPrefix + diskType
 		instanceStorageLabels[labelKey] = "available"
 	}
 	for l, v := range instanceStorageLabels {
@@ -1086,7 +1095,7 @@ func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volu
 		// delete(volumeContext, "type")
 
 		// Add PV NodeAffinity
-		labelKey := fmt.Sprintf(nodeStorageLabel, attempt.Category)
+		labelKey := nodeDiskTypeLabelPrefix + string(attempt.Category)
 		expressions := []v1.NodeSelectorRequirement{{
 			Key:      labelKey,
 			Operator: v1.NodeSelectorOpIn,
