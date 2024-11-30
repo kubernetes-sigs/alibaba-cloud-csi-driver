@@ -4,17 +4,18 @@ import (
 	"context"
 	"errors"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
 	"k8s.io/utils/clock"
 )
 
 type Simple[T any] struct {
-	client ECSDescribeResources[T]
+	client desc.Client[T]
 	clk    clock.WithTicker
 
-	ClientFactory func(context.Context) (ECSDescribeResources[T], error)
+	ClientFactory func(context.Context) (desc.Client[T], error)
 }
 
-func NewSimple[T any](client ECSDescribeResources[T], clk clock.WithTicker) *Simple[T] {
+func NewSimple[T any](client desc.Client[T], clk clock.WithTicker) *Simple[T] {
 	return &Simple[T]{
 		client: client,
 		clk:    clk,
