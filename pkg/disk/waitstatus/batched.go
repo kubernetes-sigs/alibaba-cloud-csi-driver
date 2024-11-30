@@ -5,6 +5,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 )
@@ -22,9 +23,9 @@ type waitRequest[T any] struct {
 }
 
 type Batched[T any] struct {
-	ecsClient ECSDescribeResources[T]
+	ecsClient desc.Client[T]
 	// remove this once we have a ecsClient that can refresh its credentials
-	PollHook func() ECSDescribeResources[T]
+	PollHook func() desc.Client[T]
 
 	requestChan chan *waitRequest[*T]
 	requests    map[string][]*waitRequest[*T]
@@ -33,7 +34,7 @@ type Batched[T any] struct {
 	clk clock.WithTicker
 }
 
-func NewBatched[T any](ecsClient ECSDescribeResources[T], clk clock.WithTicker) *Batched[T] {
+func NewBatched[T any](ecsClient desc.Client[T], clk clock.WithTicker) *Batched[T] {
 	return &Batched[T]{
 		ecsClient:   ecsClient,
 		requestChan: make(chan *waitRequest[*T]),
@@ -126,6 +127,7 @@ func (w *Batched[T]) got(id string, resource *T, requestID string) (done bool) {
 // It removes done requests from w.requests
 func (w *Batched[T]) poll(waitIDs []string) []string {
 	var next []string
+	batchSize := w.ecsClient.BatchSize()
 	thisBatch := make([]string, 0, batchSize)
 	for i, id := range waitIDs {
 		reqs := w.requests[id]
