@@ -7,14 +7,16 @@ import (
 	"testing"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
+	testdesc "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc/testing"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestPoll(t *testing.T) {
-	client := &fakeClient{}
+	client := &testdesc.FakeClient{}
 	for i := 0; i < 5; i++ {
 		diskID := fmt.Sprintf("d%d", i)
-		client.disks.Store(diskID, disk(diskID, "Available"))
+		client.Disks.Store(diskID, disk(diskID, "Available"))
 	}
 
 	waiter := NewBatched(client, nil)
@@ -62,11 +64,11 @@ func TestPoll(t *testing.T) {
 var ErrFake = errors.New("fake error")
 
 type failingClient struct {
-	fakeClient
+	testdesc.FakeClient
 }
 
-func (c *failingClient) Describe(ids []string) (DescribeResourceResponse[ecs.Disk], error) {
-	return DescribeResourceResponse[ecs.Disk]{}, ErrFake
+func (c *failingClient) Describe(ids []string) (desc.Response[ecs.Disk], error) {
+	return desc.Response[ecs.Disk]{}, ErrFake
 }
 
 func TestPollError(t *testing.T) {

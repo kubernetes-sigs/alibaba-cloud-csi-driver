@@ -2,11 +2,11 @@ package waitstatus
 
 import (
 	"context"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	testdesc "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc/testing"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/utils/clock"
 	testclock "k8s.io/utils/clock/testing"
@@ -27,28 +27,6 @@ func disk(id, status string, instances ...string) *ecs.Disk {
 	return disk
 }
 
-type fakeClient struct {
-	disks sync.Map
-}
-
-func (c *fakeClient) Describe(ids []string) (DescribeResourceResponse[ecs.Disk], error) {
-	resp := DescribeResourceResponse[ecs.Disk]{}
-	for _, id := range ids {
-		if disk, ok := c.disks.Load(id); ok {
-			resp.Resources = append(resp.Resources, *disk.(*ecs.Disk))
-		}
-	}
-	return resp, nil
-}
-
-func (c *fakeClient) GetID(resource *ecs.Disk) string {
-	return resource.DiskId
-}
-
-func (c *fakeClient) Type() string {
-	return "fakeDisk"
-}
-
 func isNextStatus(previousStatus string, instanceID string) StatusPredicate[*ecs.Disk] {
 	return func(disk *ecs.Disk) bool {
 		found := IsInstanceAttached(disk, instanceID)
@@ -66,9 +44,9 @@ func isNextStatus(previousStatus string, instanceID string) StatusPredicate[*ecs
 	}
 }
 
-func testEachImpl(t *testing.T, clk clock.WithTicker, f func(*testing.T, *fakeClient, StatusWaiter[ecs.Disk])) {
+func testEachImpl(t *testing.T, clk clock.WithTicker, f func(*testing.T, *testdesc.FakeClient, StatusWaiter[ecs.Disk])) {
 	t.Run("batched", func(t *testing.T) {
-		client := &fakeClient{}
+		client := &testdesc.FakeClient{}
 
 		ctx := context.Background()
 		ctx, cancel := context.WithCancel(ctx)
@@ -79,15 +57,15 @@ func testEachImpl(t *testing.T, clk clock.WithTicker, f func(*testing.T, *fakeCl
 		f(t, client, batched)
 	})
 	t.Run("simple", func(t *testing.T) {
-		client := &fakeClient{}
+		client := &testdesc.FakeClient{}
 		f(t, client, NewSimple(client, clk))
 	})
 }
 
 func TestWaitForDisks(t *testing.T) {
 	clk := testclock.NewFakeClock(time.Now())
-	testEachImpl(t, clk, func(t *testing.T, client *fakeClient, waiter StatusWaiter[ecs.Disk]) {
-		client.disks.Store("d1", disk("d1", "Attaching"))
+	testEachImpl(t, clk, func(t *testing.T, client *testdesc.FakeClient, waiter StatusWaiter[ecs.Disk]) {
+		client.Disks.Store("d1", disk("d1", "Attaching"))
 
 		finalDisk := disk("d1", "In_use", "i1")
 		go func() {
@@ -96,7 +74,7 @@ func TestWaitForDisks(t *testing.T) {
 			clk.Step(100 * time.Millisecond)
 			time.Sleep(100 * time.Millisecond) // for the first poll to finish
 
-			client.disks.Store("d1", finalDisk)
+			client.Disks.Store("d1", finalDisk)
 			t.Logf("Step for second poll")
 			clk.Step(pollInterval)
 		}()
@@ -110,8 +88,8 @@ func TestWaitForDisks(t *testing.T) {
 }
 
 func TestWaitForDisksCancel(t *testing.T) {
-	testEachImpl(t, clock.RealClock{}, func(t *testing.T, client *fakeClient, waiter StatusWaiter[ecs.Disk]) {
-		client.disks.Store("d1", disk("d1", "Attaching"))
+	testEachImpl(t, clock.RealClock{}, func(t *testing.T, client *testdesc.FakeClient, waiter StatusWaiter[ecs.Disk]) {
+		client.Disks.Store("d1", disk("d1", "Attaching"))
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		disk, err := waiter.WaitFor(ctx, "d1", isNextStatus("Attaching", "i1"))
@@ -121,7 +99,7 @@ func TestWaitForDisksCancel(t *testing.T) {
 }
 
 func TestWaitForDisksUnfound(t *testing.T) {
-	testEachImpl(t, clock.RealClock{}, func(t *testing.T, client *fakeClient, waiter StatusWaiter[ecs.Disk]) {
+	testEachImpl(t, clock.RealClock{}, func(t *testing.T, client *testdesc.FakeClient, waiter StatusWaiter[ecs.Disk]) {
 		disk, err := waiter.WaitFor(context.Background(), "d1", isNextStatus("Attaching", "i1"))
 		assert.NoError(t, err)
 		assert.Nil(t, disk)
