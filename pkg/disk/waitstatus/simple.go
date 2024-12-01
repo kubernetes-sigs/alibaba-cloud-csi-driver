@@ -45,3 +45,7 @@ func (w *Simple[T]) WaitFor(ctx context.Context, id string, pred StatusPredicate
 		}
 	}
 }
+
+func (w *Simple[T]) Describe(ctx context.Context, id string) (*T, error) {
+	return w.WaitFor(ctx, id, func(res *T) bool { return true })
+}
