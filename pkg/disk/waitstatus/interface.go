@@ -30,6 +30,11 @@ func IsInstanceAttached(disk *ecs.Disk, instanceID string) bool {
 			return true
 		}
 	}
+	for _, a := range disk.MountInstances.MountInstance {
+		if a.InstanceId == instanceID {
+			return true
+		}
+	}
 	return false
 }
 
