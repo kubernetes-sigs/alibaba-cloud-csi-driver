@@ -124,7 +124,7 @@ func NewDriver(nodeID, endpoint string, runAsController bool) *DISK {
 
 	// Init ECS Client
 	accessControl := utils.GetAccessControl()
-	client := newEcsClient(accessControl)
+	client := newEcsClient(GlobalConfigVar.Region, accessControl)
 	if accessControl.UseMode == utils.EcsRAMRole || accessControl.UseMode == utils.ManagedToken {
 		log.Log.Infof("Starting csi-plugin with sts.")
 	} else {
