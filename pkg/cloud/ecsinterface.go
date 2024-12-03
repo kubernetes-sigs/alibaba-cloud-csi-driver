@@ -18,6 +18,12 @@ type ECSInterface interface {
 	ResizeDisk(request *ecs.ResizeDiskRequest) (response *ecs.ResizeDiskResponse, err error)
 	CreateSnapshot(request *ecs.CreateSnapshotRequest) (response *ecs.CreateSnapshotResponse, err error)
 	DescribeSnapshots(request *ecs.DescribeSnapshotsRequest) (response *ecs.DescribeSnapshotsResponse, err error)
+
+	TagResources(request *ecs.TagResourcesRequest) (response *ecs.TagResourcesResponse, err error)
+	UntagResources(request *ecs.UntagResourcesRequest) (response *ecs.UntagResourcesResponse, err error)
+	ModifyDiskSpec(request *ecs.ModifyDiskSpecRequest) (response *ecs.ModifyDiskSpecResponse, err error)
+	ModifyDiskAttribute(request *ecs.ModifyDiskAttributeRequest) (response *ecs.ModifyDiskAttributeResponse, err error)
+	DescribeTasks(request *ecs.DescribeTasksRequest) (response *ecs.DescribeTasksResponse, err error)
 }
 
 type ECSv2Interface interface {
