@@ -110,18 +110,25 @@ func (cs *ControllerServerWithValidator) ControllerExpandVolume(ctx context.Cont
 	return cs.ControllerServer.ControllerExpandVolume(ctx, req)
 }
 
-func (cs *ControllerServerWithValidator) ControllerGetVolume(context context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
+func (cs *ControllerServerWithValidator) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
 	if len(req.VolumeId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumeId is required")
 	}
-	return cs.ControllerServer.ControllerGetVolume(context, req)
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("volumeID", req.VolumeId))
+	return cs.ControllerServer.ControllerGetVolume(ctx, req)
 }
 
-func (cs *ControllerServerWithValidator) ControllerModifyVolume(context context.Context, req *csi.ControllerModifyVolumeRequest) (*csi.ControllerModifyVolumeResponse, error) {
+func (cs *ControllerServerWithValidator) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest) (*csi.ControllerModifyVolumeResponse, error) {
 	if len(req.VolumeId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "VolumeId is required")
 	}
-	return cs.ControllerServer.ControllerModifyVolume(context, req)
+	if req.MutableParameters == nil {
+		return nil, status.Error(codes.InvalidArgument, "MutableParameters is required")
+	}
+	logger := klog.FromContext(ctx)
+	ctx = klog.NewContext(ctx, logger.WithValues("volumeID", req.VolumeId))
+	return cs.ControllerServer.ControllerModifyVolume(ctx, req)
 }
 
 type GenericControllerServer struct {
