@@ -71,7 +71,6 @@ var (
 )
 
 const (
-	DISK_TAG_PREFIX            = "diskTags/"
 	instanceTypeInfoAnnotation = "alibabacloud.com/instance-type-info"
 )
 
@@ -497,7 +496,7 @@ func getDiskVolumeOptions(
 	// disk Type
 	diskType, err := validateDiskType(volOptions)
 	if err != nil {
-		return nil, fmt.Errorf("illegal required parameter type: %s", volOptions["type"])
+		return nil, fmt.Errorf("illegal required parameter type: %s", volOptions[DISK_TYPE])
 	}
 
 	if slices.ContainsFunc(diskType, func(t Category) bool { return !AllCategories[t].Regional }) {
@@ -652,11 +651,11 @@ func getDiskVolumeOptions(
 }
 
 func validateDiskType(opts map[string]string) (diskType []Category, err error) {
-	if value, ok := opts["type"]; !ok || (ok && value == DiskHighAvail) {
+	if value, ok := opts[DISK_TYPE]; !ok || (ok && value == DiskHighAvail) {
 		diskType = []Category{DiskSSD, DiskEfficiency}
 		return
 	}
-	for _, cusType := range strings.Split(opts["type"], ",") {
+	for _, cusType := range strings.Split(opts[DISK_TYPE], ",") {
 		c := Category(cusType)
 		if _, ok := AllCategories[c]; ok {
 			diskType = append(diskType, c)
@@ -665,7 +664,7 @@ func validateDiskType(opts map[string]string) (diskType []Category, err error) {
 		}
 	}
 	if len(diskType) == 0 {
-		return diskType, fmt.Errorf("illegal required parameter type: %s", opts["type"])
+		return diskType, fmt.Errorf("illegal required parameter type: %s", opts[DISK_TYPE])
 	}
 	return
 }
@@ -718,6 +717,66 @@ func validateCapabilities(capabilities []*csi.VolumeCapability) (bool, error) {
 		}
 	}
 	return multiAttachRequired, nil
+}
+
+func parseMutableParameters(mutableParameters map[string]string) (ModifyParameters, error) {
+	var params ModifyParameters
+	for k, v := range mutableParameters {
+		switch k {
+		case DISK_TYPE:
+			params.Category = Category(v)
+		case ESSD_PERFORMANCE_LEVEL:
+			params.PerformanceLevel = PerformanceLevel(v)
+		case PROVISIONED_IOPS_KEY:
+			iops, err := strconv.Atoi(v)
+			if err != nil {
+				return params, fmt.Errorf("invalid %s: %w", PROVISIONED_IOPS_KEY, err)
+			}
+			params.ProvisionedIops = &iops
+		case BURSTING_ENABLED_KEY:
+			en, err := strconv.ParseBool(v)
+			if err != nil {
+				return params, fmt.Errorf("invalid %s: %w", BURSTING_ENABLED_KEY, err)
+			}
+			params.BurstingEnabled = &en
+		default:
+			switch {
+			case strings.HasPrefix(k, DISK_TAG_PREFIX):
+				tagKey := k[len(DISK_TAG_PREFIX):]
+				params.Tags = append(params.Tags, ecs.TagResourcesTag{
+					Key:   tagKey,
+					Value: v,
+				})
+			case strings.HasPrefix(k, REMOVE_DISK_TAG_PREFIX):
+				tagKey := k[len(REMOVE_DISK_TAG_PREFIX):]
+				params.RemoveTags = append(params.RemoveTags, tagKey)
+			default:
+				return params, fmt.Errorf("unknown parameter %s", k)
+			}
+		}
+	}
+	return params, nil
+}
+
+func importMutableParameters(params *diskVolumeArgs, mutable *ModifyParameters) {
+	if len(mutable.Category) > 0 {
+		params.Type = []Category{mutable.Category}
+	}
+	if len(mutable.PerformanceLevel) > 0 {
+		params.PerformanceLevel = []PerformanceLevel{mutable.PerformanceLevel}
+	}
+	if mutable.ProvisionedIops != nil {
+		params.ProvisionedIops = int64(*mutable.ProvisionedIops)
+	}
+	if mutable.BurstingEnabled != nil {
+		params.BurstingEnabled = *mutable.BurstingEnabled
+	}
+	for _, tag := range mutable.RemoveTags {
+		delete(params.DiskTags, tag)
+	}
+	for _, tag := range mutable.Tags {
+		params.DiskTags[tag.Key] = tag.Value
+	}
 }
 
 func getMountedVolumeDevice(mnts []k8smount.MountInfo, targetPath string) string {
