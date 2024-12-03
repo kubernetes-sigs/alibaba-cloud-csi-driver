@@ -356,7 +356,7 @@ func prepareMountInfos(req *csi.NodePublishVolumeRequest) ([]string, string) {
 	return options, fsType
 }
 
-// GetVolumeIDByDevice get volumeID by specific deivce name according to by-id dictionary
+// GetVolumeIDByDevice get volumeID by specific deivce name according to device meta-info
 func GetVolumeIDByDevice(device string) (volumeID string, err error) {
 	// get volume by serial number feature
 	deviceName := device
@@ -366,30 +366,17 @@ func GetVolumeIDByDevice(device string) (volumeID string, err error) {
 		deviceName = strings.TrimPrefix(device, "/")
 	}
 
-	serialFile := filepath.Join("/sys/block/", deviceName, "/serial")
-	volumeIDContent := utils.GetFileContent(serialFile)
+	virtioSerialFile := filepath.Join("/sys/block/", deviceName, "/serial")
+	volumeIDContent := utils.GetFileContent(virtioSerialFile)
+	if volumeIDContent != "" {
+		return "d-" + volumeIDContent, nil
+	}
+	nvmeSerialFile := filepath.Join("/sys/block/", deviceName, "device", "/serial")
+	volumeIDContent = utils.GetFileContent(nvmeSerialFile)
 	if volumeIDContent != "" {
 		return "d-" + volumeIDContent, nil
 	}
 
-	// Get volume by disk by-id feature
-	byIDPath := "/dev/disk/by-id/"
-	files, _ := ioutil.ReadDir(byIDPath)
-	for _, f := range files {
-		filePath := filepath.Join(byIDPath, f.Name())
-		stat, _ := os.Lstat(filePath)
-		if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
-			resolved, err := filepath.EvalSymlinks(filePath)
-			if err != nil {
-				klog.Errorf("GetVolumeIDByDevice: error reading target of symlink %q: %v", filePath, err)
-				continue
-			}
-			if strings.HasSuffix(resolved, device) {
-				volumeID = strings.Replace(f.Name(), "virtio-", "d-", -1)
-				return volumeID, nil
-			}
-		}
-	}
 	return "", nil
 }
 
@@ -839,6 +826,8 @@ func checkDeviceAvailable(mountinfoPath, devicePath, volumeID, targetPath string
 		return err
 	}
 
+	// TODO: remove in next version
+	// Since devicePath has been change to symlink, we will never run into the following logics.
 	// block volume
 	if devicePath == "devtmpfs" {
 		device := getMountedVolumeDevice(mnts, targetPath)
