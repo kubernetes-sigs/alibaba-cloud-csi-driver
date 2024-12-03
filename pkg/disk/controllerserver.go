@@ -31,6 +31,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/wrap"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
@@ -54,6 +55,7 @@ type controllerServer struct {
 	ad             DiskAttachDetach
 	meta           metadata.MetadataProvider
 	snapshotWaiter waitstatus.StatusWaiter[ecs.Snapshot]
+	modify         ModifyServer
 	common.GenericControllerServer
 }
 
@@ -86,6 +88,16 @@ var veasp = struct {
 
 var delVolumeSnap sync.Map
 
+func newTaskStatusWaiter() waitstatus.StatusWaiter[ecs.Task] {
+	client := desc.Task{Client: GlobalConfigVar.EcsClient}
+	waiter := waitstatus.NewBatched(client, clock.RealClock{}, 3*time.Second, 10*time.Second)
+	waiter.PollHook = func() desc.Client[ecs.Task] {
+		return desc.Task{Client: updateEcsClient(GlobalConfigVar.EcsClient)}
+	}
+	go waiter.Run(context.Background())
+	return waiter
+}
+
 func newSnapshotStatusWaiter() waitstatus.StatusWaiter[ecs.Snapshot] {
 	client := desc.Snapshots{
 		Client: GlobalConfigVar.EcsClient,
@@ -114,6 +126,10 @@ func NewControllerServer(csiCfg utils.Config, m metadata.MetadataProvider) csi.C
 			detachThrottler: defaultThrottler(),
 		},
 		snapshotWaiter: newSnapshotStatusWaiter(),
+		modify: ModifyServer{
+			ecsClient:  GlobalConfigVar.EcsClient,
+			taskWaiter: newTaskStatusWaiter(),
+		},
 	}
 	detachConcurrency := 1
 	attachConcurrency := 1
@@ -137,6 +153,7 @@ func (cs *controllerServer) ControllerGetCapabilities(ctx context.Context, req *
 			csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
 			csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
 			csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
+			csi.ControllerServiceCapability_RPC_MODIFY_VOLUME,
 		),
 	}, nil
 }
@@ -166,6 +183,14 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	if err != nil {
 		klog.Errorf("CreateVolume: error parameters from input: %v, with error: %v", req.Name, err)
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %v, with error: %v", req.Name, err)
+	}
+
+	if len(req.MutableParameters) > 0 {
+		mutable, err := parseMutableParameters(req.MutableParameters)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "Invalid mutable parameters: %v", err)
+		}
+		importMutableParameters(diskVol, &mutable)
 	}
 
 	sharedDisk := len(diskVol.Type) == 1 && (diskVol.Type[0] == DiskSharedEfficiency || diskVol.Type[0] == DiskSharedSSD)
@@ -786,4 +811,19 @@ func updateVolumeExpandAutoSnapshotID(pvc *v1.PersistentVolumeClaim, snapshotID,
 		return status.Errorf(codes.Internal, "failed to %s snapshotID on pvc", option)
 	}
 	return nil
+}
+
+func (cs *controllerServer) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest) (*csi.ControllerModifyVolumeResponse, error) {
+	params, err := parseMutableParameters(req.MutableParameters)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	err = cs.modify.Modify(ctx, req.VolumeId, params)
+	if err != nil {
+		if errors.Is(err, wrap.ErrorCode("InvalidDiskId.NotFound")) {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+		return nil, err
+	}
+	return &csi.ControllerModifyVolumeResponse{}, nil
 }
