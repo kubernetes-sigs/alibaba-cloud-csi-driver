@@ -97,6 +97,7 @@ function cluster-setup {
         sleep 15
     done
     get-kubeconfig
+    ram-setup "$CASE_NAME"
 }
 
 function get-kubeconfig {
@@ -166,7 +167,106 @@ EOF
     done
 }
 
+KEY=1234567890ABCDEF
+IV=0000000000000000
+
+function encrypt {
+    echo -n $IV
+    openssl enc -aes-128-cbc -e -K "$(xxd -p <<< $KEY)" -iv "$(xxd -p <<< $IV)"
+}
+
+function create-ram-role {
+    aliyun ram CreateRole --region "$ACK_REGION" \
+        --RoleName "$CASE_NAME-$1" \
+        --MaxSessionDuration 28800 \
+        --AssumeRolePolicyDocument "$(jq -n '{
+    "Statement": [
+        {
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+                "RAM": $arn
+            },
+            "Condition": {
+                "StringEquals": {
+                    "sts:ExternalId": $externalID
+                }
+            }
+        }
+    ],
+    "Version": "1"
+}' --arg arn "$arn" --arg externalID "$external_id")"
+    echo "Created role $CASE_NAME-$1"
+}
+
+function ram-role-setup {
+    create-ram-role "$1"
+
+    aliyun ram CreatePolicy --region "$ACK_REGION" \
+        --PolicyName "$CASE_NAME-$1" \
+        --PolicyDocument "$(cat "$HERE/../../docs/ram-policies/disk/$1.json")"
+    echo "Created policy $CASE_NAME-$1"
+
+    aliyun ram AttachPolicyToRole --region "$ACK_REGION" \
+        --PolicyType "Custom" \
+        --PolicyName "$CASE_NAME-$1" \
+        --RoleName "$CASE_NAME-$1"
+    echo "Attached policy to role"
+}
+
+function create-token-secret {
+    local resp
+    resp=$(aliyun sts AssumeRole --region "$ACK_REGION" \
+        --DurationSeconds 28800 \
+        --RoleArn "acs:ram::$uid:role/$CASE_NAME-$1" \
+        --ExternalId "$external_id" \
+        --RoleSessionName "$CASE_NAME")
+    echo "Assumed role ID $(jq -r .AssumedRoleUser.AssumedRoleId <<< "$resp")"
+
+    secret=$(jq -n '{"access.key.id": $id, "access.key.secret": $secret, "security.token": $token, "expiration": $expiration, "keyring": $keyring}' \
+        --arg id "$(jq -j .Credentials.AccessKeyId <<< "$resp" | encrypt | base64)" \
+        --arg secret "$(jq -j .Credentials.AccessKeySecret <<< "$resp" | encrypt | base64)" \
+        --arg token "$(jq -j .Credentials.SecurityToken <<< "$resp" | encrypt | base64)" \
+        --arg expiration "$(jq -j .Credentials.Expiration <<< "$resp")" \
+        --arg keyring $KEY \
+    )
+    kubectl create secret generic "$2" -n kube-system --from-literal "addon.token.config=$secret"
+}
+
+function ram-setup {
+    local HERE
+    local CASE_NAME=$1
+    HERE=$(dirname "${BASH_SOURCE[0]}")
+
+    read -r arn uid < <(aliyun sts GetCallerIdentity | jq -r '[.Arn, .AccountId] | @tsv')
+    echo "Current identity ARN: $arn"
+
+    external_id=$(openssl rand -base64 12)
+
+    ram-role-setup node
+    create-token-secret node addon.aliyuncsmanagedcsipluginrole.token
+    ram-role-setup controller
+    create-token-secret controller addon.aliyuncsmanagedcsiprovisionerrole.token
+
+    create-ram-role sanity
+    aliyun ram AttachPolicyToRole --region "$ACK_REGION" \
+        --PolicyType "Custom" \
+        --PolicyName "$CASE_NAME-node" \
+        --RoleName "$CASE_NAME-sanity"
+    echo "Attached node policy to sanity role"
+
+    aliyun ram AttachPolicyToRole --region "$ACK_REGION" \
+        --PolicyType "Custom" \
+        --PolicyName "$CASE_NAME-controller" \
+        --RoleName "$CASE_NAME-sanity"
+    echo "Attached controller policy to sanity role"
+
+    create-token-secret sanity sanity-ram-token
+}
+
 function cluster-teardown {
+    ram-teardown "$CASE_NAME"
+
     echo "deleting cluster"
     aliyun cs DELETE "/clusters/${CLUSTER_ID}"
 
@@ -186,4 +286,31 @@ function cluster-teardown {
 
     echo "deleting SSH key pair"
     aliyun ecs DeleteKeyPairs --RegionId "$ACK_REGION" --KeyPairNames "$(jq -n '$ARGS.positional' --args "$CASE_NAME")"
+}
+
+function ram-role-teardown {
+    echo "detaching RAM policy"
+    aliyun ram DetachPolicyFromRole --region "$ACK_REGION" --PolicyName "$CASE_NAME-$1" --RoleName "$CASE_NAME-$1" --PolicyType "Custom"
+
+    echo "deleting RAM policy"
+    aliyun ram DeletePolicy --region "$ACK_REGION" --PolicyName "$CASE_NAME-$1"
+
+    echo "deleting RAM role"
+    aliyun ram DeleteRole --region "$ACK_REGION" --RoleName "$CASE_NAME-$1"
+}
+
+function ram-teardown {
+    local CASE_NAME=$1
+
+    echo "cleaning up sanity role"
+    aliyun ram DetachPolicyFromRole --region "$ACK_REGION" --PolicyName "$CASE_NAME-node" --RoleName "$CASE_NAME-sanity" --PolicyType "Custom"
+    aliyun ram DetachPolicyFromRole --region "$ACK_REGION" --PolicyName "$CASE_NAME-controller" --RoleName "$CASE_NAME-sanity" --PolicyType "Custom"
+    aliyun ram DeleteRole --region "$ACK_REGION" --RoleName "$CASE_NAME-sanity"
+    kubectl delete secret -n kube-system sanity-ram-token
+
+    ram-role-teardown controller
+    kubectl delete secret -n kube-system addon.aliyuncsmanagedcsiprovisionerrole.token
+
+    ram-role-teardown node
+    kubectl delete secret -n kube-system addon.aliyuncsmanagedcsipluginrole.token
 }

@@ -121,7 +121,7 @@ spec:
       items:
       - key: addon.token.config
         path: token-config
-      secretName: addon.csi.token
+      secretName: sanity-ram-token
   - name: csi-test-config
     configMap:
       name: csi-test-config
