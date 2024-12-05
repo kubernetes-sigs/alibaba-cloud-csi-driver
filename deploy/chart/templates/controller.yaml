@@ -100,6 +100,9 @@ spec:
             - --v=5
             - --kube-api-qps=10
             - --kube-api-burst=20
+{{- if contains "CrossNamespaceVolumeDataSource" $featureGates }}
+            - "--feature-gates=CrossNamespaceVolumeDataSource=true"
+{{- end }}
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi

@@ -85,6 +85,11 @@ rules:
   - apiGroups: ["storage.alibabacloud.com"]
     resources: ["containernetworkfilesystems"]
     verbs: ["get","list", "watch"]
+{{- if contains "CrossNamespaceVolumeDataSource" $featureGates }}
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["referencegrants"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
