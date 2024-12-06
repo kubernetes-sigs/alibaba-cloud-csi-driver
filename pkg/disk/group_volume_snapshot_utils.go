@@ -9,10 +9,10 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
@@ -101,7 +101,7 @@ func formatGroupSnapshot(groupSnapshot *ecs.SnapshotGroup) (*csi.VolumeGroupSnap
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse groupSnapshot creation time: %s", groupSnapshot.CreationTime)
 	}
-	creationTime := timestamp.Timestamp{Seconds: t.Unix()}
+	creationTime := timestamppb.New(t)
 
 	readyToUse := groupSnapshot.Status == SnapshotStatusAccomplished
 	snapshots := []*csi.Snapshot{}
@@ -110,7 +110,7 @@ func formatGroupSnapshot(groupSnapshot *ecs.SnapshotGroup) (*csi.VolumeGroupSnap
 		if err != nil {
 			return nil, err
 		}
-		snapshot.CreationTime = &creationTime
+		snapshot.CreationTime = creationTime
 		snapshot.GroupSnapshotId = groupSnapshot.SnapshotGroupId
 		if !snapshot.ReadyToUse {
 			// set readyToUse for groupsnapshots according to each snapshot status
@@ -122,7 +122,7 @@ func formatGroupSnapshot(groupSnapshot *ecs.SnapshotGroup) (*csi.VolumeGroupSnap
 	return &csi.VolumeGroupSnapshot{
 		GroupSnapshotId: groupSnapshot.SnapshotGroupId,
 		Snapshots:       snapshots,
-		CreationTime:    &creationTime,
+		CreationTime:    creationTime,
 		ReadyToUse:      readyToUse,
 	}, nil
 }
