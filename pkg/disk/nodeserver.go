@@ -63,13 +63,15 @@ type nodeServer struct {
 	common.GenericNodeServer
 }
 
+// Disk status returned in ecs.DescribeDisks
 const (
-	// DiskStatusInuse disk inuse status
-	DiskStatusInuse = "In_use"
-	// DiskStatusAttaching disk attaching status
+	DiskStatusInuse     = "In_use"
 	DiskStatusAttaching = "Attaching"
-	// DiskStatusAvailable disk available status
+	DiskStatusDetaching = "Detaching"
 	DiskStatusAvailable = "Available"
+)
+
+const (
 	// DiskStatusAttached disk attached status
 	DiskStatusAttached = "attached"
 	// DiskStatusDetached disk detached status
