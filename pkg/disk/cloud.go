@@ -63,7 +63,7 @@ const (
 )
 
 // attach alibaba cloud disk
-func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk, isSingleInstance bool, fromNode bool) (string, error) {
+func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSingleInstance bool, fromNode bool) (string, error) {
 	klog.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
 	ecsClient, err := getEcsClientByID("", tenantUserUID)
@@ -88,95 +88,70 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 		tagDiskAsK8sAttached(diskID, ecsClient)
 	}
 
-	if isSharedDisk {
-		attachedToLocal := false
-		for _, instance := range disk.MountInstances.MountInstance {
-			if instance.InstanceId == nodeID {
-				attachedToLocal = true
-				break
+	// disk is attached, means disk_ad_controller env is true, disk must be created after 2020.06
+	if disk.Status == DiskStatusInuse {
+		if disk.InstanceId == nodeID {
+			if !fromNode {
+				klog.Infof("AttachDisk: Disk %s is already attached to Instance %s, skipping", diskID, disk.InstanceId)
+				return "", nil
 			}
-		}
-		if attachedToLocal {
-			detachRequest := ecs.CreateDetachDiskRequest()
-			detachRequest.InstanceId = nodeID
-			detachRequest.DiskId = diskID
-			for key, value := range GlobalConfigVar.RequestBaseInfo {
-				detachRequest.AppendUserAgent(key, value)
-			}
-			_, err = ecsClient.DetachDisk(detachRequest)
-			if err != nil {
-				return "", status.Errorf(codes.Aborted, "AttachDisk: Can't attach disk %s to instance %s: %v", diskID, disk.InstanceId, err)
-			}
-
-			if err := waitForSharedDiskInStatus(ctx, 10, time.Second*3, diskID, nodeID, DiskStatusDetached, ecsClient); err != nil {
-				return "", err
-			}
-		}
-	} else {
-		// disk is attached, means disk_ad_controller env is true, disk must be created after 2020.06
-		if disk.Status == DiskStatusInuse {
-			if disk.InstanceId == nodeID {
-				if !fromNode {
-					klog.Infof("AttachDisk: Disk %s is already attached to Instance %s, skipping", diskID, disk.InstanceId)
-					return "", nil
-				}
+			deviceName, err := GetVolumeDeviceName(diskID)
+			if err == nil && deviceName != "" && IsFileExisting(deviceName) {
+				klog.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
+				return deviceName, nil
+			} else {
+				// wait for pci attach ready
+				time.Sleep(5 * time.Second)
+				klog.Infof("AttachDisk: find disk dev after 5 seconds")
 				deviceName, err := GetVolumeDeviceName(diskID)
 				if err == nil && deviceName != "" && IsFileExisting(deviceName) {
 					klog.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
 					return deviceName, nil
-				} else {
-					// wait for pci attach ready
-					time.Sleep(5 * time.Second)
-					klog.Infof("AttachDisk: find disk dev after 5 seconds")
-					deviceName, err := GetVolumeDeviceName(diskID)
-					if err == nil && deviceName != "" && IsFileExisting(deviceName) {
-						klog.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, disk.InstanceId, deviceName)
-						return deviceName, nil
-					}
-					err = fmt.Errorf("AttachDisk: disk device cannot be found in node, diskid: %s, deviceName: %s, err: %+v", diskID, deviceName, err)
-					return "", err
 				}
-			}
-
-			if GlobalConfigVar.DiskBdfEnable {
-				if allowed, err := forceDetachAllowed(ecsClient, disk, nodeID); err != nil {
-					err = perrors.Wrapf(err, "forceDetachAllowed")
-					return "", status.Errorf(codes.Aborted, err.Error())
-				} else if !allowed {
-					err = perrors.Errorf("AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.DiskId, disk.InstanceId)
-					klog.Error(err)
-					return "", status.Errorf(codes.Aborted, err.Error())
-				}
-			}
-
-			if !GlobalConfigVar.DetachBeforeAttach {
-				err = perrors.Errorf("AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
-				klog.Error(err)
-				return "", status.Errorf(codes.Aborted, err.Error())
-			}
-			klog.Infof("AttachDisk: Disk %s is already attached to instance %s, will be detached", diskID, disk.InstanceId)
-			detachRequest := ecs.CreateDetachDiskRequest()
-			detachRequest.InstanceId = disk.InstanceId
-			detachRequest.DiskId = disk.DiskId
-			for key, value := range GlobalConfigVar.RequestBaseInfo {
-				detachRequest.AppendUserAgent(key, value)
-			}
-			_, err = ecsClient.DetachDisk(detachRequest)
-			if err != nil {
-				klog.Errorf("AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
-				return "", status.Errorf(codes.Aborted, "AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
-			}
-		} else if disk.Status == DiskStatusAttaching {
-			return "", status.Errorf(codes.Aborted, "AttachDisk: Disk %s is attaching %v", diskID, disk)
-		}
-		// Step 2: wait for Detach
-		if disk.Status != DiskStatusAvailable {
-			klog.Infof("AttachDisk: Wait for disk %s is detached", diskID)
-			if err := waitForDiskInStatus(ctx, 15, time.Second*3, diskID, DiskStatusAvailable, ecsClient); err != nil {
+				err = fmt.Errorf("AttachDisk: disk device cannot be found in node, diskid: %s, deviceName: %s, err: %+v", diskID, deviceName, err)
 				return "", err
 			}
 		}
+
+		if GlobalConfigVar.DiskBdfEnable {
+			if allowed, err := forceDetachAllowed(ecsClient, disk, nodeID); err != nil {
+				err = perrors.Wrapf(err, "forceDetachAllowed")
+				return "", status.Errorf(codes.Aborted, err.Error())
+			} else if !allowed {
+				err = perrors.Errorf("AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.DiskId, disk.InstanceId)
+				klog.Error(err)
+				return "", status.Errorf(codes.Aborted, err.Error())
+			}
+		}
+
+		if !GlobalConfigVar.DetachBeforeAttach {
+			err = perrors.Errorf("AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
+			klog.Error(err)
+			return "", status.Errorf(codes.Aborted, err.Error())
+		}
+		klog.Infof("AttachDisk: Disk %s is already attached to instance %s, will be detached", diskID, disk.InstanceId)
+		detachRequest := ecs.CreateDetachDiskRequest()
+		detachRequest.InstanceId = disk.InstanceId
+		detachRequest.DiskId = disk.DiskId
+		for key, value := range GlobalConfigVar.RequestBaseInfo {
+			detachRequest.AppendUserAgent(key, value)
+		}
+		_, err = ecsClient.DetachDisk(detachRequest)
+		if err != nil {
+			klog.Errorf("AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
+			return "", status.Errorf(codes.Aborted, "AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
+		}
+	} else if disk.Status == DiskStatusAttaching {
+		return "", status.Errorf(codes.Aborted, "AttachDisk: Disk %s is attaching %v", diskID, disk)
 	}
+	// Step 2: wait for Detach
+	if disk.Status != DiskStatusAvailable {
+		klog.Infof("AttachDisk: Wait for disk %s is detached", diskID)
+		if err := waitForDiskInStatus(ctx, 15, time.Second*3, diskID, DiskStatusAvailable, ecsClient); err != nil {
+			return "", err
+		}
+	}
+
 	// Step 3: Attach Disk, list device before attach disk
 	before := []string{}
 	if fromNode {
@@ -212,14 +187,8 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 
 	// Step 4: wait for disk attached
 	klog.Infof("AttachDisk: Waiting for Disk %s is Attached to instance %s with RequestId: %s", diskID, nodeID, response.RequestId)
-	if isSharedDisk {
-		if err := waitForSharedDiskInStatus(ctx, 20, time.Second*3, diskID, nodeID, DiskStatusAttached, ecsClient); err != nil {
-			return "", err
-		}
-	} else {
-		if err := waitForDiskInStatus(ctx, 20, time.Second*3, diskID, DiskStatusInuse, ecsClient); err != nil {
-			return "", err
-		}
+	if err := waitForDiskInStatus(ctx, 20, time.Second*3, diskID, DiskStatusInuse, ecsClient); err != nil {
+		return "", err
 	}
 
 	// step 5: diff device with previous files under /dev
@@ -289,23 +258,23 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 }
 
 // Only called by controller
-func attachSharedDisk(ctx context.Context, tenantUserUID, diskID, nodeID string) (string, error) {
-	klog.Infof("AttachDisk: Starting Do AttachSharedDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
+func attachMultiAttachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string) (string, error) {
+	klog.Infof("AttachDisk: Starting Do AttachMultiAttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
 	ecsClient, err := getEcsClientByID("", tenantUserUID)
 	// Step 1: check disk status
 	disk, err := findDiskByID(diskID, ecsClient)
 	if err != nil {
 		klog.Errorf("AttachDisk: find disk: %s with error: %s", diskID, err.Error())
-		return "", status.Errorf(codes.Internal, "AttachSharedDisk: find disk: %s with error: %s", diskID, err.Error())
+		return "", status.Errorf(codes.Internal, "AttachMultiAttachDisk: find disk: %s with error: %s", diskID, err.Error())
 	}
 	if disk == nil {
-		return "", status.Errorf(codes.Internal, "AttachSharedDisk: can't find disk: %s, check the disk region, disk exist or not, and the csi access auth", diskID)
+		return "", status.Errorf(codes.Internal, "AttachMultiAttachDisk: can't find disk: %s, check the disk region, disk exist or not, and the csi access auth", diskID)
 	}
 
-	for _, instance := range disk.MountInstances.MountInstance {
+	for _, instance := range disk.Attachments.Attachment {
 		if instance.InstanceId == nodeID {
-			klog.Infof("AttachSharedDisk: Successful attach disk %s to node %s", diskID, nodeID)
+			klog.Infof("AttachMultiAttachDisk: Successful attach disk %s to node %s", diskID, nodeID)
 			return "", nil
 		}
 	}
@@ -323,27 +292,27 @@ func attachSharedDisk(ctx context.Context, tenantUserUID, diskID, nodeID string)
 		} else if strings.Contains(err.Error(), NotSupportDiskCategory) {
 			return "", status.Error(codes.Internal, err.Error()+", Disk("+diskID+") is not supported by instance, please refer to: https://help.aliyun.com/document_detail/25378.html")
 		}
-		return "", status.Errorf(codes.Aborted, "AttachSharedDisk: Error happens to attach disk %s to instance %s, %v", diskID, nodeID, err)
+		return "", status.Errorf(codes.Aborted, "AttachMultiAttachDisk: Error happens to attach disk %s to instance %s, %v", diskID, nodeID, err)
 	}
 
 	// Step 4: wait for disk attached
-	klog.Infof("AttachSharedDisk: Waiting for Disk %s is Attached to instance %s with RequestId: %s", diskID, nodeID, response.RequestId)
-	if err := waitForSharedDiskInStatus(ctx, 20, time.Second*3, diskID, nodeID, DiskStatusAttached, ecsClient); err != nil {
+	klog.Infof("AttachMultiAttachDisk: Waiting for Disk %s is Attached to instance %s with RequestId: %s", diskID, nodeID, response.RequestId)
+	if err := waitForMultiAttachDiskInStatus(ctx, 20, time.Second*3, diskID, nodeID, DiskStatusAttached, ecsClient); err != nil {
 		return "", err
 	}
 
-	klog.Infof("AttachSharedDisk: Successful attach disk %s to node %s", diskID, nodeID)
+	klog.Infof("AttachMultiAttachDisk: Successful attach disk %s to node %s", diskID, nodeID)
 	return "", nil
 }
 
 func detachMultiAttachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) (isMultiAttach bool, err error) {
 	disk, err := findDiskByID(diskID, ecsClient)
 	if err != nil {
-		klog.Errorf("DetachSharedDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
+		klog.Errorf("DetachMultiAttachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
 		return false, status.Error(codes.Aborted, err.Error())
 	}
 	if disk == nil {
-		klog.Infof("DetachSharedDisk: Detach Disk %s from node %s describe and find disk not exist", diskID, nodeID)
+		klog.Infof("DetachMultiAttachDisk: Detach Disk %s from node %s describe and find disk not exist", diskID, nodeID)
 		return false, nil
 	}
 	if disk.MultiAttach == "Disabled" {
@@ -359,15 +328,15 @@ func detachMultiAttachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, n
 	}
 
 	if !isDetached {
-		klog.Infof("DetachSharedDisk: Starting to Detach Disk %s from node %s", diskID, nodeID)
+		klog.Infof("DetachMultiAttachDisk: Starting to Detach Disk %s from node %s", diskID, nodeID)
 		detachDiskRequest := ecs.CreateDetachDiskRequest()
 		detachDiskRequest.DiskId = disk.DiskId
 		detachDiskRequest.InstanceId = nodeID
 		response, err := ecsClient.DetachDisk(detachDiskRequest)
 		if err != nil {
-			errMsg := fmt.Sprintf("DetachSharedDisk: Fail to detach %s: from Instance: %s with error: %s", disk.DiskId, disk.InstanceId, err.Error())
+			errMsg := fmt.Sprintf("DetachMultiAttachDisk: Fail to detach %s: from Instance: %s with error: %s", disk.DiskId, disk.InstanceId, err.Error())
 			if response != nil {
-				errMsg = fmt.Sprintf("DetachSharedDisk: Fail to detach %s: from: %s, with error: %v, with requestId %s", disk.DiskId, disk.InstanceId, err.Error(), response.RequestId)
+				errMsg = fmt.Sprintf("DetachMultiAttachDisk: Fail to detach %s: from: %s, with error: %v, with requestId %s", disk.DiskId, disk.InstanceId, err.Error(), response.RequestId)
 			}
 			klog.Errorf(errMsg)
 			return true, status.Error(codes.Aborted, errMsg)
@@ -377,12 +346,12 @@ func detachMultiAttachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, n
 		for i := 0; i < 25; i++ {
 			tmpDisk, err := findDiskByID(diskID, ecsClient)
 			if err != nil {
-				errMsg := fmt.Sprintf("DetachSharedDisk: Detaching Disk %s with describe error: %s", diskID, err.Error())
+				errMsg := fmt.Sprintf("DetachMultiAttachDisk: Detaching Disk %s with describe error: %s", diskID, err.Error())
 				klog.Errorf(errMsg)
 				return true, status.Error(codes.Aborted, errMsg)
 			}
 			if tmpDisk == nil {
-				klog.Warningf("DetachSharedDisk: DiskId %s is not found", diskID)
+				klog.Warningf("DetachMultiAttachDisk: DiskId %s is not found", diskID)
 				break
 			}
 			// Detach Finish
@@ -390,7 +359,7 @@ func detachMultiAttachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, n
 				break
 			}
 			if tmpDisk.Status == DiskStatusAttaching {
-				klog.Infof("DetachSharedDisk: DiskId %s is attaching to: %s", diskID, tmpDisk.InstanceId)
+				klog.Infof("DetachMultiAttachDisk: DiskId %s is attaching to: %s", diskID, tmpDisk.InstanceId)
 				break
 			}
 			// 判断是否还包含此节点ID；
@@ -405,19 +374,19 @@ func detachMultiAttachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, n
 				break
 			}
 			if i == 24 {
-				errMsg := fmt.Sprintf("DetachSharedDisk: Detaching Disk %s with timeout", diskID)
+				errMsg := fmt.Sprintf("DetachMultiAttachDisk: Detaching Disk %s with timeout", diskID)
 				klog.Errorf(errMsg)
 				return true, status.Error(codes.Aborted, errMsg)
 			}
 			select {
 			case <-ctx.Done():
-				return true, status.Errorf(codes.Aborted, "DetachSharedDisk: canceling waiting for disk %s detach: %v", diskID, ctx.Err())
+				return true, status.Errorf(codes.Aborted, "DetachMultiAttachDisk: canceling waiting for disk %s detach: %v", diskID, ctx.Err())
 			case <-time.After(2000 * time.Millisecond):
 			}
 		}
-		klog.Infof("DetachSharedDisk: Volume: %s Success to detach disk %s from Instance %s, RequestId: %s", diskID, disk.DiskId, disk.InstanceId, response.RequestId)
+		klog.Infof("DetachMultiAttachDisk: Volume: %s Success to detach disk %s from Instance %s, RequestId: %s", diskID, disk.DiskId, disk.InstanceId, response.RequestId)
 	} else {
-		klog.Infof("DetachSharedDisk: Skip Detach, disk %s have not detachable instance", diskID)
+		klog.Infof("DetachMultiAttachDisk: Skip Detach, disk %s have not detachable instance", diskID)
 	}
 
 	return true, nil
@@ -620,11 +589,11 @@ func tagDiskAsK8sAttached(diskID string, ecsClient *ecs.Client) {
 	klog.Infof("tagDiskAsK8sAttached:: add tag to disk: %s", diskID)
 }
 
-func waitForSharedDiskInStatus(ctx context.Context, retryCount int, interval time.Duration, diskID, nodeID string, expectStatus string, ecsClient *ecs.Client) error {
+func waitForMultiAttachDiskInStatus(ctx context.Context, retryCount int, interval time.Duration, diskID, nodeID string, expectStatus string, ecsClient *ecs.Client) error {
 	for i := 0; i < retryCount; i++ {
 		select {
 		case <-ctx.Done():
-			return status.Errorf(codes.Aborted, "waitForSharedDiskInStatus: canceling waiting for disk %s in status %s: %v", diskID, expectStatus, ctx.Err())
+			return status.Errorf(codes.Aborted, "waitForMultiAttachDiskInStatus: canceling waiting for disk %s in status %s: %v", diskID, expectStatus, ctx.Err())
 		case <-time.After(interval):
 		}
 		disk, err := findDiskByID(diskID, ecsClient)
@@ -632,7 +601,7 @@ func waitForSharedDiskInStatus(ctx context.Context, retryCount int, interval tim
 			return err
 		}
 		if disk == nil {
-			return status.Errorf(codes.Aborted, "waitForSharedDiskInStatus: disk not exist: %s", diskID)
+			return status.Errorf(codes.Aborted, "waitForMultiAttachDiskInStatus: disk not exist: %s", diskID)
 		}
 		if expectStatus == DiskStatusAttached {
 			for _, attachment := range disk.Attachments.Attachment {
@@ -651,20 +620,8 @@ func waitForSharedDiskInStatus(ctx context.Context, retryCount int, interval tim
 				return nil
 			}
 		}
-
-		for _, instance := range disk.MountInstances.MountInstance {
-			if expectStatus == DiskStatusAttached {
-				if instance.InstanceId == nodeID {
-					return nil
-				}
-			} else if expectStatus == DiskStatusDetached {
-				if instance.InstanceId != nodeID {
-					return nil
-				}
-			}
-		}
 	}
-	return status.Errorf(codes.Aborted, "WaitForSharedDiskInStatus: after %d times of check, disk %s is still not attached", retryCount, diskID)
+	return status.Errorf(codes.Aborted, "WaitForMultiAttachDiskInStatus: after %d times of check, disk %s is still not attached", retryCount, diskID)
 }
 
 func waitForDiskInStatus(ctx context.Context, retryCount int, interval time.Duration, diskID string, expectedStatus string, ecsClient *ecs.Client) error {
@@ -697,22 +654,6 @@ func findDiskByID(diskID string, ecsClient *ecs.Client) (*ecs.Disk, error) {
 		return nil, status.Errorf(codes.Aborted, "Can't get disk %s: %v", diskID, err)
 	}
 	disks := diskResponse.Disks.Disk
-	// shared disk can not described if not set EnableShared
-	if len(disks) == 0 {
-		describeDisksRequest.EnableShared = requests.NewBoolean(true)
-		diskResponse, err = ecsClient.DescribeDisks(describeDisksRequest)
-		if err != nil {
-			if strings.Contains(err.Error(), UserNotInTheWhiteList) {
-				return nil, nil
-			}
-			return nil, status.Errorf(codes.Aborted, "Can't get disk %s: %v", diskID, err)
-		}
-		if diskResponse == nil {
-			return nil, status.Errorf(codes.Aborted, "Empty response when get disk %s", diskID)
-		}
-		disks = diskResponse.Disks.Disk
-	}
-
 	if len(disks) == 0 {
 		return nil, nil
 	}
