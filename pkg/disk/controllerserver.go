@@ -89,6 +89,9 @@ func NewControllerServer(csiCfg utils.Config) csi.ControllerServer {
 		ad: DiskAttachDetach{
 			waiter:  waiter,
 			batcher: batcher,
+
+			attachThrottler: defaultThrottler(),
+			detachThrottler: defaultThrottler(),
 		},
 	}
 	detachConcurrency := 1
