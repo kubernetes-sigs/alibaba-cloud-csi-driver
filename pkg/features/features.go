@@ -40,16 +40,19 @@ const (
 	RundCSIProtocol3 featuregate.Feature = "RundCSIProtocol3"
 
 	EnableVolumeGroupSnapshots featuregate.Feature = "EnableVolumeGroupSnapshots"
+
+	CrossNamespaceVolumeDataSource featuregate.Feature = "CrossNamespaceVolumeDataSource"
 )
 
 var (
 	FunctionalMutableFeatureGate = featuregate.NewFeatureGate()
 	defaultDiskFeatureGate       = map[featuregate.Feature]featuregate.FeatureSpec{
-		DiskADController:           {Default: false, PreRelease: featuregate.Alpha},
-		DiskParallelAttach:         {Default: false, PreRelease: featuregate.Alpha},
-		DiskParallelDetach:         {Default: false, PreRelease: featuregate.Alpha},
-		DisableExpandAutoSnapshots: {Default: true, PreRelease: featuregate.Beta},
-		EnableVolumeGroupSnapshots: {Default: false, PreRelease: featuregate.Alpha},
+		DiskADController:               {Default: false, PreRelease: featuregate.Alpha},
+		DiskParallelAttach:             {Default: false, PreRelease: featuregate.Alpha},
+		DiskParallelDetach:             {Default: false, PreRelease: featuregate.Alpha},
+		DisableExpandAutoSnapshots:     {Default: true, PreRelease: featuregate.Beta},
+		EnableVolumeGroupSnapshots:     {Default: false, PreRelease: featuregate.Alpha},
+		CrossNamespaceVolumeDataSource: {Default: false, PreRelease: featuregate.Alpha},
 	}
 
 	defaultOSSFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
