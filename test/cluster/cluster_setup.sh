@@ -241,7 +241,7 @@ function ram-setup {
     read -r arn uid < <(aliyun sts GetCallerIdentity | jq -r '[.Arn, .AccountId] | @tsv')
     echo "Current identity ARN: $arn"
 
-    external_id=$(openssl rand -base64 12)
+    external_id=$(openssl rand 12 | basenc --base64url)
 
     ram-role-setup node
     create-token-secret node addon.aliyuncsmanagedcsipluginrole.token
