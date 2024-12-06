@@ -1,0 +1,37 @@
+{
+    "Version": "1",
+    "Statement": [
+        {
+            "Action": [
+                "ecs:AddTags",
+                "ecs:AttachDisk",
+                "ecs:CreateDisk",
+                "ecs:CreateSnapshot",
+                "ecs:CreateSnapshot",
+                "ecs:CreateSnapshotGroup",
+                "ecs:DeleteDisk",
+                "ecs:DeleteSnapshot",
+                "ecs:DeleteSnapshotGroup",
+                "ecs:DescribeDisks",
+                "ecs:DescribeInstanceAttribute",
+                "ecs:DescribeInstanceHistoryEvents",
+                "ecs:DescribeInstances",
+                "ecs:DescribeSnapshotGroups",
+                "ecs:DescribeSnapshots",
+                "ecs:DescribeTags",
+                "ecs:DescribeTaskAttribute",
+                "ecs:DetachDisk",
+                "ecs:ListTagResources",
+                "ecs:ModifyDiskSpec",
+                "ecs:RemoveTags",
+                "ecs:ResizeDisk",
+                "ecs:TagResources",
+                "ecs:UntagResources"
+            ],
+            "Resource": [
+                "*"
+            ],
+            "Effect": "Allow"
+        }
+    ]
+}

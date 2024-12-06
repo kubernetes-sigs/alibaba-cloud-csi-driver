@@ -1,0 +1,28 @@
+{
+    "Version": "1",
+    "Statement": [
+        {
+            "Action": [
+                "ecs:AddTags",
+                "ecs:AttachDisk",
+                "ecs:DeleteSnapshot",
+                "ecs:DescribeDisks",
+                "ecs:DescribeInstanceAttribute",
+                "ecs:DescribeInstanceHistoryEvents",
+                "ecs:DescribeInstances",
+                "ecs:DescribeSnapshots",
+                "ecs:DescribeTags",
+                "ecs:DescribeTaskAttribute",
+                "ecs:DetachDisk",
+                "ecs:ListTagResources",
+                "ecs:RemoveTags",
+                "ecs:TagResources",
+                "ecs:UntagResources"
+            ],
+            "Resource": [
+                "*"
+            ],
+            "Effect": "Allow"
+        }
+    ]
+}
