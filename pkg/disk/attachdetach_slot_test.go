@@ -96,8 +96,8 @@ func TestCancelWaiting(t *testing.T) {
 	})
 	t.Run("independent", func(t *testing.T) {
 		s := &independentSlot{
-			attach: newMaxConcurrentSlot(1),
-			detach: newMaxConcurrentSlot(1),
+			attach: newBlockable(newMaxConcurrentSlot(1)),
+			detach: newBlockable(newMaxConcurrentSlot(1)),
 		}
 		assert.NoError(t, s.attach.Aquire(context.Background()))
 		assert.NoError(t, s.detach.Aquire(context.Background()))
@@ -170,4 +170,47 @@ func TestSerialDetach_NoRace(t *testing.T) {
 	if state == -1 {
 		t.Fatal("state not updated")
 	}
+}
+
+func TestBlock(t *testing.T) {
+	s := NewSlots(1, 1).GetSlotFor("node1")
+
+	now := time.Now()
+	until := now.Add(200 * time.Millisecond)
+	// regardless of the order, use the latest deadline
+	s.Attach().Block(until.Add(-100 * time.Millisecond))
+	s.Attach().Block(until)
+	s.Attach().Block(until.Add(-50 * time.Millisecond))
+
+	times := make(chan time.Time)
+	go func() {
+		assert.NoError(t, s.Attach().Aquire(context.Background()))
+		s.Attach().Release()
+		times <- time.Now()
+	}()
+	go func() {
+		assert.NoError(t, s.Detach().Aquire(context.Background()))
+		s.Detach().Release()
+		times <- time.Now()
+	}()
+	for range 2 {
+		select {
+		case aquired := <-times:
+			assert.WithinDuration(t, until, aquired, 10*time.Millisecond)
+		case <-time.After(500 * time.Millisecond):
+			t.Fatal("Timeout waiting for Aquire")
+		}
+	}
+}
+
+func TestBlockCancel(t *testing.T) {
+	s := NewSlots(1, 1).GetSlotFor("node1")
+	s.Attach().Block(time.Now().Add(10 * time.Second))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		cancel()
+	}()
+	assert.ErrorIs(t, s.Attach().Aquire(ctx), context.Canceled)
 }
