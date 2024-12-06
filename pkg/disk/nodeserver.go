@@ -871,7 +871,13 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 
 func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (
 	*csi.NodeExpandVolumeResponse, error) {
-	klog.Infof("NodeExpandVolume: node expand volume: %v", req)
+	logger := klog.FromContext(ctx)
+	logger.V(2).Info("starting", "req", req)
+
+	if req.VolumeCapability != nil && req.VolumeCapability.GetBlock() != nil {
+		klog.V(2).Info("skipping expand for block volume")
+		return &csi.NodeExpandVolumeResponse{}, nil
+	}
 
 	volumePath := req.GetVolumePath()
 	diskID := req.GetVolumeId()
