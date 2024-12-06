@@ -7,6 +7,7 @@ deploy:
     secretName: alibaba-addon-secret
     idKey: access-key-id
     secretKey: access-key-secret
+  newProvisionerToken: false
 
 # deployment
 controller:

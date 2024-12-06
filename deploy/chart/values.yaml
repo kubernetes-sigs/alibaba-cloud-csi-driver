@@ -52,6 +52,7 @@ deploy:
   # and the storage-controller will handle the cleanup of the subpath in NAS filesystem.
   withStorageController: false
 
+  newProvisionerToken: true
   # Which namespace holds ossfs pods
   fuseNamespace: ack-csi-fuse
 
