@@ -48,6 +48,7 @@ import (
 // controller server try to create/delete volumes/snapshots
 type controllerServer struct {
 	recorder record.EventRecorder
+	ad       DiskAttachDetach
 	common.GenericControllerServer
 }
 
@@ -82,10 +83,29 @@ var veasp = struct {
 var delVolumeSnap sync.Map
 
 // NewControllerServer is to create controller server
-func NewControllerServer() csi.ControllerServer {
+func NewControllerServer(csiCfg utils.Config) csi.ControllerServer {
+	waiter, batcher := newBatcher()
 	c := &controllerServer{
 		recorder: utils.NewEventRecorder(),
+		ad: DiskAttachDetach{
+			waiter:  waiter,
+			batcher: batcher,
+
+			attachThrottler: defaultThrottler(),
+			detachThrottler: defaultThrottler(),
+		},
 	}
+	detachConcurrency := 1
+	attachConcurrency := 1
+	if features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelDetach) {
+		detachConcurrency = csiCfg.GetInt("disk-detach-concurrency", "DISK_DETACH_CONCURRENCY", 5)
+		klog.InfoS("Disk parallel detach enabled", "concurrency", detachConcurrency)
+	}
+	if features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelAttach) {
+		attachConcurrency = csiCfg.GetInt("disk-attach-concurrency", "DISK_ATTACH_CONCURRENCY", 32)
+		klog.InfoS("Disk parallel attach enabled", "concurrency", attachConcurrency)
+	}
+	c.ad.slots = NewSlots(detachConcurrency, attachConcurrency)
 	return c
 }
 
@@ -262,7 +282,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			}
 		}
 		if disk.Status == DiskStatusInuse && canDetach {
-			err := detachDisk(ctx, ecsClient, req.VolumeId, disk.InstanceId)
+			err := cs.ad.detachDisk(ctx, ecsClient, req.VolumeId, disk.InstanceId)
 			if err != nil {
 				newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
 				klog.Errorf("DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, newErrMsg)
@@ -344,6 +364,8 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		klog.Infof("ControllerPublishVolume: sleep 5s")
 	}
 
+	ctx = WithTenantUserUID(ctx, req.VolumeContext[TenantUserUID])
+
 	isMultiAttach := false
 	if value, ok := req.VolumeContext[MultiAttach]; ok {
 		value = strings.ToLower(value)
@@ -352,7 +374,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}
 	}
 	if isMultiAttach {
-		_, err := attachSharedDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId)
+		_, err := cs.ad.attachSharedDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId)
 		if err != nil {
 			klog.Errorf("ControllerPublishVolume: attach shared disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 			return nil, err
@@ -380,7 +402,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		isSingleInstance = AllCategories[Category(value)].SingleInstance
 	}
 
-	_, err := attachDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk, isSingleInstance, false)
+	_, err := cs.ad.attachDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk, isSingleInstance, false)
 	if err != nil {
 		klog.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
@@ -392,11 +414,16 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 // ControllerUnpublishVolume do detach
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	// Describe Disk Info
-	ecsClient, err := getEcsClientByID(req.VolumeId, "")
+	uid, err := getTenantUIDByVolumeID(req.VolumeId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	isMultiAttach, err := detachMultiAttachDisk(ctx, ecsClient, req.VolumeId, req.NodeId)
+	ctx = WithTenantUserUID(ctx, uid)
+	ecsClient, err := getEcsClientByID(req.VolumeId, uid)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	isMultiAttach, err := cs.ad.detachMultiAttachDisk(ctx, ecsClient, req.VolumeId, req.NodeId)
 	if isMultiAttach && err != nil {
 		klog.Errorf("ControllerUnpublishVolume: detach multiAttach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
@@ -417,7 +444,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	}
 
 	klog.Infof("ControllerUnpublishVolume: detach disk: %s from node: %s", req.VolumeId, req.NodeId)
-	err = detachDisk(ctx, ecsClient, req.VolumeId, req.NodeId)
+	err = cs.ad.detachDisk(ctx, ecsClient, req.VolumeId, req.NodeId)
 	if err != nil {
 		klog.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err

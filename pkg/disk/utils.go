@@ -994,6 +994,9 @@ func getEcsClientByID(volumeID, uid string) (ecsClient *ecs.Client, err error) {
 }
 
 func getTenantUIDByVolumeID(volumeID string) (uid string, err error) {
+	if !GlobalConfigVar.DiskMultiTenantEnable {
+		return "", nil
+	}
 	// external-provisioner已经保证了PV的名字 == req.VolumeId
 	// 如果是静态PV，需要告知用户将PV#Name和PV#spec.volumeHandler配成一致
 	pv, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{ResourceVersion: "0"})

@@ -21,11 +21,16 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/throttle"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/batcher"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -35,6 +40,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/clock"
 )
 
 // PluginFolder defines the location of diskplugin
@@ -57,7 +63,6 @@ type GlobalConfig struct {
 	Region                string
 	NodeID                string
 	DiskTagEnable         bool
-	AttachDetachSlots     AttachDetachSlots
 	ADControllerEnable    bool
 	DetachDisabled        bool
 	MetricEnable          bool
@@ -97,7 +102,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 	tmpdisk.endpoint = endpoint
 
 	// Config Global vars
-	GlobalConfigSet(m)
+	csiCfg := GlobalConfigSet(m)
 
 	if serviceType&utils.Node != 0 {
 		GlobalConfigVar.NodeID = metadata.MustGet(m, metadata.InstanceID)
@@ -120,7 +125,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 	var servers common.Servers
 	servers.IdentityServer = NewIdentityServer()
 	if serviceType&utils.Controller != 0 {
-		servers.ControllerServer = NewControllerServer()
+		servers.ControllerServer = NewControllerServer(csiCfg)
 	}
 	if serviceType&utils.Node != 0 {
 		servers.NodeServer = NewNodeServer(m)
@@ -140,7 +145,7 @@ func (disk *DISK) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(m metadata.MetadataProvider) {
+func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 	configMapName := "csi-plugin"
 
 	// Global Configs Set
@@ -231,21 +236,51 @@ func GlobalConfigSet(m metadata.MetadataProvider) {
 		GlobalConfigVar.DetachBeforeDelete,
 		GlobalConfigVar.ClusterID,
 	)
+	return csiCfg
+}
 
-	if GlobalConfigVar.ADControllerEnable {
-		detachConcurrency := 1
-		attachConcurrency := 1
-		if features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelDetach) {
-			detachConcurrency = csiCfg.GetInt("disk-detach-concurrency", "DISK_DETACH_CONCURRENCY", 5)
-			klog.InfoS("Disk parallel detach enabled", "concurrency", detachConcurrency)
+func newBatcher() (waitstatus.StatusWaiter[ecs.Disk], batcher.Batcher[ecs.Disk]) {
+	client := desc.Disk{Client: GlobalConfigVar.EcsClient}
+	if GlobalConfigVar.DiskMultiTenantEnable {
+		waiter := waitstatus.NewSimple(client, clock.RealClock{})
+		waiter.ClientFactory = func(ctx context.Context) (desc.Client[ecs.Disk], error) {
+			tenantUserUID := GetTenantUserUID(ctx)
+			client, err := getEcsClientByID("", tenantUserUID)
+			if err != nil {
+				return nil, err
+			}
+			return desc.Disk{Client: client}, nil
 		}
-		if features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelAttach) {
-			attachConcurrency = csiCfg.GetInt("disk-attach-concurrency", "DISK_ATTACH_CONCURRENCY", 32)
-			klog.InfoS("Disk parallel attach enabled", "concurrency", attachConcurrency)
-		}
-		GlobalConfigVar.AttachDetachSlots = NewSlots(detachConcurrency, attachConcurrency)
+		return waiter, waiter
 	} else {
-		// if ADController is not enabled, we need serial attach to recognize old disk
-		GlobalConfigVar.AttachDetachSlots = NewSlots(1, 1)
+		ctx := context.Background()
+		waiter := waitstatus.NewBatched(client, clock.RealClock{})
+		waiter.PollHook = func() desc.Client[ecs.Disk] {
+			return desc.Disk{Client: updateEcsClient(GlobalConfigVar.EcsClient)}
+		}
+		go waiter.Run(ctx)
+
+		b := batcher.NewLowLatency(client, clock.RealClock{}, 2*time.Second, 10)
+		b.PollHook = waiter.PollHook
+		go b.Run(ctx)
+		return waiter, b
+	}
+}
+
+type throttler interface {
+	Throttle(ctx context.Context, f func() error) error
+}
+
+type noopThrottler struct{}
+
+func (noopThrottler) Throttle(ctx context.Context, f func() error) error {
+	return f()
+}
+
+func defaultThrottler() throttler {
+	if GlobalConfigVar.DiskMultiTenantEnable {
+		return noopThrottler{}
+	} else {
+		return throttle.NewThrottler(clock.RealClock{}, 1*time.Second, 10*time.Second)
 	}
 }
