@@ -82,6 +82,9 @@ type DiskAttachDetach struct {
 	slots   AttachDetachSlots
 	waiter  waitstatus.StatusWaiter[ecs.Disk]
 	batcher batcher.Batcher[ecs.Disk]
+
+	attachThrottler throttler
+	detachThrottler throttler
 }
 
 // attach alibaba cloud disk
@@ -214,7 +217,11 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, tenantUserUID, diskI
 	for key, value := range GlobalConfigVar.RequestBaseInfo {
 		attachRequest.AppendUserAgent(key, value)
 	}
-	response, err := ecsClient.AttachDisk(attachRequest)
+	var response *ecs.AttachDiskResponse
+	err = ad.attachThrottler.Throttle(ctx, func() error {
+		response, err = ecsClient.AttachDisk(attachRequest)
+		return err
+	})
 	if err != nil {
 		var aliErr *alicloudErr.ServerError
 		if errors.As(err, &aliErr) {
@@ -436,7 +443,11 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Clien
 	for key, value := range GlobalConfigVar.RequestBaseInfo {
 		detachDiskRequest.AppendUserAgent(key, value)
 	}
-	response, err := ecsClient.DetachDisk(detachDiskRequest)
+	var response *ecs.DetachDiskResponse
+	err = ad.detachThrottler.Throttle(ctx, func() error {
+		response, err = ecsClient.DetachDisk(detachDiskRequest)
+		return err
+	})
 	if err != nil {
 		errMsg := fmt.Sprintf("DetachDisk: Fail to detach %s: from Instance: %s with error: %s", disk.DiskId, disk.InstanceId, err.Error())
 		if response != nil {
