@@ -127,7 +127,7 @@ spec:
       name: csi-test-config
   initContainers:
   - name: init
-    image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.26.4-e7e52e9-init
+    image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.31.4-9819c8b-aliyun-init
     args:
     - --driver=disk
     securityContext:
@@ -147,7 +147,7 @@ spec:
         name: ossconnectordir
   containers:
   - name: csi-testing
-    image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.26.4-e7e52e9-aliyun
+    image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.31.4-9819c8b-aliyun
     args:
       - --endpoint=unix://var/lib/kubelet/csi-sanity/csi.sock
       - --v=2
