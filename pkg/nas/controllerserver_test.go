@@ -10,8 +10,6 @@ import (
 	mytesting "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/testing"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -271,60 +269,4 @@ func TestControllerServer_ControllerGetCapabilities(t *testing.T) {
 	resp, err := cs.ControllerGetCapabilities(context.Background(), &csi.ControllerGetCapabilitiesRequest{})
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
-}
-
-func TestControllerServer_ControllerPublishVolume(t *testing.T) {
-	cs := newMockControllerServer()
-	assert.NotNil(t, cs)
-	resp, err := cs.ControllerPublishVolume(context.Background(), &csi.ControllerPublishVolumeRequest{})
-	assert.Nil(t, resp)
-	assert.Equal(t, status.Error(codes.Unimplemented, ""), err)
-}
-
-func TestControllerServer_ControllerUnpublishVolume(t *testing.T) {
-	cs := newMockControllerServer()
-	assert.NotNil(t, cs)
-	resp, err := cs.ControllerUnpublishVolume(context.Background(), &csi.ControllerUnpublishVolumeRequest{})
-	assert.Nil(t, resp)
-	assert.Equal(t, status.Error(codes.Unimplemented, ""), err)
-}
-
-func TestControllerServer_ListVolumes(t *testing.T) {
-	cs := newMockControllerServer()
-	assert.NotNil(t, cs)
-	resp, err := cs.ListVolumes(context.Background(), &csi.ListVolumesRequest{})
-	assert.Nil(t, resp)
-	assert.Equal(t, status.Error(codes.Unimplemented, ""), err)
-}
-
-func TestControllerServer_GetCapacity(t *testing.T) {
-	cs := newMockControllerServer()
-	assert.NotNil(t, cs)
-	resp, err := cs.GetCapacity(context.Background(), &csi.GetCapacityRequest{})
-	assert.Nil(t, resp)
-	assert.Equal(t, status.Error(codes.Unimplemented, ""), err)
-}
-
-func TestControllerServer_CreateSnapshot(t *testing.T) {
-	cs := newMockControllerServer()
-	assert.NotNil(t, cs)
-	resp, err := cs.CreateSnapshot(context.Background(), &csi.CreateSnapshotRequest{})
-	assert.Nil(t, resp)
-	assert.Equal(t, status.Error(codes.Unimplemented, ""), err)
-}
-
-func TestControllerServer_DeleteSnapshot(t *testing.T) {
-	cs := newMockControllerServer()
-	assert.NotNil(t, cs)
-	resp, err := cs.DeleteSnapshot(context.Background(), &csi.DeleteSnapshotRequest{})
-	assert.Nil(t, resp)
-	assert.Equal(t, status.Error(codes.Unimplemented, ""), err)
-}
-
-func TestControllerServer_ListSnapshots(t *testing.T) {
-	cs := newMockControllerServer()
-	assert.NotNil(t, cs)
-	resp, err := cs.ListSnapshots(context.Background(), &csi.ListSnapshotsRequest{})
-	assert.Nil(t, resp)
-	assert.Equal(t, status.Error(codes.Unimplemented, ""), err)
 }

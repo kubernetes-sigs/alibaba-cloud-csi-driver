@@ -334,11 +334,6 @@ func (ns *nodeServer) NodeUnstageVolume(
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
-func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (
-	*csi.NodeExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
-}
-
 type publishRequest interface {
 	GetVolumeCapability() *csi.VolumeCapability
 	GetReadonly() bool
