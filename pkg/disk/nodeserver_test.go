@@ -11,9 +11,10 @@ import (
 )
 
 func TestEnsurePathExistsAndCheckMounted(t *testing.T) {
+	basePath := t.TempDir()
 	mountCheckErrors := map[string]error{
-		"/err":       errors.New("specific error"),
-		"/notexists": fs.ErrNotExist,
+		basePath + "/err":       errors.New("specific error"),
+		basePath + "/notexists": fs.ErrNotExist,
 	}
 	mounter := &k8smount.FakeMounter{
 		MountCheckErrors: mountCheckErrors,
@@ -36,7 +37,7 @@ func TestEnsurePathExistsAndCheckMounted(t *testing.T) {
 		{
 			name:       "",
 			volumeId:   "aaa",
-			targetPath: "/",
+			targetPath: basePath,
 			fsType:     "",
 			source:     "",
 			isBlock:    true,
@@ -44,7 +45,7 @@ func TestEnsurePathExistsAndCheckMounted(t *testing.T) {
 		}, {
 			name:       "",
 			volumeId:   "aaa",
-			targetPath: "/tmpfs",
+			targetPath: basePath + "/tmpfs",
 			source:     "tmpfs",
 			fsType:     "tmpfs",
 			isBlock:    false,
@@ -52,7 +53,7 @@ func TestEnsurePathExistsAndCheckMounted(t *testing.T) {
 		}, {
 			name:       "",
 			volumeId:   "aaa",
-			targetPath: "/ext4",
+			targetPath: basePath + "/ext4",
 			source:     "/dev/ext4",
 			fsType:     "ext4",
 			isBlock:    false,
@@ -61,13 +62,13 @@ func TestEnsurePathExistsAndCheckMounted(t *testing.T) {
 		{
 			name:       "",
 			volumeId:   "aaa",
-			targetPath: "/notexists",
+			targetPath: basePath + "/notexists",
 			isBlock:    false,
 			expectErr:  true,
 		}, {
 			name:       "",
 			volumeId:   "aaa",
-			targetPath: "/err",
+			targetPath: basePath + "/err",
 			isBlock:    false,
 			expectErr:  true,
 		},
