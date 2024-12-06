@@ -8,8 +8,8 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
+	versioncollector "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/version"
 	"k8s.io/klog/v2"
 )
 
@@ -51,7 +51,7 @@ func NewMetricHandler(driverNames []string, serviceType utils.ServiceType) *Hand
 
 func (h *Handler) innerHandler() (http.Handler, error) {
 	r := prometheus.NewRegistry()
-	r.MustRegister(version.NewCollector("alibaba_cloud_csi_driver"))
+	r.MustRegister(versioncollector.NewCollector("alibaba_cloud_csi_driver"))
 	if err := r.Register(csiCollectorInstance); err != nil {
 		return nil, fmt.Errorf("Couldn't register node collector: %s", err)
 	}
