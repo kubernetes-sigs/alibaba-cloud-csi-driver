@@ -1,4 +1,4 @@
-{{- $featureGates := list -}}
+{{- $featureGates := "" -}}
 {{- if .Values.deploy.featureGates -}}
 {{- $featureGates = include "parseFeatureGates" .Values.deploy.featureGates -}}
 {{- end -}}
