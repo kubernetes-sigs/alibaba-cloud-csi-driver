@@ -2,7 +2,7 @@
 
 set -e
 
-N_NODES=${N_NODES:-3}
+N_NODES=${N_NODES:-4}
 ACK_REGION=${ACK_REGION:-cn-beijing}
 ACK_ZONE=${ACK_ZONE:-cn-beijing-h cn-beijing-i cn-beijing-j}
 
@@ -72,6 +72,7 @@ function cluster-setup {
         --ext-str vpc_id="$VPC_ID" \
         --ext-str cluster_name="$CASE_NAME" \
         --ext-str os_image_alinux3="${OS_IMAGE_ALINUX3:-aliyun_3_x64_20G_alibase_20240819.vhd}" \
+        --ext-str os_image_alinux3_arm64="${OS_IMAGE_ALINUX3_ARM64:-aliyun_3_arm64_20G_alibase_20240528.vhd}" \
         --ext-str os_image_containeros3="${OS_IMAGE_CONTAINEROS3:-lifsea_3_x64_10G_alibase_20240918.qcow2}" \
         --ext-code n_nodes="$N_NODES" \
         --ext-code vswitch_ids="$(jq -n '$ARGS.positional' --args "${vswitch_ids[@]}")")
