@@ -219,6 +219,9 @@ func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 			batcher: batcher,
 			// if ADController is not enabled, we need serial attach to recognize old disk
 			slots: NewSlots(1, 1),
+
+			attachThrottler: defaultThrottler(),
+			detachThrottler: defaultThrottler(),
 		},
 		locks: utils.NewVolumeLocks(),
 		GenericNodeServer: common.GenericNodeServer{
