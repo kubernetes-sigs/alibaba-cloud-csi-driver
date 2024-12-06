@@ -190,7 +190,7 @@ spec:
     - name: csi-sanity
       mountPath: /var/lib/kubelet/csi-sanity
   - name: csi-sanity
-    image: registry-cn-hangzhou.ack.aliyuncs.com/test/csi-sanity:v1.1.0-667-g38c23552
+    image: registry-cn-hangzhou.ack.aliyuncs.com/test/csi-sanity:v5.3.1-13-g2a59d48
     args: [
       "--csi.endpoint", "/var/lib/kubelet/csi-sanity/csi.sock",
       "--csi.testvolumesize", "21474836480",
@@ -201,6 +201,7 @@ spec:
       "--ginkgo.junit-report", "/var/lib/kubelet/csi-sanity/report.xml",
       "--ginkgo.no-color",
       "--ginkgo.v",
+      "--ginkgo.timeout", "20m",
     ]
     resources:
       requests:
