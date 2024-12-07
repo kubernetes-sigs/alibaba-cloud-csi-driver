@@ -28,7 +28,7 @@ local nodePool = {
         cms_enabled: false,
         unschedulable: false,
         runtime: "containerd",
-        runtime_version: "1.6.28"
+        runtime_version: "1.6.36",
     },
     management: {
         enable: false
