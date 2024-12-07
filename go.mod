@@ -96,4 +96,7 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/alibabacloud-go/tea => /Users/huww98/source/tea
+replace (
+	github.com/alibabacloud-go/tea => /Users/huww98/source/tea
+	sigs.k8s.io/structured-merge-diff/v4 => github.com/inteon/structured-merge-diff/v4 v4.0.0-20240412145547-26b574790dfc
+)

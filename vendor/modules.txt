@@ -750,9 +750,10 @@ k8s.io/utils/trace
 ## explicit; go 1.18
 sigs.k8s.io/json
 sigs.k8s.io/json/internal/golang/encoding/json
-# sigs.k8s.io/structured-merge-diff/v4 v4.4.1
+# sigs.k8s.io/structured-merge-diff/v4 v4.4.1 => github.com/inteon/structured-merge-diff/v4 v4.0.0-20240412145547-26b574790dfc
 ## explicit; go 1.13
 sigs.k8s.io/structured-merge-diff/v4/fieldpath
+sigs.k8s.io/structured-merge-diff/v4/internal/builder
 sigs.k8s.io/structured-merge-diff/v4/merge
 sigs.k8s.io/structured-merge-diff/v4/schema
 sigs.k8s.io/structured-merge-diff/v4/typed
@@ -761,3 +762,4 @@ sigs.k8s.io/structured-merge-diff/v4/value
 ## explicit; go 1.12
 sigs.k8s.io/yaml
 # github.com/alibabacloud-go/tea => /Users/huww98/source/tea
+# sigs.k8s.io/structured-merge-diff/v4 => github.com/inteon/structured-merge-diff/v4 v4.0.0-20240412145547-26b574790dfc

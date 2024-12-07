@@ -17,18 +17,11 @@ limitations under the License.
 package value
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"strings"
 
-	jsoniter "github.com/json-iterator/go"
 	"gopkg.in/yaml.v2"
-)
-
-var (
-	readPool  = jsoniter.NewIterator(jsoniter.ConfigCompatibleWithStandardLibrary).Pool()
-	writePool = jsoniter.NewStream(jsoniter.ConfigCompatibleWithStandardLibrary, nil, 1024).Pool()
+	"sigs.k8s.io/structured-merge-diff/v4/internal/builder"
 )
 
 // A Value corresponds to an 'atom' in the schema. It should return true
@@ -83,44 +76,17 @@ type Value interface {
 
 // FromJSON is a helper function for reading a JSON document.
 func FromJSON(input []byte) (Value, error) {
-	return FromJSONFast(input)
-}
-
-// FromJSONFast is a helper function for reading a JSON document.
-func FromJSONFast(input []byte) (Value, error) {
-	iter := readPool.BorrowIterator(input)
-	defer readPool.ReturnIterator(iter)
-	return ReadJSONIter(iter)
-}
-
-// ToJSON is a helper function for producing a JSon document.
-func ToJSON(v Value) ([]byte, error) {
-	buf := bytes.Buffer{}
-	stream := writePool.BorrowStream(&buf)
-	defer writePool.ReturnStream(stream)
-	WriteJSONStream(v, stream)
-	b := stream.Buffer()
-	err := stream.Flush()
-	// Help jsoniter manage its buffers--without this, the next
-	// use of the stream is likely to require an allocation. Look
-	// at the jsoniter stream code to understand why. They were probably
-	// optimizing for folks using the buffer directly.
-	stream.SetBuffer(b[:0])
-	return buf.Bytes(), err
-}
-
-// ReadJSONIter reads a Value from a JSON iterator.
-func ReadJSONIter(iter *jsoniter.Iterator) (Value, error) {
-	v := iter.Read()
-	if iter.Error != nil && iter.Error != io.EOF {
-		return nil, iter.Error
+	v, err := builder.UnmarshalInterface(input)
+	if err != nil {
+		return nil, err
 	}
+
 	return NewValueInterface(v), nil
 }
 
-// WriteJSONStream writes a value into a JSON stream.
-func WriteJSONStream(v Value, stream *jsoniter.Stream) {
-	stream.WriteVal(v.Unstructured())
+// ToJSON is a helper function for producing a JSON document.
+func ToJSON(v Value) ([]byte, error) {
+	return builder.MarshalInterface(v.Unstructured())
 }
 
 // ToYAML marshals a value as YAML.

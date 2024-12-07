@@ -17,80 +17,108 @@ limitations under the License.
 package fieldpath
 
 import (
-	"bytes"
+	"fmt"
 	"io"
-	"unsafe"
+	"sort"
 
-	jsoniter "github.com/json-iterator/go"
+	"sigs.k8s.io/structured-merge-diff/v4/internal/builder"
 )
 
 func (s *Set) ToJSON() ([]byte, error) {
-	buf := bytes.Buffer{}
-	err := s.ToJSONStream(&buf)
-	if err != nil {
+	buf := builder.JSONBuilder{}
+	if err := s.emitContentsV1(false, &buf, &builder.ReusableBuilder{}); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
 }
 
 func (s *Set) ToJSONStream(w io.Writer) error {
-	stream := writePool.BorrowStream(w)
-	defer writePool.ReturnStream(stream)
-
-	var r reusableBuilder
-
-	stream.WriteObjectStart()
-	err := s.emitContentsV1(false, stream, &r)
-	if err != nil {
+	buf := builder.JSONBuilder{}
+	if err := s.emitContentsV1(false, &buf, &builder.ReusableBuilder{}); err != nil {
 		return err
 	}
-	stream.WriteObjectEnd()
-	return stream.Flush()
+	_, err := buf.WriteTo(w)
+	return err
 }
 
-func manageMemory(stream *jsoniter.Stream) error {
-	// Help jsoniter manage its buffers--without this, it does a bunch of
-	// alloctaions that are not necessary. They were probably optimizing
-	// for folks using the buffer directly.
-	b := stream.Buffer()
-	if len(b) > 4096 || cap(b)-len(b) < 2048 {
-		if err := stream.Flush(); err != nil {
+type orderedMapItemWriter struct {
+	w        *builder.JSONBuilder
+	hasItems bool
+
+	builder *builder.ReusableBuilder
+}
+
+// writeKey writes a key to the writer, including a leading comma if necessary.
+// The key is expected to be an already-serialized JSON string (including quotes).
+// e.g. writeKey([]byte("\"foo\""))
+// After writing the key, the caller should write the encoded value, e.g. using
+// writeEmptyValue or by directly writing the value to the writer.
+func (om *orderedMapItemWriter) writeKey(key []byte) error {
+	if om.hasItems {
+		if _, err := om.w.Write([]byte{','}); err != nil {
 			return err
 		}
-		stream.SetBuffer(b[:0])
+	}
+
+	if _, err := om.w.Write(key); err != nil {
+		return err
+	}
+	if _, err := om.w.Write([]byte{':'}); err != nil {
+		return err
+	}
+	om.hasItems = true
+	return nil
+}
+
+// writePathKey writes a path element as a key to the writer, including a leading comma if necessary.
+// The path will be serialized as a JSON string (including quotes) and passed to writeKey.
+// After writing the key, the caller should write the encoded value, e.g. using
+// writeEmptyValue or by directly writing the value to the writer.
+func (om *orderedMapItemWriter) writePathKey(pe PathElement) error {
+	if om.hasItems {
+		if _, err := om.w.Write([]byte{','}); err != nil {
+			return err
+		}
+	}
+
+	if err := serializePathElementToWriter(om.builder.Reset(), pe); err != nil {
+		return err
+	}
+	if err := om.w.WriteJSON(om.builder.UnsafeString()); err != nil {
+		return err
+	}
+
+	if _, err := om.w.Write([]byte{':'}); err != nil {
+		return err
+	}
+	om.hasItems = true
+	return nil
+}
+
+// writeEmptyValue writes an empty JSON object to the writer.
+// This should be used after writeKey.
+func (om orderedMapItemWriter) writeEmptyValue() error {
+	if _, err := om.w.Write([]byte("{}")); err != nil {
+		return err
 	}
 	return nil
 }
 
-type reusableBuilder struct {
-	bytes.Buffer
-}
-
-func (r *reusableBuilder) unsafeString() string {
-	b := r.Bytes()
-	return *(*string)(unsafe.Pointer(&b))
-}
-
-func (r *reusableBuilder) reset() *bytes.Buffer {
-	r.Reset()
-	return &r.Buffer
-}
-
-func (s *Set) emitContentsV1(includeSelf bool, stream *jsoniter.Stream, r *reusableBuilder) error {
+func (s *Set) emitContentsV1(includeSelf bool, w *builder.JSONBuilder, r *builder.ReusableBuilder) error {
+	om := orderedMapItemWriter{w: w, builder: r}
 	mi, ci := 0, 0
-	first := true
-	preWrite := func() {
-		if first {
-			first = false
-			return
-		}
-		stream.WriteMore()
+
+	if _, err := w.Write([]byte{'{'}); err != nil {
+		return err
 	}
 
 	if includeSelf && !(len(s.Members.members) == 0 && len(s.Children.members) == 0) {
-		preWrite()
-		stream.WriteObjectField(".")
-		stream.WriteEmptyObject()
+		if err := om.writeKey([]byte("\".\"")); err != nil {
+			return err
+		}
+		if err := om.writeEmptyValue(); err != nil {
+			return err
+		}
 	}
 
 	for mi < len(s.Members.members) && ci < len(s.Children.members) {
@@ -98,37 +126,26 @@ func (s *Set) emitContentsV1(includeSelf bool, stream *jsoniter.Stream, r *reusa
 		cpe := s.Children.members[ci].pathElement
 
 		if c := mpe.Compare(cpe); c < 0 {
-			preWrite()
-			if err := serializePathElementToWriter(r.reset(), mpe); err != nil {
+			if err := om.writePathKey(mpe); err != nil {
 				return err
 			}
-			stream.WriteObjectField(r.unsafeString())
-			stream.WriteEmptyObject()
+			if err := om.writeEmptyValue(); err != nil {
+				return err
+			}
+
 			mi++
-		} else if c > 0 {
-			preWrite()
-			if err := serializePathElementToWriter(r.reset(), cpe); err != nil {
-				return err
-			}
-			stream.WriteObjectField(r.unsafeString())
-			stream.WriteObjectStart()
-			if err := s.Children.members[ci].set.emitContentsV1(false, stream, r); err != nil {
-				return err
-			}
-			stream.WriteObjectEnd()
-			ci++
 		} else {
-			preWrite()
-			if err := serializePathElementToWriter(r.reset(), cpe); err != nil {
+			if err := om.writePathKey(cpe); err != nil {
 				return err
 			}
-			stream.WriteObjectField(r.unsafeString())
-			stream.WriteObjectStart()
-			if err := s.Children.members[ci].set.emitContentsV1(true, stream, r); err != nil {
+			if err := s.Children.members[ci].set.emitContentsV1(c == 0, w, r); err != nil {
 				return err
 			}
-			stream.WriteObjectEnd()
-			mi++
+
+			// If we also found a member with the same path, we skip this member.
+			if c == 0 {
+				mi++
+			}
 			ci++
 		}
 	}
@@ -136,103 +153,129 @@ func (s *Set) emitContentsV1(includeSelf bool, stream *jsoniter.Stream, r *reusa
 	for mi < len(s.Members.members) {
 		mpe := s.Members.members[mi]
 
-		preWrite()
-		if err := serializePathElementToWriter(r.reset(), mpe); err != nil {
+		if err := om.writePathKey(mpe); err != nil {
 			return err
 		}
-		stream.WriteObjectField(r.unsafeString())
-		stream.WriteEmptyObject()
+		if err := om.writeEmptyValue(); err != nil {
+			return err
+		}
+
 		mi++
 	}
 
 	for ci < len(s.Children.members) {
 		cpe := s.Children.members[ci].pathElement
 
-		preWrite()
-		if err := serializePathElementToWriter(r.reset(), cpe); err != nil {
+		if err := om.writePathKey(cpe); err != nil {
 			return err
 		}
-		stream.WriteObjectField(r.unsafeString())
-		stream.WriteObjectStart()
-		if err := s.Children.members[ci].set.emitContentsV1(false, stream, r); err != nil {
+		if err := s.Children.members[ci].set.emitContentsV1(false, w, r); err != nil {
 			return err
 		}
-		stream.WriteObjectEnd()
+
 		ci++
 	}
 
-	return manageMemory(stream)
+	if _, err := w.Write([]byte{'}'}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // FromJSON clears s and reads a JSON formatted set structure.
 func (s *Set) FromJSON(r io.Reader) error {
-	// The iterator pool is completely useless for memory management, grrr.
-	iter := jsoniter.Parse(jsoniter.ConfigCompatibleWithStandardLibrary, r, 4096)
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return err
+	}
 
-	found, _ := readIterV1(iter)
-	if found == nil {
+	found, _, err := readIterV1(b)
+	if err != nil {
+		return err
+	} else if found == nil {
 		*s = Set{}
 	} else {
 		*s = *found
 	}
-	return iter.Error
+	return nil
 }
 
 // returns true if this subtree is also (or only) a member of parent; s is nil
 // if there are no further children.
-func readIterV1(iter *jsoniter.Iterator) (children *Set, isMember bool) {
-	iter.ReadMapCB(func(iter *jsoniter.Iterator, key string) bool {
-		if key == "." {
-			isMember = true
-			iter.Skip()
-			return true
+func readIterV1(data []byte) (children *Set, isMember bool, err error) {
+	parser := builder.NewFastObjParser(data)
+
+	for {
+		rawKey, err := parser.Parse()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, false, fmt.Errorf("parsing JSON: %v", err)
 		}
-		pe, err := DeserializePathElement(key)
+
+		rawValue, err := parser.Parse()
+		if err == io.EOF {
+			return nil, false, fmt.Errorf("unexpected EOF")
+		} else if err != nil {
+			return nil, false, fmt.Errorf("parsing JSON: %v", err)
+		}
+
+		k, err := builder.UnmarshalString(rawKey)
+		if err != nil {
+			return nil, false, fmt.Errorf("decoding key: %v", err)
+		}
+
+		if k == "." {
+			isMember = true
+			continue
+		}
+
+		pe, err := DeserializePathElement(k)
 		if err == ErrUnknownPathElementType {
 			// Ignore these-- a future version maybe knows what
 			// they are. We drop these completely rather than try
 			// to preserve things we don't understand.
-			iter.Skip()
-			return true
+			continue
 		} else if err != nil {
-			iter.ReportError("parsing key as path element", err.Error())
-			iter.Skip()
-			return true
+			return nil, false, fmt.Errorf("parsing key as path element: %v", err)
 		}
-		grandchildren, childIsMember := readIterV1(iter)
-		if childIsMember {
+
+		grandChildren, isChildMember, err := readIterV1(rawValue)
+		if err != nil {
+			return nil, false, fmt.Errorf("parsing value as set: %v", err)
+		}
+
+		if isChildMember {
 			if children == nil {
 				children = &Set{}
 			}
+
+			// Append the member to the members list, we will sort it later
 			m := &children.Members.members
-			// Since we expect that most of the time these will have been
-			// serialized in the right order, we just verify that and append.
-			appendOK := len(*m) == 0 || (*m)[len(*m)-1].Less(pe)
-			if appendOK {
-				*m = append(*m, pe)
-			} else {
-				children.Members.Insert(pe)
-			}
+			*m = append(*m, pe)
 		}
-		if grandchildren != nil {
+
+		if grandChildren != nil {
 			if children == nil {
 				children = &Set{}
 			}
-			// Since we expect that most of the time these will have been
-			// serialized in the right order, we just verify that and append.
+
+			// Append the child to the children list, we will sort it later
 			m := &children.Children.members
-			appendOK := len(*m) == 0 || (*m)[len(*m)-1].pathElement.Less(pe)
-			if appendOK {
-				*m = append(*m, setNode{pe, grandchildren})
-			} else {
-				*children.Children.Descend(pe) = *grandchildren
-			}
+			*m = append(*m, setNode{pe, grandChildren})
 		}
-		return true
-	})
+	}
+
+	// Sort the members and children
+	if children != nil {
+		sort.Sort(children.Members.members)
+		sort.Sort(children.Children.members)
+	}
+
 	if children == nil {
 		isMember = true
 	}
 
-	return children, isMember
+	return children, isMember, nil
 }
