@@ -22,7 +22,7 @@ github.com/alibabacloud-go/nas-20170626/v3/client
 # github.com/alibabacloud-go/openapi-util v0.1.0
 ## explicit; go 1.14
 github.com/alibabacloud-go/openapi-util/service
-# github.com/alibabacloud-go/tea v1.2.1
+# github.com/alibabacloud-go/tea v1.2.1 => /Users/huww98/source/tea
 ## explicit; go 1.14
 github.com/alibabacloud-go/tea/tea
 github.com/alibabacloud-go/tea/utils
@@ -760,3 +760,4 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.3.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
+# github.com/alibabacloud-go/tea => /Users/huww98/source/tea
