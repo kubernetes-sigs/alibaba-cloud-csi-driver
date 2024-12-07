@@ -80,7 +80,7 @@ func (fp Path) Copy() Path {
 
 // MakePath constructs a Path. The parts may be PathElements, ints, strings.
 func MakePath(parts ...interface{}) (Path, error) {
-	var fp Path
+	fp := make(Path, 0, len(parts))
 	for _, p := range parts {
 		switch t := p.(type) {
 		case PathElement:
