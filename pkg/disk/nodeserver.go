@@ -63,13 +63,15 @@ type nodeServer struct {
 	common.GenericNodeServer
 }
 
+// Disk status returned in ecs.DescribeDisks
 const (
-	// DiskStatusInuse disk inuse status
-	DiskStatusInuse = "In_use"
-	// DiskStatusAttaching disk attaching status
+	DiskStatusInuse     = "In_use"
 	DiskStatusAttaching = "Attaching"
-	// DiskStatusAvailable disk available status
+	DiskStatusDetaching = "Detaching"
 	DiskStatusAvailable = "Available"
+)
+
+const (
 	// DiskStatusAttached disk attached status
 	DiskStatusAttached = "attached"
 	// DiskStatusDetached disk detached status
@@ -498,6 +500,8 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 	defer ns.locks.Release(req.VolumeId)
 
+	ctx = WithTenantUserUID(ctx, req.VolumeContext[TenantUserUID])
+
 	targetPath := req.StagingTargetPath
 	// targetPath format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
 
@@ -789,7 +793,12 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			klog.Infof("NodeUnstageVolume: ADController is Disable, Detach Flag Set to false, PV %s", req.VolumeId)
 			return &csi.NodeUnstageVolumeResponse{}, nil
 		}
-		ecsClient, err := getEcsClientByID(req.VolumeId, "")
+		uid, err := getTenantUIDByVolumeID(req.VolumeId)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		ctx = WithTenantUserUID(ctx, uid)
+		ecsClient, err := getEcsClientByID(req.VolumeId, uid)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
