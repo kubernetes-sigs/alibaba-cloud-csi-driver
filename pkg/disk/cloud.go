@@ -63,10 +63,10 @@ const (
 )
 
 // attach alibaba cloud disk
-func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSharedDisk, isSingleInstance bool, fromNode bool) (string, error) {
+func attachDisk(ctx context.Context, diskID, nodeID string, isSharedDisk, isSingleInstance bool, fromNode bool) (string, error) {
 	klog.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
-	ecsClient, err := getEcsClientByID("", tenantUserUID)
+	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 	// Step 1: check disk status
 	disk, err := findDiskByID(diskID, ecsClient)
 	if err != nil {
@@ -289,10 +289,10 @@ func attachDisk(ctx context.Context, tenantUserUID, diskID, nodeID string, isSha
 }
 
 // Only called by controller
-func attachSharedDisk(ctx context.Context, tenantUserUID, diskID, nodeID string) (string, error) {
+func attachSharedDisk(ctx context.Context, diskID, nodeID string) (string, error) {
 	klog.Infof("AttachDisk: Starting Do AttachSharedDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
-	ecsClient, err := getEcsClientByID("", tenantUserUID)
+	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 	// Step 1: check disk status
 	disk, err := findDiskByID(diskID, ecsClient)
 	if err != nil {
@@ -557,8 +557,8 @@ func getDisks(diskIDs []string, ecsClient *ecs.Client) []ecs.Disk {
 	return diskResponse.Disks.Disk
 }
 
-func tagDiskUserTags(diskID string, tags map[string]string, tenantUID string) {
-	ecsClient, err := getEcsClientByID("", tenantUID)
+func tagDiskUserTags(diskID string, tags map[string]string) {
+	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 	addTagsReq := ecs.CreateAddTagsRequest()
 	userTags := []ecs.AddTagsTag{
 		{
@@ -573,7 +573,7 @@ func tagDiskUserTags(diskID string, tags map[string]string, tenantUID string) {
 	addTagsReq.ResourceType = "disk"
 	addTagsReq.ResourceId = diskID
 	addTagsReq.RegionId = GlobalConfigVar.Region
-	_, err = ecsClient.AddTags(addTagsReq)
+	_, err := ecsClient.AddTags(addTagsReq)
 	if err != nil {
 		klog.Warningf("tagDiskUserTags: AddTags error: %s, %s", diskID, err.Error())
 		return

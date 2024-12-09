@@ -94,10 +94,6 @@ const (
 	VolumeDirRemove = "/host/etc/kubernetes/volumes/disk/remove"
 	// InputOutputErr tag
 	InputOutputErr = "input/output error"
-	// DiskMultiTenantEnable Enable disk multi-tenant mode
-	DiskMultiTenantEnable = "DISK_MULTI_TENANT_ENABLE"
-	// TenantUserUID tag
-	TenantUserUID = "alibabacloud.com/user-uid"
 	// CreateDiskARN ARN parameter of the CreateDisk interface
 	CreateDiskARN = "alibabacloud.com/createdisk-arn"
 	// PVC annotation key of KMS key ID, override the storage class parameter kmsKeyId
@@ -561,7 +557,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			}
 		}
 	} else {
-		device, err = attachDisk(ctx, req.VolumeContext[TenantUserUID], req.GetVolumeId(), ns.NodeID, isSharedDisk, isSingleInstance, true)
+		device, err = attachDisk(ctx, req.GetVolumeId(), ns.NodeID, isSharedDisk, isSingleInstance, true)
 		if err != nil {
 			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
 			klog.Errorf("NodeStageVolume: Attach volume: %s with error: %s", req.VolumeId, fullErrorMessage)
@@ -789,10 +785,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			klog.Infof("NodeUnstageVolume: ADController is Disable, Detach Flag Set to false, PV %s", req.VolumeId)
 			return &csi.NodeUnstageVolumeResponse{}, nil
 		}
-		ecsClient, err := getEcsClientByID(req.VolumeId, "")
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+		ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 		err = detachDisk(ctx, ecsClient, req.VolumeId, ns.NodeID)
 		if err != nil {
 			klog.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())

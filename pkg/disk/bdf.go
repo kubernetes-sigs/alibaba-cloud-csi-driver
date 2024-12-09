@@ -293,10 +293,7 @@ func storeBdfInfo(diskID, bdf string) (err error) {
 	addTagsRequest.ResourceType = "disk"
 	addTagsRequest.ResourceId = diskID
 	addTagsRequest.RegionId = GlobalConfigVar.Region
-	ecsClient, err := getEcsClientByID(diskID, "")
-	if err != nil {
-		return err
-	}
+	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 	_, err = ecsClient.AddTags(addTagsRequest)
 	if err != nil {
 		klog.Warningf("storeBdfInfo: AddTags error: %s, %s", diskID, err.Error())
@@ -309,10 +306,7 @@ func storeBdfInfo(diskID, bdf string) (err error) {
 func clearBdfInfo(diskID, bdf string) (err error) {
 
 	klog.Infof("clearBdfInfo: bdf: %s", bdf)
-	ecsClient, err := getEcsClientByID(diskID, "")
-	if err != nil {
-		return err
-	}
+	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 
 	bdfInfoString := ""
 	if bdf == "" {

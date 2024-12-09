@@ -35,7 +35,6 @@ import (
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/containerd/ttrpc"
 	volumeSnapshotV1 "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
@@ -965,83 +964,6 @@ func patchForNode(node *v1.Node, maxVolumesNum int, diskTypes []string) []byte {
 	return patch
 }
 
-func getEcsClientByID(volumeID, uid string) (ecsClient *ecs.Client, err error) {
-	// feature gate not enable;
-	if !GlobalConfigVar.DiskMultiTenantEnable {
-		ecsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-		return ecsClient, nil
-	}
-
-	// volumeId not empty, get uid from pv;
-	if uid == "" && volumeID != "" {
-		uid, err = getTenantUIDByVolumeID(volumeID)
-		if err != nil {
-			return nil, perrors.Wrapf(err, "get uid by volumeId, volumeId=%s", volumeID)
-		}
-	}
-
-	// uid always empty after describe pv spec, use GlobalConfigVar.EcsClient
-	if uid == "" {
-		ecsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-		return ecsClient, nil
-	}
-
-	// create role client with uid;
-	if ecsClient, err = createRoleClient(uid); err != nil {
-		return nil, perrors.Wrapf(err, "createRoleClient, tenant uid=%s", uid)
-	}
-	return ecsClient, nil
-}
-
-func getTenantUIDByVolumeID(volumeID string) (uid string, err error) {
-	// external-provisioner已经保证了PV的名字 == req.VolumeId
-	// 如果是静态PV，需要告知用户将PV#Name和PV#spec.volumeHandler配成一致
-	pv, err := GlobalConfigVar.ClientSet.CoreV1().PersistentVolumes().Get(context.Background(), volumeID, metav1.GetOptions{ResourceVersion: "0"})
-	if err != nil {
-		return "", perrors.Wrapf(err, "get pv, volumeId=%s", volumeID)
-	}
-	if pv.Spec.CSI == nil || pv.Spec.CSI.VolumeAttributes == nil {
-		return "", perrors.Errorf("pv.Spec.CSI/Spec.CSI.VolumeAttributes is nil, volumeId=%s", volumeID)
-	}
-	return pv.Spec.CSI.VolumeAttributes[TenantUserUID], nil
-}
-
-func createRoleClient(uid string) (cli *ecs.Client, err error) {
-	if uid == "" {
-		return nil, errors.New("uid is empty")
-	}
-	ac := utils.GetDefaultRoleAK()
-	if len(ac.AccessKeyID) == 0 || len(ac.AccessKeySecret) == 0 {
-		return nil, errors.New("role access key id or secret is empty")
-	}
-	if len(ac.RoleArn) == 0 {
-		return nil, errors.New("role arn is empty")
-	}
-
-	regionID, _ := utils.GetRegionID()
-	roleCli, err := sts.NewClientWithAccessKey(regionID, ac.AccessKeyID, ac.AccessKeySecret)
-	if err != nil {
-		return nil, perrors.Wrapf(err, "sts.NewClientWithAccessKey")
-	}
-	req := sts.CreateAssumeRoleRequest()
-	req.RoleArn = fmt.Sprintf("acs:ram::%s:role/%s", uid, ac.RoleArn)
-	req.RoleSessionName = "ack-csi"
-	req.DurationSeconds = requests.NewInteger(3600)
-	// 必须https
-	req.Scheme = "https"
-
-	resp, err := roleCli.AssumeRole(req)
-	if err != nil {
-		return nil, perrors.Wrapf(err, "AssumeRole")
-	}
-	ac = utils.AccessControl{AccessKeyID: resp.Credentials.AccessKeyId, AccessKeySecret: resp.Credentials.AccessKeySecret, StsToken: resp.Credentials.SecurityToken, UseMode: utils.EcsRAMRole}
-	cli = newEcsClient(regionID, ac)
-	if cli.Client.GetConfig() != nil {
-		cli.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
-	}
-	return cli, nil
-}
-
 func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, contextSource *csi.VolumeContentSource) *csi.Volume {
 	segments := map[string]string{}
 	cateDesc := AllCategories[attempt.Category]
@@ -1111,10 +1033,7 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.V
 		return nil, nil
 	}
 
-	ecsClient, err := getEcsClientByID("", req.Parameters[TenantUserUID])
-	if err != nil {
-		return nil, err
-	}
+	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 	disk, err := findDiskByID(diskID, ecsClient)
 	if err != nil {
 		return nil, err
