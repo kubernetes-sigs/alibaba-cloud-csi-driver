@@ -145,7 +145,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, err
 	}
 	if csiVolume != nil {
-		tagDiskUserTags(csiVolume.VolumeId, diskVol.DiskTags, req.Parameters[TenantUserUID])
+		tagDiskUserTags(csiVolume.VolumeId, diskVol.DiskTags)
 		klog.Infof("CreateVolume: static volume create successful, pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, csiVolume.VolumeId, csiVolume.VolumeContext)
 		return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 	}
@@ -168,10 +168,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		selectedInstance = node.Labels[common.ECSInstanceIDTopologyKey]
 	}
 
-	ecsClient, err := getEcsClientByID("", req.Parameters[TenantUserUID])
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 
 	diskID, attempt, err := createDisk(ecsClient, req.GetName(), snapshotID, diskVol, supportedTypes, selectedInstance)
 	if err != nil {
@@ -200,9 +197,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		volumeContext[ESSD_PERFORMANCE_LEVEL] = string(attempt.PerformanceLevel)
 	}
 
-	if tenantUserUID := req.Parameters[TenantUserUID]; tenantUserUID != "" {
-		volumeContext[TenantUserUID] = tenantUserUID
-	}
 	volumeContext = updateVolumeContext(volumeContext)
 
 	klog.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], snapshotID[%s]", req.GetName(), diskID, diskVol.ZoneID, attempt, snapshotID)
@@ -229,10 +223,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	klog.Infof("DeleteVolume: Starting deleting volume %s", req.VolumeId)
 
 	// For now the image get unconditionally deleted, but here retention policy can be checked
-	ecsClient, err := getEcsClientByID(req.VolumeId, "")
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 
 	var disk *ecs.Disk
 	describeDisk := func() (*csi.DeleteVolumeResponse, error) {
@@ -280,7 +271,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			}
 		}
 		klog.Infof("DeleteVolume: snapshot before delete configured")
-		err = snapshotBeforeDelete(disk, ecsClient)
+		err := snapshotBeforeDelete(disk, ecsClient)
 		if err != nil {
 			klog.Errorf("DeleteVolume: failed to create snapshot before delete disk, err: %v", err)
 			return nil, status.Errorf(codes.Internal, err.Error())
@@ -306,10 +297,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 }
 
 func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
-	ecsClient, err := getEcsClientByID(req.VolumeId, "")
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 	disk, err := findDiskByID(req.VolumeId, ecsClient)
 	if err != nil {
 		return nil, err
@@ -352,7 +340,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}
 	}
 	if isMultiAttach {
-		_, err := attachSharedDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId)
+		_, err := attachSharedDisk(ctx, req.VolumeId, req.NodeId)
 		if err != nil {
 			klog.Errorf("ControllerPublishVolume: attach shared disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 			return nil, err
@@ -380,7 +368,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		isSingleInstance = AllCategories[Category(value)].SingleInstance
 	}
 
-	_, err := attachDisk(ctx, req.VolumeContext[TenantUserUID], req.VolumeId, req.NodeId, isSharedDisk, isSingleInstance, false)
+	_, err := attachDisk(ctx, req.VolumeId, req.NodeId, isSharedDisk, isSingleInstance, false)
 	if err != nil {
 		klog.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
@@ -392,10 +380,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 // ControllerUnpublishVolume do detach
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	// Describe Disk Info
-	ecsClient, err := getEcsClientByID(req.VolumeId, "")
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 	isMultiAttach, err := detachMultiAttachDisk(ctx, ecsClient, req.VolumeId, req.NodeId)
 	if isMultiAttach && err != nil {
 		klog.Errorf("ControllerUnpublishVolume: detach multiAttach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
@@ -560,10 +545,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 			Snapshot: value,
 		}, nil
 	}
-	ecsClient, err := getEcsClientByID(sourceVolumeID, "")
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 	disks := getDisks([]string{sourceVolumeID}, ecsClient)
 	if len(disks) == 0 {
 		return nil, status.Errorf(codes.Internal, "CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID)
@@ -714,10 +696,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	klog.Infof("ControllerExpandVolume:: Starting expand disk with: %v", req)
 
 	// check resize conditions
-	ecsClient, err := getEcsClientByID(req.VolumeId, "")
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
 	diskID := req.VolumeId
@@ -925,10 +904,7 @@ func (cs *controllerServer) createVolumeExpandAutoSnapshot(ctx context.Context, 
 		return nil, err
 	}
 
-	ecsClient, err := getEcsClientByID(sourceVolumeID, "")
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 
 	// init createSnapshotRequest and parameters
 	createAt := timestamppb.New(cur)

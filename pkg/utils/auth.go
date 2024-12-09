@@ -57,15 +57,9 @@ type AKInfo struct {
 	Expiration string `json:"expiration"`
 	// Keyring key ring
 	Keyring string `json:"keyring"`
-	// RoleAccessKeyId key
-	RoleAccessKeyID string `json:"role.access.key.id"`
-	// RoleAccessKeySecret key
-	RoleAccessKeySecret string `json:"role.access.key.secret"`
-	// RoleArn key
-	RoleArn string `json:"role.arn"`
 }
 
-// ManageTokens 定义资源账号 和 角色扮演账号
+// ManageTokens 定义资源账号
 type ManageTokens struct {
 	// AccessKeyId key
 	AccessKeyID string
@@ -73,13 +67,6 @@ type ManageTokens struct {
 	AccessKeySecret string
 	// SecurityToken key
 	SecurityToken string
-
-	// RoleAccessKeyId key
-	RoleAccessKeyID string
-	// RoleAccessKeySecret key
-	RoleAccessKeySecret string
-	// RoleArn key
-	RoleArn string
 
 	// expire time
 	ExpireAt time.Time
@@ -315,16 +302,6 @@ func getManagedToken() (tokens ManageTokens) {
 		tokens.ExpireAt = expireAt
 	}
 	return tokens
-}
-
-// GetDefaultRoleAK  返回角色扮演账号AK, SK, role arn
-func GetDefaultRoleAK() AccessControl {
-	roleAccessKeyID, roleAccessKeySecret, roleArn := os.Getenv("ROLE_ACCESS_KEY_ID"), os.Getenv("ROLE_ACCESS_KEY_SECRET"), os.Getenv("ROLE_ARN")
-	if len(roleAccessKeyID) == 0 || len(roleAccessKeySecret) == 0 || len(roleArn) == 0 {
-		tokens := getManagedToken()
-		return AccessControl{AccessKeyID: tokens.RoleAccessKeyID, AccessKeySecret: tokens.RoleAccessKeySecret, RoleArn: tokens.RoleArn, UseMode: ManagedToken}
-	}
-	return AccessControl{AccessKeyID: roleAccessKeyID, AccessKeySecret: roleAccessKeySecret, RoleArn: roleArn, UseMode: RoleArnToken}
 }
 
 // getCredentialAK get credential and config from credential files.
