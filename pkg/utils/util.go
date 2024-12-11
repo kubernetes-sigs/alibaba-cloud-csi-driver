@@ -465,7 +465,7 @@ func GetPodRunTime(ctx context.Context, req *csi.NodePublishVolumeRequest, clien
 }
 
 func WithPodInfo(ctx context.Context, client kubernetes.Interface, req *csi.NodePublishVolumeRequest) (context.Context, *v1.Pod) {
-	pod, err := getPodFromK8s(ctx, client, req)
+	pod, err := getPodFromK8s(client, req)
 	if err != nil {
 		klog.Errorf("WithPodInfo: failed to get pod: %v", err)
 		return ctx, nil
@@ -478,10 +478,10 @@ func GetPodFromContextOrK8s(ctx context.Context, client kubernetes.Interface, re
 	if ok {
 		return pod, nil
 	}
-	return getPodFromK8s(ctx, client, req)
+	return getPodFromK8s(client, req)
 }
 
-func getPodFromK8s(ctx context.Context, client kubernetes.Interface, req *csi.NodePublishVolumeRequest) (*v1.Pod, error) {
+func getPodFromK8s(client kubernetes.Interface, req *csi.NodePublishVolumeRequest) (*v1.Pod, error) {
 	name, namespace := req.VolumeContext[PodNameKey], req.VolumeContext[PodNamespaceKey]
 	if name == "" || namespace == "" {
 		return nil, fmt.Errorf("empty pod name or namespace: '%s', '%s'", name, namespace)
