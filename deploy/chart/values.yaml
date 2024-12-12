@@ -78,13 +78,13 @@ images:
   workerRegistry: null  # registry for worker nodes, if different from registry
   controller:
     repo: acs/csi-plugin
-    tag: "v1.30.3-90b225e-aliyun"
+    tag: "v1.31.4-9819c8b-aliyun"
   plugin:
     repo: acs/csi-plugin
-    tag: "v1.30.3-90b225e-aliyun"
+    tag: "v1.31.4-9819c8b-aliyun"
   pluginInit:
     repo: acs/csi-plugin
-    tag: "v1.30.3-90b225e-aliyun-init"
+    tag: "v1.31.4-9819c8b-aliyun-init"
   localController:
     repo: acs/local-csi-driver
     tag: "v0.1.1"
