@@ -2,10 +2,12 @@ package waitstatus
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
 	testdesc "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc/testing"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/utils/clock"
@@ -51,7 +53,7 @@ func testEachImpl(t *testing.T, clk clock.WithTicker, f func(*testing.T, *testde
 		ctx := context.Background()
 		ctx, cancel := context.WithCancel(ctx)
 		t.Cleanup(cancel)
-		batched := NewBatched(client, clk)
+		batched := NewBatched(client, clk, pollInterval, 2*pollInterval)
 		go batched.Run(ctx)
 
 		f(t, client, batched)
@@ -62,7 +64,7 @@ func testEachImpl(t *testing.T, clk clock.WithTicker, f func(*testing.T, *testde
 	})
 }
 
-func TestWaitForDisks(t *testing.T) {
+func TestWaitFor(t *testing.T) {
 	clk := testclock.NewFakeClock(time.Now())
 	testEachImpl(t, clk, func(t *testing.T, client *testdesc.FakeClient, waiter StatusWaiter[ecs.Disk]) {
 		client.Disks.Store("d1", disk("d1", "Attaching"))
@@ -87,7 +89,7 @@ func TestWaitForDisks(t *testing.T) {
 	})
 }
 
-func TestWaitForDisksCancel(t *testing.T) {
+func TestWaitForCancel(t *testing.T) {
 	testEachImpl(t, clock.RealClock{}, func(t *testing.T, client *testdesc.FakeClient, waiter StatusWaiter[ecs.Disk]) {
 		client.Disks.Store("d1", disk("d1", "Attaching"))
 		ctx, cancel := context.WithCancel(context.Background())
@@ -98,12 +100,48 @@ func TestWaitForDisksCancel(t *testing.T) {
 	})
 }
 
-func TestWaitForDisksUnfound(t *testing.T) {
+func TestWaitForUnfound(t *testing.T) {
 	testEachImpl(t, clock.RealClock{}, func(t *testing.T, client *testdesc.FakeClient, waiter StatusWaiter[ecs.Disk]) {
 		disk, err := waiter.WaitFor(context.Background(), "d1", isNextStatus("Attaching", "i1"))
 		assert.NoError(t, err)
 		assert.Nil(t, disk)
 	})
+}
+
+var ErrFake = errors.New("fake error")
+
+type failingClient struct {
+	testdesc.FakeClient
+}
+
+func (c *failingClient) Describe(ids []string) (desc.Response[ecs.Disk], error) {
+	return desc.Response[ecs.Disk]{}, ErrFake
+}
+
+func TestWaitForError(t *testing.T) {
+	f := func(waiter StatusWaiter[ecs.Disk]) {
+		disk, err := waiter.WaitFor(context.Background(), "d1", isNextStatus("Attaching", "i1"))
+		assert.ErrorIs(t, err, ErrFake)
+		assert.Nil(t, disk)
+	}
+
+	clk := clock.RealClock{}
+	t.Run("batched", func(t *testing.T) {
+		client := &failingClient{}
+
+		ctx := context.Background()
+		ctx, cancel := context.WithCancel(ctx)
+		t.Cleanup(cancel)
+		batched := NewBatched(client, clk, pollInterval, 2*pollInterval)
+		go batched.Run(ctx)
+
+		f(batched)
+	})
+	t.Run("simple", func(t *testing.T) {
+		client := &failingClient{}
+		f(NewSimple(client, clk))
+	})
+
 }
 
 func TestIsInstanceAttached(t *testing.T) {
