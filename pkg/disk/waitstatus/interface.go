@@ -1,3 +1,6 @@
+// waitstatus package provides a simple way to wait for a resource to reach a desired state.
+//
+// It differs from batcher in that this allows specific optimizations like adaptive poll intervals.
 package waitstatus
 
 import (
@@ -12,6 +15,7 @@ const (
 )
 
 type StatusWaiter[T any] interface {
+	// WaitFor waits until the pred returns true for the specified id.
 	WaitFor(ctx context.Context, id string, pred StatusPredicate[*T]) (*T, error)
 }
 
