@@ -18,8 +18,15 @@ type waitResponse[T any] struct {
 type waitRequest[T any] struct {
 	ctx        context.Context
 	id         string
+	time       time.Time
 	pred       StatusPredicate[T]
 	resultChan chan waitResponse[T]
+}
+
+type responseFeedback[T any] struct {
+	ids []string
+	res desc.Response[T]
+	err error
 }
 
 type Batched[T any] struct {
@@ -27,19 +34,36 @@ type Batched[T any] struct {
 	// remove this once we have a ecsClient that can refresh its credentials
 	PollHook func() desc.Client[T]
 
+	feedback    chan responseFeedback[T]
 	requestChan chan *waitRequest[*T]
 	requests    map[string][]*waitRequest[*T]
 	idQueue     []string
 
+	defaultInterval time.Duration
+	maxInterval     time.Duration
+
 	clk clock.WithTicker
 }
 
-func NewBatched[T any](ecsClient desc.Client[T], clk clock.WithTicker) *Batched[T] {
+// NewBatched creates a new batched status waiter.
+//
+// It aggregates multiple resources into a single OpenAPI request.
+// The interval between the adjacent OpenAPI requests is defaultInterval.
+// However, if a resource has not been polled for longer than maxInterval since it was enqueued or last polled,
+// the interval is automatically shortened.
+//
+// With these rules, the poll interval for a specific resource is defaultInterval when the load is low,
+// increases as the load increases, and caps at maxInterval.
+func NewBatched[T any](ecsClient desc.Client[T], clk clock.WithTicker, defaultInterval, maxInterval time.Duration) *Batched[T] {
 	return &Batched[T]{
 		ecsClient:   ecsClient,
 		requestChan: make(chan *waitRequest[*T]),
 		requests:    make(map[string][]*waitRequest[*T]),
-		clk:         clk,
+		feedback:    make(chan responseFeedback[T]),
+
+		defaultInterval: defaultInterval,
+		maxInterval:     maxInterval,
+		clk:             clk,
 	}
 }
 
@@ -60,6 +84,7 @@ func (w *Batched[T]) WaitFor(ctx context.Context, id string, pred StatusPredicat
 }
 
 func (w *Batched[T]) enqueueRequest(r *waitRequest[*T]) {
+	r.time = w.clk.Now()
 	reqs, ok := w.requests[r.id]
 	w.requests[r.id] = append(reqs, r)
 	if !ok {
@@ -70,35 +95,41 @@ func (w *Batched[T]) enqueueRequest(r *waitRequest[*T]) {
 func (w *Batched[T]) Run(ctx context.Context) {
 	var pollChan <-chan time.Time
 	var lastPollTime time.Time
+	logger := klog.FromContext(ctx).WithValues("type", w.ecsClient.Type())
 
 	for {
+		if pollChan == nil && len(w.idQueue) > 0 {
+			// If this is the first request, poll immediately.
+			nextPoll := lastPollTime.Add(w.defaultInterval)
+			upperBound := w.requests[w.idQueue[0]][0].time.Add(w.maxInterval)
+			if upperBound.Before(nextPoll) {
+				nextPoll = upperBound
+			}
+			d := -w.clk.Since(nextPoll)
+			pollChan = w.clk.After(d)
+			logger.V(3).Info("poll scheduled", "after", d, "queueDepth", len(w.idQueue))
+		}
+
 		select {
 		case <-ctx.Done():
 			return
 		case r := <-w.requestChan:
+			klog.FromContext(r.ctx).V(5).Info("enqueued waitstatus", "type", w.ecsClient.Type())
 			w.enqueueRequest(r)
-			if pollChan == nil {
-				// If this is the first request, poll immediately.
-				// But don't poll again until pollInterval has passed.
-				pollChan = w.clk.After(pollInterval - w.clk.Since(lastPollTime))
-			}
+		case r := <-w.feedback:
+			next := w.processFeedback(r)
+			w.idQueue = append(w.idQueue, next...)
+			logger.V(4).Info("poll response processed", "queueDepth", len(w.idQueue), "requeue", len(next))
 		case t := <-pollChan:
-			if w.PollHook != nil {
-				w.ecsClient = w.PollHook()
-			}
-			w.idQueue = w.poll(w.idQueue)
+			logger.V(4).Info("starting poll", "queueDepth", len(w.idQueue))
+			w.idQueue = w.poll(t, w.idQueue)
 			lastPollTime = t
-			if len(w.requests) == 0 {
-				// no more requests, stop polling
-				pollChan = nil
-			} else {
-				pollChan = w.clk.After(pollInterval)
-			}
+			pollChan = nil
 		}
 	}
 }
 
-func (w *Batched[T]) got(id string, resource *T, requestID string) (done bool) {
+func (w *Batched[T]) got(t time.Time, id string, resource *T, requestID string) (done bool) {
 	pendingReqs := slices.DeleteFunc(w.requests[id], func(r *waitRequest[*T]) bool {
 		if r.ctx.Err() != nil {
 			return true
@@ -110,6 +141,7 @@ func (w *Batched[T]) got(id string, resource *T, requestID string) (done bool) {
 			return true
 		}
 		logger.V(4).Info("status not reached, re-queue", "type", w.ecsClient.Type(), "requestID", requestID)
+		r.time = t
 		return false
 	})
 	if len(pendingReqs) == 0 {
@@ -121,11 +153,37 @@ func (w *Batched[T]) got(id string, resource *T, requestID string) (done bool) {
 	}
 }
 
+func (w *Batched[T]) processFeedback(fb responseFeedback[T]) (next []string) {
+	if fb.err != nil {
+		for _, id := range fb.ids {
+			for _, r := range w.requests[id] {
+				r.resultChan <- waitResponse[*T]{err: fb.err}
+			}
+			delete(w.requests, id)
+		}
+		return nil
+	}
+	resp := fb.res
+	resources := make(map[string]*T, len(resp.Resources))
+	for i := range resp.Resources {
+		res := &resp.Resources[i]
+		resources[w.ecsClient.GetID(res)] = res
+	}
+	t := w.clk.Now()
+	for _, id := range fb.ids {
+		if !w.got(t, id, resources[id], resp.RequestID) {
+			next = append(next, id)
+		}
+	}
+	return
+}
+
 // poll picks first batchSize waitIDs that are not canceled,
 // polls ECS for their status and notify caller if done,
 // returns the rest IDs for next poll.
-// It removes done requests from w.requests
-func (w *Batched[T]) poll(waitIDs []string) []string {
+// It removes canceled requests from w.requests.
+// poll results are sent to w.feedback.
+func (w *Batched[T]) poll(t time.Time, waitIDs []string) []string {
 	var next []string
 	batchSize := w.ecsClient.BatchSize()
 	thisBatch := make([]string, 0, batchSize)
@@ -147,27 +205,21 @@ func (w *Batched[T]) poll(waitIDs []string) []string {
 	if len(thisBatch) == 0 {
 		return nil
 	}
-
-	resp, err := w.ecsClient.Describe(thisBatch)
-	if err != nil {
-		for _, id := range thisBatch {
-			for _, r := range w.requests[id] {
-				r.resultChan <- waitResponse[*T]{err: err}
-			}
+	t0 := w.requests[thisBatch[0]][0].time
+	interval := t.Sub(t0)
+	go func() {
+		client := w.ecsClient
+		if w.PollHook != nil {
+			client = w.PollHook()
 		}
-		return next
-	}
-	resources := make(map[string]*T, len(resp.Resources))
-	for i := range resp.Resources {
-		res := &resp.Resources[i]
-		resources[w.ecsClient.GetID(res)] = res
-	}
-	for _, id := range thisBatch {
-		if !w.got(id, resources[id], resp.RequestID) {
-			next = append(next, id)
+		resp, err := client.Describe(thisBatch)
+		w.feedback <- responseFeedback[T]{
+			ids: thisBatch,
+			res: resp,
+			err: err,
 		}
-	}
-	klog.V(3).InfoS("polling batch", "type", w.ecsClient.Type(), "n", len(thisBatch),
-		"interval", pollInterval, "remaining", len(next), "requestID", resp.RequestID)
+		klog.V(2).InfoS("polled batch", "type", client.Type(), "n", len(thisBatch),
+			"interval", interval, "duration", w.clk.Since(t), "requestID", resp.RequestID)
+	}()
 	return next
 }
