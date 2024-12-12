@@ -86,7 +86,7 @@ local nodePool = {
     },
     nodepools: [
         nodePool {
-            count: nNodes - 1
+            count: nNodes - 3
         },
         nodePool {
             nodepool_info+: {
@@ -99,6 +99,28 @@ local nodePool = {
                 instance_types: [
                     "ecs.mn4.xlarge",
                 ]
+            }
+        },
+        nodePool {
+            count: 2,
+            nodepool_info+: {
+                name: "eed"
+            },
+            scaling_group+: {
+                instance_types: [
+                    "ecs.g8y.xlarge",
+                ],
+                image_id: std.extVar("os_image_alinux3_arm64"),
+                image_type: "AliyunLinux3Arm64",
+                data_disks: [ // add an EED data disk to ensure the zone supports EED
+                    {
+                        category: "elastic_ephemeral_disk_standard",
+                        size: 64,
+                        auto_format: true,
+                        file_system: "ext4",
+                        mount_target: "/mnt"
+                    }
+                ],
             }
         },
     ]
