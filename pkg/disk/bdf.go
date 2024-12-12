@@ -641,14 +641,14 @@ func (d *driver) UnbindDriver() error {
 }
 
 func (d *driver) BindDriver(targetDriver string) error {
+	if d.machineType == DFBus {
+		return utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "drivers", targetDriver, "bind"), []byte(d.deviceNumber))
+	}
 	err := utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "driver_override"), []byte(targetDriver))
 	if err != nil {
 		return err
 	}
-	if d.machineType == BDF {
-		return utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "drivers_probe"), []byte(d.deviceNumber))
-	}
-	return nil
+	return utilsio.WriteTrunc(unix.AT_FDCWD, filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "drivers_probe"), []byte(d.deviceNumber))
 }
 
 func (d *driver) GetPCIDeviceDriverType() string {

@@ -1366,14 +1366,6 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 			FSType:     fsType,
 		}
 
-		// write meta before changing the device driver, incase any error occurs
-		klog.Info("NodePublishVolume(rund3.0): Starting add vmoc(DFBus) mount info to DirectVolume")
-		err = directvolume.AddMountInfo(directvolume.EnsureVolumeAttributesFileDir(targetPath, isRawBlock), mountInfo)
-		if err != nil {
-			klog.Errorf("NodePublishVolume(rund3.0): vmoc(DFBus) Adding vmoc mount infomation to DirectVolume failed: %v", err)
-			return true, err
-		}
-
 		if defaultDrivers.Has(cDriver) {
 			if err := driver.UnbindDriver(); err != nil {
 				klog.Errorf("NodePublishVolume(rund3.0): can't unbind current device driver: %s, err: %s", driver.GetDeviceNumber(), err.Error())
@@ -1392,7 +1384,13 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 			}
 		}
 
-		klog.Info("NodePublishVolume(rund3.0): Adding vmoc(DFBus) mount information to DirectVolume succeeds, return immediately")
+		err = directvolume.AddMountInfo(directvolume.EnsureVolumeAttributesFileDir(targetPath, isRawBlock), mountInfo)
+		if err != nil {
+			klog.Errorf("NodePublishVolume(rund3.0): Adding runD mount infomation to DirectVolume failed: %v", err)
+			return true, err
+		}
+
+		klog.Info("NodePublishVolume(rund3.0): Adding runD mount information to DirectVolume succeeds, return immediately")
 		return true, nil
 	}
 	// (runD2.0) Need write mountOptions(metadata) parameters to file, and run normal runc process
