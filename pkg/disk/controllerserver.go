@@ -128,7 +128,8 @@ var storageClassZonePos = map[string]int{}
 
 // provisioner: create/delete disk
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	klog.Infof("CreateVolume: Starting CreateVolume, %s, %v", req.Name, req)
+	logger := klog.FromContext(ctx)
+	logger.V(2).Info("starting")
 
 	// Step 1: check parameters
 	snapshotID := ""
