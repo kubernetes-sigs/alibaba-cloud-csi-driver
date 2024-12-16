@@ -302,5 +302,5 @@ func parseCapacityThreshold(s string, defaults float64) (float64, error) {
 
 func getGlobalMountPathByDiskID(diskID string) string {
 	hash := sha256.Sum256([]byte(diskID))
-	return fmt.Sprintf(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/%s/%x/globalmount", diskDriverName, hash)
+	return filepath.Join(utils.KubeletRootDir, fmt.Sprintf("/plugins/kubernetes.io/csi/%s/%x/globalmount", diskDriverName, hash))
 }
