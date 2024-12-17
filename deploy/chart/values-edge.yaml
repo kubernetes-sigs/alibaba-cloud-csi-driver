@@ -2,9 +2,6 @@
 csi:
   local:
     enabled: true
-  oss:
-    controller:
-      enabled: false
 
 # daemonset
 nodePools:
