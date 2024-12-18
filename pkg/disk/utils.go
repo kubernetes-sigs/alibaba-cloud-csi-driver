@@ -1333,11 +1333,19 @@ func checkRundVolumeExpand(req *csi.NodeExpandVolumeRequest) (bool, error) {
 		klog.Errorf("checkRundVolumeExpand: cannot get pvname from volumePath %s", req.VolumePath)
 		return false, perrors.Errorf("cannot get pvname from volumePath %s for volume %s", req.VolumePath, req.VolumeId)
 	}
+	var grpcVolume string
 	socketFile := filepath.Join(RundSocketDir, pvName)
-	if !utils.IsFileExisting(socketFile) {
-		klog.Infof("checkRundVolumeExpand: socketfile: %s not exists, fallback to runc expanding", socketFile)
-		return false, nil
+	if utils.IsFileExisting(socketFile) {
+		grpcVolume = pvName
+	} else {
+		socketFile = filepath.Join(RundSocketDir, req.VolumeId)
+		if !utils.IsFileExisting(socketFile) {
+			klog.Infof("checkRundVolumeExpand: socketfile: %s not exists, trying runc expanding", socketFile)
+			return false, nil
+		}
+		grpcVolume = req.VolumeId
 	}
+	klog.Infof("checkRundVolumeExpand: rund socket dir: %s exists", socketFile)
 
 	// connect to rund server with timeout
 	clientConn, err := net.DialTimeout("unix", socketFile, 1*time.Second)
@@ -1351,7 +1359,7 @@ func checkRundVolumeExpand(req *csi.NodeExpandVolumeRequest) (bool, error) {
 	volumeSize := strconv.FormatInt(req.GetCapacityRange().GetRequiredBytes(), 10)
 	client := proto.NewExtendedStatusClient(ttrpc.NewClient(clientConn))
 	resp, err := client.ExpandVolume(context.Background(), &proto.ExpandVolumeRequest{
-		Volume: pvName,
+		Volume: grpcVolume,
 	})
 	if err != nil {
 		klog.Errorf("checkRundExpand: volume %s, volumepath %s, connect to rund server with error response: %s", req.VolumeId, req.VolumePath, err.Error())
