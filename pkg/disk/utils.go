@@ -205,23 +205,6 @@ func IsDirEmpty(name string) (bool, error) {
 	return false, err
 }
 
-func createDest(dest string) error {
-	fi, err := os.Lstat(dest)
-
-	if os.IsNotExist(err) {
-		if err := os.MkdirAll(dest, 0777); err != nil {
-			return err
-		}
-	} else if err != nil {
-		return err
-	}
-
-	if fi != nil && !fi.IsDir() {
-		return fmt.Errorf("%v already exist and it's not a directory", dest)
-	}
-	return nil
-}
-
 type instanceDocument struct {
 	RegionID   string `json:"region-id"`
 	InstanceID string `json:"instance-id"`

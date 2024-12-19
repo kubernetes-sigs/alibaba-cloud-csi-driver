@@ -44,10 +44,8 @@ func TestIsFileExisting(t *testing.T) {
 	existsFilePath := ".tmp/test.data"
 	notExistsFilePath := ".tmp/notexists.data"
 
-	err := os.MkdirAll(".tmp", 0o777)
-	assert.Nil(t, err)
-	err = createDest(existsFilePath)
-	assert.Nil(t, err)
+	assert.NoError(t, os.MkdirAll(".tmp", 0o777))
+	assert.NoError(t, os.MkdirAll(existsFilePath, 0o777))
 	assert.True(t, IsFileExisting(existsFilePath))
 	assert.False(t, IsFileExisting(notExistsFilePath))
 	os.RemoveAll(".tmp")
