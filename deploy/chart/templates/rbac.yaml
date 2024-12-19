@@ -1,3 +1,8 @@
+{{- $featureGates := "" -}}
+{{- if .Values.deploy.featureGates -}}
+{{- $featureGates = include "parseFeatureGates" .Values.deploy.featureGates -}}
+{{- end -}}
+
 {{- if .Values.controller.enabled -}}
 # csi-provisioner
 ---
@@ -39,6 +44,7 @@ rules:
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshotcontents/status"]
     verbs: ["patch", "update"]
+{{- if contains "EnableVolumeGroupSnapshots" $featureGates }}
   - apiGroups: ["groupsnapshot.storage.k8s.io"]
     resources: ["volumegroupsnapshots"]
     verbs: ["get", "list", "watch", "update", "patch", "delete", "create"]
@@ -51,6 +57,10 @@ rules:
   - apiGroups: ["groupsnapshot.storage.k8s.io"]
     resources: ["volumegroupsnapshotcontents/status"]
     verbs: ["patch", "update"]
+  - apiGroups: ["groupsnapshot.storage.k8s.io"]
+    resources: ["volumegroupsnapshotclasses"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
   - apiGroups: ["storage.k8s.io"]
     resources: ["csinodes"]
     verbs: ["get", "list", "watch"]
@@ -69,15 +79,17 @@ rules:
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshotclasses"]
     verbs: ["get", "list", "watch"]
-  - apiGroups: ["groupsnapshot.storage.k8s.io"]
-    resources: ["volumegroupsnapshotclasses"]
-    verbs: ["get", "list", "watch"]
   - apiGroups: ["storage.alibabacloud.com"]
     resources: ["rules"]
     verbs: ["get"]
   - apiGroups: ["storage.alibabacloud.com"]
     resources: ["containernetworkfilesystems"]
     verbs: ["get","list", "watch"]
+{{- if contains "CrossNamespaceVolumeDataSource" $featureGates }}
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["referencegrants"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
