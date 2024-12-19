@@ -22,3 +22,13 @@ sed -i '' "
     s|@sha[0-9a-f:]* as distroless-base|@$DISTROLESS_DIGEST as distroless-base|;
     s|debian:[0-9a-z-]* as |debian:$DEBIAN_TAG as |;
     " $DOCKERFILE
+
+# Get visibility on what is included in our base image
+buildctl build --frontend dockerfile.v0 \
+    --local context=. \
+    --local dockerfile=build/multi \
+    --opt filename=Dockerfile.multi \
+    --opt platform=linux/amd64 \
+    --opt target=dep-list \
+    --output type=oci | \
+syft scan --select-catalogers "+sbom-cataloger" -o syft-table oci-archive:/dev/stdin > ./hack/base-image-deps.txt
