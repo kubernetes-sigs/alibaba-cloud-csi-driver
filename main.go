@@ -48,6 +48,9 @@ import (
 	"golang.org/x/sys/unix"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/component-base/logs"
+	logsapi "k8s.io/component-base/logs/api/v1"
+	_ "k8s.io/component-base/logs/json/register"
 	"k8s.io/klog/v2"
 )
 
@@ -87,13 +90,26 @@ var (
 	rootDir = flag.String("rootdir", "/var/lib/kubelet/csi-plugins", "Kubernetes root directory")
 )
 
-func main() {
+func setupFlags() {
 	csilog.RedirectLogrusToLogr(logrus.StandardLogger(), klog.Background())
 
-	flag.Var(features.FunctionalMutableFeatureGate, "feature-gates", "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
-		"Options are:\n"+strings.Join(features.FunctionalMutableFeatureGate.KnownFeatures(), "\n"))
-	klog.InitFlags(nil)
+	fg := features.FunctionalMutableFeatureGate
+	logsapi.AddFeatureGates(fg)
+	flag.Var(fg, "feature-gates", "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
+		"Options are:\n"+strings.Join(fg.KnownFeatures(), "\n"))
+
+	c := logsapi.NewLoggingConfiguration()
+	logsapi.AddGoFlags(c, flag.CommandLine)
+	logs.InitLogs()
 	flag.Parse()
+	if err := logsapi.ValidateAndApply(c, fg); err != nil {
+		klog.ErrorS(err, "LoggingConfiguration is invalid")
+		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
+	}
+}
+
+func main() {
+	setupFlags()
 	serviceType := utils.GetServiceType(*runAsController, *runControllerService, *runNodeService)
 
 	// enable pprof analyse
