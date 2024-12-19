@@ -1,5 +1,5 @@
-# syntax=docker/dockerfile:1.6
-FROM --platform=$BUILDPLATFORM golang:1.22.9 as build
+# syntax=registry-cn-hangzhou.ack.aliyuncs.com/dev/dockerfile:1.6
+FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/golang:1.22.9 as build
 WORKDIR /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 ARG TARGETARCH
 ARG TARGETOS
@@ -16,14 +16,14 @@ RUN --mount=type=bind,target=. \
         -o /out/plugin.csi.alibabacloud.com && \
     go build -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
-FROM gcr.io/distroless/base-debian12:latest@sha256:23878c981cb4409b6dd701563d2c1226dd69423d74a95acf56e671382523d0b0 as distroless-base
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian12:latest@sha256:23878c981cb4409b6dd701563d2c1226dd69423d74a95acf56e671382523d0b0 as distroless-base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 
 FROM distroless-base as csi-controller
 COPY --link --from=build /out/plugin.csi.alibabacloud.com /usr/bin/plugin.csi.alibabacloud.com
 ENTRYPOINT ["/usr/bin/plugin.csi.alibabacloud.com"]
 
-FROM debian:bookworm-20241202-slim as debian
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20241202-slim as debian
 
 ARG TARGETARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$TARGETARCH \
@@ -38,7 +38,7 @@ RUN --mount=type=bind,from=distroless-base,target=/base \
     --mount=type=bind,source=build/gather-node-deps.sh,target=/deps.sh \
     /deps.sh
 
-FROM --platform=$BUILDPLATFORM debian:bookworm-20241202-slim as build-0
+FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20241202-slim as build-0
 ARG BUILDARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$BUILDARCH \
     --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib-$BUILDARCH \
@@ -125,7 +125,7 @@ FROM scratch as download-arm64
 
 FROM download-$TARGETARCH as download
 
-FROM busybox:1@sha256:0723be2745f64a2f9dc38288959c3080cb1f0d11495c17dff7a65cc41407d79a as init
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/busybox:1@sha256:0723be2745f64a2f9dc38288959c3080cb1f0d11495c17dff7a65cc41407d79a as init
 
 ARG TARGETARCH
 WORKDIR /root
