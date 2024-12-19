@@ -173,7 +173,7 @@ IV=0000000000000000
 
 function encrypt {
     echo -n $IV
-    openssl enc -aes-128-cbc -e -K "$(xxd -p <<< $KEY)" -iv "$(xxd -p <<< $IV)"
+    openssl enc -aes-128-cbc -e -K "$(printf %s $KEY | xxd -p)" -iv "$(printf %s $IV | xxd -p)"
 }
 
 function create-ram-role {
