@@ -30,7 +30,6 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -782,13 +781,13 @@ func newListSnapshotsResponse(snapshots []ecs.Snapshot, nextToken string) (*csi.
 
 func formatCSISnapshot(ecsSnapshot *ecs.Snapshot) (*csi.Snapshot, error) {
 	// creationTime == "" if created by snapshotGroup
-	var creationTime *timestamp.Timestamp
+	var creationTime *timestamppb.Timestamp
 	if ecsSnapshot.CreationTime != "" {
 		t, err := time.Parse(time.RFC3339, ecsSnapshot.CreationTime)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to parse snapshot creation time: %s", ecsSnapshot.CreationTime)
 		}
-		creationTime = &timestamp.Timestamp{Seconds: t.Unix()}
+		creationTime = timestamppb.New(t)
 	}
 
 	var sizeGB int64
