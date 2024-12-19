@@ -22,3 +22,5 @@ sed -i '' "
     s|@sha[0-9a-f:]* as distroless-base|@$DISTROLESS_DIGEST as distroless-base|;
     s|debian:[0-9a-z-]* as |debian:$DEBIAN_TAG as |;
     " $DOCKERFILE
+
+./hack/update-base-image-deps.sh

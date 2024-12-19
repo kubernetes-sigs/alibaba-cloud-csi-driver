@@ -38,6 +38,10 @@ RUN --mount=type=bind,from=distroless-base,target=/base \
     --mount=type=bind,source=build/gather-node-deps.sh,target=/deps.sh \
     /deps.sh
 
+# For ./hack/update-base-image-deps.sh
+FROM distroless-base as dep-list
+COPY --link --from=debian /staging-node /
+
 FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20241202-slim as build-0
 ARG BUILDARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$BUILDARCH \
