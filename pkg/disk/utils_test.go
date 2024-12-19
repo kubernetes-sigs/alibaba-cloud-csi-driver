@@ -552,6 +552,10 @@ func TestPatchForNodeExisting(t *testing.T) {
 	}
 	patch := patchForNode(node, 16, []string{"cloud_efficiency", "cloud_ssd"})
 	assert.Nil(t, patch)
+
+	// When we cannot get diskTypes from OpenAPI, we should not remove existing labels
+	patch = patchForNode(node, 16, nil)
+	assert.Nil(t, patch)
 }
 
 func writeMountinfo(t *testing.T, mountInfo string) string {
@@ -759,4 +763,22 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 	assert.Equal(t, "cn-beijing-i", opts.ZoneID)
 	assert.Equal(t, map[string]string{"a": "b"}, opts.DiskTags)
 	assert.Equal(t, int64(20), opts.RequestGB)
+}
+
+func TestHasDiskTypeLabel(t *testing.T) {
+	node := &corev1.Node{
+		ObjectMeta: v1.ObjectMeta{
+			Labels: map[string]string{
+				"node.csi.alibabacloud.com/disktype.cloud_essd": "available",
+			},
+		},
+	}
+	assert.True(t, hasDiskTypeLabel(node))
+
+	node = &corev1.Node{
+		ObjectMeta: v1.ObjectMeta{
+			Labels: nil,
+		},
+	}
+	assert.False(t, hasDiskTypeLabel(node))
 }

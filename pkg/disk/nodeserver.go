@@ -823,15 +823,20 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 	if err != nil {
 		return nil, err
 	}
-	diskTypes := []string{}
+	var diskTypes []string
 	if !GlobalConfigVar.DiskAllowAllType {
 		diskTypes, err = GetAvailableDiskTypes(ctx, c, ns.metadata)
 		if err != nil {
-			return nil, fmt.Errorf(
-				"failed to get available disk types: %w\n"+
-					"Hint, set env DISK_ALLOW_ALL_TYPE=true to skip this and handle disk type manually", err)
+			if hasDiskTypeLabel(node) {
+				klog.ErrorS(err, "NodeGetInfo: failed to get available disk types, will use existing config.")
+			} else {
+				return nil, fmt.Errorf(
+					"failed to get available disk types: %w. "+
+						"You may add labels like node.csi.alibabacloud.com/disktype.cloud_essd=available to node manually", err)
+			}
+		} else {
+			klog.Infof("NodeGetInfo: Supported disk types: %v", diskTypes)
 		}
-		klog.Infof("NodeGetInfo: Supported disk types: %v", diskTypes)
 	} else {
 		klog.Warning("NodeGetInfo: DISK_ALLOW_ALL_TYPE is set, you need to ensure the EBS disk type is compatible with the ECS instance type yourself!")
 	}

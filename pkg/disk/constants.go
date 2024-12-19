@@ -106,8 +106,8 @@ const (
 	sigmaInstanceTypeLabel = "sigma.ali/machine-model"
 	// sigmaLabel zoneid ....
 	sigmaLabelZoneId = "sigma.ali/ecs-zone-id"
-	// nodeStorageLabel ...
-	nodeStorageLabel = "node.csi.alibabacloud.com/disktype.%s"
+
+	nodeDiskTypeLabelPrefix = "node.csi.alibabacloud.com/disktype."
 
 	nodeDiskCountAnnotation = "node.csi.alibabacloud.com/allocatable-disk"
 	// kubeNodeName ...
