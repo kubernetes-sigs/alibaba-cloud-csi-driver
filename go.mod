@@ -4,12 +4,12 @@ go 1.22.9
 
 require (
 	github.com/alibabacloud-go/darabonba-openapi v0.1.16
-	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.6
+	github.com/alibabacloud-go/darabonba-openapi/v2 v2.0.10
 	github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
-	github.com/alibabacloud-go/nas-20170626/v3 v3.2.0
-	github.com/alibabacloud-go/tea v1.2.1
+	github.com/alibabacloud-go/nas-20170626/v3 v3.5.0
+	github.com/alibabacloud-go/tea v1.2.2
 	github.com/aliyun/alibaba-cloud-sdk-go v1.62.719
-	github.com/aliyun/credentials-go v1.3.1
+	github.com/aliyun/credentials-go v1.3.10
 	github.com/container-storage-interface/spec v1.10.0
 	github.com/containerd/ttrpc v1.2.3
 	github.com/go-logr/logr v1.4.1
@@ -42,12 +42,12 @@ require (
 )
 
 require (
-	github.com/alibabacloud-go/alibabacloud-gateway-spi v0.0.4 // indirect
-	github.com/alibabacloud-go/debug v0.0.0-20190504072949-9472017b5c68 // indirect
+	github.com/alibabacloud-go/alibabacloud-gateway-spi v0.0.5 // indirect
+	github.com/alibabacloud-go/debug v1.0.1 // indirect
 	github.com/alibabacloud-go/endpoint-util v1.1.0 // indirect
 	github.com/alibabacloud-go/openapi-util v0.1.0 // indirect
 	github.com/alibabacloud-go/tea-utils v1.4.3 // indirect
-	github.com/alibabacloud-go/tea-utils/v2 v2.0.5 // indirect
+	github.com/alibabacloud-go/tea-utils/v2 v2.0.6 // indirect
 	github.com/alibabacloud-go/tea-xml v1.1.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
@@ -77,7 +77,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/tjfoc/gmsm v1.3.2 // indirect
+	github.com/tjfoc/gmsm v1.4.1 // indirect
 	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/oauth2 v0.16.0 // indirect
 	golang.org/x/term v0.19.0 // indirect
