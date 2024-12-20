@@ -21,11 +21,16 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/throttle"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/batcher"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -35,6 +40,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/clock"
 )
 
 // PluginFolder defines the location of diskplugin
@@ -57,7 +63,6 @@ type GlobalConfig struct {
 	Region               string
 	NodeID               string
 	DiskTagEnable        bool
-	AttachDetachSlots    AttachDetachSlots
 	ADControllerEnable   bool
 	DetachDisabled       bool
 	MetricEnable         bool
@@ -96,7 +101,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 	tmpdisk.endpoint = endpoint
 
 	// Config Global vars
-	GlobalConfigSet(m)
+	csiCfg := GlobalConfigSet(m)
 
 	if serviceType&utils.Node != 0 {
 		GlobalConfigVar.NodeID = metadata.MustGet(m, metadata.InstanceID)
@@ -119,7 +124,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 	var servers common.Servers
 	servers.IdentityServer = NewIdentityServer()
 	if serviceType&utils.Controller != 0 {
-		servers.ControllerServer = NewControllerServer()
+		servers.ControllerServer = NewControllerServer(csiCfg)
 	}
 	if serviceType&utils.Node != 0 {
 		servers.NodeServer = NewNodeServer(m)
@@ -139,7 +144,7 @@ func (disk *DISK) Run() {
 }
 
 // GlobalConfigSet set Global Config
-func GlobalConfigSet(m metadata.MetadataProvider) {
+func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 	configMapName := "csi-plugin"
 
 	// Global Configs Set
@@ -232,21 +237,29 @@ func GlobalConfigSet(m metadata.MetadataProvider) {
 		GlobalConfigVar.DetachBeforeDelete,
 		GlobalConfigVar.ClusterID,
 	)
+	return csiCfg
+}
 
-	if GlobalConfigVar.ADControllerEnable {
-		detachConcurrency := 1
-		attachConcurrency := 1
-		if features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelDetach) {
-			detachConcurrency = csiCfg.GetInt("disk-detach-concurrency", "DISK_DETACH_CONCURRENCY", 5)
-			klog.InfoS("Disk parallel detach enabled", "concurrency", detachConcurrency)
-		}
-		if features.FunctionalMutableFeatureGate.Enabled(features.DiskParallelAttach) {
-			attachConcurrency = csiCfg.GetInt("disk-attach-concurrency", "DISK_ATTACH_CONCURRENCY", 32)
-			klog.InfoS("Disk parallel attach enabled", "concurrency", attachConcurrency)
-		}
-		GlobalConfigVar.AttachDetachSlots = NewSlots(detachConcurrency, attachConcurrency)
-	} else {
-		// if ADController is not enabled, we need serial attach to recognize old disk
-		GlobalConfigVar.AttachDetachSlots = NewSlots(1, 1)
+func newBatcher(fromNode bool) (waitstatus.StatusWaiter[ecs.Disk], batcher.Batcher[ecs.Disk]) {
+	client := desc.Disk{Client: GlobalConfigVar.EcsClient}
+	ctx := context.Background()
+	interval := 1 * time.Second
+	if fromNode {
+		interval = 2 * time.Second // We have many nodes, use longer interval to avoid throttling
 	}
+	waiter := waitstatus.NewBatched(client, clock.RealClock{}, interval, 3*time.Second)
+	waiter.PollHook = func() desc.Client[ecs.Disk] {
+		return desc.Disk{Client: updateEcsClient(GlobalConfigVar.EcsClient)}
+	}
+	go waiter.Run(ctx)
+
+	b := batcher.NewLowLatency(client, clock.RealClock{}, 1*time.Second, 8)
+	b.PollHook = waiter.PollHook
+	go b.Run(ctx)
+
+	return waiter, b
+}
+
+func defaultThrottler() *throttle.Throttler {
+	return throttle.NewThrottler(clock.RealClock{}, 1*time.Second, 10*time.Second)
 }
