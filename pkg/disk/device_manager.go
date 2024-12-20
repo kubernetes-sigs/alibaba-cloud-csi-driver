@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
-	"golang.org/x/sys/unix"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
 )
@@ -232,26 +231,6 @@ func (m *DeviceManager) GetDeviceRootAndPartitionIndex(devicePath string) (root 
 		return devicePath, "", nil
 	}
 	return "", "", fmt.Errorf("read partition from sysfs %q failed: %w", devSysfsPath+"/partition", err)
-}
-
-func (m *DeviceManager) WriteSysfs(devicePath, name string, value []byte) error {
-	major, minor, err := m.DevTmpFS.DevFor(devicePath)
-	if err != nil {
-		return fmt.Errorf("failed to stat %s: %w", devicePath, err)
-	}
-	base := m.sysfsDir(major, minor) + "/"
-	fileName := filepath.Clean(base + name)
-	if !strings.HasPrefix(fileName, base) {
-		// Note this cannot prevent user from accessing other devices through e.g. /sys/block/vda/subsystem/vdb
-		// But we cannot restrict symlink either because names like `bdi/read_ahead_kb` may be vaild, in which `bdi` is a symlink.
-		// Just reject obvious attacks like '../../../root/.ssh/id_rsa'.
-		return fmt.Errorf("invalid relative path in sysConfig: %s", name)
-	}
-	err = utilsio.WriteTrunc(unix.AT_FDCWD, fileName, value)
-	if err != nil {
-		return fmt.Errorf("failed to write %s to %s: %w", value, fileName, err)
-	}
-	return nil
 }
 
 func (m *DeviceManager) GetDeviceNumberFromBlockDevice(blockDevice string, busRegex *regexp.Regexp) (string, error) {
