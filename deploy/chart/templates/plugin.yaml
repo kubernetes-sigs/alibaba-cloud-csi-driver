@@ -102,6 +102,7 @@ spec:
           args:
             - "--endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock"
             - "--v=2"
+            - --logging-format={{ $nodePool.logging.format }}
             - "--driver={{ include "enabledPlugins" $nodePool.csi }}"
             - --run-controller-service=false
             - --run-node-service=true
