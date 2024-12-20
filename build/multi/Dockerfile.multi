@@ -1,5 +1,5 @@
-# syntax=docker/dockerfile:1.6
-FROM --platform=$BUILDPLATFORM golang:1.22.9 as build
+# syntax=registry-cn-hangzhou.ack.aliyuncs.com/dev/dockerfile:1.6
+FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/golang:1.22.9 as build
 WORKDIR /go/src/github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 ARG TARGETARCH
 ARG TARGETOS
@@ -16,43 +16,120 @@ RUN --mount=type=bind,target=. \
         -o /out/plugin.csi.alibabacloud.com && \
     go build -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
-
-FROM --platform=$BUILDPLATFORM registry.eu-west-1.aliyuncs.com/acs/alinux:3-update as download
-ARG TARGETARCH
-WORKDIR /downloads
-RUN CURL="curl --remote-time --remote-name --fail" && \
-    if [[ $TARGETARCH == "amd64" ]]; then \
-        $CURL -H "If-Match: D7AE0A7E48FBB6CF7BDB33C770B5EE0C" https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.2-3.x86_64.rpm && \
-        $CURL -H "If-Match: 766DCD5965BF89DE927DC3975728F676" https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.20240527201444.2012cc.al7.noarch.rpm && \
-        $CURL -H "If-Match: 259C07CF1C83C71DD78B705BC2E3FAE2" https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.deb; \
-    fi
-
-FROM registry.eu-west-1.aliyuncs.com/acs/alinux:3-update as base
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian12:latest@sha256:23878c981cb4409b6dd701563d2c1226dd69423d74a95acf56e671382523d0b0 as distroless-base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 
-ARG TARGETARCH
-RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked,id=dnf-cache-$TARGETARCH \
-    dnf install -y ca-certificates file tzdata nfs-utils xfsprogs e4fsprogs pciutils iputils strace util-linux nc telnet tar cpio lsof && \
-    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
+FROM distroless-base as csi-controller
+COPY --link --from=build /out/plugin.csi.alibabacloud.com /usr/bin/plugin.csi.alibabacloud.com
+ENTRYPOINT ["/usr/bin/plugin.csi.alibabacloud.com"]
 
-FROM base as build-util-linux
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20241202-slim as debian
+
 ARG TARGETARCH
-RUN --mount=type=cache,target=/var/cache/dnf,sharing=locked,id=dnf-cache-$TARGETARCH \
-    dnf install -y tar xz make gcc diffutils
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$TARGETARCH \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib-$TARGETARCH \
+    rm -f /etc/apt/apt.conf.d/docker-clean && \
+    echo 'Acquire::Check-Valid-Until false;' > /etc/apt/apt.conf.d/snapshot && \
+    sed -i '/^URIs:/d; s|^# \(http://snapshot.debian.org/\)|URIs: \1|' /etc/apt/sources.list.d/debian.sources && \
+    apt-get update && \
+    apt-get install -y nfs-common e2fsprogs xfsprogs pciutils fdisk lsof
+
+RUN --mount=type=bind,from=distroless-base,target=/base \
+    --mount=type=bind,source=build/gather-node-deps.sh,target=/deps.sh \
+    /deps.sh
+
+# For ./hack/update-base-image-deps.sh
+FROM distroless-base as dep-list
+COPY --link --from=debian /staging-node /
+
+FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20241202-slim as build-0
+ARG BUILDARCH
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$BUILDARCH \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib-$BUILDARCH \
+    rm -f /etc/apt/apt.conf.d/docker-clean && \
+    echo 'Acquire::Check-Valid-Until false;' > /etc/apt/apt.conf.d/snapshot && \
+    sed -i '/^URIs:/d; s|^# \(http://snapshot.debian.org/\)|URIs: \1|' /etc/apt/sources.list.d/debian.sources && \
+    apt-get update && \
+    apt-get install -y tar xz-utils make diffutils
+
+FROM build-0 as build-util-linux-amd64
+ENV HOST=x86_64-linux-gnu
+
+FROM build-0 as build-util-linux-arm64
+ENV HOST=aarch64-linux-gnu
+
+FROM build-util-linux-$TARGETARCH as build-util-linux
+ARG BUILDARCH
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$BUILDARCH \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib-$BUILDARCH <<EOF
+#!/bin/bash
+apt-get update && apt-get install -y gcc-${HOST//_/-}
+EOF
 
 ADD --link --checksum=sha256:59e676aa53ccb44b6c39f0ffe01a8fa274891c91bef1474752fad92461def24f \
     https://www.kernel.org/pub/linux/utils/util-linux/v2.40/util-linux-2.40.1.tar.xz /src.tar.xz
 RUN mkdir -p /src && tar -C /src --strip-components=1 -xf /src.tar.xz
 
-# Ideally we should do cross-compilation here, but no easy solution on alinux. Re-consider if we switch to Debian
-RUN cd /src && \
-    ./configure --disable-all-programs --enable-blkid --enable-libblkid --prefix=/usr/local \
-        --disable-nls --disable-bash-completion --disable-asciidoc --disable-dependency-tracking --disable-static && \
-    make -j && \
-    make install-strip DESTDIR=/out && \
-    cd /out/usr/local && rm -r include share lib/pkgconfig
+RUN <<EOF
+set -e
+cd /src
+SOURCE_DATE_EPOCH=$(stat -c %Y /src.tar.xz)
+export SOURCE_DATE_EPOCH
+echo "util-linux released at $(date --date "@$SOURCE_DATE_EPOCH" --iso-8601=seconds)"
+./configure --disable-all-programs --enable-blkid --enable-libblkid --prefix=/usr/local \
+    --disable-nls --disable-bash-completion --disable-asciidoc --disable-dependency-tracking --disable-static --host=$HOST
+make -j
+make install-strip DESTDIR=/out
+cd /out/usr/local && rm -r include share lib/pkgconfig
+EOF
 
-FROM base as init
+COPY <<"EOT" /out/usr/local/share/sbom/blkid.spdx.json
+{
+    "spdxVersion": "SPDX-2.3",
+    "SPDXID": "SPDXRef-DOCUMENT",
+    "name": "util-linux-2.40.1",
+    "packages": [
+        {
+            "name": "util-linux",
+            "SPDXID": "SPDXRef-Package-source-util-linux",
+            "versionInfo": "2.40.1",
+            "filesAnalyzed": false,
+            "primaryPackagePurpose" : "SOURCE",
+            "packageFileName" : "util-linux-2.40.1.tar.xz",
+            "downloadLocation" : "https://www.kernel.org/pub/linux/utils/util-linux/v2.40/util-linux-2.40.1.tar.xz",
+            "checksums" : [{
+                "algorithm" : "SHA256",
+                "checksumValue" : "59e676aa53ccb44b6c39f0ffe01a8fa274891c91bef1474752fad92461def24f"
+            }],
+            "releaseDate": "2024-05-06T08:42:01Z",
+            "externalRefs": [
+                {
+                    "referenceCategory": "SECURITY",
+                    "referenceType": "cpe23Type",
+                    "referenceLocator": "cpe:2.3:a:util-linux:util-linux:2.40.1:*:*:*:*:*:*:*"
+                }
+            ]
+        }
+    ]
+}
+EOT
+
+RUN find /out -exec touch --reference=/src.tar.xz {} +
+
+FROM scratch as download-amd64
+ADD --link --checksum=sha256:79a41d1eab207a81285fdbb4cd02dd3fe8bf8192f9b1cb6d45317015a673439f \
+    https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.2-3.x86_64.rpm /
+ADD --link --checksum=sha256:184e2ed944ee51991da7e7099b21536c0383a55b5b53fa1bcf523c5f3ed3ad16 \
+    https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.20240527201444.2012cc.al7.noarch.rpm /
+ADD --link --checksum=sha256:12ddecc62591f154bd6091ed208220841a903ebebf4d3281ee9ad3061ab233e6 \
+    https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.deb /
+
+FROM scratch as download-arm64
+# nothing to download
+
+FROM download-$TARGETARCH as download
+
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/busybox:1@sha256:0723be2745f64a2f9dc38288959c3080cb1f0d11495c17dff7a65cc41407d79a as init
 
 ARG TARGETARCH
 WORKDIR /root
@@ -62,11 +139,9 @@ RUN --mount=type=bind,source=build/lib,target=/csi-lib \
     mkdir /csi && \
     cp /csi-lib/csiplugin-connector.service /csi/csiplugin-connector.service
 COPY --link --from=build /out/csiplugin-connector /csi/csiplugin-connector
-COPY --link --from=download /downloads /root
+COPY --link --from=download / /root
 ENTRYPOINT ["/init.sh"]
 
-FROM base
-RUN rm -f /{bin,usr/bin}/{bash,sh,yum,dnf,cat,vi}
+FROM csi-controller
 COPY --link --from=build-util-linux /out /
-COPY --link --from=build /out/plugin.csi.alibabacloud.com /usr/bin/plugin.csi.alibabacloud.com
-ENTRYPOINT ["/usr/bin/plugin.csi.alibabacloud.com"]
+COPY --link --from=debian /staging-node /
