@@ -211,7 +211,7 @@ func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 		metadata:     m,
 		mounter:      utils.NewMounter(),
 		kataBMIOType: kataBMIOType,
-		k8smounter:   k8smount.New(""),
+		k8smounter:   k8smount.NewWithoutSystemd(""),
 		podCGroup:    podCgroup,
 		clientSet:    GlobalConfigVar.ClientSet,
 		ad: DiskAttachDetach{

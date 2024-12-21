@@ -33,7 +33,7 @@ func (m *NasMounter) Mount(source string, target string, fstype string, options 
 }
 
 func newNasMounter() mountutils.Interface {
-	inner := mountutils.New("")
+	inner := mountutils.NewWithoutSystemd("")
 	return &NasMounter{
 		Interface:     inner,
 		alinasMounter: mounter.NewConnectorMounter(inner, ""),
@@ -41,7 +41,7 @@ func newNasMounter() mountutils.Interface {
 }
 
 func newNasMounterWithProxy(socketPath string) mountutils.Interface {
-	inner := mountutils.New("")
+	inner := mountutils.NewWithoutSystemd("")
 	return &NasMounter{
 		Interface:     inner,
 		alinasMounter: mounter.NewProxyMounter(socketPath, inner),
