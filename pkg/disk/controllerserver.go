@@ -149,8 +149,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 	}
 
-	sharedDisk := len(diskVol.Type) == 1 && (diskVol.Type[0] == DiskSharedEfficiency || diskVol.Type[0] == DiskSharedSSD)
-
 	var supportedTypes sets.Set[Category]
 	var selectedInstance string
 	if diskVol.NodeSelected != "" {
@@ -187,9 +185,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	volumeContext := req.GetParameters()
 	if volumeContext == nil {
 		volumeContext = make(map[string]string)
-	}
-	if sharedDisk {
-		volumeContext[SharedEnable] = "enable"
 	}
 	volumeContext["type"] = string(attempt.Category)
 	if attempt.PerformanceLevel != "" {
@@ -339,12 +334,12 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}
 	}
 	if isMultiAttach {
-		_, err := attachSharedDisk(ctx, req.VolumeId, req.NodeId)
+		_, err := attachMultiAttachDisk(ctx, req.VolumeId, req.NodeId)
 		if err != nil {
-			klog.Errorf("ControllerPublishVolume: attach shared disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
+			klog.Errorf("ControllerPublishVolume: attach multi-attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 			return nil, err
 		}
-		klog.Infof("ControllerPublishVolume: Successful attach shared disk: %s to node: %s", req.VolumeId, req.NodeId)
+		klog.Infof("ControllerPublishVolume: successfully attached multi-attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 
@@ -354,20 +349,13 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	}
 
 	klog.Infof("ControllerPublishVolume: start attach disk: %s to node: %s", req.VolumeId, req.NodeId)
-	isSharedDisk := false
-	if value, ok := req.VolumeContext[SharedEnable]; ok {
-		value = strings.ToLower(value)
-		if checkOption(value) {
-			isSharedDisk = true
-		}
-	}
 
 	var isSingleInstance bool
 	if value, ok := req.VolumeContext["type"]; ok {
 		isSingleInstance = AllCategories[Category(value)].SingleInstance
 	}
 
-	_, err := attachDisk(ctx, req.VolumeId, req.NodeId, isSharedDisk, isSingleInstance, false)
+	_, err := attachDisk(ctx, req.VolumeId, req.NodeId, isSingleInstance, false)
 	if err != nil {
 		klog.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
