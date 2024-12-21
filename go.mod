@@ -36,7 +36,7 @@ require (
 	k8s.io/component-base v0.26.12
 	k8s.io/klog/v2 v2.120.1
 	k8s.io/kubelet v0.26.12
-	k8s.io/mount-utils v0.21.1
+	k8s.io/mount-utils v0.30.8
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 )
 
@@ -70,6 +70,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/moby/sys/mountinfo v0.6.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
