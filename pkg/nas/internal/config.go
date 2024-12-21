@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"strconv"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
@@ -12,20 +11,15 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
 
-const (
-	configMapName      = "csi-plugin"
-	configMapNamespace = "kube-system"
-
-	defaultAlinasMountProxySocket = "/run/cnfs/alinas-mounter.sock"
-)
+const defaultAlinasMountProxySocket = "/run/cnfs/alinas-mounter.sock"
 
 type ControllerConfig struct {
 	// cluster info
@@ -53,25 +47,18 @@ func mustGetKubeClients() (kubernetes.Interface, cnfsv1beta1.CNFSGetter) {
 
 func GetControllerConfig(meta *metadata.Metadata) (*ControllerConfig, error) {
 	kubeClient, cnfsGetter := mustGetKubeClients()
+	cm := utils.DefaultConfig()
+
 	config := &ControllerConfig{
 		Metadata:         meta,
 		KubeClient:       kubeClient,
 		CNFSGetter:       cnfsGetter,
 		NasClientFactory: cloud.NewNasClientFactory(),
+
+		SkipSubpathCreation:    cm.GetBool("nas-fake-provision", "NAS_FAKE_PROVISION", false),
+		EnableSubpathFinalizer: cm.GetBool("nas-subpath-finalizer", "ENABLE_NAS_SUBPATH_FINALIZER", true),
+		EnableRecycleBinCheck:  cm.GetBool("nas-recyclebin-check", "ENABLE_NAS_RECYCLEBIN_CHECK", false),
 	}
-
-	cm, err := kubeClient.CoreV1().ConfigMaps(configMapNamespace).Get(context.Background(), configMapName, metav1.GetOptions{})
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return nil, err
-		}
-	} else {
-		config.SkipSubpathCreation, _ = parseBool(cm.Data["nas-fake-provision"])
-	}
-
-	config.EnableSubpathFinalizer, _ = parseBool(os.Getenv("ENABLE_NAS_SUBPATH_FINALIZER"))
-	config.EnableRecycleBinCheck, _ = parseBool(os.Getenv("ENABLE_NAS_RECYCLEBIN_CHECK"))
-
 	return config, nil
 }
 
@@ -94,33 +81,19 @@ type NodeConfig struct {
 
 func GetNodeConfig() (*NodeConfig, error) {
 	kubeClient, cnfsGetter := mustGetKubeClients()
+	cm := utils.DefaultConfig()
+
 	config := &NodeConfig{
-		// enable nfs port check by default
-		EnablePortCheck: true,
-		KubeClient:      kubeClient,
-		CNFSGetter:      cnfsGetter,
+		KubeClient: kubeClient,
+		CNFSGetter: cnfsGetter,
+
+		EnablePortCheck:   cm.GetBool("nas-port-check", "NAS_PORT_CHECK", true),
+		EnableVolumeStats: cm.GetBool("nas-metric-enable", "NAS_METRIC_BY_PLUGIN", false),
+		EnableEFCCache: cm.Get("cnfs-cache-properties", "", "") != "" ||
+			cm.Get("nas-efc-cache", "", "") != "",
+		EnableLosetup: cm.GetBool("nas-losetup-enable", "NAS_LOSETUP_ENABLE", false),
 	}
 
-	// check if enable nfs port check
-	if value := os.Getenv("NAS_PORT_CHECK"); value != "" {
-		config.EnablePortCheck, _ = parseBool(value)
-	}
-
-	// get csi-plugin configmap
-	cm, err := kubeClient.CoreV1().ConfigMaps(configMapNamespace).Get(context.Background(), configMapName, metav1.GetOptions{})
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return nil, err
-		}
-	} else {
-		if value := cm.Data["nas-metric-enable"]; value != "" {
-			config.EnableVolumeStats, _ = parseBool(value)
-		}
-		config.EnableEFCCache = cm.Data["cnfs-cache-properties"] != "" || cm.Data["nas-efc-cache"] != ""
-	}
-	if value := os.Getenv("NAS_METRIC_BY_PLUGIN"); value != "" {
-		config.EnableVolumeStats, _ = parseBool(value)
-	}
 	if config.EnableVolumeStats {
 		klog.Info("enabled nas volume stats")
 	}
@@ -134,9 +107,6 @@ func GetNodeConfig() (*NodeConfig, error) {
 	config.NodeName = nodeName
 
 	// check if losetup enabled
-	if value := os.Getenv("NAS_LOSETUP_ENABLE"); value != "" {
-		config.EnableLosetup, _ = parseBool(value)
-	}
 	if config.EnableLosetup {
 		klog.Info("enabled nas losetup mode")
 		for _, addr := range node.Status.Addresses {
@@ -155,14 +125,4 @@ func GetNodeConfig() (*NodeConfig, error) {
 	}
 
 	return config, nil
-}
-
-func parseBool(str string) (bool, error) {
-	switch str {
-	case "enable", "enabled", "yes":
-		return true, nil
-	case "no", "":
-		return false, nil
-	}
-	return strconv.ParseBool(str)
 }

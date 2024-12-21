@@ -13,7 +13,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	csiutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
@@ -46,7 +45,7 @@ var ossfsDbglevels = map[string]string{
 	mounterutils.DebugLevelFatal: "crit",
 }
 
-func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) OSSFuseMounterType {
+func NewFuseOssfs(configmap *utils.Config, m metadata.MetadataProvider) OSSFuseMounterType {
 	config := mounterutils.ExtractFuseContainerConfig(configmap, OssFsType)
 
 	// set default image
@@ -352,7 +351,7 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 
 	// set mime
 	if _, ok := tm[KeyMime]; !ok {
-		if !csiutils.IsFileExisting(filepath.Join(hostPrefix, OssfsDefMimeTypesFilePath)) && strings.ToLower(f.config.Extra["mime-support"]) == "true" {
+		if !utils.IsFileExisting(filepath.Join(hostPrefix, OssfsDefMimeTypesFilePath)) && strings.ToLower(f.config.Extra["mime-support"]) == "true" {
 			// mime.types not exists, use csi-mime.types
 			options = append(options, fmt.Sprintf("mime=%s", OssfsCsiMimeTypesFilePath))
 		}

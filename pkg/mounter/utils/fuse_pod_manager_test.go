@@ -1,30 +1,31 @@
 package utils
 
 import (
+	"os"
 	"testing"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 func Test_ExtractFuseContainerConfig(t *testing.T) {
-	configmap := &corev1.ConfigMap{
-		Data: map[string]string{
-			"fuse-ossfs": `
-				image=ossfs:latest
-				cpu-request=100m
-				cpu-limit=1
-				memory-request=500Mi
-				memory-limit=2Gi
-				dbglevel=info
-				mime-support=false
-				annotations={"anno1": "val1", "anno2": "val2"}
-				labels={"label1": "val1", "label2": "val2"}
-			`,
-		},
-	}
-	config := ExtractFuseContainerConfig(configmap, OssFsType)
+	dir := t.TempDir()
+	assert.NoError(t, os.WriteFile(dir+"/fuse-ossfs", []byte(`
+image=ossfs:latest
+cpu-request=100m
+cpu-limit=1
+memory-request=500Mi
+memory-limit=2Gi
+dbglevel=info
+mime-support=false
+annotations={"anno1": "val1", "anno2": "val2"}
+labels={"label1": "val1", "label2": "val2"}
+`), 0644))
+
+	configmap := utils.Config{Path: dir}
+	config := ExtractFuseContainerConfig(&configmap, OssFsType)
 	expected := FuseContainerConfig{
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{

@@ -30,7 +30,7 @@ var ossfs2Dbglevels = map[string]string{
 	mounterutils.DebugLevelInfo:  "info",
 }
 
-func NewFuseOssfs2(configmap *corev1.ConfigMap, m metadata.MetadataProvider) OSSFuseMounterType {
+func NewFuseOssfs2(configmap *utils.Config, m metadata.MetadataProvider) OSSFuseMounterType {
 	config := mounterutils.ExtractFuseContainerConfig(configmap, OssFs2Type)
 	// set default image
 	setDefaultImage(OssFs2Type, m, &config)
