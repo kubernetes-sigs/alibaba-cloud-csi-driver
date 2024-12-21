@@ -62,7 +62,7 @@ var ossfsDbglevels = map[string]string{
 
 const defaultDbglevel = DebugLevelError
 
-func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) FuseMounterType {
+func NewFuseOssfs(configmap *utils.Config, m metadata.MetadataProvider) FuseMounterType {
 	config := extractFuseContainerConfig(configmap, "ossfs")
 	// set default image
 	if config.Image == "" {
