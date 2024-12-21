@@ -24,7 +24,7 @@ type nodeService struct {
 func newNodeService(meta metadata.MetadataProvider) nodeService {
 	return nodeService{
 		inFlight: internal.NewInFlight(),
-		mounter:  mountutils.New(""),
+		mounter:  mountutils.NewWithoutSystemd(""),
 		GenericNodeServer: common.GenericNodeServer{
 			NodeID: metadata.MustGet(meta, metadata.InstanceID),
 		},

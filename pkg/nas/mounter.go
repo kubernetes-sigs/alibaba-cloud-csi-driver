@@ -33,7 +33,7 @@ func (m *NasMounter) Mount(source string, target string, fstype string, options 
 }
 
 func NewNasMounter() mountutils.Interface {
-	inner := mountutils.New("")
+	inner := mountutils.NewWithoutSystemd("")
 	return &NasMounter{
 		Interface:   inner,
 		fuseMounter: mounter.NewConnectorMounter(inner, ""),

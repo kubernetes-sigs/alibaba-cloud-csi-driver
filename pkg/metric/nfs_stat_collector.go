@@ -245,7 +245,7 @@ func NewNfsStatCollector() (Collector, error) {
 		recorder:                    recorder,
 		monitorClient:               NewStorageMonitorClient(clientset),
 		capacityPercentageThreshold: getNfsCapacityThreshold(),
-		mounter:                     mount.New(""),
+		mounter:                     mount.NewWithoutSystemd(""),
 	}, nil
 }
 

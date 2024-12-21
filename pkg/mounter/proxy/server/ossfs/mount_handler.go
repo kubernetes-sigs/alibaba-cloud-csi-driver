@@ -31,7 +31,7 @@ type MountHandler struct {
 func NewMountHandler() *MountHandler {
 	return &MountHandler{
 		pids: new(sync.Map),
-		raw:  mount.New(""),
+		raw:  mount.NewWithoutSystemd(""),
 	}
 }
 
