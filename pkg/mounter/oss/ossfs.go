@@ -47,7 +47,7 @@ var ossfsDbglevels = map[string]string{
 	utils.DebugLevelFatal: "crit",
 }
 
-func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) OSSFuseMounterType {
+func NewFuseOssfs(configmap *csiutils.Config, m metadata.MetadataProvider) OSSFuseMounterType {
 	config := utils.ExtractFuseContainerConfig(configmap, OssFsType)
 
 	// set default image
