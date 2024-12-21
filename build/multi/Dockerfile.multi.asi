@@ -17,11 +17,10 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     export GOOS=$TARGETOS && \
     export GOARCH=$TARGETARCH && \
     export CGO_ENABLED=0 && \
-    go build \
-        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=${CSI_VERSION} \
-                  -X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.BUILDTIME=$(date -Iseconds)" \
+    go build -trimpath \
+        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=${CSI_VERSION}" \
         -o /out/plugin.csi.alibabacloud.com && \
-    go build -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
+    go build -trimpath -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
 
 FROM registry.eu-west-1.aliyuncs.com/acs/alinux:3-update as base

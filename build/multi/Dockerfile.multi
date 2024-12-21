@@ -10,11 +10,10 @@ RUN --mount=type=bind,target=. \
     export GOOS=$TARGETOS && \
     export GOARCH=$TARGETARCH && \
     export CGO_ENABLED=0 && \
-    go build ${GO_BUILD_ARGS} \
-        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=${CSI_VERSION} \
-                  -X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.BUILDTIME=$(date -Iseconds)" \
+    go build ${GO_BUILD_ARGS} -trimpath \
+        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=${CSI_VERSION}" \
         -o /out/plugin.csi.alibabacloud.com && \
-    go build -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
+    go build -trimpath -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian12:latest@sha256:23878c981cb4409b6dd701563d2c1226dd69423d74a95acf56e671382523d0b0 as distroless-base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"

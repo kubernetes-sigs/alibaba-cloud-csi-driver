@@ -112,7 +112,7 @@ func main() {
 	// log.AddHook(rotateHook(logAttribute))
 
 	klog.Infof("Multi CSI Driver Name: %s, nodeID: %s, endPoints: %s", *driver, *nodeID, *endpoint)
-	klog.Infof("CSI Driver, Version: %s, Build time: %s", version.VERSION, version.BUILDTIME)
+	klog.Infof("CSI Driver, Version: %s, Release time: %s", version.VERSION, version.GetTime())
 
 	multiDriverNames := *driver
 	driverNames := strings.Split(multiDriverNames, ",")
