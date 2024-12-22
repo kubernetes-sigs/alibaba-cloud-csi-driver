@@ -30,14 +30,13 @@ func init() {
 // Driver manages ossfs mounts and their monitoring
 type Driver struct {
 	mounter.Mounter
-	pids           *sync.Map
+	pids           sync.Map
 	monitorManager *server.MountMonitorManager
 	wg             sync.WaitGroup
 }
 
 func NewDriver() *Driver {
 	driver := &Driver{
-		pids:           new(sync.Map),
 		monitorManager: server.NewMountMonitorManager(),
 	}
 	m := &extendedMounter{
@@ -198,7 +197,7 @@ func (m *extendedMounter) ExtendedMount(ctx context.Context, op *mounter.MountOp
 		case <-ossfsExited:
 		case <-time.After(time.Second * 2):
 			kerr := cmd.Process.Kill()
-			if kerr != nil && errors.Is(kerr, os.ErrProcessDone) {
+			if kerr != nil && !errors.Is(kerr, os.ErrProcessDone) {
 				klog.ErrorS(err, "Failed to kill ossfs", "pid", pid)
 			}
 		}
