@@ -8,7 +8,7 @@ import (
 
 type NasMounter struct {
 	mountutils.Interface
-	fuseMounter mountutils.Interface
+	alinasMounter mountutils.Interface
 }
 
 func (m *NasMounter) Mount(source string, target string, fstype string, options []string) (err error) {
@@ -20,7 +20,7 @@ func (m *NasMounter) Mount(source string, target string, fstype string, options 
 	)
 	switch fstype {
 	case "alinas", "cpfs", "cpfs-nfs":
-		err = m.fuseMounter.Mount(source, target, fstype, options)
+		err = m.alinasMounter.Mount(source, target, fstype, options)
 	default:
 		err = m.Interface.Mount(source, target, fstype, options)
 	}
@@ -32,10 +32,18 @@ func (m *NasMounter) Mount(source string, target string, fstype string, options 
 	return err
 }
 
-func NewNasMounter() mountutils.Interface {
+func newNasMounter() mountutils.Interface {
 	inner := mountutils.New("")
 	return &NasMounter{
-		Interface:   inner,
-		fuseMounter: mounter.NewConnectorMounter(inner, ""),
+		Interface:     inner,
+		alinasMounter: mounter.NewConnectorMounter(inner, ""),
+	}
+}
+
+func newNasMounterWithProxy(socketPath string) mountutils.Interface {
+	inner := mountutils.New("")
+	return &NasMounter{
+		Interface:     inner,
+		alinasMounter: mounter.NewProxyMounter(socketPath, inner),
 	}
 }

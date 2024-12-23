@@ -58,14 +58,20 @@ func newNodeServer(config *internal.NodeConfig) *nodeServer {
 	if err := checkSystemNasConfig(); err != nil {
 		klog.Errorf("failed to config /proc/sys/sunrpc/tcp_slot_table_entries: %v", err)
 	}
-	return &nodeServer{
-		config:  config,
-		mounter: NewNasMounter(),
-		locks:   utils.NewVolumeLocks(),
+
+	ns := &nodeServer{
+		config: config,
+		locks:  utils.NewVolumeLocks(),
 		GenericNodeServer: common.GenericNodeServer{
 			NodeID: config.NodeName,
 		},
 	}
+	if config.MountProxySocket == "" {
+		ns.mounter = newNasMounter()
+	} else {
+		ns.mounter = newNasMounterWithProxy(config.MountProxySocket)
+	}
+	return ns
 }
 
 // Options struct definition
@@ -264,8 +270,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
+	var runtimeVal string
+	if ns.config.KubeClient != nil {
+		runtimeVal = utils.GetPodRunTime(ctx, req, ns.config.KubeClient)
+	}
+
 	// running in runc/runv mode
-	runtimeVal := utils.GetPodRunTime(ctx, req, ns.config.KubeClient)
 	if runtimeVal == utils.RunvRunTimeTag {
 		fileName := filepath.Join(mountPath, utils.CsiPluginRunTimeFlagFile)
 		runvOptions := RunvNasOptions{
