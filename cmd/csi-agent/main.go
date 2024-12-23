@@ -87,7 +87,7 @@ func main() {
 	flag.Parse()
 
 	if len(os.Args) > 1 && os.Args[1] == "version" {
-		fmt.Printf("%s %s\n", version.VERSION, version.BUILDTIME)
+		fmt.Printf("%s %s\n", version.VERSION, version.GetTime())
 		return
 	}
 
