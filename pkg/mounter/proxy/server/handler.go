@@ -111,14 +111,22 @@ func handle(ctx context.Context, req *rawRequest) proxy.Response {
 	return proxy.Response{}
 }
 
+func Init() {
+	doForHandlers(func(m MountHandler) { m.Init() })
+}
+
 func Terminate() {
+	doForHandlers(func(m MountHandler) { m.Terminate() })
+}
+
+func doForHandlers(f func(m MountHandler)) {
 	var wg sync.WaitGroup
-	for fstype := range fstypes {
+	for i := range mountHandlers {
 		wg.Add(1)
-		go func(fstype string) {
+		go func(i int) {
 			defer wg.Done()
-			fstypes[fstype].Terminate()
-		}(fstype)
+			f(mountHandlers[i])
+		}(i)
 	}
 	wg.Wait()
 }
