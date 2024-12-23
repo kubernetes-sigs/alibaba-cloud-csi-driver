@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
+	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server/alinas"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server/ossfs"
 	"k8s.io/klog/v2"
 )
@@ -28,6 +29,7 @@ func main() {
 	flag.Parse()
 
 	_ = os.Remove(socketPath)
+	server.Init()
 
 	listener, err := listen(socketPath)
 	if err != nil {
