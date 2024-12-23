@@ -12,12 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-PKG=github.com/kubernetes-sigs/alibaba-cloud-csi-driver
+HELM_VERSION := v3.16.4
+OS := $(shell go env GOHOSTOS)
+ARCH := $(shell go env GOHOSTARCH)
 
-GO111MODULE=on
-REPONAME="$(shell pwd | rev | awk -F \/ '{ print $$2 }' | rev)"
+bin: export PATH := $(CURDIR)/bin:$(PATH)
+bin:
+	mkdir -p bin
 
-.EXPORT_ALL_VARIABLES:
+bin/helm: | bin
+	curl -L https://get.helm.sh/helm-$(HELM_VERSION)-$(OS)-$(ARCH).tar.gz | tar -xz -C bin --strip-components=1 '*/helm'
 
 .PHONY: fmt
 fmt:
@@ -35,25 +39,25 @@ vet:
 test:
 	./hack/check-unittest.sh
 
+.PHONY: update-deps check-deps
+update-deps:
+	go mod tidy
+	go mod vendor
+check-deps: update-deps
+	git diff --exit-code go.mod go.sum vendor
+
+.PHONY: check-helm-kind
+check-helm-kind: bin/helm
+check-helm-kind: export KUBECONFIG := /tmp/kubeconfig
+check-helm-kind:
+# Use the oldest k8s version we support
+	kind create cluster --image kindest/node:v1.26.15
+	./hack/check-helm.sh
+	kind delete cluster
+
 .PHONY: build
 build:
-	./build/build-all-multi.sh "" $(REPONAME)
-
-./PHONY: build-amd
-build-amd:
-	./build/build-all.sh "" $(REPONAME)
-
-.PHONY: build-arm
-build-arm:
-	./build/build-all-arm.sh "" $(REPONAME)
-
-.PHONY: build-nas
-build-nas:
-	./build/build-nas.sh "" $(REPONAME)
-
-.PHONY: build-disk
-build-disk:
-	./build/build-disk.sh "" $(REPONAME)
+	./build/build-all-multi.sh
 
 pkg/cloud/ecsmock.go: pkg/cloud/ecsinterface.go
 	mockgen -source pkg/cloud/ecsinterface.go -destination $@ -package cloud
@@ -64,3 +68,7 @@ pkg/disk/proto/disk.pb.go pkg/disk/proto/disk_ttrpc.pb.go: pkg/disk/disk.proto
 		google.golang.org/protobuf/cmd/protoc-gen-go \
 		github.com/containerd/ttrpc/cmd/protoc-gen-go-ttrpc
 	$(PROTOC) -I pkg/disk disk.proto --go_out=pkg/disk --go-ttrpc_out=pkg/disk
+
+.PHONY: clean
+clean:
+	rm -rf bin
