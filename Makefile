@@ -16,12 +16,13 @@ HELM_VERSION := v3.16.4
 OS := $(shell go env GOHOSTOS)
 ARCH := $(shell go env GOHOSTARCH)
 
-bin: export PATH := $(CURDIR)/bin:$(PATH)
+export PATH := $(CURDIR)/bin:$(PATH)
+
 bin:
 	mkdir -p bin
 
 bin/helm: | bin
-	curl -L https://get.helm.sh/helm-$(HELM_VERSION)-$(OS)-$(ARCH).tar.gz | tar -xz -C bin --strip-components=1 '*/helm'
+	curl -L https://get.helm.sh/helm-$(HELM_VERSION)-$(OS)-$(ARCH).tar.gz | tar -xz -C bin --strip-components=1 $(OS)-$(ARCH)/helm
 
 .PHONY: fmt
 fmt:
