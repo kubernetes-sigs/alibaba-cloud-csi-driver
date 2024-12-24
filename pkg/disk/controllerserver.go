@@ -276,8 +276,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			err := cs.ad.detachDisk(ctx, ecsClient, req.VolumeId, disk.InstanceId)
 			if err != nil {
 				newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
-				klog.Errorf("DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, newErrMsg)
-				return nil, status.Errorf(codes.Internal, newErrMsg)
+				return nil, status.Errorf(codes.Internal, "DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, newErrMsg)
 			}
 			klog.Infof("DeleteVolume: Successful Detach disk(%s) from node %s before remove", req.VolumeId, disk.InstanceId)
 		}
@@ -293,23 +292,14 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		klog.Infof("DeleteVolume: snapshot before delete configured")
 		err := snapshotBeforeDelete(disk, ecsClient)
 		if err != nil {
-			klog.Errorf("DeleteVolume: failed to create snapshot before delete disk, err: %v", err)
-			return nil, status.Errorf(codes.Internal, err.Error())
+			return nil, status.Errorf(codes.Internal, "DeleteVolume: failed to create snapshot before delete disk, err: %v", err)
 		}
 	}
 
-	response, err := deleteDisk(ctx, ecsClient, req.VolumeId)
+	_, err := deleteDisk(ctx, ecsClient, req.VolumeId)
 	if err != nil {
 		newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
-		errMsg := fmt.Sprintf("DeleteVolume: Delete disk with error: %s", newErrMsg)
-		if response != nil {
-			errMsg = fmt.Sprintf("DeleteVolume: Delete disk with error: %s, with RequestId: %s", newErrMsg, response.RequestId)
-		}
-		klog.Warningf(errMsg)
-		if strings.Contains(err.Error(), DiskCreatingSnapshot) || strings.Contains(err.Error(), IncorrectDiskStatus) {
-			return nil, status.Errorf(codes.Aborted, errMsg)
-		}
-		return nil, status.Errorf(codes.Internal, errMsg)
+		return nil, status.Errorf(codes.Internal, "DeleteVolume: Delete disk with error: %s", newErrMsg)
 	}
 
 	delVolumeSnap.Delete(req.GetVolumeId())
@@ -583,8 +573,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 		return nil, status.Errorf(codes.Internal, "create snapshot[%s] with sourceId[%s] failed with error: %v", req.Name, req.GetSourceVolumeId(), err)
 	}
 
-	str := fmt.Sprintf("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotResponse.SnapshotId)
-	klog.Infof(str)
+	klog.Infof("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotResponse.SnapshotId)
 	csiSnapshot := &csi.Snapshot{
 		SnapshotId:     snapshotResponse.SnapshotId,
 		SourceVolumeId: sourceVolumeID,
