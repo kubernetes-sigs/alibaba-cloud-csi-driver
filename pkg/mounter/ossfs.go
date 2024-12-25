@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -169,7 +170,7 @@ func (f *fuseOssfs) buildPodSpec(c *FusePodContext, target string) (spec corev1.
 				MountPath: metricsDirVolume.HostPath.Path,
 			}, {
 				Name:      etcDirVolume.Name,
-				MountPath: etcDirVolume.HostPath.Path,
+				MountPath: path.Join(hostPrefix, etcDirVolume.HostPath.Path),
 			},
 		},
 		SecurityContext: &corev1.SecurityContext{
