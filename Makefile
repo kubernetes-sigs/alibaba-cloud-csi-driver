@@ -13,6 +13,7 @@
 # limitations under the License.
 
 HELM_VERSION := v3.16.4
+SYFT_VERSION := 1.18.1
 OS := $(shell go env GOHOSTOS)
 ARCH := $(shell go env GOHOSTARCH)
 
@@ -23,6 +24,9 @@ bin:
 
 bin/helm: | bin
 	curl -L https://get.helm.sh/helm-$(HELM_VERSION)-$(OS)-$(ARCH).tar.gz | tar -xz -C bin --strip-components=1 $(OS)-$(ARCH)/helm
+
+bin/syft: | bin
+	curl -L https://github.com/anchore/syft/releases/download/v$(SYFT_VERSION)/syft_$(SYFT_VERSION)_$(OS)_$(ARCH).tar.gz | tar -xz -C bin syft
 
 .PHONY: fmt
 fmt:
@@ -46,6 +50,12 @@ update-deps:
 	go mod vendor
 check-deps: update-deps
 	git diff --exit-code go.mod go.sum vendor
+
+.PHONY: update-base-image-deps check-base-image-deps
+update-base-image-deps: bin/syft
+	./hack/update-base-image-deps.sh
+check-base-image-deps: update-base-image-deps
+	git diff --exit-code hack/base-image-deps.txt
 
 .PHONY: check-helm-kind
 check-helm-kind: bin/helm
