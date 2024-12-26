@@ -11,7 +11,7 @@ RUN --mount=type=bind,target=. \
 
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as oss
 ARG TARGETPLATFORM
-ARG OSSFS_VERSION=v1.91.4.ack.1
+ARG OSSFS_VERSION=v1.91.5.ack.1
 
 # install ossfs
 RUN set -ex; \

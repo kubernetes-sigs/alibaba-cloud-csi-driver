@@ -10,5 +10,5 @@ RUN --mount=type=bind,target=. \
         -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=${CSI_VERSION}" \
         -o /out/csi-agent ./cmd/csi-agent
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-ossfs:v1.91.3-d9f3917-aliyun
+FROM registry-cn-hangzhou.ack.aliyuncs.com/acs/csi-ossfs:v1.91.5.ack.1-ed398f6-aliyun
 COPY --link --from=builder /out/csi-agent /usr/local/bin/
