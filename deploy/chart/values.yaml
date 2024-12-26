@@ -32,6 +32,8 @@ nodePools:
           operator: NotIn
           values:
             - virtual-kubelet
+    deploy:
+      newPluginToken: true
 
 defaultStorageClass:
   enabled: true
