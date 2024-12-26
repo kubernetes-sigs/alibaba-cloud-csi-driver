@@ -373,7 +373,11 @@ spec:
             items:
             - key: addon.token.config
               path: token-config
+{{- if $nodePool.deploy.newPluginToken }}
+            secretName: addon.aliyuncsmanagedcsipluginrole.token
+{{- else}}
             secretName: addon.csi.token
+{{- end }}
 {{- end }}
   updateStrategy:
     rollingUpdate:
