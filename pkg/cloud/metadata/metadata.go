@@ -23,6 +23,7 @@ const (
 	AccountID
 	ClusterID
 	VmocType
+	VscAgentID
 )
 
 func (k MetadataKey) String() string {
@@ -41,6 +42,8 @@ func (k MetadataKey) String() string {
 		return "ClusterID"
 	case VmocType:
 		return "VmocType"
+	case VscAgentID:
+		return "VscAgentID"
 	default:
 		return fmt.Sprintf("MetadataKey(%d)", k)
 	}

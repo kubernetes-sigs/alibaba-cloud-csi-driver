@@ -31,6 +31,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/dfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/ens"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
@@ -70,6 +71,8 @@ const (
 	TypePluginCPFS = "cpfsplugin.csi.alibabacloud.com"
 	// TypePluginENS ENS type plugins
 	TypePluginENS = "ensplugin.csi.alibabacloud.com"
+	// TypePluginDFS DFS type plugin
+	TypePluginDFS = "dfsplugin.csi.alibabacloud.com"
 	// TypePluginPOV POV type plugins
 	TypePluginPOV = "povplugin.csi.alibabacloud.com"
 	// ExtenderAgent agent component
@@ -180,7 +183,12 @@ func main() {
 				driver := disk.NewDriver(meta, endPoint, serviceType)
 				driver.Run()
 			}(endPointName)
-
+		case TypePluginDFS:
+			go func(endPoint string) {
+				defer wg.Done()
+				driver := dfs.NewDriver(meta, endPoint, serviceType)
+				driver.Run()
+			}(endPointName)
 		case TypePluginCPFS:
 			klog.Fatalf("%s is no longer supported, please switch to %s if you are using CPFS 2.0 protocol server", TypePluginCPFS, TypePluginNAS)
 		case TypePluginENS:

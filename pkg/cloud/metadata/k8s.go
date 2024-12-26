@@ -40,6 +40,9 @@ var (
 	VmocLabels = []string{
 		"rm.alibaba-inc.com/vbm",
 	}
+	VscAgentIDLabels = []string{
+		"pov.alibabacloud.com/vsc-agent-id",
+	}
 )
 
 var MetadataLabels = map[MetadataKey][]string{
@@ -48,6 +51,7 @@ var MetadataLabels = map[MetadataKey][]string{
 	InstanceType: InstanceTypeLabels,
 	InstanceID:   InstanceIdLabels,
 	VmocType:     VmocLabels,
+	VscAgentID:   VscAgentIDLabels,
 }
 
 func init() {
