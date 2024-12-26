@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
@@ -122,6 +123,9 @@ func (c *kubeletStatsSummaryCollector) Update(ch chan<- prometheus.Metric) error
 }
 
 func NewKubeletStatsSummaryCollector() (Collector, error) {
+	if !features.FunctionalMutableFeatureGate.Enabled(features.MetricKubeletStatSummary) {
+		return nil, nil
+	}
 	config := &transport.Config{
 		UserAgent: rest.DefaultKubernetesUserAgent(),
 		TLS: transport.TLSConfig{

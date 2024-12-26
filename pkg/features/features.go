@@ -39,6 +39,9 @@ const (
 
 	RundCSIProtocol3 featuregate.Feature = "RundCSIProtocol3"
 
+	// Expose metrics from kubelet stat/summary API
+	MetricKubeletStatSummary featuregate.Feature = "MetricKubeletStatSummary"
+
 	EnableVolumeGroupSnapshots featuregate.Feature = "EnableVolumeGroupSnapshots"
 )
 
@@ -58,10 +61,15 @@ var (
 	defaultNASFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
 		RundCSIProtocol3: {Default: false, PreRelease: featuregate.Alpha},
 	}
+
+	defaultMetricFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
+		MetricKubeletStatSummary: {Default: true, PreRelease: featuregate.Beta},
+	}
 )
 
 func init() {
 	runtime.Must(FunctionalMutableFeatureGate.Add(defaultDiskFeatureGate))
 	runtime.Must(FunctionalMutableFeatureGate.Add(defaultOSSFeatureGate))
 	runtime.Must(FunctionalMutableFeatureGate.Add(defaultNASFeatureGate))
+	runtime.Must(FunctionalMutableFeatureGate.Add(defaultMetricFeatureGate))
 }
