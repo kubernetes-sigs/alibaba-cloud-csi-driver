@@ -11,7 +11,7 @@ RUN --mount=type=bind,target=. \
 
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as oss
 ARG TARGETPLATFORM
-ARG OSSFS_VERSION=v1.91.4.ack.1
+ARG OSSFS_VERSION=v1.91.5.ack.1
 
 # install ossfs
 RUN set -ex; \
@@ -24,7 +24,8 @@ RUN set -ex; \
     yum install -y fuse-devel util-linux mailcap procps; \
     yum clean all
 
-RUN mkdir /csi && cp /etc/mime.types /csi/mime.types
+RUN mkdir /csi && mv /etc/mime.types /csi/mime.types
+RUN ln -s /host/etc/mime.types /etc/mime.types
 
 COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
 ENTRYPOINT ["csi-mount-proxy-server"]
@@ -53,7 +54,8 @@ RUN set -ex; \
     esac; \
     yum install -y util-linux mailcap procps && yum clean all
 
-RUN mkdir /csi && cp /etc/mime.types /csi/mime.types
+RUN mkdir /csi && mv /etc/mime.types /csi/mime.types
+RUN ln -s /host/etc/mime.types /etc/mime.types
 
 COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
 ENTRYPOINT ["csi-mount-proxy-server"]

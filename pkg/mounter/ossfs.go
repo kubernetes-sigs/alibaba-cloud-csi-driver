@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -24,7 +25,7 @@ import (
 )
 
 var defaultOssfsImageTag = "v1.88.4-80d165c-aliyun"
-var defaultOssfsUpdatedImageTag = "v1.91.4.ack.1-fe0b3a7-aliyun"
+var defaultOssfsUpdatedImageTag = "v1.91.5.ack.1-ed398f6-aliyun"
 
 const (
 	hostPrefix                = "/host"
@@ -169,7 +170,7 @@ func (f *fuseOssfs) buildPodSpec(c *FusePodContext, target string) (spec corev1.
 				MountPath: metricsDirVolume.HostPath.Path,
 			}, {
 				Name:      etcDirVolume.Name,
-				MountPath: etcDirVolume.HostPath.Path,
+				MountPath: path.Join(hostPrefix, etcDirVolume.HostPath.Path),
 			},
 		},
 		SecurityContext: &corev1.SecurityContext{
