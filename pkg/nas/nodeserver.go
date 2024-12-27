@@ -130,7 +130,7 @@ const (
 func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
 	valid, err := utils.ValidatePath(req.GetTargetPath())
 	if !valid {
-		return status.Errorf(codes.InvalidArgument, err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	return nil
 }
@@ -400,7 +400,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	//mount nas client
 	if err := doMount(ns.mounter, opt, mountPath, req.VolumeId, podUID); err != nil {
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if opt.MountProtocol == "efc" {
 		if strings.Contains(opt.Server, ".nas.aliyuncs.com") {
@@ -443,8 +443,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// check mount
 	notMounted, err = ns.mounter.IsLikelyNotMountPoint(mountPath)
 	if err != nil {
-		klog.Errorf("check mount point %s: %v", mountPath, err)
-		return &csi.NodePublishVolumeResponse{}, status.Errorf(codes.Internal, err.Error())
+		return &csi.NodePublishVolumeResponse{}, status.Errorf(codes.Internal, "check mount point %s: %v", mountPath, err)
 	}
 	if notMounted {
 		return nil, errors.New("Check mount fail after mount:" + mountPath)
@@ -557,7 +556,7 @@ func (ns *nodeServer) isLosetupUsed(lockFile string, opt *Options, volumeID stri
 func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) error {
 	valid, err := utils.ValidatePath(req.GetTargetPath())
 	if !valid {
-		return status.Errorf(codes.InvalidArgument, err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	return nil
 }

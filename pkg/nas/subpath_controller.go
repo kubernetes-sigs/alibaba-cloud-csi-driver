@@ -223,7 +223,7 @@ func (cs *subpathController) DeleteVolume(ctx context.Context, req *csi.DeleteVo
 	// If StorageClass not found, always archive on delete.
 	sc, err := cs.config.KubeClient.StorageV1().StorageClasses().Get(ctx, pv.Spec.StorageClassName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "failed to get storage class %s: %v", pv.Spec.StorageClassName, err)
 	}
 	archive := true
 	if sc != nil {

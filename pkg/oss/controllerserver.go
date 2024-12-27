@@ -148,7 +148,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	}
 	// options validation
 	if err := checkOssOptions(opts); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	// Skip controller publish for PVs with attribute direct=true.
 	// The actual mounting of these volumes will be handled by rund.
