@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -98,13 +99,13 @@ type FuseContainerConfig struct {
 	Extra       map[string]string
 }
 
-func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (config FuseContainerConfig) {
+func extractFuseContainerConfig(configmap *utils.Config, name string) (config FuseContainerConfig) {
 	if configmap == nil {
 		return
 	}
 	config.Resources.Requests = make(corev1.ResourceList)
 	config.Resources.Limits = make(corev1.ResourceList)
-	content := configmap.Data["fuse-"+name]
+	content := configmap.Get("fuse-"+name, "", "")
 	for _, line := range strings.Split(content, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
