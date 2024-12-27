@@ -46,6 +46,7 @@ nodePools:
   external:
     pluginname: ack-csi-plugin
     deploy:
+      ramToken: v1
       ecs: false
       # don't need the accessKey on off-cloud nodes
       accessKey:
