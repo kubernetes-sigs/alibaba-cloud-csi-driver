@@ -28,6 +28,16 @@ type ContainerNetworkFileSystemStatus struct {
 	Conditions   []ContainerNetworkFileSystemCondition `json:"conditions,omitempty"`
 }
 
+const (
+	StatusPending     = "Pending"
+	StatusCreating    = "Creating"
+	StatusInit        = "Initialization"
+	StatusAvailable   = "Available"
+	StatusUnavailable = "Unavailable"
+	StatusTerminating = "Terminating"
+	StatusFatal       = "Fatal"
+)
+
 // ContainerNetworkFileSystemCondition define cnfs condition field
 type ContainerNetworkFileSystemCondition struct {
 	LastProbeTime string `json:"lastProbeTime,omitempty"`
@@ -37,11 +47,25 @@ type ContainerNetworkFileSystemCondition struct {
 
 // ContainerNetworkFileSystemSpec define cnfs spec field
 type ContainerNetworkFileSystemSpec struct {
+	Fallback      Fallback   `json:"fallback,omitempty"`
 	StorageType   string     `json:"type,omitempty"`
 	ReclaimPolicy string     `json:"reclaimPolicy,omitempty"`
 	Description   string     `json:"description,omitempty"`
 	Parameters    Parameters `json:"parameters,omitempty"`
 }
+
+type Fallback struct {
+	Name     string           `json:"name,omitempty"`
+	Strategy FallbackStrategy `json:"strategy,omitempty"`
+}
+
+type FallbackStrategy string
+
+const (
+	FallbackStrategyAlways                 FallbackStrategy = "Always"
+	FallbackStrategyIfConnectFailed        FallbackStrategy = "IfConnectFailed"
+	FallbackStrategyIfMountTargetUnhealthy FallbackStrategy = "IfMountTargetUnhealthy"
+)
 
 // FsAttributes define cnfs status FsAttributes field
 type FsAttributes struct {
