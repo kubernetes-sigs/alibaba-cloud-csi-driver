@@ -75,6 +75,15 @@ parameters:
   type: cloud_efficiency
 reclaimPolicy: Delete
 allowVolumeExpansion: true
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: alibabacloud-disk
+provisioner: diskplugin.csi.alibabacloud.com
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
 {{- end }}
 {{- if .Values.csi.local.enabled }}
 ---
