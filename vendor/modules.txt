@@ -22,7 +22,7 @@ github.com/alibabacloud-go/nas-20170626/v3/client
 # github.com/alibabacloud-go/openapi-util v0.1.0
 ## explicit; go 1.14
 github.com/alibabacloud-go/openapi-util/service
-# github.com/alibabacloud-go/tea v1.2.1
+# github.com/alibabacloud-go/tea v1.2.1 => /Users/huww98/source/tea
 ## explicit; go 1.14
 github.com/alibabacloud-go/tea/tea
 github.com/alibabacloud-go/tea/utils
@@ -749,9 +749,10 @@ k8s.io/utils/trace
 ## explicit; go 1.18
 sigs.k8s.io/json
 sigs.k8s.io/json/internal/golang/encoding/json
-# sigs.k8s.io/structured-merge-diff/v4 v4.4.1
+# sigs.k8s.io/structured-merge-diff/v4 v4.4.1 => github.com/inteon/structured-merge-diff/v4 v4.0.0-20240412145547-26b574790dfc
 ## explicit; go 1.13
 sigs.k8s.io/structured-merge-diff/v4/fieldpath
+sigs.k8s.io/structured-merge-diff/v4/internal/builder
 sigs.k8s.io/structured-merge-diff/v4/merge
 sigs.k8s.io/structured-merge-diff/v4/schema
 sigs.k8s.io/structured-merge-diff/v4/typed
@@ -759,3 +760,5 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.3.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
+# github.com/alibabacloud-go/tea => /Users/huww98/source/tea
+# sigs.k8s.io/structured-merge-diff/v4 => github.com/inteon/structured-merge-diff/v4 v4.0.0-20240412145547-26b574790dfc
