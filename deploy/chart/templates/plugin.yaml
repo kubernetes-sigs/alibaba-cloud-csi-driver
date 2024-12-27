@@ -373,7 +373,7 @@ spec:
             items:
             - key: addon.token.config
               path: token-config
-{{- if $nodePool.deploy.newPluginToken }}
+{{- if eq $nodePool.deploy.ramToken "v2" }}
             secretName: addon.aliyuncsmanagedcsipluginrole.token
 {{- else}}
             secretName: addon.csi.token

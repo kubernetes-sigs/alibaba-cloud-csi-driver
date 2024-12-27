@@ -459,9 +459,9 @@ spec:
             items:
             - key: addon.token.config
               path: token-config
-{{- if .Values.deploy.newProvisionerToken }}
+{{- if eq .Values.deploy.ramToken "v2" }}
             secretName: addon.aliyuncsmanagedcsiprovisionerrole.token
-{{- else}}
+{{- else }}
 # still use old configuration for special usage
             secretName: addon.csi.token
 {{- end }}
