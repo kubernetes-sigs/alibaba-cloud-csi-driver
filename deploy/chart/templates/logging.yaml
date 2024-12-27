@@ -1,0 +1,67 @@
+{{- define "loggingConfig" -}}
+flushers:
+- Type: flusher_sls
+  Logstore: {{ .sls.logstore.name }}
+  TelemetryType: logs
+{{- if eq .format "json" }}
+global:
+  EnableTimestampNanosecond: true
+processors:
+- Type: processor_parse_json_native
+  KeepingSourceWhenParseFail: true
+  SourceKey: content
+- Type: processor_parse_timestamp_native
+  SourceKey: ts
+  SourceTimezone: GMT+00:00
+  SourceFormat: "%s"
+- Type: processor_drop
+  DropKeys: [_time_]
+{{- end -}}
+{{- end }}
+
+{{- define "slsProject" -}}
+project:
+  name: {{ .logging.sls.project.name | default (printf "k8s-log-%s" .deploy.clusterID) | quote }}
+{{- end }}
+
+{{- if .Values.logging.sls.enabled }}
+---
+apiVersion: telemetry.alibabacloud.com/v1alpha1
+kind: ClusterAliyunPipelineConfig
+metadata:
+  name: alibabacloud-csi-plugin
+spec:
+  {{- include "slsProject" .Values | nindent 2 }}
+  logstores:
+    - name: {{ .Values.logging.sls.logstore.name }}
+      appendMeta: false
+  config:
+    inputs:
+    - Type: input_container_stdio
+      ContainerFilters:
+        K8sNamespaceRegex: "^{{ .Release.Namespace }}$"
+        IncludeK8sLabel:
+          app.kubernetes.io/name: csi-plugin
+    {{- include "loggingConfig" .Values.logging | nindent 4 }}
+
+{{- if .Values.controller.enabled }}
+---
+apiVersion: telemetry.alibabacloud.com/v1alpha1
+kind: ClusterAliyunPipelineConfig
+metadata:
+  name: alibabacloud-csi-provisioner
+spec:
+  {{- include "slsProject" .Values | nindent 2 }}
+  logstores:
+    - name: {{ .Values.logging.sls.logstore.name }}
+      appendMeta: false
+  config:
+    inputs:
+    - Type: input_container_stdio
+      ContainerFilters:
+        K8sNamespaceRegex: "^{{ .Release.Namespace }}$"
+        IncludeK8sLabel:
+          app: csi-provisioner
+    {{- include "loggingConfig" .Values.logging | nindent 4 }}
+{{- end -}}
+{{- end -}}

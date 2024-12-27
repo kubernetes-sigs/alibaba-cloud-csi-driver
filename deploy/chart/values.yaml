@@ -5,6 +5,15 @@ controller:
 plugin:
   enabled: true
 
+logging:
+  format: text  # json is recommended if sls is enabled
+  sls:
+    enabled: false
+    project:
+      name: null  # default to k8s-log-<CLUSTER_ID>
+    logstore:
+      name: alibabacloud-csi-plugin
+
 csi:
   disk:
     enabled: true
