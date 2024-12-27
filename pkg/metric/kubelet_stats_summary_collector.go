@@ -2,14 +2,15 @@ package metric
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
+	"k8s.io/klog/v2"
 	statsapi "k8s.io/kubelet/pkg/apis/stats/v1alpha1"
 )
 
@@ -90,7 +91,8 @@ func (c *kubeletStatsSummaryCollector) Update(ch chan<- prometheus.Metric) error
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("failed to get kubelet stats summary: %d: %q", resp.StatusCode, string(body))
+		klog.V(4).InfoS("Failed to get kubelet stats summary", "status_code", resp.StatusCode, "body", string(body))
+		return nil
 	}
 	var summary statsapi.Summary
 	if err := json.NewDecoder(resp.Body).Decode(&summary); err != nil {
@@ -121,6 +123,9 @@ func (c *kubeletStatsSummaryCollector) Update(ch chan<- prometheus.Metric) error
 }
 
 func NewKubeletStatsSummaryCollector() (Collector, error) {
+	if !features.FunctionalMutableFeatureGate.Enabled(features.MetricKubeletStatSummary) {
+		return nil, nil
+	}
 	config := &transport.Config{
 		UserAgent: rest.DefaultKubernetesUserAgent(),
 		TLS: transport.TLSConfig{
