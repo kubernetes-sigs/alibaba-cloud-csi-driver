@@ -35,6 +35,13 @@ vet:
 test:
 	./hack/check-unittest.sh
 
+.PHONY: update-deps check-deps
+update-deps:
+	go mod tidy
+	go mod vendor
+check-deps: update-deps
+	git diff --exit-code go.mod go.sum vendor
+
 .PHONY: build
 build:
 	./build/build-all-multi.sh "" $(REPONAME)

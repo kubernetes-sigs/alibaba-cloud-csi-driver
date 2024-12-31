@@ -981,13 +981,8 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		}
 	}
 
-	// volumeExpandAutoSnapshot, default closed
-	if value, ok = volOptions[VOLUME_EXPAND_AUTO_SNAPSHOT_OP_KEY]; ok {
-		value = strings.ToLower(value)
-		if value != "forced" && value != "besteffort" && value != "closed" {
-			return nil, fmt.Errorf("illegal optional parameter volumeExpandAutoSnapshot, only support forced, besteffort and closed, the input is: %s", value)
-		}
-	}
+	// volumeExpandAutoSnapshot parameter is obsolete and has no effect now
+
 	if value, ok = volOptions[VOLUME_DELETE_AUTO_SNAPSHOT_OP_RETENT_DAYS_KEY]; ok {
 		iValue, err := strconv.Atoi(value)
 		if err != nil {
