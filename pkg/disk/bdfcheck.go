@@ -95,7 +95,6 @@ func BdfHealthCheck() {
 // record events if bdf hang;
 func notifyBdfHang(recorder record.EventRecorder) {
 	errMsg := fmt.Sprintf("Find BDF Hang in Node %s", GlobalConfigVar.NodeID)
-	klog.Errorf(errMsg)
 	utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeHang, errMsg)
 	DingTalk(errMsg)
 }
@@ -106,12 +105,10 @@ func checkDiskUnused(recorder record.EventRecorder) {
 	deviceList, err := getDiskUnUsedAndAddTag()
 	if err != nil && len(deviceList) == 0 {
 		errMsg := fmt.Sprintf("Get UnUsed BDF Device in Node %s, with error: %v", GlobalConfigVar.NodeID, err)
-		klog.Warningf(errMsg)
 		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeUnUsed, errMsg)
 		DingTalk(errMsg)
 	} else if err != nil && len(deviceList) != 0 {
 		errMsg := fmt.Sprintf("Get UnUsed BDF Device in Node %s, DeviceList: %v, with message: %v", GlobalConfigVar.NodeID, deviceList, err)
-		klog.Warningf(errMsg)
 		utils.CreateEvent(recorder, ObjReference, v1.EventTypeWarning, BdfVolumeUnUsed, errMsg)
 		DingTalk(errMsg)
 	}

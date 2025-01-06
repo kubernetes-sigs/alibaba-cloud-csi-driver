@@ -82,7 +82,7 @@ func ValidateCreateVolumeParams(params map[string]string) (*DiskParams, error) {
 				if _, ok := ENSDiskTypeMap[cusType]; ok {
 					orderedList = append(orderedList, cusType)
 				} else {
-					return &DiskParams{}, fmt.Errorf("ValidateCreateVolumeParams: Illegal required parameter type: " + cusType)
+					return &DiskParams{}, fmt.Errorf("ValidateCreateVolumeParams: Illegal required parameter type: %s", cusType)
 				}
 			}
 			diskType = strings.Join(orderedList, ",")
@@ -94,7 +94,7 @@ func ValidateCreateVolumeParams(params map[string]string) (*DiskParams, error) {
 		}
 	}
 	if diskType == "" {
-		return &DiskParams{}, fmt.Errorf("ValidateCreateVolumeParams: Illegal required parameter type: " + params["type"])
+		return &DiskParams{}, fmt.Errorf("ValidateCreateVolumeParams: Illegal required parameter type: %s", params["type"])
 	}
 	dp := &DiskParams{
 		RegionID:        regionID,
@@ -330,9 +330,7 @@ func detachDisk(diskID, nodeID string) error {
 					break
 				}
 				if i == 24 {
-					errMsg := fmt.Sprintf("DetachDisk: Detaching Disk %s with timeout", diskID)
-					klog.Errorf(errMsg)
-					return fmt.Errorf(errMsg)
+					return fmt.Errorf("DetachDisk: Detaching Disk %s with timeout", diskID)
 				}
 				time.Sleep(2000 * time.Millisecond)
 			}
