@@ -69,7 +69,9 @@ func newCSICollector(driverNames []string, serviceType utils.ServiceType) error 
 				if err != nil {
 					return err
 				}
-				collectors[reg.Name] = collector
+				if collector != nil {
+					collectors[reg.Name] = collector
+				}
 			}
 		}
 	}

@@ -63,7 +63,9 @@ const (
 	procPath         = procfs.DefaultMountPoint + "/"
 )
 
+// collectorFactoryFunc can return a nil Collector if it wants to be ignored
 type collectorFactoryFunc = func() (Collector, error)
+
 type collectorRegistryItem struct {
 	Name           string
 	Factory        collectorFactoryFunc
