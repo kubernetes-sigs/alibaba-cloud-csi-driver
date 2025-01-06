@@ -17,8 +17,12 @@ limitations under the License.
 package value
 
 import (
+	"fmt"
+	"io"
 	"sort"
 	"strings"
+
+	"sigs.k8s.io/structured-merge-diff/v4/internal/builder"
 )
 
 // Field is an individual key-value pair.
@@ -30,6 +34,42 @@ type Field struct {
 // FieldList is a list of key-value pairs. Each field is expected to
 // have a different name.
 type FieldList []Field
+
+// FieldListFromJSON is a helper function for reading a JSON document.
+func FieldListFromJSON(input []byte) (FieldList, error) {
+	parser := builder.NewFastObjParser(input)
+
+	var fields FieldList
+	for {
+		rawKey, err := parser.Parse()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("parsing JSON: %v", err)
+		}
+
+		rawValue, err := parser.Parse()
+		if err == io.EOF {
+			return nil, fmt.Errorf("unexpected EOF")
+		} else if err != nil {
+			return nil, fmt.Errorf("parsing JSON: %v", err)
+		}
+
+		k, err := builder.UnmarshalString(rawKey)
+		if err != nil {
+			return nil, fmt.Errorf("parsing JSON: %v", err)
+		}
+
+		v, err := builder.UnmarshalInterface(rawValue)
+		if err != nil {
+			return nil, fmt.Errorf("parsing JSON: %v", err)
+		}
+
+		fields = append(fields, Field{Name: k, Value: NewValueInterface(v)})
+	}
+
+	return fields, nil
+}
 
 // Sort sorts the field list by Name.
 func (f FieldList) Sort() {
