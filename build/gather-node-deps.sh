@@ -5,6 +5,7 @@ set -e
 mkdir -p /staging-node/var/lib/dpkg/status.d
 
 DEPS=(
+    /etc/netconfig
     /etc/mke2fs.conf /sbin/{fsck,mkfs,mount,umount}.{ext{2,3,4},xfs,nfs}
     /usr/bin/{mount,umount,lspci,lsof,chmod,grep,tail,nsenter}
     /usr/sbin/{fsck,mkfs,sfdisk,losetup,blockdev}
