@@ -279,18 +279,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	targetPath := req.GetTargetPath()
-	isBlock := req.GetVolumeCapability().GetBlock() != nil
-	if isBlock {
-		sourcePath = filepath.Join(req.StagingTargetPath, req.VolumeId)
-		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-	} else {
-		if err := os.MkdirAll(targetPath, 0755); err != nil {
-			klog.Errorf("NodePublishVolume: create volume %s path %s error: %v", req.VolumeId, targetPath, err)
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-	}
 	// if target path mounted already, return
 	notMounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
@@ -300,6 +288,16 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if !notMounted {
 		klog.Infof("NodePublishVolume: TargetPath(%s) is mounted, not need mount again", targetPath)
 		return &csi.NodePublishVolumeResponse{}, nil
+	}
+
+	isBlock := req.GetVolumeCapability().GetBlock() != nil
+	if isBlock {
+		sourcePath = filepath.Join(req.StagingTargetPath, req.VolumeId)
+	} else {
+		if err := os.MkdirAll(targetPath, 0755); err != nil {
+			klog.Errorf("NodePublishVolume: create volume %s path %s error: %v", req.VolumeId, targetPath, err)
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 
 	options, fsType := prepareMountInfos(req)
@@ -335,6 +333,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// check if block volume
 	if isBlock {
+		// EnsureBlock must be called after runD runtime volume mount
+		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 		notMounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return nil, status.Errorf(codes.Internal, "failed to check if %s is not a mount point: %v", targetPath, err)
@@ -513,7 +515,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		targetPath = filepath.Join(targetPath, req.VolumeId)
 	}
 	// for runc & rund-csi2.0 kubelet restart
-	mounted, err := ns.ensurePathExistsAndCheckMounted(req.VolumeId, targetPath, isBlock)
+	mounted, err := ns.checkTargetPathMounted(req.VolumeId, targetPath)
 	if err != nil {
 		return nil, err
 	}
@@ -525,6 +527,17 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
 
+	if isBlock {
+		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
+			klog.Errorf("NodeStageVolume: create block volume %s path %s error: %v", req.VolumeId, targetPath, err)
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	} else {
+		if err := os.MkdirAll(targetPath, 0755); err != nil {
+			klog.Errorf("NodeStageVolume: create volume %s path %s error: %v", req.VolumeId, targetPath, err)
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	device := ""
 	isSharedDisk := false
 	if value, ok := req.VolumeContext[SharedEnable]; ok {
@@ -1430,48 +1443,37 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 
 }
 
-// ensurePathExistsAndCheckMounted check if targetPath is mounted or not
+// checkTargetPathMounted check if targetPath is mounted or not
 // targeting for runc and rund-csi 2.0 protocol
-func (ns *nodeServer) ensurePathExistsAndCheckMounted(volumeId, targetPath string, isBlock bool) (bool, error) {
+func (ns *nodeServer) checkTargetPathMounted(volumeId, targetPath string) (bool, error) {
 	notMounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return false, status.Errorf(codes.Internal, "failed to check if %s is not a mount point: %v", targetPath, err)
 	}
-	if !notMounted {
-		// if target path is mounted tmpfs, return
-		isTmpfs, err := utils.IsDirTmpfs(ns.k8smounter, targetPath)
-		if err != nil {
-			return false, status.Errorf(codes.Internal, "NodeStageVolume: failed to check %s for tmpfs: %v", targetPath, err)
-		}
-		if isTmpfs {
-			klog.Infof("NodeStageVolume: TargetPath(%s) is mounted as tmpfs, not need mount again", targetPath)
-			return true, nil
-		}
-
-		// check device available
-		deviceName, _, err := mount.GetDeviceNameFromMount(ns.k8smounter, targetPath)
-		if err != nil {
-			return false, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", targetPath, err.Error())
-		}
-		if err := CheckDeviceAvailable(deviceName, volumeId, targetPath); err != nil {
-			klog.Errorf("NodeStageVolume: mountPath is mounted %s, but check device available error: %s", targetPath, err.Error())
-			return false, status.Error(codes.Internal, err.Error())
-		}
-		klog.Infof("NodeStageVolume:  volumeId: %s, Path: %s is already mounted, device: %s", volumeId, targetPath, deviceName)
+	if notMounted {
+		return false, nil
+	}
+	// if target path is mounted tmpfs, return
+	isTmpfs, err := utils.IsDirTmpfs(ns.k8smounter, targetPath)
+	if err != nil {
+		return false, status.Errorf(codes.Internal, "NodeStageVolume: failed to check %s for tmpfs: %v", targetPath, err)
+	}
+	if isTmpfs {
+		klog.Infof("NodeStageVolume: TargetPath(%s) is mounted as tmpfs, not need mount again", targetPath)
 		return true, nil
 	}
-	if isBlock {
-		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
-			klog.Errorf("NodeStageVolume: create block volume %s path %s error: %v", volumeId, targetPath, err)
-			return false, status.Error(codes.Internal, err.Error())
-		}
-	} else {
-		if err := os.MkdirAll(targetPath, 0755); err != nil {
-			klog.Errorf("NodeStageVolume: create volume %s path %s error: %v", volumeId, targetPath, err)
-			return false, status.Error(codes.Internal, err.Error())
-		}
+
+	// check device available
+	deviceName, _, err := mount.GetDeviceNameFromMount(ns.k8smounter, targetPath)
+	if err != nil {
+		return false, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", targetPath, err.Error())
 	}
-	return false, nil
+	if err := CheckDeviceAvailable(deviceName, volumeId, targetPath); err != nil {
+		klog.Errorf("NodeStageVolume: mountPath is mounted %s, but check device available error: %s", targetPath, err.Error())
+		return false, status.Error(codes.Internal, err.Error())
+	}
+	klog.Infof("NodeStageVolume:  volumeId: %s, Path: %s is already mounted, device: %s", volumeId, targetPath, deviceName)
+	return true, nil
 }
 
 // checkMountedOfRunvAndRund check if targetVolume is used by runv or rund-csi3.0
@@ -1502,5 +1504,4 @@ func (ns *nodeServer) checkMountedOfRunvAndRund(volumeId, targetPath string) boo
 		return true
 	}
 	return false
-
 }
