@@ -576,6 +576,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	defer ns.locks.Release(req.VolumeId)
 
 	if err := cleanupMountpoint(ns.mounter, targetPath); err != nil {
+		klog.Errorf("NodeUnpublishVolume: failed to unmount %q. err: %s", targetPath, err)
 		return nil, status.Errorf(codes.Internal, "failed to unmount %s: %v", targetPath, err)
 	}
 	klog.Infof("NodeUnpublishVolume: unmount volume on %s successfully", targetPath)
