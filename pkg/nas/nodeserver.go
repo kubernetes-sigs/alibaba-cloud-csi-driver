@@ -632,10 +632,11 @@ func (ns *nodeServer) LosetupExpandVolume(req *csi.NodeExpandVolumeRequest) erro
 	// /mnt/nasplugin.alibabacloud.com/6c690876-74aa-46f6-a301-da7f4353665d/pv-losetup/
 	nfsPath := filepath.Join(NasMntPoint, podID, pvName)
 	imgFile := filepath.Join(nfsPath, LoopImgFile)
+	volSizeBytes := req.GetCapacityRange().GetRequiredBytes()
+	klog.Infof("NodeExpandVolume: expected expand %q to %vB", imgFile, volSizeBytes)
+
 	if utils.IsFileExisting(imgFile) {
-		volSizeBytes := req.GetCapacityRange().GetRequiredBytes()
-		err := losetup.TruncateFile(imgFile, volSizeBytes)
-		if err != nil {
+		if err := os.Truncate(imgFile, volSizeBytes); err != nil {
 			klog.Errorf("NodeExpandVolume: nas resize img file error %v", err)
 			return fmt.Errorf("NodeExpandVolume: nas resize img file error, %v", err)
 		}
