@@ -277,9 +277,9 @@ if [ "$ARCH" = "x86_64" ] && [ "$run_nas" = "true" ]; then
         # cpfs-nas nas-rich-client common rpm
         echo "installing aliyun-alinas-utils"
         if [ "$SUPPORT_RPM" = "true" ]; then
-            PKG=aliyun-alinas-utils-1.1-8.20240527201444.2012cc.al7.noarch.rpm
+            PKG=aliyun-alinas-utils-public.noarch.rpm
         elif [ "$PKG_MGR" = "apt" ]; then
-            PKG=aliyun-alinas-utils-1.1-8.deb
+            PKG=aliyun-alinas-utils-public.noarch.deb
         else
             echo "WARN: no supported package manager found, skip install aliyun-alinas-utils"
             install_utils="false"

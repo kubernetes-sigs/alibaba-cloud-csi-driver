@@ -116,12 +116,12 @@ EOT
 RUN find /out -exec touch --reference=/src.tar.xz {} +
 
 FROM scratch as download-amd64
-ADD --link --checksum=sha256:79a41d1eab207a81285fdbb4cd02dd3fe8bf8192f9b1cb6d45317015a673439f \
-    https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.2-3.x86_64.rpm /
-ADD --link --checksum=sha256:184e2ed944ee51991da7e7099b21536c0383a55b5b53fa1bcf523c5f3ed3ad16 \
-    https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.20240527201444.2012cc.al7.noarch.rpm /
-ADD --link --checksum=sha256:12ddecc62591f154bd6091ed208220841a903ebebf4d3281ee9ad3061ab233e6 \
-    https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-8.deb /
+ADD --link --checksum=sha256:8b38463661bfac05b9e99ed87285c076fc6f142aedd2b56e555087271afe8109 \ 
+    https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.6-20241028201622.a31063.release.x86_64.rpm /
+ADD --link --checksum=sha256:1cb314ab0f26bc2c0b31eda078338eed1674126aa66e32930a6d30520d6968f6 \
+    https://aliyun-alinas-eac-cn-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/aliyun-alinas-utils-public.noarch.rpm /
+ADD --link --checksum=sha256:93233542f8b511de5ae6c976251c2a660a9b7ba6bf8ff7b3e4f48e297ed47db3 \
+    https://aliyun-alinas-eac-cn-wulanchabu.oss-cn-wulanchabu.aliyuncs.com/aliyun-alinas-utils-public.noarch.deb /
 
 FROM scratch as download-arm64
 # nothing to download
