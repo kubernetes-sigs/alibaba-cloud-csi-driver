@@ -79,7 +79,6 @@ type NodeConfig struct {
 	EnableEFCCache    bool
 	EnableMixRuntime  bool
 	EnablePortCheck   bool
-	EnableLosetup     bool
 	EnableVolumeStats bool
 
 	// clients for kubernetes
@@ -122,27 +121,42 @@ func GetNodeConfig() (*NodeConfig, error) {
 
 	// get node info
 	nodeName := os.Getenv("KUBE_NODE_NAME")
-	node, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
-	if err != nil {
-		return nil, err
+	if nodeName == "" {
+		/*
+			env:
+			- name: KUBE_NODE_NAME
+			  valueFrom:
+				fieldRef:
+				  apiVersion: v1
+				  fieldPath: spec.nodeName
+		*/
+		return nil, errors.New("failed to get nodeName from env 'KUBE_NODE_NAME', please setup env through downward API")
 	}
 	config.NodeName = nodeName
 
-	// check if losetup enabled
-	if value := os.Getenv("NAS_LOSETUP_ENABLE"); value != "" {
-		config.EnableLosetup, _ = parseBool(value)
-	}
-	if config.EnableLosetup {
-		klog.Info("enabled nas losetup mode")
+	nodeIP := os.Getenv("KUBE_NODE_IP")
+	if nodeIP == "" {
+		node, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
 		for _, addr := range node.Status.Addresses {
 			if addr.Type == corev1.NodeInternalIP {
-				config.NodeIP = addr.Address
+				nodeIP = addr.Address
 				break
 			}
 		}
-		if config.NodeIP == "" {
-			return nil, errors.New("enabled losetup mode but failed to get node IP")
-		}
+	}
+
+	if nodeIP == "" {
+		/*
+		   env:
+		   - name: MY_HOST_IP
+		     valueFrom:
+		       fieldRef:
+		         fieldPath: status.hostIP
+		*/
+		return nil, errors.New("failed to get nodeIP from env 'KUBE_NODE_IP', please setup env through downward API")
 	}
 
 	return config, nil

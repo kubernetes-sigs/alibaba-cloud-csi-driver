@@ -373,7 +373,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// do losetup nas logical
-	if ns.config.EnableLosetup && opt.MountType == LosetupType {
+	if opt.MountType == LosetupType {
 		if err := ns.mountLosetupPv(mountPath, opt, req.VolumeId); err != nil {
 			klog.Errorf("NodePublishVolume: mount losetup volume(%s) error %s", req.VolumeId, err.Error())
 			return nil, errors.New("NodePublishVolume, mount Losetup volume error with: " + err.Error())
@@ -600,22 +600,21 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	// when losetup enabled, try to cleanup mountpoint under /mnt/nasplugin.alibabacloud.com/
-	if ns.config.EnableLosetup {
-		if err := unmountLosetupPv(ns.mounter, targetPath); err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+	if err := unmountLosetupPv(ns.mounter, targetPath); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
+
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
 func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (
 	*csi.NodeExpandVolumeResponse, error) {
 	klog.Infof("NodeExpandVolume: nas expand volume with %v", req)
-	if ns.config.EnableLosetup {
-		if err := ns.LosetupExpandVolume(req); err != nil {
-			return nil, fmt.Errorf("NodeExpandVolume: error with %v", err)
-		}
+
+	if err := ns.LosetupExpandVolume(req); err != nil {
+		return nil, fmt.Errorf("NodeExpandVolume: error with %v", err)
 	}
+
 	return &csi.NodeExpandVolumeResponse{}, nil
 }
 
