@@ -236,6 +236,10 @@ spec:
             - name: STS_ENDPOINT
               value: {{ $nodePool.deploy.stsEndpoint | quote }}
 {{- end }}
+{{- if $nodePool.deploy.nasEndpoint }}
+            - name: NAS_ENDPOINT
+              value: {{ $nodePool.deploy.nasEndpoint | quote }}
+{{- end }}
 {{- if $nodePool.deploy.privateCloud }}
             - name: ALICLOUD_CLIENT_SCHEME
               value: HTTP
