@@ -234,7 +234,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 
 	// step 5: diff device with previous files under /dev
 	if fromNode {
-		device, err := DefaultDeviceManager.GetDeviceByVolumeID(diskID)
+		device, err := DefaultDeviceManager.WaitDevice(ctx, diskID)
 		if err == nil {
 			klog.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device", diskID, nodeID, device)
 			return device, nil

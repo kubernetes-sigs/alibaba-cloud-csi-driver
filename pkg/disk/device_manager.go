@@ -1,16 +1,19 @@
 package disk
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	utilsio "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/io"
 	"golang.org/x/sys/unix"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
 
@@ -124,6 +127,22 @@ func (m *DeviceManager) GetDeviceByVolumeID(volumeID string) (string, error) {
 	return partition, nil
 }
 
+func (m *DeviceManager) WaitDevice(ctx context.Context, volumeID string) (string, error) {
+	path, err := m.WaitRootBlock(ctx, volumeID)
+	if err != nil {
+		return "", err
+	}
+	if !m.EnableDiskPartition {
+		return path, nil
+	}
+
+	partition, err := m.adaptDevicePartition(path)
+	if err != nil {
+		return "", fmt.Errorf("volume %s resolved to device %s, but adapt partition failed: %w", volumeID, path, err)
+	}
+	return partition, nil
+}
+
 var idPrefixes = [...]string{"virtio-", "nvme-Alibaba_Cloud_Elastic_Block_Storage_"}
 
 func (m *DeviceManager) getDeviceByLink(idSuffix string) (string, error) {
@@ -170,12 +189,55 @@ func (m *DeviceManager) getDeviceByScanLinks(idSuffix string) (string, error) {
 	return "", utilerrors.NewAggregate(errs)
 }
 
+// WaitRootBlock first try to find the device by device link like:
+// /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
+// If that does not appear in 10s, query the kernel by sysfs to find the device by serial.
+//
+// Returns the path to a block special file.
+// Caller should not assume any other special property of the returned path.
+// It may or may not be a symlink.
+func (m *DeviceManager) WaitRootBlock(ctx context.Context, volumeID string) (string, error) {
+	idSuffix := strings.TrimPrefix(volumeID, "d-")
+	var linkPath string
+	var lastErr error
+	err := wait.PollUntilContextTimeout(ctx, 500*time.Millisecond, 10*time.Second, true, func(ctx context.Context) (bool, error) {
+		p, err := m.getDeviceByLink(idSuffix)
+		if err == nil {
+			linkPath = p
+			return true, nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return false, err
+		}
+		lastErr = err
+		return false, nil
+	})
+	if err == nil {
+		return linkPath, nil
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		return "", err
+	}
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+
+	errs := []error{lastErr}
+	linkPath, err = m.getDeviceFallback(idSuffix)
+	if linkPath != "" {
+		return linkPath, nil
+	}
+	errs = append(errs, err)
+	return "", utilerrors.Flatten(utilerrors.NewAggregate(errs))
+}
+
 // GetRootBlockByVolumeID first try to find the device by device link like:
 // /dev/disk/by-id/virtio-wz9cu3ctp6aj1iagco4h -> ../../vdc
 // If that fails, query the kernel by sysfs to find the device by serial.
 //
 // Returns the path to a block special file.
 // Caller should not assume any other special property of the returned path.
+// It may or may not be a symlink.
 func (m *DeviceManager) GetRootBlockByVolumeID(volumeID string) (string, error) {
 	idSuffix := strings.TrimPrefix(volumeID, "d-")
 	linkPath, err := m.getDeviceByLink(idSuffix)
@@ -187,9 +249,19 @@ func (m *DeviceManager) GetRootBlockByVolumeID(volumeID string) (string, error) 
 	}
 
 	errs := []error{err}
+	linkPath, err = m.getDeviceFallback(idSuffix)
+	if linkPath != "" {
+		return linkPath, nil
+	}
+	errs = append(errs, err)
+	return "", utilerrors.Flatten(utilerrors.NewAggregate(errs))
+}
+
+func (m *DeviceManager) getDeviceFallback(serial string) (string, error) {
+	errs := []error{}
 
 	// fallback to scan all links if no known link found
-	linkPath, err = m.getDeviceByScanLinks(idSuffix)
+	linkPath, err := m.getDeviceByScanLinks(serial)
 	if linkPath != "" {
 		return linkPath, nil
 	}
@@ -199,15 +271,14 @@ func (m *DeviceManager) GetRootBlockByVolumeID(volumeID string) (string, error) 
 
 	// this is danger in Bdf mode
 	if !m.DisableSerial {
-		name, err := m.getDeviceBySerial(idSuffix)
+		name, err := m.getDeviceBySerial(serial)
 		if err == nil {
-			klog.Infof("GetDevice: Use the serial to find device, volumeID: %s, device: %s", volumeID, name)
+			klog.Infof("GetDevice: Use the serial to find device, serial: %s, device: %s", serial, name)
 			return filepath.Join(m.DevicePath, name), nil
 		}
 		errs = append(errs, fmt.Errorf("find by serial: %w", err))
 	}
-
-	return "", utilerrors.Flatten(utilerrors.NewAggregate(errs))
+	return "", utilerrors.NewAggregate(errs)
 }
 
 func (m *DeviceManager) GetDeviceRootAndPartitionIndex(devicePath string) (root string, partitionIndex string, err error) {
