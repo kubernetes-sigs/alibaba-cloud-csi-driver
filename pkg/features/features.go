@@ -35,10 +35,22 @@ const (
 	// It is very rare (if any) that a disk is corrupted by expand.
 	DisableExpandAutoSnapshots featuregate.Feature = "DisableExpandAutoSnapshots"
 
+	// Take auto snapshots before delete disks.
+	// This has the same functionality as setting the `VOLUME_DEL_AUTO_SNAP` environment variable.
+	//
+	// Unlike ExpandAutoSnapshots, new ECS available snapshots will not block disk deletion.
+	EnableDeleteAutoSnapshots featuregate.Feature = "EnableDeleteAutoSnapshots"
+
+	// Update ossfs version to v1.91 or later.
+	//
+	// This configuration only takes effect for newly mounted OSS volumes.
 	UpdatedOssfsVersion featuregate.Feature = "UpdatedOssfsVersion"
 
 	RundCSIProtocol3 featuregate.Feature = "RundCSIProtocol3"
 
+	// Enable volume group snapshots.
+	// This feature allows users to use the volume group snapshot functionality,
+	// enabling snapshots of related disks under a workload through ECS's snapshot-group capability.
 	EnableVolumeGroupSnapshots featuregate.Feature = "EnableVolumeGroupSnapshots"
 )
 
@@ -50,6 +62,7 @@ var (
 		DiskParallelDetach:         {Default: false, PreRelease: featuregate.Alpha},
 		DisableExpandAutoSnapshots: {Default: true, PreRelease: featuregate.GA, LockToDefault: true},
 		EnableVolumeGroupSnapshots: {Default: false, PreRelease: featuregate.Alpha},
+		EnableDeleteAutoSnapshots:  {Default: false, PreRelease: featuregate.Alpha},
 	}
 
 	defaultOSSFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
