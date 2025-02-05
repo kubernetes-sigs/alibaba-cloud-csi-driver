@@ -98,8 +98,7 @@ type RoleAuth struct {
 	Code            string
 }
 
-func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
-	regionID, _ := utils.GetRegionID()
+func newEcsClient(regionID string, ac utils.AccessControl) (ecsClient *ecs.Client) {
 	var err error
 	switch ac.UseMode {
 	case utils.AccessKey:
@@ -135,7 +134,7 @@ func newEcsClient(ac utils.AccessControl) (ecsClient *ecs.Client) {
 func updateEcsClient(client *ecs.Client) *ecs.Client {
 	ac := utils.GetAccessControl()
 	if ac.UseMode == utils.EcsRAMRole || ac.UseMode == utils.ManagedToken || ac.UseMode == utils.OIDCToken {
-		client = newEcsClient(ac)
+		client = newEcsClient(GlobalConfigVar.Region, ac)
 	}
 	if client.Client.GetConfig() != nil {
 		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
@@ -1435,7 +1434,7 @@ func createRoleClient(uid string) (cli *ecs.Client, err error) {
 		return nil, perrors.Wrapf(err, "AssumeRole")
 	}
 	ac = utils.AccessControl{AccessKeyID: resp.Credentials.AccessKeyId, AccessKeySecret: resp.Credentials.AccessKeySecret, StsToken: resp.Credentials.SecurityToken, UseMode: utils.EcsRAMRole}
-	cli = newEcsClient(ac)
+	cli = newEcsClient(regionID, ac)
 	if cli.Client.GetConfig() != nil {
 		cli.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
 	}
