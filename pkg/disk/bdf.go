@@ -71,7 +71,7 @@ func FindLines(reader io.Reader, keyword string) []string {
 	return matched
 }
 
-// IsNoSuchDeviceErr nd device error
+// IsNoSuchDeviceErr and device error
 func IsNoSuchDeviceErr(err error) bool {
 	if err == nil {
 		return false
@@ -248,7 +248,7 @@ func bindBdfDisk(diskID string) (bdf string, err error) {
 	data, err := os.Readlink(sysPrefix + "/sys/bus/pci/devices/" + bdf + "/driver")
 	if err != nil {
 		klog.Errorf("bindBdfDisk: Disk %s bdf %s Readlink with error: %v", diskID, bdf, err)
-		return bdf, errors.Wrapf(err, "read disk dirver, diskId=%s, bdf=%s", diskID, bdf)
+		return bdf, errors.Wrapf(err, "read disk driver, diskId=%s, bdf=%s", diskID, bdf)
 	}
 	driver := filepath.Base(data)
 	klog.Infof("bindBdfDisk: Disk %s bdf %s, kernel driver in use: %s", diskID, bdf, driver)
@@ -524,7 +524,7 @@ func (_type MachineType) BusRegex() (*regexp.Regexp, error) {
 }
 
 type Driver interface {
-	CurentDriver() (string, error)
+	CurrentDriver() (string, error)
 	UnbindDriver() error
 	BindDriver(targetDriver string) error
 	GetDeviceNumber() string
@@ -591,7 +591,7 @@ func NewDeviceDriver(volumeId, blockDevice, deviceNumber string, _type MachineTy
 		for _, pciDriver := range []string{"--nvme", "--blk"} {
 			output, err := utils.CommandOnNode("xdragon-bdf", pciDriver, fmt.Sprintf("--id=%s", volumeId)).CombinedOutput()
 			if err != nil {
-				klog.ErrorS(err, "Failed to excute xdragon-bdf command", "volumeId", volumeId, "output", output)
+				klog.ErrorS(err, "Failed to execute xdragon-bdf command", "volumeId", volumeId, "output", output)
 				continue
 			}
 			bdf := strings.TrimSpace(string(output))
@@ -618,10 +618,10 @@ func (d *driver) GetDeviceNumber() string {
 	return d.deviceNumber
 }
 
-func (d *driver) CurentDriver() (string, error) {
+func (d *driver) CurrentDriver() (string, error) {
 	data, err := os.Readlink(filepath.Join(sysPrefix, "sys/bus/", d.machineType.BusName(), "devices", d.deviceNumber, "driver"))
 	if err != nil {
-		klog.Errorf("CurentDriver: read symlink err: %v", err)
+		klog.Errorf("CurrentDriver: read symlink err: %v", err)
 		return "", err
 	}
 	driver := filepath.Base(data)

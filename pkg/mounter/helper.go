@@ -87,7 +87,7 @@ func GetOIDCProvider(clusterId string) string {
 	return fmt.Sprintf("ack-rrsa-%s", clusterId)
 }
 
-// GetArn get rrsa config for fuse contianer's env setting
+// GetArn get rrsa config for fuse container's env setting
 func GetArn(provider, accountId, roleName string) (oidcProviderArn, roleArn string) {
 	if provider == "" || accountId == "" || roleName == "" {
 		return

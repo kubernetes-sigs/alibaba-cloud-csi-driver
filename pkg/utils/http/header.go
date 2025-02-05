@@ -25,7 +25,7 @@ func mustParseHeaderTo(envName string, header http.Header) {
 	if hstr := os.Getenv(envName); hstr != "" {
 		h, err := ParseHeaderConfig(hstr)
 		if err != nil {
-			klog.Fatalf("Invaild %s: %v", envName, err)
+			klog.Fatalf("Invalid %s: %v", envName, err)
 		}
 		maps.Copy(header, h)
 	}

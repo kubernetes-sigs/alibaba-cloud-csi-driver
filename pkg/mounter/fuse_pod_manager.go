@@ -25,8 +25,8 @@ import (
 )
 
 const (
-	fusePodManagerTimeout = time.Second * 30
-	fuseServieAccountName = "csi-fuse-ossfs"
+	fusePodManagerTimeout  = time.Second * 30
+	fuseServiceAccountName = "csi-fuse-ossfs"
 	// deprecated
 	LegacyFusePodNamespace = "kube-system"
 )

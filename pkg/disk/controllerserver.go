@@ -303,7 +303,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
 		errMsg := fmt.Sprintf("DeleteVolume: Delete disk with error: %s", newErrMsg)
 		if response != nil {
-			errMsg = fmt.Sprintf("DeleteVolume: Delete disk with error: %s, with RequstId: %s", newErrMsg, response.RequestId)
+			errMsg = fmt.Sprintf("DeleteVolume: Delete disk with error: %s, with RequestId: %s", newErrMsg, response.RequestId)
 		}
 		klog.Warningf(errMsg)
 		if strings.Contains(err.Error(), DiskCreatingSnapshot) || strings.Contains(err.Error(), IncorrectDiskStatus) {
@@ -442,7 +442,7 @@ func getVolumeSnapshotConfig(req *csi.CreateSnapshotRequest) (*createSnapshotPar
 
 	vsName := req.Parameters[common.VolumeSnapshotNameKey]
 	vsNameSpace := req.Parameters[common.VolumeSnapshotNamespaceKey]
-	// volumesnapshot not in parameters, just retrun
+	// volumesnapshot not in parameters, just return
 	if vsName == "" || vsNameSpace == "" {
 		return &ecsParams, nil
 	}
@@ -601,7 +601,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 
 func snapshotBeforeDelete(disk *ecs.Disk, ecsClient *ecs.Client) error {
 	if !AllCategories[Category(disk.Category)].InstantAccessSnapshot {
-		klog.Infof("snapshotBeforeDelete: Instant Access snapshot required, but current disk.Catagory is: %s", disk.Category)
+		klog.Infof("snapshotBeforeDelete: Instant Access snapshot required, but current disk.Category is: %s", disk.Category)
 		return nil
 	}
 

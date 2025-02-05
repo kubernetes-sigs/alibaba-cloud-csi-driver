@@ -25,7 +25,7 @@ type PovOptions struct {
 
 type Cloud interface {
 	CreateVolume(ctx context.Context, volumeName string, diskOptions *PovOptions) (fsId, requestID string, err error)
-	DeleteVolume(ctx context.Context, volumeName string) (reuqestID string, err error)
+	DeleteVolume(ctx context.Context, volumeName string) (requestID string, err error)
 	CreateVolumeMountPoint(ctx context.Context, filesystemID string) (mpId string, err error)
 	AttachVscMountPoint(ctx context.Context, mpId, fsId, instanceID string) (requestID string, err error)
 	DescribeVscMountPoints(ctx context.Context, fsId, mpId string) (dvmpr *dfs.DescribeVscMountPointsResponse, err error)
@@ -89,7 +89,7 @@ func (c *cloud) CreateVolume(ctx context.Context, volumeName string, diskOptions
 	return resp.FileSystemId, resp.RequestId, nil
 }
 
-func (c *cloud) DeleteVolume(ctx context.Context, filesystemID string) (reqeustID string, err error) {
+func (c *cloud) DeleteVolume(ctx context.Context, filesystemID string) (requestID string, err error) {
 
 	cdfsr := dfs.CreateDeleteFileSystemRequest()
 	cdfsr.FileSystemId = filesystemID

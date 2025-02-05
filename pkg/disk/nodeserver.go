@@ -724,10 +724,10 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		fileInfo, err := os.Lstat(tmpPath)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), InputOutputErr) {
-				if err = isPathAvailiable(targetPath); err != nil {
+				if err = isPathAvailable(targetPath); err != nil {
 					if err = ns.k8smounter.Unmount(targetPath); err != nil {
 						klog.Errorf("NodeUnstageVolume: umount target %s(input/output error) with error: %v", targetPath, err)
-						return nil, status.Errorf(codes.InvalidArgument, "NodeUnstageVolume umount target %s with errror: %v", targetPath, err)
+						return nil, status.Errorf(codes.InvalidArgument, "NodeUnstageVolume umount target %s with error: %v", targetPath, err)
 					}
 					klog.Warningf("NodeUnstageVolume: target path %s show input/output error: %v, umount it.", targetPath, err)
 				}
@@ -1210,7 +1210,7 @@ func (ns *nodeServer) umountRunDVolumes(volumePath string) (bool, error) {
 		} else {
 			d, _ = NewDeviceDriver("", "", mountInfo.Source, BDF, nil)
 		}
-		cDriver, err := d.CurentDriver()
+		cDriver, err := d.CurrentDriver()
 		if err != nil {
 			if IsNoSuchFileErr(err) {
 				klog.Infof("driver has been removed, device: %s has empty driver", mountInfo.Source)
@@ -1347,7 +1347,7 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 			klog.Errorf("NodePublishVolume(rund3.0): can't get bdf number of volume:  %s: err: %v", volumeId, err)
 			return true, status.Error(codes.InvalidArgument, "NodePublishVolume: cannot get bdf number of volume: "+volumeId)
 		}
-		cDriver, err := driver.CurentDriver()
+		cDriver, err := driver.CurrentDriver()
 		if err != nil {
 			return true, status.Errorf(codes.Internal, "NodePublishVolume(rund3.0): can't get current volume driver: %+v", err)
 		}
@@ -1414,7 +1414,7 @@ func (ns *nodeServer) mountRunDVolumes(volumeId, pvName, sourcePath, targetPath,
 
 		err = directvolume.AddMountInfo(directvolume.EnsureVolumeAttributesFileDir(targetPath, isRawBlock), mountInfo)
 		if err != nil {
-			klog.Errorf("NodePublishVolume(rund3.0): Adding runD mount infomation to DirectVolume failed: %v", err)
+			klog.Errorf("NodePublishVolume(rund3.0): Adding runD mount information to DirectVolume failed: %v", err)
 			return true, err
 		}
 
@@ -1495,12 +1495,12 @@ func (ns *nodeServer) checkMountedOfRunvAndRund(volumeId, targetPath string) boo
 		klog.ErrorS(err, "NodeStageVolume:  Failed to get bdf number", "volumeId", volumeId)
 		return false
 	}
-	cDrvier, err := d.CurentDriver()
+	cDriver, err := d.CurrentDriver()
 	if err != nil {
 		klog.ErrorS(err, "NodeStageVolume:  Failed to get current driver", "volumeId", volumeId)
 		return false
 	}
-	if vfioDrivers.Has(cDrvier) {
+	if vfioDrivers.Has(cDriver) {
 		return true
 	}
 	return false

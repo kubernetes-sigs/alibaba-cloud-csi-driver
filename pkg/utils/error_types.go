@@ -38,7 +38,7 @@ var errorTypeMaps = map[string]map[string]*errorInfo{
 	NasMountTargetDelete: NasMountTargetDeleteErrors,
 }
 
-// DiskProvisionErrors are errors throwed by ecs create disk api
+// DiskProvisionErrors are errors thrown by ecs create disk api
 var DiskProvisionErrors = map[string]*errorInfo{
 	"disk size is not supported.": {
 		errorName:           "SpecificSizeNotValid",
@@ -52,7 +52,7 @@ var DiskProvisionErrors = map[string]*errorInfo{
 	},
 }
 
-// DiskAttachDetachErrors are errors throwed by disk attach
+// DiskAttachDetachErrors are errors thrown by disk attach
 var DiskAttachDetachErrors = map[string]*errorInfo{
 	"had volume node affinity conflict": {
 		errorName:           "VolumeNodeAffinityConflict",
@@ -76,22 +76,22 @@ var DiskAttachDetachErrors = map[string]*errorInfo{
 	},
 }
 
-// DiskMountErrors are errors throwed by disk mount
+// DiskMountErrors are errors thrown by disk mount
 var DiskMountErrors = map[string]*errorInfo{}
 
-// DiskDeleteErrors are errors throwed by disk delete
+// DiskDeleteErrors are errors thrown by disk delete
 var DiskDeleteErrors = map[string]*errorInfo{}
 
-// NasFilesystemCreateErrors are errors throwed by nas create
+// NasFilesystemCreateErrors are errors thrown by nas create
 var NasFilesystemCreateErrors = map[string]*errorInfo{}
 
-// NasFilesystemDeleteErrors are errors throwed by nas filesystem delete
+// NasFilesystemDeleteErrors are errors thrown by nas filesystem delete
 var NasFilesystemDeleteErrors = map[string]*errorInfo{}
 
-// NasMountTargetCreateErrors are errors throwed by nas mount target create
+// NasMountTargetCreateErrors are errors thrown by nas mount target create
 var NasMountTargetCreateErrors = map[string]*errorInfo{}
 
-// NasMountTargetDeleteErrors are errors throwed by nas mount target delete
+// NasMountTargetDeleteErrors are errors thrown by nas mount target delete
 var NasMountTargetDeleteErrors = map[string]*errorInfo{}
 
 // FindSuggestionByErrorMessage get new error message by error type & error message

@@ -483,7 +483,7 @@ func TestCreateDisk_ParameterMismatch(t *testing.T) {
 	}
 }
 
-func TestCreateDisk_NoInfinitLoop(t *testing.T) {
+func TestCreateDisk_NoInfiniteLoop(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	client := cloud.NewMockECSInterface(ctrl)
 

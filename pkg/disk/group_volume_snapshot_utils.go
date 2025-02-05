@@ -29,7 +29,7 @@ func getVolumeGroupSnapshotConfig(req *csi.CreateVolumeGroupSnapshotRequest) (*c
 
 	vsName := req.Parameters[common.VolumeGroupSnapshotNameKey]
 	vsNameSpace := req.Parameters[common.VolumeGroupSnapshotNamespaceKey]
-	// volumesnapshot not in parameters, just retrun
+	// volumesnapshot not in parameters, just return
 	if vsName == "" || vsNameSpace == "" {
 		return &ecsParams, nil
 	}
@@ -231,9 +231,9 @@ func checkSourceVolumes(sourceVolumeIds []string) error {
 
 func requestAndDeleteGroupSnapshot(groupSnapshotID string) (*ecs.DeleteSnapshotGroupResponse, error) {
 	// Delete Snapshotgroup
-	deleteSnapshotGroupRequset := ecs.CreateDeleteSnapshotGroupRequest()
-	deleteSnapshotGroupRequset.SnapshotGroupId = groupSnapshotID
-	response, err := GlobalConfigVar.EcsClient.DeleteSnapshotGroup(deleteSnapshotGroupRequset)
+	deleteSnapshotGroupRequest := ecs.CreateDeleteSnapshotGroupRequest()
+	deleteSnapshotGroupRequest.SnapshotGroupId = groupSnapshotID
+	response, err := GlobalConfigVar.EcsClient.DeleteSnapshotGroup(deleteSnapshotGroupRequest)
 	if err != nil {
 		return response, err
 	}

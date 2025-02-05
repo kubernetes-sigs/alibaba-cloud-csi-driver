@@ -375,7 +375,7 @@ func GetOssfsAttachPath(volumeId string) string {
 	return filepath.Join(OssfsAttachDir, hex.EncodeToString(volSha[:]), "globalmount")
 }
 
-// keep consitent with RAM response
+// keep consistent with RAM response
 var secretRefKeysToParse []string = []string{
 	"AccessKeyId",
 	"AccessKeySecret",

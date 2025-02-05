@@ -8,5 +8,5 @@ binary = false
 [default.extend-words]
 teh = "teh"
 ded = "ded"
-acq = "Aquire"
 eles = "eles"
+TAGED = "TAGED"

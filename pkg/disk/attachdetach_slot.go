@@ -46,7 +46,7 @@ type adSlot interface {
 }
 
 type slot interface {
-	Aquire(ctx context.Context) error
+	Acquire(ctx context.Context) error
 	Release()
 }
 
@@ -63,7 +63,7 @@ type serialADSlot struct {
 type serialAD_DetachSlot struct{ *serialADSlot }
 type serialAD_AttachSlot struct{ *serialADSlot }
 
-func (s serialAD_DetachSlot) Aquire(ctx context.Context) error {
+func (s serialAD_DetachSlot) Acquire(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
@@ -77,7 +77,7 @@ func (s serialAD_DetachSlot) Aquire(ctx context.Context) error {
 	}
 }
 
-func (s serialAD_AttachSlot) Aquire(ctx context.Context) error {
+func (s serialAD_AttachSlot) Acquire(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
@@ -112,7 +112,7 @@ func newMaxConcurrentSlot(maxConcurrency int) maxConcurrentSlot {
 	}
 }
 
-func (s maxConcurrentSlot) Aquire(ctx context.Context) error {
+func (s maxConcurrentSlot) Acquire(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
@@ -137,8 +137,8 @@ func (parallelSlot) Attach() slot { return noOpSlot{} }
 
 type noOpSlot struct{}
 
-func (noOpSlot) Aquire(ctx context.Context) error { return ctx.Err() }
-func (noOpSlot) Release()                         {}
+func (noOpSlot) Acquire(ctx context.Context) error { return ctx.Err() }
+func (noOpSlot) Release()                          {}
 
 type independentSlot struct {
 	attach slot

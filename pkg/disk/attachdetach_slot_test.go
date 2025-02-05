@@ -19,7 +19,7 @@ func TestDetachPriority(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		go func() {
 			as := s.Attach()
-			if err := as.Aquire(context.Background()); err != nil {
+			if err := as.Acquire(context.Background()); err != nil {
 				t.Error(err)
 				return
 			}
@@ -32,7 +32,7 @@ func TestDetachPriority(t *testing.T) {
 	}
 	time.Sleep(100 * time.Millisecond)
 	ds := s.Detach()
-	if err := ds.Aquire(context.Background()); err != nil {
+	if err := ds.Acquire(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	if seq != 1 {
@@ -70,10 +70,10 @@ func TestCancelWaiting(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		errs := make(chan error)
 		go func() {
-			errs <- s.Detach().Aquire(ctx)
+			errs <- s.Detach().Acquire(ctx)
 		}()
 		go func() {
-			errs <- s.Attach().Aquire(ctx)
+			errs <- s.Attach().Acquire(ctx)
 		}()
 		time.Sleep(100 * time.Millisecond) // ensure we enter waiting state
 		cancel()
@@ -90,7 +90,7 @@ func TestCancelWaiting(t *testing.T) {
 	}
 	t.Run("serial", func(t *testing.T) {
 		s := NewSlots(1, 1).GetSlotFor("node1")
-		err := s.Detach().Aquire(context.Background()) // occupy the slot
+		err := s.Detach().Acquire(context.Background()) // occupy the slot
 		assert.NoError(t, err)
 		testSlot(t, s)
 	})
@@ -99,8 +99,8 @@ func TestCancelWaiting(t *testing.T) {
 			attach: newMaxConcurrentSlot(1),
 			detach: newMaxConcurrentSlot(1),
 		}
-		assert.NoError(t, s.attach.Aquire(context.Background()))
-		assert.NoError(t, s.detach.Aquire(context.Background()))
+		assert.NoError(t, s.attach.Acquire(context.Background()))
+		assert.NoError(t, s.detach.Acquire(context.Background()))
 		testSlot(t, s)
 	})
 }
@@ -111,10 +111,10 @@ func TestCancelNoOccupy(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		if err := s.Detach().Aquire(ctx); err != context.Canceled {
+		if err := s.Detach().Acquire(ctx); err != context.Canceled {
 			t.Fatalf("Expected context.Canceled, got %v", err)
 		}
-		if err := s.Attach().Aquire(ctx); err != context.Canceled {
+		if err := s.Attach().Acquire(ctx); err != context.Canceled {
 			t.Fatalf("Expected context.Canceled, got %v", err)
 		}
 	}
@@ -135,14 +135,14 @@ func TestSerialDetach(t *testing.T) {
 
 	ctx := context.Background()
 	as := s.Attach()
-	err := as.Aquire(ctx)
+	err := as.Acquire(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Attach should not block detach
 	ds := s.Detach()
-	err = ds.Aquire(ctx)
+	err = ds.Acquire(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestSerialDetach_NoRace(t *testing.T) {
 	state := -1
 	for i := 0; i < 2; i++ {
 		go func(i int) {
-			s.Aquire(ctx)
+			s.Acquire(ctx)
 			state = i
 			s.Release()
 			wg.Done()

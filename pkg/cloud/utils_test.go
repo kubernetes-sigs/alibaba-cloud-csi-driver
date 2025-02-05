@@ -29,7 +29,7 @@ func (endpointMockClient) ProcessCommonRequest(request *requests.CommonRequest) 
         },
         "Endpoint": "ecs-openapi-share.cn-region-for-ut.aliyuncs.com",
         "Id": "cn-region-for-ut",
-        "SerivceCode": "ecs",
+        "ServiceCode": "ecs",
         "Namespace": ""
       }
     ]
