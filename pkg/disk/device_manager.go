@@ -200,6 +200,9 @@ func (m *DeviceManager) WaitRootBlock(ctx context.Context, volumeID string) (str
 	idSuffix := strings.TrimPrefix(volumeID, "d-")
 	var linkPath string
 	var lastErr error
+	start := time.Now()
+	logger := klog.FromContext(ctx)
+	logger.V(5).Info("looking for root block device")
 	err := wait.PollUntilContextTimeout(ctx, 500*time.Millisecond, 10*time.Second, true, func(ctx context.Context) (bool, error) {
 		p, err := m.getDeviceByLink(idSuffix)
 		if err == nil {
@@ -213,6 +216,11 @@ func (m *DeviceManager) WaitRootBlock(ctx context.Context, volumeID string) (str
 		return false, nil
 	})
 	if err == nil {
+		v := 3
+		if lastErr != nil {
+			v = 2
+		}
+		logger.V(v).Info("block device found", "path", linkPath, "delay", time.Since(start))
 		return linkPath, nil
 	}
 	if !errors.Is(err, context.DeadlineExceeded) {
@@ -225,6 +233,7 @@ func (m *DeviceManager) WaitRootBlock(ctx context.Context, volumeID string) (str
 	errs := []error{lastErr}
 	linkPath, err = m.getDeviceFallback(idSuffix)
 	if linkPath != "" {
+		logger.V(1).Info("block device found by fallback, udev not working?", "path", linkPath)
 		return linkPath, nil
 	}
 	errs = append(errs, err)
