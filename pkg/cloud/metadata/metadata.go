@@ -112,7 +112,7 @@ func (p *immutableProvider) Get(key MetadataKey) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	klog.V(2).InfoS("retrived metadata", "provider", p.name, "key", key, "value", v)
+	klog.V(2).InfoS("retrieved metadata", "provider", p.name, "key", key, "value", v)
 	p.values[key] = v
 	return v, nil
 }

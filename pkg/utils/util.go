@@ -641,8 +641,8 @@ func LoadJSONData(dataFileName string) (map[string]string, error) {
 	return data, nil
 }
 
-// IsPathAvailiable
-func IsPathAvailiable(path string) error {
+// IsPathAvailable
+func IsPathAvailable(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("Open Path (%s) with error: %v ", path, err)
@@ -788,7 +788,7 @@ func FormatNewDisk(readOnly bool, source, fstype, target string, mkfsOptions, mo
 	_, err := diskMounter.Exec.Command("mkfs."+fstype, args...).CombinedOutput()
 	if err == nil {
 		// the disk has been formatted successfully try to mount it again.
-		klog.Infof("Disk format successed, pvName: %s elapsedTime: %+v ms", pvName, time.Now().Sub(startT).Milliseconds())
+		klog.Infof("Disk format succeeded, pvName: %s elapsedTime: %+v ms", pvName, time.Now().Sub(startT).Milliseconds())
 		return diskMounter.Interface.Mount(source, target, fstype, mountOptions)
 	}
 	klog.Errorf("format of disk %q failed: type:(%q) target:(%q) options:(%q) error:(%v)", source, fstype, target, args, err)

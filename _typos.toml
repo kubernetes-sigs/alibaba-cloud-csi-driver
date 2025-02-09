@@ -1,0 +1,12 @@
+[files]
+extend-exclude = ["vendor/*", "*.mod", "*.sum", "build/"]
+
+[default]
+binary = false
+
+
+[default.extend-words]
+teh = "teh"
+ded = "ded"
+eles = "eles"
+TAGED = "TAGED"

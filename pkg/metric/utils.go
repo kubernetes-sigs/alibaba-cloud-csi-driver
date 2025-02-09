@@ -271,33 +271,33 @@ func almostEqualFloat64(a, b float64) bool {
 }
 
 func parseLantencyThreshold(s string, defaults float64) (float64, error) {
-	var thresholNum int
-	var threshodUnit string
-	_, err := fmt.Sscanf(s, "%d%s", &thresholNum, &threshodUnit)
+	var thresholdNum int
+	var thresholdUnit string
+	_, err := fmt.Sscanf(s, "%d%s", &thresholdNum, &thresholdUnit)
 	if err != nil {
 		klog.Errorf("Parse latency threshold %s is failed, err:%s", s, err)
 		return defaults, err
 	}
-	switch threshodUnit {
+	switch thresholdUnit {
 	case "s", "second", "seconds":
-		return float64(thresholNum * 1000), nil
+		return float64(thresholdNum * 1000), nil
 	case "ms", "millisecond", "milliseconds":
-		return float64(thresholNum), nil
+		return float64(thresholdNum), nil
 	case "us", "microsecond", "microseconds":
-		return float64(thresholNum / 1000), nil
+		return float64(thresholdNum / 1000), nil
 	default:
 		return defaults, nil
 	}
 }
 
 func parseCapacityThreshold(s string, defaults float64) (float64, error) {
-	var thresholNum float64
-	_, err := fmt.Sscanf(s, "%f", &thresholNum)
+	var thresholdNum float64
+	_, err := fmt.Sscanf(s, "%f", &thresholdNum)
 	if err != nil {
 		klog.Errorf("Parse  threshold %s is failed, err:%s", s, err)
 		return defaults, err
 	}
-	return thresholNum, nil
+	return thresholdNum, nil
 }
 
 func getGlobalMountPathByDiskID(diskID string) string {

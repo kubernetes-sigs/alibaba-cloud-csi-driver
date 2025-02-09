@@ -247,7 +247,7 @@ func TestCreateAccessPointError(t *testing.T) {
 			}, &tea.SDKError{
 				Code:       tea.String("OperationDenied.AccessPointCountsExceeded\n"),
 				StatusCode: tea.Int(403),
-				Message:    tea.String("The maxium number of access point has reached its limits.\t"),
+				Message:    tea.String("The maximum number of access point has reached its limits.\t"),
 			})
 	})
 	_, err := client.CreateAccesspoint(&nas.CreateAccessPointRequest{})

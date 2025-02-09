@@ -102,7 +102,7 @@ func ValidateCreateVolumeParams(params map[string]string) (*DiskParams, error) {
 		DiskType:        diskType,
 		DiskTags:        params["diskTags"],
 		ResourceGroupID: params["resourceGroupId"],
-		NodeSelected:    params[NodeSchedueTag],
+		NodeSelected:    params[NodeScheduleTag],
 	}
 	return dp, nil
 }

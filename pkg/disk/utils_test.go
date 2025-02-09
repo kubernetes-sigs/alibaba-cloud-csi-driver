@@ -411,7 +411,7 @@ func TestGetVolumeCountFromOpenAPI(t *testing.T) {
 	dev.AddDisk(t, "node-for-testingdetachingdisk", []byte("d-testingdetachingdisk"))
 	// manually attached disk has no xattr
 	dev.AddDisk(t, "node-for-2zeh74nnxxrobxz49eug", nil)
-	// an arbirary error for getxattr, we should ignore it
+	// an arbitrary error for getxattr, we should ignore it
 	dev.AddDisk(t, "node-for-testinglocaldisk", []byte("d-some-very-looooog-value-that-cause-getxattr-to-fail"))
 
 	getNode := func() (*corev1.Node, error) { return testNode(), nil }

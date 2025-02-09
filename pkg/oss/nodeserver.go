@@ -61,8 +61,8 @@ const (
 	metricsPathPrefix = "/host/var/run/ossfs/"
 	// defaultMetricsTop
 	defaultMetricsTop = "10"
-	// fuseServieAccountName
-	fuseServieAccountName = "csi-fuse-ossfs"
+	// fuseServiceAccountName
+	fuseServiceAccountName = "csi-fuse-ossfs"
 )
 
 const (

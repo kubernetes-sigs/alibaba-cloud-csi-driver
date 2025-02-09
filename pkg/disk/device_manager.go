@@ -28,7 +28,7 @@ type DeviceManager struct {
 	// Disable read serial from sysfs
 	DisableSerial bool
 
-	// Support sole alreadly formatted disk partition
+	// Support sole already formatted disk partition
 	EnableDiskPartition bool
 }
 
@@ -243,7 +243,7 @@ func (m *DeviceManager) WriteSysfs(devicePath, name string, value []byte) error 
 	fileName := filepath.Clean(base + name)
 	if !strings.HasPrefix(fileName, base) {
 		// Note this cannot prevent user from accessing other devices through e.g. /sys/block/vda/subsystem/vdb
-		// But we cannot restrict symlink either because names like `bdi/read_ahead_kb` may be vaild, in which `bdi` is a symlink.
+		// But we cannot restrict symlink either because names like `bdi/read_ahead_kb` may be valid, in which `bdi` is a symlink.
 		// Just reject obvious attacks like '../../../root/.ssh/id_rsa'.
 		return fmt.Errorf("invalid relative path in sysConfig: %s", name)
 	}

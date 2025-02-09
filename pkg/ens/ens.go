@@ -31,8 +31,8 @@ const (
 	LOCAL_SSD          = "local_ssd"
 	ENS_DISK_AVAILABLE = "available"
 
-	// NodeSchedueTag in annotations
-	NodeSchedueTag = "volume.kubernetes.io/selected-node"
+	// NodeScheduleTag in annotations
+	NodeScheduleTag = "volume.kubernetes.io/selected-node"
 
 	// DiskNotAvailable error
 	DiskNotAvailable = "InvalidDataDiskCategory.NotSupported"

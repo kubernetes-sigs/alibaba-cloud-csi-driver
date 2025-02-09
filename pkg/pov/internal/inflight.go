@@ -23,7 +23,7 @@ type InFlight struct {
 	inFlight map[string]bool
 }
 
-// NewInFlight instanciates a InFlight structures.
+// NewInFlight instantiates a InFlight structures.
 func NewInFlight() *InFlight {
 	return &InFlight{
 		mux:      &sync.Mutex{},

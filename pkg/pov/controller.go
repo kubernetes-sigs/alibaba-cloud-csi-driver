@@ -33,7 +33,7 @@ const (
 	FILESYSTEMID                 = "filesystemid"
 	TopologyKey                  = "topology.kubernetes.io/region"
 
-	// volumeContext starting with labelAppendPrefix will automatically added to pv lables
+	// volumeContext starting with labelAppendPrefix will automatically added to pv labels
 	labelAppendPrefix = "csi.alibabacloud.com/label-prefix/"
 	annVSCIDPrefix    = "csi.alibabacloud.com/ann-vsc-id"
 	labelmpId         = "csi.alibabacloud.com/label-mp-id"

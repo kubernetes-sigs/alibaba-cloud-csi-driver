@@ -24,11 +24,11 @@ func TestFindSuggestionByErrorMessage(t *testing.T) {
 		attachOrgMsg3: attachOrgMsg3 + "\n" + "faq: https://help.aliyun.com/document_detail/286495.htm#section-ihn-gds-9mm",
 	}
 
-	for origMsg, wrapperedMsg := range errMsgProvisionSample {
-		assert.Equal(t, wrapperedMsg, FindSuggestionByErrorMessage(origMsg, DiskProvision))
+	for origMsg, wrappedMsg := range errMsgProvisionSample {
+		assert.Equal(t, wrappedMsg, FindSuggestionByErrorMessage(origMsg, DiskProvision))
 	}
 
-	for origMsg, wrapperedMsg := range errMsgAttachSample {
-		assert.Equal(t, wrapperedMsg, FindSuggestionByErrorMessage(origMsg, DiskAttachDetach))
+	for origMsg, wrappedMsg := range errMsgAttachSample {
+		assert.Equal(t, wrappedMsg, FindSuggestionByErrorMessage(origMsg, DiskAttachDetach))
 	}
 }

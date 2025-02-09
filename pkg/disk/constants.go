@@ -114,8 +114,8 @@ const (
 	kubeNodeName = "KUBE_NODE_NAME"
 	// describeResourceType ...
 	describeResourceType = "DataDisk"
-	// NodeSchedueTag in annotations
-	NodeSchedueTag = "volume.kubernetes.io/selected-node"
+	// NodeScheduleTag in annotations
+	NodeScheduleTag = "volume.kubernetes.io/selected-node"
 	// RetryMaxTimes ...
 	RetryMaxTimes = 5
 

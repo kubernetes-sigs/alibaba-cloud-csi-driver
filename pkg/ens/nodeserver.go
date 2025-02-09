@@ -465,10 +465,10 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		fileInfo, err := os.Lstat(tmpPath)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), INPUT_OUTPUT_ERR) {
-				if err = utils.IsPathAvailiable(targetPath); err != nil {
+				if err = utils.IsPathAvailable(targetPath); err != nil {
 					if err = ns.k8smounter.Unmount(targetPath); err != nil {
 						klog.Errorf("NodeUnstageVolume: umount target %s(input/output error) with error: %v", targetPath, err)
-						return nil, status.Errorf(codes.InvalidArgument, "NodeUnstageVolume umount target %s with errror: %v", targetPath, err)
+						return nil, status.Errorf(codes.InvalidArgument, "NodeUnstageVolume umount target %s with error: %v", targetPath, err)
 					}
 					klog.Warningf("NodeUnstageVolume: target path %s show input/output error: %v, umount it.", targetPath, err)
 				}

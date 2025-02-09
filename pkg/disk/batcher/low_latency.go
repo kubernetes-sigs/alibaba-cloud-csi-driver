@@ -43,7 +43,7 @@ type LowLatency[T any] struct {
 // The average interval of outgoing batched request traffic is also perRequest, allowing some burst.
 //
 // If the batch is fully filled, the request is issued immediately, skipping any remaining wait period, and is not limited by perRequest.
-// Concurrent outgoing requests are possible if there are too many incomming requests.
+// Concurrent outgoing requests are possible if there are too many incoming requests.
 func NewLowLatency[T any](ecsClient desc.Client[T], clk clock.WithTicker, perRequest time.Duration, burst int) *LowLatency[T] {
 	return &LowLatency[T]{
 		ecsClient:   ecsClient,

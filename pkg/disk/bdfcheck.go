@@ -184,7 +184,7 @@ func getDiskUnUsedAndAddTag() ([]string, error) {
 
 	// there are unUsedDevices in host;
 	diskIDList, err := addDiskBdfTag(stillUnusedDevices)
-	return stillUnusedDevices, fmt.Errorf("UnUsedDisks: %v, Udpate Tags: %v", diskIDList, err)
+	return stillUnusedDevices, fmt.Errorf("UnUsedDisks: %v, Update Tags: %v", diskIDList, err)
 }
 
 // get device mounted as filesystem or block volume

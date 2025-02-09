@@ -520,8 +520,8 @@ func (ns *nodeServer) isLosetupUsed(lockFile string, opt *Options, volumeID stri
 	if !utils.IsFileExisting(lockFile) {
 		return false
 	}
-	fileCotent := utils.GetFileContent(lockFile)
-	contentParts := strings.Split(fileCotent, ":")
+	fileContent := utils.GetFileContent(lockFile)
+	contentParts := strings.Split(fileContent, ":")
 	if len(contentParts) != 2 || contentParts[0] == "" || contentParts[1] == "" {
 		return true
 	}

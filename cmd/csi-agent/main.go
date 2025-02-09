@@ -77,7 +77,7 @@ func (s *FileGrpcServer) ServeOneRequest(method string) error {
 func main() {
 	_, ok := os.LookupEnv("KUBELET_ROOT_DIR")
 	if !ok {
-		// This is nessesary to disable the check of sub-directory in NodeServerWithValidator.
+		// This is necessary to disable the check of sub-directory in NodeServerWithValidator.
 		// CSI-agent is not invoked by kubelet, so there is no usual kubelet directory structure.
 		utils.KubeletRootDir = "/"
 	}

@@ -45,7 +45,7 @@ const (
 	SigV4 SigVersion = "v4"
 )
 
-// VolumeAs determines the mounting tagret path in OSS
+// VolumeAs determines the mounting target path in OSS
 type VolumeAsType string
 
 const (
@@ -261,7 +261,7 @@ func checkRRSAParams(opt *Options) error {
 
 // getRRSAConfig get oidcProviderArn and roleArn
 func getRRSAConfig(opt *Options, m metadata.MetadataProvider) (rrsaCfg *mounter.RrsaConfig, err error) {
-	saName := fuseServieAccountName
+	saName := fuseServiceAccountName
 	if opt.ServiceAccountName != "" {
 		saName = opt.ServiceAccountName
 	}
