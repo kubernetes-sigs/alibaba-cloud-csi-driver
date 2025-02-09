@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"os/exec"
@@ -175,7 +174,7 @@ func getDeviceSerial(serial string) (device string) {
 	}
 
 	for _, serialFile := range serialFiles {
-		body, err := ioutil.ReadFile(serialFile)
+		body, err := os.ReadFile(serialFile)
 		if err != nil {
 			klog.Errorf("Read serial(%s): %v", serialFile, err)
 			continue
@@ -221,7 +220,7 @@ func getDeviceBySymlink(volumeID string) (string, error) {
 			// in some os, link file is not begin with virtio-,
 			// but diskPart will always be part of link file.
 			isSearched := false
-			files, _ := ioutil.ReadDir(byIDPath)
+			files, _ := os.ReadDir(byIDPath)
 			diskPart := strings.Replace(volumeID, "d-", "", -1)
 			for _, f := range files {
 				if strings.Contains(f.Name(), diskPart) {
@@ -255,7 +254,7 @@ func getDeviceBySymlink(volumeID string) (string, error) {
 }
 func listDirectory(rootPath string) ([]string, error) {
 	var fileLists []string
-	files, err := ioutil.ReadDir(rootPath)
+	files, err := os.ReadDir(rootPath)
 	if err != nil {
 		klog.Errorf("List Directory %s is failed, err:%s", rootPath, err.Error())
 		return nil, err

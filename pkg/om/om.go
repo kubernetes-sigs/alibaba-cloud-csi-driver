@@ -55,7 +55,7 @@ func CheckMessageFileIssue() {
 		// Fix Block Volume Reference Issue;
 		if GlobalConfigVar.IssueBlockReference && strings.Contains(line, "is still referenced from other Pods") {
 			if FixReferenceMountIssue(line) {
-
+				klog.Info(line)
 			}
 		}
 	}

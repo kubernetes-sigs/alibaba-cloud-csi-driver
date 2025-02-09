@@ -1143,7 +1143,7 @@ func deleteDisk(ctx context.Context, ecsClient cloud.ECSInterface, diskId string
 	deleteDiskRequest.DiskId = diskId
 
 	var resp *ecs.DeleteDiskResponse
-	err := wait.PollImmediateWithContext(ctx, time.Second*5, DISK_DELETE_INIT_TIMEOUT, func(ctx context.Context) (bool, error) {
+	err := wait.PollUntilContextTimeout(ctx, time.Second*5, DISK_DELETE_INIT_TIMEOUT, true, func(ctx context.Context) (bool, error) {
 		var err error
 		resp, err = ecsClient.DeleteDisk(deleteDiskRequest)
 		if err == nil {
@@ -1163,7 +1163,7 @@ func deleteDisk(ctx context.Context, ecsClient cloud.ECSInterface, diskId string
 
 func resizeDisk(ctx context.Context, ecsClient cloud.ECSInterface, req *ecs.ResizeDiskRequest) (*ecs.ResizeDiskResponse, error) {
 	var resp *ecs.ResizeDiskResponse
-	err := wait.PollImmediateWithContext(ctx, time.Second*5, DISK_RESIZE_PROCESSING_TIMEOUT, func(ctx context.Context) (bool, error) {
+	err := wait.PollUntilContextTimeout(ctx, time.Second*5, DISK_RESIZE_PROCESSING_TIMEOUT, true, func(ctx context.Context) (bool, error) {
 		var err error
 		resp, err = ecsClient.ResizeDisk(req)
 		if err == nil {

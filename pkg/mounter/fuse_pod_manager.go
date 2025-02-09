@@ -121,7 +121,6 @@ func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 				config.Dbglevel = value
 			default:
 				invalid = true
-				break
 			}
 		case "image":
 			klog.Warning("'image' config in configmap no longer supported")
@@ -376,7 +375,7 @@ func (fpm *FusePodManager) Delete(c *FusePodContext, target string) error {
 		}
 	}
 
-	return wait.PollUntilWithContext(ctx, time.Second*2, func(ctx context.Context) (done bool, err error) {
+	return wait.PollUntilContextCancel(ctx, time.Second*2, true, func(ctx context.Context) (done bool, err error) {
 		podList, err := podClient.List(ctx, listOptions)
 		if err != nil {
 			return false, err

@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -125,7 +124,7 @@ func newEcsClient(regionID string, ac utils.AccessControl) (ecsClient *ecs.Clien
 			}
 			klog.Infof("Resolved ECS localAPI endpoint: %s", ep)
 		}
-		aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
+		_ = aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
 	} else {
 		// Set Unitized Endpoint for hangzhou region
 		SetEcsEndPoint(regionID)
@@ -159,18 +158,18 @@ func SetEcsEndPoint(regionID string) {
 		"us-west-1", "me-east-1", "cn-north-2-gov-1", "eu-west-1", "cn-chengdu"}
 	for _, tmpRegion := range unitizedRegions {
 		if regionID == tmpRegion {
-			aliyunep.AddEndpointMapping(regionID, "Ecs", "ecs."+regionID+".aliyuncs.com")
+			_ = aliyunep.AddEndpointMapping(regionID, "Ecs", "ecs."+regionID+".aliyuncs.com")
 			isEndpointSet = true
 			break
 		}
 	}
-	if isEndpointSet == false {
-		aliyunep.AddEndpointMapping(regionID, "Ecs", "ecs-vpc."+regionID+".aliyuncs.com")
+	if !isEndpointSet {
+		_ = aliyunep.AddEndpointMapping(regionID, "Ecs", "ecs-vpc."+regionID+".aliyuncs.com")
 	}
 
 	// use environment endpoint setting first;
 	if ep := os.Getenv("ECS_ENDPOINT"); ep != "" {
-		aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
+		_ = aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
 	}
 }
 
@@ -230,7 +229,7 @@ func getInstanceDoc() (*instanceDocument, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +251,7 @@ func getInstanceDoc() (*instanceDocument, error) {
 // GetDeviceByBdf get device name by bdf
 func GetDeviceByBdf(bdf string, enLog bool) (device string, err error) {
 	virtioPciPath := fmt.Sprintf("/sys/bus/pci/drivers/virtio-pci/%s", bdf)
-	dirs, err := ioutil.ReadDir(virtioPciPath)
+	dirs, err := os.ReadDir(virtioPciPath)
 	if err != nil {
 		return "", err
 	}
@@ -367,7 +366,7 @@ func getVolumeConfig(volumeID string) string {
 		return ""
 	}
 
-	value, err := ioutil.ReadFile(volumeFile)
+	value, err := os.ReadFile(volumeFile)
 	if err != nil {
 		return ""
 	}
@@ -405,7 +404,7 @@ func saveVolumeConfig(volumeID, devicePath string) error {
 	}
 
 	volumeFile := path.Join(VolumeDir, volumeID+".conf")
-	if err := ioutil.WriteFile(volumeFile, []byte(devicePath), 0644); err != nil {
+	if err := os.WriteFile(volumeFile, []byte(devicePath), 0644); err != nil {
 		return err
 	}
 	return nil
@@ -543,7 +542,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		diskVolArgs.RegionID = GlobalConfigVar.Region
 	}
 
-	diskVolArgs.NodeSelected, _ = volOptions[NodeScheduleTag]
+	diskVolArgs.NodeSelected = volOptions[NodeScheduleTag]
 
 	// fstype
 	// https://github.com/kubernetes-csi/external-provisioner/releases/tag/v1.0.1
@@ -691,7 +690,6 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		case "yes", "true", "1":
 			klog.Infof("CreateVolume: volume size was less than allowed limit. Setting request Size to %vGB. volumeSizeAutoAvailable is set.", MinimumDiskSizeInGB)
 			requestGB = MinimumDiskSizeInGB
-			volSizeBytes = MinimumDiskSizeInBytes
 		}
 	}
 	diskVolArgs.RequestGB = requestGB
@@ -1313,9 +1311,7 @@ func updatePvcWithAnnotations(ctx context.Context, pvc *v1.PersistentVolumeClaim
 	case "delete":
 		if pvc.Annotations != nil {
 			for key := range annotations {
-				if _, ok := pvc.Annotations[key]; ok {
-					delete(pvc.Annotations, key)
-				}
+				delete(pvc.Annotations, key)
 			}
 		}
 	}

@@ -77,5 +77,8 @@ func RunCSIServer(driverType, endpoint string, servers Servers) {
 
 	klog.Infof("Listening for connections on address: %#v", listener.Addr())
 
-	server.Serve(listener)
+	err = server.Serve(listener)
+	if err != nil {
+		klog.Fatalf("Failed to serve: %v", err)
+	}
 }
