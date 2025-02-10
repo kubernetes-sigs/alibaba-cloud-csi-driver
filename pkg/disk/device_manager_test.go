@@ -2,6 +2,7 @@ package disk
 
 import (
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -312,15 +314,34 @@ func TestGetRootBlockByVolumeID_Link(t *testing.T) {
 	}
 }
 
+func getRoot(m *DeviceManager, volumeID string, wait bool) (string, error) {
+	if wait {
+		return m.WaitRootBlock(context.Background(), volumeID)
+	} else {
+		return m.GetRootBlockByVolumeID(volumeID)
+	}
+}
+
+func testGetRoot(t *testing.T, m *DeviceManager, volumeID string, assertFn func(t *testing.T, devicePath string, err error)) {
+	t.Parallel() // WaitRootBlock needs 10s to timeout
+	for _, wait := range []bool{true, false} {
+		t.Run(fmt.Sprintf("wait=%v", wait), func(t *testing.T) {
+			devicePath, err := getRoot(m, volumeID, wait)
+			assertFn(t, devicePath, err)
+		})
+	}
+}
+
 func TestGetRootBlockByVolumeID_Link_NotFound(t *testing.T) {
 	m := testingManager(t)
 	m.DisableSerial = true
 	setupNVMeBlockDevice(t, m.SysfsPath)
 
-	_, err := m.GetRootBlockByVolumeID("mydiskserial")
-	if assert.Error(t, err) {
-		assert.True(t, errors.Is(err, os.ErrNotExist))
-	}
+	testGetRoot(t, m, "mydiskserial", func(t *testing.T, devicePath string, err error) {
+		if assert.Error(t, err) {
+			assert.True(t, errors.Is(err, os.ErrNotExist))
+		}
+	})
 }
 
 func TestGetRootBlockByVolumeID_Link_Bad(t *testing.T) {
@@ -328,11 +349,12 @@ func TestGetRootBlockByVolumeID_Link_Bad(t *testing.T) {
 	m.DisableSerial = true
 	m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{badLink}
 
-	_, err := m.GetRootBlockByVolumeID("mydiskserial")
-	if assert.Error(t, err) {
-		assert.True(t, errors.Is(err, badLink.Err))
-		assert.False(t, errors.Is(err, os.ErrNotExist)) // bad link error should suppress os.ErrNotExist
-	}
+	testGetRoot(t, m, "mydiskserial", func(t *testing.T, devicePath string, err error) {
+		if assert.Error(t, err) {
+			assert.True(t, errors.Is(err, badLink.Err))
+			assert.False(t, errors.Is(err, os.ErrNotExist)) // bad link error should suppress os.ErrNotExist
+		}
+	})
 }
 
 // Maybe udev is not functional. We should still be able to get the device by reading sysfs.
@@ -340,32 +362,42 @@ func TestGetRootBlockByVolumeID_Serial(t *testing.T) {
 	m := testingManager(t)
 	setupNVMeBlockDevice(t, m.SysfsPath)
 
-	devicePath, err := m.GetRootBlockByVolumeID("mydiskserial")
-	assert.NoError(t, err)
-	assert.Equal(t, filepath.Join(m.DevicePath, "nvme1n1"), devicePath)
+	testGetRoot(t, m, "mydiskserial", func(t *testing.T, devicePath string, err error) {
+		assert.NoError(t, err)
+		assert.Equal(t, filepath.Join(m.DevicePath, "nvme1n1"), devicePath)
+	})
 }
 
 func TestGetRootBlockByVolumeID_NotFound(t *testing.T) {
 	m := testingManager(t)
 
-	_, err := m.GetRootBlockByVolumeID("mydiskserial")
-	if assert.Error(t, err) {
-		assert.True(t, errors.Is(err, os.ErrNotExist))
-	}
+	testGetRoot(t, m, "mydiskserial", func(t *testing.T, devicePath string, err error) {
+		if assert.Error(t, err) {
+			assert.True(t, errors.Is(err, os.ErrNotExist))
+		}
+	})
 }
 
 func TestGetDeviceByVolumeID_Positive(t *testing.T) {
-	for _, partition := range []bool{true, false} {
-		t.Run(fmt.Sprintf("partition=%v", partition), func(t *testing.T) {
-			m := testingManager(t)
-			m.EnableDiskPartition = partition
-			setupVirtIOBlockDevice(t, m.SysfsPath)
-			m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{virtIODev, virtIOLink}
+	for _, wait := range []bool{true, false} {
+		for _, partition := range []bool{true, false} {
+			t.Run(fmt.Sprintf("partition=%v,wait=%v", partition, wait), func(t *testing.T) {
+				m := testingManager(t)
+				m.EnableDiskPartition = partition
+				setupVirtIOBlockDevice(t, m.SysfsPath)
+				m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{virtIODev, virtIOLink}
 
-			devicePath, err := m.GetDeviceByVolumeID("mydiskserial")
-			assert.NoError(t, err)
-			assert.Equal(t, filepath.Join(m.DevicePath, "disk/by-id/virtio-mydiskserial"), devicePath)
-		})
+				var devicePath string
+				var err error
+				if wait {
+					devicePath, err = m.WaitDevice(context.Background(), "mydiskserial")
+				} else {
+					devicePath, err = m.GetDeviceByVolumeID("mydiskserial")
+				}
+				assert.NoError(t, err)
+				assert.Equal(t, filepath.Join(m.DevicePath, "disk/by-id/virtio-mydiskserial"), devicePath)
+			})
+		}
 	}
 }
 
@@ -457,6 +489,17 @@ func TestGetDeviceRootAndPartitionIndex_Partition(t *testing.T) {
 			assert.Equal(t, c.partitionIndex, index)
 		})
 	}
+}
+
+func TestWaitDeviceCancel(t *testing.T) {
+	m := testingManager(t)
+
+	ctx, cancel := context.WithDeadlineCause(context.Background(), time.Time{}, fmt.Errorf("test"))
+	defer cancel()
+	// ctx already DeadlineExceeded
+
+	_, err := m.WaitDevice(ctx, "mydiskserial")
+	assert.ErrorIs(t, err, ctx.Err())
 }
 
 func TestWriteSysfs(t *testing.T) {

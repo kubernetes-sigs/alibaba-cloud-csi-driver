@@ -42,6 +42,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -234,7 +235,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 
 	// step 5: diff device with previous files under /dev
 	if fromNode {
-		device, err := DefaultDeviceManager.GetDeviceByVolumeID(diskID)
+		device, err := DefaultDeviceManager.WaitDevice(ctx, diskID)
 		if err == nil {
 			klog.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device", diskID, nodeID, device)
 			return device, nil
@@ -244,15 +245,15 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 
 		// BDF Disk Logical
 		if IsVFNode() && len(devicePaths) == 0 {
-			var bdf string
-			if bdf, err = bindBdfDisk(disk.DiskId); err != nil {
+			bdf, err := bindBdfDisk(disk.DiskId)
+			if err != nil {
 				if err := unbindBdfDisk(disk.DiskId); err != nil {
 					return "", status.Errorf(codes.Aborted, "NodeStageVolume: failed to detach bdf: %v", err)
 				}
 				return "", status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf: %v", err)
 			}
 
-			_, err := DefaultDeviceManager.GetRootBlockByVolumeID(diskID)
+			_, err = DefaultDeviceManager.GetRootBlockByVolumeID(diskID)
 			deviceName := ""
 			if err != nil && bdf != "" {
 				deviceName, err = GetDeviceByBdf(bdf, true)
@@ -291,7 +292,10 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 			return devicePaths[0], nil
 		}
 		// device count is not expected, should retry (later by detaching and attaching again)
-		return "", status.Error(codes.Aborted, "AttachDisk: after attaching to disk, but fail to get mounted device, will retry later")
+		err = utilerrors.NewAggregate([]error{
+			err, fmt.Errorf("unexpected new devices: %v", devicePaths),
+		})
+		return "", status.Errorf(codes.Aborted, "AttachDisk: disk attached, but failed to find device: %v", err)
 	}
 
 	klog.Infof("AttachDisk: Successful attach disk %s to node %s", diskID, nodeID)

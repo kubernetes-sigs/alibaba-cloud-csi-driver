@@ -561,7 +561,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	// Step 4 Attach volume
 	defaultErrCode := codes.Internal
 	if GlobalConfigVar.ADControllerEnable || isMultiAttach {
-		device, err = DefaultDeviceManager.GetDeviceByVolumeID(req.GetVolumeId())
+		device, err = DefaultDeviceManager.WaitDevice(ctx, req.GetVolumeId())
 		if err != nil {
 			if IsVFNode() {
 				bdf, err := bindBdfDisk(req.GetVolumeId())
