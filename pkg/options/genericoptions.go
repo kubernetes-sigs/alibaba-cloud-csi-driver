@@ -11,6 +11,15 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/flowcontrol"
+	"k8s.io/klog/v2"
+)
+
+const (
+	KubeAPIQPSEnv   = "KUBE_CLI_API_QPS"
+	KubeAPIBurstEnv = "KUBE_CLI_API_BURST"
+
+	KubeAPIQPSFlag   = "kube-api-qps"
+	KubeAPIBurstFlag = "kube-api-burst"
 )
 
 var (
@@ -27,8 +36,8 @@ var (
 func init() {
 	flag.StringVar(&Kubeconfig, "kubeconfig", "", "the path to kubeconfig file")
 	flag.StringVar(&MasterURL, "master-url", "", "the url of kube-apiserver")
-	flag.Float32Var(&KubeAPIQPS, "kube-api-qps", 5.0, "QPS to use while communicating with the kubernetes apiserver.")
-	flag.IntVar(&KubeAPIBurst, "kube-api-burst", 10, "Burst to use while communicating with the kubernetes apiserver.")
+	flag.Float32Var(&KubeAPIQPS, KubeAPIQPSFlag, 5.0, "QPS to use while communicating with the kubernetes apiserver.")
+	flag.IntVar(&KubeAPIBurst, KubeAPIBurstFlag, 10, "Burst to use while communicating with the kubernetes apiserver.")
 }
 
 func MustGetRestConfig() *rest.Config {
@@ -49,18 +58,21 @@ func GetRestConfig() (*rest.Config, error) {
 	cfg.Burst = KubeAPIBurst
 	// To ensure that the previous configuration takes effect,
 	// the ENV parameter is the first priority.
-	if qps := os.Getenv("KUBE_CLI_API_QPS"); qps != "" {
+	if qps := os.Getenv(KubeAPIQPSEnv); qps != "" {
+		klog.Warningf("%s env support is deprecated, use -%s instead", KubeAPIQPSEnv, KubeAPIQPSFlag)
 		if qpsi, err := strconv.Atoi(qps); err == nil {
 			cfg.QPS = float32(qpsi)
 		}
 	}
-	if burst := os.Getenv("KUBE_CLI_API_BURST"); burst != "" {
+	if burst := os.Getenv(KubeAPIBurstEnv); burst != "" {
+		klog.Warningf("%s env support is deprecated, use -%s instead", KubeAPIBurstEnv, KubeAPIBurstFlag)
 		if qpsi, err := strconv.Atoi(burst); err == nil {
 			cfg.Burst = qpsi
 		}
 	}
 	if cfg.QPS > 0 {
 		// Init a RateLimiter to ensure that all clients using this Config share the same rate limiter instance
+		klog.Infof("Using QPS %v and Burst %v for kube-apiserver", cfg.QPS, cfg.Burst)
 		cfg.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(cfg.QPS, cfg.Burst)
 	}
 
