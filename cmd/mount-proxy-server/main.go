@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -11,8 +10,11 @@ import (
 	"syscall"
 	"time"
 
+	flag "github.com/spf13/pflag"
+
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	_ "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server/ossfs"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"k8s.io/klog/v2"
 )
 
@@ -24,7 +26,8 @@ var (
 func main() {
 	flag.StringVar(&socketPath, "socket", "/var/run/csi/mounter.sock", "socket path")
 	flag.DurationVar(&handleTimeout, "timeout", time.Second*30, "timeout for connection")
-	klog.InitFlags(nil)
+	utils.AddKlogFlags(flag.CommandLine)
+	utils.AddGoFlags(flag.CommandLine)
 	flag.Parse()
 
 	_ = os.Remove(socketPath)

@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
@@ -28,6 +27,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	flag "github.com/spf13/pflag"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -89,9 +90,11 @@ var (
 func main() {
 	csilog.RedirectLogrusToLogr(logrus.StandardLogger(), klog.Background())
 
+	utils.AddKlogFlags(flag.CommandLine)
+	utils.AddGoFlags(flag.CommandLine)
+
 	flag.Var(features.FunctionalMutableFeatureGate, "feature-gates", "A set of key=value pairs that describe feature gates for alpha/experimental features. "+
 		"Options are:\n"+strings.Join(features.FunctionalMutableFeatureGate.KnownFeatures(), "\n"))
-	klog.InitFlags(nil)
 	flag.Parse()
 	serviceType := utils.GetServiceType(*runAsController, *runControllerService, *runNodeService)
 
