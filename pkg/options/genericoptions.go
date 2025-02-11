@@ -1,10 +1,11 @@
 package options
 
 import (
-	"flag"
 	"os"
 	"strconv"
 	"strings"
+
+	flag "github.com/spf13/pflag"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -17,11 +18,17 @@ var (
 	Kubeconfig string
 	// MasterURL is the url of kube-apiserver
 	MasterURL string
+	// QPS to use while communicating with the kubernetes apiserver. Defaults to 5.0.
+	KubeAPIQPS float32
+	// Burst to use while communicating with the kubernetes apiserver. Defaults to 10.
+	KubeAPIBurst int
 )
 
 func init() {
 	flag.StringVar(&Kubeconfig, "kubeconfig", "", "the path to kubeconfig file")
 	flag.StringVar(&MasterURL, "master-url", "", "the url of kube-apiserver")
+	flag.Float32Var(&KubeAPIQPS, "kube-api-qps", 5.0, "QPS to use while communicating with the kubernetes apiserver.")
+	flag.IntVar(&KubeAPIBurst, "kube-api-burst", 10, "Burst to use while communicating with the kubernetes apiserver.")
 }
 
 func MustGetRestConfig() *rest.Config {
@@ -37,6 +44,11 @@ func GetRestConfig() (*rest.Config, error) {
 	if err != nil {
 		return cfg, err
 	}
+
+	cfg.QPS = KubeAPIQPS
+	cfg.Burst = KubeAPIBurst
+	// To ensure that the previous configuration takes effect,
+	// the ENV parameter is the first priority.
 	if qps := os.Getenv("KUBE_CLI_API_QPS"); qps != "" {
 		if qpsi, err := strconv.Atoi(qps); err == nil {
 			cfg.QPS = float32(qpsi)

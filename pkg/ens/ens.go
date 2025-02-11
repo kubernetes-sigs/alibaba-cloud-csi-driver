@@ -12,7 +12,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 )
 
@@ -82,19 +81,9 @@ func (ens *ENS) Run() {
 
 func NewGlobalConfig() {
 	ctx := context.Background()
-	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
+	cfg, err := options.GetRestConfig()
 	if err != nil {
 		klog.Fatalf("NewGlobalConfig: Error building kubeconfig: %s", err.Error())
-	}
-	if qps := os.Getenv("KUBE_CLI_API_QPS"); qps != "" {
-		if qpsi, err := strconv.Atoi(qps); err == nil {
-			cfg.QPS = float32(qpsi)
-		}
-	}
-	if burst := os.Getenv("KUBE_CLI_API_BURST"); burst != "" {
-		if qpsi, err := strconv.Atoi(burst); err == nil {
-			cfg.Burst = qpsi
-		}
 	}
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {

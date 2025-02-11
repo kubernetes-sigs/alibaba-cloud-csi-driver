@@ -47,7 +47,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 )
 
@@ -125,7 +124,7 @@ func main() {
 	meta := metadata.NewMetadata()
 	meta.EnableEcs(http.DefaultTransport)
 
-	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
+	cfg, err := options.GetRestConfig()
 	if err != nil {
 		klog.Warningf("newGlobalConfig: build kubeconfig failed: %v", err)
 	} else {

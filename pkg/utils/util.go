@@ -46,7 +46,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	k8smount "k8s.io/mount-utils"
@@ -165,7 +164,7 @@ func CreateEvent(recorder record.EventRecorder, objectRef *v1.ObjectReference, e
 
 // NewEventRecorder is create snapshots event recorder
 func NewEventRecorder() record.EventRecorder {
-	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
+	cfg, err := options.GetRestConfig()
 	if err != nil {
 		klog.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
