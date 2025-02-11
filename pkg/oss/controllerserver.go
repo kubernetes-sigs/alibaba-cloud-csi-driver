@@ -138,14 +138,6 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	if err := setCNFSOptions(ctx, cs.cnfsGetter, opts); err != nil {
 		return nil, err
 	}
-	// skip for virtual kubelet nodes
-	node, err := cs.client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "failed to get node %s: %v", nodeName, err)
-	}
-	if node.Labels["type"] == "virtual-kubelet" {
-		return &csi.ControllerPublishVolumeResponse{}, nil
-	}
 	// options validation
 	if err := checkOssOptions(opts); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())

@@ -31,14 +31,6 @@ rules:
   - delete
   - deletecollection
   - watch
-- apiGroups:
-  - ""
-  resourceNames:
-  - csi-fuse-ossfs
-  resources:
-  - serviceaccounts
-  verbs:
-  - get
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
