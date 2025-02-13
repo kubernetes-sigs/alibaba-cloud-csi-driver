@@ -328,6 +328,10 @@ spec:
             - name: STS_ENDPOINT
               value: {{ .Values.deploy.stsEndpoint | quote }}
 {{- end }}
+{{- if .Values.deploy.nasEndpoint }}
+            - name: NAS_ENDPOINT
+              value: {{ .Values.deploy.nasEndpoint | quote }}
+{{- end }}
 {{- if .Values.deploy.privateCloud }}
             - name: ALICLOUD_CLIENT_SCHEME
               value: HTTP

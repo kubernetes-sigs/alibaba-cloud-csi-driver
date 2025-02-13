@@ -60,6 +60,7 @@ deploy:
   privateCloud: false
   ecsEndpoint: null  # most useful on private cloud
   stsEndpoint: null  # most useful on private cloud
+  nasEndpoint: null  # most useful on private cloud
 
   ack: true  # deployed on managed Alibaba Cloud Container Service for Kubernetes (ACK)
   ecs: true  # use Alibaba Cloud Elastic Compute Service (ECS) for Node
