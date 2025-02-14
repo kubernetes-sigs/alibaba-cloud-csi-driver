@@ -553,10 +553,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			isMultiAttach = true
 		}
 	}
-	var isSingleInstance bool
-	if value, ok := req.VolumeContext["type"]; ok {
-		isSingleInstance = AllCategories[Category(value)].SingleInstance
-	}
 
 	// Step 4 Attach volume
 	defaultErrCode := codes.Internal
@@ -581,7 +577,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			}
 		}
 	} else {
-		device, err = ns.ad.attachDisk(ctx, req.GetVolumeId(), ns.NodeID, isSharedDisk, isSingleInstance, true)
+		device, err = ns.ad.attachDisk(ctx, req.GetVolumeId(), ns.NodeID, isSharedDisk, true)
 		if err != nil {
 			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
 			klog.Errorf("NodeStageVolume: Attach volume: %s with error: %s", req.VolumeId, fullErrorMessage)

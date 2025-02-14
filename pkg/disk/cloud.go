@@ -76,7 +76,8 @@ type DiskAttachDetach struct {
 }
 
 // attach alibaba cloud disk
-func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID string, isSharedDisk, isSingleInstance bool, fromNode bool) (string, error) {
+func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID string, isSharedDisk, fromNode bool) (string, error) {
+	logger := klog.FromContext(ctx)
 	klog.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
 	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
@@ -196,10 +197,15 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 		before = getDevices()
 	}
 
+	cate, ok := AllCategories[Category(disk.Category)]
+	if !ok {
+		logger.V(1).Info("attaching unknown disk category, best effort", "category", disk.Category)
+	}
+
 	attachRequest := ecs.CreateAttachDiskRequest()
 	attachRequest.InstanceId = nodeID
 	attachRequest.DiskId = diskID
-	if isSingleInstance {
+	if cate.SingleInstance {
 		attachRequest.DeleteWithInstance = requests.NewBoolean(true)
 	}
 	for key, value := range GlobalConfigVar.RequestBaseInfo {
