@@ -11,7 +11,7 @@ RUN --mount=type=bind,target=. \
     export GOARCH=$TARGETARCH && \
     export CGO_ENABLED=0 && \
     go build ${GO_BUILD_ARGS} -trimpath \
-        -ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=${CSI_VERSION}" \
+        -ldflags "-s -w -X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=${CSI_VERSION}" \
         -o /out/plugin.csi.alibabacloud.com && \
     go build -trimpath -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
