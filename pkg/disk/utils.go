@@ -562,7 +562,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	// disk Type
 	diskType, err := validateDiskType(volOptions)
 	if err != nil {
-		return nil, fmt.Errorf("Illegal required parameter type: " + volOptions["type"])
+		return nil, fmt.Errorf("illegal required parameter type: %s", volOptions["type"])
 	}
 	diskVolArgs.Type = diskType
 	pls, err := validateDiskPerformanceLevel(volOptions)
@@ -709,11 +709,11 @@ func validateDiskType(opts map[string]string) (diskType []Category, err error) {
 		if _, ok := AllCategories[c]; ok {
 			diskType = append(diskType, c)
 		} else {
-			return nil, fmt.Errorf("Illegal required parameter type: " + cusType)
+			return nil, fmt.Errorf("illegal required parameter type: %s", cusType)
 		}
 	}
 	if len(diskType) == 0 {
-		return diskType, fmt.Errorf("Illegal required parameter type: " + opts["type"])
+		return diskType, fmt.Errorf("illegal required parameter type: %s", opts["type"])
 	}
 	return
 }

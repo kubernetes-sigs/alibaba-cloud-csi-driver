@@ -777,7 +777,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	if msgLog == "" {
 		klog.Infof("NodeUnstageVolume: Unmount TargetPath successful, target %v, volumeId: %s", targetPath, req.VolumeId)
 	} else {
-		klog.Infof(msgLog)
+		klog.Info(msgLog)
 	}
 
 	if IsVFNode() {
@@ -1017,7 +1017,7 @@ func (ns *nodeServer) unmountStageTarget(targetPath string) error {
 		msgLog = fmt.Sprintf("unmountStageTarget: Path %s doesn't exist", targetPath)
 	}
 
-	klog.Infof(msgLog)
+	klog.Info(msgLog)
 	return nil
 }
 

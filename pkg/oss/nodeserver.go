@@ -85,7 +85,7 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
 	valid, err := utils.ValidatePath(req.GetTargetPath())
 	if !valid {
-		return status.Errorf(codes.InvalidArgument, err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	return nil
 }
@@ -119,7 +119,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	// options validation
 	if err := checkOssOptions(opts); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	switch opts.AuthType {
@@ -231,14 +231,14 @@ func checkOssOptions(opt *Options) error {
 	}
 
 	if !strings.HasPrefix(opt.Path, "/") {
-		return WrapOssError(PathError, "start with "+opt.Path+", should start with /")
+		return WrapOssError(PathError, "start with %s, should start with /", opt.Path)
 	}
 
 	switch opt.AuthType {
 	case mounter.AuthTypeSTS:
 	case mounter.AuthTypeRRSA:
 		if err := checkRRSAParams(opt); err != nil {
-			return WrapOssError(AuthError, err.Error())
+			return WrapOssError(AuthError, "%v", err)
 		}
 	case mounter.AuthTypeCSS:
 		if opt.SecretProviderClass == "" {
@@ -269,7 +269,7 @@ func checkOssOptions(opt *Options) error {
 func validateNodeUnpublishVolumeRequest(req *csi.NodeUnpublishVolumeRequest) error {
 	valid, err := utils.ValidatePath(req.GetTargetPath())
 	if !valid {
-		return status.Errorf(codes.InvalidArgument, err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	return nil
 }

@@ -258,9 +258,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		// Block device
 		if !utils.IsDir(targetPath) && strings.HasPrefix(targetPath, BLOCK_VOLUME_PREFIX) {
 			if removeErr := os.Remove(targetPath); removeErr != nil {
-				err := fmt.Errorf("NodeUnpublishVolume: VolumeId: %s, Could not remove mount block target %s with error %v", req.VolumeId, targetPath, removeErr)
-				klog.Error(err.Error())
-				return nil, status.Errorf(codes.Internal, err.Error())
+				return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume: VolumeId: %s, Could not remove mount block target %s with error %v", req.VolumeId, targetPath, removeErr)
 			}
 			klog.Infof("NodeUnpublishVolume: %s is block volume and is removed successful", targetPath)
 			return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -514,7 +512,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	if msgLog == "" {
 		klog.Infof("NodeUnstageVolume: Unmount TargetPath successful, target %v, volumeId: %s", targetPath, req.VolumeId)
 	} else {
-		klog.Infof(msgLog)
+		klog.Info(msgLog)
 	}
 
 	// Do detach if ADController disable

@@ -38,7 +38,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/batcher"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	perrors "github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -153,19 +152,14 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 
 			if GlobalConfigVar.DiskBdfEnable {
 				if allowed, err := forceDetachAllowed(ecsClient, disk, nodeID); err != nil {
-					err = perrors.Wrapf(err, "forceDetachAllowed")
-					return "", status.Errorf(codes.Aborted, err.Error())
+					return "", status.Errorf(codes.Aborted, "forceDetachAllowed failed: %v", err)
 				} else if !allowed {
-					err = perrors.Errorf("AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.DiskId, disk.InstanceId)
-					klog.Error(err)
-					return "", status.Errorf(codes.Aborted, err.Error())
+					return "", status.Errorf(codes.Aborted, "AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.DiskId, disk.InstanceId)
 				}
 			}
 
 			if !GlobalConfigVar.DetachBeforeAttach {
-				err = perrors.Errorf("AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
-				klog.Error(err)
-				return "", status.Errorf(codes.Aborted, err.Error())
+				return "", status.Errorf(codes.Aborted, "AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
 			}
 			klog.Infof("AttachDisk: Disk %s is already attached to instance %s, will be detached", diskID, disk.InstanceId)
 			detachRequest := ecs.CreateDetachDiskRequest()
@@ -371,12 +365,7 @@ func (ad *DiskAttachDetach) detachMultiAttachDisk(ctx context.Context, ecsClient
 		detachDiskRequest.InstanceId = nodeID
 		response, err := ecsClient.DetachDisk(detachDiskRequest)
 		if err != nil {
-			errMsg := fmt.Sprintf("DetachSharedDisk: Fail to detach %s: from Instance: %s with error: %s", disk.DiskId, disk.InstanceId, err.Error())
-			if response != nil {
-				errMsg = fmt.Sprintf("DetachSharedDisk: Fail to detach %s: from: %s, with error: %v, with requestId %s", disk.DiskId, disk.InstanceId, err.Error(), response.RequestId)
-			}
-			klog.Errorf(errMsg)
-			return true, status.Error(codes.Aborted, errMsg)
+			return true, status.Errorf(codes.Aborted, "DetachSharedDisk: Fail to detach %s: from Instance: %s with error: %v", disk.DiskId, disk.InstanceId, err)
 		}
 
 		// check disk detach
@@ -416,12 +405,9 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Clien
 
 	if GlobalConfigVar.DiskBdfEnable {
 		if allowed, err := forceDetachAllowed(ecsClient, disk, disk.InstanceId); err != nil {
-			err = perrors.Wrapf(err, "detachDisk forceDetachAllowed")
-			return status.Errorf(codes.Aborted, err.Error())
+			return status.Errorf(codes.Aborted, "forceDetachAllowed failed: %v", err)
 		} else if !allowed {
-			err = perrors.Errorf("detachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.InstanceId, disk.InstanceId)
-			klog.Error(err)
-			return status.Errorf(codes.Aborted, err.Error())
+			return status.Errorf(codes.Aborted, "detachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.InstanceId, disk.InstanceId)
 		}
 	}
 	klog.Infof("DetachDisk: Starting to Detach Disk %s from node %s", diskID, nodeID)
@@ -440,12 +426,7 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Clien
 		return err
 	})
 	if err != nil {
-		errMsg := fmt.Sprintf("DetachDisk: Fail to detach %s: from Instance: %s with error: %s", disk.DiskId, disk.InstanceId, err.Error())
-		if response != nil {
-			errMsg = fmt.Sprintf("DetachDisk: Fail to detach %s: from: %s, with error: %v, with requestId %s", disk.DiskId, disk.InstanceId, err.Error(), response.RequestId)
-		}
-		klog.Errorf(errMsg)
-		return status.Error(codes.Aborted, errMsg)
+		return status.Errorf(codes.Aborted, "DetachDisk: Fail to detach %s: from Instance: %s with error: %v", disk.DiskId, disk.InstanceId, err)
 	}
 	if StopDiskOperationRetry(disk.InstanceId, ecsClient) {
 		klog.Errorf("DetachDisk: the instance [%s] which disk [%s] attached report an fatal error, stop retry detach disk from instance", disk.DiskId, disk.InstanceId)
@@ -606,8 +587,7 @@ func findDiskByID(diskID string, ecsClient *ecs.Client) (*ecs.Disk, error) {
 		return nil, nil
 	}
 	if len(disks) > 1 {
-		errMsg := fmt.Sprintf("FindDiskByID:FindDiskByID: Unexpected count %d for volume id %s, Get Response: %v, with Request: %v, %v", len(disks), diskID, diskResponse, describeDisksRequest.RegionId, describeDisksRequest.DiskIds)
-		return nil, status.Errorf(codes.Internal, errMsg)
+		return nil, status.Errorf(codes.Internal, "FindDiskByID:FindDiskByID: Unexpected count %d for volume id %s, Get Response: %v, with Request: %v, %v", len(disks), diskID, diskResponse, describeDisksRequest.RegionId, describeDisksRequest.DiskIds)
 	}
 	return &disks[0], err
 }
