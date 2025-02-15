@@ -220,7 +220,7 @@ function create-token-secret {
     resp=$(aliyun sts AssumeRole --region "$ACK_REGION" \
         --DurationSeconds 28800 \
         --RoleArn "acs:ram::$uid:role/$CASE_NAME-$1" \
-        --ExternalId "$external_id" \
+        --ExternalId="$external_id" \
         --RoleSessionName "$CASE_NAME")
     echo "Assumed role ID $(jq -r .AssumedRoleUser.AssumedRoleId <<< "$resp")"
 
