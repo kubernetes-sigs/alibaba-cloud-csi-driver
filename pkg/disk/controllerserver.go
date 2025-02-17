@@ -273,6 +273,12 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			}
 		}
 		if disk.Status == DiskStatusInuse && canDetach {
+			if strings.HasPrefix(disk.InstanceId, "eci-") {
+				// We should never be asked to delete a disk on an ECI instance.
+				// If we reach here, something goes seriously wrong.
+				// TODO: ECI does not support multi-attach?
+				return nil, status.Errorf(codes.Internal, "refuse to delete disk on ECI instance %s", disk.InstanceId)
+			}
 			err := cs.ad.detachDisk(ctx, ecsClient, req.VolumeId, disk.InstanceId)
 			if err != nil {
 				newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
