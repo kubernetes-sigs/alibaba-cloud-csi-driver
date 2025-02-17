@@ -19,7 +19,7 @@ import (
 )
 
 func init() {
-	server.RegisterMountHandler("ossfs", NewMountHandler())
+	server.RegisterMountHandler(NewMountHandler(), "ossfs")
 }
 
 type MountHandler struct {
@@ -72,11 +72,10 @@ func (h *MountHandler) Mount(ctx context.Context, req *proxy.MountRequest) error
 	klog.InfoS("Started ossfs", "pid", pid, "args", args)
 
 	ossfsExited := make(chan error, 1)
+	h.wg.Add(1)
+	h.pids.Store(pid, cmd)
 	go func() {
-		h.wg.Add(1)
 		defer h.wg.Done()
-
-		h.pids.Store(pid, cmd)
 		defer h.pids.Delete(pid)
 
 		err := cmd.Wait()
@@ -135,6 +134,8 @@ func (h *MountHandler) Mount(ctx context.Context, req *proxy.MountRequest) error
 	}
 	return err
 }
+
+func (h *MountHandler) Init() {}
 
 func (h *MountHandler) Terminate() {
 	// terminate all running ossfs

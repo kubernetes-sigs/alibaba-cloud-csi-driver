@@ -9,17 +9,24 @@ import (
 
 type MountHandler interface {
 	Mount(ctx context.Context, req *proxy.MountRequest) error
+	Init()
 	Terminate()
 }
 
-var fstypes = map[string]MountHandler{}
+var (
+	fstypeToHandler = map[string]MountHandler{}
+	mountHandlers   []MountHandler
+)
 
-func RegisterMountHandler(fstype string, handler MountHandler) {
-	fstypes[fstype] = handler
+func RegisterMountHandler(handler MountHandler, fstypes ...string) {
+	mountHandlers = append(mountHandlers, handler)
+	for _, fstype := range fstypes {
+		fstypeToHandler[fstype] = handler
+	}
 }
 
 func handleMountRequest(ctx context.Context, req *proxy.MountRequest) error {
-	h := fstypes[req.Fstype]
+	h := fstypeToHandler[req.Fstype]
 	if h == nil {
 		return fmt.Errorf("fstype %q not supported", req.Fstype)
 	}

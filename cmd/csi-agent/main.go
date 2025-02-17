@@ -12,6 +12,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
@@ -100,6 +101,8 @@ func main() {
 		agent = oss.NewCSIAgent(meta, mountProxySocket)
 	case "diskplugin.csi.alibabacloud.com":
 		agent = disk.NewCSIAgent()
+	case "nasplugin.csi.alibabacloud.com":
+		agent = nas.NewCSIAgent(mountProxySocket)
 	default:
 		printError(fmt.Errorf("invalid CSI_DRIVER: %q", driver))
 		os.Exit(1)

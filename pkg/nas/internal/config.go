@@ -82,6 +82,9 @@ type NodeConfig struct {
 	EnableLosetup     bool
 	EnableVolumeStats bool
 
+	// path of mount proxy socket
+	MountProxySocket string
+
 	// clients for kubernetes
 	KubeClient kubernetes.Interface
 	CNFSGetter cnfsv1beta1.CNFSGetter
