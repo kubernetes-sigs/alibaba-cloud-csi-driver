@@ -679,16 +679,9 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	klog.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v, device: %s, mkfsOptions: %v, options: %v", req.VolumeId, targetPath, device, mkfsOptions, mountOptions)
 
 	r := k8smount.NewResizeFs(diskMounter.Exec)
-	needResize, err := r.NeedResize(device, targetPath)
-	if err != nil {
-		klog.Infof("NodeStageVolume: Could not determine if volume %s need to be resized: %v", req.VolumeId, err)
-		return &csi.NodeStageVolumeResponse{}, nil
-	}
-	if needResize {
-		klog.Infof("NodeStageVolume: Resizing volume %q created from a snapshot/volume", req.VolumeId)
-		if _, err := r.Resize(device, targetPath); err != nil {
-			return nil, status.Errorf(defaultErrCode, "Could not resize volume %s: %v", req.VolumeId, err)
-		}
+	klog.Infof("NodeStageVolume: Resizing volume %q created from a snapshot/volume", req.VolumeId)
+	if _, err := r.Resize(device, targetPath); err != nil {
+		return nil, status.Errorf(defaultErrCode, "Could not resize volume %s: %v", req.VolumeId, err)
 	}
 
 	return &csi.NodeStageVolumeResponse{}, nil
