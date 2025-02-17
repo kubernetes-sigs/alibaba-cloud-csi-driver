@@ -20,7 +20,7 @@ func NewCSIAgent(m metadata.MetadataProvider, socketPath string) *CSIAgent {
 	ns := &nodeServer{
 		metadata:   m,
 		locks:      utils.NewVolumeLocks(),
-		rawMounter: mountutils.New(""),
+		rawMounter: mountutils.NewWithoutSystemd(""),
 		skipAttach: true,
 	}
 	return &CSIAgent{

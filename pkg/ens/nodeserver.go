@@ -83,7 +83,7 @@ func NewNodeServer() csi.NodeServer {
 		MaxVolumePerNode: maxVolumesNum,
 		mounter:          utils.NewMounter(),
 		podCgroup:        podCgroup,
-		k8smounter:       k8smount.New(""),
+		k8smounter:       k8smount.NewWithoutSystemd(""),
 		GenericNodeServer: common.GenericNodeServer{
 			NodeID: GlobalConfigVar.InstanceID,
 		},
