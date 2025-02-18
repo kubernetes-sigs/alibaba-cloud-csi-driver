@@ -75,14 +75,13 @@ func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	region, _ := cs.metadata.Get(metadata.RegionID)
 	ossVol := parseOptions(req.GetParameters(), req.GetSecrets(), req.GetVolumeCapabilities(), false, region, req.GetName())
-	csiTargetVolume := &csi.Volume{}
 	volumeContext := req.GetParameters()
 	if volumeContext == nil {
 		volumeContext = map[string]string{}
 	}
 	volumeContext["path"] = ossVol.Path
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
-	csiTargetVolume = &csi.Volume{
+	csiTargetVolume := &csi.Volume{
 		VolumeId:      req.Name,
 		CapacityBytes: int64(volSizeBytes),
 		VolumeContext: volumeContext,

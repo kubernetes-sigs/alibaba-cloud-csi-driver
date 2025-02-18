@@ -18,13 +18,13 @@ package disk
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 )
 
 func getDevices() []string {
 	devices := []string{}
-	files, _ := ioutil.ReadDir("/dev")
+	files, _ := os.ReadDir("/dev")
 	for _, file := range files {
 		if !file.IsDir() && strings.HasPrefix(file.Name(), "vd") {
 			devices = append(devices, fmt.Sprintf("/dev/%s", file.Name()))

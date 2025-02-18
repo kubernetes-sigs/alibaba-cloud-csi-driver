@@ -2,7 +2,6 @@ package ens
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -182,7 +181,7 @@ func attachDisk(diskID, nodeID string) (string, error) {
 			}
 			deviceName := getVolumeDeviceName(diskID)
 			if deviceName != "" && utils.IsFileExisting(deviceName) {
-				if used, err := deviceUsedByOthers(deviceName, diskID); err == nil && used == false {
+				if used, err := deviceUsedByOthers(deviceName, diskID); err == nil && !used {
 					klog.Infof("AttachDisk: Disk %s is already attached to self Instance %s, and device is: %s", diskID, *disk.InstanceId, deviceName)
 					return deviceName, nil
 				}
@@ -360,7 +359,7 @@ func getVolumeDeviceByConfig(diskID string) string {
 		return ""
 	}
 
-	value, err := ioutil.ReadFile(volumeFile)
+	value, err := os.ReadFile(volumeFile)
 	if err != nil {
 		return ""
 	}
@@ -397,7 +396,7 @@ func getVolumeDeviceByDiskID(diskID string) (string, error) {
 			// in some os, link file is not begin with virtio-,
 			// but diskPart will always be part of link file.
 			isSearched := false
-			files, _ := ioutil.ReadDir(byIDPath)
+			files, _ := os.ReadDir(byIDPath)
 			diskPart := strings.Replace(diskID, "d-", "", -1)
 			for _, f := range files {
 				if strings.Contains(f.Name(), diskPart) {
@@ -440,7 +439,7 @@ func getVolumeDeviceByDiskID(diskID string) (string, error) {
 }
 
 func deviceUsedByOthers(deviceName, diskID string) (bool, error) {
-	files, err := ioutil.ReadDir(VolumeDir)
+	files, err := os.ReadDir(VolumeDir)
 	if err != nil {
 		return true, err
 	}
@@ -467,7 +466,7 @@ func getDeviceSerial(serial string) (device string) {
 	}
 
 	for _, serialFile := range serialFiles {
-		body, err := ioutil.ReadFile(serialFile)
+		body, err := os.ReadFile(serialFile)
 		if err != nil {
 			klog.Errorf("Read serial(%s): %v", serialFile, err)
 			continue
@@ -512,10 +511,10 @@ func adaptDevicePartition(devicePath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Get Device List by Glob for %s with error %v ", devicePath, err)
 	}
-	digitPattern := "^(\\d+)$"
+	digitPattern, _ := regexp.Compile(`^\d+$`)
 	for _, tmpDevice := range globDevices {
 		// find all device partitions
-		if result, err := regexp.MatchString(digitPattern, strings.TrimPrefix(tmpDevice, rootDevicePath)); err == nil && result == true {
+		if result := digitPattern.MatchString(strings.TrimPrefix(tmpDevice, rootDevicePath)); result {
 			deviceList = append(deviceList, tmpDevice)
 		} else if tmpDevice == rootDevicePath {
 			deviceList = append(deviceList, tmpDevice)
@@ -538,7 +537,7 @@ func adaptDevicePartition(devicePath string) (string, error) {
 		return "", fmt.Errorf("Device %s has more than 1 partition: %v, globDevices %v ", devicePath, deviceList, globDevices)
 	}
 
-	if isPartation == true {
+	if isPartation {
 		if err := checkRootAndSubDeviceFS(rootDevicePath, subDevicePath); err != nil {
 			return "", err
 		}
@@ -553,7 +552,7 @@ func adaptDevicePartition(devicePath string) (string, error) {
 // input /dev/vdb22, output: /dev/vdb, 22, nil
 func getDeviceRootAndIndex(devicePath string) (string, int, error) {
 	rootDevicePath := ""
-	index := -1
+	var index int
 	re := regexp.MustCompile(`\d+`)
 	regexpRes := re.FindAllStringSubmatch(devicePath, -1)
 	if len(regexpRes) == 0 {
@@ -586,7 +585,7 @@ func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
 		return fmt.Errorf("DeviceNotAvailable: input devices is not root&sub device path: %s, %s ", rootDevicePath, subDevicePath)
 	}
 	digitPattern := "^(\\d+)$"
-	if result, err := regexp.MatchString(digitPattern, strings.TrimPrefix(subDevicePath, rootDevicePath)); err != nil || result != true {
+	if result, err := regexp.MatchString(digitPattern, strings.TrimPrefix(subDevicePath, rootDevicePath)); err != nil || !result {
 		return fmt.Errorf("checkRootAndSubDeviceFS: input devices not meet root&sub device path: %s, %s ", rootDevicePath, subDevicePath)
 	}
 
@@ -624,7 +623,7 @@ func waitForDiskInStatus(retryCount int, interval time.Duration, diskID string, 
 
 func getDevices() []string {
 	devices := []string{}
-	files, _ := ioutil.ReadDir("/dev")
+	files, _ := os.ReadDir("/dev")
 	for _, file := range files {
 		if !file.IsDir() && strings.HasPrefix(file.Name(), "vd") {
 			devices = append(devices, fmt.Sprintf("/dev/%s", file.Name()))

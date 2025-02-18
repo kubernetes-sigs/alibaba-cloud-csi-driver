@@ -140,7 +140,7 @@ func (ec *ENSClient) DetachVolume(diskID, instanceID string) error {
 			klog.Errorf("DetachVolume: detach volume failed err: %+v", err)
 			return err
 		}
-		resp, err = ec.c.DetachDisk(ddr)
+		_, err = ec.c.DetachDisk(ddr)
 	}
 	if err != nil {
 		klog.Errorf("DescribeVolume: describe volume failed err: %+v", err)

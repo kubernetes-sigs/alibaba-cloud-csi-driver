@@ -60,7 +60,7 @@ func Test_formatGroupSnapshot(t *testing.T) {
 		t.Errorf("formatGroupSnapshot returned an error: %v", err)
 	}
 
-	stamp, err := time.Parse(time.RFC3339, mockGroupSnapshot.CreationTime)
+	stamp, _ := time.Parse(time.RFC3339, mockGroupSnapshot.CreationTime)
 	expectedResult := &csi.VolumeGroupSnapshot{
 		GroupSnapshotId: "snapshotGroup1",
 		Snapshots: []*csi.Snapshot{

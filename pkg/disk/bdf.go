@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -88,22 +87,22 @@ func IsNoSuchFileErr(err error) bool {
 
 // IohubSriovBind io hub bind
 func IohubSriovBind(bdf string) error {
-	return ioutil.WriteFile(iohubSriovAction+"bind", []byte(bdf), 0600)
+	return os.WriteFile(iohubSriovAction+"bind", []byte(bdf), 0600)
 }
 
 // IohubSriovUnbind io hub unbind
 func IohubSriovUnbind(bdf string) error {
-	return ioutil.WriteFile(iohubSriovAction+"unbind", []byte(bdf), 0600)
+	return os.WriteFile(iohubSriovAction+"unbind", []byte(bdf), 0600)
 }
 
 // VirtioPciBind pci bind
 func VirtioPciBind(bdf string) error {
-	return ioutil.WriteFile(virtioPciAction+"bind", []byte(bdf), 0600)
+	return os.WriteFile(virtioPciAction+"bind", []byte(bdf), 0600)
 }
 
 // VirtioPciUnbind pci unbind
 func VirtioPciUnbind(bdf string) error {
-	return ioutil.WriteFile(virtioPciAction+"unbind", []byte(bdf), 0600)
+	return os.WriteFile(virtioPciAction+"unbind", []byte(bdf), 0600)
 }
 
 // ExecCheckOutput check output

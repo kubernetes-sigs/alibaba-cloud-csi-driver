@@ -91,7 +91,7 @@ func (h *MountHandler) Mount(ctx context.Context, req *proxy.MountRequest) error
 		close(ossfsExited)
 	}()
 
-	err = wait.PollInfiniteWithContext(ctx, time.Second, func(ctx context.Context) (done bool, err error) {
+	err = wait.PollUntilContextCancel(ctx, time.Second, true, func(ctx context.Context) (done bool, err error) {
 		select {
 		case err := <-ossfsExited:
 			// TODO: collect ossfs outputs to return in error message
@@ -117,7 +117,7 @@ func (h *MountHandler) Mount(ctx context.Context, req *proxy.MountRequest) error
 		return nil
 	}
 
-	if errors.Is(err, wait.ErrWaitTimeout) {
+	if wait.Interrupted(err) {
 		// terminate ossfs process when timeout
 		terr := cmd.Process.Signal(syscall.SIGTERM)
 		if terr != nil {

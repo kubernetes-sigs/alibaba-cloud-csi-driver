@@ -128,7 +128,7 @@ func NewECSMetadata(httpRT http.RoundTripper) (*ECSMetadata, error) {
 	}
 
 	var lastErr error
-	err = wait.PollImmediateUntilWithContext(ctx, 1*time.Second, func(ctx context.Context) (bool, error) {
+	err = wait.PollUntilContextCancel(ctx, 1*time.Second, true, func(ctx context.Context) (bool, error) {
 		if lastErr != nil {
 			klog.Warningf("retrying ECS metadata: %v", lastErr)
 		}

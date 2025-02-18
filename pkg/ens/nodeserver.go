@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -71,8 +70,8 @@ func NewNodeServer() csi.NodeServer {
 		}
 	}
 
-	os.MkdirAll(VolumeDir, os.FileMode(0755))
-	os.MkdirAll(VolumeDirRemove, os.FileMode(0755))
+	_ = os.MkdirAll(VolumeDir, os.FileMode(0755))
+	_ = os.MkdirAll(VolumeDirRemove, os.FileMode(0755))
 
 	podCgroup, err := utils.NewPodCGroup()
 	if err != nil {
@@ -527,7 +526,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			klog.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
 			return nil, err
 		}
-		removeVolumeConfig(req.VolumeId)
+		_ = removeVolumeConfig(req.VolumeId)
 	}
 
 	return &csi.NodeUnstageVolumeResponse{}, nil
@@ -650,7 +649,7 @@ func saveVolumeConfig(volumeID, devicePath string) error {
 	}
 
 	volumeFile := path.Join(VolumeDir, volumeID+".conf")
-	if err := ioutil.WriteFile(volumeFile, []byte(devicePath), 0644); err != nil {
+	if err := os.WriteFile(volumeFile, []byte(devicePath), 0644); err != nil {
 		return err
 	}
 	return nil

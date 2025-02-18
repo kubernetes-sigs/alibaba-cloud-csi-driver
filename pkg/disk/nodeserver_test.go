@@ -77,7 +77,7 @@ func TestCheckMountedOfRunvAndRund(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.fsType != "" {
 				ns.k8smounter.Mount(tt.source, tt.targetPath, tt.fsType, []string{})
-				os.MkdirAll(tt.targetPath, 0755)
+				_ = os.MkdirAll(tt.targetPath, 0755)
 				defer os.RemoveAll(tt.targetPath)
 			}
 
