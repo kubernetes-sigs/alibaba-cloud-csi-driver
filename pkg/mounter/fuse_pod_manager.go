@@ -98,6 +98,69 @@ type FuseContainerConfig struct {
 	Extra       map[string]string
 }
 
+func parseConfigLine(line string, config *FuseContainerConfig) (err error) {
+	line = strings.TrimSpace(line)
+	if line == "" || config == nil {
+		return nil
+	}
+	key, value, _ := strings.Cut(line, "=")
+	switch key {
+	case "":
+		return fmt.Errorf("empty config key")
+	case "dbglevel":
+		switch value {
+		case DebugLevelFatal, DebugLevelError, DebugLevelWarn, DebugLevelInfo, DebugLevelDebug:
+			config.Dbglevel = value
+		default:
+			return fmt.Errorf("unknown dbglevel: %s", value)
+		}
+	case "image":
+		return fmt.Errorf("'image' config in configmap no longer supported")
+	case "image-tag":
+		config.ImageTag = value
+	case "cpu-request", "cpu-limit", "memory-request", "memory-limit":
+		quantity, err := resource.ParseQuantity(value)
+		if err != nil {
+			return fmt.Errorf("parse quantity %s for %s failed: %v", value, key, err)
+		}
+		resourceName, requireType, _ := strings.Cut(key, "-")
+		switch requireType {
+		case "request":
+			config.Resources.Requests[corev1.ResourceName(resourceName)] = quantity
+		case "limit":
+			config.Resources.Limits[corev1.ResourceName(resourceName)] = quantity
+		}
+	case "annotations":
+		annotations := make(map[string]string)
+		err := json.Unmarshal([]byte(value), &annotations)
+		if err != nil {
+			return fmt.Errorf("parse annotations %s failed: %v", value, err)
+		}
+		err = ValidateAnnotations(annotations)
+		if err != nil {
+			return fmt.Errorf("annotations %s are invalid: %v", value, err)
+		}
+		config.Annotations = annotations
+	case "labels":
+		labels := make(map[string]string)
+		err := json.Unmarshal([]byte(value), &labels)
+		if err != nil {
+			return fmt.Errorf("parse labels %s failed: %v", value, err)
+		}
+		err = ValidateLabels(labels)
+		if err != nil {
+			return fmt.Errorf("labels %s are invalid: %v", value, err)
+		}
+		config.Labels = labels
+	default:
+		if config.Extra == nil {
+			config.Extra = make(map[string]string)
+		}
+		config.Extra[key] = value
+	}
+	return nil
+}
+
 func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (config FuseContainerConfig) {
 	if configmap == nil {
 		return
@@ -106,74 +169,9 @@ func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 	config.Resources.Limits = make(corev1.ResourceList)
 	content := configmap.Data["fuse-"+name]
 	for _, line := range strings.Split(content, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		key, value, _ := strings.Cut(line, "=")
-		invalid := false
-		switch key {
-		case "":
-			invalid = true
-		case "dbglevel":
-			switch value {
-			case DebugLevelFatal, DebugLevelError, DebugLevelWarn, DebugLevelInfo, DebugLevelDebug:
-				config.Dbglevel = value
-			default:
-				invalid = true
-				break
-			}
-		case "image":
-			klog.Warning("'image' config in configmap no longer supported")
-		case "image-tag":
-			config.ImageTag = value
-		case "cpu-request", "cpu-limit", "memory-request", "memory-limit":
-			quantity, err := resource.ParseQuantity(value)
-			if err != nil {
-				invalid = true
-				break
-			}
-			resourceName, requireType, _ := strings.Cut(key, "-")
-			switch requireType {
-			case "request":
-				config.Resources.Requests[corev1.ResourceName(resourceName)] = quantity
-			case "limit":
-				config.Resources.Limits[corev1.ResourceName(resourceName)] = quantity
-			}
-		case "annotations":
-			annotations := make(map[string]string)
-			err := json.Unmarshal([]byte(value), &annotations)
-			if err != nil {
-				invalid = true
-				break
-			}
-			err = ValidateAnnotations(annotations)
-			if err != nil {
-				invalid = true
-				break
-			}
-			config.Annotations = annotations
-		case "labels":
-			labels := make(map[string]string)
-			err := json.Unmarshal([]byte(value), &labels)
-			if err != nil {
-				invalid = true
-				break
-			}
-			err = ValidateLabels(labels)
-			if err != nil {
-				invalid = true
-				break
-			}
-			config.Labels = labels
-		default:
-			if config.Extra == nil {
-				config.Extra = make(map[string]string)
-			}
-			config.Extra[key] = value
-		}
-		if invalid {
-			klog.Warningf("ignore invalid configuration line: %q", line)
+		err := parseConfigLine(line, &config)
+		if err != nil {
+			klog.Warningf("ignore invalid configuration line: %q, error: %v", line, err)
 		}
 	}
 	return
