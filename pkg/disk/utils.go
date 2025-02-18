@@ -951,10 +951,12 @@ func patchForNode(node *v1.Node, maxVolumesNum int, diskTypes []string) []byte {
 func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volumeContext map[string]string, zoneID string, contextSource *csi.VolumeContentSource) *csi.Volume {
 	segments := map[string]string{}
 	cateDesc := AllCategories[attempt.Category]
+	volumeContext[labelAppendPrefix+TopologyRegionKey] = GlobalConfigVar.Region
 	if cateDesc.Regional {
 		segments[common.TopologyKeyRegion] = GlobalConfigVar.Region
 	} else {
 		segments[TopologyZoneKey] = zoneID
+		volumeContext[labelAppendPrefix+TopologyZoneKey] = zoneID
 	}
 	if attempt.Instance != "" {
 		segments[common.ECSInstanceIDTopologyKey] = attempt.Instance
