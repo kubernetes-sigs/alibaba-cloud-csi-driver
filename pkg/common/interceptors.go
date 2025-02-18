@@ -11,7 +11,6 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
 
@@ -28,13 +27,15 @@ func logGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, h
 	return resp, err
 }
 
-func instrumentGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler, driverType string, clientset *kubernetes.Clientset) (interface{}, error) {
-	method := info.FullMethod[strings.LastIndex(info.FullMethod, "/")+1:]
-	start := time.Now()
-	resp, err := handler(ctx, req)
-	execTime := time.Since(start)
-	recordExecTime(execTime, method, driverType, err)
-	return resp, err
+func instrumentGRPC(driverType string) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		method := info.FullMethod[strings.LastIndex(info.FullMethod, "/")+1:]
+		start := time.Now()
+		resp, err := handler(ctx, req)
+		execTime := time.Since(start)
+		recordExecTime(execTime, method, driverType, err)
+		return resp, err
+	}
 }
 
 func recordExecTime(time time.Duration, method, driverType string, err error) {
