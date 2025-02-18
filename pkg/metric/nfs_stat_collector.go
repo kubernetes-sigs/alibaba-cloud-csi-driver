@@ -16,7 +16,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
@@ -197,7 +196,7 @@ func getNfsCapacityThreshold() float64 {
 
 // NewNfsStatCollector returns a new Collector exposing nfs stats.
 func NewNfsStatCollector() (Collector, error) {
-	config, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
+	config, err := options.GetRestConfig()
 	if err != nil {
 		return nil, err
 	}

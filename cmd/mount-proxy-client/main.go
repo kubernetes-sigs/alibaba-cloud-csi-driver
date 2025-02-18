@@ -2,13 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 
+	flag "github.com/spf13/pflag"
+
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/client"
-	"k8s.io/klog/v2"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 func main() {
@@ -16,7 +17,8 @@ func main() {
 		socketPath string
 	)
 	flag.StringVar(&socketPath, "socket", "", "socket path")
-	klog.InitFlags(nil)
+	utils.AddKlogFlags(flag.CommandLine)
+	utils.AddGoFlags(flag.CommandLine)
 	flag.Parse()
 
 	var req proxy.MountRequest

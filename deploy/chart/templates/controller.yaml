@@ -298,6 +298,8 @@ spec:
             - "--driver={{ include "enabledControllers" .Values.csi }}"
             - --run-controller-service=true
             - --run-node-service=false
+            - --kube-api-qps=10
+            - --kube-api-burst=20
 {{- if .Values.deploy.featureGates }}
             - "--feature-gates={{ .Values.deploy.featureGates }}"
 {{- end -}}

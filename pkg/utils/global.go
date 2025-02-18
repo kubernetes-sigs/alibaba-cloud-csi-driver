@@ -1,7 +1,11 @@
 package utils
 
 import (
+	"flag"
 	"os"
+
+	"github.com/spf13/pflag"
+	"k8s.io/klog/v2"
 )
 
 // KubeletRootDir kubelet root dir;
@@ -19,4 +23,14 @@ func init() {
 	if tlsDir != "" {
 		MountPathWithTLS = tlsDir
 	}
+}
+
+func AddKlogFlags(fs *pflag.FlagSet) {
+	local := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	klog.InitFlags(local)
+	fs.AddGoFlagSet(local)
+}
+
+func AddGoFlags(fs *pflag.FlagSet) {
+	fs.AddGoFlagSet(flag.CommandLine)
 }

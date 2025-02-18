@@ -19,7 +19,6 @@ package disk
 import (
 	"context"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -36,9 +35,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 )
@@ -148,28 +145,16 @@ func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 	configMapName := "csi-plugin"
 
 	// Global Configs Set
-	cfg, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
+	cfg, err := options.GetRestConfig()
 	if err != nil {
 		klog.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
-	if qps := os.Getenv("KUBE_CLI_API_QPS"); qps != "" {
-		if qpsi, err := strconv.Atoi(qps); err == nil {
-			cfg.QPS = float32(qpsi)
-		}
-	}
-	if burst := os.Getenv("KUBE_CLI_API_BURST"); burst != "" {
-		if qpsi, err := strconv.Atoi(burst); err == nil {
-			cfg.Burst = qpsi
-		}
-	}
-	cfg.AcceptContentTypes = strings.Join([]string{runtime.ContentTypeProtobuf, runtime.ContentTypeJSON}, ",")
 	// snapshotClient does not support protobuf
 	snapClient, err := snapClientset.NewForConfig(cfg)
 	if err != nil {
 		klog.Fatalf("Error building kubernetes snapclientset: %s", err.Error())
 	}
 
-	cfg.ContentType = runtime.ContentTypeProtobuf
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		klog.Fatalf("Error building kubernetes clientset: %s", err.Error())
