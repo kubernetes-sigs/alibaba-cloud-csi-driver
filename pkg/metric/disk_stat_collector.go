@@ -15,7 +15,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
@@ -189,7 +188,7 @@ func getDiskCapacityThreshold() float64 {
 // NewDiskStatCollector returns a new Collector exposing disk stats.
 func NewDiskStatCollector() (Collector, error) {
 	recorder := utils.NewEventRecorder()
-	config, err := clientcmd.BuildConfigFromFlags(options.MasterURL, options.Kubeconfig)
+	config, err := options.GetRestConfig()
 	if err != nil {
 		return nil, err
 	}
