@@ -510,6 +510,11 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	targetPath := req.StagingTargetPath
 	// targetPath format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
 
+	if err := os.MkdirAll(targetPath, 0755); err != nil {
+		klog.Errorf("NodeStageVolume: create volume %s path %s error: %v", req.VolumeId, targetPath, err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	isBlock := req.GetVolumeCapability().GetBlock() != nil
 	if isBlock {
 		targetPath = filepath.Join(targetPath, req.VolumeId)
@@ -527,17 +532,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
 
-	if isBlock {
-		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
-			klog.Errorf("NodeStageVolume: create block volume %s path %s error: %v", req.VolumeId, targetPath, err)
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-	} else {
-		if err := os.MkdirAll(targetPath, 0755); err != nil {
-			klog.Errorf("NodeStageVolume: create volume %s path %s error: %v", req.VolumeId, targetPath, err)
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-	}
 	device := ""
 	isSharedDisk := false
 	if value, ok := req.VolumeContext[SharedEnable]; ok {
@@ -625,6 +619,10 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 
 	// Block volume not need to format
 	if isBlock {
+		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
+			klog.Errorf("NodeStageVolume: create block volume %s path %s error: %v", req.VolumeId, targetPath, err)
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 		notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to check if %s is not a mount point: %v", targetPath, err)
