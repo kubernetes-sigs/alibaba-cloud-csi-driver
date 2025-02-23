@@ -27,7 +27,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/ratelimit v0.1.0
-	golang.org/x/sys v0.19.0
+	golang.org/x/sys v0.30.0
 	google.golang.org/grpc v1.57.1
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/h2non/gock.v1 v1.1.2
