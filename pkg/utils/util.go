@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -175,12 +174,10 @@ func NewEventRecorder() record.EventRecorder {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartLogging(klog.Infof)
 	source := v1.EventSource{Component: "csi-controller-server"}
-	if broadcaster != nil {
-		sink := &v1core.EventSinkImpl{
-			Interface: v1core.New(clientset.CoreV1().RESTClient()).Events(""),
-		}
-		broadcaster.StartRecordingToSink(sink)
+	sink := &v1core.EventSinkImpl{
+		Interface: v1core.New(clientset.CoreV1().RESTClient()).Events(""),
 	}
+	broadcaster.StartRecordingToSink(sink)
 	return broadcaster.NewRecorder(scheme.Scheme, source)
 }
 
@@ -239,7 +236,7 @@ func GetMetaData(resource string) (string, error) {
 		return "", errors.New(msg)
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -290,7 +287,7 @@ func roundUpSize(volumeSizeBytes int64, allocationUnitBytes int64) int64 {
 // ReadJSONFile return a json object
 func ReadJSONFile(file string) (map[string]string, error) {
 	jsonObj := map[string]string{}
-	raw, err := ioutil.ReadFile(file)
+	raw, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
@@ -403,7 +400,7 @@ func GetFileContent(fileName string) string {
 	if !IsFileExisting(volumeFile) {
 		return ""
 	}
-	value, err := ioutil.ReadFile(volumeFile)
+	value, err := os.ReadFile(volumeFile)
 	if err != nil {
 		return ""
 	}
@@ -521,7 +518,10 @@ func Ping(ipAddress string) (*ping.Statistics, error) {
 	pinger.SetPrivileged(true)
 	pinger.Count = 1
 	pinger.Timeout = time.Second * 2
-	pinger.Run()
+	err = pinger.Run()
+	if err != nil {
+		return nil, err
+	}
 	stats := pinger.Statistics()
 	return stats, nil
 }
@@ -597,7 +597,7 @@ func ConnectorRun(cmd ...string) (string, error) {
 	}
 
 	buf := make([]byte, 2048)
-	n, err := c.Read(buf[:])
+	n, _ := c.Read(buf[:])
 	response := string(buf[0:n])
 	if strings.HasPrefix(response, "Success") {
 		respstr := response[8:]
@@ -618,7 +618,7 @@ func AppendJSONData(dataFilePath string, appData map[string]string) error {
 		}
 	}
 	rankingsJSON, _ := json.Marshal(curData)
-	if err := ioutil.WriteFile(dataFilePath, rankingsJSON, 0644); err != nil {
+	if err := os.WriteFile(dataFilePath, rankingsJSON, 0644); err != nil {
 		return err
 	}
 
@@ -787,7 +787,7 @@ func FormatNewDisk(readOnly bool, source, fstype, target string, mkfsOptions, mo
 	_, err := diskMounter.Exec.Command("mkfs."+fstype, args...).CombinedOutput()
 	if err == nil {
 		// the disk has been formatted successfully try to mount it again.
-		klog.Infof("Disk format succeeded, pvName: %s elapsedTime: %+v ms", pvName, time.Now().Sub(startT).Milliseconds())
+		klog.Infof("Disk format succeeded, pvName: %s elapsedTime: %+v ms", pvName, time.Since(startT).Milliseconds())
 		return diskMounter.Interface.Mount(source, target, fstype, mountOptions)
 	}
 	klog.Errorf("format of disk %q failed: type:(%q) target:(%q) options:(%q) error:(%v)", source, fstype, target, args, err)

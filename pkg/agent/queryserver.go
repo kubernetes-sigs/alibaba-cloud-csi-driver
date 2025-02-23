@@ -3,7 +3,7 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -79,7 +79,7 @@ func (ks *QueryServer) RunQueryServer() {
 // volumeInfoHandler reply with volume options.
 func (ks *QueryServer) volumeInfoHandler(w http.ResponseWriter, r *http.Request) {
 	reqInfo := QueryRequest{}
-	content, err := ioutil.ReadAll(r.Body)
+	content, err := io.ReadAll(r.Body)
 	if err != nil {
 		klog.Errorf("Request volumeInfo: Receive request read body error: %s", err.Error())
 		fmt.Fprintf(w, "null")
@@ -161,7 +161,7 @@ func (ks *QueryServer) volumeInfoHandler(w http.ResponseWriter, r *http.Request)
 		}
 
 		// Send response
-		fmt.Fprintf(w, string(responseStr))
+		fmt.Fprint(w, string(responseStr))
 		klog.Infof("Request volumeInfo: Send Successful Response with: %s", responseStr)
 		return
 	}
@@ -169,8 +169,6 @@ func (ks *QueryServer) volumeInfoHandler(w http.ResponseWriter, r *http.Request)
 	// no found volume
 	klog.Warningf("Request volumeInfo: Send Fail Response with: no found volume, %s", fileName)
 	fmt.Fprintf(w, "no found volume: %s", fileName)
-	return
-
 }
 
 // pingHandler ping test

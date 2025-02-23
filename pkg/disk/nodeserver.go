@@ -173,9 +173,18 @@ func parseVolumeCountEnv() (int, error) {
 // NewNodeServer creates node server
 func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 	// Create Directory
-	os.MkdirAll(VolumeDir, os.FileMode(0755))
-	os.MkdirAll(VolumeDirRemove, os.FileMode(0755))
-	os.MkdirAll(RundSocketDir, os.FileMode(0755))
+	err := os.MkdirAll(VolumeDir, os.FileMode(0755))
+	if err != nil {
+		klog.Errorf("Create Directory %s failed: %v", VolumeDir, err)
+	}
+	err = os.MkdirAll(VolumeDirRemove, os.FileMode(0755))
+	if err != nil {
+		klog.Errorf("Create Directory %s failed: %v", VolumeDir, err)
+	}
+	err = os.MkdirAll(RundSocketDir, os.FileMode(0755))
+	if err != nil {
+		klog.Errorf("Create Directory %s failed: %v", VolumeDir, err)
+	}
 
 	if IsVFNode() {
 		klog.Infof("Currently node is VF model")
@@ -574,6 +583,9 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 				// devicePaths, err = GetDeviceByVolumeID(req.GetVolumeId())
 				if bdf != "" {
 					device, err = GetDeviceByBdf(bdf, true)
+					if err != nil {
+						return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to get device by bdf: %v", err)
+					}
 				}
 				klog.Infof("NodeStageVolume: enabled bdf mode, device: %s, bdf: %s", device, bdf)
 			} else {
@@ -815,7 +827,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			klog.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
 			return nil, err
 		}
-		removeVolumeConfig(req.VolumeId)
+		_ = removeVolumeConfig(req.VolumeId)
 	}
 
 	return &csi.NodeUnstageVolumeResponse{}, nil
@@ -915,7 +927,7 @@ func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 
 	volumeExpandAutoSnapshotID := ""
 	if pvc != nil && pvc.Annotations != nil {
-		volumeExpandAutoSnapshotID, _ = pvc.Annotations[veasp.IDKey]
+		volumeExpandAutoSnapshotID = pvc.Annotations[veasp.IDKey]
 	}
 
 	// volume resize in rund type will transfer to guest os

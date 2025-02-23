@@ -251,7 +251,7 @@ func NewNfsStatCollector() (Collector, error) {
 func (p *nfsStatCollector) Update(ch chan<- prometheus.Metric) error {
 	//startTime := time.Now()
 	pvNameStatsMap, err := getNfsStat()
-	if pvNameStatsMap == nil || len(pvNameStatsMap) == 0 {
+	if len(pvNameStatsMap) == 0 {
 		return nil
 	}
 
@@ -376,16 +376,16 @@ func (p *nfsStatCollector) updateNfsInfoMap(thisPvNfsInfoMap map[string]nfsInfo,
 func getNfsStat() (map[string][]string, error) {
 	pvNameStatMapping := make(map[string][]string, 0)
 	mountStatsFile, err := os.Open(nfsStatsFileName)
-	defer mountStatsFile.Close()
 	if mountStatsFile == nil {
-		return nil, errors.New(fmt.Sprintf("File %s is not found.", nfsStatsFileName))
+		return nil, fmt.Errorf("File %s is not found.", nfsStatsFileName)
 	}
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Open file %s is error, err:%s", nfsStatsFileName, err))
+		return nil, fmt.Errorf("Open file %s is error, err:%s", nfsStatsFileName, err)
 	}
+	defer mountStatsFile.Close()
 	mountArr, err := parseMountStats(mountStatsFile)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("ParseMountStats %s is error, err:%s.", nfsStatsFileName, err))
+		return nil, fmt.Errorf("ParseMountStats %s is error, err:%s.", nfsStatsFileName, err)
 	}
 	for _, mount := range mountArr {
 		nfsOperationStats := mount.Stats.operationStats()

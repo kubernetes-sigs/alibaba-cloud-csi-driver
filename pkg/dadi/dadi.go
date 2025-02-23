@@ -39,13 +39,13 @@ func getEndPoints(kubeClient kubernetes.Interface, namespace string) *corev1.End
 func checkEndPoints(endpoints *corev1.Endpoints) bool {
 	if len(endpoints.Subsets) == 0 {
 		msg := fmt.Sprintf("%s endpoints.Subsets is empty.endpoints:%+v", cnfsCacheEndpointsName, endpoints)
-		klog.Errorf(msg)
+		klog.Error(msg)
 		return false
 	}
 	for _, endpointSubset := range endpoints.Subsets {
 		if len(endpointSubset.Addresses) == 0 {
 			msg := fmt.Sprintf("%s endpoints.Subsets.Addresses is empty.endpoints:%+v", cnfsCacheEndpointsName, endpoints)
-			klog.Errorf(msg)
+			klog.Error(msg)
 			return false
 		}
 	}

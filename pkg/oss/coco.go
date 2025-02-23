@@ -53,7 +53,7 @@ func (ns *nodeServer) publishDirectVolume(ctx context.Context, req *csi.NodePubl
 		case optKmsKeyId:
 			kmsKeyId = strings.TrimSpace(value)
 		case optAnnotations:
-			json.Unmarshal([]byte(value), &annotationsObj)
+			_ = json.Unmarshal([]byte(value), &annotationsObj)
 		}
 	}
 
@@ -130,8 +130,5 @@ func (ns *nodeServer) unPublishDirectVolume(ctx context.Context, req *csi.NodeUn
 
 func isDirectVolumePath(volumePath string) bool {
 	_, err := directvolume.VolumeMountInfo(volumePath)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }

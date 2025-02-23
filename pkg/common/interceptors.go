@@ -38,11 +38,10 @@ func instrumentGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServer
 }
 
 func recordExecTime(time time.Duration, method, driverType string, err error) {
-	errCode := status.Code(err).String()
 	labels := prometheus.Labels{
 		metric.CsiGrpcExecTimeLabelMethod: method,
 		metric.CsiGrpcExecTimeLabelType:   driverType,
-		metric.CsiGrpcExecTimeLabelCode:   errCode,
+		metric.CsiGrpcExecTimeLabelCode:   status.Code(err).String(),
 	}
 	metric.CsiGrpcExecTimeCollector.ExecCountMetric.With(labels).Inc()
 	metric.CsiGrpcExecTimeCollector.ExecTimeTotalMetric.With(labels).Add(time.Seconds())

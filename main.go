@@ -266,5 +266,5 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	time := time.Now()
 	message := "Liveness probe is OK, time:" + time.String()
-	w.Write([]byte(message))
+	_, _ = w.Write([]byte(message))
 }

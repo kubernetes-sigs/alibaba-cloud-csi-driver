@@ -121,7 +121,7 @@ func checkBdfHangCmd(finished chan<- struct{}) {
 		panic(err) // the only error Glob can return is ErrBadPattern, which should not happen
 	}
 	for _, file := range files {
-		os.ReadFile(file) // ignore error
+		_, _ = os.ReadFile(file) // ignore error
 	}
 	finished <- struct{}{}
 }
