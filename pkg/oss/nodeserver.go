@@ -102,7 +102,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, err
 	}
 	// check if already mounted
-	notMnt, err := isNotMountPoint(ns.rawMounter, targetPath, true)
+	notMnt, err := isNotMountPoint(ns.rawMounter, targetPath)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// When work as csi nodeserver, mount on the attach path under /run/fuse.ossfs and then perform the bind mount.
 	// check whether the attach path is mounted
 	attachPath := mounter.GetOssfsAttachPath(req.VolumeId)
-	notMnt, err = isNotMountPoint(ns.rawMounter, attachPath, false)
+	notMnt, err = isNotMountPoint(ns.rawMounter, attachPath)
 	if err != nil {
 		return nil, err
 	}

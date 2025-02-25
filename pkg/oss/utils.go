@@ -322,12 +322,8 @@ func parseOtherOpts(otherOpts string) (mountOptions []string, err error) {
 	return mountOptions, nil
 }
 
-func isNotMountPoint(mounter mountutils.Interface, target string, expensive bool) (notMnt bool, err error) {
-	if expensive {
-		notMnt, err = mountutils.IsNotMountPoint(mounter, target)
-	} else {
-		notMnt, err = mounter.IsLikelyNotMountPoint(target)
-	}
+func isNotMountPoint(mounter mountutils.Interface, target string) (notMnt bool, err error) {
+	notMnt, err = mounter.IsLikelyNotMountPoint(target)
 	if err != nil {
 		if os.IsNotExist(err) {
 			if err := os.MkdirAll(target, os.ModePerm); err != nil {
