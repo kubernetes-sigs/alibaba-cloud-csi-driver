@@ -92,7 +92,7 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 			nodeName:   nodeName,
 			clientset:  clientset,
 			cnfsGetter: cnfsGetter,
-			rawMounter: mountutils.New(""),
+			rawMounter: mountutils.NewWithoutSystemd(""),
 			ossfs:      ossfs,
 			GenericNodeServer: common.GenericNodeServer{
 				NodeID: nodeName,

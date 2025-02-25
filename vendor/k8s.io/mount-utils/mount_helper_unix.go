@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 /*
@@ -19,12 +20,18 @@ limitations under the License.
 package mount
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
+	"golang.org/x/sys/unix"
+	"k8s.io/klog/v2"
 	utilio "k8s.io/utils/io"
 )
 
@@ -32,7 +39,7 @@ const (
 	// At least number of fields per line in /proc/<pid>/mountinfo.
 	expectedAtLeastNumFieldsPerMountInfo = 10
 	// How many times to retry for a consistent read of /proc/mounts.
-	maxListTries = 3
+	maxListTries = 10
 )
 
 // IsCorruptedMnt return true if err is about corrupted mount point
@@ -50,9 +57,17 @@ func IsCorruptedMnt(err error) bool {
 		underlyingError = pe.Err
 	case *os.SyscallError:
 		underlyingError = pe.Err
+	case syscall.Errno:
+		underlyingError = err
 	}
 
-	return underlyingError == syscall.ENOTCONN || underlyingError == syscall.ESTALE || underlyingError == syscall.EIO || underlyingError == syscall.EACCES || underlyingError == syscall.EHOSTDOWN
+	return errors.Is(underlyingError, syscall.ENOTCONN) ||
+		errors.Is(underlyingError, syscall.ESTALE) ||
+		errors.Is(underlyingError, syscall.EIO) ||
+		errors.Is(underlyingError, syscall.EACCES) ||
+		errors.Is(underlyingError, syscall.EHOSTDOWN) ||
+		errors.Is(underlyingError, syscall.EWOULDBLOCK) ||
+		errors.Is(underlyingError, syscall.ENODEV)
 }
 
 // MountInfo represents a single line in /proc/<pid>/mountinfo.
@@ -85,7 +100,7 @@ type MountInfo struct { // nolint: golint
 
 // ParseMountInfo parses /proc/xxx/mountinfo.
 func ParseMountInfo(filename string) ([]MountInfo, error) {
-	content, err := utilio.ConsistentRead(filename, maxListTries)
+	content, err := readMountInfo(filename)
 	if err != nil {
 		return []MountInfo{}, err
 	}
@@ -130,7 +145,7 @@ func ParseMountInfo(filename string) ([]MountInfo, error) {
 			Minor:        minor,
 			Root:         fields[3],
 			MountPoint:   fields[4],
-			MountOptions: strings.Split(fields[5], ","),
+			MountOptions: splitMountOptions(fields[5]),
 		}
 		// All fields until "-" are "optional fields".
 		i := 6
@@ -144,15 +159,98 @@ func ParseMountInfo(filename string) ([]MountInfo, error) {
 		}
 		info.FsType = fields[i]
 		info.Source = fields[i+1]
-		info.SuperOptions = strings.Split(fields[i+2], ",")
+		info.SuperOptions = splitMountOptions(fields[i+2])
 		infos = append(infos, info)
 	}
 	return infos, nil
 }
 
+// splitMountOptions parses comma-separated list of mount options into an array.
+// It respects double quotes - commas in them are not considered as the option separator.
+func splitMountOptions(s string) []string {
+	inQuotes := false
+	list := strings.FieldsFunc(s, func(r rune) bool {
+		if r == '"' {
+			inQuotes = !inQuotes
+		}
+		// Report a new field only when outside of double quotes.
+		return r == ',' && !inQuotes
+	})
+	return list
+}
+
 // isMountPointMatch returns true if the path in mp is the same as dir.
 // Handles case where mountpoint dir has been renamed due to stale NFS mount.
 func isMountPointMatch(mp MountPoint, dir string) bool {
-	deletedDir := fmt.Sprintf("%s\\040(deleted)", dir)
-	return ((mp.Path == dir) || (mp.Path == deletedDir))
+	return strings.TrimSuffix(mp.Path, "\\040(deleted)") == dir
+}
+
+// PathExists returns true if the specified path exists.
+// TODO: clean this up to use pkg/util/file/FileExists
+func PathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	} else if errors.Is(err, fs.ErrNotExist) {
+		err = syscall.Access(path, syscall.F_OK)
+		if err == nil {
+			// The access syscall says the file exists, the stat syscall says it
+			// doesn't. This was observed on CIFS when the path was removed at
+			// the server somehow. POSIX calls this a stale file handle, let's fake
+			// that error and treat the path as existing but corrupted.
+			klog.Warningf("Potential stale file handle detected: %s", path)
+			return true, syscall.ESTALE
+		}
+		return false, nil
+	} else if IsCorruptedMnt(err) {
+		return true, err
+	}
+	return false, err
+}
+
+// These variables are used solely by kernelHasMountinfoBug.
+var (
+	hasMountinfoBug       bool
+	checkMountinfoBugOnce sync.Once
+)
+
+// kernelHasMountinfoBug checks if the kernel bug that can lead to incomplete
+// mountinfo being read is fixed. It does so by checking the kernel version.
+//
+// The bug was fixed by the kernel commit 9f6c61f96f2d97 (since Linux 5.8).
+// Alas, there is no better way to check if the bug is fixed other than to
+// rely on the kernel version returned by uname.
+func kernelHasMountinfoBug() bool {
+	checkMountinfoBugOnce.Do(func() {
+		// Assume old kernel.
+		hasMountinfoBug = true
+
+		uname := unix.Utsname{}
+		err := unix.Uname(&uname)
+		if err != nil {
+			return
+		}
+
+		end := bytes.IndexByte(uname.Release[:], 0)
+		v := bytes.SplitN(uname.Release[:end], []byte{'.'}, 3)
+		if len(v) != 3 {
+			return
+		}
+		major, _ := strconv.Atoi(string(v[0]))
+		minor, _ := strconv.Atoi(string(v[1]))
+
+		if major > 5 || (major == 5 && minor >= 8) {
+			hasMountinfoBug = false
+		}
+	})
+
+	return hasMountinfoBug
+}
+
+func readMountInfo(path string) ([]byte, error) {
+	if kernelHasMountinfoBug() {
+		return utilio.ConsistentRead(path, maxListTries)
+	}
+
+	return os.ReadFile(path)
 }

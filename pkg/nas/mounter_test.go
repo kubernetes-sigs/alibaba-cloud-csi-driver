@@ -8,45 +8,19 @@ import (
 	mountutils "k8s.io/mount-utils"
 )
 
-type baseMockMounter struct{}
-
-func (m baseMockMounter) MountSensitive(source string, target string, fstype string, options []string, sensitiveOptions []string) error {
-	return nil
-}
-
-func (m baseMockMounter) MountSensitiveWithoutSystemd(source string, target string, fstype string, options []string, sensitiveOptions []string) error {
-	return nil
-}
-
-func (m baseMockMounter) Unmount(target string) error {
-	return nil
-}
-
-func (m baseMockMounter) List() ([]mountutils.MountPoint, error) {
-	return []mountutils.MountPoint{}, nil
-}
-
-func (m baseMockMounter) IsLikelyNotMountPoint(file string) (bool, error) {
-	return false, nil
-}
-
-func (m baseMockMounter) GetMountRefs(pathname string) ([]string, error) {
-	return []string{}, nil
-}
-
 type successMockMounter struct {
-	baseMockMounter
+	mountutils.FakeMounter
 }
 
-func (m successMockMounter) Mount(source string, target string, fstype string, options []string) error {
+func (m *successMockMounter) Mount(source string, target string, fstype string, options []string) error {
 	return nil
 }
 
 type errorMockMounter struct {
-	baseMockMounter
+	mountutils.FakeMounter
 }
 
-func (m errorMockMounter) Mount(source string, target string, fstype string, options []string) error {
+func (m *errorMockMounter) Mount(source string, target string, fstype string, options []string) error {
 	return errors.New("")
 }
 
@@ -57,8 +31,8 @@ func TestNewNasMounter(t *testing.T) {
 
 func TestNasMounter_MountSuccess(t *testing.T) {
 	nasMounter := &NasMounter{
-		Interface:     successMockMounter{},
-		alinasMounter: successMockMounter{},
+		Interface:     &successMockMounter{},
+		alinasMounter: &successMockMounter{},
 	}
 	err := nasMounter.Mount("", "", "nas", []string{})
 	assert.NoError(t, err)
@@ -66,8 +40,8 @@ func TestNasMounter_MountSuccess(t *testing.T) {
 
 func TestNasMounter_FuseMountError(t *testing.T) {
 	nasMounter := &NasMounter{
-		Interface:     errorMockMounter{},
-		alinasMounter: errorMockMounter{},
+		Interface:     &errorMockMounter{},
+		alinasMounter: &errorMockMounter{},
 	}
 	err := nasMounter.Mount("", "", "cpfs", []string{})
 	assert.Error(t, err)

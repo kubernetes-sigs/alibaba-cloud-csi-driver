@@ -240,7 +240,7 @@ func NewDiskStatCollector() (Collector, error) {
 		milliSecondsLatencyThreshold: getDiskLatencyThreshold(),
 		capacityPercentageThreshold:  getDiskCapacityThreshold(),
 		recorder:                     recorder,
-		mounter:                      mount.New(""),
+		mounter:                      mount.NewWithoutSystemd(""),
 		nodeName:                     nodeName,
 	}, nil
 }
