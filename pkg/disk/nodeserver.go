@@ -669,17 +669,7 @@ func (ns *nodeServer) setupDisk(ctx context.Context, device, targetPath string, 
 	return nil
 }
 
-func addDiskXattr(diskID string) (err error) {
-	defer func() {
-		if errors.Is(err, os.ErrNotExist) {
-			klog.Infof("addDiskXattr: disk %s not found, skip", diskID)
-			err = nil
-		}
-	}()
-	device, err := GetVolumeDeviceName(diskID)
-	if err != nil {
-		return
-	}
+func addDiskXattr(device, diskID string) (err error) {
 	return unix.Setxattr(device, DiskXattrName, []byte(diskID), 0)
 }
 
@@ -772,25 +762,53 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		}
 	}
 
-	err := addDiskXattr(req.VolumeId)
+	// All device related errors are not fatal, just log it
+	device, err := GetVolumeDeviceName(req.VolumeId)
 	if err != nil {
-		klog.Errorf("NodeUnstageVolume: addDiskXattr %s failed: %v", req.VolumeId, err)
+		if errors.Is(err, os.ErrNotExist) {
+			klog.Infof("NodeUnstagedVolume: device for disk %s not found", req.VolumeId)
+		} else {
+			klog.ErrorS(err, "failed to get device for disk", "disk", req.VolumeId)
+		}
+	} else {
+		err := addDiskXattr(device, req.VolumeId)
+		if err != nil {
+			klog.Errorf("NodeUnstageVolume: addDiskXattr %s failed: %v", req.VolumeId, err)
+		}
 	}
 
-	// Do detach if ADController disable
-	if !GlobalConfigVar.ADControllerEnable {
-		// if DetachDisabled is set to true, return
-		if GlobalConfigVar.DetachDisabled {
-			klog.Infof("NodeUnstageVolume: ADController is Disable, Detach Flag Set to false, PV %s", req.VolumeId)
+	defer func() {
+		if err == nil {
+			if err := removeVolumeConfig(req.VolumeId); err != nil {
+				klog.Errorf("NodeUnstageVolume: remove volume config %s failed: %v", req.VolumeId, err)
+			}
+		}
+	}()
+
+	if GlobalConfigVar.ADControllerEnable {
+		return &csi.NodeUnstageVolumeResponse{}, nil
+	}
+	if GlobalConfigVar.DetachDisabled {
+		klog.Infof("NodeUnstageVolume: ADController is Disable, Detach Flag Set to false, PV %s", req.VolumeId)
+		return &csi.NodeUnstageVolumeResponse{}, nil
+	}
+
+	if device != "" {
+		// best effort to avoid OpenAPI call. detachDisk will check again.
+		// TODO: this check only works for root device, not partition. We should move partition logic to be file-system only.
+		// See https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pull/1071
+		serial, _ := ns.ad.dev.GetDeviceSerial(filepath.Base(device))
+		if serial != "" {
+			klog.V(2).InfoS("locally checked disk has serial number, defer detach to controller")
 			return &csi.NodeUnstageVolumeResponse{}, nil
 		}
-		ecsClient := GlobalConfigVar.EcsClient
-		err = ns.ad.detachDisk(ctx, ecsClient, req.VolumeId, ns.NodeID, true)
-		if err != nil {
-			klog.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
-			return nil, err
-		}
-		_ = removeVolumeConfig(req.VolumeId)
+	}
+	// Do detach if ADController is disabled and disk has no serial number
+	ecsClient := GlobalConfigVar.EcsClient
+	err = ns.ad.detachDisk(ctx, ecsClient, req.VolumeId, ns.NodeID, true)
+	if err != nil {
+		klog.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
+		return nil, err
 	}
 
 	return &csi.NodeUnstageVolumeResponse{}, nil
