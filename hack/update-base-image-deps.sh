@@ -4,7 +4,7 @@ set -e
 
 # Get visibility on what is included in our base image
 scan() {
-    if command -v buildctl; then
+    if command -v buildctl > /dev/null; then
         buildctl build --frontend dockerfile.v0 \
             --local context=. \
             --local dockerfile=build/multi \

@@ -39,7 +39,7 @@ local nodePool = {
 {
     name: clusterName,
     cluster_type: "ManagedKubernetes",
-    kubernetes_version: "1.31.1-aliyun.1",
+    kubernetes_version: "1.32.1-aliyun.1",
     region_id: std.extVar("region"),
     snat_entry: true,
     cloud_monitor_flags: false,
