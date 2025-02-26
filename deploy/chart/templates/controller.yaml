@@ -109,6 +109,7 @@ spec:
               memory: 1024Mi
           args:
             - --v=5
+            - --logging-format={{ .Values.logging.format }}
             - --csi-address=/csi/csi.sock
             - --leader-election=true
             - --kube-api-qps=50
@@ -128,10 +129,11 @@ spec:
               cpu: 500m
               memory: 1Gi
           args:
-            - "--v=5"
-            - "--csi-address=/csi/csi.sock"
-            - "--leader-election"
-            - "--handle-volume-inuse-error=false"
+            - --v=5
+            - --logging-format={{ .Values.logging.format }}
+            - --csi-address=/csi/csi.sock
+            - --leader-election
+            - --handle-volume-inuse-error=false
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
@@ -145,11 +147,11 @@ spec:
               cpu: 500m
               memory: 1024Mi
           args:
-            - "--v=5"
-            - "--csi-address=/csi/csi.sock"
-            - "--leader-election=true"
-            - "--extra-create-metadata=true"
-            - "--enable-volume-group-snapshots=true"
+            - --v=5
+            - --csi-address=/csi/csi.sock
+            - --leader-election=true
+            - --extra-create-metadata=true
+            - --enable-volume-group-snapshots=true
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
@@ -164,9 +166,9 @@ spec:
               cpu: 500m
               memory: 1024Mi
           args:
-            - "--v=5"
-            - "--leader-election=true"
-            - "--enable-volume-group-snapshots=true"
+            - --v=5
+            - --leader-election=true
+            - --enable-volume-group-snapshots=true
 {{- end -}}
 {{- end -}}
 {{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
@@ -180,13 +182,13 @@ spec:
               cpu: 500m
               memory: 1024Mi
           args:
-            - "--csi-address=/csi/csi.sock"
-            - "--volume-name-prefix=nas"
-            - "--timeout=150s"
-            - "--leader-election=true"
-            - "--retry-interval-start=500ms"
-            - "--default-fstype=nfs"
-            - "--v=5"
+            - --csi-address=/csi/csi.sock
+            - --volume-name-prefix=nas
+            - --timeout=150s
+            - --leader-election=true
+            - --retry-interval-start=500ms
+            - --default-fstype=nfs
+            - --v=5
           volumeMounts:
             - name: nas-provisioner-dir
               mountPath: /csi
@@ -200,10 +202,11 @@ spec:
               cpu: 500m
               memory: 1Gi
           args:
-            - "--v=5"
-            - "--csi-address=/csi/csi.sock"
-            - "--leader-election"
-            - "--handle-volume-inuse-error=false"
+            - --v=5
+            - --logging-format={{ .Values.logging.format }}
+            - --csi-address=/csi/csi.sock
+            - --leader-election
+            - --handle-volume-inuse-error=false
           volumeMounts:
             - name: nas-provisioner-dir
               mountPath: /csi
@@ -240,6 +243,7 @@ spec:
               memory: 1024Mi
           args:
             - --v=5
+            - --logging-format={{ .Values.logging.format }}
             - --csi-address=/csi/csi.sock
             - --leader-election=true
             - --kube-api-qps=50
@@ -283,6 +287,7 @@ spec:
               memory: 1Gi
           args:
             - --v=5
+            - --logging-format={{ .Values.logging.format }}
             - --csi-address=/csi/csi.sock
             - --leader-election
             - --handle-volume-inuse-error=false
@@ -293,8 +298,9 @@ spec:
         - name: csi-provisioner
           image: {{ include "imageSpec" (list .Values.images "controller") }}
           args:
-            - "--endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock"
-            - "--v=2"
+            - --endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock
+            - --v=2
+            - --logging-format={{ .Values.logging.format }}
             - "--driver={{ include "enabledControllers" .Values.csi }}"
             - --run-controller-service=true
             - --run-node-service=false
