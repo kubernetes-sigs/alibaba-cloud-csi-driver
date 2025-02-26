@@ -116,7 +116,6 @@ replace (
 	github.com/pkg/errors => github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.11.1
 	github.com/spf13/pflag => github.com/spf13/pflag v1.0.3
-	github.com/stretchr/testify => github.com/stretchr/testify v1.3.0
 	google.golang.org/appengine => google.golang.org/appengine v1.4.0
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.2
 	sigs.k8s.io/yaml => sigs.k8s.io/yaml v1.1.0
