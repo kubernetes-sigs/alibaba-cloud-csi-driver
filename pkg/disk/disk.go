@@ -22,12 +22,16 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csicommon "github.com/kubernetes-csi/drivers/pkg/csi-common"
 	snapClientset "github.com/kubernetes-csi/external-snapshotter/client/v4/clientset/versioned"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/batcher"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/log"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -37,6 +41,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/utils/clock"
 )
 
 // PluginFolder defines the location of diskplugin
@@ -435,4 +440,24 @@ func GlobalConfigSet(nodeID string) *restclient.Config {
 		OmitFilesystemCheck:   omitFsCheck,
 	}
 	return cfg
+}
+
+func newBatcher(fromNode bool) (waitstatus.StatusWaiter[ecs.Disk], batcher.Batcher[ecs.Disk]) {
+	client := desc.Disk{Client: GlobalConfigVar.EcsClient}
+	ctx := context.Background()
+	interval := 1 * time.Second
+	if fromNode {
+		interval = 2 * time.Second // We have many nodes, use longer interval to avoid throttling
+	}
+	waiter := waitstatus.NewBatched(client, clock.RealClock{}, interval, 3*time.Second)
+	waiter.PollHook = func() desc.Client[ecs.Disk] {
+		return desc.Disk{Client: updateEcsClient(GlobalConfigVar.EcsClient)}
+	}
+	go waiter.Run(ctx)
+
+	b := batcher.NewLowLatency(client, clock.RealClock{}, 1*time.Second, 8)
+	b.PollHook = waiter.PollHook
+	go b.Run(ctx)
+
+	return waiter, b
 }
