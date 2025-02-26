@@ -70,3 +70,11 @@ func (a *CSIAgent) NodePublishVolume(ctx context.Context, req *csi.NodePublishVo
 	}
 	return &csi.NodePublishVolumeResponse{}, nil
 }
+
+func (a *CSIAgent) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+	err := utils.CleanupSimpleMount(req.TargetPath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to cleanup %s: %v", req.TargetPath, err)
+	}
+	return &csi.NodeUnpublishVolumeResponse{}, nil
+}
