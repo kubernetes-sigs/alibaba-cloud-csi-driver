@@ -37,7 +37,7 @@ func (m *ProxyMounter) MountWithSecrets(source, target, fstype string, options [
 	if err != nil {
 		return fmt.Errorf("failed to mount: %w", err)
 	}
-	notMnt, err := mountutils.IsNotMountPoint(m.Interface, target)
+	notMnt, err := m.IsLikelyNotMountPoint(target)
 	if err != nil {
 		return err
 	}
