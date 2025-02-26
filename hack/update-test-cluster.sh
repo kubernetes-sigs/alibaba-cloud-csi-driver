@@ -22,7 +22,7 @@ sed -i '' "s/kubernetes_version:.*/kubernetes_version: $k8s,/;
            s/runtime_version:.*/runtime_version: $containerd,/;" \
     test/cluster/cluster-template.jsonnet
 
-sed -i '' "s/\${OS_IMAGE_ALINUX3.*}/\${OS_IMAGE_ALINUX3:-$alinux3}/;
-           s/\${OS_IMAGE_ALINUX3_ARM64.*}/\${OS_IMAGE_ALINUX3_ARM64:-$alinux3arm}/;
-           s/\${OS_IMAGE_CONTAINEROS3.*}/\${OS_IMAGE_CONTAINEROS3:-$containeros}/;" \
+sed -i '' "s/\${OS_IMAGE_ALINUX3:.*}/\${OS_IMAGE_ALINUX3:-$alinux3}/;
+           s/\${OS_IMAGE_ALINUX3_ARM64:.*}/\${OS_IMAGE_ALINUX3_ARM64:-$alinux3arm}/;
+           s/\${OS_IMAGE_CONTAINEROS3:.*}/\${OS_IMAGE_CONTAINEROS3:-$containeros}/;" \
     test/cluster/cluster_setup.sh
