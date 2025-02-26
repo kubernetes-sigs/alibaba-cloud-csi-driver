@@ -2,6 +2,8 @@
 
 set -e
 
+SYFT=(syft scan -o template -t ./hack/base-image-deps.tpl)
+
 # Get visibility on what is included in our base image
 scan() {
     if command -v buildctl > /dev/null; then
@@ -11,14 +13,14 @@ scan() {
             --opt filename=Dockerfile.multi \
             --opt platform=linux/amd64 \
             --opt target=dep-list \
-            --output type=oci | syft scan -o syft-table oci-archive:/dev/stdin
+            --output type=oci | "${SYFT[@]}" oci-archive:/dev/stdin
     else
         docker buildx build . \
             --platform linux/amd64 \
             -f ./build/multi/Dockerfile.multi \
             --target dep-list \
             --output type=image,name=csi-dep-list
-        syft scan -o syft-table docker:csi-dep-list
+        "${SYFT[@]}" docker:csi-dep-list
     fi
 }
 
