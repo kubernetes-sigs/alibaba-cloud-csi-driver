@@ -1,6 +1,6 @@
 module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 
-go 1.18
+go 1.22
 
 require (
 	github.com/alibabacloud-go/darabonba-openapi v0.1.16
@@ -11,6 +11,7 @@ require (
 	github.com/containerd/ttrpc v1.1.0
 	github.com/docker/docker v0.7.3-0.20190327010347-be7ac8be2ae0
 	github.com/emirpasic/gods v1.12.0
+	github.com/go-logr/logr v1.2.3
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.6.0
@@ -35,6 +36,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.18.8
 	k8s.io/apimachinery v0.26.12
 	k8s.io/client-go v0.26.12
+	k8s.io/klog/v2 v2.80.1
 	k8s.io/kubelet v0.26.12
 	k8s.io/mount-utils v0.21.1
 	k8s.io/utils v0.0.0-20221107191617-1a15be271d1d
@@ -56,7 +58,6 @@ require (
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
-	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
 	github.com/go-openapi/swag v0.19.14 // indirect
@@ -98,7 +99,6 @@ require (
 	gopkg.in/ini.v1 v1.66.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280 // indirect
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
@@ -116,7 +116,6 @@ replace (
 	github.com/pkg/errors => github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.11.1
 	github.com/spf13/pflag => github.com/spf13/pflag v1.0.3
-	github.com/stretchr/testify => github.com/stretchr/testify v1.3.0
 	google.golang.org/appengine => google.golang.org/appengine v1.4.0
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.2
 	sigs.k8s.io/yaml => sigs.k8s.io/yaml v1.1.0

@@ -44,16 +44,19 @@ type nodeServer struct {
 	mounter           utils.Mounter
 	k8smounter        k8smount.Interface
 	clientSet         *kubernetes.Clientset
+	ad                DiskAttachDetach
 	*csicommon.DefaultNodeServer
 }
 
+// Disk status returned in ecs.DescribeDisks
 const (
-	// DiskStatusInuse disk inuse status
-	DiskStatusInuse = "In_use"
-	// DiskStatusAttaching disk attaching status
+	DiskStatusInuse     = "In_use"
 	DiskStatusAttaching = "Attaching"
-	// DiskStatusAvailable disk available status
+	DiskStatusDetaching = "Detaching"
 	DiskStatusAvailable = "Available"
+)
+
+const (
 	// DiskStatusAttached disk attached status
 	DiskStatusAttached = "attached"
 	// DiskStatusDetached disk detached status
@@ -190,14 +193,19 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		go BdfHealthCheck()
 	}
 
+	waiter, batcher := newBatcher(true)
 	return &nodeServer{
 		zone:              GlobalConfigVar.ZoneID,
 		maxVolumesPerNode: maxVolumesNum,
 		nodeID:            GlobalConfigVar.NodeID,
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
-		mounter:           utils.NewMounter(),
-		k8smounter:        k8smount.New(""),
-		clientSet:         GlobalConfigVar.ClientSet,
+		ad: DiskAttachDetach{
+			waiter:  waiter,
+			batcher: batcher,
+		},
+		mounter:    utils.NewMounter(),
+		k8smounter: k8smount.New(""),
+		clientSet:  GlobalConfigVar.ClientSet,
 	}
 }
 
@@ -623,7 +631,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			device = ChooseDevice(rootDevice, subDevice)
 		}
 	} else {
-		device, err = attachDisk(req.VolumeContext[TenantUserUID], req.GetVolumeId(), ns.nodeID, isSharedDisk)
+		device, err = ns.ad.attachDisk(ctx, req.VolumeContext[TenantUserUID], req.GetVolumeId(), ns.nodeID, isSharedDisk)
 		if err != nil {
 			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
 			log.Log.Errorf("NodeStageVolume: Attach volume: %s with error: %s", req.VolumeId, fullErrorMessage)
@@ -838,7 +846,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		err = detachDisk(ecsClient, req.VolumeId, ns.nodeID)
+		err = ns.ad.detachDisk(ctx, ecsClient, req.VolumeId, ns.nodeID)
 		if err != nil {
 			log.Log.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
 			return nil, err
