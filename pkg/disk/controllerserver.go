@@ -279,7 +279,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				// TODO: ECI does not support multi-attach?
 				return nil, status.Errorf(codes.Internal, "refuse to delete disk on serverless instance %s", disk.InstanceId)
 			}
-			err := cs.ad.detachDisk(ctx, ecsClient, req.VolumeId, disk.InstanceId)
+			err := cs.ad.detachDisk(ctx, ecsClient, req.VolumeId, disk.InstanceId, false)
 			if err != nil {
 				newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
 				return nil, status.Errorf(codes.Internal, "DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, newErrMsg)
@@ -365,11 +365,6 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 
-	if !GlobalConfigVar.ADControllerEnable {
-		klog.Infof("ControllerPublishVolume: ADController Disable to attach disk: %s to node: %s", req.VolumeId, req.NodeId)
-		return &csi.ControllerPublishVolumeResponse{}, nil
-	}
-
 	klog.Infof("ControllerPublishVolume: start attach disk: %s to node: %s", req.VolumeId, req.NodeId)
 	isSharedDisk := false
 	if value, ok := req.VolumeContext[SharedEnable]; ok {
@@ -384,13 +379,21 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		isSingleInstance = AllCategories[Category(value)].SingleInstance
 	}
 
-	_, err := cs.ad.attachDisk(ctx, req.VolumeId, req.NodeId, isSharedDisk, isSingleInstance, false)
+	serial, err := cs.ad.attachDisk(ctx, req.VolumeId, req.NodeId, isSharedDisk, isSingleInstance, false)
 	if err != nil {
 		klog.Errorf("ControllerPublishVolume: attach disk: %s to node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
 	}
-	klog.Infof("ControllerPublishVolume: Successful attach disk: %s to node: %s", req.VolumeId, req.NodeId)
-	return &csi.ControllerPublishVolumeResponse{}, nil
+	if serial == "" {
+		klog.Infof("ControllerPublishVolume: disk %s has no serial number, defer attach to node", req.VolumeId)
+	} else {
+		klog.Infof("ControllerPublishVolume: successfully attached disk: %s (serial %s) to node: %s", req.VolumeId, serial, req.NodeId)
+	}
+	return &csi.ControllerPublishVolumeResponse{
+		PublishContext: map[string]string{
+			PUBLISH_CONTEXT_SERIAL: serial,
+		},
+	}, nil
 }
 
 // ControllerUnpublishVolume do detach
@@ -406,19 +409,14 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
-	if !GlobalConfigVar.ADControllerEnable {
-		klog.Infof("ControllerUnpublishVolume: ADController Disable to detach disk: %s from node: %s", req.VolumeId, req.NodeId)
-		return &csi.ControllerUnpublishVolumeResponse{}, nil
-	}
-
 	// if DetachDisabled is set to true, return
 	if GlobalConfigVar.DetachDisabled {
-		klog.Infof("ControllerUnpublishVolume: ADController is Enable, Detach Flag Set to false, PV %s, Node: %s", req.VolumeId, req.NodeId)
+		klog.Infof("ControllerUnpublishVolume: Detach disabled, kept disk %s on node %s", req.VolumeId, req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
 
 	klog.Infof("ControllerUnpublishVolume: detach disk: %s from node: %s", req.VolumeId, req.NodeId)
-	err = cs.ad.detachDisk(ctx, ecsClient, req.VolumeId, req.NodeId)
+	err = cs.ad.detachDisk(ctx, ecsClient, req.VolumeId, req.NodeId, false)
 	if err != nil {
 		klog.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
