@@ -45,6 +45,7 @@ type nodeServer struct {
 	k8smounter        k8smount.Interface
 	clientSet         *kubernetes.Clientset
 	ad                DiskAttachDetach
+	locks             *utils.VolumeLocks
 	*csicommon.DefaultNodeServer
 }
 
@@ -198,6 +199,7 @@ func NewNodeServer(d *csicommon.CSIDriver, c *ecs.Client) csi.NodeServer {
 		zone:              GlobalConfigVar.ZoneID,
 		maxVolumesPerNode: maxVolumesNum,
 		nodeID:            GlobalConfigVar.NodeID,
+		locks:             utils.NewVolumeLocks(),
 		DefaultNodeServer: csicommon.NewDefaultNodeServer(d),
 		ad: DiskAttachDetach{
 			waiter:  waiter,
@@ -246,6 +248,11 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 
 // csi disk driver: bind directory from global to pod.
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	if !ns.locks.TryAcquire(req.VolumeId) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
+	}
+	defer ns.locks.Release(req.VolumeId)
+
 	// check target mount path
 	sourcePath := req.StagingTargetPath
 
@@ -444,6 +451,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	targetPath := req.GetTargetPath()
 	log.Log.Infof("NodeUnpublishVolume: Starting to Unmount Volume %s, Target %v", req.VolumeId, targetPath)
+
+	if !ns.locks.TryAcquire(req.VolumeId) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
+	}
+	defer ns.locks.Release(req.VolumeId)
+
 	// Step 1: check folder exists
 	if !IsFileExisting(targetPath) {
 		if err := ns.unmountDuplicateMountPoint(targetPath, req.VolumeId); err != nil {
@@ -516,6 +529,11 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	log.Log.Infof("NodeStageVolume: Stage VolumeId: %s, Target Path: %s, VolumeContext: %v", req.GetVolumeId(), req.StagingTargetPath, req.VolumeContext)
+
+	if !ns.locks.TryAcquire(req.VolumeId) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
+	}
+	defer ns.locks.Release(req.VolumeId)
 
 	if valid, err := utils.ValidateRequest(req.VolumeContext); !valid {
 		msg := fmt.Sprintf("NodeStageVolume: failed to check request parameters: %v", err)
@@ -750,6 +768,11 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 // target format: /var/lib/kubelet/plugins/kubernetes.io/csi/pv/pv-disk-1e7001e0-c54a-11e9-8f89-00163e0e78a0/globalmount
 func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	log.Log.Infof("NodeUnstageVolume:: Starting to Unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
+
+	if !ns.locks.TryAcquire(req.VolumeId) {
+		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
+	}
+	defer ns.locks.Release(req.VolumeId)
 
 	targetPath := req.GetStagingTargetPath()
 	if strings.HasPrefix(targetPath, filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi", driverName)) {
