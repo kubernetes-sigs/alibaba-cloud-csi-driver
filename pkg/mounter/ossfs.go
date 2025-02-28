@@ -48,6 +48,21 @@ const (
 	MaxRoleSessionNameLimit = 64
 )
 
+const (
+	KeyAccessKeyId     = "AccessKeyId"
+	KeyAccessKeySecret = "AccessKeySecret"
+	KeyExpiration      = "Expiration"
+	KeySecurityToken   = "SecurityToken"
+)
+
+// keep consistent with RAM response
+var SecretRefKeysToParse []string = []string{
+	KeyAccessKeyId,
+	KeyAccessKeySecret,
+	KeyExpiration,
+	KeySecurityToken,
+}
+
 type fuseOssfs struct {
 	config FuseContainerConfig
 }
@@ -375,21 +390,13 @@ func GetOssfsAttachPath(volumeId string) string {
 	return filepath.Join(OssfsAttachDir, hex.EncodeToString(volSha[:]), "globalmount")
 }
 
-// keep consistent with RAM response
-var secretRefKeysToParse []string = []string{
-	"AccessKeyId",
-	"AccessKeySecret",
-	"Expiration",
-	"SecurityToken",
-}
-
 func getPasswdSecretVolume(secretRef string) (secret *corev1.SecretVolumeSource) {
 	passwdFilename := "passwd-ossfs"
 	if secretRef == "" {
 		return nil
 	}
 	items := []corev1.KeyToPath{}
-	for _, key := range secretRefKeysToParse {
+	for _, key := range SecretRefKeysToParse {
 		item := corev1.KeyToPath{
 			Key:  key,
 			Path: fmt.Sprintf("%s/%s", passwdFilename, key),

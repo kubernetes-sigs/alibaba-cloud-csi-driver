@@ -21,12 +21,14 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -57,6 +59,17 @@ const (
 	VolumeAsSubpath VolumeAsType = "subpath"
 )
 
+type AccessKey struct {
+	AkID     string `json:"akId"`
+	AkSecret string `json:"akSecret"`
+}
+type TokenSecret struct {
+	AccessKeyId     string `json:"AccessKeyId"`
+	AccessKeySecret string `json:"AccessKeySecret"`
+	Expiration      string `json:"Expiration"`
+	SecurityToken   string `json:"SecurityToken"`
+}
+
 // Options contains options for target oss
 type Options struct {
 	directAssigned bool
@@ -69,9 +82,10 @@ type Options struct {
 
 	// authorization options
 	// accesskey
-	AkID      string `json:"akId"`
-	AkSecret  string `json:"akSecret"`
-	SecretRef string `json:"secretRef"`
+	AccessKey   `json:",inline"`
+	TokenSecret `json:",inline"`
+	SecretRef   string `json:"secretRef"`
+
 	// RRSA
 	RoleName           string `json:"roleName"` // also for STS
 	RoleArn            string `json:"roleArn"`
@@ -118,9 +132,17 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		UseSharedPath: true,
 		FuseType:      OssFsType,
 		Path:          "/",
-		AkID:          strings.TrimSpace(secrets[AkID]),
-		AkSecret:      strings.TrimSpace(secrets[AkSecret]),
-		MetricsTop:    defaultMetricsTop,
+		AccessKey: AccessKey{
+			AkID:     strings.TrimSpace(secrets[AkID]),
+			AkSecret: strings.TrimSpace(secrets[AkSecret]),
+		},
+		TokenSecret: TokenSecret{
+			AccessKeyId:     strings.TrimSpace(secrets[mounter.KeyAccessKeyId]),
+			AccessKeySecret: strings.TrimSpace(secrets[mounter.KeyAccessKeySecret]),
+			Expiration:      strings.TrimSpace(secrets[mounter.KeyExpiration]),
+			SecurityToken:   strings.TrimSpace(secrets[mounter.KeySecurityToken]),
+		},
+		MetricsTop: defaultMetricsTop,
 	}
 
 	var volumeAsSubpath bool
@@ -259,6 +281,36 @@ func checkRRSAParams(opt *Options) error {
 	return nil
 }
 
+func checkDefaultAuthOptions(opt *Options) error {
+	if opt == nil {
+		return nil
+	}
+	// Using fixed AKSK for authentication first if set.
+	if opt.AkID != "" && opt.AkSecret != "" {
+		return nil
+	}
+
+	// If AKSK if not set, check if a Secret maintained externally is configured,
+	//   which stores Token authentication information.
+	// For runc scenarios, set the SecretRef parameter.
+	runc := opt.SecretRef != ""
+	// For rund or eci scenarios, configure Token in nodePublishSecretRef or nodeStageSecretRef.
+	rund := opt.AccessKeyId != "" && opt.AccessKeySecret != "" && opt.Expiration != "" && opt.SecurityToken != ""
+	if runc && rund {
+		return fmt.Errorf("Token and secretRef cannot be set at the same time")
+	}
+	if !features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
+		if !runc && !rund {
+			return fmt.Errorf("missing authentication information")
+		}
+	}
+	if opt.SecretRef == mounter.OssfsCredentialSecretName {
+		return fmt.Errorf("invalid secretRef name")
+	}
+
+	return nil
+}
+
 // getRRSAConfig get oidcProviderArn and roleArn
 func getRRSAConfig(opt *Options, m metadata.MetadataProvider) (rrsaCfg *mounter.RrsaConfig, err error) {
 	saName := fuseServiceAccountName
@@ -281,6 +333,36 @@ func getRRSAConfig(opt *Options, m metadata.MetadataProvider) (rrsaCfg *mounter.
 	provider := mounter.GetOIDCProvider(clusterId)
 	oidcProviderArn, roleArn := mounter.GetArn(provider, accountId, opt.RoleName)
 	return &mounter.RrsaConfig{ServiceAccountName: saName, OidcProviderArn: oidcProviderArn, RoleArn: roleArn}, nil
+}
+
+// getDefaultAuthConfig gets accesskey with or without token
+func getDefaultAuthConfig(opt *Options) (authCfg *mounter.AuthConfig, mountOptions []string) {
+	authCfg = &mounter.AuthConfig{}
+	// fixed AKSK
+	if opt.AkID != "" && opt.AkSecret != "" {
+		authCfg.Secrets = map[string]string{
+			mounter.OssfsPasswdFile: fmt.Sprintf("%s:%s:%s", opt.Bucket, opt.AkID, opt.AkSecret),
+		}
+		return
+	}
+
+	// secretRef for RunC
+	if opt.SecretRef != "" {
+		authCfg.SecretRef = opt.SecretRef
+		mountOptions = append(mountOptions, fmt.Sprintf("passwd_file=%s", filepath.Join(mounter.PasswdMountDir, mounter.PasswdFilename)))
+		mountOptions = append(mountOptions, "use_session_token")
+		return
+	}
+
+	// token secret for RunD
+	authCfg.Secrets = map[string]string{
+		filepath.Join(mounter.OssfsPasswdFile, mounter.KeyAccessKeyId):     opt.AccessKeyId,
+		filepath.Join(mounter.OssfsPasswdFile, mounter.KeyAccessKeySecret): opt.AccessKeySecret,
+		filepath.Join(mounter.OssfsPasswdFile, mounter.KeySecurityToken):   opt.SecurityToken,
+		filepath.Join(mounter.OssfsPasswdFile, mounter.KeyExpiration):      opt.Expiration,
+	}
+	mountOptions = append(mountOptions, "use_session_token")
+	return
 }
 
 // getSTSEndpoint get STS endpoint

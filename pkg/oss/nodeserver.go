@@ -19,7 +19,6 @@ package oss
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -101,7 +100,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err := validateNodePublishVolumeRequest(req); err != nil {
 		return nil, err
 	}
-	// check if already mounted
+	// check if already mounted for re-publish
 	notMnt, err := isNotMountPoint(ns.rawMounter, targetPath)
 	if err != nil {
 		return nil, err
@@ -117,24 +116,16 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err := setCNFSOptions(ctx, ns.cnfsGetter, opts); err != nil {
 		return nil, err
 	}
-	// options validation
-	if err := checkOssOptions(opts); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
 
 	switch opts.AuthType {
 	case "":
 		// try to get ak/sk from env
-		if opts.SecretRef == "" && (opts.AkID == "" || opts.AkSecret == "") {
+		if opts.SecretRef == "" && len(req.Secrets) == 0 {
 			ac := utils.GetEnvAK()
 			opts.AkID = ac.AccessKeyID
 			opts.AkSecret = ac.AccessKeySecret
 		}
-		if !features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
-			if opts.SecretRef == "" && (opts.AkID == "" || opts.AkSecret == "") {
-				return nil, status.Error(codes.InvalidArgument, "missing access key in node publish secret")
-			}
-		}
+
 	case mounter.AuthTypeSTS:
 		// try to get default ECS worker role from metadata server
 		if opts.RoleName == "" {
@@ -145,6 +136,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				return nil, status.Error(codes.InvalidArgument, "missing roleName or ramRole in volume attributes")
 			}
 		}
+	}
+
+	// options validation
+	if err := checkOssOptions(opts); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	// PVs with attribute direct=true will by mounted in rund guest os.
@@ -245,13 +241,8 @@ func checkOssOptions(opt *Options) error {
 			return WrapOssError(AuthError, "use CsiSecretStore but secretProviderClass is empty")
 		}
 	default:
-		if opt.SecretRef != "" {
-			if opt.AkID != "" || opt.AkSecret != "" {
-				return WrapOssError(AuthError, "AK and secretRef cannot be set at the same time")
-			}
-			if opt.SecretRef == mounter.OssfsCredentialSecretName {
-				return WrapOssError(ParamError, "invalid SecretRef name")
-			}
+		if err := checkDefaultAuthOptions(opt); err != nil {
+			return WrapOssError(AuthError, "%v", err)
 		}
 	}
 
@@ -411,15 +402,9 @@ func (o *Options) MakeMountOptionsAndAuthConfig(m metadata.MetadataProvider, vol
 			mountOptions = append(mountOptions, "ram_role="+o.RoleName)
 		}
 	default:
-		if o.SecretRef != "" {
-			authCfg.SecretRef = o.SecretRef
-			mountOptions = append(mountOptions, fmt.Sprintf("passwd_file=%s", filepath.Join(mounter.PasswdMountDir, mounter.PasswdFilename)))
-			mountOptions = append(mountOptions, "use_session_token")
-		} else {
-			authCfg.Secrets = map[string]string{
-				mounter.OssfsPasswdFile: fmt.Sprintf("%s:%s:%s", o.Bucket, o.AkID, o.AkSecret),
-			}
-		}
+		var defOpts []string
+		authCfg, defOpts = getDefaultAuthConfig(o)
+		mountOptions = append(mountOptions, defOpts...)
 	}
 
 	return mountOptions, authCfg, nil

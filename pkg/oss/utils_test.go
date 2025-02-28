@@ -17,6 +17,8 @@ limitations under the License.
 package oss
 
 import (
+	"fmt"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"testing"
@@ -50,10 +52,13 @@ func Test_parseOptions(t *testing.T) {
 		},
 	}
 	expectedOptions = &Options{
-		Bucket:        "test-bucket",
-		URL:           "https://oss-cn-beijing.aliyuncs.com",
-		AkID:          "test-akid",
-		AkSecret:      "test-aksecret",
+		Bucket:      "test-bucket",
+		URL:         "https://oss-cn-beijing.aliyuncs.com",
+		TokenSecret: TokenSecret{},
+		AccessKey: AccessKey{
+			AkID:     "test-akid",
+			AkSecret: "test-aksecret",
+		},
 		FuseType:      "ossfs",
 		Path:          "/volume-id",
 		UseSharedPath: true,
@@ -84,11 +89,14 @@ func Test_parseOptions(t *testing.T) {
 		},
 	}
 	expectedOptions = &Options{
-		Bucket:        "test-bucket",
-		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
-		OtherOpts:     "-o max_stat_cache_size=0 -o allow_other",
-		AkID:          "test-akid",
-		AkSecret:      "test-aksecret",
+		Bucket:      "test-bucket",
+		URL:         "http://oss-cn-beijing-internal.aliyuncs.com",
+		OtherOpts:   "-o max_stat_cache_size=0 -o allow_other",
+		TokenSecret: TokenSecret{},
+		AccessKey: AccessKey{
+			AkID:     "test-akid",
+			AkSecret: "test-aksecret",
+		},
 		UseSharedPath: true,
 		FuseType:      "ossfs",
 		MetricsTop:    defaultMetricsTop,
@@ -100,7 +108,7 @@ func Test_parseOptions(t *testing.T) {
 		testCPVReq.Readonly, "cn-beijing", "")
 	assert.Equal(t, expectedOptions, gotOptions)
 
-	// NodePublishVolume
+	// NodePublishVolume - RRSA
 	testNPReq := csi.NodePublishVolumeRequest{
 		VolumeContext: map[string]string{
 			"bucket":        "test-bucket",
@@ -124,6 +132,83 @@ func Test_parseOptions(t *testing.T) {
 		FuseType:      "ossfs",
 		MetricsTop:    defaultMetricsTop,
 		Path:          "/",
+		ReadOnly:      true,
+		UseSharedPath: false,
+	}
+	gotOptions = parseOptions(testNPReq.GetVolumeContext(),
+		testNPReq.GetSecrets(), []*csi.VolumeCapability{testNPReq.GetVolumeCapability()},
+		testNPReq.Readonly, "cn-beijing", "")
+	assert.Equal(t, expectedOptions, gotOptions)
+
+	// NodePublishVolume - SecretRef
+	testNPReq = csi.NodePublishVolumeRequest{
+		VolumeContext: map[string]string{
+			"bucket":        "test-bucket",
+			"url":           "oss-cn-beijing.aliyuncs.com",
+			"otheropts":     "-o max_stat_cache_size=0 -o allow_other",
+			"UseSharedPath": "false",
+			"secretRef":     "test-secret-ref",
+		},
+		VolumeCapability: &csi.VolumeCapability{
+			AccessMode: &csi.VolumeCapability_AccessMode{
+				Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+			},
+		},
+		Readonly: true,
+	}
+	expectedOptions = &Options{
+		Bucket:        "test-bucket",
+		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
+		OtherOpts:     "-o max_stat_cache_size=0 -o allow_other",
+		SecretRef:     "test-secret-ref",
+		TokenSecret:   TokenSecret{},
+		AccessKey:     AccessKey{},
+		MetricsTop:    defaultMetricsTop,
+		Path:          "/",
+		FuseType:      OssFsType,
+		ReadOnly:      true,
+		UseSharedPath: false,
+	}
+	gotOptions = parseOptions(testNPReq.GetVolumeContext(),
+		testNPReq.GetSecrets(), []*csi.VolumeCapability{testNPReq.GetVolumeCapability()},
+		testNPReq.Readonly, "cn-beijing", "")
+	assert.Equal(t, expectedOptions, gotOptions)
+
+	// NodePublishVolume - TokenSecret
+	testNPReq = csi.NodePublishVolumeRequest{
+		VolumeContext: map[string]string{
+			"bucket":        "test-bucket",
+			"url":           "oss-cn-beijing.aliyuncs.com",
+			"otheropts":     "-o max_stat_cache_size=0 -o allow_other",
+			"UseSharedPath": "false",
+		},
+		Secrets: map[string]string{
+			"AccessKeyId":     "test-akId",
+			"AccessKeySecret": "test-akSecret",
+			"Expiration":      "2022-01-01T00:00:00Z",
+			"SecurityToken":   "test-securityToken",
+		},
+		VolumeCapability: &csi.VolumeCapability{
+			AccessMode: &csi.VolumeCapability_AccessMode{
+				Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+			},
+		},
+		Readonly: true,
+	}
+	expectedOptions = &Options{
+		Bucket:    "test-bucket",
+		URL:       "http://oss-cn-beijing-internal.aliyuncs.com",
+		OtherOpts: "-o max_stat_cache_size=0 -o allow_other",
+		TokenSecret: TokenSecret{
+			AccessKeyId:     "test-akId",
+			AccessKeySecret: "test-akSecret",
+			Expiration:      "2022-01-01T00:00:00Z",
+			SecurityToken:   "test-securityToken",
+		},
+		AccessKey:     AccessKey{},
+		MetricsTop:    defaultMetricsTop,
+		Path:          "/",
+		FuseType:      OssFsType,
 		ReadOnly:      true,
 		UseSharedPath: false,
 	}
@@ -529,6 +614,174 @@ func Test_getSTSEndpoint(t *testing.T) {
 			if endpoint != tt.expected {
 				t.Errorf("Expected endpoint to be %s, got %s", tt.expected, endpoint)
 			}
+		})
+	}
+}
+
+func TestCheckDefaultAuthOptions(t *testing.T) {
+	tests := []struct {
+		name      string
+		opt       *Options
+		wantError bool
+	}{
+		{
+			name:      "empty options",
+			opt:       nil,
+			wantError: false,
+		},
+		{
+			name: "fixed AKSK",
+			opt: &Options{
+				AccessKey: AccessKey{
+					AkID:     "akid",
+					AkSecret: "aksecret",
+				},
+			},
+			wantError: false,
+		},
+		{
+			name: "fixed AKSK with empty akid",
+			opt: &Options{
+				AccessKey: AccessKey{
+					AkID:     "",
+					AkSecret: "aksecret",
+				},
+			},
+			wantError: true,
+		},
+		{
+			name: "secretRef",
+			opt: &Options{
+				SecretRef: "secretRef",
+			},
+			wantError: false,
+		},
+		{
+			name: "AKSK with secretRef",
+			opt: &Options{
+				AccessKey: AccessKey{
+					AkID:     "akid",
+					AkSecret: "aksecret",
+				},
+				SecretRef: "secretRef",
+			},
+			wantError: false,
+		},
+		{
+			name: "token secret",
+			opt: &Options{
+				TokenSecret: TokenSecret{
+					AccessKeyId:     "akid",
+					AccessKeySecret: "aksecret",
+					Expiration:      "expiration",
+					SecurityToken:   "securityToken",
+				},
+			},
+			wantError: false,
+		},
+		{
+			name: "invalid token secret",
+			opt: &Options{
+				TokenSecret: TokenSecret{
+					AccessKeyId: "akid",
+				},
+			},
+			wantError: true,
+		},
+		{
+			name: "secretRef and token secret",
+			opt: &Options{
+				SecretRef: "secretRef",
+				TokenSecret: TokenSecret{
+					AccessKeyId:     "akid",
+					AccessKeySecret: "aksecret",
+					Expiration:      "expiration",
+					SecurityToken:   "securityToken",
+				},
+			},
+			wantError: true,
+		},
+		{
+			name: "invalid secretRef name",
+			opt: &Options{
+				SecretRef: mounter.OssfsCredentialSecretName,
+			},
+			wantError: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checkDefaultAuthOptions(tt.opt)
+			assert.Equal(t, tt.wantError, err != nil)
+		})
+	}
+}
+
+func TestGetDefaultAuthConfig(t *testing.T) {
+	tests := []struct {
+		name         string
+		opt          *Options
+		expectedAuth *mounter.AuthConfig
+		expectedOpts []string
+	}{
+		{
+			name: "AkID and AkSecret not empty",
+			opt: &Options{
+				AccessKey: AccessKey{
+					AkID:     "testAkID",
+					AkSecret: "testAkSecret",
+				},
+				Bucket: "testBucket",
+			},
+			expectedAuth: &mounter.AuthConfig{
+				Secrets: map[string]string{
+					mounter.OssfsPasswdFile: "testBucket:testAkID:testAkSecret",
+				},
+			},
+			expectedOpts: nil,
+		},
+		{
+			name: "AkID and AkSecret empty, SecretRef not empty",
+			opt: &Options{
+				SecretRef: "testSecretRef",
+			},
+			expectedAuth: &mounter.AuthConfig{
+				SecretRef: "testSecretRef",
+			},
+			expectedOpts: []string{
+				fmt.Sprintf("passwd_file=%s", filepath.Join(mounter.PasswdMountDir, mounter.PasswdFilename)),
+				"use_session_token",
+			},
+		},
+		{
+			name: "AkID and AkSecret empty, SecretRef empty",
+			opt: &Options{
+				TokenSecret: TokenSecret{
+					AccessKeyId:     "testAccessKeyId",
+					AccessKeySecret: "testAccessKeySecret",
+					SecurityToken:   "testSecurityToken",
+					Expiration:      "testExpiration",
+				},
+			},
+			expectedAuth: &mounter.AuthConfig{
+				Secrets: map[string]string{
+					filepath.Join(mounter.OssfsPasswdFile, mounter.KeyAccessKeyId):     "testAccessKeyId",
+					filepath.Join(mounter.OssfsPasswdFile, mounter.KeyAccessKeySecret): "testAccessKeySecret",
+					filepath.Join(mounter.OssfsPasswdFile, mounter.KeySecurityToken):   "testSecurityToken",
+					filepath.Join(mounter.OssfsPasswdFile, mounter.KeyExpiration):      "testExpiration",
+				},
+			},
+			expectedOpts: []string{
+				"use_session_token",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			authCfg, mountOptions := getDefaultAuthConfig(tt.opt)
+			assert.Equal(t, tt.expectedAuth, authCfg)
+			assert.Equal(t, tt.expectedOpts, mountOptions)
 		})
 	}
 }
