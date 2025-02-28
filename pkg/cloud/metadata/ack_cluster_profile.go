@@ -27,7 +27,9 @@ func NewProfileMetadata(client kubernetes.Interface) (*ProfileMetadata, error) {
 
 func (m *ProfileMetadata) Get(key MetadataKey) (string, error) {
 	if key, ok := MetadataProfileDataKeys[key]; ok {
-		return m.profile.Data[key], nil
+		if m.profile.Data[key] != "" {
+			return m.profile.Data[key], nil
+		}
 	}
 	return "", ErrUnknownMetadataKey
 }
