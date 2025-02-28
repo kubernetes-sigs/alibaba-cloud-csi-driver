@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -24,7 +22,9 @@ func init() {
 }
 
 const (
-	OssfsPasswdFile = "passwd-ossfs"
+	OssfsPasswdFile     = "passwd-ossfs"
+	OssfsPasswdFileName = "passwd"
+	OssfsTokenFilesDir  = "token-files"
 )
 
 type Driver struct {
@@ -54,7 +54,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	// prepare passwd file
 	passwdFile, tokenDir, credOpts, err := prepareCredentialFiles(req.Secrets)
 	if err != nil {
-		return err
+		return fmt.Errorf("prepare credential files failed: %w", err)
 	}
 	options = append(options, credOpts...)
 	if passwdFile != "" {
@@ -168,60 +168,4 @@ func (h *Driver) Terminate() {
 	// wait all ossfs processes to exit
 	h.wg.Wait()
 	klog.InfoS("All ossfs processes exited")
-}
-
-func writeFile(dir, fileName, contents string, perm os.FileMode) error {
-	file := filepath.Join(dir, fileName)
-	return os.WriteFile(file, []byte(contents), perm)
-}
-
-// prepareCredentialFiles returns:
-//  1. file:    path of ossfs credential file for fixed AKSK
-//  2. dir:     dorectory of ossfs credential files for token
-//  3. options: extra options
-//  4. error
-func prepareCredentialFiles(secrets map[string]string) (file, dir string, options []string, err error) {
-	var tmpDir string
-	tmpDir, err = os.MkdirTemp("", "ossfs-")
-	if err != nil {
-		return
-	}
-
-	// fixed AKSK
-	if passwd := secrets[OssfsPasswdFile]; passwd != "" {
-		err = writeFile(tmpDir, "passwd", passwd, 0o600)
-		if err != nil {
-			return
-		}
-		file = filepath.Join(tmpDir, "passwd")
-		options = append(options, "passwd_file="+file)
-		return
-	}
-
-	// token
-	tokenKey := []string{mounter.KeyAccessKeyId, mounter.KeyAccessKeySecret, mounter.KeySecurityToken, mounter.KeyExpiration}
-	tokenDir := filepath.Join(tmpDir, "token")
-	var token bool
-	for _, key := range tokenKey {
-		val := secrets[filepath.Join(OssfsPasswdFile, key)]
-		if val == "" {
-			continue
-		}
-		err = os.MkdirAll(tokenDir, 0o644)
-		if err != nil {
-			klog.Errorf("mkdirall tokendir failed %v", err)
-			return
-		}
-		err = writeFile(tokenDir, key, val, 0o600)
-		if err != nil {
-			klog.Errorf("writeFile %s failed %v", key, err)
-			return
-		}
-		token = true
-	}
-	if token {
-		dir = tokenDir
-		options = append(options, "passwd_file="+tokenDir)
-	}
-	return
 }

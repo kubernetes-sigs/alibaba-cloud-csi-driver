@@ -785,3 +785,50 @@ func TestGetDefaultAuthConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestNeedRotateToken(t *testing.T) {
+	tests := []struct {
+		name        string
+		opt         *Options
+		secrets     map[string]string
+		wantSecrets map[string]string
+		want        bool
+	}{
+		{
+			name:        "FuseType not OssFsType",
+			opt:         &Options{FuseType: "OtherType"},
+			secrets:     map[string]string{"key1": "value1"},
+			wantSecrets: map[string]string{"key1": "value1"},
+			want:        false,
+		},
+		{
+			name:        "secrets is nil",
+			opt:         &Options{FuseType: OssFsType},
+			secrets:     nil,
+			wantSecrets: nil,
+			want:        false,
+		},
+		{
+			name:        "secrets includes more info",
+			opt:         &Options{FuseType: OssFsType},
+			secrets:     map[string]string{mounter.PasswdFilename: "value1", "key2": "value2"},
+			wantSecrets: map[string]string{mounter.PasswdFilename: "value1", "key2": "value2"},
+			want:        true,
+		},
+		{
+			name:        "secrets only has passwd file info",
+			opt:         &Options{FuseType: OssFsType},
+			secrets:     map[string]string{mounter.PasswdFilename: "value1"},
+			wantSecrets: map[string]string{mounter.PasswdFilename: "value1"},
+			want:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			need := needRotateToken(tt.opt, tt.secrets)
+			assert.Equal(t, tt.want, need)
+			assert.Equal(t, tt.wantSecrets, tt.secrets)
+		})
+	}
+}

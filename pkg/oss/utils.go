@@ -479,3 +479,21 @@ func validateEndpoint(originURL, bucket string) error {
 	}
 	return nil
 }
+
+func needRotateToken(opt *Options, secrets map[string]string) (needRotate bool) {
+	if opt.FuseType != OssFsType {
+		return false
+	}
+	if secrets == nil {
+		return false
+	}
+	// TODO: more than passwd file, it means token files are used.
+	//   Remove this check if when ossfs support rotate fixed AKSK.
+	passed := secrets[mounter.OssfsPasswdFile]
+	delete(secrets, mounter.OssfsPasswdFile)
+	needRotate = len(secrets) > 0
+	if passed != "" {
+		secrets[mounter.OssfsPasswdFile] = passed
+	}
+	return
+}

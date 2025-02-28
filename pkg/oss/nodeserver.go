@@ -100,15 +100,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err := validateNodePublishVolumeRequest(req); err != nil {
 		return nil, err
 	}
-	// check if already mounted for re-publish
-	notMnt, err := isNotMountPoint(ns.rawMounter, targetPath)
-	if err != nil {
-		return nil, err
-	}
-	if !notMnt {
-		klog.Infof("NodePublishVolume: %s already mounted", targetPath)
-		return &csi.NodePublishVolumeResponse{}, nil
-	}
 
 	// parse options
 	region, _ := ns.metadata.Get(metadata.RegionID)
@@ -155,7 +146,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err != nil {
 		return nil, err
 	}
-	if ns.ossfs != nil {
+	if ns.ossfs != nil && opts.FuseType == ns.ossfs.Name() {
 		mountOptions = ns.ossfs.AddDefaultMountOptions(mountOptions)
 	}
 
@@ -173,6 +164,22 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.InvalidArgument, "%s not found in publishContext", mountProxySocket)
 	}
 	proxyMounter := mounter.NewProxyMounter(socketPath, ns.rawMounter)
+
+	// check if already mounted for re-publish
+	notMnt, err := isNotMountPoint(ns.rawMounter, targetPath)
+	if err != nil {
+		return nil, err
+	}
+	if !notMnt {
+		klog.Infof("NodePublishVolume: %s already mounted", targetPath)
+		if needRotateToken(opts, authCfg.Secrets) {
+			err := proxyMounter.RotateToken(opts.FuseType, authCfg.Secrets)
+			if err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+		}
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
 
 	// When work as csi-agent, directly mount on the target path.
 	if ns.skipAttach {
@@ -194,7 +201,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if notMnt {
 		utils.WriteSharedMetricsInfo(metricsPathPrefix, req, OssFsType, "oss", opts.Bucket, attachPath)
-		err := mounter.NewProxyMounter(socketPath, ns.rawMounter).MountWithSecrets(
+		err := proxyMounter.MountWithSecrets(
 			mountSource, attachPath, opts.FuseType, mountOptions, authCfg.Secrets)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())

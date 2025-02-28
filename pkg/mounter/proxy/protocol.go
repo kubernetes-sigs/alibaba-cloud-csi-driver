@@ -12,7 +12,8 @@ const (
 type Method string
 
 const (
-	Mount Method = "mount"
+	Mount       Method = "mount"
+	RotateToken Method = "rotateToken"
 )
 
 type Header struct {
@@ -42,4 +43,9 @@ type MountRequest struct {
 	Options    []string          `json:"options,omitempty"`
 	MountFlags []string          `json:"mountFlags,omitempty"`
 	Secrets    map[string]string `json:"secrets,omitempty"`
+}
+
+type RotateTokenRequest struct {
+	Fstype  string            `json:"fstype,omitempty"`
+	Secrets map[string]string `json:"secrets,omitempty"`
 }
