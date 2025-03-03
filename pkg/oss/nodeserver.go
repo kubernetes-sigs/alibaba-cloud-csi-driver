@@ -130,7 +130,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	// options validation
-	if err := checkOssOptions(opts); err != nil {
+	if err := checkOssOptions(opts, true); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -219,7 +219,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 }
 
 // Check oss options
-func checkOssOptions(opt *Options) error {
+func checkOssOptions(opt *Options, atNode bool) error {
 	if opt.FuseType != OssFsType {
 		return WrapOssError(ParamError, "only ossfs fuse type supported")
 	}
@@ -248,8 +248,10 @@ func checkOssOptions(opt *Options) error {
 			return WrapOssError(AuthError, "use CsiSecretStore but secretProviderClass is empty")
 		}
 	default:
-		if err := checkDefaultAuthOptions(opt); err != nil {
-			return WrapOssError(AuthError, "%v", err)
+		if atNode {
+			if err := checkDefaultAuthOptions(opt); err != nil {
+				return WrapOssError(AuthError, "%v", err)
+			}
 		}
 	}
 

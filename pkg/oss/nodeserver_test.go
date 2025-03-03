@@ -24,14 +24,13 @@ import (
 
 func Test_checkOssOptions(t *testing.T) {
 	tests := []struct {
-		name    string
-		opts    *Options
-		errType error
+		name      string
+		NOTatNode bool
+		opts      *Options
+		errType   error
 	}{
 		{
-			// should pass as may be accepted by mountOptions on PV,
-			//   or ENV in CSI running container
-			name: "empty aksk",
+			name: "empty aksk at NodePublish",
 			opts: &Options{
 				URL:      "1.1.1.1",
 				Bucket:   "aliyun",
@@ -39,6 +38,17 @@ func Test_checkOssOptions(t *testing.T) {
 				FuseType: OssFsType,
 			},
 			errType: AuthError,
+		},
+		{
+			name:      "empty aksk at ControllerPublish",
+			NOTatNode: true,
+			opts: &Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				FuseType: OssFsType,
+			},
+			errType: nil,
 		},
 		{
 			name: "empty fuse type",
@@ -248,7 +258,7 @@ func Test_checkOssOptions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := checkOssOptions(tt.opts)
+			err := checkOssOptions(tt.opts, !tt.NOTatNode)
 			assert.ErrorIs(t, err, tt.errType)
 		})
 	}
