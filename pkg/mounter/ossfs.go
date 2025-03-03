@@ -206,7 +206,7 @@ func (f *fuseOssfs) buildPodSpec(c *FusePodContext, target string) (spec corev1.
 
 	buildAuthSpec(c, target, &spec, &container)
 
-	container.Args = []string{"-socket=" + socketPath, "-v=4"}
+	container.Args = []string{"--socket=" + socketPath, "--v=4"}
 
 	spec.Containers = []corev1.Container{container}
 	spec.NodeName = c.NodeName

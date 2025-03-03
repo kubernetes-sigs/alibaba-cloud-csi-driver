@@ -24,7 +24,8 @@ func init() {
 const (
 	OssfsPasswdFile     = "passwd-ossfs"
 	OssfsPasswdFileName = "passwd"
-	OssfsTokenFilesDir  = "token-files"
+
+	OssfsTokenFilesDir = "/tmp/token-files"
 )
 
 type Driver struct {
