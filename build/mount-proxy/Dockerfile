@@ -58,5 +58,5 @@ RUN mkdir /csi && mv /etc/mime.types /csi/mime.types
 RUN ln -s /host/etc/mime.types /etc/mime.types
 
 COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
-ENTRYPOINT ["csi-mount-proxy-server"]
+ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs"]
 

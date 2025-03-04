@@ -19,23 +19,31 @@ import (
 )
 
 func init() {
-	server.RegisterMountHandler(NewMountHandler(), "ossfs")
+	server.RegisterDriver(NewDriver())
 }
 
-type MountHandler struct {
+type Driver struct {
 	pids *sync.Map
 	wg   sync.WaitGroup
 	raw  mount.Interface
 }
 
-func NewMountHandler() *MountHandler {
-	return &MountHandler{
+func NewDriver() *Driver {
+	return &Driver{
 		pids: new(sync.Map),
 		raw:  mount.NewWithoutSystemd(""),
 	}
 }
 
-func (h *MountHandler) Mount(ctx context.Context, req *proxy.MountRequest) error {
+func (h *Driver) Name() string {
+	return "ossfs"
+}
+
+func (h *Driver) Fstypes() []string {
+	return []string{"ossfs"}
+}
+
+func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	options := req.Options
 
 	// prepare passwd file
@@ -135,9 +143,9 @@ func (h *MountHandler) Mount(ctx context.Context, req *proxy.MountRequest) error
 	return err
 }
 
-func (h *MountHandler) Init() {}
+func (h *Driver) Init() {}
 
-func (h *MountHandler) Terminate() {
+func (h *Driver) Terminate() {
 	// terminate all running ossfs
 	h.pids.Range(func(key, value any) bool {
 		err := value.(*exec.Cmd).Process.Signal(syscall.SIGTERM)

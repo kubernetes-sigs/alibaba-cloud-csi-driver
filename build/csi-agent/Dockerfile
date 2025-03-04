@@ -34,5 +34,5 @@ RUN set -ex; \
 
 COPY --link --from=builder /out/csi-mount-proxy-server /usr/local/bin/
 COPY --link --from=builder /out/csi-agent /usr/local/bin/
-ENTRYPOINT [ "tini", "--", "csi-mount-proxy-server" ]
+ENTRYPOINT [ "tini", "--", "csi-mount-proxy-server", "--driver=alinas,ossfs" ]
 
