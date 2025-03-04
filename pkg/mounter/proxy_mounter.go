@@ -51,9 +51,10 @@ func (m *ProxyMounter) Mount(source string, target string, fstype string, option
 	return m.MountWithSecrets(source, target, fstype, options, nil)
 }
 
-func (m *ProxyMounter) RotateToken(fstype string, secrets map[string]string) error {
+func (m *ProxyMounter) RotateToken(target, fstype string, secrets map[string]string) error {
 	dclient := client.NewClient(m.socketPath)
 	resp, err := dclient.RotateToken(&proxy.RotateTokenRequest{
+		Target:  target,
 		Fstype:  fstype,
 		Secrets: secrets,
 	})

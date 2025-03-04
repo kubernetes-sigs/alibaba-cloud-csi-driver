@@ -18,7 +18,7 @@ func writeFile(dir, fileName, contents string, perm os.FileMode) error {
 }
 
 // rotateTokenFiles rotates (or initializes) token files
-func rotateTokenFiles(secrets map[string]string) (rotated bool, err error) {
+func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err error) {
 	if secrets == nil {
 		return false, nil
 	}
@@ -29,12 +29,12 @@ func rotateTokenFiles(secrets map[string]string) (rotated bool, err error) {
 		if val == "" {
 			continue
 		}
-		err = os.MkdirAll(OssfsTokenFilesDir, 0o644)
+		err = os.MkdirAll(dir, 0o644)
 		if err != nil {
 			klog.Errorf("mkdirall tokendir failed %v", err)
 			return
 		}
-		err = writeFile(OssfsTokenFilesDir, key, val, 0o600)
+		err = writeFile(dir, key, val, 0o600)
 		if err != nil {
 			klog.Errorf("writeFile %s failed %v", key, err)
 			return
@@ -49,28 +49,25 @@ func rotateTokenFiles(secrets map[string]string) (rotated bool, err error) {
 //  2. dir:     dorectory of ossfs credential files for token
 //  3. options: extra options
 //  4. error
-func prepareCredentialFiles(secrets map[string]string) (file, dir string, options []string, err error) {
+func prepareCredentialFiles(target string, secrets map[string]string) (file, dir string, options []string, err error) {
 	// fixed AKSK
+	hashDir := mounter.ComputeMountPathHash(target)
 	if passwd := secrets[OssfsPasswdFile]; passwd != "" {
-		var tmpDir string
-		tmpDir, err = os.MkdirTemp("", "ossfs-")
+		err = writeFile(hashDir, OssfsPasswdFileName, passwd, 0o600)
 		if err != nil {
 			return
 		}
-		err = writeFile(tmpDir, OssfsPasswdFileName, passwd, 0o600)
-		if err != nil {
-			return
-		}
-		file = filepath.Join(tmpDir, OssfsPasswdFileName)
+		file = filepath.Join(hashDir, OssfsPasswdFileName)
 		options = append(options, "passwd_file="+file)
 		return
 	}
 
 	// token
 	var token bool
-	token, err = rotateTokenFiles(secrets)
+	tokenDir := filepath.Join(hashDir, OssfsTokenFilesDir)
+	token, err = rotateTokenFiles(tokenDir, secrets)
 	if token {
-		dir = OssfsTokenFilesDir
+		dir = tokenDir
 		options = append(options, "passwd_file="+dir)
 	}
 	return

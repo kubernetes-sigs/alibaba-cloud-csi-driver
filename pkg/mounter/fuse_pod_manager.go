@@ -196,7 +196,7 @@ func (fpm *FusePodManager) labelsAndListOptionsFor(c *FusePodContext, target str
 		FuseVolumeIdLabelKey: c.VolumeId,
 	}
 	if target != "" {
-		labels[FuseMountPathHashLabelKey] = computeMountPathHash(target)
+		labels[FuseMountPathHashLabelKey] = ComputeMountPathHash(target)
 	}
 	listOptions := metav1.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector("spec.nodeName", c.NodeName).String(),
@@ -401,7 +401,7 @@ func isFusePodReady(pod *corev1.Pod) bool {
 	return false
 }
 
-func computeMountPathHash(target string) string {
+func ComputeMountPathHash(target string) string {
 	hasher := fnv.New32a()
 	hasher.Write([]byte(target))
 	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))

@@ -47,7 +47,7 @@ func TestPrepareCredentialFiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			file, dir, options, err := prepareCredentialFiles(tt.secrets)
+			file, dir, options, err := prepareCredentialFiles("/tmp/token-files", tt.secrets)
 			assert.Equal(t, tt.wantErr, err != nil)
 			assert.Equal(t, tt.wantFile, file != "")
 			assert.Equal(t, tt.wantDir, dir != "")
@@ -60,7 +60,7 @@ func TestPrepareCredentialFiles(t *testing.T) {
 func TestRotateTokenFiles(t *testing.T) {
 	// case 1: initialize fiexd AKSK
 	secrets := map[string]string{OssfsPasswdFile: "testPasswd"}
-	rotated, err := rotateTokenFiles(secrets)
+	rotated, err := rotateTokenFiles("/tmp/token-files", secrets)
 	assert.Equal(t, false, rotated)
 	assert.NoError(t, err)
 	// case 2: initialize token
@@ -70,16 +70,16 @@ func TestRotateTokenFiles(t *testing.T) {
 		filepath.Join(OssfsPasswdFile, mounter.KeyExpiration):      "testExpiration",
 		filepath.Join(OssfsPasswdFile, mounter.KeySecurityToken):   "testSecurityToken",
 	}
-	rotated, err = rotateTokenFiles(secrets)
+	rotated, err = rotateTokenFiles("/tmp/token-files", secrets)
 	assert.Equal(t, true, rotated)
 	assert.NoError(t, err)
-	ak, _ := os.ReadFile(filepath.Join(OssfsTokenFilesDir, mounter.KeyAccessKeyId))
+	ak, _ := os.ReadFile(filepath.Join("/tmp/token-files", mounter.KeyAccessKeyId))
 	assert.Equal(t, "testAKID", string(ak))
-	sk, _ := os.ReadFile(filepath.Join(OssfsTokenFilesDir, mounter.KeyAccessKeySecret))
+	sk, _ := os.ReadFile(filepath.Join("/tmp/token-files", mounter.KeyAccessKeySecret))
 	assert.Equal(t, "testAKSecret", string(sk))
-	exp, _ := os.ReadFile(filepath.Join(OssfsTokenFilesDir, mounter.KeyExpiration))
+	exp, _ := os.ReadFile(filepath.Join("/tmp/token-files", mounter.KeyExpiration))
 	assert.Equal(t, "testExpiration", string(exp))
-	st, _ := os.ReadFile(filepath.Join(OssfsTokenFilesDir, mounter.KeySecurityToken))
+	st, _ := os.ReadFile(filepath.Join("/tmp/token-files", mounter.KeySecurityToken))
 	assert.Equal(t, "testSecurityToken", string(st))
 	// case 3: rotate token
 	secrets = map[string]string{
@@ -88,15 +88,16 @@ func TestRotateTokenFiles(t *testing.T) {
 		filepath.Join(OssfsPasswdFile, mounter.KeyExpiration):      "newExpiration",
 		filepath.Join(OssfsPasswdFile, mounter.KeySecurityToken):   "newSecurityToken",
 	}
-	rotated, err = rotateTokenFiles(secrets)
+	rotated, err = rotateTokenFiles("/tmp/token-files", secrets)
 	assert.Equal(t, true, rotated)
 	assert.NoError(t, err)
-	ak, _ = os.ReadFile(filepath.Join(OssfsTokenFilesDir, mounter.KeyAccessKeyId))
+	ak, _ = os.ReadFile(filepath.Join("/tmp/token-files", mounter.KeyAccessKeyId))
 	assert.Equal(t, "newAKID", string(ak))
-	sk, _ = os.ReadFile(filepath.Join(OssfsTokenFilesDir, mounter.KeyAccessKeySecret))
+	sk, _ = os.ReadFile(filepath.Join("/tmp/token-files", mounter.KeyAccessKeySecret))
 	assert.Equal(t, "newAKSecret", string(sk))
-	exp, _ = os.ReadFile(filepath.Join(OssfsTokenFilesDir, mounter.KeyExpiration))
+	exp, _ = os.ReadFile(filepath.Join("/tmp/token-files", mounter.KeyExpiration))
 	assert.Equal(t, "newExpiration", string(exp))
-	st, _ = os.ReadFile(filepath.Join(OssfsTokenFilesDir, mounter.KeySecurityToken))
+	st, _ = os.ReadFile(filepath.Join("/tmp/token-files", mounter.KeySecurityToken))
 	assert.Equal(t, "newSecurityToken", string(st))
+	os.RemoveAll("/tmp/token-files")
 }

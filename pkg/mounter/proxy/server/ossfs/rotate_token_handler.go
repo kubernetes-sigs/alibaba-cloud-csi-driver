@@ -3,8 +3,10 @@ package ossfs
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sync"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"k8s.io/klog/v2"
@@ -26,7 +28,8 @@ func NewRotateTokenHandler() *RotateTokenHandler {
 
 func (h *RotateTokenHandler) RotateToken(ctx context.Context, req *proxy.RotateTokenRequest) error {
 	// prepare passwd file
-	rotated, err := rotateTokenFiles(req.Secrets)
+	hashDir := mounter.ComputeMountPathHash(req.Target)
+	rotated, err := rotateTokenFiles(filepath.Join(hashDir, OssfsTokenFilesDir), req.Secrets)
 	if err != nil {
 		return fmt.Errorf("rotate token files failed: %w", err)
 	}

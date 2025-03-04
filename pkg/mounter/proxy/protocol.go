@@ -46,6 +46,7 @@ type MountRequest struct {
 }
 
 type RotateTokenRequest struct {
+	Target  string            `json:"target,omitempty"`
 	Fstype  string            `json:"fstype,omitempty"`
 	Secrets map[string]string `json:"secrets,omitempty"`
 }

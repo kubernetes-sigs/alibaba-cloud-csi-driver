@@ -9,7 +9,7 @@ RUN --mount=type=bind,target=. \
     go build -o /out/csi-mount-proxy-server ./cmd/mount-proxy-server && \
     go build -o /out/csi-mount-proxy-client ./cmd/mount-proxy-client
 
-FROM --platform=$TARGETPLATFORM registry.cn-hangzhou.aliyuncs.com/acs/alinux:3-update as base
+FROM --platform=$TARGETPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update
 RUN sudo yum install -y automake gcc-c++ git libcurl-devel libxml2-devel \
     fuse-devel make openssl-devel rpm-build rubygems ruby ruby-devel unzip
 RUN ruby -v 

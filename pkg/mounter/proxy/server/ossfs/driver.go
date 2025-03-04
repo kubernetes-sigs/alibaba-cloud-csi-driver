@@ -25,7 +25,7 @@ const (
 	OssfsPasswdFile     = "passwd-ossfs"
 	OssfsPasswdFileName = "passwd"
 
-	OssfsTokenFilesDir = "/tmp/token-files"
+	OssfsTokenFilesDir = "token-files"
 )
 
 type Driver struct {
@@ -53,7 +53,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	options := req.Options
 
 	// prepare passwd file
-	passwdFile, tokenDir, credOpts, err := prepareCredentialFiles(req.Secrets)
+	passwdFile, tokenDir, credOpts, err := prepareCredentialFiles(req.Target, req.Secrets)
 	if err != nil {
 		return fmt.Errorf("prepare credential files failed: %w", err)
 	}

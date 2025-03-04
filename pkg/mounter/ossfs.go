@@ -373,7 +373,7 @@ func CleanupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Inte
 }
 
 func getRoleSessionName(volumeId, target string) string {
-	name := fmt.Sprintf("ossfs.%s.%s", volumeId, computeMountPathHash(target))
+	name := fmt.Sprintf("ossfs.%s.%s", volumeId, ComputeMountPathHash(target))
 	if len(name) > MaxRoleSessionNameLimit {
 		name = name[:MaxRoleSessionNameLimit]
 	}

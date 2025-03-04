@@ -173,7 +173,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if !notMnt {
 		klog.Infof("NodePublishVolume: %s already mounted", targetPath)
 		if needRotateToken(opts, authCfg.Secrets) {
-			err := proxyMounter.RotateToken(opts.FuseType, authCfg.Secrets)
+			err := proxyMounter.RotateToken(targetPath, opts.FuseType, authCfg.Secrets)
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
