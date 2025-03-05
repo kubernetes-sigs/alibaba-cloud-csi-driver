@@ -12,6 +12,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"golang.org/x/sys/unix"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 )
 
@@ -111,22 +112,32 @@ func handle(ctx context.Context, req *rawRequest) proxy.Response {
 	return proxy.Response{}
 }
 
-func Init() {
-	doForHandlers(func(m MountHandler) { m.Init() })
+func Init(driverNames []string) {
+	doForDrivers(func(m Driver) {
+		for _, fstype := range m.Fstypes() {
+			fstypeToDriver[fstype] = m
+		}
+		m.Init()
+	}, driverNames)
+
 }
 
-func Terminate() {
-	doForHandlers(func(m MountHandler) { m.Terminate() })
+func Terminate(driverNames []string) {
+	doForDrivers(func(m Driver) {
+		m.Terminate()
+	}, driverNames)
 }
 
-func doForHandlers(f func(m MountHandler)) {
+func doForDrivers(f func(m Driver), driverNames []string) {
 	var wg sync.WaitGroup
-	for i := range mountHandlers {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			f(mountHandlers[i])
-		}(i)
+	for _, name := range sets.New[string](driverNames...).UnsortedList() {
+		if driver, ok := nameToDriver[name]; ok {
+			wg.Add(1)
+			go func(m Driver) {
+				defer wg.Done()
+				f(m)
+			}(driver)
+		}
 	}
 	wg.Wait()
 }

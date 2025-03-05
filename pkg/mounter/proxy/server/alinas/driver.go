@@ -18,16 +18,22 @@ const (
 )
 
 func init() {
-	server.RegisterMountHandler(&MountHandler{
-		mounter: mount.New(""),
-	}, fstypeCpfsNfs, fstypeAlinas)
+	server.RegisterDriver(&Driver{mounter: mount.New("")})
 }
 
-type MountHandler struct {
+type Driver struct {
 	mounter mount.Interface
 }
 
-func (h *MountHandler) Mount(ctx context.Context, req *proxy.MountRequest) error {
+func (h *Driver) Name() string {
+	return "alinas"
+}
+
+func (h *Driver) Fstypes() []string {
+	return []string{fstypeAlinas, fstypeCpfsNfs}
+}
+
+func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	klog.InfoS("Mounting", "fstype", req.Fstype, "source", req.Source, "target", req.Target, "options", req.Options)
 	options := append(req.Options, "no_start_watchdog")
 	if req.Fstype == fstypeAlinas {
@@ -36,12 +42,12 @@ func (h *MountHandler) Mount(ctx context.Context, req *proxy.MountRequest) error
 	return h.mounter.Mount(req.Source, req.Target, req.Fstype, options)
 }
 
-func (h *MountHandler) Init() {
+func (h *Driver) Init() {
 	go runCommandForever("aliyun-alinas-mount-watchdog")
 	go runCommandForever("aliyun-cpfs-mount-watchdog")
 }
 
-func (h *MountHandler) Terminate() {}
+func (h *Driver) Terminate() {}
 
 func runCommandForever(command string, args ...string) {
 	wait.Forever(func() {

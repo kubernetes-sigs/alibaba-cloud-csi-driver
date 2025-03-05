@@ -21,18 +21,20 @@ import (
 
 var (
 	socketPath    string
+	drivers       []string
 	handleTimeout time.Duration
 )
 
 func main() {
 	flag.StringVar(&socketPath, "socket", "/var/run/csi/mounter.sock", "socket path")
+	flag.StringSliceVar(&drivers, "driver", nil, "drivers to enable (e.g. 'ossfs,alinas')")
 	flag.DurationVar(&handleTimeout, "timeout", time.Second*30, "timeout for connection")
 	utils.AddKlogFlags(flag.CommandLine)
 	utils.AddGoFlags(flag.CommandLine)
 	flag.Parse()
 
 	_ = os.Remove(socketPath)
-	server.Init()
+	server.Init(drivers)
 
 	listener, err := listen(socketPath)
 	if err != nil {
@@ -63,7 +65,7 @@ func main() {
 		}
 		go handle(conn)
 	}
-	server.Terminate()
+	server.Terminate(drivers)
 }
 
 func handle(conn net.Conn) {
