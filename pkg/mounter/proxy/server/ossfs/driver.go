@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -152,6 +154,19 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		}
 	}
 	return err
+}
+
+func (h *Driver) RotateToken(ctx context.Context, req *proxy.RotateTokenRequest) error {
+	// prepare passwd file
+	hashDir := mounter.ComputeMountPathHash(req.Target)
+	rotated, err := rotateTokenFiles(filepath.Join(hashDir, OssfsTokenFilesDir), req.Secrets)
+	if err != nil {
+		return fmt.Errorf("rotate token files failed: %w", err)
+	}
+	if rotated {
+		klog.V(4).InfoS("rotate ossfs token files")
+	}
+	return nil
 }
 
 func (h *Driver) Init() {}

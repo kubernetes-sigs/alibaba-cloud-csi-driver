@@ -8,6 +8,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+func ErrNotImplemented(driver, method string) error {
+	return fmt.Errorf("%s: %s not implemented", driver, method)
+}
+
 func WaitFdReadable(fd int, timeout time.Duration) error {
 	tv := unix.Timeval{
 		Sec: int64(timeout.Seconds()),
