@@ -315,10 +315,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 		return &csi.NodePublishVolumeResponse{}, nil
 	case utils.RundRunTimeTag:
-		if directvolume.IsRunDVolumeAlreadyMount(req.TargetPath) {
-			klog.Infof("NodePublishVolume: TargetPath: %s already mounted by csi3.0/csi2.0 protocol", req.TargetPath)
-			return &csi.NodePublishVolumeResponse{}, nil
-		}
 		klog.Infof("NodePublishVolume: TargetPath: %s is umounted, start mount in kata mode", req.TargetPath)
 		mountFlags := req.GetVolumeCapability().GetMount().GetMountFlags()
 		pvName := utils.GetPvNameFormPodMnt(targetPath)
@@ -1248,7 +1244,9 @@ func (ns *nodeServer) umountRunDVolumes(volumePath string) (bool, error) {
 				return true, status.Errorf(codes.Internal, "vmoc(DFBus) bind err: %s", err.Error())
 			}
 		} else {
-			err = d.BindDriver(d.GetPCIDeviceDriverType())
+			driverType := d.GetPCIDeviceDriverType()
+			klog.InfoS("umountRunDVolumes: rebind target type", "driverType", driverType)
+			err = d.BindDriver(driverType)
 			if err != nil {
 				return true, status.Errorf(codes.Internal, "vmoc(DFBus) bind err: %s", err.Error())
 			}

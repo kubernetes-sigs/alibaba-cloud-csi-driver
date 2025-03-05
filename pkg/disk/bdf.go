@@ -650,7 +650,8 @@ func (d *driver) GetPCIDeviceDriverType() string {
 	klog.InfoS("GetDeviceDriverType: get driver type output", "deviceNumber", d.deviceNumber, "output", output)
 	// #define PCI_DEVICE_ID_VIRTIO_BLOCK 0x1001
 	// #define PCI_DEVICE_ID_ALIBABA_NVME 0×5004
-	if strings.HasSuffix(strings.TrimSpace(string(output)), "1001") {
+	// example output: "21:04.2 0000: 1ded:5004 (rev 02)\n"
+	if strings.Contains(strings.TrimSpace(string(output)), "1ded:1001") {
 		return PCITypeVIRTIO
 	} else {
 		return PCITypeNVME
