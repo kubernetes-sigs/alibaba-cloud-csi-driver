@@ -30,6 +30,7 @@ import (
 
 	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 
+	alierrors "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
@@ -76,6 +77,7 @@ type DiskAttachDetach struct {
 
 // attach alibaba cloud disk
 func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID string, isSharedDisk, isSingleInstance bool, fromNode bool) (string, error) {
+	logger := klog.FromContext(ctx)
 	klog.Infof("AttachDisk: Starting Do AttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
 	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
@@ -207,6 +209,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	if err != nil {
 		var aliErr *alicloudErr.ServerError
 		if errors.As(err, &aliErr) {
+			logger := logger.WithValues("code", aliErr.ErrorCode(), "requestID", aliErr.RequestId())
 			switch aliErr.ErrorCode() {
 			case InstanceNotFound:
 				return "", status.Errorf(codes.NotFound, "Node(%s) not found, request ID: %s", nodeID, aliErr.RequestId())
@@ -216,6 +219,9 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 				return "", status.Errorf(codes.Internal, "%v, Disk(%s) should be \"Pay by quantity\", not be \"Annual package\", please check and modify the charge type, and refer to: https://help.aliyun.com/document_detail/134767.html", err, diskID)
 			case NotSupportDiskCategory:
 				return "", status.Errorf(codes.Internal, "%v, Disk(%s) is not supported by instance, please refer to: https://help.aliyun.com/document_detail/25378.html", err, diskID)
+			case InvalidOperation_Conflict, IncorrectDiskStatus:
+				logger.V(2).Info("attach conflict, delaying retry for 1s")
+				slot.Block(time.Now().Add(1 * time.Second))
 			}
 		}
 		return "", status.Errorf(codes.Aborted, "NodeStageVolume: Error happens to attach disk %s to instance %s, %v", diskID, nodeID, err)
@@ -224,6 +230,10 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	// Step 4: wait for disk attached
 	klog.Infof("AttachDisk: Waiting for Disk %s is Attached to instance %s with RequestId: %s", diskID, nodeID, response.RequestId)
 	if err := ad.waitForDiskAttached(ctx, diskID, nodeID); err != nil {
+		if errors.Is(err, ctx.Err()) {
+			logger.V(1).Info("attach not finished yet, delaying retry for 1s")
+			slot.Block(time.Now().Add(1 * time.Second))
+		}
 		return "", err
 	}
 
@@ -382,6 +392,7 @@ func (ad *DiskAttachDetach) detachMultiAttachDisk(ctx context.Context, ecsClient
 }
 
 func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) error {
+	logger := klog.FromContext(ctx)
 	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
 		klog.Errorf("DetachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
@@ -426,6 +437,18 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Clien
 		return err
 	})
 	if err != nil {
+		var aliErr *alierrors.ServerError
+		if errors.As(err, &aliErr) {
+			logger := logger.WithValues("code", aliErr.ErrorCode(), "requestID", aliErr.RequestId())
+			switch aliErr.ErrorCode() {
+			case InvalidOperation_Conflict, DisksDetachingOnEcsExceeded, IncorrectDiskStatus:
+				logger.V(2).Info("detach conflict, delaying retry for 1s")
+				slot.Block(time.Now().Add(1 * time.Second))
+			case DependencyViolation:
+				logger.V(2).Info("disk already detached")
+				return nil
+			}
+		}
 		return status.Errorf(codes.Aborted, "DetachDisk: Fail to detach %s: from Instance: %s with error: %v", disk.DiskId, disk.InstanceId, err)
 	}
 	if StopDiskOperationRetry(disk.InstanceId, ecsClient) {
@@ -436,6 +459,10 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Clien
 	// check disk detach
 	err = ad.waitForDiskDetached(ctx, diskID, nodeID)
 	if err != nil {
+		if errors.Is(err, ctx.Err()) {
+			logger.V(1).Info("detach not finished yet, delaying retry for 1s")
+			slot.Block(time.Now().Add(1 * time.Second))
+		}
 		return status.Errorf(codes.Aborted, "DetachDisk: Detaching Disk %s failed: %v", diskID, err)
 	}
 	klog.Infof("DetachDisk: Volume: %s Success to detach disk %s from Instance %s, RequestId: %s", diskID, disk.DiskId, disk.InstanceId, response.RequestId)
