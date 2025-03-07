@@ -34,7 +34,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
@@ -142,8 +141,6 @@ func (disk *DISK) Run() {
 
 // GlobalConfigSet set Global Config
 func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
-	configMapName := "csi-plugin"
-
 	// Global Configs Set
 	cfg, err := options.GetRestConfig()
 	if err != nil {
@@ -160,13 +157,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 		klog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	csiCfg := utils.Config{}
-	configMap, err := kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), configMapName, metav1.GetOptions{})
-	if err != nil {
-		klog.Infof("Not found configmap named as csi-plugin under kube-system, with: %v", err)
-	} else {
-		csiCfg.ConfigMap = configMap.Data
-	}
+	csiCfg := utils.DefaultConfig()
 
 	// Env variables
 	avmfe := os.Getenv("ADDON_VM_FATAL_EVENTS")
