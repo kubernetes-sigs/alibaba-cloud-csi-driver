@@ -31,6 +31,8 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
@@ -42,12 +44,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/clock"
 )
 
 // controller server try to create/delete volumes/snapshots
 type controllerServer struct {
-	recorder record.EventRecorder
-	ad       DiskAttachDetach
+	recorder       record.EventRecorder
+	ad             DiskAttachDetach
+	snapshotWaiter waitstatus.StatusWaiter[ecs.Snapshot]
 	common.GenericControllerServer
 }
 
@@ -81,6 +85,20 @@ var veasp = struct {
 
 var delVolumeSnap sync.Map
 
+func newSnapshotStatusWaiter() waitstatus.StatusWaiter[ecs.Snapshot] {
+	client := desc.Snapshots{
+		Client: GlobalConfigVar.EcsClient,
+	}
+	waiter := waitstatus.NewBatched(client, clock.RealClock{}, 1*time.Second, 3*time.Second)
+	waiter.PollHook = func() desc.Client[ecs.Snapshot] {
+		return desc.Snapshots{
+			Client: updateEcsClient(GlobalConfigVar.EcsClient),
+		}
+	}
+	go waiter.Run(context.Background())
+	return waiter
+}
+
 // NewControllerServer is to create controller server
 func NewControllerServer(csiCfg utils.Config) csi.ControllerServer {
 	waiter, batcher := newBatcher(false)
@@ -93,6 +111,7 @@ func NewControllerServer(csiCfg utils.Config) csi.ControllerServer {
 			attachThrottler: defaultThrottler(),
 			detachThrottler: defaultThrottler(),
 		},
+		snapshotWaiter: newSnapshotStatusWaiter(),
 	}
 	detachConcurrency := 1
 	attachConcurrency := 1
@@ -119,9 +138,6 @@ func (cs *controllerServer) ControllerGetCapabilities(ctx context.Context, req *
 		),
 	}, nil
 }
-
-// the map of req.Name and csi.Snapshot
-var createdSnapshotMap = map[string]*csi.Snapshot{}
 
 // the map of multizone and index
 var storageClassZonePos = map[string]int{}
@@ -525,42 +541,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 
 	klog.Infof("CreateSnapshot:: Starting to create snapshot: %+v", req)
 	sourceVolumeID := strings.Trim(req.GetSourceVolumeId(), " ")
-	// Need to check for already existing snapshot name
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-	snapshots, snapNum, err := findSnapshotByName(req.GetName())
-	switch {
-	case snapNum == 1:
-		// Since err is nil, it means the snapshot with the same name already exists need
-		// to check if the sourceVolumeId of existing snapshot is the same as in new request.
-		existsSnapshot := snapshots.Snapshots.Snapshot[0]
-		if existsSnapshot.SourceDiskId == req.GetSourceVolumeId() {
-			csiSnapshot, err := formatCSISnapshot(&existsSnapshot)
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "format snapshot failed: %v", err)
-			}
-			klog.Infof("CreateSnapshot:: Snapshot already created: name[%s], sourceId[%s], status[%v]", req.Name, req.GetSourceVolumeId(), csiSnapshot.ReadyToUse)
-			if csiSnapshot.ReadyToUse {
-				klog.Infof("VolumeSnapshot: name: %s, id: %s is ready to use.", existsSnapshot.SnapshotName, existsSnapshot.SnapshotId)
-			}
-			return &csi.CreateSnapshotResponse{
-				Snapshot: csiSnapshot,
-			}, nil
-		}
-		return nil, status.Errorf(codes.AlreadyExists, "snapshot with the same name: %s but with different SourceVolumeId already exist", req.GetName())
-	case snapNum > 1:
-		return nil, status.Errorf(codes.Internal, "CreateSnapshot: get snapshot %s more than 1 instance", req.Name)
-	case err != nil:
-		return nil, status.Errorf(codes.Internal, "CreateSnapshot: get snapshot %s with error: %s", req.GetName(), err.Error())
-	}
 
-	// check snapshot again, if ram has no auth to describe snapshot, there will always 0 response.
-	if value, ok := createdSnapshotMap[req.Name]; ok {
-		str := fmt.Sprintf("CreateSnapshot:: Snapshot already created, Name: %s, Info: %v", req.Name, value)
-		klog.Info(str)
-		return &csi.CreateSnapshotResponse{
-			Snapshot: value,
-		}, nil
-	}
 	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 	disks := getDisks([]string{sourceVolumeID}, ecsClient)
 	if len(disks) == 0 {
@@ -570,27 +551,28 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}
 
 	// init createSnapshotRequest and parameters
-	createAt := timestamppb.Now()
 	params.SourceVolumeID = sourceVolumeID
 	params.SnapshotName = req.Name
 	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, params)
 
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "create snapshot[%s] with sourceId[%s] failed with error: %v", req.Name, req.GetSourceVolumeId(), err)
+		return nil, err
 	}
 
 	klog.Infof("CreateSnapshot:: Snapshot create successful: snapshotName[%s], sourceId[%s], snapshotId[%s]", req.Name, req.GetSourceVolumeId(), snapshotResponse.SnapshotId)
-	csiSnapshot := &csi.Snapshot{
-		SnapshotId:     snapshotResponse.SnapshotId,
-		SourceVolumeId: sourceVolumeID,
-		CreationTime:   createAt,
-		ReadyToUse:     false, // even if instant access is available, the snapshot is not ready to use immediately
-		SizeBytes:      utils.Gi2Bytes(int64(disks[0].Size)),
+
+	snap, err := cs.snapshotWaiter.WaitFor(ctx, snapshotResponse.SnapshotId, waitstatus.SnapshotCut)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed while waiting for snapshot cut: %v", err)
 	}
 
-	createdSnapshotMap[req.Name] = csiSnapshot
+	csiSnap, err := formatCSISnapshot(snap)
+	if err != nil {
+		return nil, err
+	}
+
 	return &csi.CreateSnapshotResponse{
-		Snapshot: csiSnapshot,
+		Snapshot: csiSnap,
 	}, nil
 }
 
@@ -671,7 +653,6 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 		klog.Infof("DeleteSnapshot: snapshot[%s] not exist, see as successful", snapshotID)
 	}
 
-	delete(createdSnapshotMap, snapshot.SnapshotName)
 	klog.Infof("DeleteSnapshot:: Successfully delete snapshot %s, requestId: %s", snapshotID, reqId)
 	return &csi.DeleteSnapshotResponse{}, nil
 }

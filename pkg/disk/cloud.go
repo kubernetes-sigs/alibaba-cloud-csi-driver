@@ -612,25 +612,6 @@ func findDiskByName(name string, ecsClient cloud.ECSInterface) (*ecs.Disk, error
 	}
 	return &disks[0], err
 }
-
-func findSnapshotByName(name string) (*ecs.DescribeSnapshotsResponse, int, error) {
-	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
-	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
-	describeSnapShotRequest.SnapshotName = name
-	snapshots, err := GlobalConfigVar.EcsClient.DescribeSnapshots(describeSnapShotRequest)
-	if err != nil {
-		return nil, 0, err
-	}
-	if len(snapshots.Snapshots.Snapshot) == 0 {
-		return snapshots, 0, nil
-	}
-
-	if len(snapshots.Snapshots.Snapshot) > 1 {
-		return snapshots, len(snapshots.Snapshots.Snapshot), status.Error(codes.Internal, "find more than one snapshot with name "+name)
-	}
-	return snapshots, 1, nil
-}
-
 func findDiskSnapshotByID(id string) (*ecs.Snapshot, error) {
 	describeSnapShotRequest := ecs.CreateDescribeSnapshotsRequest()
 	describeSnapShotRequest.RegionId = GlobalConfigVar.Region
@@ -760,7 +741,16 @@ func requestAndCreateSnapshot(ecsClient *ecs.Client, params *createSnapshotParam
 	// Do Snapshot create
 	snapshotResponse, err := ecsClient.CreateSnapshot(createSnapshotRequest)
 	if err != nil {
-		return nil, fmt.Errorf("create snapshot %s failed: %v", params.SnapshotName, err)
+		var aliErr *alicloudErr.ServerError
+		if errors.As(err, &aliErr) {
+			switch aliErr.ErrorCode() {
+			case IdempotentParameterMismatch:
+				return nil, status.Errorf(codes.AlreadyExists, "already created but parameter mismatch (RequestID: %s)", aliErr.RequestId())
+			case QuotaExceed_Snapshot:
+				return nil, status.Errorf(codes.ResourceExhausted, "snapshot quota exceeded: %v", err)
+			}
+		}
+		return nil, status.Errorf(codes.Internal, "create snapshot failed: %v", err)
 	}
 	return snapshotResponse, nil
 }
