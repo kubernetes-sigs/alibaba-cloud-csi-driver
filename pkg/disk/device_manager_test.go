@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type fakeDevTmpFS struct {
@@ -107,16 +108,16 @@ func testingManager(t *testing.T) *DeviceManager {
 	}
 }
 
-func TestGetDeviceBySerialNotFound(t *testing.T) {
+func TestGetDeviceBySysfsSerialNotFound(t *testing.T) {
 	m := testingManager(t)
-	_, err := m.getDeviceBySerial("mydiskserial")
+	_, err := m.getDeviceByScanSysfsSerial("mydiskserial")
 	assert.Equal(t, err, os.ErrNotExist)
 
 	// ignore block that has no serial
 	err = os.MkdirAll(filepath.Join(m.SysfsPath, "block/loop0"), 0o755)
 	assert.NoError(t, err)
 
-	_, err = m.getDeviceBySerial("mydiskserial")
+	_, err = m.getDeviceByScanSysfsSerial("mydiskserial")
 	assert.Equal(t, err, os.ErrNotExist)
 }
 
@@ -152,22 +153,22 @@ func setupNVMeBlockDevice(t *testing.T, sysfsPath string) string {
 	return sysfsDev
 }
 
-func TestGetDeviceBySerialVirtIO(t *testing.T) {
+func TestGetDeviceBySysfsSerialVirtIO(t *testing.T) {
 	m := testingManager(t)
 	// Create a fake virtio block device.
 	setupVirtIOBlockDevice(t, m.SysfsPath)
 
-	deviceName, err := m.getDeviceBySerial("mydiskserial")
+	deviceName, err := m.getDeviceByScanSysfsSerial("mydiskserial")
 	assert.NoError(t, err)
 	assert.Equal(t, "vdb", deviceName)
 }
 
-func TestGetDeviceBySerialNvme(t *testing.T) {
+func TestGetDeviceBySysfsSerialNvme(t *testing.T) {
 	m := testingManager(t)
 	// Create a fake NVMe block device.
 	setupNVMeBlockDevice(t, m.SysfsPath)
 
-	deviceName, err := m.getDeviceBySerial("mydiskserial")
+	deviceName, err := m.getDeviceByScanSysfsSerial("mydiskserial")
 	assert.NoError(t, err)
 	assert.Equal(t, "nvme1n1", deviceName)
 }
@@ -204,6 +205,7 @@ func sysfsSetupPartition(t *testing.T, sysfs, sysfsDev, deviceName string, dev *
 // returns the single formatted partition
 func TestAdaptDevicePartitionPositive(t *testing.T) {
 	m := testingManager(t)
+	m.EnableDiskPartition = true
 	// Create a fake NVMe block device.
 	sysfsDev := setupNVMeBlockDevice(t, m.SysfsPath)
 	sysfsSetupPartition(t, m.SysfsPath, sysfsDev, "nvme1n1p27", &nvmePart, 27)
@@ -224,8 +226,8 @@ func TestAdaptDevicePartitionPositive(t *testing.T) {
 
 // returns root device path if no partition found
 func TestAdaptDevicePartitionNoPartition(t *testing.T) {
-	fmt.Print(os.Getenv("PATH"))
 	m := testingManager(t)
+	m.EnableDiskPartition = true
 	// Create a fake NVMe block device.
 	setupNVMeBlockDevice(t, m.SysfsPath)
 	m.DevTmpFS.(*fakeDevTmpFS).Devs = []fakeDev{nvmeDev}
@@ -238,6 +240,7 @@ func TestAdaptDevicePartitionNoPartition(t *testing.T) {
 // returns error if more than one partition found
 func TestAdaptDevicePartitionMultiplePartitions(t *testing.T) {
 	m := testingManager(t)
+	m.EnableDiskPartition = true
 	// Create a fake NVMe block device.
 	sysfsDev := setupNVMeBlockDevice(t, m.SysfsPath)
 	sysfsSetupPartition(t, m.SysfsPath, sysfsDev, "nvme1n1p27", &nvmePart, 27)
@@ -302,7 +305,7 @@ func TestGetRootBlockByVolumeID_Link(t *testing.T) {
 
 			c.init(t, m)
 
-			devicePath, err := m.GetRootBlockByVolumeID("mydiskserial")
+			devicePath, err := m.GetRootBlockBySerial("mydiskserial")
 			if c.err != nil {
 				assert.True(t, errors.Is(err, c.err), err)
 				assert.False(t, errors.Is(err, os.ErrNotExist), err) // bad link error should suppress os.ErrNotExist
@@ -314,11 +317,11 @@ func TestGetRootBlockByVolumeID_Link(t *testing.T) {
 	}
 }
 
-func getRoot(m *DeviceManager, volumeID string, wait bool) (string, error) {
+func getRoot(m *DeviceManager, serial string, wait bool) (string, error) {
 	if wait {
-		return m.WaitRootBlock(context.Background(), volumeID)
+		return m.WaitRootBlock(context.Background(), serial)
 	} else {
-		return m.GetRootBlockByVolumeID(volumeID)
+		return m.GetRootBlockBySerial(serial)
 	}
 }
 
@@ -392,7 +395,7 @@ func TestGetDeviceByVolumeID_Positive(t *testing.T) {
 				if wait {
 					devicePath, err = m.WaitDevice(context.Background(), "mydiskserial")
 				} else {
-					devicePath, err = m.GetDeviceByVolumeID("mydiskserial")
+					devicePath, err = m.GetDeviceBySerial("mydiskserial")
 				}
 				assert.NoError(t, err)
 				assert.Equal(t, filepath.Join(m.DevicePath, "disk/by-id/virtio-mydiskserial"), devicePath)
@@ -530,4 +533,50 @@ func TestWriteSysfs(t *testing.T) {
 
 	err = m.WriteSysfs(dev, "../invaild/config", v)
 	assert.Error(t, err)
+}
+
+func TestGetNoSerialDevicesFromSysfs(t *testing.T) {
+	m := testingManager(t)
+	sysfs := m.SysfsPath
+	require.NoError(t, os.MkdirAll(sysfs+"/block", 0755))
+
+	require.NoError(t, os.MkdirAll(sysfs+"/devices/pci0000:00/0000:00:07.0/nvme/nvme0/nvme0n1", 0755))
+	require.NoError(t, os.Symlink("../../nvme0", sysfs+"/devices/pci0000:00/0000:00:07.0/nvme/nvme0/nvme0n1/device"))
+	require.NoError(t, os.Symlink("../devices/pci0000:00/0000:00:07.0/nvme/nvme0/nvme0n1", sysfs+"/block/nvme0n1"))
+
+	require.NoError(t, os.MkdirAll(sysfs+"/devices/pci0000:00/0000:00:08.0/nvme/nvme1/nvme1n1", 0755))
+	require.NoError(t, os.Symlink("../../nvme1", sysfs+"/devices/pci0000:00/0000:00:08.0/nvme/nvme1/nvme1n1/device"))
+	require.NoError(t, os.Symlink("../devices/pci0000:00/0000:00:08.0/nvme/nvme1/nvme1n1", sysfs+"/block/nvme1n1"))
+
+	require.NoError(t, os.MkdirAll(sysfs+"/devices/pci0000:00/0000:00:0a.0/virtio7/block/vdb", 0755))
+	require.NoError(t, os.Symlink("../devices/pci0000:00/0000:00:0a.0/virtio7/block/vdb", sysfs+"/block/vdb"))
+
+	require.NoError(t, os.MkdirAll(sysfs+"/devices/pci0000:00/0000:00:0b.0/virtio8/block/vdc", 0755))
+	require.NoError(t, os.Symlink("../devices/pci0000:00/0000:00:0b.0/virtio8/block/vdc", sysfs+"/block/vdc"))
+
+	require.NoError(t, os.MkdirAll(sysfs+"/devices/pci0000:00/0000:00:0c.0/virtio9/block/vdd", 0755))
+	require.NoError(t, os.Symlink("../devices/pci0000:00/0000:00:0c.0/virtio9/block/vdd", sysfs+"/block/vdd"))
+
+	require.NoError(t, os.WriteFile(sysfs+"/block/vdb/serial", []byte("serialofvdb"), 0644))
+	require.NoError(t, os.WriteFile(sysfs+"/block/vdc/serial", []byte(""), 0644))
+	// vdd no serial file
+	require.NoError(t, os.WriteFile(sysfs+"/block/nvme0n1/device/serial", []byte("serialofnvme0\n"), 0644))
+	require.NoError(t, os.WriteFile(sysfs+"/block/nvme1n1/device/serial", []byte("\n"), 0644))
+
+	cases := []struct {
+		name, serial string
+	}{
+		{"nvme0n1", "serialofnvme0"},
+		{"nvme1n1", ""},
+		{"vdb", "serialofvdb"},
+		{"vdc", ""},
+		{"vdd", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			serial, err := m.GetDeviceSerial(c.name)
+			assert.NoError(t, err)
+			assert.Equal(t, c.serial, serial)
+		})
+	}
 }
