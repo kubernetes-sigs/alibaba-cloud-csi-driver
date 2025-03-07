@@ -5,7 +5,6 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const batchSize = 100
@@ -46,29 +45,6 @@ func (c Disk) Describe(ids []string) (Response[ecs.Disk], error) {
 	}
 	ret.RequestID = resp.RequestId
 	ret.Resources = resp.Disks.Disk
-
-	if len(ret.Resources) < len(ids) {
-		// Maybe we have some shared disks?
-		gotIDs := make(sets.Set[string], len(ret.Resources))
-		for _, disk := range ret.Resources {
-			gotIDs.Insert(disk.DiskId)
-		}
-		var sharedIDs []string
-		for _, id := range ids {
-			if !gotIDs.Has(id) {
-				sharedIDs = append(sharedIDs, id)
-			}
-		}
-		if len(sharedIDs) > 0 {
-			req.DiskIds = encodeIDs(sharedIDs)
-			req.EnableShared = requests.NewBoolean(true)
-			resp, err := c.Client.DescribeDisks(req)
-			if err != nil {
-				return ret, err
-			}
-			ret.Resources = append(ret.Resources, resp.Disks.Disk...)
-		}
-	}
 	return ret, nil
 }
 
