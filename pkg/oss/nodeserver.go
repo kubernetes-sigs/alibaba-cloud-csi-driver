@@ -19,7 +19,6 @@ package oss
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -101,15 +100,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err := validateNodePublishVolumeRequest(req); err != nil {
 		return nil, err
 	}
-	// check if already mounted
-	notMnt, err := isNotMountPoint(ns.rawMounter, targetPath)
-	if err != nil {
-		return nil, err
-	}
-	if !notMnt {
-		klog.Infof("NodePublishVolume: %s already mounted", targetPath)
-		return &csi.NodePublishVolumeResponse{}, nil
-	}
 
 	// parse options
 	region, _ := ns.metadata.Get(metadata.RegionID)
@@ -117,24 +107,16 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err := setCNFSOptions(ctx, ns.cnfsGetter, opts); err != nil {
 		return nil, err
 	}
-	// options validation
-	if err := checkOssOptions(opts); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
 
 	switch opts.AuthType {
 	case "":
 		// try to get ak/sk from env
-		if opts.SecretRef == "" && (opts.AkID == "" || opts.AkSecret == "") {
+		if opts.SecretRef == "" && len(req.Secrets) == 0 {
 			ac := utils.GetEnvAK()
 			opts.AkID = ac.AccessKeyID
 			opts.AkSecret = ac.AccessKeySecret
 		}
-		if !features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
-			if opts.SecretRef == "" && (opts.AkID == "" || opts.AkSecret == "") {
-				return nil, status.Error(codes.InvalidArgument, "missing access key in node publish secret")
-			}
-		}
+
 	case mounter.AuthTypeSTS:
 		// try to get default ECS worker role from metadata server
 		if opts.RoleName == "" {
@@ -145,6 +127,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 				return nil, status.Error(codes.InvalidArgument, "missing roleName or ramRole in volume attributes")
 			}
 		}
+	}
+
+	// options validation
+	if err := checkOssOptions(opts, true); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	// PVs with attribute direct=true will by mounted in rund guest os.
@@ -159,7 +146,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err != nil {
 		return nil, err
 	}
-	if ns.ossfs != nil {
+	if ns.ossfs != nil && opts.FuseType == ns.ossfs.Name() {
 		mountOptions = ns.ossfs.AddDefaultMountOptions(mountOptions)
 	}
 
@@ -177,6 +164,22 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.InvalidArgument, "%s not found in publishContext", mountProxySocket)
 	}
 	proxyMounter := mounter.NewProxyMounter(socketPath, ns.rawMounter)
+
+	// check if already mounted for re-publish
+	notMnt, err := isNotMountPoint(ns.rawMounter, targetPath)
+	if err != nil {
+		return nil, err
+	}
+	if !notMnt {
+		klog.Infof("NodePublishVolume: %s already mounted", targetPath)
+		if needRotateToken(opts, authCfg.Secrets) {
+			err := proxyMounter.RotateToken(targetPath, opts.FuseType, authCfg.Secrets)
+			if err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+		}
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
 
 	// When work as csi-agent, directly mount on the target path.
 	if ns.skipAttach {
@@ -198,7 +201,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if notMnt {
 		utils.WriteSharedMetricsInfo(metricsPathPrefix, req, OssFsType, "oss", opts.Bucket, attachPath)
-		err := mounter.NewProxyMounter(socketPath, ns.rawMounter).MountWithSecrets(
+		err := proxyMounter.MountWithSecrets(
 			mountSource, attachPath, opts.FuseType, mountOptions, authCfg.Secrets)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -216,7 +219,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 }
 
 // Check oss options
-func checkOssOptions(opt *Options) error {
+func checkOssOptions(opt *Options, atNode bool) error {
 	if opt.FuseType != OssFsType {
 		return WrapOssError(ParamError, "only ossfs fuse type supported")
 	}
@@ -245,12 +248,9 @@ func checkOssOptions(opt *Options) error {
 			return WrapOssError(AuthError, "use CsiSecretStore but secretProviderClass is empty")
 		}
 	default:
-		if opt.SecretRef != "" {
-			if opt.AkID != "" || opt.AkSecret != "" {
-				return WrapOssError(AuthError, "AK and secretRef cannot be set at the same time")
-			}
-			if opt.SecretRef == mounter.OssfsCredentialSecretName {
-				return WrapOssError(ParamError, "invalid SecretRef name")
+		if atNode {
+			if err := checkDefaultAuthOptions(opt); err != nil {
+				return WrapOssError(AuthError, "%v", err)
 			}
 		}
 	}
@@ -411,15 +411,9 @@ func (o *Options) MakeMountOptionsAndAuthConfig(m metadata.MetadataProvider, vol
 			mountOptions = append(mountOptions, "ram_role="+o.RoleName)
 		}
 	default:
-		if o.SecretRef != "" {
-			authCfg.SecretRef = o.SecretRef
-			mountOptions = append(mountOptions, fmt.Sprintf("passwd_file=%s", filepath.Join(mounter.PasswdMountDir, mounter.PasswdFilename)))
-			mountOptions = append(mountOptions, "use_session_token")
-		} else {
-			authCfg.Secrets = map[string]string{
-				mounter.OssfsPasswdFile: fmt.Sprintf("%s:%s:%s", o.Bucket, o.AkID, o.AkSecret),
-			}
-		}
+		var defOpts []string
+		authCfg, defOpts = getDefaultAuthConfig(o)
+		mountOptions = append(mountOptions, defOpts...)
 	}
 
 	return mountOptions, authCfg, nil

@@ -24,14 +24,24 @@ import (
 
 func Test_checkOssOptions(t *testing.T) {
 	tests := []struct {
-		name    string
-		opts    *Options
-		errType error
+		name      string
+		NOTatNode bool
+		opts      *Options
+		errType   error
 	}{
 		{
-			// should pass as may be accepted by mountOptions on PV,
-			//   or ENV in CSI running container
-			name: "empty aksk",
+			name: "empty aksk at NodePublish",
+			opts: &Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				FuseType: OssFsType,
+			},
+			errType: AuthError,
+		},
+		{
+			name:      "empty aksk at ControllerPublish",
+			NOTatNode: true,
 			opts: &Options{
 				URL:      "1.1.1.1",
 				Bucket:   "aliyun",
@@ -43,11 +53,13 @@ func Test_checkOssOptions(t *testing.T) {
 		{
 			name: "empty fuse type",
 			opts: &Options{
-				URL:      "1.1.1.1",
-				Bucket:   "aliyun",
-				Path:     "/path",
-				AkID:     "11111",
-				AkSecret: "22222",
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 			},
 			errType: ParamError,
 		},
@@ -64,11 +76,13 @@ func Test_checkOssOptions(t *testing.T) {
 		{
 			name: "invalid path",
 			opts: &Options{
-				URL:      "1.1.1.1",
-				Bucket:   "aliyun",
-				Path:     "abc/",
-				AkID:     "11111",
-				AkSecret: "22222",
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "abc/",
+				AccessKey: AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 				FuseType: OssFsType,
 			},
 			errType: PathError,
@@ -76,10 +90,12 @@ func Test_checkOssOptions(t *testing.T) {
 		{
 			name: "empty URL",
 			opts: &Options{
-				Bucket:   "aliyun",
-				Path:     "/path",
-				AkID:     "11111",
-				AkSecret: "22222",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 				FuseType: OssFsType,
 			},
 			errType: ParamError,
@@ -87,11 +103,13 @@ func Test_checkOssOptions(t *testing.T) {
 		{
 			name: "success with accessKey",
 			opts: &Options{
-				URL:      "1.1.1.1",
-				Bucket:   "aliyun",
-				Path:     "/path",
-				AkID:     "11111",
-				AkSecret: "22222",
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 				FuseType: OssFsType,
 			},
 			errType: nil,
@@ -108,14 +126,19 @@ func Test_checkOssOptions(t *testing.T) {
 			errType: nil,
 		},
 		{
-			name: "conflict between accessKey and secretRef",
+			name: "conflict between TokenSecret and secretRef",
 			opts: &Options{
 				URL:       "1.1.1.1",
 				Bucket:    "aliyun",
 				Path:      "/path",
 				SecretRef: "secret",
-				AkID:      "11111",
-				FuseType:  OssFsType,
+				TokenSecret: TokenSecret{
+					AccessKeyId:     "akId",
+					AccessKeySecret: "akSecret",
+					Expiration:      "expiration",
+					SecurityToken:   "securityToken",
+				},
+				FuseType: OssFsType,
 			},
 			errType: AuthError,
 		},
@@ -128,7 +151,7 @@ func Test_checkOssOptions(t *testing.T) {
 				SecretRef: mounter.OssfsCredentialSecretName,
 				FuseType:  OssFsType,
 			},
-			errType: ParamError,
+			errType: AuthError,
 		},
 		{
 			name: "use assumeRole with non-RRSA authType",
@@ -137,7 +160,6 @@ func Test_checkOssOptions(t *testing.T) {
 				Bucket:        "aliyun",
 				Path:          "/path",
 				SecretRef:     "secret",
-				AkID:          "11111",
 				AssumeRoleArn: "test-assume-role-arn",
 				FuseType:      OssFsType,
 			},
@@ -192,11 +214,13 @@ func Test_checkOssOptions(t *testing.T) {
 		{
 			name: "invalid encrypted type",
 			opts: &Options{
-				URL:       "1.1.1.1",
-				Bucket:    "aliyun",
-				Path:      "/path",
-				AkID:      "11111",
-				AkSecret:  "22222",
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 				Encrypted: "invalid",
 				FuseType:  OssFsType,
 			},
@@ -205,11 +229,13 @@ func Test_checkOssOptions(t *testing.T) {
 		{
 			name: "valid kms sse",
 			opts: &Options{
-				URL:       "1.1.1.1",
-				Bucket:    "aliyun",
-				Path:      "/path",
-				AkID:      "11111",
-				AkSecret:  "22222",
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 				Encrypted: EncryptedTypeKms,
 				FuseType:  OssFsType,
 			},
@@ -218,11 +244,13 @@ func Test_checkOssOptions(t *testing.T) {
 		{
 			name: "invalid url",
 			opts: &Options{
-				URL:      "aliyun.oss-cn-hangzhou.aliyuncs.com",
-				Bucket:   "aliyun",
-				Path:     "/path",
-				AkID:     "11111",
-				AkSecret: "22222",
+				URL:    "aliyun.oss-cn-hangzhou.aliyuncs.com",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 				FuseType: OssFsType,
 			},
 			errType: UrlError,
@@ -230,7 +258,7 @@ func Test_checkOssOptions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := checkOssOptions(tt.opts)
+			err := checkOssOptions(tt.opts, !tt.NOTatNode)
 			assert.ErrorIs(t, err, tt.errType)
 		})
 	}

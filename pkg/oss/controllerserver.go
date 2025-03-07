@@ -146,7 +146,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 	// options validation
-	if err := checkOssOptions(opts); err != nil {
+	if err := checkOssOptions(opts, false); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	// Skip controller publish for PVs with attribute direct=true.
