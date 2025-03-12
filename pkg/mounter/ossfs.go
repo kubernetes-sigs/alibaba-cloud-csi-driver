@@ -239,7 +239,7 @@ func buildAuthSpec(c *FusePodContext, target string, spec *corev1.PodSpec, conta
 	}
 
 	switch authCfg.AuthType {
-	case AuthTypeSTS:
+	case AuthTypeSTS, AuthTypePublic:
 	case AuthTypeRRSA:
 		if authCfg.RrsaConfig == nil {
 			return

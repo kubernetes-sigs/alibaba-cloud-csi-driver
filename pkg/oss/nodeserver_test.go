@@ -227,6 +227,17 @@ func Test_checkOssOptions(t *testing.T) {
 			},
 			errType: UrlError,
 		},
+		{
+			name: "public bucket",
+			opts: &Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				FuseType: OssFsType,
+				AuthType: mounter.AuthTypePublic,
+			},
+			errType: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
