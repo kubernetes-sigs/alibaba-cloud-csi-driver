@@ -44,7 +44,9 @@ import (
 const (
 	driverType              = "disk"
 	driverName              = "diskplugin.csi.alibabacloud.com"
-	TopologyZoneKey         = "topology." + driverName + "/zone"
+	TopologyKey             = "topology." + driverName
+	TopologyRegionKey       = TopologyKey + "/region"
+	TopologyZoneKey         = TopologyKey + "/zone"
 	TopologyMultiZonePrefix = TopologyZoneKey + "-"
 )
 
