@@ -61,9 +61,10 @@ type RrsaConfig struct {
 }
 
 const (
-	AuthTypeSTS  = "sts"
-	AuthTypeRRSA = "rrsa"
-	AuthTypeCSS  = "csi-secret-store"
+	AuthTypeSTS    = "sts"
+	AuthTypeRRSA   = "rrsa"
+	AuthTypeCSS    = "csi-secret-store"
+	AuthTypePublic = "public"
 )
 
 const (

@@ -235,7 +235,7 @@ func checkOssOptions(opt *Options) error {
 	}
 
 	switch opt.AuthType {
-	case mounter.AuthTypeSTS:
+	case mounter.AuthTypeSTS, mounter.AuthTypePublic:
 	case mounter.AuthTypeRRSA:
 		if err := checkRRSAParams(opt); err != nil {
 			return WrapOssError(AuthError, "%v", err)
@@ -386,12 +386,26 @@ func (o *Options) MakeMountOptionsAndAuthConfig(m metadata.MetadataProvider, vol
 
 	mountOptions = append(mountOptions, fmt.Sprintf("url=%s", o.URL))
 
-	authCfg := &mounter.AuthConfig{AuthType: o.AuthType}
+	authCfg, authOptions, err := o.makeAuthConfig(m)
+	if err != nil {
+		return nil, nil, status.Error(codes.Internal, err.Error())
+	}
+	mountOptions = append(mountOptions, authOptions...)
+
+	return mountOptions, authCfg, nil
+}
+
+func (o *Options) makeAuthConfig(m metadata.MetadataProvider) (
+	authCfg *mounter.AuthConfig, mountOptions []string, err error,
+) {
+	authCfg = &mounter.AuthConfig{AuthType: o.AuthType}
 	switch o.AuthType {
+	case mounter.AuthTypePublic:
+		mountOptions = append(mountOptions, "public_bucket=1")
 	case mounter.AuthTypeRRSA:
 		rrsaCfg, err := getRRSAConfig(o, m)
 		if err != nil {
-			return nil, nil, status.Errorf(codes.Internal, "Get RoleArn and OidcProviderArn for RRSA error: %v", err)
+			return nil, nil, fmt.Errorf("Get RoleArn and OidcProviderArn for RRSA error: %v", err)
 		}
 		authCfg.RrsaConfig = rrsaCfg
 		region, _ := m.Get(metadata.RegionID)
@@ -421,6 +435,5 @@ func (o *Options) MakeMountOptionsAndAuthConfig(m metadata.MetadataProvider, vol
 			}
 		}
 	}
-
-	return mountOptions, authCfg, nil
+	return
 }
