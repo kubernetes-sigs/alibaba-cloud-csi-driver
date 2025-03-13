@@ -15,14 +15,14 @@ RUN --mount=type=bind,target=. \
         -o /out/plugin.csi.alibabacloud.com && \
     go build -trimpath -o /out/csiplugin-connector ./build/lib/csiplugin-connector.go
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian12:latest@sha256:23878c981cb4409b6dd701563d2c1226dd69423d74a95acf56e671382523d0b0 as distroless-base
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian12:latest@sha256:74ddbf52d93fafbdd21b399271b0b4aac1babf8fa98cab59e5692e01169a1348 as distroless-base
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 
 FROM distroless-base as csi-controller
 COPY --link --from=build /out/plugin.csi.alibabacloud.com /usr/bin/plugin.csi.alibabacloud.com
 ENTRYPOINT ["/usr/bin/plugin.csi.alibabacloud.com"]
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20241202-slim as debian
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20250224-slim as debian
 
 ARG TARGETARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$TARGETARCH \
@@ -41,7 +41,7 @@ RUN --mount=type=bind,from=distroless-base,target=/base \
 FROM distroless-base as dep-list
 COPY --link --from=debian /staging-node /
 
-FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20241202-slim as build-0
+FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20250224-slim as build-0
 ARG BUILDARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$BUILDARCH \
     --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib-$BUILDARCH \
