@@ -273,14 +273,6 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool)
 		rawPod.Annotations[FuseMountPathAnnoKey] = target
 		rawPod.Annotations[FuseSafeToEvictAnnoKey] = "true"
 
-		// check service account
-		if rawPod.Spec.ServiceAccountName != "" {
-			_, err := fpm.client.CoreV1().ServiceAccounts(c.Namespace).Get(c, rawPod.Spec.ServiceAccountName, metav1.GetOptions{})
-			if err != nil {
-				return nil, fmt.Errorf("check service account %s for RRSA: %w", rawPod.Spec.ServiceAccountName, err)
-			}
-		}
-
 		logger.V(2).Info("creating fuse pod", "target", target)
 		createdPod, err := podClient.Create(ctx, &rawPod, metav1.CreateOptions{})
 		if err != nil {
