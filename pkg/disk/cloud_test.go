@@ -327,13 +327,14 @@ func TestCheckExistingDisk(t *testing.T) {
 // Cases that only hit the server at most once
 func TestCreateDisk_Basic(t *testing.T) {
 	cases := []struct {
-		name       string
-		supports   sets.Set[Category]
-		instance   string
-		args       *diskVolumeArgs
-		serverFail bool
-		expected   createAttempt
-		err        bool
+		name          string
+		supports      sets.Set[Category]
+		instance      string
+		isVirtualNode bool
+		args          *diskVolumeArgs
+		serverFail    bool
+		expected      createAttempt
+		err           bool
 	}{
 		{
 			name:     "success",
@@ -358,6 +359,11 @@ func TestCreateDisk_Basic(t *testing.T) {
 			name: "EED no instance",
 			args: &diskVolumeArgs{Type: []Category{DiskEEDStandard}, RequestGB: 100},
 			err:  true,
+		}, {
+			name:          "EED virtual node",
+			args:          &diskVolumeArgs{Type: []Category{DiskEEDStandard}, RequestGB: 100},
+			isVirtualNode: true,
+			expected:      createAttempt{Category: DiskEEDStandard},
 		}, {
 			name:     "unsupported",
 			supports: sets.New(DiskSSD),
@@ -388,7 +394,7 @@ func TestCreateDisk_Basic(t *testing.T) {
 				client.EXPECT().CreateDisk(gomock.Any()).Return(nil, alicloudErr.NewServerError(400, `{"Code": "AnyOtherErrors"}`, ""))
 			}
 
-			diskID, attempt, err := createDisk(client, "disk-name", "", c.args, c.supports, c.instance)
+			diskID, attempt, err := createDisk(client, "disk-name", "", c.args, c.supports, c.instance, c.isVirtualNode)
 			if c.err {
 				assert.Error(t, err)
 			} else {
@@ -410,7 +416,7 @@ func TestCreateDisk_ServerFailFallback(t *testing.T) {
 	}, nil)
 
 	args := &diskVolumeArgs{Type: []Category{DiskESSD, DiskESSDAuto}, RequestGB: 20}
-	diskID, attempt, err := createDisk(client, "disk-name", "", args, nil, "")
+	diskID, attempt, err := createDisk(client, "disk-name", "", args, nil, "", false)
 	assert.NoError(t, err)
 	assert.Equal(t, "d-123", diskID)
 	assert.Equal(t, DiskESSDAuto, attempt.Category)
@@ -464,7 +470,7 @@ func TestCreateDisk_ParameterMismatch(t *testing.T) {
 			}
 
 			args := &diskVolumeArgs{Type: []Category{DiskESSD, DiskESSDAuto}, RequestGB: 20}
-			diskID, attempt, err := createDisk(client, "disk-name", "", args, nil, "")
+			diskID, attempt, err := createDisk(client, "disk-name", "", args, nil, "", false)
 			if c.err {
 				assert.Error(t, err)
 			} else {
@@ -495,7 +501,7 @@ func TestCreateDisk_NoInfiniteLoop(t *testing.T) {
 	}, nil)
 
 	args := &diskVolumeArgs{Type: []Category{DiskESSD}, RequestGB: 20}
-	_, _, err := createDisk(client, "disk-name", "", args, nil, "")
+	_, _, err := createDisk(client, "disk-name", "", args, nil, "", false)
 	assert.Error(t, err)
 }
 

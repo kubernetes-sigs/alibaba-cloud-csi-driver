@@ -1049,7 +1049,7 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.V
 
 	attempt := createAttempt{
 		Category(disk.Category), PerformanceLevel(disk.PerformanceLevel),
-		"", // We have no instanceID for virtual-kubelet. if user really use EED with VK, he should delete the PVC with Pod
+		"", // no instanceID for virtual-kubelet.
 	}
 	return volumeCreate(attempt, diskID, volSizeBytes, volumeContext, disk.ZoneId, src), nil
 }
