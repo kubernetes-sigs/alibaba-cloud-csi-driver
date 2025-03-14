@@ -223,6 +223,7 @@ github.com/prometheus/common/version
 # github.com/prometheus/procfs v0.12.0
 ## explicit; go 1.19
 github.com/prometheus/procfs
+github.com/prometheus/procfs/blockdevice
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
 # github.com/sirupsen/logrus v1.9.0
