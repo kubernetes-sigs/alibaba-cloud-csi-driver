@@ -190,6 +190,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	var supportedTypes sets.Set[Category]
 	var selectedInstance string
+	var isVirtualNode bool
 	if diskVol.NodeSelected != "" {
 		client := GlobalConfigVar.ClientSet
 		node, err := client.CoreV1().Nodes().Get(context.Background(), diskVol.NodeSelected, metav1.GetOptions{})
@@ -202,11 +203,12 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		}
 		supportedTypes = getSupportedDiskTypes(node)
 		selectedInstance = node.Labels[common.ECSInstanceIDTopologyKey]
+		isVirtualNode = node.Labels[common.NodeTypeLabelKey] == common.VirtualNodeType
 	}
 
 	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 
-	diskID, attempt, err := createDisk(ecsClient, req.GetName(), snapshotID, diskVol, supportedTypes, selectedInstance)
+	diskID, attempt, err := createDisk(ecsClient, req.GetName(), snapshotID, diskVol, supportedTypes, selectedInstance, isVirtualNode)
 	if err != nil {
 		if errors.Is(err, ErrParameterMismatch) {
 			return nil, status.Errorf(codes.AlreadyExists, "volume %s already created but %v", req.Name, err)
