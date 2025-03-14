@@ -956,6 +956,9 @@ func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volu
 		segments[TopologyZoneKey] = zoneID
 		volumeContext[labelAppendPrefix+TopologyZoneKey] = zoneID
 	}
+	if attempt.IsVirtualNode {
+		segments[common.NodeTypeLabelKey] = common.VirtualNodeType
+	}
 	if attempt.Instance != "" {
 		segments[common.ECSInstanceIDTopologyKey] = attempt.Instance
 	}
@@ -1049,7 +1052,8 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.V
 
 	attempt := createAttempt{
 		Category(disk.Category), PerformanceLevel(disk.PerformanceLevel),
-		"", // We have no instanceID for virtual-kubelet. if user really use EED with VK, he should delete the PVC with Pod
+		"", // no instanceID for virtual-kubelet.
+		true,
 	}
 	return volumeCreate(attempt, diskID, volSizeBytes, volumeContext, disk.ZoneId, src), nil
 }
