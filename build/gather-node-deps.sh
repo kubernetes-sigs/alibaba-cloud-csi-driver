@@ -7,7 +7,7 @@ mkdir -p /staging-node/var/lib/dpkg/status.d
 DEPS=(
     /etc/netconfig
     /etc/mke2fs.conf /sbin/{fsck,mkfs,mount,umount}.{ext{2,3,4},xfs,nfs}
-    /usr/bin/{mount,umount,lspci,lsof,chmod,grep,tail,nsenter}
+    /usr/bin/{mount,umount,lspci,lsof,chmod,grep,tail,nsenter,partx}
     /usr/sbin/{fsck,mkfs,sfdisk,losetup,blockdev}
     /sbin/dumpe2fs /sbin/resize2fs
     /usr/sbin/xfs_io /usr/sbin/xfs_growfs
