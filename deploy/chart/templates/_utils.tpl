@@ -57,3 +57,18 @@
   value: {{ $d }}
 {{- end -}}
 {{- end -}}
+
+{{- define "parseFeatureGates" -}}
+{{- $featureGates := list -}}
+{{- range $index, $featureGate := splitList "," .  }}
+  {{- $featureGateKV := splitList "=" $featureGate }}
+  {{- if eq (len $featureGateKV) 2 -}}
+    {{- $key := trim (index $featureGateKV 0) -}}
+    {{- $value := lower (trim (index $featureGateKV 1) ) -}}
+    {{- if or (eq $value "true") (eq $value "t") -}}
+      {{- $featureGates = append $featureGates $key -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+{{- join "," $featureGates -}}
+{{- end -}}
