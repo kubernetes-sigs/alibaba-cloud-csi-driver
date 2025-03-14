@@ -125,7 +125,6 @@ func prepareNodeConfigEnvVars(t *testing.T) {
 	t.Setenv("NAS_PORT_CHECK", "false")
 	t.Setenv("NAS_METRIC_BY_PLUGIN", "true")
 	t.Setenv("KUBE_NODE_NAME", "node1")
-	t.Setenv("NAS_LOSETUP_ENABLE", "true")
 }
 
 func TestGetNodeConfigConfigMapGetError(t *testing.T) {
