@@ -235,7 +235,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 
 	// step 5: diff device with previous files under /dev
 	if fromNode {
-		device, err := DefaultDeviceManager.WaitDevice(ctx, diskID)
+		device, err := DefaultDeviceManager.WaitDevice(ctx, disk.SerialNumber)
 		if err == nil {
 			klog.Infof("AttachDisk: Successful attach disk %s to node %s device %s by DiskID/Device", diskID, nodeID, device)
 			return device, nil
@@ -253,7 +253,11 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 				return "", status.Errorf(codes.Aborted, "NodeStageVolume: failed to attach bdf: %v", err)
 			}
 
-			_, err = DefaultDeviceManager.GetRootBlockByVolumeID(diskID)
+			if disk.SerialNumber != "" {
+				_, err = DefaultDeviceManager.GetRootBlockBySerial(disk.SerialNumber)
+			} else {
+				err = errors.New("no serial")
+			}
 			deviceName := ""
 			if err != nil && bdf != "" {
 				deviceName, err = GetDeviceByBdf(bdf, true)
