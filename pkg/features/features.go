@@ -52,6 +52,9 @@ const (
 	// This feature allows users to use the volume group snapshot functionality,
 	// enabling snapshots of related disks under a workload through ECS's snapshot-group capability.
 	EnableVolumeGroupSnapshots featuregate.Feature = "EnableVolumeGroupSnapshots"
+
+	// Use cnfs-alinas-daemon instead of csiplugin-connector for alinas and efc mounting.
+	AlinasMountProxy featuregate.Feature = "AlinasMountProxy"
 )
 
 var (
@@ -68,7 +71,12 @@ var (
 	defaultOSSFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
 		UpdatedOssfsVersion: {Default: true, PreRelease: featuregate.Beta},
 	}
-	defaultNASFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
+
+	defaultNasFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
+		AlinasMountProxy: {Default: false, PreRelease: featuregate.Alpha},
+	}
+
+	otherFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
 		RundCSIProtocol3: {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
@@ -76,5 +84,6 @@ var (
 func init() {
 	runtime.Must(FunctionalMutableFeatureGate.Add(defaultDiskFeatureGate))
 	runtime.Must(FunctionalMutableFeatureGate.Add(defaultOSSFeatureGate))
-	runtime.Must(FunctionalMutableFeatureGate.Add(defaultNASFeatureGate))
+	runtime.Must(FunctionalMutableFeatureGate.Add(defaultNasFeatureGate))
+	runtime.Must(FunctionalMutableFeatureGate.Add(otherFeatureGate))
 }
