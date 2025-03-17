@@ -9,6 +9,8 @@ RUN --mount=type=bind,target=. \
     go build -o /out/csi-mount-proxy-server ./cmd/mount-proxy-server && \
     go build -o /out/csi-mount-proxy-client ./cmd/mount-proxy-client
 
+#################### OSSFS 1.91 MOUNT-PROXY IMAGE ####################
+
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as oss
 ARG TARGETPLATFORM
 ARG OSSFS_VERSION=v1.91.5.ack.1
@@ -29,6 +31,10 @@ RUN ln -s /host/etc/mime.types /etc/mime.types
 
 COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
 ENTRYPOINT ["csi-mount-proxy-server"]
+
+#################### OSSFS 1.91 MOUNT-PROXY IMAGE ####################
+
+#################### OSSFS 1.88 MOUNT-PROXY IMAGE ####################
 
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as oss-1.88
 ARG TARGETPLATFORM
@@ -60,3 +66,28 @@ RUN ln -s /host/etc/mime.types /etc/mime.types
 COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
 ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs"]
 
+#################### OSSFS 1.88 MOUNT-PROXY IMAGE ####################
+
+#################### ALINAS MOUNT-PROXY IMAGE ####################
+
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as alinas
+
+ARG TARGETPLATFORM
+ARG ALINAS_UTILS_VERSION=1.8-0.20250228140224.8879f0.al7
+ARG EFC_VERSION=1.8-20250226151552.7151bf.release
+RUN set -ex; \
+    case "${TARGETPLATFORM}" in \
+        linux/amd64) ARCH="x86_64" ;; \
+        # linux/arm64) ARCH="aarch_64" ;; \
+        *) echo "unsupported platform"; exit 1 ;; \
+    esac; \
+    yum install -y util-linux procps tini; \
+    yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
+    yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
+    yum clean all
+RUN cp -r /etc/aliyun /etc/aliyun-defaults
+
+COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
+ENTRYPOINT [ "tini", "--", "csi-mount-proxy-server", "--driver=alinas" ]
+
+#################### ALINAS MOUNT-PROXY IMAGE ####################
