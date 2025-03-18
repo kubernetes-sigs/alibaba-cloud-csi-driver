@@ -1008,9 +1008,35 @@ func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volu
 	return tmpVol
 }
 
+func parseSnapshotID(req *csi.CreateVolumeRequest) (string, error) {
+	volumeSource := req.GetVolumeContentSource()
+	if volumeSource != nil {
+		sourceSnapshot := volumeSource.GetSnapshot()
+		if sourceSnapshot == nil {
+			return "", fmt.Errorf("CreateVolume: unsupported volumeContentSource type: %T", volumeSource.Type)
+		}
+		return sourceSnapshot.GetSnapshotId(), nil
+	}
+	// set snapshotID if pvc labels/annotation set it.
+	return req.Parameters[DiskSnapshotID], nil
+}
+
+func volumeContentSource(snapshotID string) *csi.VolumeContentSource {
+	if snapshotID == "" {
+		return nil
+	}
+	return &csi.VolumeContentSource{
+		Type: &csi.VolumeContentSource_Snapshot{
+			Snapshot: &csi.VolumeContentSource_SnapshotSource{
+				SnapshotId: snapshotID,
+			},
+		},
+	}
+}
+
 // staticVolumeCreate 检查输入参数，如果包含了云盘ID，则直接使用云盘进行返回；
 // 根据云盘ID请求云盘的具体属性，并作为pv参数返回；
-func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.Volume, error) {
+func staticVolumeCreate(req *csi.CreateVolumeRequest) (*csi.Volume, error) {
 	paras := req.GetParameters()
 	diskID := paras[annDiskID]
 	if diskID == "" {
@@ -1023,7 +1049,7 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.V
 		return nil, err
 	}
 	if disk == nil {
-		return nil, perrors.Errorf("Disk %s cannot be found from ecs api", diskID)
+		return nil, fmt.Errorf("disk %s cannot be found from ecs api", diskID)
 	}
 
 	volumeContext := req.GetParameters()
@@ -1032,26 +1058,26 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest, snapshotID string) (*csi.V
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	diskSizeBytes := utils.Gi2Bytes(int64(disk.Size))
 	if volSizeBytes != diskSizeBytes {
-		return nil, perrors.Errorf("Disk %s is not expected capacity: expected(%d), disk(%d)", diskID, volSizeBytes, diskSizeBytes)
+		return nil, fmt.Errorf("disk %s is not expected capacity: expected(%d), disk(%d)", diskID, volSizeBytes, diskSizeBytes)
 	}
 
 	// Set VolumeContentSource
-	var src *csi.VolumeContentSource
-	if snapshotID != "" {
-		src = &csi.VolumeContentSource{
-			Type: &csi.VolumeContentSource_Snapshot{
-				Snapshot: &csi.VolumeContentSource_SnapshotSource{
-					SnapshotId: snapshotID,
-				},
-			},
-		}
+	snapshotID, err := parseSnapshotID(req)
+	if err != nil {
+		return nil, err
 	}
+
+	tags, err := parseTags(req.Parameters)
+	if err != nil {
+		return nil, err
+	}
+	tagDiskUserTags(diskID, tags)
 
 	attempt := createAttempt{
 		Category(disk.Category), PerformanceLevel(disk.PerformanceLevel),
 		"", // We have no instanceID for virtual-kubelet. if user really use EED with VK, he should delete the PVC with Pod
 	}
-	return volumeCreate(attempt, diskID, volSizeBytes, volumeContext, disk.ZoneId, src), nil
+	return volumeCreate(attempt, diskID, volSizeBytes, volumeContext, disk.ZoneId, volumeContentSource(snapshotID)), nil
 }
 
 // updateVolumeContext remove unnecessary volume context
