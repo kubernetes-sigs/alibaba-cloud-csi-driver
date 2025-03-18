@@ -147,43 +147,26 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	logger := klog.FromContext(ctx)
 	logger.V(2).Info("starting")
 
-	// Step 1: check parameters
-	snapshotID := ""
-	volumeSource := req.GetVolumeContentSource()
-	if volumeSource != nil {
-		if _, ok := volumeSource.GetType().(*csi.VolumeContentSource_Snapshot); !ok {
-			return nil, status.Error(codes.InvalidArgument, "CreateVolume: unsupported volumeContentSource type")
-		}
-		sourceSnapshot := volumeSource.GetSnapshot()
-		if sourceSnapshot == nil {
-			return nil, status.Error(codes.InvalidArgument, "CreateVolume: get empty snapshot from volumeContentSource")
-		}
-		snapshotID = sourceSnapshot.GetSnapshotId()
+	// 兼容 serverless 拓扑感知场景；
+	// req参数里面包含了云盘ID，则直接使用云盘ID进行返回；
+	csiVolume, err := staticVolumeCreate(req)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "create static volume failed: %v", err)
 	}
-	// set snapshotID if pvc labels/annotation set it.
-	if snapshotID == "" {
-		if value, ok := req.Parameters[DiskSnapshotID]; ok && value != "" {
-			snapshotID = value
-		}
+	if csiVolume != nil {
+		klog.Infof("CreateVolume: static volume create successful, pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, csiVolume.VolumeId, csiVolume.VolumeContext)
+		return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
+	}
+
+	snapshotID, err := parseSnapshotID(req)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	diskVol, err := getDiskVolumeOptions(req)
 	if err != nil {
 		klog.Errorf("CreateVolume: error parameters from input: %v, with error: %v", req.Name, err)
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %v, with error: %v", req.Name, err)
-	}
-
-	// 兼容 serverless 拓扑感知场景；
-	// req参数里面包含了云盘ID，则直接使用云盘ID进行返回；
-	csiVolume, err := staticVolumeCreate(req, snapshotID)
-	if err != nil {
-		klog.Errorf("CreateVolume: static volume(%s) describe with error: %s", req.Name, err.Error())
-		return nil, err
-	}
-	if csiVolume != nil {
-		tagDiskUserTags(csiVolume.VolumeId, diskVol.DiskTags)
-		klog.Infof("CreateVolume: static volume create successful, pvName: %s, VolumeId: %s, volumeContext: %v", req.Name, csiVolume.VolumeId, csiVolume.VolumeContext)
-		return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 	}
 
 	sharedDisk := len(diskVol.Type) == 1 && (diskVol.Type[0] == DiskSharedEfficiency || diskVol.Type[0] == DiskSharedSSD)
@@ -239,19 +222,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 	klog.Infof("CreateVolume: Successfully created Disk %s: id[%s], zone[%s], disktype[%s], snapshotID[%s]", req.GetName(), diskID, diskVol.ZoneID, attempt, snapshotID)
 
-	// Set VolumeContentSource
-	var src *csi.VolumeContentSource
-	if snapshotID != "" {
-		src = &csi.VolumeContentSource{
-			Type: &csi.VolumeContentSource_Snapshot{
-				Snapshot: &csi.VolumeContentSource_SnapshotSource{
-					SnapshotId: snapshotID,
-				},
-			},
-		}
-	}
-
-	tmpVol := volumeCreate(attempt, diskID, utils.Gi2Bytes(int64(diskVol.RequestGB)), volumeContext, diskVol.ZoneID, src)
+	tmpVol := volumeCreate(attempt, diskID, utils.Gi2Bytes(int64(diskVol.RequestGB)), volumeContext, diskVol.ZoneID, volumeContentSource(snapshotID))
 
 	return &csi.CreateVolumeResponse{Volume: tmpVol}, nil
 }
