@@ -8,6 +8,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
@@ -22,6 +23,8 @@ import (
 const (
 	configMapName      = "csi-plugin"
 	configMapNamespace = "kube-system"
+
+	defaultAlinasMountProxySocket = "/run/cnfs/alinas-mounter.sock"
 )
 
 type ControllerConfig struct {
@@ -146,6 +149,10 @@ func GetNodeConfig() (*NodeConfig, error) {
 		if config.NodeIP == "" {
 			return nil, errors.New("enabled losetup mode but failed to get node IP")
 		}
+	}
+
+	if features.FunctionalMutableFeatureGate.Enabled(features.AlinasMountProxy) {
+		config.MountProxySocket = defaultAlinasMountProxySocket
 	}
 
 	return config, nil
