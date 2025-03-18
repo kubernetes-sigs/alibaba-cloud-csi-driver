@@ -904,7 +904,7 @@ func isValidSnapshotName(name string) bool {
 	return validDiskNameRegexp.MatchString(name)
 }
 
-func createDisk(ecsClient cloud.ECSInterface, diskName, snapshotID string, diskVol *diskVolumeArgs, supportedTypes sets.Set[Category], selectedInstance string) (string, createAttempt, error) {
+func createDisk(ecsClient cloud.ECSInterface, diskName, snapshotID string, diskVol *diskVolumeArgs, supportedTypes sets.Set[Category], selectedInstance string, isVirtualNode bool) (string, createAttempt, error) {
 	// 需要配置external-provisioner启动参数--extra-create-metadata=true，然后ACK的external-provisioner才会将PVC的Annotations传过来
 	createDiskRequest := buildCreateDiskRequest(diskVol)
 	if isValidDiskName(diskName) {
@@ -931,7 +931,7 @@ func createDisk(ecsClient cloud.ECSInterface, diskName, snapshotID string, diskV
 			continue
 		}
 		cateDesc := AllCategories[attempt.Category]
-		if cateDesc.SingleInstance {
+		if !isVirtualNode && cateDesc.SingleInstance {
 			if selectedInstance == "" {
 				messages = append(messages, fmt.Sprintf("%s: no ECS instance selected. Please use WaitForFirstConsumer volumeBindingMode, and upgrade csi-plugin", attempt))
 				continue
