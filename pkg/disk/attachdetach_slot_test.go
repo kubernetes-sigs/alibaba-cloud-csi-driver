@@ -171,3 +171,15 @@ func TestSerialDetach_NoRace(t *testing.T) {
 		t.Fatal("state not updated")
 	}
 }
+
+func TestWaitingADError(t *testing.T) {
+	s := NewSlots(1, 0).GetSlotFor("node1").Detach()
+	ctx := context.Background()
+	assert.NoError(t, s.Acquire(ctx))
+
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Millisecond)
+	defer cancel()
+	err := s.Acquire(ctx)
+	assert.ErrorIs(t, err, waitingAD{})
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+}
