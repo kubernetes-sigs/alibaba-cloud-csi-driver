@@ -174,9 +174,13 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	}
 
 	if !fromNode && disk.SerialNumber == "" {
-		return "", status.Errorf(codes.InvalidArgument,
-			"Disk %s does not have serial number but AD controller is enabled, we cannot attach this disk. "+
-				"Please open ticket to add serial number to this disk", diskID)
+		if GlobalConfigVar.ADControllerEnable {
+			return "", status.Errorf(codes.InvalidArgument,
+				"Disk %s does not have serial number but AD controller is enabled, we cannot attach this disk. "+
+					"Please open ticket to add serial number to this disk", diskID)
+		} else {
+			return "", nil // should defer attach to node
+		}
 	}
 
 	slot := ad.slots.GetSlotFor(nodeID).Attach()
@@ -424,7 +428,7 @@ func (ad *DiskAttachDetach) detachMultiAttachDisk(ctx context.Context, ecsClient
 	return true, nil
 }
 
-func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) error {
+func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string, fromNode bool) error {
 	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
 		klog.Errorf("DetachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
@@ -432,6 +436,10 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Clien
 	}
 	if disk == nil {
 		klog.Infof("DetachDisk: Detach Disk %s from node %s describe and find disk not exist", diskID, nodeID)
+		return nil
+	}
+	if fromNode && disk.SerialNumber != "" {
+		klog.V(2).InfoS("server say disk has serial number, defer detach to controller")
 		return nil
 	}
 
