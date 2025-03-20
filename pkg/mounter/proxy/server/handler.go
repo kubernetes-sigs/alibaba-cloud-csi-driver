@@ -104,6 +104,20 @@ func handle(ctx context.Context, req *rawRequest) proxy.Response {
 				Error: err.Error(),
 			}
 		}
+	case proxy.RotateToken:
+		var rotateTokenReq proxy.RotateTokenRequest
+		err := json.Unmarshal(req.Body, &rotateTokenReq)
+		if err != nil {
+			return proxy.Response{
+				Error: err.Error(),
+			}
+		}
+		err = handleRotateTokenRequest(ctx, &rotateTokenReq)
+		if err != nil {
+			return proxy.Response{
+				Error: err.Error(),
+			}
+		}
 	default:
 		return proxy.Response{
 			Error: "invalid method",
