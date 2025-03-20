@@ -118,6 +118,11 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
+            - name: KUBE_NODE_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.hostIP
 {{- if $nodePool.deploy.regionID }}
             - name: REGION_ID
               value: {{ $nodePool.deploy.regionID | quote }}
@@ -229,6 +234,11 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
+            - name: KUBE_NODE_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.hostIP
 {{- if $nodePool.deploy.ecsEndpoint }}
             - name: ECS_ENDPOINT
               value: {{ $nodePool.deploy.ecsEndpoint | quote }}
