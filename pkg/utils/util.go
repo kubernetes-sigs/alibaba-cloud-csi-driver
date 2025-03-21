@@ -137,10 +137,10 @@ func GetServiceType(runAsController, runControllerService, runNodeService bool) 
 	if serviceType == 0 {
 		klog.Warning("no service type activated, this configuration may not be useful")
 	}
-	if serviceType&Controller == 0 {
+	if serviceType&Controller != 0 {
 		klog.Infof("activate CSI controller service")
 	}
-	if serviceType&Node == 0 {
+	if serviceType&Node != 0 {
 		klog.Infof("activate CSI node service")
 	}
 	return serviceType
