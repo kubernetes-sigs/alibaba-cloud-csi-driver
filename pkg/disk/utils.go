@@ -537,6 +537,9 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 		diskVolArgs.ZoneID = zones[zoneIndex]
 		storageClassZonePos[zoneIDStr]++
 	}
+	if diskVolArgs.ZoneID == "" {
+		return nil, fmt.Errorf("CreateVolume: Can't get zone ID from node topology info or storage class topology or metadataserver, req: %v", volOptions)
+	}
 	diskVolArgs.RegionID, ok = volOptions["regionId"]
 	if !ok {
 		diskVolArgs.RegionID = GlobalConfigVar.Region
