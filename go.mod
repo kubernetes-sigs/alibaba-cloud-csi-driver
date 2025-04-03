@@ -10,7 +10,7 @@ require (
 	github.com/alibabacloud-go/tea v1.2.1
 	github.com/aliyun/alibaba-cloud-sdk-go v1.62.719
 	github.com/aliyun/credentials-go v1.3.1
-	github.com/container-storage-interface/spec v1.10.0
+	github.com/container-storage-interface/spec v1.11.0
 	github.com/containerd/ttrpc v1.2.3
 	github.com/go-logr/logr v1.4.1
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
