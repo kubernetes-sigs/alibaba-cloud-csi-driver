@@ -93,3 +93,12 @@ func (c *client) Mount(req *proxy.MountRequest) (*proxy.Response, error) {
 		Body: req,
 	})
 }
+
+func (c *client) RotateToken(req *proxy.RotateTokenRequest) (*proxy.Response, error) {
+	return c.doRequest(&proxy.Request{
+		Header: proxy.Header{
+			Method: proxy.RotateToken,
+		},
+		Body: req,
+	})
+}

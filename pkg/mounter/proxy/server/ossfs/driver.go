@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -21,6 +22,13 @@ import (
 func init() {
 	server.RegisterDriver(NewDriver())
 }
+
+const (
+	OssfsPasswdFile     = "passwd-ossfs"
+	OssfsPasswdFileName = "passwd"
+
+	OssfsTokenFilesDir = "token-files"
+)
 
 type Driver struct {
 	pids *sync.Map
@@ -47,19 +55,16 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	options := req.Options
 
 	// prepare passwd file
-	var passwdFile string
-	if passwd := req.Secrets["passwd-ossfs"]; passwd != "" {
-		tmpDir, err := os.MkdirTemp("", "ossfs-")
-		if err != nil {
-			return err
-		}
-		passwdFile = filepath.Join(tmpDir, "passwd")
-		err = os.WriteFile(passwdFile, []byte(passwd), 0o600)
-		if err != nil {
-			return err
-		}
+	passwdFile, tokenDir, credOpts, err := prepareCredentialFiles(req.Target, req.Secrets)
+	if err != nil {
+		return fmt.Errorf("prepare credential files failed: %w", err)
+	}
+	options = append(options, credOpts...)
+	if passwdFile != "" {
 		klog.V(4).InfoS("created ossfs passwd file", "path", passwdFile)
-		options = append(options, "passwd_file="+passwdFile)
+	}
+	if tokenDir != "" {
+		klog.V(4).InfoS("created ossfs token directory", "dir", tokenDir)
 	}
 
 	args := mount.MakeMountArgs(req.Source, req.Target, "", options)
@@ -70,7 +75,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		return fmt.Errorf("start ossfs failed: %w", err)
 	}
@@ -93,9 +98,17 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 			klog.InfoS("ossfs exited", "mountpoint", target, "pid", pid)
 		}
 		ossfsExited <- err
-		if err := os.Remove(passwdFile); err != nil {
-			klog.ErrorS(err, "Remove passwd file", "mountpoint", target, "path", passwdFile)
+		if passwdFile != "" {
+			if err := os.Remove(passwdFile); err != nil {
+				klog.ErrorS(err, "Remove passwd file", "mountpoint", target, "path", passwdFile)
+			}
 		}
+		if tokenDir != "" {
+			if err := os.RemoveAll(tokenDir); err != nil {
+				klog.ErrorS(err, "Remove token directory", "mountpoint", target, "dir", tokenDir)
+			}
+		}
+
 		close(ossfsExited)
 	}()
 
@@ -141,6 +154,19 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		}
 	}
 	return err
+}
+
+func (h *Driver) RotateToken(ctx context.Context, req *proxy.RotateTokenRequest) error {
+	// prepare passwd file
+	hashDir := mounter.ComputeMountPathHash(req.Target)
+	rotated, err := rotateTokenFiles(filepath.Join(hashDir, OssfsTokenFilesDir), req.Secrets)
+	if err != nil {
+		return fmt.Errorf("rotate token files failed: %w", err)
+	}
+	if rotated {
+		klog.V(4).InfoS("rotate ossfs token files")
+	}
+	return nil
 }
 
 func (h *Driver) Init() {}
