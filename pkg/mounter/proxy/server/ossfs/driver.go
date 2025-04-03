@@ -13,7 +13,6 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 )
@@ -23,14 +22,14 @@ func init() {
 }
 
 type Driver struct {
-	pids *sync.Map
+	pids sync.Map
 	wg   sync.WaitGroup
 	raw  mount.Interface
 }
 
 func NewDriver() *Driver {
 	return &Driver{
-		pids: new(sync.Map),
+		pids: sync.Map{},
 		raw:  mount.NewWithoutSystemd(""),
 	}
 }
@@ -99,48 +98,41 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		close(ossfsExited)
 	}()
 
-	err = wait.PollUntilContextCancel(ctx, time.Second, true, func(ctx context.Context) (done bool, err error) {
+	for {
 		select {
 		case err := <-ossfsExited:
 			// TODO: collect ossfs outputs to return in error message
 			if err != nil {
-				return false, fmt.Errorf("ossfs exited: %w", err)
+				return fmt.Errorf("ossfs exited: %w", err)
 			}
-			return false, fmt.Errorf("ossfs exited")
-		default:
+			return fmt.Errorf("ossfs exited")
+		case <-ctx.Done():
+			// terminate ossfs process when timeout
+			terr := cmd.Process.Signal(syscall.SIGTERM)
+			if terr != nil {
+				klog.ErrorS(err, "Failed to terminate ossfs", "pid", pid)
+			}
+			select {
+			case <-ossfsExited:
+			case <-time.After(time.Second * 2):
+				kerr := cmd.Process.Kill()
+				if kerr != nil && !errors.Is(kerr, os.ErrProcessDone) {
+					klog.ErrorS(err, "Failed to kill ossfs", "pid", pid)
+				}
+			}
+			return ctx.Err()
+		case <-time.After(time.Second):
 			notMnt, err := h.raw.IsLikelyNotMountPoint(target)
 			if err != nil {
 				klog.ErrorS(err, "check mountpoint", "mountpoint", target)
-				return false, nil
+				continue
 			}
 			if !notMnt {
 				klog.InfoS("Successfully mounted", "mountpoint", target)
-				return true, nil
-			}
-			return false, nil
-		}
-	})
-
-	if err == nil {
-		return nil
-	}
-
-	if wait.Interrupted(err) {
-		// terminate ossfs process when timeout
-		terr := cmd.Process.Signal(syscall.SIGTERM)
-		if terr != nil {
-			klog.ErrorS(err, "Failed to terminate ossfs", "pid", pid)
-		}
-		select {
-		case <-ossfsExited:
-		case <-time.After(time.Second * 2):
-			kerr := cmd.Process.Kill()
-			if kerr != nil && errors.Is(kerr, os.ErrProcessDone) {
-				klog.ErrorS(err, "Failed to kill ossfs", "pid", pid)
+				return nil
 			}
 		}
 	}
-	return err
 }
 
 func (h *Driver) Init() {}
@@ -152,7 +144,7 @@ func (h *Driver) Terminate() {
 		if err != nil {
 			klog.ErrorS(err, "Failed to terminate ossfs", "pid", key)
 		}
-		klog.V(4).InfoS("Sended sigterm", "pid", key)
+		klog.V(4).InfoS("Sent sigterm", "pid", key)
 		return true
 	})
 	// wait all ossfs processes to exit
