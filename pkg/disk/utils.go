@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"os"
@@ -1082,6 +1083,8 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest) (*csi.Volume, error) {
 
 // updateVolumeContext remove unnecessary volume context
 func updateVolumeContext(volumeContext map[string]string) map[string]string {
+
+	cloned := maps.Clone(volumeContext)
 	for _, key := range []string{
 		LastApplyKey,
 		common.PVNameKey,
@@ -1091,10 +1094,10 @@ func updateVolumeContext(volumeContext map[string]string) map[string]string {
 		"csi.alibabacloud.com/storageclassName",
 		"allowVolumeExpansion", "volume.kubernetes.io/selected-node"} {
 
-		delete(volumeContext, key)
+		delete(cloned, key)
 	}
 
-	return volumeContext
+	return cloned
 }
 
 func getAttachedCloudDisks(ecsClient cloud.ECSInterface, m metadata.MetadataProvider) (diskIds []string, err error) {
