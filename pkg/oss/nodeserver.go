@@ -23,17 +23,18 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
+	mountutils "k8s.io/mount-utils"
+
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
-	mountutils "k8s.io/mount-utils"
 )
 
 type nodeServer struct {
@@ -391,6 +392,11 @@ func (o *Options) MakeMountOptionsAndAuthConfig(m metadata.MetadataProvider, vol
 		return nil, nil, status.Error(codes.Internal, err.Error())
 	}
 	mountOptions = append(mountOptions, authOptions...)
+
+	// skip tls verify for private cloud environments
+	if utils.IsPrivateCloud() {
+		mountOptions = append(mountOptions, "no_check_certificate")
+	}
 
 	return mountOptions, authCfg, nil
 }
