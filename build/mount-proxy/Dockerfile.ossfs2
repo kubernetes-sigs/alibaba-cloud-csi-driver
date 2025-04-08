@@ -1,0 +1,23 @@
+FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/golang:1.22.9 as builder
+WORKDIR /src
+ARG TARGETARCH
+ARG TARGETOS
+RUN --mount=type=bind,target=. \
+    export GOOS=$TARGETOS && \
+    export GOARCH=$TARGETARCH && \
+    export CGO_ENABLED=0 && \
+    go build -o /out/csi-mount-proxy-server ./cmd/mount-proxy-server && \
+    go build -o /out/csi-mount-proxy-client ./cmd/mount-proxy-client
+
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as oss
+ARG TARGETPLATFORM
+ARG OSSFS_VERSION
+
+# install ossfs
+# only supports x86_64
+RUN yum install -y https://gosspublic.alicdn.com/ossfs/ossfs2_2.0.0beta_linux_x86_64.rpm; \
+    yum install -y fuse3-devel util-linux mailcap procps; \
+    yum clean all
+
+COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
+ENTRYPOINT ["csi-mount-proxy-server"] 
