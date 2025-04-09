@@ -1,11 +1,35 @@
-package mounter
+package utils
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"hash/fnv"
+	"path/filepath"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 )
+
+const (
+	OssFsType  = "ossfs"
+	OssFs2Type = "ossfs2"
+)
+
+func computeMountPathHash(target string) string {
+	hasher := fnv.New32a()
+	hasher.Write([]byte(target))
+	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
+}
 
 // https://github.com/kubernetes/kubernetes/blob/b5ba7bc4f5f49760c821cae2f152a8000922e72e/staging/src/k8s.io/apimachinery/pkg/api/validation/objectmeta.go#L36
 // TotalAnnotationSizeLimitB only takes 128 kB here, and the rest is reserved for the default annotations.
@@ -87,7 +111,7 @@ func GetOIDCProvider(clusterId string) string {
 	return fmt.Sprintf("ack-rrsa-%s", clusterId)
 }
 
-// GetArn get rrsa config for fuse container's env setting
+// GetArn get rrsa config for fuse contianer's env setting
 func GetArn(provider, accountId, roleName string) (oidcProviderArn, roleArn string) {
 	if provider == "" || accountId == "" || roleName == "" {
 		return
@@ -95,4 +119,78 @@ func GetArn(provider, accountId, roleName string) (oidcProviderArn, roleArn stri
 	roleArn = fmt.Sprintf("acs:ram::%s:role/%s", accountId, roleName)
 	oidcProviderArn = fmt.Sprintf("acs:ram::%s:oidc-provider/%s", accountId, provider)
 	return
+}
+
+func GetMountProxySocketPath(volumeId string) string {
+	volSha := sha256.Sum256([]byte(volumeId))
+	return filepath.Join(GetFuseAttachDir(), hex.EncodeToString(volSha[:]), "mounter.sock")
+}
+
+func GetFuseAttachDir() string {
+	// Notes: as OSS driver used /run/fuse.ossfs/* mount dir before,
+	// and NodeUnstageVolume request do not contain fuseType info for unmount,
+	// so all kinds of fuseTypes share this unified mount dir.
+	// A volumeId should only belong to one kind of fuseType, and mounted ONCE.
+	fuseType := OssFsType
+	return fmt.Sprintf("/run/fuse.%s", fuseType)
+}
+
+func GetAttachPath(volumeId string) string {
+	volSha := sha256.Sum256([]byte(volumeId))
+	return filepath.Join(GetFuseAttachDir(), hex.EncodeToString(volSha[:]), "globalmount")
+}
+
+func GetCredientialsSecretName(fuseType string) string {
+	return fmt.Sprintf("csi-%s-credentials", fuseType)
+}
+
+func CleanupCredentialSecret(ctx context.Context, clientset kubernetes.Interface, node, volumeId, fuseType string) error {
+	key := fmt.Sprintf("%s.%s", node, volumeId)
+	secretName := GetCredientialsSecretName(fuseType)
+	secretClient := clientset.CoreV1().Secrets(LegacyFusePodNamespace)
+	secret, err := secretClient.Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	_, exists := secret.Data[key]
+	if !exists {
+		return nil
+	}
+	// patch secret
+	patch := corev1.Secret{
+		Data: map[string][]byte{
+			key: nil,
+		},
+	}
+	patchData, err := json.Marshal(patch)
+	if err != nil {
+		return err
+	}
+	_, err = secretClient.Patch(ctx, secretName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
+	if err == nil {
+		klog.V(2).InfoS("patched secret to remove credentials", "secret", secretName, "volumeId", volumeId)
+	}
+	return err
+}
+
+const MaxRoleSessionNameLimit = 64
+
+func GetRoleSessionName(volumeId, target, fuseType string) string {
+	name := fmt.Sprintf("%s.%s.%s", fuseType, volumeId, computeMountPathHash(target))
+	if len(name) > MaxRoleSessionNameLimit {
+		name = name[:MaxRoleSessionNameLimit]
+	}
+	return name
+}
+
+// ConfigDir stores the config and passwd files for fuse to load
+func GetConfigDir(fuseType string) string {
+	return fmt.Sprintf("/etc/%s", fuseType)
+}
+
+func GetPasswdFileName(fuseType string) string {
+	return fmt.Sprintf("passwd-%s", fuseType)
 }
