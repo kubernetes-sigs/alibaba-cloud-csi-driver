@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	mounter "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"

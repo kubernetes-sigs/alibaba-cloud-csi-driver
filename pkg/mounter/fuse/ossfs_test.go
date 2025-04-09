@@ -1,4 +1,4 @@
-package mounter
+package fuse
 
 import (
 	"context"
@@ -6,14 +6,15 @@ import (
 	"testing"
 
 	"github.com/alibabacloud-go/tea/tea"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func Test_buildAuthSpec(t *testing.T) {
+func Test_buildOssfsAuthSpec(t *testing.T) {
 	nodeName := "test-node-name"
 	volumeId := "test-pv-name"
-	authCfg := &AuthConfig{}
+	authCfg := &mounterutils.AuthConfig{}
 	container := corev1.Container{
 		Name:  "fuse-mounter",
 		Image: "test-image",
@@ -35,18 +36,19 @@ func Test_buildAuthSpec(t *testing.T) {
 	}
 	spec := corev1.PodSpec{}
 	spec.Volumes = []corev1.Volume{targetVolume}
-	rrsaCfg := RrsaConfig{
+	rrsaCfg := mounterutils.RrsaConfig{
 		OidcProviderArn: "test-oidc-provider-arn",
 		RoleArn:         "test-role-arn",
 	}
 	authCfg.RrsaConfig = &rrsaCfg
-	authCfg.AuthType = AuthTypeRRSA
-	buildAuthSpec(&FusePodContext{
+	authCfg.AuthType = mounterutils.AuthTypeRRSA
+	buildOssfsAuthSpec(&mounterutils.FusePodContext{
 		Context:    context.Background(),
-		Namespace:  LegacyFusePodNamespace,
+		Namespace:  mounterutils.LegacyFusePodNamespace,
 		NodeName:   nodeName,
 		VolumeId:   volumeId,
 		AuthConfig: authCfg,
+		FuseType:   OssFsType,
 	}, "target", &spec, &container)
 
 	assert.Equal(t, "rrsa-oidc-token", spec.Volumes[len(spec.Volumes)-1].Name)
@@ -166,7 +168,7 @@ func Test_AddDefaultMountOptions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &fuseOssfs{
-				config: FuseContainerConfig{
+				config: mounterutils.FuseContainerConfig{
 					Dbglevel: tt.dbglevel,
 					Extra: map[string]string{
 						"mime-support": tt.mime,
@@ -183,22 +185,5 @@ func Test_AddDefaultMountOptions(t *testing.T) {
 				return
 			}
 		})
-	}
-}
-
-func Test_getRoleSessionName(t *testing.T) {
-	tests := []struct {
-		volumeId string
-		target   string
-		wantName string
-	}{
-		{"vol1", "/mnt/target1", "ossfs.vol1." + computeMountPathHash("/mnt/target1")},
-		{"hereisalonglongpvnamethatisalreadylongerthan64ibeleive", "/mnt/target2", "ossfs.hereisalonglongpvnamethatisalreadylongerthan64ibeleive.c85"},
-	}
-
-	for _, test := range tests {
-		sessionName := getRoleSessionName(test.volumeId, test.target)
-		assert.Equal(t, test.wantName, sessionName)
-		assert.True(t, len(sessionName) <= MaxRoleSessionNameLimit, "sessionName length should not exceed %d, got: %d", MaxRoleSessionNameLimit, len(sessionName))
 	}
 }

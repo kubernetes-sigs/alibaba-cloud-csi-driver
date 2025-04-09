@@ -1,10 +1,6 @@
-package mounter
+package fuse
 
 import (
-	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -12,81 +8,47 @@ import (
 	"strings"
 
 	"github.com/alibabacloud-go/tea/tea"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2"
-
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	csiutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/klog/v2"
 )
 
 var defaultOssfsImageTag = "v1.88.4-80d165c-aliyun"
 var defaultOssfsUpdatedImageTag = "v1.91.5.ack.1-ed398f6-aliyun"
+var defaultOssfsDbglevel = utils.DebugLevelError
 
 const (
 	hostPrefix                = "/host"
-	OssfsCredentialSecretName = "csi-ossfs-credentials"
 	OssfsDefMimeTypesFilePath = "/etc/mime.types"
 	// The ossfs image includes a default MIME configuration located at /csi/mime.types
 	OssfsCsiMimeTypesFilePath = "/csi/mime.types"
-	OssfsPasswdFile           = "passwd-ossfs"
 
 	defaultRegistry = "registry-cn-hangzhou.ack.aliyuncs.com"
 
 	CsiSecretStoreDriver   = "secrets-store.csi.k8s.io"
 	SecretProviderClassKey = "secretProviderClass"
-
-	OssfsAttachDir = "/run/fuse.ossfs"
-
-	PasswdMountDir = "/etc/ossfs"
-	PasswdFilename = "passwd-ossfs"
-
-	MaxRoleSessionNameLimit = 64
 )
 
 type fuseOssfs struct {
-	config FuseContainerConfig
+	config utils.FuseContainerConfig
 }
 
 var ossfsDbglevels = map[string]string{
-	DebugLevelDebug: "debug",
-	DebugLevelInfo:  "info",
-	DebugLevelWarn:  "warn",
-	DebugLevelError: "err",
-	DebugLevelFatal: "crit",
+	utils.DebugLevelDebug: "debug",
+	utils.DebugLevelInfo:  "info",
+	utils.DebugLevelWarn:  "warn",
+	utils.DebugLevelError: "err",
+	utils.DebugLevelFatal: "crit",
 }
 
-const defaultDbglevel = DebugLevelError
+func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) utils.FuseMounterType {
+	config := utils.ExtractFuseContainerConfig(configmap, OssFsType)
 
-func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) FuseMounterType {
-	config := extractFuseContainerConfig(configmap, "ossfs")
 	// set default image
-	if config.Image == "" {
-		registry := os.Getenv("DEFAULT_REGISTRY")
-		if registry == "" {
-			region, err := m.Get(metadata.RegionID)
-			if err == nil {
-				registry = fmt.Sprintf("registry-%s-vpc.ack.aliyuncs.com", region)
-			} else {
-				klog.Warningf("DEFAULT_REGISTRY env not set, failed to get current region: %v, fallback to default registry: %s", err, defaultRegistry)
-				registry = defaultRegistry
-			}
-		}
-		if config.ImageTag == "" {
-			if features.FunctionalMutableFeatureGate.Enabled(features.UpdatedOssfsVersion) {
-				config.ImageTag = defaultOssfsUpdatedImageTag
-			} else {
-				config.ImageTag = defaultOssfsImageTag
-			}
-		}
-		config.Image = fmt.Sprintf("%s/acs/csi-ossfs:%s", registry, config.ImageTag)
-		klog.Infof("Use ossfs image: %s", config.Image)
-	}
+	setDefaultImage(OssFsType, m, &config)
 	// set default memory request
 	if _, ok := config.Resources.Requests[corev1.ResourceMemory]; !ok {
 		config.Resources.Requests[corev1.ResourceMemory] = resource.MustParse("50Mi")
@@ -96,10 +58,37 @@ func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) Fuse
 }
 
 func (f *fuseOssfs) Name() string {
-	return "ossfs"
+	return OssFsType
 }
 
-func (f *fuseOssfs) PodTemplateSpec(c *FusePodContext, target string) (*corev1.PodTemplateSpec, error) {
+func (f *fuseOssfs) CheckAuthConfig(c *utils.AuthConfig) error {
+	switch c.AuthType {
+	case utils.AuthTypeSTS:
+	case utils.AuthTypeRRSA:
+		if err := checkRRSAParams(c); err != nil {
+			return err
+		}
+	case utils.AuthTypeCSS:
+		if c.SecretProviderClassName == "" {
+			return fmt.Errorf("use CsiSecretStore but secretProviderClass is empty")
+		}
+	default:
+		if c.SecretRef != "" {
+			if c.Secrets != nil && (c.Secrets[AkID] != "" || c.Secrets[AkSecret] != "") {
+				return fmt.Errorf("AK and secretRef cannot be set at the same time")
+			}
+			if c.SecretRef == utils.GetCredientialsSecretName(OssFsType) {
+				return fmt.Errorf("invalid SecretRef name")
+			}
+		}
+	}
+	if c.RrsaConfig != nil && c.RrsaConfig.AssumeRoleArn != "" {
+		return fmt.Errorf("only support access OSS through STS AssumeRole when authType is RRSA")
+	}
+	return nil
+}
+
+func (f *fuseOssfs) PodTemplateSpec(c *utils.FusePodContext, target string) (*corev1.PodTemplateSpec, error) {
 	spec, err := f.buildPodSpec(c, target)
 	if err != nil {
 		return nil, err
@@ -119,7 +108,7 @@ func (f *fuseOssfs) PodTemplateSpec(c *FusePodContext, target string) (*corev1.P
 	return pod, nil
 }
 
-func (f *fuseOssfs) buildPodSpec(c *FusePodContext, target string) (spec corev1.PodSpec, _ error) {
+func (f *fuseOssfs) buildPodSpec(c *utils.FusePodContext, target string) (spec corev1.PodSpec, _ error) {
 	targetDir := filepath.Dir(target)
 	targetDirVolume := corev1.Volume{
 		Name: "target-dir",
@@ -156,9 +145,9 @@ func (f *fuseOssfs) buildPodSpec(c *FusePodContext, target string) (spec corev1.
 	spec.Volumes = []corev1.Volume{targetDirVolume, metricsDirVolume, etcDirVolume}
 
 	bidirectional := corev1.MountPropagationBidirectional
-	socketPath := GetOssfsMountProxySocketPath(c.VolumeId)
+	socketPath := utils.GetMountProxySocketPath(c.VolumeId)
 	container := corev1.Container{
-		Name:      "ossfs",
+		Name:      f.Name(),
 		Image:     f.config.Image,
 		Resources: f.config.Resources,
 		VolumeMounts: []corev1.VolumeMount{
@@ -190,9 +179,9 @@ func (f *fuseOssfs) buildPodSpec(c *FusePodContext, target string) (spec corev1.
 		},
 	}
 
-	buildAuthSpec(c, target, &spec, &container)
+	buildOssfsAuthSpec(c, target, &spec, &container)
 
-	container.Args = []string{"--socket=" + socketPath, "--v=4"}
+	container.Args = []string{"-socket=" + socketPath, "-v=4"}
 
 	spec.Containers = []corev1.Container{container}
 	spec.NodeName = c.NodeName
@@ -222,7 +211,7 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 		}
 	}
 
-	if !utils.IsFileExisting(filepath.Join(hostPrefix, OssfsDefMimeTypesFilePath)) && strings.ToLower(f.config.Extra["mime-support"]) == "true" {
+	if !csiutils.IsFileExisting(filepath.Join(hostPrefix, OssfsDefMimeTypesFilePath)) && strings.ToLower(f.config.Extra["mime-support"]) == "true" {
 		// mime.types not exists, use csi-mime.types
 		options = append(options, fmt.Sprintf("mime=%s", OssfsCsiMimeTypesFilePath))
 	}
@@ -234,7 +223,7 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 	return options
 }
 
-func buildAuthSpec(c *FusePodContext, target string, spec *corev1.PodSpec, container *corev1.Container) {
+func buildOssfsAuthSpec(c *utils.FusePodContext, target string, spec *corev1.PodSpec, container *corev1.Container) {
 	if spec == nil || container == nil {
 		return
 	}
@@ -244,8 +233,8 @@ func buildAuthSpec(c *FusePodContext, target string, spec *corev1.PodSpec, conta
 	}
 
 	switch authCfg.AuthType {
-	case AuthTypeSTS, AuthTypePublic:
-	case AuthTypeRRSA:
+	case utils.AuthTypeSTS:
+	case utils.AuthTypeRRSA:
 		if authCfg.RrsaConfig == nil {
 			return
 		}
@@ -289,11 +278,11 @@ func buildAuthSpec(c *FusePodContext, target string, spec *corev1.PodSpec, conta
 			},
 			{
 				Name:  "ROLE_SESSION_NAME",
-				Value: getRoleSessionName(c.VolumeId, target),
+				Value: utils.GetRoleSessionName(c.VolumeId, target, c.FuseType),
 			},
 		}
 		container.Env = append(container.Env, envs...)
-	case AuthTypeCSS:
+	case utils.AuthTypeCSS:
 		secretStoreMountDir := "/etc/ossfs/secrets-store"
 		secretStoreVolume := corev1.Volume{
 			Name: "secrets-store",
@@ -324,63 +313,14 @@ func buildAuthSpec(c *FusePodContext, target string, spec *corev1.PodSpec, conta
 			spec.Volumes = append(spec.Volumes, passwdSecretVolume)
 			passwdVolumeMont := corev1.VolumeMount{
 				Name:      passwdSecretVolume.Name,
-				MountPath: PasswdMountDir,
+				MountPath: utils.GetConfigDir(c.FuseType),
 			}
 			container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
 		}
 	}
 }
 
-func CleanupOssfsCredentialSecret(ctx context.Context, clientset kubernetes.Interface, node, volumeId string) error {
-	key := fmt.Sprintf("%s.%s", node, volumeId)
-	secretClient := clientset.CoreV1().Secrets(LegacyFusePodNamespace)
-	secret, err := secretClient.Get(ctx, OssfsCredentialSecretName, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
-	_, exists := secret.Data[key]
-	if !exists {
-		return nil
-	}
-	// patch secret
-	patch := corev1.Secret{
-		Data: map[string][]byte{
-			key: nil,
-		},
-	}
-	patchData, err := json.Marshal(patch)
-	if err != nil {
-		return err
-	}
-	_, err = secretClient.Patch(ctx, OssfsCredentialSecretName, types.StrategicMergePatchType, patchData, metav1.PatchOptions{})
-	if err == nil {
-		klog.V(2).InfoS("patched secret to remove credentials", "secret", OssfsCredentialSecretName, "volumeId", volumeId)
-	}
-	return err
-}
-
-func getRoleSessionName(volumeId, target string) string {
-	name := fmt.Sprintf("ossfs.%s.%s", volumeId, computeMountPathHash(target))
-	if len(name) > MaxRoleSessionNameLimit {
-		name = name[:MaxRoleSessionNameLimit]
-	}
-	return name
-}
-
-func GetOssfsMountProxySocketPath(volumeId string) string {
-	volSha := sha256.Sum256([]byte(volumeId))
-	return filepath.Join(OssfsAttachDir, hex.EncodeToString(volSha[:]), "mounter.sock")
-}
-
-func GetOssfsAttachPath(volumeId string) string {
-	volSha := sha256.Sum256([]byte(volumeId))
-	return filepath.Join(OssfsAttachDir, hex.EncodeToString(volSha[:]), "globalmount")
-}
-
-// keep consistent with RAM response
+// keep consitent with RAM response
 var secretRefKeysToParse []string = []string{
 	"AccessKeyId",
 	"AccessKeySecret",
