@@ -85,6 +85,7 @@ RUN set -ex; \
     yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
     yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
     yum clean all
+# 
 RUN cp -r /etc/aliyun /etc/aliyun-defaults
 
 COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
