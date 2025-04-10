@@ -14,7 +14,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var defaultOssfs2ImageTag = "v0.0.0-052ed2a-aliyun"
+var defaultOssfs2ImageTag = "v0.0.0-6be06ff-aliyun"
 
 type fuseOssfs2 struct {
 	config utils.FuseContainerConfig
