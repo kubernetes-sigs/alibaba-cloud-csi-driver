@@ -61,7 +61,7 @@ func Test_parseOptions(t *testing.T) {
 		MetricsTop:    defaultMetricsTop,
 	}
 	gotOptions = parseOptions(testCVReq.GetParameters(),
-		testCVReq.GetSecrets(), testCVReq.GetVolumeCapabilities(), false, "", "volume-id")
+		testCVReq.GetSecrets(), testCVReq.GetVolumeCapabilities(), false, "", "volume-id", false)
 	assert.Equal(t, expectedOptions, gotOptions)
 
 	// ControllerPublishVolume
@@ -98,7 +98,7 @@ func Test_parseOptions(t *testing.T) {
 	}
 	gotOptions = parseOptions(testCPVReq.GetVolumeContext(),
 		testCPVReq.GetSecrets(), []*csi.VolumeCapability{testCPVReq.GetVolumeCapability()},
-		testCPVReq.Readonly, "cn-beijing", "")
+		testCPVReq.Readonly, "cn-beijing", "", false)
 	assert.Equal(t, expectedOptions, gotOptions)
 
 	// NodePublishVolume
@@ -136,7 +136,7 @@ func Test_parseOptions(t *testing.T) {
 	}
 	gotOptions = parseOptions(testNPReq.GetVolumeContext(),
 		testNPReq.GetSecrets(), []*csi.VolumeCapability{testNPReq.GetVolumeCapability()},
-		testNPReq.Readonly, "cn-beijing", "")
+		testNPReq.Readonly, "cn-beijing", "", true)
 	assert.Equal(t, expectedOptions, gotOptions)
 
 	// test authtype
@@ -145,7 +145,7 @@ func Test_parseOptions(t *testing.T) {
 	}
 	t.Setenv("ACCESS_KEY_ID", "test-akid")
 	t.Setenv("ACCESS_KEY_SECRET", "test-aksecret")
-	gotOptions = parseOptions(options, nil, nil, true, "cn-beijing", "")
+	gotOptions = parseOptions(options, nil, nil, true, "cn-beijing", "", true)
 	expectedOptions = &oss.Options{
 		AkID:          "test-akid",
 		AkSecret:      "test-aksecret",
@@ -163,7 +163,7 @@ func Test_parseOptions(t *testing.T) {
 		"roleName": "test-rolename",
 		"url":      "oss-cn-beijing.aliyuncs.com",
 	}
-	gotOptions = parseOptions(options, nil, nil, true, "", "")
+	gotOptions = parseOptions(options, nil, nil, true, "", "", true)
 	expectedOptions = &oss.Options{
 		AuthType:      oss.AuthTypeSTS,
 		FuseType:      "ossfs",
@@ -622,7 +622,7 @@ func TestMakeAuthConfig(t *testing.T) {
 			mounterutils.GetPasswdFileName(OssFsType): fmt.Sprintf("%s:%s:%s", opt.Bucket, opt.AkID, opt.AkSecret),
 		},
 	}
-	authCfg, err := makeAuthConfig(opt, ossfsFpm, fakeMeta)
+	authCfg, err := makeAuthConfig(opt, ossfsFpm, fakeMeta, true)
 	assert.NoError(t, err)
 	assert.Equal(t, want, authCfg)
 
@@ -641,7 +641,7 @@ func TestMakeAuthConfig(t *testing.T) {
 			mounterutils.GetPasswdFileName(OssFs2Type): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", opt.AkID, opt.AkSecret),
 		},
 	}
-	authCfg2, err := makeAuthConfig(opt2, ossfs2Fpm, fakeMeta)
+	authCfg2, err := makeAuthConfig(opt2, ossfs2Fpm, fakeMeta, true)
 	assert.NoError(t, err)
 	assert.Equal(t, want2, authCfg2)
 }

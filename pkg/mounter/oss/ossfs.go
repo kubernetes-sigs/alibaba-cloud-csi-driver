@@ -62,7 +62,7 @@ func (f *fuseOssfs) Name() string {
 	return OssFsType
 }
 
-func (f *fuseOssfs) PrecheckAuthConfig(o *Options) error {
+func (f *fuseOssfs) PrecheckAuthConfig(o *Options, onNode bool) error {
 
 	if o.AuthType != AuthTypeRRSA && o.AssumeRoleArn != "" {
 		return fmt.Errorf("only support access OSS through STS AssumeRole when authType is RRSA")
@@ -71,7 +71,8 @@ func (f *fuseOssfs) PrecheckAuthConfig(o *Options) error {
 	switch o.AuthType {
 	case AuthTypePublic:
 	case AuthTypeSTS:
-		if o.RoleName == "" {
+		// rolename may retrieve from metadata service
+		if onNode && o.RoleName == "" {
 			return fmt.Errorf("missing roleName or ramRole in volume attributes")
 		}
 	case AuthTypeRRSA:
@@ -95,7 +96,8 @@ func (f *fuseOssfs) PrecheckAuthConfig(o *Options) error {
 			}
 			return nil
 		}
-		if o.AkID == "" || o.AkSecret == "" {
+		// aksk may retrieve from ENV
+		if onNode && (o.AkID == "" || o.AkSecret == "") {
 			return fmt.Errorf("missing access key in node publish secret")
 		}
 	}
