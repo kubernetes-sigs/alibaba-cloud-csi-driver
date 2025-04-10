@@ -765,6 +765,34 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 	assert.Equal(t, int64(20), opts.RequestGB)
 }
 
+func TestGetDiskVolumeOptionsWithoutZoneID(t *testing.T) {
+	req := &csi.CreateVolumeRequest{
+		CapacityRange: &csi.CapacityRange{
+			RequiredBytes: 20*GBSIZE - 100,
+		},
+		Parameters: map[string]string{
+			"diskTags/a": "b",
+		},
+	}
+	_, err := getDiskVolumeOptions(req)
+	assert.Error(t, err)
+}
+
+func TestGetRegionalDiskVolumeOptionsWithoutZoneID(t *testing.T) {
+	req := &csi.CreateVolumeRequest{
+		CapacityRange: &csi.CapacityRange{
+			RequiredBytes: 20*GBSIZE - 100,
+		},
+		Parameters: map[string]string{
+			"diskTags/a": "b",
+			"type":       "cloud_regional_disk_auto",
+			"regionId":   "cn-beijing",
+		},
+	}
+	_, err := getDiskVolumeOptions(req)
+	assert.NoError(t, err)
+}
+
 func TestHasDiskTypeLabel(t *testing.T) {
 	node := &corev1.Node{
 		ObjectMeta: v1.ObjectMeta{

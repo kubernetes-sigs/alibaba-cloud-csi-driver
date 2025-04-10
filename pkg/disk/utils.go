@@ -28,6 +28,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -563,6 +564,12 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	diskType, err := validateDiskType(volOptions)
 	if err != nil {
 		return nil, fmt.Errorf("illegal required parameter type: %s", volOptions["type"])
+	}
+
+	if slices.ContainsFunc(diskType, func(t Category) bool { return !AllCategories[t].Regional }) {
+		if diskVolArgs.ZoneID == "" {
+			return nil, fmt.Errorf("CreateVolume: Can't get zone ID from node topology info or storage class topology or metadataserver, req: %v", volOptions)
+		}
 	}
 	diskVolArgs.Type = diskType
 	pls, err := validateDiskPerformanceLevel(volOptions)
