@@ -27,22 +27,13 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
+	mounter "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
-)
-
-// SigVersion is the version of signature for ossfs
-type SigVersion string
-
-const (
-	// default version for ossfs
-	SigV1 SigVersion = "v1"
-	// need set region
-	SigV4 SigVersion = "v4"
 )
 
 // VolumeAs determines the mounting target path in OSS
@@ -57,46 +48,6 @@ const (
 	VolumeAsSubpath VolumeAsType = "subpath"
 )
 
-// Options contains options for target oss
-type Options struct {
-	directAssigned bool
-	CNFSName       string
-
-	// oss options
-	Bucket string `json:"bucket"`
-	URL    string `json:"url"`
-	Path   string `json:"path"`
-
-	// authorization options
-	// accesskey
-	AkID      string `json:"akId"`
-	AkSecret  string `json:"akSecret"`
-	SecretRef string `json:"secretRef"`
-	// RRSA
-	RoleName           string `json:"roleName"` // also for STS
-	RoleArn            string `json:"roleArn"`
-	OidcProviderArn    string `json:"oidcProviderArn"`
-	ServiceAccountName string `json:"serviceAccountName"`
-	// assume role
-	AssumeRoleArn string `json:"assumeRoleArn"`
-	ExternalId    string `json:"externalId"`
-	// csi secret store
-	SecretProviderClass string `json:"secretProviderClass"`
-
-	// ossfs options
-	OtherOpts  string     `json:"otherOpts"`
-	MetricsTop string     `json:"metricsTop"`
-	Encrypted  string     `json:"encrypted"`
-	KmsKeyId   string     `json:"kmsKeyId"`
-	SigVersion SigVersion `json:"sigVersion"`
-
-	// mount options
-	UseSharedPath bool   `json:"useSharedPath"`
-	AuthType      string `json:"authType"`
-	FuseType      string `json:"fuseType"`
-	ReadOnly      bool   `json:"readOnly"`
-}
-
 // get Options for CreateVolume and PublishVolume
 // volOptions: CreateVolumeRequest.GetParameters, PublishVolumeRequest.GetVolumeContext
 // secrets: CreateVolumeRequest / PublishVolumeRequest.GetSecrets
@@ -105,7 +56,7 @@ type Options struct {
 // region: for signature v4
 // reqName: for subpath generating, CreateVolumeRequest.GetName
 func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
-	readOnly bool, region, reqName string) *Options {
+	readOnly bool, region, reqName string) *oss.Options {
 
 	if volOptions == nil {
 		volOptions = map[string]string{}
@@ -114,9 +65,8 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		secrets = map[string]string{}
 	}
 
-	opts := &Options{
+	opts := &oss.Options{
 		UseSharedPath: true,
-		FuseType:      OssFsType,
 		Path:          "/",
 		AkID:          strings.TrimSpace(secrets[AkID]),
 		AkSecret:      strings.TrimSpace(secrets[AkSecret]),
@@ -171,7 +121,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 			opts.CNFSName = value
 		case optDirectAssigned:
 			if res, err := strconv.ParseBool(value); err == nil {
-				opts.directAssigned = res
+				opts.DirectAssigned = res
 			} else {
 				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid", v, k).Error())
 			}
@@ -184,9 +134,9 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		case "externalid":
 			opts.ExternalId = value
 		case "sigversion":
-			switch SigVersion(value) {
-			case SigV1, SigV4:
-				opts.SigVersion = SigVersion(value)
+			switch oss.SigVersion(value) {
+			case oss.SigV1, oss.SigV4:
+				opts.SigVersion = oss.SigVersion(value)
 			default:
 				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support v1 and v4", v, k).Error())
 			}
@@ -206,9 +156,18 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY, csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
 			opts.ReadOnly = true
 		}
+		// set fuseType by fsType
+		if opts.FuseType == "" && c.GetMount() != nil && c.GetMount().FsType != "" {
+			opts.FuseType = c.GetMount().FsType
+		}
 	}
 	if readOnly {
 		opts.ReadOnly = true
+	}
+
+	// default fuseType is ossfs
+	if opts.FuseType == "" {
+		opts.FuseType = OssFsType
 	}
 
 	url := opts.URL
@@ -226,10 +185,27 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		opts.Path = path.Join(opts.Path, reqName)
 	}
 
+	switch opts.AuthType {
+	case "":
+		// try to get ak/sk from env
+		if opts.SecretRef == "" && (opts.AkID == "" || opts.AkSecret == "") {
+			ac := utils.GetEnvAK()
+			opts.AkID = ac.AccessKeyID
+			opts.AkSecret = ac.AccessKeySecret
+		}
+
+	case oss.AuthTypeSTS:
+		// try to get default ECS worker role from metadata server
+		if opts.RoleName == "" {
+			workerRole, _ := utils.GetMetaData(utils.WorkerRoleResource)
+			opts.RoleName = utils.MetadataURL + utils.WorkerRoleResource + workerRole
+		}
+	}
+
 	return opts
 }
 
-func setCNFSOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, opts *Options) error {
+func setCNFSOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, opts *oss.Options) error {
 	if opts.CNFSName == "" {
 		return nil
 	}
@@ -243,58 +219,6 @@ func setCNFSOptions(ctx context.Context, cnfsGetter cnfsv1beta1.CNFSGetter, opts
 	opts.Bucket = cnfs.Status.FsAttributes.BucketName
 	opts.URL = cnfs.Status.FsAttributes.EndPoint.Internal
 	return nil
-}
-
-// checkRRSAParams check parameters of RRSA
-func checkRRSAParams(opt *Options) error {
-	if opt.RoleArn != "" && opt.OidcProviderArn != "" {
-		return nil
-	}
-	if opt.RoleArn != "" || opt.OidcProviderArn != "" {
-		return fmt.Errorf("use RRSA but one of the ARNs is empty, roleArn: %s, oidcProviderArn: %s", opt.RoleArn, opt.OidcProviderArn)
-	}
-	if opt.RoleName == "" {
-		return fmt.Errorf("use RRSA but roleName is empty")
-	}
-	return nil
-}
-
-// getRRSAConfig get oidcProviderArn and roleArn
-func getRRSAConfig(opt *Options, m metadata.MetadataProvider) (rrsaCfg *mounter.RrsaConfig, err error) {
-	saName := fuseServiceAccountName
-	if opt.ServiceAccountName != "" {
-		saName = opt.ServiceAccountName
-	}
-
-	if opt.OidcProviderArn != "" && opt.RoleArn != "" {
-		return &mounter.RrsaConfig{ServiceAccountName: saName, OidcProviderArn: opt.OidcProviderArn, RoleArn: opt.RoleArn}, nil
-	}
-
-	accountId, err := m.Get(metadata.AccountID)
-	if err != nil {
-		return nil, fmt.Errorf("Get accountId error: %v", err)
-	}
-	clusterId, err := m.Get(metadata.ClusterID)
-	if err != nil {
-		return nil, fmt.Errorf("Get clusterId error: %v", err)
-	}
-	provider := mounter.GetOIDCProvider(clusterId)
-	oidcProviderArn, roleArn := mounter.GetArn(provider, accountId, opt.RoleName)
-	return &mounter.RrsaConfig{ServiceAccountName: saName, OidcProviderArn: oidcProviderArn, RoleArn: roleArn}, nil
-}
-
-// getSTSEndpoint get STS endpoint
-func getSTSEndpoint(region string) string {
-
-	// for PrivateCloud
-	if os.Getenv("STS_ENDPOINT") != "" {
-		return os.Getenv("STS_ENDPOINT")
-	}
-
-	if region == "" {
-		return "https://sts.aliyuncs.com"
-	}
-	return fmt.Sprintf("https://sts-vpc.%s.aliyuncs.com", region)
 }
 
 // parseOtherOpts extracts mount options from parameters.otherOpts string.
@@ -396,4 +320,93 @@ func validateEndpoint(originURL, bucket string) error {
 		return fmt.Errorf("%s is a bucket domain name, please use endpoint instead", originURL)
 	}
 	return nil
+}
+
+const (
+	csiDefaultFsType = "csi.storage.k8s.io/fstype"
+	fuseType         = "fuseType"
+)
+
+// setFsType assigns the value of fuseType to csiDefaultFsType.
+func setFsType(vc map[string]string) {
+	if vc == nil {
+		return
+	}
+	_, ok1 := vc[csiDefaultFsType]
+	_, ok2 := vc[fuseType]
+	if ok2 && !ok1 {
+		vc[csiDefaultFsType] = vc[fuseType]
+	}
+}
+
+// Check oss options
+func checkOssOptions(opt *oss.Options, fpm *oss.OSSFusePodManager) error {
+	if fpm == nil {
+		return WrapOssError(ParamError, "Unnsupported fuseType %s", opt.FuseType)
+	}
+	// common
+	if opt.URL == "" || opt.Bucket == "" {
+		return WrapOssError(ParamError, "Url/Bucket empty")
+	}
+
+	err := validateEndpoint(opt.URL, opt.Bucket)
+	if err != nil {
+		return WrapOssError(UrlError, "url is invalid, %v", err)
+	}
+
+	// TODO: ossfs2 should matain capatibility with ossfs on encryption,
+	// then remove this `switch`
+	switch opt.FuseType {
+	case OssFsType:
+		if !strings.HasPrefix(opt.Path, "/") {
+			return WrapOssError(PathError, "start with %s, should start with /", opt.Path)
+		}
+
+		if opt.Encrypted != "" && opt.Encrypted != oss.EncryptedTypeKms && opt.Encrypted != oss.EncryptedTypeAes256 {
+			return WrapOssError(EncryptError, "invalid SSE encrypted type")
+		}
+
+	case OssFs2Type:
+		if opt.Encrypted != "" {
+			return WrapOssError(EncryptError, "ossfs2 does not support encryption")
+		}
+	}
+
+	return nil
+}
+
+func makeAuthConfig(opt *oss.Options, fpm *oss.OSSFusePodManager, m metadata.MetadataProvider) (*mounter.AuthConfig, error) {
+	err := fpm.PrecheckAuthConfig(opt)
+	if err != nil {
+		return nil, WrapOssError(AuthError, "%s: %v", opt.FuseType, err)
+	}
+	authCfg, err := fpm.MakeAuthConfig(opt, m)
+	if err != nil {
+		return nil, WrapOssError(AuthError, "%s: %v", opt.FuseType, err)
+	}
+	return authCfg, nil
+}
+
+func makeMountOptions(opt *oss.Options, fpm *oss.OSSFusePodManager, m metadata.MetadataProvider, volumeCapability *csi.VolumeCapability) (
+	mountOptions []string, err error) {
+	mountOptions, err = parseOtherOpts(opt.OtherOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: currently the common options for fuse like kernel_cache set on mountOptions will be ignored.
+	if volumeCapability != nil && volumeCapability.GetMount() != nil {
+		if opt.FuseType == OssFs2Type {
+			klog.Warningf("NodePublishVolume: ossfs2 does not support mountOptions, only support volumeAttributes")
+		} else {
+			mountOptions = append(mountOptions, volumeCapability.GetMount().MountFlags...)
+		}
+	}
+
+	ops, err := fpm.MakeMountOptions(opt, m)
+	if err != nil {
+		return nil, err
+	}
+	mountOptions = append(mountOptions, ops...)
+	return
 }

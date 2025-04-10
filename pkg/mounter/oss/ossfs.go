@@ -1,4 +1,4 @@
-package fuse
+package oss
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	csiutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -44,7 +45,7 @@ var ossfsDbglevels = map[string]string{
 	utils.DebugLevelFatal: "crit",
 }
 
-func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) utils.FuseMounterType {
+func NewFuseOssfs(configmap *corev1.ConfigMap, m metadata.MetadataProvider) OSSFuseMounterType {
 	config := utils.ExtractFuseContainerConfig(configmap, OssFsType)
 
 	// set default image
@@ -61,31 +62,70 @@ func (f *fuseOssfs) Name() string {
 	return OssFsType
 }
 
-func (f *fuseOssfs) CheckAuthConfig(c *utils.AuthConfig) error {
-	switch c.AuthType {
-	case utils.AuthTypeSTS:
-	case utils.AuthTypeRRSA:
-		if err := checkRRSAParams(c); err != nil {
+func (f *fuseOssfs) PrecheckAuthConfig(o *Options) error {
+
+	if o.AuthType != AuthTypeRRSA && o.AssumeRoleArn != "" {
+		return fmt.Errorf("only support access OSS through STS AssumeRole when authType is RRSA")
+	}
+
+	switch o.AuthType {
+	case AuthTypePublic:
+	case AuthTypeSTS:
+		if o.RoleName == "" {
+			return fmt.Errorf("missing roleName or ramRole in volume attributes")
+		}
+	case AuthTypeRRSA:
+		if err := checkRRSAParams(o); err != nil {
 			return err
 		}
-	case utils.AuthTypeCSS:
-		if c.SecretProviderClassName == "" {
+	case AuthTypeCSS:
+		if o.SecretProviderClass == "" {
 			return fmt.Errorf("use CsiSecretStore but secretProviderClass is empty")
 		}
 	default:
-		if c.SecretRef != "" {
-			if c.Secrets != nil && (c.Secrets[AkID] != "" || c.Secrets[AkSecret] != "") {
+		if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
+			return nil
+		}
+		if o.SecretRef != "" {
+			if o.AkID != "" || o.AkSecret != "" {
 				return fmt.Errorf("AK and secretRef cannot be set at the same time")
 			}
-			if c.SecretRef == utils.GetCredientialsSecretName(OssFsType) {
+			if o.SecretRef == utils.GetCredientialsSecretName(OssFsType) {
 				return fmt.Errorf("invalid SecretRef name")
+			}
+			return nil
+		}
+		if o.AkID == "" || o.AkSecret == "" {
+			return fmt.Errorf("missing access key in node publish secret")
+		}
+	}
+	return nil
+}
+
+func (f *fuseOssfs) MakeAuthConfig(o *Options, m metadata.MetadataProvider) (*utils.AuthConfig, error) {
+	authCfg := &utils.AuthConfig{AuthType: o.AuthType}
+	switch o.AuthType {
+	case AuthTypePublic:
+	case AuthTypeRRSA:
+		rrsaCfg, err := getRRSAConfig(o, m)
+		if err != nil {
+			return nil, fmt.Errorf("Get RoleArn and OidcProviderArn for RRSA error: %v", err)
+		}
+		authCfg.RrsaConfig = rrsaCfg
+	case AuthTypeCSS:
+		authCfg.SecretProviderClassName = o.SecretProviderClass
+	case AuthTypeSTS:
+		authCfg.RoleName = o.RoleName
+	default:
+		if o.SecretRef != "" {
+			authCfg.SecretRef = o.SecretRef
+		} else {
+			authCfg.Secrets = map[string]string{
+				utils.GetPasswdFileName(f.Name()): fmt.Sprintf("%s:%s:%s", o.Bucket, o.AkID, o.AkSecret),
 			}
 		}
 	}
-	if c.RrsaConfig != nil && c.RrsaConfig.AssumeRoleArn != "" {
-		return fmt.Errorf("only support access OSS through STS AssumeRole when authType is RRSA")
-	}
-	return nil
+	return authCfg, nil
 }
 
 func (f *fuseOssfs) PodTemplateSpec(c *utils.FusePodContext, target string) (*corev1.PodTemplateSpec, error) {
@@ -181,13 +221,87 @@ func (f *fuseOssfs) buildPodSpec(c *utils.FusePodContext, target string) (spec c
 
 	buildOssfsAuthSpec(c, target, &spec, &container)
 
-	container.Args = []string{"-socket=" + socketPath, "-v=4"}
+	container.Args = []string{"--socket=" + socketPath, "-v=4"}
 
 	spec.Containers = []corev1.Container{container}
 	spec.NodeName = c.NodeName
 	spec.HostNetwork = true
 	spec.PriorityClassName = "system-node-critical"
 	spec.Tolerations = []corev1.Toleration{{Operator: corev1.TolerationOpExists}}
+	return
+}
+
+func (f *fuseOssfs) MakeMountOptions(o *Options, m metadata.MetadataProvider) (mountOptions []string, err error) {
+
+	region, _ := m.Get(metadata.RegionID)
+
+	mountOptions = append(mountOptions, fmt.Sprintf("url=%s", o.URL))
+	if o.ReadOnly {
+		mountOptions = append(mountOptions, "ro")
+	}
+
+	switch o.Encrypted {
+	case EncryptedTypeAes256:
+		mountOptions = append(mountOptions, "use_sse")
+	case EncryptedTypeKms:
+		if o.KmsKeyId == "" {
+			mountOptions = append(mountOptions, "use_sse=kmsid")
+		} else {
+			mountOptions = append(mountOptions, fmt.Sprintf("use_sse=kmsid:%s", o.KmsKeyId))
+		}
+	}
+
+	// set use_metrics to enabled monitoring by default
+	if features.FunctionalMutableFeatureGate.Enabled(features.UpdatedOssfsVersion) {
+		mountOptions = append(mountOptions, "use_metrics")
+	}
+	if o.MetricsTop != "" {
+		mountOptions = append(mountOptions, fmt.Sprintf("metrics_top=%s", o.MetricsTop))
+	}
+
+	switch o.SigVersion {
+	case SigV1:
+		mountOptions = append(mountOptions, "sigv1")
+	case SigV4:
+		if region == "" {
+			return nil, fmt.Errorf("SigV4 is not supported without region")
+		}
+		mountOptions = append(mountOptions, "sigv4")
+		mountOptions = append(mountOptions, fmt.Sprintf("region=%s", region))
+	}
+
+	authOptions := o.getAuthOptions(region)
+	mountOptions = append(mountOptions, authOptions...)
+
+	return mountOptions, nil
+
+}
+
+func (o *Options) getAuthOptions(region string) (mountOptions []string) {
+	switch o.AuthType {
+	case AuthTypePublic:
+		mountOptions = append(mountOptions, "public_bucket=1")
+	case AuthTypeRRSA:
+		mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=%s", getSTSEndpoint(region)))
+		if o.AssumeRoleArn != "" {
+			mountOptions = append(mountOptions, fmt.Sprintf("assume_role_arn=%s", o.AssumeRoleArn))
+			if o.ExternalId != "" {
+				mountOptions = append(mountOptions, fmt.Sprintf("assume_role_external_id=%s", o.ExternalId))
+			}
+		}
+	case AuthTypeCSS:
+		mountOptions = append(mountOptions, "secret_store_dir=/etc/ossfs/secrets-store")
+	case AuthTypeSTS:
+		if o.RoleName != "" {
+			mountOptions = append(mountOptions, "ram_role="+o.RoleName)
+		}
+	default:
+		if o.SecretRef != "" {
+			mountOptions = append(mountOptions, fmt.Sprintf("passwd_file=%s", filepath.Join(utils.GetConfigDir(o.FuseType), utils.GetPasswdFileName(o.FuseType))))
+			mountOptions = append(mountOptions, "use_session_token")
+		}
+		// publishSecretRef will make option in mount-proxy server
+	}
 	return
 }
 
@@ -233,8 +347,8 @@ func buildOssfsAuthSpec(c *utils.FusePodContext, target string, spec *corev1.Pod
 	}
 
 	switch authCfg.AuthType {
-	case utils.AuthTypeSTS:
-	case utils.AuthTypeRRSA:
+	case AuthTypeSTS, AuthTypePublic:
+	case AuthTypeRRSA:
 		if authCfg.RrsaConfig == nil {
 			return
 		}
@@ -282,7 +396,7 @@ func buildOssfsAuthSpec(c *utils.FusePodContext, target string, spec *corev1.Pod
 			},
 		}
 		container.Env = append(container.Env, envs...)
-	case utils.AuthTypeCSS:
+	case AuthTypeCSS:
 		secretStoreMountDir := "/etc/ossfs/secrets-store"
 		secretStoreVolume := corev1.Volume{
 			Name: "secrets-store",
