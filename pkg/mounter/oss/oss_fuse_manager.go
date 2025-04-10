@@ -8,7 +8,7 @@ import (
 
 type OSSFuseMounterType interface {
 	utils.FuseMounterType
-	PrecheckAuthConfig(o *Options) error
+	PrecheckAuthConfig(o *Options, onNode bool) error
 	MakeAuthConfig(o *Options, m metadata.MetadataProvider) (*utils.AuthConfig, error)
 	MakeMountOptions(o *Options, m metadata.MetadataProvider) ([]string, error)
 }

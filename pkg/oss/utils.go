@@ -55,8 +55,9 @@ const (
 // readOnly: PublishVolumeRequest.GetReadonly
 // region: for signature v4
 // reqName: for subpath generating, CreateVolumeRequest.GetName
+// onNode: run on nodeserver mode
 func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
-	readOnly bool, region, reqName string) *oss.Options {
+	readOnly bool, region, reqName string, onNode bool) *oss.Options {
 
 	if volOptions == nil {
 		volOptions = map[string]string{}
@@ -185,6 +186,10 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		opts.Path = path.Join(opts.Path, reqName)
 	}
 
+	if !onNode {
+		return opts
+	}
+	// get auth config from ENV / metadata service
 	switch opts.AuthType {
 	case "":
 		// try to get ak/sk from env
@@ -375,8 +380,8 @@ func checkOssOptions(opt *oss.Options, fpm *oss.OSSFusePodManager) error {
 	return nil
 }
 
-func makeAuthConfig(opt *oss.Options, fpm *oss.OSSFusePodManager, m metadata.MetadataProvider) (*mounter.AuthConfig, error) {
-	err := fpm.PrecheckAuthConfig(opt)
+func makeAuthConfig(opt *oss.Options, fpm *oss.OSSFusePodManager, m metadata.MetadataProvider, onNode bool) (*mounter.AuthConfig, error) {
+	err := fpm.PrecheckAuthConfig(opt, onNode)
 	if err != nil {
 		return nil, WrapOssError(AuthError, "%s: %v", opt.FuseType, err)
 	}
@@ -395,7 +400,7 @@ func makeMountOptions(opt *oss.Options, fpm *oss.OSSFusePodManager, m metadata.M
 	}
 
 	// TODO: currently the common options for fuse like kernel_cache set on mountOptions will be ignored.
-	if volumeCapability != nil && volumeCapability.GetMount() != nil {
+	if volumeCapability != nil && volumeCapability.GetMount() != nil && volumeCapability.GetMount().MountFlags != nil {
 		if opt.FuseType == OssFs2Type {
 			klog.Warningf("NodePublishVolume: ossfs2 does not support mountOptions, only support volumeAttributes")
 		} else {

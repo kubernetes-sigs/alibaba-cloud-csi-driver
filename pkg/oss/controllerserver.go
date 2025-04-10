@@ -75,7 +75,7 @@ func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
 // provisioner: create/delete oss volume
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	region, _ := cs.metadata.Get(metadata.RegionID)
-	ossVol := parseOptions(req.GetParameters(), req.GetSecrets(), req.GetVolumeCapabilities(), false, region, req.GetName())
+	ossVol := parseOptions(req.GetParameters(), req.GetSecrets(), req.GetVolumeCapabilities(), false, region, req.GetName(), false)
 	volumeContext := req.GetParameters()
 	if volumeContext == nil {
 		volumeContext = map[string]string{}
@@ -135,7 +135,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	nodeName := req.NodeId
 	region, _ := cs.metadata.Get(metadata.RegionID)
 	// ensure fuseType is not empty
-	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), region, "")
+	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), region, "", false)
 	if err := setCNFSOptions(ctx, cs.cnfsGetter, opts); err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	// check and make auth config
-	authCfg, err := makeAuthConfig(opts, cs.fusePodManagers[OssFsType], cs.metadata)
+	authCfg, err := makeAuthConfig(opts, cs.fusePodManagers[OssFsType], cs.metadata, false)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}

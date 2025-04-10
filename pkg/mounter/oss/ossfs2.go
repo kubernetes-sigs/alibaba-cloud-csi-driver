@@ -42,7 +42,7 @@ func NewFuseOssfs2(configmap *corev1.ConfigMap, m metadata.MetadataProvider) OSS
 func (f *fuseOssfs2) Name() string {
 	return OssFs2Type
 }
-func (f *fuseOssfs2) PrecheckAuthConfig(o *Options) error {
+func (f *fuseOssfs2) PrecheckAuthConfig(o *Options, onNode bool) error {
 
 	if o.AuthType != "" {
 		return fmt.Errorf("%s do not support authType: %s", f.Name(), o.AuthType)
@@ -51,7 +51,8 @@ func (f *fuseOssfs2) PrecheckAuthConfig(o *Options) error {
 	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 		return nil
 	}
-	if o.AkID == "" || o.AkSecret == "" {
+	// aksk may retrieve from ENV
+	if onNode && (o.AkID == "" || o.AkSecret == "") {
 		return fmt.Errorf("missing access key in node publish secret")
 	}
 

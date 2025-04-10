@@ -43,7 +43,7 @@ func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := fakeOssfs.PrecheckAuthConfig(tt.opts)
+			err := fakeOssfs.PrecheckAuthConfig(tt.opts, true)
 			assert.Equal(t, tt.wantErr, err != nil)
 		})
 	}
