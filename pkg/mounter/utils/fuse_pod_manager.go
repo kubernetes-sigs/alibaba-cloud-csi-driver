@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	fusePodManagerTimeout = time.Second * 30
-	fuseServieAccountName = "csi-fuse-ossfs"
+	fusePodManagerTimeout  = time.Second * 30
+	FuseServiceAccountName = "csi-fuse-ossfs"
 	// deprecated
 	LegacyFusePodNamespace = "kube-system"
 )
@@ -48,7 +48,7 @@ type AuthConfig struct {
 	Secrets map[string]string
 	// for Token from Secret
 	SecretRef string
-	// for STS(ECS worker role)
+	// for STS(ECS worker role)/RRSA
 	RoleName string
 }
 
@@ -58,13 +58,6 @@ type RrsaConfig struct {
 	ServiceAccountName string
 	AssumeRoleArn      string
 }
-
-const (
-	AuthTypeSTS    = "sts"
-	AuthTypeRRSA   = "rrsa"
-	AuthTypeCSS    = "csi-secret-store"
-	AuthTypePublic = "public"
-)
 
 const (
 	DebugLevelFatal = "fatal"
@@ -87,7 +80,6 @@ type FuseMounterType interface {
 	Name() string
 	PodTemplateSpec(c *FusePodContext, target string) (*corev1.PodTemplateSpec, error)
 	AddDefaultMountOptions(options []string) []string
-	CheckAuthConfig(c *AuthConfig) error
 }
 
 type FuseContainerConfig struct {

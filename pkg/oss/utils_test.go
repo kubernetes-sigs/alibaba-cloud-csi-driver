@@ -17,19 +17,20 @@ limitations under the License.
 package oss
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_parseOptions(t *testing.T) {
-
-	var expectedOptions, gotOptions *Options
+	var expectedOptions, gotOptions *oss.Options
 	// CreateVolume
 	testCVReq := csi.CreateVolumeRequest{
 		Parameters: map[string]string{
@@ -49,7 +50,7 @@ func Test_parseOptions(t *testing.T) {
 			},
 		},
 	}
-	expectedOptions = &Options{
+	expectedOptions = &oss.Options{
 		Bucket:        "test-bucket",
 		URL:           "https://oss-cn-beijing.aliyuncs.com",
 		AkID:          "test-akid",
@@ -83,7 +84,7 @@ func Test_parseOptions(t *testing.T) {
 			},
 		},
 	}
-	expectedOptions = &Options{
+	expectedOptions = &oss.Options{
 		Bucket:        "test-bucket",
 		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
 		OtherOpts:     "-o max_stat_cache_size=0 -o allow_other",
@@ -113,15 +114,21 @@ func Test_parseOptions(t *testing.T) {
 			AccessMode: &csi.VolumeCapability_AccessMode{
 				Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
 			},
+			AccessType: &csi.VolumeCapability_Mount{
+				Mount: &csi.VolumeCapability_MountVolume{
+					FsType:     "ossfs2",
+					MountFlags: []string{"-o max_stat_cache_size=0 -o allow_other"},
+				},
+			},
 		},
 		Readonly: true,
 	}
-	expectedOptions = &Options{
+	expectedOptions = &oss.Options{
 		Bucket:        "test-bucket",
 		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
 		OtherOpts:     "-o max_stat_cache_size=0 -o allow_other",
 		AuthType:      "rrsa",
-		FuseType:      "ossfs",
+		FuseType:      "ossfs2",
 		MetricsTop:    defaultMetricsTop,
 		Path:          "/",
 		ReadOnly:      true,
@@ -130,6 +137,43 @@ func Test_parseOptions(t *testing.T) {
 	gotOptions = parseOptions(testNPReq.GetVolumeContext(),
 		testNPReq.GetSecrets(), []*csi.VolumeCapability{testNPReq.GetVolumeCapability()},
 		testNPReq.Readonly, "cn-beijing", "")
+	assert.Equal(t, expectedOptions, gotOptions)
+
+	// test authtype
+	options := map[string]string{
+		"url": "oss-cn-beijing.aliyuncs.com",
+	}
+	t.Setenv("ACCESS_KEY_ID", "test-akid")
+	t.Setenv("ACCESS_KEY_SECRET", "test-aksecret")
+	gotOptions = parseOptions(options, nil, nil, true, "cn-beijing", "")
+	expectedOptions = &oss.Options{
+		AkID:          "test-akid",
+		AkSecret:      "test-aksecret",
+		FuseType:      "ossfs",
+		Path:          "/",
+		UseSharedPath: true,
+		MetricsTop:    defaultMetricsTop,
+		ReadOnly:      true,
+		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
+	}
+	assert.Equal(t, expectedOptions, gotOptions)
+
+	options = map[string]string{
+		"authType": "sts",
+		"roleName": "test-rolename",
+		"url":      "oss-cn-beijing.aliyuncs.com",
+	}
+	gotOptions = parseOptions(options, nil, nil, true, "", "")
+	expectedOptions = &oss.Options{
+		AuthType:      oss.AuthTypeSTS,
+		FuseType:      "ossfs",
+		Path:          "/",
+		UseSharedPath: true,
+		MetricsTop:    defaultMetricsTop,
+		ReadOnly:      true,
+		RoleName:      "test-rolename",
+		URL:           "https://oss-cn-beijing.aliyuncs.com",
+	}
 	assert.Equal(t, expectedOptions, gotOptions)
 }
 
@@ -195,89 +239,6 @@ func Test_parseOtherOpts(t *testing.T) {
 			}
 			if !reflect.DeepEqual(gotMountOptions, tt.wantMountOptions) {
 				t.Errorf("parseOtherOpts() = %v, want %v", gotMountOptions, tt.wantMountOptions)
-			}
-		})
-	}
-}
-
-func Test_checkRRSAParams(t *testing.T) {
-	tests := []struct {
-		name    string
-		opt     Options
-		wantErr bool
-	}{
-		{
-			"rolename",
-			Options{RoleName: "test-role-name"},
-			false,
-		},
-		{
-			"arns",
-			Options{RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
-			false,
-		},
-		{
-			"arn",
-			Options{RoleArn: "test-role-arn"},
-			true,
-		},
-		{
-			"arn-and-rolename",
-			Options{RoleName: "test-role-name", OidcProviderArn: "test-oidc-provider-arn"},
-			true,
-		},
-		{
-			"arns-and-rolename",
-			Options{RoleName: "test-role-name", RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := checkRRSAParams(&tt.opt)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("checkRRSAParams(%v) error = %v, wantErr %v", tt.opt, err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func Test_getRRSAConfig(t *testing.T) {
-	m := metadata.NewMetadata()
-	t.Setenv("ALIBABA_CLOUD_ACCOUNT_ID", "112233445566")
-	t.Setenv("CLUSTER_ID", "c12345678")
-	tests := []struct {
-		name    string
-		opt     Options
-		wantCfg *mounter.RrsaConfig
-	}{
-		{
-			"rolename",
-			Options{RoleName: "test-role-name"},
-			&mounter.RrsaConfig{OidcProviderArn: "acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678", RoleArn: "acs:ram::112233445566:role/test-role-name", ServiceAccountName: fuseServiceAccountName},
-		},
-		{
-			"specified-arns",
-			Options{RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
-			&mounter.RrsaConfig{OidcProviderArn: "test-oidc-provider-arn", RoleArn: "test-role-arn", ServiceAccountName: fuseServiceAccountName},
-		},
-		{
-			"arns-first",
-			Options{RoleName: "test-role-name", RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
-			&mounter.RrsaConfig{OidcProviderArn: "test-oidc-provider-arn", RoleArn: "test-role-arn", ServiceAccountName: fuseServiceAccountName},
-		},
-		{
-			"serviceaccount",
-			Options{RoleName: "test-role-name", ServiceAccountName: "test-service-account"},
-			&mounter.RrsaConfig{OidcProviderArn: "acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678", RoleArn: "acs:ram::112233445566:role/test-role-name", ServiceAccountName: "test-service-account"},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg, err := getRRSAConfig(&tt.opt, m)
-			assert.Nil(t, err)
-			if !reflect.DeepEqual(cfg, tt.wantCfg) {
-				t.Errorf("getRRSAConfig() = %v, want %v", cfg, tt.wantCfg)
 			}
 		})
 	}
@@ -492,43 +453,256 @@ func Test_validateEndpoint(t *testing.T) {
 	}
 }
 
-func Test_getSTSEndpoint(t *testing.T) {
+func TestSetFsType(t *testing.T) {
 	tests := []struct {
-		name        string
-		region      string
-		envEndpoint string
-		expected    string
+		name     string
+		input    map[string]string
+		expected map[string]string
 	}{
 		{
-			name:        "region and env are both empty",
-			region:      "",
-			envEndpoint: "",
-			expected:    "https://sts.aliyuncs.com",
+			name:     "vc is nil",
+			input:    nil,
+			expected: nil,
 		},
 		{
-			name:        "env is empty",
-			region:      "cn-beijing",
-			envEndpoint: "",
-			expected:    "https://sts-vpc.cn-beijing.aliyuncs.com",
+			name:     "fuseType exists and csiDefaultFsType does not",
+			input:    map[string]string{fuseType: "fuse"},
+			expected: map[string]string{fuseType: "fuse", csiDefaultFsType: "fuse"},
 		},
 		{
-			name:        "With STS_ENDPOINT environment variable",
-			region:      "cn-hangzhou",
-			envEndpoint: "sts-vpc.cn-beijing.aliyuncs.com",
-			expected:    "sts-vpc.cn-beijing.aliyuncs.com",
+			name:     "fuseType exists and csiDefaultFsType exists",
+			input:    map[string]string{fuseType: "fuse", csiDefaultFsType: "nfs"},
+			expected: map[string]string{fuseType: "fuse", csiDefaultFsType: "nfs"},
+		},
+		{
+			name:     "fuseType does not exist",
+			input:    map[string]string{csiDefaultFsType: "nfs"},
+			expected: map[string]string{csiDefaultFsType: "nfs"},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.envEndpoint != "" {
-				t.Setenv("STS_ENDPOINT", tt.envEndpoint)
-			}
-
-			endpoint := getSTSEndpoint(tt.region)
-			if endpoint != tt.expected {
-				t.Errorf("Expected endpoint to be %s, got %s", tt.expected, endpoint)
-			}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setFsType(test.input)
+			assert.Equal(t, test.expected, test.input)
 		})
 	}
+}
+
+func Test_checkOssOptions(t *testing.T) {
+	fakeMeta := metadata.NewMetadata()
+	ossfs := oss.NewFuseOssfs(nil, fakeMeta)
+	ossfs2 := oss.NewFuseOssfs2(nil, fakeMeta)
+	fusePodManagers := map[string]*oss.OSSFusePodManager{
+		OssFsType:  oss.NewOSSFusePodManager(ossfs, nil),
+		OssFs2Type: oss.NewOSSFusePodManager(ossfs2, nil),
+	}
+
+	tests := []struct {
+		name    string
+		opts    *oss.Options
+		errType error
+	}{
+		{
+			name: "empty fuse type",
+			opts: &oss.Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				AkID:     "11111",
+				AkSecret: "22222",
+			},
+			errType: ParamError,
+		},
+		{
+			name: "invalid fuse type",
+			opts: &oss.Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "abc/",
+				FuseType: "fakefs",
+			},
+			errType: ParamError,
+		},
+		{
+			name: "invalid path",
+			opts: &oss.Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "abc/",
+				AkID:     "11111",
+				AkSecret: "22222",
+				FuseType: OssFsType,
+			},
+			errType: PathError,
+		},
+		{
+			name: "empty URL",
+			opts: &oss.Options{
+				Bucket:   "aliyun",
+				Path:     "/path",
+				AkID:     "11111",
+				AkSecret: "22222",
+				FuseType: OssFsType,
+			},
+			errType: ParamError,
+		},
+		{
+			name: "invalid encrypted type",
+			opts: &oss.Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				AkID:      "11111",
+				AkSecret:  "22222",
+				Encrypted: "invalid",
+				FuseType:  OssFsType,
+			},
+			errType: EncryptError,
+		},
+		{
+			name: "valid kms sse",
+			opts: &oss.Options{
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				AkID:      "11111",
+				AkSecret:  "22222",
+				Encrypted: oss.EncryptedTypeKms,
+				FuseType:  OssFsType,
+			},
+			errType: nil,
+		},
+		{
+			name: "invalid url",
+			opts: &oss.Options{
+				URL:      "aliyun.oss-cn-hangzhou.aliyuncs.com",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				AkID:     "11111",
+				AkSecret: "22222",
+				FuseType: OssFsType,
+			},
+			errType: UrlError,
+		},
+		{
+			name: "public bucket",
+			opts: &oss.Options{
+				URL:      "1.1.1.1",
+				Bucket:   "aliyun",
+				Path:     "/path",
+				FuseType: OssFsType,
+				AuthType: oss.AuthTypePublic,
+			},
+			errType: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checkOssOptions(tt.opts, fusePodManagers[tt.opts.FuseType])
+			assert.ErrorIs(t, err, tt.errType)
+		})
+	}
+}
+
+func TestMakeAuthConfig(t *testing.T) {
+	fakeMeta := metadata.NewMetadata()
+	ossfs := oss.NewFuseOssfs(nil, fakeMeta)
+	ossfsFpm := oss.NewOSSFusePodManager(ossfs, nil)
+	opt := &oss.Options{
+		URL:      "1.1.1.1",
+		Bucket:   "aliyun",
+		Path:     "/path",
+		AkID:     "11111",
+		AkSecret: "22222",
+		FuseType: OssFsType,
+	}
+	want := &mounterutils.AuthConfig{
+		Secrets: map[string]string{
+			mounterutils.GetPasswdFileName(OssFsType): fmt.Sprintf("%s:%s:%s", opt.Bucket, opt.AkID, opt.AkSecret),
+		},
+	}
+	authCfg, err := makeAuthConfig(opt, ossfsFpm, fakeMeta)
+	assert.NoError(t, err)
+	assert.Equal(t, want, authCfg)
+
+	ossfs2 := oss.NewFuseOssfs2(nil, fakeMeta)
+	ossfs2Fpm := oss.NewOSSFusePodManager(ossfs2, nil)
+	opt2 := &oss.Options{
+		URL:      "1.1.1.1",
+		Bucket:   "aliyun",
+		Path:     "/path",
+		AkID:     "11111",
+		AkSecret: "22222",
+		FuseType: OssFs2Type,
+	}
+	want2 := &mounterutils.AuthConfig{
+		Secrets: map[string]string{
+			mounterutils.GetPasswdFileName(OssFs2Type): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", opt.AkID, opt.AkSecret),
+		},
+	}
+	authCfg2, err := makeAuthConfig(opt2, ossfs2Fpm, fakeMeta)
+	assert.NoError(t, err)
+	assert.Equal(t, want2, authCfg2)
+}
+
+func TestMakeMountOptions(t *testing.T) {
+	t.Setenv("REGION_ID", "cn-beijing")
+	fakeMeta := metadata.NewMetadata()
+	ossfs := oss.NewFuseOssfs(nil, fakeMeta)
+	ossfsFpm := oss.NewOSSFusePodManager(ossfs, nil)
+	opt := &oss.Options{
+		URL:        "1.1.1.1",
+		Bucket:     "aliyun",
+		Path:       "/path",
+		AkID:       "11111",
+		AkSecret:   "22222",
+		FuseType:   OssFsType,
+		OtherOpts:  "-o allow_other -o max_stat_cache_size=0",
+		SigVersion: "v4",
+		Encrypted:  oss.EncryptedTypeKms,
+	}
+	cap := &csi.VolumeCapability{
+		AccessType: &csi.VolumeCapability_Mount{
+			Mount: &csi.VolumeCapability_MountVolume{
+				MountFlags: []string{"ro"},
+			},
+		},
+	}
+	want := []string{
+		"allow_other",
+		"max_stat_cache_size=0",
+		"ro",
+		"url=1.1.1.1",
+		"use_sse=kmsid",
+		"use_metrics",
+		"sigv4",
+		"region=cn-beijing",
+	}
+	got, err := makeMountOptions(opt, ossfsFpm, fakeMeta, cap)
+	assert.NoError(t, err)
+	assert.Equal(t, want, got)
+
+	ossfs2 := oss.NewFuseOssfs2(nil, fakeMeta)
+	ossfs2Fpm := oss.NewOSSFusePodManager(ossfs2, nil)
+	opt2 := &oss.Options{
+		URL:        "1.1.1.1",
+		Bucket:     "aliyun",
+		Path:       "/path",
+		AkID:       "11111",
+		AkSecret:   "22222",
+		FuseType:   OssFs2Type,
+		OtherOpts:  "-o attr_timeout=60",
+		SigVersion: "v4",
+	}
+	want2 := []string{
+		"attr_timeout=60",
+		"oss_endpoint=1.1.1.1",
+		"oss_bucket=aliyun",
+		"oss_bucket_prefix=/path",
+		"oss_region=cn-beijing",
+	}
+	got2, err := makeMountOptions(opt2, ossfs2Fpm, fakeMeta, cap)
+	assert.NoError(t, err)
+	assert.Equal(t, want2, got2)
 }
