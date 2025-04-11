@@ -9,14 +9,14 @@ import (
 )
 
 type LoopDevice struct {
-	Name      string `json:"name"`
-	Sizelimit string `json:"sizelimit"`
-	Offset    string `json:"offset"`
-	Autoclear string `json:"autoclear"`
-	RO        string `json:"ro"`
-	BackFile  string `json:"back-file"`
-	Dio       string `json:"dio"`
-	LogSec    string `json:"log-sec"`
+	Name      string      `json:"name"`
+	Sizelimit json.Number `json:"sizelimit"`
+	Offset    json.Number `json:"offset"`
+	Autoclear bool        `json:"autoclear"`
+	RO        bool        `json:"ro"`
+	BackFile  string      `json:"back-file"`
+	Dio       bool        `json:"dio"`
+	LogSec    json.Number `json:"log-sec"`
 }
 
 type option []string
