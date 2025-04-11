@@ -25,7 +25,7 @@ var ossfs2Dbglevels = map[string]string{
 	utils.DebugLevelInfo:  "info",
 }
 
-const defaultDbglevel = utils.DebugLevelInfo
+const defaultOssfs2Dbglevel = utils.DebugLevelInfo
 
 func NewFuseOssfs2(configmap *corev1.ConfigMap, m metadata.MetadataProvider) OSSFuseMounterType {
 	config := utils.ExtractFuseContainerConfig(configmap, OssFs2Type)
@@ -175,9 +175,9 @@ func (f *fuseOssfs2) AddDefaultMountOptions(options []string) []string {
 			options = append(options, fmt.Sprintf("log_level=%s", level))
 		} else {
 			if f.config.Dbglevel != "" {
-				klog.Warningf("invalid dbglevel for ossfs: %q, use default dbglevel %s", f.config.Dbglevel, defaultDbglevel)
+				klog.Warningf("invalid dbglevel for ossfs: %q, use default dbglevel %s", f.config.Dbglevel, defaultOssfs2Dbglevel)
 			}
-			options = append(options, fmt.Sprintf("log_level=%s", ossfs2Dbglevels[defaultDbglevel]))
+			options = append(options, fmt.Sprintf("log_level=%s", ossfs2Dbglevels[defaultOssfs2Dbglevel]))
 		}
 	}
 
