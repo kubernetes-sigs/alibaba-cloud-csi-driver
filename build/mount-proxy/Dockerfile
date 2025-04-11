@@ -85,7 +85,9 @@ RUN set -ex; \
     yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
     yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-${EFC_VERSION}.${ARCH}.rpm; \
     yum clean all
-# 
+# alinas-utils generates some dynamic configuration files (such as TLS keys, etc.) under /etc/aliyun/{alinas,cpfs}.
+# So we will mount a hostPath to prevent the loss of these files when the container restarts.
+# On the first launch, /etc/aliyun-defaults will be used to initialize the configurations under /etc/aliyun/{alinas,cpfs}.
 RUN cp -r /etc/aliyun /etc/aliyun-defaults
 
 COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
