@@ -205,6 +205,8 @@ spec:
 {{- end }}
             - mountPath: /host/run/csi-tool
               name: run-csi
+            - mountPath: /run/cnfs
+              name: run-cnfs
             - mountPath: /host/sys/fs/cgroup
               name: cgroup
               mountPropagation: "HostToContainer"
@@ -315,6 +317,10 @@ spec:
         - name: run-csi
           hostPath:
             path: /run/csi-tool
+            type: DirectoryOrCreate
+        - name: run-cnfs
+          hostPath:
+            path: /run/cnfs
             type: DirectoryOrCreate
 {{- if $nodePool.csi.local.enabled }}
         - name: tls-token-dir
