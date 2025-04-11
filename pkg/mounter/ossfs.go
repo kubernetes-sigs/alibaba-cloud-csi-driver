@@ -12,9 +12,6 @@ import (
 	"strings"
 
 	"github.com/alibabacloud-go/tea/tea"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -22,6 +19,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
+
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 var defaultOssfsImageTag = "v1.88.4-80d165c-aliyun"
@@ -226,6 +227,10 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 		options = append(options, fmt.Sprintf("mime=%s", OssfsCsiMimeTypesFilePath))
 	}
 
+	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS_OPTIONS")
+	if defaultOSSFSOptions != "" {
+		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
+	}
 	return options
 }
 
