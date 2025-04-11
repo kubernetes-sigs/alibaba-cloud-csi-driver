@@ -321,9 +321,9 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 			options = append(options, fmt.Sprintf("dbglevel=%s", level))
 		} else {
 			if f.config.Dbglevel != "" {
-				klog.Warningf("invalid dbglevel for ossfs: %q, use default dbglevel %s", f.config.Dbglevel, defaultDbglevel)
+				klog.Warningf("invalid dbglevel for ossfs: %q, use default dbglevel %s", f.config.Dbglevel, defaultOssfsDbglevel)
 			}
-			options = append(options, fmt.Sprintf("dbglevel=%s", ossfsDbglevels[defaultDbglevel]))
+			options = append(options, fmt.Sprintf("dbglevel=%s", ossfsDbglevels[defaultOssfsDbglevel]))
 		}
 	}
 
@@ -436,7 +436,7 @@ func buildOssfsAuthSpec(c *utils.FusePodContext, target string, spec *corev1.Pod
 	}
 }
 
-// keep consitent with RAM response
+// keep consistent with RAM response
 var secretRefKeysToParse []string = []string{
 	"AccessKeyId",
 	"AccessKeySecret",

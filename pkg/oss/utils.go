@@ -347,7 +347,7 @@ func setFsType(vc map[string]string) {
 // Check oss options
 func checkOssOptions(opt *oss.Options, fpm *oss.OSSFusePodManager) error {
 	if fpm == nil {
-		return WrapOssError(ParamError, "Unnsupported fuseType %s", opt.FuseType)
+		return WrapOssError(ParamError, "Unsupported fuseType %s", opt.FuseType)
 	}
 	// common
 	if opt.URL == "" || opt.Bucket == "" {
@@ -359,7 +359,7 @@ func checkOssOptions(opt *oss.Options, fpm *oss.OSSFusePodManager) error {
 		return WrapOssError(UrlError, "url is invalid, %v", err)
 	}
 
-	// TODO: ossfs2 should matain capatibility with ossfs on encryption,
+	// TODO: ossfs2 should matain compatibility with ossfs on encryption,
 	// then remove this `switch`
 	switch opt.FuseType {
 	case OssFsType:

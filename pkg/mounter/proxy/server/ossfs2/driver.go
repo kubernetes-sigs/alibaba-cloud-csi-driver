@@ -1,4 +1,4 @@
-package ossfs
+package ossfs2
 
 import (
 	"context"
