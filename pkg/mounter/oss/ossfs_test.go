@@ -691,7 +691,7 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 		{
 			name:    "empty option, empty config",
 			options: []string{"others"},
-			want:    []string{"others", "dbglevel=info"},
+			want:    []string{"others", "dbglevel=err"},
 		},
 		{
 			name:    "set option",
@@ -714,13 +714,13 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 			name:     "empty option, invalid config",
 			cfglevel: "invalid",
 			options:  []string{"others"},
-			want:     []string{"others", "dbglevel=info"},
+			want:     []string{"others", "dbglevel=err"},
 		},
 		{
 			name:        "mime-support=true",
 			enabledMime: true,
 			options:     []string{"others"},
-			want:        []string{"others", "dbglevel=info", "mime=" + OssfsCsiMimeTypesFilePath},
+			want:        []string{"others", "dbglevel=err", "mime=" + OssfsCsiMimeTypesFilePath},
 		},
 	}
 	for _, tt := range tests {
