@@ -73,7 +73,7 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs"]
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as alinas
 
 ARG TARGETPLATFORM
-ARG ALINAS_UTILS_VERSION=1.8-0.20250228140224.8879f0.al7
+ARG ALINAS_UTILS_VERSION=1.8-0.20250410201011.30aa55.al7
 ARG EFC_VERSION=1.8-20250226151552.7151bf.release
 RUN set -ex; \
     case "${TARGETPLATFORM}" in \
