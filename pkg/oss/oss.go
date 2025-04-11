@@ -23,7 +23,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
@@ -71,29 +71,33 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 		klog.Fatalf("failed to get configmap kube-system/csi-plugin: %v", err)
 	}
 
-	ossfs := mounter.NewFuseOssfs(configmap, m)
-	fusePodManager := mounter.NewFusePodManager(ossfs, clientset)
+	ossfs := oss.NewFuseOssfs(configmap, m)
+	ossfs2 := oss.NewFuseOssfs2(configmap, m)
+	fusePodManagers := map[string]*oss.OSSFusePodManager{
+		OssFsType:  oss.NewOSSFusePodManager(ossfs, clientset),
+		OssFs2Type: oss.NewOSSFusePodManager(ossfs2, clientset),
+	}
 
 	var servers common.Servers
 	servers.IdentityServer = newIdentityServer()
 
 	if serviceType&utils.Controller != 0 {
 		servers.ControllerServer = &controllerServer{
-			client:         clientset,
-			cnfsGetter:     cnfsGetter,
-			metadata:       m,
-			fusePodManager: fusePodManager,
+			client:          clientset,
+			cnfsGetter:      cnfsGetter,
+			metadata:        m,
+			fusePodManagers: fusePodManagers,
 		}
 	}
 	if serviceType&utils.Node != 0 {
 		servers.NodeServer = &nodeServer{
-			metadata:   m,
-			locks:      utils.NewVolumeLocks(),
-			nodeName:   nodeName,
-			clientset:  clientset,
-			cnfsGetter: cnfsGetter,
-			rawMounter: mountutils.NewWithoutSystemd(""),
-			ossfs:      ossfs,
+			metadata:        m,
+			locks:           utils.NewVolumeLocks(),
+			nodeName:        nodeName,
+			clientset:       clientset,
+			cnfsGetter:      cnfsGetter,
+			rawMounter:      mountutils.NewWithoutSystemd(""),
+			fusePodManagers: fusePodManagers,
 			GenericNodeServer: common.GenericNodeServer{
 				NodeID: nodeName,
 			},

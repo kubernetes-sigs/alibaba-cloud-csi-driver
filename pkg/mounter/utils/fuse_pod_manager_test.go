@@ -1,4 +1,4 @@
-package mounter
+package utils
 
 import (
 	"testing"
@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-func Test_extractFuseContainerConfig(t *testing.T) {
+func Test_ExtractFuseContainerConfig(t *testing.T) {
 	configmap := &corev1.ConfigMap{
 		Data: map[string]string{
 			"fuse-ossfs": `
@@ -24,7 +24,7 @@ func Test_extractFuseContainerConfig(t *testing.T) {
 			`,
 		},
 	}
-	config := extractFuseContainerConfig(configmap, "ossfs")
+	config := ExtractFuseContainerConfig(configmap, OssFsType)
 	expected := FuseContainerConfig{
 		Resources: corev1.ResourceRequirements{
 			Limits: corev1.ResourceList{
