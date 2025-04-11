@@ -11,16 +11,16 @@ RUN --mount=type=bind,target=. \
 
 #################### OSSFS 1.91 MOUNT-PROXY IMAGE ####################
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as oss
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as ossfs
 ARG TARGETPLATFORM
 ARG OSSFS_VERSION
 
 # install ossfs
 RUN set -ex; \
     case "$TARGETPLATFORM" in \
-        linux/amd64) OSSFS_ARCH="x86_64" ;; \
-        linux/arm64) OSSFS_ARCH="aarch_64" ;; \
-        *) echo "unknown platform"; exit 1 ;; \
+    linux/amd64) OSSFS_ARCH="x86_64" ;; \
+    linux/arm64) OSSFS_ARCH="aarch_64" ;; \
+    *) echo "unknown platform"; exit 1 ;; \
     esac; \
     yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${OSSFS_VERSION}_centos8.0_${OSSFS_ARCH}.rpm; \
     yum install -y fuse-devel util-linux mailcap procps; \
@@ -36,27 +36,27 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs"]
 
 #################### OSSFS 1.88 MOUNT-PROXY IMAGE ####################
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as oss-1.88
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as ossfs-1.88
 ARG TARGETPLATFORM
 
 # install ossfs
 RUN set -ex; \
     case "$TARGETPLATFORM" in \
-        linux/amd64) \
-            yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_1.88.4_centos8.0_x86_64.rpm; \
-            ;; \
-        linux/arm64) \
-            yum install -y \
-                https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/multi-private/arm64-ossfs-v1.80.6/fuse-libs-2.9.2-11.el7.aarch64.rpm \
-                https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/multi-private/arm64-ossfs-v1.80.6/fuse-2.9.2-11.el7.aarch64.rpm; \
-            curl -sSL -o /usr/lib64/libfuse.so.2 https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/multi-private/arm64-ossfs-v1.80.6/libfuse.so.2; \
-            curl -sSL -o /usr/local/bin/ossfs https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/multi-private/arm64-ossfs-v1.80.6/ossfs-8u; \
-            chmod +x /usr/local/bin/ossfs; \
-            ;; \
-        *) \
-            echo "unknown platform"; \
-            exit 1; \
-            ;; \
+    linux/amd64) \
+    yum install -y https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_1.88.4_centos8.0_x86_64.rpm; \
+    ;; \
+    linux/arm64) \
+    yum install -y \
+    https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/multi-private/arm64-ossfs-v1.80.6/fuse-libs-2.9.2-11.el7.aarch64.rpm \
+    https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/multi-private/arm64-ossfs-v1.80.6/fuse-2.9.2-11.el7.aarch64.rpm; \
+    curl -sSL -o /usr/lib64/libfuse.so.2 https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/multi-private/arm64-ossfs-v1.80.6/libfuse.so.2; \
+    curl -sSL -o /usr/local/bin/ossfs https://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/multi-private/arm64-ossfs-v1.80.6/ossfs-8u; \
+    chmod +x /usr/local/bin/ossfs; \
+    ;; \
+    *) \
+    echo "unknown platform"; \
+    exit 1; \
+    ;; \
     esac; \
     yum install -y util-linux mailcap procps && yum clean all
 
@@ -68,6 +68,29 @@ ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs"]
 
 #################### OSSFS 1.88 MOUNT-PROXY IMAGE ####################
 
+#################### OSSFS2 MOUNT-PROXY IMAGE ####################
+
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as ossfs2
+ARG TARGETPLATFORM
+ARG OSSFS_VERSION
+
+# install ossfs
+# only supports x86_64
+RUN set -ex; \
+    case "$TARGETPLATFORM" in \
+    linux/amd64) OSSFS_ARCH="x86_64" ;; \
+    linux/arm64) OSSFS_ARCH="aarch_64" ;; \
+    *) echo "unknown platform"; exit 1 ;; \
+    esac; \
+    yum install -y https://gosspublic.alicdn.com/ossfs/ossfs2_${OSSFS_VERSION}_linux_${OSSFS_ARCH}.rpm; \
+    yum install -y fuse3-devel util-linux mailcap procps; \
+    yum clean all
+
+COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
+ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
+
+#################### OSSFS2 MOUNT-PROXY IMAGE ####################
+
 #################### ALINAS MOUNT-PROXY IMAGE ####################
 
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as alinas
@@ -77,9 +100,9 @@ ARG ALINAS_UTILS_VERSION=1.8-0.20250410201011.30aa55.al7
 ARG EFC_VERSION=1.8-20250226151552.7151bf.release
 RUN set -ex; \
     case "${TARGETPLATFORM}" in \
-        linux/amd64) ARCH="x86_64" ;; \
-        # linux/arm64) ARCH="aarch_64" ;; \
-        *) echo "unsupported platform"; exit 1 ;; \
+    linux/amd64) ARCH="x86_64" ;; \
+    # linux/arm64) ARCH="aarch_64" ;; \
+    *) echo "unsupported platform"; exit 1 ;; \
     esac; \
     yum install -y util-linux procps tini; \
     yum install -y https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-${ALINAS_UTILS_VERSION}.noarch.rpm; \
