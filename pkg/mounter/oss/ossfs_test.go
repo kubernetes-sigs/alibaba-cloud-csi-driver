@@ -12,6 +12,7 @@ import (
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 )
 
 func Test_buildOssfsAuthSpec(t *testing.T) {
@@ -33,7 +34,7 @@ func Test_buildOssfsAuthSpec(t *testing.T) {
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: "target",
-				Type: new(corev1.HostPathType),
+				Type: ptr.To(corev1.HostPathDirectoryOrCreate),
 			},
 		},
 	}

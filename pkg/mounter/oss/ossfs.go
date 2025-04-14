@@ -2,6 +2,7 @@ package oss
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 )
 
 var defaultOssfsImageTag = "v1.88.4-80d165c-aliyun"
@@ -139,14 +141,8 @@ func (f *fuseOssfs) PodTemplateSpec(c *utils.FusePodContext, target string) (*co
 	pod := new(corev1.PodTemplateSpec)
 	pod.Spec = spec
 
-	pod.Annotations = make(map[string]string)
-	for k, v := range f.config.Annotations {
-		pod.Annotations[k] = v
-	}
-	pod.Labels = make(map[string]string)
-	for k, v := range f.config.Labels {
-		pod.Labels[k] = v
-	}
+	pod.Annotations = maps.Clone(f.config.Annotations)
+	pod.Labels = maps.Clone(f.config.Labels)
 	return pod, nil
 }
 
@@ -157,32 +153,29 @@ func (f *fuseOssfs) buildPodSpec(c *utils.FusePodContext, target string) (spec c
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: targetDir,
-				Type: new(corev1.HostPathType),
+				Type: ptr.To(corev1.HostPathDirectoryOrCreate),
 			},
 		},
 	}
-	*targetDirVolume.HostPath.Type = corev1.HostPathDirectoryOrCreate
 	metricsDirVolume := corev1.Volume{
 		Name: "metrics-dir",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: "/var/run/ossfs",
-				Type: new(corev1.HostPathType),
+				Type: ptr.To(corev1.HostPathDirectoryOrCreate),
 			},
 		},
 	}
-	*metricsDirVolume.HostPath.Type = corev1.HostPathDirectoryOrCreate
 	// mime.types/csi-mime.types in /etc is used
 	etcDirVolume := corev1.Volume{
 		Name: "host-etc",
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: "/etc",
-				Type: new(corev1.HostPathType),
+				Type: ptr.To(corev1.HostPathDirectory),
 			},
 		},
 	}
-	*etcDirVolume.HostPath.Type = corev1.HostPathDirectory
 
 	spec.Volumes = []corev1.Volume{targetDirVolume, metricsDirVolume, etcDirVolume}
 

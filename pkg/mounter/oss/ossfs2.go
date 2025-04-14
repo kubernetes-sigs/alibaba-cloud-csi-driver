@@ -2,6 +2,7 @@ package oss
 
 import (
 	"fmt"
+	"maps"
 	"path/filepath"
 	"strings"
 
@@ -12,9 +13,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 )
 
 var defaultOssfs2ImageTag = "v0.0.0-6be06ff-aliyun"
+var defaultOssfs2Dbglevel = utils.DebugLevelInfo
 
 type fuseOssfs2 struct {
 	config utils.FuseContainerConfig
@@ -24,8 +27,6 @@ var ossfs2Dbglevels = map[string]string{
 	utils.DebugLevelDebug: "debug",
 	utils.DebugLevelInfo:  "info",
 }
-
-const defaultOssfs2Dbglevel = utils.DebugLevelInfo
 
 func NewFuseOssfs2(configmap *corev1.ConfigMap, m metadata.MetadataProvider) OSSFuseMounterType {
 	config := utils.ExtractFuseContainerConfig(configmap, OssFs2Type)
@@ -69,11 +70,11 @@ func (f *fuseOssfs2) MakeAuthConfig(o *Options, m metadata.MetadataProvider) (*u
 }
 
 func (f *fuseOssfs2) MakeMountOptions(o *Options, m metadata.MetadataProvider) (mountOptions []string, err error) {
-	mountOptions = append(mountOptions, []string{
-		fmt.Sprintf("oss_endpoint=%s", o.URL),
-		fmt.Sprintf("oss_bucket=%s", o.Bucket),
-		fmt.Sprintf("oss_bucket_prefix=%s", o.Path),
-	}...)
+	mountOptions = append(mountOptions,
+		"oss_endpoint="+o.URL,
+		"oss_bucket="+o.Bucket,
+		"oss_bucket_prefix="+o.Path,
+	)
 
 	if o.ReadOnly {
 		mountOptions = append(mountOptions, "ro=true")
@@ -98,14 +99,8 @@ func (f *fuseOssfs2) PodTemplateSpec(c *utils.FusePodContext, target string) (*c
 	pod := new(corev1.PodTemplateSpec)
 	pod.Spec = spec
 
-	pod.Annotations = make(map[string]string)
-	for k, v := range f.config.Annotations {
-		pod.Annotations[k] = v
-	}
-	pod.Labels = make(map[string]string)
-	for k, v := range f.config.Labels {
-		pod.Labels[k] = v
-	}
+	pod.Annotations = maps.Clone(f.config.Annotations)
+	pod.Labels = maps.Clone(f.config.Labels)
 	return pod, nil
 }
 
@@ -116,11 +111,10 @@ func (f *fuseOssfs2) buildPodSpec(c *utils.FusePodContext, target string) (spec 
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: targetDir,
-				Type: new(corev1.HostPathType),
+				Type: ptr.To(corev1.HostPathDirectoryOrCreate),
 			},
 		},
 	}
-	*targetDirVolume.HostPath.Type = corev1.HostPathDirectoryOrCreate
 	spec.Volumes = []corev1.Volume{targetDirVolume}
 
 	bidirectional := corev1.MountPropagationBidirectional
