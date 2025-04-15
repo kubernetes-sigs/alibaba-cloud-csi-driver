@@ -157,10 +157,11 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 		t.Fatalf("failed to cast to fuseOssfs2")
 	}
 	tests := []struct {
-		name     string
-		options  []string
-		cfglevel string
-		want     []string
+		name        string
+		options     []string
+		cfglevel    string
+		defaultOpts string
+		want        []string
 	}{
 		{
 			name:    "empty option, empty config",
@@ -190,9 +191,19 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 			options:  []string{"others"},
 			want:     []string{"others", "log_level=info"},
 		},
+		{
+			name:        "default options",
+			cfglevel:    "",
+			options:     nil,
+			defaultOpts: "others",
+			want:        []string{"log_level=info", "others"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.defaultOpts != "" {
+				t.Setenv("DEFAULT_OSSFS2_OPTIONS", tt.defaultOpts)
+			}
 			fakeOssfs.config.Dbglevel = tt.cfglevel
 			got := fakeOssfs.AddDefaultMountOptions(tt.options)
 			assert.Equal(t, tt.want, got)

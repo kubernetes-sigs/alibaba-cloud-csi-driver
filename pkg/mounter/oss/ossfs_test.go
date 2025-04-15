@@ -119,11 +119,12 @@ func Test_getPasswdSecretVolume(t *testing.T) {
 
 func Test_AddDefaultMountOptions(t *testing.T) {
 	tests := []struct {
-		name     string
-		options  []string
-		dbglevel string
-		mime     string
-		want     []string
+		name        string
+		options     []string
+		dbglevel    string
+		mime        string
+		defaultOpts string
+		want        []string
 	}{
 		{
 			name:     "Debug level not set",
@@ -167,6 +168,14 @@ func Test_AddDefaultMountOptions(t *testing.T) {
 			mime:     "false",
 			want:     []string{"dbglevel=err"},
 		},
+		{
+			name:        "Default options",
+			options:     []string{},
+			dbglevel:    "",
+			mime:        "false",
+			defaultOpts: "allow_other,umask=000",
+			want:        []string{"dbglevel=err", "allow_other", "umask=000"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -178,6 +187,9 @@ func Test_AddDefaultMountOptions(t *testing.T) {
 						"mime-support": tt.mime,
 					},
 				},
+			}
+			if tt.defaultOpts != "" {
+				t.Setenv("DEFAULT_OSSFS_OPTIONS", tt.defaultOpts)
 			}
 			got := f.AddDefaultMountOptions(tt.options)
 			if len(got) != len(tt.want) {

@@ -3,6 +3,7 @@ package oss
 import (
 	"fmt"
 	"maps"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -173,6 +174,11 @@ func (f *fuseOssfs2) AddDefaultMountOptions(options []string) []string {
 			}
 			options = append(options, fmt.Sprintf("log_level=%s", ossfs2Dbglevels[defaultOssfs2Dbglevel]))
 		}
+	}
+
+	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS2_OPTIONS")
+	if defaultOSSFSOptions != "" {
+		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
 	}
 
 	return options
