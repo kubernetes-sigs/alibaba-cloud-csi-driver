@@ -93,8 +93,8 @@ spec:
             - --extra-create-metadata=true
             - --default-fstype=ext4
             - --v=5
-            - --kube-api-qps=25
-            - --kube-api-burst=50
+            - --kube-api-qps=100
+            - --kube-api-burst=200
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
@@ -112,8 +112,8 @@ spec:
             - --logging-format={{ .Values.logging.format }}
             - --csi-address=/csi/csi.sock
             - --leader-election=true
-            - --kube-api-qps=50
-            - --kube-api-burst=100
+            - --kube-api-qps=100
+            - --kube-api-burst=200
             - --worker-threads=32
             - --timeout=30s
           volumeMounts:
@@ -188,6 +188,8 @@ spec:
             - --leader-election=true
             - --retry-interval-start=500ms
             - --default-fstype=nfs
+            - --kube-api-qps=100
+            - --kube-api-burst=200
             - --v=5
           volumeMounts:
             - name: nas-provisioner-dir
@@ -220,8 +222,8 @@ spec:
             - --leader-election=true
             - --retry-interval-start=500ms
             - --default-fstype=ossfs
-            - --kube-api-qps=25
-            - --kube-api-burst=50
+            - --kube-api-qps=100
+            - --kube-api-burst=200
             - --v=5
           image: {{ include "imageSpec" (list .Values.images "externalProvisioner") }}
           resources:
@@ -248,8 +250,8 @@ spec:
             - --logging-format={{ .Values.logging.format }}
             - --csi-address=/csi/csi.sock
             - --leader-election=true
-            - --kube-api-qps=50
-            - --kube-api-burst=100
+            - --kube-api-qps=100
+            - --kube-api-burst=200
           volumeMounts:
             - name: oss-provisioner-dir
               mountPath: /csi
@@ -267,6 +269,8 @@ spec:
             - --leader-election=true
             - --retry-interval-start=500ms
             - --default-fstype=ext4
+            - --kube-api-qps=100
+            - --kube-api-burst=200
             - --v=5
           resources:
             requests:
@@ -306,8 +310,8 @@ spec:
             - "--driver={{ include "enabledControllers" .Values.csi }}"
             - --run-controller-service=true
             - --run-node-service=false
-            - --kube-api-qps=10
-            - --kube-api-burst=20
+            - --kube-api-qps=100
+            - --kube-api-burst=200
 {{- if .Values.deploy.featureGates }}
             - "--feature-gates={{ .Values.deploy.featureGates }}"
 {{- end -}}
@@ -406,6 +410,8 @@ spec:
             - --http-endpoint=:11271
             - --run-node-service=false
             - --run-controller-service=true
+            - --kube-api-qps=100
+            - --kube-api-burst=200
             - --v=2
             - --node-id=$(KUBE_NODE_NAME)
           env:
