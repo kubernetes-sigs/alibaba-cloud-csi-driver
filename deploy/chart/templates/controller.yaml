@@ -220,6 +220,8 @@ spec:
             - --leader-election=true
             - --retry-interval-start=500ms
             - --default-fstype=ossfs
+            - --kube-api-qps=25
+            - --kube-api-burst=50
             - --v=5
           image: {{ include "imageSpec" (list .Values.images "externalProvisioner") }}
           resources:
