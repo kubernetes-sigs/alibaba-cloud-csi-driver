@@ -192,7 +192,7 @@ func Test_getRoleSessionName(t *testing.T) {
 		target   string
 		wantName string
 	}{
-		{"vol1", "/mnt/target1", "ossfs.vol1." + computeMountPathHash("/mnt/target1")},
+		{"vol1", "/mnt/target1", "ossfs.vol1." + ComputeMountPathHash("/mnt/target1")},
 		{"hereisalonglongpvnamethatisalreadylongerthan64ibeleive", "/mnt/target2", "ossfs.hereisalonglongpvnamethatisalreadylongerthan64ibeleive.c85"},
 	}
 
