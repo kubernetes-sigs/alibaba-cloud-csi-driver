@@ -54,6 +54,6 @@
 {{- $d := clean . -}}
 {{- if ne $d "/var/lib/kubelet" -}}
 - name: KUBELET_ROOT_DIR
-  value: {{ $d }}
+  value: {{ $d | quote }}
 {{- end -}}
 {{- end -}}
