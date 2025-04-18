@@ -94,6 +94,22 @@ type InstanceTypeInfo struct {
 	DiskQuantity int
 }
 
+var ecsOpenAPIDialer = net.Dialer{
+	Timeout:   30 * time.Second,
+	KeepAlive: 30 * time.Second,
+}
+
+var ecsOpenAPITransport = http.Transport{
+	Proxy:                 http.ProxyFromEnvironment,
+	DialContext:           ecsOpenAPIDialer.DialContext,
+	ForceAttemptHTTP2:     true,
+	MaxIdleConns:          100,
+	MaxIdleConnsPerHost:   100, // Set this equal to MaxIdleConns as we should only talk to one endpoint with this Transport instance.
+	IdleConnTimeout:       90 * time.Second,
+	TLSHandshakeTimeout:   10 * time.Second,
+	ExpectContinueTimeout: 1 * time.Second,
+}
+
 func newEcsClient(regionID string, ac utils.AccessControl) (ecsClient *ecs.Client) {
 	var err error
 	switch ac.UseMode {
@@ -138,10 +154,12 @@ func newEcsClient(regionID string, ac utils.AccessControl) (ecsClient *ecs.Clien
 		ecsClient.SetEndpointRules(nil, "regional", network)
 	}
 
+	var rt http.RoundTripper = &ecsOpenAPITransport
 	header := utilshttp.MustParseHeaderEnv("ECS_HEADERS")
 	if len(header) > 0 {
-		ecsClient.SetTransport(utilshttp.RoundTripperWithHeader(nil, header))
+		rt = utilshttp.RoundTripperWithHeader(rt, header)
 	}
+	ecsClient.SetTransport(rt)
 	return
 }
 
