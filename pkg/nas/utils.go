@@ -23,6 +23,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/losetup"
@@ -123,30 +124,43 @@ func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, p
 		return err
 	}
 
+	/*
+		Failed to mount subPath for nas, action:
+		1. mount rootPath
+		2. mkdir subPath
+		3. mount subPath
+	*/
+
+	// 1. construct rootPath through the type of nas, and mount rootPath to tmpMountpoint
 	rootPath := "/"
 	if opt.FSType == "cpfs" || mountFstype == MountProtocolCPFSNFS || strings.Contains(opt.Server, "extreme.nas.aliyuncs.com") {
 		rootPath = "/share"
 	}
-	relPath, relErr := filepath.Rel(rootPath, opt.Path)
-	if relErr != nil || relPath == "." {
-		return err
-	}
 	rootSource := fmt.Sprintf("%s:%s", opt.Server, rootPath)
-	klog.Infof("trying to create subpath %s in %s", opt.Path, opt.Server)
-	tmpPath, err := os.MkdirTemp(filepath.Join(utils.KubeletRootDir, "csi-plugins", driverName, "node"), "subpath-creation_"+volumeId+"_")
+	tmpMountpoint, err := os.MkdirTemp(filepath.Join(utils.KubeletRootDir, "csi-plugins", driverName, "node"), "subpath-creation_"+volumeId+"_")
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmpPath)
-	if err := mounter.Mount(rootSource, tmpPath, mountFstype, combinedOptions); err != nil {
+	defer os.Remove(tmpMountpoint)
+	klog.Infof("doMount: trying to mount rootPath %q in %q, with mkdir subPath", rootSource, tmpMountpoint)
+	if err := mounter.Mount(rootSource, tmpMountpoint, mountFstype, combinedOptions); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Join(tmpPath, relPath), os.ModePerm); err != nil {
+
+	// 2. mkdir subPath and umount tmp mountpoint
+	subPath := opt.Path
+	if rootPath == "/share" && strings.HasPrefix(subPath, "/share/") {
+		subPath, _ = filepath.Rel(rootPath, opt.Path)
+	}
+	klog.Infof("doMount: trying to mkdir subPath %q in %q, with mkdir subpath", subPath, tmpMountpoint)
+	if err := os.MkdirAll(filepath.Join(tmpMountpoint, subPath), os.ModePerm); err != nil {
 		return err
 	}
-	if err := cleanupMountpoint(mounter, tmpPath); err != nil {
-		klog.Errorf("failed to cleanup tmp mountpoint %s: %v", tmpPath, err)
+	if err := cleanupMountpoint(mounter, tmpMountpoint); err != nil {
+		klog.Errorf("doMount: failed to unmount tmp mountpoint %q. err: %v", tmpMountpoint, err)
 	}
+
+	// 3. mount subPath to targetPath
 	return mounter.Mount(source, targetPath, mountFstype, combinedOptions)
 }
 
@@ -228,7 +242,9 @@ func unmountLosetupPv(mounter mountutils.Interface, mountPoint string) error {
 				return fmt.Errorf("checkLosetupUnmount: remove lock file error %v", err)
 			}
 		}
+		time.Sleep(5 * time.Second)
 		if err := cleanupMountpoint(mounter, nfsPath); err != nil {
+			klog.Errorf("unmountLosetupPv: failed to unmount loopdevice %q. err: %v", imgFile, err)
 			return fmt.Errorf("checkLosetupUnmount: umount nfs path error %v", err)
 		}
 		klog.Infof("Losetup Unmount successful %s", mountPoint)
@@ -289,6 +305,8 @@ func saveVolumeData(opt *Options, mountPath string) error {
 }
 
 func cleanupMountpoint(mounter mountutils.Interface, mountPath string) (err error) {
+	klog.Infof("sync filesystem cache to nas backend when umount %s", mountPath)
+	syscall.Sync()
 	forceUnmounter, ok := mounter.(mountutils.MounterForceUnmounter)
 	if ok {
 		err = mountutils.CleanupMountWithForce(mountPath, forceUnmounter, false, time.Second*30)
