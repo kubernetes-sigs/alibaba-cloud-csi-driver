@@ -11,9 +11,9 @@ RUN --mount=type=bind,target=. \
 
 #################### OSSFS 1.91 MOUNT-PROXY IMAGE ####################
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as oss
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as ossfs
 ARG TARGETPLATFORM
-ARG OSSFS_VERSION=v1.91.5.ack.1
+ARG OSSFS_VERSION
 
 # install ossfs
 RUN set -ex; \
@@ -30,13 +30,13 @@ RUN mkdir /csi && mv /etc/mime.types /csi/mime.types
 RUN ln -s /host/etc/mime.types /etc/mime.types
 
 COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
-ENTRYPOINT ["csi-mount-proxy-server"]
+ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs"]
 
 #################### OSSFS 1.91 MOUNT-PROXY IMAGE ####################
 
 #################### OSSFS 1.88 MOUNT-PROXY IMAGE ####################
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as oss-1.88
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as ossfs-1.88
 ARG TARGETPLATFORM
 
 # install ossfs
@@ -67,6 +67,29 @@ COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
 ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs"]
 
 #################### OSSFS 1.88 MOUNT-PROXY IMAGE ####################
+
+#################### OSSFS2 MOUNT-PROXY IMAGE ####################
+
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update as ossfs2
+ARG TARGETPLATFORM
+ARG OSSFS_VERSION
+
+# install ossfs
+# only supports x86_64
+RUN set -ex; \
+    case "$TARGETPLATFORM" in \
+        linux/amd64) OSSFS_ARCH="x86_64" ;; \
+        linux/arm64) OSSFS_ARCH="aarch_64" ;; \
+        *) echo "unknown platform"; exit 1 ;; \
+    esac; \
+    yum install -y https://gosspublic.alicdn.com/ossfs/ossfs2_${OSSFS_VERSION}_linux_${OSSFS_ARCH}.rpm; \
+    yum install -y fuse3-devel util-linux mailcap procps; \
+    yum clean all
+
+COPY --link --from=builder /out/csi-mount-proxy* /usr/local/bin/
+ENTRYPOINT ["csi-mount-proxy-server", "--driver=ossfs2"]
+
+#################### OSSFS2 MOUNT-PROXY IMAGE ####################
 
 #################### ALINAS MOUNT-PROXY IMAGE ####################
 

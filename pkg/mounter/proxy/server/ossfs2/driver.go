@@ -1,4 +1,4 @@
-package ossfs
+package ossfs2
 
 import (
 	"context"
@@ -37,11 +37,11 @@ func NewDriver() *Driver {
 }
 
 func (h *Driver) Name() string {
-	return "ossfs"
+	return "ossfs2"
 }
 
 func (h *Driver) Fstypes() []string {
-	return []string{"ossfs"}
+	return []string{"ossfs2"}
 }
 
 func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
@@ -49,8 +49,8 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 
 	// prepare passwd file
 	var passwdFile string
-	if passwd := req.Secrets[utils.GetPasswdFileName("ossfs")]; passwd != "" {
-		tmpDir, err := os.MkdirTemp("", "ossfs-")
+	if passwd := req.Secrets[utils.GetPasswdFileName("ossfs2")]; passwd != "" {
+		tmpDir, err := os.MkdirTemp("", "ossfs2-")
 		if err != nil {
 			return err
 		}
@@ -59,26 +59,30 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		if err != nil {
 			return err
 		}
-		klog.V(4).InfoS("created ossfs passwd file", "path", passwdFile)
-		options = append(options, "passwd_file="+passwdFile)
+		klog.V(4).InfoS("created ossfs2 configuration file", "path", passwdFile)
 	}
 
-	args := mount.MakeMountArgs(req.Source, req.Target, "", options)
-	args = append(args, req.MountFlags...)
+	args := []string{"mount", req.Target}
+	// ossfs2.0 forbid to use FUSE args
+	// args = append(args, req.MountFlags...)
+	args = append(args, []string{"-c", passwdFile}...)
+	for _, o := range options {
+		args = append(args, fmt.Sprintf("--%s", o))
+	}
 	args = append(args, "-f")
 
-	cmd := exec.Command("ossfs", args...)
+	cmd := exec.Command("ossfs2", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	err := cmd.Start()
 	if err != nil {
-		return fmt.Errorf("start ossfs failed: %w", err)
+		return fmt.Errorf("start ossfs2 failed: %w", err)
 	}
 
 	target := req.Target
 	pid := cmd.Process.Pid
-	klog.InfoS("Started ossfs", "pid", pid, "args", args)
+	klog.InfoS("Started ossfs2", "pid", pid, "args", args)
 
 	ossfsExited := make(chan error, 1)
 	h.wg.Add(1)
@@ -89,13 +93,13 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 
 		err := cmd.Wait()
 		if err != nil {
-			klog.ErrorS(err, "ossfs exited with error", "mountpoint", target, "pid", pid)
+			klog.ErrorS(err, "ossfs2 exited with error", "mountpoint", target, "pid", pid)
 		} else {
-			klog.InfoS("ossfs exited", "mountpoint", target, "pid", pid)
+			klog.InfoS("ossfs2 exited", "mountpoint", target, "pid", pid)
 		}
 		ossfsExited <- err
 		if err := os.Remove(passwdFile); err != nil {
-			klog.ErrorS(err, "Remove passwd file", "mountpoint", target, "path", passwdFile)
+			klog.ErrorS(err, "Remove configuration file", "mountpoint", target, "path", passwdFile)
 		}
 		close(ossfsExited)
 	}()
@@ -105,9 +109,9 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		case err := <-ossfsExited:
 			// TODO: collect ossfs outputs to return in error message
 			if err != nil {
-				return false, fmt.Errorf("ossfs exited: %w", err)
+				return false, fmt.Errorf("ossfs2 exited: %w", err)
 			}
-			return false, fmt.Errorf("ossfs exited")
+			return false, fmt.Errorf("ossfs2 exited")
 		default:
 			notMnt, err := h.raw.IsLikelyNotMountPoint(target)
 			if err != nil {
@@ -130,14 +134,14 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		// terminate ossfs process when timeout
 		terr := cmd.Process.Signal(syscall.SIGTERM)
 		if terr != nil {
-			klog.ErrorS(err, "Failed to terminate ossfs", "pid", pid)
+			klog.ErrorS(err, "Failed to terminate ossfs2", "pid", pid)
 		}
 		select {
 		case <-ossfsExited:
 		case <-time.After(time.Second * 2):
 			kerr := cmd.Process.Kill()
 			if kerr != nil && errors.Is(kerr, os.ErrProcessDone) {
-				klog.ErrorS(err, "Failed to kill ossfs", "pid", pid)
+				klog.ErrorS(err, "Failed to kill ossfs2", "pid", pid)
 			}
 		}
 	}
@@ -151,12 +155,12 @@ func (h *Driver) Terminate() {
 	h.pids.Range(func(key, value any) bool {
 		err := value.(*exec.Cmd).Process.Signal(syscall.SIGTERM)
 		if err != nil {
-			klog.ErrorS(err, "Failed to terminate ossfs", "pid", key)
+			klog.ErrorS(err, "Failed to terminate ossfs2", "pid", key)
 		}
 		klog.V(4).InfoS("Sended sigterm", "pid", key)
 		return true
 	})
 	// wait all ossfs processes to exit
 	h.wg.Wait()
-	klog.InfoS("All ossfs processes exited")
+	klog.InfoS("All ossfs2 processes exited")
 }

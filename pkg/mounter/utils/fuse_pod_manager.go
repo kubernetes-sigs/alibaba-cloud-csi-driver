@@ -1,11 +1,10 @@
-package mounter
+package utils
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"strings"
 	"time"
 
@@ -15,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -26,7 +24,7 @@ import (
 
 const (
 	fusePodManagerTimeout  = time.Second * 30
-	fuseServiceAccountName = "csi-fuse-ossfs"
+	FuseServiceAccountName = "csi-fuse-ossfs"
 	// deprecated
 	LegacyFusePodNamespace = "kube-system"
 )
@@ -50,7 +48,7 @@ type AuthConfig struct {
 	Secrets map[string]string
 	// for Token from Secret
 	SecretRef string
-	// for STS(ECS worker role)
+	// for STS(ECS worker role)/RRSA
 	RoleName string
 }
 
@@ -58,14 +56,8 @@ type RrsaConfig struct {
 	OidcProviderArn    string
 	RoleArn            string
 	ServiceAccountName string
+	AssumeRoleArn      string
 }
-
-const (
-	AuthTypeSTS    = "sts"
-	AuthTypeRRSA   = "rrsa"
-	AuthTypeCSS    = "csi-secret-store"
-	AuthTypePublic = "public"
-)
 
 const (
 	DebugLevelFatal = "fatal"
@@ -80,6 +72,7 @@ type FusePodContext struct {
 	Namespace  string
 	NodeName   string
 	VolumeId   string
+	FuseType   string
 	AuthConfig *AuthConfig
 }
 
@@ -99,12 +92,13 @@ type FuseContainerConfig struct {
 	Extra       map[string]string
 }
 
-func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (config FuseContainerConfig) {
+func ExtractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (config FuseContainerConfig) {
+	config.Resources.Requests = make(corev1.ResourceList)
+	config.Resources.Limits = make(corev1.ResourceList)
+
 	if configmap == nil {
 		return
 	}
-	config.Resources.Requests = make(corev1.ResourceList)
-	config.Resources.Limits = make(corev1.ResourceList)
 	content := configmap.Data["fuse-"+name]
 	for _, line := range strings.Split(content, "\n") {
 		line = strings.TrimSpace(line)
@@ -116,7 +110,7 @@ func extractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 		switch key {
 		case "":
 			invalid = true
-		case "dbglevel":
+		case "dbglevel", "log_level":
 			switch value {
 			case DebugLevelFatal, DebugLevelError, DebugLevelWarn, DebugLevelInfo, DebugLevelDebug:
 				config.Dbglevel = value
@@ -193,8 +187,12 @@ func NewFusePodManager(fuseType FuseMounterType, client kubernetes.Interface) *F
 
 func (fpm *FusePodManager) labelsAndListOptionsFor(c *FusePodContext, target string) (map[string]string, metav1.ListOptions) {
 	labels := map[string]string{
-		FuseTypeLabelKey:     fpm.Name(),
 		FuseVolumeIdLabelKey: c.VolumeId,
+	}
+	// ControllerUnPublish cannot get fuseType info,
+	// so FuseTypeLabelKey cannot used as a label for Delete
+	if c.FuseType != "" {
+		labels[FuseTypeLabelKey] = c.FuseType
 	}
 	if target != "" {
 		labels[FuseMountPathHashLabelKey] = computeMountPathHash(target)
@@ -392,10 +390,4 @@ func isFusePodReady(pod *corev1.Pod) bool {
 		}
 	}
 	return false
-}
-
-func computeMountPathHash(target string) string {
-	hasher := fnv.New32a()
-	hasher.Write([]byte(target))
-	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
 }

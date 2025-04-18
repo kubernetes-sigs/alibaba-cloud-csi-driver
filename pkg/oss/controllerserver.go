@@ -24,7 +24,8 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
+	mounter "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -40,10 +41,10 @@ const (
 
 // controller server try to create/delete volumes
 type controllerServer struct {
-	client         kubernetes.Interface
-	cnfsGetter     cnfsv1beta1.CNFSGetter
-	metadata       metadata.MetadataProvider
-	fusePodManager *mounter.FusePodManager
+	client          kubernetes.Interface
+	cnfsGetter      cnfsv1beta1.CNFSGetter
+	metadata        metadata.MetadataProvider
+	fusePodManagers map[string]*oss.OSSFusePodManager
 	common.GenericControllerServer
 }
 
@@ -74,7 +75,7 @@ func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
 // provisioner: create/delete oss volume
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	region, _ := cs.metadata.Get(metadata.RegionID)
-	ossVol := parseOptions(req.GetParameters(), req.GetSecrets(), req.GetVolumeCapabilities(), false, region, req.GetName())
+	ossVol := parseOptions(req.GetParameters(), req.GetSecrets(), req.GetVolumeCapabilities(), false, region, req.GetName(), false)
 	volumeContext := req.GetParameters()
 	if volumeContext == nil {
 		volumeContext = map[string]string{}
@@ -92,7 +93,6 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 
 }
 
-// call nas api to delete oss volume
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	klog.Infof("DeleteVolume: Starting deleting volume %s", req.GetVolumeId())
 	_, err := cs.client.CoreV1().PersistentVolumes().Get(context.Background(), req.VolumeId, metav1.GetOptions{})
@@ -105,7 +105,8 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	klog.Infof("ControllerUnpublishVolume: volume %s on node %s", req.VolumeId, req.NodeId)
-	if err := cs.fusePodManager.Delete(&mounter.FusePodContext{
+	// To maintain the compatibility, all kinds of fuseType Pod share the same globalmount path as ossfs.
+	if err := cs.fusePodManagers[unifiedFsType].Delete(&mounter.FusePodContext{
 		Context:   ctx,
 		Namespace: fusePodNamespace,
 		NodeName:  req.NodeId,
@@ -115,7 +116,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	}
 
 	// To maintain the compatibility, cleanup fuse pods in kube-system namespace
-	if err := cs.fusePodManager.Delete(&mounter.FusePodContext{
+	if err := cs.fusePodManagers[unifiedFsType].Delete(&mounter.FusePodContext{
 		Context:   ctx,
 		Namespace: mounter.LegacyFusePodNamespace,
 		NodeName:  req.NodeId,
@@ -133,44 +134,48 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	// parse options
 	nodeName := req.NodeId
 	region, _ := cs.metadata.Get(metadata.RegionID)
-	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), region, "")
+	// ensure fuseType is not empty
+	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), region, "", false)
 	if err := setCNFSOptions(ctx, cs.cnfsGetter, opts); err != nil {
 		return nil, err
 	}
 	// options validation
-	if err := checkOssOptions(opts); err != nil {
+	if err := checkOssOptions(opts, cs.fusePodManagers[opts.FuseType]); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	// check and make auth config
+	authCfg, err := makeAuthConfig(opts, cs.fusePodManagers[OssFsType], cs.metadata, false)
+	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	// Skip controller publish for PVs with attribute direct=true.
 	// The actual mounting of these volumes will be handled by rund.
-	if opts.directAssigned {
+	if opts.DirectAssigned {
 		klog.Infof("ControllerPublishVolume: skip DirectVolume: %s", req.VolumeId)
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 	// make mount options
-	controllerPublishPath := mounter.GetOssfsAttachPath(req.VolumeId)
-	_, authCfg, err := opts.MakeMountOptionsAndAuthConfig(cs.metadata, req.VolumeCapability)
-	if err != nil {
-		return nil, err
-	}
+	controllerPublishPath := mounter.GetAttachPath(req.VolumeId)
+
 	// launch ossfs pod
-	ossfsPod, err := cs.fusePodManager.Create(&mounter.FusePodContext{
+	fusePod, err := cs.fusePodManagers[opts.FuseType].Create(&mounter.FusePodContext{
 		Context:    ctx,
 		Namespace:  fusePodNamespace,
 		NodeName:   nodeName,
 		VolumeId:   req.VolumeId,
 		AuthConfig: authCfg,
+		FuseType:   opts.FuseType,
 	}, controllerPublishPath, false)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to create ossfs pod: %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to create %s pod: %v", opts.FuseType, err)
 	}
 
 	klog.Infof("ControllerPublishVolume: successfully published volume %s on node %s", req.VolumeId, req.NodeId)
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: map[string]string{
-			mountProxySocket: mounter.GetOssfsMountProxySocketPath(req.VolumeId),
-			// make the OSSFS pod name visible in the VolumeAttachment status
-			"ossfsPod": fmt.Sprintf("%s/%s", ossfsPod.Namespace, ossfsPod.Name),
+			mountProxySocket: mounter.GetMountProxySocketPath(req.VolumeId),
+			// make the fuse pod name visible in the VolumeAttachment status
+			"fusePod": fmt.Sprintf("%s/%s", fusePod.Namespace, fusePod.Name),
 		},
 	}, nil
 }
