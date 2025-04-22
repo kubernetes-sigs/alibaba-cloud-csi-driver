@@ -1,0 +1,165 @@
+2025-04-03 Version: v2.5.3
+- Update API ExtendCluster: add request parameters IpAllocationPolicy.$.NodePolicy.$.Hostname.
+- Update API ExtendCluster: add request parameters NodeGroups.$.Amount.
+- Update API ExtendCluster: add request parameters NodeGroups.$.AutoRenew.
+- Update API ExtendCluster: add request parameters NodeGroups.$.ChargeType.
+- Update API ExtendCluster: add request parameters NodeGroups.$.Hostnames.
+- Update API ExtendCluster: add request parameters NodeGroups.$.LoginPassword.
+- Update API ExtendCluster: add request parameters NodeGroups.$.NodeTag.
+- Update API ExtendCluster: add request parameters NodeGroups.$.Period.
+- Update API ExtendCluster: add request parameters NodeGroups.$.VSwitchId.
+- Update API ExtendCluster: add request parameters NodeGroups.$.VpcId.
+
+
+2025-03-28 Version: v2.5.2
+- Generated golang 2022-12-15 for eflo-controller.
+
+2025-03-25 Version: v2.5.1
+- Update API CreateNodeGroup: add request parameters NodeGroup.UserData.
+- Update API DescribeNode: add response parameters Body.UserData.
+- Update API ListClusterNodes: add request parameters ResourceGroupId.
+- Update API ListClusterNodes: add request parameters Tags.
+- Update API ListClusterNodes: add response parameters Body.Nodes.$.CommodityCode.
+- Update API ListClusterNodes: add response parameters Body.Nodes.$.ImageName.
+- Update API ListClusterNodes: add response parameters Body.Nodes.$.Tags.
+- Update API ListClusterNodes: add response parameters Body.Nodes.$.TaskId.
+- Update API ListClusters: add request parameters Tags.
+- Update API ListClusters: add response parameters Body.Clusters.$.Tags.
+- Update API ListFreeNodes: add request parameters Tags.
+- Update API ListFreeNodes: add response parameters Body.Nodes.$.CommodityCode.
+- Update API ListFreeNodes: add response parameters Body.Nodes.$.OperatingState.
+- Update API ListFreeNodes: add response parameters Body.Nodes.$.Tags.
+- Update API UpdateNodeGroup: add request parameters UserData.
+
+
+2025-03-21 Version: v2.5.0
+- Support API CreateNodeGroup.
+- Support API DeleteNodeGroup.
+- Support API DescribeDiagnosticResult.
+- Support API UpdateNodeGroup.
+- Update API ListClusterNodes: update response param.
+
+
+2025-03-12 Version: v2.4.1
+- Update API ChangeResourceGroup: add param ResourceType.
+
+
+2025-03-03 Version: v2.4.0
+- Support API CloseSession.
+- Support API CreateNetTestTask.
+- Support API CreateSession.
+- Support API DescribeNetTestResult.
+- Support API ListDiagnosticResults.
+- Support API ListImages.
+- Support API ListMachineNetworkInfo.
+- Support API ListNetTestResults.
+- Support API ListUserClusterTypes.
+
+
+2025-02-25 Version: v2.3.1
+- Generated golang 2022-12-15 for eflo-controller.
+
+2025-01-15 Version: v2.3.0
+- Support API StopNodes.
+
+
+2025-01-06 Version: v2.2.0
+- Support API ListMachineTypes.
+- Support API ListNodeGroups.
+
+
+2025-01-02 Version: v2.1.0
+- Support API CreateDiagnosticTask.
+- Update API RunCommand: add param CommandId.
+- Update API RunCommand: add param Launcher.
+- Update API RunCommand: add param TerminationMode.
+- Update API RunCommand: update param ClientToken.
+- Update API RunCommand: update param CommandContent.
+- Update API RunCommand: update param ContentEncoding.
+- Update API RunCommand: update param Description.
+- Update API RunCommand: update param EnableParameter.
+- Update API RunCommand: update param Frequency.
+- Update API RunCommand: update param Name.
+- Update API RunCommand: update param NodeIdList.
+- Update API RunCommand: update param Parameters.
+- Update API RunCommand: update param RepeatMode.
+- Update API RunCommand: update param Timeout.
+- Update API RunCommand: update param Username.
+- Update API RunCommand: update param WorkingDir.
+
+
+2025-01-02 Version: v2.0.0
+- Update API DescribeInvocations: update response param.
+
+
+2024-12-18 Version: v1.2.4
+- Update API CreateCluster: add param OpenEniJumboFrame.
+- Update API DescribeCluster: update response param.
+
+
+2024-11-08 Version: v1.2.3
+- Update API CreateCluster: add param OpenEniJumboFrame.
+- Update API DescribeCluster: update response param.
+
+
+2024-04-07 Version: v1.2.2
+- Update API DescribeCluster: update response param.
+- Update API ListClusters: update response param.
+
+
+2024-04-07 Version: v1.2.2
+- Update API DescribeCluster: update response param.
+- Update API ListClusters: update response param.
+
+
+2024-03-29 Version: v1.2.1
+- Update API CreateCluster: update param Networks.
+
+
+2024-03-12 Version: v1.2.0
+- Support API DescribeInvocations.
+- Support API DescribeSendFileResults.
+- Support API RunCommand.
+- Support API SendFile.
+- Support API StopInvocation.
+- Update API CreateCluster: update param NodeGroups.
+- Update API ExtendCluster: update param NodeGroups.
+- Update API ReimageNodes: update param Nodes.
+
+
+2024-01-10 Version: v1.1.3
+- Generated golang 2022-12-15 for eflo-controller.
+
+2023-11-16 Version: v1.1.2
+- Generated golang 2022-12-15 for eflo-controller.
+
+2023-11-14 Version: v1.1.1
+- Generated golang 2022-12-15 for eflo-controller.
+
+2023-11-07 Version: v1.1.0
+- Generated golang 2022-12-15 for eflo-controller.
+
+2023-10-26 Version: v1.0.7
+- Generated golang 2022-12-15 for eflo-controller.
+
+2023-09-21 Version: v1.0.6
+- Generated golang 2022-12-15 for eflo-controller.
+
+2023-08-21 Version: v1.0.5
+- Generated golang 2022-12-15 for eflo-controller.
+
+2023-08-16 Version: v1.0.4
+- Generated golang 2022-12-15 for eflo-controller.
+
+2023-06-13 Version: v1.0.3
+- Lingjun Controller Initial Version Released.
+
+2023-04-24 Version: v1.0.2
+- Lingjun Controller Initial Version Released.
+
+2023-03-28 Version: v1.0.1
+- Lingjun Controller Initial Version Released.
+
+2023-03-13 Version: v1.0.0
+- Lingjun Controller Initial Version Released.
+
