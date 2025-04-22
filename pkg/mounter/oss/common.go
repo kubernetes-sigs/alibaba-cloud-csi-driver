@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 )
 
@@ -16,6 +18,14 @@ const (
 	OssFsType = "ossfs"
 	// OssFs2Type is the ossfs2 filesystem type
 	OssFs2Type = "ossfs2"
+)
+
+// keys for STS token
+const (
+	KeyAccessKeyId     = "AccessKeyId"
+	KeyAccessKeySecret = "AccessKeySecret"
+	KeyExpiration      = "Expiration"
+	KeySecurityToken   = "SecurityToken"
 )
 
 func setDefaultImage(fuseType string, m metadata.MetadataProvider, config *mounterutils.FuseContainerConfig) {
@@ -114,4 +124,32 @@ func getSTSEndpoint(region string) string {
 		return "https://sts.aliyuncs.com"
 	}
 	return fmt.Sprintf("https://sts-vpc.%s.aliyuncs.com", region)
+}
+
+// keep consistent with RAM response
+var secretRefKeysToParse []string = []string{
+	KeyAccessKeyId,
+	KeyAccessKeySecret,
+	KeyExpiration, // only used in ossfs1.0
+	KeySecurityToken,
+}
+
+func getPasswdSecretVolume(secretRef, fuseType string) (secret *corev1.SecretVolumeSource) {
+	if secretRef == "" {
+		return nil
+	}
+	items := []corev1.KeyToPath{}
+	for _, key := range secretRefKeysToParse {
+		item := corev1.KeyToPath{
+			Key:  key,
+			Path: fmt.Sprintf("%s/%s", utils.GetPasswdFileName(fuseType), key),
+			Mode: tea.Int32(0600),
+		}
+		items = append(items, item)
+	}
+	secret = &corev1.SecretVolumeSource{
+		SecretName: secretRef,
+		Items:      items,
+	}
+	return
 }

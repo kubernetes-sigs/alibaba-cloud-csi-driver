@@ -53,6 +53,15 @@ func (f *fuseOssfs2) PrecheckAuthConfig(o *Options, onNode bool) error {
 	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 		return nil
 	}
+	if o.SecretRef != "" {
+		if o.AkID != "" || o.AkSecret != "" {
+			return fmt.Errorf("AK and secretRef cannot be set at the same time")
+		}
+		if o.SecretRef == utils.GetCredientialsSecretName(OssFsType) {
+			return fmt.Errorf("invalid SecretRef name")
+		}
+		return nil
+	}
 	// aksk may retrieve from ENV
 	if onNode && (o.AkID == "" || o.AkSecret == "") {
 		return fmt.Errorf("missing access key in node publish secret")
@@ -61,13 +70,17 @@ func (f *fuseOssfs2) PrecheckAuthConfig(o *Options, onNode bool) error {
 	return nil
 }
 
-func (f *fuseOssfs2) MakeAuthConfig(o *Options, m metadata.MetadataProvider) (*utils.AuthConfig, error) {
-	authCfg := &utils.AuthConfig{}
+func (f *fuseOssfs2) MakeAuthConfig(o *Options, m metadata.MetadataProvider) (authCfg *utils.AuthConfig, err error) {
+	authCfg = &utils.AuthConfig{}
+	if o.SecretRef != "" {
+		authCfg.SecretRef = o.SecretRef
+		return
+	}
 	authCfg.Secrets = map[string]string{
 		utils.GetPasswdFileName(f.Name()): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", o.AkID, o.AkSecret),
 	}
 
-	return authCfg, nil
+	return
 }
 
 func (f *fuseOssfs2) MakeMountOptions(o *Options, m metadata.MetadataProvider) (mountOptions []string, err error) {
@@ -88,6 +101,10 @@ func (f *fuseOssfs2) MakeMountOptions(o *Options, m metadata.MetadataProvider) (
 		}
 		mountOptions = append(mountOptions, fmt.Sprintf("oss_region=%s", region))
 	}
+
+	authOptions := f.getAuthOptions(o)
+	mountOptions = append(mountOptions, authOptions...)
+
 	return
 }
 
@@ -103,6 +120,17 @@ func (f *fuseOssfs2) PodTemplateSpec(c *utils.FusePodContext, target string) (*c
 	pod.Annotations = maps.Clone(f.config.Annotations)
 	pod.Labels = maps.Clone(f.config.Labels)
 	return pod, nil
+}
+
+func (f *fuseOssfs2) getAuthOptions(o *Options) (mountOptions []string) {
+	if o.SecretRef != "" {
+		mountOptions = append(mountOptions,
+			fmt.Sprintf("oss_sts_multi_conf_ak_file=%s", filepath.Join(utils.GetConfigDir(o.FuseType), utils.GetPasswdFileName(o.FuseType), KeyAccessKeyId)),
+			fmt.Sprintf("oss_sts_multi_conf_sk_file=%s", filepath.Join(utils.GetConfigDir(o.FuseType), utils.GetPasswdFileName(o.FuseType), KeyAccessKeySecret)),
+			fmt.Sprintf("oss_sts_multi_conf_token_file=%s", filepath.Join(utils.GetConfigDir(o.FuseType), utils.GetPasswdFileName(o.FuseType), KeySecurityToken)),
+		)
+	}
+	return
 }
 
 func (f *fuseOssfs2) buildPodSpec(c *utils.FusePodContext, target string) (spec corev1.PodSpec, _ error) {
@@ -146,6 +174,8 @@ func (f *fuseOssfs2) buildPodSpec(c *utils.FusePodContext, target string) (spec 
 		},
 	}
 
+	f.buildAuthSpec(c, &spec, &container)
+
 	container.Args = []string{"--socket=" + socketPath, "-v=4"}
 
 	spec.Containers = []corev1.Container{container}
@@ -182,4 +212,30 @@ func (f *fuseOssfs2) AddDefaultMountOptions(options []string) []string {
 	}
 
 	return options
+}
+
+func (f *fuseOssfs2) buildAuthSpec(c *utils.FusePodContext, spec *corev1.PodSpec, container *corev1.Container) {
+	if spec == nil || container == nil {
+		return
+	}
+	authCfg := c.AuthConfig
+	if authCfg == nil {
+		return
+	}
+
+	secretVolumeSource := getPasswdSecretVolume(authCfg.SecretRef, c.FuseType)
+	if secretVolumeSource != nil {
+		passwdSecretVolume := corev1.Volume{
+			Name: utils.GetPasswdFileName(c.FuseType),
+			VolumeSource: corev1.VolumeSource{
+				Secret: secretVolumeSource,
+			},
+		}
+		spec.Volumes = append(spec.Volumes, passwdSecretVolume)
+		passwdVolumeMont := corev1.VolumeMount{
+			Name:      passwdSecretVolume.Name,
+			MountPath: utils.GetConfigDir(c.FuseType),
+		}
+		container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
+	}
 }
