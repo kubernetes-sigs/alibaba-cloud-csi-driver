@@ -16,7 +16,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func newNasClientV2(region string) (*sdk.Client, error) {
+func NewNasClientV2(region string) (*sdk.Client, error) {
 	headers := utilshttp.MustParseHeaderEnv("NAS_HEADERS")
 	var headersV2 map[string]*string
 	if headers != nil {
@@ -25,6 +25,7 @@ func newNasClientV2(region string) (*sdk.Client, error) {
 	config := new(openapi.Config).
 		SetUserAgent(KubernetesAlicloudIdentity).
 		SetRegionId(region).
+		SetConnectTimeout(10).
 		SetGlobalParameters(&openapi.GlobalParameters{
 			Queries: map[string]*string{
 				"RegionId": &region,

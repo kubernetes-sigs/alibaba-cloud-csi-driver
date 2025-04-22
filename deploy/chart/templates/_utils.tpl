@@ -44,7 +44,7 @@
 {{- define "enabledControllers" -}}
     {{- $drivers := list -}}
     {{- $csi := . -}}
-    {{- range $key := tuple "disk" "nas" "oss" }}
+    {{- range $key := tuple "disk" "nas" "oss" "bmcpfs" }}
         {{- $val := index $csi $key -}}
         {{- if and $val.enabled $val.controller.enabled -}}
             {{- $drivers = append $drivers $key -}}

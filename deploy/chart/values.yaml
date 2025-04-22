@@ -31,6 +31,10 @@ csi:
     enabled: false
     controller:
       enabled: true
+  bmcpfs:
+    enabled: false
+    controller:
+      enabled: true
 
 nodePools:
   default:

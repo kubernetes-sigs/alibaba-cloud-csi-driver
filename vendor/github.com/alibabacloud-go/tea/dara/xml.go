@@ -1,4 +1,4 @@
-package service
+package dara
 
 import (
 	"bytes"
@@ -7,26 +7,25 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/alibabacloud-go/tea/tea"
 	v2 "github.com/clbanning/mxj/v2"
 )
 
-func ToXML(obj map[string]interface{}) *string {
-	return tea.String(mapToXML(obj))
+func ToXML(obj map[string]interface{}) string {
+	return mapToXML(obj)
 }
 
-func ParseXml(val *string, result interface{}) map[string]interface{} {
+func ParseXml(val string, result interface{}) map[string]interface{} {
 	resp := make(map[string]interface{})
 
-	start := getStartElement([]byte(tea.StringValue(val)))
+	start := getStartElement([]byte(val))
 	if result == nil {
-		vm, err := v2.NewMapXml([]byte(tea.StringValue(val)))
+		vm, err := v2.NewMapXml([]byte(val))
 		if err != nil {
 			return nil
 		}
 		return vm
 	}
-	out, err := xmlUnmarshal([]byte(tea.StringValue(val)), result)
+	out, err := xmlUnmarshal([]byte(val), result)
 	if err != nil {
 		return resp
 	}
