@@ -118,7 +118,7 @@ images:
     tag: "v8.1.1-aliyun"
   pluginRegistrar:
     repo: acs/csi-node-driver-registrar
-    tag: "v2.9.0-d48d2e0-aliyun"
+    tag: "v2.14.0-aliyun"
   ossfs:
     repo: acs/csi-ossfs
     tag: "v1.91.5.ack.1-ed398f6-aliyun"

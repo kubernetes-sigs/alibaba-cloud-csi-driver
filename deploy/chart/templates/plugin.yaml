@@ -86,6 +86,7 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=/csi/csi.sock"
+            - --logging-format={{ $nodePool.logging.format }}
             - {{ printf "--kubelet-registration-path=%s/csi-plugins/%splugin.csi.alibabacloud.com/csi.sock" (clean $nodePool.deploy.kubeletRootDir) $key | quote }}
           volumeMounts:
             - name: {{$key}}-plugin-dir
