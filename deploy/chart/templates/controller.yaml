@@ -93,6 +93,7 @@ spec:
             - --extra-create-metadata=true
             - --default-fstype=ext4
             - --v=5
+            - --logging-format={{ .Values.logging.format }}
             - --kube-api-qps=100
             - --kube-api-burst=200
           volumeMounts:
