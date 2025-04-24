@@ -200,7 +200,9 @@ spec:
             - --csi-address=/csi/csi.sock
             - --leader-election=true
             - --extra-create-metadata=true
-            - --enable-volume-group-snapshots=true
+            - --feature-gates=CSIVolumeGroupSnapshot=true
+            - --snapshot-name-prefix=alibabacloud-disk
+            - --groupsnapshot-name-prefix=alibabacloud-disk
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -220,7 +222,7 @@ spec:
           args:
             - --v=5
             - --leader-election=true
-            - --enable-volume-group-snapshots=true
+            - --feature-gates=CSIVolumeGroupSnapshot=true
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
