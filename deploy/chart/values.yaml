@@ -119,7 +119,7 @@ images:
     tag: "v5.3.0-aliyun"
   externalResizer:
     repo: acs/csi-resizer
-    tag: "v1.11.2-aliyun"
+    tag: "v1.14.0-aliyun"
   externalSnapshotter:
     repo: acs/csi-snapshotter
     tag: "v8.1.1-aliyun"
