@@ -151,7 +151,9 @@ spec:
             - --csi-address=/csi/csi.sock
             - --leader-election=true
             - --extra-create-metadata=true
-            - --enable-volume-group-snapshots=true
+            - --feature-gates=CSIVolumeGroupSnapshot=true
+            - --snapshot-name-prefix=alibabacloud-disk
+            - --groupsnapshot-name-prefix=alibabacloud-disk
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
@@ -168,7 +170,7 @@ spec:
           args:
             - --v=5
             - --leader-election=true
-            - --enable-volume-group-snapshots=true
+            - --feature-gates=CSIVolumeGroupSnapshot=true
 {{- end -}}
 {{- end -}}
 {{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
