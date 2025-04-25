@@ -31,6 +31,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
@@ -490,6 +491,42 @@ func parseTags(params map[string]string) (map[string]string, error) {
 	return seenTags, nil
 }
 
+// the map of multizone and index
+var storageClassZonePos map[string]int
+var storageClassZonePosMu sync.Mutex
+
+func getStorageClassZone(zoneIDStr string) string {
+	if !strings.Contains(zoneIDStr, ",") {
+		return zoneIDStr
+	}
+	zones := strings.Split(zoneIDStr, ",")
+
+	storageClassZonePosMu.Lock()
+	defer storageClassZonePosMu.Unlock()
+	idx := (storageClassZonePos[zoneIDStr] + 1) % len(zones)
+	storageClassZonePos[zoneIDStr] = idx
+	return zones[idx]
+}
+
+func getZone(req *csi.CreateVolumeRequest) string {
+	volOptions := req.GetParameters()
+	zoneID, ok := volOptions[ZoneID]
+	if !ok {
+		zoneID, ok = volOptions[strings.ToLower(ZoneID)]
+	}
+	if !ok {
+		// topology aware feature to get zoneid
+		zoneID = pickZone(req.GetAccessibilityRequirements())
+	}
+	if ok || zoneID != "" {
+		return getStorageClassZone(zoneID)
+	}
+
+	klog.Errorf("CreateVolume: Can't get topology info , please check your setup or set zone ID in storage class. Use zone from Meta service: %s", req.Name)
+	zoneID, _ = utils.GetMetaData(ZoneIDTag)
+	return zoneID
+}
+
 // getDiskVolumeOptions
 func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error) {
 	var ok bool
@@ -498,28 +535,6 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 	volOptions := req.GetParameters()
 
-	if diskVolArgs.ZoneID, ok = volOptions[ZoneID]; !ok {
-		if diskVolArgs.ZoneID, ok = volOptions[strings.ToLower(ZoneID)]; !ok {
-			// topology aware feature to get zoneid
-			diskVolArgs.ZoneID = pickZone(req.GetAccessibilityRequirements())
-			if diskVolArgs.ZoneID == "" {
-				klog.Errorf("CreateVolume: Can't get topology info , please check your setup or set zone ID in storage class. Use zone from Meta service: %s", req.Name)
-				diskVolArgs.ZoneID, _ = utils.GetMetaData(ZoneIDTag)
-			}
-		}
-	}
-	// Support Multi zones if set;
-	zoneIDStr := diskVolArgs.ZoneID
-	zones := strings.Split(zoneIDStr, ",")
-	zoneNum := len(zones)
-	if zoneNum > 1 {
-		if _, ok := storageClassZonePos[zoneIDStr]; !ok {
-			storageClassZonePos[zoneIDStr] = 0
-		}
-		zoneIndex := storageClassZonePos[zoneIDStr] % zoneNum
-		diskVolArgs.ZoneID = zones[zoneIndex]
-		storageClassZonePos[zoneIDStr]++
-	}
 	diskVolArgs.RegionID, ok = volOptions["regionId"]
 	if !ok {
 		diskVolArgs.RegionID = GlobalConfigVar.Region
@@ -548,6 +563,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	if slices.ContainsFunc(diskType, func(t Category) bool { return !AllCategories[t].Regional }) {
+		diskVolArgs.ZoneID = getZone(req)
 		if diskVolArgs.ZoneID == "" {
 			return nil, fmt.Errorf("CreateVolume: Can't get zone ID from node topology info or storage class topology or metadataserver, req: %v", volOptions)
 		}
