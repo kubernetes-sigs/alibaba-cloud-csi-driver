@@ -55,6 +55,7 @@ func TestCreateK8s(t *testing.T) {
 		m.EnableKubernetes(client)
 		assert.Equal(t, "cn-beijing", MustGet(m, RegionID))
 		assert.Equal(t, "c12345678", MustGet(m, ClusterID))
+		assert.Equal(t, "cn-beijing-i", MustGet(m, DataPlaneZoneID))
 	})
 }
 

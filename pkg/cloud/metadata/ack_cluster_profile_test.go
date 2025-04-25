@@ -17,6 +17,7 @@ var testProfile = v1.ConfigMap{
 	Data: map[string]string{
 		"clusterid": "c12345678",
 		"uid":       "123456789",
+		"vsw-zone":  "vsw-aaaaaaaaaaa:cn-beijing-i,vsw-bbbbbbbbbbbb:cn-beijing-l",
 	},
 }
 
@@ -28,8 +29,9 @@ func TestGetClusterProfile(t *testing.T) {
 	assert.NoError(t, err)
 
 	expectedValues := map[MetadataKey]string{
-		AccountID: "123456789",
-		ClusterID: "c12345678",
+		AccountID:       "123456789",
+		ClusterID:       "c12345678",
+		DataPlaneZoneID: "cn-beijing-i",
 	}
 	for k, v := range expectedValues {
 		t.Log(k, v)
