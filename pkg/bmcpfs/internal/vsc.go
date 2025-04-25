@@ -171,6 +171,7 @@ func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) er
 }
 
 func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsId, vscId string) error {
+	// TODO: ignore error if fsId not found
 	if err := ad.detach(fsId, vscId); err != nil {
 		return err
 	}

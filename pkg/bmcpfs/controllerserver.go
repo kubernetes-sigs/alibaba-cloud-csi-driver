@@ -65,14 +65,15 @@ func newControllerServer(region string) (*controllerServer, error) {
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	// TODO:  set default timeout for context
 	if !strings.HasPrefix(req.NodeId, LingjunNodeIDPrefix) {
-		klog.Info("Use VPC MountTarget for common node", "nodeId", req.NodeId)
 		if req.VolumeContext[_vpcMountTarget] == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "missing %q config in volume context", _vpcMountTarget)
 		}
 		// TODO: try to use existing vpc mount target
 		// getMountTarget(cs.nasClient, req.VolumeId, "vpc")
+		klog.Info("ControllerPublishVolume: use VPC MountTarget", "nodeId", req.NodeId)
 		return &csi.ControllerPublishVolumeResponse{
 			PublishContext: map[string]string{
+				_networkType:    networkTypeVPC,
 				_vpcMountTarget: req.VolumeContext[_vpcMountTarget],
 			},
 		}, nil
@@ -82,7 +83,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	mt := req.VolumeContext[_vscMountTarget]
 	if mt == "" {
 		var err error
-		mt, err = getMountTarget(cs.nasClient, req.VolumeId, "")
+		mt, err = getMountTarget(cs.nasClient, req.VolumeId, networkTypeVSC)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get VscMountTarget: %v", err)
 		}
@@ -145,13 +146,42 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
-	klog.InfoS("Succeeded to attach CPFS to VSC", "vscMountTarget", mt, "vscId", vscId, "node", req.NodeId)
+	klog.InfoS("ControllerUnpublishVolume: attached cpfs to vsc", "vscMountTarget", mt, "vscId", vscId, "node", req.NodeId)
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: map[string]string{
+			_networkType:    networkTypeVSC,
 			_vscId:          vscId,
 			_vscMountTarget: mt,
 		},
 	}, nil
+}
+
+func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (
+	*csi.ControllerUnpublishVolumeResponse, error) {
+
+	if !strings.HasPrefix(req.NodeId, LingjunNodeIDPrefix) {
+		return &csi.ControllerUnpublishVolumeResponse{}, nil
+	}
+
+	// Create Primary vsc for Lingjun node
+	lingjunInstanceId := strings.TrimPrefix(req.NodeId, LingjunNodeIDPrefix)
+	if LingjunNodeIDPrefix == "" {
+		return nil, status.Error(codes.InvalidArgument, "invalid node id")
+	}
+	vsc, err := cs.vscManager.GetPrimaryVscOf(lingjunInstanceId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if vsc == nil {
+		klog.InfoS("ControllerUnpublishVolume: skip detaching cpfs from vsc as vsc not found", "node", req.NodeId)
+		return &csi.ControllerUnpublishVolumeResponse{}, nil
+	}
+	err = cs.attachDetacher.Detach(ctx, req.VolumeId, vsc.VscID)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	klog.InfoS("ControllerUnpublishVolume: detached cpfs from vsc", "node", req.NodeId, "filesystem", req.VolumeId)
+	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
 var KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Bmcpfs-%s", version.VERSION)
@@ -187,6 +217,10 @@ func newEfloClient(region string) (*efloclient.Client, error) {
 }
 
 func getMountTarget(client *nasclient.Client, fsId, networkType string) (string, error) {
+	// mount targets with emtpy network type is vsc type
+	if networkType == networkTypeVSC {
+		networkType = ""
+	}
 	resp, err := client.DescribeFileSystems(&nasclient.DescribeFileSystemsRequest{
 		FileSystemId: &fsId,
 	})

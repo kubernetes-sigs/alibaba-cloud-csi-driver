@@ -28,9 +28,19 @@ const (
 	driverType = "bmcpfs"
 	driverName = "bmcpfs.csi.alibabacloud.com"
 
+	// keys in volume context or publish context
 	_vpcMountTarget = "vpcMountTarget"
 	_vscMountTarget = "vscMountTarget"
 	_vscId          = "vscId"
+	_networkType    = "networkType"
+
+	// prefix of node id
+	CommonNodeIDPrefix  = "common:"
+	LingjunNodeIDPrefix = "lingjun:"
+
+	// network types of CPFS mount targets
+	networkTypeVPC = "vpc"
+	networkTypeVSC = "vsc"
 )
 
 type Driver struct {
@@ -46,10 +56,18 @@ func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.Servi
 	driver.servers.IdentityServer = newIdentityServer()
 
 	if serviceType&utils.Controller != 0 {
-		driver.servers.ControllerServer = nil
+		cs, err := newControllerServer(metadata.MustGet(meta, metadata.RegionID))
+		if err != nil {
+			klog.Fatalf("Init controller server: %v", err)
+		}
+		driver.servers.ControllerServer = cs
 	}
 	if serviceType&utils.Node != 0 {
-		driver.servers.NodeServer = nil
+		ns, err := newNodeServer()
+		if err != nil {
+			klog.Fatalf("Init node server: %v", err)
+		}
+		driver.servers.NodeServer = ns
 	}
 
 	return &driver
