@@ -28,7 +28,9 @@ const (
 	driverType = "bmcpfs"
 	driverName = "bmcpfs.csi.alibabacloud.com"
 
-	SERVER = "server"
+	_vpcMountTarget = "vpcMountTarget"
+	_vscMountTarget = "vscMountTarget"
+	_vscId          = "vscId"
 )
 
 type Driver struct {

@@ -17,12 +17,16 @@ limitations under the License.
 package internal
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	efloclient "github.com/alibabacloud-go/eflo-controller-20221215/v2/client"
+	nasclient "github.com/alibabacloud-go/nas-20170626/v3/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/clock"
 )
 
 const (
@@ -115,11 +119,148 @@ func (m *LingjunVscManager) GetVsc(vscId string) (*Vsc, error) {
 	}, nil
 }
 
+const (
+	CPFSVscStatusAttaching = "Attaching"
+	CPFSVscStatusAttached  = "Attached"
+	CPFSVscStatusDetaching = "Detaching"
+	CPFSVscStatusDetached  = "Detached"
+	CPFSVscStatusFailed    = "Failed"
+)
+
+const (
+	defaultPollInterval = time.Second * 2
+)
+
+type CPFSVscAttachInfo = nasclient.DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfoVscAttachInfo
+
+type CPFSVscAttachInfoWaitCond func(CPFSVscAttachInfo) (done, failed bool)
+
 type CPFSAttachDetacher interface {
-	Attach()
-	Detach()
-	Describe()
+	Attach(ctx context.Context, fsId, vscId string) error
+	Detach(ctx context.Context, fsId, vscId string) error
+}
+
+func NewCPFSAttachDetacher(client *nasclient.Client) CPFSAttachDetacher {
+	return &cpfsAttachDetacher{
+		client:       client,
+		pollInterval: defaultPollInterval,
+		clk:          clock.RealClock{},
+	}
 }
 
 type cpfsAttachDetacher struct {
+	client       *nasclient.Client
+	pollInterval time.Duration
+	clk          clock.WithTicker
+}
+
+func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) error {
+	if err := ad.attach(fsId, vscId); err != nil {
+		return err
+	}
+	return ad.waitFor(ctx, fsId, vscId, func(i CPFSVscAttachInfo) (bool, bool) {
+		switch tea.StringValue(i.Status) {
+		case CPFSVscStatusAttaching:
+			return false, false
+		case CPFSVscStatusAttached:
+			return true, false
+		default:
+			return false, true
+		}
+	})
+}
+
+func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsId, vscId string) error {
+	if err := ad.detach(fsId, vscId); err != nil {
+		return err
+	}
+	return ad.waitFor(ctx, fsId, vscId, func(i CPFSVscAttachInfo) (bool, bool) {
+		switch tea.StringValue(i.Status) {
+		case CPFSVscStatusDetaching:
+			return false, false
+		case CPFSVscStatusDetached:
+			return true, false
+		default:
+			return false, true
+		}
+	})
+}
+
+func (ad *cpfsAttachDetacher) waitFor(ctx context.Context, fsId, vscId string, cond CPFSVscAttachInfoWaitCond) error {
+	ticker := ad.clk.NewTicker(ad.pollInterval)
+	defer ticker.Stop()
+	for {
+		attachInfo, err := ad.describe(fsId, vscId)
+		if err != nil {
+			return err
+		}
+		if attachInfo == nil {
+			return fmt.Errorf("filesystem %s not attached to %s", fsId, vscId)
+		}
+		done, failed := cond(*attachInfo)
+		if failed {
+			return fmt.Errorf("unexpected CPFS VSC AttachInfo status: %s", tea.StringValue(attachInfo.Status))
+		}
+		if done {
+			return nil
+		}
+		select {
+		case <-ticker.C():
+		case <-ctx.Done():
+			return fmt.Errorf("wait attach status: %w", ctx.Err())
+		}
+	}
+}
+
+func (ad *cpfsAttachDetacher) attach(fsId, vscId string) error {
+	req := &nasclient.AttachVscToFilesystemsRequest{
+		ResourceIds: []*nasclient.AttachVscToFilesystemsRequestResourceIds{
+			{
+				FileSystemId: &fsId,
+				VscId:        &vscId,
+			},
+		},
+	}
+	resp, err := ad.client.AttachVscToFilesystems(req)
+	if err != nil {
+		return fmt.Errorf("nas:AttachVscToFilesystems failed: %w", err)
+	}
+	klog.InfoS("nas:AttachVscToFilesystemsRequest succeeded", "filesystem", fsId, "vscId", vscId, "response", resp.Body)
+	return nil
+}
+
+func (ad *cpfsAttachDetacher) detach(fsId, vscId string) error {
+	req := &nasclient.DetachVscFromFilesystemsRequest{
+		ResourceIds: []*nasclient.DetachVscFromFilesystemsRequestResourceIds{
+			{
+				FileSystemId: &fsId,
+				VscId:        &vscId,
+			},
+		},
+	}
+	resp, err := ad.client.DetachVscFromFilesystems(req)
+	if err != nil {
+		return fmt.Errorf("nas:DetachVscFromFilesystems failed: %w", err)
+	}
+	klog.InfoS("nas:DetachVscFromFilesystems succeeded", "filesystem", fsId, "vscId", vscId, "response", resp.Body)
+	return nil
+}
+
+func (ad *cpfsAttachDetacher) describe(fsId, vscId string) (*CPFSVscAttachInfo, error) {
+	req := &nasclient.DescribeFilesystemsVscAttachInfoRequest{
+		ResourceIds: []*nasclient.DescribeFilesystemsVscAttachInfoRequestResourceIds{
+			{
+				FileSystemId: &fsId,
+				VscId:        &vscId,
+			},
+		},
+	}
+	resp, err := ad.client.DescribeFilesystemsVscAttachInfo(req)
+	if err != nil {
+		return nil, fmt.Errorf("nas:DescribeFilesystemsVscAttachInfo failed: %w", err)
+	}
+	if resp.Body.VscAttachInfo == nil || len(resp.Body.VscAttachInfo.VscAttachInfo) == 0 {
+		return nil, nil
+	}
+	return resp.Body.VscAttachInfo.VscAttachInfo[0], nil
 }

@@ -16,7 +16,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func newNasClientV2(region string) (*sdk.Client, error) {
+func NewNasClientV2(region string) (*sdk.Client, error) {
 	headers := utilshttp.MustParseHeaderEnv("NAS_HEADERS")
 	var headersV2 map[string]*string
 	if headers != nil {
