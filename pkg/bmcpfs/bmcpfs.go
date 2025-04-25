@@ -20,13 +20,12 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	"k8s.io/klog/v2"
 )
 
 const (
 	driverType = "bmcpfs"
-	driverName = "bmcpfs.csi.alibabacloud.com"
+	driverName = "bmcpfsplugin.csi.alibabacloud.com"
 
 	// keys in volume context or publish context
 	_vpcMountTarget = "vpcMountTarget"
@@ -49,8 +48,6 @@ type Driver struct {
 }
 
 func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.ServiceType) *Driver {
-	klog.Infof("Driver: %v version: %v", driverName, version.VERSION)
-
 	var driver Driver
 	driver.endpoint = endpoint
 	driver.servers.IdentityServer = newIdentityServer()
@@ -74,5 +71,6 @@ func NewDriver(meta *metadata.Metadata, endpoint string, serviceType utils.Servi
 }
 
 func (d *Driver) Run() {
+	klog.InfoS("Starting driver", "driver", driverType, "endpoint", d.endpoint)
 	common.RunCSIServer(driverType, d.endpoint, d.servers)
 }

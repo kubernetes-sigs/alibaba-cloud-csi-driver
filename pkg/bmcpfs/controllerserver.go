@@ -62,6 +62,14 @@ func newControllerServer(region string) (*controllerServer, error) {
 	}, nil
 }
 
+func (cs *controllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
+	return &csi.ControllerGetCapabilitiesResponse{
+		Capabilities: common.ControllerRPCCapabilities(
+			csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+		),
+	}, nil
+}
+
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	// TODO:  set default timeout for context
 	if !strings.HasPrefix(req.NodeId, LingjunNodeIDPrefix) {
