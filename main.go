@@ -253,7 +253,7 @@ func main() {
 	klog.Info("CSI is running status.")
 	csiMux := http.NewServeMux()
 	csiMux.HandleFunc("/healthz", healthHandler)
-	klog.Infof("Metric listening on address: /healthz")
+	klog.Infof("Healthz listening on address: /healthz")
 	if enableMetric {
 		metricHandler := metric.NewMetricHandler(driverNames, serviceType)
 		csiMux.Handle("/metrics", metricHandler)
