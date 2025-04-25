@@ -406,25 +406,6 @@ func removeVolumeConfig(volumeID string) error {
 	return nil
 }
 
-func getMultiZones(segments map[string]string) (string, bool) {
-	parseZone := func(key string) string {
-		return key[len(TopologyMultiZonePrefix):]
-	}
-
-	var zones []string
-	for k := range segments {
-		if strings.HasPrefix(k, TopologyMultiZonePrefix) {
-			zones = append(zones, parseZone(k))
-		}
-	}
-
-	if len(zones) == 0 {
-		return "", false
-	}
-
-	return strings.Join(zones, ","), true
-}
-
 // pickZone selects 1 zone given topology requirement.
 // if not found, empty string is returned.
 func pickZone(requirement *csi.TopologyRequirement) string {
@@ -432,24 +413,12 @@ func pickZone(requirement *csi.TopologyRequirement) string {
 		return ""
 	}
 	for _, topology := range requirement.GetPreferred() {
-		if GlobalConfigVar.NodeMultiZoneEnable {
-			zones, exists := getMultiZones(topology.GetSegments())
-			if exists {
-				return zones
-			}
-		}
 		zone, exists := topology.GetSegments()[TopologyZoneKey]
 		if exists {
 			return zone
 		}
 	}
 	for _, topology := range requirement.GetRequisite() {
-		if GlobalConfigVar.NodeMultiZoneEnable {
-			zones, exists := getMultiZones(topology.GetSegments())
-			if exists {
-				return zones
-			}
-		}
 		zone, exists := topology.GetSegments()[TopologyZoneKey]
 		if exists {
 			return zone
@@ -950,13 +919,6 @@ func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volu
 	}
 
 	accessibleTopology := []*csi.Topology{{Segments: segments}}
-	if !cateDesc.Regional && GlobalConfigVar.NodeMultiZoneEnable {
-		accessibleTopology = append(accessibleTopology, &csi.Topology{
-			Segments: map[string]string{
-				TopologyMultiZonePrefix + zoneID: "true",
-			},
-		})
-	}
 	if attempt.Category != "" {
 		// Add PV Label
 		if attempt.Category == DiskESSD && attempt.PerformanceLevel == "" {
