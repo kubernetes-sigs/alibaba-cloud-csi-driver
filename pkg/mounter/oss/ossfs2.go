@@ -82,11 +82,10 @@ func (f *fuseOssfs2) MakeMountOptions(o *Options, m metadata.MetadataProvider) (
 	}
 
 	if o.SigVersion == SigV4 {
-		region, _ := m.Get(metadata.RegionID)
-		if region == "" {
+		if o.Region == "" {
 			return nil, fmt.Errorf("SigV4 is not supported without region")
 		}
-		mountOptions = append(mountOptions, fmt.Sprintf("oss_region=%s", region))
+		mountOptions = append(mountOptions, fmt.Sprintf("oss_region=%s", o.Region))
 	}
 	return
 }

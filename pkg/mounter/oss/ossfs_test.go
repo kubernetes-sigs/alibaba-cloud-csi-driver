@@ -533,8 +533,8 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			opts: &Options{
 				URL:        "oss://bucket",
 				SigVersion: SigV4,
+				Region:     "us-east-1",
 			},
-			region: "us-east-1",
 			expected: []string{
 				"url=oss://bucket",
 				"use_metrics",
@@ -549,6 +549,7 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 				URL:        "oss://bucket",
 				SigVersion: SigV4,
 			},
+			region:        "us-east-1",
 			expectedError: true,
 		},
 		{

@@ -85,7 +85,6 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 	tests := []struct {
 		name          string
 		opts          *Options
-		region        string
 		expected      []string
 		expectedError bool
 	}{
@@ -115,8 +114,8 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 				Path:       "/",
 				URL:        "oss://test-bucket/",
 				SigVersion: SigV4,
+				Region:     "test-region",
 			},
-			region: "test-region",
 			expected: []string{
 				"oss_endpoint=oss://test-bucket/",
 				"oss_bucket=test-bucket",
@@ -139,7 +138,6 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("REGION_ID", tt.region)
 			fakeMeta := metadata.NewMetadata()
 			fakeOssfs := NewFuseOssfs2(nil, fakeMeta)
 			opts, err := fakeOssfs.MakeMountOptions(tt.opts, fakeMeta)

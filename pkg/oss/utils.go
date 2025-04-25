@@ -29,6 +29,7 @@ import (
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
 	mounter "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -150,6 +151,8 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 			default:
 				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support direct and subpath", v, k).Error())
 			}
+		case "region":
+			opts.Region = value
 		}
 	}
 	for _, c := range volCaps {
@@ -172,6 +175,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	}
 
 	url := opts.URL
+	// cluster region-id
 	if region != "" {
 		url, _ = setNetworkType(url, region)
 	}
@@ -184,6 +188,11 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	// only work for CreateVolume
 	if volumeAsSubpath {
 		opts.Path = path.Join(opts.Path, reqName)
+	}
+
+	// bucket region-id
+	if opts.Region != "" && opts.SigVersion == "" {
+		opts.SigVersion = oss.SigV4
 	}
 
 	if !onNode {
@@ -413,5 +422,16 @@ func makeMountOptions(opt *oss.Options, fpm *oss.OSSFusePodManager, m metadata.M
 		return nil, err
 	}
 	mountOptions = append(mountOptions, ops...)
+	return
+}
+
+func getOSSBucketRegion(ctx context.Context,
+	ossc *cloud.OSSClient,
+	opts *oss.Options,
+) (region string, err error) {
+	if opts.Region != "" {
+		return opts.Region, nil
+	}
+	region, err = ossc.GetBucketRegion(ctx, opts.Bucket)
 	return
 }

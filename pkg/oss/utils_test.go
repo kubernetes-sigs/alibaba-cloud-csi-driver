@@ -17,16 +17,22 @@ limitations under the License.
 package oss
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
 
+	osssdk "github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	gomock "github.com/golang/mock/gomock"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	osscloud "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss/cloud"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/utils/ptr"
 )
 
 func Test_parseOptions(t *testing.T) {
@@ -109,6 +115,8 @@ func Test_parseOptions(t *testing.T) {
 			"otheropts":     "-o max_stat_cache_size=0 -o allow_other",
 			"authType":      "RRSA",
 			"UseSharedPath": "false",
+			"sigVersion":    "v1",
+			"region":        "cn-beijing",
 		},
 		VolumeCapability: &csi.VolumeCapability{
 			AccessMode: &csi.VolumeCapability_AccessMode{
@@ -133,15 +141,18 @@ func Test_parseOptions(t *testing.T) {
 		Path:          "/",
 		ReadOnly:      true,
 		UseSharedPath: false,
+		SigVersion:    oss.SigV1,
+		Region:        "cn-beijing",
 	}
 	gotOptions = parseOptions(testNPReq.GetVolumeContext(),
 		testNPReq.GetSecrets(), []*csi.VolumeCapability{testNPReq.GetVolumeCapability()},
 		testNPReq.Readonly, "cn-beijing", "", true)
 	assert.Equal(t, expectedOptions, gotOptions)
 
-	// test authtype
+	// test authtype and auto sigv4
 	options := map[string]string{
-		"url": "oss-cn-beijing.aliyuncs.com",
+		"url":    "oss-cn-beijing.aliyuncs.com",
+		"region": "cn-hangzhou",
 	}
 	t.Setenv("ACCESS_KEY_ID", "test-akid")
 	t.Setenv("ACCESS_KEY_SECRET", "test-aksecret")
@@ -155,6 +166,8 @@ func Test_parseOptions(t *testing.T) {
 		MetricsTop:    defaultMetricsTop,
 		ReadOnly:      true,
 		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
+		SigVersion:    oss.SigV4,
+		Region:        "cn-hangzhou",
 	}
 	assert.Equal(t, expectedOptions, gotOptions)
 
@@ -705,4 +718,38 @@ func TestMakeMountOptions(t *testing.T) {
 	got2, err := makeMountOptions(opt2, ossfs2Fpm, fakeMeta, cap)
 	assert.NoError(t, err)
 	assert.Equal(t, want2, got2)
+}
+
+func TestGetOSSBucketRegio(t *testing.T) {
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	c := cloud.NewMockOSSInterface(ctrl)
+
+	result := osssdk.GetBucketInfoResult{
+		BucketInfo: osssdk.BucketInfo{
+			Location: ptr.To("oss-cn-beijing"),
+			Name:     ptr.To("test"),
+		},
+	}
+	c.EXPECT().GetBucketInfo(gomock.Any(), gomock.Any()).Return(&result, nil)
+
+	fakeClient := &osscloud.OSSClient{Ossc: c, ClusterRegion: "cn-shenzhen"}
+
+	// case1: region has been set
+	opts := &oss.Options{
+		Region: "cn-hangzhou",
+	}
+	region, err := getOSSBucketRegion(context.Background(), fakeClient, opts)
+	assert.NoError(t, err)
+	assert.Equal(t, "cn-hangzhou", region)
+
+	// case2: region has not been set
+	opts = &oss.Options{
+		Bucket: "test",
+	}
+	region, err = getOSSBucketRegion(context.Background(), fakeClient, opts)
+	assert.NoError(t, err)
+	assert.Equal(t, "cn-beijing", region)
 }

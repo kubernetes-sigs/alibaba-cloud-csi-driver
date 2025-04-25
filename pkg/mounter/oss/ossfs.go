@@ -258,11 +258,11 @@ func (f *fuseOssfs) MakeMountOptions(o *Options, m metadata.MetadataProvider) (m
 	case SigV1:
 		mountOptions = append(mountOptions, "sigv1")
 	case SigV4:
-		if region == "" {
+		if o.Region == "" {
 			return nil, fmt.Errorf("SigV4 is not supported without region")
 		}
 		mountOptions = append(mountOptions, "sigv4")
-		mountOptions = append(mountOptions, fmt.Sprintf("region=%s", region))
+		mountOptions = append(mountOptions, fmt.Sprintf("region=%s", o.Region))
 	}
 
 	authOptions := o.getAuthOptions(region)
