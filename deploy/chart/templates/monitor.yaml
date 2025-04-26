@@ -24,6 +24,7 @@ spec:
   - port: healthz
 {{- if and .Values.csi.disk.enabled .Values.csi.disk.controller.enabled }}
   - port: disk-p-http
+  - port: disk-a-http
   - port: disk-r-http
 {{- end }}
 {{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
@@ -32,6 +33,7 @@ spec:
 {{- end }}
 {{- if and .Values.csi.oss.enabled .Values.csi.oss.controller.enabled }}
   - port: oss-p-http
+  - port: oss-a-http
 {{- end }}
 {{- if and .Values.csi.local.enabled .Values.csi.local.controller.enabled }}
   - port: local-p-http
