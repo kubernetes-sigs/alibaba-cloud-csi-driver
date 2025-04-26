@@ -195,9 +195,18 @@ spec:
             limits:
               cpu: 500m
               memory: 1024Mi
+          ports:
+            - containerPort: 8083
+              name: disk-s-http
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: disk-s-http
           args:
             - --v=5
             - --csi-address=/csi/csi.sock
+            - --http-endpoint=:8083
             - --leader-election=true
             - --extra-create-metadata=true
             - --feature-gates=CSIVolumeGroupSnapshot=true
@@ -219,8 +228,17 @@ spec:
             limits:
               cpu: 500m
               memory: 1024Mi
+          ports:
+            - containerPort: 10080
+              name: snap-con-http
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: snap-con-http
           args:
             - --v=5
+            - --http-endpoint=:10080
             - --leader-election=true
             - --feature-gates=CSIVolumeGroupSnapshot=true
           securityContext:
