@@ -83,8 +83,17 @@ spec:
             limits:
               cpu: 500m
               memory: 1024Mi
+          ports:
+            - containerPort: 8080
+              name: http-endpoint
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: http-endpoint
           args:
             - --csi-address=/csi/csi.sock
+            - --http-endpoint=:8080
             - --volume-name-prefix=disk
             - --strict-topology=true
             - --timeout=150s
@@ -182,8 +191,17 @@ spec:
             limits:
               cpu: 500m
               memory: 1024Mi
+          ports:
+            - containerPort: 8090
+              name: http-endpoint
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: http-endpoint
           args:
             - --csi-address=/csi/csi.sock
+            - --http-endpoint=:8090
             - --volume-name-prefix=nas
             - --timeout=150s
             - --leader-election=true
@@ -218,6 +236,7 @@ spec:
         - name: external-oss-provisioner
           args:
             - --csi-address=/csi/csi.sock
+            - --http-endpoint=:8100
             - --volume-name-prefix=oss
             - --timeout=150s
             - --leader-election=true
@@ -234,6 +253,14 @@ spec:
             requests:
               cpu: 10m
               memory: 16Mi
+          ports:
+            - containerPort: 8100
+              name: http-endpoint
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: http-endpoint
           volumeMounts:
           - mountPath: /csi
             name: oss-provisioner-dir
@@ -260,9 +287,9 @@ spec:
 {{- if and .Values.csi.local.enabled .Values.csi.local.controller.enabled }}
         - name: external-local-provisioner
           image: {{ include "imageSpec" (list .Values "externalProvisioner") }}
-          imagePullPolicy: Always
           args:
             - --csi-address=/csi/csi.sock
+            - --http-endpoint=:8110
             - --volume-name-prefix=local
             - --strict-topology=true
             - --timeout=150s
@@ -280,6 +307,14 @@ spec:
             limits:
               cpu: 500m
               memory: 1024Mi
+          ports:
+            - containerPort: 8110
+              name: http-endpoint
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: http-endpoint
           volumeMounts:
             - name: local-provisioner-dir
               mountPath: /csi
