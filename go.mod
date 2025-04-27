@@ -101,5 +101,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-// github.com/alibabacloud-go/eflo-controller-20221215/v2 => ./staging/src/github.com/alibabacloud-go/eflo-controller-20221215
 replace github.com/alibabacloud-go/nas-20170626/v3 => ./staging/src/github.com/alibabacloud-go/nas-20170626

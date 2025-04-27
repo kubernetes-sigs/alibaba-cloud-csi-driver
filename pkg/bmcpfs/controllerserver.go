@@ -51,6 +51,8 @@ func newControllerServer(region string) (*controllerServer, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	enableVsc(efloClient)
 	nasClient, err := cloud.NewNasClientV2(region)
 	if err != nil {
 		return nil, err
@@ -201,6 +203,7 @@ func newEfloClient(region string) (*efloclient.Client, error) {
 	config := new(openapi.Config).
 		SetUserAgent(KubernetesAlicloudIdentity).
 		SetRegionId(region).
+		SetConnectTimeout(10).
 		SetGlobalParameters(&openapi.GlobalParameters{
 			Queries: map[string]*string{
 				"RegionId": &region,
@@ -242,7 +245,7 @@ func getMountTarget(client *nasclient.Client, fsId, networkType string) (string,
 		return "", fmt.Errorf("nas:DescribeFileSystems failed: %w", err)
 	}
 	// TODO: set log level
-	klog.InfoS("nas:DescribeFileSystems succeeded", "response", resp.Body)
+	klog.V(3).InfoS("nas:DescribeFileSystems succeeded", "response", resp.Body)
 	filesystems := resp.Body.FileSystems
 	if filesystems == nil || len(filesystems.FileSystem) == 0 || filesystems.FileSystem[0] == nil {
 		return "", nil
@@ -259,4 +262,15 @@ func getMountTarget(client *nasclient.Client, fsId, networkType string) (string,
 		}
 	}
 	return "", fmt.Errorf("no active %s mount target found", networkType)
+}
+
+func enableVsc(client *efloclient.Client) {
+	_, err := client.UpdateNodeGroup(&efloclient.UpdateNodeGroupRequest{
+		FileSystemMountEnabled: tea.Bool(true),
+		NewNodeGroupName:       tea.String("dpu-lingjun"),
+		NodeGroupId:            tea.String("i123338791744965637916"),
+	})
+	if err != nil {
+		klog.ErrorS(err, "eflo:UpdateNodeGroup failed")
+	}
 }

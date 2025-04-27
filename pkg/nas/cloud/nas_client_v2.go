@@ -25,6 +25,7 @@ func NewNasClientV2(region string) (*sdk.Client, error) {
 	config := new(openapi.Config).
 		SetUserAgent(KubernetesAlicloudIdentity).
 		SetRegionId(region).
+		SetConnectTimeout(10).
 		SetGlobalParameters(&openapi.GlobalParameters{
 			Queries: map[string]*string{
 				"RegionId": &region,
