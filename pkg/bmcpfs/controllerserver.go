@@ -195,6 +195,9 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 var KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Bmcpfs-%s", version.VERSION)
 
 func newEfloClient(region string) (*efloclient.Client, error) {
+	if r := os.Getenv("EFLO_CONTROLLER_REGION"); r != "" {
+		region = r
+	}
 	config := new(openapi.Config).
 		SetUserAgent(KubernetesAlicloudIdentity).
 		SetRegionId(region).
@@ -210,10 +213,13 @@ func newEfloClient(region string) (*efloclient.Client, error) {
 	}
 	config = config.SetCredential(cred)
 	// set endpoint
-	ep := os.Getenv("EFLO_ENDPOINT")
+	ep := os.Getenv("EFLO_CONTROLLER_ENDPOINT")
 	if ep != "" {
 		config = config.SetEndpoint(ep)
+	} else {
+		config = config.SetEndpoint(fmt.Sprintf("eflo-controller-vpc.%s.aliyuncs.com", region))
 	}
+	// TODO: set default vpc endpoint
 	// set protocol
 	scheme := strings.ToUpper(os.Getenv("ALICLOUD_CLIENT_SCHEME"))
 	if scheme != "HTTP" {
@@ -235,7 +241,8 @@ func getMountTarget(client *nasclient.Client, fsId, networkType string) (string,
 	if err != nil {
 		return "", fmt.Errorf("nas:DescribeFileSystems failed: %w", err)
 	}
-	klog.V(2).InfoS("nas:DescribeFileSystems succeeded", "response", resp.Body)
+	// TODO: set log level
+	klog.InfoS("nas:DescribeFileSystems succeeded", "response", resp.Body)
 	filesystems := resp.Body.FileSystems
 	if filesystems == nil || len(filesystems.FileSystem) == 0 || filesystems.FileSystem[0] == nil {
 		return "", nil

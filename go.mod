@@ -5,7 +5,7 @@ go 1.22.9
 require (
 	github.com/alibabacloud-go/darabonba-openapi v0.1.16
 	github.com/alibabacloud-go/darabonba-openapi/v2 v2.1.7
-	github.com/alibabacloud-go/eflo-controller-20221215/v2 v2.5.3
+	github.com/alibabacloud-go/eflo-controller-20221215/v2 v2.6.0
 	github.com/alibabacloud-go/ens-20171110/v3 v3.0.2
 	github.com/alibabacloud-go/nas-20170626/v3 v3.2.0
 	github.com/alibabacloud-go/tea v1.3.8
@@ -101,7 +101,5 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace (
-	github.com/alibabacloud-go/eflo-controller-20221215/v2 => ./staging/src/github.com/alibabacloud-go/eflo-controller-20221215
-	github.com/alibabacloud-go/nas-20170626/v3 => ./staging/src/github.com/alibabacloud-go/nas-20170626
-)
+// github.com/alibabacloud-go/eflo-controller-20221215/v2 => ./staging/src/github.com/alibabacloud-go/eflo-controller-20221215
+replace github.com/alibabacloud-go/nas-20170626/v3 => ./staging/src/github.com/alibabacloud-go/nas-20170626

@@ -3,19 +3,11 @@ package client
 
 import (
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
-	openapiutil "github.com/alibabacloud-go/darabonba-openapi/v2/utils"
-	"github.com/alibabacloud-go/tea/dara"
+	endpointutil "github.com/alibabacloud-go/endpoint-util/service"
+	openapiutil "github.com/alibabacloud-go/openapi-util/service"
+	util "github.com/alibabacloud-go/tea-utils/v2/service"
+	"github.com/alibabacloud-go/tea/tea"
 )
-
-type iApproveOperationRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetNodeId(v string) *ApproveOperationRequest
-	GetNodeId() *string
-	SetOperationType(v string) *ApproveOperationRequest
-	GetOperationType() *string
-}
 
 type ApproveOperationRequest struct {
 	// Node ID
@@ -33,19 +25,11 @@ type ApproveOperationRequest struct {
 }
 
 func (s ApproveOperationRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ApproveOperationRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ApproveOperationRequest) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *ApproveOperationRequest) GetOperationType() *string {
-	return s.OperationType
 }
 
 func (s *ApproveOperationRequest) SetNodeId(v string) *ApproveOperationRequest {
@@ -56,20 +40,6 @@ func (s *ApproveOperationRequest) SetNodeId(v string) *ApproveOperationRequest {
 func (s *ApproveOperationRequest) SetOperationType(v string) *ApproveOperationRequest {
 	s.OperationType = &v
 	return s
-}
-
-func (s *ApproveOperationRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iApproveOperationResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetErrorMessage(v string) *ApproveOperationResponseBody
-	GetErrorMessage() *string
-	SetRequestId(v string) *ApproveOperationResponseBody
-	GetRequestId() *string
 }
 
 type ApproveOperationResponseBody struct {
@@ -88,19 +58,11 @@ type ApproveOperationResponseBody struct {
 }
 
 func (s ApproveOperationResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ApproveOperationResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ApproveOperationResponseBody) GetErrorMessage() *string {
-	return s.ErrorMessage
-}
-
-func (s *ApproveOperationResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *ApproveOperationResponseBody) SetErrorMessage(v string) *ApproveOperationResponseBody {
@@ -113,22 +75,6 @@ func (s *ApproveOperationResponseBody) SetRequestId(v string) *ApproveOperationR
 	return s
 }
 
-func (s *ApproveOperationResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iApproveOperationResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ApproveOperationResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ApproveOperationResponse
-	GetStatusCode() *int32
-	SetBody(v *ApproveOperationResponseBody) *ApproveOperationResponse
-	GetBody() *ApproveOperationResponseBody
-}
-
 type ApproveOperationResponse struct {
 	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -136,23 +82,11 @@ type ApproveOperationResponse struct {
 }
 
 func (s ApproveOperationResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ApproveOperationResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ApproveOperationResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ApproveOperationResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ApproveOperationResponse) GetBody() *ApproveOperationResponseBody {
-	return s.Body
 }
 
 func (s *ApproveOperationResponse) SetHeaders(v map[string]*string) *ApproveOperationResponse {
@@ -168,26 +102,6 @@ func (s *ApproveOperationResponse) SetStatusCode(v int32) *ApproveOperationRespo
 func (s *ApproveOperationResponse) SetBody(v *ApproveOperationResponseBody) *ApproveOperationResponse {
 	s.Body = v
 	return s
-}
-
-func (s *ApproveOperationResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iChangeResourceGroupRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetResourceGroupId(v string) *ChangeResourceGroupRequest
-	GetResourceGroupId() *string
-	SetResourceId(v string) *ChangeResourceGroupRequest
-	GetResourceId() *string
-	SetResourceRegionId(v string) *ChangeResourceGroupRequest
-	GetResourceRegionId() *string
-	SetResourceType(v string) *ChangeResourceGroupRequest
-	GetResourceType() *string
-	SetService(v string) *ChangeResourceGroupRequest
-	GetService() *string
 }
 
 type ChangeResourceGroupRequest struct {
@@ -221,35 +135,14 @@ type ChangeResourceGroupRequest struct {
 	//
 	// Node
 	ResourceType *string `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
-	Service      *string `json:"Service,omitempty" xml:"Service,omitempty"`
 }
 
 func (s ChangeResourceGroupRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ChangeResourceGroupRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ChangeResourceGroupRequest) GetResourceGroupId() *string {
-	return s.ResourceGroupId
-}
-
-func (s *ChangeResourceGroupRequest) GetResourceId() *string {
-	return s.ResourceId
-}
-
-func (s *ChangeResourceGroupRequest) GetResourceRegionId() *string {
-	return s.ResourceRegionId
-}
-
-func (s *ChangeResourceGroupRequest) GetResourceType() *string {
-	return s.ResourceType
-}
-
-func (s *ChangeResourceGroupRequest) GetService() *string {
-	return s.Service
 }
 
 func (s *ChangeResourceGroupRequest) SetResourceGroupId(v string) *ChangeResourceGroupRequest {
@@ -272,23 +165,6 @@ func (s *ChangeResourceGroupRequest) SetResourceType(v string) *ChangeResourceGr
 	return s
 }
 
-func (s *ChangeResourceGroupRequest) SetService(v string) *ChangeResourceGroupRequest {
-	s.Service = &v
-	return s
-}
-
-func (s *ChangeResourceGroupRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iChangeResourceGroupResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *ChangeResourceGroupResponseBody
-	GetRequestId() *string
-}
-
 type ChangeResourceGroupResponseBody struct {
 	// Id of the request
 	//
@@ -299,36 +175,16 @@ type ChangeResourceGroupResponseBody struct {
 }
 
 func (s ChangeResourceGroupResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ChangeResourceGroupResponseBody) GoString() string {
 	return s.String()
 }
 
-func (s *ChangeResourceGroupResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
 func (s *ChangeResourceGroupResponseBody) SetRequestId(v string) *ChangeResourceGroupResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *ChangeResourceGroupResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iChangeResourceGroupResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ChangeResourceGroupResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ChangeResourceGroupResponse
-	GetStatusCode() *int32
-	SetBody(v *ChangeResourceGroupResponseBody) *ChangeResourceGroupResponse
-	GetBody() *ChangeResourceGroupResponseBody
 }
 
 type ChangeResourceGroupResponse struct {
@@ -338,23 +194,11 @@ type ChangeResourceGroupResponse struct {
 }
 
 func (s ChangeResourceGroupResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ChangeResourceGroupResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ChangeResourceGroupResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ChangeResourceGroupResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ChangeResourceGroupResponse) GetBody() *ChangeResourceGroupResponseBody {
-	return s.Body
 }
 
 func (s *ChangeResourceGroupResponse) SetHeaders(v map[string]*string) *ChangeResourceGroupResponse {
@@ -370,20 +214,6 @@ func (s *ChangeResourceGroupResponse) SetStatusCode(v int32) *ChangeResourceGrou
 func (s *ChangeResourceGroupResponse) SetBody(v *ChangeResourceGroupResponseBody) *ChangeResourceGroupResponse {
 	s.Body = v
 	return s
-}
-
-func (s *ChangeResourceGroupResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCloseSessionRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetSessionId(v string) *CloseSessionRequest
-	GetSessionId() *string
-	SetSessionToken(v string) *CloseSessionRequest
-	GetSessionToken() *string
 }
 
 type CloseSessionRequest struct {
@@ -402,19 +232,11 @@ type CloseSessionRequest struct {
 }
 
 func (s CloseSessionRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CloseSessionRequest) GoString() string {
 	return s.String()
-}
-
-func (s *CloseSessionRequest) GetSessionId() *string {
-	return s.SessionId
-}
-
-func (s *CloseSessionRequest) GetSessionToken() *string {
-	return s.SessionToken
 }
 
 func (s *CloseSessionRequest) SetSessionId(v string) *CloseSessionRequest {
@@ -425,22 +247,6 @@ func (s *CloseSessionRequest) SetSessionId(v string) *CloseSessionRequest {
 func (s *CloseSessionRequest) SetSessionToken(v string) *CloseSessionRequest {
 	s.SessionToken = &v
 	return s
-}
-
-func (s *CloseSessionRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCloseSessionResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *CloseSessionResponseBody
-	GetRequestId() *string
-	SetSessionId(v string) *CloseSessionResponseBody
-	GetSessionId() *string
-	SetState(v string) *CloseSessionResponseBody
-	GetState() *string
 }
 
 type CloseSessionResponseBody struct {
@@ -465,23 +271,11 @@ type CloseSessionResponseBody struct {
 }
 
 func (s CloseSessionResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CloseSessionResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *CloseSessionResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *CloseSessionResponseBody) GetSessionId() *string {
-	return s.SessionId
-}
-
-func (s *CloseSessionResponseBody) GetState() *string {
-	return s.State
 }
 
 func (s *CloseSessionResponseBody) SetRequestId(v string) *CloseSessionResponseBody {
@@ -499,22 +293,6 @@ func (s *CloseSessionResponseBody) SetState(v string) *CloseSessionResponseBody 
 	return s
 }
 
-func (s *CloseSessionResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCloseSessionResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *CloseSessionResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *CloseSessionResponse
-	GetStatusCode() *int32
-	SetBody(v *CloseSessionResponseBody) *CloseSessionResponse
-	GetBody() *CloseSessionResponseBody
-}
-
 type CloseSessionResponse struct {
 	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -522,23 +300,11 @@ type CloseSessionResponse struct {
 }
 
 func (s CloseSessionResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CloseSessionResponse) GoString() string {
 	return s.String()
-}
-
-func (s *CloseSessionResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *CloseSessionResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *CloseSessionResponse) GetBody() *CloseSessionResponseBody {
-	return s.Body
 }
 
 func (s *CloseSessionResponse) SetHeaders(v map[string]*string) *CloseSessionResponse {
@@ -554,40 +320,6 @@ func (s *CloseSessionResponse) SetStatusCode(v int32) *CloseSessionResponse {
 func (s *CloseSessionResponse) SetBody(v *CloseSessionResponseBody) *CloseSessionResponse {
 	s.Body = v
 	return s
-}
-
-func (s *CloseSessionResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateClusterRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterDescription(v string) *CreateClusterRequest
-	GetClusterDescription() *string
-	SetClusterName(v string) *CreateClusterRequest
-	GetClusterName() *string
-	SetClusterType(v string) *CreateClusterRequest
-	GetClusterType() *string
-	SetComponents(v []*CreateClusterRequestComponents) *CreateClusterRequest
-	GetComponents() []*CreateClusterRequestComponents
-	SetHpnZone(v string) *CreateClusterRequest
-	GetHpnZone() *string
-	SetIgnoreFailedNodeTasks(v bool) *CreateClusterRequest
-	GetIgnoreFailedNodeTasks() *bool
-	SetNetworks(v *CreateClusterRequestNetworks) *CreateClusterRequest
-	GetNetworks() *CreateClusterRequestNetworks
-	SetNimizVSwitches(v []*string) *CreateClusterRequest
-	GetNimizVSwitches() []*string
-	SetNodeGroups(v []*CreateClusterRequestNodeGroups) *CreateClusterRequest
-	GetNodeGroups() []*CreateClusterRequestNodeGroups
-	SetOpenEniJumboFrame(v bool) *CreateClusterRequest
-	GetOpenEniJumboFrame() *bool
-	SetResourceGroupId(v string) *CreateClusterRequest
-	GetResourceGroupId() *string
-	SetTag(v []*CreateClusterRequestTag) *CreateClusterRequest
-	GetTag() []*CreateClusterRequestTag
 }
 
 type CreateClusterRequest struct {
@@ -646,59 +378,11 @@ type CreateClusterRequest struct {
 }
 
 func (s CreateClusterRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequest) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequest) GetClusterDescription() *string {
-	return s.ClusterDescription
-}
-
-func (s *CreateClusterRequest) GetClusterName() *string {
-	return s.ClusterName
-}
-
-func (s *CreateClusterRequest) GetClusterType() *string {
-	return s.ClusterType
-}
-
-func (s *CreateClusterRequest) GetComponents() []*CreateClusterRequestComponents {
-	return s.Components
-}
-
-func (s *CreateClusterRequest) GetHpnZone() *string {
-	return s.HpnZone
-}
-
-func (s *CreateClusterRequest) GetIgnoreFailedNodeTasks() *bool {
-	return s.IgnoreFailedNodeTasks
-}
-
-func (s *CreateClusterRequest) GetNetworks() *CreateClusterRequestNetworks {
-	return s.Networks
-}
-
-func (s *CreateClusterRequest) GetNimizVSwitches() []*string {
-	return s.NimizVSwitches
-}
-
-func (s *CreateClusterRequest) GetNodeGroups() []*CreateClusterRequestNodeGroups {
-	return s.NodeGroups
-}
-
-func (s *CreateClusterRequest) GetOpenEniJumboFrame() *bool {
-	return s.OpenEniJumboFrame
-}
-
-func (s *CreateClusterRequest) GetResourceGroupId() *string {
-	return s.ResourceGroupId
-}
-
-func (s *CreateClusterRequest) GetTag() []*CreateClusterRequestTag {
-	return s.Tag
 }
 
 func (s *CreateClusterRequest) SetClusterDescription(v string) *CreateClusterRequest {
@@ -761,10 +445,6 @@ func (s *CreateClusterRequest) SetTag(v []*CreateClusterRequestTag) *CreateClust
 	return s
 }
 
-func (s *CreateClusterRequest) Validate() error {
-	return dara.Validate(s)
-}
-
 type CreateClusterRequestComponents struct {
 	// Component configuration
 	ComponentConfig *CreateClusterRequestComponentsComponentConfig `json:"ComponentConfig,omitempty" xml:"ComponentConfig,omitempty" type:"Struct"`
@@ -777,19 +457,11 @@ type CreateClusterRequestComponents struct {
 }
 
 func (s CreateClusterRequestComponents) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestComponents) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequestComponents) GetComponentConfig() *CreateClusterRequestComponentsComponentConfig {
-	return s.ComponentConfig
-}
-
-func (s *CreateClusterRequestComponents) GetComponentType() *string {
-	return s.ComponentType
 }
 
 func (s *CreateClusterRequestComponents) SetComponentConfig(v *CreateClusterRequestComponentsComponentConfig) *CreateClusterRequestComponents {
@@ -800,10 +472,6 @@ func (s *CreateClusterRequestComponents) SetComponentConfig(v *CreateClusterRequ
 func (s *CreateClusterRequestComponents) SetComponentType(v string) *CreateClusterRequestComponents {
 	s.ComponentType = &v
 	return s
-}
-
-func (s *CreateClusterRequestComponents) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateClusterRequestComponentsComponentConfig struct {
@@ -874,19 +542,11 @@ type CreateClusterRequestComponentsComponentConfig struct {
 }
 
 func (s CreateClusterRequestComponentsComponentConfig) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestComponentsComponentConfig) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequestComponentsComponentConfig) GetBasicArgs() interface{} {
-	return s.BasicArgs
-}
-
-func (s *CreateClusterRequestComponentsComponentConfig) GetNodeUnits() []interface{} {
-	return s.NodeUnits
 }
 
 func (s *CreateClusterRequestComponentsComponentConfig) SetBasicArgs(v interface{}) *CreateClusterRequestComponentsComponentConfig {
@@ -897,10 +557,6 @@ func (s *CreateClusterRequestComponentsComponentConfig) SetBasicArgs(v interface
 func (s *CreateClusterRequestComponentsComponentConfig) SetNodeUnits(v []interface{}) *CreateClusterRequestComponentsComponentConfig {
 	s.NodeUnits = v
 	return s
-}
-
-func (s *CreateClusterRequestComponentsComponentConfig) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateClusterRequestNetworks struct {
@@ -943,43 +599,11 @@ type CreateClusterRequestNetworks struct {
 }
 
 func (s CreateClusterRequestNetworks) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestNetworks) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequestNetworks) GetIpAllocationPolicy() []*CreateClusterRequestNetworksIpAllocationPolicy {
-	return s.IpAllocationPolicy
-}
-
-func (s *CreateClusterRequestNetworks) GetNewVpdInfo() *CreateClusterRequestNetworksNewVpdInfo {
-	return s.NewVpdInfo
-}
-
-func (s *CreateClusterRequestNetworks) GetSecurityGroupId() *string {
-	return s.SecurityGroupId
-}
-
-func (s *CreateClusterRequestNetworks) GetTailIpVersion() *string {
-	return s.TailIpVersion
-}
-
-func (s *CreateClusterRequestNetworks) GetVSwitchId() *string {
-	return s.VSwitchId
-}
-
-func (s *CreateClusterRequestNetworks) GetVSwitchZoneId() *string {
-	return s.VSwitchZoneId
-}
-
-func (s *CreateClusterRequestNetworks) GetVpcId() *string {
-	return s.VpcId
-}
-
-func (s *CreateClusterRequestNetworks) GetVpdInfo() *CreateClusterRequestNetworksVpdInfo {
-	return s.VpdInfo
 }
 
 func (s *CreateClusterRequestNetworks) SetIpAllocationPolicy(v []*CreateClusterRequestNetworksIpAllocationPolicy) *CreateClusterRequestNetworks {
@@ -1022,10 +646,6 @@ func (s *CreateClusterRequestNetworks) SetVpdInfo(v *CreateClusterRequestNetwork
 	return s
 }
 
-func (s *CreateClusterRequestNetworks) Validate() error {
-	return dara.Validate(s)
-}
-
 type CreateClusterRequestNetworksIpAllocationPolicy struct {
 	// Bond policy
 	BondPolicy *CreateClusterRequestNetworksIpAllocationPolicyBondPolicy `json:"BondPolicy,omitempty" xml:"BondPolicy,omitempty" type:"Struct"`
@@ -1036,23 +656,11 @@ type CreateClusterRequestNetworksIpAllocationPolicy struct {
 }
 
 func (s CreateClusterRequestNetworksIpAllocationPolicy) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestNetworksIpAllocationPolicy) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicy) GetBondPolicy() *CreateClusterRequestNetworksIpAllocationPolicyBondPolicy {
-	return s.BondPolicy
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicy) GetMachineTypePolicy() []*CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy {
-	return s.MachineTypePolicy
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicy) GetNodePolicy() []*CreateClusterRequestNetworksIpAllocationPolicyNodePolicy {
-	return s.NodePolicy
 }
 
 func (s *CreateClusterRequestNetworksIpAllocationPolicy) SetBondPolicy(v *CreateClusterRequestNetworksIpAllocationPolicyBondPolicy) *CreateClusterRequestNetworksIpAllocationPolicy {
@@ -1070,10 +678,6 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicy) SetNodePolicy(v []*Crea
 	return s
 }
 
-func (s *CreateClusterRequestNetworksIpAllocationPolicy) Validate() error {
-	return dara.Validate(s)
-}
-
 type CreateClusterRequestNetworksIpAllocationPolicyBondPolicy struct {
 	// Default bond cluster subnet
 	//
@@ -1086,19 +690,11 @@ type CreateClusterRequestNetworksIpAllocationPolicyBondPolicy struct {
 }
 
 func (s CreateClusterRequestNetworksIpAllocationPolicyBondPolicy) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestNetworksIpAllocationPolicyBondPolicy) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicy) GetBondDefaultSubnet() *string {
-	return s.BondDefaultSubnet
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicy) GetBonds() []*CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds {
-	return s.Bonds
 }
 
 func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicy) SetBondDefaultSubnet(v string) *CreateClusterRequestNetworksIpAllocationPolicyBondPolicy {
@@ -1109,10 +705,6 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicy) SetBondDefaul
 func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicy) SetBonds(v []*CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds) *CreateClusterRequestNetworksIpAllocationPolicyBondPolicy {
 	s.Bonds = v
 	return s
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicy) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds struct {
@@ -1131,19 +723,11 @@ type CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds struct {
 }
 
 func (s CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds) GetName() *string {
-	return s.Name
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds) GetSubnet() *string {
-	return s.Subnet
 }
 
 func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds) SetName(v string) *CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds {
@@ -1154,10 +738,6 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds) SetName(
 func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds) SetSubnet(v string) *CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds {
 	s.Subnet = &v
 	return s
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyBondPolicyBonds) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy struct {
@@ -1172,19 +752,11 @@ type CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy struct {
 }
 
 func (s CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy) GetBonds() []*CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds {
-	return s.Bonds
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy) GetMachineType() *string {
-	return s.MachineType
 }
 
 func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy) SetBonds(v []*CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds) *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy {
@@ -1195,10 +767,6 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy) SetBon
 func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy) SetMachineType(v string) *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy {
 	s.MachineType = &v
 	return s
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicy) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds struct {
@@ -1217,19 +785,11 @@ type CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds struct
 }
 
 func (s CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds) GetName() *string {
-	return s.Name
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds) GetSubnet() *string {
-	return s.Subnet
 }
 
 func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds) SetName(v string) *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds {
@@ -1240,10 +800,6 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds) S
 func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds) SetSubnet(v string) *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds {
 	s.Subnet = &v
 	return s
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyMachineTypePolicyBonds) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicyNodePolicy struct {
@@ -1258,19 +814,11 @@ type CreateClusterRequestNetworksIpAllocationPolicyNodePolicy struct {
 }
 
 func (s CreateClusterRequestNetworksIpAllocationPolicyNodePolicy) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestNetworksIpAllocationPolicyNodePolicy) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicy) GetBonds() []*CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds {
-	return s.Bonds
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicy) GetNodeId() *string {
-	return s.NodeId
 }
 
 func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicy) SetBonds(v []*CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds) *CreateClusterRequestNetworksIpAllocationPolicyNodePolicy {
@@ -1281,10 +829,6 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicy) SetBonds(v []
 func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicy) SetNodeId(v string) *CreateClusterRequestNetworksIpAllocationPolicyNodePolicy {
 	s.NodeId = &v
 	return s
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicy) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds struct {
@@ -1303,19 +847,11 @@ type CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds struct {
 }
 
 func (s CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds) GetName() *string {
-	return s.Name
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds) GetSubnet() *string {
-	return s.Subnet
 }
 
 func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds) SetName(v string) *CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds {
@@ -1326,10 +862,6 @@ func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds) SetName(
 func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds) SetSubnet(v string) *CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds {
 	s.Subnet = &v
 	return s
-}
-
-func (s *CreateClusterRequestNetworksIpAllocationPolicyNodePolicyBonds) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateClusterRequestNetworksNewVpdInfo struct {
@@ -1374,39 +906,11 @@ type CreateClusterRequestNetworksNewVpdInfo struct {
 }
 
 func (s CreateClusterRequestNetworksNewVpdInfo) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestNetworksNewVpdInfo) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequestNetworksNewVpdInfo) GetCenId() *string {
-	return s.CenId
-}
-
-func (s *CreateClusterRequestNetworksNewVpdInfo) GetCloudLinkCidr() *string {
-	return s.CloudLinkCidr
-}
-
-func (s *CreateClusterRequestNetworksNewVpdInfo) GetCloudLinkId() *string {
-	return s.CloudLinkId
-}
-
-func (s *CreateClusterRequestNetworksNewVpdInfo) GetMonitorVpcId() *string {
-	return s.MonitorVpcId
-}
-
-func (s *CreateClusterRequestNetworksNewVpdInfo) GetMonitorVswitchId() *string {
-	return s.MonitorVswitchId
-}
-
-func (s *CreateClusterRequestNetworksNewVpdInfo) GetVpdCidr() *string {
-	return s.VpdCidr
-}
-
-func (s *CreateClusterRequestNetworksNewVpdInfo) GetVpdSubnets() []*CreateClusterRequestNetworksNewVpdInfoVpdSubnets {
-	return s.VpdSubnets
 }
 
 func (s *CreateClusterRequestNetworksNewVpdInfo) SetCenId(v string) *CreateClusterRequestNetworksNewVpdInfo {
@@ -1444,10 +948,6 @@ func (s *CreateClusterRequestNetworksNewVpdInfo) SetVpdSubnets(v []*CreateCluste
 	return s
 }
 
-func (s *CreateClusterRequestNetworksNewVpdInfo) Validate() error {
-	return dara.Validate(s)
-}
-
 type CreateClusterRequestNetworksNewVpdInfoVpdSubnets struct {
 	// Subnet CIDR
 	//
@@ -1470,23 +970,11 @@ type CreateClusterRequestNetworksNewVpdInfoVpdSubnets struct {
 }
 
 func (s CreateClusterRequestNetworksNewVpdInfoVpdSubnets) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestNetworksNewVpdInfoVpdSubnets) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequestNetworksNewVpdInfoVpdSubnets) GetSubnetCidr() *string {
-	return s.SubnetCidr
-}
-
-func (s *CreateClusterRequestNetworksNewVpdInfoVpdSubnets) GetSubnetType() *string {
-	return s.SubnetType
-}
-
-func (s *CreateClusterRequestNetworksNewVpdInfoVpdSubnets) GetZoneId() *string {
-	return s.ZoneId
 }
 
 func (s *CreateClusterRequestNetworksNewVpdInfoVpdSubnets) SetSubnetCidr(v string) *CreateClusterRequestNetworksNewVpdInfoVpdSubnets {
@@ -1504,10 +992,6 @@ func (s *CreateClusterRequestNetworksNewVpdInfoVpdSubnets) SetZoneId(v string) *
 	return s
 }
 
-func (s *CreateClusterRequestNetworksNewVpdInfoVpdSubnets) Validate() error {
-	return dara.Validate(s)
-}
-
 type CreateClusterRequestNetworksVpdInfo struct {
 	// VPC ID
 	//
@@ -1520,19 +1004,11 @@ type CreateClusterRequestNetworksVpdInfo struct {
 }
 
 func (s CreateClusterRequestNetworksVpdInfo) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestNetworksVpdInfo) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequestNetworksVpdInfo) GetVpdId() *string {
-	return s.VpdId
-}
-
-func (s *CreateClusterRequestNetworksVpdInfo) GetVpdSubnets() []*string {
-	return s.VpdSubnets
 }
 
 func (s *CreateClusterRequestNetworksVpdInfo) SetVpdId(v string) *CreateClusterRequestNetworksVpdInfo {
@@ -1545,18 +1021,20 @@ func (s *CreateClusterRequestNetworksVpdInfo) SetVpdSubnets(v []*string) *Create
 	return s
 }
 
-func (s *CreateClusterRequestNetworksVpdInfo) Validate() error {
-	return dara.Validate(s)
-}
-
 type CreateClusterRequestNodeGroups struct {
-	Disks *CreateClusterRequestNodeGroupsDisks `json:"Disks,omitempty" xml:"Disks,omitempty" type:"Struct"`
+	FileSystemMountEnabled *bool `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
 	// System image ID
 	//
 	// example:
 	//
 	// i190297201634099844192
 	ImageId *string `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
+	// The name of the key pair.
+	//
+	// example:
+	//
+	// sc-key
+	KeyPairName *string `json:"KeyPairName,omitempty" xml:"KeyPairName,omitempty"`
 	// Machine type
 	//
 	// example:
@@ -1577,6 +1055,8 @@ type CreateClusterRequestNodeGroups struct {
 	NodeGroupName *string `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
 	// Node list
 	Nodes []*CreateClusterRequestNodeGroupsNodes `json:"Nodes,omitempty" xml:"Nodes,omitempty" type:"Repeated"`
+	// SystemDisk
+	SystemDisk *CreateClusterRequestNodeGroupsSystemDisk `json:"SystemDisk,omitempty" xml:"SystemDisk,omitempty" type:"Struct"`
 	// Instance custom data. It needs to be Base64 encoded, and the original data should not exceed 16 KB.
 	//
 	// example:
@@ -1592,52 +1072,25 @@ type CreateClusterRequestNodeGroups struct {
 }
 
 func (s CreateClusterRequestNodeGroups) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestNodeGroups) GoString() string {
 	return s.String()
 }
 
-func (s *CreateClusterRequestNodeGroups) GetDisks() *CreateClusterRequestNodeGroupsDisks {
-	return s.Disks
-}
-
-func (s *CreateClusterRequestNodeGroups) GetImageId() *string {
-	return s.ImageId
-}
-
-func (s *CreateClusterRequestNodeGroups) GetMachineType() *string {
-	return s.MachineType
-}
-
-func (s *CreateClusterRequestNodeGroups) GetNodeGroupDescription() *string {
-	return s.NodeGroupDescription
-}
-
-func (s *CreateClusterRequestNodeGroups) GetNodeGroupName() *string {
-	return s.NodeGroupName
-}
-
-func (s *CreateClusterRequestNodeGroups) GetNodes() []*CreateClusterRequestNodeGroupsNodes {
-	return s.Nodes
-}
-
-func (s *CreateClusterRequestNodeGroups) GetUserData() *string {
-	return s.UserData
-}
-
-func (s *CreateClusterRequestNodeGroups) GetZoneId() *string {
-	return s.ZoneId
-}
-
-func (s *CreateClusterRequestNodeGroups) SetDisks(v *CreateClusterRequestNodeGroupsDisks) *CreateClusterRequestNodeGroups {
-	s.Disks = v
+func (s *CreateClusterRequestNodeGroups) SetFileSystemMountEnabled(v bool) *CreateClusterRequestNodeGroups {
+	s.FileSystemMountEnabled = &v
 	return s
 }
 
 func (s *CreateClusterRequestNodeGroups) SetImageId(v string) *CreateClusterRequestNodeGroups {
 	s.ImageId = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroups) SetKeyPairName(v string) *CreateClusterRequestNodeGroups {
+	s.KeyPairName = &v
 	return s
 }
 
@@ -1661,6 +1114,11 @@ func (s *CreateClusterRequestNodeGroups) SetNodes(v []*CreateClusterRequestNodeG
 	return s
 }
 
+func (s *CreateClusterRequestNodeGroups) SetSystemDisk(v *CreateClusterRequestNodeGroupsSystemDisk) *CreateClusterRequestNodeGroups {
+	s.SystemDisk = v
+	return s
+}
+
 func (s *CreateClusterRequestNodeGroups) SetUserData(v string) *CreateClusterRequestNodeGroups {
 	s.UserData = &v
 	return s
@@ -1669,45 +1127,6 @@ func (s *CreateClusterRequestNodeGroups) SetUserData(v string) *CreateClusterReq
 func (s *CreateClusterRequestNodeGroups) SetZoneId(v string) *CreateClusterRequestNodeGroups {
 	s.ZoneId = &v
 	return s
-}
-
-func (s *CreateClusterRequestNodeGroups) Validate() error {
-	return dara.Validate(s)
-}
-
-type CreateClusterRequestNodeGroupsDisks struct {
-	SystemDiskPerformanceLevel *string `json:"SystemDiskPerformanceLevel,omitempty" xml:"SystemDiskPerformanceLevel,omitempty"`
-	SystemDiskSize             *int32  `json:"SystemDiskSize,omitempty" xml:"SystemDiskSize,omitempty"`
-}
-
-func (s CreateClusterRequestNodeGroupsDisks) String() string {
-	return dara.Prettify(s)
-}
-
-func (s CreateClusterRequestNodeGroupsDisks) GoString() string {
-	return s.String()
-}
-
-func (s *CreateClusterRequestNodeGroupsDisks) GetSystemDiskPerformanceLevel() *string {
-	return s.SystemDiskPerformanceLevel
-}
-
-func (s *CreateClusterRequestNodeGroupsDisks) GetSystemDiskSize() *int32 {
-	return s.SystemDiskSize
-}
-
-func (s *CreateClusterRequestNodeGroupsDisks) SetSystemDiskPerformanceLevel(v string) *CreateClusterRequestNodeGroupsDisks {
-	s.SystemDiskPerformanceLevel = &v
-	return s
-}
-
-func (s *CreateClusterRequestNodeGroupsDisks) SetSystemDiskSize(v int32) *CreateClusterRequestNodeGroupsDisks {
-	s.SystemDiskSize = &v
-	return s
-}
-
-func (s *CreateClusterRequestNodeGroupsDisks) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateClusterRequestNodeGroupsNodes struct {
@@ -1744,31 +1163,11 @@ type CreateClusterRequestNodeGroupsNodes struct {
 }
 
 func (s CreateClusterRequestNodeGroupsNodes) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestNodeGroupsNodes) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequestNodeGroupsNodes) GetHostname() *string {
-	return s.Hostname
-}
-
-func (s *CreateClusterRequestNodeGroupsNodes) GetLoginPassword() *string {
-	return s.LoginPassword
-}
-
-func (s *CreateClusterRequestNodeGroupsNodes) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *CreateClusterRequestNodeGroupsNodes) GetVSwitchId() *string {
-	return s.VSwitchId
-}
-
-func (s *CreateClusterRequestNodeGroupsNodes) GetVpcId() *string {
-	return s.VpcId
 }
 
 func (s *CreateClusterRequestNodeGroupsNodes) SetHostname(v string) *CreateClusterRequestNodeGroupsNodes {
@@ -1796,8 +1195,57 @@ func (s *CreateClusterRequestNodeGroupsNodes) SetVpcId(v string) *CreateClusterR
 	return s
 }
 
-func (s *CreateClusterRequestNodeGroupsNodes) Validate() error {
-	return dara.Validate(s)
+type CreateClusterRequestNodeGroupsSystemDisk struct {
+	// The disk type. Valid values:
+	//
+	// 	- cloud_ssd: standard SSD
+	//
+	// example:
+	//
+	// cloud_essd
+	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
+	// The performance level of the ESSD that is used as the system disk. Valid values:
+	//
+	// 	- PL0: A single ESSD can provide up to 10,000 random read/write IOPS.
+	//
+	// 	- PL1: A single ESSD can provide up to 50,000 random read/write IOPS.
+	//
+	//
+	// Default value: PL1.
+	//
+	// example:
+	//
+	// PL1
+	PerformanceLevel *string `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
+	// The size. Unit: GB.
+	//
+	// example:
+	//
+	// 20
+	Size *int32 `json:"Size,omitempty" xml:"Size,omitempty"`
+}
+
+func (s CreateClusterRequestNodeGroupsSystemDisk) String() string {
+	return tea.Prettify(s)
+}
+
+func (s CreateClusterRequestNodeGroupsSystemDisk) GoString() string {
+	return s.String()
+}
+
+func (s *CreateClusterRequestNodeGroupsSystemDisk) SetCategory(v string) *CreateClusterRequestNodeGroupsSystemDisk {
+	s.Category = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroupsSystemDisk) SetPerformanceLevel(v string) *CreateClusterRequestNodeGroupsSystemDisk {
+	s.PerformanceLevel = &v
+	return s
+}
+
+func (s *CreateClusterRequestNodeGroupsSystemDisk) SetSize(v int32) *CreateClusterRequestNodeGroupsSystemDisk {
+	s.Size = &v
+	return s
 }
 
 type CreateClusterRequestTag struct {
@@ -1816,19 +1264,11 @@ type CreateClusterRequestTag struct {
 }
 
 func (s CreateClusterRequestTag) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterRequestTag) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterRequestTag) GetKey() *string {
-	return s.Key
-}
-
-func (s *CreateClusterRequestTag) GetValue() *string {
-	return s.Value
 }
 
 func (s *CreateClusterRequestTag) SetKey(v string) *CreateClusterRequestTag {
@@ -1839,40 +1279,6 @@ func (s *CreateClusterRequestTag) SetKey(v string) *CreateClusterRequestTag {
 func (s *CreateClusterRequestTag) SetValue(v string) *CreateClusterRequestTag {
 	s.Value = &v
 	return s
-}
-
-func (s *CreateClusterRequestTag) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateClusterShrinkRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterDescription(v string) *CreateClusterShrinkRequest
-	GetClusterDescription() *string
-	SetClusterName(v string) *CreateClusterShrinkRequest
-	GetClusterName() *string
-	SetClusterType(v string) *CreateClusterShrinkRequest
-	GetClusterType() *string
-	SetComponentsShrink(v string) *CreateClusterShrinkRequest
-	GetComponentsShrink() *string
-	SetHpnZone(v string) *CreateClusterShrinkRequest
-	GetHpnZone() *string
-	SetIgnoreFailedNodeTasks(v bool) *CreateClusterShrinkRequest
-	GetIgnoreFailedNodeTasks() *bool
-	SetNetworksShrink(v string) *CreateClusterShrinkRequest
-	GetNetworksShrink() *string
-	SetNimizVSwitchesShrink(v string) *CreateClusterShrinkRequest
-	GetNimizVSwitchesShrink() *string
-	SetNodeGroupsShrink(v string) *CreateClusterShrinkRequest
-	GetNodeGroupsShrink() *string
-	SetOpenEniJumboFrame(v bool) *CreateClusterShrinkRequest
-	GetOpenEniJumboFrame() *bool
-	SetResourceGroupId(v string) *CreateClusterShrinkRequest
-	GetResourceGroupId() *string
-	SetTag(v []*CreateClusterShrinkRequestTag) *CreateClusterShrinkRequest
-	GetTag() []*CreateClusterShrinkRequestTag
 }
 
 type CreateClusterShrinkRequest struct {
@@ -1931,59 +1337,11 @@ type CreateClusterShrinkRequest struct {
 }
 
 func (s CreateClusterShrinkRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterShrinkRequest) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterShrinkRequest) GetClusterDescription() *string {
-	return s.ClusterDescription
-}
-
-func (s *CreateClusterShrinkRequest) GetClusterName() *string {
-	return s.ClusterName
-}
-
-func (s *CreateClusterShrinkRequest) GetClusterType() *string {
-	return s.ClusterType
-}
-
-func (s *CreateClusterShrinkRequest) GetComponentsShrink() *string {
-	return s.ComponentsShrink
-}
-
-func (s *CreateClusterShrinkRequest) GetHpnZone() *string {
-	return s.HpnZone
-}
-
-func (s *CreateClusterShrinkRequest) GetIgnoreFailedNodeTasks() *bool {
-	return s.IgnoreFailedNodeTasks
-}
-
-func (s *CreateClusterShrinkRequest) GetNetworksShrink() *string {
-	return s.NetworksShrink
-}
-
-func (s *CreateClusterShrinkRequest) GetNimizVSwitchesShrink() *string {
-	return s.NimizVSwitchesShrink
-}
-
-func (s *CreateClusterShrinkRequest) GetNodeGroupsShrink() *string {
-	return s.NodeGroupsShrink
-}
-
-func (s *CreateClusterShrinkRequest) GetOpenEniJumboFrame() *bool {
-	return s.OpenEniJumboFrame
-}
-
-func (s *CreateClusterShrinkRequest) GetResourceGroupId() *string {
-	return s.ResourceGroupId
-}
-
-func (s *CreateClusterShrinkRequest) GetTag() []*CreateClusterShrinkRequestTag {
-	return s.Tag
 }
 
 func (s *CreateClusterShrinkRequest) SetClusterDescription(v string) *CreateClusterShrinkRequest {
@@ -2046,10 +1404,6 @@ func (s *CreateClusterShrinkRequest) SetTag(v []*CreateClusterShrinkRequestTag) 
 	return s
 }
 
-func (s *CreateClusterShrinkRequest) Validate() error {
-	return dara.Validate(s)
-}
-
 type CreateClusterShrinkRequestTag struct {
 	// Key
 	//
@@ -2066,19 +1420,11 @@ type CreateClusterShrinkRequestTag struct {
 }
 
 func (s CreateClusterShrinkRequestTag) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterShrinkRequestTag) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterShrinkRequestTag) GetKey() *string {
-	return s.Key
-}
-
-func (s *CreateClusterShrinkRequestTag) GetValue() *string {
-	return s.Value
 }
 
 func (s *CreateClusterShrinkRequestTag) SetKey(v string) *CreateClusterShrinkRequestTag {
@@ -2089,22 +1435,6 @@ func (s *CreateClusterShrinkRequestTag) SetKey(v string) *CreateClusterShrinkReq
 func (s *CreateClusterShrinkRequestTag) SetValue(v string) *CreateClusterShrinkRequestTag {
 	s.Value = &v
 	return s
-}
-
-func (s *CreateClusterShrinkRequestTag) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateClusterResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *CreateClusterResponseBody
-	GetClusterId() *string
-	SetRequestId(v string) *CreateClusterResponseBody
-	GetRequestId() *string
-	SetTaskId(v string) *CreateClusterResponseBody
-	GetTaskId() *string
 }
 
 type CreateClusterResponseBody struct {
@@ -2129,23 +1459,11 @@ type CreateClusterResponseBody struct {
 }
 
 func (s CreateClusterResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterResponseBody) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *CreateClusterResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *CreateClusterResponseBody) GetTaskId() *string {
-	return s.TaskId
 }
 
 func (s *CreateClusterResponseBody) SetClusterId(v string) *CreateClusterResponseBody {
@@ -2163,22 +1481,6 @@ func (s *CreateClusterResponseBody) SetTaskId(v string) *CreateClusterResponseBo
 	return s
 }
 
-func (s *CreateClusterResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateClusterResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *CreateClusterResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *CreateClusterResponse
-	GetStatusCode() *int32
-	SetBody(v *CreateClusterResponseBody) *CreateClusterResponse
-	GetBody() *CreateClusterResponseBody
-}
-
 type CreateClusterResponse struct {
 	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -2186,23 +1488,11 @@ type CreateClusterResponse struct {
 }
 
 func (s CreateClusterResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateClusterResponse) GoString() string {
 	return s.String()
-}
-
-func (s *CreateClusterResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *CreateClusterResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *CreateClusterResponse) GetBody() *CreateClusterResponseBody {
-	return s.Body
 }
 
 func (s *CreateClusterResponse) SetHeaders(v map[string]*string) *CreateClusterResponse {
@@ -2218,24 +1508,6 @@ func (s *CreateClusterResponse) SetStatusCode(v int32) *CreateClusterResponse {
 func (s *CreateClusterResponse) SetBody(v *CreateClusterResponseBody) *CreateClusterResponse {
 	s.Body = v
 	return s
-}
-
-func (s *CreateClusterResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateDiagnosticTaskRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetAiJobLogInfo(v *CreateDiagnosticTaskRequestAiJobLogInfo) *CreateDiagnosticTaskRequest
-	GetAiJobLogInfo() *CreateDiagnosticTaskRequestAiJobLogInfo
-	SetClusterId(v string) *CreateDiagnosticTaskRequest
-	GetClusterId() *string
-	SetDiagnosticType(v string) *CreateDiagnosticTaskRequest
-	GetDiagnosticType() *string
-	SetNodeIds(v []*string) *CreateDiagnosticTaskRequest
-	GetNodeIds() []*string
 }
 
 type CreateDiagnosticTaskRequest struct {
@@ -2258,27 +1530,11 @@ type CreateDiagnosticTaskRequest struct {
 }
 
 func (s CreateDiagnosticTaskRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateDiagnosticTaskRequest) GoString() string {
 	return s.String()
-}
-
-func (s *CreateDiagnosticTaskRequest) GetAiJobLogInfo() *CreateDiagnosticTaskRequestAiJobLogInfo {
-	return s.AiJobLogInfo
-}
-
-func (s *CreateDiagnosticTaskRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *CreateDiagnosticTaskRequest) GetDiagnosticType() *string {
-	return s.DiagnosticType
-}
-
-func (s *CreateDiagnosticTaskRequest) GetNodeIds() []*string {
-	return s.NodeIds
 }
 
 func (s *CreateDiagnosticTaskRequest) SetAiJobLogInfo(v *CreateDiagnosticTaskRequestAiJobLogInfo) *CreateDiagnosticTaskRequest {
@@ -2299,10 +1555,6 @@ func (s *CreateDiagnosticTaskRequest) SetDiagnosticType(v string) *CreateDiagnos
 func (s *CreateDiagnosticTaskRequest) SetNodeIds(v []*string) *CreateDiagnosticTaskRequest {
 	s.NodeIds = v
 	return s
-}
-
-func (s *CreateDiagnosticTaskRequest) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateDiagnosticTaskRequestAiJobLogInfo struct {
@@ -2327,23 +1579,11 @@ type CreateDiagnosticTaskRequestAiJobLogInfo struct {
 }
 
 func (s CreateDiagnosticTaskRequestAiJobLogInfo) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateDiagnosticTaskRequestAiJobLogInfo) GoString() string {
 	return s.String()
-}
-
-func (s *CreateDiagnosticTaskRequestAiJobLogInfo) GetAiJobLogs() []*CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs {
-	return s.AiJobLogs
-}
-
-func (s *CreateDiagnosticTaskRequestAiJobLogInfo) GetEndTime() *string {
-	return s.EndTime
-}
-
-func (s *CreateDiagnosticTaskRequestAiJobLogInfo) GetStartTime() *string {
-	return s.StartTime
 }
 
 func (s *CreateDiagnosticTaskRequestAiJobLogInfo) SetAiJobLogs(v []*CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs) *CreateDiagnosticTaskRequestAiJobLogInfo {
@@ -2359,10 +1599,6 @@ func (s *CreateDiagnosticTaskRequestAiJobLogInfo) SetEndTime(v string) *CreateDi
 func (s *CreateDiagnosticTaskRequestAiJobLogInfo) SetStartTime(v string) *CreateDiagnosticTaskRequestAiJobLogInfo {
 	s.StartTime = &v
 	return s
-}
-
-func (s *CreateDiagnosticTaskRequestAiJobLogInfo) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs struct {
@@ -2383,23 +1619,11 @@ type CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs struct {
 }
 
 func (s CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs) GoString() string {
 	return s.String()
-}
-
-func (s *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs) GetAiInstance() *string {
-	return s.AiInstance
-}
-
-func (s *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs) GetLogs() []*CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogsLogs {
-	return s.Logs
-}
-
-func (s *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs) GetNodeId() *string {
-	return s.NodeId
 }
 
 func (s *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs) SetAiInstance(v string) *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs {
@@ -2415,10 +1639,6 @@ func (s *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs) SetLogs(v []*CreateDi
 func (s *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs) SetNodeId(v string) *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs {
 	s.NodeId = &v
 	return s
-}
-
-func (s *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogs) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogsLogs struct {
@@ -2437,19 +1657,11 @@ type CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogsLogs struct {
 }
 
 func (s CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogsLogs) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogsLogs) GoString() string {
 	return s.String()
-}
-
-func (s *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogsLogs) GetDatetime() *string {
-	return s.Datetime
-}
-
-func (s *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogsLogs) GetLogContent() *string {
-	return s.LogContent
 }
 
 func (s *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogsLogs) SetDatetime(v string) *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogsLogs {
@@ -2460,24 +1672,6 @@ func (s *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogsLogs) SetDatetime(v str
 func (s *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogsLogs) SetLogContent(v string) *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogsLogs {
 	s.LogContent = &v
 	return s
-}
-
-func (s *CreateDiagnosticTaskRequestAiJobLogInfoAiJobLogsLogs) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateDiagnosticTaskShrinkRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetAiJobLogInfoShrink(v string) *CreateDiagnosticTaskShrinkRequest
-	GetAiJobLogInfoShrink() *string
-	SetClusterId(v string) *CreateDiagnosticTaskShrinkRequest
-	GetClusterId() *string
-	SetDiagnosticType(v string) *CreateDiagnosticTaskShrinkRequest
-	GetDiagnosticType() *string
-	SetNodeIdsShrink(v string) *CreateDiagnosticTaskShrinkRequest
-	GetNodeIdsShrink() *string
 }
 
 type CreateDiagnosticTaskShrinkRequest struct {
@@ -2500,27 +1694,11 @@ type CreateDiagnosticTaskShrinkRequest struct {
 }
 
 func (s CreateDiagnosticTaskShrinkRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateDiagnosticTaskShrinkRequest) GoString() string {
 	return s.String()
-}
-
-func (s *CreateDiagnosticTaskShrinkRequest) GetAiJobLogInfoShrink() *string {
-	return s.AiJobLogInfoShrink
-}
-
-func (s *CreateDiagnosticTaskShrinkRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *CreateDiagnosticTaskShrinkRequest) GetDiagnosticType() *string {
-	return s.DiagnosticType
-}
-
-func (s *CreateDiagnosticTaskShrinkRequest) GetNodeIdsShrink() *string {
-	return s.NodeIdsShrink
 }
 
 func (s *CreateDiagnosticTaskShrinkRequest) SetAiJobLogInfoShrink(v string) *CreateDiagnosticTaskShrinkRequest {
@@ -2543,20 +1721,6 @@ func (s *CreateDiagnosticTaskShrinkRequest) SetNodeIdsShrink(v string) *CreateDi
 	return s
 }
 
-func (s *CreateDiagnosticTaskShrinkRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateDiagnosticTaskResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetDiagnosticId(v string) *CreateDiagnosticTaskResponseBody
-	GetDiagnosticId() *string
-	SetRequestId(v string) *CreateDiagnosticTaskResponseBody
-	GetRequestId() *string
-}
-
 type CreateDiagnosticTaskResponseBody struct {
 	// Diagnosis ID
 	//
@@ -2573,19 +1737,11 @@ type CreateDiagnosticTaskResponseBody struct {
 }
 
 func (s CreateDiagnosticTaskResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateDiagnosticTaskResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *CreateDiagnosticTaskResponseBody) GetDiagnosticId() *string {
-	return s.DiagnosticId
-}
-
-func (s *CreateDiagnosticTaskResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *CreateDiagnosticTaskResponseBody) SetDiagnosticId(v string) *CreateDiagnosticTaskResponseBody {
@@ -2598,22 +1754,6 @@ func (s *CreateDiagnosticTaskResponseBody) SetRequestId(v string) *CreateDiagnos
 	return s
 }
 
-func (s *CreateDiagnosticTaskResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateDiagnosticTaskResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *CreateDiagnosticTaskResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *CreateDiagnosticTaskResponse
-	GetStatusCode() *int32
-	SetBody(v *CreateDiagnosticTaskResponseBody) *CreateDiagnosticTaskResponse
-	GetBody() *CreateDiagnosticTaskResponseBody
-}
-
 type CreateDiagnosticTaskResponse struct {
 	Headers    map[string]*string                `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                            `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -2621,23 +1761,11 @@ type CreateDiagnosticTaskResponse struct {
 }
 
 func (s CreateDiagnosticTaskResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateDiagnosticTaskResponse) GoString() string {
 	return s.String()
-}
-
-func (s *CreateDiagnosticTaskResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *CreateDiagnosticTaskResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *CreateDiagnosticTaskResponse) GetBody() *CreateDiagnosticTaskResponseBody {
-	return s.Body
 }
 
 func (s *CreateDiagnosticTaskResponse) SetHeaders(v map[string]*string) *CreateDiagnosticTaskResponse {
@@ -2653,32 +1781,6 @@ func (s *CreateDiagnosticTaskResponse) SetStatusCode(v int32) *CreateDiagnosticT
 func (s *CreateDiagnosticTaskResponse) SetBody(v *CreateDiagnosticTaskResponseBody) *CreateDiagnosticTaskResponse {
 	s.Body = v
 	return s
-}
-
-func (s *CreateDiagnosticTaskResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateNetTestTaskRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *CreateNetTestTaskRequest
-	GetClusterId() *string
-	SetClusterName(v string) *CreateNetTestTaskRequest
-	GetClusterName() *string
-	SetCommTest(v *CreateNetTestTaskRequestCommTest) *CreateNetTestTaskRequest
-	GetCommTest() *CreateNetTestTaskRequestCommTest
-	SetDelayTest(v *CreateNetTestTaskRequestDelayTest) *CreateNetTestTaskRequest
-	GetDelayTest() *CreateNetTestTaskRequestDelayTest
-	SetNetTestType(v string) *CreateNetTestTaskRequest
-	GetNetTestType() *string
-	SetNetworkMode(v string) *CreateNetTestTaskRequest
-	GetNetworkMode() *string
-	SetPort(v string) *CreateNetTestTaskRequest
-	GetPort() *string
-	SetTrafficTest(v *CreateNetTestTaskRequestTrafficTest) *CreateNetTestTaskRequest
-	GetTrafficTest() *CreateNetTestTaskRequestTrafficTest
 }
 
 type CreateNetTestTaskRequest struct {
@@ -2723,43 +1825,11 @@ type CreateNetTestTaskRequest struct {
 }
 
 func (s CreateNetTestTaskRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNetTestTaskRequest) GoString() string {
 	return s.String()
-}
-
-func (s *CreateNetTestTaskRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *CreateNetTestTaskRequest) GetClusterName() *string {
-	return s.ClusterName
-}
-
-func (s *CreateNetTestTaskRequest) GetCommTest() *CreateNetTestTaskRequestCommTest {
-	return s.CommTest
-}
-
-func (s *CreateNetTestTaskRequest) GetDelayTest() *CreateNetTestTaskRequestDelayTest {
-	return s.DelayTest
-}
-
-func (s *CreateNetTestTaskRequest) GetNetTestType() *string {
-	return s.NetTestType
-}
-
-func (s *CreateNetTestTaskRequest) GetNetworkMode() *string {
-	return s.NetworkMode
-}
-
-func (s *CreateNetTestTaskRequest) GetPort() *string {
-	return s.Port
-}
-
-func (s *CreateNetTestTaskRequest) GetTrafficTest() *CreateNetTestTaskRequestTrafficTest {
-	return s.TrafficTest
 }
 
 func (s *CreateNetTestTaskRequest) SetClusterId(v string) *CreateNetTestTaskRequest {
@@ -2802,10 +1872,6 @@ func (s *CreateNetTestTaskRequest) SetTrafficTest(v *CreateNetTestTaskRequestTra
 	return s
 }
 
-func (s *CreateNetTestTaskRequest) Validate() error {
-	return dara.Validate(s)
-}
-
 type CreateNetTestTaskRequestCommTest struct {
 	// Number of GPUs
 	//
@@ -2830,27 +1896,11 @@ type CreateNetTestTaskRequestCommTest struct {
 }
 
 func (s CreateNetTestTaskRequestCommTest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNetTestTaskRequestCommTest) GoString() string {
 	return s.String()
-}
-
-func (s *CreateNetTestTaskRequestCommTest) GetGPUNum() *int64 {
-	return s.GPUNum
-}
-
-func (s *CreateNetTestTaskRequestCommTest) GetHosts() []*CreateNetTestTaskRequestCommTestHosts {
-	return s.Hosts
-}
-
-func (s *CreateNetTestTaskRequestCommTest) GetModel() *string {
-	return s.Model
-}
-
-func (s *CreateNetTestTaskRequestCommTest) GetType() *string {
-	return s.Type
 }
 
 func (s *CreateNetTestTaskRequestCommTest) SetGPUNum(v int64) *CreateNetTestTaskRequestCommTest {
@@ -2871,10 +1921,6 @@ func (s *CreateNetTestTaskRequestCommTest) SetModel(v string) *CreateNetTestTask
 func (s *CreateNetTestTaskRequestCommTest) SetType(v string) *CreateNetTestTaskRequestCommTest {
 	s.Type = &v
 	return s
-}
-
-func (s *CreateNetTestTaskRequestCommTest) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateNetTestTaskRequestCommTestHosts struct {
@@ -2905,27 +1951,11 @@ type CreateNetTestTaskRequestCommTestHosts struct {
 }
 
 func (s CreateNetTestTaskRequestCommTestHosts) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNetTestTaskRequestCommTestHosts) GoString() string {
 	return s.String()
-}
-
-func (s *CreateNetTestTaskRequestCommTestHosts) GetIP() *string {
-	return s.IP
-}
-
-func (s *CreateNetTestTaskRequestCommTestHosts) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *CreateNetTestTaskRequestCommTestHosts) GetResourceId() *string {
-	return s.ResourceId
-}
-
-func (s *CreateNetTestTaskRequestCommTestHosts) GetServerName() *string {
-	return s.ServerName
 }
 
 func (s *CreateNetTestTaskRequestCommTestHosts) SetIP(v string) *CreateNetTestTaskRequestCommTestHosts {
@@ -2948,34 +1978,22 @@ func (s *CreateNetTestTaskRequestCommTestHosts) SetServerName(v string) *CreateN
 	return s
 }
 
-func (s *CreateNetTestTaskRequestCommTestHosts) Validate() error {
-	return dara.Validate(s)
-}
-
 type CreateNetTestTaskRequestDelayTest struct {
 	// 输入测试节点的hosts
 	Hosts []*CreateNetTestTaskRequestDelayTestHosts `json:"Hosts,omitempty" xml:"Hosts,omitempty" type:"Repeated"`
 }
 
 func (s CreateNetTestTaskRequestDelayTest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNetTestTaskRequestDelayTest) GoString() string {
 	return s.String()
 }
 
-func (s *CreateNetTestTaskRequestDelayTest) GetHosts() []*CreateNetTestTaskRequestDelayTestHosts {
-	return s.Hosts
-}
-
 func (s *CreateNetTestTaskRequestDelayTest) SetHosts(v []*CreateNetTestTaskRequestDelayTestHosts) *CreateNetTestTaskRequestDelayTest {
 	s.Hosts = v
 	return s
-}
-
-func (s *CreateNetTestTaskRequestDelayTest) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateNetTestTaskRequestDelayTestHosts struct {
@@ -3012,31 +2030,11 @@ type CreateNetTestTaskRequestDelayTestHosts struct {
 }
 
 func (s CreateNetTestTaskRequestDelayTestHosts) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNetTestTaskRequestDelayTestHosts) GoString() string {
 	return s.String()
-}
-
-func (s *CreateNetTestTaskRequestDelayTestHosts) GetBond() *string {
-	return s.Bond
-}
-
-func (s *CreateNetTestTaskRequestDelayTestHosts) GetIP() *string {
-	return s.IP
-}
-
-func (s *CreateNetTestTaskRequestDelayTestHosts) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *CreateNetTestTaskRequestDelayTestHosts) GetResourceId() *string {
-	return s.ResourceId
-}
-
-func (s *CreateNetTestTaskRequestDelayTestHosts) GetServerName() *string {
-	return s.ServerName
 }
 
 func (s *CreateNetTestTaskRequestDelayTestHosts) SetBond(v string) *CreateNetTestTaskRequestDelayTestHosts {
@@ -3062,10 +2060,6 @@ func (s *CreateNetTestTaskRequestDelayTestHosts) SetResourceId(v string) *Create
 func (s *CreateNetTestTaskRequestDelayTestHosts) SetServerName(v string) *CreateNetTestTaskRequestDelayTestHosts {
 	s.ServerName = &v
 	return s
-}
-
-func (s *CreateNetTestTaskRequestDelayTestHosts) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateNetTestTaskRequestTrafficTest struct {
@@ -3108,39 +2102,11 @@ type CreateNetTestTaskRequestTrafficTest struct {
 }
 
 func (s CreateNetTestTaskRequestTrafficTest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNetTestTaskRequestTrafficTest) GoString() string {
 	return s.String()
-}
-
-func (s *CreateNetTestTaskRequestTrafficTest) GetClients() []*CreateNetTestTaskRequestTrafficTestClients {
-	return s.Clients
-}
-
-func (s *CreateNetTestTaskRequestTrafficTest) GetDuration() *int64 {
-	return s.Duration
-}
-
-func (s *CreateNetTestTaskRequestTrafficTest) GetGDR() *bool {
-	return s.GDR
-}
-
-func (s *CreateNetTestTaskRequestTrafficTest) GetProtocol() *string {
-	return s.Protocol
-}
-
-func (s *CreateNetTestTaskRequestTrafficTest) GetQP() *int64 {
-	return s.QP
-}
-
-func (s *CreateNetTestTaskRequestTrafficTest) GetServers() []*CreateNetTestTaskRequestTrafficTestServers {
-	return s.Servers
-}
-
-func (s *CreateNetTestTaskRequestTrafficTest) GetTrafficModel() *string {
-	return s.TrafficModel
 }
 
 func (s *CreateNetTestTaskRequestTrafficTest) SetClients(v []*CreateNetTestTaskRequestTrafficTestClients) *CreateNetTestTaskRequestTrafficTest {
@@ -3178,10 +2144,6 @@ func (s *CreateNetTestTaskRequestTrafficTest) SetTrafficModel(v string) *CreateN
 	return s
 }
 
-func (s *CreateNetTestTaskRequestTrafficTest) Validate() error {
-	return dara.Validate(s)
-}
-
 type CreateNetTestTaskRequestTrafficTestClients struct {
 	// Network card bond interface
 	//
@@ -3216,31 +2178,11 @@ type CreateNetTestTaskRequestTrafficTestClients struct {
 }
 
 func (s CreateNetTestTaskRequestTrafficTestClients) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNetTestTaskRequestTrafficTestClients) GoString() string {
 	return s.String()
-}
-
-func (s *CreateNetTestTaskRequestTrafficTestClients) GetBond() *string {
-	return s.Bond
-}
-
-func (s *CreateNetTestTaskRequestTrafficTestClients) GetIP() *string {
-	return s.IP
-}
-
-func (s *CreateNetTestTaskRequestTrafficTestClients) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *CreateNetTestTaskRequestTrafficTestClients) GetResourceId() *string {
-	return s.ResourceId
-}
-
-func (s *CreateNetTestTaskRequestTrafficTestClients) GetServerName() *string {
-	return s.ServerName
 }
 
 func (s *CreateNetTestTaskRequestTrafficTestClients) SetBond(v string) *CreateNetTestTaskRequestTrafficTestClients {
@@ -3266,10 +2208,6 @@ func (s *CreateNetTestTaskRequestTrafficTestClients) SetResourceId(v string) *Cr
 func (s *CreateNetTestTaskRequestTrafficTestClients) SetServerName(v string) *CreateNetTestTaskRequestTrafficTestClients {
 	s.ServerName = &v
 	return s
-}
-
-func (s *CreateNetTestTaskRequestTrafficTestClients) Validate() error {
-	return dara.Validate(s)
 }
 
 type CreateNetTestTaskRequestTrafficTestServers struct {
@@ -3306,31 +2244,11 @@ type CreateNetTestTaskRequestTrafficTestServers struct {
 }
 
 func (s CreateNetTestTaskRequestTrafficTestServers) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNetTestTaskRequestTrafficTestServers) GoString() string {
 	return s.String()
-}
-
-func (s *CreateNetTestTaskRequestTrafficTestServers) GetBond() *string {
-	return s.Bond
-}
-
-func (s *CreateNetTestTaskRequestTrafficTestServers) GetIP() *string {
-	return s.IP
-}
-
-func (s *CreateNetTestTaskRequestTrafficTestServers) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *CreateNetTestTaskRequestTrafficTestServers) GetResourceId() *string {
-	return s.ResourceId
-}
-
-func (s *CreateNetTestTaskRequestTrafficTestServers) GetServerName() *string {
-	return s.ServerName
 }
 
 func (s *CreateNetTestTaskRequestTrafficTestServers) SetBond(v string) *CreateNetTestTaskRequestTrafficTestServers {
@@ -3356,32 +2274,6 @@ func (s *CreateNetTestTaskRequestTrafficTestServers) SetResourceId(v string) *Cr
 func (s *CreateNetTestTaskRequestTrafficTestServers) SetServerName(v string) *CreateNetTestTaskRequestTrafficTestServers {
 	s.ServerName = &v
 	return s
-}
-
-func (s *CreateNetTestTaskRequestTrafficTestServers) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateNetTestTaskShrinkRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *CreateNetTestTaskShrinkRequest
-	GetClusterId() *string
-	SetClusterName(v string) *CreateNetTestTaskShrinkRequest
-	GetClusterName() *string
-	SetCommTestShrink(v string) *CreateNetTestTaskShrinkRequest
-	GetCommTestShrink() *string
-	SetDelayTestShrink(v string) *CreateNetTestTaskShrinkRequest
-	GetDelayTestShrink() *string
-	SetNetTestType(v string) *CreateNetTestTaskShrinkRequest
-	GetNetTestType() *string
-	SetNetworkMode(v string) *CreateNetTestTaskShrinkRequest
-	GetNetworkMode() *string
-	SetPort(v string) *CreateNetTestTaskShrinkRequest
-	GetPort() *string
-	SetTrafficTestShrink(v string) *CreateNetTestTaskShrinkRequest
-	GetTrafficTestShrink() *string
 }
 
 type CreateNetTestTaskShrinkRequest struct {
@@ -3426,43 +2318,11 @@ type CreateNetTestTaskShrinkRequest struct {
 }
 
 func (s CreateNetTestTaskShrinkRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNetTestTaskShrinkRequest) GoString() string {
 	return s.String()
-}
-
-func (s *CreateNetTestTaskShrinkRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *CreateNetTestTaskShrinkRequest) GetClusterName() *string {
-	return s.ClusterName
-}
-
-func (s *CreateNetTestTaskShrinkRequest) GetCommTestShrink() *string {
-	return s.CommTestShrink
-}
-
-func (s *CreateNetTestTaskShrinkRequest) GetDelayTestShrink() *string {
-	return s.DelayTestShrink
-}
-
-func (s *CreateNetTestTaskShrinkRequest) GetNetTestType() *string {
-	return s.NetTestType
-}
-
-func (s *CreateNetTestTaskShrinkRequest) GetNetworkMode() *string {
-	return s.NetworkMode
-}
-
-func (s *CreateNetTestTaskShrinkRequest) GetPort() *string {
-	return s.Port
-}
-
-func (s *CreateNetTestTaskShrinkRequest) GetTrafficTestShrink() *string {
-	return s.TrafficTestShrink
 }
 
 func (s *CreateNetTestTaskShrinkRequest) SetClusterId(v string) *CreateNetTestTaskShrinkRequest {
@@ -3505,20 +2365,6 @@ func (s *CreateNetTestTaskShrinkRequest) SetTrafficTestShrink(v string) *CreateN
 	return s
 }
 
-func (s *CreateNetTestTaskShrinkRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateNetTestTaskResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *CreateNetTestTaskResponseBody
-	GetRequestId() *string
-	SetTestId(v string) *CreateNetTestTaskResponseBody
-	GetTestId() *string
-}
-
 type CreateNetTestTaskResponseBody struct {
 	// ID of the request
 	//
@@ -3535,19 +2381,11 @@ type CreateNetTestTaskResponseBody struct {
 }
 
 func (s CreateNetTestTaskResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNetTestTaskResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *CreateNetTestTaskResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *CreateNetTestTaskResponseBody) GetTestId() *string {
-	return s.TestId
 }
 
 func (s *CreateNetTestTaskResponseBody) SetRequestId(v string) *CreateNetTestTaskResponseBody {
@@ -3560,22 +2398,6 @@ func (s *CreateNetTestTaskResponseBody) SetTestId(v string) *CreateNetTestTaskRe
 	return s
 }
 
-func (s *CreateNetTestTaskResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateNetTestTaskResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *CreateNetTestTaskResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *CreateNetTestTaskResponse
-	GetStatusCode() *int32
-	SetBody(v *CreateNetTestTaskResponseBody) *CreateNetTestTaskResponse
-	GetBody() *CreateNetTestTaskResponseBody
-}
-
 type CreateNetTestTaskResponse struct {
 	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -3583,23 +2405,11 @@ type CreateNetTestTaskResponse struct {
 }
 
 func (s CreateNetTestTaskResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNetTestTaskResponse) GoString() string {
 	return s.String()
-}
-
-func (s *CreateNetTestTaskResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *CreateNetTestTaskResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *CreateNetTestTaskResponse) GetBody() *CreateNetTestTaskResponseBody {
-	return s.Body
 }
 
 func (s *CreateNetTestTaskResponse) SetHeaders(v map[string]*string) *CreateNetTestTaskResponse {
@@ -3617,52 +2427,29 @@ func (s *CreateNetTestTaskResponse) SetBody(v *CreateNetTestTaskResponseBody) *C
 	return s
 }
 
-func (s *CreateNetTestTaskResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateNodeGroupRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *CreateNodeGroupRequest
-	GetClusterId() *string
-	SetNodeGroup(v *CreateNodeGroupRequestNodeGroup) *CreateNodeGroupRequest
-	GetNodeGroup() *CreateNodeGroupRequestNodeGroup
-	SetNodeUnit(v map[string]interface{}) *CreateNodeGroupRequest
-	GetNodeUnit() map[string]interface{}
-}
-
 type CreateNodeGroupRequest struct {
+	// Cluster ID
+	//
 	// This parameter is required.
 	//
 	// example:
 	//
 	// i118191731740041623425
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
+	// Node ID.
+	//
 	// This parameter is required.
 	NodeGroup *CreateNodeGroupRequestNodeGroup `json:"NodeGroup,omitempty" xml:"NodeGroup,omitempty" type:"Struct"`
-	NodeUnit  map[string]interface{}           `json:"NodeUnit,omitempty" xml:"NodeUnit,omitempty"`
+	// Node information
+	NodeUnit map[string]interface{} `json:"NodeUnit,omitempty" xml:"NodeUnit,omitempty"`
 }
 
 func (s CreateNodeGroupRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNodeGroupRequest) GoString() string {
 	return s.String()
-}
-
-func (s *CreateNodeGroupRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *CreateNodeGroupRequest) GetNodeGroup() *CreateNodeGroupRequestNodeGroup {
-	return s.NodeGroup
-}
-
-func (s *CreateNodeGroupRequest) GetNodeUnit() map[string]interface{} {
-	return s.NodeUnit
 }
 
 func (s *CreateNodeGroupRequest) SetClusterId(v string) *CreateNodeGroupRequest {
@@ -3680,74 +2467,72 @@ func (s *CreateNodeGroupRequest) SetNodeUnit(v map[string]interface{}) *CreateNo
 	return s
 }
 
-func (s *CreateNodeGroupRequest) Validate() error {
-	return dara.Validate(s)
-}
-
 type CreateNodeGroupRequestNodeGroup struct {
+	// Availability Zone
+	//
 	// This parameter is required.
 	//
 	// example:
 	//
 	// cn-wulanchabu-b
-	Az    *string                               `json:"Az,omitempty" xml:"Az,omitempty"`
-	Disks *CreateNodeGroupRequestNodeGroupDisks `json:"Disks,omitempty" xml:"Disks,omitempty" type:"Struct"`
+	Az                     *string `json:"Az,omitempty" xml:"Az,omitempty"`
+	FileSystemMountEnabled *bool   `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
+	// Image ID.
+	//
 	// This parameter is required.
 	//
 	// example:
 	//
 	// i191887641687336652616
 	ImageId *string `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
+	// The name of the key pair.
+	//
+	// example:
+	//
+	// test-keypair
+	KeyPairName *string `json:"KeyPairName,omitempty" xml:"KeyPairName,omitempty"`
+	// Machine type
+	//
 	// This parameter is required.
 	//
 	// example:
 	//
 	// mock-machine-type3
-	MachineType          *string `json:"MachineType,omitempty" xml:"MachineType,omitempty"`
+	MachineType *string `json:"MachineType,omitempty" xml:"MachineType,omitempty"`
+	// Node group description
+	//
+	// example:
+	//
+	// describe for node group
 	NodeGroupDescription *string `json:"NodeGroupDescription,omitempty" xml:"NodeGroupDescription,omitempty"`
+	// Node group name
+	//
 	// This parameter is required.
 	//
 	// example:
 	//
 	// PAI-LINGJUN
 	NodeGroupName *string `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
-	UserData      *string `json:"UserData,omitempty" xml:"UserData,omitempty"`
+	// SystemDisk
+	SystemDisk *CreateNodeGroupRequestNodeGroupSystemDisk `json:"SystemDisk,omitempty" xml:"SystemDisk,omitempty" type:"Struct"`
+	// user data
+	//
+	// example:
+	//
+	// #!/bin/bash
+	//
+	// uptime
+	//
+	// echo "aaaaaaa" >> /tmp/ttttt20250110141010.sh
+	UserData *string `json:"UserData,omitempty" xml:"UserData,omitempty"`
 }
 
 func (s CreateNodeGroupRequestNodeGroup) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNodeGroupRequestNodeGroup) GoString() string {
 	return s.String()
-}
-
-func (s *CreateNodeGroupRequestNodeGroup) GetAz() *string {
-	return s.Az
-}
-
-func (s *CreateNodeGroupRequestNodeGroup) GetDisks() *CreateNodeGroupRequestNodeGroupDisks {
-	return s.Disks
-}
-
-func (s *CreateNodeGroupRequestNodeGroup) GetImageId() *string {
-	return s.ImageId
-}
-
-func (s *CreateNodeGroupRequestNodeGroup) GetMachineType() *string {
-	return s.MachineType
-}
-
-func (s *CreateNodeGroupRequestNodeGroup) GetNodeGroupDescription() *string {
-	return s.NodeGroupDescription
-}
-
-func (s *CreateNodeGroupRequestNodeGroup) GetNodeGroupName() *string {
-	return s.NodeGroupName
-}
-
-func (s *CreateNodeGroupRequestNodeGroup) GetUserData() *string {
-	return s.UserData
 }
 
 func (s *CreateNodeGroupRequestNodeGroup) SetAz(v string) *CreateNodeGroupRequestNodeGroup {
@@ -3755,13 +2540,18 @@ func (s *CreateNodeGroupRequestNodeGroup) SetAz(v string) *CreateNodeGroupReques
 	return s
 }
 
-func (s *CreateNodeGroupRequestNodeGroup) SetDisks(v *CreateNodeGroupRequestNodeGroupDisks) *CreateNodeGroupRequestNodeGroup {
-	s.Disks = v
+func (s *CreateNodeGroupRequestNodeGroup) SetFileSystemMountEnabled(v bool) *CreateNodeGroupRequestNodeGroup {
+	s.FileSystemMountEnabled = &v
 	return s
 }
 
 func (s *CreateNodeGroupRequestNodeGroup) SetImageId(v string) *CreateNodeGroupRequestNodeGroup {
 	s.ImageId = &v
+	return s
+}
+
+func (s *CreateNodeGroupRequestNodeGroup) SetKeyPairName(v string) *CreateNodeGroupRequestNodeGroup {
+	s.KeyPairName = &v
 	return s
 }
 
@@ -3780,92 +2570,92 @@ func (s *CreateNodeGroupRequestNodeGroup) SetNodeGroupName(v string) *CreateNode
 	return s
 }
 
+func (s *CreateNodeGroupRequestNodeGroup) SetSystemDisk(v *CreateNodeGroupRequestNodeGroupSystemDisk) *CreateNodeGroupRequestNodeGroup {
+	s.SystemDisk = v
+	return s
+}
+
 func (s *CreateNodeGroupRequestNodeGroup) SetUserData(v string) *CreateNodeGroupRequestNodeGroup {
 	s.UserData = &v
 	return s
 }
 
-func (s *CreateNodeGroupRequestNodeGroup) Validate() error {
-	return dara.Validate(s)
+type CreateNodeGroupRequestNodeGroupSystemDisk struct {
+	// Disk performance level
+	//
+	// example:
+	//
+	// cloud_essd
+	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
+	// The performance level of the disk if the disk is an ESSD. Valid values:
+	//
+	// 	- PL0: A single ESSD can deliver up to 10,000 random read/write IOPS.
+	//
+	// 	- PL1: A single ESSD can deliver up to 50,000 random read/write IOPS.
+	//
+	//
+	// Default value: PL1.
+	//
+	// For information about ESSD performance levels, see [ESSDs](https://help.aliyun.com/document_detail/122389.html).
+	//
+	// example:
+	//
+	// PL!
+	PerformanceLevel *string `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
+	// System disk size
+	//
+	// example:
+	//
+	// 250
+	Size *int32 `json:"Size,omitempty" xml:"Size,omitempty"`
 }
 
-type CreateNodeGroupRequestNodeGroupDisks struct {
-	SystemDiskPerformanceLevel *string `json:"SystemDiskPerformanceLevel,omitempty" xml:"SystemDiskPerformanceLevel,omitempty"`
-	SystemDiskSize             *int32  `json:"SystemDiskSize,omitempty" xml:"SystemDiskSize,omitempty"`
+func (s CreateNodeGroupRequestNodeGroupSystemDisk) String() string {
+	return tea.Prettify(s)
 }
 
-func (s CreateNodeGroupRequestNodeGroupDisks) String() string {
-	return dara.Prettify(s)
-}
-
-func (s CreateNodeGroupRequestNodeGroupDisks) GoString() string {
+func (s CreateNodeGroupRequestNodeGroupSystemDisk) GoString() string {
 	return s.String()
 }
 
-func (s *CreateNodeGroupRequestNodeGroupDisks) GetSystemDiskPerformanceLevel() *string {
-	return s.SystemDiskPerformanceLevel
-}
-
-func (s *CreateNodeGroupRequestNodeGroupDisks) GetSystemDiskSize() *int32 {
-	return s.SystemDiskSize
-}
-
-func (s *CreateNodeGroupRequestNodeGroupDisks) SetSystemDiskPerformanceLevel(v string) *CreateNodeGroupRequestNodeGroupDisks {
-	s.SystemDiskPerformanceLevel = &v
+func (s *CreateNodeGroupRequestNodeGroupSystemDisk) SetCategory(v string) *CreateNodeGroupRequestNodeGroupSystemDisk {
+	s.Category = &v
 	return s
 }
 
-func (s *CreateNodeGroupRequestNodeGroupDisks) SetSystemDiskSize(v int32) *CreateNodeGroupRequestNodeGroupDisks {
-	s.SystemDiskSize = &v
+func (s *CreateNodeGroupRequestNodeGroupSystemDisk) SetPerformanceLevel(v string) *CreateNodeGroupRequestNodeGroupSystemDisk {
+	s.PerformanceLevel = &v
 	return s
 }
 
-func (s *CreateNodeGroupRequestNodeGroupDisks) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateNodeGroupShrinkRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *CreateNodeGroupShrinkRequest
-	GetClusterId() *string
-	SetNodeGroupShrink(v string) *CreateNodeGroupShrinkRequest
-	GetNodeGroupShrink() *string
-	SetNodeUnitShrink(v string) *CreateNodeGroupShrinkRequest
-	GetNodeUnitShrink() *string
+func (s *CreateNodeGroupRequestNodeGroupSystemDisk) SetSize(v int32) *CreateNodeGroupRequestNodeGroupSystemDisk {
+	s.Size = &v
+	return s
 }
 
 type CreateNodeGroupShrinkRequest struct {
+	// Cluster ID
+	//
 	// This parameter is required.
 	//
 	// example:
 	//
 	// i118191731740041623425
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
+	// Node ID.
+	//
 	// This parameter is required.
 	NodeGroupShrink *string `json:"NodeGroup,omitempty" xml:"NodeGroup,omitempty"`
-	NodeUnitShrink  *string `json:"NodeUnit,omitempty" xml:"NodeUnit,omitempty"`
+	// Node information
+	NodeUnitShrink *string `json:"NodeUnit,omitempty" xml:"NodeUnit,omitempty"`
 }
 
 func (s CreateNodeGroupShrinkRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNodeGroupShrinkRequest) GoString() string {
 	return s.String()
-}
-
-func (s *CreateNodeGroupShrinkRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *CreateNodeGroupShrinkRequest) GetNodeGroupShrink() *string {
-	return s.NodeGroupShrink
-}
-
-func (s *CreateNodeGroupShrinkRequest) GetNodeUnitShrink() *string {
-	return s.NodeUnitShrink
 }
 
 func (s *CreateNodeGroupShrinkRequest) SetClusterId(v string) *CreateNodeGroupShrinkRequest {
@@ -3883,32 +2673,20 @@ func (s *CreateNodeGroupShrinkRequest) SetNodeUnitShrink(v string) *CreateNodeGr
 	return s
 }
 
-func (s *CreateNodeGroupShrinkRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateNodeGroupResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetNodeGroupId(v string) *CreateNodeGroupResponseBody
-	GetNodeGroupId() *string
-	SetNodeGroupName(v string) *CreateNodeGroupResponseBody
-	GetNodeGroupName() *string
-	SetRequestId(v string) *CreateNodeGroupResponseBody
-	GetRequestId() *string
-}
-
 type CreateNodeGroupResponseBody struct {
+	// Node group ID
+	//
 	// example:
 	//
 	// ng-ec3c96ff0aa4c60d
 	NodeGroupId *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
+	// Node group name
+	//
 	// example:
 	//
 	// emr-default
 	NodeGroupName *string `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
-	// Id of the request
+	// ID of the request
 	//
 	// example:
 	//
@@ -3917,23 +2695,11 @@ type CreateNodeGroupResponseBody struct {
 }
 
 func (s CreateNodeGroupResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNodeGroupResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *CreateNodeGroupResponseBody) GetNodeGroupId() *string {
-	return s.NodeGroupId
-}
-
-func (s *CreateNodeGroupResponseBody) GetNodeGroupName() *string {
-	return s.NodeGroupName
-}
-
-func (s *CreateNodeGroupResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *CreateNodeGroupResponseBody) SetNodeGroupId(v string) *CreateNodeGroupResponseBody {
@@ -3951,22 +2717,6 @@ func (s *CreateNodeGroupResponseBody) SetRequestId(v string) *CreateNodeGroupRes
 	return s
 }
 
-func (s *CreateNodeGroupResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateNodeGroupResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *CreateNodeGroupResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *CreateNodeGroupResponse
-	GetStatusCode() *int32
-	SetBody(v *CreateNodeGroupResponseBody) *CreateNodeGroupResponse
-	GetBody() *CreateNodeGroupResponseBody
-}
-
 type CreateNodeGroupResponse struct {
 	Headers    map[string]*string           `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                       `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -3974,23 +2724,11 @@ type CreateNodeGroupResponse struct {
 }
 
 func (s CreateNodeGroupResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateNodeGroupResponse) GoString() string {
 	return s.String()
-}
-
-func (s *CreateNodeGroupResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *CreateNodeGroupResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *CreateNodeGroupResponse) GetBody() *CreateNodeGroupResponseBody {
-	return s.Body
 }
 
 func (s *CreateNodeGroupResponse) SetHeaders(v map[string]*string) *CreateNodeGroupResponse {
@@ -4006,22 +2744,6 @@ func (s *CreateNodeGroupResponse) SetStatusCode(v int32) *CreateNodeGroupRespons
 func (s *CreateNodeGroupResponse) SetBody(v *CreateNodeGroupResponseBody) *CreateNodeGroupResponse {
 	s.Body = v
 	return s
-}
-
-func (s *CreateNodeGroupResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateSessionRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetNodeId(v string) *CreateSessionRequest
-	GetNodeId() *string
-	SetSessionType(v string) *CreateSessionRequest
-	GetSessionType() *string
-	SetStartTime(v string) *CreateSessionRequest
-	GetStartTime() *string
 }
 
 type CreateSessionRequest struct {
@@ -4050,23 +2772,11 @@ type CreateSessionRequest struct {
 }
 
 func (s CreateSessionRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateSessionRequest) GoString() string {
 	return s.String()
-}
-
-func (s *CreateSessionRequest) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *CreateSessionRequest) GetSessionType() *string {
-	return s.SessionType
-}
-
-func (s *CreateSessionRequest) GetStartTime() *string {
-	return s.StartTime
 }
 
 func (s *CreateSessionRequest) SetNodeId(v string) *CreateSessionRequest {
@@ -4082,26 +2792,6 @@ func (s *CreateSessionRequest) SetSessionType(v string) *CreateSessionRequest {
 func (s *CreateSessionRequest) SetStartTime(v string) *CreateSessionRequest {
 	s.StartTime = &v
 	return s
-}
-
-func (s *CreateSessionRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateSessionResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *CreateSessionResponseBody
-	GetRequestId() *string
-	SetServerSn(v string) *CreateSessionResponseBody
-	GetServerSn() *string
-	SetSessionId(v string) *CreateSessionResponseBody
-	GetSessionId() *string
-	SetSessionToken(v string) *CreateSessionResponseBody
-	GetSessionToken() *string
-	SetWssEndpoint(v string) *CreateSessionResponseBody
-	GetWssEndpoint() *string
 }
 
 type CreateSessionResponseBody struct {
@@ -4138,31 +2828,11 @@ type CreateSessionResponseBody struct {
 }
 
 func (s CreateSessionResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateSessionResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *CreateSessionResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *CreateSessionResponseBody) GetServerSn() *string {
-	return s.ServerSn
-}
-
-func (s *CreateSessionResponseBody) GetSessionId() *string {
-	return s.SessionId
-}
-
-func (s *CreateSessionResponseBody) GetSessionToken() *string {
-	return s.SessionToken
-}
-
-func (s *CreateSessionResponseBody) GetWssEndpoint() *string {
-	return s.WssEndpoint
 }
 
 func (s *CreateSessionResponseBody) SetRequestId(v string) *CreateSessionResponseBody {
@@ -4190,22 +2860,6 @@ func (s *CreateSessionResponseBody) SetWssEndpoint(v string) *CreateSessionRespo
 	return s
 }
 
-func (s *CreateSessionResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateSessionResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *CreateSessionResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *CreateSessionResponse
-	GetStatusCode() *int32
-	SetBody(v *CreateSessionResponseBody) *CreateSessionResponse
-	GetBody() *CreateSessionResponseBody
-}
-
 type CreateSessionResponse struct {
 	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -4213,23 +2867,11 @@ type CreateSessionResponse struct {
 }
 
 func (s CreateSessionResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateSessionResponse) GoString() string {
 	return s.String()
-}
-
-func (s *CreateSessionResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *CreateSessionResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *CreateSessionResponse) GetBody() *CreateSessionResponseBody {
-	return s.Body
 }
 
 func (s *CreateSessionResponse) SetHeaders(v map[string]*string) *CreateSessionResponse {
@@ -4247,68 +2889,38 @@ func (s *CreateSessionResponse) SetBody(v *CreateSessionResponseBody) *CreateSes
 	return s
 }
 
-func (s *CreateSessionResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateVscRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClientToken(v string) *CreateVscRequest
-	GetClientToken() *string
-	SetNodeId(v string) *CreateVscRequest
-	GetNodeId() *string
-	SetResourceGroupId(v string) *CreateVscRequest
-	GetResourceGroupId() *string
-	SetTag(v []*CreateVscRequestTag) *CreateVscRequest
-	GetTag() []*CreateVscRequestTag
-	SetVscName(v string) *CreateVscRequest
-	GetVscName() *string
-	SetVscType(v string) *CreateVscRequest
-	GetVscType() *string
-}
-
 type CreateVscRequest struct {
+	// example:
+	//
+	// 123e4567-e89b-12d3-a456-426655440000
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
 	// This parameter is required.
-	NodeId          *string                `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
+	//
+	// example:
+	//
+	// e01-cn-zvp2tgykr08
+	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
+	// example:
+	//
+	// rg-aek2xdkc6icwfha
 	ResourceGroupId *string                `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
 	Tag             []*CreateVscRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
-	VscName         *string                `json:"VscName,omitempty" xml:"VscName,omitempty"`
-	VscType         *string                `json:"VscType,omitempty" xml:"VscType,omitempty"`
+	// example:
+	//
+	// test_name
+	VscName *string `json:"VscName,omitempty" xml:"VscName,omitempty"`
+	// example:
+	//
+	// primary
+	VscType *string `json:"VscType,omitempty" xml:"VscType,omitempty"`
 }
 
 func (s CreateVscRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateVscRequest) GoString() string {
 	return s.String()
-}
-
-func (s *CreateVscRequest) GetClientToken() *string {
-	return s.ClientToken
-}
-
-func (s *CreateVscRequest) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *CreateVscRequest) GetResourceGroupId() *string {
-	return s.ResourceGroupId
-}
-
-func (s *CreateVscRequest) GetTag() []*CreateVscRequestTag {
-	return s.Tag
-}
-
-func (s *CreateVscRequest) GetVscName() *string {
-	return s.VscName
-}
-
-func (s *CreateVscRequest) GetVscType() *string {
-	return s.VscType
 }
 
 func (s *CreateVscRequest) SetClientToken(v string) *CreateVscRequest {
@@ -4341,29 +2953,23 @@ func (s *CreateVscRequest) SetVscType(v string) *CreateVscRequest {
 	return s
 }
 
-func (s *CreateVscRequest) Validate() error {
-	return dara.Validate(s)
-}
-
 type CreateVscRequestTag struct {
-	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// example:
+	//
+	// key001
+	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// example:
+	//
+	// value001
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
 func (s CreateVscRequestTag) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateVscRequestTag) GoString() string {
 	return s.String()
-}
-
-func (s *CreateVscRequestTag) GetKey() *string {
-	return s.Key
-}
-
-func (s *CreateVscRequestTag) GetValue() *string {
-	return s.Value
 }
 
 func (s *CreateVscRequestTag) SetKey(v string) *CreateVscRequestTag {
@@ -4376,39 +2982,25 @@ func (s *CreateVscRequestTag) SetValue(v string) *CreateVscRequestTag {
 	return s
 }
 
-func (s *CreateVscRequestTag) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateVscResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *CreateVscResponseBody
-	GetRequestId() *string
-	SetVscId(v string) *CreateVscResponseBody
-	GetVscId() *string
-}
-
 type CreateVscResponseBody struct {
+	// Id of the request
+	//
+	// example:
+	//
+	// 887FA855-89F4-5DB3-B305-C5879EC480E6
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	VscId     *string `json:"VscId,omitempty" xml:"VscId,omitempty"`
+	// example:
+	//
+	// vsc-001
+	VscId *string `json:"VscId,omitempty" xml:"VscId,omitempty"`
 }
 
 func (s CreateVscResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateVscResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *CreateVscResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *CreateVscResponseBody) GetVscId() *string {
-	return s.VscId
 }
 
 func (s *CreateVscResponseBody) SetRequestId(v string) *CreateVscResponseBody {
@@ -4421,22 +3013,6 @@ func (s *CreateVscResponseBody) SetVscId(v string) *CreateVscResponseBody {
 	return s
 }
 
-func (s *CreateVscResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iCreateVscResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *CreateVscResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *CreateVscResponse
-	GetStatusCode() *int32
-	SetBody(v *CreateVscResponseBody) *CreateVscResponse
-	GetBody() *CreateVscResponseBody
-}
-
 type CreateVscResponse struct {
 	Headers    map[string]*string     `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -4444,23 +3020,11 @@ type CreateVscResponse struct {
 }
 
 func (s CreateVscResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s CreateVscResponse) GoString() string {
 	return s.String()
-}
-
-func (s *CreateVscResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *CreateVscResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *CreateVscResponse) GetBody() *CreateVscResponseBody {
-	return s.Body
 }
 
 func (s *CreateVscResponse) SetHeaders(v map[string]*string) *CreateVscResponse {
@@ -4478,18 +3042,6 @@ func (s *CreateVscResponse) SetBody(v *CreateVscResponseBody) *CreateVscResponse
 	return s
 }
 
-func (s *CreateVscResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDeleteClusterRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *DeleteClusterRequest
-	GetClusterId() *string
-}
-
 type DeleteClusterRequest struct {
 	// Cluster ID
 	//
@@ -4502,32 +3054,16 @@ type DeleteClusterRequest struct {
 }
 
 func (s DeleteClusterRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DeleteClusterRequest) GoString() string {
 	return s.String()
 }
 
-func (s *DeleteClusterRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
 func (s *DeleteClusterRequest) SetClusterId(v string) *DeleteClusterRequest {
 	s.ClusterId = &v
 	return s
-}
-
-func (s *DeleteClusterRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDeleteClusterResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *DeleteClusterResponseBody
-	GetRequestId() *string
 }
 
 type DeleteClusterResponseBody struct {
@@ -4540,36 +3076,16 @@ type DeleteClusterResponseBody struct {
 }
 
 func (s DeleteClusterResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DeleteClusterResponseBody) GoString() string {
 	return s.String()
 }
 
-func (s *DeleteClusterResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
 func (s *DeleteClusterResponseBody) SetRequestId(v string) *DeleteClusterResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *DeleteClusterResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDeleteClusterResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *DeleteClusterResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *DeleteClusterResponse
-	GetStatusCode() *int32
-	SetBody(v *DeleteClusterResponseBody) *DeleteClusterResponse
-	GetBody() *DeleteClusterResponseBody
 }
 
 type DeleteClusterResponse struct {
@@ -4579,23 +3095,11 @@ type DeleteClusterResponse struct {
 }
 
 func (s DeleteClusterResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DeleteClusterResponse) GoString() string {
 	return s.String()
-}
-
-func (s *DeleteClusterResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *DeleteClusterResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *DeleteClusterResponse) GetBody() *DeleteClusterResponseBody {
-	return s.Body
 }
 
 func (s *DeleteClusterResponse) SetHeaders(v map[string]*string) *DeleteClusterResponse {
@@ -4613,25 +3117,15 @@ func (s *DeleteClusterResponse) SetBody(v *DeleteClusterResponseBody) *DeleteClu
 	return s
 }
 
-func (s *DeleteClusterResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDeleteNodeGroupRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *DeleteNodeGroupRequest
-	GetClusterId() *string
-	SetNodeGroupId(v string) *DeleteNodeGroupRequest
-	GetNodeGroupId() *string
-}
-
 type DeleteNodeGroupRequest struct {
+	// Cluster ID
+	//
 	// example:
 	//
 	// i114444141733395242745
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
+	// Node Group ID
+	//
 	// example:
 	//
 	// i121824791737080429819
@@ -4639,19 +3133,11 @@ type DeleteNodeGroupRequest struct {
 }
 
 func (s DeleteNodeGroupRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DeleteNodeGroupRequest) GoString() string {
 	return s.String()
-}
-
-func (s *DeleteNodeGroupRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *DeleteNodeGroupRequest) GetNodeGroupId() *string {
-	return s.NodeGroupId
 }
 
 func (s *DeleteNodeGroupRequest) SetClusterId(v string) *DeleteNodeGroupRequest {
@@ -4664,20 +3150,8 @@ func (s *DeleteNodeGroupRequest) SetNodeGroupId(v string) *DeleteNodeGroupReques
 	return s
 }
 
-func (s *DeleteNodeGroupRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDeleteNodeGroupResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *DeleteNodeGroupResponseBody
-	GetRequestId() *string
-}
-
 type DeleteNodeGroupResponseBody struct {
-	// Id of the request
+	// ID of the request
 	//
 	// example:
 	//
@@ -4686,36 +3160,16 @@ type DeleteNodeGroupResponseBody struct {
 }
 
 func (s DeleteNodeGroupResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DeleteNodeGroupResponseBody) GoString() string {
 	return s.String()
 }
 
-func (s *DeleteNodeGroupResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
 func (s *DeleteNodeGroupResponseBody) SetRequestId(v string) *DeleteNodeGroupResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *DeleteNodeGroupResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDeleteNodeGroupResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *DeleteNodeGroupResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *DeleteNodeGroupResponse
-	GetStatusCode() *int32
-	SetBody(v *DeleteNodeGroupResponseBody) *DeleteNodeGroupResponse
-	GetBody() *DeleteNodeGroupResponseBody
 }
 
 type DeleteNodeGroupResponse struct {
@@ -4725,23 +3179,11 @@ type DeleteNodeGroupResponse struct {
 }
 
 func (s DeleteNodeGroupResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DeleteNodeGroupResponse) GoString() string {
 	return s.String()
-}
-
-func (s *DeleteNodeGroupResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *DeleteNodeGroupResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *DeleteNodeGroupResponse) GetBody() *DeleteNodeGroupResponseBody {
-	return s.Body
 }
 
 func (s *DeleteNodeGroupResponse) SetHeaders(v map[string]*string) *DeleteNodeGroupResponse {
@@ -4759,40 +3201,25 @@ func (s *DeleteNodeGroupResponse) SetBody(v *DeleteNodeGroupResponseBody) *Delet
 	return s
 }
 
-func (s *DeleteNodeGroupResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDeleteVscRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClientToken(v string) *DeleteVscRequest
-	GetClientToken() *string
-	SetVscId(v string) *DeleteVscRequest
-	GetVscId() *string
-}
-
 type DeleteVscRequest struct {
+	// example:
+	//
+	// 123e4567-e89b-12d3-a456-426655440000
 	ClientToken *string `json:"ClientToken,omitempty" xml:"ClientToken,omitempty"`
 	// This parameter is required.
+	//
+	// example:
+	//
+	// vsc-001
 	VscId *string `json:"VscId,omitempty" xml:"VscId,omitempty"`
 }
 
 func (s DeleteVscRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DeleteVscRequest) GoString() string {
 	return s.String()
-}
-
-func (s *DeleteVscRequest) GetClientToken() *string {
-	return s.ClientToken
-}
-
-func (s *DeleteVscRequest) GetVscId() *string {
-	return s.VscId
 }
 
 func (s *DeleteVscRequest) SetClientToken(v string) *DeleteVscRequest {
@@ -4805,53 +3232,26 @@ func (s *DeleteVscRequest) SetVscId(v string) *DeleteVscRequest {
 	return s
 }
 
-func (s *DeleteVscRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDeleteVscResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *DeleteVscResponseBody
-	GetRequestId() *string
-}
-
 type DeleteVscResponseBody struct {
+	// Id of the request
+	//
+	// example:
+	//
+	// 4FD06DF0-9167-5C6F-A145-F30CA4A15D54
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
 }
 
 func (s DeleteVscResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DeleteVscResponseBody) GoString() string {
 	return s.String()
 }
 
-func (s *DeleteVscResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
 func (s *DeleteVscResponseBody) SetRequestId(v string) *DeleteVscResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *DeleteVscResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDeleteVscResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *DeleteVscResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *DeleteVscResponse
-	GetStatusCode() *int32
-	SetBody(v *DeleteVscResponseBody) *DeleteVscResponse
-	GetBody() *DeleteVscResponseBody
 }
 
 type DeleteVscResponse struct {
@@ -4861,23 +3261,11 @@ type DeleteVscResponse struct {
 }
 
 func (s DeleteVscResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DeleteVscResponse) GoString() string {
 	return s.String()
-}
-
-func (s *DeleteVscResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *DeleteVscResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *DeleteVscResponse) GetBody() *DeleteVscResponseBody {
-	return s.Body
 }
 
 func (s *DeleteVscResponse) SetHeaders(v map[string]*string) *DeleteVscResponse {
@@ -4895,18 +3283,6 @@ func (s *DeleteVscResponse) SetBody(v *DeleteVscResponseBody) *DeleteVscResponse
 	return s
 }
 
-func (s *DeleteVscResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeClusterRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *DescribeClusterRequest
-	GetClusterId() *string
-}
-
 type DescribeClusterRequest struct {
 	// Cluster ID.
 	//
@@ -4919,66 +3295,16 @@ type DescribeClusterRequest struct {
 }
 
 func (s DescribeClusterRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeClusterRequest) GoString() string {
 	return s.String()
 }
 
-func (s *DescribeClusterRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
 func (s *DescribeClusterRequest) SetClusterId(v string) *DescribeClusterRequest {
 	s.ClusterId = &v
 	return s
-}
-
-func (s *DescribeClusterRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeClusterResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterDescription(v string) *DescribeClusterResponseBody
-	GetClusterDescription() *string
-	SetClusterId(v string) *DescribeClusterResponseBody
-	GetClusterId() *string
-	SetClusterName(v string) *DescribeClusterResponseBody
-	GetClusterName() *string
-	SetClusterType(v string) *DescribeClusterResponseBody
-	GetClusterType() *string
-	SetComponents(v []*DescribeClusterResponseBodyComponents) *DescribeClusterResponseBody
-	GetComponents() []*DescribeClusterResponseBodyComponents
-	SetComputingIpVersion(v string) *DescribeClusterResponseBody
-	GetComputingIpVersion() *string
-	SetCreateTime(v string) *DescribeClusterResponseBody
-	GetCreateTime() *string
-	SetHpnZone(v string) *DescribeClusterResponseBody
-	GetHpnZone() *string
-	SetNetworks(v []*DescribeClusterResponseBodyNetworks) *DescribeClusterResponseBody
-	GetNetworks() []*DescribeClusterResponseBodyNetworks
-	SetNodeCount(v int64) *DescribeClusterResponseBody
-	GetNodeCount() *int64
-	SetNodeGroupCount(v int64) *DescribeClusterResponseBody
-	GetNodeGroupCount() *int64
-	SetOpenEniJumboFrame(v string) *DescribeClusterResponseBody
-	GetOpenEniJumboFrame() *string
-	SetOperatingState(v string) *DescribeClusterResponseBody
-	GetOperatingState() *string
-	SetRequestId(v string) *DescribeClusterResponseBody
-	GetRequestId() *string
-	SetResourceGroupId(v string) *DescribeClusterResponseBody
-	GetResourceGroupId() *string
-	SetTaskId(v string) *DescribeClusterResponseBody
-	GetTaskId() *string
-	SetUpdateTime(v string) *DescribeClusterResponseBody
-	GetUpdateTime() *string
-	SetVpcId(v string) *DescribeClusterResponseBody
-	GetVpcId() *string
 }
 
 type DescribeClusterResponseBody struct {
@@ -5027,7 +3353,7 @@ type DescribeClusterResponseBody struct {
 	// A2
 	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
 	// Network Information
-	Networks []*DescribeClusterResponseBodyNetworks `json:"Networks,omitempty" xml:"Networks,omitempty" type:"Repeated"`
+	Networks *DescribeClusterResponseBodyNetworks `json:"Networks,omitempty" xml:"Networks,omitempty" type:"Struct"`
 	// Number of Nodes
 	//
 	// example:
@@ -5085,83 +3411,11 @@ type DescribeClusterResponseBody struct {
 }
 
 func (s DescribeClusterResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeClusterResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeClusterResponseBody) GetClusterDescription() *string {
-	return s.ClusterDescription
-}
-
-func (s *DescribeClusterResponseBody) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *DescribeClusterResponseBody) GetClusterName() *string {
-	return s.ClusterName
-}
-
-func (s *DescribeClusterResponseBody) GetClusterType() *string {
-	return s.ClusterType
-}
-
-func (s *DescribeClusterResponseBody) GetComponents() []*DescribeClusterResponseBodyComponents {
-	return s.Components
-}
-
-func (s *DescribeClusterResponseBody) GetComputingIpVersion() *string {
-	return s.ComputingIpVersion
-}
-
-func (s *DescribeClusterResponseBody) GetCreateTime() *string {
-	return s.CreateTime
-}
-
-func (s *DescribeClusterResponseBody) GetHpnZone() *string {
-	return s.HpnZone
-}
-
-func (s *DescribeClusterResponseBody) GetNetworks() []*DescribeClusterResponseBodyNetworks {
-	return s.Networks
-}
-
-func (s *DescribeClusterResponseBody) GetNodeCount() *int64 {
-	return s.NodeCount
-}
-
-func (s *DescribeClusterResponseBody) GetNodeGroupCount() *int64 {
-	return s.NodeGroupCount
-}
-
-func (s *DescribeClusterResponseBody) GetOpenEniJumboFrame() *string {
-	return s.OpenEniJumboFrame
-}
-
-func (s *DescribeClusterResponseBody) GetOperatingState() *string {
-	return s.OperatingState
-}
-
-func (s *DescribeClusterResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *DescribeClusterResponseBody) GetResourceGroupId() *string {
-	return s.ResourceGroupId
-}
-
-func (s *DescribeClusterResponseBody) GetTaskId() *string {
-	return s.TaskId
-}
-
-func (s *DescribeClusterResponseBody) GetUpdateTime() *string {
-	return s.UpdateTime
-}
-
-func (s *DescribeClusterResponseBody) GetVpcId() *string {
-	return s.VpcId
 }
 
 func (s *DescribeClusterResponseBody) SetClusterDescription(v string) *DescribeClusterResponseBody {
@@ -5204,7 +3458,7 @@ func (s *DescribeClusterResponseBody) SetHpnZone(v string) *DescribeClusterRespo
 	return s
 }
 
-func (s *DescribeClusterResponseBody) SetNetworks(v []*DescribeClusterResponseBodyNetworks) *DescribeClusterResponseBody {
+func (s *DescribeClusterResponseBody) SetNetworks(v *DescribeClusterResponseBodyNetworks) *DescribeClusterResponseBody {
 	s.Networks = v
 	return s
 }
@@ -5254,10 +3508,6 @@ func (s *DescribeClusterResponseBody) SetVpcId(v string) *DescribeClusterRespons
 	return s
 }
 
-func (s *DescribeClusterResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
 type DescribeClusterResponseBodyComponents struct {
 	// Component ID
 	//
@@ -5274,19 +3524,11 @@ type DescribeClusterResponseBodyComponents struct {
 }
 
 func (s DescribeClusterResponseBodyComponents) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeClusterResponseBodyComponents) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeClusterResponseBodyComponents) GetComponentId() *string {
-	return s.ComponentId
-}
-
-func (s *DescribeClusterResponseBodyComponents) GetComponentType() *string {
-	return s.ComponentType
 }
 
 func (s *DescribeClusterResponseBodyComponents) SetComponentId(v string) *DescribeClusterResponseBodyComponents {
@@ -5299,50 +3541,21 @@ func (s *DescribeClusterResponseBodyComponents) SetComponentType(v string) *Desc
 	return s
 }
 
-func (s *DescribeClusterResponseBodyComponents) Validate() error {
-	return dara.Validate(s)
-}
-
 type DescribeClusterResponseBodyNetworks struct {
-	// VPC Segment ID
-	//
-	// example:
-	//
-	// vpd-iqd7xunc
 	VpdId *string `json:"VpdId,omitempty" xml:"VpdId,omitempty"`
 }
 
 func (s DescribeClusterResponseBodyNetworks) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeClusterResponseBodyNetworks) GoString() string {
 	return s.String()
 }
 
-func (s *DescribeClusterResponseBodyNetworks) GetVpdId() *string {
-	return s.VpdId
-}
-
 func (s *DescribeClusterResponseBodyNetworks) SetVpdId(v string) *DescribeClusterResponseBodyNetworks {
 	s.VpdId = &v
 	return s
-}
-
-func (s *DescribeClusterResponseBodyNetworks) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeClusterResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *DescribeClusterResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *DescribeClusterResponse
-	GetStatusCode() *int32
-	SetBody(v *DescribeClusterResponseBody) *DescribeClusterResponse
-	GetBody() *DescribeClusterResponseBody
 }
 
 type DescribeClusterResponse struct {
@@ -5352,23 +3565,11 @@ type DescribeClusterResponse struct {
 }
 
 func (s DescribeClusterResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeClusterResponse) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeClusterResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *DescribeClusterResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *DescribeClusterResponse) GetBody() *DescribeClusterResponseBody {
-	return s.Body
 }
 
 func (s *DescribeClusterResponse) SetHeaders(v map[string]*string) *DescribeClusterResponse {
@@ -5386,19 +3587,9 @@ func (s *DescribeClusterResponse) SetBody(v *DescribeClusterResponseBody) *Descr
 	return s
 }
 
-func (s *DescribeClusterResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeDiagnosticResultRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetDiagnosticId(v string) *DescribeDiagnosticResultRequest
-	GetDiagnosticId() *string
-}
-
 type DescribeDiagnosticResultRequest struct {
+	// Diagnostic ID
+	//
 	// example:
 	//
 	// diag-i151942361720577788844
@@ -5406,15 +3597,11 @@ type DescribeDiagnosticResultRequest struct {
 }
 
 func (s DescribeDiagnosticResultRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeDiagnosticResultRequest) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeDiagnosticResultRequest) GetDiagnosticId() *string {
-	return s.DiagnosticId
 }
 
 func (s *DescribeDiagnosticResultRequest) SetDiagnosticId(v string) *DescribeDiagnosticResultRequest {
@@ -5422,61 +3609,49 @@ func (s *DescribeDiagnosticResultRequest) SetDiagnosticId(v string) *DescribeDia
 	return s
 }
 
-func (s *DescribeDiagnosticResultRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeDiagnosticResultResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *DescribeDiagnosticResultResponseBody
-	GetClusterId() *string
-	SetCreatedTime(v string) *DescribeDiagnosticResultResponseBody
-	GetCreatedTime() *string
-	SetDiagnosticId(v string) *DescribeDiagnosticResultResponseBody
-	GetDiagnosticId() *string
-	SetDiagnosticResults(v []interface{}) *DescribeDiagnosticResultResponseBody
-	GetDiagnosticResults() []interface{}
-	SetDiagnosticState(v string) *DescribeDiagnosticResultResponseBody
-	GetDiagnosticState() *string
-	SetDiagnosticType(v string) *DescribeDiagnosticResultResponseBody
-	GetDiagnosticType() *string
-	SetEndTime(v string) *DescribeDiagnosticResultResponseBody
-	GetEndTime() *string
-	SetNodeIds(v []*string) *DescribeDiagnosticResultResponseBody
-	GetNodeIds() []*string
-	SetRequestId(v string) *DescribeDiagnosticResultResponseBody
-	GetRequestId() *string
-}
-
 type DescribeDiagnosticResultResponseBody struct {
+	// Cluster ID
+	//
 	// example:
 	//
 	// i118913031696573280136
 	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
+	// Device creation time.
+	//
 	// example:
 	//
 	// 2024-06-15T10:17:56
 	CreatedTime *string `json:"CreatedTime,omitempty" xml:"CreatedTime,omitempty"`
+	// Diagnostic ID
+	//
 	// example:
 	//
 	// diag-i155363241720059671316
-	DiagnosticId      *string       `json:"DiagnosticId,omitempty" xml:"DiagnosticId,omitempty"`
+	DiagnosticId *string `json:"DiagnosticId,omitempty" xml:"DiagnosticId,omitempty"`
+	// Diagnostic Information
 	DiagnosticResults []interface{} `json:"DiagnosticResults,omitempty" xml:"DiagnosticResults,omitempty" type:"Repeated"`
+	// Diagnostic State
+	//
 	// example:
 	//
 	// Fault
 	DiagnosticState *string `json:"DiagnosticState,omitempty" xml:"DiagnosticState,omitempty"`
+	// Diagnostic Type
+	//
 	// example:
 	//
 	// CheckByAiJobLogs
 	DiagnosticType *string `json:"DiagnosticType,omitempty" xml:"DiagnosticType,omitempty"`
+	// End time of node anomaly issues. Represented according to the ISO8601 standard, in a timezone-aware format, formatted as yyyy-MM-ddTHH:mm:ss+0800
+	//
 	// example:
 	//
 	// 2024-06-11T10:00:30
-	EndTime *string   `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
+	EndTime *string `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
+	// List of Node IDs
 	NodeIds []*string `json:"NodeIds,omitempty" xml:"NodeIds,omitempty" type:"Repeated"`
+	// Request ID
+	//
 	// example:
 	//
 	// 8F065DDD-6996-5973-9691-9EC57BD0072E
@@ -5484,47 +3659,11 @@ type DescribeDiagnosticResultResponseBody struct {
 }
 
 func (s DescribeDiagnosticResultResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeDiagnosticResultResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeDiagnosticResultResponseBody) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *DescribeDiagnosticResultResponseBody) GetCreatedTime() *string {
-	return s.CreatedTime
-}
-
-func (s *DescribeDiagnosticResultResponseBody) GetDiagnosticId() *string {
-	return s.DiagnosticId
-}
-
-func (s *DescribeDiagnosticResultResponseBody) GetDiagnosticResults() []interface{} {
-	return s.DiagnosticResults
-}
-
-func (s *DescribeDiagnosticResultResponseBody) GetDiagnosticState() *string {
-	return s.DiagnosticState
-}
-
-func (s *DescribeDiagnosticResultResponseBody) GetDiagnosticType() *string {
-	return s.DiagnosticType
-}
-
-func (s *DescribeDiagnosticResultResponseBody) GetEndTime() *string {
-	return s.EndTime
-}
-
-func (s *DescribeDiagnosticResultResponseBody) GetNodeIds() []*string {
-	return s.NodeIds
-}
-
-func (s *DescribeDiagnosticResultResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *DescribeDiagnosticResultResponseBody) SetClusterId(v string) *DescribeDiagnosticResultResponseBody {
@@ -5572,22 +3711,6 @@ func (s *DescribeDiagnosticResultResponseBody) SetRequestId(v string) *DescribeD
 	return s
 }
 
-func (s *DescribeDiagnosticResultResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeDiagnosticResultResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *DescribeDiagnosticResultResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *DescribeDiagnosticResultResponse
-	GetStatusCode() *int32
-	SetBody(v *DescribeDiagnosticResultResponseBody) *DescribeDiagnosticResultResponse
-	GetBody() *DescribeDiagnosticResultResponseBody
-}
-
 type DescribeDiagnosticResultResponse struct {
 	Headers    map[string]*string                    `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                                `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -5595,23 +3718,11 @@ type DescribeDiagnosticResultResponse struct {
 }
 
 func (s DescribeDiagnosticResultResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeDiagnosticResultResponse) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeDiagnosticResultResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *DescribeDiagnosticResultResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *DescribeDiagnosticResultResponse) GetBody() *DescribeDiagnosticResultResponseBody {
-	return s.Body
 }
 
 func (s *DescribeDiagnosticResultResponse) SetHeaders(v map[string]*string) *DescribeDiagnosticResultResponse {
@@ -5627,24 +3738,6 @@ func (s *DescribeDiagnosticResultResponse) SetStatusCode(v int32) *DescribeDiagn
 func (s *DescribeDiagnosticResultResponse) SetBody(v *DescribeDiagnosticResultResponseBody) *DescribeDiagnosticResultResponse {
 	s.Body = v
 	return s
-}
-
-func (s *DescribeDiagnosticResultResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeInvocationsRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetContentEncoding(v string) *DescribeInvocationsRequest
-	GetContentEncoding() *string
-	SetIncludeOutput(v bool) *DescribeInvocationsRequest
-	GetIncludeOutput() *bool
-	SetInvokeId(v string) *DescribeInvocationsRequest
-	GetInvokeId() *string
-	SetNodeId(v string) *DescribeInvocationsRequest
-	GetNodeId() *string
 }
 
 type DescribeInvocationsRequest struct {
@@ -5689,27 +3782,11 @@ type DescribeInvocationsRequest struct {
 }
 
 func (s DescribeInvocationsRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeInvocationsRequest) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeInvocationsRequest) GetContentEncoding() *string {
-	return s.ContentEncoding
-}
-
-func (s *DescribeInvocationsRequest) GetIncludeOutput() *bool {
-	return s.IncludeOutput
-}
-
-func (s *DescribeInvocationsRequest) GetInvokeId() *string {
-	return s.InvokeId
-}
-
-func (s *DescribeInvocationsRequest) GetNodeId() *string {
-	return s.NodeId
 }
 
 func (s *DescribeInvocationsRequest) SetContentEncoding(v string) *DescribeInvocationsRequest {
@@ -5732,20 +3809,6 @@ func (s *DescribeInvocationsRequest) SetNodeId(v string) *DescribeInvocationsReq
 	return s
 }
 
-func (s *DescribeInvocationsRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeInvocationsResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetInvocations(v *DescribeInvocationsResponseBodyInvocations) *DescribeInvocationsResponseBody
-	GetInvocations() *DescribeInvocationsResponseBodyInvocations
-	SetRequestId(v string) *DescribeInvocationsResponseBody
-	GetRequestId() *string
-}
-
 type DescribeInvocationsResponseBody struct {
 	// Script execution record object.
 	Invocations *DescribeInvocationsResponseBodyInvocations `json:"Invocations,omitempty" xml:"Invocations,omitempty" type:"Struct"`
@@ -5758,19 +3821,11 @@ type DescribeInvocationsResponseBody struct {
 }
 
 func (s DescribeInvocationsResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeInvocationsResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeInvocationsResponseBody) GetInvocations() *DescribeInvocationsResponseBodyInvocations {
-	return s.Invocations
-}
-
-func (s *DescribeInvocationsResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *DescribeInvocationsResponseBody) SetInvocations(v *DescribeInvocationsResponseBodyInvocations) *DescribeInvocationsResponseBody {
@@ -5783,34 +3838,22 @@ func (s *DescribeInvocationsResponseBody) SetRequestId(v string) *DescribeInvoca
 	return s
 }
 
-func (s *DescribeInvocationsResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
 type DescribeInvocationsResponseBodyInvocations struct {
 	// File delivery record.
 	Invocation []*DescribeInvocationsResponseBodyInvocationsInvocation `json:"Invocation,omitempty" xml:"Invocation,omitempty" type:"Repeated"`
 }
 
 func (s DescribeInvocationsResponseBodyInvocations) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeInvocationsResponseBodyInvocations) GoString() string {
 	return s.String()
 }
 
-func (s *DescribeInvocationsResponseBodyInvocations) GetInvocation() []*DescribeInvocationsResponseBodyInvocationsInvocation {
-	return s.Invocation
-}
-
 func (s *DescribeInvocationsResponseBodyInvocations) SetInvocation(v []*DescribeInvocationsResponseBodyInvocationsInvocation) *DescribeInvocationsResponseBodyInvocations {
 	s.Invocation = v
 	return s
-}
-
-func (s *DescribeInvocationsResponseBodyInvocations) Validate() error {
-	return dara.Validate(s)
 }
 
 type DescribeInvocationsResponseBodyInvocationsInvocation struct {
@@ -5965,67 +4008,11 @@ type DescribeInvocationsResponseBodyInvocationsInvocation struct {
 }
 
 func (s DescribeInvocationsResponseBodyInvocationsInvocation) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeInvocationsResponseBodyInvocationsInvocation) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocation) GetCommandContent() *string {
-	return s.CommandContent
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocation) GetCommandDescription() *string {
-	return s.CommandDescription
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocation) GetCommandName() *string {
-	return s.CommandName
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocation) GetCreationTime() *string {
-	return s.CreationTime
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocation) GetFrequency() *string {
-	return s.Frequency
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocation) GetInvocationStatus() *string {
-	return s.InvocationStatus
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocation) GetInvokeId() *string {
-	return s.InvokeId
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocation) GetInvokeNodes() *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodes {
-	return s.InvokeNodes
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocation) GetInvokeStatus() *string {
-	return s.InvokeStatus
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocation) GetParameters() *string {
-	return s.Parameters
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocation) GetRepeatMode() *string {
-	return s.RepeatMode
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocation) GetTimeout() *int32 {
-	return s.Timeout
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocation) GetUsername() *string {
-	return s.Username
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocation) GetWorkingDir() *string {
-	return s.WorkingDir
 }
 
 func (s *DescribeInvocationsResponseBodyInvocationsInvocation) SetCommandContent(v string) *DescribeInvocationsResponseBodyInvocationsInvocation {
@@ -6098,34 +4085,22 @@ func (s *DescribeInvocationsResponseBodyInvocationsInvocation) SetWorkingDir(v s
 	return s
 }
 
-func (s *DescribeInvocationsResponseBodyInvocationsInvocation) Validate() error {
-	return dara.Validate(s)
-}
-
 type DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodes struct {
 	// Command execution records for nodes.
 	InvokeNode []*DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode `json:"InvokeNode,omitempty" xml:"InvokeNode,omitempty" type:"Repeated"`
 }
 
 func (s DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodes) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodes) GoString() string {
 	return s.String()
 }
 
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodes) GetInvokeNode() []*DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode {
-	return s.InvokeNode
-}
-
 func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodes) SetInvokeNode(v []*DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodes {
 	s.InvokeNode = v
 	return s
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodes) Validate() error {
-	return dara.Validate(s)
 }
 
 type DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode struct {
@@ -6346,71 +4321,11 @@ type DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode s
 }
 
 func (s DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetCreationTime() *string {
-	return s.CreationTime
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetDropped() *int32 {
-	return s.Dropped
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetErrorCode() *string {
-	return s.ErrorCode
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetErrorInfo() *string {
-	return s.ErrorInfo
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetExitCode() *int32 {
-	return s.ExitCode
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetFinishTime() *string {
-	return s.FinishTime
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetInvocationStatus() *string {
-	return s.InvocationStatus
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetNodeInvokeStatus() *string {
-	return s.NodeInvokeStatus
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetOutput() *string {
-	return s.Output
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetRepeats() *int32 {
-	return s.Repeats
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetStartTime() *string {
-	return s.StartTime
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetStopTime() *string {
-	return s.StopTime
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetTimed() *string {
-	return s.Timed
-}
-
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetUpdateTime() *string {
-	return s.UpdateTime
 }
 
 func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) SetCreationTime(v string) *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode {
@@ -6488,22 +4403,6 @@ func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNo
 	return s
 }
 
-func (s *DescribeInvocationsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeInvocationsResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *DescribeInvocationsResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *DescribeInvocationsResponse
-	GetStatusCode() *int32
-	SetBody(v *DescribeInvocationsResponseBody) *DescribeInvocationsResponse
-	GetBody() *DescribeInvocationsResponseBody
-}
-
 type DescribeInvocationsResponse struct {
 	Headers    map[string]*string               `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                           `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -6511,23 +4410,11 @@ type DescribeInvocationsResponse struct {
 }
 
 func (s DescribeInvocationsResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeInvocationsResponse) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeInvocationsResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *DescribeInvocationsResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *DescribeInvocationsResponse) GetBody() *DescribeInvocationsResponseBody {
-	return s.Body
 }
 
 func (s *DescribeInvocationsResponse) SetHeaders(v map[string]*string) *DescribeInvocationsResponse {
@@ -6545,18 +4432,6 @@ func (s *DescribeInvocationsResponse) SetBody(v *DescribeInvocationsResponseBody
 	return s
 }
 
-func (s *DescribeInvocationsResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeNetTestResultRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetTestId(v string) *DescribeNetTestResultRequest
-	GetTestId() *string
-}
-
 type DescribeNetTestResultRequest struct {
 	// Test task ID.
 	//
@@ -6567,56 +4442,16 @@ type DescribeNetTestResultRequest struct {
 }
 
 func (s DescribeNetTestResultRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeNetTestResultRequest) GoString() string {
 	return s.String()
 }
 
-func (s *DescribeNetTestResultRequest) GetTestId() *string {
-	return s.TestId
-}
-
 func (s *DescribeNetTestResultRequest) SetTestId(v string) *DescribeNetTestResultRequest {
 	s.TestId = &v
 	return s
-}
-
-func (s *DescribeNetTestResultRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeNetTestResultResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *DescribeNetTestResultResponseBody
-	GetClusterId() *string
-	SetClusterName(v string) *DescribeNetTestResultResponseBody
-	GetClusterName() *string
-	SetCommTest(v *DescribeNetTestResultResponseBodyCommTest) *DescribeNetTestResultResponseBody
-	GetCommTest() *DescribeNetTestResultResponseBodyCommTest
-	SetCreationTime(v string) *DescribeNetTestResultResponseBody
-	GetCreationTime() *string
-	SetDelayTest(v *DescribeNetTestResultResponseBodyDelayTest) *DescribeNetTestResultResponseBody
-	GetDelayTest() *DescribeNetTestResultResponseBodyDelayTest
-	SetFinishedTime(v string) *DescribeNetTestResultResponseBody
-	GetFinishedTime() *string
-	SetNetTestType(v string) *DescribeNetTestResultResponseBody
-	GetNetTestType() *string
-	SetPort(v string) *DescribeNetTestResultResponseBody
-	GetPort() *string
-	SetRequestId(v string) *DescribeNetTestResultResponseBody
-	GetRequestId() *string
-	SetResultDetial(v string) *DescribeNetTestResultResponseBody
-	GetResultDetial() *string
-	SetStatus(v string) *DescribeNetTestResultResponseBody
-	GetStatus() *string
-	SetTestId(v string) *DescribeNetTestResultResponseBody
-	GetTestId() *string
-	SetTrafficTest(v *DescribeNetTestResultResponseBodyTrafficTest) *DescribeNetTestResultResponseBody
-	GetTrafficTest() *DescribeNetTestResultResponseBodyTrafficTest
 }
 
 type DescribeNetTestResultResponseBody struct {
@@ -6695,63 +4530,11 @@ type DescribeNetTestResultResponseBody struct {
 }
 
 func (s DescribeNetTestResultResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeNetTestResultResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeNetTestResultResponseBody) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *DescribeNetTestResultResponseBody) GetClusterName() *string {
-	return s.ClusterName
-}
-
-func (s *DescribeNetTestResultResponseBody) GetCommTest() *DescribeNetTestResultResponseBodyCommTest {
-	return s.CommTest
-}
-
-func (s *DescribeNetTestResultResponseBody) GetCreationTime() *string {
-	return s.CreationTime
-}
-
-func (s *DescribeNetTestResultResponseBody) GetDelayTest() *DescribeNetTestResultResponseBodyDelayTest {
-	return s.DelayTest
-}
-
-func (s *DescribeNetTestResultResponseBody) GetFinishedTime() *string {
-	return s.FinishedTime
-}
-
-func (s *DescribeNetTestResultResponseBody) GetNetTestType() *string {
-	return s.NetTestType
-}
-
-func (s *DescribeNetTestResultResponseBody) GetPort() *string {
-	return s.Port
-}
-
-func (s *DescribeNetTestResultResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *DescribeNetTestResultResponseBody) GetResultDetial() *string {
-	return s.ResultDetial
-}
-
-func (s *DescribeNetTestResultResponseBody) GetStatus() *string {
-	return s.Status
-}
-
-func (s *DescribeNetTestResultResponseBody) GetTestId() *string {
-	return s.TestId
-}
-
-func (s *DescribeNetTestResultResponseBody) GetTrafficTest() *DescribeNetTestResultResponseBodyTrafficTest {
-	return s.TrafficTest
 }
 
 func (s *DescribeNetTestResultResponseBody) SetClusterId(v string) *DescribeNetTestResultResponseBody {
@@ -6819,10 +4602,6 @@ func (s *DescribeNetTestResultResponseBody) SetTrafficTest(v *DescribeNetTestRes
 	return s
 }
 
-func (s *DescribeNetTestResultResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
 type DescribeNetTestResultResponseBodyCommTest struct {
 	// Number of GPUs
 	//
@@ -6847,27 +4626,11 @@ type DescribeNetTestResultResponseBodyCommTest struct {
 }
 
 func (s DescribeNetTestResultResponseBodyCommTest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeNetTestResultResponseBodyCommTest) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeNetTestResultResponseBodyCommTest) GetGPUNum() *string {
-	return s.GPUNum
-}
-
-func (s *DescribeNetTestResultResponseBodyCommTest) GetHosts() []*DescribeNetTestResultResponseBodyCommTestHosts {
-	return s.Hosts
-}
-
-func (s *DescribeNetTestResultResponseBodyCommTest) GetModel() *string {
-	return s.Model
-}
-
-func (s *DescribeNetTestResultResponseBodyCommTest) GetType() *string {
-	return s.Type
 }
 
 func (s *DescribeNetTestResultResponseBodyCommTest) SetGPUNum(v string) *DescribeNetTestResultResponseBodyCommTest {
@@ -6888,10 +4651,6 @@ func (s *DescribeNetTestResultResponseBodyCommTest) SetModel(v string) *Describe
 func (s *DescribeNetTestResultResponseBodyCommTest) SetType(v string) *DescribeNetTestResultResponseBodyCommTest {
 	s.Type = &v
 	return s
-}
-
-func (s *DescribeNetTestResultResponseBodyCommTest) Validate() error {
-	return dara.Validate(s)
 }
 
 type DescribeNetTestResultResponseBodyCommTestHosts struct {
@@ -6916,23 +4675,11 @@ type DescribeNetTestResultResponseBodyCommTestHosts struct {
 }
 
 func (s DescribeNetTestResultResponseBodyCommTestHosts) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeNetTestResultResponseBodyCommTestHosts) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeNetTestResultResponseBodyCommTestHosts) GetIP() *string {
-	return s.IP
-}
-
-func (s *DescribeNetTestResultResponseBodyCommTestHosts) GetResourceId() *string {
-	return s.ResourceId
-}
-
-func (s *DescribeNetTestResultResponseBodyCommTestHosts) GetServerName() *string {
-	return s.ServerName
 }
 
 func (s *DescribeNetTestResultResponseBodyCommTestHosts) SetIP(v string) *DescribeNetTestResultResponseBodyCommTestHosts {
@@ -6950,34 +4697,22 @@ func (s *DescribeNetTestResultResponseBodyCommTestHosts) SetServerName(v string)
 	return s
 }
 
-func (s *DescribeNetTestResultResponseBodyCommTestHosts) Validate() error {
-	return dara.Validate(s)
-}
-
 type DescribeNetTestResultResponseBodyDelayTest struct {
 	// Input the hosts of the test nodes
 	Hosts []*DescribeNetTestResultResponseBodyDelayTestHosts `json:"Hosts,omitempty" xml:"Hosts,omitempty" type:"Repeated"`
 }
 
 func (s DescribeNetTestResultResponseBodyDelayTest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeNetTestResultResponseBodyDelayTest) GoString() string {
 	return s.String()
 }
 
-func (s *DescribeNetTestResultResponseBodyDelayTest) GetHosts() []*DescribeNetTestResultResponseBodyDelayTestHosts {
-	return s.Hosts
-}
-
 func (s *DescribeNetTestResultResponseBodyDelayTest) SetHosts(v []*DescribeNetTestResultResponseBodyDelayTestHosts) *DescribeNetTestResultResponseBodyDelayTest {
 	s.Hosts = v
 	return s
-}
-
-func (s *DescribeNetTestResultResponseBodyDelayTest) Validate() error {
-	return dara.Validate(s)
 }
 
 type DescribeNetTestResultResponseBodyDelayTestHosts struct {
@@ -7008,27 +4743,11 @@ type DescribeNetTestResultResponseBodyDelayTestHosts struct {
 }
 
 func (s DescribeNetTestResultResponseBodyDelayTestHosts) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeNetTestResultResponseBodyDelayTestHosts) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeNetTestResultResponseBodyDelayTestHosts) GetBond() *string {
-	return s.Bond
-}
-
-func (s *DescribeNetTestResultResponseBodyDelayTestHosts) GetIP() *string {
-	return s.IP
-}
-
-func (s *DescribeNetTestResultResponseBodyDelayTestHosts) GetResourceId() *string {
-	return s.ResourceId
-}
-
-func (s *DescribeNetTestResultResponseBodyDelayTestHosts) GetServerName() *string {
-	return s.ServerName
 }
 
 func (s *DescribeNetTestResultResponseBodyDelayTestHosts) SetBond(v string) *DescribeNetTestResultResponseBodyDelayTestHosts {
@@ -7049,10 +4768,6 @@ func (s *DescribeNetTestResultResponseBodyDelayTestHosts) SetResourceId(v string
 func (s *DescribeNetTestResultResponseBodyDelayTestHosts) SetServerName(v string) *DescribeNetTestResultResponseBodyDelayTestHosts {
 	s.ServerName = &v
 	return s
-}
-
-func (s *DescribeNetTestResultResponseBodyDelayTestHosts) Validate() error {
-	return dara.Validate(s)
 }
 
 type DescribeNetTestResultResponseBodyTrafficTest struct {
@@ -7093,39 +4808,11 @@ type DescribeNetTestResultResponseBodyTrafficTest struct {
 }
 
 func (s DescribeNetTestResultResponseBodyTrafficTest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeNetTestResultResponseBodyTrafficTest) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTest) GetClients() []*DescribeNetTestResultResponseBodyTrafficTestClients {
-	return s.Clients
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTest) GetDuration() *int64 {
-	return s.Duration
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTest) GetGDR() *string {
-	return s.GDR
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTest) GetProtocol() *string {
-	return s.Protocol
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTest) GetQP() *int64 {
-	return s.QP
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTest) GetServers() []*DescribeNetTestResultResponseBodyTrafficTestServers {
-	return s.Servers
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTest) GetTrafficModel() *string {
-	return s.TrafficModel
 }
 
 func (s *DescribeNetTestResultResponseBodyTrafficTest) SetClients(v []*DescribeNetTestResultResponseBodyTrafficTestClients) *DescribeNetTestResultResponseBodyTrafficTest {
@@ -7163,10 +4850,6 @@ func (s *DescribeNetTestResultResponseBodyTrafficTest) SetTrafficModel(v string)
 	return s
 }
 
-func (s *DescribeNetTestResultResponseBodyTrafficTest) Validate() error {
-	return dara.Validate(s)
-}
-
 type DescribeNetTestResultResponseBodyTrafficTestClients struct {
 	// Network card bond interface
 	//
@@ -7195,27 +4878,11 @@ type DescribeNetTestResultResponseBodyTrafficTestClients struct {
 }
 
 func (s DescribeNetTestResultResponseBodyTrafficTestClients) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeNetTestResultResponseBodyTrafficTestClients) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTestClients) GetBond() *string {
-	return s.Bond
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTestClients) GetIP() *string {
-	return s.IP
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTestClients) GetResourceId() *string {
-	return s.ResourceId
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTestClients) GetServerName() *string {
-	return s.ServerName
 }
 
 func (s *DescribeNetTestResultResponseBodyTrafficTestClients) SetBond(v string) *DescribeNetTestResultResponseBodyTrafficTestClients {
@@ -7236,10 +4903,6 @@ func (s *DescribeNetTestResultResponseBodyTrafficTestClients) SetResourceId(v st
 func (s *DescribeNetTestResultResponseBodyTrafficTestClients) SetServerName(v string) *DescribeNetTestResultResponseBodyTrafficTestClients {
 	s.ServerName = &v
 	return s
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTestClients) Validate() error {
-	return dara.Validate(s)
 }
 
 type DescribeNetTestResultResponseBodyTrafficTestServers struct {
@@ -7270,27 +4933,11 @@ type DescribeNetTestResultResponseBodyTrafficTestServers struct {
 }
 
 func (s DescribeNetTestResultResponseBodyTrafficTestServers) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeNetTestResultResponseBodyTrafficTestServers) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTestServers) GetBond() *string {
-	return s.Bond
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTestServers) GetIP() *string {
-	return s.IP
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTestServers) GetResourceId() *string {
-	return s.ResourceId
-}
-
-func (s *DescribeNetTestResultResponseBodyTrafficTestServers) GetServerName() *string {
-	return s.ServerName
 }
 
 func (s *DescribeNetTestResultResponseBodyTrafficTestServers) SetBond(v string) *DescribeNetTestResultResponseBodyTrafficTestServers {
@@ -7313,22 +4960,6 @@ func (s *DescribeNetTestResultResponseBodyTrafficTestServers) SetServerName(v st
 	return s
 }
 
-func (s *DescribeNetTestResultResponseBodyTrafficTestServers) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeNetTestResultResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *DescribeNetTestResultResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *DescribeNetTestResultResponse
-	GetStatusCode() *int32
-	SetBody(v *DescribeNetTestResultResponseBody) *DescribeNetTestResultResponse
-	GetBody() *DescribeNetTestResultResponseBody
-}
-
 type DescribeNetTestResultResponse struct {
 	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -7336,23 +4967,11 @@ type DescribeNetTestResultResponse struct {
 }
 
 func (s DescribeNetTestResultResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeNetTestResultResponse) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeNetTestResultResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *DescribeNetTestResultResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *DescribeNetTestResultResponse) GetBody() *DescribeNetTestResultResponseBody {
-	return s.Body
 }
 
 func (s *DescribeNetTestResultResponse) SetHeaders(v map[string]*string) *DescribeNetTestResultResponse {
@@ -7370,18 +4989,6 @@ func (s *DescribeNetTestResultResponse) SetBody(v *DescribeNetTestResultResponse
 	return s
 }
 
-func (s *DescribeNetTestResultResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeNodeRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetNodeId(v string) *DescribeNodeRequest
-	GetNodeId() *string
-}
-
 type DescribeNodeRequest struct {
 	// Node ID
 	//
@@ -7394,68 +5001,16 @@ type DescribeNodeRequest struct {
 }
 
 func (s DescribeNodeRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeNodeRequest) GoString() string {
 	return s.String()
 }
 
-func (s *DescribeNodeRequest) GetNodeId() *string {
-	return s.NodeId
-}
-
 func (s *DescribeNodeRequest) SetNodeId(v string) *DescribeNodeRequest {
 	s.NodeId = &v
 	return s
-}
-
-func (s *DescribeNodeRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeNodeResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *DescribeNodeResponseBody
-	GetClusterId() *string
-	SetClusterName(v string) *DescribeNodeResponseBody
-	GetClusterName() *string
-	SetCreateTime(v string) *DescribeNodeResponseBody
-	GetCreateTime() *string
-	SetExpiredTime(v string) *DescribeNodeResponseBody
-	GetExpiredTime() *string
-	SetHostname(v string) *DescribeNodeResponseBody
-	GetHostname() *string
-	SetHpnZone(v string) *DescribeNodeResponseBody
-	GetHpnZone() *string
-	SetImageId(v string) *DescribeNodeResponseBody
-	GetImageId() *string
-	SetImageName(v string) *DescribeNodeResponseBody
-	GetImageName() *string
-	SetMachineType(v string) *DescribeNodeResponseBody
-	GetMachineType() *string
-	SetNetworks(v []*DescribeNodeResponseBodyNetworks) *DescribeNodeResponseBody
-	GetNetworks() []*DescribeNodeResponseBodyNetworks
-	SetNodeGroupId(v string) *DescribeNodeResponseBody
-	GetNodeGroupId() *string
-	SetNodeGroupName(v string) *DescribeNodeResponseBody
-	GetNodeGroupName() *string
-	SetNodeId(v string) *DescribeNodeResponseBody
-	GetNodeId() *string
-	SetOperatingState(v string) *DescribeNodeResponseBody
-	GetOperatingState() *string
-	SetRequestId(v string) *DescribeNodeResponseBody
-	GetRequestId() *string
-	SetResourceGroupId(v string) *DescribeNodeResponseBody
-	GetResourceGroupId() *string
-	SetSn(v string) *DescribeNodeResponseBody
-	GetSn() *string
-	SetUserData(v string) *DescribeNodeResponseBody
-	GetUserData() *string
-	SetZoneId(v string) *DescribeNodeResponseBody
-	GetZoneId() *string
 }
 
 type DescribeNodeResponseBody struct {
@@ -7477,12 +5032,16 @@ type DescribeNodeResponseBody struct {
 	//
 	// 2022-09-30T03:35:53Z
 	CreateTime *string `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
+	// Disk infos
+	Disks []*DescribeNodeResponseBodyDisks `json:"Disks,omitempty" xml:"Disks,omitempty" type:"Repeated"`
 	// Expiration time
 	//
 	// example:
 	//
 	// 2022-06-23T16:00:00Z
 	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
+	// 是否支持文件存储挂载
+	FileSystemMountEnabled *bool `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
 	// Hostname
 	//
 	// example:
@@ -7545,7 +5104,7 @@ type DescribeNodeResponseBody struct {
 	//
 	// AC4F0004-7BCE-52E0-891B-CAC7D64E3368
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	// 资源组ID
+	// Resource group ID
 	//
 	// example:
 	//
@@ -7556,7 +5115,16 @@ type DescribeNodeResponseBody struct {
 	// example:
 	//
 	// sag42ckf4jx
-	Sn       *string `json:"Sn,omitempty" xml:"Sn,omitempty"`
+	Sn *string `json:"Sn,omitempty" xml:"Sn,omitempty"`
+	// The script by user defined
+	//
+	// example:
+	//
+	// #!/bin/bash
+	//
+	// uptime
+	//
+	// echo "aaaaaaa" >> /tmp/ttttt20250110141010.sh
 	UserData *string `json:"UserData,omitempty" xml:"UserData,omitempty"`
 	// Zone ID
 	//
@@ -7567,87 +5135,11 @@ type DescribeNodeResponseBody struct {
 }
 
 func (s DescribeNodeResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeNodeResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeNodeResponseBody) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *DescribeNodeResponseBody) GetClusterName() *string {
-	return s.ClusterName
-}
-
-func (s *DescribeNodeResponseBody) GetCreateTime() *string {
-	return s.CreateTime
-}
-
-func (s *DescribeNodeResponseBody) GetExpiredTime() *string {
-	return s.ExpiredTime
-}
-
-func (s *DescribeNodeResponseBody) GetHostname() *string {
-	return s.Hostname
-}
-
-func (s *DescribeNodeResponseBody) GetHpnZone() *string {
-	return s.HpnZone
-}
-
-func (s *DescribeNodeResponseBody) GetImageId() *string {
-	return s.ImageId
-}
-
-func (s *DescribeNodeResponseBody) GetImageName() *string {
-	return s.ImageName
-}
-
-func (s *DescribeNodeResponseBody) GetMachineType() *string {
-	return s.MachineType
-}
-
-func (s *DescribeNodeResponseBody) GetNetworks() []*DescribeNodeResponseBodyNetworks {
-	return s.Networks
-}
-
-func (s *DescribeNodeResponseBody) GetNodeGroupId() *string {
-	return s.NodeGroupId
-}
-
-func (s *DescribeNodeResponseBody) GetNodeGroupName() *string {
-	return s.NodeGroupName
-}
-
-func (s *DescribeNodeResponseBody) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *DescribeNodeResponseBody) GetOperatingState() *string {
-	return s.OperatingState
-}
-
-func (s *DescribeNodeResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *DescribeNodeResponseBody) GetResourceGroupId() *string {
-	return s.ResourceGroupId
-}
-
-func (s *DescribeNodeResponseBody) GetSn() *string {
-	return s.Sn
-}
-
-func (s *DescribeNodeResponseBody) GetUserData() *string {
-	return s.UserData
-}
-
-func (s *DescribeNodeResponseBody) GetZoneId() *string {
-	return s.ZoneId
 }
 
 func (s *DescribeNodeResponseBody) SetClusterId(v string) *DescribeNodeResponseBody {
@@ -7665,8 +5157,18 @@ func (s *DescribeNodeResponseBody) SetCreateTime(v string) *DescribeNodeResponse
 	return s
 }
 
+func (s *DescribeNodeResponseBody) SetDisks(v []*DescribeNodeResponseBodyDisks) *DescribeNodeResponseBody {
+	s.Disks = v
+	return s
+}
+
 func (s *DescribeNodeResponseBody) SetExpiredTime(v string) *DescribeNodeResponseBody {
 	s.ExpiredTime = &v
+	return s
+}
+
+func (s *DescribeNodeResponseBody) SetFileSystemMountEnabled(v bool) *DescribeNodeResponseBody {
+	s.FileSystemMountEnabled = &v
 	return s
 }
 
@@ -7745,8 +5247,78 @@ func (s *DescribeNodeResponseBody) SetZoneId(v string) *DescribeNodeResponseBody
 	return s
 }
 
-func (s *DescribeNodeResponseBody) Validate() error {
-	return dara.Validate(s)
+type DescribeNodeResponseBodyDisks struct {
+	// The category of the disk.
+	//
+	// 	- cloud_ssd: all-flash disk.
+	//
+	// example:
+	//
+	// cloud_essd
+	Category *string `json:"Category,omitempty" xml:"Category,omitempty"`
+	// The ID of the disk.
+	//
+	// example:
+	//
+	// d-bp1fi88ryk4yah8a6yos
+	DiskId *string `json:"DiskId,omitempty" xml:"DiskId,omitempty"`
+	// The performance level of the ESSD. Valid values:
+	//
+	// 	- PL0: A single ESSD can deliver up to 10,000 random read/write IOPS.
+	//
+	// 	- PL1: A single ESSD can deliver up to 50,000 random read/write IOPS.
+	//
+	// example:
+	//
+	// PL1
+	PerformanceLevel *string `json:"PerformanceLevel,omitempty" xml:"PerformanceLevel,omitempty"`
+	// The size of the disk. Unit: GiB.
+	//
+	// example:
+	//
+	// 100
+	Size *int32 `json:"Size,omitempty" xml:"Size,omitempty"`
+	// The type of the disk. Valid values:
+	//
+	// 	- system: system disk
+	//
+	// example:
+	//
+	// system
+	Type *string `json:"Type,omitempty" xml:"Type,omitempty"`
+}
+
+func (s DescribeNodeResponseBodyDisks) String() string {
+	return tea.Prettify(s)
+}
+
+func (s DescribeNodeResponseBodyDisks) GoString() string {
+	return s.String()
+}
+
+func (s *DescribeNodeResponseBodyDisks) SetCategory(v string) *DescribeNodeResponseBodyDisks {
+	s.Category = &v
+	return s
+}
+
+func (s *DescribeNodeResponseBodyDisks) SetDiskId(v string) *DescribeNodeResponseBodyDisks {
+	s.DiskId = &v
+	return s
+}
+
+func (s *DescribeNodeResponseBodyDisks) SetPerformanceLevel(v string) *DescribeNodeResponseBodyDisks {
+	s.PerformanceLevel = &v
+	return s
+}
+
+func (s *DescribeNodeResponseBodyDisks) SetSize(v int32) *DescribeNodeResponseBodyDisks {
+	s.Size = &v
+	return s
+}
+
+func (s *DescribeNodeResponseBodyDisks) SetType(v string) *DescribeNodeResponseBodyDisks {
+	s.Type = &v
+	return s
 }
 
 type DescribeNodeResponseBodyNetworks struct {
@@ -7777,27 +5349,11 @@ type DescribeNodeResponseBodyNetworks struct {
 }
 
 func (s DescribeNodeResponseBodyNetworks) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeNodeResponseBodyNetworks) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeNodeResponseBodyNetworks) GetBondName() *string {
-	return s.BondName
-}
-
-func (s *DescribeNodeResponseBodyNetworks) GetIp() *string {
-	return s.Ip
-}
-
-func (s *DescribeNodeResponseBodyNetworks) GetSubnetId() *string {
-	return s.SubnetId
-}
-
-func (s *DescribeNodeResponseBodyNetworks) GetVpdId() *string {
-	return s.VpdId
 }
 
 func (s *DescribeNodeResponseBodyNetworks) SetBondName(v string) *DescribeNodeResponseBodyNetworks {
@@ -7820,22 +5376,6 @@ func (s *DescribeNodeResponseBodyNetworks) SetVpdId(v string) *DescribeNodeRespo
 	return s
 }
 
-func (s *DescribeNodeResponseBodyNetworks) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeNodeResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *DescribeNodeResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *DescribeNodeResponse
-	GetStatusCode() *int32
-	SetBody(v *DescribeNodeResponseBody) *DescribeNodeResponse
-	GetBody() *DescribeNodeResponseBody
-}
-
 type DescribeNodeResponse struct {
 	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -7843,23 +5383,11 @@ type DescribeNodeResponse struct {
 }
 
 func (s DescribeNodeResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeNodeResponse) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeNodeResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *DescribeNodeResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *DescribeNodeResponse) GetBody() *DescribeNodeResponseBody {
-	return s.Body
 }
 
 func (s *DescribeNodeResponse) SetHeaders(v map[string]*string) *DescribeNodeResponse {
@@ -7875,345 +5403,6 @@ func (s *DescribeNodeResponse) SetStatusCode(v int32) *DescribeNodeResponse {
 func (s *DescribeNodeResponse) SetBody(v *DescribeNodeResponseBody) *DescribeNodeResponse {
 	s.Body = v
 	return s
-}
-
-func (s *DescribeNodeResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeNodeGroupRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetNodeGroupId(v string) *DescribeNodeGroupRequest
-	GetNodeGroupId() *string
-}
-
-type DescribeNodeGroupRequest struct {
-	// This parameter is required.
-	NodeGroupId *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
-}
-
-func (s DescribeNodeGroupRequest) String() string {
-	return dara.Prettify(s)
-}
-
-func (s DescribeNodeGroupRequest) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeNodeGroupRequest) GetNodeGroupId() *string {
-	return s.NodeGroupId
-}
-
-func (s *DescribeNodeGroupRequest) SetNodeGroupId(v string) *DescribeNodeGroupRequest {
-	s.NodeGroupId = &v
-	return s
-}
-
-func (s *DescribeNodeGroupRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeNodeGroupResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetAz(v string) *DescribeNodeGroupResponseBody
-	GetAz() *string
-	SetClusterId(v string) *DescribeNodeGroupResponseBody
-	GetClusterId() *string
-	SetClusterName(v string) *DescribeNodeGroupResponseBody
-	GetClusterName() *string
-	SetCreateTime(v string) *DescribeNodeGroupResponseBody
-	GetCreateTime() *string
-	SetDisks(v *DescribeNodeGroupResponseBodyDisks) *DescribeNodeGroupResponseBody
-	GetDisks() *DescribeNodeGroupResponseBodyDisks
-	SetImageId(v string) *DescribeNodeGroupResponseBody
-	GetImageId() *string
-	SetImageName(v string) *DescribeNodeGroupResponseBody
-	GetImageName() *string
-	SetMachineType(v string) *DescribeNodeGroupResponseBody
-	GetMachineType() *string
-	SetNodeCount(v string) *DescribeNodeGroupResponseBody
-	GetNodeCount() *string
-	SetNodeGroupDescription(v string) *DescribeNodeGroupResponseBody
-	GetNodeGroupDescription() *string
-	SetNodeGroupId(v string) *DescribeNodeGroupResponseBody
-	GetNodeGroupId() *string
-	SetNodeGroupName(v string) *DescribeNodeGroupResponseBody
-	GetNodeGroupName() *string
-	SetRequestId(v string) *DescribeNodeGroupResponseBody
-	GetRequestId() *string
-	SetUpdateTime(v string) *DescribeNodeGroupResponseBody
-	GetUpdateTime() *string
-	SetUserData(v string) *DescribeNodeGroupResponseBody
-	GetUserData() *string
-}
-
-type DescribeNodeGroupResponseBody struct {
-	Az                   *string                             `json:"Az,omitempty" xml:"Az,omitempty"`
-	ClusterId            *string                             `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
-	ClusterName          *string                             `json:"ClusterName,omitempty" xml:"ClusterName,omitempty"`
-	CreateTime           *string                             `json:"CreateTime,omitempty" xml:"CreateTime,omitempty"`
-	Disks                *DescribeNodeGroupResponseBodyDisks `json:"Disks,omitempty" xml:"Disks,omitempty" type:"Struct"`
-	ImageId              *string                             `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
-	ImageName            *string                             `json:"ImageName,omitempty" xml:"ImageName,omitempty"`
-	MachineType          *string                             `json:"MachineType,omitempty" xml:"MachineType,omitempty"`
-	NodeCount            *string                             `json:"NodeCount,omitempty" xml:"NodeCount,omitempty"`
-	NodeGroupDescription *string                             `json:"NodeGroupDescription,omitempty" xml:"NodeGroupDescription,omitempty"`
-	NodeGroupId          *string                             `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
-	NodeGroupName        *string                             `json:"NodeGroupName,omitempty" xml:"NodeGroupName,omitempty"`
-	RequestId            *string                             `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-	UpdateTime           *string                             `json:"UpdateTime,omitempty" xml:"UpdateTime,omitempty"`
-	UserData             *string                             `json:"UserData,omitempty" xml:"UserData,omitempty"`
-}
-
-func (s DescribeNodeGroupResponseBody) String() string {
-	return dara.Prettify(s)
-}
-
-func (s DescribeNodeGroupResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeNodeGroupResponseBody) GetAz() *string {
-	return s.Az
-}
-
-func (s *DescribeNodeGroupResponseBody) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *DescribeNodeGroupResponseBody) GetClusterName() *string {
-	return s.ClusterName
-}
-
-func (s *DescribeNodeGroupResponseBody) GetCreateTime() *string {
-	return s.CreateTime
-}
-
-func (s *DescribeNodeGroupResponseBody) GetDisks() *DescribeNodeGroupResponseBodyDisks {
-	return s.Disks
-}
-
-func (s *DescribeNodeGroupResponseBody) GetImageId() *string {
-	return s.ImageId
-}
-
-func (s *DescribeNodeGroupResponseBody) GetImageName() *string {
-	return s.ImageName
-}
-
-func (s *DescribeNodeGroupResponseBody) GetMachineType() *string {
-	return s.MachineType
-}
-
-func (s *DescribeNodeGroupResponseBody) GetNodeCount() *string {
-	return s.NodeCount
-}
-
-func (s *DescribeNodeGroupResponseBody) GetNodeGroupDescription() *string {
-	return s.NodeGroupDescription
-}
-
-func (s *DescribeNodeGroupResponseBody) GetNodeGroupId() *string {
-	return s.NodeGroupId
-}
-
-func (s *DescribeNodeGroupResponseBody) GetNodeGroupName() *string {
-	return s.NodeGroupName
-}
-
-func (s *DescribeNodeGroupResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *DescribeNodeGroupResponseBody) GetUpdateTime() *string {
-	return s.UpdateTime
-}
-
-func (s *DescribeNodeGroupResponseBody) GetUserData() *string {
-	return s.UserData
-}
-
-func (s *DescribeNodeGroupResponseBody) SetAz(v string) *DescribeNodeGroupResponseBody {
-	s.Az = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBody) SetClusterId(v string) *DescribeNodeGroupResponseBody {
-	s.ClusterId = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBody) SetClusterName(v string) *DescribeNodeGroupResponseBody {
-	s.ClusterName = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBody) SetCreateTime(v string) *DescribeNodeGroupResponseBody {
-	s.CreateTime = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBody) SetDisks(v *DescribeNodeGroupResponseBodyDisks) *DescribeNodeGroupResponseBody {
-	s.Disks = v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBody) SetImageId(v string) *DescribeNodeGroupResponseBody {
-	s.ImageId = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBody) SetImageName(v string) *DescribeNodeGroupResponseBody {
-	s.ImageName = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBody) SetMachineType(v string) *DescribeNodeGroupResponseBody {
-	s.MachineType = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBody) SetNodeCount(v string) *DescribeNodeGroupResponseBody {
-	s.NodeCount = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBody) SetNodeGroupDescription(v string) *DescribeNodeGroupResponseBody {
-	s.NodeGroupDescription = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBody) SetNodeGroupId(v string) *DescribeNodeGroupResponseBody {
-	s.NodeGroupId = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBody) SetNodeGroupName(v string) *DescribeNodeGroupResponseBody {
-	s.NodeGroupName = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBody) SetRequestId(v string) *DescribeNodeGroupResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBody) SetUpdateTime(v string) *DescribeNodeGroupResponseBody {
-	s.UpdateTime = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBody) SetUserData(v string) *DescribeNodeGroupResponseBody {
-	s.UserData = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type DescribeNodeGroupResponseBodyDisks struct {
-	SystemDiskPerformanceLevel *string `json:"SystemDiskPerformanceLevel,omitempty" xml:"SystemDiskPerformanceLevel,omitempty"`
-	SystemDiskSize             *int32  `json:"SystemDiskSize,omitempty" xml:"SystemDiskSize,omitempty"`
-}
-
-func (s DescribeNodeGroupResponseBodyDisks) String() string {
-	return dara.Prettify(s)
-}
-
-func (s DescribeNodeGroupResponseBodyDisks) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeNodeGroupResponseBodyDisks) GetSystemDiskPerformanceLevel() *string {
-	return s.SystemDiskPerformanceLevel
-}
-
-func (s *DescribeNodeGroupResponseBodyDisks) GetSystemDiskSize() *int32 {
-	return s.SystemDiskSize
-}
-
-func (s *DescribeNodeGroupResponseBodyDisks) SetSystemDiskPerformanceLevel(v string) *DescribeNodeGroupResponseBodyDisks {
-	s.SystemDiskPerformanceLevel = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBodyDisks) SetSystemDiskSize(v int32) *DescribeNodeGroupResponseBodyDisks {
-	s.SystemDiskSize = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponseBodyDisks) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeNodeGroupResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *DescribeNodeGroupResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *DescribeNodeGroupResponse
-	GetStatusCode() *int32
-	SetBody(v *DescribeNodeGroupResponseBody) *DescribeNodeGroupResponse
-	GetBody() *DescribeNodeGroupResponseBody
-}
-
-type DescribeNodeGroupResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
-	Body       *DescribeNodeGroupResponseBody `json:"body,omitempty" xml:"body,omitempty"`
-}
-
-func (s DescribeNodeGroupResponse) String() string {
-	return dara.Prettify(s)
-}
-
-func (s DescribeNodeGroupResponse) GoString() string {
-	return s.String()
-}
-
-func (s *DescribeNodeGroupResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *DescribeNodeGroupResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *DescribeNodeGroupResponse) GetBody() *DescribeNodeGroupResponseBody {
-	return s.Body
-}
-
-func (s *DescribeNodeGroupResponse) SetHeaders(v map[string]*string) *DescribeNodeGroupResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *DescribeNodeGroupResponse) SetStatusCode(v int32) *DescribeNodeGroupResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *DescribeNodeGroupResponse) SetBody(v *DescribeNodeGroupResponseBody) *DescribeNodeGroupResponse {
-	s.Body = v
-	return s
-}
-
-func (s *DescribeNodeGroupResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeRegionsRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetAcceptLanguage(v string) *DescribeRegionsRequest
-	GetAcceptLanguage() *string
 }
 
 type DescribeRegionsRequest struct {
@@ -8232,34 +5421,16 @@ type DescribeRegionsRequest struct {
 }
 
 func (s DescribeRegionsRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeRegionsRequest) GoString() string {
 	return s.String()
 }
 
-func (s *DescribeRegionsRequest) GetAcceptLanguage() *string {
-	return s.AcceptLanguage
-}
-
 func (s *DescribeRegionsRequest) SetAcceptLanguage(v string) *DescribeRegionsRequest {
 	s.AcceptLanguage = &v
 	return s
-}
-
-func (s *DescribeRegionsRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeRegionsResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRegions(v []*DescribeRegionsResponseBodyRegions) *DescribeRegionsResponseBody
-	GetRegions() []*DescribeRegionsResponseBodyRegions
-	SetRequestId(v string) *DescribeRegionsResponseBody
-	GetRequestId() *string
 }
 
 type DescribeRegionsResponseBody struct {
@@ -8274,19 +5445,11 @@ type DescribeRegionsResponseBody struct {
 }
 
 func (s DescribeRegionsResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeRegionsResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeRegionsResponseBody) GetRegions() []*DescribeRegionsResponseBodyRegions {
-	return s.Regions
-}
-
-func (s *DescribeRegionsResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *DescribeRegionsResponseBody) SetRegions(v []*DescribeRegionsResponseBodyRegions) *DescribeRegionsResponseBody {
@@ -8297,10 +5460,6 @@ func (s *DescribeRegionsResponseBody) SetRegions(v []*DescribeRegionsResponseBod
 func (s *DescribeRegionsResponseBody) SetRequestId(v string) *DescribeRegionsResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *DescribeRegionsResponseBody) Validate() error {
-	return dara.Validate(s)
 }
 
 type DescribeRegionsResponseBodyRegions struct {
@@ -8319,19 +5478,11 @@ type DescribeRegionsResponseBodyRegions struct {
 }
 
 func (s DescribeRegionsResponseBodyRegions) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeRegionsResponseBodyRegions) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeRegionsResponseBodyRegions) GetLocalName() *string {
-	return s.LocalName
-}
-
-func (s *DescribeRegionsResponseBodyRegions) GetRegionId() *string {
-	return s.RegionId
 }
 
 func (s *DescribeRegionsResponseBodyRegions) SetLocalName(v string) *DescribeRegionsResponseBodyRegions {
@@ -8344,22 +5495,6 @@ func (s *DescribeRegionsResponseBodyRegions) SetRegionId(v string) *DescribeRegi
 	return s
 }
 
-func (s *DescribeRegionsResponseBodyRegions) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeRegionsResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *DescribeRegionsResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *DescribeRegionsResponse
-	GetStatusCode() *int32
-	SetBody(v *DescribeRegionsResponseBody) *DescribeRegionsResponse
-	GetBody() *DescribeRegionsResponseBody
-}
-
 type DescribeRegionsResponse struct {
 	Headers    map[string]*string           `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                       `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -8367,23 +5502,11 @@ type DescribeRegionsResponse struct {
 }
 
 func (s DescribeRegionsResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeRegionsResponse) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeRegionsResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *DescribeRegionsResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *DescribeRegionsResponse) GetBody() *DescribeRegionsResponseBody {
-	return s.Body
 }
 
 func (s *DescribeRegionsResponse) SetHeaders(v map[string]*string) *DescribeRegionsResponse {
@@ -8399,20 +5522,6 @@ func (s *DescribeRegionsResponse) SetStatusCode(v int32) *DescribeRegionsRespons
 func (s *DescribeRegionsResponse) SetBody(v *DescribeRegionsResponseBody) *DescribeRegionsResponse {
 	s.Body = v
 	return s
-}
-
-func (s *DescribeRegionsResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeSendFileResultsRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetInvokeId(v string) *DescribeSendFileResultsRequest
-	GetInvokeId() *string
-	SetNodeId(v string) *DescribeSendFileResultsRequest
-	GetNodeId() *string
 }
 
 type DescribeSendFileResultsRequest struct {
@@ -8433,19 +5542,11 @@ type DescribeSendFileResultsRequest struct {
 }
 
 func (s DescribeSendFileResultsRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeSendFileResultsRequest) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeSendFileResultsRequest) GetInvokeId() *string {
-	return s.InvokeId
-}
-
-func (s *DescribeSendFileResultsRequest) GetNodeId() *string {
-	return s.NodeId
 }
 
 func (s *DescribeSendFileResultsRequest) SetInvokeId(v string) *DescribeSendFileResultsRequest {
@@ -8456,22 +5557,6 @@ func (s *DescribeSendFileResultsRequest) SetInvokeId(v string) *DescribeSendFile
 func (s *DescribeSendFileResultsRequest) SetNodeId(v string) *DescribeSendFileResultsRequest {
 	s.NodeId = &v
 	return s
-}
-
-func (s *DescribeSendFileResultsRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeSendFileResultsResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetInvocations(v *DescribeSendFileResultsResponseBodyInvocations) *DescribeSendFileResultsResponseBody
-	GetInvocations() *DescribeSendFileResultsResponseBodyInvocations
-	SetRequestId(v string) *DescribeSendFileResultsResponseBody
-	GetRequestId() *string
-	SetTotalCount(v string) *DescribeSendFileResultsResponseBody
-	GetTotalCount() *string
 }
 
 type DescribeSendFileResultsResponseBody struct {
@@ -8492,23 +5577,11 @@ type DescribeSendFileResultsResponseBody struct {
 }
 
 func (s DescribeSendFileResultsResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeSendFileResultsResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeSendFileResultsResponseBody) GetInvocations() *DescribeSendFileResultsResponseBodyInvocations {
-	return s.Invocations
-}
-
-func (s *DescribeSendFileResultsResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *DescribeSendFileResultsResponseBody) GetTotalCount() *string {
-	return s.TotalCount
 }
 
 func (s *DescribeSendFileResultsResponseBody) SetInvocations(v *DescribeSendFileResultsResponseBodyInvocations) *DescribeSendFileResultsResponseBody {
@@ -8526,34 +5599,22 @@ func (s *DescribeSendFileResultsResponseBody) SetTotalCount(v string) *DescribeS
 	return s
 }
 
-func (s *DescribeSendFileResultsResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
 type DescribeSendFileResultsResponseBodyInvocations struct {
 	// Command execution ID.
 	Invocation []*DescribeSendFileResultsResponseBodyInvocationsInvocation `json:"Invocation,omitempty" xml:"Invocation,omitempty" type:"Repeated"`
 }
 
 func (s DescribeSendFileResultsResponseBodyInvocations) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeSendFileResultsResponseBodyInvocations) GoString() string {
 	return s.String()
 }
 
-func (s *DescribeSendFileResultsResponseBodyInvocations) GetInvocation() []*DescribeSendFileResultsResponseBodyInvocationsInvocation {
-	return s.Invocation
-}
-
 func (s *DescribeSendFileResultsResponseBodyInvocations) SetInvocation(v []*DescribeSendFileResultsResponseBodyInvocationsInvocation) *DescribeSendFileResultsResponseBodyInvocations {
 	s.Invocation = v
 	return s
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocations) Validate() error {
-	return dara.Validate(s)
 }
 
 type DescribeSendFileResultsResponseBodyInvocationsInvocation struct {
@@ -8670,63 +5731,11 @@ type DescribeSendFileResultsResponseBodyInvocationsInvocation struct {
 }
 
 func (s DescribeSendFileResultsResponseBodyInvocationsInvocation) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeSendFileResultsResponseBodyInvocationsInvocation) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) GetContent() *string {
-	return s.Content
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) GetContentType() *string {
-	return s.ContentType
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) GetCreationTime() *string {
-	return s.CreationTime
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) GetDescription() *string {
-	return s.Description
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) GetFileGroup() *string {
-	return s.FileGroup
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) GetFileMode() *string {
-	return s.FileMode
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) GetFileOwner() *string {
-	return s.FileOwner
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) GetInvocationStatus() *string {
-	return s.InvocationStatus
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) GetInvokeNodes() *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodes {
-	return s.InvokeNodes
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) GetName() *string {
-	return s.Name
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) GetNodeCount() *int32 {
-	return s.NodeCount
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) GetOverwrite() *bool {
-	return s.Overwrite
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) GetTargetDir() *string {
-	return s.TargetDir
 }
 
 func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) SetContent(v string) *DescribeSendFileResultsResponseBodyInvocationsInvocation {
@@ -8794,34 +5803,22 @@ func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) SetTargetDir(
 	return s
 }
 
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocation) Validate() error {
-	return dara.Validate(s)
-}
-
 type DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodes struct {
 	// Record of file distribution for the node.
 	InvokeNode []*DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode `json:"InvokeNode,omitempty" xml:"InvokeNode,omitempty" type:"Repeated"`
 }
 
 func (s DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodes) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodes) GoString() string {
 	return s.String()
 }
 
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodes) GetInvokeNode() []*DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode {
-	return s.InvokeNode
-}
-
 func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodes) SetInvokeNode(v []*DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodes {
 	s.InvokeNode = v
 	return s
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodes) Validate() error {
-	return dara.Validate(s)
 }
 
 type DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode struct {
@@ -8962,43 +5959,11 @@ type DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNo
 }
 
 func (s DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetCreationTime() *string {
-	return s.CreationTime
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetErrorCode() *string {
-	return s.ErrorCode
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetErrorInfo() *string {
-	return s.ErrorInfo
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetFinishTime() *string {
-	return s.FinishTime
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetInvocationStatus() *string {
-	return s.InvocationStatus
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetStartTime() *string {
-	return s.StartTime
-}
-
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) GetUpdateTime() *string {
-	return s.UpdateTime
 }
 
 func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) SetCreationTime(v string) *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode {
@@ -9041,22 +6006,6 @@ func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvo
 	return s
 }
 
-func (s *DescribeSendFileResultsResponseBodyInvocationsInvocationInvokeNodesInvokeNode) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeSendFileResultsResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *DescribeSendFileResultsResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *DescribeSendFileResultsResponse
-	GetStatusCode() *int32
-	SetBody(v *DescribeSendFileResultsResponseBody) *DescribeSendFileResultsResponse
-	GetBody() *DescribeSendFileResultsResponseBody
-}
-
 type DescribeSendFileResultsResponse struct {
 	Headers    map[string]*string                   `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                               `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -9064,23 +6013,11 @@ type DescribeSendFileResultsResponse struct {
 }
 
 func (s DescribeSendFileResultsResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeSendFileResultsResponse) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeSendFileResultsResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *DescribeSendFileResultsResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *DescribeSendFileResultsResponse) GetBody() *DescribeSendFileResultsResponseBody {
-	return s.Body
 }
 
 func (s *DescribeSendFileResultsResponse) SetHeaders(v map[string]*string) *DescribeSendFileResultsResponse {
@@ -9098,18 +6035,6 @@ func (s *DescribeSendFileResultsResponse) SetBody(v *DescribeSendFileResultsResp
 	return s
 }
 
-func (s *DescribeSendFileResultsResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeTaskRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetTaskId(v string) *DescribeTaskRequest
-	GetTaskId() *string
-}
-
 type DescribeTaskRequest struct {
 	// Task ID
 	//
@@ -9122,50 +6047,16 @@ type DescribeTaskRequest struct {
 }
 
 func (s DescribeTaskRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeTaskRequest) GoString() string {
 	return s.String()
 }
 
-func (s *DescribeTaskRequest) GetTaskId() *string {
-	return s.TaskId
-}
-
 func (s *DescribeTaskRequest) SetTaskId(v string) *DescribeTaskRequest {
 	s.TaskId = &v
 	return s
-}
-
-func (s *DescribeTaskRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeTaskResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *DescribeTaskResponseBody
-	GetClusterId() *string
-	SetClusterName(v string) *DescribeTaskResponseBody
-	GetClusterName() *string
-	SetCreateTime(v string) *DescribeTaskResponseBody
-	GetCreateTime() *string
-	SetMessage(v string) *DescribeTaskResponseBody
-	GetMessage() *string
-	SetNodeIds(v []*string) *DescribeTaskResponseBody
-	GetNodeIds() []*string
-	SetRequestId(v string) *DescribeTaskResponseBody
-	GetRequestId() *string
-	SetSteps(v []*DescribeTaskResponseBodySteps) *DescribeTaskResponseBody
-	GetSteps() []*DescribeTaskResponseBodySteps
-	SetTaskState(v string) *DescribeTaskResponseBody
-	GetTaskState() *string
-	SetTaskType(v string) *DescribeTaskResponseBody
-	GetTaskType() *string
-	SetUpdateTime(v string) *DescribeTaskResponseBody
-	GetUpdateTime() *string
 }
 
 type DescribeTaskResponseBody struct {
@@ -9224,51 +6115,11 @@ type DescribeTaskResponseBody struct {
 }
 
 func (s DescribeTaskResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeTaskResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeTaskResponseBody) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *DescribeTaskResponseBody) GetClusterName() *string {
-	return s.ClusterName
-}
-
-func (s *DescribeTaskResponseBody) GetCreateTime() *string {
-	return s.CreateTime
-}
-
-func (s *DescribeTaskResponseBody) GetMessage() *string {
-	return s.Message
-}
-
-func (s *DescribeTaskResponseBody) GetNodeIds() []*string {
-	return s.NodeIds
-}
-
-func (s *DescribeTaskResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *DescribeTaskResponseBody) GetSteps() []*DescribeTaskResponseBodySteps {
-	return s.Steps
-}
-
-func (s *DescribeTaskResponseBody) GetTaskState() *string {
-	return s.TaskState
-}
-
-func (s *DescribeTaskResponseBody) GetTaskType() *string {
-	return s.TaskType
-}
-
-func (s *DescribeTaskResponseBody) GetUpdateTime() *string {
-	return s.UpdateTime
 }
 
 func (s *DescribeTaskResponseBody) SetClusterId(v string) *DescribeTaskResponseBody {
@@ -9321,10 +6172,6 @@ func (s *DescribeTaskResponseBody) SetUpdateTime(v string) *DescribeTaskResponse
 	return s
 }
 
-func (s *DescribeTaskResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
 type DescribeTaskResponseBodySteps struct {
 	// Step Failure Message
 	//
@@ -9373,43 +6220,11 @@ type DescribeTaskResponseBodySteps struct {
 }
 
 func (s DescribeTaskResponseBodySteps) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeTaskResponseBodySteps) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeTaskResponseBodySteps) GetMessage() *string {
-	return s.Message
-}
-
-func (s *DescribeTaskResponseBodySteps) GetStageTag() *string {
-	return s.StageTag
-}
-
-func (s *DescribeTaskResponseBodySteps) GetStartTime() *string {
-	return s.StartTime
-}
-
-func (s *DescribeTaskResponseBodySteps) GetStepName() *string {
-	return s.StepName
-}
-
-func (s *DescribeTaskResponseBodySteps) GetStepState() *string {
-	return s.StepState
-}
-
-func (s *DescribeTaskResponseBodySteps) GetStepType() *string {
-	return s.StepType
-}
-
-func (s *DescribeTaskResponseBodySteps) GetSubTasks() []*DescribeTaskResponseBodyStepsSubTasks {
-	return s.SubTasks
-}
-
-func (s *DescribeTaskResponseBodySteps) GetUpdateTime() *string {
-	return s.UpdateTime
 }
 
 func (s *DescribeTaskResponseBodySteps) SetMessage(v string) *DescribeTaskResponseBodySteps {
@@ -9452,10 +6267,6 @@ func (s *DescribeTaskResponseBodySteps) SetUpdateTime(v string) *DescribeTaskRes
 	return s
 }
 
-func (s *DescribeTaskResponseBodySteps) Validate() error {
-	return dara.Validate(s)
-}
-
 type DescribeTaskResponseBodyStepsSubTasks struct {
 	// Creation Time
 	//
@@ -9496,35 +6307,11 @@ type DescribeTaskResponseBodyStepsSubTasks struct {
 }
 
 func (s DescribeTaskResponseBodyStepsSubTasks) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeTaskResponseBodyStepsSubTasks) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeTaskResponseBodyStepsSubTasks) GetCreateTime() *string {
-	return s.CreateTime
-}
-
-func (s *DescribeTaskResponseBodyStepsSubTasks) GetMessage() *string {
-	return s.Message
-}
-
-func (s *DescribeTaskResponseBodyStepsSubTasks) GetTaskId() *string {
-	return s.TaskId
-}
-
-func (s *DescribeTaskResponseBodyStepsSubTasks) GetTaskState() *string {
-	return s.TaskState
-}
-
-func (s *DescribeTaskResponseBodyStepsSubTasks) GetTaskType() *string {
-	return s.TaskType
-}
-
-func (s *DescribeTaskResponseBodyStepsSubTasks) GetUpdateTime() *string {
-	return s.UpdateTime
 }
 
 func (s *DescribeTaskResponseBodyStepsSubTasks) SetCreateTime(v string) *DescribeTaskResponseBodyStepsSubTasks {
@@ -9557,22 +6344,6 @@ func (s *DescribeTaskResponseBodyStepsSubTasks) SetUpdateTime(v string) *Describ
 	return s
 }
 
-func (s *DescribeTaskResponseBodyStepsSubTasks) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeTaskResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *DescribeTaskResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *DescribeTaskResponse
-	GetStatusCode() *int32
-	SetBody(v *DescribeTaskResponseBody) *DescribeTaskResponse
-	GetBody() *DescribeTaskResponseBody
-}
-
 type DescribeTaskResponse struct {
 	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -9580,23 +6351,11 @@ type DescribeTaskResponse struct {
 }
 
 func (s DescribeTaskResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeTaskResponse) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeTaskResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *DescribeTaskResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *DescribeTaskResponse) GetBody() *DescribeTaskResponseBody {
-	return s.Body
 }
 
 func (s *DescribeTaskResponse) SetHeaders(v map[string]*string) *DescribeTaskResponse {
@@ -9614,33 +6373,21 @@ func (s *DescribeTaskResponse) SetBody(v *DescribeTaskResponseBody) *DescribeTas
 	return s
 }
 
-func (s *DescribeTaskResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeVscRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetVscId(v string) *DescribeVscRequest
-	GetVscId() *string
-}
-
 type DescribeVscRequest struct {
 	// This parameter is required.
+	//
+	// example:
+	//
+	// vsc-001
 	VscId *string `json:"VscId,omitempty" xml:"VscId,omitempty"`
 }
 
 func (s DescribeVscRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeVscRequest) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeVscRequest) GetVscId() *string {
-	return s.VscId
 }
 
 func (s *DescribeVscRequest) SetVscId(v string) *DescribeVscRequest {
@@ -9648,74 +6395,47 @@ func (s *DescribeVscRequest) SetVscId(v string) *DescribeVscRequest {
 	return s
 }
 
-func (s *DescribeVscRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeVscResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetNodeId(v string) *DescribeVscResponseBody
-	GetNodeId() *string
-	SetRequestId(v string) *DescribeVscResponseBody
-	GetRequestId() *string
-	SetResourceGroupId(v string) *DescribeVscResponseBody
-	GetResourceGroupId() *string
-	SetStatus(v string) *DescribeVscResponseBody
-	GetStatus() *string
-	SetVscId(v string) *DescribeVscResponseBody
-	GetVscId() *string
-	SetVscName(v string) *DescribeVscResponseBody
-	GetVscName() *string
-	SetVscType(v string) *DescribeVscResponseBody
-	GetVscType() *string
-}
-
 type DescribeVscResponseBody struct {
-	NodeId          *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
-	RequestId       *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	// example:
+	//
+	// e01-cn-kvw44e6dn04
+	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
+	// Id of the request
+	//
+	// example:
+	//
+	// 4FD06DF0-9167-5C6F-A145-F30CA4A15D54
+	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	// example:
+	//
+	// rg-aek2k3rqlvv6ytq
 	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	Status          *string `json:"Status,omitempty" xml:"Status,omitempty"`
-	VscId           *string `json:"VscId,omitempty" xml:"VscId,omitempty"`
-	VscName         *string `json:"VscName,omitempty" xml:"VscName,omitempty"`
-	VscType         *string `json:"VscType,omitempty" xml:"VscType,omitempty"`
+	// example:
+	//
+	// NORMAL
+	Status *string `json:"Status,omitempty" xml:"Status,omitempty"`
+	// VscId
+	//
+	// example:
+	//
+	// vsc-001
+	VscId *string `json:"VscId,omitempty" xml:"VscId,omitempty"`
+	// example:
+	//
+	// test_name
+	VscName *string `json:"VscName,omitempty" xml:"VscName,omitempty"`
+	// example:
+	//
+	// primary
+	VscType *string `json:"VscType,omitempty" xml:"VscType,omitempty"`
 }
 
 func (s DescribeVscResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeVscResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeVscResponseBody) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *DescribeVscResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *DescribeVscResponseBody) GetResourceGroupId() *string {
-	return s.ResourceGroupId
-}
-
-func (s *DescribeVscResponseBody) GetStatus() *string {
-	return s.Status
-}
-
-func (s *DescribeVscResponseBody) GetVscId() *string {
-	return s.VscId
-}
-
-func (s *DescribeVscResponseBody) GetVscName() *string {
-	return s.VscName
-}
-
-func (s *DescribeVscResponseBody) GetVscType() *string {
-	return s.VscType
 }
 
 func (s *DescribeVscResponseBody) SetNodeId(v string) *DescribeVscResponseBody {
@@ -9753,22 +6473,6 @@ func (s *DescribeVscResponseBody) SetVscType(v string) *DescribeVscResponseBody 
 	return s
 }
 
-func (s *DescribeVscResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeVscResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *DescribeVscResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *DescribeVscResponse
-	GetStatusCode() *int32
-	SetBody(v *DescribeVscResponseBody) *DescribeVscResponse
-	GetBody() *DescribeVscResponseBody
-}
-
 type DescribeVscResponse struct {
 	Headers    map[string]*string       `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                   `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -9776,23 +6480,11 @@ type DescribeVscResponse struct {
 }
 
 func (s DescribeVscResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeVscResponse) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeVscResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *DescribeVscResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *DescribeVscResponse) GetBody() *DescribeVscResponseBody {
-	return s.Body
 }
 
 func (s *DescribeVscResponse) SetHeaders(v map[string]*string) *DescribeVscResponse {
@@ -9808,18 +6500,6 @@ func (s *DescribeVscResponse) SetStatusCode(v int32) *DescribeVscResponse {
 func (s *DescribeVscResponse) SetBody(v *DescribeVscResponseBody) *DescribeVscResponse {
 	s.Body = v
 	return s
-}
-
-func (s *DescribeVscResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeZonesRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetAcceptLanguage(v string) *DescribeZonesRequest
-	GetAcceptLanguage() *string
 }
 
 type DescribeZonesRequest struct {
@@ -9838,34 +6518,16 @@ type DescribeZonesRequest struct {
 }
 
 func (s DescribeZonesRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeZonesRequest) GoString() string {
 	return s.String()
 }
 
-func (s *DescribeZonesRequest) GetAcceptLanguage() *string {
-	return s.AcceptLanguage
-}
-
 func (s *DescribeZonesRequest) SetAcceptLanguage(v string) *DescribeZonesRequest {
 	s.AcceptLanguage = &v
 	return s
-}
-
-func (s *DescribeZonesRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeZonesResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *DescribeZonesResponseBody
-	GetRequestId() *string
-	SetZones(v []*DescribeZonesResponseBodyZones) *DescribeZonesResponseBody
-	GetZones() []*DescribeZonesResponseBodyZones
 }
 
 type DescribeZonesResponseBody struct {
@@ -9880,19 +6542,11 @@ type DescribeZonesResponseBody struct {
 }
 
 func (s DescribeZonesResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeZonesResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeZonesResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *DescribeZonesResponseBody) GetZones() []*DescribeZonesResponseBodyZones {
-	return s.Zones
 }
 
 func (s *DescribeZonesResponseBody) SetRequestId(v string) *DescribeZonesResponseBody {
@@ -9903,10 +6557,6 @@ func (s *DescribeZonesResponseBody) SetRequestId(v string) *DescribeZonesRespons
 func (s *DescribeZonesResponseBody) SetZones(v []*DescribeZonesResponseBodyZones) *DescribeZonesResponseBody {
 	s.Zones = v
 	return s
-}
-
-func (s *DescribeZonesResponseBody) Validate() error {
-	return dara.Validate(s)
 }
 
 type DescribeZonesResponseBodyZones struct {
@@ -9925,19 +6575,11 @@ type DescribeZonesResponseBodyZones struct {
 }
 
 func (s DescribeZonesResponseBodyZones) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeZonesResponseBodyZones) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeZonesResponseBodyZones) GetLocalName() *string {
-	return s.LocalName
-}
-
-func (s *DescribeZonesResponseBodyZones) GetZoneId() *string {
-	return s.ZoneId
 }
 
 func (s *DescribeZonesResponseBodyZones) SetLocalName(v string) *DescribeZonesResponseBodyZones {
@@ -9950,22 +6592,6 @@ func (s *DescribeZonesResponseBodyZones) SetZoneId(v string) *DescribeZonesRespo
 	return s
 }
 
-func (s *DescribeZonesResponseBodyZones) Validate() error {
-	return dara.Validate(s)
-}
-
-type iDescribeZonesResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *DescribeZonesResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *DescribeZonesResponse
-	GetStatusCode() *int32
-	SetBody(v *DescribeZonesResponseBody) *DescribeZonesResponse
-	GetBody() *DescribeZonesResponseBody
-}
-
 type DescribeZonesResponse struct {
 	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -9973,23 +6599,11 @@ type DescribeZonesResponse struct {
 }
 
 func (s DescribeZonesResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s DescribeZonesResponse) GoString() string {
 	return s.String()
-}
-
-func (s *DescribeZonesResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *DescribeZonesResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *DescribeZonesResponse) GetBody() *DescribeZonesResponseBody {
-	return s.Body
 }
 
 func (s *DescribeZonesResponse) SetHeaders(v map[string]*string) *DescribeZonesResponse {
@@ -10005,28 +6619,6 @@ func (s *DescribeZonesResponse) SetStatusCode(v int32) *DescribeZonesResponse {
 func (s *DescribeZonesResponse) SetBody(v *DescribeZonesResponseBody) *DescribeZonesResponse {
 	s.Body = v
 	return s
-}
-
-func (s *DescribeZonesResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iExtendClusterRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *ExtendClusterRequest
-	GetClusterId() *string
-	SetIgnoreFailedNodeTasks(v bool) *ExtendClusterRequest
-	GetIgnoreFailedNodeTasks() *bool
-	SetIpAllocationPolicy(v []*ExtendClusterRequestIpAllocationPolicy) *ExtendClusterRequest
-	GetIpAllocationPolicy() []*ExtendClusterRequestIpAllocationPolicy
-	SetNodeGroups(v []*ExtendClusterRequestNodeGroups) *ExtendClusterRequest
-	GetNodeGroups() []*ExtendClusterRequestNodeGroups
-	SetVSwitchZoneId(v string) *ExtendClusterRequest
-	GetVSwitchZoneId() *string
-	SetVpdSubnets(v []*string) *ExtendClusterRequest
-	GetVpdSubnets() []*string
 }
 
 type ExtendClusterRequest struct {
@@ -10057,35 +6649,11 @@ type ExtendClusterRequest struct {
 }
 
 func (s ExtendClusterRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ExtendClusterRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ExtendClusterRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *ExtendClusterRequest) GetIgnoreFailedNodeTasks() *bool {
-	return s.IgnoreFailedNodeTasks
-}
-
-func (s *ExtendClusterRequest) GetIpAllocationPolicy() []*ExtendClusterRequestIpAllocationPolicy {
-	return s.IpAllocationPolicy
-}
-
-func (s *ExtendClusterRequest) GetNodeGroups() []*ExtendClusterRequestNodeGroups {
-	return s.NodeGroups
-}
-
-func (s *ExtendClusterRequest) GetVSwitchZoneId() *string {
-	return s.VSwitchZoneId
-}
-
-func (s *ExtendClusterRequest) GetVpdSubnets() []*string {
-	return s.VpdSubnets
 }
 
 func (s *ExtendClusterRequest) SetClusterId(v string) *ExtendClusterRequest {
@@ -10118,10 +6686,6 @@ func (s *ExtendClusterRequest) SetVpdSubnets(v []*string) *ExtendClusterRequest 
 	return s
 }
 
-func (s *ExtendClusterRequest) Validate() error {
-	return dara.Validate(s)
-}
-
 type ExtendClusterRequestIpAllocationPolicy struct {
 	// Specify the cluster subnet ID based on the bond name
 	BondPolicy *ExtendClusterRequestIpAllocationPolicyBondPolicy `json:"BondPolicy,omitempty" xml:"BondPolicy,omitempty" type:"Struct"`
@@ -10132,23 +6696,11 @@ type ExtendClusterRequestIpAllocationPolicy struct {
 }
 
 func (s ExtendClusterRequestIpAllocationPolicy) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ExtendClusterRequestIpAllocationPolicy) GoString() string {
 	return s.String()
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicy) GetBondPolicy() *ExtendClusterRequestIpAllocationPolicyBondPolicy {
-	return s.BondPolicy
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicy) GetMachineTypePolicy() []*ExtendClusterRequestIpAllocationPolicyMachineTypePolicy {
-	return s.MachineTypePolicy
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicy) GetNodePolicy() []*ExtendClusterRequestIpAllocationPolicyNodePolicy {
-	return s.NodePolicy
 }
 
 func (s *ExtendClusterRequestIpAllocationPolicy) SetBondPolicy(v *ExtendClusterRequestIpAllocationPolicyBondPolicy) *ExtendClusterRequestIpAllocationPolicy {
@@ -10166,10 +6718,6 @@ func (s *ExtendClusterRequestIpAllocationPolicy) SetNodePolicy(v []*ExtendCluste
 	return s
 }
 
-func (s *ExtendClusterRequestIpAllocationPolicy) Validate() error {
-	return dara.Validate(s)
-}
-
 type ExtendClusterRequestIpAllocationPolicyBondPolicy struct {
 	// Default bond cluster subnet
 	//
@@ -10182,19 +6730,11 @@ type ExtendClusterRequestIpAllocationPolicyBondPolicy struct {
 }
 
 func (s ExtendClusterRequestIpAllocationPolicyBondPolicy) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ExtendClusterRequestIpAllocationPolicyBondPolicy) GoString() string {
 	return s.String()
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyBondPolicy) GetBondDefaultSubnet() *string {
-	return s.BondDefaultSubnet
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyBondPolicy) GetBonds() []*ExtendClusterRequestIpAllocationPolicyBondPolicyBonds {
-	return s.Bonds
 }
 
 func (s *ExtendClusterRequestIpAllocationPolicyBondPolicy) SetBondDefaultSubnet(v string) *ExtendClusterRequestIpAllocationPolicyBondPolicy {
@@ -10205,10 +6745,6 @@ func (s *ExtendClusterRequestIpAllocationPolicyBondPolicy) SetBondDefaultSubnet(
 func (s *ExtendClusterRequestIpAllocationPolicyBondPolicy) SetBonds(v []*ExtendClusterRequestIpAllocationPolicyBondPolicyBonds) *ExtendClusterRequestIpAllocationPolicyBondPolicy {
 	s.Bonds = v
 	return s
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyBondPolicy) Validate() error {
-	return dara.Validate(s)
 }
 
 type ExtendClusterRequestIpAllocationPolicyBondPolicyBonds struct {
@@ -10227,19 +6763,11 @@ type ExtendClusterRequestIpAllocationPolicyBondPolicyBonds struct {
 }
 
 func (s ExtendClusterRequestIpAllocationPolicyBondPolicyBonds) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ExtendClusterRequestIpAllocationPolicyBondPolicyBonds) GoString() string {
 	return s.String()
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyBondPolicyBonds) GetName() *string {
-	return s.Name
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyBondPolicyBonds) GetSubnet() *string {
-	return s.Subnet
 }
 
 func (s *ExtendClusterRequestIpAllocationPolicyBondPolicyBonds) SetName(v string) *ExtendClusterRequestIpAllocationPolicyBondPolicyBonds {
@@ -10250,10 +6778,6 @@ func (s *ExtendClusterRequestIpAllocationPolicyBondPolicyBonds) SetName(v string
 func (s *ExtendClusterRequestIpAllocationPolicyBondPolicyBonds) SetSubnet(v string) *ExtendClusterRequestIpAllocationPolicyBondPolicyBonds {
 	s.Subnet = &v
 	return s
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyBondPolicyBonds) Validate() error {
-	return dara.Validate(s)
 }
 
 type ExtendClusterRequestIpAllocationPolicyMachineTypePolicy struct {
@@ -10268,19 +6792,11 @@ type ExtendClusterRequestIpAllocationPolicyMachineTypePolicy struct {
 }
 
 func (s ExtendClusterRequestIpAllocationPolicyMachineTypePolicy) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ExtendClusterRequestIpAllocationPolicyMachineTypePolicy) GoString() string {
 	return s.String()
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyMachineTypePolicy) GetBonds() []*ExtendClusterRequestIpAllocationPolicyMachineTypePolicyBonds {
-	return s.Bonds
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyMachineTypePolicy) GetMachineType() *string {
-	return s.MachineType
 }
 
 func (s *ExtendClusterRequestIpAllocationPolicyMachineTypePolicy) SetBonds(v []*ExtendClusterRequestIpAllocationPolicyMachineTypePolicyBonds) *ExtendClusterRequestIpAllocationPolicyMachineTypePolicy {
@@ -10291,10 +6807,6 @@ func (s *ExtendClusterRequestIpAllocationPolicyMachineTypePolicy) SetBonds(v []*
 func (s *ExtendClusterRequestIpAllocationPolicyMachineTypePolicy) SetMachineType(v string) *ExtendClusterRequestIpAllocationPolicyMachineTypePolicy {
 	s.MachineType = &v
 	return s
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyMachineTypePolicy) Validate() error {
-	return dara.Validate(s)
 }
 
 type ExtendClusterRequestIpAllocationPolicyMachineTypePolicyBonds struct {
@@ -10313,19 +6825,11 @@ type ExtendClusterRequestIpAllocationPolicyMachineTypePolicyBonds struct {
 }
 
 func (s ExtendClusterRequestIpAllocationPolicyMachineTypePolicyBonds) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ExtendClusterRequestIpAllocationPolicyMachineTypePolicyBonds) GoString() string {
 	return s.String()
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyMachineTypePolicyBonds) GetName() *string {
-	return s.Name
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyMachineTypePolicyBonds) GetSubnet() *string {
-	return s.Subnet
 }
 
 func (s *ExtendClusterRequestIpAllocationPolicyMachineTypePolicyBonds) SetName(v string) *ExtendClusterRequestIpAllocationPolicyMachineTypePolicyBonds {
@@ -10338,14 +6842,15 @@ func (s *ExtendClusterRequestIpAllocationPolicyMachineTypePolicyBonds) SetSubnet
 	return s
 }
 
-func (s *ExtendClusterRequestIpAllocationPolicyMachineTypePolicyBonds) Validate() error {
-	return dara.Validate(s)
-}
-
 type ExtendClusterRequestIpAllocationPolicyNodePolicy struct {
 	// Bond information
-	Bonds    []*ExtendClusterRequestIpAllocationPolicyNodePolicyBonds `json:"Bonds,omitempty" xml:"Bonds,omitempty" type:"Repeated"`
-	Hostname *string                                                  `json:"Hostname,omitempty" xml:"Hostname,omitempty"`
+	Bonds []*ExtendClusterRequestIpAllocationPolicyNodePolicyBonds `json:"Bonds,omitempty" xml:"Bonds,omitempty" type:"Repeated"`
+	// Host name
+	//
+	// example:
+	//
+	// i22c11282.eu95sqa
+	Hostname *string `json:"Hostname,omitempty" xml:"Hostname,omitempty"`
 	// Node ID
 	//
 	// example:
@@ -10355,23 +6860,11 @@ type ExtendClusterRequestIpAllocationPolicyNodePolicy struct {
 }
 
 func (s ExtendClusterRequestIpAllocationPolicyNodePolicy) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ExtendClusterRequestIpAllocationPolicyNodePolicy) GoString() string {
 	return s.String()
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyNodePolicy) GetBonds() []*ExtendClusterRequestIpAllocationPolicyNodePolicyBonds {
-	return s.Bonds
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyNodePolicy) GetHostname() *string {
-	return s.Hostname
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyNodePolicy) GetNodeId() *string {
-	return s.NodeId
 }
 
 func (s *ExtendClusterRequestIpAllocationPolicyNodePolicy) SetBonds(v []*ExtendClusterRequestIpAllocationPolicyNodePolicyBonds) *ExtendClusterRequestIpAllocationPolicyNodePolicy {
@@ -10387,10 +6880,6 @@ func (s *ExtendClusterRequestIpAllocationPolicyNodePolicy) SetHostname(v string)
 func (s *ExtendClusterRequestIpAllocationPolicyNodePolicy) SetNodeId(v string) *ExtendClusterRequestIpAllocationPolicyNodePolicy {
 	s.NodeId = &v
 	return s
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyNodePolicy) Validate() error {
-	return dara.Validate(s)
 }
 
 type ExtendClusterRequestIpAllocationPolicyNodePolicyBonds struct {
@@ -10409,19 +6898,11 @@ type ExtendClusterRequestIpAllocationPolicyNodePolicyBonds struct {
 }
 
 func (s ExtendClusterRequestIpAllocationPolicyNodePolicyBonds) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ExtendClusterRequestIpAllocationPolicyNodePolicyBonds) GoString() string {
 	return s.String()
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyNodePolicyBonds) GetName() *string {
-	return s.Name
-}
-
-func (s *ExtendClusterRequestIpAllocationPolicyNodePolicyBonds) GetSubnet() *string {
-	return s.Subnet
 }
 
 func (s *ExtendClusterRequestIpAllocationPolicyNodePolicyBonds) SetName(v string) *ExtendClusterRequestIpAllocationPolicyNodePolicyBonds {
@@ -10434,26 +6915,81 @@ func (s *ExtendClusterRequestIpAllocationPolicyNodePolicyBonds) SetSubnet(v stri
 	return s
 }
 
-func (s *ExtendClusterRequestIpAllocationPolicyNodePolicyBonds) Validate() error {
-	return dara.Validate(s)
-}
-
 type ExtendClusterRequestNodeGroups struct {
-	Amount        *int64    `json:"Amount,omitempty" xml:"Amount,omitempty"`
-	AutoRenew     *bool     `json:"AutoRenew,omitempty" xml:"AutoRenew,omitempty"`
-	ChargeType    *string   `json:"ChargeType,omitempty" xml:"ChargeType,omitempty"`
-	Hostnames     []*string `json:"Hostnames,omitempty" xml:"Hostnames,omitempty" type:"Repeated"`
-	LoginPassword *string   `json:"LoginPassword,omitempty" xml:"LoginPassword,omitempty"`
+	// Number of nodes to purchase. Value range: 0–500.
+	//
+	// If the Amount parameter is set to 0, no nodes will be purchased. Existing nodes will be used for scaling.
+	//
+	// If the Amount parameter is set to 1–500, the specified number of nodes will be purchased and used for scaling.
+	//
+	// Default value: 0
+	//
+	// example:
+	//
+	// 4
+	Amount *int64 `json:"Amount,omitempty" xml:"Amount,omitempty"`
+	// Whether to enable auto-renewal for purchased nodes.
+	//
+	// Conditions: This parameter takes effect only when the Amount parameter is set to a non-zero value and the ChargeType is PrePaid.
+	//
+	// Valid values:
+	//
+	// True: Enable auto-renewal.
+	//
+	// False: Disable auto-renewal.
+	//
+	// Default value: False
+	//
+	// example:
+	//
+	// True
+	AutoRenew *bool `json:"AutoRenew,omitempty" xml:"AutoRenew,omitempty"`
+	// Billing method for nodes.
+	//
+	// This parameter takes effect only when the Amount parameter is set to a value other than 0.
+	//
+	// Valid values:
+	//
+	// PrePaid: Subscription (prepaid).
+	//
+	// PostPaid: Pay-as-you-go (postpaid).
+	//
+	// Default value: PrePaid
+	//
+	// example:
+	//
+	// PostPaid
+	ChargeType *string `json:"ChargeType,omitempty" xml:"ChargeType,omitempty"`
+	// The hostnames of purchased nodes.
+	//
+	// This parameter takes effect only when the Amount parameter is set to a non-zero value.
+	Hostnames []*string `json:"Hostnames,omitempty" xml:"Hostnames,omitempty" type:"Repeated"`
+	// The login password of node.
+	//
+	// example:
+	//
+	// Addk(*78
+	LoginPassword *string `json:"LoginPassword,omitempty" xml:"LoginPassword,omitempty"`
 	// Node Group ID
 	//
 	// example:
 	//
 	// i16d4883a46cbadeb4bc9
-	NodeGroupId *string                                  `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
-	NodeTag     []*ExtendClusterRequestNodeGroupsNodeTag `json:"NodeTag,omitempty" xml:"NodeTag,omitempty" type:"Repeated"`
+	NodeGroupId *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
+	// The tag of node
+	NodeTag []*ExtendClusterRequestNodeGroupsNodeTag `json:"NodeTag,omitempty" xml:"NodeTag,omitempty" type:"Repeated"`
 	// List of Nodes
-	Nodes  []*ExtendClusterRequestNodeGroupsNodes `json:"Nodes,omitempty" xml:"Nodes,omitempty" type:"Repeated"`
-	Period *int64                                 `json:"Period,omitempty" xml:"Period,omitempty"`
+	Nodes []*ExtendClusterRequestNodeGroupsNodes `json:"Nodes,omitempty" xml:"Nodes,omitempty" type:"Repeated"`
+	// Purchase duration for nodes (unit: month).
+	//
+	// Valid values: 1, 6, 12, 24, 36, 48.
+	//
+	// Conditions: This parameter takes effect only when the Amount parameter is set to a non-zero value and the ChargeType is PrePaid.
+	//
+	// example:
+	//
+	// 6
+	Period *int64 `json:"Period,omitempty" xml:"Period,omitempty"`
 	// Custom Data
 	//
 	// example:
@@ -10461,9 +6997,19 @@ type ExtendClusterRequestNodeGroups struct {
 	// #!/bin/sh
 	//
 	// echo "Hello World. The time is now $(date -R)!" | tee /root/userdata_test.txt
-	UserData  *string `json:"UserData,omitempty" xml:"UserData,omitempty"`
+	UserData *string `json:"UserData,omitempty" xml:"UserData,omitempty"`
+	// VSwitch Id
+	//
+	// example:
+	//
+	// vsw-0jly2d537ejphyq6h13ke
 	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	VpcId     *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
+	// Vpc Id
+	//
+	// example:
+	//
+	// vpc-zq1econyv63tvyci5hefw
+	VpcId *string `json:"VpcId,omitempty" xml:"VpcId,omitempty"`
 	// Zone ID
 	//
 	// example:
@@ -10473,63 +7019,11 @@ type ExtendClusterRequestNodeGroups struct {
 }
 
 func (s ExtendClusterRequestNodeGroups) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ExtendClusterRequestNodeGroups) GoString() string {
 	return s.String()
-}
-
-func (s *ExtendClusterRequestNodeGroups) GetAmount() *int64 {
-	return s.Amount
-}
-
-func (s *ExtendClusterRequestNodeGroups) GetAutoRenew() *bool {
-	return s.AutoRenew
-}
-
-func (s *ExtendClusterRequestNodeGroups) GetChargeType() *string {
-	return s.ChargeType
-}
-
-func (s *ExtendClusterRequestNodeGroups) GetHostnames() []*string {
-	return s.Hostnames
-}
-
-func (s *ExtendClusterRequestNodeGroups) GetLoginPassword() *string {
-	return s.LoginPassword
-}
-
-func (s *ExtendClusterRequestNodeGroups) GetNodeGroupId() *string {
-	return s.NodeGroupId
-}
-
-func (s *ExtendClusterRequestNodeGroups) GetNodeTag() []*ExtendClusterRequestNodeGroupsNodeTag {
-	return s.NodeTag
-}
-
-func (s *ExtendClusterRequestNodeGroups) GetNodes() []*ExtendClusterRequestNodeGroupsNodes {
-	return s.Nodes
-}
-
-func (s *ExtendClusterRequestNodeGroups) GetPeriod() *int64 {
-	return s.Period
-}
-
-func (s *ExtendClusterRequestNodeGroups) GetUserData() *string {
-	return s.UserData
-}
-
-func (s *ExtendClusterRequestNodeGroups) GetVSwitchId() *string {
-	return s.VSwitchId
-}
-
-func (s *ExtendClusterRequestNodeGroups) GetVpcId() *string {
-	return s.VpcId
-}
-
-func (s *ExtendClusterRequestNodeGroups) GetZoneId() *string {
-	return s.ZoneId
 }
 
 func (s *ExtendClusterRequestNodeGroups) SetAmount(v int64) *ExtendClusterRequestNodeGroups {
@@ -10597,29 +7091,27 @@ func (s *ExtendClusterRequestNodeGroups) SetZoneId(v string) *ExtendClusterReque
 	return s
 }
 
-func (s *ExtendClusterRequestNodeGroups) Validate() error {
-	return dara.Validate(s)
-}
-
 type ExtendClusterRequestNodeGroupsNodeTag struct {
-	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The key of tag.
+	//
+	// example:
+	//
+	// my_key
+	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The value of tag.
+	//
+	// example:
+	//
+	// my_value
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
 func (s ExtendClusterRequestNodeGroupsNodeTag) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ExtendClusterRequestNodeGroupsNodeTag) GoString() string {
 	return s.String()
-}
-
-func (s *ExtendClusterRequestNodeGroupsNodeTag) GetKey() *string {
-	return s.Key
-}
-
-func (s *ExtendClusterRequestNodeGroupsNodeTag) GetValue() *string {
-	return s.Value
 }
 
 func (s *ExtendClusterRequestNodeGroupsNodeTag) SetKey(v string) *ExtendClusterRequestNodeGroupsNodeTag {
@@ -10630,10 +7122,6 @@ func (s *ExtendClusterRequestNodeGroupsNodeTag) SetKey(v string) *ExtendClusterR
 func (s *ExtendClusterRequestNodeGroupsNodeTag) SetValue(v string) *ExtendClusterRequestNodeGroupsNodeTag {
 	s.Value = &v
 	return s
-}
-
-func (s *ExtendClusterRequestNodeGroupsNodeTag) Validate() error {
-	return dara.Validate(s)
 }
 
 type ExtendClusterRequestNodeGroupsNodes struct {
@@ -10670,31 +7158,11 @@ type ExtendClusterRequestNodeGroupsNodes struct {
 }
 
 func (s ExtendClusterRequestNodeGroupsNodes) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ExtendClusterRequestNodeGroupsNodes) GoString() string {
 	return s.String()
-}
-
-func (s *ExtendClusterRequestNodeGroupsNodes) GetHostname() *string {
-	return s.Hostname
-}
-
-func (s *ExtendClusterRequestNodeGroupsNodes) GetLoginPassword() *string {
-	return s.LoginPassword
-}
-
-func (s *ExtendClusterRequestNodeGroupsNodes) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *ExtendClusterRequestNodeGroupsNodes) GetVSwitchId() *string {
-	return s.VSwitchId
-}
-
-func (s *ExtendClusterRequestNodeGroupsNodes) GetVpcId() *string {
-	return s.VpcId
 }
 
 func (s *ExtendClusterRequestNodeGroupsNodes) SetHostname(v string) *ExtendClusterRequestNodeGroupsNodes {
@@ -10720,28 +7188,6 @@ func (s *ExtendClusterRequestNodeGroupsNodes) SetVSwitchId(v string) *ExtendClus
 func (s *ExtendClusterRequestNodeGroupsNodes) SetVpcId(v string) *ExtendClusterRequestNodeGroupsNodes {
 	s.VpcId = &v
 	return s
-}
-
-func (s *ExtendClusterRequestNodeGroupsNodes) Validate() error {
-	return dara.Validate(s)
-}
-
-type iExtendClusterShrinkRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *ExtendClusterShrinkRequest
-	GetClusterId() *string
-	SetIgnoreFailedNodeTasks(v bool) *ExtendClusterShrinkRequest
-	GetIgnoreFailedNodeTasks() *bool
-	SetIpAllocationPolicyShrink(v string) *ExtendClusterShrinkRequest
-	GetIpAllocationPolicyShrink() *string
-	SetNodeGroupsShrink(v string) *ExtendClusterShrinkRequest
-	GetNodeGroupsShrink() *string
-	SetVSwitchZoneId(v string) *ExtendClusterShrinkRequest
-	GetVSwitchZoneId() *string
-	SetVpdSubnetsShrink(v string) *ExtendClusterShrinkRequest
-	GetVpdSubnetsShrink() *string
 }
 
 type ExtendClusterShrinkRequest struct {
@@ -10772,35 +7218,11 @@ type ExtendClusterShrinkRequest struct {
 }
 
 func (s ExtendClusterShrinkRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ExtendClusterShrinkRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ExtendClusterShrinkRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *ExtendClusterShrinkRequest) GetIgnoreFailedNodeTasks() *bool {
-	return s.IgnoreFailedNodeTasks
-}
-
-func (s *ExtendClusterShrinkRequest) GetIpAllocationPolicyShrink() *string {
-	return s.IpAllocationPolicyShrink
-}
-
-func (s *ExtendClusterShrinkRequest) GetNodeGroupsShrink() *string {
-	return s.NodeGroupsShrink
-}
-
-func (s *ExtendClusterShrinkRequest) GetVSwitchZoneId() *string {
-	return s.VSwitchZoneId
-}
-
-func (s *ExtendClusterShrinkRequest) GetVpdSubnetsShrink() *string {
-	return s.VpdSubnetsShrink
 }
 
 func (s *ExtendClusterShrinkRequest) SetClusterId(v string) *ExtendClusterShrinkRequest {
@@ -10833,20 +7255,6 @@ func (s *ExtendClusterShrinkRequest) SetVpdSubnetsShrink(v string) *ExtendCluste
 	return s
 }
 
-func (s *ExtendClusterShrinkRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iExtendClusterResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *ExtendClusterResponseBody
-	GetRequestId() *string
-	SetTaskId(v string) *ExtendClusterResponseBody
-	GetTaskId() *string
-}
-
 type ExtendClusterResponseBody struct {
 	// Request ID
 	//
@@ -10863,19 +7271,11 @@ type ExtendClusterResponseBody struct {
 }
 
 func (s ExtendClusterResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ExtendClusterResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ExtendClusterResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *ExtendClusterResponseBody) GetTaskId() *string {
-	return s.TaskId
 }
 
 func (s *ExtendClusterResponseBody) SetRequestId(v string) *ExtendClusterResponseBody {
@@ -10888,22 +7288,6 @@ func (s *ExtendClusterResponseBody) SetTaskId(v string) *ExtendClusterResponseBo
 	return s
 }
 
-func (s *ExtendClusterResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iExtendClusterResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ExtendClusterResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ExtendClusterResponse
-	GetStatusCode() *int32
-	SetBody(v *ExtendClusterResponseBody) *ExtendClusterResponse
-	GetBody() *ExtendClusterResponseBody
-}
-
 type ExtendClusterResponse struct {
 	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -10911,23 +7295,11 @@ type ExtendClusterResponse struct {
 }
 
 func (s ExtendClusterResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ExtendClusterResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ExtendClusterResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ExtendClusterResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ExtendClusterResponse) GetBody() *ExtendClusterResponseBody {
-	return s.Body
 }
 
 func (s *ExtendClusterResponse) SetHeaders(v map[string]*string) *ExtendClusterResponse {
@@ -10943,28 +7315,6 @@ func (s *ExtendClusterResponse) SetStatusCode(v int32) *ExtendClusterResponse {
 func (s *ExtendClusterResponse) SetBody(v *ExtendClusterResponseBody) *ExtendClusterResponse {
 	s.Body = v
 	return s
-}
-
-func (s *ExtendClusterResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListClusterNodesRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *ListClusterNodesRequest
-	GetClusterId() *string
-	SetMaxResults(v int64) *ListClusterNodesRequest
-	GetMaxResults() *int64
-	SetNextToken(v string) *ListClusterNodesRequest
-	GetNextToken() *string
-	SetNodeGroupId(v string) *ListClusterNodesRequest
-	GetNodeGroupId() *string
-	SetResourceGroupId(v string) *ListClusterNodesRequest
-	GetResourceGroupId() *string
-	SetTags(v []*ListClusterNodesRequestTags) *ListClusterNodesRequest
-	GetTags() []*ListClusterNodesRequestTags
 }
 
 type ListClusterNodesRequest struct {
@@ -10993,41 +7343,23 @@ type ListClusterNodesRequest struct {
 	// example:
 	//
 	// ng-ec3c96ff0aa4c60d
-	NodeGroupId     *string                        `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
-	ResourceGroupId *string                        `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	Tags            []*ListClusterNodesRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	NodeGroupId *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
+	// resource group id
+	//
+	// example:
+	//
+	// rg-xxkxkllss
+	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	// tag information
+	Tags []*ListClusterNodesRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 }
 
 func (s ListClusterNodesRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListClusterNodesRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ListClusterNodesRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *ListClusterNodesRequest) GetMaxResults() *int64 {
-	return s.MaxResults
-}
-
-func (s *ListClusterNodesRequest) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListClusterNodesRequest) GetNodeGroupId() *string {
-	return s.NodeGroupId
-}
-
-func (s *ListClusterNodesRequest) GetResourceGroupId() *string {
-	return s.ResourceGroupId
-}
-
-func (s *ListClusterNodesRequest) GetTags() []*ListClusterNodesRequestTags {
-	return s.Tags
 }
 
 func (s *ListClusterNodesRequest) SetClusterId(v string) *ListClusterNodesRequest {
@@ -11060,29 +7392,27 @@ func (s *ListClusterNodesRequest) SetTags(v []*ListClusterNodesRequestTags) *Lis
 	return s
 }
 
-func (s *ListClusterNodesRequest) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListClusterNodesRequestTags struct {
-	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The key of tag object
+	//
+	// example:
+	//
+	// aa_key
+	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The value of tag object
+	//
+	// example:
+	//
+	// aa_value
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
 func (s ListClusterNodesRequestTags) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListClusterNodesRequestTags) GoString() string {
 	return s.String()
-}
-
-func (s *ListClusterNodesRequestTags) GetKey() *string {
-	return s.Key
-}
-
-func (s *ListClusterNodesRequestTags) GetValue() *string {
-	return s.Value
 }
 
 func (s *ListClusterNodesRequestTags) SetKey(v string) *ListClusterNodesRequestTags {
@@ -11093,22 +7423,6 @@ func (s *ListClusterNodesRequestTags) SetKey(v string) *ListClusterNodesRequestT
 func (s *ListClusterNodesRequestTags) SetValue(v string) *ListClusterNodesRequestTags {
 	s.Value = &v
 	return s
-}
-
-func (s *ListClusterNodesRequestTags) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListClusterNodesResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetNextToken(v string) *ListClusterNodesResponseBody
-	GetNextToken() *string
-	SetNodes(v []*ListClusterNodesResponseBodyNodes) *ListClusterNodesResponseBody
-	GetNodes() []*ListClusterNodesResponseBodyNodes
-	SetRequestId(v string) *ListClusterNodesResponseBody
-	GetRequestId() *string
 }
 
 type ListClusterNodesResponseBody struct {
@@ -11129,23 +7443,11 @@ type ListClusterNodesResponseBody struct {
 }
 
 func (s ListClusterNodesResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListClusterNodesResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ListClusterNodesResponseBody) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListClusterNodesResponseBody) GetNodes() []*ListClusterNodesResponseBodyNodes {
-	return s.Nodes
-}
-
-func (s *ListClusterNodesResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *ListClusterNodesResponseBody) SetNextToken(v string) *ListClusterNodesResponseBody {
@@ -11163,11 +7465,12 @@ func (s *ListClusterNodesResponseBody) SetRequestId(v string) *ListClusterNodesR
 	return s
 }
 
-func (s *ListClusterNodesResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListClusterNodesResponseBodyNodes struct {
+	// product code
+	//
+	// example:
+	//
+	// bcccluster
 	CommodityCode *string `json:"CommodityCode,omitempty" xml:"CommodityCode,omitempty"`
 	// Creation time
 	//
@@ -11181,6 +7484,8 @@ type ListClusterNodesResponseBodyNodes struct {
 	//
 	// 1762185600000
 	ExpiredTime *string `json:"ExpiredTime,omitempty" xml:"ExpiredTime,omitempty"`
+	// whether or not support file system mount
+	FileSystemMountEnabled *bool `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
 	// Hostname
 	//
 	// example:
@@ -11198,7 +7503,12 @@ type ListClusterNodesResponseBodyNodes struct {
 	// example:
 	//
 	// i190297201669099844192
-	ImageId   *string `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
+	ImageId *string `json:"ImageId,omitempty" xml:"ImageId,omitempty"`
+	// image name
+	//
+	// example:
+	//
+	// Alinux3_x86_AMD_R_Host_D3_E3_24.13.00_UEFI_N_250121
 	ImageName *string `json:"ImageName,omitempty" xml:"ImageName,omitempty"`
 	// Machine type
 	//
@@ -11237,16 +7547,22 @@ type ListClusterNodesResponseBodyNodes struct {
 	// example:
 	//
 	// sn_tOuUk
-	Sn     *string                                  `json:"Sn,omitempty" xml:"Sn,omitempty"`
-	Tags   []*ListClusterNodesResponseBodyNodesTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
-	TaskId *string                                  `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
-	// 专有网络交换机ID
+	Sn *string `json:"Sn,omitempty" xml:"Sn,omitempty"`
+	// tag information
+	Tags []*ListClusterNodesResponseBodyNodesTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	// task id
+	//
+	// example:
+	//
+	// i28ddkdkkdkdd
+	TaskId *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
+	// The vSwitch ID.
 	//
 	// example:
 	//
 	// vsw-bp1mxqhw8o20tgv3xk47h
 	VSwitchId *string `json:"VSwitchId,omitempty" xml:"VSwitchId,omitempty"`
-	// 专有网络ID
+	// VPC ID
 	//
 	// example:
 	//
@@ -11261,87 +7577,11 @@ type ListClusterNodesResponseBodyNodes struct {
 }
 
 func (s ListClusterNodesResponseBodyNodes) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListClusterNodesResponseBodyNodes) GoString() string {
 	return s.String()
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetCommodityCode() *string {
-	return s.CommodityCode
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetCreateTime() *string {
-	return s.CreateTime
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetExpiredTime() *string {
-	return s.ExpiredTime
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetHostname() *string {
-	return s.Hostname
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetHpnZone() *string {
-	return s.HpnZone
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetImageId() *string {
-	return s.ImageId
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetImageName() *string {
-	return s.ImageName
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetMachineType() *string {
-	return s.MachineType
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetNetworks() []*ListClusterNodesResponseBodyNodesNetworks {
-	return s.Networks
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetNodeGroupId() *string {
-	return s.NodeGroupId
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetNodeGroupName() *string {
-	return s.NodeGroupName
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetOperatingState() *string {
-	return s.OperatingState
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetSn() *string {
-	return s.Sn
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetTags() []*ListClusterNodesResponseBodyNodesTags {
-	return s.Tags
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetTaskId() *string {
-	return s.TaskId
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetVSwitchId() *string {
-	return s.VSwitchId
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetVpcId() *string {
-	return s.VpcId
-}
-
-func (s *ListClusterNodesResponseBodyNodes) GetZoneId() *string {
-	return s.ZoneId
 }
 
 func (s *ListClusterNodesResponseBodyNodes) SetCommodityCode(v string) *ListClusterNodesResponseBodyNodes {
@@ -11356,6 +7596,11 @@ func (s *ListClusterNodesResponseBodyNodes) SetCreateTime(v string) *ListCluster
 
 func (s *ListClusterNodesResponseBodyNodes) SetExpiredTime(v string) *ListClusterNodesResponseBodyNodes {
 	s.ExpiredTime = &v
+	return s
+}
+
+func (s *ListClusterNodesResponseBodyNodes) SetFileSystemMountEnabled(v bool) *ListClusterNodesResponseBodyNodes {
+	s.FileSystemMountEnabled = &v
 	return s
 }
 
@@ -11439,10 +7684,6 @@ func (s *ListClusterNodesResponseBodyNodes) SetZoneId(v string) *ListClusterNode
 	return s
 }
 
-func (s *ListClusterNodesResponseBodyNodes) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListClusterNodesResponseBodyNodesNetworks struct {
 	// Machine network interface name
 	//
@@ -11471,27 +7712,11 @@ type ListClusterNodesResponseBodyNodesNetworks struct {
 }
 
 func (s ListClusterNodesResponseBodyNodesNetworks) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListClusterNodesResponseBodyNodesNetworks) GoString() string {
 	return s.String()
-}
-
-func (s *ListClusterNodesResponseBodyNodesNetworks) GetBondName() *string {
-	return s.BondName
-}
-
-func (s *ListClusterNodesResponseBodyNodesNetworks) GetIp() *string {
-	return s.Ip
-}
-
-func (s *ListClusterNodesResponseBodyNodesNetworks) GetSubnetId() *string {
-	return s.SubnetId
-}
-
-func (s *ListClusterNodesResponseBodyNodesNetworks) GetVpdId() *string {
-	return s.VpdId
 }
 
 func (s *ListClusterNodesResponseBodyNodesNetworks) SetBondName(v string) *ListClusterNodesResponseBodyNodesNetworks {
@@ -11514,29 +7739,27 @@ func (s *ListClusterNodesResponseBodyNodesNetworks) SetVpdId(v string) *ListClus
 	return s
 }
 
-func (s *ListClusterNodesResponseBodyNodesNetworks) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListClusterNodesResponseBodyNodesTags struct {
-	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The key of tag object
+	//
+	// example:
+	//
+	// aa_key
+	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The value of tag object
+	//
+	// example:
+	//
+	// aa_value
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
 func (s ListClusterNodesResponseBodyNodesTags) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListClusterNodesResponseBodyNodesTags) GoString() string {
 	return s.String()
-}
-
-func (s *ListClusterNodesResponseBodyNodesTags) GetKey() *string {
-	return s.Key
-}
-
-func (s *ListClusterNodesResponseBodyNodesTags) GetValue() *string {
-	return s.Value
 }
 
 func (s *ListClusterNodesResponseBodyNodesTags) SetKey(v string) *ListClusterNodesResponseBodyNodesTags {
@@ -11549,22 +7772,6 @@ func (s *ListClusterNodesResponseBodyNodesTags) SetValue(v string) *ListClusterN
 	return s
 }
 
-func (s *ListClusterNodesResponseBodyNodesTags) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListClusterNodesResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ListClusterNodesResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ListClusterNodesResponse
-	GetStatusCode() *int32
-	SetBody(v *ListClusterNodesResponseBody) *ListClusterNodesResponse
-	GetBody() *ListClusterNodesResponseBody
-}
-
 type ListClusterNodesResponse struct {
 	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -11572,23 +7779,11 @@ type ListClusterNodesResponse struct {
 }
 
 func (s ListClusterNodesResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListClusterNodesResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ListClusterNodesResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ListClusterNodesResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ListClusterNodesResponse) GetBody() *ListClusterNodesResponseBody {
-	return s.Body
 }
 
 func (s *ListClusterNodesResponse) SetHeaders(v map[string]*string) *ListClusterNodesResponse {
@@ -11604,24 +7799,6 @@ func (s *ListClusterNodesResponse) SetStatusCode(v int32) *ListClusterNodesRespo
 func (s *ListClusterNodesResponse) SetBody(v *ListClusterNodesResponseBody) *ListClusterNodesResponse {
 	s.Body = v
 	return s
-}
-
-func (s *ListClusterNodesResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListClustersRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetMaxResults(v int64) *ListClustersRequest
-	GetMaxResults() *int64
-	SetNextToken(v string) *ListClustersRequest
-	GetNextToken() *string
-	SetResourceGroupId(v string) *ListClustersRequest
-	GetResourceGroupId() *string
-	SetTags(v []*ListClustersRequestTags) *ListClustersRequest
-	GetTags() []*ListClustersRequestTags
 }
 
 type ListClustersRequest struct {
@@ -11642,32 +7819,17 @@ type ListClustersRequest struct {
 	// example:
 	//
 	// rg-aek2bg6wyoox6jq
-	ResourceGroupId *string                    `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	Tags            []*ListClustersRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	// tag info
+	Tags []*ListClustersRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 }
 
 func (s ListClustersRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListClustersRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ListClustersRequest) GetMaxResults() *int64 {
-	return s.MaxResults
-}
-
-func (s *ListClustersRequest) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListClustersRequest) GetResourceGroupId() *string {
-	return s.ResourceGroupId
-}
-
-func (s *ListClustersRequest) GetTags() []*ListClustersRequestTags {
-	return s.Tags
 }
 
 func (s *ListClustersRequest) SetMaxResults(v int64) *ListClustersRequest {
@@ -11690,29 +7852,27 @@ func (s *ListClustersRequest) SetTags(v []*ListClustersRequestTags) *ListCluster
 	return s
 }
 
-func (s *ListClustersRequest) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListClustersRequestTags struct {
-	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The key of tag object
+	//
+	// example:
+	//
+	// key_aa
+	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The value of tag object
+	//
+	// example:
+	//
+	// value_aa
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
 func (s ListClustersRequestTags) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListClustersRequestTags) GoString() string {
 	return s.String()
-}
-
-func (s *ListClustersRequestTags) GetKey() *string {
-	return s.Key
-}
-
-func (s *ListClustersRequestTags) GetValue() *string {
-	return s.Value
 }
 
 func (s *ListClustersRequestTags) SetKey(v string) *ListClustersRequestTags {
@@ -11723,22 +7883,6 @@ func (s *ListClustersRequestTags) SetKey(v string) *ListClustersRequestTags {
 func (s *ListClustersRequestTags) SetValue(v string) *ListClustersRequestTags {
 	s.Value = &v
 	return s
-}
-
-func (s *ListClustersRequestTags) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListClustersResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusters(v []*ListClustersResponseBodyClusters) *ListClustersResponseBody
-	GetClusters() []*ListClustersResponseBodyClusters
-	SetNextToken(v string) *ListClustersResponseBody
-	GetNextToken() *string
-	SetRequestId(v string) *ListClustersResponseBody
-	GetRequestId() *string
 }
 
 type ListClustersResponseBody struct {
@@ -11759,23 +7903,11 @@ type ListClustersResponseBody struct {
 }
 
 func (s ListClustersResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListClustersResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ListClustersResponseBody) GetClusters() []*ListClustersResponseBodyClusters {
-	return s.Clusters
-}
-
-func (s *ListClustersResponseBody) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListClustersResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *ListClustersResponseBody) SetClusters(v []*ListClustersResponseBodyClusters) *ListClustersResponseBody {
@@ -11791,10 +7923,6 @@ func (s *ListClustersResponseBody) SetNextToken(v string) *ListClustersResponseB
 func (s *ListClustersResponseBody) SetRequestId(v string) *ListClustersResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *ListClustersResponseBody) Validate() error {
-	return dara.Validate(s)
 }
 
 type ListClustersResponseBodyClusters struct {
@@ -11869,8 +7997,9 @@ type ListClustersResponseBodyClusters struct {
 	// example:
 	//
 	// rg-aek2ajbjoloa23q
-	ResourceGroupId *string                                 `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	Tags            []*ListClustersResponseBodyClustersTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	// tag information
+	Tags []*ListClustersResponseBodyClustersTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 	// Task ID
 	//
 	// example:
@@ -11892,75 +8021,11 @@ type ListClustersResponseBodyClusters struct {
 }
 
 func (s ListClustersResponseBodyClusters) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListClustersResponseBodyClusters) GoString() string {
 	return s.String()
-}
-
-func (s *ListClustersResponseBodyClusters) GetClusterDescription() *string {
-	return s.ClusterDescription
-}
-
-func (s *ListClustersResponseBodyClusters) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *ListClustersResponseBodyClusters) GetClusterName() *string {
-	return s.ClusterName
-}
-
-func (s *ListClustersResponseBodyClusters) GetClusterType() *string {
-	return s.ClusterType
-}
-
-func (s *ListClustersResponseBodyClusters) GetComponents() interface{} {
-	return s.Components
-}
-
-func (s *ListClustersResponseBodyClusters) GetComputingIpVersion() *string {
-	return s.ComputingIpVersion
-}
-
-func (s *ListClustersResponseBodyClusters) GetCreateTime() *string {
-	return s.CreateTime
-}
-
-func (s *ListClustersResponseBodyClusters) GetHpnZone() *string {
-	return s.HpnZone
-}
-
-func (s *ListClustersResponseBodyClusters) GetNodeCount() *int64 {
-	return s.NodeCount
-}
-
-func (s *ListClustersResponseBodyClusters) GetNodeGroupCount() *int64 {
-	return s.NodeGroupCount
-}
-
-func (s *ListClustersResponseBodyClusters) GetOperatingState() *string {
-	return s.OperatingState
-}
-
-func (s *ListClustersResponseBodyClusters) GetResourceGroupId() *string {
-	return s.ResourceGroupId
-}
-
-func (s *ListClustersResponseBodyClusters) GetTags() []*ListClustersResponseBodyClustersTags {
-	return s.Tags
-}
-
-func (s *ListClustersResponseBodyClusters) GetTaskId() *string {
-	return s.TaskId
-}
-
-func (s *ListClustersResponseBodyClusters) GetUpdateTime() *string {
-	return s.UpdateTime
-}
-
-func (s *ListClustersResponseBodyClusters) GetVpcId() *string {
-	return s.VpcId
 }
 
 func (s *ListClustersResponseBodyClusters) SetClusterDescription(v string) *ListClustersResponseBodyClusters {
@@ -12043,29 +8108,27 @@ func (s *ListClustersResponseBodyClusters) SetVpcId(v string) *ListClustersRespo
 	return s
 }
 
-func (s *ListClustersResponseBodyClusters) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListClustersResponseBodyClustersTags struct {
-	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The key of tag object
+	//
+	// example:
+	//
+	// aa_key
+	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The value of tag object
+	//
+	// example:
+	//
+	// aa_value
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
 func (s ListClustersResponseBodyClustersTags) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListClustersResponseBodyClustersTags) GoString() string {
 	return s.String()
-}
-
-func (s *ListClustersResponseBodyClustersTags) GetKey() *string {
-	return s.Key
-}
-
-func (s *ListClustersResponseBodyClustersTags) GetValue() *string {
-	return s.Value
 }
 
 func (s *ListClustersResponseBodyClustersTags) SetKey(v string) *ListClustersResponseBodyClustersTags {
@@ -12078,22 +8141,6 @@ func (s *ListClustersResponseBodyClustersTags) SetValue(v string) *ListClustersR
 	return s
 }
 
-func (s *ListClustersResponseBodyClustersTags) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListClustersResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ListClustersResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ListClustersResponse
-	GetStatusCode() *int32
-	SetBody(v *ListClustersResponseBody) *ListClustersResponse
-	GetBody() *ListClustersResponseBody
-}
-
 type ListClustersResponse struct {
 	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -12101,23 +8148,11 @@ type ListClustersResponse struct {
 }
 
 func (s ListClustersResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListClustersResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ListClustersResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ListClustersResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ListClustersResponse) GetBody() *ListClustersResponseBody {
-	return s.Body
 }
 
 func (s *ListClustersResponse) SetHeaders(v map[string]*string) *ListClustersResponse {
@@ -12133,24 +8168,6 @@ func (s *ListClustersResponse) SetStatusCode(v int32) *ListClustersResponse {
 func (s *ListClustersResponse) SetBody(v *ListClustersResponseBody) *ListClustersResponse {
 	s.Body = v
 	return s
-}
-
-func (s *ListClustersResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListDiagnosticResultsRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetDiagType(v string) *ListDiagnosticResultsRequest
-	GetDiagType() *string
-	SetMaxResults(v int64) *ListDiagnosticResultsRequest
-	GetMaxResults() *int64
-	SetNextToken(v string) *ListDiagnosticResultsRequest
-	GetNextToken() *string
-	SetResourceGroupId(v string) *ListDiagnosticResultsRequest
-	GetResourceGroupId() *string
 }
 
 type ListDiagnosticResultsRequest struct {
@@ -12187,27 +8204,11 @@ type ListDiagnosticResultsRequest struct {
 }
 
 func (s ListDiagnosticResultsRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListDiagnosticResultsRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ListDiagnosticResultsRequest) GetDiagType() *string {
-	return s.DiagType
-}
-
-func (s *ListDiagnosticResultsRequest) GetMaxResults() *int64 {
-	return s.MaxResults
-}
-
-func (s *ListDiagnosticResultsRequest) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListDiagnosticResultsRequest) GetResourceGroupId() *string {
-	return s.ResourceGroupId
 }
 
 func (s *ListDiagnosticResultsRequest) SetDiagType(v string) *ListDiagnosticResultsRequest {
@@ -12228,24 +8229,6 @@ func (s *ListDiagnosticResultsRequest) SetNextToken(v string) *ListDiagnosticRes
 func (s *ListDiagnosticResultsRequest) SetResourceGroupId(v string) *ListDiagnosticResultsRequest {
 	s.ResourceGroupId = &v
 	return s
-}
-
-func (s *ListDiagnosticResultsRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListDiagnosticResultsResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetDiagnosticResults(v []*ListDiagnosticResultsResponseBodyDiagnosticResults) *ListDiagnosticResultsResponseBody
-	GetDiagnosticResults() []*ListDiagnosticResultsResponseBodyDiagnosticResults
-	SetMaxResults(v int64) *ListDiagnosticResultsResponseBody
-	GetMaxResults() *int64
-	SetNextToken(v string) *ListDiagnosticResultsResponseBody
-	GetNextToken() *string
-	SetRequestId(v string) *ListDiagnosticResultsResponseBody
-	GetRequestId() *string
 }
 
 type ListDiagnosticResultsResponseBody struct {
@@ -12278,27 +8261,11 @@ type ListDiagnosticResultsResponseBody struct {
 }
 
 func (s ListDiagnosticResultsResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListDiagnosticResultsResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ListDiagnosticResultsResponseBody) GetDiagnosticResults() []*ListDiagnosticResultsResponseBodyDiagnosticResults {
-	return s.DiagnosticResults
-}
-
-func (s *ListDiagnosticResultsResponseBody) GetMaxResults() *int64 {
-	return s.MaxResults
-}
-
-func (s *ListDiagnosticResultsResponseBody) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListDiagnosticResultsResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *ListDiagnosticResultsResponseBody) SetDiagnosticResults(v []*ListDiagnosticResultsResponseBodyDiagnosticResults) *ListDiagnosticResultsResponseBody {
@@ -12319,10 +8286,6 @@ func (s *ListDiagnosticResultsResponseBody) SetNextToken(v string) *ListDiagnost
 func (s *ListDiagnosticResultsResponseBody) SetRequestId(v string) *ListDiagnosticResultsResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *ListDiagnosticResultsResponseBody) Validate() error {
-	return dara.Validate(s)
 }
 
 type ListDiagnosticResultsResponseBodyDiagnosticResults struct {
@@ -12389,51 +8352,11 @@ type ListDiagnosticResultsResponseBodyDiagnosticResults struct {
 }
 
 func (s ListDiagnosticResultsResponseBodyDiagnosticResults) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListDiagnosticResultsResponseBodyDiagnosticResults) GoString() string {
 	return s.String()
-}
-
-func (s *ListDiagnosticResultsResponseBodyDiagnosticResults) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *ListDiagnosticResultsResponseBodyDiagnosticResults) GetClusterName() *string {
-	return s.ClusterName
-}
-
-func (s *ListDiagnosticResultsResponseBodyDiagnosticResults) GetCreationTime() *string {
-	return s.CreationTime
-}
-
-func (s *ListDiagnosticResultsResponseBodyDiagnosticResults) GetDiagContent() *string {
-	return s.DiagContent
-}
-
-func (s *ListDiagnosticResultsResponseBodyDiagnosticResults) GetDiagId() *string {
-	return s.DiagId
-}
-
-func (s *ListDiagnosticResultsResponseBodyDiagnosticResults) GetDiagResult() *string {
-	return s.DiagResult
-}
-
-func (s *ListDiagnosticResultsResponseBodyDiagnosticResults) GetFinishedTime() *string {
-	return s.FinishedTime
-}
-
-func (s *ListDiagnosticResultsResponseBodyDiagnosticResults) GetResourceId() *string {
-	return s.ResourceId
-}
-
-func (s *ListDiagnosticResultsResponseBodyDiagnosticResults) GetServerName() *string {
-	return s.ServerName
-}
-
-func (s *ListDiagnosticResultsResponseBodyDiagnosticResults) GetStatus() *string {
-	return s.Status
 }
 
 func (s *ListDiagnosticResultsResponseBodyDiagnosticResults) SetClusterId(v string) *ListDiagnosticResultsResponseBodyDiagnosticResults {
@@ -12486,22 +8409,6 @@ func (s *ListDiagnosticResultsResponseBodyDiagnosticResults) SetStatus(v string)
 	return s
 }
 
-func (s *ListDiagnosticResultsResponseBodyDiagnosticResults) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListDiagnosticResultsResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ListDiagnosticResultsResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ListDiagnosticResultsResponse
-	GetStatusCode() *int32
-	SetBody(v *ListDiagnosticResultsResponseBody) *ListDiagnosticResultsResponse
-	GetBody() *ListDiagnosticResultsResponseBody
-}
-
 type ListDiagnosticResultsResponse struct {
 	Headers    map[string]*string                 `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                             `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -12509,23 +8416,11 @@ type ListDiagnosticResultsResponse struct {
 }
 
 func (s ListDiagnosticResultsResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListDiagnosticResultsResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ListDiagnosticResultsResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ListDiagnosticResultsResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ListDiagnosticResultsResponse) GetBody() *ListDiagnosticResultsResponseBody {
-	return s.Body
 }
 
 func (s *ListDiagnosticResultsResponse) SetHeaders(v map[string]*string) *ListDiagnosticResultsResponse {
@@ -12543,38 +8438,13 @@ func (s *ListDiagnosticResultsResponse) SetBody(v *ListDiagnosticResultsResponse
 	return s
 }
 
-func (s *ListDiagnosticResultsResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListFreeNodesRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHpnZone(v string) *ListFreeNodesRequest
-	GetHpnZone() *string
-	SetIncludeAbnormalNodes(v bool) *ListFreeNodesRequest
-	GetIncludeAbnormalNodes() *bool
-	SetMachineType(v string) *ListFreeNodesRequest
-	GetMachineType() *string
-	SetMaxResults(v int64) *ListFreeNodesRequest
-	GetMaxResults() *int64
-	SetNextToken(v string) *ListFreeNodesRequest
-	GetNextToken() *string
-	SetResourceGroupId(v string) *ListFreeNodesRequest
-	GetResourceGroupId() *string
-	SetTags(v []*ListFreeNodesRequestTags) *ListFreeNodesRequest
-	GetTags() []*ListFreeNodesRequestTags
-}
-
 type ListFreeNodesRequest struct {
 	// Cluster number
 	//
 	// example:
 	//
 	// A1
-	HpnZone              *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
-	IncludeAbnormalNodes *bool   `json:"IncludeAbnormalNodes,omitempty" xml:"IncludeAbnormalNodes,omitempty"`
+	HpnZone *string `json:"HpnZone,omitempty" xml:"HpnZone,omitempty"`
 	// Machine type
 	//
 	// example:
@@ -12592,59 +8462,28 @@ type ListFreeNodesRequest struct {
 	// example:
 	//
 	// a3f2224a5ec7224116c4f5246120abe4
-	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	NextToken       *string   `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	OperatingStates []*string `json:"OperatingStates,omitempty" xml:"OperatingStates,omitempty" type:"Repeated"`
 	// Resource group ID
 	//
 	// example:
 	//
 	// rg-acfmxno4vh5muoq
-	ResourceGroupId *string                     `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	Tags            []*ListFreeNodesRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	// Tag information
+	Tags []*ListFreeNodesRequestTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 }
 
 func (s ListFreeNodesRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListFreeNodesRequest) GoString() string {
 	return s.String()
 }
 
-func (s *ListFreeNodesRequest) GetHpnZone() *string {
-	return s.HpnZone
-}
-
-func (s *ListFreeNodesRequest) GetIncludeAbnormalNodes() *bool {
-	return s.IncludeAbnormalNodes
-}
-
-func (s *ListFreeNodesRequest) GetMachineType() *string {
-	return s.MachineType
-}
-
-func (s *ListFreeNodesRequest) GetMaxResults() *int64 {
-	return s.MaxResults
-}
-
-func (s *ListFreeNodesRequest) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListFreeNodesRequest) GetResourceGroupId() *string {
-	return s.ResourceGroupId
-}
-
-func (s *ListFreeNodesRequest) GetTags() []*ListFreeNodesRequestTags {
-	return s.Tags
-}
-
 func (s *ListFreeNodesRequest) SetHpnZone(v string) *ListFreeNodesRequest {
 	s.HpnZone = &v
-	return s
-}
-
-func (s *ListFreeNodesRequest) SetIncludeAbnormalNodes(v bool) *ListFreeNodesRequest {
-	s.IncludeAbnormalNodes = &v
 	return s
 }
 
@@ -12663,6 +8502,11 @@ func (s *ListFreeNodesRequest) SetNextToken(v string) *ListFreeNodesRequest {
 	return s
 }
 
+func (s *ListFreeNodesRequest) SetOperatingStates(v []*string) *ListFreeNodesRequest {
+	s.OperatingStates = v
+	return s
+}
+
 func (s *ListFreeNodesRequest) SetResourceGroupId(v string) *ListFreeNodesRequest {
 	s.ResourceGroupId = &v
 	return s
@@ -12673,32 +8517,27 @@ func (s *ListFreeNodesRequest) SetTags(v []*ListFreeNodesRequestTags) *ListFreeN
 	return s
 }
 
-func (s *ListFreeNodesRequest) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListFreeNodesRequestTags struct {
-	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The key of tag object
+	//
 	// example:
 	//
-	// 129
+	// key_aa
+	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The value of tag object
+	//
+	// example:
+	//
+	// value_aa
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
 func (s ListFreeNodesRequestTags) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListFreeNodesRequestTags) GoString() string {
 	return s.String()
-}
-
-func (s *ListFreeNodesRequestTags) GetKey() *string {
-	return s.Key
-}
-
-func (s *ListFreeNodesRequestTags) GetValue() *string {
-	return s.Value
 }
 
 func (s *ListFreeNodesRequestTags) SetKey(v string) *ListFreeNodesRequestTags {
@@ -12709,22 +8548,6 @@ func (s *ListFreeNodesRequestTags) SetKey(v string) *ListFreeNodesRequestTags {
 func (s *ListFreeNodesRequestTags) SetValue(v string) *ListFreeNodesRequestTags {
 	s.Value = &v
 	return s
-}
-
-func (s *ListFreeNodesRequestTags) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListFreeNodesResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetNextToken(v string) *ListFreeNodesResponseBody
-	GetNextToken() *string
-	SetNodes(v []*ListFreeNodesResponseBodyNodes) *ListFreeNodesResponseBody
-	GetNodes() []*ListFreeNodesResponseBodyNodes
-	SetRequestId(v string) *ListFreeNodesResponseBody
-	GetRequestId() *string
 }
 
 type ListFreeNodesResponseBody struct {
@@ -12745,23 +8568,11 @@ type ListFreeNodesResponseBody struct {
 }
 
 func (s ListFreeNodesResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListFreeNodesResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ListFreeNodesResponseBody) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListFreeNodesResponseBody) GetNodes() []*ListFreeNodesResponseBodyNodes {
-	return s.Nodes
-}
-
-func (s *ListFreeNodesResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *ListFreeNodesResponseBody) SetNextToken(v string) *ListFreeNodesResponseBody {
@@ -12779,11 +8590,12 @@ func (s *ListFreeNodesResponseBody) SetRequestId(v string) *ListFreeNodesRespons
 	return s
 }
 
-func (s *ListFreeNodesResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListFreeNodesResponseBodyNodes struct {
+	// Product Code
+	//
+	// example:
+	//
+	// bccluster_eflocomputing_public_cn
 	CommodityCode *string `json:"CommodityCode,omitempty" xml:"CommodityCode,omitempty"`
 	// Creation time
 	//
@@ -12814,7 +8626,12 @@ type ListFreeNodesResponseBodyNodes struct {
 	// example:
 	//
 	// e01-cn-7pp2x193801
-	NodeId         *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
+	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
+	// Node status
+	//
+	// example:
+	//
+	// Unused
 	OperatingState *string `json:"OperatingState,omitempty" xml:"OperatingState,omitempty"`
 	// Resource group ID
 	//
@@ -12827,7 +8644,8 @@ type ListFreeNodesResponseBodyNodes struct {
 	// example:
 	//
 	// sn_pozkHBgicd
-	Sn   *string                               `json:"Sn,omitempty" xml:"Sn,omitempty"`
+	Sn *string `json:"Sn,omitempty" xml:"Sn,omitempty"`
+	// Tags Info
 	Tags []*ListFreeNodesResponseBodyNodesTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
 	// Availability zone ID
 	//
@@ -12838,55 +8656,11 @@ type ListFreeNodesResponseBodyNodes struct {
 }
 
 func (s ListFreeNodesResponseBodyNodes) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListFreeNodesResponseBodyNodes) GoString() string {
 	return s.String()
-}
-
-func (s *ListFreeNodesResponseBodyNodes) GetCommodityCode() *string {
-	return s.CommodityCode
-}
-
-func (s *ListFreeNodesResponseBodyNodes) GetCreateTime() *string {
-	return s.CreateTime
-}
-
-func (s *ListFreeNodesResponseBodyNodes) GetExpiredTime() *string {
-	return s.ExpiredTime
-}
-
-func (s *ListFreeNodesResponseBodyNodes) GetHpnZone() *string {
-	return s.HpnZone
-}
-
-func (s *ListFreeNodesResponseBodyNodes) GetMachineType() *string {
-	return s.MachineType
-}
-
-func (s *ListFreeNodesResponseBodyNodes) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *ListFreeNodesResponseBodyNodes) GetOperatingState() *string {
-	return s.OperatingState
-}
-
-func (s *ListFreeNodesResponseBodyNodes) GetResourceGroupId() *string {
-	return s.ResourceGroupId
-}
-
-func (s *ListFreeNodesResponseBodyNodes) GetSn() *string {
-	return s.Sn
-}
-
-func (s *ListFreeNodesResponseBodyNodes) GetTags() []*ListFreeNodesResponseBodyNodesTags {
-	return s.Tags
-}
-
-func (s *ListFreeNodesResponseBodyNodes) GetZoneId() *string {
-	return s.ZoneId
 }
 
 func (s *ListFreeNodesResponseBodyNodes) SetCommodityCode(v string) *ListFreeNodesResponseBodyNodes {
@@ -12944,29 +8718,27 @@ func (s *ListFreeNodesResponseBodyNodes) SetZoneId(v string) *ListFreeNodesRespo
 	return s
 }
 
-func (s *ListFreeNodesResponseBodyNodes) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListFreeNodesResponseBodyNodesTags struct {
-	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The key of tag object
+	//
+	// example:
+	//
+	// aa_key
+	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// The value of tag object
+	//
+	// example:
+	//
+	// aa_vakye
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
 func (s ListFreeNodesResponseBodyNodesTags) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListFreeNodesResponseBodyNodesTags) GoString() string {
 	return s.String()
-}
-
-func (s *ListFreeNodesResponseBodyNodesTags) GetKey() *string {
-	return s.Key
-}
-
-func (s *ListFreeNodesResponseBodyNodesTags) GetValue() *string {
-	return s.Value
 }
 
 func (s *ListFreeNodesResponseBodyNodesTags) SetKey(v string) *ListFreeNodesResponseBodyNodesTags {
@@ -12979,22 +8751,6 @@ func (s *ListFreeNodesResponseBodyNodesTags) SetValue(v string) *ListFreeNodesRe
 	return s
 }
 
-func (s *ListFreeNodesResponseBodyNodesTags) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListFreeNodesResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ListFreeNodesResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ListFreeNodesResponse
-	GetStatusCode() *int32
-	SetBody(v *ListFreeNodesResponseBody) *ListFreeNodesResponse
-	GetBody() *ListFreeNodesResponseBody
-}
-
 type ListFreeNodesResponse struct {
 	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -13002,23 +8758,11 @@ type ListFreeNodesResponse struct {
 }
 
 func (s ListFreeNodesResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListFreeNodesResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ListFreeNodesResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ListFreeNodesResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ListFreeNodesResponse) GetBody() *ListFreeNodesResponseBody {
-	return s.Body
 }
 
 func (s *ListFreeNodesResponse) SetHeaders(v map[string]*string) *ListFreeNodesResponse {
@@ -13034,22 +8778,6 @@ func (s *ListFreeNodesResponse) SetStatusCode(v int32) *ListFreeNodesResponse {
 func (s *ListFreeNodesResponse) SetBody(v *ListFreeNodesResponseBody) *ListFreeNodesResponse {
 	s.Body = v
 	return s
-}
-
-func (s *ListFreeNodesResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListImagesRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetArchitecture(v string) *ListImagesRequest
-	GetArchitecture() *string
-	SetImageVersion(v string) *ListImagesRequest
-	GetImageVersion() *string
-	SetPlatform(v string) *ListImagesRequest
-	GetPlatform() *string
 }
 
 type ListImagesRequest struct {
@@ -13074,23 +8802,11 @@ type ListImagesRequest struct {
 }
 
 func (s ListImagesRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListImagesRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ListImagesRequest) GetArchitecture() *string {
-	return s.Architecture
-}
-
-func (s *ListImagesRequest) GetImageVersion() *string {
-	return s.ImageVersion
-}
-
-func (s *ListImagesRequest) GetPlatform() *string {
-	return s.Platform
 }
 
 func (s *ListImagesRequest) SetArchitecture(v string) *ListImagesRequest {
@@ -13106,22 +8822,6 @@ func (s *ListImagesRequest) SetImageVersion(v string) *ListImagesRequest {
 func (s *ListImagesRequest) SetPlatform(v string) *ListImagesRequest {
 	s.Platform = &v
 	return s
-}
-
-func (s *ListImagesRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListImagesResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetImages(v []*ListImagesResponseBodyImages) *ListImagesResponseBody
-	GetImages() []*ListImagesResponseBodyImages
-	SetNextToken(v string) *ListImagesResponseBody
-	GetNextToken() *string
-	SetRequestId(v string) *ListImagesResponseBody
-	GetRequestId() *string
 }
 
 type ListImagesResponseBody struct {
@@ -13142,23 +8842,11 @@ type ListImagesResponseBody struct {
 }
 
 func (s ListImagesResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListImagesResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ListImagesResponseBody) GetImages() []*ListImagesResponseBodyImages {
-	return s.Images
-}
-
-func (s *ListImagesResponseBody) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListImagesResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *ListImagesResponseBody) SetImages(v []*ListImagesResponseBodyImages) *ListImagesResponseBody {
@@ -13174,10 +8862,6 @@ func (s *ListImagesResponseBody) SetNextToken(v string) *ListImagesResponseBody 
 func (s *ListImagesResponseBody) SetRequestId(v string) *ListImagesResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *ListImagesResponseBody) Validate() error {
-	return dara.Validate(s)
 }
 
 type ListImagesResponseBodyImages struct {
@@ -13234,7 +8918,7 @@ type ListImagesResponseBodyImages struct {
 	// example:
 	//
 	// 5.8G
-	ReleaseFileSize *int64 `json:"ReleaseFileSize,omitempty" xml:"ReleaseFileSize,omitempty"`
+	ReleaseFileSize *string `json:"ReleaseFileSize,omitempty" xml:"ReleaseFileSize,omitempty"`
 	// image type
 	//
 	// example:
@@ -13244,51 +8928,11 @@ type ListImagesResponseBodyImages struct {
 }
 
 func (s ListImagesResponseBodyImages) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListImagesResponseBodyImages) GoString() string {
 	return s.String()
-}
-
-func (s *ListImagesResponseBodyImages) GetArchitecture() *string {
-	return s.Architecture
-}
-
-func (s *ListImagesResponseBodyImages) GetDescription() *string {
-	return s.Description
-}
-
-func (s *ListImagesResponseBodyImages) GetImageId() *string {
-	return s.ImageId
-}
-
-func (s *ListImagesResponseBodyImages) GetImageName() *string {
-	return s.ImageName
-}
-
-func (s *ListImagesResponseBodyImages) GetImageVersion() *string {
-	return s.ImageVersion
-}
-
-func (s *ListImagesResponseBodyImages) GetNodeCount() *int64 {
-	return s.NodeCount
-}
-
-func (s *ListImagesResponseBodyImages) GetPlatform() *string {
-	return s.Platform
-}
-
-func (s *ListImagesResponseBodyImages) GetReleaseFileMd5() *string {
-	return s.ReleaseFileMd5
-}
-
-func (s *ListImagesResponseBodyImages) GetReleaseFileSize() *int64 {
-	return s.ReleaseFileSize
-}
-
-func (s *ListImagesResponseBodyImages) GetType() *string {
-	return s.Type
 }
 
 func (s *ListImagesResponseBodyImages) SetArchitecture(v string) *ListImagesResponseBodyImages {
@@ -13331,7 +8975,7 @@ func (s *ListImagesResponseBodyImages) SetReleaseFileMd5(v string) *ListImagesRe
 	return s
 }
 
-func (s *ListImagesResponseBodyImages) SetReleaseFileSize(v int64) *ListImagesResponseBodyImages {
+func (s *ListImagesResponseBodyImages) SetReleaseFileSize(v string) *ListImagesResponseBodyImages {
 	s.ReleaseFileSize = &v
 	return s
 }
@@ -13341,22 +8985,6 @@ func (s *ListImagesResponseBodyImages) SetType(v string) *ListImagesResponseBody
 	return s
 }
 
-func (s *ListImagesResponseBodyImages) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListImagesResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ListImagesResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ListImagesResponse
-	GetStatusCode() *int32
-	SetBody(v *ListImagesResponseBody) *ListImagesResponse
-	GetBody() *ListImagesResponseBody
-}
-
 type ListImagesResponse struct {
 	Headers    map[string]*string      `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                  `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -13364,23 +8992,11 @@ type ListImagesResponse struct {
 }
 
 func (s ListImagesResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListImagesResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ListImagesResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ListImagesResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ListImagesResponse) GetBody() *ListImagesResponseBody {
-	return s.Body
 }
 
 func (s *ListImagesResponse) SetHeaders(v map[string]*string) *ListImagesResponse {
@@ -13398,42 +9014,22 @@ func (s *ListImagesResponse) SetBody(v *ListImagesResponseBody) *ListImagesRespo
 	return s
 }
 
-func (s *ListImagesResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListMachineNetworkInfoRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetMachineHpnInfo(v []*ListMachineNetworkInfoRequestMachineHpnInfo) *ListMachineNetworkInfoRequest
-	GetMachineHpnInfo() []*ListMachineNetworkInfoRequestMachineHpnInfo
-}
-
 type ListMachineNetworkInfoRequest struct {
 	// Array
 	MachineHpnInfo []*ListMachineNetworkInfoRequestMachineHpnInfo `json:"MachineHpnInfo,omitempty" xml:"MachineHpnInfo,omitempty" type:"Repeated"`
 }
 
 func (s ListMachineNetworkInfoRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListMachineNetworkInfoRequest) GoString() string {
 	return s.String()
 }
 
-func (s *ListMachineNetworkInfoRequest) GetMachineHpnInfo() []*ListMachineNetworkInfoRequestMachineHpnInfo {
-	return s.MachineHpnInfo
-}
-
 func (s *ListMachineNetworkInfoRequest) SetMachineHpnInfo(v []*ListMachineNetworkInfoRequestMachineHpnInfo) *ListMachineNetworkInfoRequest {
 	s.MachineHpnInfo = v
 	return s
-}
-
-func (s *ListMachineNetworkInfoRequest) Validate() error {
-	return dara.Validate(s)
 }
 
 type ListMachineNetworkInfoRequestMachineHpnInfo struct {
@@ -13458,23 +9054,11 @@ type ListMachineNetworkInfoRequestMachineHpnInfo struct {
 }
 
 func (s ListMachineNetworkInfoRequestMachineHpnInfo) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListMachineNetworkInfoRequestMachineHpnInfo) GoString() string {
 	return s.String()
-}
-
-func (s *ListMachineNetworkInfoRequestMachineHpnInfo) GetHpnZone() *string {
-	return s.HpnZone
-}
-
-func (s *ListMachineNetworkInfoRequestMachineHpnInfo) GetMachineType() *string {
-	return s.MachineType
-}
-
-func (s *ListMachineNetworkInfoRequestMachineHpnInfo) GetRegionId() *string {
-	return s.RegionId
 }
 
 func (s *ListMachineNetworkInfoRequestMachineHpnInfo) SetHpnZone(v string) *ListMachineNetworkInfoRequestMachineHpnInfo {
@@ -13492,52 +9076,22 @@ func (s *ListMachineNetworkInfoRequestMachineHpnInfo) SetRegionId(v string) *Lis
 	return s
 }
 
-func (s *ListMachineNetworkInfoRequestMachineHpnInfo) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListMachineNetworkInfoShrinkRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetMachineHpnInfoShrink(v string) *ListMachineNetworkInfoShrinkRequest
-	GetMachineHpnInfoShrink() *string
-}
-
 type ListMachineNetworkInfoShrinkRequest struct {
 	// Array
 	MachineHpnInfoShrink *string `json:"MachineHpnInfo,omitempty" xml:"MachineHpnInfo,omitempty"`
 }
 
 func (s ListMachineNetworkInfoShrinkRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListMachineNetworkInfoShrinkRequest) GoString() string {
 	return s.String()
 }
 
-func (s *ListMachineNetworkInfoShrinkRequest) GetMachineHpnInfoShrink() *string {
-	return s.MachineHpnInfoShrink
-}
-
 func (s *ListMachineNetworkInfoShrinkRequest) SetMachineHpnInfoShrink(v string) *ListMachineNetworkInfoShrinkRequest {
 	s.MachineHpnInfoShrink = &v
 	return s
-}
-
-func (s *ListMachineNetworkInfoShrinkRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListMachineNetworkInfoResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetMachineNetworkInfo(v []*ListMachineNetworkInfoResponseBodyMachineNetworkInfo) *ListMachineNetworkInfoResponseBody
-	GetMachineNetworkInfo() []*ListMachineNetworkInfoResponseBodyMachineNetworkInfo
-	SetRequestId(v string) *ListMachineNetworkInfoResponseBody
-	GetRequestId() *string
 }
 
 type ListMachineNetworkInfoResponseBody struct {
@@ -13552,19 +9106,11 @@ type ListMachineNetworkInfoResponseBody struct {
 }
 
 func (s ListMachineNetworkInfoResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListMachineNetworkInfoResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ListMachineNetworkInfoResponseBody) GetMachineNetworkInfo() []*ListMachineNetworkInfoResponseBodyMachineNetworkInfo {
-	return s.MachineNetworkInfo
-}
-
-func (s *ListMachineNetworkInfoResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *ListMachineNetworkInfoResponseBody) SetMachineNetworkInfo(v []*ListMachineNetworkInfoResponseBodyMachineNetworkInfo) *ListMachineNetworkInfoResponseBody {
@@ -13575,10 +9121,6 @@ func (s *ListMachineNetworkInfoResponseBody) SetMachineNetworkInfo(v []*ListMach
 func (s *ListMachineNetworkInfoResponseBody) SetRequestId(v string) *ListMachineNetworkInfoResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *ListMachineNetworkInfoResponseBody) Validate() error {
-	return dara.Validate(s)
 }
 
 type ListMachineNetworkInfoResponseBodyMachineNetworkInfo struct {
@@ -13627,39 +9169,11 @@ type ListMachineNetworkInfoResponseBodyMachineNetworkInfo struct {
 }
 
 func (s ListMachineNetworkInfoResponseBodyMachineNetworkInfo) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListMachineNetworkInfoResponseBodyMachineNetworkInfo) GoString() string {
 	return s.String()
-}
-
-func (s *ListMachineNetworkInfoResponseBodyMachineNetworkInfo) GetClusterNet() *string {
-	return s.ClusterNet
-}
-
-func (s *ListMachineNetworkInfoResponseBodyMachineNetworkInfo) GetEnableJumboFrame() *bool {
-	return s.EnableJumboFrame
-}
-
-func (s *ListMachineNetworkInfoResponseBodyMachineNetworkInfo) GetHpnZone() *string {
-	return s.HpnZone
-}
-
-func (s *ListMachineNetworkInfoResponseBodyMachineNetworkInfo) GetIsDpuMode() *bool {
-	return s.IsDpuMode
-}
-
-func (s *ListMachineNetworkInfoResponseBodyMachineNetworkInfo) GetMachineType() *string {
-	return s.MachineType
-}
-
-func (s *ListMachineNetworkInfoResponseBodyMachineNetworkInfo) GetNetArch() *string {
-	return s.NetArch
-}
-
-func (s *ListMachineNetworkInfoResponseBodyMachineNetworkInfo) GetRegionId() *string {
-	return s.RegionId
 }
 
 func (s *ListMachineNetworkInfoResponseBodyMachineNetworkInfo) SetClusterNet(v string) *ListMachineNetworkInfoResponseBodyMachineNetworkInfo {
@@ -13697,22 +9211,6 @@ func (s *ListMachineNetworkInfoResponseBodyMachineNetworkInfo) SetRegionId(v str
 	return s
 }
 
-func (s *ListMachineNetworkInfoResponseBodyMachineNetworkInfo) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListMachineNetworkInfoResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ListMachineNetworkInfoResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ListMachineNetworkInfoResponse
-	GetStatusCode() *int32
-	SetBody(v *ListMachineNetworkInfoResponseBody) *ListMachineNetworkInfoResponse
-	GetBody() *ListMachineNetworkInfoResponseBody
-}
-
 type ListMachineNetworkInfoResponse struct {
 	Headers    map[string]*string                  `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                              `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -13720,23 +9218,11 @@ type ListMachineNetworkInfoResponse struct {
 }
 
 func (s ListMachineNetworkInfoResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListMachineNetworkInfoResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ListMachineNetworkInfoResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ListMachineNetworkInfoResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ListMachineNetworkInfoResponse) GetBody() *ListMachineNetworkInfoResponseBody {
-	return s.Body
 }
 
 func (s *ListMachineNetworkInfoResponse) SetHeaders(v map[string]*string) *ListMachineNetworkInfoResponse {
@@ -13754,18 +9240,6 @@ func (s *ListMachineNetworkInfoResponse) SetBody(v *ListMachineNetworkInfoRespon
 	return s
 }
 
-func (s *ListMachineNetworkInfoResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListMachineTypesRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetName(v string) *ListMachineTypesRequest
-	GetName() *string
-}
-
 type ListMachineTypesRequest struct {
 	// Machine name
 	//
@@ -13776,36 +9250,16 @@ type ListMachineTypesRequest struct {
 }
 
 func (s ListMachineTypesRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListMachineTypesRequest) GoString() string {
 	return s.String()
 }
 
-func (s *ListMachineTypesRequest) GetName() *string {
-	return s.Name
-}
-
 func (s *ListMachineTypesRequest) SetName(v string) *ListMachineTypesRequest {
 	s.Name = &v
 	return s
-}
-
-func (s *ListMachineTypesRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListMachineTypesResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetMachineTypes(v []*ListMachineTypesResponseBodyMachineTypes) *ListMachineTypesResponseBody
-	GetMachineTypes() []*ListMachineTypesResponseBodyMachineTypes
-	SetNextToken(v string) *ListMachineTypesResponseBody
-	GetNextToken() *string
-	SetRequestId(v string) *ListMachineTypesResponseBody
-	GetRequestId() *string
 }
 
 type ListMachineTypesResponseBody struct {
@@ -13826,23 +9280,11 @@ type ListMachineTypesResponseBody struct {
 }
 
 func (s ListMachineTypesResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListMachineTypesResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ListMachineTypesResponseBody) GetMachineTypes() []*ListMachineTypesResponseBodyMachineTypes {
-	return s.MachineTypes
-}
-
-func (s *ListMachineTypesResponseBody) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListMachineTypesResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *ListMachineTypesResponseBody) SetMachineTypes(v []*ListMachineTypesResponseBodyMachineTypes) *ListMachineTypesResponseBody {
@@ -13858,10 +9300,6 @@ func (s *ListMachineTypesResponseBody) SetNextToken(v string) *ListMachineTypesR
 func (s *ListMachineTypesResponseBody) SetRequestId(v string) *ListMachineTypesResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *ListMachineTypesResponseBody) Validate() error {
-	return dara.Validate(s)
 }
 
 type ListMachineTypesResponseBodyMachineTypes struct {
@@ -13928,51 +9366,11 @@ type ListMachineTypesResponseBodyMachineTypes struct {
 }
 
 func (s ListMachineTypesResponseBodyMachineTypes) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListMachineTypesResponseBodyMachineTypes) GoString() string {
 	return s.String()
-}
-
-func (s *ListMachineTypesResponseBodyMachineTypes) GetBondNum() *int32 {
-	return s.BondNum
-}
-
-func (s *ListMachineTypesResponseBodyMachineTypes) GetCpuInfo() *string {
-	return s.CpuInfo
-}
-
-func (s *ListMachineTypesResponseBodyMachineTypes) GetDiskInfo() *string {
-	return s.DiskInfo
-}
-
-func (s *ListMachineTypesResponseBodyMachineTypes) GetGpuInfo() *string {
-	return s.GpuInfo
-}
-
-func (s *ListMachineTypesResponseBodyMachineTypes) GetMemoryInfo() *string {
-	return s.MemoryInfo
-}
-
-func (s *ListMachineTypesResponseBodyMachineTypes) GetName() *string {
-	return s.Name
-}
-
-func (s *ListMachineTypesResponseBodyMachineTypes) GetNetworkInfo() *string {
-	return s.NetworkInfo
-}
-
-func (s *ListMachineTypesResponseBodyMachineTypes) GetNodeCount() *string {
-	return s.NodeCount
-}
-
-func (s *ListMachineTypesResponseBodyMachineTypes) GetTotalCpuCore() *int32 {
-	return s.TotalCpuCore
-}
-
-func (s *ListMachineTypesResponseBodyMachineTypes) GetType() *string {
-	return s.Type
 }
 
 func (s *ListMachineTypesResponseBodyMachineTypes) SetBondNum(v int32) *ListMachineTypesResponseBodyMachineTypes {
@@ -14025,22 +9423,6 @@ func (s *ListMachineTypesResponseBodyMachineTypes) SetType(v string) *ListMachin
 	return s
 }
 
-func (s *ListMachineTypesResponseBodyMachineTypes) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListMachineTypesResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ListMachineTypesResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ListMachineTypesResponse
-	GetStatusCode() *int32
-	SetBody(v *ListMachineTypesResponseBody) *ListMachineTypesResponse
-	GetBody() *ListMachineTypesResponseBody
-}
-
 type ListMachineTypesResponse struct {
 	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -14048,23 +9430,11 @@ type ListMachineTypesResponse struct {
 }
 
 func (s ListMachineTypesResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListMachineTypesResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ListMachineTypesResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ListMachineTypesResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ListMachineTypesResponse) GetBody() *ListMachineTypesResponseBody {
-	return s.Body
 }
 
 func (s *ListMachineTypesResponse) SetHeaders(v map[string]*string) *ListMachineTypesResponse {
@@ -14080,24 +9450,6 @@ func (s *ListMachineTypesResponse) SetStatusCode(v int32) *ListMachineTypesRespo
 func (s *ListMachineTypesResponse) SetBody(v *ListMachineTypesResponseBody) *ListMachineTypesResponse {
 	s.Body = v
 	return s
-}
-
-func (s *ListMachineTypesResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListNetTestResultsRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetMaxResults(v int64) *ListNetTestResultsRequest
-	GetMaxResults() *int64
-	SetNetTestType(v string) *ListNetTestResultsRequest
-	GetNetTestType() *string
-	SetNextToken(v string) *ListNetTestResultsRequest
-	GetNextToken() *string
-	SetResourceGroupId(v string) *ListNetTestResultsRequest
-	GetResourceGroupId() *string
 }
 
 type ListNetTestResultsRequest struct {
@@ -14134,27 +9486,11 @@ type ListNetTestResultsRequest struct {
 }
 
 func (s ListNetTestResultsRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListNetTestResultsRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ListNetTestResultsRequest) GetMaxResults() *int64 {
-	return s.MaxResults
-}
-
-func (s *ListNetTestResultsRequest) GetNetTestType() *string {
-	return s.NetTestType
-}
-
-func (s *ListNetTestResultsRequest) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListNetTestResultsRequest) GetResourceGroupId() *string {
-	return s.ResourceGroupId
 }
 
 func (s *ListNetTestResultsRequest) SetMaxResults(v int64) *ListNetTestResultsRequest {
@@ -14175,24 +9511,6 @@ func (s *ListNetTestResultsRequest) SetNextToken(v string) *ListNetTestResultsRe
 func (s *ListNetTestResultsRequest) SetResourceGroupId(v string) *ListNetTestResultsRequest {
 	s.ResourceGroupId = &v
 	return s
-}
-
-func (s *ListNetTestResultsRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListNetTestResultsResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetMaxResults(v int64) *ListNetTestResultsResponseBody
-	GetMaxResults() *int64
-	SetNetTestResults(v []*ListNetTestResultsResponseBodyNetTestResults) *ListNetTestResultsResponseBody
-	GetNetTestResults() []*ListNetTestResultsResponseBodyNetTestResults
-	SetNextToken(v string) *ListNetTestResultsResponseBody
-	GetNextToken() *string
-	SetRequestId(v string) *ListNetTestResultsResponseBody
-	GetRequestId() *string
 }
 
 type ListNetTestResultsResponseBody struct {
@@ -14225,27 +9543,11 @@ type ListNetTestResultsResponseBody struct {
 }
 
 func (s ListNetTestResultsResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListNetTestResultsResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ListNetTestResultsResponseBody) GetMaxResults() *int64 {
-	return s.MaxResults
-}
-
-func (s *ListNetTestResultsResponseBody) GetNetTestResults() []*ListNetTestResultsResponseBodyNetTestResults {
-	return s.NetTestResults
-}
-
-func (s *ListNetTestResultsResponseBody) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListNetTestResultsResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *ListNetTestResultsResponseBody) SetMaxResults(v int64) *ListNetTestResultsResponseBody {
@@ -14266,10 +9568,6 @@ func (s *ListNetTestResultsResponseBody) SetNextToken(v string) *ListNetTestResu
 func (s *ListNetTestResultsResponseBody) SetRequestId(v string) *ListNetTestResultsResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *ListNetTestResultsResponseBody) Validate() error {
-	return dara.Validate(s)
 }
 
 type ListNetTestResultsResponseBodyNetTestResults struct {
@@ -14342,59 +9640,11 @@ type ListNetTestResultsResponseBodyNetTestResults struct {
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResults) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResults) GoString() string {
 	return s.String()
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResults) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResults) GetClusterName() *string {
-	return s.ClusterName
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResults) GetCommTest() *ListNetTestResultsResponseBodyNetTestResultsCommTest {
-	return s.CommTest
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResults) GetCreationTime() *string {
-	return s.CreationTime
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResults) GetDelayTest() *ListNetTestResultsResponseBodyNetTestResultsDelayTest {
-	return s.DelayTest
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResults) GetFinishedTime() *string {
-	return s.FinishedTime
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResults) GetNetTestType() *string {
-	return s.NetTestType
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResults) GetNetworkMode() *string {
-	return s.NetworkMode
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResults) GetPort() *string {
-	return s.Port
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResults) GetStatus() *string {
-	return s.Status
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResults) GetTestId() *string {
-	return s.TestId
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResults) GetTrafficTest() *ListNetTestResultsResponseBodyNetTestResultsTrafficTest {
-	return s.TrafficTest
 }
 
 func (s *ListNetTestResultsResponseBodyNetTestResults) SetClusterId(v string) *ListNetTestResultsResponseBodyNetTestResults {
@@ -14457,10 +9707,6 @@ func (s *ListNetTestResultsResponseBodyNetTestResults) SetTrafficTest(v *ListNet
 	return s
 }
 
-func (s *ListNetTestResultsResponseBodyNetTestResults) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListNetTestResultsResponseBodyNetTestResultsCommTest struct {
 	// Number of GPUs
 	//
@@ -14485,27 +9731,11 @@ type ListNetTestResultsResponseBodyNetTestResultsCommTest struct {
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResultsCommTest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResultsCommTest) GoString() string {
 	return s.String()
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsCommTest) GetGPUNum() *string {
-	return s.GPUNum
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsCommTest) GetHosts() []*ListNetTestResultsResponseBodyNetTestResultsCommTestHosts {
-	return s.Hosts
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsCommTest) GetModel() *string {
-	return s.Model
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsCommTest) GetType() *string {
-	return s.Type
 }
 
 func (s *ListNetTestResultsResponseBodyNetTestResultsCommTest) SetGPUNum(v string) *ListNetTestResultsResponseBodyNetTestResultsCommTest {
@@ -14526,10 +9756,6 @@ func (s *ListNetTestResultsResponseBodyNetTestResultsCommTest) SetModel(v string
 func (s *ListNetTestResultsResponseBodyNetTestResultsCommTest) SetType(v string) *ListNetTestResultsResponseBodyNetTestResultsCommTest {
 	s.Type = &v
 	return s
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsCommTest) Validate() error {
-	return dara.Validate(s)
 }
 
 type ListNetTestResultsResponseBodyNetTestResultsCommTestHosts struct {
@@ -14554,23 +9780,11 @@ type ListNetTestResultsResponseBodyNetTestResultsCommTestHosts struct {
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResultsCommTestHosts) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResultsCommTestHosts) GoString() string {
 	return s.String()
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsCommTestHosts) GetIP() *string {
-	return s.IP
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsCommTestHosts) GetResourceId() *string {
-	return s.ResourceId
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsCommTestHosts) GetServerName() *string {
-	return s.ServerName
 }
 
 func (s *ListNetTestResultsResponseBodyNetTestResultsCommTestHosts) SetIP(v string) *ListNetTestResultsResponseBodyNetTestResultsCommTestHosts {
@@ -14588,34 +9802,22 @@ func (s *ListNetTestResultsResponseBodyNetTestResultsCommTestHosts) SetServerNam
 	return s
 }
 
-func (s *ListNetTestResultsResponseBodyNetTestResultsCommTestHosts) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListNetTestResultsResponseBodyNetTestResultsDelayTest struct {
 	// Resource list
 	Hosts []*ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts `json:"Hosts,omitempty" xml:"Hosts,omitempty" type:"Repeated"`
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResultsDelayTest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResultsDelayTest) GoString() string {
 	return s.String()
 }
 
-func (s *ListNetTestResultsResponseBodyNetTestResultsDelayTest) GetHosts() []*ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts {
-	return s.Hosts
-}
-
 func (s *ListNetTestResultsResponseBodyNetTestResultsDelayTest) SetHosts(v []*ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts) *ListNetTestResultsResponseBodyNetTestResultsDelayTest {
 	s.Hosts = v
 	return s
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsDelayTest) Validate() error {
-	return dara.Validate(s)
 }
 
 type ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts struct {
@@ -14646,27 +9848,11 @@ type ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts struct {
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts) GoString() string {
 	return s.String()
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts) GetBond() *string {
-	return s.Bond
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts) GetIP() *string {
-	return s.IP
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts) GetResourceId() *string {
-	return s.ResourceId
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts) GetServerName() *string {
-	return s.ServerName
 }
 
 func (s *ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts) SetBond(v string) *ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts {
@@ -14687,10 +9873,6 @@ func (s *ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts) SetResource
 func (s *ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts) SetServerName(v string) *ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts {
 	s.ServerName = &v
 	return s
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsDelayTestHosts) Validate() error {
-	return dara.Validate(s)
 }
 
 type ListNetTestResultsResponseBodyNetTestResultsTrafficTest struct {
@@ -14733,39 +9915,11 @@ type ListNetTestResultsResponseBodyNetTestResultsTrafficTest struct {
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResultsTrafficTest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResultsTrafficTest) GoString() string {
 	return s.String()
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTest) GetClients() []*ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients {
-	return s.Clients
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTest) GetDuration() *int64 {
-	return s.Duration
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTest) GetGDR() *string {
-	return s.GDR
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTest) GetProtocol() *string {
-	return s.Protocol
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTest) GetQP() *int64 {
-	return s.QP
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTest) GetServers() []*ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers {
-	return s.Servers
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTest) GetTrafficModel() *string {
-	return s.TrafficModel
 }
 
 func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTest) SetClients(v []*ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients) *ListNetTestResultsResponseBodyNetTestResultsTrafficTest {
@@ -14803,10 +9957,6 @@ func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTest) SetTrafficMode
 	return s
 }
 
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTest) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients struct {
 	// Network interface bond port
 	//
@@ -14835,27 +9985,11 @@ type ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients struct {
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients) GoString() string {
 	return s.String()
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients) GetBond() *string {
-	return s.Bond
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients) GetIP() *string {
-	return s.IP
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients) GetResourceId() *string {
-	return s.ResourceId
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients) GetServerName() *string {
-	return s.ServerName
 }
 
 func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients) SetBond(v string) *ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients {
@@ -14876,10 +10010,6 @@ func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients) SetReso
 func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients) SetServerName(v string) *ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients {
 	s.ServerName = &v
 	return s
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestClients) Validate() error {
-	return dara.Validate(s)
 }
 
 type ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers struct {
@@ -14910,27 +10040,11 @@ type ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers struct {
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers) GoString() string {
 	return s.String()
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers) GetBond() *string {
-	return s.Bond
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers) GetIP() *string {
-	return s.IP
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers) GetResourceId() *string {
-	return s.ResourceId
-}
-
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers) GetServerName() *string {
-	return s.ServerName
 }
 
 func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers) SetBond(v string) *ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers {
@@ -14953,22 +10067,6 @@ func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers) SetServ
 	return s
 }
 
-func (s *ListNetTestResultsResponseBodyNetTestResultsTrafficTestServers) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListNetTestResultsResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ListNetTestResultsResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ListNetTestResultsResponse
-	GetStatusCode() *int32
-	SetBody(v *ListNetTestResultsResponseBody) *ListNetTestResultsResponse
-	GetBody() *ListNetTestResultsResponseBody
-}
-
 type ListNetTestResultsResponse struct {
 	Headers    map[string]*string              `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                          `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -14976,23 +10074,11 @@ type ListNetTestResultsResponse struct {
 }
 
 func (s ListNetTestResultsResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListNetTestResultsResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ListNetTestResultsResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ListNetTestResultsResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ListNetTestResultsResponse) GetBody() *ListNetTestResultsResponseBody {
-	return s.Body
 }
 
 func (s *ListNetTestResultsResponse) SetHeaders(v map[string]*string) *ListNetTestResultsResponse {
@@ -15008,24 +10094,6 @@ func (s *ListNetTestResultsResponse) SetStatusCode(v int32) *ListNetTestResultsR
 func (s *ListNetTestResultsResponse) SetBody(v *ListNetTestResultsResponseBody) *ListNetTestResultsResponse {
 	s.Body = v
 	return s
-}
-
-func (s *ListNetTestResultsResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListNodeGroupsRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *ListNodeGroupsRequest
-	GetClusterId() *string
-	SetMaxResults(v int32) *ListNodeGroupsRequest
-	GetMaxResults() *int32
-	SetNextToken(v string) *ListNodeGroupsRequest
-	GetNextToken() *string
-	SetNodeGroupId(v string) *ListNodeGroupsRequest
-	GetNodeGroupId() *string
 }
 
 type ListNodeGroupsRequest struct {
@@ -15062,27 +10130,11 @@ type ListNodeGroupsRequest struct {
 }
 
 func (s ListNodeGroupsRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListNodeGroupsRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ListNodeGroupsRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *ListNodeGroupsRequest) GetMaxResults() *int32 {
-	return s.MaxResults
-}
-
-func (s *ListNodeGroupsRequest) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListNodeGroupsRequest) GetNodeGroupId() *string {
-	return s.NodeGroupId
 }
 
 func (s *ListNodeGroupsRequest) SetClusterId(v string) *ListNodeGroupsRequest {
@@ -15105,22 +10157,6 @@ func (s *ListNodeGroupsRequest) SetNodeGroupId(v string) *ListNodeGroupsRequest 
 	return s
 }
 
-func (s *ListNodeGroupsRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListNodeGroupsResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetGroups(v []*ListNodeGroupsResponseBodyGroups) *ListNodeGroupsResponseBody
-	GetGroups() []*ListNodeGroupsResponseBodyGroups
-	SetNextToken(v string) *ListNodeGroupsResponseBody
-	GetNextToken() *string
-	SetRequestId(v string) *ListNodeGroupsResponseBody
-	GetRequestId() *string
-}
-
 type ListNodeGroupsResponseBody struct {
 	// Cluster group information
 	Groups []*ListNodeGroupsResponseBodyGroups `json:"Groups,omitempty" xml:"Groups,omitempty" type:"Repeated"`
@@ -15139,23 +10175,11 @@ type ListNodeGroupsResponseBody struct {
 }
 
 func (s ListNodeGroupsResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListNodeGroupsResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ListNodeGroupsResponseBody) GetGroups() []*ListNodeGroupsResponseBodyGroups {
-	return s.Groups
-}
-
-func (s *ListNodeGroupsResponseBody) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListNodeGroupsResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *ListNodeGroupsResponseBody) SetGroups(v []*ListNodeGroupsResponseBodyGroups) *ListNodeGroupsResponseBody {
@@ -15171,10 +10195,6 @@ func (s *ListNodeGroupsResponseBody) SetNextToken(v string) *ListNodeGroupsRespo
 func (s *ListNodeGroupsResponseBody) SetRequestId(v string) *ListNodeGroupsResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *ListNodeGroupsResponseBody) Validate() error {
-	return dara.Validate(s)
 }
 
 type ListNodeGroupsResponseBodyGroups struct {
@@ -15201,7 +10221,8 @@ type ListNodeGroupsResponseBodyGroups struct {
 	// example:
 	//
 	// created by ga2_prepare
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	Description            *string `json:"Description,omitempty" xml:"Description,omitempty"`
+	FileSystemMountEnabled *bool   `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
 	// Group ID.
 	//
 	// example:
@@ -15253,59 +10274,11 @@ type ListNodeGroupsResponseBodyGroups struct {
 }
 
 func (s ListNodeGroupsResponseBodyGroups) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListNodeGroupsResponseBodyGroups) GoString() string {
 	return s.String()
-}
-
-func (s *ListNodeGroupsResponseBodyGroups) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *ListNodeGroupsResponseBodyGroups) GetClusterName() *string {
-	return s.ClusterName
-}
-
-func (s *ListNodeGroupsResponseBodyGroups) GetCreateTime() *string {
-	return s.CreateTime
-}
-
-func (s *ListNodeGroupsResponseBodyGroups) GetDescription() *string {
-	return s.Description
-}
-
-func (s *ListNodeGroupsResponseBodyGroups) GetGroupId() *string {
-	return s.GroupId
-}
-
-func (s *ListNodeGroupsResponseBodyGroups) GetGroupName() *string {
-	return s.GroupName
-}
-
-func (s *ListNodeGroupsResponseBodyGroups) GetImageId() *string {
-	return s.ImageId
-}
-
-func (s *ListNodeGroupsResponseBodyGroups) GetImageName() *string {
-	return s.ImageName
-}
-
-func (s *ListNodeGroupsResponseBodyGroups) GetMachineType() *string {
-	return s.MachineType
-}
-
-func (s *ListNodeGroupsResponseBodyGroups) GetNodeCount() *int64 {
-	return s.NodeCount
-}
-
-func (s *ListNodeGroupsResponseBodyGroups) GetUpdateTime() *string {
-	return s.UpdateTime
-}
-
-func (s *ListNodeGroupsResponseBodyGroups) GetZoneId() *string {
-	return s.ZoneId
 }
 
 func (s *ListNodeGroupsResponseBodyGroups) SetClusterId(v string) *ListNodeGroupsResponseBodyGroups {
@@ -15325,6 +10298,11 @@ func (s *ListNodeGroupsResponseBodyGroups) SetCreateTime(v string) *ListNodeGrou
 
 func (s *ListNodeGroupsResponseBodyGroups) SetDescription(v string) *ListNodeGroupsResponseBodyGroups {
 	s.Description = &v
+	return s
+}
+
+func (s *ListNodeGroupsResponseBodyGroups) SetFileSystemMountEnabled(v bool) *ListNodeGroupsResponseBodyGroups {
+	s.FileSystemMountEnabled = &v
 	return s
 }
 
@@ -15368,22 +10346,6 @@ func (s *ListNodeGroupsResponseBodyGroups) SetZoneId(v string) *ListNodeGroupsRe
 	return s
 }
 
-func (s *ListNodeGroupsResponseBodyGroups) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListNodeGroupsResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ListNodeGroupsResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ListNodeGroupsResponse
-	GetStatusCode() *int32
-	SetBody(v *ListNodeGroupsResponseBody) *ListNodeGroupsResponse
-	GetBody() *ListNodeGroupsResponseBody
-}
-
 type ListNodeGroupsResponse struct {
 	Headers    map[string]*string          `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                      `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -15391,23 +10353,11 @@ type ListNodeGroupsResponse struct {
 }
 
 func (s ListNodeGroupsResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListNodeGroupsResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ListNodeGroupsResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ListNodeGroupsResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ListNodeGroupsResponse) GetBody() *ListNodeGroupsResponseBody {
-	return s.Body
 }
 
 func (s *ListNodeGroupsResponse) SetHeaders(v map[string]*string) *ListNodeGroupsResponse {
@@ -15423,516 +10373,6 @@ func (s *ListNodeGroupsResponse) SetStatusCode(v int32) *ListNodeGroupsResponse 
 func (s *ListNodeGroupsResponse) SetBody(v *ListNodeGroupsResponseBody) *ListNodeGroupsResponse {
 	s.Body = v
 	return s
-}
-
-func (s *ListNodeGroupsResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListSyslogsRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetFromTime(v string) *ListSyslogsRequest
-	GetFromTime() *string
-	SetNextToken(v string) *ListSyslogsRequest
-	GetNextToken() *string
-	SetNodeId(v string) *ListSyslogsRequest
-	GetNodeId() *string
-	SetQuery(v string) *ListSyslogsRequest
-	GetQuery() *string
-	SetReverse(v bool) *ListSyslogsRequest
-	GetReverse() *bool
-	SetToTime(v string) *ListSyslogsRequest
-	GetToTime() *string
-}
-
-type ListSyslogsRequest struct {
-	// This parameter is required.
-	//
-	// example:
-	//
-	// 1659745800
-	FromTime *string `json:"FromTime,omitempty" xml:"FromTime,omitempty"`
-	// example:
-	//
-	// 392e8b4a03ed171433cc39f5b464ec9d
-	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// This parameter is required.
-	//
-	// example:
-	//
-	// e01-cn-nwy37atbj44
-	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
-	// example:
-	//
-	// *
-	Query *string `json:"Query,omitempty" xml:"Query,omitempty"`
-	// example:
-	//
-	// true
-	Reverse *bool `json:"Reverse,omitempty" xml:"Reverse,omitempty"`
-	// This parameter is required.
-	//
-	// example:
-	//
-	// 1665369329
-	ToTime *string `json:"ToTime,omitempty" xml:"ToTime,omitempty"`
-}
-
-func (s ListSyslogsRequest) String() string {
-	return dara.Prettify(s)
-}
-
-func (s ListSyslogsRequest) GoString() string {
-	return s.String()
-}
-
-func (s *ListSyslogsRequest) GetFromTime() *string {
-	return s.FromTime
-}
-
-func (s *ListSyslogsRequest) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListSyslogsRequest) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *ListSyslogsRequest) GetQuery() *string {
-	return s.Query
-}
-
-func (s *ListSyslogsRequest) GetReverse() *bool {
-	return s.Reverse
-}
-
-func (s *ListSyslogsRequest) GetToTime() *string {
-	return s.ToTime
-}
-
-func (s *ListSyslogsRequest) SetFromTime(v string) *ListSyslogsRequest {
-	s.FromTime = &v
-	return s
-}
-
-func (s *ListSyslogsRequest) SetNextToken(v string) *ListSyslogsRequest {
-	s.NextToken = &v
-	return s
-}
-
-func (s *ListSyslogsRequest) SetNodeId(v string) *ListSyslogsRequest {
-	s.NodeId = &v
-	return s
-}
-
-func (s *ListSyslogsRequest) SetQuery(v string) *ListSyslogsRequest {
-	s.Query = &v
-	return s
-}
-
-func (s *ListSyslogsRequest) SetReverse(v bool) *ListSyslogsRequest {
-	s.Reverse = &v
-	return s
-}
-
-func (s *ListSyslogsRequest) SetToTime(v string) *ListSyslogsRequest {
-	s.ToTime = &v
-	return s
-}
-
-func (s *ListSyslogsRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListSyslogsResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetLogs(v []*ListSyslogsResponseBodyLogs) *ListSyslogsResponseBody
-	GetLogs() []*ListSyslogsResponseBodyLogs
-	SetNextToken(v string) *ListSyslogsResponseBody
-	GetNextToken() *string
-	SetRequestId(v string) *ListSyslogsResponseBody
-	GetRequestId() *string
-}
-
-type ListSyslogsResponseBody struct {
-	Logs []*ListSyslogsResponseBodyLogs `json:"Logs,omitempty" xml:"Logs,omitempty" type:"Repeated"`
-	// example:
-	//
-	// 563d42ae0b17572449ec8c97f7f66069
-	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	// Id of the request
-	//
-	// example:
-	//
-	// 2FE2B22C-CF9D-59DE-BF63-DC9B9B33A9D1
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s ListSyslogsResponseBody) String() string {
-	return dara.Prettify(s)
-}
-
-func (s ListSyslogsResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *ListSyslogsResponseBody) GetLogs() []*ListSyslogsResponseBodyLogs {
-	return s.Logs
-}
-
-func (s *ListSyslogsResponseBody) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListSyslogsResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *ListSyslogsResponseBody) SetLogs(v []*ListSyslogsResponseBodyLogs) *ListSyslogsResponseBody {
-	s.Logs = v
-	return s
-}
-
-func (s *ListSyslogsResponseBody) SetNextToken(v string) *ListSyslogsResponseBody {
-	s.NextToken = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBody) SetRequestId(v string) *ListSyslogsResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type ListSyslogsResponseBodyLogs struct {
-	// example:
-	//
-	// i119583961673208491760
-	ClusterId *string `json:"ClusterId,omitempty" xml:"ClusterId,omitempty"`
-	// example:
-	//
-	// ALIYUN_PUBLIC
-	Domain *string `json:"Domain,omitempty" xml:"Domain,omitempty"`
-	// example:
-	//
-	// kern
-	Facility *string `json:"Facility,omitempty" xml:"Facility,omitempty"`
-	// example:
-	//
-	// damo-m53kr8kd-0008
-	Hostname *string `json:"Hostname,omitempty" xml:"Hostname,omitempty"`
-	// example:
-	//
-	// 114.55.254.44
-	Ip *string `json:"Ip,omitempty" xml:"Ip,omitempty"`
-	// example:
-	//
-	// bond4: failed to get link speed/duplex for eth8
-	Msg *string `json:"Msg,omitempty" xml:"Msg,omitempty"`
-	// example:
-	//
-	// e01-cn-9lb36u4s601
-	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
-	// example:
-	//
-	// warning
-	Severity *string `json:"Severity,omitempty" xml:"Severity,omitempty"`
-	// example:
-	//
-	// 21A401332
-	Sn *string `json:"Sn,omitempty" xml:"Sn,omitempty"`
-	// example:
-	//
-	// damo-m53kr8kd-0008
-	Source *string `json:"Source,omitempty" xml:"Source,omitempty"`
-	// example:
-	//
-	// kernel
-	Syslogtag *string `json:"Syslogtag,omitempty" xml:"Syslogtag,omitempty"`
-	// example:
-	//
-	// damo-m53kr8kd-0008
-	TagHostname *string `json:"TagHostname,omitempty" xml:"TagHostname,omitempty"`
-	// example:
-	//
-	// D990314D3C25D7E8-1080
-	TagPackId *string `json:"TagPackId,omitempty" xml:"TagPackId,omitempty"`
-	// example:
-	//
-	// /var/log/kern
-	TagPath *string `json:"TagPath,omitempty" xml:"TagPath,omitempty"`
-	// example:
-	//
-	// 1687363348
-	TagReceiveTime *string `json:"TagReceiveTime,omitempty" xml:"TagReceiveTime,omitempty"`
-	// example:
-	//
-	// application_b
-	TagUserDefinedId *string `json:"TagUserDefinedId,omitempty" xml:"TagUserDefinedId,omitempty"`
-	// example:
-	//
-	// 1687363346
-	Time *string `json:"Time,omitempty" xml:"Time,omitempty"`
-	// example:
-	//
-	// logserver
-	Topic *string `json:"Topic,omitempty" xml:"Topic,omitempty"`
-}
-
-func (s ListSyslogsResponseBodyLogs) String() string {
-	return dara.Prettify(s)
-}
-
-func (s ListSyslogsResponseBodyLogs) GoString() string {
-	return s.String()
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetDomain() *string {
-	return s.Domain
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetFacility() *string {
-	return s.Facility
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetHostname() *string {
-	return s.Hostname
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetIp() *string {
-	return s.Ip
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetMsg() *string {
-	return s.Msg
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetSeverity() *string {
-	return s.Severity
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetSn() *string {
-	return s.Sn
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetSource() *string {
-	return s.Source
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetSyslogtag() *string {
-	return s.Syslogtag
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetTagHostname() *string {
-	return s.TagHostname
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetTagPackId() *string {
-	return s.TagPackId
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetTagPath() *string {
-	return s.TagPath
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetTagReceiveTime() *string {
-	return s.TagReceiveTime
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetTagUserDefinedId() *string {
-	return s.TagUserDefinedId
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetTime() *string {
-	return s.Time
-}
-
-func (s *ListSyslogsResponseBodyLogs) GetTopic() *string {
-	return s.Topic
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetClusterId(v string) *ListSyslogsResponseBodyLogs {
-	s.ClusterId = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetDomain(v string) *ListSyslogsResponseBodyLogs {
-	s.Domain = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetFacility(v string) *ListSyslogsResponseBodyLogs {
-	s.Facility = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetHostname(v string) *ListSyslogsResponseBodyLogs {
-	s.Hostname = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetIp(v string) *ListSyslogsResponseBodyLogs {
-	s.Ip = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetMsg(v string) *ListSyslogsResponseBodyLogs {
-	s.Msg = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetNodeId(v string) *ListSyslogsResponseBodyLogs {
-	s.NodeId = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetSeverity(v string) *ListSyslogsResponseBodyLogs {
-	s.Severity = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetSn(v string) *ListSyslogsResponseBodyLogs {
-	s.Sn = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetSource(v string) *ListSyslogsResponseBodyLogs {
-	s.Source = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetSyslogtag(v string) *ListSyslogsResponseBodyLogs {
-	s.Syslogtag = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetTagHostname(v string) *ListSyslogsResponseBodyLogs {
-	s.TagHostname = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetTagPackId(v string) *ListSyslogsResponseBodyLogs {
-	s.TagPackId = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetTagPath(v string) *ListSyslogsResponseBodyLogs {
-	s.TagPath = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetTagReceiveTime(v string) *ListSyslogsResponseBodyLogs {
-	s.TagReceiveTime = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetTagUserDefinedId(v string) *ListSyslogsResponseBodyLogs {
-	s.TagUserDefinedId = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetTime(v string) *ListSyslogsResponseBodyLogs {
-	s.Time = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) SetTopic(v string) *ListSyslogsResponseBodyLogs {
-	s.Topic = &v
-	return s
-}
-
-func (s *ListSyslogsResponseBodyLogs) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListSyslogsResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ListSyslogsResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ListSyslogsResponse
-	GetStatusCode() *int32
-	SetBody(v *ListSyslogsResponseBody) *ListSyslogsResponse
-	GetBody() *ListSyslogsResponseBody
-}
-
-type ListSyslogsResponse struct {
-	Headers    map[string]*string       `json:"headers,omitempty" xml:"headers,omitempty"`
-	StatusCode *int32                   `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
-	Body       *ListSyslogsResponseBody `json:"body,omitempty" xml:"body,omitempty"`
-}
-
-func (s ListSyslogsResponse) String() string {
-	return dara.Prettify(s)
-}
-
-func (s ListSyslogsResponse) GoString() string {
-	return s.String()
-}
-
-func (s *ListSyslogsResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ListSyslogsResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ListSyslogsResponse) GetBody() *ListSyslogsResponseBody {
-	return s.Body
-}
-
-func (s *ListSyslogsResponse) SetHeaders(v map[string]*string) *ListSyslogsResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *ListSyslogsResponse) SetStatusCode(v int32) *ListSyslogsResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *ListSyslogsResponse) SetBody(v *ListSyslogsResponseBody) *ListSyslogsResponse {
-	s.Body = v
-	return s
-}
-
-func (s *ListSyslogsResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListTagResourcesRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetNextToken(v string) *ListTagResourcesRequest
-	GetNextToken() *string
-	SetRegionId(v string) *ListTagResourcesRequest
-	GetRegionId() *string
-	SetResourceId(v []*string) *ListTagResourcesRequest
-	GetResourceId() []*string
-	SetResourceType(v string) *ListTagResourcesRequest
-	GetResourceType() *string
-	SetService(v string) *ListTagResourcesRequest
-	GetService() *string
-	SetTag(v []*ListTagResourcesRequestTag) *ListTagResourcesRequest
-	GetTag() []*ListTagResourcesRequestTag
 }
 
 type ListTagResourcesRequest struct {
@@ -15960,41 +10400,16 @@ type ListTagResourcesRequest struct {
 	//
 	// Node
 	ResourceType *string `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
-	Service      *string `json:"Service,omitempty" xml:"Service,omitempty"`
 	// List of tags
 	Tag []*ListTagResourcesRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
 }
 
 func (s ListTagResourcesRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListTagResourcesRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ListTagResourcesRequest) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListTagResourcesRequest) GetRegionId() *string {
-	return s.RegionId
-}
-
-func (s *ListTagResourcesRequest) GetResourceId() []*string {
-	return s.ResourceId
-}
-
-func (s *ListTagResourcesRequest) GetResourceType() *string {
-	return s.ResourceType
-}
-
-func (s *ListTagResourcesRequest) GetService() *string {
-	return s.Service
-}
-
-func (s *ListTagResourcesRequest) GetTag() []*ListTagResourcesRequestTag {
-	return s.Tag
 }
 
 func (s *ListTagResourcesRequest) SetNextToken(v string) *ListTagResourcesRequest {
@@ -16017,18 +10432,9 @@ func (s *ListTagResourcesRequest) SetResourceType(v string) *ListTagResourcesReq
 	return s
 }
 
-func (s *ListTagResourcesRequest) SetService(v string) *ListTagResourcesRequest {
-	s.Service = &v
-	return s
-}
-
 func (s *ListTagResourcesRequest) SetTag(v []*ListTagResourcesRequestTag) *ListTagResourcesRequest {
 	s.Tag = v
 	return s
-}
-
-func (s *ListTagResourcesRequest) Validate() error {
-	return dara.Validate(s)
 }
 
 type ListTagResourcesRequestTag struct {
@@ -16047,19 +10453,11 @@ type ListTagResourcesRequestTag struct {
 }
 
 func (s ListTagResourcesRequestTag) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListTagResourcesRequestTag) GoString() string {
 	return s.String()
-}
-
-func (s *ListTagResourcesRequestTag) GetKey() *string {
-	return s.Key
-}
-
-func (s *ListTagResourcesRequestTag) GetValue() *string {
-	return s.Value
 }
 
 func (s *ListTagResourcesRequestTag) SetKey(v string) *ListTagResourcesRequestTag {
@@ -16070,22 +10468,6 @@ func (s *ListTagResourcesRequestTag) SetKey(v string) *ListTagResourcesRequestTa
 func (s *ListTagResourcesRequestTag) SetValue(v string) *ListTagResourcesRequestTag {
 	s.Value = &v
 	return s
-}
-
-func (s *ListTagResourcesRequestTag) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListTagResourcesResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetNextToken(v string) *ListTagResourcesResponseBody
-	GetNextToken() *string
-	SetRequestId(v string) *ListTagResourcesResponseBody
-	GetRequestId() *string
-	SetTagResources(v *ListTagResourcesResponseBodyTagResources) *ListTagResourcesResponseBody
-	GetTagResources() *ListTagResourcesResponseBodyTagResources
 }
 
 type ListTagResourcesResponseBody struct {
@@ -16106,23 +10488,11 @@ type ListTagResourcesResponseBody struct {
 }
 
 func (s ListTagResourcesResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListTagResourcesResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ListTagResourcesResponseBody) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListTagResourcesResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *ListTagResourcesResponseBody) GetTagResources() *ListTagResourcesResponseBodyTagResources {
-	return s.TagResources
 }
 
 func (s *ListTagResourcesResponseBody) SetNextToken(v string) *ListTagResourcesResponseBody {
@@ -16140,33 +10510,21 @@ func (s *ListTagResourcesResponseBody) SetTagResources(v *ListTagResourcesRespon
 	return s
 }
 
-func (s *ListTagResourcesResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListTagResourcesResponseBodyTagResources struct {
 	TagResource []*ListTagResourcesResponseBodyTagResourcesTagResource `json:"TagResource,omitempty" xml:"TagResource,omitempty" type:"Repeated"`
 }
 
 func (s ListTagResourcesResponseBodyTagResources) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListTagResourcesResponseBodyTagResources) GoString() string {
 	return s.String()
 }
 
-func (s *ListTagResourcesResponseBodyTagResources) GetTagResource() []*ListTagResourcesResponseBodyTagResourcesTagResource {
-	return s.TagResource
-}
-
 func (s *ListTagResourcesResponseBodyTagResources) SetTagResource(v []*ListTagResourcesResponseBodyTagResourcesTagResource) *ListTagResourcesResponseBodyTagResources {
 	s.TagResource = v
 	return s
-}
-
-func (s *ListTagResourcesResponseBodyTagResources) Validate() error {
-	return dara.Validate(s)
 }
 
 type ListTagResourcesResponseBodyTagResourcesTagResource struct {
@@ -16197,27 +10555,11 @@ type ListTagResourcesResponseBodyTagResourcesTagResource struct {
 }
 
 func (s ListTagResourcesResponseBodyTagResourcesTagResource) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListTagResourcesResponseBodyTagResourcesTagResource) GoString() string {
 	return s.String()
-}
-
-func (s *ListTagResourcesResponseBodyTagResourcesTagResource) GetResourceId() *string {
-	return s.ResourceId
-}
-
-func (s *ListTagResourcesResponseBodyTagResourcesTagResource) GetResourceType() *string {
-	return s.ResourceType
-}
-
-func (s *ListTagResourcesResponseBodyTagResourcesTagResource) GetTagKey() *string {
-	return s.TagKey
-}
-
-func (s *ListTagResourcesResponseBodyTagResourcesTagResource) GetTagValue() *string {
-	return s.TagValue
 }
 
 func (s *ListTagResourcesResponseBodyTagResourcesTagResource) SetResourceId(v string) *ListTagResourcesResponseBodyTagResourcesTagResource {
@@ -16240,22 +10582,6 @@ func (s *ListTagResourcesResponseBodyTagResourcesTagResource) SetTagValue(v stri
 	return s
 }
 
-func (s *ListTagResourcesResponseBodyTagResourcesTagResource) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListTagResourcesResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ListTagResourcesResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ListTagResourcesResponse
-	GetStatusCode() *int32
-	SetBody(v *ListTagResourcesResponseBody) *ListTagResourcesResponse
-	GetBody() *ListTagResourcesResponseBody
-}
-
 type ListTagResourcesResponse struct {
 	Headers    map[string]*string            `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                        `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -16263,23 +10589,11 @@ type ListTagResourcesResponse struct {
 }
 
 func (s ListTagResourcesResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListTagResourcesResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ListTagResourcesResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ListTagResourcesResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ListTagResourcesResponse) GetBody() *ListTagResourcesResponseBody {
-	return s.Body
 }
 
 func (s *ListTagResourcesResponse) SetHeaders(v map[string]*string) *ListTagResourcesResponse {
@@ -16295,22 +10609,6 @@ func (s *ListTagResourcesResponse) SetStatusCode(v int32) *ListTagResourcesRespo
 func (s *ListTagResourcesResponse) SetBody(v *ListTagResourcesResponseBody) *ListTagResourcesResponse {
 	s.Body = v
 	return s
-}
-
-func (s *ListTagResourcesResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListUserClusterTypesResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterTypes(v []*ListUserClusterTypesResponseBodyClusterTypes) *ListUserClusterTypesResponseBody
-	GetClusterTypes() []*ListUserClusterTypesResponseBodyClusterTypes
-	SetNextToken(v string) *ListUserClusterTypesResponseBody
-	GetNextToken() *string
-	SetRequestId(v string) *ListUserClusterTypesResponseBody
-	GetRequestId() *string
 }
 
 type ListUserClusterTypesResponseBody struct {
@@ -16331,23 +10629,11 @@ type ListUserClusterTypesResponseBody struct {
 }
 
 func (s ListUserClusterTypesResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListUserClusterTypesResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ListUserClusterTypesResponseBody) GetClusterTypes() []*ListUserClusterTypesResponseBodyClusterTypes {
-	return s.ClusterTypes
-}
-
-func (s *ListUserClusterTypesResponseBody) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListUserClusterTypesResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *ListUserClusterTypesResponseBody) SetClusterTypes(v []*ListUserClusterTypesResponseBodyClusterTypes) *ListUserClusterTypesResponseBody {
@@ -16363,10 +10649,6 @@ func (s *ListUserClusterTypesResponseBody) SetNextToken(v string) *ListUserClust
 func (s *ListUserClusterTypesResponseBody) SetRequestId(v string) *ListUserClusterTypesResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *ListUserClusterTypesResponseBody) Validate() error {
-	return dara.Validate(s)
 }
 
 type ListUserClusterTypesResponseBodyClusterTypes struct {
@@ -16385,19 +10667,11 @@ type ListUserClusterTypesResponseBodyClusterTypes struct {
 }
 
 func (s ListUserClusterTypesResponseBodyClusterTypes) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListUserClusterTypesResponseBodyClusterTypes) GoString() string {
 	return s.String()
-}
-
-func (s *ListUserClusterTypesResponseBodyClusterTypes) GetAccessType() *string {
-	return s.AccessType
-}
-
-func (s *ListUserClusterTypesResponseBodyClusterTypes) GetTypeName() *string {
-	return s.TypeName
 }
 
 func (s *ListUserClusterTypesResponseBodyClusterTypes) SetAccessType(v string) *ListUserClusterTypesResponseBodyClusterTypes {
@@ -16410,22 +10684,6 @@ func (s *ListUserClusterTypesResponseBodyClusterTypes) SetTypeName(v string) *Li
 	return s
 }
 
-func (s *ListUserClusterTypesResponseBodyClusterTypes) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListUserClusterTypesResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ListUserClusterTypesResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ListUserClusterTypesResponse
-	GetStatusCode() *int32
-	SetBody(v *ListUserClusterTypesResponseBody) *ListUserClusterTypesResponse
-	GetBody() *ListUserClusterTypesResponseBody
-}
-
 type ListUserClusterTypesResponse struct {
 	Headers    map[string]*string                `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                            `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -16433,23 +10691,11 @@ type ListUserClusterTypesResponse struct {
 }
 
 func (s ListUserClusterTypesResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListUserClusterTypesResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ListUserClusterTypesResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ListUserClusterTypesResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ListUserClusterTypesResponse) GetBody() *ListUserClusterTypesResponseBody {
-	return s.Body
 }
 
 func (s *ListUserClusterTypesResponse) SetHeaders(v map[string]*string) *ListUserClusterTypesResponse {
@@ -16467,67 +10713,33 @@ func (s *ListUserClusterTypesResponse) SetBody(v *ListUserClusterTypesResponseBo
 	return s
 }
 
-func (s *ListUserClusterTypesResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListVscsRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetMaxResults(v int32) *ListVscsRequest
-	GetMaxResults() *int32
-	SetNextToken(v string) *ListVscsRequest
-	GetNextToken() *string
-	SetNodeIds(v []*string) *ListVscsRequest
-	GetNodeIds() []*string
-	SetResourceGroupId(v string) *ListVscsRequest
-	GetResourceGroupId() *string
-	SetTag(v []*ListVscsRequestTag) *ListVscsRequest
-	GetTag() []*ListVscsRequestTag
-	SetVscName(v string) *ListVscsRequest
-	GetVscName() *string
-}
-
 type ListVscsRequest struct {
-	MaxResults      *int32                `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
-	NextToken       *string               `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	NodeIds         []*string             `json:"NodeIds,omitempty" xml:"NodeIds,omitempty" type:"Repeated"`
+	// example:
+	//
+	// 20
+	MaxResults *int32 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
+	// example:
+	//
+	// 563d42ae0b17572449ec8c97f7f66069
+	NextToken *string   `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	NodeIds   []*string `json:"NodeIds,omitempty" xml:"NodeIds,omitempty" type:"Repeated"`
+	// example:
+	//
+	// rg-aek2xdkc6icwfha
 	ResourceGroupId *string               `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
 	Tag             []*ListVscsRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
-	VscName         *string               `json:"VscName,omitempty" xml:"VscName,omitempty"`
+	// example:
+	//
+	// test_name
+	VscName *string `json:"VscName,omitempty" xml:"VscName,omitempty"`
 }
 
 func (s ListVscsRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListVscsRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ListVscsRequest) GetMaxResults() *int32 {
-	return s.MaxResults
-}
-
-func (s *ListVscsRequest) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListVscsRequest) GetNodeIds() []*string {
-	return s.NodeIds
-}
-
-func (s *ListVscsRequest) GetResourceGroupId() *string {
-	return s.ResourceGroupId
-}
-
-func (s *ListVscsRequest) GetTag() []*ListVscsRequestTag {
-	return s.Tag
-}
-
-func (s *ListVscsRequest) GetVscName() *string {
-	return s.VscName
 }
 
 func (s *ListVscsRequest) SetMaxResults(v int32) *ListVscsRequest {
@@ -16560,29 +10772,23 @@ func (s *ListVscsRequest) SetVscName(v string) *ListVscsRequest {
 	return s
 }
 
-func (s *ListVscsRequest) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListVscsRequestTag struct {
-	Key   *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// example:
+	//
+	// key001
+	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// example:
+	//
+	// value001
 	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
 }
 
 func (s ListVscsRequestTag) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListVscsRequestTag) GoString() string {
 	return s.String()
-}
-
-func (s *ListVscsRequestTag) GetKey() *string {
-	return s.Key
-}
-
-func (s *ListVscsRequestTag) GetValue() *string {
-	return s.Value
 }
 
 func (s *ListVscsRequestTag) SetKey(v string) *ListVscsRequestTag {
@@ -16595,61 +10801,124 @@ func (s *ListVscsRequestTag) SetValue(v string) *ListVscsRequestTag {
 	return s
 }
 
-func (s *ListVscsRequestTag) Validate() error {
-	return dara.Validate(s)
+type ListVscsShrinkRequest struct {
+	// example:
+	//
+	// 20
+	MaxResults *int32 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
+	// example:
+	//
+	// 563d42ae0b17572449ec8c97f7f66069
+	NextToken     *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	NodeIdsShrink *string `json:"NodeIds,omitempty" xml:"NodeIds,omitempty"`
+	// example:
+	//
+	// rg-aek2xdkc6icwfha
+	ResourceGroupId *string                     `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	Tag             []*ListVscsShrinkRequestTag `json:"Tag,omitempty" xml:"Tag,omitempty" type:"Repeated"`
+	// example:
+	//
+	// test_name
+	VscName *string `json:"VscName,omitempty" xml:"VscName,omitempty"`
 }
 
-type iListVscsResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetMaxResults(v int32) *ListVscsResponseBody
-	GetMaxResults() *int32
-	SetNextToken(v string) *ListVscsResponseBody
-	GetNextToken() *string
-	SetRequestId(v string) *ListVscsResponseBody
-	GetRequestId() *string
-	SetTotalCount(v int32) *ListVscsResponseBody
-	GetTotalCount() *int32
-	SetVscs(v []*ListVscsResponseBodyVscs) *ListVscsResponseBody
-	GetVscs() []*ListVscsResponseBodyVscs
+func (s ListVscsShrinkRequest) String() string {
+	return tea.Prettify(s)
+}
+
+func (s ListVscsShrinkRequest) GoString() string {
+	return s.String()
+}
+
+func (s *ListVscsShrinkRequest) SetMaxResults(v int32) *ListVscsShrinkRequest {
+	s.MaxResults = &v
+	return s
+}
+
+func (s *ListVscsShrinkRequest) SetNextToken(v string) *ListVscsShrinkRequest {
+	s.NextToken = &v
+	return s
+}
+
+func (s *ListVscsShrinkRequest) SetNodeIdsShrink(v string) *ListVscsShrinkRequest {
+	s.NodeIdsShrink = &v
+	return s
+}
+
+func (s *ListVscsShrinkRequest) SetResourceGroupId(v string) *ListVscsShrinkRequest {
+	s.ResourceGroupId = &v
+	return s
+}
+
+func (s *ListVscsShrinkRequest) SetTag(v []*ListVscsShrinkRequestTag) *ListVscsShrinkRequest {
+	s.Tag = v
+	return s
+}
+
+func (s *ListVscsShrinkRequest) SetVscName(v string) *ListVscsShrinkRequest {
+	s.VscName = &v
+	return s
+}
+
+type ListVscsShrinkRequestTag struct {
+	// example:
+	//
+	// key001
+	Key *string `json:"Key,omitempty" xml:"Key,omitempty"`
+	// example:
+	//
+	// value001
+	Value *string `json:"Value,omitempty" xml:"Value,omitempty"`
+}
+
+func (s ListVscsShrinkRequestTag) String() string {
+	return tea.Prettify(s)
+}
+
+func (s ListVscsShrinkRequestTag) GoString() string {
+	return s.String()
+}
+
+func (s *ListVscsShrinkRequestTag) SetKey(v string) *ListVscsShrinkRequestTag {
+	s.Key = &v
+	return s
+}
+
+func (s *ListVscsShrinkRequestTag) SetValue(v string) *ListVscsShrinkRequestTag {
+	s.Value = &v
+	return s
 }
 
 type ListVscsResponseBody struct {
+	// example:
+	//
+	// 0
 	MaxResults *int32 `json:"MaxResults,omitempty" xml:"MaxResults,omitempty"`
 	// This parameter is required.
-	NextToken  *string                     `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
-	RequestId  *string                     `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	//
+	// example:
+	//
+	// 3a6b93229825ac667104463b56790c91
+	NextToken *string `json:"NextToken,omitempty" xml:"NextToken,omitempty"`
+	// Id of the request
+	//
+	// example:
+	//
+	// 03668372-18FF-5959-98D9-6B36A4643C7A
+	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	// example:
+	//
+	// 3
 	TotalCount *int32                      `json:"TotalCount,omitempty" xml:"TotalCount,omitempty"`
 	Vscs       []*ListVscsResponseBodyVscs `json:"Vscs,omitempty" xml:"Vscs,omitempty" type:"Repeated"`
 }
 
 func (s ListVscsResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListVscsResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ListVscsResponseBody) GetMaxResults() *int32 {
-	return s.MaxResults
-}
-
-func (s *ListVscsResponseBody) GetNextToken() *string {
-	return s.NextToken
-}
-
-func (s *ListVscsResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *ListVscsResponseBody) GetTotalCount() *int32 {
-	return s.TotalCount
-}
-
-func (s *ListVscsResponseBody) GetVscs() []*ListVscsResponseBodyVscs {
-	return s.Vscs
 }
 
 func (s *ListVscsResponseBody) SetMaxResults(v int32) *ListVscsResponseBody {
@@ -16677,54 +10946,42 @@ func (s *ListVscsResponseBody) SetVscs(v []*ListVscsResponseBodyVscs) *ListVscsR
 	return s
 }
 
-func (s *ListVscsResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListVscsResponseBodyVscs struct {
-	NodeId          *string                         `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
-	ResourceGroupId *string                         `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
-	Status          *string                         `json:"Status,omitempty" xml:"Status,omitempty"`
-	Tags            []*ListVscsResponseBodyVscsTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
-	VscId           *string                         `json:"VscId,omitempty" xml:"VscId,omitempty"`
-	VscName         *string                         `json:"VscName,omitempty" xml:"VscName,omitempty"`
-	VscType         *string                         `json:"VscType,omitempty" xml:"VscType,omitempty"`
+	// example:
+	//
+	// e01-cn-fzh47xd7u08
+	NodeId *string `json:"NodeId,omitempty" xml:"NodeId,omitempty"`
+	// example:
+	//
+	// rg-acfm2zkwhkns57i
+	ResourceGroupId *string `json:"ResourceGroupId,omitempty" xml:"ResourceGroupId,omitempty"`
+	// example:
+	//
+	// NORMAL
+	Status *string                         `json:"Status,omitempty" xml:"Status,omitempty"`
+	Tags   []*ListVscsResponseBodyVscsTags `json:"Tags,omitempty" xml:"Tags,omitempty" type:"Repeated"`
+	// VscId
+	//
+	// example:
+	//
+	// vsc-001
+	VscId *string `json:"VscId,omitempty" xml:"VscId,omitempty"`
+	// example:
+	//
+	// test_name
+	VscName *string `json:"VscName,omitempty" xml:"VscName,omitempty"`
+	// example:
+	//
+	// primary
+	VscType *string `json:"VscType,omitempty" xml:"VscType,omitempty"`
 }
 
 func (s ListVscsResponseBodyVscs) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListVscsResponseBodyVscs) GoString() string {
 	return s.String()
-}
-
-func (s *ListVscsResponseBodyVscs) GetNodeId() *string {
-	return s.NodeId
-}
-
-func (s *ListVscsResponseBodyVscs) GetResourceGroupId() *string {
-	return s.ResourceGroupId
-}
-
-func (s *ListVscsResponseBodyVscs) GetStatus() *string {
-	return s.Status
-}
-
-func (s *ListVscsResponseBodyVscs) GetTags() []*ListVscsResponseBodyVscsTags {
-	return s.Tags
-}
-
-func (s *ListVscsResponseBodyVscs) GetVscId() *string {
-	return s.VscId
-}
-
-func (s *ListVscsResponseBodyVscs) GetVscName() *string {
-	return s.VscName
-}
-
-func (s *ListVscsResponseBodyVscs) GetVscType() *string {
-	return s.VscType
 }
 
 func (s *ListVscsResponseBodyVscs) SetNodeId(v string) *ListVscsResponseBodyVscs {
@@ -16762,29 +11019,23 @@ func (s *ListVscsResponseBodyVscs) SetVscType(v string) *ListVscsResponseBodyVsc
 	return s
 }
 
-func (s *ListVscsResponseBodyVscs) Validate() error {
-	return dara.Validate(s)
-}
-
 type ListVscsResponseBodyVscsTags struct {
-	TagKey   *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
+	// example:
+	//
+	// key001
+	TagKey *string `json:"TagKey,omitempty" xml:"TagKey,omitempty"`
+	// example:
+	//
+	// value001
 	TagValue *string `json:"TagValue,omitempty" xml:"TagValue,omitempty"`
 }
 
 func (s ListVscsResponseBodyVscsTags) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListVscsResponseBodyVscsTags) GoString() string {
 	return s.String()
-}
-
-func (s *ListVscsResponseBodyVscsTags) GetTagKey() *string {
-	return s.TagKey
-}
-
-func (s *ListVscsResponseBodyVscsTags) GetTagValue() *string {
-	return s.TagValue
 }
 
 func (s *ListVscsResponseBodyVscsTags) SetTagKey(v string) *ListVscsResponseBodyVscsTags {
@@ -16797,22 +11048,6 @@ func (s *ListVscsResponseBodyVscsTags) SetTagValue(v string) *ListVscsResponseBo
 	return s
 }
 
-func (s *ListVscsResponseBodyVscsTags) Validate() error {
-	return dara.Validate(s)
-}
-
-type iListVscsResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ListVscsResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ListVscsResponse
-	GetStatusCode() *int32
-	SetBody(v *ListVscsResponseBody) *ListVscsResponse
-	GetBody() *ListVscsResponseBody
-}
-
 type ListVscsResponse struct {
 	Headers    map[string]*string    `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -16820,23 +11055,11 @@ type ListVscsResponse struct {
 }
 
 func (s ListVscsResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ListVscsResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ListVscsResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ListVscsResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ListVscsResponse) GetBody() *ListVscsResponseBody {
-	return s.Body
 }
 
 func (s *ListVscsResponse) SetHeaders(v map[string]*string) *ListVscsResponse {
@@ -16852,22 +11075,6 @@ func (s *ListVscsResponse) SetStatusCode(v int32) *ListVscsResponse {
 func (s *ListVscsResponse) SetBody(v *ListVscsResponseBody) *ListVscsResponse {
 	s.Body = v
 	return s
-}
-
-func (s *ListVscsResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iRebootNodesRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *RebootNodesRequest
-	GetClusterId() *string
-	SetIgnoreFailedNodeTasks(v bool) *RebootNodesRequest
-	GetIgnoreFailedNodeTasks() *bool
-	SetNodes(v []*string) *RebootNodesRequest
-	GetNodes() []*string
 }
 
 type RebootNodesRequest struct {
@@ -16888,23 +11095,11 @@ type RebootNodesRequest struct {
 }
 
 func (s RebootNodesRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s RebootNodesRequest) GoString() string {
 	return s.String()
-}
-
-func (s *RebootNodesRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *RebootNodesRequest) GetIgnoreFailedNodeTasks() *bool {
-	return s.IgnoreFailedNodeTasks
-}
-
-func (s *RebootNodesRequest) GetNodes() []*string {
-	return s.Nodes
 }
 
 func (s *RebootNodesRequest) SetClusterId(v string) *RebootNodesRequest {
@@ -16920,22 +11115,6 @@ func (s *RebootNodesRequest) SetIgnoreFailedNodeTasks(v bool) *RebootNodesReques
 func (s *RebootNodesRequest) SetNodes(v []*string) *RebootNodesRequest {
 	s.Nodes = v
 	return s
-}
-
-func (s *RebootNodesRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iRebootNodesShrinkRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *RebootNodesShrinkRequest
-	GetClusterId() *string
-	SetIgnoreFailedNodeTasks(v bool) *RebootNodesShrinkRequest
-	GetIgnoreFailedNodeTasks() *bool
-	SetNodesShrink(v string) *RebootNodesShrinkRequest
-	GetNodesShrink() *string
 }
 
 type RebootNodesShrinkRequest struct {
@@ -16956,23 +11135,11 @@ type RebootNodesShrinkRequest struct {
 }
 
 func (s RebootNodesShrinkRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s RebootNodesShrinkRequest) GoString() string {
 	return s.String()
-}
-
-func (s *RebootNodesShrinkRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *RebootNodesShrinkRequest) GetIgnoreFailedNodeTasks() *bool {
-	return s.IgnoreFailedNodeTasks
-}
-
-func (s *RebootNodesShrinkRequest) GetNodesShrink() *string {
-	return s.NodesShrink
 }
 
 func (s *RebootNodesShrinkRequest) SetClusterId(v string) *RebootNodesShrinkRequest {
@@ -16988,20 +11155,6 @@ func (s *RebootNodesShrinkRequest) SetIgnoreFailedNodeTasks(v bool) *RebootNodes
 func (s *RebootNodesShrinkRequest) SetNodesShrink(v string) *RebootNodesShrinkRequest {
 	s.NodesShrink = &v
 	return s
-}
-
-func (s *RebootNodesShrinkRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iRebootNodesResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *RebootNodesResponseBody
-	GetRequestId() *string
-	SetTaskId(v string) *RebootNodesResponseBody
-	GetTaskId() *string
 }
 
 type RebootNodesResponseBody struct {
@@ -17020,19 +11173,11 @@ type RebootNodesResponseBody struct {
 }
 
 func (s RebootNodesResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s RebootNodesResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *RebootNodesResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *RebootNodesResponseBody) GetTaskId() *string {
-	return s.TaskId
 }
 
 func (s *RebootNodesResponseBody) SetRequestId(v string) *RebootNodesResponseBody {
@@ -17045,22 +11190,6 @@ func (s *RebootNodesResponseBody) SetTaskId(v string) *RebootNodesResponseBody {
 	return s
 }
 
-func (s *RebootNodesResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iRebootNodesResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *RebootNodesResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *RebootNodesResponse
-	GetStatusCode() *int32
-	SetBody(v *RebootNodesResponseBody) *RebootNodesResponse
-	GetBody() *RebootNodesResponseBody
-}
-
 type RebootNodesResponse struct {
 	Headers    map[string]*string       `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                   `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -17068,23 +11197,11 @@ type RebootNodesResponse struct {
 }
 
 func (s RebootNodesResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s RebootNodesResponse) GoString() string {
 	return s.String()
-}
-
-func (s *RebootNodesResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *RebootNodesResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *RebootNodesResponse) GetBody() *RebootNodesResponseBody {
-	return s.Body
 }
 
 func (s *RebootNodesResponse) SetHeaders(v map[string]*string) *RebootNodesResponse {
@@ -17100,24 +11217,6 @@ func (s *RebootNodesResponse) SetStatusCode(v int32) *RebootNodesResponse {
 func (s *RebootNodesResponse) SetBody(v *RebootNodesResponseBody) *RebootNodesResponse {
 	s.Body = v
 	return s
-}
-
-func (s *RebootNodesResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iReimageNodesRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *ReimageNodesRequest
-	GetClusterId() *string
-	SetIgnoreFailedNodeTasks(v bool) *ReimageNodesRequest
-	GetIgnoreFailedNodeTasks() *bool
-	SetNodes(v []*ReimageNodesRequestNodes) *ReimageNodesRequest
-	GetNodes() []*ReimageNodesRequestNodes
-	SetUserData(v string) *ReimageNodesRequest
-	GetUserData() *string
 }
 
 type ReimageNodesRequest struct {
@@ -17146,27 +11245,11 @@ type ReimageNodesRequest struct {
 }
 
 func (s ReimageNodesRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ReimageNodesRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ReimageNodesRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *ReimageNodesRequest) GetIgnoreFailedNodeTasks() *bool {
-	return s.IgnoreFailedNodeTasks
-}
-
-func (s *ReimageNodesRequest) GetNodes() []*ReimageNodesRequestNodes {
-	return s.Nodes
-}
-
-func (s *ReimageNodesRequest) GetUserData() *string {
-	return s.UserData
 }
 
 func (s *ReimageNodesRequest) SetClusterId(v string) *ReimageNodesRequest {
@@ -17187,10 +11270,6 @@ func (s *ReimageNodesRequest) SetNodes(v []*ReimageNodesRequestNodes) *ReimageNo
 func (s *ReimageNodesRequest) SetUserData(v string) *ReimageNodesRequest {
 	s.UserData = &v
 	return s
-}
-
-func (s *ReimageNodesRequest) Validate() error {
-	return dara.Validate(s)
 }
 
 type ReimageNodesRequestNodes struct {
@@ -17221,27 +11300,11 @@ type ReimageNodesRequestNodes struct {
 }
 
 func (s ReimageNodesRequestNodes) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ReimageNodesRequestNodes) GoString() string {
 	return s.String()
-}
-
-func (s *ReimageNodesRequestNodes) GetHostname() *string {
-	return s.Hostname
-}
-
-func (s *ReimageNodesRequestNodes) GetImageId() *string {
-	return s.ImageId
-}
-
-func (s *ReimageNodesRequestNodes) GetLoginPassword() *string {
-	return s.LoginPassword
-}
-
-func (s *ReimageNodesRequestNodes) GetNodeId() *string {
-	return s.NodeId
 }
 
 func (s *ReimageNodesRequestNodes) SetHostname(v string) *ReimageNodesRequestNodes {
@@ -17262,24 +11325,6 @@ func (s *ReimageNodesRequestNodes) SetLoginPassword(v string) *ReimageNodesReque
 func (s *ReimageNodesRequestNodes) SetNodeId(v string) *ReimageNodesRequestNodes {
 	s.NodeId = &v
 	return s
-}
-
-func (s *ReimageNodesRequestNodes) Validate() error {
-	return dara.Validate(s)
-}
-
-type iReimageNodesShrinkRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *ReimageNodesShrinkRequest
-	GetClusterId() *string
-	SetIgnoreFailedNodeTasks(v bool) *ReimageNodesShrinkRequest
-	GetIgnoreFailedNodeTasks() *bool
-	SetNodesShrink(v string) *ReimageNodesShrinkRequest
-	GetNodesShrink() *string
-	SetUserData(v string) *ReimageNodesShrinkRequest
-	GetUserData() *string
 }
 
 type ReimageNodesShrinkRequest struct {
@@ -17308,27 +11353,11 @@ type ReimageNodesShrinkRequest struct {
 }
 
 func (s ReimageNodesShrinkRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ReimageNodesShrinkRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ReimageNodesShrinkRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *ReimageNodesShrinkRequest) GetIgnoreFailedNodeTasks() *bool {
-	return s.IgnoreFailedNodeTasks
-}
-
-func (s *ReimageNodesShrinkRequest) GetNodesShrink() *string {
-	return s.NodesShrink
-}
-
-func (s *ReimageNodesShrinkRequest) GetUserData() *string {
-	return s.UserData
 }
 
 func (s *ReimageNodesShrinkRequest) SetClusterId(v string) *ReimageNodesShrinkRequest {
@@ -17351,20 +11380,6 @@ func (s *ReimageNodesShrinkRequest) SetUserData(v string) *ReimageNodesShrinkReq
 	return s
 }
 
-func (s *ReimageNodesShrinkRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iReimageNodesResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *ReimageNodesResponseBody
-	GetRequestId() *string
-	SetTaskId(v string) *ReimageNodesResponseBody
-	GetTaskId() *string
-}
-
 type ReimageNodesResponseBody struct {
 	// Request ID
 	//
@@ -17381,19 +11396,11 @@ type ReimageNodesResponseBody struct {
 }
 
 func (s ReimageNodesResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ReimageNodesResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ReimageNodesResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *ReimageNodesResponseBody) GetTaskId() *string {
-	return s.TaskId
 }
 
 func (s *ReimageNodesResponseBody) SetRequestId(v string) *ReimageNodesResponseBody {
@@ -17406,22 +11413,6 @@ func (s *ReimageNodesResponseBody) SetTaskId(v string) *ReimageNodesResponseBody
 	return s
 }
 
-func (s *ReimageNodesResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iReimageNodesResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ReimageNodesResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ReimageNodesResponse
-	GetStatusCode() *int32
-	SetBody(v *ReimageNodesResponseBody) *ReimageNodesResponse
-	GetBody() *ReimageNodesResponseBody
-}
-
 type ReimageNodesResponse struct {
 	Headers    map[string]*string        `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                    `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -17429,23 +11420,11 @@ type ReimageNodesResponse struct {
 }
 
 func (s ReimageNodesResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ReimageNodesResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ReimageNodesResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ReimageNodesResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ReimageNodesResponse) GetBody() *ReimageNodesResponseBody {
-	return s.Body
 }
 
 func (s *ReimageNodesResponse) SetHeaders(v map[string]*string) *ReimageNodesResponse {
@@ -17461,374 +11440,6 @@ func (s *ReimageNodesResponse) SetStatusCode(v int32) *ReimageNodesResponse {
 func (s *ReimageNodesResponse) SetBody(v *ReimageNodesResponseBody) *ReimageNodesResponse {
 	s.Body = v
 	return s
-}
-
-func (s *ReimageNodesResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iReportNodesStatusRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetDescription(v string) *ReportNodesStatusRequest
-	GetDescription() *string
-	SetEndTime(v string) *ReportNodesStatusRequest
-	GetEndTime() *string
-	SetIssueCategory(v string) *ReportNodesStatusRequest
-	GetIssueCategory() *string
-	SetNodes(v []*string) *ReportNodesStatusRequest
-	GetNodes() []*string
-	SetReason(v string) *ReportNodesStatusRequest
-	GetReason() *string
-	SetStartTime(v string) *ReportNodesStatusRequest
-	GetStartTime() *string
-}
-
-type ReportNodesStatusRequest struct {
-	// example:
-	//
-	// dwd_mysql_lingwan_faxing_login_di
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// example:
-	//
-	// 2024-07-10T10:17:06
-	EndTime *string `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
-	// example:
-	//
-	// hardware-disk-error
-	IssueCategory *string   `json:"IssueCategory,omitempty" xml:"IssueCategory,omitempty"`
-	Nodes         []*string `json:"Nodes,omitempty" xml:"Nodes,omitempty" type:"Repeated"`
-	// example:
-	//
-	// SoftwareError
-	Reason *string `json:"Reason,omitempty" xml:"Reason,omitempty"`
-	// example:
-	//
-	// 2024-09-22T16:00:00Z
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-}
-
-func (s ReportNodesStatusRequest) String() string {
-	return dara.Prettify(s)
-}
-
-func (s ReportNodesStatusRequest) GoString() string {
-	return s.String()
-}
-
-func (s *ReportNodesStatusRequest) GetDescription() *string {
-	return s.Description
-}
-
-func (s *ReportNodesStatusRequest) GetEndTime() *string {
-	return s.EndTime
-}
-
-func (s *ReportNodesStatusRequest) GetIssueCategory() *string {
-	return s.IssueCategory
-}
-
-func (s *ReportNodesStatusRequest) GetNodes() []*string {
-	return s.Nodes
-}
-
-func (s *ReportNodesStatusRequest) GetReason() *string {
-	return s.Reason
-}
-
-func (s *ReportNodesStatusRequest) GetStartTime() *string {
-	return s.StartTime
-}
-
-func (s *ReportNodesStatusRequest) SetDescription(v string) *ReportNodesStatusRequest {
-	s.Description = &v
-	return s
-}
-
-func (s *ReportNodesStatusRequest) SetEndTime(v string) *ReportNodesStatusRequest {
-	s.EndTime = &v
-	return s
-}
-
-func (s *ReportNodesStatusRequest) SetIssueCategory(v string) *ReportNodesStatusRequest {
-	s.IssueCategory = &v
-	return s
-}
-
-func (s *ReportNodesStatusRequest) SetNodes(v []*string) *ReportNodesStatusRequest {
-	s.Nodes = v
-	return s
-}
-
-func (s *ReportNodesStatusRequest) SetReason(v string) *ReportNodesStatusRequest {
-	s.Reason = &v
-	return s
-}
-
-func (s *ReportNodesStatusRequest) SetStartTime(v string) *ReportNodesStatusRequest {
-	s.StartTime = &v
-	return s
-}
-
-func (s *ReportNodesStatusRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iReportNodesStatusShrinkRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetDescription(v string) *ReportNodesStatusShrinkRequest
-	GetDescription() *string
-	SetEndTime(v string) *ReportNodesStatusShrinkRequest
-	GetEndTime() *string
-	SetIssueCategory(v string) *ReportNodesStatusShrinkRequest
-	GetIssueCategory() *string
-	SetNodesShrink(v string) *ReportNodesStatusShrinkRequest
-	GetNodesShrink() *string
-	SetReason(v string) *ReportNodesStatusShrinkRequest
-	GetReason() *string
-	SetStartTime(v string) *ReportNodesStatusShrinkRequest
-	GetStartTime() *string
-}
-
-type ReportNodesStatusShrinkRequest struct {
-	// example:
-	//
-	// dwd_mysql_lingwan_faxing_login_di
-	Description *string `json:"Description,omitempty" xml:"Description,omitempty"`
-	// example:
-	//
-	// 2024-07-10T10:17:06
-	EndTime *string `json:"EndTime,omitempty" xml:"EndTime,omitempty"`
-	// example:
-	//
-	// hardware-disk-error
-	IssueCategory *string `json:"IssueCategory,omitempty" xml:"IssueCategory,omitempty"`
-	NodesShrink   *string `json:"Nodes,omitempty" xml:"Nodes,omitempty"`
-	// example:
-	//
-	// SoftwareError
-	Reason *string `json:"Reason,omitempty" xml:"Reason,omitempty"`
-	// example:
-	//
-	// 2024-09-22T16:00:00Z
-	StartTime *string `json:"StartTime,omitempty" xml:"StartTime,omitempty"`
-}
-
-func (s ReportNodesStatusShrinkRequest) String() string {
-	return dara.Prettify(s)
-}
-
-func (s ReportNodesStatusShrinkRequest) GoString() string {
-	return s.String()
-}
-
-func (s *ReportNodesStatusShrinkRequest) GetDescription() *string {
-	return s.Description
-}
-
-func (s *ReportNodesStatusShrinkRequest) GetEndTime() *string {
-	return s.EndTime
-}
-
-func (s *ReportNodesStatusShrinkRequest) GetIssueCategory() *string {
-	return s.IssueCategory
-}
-
-func (s *ReportNodesStatusShrinkRequest) GetNodesShrink() *string {
-	return s.NodesShrink
-}
-
-func (s *ReportNodesStatusShrinkRequest) GetReason() *string {
-	return s.Reason
-}
-
-func (s *ReportNodesStatusShrinkRequest) GetStartTime() *string {
-	return s.StartTime
-}
-
-func (s *ReportNodesStatusShrinkRequest) SetDescription(v string) *ReportNodesStatusShrinkRequest {
-	s.Description = &v
-	return s
-}
-
-func (s *ReportNodesStatusShrinkRequest) SetEndTime(v string) *ReportNodesStatusShrinkRequest {
-	s.EndTime = &v
-	return s
-}
-
-func (s *ReportNodesStatusShrinkRequest) SetIssueCategory(v string) *ReportNodesStatusShrinkRequest {
-	s.IssueCategory = &v
-	return s
-}
-
-func (s *ReportNodesStatusShrinkRequest) SetNodesShrink(v string) *ReportNodesStatusShrinkRequest {
-	s.NodesShrink = &v
-	return s
-}
-
-func (s *ReportNodesStatusShrinkRequest) SetReason(v string) *ReportNodesStatusShrinkRequest {
-	s.Reason = &v
-	return s
-}
-
-func (s *ReportNodesStatusShrinkRequest) SetStartTime(v string) *ReportNodesStatusShrinkRequest {
-	s.StartTime = &v
-	return s
-}
-
-func (s *ReportNodesStatusShrinkRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iReportNodesStatusResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetErrorMessage(v string) *ReportNodesStatusResponseBody
-	GetErrorMessage() *string
-	SetRequestId(v string) *ReportNodesStatusResponseBody
-	GetRequestId() *string
-}
-
-type ReportNodesStatusResponseBody struct {
-	// Error Message
-	//
-	// example:
-	//
-	// Resource not found
-	ErrorMessage *string `json:"ErrorMessage,omitempty" xml:"ErrorMessage,omitempty"`
-	// example:
-	//
-	// B0699629-14FC-51E7-B49E-AAD83F6FEB60
-	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
-}
-
-func (s ReportNodesStatusResponseBody) String() string {
-	return dara.Prettify(s)
-}
-
-func (s ReportNodesStatusResponseBody) GoString() string {
-	return s.String()
-}
-
-func (s *ReportNodesStatusResponseBody) GetErrorMessage() *string {
-	return s.ErrorMessage
-}
-
-func (s *ReportNodesStatusResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *ReportNodesStatusResponseBody) SetErrorMessage(v string) *ReportNodesStatusResponseBody {
-	s.ErrorMessage = &v
-	return s
-}
-
-func (s *ReportNodesStatusResponseBody) SetRequestId(v string) *ReportNodesStatusResponseBody {
-	s.RequestId = &v
-	return s
-}
-
-func (s *ReportNodesStatusResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iReportNodesStatusResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ReportNodesStatusResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ReportNodesStatusResponse
-	GetStatusCode() *int32
-	SetBody(v *ReportNodesStatusResponseBody) *ReportNodesStatusResponse
-	GetBody() *ReportNodesStatusResponseBody
-}
-
-type ReportNodesStatusResponse struct {
-	Headers    map[string]*string             `json:"headers,omitempty" xml:"headers,omitempty"`
-	StatusCode *int32                         `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
-	Body       *ReportNodesStatusResponseBody `json:"body,omitempty" xml:"body,omitempty"`
-}
-
-func (s ReportNodesStatusResponse) String() string {
-	return dara.Prettify(s)
-}
-
-func (s ReportNodesStatusResponse) GoString() string {
-	return s.String()
-}
-
-func (s *ReportNodesStatusResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ReportNodesStatusResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ReportNodesStatusResponse) GetBody() *ReportNodesStatusResponseBody {
-	return s.Body
-}
-
-func (s *ReportNodesStatusResponse) SetHeaders(v map[string]*string) *ReportNodesStatusResponse {
-	s.Headers = v
-	return s
-}
-
-func (s *ReportNodesStatusResponse) SetStatusCode(v int32) *ReportNodesStatusResponse {
-	s.StatusCode = &v
-	return s
-}
-
-func (s *ReportNodesStatusResponse) SetBody(v *ReportNodesStatusResponseBody) *ReportNodesStatusResponse {
-	s.Body = v
-	return s
-}
-
-func (s *ReportNodesStatusResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iRunCommandRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClientToken(v string) *RunCommandRequest
-	GetClientToken() *string
-	SetCommandContent(v string) *RunCommandRequest
-	GetCommandContent() *string
-	SetCommandId(v string) *RunCommandRequest
-	GetCommandId() *string
-	SetContentEncoding(v string) *RunCommandRequest
-	GetContentEncoding() *string
-	SetDescription(v string) *RunCommandRequest
-	GetDescription() *string
-	SetEnableParameter(v bool) *RunCommandRequest
-	GetEnableParameter() *bool
-	SetFrequency(v string) *RunCommandRequest
-	GetFrequency() *string
-	SetLauncher(v string) *RunCommandRequest
-	GetLauncher() *string
-	SetName(v string) *RunCommandRequest
-	GetName() *string
-	SetNodeIdList(v []*string) *RunCommandRequest
-	GetNodeIdList() []*string
-	SetParameters(v map[string]interface{}) *RunCommandRequest
-	GetParameters() map[string]interface{}
-	SetRepeatMode(v string) *RunCommandRequest
-	GetRepeatMode() *string
-	SetTerminationMode(v string) *RunCommandRequest
-	GetTerminationMode() *string
-	SetTimeout(v int32) *RunCommandRequest
-	GetTimeout() *int32
-	SetUsername(v string) *RunCommandRequest
-	GetUsername() *string
-	SetWorkingDir(v string) *RunCommandRequest
-	GetWorkingDir() *string
 }
 
 type RunCommandRequest struct {
@@ -18003,75 +11614,11 @@ type RunCommandRequest struct {
 }
 
 func (s RunCommandRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s RunCommandRequest) GoString() string {
 	return s.String()
-}
-
-func (s *RunCommandRequest) GetClientToken() *string {
-	return s.ClientToken
-}
-
-func (s *RunCommandRequest) GetCommandContent() *string {
-	return s.CommandContent
-}
-
-func (s *RunCommandRequest) GetCommandId() *string {
-	return s.CommandId
-}
-
-func (s *RunCommandRequest) GetContentEncoding() *string {
-	return s.ContentEncoding
-}
-
-func (s *RunCommandRequest) GetDescription() *string {
-	return s.Description
-}
-
-func (s *RunCommandRequest) GetEnableParameter() *bool {
-	return s.EnableParameter
-}
-
-func (s *RunCommandRequest) GetFrequency() *string {
-	return s.Frequency
-}
-
-func (s *RunCommandRequest) GetLauncher() *string {
-	return s.Launcher
-}
-
-func (s *RunCommandRequest) GetName() *string {
-	return s.Name
-}
-
-func (s *RunCommandRequest) GetNodeIdList() []*string {
-	return s.NodeIdList
-}
-
-func (s *RunCommandRequest) GetParameters() map[string]interface{} {
-	return s.Parameters
-}
-
-func (s *RunCommandRequest) GetRepeatMode() *string {
-	return s.RepeatMode
-}
-
-func (s *RunCommandRequest) GetTerminationMode() *string {
-	return s.TerminationMode
-}
-
-func (s *RunCommandRequest) GetTimeout() *int32 {
-	return s.Timeout
-}
-
-func (s *RunCommandRequest) GetUsername() *string {
-	return s.Username
-}
-
-func (s *RunCommandRequest) GetWorkingDir() *string {
-	return s.WorkingDir
 }
 
 func (s *RunCommandRequest) SetClientToken(v string) *RunCommandRequest {
@@ -18152,48 +11699,6 @@ func (s *RunCommandRequest) SetUsername(v string) *RunCommandRequest {
 func (s *RunCommandRequest) SetWorkingDir(v string) *RunCommandRequest {
 	s.WorkingDir = &v
 	return s
-}
-
-func (s *RunCommandRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iRunCommandShrinkRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClientToken(v string) *RunCommandShrinkRequest
-	GetClientToken() *string
-	SetCommandContent(v string) *RunCommandShrinkRequest
-	GetCommandContent() *string
-	SetCommandId(v string) *RunCommandShrinkRequest
-	GetCommandId() *string
-	SetContentEncoding(v string) *RunCommandShrinkRequest
-	GetContentEncoding() *string
-	SetDescription(v string) *RunCommandShrinkRequest
-	GetDescription() *string
-	SetEnableParameter(v bool) *RunCommandShrinkRequest
-	GetEnableParameter() *bool
-	SetFrequency(v string) *RunCommandShrinkRequest
-	GetFrequency() *string
-	SetLauncher(v string) *RunCommandShrinkRequest
-	GetLauncher() *string
-	SetName(v string) *RunCommandShrinkRequest
-	GetName() *string
-	SetNodeIdListShrink(v string) *RunCommandShrinkRequest
-	GetNodeIdListShrink() *string
-	SetParametersShrink(v string) *RunCommandShrinkRequest
-	GetParametersShrink() *string
-	SetRepeatMode(v string) *RunCommandShrinkRequest
-	GetRepeatMode() *string
-	SetTerminationMode(v string) *RunCommandShrinkRequest
-	GetTerminationMode() *string
-	SetTimeout(v int32) *RunCommandShrinkRequest
-	GetTimeout() *int32
-	SetUsername(v string) *RunCommandShrinkRequest
-	GetUsername() *string
-	SetWorkingDir(v string) *RunCommandShrinkRequest
-	GetWorkingDir() *string
 }
 
 type RunCommandShrinkRequest struct {
@@ -18368,75 +11873,11 @@ type RunCommandShrinkRequest struct {
 }
 
 func (s RunCommandShrinkRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s RunCommandShrinkRequest) GoString() string {
 	return s.String()
-}
-
-func (s *RunCommandShrinkRequest) GetClientToken() *string {
-	return s.ClientToken
-}
-
-func (s *RunCommandShrinkRequest) GetCommandContent() *string {
-	return s.CommandContent
-}
-
-func (s *RunCommandShrinkRequest) GetCommandId() *string {
-	return s.CommandId
-}
-
-func (s *RunCommandShrinkRequest) GetContentEncoding() *string {
-	return s.ContentEncoding
-}
-
-func (s *RunCommandShrinkRequest) GetDescription() *string {
-	return s.Description
-}
-
-func (s *RunCommandShrinkRequest) GetEnableParameter() *bool {
-	return s.EnableParameter
-}
-
-func (s *RunCommandShrinkRequest) GetFrequency() *string {
-	return s.Frequency
-}
-
-func (s *RunCommandShrinkRequest) GetLauncher() *string {
-	return s.Launcher
-}
-
-func (s *RunCommandShrinkRequest) GetName() *string {
-	return s.Name
-}
-
-func (s *RunCommandShrinkRequest) GetNodeIdListShrink() *string {
-	return s.NodeIdListShrink
-}
-
-func (s *RunCommandShrinkRequest) GetParametersShrink() *string {
-	return s.ParametersShrink
-}
-
-func (s *RunCommandShrinkRequest) GetRepeatMode() *string {
-	return s.RepeatMode
-}
-
-func (s *RunCommandShrinkRequest) GetTerminationMode() *string {
-	return s.TerminationMode
-}
-
-func (s *RunCommandShrinkRequest) GetTimeout() *int32 {
-	return s.Timeout
-}
-
-func (s *RunCommandShrinkRequest) GetUsername() *string {
-	return s.Username
-}
-
-func (s *RunCommandShrinkRequest) GetWorkingDir() *string {
-	return s.WorkingDir
 }
 
 func (s *RunCommandShrinkRequest) SetClientToken(v string) *RunCommandShrinkRequest {
@@ -18519,20 +11960,6 @@ func (s *RunCommandShrinkRequest) SetWorkingDir(v string) *RunCommandShrinkReque
 	return s
 }
 
-func (s *RunCommandShrinkRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iRunCommandResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetInvokeId(v string) *RunCommandResponseBody
-	GetInvokeId() *string
-	SetRequestId(v string) *RunCommandResponseBody
-	GetRequestId() *string
-}
-
 type RunCommandResponseBody struct {
 	// ID of the command execution.
 	//
@@ -18549,19 +11976,11 @@ type RunCommandResponseBody struct {
 }
 
 func (s RunCommandResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s RunCommandResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *RunCommandResponseBody) GetInvokeId() *string {
-	return s.InvokeId
-}
-
-func (s *RunCommandResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *RunCommandResponseBody) SetInvokeId(v string) *RunCommandResponseBody {
@@ -18574,22 +11993,6 @@ func (s *RunCommandResponseBody) SetRequestId(v string) *RunCommandResponseBody 
 	return s
 }
 
-func (s *RunCommandResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iRunCommandResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *RunCommandResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *RunCommandResponse
-	GetStatusCode() *int32
-	SetBody(v *RunCommandResponseBody) *RunCommandResponse
-	GetBody() *RunCommandResponseBody
-}
-
 type RunCommandResponse struct {
 	Headers    map[string]*string      `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                  `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -18597,23 +12000,11 @@ type RunCommandResponse struct {
 }
 
 func (s RunCommandResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s RunCommandResponse) GoString() string {
 	return s.String()
-}
-
-func (s *RunCommandResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *RunCommandResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *RunCommandResponse) GetBody() *RunCommandResponseBody {
-	return s.Body
 }
 
 func (s *RunCommandResponse) SetHeaders(v map[string]*string) *RunCommandResponse {
@@ -18629,38 +12020,6 @@ func (s *RunCommandResponse) SetStatusCode(v int32) *RunCommandResponse {
 func (s *RunCommandResponse) SetBody(v *RunCommandResponseBody) *RunCommandResponse {
 	s.Body = v
 	return s
-}
-
-func (s *RunCommandResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iSendFileRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetContent(v string) *SendFileRequest
-	GetContent() *string
-	SetContentType(v string) *SendFileRequest
-	GetContentType() *string
-	SetDescription(v string) *SendFileRequest
-	GetDescription() *string
-	SetFileGroup(v string) *SendFileRequest
-	GetFileGroup() *string
-	SetFileMode(v string) *SendFileRequest
-	GetFileMode() *string
-	SetFileOwner(v string) *SendFileRequest
-	GetFileOwner() *string
-	SetName(v string) *SendFileRequest
-	GetName() *string
-	SetNodeIdList(v []*string) *SendFileRequest
-	GetNodeIdList() []*string
-	SetOverwrite(v bool) *SendFileRequest
-	GetOverwrite() *bool
-	SetTargetDir(v string) *SendFileRequest
-	GetTargetDir() *string
-	SetTimeout(v int32) *SendFileRequest
-	GetTimeout() *int32
 }
 
 type SendFileRequest struct {
@@ -18765,55 +12124,11 @@ type SendFileRequest struct {
 }
 
 func (s SendFileRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s SendFileRequest) GoString() string {
 	return s.String()
-}
-
-func (s *SendFileRequest) GetContent() *string {
-	return s.Content
-}
-
-func (s *SendFileRequest) GetContentType() *string {
-	return s.ContentType
-}
-
-func (s *SendFileRequest) GetDescription() *string {
-	return s.Description
-}
-
-func (s *SendFileRequest) GetFileGroup() *string {
-	return s.FileGroup
-}
-
-func (s *SendFileRequest) GetFileMode() *string {
-	return s.FileMode
-}
-
-func (s *SendFileRequest) GetFileOwner() *string {
-	return s.FileOwner
-}
-
-func (s *SendFileRequest) GetName() *string {
-	return s.Name
-}
-
-func (s *SendFileRequest) GetNodeIdList() []*string {
-	return s.NodeIdList
-}
-
-func (s *SendFileRequest) GetOverwrite() *bool {
-	return s.Overwrite
-}
-
-func (s *SendFileRequest) GetTargetDir() *string {
-	return s.TargetDir
-}
-
-func (s *SendFileRequest) GetTimeout() *int32 {
-	return s.Timeout
 }
 
 func (s *SendFileRequest) SetContent(v string) *SendFileRequest {
@@ -18869,38 +12184,6 @@ func (s *SendFileRequest) SetTargetDir(v string) *SendFileRequest {
 func (s *SendFileRequest) SetTimeout(v int32) *SendFileRequest {
 	s.Timeout = &v
 	return s
-}
-
-func (s *SendFileRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iSendFileShrinkRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetContent(v string) *SendFileShrinkRequest
-	GetContent() *string
-	SetContentType(v string) *SendFileShrinkRequest
-	GetContentType() *string
-	SetDescription(v string) *SendFileShrinkRequest
-	GetDescription() *string
-	SetFileGroup(v string) *SendFileShrinkRequest
-	GetFileGroup() *string
-	SetFileMode(v string) *SendFileShrinkRequest
-	GetFileMode() *string
-	SetFileOwner(v string) *SendFileShrinkRequest
-	GetFileOwner() *string
-	SetName(v string) *SendFileShrinkRequest
-	GetName() *string
-	SetNodeIdListShrink(v string) *SendFileShrinkRequest
-	GetNodeIdListShrink() *string
-	SetOverwrite(v bool) *SendFileShrinkRequest
-	GetOverwrite() *bool
-	SetTargetDir(v string) *SendFileShrinkRequest
-	GetTargetDir() *string
-	SetTimeout(v int32) *SendFileShrinkRequest
-	GetTimeout() *int32
 }
 
 type SendFileShrinkRequest struct {
@@ -19005,55 +12288,11 @@ type SendFileShrinkRequest struct {
 }
 
 func (s SendFileShrinkRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s SendFileShrinkRequest) GoString() string {
 	return s.String()
-}
-
-func (s *SendFileShrinkRequest) GetContent() *string {
-	return s.Content
-}
-
-func (s *SendFileShrinkRequest) GetContentType() *string {
-	return s.ContentType
-}
-
-func (s *SendFileShrinkRequest) GetDescription() *string {
-	return s.Description
-}
-
-func (s *SendFileShrinkRequest) GetFileGroup() *string {
-	return s.FileGroup
-}
-
-func (s *SendFileShrinkRequest) GetFileMode() *string {
-	return s.FileMode
-}
-
-func (s *SendFileShrinkRequest) GetFileOwner() *string {
-	return s.FileOwner
-}
-
-func (s *SendFileShrinkRequest) GetName() *string {
-	return s.Name
-}
-
-func (s *SendFileShrinkRequest) GetNodeIdListShrink() *string {
-	return s.NodeIdListShrink
-}
-
-func (s *SendFileShrinkRequest) GetOverwrite() *bool {
-	return s.Overwrite
-}
-
-func (s *SendFileShrinkRequest) GetTargetDir() *string {
-	return s.TargetDir
-}
-
-func (s *SendFileShrinkRequest) GetTimeout() *int32 {
-	return s.Timeout
 }
 
 func (s *SendFileShrinkRequest) SetContent(v string) *SendFileShrinkRequest {
@@ -19111,20 +12350,6 @@ func (s *SendFileShrinkRequest) SetTimeout(v int32) *SendFileShrinkRequest {
 	return s
 }
 
-func (s *SendFileShrinkRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iSendFileResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetInvokeId(v string) *SendFileResponseBody
-	GetInvokeId() *string
-	SetRequestId(v string) *SendFileResponseBody
-	GetRequestId() *string
-}
-
 type SendFileResponseBody struct {
 	// Command execution ID.
 	//
@@ -19141,19 +12366,11 @@ type SendFileResponseBody struct {
 }
 
 func (s SendFileResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s SendFileResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *SendFileResponseBody) GetInvokeId() *string {
-	return s.InvokeId
-}
-
-func (s *SendFileResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *SendFileResponseBody) SetInvokeId(v string) *SendFileResponseBody {
@@ -19166,22 +12383,6 @@ func (s *SendFileResponseBody) SetRequestId(v string) *SendFileResponseBody {
 	return s
 }
 
-func (s *SendFileResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iSendFileResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *SendFileResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *SendFileResponse
-	GetStatusCode() *int32
-	SetBody(v *SendFileResponseBody) *SendFileResponse
-	GetBody() *SendFileResponseBody
-}
-
 type SendFileResponse struct {
 	Headers    map[string]*string    `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -19189,23 +12390,11 @@ type SendFileResponse struct {
 }
 
 func (s SendFileResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s SendFileResponse) GoString() string {
 	return s.String()
-}
-
-func (s *SendFileResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *SendFileResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *SendFileResponse) GetBody() *SendFileResponseBody {
-	return s.Body
 }
 
 func (s *SendFileResponse) SetHeaders(v map[string]*string) *SendFileResponse {
@@ -19221,22 +12410,6 @@ func (s *SendFileResponse) SetStatusCode(v int32) *SendFileResponse {
 func (s *SendFileResponse) SetBody(v *SendFileResponseBody) *SendFileResponse {
 	s.Body = v
 	return s
-}
-
-func (s *SendFileResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iShrinkClusterRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *ShrinkClusterRequest
-	GetClusterId() *string
-	SetIgnoreFailedNodeTasks(v bool) *ShrinkClusterRequest
-	GetIgnoreFailedNodeTasks() *bool
-	SetNodeGroups(v []*ShrinkClusterRequestNodeGroups) *ShrinkClusterRequest
-	GetNodeGroups() []*ShrinkClusterRequestNodeGroups
 }
 
 type ShrinkClusterRequest struct {
@@ -19257,23 +12430,11 @@ type ShrinkClusterRequest struct {
 }
 
 func (s ShrinkClusterRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ShrinkClusterRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ShrinkClusterRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *ShrinkClusterRequest) GetIgnoreFailedNodeTasks() *bool {
-	return s.IgnoreFailedNodeTasks
-}
-
-func (s *ShrinkClusterRequest) GetNodeGroups() []*ShrinkClusterRequestNodeGroups {
-	return s.NodeGroups
 }
 
 func (s *ShrinkClusterRequest) SetClusterId(v string) *ShrinkClusterRequest {
@@ -19291,10 +12452,6 @@ func (s *ShrinkClusterRequest) SetNodeGroups(v []*ShrinkClusterRequestNodeGroups
 	return s
 }
 
-func (s *ShrinkClusterRequest) Validate() error {
-	return dara.Validate(s)
-}
-
 type ShrinkClusterRequestNodeGroups struct {
 	// Node group ID
 	//
@@ -19307,19 +12464,11 @@ type ShrinkClusterRequestNodeGroups struct {
 }
 
 func (s ShrinkClusterRequestNodeGroups) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ShrinkClusterRequestNodeGroups) GoString() string {
 	return s.String()
-}
-
-func (s *ShrinkClusterRequestNodeGroups) GetNodeGroupId() *string {
-	return s.NodeGroupId
-}
-
-func (s *ShrinkClusterRequestNodeGroups) GetNodes() []*ShrinkClusterRequestNodeGroupsNodes {
-	return s.Nodes
 }
 
 func (s *ShrinkClusterRequestNodeGroups) SetNodeGroupId(v string) *ShrinkClusterRequestNodeGroups {
@@ -19332,10 +12481,6 @@ func (s *ShrinkClusterRequestNodeGroups) SetNodes(v []*ShrinkClusterRequestNodeG
 	return s
 }
 
-func (s *ShrinkClusterRequestNodeGroups) Validate() error {
-	return dara.Validate(s)
-}
-
 type ShrinkClusterRequestNodeGroupsNodes struct {
 	// Node ID
 	//
@@ -19346,36 +12491,16 @@ type ShrinkClusterRequestNodeGroupsNodes struct {
 }
 
 func (s ShrinkClusterRequestNodeGroupsNodes) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ShrinkClusterRequestNodeGroupsNodes) GoString() string {
 	return s.String()
 }
 
-func (s *ShrinkClusterRequestNodeGroupsNodes) GetNodeId() *string {
-	return s.NodeId
-}
-
 func (s *ShrinkClusterRequestNodeGroupsNodes) SetNodeId(v string) *ShrinkClusterRequestNodeGroupsNodes {
 	s.NodeId = &v
 	return s
-}
-
-func (s *ShrinkClusterRequestNodeGroupsNodes) Validate() error {
-	return dara.Validate(s)
-}
-
-type iShrinkClusterShrinkRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetClusterId(v string) *ShrinkClusterShrinkRequest
-	GetClusterId() *string
-	SetIgnoreFailedNodeTasks(v bool) *ShrinkClusterShrinkRequest
-	GetIgnoreFailedNodeTasks() *bool
-	SetNodeGroupsShrink(v string) *ShrinkClusterShrinkRequest
-	GetNodeGroupsShrink() *string
 }
 
 type ShrinkClusterShrinkRequest struct {
@@ -19396,23 +12521,11 @@ type ShrinkClusterShrinkRequest struct {
 }
 
 func (s ShrinkClusterShrinkRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ShrinkClusterShrinkRequest) GoString() string {
 	return s.String()
-}
-
-func (s *ShrinkClusterShrinkRequest) GetClusterId() *string {
-	return s.ClusterId
-}
-
-func (s *ShrinkClusterShrinkRequest) GetIgnoreFailedNodeTasks() *bool {
-	return s.IgnoreFailedNodeTasks
-}
-
-func (s *ShrinkClusterShrinkRequest) GetNodeGroupsShrink() *string {
-	return s.NodeGroupsShrink
 }
 
 func (s *ShrinkClusterShrinkRequest) SetClusterId(v string) *ShrinkClusterShrinkRequest {
@@ -19428,20 +12541,6 @@ func (s *ShrinkClusterShrinkRequest) SetIgnoreFailedNodeTasks(v bool) *ShrinkClu
 func (s *ShrinkClusterShrinkRequest) SetNodeGroupsShrink(v string) *ShrinkClusterShrinkRequest {
 	s.NodeGroupsShrink = &v
 	return s
-}
-
-func (s *ShrinkClusterShrinkRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iShrinkClusterResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *ShrinkClusterResponseBody
-	GetRequestId() *string
-	SetTaskId(v string) *ShrinkClusterResponseBody
-	GetTaskId() *string
 }
 
 type ShrinkClusterResponseBody struct {
@@ -19460,19 +12559,11 @@ type ShrinkClusterResponseBody struct {
 }
 
 func (s ShrinkClusterResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ShrinkClusterResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *ShrinkClusterResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *ShrinkClusterResponseBody) GetTaskId() *string {
-	return s.TaskId
 }
 
 func (s *ShrinkClusterResponseBody) SetRequestId(v string) *ShrinkClusterResponseBody {
@@ -19485,22 +12576,6 @@ func (s *ShrinkClusterResponseBody) SetTaskId(v string) *ShrinkClusterResponseBo
 	return s
 }
 
-func (s *ShrinkClusterResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iShrinkClusterResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *ShrinkClusterResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *ShrinkClusterResponse
-	GetStatusCode() *int32
-	SetBody(v *ShrinkClusterResponseBody) *ShrinkClusterResponse
-	GetBody() *ShrinkClusterResponseBody
-}
-
 type ShrinkClusterResponse struct {
 	Headers    map[string]*string         `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                     `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -19508,23 +12583,11 @@ type ShrinkClusterResponse struct {
 }
 
 func (s ShrinkClusterResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s ShrinkClusterResponse) GoString() string {
 	return s.String()
-}
-
-func (s *ShrinkClusterResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *ShrinkClusterResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *ShrinkClusterResponse) GetBody() *ShrinkClusterResponseBody {
-	return s.Body
 }
 
 func (s *ShrinkClusterResponse) SetHeaders(v map[string]*string) *ShrinkClusterResponse {
@@ -19542,20 +12605,6 @@ func (s *ShrinkClusterResponse) SetBody(v *ShrinkClusterResponseBody) *ShrinkClu
 	return s
 }
 
-func (s *ShrinkClusterResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iStopInvocationRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetInvokeId(v string) *StopInvocationRequest
-	GetInvokeId() *string
-	SetNodeIdList(v []*string) *StopInvocationRequest
-	GetNodeIdList() []*string
-}
-
 type StopInvocationRequest struct {
 	// Command execution ID.
 	//
@@ -19570,19 +12619,11 @@ type StopInvocationRequest struct {
 }
 
 func (s StopInvocationRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s StopInvocationRequest) GoString() string {
 	return s.String()
-}
-
-func (s *StopInvocationRequest) GetInvokeId() *string {
-	return s.InvokeId
-}
-
-func (s *StopInvocationRequest) GetNodeIdList() []*string {
-	return s.NodeIdList
 }
 
 func (s *StopInvocationRequest) SetInvokeId(v string) *StopInvocationRequest {
@@ -19593,20 +12634,6 @@ func (s *StopInvocationRequest) SetInvokeId(v string) *StopInvocationRequest {
 func (s *StopInvocationRequest) SetNodeIdList(v []*string) *StopInvocationRequest {
 	s.NodeIdList = v
 	return s
-}
-
-func (s *StopInvocationRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iStopInvocationShrinkRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetInvokeId(v string) *StopInvocationShrinkRequest
-	GetInvokeId() *string
-	SetNodeIdListShrink(v string) *StopInvocationShrinkRequest
-	GetNodeIdListShrink() *string
 }
 
 type StopInvocationShrinkRequest struct {
@@ -19623,19 +12650,11 @@ type StopInvocationShrinkRequest struct {
 }
 
 func (s StopInvocationShrinkRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s StopInvocationShrinkRequest) GoString() string {
 	return s.String()
-}
-
-func (s *StopInvocationShrinkRequest) GetInvokeId() *string {
-	return s.InvokeId
-}
-
-func (s *StopInvocationShrinkRequest) GetNodeIdListShrink() *string {
-	return s.NodeIdListShrink
 }
 
 func (s *StopInvocationShrinkRequest) SetInvokeId(v string) *StopInvocationShrinkRequest {
@@ -19648,18 +12667,6 @@ func (s *StopInvocationShrinkRequest) SetNodeIdListShrink(v string) *StopInvocat
 	return s
 }
 
-func (s *StopInvocationShrinkRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iStopInvocationResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *StopInvocationResponseBody
-	GetRequestId() *string
-}
-
 type StopInvocationResponseBody struct {
 	// Id of the request
 	//
@@ -19670,36 +12677,16 @@ type StopInvocationResponseBody struct {
 }
 
 func (s StopInvocationResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s StopInvocationResponseBody) GoString() string {
 	return s.String()
 }
 
-func (s *StopInvocationResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
 func (s *StopInvocationResponseBody) SetRequestId(v string) *StopInvocationResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *StopInvocationResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iStopInvocationResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *StopInvocationResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *StopInvocationResponse
-	GetStatusCode() *int32
-	SetBody(v *StopInvocationResponseBody) *StopInvocationResponse
-	GetBody() *StopInvocationResponseBody
 }
 
 type StopInvocationResponse struct {
@@ -19709,23 +12696,11 @@ type StopInvocationResponse struct {
 }
 
 func (s StopInvocationResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s StopInvocationResponse) GoString() string {
 	return s.String()
-}
-
-func (s *StopInvocationResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *StopInvocationResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *StopInvocationResponse) GetBody() *StopInvocationResponseBody {
-	return s.Body
 }
 
 func (s *StopInvocationResponse) SetHeaders(v map[string]*string) *StopInvocationResponse {
@@ -19743,20 +12718,6 @@ func (s *StopInvocationResponse) SetBody(v *StopInvocationResponseBody) *StopInv
 	return s
 }
 
-func (s *StopInvocationResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iStopNodesRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetIgnoreFailedNodeTasks(v bool) *StopNodesRequest
-	GetIgnoreFailedNodeTasks() *bool
-	SetNodes(v []*string) *StopNodesRequest
-	GetNodes() []*string
-}
-
 type StopNodesRequest struct {
 	// Whether to allow skipping failed node tasks, default value is False.
 	//
@@ -19769,19 +12730,11 @@ type StopNodesRequest struct {
 }
 
 func (s StopNodesRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s StopNodesRequest) GoString() string {
 	return s.String()
-}
-
-func (s *StopNodesRequest) GetIgnoreFailedNodeTasks() *bool {
-	return s.IgnoreFailedNodeTasks
-}
-
-func (s *StopNodesRequest) GetNodes() []*string {
-	return s.Nodes
 }
 
 func (s *StopNodesRequest) SetIgnoreFailedNodeTasks(v bool) *StopNodesRequest {
@@ -19792,20 +12745,6 @@ func (s *StopNodesRequest) SetIgnoreFailedNodeTasks(v bool) *StopNodesRequest {
 func (s *StopNodesRequest) SetNodes(v []*string) *StopNodesRequest {
 	s.Nodes = v
 	return s
-}
-
-func (s *StopNodesRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iStopNodesShrinkRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetIgnoreFailedNodeTasks(v bool) *StopNodesShrinkRequest
-	GetIgnoreFailedNodeTasks() *bool
-	SetNodesShrink(v string) *StopNodesShrinkRequest
-	GetNodesShrink() *string
 }
 
 type StopNodesShrinkRequest struct {
@@ -19820,19 +12759,11 @@ type StopNodesShrinkRequest struct {
 }
 
 func (s StopNodesShrinkRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s StopNodesShrinkRequest) GoString() string {
 	return s.String()
-}
-
-func (s *StopNodesShrinkRequest) GetIgnoreFailedNodeTasks() *bool {
-	return s.IgnoreFailedNodeTasks
-}
-
-func (s *StopNodesShrinkRequest) GetNodesShrink() *string {
-	return s.NodesShrink
 }
 
 func (s *StopNodesShrinkRequest) SetIgnoreFailedNodeTasks(v bool) *StopNodesShrinkRequest {
@@ -19843,20 +12774,6 @@ func (s *StopNodesShrinkRequest) SetIgnoreFailedNodeTasks(v bool) *StopNodesShri
 func (s *StopNodesShrinkRequest) SetNodesShrink(v string) *StopNodesShrinkRequest {
 	s.NodesShrink = &v
 	return s
-}
-
-func (s *StopNodesShrinkRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iStopNodesResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *StopNodesResponseBody
-	GetRequestId() *string
-	SetTaskId(v string) *StopNodesResponseBody
-	GetTaskId() *string
 }
 
 type StopNodesResponseBody struct {
@@ -19875,19 +12792,11 @@ type StopNodesResponseBody struct {
 }
 
 func (s StopNodesResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s StopNodesResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *StopNodesResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
-func (s *StopNodesResponseBody) GetTaskId() *string {
-	return s.TaskId
 }
 
 func (s *StopNodesResponseBody) SetRequestId(v string) *StopNodesResponseBody {
@@ -19900,22 +12809,6 @@ func (s *StopNodesResponseBody) SetTaskId(v string) *StopNodesResponseBody {
 	return s
 }
 
-func (s *StopNodesResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iStopNodesResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *StopNodesResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *StopNodesResponse
-	GetStatusCode() *int32
-	SetBody(v *StopNodesResponseBody) *StopNodesResponse
-	GetBody() *StopNodesResponseBody
-}
-
 type StopNodesResponse struct {
 	Headers    map[string]*string     `json:"headers,omitempty" xml:"headers,omitempty"`
 	StatusCode *int32                 `json:"statusCode,omitempty" xml:"statusCode,omitempty"`
@@ -19923,23 +12816,11 @@ type StopNodesResponse struct {
 }
 
 func (s StopNodesResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s StopNodesResponse) GoString() string {
 	return s.String()
-}
-
-func (s *StopNodesResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *StopNodesResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *StopNodesResponse) GetBody() *StopNodesResponseBody {
-	return s.Body
 }
 
 func (s *StopNodesResponse) SetHeaders(v map[string]*string) *StopNodesResponse {
@@ -19955,26 +12836,6 @@ func (s *StopNodesResponse) SetStatusCode(v int32) *StopNodesResponse {
 func (s *StopNodesResponse) SetBody(v *StopNodesResponseBody) *StopNodesResponse {
 	s.Body = v
 	return s
-}
-
-func (s *StopNodesResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iTagResourcesRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRegionId(v string) *TagResourcesRequest
-	GetRegionId() *string
-	SetResourceId(v []*string) *TagResourcesRequest
-	GetResourceId() []*string
-	SetResourceType(v string) *TagResourcesRequest
-	GetResourceType() *string
-	SetService(v string) *TagResourcesRequest
-	GetService() *string
-	SetTag(v []*TagResourcesRequestTag) *TagResourcesRequest
-	GetTag() []*TagResourcesRequestTag
 }
 
 type TagResourcesRequest struct {
@@ -19998,7 +12859,6 @@ type TagResourcesRequest struct {
 	//
 	// Cluster
 	ResourceType *string `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
-	Service      *string `json:"Service,omitempty" xml:"Service,omitempty"`
 	// Tags
 	//
 	// This parameter is required.
@@ -20006,31 +12866,11 @@ type TagResourcesRequest struct {
 }
 
 func (s TagResourcesRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s TagResourcesRequest) GoString() string {
 	return s.String()
-}
-
-func (s *TagResourcesRequest) GetRegionId() *string {
-	return s.RegionId
-}
-
-func (s *TagResourcesRequest) GetResourceId() []*string {
-	return s.ResourceId
-}
-
-func (s *TagResourcesRequest) GetResourceType() *string {
-	return s.ResourceType
-}
-
-func (s *TagResourcesRequest) GetService() *string {
-	return s.Service
-}
-
-func (s *TagResourcesRequest) GetTag() []*TagResourcesRequestTag {
-	return s.Tag
 }
 
 func (s *TagResourcesRequest) SetRegionId(v string) *TagResourcesRequest {
@@ -20048,18 +12888,9 @@ func (s *TagResourcesRequest) SetResourceType(v string) *TagResourcesRequest {
 	return s
 }
 
-func (s *TagResourcesRequest) SetService(v string) *TagResourcesRequest {
-	s.Service = &v
-	return s
-}
-
 func (s *TagResourcesRequest) SetTag(v []*TagResourcesRequestTag) *TagResourcesRequest {
 	s.Tag = v
 	return s
-}
-
-func (s *TagResourcesRequest) Validate() error {
-	return dara.Validate(s)
 }
 
 type TagResourcesRequestTag struct {
@@ -20078,19 +12909,11 @@ type TagResourcesRequestTag struct {
 }
 
 func (s TagResourcesRequestTag) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s TagResourcesRequestTag) GoString() string {
 	return s.String()
-}
-
-func (s *TagResourcesRequestTag) GetKey() *string {
-	return s.Key
-}
-
-func (s *TagResourcesRequestTag) GetValue() *string {
-	return s.Value
 }
 
 func (s *TagResourcesRequestTag) SetKey(v string) *TagResourcesRequestTag {
@@ -20103,18 +12926,6 @@ func (s *TagResourcesRequestTag) SetValue(v string) *TagResourcesRequestTag {
 	return s
 }
 
-func (s *TagResourcesRequestTag) Validate() error {
-	return dara.Validate(s)
-}
-
-type iTagResourcesResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *TagResourcesResponseBody
-	GetRequestId() *string
-}
-
 type TagResourcesResponseBody struct {
 	// ID of the request
 	//
@@ -20125,36 +12936,16 @@ type TagResourcesResponseBody struct {
 }
 
 func (s TagResourcesResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s TagResourcesResponseBody) GoString() string {
 	return s.String()
 }
 
-func (s *TagResourcesResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
 func (s *TagResourcesResponseBody) SetRequestId(v string) *TagResourcesResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *TagResourcesResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iTagResourcesResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *TagResourcesResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *TagResourcesResponse
-	GetStatusCode() *int32
-	SetBody(v *TagResourcesResponseBody) *TagResourcesResponse
-	GetBody() *TagResourcesResponseBody
 }
 
 type TagResourcesResponse struct {
@@ -20164,23 +12955,11 @@ type TagResourcesResponse struct {
 }
 
 func (s TagResourcesResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s TagResourcesResponse) GoString() string {
 	return s.String()
-}
-
-func (s *TagResourcesResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *TagResourcesResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *TagResourcesResponse) GetBody() *TagResourcesResponseBody {
-	return s.Body
 }
 
 func (s *TagResourcesResponse) SetHeaders(v map[string]*string) *TagResourcesResponse {
@@ -20196,28 +12975,6 @@ func (s *TagResourcesResponse) SetStatusCode(v int32) *TagResourcesResponse {
 func (s *TagResourcesResponse) SetBody(v *TagResourcesResponseBody) *TagResourcesResponse {
 	s.Body = v
 	return s
-}
-
-func (s *TagResourcesResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iUntagResourcesRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetAll(v bool) *UntagResourcesRequest
-	GetAll() *bool
-	SetRegionId(v string) *UntagResourcesRequest
-	GetRegionId() *string
-	SetResourceId(v []*string) *UntagResourcesRequest
-	GetResourceId() []*string
-	SetResourceType(v string) *UntagResourcesRequest
-	GetResourceType() *string
-	SetService(v string) *UntagResourcesRequest
-	GetService() *string
-	SetTagKey(v []*string) *UntagResourcesRequest
-	GetTagKey() []*string
 }
 
 type UntagResourcesRequest struct {
@@ -20253,41 +13010,16 @@ type UntagResourcesRequest struct {
 	//
 	// Cluster
 	ResourceType *string `json:"ResourceType,omitempty" xml:"ResourceType,omitempty"`
-	Service      *string `json:"Service,omitempty" xml:"Service,omitempty"`
 	// List of tag keys
 	TagKey []*string `json:"TagKey,omitempty" xml:"TagKey,omitempty" type:"Repeated"`
 }
 
 func (s UntagResourcesRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s UntagResourcesRequest) GoString() string {
 	return s.String()
-}
-
-func (s *UntagResourcesRequest) GetAll() *bool {
-	return s.All
-}
-
-func (s *UntagResourcesRequest) GetRegionId() *string {
-	return s.RegionId
-}
-
-func (s *UntagResourcesRequest) GetResourceId() []*string {
-	return s.ResourceId
-}
-
-func (s *UntagResourcesRequest) GetResourceType() *string {
-	return s.ResourceType
-}
-
-func (s *UntagResourcesRequest) GetService() *string {
-	return s.Service
-}
-
-func (s *UntagResourcesRequest) GetTagKey() []*string {
-	return s.TagKey
 }
 
 func (s *UntagResourcesRequest) SetAll(v bool) *UntagResourcesRequest {
@@ -20310,26 +13042,9 @@ func (s *UntagResourcesRequest) SetResourceType(v string) *UntagResourcesRequest
 	return s
 }
 
-func (s *UntagResourcesRequest) SetService(v string) *UntagResourcesRequest {
-	s.Service = &v
-	return s
-}
-
 func (s *UntagResourcesRequest) SetTagKey(v []*string) *UntagResourcesRequest {
 	s.TagKey = v
 	return s
-}
-
-func (s *UntagResourcesRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iUntagResourcesResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *UntagResourcesResponseBody
-	GetRequestId() *string
 }
 
 type UntagResourcesResponseBody struct {
@@ -20342,36 +13057,16 @@ type UntagResourcesResponseBody struct {
 }
 
 func (s UntagResourcesResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s UntagResourcesResponseBody) GoString() string {
 	return s.String()
 }
 
-func (s *UntagResourcesResponseBody) GetRequestId() *string {
-	return s.RequestId
-}
-
 func (s *UntagResourcesResponseBody) SetRequestId(v string) *UntagResourcesResponseBody {
 	s.RequestId = &v
 	return s
-}
-
-func (s *UntagResourcesResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iUntagResourcesResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *UntagResourcesResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *UntagResourcesResponse
-	GetStatusCode() *int32
-	SetBody(v *UntagResourcesResponseBody) *UntagResourcesResponse
-	GetBody() *UntagResourcesResponseBody
 }
 
 type UntagResourcesResponse struct {
@@ -20381,23 +13076,11 @@ type UntagResourcesResponse struct {
 }
 
 func (s UntagResourcesResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s UntagResourcesResponse) GoString() string {
 	return s.String()
-}
-
-func (s *UntagResourcesResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *UntagResourcesResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *UntagResourcesResponse) GetBody() *UntagResourcesResponseBody {
-	return s.Body
 }
 
 func (s *UntagResourcesResponse) SetHeaders(v map[string]*string) *UntagResourcesResponse {
@@ -20415,52 +13098,54 @@ func (s *UntagResourcesResponse) SetBody(v *UntagResourcesResponseBody) *UntagRe
 	return s
 }
 
-func (s *UntagResourcesResponse) Validate() error {
-	return dara.Validate(s)
-}
-
-type iUpdateNodeGroupRequest interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetNewNodeGroupName(v string) *UpdateNodeGroupRequest
-	GetNewNodeGroupName() *string
-	SetNodeGroupId(v string) *UpdateNodeGroupRequest
-	GetNodeGroupId() *string
-	SetUserData(v string) *UpdateNodeGroupRequest
-	GetUserData() *string
-}
-
 type UpdateNodeGroupRequest struct {
+	FileSystemMountEnabled *bool `json:"FileSystemMountEnabled,omitempty" xml:"FileSystemMountEnabled,omitempty"`
+	// The name of the key pair.
+	//
+	// example:
+	//
+	// sc-key
+	KeyPairName *string `json:"KeyPairName,omitempty" xml:"KeyPairName,omitempty"`
+	// Node group name
+	//
 	// example:
 	//
 	// test-update
 	NewNodeGroupName *string `json:"NewNodeGroupName,omitempty" xml:"NewNodeGroupName,omitempty"`
+	// Node group ID
+	//
 	// example:
 	//
 	// i120021051733814190732
 	NodeGroupId *string `json:"NodeGroupId,omitempty" xml:"NodeGroupId,omitempty"`
-	UserData    *string `json:"UserData,omitempty" xml:"UserData,omitempty"`
+	// user data
+	//
+	// example:
+	//
+	// #!/bin/bash
+	//
+	// uptime
+	//
+	// echo "aaaaaaa" >> /tmp/ttttt20250110141010.sh
+	UserData *string `json:"UserData,omitempty" xml:"UserData,omitempty"`
 }
 
 func (s UpdateNodeGroupRequest) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s UpdateNodeGroupRequest) GoString() string {
 	return s.String()
 }
 
-func (s *UpdateNodeGroupRequest) GetNewNodeGroupName() *string {
-	return s.NewNodeGroupName
+func (s *UpdateNodeGroupRequest) SetFileSystemMountEnabled(v bool) *UpdateNodeGroupRequest {
+	s.FileSystemMountEnabled = &v
+	return s
 }
 
-func (s *UpdateNodeGroupRequest) GetNodeGroupId() *string {
-	return s.NodeGroupId
-}
-
-func (s *UpdateNodeGroupRequest) GetUserData() *string {
-	return s.UserData
+func (s *UpdateNodeGroupRequest) SetKeyPairName(v string) *UpdateNodeGroupRequest {
+	s.KeyPairName = &v
+	return s
 }
 
 func (s *UpdateNodeGroupRequest) SetNewNodeGroupName(v string) *UpdateNodeGroupRequest {
@@ -20478,18 +13163,6 @@ func (s *UpdateNodeGroupRequest) SetUserData(v string) *UpdateNodeGroupRequest {
 	return s
 }
 
-func (s *UpdateNodeGroupRequest) Validate() error {
-	return dara.Validate(s)
-}
-
-type iUpdateNodeGroupResponseBody interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetRequestId(v string) *UpdateNodeGroupResponseBody
-	GetRequestId() *string
-}
-
 type UpdateNodeGroupResponseBody struct {
 	// Id of the request
 	//
@@ -20497,18 +13170,20 @@ type UpdateNodeGroupResponseBody struct {
 	//
 	// 8F065DDD-6996-5973-9691-9EC57BD0072E
 	RequestId *string `json:"RequestId,omitempty" xml:"RequestId,omitempty"`
+	// Task ID
+	//
+	// example:
+	//
+	// i15374011238111706
+	TaskId *string `json:"TaskId,omitempty" xml:"TaskId,omitempty"`
 }
 
 func (s UpdateNodeGroupResponseBody) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s UpdateNodeGroupResponseBody) GoString() string {
 	return s.String()
-}
-
-func (s *UpdateNodeGroupResponseBody) GetRequestId() *string {
-	return s.RequestId
 }
 
 func (s *UpdateNodeGroupResponseBody) SetRequestId(v string) *UpdateNodeGroupResponseBody {
@@ -20516,20 +13191,9 @@ func (s *UpdateNodeGroupResponseBody) SetRequestId(v string) *UpdateNodeGroupRes
 	return s
 }
 
-func (s *UpdateNodeGroupResponseBody) Validate() error {
-	return dara.Validate(s)
-}
-
-type iUpdateNodeGroupResponse interface {
-	dara.Model
-	String() string
-	GoString() string
-	SetHeaders(v map[string]*string) *UpdateNodeGroupResponse
-	GetHeaders() map[string]*string
-	SetStatusCode(v int32) *UpdateNodeGroupResponse
-	GetStatusCode() *int32
-	SetBody(v *UpdateNodeGroupResponseBody) *UpdateNodeGroupResponse
-	GetBody() *UpdateNodeGroupResponseBody
+func (s *UpdateNodeGroupResponseBody) SetTaskId(v string) *UpdateNodeGroupResponseBody {
+	s.TaskId = &v
+	return s
 }
 
 type UpdateNodeGroupResponse struct {
@@ -20539,23 +13203,11 @@ type UpdateNodeGroupResponse struct {
 }
 
 func (s UpdateNodeGroupResponse) String() string {
-	return dara.Prettify(s)
+	return tea.Prettify(s)
 }
 
 func (s UpdateNodeGroupResponse) GoString() string {
 	return s.String()
-}
-
-func (s *UpdateNodeGroupResponse) GetHeaders() map[string]*string {
-	return s.Headers
-}
-
-func (s *UpdateNodeGroupResponse) GetStatusCode() *int32 {
-	return s.StatusCode
-}
-
-func (s *UpdateNodeGroupResponse) GetBody() *UpdateNodeGroupResponseBody {
-	return s.Body
 }
 
 func (s *UpdateNodeGroupResponse) SetHeaders(v map[string]*string) *UpdateNodeGroupResponse {
@@ -20573,32 +13225,27 @@ func (s *UpdateNodeGroupResponse) SetBody(v *UpdateNodeGroupResponseBody) *Updat
 	return s
 }
 
-func (s *UpdateNodeGroupResponse) Validate() error {
-	return dara.Validate(s)
-}
-
 type Client struct {
 	openapi.Client
-	DisableSDKError *bool
 }
 
-func NewClient(config *openapiutil.Config) (*Client, error) {
+func NewClient(config *openapi.Config) (*Client, error) {
 	client := new(Client)
 	err := client.Init(config)
 	return client, err
 }
 
-func (client *Client) Init(config *openapiutil.Config) (_err error) {
+func (client *Client) Init(config *openapi.Config) (_err error) {
 	_err = client.Client.Init(config)
 	if _err != nil {
 		return _err
 	}
-	client.EndpointRule = dara.String("")
+	client.EndpointRule = tea.String("")
 	_err = client.CheckConfig(config)
 	if _err != nil {
 		return _err
 	}
-	client.Endpoint, _err = client.GetEndpoint(dara.String("eflo-controller"), client.RegionId, client.EndpointRule, client.Network, client.Suffix, client.EndpointMap, client.Endpoint)
+	client.Endpoint, _err = client.GetEndpoint(tea.String("eflo-controller"), client.RegionId, client.EndpointRule, client.Network, client.Suffix, client.EndpointMap, client.Endpoint)
 	if _err != nil {
 		return _err
 	}
@@ -20607,17 +13254,17 @@ func (client *Client) Init(config *openapiutil.Config) (_err error) {
 }
 
 func (client *Client) GetEndpoint(productId *string, regionId *string, endpointRule *string, network *string, suffix *string, endpointMap map[string]*string, endpoint *string) (_result *string, _err error) {
-	if !dara.IsNil(endpoint) {
+	if !tea.BoolValue(util.Empty(endpoint)) {
 		_result = endpoint
 		return _result, _err
 	}
 
-	if !dara.IsNil(endpointMap) && !dara.IsNil(endpointMap[dara.StringValue(regionId)]) {
-		_result = endpointMap[dara.StringValue(regionId)]
+	if !tea.BoolValue(util.IsUnset(endpointMap)) && !tea.BoolValue(util.Empty(endpointMap[tea.StringValue(regionId)])) {
+		_result = endpointMap[tea.StringValue(regionId)]
 		return _result, _err
 	}
 
-	_body, _err := openapiutil.GetEndpointRules(productId, regionId, endpointRule, network, suffix)
+	_body, _err := endpointutil.GetEndpointRules(productId, regionId, endpointRule, network, suffix)
 	if _err != nil {
 		return _result, _err
 	}
@@ -20634,50 +13281,41 @@ func (client *Client) GetEndpoint(productId *string, regionId *string, endpointR
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ApproveOperationResponse
-func (client *Client) ApproveOperationWithOptions(request *ApproveOperationRequest, runtime *dara.RuntimeOptions) (_result *ApproveOperationResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) ApproveOperationWithOptions(request *ApproveOperationRequest, runtime *util.RuntimeOptions) (_result *ApproveOperationResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.NodeId) {
+	if !tea.BoolValue(util.IsUnset(request.NodeId)) {
 		body["NodeId"] = request.NodeId
 	}
 
-	if !dara.IsNil(request.OperationType) {
+	if !tea.BoolValue(util.IsUnset(request.OperationType)) {
 		body["OperationType"] = request.OperationType
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ApproveOperation"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ApproveOperation"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ApproveOperationResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -20688,7 +13326,8 @@ func (client *Client) ApproveOperationWithOptions(request *ApproveOperationReque
 //
 // @return ApproveOperationResponse
 func (client *Client) ApproveOperation(request *ApproveOperationRequest) (_result *ApproveOperationResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ApproveOperationResponse{}
 	_body, _err := client.ApproveOperationWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -20706,62 +13345,49 @@ func (client *Client) ApproveOperation(request *ApproveOperationRequest) (_resul
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ChangeResourceGroupResponse
-func (client *Client) ChangeResourceGroupWithOptions(request *ChangeResourceGroupRequest, runtime *dara.RuntimeOptions) (_result *ChangeResourceGroupResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) ChangeResourceGroupWithOptions(request *ChangeResourceGroupRequest, runtime *util.RuntimeOptions) (_result *ChangeResourceGroupResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	query := map[string]interface{}{}
-	if !dara.IsNil(request.ResourceGroupId) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceGroupId)) {
 		query["ResourceGroupId"] = request.ResourceGroupId
 	}
 
-	if !dara.IsNil(request.ResourceId) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceId)) {
 		query["ResourceId"] = request.ResourceId
 	}
 
-	if !dara.IsNil(request.ResourceRegionId) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceRegionId)) {
 		query["ResourceRegionId"] = request.ResourceRegionId
 	}
 
-	if !dara.IsNil(request.ResourceType) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceType)) {
 		query["ResourceType"] = request.ResourceType
 	}
 
-	if !dara.IsNil(request.Service) {
-		query["Service"] = request.Service
-	}
-
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Query: openapiutil.Query(query),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ChangeResourceGroup"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ChangeResourceGroup"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ChangeResourceGroupResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -20772,7 +13398,8 @@ func (client *Client) ChangeResourceGroupWithOptions(request *ChangeResourceGrou
 //
 // @return ChangeResourceGroupResponse
 func (client *Client) ChangeResourceGroup(request *ChangeResourceGroupRequest) (_result *ChangeResourceGroupResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ChangeResourceGroupResponse{}
 	_body, _err := client.ChangeResourceGroupWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -20794,50 +13421,41 @@ func (client *Client) ChangeResourceGroup(request *ChangeResourceGroupRequest) (
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return CloseSessionResponse
-func (client *Client) CloseSessionWithOptions(request *CloseSessionRequest, runtime *dara.RuntimeOptions) (_result *CloseSessionResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) CloseSessionWithOptions(request *CloseSessionRequest, runtime *util.RuntimeOptions) (_result *CloseSessionResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.SessionId) {
+	if !tea.BoolValue(util.IsUnset(request.SessionId)) {
 		body["SessionId"] = request.SessionId
 	}
 
-	if !dara.IsNil(request.SessionToken) {
+	if !tea.BoolValue(util.IsUnset(request.SessionToken)) {
 		body["SessionToken"] = request.SessionToken
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("CloseSession"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("CloseSession"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &CloseSessionResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -20852,7 +13470,8 @@ func (client *Client) CloseSessionWithOptions(request *CloseSessionRequest, runt
 //
 // @return CloseSessionResponse
 func (client *Client) CloseSession(request *CloseSessionRequest) (_result *CloseSessionResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &CloseSessionResponse{}
 	_body, _err := client.CloseSessionWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -20870,110 +13489,101 @@ func (client *Client) CloseSession(request *CloseSessionRequest) (_result *Close
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return CreateClusterResponse
-func (client *Client) CreateClusterWithOptions(tmpReq *CreateClusterRequest, runtime *dara.RuntimeOptions) (_result *CreateClusterResponse, _err error) {
-	_err = tmpReq.Validate()
+func (client *Client) CreateClusterWithOptions(tmpReq *CreateClusterRequest, runtime *util.RuntimeOptions) (_result *CreateClusterResponse, _err error) {
+	_err = util.ValidateModel(tmpReq)
 	if _err != nil {
 		return _result, _err
 	}
 	request := &CreateClusterShrinkRequest{}
 	openapiutil.Convert(tmpReq, request)
-	if !dara.IsNil(tmpReq.Components) {
-		request.ComponentsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.Components, dara.String("Components"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.Components)) {
+		request.ComponentsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.Components, tea.String("Components"), tea.String("json"))
 	}
 
-	if !dara.IsNil(tmpReq.Networks) {
-		request.NetworksShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.Networks, dara.String("Networks"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.Networks)) {
+		request.NetworksShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.Networks, tea.String("Networks"), tea.String("json"))
 	}
 
-	if !dara.IsNil(tmpReq.NimizVSwitches) {
-		request.NimizVSwitchesShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NimizVSwitches, dara.String("NimizVSwitches"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.NimizVSwitches)) {
+		request.NimizVSwitchesShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NimizVSwitches, tea.String("NimizVSwitches"), tea.String("json"))
 	}
 
-	if !dara.IsNil(tmpReq.NodeGroups) {
-		request.NodeGroupsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeGroups, dara.String("NodeGroups"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.NodeGroups)) {
+		request.NodeGroupsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeGroups, tea.String("NodeGroups"), tea.String("json"))
 	}
 
 	query := map[string]interface{}{}
-	if !dara.IsNil(request.Tag) {
+	if !tea.BoolValue(util.IsUnset(request.Tag)) {
 		query["Tag"] = request.Tag
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.ClusterDescription) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterDescription)) {
 		body["ClusterDescription"] = request.ClusterDescription
 	}
 
-	if !dara.IsNil(request.ClusterName) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterName)) {
 		body["ClusterName"] = request.ClusterName
 	}
 
-	if !dara.IsNil(request.ClusterType) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterType)) {
 		body["ClusterType"] = request.ClusterType
 	}
 
-	if !dara.IsNil(request.ComponentsShrink) {
+	if !tea.BoolValue(util.IsUnset(request.ComponentsShrink)) {
 		body["Components"] = request.ComponentsShrink
 	}
 
-	if !dara.IsNil(request.HpnZone) {
+	if !tea.BoolValue(util.IsUnset(request.HpnZone)) {
 		body["HpnZone"] = request.HpnZone
 	}
 
-	if !dara.IsNil(request.IgnoreFailedNodeTasks) {
+	if !tea.BoolValue(util.IsUnset(request.IgnoreFailedNodeTasks)) {
 		body["IgnoreFailedNodeTasks"] = request.IgnoreFailedNodeTasks
 	}
 
-	if !dara.IsNil(request.NetworksShrink) {
+	if !tea.BoolValue(util.IsUnset(request.NetworksShrink)) {
 		body["Networks"] = request.NetworksShrink
 	}
 
-	if !dara.IsNil(request.NimizVSwitchesShrink) {
+	if !tea.BoolValue(util.IsUnset(request.NimizVSwitchesShrink)) {
 		body["NimizVSwitches"] = request.NimizVSwitchesShrink
 	}
 
-	if !dara.IsNil(request.NodeGroupsShrink) {
+	if !tea.BoolValue(util.IsUnset(request.NodeGroupsShrink)) {
 		body["NodeGroups"] = request.NodeGroupsShrink
 	}
 
-	if !dara.IsNil(request.OpenEniJumboFrame) {
+	if !tea.BoolValue(util.IsUnset(request.OpenEniJumboFrame)) {
 		body["OpenEniJumboFrame"] = request.OpenEniJumboFrame
 	}
 
-	if !dara.IsNil(request.ResourceGroupId) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceGroupId)) {
 		body["ResourceGroupId"] = request.ResourceGroupId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Query: openapiutil.Query(query),
 		Body:  openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("CreateCluster"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("CreateCluster"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &CreateClusterResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -20984,7 +13594,8 @@ func (client *Client) CreateClusterWithOptions(tmpReq *CreateClusterRequest, run
 //
 // @return CreateClusterResponse
 func (client *Client) CreateCluster(request *CreateClusterRequest) (_result *CreateClusterResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &CreateClusterResponse{}
 	_body, _err := client.CreateClusterWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -21002,68 +13613,59 @@ func (client *Client) CreateCluster(request *CreateClusterRequest) (_result *Cre
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return CreateDiagnosticTaskResponse
-func (client *Client) CreateDiagnosticTaskWithOptions(tmpReq *CreateDiagnosticTaskRequest, runtime *dara.RuntimeOptions) (_result *CreateDiagnosticTaskResponse, _err error) {
-	_err = tmpReq.Validate()
+func (client *Client) CreateDiagnosticTaskWithOptions(tmpReq *CreateDiagnosticTaskRequest, runtime *util.RuntimeOptions) (_result *CreateDiagnosticTaskResponse, _err error) {
+	_err = util.ValidateModel(tmpReq)
 	if _err != nil {
 		return _result, _err
 	}
 	request := &CreateDiagnosticTaskShrinkRequest{}
 	openapiutil.Convert(tmpReq, request)
-	if !dara.IsNil(tmpReq.AiJobLogInfo) {
-		request.AiJobLogInfoShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.AiJobLogInfo, dara.String("AiJobLogInfo"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.AiJobLogInfo)) {
+		request.AiJobLogInfoShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.AiJobLogInfo, tea.String("AiJobLogInfo"), tea.String("json"))
 	}
 
-	if !dara.IsNil(tmpReq.NodeIds) {
-		request.NodeIdsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeIds, dara.String("NodeIds"), dara.String("simple"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.NodeIds)) {
+		request.NodeIdsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeIds, tea.String("NodeIds"), tea.String("simple"))
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.AiJobLogInfoShrink) {
+	if !tea.BoolValue(util.IsUnset(request.AiJobLogInfoShrink)) {
 		body["AiJobLogInfo"] = request.AiJobLogInfoShrink
 	}
 
-	if !dara.IsNil(request.ClusterId) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterId)) {
 		body["ClusterId"] = request.ClusterId
 	}
 
-	if !dara.IsNil(request.DiagnosticType) {
+	if !tea.BoolValue(util.IsUnset(request.DiagnosticType)) {
 		body["DiagnosticType"] = request.DiagnosticType
 	}
 
-	if !dara.IsNil(request.NodeIdsShrink) {
+	if !tea.BoolValue(util.IsUnset(request.NodeIdsShrink)) {
 		body["NodeIds"] = request.NodeIdsShrink
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("CreateDiagnosticTask"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("CreateDiagnosticTask"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &CreateDiagnosticTaskResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -21074,7 +13676,8 @@ func (client *Client) CreateDiagnosticTaskWithOptions(tmpReq *CreateDiagnosticTa
 //
 // @return CreateDiagnosticTaskResponse
 func (client *Client) CreateDiagnosticTask(request *CreateDiagnosticTaskRequest) (_result *CreateDiagnosticTaskResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &CreateDiagnosticTaskResponse{}
 	_body, _err := client.CreateDiagnosticTaskWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -21096,88 +13699,79 @@ func (client *Client) CreateDiagnosticTask(request *CreateDiagnosticTaskRequest)
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return CreateNetTestTaskResponse
-func (client *Client) CreateNetTestTaskWithOptions(tmpReq *CreateNetTestTaskRequest, runtime *dara.RuntimeOptions) (_result *CreateNetTestTaskResponse, _err error) {
-	_err = tmpReq.Validate()
+func (client *Client) CreateNetTestTaskWithOptions(tmpReq *CreateNetTestTaskRequest, runtime *util.RuntimeOptions) (_result *CreateNetTestTaskResponse, _err error) {
+	_err = util.ValidateModel(tmpReq)
 	if _err != nil {
 		return _result, _err
 	}
 	request := &CreateNetTestTaskShrinkRequest{}
 	openapiutil.Convert(tmpReq, request)
-	if !dara.IsNil(tmpReq.CommTest) {
-		request.CommTestShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.CommTest, dara.String("CommTest"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.CommTest)) {
+		request.CommTestShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.CommTest, tea.String("CommTest"), tea.String("json"))
 	}
 
-	if !dara.IsNil(tmpReq.DelayTest) {
-		request.DelayTestShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.DelayTest, dara.String("DelayTest"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.DelayTest)) {
+		request.DelayTestShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.DelayTest, tea.String("DelayTest"), tea.String("json"))
 	}
 
-	if !dara.IsNil(tmpReq.TrafficTest) {
-		request.TrafficTestShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.TrafficTest, dara.String("TrafficTest"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.TrafficTest)) {
+		request.TrafficTestShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.TrafficTest, tea.String("TrafficTest"), tea.String("json"))
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.ClusterId) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterId)) {
 		body["ClusterId"] = request.ClusterId
 	}
 
-	if !dara.IsNil(request.ClusterName) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterName)) {
 		body["ClusterName"] = request.ClusterName
 	}
 
-	if !dara.IsNil(request.CommTestShrink) {
+	if !tea.BoolValue(util.IsUnset(request.CommTestShrink)) {
 		body["CommTest"] = request.CommTestShrink
 	}
 
-	if !dara.IsNil(request.DelayTestShrink) {
+	if !tea.BoolValue(util.IsUnset(request.DelayTestShrink)) {
 		body["DelayTest"] = request.DelayTestShrink
 	}
 
-	if !dara.IsNil(request.NetTestType) {
+	if !tea.BoolValue(util.IsUnset(request.NetTestType)) {
 		body["NetTestType"] = request.NetTestType
 	}
 
-	if !dara.IsNil(request.NetworkMode) {
+	if !tea.BoolValue(util.IsUnset(request.NetworkMode)) {
 		body["NetworkMode"] = request.NetworkMode
 	}
 
-	if !dara.IsNil(request.Port) {
+	if !tea.BoolValue(util.IsUnset(request.Port)) {
 		body["Port"] = request.Port
 	}
 
-	if !dara.IsNil(request.TrafficTestShrink) {
+	if !tea.BoolValue(util.IsUnset(request.TrafficTestShrink)) {
 		body["TrafficTest"] = request.TrafficTestShrink
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("CreateNetTestTask"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("CreateNetTestTask"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &CreateNetTestTaskResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -21192,7 +13786,8 @@ func (client *Client) CreateNetTestTaskWithOptions(tmpReq *CreateNetTestTaskRequ
 //
 // @return CreateNetTestTaskResponse
 func (client *Client) CreateNetTestTask(request *CreateNetTestTaskRequest) (_result *CreateNetTestTaskResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &CreateNetTestTaskResponse{}
 	_body, _err := client.CreateNetTestTaskWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -21203,82 +13798,82 @@ func (client *Client) CreateNetTestTask(request *CreateNetTestTaskRequest) (_res
 
 // Summary:
 //
-// 创建集群下的节点分组
+// # Create Node Group under Cluster
+//
+// Description:
+//
+// # An interface for creating a session, which returns the frontend EndPoint and initiates a periodic task to track the session status
 //
 // @param tmpReq - CreateNodeGroupRequest
 //
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return CreateNodeGroupResponse
-func (client *Client) CreateNodeGroupWithOptions(tmpReq *CreateNodeGroupRequest, runtime *dara.RuntimeOptions) (_result *CreateNodeGroupResponse, _err error) {
-	_err = tmpReq.Validate()
+func (client *Client) CreateNodeGroupWithOptions(tmpReq *CreateNodeGroupRequest, runtime *util.RuntimeOptions) (_result *CreateNodeGroupResponse, _err error) {
+	_err = util.ValidateModel(tmpReq)
 	if _err != nil {
 		return _result, _err
 	}
 	request := &CreateNodeGroupShrinkRequest{}
 	openapiutil.Convert(tmpReq, request)
-	if !dara.IsNil(tmpReq.NodeGroup) {
-		request.NodeGroupShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeGroup, dara.String("NodeGroup"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.NodeGroup)) {
+		request.NodeGroupShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeGroup, tea.String("NodeGroup"), tea.String("json"))
 	}
 
-	if !dara.IsNil(tmpReq.NodeUnit) {
-		request.NodeUnitShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeUnit, dara.String("NodeUnit"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.NodeUnit)) {
+		request.NodeUnitShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeUnit, tea.String("NodeUnit"), tea.String("json"))
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.ClusterId) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterId)) {
 		body["ClusterId"] = request.ClusterId
 	}
 
-	if !dara.IsNil(request.NodeGroupShrink) {
+	if !tea.BoolValue(util.IsUnset(request.NodeGroupShrink)) {
 		body["NodeGroup"] = request.NodeGroupShrink
 	}
 
-	if !dara.IsNil(request.NodeUnitShrink) {
+	if !tea.BoolValue(util.IsUnset(request.NodeUnitShrink)) {
 		body["NodeUnit"] = request.NodeUnitShrink
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("CreateNodeGroup"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("CreateNodeGroup"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &CreateNodeGroupResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
 //
-// 创建集群下的节点分组
+// # Create Node Group under Cluster
+//
+// Description:
+//
+// # An interface for creating a session, which returns the frontend EndPoint and initiates a periodic task to track the session status
 //
 // @param request - CreateNodeGroupRequest
 //
 // @return CreateNodeGroupResponse
 func (client *Client) CreateNodeGroup(request *CreateNodeGroupRequest) (_result *CreateNodeGroupResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &CreateNodeGroupResponse{}
 	_body, _err := client.CreateNodeGroupWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -21300,54 +13895,45 @@ func (client *Client) CreateNodeGroup(request *CreateNodeGroupRequest) (_result 
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return CreateSessionResponse
-func (client *Client) CreateSessionWithOptions(request *CreateSessionRequest, runtime *dara.RuntimeOptions) (_result *CreateSessionResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) CreateSessionWithOptions(request *CreateSessionRequest, runtime *util.RuntimeOptions) (_result *CreateSessionResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.NodeId) {
+	if !tea.BoolValue(util.IsUnset(request.NodeId)) {
 		body["NodeId"] = request.NodeId
 	}
 
-	if !dara.IsNil(request.SessionType) {
+	if !tea.BoolValue(util.IsUnset(request.SessionType)) {
 		body["SessionType"] = request.SessionType
 	}
 
-	if !dara.IsNil(request.StartTime) {
+	if !tea.BoolValue(util.IsUnset(request.StartTime)) {
 		body["StartTime"] = request.StartTime
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("CreateSession"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("CreateSession"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &CreateSessionResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -21362,7 +13948,8 @@ func (client *Client) CreateSessionWithOptions(request *CreateSessionRequest, ru
 //
 // @return CreateSessionResponse
 func (client *Client) CreateSession(request *CreateSessionRequest) (_result *CreateSessionResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &CreateSessionResponse{}
 	_body, _err := client.CreateSessionWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -21380,68 +13967,59 @@ func (client *Client) CreateSession(request *CreateSessionRequest) (_result *Cre
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return CreateVscResponse
-func (client *Client) CreateVscWithOptions(request *CreateVscRequest, runtime *dara.RuntimeOptions) (_result *CreateVscResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) CreateVscWithOptions(request *CreateVscRequest, runtime *util.RuntimeOptions) (_result *CreateVscResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	query := map[string]interface{}{}
-	if !dara.IsNil(request.ClientToken) {
+	if !tea.BoolValue(util.IsUnset(request.ClientToken)) {
 		query["ClientToken"] = request.ClientToken
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.NodeId) {
+	if !tea.BoolValue(util.IsUnset(request.NodeId)) {
 		body["NodeId"] = request.NodeId
 	}
 
-	if !dara.IsNil(request.ResourceGroupId) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceGroupId)) {
 		body["ResourceGroupId"] = request.ResourceGroupId
 	}
 
-	if !dara.IsNil(request.Tag) {
+	if !tea.BoolValue(util.IsUnset(request.Tag)) {
 		body["Tag"] = request.Tag
 	}
 
-	if !dara.IsNil(request.VscName) {
+	if !tea.BoolValue(util.IsUnset(request.VscName)) {
 		body["VscName"] = request.VscName
 	}
 
-	if !dara.IsNil(request.VscType) {
+	if !tea.BoolValue(util.IsUnset(request.VscType)) {
 		body["VscType"] = request.VscType
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Query: openapiutil.Query(query),
 		Body:  openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("CreateVsc"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("CreateVsc"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &CreateVscResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -21452,7 +14030,8 @@ func (client *Client) CreateVscWithOptions(request *CreateVscRequest, runtime *d
 //
 // @return CreateVscResponse
 func (client *Client) CreateVsc(request *CreateVscRequest) (_result *CreateVscResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &CreateVscResponse{}
 	_body, _err := client.CreateVscWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -21470,46 +14049,37 @@ func (client *Client) CreateVsc(request *CreateVscRequest) (_result *CreateVscRe
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return DeleteClusterResponse
-func (client *Client) DeleteClusterWithOptions(request *DeleteClusterRequest, runtime *dara.RuntimeOptions) (_result *DeleteClusterResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) DeleteClusterWithOptions(request *DeleteClusterRequest, runtime *util.RuntimeOptions) (_result *DeleteClusterResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.ClusterId) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterId)) {
 		body["ClusterId"] = request.ClusterId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("DeleteCluster"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("DeleteCluster"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &DeleteClusterResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -21520,7 +14090,8 @@ func (client *Client) DeleteClusterWithOptions(request *DeleteClusterRequest, ru
 //
 // @return DeleteClusterResponse
 func (client *Client) DeleteCluster(request *DeleteClusterRequest) (_result *DeleteClusterResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &DeleteClusterResponse{}
 	_body, _err := client.DeleteClusterWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -21531,68 +14102,68 @@ func (client *Client) DeleteCluster(request *DeleteClusterRequest) (_result *Del
 
 // Summary:
 //
-// 删除节点分组
+// # Delete Node Group
+//
+// Description:
+//
+// An interface for creating a session, which returns the front-end EndPoint and initiates a periodic task to track the session status.
 //
 // @param request - DeleteNodeGroupRequest
 //
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return DeleteNodeGroupResponse
-func (client *Client) DeleteNodeGroupWithOptions(request *DeleteNodeGroupRequest, runtime *dara.RuntimeOptions) (_result *DeleteNodeGroupResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) DeleteNodeGroupWithOptions(request *DeleteNodeGroupRequest, runtime *util.RuntimeOptions) (_result *DeleteNodeGroupResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.ClusterId) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterId)) {
 		body["ClusterId"] = request.ClusterId
 	}
 
-	if !dara.IsNil(request.NodeGroupId) {
+	if !tea.BoolValue(util.IsUnset(request.NodeGroupId)) {
 		body["NodeGroupId"] = request.NodeGroupId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("DeleteNodeGroup"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("DeleteNodeGroup"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &DeleteNodeGroupResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
 //
-// 删除节点分组
+// # Delete Node Group
+//
+// Description:
+//
+// An interface for creating a session, which returns the front-end EndPoint and initiates a periodic task to track the session status.
 //
 // @param request - DeleteNodeGroupRequest
 //
 // @return DeleteNodeGroupResponse
 func (client *Client) DeleteNodeGroup(request *DeleteNodeGroupRequest) (_result *DeleteNodeGroupResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &DeleteNodeGroupResponse{}
 	_body, _err := client.DeleteNodeGroupWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -21610,52 +14181,43 @@ func (client *Client) DeleteNodeGroup(request *DeleteNodeGroupRequest) (_result 
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return DeleteVscResponse
-func (client *Client) DeleteVscWithOptions(request *DeleteVscRequest, runtime *dara.RuntimeOptions) (_result *DeleteVscResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) DeleteVscWithOptions(request *DeleteVscRequest, runtime *util.RuntimeOptions) (_result *DeleteVscResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	query := map[string]interface{}{}
-	if !dara.IsNil(request.ClientToken) {
+	if !tea.BoolValue(util.IsUnset(request.ClientToken)) {
 		query["ClientToken"] = request.ClientToken
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.VscId) {
+	if !tea.BoolValue(util.IsUnset(request.VscId)) {
 		body["VscId"] = request.VscId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Query: openapiutil.Query(query),
 		Body:  openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("DeleteVsc"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("DeleteVsc"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &DeleteVscResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -21666,7 +14228,8 @@ func (client *Client) DeleteVscWithOptions(request *DeleteVscRequest, runtime *d
 //
 // @return DeleteVscResponse
 func (client *Client) DeleteVsc(request *DeleteVscRequest) (_result *DeleteVscResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &DeleteVscResponse{}
 	_body, _err := client.DeleteVscWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -21684,46 +14247,37 @@ func (client *Client) DeleteVsc(request *DeleteVscRequest) (_result *DeleteVscRe
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return DescribeClusterResponse
-func (client *Client) DescribeClusterWithOptions(request *DescribeClusterRequest, runtime *dara.RuntimeOptions) (_result *DescribeClusterResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) DescribeClusterWithOptions(request *DescribeClusterRequest, runtime *util.RuntimeOptions) (_result *DescribeClusterResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.ClusterId) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterId)) {
 		body["ClusterId"] = request.ClusterId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("DescribeCluster"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("DescribeCluster"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &DescribeClusterResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -21734,7 +14288,8 @@ func (client *Client) DescribeClusterWithOptions(request *DescribeClusterRequest
 //
 // @return DescribeClusterResponse
 func (client *Client) DescribeCluster(request *DescribeClusterRequest) (_result *DescribeClusterResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &DescribeClusterResponse{}
 	_body, _err := client.DescribeClusterWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -21745,64 +14300,64 @@ func (client *Client) DescribeCluster(request *DescribeClusterRequest) (_result 
 
 // Summary:
 //
-// 诊断任务查询接口
+// # Diagnostic Task Query Interface
+//
+// Description:
+//
+// An interface for creating a session, which returns the front-end EndPoint and initiates a periodic task to track the session status.
 //
 // @param request - DescribeDiagnosticResultRequest
 //
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return DescribeDiagnosticResultResponse
-func (client *Client) DescribeDiagnosticResultWithOptions(request *DescribeDiagnosticResultRequest, runtime *dara.RuntimeOptions) (_result *DescribeDiagnosticResultResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) DescribeDiagnosticResultWithOptions(request *DescribeDiagnosticResultRequest, runtime *util.RuntimeOptions) (_result *DescribeDiagnosticResultResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.DiagnosticId) {
+	if !tea.BoolValue(util.IsUnset(request.DiagnosticId)) {
 		body["DiagnosticId"] = request.DiagnosticId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("DescribeDiagnosticResult"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("DescribeDiagnosticResult"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &DescribeDiagnosticResultResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
 //
-// 诊断任务查询接口
+// # Diagnostic Task Query Interface
+//
+// Description:
+//
+// An interface for creating a session, which returns the front-end EndPoint and initiates a periodic task to track the session status.
 //
 // @param request - DescribeDiagnosticResultRequest
 //
 // @return DescribeDiagnosticResultResponse
 func (client *Client) DescribeDiagnosticResult(request *DescribeDiagnosticResultRequest) (_result *DescribeDiagnosticResultResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &DescribeDiagnosticResultResponse{}
 	_body, _err := client.DescribeDiagnosticResultWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -21820,58 +14375,49 @@ func (client *Client) DescribeDiagnosticResult(request *DescribeDiagnosticResult
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return DescribeInvocationsResponse
-func (client *Client) DescribeInvocationsWithOptions(request *DescribeInvocationsRequest, runtime *dara.RuntimeOptions) (_result *DescribeInvocationsResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) DescribeInvocationsWithOptions(request *DescribeInvocationsRequest, runtime *util.RuntimeOptions) (_result *DescribeInvocationsResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.ContentEncoding) {
+	if !tea.BoolValue(util.IsUnset(request.ContentEncoding)) {
 		body["ContentEncoding"] = request.ContentEncoding
 	}
 
-	if !dara.IsNil(request.IncludeOutput) {
+	if !tea.BoolValue(util.IsUnset(request.IncludeOutput)) {
 		body["IncludeOutput"] = request.IncludeOutput
 	}
 
-	if !dara.IsNil(request.InvokeId) {
+	if !tea.BoolValue(util.IsUnset(request.InvokeId)) {
 		body["InvokeId"] = request.InvokeId
 	}
 
-	if !dara.IsNil(request.NodeId) {
+	if !tea.BoolValue(util.IsUnset(request.NodeId)) {
 		body["NodeId"] = request.NodeId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("DescribeInvocations"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("DescribeInvocations"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &DescribeInvocationsResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -21882,7 +14428,8 @@ func (client *Client) DescribeInvocationsWithOptions(request *DescribeInvocation
 //
 // @return DescribeInvocationsResponse
 func (client *Client) DescribeInvocations(request *DescribeInvocationsRequest) (_result *DescribeInvocationsResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &DescribeInvocationsResponse{}
 	_body, _err := client.DescribeInvocationsWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -21904,46 +14451,37 @@ func (client *Client) DescribeInvocations(request *DescribeInvocationsRequest) (
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return DescribeNetTestResultResponse
-func (client *Client) DescribeNetTestResultWithOptions(request *DescribeNetTestResultRequest, runtime *dara.RuntimeOptions) (_result *DescribeNetTestResultResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) DescribeNetTestResultWithOptions(request *DescribeNetTestResultRequest, runtime *util.RuntimeOptions) (_result *DescribeNetTestResultResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.TestId) {
+	if !tea.BoolValue(util.IsUnset(request.TestId)) {
 		body["TestId"] = request.TestId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("DescribeNetTestResult"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("DescribeNetTestResult"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &DescribeNetTestResultResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -21958,7 +14496,8 @@ func (client *Client) DescribeNetTestResultWithOptions(request *DescribeNetTestR
 //
 // @return DescribeNetTestResultResponse
 func (client *Client) DescribeNetTestResult(request *DescribeNetTestResultRequest) (_result *DescribeNetTestResultResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &DescribeNetTestResultResponse{}
 	_body, _err := client.DescribeNetTestResultWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -21976,46 +14515,37 @@ func (client *Client) DescribeNetTestResult(request *DescribeNetTestResultReques
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return DescribeNodeResponse
-func (client *Client) DescribeNodeWithOptions(request *DescribeNodeRequest, runtime *dara.RuntimeOptions) (_result *DescribeNodeResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) DescribeNodeWithOptions(request *DescribeNodeRequest, runtime *util.RuntimeOptions) (_result *DescribeNodeResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.NodeId) {
+	if !tea.BoolValue(util.IsUnset(request.NodeId)) {
 		body["NodeId"] = request.NodeId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("DescribeNode"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("DescribeNode"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &DescribeNodeResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -22026,7 +14556,8 @@ func (client *Client) DescribeNodeWithOptions(request *DescribeNodeRequest, runt
 //
 // @return DescribeNodeResponse
 func (client *Client) DescribeNode(request *DescribeNodeRequest) (_result *DescribeNodeResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &DescribeNodeResponse{}
 	_body, _err := client.DescribeNodeWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -22037,74 +14568,6 @@ func (client *Client) DescribeNode(request *DescribeNodeRequest) (_result *Descr
 
 // Summary:
 //
-// 查询节点分组
-//
-// @param request - DescribeNodeGroupRequest
-//
-// @param runtime - runtime options for this request RuntimeOptions
-//
-// @return DescribeNodeGroupResponse
-func (client *Client) DescribeNodeGroupWithOptions(request *DescribeNodeGroupRequest, runtime *dara.RuntimeOptions) (_result *DescribeNodeGroupResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
-	}
-	body := map[string]interface{}{}
-	if !dara.IsNil(request.NodeGroupId) {
-		body["NodeGroupId"] = request.NodeGroupId
-	}
-
-	req := &openapiutil.OpenApiRequest{
-		Body: openapiutil.ParseToMap(body),
-	}
-	params := &openapiutil.Params{
-		Action:      dara.String("DescribeNodeGroup"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
-	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	}
-
-}
-
-// Summary:
-//
-// 查询节点分组
-//
-// @param request - DescribeNodeGroupRequest
-//
-// @return DescribeNodeGroupResponse
-func (client *Client) DescribeNodeGroup(request *DescribeNodeGroupRequest) (_result *DescribeNodeGroupResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
-	_body, _err := client.DescribeNodeGroupWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-// Summary:
-//
 // # Region List
 //
 // @param request - DescribeRegionsRequest
@@ -22112,46 +14575,37 @@ func (client *Client) DescribeNodeGroup(request *DescribeNodeGroupRequest) (_res
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return DescribeRegionsResponse
-func (client *Client) DescribeRegionsWithOptions(request *DescribeRegionsRequest, runtime *dara.RuntimeOptions) (_result *DescribeRegionsResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) DescribeRegionsWithOptions(request *DescribeRegionsRequest, runtime *util.RuntimeOptions) (_result *DescribeRegionsResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.AcceptLanguage) {
+	if !tea.BoolValue(util.IsUnset(request.AcceptLanguage)) {
 		body["AcceptLanguage"] = request.AcceptLanguage
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("DescribeRegions"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("DescribeRegions"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &DescribeRegionsResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -22162,7 +14616,8 @@ func (client *Client) DescribeRegionsWithOptions(request *DescribeRegionsRequest
 //
 // @return DescribeRegionsResponse
 func (client *Client) DescribeRegions(request *DescribeRegionsRequest) (_result *DescribeRegionsResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &DescribeRegionsResponse{}
 	_body, _err := client.DescribeRegionsWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -22180,50 +14635,41 @@ func (client *Client) DescribeRegions(request *DescribeRegionsRequest) (_result 
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return DescribeSendFileResultsResponse
-func (client *Client) DescribeSendFileResultsWithOptions(request *DescribeSendFileResultsRequest, runtime *dara.RuntimeOptions) (_result *DescribeSendFileResultsResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) DescribeSendFileResultsWithOptions(request *DescribeSendFileResultsRequest, runtime *util.RuntimeOptions) (_result *DescribeSendFileResultsResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.InvokeId) {
+	if !tea.BoolValue(util.IsUnset(request.InvokeId)) {
 		body["InvokeId"] = request.InvokeId
 	}
 
-	if !dara.IsNil(request.NodeId) {
+	if !tea.BoolValue(util.IsUnset(request.NodeId)) {
 		body["NodeId"] = request.NodeId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("DescribeSendFileResults"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("DescribeSendFileResults"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &DescribeSendFileResultsResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -22234,7 +14680,8 @@ func (client *Client) DescribeSendFileResultsWithOptions(request *DescribeSendFi
 //
 // @return DescribeSendFileResultsResponse
 func (client *Client) DescribeSendFileResults(request *DescribeSendFileResultsRequest) (_result *DescribeSendFileResultsResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &DescribeSendFileResultsResponse{}
 	_body, _err := client.DescribeSendFileResultsWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -22252,46 +14699,37 @@ func (client *Client) DescribeSendFileResults(request *DescribeSendFileResultsRe
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return DescribeTaskResponse
-func (client *Client) DescribeTaskWithOptions(request *DescribeTaskRequest, runtime *dara.RuntimeOptions) (_result *DescribeTaskResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) DescribeTaskWithOptions(request *DescribeTaskRequest, runtime *util.RuntimeOptions) (_result *DescribeTaskResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.TaskId) {
+	if !tea.BoolValue(util.IsUnset(request.TaskId)) {
 		body["TaskId"] = request.TaskId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("DescribeTask"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("DescribeTask"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &DescribeTaskResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -22302,7 +14740,8 @@ func (client *Client) DescribeTaskWithOptions(request *DescribeTaskRequest, runt
 //
 // @return DescribeTaskResponse
 func (client *Client) DescribeTask(request *DescribeTaskRequest) (_result *DescribeTaskResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &DescribeTaskResponse{}
 	_body, _err := client.DescribeTaskWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -22320,46 +14759,37 @@ func (client *Client) DescribeTask(request *DescribeTaskRequest) (_result *Descr
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return DescribeVscResponse
-func (client *Client) DescribeVscWithOptions(request *DescribeVscRequest, runtime *dara.RuntimeOptions) (_result *DescribeVscResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) DescribeVscWithOptions(request *DescribeVscRequest, runtime *util.RuntimeOptions) (_result *DescribeVscResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.VscId) {
+	if !tea.BoolValue(util.IsUnset(request.VscId)) {
 		body["VscId"] = request.VscId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("DescribeVsc"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("DescribeVsc"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &DescribeVscResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -22370,7 +14800,8 @@ func (client *Client) DescribeVscWithOptions(request *DescribeVscRequest, runtim
 //
 // @return DescribeVscResponse
 func (client *Client) DescribeVsc(request *DescribeVscRequest) (_result *DescribeVscResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &DescribeVscResponse{}
 	_body, _err := client.DescribeVscWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -22388,46 +14819,37 @@ func (client *Client) DescribeVsc(request *DescribeVscRequest) (_result *Describ
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return DescribeZonesResponse
-func (client *Client) DescribeZonesWithOptions(request *DescribeZonesRequest, runtime *dara.RuntimeOptions) (_result *DescribeZonesResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) DescribeZonesWithOptions(request *DescribeZonesRequest, runtime *util.RuntimeOptions) (_result *DescribeZonesResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.AcceptLanguage) {
+	if !tea.BoolValue(util.IsUnset(request.AcceptLanguage)) {
 		body["AcceptLanguage"] = request.AcceptLanguage
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("DescribeZones"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("DescribeZones"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &DescribeZonesResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -22438,7 +14860,8 @@ func (client *Client) DescribeZonesWithOptions(request *DescribeZonesRequest, ru
 //
 // @return DescribeZonesResponse
 func (client *Client) DescribeZones(request *DescribeZonesRequest) (_result *DescribeZonesResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &DescribeZonesResponse{}
 	_body, _err := client.DescribeZonesWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -22456,80 +14879,71 @@ func (client *Client) DescribeZones(request *DescribeZonesRequest) (_result *Des
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ExtendClusterResponse
-func (client *Client) ExtendClusterWithOptions(tmpReq *ExtendClusterRequest, runtime *dara.RuntimeOptions) (_result *ExtendClusterResponse, _err error) {
-	_err = tmpReq.Validate()
+func (client *Client) ExtendClusterWithOptions(tmpReq *ExtendClusterRequest, runtime *util.RuntimeOptions) (_result *ExtendClusterResponse, _err error) {
+	_err = util.ValidateModel(tmpReq)
 	if _err != nil {
 		return _result, _err
 	}
 	request := &ExtendClusterShrinkRequest{}
 	openapiutil.Convert(tmpReq, request)
-	if !dara.IsNil(tmpReq.IpAllocationPolicy) {
-		request.IpAllocationPolicyShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.IpAllocationPolicy, dara.String("IpAllocationPolicy"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.IpAllocationPolicy)) {
+		request.IpAllocationPolicyShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.IpAllocationPolicy, tea.String("IpAllocationPolicy"), tea.String("json"))
 	}
 
-	if !dara.IsNil(tmpReq.NodeGroups) {
-		request.NodeGroupsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeGroups, dara.String("NodeGroups"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.NodeGroups)) {
+		request.NodeGroupsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeGroups, tea.String("NodeGroups"), tea.String("json"))
 	}
 
-	if !dara.IsNil(tmpReq.VpdSubnets) {
-		request.VpdSubnetsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.VpdSubnets, dara.String("VpdSubnets"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.VpdSubnets)) {
+		request.VpdSubnetsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.VpdSubnets, tea.String("VpdSubnets"), tea.String("json"))
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.ClusterId) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterId)) {
 		body["ClusterId"] = request.ClusterId
 	}
 
-	if !dara.IsNil(request.IgnoreFailedNodeTasks) {
+	if !tea.BoolValue(util.IsUnset(request.IgnoreFailedNodeTasks)) {
 		body["IgnoreFailedNodeTasks"] = request.IgnoreFailedNodeTasks
 	}
 
-	if !dara.IsNil(request.IpAllocationPolicyShrink) {
+	if !tea.BoolValue(util.IsUnset(request.IpAllocationPolicyShrink)) {
 		body["IpAllocationPolicy"] = request.IpAllocationPolicyShrink
 	}
 
-	if !dara.IsNil(request.NodeGroupsShrink) {
+	if !tea.BoolValue(util.IsUnset(request.NodeGroupsShrink)) {
 		body["NodeGroups"] = request.NodeGroupsShrink
 	}
 
-	if !dara.IsNil(request.VSwitchZoneId) {
+	if !tea.BoolValue(util.IsUnset(request.VSwitchZoneId)) {
 		body["VSwitchZoneId"] = request.VSwitchZoneId
 	}
 
-	if !dara.IsNil(request.VpdSubnetsShrink) {
+	if !tea.BoolValue(util.IsUnset(request.VpdSubnetsShrink)) {
 		body["VpdSubnets"] = request.VpdSubnetsShrink
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ExtendCluster"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ExtendCluster"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ExtendClusterResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -22540,7 +14954,8 @@ func (client *Client) ExtendClusterWithOptions(tmpReq *ExtendClusterRequest, run
 //
 // @return ExtendClusterResponse
 func (client *Client) ExtendCluster(request *ExtendClusterRequest) (_result *ExtendClusterResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ExtendClusterResponse{}
 	_body, _err := client.ExtendClusterWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -22558,68 +14973,59 @@ func (client *Client) ExtendCluster(request *ExtendClusterRequest) (_result *Ext
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ListClusterNodesResponse
-func (client *Client) ListClusterNodesWithOptions(request *ListClusterNodesRequest, runtime *dara.RuntimeOptions) (_result *ListClusterNodesResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) ListClusterNodesWithOptions(request *ListClusterNodesRequest, runtime *util.RuntimeOptions) (_result *ListClusterNodesResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	query := map[string]interface{}{}
-	if !dara.IsNil(request.Tags) {
+	if !tea.BoolValue(util.IsUnset(request.Tags)) {
 		query["Tags"] = request.Tags
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.ClusterId) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterId)) {
 		body["ClusterId"] = request.ClusterId
 	}
 
-	if !dara.IsNil(request.MaxResults) {
+	if !tea.BoolValue(util.IsUnset(request.MaxResults)) {
 		body["MaxResults"] = request.MaxResults
 	}
 
-	if !dara.IsNil(request.NextToken) {
+	if !tea.BoolValue(util.IsUnset(request.NextToken)) {
 		body["NextToken"] = request.NextToken
 	}
 
-	if !dara.IsNil(request.NodeGroupId) {
+	if !tea.BoolValue(util.IsUnset(request.NodeGroupId)) {
 		body["NodeGroupId"] = request.NodeGroupId
 	}
 
-	if !dara.IsNil(request.ResourceGroupId) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceGroupId)) {
 		body["ResourceGroupId"] = request.ResourceGroupId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Query: openapiutil.Query(query),
 		Body:  openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ListClusterNodes"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ListClusterNodes"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ListClusterNodesResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -22630,7 +15036,8 @@ func (client *Client) ListClusterNodesWithOptions(request *ListClusterNodesReque
 //
 // @return ListClusterNodesResponse
 func (client *Client) ListClusterNodes(request *ListClusterNodesRequest) (_result *ListClusterNodesResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ListClusterNodesResponse{}
 	_body, _err := client.ListClusterNodesWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -22648,60 +15055,51 @@ func (client *Client) ListClusterNodes(request *ListClusterNodesRequest) (_resul
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ListClustersResponse
-func (client *Client) ListClustersWithOptions(request *ListClustersRequest, runtime *dara.RuntimeOptions) (_result *ListClustersResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) ListClustersWithOptions(request *ListClustersRequest, runtime *util.RuntimeOptions) (_result *ListClustersResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	query := map[string]interface{}{}
-	if !dara.IsNil(request.Tags) {
+	if !tea.BoolValue(util.IsUnset(request.Tags)) {
 		query["Tags"] = request.Tags
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.MaxResults) {
+	if !tea.BoolValue(util.IsUnset(request.MaxResults)) {
 		body["MaxResults"] = request.MaxResults
 	}
 
-	if !dara.IsNil(request.NextToken) {
+	if !tea.BoolValue(util.IsUnset(request.NextToken)) {
 		body["NextToken"] = request.NextToken
 	}
 
-	if !dara.IsNil(request.ResourceGroupId) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceGroupId)) {
 		body["ResourceGroupId"] = request.ResourceGroupId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Query: openapiutil.Query(query),
 		Body:  openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ListClusters"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ListClusters"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ListClustersResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -22712,7 +15110,8 @@ func (client *Client) ListClustersWithOptions(request *ListClustersRequest, runt
 //
 // @return ListClustersResponse
 func (client *Client) ListClusters(request *ListClustersRequest) (_result *ListClustersResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ListClustersResponse{}
 	_body, _err := client.ListClustersWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -22734,58 +15133,49 @@ func (client *Client) ListClusters(request *ListClustersRequest) (_result *ListC
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ListDiagnosticResultsResponse
-func (client *Client) ListDiagnosticResultsWithOptions(request *ListDiagnosticResultsRequest, runtime *dara.RuntimeOptions) (_result *ListDiagnosticResultsResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) ListDiagnosticResultsWithOptions(request *ListDiagnosticResultsRequest, runtime *util.RuntimeOptions) (_result *ListDiagnosticResultsResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.DiagType) {
+	if !tea.BoolValue(util.IsUnset(request.DiagType)) {
 		body["DiagType"] = request.DiagType
 	}
 
-	if !dara.IsNil(request.MaxResults) {
+	if !tea.BoolValue(util.IsUnset(request.MaxResults)) {
 		body["MaxResults"] = request.MaxResults
 	}
 
-	if !dara.IsNil(request.NextToken) {
+	if !tea.BoolValue(util.IsUnset(request.NextToken)) {
 		body["NextToken"] = request.NextToken
 	}
 
-	if !dara.IsNil(request.ResourceGroupId) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceGroupId)) {
 		body["ResourceGroupId"] = request.ResourceGroupId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ListDiagnosticResults"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ListDiagnosticResults"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ListDiagnosticResultsResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -22800,7 +15190,8 @@ func (client *Client) ListDiagnosticResultsWithOptions(request *ListDiagnosticRe
 //
 // @return ListDiagnosticResultsResponse
 func (client *Client) ListDiagnosticResults(request *ListDiagnosticResultsRequest) (_result *ListDiagnosticResultsResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ListDiagnosticResultsResponse{}
 	_body, _err := client.ListDiagnosticResultsWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -22818,72 +15209,63 @@ func (client *Client) ListDiagnosticResults(request *ListDiagnosticResultsReques
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ListFreeNodesResponse
-func (client *Client) ListFreeNodesWithOptions(request *ListFreeNodesRequest, runtime *dara.RuntimeOptions) (_result *ListFreeNodesResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) ListFreeNodesWithOptions(request *ListFreeNodesRequest, runtime *util.RuntimeOptions) (_result *ListFreeNodesResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	query := map[string]interface{}{}
-	if !dara.IsNil(request.Tags) {
+	if !tea.BoolValue(util.IsUnset(request.Tags)) {
 		query["Tags"] = request.Tags
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.HpnZone) {
+	if !tea.BoolValue(util.IsUnset(request.HpnZone)) {
 		body["HpnZone"] = request.HpnZone
 	}
 
-	if !dara.IsNil(request.IncludeAbnormalNodes) {
-		body["IncludeAbnormalNodes"] = request.IncludeAbnormalNodes
-	}
-
-	if !dara.IsNil(request.MachineType) {
+	if !tea.BoolValue(util.IsUnset(request.MachineType)) {
 		body["MachineType"] = request.MachineType
 	}
 
-	if !dara.IsNil(request.MaxResults) {
+	if !tea.BoolValue(util.IsUnset(request.MaxResults)) {
 		body["MaxResults"] = request.MaxResults
 	}
 
-	if !dara.IsNil(request.NextToken) {
+	if !tea.BoolValue(util.IsUnset(request.NextToken)) {
 		body["NextToken"] = request.NextToken
 	}
 
-	if !dara.IsNil(request.ResourceGroupId) {
+	if !tea.BoolValue(util.IsUnset(request.OperatingStates)) {
+		body["OperatingStates"] = request.OperatingStates
+	}
+
+	if !tea.BoolValue(util.IsUnset(request.ResourceGroupId)) {
 		body["ResourceGroupId"] = request.ResourceGroupId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Query: openapiutil.Query(query),
 		Body:  openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ListFreeNodes"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ListFreeNodes"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ListFreeNodesResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -22894,7 +15276,8 @@ func (client *Client) ListFreeNodesWithOptions(request *ListFreeNodesRequest, ru
 //
 // @return ListFreeNodesResponse
 func (client *Client) ListFreeNodes(request *ListFreeNodesRequest) (_result *ListFreeNodesResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ListFreeNodesResponse{}
 	_body, _err := client.ListFreeNodesWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -22912,54 +15295,45 @@ func (client *Client) ListFreeNodes(request *ListFreeNodesRequest) (_result *Lis
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ListImagesResponse
-func (client *Client) ListImagesWithOptions(request *ListImagesRequest, runtime *dara.RuntimeOptions) (_result *ListImagesResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) ListImagesWithOptions(request *ListImagesRequest, runtime *util.RuntimeOptions) (_result *ListImagesResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.Architecture) {
+	if !tea.BoolValue(util.IsUnset(request.Architecture)) {
 		body["Architecture"] = request.Architecture
 	}
 
-	if !dara.IsNil(request.ImageVersion) {
+	if !tea.BoolValue(util.IsUnset(request.ImageVersion)) {
 		body["ImageVersion"] = request.ImageVersion
 	}
 
-	if !dara.IsNil(request.Platform) {
+	if !tea.BoolValue(util.IsUnset(request.Platform)) {
 		body["Platform"] = request.Platform
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ListImages"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ListImages"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ListImagesResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -22970,7 +15344,8 @@ func (client *Client) ListImagesWithOptions(request *ListImagesRequest, runtime 
 //
 // @return ListImagesResponse
 func (client *Client) ListImages(request *ListImagesRequest) (_result *ListImagesResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ListImagesResponse{}
 	_body, _err := client.ListImagesWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -22992,52 +15367,43 @@ func (client *Client) ListImages(request *ListImagesRequest) (_result *ListImage
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ListMachineNetworkInfoResponse
-func (client *Client) ListMachineNetworkInfoWithOptions(tmpReq *ListMachineNetworkInfoRequest, runtime *dara.RuntimeOptions) (_result *ListMachineNetworkInfoResponse, _err error) {
-	_err = tmpReq.Validate()
+func (client *Client) ListMachineNetworkInfoWithOptions(tmpReq *ListMachineNetworkInfoRequest, runtime *util.RuntimeOptions) (_result *ListMachineNetworkInfoResponse, _err error) {
+	_err = util.ValidateModel(tmpReq)
 	if _err != nil {
 		return _result, _err
 	}
 	request := &ListMachineNetworkInfoShrinkRequest{}
 	openapiutil.Convert(tmpReq, request)
-	if !dara.IsNil(tmpReq.MachineHpnInfo) {
-		request.MachineHpnInfoShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.MachineHpnInfo, dara.String("MachineHpnInfo"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.MachineHpnInfo)) {
+		request.MachineHpnInfoShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.MachineHpnInfo, tea.String("MachineHpnInfo"), tea.String("json"))
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.MachineHpnInfoShrink) {
+	if !tea.BoolValue(util.IsUnset(request.MachineHpnInfoShrink)) {
 		body["MachineHpnInfo"] = request.MachineHpnInfoShrink
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ListMachineNetworkInfo"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ListMachineNetworkInfo"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ListMachineNetworkInfoResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -23052,7 +15418,8 @@ func (client *Client) ListMachineNetworkInfoWithOptions(tmpReq *ListMachineNetwo
 //
 // @return ListMachineNetworkInfoResponse
 func (client *Client) ListMachineNetworkInfo(request *ListMachineNetworkInfoRequest) (_result *ListMachineNetworkInfoResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ListMachineNetworkInfoResponse{}
 	_body, _err := client.ListMachineNetworkInfoWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -23070,46 +15437,37 @@ func (client *Client) ListMachineNetworkInfo(request *ListMachineNetworkInfoRequ
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ListMachineTypesResponse
-func (client *Client) ListMachineTypesWithOptions(request *ListMachineTypesRequest, runtime *dara.RuntimeOptions) (_result *ListMachineTypesResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) ListMachineTypesWithOptions(request *ListMachineTypesRequest, runtime *util.RuntimeOptions) (_result *ListMachineTypesResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.Name) {
+	if !tea.BoolValue(util.IsUnset(request.Name)) {
 		body["Name"] = request.Name
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ListMachineTypes"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ListMachineTypes"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ListMachineTypesResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -23120,7 +15478,8 @@ func (client *Client) ListMachineTypesWithOptions(request *ListMachineTypesReque
 //
 // @return ListMachineTypesResponse
 func (client *Client) ListMachineTypes(request *ListMachineTypesRequest) (_result *ListMachineTypesResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ListMachineTypesResponse{}
 	_body, _err := client.ListMachineTypesWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -23142,58 +15501,49 @@ func (client *Client) ListMachineTypes(request *ListMachineTypesRequest) (_resul
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ListNetTestResultsResponse
-func (client *Client) ListNetTestResultsWithOptions(request *ListNetTestResultsRequest, runtime *dara.RuntimeOptions) (_result *ListNetTestResultsResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) ListNetTestResultsWithOptions(request *ListNetTestResultsRequest, runtime *util.RuntimeOptions) (_result *ListNetTestResultsResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.MaxResults) {
+	if !tea.BoolValue(util.IsUnset(request.MaxResults)) {
 		body["MaxResults"] = request.MaxResults
 	}
 
-	if !dara.IsNil(request.NetTestType) {
+	if !tea.BoolValue(util.IsUnset(request.NetTestType)) {
 		body["NetTestType"] = request.NetTestType
 	}
 
-	if !dara.IsNil(request.NextToken) {
+	if !tea.BoolValue(util.IsUnset(request.NextToken)) {
 		body["NextToken"] = request.NextToken
 	}
 
-	if !dara.IsNil(request.ResourceGroupId) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceGroupId)) {
 		body["ResourceGroupId"] = request.ResourceGroupId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ListNetTestResults"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ListNetTestResults"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ListNetTestResultsResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -23208,7 +15558,8 @@ func (client *Client) ListNetTestResultsWithOptions(request *ListNetTestResultsR
 //
 // @return ListNetTestResultsResponse
 func (client *Client) ListNetTestResults(request *ListNetTestResultsRequest) (_result *ListNetTestResultsResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ListNetTestResultsResponse{}
 	_body, _err := client.ListNetTestResultsWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -23226,58 +15577,49 @@ func (client *Client) ListNetTestResults(request *ListNetTestResultsRequest) (_r
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ListNodeGroupsResponse
-func (client *Client) ListNodeGroupsWithOptions(request *ListNodeGroupsRequest, runtime *dara.RuntimeOptions) (_result *ListNodeGroupsResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) ListNodeGroupsWithOptions(request *ListNodeGroupsRequest, runtime *util.RuntimeOptions) (_result *ListNodeGroupsResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.ClusterId) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterId)) {
 		body["ClusterId"] = request.ClusterId
 	}
 
-	if !dara.IsNil(request.MaxResults) {
+	if !tea.BoolValue(util.IsUnset(request.MaxResults)) {
 		body["MaxResults"] = request.MaxResults
 	}
 
-	if !dara.IsNil(request.NextToken) {
+	if !tea.BoolValue(util.IsUnset(request.NextToken)) {
 		body["NextToken"] = request.NextToken
 	}
 
-	if !dara.IsNil(request.NodeGroupId) {
+	if !tea.BoolValue(util.IsUnset(request.NodeGroupId)) {
 		body["NodeGroupId"] = request.NodeGroupId
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ListNodeGroups"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ListNodeGroups"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ListNodeGroupsResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -23288,7 +15630,8 @@ func (client *Client) ListNodeGroupsWithOptions(request *ListNodeGroupsRequest, 
 //
 // @return ListNodeGroupsResponse
 func (client *Client) ListNodeGroups(request *ListNodeGroupsRequest) (_result *ListNodeGroupsResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ListNodeGroupsResponse{}
 	_body, _err := client.ListNodeGroupsWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -23299,94 +15642,6 @@ func (client *Client) ListNodeGroups(request *ListNodeGroupsRequest) (_result *L
 
 // Summary:
 //
-// 查询系统日志
-//
-// @param request - ListSyslogsRequest
-//
-// @param runtime - runtime options for this request RuntimeOptions
-//
-// @return ListSyslogsResponse
-func (client *Client) ListSyslogsWithOptions(request *ListSyslogsRequest, runtime *dara.RuntimeOptions) (_result *ListSyslogsResponse, _err error) {
-	_err = request.Validate()
-	if _err != nil {
-		return _result, _err
-	}
-	body := map[string]interface{}{}
-	if !dara.IsNil(request.FromTime) {
-		body["FromTime"] = request.FromTime
-	}
-
-	if !dara.IsNil(request.NextToken) {
-		body["NextToken"] = request.NextToken
-	}
-
-	if !dara.IsNil(request.NodeId) {
-		body["NodeId"] = request.NodeId
-	}
-
-	if !dara.IsNil(request.Query) {
-		body["Query"] = request.Query
-	}
-
-	if !dara.IsNil(request.Reverse) {
-		body["Reverse"] = request.Reverse
-	}
-
-	if !dara.IsNil(request.ToTime) {
-		body["ToTime"] = request.ToTime
-	}
-
-	req := &openapiutil.OpenApiRequest{
-		Body: openapiutil.ParseToMap(body),
-	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ListSyslogs"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
-	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	}
-
-}
-
-// Summary:
-//
-// 查询系统日志
-//
-// @param request - ListSyslogsRequest
-//
-// @return ListSyslogsResponse
-func (client *Client) ListSyslogs(request *ListSyslogsRequest) (_result *ListSyslogsResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
-	_body, _err := client.ListSyslogsWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-// Summary:
-//
 // # Query Resource Tags
 //
 // @param request - ListTagResourcesRequest
@@ -23394,66 +15649,53 @@ func (client *Client) ListSyslogs(request *ListSyslogsRequest) (_result *ListSys
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ListTagResourcesResponse
-func (client *Client) ListTagResourcesWithOptions(request *ListTagResourcesRequest, runtime *dara.RuntimeOptions) (_result *ListTagResourcesResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) ListTagResourcesWithOptions(request *ListTagResourcesRequest, runtime *util.RuntimeOptions) (_result *ListTagResourcesResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	query := map[string]interface{}{}
-	if !dara.IsNil(request.NextToken) {
+	if !tea.BoolValue(util.IsUnset(request.NextToken)) {
 		query["NextToken"] = request.NextToken
 	}
 
-	if !dara.IsNil(request.RegionId) {
+	if !tea.BoolValue(util.IsUnset(request.RegionId)) {
 		query["RegionId"] = request.RegionId
 	}
 
-	if !dara.IsNil(request.ResourceId) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceId)) {
 		query["ResourceId"] = request.ResourceId
 	}
 
-	if !dara.IsNil(request.ResourceType) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceType)) {
 		query["ResourceType"] = request.ResourceType
 	}
 
-	if !dara.IsNil(request.Service) {
-		query["Service"] = request.Service
-	}
-
-	if !dara.IsNil(request.Tag) {
+	if !tea.BoolValue(util.IsUnset(request.Tag)) {
 		query["Tag"] = request.Tag
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Query: openapiutil.Query(query),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ListTagResources"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ListTagResources"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ListTagResourcesResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -23464,7 +15706,8 @@ func (client *Client) ListTagResourcesWithOptions(request *ListTagResourcesReque
 //
 // @return ListTagResourcesResponse
 func (client *Client) ListTagResources(request *ListTagResourcesRequest) (_result *ListTagResourcesResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ListTagResourcesResponse{}
 	_body, _err := client.ListTagResourcesWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -23486,35 +15729,26 @@ func (client *Client) ListTagResources(request *ListTagResourcesRequest) (_resul
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ListUserClusterTypesResponse
-func (client *Client) ListUserClusterTypesWithOptions(runtime *dara.RuntimeOptions) (_result *ListUserClusterTypesResponse, _err error) {
-	req := &openapiutil.OpenApiRequest{}
-	params := &openapiutil.Params{
-		Action:      dara.String("ListUserClusterTypes"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+func (client *Client) ListUserClusterTypesWithOptions(runtime *util.RuntimeOptions) (_result *ListUserClusterTypesResponse, _err error) {
+	req := &openapi.OpenApiRequest{}
+	params := &openapi.Params{
+		Action:      tea.String("ListUserClusterTypes"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ListUserClusterTypesResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -23527,7 +15761,8 @@ func (client *Client) ListUserClusterTypesWithOptions(runtime *dara.RuntimeOptio
 //
 // @return ListUserClusterTypesResponse
 func (client *Client) ListUserClusterTypes() (_result *ListUserClusterTypesResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ListUserClusterTypesResponse{}
 	_body, _err := client.ListUserClusterTypesWithOptions(runtime)
 	if _err != nil {
 		return _result, _err
@@ -23540,73 +15775,70 @@ func (client *Client) ListUserClusterTypes() (_result *ListUserClusterTypesRespo
 //
 // 查询Vsc列表
 //
-// @param request - ListVscsRequest
+// @param tmpReq - ListVscsRequest
 //
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ListVscsResponse
-func (client *Client) ListVscsWithOptions(request *ListVscsRequest, runtime *dara.RuntimeOptions) (_result *ListVscsResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) ListVscsWithOptions(tmpReq *ListVscsRequest, runtime *util.RuntimeOptions) (_result *ListVscsResponse, _err error) {
+	_err = util.ValidateModel(tmpReq)
 	if _err != nil {
 		return _result, _err
 	}
+	request := &ListVscsShrinkRequest{}
+	openapiutil.Convert(tmpReq, request)
+	if !tea.BoolValue(util.IsUnset(tmpReq.NodeIds)) {
+		request.NodeIdsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeIds, tea.String("NodeIds"), tea.String("json"))
+	}
+
 	query := map[string]interface{}{}
-	if !dara.IsNil(request.Tag) {
+	if !tea.BoolValue(util.IsUnset(request.Tag)) {
 		query["Tag"] = request.Tag
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.MaxResults) {
+	if !tea.BoolValue(util.IsUnset(request.MaxResults)) {
 		body["MaxResults"] = request.MaxResults
 	}
 
-	if !dara.IsNil(request.NextToken) {
+	if !tea.BoolValue(util.IsUnset(request.NextToken)) {
 		body["NextToken"] = request.NextToken
 	}
 
-	if !dara.IsNil(request.NodeIds) {
-		body["NodeIds"] = request.NodeIds
+	if !tea.BoolValue(util.IsUnset(request.NodeIdsShrink)) {
+		body["NodeIds"] = request.NodeIdsShrink
 	}
 
-	if !dara.IsNil(request.ResourceGroupId) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceGroupId)) {
 		body["ResourceGroupId"] = request.ResourceGroupId
 	}
 
-	if !dara.IsNil(request.VscName) {
+	if !tea.BoolValue(util.IsUnset(request.VscName)) {
 		body["VscName"] = request.VscName
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Query: openapiutil.Query(query),
 		Body:  openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ListVscs"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ListVscs"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ListVscsResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -23617,7 +15849,8 @@ func (client *Client) ListVscsWithOptions(request *ListVscsRequest, runtime *dar
 //
 // @return ListVscsResponse
 func (client *Client) ListVscs(request *ListVscsRequest) (_result *ListVscsResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ListVscsResponse{}
 	_body, _err := client.ListVscsWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -23635,60 +15868,51 @@ func (client *Client) ListVscs(request *ListVscsRequest) (_result *ListVscsRespo
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return RebootNodesResponse
-func (client *Client) RebootNodesWithOptions(tmpReq *RebootNodesRequest, runtime *dara.RuntimeOptions) (_result *RebootNodesResponse, _err error) {
-	_err = tmpReq.Validate()
+func (client *Client) RebootNodesWithOptions(tmpReq *RebootNodesRequest, runtime *util.RuntimeOptions) (_result *RebootNodesResponse, _err error) {
+	_err = util.ValidateModel(tmpReq)
 	if _err != nil {
 		return _result, _err
 	}
 	request := &RebootNodesShrinkRequest{}
 	openapiutil.Convert(tmpReq, request)
-	if !dara.IsNil(tmpReq.Nodes) {
-		request.NodesShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.Nodes, dara.String("Nodes"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.Nodes)) {
+		request.NodesShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.Nodes, tea.String("Nodes"), tea.String("json"))
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.ClusterId) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterId)) {
 		body["ClusterId"] = request.ClusterId
 	}
 
-	if !dara.IsNil(request.IgnoreFailedNodeTasks) {
+	if !tea.BoolValue(util.IsUnset(request.IgnoreFailedNodeTasks)) {
 		body["IgnoreFailedNodeTasks"] = request.IgnoreFailedNodeTasks
 	}
 
-	if !dara.IsNil(request.NodesShrink) {
+	if !tea.BoolValue(util.IsUnset(request.NodesShrink)) {
 		body["Nodes"] = request.NodesShrink
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("RebootNodes"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("RebootNodes"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &RebootNodesResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -23699,7 +15923,8 @@ func (client *Client) RebootNodesWithOptions(tmpReq *RebootNodesRequest, runtime
 //
 // @return RebootNodesResponse
 func (client *Client) RebootNodes(request *RebootNodesRequest) (_result *RebootNodesResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &RebootNodesResponse{}
 	_body, _err := client.RebootNodesWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -23717,64 +15942,55 @@ func (client *Client) RebootNodes(request *RebootNodesRequest) (_result *RebootN
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ReimageNodesResponse
-func (client *Client) ReimageNodesWithOptions(tmpReq *ReimageNodesRequest, runtime *dara.RuntimeOptions) (_result *ReimageNodesResponse, _err error) {
-	_err = tmpReq.Validate()
+func (client *Client) ReimageNodesWithOptions(tmpReq *ReimageNodesRequest, runtime *util.RuntimeOptions) (_result *ReimageNodesResponse, _err error) {
+	_err = util.ValidateModel(tmpReq)
 	if _err != nil {
 		return _result, _err
 	}
 	request := &ReimageNodesShrinkRequest{}
 	openapiutil.Convert(tmpReq, request)
-	if !dara.IsNil(tmpReq.Nodes) {
-		request.NodesShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.Nodes, dara.String("Nodes"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.Nodes)) {
+		request.NodesShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.Nodes, tea.String("Nodes"), tea.String("json"))
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.ClusterId) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterId)) {
 		body["ClusterId"] = request.ClusterId
 	}
 
-	if !dara.IsNil(request.IgnoreFailedNodeTasks) {
+	if !tea.BoolValue(util.IsUnset(request.IgnoreFailedNodeTasks)) {
 		body["IgnoreFailedNodeTasks"] = request.IgnoreFailedNodeTasks
 	}
 
-	if !dara.IsNil(request.NodesShrink) {
+	if !tea.BoolValue(util.IsUnset(request.NodesShrink)) {
 		body["Nodes"] = request.NodesShrink
 	}
 
-	if !dara.IsNil(request.UserData) {
+	if !tea.BoolValue(util.IsUnset(request.UserData)) {
 		body["UserData"] = request.UserData
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ReimageNodes"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ReimageNodes"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ReimageNodesResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -23785,102 +16001,9 @@ func (client *Client) ReimageNodesWithOptions(tmpReq *ReimageNodesRequest, runti
 //
 // @return ReimageNodesResponse
 func (client *Client) ReimageNodes(request *ReimageNodesRequest) (_result *ReimageNodesResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ReimageNodesResponse{}
 	_body, _err := client.ReimageNodesWithOptions(request, runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_result = _body
-	return _result, _err
-}
-
-// Summary:
-//
-// 节点异常问题上报
-//
-// @param tmpReq - ReportNodesStatusRequest
-//
-// @param runtime - runtime options for this request RuntimeOptions
-//
-// @return ReportNodesStatusResponse
-func (client *Client) ReportNodesStatusWithOptions(tmpReq *ReportNodesStatusRequest, runtime *dara.RuntimeOptions) (_result *ReportNodesStatusResponse, _err error) {
-	_err = tmpReq.Validate()
-	if _err != nil {
-		return _result, _err
-	}
-	request := &ReportNodesStatusShrinkRequest{}
-	openapiutil.Convert(tmpReq, request)
-	if !dara.IsNil(tmpReq.Nodes) {
-		request.NodesShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.Nodes, dara.String("Nodes"), dara.String("json"))
-	}
-
-	body := map[string]interface{}{}
-	if !dara.IsNil(request.Description) {
-		body["Description"] = request.Description
-	}
-
-	if !dara.IsNil(request.EndTime) {
-		body["EndTime"] = request.EndTime
-	}
-
-	if !dara.IsNil(request.IssueCategory) {
-		body["IssueCategory"] = request.IssueCategory
-	}
-
-	if !dara.IsNil(request.NodesShrink) {
-		body["Nodes"] = request.NodesShrink
-	}
-
-	if !dara.IsNil(request.Reason) {
-		body["Reason"] = request.Reason
-	}
-
-	if !dara.IsNil(request.StartTime) {
-		body["StartTime"] = request.StartTime
-	}
-
-	req := &openapiutil.OpenApiRequest{
-		Body: openapiutil.ParseToMap(body),
-	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ReportNodesStatus"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
-	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	}
-
-}
-
-// Summary:
-//
-// 节点异常问题上报
-//
-// @param request - ReportNodesStatusRequest
-//
-// @return ReportNodesStatusResponse
-func (client *Client) ReportNodesStatus(request *ReportNodesStatusRequest) (_result *ReportNodesStatusResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
-	_body, _err := client.ReportNodesStatusWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
 	}
@@ -23897,116 +16020,107 @@ func (client *Client) ReportNodesStatus(request *ReportNodesStatusRequest) (_res
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return RunCommandResponse
-func (client *Client) RunCommandWithOptions(tmpReq *RunCommandRequest, runtime *dara.RuntimeOptions) (_result *RunCommandResponse, _err error) {
-	_err = tmpReq.Validate()
+func (client *Client) RunCommandWithOptions(tmpReq *RunCommandRequest, runtime *util.RuntimeOptions) (_result *RunCommandResponse, _err error) {
+	_err = util.ValidateModel(tmpReq)
 	if _err != nil {
 		return _result, _err
 	}
 	request := &RunCommandShrinkRequest{}
 	openapiutil.Convert(tmpReq, request)
-	if !dara.IsNil(tmpReq.NodeIdList) {
-		request.NodeIdListShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeIdList, dara.String("NodeIdList"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.NodeIdList)) {
+		request.NodeIdListShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeIdList, tea.String("NodeIdList"), tea.String("json"))
 	}
 
-	if !dara.IsNil(tmpReq.Parameters) {
-		request.ParametersShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.Parameters, dara.String("Parameters"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.Parameters)) {
+		request.ParametersShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.Parameters, tea.String("Parameters"), tea.String("json"))
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.ClientToken) {
+	if !tea.BoolValue(util.IsUnset(request.ClientToken)) {
 		body["ClientToken"] = request.ClientToken
 	}
 
-	if !dara.IsNil(request.CommandContent) {
+	if !tea.BoolValue(util.IsUnset(request.CommandContent)) {
 		body["CommandContent"] = request.CommandContent
 	}
 
-	if !dara.IsNil(request.CommandId) {
+	if !tea.BoolValue(util.IsUnset(request.CommandId)) {
 		body["CommandId"] = request.CommandId
 	}
 
-	if !dara.IsNil(request.ContentEncoding) {
+	if !tea.BoolValue(util.IsUnset(request.ContentEncoding)) {
 		body["ContentEncoding"] = request.ContentEncoding
 	}
 
-	if !dara.IsNil(request.Description) {
+	if !tea.BoolValue(util.IsUnset(request.Description)) {
 		body["Description"] = request.Description
 	}
 
-	if !dara.IsNil(request.EnableParameter) {
+	if !tea.BoolValue(util.IsUnset(request.EnableParameter)) {
 		body["EnableParameter"] = request.EnableParameter
 	}
 
-	if !dara.IsNil(request.Frequency) {
+	if !tea.BoolValue(util.IsUnset(request.Frequency)) {
 		body["Frequency"] = request.Frequency
 	}
 
-	if !dara.IsNil(request.Launcher) {
+	if !tea.BoolValue(util.IsUnset(request.Launcher)) {
 		body["Launcher"] = request.Launcher
 	}
 
-	if !dara.IsNil(request.Name) {
+	if !tea.BoolValue(util.IsUnset(request.Name)) {
 		body["Name"] = request.Name
 	}
 
-	if !dara.IsNil(request.NodeIdListShrink) {
+	if !tea.BoolValue(util.IsUnset(request.NodeIdListShrink)) {
 		body["NodeIdList"] = request.NodeIdListShrink
 	}
 
-	if !dara.IsNil(request.ParametersShrink) {
+	if !tea.BoolValue(util.IsUnset(request.ParametersShrink)) {
 		body["Parameters"] = request.ParametersShrink
 	}
 
-	if !dara.IsNil(request.RepeatMode) {
+	if !tea.BoolValue(util.IsUnset(request.RepeatMode)) {
 		body["RepeatMode"] = request.RepeatMode
 	}
 
-	if !dara.IsNil(request.TerminationMode) {
+	if !tea.BoolValue(util.IsUnset(request.TerminationMode)) {
 		body["TerminationMode"] = request.TerminationMode
 	}
 
-	if !dara.IsNil(request.Timeout) {
+	if !tea.BoolValue(util.IsUnset(request.Timeout)) {
 		body["Timeout"] = request.Timeout
 	}
 
-	if !dara.IsNil(request.Username) {
+	if !tea.BoolValue(util.IsUnset(request.Username)) {
 		body["Username"] = request.Username
 	}
 
-	if !dara.IsNil(request.WorkingDir) {
+	if !tea.BoolValue(util.IsUnset(request.WorkingDir)) {
 		body["WorkingDir"] = request.WorkingDir
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("RunCommand"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("RunCommand"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &RunCommandResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -24017,7 +16131,8 @@ func (client *Client) RunCommandWithOptions(tmpReq *RunCommandRequest, runtime *
 //
 // @return RunCommandResponse
 func (client *Client) RunCommand(request *RunCommandRequest) (_result *RunCommandResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &RunCommandResponse{}
 	_body, _err := client.RunCommandWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -24035,92 +16150,83 @@ func (client *Client) RunCommand(request *RunCommandRequest) (_result *RunComman
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return SendFileResponse
-func (client *Client) SendFileWithOptions(tmpReq *SendFileRequest, runtime *dara.RuntimeOptions) (_result *SendFileResponse, _err error) {
-	_err = tmpReq.Validate()
+func (client *Client) SendFileWithOptions(tmpReq *SendFileRequest, runtime *util.RuntimeOptions) (_result *SendFileResponse, _err error) {
+	_err = util.ValidateModel(tmpReq)
 	if _err != nil {
 		return _result, _err
 	}
 	request := &SendFileShrinkRequest{}
 	openapiutil.Convert(tmpReq, request)
-	if !dara.IsNil(tmpReq.NodeIdList) {
-		request.NodeIdListShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeIdList, dara.String("NodeIdList"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.NodeIdList)) {
+		request.NodeIdListShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeIdList, tea.String("NodeIdList"), tea.String("json"))
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.Content) {
+	if !tea.BoolValue(util.IsUnset(request.Content)) {
 		body["Content"] = request.Content
 	}
 
-	if !dara.IsNil(request.ContentType) {
+	if !tea.BoolValue(util.IsUnset(request.ContentType)) {
 		body["ContentType"] = request.ContentType
 	}
 
-	if !dara.IsNil(request.Description) {
+	if !tea.BoolValue(util.IsUnset(request.Description)) {
 		body["Description"] = request.Description
 	}
 
-	if !dara.IsNil(request.FileGroup) {
+	if !tea.BoolValue(util.IsUnset(request.FileGroup)) {
 		body["FileGroup"] = request.FileGroup
 	}
 
-	if !dara.IsNil(request.FileMode) {
+	if !tea.BoolValue(util.IsUnset(request.FileMode)) {
 		body["FileMode"] = request.FileMode
 	}
 
-	if !dara.IsNil(request.FileOwner) {
+	if !tea.BoolValue(util.IsUnset(request.FileOwner)) {
 		body["FileOwner"] = request.FileOwner
 	}
 
-	if !dara.IsNil(request.Name) {
+	if !tea.BoolValue(util.IsUnset(request.Name)) {
 		body["Name"] = request.Name
 	}
 
-	if !dara.IsNil(request.NodeIdListShrink) {
+	if !tea.BoolValue(util.IsUnset(request.NodeIdListShrink)) {
 		body["NodeIdList"] = request.NodeIdListShrink
 	}
 
-	if !dara.IsNil(request.Overwrite) {
+	if !tea.BoolValue(util.IsUnset(request.Overwrite)) {
 		body["Overwrite"] = request.Overwrite
 	}
 
-	if !dara.IsNil(request.TargetDir) {
+	if !tea.BoolValue(util.IsUnset(request.TargetDir)) {
 		body["TargetDir"] = request.TargetDir
 	}
 
-	if !dara.IsNil(request.Timeout) {
+	if !tea.BoolValue(util.IsUnset(request.Timeout)) {
 		body["Timeout"] = request.Timeout
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("SendFile"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("SendFile"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &SendFileResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -24131,7 +16237,8 @@ func (client *Client) SendFileWithOptions(tmpReq *SendFileRequest, runtime *dara
 //
 // @return SendFileResponse
 func (client *Client) SendFile(request *SendFileRequest) (_result *SendFileResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &SendFileResponse{}
 	_body, _err := client.SendFileWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -24149,60 +16256,51 @@ func (client *Client) SendFile(request *SendFileRequest) (_result *SendFileRespo
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return ShrinkClusterResponse
-func (client *Client) ShrinkClusterWithOptions(tmpReq *ShrinkClusterRequest, runtime *dara.RuntimeOptions) (_result *ShrinkClusterResponse, _err error) {
-	_err = tmpReq.Validate()
+func (client *Client) ShrinkClusterWithOptions(tmpReq *ShrinkClusterRequest, runtime *util.RuntimeOptions) (_result *ShrinkClusterResponse, _err error) {
+	_err = util.ValidateModel(tmpReq)
 	if _err != nil {
 		return _result, _err
 	}
 	request := &ShrinkClusterShrinkRequest{}
 	openapiutil.Convert(tmpReq, request)
-	if !dara.IsNil(tmpReq.NodeGroups) {
-		request.NodeGroupsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeGroups, dara.String("NodeGroups"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.NodeGroups)) {
+		request.NodeGroupsShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeGroups, tea.String("NodeGroups"), tea.String("json"))
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.ClusterId) {
+	if !tea.BoolValue(util.IsUnset(request.ClusterId)) {
 		body["ClusterId"] = request.ClusterId
 	}
 
-	if !dara.IsNil(request.IgnoreFailedNodeTasks) {
+	if !tea.BoolValue(util.IsUnset(request.IgnoreFailedNodeTasks)) {
 		body["IgnoreFailedNodeTasks"] = request.IgnoreFailedNodeTasks
 	}
 
-	if !dara.IsNil(request.NodeGroupsShrink) {
+	if !tea.BoolValue(util.IsUnset(request.NodeGroupsShrink)) {
 		body["NodeGroups"] = request.NodeGroupsShrink
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("ShrinkCluster"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("ShrinkCluster"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &ShrinkClusterResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -24213,7 +16311,8 @@ func (client *Client) ShrinkClusterWithOptions(tmpReq *ShrinkClusterRequest, run
 //
 // @return ShrinkClusterResponse
 func (client *Client) ShrinkCluster(request *ShrinkClusterRequest) (_result *ShrinkClusterResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &ShrinkClusterResponse{}
 	_body, _err := client.ShrinkClusterWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -24231,56 +16330,47 @@ func (client *Client) ShrinkCluster(request *ShrinkClusterRequest) (_result *Shr
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return StopInvocationResponse
-func (client *Client) StopInvocationWithOptions(tmpReq *StopInvocationRequest, runtime *dara.RuntimeOptions) (_result *StopInvocationResponse, _err error) {
-	_err = tmpReq.Validate()
+func (client *Client) StopInvocationWithOptions(tmpReq *StopInvocationRequest, runtime *util.RuntimeOptions) (_result *StopInvocationResponse, _err error) {
+	_err = util.ValidateModel(tmpReq)
 	if _err != nil {
 		return _result, _err
 	}
 	request := &StopInvocationShrinkRequest{}
 	openapiutil.Convert(tmpReq, request)
-	if !dara.IsNil(tmpReq.NodeIdList) {
-		request.NodeIdListShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeIdList, dara.String("NodeIdList"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.NodeIdList)) {
+		request.NodeIdListShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.NodeIdList, tea.String("NodeIdList"), tea.String("json"))
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.InvokeId) {
+	if !tea.BoolValue(util.IsUnset(request.InvokeId)) {
 		body["InvokeId"] = request.InvokeId
 	}
 
-	if !dara.IsNil(request.NodeIdListShrink) {
+	if !tea.BoolValue(util.IsUnset(request.NodeIdListShrink)) {
 		body["NodeIdList"] = request.NodeIdListShrink
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("StopInvocation"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("StopInvocation"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &StopInvocationResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -24291,7 +16381,8 @@ func (client *Client) StopInvocationWithOptions(tmpReq *StopInvocationRequest, r
 //
 // @return StopInvocationResponse
 func (client *Client) StopInvocation(request *StopInvocationRequest) (_result *StopInvocationResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &StopInvocationResponse{}
 	_body, _err := client.StopInvocationWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -24309,56 +16400,47 @@ func (client *Client) StopInvocation(request *StopInvocationRequest) (_result *S
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return StopNodesResponse
-func (client *Client) StopNodesWithOptions(tmpReq *StopNodesRequest, runtime *dara.RuntimeOptions) (_result *StopNodesResponse, _err error) {
-	_err = tmpReq.Validate()
+func (client *Client) StopNodesWithOptions(tmpReq *StopNodesRequest, runtime *util.RuntimeOptions) (_result *StopNodesResponse, _err error) {
+	_err = util.ValidateModel(tmpReq)
 	if _err != nil {
 		return _result, _err
 	}
 	request := &StopNodesShrinkRequest{}
 	openapiutil.Convert(tmpReq, request)
-	if !dara.IsNil(tmpReq.Nodes) {
-		request.NodesShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.Nodes, dara.String("Nodes"), dara.String("json"))
+	if !tea.BoolValue(util.IsUnset(tmpReq.Nodes)) {
+		request.NodesShrink = openapiutil.ArrayToStringWithSpecifiedStyle(tmpReq.Nodes, tea.String("Nodes"), tea.String("json"))
 	}
 
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.IgnoreFailedNodeTasks) {
+	if !tea.BoolValue(util.IsUnset(request.IgnoreFailedNodeTasks)) {
 		body["IgnoreFailedNodeTasks"] = request.IgnoreFailedNodeTasks
 	}
 
-	if !dara.IsNil(request.NodesShrink) {
+	if !tea.BoolValue(util.IsUnset(request.NodesShrink)) {
 		body["Nodes"] = request.NodesShrink
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("StopNodes"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("StopNodes"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &StopNodesResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -24369,7 +16451,8 @@ func (client *Client) StopNodesWithOptions(tmpReq *StopNodesRequest, runtime *da
 //
 // @return StopNodesResponse
 func (client *Client) StopNodes(request *StopNodesRequest) (_result *StopNodesResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &StopNodesResponse{}
 	_body, _err := client.StopNodesWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -24387,62 +16470,49 @@ func (client *Client) StopNodes(request *StopNodesRequest) (_result *StopNodesRe
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return TagResourcesResponse
-func (client *Client) TagResourcesWithOptions(request *TagResourcesRequest, runtime *dara.RuntimeOptions) (_result *TagResourcesResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) TagResourcesWithOptions(request *TagResourcesRequest, runtime *util.RuntimeOptions) (_result *TagResourcesResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	query := map[string]interface{}{}
-	if !dara.IsNil(request.RegionId) {
+	if !tea.BoolValue(util.IsUnset(request.RegionId)) {
 		query["RegionId"] = request.RegionId
 	}
 
-	if !dara.IsNil(request.ResourceId) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceId)) {
 		query["ResourceId"] = request.ResourceId
 	}
 
-	if !dara.IsNil(request.ResourceType) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceType)) {
 		query["ResourceType"] = request.ResourceType
 	}
 
-	if !dara.IsNil(request.Service) {
-		query["Service"] = request.Service
-	}
-
-	if !dara.IsNil(request.Tag) {
+	if !tea.BoolValue(util.IsUnset(request.Tag)) {
 		query["Tag"] = request.Tag
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Query: openapiutil.Query(query),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("TagResources"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("TagResources"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &TagResourcesResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -24453,7 +16523,8 @@ func (client *Client) TagResourcesWithOptions(request *TagResourcesRequest, runt
 //
 // @return TagResourcesResponse
 func (client *Client) TagResources(request *TagResourcesRequest) (_result *TagResourcesResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &TagResourcesResponse{}
 	_body, _err := client.TagResourcesWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -24471,66 +16542,53 @@ func (client *Client) TagResources(request *TagResourcesRequest) (_result *TagRe
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return UntagResourcesResponse
-func (client *Client) UntagResourcesWithOptions(request *UntagResourcesRequest, runtime *dara.RuntimeOptions) (_result *UntagResourcesResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) UntagResourcesWithOptions(request *UntagResourcesRequest, runtime *util.RuntimeOptions) (_result *UntagResourcesResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	query := map[string]interface{}{}
-	if !dara.IsNil(request.All) {
+	if !tea.BoolValue(util.IsUnset(request.All)) {
 		query["All"] = request.All
 	}
 
-	if !dara.IsNil(request.RegionId) {
+	if !tea.BoolValue(util.IsUnset(request.RegionId)) {
 		query["RegionId"] = request.RegionId
 	}
 
-	if !dara.IsNil(request.ResourceId) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceId)) {
 		query["ResourceId"] = request.ResourceId
 	}
 
-	if !dara.IsNil(request.ResourceType) {
+	if !tea.BoolValue(util.IsUnset(request.ResourceType)) {
 		query["ResourceType"] = request.ResourceType
 	}
 
-	if !dara.IsNil(request.Service) {
-		query["Service"] = request.Service
-	}
-
-	if !dara.IsNil(request.TagKey) {
+	if !tea.BoolValue(util.IsUnset(request.TagKey)) {
 		query["TagKey"] = request.TagKey
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Query: openapiutil.Query(query),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("UntagResources"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("UntagResources"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &UntagResourcesResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
@@ -24541,7 +16599,8 @@ func (client *Client) UntagResourcesWithOptions(request *UntagResourcesRequest, 
 //
 // @return UntagResourcesResponse
 func (client *Client) UntagResources(request *UntagResourcesRequest) (_result *UntagResourcesResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &UntagResourcesResponse{}
 	_body, _err := client.UntagResourcesWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
@@ -24552,72 +16611,80 @@ func (client *Client) UntagResources(request *UntagResourcesRequest) (_result *U
 
 // Summary:
 //
-// 更新节点分组
+// # Update Node Group
+//
+// Description:
+//
+// An interface for creating a session, which returns the front-end EndPoint and initiates a periodic task to track the session status.
 //
 // @param request - UpdateNodeGroupRequest
 //
 // @param runtime - runtime options for this request RuntimeOptions
 //
 // @return UpdateNodeGroupResponse
-func (client *Client) UpdateNodeGroupWithOptions(request *UpdateNodeGroupRequest, runtime *dara.RuntimeOptions) (_result *UpdateNodeGroupResponse, _err error) {
-	_err = request.Validate()
+func (client *Client) UpdateNodeGroupWithOptions(request *UpdateNodeGroupRequest, runtime *util.RuntimeOptions) (_result *UpdateNodeGroupResponse, _err error) {
+	_err = util.ValidateModel(request)
 	if _err != nil {
 		return _result, _err
 	}
 	body := map[string]interface{}{}
-	if !dara.IsNil(request.NewNodeGroupName) {
+	if !tea.BoolValue(util.IsUnset(request.FileSystemMountEnabled)) {
+		body["FileSystemMountEnabled"] = request.FileSystemMountEnabled
+	}
+
+	if !tea.BoolValue(util.IsUnset(request.KeyPairName)) {
+		body["KeyPairName"] = request.KeyPairName
+	}
+
+	if !tea.BoolValue(util.IsUnset(request.NewNodeGroupName)) {
 		body["NewNodeGroupName"] = request.NewNodeGroupName
 	}
 
-	if !dara.IsNil(request.NodeGroupId) {
+	if !tea.BoolValue(util.IsUnset(request.NodeGroupId)) {
 		body["NodeGroupId"] = request.NodeGroupId
 	}
 
-	if !dara.IsNil(request.UserData) {
+	if !tea.BoolValue(util.IsUnset(request.UserData)) {
 		body["UserData"] = request.UserData
 	}
 
-	req := &openapiutil.OpenApiRequest{
+	req := &openapi.OpenApiRequest{
 		Body: openapiutil.ParseToMap(body),
 	}
-	params := &openapiutil.Params{
-		Action:      dara.String("UpdateNodeGroup"),
-		Version:     dara.String("2022-12-15"),
-		Protocol:    dara.String("HTTPS"),
-		Pathname:    dara.String("/"),
-		Method:      dara.String("POST"),
-		AuthType:    dara.String("AK"),
-		Style:       dara.String("RPC"),
-		ReqBodyType: dara.String("formData"),
-		BodyType:    dara.String("json"),
+	params := &openapi.Params{
+		Action:      tea.String("UpdateNodeGroup"),
+		Version:     tea.String("2022-12-15"),
+		Protocol:    tea.String("HTTPS"),
+		Pathname:    tea.String("/"),
+		Method:      tea.String("POST"),
+		AuthType:    tea.String("AK"),
+		Style:       tea.String("RPC"),
+		ReqBodyType: tea.String("formData"),
+		BodyType:    tea.String("json"),
 	}
-	if dara.IsNil(client.SignatureVersion) || dara.StringValue(client.SignatureVersion) != "v4" {
-		_body, _err := client.CallApi(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
-		return _result, _err
-	} else {
-		_body, _err := client.Execute(params, req, runtime)
-		if _err != nil {
-			return _result, _err
-		}
-		_err = dara.Convert(_body, &_result)
+	_result = &UpdateNodeGroupResponse{}
+	_body, _err := client.CallApi(params, req, runtime)
+	if _err != nil {
 		return _result, _err
 	}
-
+	_err = tea.Convert(_body, &_result)
+	return _result, _err
 }
 
 // Summary:
 //
-// 更新节点分组
+// # Update Node Group
+//
+// Description:
+//
+// An interface for creating a session, which returns the front-end EndPoint and initiates a periodic task to track the session status.
 //
 // @param request - UpdateNodeGroupRequest
 //
 // @return UpdateNodeGroupResponse
 func (client *Client) UpdateNodeGroup(request *UpdateNodeGroupRequest) (_result *UpdateNodeGroupResponse, _err error) {
-	runtime := &dara.RuntimeOptions{}
+	runtime := &util.RuntimeOptions{}
+	_result = &UpdateNodeGroupResponse{}
 	_body, _err := client.UpdateNodeGroupWithOptions(request, runtime)
 	if _err != nil {
 		return _result, _err
