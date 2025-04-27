@@ -54,7 +54,6 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 	d := &OSS{}
 	d.endpoint = endpoint
 
-	var ossc *cloud.OSSClient
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	if serviceType&utils.Node > 0 {
 		if nodeName == "" {
@@ -62,15 +61,6 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 		}
 	} else {
 		nodeName = "controller" // any non-empty value to avoid csi-common panic
-
-		region, err := m.Get(metadata.RegionID)
-		if err != nil {
-			klog.Fatalf("failed to get region: %v", err)
-		}
-		ossc := cloud.NewOSSClient(region)
-		if ossc == nil {
-			klog.Fatalf("failed to new oss client")
-		}
 	}
 
 	cfg := options.MustGetRestConfig()
@@ -93,6 +83,16 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 	servers.IdentityServer = newIdentityServer()
 
 	if serviceType&utils.Controller != 0 {
+		
+		region, err := m.Get(metadata.RegionID)
+		if err != nil {
+			klog.Fatalf("failed to get region: %v", err)
+		}
+		ossc := cloud.NewOSSClient(region)
+		if ossc == nil {
+			klog.Fatalf("failed to new oss client")
+		}
+
 		servers.ControllerServer = &controllerServer{
 			client:          clientset,
 			cnfsGetter:      cnfsGetter,
