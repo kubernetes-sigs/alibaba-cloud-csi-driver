@@ -720,7 +720,7 @@ func TestMakeMountOptions(t *testing.T) {
 	assert.Equal(t, want2, got2)
 }
 
-func TestGetOSSBucketRegio(t *testing.T) {
+func TestGetOSSBucketRegion(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

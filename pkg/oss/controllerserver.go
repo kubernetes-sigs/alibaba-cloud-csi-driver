@@ -87,8 +87,10 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 	ossRegion, err := getOSSBucketRegion(ctx, cs.ossc, ossVol)
 	if err != nil {
 		klog.Errorf("CreateVolume: failed to get oss bucket region: %v", err)
+	} else {
+		volumeContext["region"] = ossRegion
 	}
-	volumeContext["region"] = ossRegion
+
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	csiTargetVolume := &csi.Volume{
 		VolumeId:      req.Name,
@@ -179,20 +181,23 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Errorf(codes.Internal, "failed to create %s pod: %v", opts.FuseType, err)
 	}
 
+	pubCtx := map[string]string{
+		mountProxySocket: mounter.GetMountProxySocketPath(req.VolumeId),
+		// make the fuse pod name visible in the VolumeAttachment status
+		"fusePod": fmt.Sprintf("%s/%s", fusePod.Namespace, fusePod.Name),
+	}
+
 	cs.ossc.UpdateToken()
 	ossRegion, err := getOSSBucketRegion(ctx, cs.ossc, opts)
 	if err != nil {
 		klog.Errorf("CreateVolume: failed to get oss bucket region: %v", err)
+	} else {
+		pubCtx["region"] = ossRegion
 	}
 
 	klog.Infof("ControllerPublishVolume: successfully published volume %s on node %s", req.VolumeId, req.NodeId)
 	return &csi.ControllerPublishVolumeResponse{
-		PublishContext: map[string]string{
-			mountProxySocket: mounter.GetMountProxySocketPath(req.VolumeId),
-			// make the fuse pod name visible in the VolumeAttachment status
-			"fusePod": fmt.Sprintf("%s/%s", fusePod.Namespace, fusePod.Name),
-			"region":  ossRegion,
-		},
+		PublishContext: pubCtx,
 	}, nil
 }
 

@@ -112,9 +112,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// parse options
 	region, _ := ns.metadata.Get(metadata.RegionID)
 	// ensure fuseType is not empty
-	allParms := maps.Clone(req.GetVolumeContext())
-	maps.Copy(allParms, req.GetPublishContext())
-	opts := parseOptions(allParms, req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), region, "", true)
+	allParams := maps.Clone(req.GetVolumeContext())
+	maps.Copy(allParams, req.GetPublishContext())
+	opts := parseOptions(allParams, req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), region, "", true)
 	if err := setCNFSOptions(ctx, ns.cnfsGetter, opts); err != nil {
 		return nil, err
 	}

@@ -9,7 +9,6 @@ import (
 	"github.com/aliyun/alibabacloud-oss-go-sdk-v2/oss/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
-	"k8s.io/klog/v2"
 )
 
 type OSSClient struct {
@@ -31,7 +30,6 @@ var location2region map[string]string = map[string]string{
 func NewOSSClient(region string) *OSSClient {
 	// Init OSS Client
 	ac := utils.GetAccessControl()
-	klog.Infof("newCloud: ac: %+v", ac)
 	provider := credentials.NewStaticCredentialsProvider(ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
 	cfg := oss.LoadDefaultConfig().WithCredentialsProvider(provider).WithRegion(region)
 	ossc := oss.NewClient(cfg)
