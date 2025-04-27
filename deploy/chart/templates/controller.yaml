@@ -6,6 +6,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
   annotations:
     csi.alibabacloud.com/default-ossfs-tag: {{ .Values.images.ossfs.tag }}
+    csi.alibabacloud.com/default-ossfs2-tag: {{ .Values.images.ossfs2.tag }}
 spec:
   selector:
     matchLabels:

@@ -15,7 +15,7 @@ RUN --mount=type=bind,target=. \
 FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/alinux:3-update
 
 ARG TARGETPLATFORM
-ARG OSSFS_VERSION=v1.91.5.ack.1
+ARG OSSFS_VERSION=v1.91.6.ack.1
 ARG ALINAS_UTILS_VERSION=1.6-1.20241101165952.ce0ef4
 ARG EFC_VERSION=1.6-20241028201622.a31063
 RUN set -ex; \
