@@ -79,10 +79,13 @@ done
 
 
 ## OSS plugin setup
+echo "USE_UPDATE_OSSFS:"${USE_UPDATE_OSSFS}
 if [ "$run_oss" = "true" ]; then
     ossfsVer="1.80.6.ack.1"
     if [ "$USE_UPDATE_OSSFS" == "" ]; then
         ossfsVer="1.88.1"
+    elif [ $USE_UPDATE_OSSFS == "true" ]; then
+        ossfsVer="1.91.5"
     fi
 
     ossfsArch="centos7.0"
@@ -97,11 +100,11 @@ if [ "$run_oss" = "true" ]; then
                 sleep 2
             fi
         done
-        ossfsArch="centos8"
+        ossfsArch="centos8.0"
     fi
 
 		if [[ ${host_os} == "lifsea" ]]; then
-        ossfsArch="centos8"
+        ossfsArch="centos8.0"
     fi
 
     echo "Starting deploy oss csi-plugin..."

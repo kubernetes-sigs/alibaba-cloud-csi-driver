@@ -2,12 +2,15 @@ FROM registry.cn-hangzhou.aliyuncs.com/plugins/centos:7.9.2009
 LABEL maintainers="Alibaba Cloud Authors"
 LABEL description="Alibaba Cloud CSI Plugin"
 
-ARG ossfsVer=1.80.6.ack.1
-ARG update_ossfsVer=1.88.1
+ARG deprecated_ossfsVer=1.80.6.ack.1
+ARG ossfsVer=1.88.1
+ARG update_ossfsVer=1.91.5
 
-RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${ossfsVer}-b42b3a8_centos7.0_x86_64.rpm -o /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
-RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}_centos7.0_x86_64.rpm -o /root/ossfs_${update_ossfsVer}_centos7.0_x86_64.rpm
-RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${update_ossfsVer}_centos8_x86_64.rpm -o /root/ossfs_${update_ossfsVer}_centos8_x86_64.rpm
+RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/ossfs/ossfs_${deprecated_ossfsVer}-b42b3a8_centos7.0_x86_64.rpm -o /root/ossfs_${deprecated_ossfsVer}_centos7.0_x86_64.rpm
+RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${ossfsVer}_centos7.0_x86_64.rpm -o /root/ossfs_${ossfsVer}_centos7.0_x86_64.rpm
+RUN curl http://ack-csiplugin.oss-cn-hangzhou.aliyuncs.com/pre/ossfs/ossfs_${ossfsVer}_centos8_x86_64.rpm -o /root/ossfs_${ossfsVer}_centos8.0_x86_64.rpm
+RUN curl https://gosspublic.alicdn.com/ossfs/ossfs_${update_ossfsVer}_centos7.0_x86_64.rpm -o /root/ossfs_${update_ossfsVer}_centos7.0_x86_64.rpm
+RUN curl https://gosspublic.alicdn.com/ossfs/ossfs_${update_ossfsVer}_centos8.0_x86_64.rpm -o /root/ossfs_${update_ossfsVer}_centos8.0_x86_64.rpm
 RUN curl https://aliyun-alinas-eac.oss-cn-beijing.aliyuncs.com/alinas-efc-1.2-3.x86_64.rpm -o /root/alinas-efc-1.2-3.x86_64.rpm
 RUN curl https://aliyun-encryption.oss-cn-beijing.aliyuncs.com/aliyun-alinas-utils-1.1-6.al7.noarch.rpm -o /root/aliyun-alinas-utils-1.1-6.al7.noarch.rpm
 
