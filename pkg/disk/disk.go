@@ -339,7 +339,10 @@ func GlobalConfigSet(nodeID string) *restclient.Config {
 	nodeInfo, err := kubeClient.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		log.Log.Errorf("GlobalConfigSet: get node %s with error: %s", nodeName, err.Error())
-		regionID, _ = utils.GetRegionID()
+		regionID, err = utils.GetRegionID()
+		if err != nil {
+			log.Log.Errorf("GlobalConfigSet: get regionID with error: %s", err.Error())
+		}
 	} else {
 		if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime"]; ok && strings.TrimSpace(value) == "Sandboxed-Container.runv" {
 			if value, ok := nodeInfo.Labels["alibabacloud.com/container-runtime-version"]; ok && strings.HasPrefix(strings.TrimSpace(value), "1.") {
@@ -349,6 +352,12 @@ func GlobalConfigSet(nodeID string) *restclient.Config {
 		log.Log.Infof("Describe node %s and Set RunTimeClass to %s", nodeName, runtimeValue)
 
 		regionID, zoneID, vmID = getMeta(nodeInfo)
+		if regionID == "" {
+			regionID, err = utils.GetRegionID()
+			if err != nil {
+				log.Log.Errorf("GlobalConfigSet: get regionID with error: %s", err.Error())
+			}
+		}
 		log.Log.Infof("NewNodeServer: get instance meta info from metadataserver, regionID: %s, zoneID: %s, vmID: %s", regionID, zoneID, vmID)
 
 		if nodeID == "" {
