@@ -73,6 +73,12 @@ deploy:
 
   ack: true  # deployed on managed Alibaba Cloud Container Service for Kubernetes (ACK)
   ecs: true  # use Alibaba Cloud Elastic Compute Service (ECS) for Node
+
+  # Possible values:
+  #   - public: has access to Internet
+  #   - vpc: has access to Alibaba Cloud Virtual Private Cloud (VPC)
+  #   - null: use vpc for ECS, SDK defaults otherwise
+  network: null
   clusterID: null  # will be injected on installation on ACK
   regionID: null  # useful when deploying on non-ECS, but need to access Alibaba Cloud OpenAPI
 
@@ -85,7 +91,7 @@ deploy:
 
 images:
   registry: registry-cn-hangzhou.ack.aliyuncs.com
-  workerRegistry: null  # registry for worker nodes, if different from registry
+  registryVPC: registry-cn-hangzhou-vpc.ack.aliyuncs.com
   controller:
     repo: acs/csi-plugin
     tag: "v1.31.4-9819c8b-aliyun"

@@ -75,7 +75,7 @@ spec:
       containers:
 {{- if and .Values.csi.disk.enabled .Values.csi.disk.controller.enabled }}
         - name: external-disk-provisioner
-          image: {{ include "imageSpec" (list .Values.images "externalProvisioner") }}
+          image: {{ include "imageSpec" (list .Values "externalProvisioner") }}
           resources:
             requests:
               cpu: 10m
@@ -99,7 +99,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /csi
         - name: external-disk-attacher
-          image: {{ include "imageSpec" (list .Values.images "externalAttacher") }}
+          image: {{ include "imageSpec" (list .Values "externalAttacher") }}
           resources:
             requests:
               cpu: 10m
@@ -120,7 +120,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /csi
         - name: external-disk-resizer
-          image: {{ include "imageSpec" (list .Values.images "externalResizer") }}
+          image: {{ include "imageSpec" (list .Values "externalResizer") }}
           resources:
             requests:
               cpu: 10m
@@ -138,7 +138,7 @@ spec:
             - name: disk-provisioner-dir
               mountPath: /csi
         - name: external-csi-snapshotter
-          image: {{ include "imageSpec" (list .Values.images "externalSnapshotter") }}
+          image: {{ include "imageSpec" (list .Values "externalSnapshotter") }}
           resources:
             requests:
               cpu: 10m
@@ -157,7 +157,7 @@ spec:
               mountPath: /csi
 {{ if .Values.volumeSnapshot.controller.enabled }}
         - name: external-snapshot-controller
-          image: {{ include "imageSpec" (list .Values.images "externalSnapshotController") }}
+          image: {{ include "imageSpec" (list .Values "externalSnapshotController") }}
           resources:
             requests:
               cpu: 10m
@@ -173,7 +173,7 @@ spec:
 {{- end -}}
 {{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
         - name: external-nas-provisioner
-          image: {{ include "imageSpec" (list .Values.images "externalProvisioner") }}
+          image: {{ include "imageSpec" (list .Values "externalProvisioner") }}
           resources:
             requests:
               cpu: 10m
@@ -195,7 +195,7 @@ spec:
             - name: nas-provisioner-dir
               mountPath: /csi
         - name: external-nas-resizer
-          image: {{ include "imageSpec" (list .Values.images "externalResizer") }}
+          image: {{ include "imageSpec" (list .Values "externalResizer") }}
           resources:
             requests:
               cpu: 10m
@@ -225,7 +225,7 @@ spec:
             - --kube-api-qps=100
             - --kube-api-burst=200
             - --v=5
-          image: {{ include "imageSpec" (list .Values.images "externalProvisioner") }}
+          image: {{ include "imageSpec" (list .Values "externalProvisioner") }}
           resources:
             limits:
               cpu: 500m
@@ -237,7 +237,7 @@ spec:
           - mountPath: /csi
             name: oss-provisioner-dir
         - name: external-oss-attacher
-          image: {{ include "imageSpec" (list .Values.images "externalAttacher") }}
+          image: {{ include "imageSpec" (list .Values "externalAttacher") }}
           resources:
             requests:
               cpu: 10m
@@ -258,7 +258,7 @@ spec:
 {{- end -}}
 {{- if and .Values.csi.local.enabled .Values.csi.local.controller.enabled }}
         - name: external-local-provisioner
-          image: {{ include "imageSpec" (list .Values.images "externalProvisioner") }}
+          image: {{ include "imageSpec" (list .Values "externalProvisioner") }}
           imagePullPolicy: Always
           args:
             - --csi-address=/csi/csi.sock
@@ -283,7 +283,7 @@ spec:
             - name: local-provisioner-dir
               mountPath: /csi
         - name: external-local-resizer
-          image: {{ include "imageSpec" (list .Values.images "externalResizer") }}
+          image: {{ include "imageSpec" (list .Values "externalResizer") }}
           resources:
             requests:
               cpu: 10m
@@ -302,7 +302,7 @@ spec:
               mountPath: /csi
 {{- end }}
         - name: csi-provisioner
-          image: {{ include "imageSpec" (list .Values.images "controller") }}
+          image: {{ include "imageSpec" (list .Values "controller") }}
           args:
             - --endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock
             - --v=2
@@ -319,12 +319,9 @@ spec:
             - --nodeid=$(KUBE_NODE_NAME)
 {{- end }}
           env:
-{{- if .Values.deploy.ecs }}
-            - name: ALIBABA_CLOUD_NETWORK_TYPE
-              value: vpc
-{{- end }}
+            {{- include "networkEnv" .Values.deploy | nindent 12 }}
             - name: "DEFAULT_REGISTRY"
-              value: {{ .Values.images.registry | quote }}
+              value: {{ include "registry" .Values | quote }}
 {{- if .Values.deploy.ack }}
             - name: "CLUSTER_ID"
               value: {{ .Values.deploy.clusterID | quote }}
@@ -404,7 +401,7 @@ spec:
         - name: local-csi-provisioner
           securityContext:
             privileged: true
-          image: {{ include "imageSpec" (list .Values.images "localController") }}
+          image: {{ include "imageSpec" (list .Values "localController") }}
           args:
             - --endpoint=unix://csi/csi.sock
             - --http-endpoint=:11271
