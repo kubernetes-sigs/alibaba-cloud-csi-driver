@@ -1,15 +1,21 @@
+{{- define "registry" -}}
+{{- $vpc := (eq .deploy.network "vpc") -}}
+{{- if (eq .deploy.network nil) -}}
+    {{- $vpc = .deploy.ecs -}}
+{{- end -}}
+{{- if $vpc -}}
+    {{- .images.registryVPC -}}
+{{- else -}}
+    {{- .images.registry -}}
+{{- end -}}
+{{- end -}}
+
+
 {{- define "imageSpec" -}}
 {{- $v := index . 0 -}}
 {{- $container := index . 1 -}}
-{{- $cv := get $v $container -}}
-{{ printf "%s/%s:%s" ($cv.registry | default $v.registry) $cv.repo $cv.tag | quote }}
-{{- end -}}
-
-{{- define "workerImageSpec" -}}
-{{- $v := index . 0 -}}
-{{- $container := index . 1 -}}
-{{- $cv := get $v $container -}}
-{{ printf "%s/%s:%s" ($cv.registry | default $v.workerRegistry | default $v.registry) $cv.repo $cv.tag | quote }}
+{{- $cv := get $v.images $container -}}
+{{ printf "%s/%s:%s" (include "registry" $v) $cv.repo $cv.tag | quote }}
 {{- end -}}
 
 {{- define "enabledPlugins" -}}
@@ -55,5 +61,15 @@
 {{- if ne $d "/var/lib/kubelet" -}}
 - name: KUBELET_ROOT_DIR
   value: {{ $d | quote }}
+{{- end -}}
+{{- end -}}
+
+{{- define "networkEnv" -}}
+{{- if (ne .network nil) -}}
+- name: ALIBABA_CLOUD_NETWORK_TYPE
+  value: {{ .network | quote }}
+{{- else if .ecs -}}
+- name: ALIBABA_CLOUD_NETWORK_TYPE
+  value: "vpc"
 {{- end -}}
 {{- end -}}

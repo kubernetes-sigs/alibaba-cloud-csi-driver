@@ -46,7 +46,7 @@ spec:
 {{- if and (ne $nodePool.deploy.nodeInit false) (or $nodePool.csi.nas.enabled $nodePool.csi.oss.enabled (eq $nodePool.deploy.nodeInit true)) }}
       initContainers:
         - name: init
-          image: {{ include "workerImageSpec" (list $nodePool.images "pluginInit") }}
+          image: {{ include "imageSpec" (list $nodePool "pluginInit") }}
           args:
             - "--driver={{ include "enabledPlugins" $nodePool.csi }}"
           env:
@@ -75,7 +75,7 @@ spec:
 {{- range $key, $val := $nodePool.csi }}
 {{- if $val.enabled }}
         - name: {{$key}}-driver-registrar
-          image: {{ include "workerImageSpec" (list $nodePool.images "pluginRegistrar") }}
+          image: {{ include "imageSpec" (list $nodePool "pluginRegistrar") }}
           resources:
             requests:
               cpu: 10m
@@ -98,7 +98,7 @@ spec:
           securityContext:
             privileged: true
             allowPrivilegeEscalation: true
-          image: {{ include "workerImageSpec" (list $nodePool.images "plugin") }}
+          image: {{ include "imageSpec" (list $nodePool "plugin") }}
           args:
             - "--endpoint=unix://csi/driverplugin.csi.alibabacloud.com-replace/csi.sock"
             - "--v=2"
@@ -118,10 +118,7 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
-{{- if $nodePool.deploy.ecs }}
-            - name: ALIBABA_CLOUD_NETWORK_TYPE
-              value: vpc
-{{- end }}
+            {{- include "networkEnv" $nodePool.deploy | nindent 12 }}
 {{- if $nodePool.deploy.regionID }}
             - name: REGION_ID
               value: {{ $nodePool.deploy.regionID | quote }}
@@ -221,7 +218,7 @@ spec:
           securityContext:
             privileged: true
             allowPrivilegeEscalation: true
-          image: {{ include "workerImageSpec" (list $nodePool.images "localPlugin") }}
+          image: {{ include "imageSpec" (list $nodePool "localPlugin") }}
           args:
             - --endpoint=unix://csi/csi.sock
             - --http-endpoint=:11261
