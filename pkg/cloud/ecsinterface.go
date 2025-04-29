@@ -11,4 +11,10 @@ type ECSInterface interface {
 	DescribeDisks(request *ecs.DescribeDisksRequest) (response *ecs.DescribeDisksResponse, err error)
 	ResizeDisk(request *ecs.ResizeDiskRequest) (response *ecs.ResizeDiskResponse, err error)
 	DescribeSnapshots(request *ecs.DescribeSnapshotsRequest) (response *ecs.DescribeSnapshotsResponse, err error)
+
+	TagResources(request *ecs.TagResourcesRequest) (response *ecs.TagResourcesResponse, err error)
+	UntagResources(request *ecs.UntagResourcesRequest) (response *ecs.UntagResourcesResponse, err error)
+	ModifyDiskSpec(request *ecs.ModifyDiskSpecRequest) (response *ecs.ModifyDiskSpecResponse, err error)
+	ModifyDiskAttribute(request *ecs.ModifyDiskAttributeRequest) (response *ecs.ModifyDiskAttributeResponse, err error)
+	DescribeTasks(request *ecs.DescribeTasksRequest) (response *ecs.DescribeTasksResponse, err error)
 }
