@@ -82,28 +82,31 @@ done
 
 
 ## OSS plugin setup
+echo "USE_UPDATE_OSSFS:"${USE_UPDATE_OSSFS}
 if [ "$run_oss" = "true" ]; then
     ossfsVer="1.80.6.ack.1"
     if [ "$USE_UPDATE_OSSFS" == "" ]; then
         ossfsVer="1.88.1"
+    elif [ $USE_UPDATE_OSSFS == "true" ]; then
+        ossfsVer="1.91.5"
     fi
 
     ossfsArch="centos7.0"
     if [[ ${host_os} == "alinux3" ]]; then
         ${HOST_CMD} yum install -y libcurl-devel libxml2-devel fuse-devel openssl-devel
-        ossfsArch="centos8"
+        ossfsArch="centos8.0"
     fi
     if [[ ${host_os} == "kylin" ]] || [[ ${host_os} == "uos" ]]; then
         ossfsVer="1.88.1"
-        ossfsArch="centos8"
+        ossfsArch="centos8.0"
     fi
     if [[ ${host_os} == "anolis8" ]]; then 
         ${HOST_CMD} yum install -y libcurl-devel libxml2-devel fuse-devel openssl-devel
         ossfsVer="1.88.1"
-        ossfsArch="centos8"
+        ossfsArch="centos8.0"
     fi
 	if [[ ${host_os} == "lifsea" ]]; then
-        ossfsArch="centos8"
+        ossfsArch="centos8.0"
     fi
 
     echo "Starting deploy oss csi-plugin..."
