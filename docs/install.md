@@ -54,6 +54,7 @@ helm upgrade --install alibaba-cloud-csi-driver ./chart --values chart/values-ec
 ```
 
 Please review the [values file](../deploy/chart/values.yaml) before installing. Some important configurations are:
+* deploy.regionID: used to select correct domain for image registry and OpenAPI endpoint. It is recommended to explicitly set this.
 * deploy.accessKey.enabled: if you are using instance RAM role, disable this.
 * csi.\<driver\>.enabled: enable or disable each driver.
 
