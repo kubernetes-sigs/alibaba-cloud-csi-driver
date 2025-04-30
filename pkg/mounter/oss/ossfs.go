@@ -301,6 +301,14 @@ func (f *fuseOssfs) getAuthOptions(o *Options, region string) (mountOptions []st
 }
 
 func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
+	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS_OPTIONS")
+	if defaultOSSFSOptions != "" {
+		optList := strings.Split(defaultOSSFSOptions, ",")
+		for _, opt := range optList {
+			options = append(options, strings.TrimSpace(opt))
+		}
+	}
+
 	alreadySet := false
 	for _, option := range options {
 		if strings.Contains(option, "dbglevel") {
@@ -325,10 +333,6 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 		options = append(options, fmt.Sprintf("mime=%s", OssfsCsiMimeTypesFilePath))
 	}
 
-	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS_OPTIONS")
-	if defaultOSSFSOptions != "" {
-		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
-	}
 	return options
 }
 

@@ -186,15 +186,35 @@ func (f *fuseOssfs2) buildPodSpec(c *utils.FusePodContext, target string) (spec 
 	return
 }
 
+const (
+	KeyLogLevel = "log_level"
+	KeyLogDir   = "log_dir"
+)
+
 func (f *fuseOssfs2) AddDefaultMountOptions(options []string) []string {
-	alreadySet := false
-	for _, option := range options {
-		if strings.Contains(option, "log_level") {
-			alreadySet = true
-			break
+
+	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS2_OPTIONS")
+	if defaultOSSFSOptions != "" {
+		optList := strings.Split(defaultOSSFSOptions, ",")
+		for _, opt := range optList {
+			options = append(options, strings.TrimSpace(opt))
 		}
 	}
-	if !alreadySet {
+
+	tm := map[string]string{}
+	for _, option := range options {
+		if option == "" {
+			continue
+		}
+		parts := strings.SplitN(option, "=", 2)
+		if len(parts) == 1 {
+			parts = append(parts, "")
+		}
+		tm[parts[0]] = parts[1]
+	}
+
+	// set default log level
+	if _, ok := tm[KeyLogLevel]; !ok {
 		level, ok := ossfs2Dbglevels[f.config.Dbglevel]
 		if ok {
 			options = append(options, fmt.Sprintf("log_level=%s", level))
@@ -206,9 +226,9 @@ func (f *fuseOssfs2) AddDefaultMountOptions(options []string) []string {
 		}
 	}
 
-	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS2_OPTIONS")
-	if defaultOSSFSOptions != "" {
-		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
+	// set default log dir
+	if _, ok := tm[KeyLogDir]; !ok {
+		options = append(options, fmt.Sprintf("log_dir=%s", "/dev/stdout"))
 	}
 
 	return options
