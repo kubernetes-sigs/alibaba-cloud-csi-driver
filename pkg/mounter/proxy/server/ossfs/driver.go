@@ -160,3 +160,6 @@ func (h *Driver) Terminate() {
 	h.wg.Wait()
 	klog.InfoS("All ossfs processes exited")
 }
+
+func (h *Driver) Warmup(targetPath, warmupDir string, workercount int, totalBytes, perFileMaxBytes int64) {
+}

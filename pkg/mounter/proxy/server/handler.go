@@ -91,7 +91,12 @@ func parseRawRequest(data []byte) (*rawRequest, error) {
 func handle(ctx context.Context, req *rawRequest) proxy.Response {
 	switch req.Header.Method {
 	case proxy.Mount:
-		var mountReq proxy.MountRequest
+		mountReq := proxy.MountRequest{
+			// ossfs recommended values
+			WarmupWorkers:       4,
+			WarmupTotalGBs:      2,
+			WarmupPerFileMaxGBs: 1,
+		}
 		err := json.Unmarshal(req.Body, &mountReq)
 		if err != nil {
 			return proxy.Response{

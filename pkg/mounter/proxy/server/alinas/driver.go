@@ -52,6 +52,9 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	return h.mounter.Mount(req.Source, req.Target, req.Fstype, options)
 }
 
+func (h *Driver) Warmup(targetPath, warmupDir string, workercount int, totalBytes, perFileMaxBytes int64) {
+}
+
 func (h *Driver) Init() {
 	go runCommandForever("aliyun-alinas-mount-watchdog")
 	go runCommandForever("aliyun-cpfs-mount-watchdog")

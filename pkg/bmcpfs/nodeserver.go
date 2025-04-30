@@ -68,7 +68,7 @@ func newNodeServer() (*nodeServer, error) {
 		nodeID = LingjunNodeIDPrefix + lingjunConfig.NodeId
 	}
 	klog.Infof("bmcpfsplugin nodeId: %s", nodeID)
-	mounter := mounter.NewProxyMounter(defaultAlinasMountProxySocket, mount.NewWithoutSystemd(""))
+	mounter := mounter.NewProxyMounter(defaultAlinasMountProxySocket, []string{}, 0, 0, 0, mount.NewWithoutSystemd(""))
 	return &nodeServer{
 		GenericNodeServer: common.GenericNodeServer{NodeID: nodeID},
 		locks:             utils.NewVolumeLocks(),

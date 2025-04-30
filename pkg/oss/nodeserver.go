@@ -155,7 +155,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if socketPath == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "%s not found in publishContext", mountProxySocket)
 	}
-	proxyMounter := mounter.NewProxyMounter(socketPath, ns.rawMounter)
+	proxyMounter := mounter.NewProxyMounter(socketPath, opts.WarmupDirs, opts.WarmupWorker, opts.WarmupTotalGB, opts.WarmupPerFileGB, ns.rawMounter)
 
 	// When work as csi-agent, directly mount on the target path.
 	if ns.skipAttach {
@@ -181,8 +181,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if opts.FuseType == OssFsType {
 			utils.WriteSharedMetricsInfo(metricsPathPrefix, req, OssFsType, "oss", opts.Bucket, attachPath)
 		}
-		err := mounter.NewProxyMounter(socketPath, ns.rawMounter).MountWithSecrets(
+		err := mounter.NewProxyMounter(socketPath, opts.WarmupDirs, opts.WarmupWorker, opts.WarmupTotalGB, opts.WarmupPerFileGB, ns.rawMounter).MountWithSecrets(
 			mountSource, attachPath, opts.FuseType, mountOptions, authCfg.Secrets)
+		if len(opts.WarmupDirs) != 0 {
+			klog.Infof("NodePublishVolume: warmup dirs %v success", opts.WarmupDirs)
+		}
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}

@@ -86,4 +86,10 @@ type Options struct {
 	AuthType      string `json:"authType"`
 	FuseType      string `json:"fuseType"`
 	ReadOnly      bool   `json:"readOnly"`
+
+	// warmup options
+	WarmupDirs      []string `json:"warmupDirs,omitempty"`
+	WarmupWorker    int      `json:"warmupWorker,omitempty"`
+	WarmupTotalGB   int64    `json:"warmupTotalGB,omitempty"`
+	WarmupPerFileGB int64    `json:"WarmupPerFileGB,omitempty"`
 }
