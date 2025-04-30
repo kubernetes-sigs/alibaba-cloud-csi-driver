@@ -242,7 +242,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 			}
 
 			if GlobalConfigVar.DiskBdfEnable {
-				if allowed, err := forceDetachAllowed(ecsClient, disk, nodeID); err != nil {
+				if allowed, err := forceDetachAllowed(ecsClient, disk); err != nil {
 					return "", status.Errorf(codes.Aborted, "forceDetachAllowed failed: %v", err)
 				} else if !allowed {
 					return "", status.Errorf(codes.Aborted, "AttachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.DiskId, disk.InstanceId)
@@ -447,7 +447,7 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Clien
 	defer slot.Release()
 
 	if GlobalConfigVar.DiskBdfEnable {
-		if allowed, err := forceDetachAllowed(ecsClient, disk, disk.InstanceId); err != nil {
+		if allowed, err := forceDetachAllowed(ecsClient, disk); err != nil {
 			return status.Errorf(codes.Aborted, "forceDetachAllowed failed: %v", err)
 		} else if !allowed {
 			return status.Errorf(codes.Aborted, "detachDisk: Disk %s is already attached to instance %s, and depend bdf, reject force detach", disk.InstanceId, disk.InstanceId)

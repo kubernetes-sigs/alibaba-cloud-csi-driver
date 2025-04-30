@@ -5,7 +5,6 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/procfs"
 )
 
 const (
@@ -51,7 +50,6 @@ const (
 const (
 	volDataFile      = "vol_data.json"
 	csiMountKeyWords = "volumes/kubernetes.io~csi"
-	procPath         = procfs.DefaultMountPoint + "/"
 )
 
 type collectorFactoryFunc = func() (Collector, error)
@@ -66,7 +64,6 @@ type collectorRegistryItem struct {
 var (
 	csiCollectorInstance *CSICollector
 	registry             = []collectorRegistryItem{}
-	rawBlockRootPath     = filepath.Join(utils.KubeletRootDir, "/plugins/kubernetes.io/csi/volumeDevices/")
 	podsRootPath         = filepath.Join(utils.KubeletRootDir, "/pods")
 )
 
