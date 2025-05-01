@@ -1,6 +1,7 @@
 module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 
 go 1.22.9
+toolchain go1.24.1
 
 require (
 	github.com/alibabacloud-go/darabonba-openapi v0.1.16
@@ -15,19 +16,19 @@ require (
 	github.com/go-logr/logr v1.4.1
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/golang/mock v1.6.0
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/jarcoal/httpmock v1.3.1
 	github.com/kubernetes-csi/csi-lib-utils v0.7.1
 	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.19.1
 	github.com/prometheus/common v0.48.0
-	github.com/prometheus/procfs v0.12.0
+	github.com/prometheus/procfs v0.16.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/ratelimit v0.1.0
-	golang.org/x/sys v0.30.0
+	golang.org/x/sys v0.32.0
 	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.33.0
 	gopkg.in/h2non/gock.v1 v1.1.2
