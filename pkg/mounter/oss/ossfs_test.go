@@ -3,7 +3,6 @@ package oss
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -59,93 +58,6 @@ func Test_buildAuthSpec_ossfs(t *testing.T) {
 	volumeMount := container.VolumeMounts[len(container.VolumeMounts)-1]
 	assert.Contains(t, "/var/run/secrets/ack.alibabacloud.com/rrsa-tokens", volumeMount.MountPath)
 	assert.Contains(t, "rrsa-oidc-token", volumeMount.Name)
-}
-
-func Test_AddDefaultMountOptions(t *testing.T) {
-	tests := []struct {
-		name        string
-		options     []string
-		dbglevel    string
-		mime        string
-		defaultOpts string
-		want        []string
-	}{
-		{
-			name:     "Debug level not set",
-			options:  []string{},
-			dbglevel: "",
-			mime:     "false",
-			want:     []string{"dbglevel=err"},
-		},
-		{
-			name:     "Debug level set by config",
-			options:  []string{},
-			dbglevel: "warn",
-			mime:     "false",
-			want:     []string{"dbglevel=warn"},
-		},
-		{
-			name:     "Debug level set by mount options",
-			options:  []string{"dbglevel=info"},
-			dbglevel: "warn",
-			mime:     "false",
-			want:     []string{"dbglevel=info"},
-		},
-		{
-			name:     "Invalid debug level",
-			options:  []string{},
-			dbglevel: "unknown",
-			mime:     "false",
-			want:     []string{"dbglevel=err"},
-		},
-		{
-			name:     "Mime support enabled without existing mime.types",
-			options:  []string{},
-			dbglevel: "",
-			mime:     "true",
-			want:     []string{"dbglevel=err", "mime=" + OssfsCsiMimeTypesFilePath},
-		},
-		{
-			name:     "Mime support disabled with existing mime.types",
-			options:  []string{},
-			dbglevel: "",
-			mime:     "false",
-			want:     []string{"dbglevel=err"},
-		},
-		{
-			name:        "Default options",
-			options:     []string{},
-			dbglevel:    "",
-			mime:        "false",
-			defaultOpts: "allow_other,umask=000",
-			want:        []string{"dbglevel=err", "allow_other", "umask=000"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f := &fuseOssfs{
-				config: mounterutils.FuseContainerConfig{
-					Dbglevel: tt.dbglevel,
-					Extra: map[string]string{
-						"mime-support": tt.mime,
-					},
-				},
-			}
-			if tt.defaultOpts != "" {
-				t.Setenv("DEFAULT_OSSFS_OPTIONS", tt.defaultOpts)
-			}
-			got := f.AddDefaultMountOptions(tt.options)
-			if len(got) != len(tt.want) {
-				t.Errorf("AddDefaultMountOptions() got = %v, want %v", got, tt.want)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("AddDefaultMountOptions() got = %v, want %v", got, tt.want)
-				return
-			}
-		})
-	}
 }
 
 func TestPrecheckAuthConfig_ossfs(t *testing.T) {

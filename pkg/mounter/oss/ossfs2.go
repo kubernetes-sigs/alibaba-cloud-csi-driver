@@ -192,13 +192,9 @@ const (
 )
 
 func (f *fuseOssfs2) AddDefaultMountOptions(options []string) []string {
-
 	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS2_OPTIONS")
 	if defaultOSSFSOptions != "" {
-		optList := strings.Split(defaultOSSFSOptions, ",")
-		for _, opt := range optList {
-			options = append(options, strings.TrimSpace(opt))
-		}
+		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
 	}
 
 	tm := map[string]string{}
@@ -206,11 +202,8 @@ func (f *fuseOssfs2) AddDefaultMountOptions(options []string) []string {
 		if option == "" {
 			continue
 		}
-		parts := strings.SplitN(option, "=", 2)
-		if len(parts) == 1 {
-			parts = append(parts, "")
-		}
-		tm[parts[0]] = parts[1]
+		k, v, _ := strings.Cut(option, "=")
+		tm[k] = v
 	}
 
 	// set default log level
@@ -228,7 +221,7 @@ func (f *fuseOssfs2) AddDefaultMountOptions(options []string) []string {
 
 	// set default log dir
 	if _, ok := tm[KeyLogDir]; !ok {
-		options = append(options, fmt.Sprintf("log_dir=%s", "/dev/stdout"))
+		options = append(options, "log_dir=/dev/stdout")
 	}
 
 	return options

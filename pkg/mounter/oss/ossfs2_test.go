@@ -236,7 +236,7 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 			name:        "default options",
 			cfglevel:    "",
 			options:     nil,
-			defaultOpts: "others, log_dir=/tmp/ossfs2",
+			defaultOpts: "others,log_dir=/tmp/ossfs2",
 			want:        []string{"others", "log_dir=/tmp/ossfs2", "log_level=info"},
 		},
 	}
