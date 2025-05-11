@@ -4,16 +4,9 @@
 An NAS CSI plugin is available to help simplify storage management.
 You can create a pv with csi configuration, and the pvc, pod defines as usual.
 
-## Configuration Requirements
-* Service Accounts with required RBAC permissions
+## Install the CSI driver
 
-## Compiling and Package
-nasplugin.csi.alibabacloud.com can be compiled in a form of a container.
-
-To build a container:
-```shell
-cd build && sh build-nas.sh
-```
+Please refer to the [installation guide](./install.md) for detailed instructions.
 
 ## Usage
 
