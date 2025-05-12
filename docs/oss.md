@@ -3,17 +3,9 @@
 An OSS CSI plugin is available to help simplify storage management.
 You can create a pv with csi configuration, and the pvc, pod defines as usual.
 
-## Configuration Requirements
+## Install the CSI driver
 
-* Service Accounts with required RBAC permissions
-
-## Compiling and Package
-ossplugin.csi.alibabacloud.com can be compiled in a form of a container.
-
-To build a container:
-```shell
-cd build && sh build-oss.sh
-```
+Please refer to the [installation guide](./install.md) for detailed instructions.
 
 ## Usage
 
