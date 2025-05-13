@@ -1,6 +1,9 @@
 package metric
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"github.com/prometheus/client_golang/prometheus"
+	"google.golang.org/grpc"
+)
 
 const (
 	CsiGrpcExecTimeCollectorName = "csi_grpc_exec_time"
@@ -45,4 +48,19 @@ func (c *csiGrpcExecTimeCollector) Update(ch chan<- prometheus.Metric) error {
 	c.ExecCountMetric.Collect(ch)
 	c.ExecTimeTotalMetric.Collect(ch)
 	return nil
+}
+
+// InitGRPC fills each possible method with OK code and 0 value
+//
+// Tell users which metrics are available. And make rate() work for the first invoke.
+func (c *csiGrpcExecTimeCollector) InitGRPC(desc grpc.ServiceDesc, driver string) {
+	for _, method := range desc.Methods {
+		labels := prometheus.Labels{
+			CsiGrpcExecTimeLabelMethod: method.MethodName,
+			CsiGrpcExecTimeLabelType:   driver,
+			CsiGrpcExecTimeLabelCode:   "OK",
+		}
+		c.ExecCountMetric.With(labels).Add(0)
+		c.ExecTimeTotalMetric.With(labels).Add(0)
+	}
 }
