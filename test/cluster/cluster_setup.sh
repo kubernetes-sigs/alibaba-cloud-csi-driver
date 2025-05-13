@@ -72,8 +72,9 @@ function cluster-setup {
         --ext-str vpc_id="$VPC_ID" \
         --ext-str cluster_name="$CASE_NAME" \
         --ext-str os_image_alinux3="${OS_IMAGE_ALINUX3:-aliyun_3_x64_20G_alibase_20241218.vhd}" \
+        --ext-str os_image_alinux3_container="${OS_IMAGE_ALINUX3_CONTAINER:-aliyun_3_x64_20G_container_optimized_alibase_20250629.vhd}" \
         --ext-str os_image_alinux3_arm64="${OS_IMAGE_ALINUX3_ARM64:-aliyun_3_arm64_20G_alibase_20240528.vhd}" \
-        --ext-str os_image_containeros3="${OS_IMAGE_CONTAINEROS3:-lifsea_3_x64_10G_alibase_20250210.qcow2}" \
+        --ext-str os_image_containeros3="${OS_IMAGE_CONTAINEROS3:-lifsea_3_x64_5G_alibase_20251101.qcow2}" \
         --ext-code n_nodes="$N_NODES" \
         --ext-code vswitch_ids="$(jq -n '$ARGS.positional' --args "${vswitch_ids[@]}")")
     CLUSTER_ID=$(aliyun --region "$ACK_REGION" cs POST /clusters --header "Content-Type=application/json" --body "$cluster_params" | jq -r .cluster_id)
