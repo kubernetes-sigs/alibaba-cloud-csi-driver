@@ -431,28 +431,21 @@ func pickZone(requirement *csi.TopologyRequirement) string {
 	if requirement == nil {
 		return ""
 	}
-	for _, topology := range requirement.GetPreferred() {
-		if GlobalConfigVar.NodeMultiZoneEnable {
-			zones, exists := getMultiZones(topology.GetSegments())
-			if exists {
-				return zones
+	for _, topo := range [][]*csi.Topology{requirement.GetPreferred(), requirement.GetRequisite()} {
+		for _, topology := range topo {
+			segs := topology.GetSegments()
+			if GlobalConfigVar.NodeMultiZoneEnable {
+				zones, exists := getMultiZones(segs)
+				if exists {
+					return zones
+				}
 			}
-		}
-		zone, exists := topology.GetSegments()[TopologyZoneKey]
-		if exists {
-			return zone
-		}
-	}
-	for _, topology := range requirement.GetRequisite() {
-		if GlobalConfigVar.NodeMultiZoneEnable {
-			zones, exists := getMultiZones(topology.GetSegments())
-			if exists {
-				return zones
+			for _, key := range []string{TopologyZoneKey, common.TopologyKeyZone} {
+				zone, exists := segs[key]
+				if exists {
+					return zone
+				}
 			}
-		}
-		zone, exists := topology.GetSegments()[TopologyZoneKey]
-		if exists {
-			return zone
 		}
 	}
 	return ""
