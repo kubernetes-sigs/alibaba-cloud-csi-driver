@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/metric"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"google.golang.org/grpc"
 	"k8s.io/client-go/kubernetes"
@@ -58,15 +59,19 @@ func RunCSIServer(driverType, endpoint string, servers Servers) {
 	server := grpc.NewServer(opts...)
 
 	if servers.IdentityServer != nil {
+		metric.CsiGrpcExecTimeCollector.InitGRPC(csi.Identity_ServiceDesc, driverType)
 		csi.RegisterIdentityServer(server, servers.IdentityServer)
 	}
 	if servers.ControllerServer != nil {
+		metric.CsiGrpcExecTimeCollector.InitGRPC(csi.Controller_ServiceDesc, driverType)
 		csi.RegisterControllerServer(server, WrapControllerServerWithValidator(servers.ControllerServer))
 	}
 	if servers.NodeServer != nil {
+		metric.CsiGrpcExecTimeCollector.InitGRPC(csi.Node_ServiceDesc, driverType)
 		csi.RegisterNodeServer(server, WrapNodeServerWithValidator(WrapNodeServerWithMetricRecorder(servers.NodeServer, driverType, clientset)))
 	}
 	if servers.GroupControllerServer != nil {
+		metric.CsiGrpcExecTimeCollector.InitGRPC(csi.GroupController_ServiceDesc, driverType)
 		csi.RegisterGroupControllerServer(server, WrapGroupControllerServerWithValidator(servers.GroupControllerServer))
 	}
 
