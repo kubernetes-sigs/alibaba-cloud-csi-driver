@@ -55,6 +55,7 @@ type Options struct {
 
 	// oss options
 	Bucket string `json:"bucket"`
+	Region string `json:"region"`
 	URL    string `json:"url"`
 	Path   string `json:"path"`
 

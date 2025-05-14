@@ -26,6 +26,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
 	mounter "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/oss/cloud"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -45,6 +46,7 @@ type controllerServer struct {
 	cnfsGetter      cnfsv1beta1.CNFSGetter
 	metadata        metadata.MetadataProvider
 	fusePodManagers map[string]*oss.OSSFusePodManager
+	ossc            *cloud.OSSClient
 	common.GenericControllerServer
 }
 
@@ -81,6 +83,14 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		volumeContext = map[string]string{}
 	}
 	volumeContext["path"] = ossVol.Path
+	cs.ossc.UpdateToken()
+	ossRegion, err := getOSSBucketRegion(ctx, cs.ossc, ossVol)
+	if err != nil {
+		klog.Errorf("CreateVolume: failed to get oss bucket region: %v", err)
+	} else {
+		volumeContext["region"] = ossRegion
+	}
+
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	csiTargetVolume := &csi.Volume{
 		VolumeId:      req.Name,
@@ -143,6 +153,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	if err := checkOssOptions(opts, cs.fusePodManagers[opts.FuseType]); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+
 	// check and make auth config
 	authCfg, err := makeAuthConfig(opts, cs.fusePodManagers[OssFsType], cs.metadata, false)
 	if err != nil {
@@ -170,13 +181,23 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		return nil, status.Errorf(codes.Internal, "failed to create %s pod: %v", opts.FuseType, err)
 	}
 
+	pubCtx := map[string]string{
+		mountProxySocket: mounter.GetMountProxySocketPath(req.VolumeId),
+		// make the fuse pod name visible in the VolumeAttachment status
+		"fusePod": fmt.Sprintf("%s/%s", fusePod.Namespace, fusePod.Name),
+	}
+
+	cs.ossc.UpdateToken()
+	ossRegion, err := getOSSBucketRegion(ctx, cs.ossc, opts)
+	if err != nil {
+		klog.Errorf("CreateVolume: failed to get oss bucket region: %v", err)
+	} else {
+		pubCtx["region"] = ossRegion
+	}
+
 	klog.Infof("ControllerPublishVolume: successfully published volume %s on node %s", req.VolumeId, req.NodeId)
 	return &csi.ControllerPublishVolumeResponse{
-		PublishContext: map[string]string{
-			mountProxySocket: mounter.GetMountProxySocketPath(req.VolumeId),
-			// make the fuse pod name visible in the VolumeAttachment status
-			"fusePod": fmt.Sprintf("%s/%s", fusePod.Namespace, fusePod.Name),
-		},
+		PublishContext: pubCtx,
 	}, nil
 }
 
