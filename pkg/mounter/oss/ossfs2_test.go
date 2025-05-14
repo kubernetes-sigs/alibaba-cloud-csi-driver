@@ -1,12 +1,17 @@
 package oss
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 )
 
 func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
@@ -33,10 +38,17 @@ func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
 			true,
 		},
 		{
-			"success",
+			"success - aksk",
 			&Options{
 				AkID:     "test-ak",
 				AkSecret: "test-ak-secret",
+			},
+			false,
+		},
+		{
+			"success - secretref",
+			&Options{
+				SecretRef: "test-secret-ref",
 			},
 			false,
 		},
@@ -68,6 +80,16 @@ func TestMakeAuthConfig_ossfs2(t *testing.T) {
 				Secrets: map[string]string{
 					utils.GetPasswdFileName(fakeOssfs.Name()): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", "test-ak", "test-ak-secret"),
 				},
+			},
+			false,
+		},
+		{
+			"secretref",
+			&Options{
+				SecretRef: "test-secretref",
+			},
+			&utils.AuthConfig{
+				SecretRef: "test-secretref",
 			},
 			false,
 		},
@@ -135,6 +157,25 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 				SigVersion: SigV4,
 			},
 			expectedError: true,
+		},
+		{
+			name: "secretref",
+			opts: &Options{
+				SecretRef: "test-secretref",
+				FuseType:  "ossfs2",
+				Bucket:    "test-bucket",
+				Path:      "/",
+				URL:       "oss://test-bucket/",
+			},
+			expected: []string{
+				"oss_endpoint=oss://test-bucket/",
+				"oss_bucket=test-bucket",
+				"oss_bucket_prefix=/",
+				"oss_sts_multi_conf_ak_file=/etc/ossfs2/passwd-ossfs2/AccessKeyId",
+				"oss_sts_multi_conf_sk_file=/etc/ossfs2/passwd-ossfs2/AccessKeySecret",
+				"oss_sts_multi_conf_token_file=/etc/ossfs2/passwd-ossfs2/SecurityToken",
+			},
+			expectedError: false,
 		},
 	}
 	for _, tt := range tests {
@@ -209,4 +250,106 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestGetAuthOpttions_ossfs2(t *testing.T) {
+	tests := []struct {
+		name        string
+		opts        *Options
+		wantOptions []string
+	}{
+		{
+			name: "secretref",
+			opts: &Options{
+				SecretRef: "test-secret",
+				FuseType:  "ossfs2",
+			},
+			wantOptions: []string{
+				"oss_sts_multi_conf_ak_file=/etc/ossfs2/passwd-ossfs2/AccessKeyId",
+				"oss_sts_multi_conf_sk_file=/etc/ossfs2/passwd-ossfs2/AccessKeySecret",
+				"oss_sts_multi_conf_token_file=/etc/ossfs2/passwd-ossfs2/SecurityToken",
+			},
+		},
+		{
+			name: "aksk",
+			opts: &Options{
+				FuseType: "ossfs",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeOssfs := &fuseOssfs2{}
+			opts := fakeOssfs.getAuthOptions(tt.opts)
+			assert.Equal(t, tt.wantOptions, opts)
+		})
+	}
+}
+
+func TestBuildAuthSpec_ossfs2(t *testing.T) {
+	nodeName := "test-node-name"
+	volumeId := "test-pv-name"
+	authCfg := &utils.AuthConfig{
+		SecretRef: "test-secret-ref",
+	}
+	container := corev1.Container{
+		Name:  "fuse-mounter",
+		Image: "test-image",
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      "test-mounts",
+				MountPath: "target",
+			},
+		},
+	}
+	targetVolume := corev1.Volume{
+		Name: "test-mounts",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "target",
+				Type: ptr.To(corev1.HostPathDirectoryOrCreate),
+			},
+		},
+	}
+	spec := corev1.PodSpec{}
+	spec.Volumes = []corev1.Volume{targetVolume}
+	fakeOssfs := &fuseOssfs2{}
+	fakeOssfs.buildAuthSpec(&mounterutils.FusePodContext{
+		Context:    context.Background(),
+		Namespace:  mounterutils.LegacyFusePodNamespace,
+		NodeName:   nodeName,
+		VolumeId:   volumeId,
+		AuthConfig: authCfg,
+		FuseType:   "ossfs2",
+	}, &spec, &container)
+
+	volumeMount := container.VolumeMounts[len(container.VolumeMounts)-1]
+	assert.Equal(t, "passwd-ossfs2", volumeMount.Name)
+
+	volume := spec.Volumes[len(spec.Volumes)-1]
+	assert.Equal(t, "passwd-ossfs2", volume.Name)
+	expectedItems := []corev1.KeyToPath{
+		{
+			Key:  "AccessKeyId",
+			Path: "passwd-ossfs2/AccessKeyId",
+			Mode: tea.Int32(0600),
+		},
+		{
+			Key:  "AccessKeySecret",
+			Path: "passwd-ossfs2/AccessKeySecret",
+			Mode: tea.Int32(0600),
+		},
+		{
+			Key:  "Expiration",
+			Path: "passwd-ossfs2/Expiration",
+			Mode: tea.Int32(0600),
+		},
+		{
+			Key:  "SecurityToken",
+			Path: "passwd-ossfs2/SecurityToken",
+			Mode: tea.Int32(0600),
+		},
+	}
+	assert.Equal(t, expectedItems, volume.Secret.Items)
+	assert.Equal(t, "test-secret-ref", volume.Secret.SecretName)
 }
