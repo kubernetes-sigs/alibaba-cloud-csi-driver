@@ -1,3 +1,15 @@
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: kube-system
+  name: alibabacloud-csi-kube-system
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  resourceNames: ["ack-cluster-profile"]
+  verbs: ["get"]
+
 {{- if .Values.controller.enabled -}}
 # csi-provisioner
 ---
@@ -101,10 +113,6 @@ rules:
 - apiGroups: ["coordination.k8s.io"]
   resources: ["leases"]
   verbs: ["get", "watch", "list", "delete", "update", "create"]
-- apiGroups: [""]
-  resources: ["configmaps"]
-  resourceNames: ["csi-plugin", "ack-cluster-profile"]
-  verbs: ["get"]
 {{- if .Values.csi.oss.enabled }}
 # TODO: remove this in the future
 # Need this for oss driver compatibility.
@@ -135,6 +143,20 @@ subjects:
 roleRef:
   kind: Role
   name: alicloud-csi-provisioner
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: alibabacloud-csi-provisioner-kube-system
+  namespace: kube-system
+subjects:
+  - kind: ServiceAccount
+    name: alicloud-csi-provisioner
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: alibabacloud-csi-kube-system
   apiGroup: rbac.authorization.k8s.io
 
 {{- if .Values.csi.oss.enabled }}
@@ -174,10 +196,6 @@ rules:
 - apiGroups: [""]
   resources: ["endpoints"]
   resourceNames: ["cnfs-cache-ds-service"]
-  verbs: ["get"]
-- apiGroups: [""]
-  resources: ["configmaps"]
-  resourceNames: ["csi-plugin", "ack-cluster-profile"]
   verbs: ["get"]
 - apiGroups: [""]
   resources: ["services"]
@@ -248,6 +266,20 @@ subjects:
 - kind: ServiceAccount
   name: alicloud-csi-node
   namespace: {{ .Release.Namespace }}
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: alibabacloud-csi-node-kube-system
+  namespace: kube-system
+subjects:
+  - kind: ServiceAccount
+    name: alicloud-csi-node
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: alibabacloud-csi-kube-system
+  apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

@@ -17,7 +17,6 @@ limitations under the License.
 package oss
 
 import (
-	"context"
 	"os"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -27,8 +26,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -66,13 +63,10 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 	clientset := kubernetes.NewForConfigOrDie(cfg)
 	cnfsGetter := cnfsv1beta1.NewCNFSGetter(dynamic.NewForConfigOrDie(cfg))
 
-	configmap, err := clientset.CoreV1().ConfigMaps("kube-system").Get(context.Background(), "csi-plugin", metav1.GetOptions{})
-	if err != nil && !errors.IsNotFound(err) {
-		klog.Fatalf("failed to get configmap kube-system/csi-plugin: %v", err)
-	}
+	configmap := utils.DefaultConfig()
 
-	ossfs := oss.NewFuseOssfs(configmap, m)
-	ossfs2 := oss.NewFuseOssfs2(configmap, m)
+	ossfs := oss.NewFuseOssfs(&configmap, m)
+	ossfs2 := oss.NewFuseOssfs2(&configmap, m)
 	fusePodManagers := map[string]*oss.OSSFusePodManager{
 		OssFsType:  oss.NewOSSFusePodManager(ossfs, clientset),
 		OssFs2Type: oss.NewOSSFusePodManager(ossfs2, clientset),
