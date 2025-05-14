@@ -90,8 +90,8 @@ deploy:
     secretkey: secret # the key of AccessKey secret in the k8s Secret
 
 images:
-  registry: registry-cn-hangzhou.ack.aliyuncs.com
-  registryVPC: registry-cn-hangzhou-vpc.ack.aliyuncs.com
+  registry: null
+  registryVPC: null
   controller:
     repo: acs/csi-plugin
     tag: "v1.31.4-9819c8b-aliyun"
