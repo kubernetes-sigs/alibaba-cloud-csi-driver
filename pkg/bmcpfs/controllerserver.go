@@ -52,7 +52,7 @@ func newControllerServer(region string) (*controllerServer, error) {
 		return nil, err
 	}
 
-	enableVsc(efloClient)
+	// enableVsc(efloClient)
 	nasClient, err := cloud.NewNasClientV2(region)
 	if err != nil {
 		return nil, err
@@ -225,6 +225,9 @@ func newEfloClient(region string) (*efloclient.Client, error) {
 	// TODO: set default vpc endpoint
 	// set protocol
 	scheme := strings.ToUpper(os.Getenv("ALICLOUD_CLIENT_SCHEME"))
+	if strings.Contains(region, "test") {
+		scheme = "HTTP"
+	}
 	if scheme != "HTTP" {
 		scheme = "HTTPS"
 	}
@@ -264,13 +267,14 @@ func getMountTarget(client *nasclient.Client, fsId, networkType string) (string,
 	return "", fmt.Errorf("no active %s mount target found", networkType)
 }
 
-func enableVsc(client *efloclient.Client) {
-	_, err := client.UpdateNodeGroup(&efloclient.UpdateNodeGroupRequest{
-		FileSystemMountEnabled: tea.Bool(true),
-		NewNodeGroupName:       tea.String("dpu-lingjun"),
-		NodeGroupId:            tea.String("i123338791744965637916"),
-	})
-	if err != nil {
-		klog.ErrorS(err, "eflo:UpdateNodeGroup failed")
-	}
-}
+//
+// func enableVsc(client *efloclient.Client) {
+// 	_, err := client.UpdateNodeGroup(&efloclient.UpdateNodeGroupRequest{
+// 		FileSystemMountEnabled: tea.Bool(true),
+// 		NewNodeGroupName:       tea.String("dpu-lingjun"),
+// 		NodeGroupId:            tea.String("i123338791744965637916"),
+// 	})
+// 	if err != nil {
+// 		klog.ErrorS(err, "eflo:UpdateNodeGroup failed")
+// 	}
+// }
