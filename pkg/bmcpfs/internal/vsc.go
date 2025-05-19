@@ -132,7 +132,7 @@ const (
 
 type CPFSVscAttachInfo = nasclient.DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfoVscAttachInfo
 
-type CPFSVscAttachInfoWaitCond func(CPFSVscAttachInfo) (done, failed bool)
+type CPFSVscAttachInfoWaitCond func(*CPFSVscAttachInfo) (done bool, err error)
 
 type CPFSAttachDetacher interface {
 	Attach(ctx context.Context, fsId, vscId string) error
@@ -157,14 +157,17 @@ func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) er
 	if err := ad.attach(fsId, vscId); err != nil {
 		return err
 	}
-	return ad.waitFor(ctx, fsId, vscId, func(i CPFSVscAttachInfo) (bool, bool) {
+	return ad.waitFor(ctx, fsId, vscId, func(i *CPFSVscAttachInfo) (bool, error) {
+		if i == nil {
+			return false, fmt.Errorf("filesystem %s not attached to %s", fsId, vscId)
+		}
 		switch tea.StringValue(i.Status) {
 		case CPFSVscStatusAttaching:
-			return false, false
+			return false, nil
 		case CPFSVscStatusAttached:
-			return true, false
+			return true, nil
 		default:
-			return false, true
+			return false, fmt.Errorf("unexpected attachinfo status: %v", tea.StringValue(i.Status))
 		}
 	})
 }
@@ -174,14 +177,17 @@ func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsId, vscId string) er
 	if err := ad.detach(fsId, vscId); err != nil {
 		return err
 	}
-	return ad.waitFor(ctx, fsId, vscId, func(i CPFSVscAttachInfo) (bool, bool) {
+	return ad.waitFor(ctx, fsId, vscId, func(i *CPFSVscAttachInfo) (bool, error) {
+		if i == nil {
+			return true, nil
+		}
 		switch tea.StringValue(i.Status) {
 		case CPFSVscStatusDetaching:
-			return false, false
+			return false, nil
 		case CPFSVscStatusDetached:
-			return true, false
+			return true, nil
 		default:
-			return false, true
+			return false, fmt.Errorf("unexpected attachinfo status: %v", tea.StringValue(i.Status))
 		}
 	})
 }
@@ -194,12 +200,9 @@ func (ad *cpfsAttachDetacher) waitFor(ctx context.Context, fsId, vscId string, c
 		if err != nil {
 			return err
 		}
-		if attachInfo == nil {
-			return fmt.Errorf("filesystem %s not attached to %s", fsId, vscId)
-		}
-		done, failed := cond(*attachInfo)
-		if failed {
-			return fmt.Errorf("unexpected CPFS VSC AttachInfo status: %s", tea.StringValue(attachInfo.Status))
+		done, err := cond(attachInfo)
+		if err != nil {
+			return err
 		}
 		if done {
 			return nil
