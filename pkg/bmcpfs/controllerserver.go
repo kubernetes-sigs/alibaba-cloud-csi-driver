@@ -118,12 +118,12 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}
 	} else {
 		vscId = vsc.VscID
-		if vsc.Status != internal.VscStatusAvailable && vsc.Status != internal.VscStatusCreating {
+		if vsc.Status != internal.VscStatusNormal && vsc.Status != internal.VscStatusCreating {
 			return nil, status.Errorf(codes.Internal, "unexpected vsc status: %v", vsc.Status)
 		}
 	}
 	klog.Info("Use VSC MountTarget for lingjun node", "nodeId", req.NodeId, "vscId", vscId)
-	if vsc == nil || vsc.Status != internal.VscStatusAvailable {
+	if vsc == nil || vsc.Status != internal.VscStatusNormal {
 		err = wait.ExponentialBackoffWithContext(ctx, wait.Backoff{
 			Duration: time.Millisecond * 400,
 			Factor:   2,
@@ -134,7 +134,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 				return false, status.Error(codes.Internal, err.Error())
 			}
 			switch vsc.Status {
-			case internal.VscStatusAvailable:
+			case internal.VscStatusNormal:
 				return true, nil
 			case internal.VscStatusCreating:
 				return false, nil

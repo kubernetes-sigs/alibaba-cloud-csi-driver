@@ -34,10 +34,9 @@ const (
 )
 
 const (
-	VscStatusCreating  = "Creating"
-	VscStatusAvailable = "Available"
-	VscStatusDeleting  = "Deleting"
-	VscStatusInvalid   = "Invalid"
+	VscStatusCreating = "Creating"
+	VscStatusNormal   = "Normal"
+	VscStatusDeleting = "Deleting"
 )
 
 type Vsc struct {
