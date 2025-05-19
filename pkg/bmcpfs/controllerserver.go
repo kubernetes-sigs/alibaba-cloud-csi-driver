@@ -144,7 +144,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		})
 		if err != nil {
 			if wait.Interrupted(err) {
-				return nil, status.Error(codes.DeadlineExceeded, "Failed to wait for the VSC to become Availabel")
+				return nil, status.Error(codes.DeadlineExceeded, "Failed to wait for the VSC to become Normal")
 			}
 			return nil, err
 		}

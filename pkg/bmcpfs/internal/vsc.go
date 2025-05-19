@@ -87,7 +87,7 @@ func (m *LingjunVscManager) GetPrimaryVscOf(instanceId string) (*Vsc, error) {
 		// klog.ErrorS(err, "eflo:ListVscs failed", "instanceId", instanceId)
 		return nil, fmt.Errorf("eflo:ListVscs failed: %w", err)
 	}
-	klog.V(2).InfoS("eflo:ListVscs succeeded", "instanceId", instanceId, "response", resp.Body)
+	klog.V(4).InfoS("eflo:ListVscs succeeded", "instanceId", instanceId, "response", resp.Body)
 	for _, vsc := range resp.Body.Vscs {
 		if tea.StringValue(vsc.VscType) == VscTypePrimary {
 			return &Vsc{
@@ -228,7 +228,7 @@ func (ad *cpfsAttachDetacher) attach(fsId, vscId string) error {
 	if err != nil {
 		return fmt.Errorf("nas:AttachVscToFilesystems failed: %w", err)
 	}
-	klog.InfoS("nas:AttachVscToFilesystemsRequest succeeded", "filesystem", fsId, "vscId", vscId, "response", resp.Body)
+	klog.InfoS("nas:AttachVscToFilesystemsRequest succeeded", "filesystem", fsId, "vscId", vscId, "requestid", resp.Body.RequestId)
 	return nil
 }
 
@@ -245,7 +245,7 @@ func (ad *cpfsAttachDetacher) detach(fsId, vscId string) error {
 	if err != nil {
 		return fmt.Errorf("nas:DetachVscFromFilesystems failed: %w", err)
 	}
-	klog.InfoS("nas:DetachVscFromFilesystems succeeded", "filesystem", fsId, "vscId", vscId, "response", resp.Body)
+	klog.InfoS("nas:DetachVscFromFilesystems succeeded", "filesystem", fsId, "vscId", vscId, "requestid", resp.Body.RequestId)
 	return nil
 }
 
