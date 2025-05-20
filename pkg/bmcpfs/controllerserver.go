@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	efloclient "github.com/alibabacloud-go/eflo-controller-20221215/v2/client"
@@ -35,13 +34,12 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
 
 type controllerServer struct {
 	common.GenericControllerServer
-	vscManager     internal.VscManager
+	vscManager     *internal.PrimaryVscManagerWithCache
 	attachDetacher internal.CPFSAttachDetacher
 	nasClient      *nasclient.Client
 }
@@ -58,7 +56,7 @@ func newControllerServer(region string) (*controllerServer, error) {
 		return nil, err
 	}
 	return &controllerServer{
-		vscManager:     internal.NewVscManager(efloClient),
+		vscManager:     internal.NewPrimaryVscManagerWithCache(efloClient),
 		attachDetacher: internal.NewCPFSAttachDetacher(nasClient),
 		nasClient:      nasClient,
 	}, nil
@@ -99,56 +97,16 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}
 	}
 
-	// Create Primary vsc for Lingjun node
+	// Get Primary vsc of Lingjun node
 	lingjunInstanceId := strings.TrimPrefix(req.NodeId, LingjunNodeIDPrefix)
 	if LingjunNodeIDPrefix == "" {
 		return nil, status.Error(codes.InvalidArgument, "invalid node id")
 	}
-	// TODO: add cache as we only need to create once for a node
-	vsc, err := cs.vscManager.GetPrimaryVscOf(lingjunInstanceId)
+	vscId, err := cs.vscManager.EnsurePrimaryVsc(ctx, lingjunInstanceId, false)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	var vscId string
-	if vsc == nil {
-		// create vsc
-		vscId, err = cs.vscManager.CreatePrimaryVscFor(lingjunInstanceId)
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-	} else {
-		vscId = vsc.VscID
-		if vsc.Status != internal.VscStatusNormal && vsc.Status != internal.VscStatusCreating {
-			return nil, status.Errorf(codes.Internal, "unexpected vsc status: %v", vsc.Status)
-		}
-	}
 	klog.Info("Use VSC MountTarget for lingjun node", "nodeId", req.NodeId, "vscId", vscId)
-	if vsc == nil || vsc.Status != internal.VscStatusNormal {
-		err = wait.ExponentialBackoffWithContext(ctx, wait.Backoff{
-			Duration: time.Millisecond * 400,
-			Factor:   2,
-			Steps:    6,
-		}, func(ctx context.Context) (done bool, err error) {
-			vsc, err := cs.vscManager.GetVsc(vscId)
-			if err != nil {
-				return false, status.Error(codes.Internal, err.Error())
-			}
-			switch vsc.Status {
-			case internal.VscStatusNormal:
-				return true, nil
-			case internal.VscStatusCreating:
-				return false, nil
-			default:
-				return false, status.Errorf(codes.Internal, "unexpected vsc status: %v", vsc.Status)
-			}
-		})
-		if err != nil {
-			if wait.Interrupted(err) {
-				return nil, status.Error(codes.DeadlineExceeded, "Failed to wait for the VSC to become Normal")
-			}
-			return nil, err
-		}
-	}
 
 	// Attach CPFS to VSC
 	err = cs.attachDetacher.Attach(ctx, req.VolumeId, vscId)

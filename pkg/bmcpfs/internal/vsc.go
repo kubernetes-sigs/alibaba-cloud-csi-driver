@@ -20,11 +20,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	efloclient "github.com/alibabacloud-go/eflo-controller-20221215/v2/client"
 	nasclient "github.com/alibabacloud-go/nas-20170626/v3/client"
 	"github.com/alibabacloud-go/tea/tea"
+	"golang.org/x/time/rate"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 )
@@ -266,4 +269,164 @@ func (ad *cpfsAttachDetacher) describe(fsId, vscId string) (*CPFSVscAttachInfo, 
 		return nil, nil
 	}
 	return resp.Body.VscAttachInfo.VscAttachInfo[0], nil
+}
+
+type vscWithErr struct {
+	*Vsc
+	err error
+}
+
+type PrimaryVscManagerWithCache struct {
+	VscManager
+	retryTimes int
+
+	cond *sync.Cond
+	// Instance ID to VSC
+	cache map[string]vscWithErr
+	// To create primary vsc for node
+	queue workqueue.RateLimitingInterface
+}
+
+const (
+	defaultVscManagerRetryTimes  = 3
+	defaultVscManagerWorkerCount = 3
+)
+
+func NewPrimaryVscManagerWithCache(efloClient *efloclient.Client) *PrimaryVscManagerWithCache {
+	m := &PrimaryVscManagerWithCache{
+		VscManager: NewVscManager(efloClient),
+		retryTimes: defaultVscManagerRetryTimes,
+		cond:       sync.NewCond(&sync.Mutex{}),
+		cache:      make(map[string]vscWithErr),
+		queue: workqueue.NewRateLimitingQueue(
+			workqueue.NewMaxOfRateLimiter(
+				workqueue.NewItemExponentialFailureRateLimiter(500*time.Millisecond, 1000*time.Second),
+				&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+			),
+		),
+	}
+
+	for range defaultVscManagerWorkerCount {
+		go func() {
+			for m.handleNext() {
+			}
+		}()
+	}
+	return m
+}
+
+func (m *PrimaryVscManagerWithCache) handleNext() bool {
+	instanceId, quit := m.queue.Get()
+	if quit {
+		return false
+	}
+	defer m.queue.Done(instanceId)
+
+	newVsc, err := m.getOrCreatePrimaryFor(instanceId.(string))
+
+	m.cond.L.Lock()
+	m.cache[instanceId.(string)] = vscWithErr{newVsc, err}
+	m.cond.L.Unlock()
+
+	if err == nil {
+		m.queue.Forget(instanceId)
+		m.cond.Broadcast()
+	} else {
+		sdkErr := &tea.SDKError{}
+		if errors.As(err, &sdkErr) || m.queue.NumRequeues(instanceId) > m.retryTimes {
+			klog.ErrorS(err, "Failed to ensure VSC", "instance", instanceId)
+			m.queue.Forget(instanceId)
+			m.cond.Broadcast()
+		} else {
+			klog.InfoS("Retrying to ensure VSC", "instance", instanceId, "error", err)
+			m.queue.AddRateLimited(instanceId)
+		}
+	}
+	return true
+}
+
+func (m *PrimaryVscManagerWithCache) getOrCreatePrimaryFor(instanceId string) (*Vsc, error) {
+	var err error
+	// try to get existing vsc
+	vsc, err := m.VscManager.GetPrimaryVscOf(instanceId)
+	if err != nil {
+		return nil, err
+	}
+	// primary vsc of the instance not found, create it
+	var vscId string
+	if vsc == nil {
+		vscId, err = m.CreatePrimaryVscFor(instanceId)
+		if err != nil {
+			return nil, err
+		}
+		vsc, err = m.GetVsc(vscId)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if vsc == nil {
+		return nil, fmt.Errorf("vsc %s not found after creation", vscId)
+	}
+	// check vsc status
+	if vsc.Status != VscStatusNormal {
+		return vsc, fmt.Errorf("unexpected vsc status: %s", vsc.Status)
+	}
+	return vsc, nil
+}
+
+// EnsurePrimaryVsc creates primary vsc for an instance if not exists.
+func (m *PrimaryVscManagerWithCache) EnsurePrimaryVsc(ctx context.Context, instanceId string, refresh bool) (string, error) {
+	m.cond.L.Lock()
+	defer m.cond.L.Unlock()
+
+	if !refresh {
+		vsc, exists := m.cache[instanceId]
+		if exists && vsc.err == nil {
+			return vsc.VscID, nil
+		}
+	}
+
+	delete(m.cache, instanceId)
+	m.queue.Add(instanceId)
+	for {
+		vsc, exists := m.cache[instanceId]
+		if exists {
+			var vscId string
+			if vsc.Vsc != nil {
+				vscId = vsc.VscID
+			}
+			return vscId, vsc.err
+		}
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		default:
+			m.cond.Wait()
+		}
+	}
+}
+
+// GetPrimaryVscOf checks the vsc info
+func (m *PrimaryVscManagerWithCache) GetPrimaryVscOf(instanceId string) (*Vsc, error) {
+	m.cond.L.Lock()
+	cachedVsc, exists := m.cache[instanceId]
+	if exists && cachedVsc.Vsc != nil {
+		m.cond.L.Unlock()
+		return cachedVsc.Vsc, nil
+	}
+	m.cond.L.Unlock()
+
+	vsc, err := m.VscManager.GetPrimaryVscOf(instanceId)
+	if err != nil {
+		return nil, err
+	}
+
+	// update the cache
+	m.cond.L.Lock()
+	clonedVsc := new(Vsc)
+	*clonedVsc = *vsc
+	m.cache[instanceId] = vscWithErr{clonedVsc, nil}
+	m.cond.L.Unlock()
+
+	return vsc, nil
 }
