@@ -265,6 +265,7 @@ func (ad *cpfsAttachDetacher) describe(fsId, vscId string) (*CPFSVscAttachInfo, 
 	if err != nil {
 		return nil, fmt.Errorf("nas:DescribeFilesystemsVscAttachInfo failed: %w", err)
 	}
+	klog.V(4).InfoS("nas:DescribeFilesystemsVscAttachInfo succeeded", "response", resp.Body)
 	if resp.Body.VscAttachInfo == nil || len(resp.Body.VscAttachInfo.VscAttachInfo) == 0 {
 		return nil, nil
 	}
