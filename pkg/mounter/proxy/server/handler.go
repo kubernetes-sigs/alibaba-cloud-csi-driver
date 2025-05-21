@@ -113,29 +113,24 @@ func handle(ctx context.Context, req *rawRequest) proxy.Response {
 }
 
 func Init(driverNames []string) {
-	doForDrivers(func(m Driver) {
-		for _, fstype := range m.Fstypes() {
-			fstypeToDriver[fstype] = m
+	for _, name := range sets.New(driverNames...).UnsortedList() {
+		if driver, ok := nameToDriver[name]; ok {
+			for _, fstype := range driver.Fstypes() {
+				fstypeToDriver[fstype] = driver
+			}
+			driver.Init()
 		}
-		m.Init()
-	}, driverNames)
-
+	}
 }
 
 func Terminate(driverNames []string) {
-	doForDrivers(func(m Driver) {
-		m.Terminate()
-	}, driverNames)
-}
-
-func doForDrivers(f func(m Driver), driverNames []string) {
 	var wg sync.WaitGroup
-	for _, name := range sets.New[string](driverNames...).UnsortedList() {
+	for _, name := range sets.New(driverNames...).UnsortedList() {
 		if driver, ok := nameToDriver[name]; ok {
 			wg.Add(1)
 			go func(m Driver) {
 				defer wg.Done()
-				f(m)
+				m.Terminate()
 			}(driver)
 		}
 	}
