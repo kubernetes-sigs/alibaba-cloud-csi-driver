@@ -424,7 +424,7 @@ func getNfsCapacityStat(pvName string, info nfsInfo, p *nfsStatCollector) ([]str
 	}
 	if capacityInfo != nil && capacityInfo.TotalSize != -1 && capacityInfo.UsedSize != -1 {
 		total, used := getTotalAndUsedSize(capacityInfo)
-		p.capacityEventAlert(total, used, pvName, info)
+		p.capacityEventAlert(total, used, info)
 		return []string{
 			strconv.FormatInt(total, 10),
 			strconv.FormatInt(used, 10),
@@ -443,7 +443,7 @@ func getTotalAndUsedSize(info *nfsCapacityInfo) (int64, int64) {
 	return info.TotalSize * GiBSize, info.UsedSize * GiBSize
 }
 
-func (p *nfsStatCollector) capacityEventAlert(totalSize int64, usedSize int64, pvName string, info nfsInfo) {
+func (p *nfsStatCollector) capacityEventAlert(totalSize int64, usedSize int64, info nfsInfo) {
 	total, used, gibSize := float64(totalSize), float64(usedSize), float64(GiBSize)
 	if p.capacityPercentageThreshold > 0 {
 		usedPercentage := 100 * used / total

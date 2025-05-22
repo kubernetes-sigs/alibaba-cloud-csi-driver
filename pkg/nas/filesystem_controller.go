@@ -437,8 +437,6 @@ func (cs *filesystemController) DeleteVolume(ctx context.Context, req *csi.Delet
 	if value, ok := pv.Spec.CSI.VolumeAttributes["deleteVolume"]; ok {
 		deleteVolume = value
 	}
-	opt := &Options{}
-	opt.MountProtocol = MountProtocolNFS
 	nfsServer = pv.Spec.CSI.VolumeAttributes["server"]
 	if nfsServer == "" {
 		return nil, fmt.Errorf("DeleteVolume: Volume Spec with nfs server empty: %s, CSI: %v", req.VolumeId, pv.Spec.CSI)

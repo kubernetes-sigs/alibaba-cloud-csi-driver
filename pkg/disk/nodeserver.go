@@ -47,7 +47,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	"k8s.io/mount-utils"
 	k8smount "k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
 )
@@ -141,8 +140,8 @@ var (
 	// DFBusTypeDevice defines the regexp of dfnumber
 	DFBusTypeDevice = regexp.MustCompile(`^dfvirtio.*`)
 
-	vfioDrivers    = sets.New[string](DFBusTypeVFIO, PCITypeVFIO)
-	defaultDrivers = sets.New[string](PCITypeNVME, PCITypeVIRTIO, DFBusTypeVIRTIO)
+	vfioDrivers    = sets.New(DFBusTypeVFIO, PCITypeVFIO)
+	defaultDrivers = sets.New(PCITypeNVME, PCITypeVIRTIO, DFBusTypeVIRTIO)
 )
 
 // QueryResponse response struct for query server
@@ -380,7 +379,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.Internal, "NodePublishVolume: VolumeId: %s, get device name error: %s", req.VolumeId, err.Error())
 	}
 
-	realDevice, _, err := mount.GetDeviceNameFromMount(ns.k8smounter, sourcePath)
+	realDevice, _, err := k8smount.GetDeviceNameFromMount(ns.k8smounter, sourcePath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", sourcePath, err.Error())
 	}
@@ -390,7 +389,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			klog.Errorf("NodePublishVolume: mount source error: %s, %s, %s", expectName, sourcePath, err.Error())
 			return nil, status.Error(codes.Internal, "NodePublishVolume: mount source error: "+expectName+", "+sourcePath+", "+err.Error())
 		}
-		realDevice, _, err = mount.GetDeviceNameFromMount(ns.k8smounter, sourcePath)
+		realDevice, _, err = k8smount.GetDeviceNameFromMount(ns.k8smounter, sourcePath)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", sourcePath, err.Error())
 		}
@@ -460,7 +459,7 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "NodeUnpublishVolume: umountRunDVolumes with error: %s", err.Error())
 		}
-		if isRunDType && err == nil {
+		if isRunDType {
 			klog.Infof("NodeUnpublishVolume: %s is runD volume and is removed successful", targetPath)
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
@@ -1457,7 +1456,7 @@ func (ns *nodeServer) checkTargetPathMounted(volumeId, targetPath string) (bool,
 	}
 
 	// check device available
-	deviceName, _, err := mount.GetDeviceNameFromMount(ns.k8smounter, targetPath)
+	deviceName, _, err := k8smount.GetDeviceNameFromMount(ns.k8smounter, targetPath)
 	if err != nil {
 		return false, status.Errorf(codes.Internal, "NodePublishVolume: get device name from mount %s error: %s", targetPath, err.Error())
 	}
