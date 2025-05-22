@@ -214,7 +214,7 @@ func (f *fuseOssfs) buildPodSpec(c *utils.FusePodContext, target string) (spec c
 		},
 	}
 
-	buildOssfsAuthSpec(c, target, &spec, &container)
+	f.buildAuthSpec(c, target, &spec, &container)
 
 	container.Args = []string{"--socket=" + socketPath, "-v=4"}
 
@@ -265,14 +265,14 @@ func (f *fuseOssfs) MakeMountOptions(o *Options, m metadata.MetadataProvider) (m
 		mountOptions = append(mountOptions, fmt.Sprintf("region=%s", region))
 	}
 
-	authOptions := o.getAuthOptions(region)
+	authOptions := f.getAuthOptions(o, region)
 	mountOptions = append(mountOptions, authOptions...)
 
 	return mountOptions, nil
 
 }
 
-func (o *Options) getAuthOptions(region string) (mountOptions []string) {
+func (f *fuseOssfs) getAuthOptions(o *Options, region string) (mountOptions []string) {
 	switch o.AuthType {
 	case AuthTypePublic:
 		mountOptions = append(mountOptions, "public_bucket=1")
@@ -332,7 +332,7 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 	return options
 }
 
-func buildOssfsAuthSpec(c *utils.FusePodContext, target string, spec *corev1.PodSpec, container *corev1.Container) {
+func (f *fuseOssfs) buildAuthSpec(c *utils.FusePodContext, target string, spec *corev1.PodSpec, container *corev1.Container) {
 	if spec == nil || container == nil {
 		return
 	}
@@ -411,10 +411,10 @@ func buildOssfsAuthSpec(c *utils.FusePodContext, target string, spec *corev1.Pod
 		}
 		container.VolumeMounts = append(container.VolumeMounts, secretStoreVolumeMount)
 	default:
-		secretVolumeSource := getPasswdSecretVolume(authCfg.SecretRef)
+		secretVolumeSource := getPasswdSecretVolume(authCfg.SecretRef, c.FuseType)
 		if secretVolumeSource != nil {
 			passwdSecretVolume := corev1.Volume{
-				Name: "passwd-ossfs",
+				Name: utils.GetPasswdFileName(c.FuseType),
 				VolumeSource: corev1.VolumeSource{
 					Secret: secretVolumeSource,
 				},
@@ -427,33 +427,4 @@ func buildOssfsAuthSpec(c *utils.FusePodContext, target string, spec *corev1.Pod
 			container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
 		}
 	}
-}
-
-// keep consistent with RAM response
-var secretRefKeysToParse []string = []string{
-	"AccessKeyId",
-	"AccessKeySecret",
-	"Expiration",
-	"SecurityToken",
-}
-
-func getPasswdSecretVolume(secretRef string) (secret *corev1.SecretVolumeSource) {
-	passwdFilename := "passwd-ossfs"
-	if secretRef == "" {
-		return nil
-	}
-	items := []corev1.KeyToPath{}
-	for _, key := range secretRefKeysToParse {
-		item := corev1.KeyToPath{
-			Key:  key,
-			Path: fmt.Sprintf("%s/%s", passwdFilename, key),
-			Mode: tea.Int32(0600),
-		}
-		items = append(items, item)
-	}
-	secret = &corev1.SecretVolumeSource{
-		SecretName: secretRef,
-		Items:      items,
-	}
-	return
 }

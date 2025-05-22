@@ -5,10 +5,12 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/component-base/featuregate"
 )
 
@@ -191,6 +193,62 @@ func Test_getSTSEndpoint(t *testing.T) {
 			endpoint := getSTSEndpoint(tt.region)
 			if endpoint != tt.expected {
 				t.Errorf("Expected endpoint to be %s, got %s", tt.expected, endpoint)
+			}
+		})
+	}
+}
+
+func Test_getPasswdSecretVolume(t *testing.T) {
+	tests := []struct {
+		name          string
+		secretRef     string
+		expectedEmpty bool
+		expectedName  string
+		expectedItems []corev1.KeyToPath
+	}{
+		{
+			name:          "TestEmptySecretRef",
+			secretRef:     "",
+			expectedEmpty: true,
+		},
+		{
+			name:          "TestNonEmptySecretRef",
+			secretRef:     "my-secret",
+			expectedEmpty: false,
+			expectedName:  "my-secret",
+			expectedItems: []corev1.KeyToPath{
+				{
+					Key:  "AccessKeyId",
+					Path: "passwd-ossfs/AccessKeyId",
+					Mode: tea.Int32(0600),
+				},
+				{
+					Key:  "AccessKeySecret",
+					Path: "passwd-ossfs/AccessKeySecret",
+					Mode: tea.Int32(0600),
+				},
+				{
+					Key:  "Expiration",
+					Path: "passwd-ossfs/Expiration",
+					Mode: tea.Int32(0600),
+				},
+				{
+					Key:  "SecurityToken",
+					Path: "passwd-ossfs/SecurityToken",
+					Mode: tea.Int32(0600),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			secret := getPasswdSecretVolume(tt.secretRef, "ossfs")
+
+			assert.Equal(t, tt.expectedEmpty, secret == nil)
+			if secret != nil {
+				assert.Equal(t, tt.expectedName, secret.SecretName)
+				assert.Equal(t, tt.expectedItems, secret.Items)
 			}
 		})
 	}
