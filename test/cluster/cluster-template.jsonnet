@@ -21,14 +21,14 @@ local nodePool = {
         login_as_non_root: false,
         platform: "AliyunLinux",
         image_id: std.extVar("os_image_alinux3"),
-        image_type: "AliyunLinux3"
+        image_type: "AliyunLinux3ContainerOptimized"
     },
     kubernetes_config: {
         cpu_policy: "none",
         cms_enabled: false,
         unschedulable: false,
         runtime: "containerd",
-        runtime_version: "1.6.36",
+        runtime_version: "1.6.38",
     },
     management: {
         enable: false
