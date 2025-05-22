@@ -11,6 +11,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	csiutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
@@ -29,7 +30,7 @@ var ossfs2Dbglevels = map[string]string{
 	utils.DebugLevelInfo:  "info",
 }
 
-func NewFuseOssfs2(configmap *corev1.ConfigMap, m metadata.MetadataProvider) OSSFuseMounterType {
+func NewFuseOssfs2(configmap *csiutils.Config, m metadata.MetadataProvider) OSSFuseMounterType {
 	config := utils.ExtractFuseContainerConfig(configmap, OssFs2Type)
 	// set default image
 	setDefaultImage(OssFs2Type, m, &config)
