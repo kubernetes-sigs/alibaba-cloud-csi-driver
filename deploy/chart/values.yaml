@@ -94,13 +94,13 @@ images:
   registryVPC: registry-cn-hangzhou-vpc.ack.aliyuncs.com
   controller:
     repo: acs/csi-plugin
-    tag: "v1.31.4-9819c8b-aliyun"
+    tag: "v1.33.1-67e8986-aliyun"
   plugin:
     repo: acs/csi-plugin
-    tag: "v1.31.4-9819c8b-aliyun"
+    tag: "v1.33.1-67e8986-aliyun"
   pluginInit:
     repo: acs/csi-plugin
-    tag: "v1.31.4-9819c8b-aliyun-init"
+    tag: "v1.33.1-67e8986-aliyun-init"
   localController:
     repo: acs/local-csi-driver
     tag: "v0.2.0"
