@@ -32,6 +32,7 @@ const (
 	_vscMountTarget = "vscMountTarget"
 	_vscId          = "vscId"
 	_networkType    = "networkType"
+	_path           = "path"
 
 	// prefix of node id
 	CommonNodeIDPrefix  = "common:"

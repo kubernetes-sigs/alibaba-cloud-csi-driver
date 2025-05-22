@@ -34,9 +34,7 @@ import (
 
 const (
 	VscTypePrimary = "primary"
-)
 
-const (
 	VscStatusCreating = "Creating"
 	VscStatusNormal   = "Normal"
 	VscStatusDeleting = "Deleting"
@@ -70,7 +68,6 @@ func (m *LingjunVscManager) CreatePrimaryVscFor(instanceId string) (string, erro
 	}
 	resp, err := m.client.CreateVsc(req)
 	if err != nil {
-		// klog.ErrorS(err, "eflo:CreateVsc failed", "instanceId", instanceId)
 		return "", fmt.Errorf("eflo:CreateVsc failed: %w", err)
 	}
 	klog.InfoS("eflo:CreateVsc succeeded", "instanceId", instanceId, "response", resp.Body)
@@ -87,7 +84,6 @@ func (m *LingjunVscManager) GetPrimaryVscOf(instanceId string) (*Vsc, error) {
 	}
 	resp, err := m.client.ListVscs(req)
 	if err != nil {
-		// klog.ErrorS(err, "eflo:ListVscs failed", "instanceId", instanceId)
 		return nil, fmt.Errorf("eflo:ListVscs failed: %w", err)
 	}
 	klog.V(4).InfoS("eflo:ListVscs succeeded", "instanceId", instanceId, "response", resp.Body)
@@ -119,163 +115,6 @@ func (m *LingjunVscManager) GetVsc(vscId string) (*Vsc, error) {
 		Type:   tea.StringValue(resp.Body.VscType),
 		Status: tea.StringValue(resp.Body.Status),
 	}, nil
-}
-
-const (
-	CPFSVscStatusAttaching = "Attaching"
-	CPFSVscStatusAttached  = "Attached"
-	CPFSVscStatusDetaching = "Detaching"
-	CPFSVscStatusDetached  = "Detached"
-	CPFSVscStatusFailed    = "Failed"
-)
-
-const (
-	defaultPollInterval  = time.Second * 2
-	defaultADWaitTimeout = time.Second * 10
-)
-
-type CPFSVscAttachInfo = nasclient.DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfoVscAttachInfo
-
-type CPFSVscAttachInfoWaitCond func(*CPFSVscAttachInfo) (done bool, err error)
-
-type CPFSAttachDetacher interface {
-	Attach(ctx context.Context, fsId, vscId string) error
-	Detach(ctx context.Context, fsId, vscId string) error
-}
-
-func NewCPFSAttachDetacher(client *nasclient.Client) CPFSAttachDetacher {
-	return &cpfsAttachDetacher{
-		client:       client,
-		pollInterval: defaultPollInterval,
-		clk:          clock.RealClock{},
-		waitTimeout:  defaultADWaitTimeout,
-	}
-}
-
-type cpfsAttachDetacher struct {
-	client       *nasclient.Client
-	pollInterval time.Duration
-	clk          clock.WithTicker
-	waitTimeout  time.Duration
-}
-
-func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) error {
-	if err := ad.attach(fsId, vscId); err != nil {
-		return err
-	}
-	return ad.waitFor(ctx, fsId, vscId, func(i *CPFSVscAttachInfo) (bool, error) {
-		if i == nil {
-			return false, fmt.Errorf("filesystem %s not attached to %s", fsId, vscId)
-		}
-		switch tea.StringValue(i.Status) {
-		case CPFSVscStatusAttaching:
-			return false, nil
-		case CPFSVscStatusAttached:
-			return true, nil
-		default:
-			return false, fmt.Errorf("unexpected attachinfo status: %v", tea.StringValue(i.Status))
-		}
-	})
-}
-
-func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsId, vscId string) error {
-	// TODO: ignore error if fsId not found
-	if err := ad.detach(fsId, vscId); err != nil {
-		return err
-	}
-	return ad.waitFor(ctx, fsId, vscId, func(i *CPFSVscAttachInfo) (bool, error) {
-		if i == nil {
-			return true, nil
-		}
-		switch tea.StringValue(i.Status) {
-		case CPFSVscStatusDetaching:
-			return false, nil
-		case CPFSVscStatusDetached:
-			return true, nil
-		default:
-			return false, fmt.Errorf("unexpected attachinfo status: %v", tea.StringValue(i.Status))
-		}
-	})
-}
-
-func (ad *cpfsAttachDetacher) waitFor(ctx context.Context, fsId, vscId string, cond CPFSVscAttachInfoWaitCond) error {
-	ctx, cancel := context.WithTimeout(ctx, ad.waitTimeout)
-	defer cancel()
-
-	ticker := ad.clk.NewTicker(ad.pollInterval)
-	defer ticker.Stop()
-	for {
-		attachInfo, err := ad.describe(fsId, vscId)
-		if err != nil {
-			return err
-		}
-		done, err := cond(attachInfo)
-		if err != nil {
-			return err
-		}
-		if done {
-			return nil
-		}
-		select {
-		case <-ticker.C():
-		case <-ctx.Done():
-			return fmt.Errorf("wait attach status: %w", ctx.Err())
-		}
-	}
-}
-
-func (ad *cpfsAttachDetacher) attach(fsId, vscId string) error {
-	req := &nasclient.AttachVscToFilesystemsRequest{
-		ResourceIds: []*nasclient.AttachVscToFilesystemsRequestResourceIds{
-			{
-				FileSystemId: &fsId,
-				VscId:        &vscId,
-			},
-		},
-	}
-	resp, err := ad.client.AttachVscToFilesystems(req)
-	if err != nil {
-		return fmt.Errorf("nas:AttachVscToFilesystems failed: %w", err)
-	}
-	klog.InfoS("nas:AttachVscToFilesystemsRequest succeeded", "filesystem", fsId, "vscId", vscId, "requestid", resp.Body.RequestId)
-	return nil
-}
-
-func (ad *cpfsAttachDetacher) detach(fsId, vscId string) error {
-	req := &nasclient.DetachVscFromFilesystemsRequest{
-		ResourceIds: []*nasclient.DetachVscFromFilesystemsRequestResourceIds{
-			{
-				FileSystemId: &fsId,
-				VscId:        &vscId,
-			},
-		},
-	}
-	resp, err := ad.client.DetachVscFromFilesystems(req)
-	if err != nil {
-		return fmt.Errorf("nas:DetachVscFromFilesystems failed: %w", err)
-	}
-	klog.InfoS("nas:DetachVscFromFilesystems succeeded", "filesystem", fsId, "vscId", vscId, "requestid", resp.Body.RequestId)
-	return nil
-}
-
-func (ad *cpfsAttachDetacher) describe(fsId, vscId string) (*CPFSVscAttachInfo, error) {
-	req := &nasclient.DescribeFilesystemsVscAttachInfoRequest{
-		ResourceIds: []*nasclient.DescribeFilesystemsVscAttachInfoRequestResourceIds{
-			{
-				FileSystemId: &fsId,
-				VscId:        &vscId,
-			},
-		},
-	}
-	resp, err := ad.client.DescribeFilesystemsVscAttachInfo(req)
-	if err != nil {
-		return nil, fmt.Errorf("nas:DescribeFilesystemsVscAttachInfo failed: %w", err)
-	}
-	klog.V(4).InfoS("nas:DescribeFilesystemsVscAttachInfo succeeded", "response", resp.Body)
-	if resp.Body.VscAttachInfo == nil || len(resp.Body.VscAttachInfo.VscAttachInfo) == 0 {
-		return nil, nil
-	}
-	return resp.Body.VscAttachInfo.VscAttachInfo[0], nil
 }
 
 type vscWithErr struct {
@@ -436,4 +275,161 @@ func (m *PrimaryVscManagerWithCache) GetPrimaryVscOf(instanceId string) (*Vsc, e
 	}
 
 	return vsc, nil
+}
+
+const (
+	CPFSVscStatusAttaching = "Attaching"
+	CPFSVscStatusAttached  = "Attached"
+	CPFSVscStatusDetaching = "Detaching"
+	CPFSVscStatusDetached  = "Detached"
+	CPFSVscStatusFailed    = "Failed"
+)
+
+const (
+	defaultPollInterval  = time.Second * 2
+	defaultADWaitTimeout = time.Second * 10
+)
+
+type CPFSVscAttachInfo = nasclient.DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfoVscAttachInfo
+
+type CPFSVscAttachInfoCond func(*CPFSVscAttachInfo) (done bool, err error)
+
+type CPFSAttachDetacher interface {
+	Attach(ctx context.Context, fsId, vscId string) error
+	Detach(ctx context.Context, fsId, vscId string) error
+}
+
+func NewCPFSAttachDetacher(client *nasclient.Client) CPFSAttachDetacher {
+	return &cpfsAttachDetacher{
+		client:       client,
+		pollInterval: defaultPollInterval,
+		clk:          clock.RealClock{},
+		waitTimeout:  defaultADWaitTimeout,
+	}
+}
+
+type cpfsAttachDetacher struct {
+	client       *nasclient.Client
+	pollInterval time.Duration
+	clk          clock.WithTicker
+	waitTimeout  time.Duration
+}
+
+func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) error {
+	if err := ad.attach(fsId, vscId); err != nil {
+		return err
+	}
+	return ad.waitFor(ctx, fsId, vscId, func(i *CPFSVscAttachInfo) (bool, error) {
+		if i == nil {
+			return false, fmt.Errorf("filesystem %s not attached to %s", fsId, vscId)
+		}
+		switch tea.StringValue(i.Status) {
+		case CPFSVscStatusAttaching:
+			return false, nil
+		case CPFSVscStatusAttached:
+			return true, nil
+		default:
+			return false, fmt.Errorf("unexpected attachinfo status: %v", tea.StringValue(i.Status))
+		}
+	}, "wait for cpfs to be attached")
+}
+
+func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsId, vscId string) error {
+	// TODO: ignore error if fsId not found
+	if err := ad.detach(fsId, vscId); err != nil {
+		return err
+	}
+	return ad.waitFor(ctx, fsId, vscId, func(i *CPFSVscAttachInfo) (bool, error) {
+		if i == nil {
+			return true, nil
+		}
+		switch tea.StringValue(i.Status) {
+		case CPFSVscStatusDetaching:
+			return false, nil
+		case CPFSVscStatusDetached:
+			return true, nil
+		default:
+			return false, fmt.Errorf("unexpected attachinfo status: %v", tea.StringValue(i.Status))
+		}
+	}, "wait for cpfs to be detached")
+}
+
+func (ad *cpfsAttachDetacher) waitFor(ctx context.Context, fsId, vscId string, cond CPFSVscAttachInfoCond, cause string) error {
+	deadline := ad.clk.NewTimer(ad.waitTimeout)
+	ticker := ad.clk.NewTicker(ad.pollInterval)
+	defer ticker.Stop()
+	for {
+		attachInfo, err := ad.describe(fsId, vscId)
+		if err != nil {
+			return err
+		}
+		done, err := cond(attachInfo)
+		if err != nil {
+			return err
+		}
+		if done {
+			return nil
+		}
+		select {
+		case <-ticker.C():
+		case <-deadline.C():
+			return fmt.Errorf("%s: timeout", cause)
+		case <-ctx.Done():
+			return fmt.Errorf("%s: %w", cause, ctx.Err())
+		}
+	}
+}
+
+func (ad *cpfsAttachDetacher) attach(fsId, vscId string) error {
+	req := &nasclient.AttachVscToFilesystemsRequest{
+		ResourceIds: []*nasclient.AttachVscToFilesystemsRequestResourceIds{
+			{
+				FileSystemId: &fsId,
+				VscId:        &vscId,
+			},
+		},
+	}
+	resp, err := ad.client.AttachVscToFilesystems(req)
+	if err != nil {
+		return fmt.Errorf("nas:AttachVscToFilesystems failed: %w", err)
+	}
+	klog.InfoS("nas:AttachVscToFilesystemsRequest succeeded", "filesystem", fsId, "vscId", vscId, "requestid", resp.Body.RequestId)
+	return nil
+}
+
+func (ad *cpfsAttachDetacher) detach(fsId, vscId string) error {
+	req := &nasclient.DetachVscFromFilesystemsRequest{
+		ResourceIds: []*nasclient.DetachVscFromFilesystemsRequestResourceIds{
+			{
+				FileSystemId: &fsId,
+				VscId:        &vscId,
+			},
+		},
+	}
+	resp, err := ad.client.DetachVscFromFilesystems(req)
+	if err != nil {
+		return fmt.Errorf("nas:DetachVscFromFilesystems failed: %w", err)
+	}
+	klog.InfoS("nas:DetachVscFromFilesystems succeeded", "filesystem", fsId, "vscId", vscId, "requestid", resp.Body.RequestId)
+	return nil
+}
+
+func (ad *cpfsAttachDetacher) describe(fsId, vscId string) (*CPFSVscAttachInfo, error) {
+	req := &nasclient.DescribeFilesystemsVscAttachInfoRequest{
+		ResourceIds: []*nasclient.DescribeFilesystemsVscAttachInfoRequestResourceIds{
+			{
+				FileSystemId: &fsId,
+				VscId:        &vscId,
+			},
+		},
+	}
+	resp, err := ad.client.DescribeFilesystemsVscAttachInfo(req)
+	if err != nil {
+		return nil, fmt.Errorf("nas:DescribeFilesystemsVscAttachInfo failed: %w", err)
+	}
+	klog.V(4).InfoS("nas:DescribeFilesystemsVscAttachInfo succeeded", "response", resp.Body)
+	if resp.Body.VscAttachInfo == nil || len(resp.Body.VscAttachInfo.VscAttachInfo) == 0 {
+		return nil, nil
+	}
+	return resp.Body.VscAttachInfo.VscAttachInfo[0], nil
 }
