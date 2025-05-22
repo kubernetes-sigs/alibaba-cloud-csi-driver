@@ -4,9 +4,21 @@
     {{- $vpc = .deploy.ecs -}}
 {{- end -}}
 {{- if $vpc -}}
-    {{- .images.registryVPC -}}
+    {{- if (ne .images.registryVPC nil) -}}
+        {{- .images.registryVPC -}}
+    {{- else if (eq .deploy.regionID nil) -}}
+        registry-cn-hangzhou.ack.aliyuncs.com
+    {{- else -}}
+        registry-{{ .deploy.regionID }}-vpc.aliyuncs.com
+    {{- end -}}
 {{- else -}}
-    {{- .images.registry -}}
+    {{- if (ne .images.registry nil) -}}
+        {{- .images.registry -}}
+    {{- else if (eq .deploy.regionID nil) -}}
+        registry-cn-hangzhou.ack.aliyuncs.com
+    {{- else -}}
+        registry-{{ .deploy.regionID }}.aliyuncs.com
+    {{- end -}}
 {{- end -}}
 {{- end -}}
 
