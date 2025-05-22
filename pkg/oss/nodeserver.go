@@ -19,6 +19,7 @@ package oss
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
@@ -111,7 +112,9 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// parse options
 	region, _ := ns.metadata.Get(metadata.RegionID)
 	// ensure fuseType is not empty
-	opts := parseOptions(req.GetVolumeContext(), req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), region, "", true)
+	allParams := maps.Clone(req.GetVolumeContext())
+	maps.Copy(allParams, req.GetPublishContext())
+	opts := parseOptions(allParams, req.GetSecrets(), []*csi.VolumeCapability{req.GetVolumeCapability()}, req.GetReadonly(), region, "", true)
 	if err := setCNFSOptions(ctx, ns.cnfsGetter, opts); err != nil {
 		return nil, err
 	}
