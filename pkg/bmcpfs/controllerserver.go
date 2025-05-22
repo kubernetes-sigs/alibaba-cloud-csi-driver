@@ -50,7 +50,6 @@ func newControllerServer(region string) (*controllerServer, error) {
 		return nil, err
 	}
 
-	// enableVsc(efloClient)
 	nasClient, err := cloud.NewNasClientV2(region)
 	if err != nil {
 		return nil, err
@@ -71,14 +70,12 @@ func (cs *controllerServer) ControllerGetCapabilities(ctx context.Context, req *
 }
 
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	// TODO:  set default timeout for context
 	if !strings.HasPrefix(req.NodeId, LingjunNodeIDPrefix) {
 		if req.VolumeContext[_vpcMountTarget] == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "missing %q config in volume context", _vpcMountTarget)
 		}
 		// TODO: try to use existing vpc mount target
-		// getMountTarget(cs.nasClient, req.VolumeId, "vpc")
-		klog.Info("ControllerPublishVolume: use VPC MountTarget", "nodeId", req.NodeId)
+		klog.InfoS("ControllerPublishVolume: use VPC MountTarget", "nodeId", req.NodeId)
 		return &csi.ControllerPublishVolumeResponse{
 			PublishContext: map[string]string{
 				_networkType:    networkTypeVPC,
@@ -113,6 +110,8 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
+
+	// TODO: if the cached vscid is already deleted, try to recreate a new primary vsc for lingjun node
 
 	klog.InfoS("ControllerPublishVolume: attached cpfs to vsc", "vscMountTarget", mt, "vscId", vscId, "node", req.NodeId)
 	return &csi.ControllerPublishVolumeResponse{
@@ -224,15 +223,3 @@ func getMountTarget(client *nasclient.Client, fsId, networkType string) (string,
 	}
 	return "", fmt.Errorf("no active %s mount target found", networkType)
 }
-
-//
-// func enableVsc(client *efloclient.Client) {
-// 	_, err := client.UpdateNodeGroup(&efloclient.UpdateNodeGroupRequest{
-// 		FileSystemMountEnabled: tea.Bool(true),
-// 		NewNodeGroupName:       tea.String("dpu-lingjun"),
-// 		NodeGroupId:            tea.String("i123338791744965637916"),
-// 	})
-// 	if err != nil {
-// 		klog.ErrorS(err, "eflo:UpdateNodeGroup failed")
-// 	}
-// }

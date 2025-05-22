@@ -130,7 +130,8 @@ const (
 )
 
 const (
-	defaultPollInterval = time.Second * 2
+	defaultPollInterval  = time.Second * 2
+	defaultADWaitTimeout = time.Second * 10
 )
 
 type CPFSVscAttachInfo = nasclient.DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfoVscAttachInfo
@@ -147,6 +148,7 @@ func NewCPFSAttachDetacher(client *nasclient.Client) CPFSAttachDetacher {
 		client:       client,
 		pollInterval: defaultPollInterval,
 		clk:          clock.RealClock{},
+		waitTimeout:  defaultADWaitTimeout,
 	}
 }
 
@@ -154,6 +156,7 @@ type cpfsAttachDetacher struct {
 	client       *nasclient.Client
 	pollInterval time.Duration
 	clk          clock.WithTicker
+	waitTimeout  time.Duration
 }
 
 func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) error {
@@ -196,6 +199,9 @@ func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsId, vscId string) er
 }
 
 func (ad *cpfsAttachDetacher) waitFor(ctx context.Context, fsId, vscId string, cond CPFSVscAttachInfoWaitCond) error {
+	ctx, cancel := context.WithTimeout(ctx, ad.waitTimeout)
+	defer cancel()
+
 	ticker := ad.clk.NewTicker(ad.pollInterval)
 	defer ticker.Stop()
 	for {
@@ -375,7 +381,6 @@ func (m *PrimaryVscManagerWithCache) getOrCreatePrimaryFor(instanceId string) (*
 	return vsc, nil
 }
 
-// EnsurePrimaryVsc creates primary vsc for an instance if not exists.
 func (m *PrimaryVscManagerWithCache) EnsurePrimaryVsc(ctx context.Context, instanceId string, refresh bool) (string, error) {
 	m.cond.L.Lock()
 	defer m.cond.L.Unlock()
@@ -407,7 +412,6 @@ func (m *PrimaryVscManagerWithCache) EnsurePrimaryVsc(ctx context.Context, insta
 	}
 }
 
-// GetPrimaryVscOf checks the vsc info
 func (m *PrimaryVscManagerWithCache) GetPrimaryVscOf(instanceId string) (*Vsc, error) {
 	m.cond.L.Lock()
 	cachedVsc, exists := m.cache[instanceId]
@@ -423,11 +427,13 @@ func (m *PrimaryVscManagerWithCache) GetPrimaryVscOf(instanceId string) (*Vsc, e
 	}
 
 	// update the cache
-	m.cond.L.Lock()
-	clonedVsc := new(Vsc)
-	*clonedVsc = *vsc
-	m.cache[instanceId] = vscWithErr{clonedVsc, nil}
-	m.cond.L.Unlock()
+	if vsc != nil {
+		m.cond.L.Lock()
+		clonedVsc := new(Vsc)
+		*clonedVsc = *vsc
+		m.cache[instanceId] = vscWithErr{clonedVsc, nil}
+		m.cond.L.Unlock()
+	}
 
 	return vsc, nil
 }
