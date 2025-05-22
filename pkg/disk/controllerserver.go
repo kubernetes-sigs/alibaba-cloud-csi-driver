@@ -139,9 +139,6 @@ func (cs *controllerServer) ControllerGetCapabilities(ctx context.Context, req *
 	}, nil
 }
 
-// the map of multizone and index
-var storageClassZonePos = map[string]int{}
-
 // provisioner: create/delete disk
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	logger := klog.FromContext(ctx)
