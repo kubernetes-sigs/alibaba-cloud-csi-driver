@@ -34,9 +34,7 @@ import (
 
 const (
 	VscTypePrimary = "primary"
-)
 
-const (
 	VscStatusCreating = "Creating"
 	VscStatusNormal   = "Normal"
 	VscStatusDeleting = "Deleting"
@@ -70,7 +68,6 @@ func (m *LingjunVscManager) CreatePrimaryVscFor(instanceId string) (string, erro
 	}
 	resp, err := m.client.CreateVsc(req)
 	if err != nil {
-		// klog.ErrorS(err, "eflo:CreateVsc failed", "instanceId", instanceId)
 		return "", fmt.Errorf("eflo:CreateVsc failed: %w", err)
 	}
 	klog.InfoS("eflo:CreateVsc succeeded", "instanceId", instanceId, "response", resp.Body)
@@ -87,7 +84,6 @@ func (m *LingjunVscManager) GetPrimaryVscOf(instanceId string) (*Vsc, error) {
 	}
 	resp, err := m.client.ListVscs(req)
 	if err != nil {
-		// klog.ErrorS(err, "eflo:ListVscs failed", "instanceId", instanceId)
 		return nil, fmt.Errorf("eflo:ListVscs failed: %w", err)
 	}
 	klog.V(4).InfoS("eflo:ListVscs succeeded", "instanceId", instanceId, "response", resp.Body)
@@ -296,7 +292,7 @@ const (
 
 type CPFSVscAttachInfo = nasclient.DescribeFilesystemsVscAttachInfoResponseBodyVscAttachInfoVscAttachInfo
 
-type CPFSVscAttachInfoWaitCond func(*CPFSVscAttachInfo) (done bool, err error)
+type CPFSVscAttachInfoCond func(*CPFSVscAttachInfo) (done bool, err error)
 
 type CPFSAttachDetacher interface {
 	Attach(ctx context.Context, fsId, vscId string) error
@@ -335,7 +331,7 @@ func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) er
 		default:
 			return false, fmt.Errorf("unexpected attachinfo status: %v", tea.StringValue(i.Status))
 		}
-	})
+	}, "wait for cpfs to be attached")
 }
 
 func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsId, vscId string) error {
@@ -355,13 +351,11 @@ func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsId, vscId string) er
 		default:
 			return false, fmt.Errorf("unexpected attachinfo status: %v", tea.StringValue(i.Status))
 		}
-	})
+	}, "wait for cpfs to be detached")
 }
 
-func (ad *cpfsAttachDetacher) waitFor(ctx context.Context, fsId, vscId string, cond CPFSVscAttachInfoWaitCond) error {
-	ctx, cancel := context.WithTimeout(ctx, ad.waitTimeout)
-	defer cancel()
-
+func (ad *cpfsAttachDetacher) waitFor(ctx context.Context, fsId, vscId string, cond CPFSVscAttachInfoCond, cause string) error {
+	deadline := ad.clk.NewTimer(ad.waitTimeout)
 	ticker := ad.clk.NewTicker(ad.pollInterval)
 	defer ticker.Stop()
 	for {
@@ -378,8 +372,10 @@ func (ad *cpfsAttachDetacher) waitFor(ctx context.Context, fsId, vscId string, c
 		}
 		select {
 		case <-ticker.C():
+		case <-deadline.C():
+			return fmt.Errorf("%s: timeout", cause)
 		case <-ctx.Done():
-			return fmt.Errorf("wait attach status: %w", ctx.Err())
+			return fmt.Errorf("%s: %w", cause, ctx.Err())
 		}
 	}
 }
