@@ -1,366 +1,387 @@
 // This file is auto-generated, don't edit it. Thanks.
-/**
- * This is for OpenApi SDK
- */
 package client
 
 import (
+	"encoding/hex"
+	"fmt"
 	spi "github.com/alibabacloud-go/alibabacloud-gateway-spi/client"
-	openapiutil "github.com/alibabacloud-go/openapi-util/service"
-	util "github.com/alibabacloud-go/tea-utils/v2/service"
-	xml "github.com/alibabacloud-go/tea-xml/service"
-	"github.com/alibabacloud-go/tea/tea"
+	models "github.com/alibabacloud-go/darabonba-openapi/v2/models"
+	openapiutil "github.com/alibabacloud-go/darabonba-openapi/v2/utils"
+	"github.com/alibabacloud-go/tea/dara"
 	credential "github.com/aliyun/credentials-go/credentials"
-	"io"
 )
 
-type GlobalParameters struct {
-	Headers map[string]*string `json:"headers,omitempty" xml:"headers,omitempty"`
-	Queries map[string]*string `json:"queries,omitempty" xml:"queries,omitempty"`
+// Description:
+//
+// This is for OpenApi SDK
+type Config = models.Config
+type GlobalParameters = models.GlobalParameters
+type Params = models.Params
+type OpenApiRequest = models.OpenApiRequest
+type iSSEResponse interface {
+	dara.Model
+	String() string
+	GoString() string
+	SetHeaders(v map[string]*string) *SSEResponse
+	GetHeaders() map[string]*string
+	SetStatusCode(v int) *SSEResponse
+	GetStatusCode() *int
+	SetEvent(v *dara.SSEEvent) *SSEResponse
+	GetEvent() *dara.SSEEvent
 }
 
-func (s GlobalParameters) String() string {
-	return tea.Prettify(s)
+type SSEResponse struct {
+	Headers map[string]*string `json:"headers,omitempty" xml:"headers,omitempty" require:"true"`
+	// HTTP Status Code
+	StatusCode *int           `json:"statusCode,omitempty" xml:"statusCode,omitempty" require:"true"`
+	Event      *dara.SSEEvent `json:"event,omitempty" xml:"event,omitempty" require:"true"`
 }
 
-func (s GlobalParameters) GoString() string {
+func (s SSEResponse) String() string {
+	return dara.Prettify(s)
+}
+
+func (s SSEResponse) GoString() string {
 	return s.String()
 }
 
-func (s *GlobalParameters) SetHeaders(v map[string]*string) *GlobalParameters {
+func (s *SSEResponse) GetHeaders() map[string]*string {
+	return s.Headers
+}
+
+func (s *SSEResponse) GetStatusCode() *int {
+	return s.StatusCode
+}
+
+func (s *SSEResponse) GetEvent() *dara.SSEEvent {
+	return s.Event
+}
+
+func (s *SSEResponse) SetHeaders(v map[string]*string) *SSEResponse {
 	s.Headers = v
 	return s
 }
 
-func (s *GlobalParameters) SetQueries(v map[string]*string) *GlobalParameters {
-	s.Queries = v
+func (s *SSEResponse) SetStatusCode(v int) *SSEResponse {
+	s.StatusCode = &v
 	return s
 }
 
-/**
- * Model for initing client
- */
-type Config struct {
-	// accesskey id
-	AccessKeyId *string `json:"accessKeyId,omitempty" xml:"accessKeyId,omitempty"`
-	// accesskey secret
-	AccessKeySecret *string `json:"accessKeySecret,omitempty" xml:"accessKeySecret,omitempty"`
-	// security token
-	SecurityToken *string `json:"securityToken,omitempty" xml:"securityToken,omitempty"`
-	// http protocol
-	Protocol *string `json:"protocol,omitempty" xml:"protocol,omitempty"`
-	// http method
-	Method *string `json:"method,omitempty" xml:"method,omitempty"`
-	// region id
-	RegionId *string `json:"regionId,omitempty" xml:"regionId,omitempty"`
-	// read timeout
-	ReadTimeout *int `json:"readTimeout,omitempty" xml:"readTimeout,omitempty"`
-	// connect timeout
-	ConnectTimeout *int `json:"connectTimeout,omitempty" xml:"connectTimeout,omitempty"`
-	// http proxy
-	HttpProxy *string `json:"httpProxy,omitempty" xml:"httpProxy,omitempty"`
-	// https proxy
-	HttpsProxy *string `json:"httpsProxy,omitempty" xml:"httpsProxy,omitempty"`
-	// credential
-	Credential credential.Credential `json:"credential,omitempty" xml:"credential,omitempty"`
-	// endpoint
-	Endpoint *string `json:"endpoint,omitempty" xml:"endpoint,omitempty"`
-	// proxy white list
-	NoProxy *string `json:"noProxy,omitempty" xml:"noProxy,omitempty"`
-	// max idle conns
-	MaxIdleConns *int `json:"maxIdleConns,omitempty" xml:"maxIdleConns,omitempty"`
-	// network for endpoint
-	Network *string `json:"network,omitempty" xml:"network,omitempty"`
-	// user agent
-	UserAgent *string `json:"userAgent,omitempty" xml:"userAgent,omitempty"`
-	// suffix for endpoint
-	Suffix *string `json:"suffix,omitempty" xml:"suffix,omitempty"`
-	// socks5 proxy
-	Socks5Proxy *string `json:"socks5Proxy,omitempty" xml:"socks5Proxy,omitempty"`
-	// socks5 network
-	Socks5NetWork *string `json:"socks5NetWork,omitempty" xml:"socks5NetWork,omitempty"`
-	// endpoint type
-	EndpointType *string `json:"endpointType,omitempty" xml:"endpointType,omitempty"`
-	// OpenPlatform endpoint
-	OpenPlatformEndpoint *string `json:"openPlatformEndpoint,omitempty" xml:"openPlatformEndpoint,omitempty"`
-	// Deprecated
-	// credential type
-	Type *string `json:"type,omitempty" xml:"type,omitempty"`
-	// Signature Version
-	SignatureVersion *string `json:"signatureVersion,omitempty" xml:"signatureVersion,omitempty"`
-	// Signature Algorithm
-	SignatureAlgorithm *string `json:"signatureAlgorithm,omitempty" xml:"signatureAlgorithm,omitempty"`
-	// Global Parameters
-	GlobalParameters *GlobalParameters `json:"globalParameters,omitempty" xml:"globalParameters,omitempty"`
-	// privite key for client certificate
-	Key *string `json:"key,omitempty" xml:"key,omitempty"`
-	// client certificate
-	Cert *string `json:"cert,omitempty" xml:"cert,omitempty"`
-	// server certificate
-	Ca *string `json:"ca,omitempty" xml:"ca,omitempty"`
-}
-
-func (s Config) String() string {
-	return tea.Prettify(s)
-}
-
-func (s Config) GoString() string {
-	return s.String()
-}
-
-func (s *Config) SetAccessKeyId(v string) *Config {
-	s.AccessKeyId = &v
+func (s *SSEResponse) SetEvent(v *dara.SSEEvent) *SSEResponse {
+	s.Event = v
 	return s
 }
 
-func (s *Config) SetAccessKeySecret(v string) *Config {
-	s.AccessKeySecret = &v
-	return s
+func (s *SSEResponse) Validate() error {
+	return dara.Validate(s)
 }
 
-func (s *Config) SetSecurityToken(v string) *Config {
-	s.SecurityToken = &v
-	return s
+type iAlibabaCloudError interface {
+	Error() string
+	GetRetryAfter() *int64
+	GetData() map[string]interface{}
+	GetAccessDeniedDetail() map[string]interface{}
+	GetName() *string
+	GetStack() *string
+	GetStatusCode() *int
+	GetCode() *string
+	GetMessage() *string
+	GetDescription() *string
+	GetRequestId() *string
 }
 
-func (s *Config) SetProtocol(v string) *Config {
-	s.Protocol = &v
-	return s
+type AlibabaCloudError struct {
+	RetryAfter         *int64                 ``
+	Data               map[string]interface{} ``
+	AccessDeniedDetail map[string]interface{} ``
+	Name               *string                ``
+	Stack              *string                ``
+	StatusCode         *int                   ``
+	Code               *string                ``
+	Message            *string                ``
+	Description        *string                ``
+	RequestId          *string                ``
 }
 
-func (s *Config) SetMethod(v string) *Config {
-	s.Method = &v
-	return s
+func (err AlibabaCloudError) Error() string {
+	if err.Message == nil {
+		str := fmt.Sprintf("AlibabaCloudError:\n   Name: %s\n   Code: %s\n",
+			dara.StringValue(err.Name), dara.StringValue(err.Code))
+		err.Message = dara.String(str)
+	}
+	return dara.StringValue(err.Message)
 }
 
-func (s *Config) SetRegionId(v string) *Config {
-	s.RegionId = &v
-	return s
+func (s *AlibabaCloudError) GetRetryAfter() *int64 {
+	return s.RetryAfter
 }
 
-func (s *Config) SetReadTimeout(v int) *Config {
-	s.ReadTimeout = &v
-	return s
+func (s *AlibabaCloudError) GetData() map[string]interface{} {
+	return s.Data
 }
 
-func (s *Config) SetConnectTimeout(v int) *Config {
-	s.ConnectTimeout = &v
-	return s
+func (s *AlibabaCloudError) GetAccessDeniedDetail() map[string]interface{} {
+	return s.AccessDeniedDetail
 }
 
-func (s *Config) SetHttpProxy(v string) *Config {
-	s.HttpProxy = &v
-	return s
+func (s *AlibabaCloudError) GetName() *string {
+	return s.Name
 }
 
-func (s *Config) SetHttpsProxy(v string) *Config {
-	s.HttpsProxy = &v
-	return s
+func (s *AlibabaCloudError) GetStack() *string {
+	return s.Stack
 }
 
-func (s *Config) SetCredential(v credential.Credential) *Config {
-	s.Credential = v
-	return s
+func (s *AlibabaCloudError) GetStatusCode() *int {
+	return s.StatusCode
 }
 
-func (s *Config) SetEndpoint(v string) *Config {
-	s.Endpoint = &v
-	return s
+func (s *AlibabaCloudError) GetCode() *string {
+	return s.Code
 }
 
-func (s *Config) SetNoProxy(v string) *Config {
-	s.NoProxy = &v
-	return s
+func (s *AlibabaCloudError) GetMessage() *string {
+	return s.Message
 }
 
-func (s *Config) SetMaxIdleConns(v int) *Config {
-	s.MaxIdleConns = &v
-	return s
+func (s *AlibabaCloudError) GetDescription() *string {
+	return s.Description
 }
 
-func (s *Config) SetNetwork(v string) *Config {
-	s.Network = &v
-	return s
+func (s *AlibabaCloudError) GetRequestId() *string {
+	return s.RequestId
 }
 
-func (s *Config) SetUserAgent(v string) *Config {
-	s.UserAgent = &v
-	return s
+type iClientError interface {
+	Error() string
+	GetStatusCode() *int
+	GetCode() *string
+	GetMessage() *string
+	GetDescription() *string
+	GetRequestId() *string
+	GetRetryAfter() *int64
+	GetData() map[string]interface{}
+	GetName() *string
+	GetStack() *string
+	GetAccessDeniedDetail() map[string]interface{}
 }
 
-func (s *Config) SetSuffix(v string) *Config {
-	s.Suffix = &v
-	return s
+type ClientError struct {
+	StatusCode         *int                   ``
+	Code               *string                ``
+	Message            *string                ``
+	Description        *string                ``
+	RequestId          *string                ``
+	RetryAfter         *int64                 ``
+	Data               map[string]interface{} ``
+	Name               *string                ``
+	Stack              *string                ``
+	AccessDeniedDetail map[string]interface{} ``
 }
 
-func (s *Config) SetSocks5Proxy(v string) *Config {
-	s.Socks5Proxy = &v
-	return s
+func (err ClientError) Error() string {
+	if err.Message == nil {
+		str := fmt.Sprintf("ClientError:\n   Name: %s\n   Code: %s\n",
+			dara.StringValue(err.Name), dara.StringValue(err.Code))
+		err.Message = dara.String(str)
+	}
+	return dara.StringValue(err.Message)
 }
 
-func (s *Config) SetSocks5NetWork(v string) *Config {
-	s.Socks5NetWork = &v
-	return s
+func (s *ClientError) GetStatusCode() *int {
+	return s.StatusCode
 }
 
-func (s *Config) SetEndpointType(v string) *Config {
-	s.EndpointType = &v
-	return s
+func (s *ClientError) GetCode() *string {
+	return s.Code
 }
 
-func (s *Config) SetOpenPlatformEndpoint(v string) *Config {
-	s.OpenPlatformEndpoint = &v
-	return s
+func (s *ClientError) GetMessage() *string {
+	return s.Message
 }
 
-func (s *Config) SetType(v string) *Config {
-	s.Type = &v
-	return s
+func (s *ClientError) GetDescription() *string {
+	return s.Description
 }
 
-func (s *Config) SetSignatureVersion(v string) *Config {
-	s.SignatureVersion = &v
-	return s
+func (s *ClientError) GetRequestId() *string {
+	return s.RequestId
 }
 
-func (s *Config) SetSignatureAlgorithm(v string) *Config {
-	s.SignatureAlgorithm = &v
-	return s
+func (s *ClientError) GetRetryAfter() *int64 {
+	return s.RetryAfter
 }
 
-func (s *Config) SetGlobalParameters(v *GlobalParameters) *Config {
-	s.GlobalParameters = v
-	return s
+func (s *ClientError) GetData() map[string]interface{} {
+	return s.Data
 }
 
-func (s *Config) SetKey(v string) *Config {
-	s.Key = &v
-	return s
+func (s *ClientError) GetName() *string {
+	return s.Name
 }
 
-func (s *Config) SetCert(v string) *Config {
-	s.Cert = &v
-	return s
+func (s *ClientError) GetStack() *string {
+	return s.Stack
 }
 
-func (s *Config) SetCa(v string) *Config {
-	s.Ca = &v
-	return s
+func (s *ClientError) GetAccessDeniedDetail() map[string]interface{} {
+	return s.AccessDeniedDetail
 }
 
-type OpenApiRequest struct {
-	Headers          map[string]*string `json:"headers,omitempty" xml:"headers,omitempty"`
-	Query            map[string]*string `json:"query,omitempty" xml:"query,omitempty"`
-	Body             interface{}        `json:"body,omitempty" xml:"body,omitempty"`
-	Stream           io.Reader          `json:"stream,omitempty" xml:"stream,omitempty"`
-	HostMap          map[string]*string `json:"hostMap,omitempty" xml:"hostMap,omitempty"`
-	EndpointOverride *string            `json:"endpointOverride,omitempty" xml:"endpointOverride,omitempty"`
+type iServerError interface {
+	Error() string
+	GetStatusCode() *int
+	GetCode() *string
+	GetMessage() *string
+	GetDescription() *string
+	GetRequestId() *string
+	GetRetryAfter() *int64
+	GetData() map[string]interface{}
+	GetAccessDeniedDetail() map[string]interface{}
+	GetName() *string
+	GetStack() *string
 }
 
-func (s OpenApiRequest) String() string {
-	return tea.Prettify(s)
+type ServerError struct {
+	StatusCode         *int                   ``
+	Code               *string                ``
+	Message            *string                ``
+	Description        *string                ``
+	RequestId          *string                ``
+	RetryAfter         *int64                 ``
+	Data               map[string]interface{} ``
+	AccessDeniedDetail map[string]interface{} ``
+	Name               *string                ``
+	Stack              *string                ``
 }
 
-func (s OpenApiRequest) GoString() string {
-	return s.String()
+func (err ServerError) Error() string {
+	if err.Message == nil {
+		str := fmt.Sprintf("ServerError:\n   Name: %s\n   Code: %s\n",
+			dara.StringValue(err.Name), dara.StringValue(err.Code))
+		err.Message = dara.String(str)
+	}
+	return dara.StringValue(err.Message)
 }
 
-func (s *OpenApiRequest) SetHeaders(v map[string]*string) *OpenApiRequest {
-	s.Headers = v
-	return s
+func (s *ServerError) GetStatusCode() *int {
+	return s.StatusCode
 }
 
-func (s *OpenApiRequest) SetQuery(v map[string]*string) *OpenApiRequest {
-	s.Query = v
-	return s
+func (s *ServerError) GetCode() *string {
+	return s.Code
 }
 
-func (s *OpenApiRequest) SetBody(v interface{}) *OpenApiRequest {
-	s.Body = v
-	return s
+func (s *ServerError) GetMessage() *string {
+	return s.Message
 }
 
-func (s *OpenApiRequest) SetStream(v io.Reader) *OpenApiRequest {
-	s.Stream = v
-	return s
+func (s *ServerError) GetDescription() *string {
+	return s.Description
 }
 
-func (s *OpenApiRequest) SetHostMap(v map[string]*string) *OpenApiRequest {
-	s.HostMap = v
-	return s
+func (s *ServerError) GetRequestId() *string {
+	return s.RequestId
 }
 
-func (s *OpenApiRequest) SetEndpointOverride(v string) *OpenApiRequest {
-	s.EndpointOverride = &v
-	return s
+func (s *ServerError) GetRetryAfter() *int64 {
+	return s.RetryAfter
 }
 
-type Params struct {
-	Action      *string `json:"action,omitempty" xml:"action,omitempty" require:"true"`
-	Version     *string `json:"version,omitempty" xml:"version,omitempty" require:"true"`
-	Protocol    *string `json:"protocol,omitempty" xml:"protocol,omitempty" require:"true"`
-	Pathname    *string `json:"pathname,omitempty" xml:"pathname,omitempty" require:"true"`
-	Method      *string `json:"method,omitempty" xml:"method,omitempty" require:"true"`
-	AuthType    *string `json:"authType,omitempty" xml:"authType,omitempty" require:"true"`
-	BodyType    *string `json:"bodyType,omitempty" xml:"bodyType,omitempty" require:"true"`
-	ReqBodyType *string `json:"reqBodyType,omitempty" xml:"reqBodyType,omitempty" require:"true"`
-	Style       *string `json:"style,omitempty" xml:"style,omitempty"`
+func (s *ServerError) GetData() map[string]interface{} {
+	return s.Data
 }
 
-func (s Params) String() string {
-	return tea.Prettify(s)
+func (s *ServerError) GetAccessDeniedDetail() map[string]interface{} {
+	return s.AccessDeniedDetail
 }
 
-func (s Params) GoString() string {
-	return s.String()
+func (s *ServerError) GetName() *string {
+	return s.Name
 }
 
-func (s *Params) SetAction(v string) *Params {
-	s.Action = &v
-	return s
+func (s *ServerError) GetStack() *string {
+	return s.Stack
 }
 
-func (s *Params) SetVersion(v string) *Params {
-	s.Version = &v
-	return s
+type iThrottlingError interface {
+	Error() string
+	GetStatusCode() *int
+	GetCode() *string
+	GetMessage() *string
+	GetDescription() *string
+	GetRequestId() *string
+	GetData() map[string]interface{}
+	GetAccessDeniedDetail() map[string]interface{}
+	GetName() *string
+	GetStack() *string
+	GetRetryAfter() *int64
 }
 
-func (s *Params) SetProtocol(v string) *Params {
-	s.Protocol = &v
-	return s
+type ThrottlingError struct {
+	StatusCode         *int                   ``
+	Code               *string                ``
+	Message            *string                ``
+	Description        *string                ``
+	RequestId          *string                ``
+	Data               map[string]interface{} ``
+	AccessDeniedDetail map[string]interface{} ``
+	Name               *string                ``
+	Stack              *string                ``
+	RetryAfter         *int64                 ``
 }
 
-func (s *Params) SetPathname(v string) *Params {
-	s.Pathname = &v
-	return s
+func (err ThrottlingError) Error() string {
+	if err.Message == nil {
+		str := fmt.Sprintf("ThrottlingError:\n   Name: %s\n   Code: %s\n",
+			dara.StringValue(err.Name), dara.StringValue(err.Code))
+		err.Message = dara.String(str)
+	}
+	return dara.StringValue(err.Message)
 }
 
-func (s *Params) SetMethod(v string) *Params {
-	s.Method = &v
-	return s
+func (s *ThrottlingError) GetStatusCode() *int {
+	return s.StatusCode
 }
 
-func (s *Params) SetAuthType(v string) *Params {
-	s.AuthType = &v
-	return s
+func (s *ThrottlingError) GetCode() *string {
+	return s.Code
 }
 
-func (s *Params) SetBodyType(v string) *Params {
-	s.BodyType = &v
-	return s
+func (s *ThrottlingError) GetMessage() *string {
+	return s.Message
 }
 
-func (s *Params) SetReqBodyType(v string) *Params {
-	s.ReqBodyType = &v
-	return s
+func (s *ThrottlingError) GetDescription() *string {
+	return s.Description
 }
 
-func (s *Params) SetStyle(v string) *Params {
-	s.Style = &v
-	return s
+func (s *ThrottlingError) GetRequestId() *string {
+	return s.RequestId
+}
+
+func (s *ThrottlingError) GetData() map[string]interface{} {
+	return s.Data
+}
+
+func (s *ThrottlingError) GetAccessDeniedDetail() map[string]interface{} {
+	return s.AccessDeniedDetail
+}
+
+func (s *ThrottlingError) GetName() *string {
+	return s.Name
+}
+
+func (s *ThrottlingError) GetStack() *string {
+	return s.Stack
+}
+
+func (s *ThrottlingError) GetRetryAfter() *int64 {
+	return s.RetryAfter
 }
 
 type Client struct {
+	DisableSDKError      *bool
 	Endpoint             *string
 	RegionId             *string
 	Protocol             *string
@@ -386,36 +407,40 @@ type Client struct {
 	SignatureAlgorithm   *string
 	Headers              map[string]*string
 	Spi                  spi.ClientInterface
-	GlobalParameters     *GlobalParameters
+	GlobalParameters     *openapiutil.GlobalParameters
 	Key                  *string
 	Cert                 *string
 	Ca                   *string
+	DisableHttp2         *bool
+	RetryOptions         *dara.RetryOptions
+	HttpClient           dara.HttpClient
 }
 
-/**
- * Init client with Config
- * @param config config contains the necessary information to create a client
- */
-func NewClient(config *Config) (*Client, error) {
+// Description:
+//
+// # Init client with Config
+//
+// @param config - config contains the necessary information to create a client
+func NewClient(config *openapiutil.Config) (*Client, error) {
 	client := new(Client)
 	err := client.Init(config)
 	return client, err
 }
 
-func (client *Client) Init(config *Config) (_err error) {
-	if tea.BoolValue(util.IsUnset(config)) {
-		_err = tea.NewSDKError(map[string]interface{}{
-			"code":    "ParameterMissing",
-			"message": "'config' can not be unset",
-		})
+func (client *Client) Init(config *openapiutil.Config) (_err error) {
+	if dara.IsNil(config) {
+		_err = &ClientError{
+			Code:    dara.String("ParameterMissing"),
+			Message: dara.String("'config' can not be unset"),
+		}
 		return _err
 	}
 
-	if !tea.BoolValue(util.Empty(config.AccessKeyId)) && !tea.BoolValue(util.Empty(config.AccessKeySecret)) {
-		if !tea.BoolValue(util.Empty(config.SecurityToken)) {
-			config.Type = tea.String("sts")
+	if (!dara.IsNil(config.AccessKeyId) && dara.StringValue(config.AccessKeyId) != "") && (!dara.IsNil(config.AccessKeySecret) && dara.StringValue(config.AccessKeySecret) != "") {
+		if !dara.IsNil(config.SecurityToken) && dara.StringValue(config.SecurityToken) != "" {
+			config.Type = dara.String("sts")
 		} else {
-			config.Type = tea.String("access_key")
+			config.Type = dara.String("access_key")
 		}
 
 		credentialConfig := &credential.Config{
@@ -429,7 +454,17 @@ func (client *Client) Init(config *Config) (_err error) {
 			return _err
 		}
 
-	} else if !tea.BoolValue(util.IsUnset(config.Credential)) {
+	} else if !dara.IsNil(config.BearerToken) && dara.StringValue(config.BearerToken) != "" {
+		cc := &credential.Config{
+			Type:        dara.String("bearer"),
+			BearerToken: config.BearerToken,
+		}
+		client.Credential, _err = credential.NewCredential(cc)
+		if _err != nil {
+			return _err
+		}
+
+	} else if !dara.IsNil(config.Credential) {
 		client.Credential = config.Credential
 	}
 
@@ -455,1259 +490,1320 @@ func (client *Client) Init(config *Config) (_err error) {
 	client.Key = config.Key
 	client.Cert = config.Cert
 	client.Ca = config.Ca
+	client.DisableHttp2 = config.DisableHttp2
+	client.RetryOptions = config.RetryOptions
+	client.HttpClient = config.HttpClient
 	return nil
 }
 
-/**
- * Encapsulate the request and invoke the network
- * @param action api name
- * @param version product version
- * @param protocol http or https
- * @param method e.g. GET
- * @param authType authorization type e.g. AK
- * @param bodyType response body type e.g. String
- * @param request object of OpenApiRequest
- * @param runtime which controls some details of call api, such as retry times
- * @return the response
- */
-func (client *Client) DoRPCRequest(action *string, version *string, protocol *string, method *string, authType *string, bodyType *string, request *OpenApiRequest, runtime *util.RuntimeOptions) (_result map[string]interface{}, _err error) {
-	_err = tea.Validate(request)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Validate(runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_runtime := map[string]interface{}{
-		"timeouted":      "retry",
-		"key":            tea.StringValue(util.DefaultString(runtime.Key, client.Key)),
-		"cert":           tea.StringValue(util.DefaultString(runtime.Cert, client.Cert)),
-		"ca":             tea.StringValue(util.DefaultString(runtime.Ca, client.Ca)),
-		"readTimeout":    tea.IntValue(util.DefaultNumber(runtime.ReadTimeout, client.ReadTimeout)),
-		"connectTimeout": tea.IntValue(util.DefaultNumber(runtime.ConnectTimeout, client.ConnectTimeout)),
-		"httpProxy":      tea.StringValue(util.DefaultString(runtime.HttpProxy, client.HttpProxy)),
-		"httpsProxy":     tea.StringValue(util.DefaultString(runtime.HttpsProxy, client.HttpsProxy)),
-		"noProxy":        tea.StringValue(util.DefaultString(runtime.NoProxy, client.NoProxy)),
-		"socks5Proxy":    tea.StringValue(util.DefaultString(runtime.Socks5Proxy, client.Socks5Proxy)),
-		"socks5NetWork":  tea.StringValue(util.DefaultString(runtime.Socks5NetWork, client.Socks5NetWork)),
-		"maxIdleConns":   tea.IntValue(util.DefaultNumber(runtime.MaxIdleConns, client.MaxIdleConns)),
-		"retry": map[string]interface{}{
-			"retryable":   tea.BoolValue(runtime.Autoretry),
-			"maxAttempts": tea.IntValue(util.DefaultNumber(runtime.MaxAttempts, tea.Int(3))),
-		},
-		"backoff": map[string]interface{}{
-			"policy": tea.StringValue(util.DefaultString(runtime.BackoffPolicy, tea.String("no"))),
-			"period": tea.IntValue(util.DefaultNumber(runtime.BackoffPeriod, tea.Int(1))),
-		},
-		"ignoreSSL": tea.BoolValue(runtime.IgnoreSSL),
+// Description:
+//
+// # Encapsulate the request and invoke the network
+//
+// @param action - api name
+//
+// @param version - product version
+//
+// @param protocol - http or https
+//
+// @param method - e.g. GET
+//
+// @param authType - authorization type e.g. AK
+//
+// @param bodyType - response body type e.g. String
+//
+// @param request - object of OpenApiRequest
+//
+// @param runtime - which controls some details of call api, such as retry times
+//
+// @return the response
+func (client *Client) DoRPCRequest(action *string, version *string, protocol *string, method *string, authType *string, bodyType *string, request *openapiutil.OpenApiRequest, runtime *dara.RuntimeOptions) (_result map[string]interface{}, _err error) {
+	_runtime := dara.NewRuntimeObject(map[string]interface{}{
+		"key":            dara.ToString(dara.Default(dara.StringValue(runtime.Key), dara.StringValue(client.Key))),
+		"cert":           dara.ToString(dara.Default(dara.StringValue(runtime.Cert), dara.StringValue(client.Cert))),
+		"ca":             dara.ToString(dara.Default(dara.StringValue(runtime.Ca), dara.StringValue(client.Ca))),
+		"readTimeout":    dara.ForceInt(dara.Default(dara.IntValue(runtime.ReadTimeout), dara.IntValue(client.ReadTimeout))),
+		"connectTimeout": dara.ForceInt(dara.Default(dara.IntValue(runtime.ConnectTimeout), dara.IntValue(client.ConnectTimeout))),
+		"httpProxy":      dara.ToString(dara.Default(dara.StringValue(runtime.HttpProxy), dara.StringValue(client.HttpProxy))),
+		"httpsProxy":     dara.ToString(dara.Default(dara.StringValue(runtime.HttpsProxy), dara.StringValue(client.HttpsProxy))),
+		"noProxy":        dara.ToString(dara.Default(dara.StringValue(runtime.NoProxy), dara.StringValue(client.NoProxy))),
+		"socks5Proxy":    dara.ToString(dara.Default(dara.StringValue(runtime.Socks5Proxy), dara.StringValue(client.Socks5Proxy))),
+		"socks5NetWork":  dara.ToString(dara.Default(dara.StringValue(runtime.Socks5NetWork), dara.StringValue(client.Socks5NetWork))),
+		"maxIdleConns":   dara.ForceInt(dara.Default(dara.IntValue(runtime.MaxIdleConns), dara.IntValue(client.MaxIdleConns))),
+		"retryOptions":   client.RetryOptions,
+		"ignoreSSL":      dara.BoolValue(runtime.IgnoreSSL),
+		"httpClient":     client.HttpClient,
+	})
+
+	var retryPolicyContext *dara.RetryPolicyContext
+	var request_ *dara.Request
+	var response_ *dara.Response
+	var _resultErr error
+	retriesAttempted := int(0)
+	retryPolicyContext = &dara.RetryPolicyContext{
+		RetriesAttempted: retriesAttempted,
 	}
 
-	_resp := make(map[string]interface{})
-	for _retryTimes := 0; tea.BoolValue(tea.AllowRetry(_runtime["retry"], tea.Int(_retryTimes))); _retryTimes++ {
-		if _retryTimes > 0 {
-			_backoffTime := tea.GetBackoffTime(_runtime["backoff"], tea.Int(_retryTimes))
-			if tea.IntValue(_backoffTime) > 0 {
-				tea.Sleep(_backoffTime)
+	_result = make(map[string]interface{})
+	for dara.ShouldRetry(_runtime.RetryOptions, retryPolicyContext) {
+		_resultErr = nil
+		_backoffDelayTime := dara.GetBackoffDelay(_runtime.RetryOptions, retryPolicyContext)
+		dara.Sleep(_backoffDelayTime)
+
+		request_ = dara.NewRequest()
+		request_.Protocol = dara.String(dara.ToString(dara.Default(dara.StringValue(client.Protocol), dara.StringValue(protocol))))
+		request_.Method = method
+		request_.Pathname = dara.String("/")
+		globalQueries := make(map[string]*string)
+		globalHeaders := make(map[string]*string)
+		if !dara.IsNil(client.GlobalParameters) {
+			globalParams := client.GlobalParameters
+			if !dara.IsNil(globalParams.Queries) {
+				globalQueries = globalParams.Queries
 			}
+
+			if !dara.IsNil(globalParams.Headers) {
+				globalHeaders = globalParams.Headers
+			}
+
 		}
 
-		_resp, _err = func() (map[string]interface{}, error) {
-			request_ := tea.NewRequest()
-			request_.Protocol = util.DefaultString(client.Protocol, protocol)
-			request_.Method = method
-			request_.Pathname = tea.String("/")
-			globalQueries := make(map[string]*string)
-			globalHeaders := make(map[string]*string)
-			if !tea.BoolValue(util.IsUnset(client.GlobalParameters)) {
-				globalParams := client.GlobalParameters
-				if !tea.BoolValue(util.IsUnset(globalParams.Queries)) {
-					globalQueries = globalParams.Queries
-				}
-
-				if !tea.BoolValue(util.IsUnset(globalParams.Headers)) {
-					globalHeaders = globalParams.Headers
-				}
-
+		extendsHeaders := make(map[string]*string)
+		extendsQueries := make(map[string]*string)
+		if !dara.IsNil(runtime.ExtendsParameters) {
+			extendsParameters := runtime.ExtendsParameters
+			if !dara.IsNil(extendsParameters.Headers) {
+				extendsHeaders = extendsParameters.Headers
 			}
 
-			request_.Query = tea.Merge(map[string]*string{
-				"Action":         action,
-				"Format":         tea.String("json"),
-				"Version":        version,
-				"Timestamp":      openapiutil.GetTimestamp(),
-				"SignatureNonce": util.GetNonce(),
-			}, globalQueries,
-				request.Query)
-			headers, _err := client.GetRpcHeaders()
-			if _err != nil {
+			if !dara.IsNil(extendsParameters.Queries) {
+				extendsQueries = extendsParameters.Queries
+			}
+
+		}
+
+		request_.Query = dara.Merge(map[string]*string{
+			"Action":         action,
+			"Format":         dara.String("json"),
+			"Version":        version,
+			"Timestamp":      openapiutil.GetTimestamp(),
+			"SignatureNonce": openapiutil.GetNonce(),
+		}, globalQueries,
+			extendsQueries,
+			request.Query)
+		headers, _err := client.GetRpcHeaders()
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
+			}
+			_resultErr = _err
+			continue
+		}
+
+		if dara.IsNil(headers) {
+			// endpoint is setted in product client
+			request_.Headers = dara.Merge(map[string]*string{
+				"host":          client.Endpoint,
+				"x-acs-version": version,
+				"x-acs-action":  action,
+				"user-agent":    openapiutil.GetUserAgent(client.UserAgent),
+			}, globalHeaders,
+				extendsHeaders)
+		} else {
+			request_.Headers = dara.Merge(map[string]*string{
+				"host":          client.Endpoint,
+				"x-acs-version": version,
+				"x-acs-action":  action,
+				"user-agent":    openapiutil.GetUserAgent(client.UserAgent),
+			}, globalHeaders,
+				extendsHeaders,
+				headers)
+		}
+
+		if !dara.IsNil(request.Body) {
+			m := dara.ToMap(request.Body)
+			tmp := dara.ToMap(openapiutil.Query(m))
+			request_.Body = dara.ToReader(dara.ToFormString(tmp))
+			request_.Headers["content-type"] = dara.String("application/x-www-form-urlencoded")
+		}
+
+		if dara.StringValue(authType) != "Anonymous" {
+			if dara.IsNil(client.Credential) {
+				_err = &ClientError{
+					Code:    dara.String("InvalidCredentials"),
+					Message: dara.String("Please set up the credentials correctly. If you are setting them through environment variables, please ensure that ALIBABA_CLOUD_ACCESS_KEY_ID and ALIBABA_CLOUD_ACCESS_KEY_SECRET are set correctly. See https://help.aliyun.com/zh/sdk/developer-reference/configure-the-alibaba-cloud-accesskey-environment-variable-on-linux-macos-and-windows-systems for more details."),
+				}
+				if dara.BoolValue(client.DisableSDKError) != true {
+					_err = dara.TeaSDKError(_err)
+				}
 				return _result, _err
 			}
 
-			if tea.BoolValue(util.IsUnset(headers)) {
-				// endpoint is setted in product client
-				request_.Headers = tea.Merge(map[string]*string{
-					"host":          client.Endpoint,
-					"x-acs-version": version,
-					"x-acs-action":  action,
-					"user-agent":    client.GetUserAgent(),
-				}, globalHeaders)
+			credentialModel, _err := client.Credential.GetCredential()
+			if _err != nil {
+				retriesAttempted++
+				retryPolicyContext = &dara.RetryPolicyContext{
+					RetriesAttempted: retriesAttempted,
+					HttpRequest:      request_,
+					HttpResponse:     response_,
+					Exception:        _err,
+				}
+				_resultErr = _err
+				continue
+			}
+
+			credentialType := dara.StringValue(credentialModel.Type)
+			if credentialType == "bearer" {
+				bearerToken := dara.StringValue(credentialModel.BearerToken)
+				request_.Query["BearerToken"] = dara.String(bearerToken)
+				request_.Query["SignatureType"] = dara.String("BEARERTOKEN")
 			} else {
-				request_.Headers = tea.Merge(map[string]*string{
-					"host":          client.Endpoint,
-					"x-acs-version": version,
-					"x-acs-action":  action,
-					"user-agent":    client.GetUserAgent(),
-				}, globalHeaders,
+				accessKeyId := dara.StringValue(credentialModel.AccessKeyId)
+				accessKeySecret := dara.StringValue(credentialModel.AccessKeySecret)
+				securityToken := dara.StringValue(credentialModel.SecurityToken)
+				if !dara.IsNil(dara.String(securityToken)) && securityToken != "" {
+					request_.Query["SecurityToken"] = dara.String(securityToken)
+				}
+
+				request_.Query["SignatureMethod"] = dara.String("HMAC-SHA1")
+				request_.Query["SignatureVersion"] = dara.String("1.0")
+				request_.Query["AccessKeyId"] = dara.String(accessKeyId)
+				var t map[string]interface{}
+				if !dara.IsNil(request.Body) {
+					t = dara.ToMap(request.Body)
+				}
+
+				signedParam := dara.Merge(request_.Query,
+					openapiutil.Query(t))
+				request_.Query["Signature"] = openapiutil.GetRPCSignature(signedParam, request_.Method, dara.String(accessKeySecret))
+			}
+
+		}
+
+		response_, _err := dara.DoRequest(request_, _runtime)
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
+			}
+			_resultErr = _err
+			continue
+		}
+
+		_result, _err = doRPCRequest_opResponse(response_, client, bodyType)
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
+			}
+			_resultErr = _err
+			continue
+		}
+
+		return _result, _err
+	}
+	if dara.BoolValue(client.DisableSDKError) != true {
+		_resultErr = dara.TeaSDKError(_resultErr)
+	}
+	return _result, _resultErr
+}
+
+// Description:
+//
+// # Encapsulate the request and invoke the network
+//
+// @param action - api name
+//
+// @param version - product version
+//
+// @param protocol - http or https
+//
+// @param method - e.g. GET
+//
+// @param authType - authorization type e.g. AK
+//
+// @param pathname - pathname of every api
+//
+// @param bodyType - response body type e.g. String
+//
+// @param request - object of OpenApiRequest
+//
+// @param runtime - which controls some details of call api, such as retry times
+//
+// @return the response
+func (client *Client) DoROARequest(action *string, version *string, protocol *string, method *string, authType *string, pathname *string, bodyType *string, request *openapiutil.OpenApiRequest, runtime *dara.RuntimeOptions) (_result map[string]interface{}, _err error) {
+	_runtime := dara.NewRuntimeObject(map[string]interface{}{
+		"key":            dara.ToString(dara.Default(dara.StringValue(runtime.Key), dara.StringValue(client.Key))),
+		"cert":           dara.ToString(dara.Default(dara.StringValue(runtime.Cert), dara.StringValue(client.Cert))),
+		"ca":             dara.ToString(dara.Default(dara.StringValue(runtime.Ca), dara.StringValue(client.Ca))),
+		"readTimeout":    dara.ForceInt(dara.Default(dara.IntValue(runtime.ReadTimeout), dara.IntValue(client.ReadTimeout))),
+		"connectTimeout": dara.ForceInt(dara.Default(dara.IntValue(runtime.ConnectTimeout), dara.IntValue(client.ConnectTimeout))),
+		"httpProxy":      dara.ToString(dara.Default(dara.StringValue(runtime.HttpProxy), dara.StringValue(client.HttpProxy))),
+		"httpsProxy":     dara.ToString(dara.Default(dara.StringValue(runtime.HttpsProxy), dara.StringValue(client.HttpsProxy))),
+		"noProxy":        dara.ToString(dara.Default(dara.StringValue(runtime.NoProxy), dara.StringValue(client.NoProxy))),
+		"socks5Proxy":    dara.ToString(dara.Default(dara.StringValue(runtime.Socks5Proxy), dara.StringValue(client.Socks5Proxy))),
+		"socks5NetWork":  dara.ToString(dara.Default(dara.StringValue(runtime.Socks5NetWork), dara.StringValue(client.Socks5NetWork))),
+		"maxIdleConns":   dara.ForceInt(dara.Default(dara.IntValue(runtime.MaxIdleConns), dara.IntValue(client.MaxIdleConns))),
+		"retryOptions":   client.RetryOptions,
+		"ignoreSSL":      dara.BoolValue(runtime.IgnoreSSL),
+		"httpClient":     client.HttpClient,
+	})
+
+	var retryPolicyContext *dara.RetryPolicyContext
+	var request_ *dara.Request
+	var response_ *dara.Response
+	var _resultErr error
+	retriesAttempted := int(0)
+	retryPolicyContext = &dara.RetryPolicyContext{
+		RetriesAttempted: retriesAttempted,
+	}
+
+	_result = make(map[string]interface{})
+	for dara.ShouldRetry(_runtime.RetryOptions, retryPolicyContext) {
+		_resultErr = nil
+		_backoffDelayTime := dara.GetBackoffDelay(_runtime.RetryOptions, retryPolicyContext)
+		dara.Sleep(_backoffDelayTime)
+
+		request_ = dara.NewRequest()
+		request_.Protocol = dara.String(dara.ToString(dara.Default(dara.StringValue(client.Protocol), dara.StringValue(protocol))))
+		request_.Method = method
+		request_.Pathname = pathname
+		globalQueries := make(map[string]*string)
+		globalHeaders := make(map[string]*string)
+		if !dara.IsNil(client.GlobalParameters) {
+			globalParams := client.GlobalParameters
+			if !dara.IsNil(globalParams.Queries) {
+				globalQueries = globalParams.Queries
+			}
+
+			if !dara.IsNil(globalParams.Headers) {
+				globalHeaders = globalParams.Headers
+			}
+
+		}
+
+		extendsHeaders := make(map[string]*string)
+		extendsQueries := make(map[string]*string)
+		if !dara.IsNil(runtime.ExtendsParameters) {
+			extendsParameters := runtime.ExtendsParameters
+			if !dara.IsNil(extendsParameters.Headers) {
+				extendsHeaders = extendsParameters.Headers
+			}
+
+			if !dara.IsNil(extendsParameters.Queries) {
+				extendsQueries = extendsParameters.Queries
+			}
+
+		}
+
+		request_.Headers = dara.Merge(map[string]*string{
+			"date":                    openapiutil.GetDateUTCString(),
+			"host":                    client.Endpoint,
+			"accept":                  dara.String("application/json"),
+			"x-acs-signature-nonce":   openapiutil.GetNonce(),
+			"x-acs-signature-method":  dara.String("HMAC-SHA1"),
+			"x-acs-signature-version": dara.String("1.0"),
+			"x-acs-version":           version,
+			"x-acs-action":            action,
+			"user-agent":              openapiutil.GetUserAgent(client.UserAgent),
+		}, globalHeaders,
+			extendsHeaders,
+			request.Headers)
+		if !dara.IsNil(request.Body) {
+			request_.Body = dara.ToReader(dara.Stringify(request.Body))
+			request_.Headers["content-type"] = dara.String("application/json; charset=utf-8")
+		}
+
+		request_.Query = dara.Merge(globalQueries,
+			extendsQueries)
+		if !dara.IsNil(request.Query) {
+			request_.Query = dara.Merge(request_.Query,
+				request.Query)
+		}
+
+		if dara.StringValue(authType) != "Anonymous" {
+			if dara.IsNil(client.Credential) {
+				_err = &ClientError{
+					Code:    dara.String("InvalidCredentials"),
+					Message: dara.String("Please set up the credentials correctly. If you are setting them through environment variables, please ensure that ALIBABA_CLOUD_ACCESS_KEY_ID and ALIBABA_CLOUD_ACCESS_KEY_SECRET are set correctly. See https://help.aliyun.com/zh/sdk/developer-reference/configure-the-alibaba-cloud-accesskey-environment-variable-on-linux-macos-and-windows-systems for more details."),
+				}
+				if dara.BoolValue(client.DisableSDKError) != true {
+					_err = dara.TeaSDKError(_err)
+				}
+				return _result, _err
+			}
+
+			credentialModel, _err := client.Credential.GetCredential()
+			if _err != nil {
+				retriesAttempted++
+				retryPolicyContext = &dara.RetryPolicyContext{
+					RetriesAttempted: retriesAttempted,
+					HttpRequest:      request_,
+					HttpResponse:     response_,
+					Exception:        _err,
+				}
+				_resultErr = _err
+				continue
+			}
+
+			credentialType := dara.StringValue(credentialModel.Type)
+			if credentialType == "bearer" {
+				bearerToken := dara.StringValue(credentialModel.BearerToken)
+				request_.Headers["x-acs-bearer-token"] = dara.String(bearerToken)
+				request_.Headers["x-acs-signature-type"] = dara.String("BEARERTOKEN")
+			} else {
+				accessKeyId := dara.StringValue(credentialModel.AccessKeyId)
+				accessKeySecret := dara.StringValue(credentialModel.AccessKeySecret)
+				securityToken := dara.StringValue(credentialModel.SecurityToken)
+				if !dara.IsNil(dara.String(securityToken)) && securityToken != "" {
+					request_.Headers["x-acs-accesskey-id"] = dara.String(accessKeyId)
+					request_.Headers["x-acs-security-token"] = dara.String(securityToken)
+				}
+
+				stringToSign := dara.StringValue(openapiutil.GetStringToSign(request_))
+				request_.Headers["authorization"] = dara.String("acs " + accessKeyId + ":" + dara.StringValue(openapiutil.GetROASignature(dara.String(stringToSign), dara.String(accessKeySecret))))
+			}
+
+		}
+
+		response_, _err := dara.DoRequest(request_, _runtime)
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
+			}
+			_resultErr = _err
+			continue
+		}
+
+		_result, _err = doROARequest_opResponse(response_, client, bodyType)
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
+			}
+			_resultErr = _err
+			continue
+		}
+
+		return _result, _err
+	}
+	if dara.BoolValue(client.DisableSDKError) != true {
+		_resultErr = dara.TeaSDKError(_resultErr)
+	}
+	return _result, _resultErr
+}
+
+// Description:
+//
+// # Encapsulate the request and invoke the network with form body
+//
+// @param action - api name
+//
+// @param version - product version
+//
+// @param protocol - http or https
+//
+// @param method - e.g. GET
+//
+// @param authType - authorization type e.g. AK
+//
+// @param pathname - pathname of every api
+//
+// @param bodyType - response body type e.g. String
+//
+// @param request - object of OpenApiRequest
+//
+// @param runtime - which controls some details of call api, such as retry times
+//
+// @return the response
+func (client *Client) DoROARequestWithForm(action *string, version *string, protocol *string, method *string, authType *string, pathname *string, bodyType *string, request *openapiutil.OpenApiRequest, runtime *dara.RuntimeOptions) (_result map[string]interface{}, _err error) {
+	_runtime := dara.NewRuntimeObject(map[string]interface{}{
+		"key":            dara.ToString(dara.Default(dara.StringValue(runtime.Key), dara.StringValue(client.Key))),
+		"cert":           dara.ToString(dara.Default(dara.StringValue(runtime.Cert), dara.StringValue(client.Cert))),
+		"ca":             dara.ToString(dara.Default(dara.StringValue(runtime.Ca), dara.StringValue(client.Ca))),
+		"readTimeout":    dara.ForceInt(dara.Default(dara.IntValue(runtime.ReadTimeout), dara.IntValue(client.ReadTimeout))),
+		"connectTimeout": dara.ForceInt(dara.Default(dara.IntValue(runtime.ConnectTimeout), dara.IntValue(client.ConnectTimeout))),
+		"httpProxy":      dara.ToString(dara.Default(dara.StringValue(runtime.HttpProxy), dara.StringValue(client.HttpProxy))),
+		"httpsProxy":     dara.ToString(dara.Default(dara.StringValue(runtime.HttpsProxy), dara.StringValue(client.HttpsProxy))),
+		"noProxy":        dara.ToString(dara.Default(dara.StringValue(runtime.NoProxy), dara.StringValue(client.NoProxy))),
+		"socks5Proxy":    dara.ToString(dara.Default(dara.StringValue(runtime.Socks5Proxy), dara.StringValue(client.Socks5Proxy))),
+		"socks5NetWork":  dara.ToString(dara.Default(dara.StringValue(runtime.Socks5NetWork), dara.StringValue(client.Socks5NetWork))),
+		"maxIdleConns":   dara.ForceInt(dara.Default(dara.IntValue(runtime.MaxIdleConns), dara.IntValue(client.MaxIdleConns))),
+		"retryOptions":   client.RetryOptions,
+		"ignoreSSL":      dara.BoolValue(runtime.IgnoreSSL),
+		"httpClient":     client.HttpClient,
+	})
+
+	var retryPolicyContext *dara.RetryPolicyContext
+	var request_ *dara.Request
+	var response_ *dara.Response
+	var _resultErr error
+	retriesAttempted := int(0)
+	retryPolicyContext = &dara.RetryPolicyContext{
+		RetriesAttempted: retriesAttempted,
+	}
+
+	_result = make(map[string]interface{})
+	for dara.ShouldRetry(_runtime.RetryOptions, retryPolicyContext) {
+		_resultErr = nil
+		_backoffDelayTime := dara.GetBackoffDelay(_runtime.RetryOptions, retryPolicyContext)
+		dara.Sleep(_backoffDelayTime)
+
+		request_ = dara.NewRequest()
+		request_.Protocol = dara.String(dara.ToString(dara.Default(dara.StringValue(client.Protocol), dara.StringValue(protocol))))
+		request_.Method = method
+		request_.Pathname = pathname
+		globalQueries := make(map[string]*string)
+		globalHeaders := make(map[string]*string)
+		if !dara.IsNil(client.GlobalParameters) {
+			globalParams := client.GlobalParameters
+			if !dara.IsNil(globalParams.Queries) {
+				globalQueries = globalParams.Queries
+			}
+
+			if !dara.IsNil(globalParams.Headers) {
+				globalHeaders = globalParams.Headers
+			}
+
+		}
+
+		extendsHeaders := make(map[string]*string)
+		extendsQueries := make(map[string]*string)
+		if !dara.IsNil(runtime.ExtendsParameters) {
+			extendsParameters := runtime.ExtendsParameters
+			if !dara.IsNil(extendsParameters.Headers) {
+				extendsHeaders = extendsParameters.Headers
+			}
+
+			if !dara.IsNil(extendsParameters.Queries) {
+				extendsQueries = extendsParameters.Queries
+			}
+
+		}
+
+		request_.Headers = dara.Merge(map[string]*string{
+			"date":                    openapiutil.GetDateUTCString(),
+			"host":                    client.Endpoint,
+			"accept":                  dara.String("application/json"),
+			"x-acs-signature-nonce":   openapiutil.GetNonce(),
+			"x-acs-signature-method":  dara.String("HMAC-SHA1"),
+			"x-acs-signature-version": dara.String("1.0"),
+			"x-acs-version":           version,
+			"x-acs-action":            action,
+			"user-agent":              openapiutil.GetUserAgent(client.UserAgent),
+		}, globalHeaders,
+			extendsHeaders,
+			request.Headers)
+		if !dara.IsNil(request.Body) {
+			m := dara.ToMap(request.Body)
+			request_.Body = dara.ToReader(openapiutil.ToForm(m))
+			request_.Headers["content-type"] = dara.String("application/x-www-form-urlencoded")
+		}
+
+		request_.Query = dara.Merge(globalQueries,
+			extendsQueries)
+		if !dara.IsNil(request.Query) {
+			request_.Query = dara.Merge(request_.Query,
+				request.Query)
+		}
+
+		if dara.StringValue(authType) != "Anonymous" {
+			if dara.IsNil(client.Credential) {
+				_err = &ClientError{
+					Code:    dara.String("InvalidCredentials"),
+					Message: dara.String("Please set up the credentials correctly. If you are setting them through environment variables, please ensure that ALIBABA_CLOUD_ACCESS_KEY_ID and ALIBABA_CLOUD_ACCESS_KEY_SECRET are set correctly. See https://help.aliyun.com/zh/sdk/developer-reference/configure-the-alibaba-cloud-accesskey-environment-variable-on-linux-macos-and-windows-systems for more details."),
+				}
+				if dara.BoolValue(client.DisableSDKError) != true {
+					_err = dara.TeaSDKError(_err)
+				}
+				return _result, _err
+			}
+
+			credentialModel, _err := client.Credential.GetCredential()
+			if _err != nil {
+				retriesAttempted++
+				retryPolicyContext = &dara.RetryPolicyContext{
+					RetriesAttempted: retriesAttempted,
+					HttpRequest:      request_,
+					HttpResponse:     response_,
+					Exception:        _err,
+				}
+				_resultErr = _err
+				continue
+			}
+
+			credentialType := dara.StringValue(credentialModel.Type)
+			if credentialType == "bearer" {
+				bearerToken := dara.StringValue(credentialModel.BearerToken)
+				request_.Headers["x-acs-bearer-token"] = dara.String(bearerToken)
+				request_.Headers["x-acs-signature-type"] = dara.String("BEARERTOKEN")
+			} else {
+				accessKeyId := dara.StringValue(credentialModel.AccessKeyId)
+				accessKeySecret := dara.StringValue(credentialModel.AccessKeySecret)
+				securityToken := dara.StringValue(credentialModel.SecurityToken)
+				if !dara.IsNil(dara.String(securityToken)) && securityToken != "" {
+					request_.Headers["x-acs-accesskey-id"] = dara.String(accessKeyId)
+					request_.Headers["x-acs-security-token"] = dara.String(securityToken)
+				}
+
+				stringToSign := dara.StringValue(openapiutil.GetStringToSign(request_))
+				request_.Headers["authorization"] = dara.String("acs " + accessKeyId + ":" + dara.StringValue(openapiutil.GetROASignature(dara.String(stringToSign), dara.String(accessKeySecret))))
+			}
+
+		}
+
+		response_, _err := dara.DoRequest(request_, _runtime)
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
+			}
+			_resultErr = _err
+			continue
+		}
+
+		_result, _err = doROARequestWithForm_opResponse(response_, client, bodyType)
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
+			}
+			_resultErr = _err
+			continue
+		}
+
+		return _result, _err
+	}
+	if dara.BoolValue(client.DisableSDKError) != true {
+		_resultErr = dara.TeaSDKError(_resultErr)
+	}
+	return _result, _resultErr
+}
+
+// Description:
+//
+// # Encapsulate the request and invoke the network
+//
+// @param action - api name
+//
+// @param version - product version
+//
+// @param protocol - http or https
+//
+// @param method - e.g. GET
+//
+// @param authType - authorization type e.g. AK
+//
+// @param bodyType - response body type e.g. String
+//
+// @param request - object of OpenApiRequest
+//
+// @param runtime - which controls some details of call api, such as retry times
+//
+// @return the response
+func (client *Client) DoRequest(params *openapiutil.Params, request *openapiutil.OpenApiRequest, runtime *dara.RuntimeOptions) (_result map[string]interface{}, _err error) {
+	_runtime := dara.NewRuntimeObject(map[string]interface{}{
+		"key":            dara.ToString(dara.Default(dara.StringValue(runtime.Key), dara.StringValue(client.Key))),
+		"cert":           dara.ToString(dara.Default(dara.StringValue(runtime.Cert), dara.StringValue(client.Cert))),
+		"ca":             dara.ToString(dara.Default(dara.StringValue(runtime.Ca), dara.StringValue(client.Ca))),
+		"readTimeout":    dara.ForceInt(dara.Default(dara.IntValue(runtime.ReadTimeout), dara.IntValue(client.ReadTimeout))),
+		"connectTimeout": dara.ForceInt(dara.Default(dara.IntValue(runtime.ConnectTimeout), dara.IntValue(client.ConnectTimeout))),
+		"httpProxy":      dara.ToString(dara.Default(dara.StringValue(runtime.HttpProxy), dara.StringValue(client.HttpProxy))),
+		"httpsProxy":     dara.ToString(dara.Default(dara.StringValue(runtime.HttpsProxy), dara.StringValue(client.HttpsProxy))),
+		"noProxy":        dara.ToString(dara.Default(dara.StringValue(runtime.NoProxy), dara.StringValue(client.NoProxy))),
+		"socks5Proxy":    dara.ToString(dara.Default(dara.StringValue(runtime.Socks5Proxy), dara.StringValue(client.Socks5Proxy))),
+		"socks5NetWork":  dara.ToString(dara.Default(dara.StringValue(runtime.Socks5NetWork), dara.StringValue(client.Socks5NetWork))),
+		"maxIdleConns":   dara.ForceInt(dara.Default(dara.IntValue(runtime.MaxIdleConns), dara.IntValue(client.MaxIdleConns))),
+		"retryOptions":   client.RetryOptions,
+		"ignoreSSL":      dara.BoolValue(runtime.IgnoreSSL),
+		"httpClient":     client.HttpClient,
+	})
+
+	var retryPolicyContext *dara.RetryPolicyContext
+	var request_ *dara.Request
+	var response_ *dara.Response
+	var _resultErr error
+	retriesAttempted := int(0)
+	retryPolicyContext = &dara.RetryPolicyContext{
+		RetriesAttempted: retriesAttempted,
+	}
+
+	_result = make(map[string]interface{})
+	for dara.ShouldRetry(_runtime.RetryOptions, retryPolicyContext) {
+		_resultErr = nil
+		_backoffDelayTime := dara.GetBackoffDelay(_runtime.RetryOptions, retryPolicyContext)
+		dara.Sleep(_backoffDelayTime)
+
+		request_ = dara.NewRequest()
+		request_.Protocol = dara.String(dara.ToString(dara.Default(dara.StringValue(client.Protocol), dara.StringValue(params.Protocol))))
+		request_.Method = params.Method
+		request_.Pathname = params.Pathname
+		globalQueries := make(map[string]*string)
+		globalHeaders := make(map[string]*string)
+		if !dara.IsNil(client.GlobalParameters) {
+			globalParams := client.GlobalParameters
+			if !dara.IsNil(globalParams.Queries) {
+				globalQueries = globalParams.Queries
+			}
+
+			if !dara.IsNil(globalParams.Headers) {
+				globalHeaders = globalParams.Headers
+			}
+
+		}
+
+		extendsHeaders := make(map[string]*string)
+		extendsQueries := make(map[string]*string)
+		if !dara.IsNil(runtime.ExtendsParameters) {
+			extendsParameters := runtime.ExtendsParameters
+			if !dara.IsNil(extendsParameters.Headers) {
+				extendsHeaders = extendsParameters.Headers
+			}
+
+			if !dara.IsNil(extendsParameters.Queries) {
+				extendsQueries = extendsParameters.Queries
+			}
+
+		}
+
+		request_.Query = dara.Merge(globalQueries,
+			extendsQueries,
+			request.Query)
+		// endpoint is setted in product client
+		request_.Headers = dara.Merge(map[string]*string{
+			"host":                  client.Endpoint,
+			"x-acs-version":         params.Version,
+			"x-acs-action":          params.Action,
+			"user-agent":            openapiutil.GetUserAgent(client.UserAgent),
+			"x-acs-date":            openapiutil.GetTimestamp(),
+			"x-acs-signature-nonce": openapiutil.GetNonce(),
+			"accept":                dara.String("application/json"),
+		}, globalHeaders,
+			extendsHeaders,
+			request.Headers)
+		if dara.StringValue(params.Style) == "RPC" {
+			headers, _err := client.GetRpcHeaders()
+			if _err != nil {
+				retriesAttempted++
+				retryPolicyContext = &dara.RetryPolicyContext{
+					RetriesAttempted: retriesAttempted,
+					HttpRequest:      request_,
+					HttpResponse:     response_,
+					Exception:        _err,
+				}
+				_resultErr = _err
+				continue
+			}
+
+			if !dara.IsNil(headers) {
+				request_.Headers = dara.Merge(request_.Headers,
 					headers)
 			}
 
-			if !tea.BoolValue(util.IsUnset(request.Body)) {
-				m, _err := util.AssertAsMap(request.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				tmp := util.AnyifyMapValue(openapiutil.Query(m))
-				request_.Body = tea.ToReader(util.ToFormString(tmp))
-				request_.Headers["content-type"] = tea.String("application/x-www-form-urlencoded")
-			}
-
-			if !tea.BoolValue(util.EqualString(authType, tea.String("Anonymous"))) {
-				accessKeyId, _err := client.GetAccessKeyId()
-				if _err != nil {
-					return _result, _err
-				}
-
-				accessKeySecret, _err := client.GetAccessKeySecret()
-				if _err != nil {
-					return _result, _err
-				}
-
-				securityToken, _err := client.GetSecurityToken()
-				if _err != nil {
-					return _result, _err
-				}
-
-				if !tea.BoolValue(util.Empty(securityToken)) {
-					request_.Query["SecurityToken"] = securityToken
-				}
-
-				request_.Query["SignatureMethod"] = tea.String("HMAC-SHA1")
-				request_.Query["SignatureVersion"] = tea.String("1.0")
-				request_.Query["AccessKeyId"] = accessKeyId
-				var t map[string]interface{}
-				if !tea.BoolValue(util.IsUnset(request.Body)) {
-					t, _err = util.AssertAsMap(request.Body)
-					if _err != nil {
-						return _result, _err
-					}
-
-				}
-
-				signedParam := tea.Merge(request_.Query,
-					openapiutil.Query(t))
-				request_.Query["Signature"] = openapiutil.GetRPCSignature(signedParam, request_.Method, accessKeySecret)
-			}
-
-			response_, _err := tea.DoRequest(request_, _runtime)
-			if _err != nil {
-				return _result, _err
-			}
-			if tea.BoolValue(util.Is4xx(response_.StatusCode)) || tea.BoolValue(util.Is5xx(response_.StatusCode)) {
-				_res, _err := util.ReadAsJSON(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				err, _err := util.AssertAsMap(_res)
-				if _err != nil {
-					return _result, _err
-				}
-
-				requestId := DefaultAny(err["RequestId"], err["requestId"])
-				err["statusCode"] = response_.StatusCode
-				_err = tea.NewSDKError(map[string]interface{}{
-					"code":               tea.ToString(DefaultAny(err["Code"], err["code"])),
-					"message":            "code: " + tea.ToString(tea.IntValue(response_.StatusCode)) + ", " + tea.ToString(DefaultAny(err["Message"], err["message"])) + " request id: " + tea.ToString(requestId),
-					"data":               err,
-					"description":        tea.ToString(DefaultAny(err["Description"], err["description"])),
-					"accessDeniedDetail": DefaultAny(err["AccessDeniedDetail"], err["accessDeniedDetail"]),
-				})
-				return _result, _err
-			}
-
-			if tea.BoolValue(util.EqualString(bodyType, tea.String("binary"))) {
-				resp := map[string]interface{}{
-					"body":       response_.Body,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}
-				_result = resp
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(bodyType, tea.String("byte"))) {
-				byt, _err := util.ReadAsBytes(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       byt,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(bodyType, tea.String("string"))) {
-				str, _err := util.ReadAsString(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       tea.StringValue(str),
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(bodyType, tea.String("json"))) {
-				obj, _err := util.ReadAsJSON(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				res, _err := util.AssertAsMap(obj)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       res,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(bodyType, tea.String("array"))) {
-				arr, _err := util.ReadAsJSON(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       arr,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else {
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			}
-
-		}()
-		if !tea.BoolValue(tea.Retryable(_err)) {
-			break
 		}
-	}
 
-	return _resp, _err
+		signatureAlgorithm := dara.ToString(dara.Default(dara.StringValue(client.SignatureAlgorithm), "ACS3-HMAC-SHA256"))
+		hashedRequestPayload := openapiutil.Hash(dara.BytesFromString("", "utf-8"), dara.String(signatureAlgorithm))
+		if !dara.IsNil(request.Stream) {
+			tmp, _err := dara.ReadAsBytes(request.Stream)
+			if _err != nil {
+				retriesAttempted++
+				retryPolicyContext = &dara.RetryPolicyContext{
+					RetriesAttempted: retriesAttempted,
+					HttpRequest:      request_,
+					HttpResponse:     response_,
+					Exception:        _err,
+				}
+				_resultErr = _err
+				continue
+			}
+
+			hashedRequestPayload = openapiutil.Hash(tmp, dara.String(signatureAlgorithm))
+			request_.Body = dara.ToReader(tmp)
+			request_.Headers["content-type"] = dara.String("application/octet-stream")
+		} else {
+			if !dara.IsNil(request.Body) {
+				if dara.StringValue(params.ReqBodyType) == "byte" {
+					byteObj := []byte(dara.ToString(request.Body))
+					hashedRequestPayload = openapiutil.Hash(byteObj, dara.String(signatureAlgorithm))
+					request_.Body = dara.ToReader(byteObj)
+				} else if dara.StringValue(params.ReqBodyType) == "json" {
+					jsonObj := dara.Stringify(request.Body)
+					hashedRequestPayload = openapiutil.Hash(dara.ToBytes(jsonObj, "utf8"), dara.String(signatureAlgorithm))
+					request_.Body = dara.ToReader(dara.String(jsonObj))
+					request_.Headers["content-type"] = dara.String("application/json; charset=utf-8")
+				} else {
+					m := dara.ToMap(request.Body)
+					formObj := dara.StringValue(openapiutil.ToForm(m))
+					hashedRequestPayload = openapiutil.Hash(dara.ToBytes(formObj, "utf8"), dara.String(signatureAlgorithm))
+					request_.Body = dara.ToReader(dara.String(formObj))
+					request_.Headers["content-type"] = dara.String("application/x-www-form-urlencoded")
+				}
+
+			}
+
+		}
+
+		request_.Headers["x-acs-content-sha256"] = dara.String(hex.EncodeToString(hashedRequestPayload))
+		if dara.StringValue(params.AuthType) != "Anonymous" {
+			if dara.IsNil(client.Credential) {
+				_err = &ClientError{
+					Code:    dara.String("InvalidCredentials"),
+					Message: dara.String("Please set up the credentials correctly. If you are setting them through environment variables, please ensure that ALIBABA_CLOUD_ACCESS_KEY_ID and ALIBABA_CLOUD_ACCESS_KEY_SECRET are set correctly. See https://help.aliyun.com/zh/sdk/developer-reference/configure-the-alibaba-cloud-accesskey-environment-variable-on-linux-macos-and-windows-systems for more details."),
+				}
+				if dara.BoolValue(client.DisableSDKError) != true {
+					_err = dara.TeaSDKError(_err)
+				}
+				return _result, _err
+			}
+
+			credentialModel, _err := client.Credential.GetCredential()
+			if _err != nil {
+				retriesAttempted++
+				retryPolicyContext = &dara.RetryPolicyContext{
+					RetriesAttempted: retriesAttempted,
+					HttpRequest:      request_,
+					HttpResponse:     response_,
+					Exception:        _err,
+				}
+				_resultErr = _err
+				continue
+			}
+
+			authType := dara.StringValue(credentialModel.Type)
+			if authType == "bearer" {
+				bearerToken := dara.StringValue(credentialModel.BearerToken)
+				request_.Headers["x-acs-bearer-token"] = dara.String(bearerToken)
+				if dara.StringValue(params.Style) == "RPC" {
+					request_.Query["SignatureType"] = dara.String("BEARERTOKEN")
+				} else {
+					request_.Headers["x-acs-signature-type"] = dara.String("BEARERTOKEN")
+				}
+
+			} else {
+				accessKeyId := dara.StringValue(credentialModel.AccessKeyId)
+				accessKeySecret := dara.StringValue(credentialModel.AccessKeySecret)
+				securityToken := dara.StringValue(credentialModel.SecurityToken)
+				if !dara.IsNil(dara.String(securityToken)) && securityToken != "" {
+					request_.Headers["x-acs-accesskey-id"] = dara.String(accessKeyId)
+					request_.Headers["x-acs-security-token"] = dara.String(securityToken)
+				}
+
+				request_.Headers["Authorization"] = openapiutil.GetAuthorization(request_, dara.String(signatureAlgorithm), dara.String(hex.EncodeToString(hashedRequestPayload)), dara.String(accessKeyId), dara.String(accessKeySecret))
+			}
+
+		}
+
+		response_, _err := dara.DoRequest(request_, _runtime)
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
+			}
+			_resultErr = _err
+			continue
+		}
+
+		_result, _err = doRequest_opResponse(response_, client, params)
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
+			}
+			_resultErr = _err
+			continue
+		}
+
+		return _result, _err
+	}
+	if dara.BoolValue(client.DisableSDKError) != true {
+		_resultErr = dara.TeaSDKError(_resultErr)
+	}
+	return _result, _resultErr
 }
 
-/**
- * Encapsulate the request and invoke the network
- * @param action api name
- * @param version product version
- * @param protocol http or https
- * @param method e.g. GET
- * @param authType authorization type e.g. AK
- * @param pathname pathname of every api
- * @param bodyType response body type e.g. String
- * @param request object of OpenApiRequest
- * @param runtime which controls some details of call api, such as retry times
- * @return the response
- */
-func (client *Client) DoROARequest(action *string, version *string, protocol *string, method *string, authType *string, pathname *string, bodyType *string, request *OpenApiRequest, runtime *util.RuntimeOptions) (_result map[string]interface{}, _err error) {
-	_err = tea.Validate(request)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Validate(runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_runtime := map[string]interface{}{
-		"timeouted":      "retry",
-		"key":            tea.StringValue(util.DefaultString(runtime.Key, client.Key)),
-		"cert":           tea.StringValue(util.DefaultString(runtime.Cert, client.Cert)),
-		"ca":             tea.StringValue(util.DefaultString(runtime.Ca, client.Ca)),
-		"readTimeout":    tea.IntValue(util.DefaultNumber(runtime.ReadTimeout, client.ReadTimeout)),
-		"connectTimeout": tea.IntValue(util.DefaultNumber(runtime.ConnectTimeout, client.ConnectTimeout)),
-		"httpProxy":      tea.StringValue(util.DefaultString(runtime.HttpProxy, client.HttpProxy)),
-		"httpsProxy":     tea.StringValue(util.DefaultString(runtime.HttpsProxy, client.HttpsProxy)),
-		"noProxy":        tea.StringValue(util.DefaultString(runtime.NoProxy, client.NoProxy)),
-		"socks5Proxy":    tea.StringValue(util.DefaultString(runtime.Socks5Proxy, client.Socks5Proxy)),
-		"socks5NetWork":  tea.StringValue(util.DefaultString(runtime.Socks5NetWork, client.Socks5NetWork)),
-		"maxIdleConns":   tea.IntValue(util.DefaultNumber(runtime.MaxIdleConns, client.MaxIdleConns)),
-		"retry": map[string]interface{}{
-			"retryable":   tea.BoolValue(runtime.Autoretry),
-			"maxAttempts": tea.IntValue(util.DefaultNumber(runtime.MaxAttempts, tea.Int(3))),
-		},
-		"backoff": map[string]interface{}{
-			"policy": tea.StringValue(util.DefaultString(runtime.BackoffPolicy, tea.String("no"))),
-			"period": tea.IntValue(util.DefaultNumber(runtime.BackoffPeriod, tea.Int(1))),
-		},
-		"ignoreSSL": tea.BoolValue(runtime.IgnoreSSL),
+// Description:
+//
+// # Encapsulate the request and invoke the network
+//
+// @param action - api name
+//
+// @param version - product version
+//
+// @param protocol - http or https
+//
+// @param method - e.g. GET
+//
+// @param authType - authorization type e.g. AK
+//
+// @param bodyType - response body type e.g. String
+//
+// @param request - object of OpenApiRequest
+//
+// @param runtime - which controls some details of call api, such as retry times
+//
+// @return the response
+func (client *Client) Execute(params *openapiutil.Params, request *openapiutil.OpenApiRequest, runtime *dara.RuntimeOptions) (_result map[string]interface{}, _err error) {
+	_runtime := dara.NewRuntimeObject(map[string]interface{}{
+		"key":            dara.ToString(dara.Default(dara.StringValue(runtime.Key), dara.StringValue(client.Key))),
+		"cert":           dara.ToString(dara.Default(dara.StringValue(runtime.Cert), dara.StringValue(client.Cert))),
+		"ca":             dara.ToString(dara.Default(dara.StringValue(runtime.Ca), dara.StringValue(client.Ca))),
+		"readTimeout":    dara.ForceInt(dara.Default(dara.IntValue(runtime.ReadTimeout), dara.IntValue(client.ReadTimeout))),
+		"connectTimeout": dara.ForceInt(dara.Default(dara.IntValue(runtime.ConnectTimeout), dara.IntValue(client.ConnectTimeout))),
+		"httpProxy":      dara.ToString(dara.Default(dara.StringValue(runtime.HttpProxy), dara.StringValue(client.HttpProxy))),
+		"httpsProxy":     dara.ToString(dara.Default(dara.StringValue(runtime.HttpsProxy), dara.StringValue(client.HttpsProxy))),
+		"noProxy":        dara.ToString(dara.Default(dara.StringValue(runtime.NoProxy), dara.StringValue(client.NoProxy))),
+		"socks5Proxy":    dara.ToString(dara.Default(dara.StringValue(runtime.Socks5Proxy), dara.StringValue(client.Socks5Proxy))),
+		"socks5NetWork":  dara.ToString(dara.Default(dara.StringValue(runtime.Socks5NetWork), dara.StringValue(client.Socks5NetWork))),
+		"maxIdleConns":   dara.ForceInt(dara.Default(dara.IntValue(runtime.MaxIdleConns), dara.IntValue(client.MaxIdleConns))),
+		"retryOptions":   client.RetryOptions,
+		"ignoreSSL":      dara.BoolValue(runtime.IgnoreSSL),
+		"disableHttp2":   dara.ForceBoolean(dara.Default(dara.BoolValue(client.DisableHttp2), false)),
+		"httpClient":     client.HttpClient,
+	})
+
+	var retryPolicyContext *dara.RetryPolicyContext
+	var request_ *dara.Request
+	var response_ *dara.Response
+	var _resultErr error
+	retriesAttempted := int(0)
+	retryPolicyContext = &dara.RetryPolicyContext{
+		RetriesAttempted: retriesAttempted,
 	}
 
-	_resp := make(map[string]interface{})
-	for _retryTimes := 0; tea.BoolValue(tea.AllowRetry(_runtime["retry"], tea.Int(_retryTimes))); _retryTimes++ {
-		if _retryTimes > 0 {
-			_backoffTime := tea.GetBackoffTime(_runtime["backoff"], tea.Int(_retryTimes))
-			if tea.IntValue(_backoffTime) > 0 {
-				tea.Sleep(_backoffTime)
+	_result = make(map[string]interface{})
+	for dara.ShouldRetry(_runtime.RetryOptions, retryPolicyContext) {
+		_resultErr = nil
+		_backoffDelayTime := dara.GetBackoffDelay(_runtime.RetryOptions, retryPolicyContext)
+		dara.Sleep(_backoffDelayTime)
+
+		request_ = dara.NewRequest()
+		// spi = new Gateway();//Gateway implements SPI，这一步在产品 SDK 中实例化
+		headers, _err := client.GetRpcHeaders()
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
 			}
+			_resultErr = _err
+			continue
 		}
 
-		_resp, _err = func() (map[string]interface{}, error) {
-			request_ := tea.NewRequest()
-			request_.Protocol = util.DefaultString(client.Protocol, protocol)
-			request_.Method = method
-			request_.Pathname = pathname
-			globalQueries := make(map[string]*string)
-			globalHeaders := make(map[string]*string)
-			if !tea.BoolValue(util.IsUnset(client.GlobalParameters)) {
-				globalParams := client.GlobalParameters
-				if !tea.BoolValue(util.IsUnset(globalParams.Queries)) {
-					globalQueries = globalParams.Queries
-				}
-
-				if !tea.BoolValue(util.IsUnset(globalParams.Headers)) {
-					globalHeaders = globalParams.Headers
-				}
-
+		globalQueries := make(map[string]*string)
+		globalHeaders := make(map[string]*string)
+		if !dara.IsNil(client.GlobalParameters) {
+			globalParams := client.GlobalParameters
+			if !dara.IsNil(globalParams.Queries) {
+				globalQueries = globalParams.Queries
 			}
 
-			request_.Headers = tea.Merge(map[string]*string{
-				"date":                    util.GetDateUTCString(),
-				"host":                    client.Endpoint,
-				"accept":                  tea.String("application/json"),
-				"x-acs-signature-nonce":   util.GetNonce(),
-				"x-acs-signature-method":  tea.String("HMAC-SHA1"),
-				"x-acs-signature-version": tea.String("1.0"),
-				"x-acs-version":           version,
-				"x-acs-action":            action,
-				"user-agent":              util.GetUserAgent(client.UserAgent),
-			}, globalHeaders,
-				request.Headers)
-			if !tea.BoolValue(util.IsUnset(request.Body)) {
-				request_.Body = tea.ToReader(util.ToJSONString(request.Body))
-				request_.Headers["content-type"] = tea.String("application/json; charset=utf-8")
+			if !dara.IsNil(globalParams.Headers) {
+				globalHeaders = globalParams.Headers
 			}
 
-			request_.Query = globalQueries
-			if !tea.BoolValue(util.IsUnset(request.Query)) {
-				request_.Query = tea.Merge(request_.Query,
-					request.Query)
-			}
-
-			if !tea.BoolValue(util.EqualString(authType, tea.String("Anonymous"))) {
-				accessKeyId, _err := client.GetAccessKeyId()
-				if _err != nil {
-					return _result, _err
-				}
-
-				accessKeySecret, _err := client.GetAccessKeySecret()
-				if _err != nil {
-					return _result, _err
-				}
-
-				securityToken, _err := client.GetSecurityToken()
-				if _err != nil {
-					return _result, _err
-				}
-
-				if !tea.BoolValue(util.Empty(securityToken)) {
-					request_.Headers["x-acs-accesskey-id"] = accessKeyId
-					request_.Headers["x-acs-security-token"] = securityToken
-				}
-
-				stringToSign := openapiutil.GetStringToSign(request_)
-				request_.Headers["authorization"] = tea.String("acs " + tea.StringValue(accessKeyId) + ":" + tea.StringValue(openapiutil.GetROASignature(stringToSign, accessKeySecret)))
-			}
-
-			response_, _err := tea.DoRequest(request_, _runtime)
-			if _err != nil {
-				return _result, _err
-			}
-			if tea.BoolValue(util.EqualNumber(response_.StatusCode, tea.Int(204))) {
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]map[string]*string{
-					"headers": response_.Headers,
-				}, &_result)
-				return _result, _err
-			}
-
-			if tea.BoolValue(util.Is4xx(response_.StatusCode)) || tea.BoolValue(util.Is5xx(response_.StatusCode)) {
-				_res, _err := util.ReadAsJSON(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				err, _err := util.AssertAsMap(_res)
-				if _err != nil {
-					return _result, _err
-				}
-
-				requestId := DefaultAny(err["RequestId"], err["requestId"])
-				requestId = DefaultAny(requestId, err["requestid"])
-				err["statusCode"] = response_.StatusCode
-				_err = tea.NewSDKError(map[string]interface{}{
-					"code":               tea.ToString(DefaultAny(err["Code"], err["code"])),
-					"message":            "code: " + tea.ToString(tea.IntValue(response_.StatusCode)) + ", " + tea.ToString(DefaultAny(err["Message"], err["message"])) + " request id: " + tea.ToString(requestId),
-					"data":               err,
-					"description":        tea.ToString(DefaultAny(err["Description"], err["description"])),
-					"accessDeniedDetail": DefaultAny(err["AccessDeniedDetail"], err["accessDeniedDetail"]),
-				})
-				return _result, _err
-			}
-
-			if tea.BoolValue(util.EqualString(bodyType, tea.String("binary"))) {
-				resp := map[string]interface{}{
-					"body":       response_.Body,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}
-				_result = resp
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(bodyType, tea.String("byte"))) {
-				byt, _err := util.ReadAsBytes(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       byt,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(bodyType, tea.String("string"))) {
-				str, _err := util.ReadAsString(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       tea.StringValue(str),
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(bodyType, tea.String("json"))) {
-				obj, _err := util.ReadAsJSON(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				res, _err := util.AssertAsMap(obj)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       res,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(bodyType, tea.String("array"))) {
-				arr, _err := util.ReadAsJSON(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       arr,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else {
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			}
-
-		}()
-		if !tea.BoolValue(tea.Retryable(_err)) {
-			break
-		}
-	}
-
-	return _resp, _err
-}
-
-/**
- * Encapsulate the request and invoke the network with form body
- * @param action api name
- * @param version product version
- * @param protocol http or https
- * @param method e.g. GET
- * @param authType authorization type e.g. AK
- * @param pathname pathname of every api
- * @param bodyType response body type e.g. String
- * @param request object of OpenApiRequest
- * @param runtime which controls some details of call api, such as retry times
- * @return the response
- */
-func (client *Client) DoROARequestWithForm(action *string, version *string, protocol *string, method *string, authType *string, pathname *string, bodyType *string, request *OpenApiRequest, runtime *util.RuntimeOptions) (_result map[string]interface{}, _err error) {
-	_err = tea.Validate(request)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Validate(runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_runtime := map[string]interface{}{
-		"timeouted":      "retry",
-		"key":            tea.StringValue(util.DefaultString(runtime.Key, client.Key)),
-		"cert":           tea.StringValue(util.DefaultString(runtime.Cert, client.Cert)),
-		"ca":             tea.StringValue(util.DefaultString(runtime.Ca, client.Ca)),
-		"readTimeout":    tea.IntValue(util.DefaultNumber(runtime.ReadTimeout, client.ReadTimeout)),
-		"connectTimeout": tea.IntValue(util.DefaultNumber(runtime.ConnectTimeout, client.ConnectTimeout)),
-		"httpProxy":      tea.StringValue(util.DefaultString(runtime.HttpProxy, client.HttpProxy)),
-		"httpsProxy":     tea.StringValue(util.DefaultString(runtime.HttpsProxy, client.HttpsProxy)),
-		"noProxy":        tea.StringValue(util.DefaultString(runtime.NoProxy, client.NoProxy)),
-		"socks5Proxy":    tea.StringValue(util.DefaultString(runtime.Socks5Proxy, client.Socks5Proxy)),
-		"socks5NetWork":  tea.StringValue(util.DefaultString(runtime.Socks5NetWork, client.Socks5NetWork)),
-		"maxIdleConns":   tea.IntValue(util.DefaultNumber(runtime.MaxIdleConns, client.MaxIdleConns)),
-		"retry": map[string]interface{}{
-			"retryable":   tea.BoolValue(runtime.Autoretry),
-			"maxAttempts": tea.IntValue(util.DefaultNumber(runtime.MaxAttempts, tea.Int(3))),
-		},
-		"backoff": map[string]interface{}{
-			"policy": tea.StringValue(util.DefaultString(runtime.BackoffPolicy, tea.String("no"))),
-			"period": tea.IntValue(util.DefaultNumber(runtime.BackoffPeriod, tea.Int(1))),
-		},
-		"ignoreSSL": tea.BoolValue(runtime.IgnoreSSL),
-	}
-
-	_resp := make(map[string]interface{})
-	for _retryTimes := 0; tea.BoolValue(tea.AllowRetry(_runtime["retry"], tea.Int(_retryTimes))); _retryTimes++ {
-		if _retryTimes > 0 {
-			_backoffTime := tea.GetBackoffTime(_runtime["backoff"], tea.Int(_retryTimes))
-			if tea.IntValue(_backoffTime) > 0 {
-				tea.Sleep(_backoffTime)
-			}
 		}
 
-		_resp, _err = func() (map[string]interface{}, error) {
-			request_ := tea.NewRequest()
-			request_.Protocol = util.DefaultString(client.Protocol, protocol)
-			request_.Method = method
-			request_.Pathname = pathname
-			globalQueries := make(map[string]*string)
-			globalHeaders := make(map[string]*string)
-			if !tea.BoolValue(util.IsUnset(client.GlobalParameters)) {
-				globalParams := client.GlobalParameters
-				if !tea.BoolValue(util.IsUnset(globalParams.Queries)) {
-					globalQueries = globalParams.Queries
-				}
-
-				if !tea.BoolValue(util.IsUnset(globalParams.Headers)) {
-					globalHeaders = globalParams.Headers
-				}
-
+		extendsHeaders := make(map[string]*string)
+		extendsQueries := make(map[string]*string)
+		if !dara.IsNil(runtime.ExtendsParameters) {
+			extendsParameters := runtime.ExtendsParameters
+			if !dara.IsNil(extendsParameters.Headers) {
+				extendsHeaders = extendsParameters.Headers
 			}
 
-			request_.Headers = tea.Merge(map[string]*string{
-				"date":                    util.GetDateUTCString(),
-				"host":                    client.Endpoint,
-				"accept":                  tea.String("application/json"),
-				"x-acs-signature-nonce":   util.GetNonce(),
-				"x-acs-signature-method":  tea.String("HMAC-SHA1"),
-				"x-acs-signature-version": tea.String("1.0"),
-				"x-acs-version":           version,
-				"x-acs-action":            action,
-				"user-agent":              util.GetUserAgent(client.UserAgent),
-			}, globalHeaders,
-				request.Headers)
-			if !tea.BoolValue(util.IsUnset(request.Body)) {
-				m, _err := util.AssertAsMap(request.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				request_.Body = tea.ToReader(openapiutil.ToForm(m))
-				request_.Headers["content-type"] = tea.String("application/x-www-form-urlencoded")
+			if !dara.IsNil(extendsParameters.Queries) {
+				extendsQueries = extendsParameters.Queries
 			}
 
-			request_.Query = globalQueries
-			if !tea.BoolValue(util.IsUnset(request.Query)) {
-				request_.Query = tea.Merge(request_.Query,
-					request.Query)
-			}
-
-			if !tea.BoolValue(util.EqualString(authType, tea.String("Anonymous"))) {
-				accessKeyId, _err := client.GetAccessKeyId()
-				if _err != nil {
-					return _result, _err
-				}
-
-				accessKeySecret, _err := client.GetAccessKeySecret()
-				if _err != nil {
-					return _result, _err
-				}
-
-				securityToken, _err := client.GetSecurityToken()
-				if _err != nil {
-					return _result, _err
-				}
-
-				if !tea.BoolValue(util.Empty(securityToken)) {
-					request_.Headers["x-acs-accesskey-id"] = accessKeyId
-					request_.Headers["x-acs-security-token"] = securityToken
-				}
-
-				stringToSign := openapiutil.GetStringToSign(request_)
-				request_.Headers["authorization"] = tea.String("acs " + tea.StringValue(accessKeyId) + ":" + tea.StringValue(openapiutil.GetROASignature(stringToSign, accessKeySecret)))
-			}
-
-			response_, _err := tea.DoRequest(request_, _runtime)
-			if _err != nil {
-				return _result, _err
-			}
-			if tea.BoolValue(util.EqualNumber(response_.StatusCode, tea.Int(204))) {
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]map[string]*string{
-					"headers": response_.Headers,
-				}, &_result)
-				return _result, _err
-			}
-
-			if tea.BoolValue(util.Is4xx(response_.StatusCode)) || tea.BoolValue(util.Is5xx(response_.StatusCode)) {
-				_res, _err := util.ReadAsJSON(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				err, _err := util.AssertAsMap(_res)
-				if _err != nil {
-					return _result, _err
-				}
-
-				err["statusCode"] = response_.StatusCode
-				_err = tea.NewSDKError(map[string]interface{}{
-					"code":               tea.ToString(DefaultAny(err["Code"], err["code"])),
-					"message":            "code: " + tea.ToString(tea.IntValue(response_.StatusCode)) + ", " + tea.ToString(DefaultAny(err["Message"], err["message"])) + " request id: " + tea.ToString(DefaultAny(err["RequestId"], err["requestId"])),
-					"data":               err,
-					"description":        tea.ToString(DefaultAny(err["Description"], err["description"])),
-					"accessDeniedDetail": DefaultAny(err["AccessDeniedDetail"], err["accessDeniedDetail"]),
-				})
-				return _result, _err
-			}
-
-			if tea.BoolValue(util.EqualString(bodyType, tea.String("binary"))) {
-				resp := map[string]interface{}{
-					"body":       response_.Body,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}
-				_result = resp
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(bodyType, tea.String("byte"))) {
-				byt, _err := util.ReadAsBytes(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       byt,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(bodyType, tea.String("string"))) {
-				str, _err := util.ReadAsString(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       tea.StringValue(str),
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(bodyType, tea.String("json"))) {
-				obj, _err := util.ReadAsJSON(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				res, _err := util.AssertAsMap(obj)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       res,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(bodyType, tea.String("array"))) {
-				arr, _err := util.ReadAsJSON(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       arr,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else {
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			}
-
-		}()
-		if !tea.BoolValue(tea.Retryable(_err)) {
-			break
-		}
-	}
-
-	return _resp, _err
-}
-
-/**
- * Encapsulate the request and invoke the network
- * @param action api name
- * @param version product version
- * @param protocol http or https
- * @param method e.g. GET
- * @param authType authorization type e.g. AK
- * @param bodyType response body type e.g. String
- * @param request object of OpenApiRequest
- * @param runtime which controls some details of call api, such as retry times
- * @return the response
- */
-func (client *Client) DoRequest(params *Params, request *OpenApiRequest, runtime *util.RuntimeOptions) (_result map[string]interface{}, _err error) {
-	_err = tea.Validate(params)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Validate(request)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Validate(runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_runtime := map[string]interface{}{
-		"timeouted":      "retry",
-		"key":            tea.StringValue(util.DefaultString(runtime.Key, client.Key)),
-		"cert":           tea.StringValue(util.DefaultString(runtime.Cert, client.Cert)),
-		"ca":             tea.StringValue(util.DefaultString(runtime.Ca, client.Ca)),
-		"readTimeout":    tea.IntValue(util.DefaultNumber(runtime.ReadTimeout, client.ReadTimeout)),
-		"connectTimeout": tea.IntValue(util.DefaultNumber(runtime.ConnectTimeout, client.ConnectTimeout)),
-		"httpProxy":      tea.StringValue(util.DefaultString(runtime.HttpProxy, client.HttpProxy)),
-		"httpsProxy":     tea.StringValue(util.DefaultString(runtime.HttpsProxy, client.HttpsProxy)),
-		"noProxy":        tea.StringValue(util.DefaultString(runtime.NoProxy, client.NoProxy)),
-		"socks5Proxy":    tea.StringValue(util.DefaultString(runtime.Socks5Proxy, client.Socks5Proxy)),
-		"socks5NetWork":  tea.StringValue(util.DefaultString(runtime.Socks5NetWork, client.Socks5NetWork)),
-		"maxIdleConns":   tea.IntValue(util.DefaultNumber(runtime.MaxIdleConns, client.MaxIdleConns)),
-		"retry": map[string]interface{}{
-			"retryable":   tea.BoolValue(runtime.Autoretry),
-			"maxAttempts": tea.IntValue(util.DefaultNumber(runtime.MaxAttempts, tea.Int(3))),
-		},
-		"backoff": map[string]interface{}{
-			"policy": tea.StringValue(util.DefaultString(runtime.BackoffPolicy, tea.String("no"))),
-			"period": tea.IntValue(util.DefaultNumber(runtime.BackoffPeriod, tea.Int(1))),
-		},
-		"ignoreSSL": tea.BoolValue(runtime.IgnoreSSL),
-	}
-
-	_resp := make(map[string]interface{})
-	for _retryTimes := 0; tea.BoolValue(tea.AllowRetry(_runtime["retry"], tea.Int(_retryTimes))); _retryTimes++ {
-		if _retryTimes > 0 {
-			_backoffTime := tea.GetBackoffTime(_runtime["backoff"], tea.Int(_retryTimes))
-			if tea.IntValue(_backoffTime) > 0 {
-				tea.Sleep(_backoffTime)
-			}
 		}
 
-		_resp, _err = func() (map[string]interface{}, error) {
-			request_ := tea.NewRequest()
-			request_.Protocol = util.DefaultString(client.Protocol, params.Protocol)
-			request_.Method = params.Method
-			request_.Pathname = params.Pathname
-			globalQueries := make(map[string]*string)
-			globalHeaders := make(map[string]*string)
-			if !tea.BoolValue(util.IsUnset(client.GlobalParameters)) {
-				globalParams := client.GlobalParameters
-				if !tea.BoolValue(util.IsUnset(globalParams.Queries)) {
-					globalQueries = globalParams.Queries
-				}
-
-				if !tea.BoolValue(util.IsUnset(globalParams.Headers)) {
-					globalHeaders = globalParams.Headers
-				}
-
-			}
-
-			extendsHeaders := make(map[string]*string)
-			if !tea.BoolValue(util.IsUnset(runtime.ExtendsParameters)) {
-				extendsParameters := runtime.ExtendsParameters
-				if !tea.BoolValue(util.IsUnset(extendsParameters.Headers)) {
-					extendsHeaders = extendsParameters.Headers
-				}
-
-			}
-
-			request_.Query = tea.Merge(globalQueries,
-				request.Query)
-			// endpoint is setted in product client
-			request_.Headers = tea.Merge(map[string]*string{
-				"host":                  client.Endpoint,
-				"x-acs-version":         params.Version,
-				"x-acs-action":          params.Action,
-				"user-agent":            client.GetUserAgent(),
-				"x-acs-date":            openapiutil.GetTimestamp(),
-				"x-acs-signature-nonce": util.GetNonce(),
-				"accept":                tea.String("application/json"),
-			}, globalHeaders,
+		requestContext := &spi.InterceptorContextRequest{
+			Headers: dara.Merge(globalHeaders,
 				extendsHeaders,
-				request.Headers)
-			if tea.BoolValue(util.EqualString(params.Style, tea.String("RPC"))) {
-				headers, _err := client.GetRpcHeaders()
-				if _err != nil {
-					return _result, _err
-				}
-
-				if !tea.BoolValue(util.IsUnset(headers)) {
-					request_.Headers = tea.Merge(request_.Headers,
-						headers)
-				}
-
-			}
-
-			signatureAlgorithm := util.DefaultString(client.SignatureAlgorithm, tea.String("ACS3-HMAC-SHA256"))
-			hashedRequestPayload := openapiutil.HexEncode(openapiutil.Hash(util.ToBytes(tea.String("")), signatureAlgorithm))
-			if !tea.BoolValue(util.IsUnset(request.Stream)) {
-				tmp, _err := util.ReadAsBytes(request.Stream)
-				if _err != nil {
-					return _result, _err
-				}
-
-				hashedRequestPayload = openapiutil.HexEncode(openapiutil.Hash(tmp, signatureAlgorithm))
-				request_.Body = tea.ToReader(tmp)
-				request_.Headers["content-type"] = tea.String("application/octet-stream")
-			} else {
-				if !tea.BoolValue(util.IsUnset(request.Body)) {
-					if tea.BoolValue(util.EqualString(params.ReqBodyType, tea.String("byte"))) {
-						byteObj, _err := util.AssertAsBytes(request.Body)
-						if _err != nil {
-							return _result, _err
-						}
-
-						hashedRequestPayload = openapiutil.HexEncode(openapiutil.Hash(byteObj, signatureAlgorithm))
-						request_.Body = tea.ToReader(byteObj)
-					} else if tea.BoolValue(util.EqualString(params.ReqBodyType, tea.String("json"))) {
-						jsonObj := util.ToJSONString(request.Body)
-						hashedRequestPayload = openapiutil.HexEncode(openapiutil.Hash(util.ToBytes(jsonObj), signatureAlgorithm))
-						request_.Body = tea.ToReader(jsonObj)
-						request_.Headers["content-type"] = tea.String("application/json; charset=utf-8")
-					} else {
-						m, _err := util.AssertAsMap(request.Body)
-						if _err != nil {
-							return _result, _err
-						}
-
-						formObj := openapiutil.ToForm(m)
-						hashedRequestPayload = openapiutil.HexEncode(openapiutil.Hash(util.ToBytes(formObj), signatureAlgorithm))
-						request_.Body = tea.ToReader(formObj)
-						request_.Headers["content-type"] = tea.String("application/x-www-form-urlencoded")
-					}
-
-				}
-
-			}
-
-			request_.Headers["x-acs-content-sha256"] = hashedRequestPayload
-			if !tea.BoolValue(util.EqualString(params.AuthType, tea.String("Anonymous"))) {
-				credentialModel, _err := client.Credential.GetCredential()
-				if _err != nil {
-					return _result, _err
-				}
-
-				authType := credentialModel.Type
-				if tea.BoolValue(util.EqualString(authType, tea.String("bearer"))) {
-					bearerToken := credentialModel.BearerToken
-					request_.Headers["x-acs-bearer-token"] = bearerToken
-				} else {
-					accessKeyId := credentialModel.AccessKeyId
-					accessKeySecret := credentialModel.AccessKeySecret
-					securityToken := credentialModel.SecurityToken
-					if !tea.BoolValue(util.Empty(securityToken)) {
-						request_.Headers["x-acs-accesskey-id"] = accessKeyId
-						request_.Headers["x-acs-security-token"] = securityToken
-					}
-
-					request_.Headers["Authorization"] = openapiutil.GetAuthorization(request_, signatureAlgorithm, hashedRequestPayload, accessKeyId, accessKeySecret)
-				}
-
-			}
-
-			response_, _err := tea.DoRequest(request_, _runtime)
-			if _err != nil {
-				return _result, _err
-			}
-			if tea.BoolValue(util.Is4xx(response_.StatusCode)) || tea.BoolValue(util.Is5xx(response_.StatusCode)) {
-				err := map[string]interface{}{}
-				if !tea.BoolValue(util.IsUnset(response_.Headers["content-type"])) && tea.BoolValue(util.EqualString(response_.Headers["content-type"], tea.String("text/xml;charset=utf-8"))) {
-					_str, _err := util.ReadAsString(response_.Body)
-					if _err != nil {
-						return _result, _err
-					}
-
-					respMap := xml.ParseXml(_str, nil)
-					err, _err = util.AssertAsMap(respMap["Error"])
-					if _err != nil {
-						return _result, _err
-					}
-
-				} else {
-					_res, _err := util.ReadAsJSON(response_.Body)
-					if _err != nil {
-						return _result, _err
-					}
-
-					err, _err = util.AssertAsMap(_res)
-					if _err != nil {
-						return _result, _err
-					}
-
-				}
-
-				err["statusCode"] = response_.StatusCode
-				_err = tea.NewSDKError(map[string]interface{}{
-					"code":               tea.ToString(DefaultAny(err["Code"], err["code"])),
-					"message":            "code: " + tea.ToString(tea.IntValue(response_.StatusCode)) + ", " + tea.ToString(DefaultAny(err["Message"], err["message"])) + " request id: " + tea.ToString(DefaultAny(err["RequestId"], err["requestId"])),
-					"data":               err,
-					"description":        tea.ToString(DefaultAny(err["Description"], err["description"])),
-					"accessDeniedDetail": DefaultAny(err["AccessDeniedDetail"], err["accessDeniedDetail"]),
-				})
-				return _result, _err
-			}
-
-			if tea.BoolValue(util.EqualString(params.BodyType, tea.String("binary"))) {
-				resp := map[string]interface{}{
-					"body":       response_.Body,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}
-				_result = resp
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(params.BodyType, tea.String("byte"))) {
-				byt, _err := util.ReadAsBytes(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       byt,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(params.BodyType, tea.String("string"))) {
-				str, _err := util.ReadAsString(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       tea.StringValue(str),
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(params.BodyType, tea.String("json"))) {
-				obj, _err := util.ReadAsJSON(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				res, _err := util.AssertAsMap(obj)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       res,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else if tea.BoolValue(util.EqualString(params.BodyType, tea.String("array"))) {
-				arr, _err := util.ReadAsJSON(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       arr,
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			} else {
-				anything, _err := util.ReadAsString(response_.Body)
-				if _err != nil {
-					return _result, _err
-				}
-
-				_result = make(map[string]interface{})
-				_err = tea.Convert(map[string]interface{}{
-					"body":       tea.StringValue(anything),
-					"headers":    response_.Headers,
-					"statusCode": tea.IntValue(response_.StatusCode),
-				}, &_result)
-				return _result, _err
-			}
-
-		}()
-		if !tea.BoolValue(tea.Retryable(_err)) {
-			break
+				request.Headers,
+				headers),
+			Query: dara.Merge(globalQueries,
+				extendsQueries,
+				request.Query),
+			Body:               request.Body,
+			Stream:             request.Stream,
+			HostMap:            request.HostMap,
+			Pathname:           params.Pathname,
+			ProductId:          client.ProductId,
+			Action:             params.Action,
+			Version:            params.Version,
+			Protocol:           dara.String(dara.ToString(dara.Default(dara.StringValue(client.Protocol), dara.StringValue(params.Protocol)))),
+			Method:             dara.String(dara.ToString(dara.Default(dara.StringValue(client.Method), dara.StringValue(params.Method)))),
+			AuthType:           params.AuthType,
+			BodyType:           params.BodyType,
+			ReqBodyType:        params.ReqBodyType,
+			Style:              params.Style,
+			Credential:         client.Credential,
+			SignatureVersion:   client.SignatureVersion,
+			SignatureAlgorithm: client.SignatureAlgorithm,
+			UserAgent:          openapiutil.GetUserAgent(client.UserAgent),
 		}
-	}
+		configurationContext := &spi.InterceptorContextConfiguration{
+			RegionId:     client.RegionId,
+			Endpoint:     dara.String(dara.ToString(dara.Default(dara.StringValue(request.EndpointOverride), dara.StringValue(client.Endpoint)))),
+			EndpointRule: client.EndpointRule,
+			EndpointMap:  client.EndpointMap,
+			EndpointType: client.EndpointType,
+			Network:      client.Network,
+			Suffix:       client.Suffix,
+		}
+		interceptorContext := &spi.InterceptorContext{
+			Request:       requestContext,
+			Configuration: configurationContext,
+		}
+		attributeMap := &spi.AttributeMap{}
+		// 1. spi.modifyConfiguration(context: SPI.InterceptorContext, attributeMap: SPI.AttributeMap);
+		_err = client.Spi.ModifyConfiguration(interceptorContext, attributeMap)
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
+			}
+			_resultErr = _err
+			continue
+		}
 
-	return _resp, _err
+		// 2. spi.modifyRequest(context: SPI.InterceptorContext, attributeMap: SPI.AttributeMap);
+		_err = client.Spi.ModifyRequest(interceptorContext, attributeMap)
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
+			}
+			_resultErr = _err
+			continue
+		}
+
+		request_.Protocol = interceptorContext.Request.Protocol
+		request_.Method = interceptorContext.Request.Method
+		request_.Pathname = interceptorContext.Request.Pathname
+		request_.Query = interceptorContext.Request.Query
+		request_.Body = interceptorContext.Request.Stream
+		request_.Headers = interceptorContext.Request.Headers
+		response_, _err := dara.DoRequest(request_, _runtime)
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
+			}
+			_resultErr = _err
+			continue
+		}
+
+		responseContext := &spi.InterceptorContextResponse{
+			StatusCode: response_.StatusCode,
+			Headers:    response_.Headers,
+			Body:       response_.Body,
+		}
+		interceptorContext.Response = responseContext
+		// 3. spi.modifyResponse(context: SPI.InterceptorContext, attributeMap: SPI.AttributeMap);
+		_err = client.Spi.ModifyResponse(interceptorContext, attributeMap)
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
+			}
+			_resultErr = _err
+			continue
+		}
+
+		_err = dara.Convert(map[string]interface{}{
+			"headers":    interceptorContext.Response.Headers,
+			"statusCode": dara.IntValue(interceptorContext.Response.StatusCode),
+			"body":       interceptorContext.Response.DeserializedBody,
+		}, &_result)
+
+		return _result, _err
+	}
+	if dara.BoolValue(client.DisableSDKError) != true {
+		_resultErr = dara.TeaSDKError(_resultErr)
+	}
+	return _result, _resultErr
 }
 
-/**
- * Encapsulate the request and invoke the network
- * @param action api name
- * @param version product version
- * @param protocol http or https
- * @param method e.g. GET
- * @param authType authorization type e.g. AK
- * @param bodyType response body type e.g. String
- * @param request object of OpenApiRequest
- * @param runtime which controls some details of call api, such as retry times
- * @return the response
- */
-func (client *Client) Execute(params *Params, request *OpenApiRequest, runtime *util.RuntimeOptions) (_result map[string]interface{}, _err error) {
-	_err = tea.Validate(params)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Validate(request)
-	if _err != nil {
-		return _result, _err
-	}
-	_err = tea.Validate(runtime)
-	if _err != nil {
-		return _result, _err
-	}
-	_runtime := map[string]interface{}{
-		"timeouted":      "retry",
-		"key":            tea.StringValue(util.DefaultString(runtime.Key, client.Key)),
-		"cert":           tea.StringValue(util.DefaultString(runtime.Cert, client.Cert)),
-		"ca":             tea.StringValue(util.DefaultString(runtime.Ca, client.Ca)),
-		"readTimeout":    tea.IntValue(util.DefaultNumber(runtime.ReadTimeout, client.ReadTimeout)),
-		"connectTimeout": tea.IntValue(util.DefaultNumber(runtime.ConnectTimeout, client.ConnectTimeout)),
-		"httpProxy":      tea.StringValue(util.DefaultString(runtime.HttpProxy, client.HttpProxy)),
-		"httpsProxy":     tea.StringValue(util.DefaultString(runtime.HttpsProxy, client.HttpsProxy)),
-		"noProxy":        tea.StringValue(util.DefaultString(runtime.NoProxy, client.NoProxy)),
-		"socks5Proxy":    tea.StringValue(util.DefaultString(runtime.Socks5Proxy, client.Socks5Proxy)),
-		"socks5NetWork":  tea.StringValue(util.DefaultString(runtime.Socks5NetWork, client.Socks5NetWork)),
-		"maxIdleConns":   tea.IntValue(util.DefaultNumber(runtime.MaxIdleConns, client.MaxIdleConns)),
-		"retry": map[string]interface{}{
-			"retryable":   tea.BoolValue(runtime.Autoretry),
-			"maxAttempts": tea.IntValue(util.DefaultNumber(runtime.MaxAttempts, tea.Int(3))),
-		},
-		"backoff": map[string]interface{}{
-			"policy": tea.StringValue(util.DefaultString(runtime.BackoffPolicy, tea.String("no"))),
-			"period": tea.IntValue(util.DefaultNumber(runtime.BackoffPeriod, tea.Int(1))),
-		},
-		"ignoreSSL": tea.BoolValue(runtime.IgnoreSSL),
+func (client *Client) CallSSEApi(params *openapiutil.Params, request *openapiutil.OpenApiRequest, runtime *dara.RuntimeOptions, _yield chan *SSEResponse, _yieldErr chan error) {
+	defer close(_yield)
+	defer close(_yieldErr)
+	_runtime := dara.NewRuntimeObject(map[string]interface{}{
+		"key":            dara.ToString(dara.Default(dara.StringValue(runtime.Key), dara.StringValue(client.Key))),
+		"cert":           dara.ToString(dara.Default(dara.StringValue(runtime.Cert), dara.StringValue(client.Cert))),
+		"ca":             dara.ToString(dara.Default(dara.StringValue(runtime.Ca), dara.StringValue(client.Ca))),
+		"readTimeout":    dara.ForceInt(dara.Default(dara.IntValue(runtime.ReadTimeout), dara.IntValue(client.ReadTimeout))),
+		"connectTimeout": dara.ForceInt(dara.Default(dara.IntValue(runtime.ConnectTimeout), dara.IntValue(client.ConnectTimeout))),
+		"httpProxy":      dara.ToString(dara.Default(dara.StringValue(runtime.HttpProxy), dara.StringValue(client.HttpProxy))),
+		"httpsProxy":     dara.ToString(dara.Default(dara.StringValue(runtime.HttpsProxy), dara.StringValue(client.HttpsProxy))),
+		"noProxy":        dara.ToString(dara.Default(dara.StringValue(runtime.NoProxy), dara.StringValue(client.NoProxy))),
+		"socks5Proxy":    dara.ToString(dara.Default(dara.StringValue(runtime.Socks5Proxy), dara.StringValue(client.Socks5Proxy))),
+		"socks5NetWork":  dara.ToString(dara.Default(dara.StringValue(runtime.Socks5NetWork), dara.StringValue(client.Socks5NetWork))),
+		"maxIdleConns":   dara.ForceInt(dara.Default(dara.IntValue(runtime.MaxIdleConns), dara.IntValue(client.MaxIdleConns))),
+		"retryOptions":   client.RetryOptions,
+		"ignoreSSL":      dara.BoolValue(runtime.IgnoreSSL),
+		"httpClient":     client.HttpClient,
+	})
+
+	var retryPolicyContext *dara.RetryPolicyContext
+	var request_ *dara.Request
+	var response_ *dara.Response
+	var _resultErr error
+	retriesAttempted := int(0)
+	retryPolicyContext = &dara.RetryPolicyContext{
+		RetriesAttempted: retriesAttempted,
 	}
 
-	_resp := make(map[string]interface{})
-	for _retryTimes := 0; tea.BoolValue(tea.AllowRetry(_runtime["retry"], tea.Int(_retryTimes))); _retryTimes++ {
-		if _retryTimes > 0 {
-			_backoffTime := tea.GetBackoffTime(_runtime["backoff"], tea.Int(_retryTimes))
-			if tea.IntValue(_backoffTime) > 0 {
-				tea.Sleep(_backoffTime)
+	for dara.ShouldRetry(_runtime.RetryOptions, retryPolicyContext) {
+		_resultErr = nil
+		_backoffDelayTime := dara.GetBackoffDelay(_runtime.RetryOptions, retryPolicyContext)
+		dara.Sleep(_backoffDelayTime)
+
+		request_ = dara.NewRequest()
+		request_.Protocol = dara.String(dara.ToString(dara.Default(dara.StringValue(client.Protocol), dara.StringValue(params.Protocol))))
+		request_.Method = params.Method
+		request_.Pathname = params.Pathname
+		globalQueries := make(map[string]*string)
+		globalHeaders := make(map[string]*string)
+		if !dara.IsNil(client.GlobalParameters) {
+			globalParams := client.GlobalParameters
+			if !dara.IsNil(globalParams.Queries) {
+				globalQueries = globalParams.Queries
 			}
+
+			if !dara.IsNil(globalParams.Headers) {
+				globalHeaders = globalParams.Headers
+			}
+
 		}
 
-		_resp, _err = func() (map[string]interface{}, error) {
-			request_ := tea.NewRequest()
-			// spi = new Gateway();//Gateway implements SPI，这一步在产品 SDK 中实例化
+		extendsHeaders := make(map[string]*string)
+		extendsQueries := make(map[string]*string)
+		if !dara.IsNil(runtime.ExtendsParameters) {
+			extendsParameters := runtime.ExtendsParameters
+			if !dara.IsNil(extendsParameters.Headers) {
+				extendsHeaders = extendsParameters.Headers
+			}
+
+			if !dara.IsNil(extendsParameters.Queries) {
+				extendsQueries = extendsParameters.Queries
+			}
+
+		}
+
+		request_.Query = dara.Merge(globalQueries,
+			extendsQueries,
+			request.Query)
+		// endpoint is setted in product client
+		request_.Headers = dara.Merge(map[string]*string{
+			"host":                  client.Endpoint,
+			"x-acs-version":         params.Version,
+			"x-acs-action":          params.Action,
+			"user-agent":            openapiutil.GetUserAgent(client.UserAgent),
+			"x-acs-date":            openapiutil.GetTimestamp(),
+			"x-acs-signature-nonce": openapiutil.GetNonce(),
+			"accept":                dara.String("application/json"),
+		}, extendsHeaders,
+			globalHeaders,
+			request.Headers)
+		if dara.StringValue(params.Style) == "RPC" {
 			headers, _err := client.GetRpcHeaders()
 			if _err != nil {
-				return _result, _err
-			}
-
-			globalQueries := make(map[string]*string)
-			globalHeaders := make(map[string]*string)
-			if !tea.BoolValue(util.IsUnset(client.GlobalParameters)) {
-				globalParams := client.GlobalParameters
-				if !tea.BoolValue(util.IsUnset(globalParams.Queries)) {
-					globalQueries = globalParams.Queries
+				retriesAttempted++
+				retryPolicyContext = &dara.RetryPolicyContext{
+					RetriesAttempted: retriesAttempted,
+					HttpRequest:      request_,
+					HttpResponse:     response_,
+					Exception:        _err,
 				}
-
-				if !tea.BoolValue(util.IsUnset(globalParams.Headers)) {
-					globalHeaders = globalParams.Headers
-				}
-
+				_resultErr = _err
+				continue
 			}
 
-			requestContext := &spi.InterceptorContextRequest{
-				Headers: tea.Merge(globalHeaders,
-					request.Headers,
-					headers),
-				Query: tea.Merge(globalQueries,
-					request.Query),
-				Body:               request.Body,
-				Stream:             request.Stream,
-				HostMap:            request.HostMap,
-				Pathname:           params.Pathname,
-				ProductId:          client.ProductId,
-				Action:             params.Action,
-				Version:            params.Version,
-				Protocol:           util.DefaultString(client.Protocol, params.Protocol),
-				Method:             util.DefaultString(client.Method, params.Method),
-				AuthType:           params.AuthType,
-				BodyType:           params.BodyType,
-				ReqBodyType:        params.ReqBodyType,
-				Style:              params.Style,
-				Credential:         client.Credential,
-				SignatureVersion:   client.SignatureVersion,
-				SignatureAlgorithm: client.SignatureAlgorithm,
-				UserAgent:          client.GetUserAgent(),
+			if !dara.IsNil(headers) {
+				request_.Headers = dara.Merge(request_.Headers,
+					headers)
 			}
-			configurationContext := &spi.InterceptorContextConfiguration{
-				RegionId:     client.RegionId,
-				Endpoint:     util.DefaultString(request.EndpointOverride, client.Endpoint),
-				EndpointRule: client.EndpointRule,
-				EndpointMap:  client.EndpointMap,
-				EndpointType: client.EndpointType,
-				Network:      client.Network,
-				Suffix:       client.Suffix,
-			}
-			interceptorContext := &spi.InterceptorContext{
-				Request:       requestContext,
-				Configuration: configurationContext,
-			}
-			attributeMap := &spi.AttributeMap{}
-			// 1. spi.modifyConfiguration(context: SPI.InterceptorContext, attributeMap: SPI.AttributeMap);
-			_err = client.Spi.ModifyConfiguration(interceptorContext, attributeMap)
-			if _err != nil {
-				return _result, _err
-			}
-			// 2. spi.modifyRequest(context: SPI.InterceptorContext, attributeMap: SPI.AttributeMap);
-			_err = client.Spi.ModifyRequest(interceptorContext, attributeMap)
-			if _err != nil {
-				return _result, _err
-			}
-			request_.Protocol = interceptorContext.Request.Protocol
-			request_.Method = interceptorContext.Request.Method
-			request_.Pathname = interceptorContext.Request.Pathname
-			request_.Query = interceptorContext.Request.Query
-			request_.Body = interceptorContext.Request.Stream
-			request_.Headers = interceptorContext.Request.Headers
-			response_, _err := tea.DoRequest(request_, _runtime)
-			if _err != nil {
-				return _result, _err
-			}
-			responseContext := &spi.InterceptorContextResponse{
-				StatusCode: response_.StatusCode,
-				Headers:    response_.Headers,
-				Body:       response_.Body,
-			}
-			interceptorContext.Response = responseContext
-			// 3. spi.modifyResponse(context: SPI.InterceptorContext, attributeMap: SPI.AttributeMap);
-			_err = client.Spi.ModifyResponse(interceptorContext, attributeMap)
-			if _err != nil {
-				return _result, _err
-			}
-			_result = make(map[string]interface{})
-			_err = tea.Convert(map[string]interface{}{
-				"headers":    interceptorContext.Response.Headers,
-				"statusCode": tea.IntValue(interceptorContext.Response.StatusCode),
-				"body":       interceptorContext.Response.DeserializedBody,
-			}, &_result)
-			return _result, _err
-		}()
-		if !tea.BoolValue(tea.Retryable(_err)) {
-			break
+
 		}
-	}
 
-	return _resp, _err
+		signatureAlgorithm := dara.ToString(dara.Default(dara.StringValue(client.SignatureAlgorithm), "ACS3-HMAC-SHA256"))
+		hashedRequestPayload := openapiutil.Hash(dara.BytesFromString("", "utf-8"), dara.String(signatureAlgorithm))
+		if !dara.IsNil(request.Stream) {
+			tmp, _err := dara.ReadAsBytes(request.Stream)
+			if _err != nil {
+				retriesAttempted++
+				retryPolicyContext = &dara.RetryPolicyContext{
+					RetriesAttempted: retriesAttempted,
+					HttpRequest:      request_,
+					HttpResponse:     response_,
+					Exception:        _err,
+				}
+				_resultErr = _err
+				continue
+			}
+
+			hashedRequestPayload = openapiutil.Hash(tmp, dara.String(signatureAlgorithm))
+			request_.Body = dara.ToReader(tmp)
+			request_.Headers["content-type"] = dara.String("application/octet-stream")
+		} else {
+			if !dara.IsNil(request.Body) {
+				if dara.StringValue(params.ReqBodyType) == "byte" {
+					byteObj := []byte(dara.ToString(request.Body))
+					hashedRequestPayload = openapiutil.Hash(byteObj, dara.String(signatureAlgorithm))
+					request_.Body = dara.ToReader(byteObj)
+				} else if dara.StringValue(params.ReqBodyType) == "json" {
+					jsonObj := dara.Stringify(request.Body)
+					hashedRequestPayload = openapiutil.Hash(dara.ToBytes(jsonObj, "utf8"), dara.String(signatureAlgorithm))
+					request_.Body = dara.ToReader(dara.String(jsonObj))
+					request_.Headers["content-type"] = dara.String("application/json; charset=utf-8")
+				} else {
+					m := dara.ToMap(request.Body)
+					formObj := dara.StringValue(openapiutil.ToForm(m))
+					hashedRequestPayload = openapiutil.Hash(dara.ToBytes(formObj, "utf8"), dara.String(signatureAlgorithm))
+					request_.Body = dara.ToReader(dara.String(formObj))
+					request_.Headers["content-type"] = dara.String("application/x-www-form-urlencoded")
+				}
+
+			}
+
+		}
+
+		request_.Headers["x-acs-content-sha256"] = dara.String(hex.EncodeToString(hashedRequestPayload))
+		if dara.StringValue(params.AuthType) != "Anonymous" {
+			credentialModel, _err := client.Credential.GetCredential()
+			if _err != nil {
+				retriesAttempted++
+				retryPolicyContext = &dara.RetryPolicyContext{
+					RetriesAttempted: retriesAttempted,
+					HttpRequest:      request_,
+					HttpResponse:     response_,
+					Exception:        _err,
+				}
+				_resultErr = _err
+				continue
+			}
+
+			authType := dara.StringValue(credentialModel.Type)
+			if authType == "bearer" {
+				bearerToken := dara.StringValue(credentialModel.BearerToken)
+				request_.Headers["x-acs-bearer-token"] = dara.String(bearerToken)
+			} else {
+				accessKeyId := dara.StringValue(credentialModel.AccessKeyId)
+				accessKeySecret := dara.StringValue(credentialModel.AccessKeySecret)
+				securityToken := dara.StringValue(credentialModel.SecurityToken)
+				if !dara.IsNil(dara.String(securityToken)) && securityToken != "" {
+					request_.Headers["x-acs-accesskey-id"] = dara.String(accessKeyId)
+					request_.Headers["x-acs-security-token"] = dara.String(securityToken)
+				}
+
+				request_.Headers["Authorization"] = openapiutil.GetAuthorization(request_, dara.String(signatureAlgorithm), dara.String(hex.EncodeToString(hashedRequestPayload)), dara.String(accessKeyId), dara.String(accessKeySecret))
+			}
+
+		}
+
+		response_, _err := dara.DoRequest(request_, _runtime)
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
+			}
+			_resultErr = _err
+			continue
+		}
+
+		callSSEApi_opResponse(_yield, _yieldErr, response_)
+		_err = <-_yieldErr
+		if _err != nil {
+			retriesAttempted++
+			retryPolicyContext = &dara.RetryPolicyContext{
+				RetriesAttempted: retriesAttempted,
+				HttpRequest:      request_,
+				HttpResponse:     response_,
+				Exception:        _err,
+			}
+			_resultErr = _err
+			continue
+		}
+
+		return
+	}
+	_yieldErr <- _resultErr
+	return
 }
 
-func (client *Client) CallApi(params *Params, request *OpenApiRequest, runtime *util.RuntimeOptions) (_result map[string]interface{}, _err error) {
-	if tea.BoolValue(util.IsUnset(params)) {
-		_err = tea.NewSDKError(map[string]interface{}{
-			"code":    "ParameterMissing",
-			"message": "'params' can not be unset",
-		})
+func (client *Client) CallApi(params *openapiutil.Params, request *openapiutil.OpenApiRequest, runtime *dara.RuntimeOptions) (_result map[string]interface{}, _err error) {
+	if dara.IsNil(params) {
+		_err = &ClientError{
+			Code:    dara.String("ParameterMissing"),
+			Message: dara.String("'params' can not be unset"),
+		}
 		return _result, _err
 	}
 
-	if tea.BoolValue(util.IsUnset(client.SignatureAlgorithm)) || !tea.BoolValue(util.EqualString(client.SignatureAlgorithm, tea.String("v2"))) {
-		_result = make(map[string]interface{})
+	if dara.IsNil(client.SignatureAlgorithm) || dara.StringValue(client.SignatureAlgorithm) != "v2" {
 		_body, _err := client.DoRequest(params, request, runtime)
 		if _err != nil {
 			return _result, _err
 		}
 		_result = _body
 		return _result, _err
-	} else if tea.BoolValue(util.EqualString(params.Style, tea.String("ROA"))) && tea.BoolValue(util.EqualString(params.ReqBodyType, tea.String("json"))) {
-		_result = make(map[string]interface{})
+	} else if (dara.StringValue(params.Style) == "ROA") && (dara.StringValue(params.ReqBodyType) == "json") {
 		_body, _err := client.DoROARequest(params.Action, params.Version, params.Protocol, params.Method, params.AuthType, params.Pathname, params.BodyType, request, runtime)
 		if _err != nil {
 			return _result, _err
 		}
 		_result = _body
 		return _result, _err
-	} else if tea.BoolValue(util.EqualString(params.Style, tea.String("ROA"))) {
-		_result = make(map[string]interface{})
+	} else if dara.StringValue(params.Style) == "ROA" {
 		_body, _err := client.DoROARequestWithForm(params.Action, params.Version, params.Protocol, params.Method, params.AuthType, params.Pathname, params.BodyType, request, runtime)
 		if _err != nil {
 			return _result, _err
@@ -1715,7 +1811,6 @@ func (client *Client) CallApi(params *Params, request *OpenApiRequest, runtime *
 		_result = _body
 		return _result, _err
 	} else {
-		_result = make(map[string]interface{})
 		_body, _err := client.DoRPCRequest(params.Action, params.Version, params.Protocol, params.Method, params.AuthType, params.BodyType, request, runtime)
 		if _err != nil {
 			return _result, _err
@@ -1726,159 +1821,711 @@ func (client *Client) CallApi(params *Params, request *OpenApiRequest, runtime *
 
 }
 
-/**
- * Get user agent
- * @return user agent
- */
-func (client *Client) GetUserAgent() (_result *string) {
-	userAgent := util.GetUserAgent(client.UserAgent)
-	_result = userAgent
-	return _result
-}
-
-/**
- * Get accesskey id by using credential
- * @return accesskey id
- */
+// Description:
+//
+// # Get accesskey id by using credential
+//
+// @return accesskey id
 func (client *Client) GetAccessKeyId() (_result *string, _err error) {
-	if tea.BoolValue(util.IsUnset(client.Credential)) {
-		_result = tea.String("")
+	if dara.IsNil(client.Credential) {
+		_result = dara.String("")
 		return _result, _err
 	}
 
-	accessKeyId, _err := client.Credential.GetAccessKeyId()
+	accessKeyIdTmp, _err := client.Credential.GetAccessKeyId()
+	accessKeyId := dara.StringValue(accessKeyIdTmp)
 	if _err != nil {
 		return _result, _err
 	}
 
-	_result = accessKeyId
+	_result = dara.String(accessKeyId)
 	return _result, _err
 }
 
-/**
- * Get accesskey secret by using credential
- * @return accesskey secret
- */
+// Description:
+//
+// # Get accesskey secret by using credential
+//
+// @return accesskey secret
 func (client *Client) GetAccessKeySecret() (_result *string, _err error) {
-	if tea.BoolValue(util.IsUnset(client.Credential)) {
-		_result = tea.String("")
+	if dara.IsNil(client.Credential) {
+		_result = dara.String("")
 		return _result, _err
 	}
 
-	secret, _err := client.Credential.GetAccessKeySecret()
+	secretTmp, _err := client.Credential.GetAccessKeySecret()
+	secret := dara.StringValue(secretTmp)
 	if _err != nil {
 		return _result, _err
 	}
 
-	_result = secret
+	_result = dara.String(secret)
 	return _result, _err
 }
 
-/**
- * Get security token by using credential
- * @return security token
- */
+// Description:
+//
+// # Get security token by using credential
+//
+// @return security token
 func (client *Client) GetSecurityToken() (_result *string, _err error) {
-	if tea.BoolValue(util.IsUnset(client.Credential)) {
-		_result = tea.String("")
+	if dara.IsNil(client.Credential) {
+		_result = dara.String("")
 		return _result, _err
 	}
 
-	token, _err := client.Credential.GetSecurityToken()
+	tokenTmp, _err := client.Credential.GetSecurityToken()
+	token := dara.StringValue(tokenTmp)
 	if _err != nil {
 		return _result, _err
 	}
 
-	_result = token
+	_result = dara.String(token)
 	return _result, _err
 }
 
-/**
- * Get bearer token by credential
- * @return bearer token
- */
+// Description:
+//
+// # Get bearer token by credential
+//
+// @return bearer token
 func (client *Client) GetBearerToken() (_result *string, _err error) {
-	if tea.BoolValue(util.IsUnset(client.Credential)) {
-		_result = tea.String("")
+	if dara.IsNil(client.Credential) {
+		_result = dara.String("")
 		return _result, _err
 	}
 
-	token := client.Credential.GetBearerToken()
-	_result = token
+	token := dara.StringValue(client.Credential.GetBearerToken())
+	_result = dara.String(token)
 	return _result, _err
 }
 
-/**
- * Get credential type by credential
- * @return credential type e.g. access_key
- */
+// Description:
+//
+// # Get credential type by credential
+//
+// @return credential type e.g. access_key
 func (client *Client) GetType() (_result *string, _err error) {
-	if tea.BoolValue(util.IsUnset(client.Credential)) {
-		_result = tea.String("")
+	if dara.IsNil(client.Credential) {
+		_result = dara.String("")
 		return _result, _err
 	}
 
-	authType := client.Credential.GetType()
-	_result = authType
+	authType := dara.StringValue(client.Credential.GetType())
+	_result = dara.String(authType)
 	return _result, _err
 }
 
-/**
- * If inputValue is not null, return it or return defaultValue
- * @param inputValue  users input value
- * @param defaultValue default value
- * @return the final result
- */
-func DefaultAny(inputValue interface{}, defaultValue interface{}) (_result interface{}) {
-	if tea.BoolValue(util.IsUnset(inputValue)) {
-		_result = defaultValue
-		return _result
-	}
-
-	_result = inputValue
-	return _result
-}
-
-/**
- * If the endpointRule and config.endpoint are empty, throw error
- * @param config config contains the necessary information to create a client
- */
-func (client *Client) CheckConfig(config *Config) (_err error) {
-	if tea.BoolValue(util.Empty(client.EndpointRule)) && tea.BoolValue(util.Empty(config.Endpoint)) {
-		_err = tea.NewSDKError(map[string]interface{}{
-			"code":    "ParameterMissing",
-			"message": "'config.endpoint' can not be empty",
-		})
+// Description:
+//
+// # If the endpointRule and config.endpoint are empty, throw error
+//
+// @param config - config contains the necessary information to create a client
+func (client *Client) CheckConfig(config *openapiutil.Config) (_err error) {
+	if dara.IsNil(client.EndpointRule) && dara.IsNil(config.Endpoint) {
+		_err = &ClientError{
+			Code:    dara.String("ParameterMissing"),
+			Message: dara.String("'config.endpoint' can not be empty"),
+		}
 		return _err
 	}
 
 	return _err
 }
 
-/**
- * set gateway client
- * @param spi.
- */
+// Description:
+//
+// set gateway client
+//
+// @param spi - .
 func (client *Client) SetGatewayClient(spi spi.ClientInterface) (_err error) {
 	client.Spi = spi
 	return _err
 }
 
-/**
- * set RPC header for debug
- * @param headers headers for debug, this header can be used only once.
- */
+// Description:
+//
+// set RPC header for debug
+//
+// @param headers - headers for debug, this header can be used only once.
 func (client *Client) SetRpcHeaders(headers map[string]*string) (_err error) {
 	client.Headers = headers
 	return _err
 }
 
-/**
- * get RPC header for debug
- */
+// Description:
+//
+// get RPC header for debug
 func (client *Client) GetRpcHeaders() (_result map[string]*string, _err error) {
 	headers := client.Headers
 	client.Headers = nil
 	_result = headers
 	return _result, _err
+}
+
+func (client *Client) GetAccessDeniedDetail(err map[string]interface{}) (_result map[string]interface{}) {
+	var accessDeniedDetail map[string]interface{}
+	if !dara.IsNil(err["AccessDeniedDetail"]) {
+		detail1 := dara.ToMap(err["AccessDeniedDetail"])
+		accessDeniedDetail = detail1
+	} else if !dara.IsNil(err["accessDeniedDetail"]) {
+		detail2 := dara.ToMap(err["accessDeniedDetail"])
+		accessDeniedDetail = detail2
+	}
+
+	_result = accessDeniedDetail
+	return _result
+}
+
+func doRPCRequest_opResponse(response_ *dara.Response, client *Client, bodyType *string) (_result map[string]interface{}, _err error) {
+	if (dara.IntValue(response_.StatusCode) >= 400) && (dara.IntValue(response_.StatusCode) < 600) {
+		_res, _err := dara.ReadAsJSON(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		err := dara.ToMap(_res)
+		requestId := dara.Default(err["RequestId"], err["requestId"])
+		code := dara.Default(err["Code"], err["code"])
+		if (dara.ToString(code) == "Throttling") || (dara.ToString(code) == "Throttling.User") || (dara.ToString(code) == "Throttling.Api") {
+			_err = &ThrottlingError{
+				StatusCode:  response_.StatusCode,
+				Code:        dara.String(dara.ToString(code)),
+				Message:     dara.String("code: " + dara.ToString(dara.IntValue(response_.StatusCode)) + ", " + dara.ToString(dara.Default(err["Message"], err["message"])) + " request id: " + dara.ToString(requestId)),
+				Description: dara.String(dara.ToString(dara.Default(err["Description"], err["description"]))),
+				RetryAfter:  openapiutil.GetThrottlingTimeLeft(response_.Headers),
+				Data:        err,
+				RequestId:   dara.String(dara.ToString(requestId)),
+			}
+			return _result, _err
+		} else if (dara.IntValue(response_.StatusCode) >= 400) && (dara.IntValue(response_.StatusCode) < 500) {
+			_err = &ClientError{
+				StatusCode:         response_.StatusCode,
+				Code:               dara.String(dara.ToString(code)),
+				Message:            dara.String("code: " + dara.ToString(dara.IntValue(response_.StatusCode)) + ", " + dara.ToString(dara.Default(err["Message"], err["message"])) + " request id: " + dara.ToString(requestId)),
+				Description:        dara.String(dara.ToString(dara.Default(err["Description"], err["description"]))),
+				Data:               err,
+				AccessDeniedDetail: client.GetAccessDeniedDetail(err),
+				RequestId:          dara.String(dara.ToString(requestId)),
+			}
+			return _result, _err
+		} else {
+			_err = &ServerError{
+				StatusCode:  response_.StatusCode,
+				Code:        dara.String(dara.ToString(code)),
+				Message:     dara.String("code: " + dara.ToString(dara.IntValue(response_.StatusCode)) + ", " + dara.ToString(dara.Default(err["Message"], err["message"])) + " request id: " + dara.ToString(requestId)),
+				Description: dara.String(dara.ToString(dara.Default(err["Description"], err["description"]))),
+				Data:        err,
+				RequestId:   dara.String(dara.ToString(requestId)),
+			}
+			return _result, _err
+		}
+
+	}
+
+	if dara.StringValue(bodyType) == "binary" {
+		resp := map[string]interface{}{
+			"body":       response_.Body,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}
+		_result = resp
+		return _result, _err
+	} else if dara.StringValue(bodyType) == "byte" {
+		byt, _err := dara.ReadAsBytes(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		_err = dara.Convert(map[string]interface{}{
+			"body":       byt,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else if dara.StringValue(bodyType) == "string" {
+		_str, _err := dara.ReadAsString(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		_err = dara.Convert(map[string]interface{}{
+			"body":       _str,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else if dara.StringValue(bodyType) == "json" {
+		obj, _err := dara.ReadAsJSON(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		res := dara.ToMap(obj)
+		_err = dara.Convert(map[string]interface{}{
+			"body":       res,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else if dara.StringValue(bodyType) == "array" {
+		arr, _err := dara.ReadAsJSON(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		_err = dara.Convert(map[string]interface{}{
+			"body":       arr,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else {
+		_err = dara.Convert(map[string]interface{}{
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	}
+
+}
+
+func doROARequest_opResponse(response_ *dara.Response, client *Client, bodyType *string) (_result map[string]interface{}, _err error) {
+	if dara.IntValue(response_.StatusCode) == 204 {
+		_err = dara.Convert(map[string]map[string]*string{
+			"headers": response_.Headers,
+		}, &_result)
+
+		return _result, _err
+	}
+
+	if (dara.IntValue(response_.StatusCode) >= 400) && (dara.IntValue(response_.StatusCode) < 600) {
+		_res, _err := dara.ReadAsJSON(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		err := dara.ToMap(_res)
+		requestId := dara.ToString(dara.Default(err["RequestId"], err["requestId"]))
+		requestId = dara.ToString(dara.Default(requestId, err["requestid"]))
+		code := dara.ToString(dara.Default(err["Code"], err["code"]))
+		if (code == "Throttling") || (code == "Throttling.User") || (code == "Throttling.Api") {
+			_err = &ThrottlingError{
+				StatusCode:  response_.StatusCode,
+				Code:        dara.String(code),
+				Message:     dara.String("code: " + dara.ToString(dara.IntValue(response_.StatusCode)) + ", " + dara.ToString(dara.Default(err["Message"], err["message"])) + " request id: " + requestId),
+				Description: dara.String(dara.ToString(dara.Default(err["Description"], err["description"]))),
+				RetryAfter:  openapiutil.GetThrottlingTimeLeft(response_.Headers),
+				Data:        err,
+				RequestId:   dara.String(requestId),
+			}
+			return _result, _err
+		} else if (dara.IntValue(response_.StatusCode) >= 400) && (dara.IntValue(response_.StatusCode) < 500) {
+			_err = &ClientError{
+				StatusCode:         response_.StatusCode,
+				Code:               dara.String(code),
+				Message:            dara.String("code: " + dara.ToString(dara.IntValue(response_.StatusCode)) + ", " + dara.ToString(dara.Default(err["Message"], err["message"])) + " request id: " + requestId),
+				Description:        dara.String(dara.ToString(dara.Default(err["Description"], err["description"]))),
+				Data:               err,
+				AccessDeniedDetail: client.GetAccessDeniedDetail(err),
+				RequestId:          dara.String(requestId),
+			}
+			return _result, _err
+		} else {
+			_err = &ServerError{
+				StatusCode:  response_.StatusCode,
+				Code:        dara.String(code),
+				Message:     dara.String("code: " + dara.ToString(dara.IntValue(response_.StatusCode)) + ", " + dara.ToString(dara.Default(err["Message"], err["message"])) + " request id: " + requestId),
+				Description: dara.String(dara.ToString(dara.Default(err["Description"], err["description"]))),
+				Data:        err,
+				RequestId:   dara.String(requestId),
+			}
+			return _result, _err
+		}
+
+	}
+
+	if dara.StringValue(bodyType) == "binary" {
+		resp := map[string]interface{}{
+			"body":       response_.Body,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}
+		_result = resp
+		return _result, _err
+	} else if dara.StringValue(bodyType) == "byte" {
+		byt, _err := dara.ReadAsBytes(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		_err = dara.Convert(map[string]interface{}{
+			"body":       byt,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else if dara.StringValue(bodyType) == "string" {
+		_str, _err := dara.ReadAsString(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		_err = dara.Convert(map[string]interface{}{
+			"body":       _str,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else if dara.StringValue(bodyType) == "json" {
+		obj, _err := dara.ReadAsJSON(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		res := dara.ToMap(obj)
+		_err = dara.Convert(map[string]interface{}{
+			"body":       res,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else if dara.StringValue(bodyType) == "array" {
+		arr, _err := dara.ReadAsJSON(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		_err = dara.Convert(map[string]interface{}{
+			"body":       arr,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else {
+		_err = dara.Convert(map[string]interface{}{
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	}
+
+}
+
+func doROARequestWithForm_opResponse(response_ *dara.Response, client *Client, bodyType *string) (_result map[string]interface{}, _err error) {
+	if dara.IntValue(response_.StatusCode) == 204 {
+		_err = dara.Convert(map[string]map[string]*string{
+			"headers": response_.Headers,
+		}, &_result)
+
+		return _result, _err
+	}
+
+	if (dara.IntValue(response_.StatusCode) >= 400) && (dara.IntValue(response_.StatusCode) < 600) {
+		_res, _err := dara.ReadAsJSON(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		err := dara.ToMap(_res)
+		requestId := dara.ToString(dara.Default(err["RequestId"], err["requestId"]))
+		code := dara.ToString(dara.Default(err["Code"], err["code"]))
+		if (code == "Throttling") || (code == "Throttling.User") || (code == "Throttling.Api") {
+			_err = &ThrottlingError{
+				StatusCode:  response_.StatusCode,
+				Code:        dara.String(code),
+				Message:     dara.String("code: " + dara.ToString(dara.IntValue(response_.StatusCode)) + ", " + dara.ToString(dara.Default(err["Message"], err["message"])) + " request id: " + requestId),
+				Description: dara.String(dara.ToString(dara.Default(err["Description"], err["description"]))),
+				RetryAfter:  openapiutil.GetThrottlingTimeLeft(response_.Headers),
+				Data:        err,
+				RequestId:   dara.String(requestId),
+			}
+			return _result, _err
+		} else if (dara.IntValue(response_.StatusCode) >= 400) && (dara.IntValue(response_.StatusCode) < 500) {
+			_err = &ClientError{
+				StatusCode:         response_.StatusCode,
+				Code:               dara.String(code),
+				Message:            dara.String("code: " + dara.ToString(dara.IntValue(response_.StatusCode)) + ", " + dara.ToString(dara.Default(err["Message"], err["message"])) + " request id: " + requestId),
+				Description:        dara.String(dara.ToString(dara.Default(err["Description"], err["description"]))),
+				Data:               err,
+				AccessDeniedDetail: client.GetAccessDeniedDetail(err),
+				RequestId:          dara.String(requestId),
+			}
+			return _result, _err
+		} else {
+			_err = &ServerError{
+				StatusCode:  response_.StatusCode,
+				Code:        dara.String(code),
+				Message:     dara.String("code: " + dara.ToString(dara.IntValue(response_.StatusCode)) + ", " + dara.ToString(dara.Default(err["Message"], err["message"])) + " request id: " + requestId),
+				Description: dara.String(dara.ToString(dara.Default(err["Description"], err["description"]))),
+				Data:        err,
+				RequestId:   dara.String(requestId),
+			}
+			return _result, _err
+		}
+
+	}
+
+	if dara.StringValue(bodyType) == "binary" {
+		resp := map[string]interface{}{
+			"body":       response_.Body,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}
+		_result = resp
+		return _result, _err
+	} else if dara.StringValue(bodyType) == "byte" {
+		byt, _err := dara.ReadAsBytes(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		_err = dara.Convert(map[string]interface{}{
+			"body":       byt,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else if dara.StringValue(bodyType) == "string" {
+		_str, _err := dara.ReadAsString(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		_err = dara.Convert(map[string]interface{}{
+			"body":       _str,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else if dara.StringValue(bodyType) == "json" {
+		obj, _err := dara.ReadAsJSON(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		res := dara.ToMap(obj)
+		_err = dara.Convert(map[string]interface{}{
+			"body":       res,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else if dara.StringValue(bodyType) == "array" {
+		arr, _err := dara.ReadAsJSON(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		_err = dara.Convert(map[string]interface{}{
+			"body":       arr,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else {
+		_err = dara.Convert(map[string]interface{}{
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	}
+
+}
+
+func doRequest_opResponse(response_ *dara.Response, client *Client, params *openapiutil.Params) (_result map[string]interface{}, _err error) {
+	if (dara.IntValue(response_.StatusCode) >= 400) && (dara.IntValue(response_.StatusCode) < 600) {
+		err := map[string]interface{}{}
+		if !dara.IsNil(response_.Headers["content-type"]) && dara.StringValue(response_.Headers["content-type"]) == "text/xml;charset=utf-8" {
+			_str, _err := dara.ReadAsString(response_.Body)
+			if _err != nil {
+				return _result, _err
+			}
+
+			respMap := dara.ParseXml(_str, nil)
+			err = dara.ToMap(respMap["Error"])
+		} else {
+			_res, _err := dara.ReadAsJSON(response_.Body)
+			if _err != nil {
+				return _result, _err
+			}
+
+			err = dara.ToMap(_res)
+		}
+
+		requestId := dara.ToString(dara.Default(err["RequestId"], err["requestId"]))
+		code := dara.ToString(dara.Default(err["Code"], err["code"]))
+		if (code == "Throttling") || (code == "Throttling.User") || (code == "Throttling.Api") {
+			_err = &ThrottlingError{
+				StatusCode:  response_.StatusCode,
+				Code:        dara.String(code),
+				Message:     dara.String("code: " + dara.ToString(dara.IntValue(response_.StatusCode)) + ", " + dara.ToString(dara.Default(err["Message"], err["message"])) + " request id: " + requestId),
+				Description: dara.String(dara.ToString(dara.Default(err["Description"], err["description"]))),
+				RetryAfter:  openapiutil.GetThrottlingTimeLeft(response_.Headers),
+				Data:        err,
+				RequestId:   dara.String(requestId),
+			}
+			return _result, _err
+		} else if (dara.IntValue(response_.StatusCode) >= 400) && (dara.IntValue(response_.StatusCode) < 500) {
+			_err = &ClientError{
+				StatusCode:         response_.StatusCode,
+				Code:               dara.String(code),
+				Message:            dara.String("code: " + dara.ToString(dara.IntValue(response_.StatusCode)) + ", " + dara.ToString(dara.Default(err["Message"], err["message"])) + " request id: " + requestId),
+				Description:        dara.String(dara.ToString(dara.Default(err["Description"], err["description"]))),
+				Data:               err,
+				AccessDeniedDetail: client.GetAccessDeniedDetail(err),
+				RequestId:          dara.String(requestId),
+			}
+			return _result, _err
+		} else {
+			_err = &ServerError{
+				StatusCode:  response_.StatusCode,
+				Code:        dara.String(code),
+				Message:     dara.String("code: " + dara.ToString(dara.IntValue(response_.StatusCode)) + ", " + dara.ToString(dara.Default(err["Message"], err["message"])) + " request id: " + requestId),
+				Description: dara.String(dara.ToString(dara.Default(err["Description"], err["description"]))),
+				Data:        err,
+				RequestId:   dara.String(requestId),
+			}
+			return _result, _err
+		}
+
+	}
+
+	if dara.StringValue(params.BodyType) == "binary" {
+		resp := map[string]interface{}{
+			"body":       response_.Body,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}
+		_result = resp
+		return _result, _err
+	} else if dara.StringValue(params.BodyType) == "byte" {
+		byt, _err := dara.ReadAsBytes(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		_err = dara.Convert(map[string]interface{}{
+			"body":       byt,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else if dara.StringValue(params.BodyType) == "string" {
+		respStr, _err := dara.ReadAsString(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		_err = dara.Convert(map[string]interface{}{
+			"body":       respStr,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else if dara.StringValue(params.BodyType) == "json" {
+		obj, _err := dara.ReadAsJSON(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		res := dara.ToMap(obj)
+		_err = dara.Convert(map[string]interface{}{
+			"body":       res,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else if dara.StringValue(params.BodyType) == "array" {
+		arr, _err := dara.ReadAsJSON(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		_err = dara.Convert(map[string]interface{}{
+			"body":       arr,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	} else {
+		anything, _err := dara.ReadAsString(response_.Body)
+		if _err != nil {
+			return _result, _err
+		}
+
+		_err = dara.Convert(map[string]interface{}{
+			"body":       anything,
+			"headers":    response_.Headers,
+			"statusCode": dara.IntValue(response_.StatusCode),
+		}, &_result)
+
+		return _result, _err
+	}
+
+}
+
+func callSSEApi_opResponse(_yield chan *SSEResponse, _yieldErr chan error, response_ *dara.Response) {
+	if (dara.IntValue(response_.StatusCode) >= 400) && (dara.IntValue(response_.StatusCode) < 600) {
+		err := map[string]interface{}{}
+		if !dara.IsNil(response_.Headers["content-type"]) && dara.StringValue(response_.Headers["content-type"]) == "text/xml;charset=utf-8" {
+			_str, _err := dara.ReadAsString(response_.Body)
+			if _err != nil {
+				_yieldErr <- _err
+				return
+			}
+
+			respMap := dara.ParseXml(_str, nil)
+			err = dara.ToMap(respMap["Error"])
+		} else {
+			_res, _err := dara.ReadAsJSON(response_.Body)
+			if _err != nil {
+				_yieldErr <- _err
+				return
+			}
+
+			err = dara.ToMap(_res)
+		}
+
+		err["statusCode"] = response_.StatusCode
+		_err := dara.NewSDKError(map[string]interface{}{
+			"code":               dara.ToString(dara.Default(err["Code"], err["code"])),
+			"message":            "code: " + dara.ToString(dara.IntValue(response_.StatusCode)) + ", " + dara.ToString(dara.Default(err["Message"], err["message"])) + " request id: " + dara.ToString(dara.Default(err["RequestId"], err["requestId"])),
+			"data":               err,
+			"description":        dara.ToString(dara.Default(err["Description"], err["description"])),
+			"accessDeniedDetail": dara.Default(err["AccessDeniedDetail"], err["accessDeniedDetail"]),
+		})
+		_yieldErr <- _err
+		return
+	}
+
+	events := make(chan *dara.SSEEvent, 1)
+	dara.ReadAsSSE(response_.Body, events, _yieldErr)
+	for event := range events {
+		_yield <- &SSEResponse{
+			StatusCode: response_.StatusCode,
+			Headers:    response_.Headers,
+			Event:      event,
+		}
+	}
+	return
 }

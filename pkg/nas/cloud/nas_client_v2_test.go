@@ -1,19 +1,20 @@
 package cloud
 
 import (
+	"testing"
+
 	nas "github.com/alibabacloud-go/nas-20170626/v3/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/golang/mock/gomock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/ratelimit"
-	"testing"
 )
 
 const nasV2Region = "cn-hangzhou"
 
 func TestNewNasClientV2(t *testing.T) {
-	actual, err := newNasClientV2(nasV2Region)
+	actual, err := NewNasClientV2(nasV2Region)
 	assert.NotNil(t, actual)
 	assert.NoError(t, err)
 }
