@@ -335,8 +335,16 @@ func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) er
 }
 
 func (ad *cpfsAttachDetacher) Detach(ctx context.Context, fsId, vscId string) error {
-	// TODO: ignore error if fsId not found
 	if err := ad.detach(fsId, vscId); err != nil {
+		sdkErr := new(tea.SDKError)
+		if errors.As(err, &sdkErr) {
+			errCode := tea.StringValue(sdkErr.Code)
+			// attached by legacy inner api, ignore it
+			if errCode == "Resource.Check.Fail" || errCode == "InvalidFileSystem.NotFound" {
+				klog.InfoS("Ignore detaching error", "error", err)
+				return nil
+			}
+		}
 		return err
 	}
 	return ad.waitFor(ctx, fsId, vscId, func(i *CPFSVscAttachInfo) (bool, error) {

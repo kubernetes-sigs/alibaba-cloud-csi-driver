@@ -153,14 +153,18 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 
 var KubernetesAlicloudIdentity = fmt.Sprintf("Kubernetes.Alicloud/CsiProvision.Bmcpfs-%s", version.VERSION)
 
+const efloConnTimeout = 10
+
 func newEfloClient(region string) (*efloclient.Client, error) {
+	// lingjun region could be different from ack region
+	// use another environment variable EFLO_CONTROLLER_REGION for special lingjun pre regions
 	if r := os.Getenv("EFLO_CONTROLLER_REGION"); r != "" {
 		region = r
 	}
 	config := new(openapi.Config).
 		SetUserAgent(KubernetesAlicloudIdentity).
 		SetRegionId(region).
-		SetConnectTimeout(10).
+		SetConnectTimeout(efloConnTimeout).
 		SetGlobalParameters(&openapi.GlobalParameters{
 			Queries: map[string]*string{
 				"RegionId": &region,
@@ -179,10 +183,10 @@ func newEfloClient(region string) (*efloclient.Client, error) {
 	} else {
 		config = config.SetEndpoint(fmt.Sprintf("eflo-controller-vpc.%s.aliyuncs.com", region))
 	}
-	// TODO: set default vpc endpoint
 	// set protocol
 	scheme := strings.ToUpper(os.Getenv("ALICLOUD_CLIENT_SCHEME"))
 	if strings.Contains(region, "test") {
+		// must use HTTP in lingjun test regions
 		scheme = "HTTP"
 	}
 	if scheme != "HTTP" {
@@ -194,18 +198,13 @@ func newEfloClient(region string) (*efloclient.Client, error) {
 }
 
 func getMountTarget(client *nasclient.Client, fsId, networkType string) (string, error) {
-	// mount targets with emtpy network type is vsc type
-	if networkType == networkTypeVSC {
-		networkType = ""
-	}
 	resp, err := client.DescribeFileSystems(&nasclient.DescribeFileSystemsRequest{
 		FileSystemId: &fsId,
 	})
 	if err != nil {
 		return "", fmt.Errorf("nas:DescribeFileSystems failed: %w", err)
 	}
-	// TODO: set log level
-	klog.V(3).InfoS("nas:DescribeFileSystems succeeded", "response", resp.Body)
+	klog.V(4).InfoS("nas:DescribeFileSystems succeeded", "response", resp.Body)
 	filesystems := resp.Body.FileSystems
 	if filesystems == nil || len(filesystems.FileSystem) == 0 || filesystems.FileSystem[0] == nil {
 		return "", nil
@@ -215,9 +214,17 @@ func getMountTarget(client *nasclient.Client, fsId, networkType string) (string,
 		return "", nil
 	}
 	for _, mt := range mountTargets.MountTarget {
-		if tea.StringValue(mt.NetworkType) == networkType {
-			if tea.StringValue(mt.Status) == "Active" {
-				return tea.StringValue(mt.MountTargetDomain), nil
+		t := tea.StringValue(mt.NetworkType)
+		// mount targets with emtpy network type is vsc type
+		if t == "" {
+			t = networkTypeVSC
+		}
+		if t == networkType {
+			mountTarget := tea.StringValue(mt.MountTargetDomain)
+			status := tea.StringValue(mt.Status)
+			klog.V(2).InfoS("Found cpfs mount target", "filesystem", fsId, "networkType", networkType, "mountTarget", mountTarget, "status", status)
+			if status == "Active" {
+				return mountTarget, nil
 			}
 		}
 	}

@@ -46,7 +46,6 @@ const (
 )
 
 func newNodeServer() (*nodeServer, error) {
-	// TODO: Move the implementation for obtaining Lingjun node id to metadata providers.
 	var nodeID string
 	data, err := os.ReadFile(LingjunConfigFile)
 	if err != nil {
