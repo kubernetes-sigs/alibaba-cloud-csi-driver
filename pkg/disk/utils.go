@@ -412,16 +412,15 @@ func pickZone(requirement *csi.TopologyRequirement) string {
 	if requirement == nil {
 		return ""
 	}
-	for _, topology := range requirement.GetPreferred() {
-		zone, exists := topology.GetSegments()[TopologyZoneKey]
-		if exists {
-			return zone
-		}
-	}
-	for _, topology := range requirement.GetRequisite() {
-		zone, exists := topology.GetSegments()[TopologyZoneKey]
-		if exists {
-			return zone
+	for _, topo := range [][]*csi.Topology{requirement.GetPreferred(), requirement.GetRequisite()} {
+		for _, topology := range topo {
+			segs := topology.GetSegments()
+			for _, key := range []string{TopologyZoneKey, common.TopologyKeyZone} {
+				zone, exists := segs[key]
+				if exists {
+					return zone
+				}
+			}
 		}
 	}
 	return ""
