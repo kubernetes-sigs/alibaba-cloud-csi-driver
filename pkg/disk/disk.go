@@ -42,12 +42,11 @@ import (
 
 // PluginFolder defines the location of diskplugin
 const (
-	driverType              = "disk"
-	driverName              = "diskplugin.csi.alibabacloud.com"
-	TopologyKey             = "topology." + driverName
-	TopologyRegionKey       = TopologyKey + "/region"
-	TopologyZoneKey         = TopologyKey + "/zone"
-	TopologyMultiZonePrefix = TopologyZoneKey + "-"
+	driverType        = "disk"
+	driverName        = "diskplugin.csi.alibabacloud.com"
+	TopologyKey       = "topology." + driverName
+	TopologyRegionKey = TopologyKey + "/region"
+	TopologyZoneKey   = TopologyKey + "/zone"
 )
 
 // DISK the DISK object
@@ -74,7 +73,6 @@ type GlobalConfig struct {
 	BdfHealthCheck       bool
 	CheckBDFHotPlugin    bool
 	SnapClient           *snapClientset.Clientset
-	NodeMultiZoneEnable  bool
 	WaitBeforeAttach     bool
 	AddonVMFatalEvents   []string
 	RequestBaseInfo      map[string]string
@@ -188,19 +186,18 @@ func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 		Region: metadata.MustGet(m, metadata.RegionID),
 		ADControllerEnable: features.FunctionalMutableFeatureGate.Enabled(features.DiskADController) ||
 			csiCfg.GetBool("disk-adcontroller-enable", "DISK_AD_CONTROLLER", false),
-		DiskTagEnable:       csiCfg.GetBool("disk-tag-by-plugin", "DISK_TAGED_BY_PLUGIN", false),
-		DiskBdfEnable:       csiCfg.GetBool("disk-bdf-enable", "DISK_BDF_ENABLE", false),
-		MetricEnable:        csiCfg.GetBool("disk-metric-by-plugin", "DISK_METRIC_BY_PLUGIN", true),
-		DetachDisabled:      csiCfg.GetBool("disk-detach-disable", "DISK_DETACH_DISABLE", false),
-		DetachBeforeDelete:  csiCfg.GetBool("disk-detach-before-delete", "DISK_DETACH_BEFORE_DELETE", true),
-		DetachBeforeAttach:  csiCfg.GetBool("disk-detach-before-attach", "DISK_FORCE_DETACHED", true),
-		ClientSet:           kubeClient,
-		SnapClient:          snapClient,
-		ClusterID:           os.Getenv("CLUSTER_ID"),
-		BdfHealthCheck:      csiCfg.GetBool("bdf-health-check", "BDF_HEALTH_CHECK", true),
-		NodeMultiZoneEnable: csiCfg.GetBool("node-multi-zone-enable", "NODE_MULTI_ZONE_ENABLE", false),
-		WaitBeforeAttach:    csiCfg.GetBool("wait-before-attach", "WAIT_BEFORE_ATTACH", false),
-		AddonVMFatalEvents:  fatalEvents,
+		DiskTagEnable:      csiCfg.GetBool("disk-tag-by-plugin", "DISK_TAGED_BY_PLUGIN", false),
+		DiskBdfEnable:      csiCfg.GetBool("disk-bdf-enable", "DISK_BDF_ENABLE", false),
+		MetricEnable:       csiCfg.GetBool("disk-metric-by-plugin", "DISK_METRIC_BY_PLUGIN", true),
+		DetachDisabled:     csiCfg.GetBool("disk-detach-disable", "DISK_DETACH_DISABLE", false),
+		DetachBeforeDelete: csiCfg.GetBool("disk-detach-before-delete", "DISK_DETACH_BEFORE_DELETE", true),
+		DetachBeforeAttach: csiCfg.GetBool("disk-detach-before-attach", "DISK_FORCE_DETACHED", true),
+		ClientSet:          kubeClient,
+		SnapClient:         snapClient,
+		ClusterID:          os.Getenv("CLUSTER_ID"),
+		BdfHealthCheck:     csiCfg.GetBool("bdf-health-check", "BDF_HEALTH_CHECK", true),
+		WaitBeforeAttach:   csiCfg.GetBool("wait-before-attach", "WAIT_BEFORE_ATTACH", false),
+		AddonVMFatalEvents: fatalEvents,
 		SnapshotBeforeDelete: features.FunctionalMutableFeatureGate.Enabled(features.EnableDeleteAutoSnapshots) ||
 			csiCfg.GetBool("volume-del-auto-snap", "VOLUME_DEL_AUTO_SNAP", false),
 		RequestBaseInfo:     map[string]string{"owner": "alibaba-cloud-csi-driver", "nodeName": nodeName},
