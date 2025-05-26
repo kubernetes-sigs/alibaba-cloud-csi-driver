@@ -32,7 +32,6 @@ import (
 	cre "github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials/provider"
 	crev2 "github.com/aliyun/credentials-go/credentials"
-	oidc "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/auth"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/crypto"
 	"k8s.io/klog/v2"
 )
@@ -129,11 +128,8 @@ func getManagedAddonToken() AccessControl {
 
 // GetAccessControl  1、Read default ak from local file. 2、If local default ak is not exist, then read from STS.
 func GetAccessControl() AccessControl {
-
-	oidcToken := getOIDCToken()
-	if oidcToken.AccessKeyID != "" {
-		klog.Info("Get AK: USE OIDC token")
-		return oidcToken
+	if os.Getenv("USE_OIDC_AUTH_INNER") == "true" {
+		klog.Fatal("USE_OIDC_AUTH_INNER is no longer supported")
 	}
 
 	//1、Get AK from Env
@@ -161,61 +157,6 @@ func GetAccessControl() AccessControl {
 	acStsToken := getStsToken()
 	klog.Info("Get AK: use ECS RamRole Token")
 	return acStsToken
-}
-
-var oidcProvider oidc.Provider
-
-func getOIDCToken() AccessControl {
-
-	if os.Getenv("USE_OIDC_AUTH_INNER") != "true" {
-		return AccessControl{}
-	}
-	if oidcProvider != nil {
-		klog.Infof("getOIDCToken: use exists provider")
-		resp, err := oidcProvider.GetStsTokenWithCache()
-		if err != nil || resp == nil {
-			klog.Errorf("getOIDCtoken: failed to assume role with oidc : %++v", err)
-			return AccessControl{}
-		}
-		return AccessControl{AccessKeyID: strings.TrimSpace(resp.Credentials.AccessKeyId), AccessKeySecret: strings.TrimSpace(resp.Credentials.AccessKeySecret), StsToken: strings.TrimSpace(resp.Credentials.SecurityToken), UseMode: OIDCToken}
-	}
-
-	regionID := os.Getenv("REGION_ID")
-	if regionID == "" {
-		regionID = RetryGetMetaData("region-id")
-	}
-	if regionID == "" {
-		klog.Error("getOIDCToken: failed to get regionid from metadata server")
-		return AccessControl{}
-	}
-	ownerId := os.Getenv("ACCOUNT_ID")
-	if ownerId == "" {
-		ownerId = RetryGetMetaData("owner-account-id")
-	}
-	klog.Infof("getOIDCToken: cluster owner id: %v", ownerId)
-	if ownerId == "" {
-		klog.Error("getOIDCToken: failed to get cluster owner id from metadata server")
-		return AccessControl{}
-	}
-
-	oidcProvider = oidc.NewOIDCProviderVPC(
-		regionID,
-		"alibaba-cloud-csi-controller",
-		"alibaba-cloud-csi-controller-oidc-provider",
-		"alibaba-cloud-csi-controller-oidc-role",
-		ownerId,
-		time.Duration(1000)*time.Second)
-	if oidcProvider == nil {
-		klog.Errorf("getOIDCtoken: get empty provider")
-		return AccessControl{}
-	}
-	resp, err := oidcProvider.GetStsTokenWithCache()
-	if err != nil || resp == nil {
-		klog.Errorf("getOIDCtoken: failed to assume role with oidc : %++v", err)
-		return AccessControl{}
-	}
-	return AccessControl{AccessKeyID: strings.TrimSpace(resp.Credentials.AccessKeyId), AccessKeySecret: strings.TrimSpace(resp.Credentials.AccessKeySecret), StsToken: strings.TrimSpace(resp.Credentials.SecurityToken), UseMode: OIDCToken}
-
 }
 
 // GetEnvAK read ak from local ENV
