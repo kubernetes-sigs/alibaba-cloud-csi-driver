@@ -12,7 +12,7 @@ DriverInfo:
     xfs: {}
     ext4: {}
   TopologyKeys:
-  - topology.diskplugin.csi.alibabacloud.com/zone
+  - topology.kubernetes.io/zone
   - alibabacloud.com/ecs-instance-id
   Capabilities:
     persistence: true
