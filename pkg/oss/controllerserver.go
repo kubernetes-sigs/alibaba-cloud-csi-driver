@@ -29,7 +29,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
@@ -58,22 +57,13 @@ func (*controllerServer) ControllerGetCapabilities(context.Context, *csi.Control
 	}, nil
 }
 
-func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
-	klog.Infof("Starting oss validate create volume request: %s, %v", req.Name, req)
-	params := req.GetParameters()
-	if params == nil {
-		return nil
-	}
-	reclaimPolicy, ok := params[common.CsiAlibabaCloudPrefix+"/"+"reclaimPolicy"]
-	if ok && reclaimPolicy != string(corev1.PersistentVolumeReclaimRetain) {
-		return status.Errorf(codes.InvalidArgument, "ReclaimPolicy must be Retain. The current reclaimPolicy is %q", reclaimPolicy)
-	}
-
-	return nil
-}
-
 // provisioner: create/delete oss volume
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+	reclaimPolicy, ok := req.Parameters[common.CsiAlibabaCloudPrefix+"/"+"reclaimPolicy"]
+	if ok && reclaimPolicy != string(corev1.PersistentVolumeReclaimRetain) {
+		return nil, status.Errorf(codes.InvalidArgument, "ReclaimPolicy must be Retain. The current reclaimPolicy is %q", reclaimPolicy)
+	}
+
 	region, _ := cs.metadata.Get(metadata.RegionID)
 	ossVol := parseOptions(req.GetParameters(), req.GetSecrets(), req.GetVolumeCapabilities(), false, region, req.GetName(), false)
 	volumeContext := req.GetParameters()
@@ -94,12 +84,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 }
 
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	klog.Infof("DeleteVolume: Starting deleting volume %s", req.GetVolumeId())
-	_, err := cs.client.CoreV1().PersistentVolumes().Get(context.Background(), req.VolumeId, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("DeleteVolume: Get volume %s is failed, err: %s", req.VolumeId, err.Error())
-	}
-	klog.Infof("Delete volume %s is successfully", req.VolumeId)
+	logger := klog.FromContext(ctx)
+	logger.Info("skipped")
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
