@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/md5"
 	"encoding/hex"
@@ -26,6 +27,7 @@ var defaultUserAgent = fmt.Sprintf("AlibabaCloud (%s; %s) Golang/%s Core/%s TeaD
 
 type ExtendsParameters struct {
 	Headers map[string]*string `json:"headers,omitempty" xml:"headers,omitempty"`
+	Queries map[string]*string `json:"queries,omitempty" xml:"queries,omitempty"`
 }
 
 func (s ExtendsParameters) String() string {
@@ -38,6 +40,11 @@ func (s ExtendsParameters) GoString() string {
 
 func (s *ExtendsParameters) SetHeaders(v map[string]*string) *ExtendsParameters {
 	s.Headers = v
+	return s
+}
+
+func (s *ExtendsParameters) SetQueries(v map[string]*string) *ExtendsParameters {
+	s.Queries = v
 	return s
 }
 
@@ -65,6 +72,40 @@ type RuntimeOptions struct {
 
 var processStartTime int64 = time.Now().UnixNano() / 1e6
 var seqId int64 = 0
+
+type SSEEvent struct {
+	ID    *string
+	Event *string
+	Data  *string
+	Retry *int
+}
+
+func parseEvent(eventLines []string) (SSEEvent, error) {
+	var event SSEEvent
+
+	for _, line := range eventLines {
+		if strings.HasPrefix(line, "data:") {
+			event.Data = tea.String(tea.StringValue(event.Data) + strings.TrimPrefix(line, "data:") + "\n")
+		} else if strings.HasPrefix(line, "id:") {
+			id := strings.TrimPrefix(line, "id:")
+			event.ID = tea.String(strings.Trim(id, " "))
+		} else if strings.HasPrefix(line, "event:") {
+			eventName := strings.TrimPrefix(line, "event:")
+			event.Event = tea.String(strings.Trim(eventName, " "))
+		} else if strings.HasPrefix(line, "retry:") {
+			trimmedLine := strings.TrimPrefix(line, "retry:")
+			trimmedLine = strings.Trim(trimmedLine, " ")
+			retryValue, _err := strconv.Atoi(trimmedLine)
+			if _err != nil {
+				return event, fmt.Errorf("retry %v is not a int", trimmedLine)
+			}
+			event.Retry = tea.Int(retryValue)
+		}
+	}
+	data := strings.TrimRight(tea.StringValue(event.Data), "\n")
+	event.Data = tea.String(strings.Trim(data, " "))
+	return event, nil
+}
 
 func getGID() uint64 {
 	// https://blog.sgmansfield.com/2015/12/goroutine-ids/
@@ -548,4 +589,42 @@ func ToArray(in interface{}) []map[string]interface{} {
 		return nil
 	}
 	return tmp
+}
+
+func ReadAsSSE(body io.ReadCloser) (<-chan SSEEvent, <-chan error) {
+	eventChannel := make(chan SSEEvent)
+	errorChannel := make(chan error)
+
+	go func() {
+		defer body.Close()
+		defer close(eventChannel)
+
+		reader := bufio.NewReader(body)
+		var eventLines []string
+
+		for {
+			line, err := reader.ReadString('\n')
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				errorChannel <- err
+			}
+
+			line = strings.TrimRight(line, "\n")
+			if line == "" {
+				if len(eventLines) > 0 {
+					event, err := parseEvent(eventLines)
+					if err != nil {
+						errorChannel <- err
+					}
+					eventChannel <- event
+					eventLines = []string{}
+				}
+				continue
+			}
+			eventLines = append(eventLines, line)
+		}
+	}()
+	return eventChannel, errorChannel
 }
