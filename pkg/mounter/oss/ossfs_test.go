@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
@@ -15,7 +14,7 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-func Test_buildOssfsAuthSpec(t *testing.T) {
+func Test_buildAuthSpec_ossfs(t *testing.T) {
 	nodeName := "test-node-name"
 	volumeId := "test-pv-name"
 	authCfg := &mounterutils.AuthConfig{}
@@ -46,7 +45,8 @@ func Test_buildOssfsAuthSpec(t *testing.T) {
 	}
 	authCfg.RrsaConfig = &rrsaCfg
 	authCfg.AuthType = AuthTypeRRSA
-	buildOssfsAuthSpec(&mounterutils.FusePodContext{
+	fakeOssfs := &fuseOssfs{}
+	fakeOssfs.buildAuthSpec(&mounterutils.FusePodContext{
 		Context:    context.Background(),
 		Namespace:  mounterutils.LegacyFusePodNamespace,
 		NodeName:   nodeName,
@@ -59,62 +59,6 @@ func Test_buildOssfsAuthSpec(t *testing.T) {
 	volumeMount := container.VolumeMounts[len(container.VolumeMounts)-1]
 	assert.Contains(t, "/var/run/secrets/ack.alibabacloud.com/rrsa-tokens", volumeMount.MountPath)
 	assert.Contains(t, "rrsa-oidc-token", volumeMount.Name)
-}
-
-func Test_getPasswdSecretVolume(t *testing.T) {
-	tests := []struct {
-		name          string
-		secretRef     string
-		expectedEmpty bool
-		expectedName  string
-		expectedItems []corev1.KeyToPath
-	}{
-		{
-			name:          "TestEmptySecretRef",
-			secretRef:     "",
-			expectedEmpty: true,
-		},
-		{
-			name:          "TestNonEmptySecretRef",
-			secretRef:     "my-secret",
-			expectedEmpty: false,
-			expectedName:  "my-secret",
-			expectedItems: []corev1.KeyToPath{
-				{
-					Key:  "AccessKeyId",
-					Path: "passwd-ossfs/AccessKeyId",
-					Mode: tea.Int32(0600),
-				},
-				{
-					Key:  "AccessKeySecret",
-					Path: "passwd-ossfs/AccessKeySecret",
-					Mode: tea.Int32(0600),
-				},
-				{
-					Key:  "Expiration",
-					Path: "passwd-ossfs/Expiration",
-					Mode: tea.Int32(0600),
-				},
-				{
-					Key:  "SecurityToken",
-					Path: "passwd-ossfs/SecurityToken",
-					Mode: tea.Int32(0600),
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			secret := getPasswdSecretVolume(tt.secretRef)
-
-			assert.Equal(t, tt.expectedEmpty, secret == nil)
-			if secret != nil {
-				assert.Equal(t, tt.expectedName, secret.SecretName)
-				assert.Equal(t, tt.expectedItems, secret.Items)
-			}
-		})
-	}
 }
 
 func Test_AddDefaultMountOptions(t *testing.T) {
@@ -604,7 +548,7 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 	}
 }
 
-func TestGetAuthOpttions(t *testing.T) {
+func TestGetAuthOpttions_ossfs(t *testing.T) {
 	tests := []struct {
 		name        string
 		region      string
@@ -681,7 +625,8 @@ func TestGetAuthOpttions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			opts := tt.opts.getAuthOptions(tt.region)
+			fakeOssfs := &fuseOssfs{}
+			opts := fakeOssfs.getAuthOptions(tt.opts, tt.region)
 			assert.Equal(t, tt.wantOptions, opts)
 		})
 	}
