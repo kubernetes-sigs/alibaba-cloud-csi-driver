@@ -7,7 +7,7 @@ read -r k8s containerd alinux3 alinux3arm containeros < \
         jq -r '.[0] | [
             (.version | tojson),
             (.runtimes.[] | select(.name=="containerd") | .version | tojson),
-            (.images.[] | select(.image_type=="AliyunLinux3") | .image_id),
+            (.images.[] | select(.image_type=="AliyunLinux3ContainerOptimized") | .image_id),
             (.images.[] | select(.image_type=="AliyunLinux3Arm64") | .image_id),
             (.images.[] | select(.image_type=="ContainerOS") | .image_id)
         ] | @tsv')
