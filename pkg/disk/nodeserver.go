@@ -589,51 +589,57 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 	klog.Infof("NodeStageVolume: Volume Successful Attached: %s, to Node: %s, Device: %s", req.VolumeId, ns.NodeID, device)
 
+	err = ns.setupDisk(ctx, device, targetPath, req)
+	if err != nil {
+		return nil, status.Error(defaultErrCode, err.Error())
+	}
+	return &csi.NodeStageVolumeResponse{}, nil
+}
+
+type setupRequest interface {
+	GetVolumeId() string
+	GetVolumeContext() map[string]string
+	GetVolumeCapability() *csi.VolumeCapability
+}
+
+func (ns *nodeServer) setupDisk(ctx context.Context, device, targetPath string, req setupRequest) error {
+	volumeContext := req.GetVolumeContext()
+	logger := klog.FromContext(ctx)
 	// sysConfig
-	if value, ok := req.VolumeContext[SysConfigTag]; ok {
+	if value, ok := volumeContext[SysConfigTag]; ok {
 		configList := strings.Split(strings.TrimSpace(value), ",")
 		for _, configStr := range configList {
 			key, value, found := strings.Cut(configStr, "=")
 			if !found {
-				klog.Errorf("NodeStageVolume: Volume Block System Config with format error: %s", configStr)
-				return nil, status.Error(defaultErrCode, "NodeStageVolume: Volume Block System Config with format error "+configStr)
+				return fmt.Errorf("invalid sysConfig format %q", configStr)
 			}
 			err := DefaultDeviceManager.WriteSysfs(device, key, []byte(value))
 			if err != nil {
-				return nil, status.Errorf(defaultErrCode, "NodeStageVolume: set sysConfig %s=%s failed: %v", key, value, err)
+				return fmt.Errorf("set sysConfig %s=%s failed: %v", key, value, err)
 			}
-			klog.Infof("NodeStageVolume: set sysConfig %s=%s", key, value)
+			logger.V(2).Info("set sysConfig", "key", key, "value", value)
 		}
 	}
 	omitfsck := false
-	if disable, ok := req.VolumeContext[OmitFilesystemCheck]; ok && disable == "true" {
+	if disable, ok := volumeContext[OmitFilesystemCheck]; ok && disable == "true" {
 		omitfsck = true
 	}
 
 	// Block volume not need to format
-	if isBlock {
+	if req.GetVolumeCapability().GetBlock() != nil {
 		if err := ns.mounter.EnsureBlock(targetPath); err != nil {
-			klog.Errorf("NodeStageVolume: create block volume %s path %s error: %v", req.VolumeId, targetPath, err)
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		notmounted, err := ns.k8smounter.IsLikelyNotMountPoint(targetPath)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to check if %s is not a mount point: %v", targetPath, err)
-		}
-		if !notmounted {
-			klog.Infof("NodeStageVolume: Block Already Mounted: volumeId: %s with target %s", req.VolumeId, targetPath)
-			return &csi.NodeStageVolumeResponse{}, nil
+			return fmt.Errorf("create block volume path %s failed: %w", targetPath, err)
 		}
 		options := []string{"bind"}
 		if err := ns.mounter.MountBlock(device, targetPath, options...); err != nil {
-			return nil, status.Error(defaultErrCode, err.Error())
+			return err
 		}
-		klog.Infof("NodeStageVolume: Successfully Mount Device %s to %s with options: %v", device, targetPath, options)
-		return &csi.NodeStageVolumeResponse{}, nil
+		logger.V(2).Info("Successfully mount device", "device", device, "options", options)
+		return nil
 	}
 
 	// Step 5 Start to format
-	mnt := req.VolumeCapability.GetMount()
+	mnt := req.GetVolumeCapability().GetMount()
 	options := append(mnt.MountFlags, "shared")
 	fsType := "ext4"
 	if mnt.FsType != "" {
@@ -641,48 +647,36 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 	mountOptions := collectMountOptions(fsType, options)
 	if err := os.MkdirAll(targetPath, 0755); err != nil {
-		return nil, status.Error(defaultErrCode, err.Error())
+		return err
 	}
 
 	// Set mkfs options for ext3, ext4
 	mkfsOptions := make([]string, 0)
-	if value, ok := req.VolumeContext[MkfsOptions]; ok {
+	if value, ok := volumeContext[MkfsOptions]; ok {
 		mkfsOptions = strings.Split(value, " ")
 	}
 
+	volumeId := req.GetVolumeId()
 	// do format-mount or mount
 	diskMounter := &k8smount.SafeFormatAndMount{Interface: ns.k8smounter, Exec: utilexec.New()}
 	if err := utils.FormatAndMount(diskMounter, device, targetPath, fsType, mkfsOptions, mountOptions, omitfsck); err != nil {
-		klog.Errorf("Mountdevice: FormatAndMount fail with mkfsOptions %s, %s, %s, %s, %s with error: %s", device, targetPath, fsType, mkfsOptions, mountOptions, err.Error())
-		return nil, status.Error(defaultErrCode, err.Error())
+		return fmt.Errorf("FormatAndMount fail with mkfsOptions %s, %s, %s, %s, %s with error: %w", device, targetPath, fsType, mkfsOptions, mountOptions, err)
 	}
-	// if len(mkfsOptions) > 0 && (fsType == "ext4" || fsType == "ext3") {
-	// 	if err := utils.FormatAndMount(diskMounter, device, targetPath, fsType, mkfsOptions, mountOptions, GlobalConfigVar.OmitFilesystemCheck); err != nil {
-	// 	klog.Errorf("Mountdevice: FormatAndMount fail with mkfsOptions %s, %s, %s, %s, %s with error: %s", device, targetPath, fsType, mkfsOptions, mountOptions, err.Error())
-	// 		return nil, status.Error(defaultErrCode, err.Error())
-	// 	}
-	// } else {
-	// 	if err := diskMounter.FormatAndMount(device, targetPath, fsType, mountOptions); err != nil {
-	// 	klog.Errorf("NodeStageVolume: Volume: %s, Device: %s, FormatAndMount error: %s", req.VolumeId, device, err.Error())
-	// 		return nil, status.Error(defaultErrCode, err.Error())
-	// 	}
-	// }
-	klog.Infof("NodeStageVolume: Mount Successful: volumeId: %s target %v, device: %s, mkfsOptions: %v, options: %v", req.VolumeId, targetPath, device, mkfsOptions, mountOptions)
+	logger.V(2).Info("mount successful", "target", targetPath, "device", device, "mkfsOptions", mkfsOptions, "options", mountOptions)
 
 	r := k8smount.NewResizeFs(diskMounter.Exec)
 	needResize, err := r.NeedResize(device, targetPath)
 	if err != nil {
-		klog.Infof("NodeStageVolume: Could not determine if volume %s need to be resized: %v", req.VolumeId, err)
-		return &csi.NodeStageVolumeResponse{}, nil
+		logger.Error(err, "could not determine if volume need to be resized")
+		return nil
 	}
 	if needResize {
-		klog.Infof("NodeStageVolume: Resizing volume %q created from a snapshot/volume", req.VolumeId)
+		klog.V(3).Info("resizing volume")
 		if _, err := r.Resize(device, targetPath); err != nil {
-			return nil, status.Errorf(defaultErrCode, "Could not resize volume %s: %v", req.VolumeId, err)
+			return fmt.Errorf("could not resize volume %s: %w", volumeId, err)
 		}
 	}
-
-	return &csi.NodeStageVolumeResponse{}, nil
+	return nil
 }
 
 func addDiskXattr(diskID string) (err error) {
