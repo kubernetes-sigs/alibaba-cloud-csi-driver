@@ -77,10 +77,6 @@ func getNasPvcByPvName(clientSet *kubernetes.Clientset, cnfsClient dynamic.Inter
 	return "", "", "", errors.New("pvName:" + pv.Name + " status is not bound.")
 }
 
-func procFilePath(name string) string {
-	return filepath.Join(procPath, name)
-}
-
 var ErrUnexpectedVolumeType = errors.New("VolumeType is not the expected type")
 
 func getVolumeInfoByJSON(volDataJSONPath string, volType string) (string, string, error) {
