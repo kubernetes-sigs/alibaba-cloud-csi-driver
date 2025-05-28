@@ -172,7 +172,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	}
 
 	url := opts.URL
-	if region != "" {
+	if region != "" && utils.GetNetworkType() == "vpc" {
 		url, _ = setNetworkType(url, region)
 	}
 	url, _ = setTransmissionProtocol(url)
