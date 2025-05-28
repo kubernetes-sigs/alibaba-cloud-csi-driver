@@ -12,6 +12,9 @@ const (
 	DiskESSDEntry  Category = "cloud_essd_entry"
 	DiskRegional   Category = "cloud_regional_disk_auto"
 
+	DiskESSDXC0   Category = "cloud_essd_xc0"
+	DiskESSDXC1   Category = "cloud_essd_xc1"
+
 	DiskPPerf            Category = "cloud_pperf"
 	DiskSPerf            Category = "cloud_sperf"
 	DiskSharedSSD        Category = "san_ssd"
@@ -52,6 +55,12 @@ var AllCategories = map[Category]CategoryDesc{
 		Size: SizeRange{Min: 20, Max: 65536},
 	},
 	DiskSSD: {
+		Size: SizeRange{Min: 20, Max: 65536},
+	},
+	DiskESSDXC0: {
+		Size: SizeRange{Min: 20, Max: 65536},
+	},
+	DiskESSDXC1: {
 		Size: SizeRange{Min: 20, Max: 65536},
 	},
 	DiskESSD: {
