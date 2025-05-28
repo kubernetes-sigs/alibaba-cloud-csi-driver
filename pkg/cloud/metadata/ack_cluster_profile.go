@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"context"
+	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +32,14 @@ func (m *ProfileMetadata) Get(key MetadataKey) (string, error) {
 			return m.profile.Data[key], nil
 		}
 	}
+	switch key {
+	case DataPlaneZoneID:
+		vswZone := strings.Split(m.profile.Data["vsw-zone"], ",")
+		_, zone, found := strings.Cut(vswZone[0], ":")
+		if found {
+			return zone, nil
+		}
+	}
 	return "", ErrUnknownMetadataKey
 }
 
@@ -39,9 +48,13 @@ type ProfileFetcher struct {
 }
 
 func (f *ProfileFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
-	_, ok := MetadataProfileDataKeys[key]
-	if !ok {
-		return nil, ErrUnknownMetadataKey
+	switch key {
+	case DataPlaneZoneID: // supported
+	default:
+		_, ok := MetadataProfileDataKeys[key]
+		if !ok {
+			return nil, ErrUnknownMetadataKey
+		}
 	}
 	p, err := NewProfileMetadata(f.client)
 	if err != nil {

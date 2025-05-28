@@ -154,10 +154,11 @@ func testNode() *corev1.Node {
 
 var testMetadata = metadata.FakeProvider{
 	Values: map[metadata.MetadataKey]string{
-		metadata.RegionID:     "cn-beijing",
-		metadata.ZoneID:       "cn-beijing-g",
-		metadata.InstanceType: "ecs.u1-c1m4.xlarge",
-		metadata.InstanceID:   "i-2ze0yyw7rf00yz9fttpg",
+		metadata.RegionID:        "cn-beijing",
+		metadata.ZoneID:          "cn-beijing-g",
+		metadata.InstanceType:    "ecs.u1-c1m4.xlarge",
+		metadata.InstanceID:      "i-2ze0yyw7rf00yz9fttpg",
+		metadata.DataPlaneZoneID: "cn-beijing-l",
 	},
 }
 
@@ -758,7 +759,7 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 			"diskTags/a": "b",
 		},
 	}
-	opts, err := getDiskVolumeOptions(req)
+	opts, err := getDiskVolumeOptions(req, testMetadata)
 	assert.NoError(t, err)
 	assert.Equal(t, "cn-beijing-i", opts.ZoneID)
 	assert.Equal(t, map[string]string{"a": "b"}, opts.DiskTags)
@@ -770,11 +771,13 @@ func TestGetDiskVolumeOptionsWithoutZoneID(t *testing.T) {
 		CapacityRange: &csi.CapacityRange{
 			RequiredBytes: 20*GBSIZE - 100,
 		},
-		Parameters: map[string]string{
-			"diskTags/a": "b",
+		AccessibilityRequirements: &csi.TopologyRequirement{
+			Preferred: []*csi.Topology{{
+				Segments: map[string]string{"topology.kubernetes.io/zone": ""},
+			}},
 		},
 	}
-	_, err := getDiskVolumeOptions(req)
+	_, err := getDiskVolumeOptions(req, testMetadata)
 	assert.Error(t, err)
 }
 
@@ -786,10 +789,14 @@ func TestGetRegionalDiskVolumeOptionsWithoutZoneID(t *testing.T) {
 		Parameters: map[string]string{
 			"diskTags/a": "b",
 			"type":       "cloud_regional_disk_auto",
-			"regionId":   "cn-beijing",
+		},
+		AccessibilityRequirements: &csi.TopologyRequirement{
+			Preferred: []*csi.Topology{{
+				Segments: map[string]string{"topology.kubernetes.io/zone": ""},
+			}},
 		},
 	}
-	_, err := getDiskVolumeOptions(req)
+	_, err := getDiskVolumeOptions(req, testMetadata)
 	assert.NoError(t, err)
 }
 
@@ -809,4 +816,98 @@ func TestHasDiskTypeLabel(t *testing.T) {
 		},
 	}
 	assert.False(t, hasDiskTypeLabel(node))
+}
+
+func topo(zones ...string) []*csi.Topology {
+	topo := make([]*csi.Topology, len(zones))
+	for _, zone := range zones {
+		topo = append(topo, &csi.Topology{
+			Segments: map[string]string{
+				TopologyZoneKey: zone,
+			},
+		})
+	}
+	return topo
+}
+
+func topoReq(zones ...string) *csi.TopologyRequirement {
+	return &csi.TopologyRequirement{
+		Requisite: topo(zones...),
+		Preferred: topo(zones...),
+	}
+}
+
+func TestGetZone(t *testing.T) {
+	cases := []struct {
+		name     string
+		req      *csi.CreateVolumeRequest
+		expected string
+		err      string
+	}{
+		{
+			name:     "empty",
+			req:      &csi.CreateVolumeRequest{},
+			expected: testMetadata.Values[metadata.DataPlaneZoneID],
+		},
+		{
+			name: "parameter",
+			req: &csi.CreateVolumeRequest{
+				Parameters: map[string]string{"zoneId": "cn-beijing-i"},
+			},
+			expected: "cn-beijing-i",
+		},
+		{
+			name: "topology",
+			req: &csi.CreateVolumeRequest{
+				AccessibilityRequirements: topoReq("cn-beijing-i"),
+			},
+			expected: "cn-beijing-i",
+		},
+		{
+			name: "overlap",
+			req: &csi.CreateVolumeRequest{
+				Parameters:                map[string]string{"zoneId": "cn-beijing-a,cn-beijing-i,cn-beijing-k"},
+				AccessibilityRequirements: topoReq("cn-beijing-b", "cn-beijing-k", "cn-beijing-i"),
+			},
+			expected: "cn-beijing-k", // Should respect the order in AccessibilityRequirements.Preferred
+		},
+		{
+			name: "conflict",
+			req: &csi.CreateVolumeRequest{
+				Parameters:                map[string]string{"zoneId": "cn-beijing-j,cn-beijing-k"},
+				AccessibilityRequirements: topoReq("cn-beijing-i", "cn-beijing-a"),
+			},
+			err: "conflicting zone, parameters specified: cn-beijing-j,cn-beijing-k, accessibility requires: [cn-beijing-a cn-beijing-i]",
+		},
+		{
+			name: "strange_topology",
+			req: &csi.CreateVolumeRequest{
+				AccessibilityRequirements: &csi.TopologyRequirement{
+					Requisite: []*csi.Topology{
+						{
+							Segments: map[string]string{
+								"something.we.dont.know": "value",
+							},
+						},
+					},
+				},
+			},
+			err: "no zone info found in accessibility requirements",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.req.CapacityRange = &csi.CapacityRange{
+				RequiredBytes: 20 * 1024 * 1024 * 1024,
+			}
+			args, err := getDiskVolumeOptions(tc.req, testMetadata)
+			if tc.err != "" {
+				assert.ErrorContains(t, err, tc.err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expected, args.ZoneID)
+			}
+		})
+	}
 }

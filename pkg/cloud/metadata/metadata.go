@@ -24,6 +24,7 @@ const (
 	ClusterID
 	VmocType
 	RegistryURL
+	DataPlaneZoneID
 )
 
 func (k MetadataKey) String() string {
