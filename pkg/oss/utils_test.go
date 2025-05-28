@@ -30,6 +30,8 @@ import (
 )
 
 func Test_parseOptions(t *testing.T) {
+	t.Setenv("ALIBABA_CLOUD_NETWORK_TYPE", "vpc")
+
 	var expectedOptions, gotOptions *oss.Options
 	// CreateVolume
 	testCVReq := csi.CreateVolumeRequest{
