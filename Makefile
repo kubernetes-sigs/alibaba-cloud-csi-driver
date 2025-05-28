@@ -92,7 +92,7 @@ output/csi-agent-bin-%:
 	GOOS="$(firstword $(subst -, ,$*))" \
 	GOARCH="$(lastword $(subst -, ,$*))" \
 	go build -trimpath \
-		-ldflags "-X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=$(CSI_VERSION)" \
+		-ldflags "-s -w -X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=$(CSI_VERSION)" \
 		-o output/csi-agent-bin-$* ./cmd/csi-agent
 
 .PHONY: clean

@@ -68,7 +68,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	args = append(args, "-f")
 
 	cmd := exec.Command("ossfs", args...)
-	cmd.Stdout = os.Stdout
+	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 
 	err := cmd.Start()

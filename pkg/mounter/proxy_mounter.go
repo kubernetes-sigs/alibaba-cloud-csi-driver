@@ -14,7 +14,7 @@ type ProxyMounter struct {
 	mountutils.Interface
 }
 
-func NewProxyMounter(socketPath string, inner mountutils.Interface) *ProxyMounter {
+func NewProxyMounter(socketPath string, inner mountutils.Interface) Mounter {
 	return &ProxyMounter{
 		socketPath: socketPath,
 		Interface:  inner,

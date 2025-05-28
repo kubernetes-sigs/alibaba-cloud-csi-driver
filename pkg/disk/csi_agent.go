@@ -35,6 +35,10 @@ func NewCSIAgent() *CSIAgent {
 	}
 }
 
+func (a *CSIAgent) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
+	return a.ns.NodeGetCapabilities(ctx, req)
+}
+
 func (a *CSIAgent) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	return localExpandVolume(ctx, req)
 }
