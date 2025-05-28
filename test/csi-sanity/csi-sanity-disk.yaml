@@ -93,18 +93,6 @@ spec:
     hostPath:
       path: /run/csi-tool
       type: DirectoryOrCreate
-  - name: registration-dir
-    hostPath:
-      path: /var/lib/kubelet/plugins_registry
-      type: DirectoryOrCreate
-  - name: container-dir
-    hostPath:
-      path: /var/lib/container
-      type: DirectoryOrCreate
-  - name: kubelet-dir
-    hostPath:
-      path: /var/lib/kubelet
-      type: Directory
   - name: host-dev
     hostPath:
       path: /dev
@@ -125,6 +113,9 @@ spec:
   - name: csi-test-config
     configMap:
       name: csi-test-config
+  - name: report
+    hostPath:
+      path: /opt/csi/csi-sanity
   initContainers:
   - name: init
     image: registry.cn-hangzhou.aliyuncs.com/acs/csi-plugin:v1.31.4-9819c8b-aliyun-init
@@ -198,7 +189,7 @@ spec:
       "--csi.stagingdir", "/var/lib/kubelet/csi-sanity/csi-staging",
       "--csi.testvolumeparameters", "/etc/csi-test/volume-parameters.yaml",
       "--csi.testnodevolumeattachlimit",
-      "--ginkgo.junit-report", "/var/lib/kubelet/csi-sanity/report.xml",
+      "--ginkgo.junit-report", "/opt/csi/csi-sanity/report.xml",
       "--ginkgo.no-color",
       "--ginkgo.v",
       "--ginkgo.timeout", "20m",
@@ -216,3 +207,5 @@ spec:
     - name: csi-test-config
       mountPath: /etc/csi-test
       readOnly: true
+    - name: report
+      mountPath: /opt/csi/csi-sanity
