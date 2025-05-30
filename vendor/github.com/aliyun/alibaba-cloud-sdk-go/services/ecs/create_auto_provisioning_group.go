@@ -92,6 +92,7 @@ type CreateAutoProvisioningGroupRequest struct {
 	DataDiskConfig                                 *[]CreateAutoProvisioningGroupDataDiskConfig                      `position:"Query" name:"DataDiskConfig"  type:"Repeated"`
 	ValidUntil                                     string                                                            `position:"Query" name:"ValidUntil"`
 	LaunchTemplateId                               string                                                            `position:"Query" name:"LaunchTemplateId"`
+	PrePaidOptions                                 CreateAutoProvisioningGroupPrePaidOptions                         `position:"Query" name:"PrePaidOptions"  type:"Struct"`
 	OwnerId                                        requests.Integer                                                  `position:"Query" name:"OwnerId"`
 	LaunchConfigurationImageFamily                 string                                                            `position:"Query" name:"LaunchConfiguration.ImageFamily"`
 	LaunchConfigurationSystemDiskSize              requests.Integer                                                  `position:"Query" name:"LaunchConfiguration.SystemDiskSize"`
@@ -99,6 +100,7 @@ type CreateAutoProvisioningGroupRequest struct {
 	LaunchConfigurationHostName                    string                                                            `position:"Query" name:"LaunchConfiguration.HostName"`
 	MinTargetCapacity                              string                                                            `position:"Query" name:"MinTargetCapacity"`
 	MaxSpotPrice                                   requests.Float                                                    `position:"Query" name:"MaxSpotPrice"`
+	LaunchConfiguration                            CreateAutoProvisioningGroupLaunchConfiguration                    `position:"Query" name:"LaunchConfiguration"  type:"Struct"`
 	LaunchConfigurationArn                         *[]CreateAutoProvisioningGroupLaunchConfigurationArn              `position:"Query" name:"LaunchConfiguration.Arn"  type:"Repeated"`
 	LaunchConfigurationPasswordInherit             requests.Boolean                                                  `position:"Query" name:"LaunchConfiguration.PasswordInherit"`
 	ClientToken                                    string                                                            `position:"Query" name:"ClientToken"`
@@ -111,6 +113,7 @@ type CreateAutoProvisioningGroupRequest struct {
 	LaunchConfigurationInstanceName                string                                                            `position:"Query" name:"LaunchConfiguration.InstanceName"`
 	LaunchConfigurationInstanceDescription         string                                                            `position:"Query" name:"LaunchConfiguration.InstanceDescription"`
 	SpotAllocationStrategy                         string                                                            `position:"Query" name:"SpotAllocationStrategy"`
+	ResourcePoolOptions                            CreateAutoProvisioningGroupResourcePoolOptions                    `position:"Query" name:"ResourcePoolOptions"  type:"Struct"`
 	TerminateInstances                             requests.Boolean                                                  `position:"Query" name:"TerminateInstances"`
 	LaunchConfigurationSystemDiskName              string                                                            `position:"Query" name:"LaunchConfiguration.SystemDiskName"`
 	LaunchConfigurationSystemDiskDescription       string                                                            `position:"Query" name:"LaunchConfiguration.SystemDiskDescription"`
@@ -135,6 +138,7 @@ type CreateAutoProvisioningGroupRequest struct {
 	LaunchConfigurationNetworkInterface            *[]CreateAutoProvisioningGroupLaunchConfigurationNetworkInterface `position:"Query" name:"LaunchConfiguration.NetworkInterface"  type:"Repeated"`
 	ValidFrom                                      string                                                            `position:"Query" name:"ValidFrom"`
 	AutoProvisioningGroupName                      string                                                            `position:"Query" name:"AutoProvisioningGroupName"`
+	LaunchConfigurationAdditionalInfo              CreateAutoProvisioningGroupLaunchConfigurationAdditionalInfo      `position:"Query" name:"LaunchConfiguration.AdditionalInfo"  type:"Struct"`
 }
 
 // CreateAutoProvisioningGroupLaunchConfigurationDataDisk is a repeated param struct in CreateAutoProvisioningGroupRequest
@@ -149,6 +153,9 @@ type CreateAutoProvisioningGroupLaunchConfigurationDataDisk struct {
 	Category           string `name:"Category"`
 	DeleteWithInstance string `name:"DeleteWithInstance"`
 	Encrypted          string `name:"Encrypted"`
+	EncryptAlgorithm   string `name:"EncryptAlgorithm"`
+	ProvisionedIops    string `name:"ProvisionedIops"`
+	BurstingEnabled    string `name:"BurstingEnabled"`
 }
 
 // CreateAutoProvisioningGroupTag is a repeated param struct in CreateAutoProvisioningGroupRequest
@@ -167,6 +174,19 @@ type CreateAutoProvisioningGroupDataDiskConfig struct {
 	DiskCategory string `name:"DiskCategory"`
 }
 
+// CreateAutoProvisioningGroupPrePaidOptions is a repeated param struct in CreateAutoProvisioningGroupRequest
+type CreateAutoProvisioningGroupPrePaidOptions struct {
+	SpecifyCapacityDistribution *[]CreateAutoProvisioningGroupPrePaidOptionsSpecifyCapacityDistributionItem `name:"SpecifyCapacityDistribution" type:"Repeated"`
+}
+
+// CreateAutoProvisioningGroupLaunchConfiguration is a repeated param struct in CreateAutoProvisioningGroupRequest
+type CreateAutoProvisioningGroupLaunchConfiguration struct {
+	Period          string `name:"Period"`
+	PeriodUnit      string `name:"PeriodUnit"`
+	AutoRenew       string `name:"AutoRenew"`
+	AutoRenewPeriod string `name:"AutoRenewPeriod"`
+}
+
 // CreateAutoProvisioningGroupLaunchConfigurationArn is a repeated param struct in CreateAutoProvisioningGroupRequest
 type CreateAutoProvisioningGroupLaunchConfigurationArn struct {
 	Rolearn       string `name:"Rolearn"`
@@ -179,6 +199,14 @@ type CreateAutoProvisioningGroupLaunchConfigurationSystemDisk struct {
 	Encrypted        string `name:"Encrypted"`
 	KMSKeyId         string `name:"KMSKeyId"`
 	EncryptAlgorithm string `name:"EncryptAlgorithm"`
+	ProvisionedIops  string `name:"ProvisionedIops"`
+	BurstingEnabled  string `name:"BurstingEnabled"`
+}
+
+// CreateAutoProvisioningGroupResourcePoolOptions is a repeated param struct in CreateAutoProvisioningGroupRequest
+type CreateAutoProvisioningGroupResourcePoolOptions struct {
+	Strategy       string    `name:"Strategy"`
+	PrivatePoolIds *[]string `name:"PrivatePoolIds" type:"Repeated"`
 }
 
 // CreateAutoProvisioningGroupLaunchTemplateConfig is a repeated param struct in CreateAutoProvisioningGroupRequest
@@ -196,6 +224,7 @@ type CreateAutoProvisioningGroupLaunchTemplateConfig struct {
 	Architectures             *[]string                                                                   `name:"Architectures" type:"Repeated"`
 	BurstablePerformance      string                                                                      `name:"BurstablePerformance"`
 	SecondaryNetworkInterface *[]CreateAutoProvisioningGroupLaunchTemplateConfigSecondaryNetworkInterface `name:"SecondaryNetworkInterface" type:"Repeated"`
+	ImageId                   string                                                                      `name:"ImageId"`
 }
 
 // CreateAutoProvisioningGroupLaunchConfigurationTag is a repeated param struct in CreateAutoProvisioningGroupRequest
@@ -209,6 +238,17 @@ type CreateAutoProvisioningGroupLaunchConfigurationNetworkInterface struct {
 	SecurityGroupId  string    `name:"SecurityGroupId"`
 	SecurityGroupIds *[]string `name:"SecurityGroupIds" type:"Repeated"`
 	InstanceType     string    `name:"InstanceType"`
+}
+
+// CreateAutoProvisioningGroupLaunchConfigurationAdditionalInfo is a repeated param struct in CreateAutoProvisioningGroupRequest
+type CreateAutoProvisioningGroupLaunchConfigurationAdditionalInfo struct {
+	PvdConfig string `name:"PvdConfig"`
+}
+
+// CreateAutoProvisioningGroupPrePaidOptionsSpecifyCapacityDistributionItem is a repeated param struct in CreateAutoProvisioningGroupRequest
+type CreateAutoProvisioningGroupPrePaidOptionsSpecifyCapacityDistributionItem struct {
+	InstanceTypes     *[]string `name:"InstanceTypes" type:"Repeated"`
+	MinTargetCapacity string    `name:"MinTargetCapacity"`
 }
 
 // CreateAutoProvisioningGroupLaunchTemplateConfigSecondaryNetworkInterface is a repeated param struct in CreateAutoProvisioningGroupRequest

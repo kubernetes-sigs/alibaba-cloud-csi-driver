@@ -34,5 +34,7 @@ type InvocationResult struct {
 	Username           string                          `json:"Username" xml:"Username"`
 	ContainerId        string                          `json:"ContainerId" xml:"ContainerId"`
 	ContainerName      string                          `json:"ContainerName" xml:"ContainerName"`
+	TerminationMode    string                          `json:"TerminationMode" xml:"TerminationMode"`
+	Launcher           string                          `json:"Launcher" xml:"Launcher"`
 	Tags               TagsInDescribeInvocationResults `json:"Tags" xml:"Tags"`
 }
