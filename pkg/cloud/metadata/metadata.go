@@ -26,6 +26,7 @@ const (
 	VmocType
 	RegistryURL
 	DataPlaneZoneID
+	RepositoryPrefix
 )
 
 func (k MetadataKey) String() string {
@@ -48,6 +49,8 @@ func (k MetadataKey) String() string {
 		return "RegistryURL"
 	case DataPlaneZoneID:
 		return "DataPlaneZoneID"
+	case RepositoryPrefix:
+		return "RepositoryPrefix"
 	default:
 		return fmt.Sprintf("MetadataKey(%d)", k)
 	}
