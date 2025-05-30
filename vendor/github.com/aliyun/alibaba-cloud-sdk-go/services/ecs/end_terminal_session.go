@@ -20,21 +20,21 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/responses"
 )
 
-// StartElasticityAssurance invokes the ecs.StartElasticityAssurance API synchronously
-func (client *Client) StartElasticityAssurance(request *StartElasticityAssuranceRequest) (response *StartElasticityAssuranceResponse, err error) {
-	response = CreateStartElasticityAssuranceResponse()
+// EndTerminalSession invokes the ecs.EndTerminalSession API synchronously
+func (client *Client) EndTerminalSession(request *EndTerminalSessionRequest) (response *EndTerminalSessionResponse, err error) {
+	response = CreateEndTerminalSessionResponse()
 	err = client.DoAction(request, response)
 	return
 }
 
-// StartElasticityAssuranceWithChan invokes the ecs.StartElasticityAssurance API asynchronously
-func (client *Client) StartElasticityAssuranceWithChan(request *StartElasticityAssuranceRequest) (<-chan *StartElasticityAssuranceResponse, <-chan error) {
-	responseChan := make(chan *StartElasticityAssuranceResponse, 1)
+// EndTerminalSessionWithChan invokes the ecs.EndTerminalSession API asynchronously
+func (client *Client) EndTerminalSessionWithChan(request *EndTerminalSessionRequest) (<-chan *EndTerminalSessionResponse, <-chan error) {
+	responseChan := make(chan *EndTerminalSessionResponse, 1)
 	errChan := make(chan error, 1)
 	err := client.AddAsyncTask(func() {
 		defer close(responseChan)
 		defer close(errChan)
-		response, err := client.StartElasticityAssurance(request)
+		response, err := client.EndTerminalSession(request)
 		if err != nil {
 			errChan <- err
 		} else {
@@ -49,14 +49,14 @@ func (client *Client) StartElasticityAssuranceWithChan(request *StartElasticityA
 	return responseChan, errChan
 }
 
-// StartElasticityAssuranceWithCallback invokes the ecs.StartElasticityAssurance API asynchronously
-func (client *Client) StartElasticityAssuranceWithCallback(request *StartElasticityAssuranceRequest, callback func(response *StartElasticityAssuranceResponse, err error)) <-chan int {
+// EndTerminalSessionWithCallback invokes the ecs.EndTerminalSession API asynchronously
+func (client *Client) EndTerminalSessionWithCallback(request *EndTerminalSessionRequest, callback func(response *EndTerminalSessionResponse, err error)) <-chan int {
 	result := make(chan int, 1)
 	err := client.AddAsyncTask(func() {
-		var response *StartElasticityAssuranceResponse
+		var response *EndTerminalSessionResponse
 		var err error
 		defer close(result)
-		response, err = client.StartElasticityAssurance(request)
+		response, err = client.EndTerminalSession(request)
 		callback(response, err)
 		result <- 1
 	})
@@ -68,35 +68,35 @@ func (client *Client) StartElasticityAssuranceWithCallback(request *StartElastic
 	return result
 }
 
-// StartElasticityAssuranceRequest is the request struct for api StartElasticityAssurance
-type StartElasticityAssuranceRequest struct {
+// EndTerminalSessionRequest is the request struct for api EndTerminalSession
+type EndTerminalSessionRequest struct {
 	*requests.RpcRequest
 	ResourceOwnerId      requests.Integer `position:"Query" name:"ResourceOwnerId"`
-	PrivatePoolOptionsId string           `position:"Query" name:"PrivatePoolOptions.Id"`
+	SessionId            string           `position:"Query" name:"SessionId"`
 	ResourceOwnerAccount string           `position:"Query" name:"ResourceOwnerAccount"`
 	OwnerAccount         string           `position:"Query" name:"OwnerAccount"`
 	OwnerId              requests.Integer `position:"Query" name:"OwnerId"`
 }
 
-// StartElasticityAssuranceResponse is the response struct for api StartElasticityAssurance
-type StartElasticityAssuranceResponse struct {
+// EndTerminalSessionResponse is the response struct for api EndTerminalSession
+type EndTerminalSessionResponse struct {
 	*responses.BaseResponse
 	RequestId string `json:"RequestId" xml:"RequestId"`
 }
 
-// CreateStartElasticityAssuranceRequest creates a request to invoke StartElasticityAssurance API
-func CreateStartElasticityAssuranceRequest() (request *StartElasticityAssuranceRequest) {
-	request = &StartElasticityAssuranceRequest{
+// CreateEndTerminalSessionRequest creates a request to invoke EndTerminalSession API
+func CreateEndTerminalSessionRequest() (request *EndTerminalSessionRequest) {
+	request = &EndTerminalSessionRequest{
 		RpcRequest: &requests.RpcRequest{},
 	}
-	request.InitWithApiInfo("Ecs", "2014-05-26", "StartElasticityAssurance", "ecs", "openAPI")
+	request.InitWithApiInfo("Ecs", "2014-05-26", "EndTerminalSession", "ecs", "openAPI")
 	request.Method = requests.POST
 	return
 }
 
-// CreateStartElasticityAssuranceResponse creates a response to parse from StartElasticityAssurance response
-func CreateStartElasticityAssuranceResponse() (response *StartElasticityAssuranceResponse) {
-	response = &StartElasticityAssuranceResponse{
+// CreateEndTerminalSessionResponse creates a response to parse from EndTerminalSession response
+func CreateEndTerminalSessionResponse() (response *EndTerminalSessionResponse) {
+	response = &EndTerminalSessionResponse{
 		BaseResponse: &responses.BaseResponse{},
 	}
 	return

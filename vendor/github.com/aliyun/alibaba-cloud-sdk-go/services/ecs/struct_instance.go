@@ -88,16 +88,18 @@ type Instance struct {
 	InnerIpAddress                  InnerIpAddressInDescribeInstances    `json:"InnerIpAddress" xml:"InnerIpAddress"`
 	PublicIpAddress                 PublicIpAddressInDescribeInstances   `json:"PublicIpAddress" xml:"PublicIpAddress"`
 	RdmaIpAddress                   RdmaIpAddress                        `json:"RdmaIpAddress" xml:"RdmaIpAddress"`
-	ImageOptions                    ImageOptions                         `json:"ImageOptions" xml:"ImageOptions"`
 	DedicatedHostAttribute          DedicatedHostAttribute               `json:"DedicatedHostAttribute" xml:"DedicatedHostAttribute"`
 	EcsCapacityReservationAttr      EcsCapacityReservationAttr           `json:"EcsCapacityReservationAttr" xml:"EcsCapacityReservationAttr"`
 	CpuOptions                      CpuOptions                           `json:"CpuOptions" xml:"CpuOptions"`
 	HibernationOptions              HibernationOptions                   `json:"HibernationOptions" xml:"HibernationOptions"`
 	DedicatedInstanceAttribute      DedicatedInstanceAttribute           `json:"DedicatedInstanceAttribute" xml:"DedicatedInstanceAttribute"`
+	PrivateDnsNameOptions           PrivateDnsNameOptions                `json:"PrivateDnsNameOptions" xml:"PrivateDnsNameOptions"`
+	AdditionalInfo                  AdditionalInfo                       `json:"AdditionalInfo" xml:"AdditionalInfo"`
+	ImageOptions                    ImageOptions                         `json:"ImageOptions" xml:"ImageOptions"`
 	EipAddress                      EipAddressInDescribeInstances        `json:"EipAddress" xml:"EipAddress"`
 	MetadataOptions                 MetadataOptions                      `json:"MetadataOptions" xml:"MetadataOptions"`
 	VpcAttributes                   VpcAttributes                        `json:"VpcAttributes" xml:"VpcAttributes"`
-	NetworkInterfaces               NetworkInterfacesInDescribeInstances `json:"NetworkInterfaces" xml:"NetworkInterfaces"`
 	Tags                            TagsInDescribeInstances              `json:"Tags" xml:"Tags"`
+	NetworkInterfaces               NetworkInterfacesInDescribeInstances `json:"NetworkInterfaces" xml:"NetworkInterfaces"`
 	OperationLocks                  OperationLocksInDescribeInstances    `json:"OperationLocks" xml:"OperationLocks"`
 }

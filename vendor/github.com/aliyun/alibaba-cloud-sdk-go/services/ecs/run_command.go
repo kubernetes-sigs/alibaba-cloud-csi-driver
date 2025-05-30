@@ -85,6 +85,7 @@ type RunCommandRequest struct {
 	Name                 string                   `position:"Query" name:"Name"`
 	ContainerId          string                   `position:"Query" name:"ContainerId"`
 	Parameters           map[string]interface{}   `position:"Query" name:"Parameters"`
+	Launcher             string                   `position:"Query" name:"Launcher"`
 	ContainerName        string                   `position:"Query" name:"ContainerName"`
 	ClientToken          string                   `position:"Query" name:"ClientToken"`
 	Description          string                   `position:"Query" name:"Description"`
@@ -95,6 +96,7 @@ type RunCommandRequest struct {
 	ResourceTag          *[]RunCommandResourceTag `position:"Query" name:"ResourceTag"  type:"Repeated"`
 	ResourceOwnerAccount string                   `position:"Query" name:"ResourceOwnerAccount"`
 	OwnerAccount         string                   `position:"Query" name:"OwnerAccount"`
+	TerminationMode      string                   `position:"Query" name:"TerminationMode"`
 	EnableParameter      requests.Boolean         `position:"Query" name:"EnableParameter"`
 	Username             string                   `position:"Query" name:"Username"`
 }

@@ -71,32 +71,92 @@ func (client *Client) CreateImagePipelineWithCallback(request *CreateImagePipeli
 // CreateImagePipelineRequest is the request struct for api CreateImagePipeline
 type CreateImagePipelineRequest struct {
 	*requests.RpcRequest
-	BaseImageType           string                    `position:"Query" name:"BaseImageType"`
-	ResourceOwnerId         requests.Integer          `position:"Query" name:"ResourceOwnerId"`
-	ClientToken             string                    `position:"Query" name:"ClientToken"`
-	ToRegionId              *[]string                 `position:"Query" name:"ToRegionId"  type:"Repeated"`
-	InternetMaxBandwidthOut requests.Integer          `position:"Query" name:"InternetMaxBandwidthOut"`
-	Description             string                    `position:"Query" name:"Description"`
-	ResourceGroupId         string                    `position:"Query" name:"ResourceGroupId"`
-	ImageName               string                    `position:"Query" name:"ImageName"`
-	SystemDiskSize          requests.Integer          `position:"Query" name:"SystemDiskSize"`
-	InstanceType            string                    `position:"Query" name:"InstanceType"`
-	Tag                     *[]CreateImagePipelineTag `position:"Query" name:"Tag"  type:"Repeated"`
-	ResourceOwnerAccount    string                    `position:"Query" name:"ResourceOwnerAccount"`
-	OwnerAccount            string                    `position:"Query" name:"OwnerAccount"`
-	OwnerId                 requests.Integer          `position:"Query" name:"OwnerId"`
-	BaseImage               string                    `position:"Query" name:"BaseImage"`
-	VSwitchId               string                    `position:"Query" name:"VSwitchId"`
-	AddAccount              *[]string                 `position:"Query" name:"AddAccount"  type:"Repeated"`
-	DeleteInstanceOnFailure requests.Boolean          `position:"Query" name:"DeleteInstanceOnFailure"`
-	Name                    string                    `position:"Query" name:"Name"`
-	BuildContent            string                    `position:"Query" name:"BuildContent"`
+	BaseImageType           string                                `position:"Query" name:"BaseImageType"`
+	ResourceOwnerId         requests.Integer                      `position:"Query" name:"ResourceOwnerId"`
+	ResourceGroupId         string                                `position:"Query" name:"ResourceGroupId"`
+	ImageOptions            CreateImagePipelineImageOptions       `position:"Query" name:"ImageOptions"  type:"Struct"`
+	SystemDiskSize          requests.Integer                      `position:"Query" name:"SystemDiskSize"`
+	Tag                     *[]CreateImagePipelineTag             `position:"Query" name:"Tag"  type:"Repeated"`
+	AdvancedOptions         CreateImagePipelineAdvancedOptions    `position:"Query" name:"AdvancedOptions"  type:"Struct"`
+	RepairMode              string                                `position:"Query" name:"RepairMode"`
+	OwnerId                 requests.Integer                      `position:"Query" name:"OwnerId"`
+	VSwitchId               string                                `position:"Query" name:"VSwitchId"`
+	AddAccount              *[]string                             `position:"Query" name:"AddAccount"  type:"Repeated"`
+	DeleteInstanceOnFailure requests.Boolean                      `position:"Query" name:"DeleteInstanceOnFailure"`
+	Name                    string                                `position:"Query" name:"Name"`
+	ImportImageOptions      CreateImagePipelineImportImageOptions `position:"Query" name:"ImportImageOptions"  type:"Struct"`
+	TestContent             string                                `position:"Query" name:"TestContent"`
+	ClientToken             string                                `position:"Query" name:"ClientToken"`
+	ToRegionId              *[]string                             `position:"Query" name:"ToRegionId"  type:"Repeated"`
+	InternetMaxBandwidthOut requests.Integer                      `position:"Query" name:"InternetMaxBandwidthOut"`
+	Description             string                                `position:"Query" name:"Description"`
+	ImageName               string                                `position:"Query" name:"ImageName"`
+	InstanceType            string                                `position:"Query" name:"InstanceType"`
+	NvmeSupport             string                                `position:"Query" name:"NvmeSupport"`
+	ResourceOwnerAccount    string                                `position:"Query" name:"ResourceOwnerAccount"`
+	OwnerAccount            string                                `position:"Query" name:"OwnerAccount"`
+	BaseImage               string                                `position:"Query" name:"BaseImage"`
+	ImageFamily             string                                `position:"Query" name:"ImageFamily"`
+	BuildContent            string                                `position:"Query" name:"BuildContent"`
+}
+
+// CreateImagePipelineImageOptions is a repeated param struct in CreateImagePipelineRequest
+type CreateImagePipelineImageOptions struct {
+	ImageName     string                                          `name:"ImageName"`
+	ImageFamily   string                                          `name:"ImageFamily"`
+	Description   string                                          `name:"Description"`
+	ImageFeatures CreateImagePipelineImageOptionsImageFeatures    `name:"ImageFeatures" type:"Struct"`
+	ImageTags     *[]CreateImagePipelineImageOptionsImageTagsItem `name:"ImageTags" type:"Repeated"`
 }
 
 // CreateImagePipelineTag is a repeated param struct in CreateImagePipelineRequest
 type CreateImagePipelineTag struct {
 	Key   string `name:"Key"`
 	Value string `name:"Value"`
+}
+
+// CreateImagePipelineAdvancedOptions is a repeated param struct in CreateImagePipelineRequest
+type CreateImagePipelineAdvancedOptions struct {
+	RetainCloudAssistant string `name:"RetainCloudAssistant"`
+	SkipBuildImage       string `name:"SkipBuildImage"`
+	SkipCheckImage       string `name:"SkipCheckImage"`
+	ImageNameSuffix      string `name:"ImageNameSuffix"`
+}
+
+// CreateImagePipelineImportImageOptions is a repeated param struct in CreateImagePipelineRequest
+type CreateImagePipelineImportImageOptions struct {
+	Architecture        string                                                         `name:"Architecture"`
+	OSType              string                                                         `name:"OSType"`
+	Platform            string                                                         `name:"Platform"`
+	BootMode            string                                                         `name:"BootMode"`
+	LicenseType         string                                                         `name:"LicenseType"`
+	DiskDeviceMappings  *[]CreateImagePipelineImportImageOptionsDiskDeviceMappingsItem `name:"DiskDeviceMappings" type:"Repeated"`
+	Features            CreateImagePipelineImportImageOptionsFeatures                  `name:"Features" type:"Struct"`
+	RetainImportedImage string                                                         `name:"RetainImportedImage"`
+}
+
+// CreateImagePipelineImageOptionsImageFeatures is a repeated param struct in CreateImagePipelineRequest
+type CreateImagePipelineImageOptionsImageFeatures struct {
+	NvmeSupport string `name:"NvmeSupport"`
+}
+
+// CreateImagePipelineImageOptionsImageTagsItem is a repeated param struct in CreateImagePipelineRequest
+type CreateImagePipelineImageOptionsImageTagsItem struct {
+	Key   string `name:"Key"`
+	Value string `name:"Value"`
+}
+
+// CreateImagePipelineImportImageOptionsDiskDeviceMappingsItem is a repeated param struct in CreateImagePipelineRequest
+type CreateImagePipelineImportImageOptionsDiskDeviceMappingsItem struct {
+	OSSBucket     string `name:"OSSBucket"`
+	OSSObject     string `name:"OSSObject"`
+	Format        string `name:"Format"`
+	DiskImageSize string `name:"DiskImageSize"`
+}
+
+// CreateImagePipelineImportImageOptionsFeatures is a repeated param struct in CreateImagePipelineRequest
+type CreateImagePipelineImportImageOptionsFeatures struct {
+	NvmeSupport string `name:"NvmeSupport"`
 }
 
 // CreateImagePipelineResponse is the response struct for api CreateImagePipeline

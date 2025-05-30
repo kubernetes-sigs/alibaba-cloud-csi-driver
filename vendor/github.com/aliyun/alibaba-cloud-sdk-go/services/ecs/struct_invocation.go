@@ -23,6 +23,7 @@ type Invocation struct {
 	Timed              bool                                     `json:"Timed" xml:"Timed"`
 	Frequency          string                                   `json:"Frequency" xml:"Frequency"`
 	ContainerId        string                                   `json:"ContainerId" xml:"ContainerId"`
+	Launcher           string                                   `json:"Launcher" xml:"Launcher"`
 	Content            string                                   `json:"Content" xml:"Content"`
 	CommandContent     string                                   `json:"CommandContent" xml:"CommandContent"`
 	InvocationStatus   string                                   `json:"InvocationStatus" xml:"InvocationStatus"`
@@ -35,6 +36,7 @@ type Invocation struct {
 	FileMode           string                                   `json:"FileMode" xml:"FileMode"`
 	TotalCount         int64                                    `json:"TotalCount" xml:"TotalCount"`
 	Username           string                                   `json:"Username" xml:"Username"`
+	TerminationMode    string                                   `json:"TerminationMode" xml:"TerminationMode"`
 	WorkingDir         string                                   `json:"WorkingDir" xml:"WorkingDir"`
 	ContentType        string                                   `json:"ContentType" xml:"ContentType"`
 	CreationTime       string                                   `json:"CreationTime" xml:"CreationTime"`
@@ -50,6 +52,6 @@ type Invocation struct {
 	CommandDescription string                                   `json:"CommandDescription" xml:"CommandDescription"`
 	CommandType        string                                   `json:"CommandType" xml:"CommandType"`
 	Tags               TagsInDescribeInvocations                `json:"Tags" xml:"Tags"`
-	InvocationResults  InvocationResults                        `json:"InvocationResults" xml:"InvocationResults"`
 	InvokeInstances    InvokeInstancesInDescribeSendFileResults `json:"InvokeInstances" xml:"InvokeInstances"`
+	InvocationResults  InvocationResults                        `json:"InvocationResults" xml:"InvocationResults"`
 }
