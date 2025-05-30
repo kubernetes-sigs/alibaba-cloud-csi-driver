@@ -6,21 +6,22 @@ import (
 	"testing"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/component-base/featuregate"
 )
 
 func TestSetDefaultImage(t *testing.T) {
 	tests := []struct {
-		name          string
-		fuseType      string
-		config        *mounterutils.FuseContainerConfig
-		region        string
-		registryUrl   string
-		featureGate   *featuregate.FeatureGate
-		expectedImage string
+		name             string
+		fuseType         string
+		config           *mounterutils.FuseContainerConfig
+		region           string
+		registryUrl      string
+		repositoryPrefix string
+		featureGate      *featuregate.FeatureGate
+		expectedImage    string
 	}{
 		{
 			name:     "ImageAlreadySet",
@@ -29,6 +30,13 @@ func TestSetDefaultImage(t *testing.T) {
 				Image: "custom-image",
 			},
 			expectedImage: "custom-image",
+		},
+		{
+			name:             "PrefixSet",
+			fuseType:         OssFsType,
+			config:           &mounterutils.FuseContainerConfig{},
+			repositoryPrefix: "custom-registry/ns",
+			expectedImage:    fmt.Sprintf("custom-registry/ns/csi-ossfs:%s", defaultOssfsUpdatedImageTag),
 		},
 		{
 			name:          "RegistryAndRegionSet",
@@ -48,13 +56,29 @@ func TestSetDefaultImage(t *testing.T) {
 			name:          "RegionNotSet",
 			fuseType:      OssFsType,
 			config:        &mounterutils.FuseContainerConfig{},
-			expectedImage: fmt.Sprintf("%s/acs/csi-ossfs:%s", defaultRegistry, defaultOssfsUpdatedImageTag),
+			expectedImage: fmt.Sprintf("%s/acs/csi-ossfs:%s", utils.DefaultRegistry, defaultOssfsUpdatedImageTag),
+		},
+		{
+			name:             "PrefixAndUrlConflict",
+			fuseType:         OssFsType,
+			config:           &mounterutils.FuseContainerConfig{},
+			registryUrl:      "custom-registry",
+			repositoryPrefix: "anotehr-registry/acs/",
+			expectedImage:    fmt.Sprintf("anotehr-registry/acs/csi-ossfs:%s", defaultOssfsUpdatedImageTag),
+		},
+		{
+			name:          "RegionAndUrlConflict",
+			fuseType:      OssFsType,
+			config:        &mounterutils.FuseContainerConfig{},
+			region:        "cn-hangzhou",
+			registryUrl:   "registry-cn-beijing-vpc.ack.aliyuncs.com/",
+			expectedImage: fmt.Sprintf("registry-cn-beijing-vpc.ack.aliyuncs.com/acs/csi-ossfs:%s", defaultOssfsUpdatedImageTag),
 		},
 		{
 			name:          "UnknownFuseType",
 			fuseType:      "UnknownType",
 			config:        &mounterutils.FuseContainerConfig{},
-			expectedImage: fmt.Sprintf("%s/acs/csi-UnknownType:latest", defaultRegistry),
+			expectedImage: fmt.Sprintf("%s/acs/csi-UnknownType:latest", utils.DefaultRegistry),
 		},
 	}
 
@@ -62,6 +86,7 @@ func TestSetDefaultImage(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("REGION_ID", test.region)
 			t.Setenv("DEFAULT_REGISTRY", test.registryUrl)
+			t.Setenv("DEFAULT_REPOSITORY_PREFIX", test.repositoryPrefix)
 			fakeMate := metadata.NewMetadata()
 			setDefaultImage(test.fuseType, fakeMate, test.config)
 			assert.Equal(t, test.expectedImage, test.config.Image)
@@ -116,32 +141,32 @@ func Test_getRRSAConfig(t *testing.T) {
 	tests := []struct {
 		name    string
 		opt     Options
-		wantCfg *utils.RrsaConfig
+		wantCfg *mounterutils.RrsaConfig
 	}{
 		{
 			"rolename",
 			Options{RoleName: "test-role-name"},
-			&utils.RrsaConfig{OidcProviderArn: "acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678", RoleArn: "acs:ram::112233445566:role/test-role-name", ServiceAccountName: utils.FuseServiceAccountName},
+			&mounterutils.RrsaConfig{OidcProviderArn: "acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678", RoleArn: "acs:ram::112233445566:role/test-role-name", ServiceAccountName: mounterutils.FuseServiceAccountName},
 		},
 		{
 			"specified-arns",
 			Options{RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
-			&utils.RrsaConfig{OidcProviderArn: "test-oidc-provider-arn", RoleArn: "test-role-arn", ServiceAccountName: utils.FuseServiceAccountName},
+			&mounterutils.RrsaConfig{OidcProviderArn: "test-oidc-provider-arn", RoleArn: "test-role-arn", ServiceAccountName: mounterutils.FuseServiceAccountName},
 		},
 		{
 			"arns-first",
 			Options{RoleName: "test-role-name", RoleArn: "test-role-arn", OidcProviderArn: "test-oidc-provider-arn"},
-			&utils.RrsaConfig{OidcProviderArn: "test-oidc-provider-arn", RoleArn: "test-role-arn", ServiceAccountName: utils.FuseServiceAccountName},
+			&mounterutils.RrsaConfig{OidcProviderArn: "test-oidc-provider-arn", RoleArn: "test-role-arn", ServiceAccountName: mounterutils.FuseServiceAccountName},
 		},
 		{
 			"serviceaccount",
 			Options{RoleName: "test-role-name", ServiceAccountName: "test-service-account"},
-			&utils.RrsaConfig{OidcProviderArn: "acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678", RoleArn: "acs:ram::112233445566:role/test-role-name", ServiceAccountName: "test-service-account"},
+			&mounterutils.RrsaConfig{OidcProviderArn: "acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678", RoleArn: "acs:ram::112233445566:role/test-role-name", ServiceAccountName: "test-service-account"},
 		},
 		{
 			"assumeRoleArn",
 			Options{RoleName: "test-role-name", AssumeRoleArn: "acs:ram::112233445566:role/assume-role-name"},
-			&utils.RrsaConfig{OidcProviderArn: "acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678", RoleArn: "acs:ram::112233445566:role/test-role-name", ServiceAccountName: utils.FuseServiceAccountName, AssumeRoleArn: "acs:ram::112233445566:role/assume-role-name"},
+			&mounterutils.RrsaConfig{OidcProviderArn: "acs:ram::112233445566:oidc-provider/ack-rrsa-c12345678", RoleArn: "acs:ram::112233445566:role/test-role-name", ServiceAccountName: mounterutils.FuseServiceAccountName, AssumeRoleArn: "acs:ram::112233445566:role/assume-role-name"},
 		},
 	}
 	for _, tt := range tests {

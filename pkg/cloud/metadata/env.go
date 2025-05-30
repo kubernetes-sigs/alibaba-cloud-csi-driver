@@ -5,10 +5,11 @@ import "os"
 type ENVMetadata struct{}
 
 var MetadataEnv = map[MetadataKey]string{
-	RegionID:    "REGION_ID",
-	AccountID:   "ALIBABA_CLOUD_ACCOUNT_ID",
-	ClusterID:   "CLUSTER_ID",
-	RegistryURL: "DEFAULT_REGISTRY",
+	RegionID:         "REGION_ID",
+	AccountID:        "ALIBABA_CLOUD_ACCOUNT_ID",
+	ClusterID:        "CLUSTER_ID",
+	RegistryURL:      "DEFAULT_REGISTRY",
+	RepositoryPrefix: "DEFAULT_REPOSITORY_PREFIX",
 }
 
 func (m *ENVMetadata) Get(key MetadataKey) (string, error) {

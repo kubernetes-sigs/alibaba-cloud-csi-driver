@@ -2,8 +2,11 @@ package utils
 
 import (
 	"flag"
+	"fmt"
 	"os"
+	"path"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/spf13/pflag"
 	"k8s.io/klog/v2"
 )
@@ -33,4 +36,25 @@ func AddKlogFlags(fs *pflag.FlagSet) {
 
 func AddGoFlags(fs *pflag.FlagSet) {
 	fs.AddGoFlagSet(flag.CommandLine)
+}
+
+const DefaultRegistry = "registry-cn-hangzhou.ack.aliyuncs.com"
+
+func GetRepositoryPrefix(m metadata.MetadataProvider) string {
+	prefix, err := m.Get(metadata.RepositoryPrefix)
+	if err == nil && prefix != "" {
+		return prefix
+	}
+	url, err := m.Get(metadata.RegistryURL)
+	if err == nil && url != "" {
+		return path.Join(url, "acs/")
+	}
+	region, err := m.Get(metadata.RegionID)
+	if err == nil && region != "" {
+		url := fmt.Sprintf("registry-%s-vpc.ack.aliyuncs.com", region)
+		klog.Warningf("DEFAULT_REGISTRY env not set, get current region: %v, fallback to default registry: %s", region, url)
+		return path.Join(url, "acs/")
+	}
+	klog.Warningf("DEFAULT_REGISTRY env not set, failed to get current region: %v, fallback to default registry: %s", err, DefaultRegistry)
+	return path.Join(DefaultRegistry, "acs/")
 }
