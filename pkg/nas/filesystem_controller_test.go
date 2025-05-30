@@ -58,7 +58,7 @@ func newTestFileSystemController(t *testing.T) *filesystemController {
 	}
 }
 
-func TestCreateVolume_InitNasClientError(t *testing.T) {
+func TestCreateVolume_EmptyRegionID(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 	registerZoneIdMetadataResponder()
@@ -76,8 +76,7 @@ func TestCreateVolume_InitNasClientError(t *testing.T) {
 		},
 	}
 	resp, err := controller.CreateVolume(context.Background(), req)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "nas client")
+	assert.ErrorContains(t, err, "RegionId is empty")
 	assert.Nil(t, resp)
 }
 
