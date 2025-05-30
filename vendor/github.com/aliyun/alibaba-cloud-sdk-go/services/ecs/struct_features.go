@@ -17,5 +17,10 @@ package ecs
 
 // Features is a nested struct in ecs response
 type Features struct {
-	NvmeSupport string `json:"NvmeSupport" xml:"NvmeSupport"`
+	MemoryOnlineUpgrade   string `json:"MemoryOnlineUpgrade" xml:"MemoryOnlineUpgrade"`
+	NvmeSupport           string `json:"NvmeSupport" xml:"NvmeSupport"`
+	CpuOnlineDowngrade    string `json:"CpuOnlineDowngrade" xml:"CpuOnlineDowngrade"`
+	ImdsSupport           string `json:"ImdsSupport" xml:"ImdsSupport"`
+	MemoryOnlineDowngrade string `json:"MemoryOnlineDowngrade" xml:"MemoryOnlineDowngrade"`
+	CpuOnlineUpgrade      string `json:"CpuOnlineUpgrade" xml:"CpuOnlineUpgrade"`
 }
