@@ -3,12 +3,13 @@ package oss
 import (
 	"fmt"
 	"os"
+	"path"
 
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 )
@@ -29,36 +30,31 @@ const (
 )
 
 func setDefaultImage(fuseType string, m metadata.MetadataProvider, config *mounterutils.FuseContainerConfig) {
-	if config.Image == "" {
-		registry, _ := m.Get(metadata.RegistryURL)
-		if registry == "" {
-			region, err := m.Get(metadata.RegionID)
-			if region != "" {
-				registry = fmt.Sprintf("registry-%s-vpc.ack.aliyuncs.com", region)
-			} else {
-				klog.Warningf("DEFAULT_REGISTRY env not set, failed to get current region: %v, fallback to default registry: %s", err, defaultRegistry)
-				registry = defaultRegistry
-			}
-		}
-		if config.ImageTag == "" {
-			switch fuseType {
-			case OssFsType:
-				if features.FunctionalMutableFeatureGate.Enabled(features.UpdatedOssfsVersion) {
-					config.ImageTag = defaultOssfsUpdatedImageTag
-				} else {
-					config.ImageTag = defaultOssfsImageTag
-				}
-			case OssFs2Type:
-				config.ImageTag = defaultOssfs2ImageTag
-			default:
-				klog.Warningf("Unknown fuse type: %s", fuseType)
-				config.ImageTag = "latest"
-			}
-
-		}
-		config.Image = fmt.Sprintf("%s/acs/csi-%s:%s", registry, fuseType, config.ImageTag)
-		klog.Infof("Use ossfs image: %s", config.Image)
+	// deprecated
+	if config.Image != "" {
+		return
 	}
+	prefix := utils.GetRepositoryPrefix(m)
+
+	if config.ImageTag == "" {
+		switch fuseType {
+		case OssFsType:
+			if features.FunctionalMutableFeatureGate.Enabled(features.UpdatedOssfsVersion) {
+				config.ImageTag = defaultOssfsUpdatedImageTag
+			} else {
+				config.ImageTag = defaultOssfsImageTag
+			}
+		case OssFs2Type:
+			config.ImageTag = defaultOssfs2ImageTag
+		default:
+			klog.Warningf("Unknown fuse type: %s", fuseType)
+			config.ImageTag = "latest"
+		}
+
+	}
+	image := fmt.Sprintf("csi-%s:%s", fuseType, config.ImageTag)
+	config.Image = path.Join(prefix, image)
+	klog.Infof("Use ossfs image: %s", config.Image)
 }
 
 // checkRRSAParams check parameters of RRSA
@@ -79,14 +75,14 @@ func checkRRSAParams(o *Options) error {
 }
 
 // getRRSAConfig get oidcProviderArn and roleArn
-func getRRSAConfig(o *Options, m metadata.MetadataProvider) (rrsaCfg *utils.RrsaConfig, err error) {
-	saName := utils.FuseServiceAccountName
+func getRRSAConfig(o *Options, m metadata.MetadataProvider) (rrsaCfg *mounterutils.RrsaConfig, err error) {
+	saName := mounterutils.FuseServiceAccountName
 	if o.ServiceAccountName != "" {
 		saName = o.ServiceAccountName
 	}
 
 	if o.OidcProviderArn != "" && o.RoleArn != "" {
-		return &utils.RrsaConfig{
+		return &mounterutils.RrsaConfig{
 			OidcProviderArn:    o.OidcProviderArn,
 			RoleArn:            o.RoleArn,
 			ServiceAccountName: saName,
@@ -102,9 +98,9 @@ func getRRSAConfig(o *Options, m metadata.MetadataProvider) (rrsaCfg *utils.Rrsa
 	if err != nil {
 		return nil, fmt.Errorf("Get clusterId error: %v", err)
 	}
-	provider := utils.GetOIDCProvider(clusterId)
-	oidcProviderArn, roleArn := utils.GetArn(provider, accountId, o.RoleName)
-	return &utils.RrsaConfig{
+	provider := mounterutils.GetOIDCProvider(clusterId)
+	oidcProviderArn, roleArn := mounterutils.GetArn(provider, accountId, o.RoleName)
+	return &mounterutils.RrsaConfig{
 		OidcProviderArn:    oidcProviderArn,
 		RoleArn:            roleArn,
 		ServiceAccountName: saName,
@@ -142,7 +138,7 @@ func getPasswdSecretVolume(secretRef, fuseType string) (secret *corev1.SecretVol
 	for _, key := range secretRefKeysToParse {
 		item := corev1.KeyToPath{
 			Key:  key,
-			Path: fmt.Sprintf("%s/%s", utils.GetPasswdFileName(fuseType), key),
+			Path: fmt.Sprintf("%s/%s", mounterutils.GetPasswdFileName(fuseType), key),
 			Mode: tea.Int32(0600),
 		}
 		items = append(items, item)
