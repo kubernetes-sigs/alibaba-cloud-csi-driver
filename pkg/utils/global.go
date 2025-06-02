@@ -34,3 +34,7 @@ func AddKlogFlags(fs *pflag.FlagSet) {
 func AddGoFlags(fs *pflag.FlagSet) {
 	fs.AddGoFlagSet(flag.CommandLine)
 }
+
+func GetNetworkType() string {
+	return os.Getenv("ALIBABA_CLOUD_NETWORK_TYPE")
+}

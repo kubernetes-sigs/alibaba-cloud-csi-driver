@@ -132,7 +132,7 @@ func newEcsClient(regionID string, ac utils.AccessControl) (ecsClient *ecs.Clien
 		}
 	}
 
-	network := os.Getenv("ALIBABA_CLOUD_NETWORK_TYPE")
+	network := utils.GetNetworkType()
 	if network != "" {
 		klog.Infof("Use ALIBABA_CLOUD_NETWORK_TYPE: %s", network)
 		ecsClient.SetEndpointRules(nil, "regional", network)
