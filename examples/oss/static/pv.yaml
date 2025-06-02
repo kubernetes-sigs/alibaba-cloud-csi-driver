@@ -8,16 +8,18 @@ spec:
   capacity:
     storage: 5Gi
   accessModes:
-    - ReadWriteOnce
+    - ReadOnlyMany
   persistentVolumeReclaimPolicy: Retain
   csi:
     driver: ossplugin.csi.alibabacloud.com
     # set volumeHandle same value pv name
     volumeHandle: oss-csi-pv
+    nodePublishSecretRef:
+      name: oss-secret
+      namespace: default
     volumeAttributes:
-      bucket: "python"
+      bucket: "oss-bucket"
       url: "oss-cn-hangzhou.aliyuncs.com"
-      otherOpts: "-o max_stat_cache_size=0 -o allow_other"
-      akId: "***"
-      akSecret: "***"
-      path: "/"
+      path: "/subpath"
+      fuseType: "ossfs2"
+      otherOpts: "-o allow_other -o umask=022"

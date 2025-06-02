@@ -1,0 +1,14 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: oss-sc
+parameters:
+  bucket: oss-bucket
+  path: /subpath
+  url: oss-cn-hangzhou.aliyuncs.com
+  csi.storage.k8s.io/node-publish-secret-name: oss-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: default
+  otherOpts: '-o allow_other -o umask=000'
+provisioner: ossplugin.csi.alibabacloud.com
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
