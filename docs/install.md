@@ -45,12 +45,14 @@ You can deploy the drivers using Helm.
 The default values mimic the config of the drivers in ACK cluster.
 We provides some configuration presets. Select one of them:
 * values-ecs.yaml: for deploy on self-built cluster on ECS.
-* values-nonecs.yaml: for deploy on non-ECS cluster. Disk driver is disabled.
+* values-nonecs.yaml: for deploy on non-ECS cluster. Disk driver is disabled. Region ID needs to be specified.
 
 ```shell
 git clone https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver.git
 cd alibaba-cloud-csi-driver/deploy
 helm upgrade --install alibaba-cloud-csi-driver ./chart --values chart/values-ecs.yaml --namespace kube-system
+# Or if deployed on non-ECS cluster, use values-nonecs.yaml
+helm upgrade --install alibaba-cloud-csi-driver ./chart --values chart/values-nonecs.yaml --namespace kube-system --set deploy.regionID=cn-hangzhou
 ```
 
 Please review the [values file](../deploy/chart/values.yaml) before installing. Some important configurations are:
