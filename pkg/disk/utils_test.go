@@ -31,7 +31,6 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/sys/unix"
-	"gopkg.in/h2non/gock.v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -100,33 +99,6 @@ func TestCreateStaticSnap(t *testing.T) {
 		client := fakesnapshotv1.NewSimpleClientset()
 		err := createStaticSnap(table.volumeID, table.snapshotID, client)
 		assert.Nil(t, err)
-	}
-}
-
-func TestRetryGetInstanceDoc(t *testing.T) {
-	defer gock.Off()
-
-	testExamples := []struct {
-		reString     string
-		expectZoneId string
-		expectErr    bool
-	}{
-		{
-			reString:     `{"region-id": "cn-hangzhou", "instance-id": "i-xxxxx", "zone-id": "cn-hangzhou-d"}`,
-			expectZoneId: "cn-hangzhou-d",
-			expectErr:    false,
-		},
-	}
-	for _, test := range testExamples {
-		gock.New("http://100.100.100.200").
-			Get("latest/dynamic/instance-identity/document").
-			Reply(200).
-			BodyString(test.reString)
-		actualData, err := retryGetInstanceDoc()
-		if !test.expectErr {
-			assert.Nil(t, err)
-			assert.Equal(t, test.expectZoneId, actualData.ZoneID)
-		}
 	}
 }
 
