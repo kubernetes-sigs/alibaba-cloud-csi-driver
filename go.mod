@@ -30,7 +30,6 @@ require (
 	golang.org/x/sys v0.30.0
 	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.33.0
-	gopkg.in/h2non/gock.v1 v1.1.2
 	k8s.io/api v0.30.8
 	k8s.io/apimachinery v0.30.8
 	k8s.io/client-go v0.30.8
@@ -66,7 +65,6 @@ require (
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
-	github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect

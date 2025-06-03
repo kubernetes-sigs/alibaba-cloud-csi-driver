@@ -150,9 +150,6 @@ github.com/google/gofuzz/bytesource
 # github.com/google/uuid v1.3.0
 ## explicit
 github.com/google/uuid
-# github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542
-## explicit
-github.com/h2non/parth
 # github.com/imdario/mergo v0.3.7
 ## explicit
 github.com/imdario/mergo
@@ -412,9 +409,6 @@ google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/emptypb
 google.golang.org/protobuf/types/known/timestamppb
 google.golang.org/protobuf/types/known/wrapperspb
-# gopkg.in/h2non/gock.v1 v1.1.2
-## explicit; go 1.13
-gopkg.in/h2non/gock.v1
 # gopkg.in/inf.v0 v0.9.1
 ## explicit
 gopkg.in/inf.v0

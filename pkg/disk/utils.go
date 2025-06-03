@@ -24,7 +24,6 @@ import (
 	"io"
 	"maps"
 	"net"
-	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -184,51 +183,6 @@ func IsDirEmpty(name string) (bool, error) {
 		return true, nil
 	}
 	return false, err
-}
-
-type instanceDocument struct {
-	RegionID   string `json:"region-id"`
-	InstanceID string `json:"instance-id"`
-	ZoneID     string `json:"zone-id"`
-}
-
-func retryGetInstanceDoc() (*instanceDocument, error) {
-	var err error
-	var doc *instanceDocument
-	for i := 0; i < utils.MetadataMaxRetryCount; i++ {
-		doc, err = getInstanceDoc()
-		if err != nil {
-			klog.Errorf("retryGetInstanceDoc: failed to get instance doc for %v try, err: %v", i, err)
-			continue
-		}
-		return doc, nil
-	}
-	return doc, err
-}
-
-func getInstanceDoc() (*instanceDocument, error) {
-	resp, err := http.Get(DocumentURL)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("getInstanceDoc: failed to get instance doc, status code: %d, body: %s", resp.StatusCode, string(body))
-	}
-
-	result := &instanceDocument{}
-	if err = json.Unmarshal(body, result); err != nil {
-		return nil, err
-	}
-	if result.InstanceID == "" || result.RegionID == "" || result.ZoneID == "" {
-		return nil, fmt.Errorf("getInstanceDoc: got invalid instance doc, body: %s", string(body))
-	}
-
-	return result, nil
 }
 
 // GetDeviceByBdf get device name by bdf
