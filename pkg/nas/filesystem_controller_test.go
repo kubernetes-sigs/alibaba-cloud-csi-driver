@@ -71,6 +71,7 @@ func TestCreateVolume_InitNasClientError(t *testing.T) {
 	}
 	req := &csi.CreateVolumeRequest{
 		Parameters: map[string]string{
+			RegionID:  "这不是一个合法的RegionID，所以Client初始化会失败",
 			VpcID:     "vpc-id",
 			VSwitchID: "vswitch-id",
 		},
