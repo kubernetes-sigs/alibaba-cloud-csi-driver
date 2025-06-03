@@ -110,7 +110,7 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 	// Init ECS Client
 	accessControl := utils.GetAccessControl()
 	client := newEcsClient(metadata.MustGet(m, metadata.RegionID), accessControl)
-	if accessControl.UseMode == utils.EcsRAMRole || accessControl.UseMode == utils.ManagedToken {
+	if accessControl.UseMode == utils.ManagedToken {
 		klog.Infof("Starting csi-plugin with sts.")
 	} else {
 		klog.Infof("Starting csi-plugin without sts.")

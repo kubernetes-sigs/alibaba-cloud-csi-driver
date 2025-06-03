@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -78,10 +77,7 @@ type AccessControlMode int
 const (
 	AccessKey AccessControlMode = iota
 	ManagedToken
-	EcsRAMRole
 	Credential
-	RoleArnToken
-	OIDCToken
 )
 
 // AccessControl is access control option
@@ -180,37 +176,12 @@ func GetEnvAK() AccessControl {
 
 // GetStsToken get STS token and token from ecs meta server
 func getStsToken() AccessControl {
-	roleAuth := RoleAuth{}
-	subpath := "ram/security-credentials/"
-	roleName, err := GetMetaData(subpath)
-	if err != nil {
-		klog.Errorf("GetSTSToken: request roleName with error: %s", err.Error())
-		return AccessControl{}
-	}
-
-	fullPath := filepath.Join(subpath, roleName)
-	roleInfo, err := GetMetaData(fullPath)
-	if err != nil {
-		klog.Errorf("GetSTSToken: request roleInfo with error: %s", err.Error())
-		return AccessControl{}
-	}
-
-	err = json.Unmarshal([]byte(roleInfo), &roleAuth)
-	if err != nil {
-		klog.Errorf("GetSTSToken: unmarshal roleInfo: %s, with error: %s", roleInfo, err.Error())
-		return AccessControl{}
-	}
 	scheme := "https"
 	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
 		scheme = "http"
 	}
 	config := sdk.NewConfig().WithScheme(scheme)
-	credent := &cre.StsTokenCredential{
-		AccessKeyId:       roleAuth.AccessKeyID,
-		AccessKeySecret:   roleAuth.AccessKeySecret,
-		AccessKeyStsToken: roleAuth.SecurityToken,
-	}
-	return AccessControl{AccessKeyID: roleAuth.AccessKeyID, AccessKeySecret: roleAuth.AccessKeySecret, StsToken: roleAuth.SecurityToken, UseMode: EcsRAMRole, Config: config, Credential: credent}
+	return AccessControl{UseMode: Credential, Config: config, Credential: cre.NewEcsRamRoleCredential("")}
 }
 
 // GetManagedToken get ak from csi secret

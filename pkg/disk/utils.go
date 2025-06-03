@@ -147,7 +147,7 @@ func newEcsClient(regionID string, ac utils.AccessControl) (ecsClient *ecs.Clien
 
 func updateEcsClient(client *ecs.Client) *ecs.Client {
 	ac := utils.GetAccessControl()
-	if ac.UseMode == utils.EcsRAMRole || ac.UseMode == utils.ManagedToken || ac.UseMode == utils.OIDCToken {
+	if ac.UseMode == utils.ManagedToken {
 		client = newEcsClient(GlobalConfigVar.Region, ac)
 	}
 	if client.Client.GetConfig() != nil {
