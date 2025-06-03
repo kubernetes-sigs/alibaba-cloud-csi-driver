@@ -27,6 +27,9 @@ func newNasClientV1(region string) (interfaces.NasV1Interface, error) {
 	}
 
 	ac := utils.GetAccessControl()
+	if ac.Credential == nil {
+		return nil, errors.New("failed to fetch credential")
+	}
 	config := ac.Config
 	if config == nil {
 		config = sdk.NewConfig()

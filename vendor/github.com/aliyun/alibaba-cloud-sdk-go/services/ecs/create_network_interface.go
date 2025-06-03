@@ -71,42 +71,68 @@ func (client *Client) CreateNetworkInterfaceWithCallback(request *CreateNetworkI
 // CreateNetworkInterfaceRequest is the request struct for api CreateNetworkInterface
 type CreateNetworkInterfaceRequest struct {
 	*requests.RpcRequest
-	QueueNumber                    requests.Integer             `position:"Query" name:"QueueNumber"`
-	ResourceOwnerId                requests.Integer             `position:"Query" name:"ResourceOwnerId"`
-	Ipv4Prefix                     *[]string                    `position:"Query" name:"Ipv4Prefix"  type:"Repeated"`
-	SecondaryPrivateIpAddressCount requests.Integer             `position:"Query" name:"SecondaryPrivateIpAddressCount"`
-	BusinessType                   string                       `position:"Query" name:"BusinessType"`
-	ResourceGroupId                string                       `position:"Query" name:"ResourceGroupId"`
-	Tag                            *[]CreateNetworkInterfaceTag `position:"Query" name:"Tag"  type:"Repeated"`
-	NetworkInterfaceName           string                       `position:"Query" name:"NetworkInterfaceName"`
-	Visible                        requests.Boolean             `position:"Query" name:"Visible"`
-	Ipv6AddressCount               requests.Integer             `position:"Query" name:"Ipv6AddressCount"`
-	RxQueueSize                    requests.Integer             `position:"Query" name:"RxQueueSize"`
-	OwnerId                        requests.Integer             `position:"Query" name:"OwnerId"`
-	VSwitchId                      string                       `position:"Query" name:"VSwitchId"`
-	PrivateIpAddress               *[]string                    `position:"Query" name:"PrivateIpAddress"  type:"Repeated"`
-	Ipv6Address                    *[]string                    `position:"Query" name:"Ipv6Address"  type:"Repeated"`
-	ClientToken                    string                       `position:"Query" name:"ClientToken"`
-	Ipv6Prefix                     *[]string                    `position:"Query" name:"Ipv6Prefix"  type:"Repeated"`
-	SecurityGroupId                string                       `position:"Query" name:"SecurityGroupId"`
-	Description                    string                       `position:"Query" name:"Description"`
-	Ipv6PrefixCount                requests.Integer             `position:"Query" name:"Ipv6PrefixCount"`
-	InstanceType                   string                       `position:"Query" name:"InstanceType"`
-	TxQueueSize                    requests.Integer             `position:"Query" name:"TxQueueSize"`
-	DeleteOnRelease                requests.Boolean             `position:"Query" name:"DeleteOnRelease"`
-	ResourceOwnerAccount           string                       `position:"Query" name:"ResourceOwnerAccount"`
-	OwnerAccount                   string                       `position:"Query" name:"OwnerAccount"`
-	QueuePairNumber                requests.Integer             `position:"Query" name:"QueuePairNumber"`
-	SecurityGroupIds               *[]string                    `position:"Query" name:"SecurityGroupIds"  type:"Repeated"`
-	NetworkInterfaceTrafficMode    string                       `position:"Query" name:"NetworkInterfaceTrafficMode"`
-	Ipv4PrefixCount                requests.Integer             `position:"Query" name:"Ipv4PrefixCount"`
-	PrimaryIpAddress               string                       `position:"Query" name:"PrimaryIpAddress"`
+	QueueNumber                     requests.Integer                                      `position:"Query" name:"QueueNumber"`
+	ResourceOwnerId                 requests.Integer                                      `position:"Query" name:"ResourceOwnerId"`
+	Ipv4Prefix                      *[]string                                             `position:"Query" name:"Ipv4Prefix"  type:"Repeated"`
+	NetworkInterfaceTrafficConfig   CreateNetworkInterfaceNetworkInterfaceTrafficConfig   `position:"Query" name:"NetworkInterfaceTrafficConfig"  type:"Struct"`
+	SecondaryPrivateIpAddressCount  requests.Integer                                      `position:"Query" name:"SecondaryPrivateIpAddressCount"`
+	BusinessType                    string                                                `position:"Query" name:"BusinessType"`
+	ResourceGroupId                 string                                                `position:"Query" name:"ResourceGroupId"`
+	EnhancedNetwork                 CreateNetworkInterfaceEnhancedNetwork                 `position:"Query" name:"EnhancedNetwork"  type:"Struct"`
+	Tag                             *[]CreateNetworkInterfaceTag                          `position:"Query" name:"Tag"  type:"Repeated"`
+	NetworkInterfaceName            string                                                `position:"Query" name:"NetworkInterfaceName"`
+	Visible                         requests.Boolean                                      `position:"Query" name:"Visible"`
+	Ipv6AddressCount                requests.Integer                                      `position:"Query" name:"Ipv6AddressCount"`
+	RxQueueSize                     requests.Integer                                      `position:"Query" name:"RxQueueSize"`
+	OwnerId                         requests.Integer                                      `position:"Query" name:"OwnerId"`
+	VSwitchId                       string                                                `position:"Query" name:"VSwitchId"`
+	PrivateIpAddress                *[]string                                             `position:"Query" name:"PrivateIpAddress"  type:"Repeated"`
+	Ipv6Address                     *[]string                                             `position:"Query" name:"Ipv6Address"  type:"Repeated"`
+	ClientToken                     string                                                `position:"Query" name:"ClientToken"`
+	Ipv6Prefix                      *[]string                                             `position:"Query" name:"Ipv6Prefix"  type:"Repeated"`
+	SecurityGroupId                 string                                                `position:"Query" name:"SecurityGroupId"`
+	Description                     string                                                `position:"Query" name:"Description"`
+	Ipv6PrefixCount                 requests.Integer                                      `position:"Query" name:"Ipv6PrefixCount"`
+	SourceDestCheck                 requests.Boolean                                      `position:"Query" name:"SourceDestCheck"`
+	InstanceType                    string                                                `position:"Query" name:"InstanceType"`
+	TxQueueSize                     requests.Integer                                      `position:"Query" name:"TxQueueSize"`
+	DeleteOnRelease                 requests.Boolean                                      `position:"Query" name:"DeleteOnRelease"`
+	ResourceOwnerAccount            string                                                `position:"Query" name:"ResourceOwnerAccount"`
+	OwnerAccount                    string                                                `position:"Query" name:"OwnerAccount"`
+	QueuePairNumber                 requests.Integer                                      `position:"Query" name:"QueuePairNumber"`
+	SecurityGroupIds                *[]string                                             `position:"Query" name:"SecurityGroupIds"  type:"Repeated"`
+	NetworkInterfaceTrafficMode     string                                                `position:"Query" name:"NetworkInterfaceTrafficMode"`
+	Ipv4PrefixCount                 requests.Integer                                      `position:"Query" name:"Ipv4PrefixCount"`
+	ConnectionTrackingConfiguration CreateNetworkInterfaceConnectionTrackingConfiguration `position:"Query" name:"ConnectionTrackingConfiguration"  type:"Struct"`
+	PrimaryIpAddress                string                                                `position:"Query" name:"PrimaryIpAddress"`
+}
+
+// CreateNetworkInterfaceNetworkInterfaceTrafficConfig is a repeated param struct in CreateNetworkInterfaceRequest
+type CreateNetworkInterfaceNetworkInterfaceTrafficConfig struct {
+	QueueNumber                 string `name:"QueueNumber"`
+	NetworkInterfaceTrafficMode string `name:"NetworkInterfaceTrafficMode"`
+	QueuePairNumber             string `name:"QueuePairNumber"`
+	TxQueueSize                 string `name:"TxQueueSize"`
+	RxQueueSize                 string `name:"RxQueueSize"`
+}
+
+// CreateNetworkInterfaceEnhancedNetwork is a repeated param struct in CreateNetworkInterfaceRequest
+type CreateNetworkInterfaceEnhancedNetwork struct {
+	EnableSriov string `name:"EnableSriov"`
+	EnableRss   string `name:"EnableRss"`
 }
 
 // CreateNetworkInterfaceTag is a repeated param struct in CreateNetworkInterfaceRequest
 type CreateNetworkInterfaceTag struct {
 	Key   string `name:"Key"`
 	Value string `name:"Value"`
+}
+
+// CreateNetworkInterfaceConnectionTrackingConfiguration is a repeated param struct in CreateNetworkInterfaceRequest
+type CreateNetworkInterfaceConnectionTrackingConfiguration struct {
+	TcpEstablishedTimeout       string `name:"TcpEstablishedTimeout"`
+	TcpClosedAndTimeWaitTimeout string `name:"TcpClosedAndTimeWaitTimeout"`
+	UdpTimeout                  string `name:"UdpTimeout"`
 }
 
 // CreateNetworkInterfaceResponse is the response struct for api CreateNetworkInterface
@@ -127,6 +153,7 @@ type CreateNetworkInterfaceResponse struct {
 	ResourceGroupId      string                                   `json:"ResourceGroupId" xml:"ResourceGroupId"`
 	ZoneId               string                                   `json:"ZoneId" xml:"ZoneId"`
 	PrivateIpAddress     string                                   `json:"PrivateIpAddress" xml:"PrivateIpAddress"`
+	SourceDestCheck      bool                                     `json:"SourceDestCheck" xml:"SourceDestCheck"`
 	SecurityGroupIds     SecurityGroupIdsInCreateNetworkInterface `json:"SecurityGroupIds" xml:"SecurityGroupIds"`
 	PrivateIpSets        PrivateIpSetsInCreateNetworkInterface    `json:"PrivateIpSets" xml:"PrivateIpSets"`
 	Tags                 TagsInCreateNetworkInterface             `json:"Tags" xml:"Tags"`

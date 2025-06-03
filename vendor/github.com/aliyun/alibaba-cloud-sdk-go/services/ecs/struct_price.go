@@ -17,10 +17,22 @@ package ecs
 
 // Price is a nested struct in ecs response
 type Price struct {
-	DiscountPrice             float64                    `json:"DiscountPrice" xml:"DiscountPrice"`
-	TradePrice                float64                    `json:"TradePrice" xml:"TradePrice"`
-	OriginalPrice             float64                    `json:"OriginalPrice" xml:"OriginalPrice"`
-	Currency                  string                     `json:"Currency" xml:"Currency"`
-	ReservedInstanceHourPrice float64                    `json:"ReservedInstanceHourPrice" xml:"ReservedInstanceHourPrice"`
-	DetailInfos               DetailInfosInDescribePrice `json:"DetailInfos" xml:"DetailInfos"`
+	SpotInstanceTypeOriginalPrice     float64                                        `json:"SpotInstanceTypeOriginalPrice" xml:"SpotInstanceTypeOriginalPrice"`
+	TradePrice                        float64                                        `json:"TradePrice" xml:"TradePrice"`
+	ReservedInstanceHourTradePrice    float64                                        `json:"ReservedInstanceHourTradePrice" xml:"ReservedInstanceHourTradePrice"`
+	OriginalPrice                     float64                                        `json:"OriginalPrice" xml:"OriginalPrice"`
+	Currency                          string                                         `json:"Currency" xml:"Currency"`
+	IsContractPromotion               bool                                           `json:"IsContractPromotion" xml:"IsContractPromotion"`
+	SpotInstanceTypePrice             float64                                        `json:"SpotInstanceTypePrice" xml:"SpotInstanceTypePrice"`
+	DiscountPrice                     float64                                        `json:"DiscountPrice" xml:"DiscountPrice"`
+	StandardPrice                     float64                                        `json:"StandardPrice" xml:"StandardPrice"`
+	StandardDiscountPrice             float64                                        `json:"StandardDiscountPrice" xml:"StandardDiscountPrice"`
+	ReservedInstanceHourPrice         float64                                        `json:"ReservedInstanceHourPrice" xml:"ReservedInstanceHourPrice"`
+	ReservedInstanceHourDiscountPrice float64                                        `json:"ReservedInstanceHourDiscountPrice" xml:"ReservedInstanceHourDiscountPrice"`
+	RuleIdSet                         RuleIdSetInDescribeInstanceModificationPrice   `json:"RuleIdSet" xml:"RuleIdSet"`
+	DepreciateInfo                    DepreciateInfo                                 `json:"DepreciateInfo" xml:"DepreciateInfo"`
+	SubPrices                         SubPrices                                      `json:"SubPrices" xml:"SubPrices"`
+	Coupons                           CouponsInDescribeInstanceModificationPrice     `json:"Coupons" xml:"Coupons"`
+	Promotions                        PromotionsInDescribeInstanceModificationPrice  `json:"Promotions" xml:"Promotions"`
+	DetailInfos                       DetailInfosInDescribeInstanceModificationPrice `json:"DetailInfos" xml:"DetailInfos"`
 }
