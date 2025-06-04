@@ -23,8 +23,6 @@ const (
 	AccountID
 	ClusterID
 	VmocType
-	RegistryURL
-	RepositoryPrefix
 )
 
 func (k MetadataKey) String() string {
@@ -43,10 +41,6 @@ func (k MetadataKey) String() string {
 		return "ClusterID"
 	case VmocType:
 		return "VmocType"
-	case RegistryURL:
-		return "RegistryURL"
-	case RepositoryPrefix:
-		return "RepositoryPrefix"
 	default:
 		return fmt.Sprintf("MetadataKey(%d)", k)
 	}

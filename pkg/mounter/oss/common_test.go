@@ -45,20 +45,20 @@ func TestSetDefaultImage(t *testing.T) {
 			fuseType:      OssFsType,
 			config:        &mounterutils.FuseContainerConfig{},
 			registryUrl:   "custom-registry",
-			expectedImage: fmt.Sprintf("custom-registry/acs/csi-ossfs:%s", defaultOssfsUpdatedImageTag),
+			expectedImage: fmt.Sprintf("custom-registry/%s/csi-ossfs:%s", utils.DefImageNamespace, defaultOssfsUpdatedImageTag),
 		},
 		{
 			name:          "RegionSet",
 			fuseType:      OssFsType,
 			config:        &mounterutils.FuseContainerConfig{},
 			region:        "cn-hangzhou",
-			expectedImage: fmt.Sprintf("registry-cn-hangzhou-vpc.ack.aliyuncs.com/acs/csi-ossfs:%s", defaultOssfsUpdatedImageTag),
+			expectedImage: fmt.Sprintf("registry-cn-hangzhou-vpc.ack.aliyuncs.com/%s/csi-ossfs:%s", utils.DefImageNamespace, defaultOssfsUpdatedImageTag),
 		},
 		{
 			name:          "RegionNotSet",
 			fuseType:      OssFsType,
 			config:        &mounterutils.FuseContainerConfig{},
-			expectedImage: fmt.Sprintf("%s/acs/csi-ossfs:%s", utils.DefaultRegistry, defaultOssfsUpdatedImageTag),
+			expectedImage: fmt.Sprintf("%s/%s/csi-ossfs:%s", utils.DefImageRegistry, utils.DefImageNamespace, defaultOssfsUpdatedImageTag),
 		},
 		{
 			name:             "PrefixAndUrlConflict",
@@ -66,7 +66,7 @@ func TestSetDefaultImage(t *testing.T) {
 			config:           &mounterutils.FuseContainerConfig{},
 			registryUrl:      "custom-registry",
 			repositoryPrefix: "anotehr-registry/acs/",
-			expectedImage:    fmt.Sprintf("anotehr-registry/acs/csi-ossfs:%s", defaultOssfsUpdatedImageTag),
+			expectedImage:    fmt.Sprintf("anotehr-registry/%s/csi-ossfs:%s", utils.DefImageNamespace, defaultOssfsUpdatedImageTag),
 		},
 		{
 			name:          "RegionAndUrlConflict",
@@ -74,13 +74,13 @@ func TestSetDefaultImage(t *testing.T) {
 			config:        &mounterutils.FuseContainerConfig{},
 			region:        "cn-hangzhou",
 			registryUrl:   "registry-cn-beijing-vpc.ack.aliyuncs.com/",
-			expectedImage: fmt.Sprintf("registry-cn-beijing-vpc.ack.aliyuncs.com/acs/csi-ossfs:%s", defaultOssfsUpdatedImageTag),
+			expectedImage: fmt.Sprintf("registry-cn-beijing-vpc.ack.aliyuncs.com/%s/csi-ossfs:%s", utils.DefImageNamespace, defaultOssfsUpdatedImageTag),
 		},
 		{
 			name:          "UnknownFuseType",
 			fuseType:      "UnknownType",
 			config:        &mounterutils.FuseContainerConfig{},
-			expectedImage: fmt.Sprintf("%s/acs/csi-UnknownType:latest", utils.DefaultRegistry),
+			expectedImage: fmt.Sprintf("%s/%s/csi-UnknownType:latest", utils.DefImageRegistry, utils.DefImageNamespace),
 		},
 	}
 
@@ -88,7 +88,7 @@ func TestSetDefaultImage(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("REGION_ID", test.region)
 			t.Setenv("DEFAULT_REGISTRY", test.registryUrl)
-			t.Setenv("DEFAULT_REPOSITORY_PREFIX", test.repositoryPrefix)
+			t.Setenv("IMAGE_REPOSITORY_PREFIX", test.repositoryPrefix)
 			fakeMate := metadata.NewMetadata()
 			setDefaultImage(test.fuseType, fakeMate, test.config)
 			assert.Equal(t, test.expectedImage, test.config.Image)

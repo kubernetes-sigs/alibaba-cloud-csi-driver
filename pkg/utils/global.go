@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/spf13/pflag"
 	"k8s.io/klog/v2"
 )
@@ -41,23 +40,24 @@ func AddGoFlags(fs *pflag.FlagSet) {
 func GetNetworkType() string {
 	return os.Getenv("ALIBABA_CLOUD_NETWORK_TYPE")
 }
-const DefaultRegistry = "registry-cn-hangzhou.ack.aliyuncs.com"
 
-func GetRepositoryPrefix(m metadata.MetadataProvider) string {
-	prefix, err := m.Get(metadata.RepositoryPrefix)
-	if err == nil && prefix != "" {
+const DefImageRegistry = "registry-cn-hangzhou.ack.aliyuncs.com"
+const DefImageNamespace = "acs"
+
+func GetRepositoryPrefix(region string) string {
+	prefix := os.Getenv("IMAGE_REPOSITORY_PREFIX")
+	if prefix != "" {
 		return prefix
 	}
-	url, err := m.Get(metadata.RegistryURL)
-	if err == nil && url != "" {
-		return path.Join(url, "acs/")
+	url := os.Getenv("DEFAULT_REGISTRY")
+	if url != "" {
+		return path.Join(url, DefImageNamespace)
 	}
-	region, err := m.Get(metadata.RegionID)
-	if err == nil && region != "" {
+	if region != "" {
 		url := fmt.Sprintf("registry-%s-vpc.ack.aliyuncs.com", region)
 		klog.Warningf("DEFAULT_REGISTRY env not set, get current region: %v, fallback to default registry: %s", region, url)
-		return path.Join(url, "acs/")
+		return path.Join(url, DefImageNamespace)
 	}
-	klog.Warningf("DEFAULT_REGISTRY env not set, failed to get current region: %v, fallback to default registry: %s", err, DefaultRegistry)
-	return path.Join(DefaultRegistry, "acs/")
+	klog.Warningf("DEFAULT_REGISTRY env not set, failed to get current region, fallback to default registry: %s", DefImageRegistry)
+	return path.Join(DefImageRegistry, DefImageNamespace)
 }
