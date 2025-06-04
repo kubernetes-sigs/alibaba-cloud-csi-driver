@@ -2,7 +2,9 @@ package utils
 
 import (
 	"flag"
+	"fmt"
 	"os"
+	"path"
 
 	"github.com/spf13/pflag"
 	"k8s.io/klog/v2"
@@ -37,4 +39,25 @@ func AddGoFlags(fs *pflag.FlagSet) {
 
 func GetNetworkType() string {
 	return os.Getenv("ALIBABA_CLOUD_NETWORK_TYPE")
+}
+
+const DefImageRegistry = "registry-cn-hangzhou.ack.aliyuncs.com"
+const DefImageNamespace = "acs"
+
+func GetRepositoryPrefix(region string) string {
+	prefix := os.Getenv("IMAGE_REPOSITORY_PREFIX")
+	if prefix != "" {
+		return prefix
+	}
+	url := os.Getenv("DEFAULT_REGISTRY")
+	if url != "" {
+		return path.Join(url, DefImageNamespace)
+	}
+	if region != "" {
+		url := fmt.Sprintf("registry-%s-vpc.ack.aliyuncs.com", region)
+		klog.Warningf("DEFAULT_REGISTRY env not set, get current region: %v, fallback to default registry: %s", region, url)
+		return path.Join(url, DefImageNamespace)
+	}
+	klog.Warningf("DEFAULT_REGISTRY env not set, failed to get current region, fallback to default registry: %s", DefImageRegistry)
+	return path.Join(DefImageRegistry, DefImageNamespace)
 }
