@@ -34,7 +34,11 @@ func setDefaultImage(fuseType string, m metadata.MetadataProvider, config *mount
 	if config.Image != "" {
 		return
 	}
-	prefix := utils.GetRepositoryPrefix(m)
+	region, err := m.Get(metadata.RegionID)
+	if err != nil {
+		klog.Warningf("Failed to get region from metadata: %v", err)
+	}
+	prefix := utils.GetRepositoryPrefix(region)
 
 	if config.ImageTag == "" {
 		switch fuseType {
