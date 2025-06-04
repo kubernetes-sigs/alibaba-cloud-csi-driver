@@ -54,6 +54,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 	k8smount "k8s.io/mount-utils"
@@ -459,9 +460,18 @@ func parseTags(params map[string]string) (map[string]string, error) {
 	return seenTags, nil
 }
 
+func pvcRef(params map[string]string) *v1.ObjectReference {
+	return &v1.ObjectReference{
+		APIVersion: "v1",
+		Kind:       "PersistentVolumeClaim",
+		Namespace:  params[common.PVCNamespaceKey],
+		Name:       params[common.PVCNameKey],
+	}
+}
+
 var ErrUnknownZone = errors.New("unknown zone")
 
-func getZone(req *csi.CreateVolumeRequest) (string, error) {
+func getZone(req *csi.CreateVolumeRequest, recorder record.EventRecorder) (string, error) {
 	volOptions := req.GetParameters()
 	zoneID, ok := volOptions[ZoneID]
 	if !ok {
@@ -494,11 +504,13 @@ func getZone(req *csi.CreateVolumeRequest) (string, error) {
 		// If the list of requisite topologies is specified and the SP is
 		// unable to to make the provisioned volume available from any of the
 		// requisite topologies it MUST fail the CreateVolume call.
-		if len(missedZones) == 0 {
-			return "", fmt.Errorf("no zone info found in accessibility requirements")
-		} else {
-			return "", fmt.Errorf("conflicting zone, parameters specified: %s, accessibility requires: %v", zoneID, sets.List(missedZones))
+		//
+		// However, for backward capability, we just record event.
+		msg := "no zone info found in accessibility requirements"
+		if len(missedZones) > 0 {
+			msg = fmt.Sprintf("conflicting zone, parameters specified: %s, accessibility requires: %v", zoneID, sets.List(missedZones))
 		}
+		recorder.Event(pvcRef(req.Parameters), v1.EventTypeWarning, "ConflictingZone", msg)
 	}
 
 	// Best effort to pick what we have
@@ -510,7 +522,7 @@ func getZone(req *csi.CreateVolumeRequest) (string, error) {
 }
 
 // getDiskVolumeOptions
-func getDiskVolumeOptions(req *csi.CreateVolumeRequest, m metadata.MetadataProvider) (*diskVolumeArgs, error) {
+func getDiskVolumeOptions(req *csi.CreateVolumeRequest, m metadata.MetadataProvider, recorder record.EventRecorder) (*diskVolumeArgs, error) {
 	var ok bool
 	diskVolArgs := &diskVolumeArgs{
 		DiskTags: map[string]string{},
@@ -545,7 +557,7 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest, m metadata.MetadataProvi
 	}
 
 	if slices.ContainsFunc(diskType, func(t Category) bool { return !AllCategories[t].Regional }) {
-		diskVolArgs.ZoneID, err = getZone(req)
+		diskVolArgs.ZoneID, err = getZone(req, recorder)
 		if err != nil {
 			if err == ErrUnknownZone {
 				klog.V(1).InfoS("No zone info. Fallback to metadata", "name", req.Name)

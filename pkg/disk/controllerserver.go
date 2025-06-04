@@ -163,7 +163,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	diskVol, err := getDiskVolumeOptions(req, cs.meta)
+	diskVol, err := getDiskVolumeOptions(req, cs.meta, cs.recorder)
 	if err != nil {
 		klog.Errorf("CreateVolume: error parameters from input: %v, with error: %v", req.Name, err)
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %v, with error: %v", req.Name, err)

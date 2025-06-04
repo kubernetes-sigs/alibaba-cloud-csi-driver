@@ -36,6 +36,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/mount-utils"
 )
 
@@ -759,7 +760,7 @@ func TestGetDiskVolumeOptions(t *testing.T) {
 			"diskTags/a": "b",
 		},
 	}
-	opts, err := getDiskVolumeOptions(req, testMetadata)
+	opts, err := getDiskVolumeOptions(req, testMetadata, &record.FakeRecorder{})
 	assert.NoError(t, err)
 	assert.Equal(t, "cn-beijing-i", opts.ZoneID)
 	assert.Equal(t, map[string]string{"a": "b"}, opts.DiskTags)
@@ -777,7 +778,7 @@ func TestGetDiskVolumeOptionsWithoutZoneID(t *testing.T) {
 			}},
 		},
 	}
-	_, err := getDiskVolumeOptions(req, testMetadata)
+	_, err := getDiskVolumeOptions(req, testMetadata, &record.FakeRecorder{})
 	assert.Error(t, err)
 }
 
@@ -796,7 +797,7 @@ func TestGetRegionalDiskVolumeOptionsWithoutZoneID(t *testing.T) {
 			}},
 		},
 	}
-	_, err := getDiskVolumeOptions(req, testMetadata)
+	_, err := getDiskVolumeOptions(req, testMetadata, &record.FakeRecorder{})
 	assert.NoError(t, err)
 }
 
@@ -843,6 +844,7 @@ func TestGetZone(t *testing.T) {
 		req      *csi.CreateVolumeRequest
 		expected string
 		err      string
+		event    string
 	}{
 		{
 			name:     "empty",
@@ -874,10 +876,11 @@ func TestGetZone(t *testing.T) {
 		{
 			name: "conflict",
 			req: &csi.CreateVolumeRequest{
-				Parameters:                map[string]string{"zoneId": "cn-beijing-j,cn-beijing-k"},
+				Parameters:                map[string]string{"zoneId": "cn-beijing-j"},
 				AccessibilityRequirements: topoReq("cn-beijing-i", "cn-beijing-a"),
 			},
-			err: "conflicting zone, parameters specified: cn-beijing-j,cn-beijing-k, accessibility requires: [cn-beijing-a cn-beijing-i]",
+			expected: "cn-beijing-j",
+			event:    "Warning ConflictingZone conflicting zone, parameters specified: cn-beijing-j, accessibility requires: [cn-beijing-a cn-beijing-i]",
 		},
 		{
 			name: "strange_topology",
@@ -892,7 +895,8 @@ func TestGetZone(t *testing.T) {
 					},
 				},
 			},
-			err: "no zone info found in accessibility requirements",
+			event:    "Warning ConflictingZone no zone info found in accessibility requirements",
+			expected: testMetadata.Values[metadata.DataPlaneZoneID],
 		},
 	}
 
@@ -901,13 +905,18 @@ func TestGetZone(t *testing.T) {
 			tc.req.CapacityRange = &csi.CapacityRange{
 				RequiredBytes: 20 * 1024 * 1024 * 1024,
 			}
-			args, err := getDiskVolumeOptions(tc.req, testMetadata)
+			recorder := record.NewFakeRecorder(10)
+			args, err := getDiskVolumeOptions(tc.req, testMetadata, recorder)
 			if tc.err != "" {
 				assert.ErrorContains(t, err, tc.err)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.expected, args.ZoneID)
 			}
+			if tc.event != "" {
+				assert.Equal(t, tc.event, <-recorder.Events)
+			}
+			assert.Empty(t, recorder.Events)
 		})
 	}
 }
