@@ -257,7 +257,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				// TODO: ECI does not support multi-attach?
 				return nil, status.Errorf(codes.Internal, "refuse to delete disk on serverless instance %s", disk.InstanceId)
 			}
-			err := cs.ad.detachDisk(ctx, ecsClient, req.VolumeId, disk.InstanceId)
+			err := cs.ad.detachDisk(ctx, ecsClient, req.VolumeId, disk.InstanceId, false)
 			if err != nil {
 				newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
 				return nil, status.Errorf(codes.Internal, "DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, newErrMsg)
@@ -388,7 +388,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	}
 
 	klog.Infof("ControllerUnpublishVolume: detach disk: %s from node: %s", req.VolumeId, req.NodeId)
-	err = cs.ad.detachDisk(ctx, ecsClient, req.VolumeId, req.NodeId)
+	err = cs.ad.detachDisk(ctx, ecsClient, req.VolumeId, req.NodeId, false)
 	if err != nil {
 		klog.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
