@@ -424,7 +424,7 @@ func (ad *DiskAttachDetach) detachMultiAttachDisk(ctx context.Context, ecsClient
 	return true, nil
 }
 
-func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) error {
+func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string, fromNode bool) error {
 	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
 		klog.Errorf("DetachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
@@ -432,6 +432,10 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Clien
 	}
 	if disk == nil {
 		klog.Infof("DetachDisk: Detach Disk %s from node %s describe and find disk not exist", diskID, nodeID)
+		return nil
+	}
+	if fromNode && disk.MultiAttach == "Enabled" {
+		klog.Infof("DetachDisk: Skip detach multi-attach disk %s from node, it will be detached by controller", diskID)
 		return nil
 	}
 
@@ -456,7 +460,7 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Clien
 	klog.Infof("DetachDisk: Starting to Detach Disk %s from node %s", diskID, nodeID)
 	detachDiskRequest := ecs.CreateDetachDiskRequest()
 	detachDiskRequest.DiskId = disk.DiskId
-	detachDiskRequest.InstanceId = disk.InstanceId
+	detachDiskRequest.InstanceId = nodeID
 	if AllCategories[Category(disk.Category)].SingleInstance {
 		detachDiskRequest.DeleteWithInstance = requests.NewBoolean(true)
 	}
