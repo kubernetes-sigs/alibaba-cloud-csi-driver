@@ -8,6 +8,8 @@ const (
 	DiskEfficiency Category = "cloud_efficiency"
 	DiskSSD        Category = "cloud_ssd"
 	DiskESSD       Category = "cloud_essd"
+	DiskESSDXc0    Category = "cloud_essd_xc0"
+	DiskESSDXc1    Category = "cloud_essd_xc1"
 	DiskESSDAuto   Category = "cloud_auto"
 	DiskESSDEntry  Category = "cloud_essd_entry"
 	DiskRegional   Category = "cloud_regional_disk_auto"
@@ -53,6 +55,16 @@ var AllCategories = map[Category]CategoryDesc{
 	},
 	DiskSSD: {
 		Size: SizeRange{Min: 20, Max: 65536},
+	},
+	DiskESSDXc0: {
+		Size:                    SizeRange{Min: 20, Max: 65536},
+		InstantAccessSnapshot:   true,
+		SnapshotConsistentGroup: true,
+	},
+	DiskESSDXc1: {
+		Size:                    SizeRange{Min: 20, Max: 65536},
+		InstantAccessSnapshot:   true,
+		SnapshotConsistentGroup: true,
 	},
 	DiskESSD: {
 		Size: SizeRange{Min: 20, Max: 65536},
