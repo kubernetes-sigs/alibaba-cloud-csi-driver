@@ -225,6 +225,44 @@ func TestBuildCreateDiskRequest(t *testing.T) {
 	assert.Greater(t, len(req2.QueryParams), len(req.QueryParams))
 }
 
+func TestBuildCreateDiskRequestTypeXc0(t *testing.T) {
+	args := &diskVolumeArgs{
+		ZoneID: "cn-hangzhou",
+	}
+	req := buildCreateDiskRequest(args)
+	assert.Equal(t, "cn-hangzhou", req.ZoneId)
+
+	req2 := finalizeCreateDiskRequest(req, createAttempt{
+		Category: DiskESSDXc0,
+	})
+	assert.Equal(t, "cloud_essd_xc0", req2.DiskCategory)
+	// fields is copied
+	assert.Equal(t, "cn-hangzhou", req2.ZoneId)
+
+	// send req2 should not affect req
+	requests.InitParams(req2)
+	assert.Greater(t, len(req2.QueryParams), len(req.QueryParams))
+}
+
+func TestBuildCreateDiskRequestTypeXc1(t *testing.T) {
+	args := &diskVolumeArgs{
+		ZoneID: "cn-hangzhou",
+	}
+	req := buildCreateDiskRequest(args)
+	assert.Equal(t, "cn-hangzhou", req.ZoneId)
+
+	req2 := finalizeCreateDiskRequest(req, createAttempt{
+		Category: DiskESSDXc1,
+	})
+	assert.Equal(t, "cloud_essd_xc1", req2.DiskCategory)
+	// fields is copied
+	assert.Equal(t, "cn-hangzhou", req2.ZoneId)
+
+	// send req2 should not affect req
+	requests.InitParams(req2)
+	assert.Greater(t, len(req2.QueryParams), len(req.QueryParams))
+}
+
 func TestGenerateAttempts(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -234,11 +272,13 @@ func TestGenerateAttempts(t *testing.T) {
 		{
 			name: "no PL",
 			args: &diskVolumeArgs{
-				Type: []Category{DiskESSD, DiskESSDAuto},
+				Type: []Category{DiskESSD, DiskESSDAuto, DiskESSDXc0, DiskESSDXc1},
 			},
 			attempts: []createAttempt{
 				{Category: DiskESSD},
 				{Category: DiskESSDAuto},
+				{Category: DiskESSDXc0},
+				{Category: DiskESSDXc1},
 			},
 		}, {
 			name: "with PL",
