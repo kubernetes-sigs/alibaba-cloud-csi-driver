@@ -147,12 +147,23 @@ spec:
             limits:
               cpu: 500m
               memory: 1024Mi
+          ports:
+            - containerPort: 8083
+              name: http-endpoint
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: http-endpoint
           args:
             - --v=5
             - --csi-address=/csi/csi.sock
+            - --http-endpoint=:8083
             - --leader-election=true
             - --extra-create-metadata=true
-            - --enable-volume-group-snapshots=true
+            - --feature-gates=CSIVolumeGroupSnapshot=true
+            - --snapshot-name-prefix=alibabacloud-disk
+            - --groupsnapshot-name-prefix=alibabacloud-disk
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
@@ -166,10 +177,19 @@ spec:
             limits:
               cpu: 500m
               memory: 1024Mi
+          ports:
+            - containerPort: 9080
+              name: http-endpoint
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: http-endpoint
           args:
             - --v=5
+            - --http-endpoint=:9080
             - --leader-election=true
-            - --enable-volume-group-snapshots=true
+            - --feature-gates=CSIVolumeGroupSnapshot=true
 {{- end -}}
 {{- end -}}
 {{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
