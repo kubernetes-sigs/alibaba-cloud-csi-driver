@@ -129,10 +129,19 @@ spec:
             limits:
               cpu: 500m
               memory: 1Gi
+          ports:
+            - containerPort: 8082
+              name: http-endpoint
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: http-endpoint
           args:
             - --v=5
             - --logging-format={{ .Values.logging.format }}
             - --csi-address=/csi/csi.sock
+            - --http-endpoint=:8082
             - --leader-election
             - --handle-volume-inuse-error=false
           volumeMounts:
@@ -204,10 +213,19 @@ spec:
             limits:
               cpu: 500m
               memory: 1Gi
+          ports:
+            - containerPort: 8092
+              name: http-endpoint
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: http-endpoint
           args:
             - --v=5
             - --logging-format={{ .Values.logging.format }}
             - --csi-address=/csi/csi.sock
+            - --http-endpoint=:8092
             - --leader-election
             - --handle-volume-inuse-error=false
           volumeMounts:
@@ -292,10 +310,19 @@ spec:
             limits:
               cpu: 500m
               memory: 1Gi
+          ports:
+            - containerPort: 8112
+              name: http-endpoint
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz/leader-election
+              port: http-endpoint
           args:
             - --v=5
             - --logging-format={{ .Values.logging.format }}
             - --csi-address=/csi/csi.sock
+            - --http-endpoint=:8112
             - --leader-election
             - --handle-volume-inuse-error=false
           volumeMounts:
