@@ -207,37 +207,37 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 		{
 			name:    "empty option, empty config",
 			options: []string{"others"},
-			want:    []string{"others", "log_level=info"},
+			want:    []string{"others", "log_level=info", "log_dir=/dev/stdout"},
 		},
 		{
 			name:    "set option",
-			options: []string{"others", "log_level=debug", "others"},
-			want:    []string{"others", "log_level=debug", "others"},
+			options: []string{"others", "log_level=debug", "log_dir=/tmp/ossfs2", "others"},
+			want:    []string{"others", "log_level=debug", "log_dir=/tmp/ossfs2", "others"},
 		},
 		{
 			name:     "set option, set config",
 			cfglevel: "info",
 			options:  []string{"others", "log_level=debug", "others"},
-			want:     []string{"others", "log_level=debug", "others"},
+			want:     []string{"others", "log_level=debug", "others", "log_dir=/dev/stdout"},
 		},
 		{
 			name:     "empty option, set config",
 			cfglevel: "debug",
 			options:  []string{"others"},
-			want:     []string{"others", "log_level=debug"},
+			want:     []string{"others", "log_level=debug", "log_dir=/dev/stdout"},
 		},
 		{
 			name:     "empty option, invalid config",
 			cfglevel: "invalid",
 			options:  []string{"others"},
-			want:     []string{"others", "log_level=info"},
+			want:     []string{"others", "log_level=info", "log_dir=/dev/stdout"},
 		},
 		{
 			name:        "default options",
 			cfglevel:    "",
 			options:     nil,
-			defaultOpts: "others",
-			want:        []string{"log_level=info", "others"},
+			defaultOpts: "others,log_dir=/tmp/ossfs2",
+			want:        []string{"others", "log_dir=/tmp/ossfs2", "log_level=info"},
 		},
 	}
 	for _, tt := range tests {

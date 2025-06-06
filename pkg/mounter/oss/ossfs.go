@@ -300,15 +300,29 @@ func (f *fuseOssfs) getAuthOptions(o *Options, region string) (mountOptions []st
 	return
 }
 
+const (
+	KeyDbgLevel      = "dbglevel"
+	KeyMime          = "mime"
+	KeyListObjectsV2 = "listobjectsv2"
+)
+
 func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
-	alreadySet := false
-	for _, option := range options {
-		if strings.Contains(option, "dbglevel") {
-			alreadySet = true
-			break
-		}
+	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS_OPTIONS")
+	if defaultOSSFSOptions != "" {
+		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
 	}
-	if !alreadySet {
+
+	tm := map[string]string{}
+	for _, option := range options {
+		if option == "" {
+			continue
+		}
+		k, v, _ := strings.Cut(option, "=")
+		tm[k] = v
+	}
+
+	// set default dbg level
+	if _, ok := tm[KeyDbgLevel]; !ok {
 		level, ok := ossfsDbglevels[f.config.Dbglevel]
 		if ok {
 			options = append(options, fmt.Sprintf("dbglevel=%s", level))
@@ -320,15 +334,19 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 		}
 	}
 
-	if !csiutils.IsFileExisting(filepath.Join(hostPrefix, OssfsDefMimeTypesFilePath)) && strings.ToLower(f.config.Extra["mime-support"]) == "true" {
-		// mime.types not exists, use csi-mime.types
-		options = append(options, fmt.Sprintf("mime=%s", OssfsCsiMimeTypesFilePath))
+	// set mime
+	if _, ok := tm[KeyMime]; !ok {
+		if !csiutils.IsFileExisting(filepath.Join(hostPrefix, OssfsDefMimeTypesFilePath)) && strings.ToLower(f.config.Extra["mime-support"]) == "true" {
+			// mime.types not exists, use csi-mime.types
+			options = append(options, fmt.Sprintf("mime=%s", OssfsCsiMimeTypesFilePath))
+		}
 	}
 
-	defaultOSSFSOptions := os.Getenv("DEFAULT_OSSFS_OPTIONS")
-	if defaultOSSFSOptions != "" {
-		options = append(options, strings.Split(defaultOSSFSOptions, ",")...)
+	// set listobjectsv2
+	if _, ok := tm[KeyListObjectsV2]; !ok {
+		options = append(options, "listobjectsv2")
 	}
+
 	return options
 }
 
