@@ -46,21 +46,6 @@ const (
 	// StorageProvisionerKey key
 	StorageProvisionerKey = "volume.beta.kubernetes.io/storage-provisioner"
 
-	//snapshotTooMany means that the previous Snapshot is greater than 1
-	snapshotTooMany string = "SnapshotTooMany"
-	//snapshotAlreadyExist means that the snapshot already exists
-	snapshotAlreadyExist string = "SnapshotAlreadyExist"
-	//snapshotCreateError means that the create snapshot error occurred
-	snapshotCreateError string = "SnapshotCreateError"
-	//snapshotCreatedSuccessfully means that the create snapshot success
-	snapshotCreatedSuccessfully string = "SnapshotCreatedSuccessfully"
-	//snapshotDeleteError means that the delete snapshot error occurred
-	snapshotDeleteError string = "SnapshotDeleteError"
-	//snapshotDeletedSuccessfully means that the delete snapshot success
-	snapshotDeletedSuccessfully string = "SnapshotDeletedSuccessfully"
-	//snapshotGetError means that the get snapshot error occurred
-	snapshotGetError string = "SnapshotGetError"
-
 	// IncorrectDiskStatus incorrect disk status
 	IncorrectDiskStatus = "IncorrectDiskStatus"
 	// NeverAttached status belongs to IncorrectDiskStatus
@@ -98,14 +83,6 @@ const (
 	GBSIZE = 1024 * MBSIZE
 	// ZoneID ...
 	ZoneID = "zoneId"
-	// instanceTypeLabel ...
-	instanceTypeLabel = "beta.kubernetes.io/instance-type"
-	// zoneIDLabel ...
-	zoneIDLabel = "failure-domain.beta.kubernetes.io/zone"
-	// sigmaLabel instance type ...
-	sigmaInstanceTypeLabel = "sigma.ali/machine-model"
-	// sigmaLabel zoneid ....
-	sigmaLabelZoneId = "sigma.ali/ecs-zone-id"
 
 	nodeDiskTypeLabelPrefix = "node.csi.alibabacloud.com/disktype."
 
