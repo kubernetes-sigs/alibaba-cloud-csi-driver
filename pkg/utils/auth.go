@@ -223,7 +223,7 @@ func getCredentialAK() AccessControl {
 	pc := provider.NewProviderChain([]provider.Provider{envProvider, profileProvider})
 	credential, err := pc.Resolve()
 	if err != nil {
-		if !strings.Contains(err.Error(), "No credential found") {
+		if !strings.Contains(err.Error(), "no credential found") {
 			klog.Errorf("Failed to resolve an authentication provider: %v", err)
 		}
 	}
