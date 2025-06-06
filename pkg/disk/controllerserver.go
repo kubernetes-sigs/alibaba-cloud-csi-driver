@@ -62,7 +62,6 @@ type diskVolumeArgs struct {
 	Type             []Category
 	RegionID         string
 	ZoneID           string
-	FsType           string
 	ReadOnly         bool
 	MultiAttach      bool
 	Encrypted        bool
