@@ -11,6 +11,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/mock/gomock"
 	"github.com/jarcoal/httpmock"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
@@ -25,9 +26,16 @@ import (
 )
 
 const (
-	fileSystemControllerTestRegion    = "cn-hangzhou"
 	fileSystemControllerTestMasterUrl = "https://api-server-host:6443"
 )
+
+var testMetadata = metadata.FakeProvider{
+	Values: map[metadata.MetadataKey]string{
+		metadata.RegionID:  "cn-hangzhou",
+		metadata.ZoneID:    "cn-hangzhou-a",
+		metadata.ClusterID: "cluster-id",
+	},
+}
 
 func TestNewFilesystemController(t *testing.T) {
 	prepareFilesystemControllerTestFakeK8sContext()
@@ -52,7 +60,7 @@ func newTestFileSystemController(t *testing.T) *filesystemController {
 	factory := interfaces.NewMockNasClientFactory(ctrl)
 	return &filesystemController{
 		config: &internal.ControllerConfig{
-			Region:           fileSystemControllerTestRegion,
+			Metadata:         testMetadata,
 			NasClientFactory: factory,
 		},
 	}
@@ -61,11 +69,11 @@ func newTestFileSystemController(t *testing.T) *filesystemController {
 func TestCreateVolume_InitNasClientError(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
-	registerZoneIdMetadataResponder()
 	prepareFilesystemControllerTestFakeK8sContext()
 
 	controller := &filesystemController{
 		config: &internal.ControllerConfig{
+			Metadata:         testMetadata,
 			NasClientFactory: cloud.NewNasClientFactory(),
 		},
 	}
@@ -77,15 +85,8 @@ func TestCreateVolume_InitNasClientError(t *testing.T) {
 		},
 	}
 	resp, err := controller.CreateVolume(context.Background(), req)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "nas client")
+	assert.ErrorContains(t, err, "nas client") // failed to fetch roleName: no responder found
 	assert.Nil(t, resp)
-}
-
-func registerZoneIdMetadataResponder() {
-	url := "=~^" + utils.MetadataURL + `/zone-id.*\z`
-	responder := httpmock.NewStringResponder(200, "cn-hangzhou-a")
-	httpmock.RegisterResponder("GET", url, responder)
 }
 
 func TestCreateVolume(t *testing.T) {
@@ -96,7 +97,6 @@ func TestCreateVolume(t *testing.T) {
 
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
-	registerZoneIdMetadataResponder()
 	prepareFilesystemControllerTestFakeK8sContext()
 	prepareNasClientCredentials(t)
 
@@ -344,7 +344,6 @@ func resetFileSystemControllerStatus(controller *filesystemController) {
 func TestCreateVolume_CreateFileSystemError(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
-	registerZoneIdMetadataResponder()
 	prepareFilesystemControllerTestFakeK8sContext()
 	prepareNasClientCredentials(t)
 
@@ -365,7 +364,6 @@ func TestCreateVolume_CreateFileSystemError(t *testing.T) {
 func TestCreateVolume_TagResourcesError(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
-	registerZoneIdMetadataResponder()
 	prepareFilesystemControllerTestFakeK8sContext()
 	prepareNasClientCredentials(t)
 
@@ -377,7 +375,6 @@ func TestCreateVolume_TagResourcesError(t *testing.T) {
 		v1NasInterfaceExpectsDescribeMountTargets(v1Interface, []string{"Active"}, nil)
 	})
 	controller.eventRecorder = utils.NewEventRecorder()
-	controller.config.ClusterID = "cluster-id"
 
 	actual, err := controller.CreateVolume(context.Background(), &csi.CreateVolumeRequest{
 		Parameters: map[string]string{
@@ -392,7 +389,6 @@ func TestCreateVolume_TagResourcesError(t *testing.T) {
 func TestCreateVolume_CreateMountTargetError(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
-	registerZoneIdMetadataResponder()
 	prepareFilesystemControllerTestFakeK8sContext()
 	prepareNasClientCredentials(t)
 
@@ -415,7 +411,6 @@ func TestCreateVolume_CreateMountTargetError(t *testing.T) {
 func TestCreateVolume_DescribeFileSystemsError(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
-	registerZoneIdMetadataResponder()
 	prepareFilesystemControllerTestFakeK8sContext()
 	prepareNasClientCredentials(t)
 
@@ -434,7 +429,6 @@ func TestCreateVolume_DescribeFileSystemsError(t *testing.T) {
 func TestCreateVolume_DescribeFileSystemsCountError(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
-	registerZoneIdMetadataResponder()
 	prepareFilesystemControllerTestFakeK8sContext()
 	prepareNasClientCredentials(t)
 
@@ -455,7 +449,6 @@ func TestCreateVolume_DescribeFileSystemsCountError(t *testing.T) {
 func TestCreateVolume_DescribeFileSystemsMountTargetCountTwoError(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
-	registerZoneIdMetadataResponder()
 	prepareFilesystemControllerTestFakeK8sContext()
 	prepareNasClientCredentials(t)
 
@@ -485,7 +478,6 @@ func TestCreateVolume_DescribeFileSystemsMountTargetCountTwoError(t *testing.T) 
 func TestCreateVolume_DescribeMountTargetsError(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
-	registerZoneIdMetadataResponder()
 	prepareFilesystemControllerTestFakeK8sContext()
 	prepareNasClientCredentials(t)
 
@@ -515,14 +507,11 @@ func newTestFileSystemControllerWithExpects(t *testing.T, v1ClientMockExpects fu
 
 	return &filesystemController{
 		config: &internal.ControllerConfig{
-			Region:           fileSystemControllerTestRegion,
+			Metadata:         testMetadata,
 			NasClientFactory: factory,
 			KubeClient: fake.NewSimpleClientset(&v1.StorageClass{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "mock-pv",
-				},
-				Parameters: map[string]string{
-					RegionID: "cn-hangzhou-a",
 				},
 			}),
 		},
@@ -758,7 +747,6 @@ func TestDeleteVolume_DeleteFileSystemError(t *testing.T) {
 func TestGetNasVolumeOptions(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
-	registerZoneIdMetadataResponder()
 
 	controller := newTestFileSystemController(t)
 	tests := []struct {
@@ -778,6 +766,7 @@ func TestGetNasVolumeOptions(t *testing.T) {
 			expected: &nasVolumeArgs{
 				ProtocolType:    "NFS",
 				StorageType:     "Performance",
+				ZoneID:          "cn-hangzhou-a",
 				NetworkType:     "vpc",
 				VpcID:           "vpc-id",
 				VSwitchID:       "vswitch-id",
@@ -794,6 +783,7 @@ func TestGetNasVolumeOptions(t *testing.T) {
 				FileSystemType:  "extreme",
 				Capacity:        "100",
 				EncryptType:     "0",
+				ZoneID:          "cn-hangzhou-a",
 				NetworkType:     "vpc",
 				VpcID:           "vpc-id",
 				VSwitchID:       "vswitch-id",
@@ -807,13 +797,14 @@ func TestGetNasVolumeOptions(t *testing.T) {
 				Parameters: map[string]string{
 					VpcID:     "vpc-id",
 					VSwitchID: "vswitch-id",
-					RegionID:  "cn-hangzhou-a",
+					RegionID:  "cn-hangzhou",
 				},
 			},
 			expected: &nasVolumeArgs{
 				ProtocolType:    "NFS",
 				StorageType:     "Performance",
-				RegionID:        "cn-hangzhou-a",
+				RegionID:        "cn-hangzhou",
+				ZoneID:          "cn-hangzhou-a",
 				NetworkType:     "vpc",
 				VpcID:           "vpc-id",
 				VSwitchID:       "vswitch-id",
@@ -833,6 +824,7 @@ func TestGetNasVolumeOptions(t *testing.T) {
 			expected: &nasVolumeArgs{
 				ProtocolType:    "NFS",
 				StorageType:     "Performance",
+				ZoneID:          "cn-hangzhou-a",
 				NetworkType:     "vpc",
 				VpcID:           "vpc-id",
 				VSwitchID:       "vswitch-id",
@@ -853,6 +845,7 @@ func TestGetNasVolumeOptions(t *testing.T) {
 			expected: &nasVolumeArgs{
 				ProtocolType:    "NFS",
 				StorageType:     "Performance",
+				ZoneID:          "cn-hangzhou-a",
 				NetworkType:     "vpc",
 				VpcID:           "vpc-id",
 				VSwitchID:       "vswitch-id",

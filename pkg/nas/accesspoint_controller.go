@@ -2,10 +2,12 @@ package nas
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"path/filepath"
 	"strconv"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 
 	sdk "github.com/alibabacloud-go/nas-20170626/v3/client"
@@ -22,7 +24,11 @@ import (
 )
 
 func newAccesspointController(config *internal.ControllerConfig) (internal.Controller, error) {
-	nasClient, err := config.NasClientFactory.V2(config.Region)
+	region, err := config.Metadata.Get(metadata.RegionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get region ID: %w", err)
+	}
+	nasClient, err := config.NasClientFactory.V2(region)
 	if err != nil {
 		return nil, err
 	}
