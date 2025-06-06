@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"maps"
 	"net"
 	"os"
@@ -52,6 +53,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 	k8smount "k8s.io/mount-utils"
@@ -360,24 +362,24 @@ func removeVolumeConfig(volumeID string) error {
 	return nil
 }
 
-// pickZone selects 1 zone given topology requirement.
-// if not found, empty string is returned.
-func pickZone(requirement *csi.TopologyRequirement) string {
-	if requirement == nil {
-		return ""
-	}
-	for _, topo := range [][]*csi.Topology{requirement.GetPreferred(), requirement.GetRequisite()} {
-		for _, topology := range topo {
-			segs := topology.GetSegments()
-			for _, key := range []string{TopologyZoneKey, common.TopologyKeyZone} {
-				zone, exists := segs[key]
-				if exists {
-					return zone
+// iterZone iterates zones from given topology requirement.
+func iterZone(requirement *csi.TopologyRequirement) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		if requirement == nil {
+			return
+		}
+		for _, topo := range [][]*csi.Topology{requirement.Preferred, requirement.Requisite} {
+			for _, topology := range topo {
+				segs := topology.GetSegments()
+				for _, key := range []string{TopologyZoneKey, common.TopologyKeyZone} {
+					zone, exists := segs[key]
+					if exists && !yield(zone) {
+						return
+					}
 				}
 			}
 		}
 	}
-	return ""
 }
 
 func parseTags(params map[string]string) (map[string]string, error) {
@@ -412,36 +414,75 @@ func parseTags(params map[string]string) (map[string]string, error) {
 	return seenTags, nil
 }
 
+func pvcRef(params map[string]string) *v1.ObjectReference {
+	return &v1.ObjectReference{
+		APIVersion: "v1",
+		Kind:       "PersistentVolumeClaim",
+		Namespace:  params[common.PVCNamespaceKey],
+		Name:       params[common.PVCNameKey],
+	}
+}
+
+var ErrUnknownZone = errors.New("unknown zone")
+
+func getZone(req *csi.CreateVolumeRequest, recorder record.EventRecorder) (string, error) {
+	volOptions := req.GetParameters()
+	zoneID, ok := volOptions[ZoneID]
+	if !ok {
+		zoneID, ok = volOptions[strings.ToLower(ZoneID)]
+	}
+	var paramZone sets.Set[string]
+	if ok {
+		paramZone = sets.New(strings.Split(zoneID, ",")...)
+	}
+
+	// We use the first zone in the intersection of AccessibilityRequirements and Parameter.
+	// New user is encouraged to use standard AccessibilityRequirements.
+	// For this to work on Kubernetes, --strict-topology needs to be set on external-provisioner
+	// to ensure only the selected node is passed in AccessibilityRequirements.
+
+	// Use set instead of slice because we have instanceID in topology,
+	// so the same zone may appears multiple times.
+	missedZones := sets.New[string]()
+	for zone := range iterZone(req.AccessibilityRequirements) {
+		if paramZone == nil {
+			return zone, nil
+		} else if paramZone.Has(zone) {
+			return zone, nil
+		}
+		missedZones.Insert(zone)
+	}
+
+	if req.AccessibilityRequirements.GetRequisite() != nil {
+		// CSI Spec:
+		// If the list of requisite topologies is specified and the SP is
+		// unable to to make the provisioned volume available from any of the
+		// requisite topologies it MUST fail the CreateVolume call.
+		//
+		// However, for backward capability, we just record event.
+		msg := "no zone info found in accessibility requirements"
+		if len(missedZones) > 0 {
+			msg = fmt.Sprintf("conflicting zone, parameters specified: %s, accessibility requires: %v", zoneID, sets.List(missedZones))
+		}
+		recorder.Event(pvcRef(req.Parameters), v1.EventTypeWarning, "ConflictingZone", msg)
+	}
+
+	// Best effort to pick what we have
+	for zone := range paramZone {
+		// Use a random zone from parameters
+		return zone, nil
+	}
+	return "", ErrUnknownZone
+}
+
 // getDiskVolumeOptions
-func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error) {
+func getDiskVolumeOptions(req *csi.CreateVolumeRequest, m metadata.MetadataProvider, recorder record.EventRecorder) (*diskVolumeArgs, error) {
 	var ok bool
 	diskVolArgs := &diskVolumeArgs{
 		DiskTags: map[string]string{},
 	}
 	volOptions := req.GetParameters()
 
-	if diskVolArgs.ZoneID, ok = volOptions[ZoneID]; !ok {
-		if diskVolArgs.ZoneID, ok = volOptions[strings.ToLower(ZoneID)]; !ok {
-			// topology aware feature to get zoneid
-			diskVolArgs.ZoneID = pickZone(req.GetAccessibilityRequirements())
-			if diskVolArgs.ZoneID == "" {
-				klog.Errorf("CreateVolume: Can't get topology info , please check your setup or set zone ID in storage class. Use zone from Meta service: %s", req.Name)
-				diskVolArgs.ZoneID, _ = utils.GetMetaData(ZoneIDTag)
-			}
-		}
-	}
-	// Support Multi zones if set;
-	zoneIDStr := diskVolArgs.ZoneID
-	zones := strings.Split(zoneIDStr, ",")
-	zoneNum := len(zones)
-	if zoneNum > 1 {
-		if _, ok := storageClassZonePos[zoneIDStr]; !ok {
-			storageClassZonePos[zoneIDStr] = 0
-		}
-		zoneIndex := storageClassZonePos[zoneIDStr] % zoneNum
-		diskVolArgs.ZoneID = zones[zoneIndex]
-		storageClassZonePos[zoneIDStr]++
-	}
 	diskVolArgs.RegionID, ok = volOptions["regionId"]
 	if !ok {
 		diskVolArgs.RegionID = GlobalConfigVar.Region
@@ -470,8 +511,20 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest) (*diskVolumeArgs, error)
 	}
 
 	if slices.ContainsFunc(diskType, func(t Category) bool { return !AllCategories[t].Regional }) {
+		diskVolArgs.ZoneID, err = getZone(req, recorder)
+		if err != nil {
+			if err == ErrUnknownZone {
+				klog.V(1).InfoS("No zone info. Fallback to metadata", "name", req.Name)
+				diskVolArgs.ZoneID, err = metadata.GetFallbackZoneID(m)
+				if err != nil {
+					return nil, fmt.Errorf("no zone info, and failed to get zone id from metadata: %w", err)
+				}
+			} else {
+				return nil, err
+			}
+		}
 		if diskVolArgs.ZoneID == "" {
-			return nil, fmt.Errorf("CreateVolume: Can't get zone ID from node topology info or storage class topology or metadataserver, req: %v", volOptions)
+			return nil, fmt.Errorf("empty zone ID is invalid")
 		}
 	}
 	diskVolArgs.Type = diskType

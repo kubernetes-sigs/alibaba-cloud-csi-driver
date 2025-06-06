@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -24,6 +25,7 @@ const (
 	ClusterID
 	VmocType
 	RegistryURL
+	DataPlaneZoneID
 )
 
 func (k MetadataKey) String() string {
@@ -44,6 +46,8 @@ func (k MetadataKey) String() string {
 		return "VmocType"
 	case RegistryURL:
 		return "RegistryURL"
+	case DataPlaneZoneID:
+		return "DataPlaneZoneID"
 	default:
 		return fmt.Sprintf("MetadataKey(%d)", k)
 	}
@@ -206,6 +210,22 @@ func MustGet(m MetadataProvider, key MetadataKey) string {
 		panic(err)
 	}
 	return value
+}
+
+// GetFallbackZoneID returns the zone ID for provision resource when it is specified by user
+func GetFallbackZoneID(m MetadataProvider) (string, error) {
+	zoneID, err := m.Get(DataPlaneZoneID)
+	if err == nil {
+		return zoneID, nil
+	}
+	if errors.Is(err, ErrUnknownMetadataKey) ||
+		apierrors.IsNotFound(err) || apierrors.IsForbidden(err) {
+		// Maybe Kubernetes provider is not enabled, or not in ACK cluster.
+		// Use the zoneID of controller as the last resort.
+		return m.Get(ZoneID)
+	} else {
+		return zoneID, err
+	}
 }
 
 // FakeProvider is a fake metadata provider for testing

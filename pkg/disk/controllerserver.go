@@ -30,6 +30,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
@@ -51,6 +52,7 @@ import (
 type controllerServer struct {
 	recorder       record.EventRecorder
 	ad             DiskAttachDetach
+	meta           metadata.MetadataProvider
 	snapshotWaiter waitstatus.StatusWaiter[ecs.Snapshot]
 	common.GenericControllerServer
 }
@@ -100,10 +102,11 @@ func newSnapshotStatusWaiter() waitstatus.StatusWaiter[ecs.Snapshot] {
 }
 
 // NewControllerServer is to create controller server
-func NewControllerServer(csiCfg utils.Config) csi.ControllerServer {
+func NewControllerServer(csiCfg utils.Config, m metadata.MetadataProvider) csi.ControllerServer {
 	waiter, batcher := newBatcher(false)
 	c := &controllerServer{
 		recorder: utils.NewEventRecorder(),
+		meta:     m,
 		ad: DiskAttachDetach{
 			waiter:  waiter,
 			batcher: batcher,
@@ -139,9 +142,6 @@ func (cs *controllerServer) ControllerGetCapabilities(ctx context.Context, req *
 	}, nil
 }
 
-// the map of multizone and index
-var storageClassZonePos = map[string]int{}
-
 // provisioner: create/delete disk
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	logger := klog.FromContext(ctx)
@@ -163,7 +163,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	diskVol, err := getDiskVolumeOptions(req)
+	diskVol, err := getDiskVolumeOptions(req, cs.meta, cs.recorder)
 	if err != nil {
 		klog.Errorf("CreateVolume: error parameters from input: %v, with error: %v", req.Name, err)
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid parameters from input: %v, with error: %v", req.Name, err)
