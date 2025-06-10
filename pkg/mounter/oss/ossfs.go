@@ -29,8 +29,6 @@ const (
 	// The ossfs image includes a default MIME configuration located at /csi/mime.types
 	OssfsCsiMimeTypesFilePath = "/csi/mime.types"
 
-	defaultRegistry = "registry-cn-hangzhou.ack.aliyuncs.com"
-
 	CsiSecretStoreDriver   = "secrets-store.csi.k8s.io"
 	SecretProviderClassKey = "secretProviderClass"
 )

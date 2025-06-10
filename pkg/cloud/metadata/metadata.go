@@ -24,7 +24,6 @@ const (
 	AccountID
 	ClusterID
 	VmocType
-	RegistryURL
 	DataPlaneZoneID
 )
 
@@ -44,8 +43,6 @@ func (k MetadataKey) String() string {
 		return "ClusterID"
 	case VmocType:
 		return "VmocType"
-	case RegistryURL:
-		return "RegistryURL"
 	case DataPlaneZoneID:
 		return "DataPlaneZoneID"
 	default:
