@@ -490,18 +490,11 @@ func getDiskVolumeOptions(req *csi.CreateVolumeRequest, m metadata.MetadataProvi
 
 	diskVolArgs.NodeSelected = volOptions[NodeScheduleTag]
 
-	// fstype
-	// https://github.com/kubernetes-csi/external-provisioner/releases/tag/v1.0.1
-	diskVolArgs.FsType, ok = volOptions[CSI_DEFAULT_FS_TYPE]
-	if !ok {
-		diskVolArgs.FsType, ok = volOptions[FS_TYPE]
-		if !ok {
-			diskVolArgs.FsType = EXT4_FSTYPE
+	for _, cap := range req.GetVolumeCapabilities() {
+		mnt := cap.GetMount()
+		if mnt != nil && mnt.FsType != "" && !SupportedFilesystemTypes.Has(mnt.FsType) {
+			return nil, fmt.Errorf("fsType %s is not supported, please use %v", mnt.FsType, SupportedFilesystemTypes.UnsortedList())
 		}
-	}
-
-	if !SupportedFilesystemTypes.Has(diskVolArgs.FsType) {
-		return nil, fmt.Errorf("illegal required parameter fsType, only support %v, the input is: %s", SupportedFilesystemTypes.UnsortedList(), diskVolArgs.FsType)
 	}
 
 	// disk Type
