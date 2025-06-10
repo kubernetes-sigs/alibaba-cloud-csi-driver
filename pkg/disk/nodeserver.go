@@ -973,7 +973,7 @@ func localExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*
 		return nil, status.Error(codes.Internal, "Fail to resize volume fs")
 	}
 
-	deviceCapacity := getBlockDeviceCapacity(devicePath)
+	deviceCapacity := getBlockDeviceCapacity(rootPath)
 	if requestBytes > 0 && deviceCapacity < requestBytes {
 		// After calling OpenAPI to expand cloud disk, the size of the underlying block device may not change immediately.
 		// return error and CO will retry later.
