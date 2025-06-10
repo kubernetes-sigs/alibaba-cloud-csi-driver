@@ -124,8 +124,8 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 }
 
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (
-	*csi.ControllerUnpublishVolumeResponse, error) {
-
+	*csi.ControllerUnpublishVolumeResponse, error,
+) {
 	if !strings.HasPrefix(req.NodeId, LingjunNodeIDPrefix) {
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}

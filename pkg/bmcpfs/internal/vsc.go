@@ -316,8 +316,22 @@ type cpfsAttachDetacher struct {
 }
 
 func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) error {
-	if err := ad.attach(fsId, vscId); err != nil {
+	attachInfo, err := ad.describe(fsId, vscId)
+	if err != nil {
 		return err
+	}
+	if attachInfo != nil {
+		switch tea.StringValue(attachInfo.Status) {
+		case CPFSVscStatusAttaching:
+		case CPFSVscStatusAttached:
+			return nil
+		default:
+			return fmt.Errorf("unexpected attachinfo status: %v", tea.StringValue(attachInfo.Status))
+		}
+	} else {
+		if err := ad.attach(fsId, vscId); err != nil {
+			return err
+		}
 	}
 	return ad.waitFor(ctx, fsId, vscId, func(i *CPFSVscAttachInfo) (bool, error) {
 		if i == nil {
