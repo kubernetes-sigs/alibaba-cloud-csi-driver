@@ -55,7 +55,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
-	"k8s.io/mount-utils"
 	k8smount "k8s.io/mount-utils"
 )
 
@@ -246,13 +245,6 @@ func checkRootAndSubDeviceFS(rootDevicePath, subDevicePath string) error {
 		return fmt.Errorf("root device %s has partition, and you should format %s by hands ", rootDevicePath, subDevicePath)
 	}
 	return nil
-}
-
-func makeDevicePath(name string) string {
-	if strings.HasPrefix(name, "/dev/") {
-		return name
-	}
-	return filepath.Join("/dev/", name)
 }
 
 func prepareMountInfos(req *csi.NodePublishVolumeRequest) ([]string, string) {
@@ -749,7 +741,7 @@ func checkDeviceAvailable(mountinfoPath, devicePath, volumeID, targetPath string
 		return fmt.Errorf("devicePath is empty, cannot used for Volume")
 	}
 
-	mnts, err := mount.ParseMountInfo(mountinfoPath)
+	mnts, err := k8smount.ParseMountInfo(mountinfoPath)
 	if err != nil {
 		return err
 	}

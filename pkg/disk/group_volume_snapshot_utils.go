@@ -209,26 +209,6 @@ func checkSourceVolume(disk *ecs.Disk, zoneId string, capacityInGiB int) (
 	return
 }
 
-// checkSourceVolumes checks whether the source volumes are valid.
-func checkSourceVolumes(sourceVolumeIds []string) error {
-	var zoneId string
-	var capacityInGiB int
-	var err error
-	disks := getDisks(sourceVolumeIds, GlobalConfigVar.EcsClient)
-	if len(disks) != len(sourceVolumeIds) {
-		return fmt.Errorf("can not find enough disks: %v", sourceVolumeIds)
-	}
-
-	for _, disk := range disks {
-		zoneId, capacityInGiB, err = checkSourceVolume(&disk, zoneId, capacityInGiB)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func requestAndDeleteGroupSnapshot(groupSnapshotID string) (*ecs.DeleteSnapshotGroupResponse, error) {
 	// Delete Snapshotgroup
 	deleteSnapshotGroupRequest := ecs.CreateDeleteSnapshotGroupRequest()

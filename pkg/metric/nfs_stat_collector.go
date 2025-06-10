@@ -454,8 +454,8 @@ func (p *nfsStatCollector) capacityEventAlert(totalSize int64, usedSize int64, p
 				UID:       "",
 				Namespace: info.PvcNamespace,
 			}
-			reason := fmt.Sprintf("Pvc %s is running out of disk space, namespace: %s, totalSize:%fGi, usedSize:%fGi, usedPercentage:%.2f%%, threshold:%.2f%%",
-				info.PvcName, info.PvcNamespace, total/gibSize, used/gibSize, usedPercentage, p.capacityPercentageThreshold)
+			reason := fmt.Sprintf("PVC %s/%s (PV %s) is running out of capacity, totalSize:%fGi, usedSize:%fGi, usedPercentage:%.2f%%, threshold:%.2f%%",
+				info.PvcNamespace, info.PvcName, pvName, total/gibSize, used/gibSize, usedPercentage, p.capacityPercentageThreshold)
 			utils.CreateEvent(p.recorder, ref, v1.EventTypeWarning, capacityNotEnough, reason)
 		}
 	}

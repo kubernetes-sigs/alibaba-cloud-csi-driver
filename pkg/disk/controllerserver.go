@@ -787,24 +787,3 @@ func updateVolumeExpandAutoSnapshotID(pvc *v1.PersistentVolumeClaim, snapshotID,
 	}
 	return nil
 }
-
-func (cs *controllerServer) deleteVolumeExpandAutoSnapshot(ctx context.Context, pvc *v1.PersistentVolumeClaim, snapshotID string) error {
-	klog.Infof("ControllerExpandVolume:: Starting to delete volumeExpandAutoSnapshot with id: %s", snapshotID)
-
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
-
-	// Delete Snapshot
-	response, err := requestAndDeleteSnapshot(snapshotID)
-	if err != nil {
-		if response != nil {
-			klog.Errorf("ControllerExpandVolume:: fail to delete %s with error: %s", snapshotID, err.Error())
-		}
-
-		cs.recorder.Event(pvc, v1.EventTypeWarning, snapshotDeleteError, err.Error())
-		return status.Errorf(codes.Internal, "volumeExpandAutoSnapshot delete Failed: %v", err)
-	}
-
-	str := fmt.Sprintf("ControllerExpandVolume:: Successfully delete snapshot %s", snapshotID)
-	cs.recorder.Event(pvc, v1.EventTypeNormal, snapshotDeletedSuccessfully, str)
-	return nil
-}
