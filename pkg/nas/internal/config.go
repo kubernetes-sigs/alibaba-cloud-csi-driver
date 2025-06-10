@@ -29,8 +29,7 @@ const (
 
 type ControllerConfig struct {
 	// cluster info
-	Region    string
-	ClusterID string
+	Metadata metadata.MetadataProvider
 
 	// subpath configs
 	SkipSubpathCreation    bool
@@ -54,8 +53,7 @@ func mustGetKubeClients() (kubernetes.Interface, cnfsv1beta1.CNFSGetter) {
 func GetControllerConfig(meta *metadata.Metadata) (*ControllerConfig, error) {
 	kubeClient, cnfsGetter := mustGetKubeClients()
 	config := &ControllerConfig{
-		Region:           metadata.MustGet(meta, metadata.RegionID),
-		ClusterID:        os.Getenv("CLUSTER_ID"),
+		Metadata:         meta,
 		KubeClient:       kubeClient,
 		CNFSGetter:       cnfsGetter,
 		NasClientFactory: cloud.NewNasClientFactory(),

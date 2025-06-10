@@ -28,6 +28,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	aliNas "github.com/aliyun/alibaba-cloud-sdk-go/services/nas"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -48,7 +49,6 @@ const (
 	StorageType     = "storageType"
 	ZoneID          = "zoneId"
 	DESCRIPTION     = "description"
-	ZoneIDTag       = "zone-id"
 	NetworkType     = "networkType"
 	VpcID           = "vpcId"
 	VSwitchID       = "vSwitchId"
@@ -155,7 +155,10 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 
 	volumeContext := map[string]string{}
 	if len(nasVol.RegionID) == 0 {
-		nasVol.RegionID = cs.config.Region
+		nasVol.RegionID, err = cs.config.Metadata.Get(metadata.RegionID)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get region ID: %v", err)
+		}
 	}
 	nasClient, err := cs.config.NasClientFactory.V1(nasVol.RegionID)
 	if err != nil {
@@ -181,7 +184,7 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 			createFileSystemsRequest.EncryptType = requests.Integer(nasVol.EncryptType)
 			createFileSystemsRequest.ZoneId = nasVol.ZoneID
 		}
-		klog.Infof("CreateVolume: Volume: %s, Create Nas filesystem with: %v, %v", pvName, cs.config.Region, nasVol)
+		klog.Infof("CreateVolume: Volume: %s, Create Nas filesystem with: %v, %v", pvName, nasVol.RegionID, nasVol)
 
 		createFileSystemsResponse, err := nasClient.CreateFileSystem(createFileSystemsRequest)
 		if err != nil {
@@ -196,8 +199,9 @@ func (cs *filesystemController) CreateVolume(ctx context.Context, req *csi.Creat
 		// Set Default DiskTags
 		tagResourcesRequest := aliNas.CreateTagResourcesRequest()
 		tagResourcesRequest.ResourceId = &[]string{fileSystemID}
-		if cs.config.ClusterID != "" {
-			tagResourcesRequest.Tag = &[]aliNas.TagResourcesTag{{Key: NASTAGKEY1, Value: NASTAGVALUE1}, {Key: NASTAGKEY2, Value: NASTAGVALUE2}, {Key: NASTAGKEY3, Value: cs.config.ClusterID}}
+		clusterID, _ := cs.config.Metadata.Get(metadata.ClusterID)
+		if clusterID != "" {
+			tagResourcesRequest.Tag = &[]aliNas.TagResourcesTag{{Key: NASTAGKEY1, Value: NASTAGVALUE1}, {Key: NASTAGKEY2, Value: NASTAGVALUE2}, {Key: NASTAGKEY3, Value: clusterID}}
 		} else {
 			tagResourcesRequest.Tag = &[]aliNas.TagResourcesTag{{Key: NASTAGKEY1, Value: NASTAGVALUE1}, {Key: NASTAGKEY2, Value: NASTAGVALUE2}}
 		}
@@ -370,7 +374,7 @@ func (cs *filesystemController) getNasVolumeOptions(req *csi.CreateVolumeRequest
 	// zoneId
 	if nasVolArgs.ZoneID, ok = volOptions[ZoneID]; !ok {
 		if nasVolArgs.ZoneID, ok = volOptions[strings.ToLower(ZoneID)]; !ok {
-			nasVolArgs.ZoneID, _ = utils.GetMetaData(ZoneIDTag)
+			nasVolArgs.ZoneID, _ = metadata.GetFallbackZoneID(cs.config.Metadata)
 		}
 	}
 
@@ -456,7 +460,10 @@ func (cs *filesystemController) DeleteVolume(ctx context.Context, req *csi.Delet
 	if value, ok := storageclass.Parameters[RegionID]; ok {
 		regionID = value
 	} else {
-		regionID = cs.config.Region
+		regionID, err = cs.config.Metadata.Get(metadata.RegionID)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to get region ID: %v", err)
+		}
 	}
 
 	nasClient, err := cs.config.NasClientFactory.V1(regionID)

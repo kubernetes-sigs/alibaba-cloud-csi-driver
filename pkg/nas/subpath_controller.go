@@ -19,6 +19,7 @@ package nas
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -27,6 +28,7 @@ import (
 	sdk "github.com/alibabacloud-go/nas-20170626/v3/client"
 	"github.com/alibabacloud-go/tea/tea"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/internal"
@@ -50,7 +52,11 @@ type subpathController struct {
 }
 
 func newSubpathController(config *internal.ControllerConfig) (internal.Controller, error) {
-	nasClient, err := config.NasClientFactory.V2(config.Region)
+	region, err := config.Metadata.Get(metadata.RegionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get region ID: %w", err)
+	}
+	nasClient, err := config.NasClientFactory.V2(region)
 	if err != nil {
 		return nil, err
 	}
