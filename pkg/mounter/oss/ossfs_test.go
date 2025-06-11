@@ -561,36 +561,41 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 		{
 			name:    "empty option, empty config",
 			options: []string{"others"},
-			want:    []string{"others", "dbglevel=err"},
+			want:    []string{"others", "dbglevel=err", "listobjectsv2"},
 		},
 		{
 			name:    "set option",
 			options: []string{"others", "dbglevel=debug", "others"},
-			want:    []string{"others", "dbglevel=debug", "others"},
+			want:    []string{"others", "dbglevel=debug", "others", "listobjectsv2"},
 		},
 		{
 			name:     "set option, set config",
 			cfglevel: "info",
 			options:  []string{"others", "dbglevel=debug", "others"},
-			want:     []string{"others", "dbglevel=debug", "others"},
+			want:     []string{"others", "dbglevel=debug", "others", "listobjectsv2"},
 		},
 		{
 			name:     "empty option, set config",
 			cfglevel: "debug",
 			options:  []string{"others"},
-			want:     []string{"others", "dbglevel=debug"},
+			want:     []string{"others", "dbglevel=debug", "listobjectsv2"},
 		},
 		{
 			name:     "empty option, invalid config",
 			cfglevel: "invalid",
 			options:  []string{"others"},
-			want:     []string{"others", "dbglevel=err"},
+			want:     []string{"others", "dbglevel=err", "listobjectsv2"},
 		},
 		{
 			name:        "mime-support=true",
 			enabledMime: true,
 			options:     []string{"others"},
-			want:        []string{"others", "dbglevel=err", "mime=" + OssfsCsiMimeTypesFilePath},
+			want:        []string{"others", "dbglevel=err", "mime=" + OssfsCsiMimeTypesFilePath, "listobjectsv2"},
+		},
+		{
+			name:    "listobjectsv2 has set",
+			options: []string{"others", "listobjectsv2"},
+			want:    []string{"others", "listobjectsv2", "dbglevel=err"},
 		},
 	}
 	for _, tt := range tests {
