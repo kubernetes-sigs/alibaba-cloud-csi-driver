@@ -105,7 +105,7 @@ func (cs *groupControllerServer) CreateVolumeGroupSnapshot(ctx context.Context, 
 	// todo: Do not check source disks here. If need, use `checkSourceVolumes`
 
 	// init createSnapshotGroupRequest and parameters
-	params, err := getVolumeGroupSnapshotConfig(req)
+	params, err := parseGroupSnapshotParameters(req.Parameters)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "get volumeGroupSnapshot %s config failed: %v", req.GetName(), err)
 	}
