@@ -215,7 +215,7 @@ func getMountTarget(client *nasclient.Client, fsId, networkType string) (string,
 	}
 	for _, mt := range mountTargets.MountTarget {
 		t := tea.StringValue(mt.NetworkType)
-		// mount targets with emtpy network type is vsc type
+		// mount targets with empty network type is vsc type
 		if t == "" {
 			t = networkTypeVSC
 		}

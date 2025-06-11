@@ -1,5 +1,5 @@
 [files]
-extend-exclude = ["vendor/*", "*.mod", "*.sum", "build/"]
+extend-exclude = ["vendor/*", "*.mod", "*.sum", "build/", "staging/"]
 
 [default]
 binary = false
