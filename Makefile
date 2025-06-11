@@ -51,7 +51,9 @@ update-deps:
 check-deps: update-deps
 	git diff --exit-code go.mod go.sum vendor
 
-.PHONY: update-base-image-deps check-base-image-deps
+.PHONY: update-dockerfile update-base-image-deps check-base-image-deps
+update-dockerfile: bin/syft
+	./hack/update-dockerfile.sh
 update-base-image-deps: bin/syft
 	./hack/update-base-image-deps.sh
 check-base-image-deps: update-base-image-deps

@@ -2,23 +2,27 @@
 
 set -e
 
+skopeo() {
+    command skopeo --override-os linux --override-arch amd64 "$@"
+}
+
 DOCKERFILE=build/multi/Dockerfile.multi
 
 DISTROLESS=gcr.io/distroless/base-debian12
-DEBIAN=debian
+DEBIAN=docker.io/debian
 
 if [ "$ACK" ]; then
     DISTROLESS=registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian12
     DEBIAN=registry-cn-hangzhou.ack.aliyuncs.com/dev/debian
 fi
 
-DISTROLESS_DIGEST=$(crane digest $DISTROLESS)
+DISTROLESS_DIGEST=$(skopeo inspect docker://$DISTROLESS --format '{{.Digest}}')
 echo "The latest distroless digest is $DISTROLESS_DIGEST"
 
-DEBIAN_TAG=$(crane ls $DEBIAN | grep -E 'bookworm-.+-slim' | sort | tail -n1)
+DEBIAN_TAG=$(skopeo list-tags docker://$DEBIAN | jq -r '.Tags|map(select(test("^bookworm-.+-slim$"))) | sort | last')
 echo "The latest debian tag is $DEBIAN_TAG"
 
-sed -i '' "
+sed -i "
     s|@sha[0-9a-f:]* as distroless-base|@$DISTROLESS_DIGEST as distroless-base|;
     s|debian:[0-9a-z-]* as |debian:$DEBIAN_TAG as |;
     " $DOCKERFILE
