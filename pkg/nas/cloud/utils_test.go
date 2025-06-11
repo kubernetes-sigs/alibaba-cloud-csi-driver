@@ -1,15 +1,10 @@
 package cloud
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
-)
 
-func TestGetFilesystemTypeByMountTargetDomain(t *testing.T) {
-	t.Parallel()
-	actual := GetFilesystemTypeByMountTargetDomain("")
-	assert.Empty(t, actual)
-}
+	"github.com/stretchr/testify/assert"
+)
 
 func TestGetFilesystemTypeByMountTargetDomainExtreme(t *testing.T) {
 	t.Parallel()

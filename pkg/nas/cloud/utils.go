@@ -14,10 +14,9 @@ func GetFilesystemTypeByMountTargetDomain(domain string) string {
 		return FilesystemTypeExtreme
 	case strings.HasSuffix(domain, "cpfs.nas.aliyuncs.com"):
 		return FilesystemTypeCpfs
-	case strings.HasSuffix(domain, "nas.aliyuncs.com"):
-		return FilesystemTypeStandard
 	default:
-		return ""
+		// *.nas.aliyuncs.com
+		return FilesystemTypeStandard
 	}
 }
 
