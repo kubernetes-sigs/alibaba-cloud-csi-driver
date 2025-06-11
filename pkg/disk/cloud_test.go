@@ -234,11 +234,13 @@ func TestGenerateAttempts(t *testing.T) {
 		{
 			name: "no PL",
 			args: &diskVolumeArgs{
-				Type: []Category{DiskESSD, DiskESSDAuto},
+				Type: []Category{DiskESSD, DiskESSDAuto, DiskESSDXc0, DiskESSDXc1},
 			},
 			attempts: []createAttempt{
 				{Category: DiskESSD},
 				{Category: DiskESSDAuto},
+				{Category: DiskESSDXc0},
+				{Category: DiskESSDXc1},
 			},
 		}, {
 			name: "with PL",
