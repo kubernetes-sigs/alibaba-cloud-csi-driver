@@ -1,5 +1,5 @@
 {{- range $key, $nodePool := .Values.nodePools -}}
-{{- if and $.Values.plugin.enabled (ne $nodePool nil) }}
+{{- if and $.Values.plugin.enabled (not (empty $nodePool)) }}
 ---
 {{- $values := deepCopy $.Values }}
 {{- $nodePool := mergeOverwrite $values $nodePool }}
