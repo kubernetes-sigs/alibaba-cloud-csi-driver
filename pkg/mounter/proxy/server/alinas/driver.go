@@ -76,16 +76,24 @@ func runCommandForever(command string, args ...string) {
 
 // addAutoFallbackNFSMountOptions adds auto_fallback_nfs mount option when using efc
 func addAutoFallbackNFSMountOptions(mountOptions []string) []string {
+	isEFC := false
+	isVSC := false
 	for _, options := range mountOptions {
 		for _, option := range mounter.SplitMountOptions(options) {
 			if option == "" {
 				continue
 			}
-			key, _, _ := strings.Cut(option, "=")
-			if key == "efc" {
-				return append(mountOptions, "auto_fallback_nfs")
+			key, value, _ := strings.Cut(option, "=")
+			switch key {
+			case "efc":
+				isEFC = true
+			case "net":
+				isVSC = value == "vsc"
 			}
 		}
+	}
+	if isEFC && !isVSC {
+		mountOptions = append(mountOptions, "auto_fallback_nfs")
 	}
 	return mountOptions
 }

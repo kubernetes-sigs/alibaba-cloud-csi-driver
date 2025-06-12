@@ -28,9 +28,8 @@ import (
 	"sync"
 	"time"
 
-	flag "github.com/spf13/pflag"
-
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/agent"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/bmcpfs"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/ens"
@@ -45,6 +44,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	"github.com/sirupsen/logrus"
+	flag "github.com/spf13/pflag"
 	"golang.org/x/sys/unix"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/component-base/logs"
@@ -74,6 +74,8 @@ const (
 	TypePluginENS = "ensplugin.csi.alibabacloud.com"
 	// TypePluginPOV POV type plugins
 	TypePluginPOV = "povplugin.csi.alibabacloud.com"
+	// TypePluginBMCPFS BMCPFS type plugin
+	TypePluginBMCPFS = "bmcpfsplugin.csi.alibabacloud.com"
 	// ExtenderAgent agent component
 	ExtenderAgent = "agent"
 )
@@ -127,9 +129,6 @@ func main() {
 			}()
 		}
 	}
-
-	// setLogAttribute(logAttribute)
-	// log.AddHook(rotateHook(logAttribute))
 
 	klog.Infof("Multi CSI Driver Name: %s, nodeID: %s, endPoints: %s", *driver, *nodeID, *endpoint)
 	klog.Infof("CSI Driver, Version: %s, Release time: %s", version.VERSION, version.GetTime())
@@ -220,6 +219,12 @@ func main() {
 			go func(endPoint string) {
 				defer wg.Done()
 				driver := pov.NewDriver(meta, endPoint, serviceType)
+				driver.Run()
+			}(endPointName)
+		case TypePluginBMCPFS:
+			go func(endpoint string) {
+				defer wg.Done()
+				driver := bmcpfs.NewDriver(meta, endpoint, serviceType)
 				driver.Run()
 			}(endPointName)
 		default:
