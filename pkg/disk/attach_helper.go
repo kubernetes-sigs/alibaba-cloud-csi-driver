@@ -19,7 +19,10 @@ package disk
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func getDevices() []string {
@@ -33,6 +36,8 @@ func getDevices() []string {
 	return devices
 }
 
+var stat = os.Stat
+
 func calcNewDevices(old, new []string) []string {
 	var devicePaths []string
 	for _, d := range new {
@@ -43,7 +48,14 @@ func calcNewDevices(old, new []string) []string {
 			}
 		}
 		if isNew {
-			devicePaths = append(devicePaths, d)
+			info, err := stat(d)
+			if err != nil {
+				log.Errorf("stat new device %s error: %s", d, err)
+				continue
+			}
+			if info.Mode()&os.ModeDevice != 0 && info.Mode()&os.ModeCharDevice == 0 {
+				devicePaths = append(devicePaths, d)
+			}
 		}
 	}
 
