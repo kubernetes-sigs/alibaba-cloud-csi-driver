@@ -387,7 +387,13 @@ func adaptDevicePartition(devicePath string) ([]string, error) {
 	for _, tmpDevice := range globDevices {
 		// find all device partitions
 		if result, err := regexp.MatchString(digitPattern, strings.TrimPrefix(tmpDevice, rootDevicePath)); err == nil && result == true {
-			deviceList = append(deviceList, tmpDevice)
+			info, err := os.Stat(tmpDevice)
+			if err != nil {
+				return deviceList, fmt.Errorf("stat partition %s failed: %w", tmpDevice, err)
+			}
+			if info.Mode()&os.ModeDevice != 0 && info.Mode()&os.ModeCharDevice == 0 {
+				deviceList = append(deviceList, tmpDevice)
+			}
 		} else if tmpDevice == rootDevicePath {
 			deviceList = append(deviceList, tmpDevice)
 		}

@@ -17,7 +17,11 @@ limitations under the License.
 package disk
 
 import (
+	"io/fs"
+	"os"
+	"slices"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -32,8 +36,34 @@ func TestGetDevice(t *testing.T) {
 func TestCalNewDevices(t *testing.T) {
 
 	old := []string{"a", "b", "c", "d"}
-	new := []string{"b", "c", "d", "e"}
+	new := []string{"b", "c", "d", "e", "f", "g"}
+
+	mockStat(t, []string{"b", "c", "d", "e"}, []string{"f"})
 
 	result := calcNewDevices(old, new)
-	assert.ObjectsAreEqualValues([]string{"e"}, result)
+	assert.Equal(t, []string{"e"}, result)
+}
+
+type mockFileInfo struct {
+	mode os.FileMode
+}
+
+func (m *mockFileInfo) Mode() os.FileMode  { return m.mode }
+func (m *mockFileInfo) IsDir() bool        { return false }
+func (m *mockFileInfo) Name() string       { return "" }
+func (m *mockFileInfo) Size() int64        { return 0 }
+func (m *mockFileInfo) Sys() any           { return nil }
+func (m *mockFileInfo) ModTime() time.Time { return time.Time{} }
+
+func mockStat(t *testing.T, block, char []string) {
+	stat = func(path string) (os.FileInfo, error) {
+		if slices.Contains(block, path) {
+			return &mockFileInfo{mode: os.ModeDevice}, nil
+		}
+		if slices.Contains(char, path) {
+			return &mockFileInfo{mode: os.ModeDevice & os.ModeCharDevice}, nil
+		}
+		return nil, fs.ErrNotExist
+	}
+	t.Cleanup(func() { stat = os.Stat })
 }
