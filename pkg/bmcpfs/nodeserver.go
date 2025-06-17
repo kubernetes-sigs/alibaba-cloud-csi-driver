@@ -128,7 +128,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	klog.InfoS("NodePublishVolume: mounted", "volumeId", req.VolumeId, "targetPath", req.TargetPath)
+	klog.InfoS("NodePublishVolume: succeeded to mount", "volumeId", req.VolumeId, "targetPath", req.TargetPath)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
@@ -142,5 +142,6 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Cleanup mount point: %v", err)
 	}
+	klog.InfoS("NodeUnpublishVolume: succeeded to umount", "targetPath", req.TargetPath)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }

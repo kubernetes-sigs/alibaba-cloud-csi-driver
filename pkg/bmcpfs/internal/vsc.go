@@ -321,6 +321,7 @@ func (ad *cpfsAttachDetacher) Attach(ctx context.Context, fsId, vscId string) er
 		return err
 	}
 	if attachInfo != nil {
+		klog.InfoS("Already attached", "filesystem", fsId, "vscId", vscId)
 		switch tea.StringValue(attachInfo.Status) {
 		case CPFSVscStatusAttaching:
 		case CPFSVscStatusAttached:

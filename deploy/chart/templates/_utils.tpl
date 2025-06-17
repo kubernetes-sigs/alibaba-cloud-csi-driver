@@ -9,7 +9,7 @@
     {{- else if (eq .deploy.regionID nil) -}}
         registry-cn-hangzhou.ack.aliyuncs.com
     {{- else -}}
-        registry-{{ .deploy.regionID }}-vpc.aliyuncs.com
+        registry-{{ .deploy.regionID }}-vpc.ack.aliyuncs.com
     {{- end -}}
 {{- else -}}
     {{- if (ne .images.registry nil) -}}
@@ -17,7 +17,7 @@
     {{- else if (eq .deploy.regionID nil) -}}
         registry-cn-hangzhou.ack.aliyuncs.com
     {{- else -}}
-        registry-{{ .deploy.regionID }}.aliyuncs.com
+        registry-{{ .deploy.regionID }}.ack.aliyuncs.com
     {{- end -}}
 {{- end -}}
 {{- end -}}
@@ -33,7 +33,7 @@
 {{- define "enabledPlugins" -}}
     {{- $drivers := list -}}
     {{- $csi := . -}}
-    {{- range $key := tuple "disk" "nas" "oss" }}
+    {{- range $key := tuple "disk" "nas" "oss" "bmcpfs" }}
         {{- if (index $csi $key).enabled -}}
             {{- $drivers = append $drivers $key -}}
         {{- end -}}

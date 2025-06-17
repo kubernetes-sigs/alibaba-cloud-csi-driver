@@ -169,7 +169,7 @@ spec:
               # keep the trailing slash to be compatible with old ACK installations
               mountPath: {{ print (clean $nodePool.deploy.kubeletRootDir) "/" | quote }}
               mountPropagation: "Bidirectional"
-{{- range $key := tuple "disk" "nas" "oss" }}
+{{- range $key := tuple "disk" "nas" "oss" "bmcpfs" }}
   {{- with index $nodePool.csi $key -}}
     {{- if .enabled }}
             - name: {{ $key }}-plugin-dir

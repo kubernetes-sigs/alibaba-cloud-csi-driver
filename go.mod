@@ -29,6 +29,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/ratelimit v0.1.0
 	golang.org/x/sys v0.30.0
+	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.33.0
 	k8s.io/api v0.30.8
@@ -86,7 +87,6 @@ require (
 	golang.org/x/oauth2 v0.16.0 // indirect
 	golang.org/x/term v0.27.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
-	golang.org/x/time v0.3.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230822172742-b8732ec3820d // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
