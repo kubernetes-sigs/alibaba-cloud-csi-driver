@@ -2,36 +2,46 @@ package mounter
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"os/exec"
 	"time"
 
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server/ossfs"
-	mountutils "k8s.io/mount-utils"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"k8s.io/mount-utils"
 )
 
 const timeout = time.Second * 10
 
-type CmdMounter struct {
+type OssCmdMounter struct {
 	execPath string
-	mountutils.Interface
+	mount.Interface
 }
 
-func NewCmdMounter(execPath string, inner mountutils.Interface) Mounter {
-	return &CmdMounter{
+func NewOssCmdMounter(execPath string, inner mount.Interface) Mounter {
+	return &OssCmdMounter{
 		execPath:  execPath,
 		Interface: inner,
 	}
 }
 
-func (m *CmdMounter) MountWithSecrets(source, target, fstype string, options []string, secrets map[string]string) error {
-	driver := ossfs.NewDriver()
+func (m *OssCmdMounter) MountWithSecrets(source, target, fstype string, options []string, secrets map[string]string) error {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(timeout))
 	defer cancel()
-	return driver.Mount(ctx, &proxy.MountRequest{
-		Source:  source,
-		Target:  target,
-		Fstype:  fstype,
-		Options: options,
-		Secrets: secrets,
-	})
+
+	passwdFile, err := utils.SaveOssSecretsToFile(secrets)
+	if err != nil {
+		return err
+	}
+	options = append(options, "passwd_file="+passwdFile)
+
+	args := mount.MakeMountArgs(source, target, "", options)
+	cmd := exec.CommandContext(ctx, "ossfs", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err = cmd.Run(); err != nil {
+		return fmt.Errorf("failed to execute ossfs: %w", err)
+	}
+	return nil
 }

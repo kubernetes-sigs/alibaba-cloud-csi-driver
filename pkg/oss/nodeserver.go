@@ -159,7 +159,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	var ossfsMounter mounter.Mounter
 	if ns.runInECI {
-		ossfsMounter = mounter.NewCmdMounter(ossfsExecPath, ns.rawMounter)
+		ossfsMounter = mounter.NewOssCmdMounter(ossfsExecPath, ns.rawMounter)
 	} else {
 		ossfsMounter = mounter.NewProxyMounter(socketPath, ns.rawMounter)
 	}
