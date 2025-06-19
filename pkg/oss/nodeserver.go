@@ -159,7 +159,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	var ossfsMounter mounter.Mounter
 	if ns.runInECI {
-		ossfsMounter = mounter.NewOssCmdMounter(ossfsExecPath, ns.rawMounter)
+		ossfsMounter = mounter.NewOssCmdMounter(ossfsExecPath, req.VolumeId, ns.metadata, ns.rawMounter)
 	} else {
 		ossfsMounter = mounter.NewProxyMounter(socketPath, ns.rawMounter)
 	}
@@ -169,7 +169,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if opts.FuseType == OssFsType {
 			utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, OssFsType, "oss", opts.Bucket)
 		}
-		err := ossfsMounter.MountWithSecrets(mountSource, targetPath, opts.FuseType, mountOptions, authCfg.Secrets)
+		err := ossfsMounter.MountWithSecrets(mountSource, targetPath, opts.FuseType, mountOptions, authCfg)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -189,7 +189,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			utils.WriteSharedMetricsInfo(metricsPathPrefix, req, OssFsType, "oss", opts.Bucket, attachPath)
 		}
 		err := ossfsMounter.MountWithSecrets(
-			mountSource, attachPath, opts.FuseType, mountOptions, authCfg.Secrets)
+			mountSource, attachPath, opts.FuseType, mountOptions, authCfg)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
