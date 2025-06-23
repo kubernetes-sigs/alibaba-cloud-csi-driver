@@ -285,6 +285,29 @@ spec:
             - name: oss-provisioner-dir
               mountPath: /csi
 {{- end -}}
+{{- if and .Values.csi.bmcpfs.enabled .Values.csi.bmcpfs.controller.enabled }}
+        - name: external-bmcpfs-attacher
+          image: {{ include "imageSpec" (list .Values "externalAttacher") }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 500m
+              memory: 1024Mi
+          args:
+            - --v=5
+            - --logging-format={{ .Values.logging.format }}
+            - --csi-address=/csi/csi.sock
+            - --leader-election=true
+            - --kube-api-qps=50
+            - --kube-api-burst=100
+            - --worker-threads=32
+            - --timeout=30s
+          volumeMounts:
+            - name: bmcpfs-provisioner-dir
+              mountPath: /csi
+{{- end -}}
 {{- if and .Values.csi.local.enabled .Values.csi.local.controller.enabled }}
         - name: external-local-provisioner
           image: {{ include "imageSpec" (list .Values "externalProvisioner") }}
@@ -414,7 +437,7 @@ spec:
             - name: healthz
               containerPort: 11270
           volumeMounts:
-{{- range $key := tuple "disk" "nas" "oss" }}
+{{- range $key := tuple "disk" "nas" "oss" "bmcpfs" }}
   {{- with index $.Values.csi $key -}}
     {{- if and .enabled .controller.enabled }}
             - name: {{ $key }}-provisioner-dir

@@ -313,15 +313,8 @@ func GetCredentialV2() (crev2.Credential, error) {
 		return crev2.NewCredential(config)
 	}
 
-	// try default credential chain
-	cred, err := crev2.NewCredential(nil)
-	if err == nil {
-		klog.Info("credential v2: using default credential chain")
-		return cred, nil
-	}
-
 	// managed addon token
-	_, err = os.Stat(ConfigPath)
+	_, err := os.Stat(ConfigPath)
 	if err == nil {
 		klog.Info("credential v2: using managed addon token")
 		return newManagedAddonTokenCredv2(), nil
@@ -330,8 +323,7 @@ func GetCredentialV2() (crev2.Credential, error) {
 		return nil, err
 	}
 
-	// ecs ram role
-	klog.Info("credential v2: using ecs_ram_role")
-	config := new(crev2.Config).SetType("ecs_ram_role")
-	return crev2.NewCredential(config)
+	// try default credential chain
+	klog.Info("credential v2: using default credential chain")
+	return crev2.NewCredential(nil)
 }
