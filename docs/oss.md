@@ -58,6 +58,22 @@ Please refer to the [installation guide](./install.md) for detailed instructions
 * Oss Plugin support to mount remote subpath under oss bucket;
 * Oss Plugin support to upgrade online.
 
+### Client selection reference
+
+OSS Driver currently support two types of clients: `ossfs 1.0` and `ossfs 2.0`. 
+
+Client and its suitable scenarios:
+
+| Client    | Scenario    |  Benchmark Document  |
+|-----------|-------------|----------------------|
+| ossfs 1.0 | Most scenarios that include read/write or user permission configuration. | [New features of ossfs 1.0 and ossfs performance benchmarking](https://www.alibabacloud.com/help/en/ack/ack-managed-and-ack-dedicated/user-guide/introduction-of-new-functions-and-performance-pressure-measurement-of-ossfs-version-1-91-and-above) |
+| ossfs 2.0 | Read-only or sequential append-only scenarios, such as AI training, inference, data processing, and autonomous driving.| [Performance test for ossfs 2.0](https://www.alibabacloud.com/help/en/ack/ack-managed-and-ack-dedicated/user-guide/ossfs2-0-client-stress-test-performance) |
+
+Notes for client selection:
+
+* All clients have requirements for the Container Storage Interface (CSI) plug-in version. We recommend that you upgrade your CSI plug-in at the earliest opportunity.
+* If you are not clear about the read/write model of your current business, we recommend that you prioritize ossfs 1.0. ossfs 1.0 provides better compatibility with Portable Operating System Interface (POSIX) operations and can better ensure stable business operations.
+
 ### Step 1: Create pv/pvc/deploy with csi
 
 #### Mount a statically provisioned OSS volume 
