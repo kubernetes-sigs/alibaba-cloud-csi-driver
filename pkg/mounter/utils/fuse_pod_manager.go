@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -212,7 +213,10 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool)
 		"volumeId", c.VolumeId,
 		"nodeName", c.NodeName,
 	)
-
+	errs := validation.IsValidLabelValue(c.VolumeId)
+	if errs != nil {
+		return nil, fmt.Errorf("invalid volumeId: %s, %v", c.VolumeId, errs)
+	}
 	podClient := fpm.client.CoreV1().Pods(c.Namespace)
 	labels, listOptions := fpm.labelsAndListOptionsFor(c, target)
 	podList, err := podClient.List(ctx, listOptions)
