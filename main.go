@@ -22,7 +22,6 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -172,14 +171,6 @@ func main() {
 		endPointName := replaceCsiEndpoint(driverName, *endpoint)
 		klog.Infof("CSI endpoint for driver %s: %s", driverName, endPointName)
 
-		if err := createPersistentStorage(path.Join(utils.KubeletRootDir, "/csi-plugins", driverName, "controller")); err != nil {
-			klog.Errorf("failed to create persistent storage for controller: %v", err)
-			os.Exit(1)
-		}
-		if err := createPersistentStorage(path.Join(utils.KubeletRootDir, "/csi-plugins", driverName, "node")); err != nil {
-			klog.Errorf("failed to create persistent storage for node: %v", err)
-			os.Exit(1)
-		}
 		switch driverName {
 		case TypePluginNAS:
 			go func(endPoint string) {
@@ -270,11 +261,6 @@ func main() {
 	}
 
 	wg.Wait()
-}
-
-func createPersistentStorage(persistentStoragePath string) error {
-	klog.Infof("Create Storage Path: %s", persistentStoragePath)
-	return os.MkdirAll(persistentStoragePath, os.FileMode(0755))
 }
 
 func joinCsiPluginSuffix(storageType string) string {
