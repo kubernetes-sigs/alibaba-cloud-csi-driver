@@ -68,12 +68,12 @@ func Test_computeVolumeIdLabelVal(t *testing.T) {
 		{
 			"too long",
 			strings.Repeat("a", 128),
-			"6836cf13bac400e9105071cd6af47084dfacad4e5e302c94bfed24e013afb73",
+			"h1.ad5b3fdbcb526778c2839d2f151ea753995e26a0",
 		},
 		{
 			"invalid chars",
 			"this_is^invalid@for$volume-id",
-			"8c02b179a15cb2fff17541126cd3191edf422b13e0fc4fa1747a3d9a98ed173",
+			"h1.4fb50504de49a64e3a229449299e5365718bdfe4",
 		},
 	}
 	for _, tt := range tests {
