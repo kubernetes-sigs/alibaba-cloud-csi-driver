@@ -31,6 +31,15 @@ func computeMountPathHash(target string) string {
 	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
 }
 
+func computeVolumeIdLabelVal(volumeId string) string {
+	errs := validation.IsValidLabelValue(volumeId)
+	if errs == nil {
+		return volumeId
+	}
+	volSha := sha256.Sum256([]byte(volumeId))
+	return hex.EncodeToString(volSha[:])[:63]
+}
+
 // https://github.com/kubernetes/kubernetes/blob/b5ba7bc4f5f49760c821cae2f152a8000922e72e/staging/src/k8s.io/apimachinery/pkg/api/validation/objectmeta.go#L36
 // TotalAnnotationSizeLimitB only takes 128 kB here, and the rest is reserved for the default annotations.
 const TotalAnnotationSizeLimitB int = 128 * (1 << 10) // 128 kB

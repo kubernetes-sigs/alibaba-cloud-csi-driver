@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -50,5 +51,34 @@ func Test_GetAttachPath(t *testing.T) {
 	for _, test := range tests {
 		actual := GetAttachPath(test.volumeId)
 		assert.Equal(t, test.expected, actual)
+	}
+}
+
+func Test_computeVolumeIdLabelVal(t *testing.T) {
+	tests := []struct {
+		name     string
+		volumeId string
+		expected string
+	}{
+		{
+			"normal",
+			"oss-a-b-c",
+			"oss-a-b-c",
+		},
+		{
+			"too long",
+			strings.Repeat("a", 128),
+			"6836cf13bac400e9105071cd6af47084dfacad4e5e302c94bfed24e013afb73",
+		},
+		{
+			"invalid chars",
+			"this_is^invalid@for$volume-id",
+			"8c02b179a15cb2fff17541126cd3191edf422b13e0fc4fa1747a3d9a98ed173",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, computeVolumeIdLabelVal(tt.volumeId))
+		})
 	}
 }
