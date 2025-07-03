@@ -76,7 +76,7 @@ var (
 	//7 - read execute time
 	nfsReadsExecuteTimeMilliSecondsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "read_time_milliseconds_total"),
-		"The total number of seconds spent by all reads.",
+		"The total number of milliseconds spent by all reads.",
 		nfsStatLabelNames, nil,
 	)
 	//8 - writes completed successfully
@@ -124,7 +124,7 @@ var (
 	//15 - writes execute time
 	nfsWritesExecuteTimeMilliSecondsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(nodeNamespace, volumeSubsystem, "write_time_milliseconds_total"),
-		"This is the total number of seconds spent by all writes.",
+		"The total number of milliseconds spent by all writes.",
 		nfsStatLabelNames, nil,
 	)
 	//16 - capacity available
@@ -220,22 +220,22 @@ func NewNfsStatCollector() (Collector, error) {
 			{desc: nfsReadsTimeOutDesc, valueType: prometheus.CounterValue},
 			{desc: nfsReadsSentBytesDesc, valueType: prometheus.CounterValue},
 			{desc: nfsReadsRecvBytesDesc, valueType: prometheus.CounterValue},
-			{desc: nfsReadsQueueTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
-			{desc: nfsReadsRttTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
-			{desc: nfsReadsExecuteTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
+			{desc: nfsReadsQueueTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
+			{desc: nfsReadsRttTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
+			{desc: nfsReadsExecuteTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
 			//write
 			{desc: nfsWritesCompletedDesc, valueType: prometheus.CounterValue},
 			{desc: nfsWritesTransDesc, valueType: prometheus.CounterValue},
 			{desc: nfsWritesTimeOutDesc, valueType: prometheus.CounterValue},
 			{desc: nfsWritesSentBytesDesc, valueType: prometheus.CounterValue},
 			{desc: nfsWritesRecvBytesDesc, valueType: prometheus.CounterValue},
-			{desc: nfsWritesQueueTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
-			{desc: nfsWritesRttTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
-			{desc: nfsWritesExecuteTimeMilliSecondsDesc, valueType: prometheus.CounterValue, factor: .001},
+			{desc: nfsWritesQueueTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
+			{desc: nfsWritesRttTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
+			{desc: nfsWritesExecuteTimeMilliSecondsDesc, valueType: prometheus.CounterValue},
 			// capacity
-			{desc: nfsCapacityTotalDesc, valueType: prometheus.CounterValue},
-			{desc: nfsCapacityUsedDesc, valueType: prometheus.CounterValue},
-			{desc: nfsCapacityAvailableDesc, valueType: prometheus.CounterValue},
+			{desc: nfsCapacityTotalDesc, valueType: prometheus.GaugeValue},
+			{desc: nfsCapacityUsedDesc, valueType: prometheus.GaugeValue},
+			{desc: nfsCapacityAvailableDesc, valueType: prometheus.GaugeValue},
 		},
 		lastPvNfsInfoMap:            make(map[string]nfsInfo, 0),
 		lastPvStatsMap:              sync.Map{},
