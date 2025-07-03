@@ -86,12 +86,12 @@ spec:
               memory: 1024Mi
           ports:
             - containerPort: 8080
-              name: http-endpoint
+              name: disk-p-http
               protocol: TCP
           livenessProbe:
             httpGet:
               path: /healthz/leader-election
-              port: http-endpoint
+              port: disk-p-http
           args:
             - --csi-address=/csi/csi.sock
             - --http-endpoint=:8080
@@ -194,12 +194,12 @@ spec:
               memory: 1024Mi
           ports:
             - containerPort: 8090
-              name: http-endpoint
+              name: nas-p-http
               protocol: TCP
           livenessProbe:
             httpGet:
               path: /healthz/leader-election
-              port: http-endpoint
+              port: nas-p-http
           args:
             - --csi-address=/csi/csi.sock
             - --http-endpoint=:8090
@@ -256,12 +256,12 @@ spec:
               memory: 16Mi
           ports:
             - containerPort: 8100
-              name: http-endpoint
+              name: oss-p-http
               protocol: TCP
           livenessProbe:
             httpGet:
               path: /healthz/leader-election
-              port: http-endpoint
+              port: oss-p-http
           volumeMounts:
           - mountPath: /csi
             name: oss-provisioner-dir
@@ -333,12 +333,12 @@ spec:
               memory: 1024Mi
           ports:
             - containerPort: 8110
-              name: http-endpoint
+              name: local-p-http
               protocol: TCP
           livenessProbe:
             httpGet:
               path: /healthz/leader-election
-              port: http-endpoint
+              port: local-p-http
           volumeMounts:
             - name: local-provisioner-dir
               mountPath: /csi
