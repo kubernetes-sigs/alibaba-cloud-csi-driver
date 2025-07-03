@@ -65,7 +65,9 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	args := []string{"mount", req.Target}
 	// ossfs2.0 forbid to use FUSE args
 	// args = append(args, req.MountFlags...)
-	args = append(args, []string{"-c", passwdFile}...)
+	if passwdFile != "" {
+		args = append(args, []string{"-c", passwdFile}...)
+	}
 	for _, o := range options {
 		args = append(args, fmt.Sprintf("--%s", o))
 	}
