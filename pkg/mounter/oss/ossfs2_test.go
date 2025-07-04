@@ -45,6 +45,13 @@ func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
 			false,
 		},
 		{
+			"use assumeRole with non-RRSA authType",
+			&Options{
+				AssumeRoleArn: "test-assume-role-arn",
+			},
+			true,
+		},
+		{
 			"empty aksecret",
 			&Options{
 				AkID:     "test-ak",
@@ -334,6 +341,7 @@ func TestGetAuthOpttions_ossfs2(t *testing.T) {
 			opts: &Options{
 				FuseType: "ossfs2",
 				AuthType: AuthTypeRRSA,
+				ExternalId: "test-id",
 			},
 			wantOptions: []string{
 				"rrsa_endpoint=https://sts-vpc.cn-hangzhou.aliyuncs.com",

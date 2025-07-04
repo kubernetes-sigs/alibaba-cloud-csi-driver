@@ -46,6 +46,10 @@ func (f *fuseOssfs2) Name() string {
 }
 func (f *fuseOssfs2) PrecheckAuthConfig(o *Options, onNode bool) error {
 
+	if o.AuthType != AuthTypeRRSA && o.AssumeRoleArn != "" {
+		return fmt.Errorf("only support access OSS through STS AssumeRole when authType is RRSA")
+	}
+
 	switch o.AuthType {
 	case AuthTypeRRSA:
 		if err := checkRRSAParams(o); err != nil {
@@ -140,6 +144,12 @@ func (f *fuseOssfs2) getAuthOptions(o *Options, region string) (mountOptions []s
 	switch o.AuthType {
 	case AuthTypeRRSA:
 		mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=%s", getSTSEndpoint(region)))
+		if o.AssumeRoleArn != "" {
+			mountOptions = append(mountOptions, fmt.Sprintf("assume_role_arn=%s", o.AssumeRoleArn))
+			if o.ExternalId != "" {
+				mountOptions = append(mountOptions, fmt.Sprintf("assume_role_external_id=%s", o.ExternalId))
+			}
+		}
 	case "":
 		if o.SecretRef != "" {
 			mountOptions = append(mountOptions,
