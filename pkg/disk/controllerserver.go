@@ -200,6 +200,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			switch aliErr.ErrorCode() {
 			case SnapshotNotFound:
 				return nil, status.Errorf(codes.NotFound, "snapshot %s not found", snapshotID)
+			default:
+				return nil, status.Error(codes.Internal, err.Error())
 			}
 		}
 		return nil, err
