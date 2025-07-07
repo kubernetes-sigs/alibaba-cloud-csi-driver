@@ -80,3 +80,8 @@ func GetRestConfig() (*rest.Config, error) {
 	cfg.ContentType = runtime.ContentTypeProtobuf
 	return cfg, nil
 }
+
+func GetRestConfigForCRD(cfg rest.Config) *rest.Config {
+	cfg.ContentType = runtime.ContentTypeJSON
+	return &cfg
+}

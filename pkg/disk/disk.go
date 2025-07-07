@@ -149,15 +149,17 @@ func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 	if err != nil {
 		klog.Fatalf("Error building kubeconfig: %s", err.Error())
 	}
-	// snapshotClient does not support protobuf
-	snapClient, err := snapClientset.NewForConfig(cfg)
-	if err != nil {
-		klog.Fatalf("Error building kubernetes snapclientset: %s", err.Error())
-	}
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		klog.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+
+	// snapshotClient does not support protobuf
+	crdCfg := options.GetRestConfigForCRD(*cfg)
+	snapClient, err := snapClientset.NewForConfig(crdCfg)
+	if err != nil {
+		klog.Fatalf("Error building kubernetes snapclientset: %s", err.Error())
 	}
 
 	csiCfg := utils.Config{}
