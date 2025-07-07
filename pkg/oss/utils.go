@@ -207,7 +207,15 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 			if err != nil {
 				klog.ErrorS(err, "get worker role name failed")
 			} else {
-				opts.RoleName = utils.MetadataURL + utils.WorkerRoleResource + workerRole
+				// Note: ossfs 1.0 supports 2 ram_role formats:
+				// 1. utils.MetadataURL + utils.WorkerRoleResource + workerRole
+				// 	Issues:
+				//	* Incompatible with s3fs.
+				// 	* Cannot support imdsv2 mode of ECS metadata server.
+				// 2. workerRole
+				//	Issues:
+				// 	* Incompatible with older version (<=1.86) ossfs, which won't be used by containerized mounter.
+				opts.RoleName = workerRole
 			}
 		}
 	}

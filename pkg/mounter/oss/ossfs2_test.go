@@ -30,6 +30,21 @@ func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
 			true,
 		},
 		{
+			"valid sts",
+			&Options{
+				AuthType: AuthTypeSTS,
+				RoleName: "test",
+			},
+			false,
+		},
+		{
+			"invalid sts",
+			&Options{
+				AuthType: AuthTypeSTS,
+			},
+			true,
+		},
+		{
 			"invalid rrsa",
 			&Options{
 				AuthType: AuthTypeRRSA,
@@ -94,6 +109,18 @@ func TestMakeAuthConfig_ossfs2(t *testing.T) {
 		wantCfg *utils.AuthConfig
 		wantErr bool
 	}{
+		{
+			"sts",
+			&Options{
+				AuthType: AuthTypeSTS,
+				RoleName: "test-role-name",
+			},
+			&utils.AuthConfig{
+				AuthType: AuthTypeSTS,
+				RoleName: "test-role-name",
+			},
+			false,
+		},
 		{
 			"aksk",
 			&Options{
@@ -339,8 +366,8 @@ func TestGetAuthOpttions_ossfs2(t *testing.T) {
 		{
 			name: "rrsa",
 			opts: &Options{
-				FuseType: "ossfs2",
-				AuthType: AuthTypeRRSA,
+				FuseType:   "ossfs2",
+				AuthType:   AuthTypeRRSA,
 				ExternalId: "test-id",
 			},
 			wantOptions: []string{

@@ -55,6 +55,11 @@ func (f *fuseOssfs2) PrecheckAuthConfig(o *Options, onNode bool) error {
 		if err := checkRRSAParams(o); err != nil {
 			return err
 		}
+	case AuthTypeSTS:
+		// rolename may retrieve from metadata service
+		if onNode && o.RoleName == "" {
+			return fmt.Errorf("missing roleName or ramRole in volume attributes")
+		}
 	case "":
 		if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 			return nil
@@ -87,6 +92,8 @@ func (f *fuseOssfs2) MakeAuthConfig(o *Options, m metadata.MetadataProvider) (au
 			return nil, fmt.Errorf("Get RoleArn and OidcProviderArn for RRSA error: %v", err)
 		}
 		authCfg.RrsaConfig = rrsaCfg
+	case AuthTypeSTS:
+		authCfg.RoleName = o.RoleName
 	case "":
 		if o.SecretRef != "" {
 			authCfg.SecretRef = o.SecretRef
@@ -149,6 +156,10 @@ func (f *fuseOssfs2) getAuthOptions(o *Options, region string) (mountOptions []s
 			if o.ExternalId != "" {
 				mountOptions = append(mountOptions, fmt.Sprintf("assume_role_external_id=%s", o.ExternalId))
 			}
+		}
+	case AuthTypeSTS:
+		if o.RoleName != "" {
+			mountOptions = append(mountOptions, "ram_role="+o.RoleName)
 		}
 	case "":
 		if o.SecretRef != "" {
@@ -269,6 +280,7 @@ func (f *fuseOssfs2) buildAuthSpec(c *utils.FusePodContext, target string, spec 
 	}
 
 	switch authCfg.AuthType {
+	case AuthTypeSTS:
 	case AuthTypeRRSA:
 		if authCfg.RrsaConfig == nil {
 			return
