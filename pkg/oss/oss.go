@@ -64,7 +64,8 @@ func NewDriver(endpoint string, m metadata.MetadataProvider, serviceType utils.S
 
 	cfg := options.MustGetRestConfig()
 	clientset := kubernetes.NewForConfigOrDie(cfg)
-	cnfsGetter := cnfsv1beta1.NewCNFSGetter(dynamic.NewForConfigOrDie(cfg))
+	crdCfg := options.GetRestConfigForCRD(*cfg)
+	cnfsGetter := cnfsv1beta1.NewCNFSGetter(dynamic.NewForConfigOrDie(crdCfg))
 
 	configmap, err := clientset.CoreV1().ConfigMaps("kube-system").Get(context.Background(), "csi-plugin", metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {

@@ -207,7 +207,8 @@ func NewNfsStatCollector() (Collector, error) {
 		return nil, err
 	}
 
-	crdClient, err := dynamic.NewForConfig(config)
+	crdCfg := options.GetRestConfigForCRD(*config)
+	crdClient, err := dynamic.NewForConfig(crdCfg)
 	if err != nil {
 		klog.Fatalf("Failed to create crd client: %v", err)
 	}

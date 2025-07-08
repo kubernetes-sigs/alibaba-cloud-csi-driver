@@ -47,7 +47,8 @@ type ControllerConfig struct {
 
 func mustGetKubeClients() (kubernetes.Interface, cnfsv1beta1.CNFSGetter) {
 	cfg := options.MustGetRestConfig()
-	return kubernetes.NewForConfigOrDie(cfg), cnfsv1beta1.NewCNFSGetter(dynamic.NewForConfigOrDie(cfg))
+	crdCfg := options.GetRestConfigForCRD(*cfg)
+	return kubernetes.NewForConfigOrDie(cfg), cnfsv1beta1.NewCNFSGetter(dynamic.NewForConfigOrDie(crdCfg))
 }
 
 func GetControllerConfig(meta *metadata.Metadata) (*ControllerConfig, error) {
