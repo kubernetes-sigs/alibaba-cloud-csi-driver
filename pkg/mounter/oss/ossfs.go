@@ -20,7 +20,7 @@ import (
 )
 
 var defaultOssfsImageTag = "v1.88.4-80d165c-aliyun"
-var defaultOssfsUpdatedImageTag = "v1.91.6.ack.1-fca3971-aliyun"
+var defaultOssfsUpdatedImageTag = "v1.91.7.ack.1-570be5f-aliyun"
 var defaultOssfsDbglevel = utils.DebugLevelError
 
 const (
