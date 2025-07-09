@@ -89,7 +89,7 @@ func main() {
 
 	logrus.SetOutput(os.Stderr)
 	utils.AddKlogFlags(flag.CommandLine)
-	flag.BoolVar(&runInECI, "eci", false, "run in ECI or not")
+	flag.BoolVar(&runInECI, "eci", false, "whether the agent is running in ECI")
 	flag.StringVar(&mountProxySocket, "mount-proxy-sock", "/run/kube-agent/csi-agent.sock", "socket path of mount proxy server")
 	flag.Parse()
 
