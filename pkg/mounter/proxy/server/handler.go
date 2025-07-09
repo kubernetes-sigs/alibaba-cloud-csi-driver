@@ -93,8 +93,8 @@ func handle(ctx context.Context, req *rawRequest) proxy.Response {
 	case proxy.Mount:
 		mountReq := proxy.MountRequest{
 			// ossfs recommended values
-			WarmupWorkers:       4,
-			WarmupTotalGBs:      2,
+			WarmupWorkers:       20,
+			WarmupTotalGBs:      110,
 			WarmupPerFileMaxGBs: 1,
 		}
 		err := json.Unmarshal(req.Body, &mountReq)

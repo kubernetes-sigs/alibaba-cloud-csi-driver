@@ -93,5 +93,5 @@ func worker(id int, entryChan <-chan string, bytesReadChan chan<- int64, perFile
 		bytesReadChan <- workerBytesRead
 	}
 
-	klog.Infof("Worker %d shutting down.", id)
+	klog.Infof("Worker %d finished", id)
 }

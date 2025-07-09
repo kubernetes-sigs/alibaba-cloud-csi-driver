@@ -155,6 +155,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if socketPath == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "%s not found in publishContext", mountProxySocket)
 	}
+	// opts.WarmupDirs = []string{"stabilityai/sdxl-turbo/"}
 	proxyMounter := mounter.NewProxyMounter(socketPath, opts.WarmupDirs, opts.WarmupWorker, opts.WarmupTotalGB, opts.WarmupPerFileGB, ns.rawMounter)
 
 	// When work as csi-agent, directly mount on the target path.
