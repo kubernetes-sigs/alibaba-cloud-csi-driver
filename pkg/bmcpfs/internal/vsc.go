@@ -130,7 +130,7 @@ type PrimaryVscManagerWithCache struct {
 	// Instance ID to VSC
 	cache map[string]vscWithErr
 	// To create primary vsc for node
-	queue workqueue.RateLimitingInterface
+	queue workqueue.TypedRateLimitingInterface[string]
 }
 
 const (
@@ -144,10 +144,10 @@ func NewPrimaryVscManagerWithCache(efloClient *efloclient.Client) *PrimaryVscMan
 		retryTimes: defaultVscManagerRetryTimes,
 		cond:       sync.NewCond(&sync.Mutex{}),
 		cache:      make(map[string]vscWithErr),
-		queue: workqueue.NewRateLimitingQueue(
-			workqueue.NewMaxOfRateLimiter(
-				workqueue.NewItemExponentialFailureRateLimiter(500*time.Millisecond, 1000*time.Second),
-				&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+		queue: workqueue.NewTypedRateLimitingQueue(
+			workqueue.NewTypedMaxOfRateLimiter(
+				workqueue.NewTypedItemExponentialFailureRateLimiter[string](500*time.Millisecond, 1000*time.Second),
+				&workqueue.TypedBucketRateLimiter[string]{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
 			),
 		),
 	}
@@ -168,10 +168,10 @@ func (m *PrimaryVscManagerWithCache) handleNext() bool {
 	}
 	defer m.queue.Done(instanceId)
 
-	newVsc, err := m.getOrCreatePrimaryFor(instanceId.(string))
+	newVsc, err := m.getOrCreatePrimaryFor(instanceId)
 
 	m.cond.L.Lock()
-	m.cache[instanceId.(string)] = vscWithErr{newVsc, err}
+	m.cache[instanceId] = vscWithErr{newVsc, err}
 	m.cond.L.Unlock()
 
 	if err == nil {
