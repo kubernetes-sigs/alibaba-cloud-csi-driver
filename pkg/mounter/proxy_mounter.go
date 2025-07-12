@@ -10,25 +10,37 @@ import (
 )
 
 type ProxyMounter struct {
-	socketPath string
+	socketPath      string
+	warmupDirs      []string
+	warmupWorker    int
+	warmupTotalGB   int64
+	warmupPerFileGB int64
 	mountutils.Interface
 }
 
-func NewProxyMounter(socketPath string, inner mountutils.Interface) *ProxyMounter {
+func NewProxyMounter(socketPath string, warmupDirs []string, warmupWorker int, warmupTotalGB, warmupPerFileGB int64, inner mountutils.Interface) *ProxyMounter {
 	return &ProxyMounter{
-		socketPath: socketPath,
-		Interface:  inner,
+		socketPath:      socketPath,
+		warmupDirs:      warmupDirs,
+		warmupWorker:    warmupWorker,
+		warmupTotalGB:   warmupTotalGB,
+		warmupPerFileGB: warmupPerFileGB,
+		Interface:       inner,
 	}
 }
 
 func (m *ProxyMounter) MountWithSecrets(source, target, fstype string, options []string, secrets map[string]string) error {
 	dclient := client.NewClient(m.socketPath)
 	resp, err := dclient.Mount(&proxy.MountRequest{
-		Source:  source,
-		Target:  target,
-		Fstype:  fstype,
-		Options: options,
-		Secrets: secrets,
+		Source:              source,
+		Target:              target,
+		Fstype:              fstype,
+		Options:             options,
+		Secrets:             secrets,
+		WarmupDirs:          m.warmupDirs,
+		WarmupWorkers:       m.warmupWorker,
+		WarmupTotalGBs:      m.warmupTotalGB,
+		WarmupPerFileMaxGBs: m.warmupPerFileGB,
 	})
 	if err != nil {
 		return fmt.Errorf("call mounter daemon: %w", err)

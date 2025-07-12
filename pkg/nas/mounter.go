@@ -44,6 +44,6 @@ func newNasMounterWithProxy(socketPath string) mountutils.Interface {
 	inner := mountutils.NewWithoutSystemd("")
 	return &NasMounter{
 		Interface:     inner,
-		alinasMounter: mounter.NewProxyMounter(socketPath, inner),
+		alinasMounter: mounter.NewProxyMounter(socketPath, []string{}, 0, 0, 0, inner),
 	}
 }

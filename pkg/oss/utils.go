@@ -150,6 +150,20 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 			default:
 				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support direct and subpath", v, k).Error())
 			}
+		case "warmupDirs":
+			opts.WarmupDirs = strings.Split(value, ",")
+		case "warmupWorker":
+			if value != "" {
+				opts.WarmupWorker, _ = strconv.Atoi(value)
+			}
+		case "warmupTotalGB":
+			if value != "" {
+				opts.WarmupTotalGB, _ = strconv.ParseInt(value, 10, 64)
+			}
+		case "warmupPerFileGB":
+			if value != "" {
+				opts.WarmupPerFileGB, _ = strconv.ParseInt(value, 10, 64)
+			}
 		}
 	}
 	for _, c := range volCaps {
