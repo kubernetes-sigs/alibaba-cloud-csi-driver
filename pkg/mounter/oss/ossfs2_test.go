@@ -25,7 +25,44 @@ func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
 		{
 			"invalid authtype",
 			&Options{
+				AuthType: AuthTypeCSS,
+			},
+			true,
+		},
+		{
+			"valid sts",
+			&Options{
+				AuthType: AuthTypeSTS,
+				RoleName: "test",
+			},
+			false,
+		},
+		{
+			"invalid sts",
+			&Options{
+				AuthType: AuthTypeSTS,
+			},
+			true,
+		},
+		{
+			"invalid rrsa",
+			&Options{
 				AuthType: AuthTypeRRSA,
+			},
+			true,
+		},
+		{
+			"valid rrsa",
+			&Options{
+				AuthType: AuthTypeRRSA,
+				RoleName: "test",
+			},
+			false,
+		},
+		{
+			"use assumeRole with non-RRSA authType",
+			&Options{
+				AssumeRoleArn: "test-assume-role-arn",
 			},
 			true,
 		},
@@ -62,6 +99,8 @@ func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
 }
 
 func TestMakeAuthConfig_ossfs2(t *testing.T) {
+	t.Setenv("CLUSTER_ID", "cluster-id")
+	t.Setenv("ALIBABA_CLOUD_ACCOUNT_ID", "account-id")
 	fakeMeta := metadata.NewMetadata()
 	fakeOssfs := NewFuseOssfs2(nil, fakeMeta)
 	tests := []struct {
@@ -70,6 +109,18 @@ func TestMakeAuthConfig_ossfs2(t *testing.T) {
 		wantCfg *utils.AuthConfig
 		wantErr bool
 	}{
+		{
+			"sts",
+			&Options{
+				AuthType: AuthTypeSTS,
+				RoleName: "test-role-name",
+			},
+			&utils.AuthConfig{
+				AuthType: AuthTypeSTS,
+				RoleName: "test-role-name",
+			},
+			false,
+		},
 		{
 			"aksk",
 			&Options{
@@ -90,6 +141,42 @@ func TestMakeAuthConfig_ossfs2(t *testing.T) {
 			},
 			&utils.AuthConfig{
 				SecretRef: "test-secretref",
+			},
+			false,
+		},
+		{
+			"rrsa with rolename",
+			&Options{
+				AuthType: AuthTypeRRSA,
+				RoleName: "test-role",
+			},
+			&utils.AuthConfig{
+				AuthType: AuthTypeRRSA,
+				RrsaConfig: &utils.RrsaConfig{
+					ServiceAccountName: mounterutils.FuseServiceAccountName,
+					RoleArn:            "acs:ram::account-id:role/test-role",
+					OidcProviderArn:    "acs:ram::account-id:oidc-provider/ack-rrsa-cluster-id",
+				},
+			},
+			false,
+		},
+		{
+			"rrsa with arns",
+			&Options{
+				AuthType:           AuthTypeRRSA,
+				ServiceAccountName: "test-sa",
+				RoleArn:            "test-role-arn",
+				OidcProviderArn:    "test-oidc-provider-arn",
+				AssumeRoleArn:      "test-assume-role-arn",
+			},
+			&utils.AuthConfig{
+				AuthType: AuthTypeRRSA,
+				RrsaConfig: &utils.RrsaConfig{
+					ServiceAccountName: "test-sa",
+					RoleArn:            "test-role-arn",
+					OidcProviderArn:    "test-oidc-provider-arn",
+					AssumeRoleArn:      "test-assume-role-arn",
+				},
 			},
 			false,
 		},
@@ -273,14 +360,25 @@ func TestGetAuthOpttions_ossfs2(t *testing.T) {
 		{
 			name: "aksk",
 			opts: &Options{
-				FuseType: "ossfs",
+				FuseType: "ossfs2",
+			},
+		},
+		{
+			name: "rrsa",
+			opts: &Options{
+				FuseType:   "ossfs2",
+				AuthType:   AuthTypeRRSA,
+				ExternalId: "test-id",
+			},
+			wantOptions: []string{
+				"rrsa_endpoint=https://sts-vpc.cn-hangzhou.aliyuncs.com",
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeOssfs := &fuseOssfs2{}
-			opts := fakeOssfs.getAuthOptions(tt.opts)
+			opts := fakeOssfs.getAuthOptions(tt.opts, "cn-hangzhou")
 			assert.Equal(t, tt.wantOptions, opts)
 		})
 	}
@@ -321,7 +419,7 @@ func TestBuildAuthSpec_ossfs2(t *testing.T) {
 		VolumeId:   volumeId,
 		AuthConfig: authCfg,
 		FuseType:   "ossfs2",
-	}, &spec, &container)
+	}, "target", &spec, &container)
 
 	volumeMount := container.VolumeMounts[len(container.VolumeMounts)-1]
 	assert.Equal(t, "passwd-ossfs2", volumeMount.Name)
@@ -352,4 +450,26 @@ func TestBuildAuthSpec_ossfs2(t *testing.T) {
 	}
 	assert.Equal(t, expectedItems, volume.Secret.Items)
 	assert.Equal(t, "test-secret-ref", volume.Secret.SecretName)
+
+	spec = corev1.PodSpec{}
+	spec.Volumes = []corev1.Volume{targetVolume}
+	rrsaCfg := mounterutils.RrsaConfig{
+		OidcProviderArn: "test-oidc-provider-arn",
+		RoleArn:         "test-role-arn",
+	}
+	authCfg.RrsaConfig = &rrsaCfg
+	authCfg.AuthType = AuthTypeRRSA
+	fakeOssfs.buildAuthSpec(&mounterutils.FusePodContext{
+		Context:    context.Background(),
+		Namespace:  mounterutils.LegacyFusePodNamespace,
+		NodeName:   nodeName,
+		VolumeId:   volumeId,
+		AuthConfig: authCfg,
+		FuseType:   OssFsType,
+	}, "target", &spec, &container)
+
+	assert.Equal(t, "rrsa-oidc-token", spec.Volumes[len(spec.Volumes)-1].Name)
+	volumeMount = container.VolumeMounts[len(container.VolumeMounts)-1]
+	assert.Contains(t, "/var/run/secrets/ack.alibabacloud.com/rrsa-tokens", volumeMount.MountPath)
+	assert.Contains(t, "rrsa-oidc-token", volumeMount.Name)
 }
