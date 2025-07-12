@@ -16,6 +16,7 @@ limitations under the License.
 package disk
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"os"
@@ -36,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/klog/v2/ktesting"
 	"k8s.io/mount-utils"
 )
 
@@ -395,7 +397,7 @@ func TestGetVolumeCountFromOpenAPI(t *testing.T) {
 }
 
 func TestGetAvailableDiskTypes(t *testing.T) {
-	descJson := []byte(`{
+	descJson := `{
 	"RequestId": "6ECCECF5-945D-58FB-9BA9-312DBEE3F611",
 	"AvailableZones": {
 		"AvailableZone": [
@@ -432,24 +434,55 @@ func TestGetAvailableDiskTypes(t *testing.T) {
 			}
 		]
 	}
-}`)
+}`
+	regionalDescJson := `{
+  "RequestId": "F67616FB-2FF2-543C-99D7-D1AE4246ACA9",
+  "AvailableZones": {
+    "AvailableZone": [
+      {
+        "Status": "Available",
+        "ZoneId": "",
+        "AvailableResources": {
+          "AvailableResource": [
+            {
+              "Type": "DataDisk",
+              "SupportedResources": {
+                "SupportedResource": [
+                  {
+                    "Status": "Available",
+                    "Min": 10,
+                    "Max": 65536,
+                    "Value": "cloud_regional_disk_auto",
+                    "Unit": "GiB"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "RegionId": "cn-beijing"
+      }
+    ]
+  }
+}`
 	cases := []struct {
-		name string
-		resp []byte
-		err  bool
+		name         string
+		resp         string
+		regionalResp string
+		err          bool
 	}{
 		{
 			name: "normal",
-			resp: descJson,
+			resp: descJson, regionalResp: regionalDescJson,
 		},
 		{
 			name: "empty",
-			resp: []byte(`{"AvailableZones":{}}`),
+			resp: `{"AvailableZones":{}}`,
 			err:  true,
 		},
 		{
 			name: "invalid zone/type",
-			resp: []byte(`{
+			resp: `{
 	"AvailableZones": {
 		"AvailableZone": [
 			{
@@ -476,24 +509,32 @@ func TestGetAvailableDiskTypes(t *testing.T) {
 			}
 		]
 	}
-}`), err: true,
+}`, err: true,
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			descRes := ecs.CreateDescribeAvailableResourceResponse()
-			cloud.UnmarshalAcsResponse(tc.resp, descRes)
-
+			_, ctx := ktesting.NewTestContext(t)
 			ctrl := gomock.NewController(t)
 			c := cloud.NewMockECSInterface(ctrl)
-			c.EXPECT().DescribeAvailableResource(gomock.Any()).Return(descRes, nil)
+			c.EXPECT().DescribeAvailableResource(gomock.Any()).DoAndReturn(func(req *ecs.DescribeAvailableResourceRequest) (*ecs.DescribeAvailableResourceResponse, error) {
+				descRes := ecs.CreateDescribeAvailableResourceResponse()
+				if req.ZoneId != "" {
+					cloud.UnmarshalAcsResponse([]byte(tc.resp), descRes)
+				} else if req.Scope == "region" {
+					cloud.UnmarshalAcsResponse([]byte(cmp.Or(tc.regionalResp, `{}`)), descRes)
+				} else {
+					t.Fatal("invalid request")
+				}
+				return descRes, nil
+			}).Times(2)
 
-			diskTypes, err := GetAvailableDiskTypes(context.Background(), c, testMetadata)
+			diskTypes, err := GetAvailableDiskTypes(ctx, c, testMetadata)
 			if tc.err {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, []string{"cloud_efficiency", "cloud_ssd"}, diskTypes)
+				assert.Equal(t, []string{"cloud_efficiency", "cloud_ssd", "cloud_regional_disk_auto"}, diskTypes)
 			}
 		})
 	}

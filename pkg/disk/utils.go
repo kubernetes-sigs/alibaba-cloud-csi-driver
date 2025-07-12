@@ -821,21 +821,9 @@ func getBlockDeviceCapacity(devicePath string) int64 {
 	return pos
 }
 
-func GetAvailableDiskTypes(ctx context.Context, c cloud.ECSInterface, m metadata.MetadataProvider) (types []string, err error) {
-	request := ecs.CreateDescribeAvailableResourceRequest()
-	request.InstanceType = metadata.MustGet(m, metadata.InstanceType)
-	request.DestinationResource = describeResourceType
-	request.ZoneId = metadata.MustGet(m, metadata.ZoneID)
-	request.ResourceType = "disk"
-
-	response, err := c.DescribeAvailableResource(request)
-	if err != nil {
-		return nil, fmt.Errorf("failed to DescribeAvailableResource for instance type %s: %v", request.InstanceType, err)
-	}
-
-	klog.V(4).Infof("UpdateNode: record ecs openapi req: %+v, resp: %+v", request, response)
-	for _, zone := range response.AvailableZones.AvailableZone {
-		if zone.ZoneId != request.ZoneId {
+func appendDiskTypes(resp *ecs.DescribeAvailableResourceResponse, zoneID string, types []string) []string {
+	for _, zone := range resp.AvailableZones.AvailableZone {
+		if zone.ZoneId != zoneID {
 			continue
 		}
 		for _, resource := range zone.AvailableResources.AvailableResource {
@@ -847,8 +835,45 @@ func GetAvailableDiskTypes(ctx context.Context, c cloud.ECSInterface, m metadata
 			}
 		}
 	}
+	return types
+}
+
+func GetAvailableDiskTypes(ctx context.Context, c cloud.ECSInterface, m metadata.MetadataProvider) (types []string, err error) {
+	logger := klog.FromContext(ctx)
+	instanceType := metadata.MustGet(m, metadata.InstanceType)
+
+	request := ecs.CreateDescribeAvailableResourceRequest()
+	request.InstanceType = instanceType
+	request.DestinationResource = describeResourceType
+	request.ZoneId = metadata.MustGet(m, metadata.ZoneID)
+	request.ResourceType = "disk"
+
+	response, err := c.DescribeAvailableResource(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to DescribeAvailableResource(%s) for instance type %s: %w", request.ZoneId, instanceType, err)
+	}
+
+	logger.V(4).Info("DescribeAvailableResource", "request", request, "response", response)
+	types = appendDiskTypes(response, request.ZoneId, types)
+
+	// Regional
+	requestRegional := ecs.CreateDescribeAvailableResourceRequest()
+	requestRegional.InstanceType = instanceType
+	requestRegional.DestinationResource = describeResourceType
+	requestRegional.ResourceType = "disk"
+	requestRegional.Scope = "region"
+
+	responseRegional, err := c.DescribeAvailableResource(requestRegional)
+	if err != nil {
+		return nil, fmt.Errorf("failed to DescribeAvailableResource(region) for instance type %s: %w", instanceType, err)
+	}
+
+	logger.V(4).Info("DescribeAvailableResource(region)", "request", requestRegional, "response", responseRegional)
+	types = appendDiskTypes(responseRegional, "", types)
+
 	if len(types) == 0 {
-		return nil, fmt.Errorf("no supported disk type found. response: %s", response.GetHttpContentString())
+		return nil, fmt.Errorf("no supported disk type found. zonal response: %s; regional response: %s",
+			response.GetHttpContentString(), responseRegional.GetHttpContentString())
 	}
 	return types, nil
 }
