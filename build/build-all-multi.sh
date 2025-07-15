@@ -15,5 +15,8 @@ BUILD_ARGS+=("$@")
 buildctl build "${BUILD_ARGS[@]}" \
     --output type=image,name=alibaba-cloud-csi-driver:latest
 buildctl build "${BUILD_ARGS[@]}" \
+    --opt target=csi-controller \
+    --output type=image,name=alibaba-cloud-csi-driver:latest-controller
+buildctl build "${BUILD_ARGS[@]}" \
     --opt target=init \
     --output type=image,name=alibaba-cloud-csi-driver:latest-init

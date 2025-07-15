@@ -73,6 +73,9 @@ spec:
         key: node-role.kubernetes.io/control-plane
       serviceAccountName: alicloud-csi-provisioner
       priorityClassName: system-cluster-critical
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532  # TODO: remove this when we set the user in all the images
       containers:
 {{- if and .Values.csi.disk.enabled .Values.csi.disk.controller.enabled }}
         - name: external-disk-provisioner
@@ -106,6 +109,9 @@ spec:
             - --logging-format={{ .Values.logging.format }}
             - --kube-api-qps=100
             - --kube-api-burst=200
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
@@ -127,6 +133,9 @@ spec:
             - --kube-api-burst=200
             - --worker-threads=32
             - --timeout=30s
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
@@ -145,6 +154,9 @@ spec:
             - --csi-address=/csi/csi.sock
             - --leader-election
             - --handle-volume-inuse-error=false
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
@@ -163,6 +175,9 @@ spec:
             - --leader-election=true
             - --extra-create-metadata=true
             - --enable-volume-group-snapshots=true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: disk-provisioner-dir
               mountPath: /csi
@@ -180,6 +195,9 @@ spec:
             - --v=5
             - --leader-election=true
             - --enable-volume-group-snapshots=true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
 {{- end -}}
 {{- end -}}
 {{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
@@ -211,6 +229,9 @@ spec:
             - --kube-api-qps=100
             - --kube-api-burst=200
             - --v=5
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: nas-provisioner-dir
               mountPath: /csi
@@ -229,6 +250,9 @@ spec:
             - --csi-address=/csi/csi.sock
             - --leader-election
             - --handle-volume-inuse-error=false
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: nas-provisioner-dir
               mountPath: /csi
@@ -262,6 +286,9 @@ spec:
             httpGet:
               path: /healthz/leader-election
               port: oss-p-http
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           volumeMounts:
           - mountPath: /csi
             name: oss-provisioner-dir
@@ -281,6 +308,9 @@ spec:
             - --leader-election=true
             - --kube-api-qps=100
             - --kube-api-burst=200
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: oss-provisioner-dir
               mountPath: /csi
@@ -339,6 +369,9 @@ spec:
             httpGet:
               path: /healthz/leader-election
               port: local-p-http
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: local-provisioner-dir
               mountPath: /csi
@@ -357,6 +390,9 @@ spec:
             - --csi-address=/csi/csi.sock
             - --leader-election
             - --handle-volume-inuse-error=false
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: local-provisioner-dir
               mountPath: /csi
@@ -378,6 +414,9 @@ spec:
 {{- if not .Values.deploy.ecs }}
             - --nodeid=$(KUBE_NODE_NAME)
 {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           env:
             {{- include "networkEnv" .Values.deploy | nindent 12 }}
             - name: "DEFAULT_REGISTRY"
@@ -459,8 +498,6 @@ spec:
               memory: 128Mi
 {{- if .Values.csi.local.enabled }}
         - name: local-csi-provisioner
-          securityContext:
-            privileged: true
           image: {{ include "imageSpec" (list .Values "localController") }}
           args:
             - --endpoint=unix://csi/csi.sock
@@ -471,6 +508,9 @@ spec:
             - --kube-api-burst=200
             - --v=2
             - --node-id=$(KUBE_NODE_NAME)
+          securityContext:
+            allowPrivilegeEscalation: false
+            # readOnlyRootFilesystem: true  # TODO: get rid of glog
           env:
 {{- if .Values.deploy.ack }}
             - name: "CLUSTER_ID"

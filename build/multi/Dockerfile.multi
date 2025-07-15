@@ -19,7 +19,7 @@ FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian12
 LABEL maintainers="Alibaba Cloud Authors" description="Alibaba Cloud CSI Plugin"
 LABEL defaultOssfsImageTag="v1.91.6.ack.1-fca3971-aliyun" defaultOssfs2ImageTag="v2.0.1.ack.1-ecb0808-aliyun"
 
-FROM distroless-base as csi-controller
+FROM distroless-base as csi-base
 COPY --link --from=build /out/plugin.csi.alibabacloud.com /usr/bin/plugin.csi.alibabacloud.com
 ENTRYPOINT ["/usr/bin/plugin.csi.alibabacloud.com"]
 
@@ -142,6 +142,9 @@ COPY --link --from=build /out/csiplugin-connector /csi/csiplugin-connector
 COPY --link --from=download / /root
 ENTRYPOINT ["/init.sh"]
 
-FROM csi-controller
+FROM csi-base as csi-controller
+USER nonroot
+
+FROM csi-base
 COPY --link --from=build-util-linux /out /
 COPY --link --from=debian /staging-node /
