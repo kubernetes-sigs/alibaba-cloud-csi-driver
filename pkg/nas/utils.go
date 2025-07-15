@@ -108,7 +108,13 @@ func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, p
 			mountFstype = "alinas"
 			// must enable tls when using accesspoint
 			combinedOptions = addTLSMountOptions(combinedOptions)
-		} else {
+		}
+		// Enable compatibility for BMCPFS VPC mount points using the NAS Driver, to support the same usage in ECI.
+		if strings.HasSuffix(opt.Server, "cpfs.aliyuncs.com") && opt.MountProtocol == "efc" {
+			mountFstype = "alinas"
+			combinedOptions = append(combinedOptions, "efc,protocol=efc,net=tcp,fstype=cpfs")
+		}
+		if mountFstype == "" {
 			mountFstype = opt.MountProtocol
 		}
 		isPathNotFound = func(err error) bool {
