@@ -31,6 +31,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
@@ -94,6 +95,8 @@ type InstanceTypeInfo struct {
 	DiskQuantity int
 }
 
+var ecsEndpointOnce sync.Once
+
 func newEcsClient(regionID string, ac utils.AccessControl) (ecsClient *ecs.Client) {
 	var err error
 	switch ac.UseMode {
@@ -114,23 +117,25 @@ func newEcsClient(regionID string, ac utils.AccessControl) (ecsClient *ecs.Clien
 		return nil
 	}
 
-	ep := os.Getenv("ECS_ENDPOINT")
-	if ep != "" {
-		klog.Infof("Use ECS_ENDPOINT: %s", ep)
-	} else if os.Getenv("INTERNAL_MODE") == "true" {
-		var err error
-		ep, err = cloud.ECSQueryLocalEndpoint(regionID, ecsClient)
-		if err != nil {
-			klog.Fatalf("Internal mode, but resolve ECS endpoint failed: %v", err)
+	ecsEndpointOnce.Do(func() {
+		ep := os.Getenv("ECS_ENDPOINT")
+		if ep != "" {
+			klog.Infof("Use ECS_ENDPOINT: %s", ep)
+		} else if os.Getenv("INTERNAL_MODE") == "true" {
+			var err error
+			ep, err = cloud.ECSQueryLocalEndpoint(regionID, ecsClient)
+			if err != nil {
+				klog.Fatalf("Internal mode, but resolve ECS endpoint failed: %v", err)
+			}
+			klog.Infof("Resolved ECS localAPI endpoint: %s", ep)
 		}
-		klog.Infof("Resolved ECS localAPI endpoint: %s", ep)
-	}
-	if ep != "" {
-		err := aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
-		if err != nil {
-			klog.Fatalf("Set ECS endpoint failed: %v", err)
+		if ep != "" {
+			err := aliyunep.AddEndpointMapping(regionID, "Ecs", ep)
+			if err != nil {
+				klog.Fatalf("Set ECS endpoint failed: %v", err)
+			}
 		}
-	}
+	})
 
 	network := utils.GetNetworkType()
 	if network != "" {
