@@ -15,10 +15,8 @@ const (
 	DiskESSDEntry Category = "cloud_essd_entry"
 	DiskRegional  Category = "cloud_regional_disk_auto"
 
-	DiskPPerf            Category = "cloud_pperf"
-	DiskSPerf            Category = "cloud_sperf"
-	DiskSharedSSD        Category = "san_ssd"
-	DiskSharedEfficiency Category = "san_efficiency"
+	DiskPPerf Category = "cloud_pperf"
+	DiskSPerf Category = "cloud_sperf"
 
 	DiskEEDStandard Category = "elastic_ephemeral_disk_standard"
 	DiskEEDPremium  Category = "elastic_ephemeral_disk_premium"
@@ -102,10 +100,6 @@ var AllCategories = map[Category]CategoryDesc{
 		InstantAccessSnapshot: true,
 		Regional:              true,
 	},
-
-	// Deprecated shared disk
-	DiskSharedSSD:        {},
-	DiskSharedEfficiency: {},
 
 	// Only available in private cloud
 	DiskPPerf: {},

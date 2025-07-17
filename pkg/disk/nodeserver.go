@@ -76,8 +76,6 @@ const (
 	DiskStatusAttached = "attached"
 	// DiskStatusDetached disk detached status
 	DiskStatusDetached = "detached"
-	// SharedEnable tag
-	SharedEnable = "shared"
 	// SysConfigTag tag
 	SysConfigTag = "sysConfig"
 	// SysConfigTag tag
@@ -539,13 +537,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 	}
 
 	device := ""
-	isSharedDisk := false
-	if value, ok := req.VolumeContext[SharedEnable]; ok {
-		value = strings.ToLower(value)
-		if checkOption(value) {
-			isSharedDisk = true
-		}
-	}
 	isMultiAttach := false
 	if value, ok := req.VolumeContext[MultiAttach]; ok {
 		value = strings.ToLower(value)
@@ -567,7 +558,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 			return nil, status.Errorf(defaultErrCode, "NodeStageVolume: ADController Enabled, but disk %s can't be found: %v", req.VolumeId, err)
 		}
 	} else {
-		device, err = ns.ad.attachDisk(ctx, req.GetVolumeId(), ns.NodeID, isSharedDisk, true)
+		device, err = ns.ad.attachDisk(ctx, req.GetVolumeId(), ns.NodeID, true)
 		if err != nil {
 			fullErrorMessage := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskAttachDetach)
 			klog.Errorf("NodeStageVolume: Attach volume: %s with error: %s", req.VolumeId, fullErrorMessage)
