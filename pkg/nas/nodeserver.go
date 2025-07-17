@@ -39,14 +39,17 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/rund/directvolume"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 )
 
 type nodeServer struct {
-	config  *internal.NodeConfig
-	mounter mountutils.Interface
-	locks   *utils.VolumeLocks
+	config   *internal.NodeConfig
+	mounter  mountutils.Interface
+	locks    *utils.VolumeLocks
+	recorder record.EventRecorder
 	common.GenericNodeServer
 }
 
@@ -60,8 +63,9 @@ func newNodeServer(config *internal.NodeConfig) *nodeServer {
 	}
 
 	ns := &nodeServer{
-		config: config,
-		locks:  utils.NewVolumeLocks(),
+		config:   config,
+		locks:    utils.NewVolumeLocks(),
+		recorder: utils.NewEventRecorder(),
 		GenericNodeServer: common.GenericNodeServer{
 			NodeID: config.NodeName,
 		},
@@ -130,7 +134,10 @@ const (
 	//NFSClient
 	NFSClient = "nfsclient"
 	//NativeClient
-	NativeClient = "nativeclient"
+	NativeClient                                = "nativeclient"
+	cnfsAlwaysFallbackEventTmpl                 = "CNFS automatically switched from %s to %s."
+	cnfsIfConnectFailedFallbackEventTmpl        = "Due to network issues, CNFS automatically switched from %s to %s."
+	cnfsIfMountTargetUnhealthyFallbackEventTmpl = "Due to mount target inactive, CNFS automatically switched from %s to %s."
 )
 
 func validateNodePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {
@@ -231,7 +238,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	if cnfsName != "" {
-		cnfs, err := ns.config.CNFSGetter.GetCNFS(ctx, cnfsName)
+		cnfs, err := ns.getCNFS(ctx, req, cnfsName)
 		if err != nil {
 			return nil, err
 		}
@@ -462,6 +469,62 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	klog.Infof("NodePublishVolume:: Volume %s Mount success on mountpoint: %s", req.VolumeId, mountPath)
 
 	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func (ns *nodeServer) getCNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, name string) (*v1beta1.ContainerNetworkFileSystem, error) {
+	cnfs, err := ns.config.CNFSGetter.GetCNFS(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	if cnfs.Spec.Fallback.Name == "" || !cnfsNeedsFallback(ctx, cnfs) {
+		return cnfs, nil
+	}
+	return ns.fallbackCNFSAndRecord(ctx, req, cnfs)
+}
+
+func cnfsNeedsFallback(ctx context.Context, cnfs *v1beta1.ContainerNetworkFileSystem) bool {
+	if cnfs == nil {
+		return false
+	}
+	switch cnfs.Spec.Fallback.Strategy {
+	case v1beta1.FallbackStrategyAlways:
+		return true
+	case v1beta1.FallbackStrategyIfConnectFailed:
+		server := cnfs.Spec.Parameters.Server
+		dialer := net.Dialer{Timeout: 5 * time.Second}
+		conn, err := dialer.DialContext(ctx, "tcp", server+":2049")
+		defer func() {
+			if conn != nil {
+				conn.Close()
+			}
+		}()
+		return err != nil
+	case v1beta1.FallbackStrategyIfMountTargetUnhealthy:
+		return cnfs.Status.Status == v1beta1.StatusUnavailable
+	}
+	return false
+}
+
+func (ns *nodeServer) fallbackCNFSAndRecord(ctx context.Context, req *csi.NodePublishVolumeRequest, cnfs *v1beta1.ContainerNetworkFileSystem) (*v1beta1.ContainerNetworkFileSystem, error) {
+	oldName, newName := cnfs.Name, cnfs.Spec.Fallback.Name
+	pod, err := utils.GetPodFromContextOrK8s(ctx, ns.config.KubeClient, req)
+	if err != nil {
+		return nil, err
+	}
+	fallbackCNFS, err := ns.config.CNFSGetter.GetCNFS(ctx, newName)
+	if err != nil {
+		return nil, err
+	}
+
+	switch cnfs.Spec.Fallback.Strategy {
+	case v1beta1.FallbackStrategyAlways:
+		ns.recorder.Eventf(pod, v1.EventTypeWarning, "CNFSFallback", cnfsAlwaysFallbackEventTmpl, oldName, newName)
+	case v1beta1.FallbackStrategyIfConnectFailed:
+		ns.recorder.Eventf(pod, v1.EventTypeWarning, "CNFSFallback", cnfsIfConnectFailedFallbackEventTmpl, oldName, newName)
+	case v1beta1.FallbackStrategyIfMountTargetUnhealthy:
+		ns.recorder.Eventf(pod, v1.EventTypeWarning, "CNFSFallback", cnfsIfMountTargetUnhealthyFallbackEventTmpl, oldName, newName)
+	}
+	return fallbackCNFS, nil
 }
 
 // /var/lib/kubelet/pods/5e03c7f7-2946-4ee1-ad77-2efbc4fdb16c/volumes/kubernetes.io~csi/nas-f5308354-725a-4fd3-b613-0f5b384bd00e/mount
