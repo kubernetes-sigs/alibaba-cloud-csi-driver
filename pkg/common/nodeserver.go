@@ -20,6 +20,12 @@ import (
 )
 
 func WrapNodeServerWithMetricRecorder(server csi.NodeServer, driverType string, client kubernetes.Interface) csi.NodeServer {
+	labels := prometheus.Labels{
+		metric.VolumeStatsLabelType: driverType,
+	}
+	metric.VolumeStatCollector.AttachmentCountMetric.With(labels).Add(0)
+	metric.VolumeStatCollector.AttachmentTimeTotalMetric.With(labels).Add(0)
+
 	return &NodeServerWithMetricRecorder{
 		NodeServer: server,
 		driverType: driverType,
@@ -36,29 +42,38 @@ type NodeServerWithMetricRecorder struct {
 func (s *NodeServerWithMetricRecorder) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	ctx, pod := utils.WithPodInfo(ctx, s.client, req)
 	resp, err := s.NodeServer.NodePublishVolume(ctx, req)
-	s.recordVolumeAttachmentTime(ctx, req, pod, err)
+	if err == nil {
+		s.recordVolumeAttachmentTime(ctx, req, pod)
+	}
 	return resp, err
 }
 
-func (s *NodeServerWithMetricRecorder) recordVolumeAttachmentTime(ctx context.Context, req *csi.NodePublishVolumeRequest, pod *v1.Pod, respErr error) {
+func (s *NodeServerWithMetricRecorder) recordVolumeAttachmentTime(ctx context.Context, req *csi.NodePublishVolumeRequest, pod *v1.Pod) {
 	var err error
+	logger := klog.FromContext(ctx)
 	if pod == nil {
 		if pod, err = utils.GetPodFromContextOrK8s(ctx, s.client, req); err != nil {
-			klog.Errorf("recordVolumeAttachmentTime: failed to get pod from context or k8s: %v", err)
+			logger.Error(err, "recordVolumeAttachmentTime: failed to get pod from context or k8s")
 			return
 		}
 	}
-	podStartTime := pod.Status.StartTime
-	if podStartTime == nil {
-		klog.Errorf("recordVolumeAttachmentTime: no start time found for pod %s/%s", pod.GetNamespace(), pod.GetName())
+	logger = logger.WithValues("pod", klog.KObj(pod))
+	if pod.Status.Phase != v1.PodPending {
+		logger.V(4).Info("recordVolumeAttachmentTime: pod is not pending")
 		return
 	}
+	podStartTime := pod.Status.StartTime
+	if podStartTime == nil {
+		logger.Error(nil, "recordVolumeAttachmentTime: no start time found")
+		return
+	}
+	t := time.Since(podStartTime.Time)
 	labels := prometheus.Labels{
 		metric.VolumeStatsLabelType: s.driverType,
-		metric.VolumeStatsLabelCode: status.Code(respErr).String(),
 	}
+	logger.V(3).Info("E2E attachment time", "time", t)
 	metric.VolumeStatCollector.AttachmentCountMetric.With(labels).Inc()
-	metric.VolumeStatCollector.AttachmentTimeTotalMetric.With(labels).Add(time.Since(podStartTime.Time).Seconds())
+	metric.VolumeStatCollector.AttachmentTimeTotalMetric.With(labels).Add(t.Seconds())
 }
 
 func WrapNodeServerWithValidator(server csi.NodeServer) csi.NodeServer {

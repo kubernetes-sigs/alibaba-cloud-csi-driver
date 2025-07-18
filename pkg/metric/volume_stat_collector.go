@@ -5,10 +5,9 @@ import "github.com/prometheus/client_golang/prometheus"
 const (
 	VolumeStatsCollectorName = "volume_stats"
 	VolumeStatsLabelType     = "type"
-	VolumeStatsLabelCode     = "error_code"
 )
 
-var volumeStatLabels = []string{VolumeStatsLabelType, VolumeStatsLabelCode}
+var volumeStatLabels = []string{VolumeStatsLabelType}
 
 type VolumeStatType uint8
 
