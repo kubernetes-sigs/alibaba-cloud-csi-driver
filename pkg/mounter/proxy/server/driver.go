@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 )
 
 type Driver interface {
@@ -13,6 +14,7 @@ type Driver interface {
 	Init()
 	Terminate()
 	Mount(ctx context.Context, req *proxy.MountRequest) error
+	Warmup(string, string, int, int64, int64)
 }
 
 var (
@@ -29,5 +31,12 @@ func handleMountRequest(ctx context.Context, req *proxy.MountRequest) error {
 	if h == nil {
 		return fmt.Errorf("fstype %q not supported", req.Fstype)
 	}
-	return h.Mount(ctx, req)
+	err := h.Mount(ctx, req)
+	if err != nil {
+		return err
+	}
+	for _, warmupDir := range req.WarmupDirs {
+		h.Warmup(req.Target, warmupDir, req.WarmupWorkers, req.WarmupTotalGBs*utils.GiB, req.WarmupPerFileMaxGBs*utils.GiB)
+	}
+	return nil
 }
