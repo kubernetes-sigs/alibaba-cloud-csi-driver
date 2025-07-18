@@ -45,6 +45,7 @@ type CategoryDesc struct {
 	SingleInstance          bool // Cannot be attached to another instance once it is attached.
 	Regional                bool
 	SnapshotConsistentGroup bool
+	ForceAttach             bool
 }
 
 var AllCategories = map[Category]CategoryDesc{
@@ -99,6 +100,7 @@ var AllCategories = map[Category]CategoryDesc{
 		Size:                  SizeRange{Min: 10, Max: 65536},
 		InstantAccessSnapshot: true,
 		Regional:              true,
+		ForceAttach:           true,
 	},
 
 	// Only available in private cloud

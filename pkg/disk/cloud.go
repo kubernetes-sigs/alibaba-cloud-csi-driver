@@ -26,6 +26,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	alicloudErr "github.com/aliyun/alibaba-cloud-sdk-go/sdk/errors"
@@ -71,6 +72,7 @@ type DiskAttachDetach struct {
 
 	attachThrottler *throttle.Throttler
 	detachThrottler *throttle.Throttler
+	detaching       sync.Map
 
 	dev *DeviceManager
 }
@@ -190,6 +192,13 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 		tagDiskAsK8sAttached(diskID, ecsClient)
 	}
 
+	cate, ok := AllCategories[Category(disk.Category)]
+	if !ok {
+		logger.V(1).Info("attaching unknown disk category, best effort", "category", disk.Category)
+	}
+
+	tryForceAttach := false
+
 	// disk is attached, means disk_ad_controller env is true, disk must be created after 2020.06
 	if disk.Status == DiskStatusInuse {
 		if disk.InstanceId == nodeID {
@@ -227,27 +236,32 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 		if !GlobalConfigVar.DetachBeforeAttach {
 			return "", status.Errorf(codes.Aborted, "AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
 		}
-		klog.Infof("AttachDisk: Disk %s is already attached to instance %s, will be detached", diskID, disk.InstanceId)
-		detachRequest := ecs.CreateDetachDiskRequest()
-		detachRequest.InstanceId = disk.InstanceId
-		detachRequest.DiskId = disk.DiskId
-		for key, value := range GlobalConfigVar.RequestBaseInfo {
-			detachRequest.AppendUserAgent(key, value)
-		}
-		_, err = ecsClient.DetachDisk(detachRequest)
-		if err != nil {
-			klog.Errorf("AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
-			return "", status.Errorf(codes.Aborted, "AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
+		if i, ok := ad.detaching.Load(diskID); ok && i.(string) == disk.InstanceId {
+			if cate.ForceAttach {
+				tryForceAttach = true
+			} else {
+				return "", status.Errorf(codes.Aborted, "AttachDisk: disk %s is being detached from %s", diskID, disk.InstanceId)
+			}
+		} else {
+			klog.Infof("AttachDisk: Disk %s is already attached to instance %s, will be detached", diskID, disk.InstanceId)
+			detachRequest := ecs.CreateDetachDiskRequest()
+			detachRequest.InstanceId = disk.InstanceId
+			detachRequest.DiskId = disk.DiskId
+			for key, value := range GlobalConfigVar.RequestBaseInfo {
+				detachRequest.AppendUserAgent(key, value)
+			}
+			_, err = ecsClient.DetachDisk(detachRequest)
+			if err != nil {
+				klog.Errorf("AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
+				return "", status.Errorf(codes.Aborted, "AttachDisk: Can't Detach disk %s from instance %s: with error: %v", diskID, disk.InstanceId, err)
+			}
+			klog.Infof("AttachDisk: Wait for disk %s to be detached", diskID)
+			if err := ad.waitForDiskDetached(ctx, diskID, nodeID); err != nil {
+				return "", err
+			}
 		}
 	} else if disk.Status == DiskStatusAttaching {
 		return "", status.Errorf(codes.Aborted, "AttachDisk: Disk %s is attaching %v", diskID, disk)
-	}
-	// Step 2: wait for Detach
-	if disk.Status != DiskStatusAvailable {
-		klog.Infof("AttachDisk: Wait for disk %s is detached", diskID)
-		if err := ad.waitForDiskDetached(ctx, diskID, nodeID); err != nil {
-			return "", err
-		}
 	}
 
 	// Step 3: Attach Disk, list device before attach disk
@@ -259,14 +273,10 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 		}
 	}
 
-	cate, ok := AllCategories[Category(disk.Category)]
-	if !ok {
-		logger.V(1).Info("attaching unknown disk category, best effort", "category", disk.Category)
-	}
-
 	attachRequest := ecs.CreateAttachDiskRequest()
 	attachRequest.InstanceId = nodeID
 	attachRequest.DiskId = diskID
+	attachRequest.Force = requests.NewBoolean(tryForceAttach)
 	if cate.SingleInstance {
 		attachRequest.DeleteWithInstance = requests.NewBoolean(true)
 	}
@@ -399,7 +409,7 @@ func (ad *DiskAttachDetach) detachMultiAttachDisk(ctx context.Context, ecsClient
 	return true, nil
 }
 
-func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) error {
+func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) (err error) {
 	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
 		klog.Errorf("DetachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
@@ -410,6 +420,11 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Clien
 		return nil
 	}
 
+	defer func() {
+		if err == nil {
+			ad.detaching.Delete(diskID)
+		}
+	}()
 	if !waitstatus.IsInstanceAttached(disk, nodeID) {
 		klog.Infof("DetachDisk: Skip Detach, disk %s is not attached on instance %s", diskID, nodeID)
 		return nil
@@ -429,6 +444,7 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Clien
 		}
 	}
 	klog.Infof("DetachDisk: Starting to Detach Disk %s from node %s", diskID, nodeID)
+	ad.detaching.Store(diskID, nodeID)
 	detachDiskRequest := ecs.CreateDetachDiskRequest()
 	detachDiskRequest.DiskId = disk.DiskId
 	detachDiskRequest.InstanceId = disk.InstanceId
