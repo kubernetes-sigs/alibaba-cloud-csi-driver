@@ -1,6 +1,6 @@
 module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 
-go 1.23.9
+go 1.24.0
 
 require (
 	github.com/alibabacloud-go/darabonba-openapi v0.1.16
@@ -13,7 +13,7 @@ require (
 	github.com/aliyun/credentials-go v1.4.5
 	github.com/container-storage-interface/spec v1.10.0
 	github.com/containerd/ttrpc v1.2.3
-	github.com/go-logr/logr v1.4.1
+	github.com/go-logr/logr v1.4.2
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.6.0
@@ -26,9 +26,9 @@ require (
 	github.com/prometheus/procfs v0.12.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.10.0
 	go.uber.org/ratelimit v0.1.0
-	golang.org/x/sys v0.30.0
+	golang.org/x/sys v0.31.0
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.33.0
@@ -36,10 +36,10 @@ require (
 	k8s.io/apimachinery v0.30.8
 	k8s.io/client-go v0.30.8
 	k8s.io/component-base v0.30.8
-	k8s.io/klog/v2 v2.120.1
+	k8s.io/klog/v2 v2.130.1
 	k8s.io/kubelet v0.26.12
-	k8s.io/mount-utils v0.30.8
-	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
+	k8s.io/mount-utils v0.33.2
+	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 )
 
 require (
@@ -72,7 +72,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/moby/sys/mountinfo v0.6.2 // indirect
+	github.com/moby/sys/mountinfo v0.7.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
