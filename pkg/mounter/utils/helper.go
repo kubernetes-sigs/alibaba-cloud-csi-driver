@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -29,6 +30,15 @@ func computeMountPathHash(target string) string {
 	hasher := fnv.New32a()
 	hasher.Write([]byte(target))
 	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
+}
+
+func computeVolumeIdLabelVal(volumeId string) string {
+	errs := validation.IsValidLabelValue(volumeId)
+	if errs == nil {
+		return volumeId
+	}
+	volSha := sha1.Sum([]byte(volumeId))
+	return "h1." + hex.EncodeToString(volSha[:])
 }
 
 // https://github.com/kubernetes/kubernetes/blob/b5ba7bc4f5f49760c821cae2f152a8000922e72e/staging/src/k8s.io/apimachinery/pkg/api/validation/objectmeta.go#L36
