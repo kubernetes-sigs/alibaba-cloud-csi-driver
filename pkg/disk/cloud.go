@@ -959,11 +959,11 @@ func createDisk(ecsClient cloud.ECSInterface, diskName, snapshotID string, diskV
 			if errors.Is(err, ErrParameterMismatch) {
 				if createDiskRequest.ClientToken == "" {
 					// protect us from infinite loop
-					return "", attempt, fmt.Errorf("unexpected parameter mismatch")
+					return "", attempt, status.Error(codes.Internal, "unexpected parameter mismatch")
 				}
 				existingDisk, err := findDiskByName(diskName, ecsClient)
 				if err != nil {
-					return "", attempt, fmt.Errorf("parameter mismatch detected, but fetch existing node failed: %w", err)
+					return "", attempt, status.Errorf(codes.Internal, "parameter mismatch detected, but fetch existing disk failed: %v", err)
 				}
 				if existingDisk == nil {
 					// No existing disk, retry without client token
@@ -982,7 +982,7 @@ func createDisk(ecsClient cloud.ECSInterface, diskName, snapshotID string, diskV
 		}
 		return diskID, attempt, nil
 	}
-	return "", createAttempt{}, status.Errorf(codes.Internal, "all attempts failed: %s", strings.Join(messages, "; "))
+	return "", createAttempt{}, status.Errorf(codes.InvalidArgument, "all attempts failed: %s", strings.Join(messages, "; "))
 }
 
 func buildCreateDiskRequest(diskVol *diskVolumeArgs) *ecs.CreateDiskRequest {
