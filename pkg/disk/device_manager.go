@@ -258,6 +258,7 @@ func (m *DeviceManager) WaitRootBlock(ctx context.Context, serial string) (strin
 	if err == nil {
 		v := 3
 		if lastErr != nil {
+			// Increase the verbosity to see the actual delay here
 			v = 2
 		}
 		logger.V(v).Info("block device found", "path", linkPath, "delay", time.Since(start))
@@ -319,6 +320,15 @@ func (m *DeviceManager) getDeviceFallback(serial string) (string, error) {
 
 	// this is danger in Bdf mode
 	if !m.DisableSerial {
+		// We need this branch on old Linux kernel, which has a race condition.
+		// The serial file is created after the uevent has been sent.
+		// So link in /dev/disk/by-id/ may not be created by udev.
+		// This was fixed in Linux 4.20 @ commit e982c4d0a29b1d61fbe7716a8dcf8984936d6730
+		// https://lore.kernel.org/linux-block/20180928061723.13180-1-hare@suse.de/
+		//
+		// The downside:
+		// 1. Read serial from sysfs is relatively slow. Kernel will send request to storage backend.
+		// 2. Race on our side: we return path like /dev/vdb, but this file can be another disk when mounting.
 		name, err := m.getDeviceByScanSysfsSerial(serial)
 		if err == nil {
 			klog.Infof("GetDevice: Use the serial to find device, serial: %s, device: %s", serial, name)
