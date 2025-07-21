@@ -343,6 +343,10 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 	}
 
 	// set listobjectsv2
+	// Note: OSS officially recommends using v2 API as the preferred version,
+	// but ossfs hasn't enabled listobjectv2 by default yet.
+	// This is a temporary workaround added by CSI driver.
+	// TODO: Remove this logic when ossfs enables it by default.
 	if _, ok := tm[KeyListObjectsV2]; !ok {
 		options = append(options, "listobjectsv2")
 	}
