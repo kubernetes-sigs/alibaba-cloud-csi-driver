@@ -91,7 +91,7 @@ csi-agent-bin-linux-%:
 	GOARCH="$(GOARCH)" \
 	go build -trimpath \
 		-ldflags "-s -w -X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=$(CSI_VERSION)" \
-		-o output/csi-agent-bin-$* ./cmd/csi-agent
+		-o output/csi-agent-bin-linux-$* ./cmd/csi-agent
 
 .PHONY: clean
 clean:

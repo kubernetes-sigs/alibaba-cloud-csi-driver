@@ -18,7 +18,7 @@ type CSIAgent struct {
 	ns         *nodeServer
 }
 
-func NewCSIAgent(m metadata.MetadataProvider, runInECI bool, socketPath string) *CSIAgent {
+func NewCSIAgent(m metadata.MetadataProvider, socketPath string) *CSIAgent {
 	ossfs := oss.NewFuseOssfs(nil, m)
 	ossfs2 := oss.NewFuseOssfs2(nil, m)
 	fusePodManagers := map[string]*oss.OSSFusePodManager{
@@ -26,12 +26,12 @@ func NewCSIAgent(m metadata.MetadataProvider, runInECI bool, socketPath string) 
 		OssFs2Type: oss.NewOSSFusePodManager(ossfs2, nil),
 	}
 	ns := &nodeServer{
-		metadata:        m,
-		locks:           utils.NewVolumeLocks(),
-		rawMounter:      mountutils.NewWithoutSystemd(""),
-		skipAttach:      true,
-		fusePodManagers: fusePodManagers,
-		runInECI:        runInECI,
+		metadata:         m,
+		locks:            utils.NewVolumeLocks(),
+		rawMounter:       mountutils.NewWithoutSystemd(""),
+		skipAttach:       true,
+		fusePodManagers:  fusePodManagers,
+		mountProxySocket: socketPath,
 	}
 	return &CSIAgent{
 		ns:         ns,

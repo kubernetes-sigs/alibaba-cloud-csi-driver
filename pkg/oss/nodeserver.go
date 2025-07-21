@@ -45,8 +45,8 @@ type nodeServer struct {
 	rawMounter      mountutils.Interface
 	fusePodManagers map[string]*oss.OSSFusePodManager
 	common.GenericNodeServer
-	skipAttach bool
-	runInECI   bool
+	skipAttach       bool
+	mountProxySocket string
 }
 
 const (
@@ -153,12 +153,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// get mount proxy socket path
 	socketPath := req.PublishContext[mountProxySocket]
-	if socketPath == "" {
+	if socketPath == "" && ns.mountProxySocket != "" {
 		return nil, status.Errorf(codes.InvalidArgument, "%s not found in publishContext", mountProxySocket)
 	}
 
 	var ossfsMounter mounter.Mounter
-	if ns.runInECI {
+	if ns.mountProxySocket == "" {
 		ossfsMounter = mounter.NewOssCmdMounter(ossfsExecPath, req.VolumeId, ns.metadata, ns.rawMounter)
 	} else {
 		ossfsMounter = mounter.NewProxyMounter(socketPath, ns.rawMounter)
@@ -248,7 +248,7 @@ func (ns *nodeServer) NodeUnstageVolume(
 	req *csi.NodeUnstageVolumeRequest) (
 	*csi.NodeUnstageVolumeResponse, error) {
 	klog.Infof("NodeUnstageVolume: starting to unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
-	if ns.runInECI {
+	if ns.mountProxySocket == "" {
 		return &csi.NodeUnstageVolumeResponse{}, nil
 	}
 	if !ns.locks.TryAcquire(req.VolumeId) {

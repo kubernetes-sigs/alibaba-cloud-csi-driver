@@ -25,10 +25,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var (
-	runInECI         bool
-	mountProxySocket string
-)
+var mountProxySocket string
 
 type FileGrpcServer struct {
 	input  io.Reader
@@ -89,7 +86,6 @@ func main() {
 
 	logrus.SetOutput(os.Stderr)
 	utils.AddKlogFlags(flag.CommandLine)
-	flag.BoolVar(&runInECI, "eci", false, "whether the agent is running in ECI")
 	flag.StringVar(&mountProxySocket, "mount-proxy-sock", "/run/kube-agent/csi-agent.sock", "socket path of mount proxy server")
 	flag.Parse()
 
@@ -104,7 +100,7 @@ func main() {
 		agent = &fakeAgent{}
 	case "ossplugin.csi.alibabacloud.com":
 		meta := metadata.NewMetadata()
-		agent = oss.NewCSIAgent(meta, runInECI, mountProxySocket)
+		agent = oss.NewCSIAgent(meta, mountProxySocket)
 	case "diskplugin.csi.alibabacloud.com":
 		agent = disk.NewCSIAgent()
 	case "nasplugin.csi.alibabacloud.com":
