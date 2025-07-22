@@ -8,12 +8,12 @@ skopeo() {
 
 DOCKERFILE=build/multi/Dockerfile.multi
 
-DISTROLESS=gcr.io/distroless/base-debian12
-DEBIAN=docker.io/debian
+DISTROLESS=registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian12
+DEBIAN=registry-cn-hangzhou.ack.aliyuncs.com/dev/debian
 
-if [ "$ACK" ]; then
-    DISTROLESS=registry-cn-hangzhou.ack.aliyuncs.com/dev/ack-base/distroless/base-debian12
-    DEBIAN=registry-cn-hangzhou.ack.aliyuncs.com/dev/debian
+if [ "$UPSTREAM" ]; then
+    DISTROLESS=gcr.io/distroless/base-debian12
+    DEBIAN=docker.io/debian
 fi
 
 DISTROLESS_DIGEST=$(skopeo inspect docker://$DISTROLESS --format '{{.Digest}}')
