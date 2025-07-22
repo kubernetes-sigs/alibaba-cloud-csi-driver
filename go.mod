@@ -1,6 +1,6 @@
 module github.com/kubernetes-sigs/alibaba-cloud-csi-driver
 
-go 1.23.9
+go 1.24.0
 
 require (
 	github.com/alibabacloud-go/darabonba-openapi v0.1.16
@@ -26,9 +26,9 @@ require (
 	github.com/prometheus/procfs v0.15.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	go.uber.org/ratelimit v0.1.0
-	golang.org/x/sys v0.30.0
+	golang.org/x/sys v0.31.0
 	golang.org/x/time v0.7.0
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.35.1
@@ -38,7 +38,7 @@ require (
 	k8s.io/component-base v0.32.6
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/kubelet v0.32.6
-	k8s.io/mount-utils v0.32.6
+	k8s.io/mount-utils v0.33.3
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 )
 
@@ -71,7 +71,6 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/moby/sys/mountinfo v0.7.2 // indirect
-	github.com/moby/sys/userns v0.1.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
