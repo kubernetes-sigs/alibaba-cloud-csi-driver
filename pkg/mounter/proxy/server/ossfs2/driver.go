@@ -14,6 +14,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
+	serverutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -73,9 +74,13 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	args = append(args, "-f")
 
 	var stderrBuf bytes.Buffer
+	sw := serverutils.NewSwitchableWriter(&stderrBuf)
 	cmd := exec.Command("ossfs2", args...)
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = &stderrBuf
+	cmd.Stderr = sw
+	defer func() {
+		sw.SwitchTarget(os.Stderr)
+	}()
 
 	err := cmd.Start()
 	if err != nil {
