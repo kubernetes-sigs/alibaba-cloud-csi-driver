@@ -785,7 +785,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			return &csi.NodeUnstageVolumeResponse{}, nil
 		}
 		ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
-		err = ns.ad.detachDisk(ctx, ecsClient, req.VolumeId, ns.NodeID)
+		err = ns.ad.detachDisk(ctx, ecsClient, req.VolumeId, ns.NodeID, true)
 		if err != nil {
 			klog.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
 			return nil, err
