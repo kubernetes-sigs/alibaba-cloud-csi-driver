@@ -23,7 +23,7 @@ FROM distroless-base as csi-base
 COPY --link --from=build /out/plugin.csi.alibabacloud.com /usr/bin/plugin.csi.alibabacloud.com
 ENTRYPOINT ["/usr/bin/plugin.csi.alibabacloud.com"]
 
-FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20250610-slim as debian
+FROM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20250811-slim as debian
 
 ARG TARGETARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$TARGETARCH \
@@ -42,7 +42,7 @@ RUN --mount=type=bind,from=distroless-base,target=/base \
 FROM distroless-base as dep-list
 COPY --link --from=debian /staging-node /
 
-FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20250610-slim as build-0
+FROM --platform=$BUILDPLATFORM registry-cn-hangzhou.ack.aliyuncs.com/dev/debian:bookworm-20250811-slim as build-0
 ARG BUILDARCH
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=apt-cache-$BUILDARCH \
     --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lib-$BUILDARCH \
