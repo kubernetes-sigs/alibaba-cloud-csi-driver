@@ -5,3 +5,16 @@ updates:
     open-pull-requests-limit: 10
     schedule:
       interval: monthly
+    groups:
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      k8s:
+        patterns:
+          - k8s.io/api
+          - k8s.io/apimachinery
+          - k8s.io/client-go
+          - k8s.io/component-base
+          - k8s.io/kubelet
+          - k8s.io/mount-utils
