@@ -77,6 +77,13 @@ type DiskAttachDetach struct {
 	dev *DeviceManager
 }
 
+type DiskCreateDelete struct {
+	ecs             cloud.ECSInterface
+	batcher         batcher.Batcher[ecs.Disk]
+	createThrottler *throttle.Throttler
+	deleteThrottler *throttle.Throttler
+}
+
 func (ad *DiskAttachDetach) possibleDisks(before sets.Set[string]) ([]string, error) {
 	after, err := ad.dev.ListBlocks()
 	if err != nil {
@@ -290,11 +297,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	for key, value := range GlobalConfigVar.RequestBaseInfo {
 		attachRequest.AppendUserAgent(key, value)
 	}
-	var response *ecs.AttachDiskResponse
-	err = ad.attachThrottler.Throttle(ctx, func() error {
-		response, err = ecsClient.AttachDisk(attachRequest)
-		return err
-	})
+	response, err := throttle.Throttled(ad.attachThrottler, ecsClient.AttachDisk)(ctx, attachRequest)
 	if err != nil {
 		var aliErr *alicloudErr.ServerError
 		if errors.As(err, &aliErr) {
@@ -465,11 +468,7 @@ func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient cloud.ECSI
 	for key, value := range GlobalConfigVar.RequestBaseInfo {
 		detachDiskRequest.AppendUserAgent(key, value)
 	}
-	var response *ecs.DetachDiskResponse
-	err = ad.detachThrottler.Throttle(ctx, func() error {
-		response, err = ecsClient.DetachDisk(detachDiskRequest)
-		return err
-	})
+	response, err := throttle.Throttled(ad.detachThrottler, ecsClient.DetachDisk)(ctx, detachDiskRequest)
 	if err != nil {
 		return status.Errorf(codes.Aborted, "DetachDisk: Fail to detach %s: from Instance: %s with error: %v", disk.DiskId, disk.InstanceId, err)
 	}
@@ -927,7 +926,7 @@ func isValidSnapshotName(name string) bool {
 	return validDiskNameRegexp.MatchString(name)
 }
 
-func createDisk(ecsClient cloud.ECSInterface, diskName, snapshotID string, diskVol *diskVolumeArgs, supportedTypes sets.Set[Category], selectedInstance string, isVirtualNode bool) (string, createAttempt, error) {
+func (c *DiskCreateDelete) createDisk(ctx context.Context, diskName, snapshotID string, diskVol *diskVolumeArgs, supportedTypes sets.Set[Category], selectedInstance string, isVirtualNode bool) (string, createAttempt, error) {
 	// 需要配置external-provisioner启动参数--extra-create-metadata=true，然后ACK的external-provisioner才会将PVC的Annotations传过来
 	createDiskRequest := buildCreateDiskRequest(diskVol)
 	if isValidDiskName(diskName) {
@@ -962,7 +961,7 @@ func createDisk(ecsClient cloud.ECSInterface, diskName, snapshotID string, diskV
 			attempt.Instance = selectedInstance
 		}
 	retry:
-		diskID, final, err := createDiskAttempt(createDiskRequest, attempt, ecsClient)
+		diskID, final, err := c.createDiskAttempt(ctx, createDiskRequest, attempt)
 		if err != nil {
 			if final {
 				return "", attempt, err
@@ -972,7 +971,7 @@ func createDisk(ecsClient cloud.ECSInterface, diskName, snapshotID string, diskV
 					// protect us from infinite loop
 					return "", attempt, status.Error(codes.Internal, "unexpected parameter mismatch")
 				}
-				existingDisk, err := findDiskByName(diskName, ecsClient)
+				existingDisk, err := findDiskByName(diskName, c.ecs)
 				if err != nil {
 					return "", attempt, status.Errorf(codes.Internal, "parameter mismatch detected, but fetch existing disk failed: %v", err)
 				}
@@ -1051,11 +1050,11 @@ func finalizeCreateDiskRequest(template *ecs.CreateDiskRequest, attempt createAt
 
 var ErrParameterMismatch = errors.New("parameter mismatch")
 
-func createDiskAttempt(req *ecs.CreateDiskRequest, attempt createAttempt, ecsClient cloud.ECSInterface) (diskId string, final bool, err error) {
+func (c *DiskCreateDelete) createDiskAttempt(ctx context.Context, req *ecs.CreateDiskRequest, attempt createAttempt) (diskId string, final bool, err error) {
 	req = finalizeCreateDiskRequest(req, attempt)
 	klog.Infof("request: request content: %++v", req)
 
-	volumeRes, err := ecsClient.CreateDisk(req)
+	volumeRes, err := throttle.Throttled(c.createThrottler, c.ecs.CreateDisk)(ctx, req)
 	if err == nil {
 		klog.Infof("request: diskId: %s, reqId: %s", volumeRes.DiskId, volumeRes.RequestId)
 		return volumeRes.DiskId, true, nil
@@ -1157,14 +1156,14 @@ func getDefaultDiskTags(diskVol *diskVolumeArgs) []ecs.CreateDiskTag {
 	return diskTags
 }
 
-func deleteDisk(ctx context.Context, ecsClient cloud.ECSInterface, diskId string) (*ecs.DeleteDiskResponse, error) {
+func (c *DiskCreateDelete) deleteDisk(ctx context.Context, ecsClient cloud.ECSInterface, diskId string) (*ecs.DeleteDiskResponse, error) {
 	deleteDiskRequest := ecs.CreateDeleteDiskRequest()
 	deleteDiskRequest.DiskId = diskId
 
 	var resp *ecs.DeleteDiskResponse
 	err := wait.PollUntilContextTimeout(ctx, time.Second*5, DISK_DELETE_INIT_TIMEOUT, true, func(ctx context.Context) (bool, error) {
 		var err error
-		resp, err = ecsClient.DeleteDisk(deleteDiskRequest)
+		resp, err = throttle.Throttled(c.deleteThrottler, c.ecs.DeleteDisk)(ctx, deleteDiskRequest)
 		if err == nil {
 			klog.Infof("DeleteVolume: Successfully deleted volume: %s, with RequestId: %s", diskId, resp.RequestId)
 			return true, nil

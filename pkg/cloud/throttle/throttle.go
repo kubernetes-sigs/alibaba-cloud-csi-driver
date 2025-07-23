@@ -131,3 +131,14 @@ func (t *Throttler) Throttle(ctx context.Context, f func() error) error {
 		}
 	}
 }
+
+func Throttled[TReq any, TResp any](t *Throttler, f func(TReq) (TResp, error)) func(context.Context, TReq) (TResp, error) {
+	return func(ctx context.Context, req TReq) (TResp, error) {
+		var resp TResp
+		err := t.Throttle(ctx, func() (err error) {
+			resp, err = f(req)
+			return err
+		})
+		return resp, err
+	}
+}

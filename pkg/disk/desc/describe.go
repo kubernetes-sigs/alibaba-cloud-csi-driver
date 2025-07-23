@@ -5,6 +5,7 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 )
 
 const batchSize = 100
@@ -29,17 +30,21 @@ func encodeIDs(ids []string) string {
 	return string(res)
 }
 
-type Disk struct {
-	*ecs.Client
+type disk struct {
+	cloud.ECSInterface
 }
 
-func (c Disk) Describe(ids []string) (Response[ecs.Disk], error) {
+func Disk(client cloud.ECSInterface) Client[ecs.Disk] {
+	return disk{client}
+}
+
+func (c disk) Describe(ids []string) (Response[ecs.Disk], error) {
 	req := ecs.CreateDescribeDisksRequest()
 	req.DiskIds = encodeIDs(ids)
 	req.PageSize = requests.NewInteger(batchSize)
 
 	ret := Response[ecs.Disk]{}
-	resp, err := c.Client.DescribeDisks(req)
+	resp, err := c.DescribeDisks(req)
 	if err != nil {
 		return ret, err
 	}
@@ -48,15 +53,15 @@ func (c Disk) Describe(ids []string) (Response[ecs.Disk], error) {
 	return ret, nil
 }
 
-func (c Disk) GetID(resource *ecs.Disk) string {
+func (c disk) GetID(resource *ecs.Disk) string {
 	return resource.DiskId
 }
 
-func (c Disk) Type() string {
+func (c disk) Type() string {
 	return "disk"
 }
 
-func (c Disk) BatchSize() int {
+func (c disk) BatchSize() int {
 	return batchSize
 }
 
