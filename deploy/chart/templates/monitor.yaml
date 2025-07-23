@@ -1,0 +1,43 @@
+{{- if and .Values.monitoring.plugin.enabled .Values.plugin.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: alibaba-cloud-csi-plugin
+  namespace: {{ .Release.Namespace }}
+spec:
+  podMetricsEndpoints:
+  - port: healthz
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: csi-plugin
+{{- end }}
+{{- if and .Values.monitoring.controller.enabled .Values.controller.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: alibaba-cloud-csi-provisioner
+  namespace: {{ .Release.Namespace }}
+spec:
+  podMetricsEndpoints:
+  - port: healthz
+{{- if and .Values.csi.disk.enabled .Values.csi.disk.controller.enabled }}
+  - port: disk-p-http
+  - port: disk-r-http
+{{- end }}
+{{- if and .Values.csi.nas.enabled .Values.csi.nas.controller.enabled }}
+  - port: nas-p-http
+  - port: nas-r-http
+{{- end }}
+{{- if and .Values.csi.oss.enabled .Values.csi.oss.controller.enabled }}
+  - port: oss-p-http
+{{- end }}
+{{- if and .Values.csi.local.enabled .Values.csi.local.controller.enabled }}
+  - port: local-p-http
+  - port: local-r-http
+{{- end }}
+  selector:
+    matchLabels:
+      app: csi-provisioner
+{{- end }}

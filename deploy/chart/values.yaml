@@ -14,6 +14,12 @@ logging:
     logstore:
       name: alibabacloud-csi-plugin
 
+monitoring:
+  plugin:
+    enabled: false
+  controller:
+    enabled: false
+
 csi:
   disk:
     enabled: true
