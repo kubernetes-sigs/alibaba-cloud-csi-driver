@@ -164,3 +164,56 @@ func (h *Driver) Terminate() {
 	h.wg.Wait()
 	klog.InfoS("All ossfs2 processes exited")
 }
+
+func (h *Driver) Warmup(targetPath, warmupDir string, workerCount int, totalBytes int64, perFileMaxBytes int64) {
+	klog.Infof("Starting FUSE mountpoint warmup for: %s, workerCount: %d, totalBytes: %v, perFileMaxBytes: %v", targetPath, workerCount, totalBytes, perFileMaxBytes)
+	startTime := time.Now()
+
+	warmupFullPath := filepath.Join(targetPath, warmupDir)
+	// Find the immediate entries (files and subdirectories) - our chunks
+	entries, err := os.ReadDir(warmupFullPath)
+	if err != nil {
+		klog.Errorf("Error reading mountpoint directory %s: %v", warmupFullPath, err)
+		return
+	}
+
+	if len(entries) == 0 {
+		klog.Errorf("No entries found in %s to process.", warmupFullPath)
+		return
+	}
+
+	// Use a channel to send entry paths to workers
+	entryChan := make(chan string, len(entries))
+	// Use a channel to receive bytes read from workers
+	bytesReadChan := make(chan int64, workerCount)
+	var totalBytesRead int64
+	var totalBytesMu sync.Mutex
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		for bytes := range bytesReadChan {
+			totalBytesMu.Lock()
+			totalBytesRead += bytes
+			totalBytesMu.Unlock()
+		}
+		wg.Done()
+	}()
+
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go worker(i, entryChan, bytesReadChan, perFileMaxBytes, &wg)
+	}
+
+	for _, entry := range entries {
+		entryPath := filepath.Join(warmupFullPath, entry.Name())
+		entryChan <- entryPath
+	}
+	close(entryChan)
+
+	wg.Wait()
+	// all works done
+	duration := time.Since(startTime)
+	klog.Infof("Finished FUSE mountpoint warmup for: %s, total bytes read: %d MiB, duration: %v", warmupFullPath, totalBytesRead/(1024*1024), duration)
+	close(bytesReadChan)
+}
