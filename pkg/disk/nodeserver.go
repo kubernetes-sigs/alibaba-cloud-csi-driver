@@ -397,11 +397,11 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if realDevice != "" {
 			realMajor, realMinor, err := DefaultDeviceManager.DevTmpFS.DevFor(realDevice)
 			if err != nil {
-				return nil, status.Errorf(codes.Internal, "NodePublishVolume: VolumeId: %s, stat real failed: %s", req.VolumeId, err.Error())
+				return nil, status.Errorf(codes.Internal, "NodePublishVolume: VolumeId: %s, stat real %q failed: %s", req.VolumeId, realDevice, err.Error())
 			}
 			expectMajor, expectMinor, err := DefaultDeviceManager.DevTmpFS.DevFor(expectName)
 			if err != nil {
-				return nil, status.Errorf(codes.Internal, "NodePublishVolume: VolumeId: %s, stat expect failed: %s", req.VolumeId, err.Error())
+				return nil, status.Errorf(codes.Internal, "NodePublishVolume: VolumeId: %s, stat expect %q failed: %s", req.VolumeId, expectName, err.Error())
 			}
 			if realMajor == expectMajor && realMinor == expectMinor {
 				matched = true
