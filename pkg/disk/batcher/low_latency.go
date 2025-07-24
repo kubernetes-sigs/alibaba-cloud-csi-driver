@@ -47,7 +47,7 @@ func NewLowLatency[T any](ecsClient desc.Client[T], clk clock.WithTicker, perReq
 		ecsClient:   ecsClient,
 		requestChan: make(chan *getRequest[*T]),
 		tokens: tokenBucket{
-			limit: burst, perToken: perRequest,
+			limit: time.Duration(burst) * perRequest, perToken: perRequest,
 		},
 		clk: clk,
 	}
@@ -71,28 +71,23 @@ func (w *LowLatency[T]) Describe(ctx context.Context, id string) (*T, error) {
 type tokenBucket struct {
 	zeroAt time.Time
 
-	limit    int
-	perToken time.Duration
+	limit    time.Duration // How long it takes to fully refill the bucket
+	perToken time.Duration // How long it takes to refill one token
 }
 
 func (tb *tokenBucket) tokenAt(t time.Time) float64 {
-	elapsed := t.Sub(tb.zeroAt)
-	token := float64(elapsed) / float64(tb.perToken)
-	if token > float64(tb.limit) {
-		token = float64(tb.limit)
-	}
-	return token
+	elapsed := min(t.Sub(tb.zeroAt), tb.limit)
+	return float64(elapsed) / float64(tb.perToken)
 }
 
 func (tb *tokenBucket) takeAt(t time.Time) {
 	elapsed := t.Sub(tb.zeroAt)
-	if elapsed >= time.Duration(tb.limit)*tb.perToken {
-		tb.zeroAt = t.Add(-time.Duration(tb.limit-1) * tb.perToken)
-	} else {
-		tb.zeroAt = tb.zeroAt.Add(tb.perToken)
-		if tb.zeroAt.After(t) {
-			tb.zeroAt = t
-		}
+	if elapsed >= tb.limit {
+		tb.zeroAt = t.Add(-tb.limit)
+	}
+	tb.zeroAt = tb.zeroAt.Add(tb.perToken)
+	if tb.zeroAt.After(t) {
+		tb.zeroAt = t
 	}
 }
 
@@ -109,6 +104,8 @@ func (w *LowLatency[T]) Run(ctx context.Context) {
 		timeout = nil
 	}
 
+	var d time.Duration
+	nInefficient := 0
 	for {
 		select {
 		case <-ctx.Done():
@@ -121,17 +118,34 @@ func (w *LowLatency[T]) Run(ctx context.Context) {
 			requests[r.id] = append(requests[r.id], r)
 			if len(requests) == batchSize {
 				logger.V(4).Info("batch full", "n", batchSize)
+				nInefficient = 0
 				descBatch(t)
 			} else if timeout == nil {
 				// add some artificial delay for better batching
 				// the less tokens left, the more we wait
 				tokens := w.tokens.tokenAt(t)
-				d := time.Duration(math.Pow(0.5, tokens) * float64(w.tokens.perToken))
+				d = time.Duration(math.Pow(0.5, tokens) * float64(w.tokens.perToken))
 				timeout = w.clk.After(d)
 				logger.V(4).Info("batch waiting", "timeout", d)
 			}
 		case t := <-timeout:
-			logger.V(4).Info("batch timeout", "n", len(requests))
+			v := 4
+			if d > w.tokens.perToken/2 { // We are becoming the bottleneck of system throughput
+				v = 2
+				if len(requests) <= 1 {
+					// We have waited, but didn't get the second request.
+					// We increased the latency with no benefit :(
+					nInefficient++
+					v = 1
+					if nInefficient == 3 {
+						logger.V(1).Info("Inefficient batching, please increase upstream concurrency")
+					}
+				}
+			}
+			if v > 1 {
+				nInefficient = 0
+			}
+			logger.V(v).Info("batch timeout", "timeout", d, "n", len(requests))
 			descBatch(t)
 		}
 	}

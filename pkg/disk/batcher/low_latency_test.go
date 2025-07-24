@@ -12,20 +12,22 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
 	testdesc "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc/testing"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/klog/v2"
+	"k8s.io/klog/v2/ktesting"
 	"k8s.io/utils/clock"
 	testclock "k8s.io/utils/clock/testing"
 )
 
 func TestZeroBucketIsFilled(t *testing.T) {
 	bucket := tokenBucket{
-		limit: 8, perToken: 2 * time.Second,
+		limit: 16 * time.Second, perToken: 2 * time.Second,
 	}
 	assert.Equal(t, 8., bucket.tokenAt(time.Now()))
 }
 
 func TestBucketTake(t *testing.T) {
 	bucket := tokenBucket{
-		limit: 8, perToken: 2 * time.Second,
+		limit: 16 * time.Second, perToken: 2 * time.Second,
 	}
 	now := time.Now()
 	bucket.takeAt(now)
@@ -49,8 +51,8 @@ func setup(t *testing.T) (client *testdesc.FakeClient, clk *testclock.FakeClock,
 	clk = testclock.NewFakeClock(time.Now())
 	batcher = NewLowLatency(client, clk, 2*time.Second, 8)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	logger := ktesting.NewLogger(t, ktesting.DefaultConfig)
+	ctx := klog.NewContext(t.Context(), logger)
 	go batcher.Run(ctx)
 
 	return client, clk, batcher
@@ -152,4 +154,23 @@ func TestFailures(t *testing.T) {
 	disk, err := batcher.Describe(context.Background(), "d-test")
 	assert.ErrorIs(t, err, ErrFake)
 	assert.Nil(t, disk)
+}
+
+func TestReportInefficient(t *testing.T) {
+	client := &testdesc.FakeClient{}
+	batcher := NewLowLatency(client, clock.RealClock{}, 20*time.Millisecond, 8)
+
+	logger := ktesting.NewLogger(t, ktesting.NewConfig(ktesting.BufferLogs(true)))
+	ctx := klog.NewContext(t.Context(), logger)
+	go batcher.Run(ctx)
+
+	client.Disks.Store("d-test", &ecs.Disk{
+		DiskId:   "d-test",
+		DiskName: "mydisk",
+	})
+
+	for range 20 {
+		batcher.Describe(ctx, "d-test")
+	}
+	assert.Contains(t, logger.GetSink().(ktesting.Underlier).GetBuffer().String(), "Inefficient batching")
 }
