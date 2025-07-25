@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -213,55 +212,6 @@ func IsFileExisting(filename string) bool {
 		return true
 	}
 	return !os.IsNotExist(err)
-}
-
-// GetRegionID Get RegionID from Environment Variables or Metadata
-func GetRegionID() (string, error) {
-	var err error
-	regionID := os.Getenv("REGION_ID")
-	if regionID == "" {
-		regionID, err = GetMetaData(RegionIDTag)
-	}
-	return regionID, err
-}
-
-// GetMetaData get metadata from ecs meta-server
-func GetMetaData(resource string) (string, error) {
-	resp, err := http.Get(MetadataURL + resource)
-	if err != nil {
-		return "", err
-	}
-	if resp.StatusCode != 200 {
-		msg := fmt.Sprintf("GetMetaData Response StatusCode %d, Response: %++v", resp.StatusCode, resp)
-		return "", errors.New(msg)
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	if strings.Contains(string(body), "Error 500 Internal Server Error") {
-		msg := fmt.Sprintf("GetMetaData Response StatusCode %d, Response: %++v", resp.StatusCode, resp)
-		return "", errors.New(msg)
-	}
-	return string(body), nil
-}
-
-// RetryGetMetaData ...
-func RetryGetMetaData(resource string) string {
-	var response string
-	for i := 0; i < MetadataMaxRetryCount; i++ {
-		response, _ = GetMetaData(resource)
-		if response != "" {
-			break
-		}
-		time.Sleep(1 * time.Second)
-	}
-	if response == "" {
-		klog.Fatalf("RetryGetMetadata: failed to get metadata %s%s after %d retries", MetadataURL, resource, MetadataMaxRetryCount)
-	}
-	klog.Infof("RetryGetMetaData: successful get metadata %v: %v", resource, response)
-	return response
 }
 
 func Gi2Bytes(gb int64) int64 {

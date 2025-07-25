@@ -10,6 +10,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/jarcoal/httpmock"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata/imds"
 	"github.com/stretchr/testify/assert"
 	fake "k8s.io/client-go/kubernetes/fake"
 )
@@ -17,7 +18,7 @@ import (
 func TestEcsUnreachable(t *testing.T) {
 	t.Parallel()
 	trans := httpmock.NewMockTransport()
-	trans.RegisterResponder("PUT", ECSTokenEndpoint,
+	trans.RegisterResponder("PUT", imds.ECSTokenEndpoint,
 		httpmock.NewErrorResponder(errors.New("what ever")).Delay(11*time.Second))
 	// Should print a suggestion about disabling ECS metadata
 	m := NewMetadata()
@@ -150,8 +151,9 @@ func TestCreateOpenAPIFromEnv(t *testing.T) {
 
 func fakeMetadata(t *testing.T) *Metadata {
 	trans := httpmock.NewMockTransport()
-	trans.RegisterResponder("PUT", ECSTokenEndpoint, httpmock.NewStringResponder(200, "fake_metadata_token"))
-	trans.RegisterResponder("GET", ECSIdentityEndpoint, httpmock.NewStringResponder(200, testIdDoc))
+	trans.RegisterResponder("PUT", imds.ECSTokenEndpoint, httpmock.NewStringResponder(200, "fake_metadata_token"))
+	trans.RegisterResponder("GET", imds.ECSMetadataEndpoint+ECSIdentityPath, httpmock.NewStringResponder(200, testIdDoc))
+	trans.RegisterResponder("GET", imds.ECSMetadataEndpoint+"meta-data/ram/security-credentials/", httpmock.NewStringResponder(200, "testRoleName"))
 
 	m := NewMetadata()
 	m.EnableEcs(trans)
@@ -164,6 +166,10 @@ func TestCreateEcs(t *testing.T) {
 	region, err := m.Get(RegionID)
 	assert.NoError(t, err)
 	assert.Equal(t, "cn-beijing", region)
+
+	roleName, err := m.Get(RAMRoleName)
+	assert.NoError(t, err)
+	assert.Equal(t, "testRoleName", roleName)
 }
 
 func TestGetUnknownKey(t *testing.T) {
