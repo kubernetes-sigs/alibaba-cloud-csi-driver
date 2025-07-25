@@ -16,19 +16,19 @@ require (
 	github.com/go-logr/logr v1.4.2
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/golang/mock v1.6.0
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/jarcoal/httpmock v1.3.1
 	github.com/kubernetes-csi/csi-lib-utils v0.7.1
 	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.19.1
 	github.com/prometheus/common v0.55.0
-	github.com/prometheus/procfs v0.15.1
+	github.com/prometheus/procfs v0.17.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/ratelimit v0.1.0
-	golang.org/x/sys v0.30.0
+	golang.org/x/sys v0.33.0
 	golang.org/x/time v0.7.0
 	google.golang.org/grpc v1.65.0
 	google.golang.org/protobuf v1.35.1
