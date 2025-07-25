@@ -16,6 +16,7 @@ type CSIAgent struct {
 
 func NewCSIAgent(socketPath string) *CSIAgent {
 	config := &internal.NodeConfig{
+		EnablePortCheck:  true,
 		MountProxySocket: socketPath,
 		CNFSGetter:       unsupportedCNFSGetter{},
 	}
@@ -27,6 +28,14 @@ func NewCSIAgent(socketPath string) *CSIAgent {
 
 func (a *CSIAgent) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	return a.ns.NodePublishVolume(ctx, req)
+}
+
+func (a *CSIAgent) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+	return a.ns.NodeUnpublishVolume(ctx, req)
+}
+
+func (a *CSIAgent) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
+	return a.ns.NodeGetCapabilities(ctx, req)
 }
 
 type unsupportedCNFSGetter struct{}

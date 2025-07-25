@@ -561,41 +561,46 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 		{
 			name:    "empty option, empty config",
 			options: []string{"others"},
-			want:    []string{"others", "dbglevel=err", "listobjectsv2"},
+			want:    []string{"others", "dbglevel=warn", "allow_other", "listobjectsv2"},
 		},
 		{
 			name:    "set option",
 			options: []string{"others", "dbglevel=debug", "others"},
-			want:    []string{"others", "dbglevel=debug", "others", "listobjectsv2"},
+			want:    []string{"others", "dbglevel=debug", "others", "allow_other", "listobjectsv2"},
 		},
 		{
 			name:     "set option, set config",
 			cfglevel: "info",
 			options:  []string{"others", "dbglevel=debug", "others"},
-			want:     []string{"others", "dbglevel=debug", "others", "listobjectsv2"},
+			want:     []string{"others", "dbglevel=debug", "others", "allow_other", "listobjectsv2"},
 		},
 		{
 			name:     "empty option, set config",
 			cfglevel: "debug",
 			options:  []string{"others"},
-			want:     []string{"others", "dbglevel=debug", "listobjectsv2"},
+			want:     []string{"others", "dbglevel=debug", "allow_other", "listobjectsv2"},
 		},
 		{
 			name:     "empty option, invalid config",
 			cfglevel: "invalid",
 			options:  []string{"others"},
-			want:     []string{"others", "dbglevel=err", "listobjectsv2"},
+			want:     []string{"others", "dbglevel=warn", "allow_other", "listobjectsv2"},
 		},
 		{
 			name:        "mime-support=true",
 			enabledMime: true,
 			options:     []string{"others"},
-			want:        []string{"others", "dbglevel=err", "mime=" + OssfsCsiMimeTypesFilePath, "listobjectsv2"},
+			want:        []string{"others", "dbglevel=warn", "allow_other", "mime=" + OssfsCsiMimeTypesFilePath, "listobjectsv2"},
 		},
 		{
 			name:    "listobjectsv2 has set",
 			options: []string{"others", "listobjectsv2"},
-			want:    []string{"others", "listobjectsv2", "dbglevel=err"},
+			want:    []string{"others", "listobjectsv2", "dbglevel=warn", "allow_other"},
+		},
+		{
+			name:    "allow other",
+			options: []string{"others", "allow_other"},
+			want:    []string{"others", "allow_other", "dbglevel=warn", "listobjectsv2"},
 		},
 	}
 	for _, tt := range tests {

@@ -26,6 +26,7 @@ const (
 	VmocType
 	DataPlaneZoneID
 	RAMRoleName
+	RRSATokenFile
 )
 
 func (k MetadataKey) String() string {
@@ -48,6 +49,8 @@ func (k MetadataKey) String() string {
 		return "DataPlaneZoneID"
 	case RAMRoleName:
 		return "RAMRoleName"
+	case RRSATokenFile:
+		return "RRSATokenFile"
 	default:
 		return fmt.Sprintf("MetadataKey(%d)", k)
 	}

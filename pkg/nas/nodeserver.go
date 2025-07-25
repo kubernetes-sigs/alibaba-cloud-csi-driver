@@ -63,9 +63,8 @@ func newNodeServer(config *internal.NodeConfig) *nodeServer {
 	}
 
 	ns := &nodeServer{
-		config:   config,
-		locks:    utils.NewVolumeLocks(),
-		recorder: utils.NewEventRecorder(),
+		config: config,
+		locks:  utils.NewVolumeLocks(),
 		GenericNodeServer: common.GenericNodeServer{
 			NodeID: config.NodeName,
 		},
@@ -73,6 +72,7 @@ func newNodeServer(config *internal.NodeConfig) *nodeServer {
 	if config.MountProxySocket == "" {
 		ns.mounter = newNasMounter()
 	} else {
+		ns.recorder = utils.NewEventRecorder()
 		ns.mounter = newNasMounterWithProxy(config.MountProxySocket)
 	}
 	return ns

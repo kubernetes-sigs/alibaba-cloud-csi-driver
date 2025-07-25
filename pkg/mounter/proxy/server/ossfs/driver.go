@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
@@ -48,20 +47,11 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	options := req.Options
 
 	// prepare passwd file
-	var passwdFile string
-	if passwd := req.Secrets[utils.GetPasswdFileName("ossfs")]; passwd != "" {
-		tmpDir, err := os.MkdirTemp("", "ossfs-")
-		if err != nil {
-			return err
-		}
-		passwdFile = filepath.Join(tmpDir, "passwd")
-		err = os.WriteFile(passwdFile, []byte(passwd), 0o600)
-		if err != nil {
-			return err
-		}
-		klog.V(4).InfoS("created ossfs passwd file", "path", passwdFile)
-		options = append(options, "passwd_file="+passwdFile)
+	passwdFile, err := utils.SaveOssSecretsToFile(req.Secrets)
+	if err != nil {
+		return err
 	}
+	options = append(options, "passwd_file="+passwdFile)
 
 	args := mount.MakeMountArgs(req.Source, req.Target, "", options)
 	args = append(args, req.MountFlags...)
@@ -71,7 +61,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		return fmt.Errorf("start ossfs failed: %w", err)
 	}

@@ -45,7 +45,8 @@ type nodeServer struct {
 	rawMounter      mountutils.Interface
 	fusePodManagers map[string]*oss.OSSFusePodManager
 	common.GenericNodeServer
-	skipAttach bool
+	skipAttach       bool
+	mountProxySocket string
 }
 
 const (
@@ -61,6 +62,7 @@ const (
 	metricsPathPrefix = "/host/var/run/ossfs/"
 	// defaultMetricsTop
 	defaultMetricsTop = "10"
+	ossfsExecPath     = "/usr/local/bin/ossfs"
 )
 
 // for cases where fuseType does not affect like UnPublishVolume,
@@ -151,17 +153,23 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// get mount proxy socket path
 	socketPath := req.PublishContext[mountProxySocket]
-	if socketPath == "" {
+	if socketPath == "" && ns.mountProxySocket != "" {
 		return nil, status.Errorf(codes.InvalidArgument, "%s not found in publishContext", mountProxySocket)
 	}
-	proxyMounter := mounter.NewProxyMounter(socketPath, ns.rawMounter)
+
+	var ossfsMounter mounter.Mounter
+	if ns.mountProxySocket == "" {
+		ossfsMounter = mounter.NewOssCmdMounter(ossfsExecPath, req.VolumeId, ns.metadata, ns.rawMounter)
+	} else {
+		ossfsMounter = mounter.NewProxyMounter(socketPath, ns.rawMounter)
+	}
 
 	// When work as csi-agent, directly mount on the target path.
 	if ns.skipAttach {
 		if opts.FuseType == OssFsType {
 			utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, OssFsType, "oss", opts.Bucket)
 		}
-		err := proxyMounter.MountWithSecrets(mountSource, targetPath, opts.FuseType, mountOptions, authCfg.Secrets)
+		err := ossfsMounter.MountWithSecrets(mountSource, targetPath, opts.FuseType, mountOptions, authCfg)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -180,8 +188,8 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if opts.FuseType == OssFsType {
 			utils.WriteSharedMetricsInfo(metricsPathPrefix, req, OssFsType, "oss", opts.Bucket, attachPath)
 		}
-		err := mounter.NewProxyMounter(socketPath, ns.rawMounter).MountWithSecrets(
-			mountSource, attachPath, opts.FuseType, mountOptions, authCfg.Secrets)
+		err := ossfsMounter.MountWithSecrets(
+			mountSource, attachPath, opts.FuseType, mountOptions, authCfg)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -240,6 +248,9 @@ func (ns *nodeServer) NodeUnstageVolume(
 	req *csi.NodeUnstageVolumeRequest) (
 	*csi.NodeUnstageVolumeResponse, error) {
 	klog.Infof("NodeUnstageVolume: starting to unmount volume, volumeId: %s, target: %v", req.VolumeId, req.StagingTargetPath)
+	if ns.mountProxySocket == "" {
+		return &csi.NodeUnstageVolumeResponse{}, nil
+	}
 	if !ns.locks.TryAcquire(req.VolumeId) {
 		return nil, status.Errorf(codes.Aborted, "There is already an operation for %s", req.VolumeId)
 	}

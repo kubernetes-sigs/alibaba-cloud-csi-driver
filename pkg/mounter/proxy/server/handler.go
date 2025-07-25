@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"golang.org/x/sys/unix"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
@@ -34,7 +35,7 @@ func Handle(conn net.Conn, timeout time.Duration) error {
 	socket := int(connf.Fd())
 	defer connf.Close()
 
-	err = proxy.WaitFdReadable(socket, timeout)
+	err = utils.WaitFdReadable(socket, timeout)
 	if err != nil {
 		return err
 	}

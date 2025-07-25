@@ -82,6 +82,17 @@ pkg/disk/proto/disk.pb.go pkg/disk/proto/disk_ttrpc.pb.go: pkg/disk/disk.proto
 		github.com/containerd/ttrpc/cmd/protoc-gen-go-ttrpc
 	$(PROTOC) -I pkg/disk disk.proto --go_out=pkg/disk --go-ttrpc_out=pkg/disk
 
+CSI_VERSION := $(shell git describe --tags --always)
+csi-agent-bin-linux-x86_64: GOARCH=amd64
+csi-agent-bin-linux-aarch64: GOARCH=arm64
+csi-agent-bin-linux-%:
+	CGO_ENABLED=0 \
+	GOOS="linux" \
+	GOARCH="$(GOARCH)" \
+	go build -trimpath \
+		-ldflags "-s -w -X github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version.VERSION=$(CSI_VERSION)" \
+		-o output/csi-agent-bin-linux-$* ./cmd/csi-agent
+
 .PHONY: clean
 clean:
-	rm -rf bin
+	rm -rf bin output

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 )
@@ -65,7 +66,7 @@ func (c *client) doRequest(req *proxy.Request) (*proxy.Response, error) {
 
 	p := make([]byte, proxy.MaxMsgSize)
 
-	err = proxy.WaitFdReadable(socket, c.timeout)
+	err = utils.WaitFdReadable(socket, c.timeout)
 	if err != nil {
 		return nil, err
 	}
