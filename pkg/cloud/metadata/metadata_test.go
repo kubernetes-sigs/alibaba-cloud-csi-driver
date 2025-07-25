@@ -153,6 +153,7 @@ func fakeMetadata(t *testing.T) *Metadata {
 	trans := httpmock.NewMockTransport()
 	trans.RegisterResponder("PUT", imds.ECSTokenEndpoint, httpmock.NewStringResponder(200, "fake_metadata_token"))
 	trans.RegisterResponder("GET", imds.ECSMetadataEndpoint+ECSIdentityPath, httpmock.NewStringResponder(200, testIdDoc))
+	trans.RegisterResponder("GET", imds.ECSMetadataEndpoint+"meta-data/ram/security-credentials/", httpmock.NewStringResponder(200, "testRoleName"))
 
 	m := NewMetadata()
 	m.EnableEcs(trans)
@@ -165,6 +166,10 @@ func TestCreateEcs(t *testing.T) {
 	region, err := m.Get(RegionID)
 	assert.NoError(t, err)
 	assert.Equal(t, "cn-beijing", region)
+
+	roleName, err := m.Get(RAMRoleName)
+	assert.NoError(t, err)
+	assert.Equal(t, "testRoleName", roleName)
 }
 
 func TestGetUnknownKey(t *testing.T) {

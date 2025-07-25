@@ -57,7 +57,7 @@ const (
 // reqName: for subpath generating, CreateVolumeRequest.GetName
 // onNode: run on nodeserver mode
 func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCapability,
-	readOnly bool, region, reqName string, onNode bool) *oss.Options {
+	readOnly bool, reqName string, onNode bool, m metadata.MetadataProvider) *oss.Options {
 
 	if volOptions == nil {
 		volOptions = map[string]string{}
@@ -172,6 +172,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	}
 
 	url := opts.URL
+	region := metadata.MustGet(m, metadata.RegionID)
 	if region != "" && utils.GetNetworkType() == "vpc" {
 		url, _ = setNetworkType(url, region)
 	}
@@ -202,8 +203,12 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	case oss.AuthTypeSTS:
 		// try to get default ECS worker role from metadata server
 		if opts.RoleName == "" {
-			workerRole, _ := utils.GetMetaData(utils.WorkerRoleResource)
-			opts.RoleName = utils.MetadataURL + utils.WorkerRoleResource + workerRole
+			workerRole, err := m.Get(metadata.RAMRoleName)
+			if err != nil {
+				klog.ErrorS(err, "get worker role name failed")
+			} else {
+				opts.RoleName = utils.MetadataURL + utils.WorkerRoleResource + workerRole
+			}
 		}
 	}
 

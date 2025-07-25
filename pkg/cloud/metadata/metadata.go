@@ -25,6 +25,7 @@ const (
 	ClusterID
 	VmocType
 	DataPlaneZoneID
+	RAMRoleName
 )
 
 func (k MetadataKey) String() string {
@@ -45,6 +46,8 @@ func (k MetadataKey) String() string {
 		return "VmocType"
 	case DataPlaneZoneID:
 		return "DataPlaneZoneID"
+	case RAMRoleName:
+		return "RAMRoleName"
 	default:
 		return fmt.Sprintf("MetadataKey(%d)", k)
 	}
@@ -144,7 +147,7 @@ func (m *Metadata) EnableEcs(httpRT http.RoundTripper) {
 	}
 	m.providers = append(m.providers, &lazyInitProvider{
 		fetcher: &EcsFetcher{httpRT: httpRT},
-	})
+	}, NewEcsDynamic(httpRT))
 
 }
 

@@ -29,6 +29,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var m = metadata.FakeProvider{
+	Values: map[metadata.MetadataKey]string{
+		metadata.RegionID:    "cn-beijing",
+		metadata.RAMRoleName: "worker-role",
+	},
+}
+
 func Test_parseOptions(t *testing.T) {
 	t.Setenv("ALIBABA_CLOUD_NETWORK_TYPE", "vpc")
 
@@ -37,7 +44,7 @@ func Test_parseOptions(t *testing.T) {
 	testCVReq := csi.CreateVolumeRequest{
 		Parameters: map[string]string{
 			"bucket":   "test-bucket",
-			"url":      "oss-cn-beijing.aliyuncs.com",
+			"url":      "oss-cn-hangzhou.aliyuncs.com",
 			"volumeAs": "subpath",
 		},
 		Secrets: map[string]string{
@@ -54,7 +61,7 @@ func Test_parseOptions(t *testing.T) {
 	}
 	expectedOptions = &oss.Options{
 		Bucket:        "test-bucket",
-		URL:           "https://oss-cn-beijing.aliyuncs.com",
+		URL:           "https://oss-cn-hangzhou.aliyuncs.com",
 		AkID:          "test-akid",
 		AkSecret:      "test-aksecret",
 		FuseType:      "ossfs",
@@ -63,7 +70,7 @@ func Test_parseOptions(t *testing.T) {
 		MetricsTop:    defaultMetricsTop,
 	}
 	gotOptions = parseOptions(testCVReq.GetParameters(),
-		testCVReq.GetSecrets(), testCVReq.GetVolumeCapabilities(), false, "", "volume-id", false)
+		testCVReq.GetSecrets(), testCVReq.GetVolumeCapabilities(), false, "volume-id", false, m)
 	assert.Equal(t, expectedOptions, gotOptions)
 
 	// ControllerPublishVolume
@@ -100,7 +107,7 @@ func Test_parseOptions(t *testing.T) {
 	}
 	gotOptions = parseOptions(testCPVReq.GetVolumeContext(),
 		testCPVReq.GetSecrets(), []*csi.VolumeCapability{testCPVReq.GetVolumeCapability()},
-		testCPVReq.Readonly, "cn-beijing", "", false)
+		testCPVReq.Readonly, "", false, m)
 	assert.Equal(t, expectedOptions, gotOptions)
 
 	// NodePublishVolume
@@ -138,7 +145,7 @@ func Test_parseOptions(t *testing.T) {
 	}
 	gotOptions = parseOptions(testNPReq.GetVolumeContext(),
 		testNPReq.GetSecrets(), []*csi.VolumeCapability{testNPReq.GetVolumeCapability()},
-		testNPReq.Readonly, "cn-beijing", "", true)
+		testNPReq.Readonly, "", true, m)
 	assert.Equal(t, expectedOptions, gotOptions)
 
 	// test authtype
@@ -147,7 +154,7 @@ func Test_parseOptions(t *testing.T) {
 	}
 	t.Setenv("ACCESS_KEY_ID", "test-akid")
 	t.Setenv("ACCESS_KEY_SECRET", "test-aksecret")
-	gotOptions = parseOptions(options, nil, nil, true, "cn-beijing", "", true)
+	gotOptions = parseOptions(options, nil, nil, true, "", true, m)
 	expectedOptions = &oss.Options{
 		AkID:          "test-akid",
 		AkSecret:      "test-aksecret",
@@ -165,7 +172,7 @@ func Test_parseOptions(t *testing.T) {
 		"roleName": "test-rolename",
 		"url":      "oss-cn-beijing.aliyuncs.com",
 	}
-	gotOptions = parseOptions(options, nil, nil, true, "", "", true)
+	gotOptions = parseOptions(options, nil, nil, true, "", true, m)
 	expectedOptions = &oss.Options{
 		AuthType:      oss.AuthTypeSTS,
 		FuseType:      "ossfs",
@@ -174,7 +181,25 @@ func Test_parseOptions(t *testing.T) {
 		MetricsTop:    defaultMetricsTop,
 		ReadOnly:      true,
 		RoleName:      "test-rolename",
-		URL:           "https://oss-cn-beijing.aliyuncs.com",
+		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
+	}
+	assert.Equal(t, expectedOptions, gotOptions)
+
+	// Auto RoleName
+	options = map[string]string{
+		"authType": "sts",
+		"url":      "oss-cn-beijing.aliyuncs.com",
+	}
+	gotOptions = parseOptions(options, nil, nil, true, "", true, m)
+	expectedOptions = &oss.Options{
+		AuthType:      oss.AuthTypeSTS,
+		FuseType:      "ossfs",
+		Path:          "/",
+		UseSharedPath: true,
+		MetricsTop:    defaultMetricsTop,
+		ReadOnly:      true,
+		RoleName:      "http://100.100.100.200/latest/meta-data/ram/security-credentials/worker-role",
+		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
 	}
 	assert.Equal(t, expectedOptions, gotOptions)
 }
