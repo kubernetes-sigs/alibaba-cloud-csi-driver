@@ -197,10 +197,18 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 		logger.V(1).Info("attaching unknown disk category, best effort", "category", disk.Category)
 	}
 
+	canForceAttach := false
+	if cate.ForceAttach {
+		if i, ok := ad.detaching.Load(diskID); ok && i.(string) == disk.InstanceId {
+			canForceAttach = true
+		}
+	}
+
 	tryForceAttach := false
 
 	// disk is attached, means disk_ad_controller env is true, disk must be created after 2020.06
-	if disk.Status == DiskStatusInuse {
+	switch disk.Status {
+	case DiskStatusInuse:
 		if disk.InstanceId == nodeID {
 			if !fromNode {
 				klog.Infof("AttachDisk: Disk %s is already attached to Instance %s, skipping", diskID, disk.InstanceId)
@@ -236,12 +244,8 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 		if !GlobalConfigVar.DetachBeforeAttach {
 			return "", status.Errorf(codes.Aborted, "AttachDisk: Disk %s is already attached to instance %s, env DISK_FORCE_DETACHED is false reject force detach", diskID, disk.InstanceId)
 		}
-		if i, ok := ad.detaching.Load(diskID); ok && i.(string) == disk.InstanceId {
-			if cate.ForceAttach {
-				tryForceAttach = true
-			} else {
-				return "", status.Errorf(codes.Aborted, "AttachDisk: disk %s is being detached from %s", diskID, disk.InstanceId)
-			}
+		if canForceAttach {
+			tryForceAttach = true
 		} else {
 			klog.Infof("AttachDisk: Disk %s is already attached to instance %s, will be detached", diskID, disk.InstanceId)
 			detachRequest := ecs.CreateDetachDiskRequest()
@@ -260,8 +264,12 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 				return "", err
 			}
 		}
-	} else if disk.Status == DiskStatusAttaching {
+	case DiskStatusAttaching:
 		return "", status.Errorf(codes.Aborted, "AttachDisk: Disk %s is attaching %v", diskID, disk)
+	case DiskStatusDetaching:
+		if canForceAttach {
+			tryForceAttach = true
+		}
 	}
 
 	// Step 3: Attach Disk, list device before attach disk
@@ -276,7 +284,10 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	attachRequest := ecs.CreateAttachDiskRequest()
 	attachRequest.InstanceId = nodeID
 	attachRequest.DiskId = diskID
-	attachRequest.Force = requests.NewBoolean(tryForceAttach)
+	if tryForceAttach {
+		attachRequest.Force = requests.NewBoolean(true)
+		logger.V(1).Info("try force attach", "from", disk.InstanceId, "to", nodeID)
+	}
 	if cate.SingleInstance {
 		attachRequest.DeleteWithInstance = requests.NewBoolean(true)
 	}
