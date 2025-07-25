@@ -198,7 +198,7 @@ func Test_parseOptions(t *testing.T) {
 		UseSharedPath: true,
 		MetricsTop:    defaultMetricsTop,
 		ReadOnly:      true,
-		RoleName:      "http://100.100.100.200/latest/meta-data/ram/security-credentials/worker-role",
+		RoleName:      "worker-role",
 		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
 	}
 	assert.Equal(t, expectedOptions, gotOptions)

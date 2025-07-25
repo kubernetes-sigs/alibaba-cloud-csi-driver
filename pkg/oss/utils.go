@@ -27,6 +27,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
 	mounter "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -187,7 +188,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		opts.Path = path.Join(opts.Path, reqName)
 	}
 
-	if !onNode {
+	if !onNode || features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 		return opts
 	}
 	// get auth config from ENV / metadata service
@@ -207,7 +208,15 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 			if err != nil {
 				klog.ErrorS(err, "get worker role name failed")
 			} else {
-				opts.RoleName = utils.MetadataURL + utils.WorkerRoleResource + workerRole
+				// Note: ossfs 1.0 supports 2 ram_role formats:
+				// 1. utils.MetadataURL + utils.WorkerRoleResource + workerRole
+				// 	Issues:
+				//	* Incompatible with s3fs.
+				// 	* Cannot support imdsv2 mode of ECS metadata server.
+				// 2. workerRole
+				//	Issues:
+				// 	* Incompatible with older version (<=1.86) ossfs, which won't be used by containerized mounter.
+				opts.RoleName = workerRole
 			}
 		}
 	}

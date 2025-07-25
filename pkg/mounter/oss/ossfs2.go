@@ -17,7 +17,7 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-var defaultOssfs2ImageTag = "v2.0.1.ack.1-ecb0808-aliyun"
+var defaultOssfs2ImageTag = "v2.0.2.ack.1-a76655f-aliyun"
 var defaultOssfs2Dbglevel = utils.DebugLevelInfo
 
 type fuseOssfs2 struct {
@@ -46,41 +46,66 @@ func (f *fuseOssfs2) Name() string {
 }
 func (f *fuseOssfs2) PrecheckAuthConfig(o *Options, onNode bool) error {
 
-	if o.AuthType != "" {
+	if o.AuthType != AuthTypeRRSA && o.AssumeRoleArn != "" {
+		return fmt.Errorf("only support access OSS through STS AssumeRole when authType is RRSA")
+	}
+
+	switch o.AuthType {
+	case AuthTypeRRSA:
+		if err := checkRRSAParams(o); err != nil {
+			return err
+		}
+	case AuthTypeSTS:
+		// rolename may retrieve from metadata service
+		if onNode && o.RoleName == "" {
+			return fmt.Errorf("missing roleName or ramRole in volume attributes")
+		}
+	case "":
+		if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
+			return nil
+		}
+		if o.SecretRef != "" {
+			if o.AkID != "" || o.AkSecret != "" {
+				return fmt.Errorf("AK and secretRef cannot be set at the same time")
+			}
+			if o.SecretRef == utils.GetCredientialsSecretName(OssFsType) {
+				return fmt.Errorf("invalid SecretRef name")
+			}
+			return nil
+		}
+		// aksk may retrieve from ENV
+		if onNode && (o.AkID == "" || o.AkSecret == "") {
+			return fmt.Errorf("missing access key in node publish secret")
+		}
+	default:
 		return fmt.Errorf("%s do not support authType: %s", f.Name(), o.AuthType)
 	}
-
-	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
-		return nil
-	}
-	if o.SecretRef != "" {
-		if o.AkID != "" || o.AkSecret != "" {
-			return fmt.Errorf("AK and secretRef cannot be set at the same time")
-		}
-		if o.SecretRef == utils.GetCredientialsSecretName(OssFsType) {
-			return fmt.Errorf("invalid SecretRef name")
-		}
-		return nil
-	}
-	// aksk may retrieve from ENV
-	if onNode && (o.AkID == "" || o.AkSecret == "") {
-		return fmt.Errorf("missing access key in node publish secret")
-	}
-
 	return nil
 }
 
 func (f *fuseOssfs2) MakeAuthConfig(o *Options, m metadata.MetadataProvider) (authCfg *utils.AuthConfig, err error) {
-	authCfg = &utils.AuthConfig{}
-	if o.SecretRef != "" {
-		authCfg.SecretRef = o.SecretRef
-		return
+	authCfg = &utils.AuthConfig{AuthType: o.AuthType}
+	switch o.AuthType {
+	case AuthTypeRRSA:
+		rrsaCfg, err := getRRSAConfig(o, m)
+		if err != nil {
+			return nil, fmt.Errorf("Get RoleArn and OidcProviderArn for RRSA error: %v", err)
+		}
+		authCfg.RrsaConfig = rrsaCfg
+	case AuthTypeSTS:
+		authCfg.RoleName = o.RoleName
+	case "":
+		if o.SecretRef != "" {
+			authCfg.SecretRef = o.SecretRef
+			return
+		}
+		authCfg.Secrets = map[string]string{
+			utils.GetPasswdFileName(f.Name()): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", o.AkID, o.AkSecret),
+		}
+	default:
+		return nil, fmt.Errorf("%s do not support authType: %s", f.Name(), o.AuthType)
 	}
-	authCfg.Secrets = map[string]string{
-		utils.GetPasswdFileName(f.Name()): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", o.AkID, o.AkSecret),
-	}
-
-	return
+	return authCfg, nil
 }
 
 func (f *fuseOssfs2) MakeMountOptions(o *Options, m metadata.MetadataProvider) (mountOptions []string, err error) {
@@ -101,8 +126,8 @@ func (f *fuseOssfs2) MakeMountOptions(o *Options, m metadata.MetadataProvider) (
 		}
 		mountOptions = append(mountOptions, fmt.Sprintf("oss_region=%s", region))
 	}
-
-	authOptions := f.getAuthOptions(o)
+	region, _ := m.Get(metadata.RegionID)
+	authOptions := f.getAuthOptions(o, region)
 	mountOptions = append(mountOptions, authOptions...)
 
 	return
@@ -122,13 +147,31 @@ func (f *fuseOssfs2) PodTemplateSpec(c *utils.FusePodContext, target string) (*c
 	return pod, nil
 }
 
-func (f *fuseOssfs2) getAuthOptions(o *Options) (mountOptions []string) {
-	if o.SecretRef != "" {
-		mountOptions = append(mountOptions,
-			fmt.Sprintf("oss_sts_multi_conf_ak_file=%s", filepath.Join(utils.GetConfigDir(o.FuseType), utils.GetPasswdFileName(o.FuseType), KeyAccessKeyId)),
-			fmt.Sprintf("oss_sts_multi_conf_sk_file=%s", filepath.Join(utils.GetConfigDir(o.FuseType), utils.GetPasswdFileName(o.FuseType), KeyAccessKeySecret)),
-			fmt.Sprintf("oss_sts_multi_conf_token_file=%s", filepath.Join(utils.GetConfigDir(o.FuseType), utils.GetPasswdFileName(o.FuseType), KeySecurityToken)),
-		)
+func (f *fuseOssfs2) getAuthOptions(o *Options, region string) (mountOptions []string) {
+	switch o.AuthType {
+	case AuthTypeRRSA:
+		mountOptions = append(mountOptions, fmt.Sprintf("rrsa_endpoint=%s", getSTSEndpoint(region)))
+		if o.AssumeRoleArn != "" {
+			mountOptions = append(mountOptions, fmt.Sprintf("assume_role_arn=%s", o.AssumeRoleArn))
+			if o.ExternalId != "" {
+				mountOptions = append(mountOptions, fmt.Sprintf("assume_role_external_id=%s", o.ExternalId))
+			}
+		}
+	case AuthTypeSTS:
+		if o.RoleName != "" {
+			mountOptions = append(mountOptions, "ram_role="+o.RoleName)
+		}
+	case "":
+		if o.SecretRef != "" {
+			mountOptions = append(mountOptions,
+				fmt.Sprintf("oss_sts_multi_conf_ak_file=%s", filepath.Join(utils.GetConfigDir(o.FuseType), utils.GetPasswdFileName(o.FuseType), KeyAccessKeyId)),
+				fmt.Sprintf("oss_sts_multi_conf_sk_file=%s", filepath.Join(utils.GetConfigDir(o.FuseType), utils.GetPasswdFileName(o.FuseType), KeyAccessKeySecret)),
+				fmt.Sprintf("oss_sts_multi_conf_token_file=%s", filepath.Join(utils.GetConfigDir(o.FuseType), utils.GetPasswdFileName(o.FuseType), KeySecurityToken)),
+			)
+		}
+		// publishSecretRef will make option in mount-proxy server
+	default:
+		return nil
 	}
 	return
 }
@@ -174,7 +217,7 @@ func (f *fuseOssfs2) buildPodSpec(c *utils.FusePodContext, target string) (spec 
 		},
 	}
 
-	f.buildAuthSpec(c, &spec, &container)
+	f.buildAuthSpec(c, target, &spec, &container)
 
 	container.Args = []string{"--socket=" + socketPath, "-v=4"}
 
@@ -227,7 +270,7 @@ func (f *fuseOssfs2) AddDefaultMountOptions(options []string) []string {
 	return options
 }
 
-func (f *fuseOssfs2) buildAuthSpec(c *utils.FusePodContext, spec *corev1.PodSpec, container *corev1.Container) {
+func (f *fuseOssfs2) buildAuthSpec(c *utils.FusePodContext, target string, spec *corev1.PodSpec, container *corev1.Container) {
 	if spec == nil || container == nil {
 		return
 	}
@@ -236,19 +279,72 @@ func (f *fuseOssfs2) buildAuthSpec(c *utils.FusePodContext, spec *corev1.PodSpec
 		return
 	}
 
-	secretVolumeSource := getPasswdSecretVolume(authCfg.SecretRef, c.FuseType)
-	if secretVolumeSource != nil {
-		passwdSecretVolume := corev1.Volume{
-			Name: utils.GetPasswdFileName(c.FuseType),
+	switch authCfg.AuthType {
+	case AuthTypeSTS:
+	case AuthTypeRRSA:
+		if authCfg.RrsaConfig == nil {
+			return
+		}
+		spec.ServiceAccountName = authCfg.RrsaConfig.ServiceAccountName
+		rrsaMountDir := "/var/run/secrets/ack.alibabacloud.com/rrsa-tokens"
+		rrsaVolume := corev1.Volume{
+			Name: "rrsa-oidc-token",
 			VolumeSource: corev1.VolumeSource{
-				Secret: secretVolumeSource,
+				Projected: &corev1.ProjectedVolumeSource{
+					DefaultMode: tea.Int32(0600),
+					Sources: []corev1.VolumeProjection{
+						{
+							ServiceAccountToken: &corev1.ServiceAccountTokenProjection{
+								Audience:          "sts.aliyuncs.com",
+								ExpirationSeconds: tea.Int64(3600),
+								Path:              "token",
+							},
+						},
+					},
+				},
 			},
 		}
-		spec.Volumes = append(spec.Volumes, passwdSecretVolume)
-		passwdVolumeMont := corev1.VolumeMount{
-			Name:      passwdSecretVolume.Name,
-			MountPath: utils.GetConfigDir(c.FuseType),
+		spec.Volumes = append(spec.Volumes, rrsaVolume)
+		rrsaVolumeMount := corev1.VolumeMount{
+			Name:      rrsaVolume.Name,
+			MountPath: rrsaMountDir,
 		}
-		container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
+		container.VolumeMounts = append(container.VolumeMounts, rrsaVolumeMount)
+		envs := []corev1.EnvVar{
+			{
+				Name:  "ALIBABA_CLOUD_ROLE_ARN",
+				Value: authCfg.RrsaConfig.RoleArn,
+			},
+			{
+				Name:  "ALIBABA_CLOUD_OIDC_PROVIDER_ARN",
+				Value: authCfg.RrsaConfig.OidcProviderArn,
+			},
+			{
+				Name:  "ALIBABA_CLOUD_OIDC_TOKEN_FILE",
+				Value: rrsaMountDir + "/token",
+			},
+			{
+				Name:  "ROLE_SESSION_NAME",
+				Value: utils.GetRoleSessionName(c.VolumeId, target, c.FuseType),
+			},
+		}
+		container.Env = append(container.Env, envs...)
+	case "":
+		secretVolumeSource := getPasswdSecretVolume(authCfg.SecretRef, c.FuseType)
+		if secretVolumeSource != nil {
+			passwdSecretVolume := corev1.Volume{
+				Name: utils.GetPasswdFileName(c.FuseType),
+				VolumeSource: corev1.VolumeSource{
+					Secret: secretVolumeSource,
+				},
+			}
+			spec.Volumes = append(spec.Volumes, passwdSecretVolume)
+			passwdVolumeMont := corev1.VolumeMount{
+				Name:      passwdSecretVolume.Name,
+				MountPath: utils.GetConfigDir(c.FuseType),
+			}
+			container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
+		}
 	}
+
 }
