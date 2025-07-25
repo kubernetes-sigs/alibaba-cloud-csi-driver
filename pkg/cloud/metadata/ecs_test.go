@@ -1,10 +1,10 @@
 package metadata
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/jarcoal/httpmock"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata/imds"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,21 +15,6 @@ var badCases = []struct {
 	Name      string
 	Retry     bool
 }{
-	{
-		Responder: httpmock.NewErrorResponder(errors.New("unknown error")),
-		Name:      "unknown error",
-		Retry:     true,
-	},
-	{
-		Responder: httpmock.NewStringResponder(500, "Server Error"),
-		Name:      "500",
-		Retry:     true,
-	},
-	{
-		Responder: httpmock.NewStringResponder(404, "Not Found"),
-		Name:      "404",
-		Retry:     false,
-	},
 	{
 		Responder: httpmock.NewStringResponder(200, "Not JSON"),
 		Name:      "invalid json",
@@ -42,77 +27,14 @@ var badCases = []struct {
 	},
 }
 
-func TestRetry(t *testing.T) {
-	t.Parallel()
-	for _, badCase := range badCases {
-		badCase := badCase
-		t.Run(badCase.Name, func(t *testing.T) {
-			t.Parallel()
-			trans := httpmock.NewMockTransport()
-			trans.RegisterResponder("PUT", ECSTokenEndpoint, httpmock.NewStringResponder(200, "fake_metadata_token"))
-			trans.RegisterResponder("GET", ECSIdentityEndpoint,
-				badCase.Responder.Then(httpmock.NewStringResponder(200, testIdDoc)))
-
-			_, err := NewECSMetadata(trans)
-			if badCase.Retry {
-				assert.NoError(t, err)
-			} else {
-				assert.Error(t, err)
-			}
-		})
-	}
-}
-
-func TestReFetchToken(t *testing.T) {
-	t.Parallel()
-	trans := httpmock.NewMockTransport()
-	trans.RegisterResponder("PUT", ECSTokenEndpoint, httpmock.NewStringResponder(200, "fake_metadata_token").Times(2, t.Log))
-	trans.RegisterResponder("GET", ECSIdentityEndpoint,
-		httpmock.NewStringResponder(401, "").Then(httpmock.NewStringResponder(200, testIdDoc)))
-
-	_, err := NewECSMetadata(trans)
-	assert.NoError(t, err)
-	assert.Equal(t, 2, trans.GetCallCountInfo()["PUT "+ECSTokenEndpoint])
-}
-
-func TestRetryFetchToken(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		Name      string
-		Responder httpmock.Responder
-	}{
-		{
-			Name:      "unknown error",
-			Responder: httpmock.NewErrorResponder(errors.New("unknown error")),
-		},
-		{
-			Name:      "500",
-			Responder: httpmock.NewStringResponder(500, "Server Error"),
-		},
-	}
-	for _, c := range cases {
-		t.Run(c.Name, func(t *testing.T) {
-			t.Parallel()
-			trans := httpmock.NewMockTransport()
-			trans.RegisterResponder("PUT", ECSTokenEndpoint,
-				c.Responder.Then(httpmock.NewStringResponder(200, "fake_metadata_token")))
-			trans.RegisterResponder("GET", ECSIdentityEndpoint, httpmock.NewStringResponder(200, testIdDoc).Once(t.Log))
-
-			_, err := NewECSMetadata(trans)
-			assert.NoError(t, err)
-		})
-	}
-}
-
 func TestFailure(t *testing.T) {
 	t.Parallel()
 	for _, badCase := range badCases {
-		badCase := badCase
 		t.Run(badCase.Name, func(t *testing.T) {
 			t.Parallel()
 			trans := httpmock.NewMockTransport()
-			trans.RegisterResponder("PUT", ECSTokenEndpoint, httpmock.NewStringResponder(200, "fake_metadata_token"))
-			trans.RegisterResponder("GET", ECSIdentityEndpoint, badCase.Responder)
+			trans.RegisterResponder("PUT", imds.ECSTokenEndpoint, httpmock.NewStringResponder(200, "fake_metadata_token"))
+			trans.RegisterResponder("GET", imds.ECSMetadataEndpoint+ECSIdentityPath, badCase.Responder)
 
 			_, err := NewECSMetadata(trans)
 			assert.Error(t, err)
@@ -123,8 +45,8 @@ func TestFailure(t *testing.T) {
 func TestGetEcs(t *testing.T) {
 	t.Parallel()
 	trans := httpmock.NewMockTransport()
-	trans.RegisterResponder("PUT", ECSTokenEndpoint, httpmock.NewStringResponder(200, "fake_metadata_token"))
-	trans.RegisterMatcherResponder("GET", ECSIdentityEndpoint,
+	trans.RegisterResponder("PUT", imds.ECSTokenEndpoint, httpmock.NewStringResponder(200, "fake_metadata_token"))
+	trans.RegisterMatcherResponder("GET", imds.ECSMetadataEndpoint+ECSIdentityPath,
 		httpmock.HeaderIs("X-aliyun-ecs-metadata-token", "fake_metadata_token"),
 		httpmock.NewStringResponder(200, testIdDoc))
 	m, err := NewECSMetadata(trans)
