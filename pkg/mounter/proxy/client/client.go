@@ -11,11 +11,13 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
+	"k8s.io/mount-utils"
 )
 
 const (
 	// this should be longer than default timeout in server
 	defaultTimeout = time.Second * 35
+	FuseMountType  = "fuse"
 )
 
 type Client interface {
@@ -23,15 +25,21 @@ type Client interface {
 }
 
 type client struct {
+	mount.MounterForceUnmounter
 	timeout    time.Duration
 	socketPath string
 }
 
-func NewClient(socketPath string) *client {
-	return &client{
-		socketPath: socketPath,
-		timeout:    defaultTimeout,
+func NewClient(socketPath string) (*client, error) {
+	m, ok := mount.New("").(mount.MounterForceUnmounter)
+	if !ok {
+		return nil, errors.New("failed to cast mounter to MounterForceUnmounter")
 	}
+	return &client{
+		MounterForceUnmounter: m,
+		socketPath:            socketPath,
+		timeout:               defaultTimeout,
+	}, nil
 }
 
 func (c *client) doRequest(req *proxy.Request) (*proxy.Response, error) {
@@ -57,7 +65,22 @@ func (c *client) doRequest(req *proxy.Request) (*proxy.Response, error) {
 	socket := int(connf.Fd())
 	defer connf.Close()
 
-	err = unix.Sendmsg(socket, append(data, proxy.MessageEnd), nil, nil, 0)
+	// 1. open /dev/fuse as root
+	fuseFd, err := unix.Open("/dev/fuse", unix.O_RDWR, 0o644)
+	if err != nil {
+		return nil, fmt.Errorf("open /dev/fuse: %w", err)
+	}
+	defer unix.Close(fuseFd)
+
+	// 2. mount FUSE filesystem with Fd
+	err = c.mountFuseFilesystemWithFd(req, fuseFd)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. send fd with unix conn
+	oob := unix.UnixRights(fuseFd)
+	err = unix.Sendmsg(socket, append(data, proxy.MessageEnd), oob, nil, 0)
 	if err != nil {
 		return nil, fmt.Errorf("sendmsg: %w", err)
 	}
@@ -92,4 +115,28 @@ func (c *client) Mount(req *proxy.MountRequest) (*proxy.Response, error) {
 		},
 		Body: req,
 	})
+}
+
+func (c *client) mountFuseFilesystemWithFd(req *proxy.Request, fd int) error {
+	mountReq, ok := req.Body.(*proxy.MountRequest)
+	if !ok {
+		return errors.New("invalid request body")
+	}
+	// 2.1 split FUSE options
+	// ex: rw,nosuid,nodev,relatime,user_id=0,group_id=0,allow_other
+	// fuseOptions, daemonOptions := splitFuseOptions(mountReq.Options)
+	// 2.2 add fd=`fuseFd` option
+	// fuseOptions = append(fuseOptions, fmt.Sprintf("fd=%v", fd))
+	fuseOptions, daemonOptions, err := splitFuseOptions(mountReq.Options)
+	if err != nil {
+		return err
+	}
+	fuseOptions = append(fuseOptions, fmt.Sprintf("fd=%v", fd))
+	err = c.MountSensitiveWithoutSystemdWithMountFlags(mountReq.Source, mountReq.Target, FuseMountType, fuseOptions, nil, []string{"--internal-only"})
+	if err != nil {
+		return fmt.Errorf("failed to mount the fuse filesystem: %w", err)
+	}
+	mountReq.Options = daemonOptions
+	req.Body = mountReq
+	return nil
 }

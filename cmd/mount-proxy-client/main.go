@@ -31,7 +31,11 @@ func main() {
 	data, _ := json.MarshalIndent(req, "", "\t")
 	fmt.Println(string(data))
 
-	dclient := client.NewClient(socketPath)
+	dclient, err := client.NewClient(socketPath)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 	resp, err := dclient.Mount(&req)
 	if err != nil {
 		fmt.Println(err.Error())

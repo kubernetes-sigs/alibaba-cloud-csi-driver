@@ -41,15 +41,39 @@ func Handle(conn net.Conn, timeout time.Duration) error {
 
 	klog.V(4).InfoS("Start to recvmsg")
 	p := make([]byte, proxy.MaxMsgSize)
-	n, _, _, _, err := unix.Recvmsg(socket, p, nil, 0)
+	oob := make([]byte, unix.CmsgSpace(4)) // 4 bytes for the file descriptor
+	n, oobn, _, _, err := unix.Recvmsg(socket, p, oob, 0)
 	if err != nil {
 		return fmt.Errorf("recvmsg: %w", err)
 	}
-	klog.V(4).InfoS("Succeeded to recvmsg", "n", n)
+	klog.V(4).InfoS("Succeeded to recvmsg", "n", n, "oobn", oobn)
 
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
 
+	// parse fd
+	msgs, err := unix.ParseSocketControlMessage(oob[:oobn])
+	if err != nil {
+		return fmt.Errorf("parse socket control message: %w", err)
+	}
+
+	if len(msgs) == 0 {
+		return errors.New("no file descriptor received")
+	}
+
+	fds, err := unix.ParseUnixRights(&msgs[0])
+	if err != nil {
+		return fmt.Errorf("parse unix rights: %w", err)
+	}
+
+	if len(fds) == 0 {
+		return errors.New("no file descriptor received")
+	}
+
+	fuseFd := fds[0]
+	klog.V(4).InfoS("Succeeded to parse fd", "fuseFd", fuseFd)
+
+	// parse mount info
 	var resp proxy.Response
 	req, err := parseRawRequest(p[:n])
 	if err != nil {
@@ -57,7 +81,7 @@ func Handle(conn net.Conn, timeout time.Duration) error {
 			Error: err.Error(),
 		}
 	} else {
-		resp = handle(ctx, req)
+		resp = handle(ctx, req, fuseFd)
 	}
 
 	data, err := json.Marshal(resp)
@@ -88,7 +112,7 @@ func parseRawRequest(data []byte) (*rawRequest, error) {
 	return &req, json.Unmarshal(data[:end], &req)
 }
 
-func handle(ctx context.Context, req *rawRequest) proxy.Response {
+func handle(ctx context.Context, req *rawRequest, fuseFd int) proxy.Response {
 	switch req.Header.Method {
 	case proxy.Mount:
 		var mountReq proxy.MountRequest
@@ -98,7 +122,7 @@ func handle(ctx context.Context, req *rawRequest) proxy.Response {
 				Error: err.Error(),
 			}
 		}
-		err = handleMountRequest(ctx, &mountReq)
+		err = handleMountRequest(ctx, &mountReq, fuseFd)
 		if err != nil {
 			return proxy.Response{
 				Error: err.Error(),

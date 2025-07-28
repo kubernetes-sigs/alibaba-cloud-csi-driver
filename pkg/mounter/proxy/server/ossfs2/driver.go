@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	"github.com/moby/sys/mountinfo"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
@@ -44,8 +46,38 @@ func (h *Driver) Fstypes() []string {
 	return []string{"ossfs2"}
 }
 
-func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
-	options := req.Options
+func (h *Driver) runCmd(req *proxy.MountRequest, passwdFile string, fuseFd int) (cmd *exec.Cmd, err error) {
+	// 1. use /dev/fd/3 as target for ossfs
+	args := []string{"mount", "/dev/fd/3"}
+	// ossfs2.0 forbid to use FUSE args
+	// args = append(args, req.MountFlags...)
+	args = append(args, []string{"-c", passwdFile}...)
+	for _, o := range req.Options {
+		args = append(args, fmt.Sprintf("--%s", o))
+	}
+	args = append(args, "-f")
+
+	cmd = exec.Command("ossfs2", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	// 2. pase fd on /dev/fuse by fuseFd
+	// Notes: Mountproxy client (csi-plugin) opens a fd on /dev/fuse,
+	//        client passes it by unix conn.
+	//        Mountproxy server (ossfs pod) receives it by unix conn,
+	//        server mounts with ossfs with /dev/fd/3 (on /dev/fuse) as target.
+	cmd.ExtraFiles = []*os.File{os.NewFile(uintptr(fuseFd), "/dev/fuse")}
+
+	err = cmd.Start()
+	if err != nil {
+		err = fmt.Errorf("start ossfs2 failed: %w", err)
+		return
+	}
+	klog.InfoS("Started ossfs2", "pid", cmd.Process.Pid, "args", cmd.Args)
+	return
+}
+
+func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest, fuseFd int) error {
+	target := req.Target
 
 	// prepare passwd file
 	var passwdFile string
@@ -62,45 +94,65 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		klog.V(4).InfoS("created ossfs2 configuration file", "path", passwdFile)
 	}
 
-	args := []string{"mount", req.Target}
-	// ossfs2.0 forbid to use FUSE args
-	// args = append(args, req.MountFlags...)
-	args = append(args, []string{"-c", passwdFile}...)
-	for _, o := range options {
-		args = append(args, fmt.Sprintf("--%s", o))
-	}
-	args = append(args, "-f")
-
-	cmd := exec.Command("ossfs2", args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	err := cmd.Start()
+	cmd, err := h.runCmd(req, passwdFile, fuseFd)
 	if err != nil {
 		return fmt.Errorf("start ossfs2 failed: %w", err)
 	}
 
-	target := req.Target
-	pid := cmd.Process.Pid
-	klog.InfoS("Started ossfs2", "pid", pid, "args", args)
+	info, err := mountinfo.GetMounts(func(i *mountinfo.Info) (skip bool, stop bool) {
+		return i.Mountpoint != target, i.Mountpoint == target
+	})
+	if len(info) == 0 {
+		return fmt.Errorf("mountpoint %s is not mounted", target)
+	}
+	chanId := info[0].Minor
 
 	ossfsExited := make(chan error, 1)
 	h.wg.Add(1)
-	h.pids.Store(pid, cmd)
 	go func() {
 		defer h.wg.Done()
-		defer h.pids.Delete(pid)
+		// release to avoid unexpected forking
+		defer syscall.Close(fuseFd)
+		defer server.CleanPasswdFile(passwdFile, target)
 
-		err := cmd.Wait()
-		if err != nil {
-			klog.ErrorS(err, "ossfs2 exited with error", "mountpoint", target, "pid", pid)
-		} else {
-			klog.InfoS("ossfs2 exited", "mountpoint", target, "pid", pid)
+		for {
+			pid := cmd.Process.Pid
+			h.pids.Store(pid, cmd)
+
+			err = cmd.Wait()
+			if err != nil {
+				klog.ErrorS(err, "ossfs2 exited with error", "mountpoint", target, "pid", pid)
+			} else {
+				klog.InfoS("ossfs2 exited", "mountpoint", target, "pid", pid)
+			}
+			h.pids.Delete(pid)
+
+			hasClosed := server.SafeSend(ossfsExited, err)
+			if !hasClosed {
+				return
+			}
+
+			waitStatus, ok := cmd.ProcessState.Sys().(syscall.WaitStatus)
+			if ok && waitStatus.Signal() == syscall.SIGTERM {
+				return
+			}
+
+			err = fmt.Errorf("Ossfs2 exited, need recovery")
+			klog.ErrorS(err, "mountpoint", target)
+			klog.InfoS("Flush fuse connection", "chanId", chanId, "mountpoint", target)
+			err = os.WriteFile(filepath.Join(server.FuseConnectionsDir, strconv.Itoa(chanId), "flush"), []byte("1"), 0o600)
+			if err != nil {
+				klog.ErrorS(err, "Failed to flush fuse connection", "chanId", chanId, "mountpoint", target)
+				return
+			}
+
+			cmd, err = h.runCmd(req, passwdFile, fuseFd)
+			if err != nil {
+				return
+			}
 		}
-		ossfsExited <- err
-		if err := os.Remove(passwdFile); err != nil {
-			klog.ErrorS(err, "Remove configuration file", "mountpoint", target, "path", passwdFile)
-		}
+	}()
+	defer func() {
 		close(ossfsExited)
 	}()
 
@@ -134,14 +186,14 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		// terminate ossfs process when timeout
 		terr := cmd.Process.Signal(syscall.SIGTERM)
 		if terr != nil {
-			klog.ErrorS(err, "Failed to terminate ossfs2", "pid", pid)
+			klog.ErrorS(err, "Failed to terminate ossfs2", "pid", cmd.Process.Pid)
 		}
 		select {
 		case <-ossfsExited:
 		case <-time.After(time.Second * 2):
 			kerr := cmd.Process.Kill()
 			if kerr != nil && errors.Is(kerr, os.ErrProcessDone) {
-				klog.ErrorS(err, "Failed to kill ossfs2", "pid", pid)
+				klog.ErrorS(err, "Failed to kill ossfs2", "pid", cmd.Process.Pid)
 			}
 		}
 	}

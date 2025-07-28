@@ -40,7 +40,7 @@ func (h *Driver) Fstypes() []string {
 	return []string{fstypeAlinas, fstypeCpfsNfs}
 }
 
-func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
+func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest, fuseFd int) error {
 	klog.InfoS("Mounting", "fstype", req.Fstype, "source", req.Source, "target", req.Target, "options", req.Options)
 	options := append(req.Options, "no_start_watchdog")
 	if req.Fstype == fstypeAlinas {
