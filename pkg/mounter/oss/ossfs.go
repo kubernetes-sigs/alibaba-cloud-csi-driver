@@ -87,7 +87,15 @@ func (f *fuseOssfs) PrecheckAuthConfig(o *Options, onNode bool) error {
 		if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 			return nil
 		}
-		if o.SecretRef != "" {
+		// Token authentication:
+		// For runc scenarios, set the SecretRef parameter.
+		runc := o.SecretRef != ""
+		// For rund or eci scenarios, configure Token in nodePublishSecretRef or nodeStageSecretRef.
+		rund := o.AccessKeyId != "" && o.AccessKeySecret != "" && o.Expiration != "" && o.SecurityToken != ""
+		if runc && rund {
+			return fmt.Errorf("Token and secretRef cannot be set at the same time")
+		}
+		if rund || runc {
 			if o.AkID != "" || o.AkSecret != "" {
 				return fmt.Errorf("AK and secretRef cannot be set at the same time")
 			}
@@ -119,13 +127,27 @@ func (f *fuseOssfs) MakeAuthConfig(o *Options, m metadata.MetadataProvider) (*ut
 	case AuthTypeSTS:
 		authCfg.RoleName = o.RoleName
 	default:
+		// fixed AKSK
+		passwdFile := utils.GetPasswdFileName(f.Name())
+		if o.AkID != "" && o.AkSecret != "" {
+			authCfg.Secrets = map[string]string{
+				passwdFile: fmt.Sprintf("%s:%s:%s", o.Bucket, o.AkID, o.AkSecret),
+			}
+			return authCfg, nil
+		}
+		// secretRef for RunC
 		if o.SecretRef != "" {
 			authCfg.SecretRef = o.SecretRef
-		} else {
-			authCfg.Secrets = map[string]string{
-				utils.GetPasswdFileName(f.Name()): fmt.Sprintf("%s:%s:%s", o.Bucket, o.AkID, o.AkSecret),
-			}
+			return authCfg, nil
 		}
+		// token secret for RunD
+		authCfg.Secrets = map[string]string{
+			filepath.Join(passwdFile, KeyAccessKeyId):     o.AccessKeyId,
+			filepath.Join(passwdFile, KeyAccessKeySecret): o.AccessKeySecret,
+			filepath.Join(passwdFile, KeySecurityToken):   o.SecurityToken,
+			filepath.Join(passwdFile, KeyExpiration):      o.Expiration,
+		}
+
 	}
 	return authCfg, nil
 }
@@ -289,11 +311,17 @@ func (f *fuseOssfs) getAuthOptions(o *Options, region string) (mountOptions []st
 			mountOptions = append(mountOptions, "ram_role="+o.RoleName)
 		}
 	default:
+		// fixed AKSK
+		if o.AkID != "" && o.AkSecret != "" {
+			// for aksk in secret, it will make passwd_file option in mount-proxy server as it's under a tempdir
+			return
+		}
+		// secretRef for runC or token secret for runD
 		if o.SecretRef != "" {
 			mountOptions = append(mountOptions, fmt.Sprintf("passwd_file=%s", filepath.Join(utils.GetConfigDir(o.FuseType), utils.GetPasswdFileName(o.FuseType))))
-			mountOptions = append(mountOptions, "use_session_token")
 		}
-		// publishSecretRef will make option in mount-proxy server
+		// for token in secret, it will make passwd_file option in mount-proxy server as it's under a tempdir
+		mountOptions = append(mountOptions, "use_session_token")
 	}
 	return
 }

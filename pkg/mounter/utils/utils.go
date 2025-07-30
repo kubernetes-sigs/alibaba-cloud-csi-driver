@@ -3,12 +3,9 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	"golang.org/x/sys/unix"
-	"k8s.io/klog/v2"
 )
 
 func WaitFdReadable(fd int, timeout time.Duration) error {
@@ -28,22 +25,4 @@ func WaitFdReadable(fd int, timeout time.Duration) error {
 		return fmt.Errorf("unexpected select result: %d", n)
 	}
 	return nil
-}
-
-func SaveOssSecretsToFile(secrets map[string]string) (filePath string, err error) {
-	passwd := secrets["passwd-ossfs"]
-	if passwd == "" {
-		return
-	}
-
-	tmpDir, err := os.MkdirTemp("", "ossfs-")
-	if err != nil {
-		return "", err
-	}
-	filePath = filepath.Join(tmpDir, "passwd")
-	if err = os.WriteFile(filePath, []byte(passwd), 0o600); err != nil {
-		return "", err
-	}
-	klog.V(4).InfoS("created ossfs passwd file", "path", filePath)
-	return
 }

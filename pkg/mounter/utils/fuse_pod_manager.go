@@ -44,7 +44,7 @@ type AuthConfig struct {
 	RrsaConfig *RrsaConfig
 	// for csi-secret-store
 	SecretProviderClassName string
-	// for AK/SK
+	// for AK/SK with or without token
 	Secrets map[string]string
 	// for Token from Secret
 	SecretRef string
@@ -195,7 +195,7 @@ func (fpm *FusePodManager) labelsAndListOptionsFor(c *FusePodContext, target str
 		labels[FuseTypeLabelKey] = c.FuseType
 	}
 	if target != "" {
-		labels[FuseMountPathHashLabelKey] = computeMountPathHash(target)
+		labels[FuseMountPathHashLabelKey] = ComputeMountPathHash(target)
 	}
 	listOptions := metav1.ListOptions{
 		FieldSelector: fields.OneTermEqualSelector("spec.nodeName", c.NodeName).String(),

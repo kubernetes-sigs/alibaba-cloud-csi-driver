@@ -13,6 +13,7 @@ type Driver interface {
 	Init()
 	Terminate()
 	Mount(ctx context.Context, req *proxy.MountRequest) error
+	RotateToken(ctx context.Context, req *proxy.RotateTokenRequest) error
 }
 
 var (
@@ -30,4 +31,12 @@ func handleMountRequest(ctx context.Context, req *proxy.MountRequest) error {
 		return fmt.Errorf("fstype %q not supported", req.Fstype)
 	}
 	return h.Mount(ctx, req)
+}
+
+func handleRotateTokenRequest(ctx context.Context, req *proxy.RotateTokenRequest) error {
+	h := fstypeToDriver[req.Fstype]
+	if h == nil {
+		return fmt.Errorf("fstype %q not supported", req.Fstype)
+	}
+	return h.RotateToken(ctx, req)
 }

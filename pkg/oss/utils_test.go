@@ -60,10 +60,12 @@ func Test_parseOptions(t *testing.T) {
 		},
 	}
 	expectedOptions = &oss.Options{
-		Bucket:        "test-bucket",
-		URL:           "https://oss-cn-hangzhou.aliyuncs.com",
-		AkID:          "test-akid",
-		AkSecret:      "test-aksecret",
+		Bucket: "test-bucket",
+		URL:    "https://oss-cn-hangzhou.aliyuncs.com",
+		AccessKey: oss.AccessKey{
+			AkID:     "test-akid",
+			AkSecret: "test-aksecret",
+		},
 		FuseType:      "ossfs",
 		Path:          "/volume-id",
 		UseSharedPath: true,
@@ -94,11 +96,13 @@ func Test_parseOptions(t *testing.T) {
 		},
 	}
 	expectedOptions = &oss.Options{
-		Bucket:        "test-bucket",
-		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
-		OtherOpts:     "-o max_stat_cache_size=0 -o allow_other",
-		AkID:          "test-akid",
-		AkSecret:      "test-aksecret",
+		Bucket:    "test-bucket",
+		URL:       "http://oss-cn-beijing-internal.aliyuncs.com",
+		OtherOpts: "-o max_stat_cache_size=0 -o allow_other",
+		AccessKey: oss.AccessKey{
+			AkID:     "test-akid",
+			AkSecret: "test-aksecret",
+		},
 		UseSharedPath: true,
 		FuseType:      "ossfs",
 		MetricsTop:    defaultMetricsTop,
@@ -148,6 +152,54 @@ func Test_parseOptions(t *testing.T) {
 		testNPReq.Readonly, "", true, m)
 	assert.Equal(t, expectedOptions, gotOptions)
 
+	// test token republish
+	testNPReq = csi.NodePublishVolumeRequest{
+		VolumeContext: map[string]string{
+			"bucket":        "test-bucket",
+			"url":           "oss-cn-beijing.aliyuncs.com",
+			"otheropts":     "-o max_stat_cache_size=0 -o allow_other",
+			"UseSharedPath": "false",
+		},
+		Secrets: map[string]string{
+			"AccessKeyId":     "test-akid",
+			"AccessKeySecret": "test-aksecret",
+			"SecurityToken":   "test-token",
+			"Expiration":      "2023-01-01T00:00:00Z",
+		},
+		VolumeCapability: &csi.VolumeCapability{
+			AccessMode: &csi.VolumeCapability_AccessMode{
+				Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+			},
+			AccessType: &csi.VolumeCapability_Mount{
+				Mount: &csi.VolumeCapability_MountVolume{
+					FsType:     "ossfs",
+					MountFlags: []string{"-o max_stat_cache_size=0 -o allow_other"},
+				},
+			},
+		},
+		Readonly: true,
+	}
+	expectedOptions = &oss.Options{
+		Bucket:        "test-bucket",
+		URL:           "http://oss-cn-beijing-internal.aliyuncs.com",
+		OtherOpts:     "-o max_stat_cache_size=0 -o allow_other",
+		FuseType:      "ossfs",
+		MetricsTop:    defaultMetricsTop,
+		Path:          "/",
+		ReadOnly:      true,
+		UseSharedPath: false,
+		TokenSecret: oss.TokenSecret{
+			AccessKeyId:     "test-akid",
+			AccessKeySecret: "test-aksecret",
+			SecurityToken:   "test-token",
+			Expiration:      "2023-01-01T00:00:00Z",
+		},
+	}
+	gotOptions = parseOptions(testNPReq.GetVolumeContext(),
+		testNPReq.GetSecrets(), []*csi.VolumeCapability{testNPReq.GetVolumeCapability()},
+		testNPReq.Readonly, "", true, m)
+	assert.Equal(t, expectedOptions, gotOptions)
+
 	// test authtype
 	options := map[string]string{
 		"url": "oss-cn-beijing.aliyuncs.com",
@@ -156,8 +208,10 @@ func Test_parseOptions(t *testing.T) {
 	t.Setenv("ACCESS_KEY_SECRET", "test-aksecret")
 	gotOptions = parseOptions(options, nil, nil, true, "", true, m)
 	expectedOptions = &oss.Options{
-		AkID:          "test-akid",
-		AkSecret:      "test-aksecret",
+		AccessKey: oss.AccessKey{
+			AkID:     "test-akid",
+			AkSecret: "test-aksecret",
+		},
 		FuseType:      "ossfs",
 		Path:          "/",
 		UseSharedPath: true,
@@ -533,11 +587,13 @@ func Test_checkOssOptions(t *testing.T) {
 		{
 			name: "empty fuse type",
 			opts: &oss.Options{
-				URL:      "1.1.1.1",
-				Bucket:   "aliyun",
-				Path:     "/path",
-				AkID:     "11111",
-				AkSecret: "22222",
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: oss.AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 			},
 			errType: ParamError,
 		},
@@ -554,11 +610,13 @@ func Test_checkOssOptions(t *testing.T) {
 		{
 			name: "invalid path",
 			opts: &oss.Options{
-				URL:      "1.1.1.1",
-				Bucket:   "aliyun",
-				Path:     "abc/",
-				AkID:     "11111",
-				AkSecret: "22222",
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "abc/",
+				AccessKey: oss.AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 				FuseType: OssFsType,
 			},
 			errType: PathError,
@@ -566,10 +624,12 @@ func Test_checkOssOptions(t *testing.T) {
 		{
 			name: "empty URL",
 			opts: &oss.Options{
-				Bucket:   "aliyun",
-				Path:     "/path",
-				AkID:     "11111",
-				AkSecret: "22222",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: oss.AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 				FuseType: OssFsType,
 			},
 			errType: ParamError,
@@ -577,11 +637,13 @@ func Test_checkOssOptions(t *testing.T) {
 		{
 			name: "invalid encrypted type",
 			opts: &oss.Options{
-				URL:       "1.1.1.1",
-				Bucket:    "aliyun",
-				Path:      "/path",
-				AkID:      "11111",
-				AkSecret:  "22222",
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: oss.AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 				Encrypted: "invalid",
 				FuseType:  OssFsType,
 			},
@@ -590,11 +652,13 @@ func Test_checkOssOptions(t *testing.T) {
 		{
 			name: "valid kms sse",
 			opts: &oss.Options{
-				URL:       "1.1.1.1",
-				Bucket:    "aliyun",
-				Path:      "/path",
-				AkID:      "11111",
-				AkSecret:  "22222",
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: oss.AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 				Encrypted: oss.EncryptedTypeKms,
 				FuseType:  OssFsType,
 			},
@@ -603,11 +667,13 @@ func Test_checkOssOptions(t *testing.T) {
 		{
 			name: "invalid url",
 			opts: &oss.Options{
-				URL:      "aliyun.oss-cn-hangzhou.aliyuncs.com",
-				Bucket:   "aliyun",
-				Path:     "/path",
-				AkID:     "11111",
-				AkSecret: "22222",
+				URL:    "aliyun.oss-cn-hangzhou.aliyuncs.com",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: oss.AccessKey{
+					AkID:     "11111",
+					AkSecret: "22222",
+				},
 				FuseType: OssFsType,
 			},
 			errType: UrlError,
@@ -623,6 +689,7 @@ func Test_checkOssOptions(t *testing.T) {
 			},
 			errType: nil,
 		},
+		{},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -637,11 +704,13 @@ func TestMakeAuthConfig(t *testing.T) {
 	ossfs := oss.NewFuseOssfs(nil, fakeMeta)
 	ossfsFpm := oss.NewOSSFusePodManager(ossfs, nil)
 	opt := &oss.Options{
-		URL:      "1.1.1.1",
-		Bucket:   "aliyun",
-		Path:     "/path",
-		AkID:     "11111",
-		AkSecret: "22222",
+		URL:    "1.1.1.1",
+		Bucket: "aliyun",
+		Path:   "/path",
+		AccessKey: oss.AccessKey{
+			AkID:     "11111",
+			AkSecret: "22222",
+		},
 		FuseType: OssFsType,
 	}
 	want := &mounterutils.AuthConfig{
@@ -656,11 +725,13 @@ func TestMakeAuthConfig(t *testing.T) {
 	ossfs2 := oss.NewFuseOssfs2(nil, fakeMeta)
 	ossfs2Fpm := oss.NewOSSFusePodManager(ossfs2, nil)
 	opt2 := &oss.Options{
-		URL:      "1.1.1.1",
-		Bucket:   "aliyun",
-		Path:     "/path",
-		AkID:     "11111",
-		AkSecret: "22222",
+		URL:    "1.1.1.1",
+		Bucket: "aliyun",
+		Path:   "/path",
+		AccessKey: oss.AccessKey{
+			AkID:     "11111",
+			AkSecret: "22222",
+		},
 		FuseType: OssFs2Type,
 	}
 	want2 := &mounterutils.AuthConfig{
@@ -679,11 +750,13 @@ func TestMakeMountOptions(t *testing.T) {
 	ossfs := oss.NewFuseOssfs(nil, fakeMeta)
 	ossfsFpm := oss.NewOSSFusePodManager(ossfs, nil)
 	opt := &oss.Options{
-		URL:        "1.1.1.1",
-		Bucket:     "aliyun",
-		Path:       "/path",
-		AkID:       "11111",
-		AkSecret:   "22222",
+		URL:    "1.1.1.1",
+		Bucket: "aliyun",
+		Path:   "/path",
+		AccessKey: oss.AccessKey{
+			AkID:     "11111",
+			AkSecret: "22222",
+		},
 		FuseType:   OssFsType,
 		OtherOpts:  "-o allow_other -o max_stat_cache_size=0",
 		SigVersion: "v4",
@@ -713,11 +786,13 @@ func TestMakeMountOptions(t *testing.T) {
 	ossfs2 := oss.NewFuseOssfs2(nil, fakeMeta)
 	ossfs2Fpm := oss.NewOSSFusePodManager(ossfs2, nil)
 	opt2 := &oss.Options{
-		URL:        "1.1.1.1",
-		Bucket:     "aliyun",
-		Path:       "/path",
-		AkID:       "11111",
-		AkSecret:   "22222",
+		URL:    "1.1.1.1",
+		Bucket: "aliyun",
+		Path:   "/path",
+		AccessKey: oss.AccessKey{
+			AkID:     "11111",
+			AkSecret: "22222",
+		},
 		FuseType:   OssFs2Type,
 		OtherOpts:  "-o attr_timeout=60",
 		SigVersion: "v4",
@@ -732,4 +807,58 @@ func TestMakeMountOptions(t *testing.T) {
 	got2, err := makeMountOptions(opt2, ossfs2Fpm, fakeMeta, cap)
 	assert.NoError(t, err)
 	assert.Equal(t, want2, got2)
+}
+
+func TestNeedRotateToken(t *testing.T) {
+	tests := []struct {
+		name        string
+		opt         *oss.Options
+		secrets     map[string]string
+		wantSecrets map[string]string
+		want        bool
+	}{
+		{
+			name:        "FuseType not OssFsType",
+			opt:         &oss.Options{FuseType: "OtherType"},
+			secrets:     map[string]string{mounterutils.GetPasswdFileName("OtherType"): "value1", "key2": "value2"},
+			wantSecrets: map[string]string{mounterutils.GetPasswdFileName("OtherType"): "value1", "key2": "value2"},
+			want:        false,
+		},
+		{
+			name:        "FuseType not OssFsType but not set fixed AKSK",
+			opt:         &oss.Options{FuseType: "OtherType"},
+			secrets:     map[string]string{"key1": "value1"},
+			wantSecrets: map[string]string{"key1": "value1"},
+			want:        true,
+		},
+		{
+			name:        "secrets is nil",
+			opt:         &oss.Options{FuseType: OssFsType},
+			secrets:     nil,
+			wantSecrets: nil,
+			want:        false,
+		},
+		{
+			name:        "secrets includes more info",
+			opt:         &oss.Options{FuseType: OssFsType},
+			secrets:     map[string]string{mounterutils.GetPasswdFileName(OssFsType): "value1", "key2": "value2"},
+			wantSecrets: map[string]string{mounterutils.GetPasswdFileName(OssFsType): "value1", "key2": "value2"},
+			want:        false,
+		},
+		{
+			name:        "secrets only has passwd file info",
+			opt:         &oss.Options{FuseType: OssFsType},
+			secrets:     map[string]string{mounterutils.GetPasswdFileName(OssFsType): "value1"},
+			wantSecrets: map[string]string{mounterutils.GetPasswdFileName(OssFsType): "value1"},
+			want:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			need := needRotateToken(tt.opt, tt.secrets)
+			assert.Equal(t, tt.want, need)
+			assert.Equal(t, tt.wantSecrets, tt.secrets)
+		})
+	}
 }

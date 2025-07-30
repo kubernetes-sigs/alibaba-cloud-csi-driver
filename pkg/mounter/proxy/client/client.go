@@ -21,6 +21,7 @@ const (
 
 type Client interface {
 	Mount(req *proxy.MountRequest) (*proxy.Response, error)
+	RotateToken(req *proxy.RotateTokenRequest) (*proxy.Response, error)
 }
 
 type client struct {
@@ -90,6 +91,15 @@ func (c *client) Mount(req *proxy.MountRequest) (*proxy.Response, error) {
 	return c.doRequest(&proxy.Request{
 		Header: proxy.Header{
 			Method: proxy.Mount,
+		},
+		Body: req,
+	})
+}
+
+func (c *client) RotateToken(req *proxy.RotateTokenRequest) (*proxy.Response, error) {
+	return c.doRequest(&proxy.Request{
+		Header: proxy.Header{
+			Method: proxy.RotateToken,
 		},
 		Body: req,
 	})

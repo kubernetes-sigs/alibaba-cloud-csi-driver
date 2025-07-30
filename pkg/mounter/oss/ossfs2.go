@@ -64,7 +64,16 @@ func (f *fuseOssfs2) PrecheckAuthConfig(o *Options, onNode bool) error {
 		if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
 			return nil
 		}
-		if o.SecretRef != "" {
+		// Token authentication:
+		// For runc scenarios, set the SecretRef parameter.
+		runc := o.SecretRef != ""
+		// For rund or eci scenarios, configure Token in nodePublishSecretRef or nodeStageSecretRef.
+		// Expiration is not required for ossfs2.0
+		rund := o.AccessKeyId != "" && o.AccessKeySecret != "" && o.SecurityToken != ""
+		if runc && rund {
+			return fmt.Errorf("Token and secretRef cannot be set at the same time")
+		}
+		if rund || runc {
 			if o.AkID != "" || o.AkSecret != "" {
 				return fmt.Errorf("AK and secretRef cannot be set at the same time")
 			}
@@ -95,13 +104,26 @@ func (f *fuseOssfs2) MakeAuthConfig(o *Options, m metadata.MetadataProvider) (au
 	case AuthTypeSTS:
 		authCfg.RoleName = o.RoleName
 	case "":
+		// fixed AKSK
+		passwdFile := utils.GetPasswdFileName(f.Name())
+		if o.AkID != "" && o.AkSecret != "" {
+			authCfg.Secrets = map[string]string{
+				utils.GetPasswdFileName(f.Name()): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", o.AkID, o.AkSecret),
+			}
+			return
+		}
+		// secretRef for RunC
 		if o.SecretRef != "" {
 			authCfg.SecretRef = o.SecretRef
 			return
 		}
+		// token secret for RunD
 		authCfg.Secrets = map[string]string{
-			utils.GetPasswdFileName(f.Name()): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", o.AkID, o.AkSecret),
+			filepath.Join(passwdFile, KeyAccessKeyId):     o.AccessKeyId,
+			filepath.Join(passwdFile, KeyAccessKeySecret): o.AccessKeySecret,
+			filepath.Join(passwdFile, KeySecurityToken):   o.SecurityToken,
 		}
+
 	default:
 		return nil, fmt.Errorf("%s do not support authType: %s", f.Name(), o.AuthType)
 	}
@@ -162,6 +184,11 @@ func (f *fuseOssfs2) getAuthOptions(o *Options, region string) (mountOptions []s
 			mountOptions = append(mountOptions, "ram_role="+o.RoleName)
 		}
 	case "":
+		// fixed AKSK
+		if o.AkID != "" && o.AkSecret != "" {
+			// for aksk in secret, it will make passwd_file option in mount-proxy server as it's under a tempdir
+			return
+		}
 		if o.SecretRef != "" {
 			mountOptions = append(mountOptions,
 				fmt.Sprintf("oss_sts_multi_conf_ak_file=%s", filepath.Join(utils.GetConfigDir(o.FuseType), utils.GetPasswdFileName(o.FuseType), KeyAccessKeyId)),
@@ -169,7 +196,7 @@ func (f *fuseOssfs2) getAuthOptions(o *Options, region string) (mountOptions []s
 				fmt.Sprintf("oss_sts_multi_conf_token_file=%s", filepath.Join(utils.GetConfigDir(o.FuseType), utils.GetPasswdFileName(o.FuseType), KeySecurityToken)),
 			)
 		}
-		// publishSecretRef will make option in mount-proxy server
+		// for token in secret, it will make passwd_file option in mount-proxy server as it's under a tempdir
 	default:
 		return nil
 	}

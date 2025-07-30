@@ -27,7 +27,7 @@ const (
 	OssFs2Type = "ossfs2"
 )
 
-func computeMountPathHash(target string) string {
+func ComputeMountPathHash(target string) string {
 	hasher := fnv.New32a()
 	hasher.Write([]byte(target))
 	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
@@ -190,7 +190,7 @@ func CleanupCredentialSecret(ctx context.Context, clientset kubernetes.Interface
 const MaxRoleSessionNameLimit = 64
 
 func GetRoleSessionName(volumeId, target, fuseType string) string {
-	name := fmt.Sprintf("%s.%s.%s", fuseType, volumeId, computeMountPathHash(target))
+	name := fmt.Sprintf("%s.%s.%s", fuseType, volumeId, ComputeMountPathHash(target))
 	if len(name) > MaxRoleSessionNameLimit {
 		name = name[:MaxRoleSessionNameLimit]
 	}
@@ -223,4 +223,8 @@ func AppendRRSAAuthOptions(m metadata.MetadataProvider, options []string, volume
 		options = append(options, fmt.Sprintf("rrsa_token_file=%s", tokenFile))
 	}
 	return options, nil
+}
+
+func GetPasswdHashDir(target string) string {
+	return filepath.Join("/tmp", ComputeMountPathHash(target))
 }

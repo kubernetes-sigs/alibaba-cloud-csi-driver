@@ -49,10 +49,6 @@ type nodeServer struct {
 }
 
 const (
-	// AkID is Ak ID
-	AkID = "akId"
-	// AkSecret is Ak Secret
-	AkSecret = "akSecret"
 	// OssFsType is the oss filesystem type
 	OssFsType = "ossfs"
 	// OssFs2Type is the ossfs2 filesystem type
@@ -62,6 +58,20 @@ const (
 	// defaultMetricsTop
 	defaultMetricsTop = "10"
 	ossfsExecPath     = "/usr/local/bin/ossfs"
+)
+
+// fixed accesskeys
+const (
+	AkID     = "akId"
+	AkSecret = "akSecret"
+)
+
+// token accesskeys
+const (
+	KeyAccessKeyId     = "AccessKeyId"
+	KeyAccessKeySecret = "AccessKeySecret"
+	KeyExpiration      = "Expiration"
+	KeySecurityToken   = "SecurityToken"
 )
 
 // for cases where fuseType does not affect like UnPublishVolume,
@@ -98,15 +108,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	targetPath := req.GetTargetPath()
 	if err := validateNodePublishVolumeRequest(req); err != nil {
 		return nil, err
-	}
-	// check if already mounted
-	notMnt, err := isNotMountPoint(ns.rawMounter, targetPath)
-	if err != nil {
-		return nil, err
-	}
-	if !notMnt {
-		klog.Infof("NodePublishVolume: %s already mounted", targetPath)
-		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	// parse options
@@ -166,6 +167,22 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		ossfsMounter = mounter.NewOssCmdMounter(ossfsExecPath, req.VolumeId, ns.rawMounter)
 	} else {
 		ossfsMounter = mounter.NewProxyMounter(socketPath, ns.rawMounter)
+	}
+
+	// check if already mounted for re-publish
+	notMnt, err := isNotMountPoint(ns.rawMounter, targetPath)
+	if err != nil {
+		return nil, err
+	}
+	if !notMnt {
+		klog.Infof("NodePublishVolume: %s already mounted", targetPath)
+		if needRotateToken(opts, authCfg.Secrets) {
+			err := ossfsMounter.RotateToken(targetPath, opts.FuseType, authCfg.Secrets)
+			if err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+		}
+		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	// When work as csi-agent, directly mount on the target path.
