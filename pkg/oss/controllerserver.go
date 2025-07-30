@@ -151,6 +151,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		VolumeId:   req.VolumeId,
 		AuthConfig: authCfg,
 		FuseType:   opts.FuseType,
+		Recovery:   opts.Recovery,
 	}, controllerPublishPath, false)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create %s pod: %v", opts.FuseType, err)

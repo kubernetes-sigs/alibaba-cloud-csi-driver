@@ -21,6 +21,10 @@ import (
 
 var defaultOssfsImageTag = "v1.88.4-80d165c-aliyun"
 var defaultOssfsUpdatedImageTag = "v1.91.7.ack.1-570be5f-aliyun"
+
+// TODO: The recovery-enabled image will modify the underlying FUSE-related dynamic libraries.
+// After the Recovery capability reaches beta status, these will be unified to the optimized libraries.
+var defaultOssfsRecoveryImageTag = "v1.91.7.ack.1-recovery-570be5f-aliyun"
 var defaultOssfsDbglevel = utils.DebugLevelError
 
 const (

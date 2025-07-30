@@ -86,4 +86,5 @@ type Options struct {
 	AuthType      string `json:"authType"`
 	FuseType      string `json:"fuseType"`
 	ReadOnly      bool   `json:"readOnly"`
+	Recovery      bool   `json:"recovery"` // Recovery will be enabled if attributes OR featuregate is enabled
 }

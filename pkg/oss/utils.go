@@ -27,6 +27,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	cnfsv1beta1 "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cnfs/v1beta1"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/features"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
 	mounter "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
@@ -150,6 +151,8 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 			default:
 				klog.Warning(WrapOssError(ParamError, "the value(%q) of %q is invalid, only support direct and subpath", v, k).Error())
 			}
+		case "recovery":
+			opts.Recovery = true
 		}
 	}
 	for _, c := range volCaps {
@@ -165,7 +168,9 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	if readOnly {
 		opts.ReadOnly = true
 	}
-
+	if features.FunctionalMutableFeatureGate.Enabled(features.EnableOssfsRecovery) {
+		opts.Recovery = true
+	}
 	// default fuseType is ossfs
 	if opts.FuseType == "" {
 		opts.FuseType = OssFsType

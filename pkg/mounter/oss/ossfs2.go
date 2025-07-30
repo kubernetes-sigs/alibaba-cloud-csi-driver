@@ -18,6 +18,9 @@ import (
 )
 
 var defaultOssfs2ImageTag = "v2.0.1.ack.1-ecb0808-aliyun"
+// TODO: The recovery-enabled image will modify the underlying FUSE-related dynamic libraries. 
+// After the Recovery capability reaches beta status, these will be unified to the optimized libraries.
+var defaultOssfs2RecoveryImageTag = "v2.0.1.ack.1-recovery-ecb0808-aliyun"
 var defaultOssfs2Dbglevel = utils.DebugLevelInfo
 
 type fuseOssfs2 struct {

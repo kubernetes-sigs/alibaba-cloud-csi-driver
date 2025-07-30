@@ -74,6 +74,7 @@ type FusePodContext struct {
 	VolumeId   string
 	FuseType   string
 	AuthConfig *AuthConfig
+	Recovery   bool
 }
 
 type FuseMounterType interface {
@@ -83,13 +84,15 @@ type FuseMounterType interface {
 }
 
 type FuseContainerConfig struct {
-	Resources   corev1.ResourceRequirements
-	Image       string
-	ImageTag    string
-	Dbglevel    string
-	Annotations map[string]string
-	Labels      map[string]string
-	Extra       map[string]string
+	Resources corev1.ResourceRequirements
+	Image     string
+	// TODO: remove if Recovery feature reaches beta status.
+	RecoveryImage string
+	ImageTag      string
+	Dbglevel      string
+	Annotations   map[string]string
+	Labels        map[string]string
+	Extra         map[string]string
 }
 
 func ExtractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (config FuseContainerConfig) {

@@ -30,6 +30,17 @@ const (
 )
 
 func setDefaultImage(fuseType string, m metadata.MetadataProvider, config *mounterutils.FuseContainerConfig) {
+	// set recovery image
+	// TODO: remove this after recovery capacity reaches beta status.
+	if features.FunctionalMutableFeatureGate.Enabled(features.EnableOssfsRecovery) {
+		switch fuseType {
+		case OssFsType:
+			config.RecoveryImage = fmt.Sprintf("csi-%s:%s", fuseType, defaultOssfsRecoveryImageTag)
+		case OssFs2Type:
+			config.RecoveryImage = fmt.Sprintf("csi-%s:%s", fuseType, defaultOssfs2RecoveryImageTag)
+		}
+	}
+
 	// deprecated
 	if config.Image != "" {
 		return

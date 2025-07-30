@@ -46,6 +46,15 @@ const (
 	// This configuration only takes effect for newly mounted OSS volumes.
 	UpdatedOssfsVersion featuregate.Feature = "UpdatedOssfsVersion"
 
+	// EnableOssfsRecovery enables OSSFS recovery.
+	//
+	// OSSFS recovery is a feature that allows OSSFS to recover from a failure state.
+	// When EnableOssfsRecovery is enabled, if ossfs exits unexpectedly due to non-SIGTERM reasons during operation,
+	// the daemon process in the container will be responsible for restarting ossfs without restarting the business
+	// container that mounted the OSS volume, thus achieving mount point self-healing.
+	// Note: Mount point self-healing depends on a specially optimized version of FUSE.
+	EnableOssfsRecovery featuregate.Feature = "EnableOssfsRecovery"
+
 	RundCSIProtocol3 featuregate.Feature = "RundCSIProtocol3"
 
 	// Enable volume group snapshots.
@@ -70,6 +79,7 @@ var (
 
 	defaultOSSFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
 		UpdatedOssfsVersion: {Default: true, PreRelease: featuregate.Beta},
+		EnableOssfsRecovery: {Default: false, PreRelease: featuregate.Alpha},
 	}
 
 	defaultNasFeatureGate = map[featuregate.Feature]featuregate.FeatureSpec{
