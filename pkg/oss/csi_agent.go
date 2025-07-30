@@ -26,12 +26,11 @@ func NewCSIAgent(m metadata.MetadataProvider, socketPath string) *CSIAgent {
 		OssFs2Type: oss.NewOSSFusePodManager(ossfs2, nil),
 	}
 	ns := &nodeServer{
-		metadata:         m,
-		locks:            utils.NewVolumeLocks(),
-		rawMounter:       mountutils.NewWithoutSystemd(""),
-		skipAttach:       true,
-		fusePodManagers:  fusePodManagers,
-		mountProxySocket: socketPath,
+		metadata:        m,
+		locks:           utils.NewVolumeLocks(),
+		rawMounter:      mountutils.NewWithoutSystemd(""),
+		skipAttach:      true,
+		fusePodManagers: fusePodManagers,
 	}
 	return &CSIAgent{
 		ns:         ns,
