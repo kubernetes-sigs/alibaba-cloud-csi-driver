@@ -77,7 +77,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		VolumeContext: volumeContext,
 	}
 
-	klog.Infof("Provision oss volume is successfully: %s,pvName: %v", req.Name, csiTargetVolume)
+	klog.Infof("Provision oss volume is successfully: %s, pvName: %v", req.Name, csiTargetVolume)
 	return &csi.CreateVolumeResponse{Volume: csiTargetVolume}, nil
 
 }
