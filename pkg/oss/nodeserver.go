@@ -158,7 +158,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 
 	var ossfsMounter mounter.Mounter
-	if ns.mountProxySocket == "" {
+	if socketPath == "" {
 		ossfsMounter = mounter.NewOssCmdMounter(ossfsExecPath, req.VolumeId, ns.metadata, ns.rawMounter)
 	} else {
 		ossfsMounter = mounter.NewProxyMounter(socketPath, ns.rawMounter)
