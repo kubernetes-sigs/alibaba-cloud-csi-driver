@@ -157,6 +157,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.InvalidArgument, "%s not found in publishContext", mountProxySocket)
 	}
 
+	// Note: In ACK and ACS GPU scenarios, the socket path is provided by publishContext.
 	var ossfsMounter mounter.Mounter
 	if socketPath == "" {
 		ossfsMounter = mounter.NewOssCmdMounter(ossfsExecPath, req.VolumeId, ns.metadata, ns.rawMounter)
