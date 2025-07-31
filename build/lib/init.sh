@@ -10,8 +10,6 @@ if [ -z "$KUBELET_ROOT_DIR" ]; then
     KUBELET_ROOT_DIR="/var/lib/kubelet"
 fi
 
-run_oss="false"
-run_disk="false"
 run_nas="false"
 
 mkdir -p /var/log/alicloud/
@@ -53,12 +51,10 @@ for item in "$@";
 do
     if [ "$item" = "--driver=ossplugin.csi.alibabacloud.com" ]; then
         echo "Running oss plugin...."
-        run_oss="true"
         mkdir -p "$KUBELET_ROOT_DIR/csi-plugins/ossplugin.csi.alibabacloud.com"
         rm -rf "$KUBELET_ROOT_DIR/plugins/ossplugin.csi.alibabacloud.com/csi.sock"
     elif [ "$item" = "--driver=diskplugin.csi.alibabacloud.com" ]; then
         echo "Running disk plugin...."
-	    run_disk="true"
         mkdir -p "$KUBELET_ROOT_DIR/csi-plugins/diskplugin.csi.alibabacloud.com"
         rm -rf "$KUBELET_ROOT_DIR/plugins/diskplugin.csi.alibabacloud.com/csi.sock"
     elif [ "$item" = "--driver=nasplugin.csi.alibabacloud.com" ]; then
@@ -72,12 +68,10 @@ do
         do
             if [ "$driver_type" = "oss" ]; then
                 echo "Running oss plugin...."
-                run_oss="true"
                 mkdir -p "$KUBELET_ROOT_DIR/csi-plugins/ossplugin.csi.alibabacloud.com"
                 rm -rf "$KUBELET_ROOT_DIR/plugins/ossplugin.csi.alibabacloud.com/csi.sock"
             elif [ "$driver_type" = "disk" ]; then
                 echo "Running disk plugin...."
-				run_disk="true"
                 mkdir -p "$KUBELET_ROOT_DIR/csi-plugins/diskplugin.csi.alibabacloud.com"
                 rm -rf "$KUBELET_ROOT_DIR/plugins/diskplugin.csi.alibabacloud.com/csi.sock"
             elif [ "$driver_type" = "nas" ]; then
@@ -85,6 +79,10 @@ do
                 run_nas="true"
                 mkdir -p "$KUBELET_ROOT_DIR/csi-plugins/nasplugin.csi.alibabacloud.com"
                 rm -rf "$KUBELET_ROOT_DIR/plugins/nasplugin.csi.alibabacloud.com/csi.sock"
+            elif [ "$driver_type" = "bmcpfs" ]; then
+                echo "Running bmcpfs plugin...."
+                host_cmd modprobe fuse
+                echo "modprobe fuse returned: $?"
             elif [ "$driver_type" = "pov" ]; then
                 echo "Running pov plugin...."
                 run_pov="true"
