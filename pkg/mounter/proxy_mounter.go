@@ -6,7 +6,6 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/client"
-	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	mountutils "k8s.io/mount-utils"
 )
 
@@ -22,18 +21,14 @@ func NewProxyMounter(socketPath string, inner mountutils.Interface) Mounter {
 	}
 }
 
-func (m *ProxyMounter) MountWithSecrets(source, target, fstype string, options []string, authCfg *utils.AuthConfig) error {
-	if authCfg == nil {
-		return errors.New("empty auth config")
-	}
-
+func (m *ProxyMounter) MountWithSecrets(source, target, fstype string, options []string, secrets map[string]string) error {
 	dclient := client.NewClient(m.socketPath)
 	resp, err := dclient.Mount(&proxy.MountRequest{
 		Source:  source,
 		Target:  target,
 		Fstype:  fstype,
 		Options: options,
-		Secrets: authCfg.Secrets,
+		Secrets: secrets,
 	})
 	if err != nil {
 		return fmt.Errorf("call mounter daemon: %w", err)

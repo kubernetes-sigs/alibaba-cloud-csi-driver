@@ -141,6 +141,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	mountOptions = ns.fusePodManagers[opts.FuseType].AddDefaultMountOptions(mountOptions)
+	mountOptions, err = mounterutils.AppendRRSAAuthOptions(ns.metadata, mountOptions, req.VolumeId, targetPath, authCfg)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 
 	// rund 3.0 protocol
 	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
@@ -159,7 +163,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// Note: In ACK and ACS GPU scenarios, the socket path is provided by publishContext.
 	var ossfsMounter mounter.Mounter
 	if socketPath == "" {
-		ossfsMounter = mounter.NewOssCmdMounter(ossfsExecPath, req.VolumeId, ns.metadata, ns.rawMounter)
+		ossfsMounter = mounter.NewOssCmdMounter(ossfsExecPath, req.VolumeId, ns.rawMounter)
 	} else {
 		ossfsMounter = mounter.NewProxyMounter(socketPath, ns.rawMounter)
 	}
@@ -169,7 +173,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if opts.FuseType == OssFsType {
 			utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, OssFsType, "oss", opts.Bucket)
 		}
-		err := ossfsMounter.MountWithSecrets(mountSource, targetPath, opts.FuseType, mountOptions, authCfg)
+		err := ossfsMounter.MountWithSecrets(mountSource, targetPath, opts.FuseType, mountOptions, authCfg.Secrets)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -189,7 +193,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			utils.WriteSharedMetricsInfo(metricsPathPrefix, req, OssFsType, "oss", opts.Bucket, attachPath)
 		}
 		err := ossfsMounter.MountWithSecrets(
-			mountSource, attachPath, opts.FuseType, mountOptions, authCfg)
+			mountSource, attachPath, opts.FuseType, mountOptions, authCfg.Secrets)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
