@@ -555,7 +555,7 @@ spec:
             - --node-id=$(KUBE_NODE_NAME)
           securityContext:
             allowPrivilegeEscalation: false
-            # readOnlyRootFilesystem: true  # TODO: get rid of glog
+            readOnlyRootFilesystem: true
           env:
 {{- if .Values.deploy.ack }}
             - name: "CLUSTER_ID"
