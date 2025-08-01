@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -203,4 +204,23 @@ func GetConfigDir(fuseType string) string {
 
 func GetPasswdFileName(fuseType string) string {
 	return fmt.Sprintf("passwd-%s", fuseType)
+}
+
+func AppendRRSAAuthOptions(m metadata.MetadataProvider, options []string, volumeId, target string, authCfg *AuthConfig) ([]string, error) {
+	if authCfg == nil {
+		return options, nil
+	}
+
+	if authCfg.AuthType == "rrsa" {
+		tokenFile, err := m.Get(metadata.RRSATokenFile)
+		if err != nil {
+			return nil, err
+		}
+		sessionName := GetRoleSessionName(volumeId, target, "ossfs")
+		options = append(options, fmt.Sprintf("rrsa_oidc_provider_arn=%s", authCfg.RrsaConfig.OidcProviderArn))
+		options = append(options, fmt.Sprintf("rrsa_role_arn=%s", authCfg.RrsaConfig.RoleArn))
+		options = append(options, fmt.Sprintf("rrsa_role_session_name=%s", sessionName))
+		options = append(options, fmt.Sprintf("rrsa_token_file=%s", tokenFile))
+	}
+	return options, nil
 }
