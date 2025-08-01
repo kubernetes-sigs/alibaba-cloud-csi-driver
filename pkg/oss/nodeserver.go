@@ -141,10 +141,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	mountOptions = ns.fusePodManagers[opts.FuseType].AddDefaultMountOptions(mountOptions)
-	mountOptions, err = mounterutils.AppendRRSAAuthOptions(ns.metadata, mountOptions, req.VolumeId, targetPath, authCfg)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
 
 	// rund 3.0 protocol
 	if features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) {
@@ -163,6 +159,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	// Note: In ACK and ACS GPU scenarios, the socket path is provided by publishContext.
 	var ossfsMounter mounter.Mounter
 	if socketPath == "" {
+		mountOptions, err = mounterutils.AppendRRSAAuthOptions(ns.metadata, mountOptions, req.VolumeId, targetPath, authCfg)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 		ossfsMounter = mounter.NewOssCmdMounter(ossfsExecPath, req.VolumeId, ns.rawMounter)
 	} else {
 		ossfsMounter = mounter.NewProxyMounter(socketPath, ns.rawMounter)
