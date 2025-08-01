@@ -139,7 +139,11 @@ func doMount(mounter mountutils.Interface, opt *Options, targetPath, volumeId, p
 	}
 	rootSource := fmt.Sprintf("%s:%s", opt.Server, rootPath)
 	klog.Infof("trying to create subpath %s in %s", opt.Path, opt.Server)
-	tmpPath, err := os.MkdirTemp(filepath.Join(utils.KubeletRootDir, "csi-plugins", driverName, "node"), "subpath-creation_"+volumeId+"_")
+	tmpPath := filepath.Join(utils.KubeletRootDir, "csi-plugins", driverName, "node")
+	if err := os.MkdirAll(tmpPath, 0o700); err != nil {
+		return err
+	}
+	tmpPath, err = os.MkdirTemp(tmpPath, "subpath-creation_"+volumeId+"_")
 	if err != nil {
 		return err
 	}
