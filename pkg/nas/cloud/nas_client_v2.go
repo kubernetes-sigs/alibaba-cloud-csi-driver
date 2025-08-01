@@ -1,6 +1,7 @@
 package cloud
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -12,7 +13,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
 	utilshttp "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils/http"
-	"go.uber.org/ratelimit"
+	"golang.org/x/time/rate"
 	"k8s.io/klog/v2"
 )
 
@@ -60,12 +61,14 @@ func NewNasClientV2(region string) (*sdk.Client, error) {
 
 type NasClientV2 struct {
 	region  string
-	limiter ratelimit.Limiter
+	limiter *rate.Limiter
 	client  interfaces.NasV2Interface
 }
 
 func (c *NasClientV2) CreateDir(req *sdk.CreateDirRequest) error {
-	c.limiter.Take()
+	if err := c.limiter.Wait(context.TODO()); err != nil {
+		return fmt.Errorf("error while waiting for rate limiter: %w", err)
+	}
 	resp, err := c.client.CreateDir(req)
 	logger := klog.Background().WithValues("request", req, "response", resp)
 	if err == nil {
@@ -77,7 +80,9 @@ func (c *NasClientV2) CreateDir(req *sdk.CreateDirRequest) error {
 }
 
 func (c *NasClientV2) SetDirQuota(req *sdk.SetDirQuotaRequest) error {
-	c.limiter.Take()
+	if err := c.limiter.Wait(context.TODO()); err != nil {
+		return fmt.Errorf("error while waiting for rate limiter: %w", err)
+	}
 	resp, err := c.client.SetDirQuota(req)
 	if err == nil && resp.Body != nil && !tea.BoolValue(resp.Body.Success) {
 		err = errors.New("response indicates a failure")
@@ -92,7 +97,9 @@ func (c *NasClientV2) SetDirQuota(req *sdk.SetDirQuotaRequest) error {
 }
 
 func (c *NasClientV2) CancelDirQuota(req *sdk.CancelDirQuotaRequest) error {
-	c.limiter.Take()
+	if err := c.limiter.Wait(context.TODO()); err != nil {
+		return fmt.Errorf("error while waiting for rate limiter: %w", err)
+	}
 	resp, err := c.client.CancelDirQuota(req)
 	if err == nil {
 		if !tea.BoolValue(resp.Body.Success) {
@@ -115,13 +122,17 @@ func (c *NasClientV2) CancelDirQuota(req *sdk.CancelDirQuotaRequest) error {
 }
 
 func (c *NasClientV2) GetRecycleBinAttribute(filesystemId string) (*sdk.GetRecycleBinAttributeResponse, error) {
-	c.limiter.Take()
+	if err := c.limiter.Wait(context.TODO()); err != nil {
+		return nil, fmt.Errorf("error while waiting for rate limiter: %w", err)
+	}
 	req := &sdk.GetRecycleBinAttributeRequest{FileSystemId: &filesystemId}
 	return c.client.GetRecycleBinAttribute(req)
 }
 
 func (c *NasClientV2) CreateAccesspoint(req *sdk.CreateAccessPointRequest) (*sdk.CreateAccessPointResponse, error) {
-	c.limiter.Take()
+	if err := c.limiter.Wait(context.TODO()); err != nil {
+		return nil, fmt.Errorf("error while waiting for rate limiter: %w", err)
+	}
 	resp, err := c.client.CreateAccessPoint(req)
 	logger := klog.Background().WithValues("request", req, "response", resp)
 	if err == nil {
@@ -133,7 +144,9 @@ func (c *NasClientV2) CreateAccesspoint(req *sdk.CreateAccessPointRequest) (*sdk
 }
 
 func (c *NasClientV2) DeleteAccesspoint(filesystemId, accessPointId string) error {
-	c.limiter.Take()
+	if err := c.limiter.Wait(context.TODO()); err != nil {
+		return fmt.Errorf("error while waiting for rate limiter: %w", err)
+	}
 	req := &sdk.DeleteAccessPointRequest{
 		AccessPointId: &accessPointId,
 		FileSystemId:  &filesystemId,
@@ -149,7 +162,9 @@ func (c *NasClientV2) DeleteAccesspoint(filesystemId, accessPointId string) erro
 }
 
 func (c *NasClientV2) DescribeAccesspoint(filesystemId, accessPointId string) (*sdk.DescribeAccessPointResponse, error) {
-	c.limiter.Take()
+	if err := c.limiter.Wait(context.TODO()); err != nil {
+		return nil, fmt.Errorf("error while waiting for rate limiter: %w", err)
+	}
 	return c.client.DescribeAccessPoint(&sdk.DescribeAccessPointRequest{
 		AccessPointId: &accessPointId,
 		FileSystemId:  &filesystemId,
@@ -157,7 +172,9 @@ func (c *NasClientV2) DescribeAccesspoint(filesystemId, accessPointId string) (*
 }
 
 func (c *NasClientV2) DescribeFileSystems(filesystemID string) (*sdk.DescribeFileSystemsResponse, error) {
-	c.limiter.Take()
+	if err := c.limiter.Wait(context.TODO()); err != nil {
+		return nil, fmt.Errorf("error while waiting for rate limiter: %w", err)
+	}
 	return c.client.DescribeFileSystems(&sdk.DescribeFileSystemsRequest{
 		FileSystemId: &filesystemID,
 	})
