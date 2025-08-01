@@ -124,6 +124,9 @@ func (m *DeviceManager) adaptDevicePartition(rootDevicePath string) (string, err
 	if !m.EnableDiskPartition {
 		return rootDevicePath, nil
 	}
+	if !m.EnableDiskPartition {
+		return rootDevicePath, nil
+	}
 	devName, err := m.deviceName(rootDevicePath)
 	if err != nil {
 		return "", fmt.Errorf("get device name for %s failed: %w", rootDevicePath, err)
@@ -149,6 +152,13 @@ func (m *DeviceManager) adaptDevicePartition(rootDevicePath string) (string, err
 	return partitionDevicePath, nil
 }
 
+// GetDeviceByVolumeID returns the device path for the given volume ID.
+// If applicable, the device path will point to a partition.
+//
+// Only call this function if the volume is a mount volume (not block volume).
+// If you are not sure, call [DeviceManager.GetRootBlockByVolumeID] then call
+// [DeviceManager.adaptDevicePartition] afterwards.
+//
 // GetDeviceByVolumeID Assume the serial is the volume ID without "d-" prefix.
 //
 // Deprecated: use GetDeviceBySerial and pass in the serial returned by ECS OpenAPI.
@@ -173,10 +183,6 @@ func (m *DeviceManager) WaitDevice(ctx context.Context, serial string) (string, 
 	if err != nil {
 		return "", err
 	}
-	if !m.EnableDiskPartition {
-		return path, nil
-	}
-
 	partition, err := m.adaptDevicePartition(path)
 	if err != nil {
 		return "", fmt.Errorf("serial %s resolved to device %s, but adapt partition failed: %w", serial, path, err)

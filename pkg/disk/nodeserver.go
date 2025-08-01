@@ -536,7 +536,6 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
 
-	device := ""
 	isMultiAttach := false
 	if value, ok := req.VolumeContext[MultiAttach]; ok {
 		value = strings.ToLower(value)
@@ -545,6 +544,7 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		}
 	}
 
+	device := ""
 	// Step 4 Attach volume
 	defaultErrCode := codes.Internal
 	serial := req.PublishContext[PUBLISH_CONTEXT_SERIAL]
@@ -567,6 +567,13 @@ func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVol
 		// Now we have attached the disk, if we fail later, NodeStageVolume is in-progress.
 		// Return Aborted so that the CO will call NodeUnstageVolume later to detach.
 		defaultErrCode = codes.Aborted
+	}
+
+	if req.VolumeCapability.GetMount() != nil {
+		device, err = DefaultDeviceManager.adaptDevicePartition(device)
+		if err != nil {
+			return nil, status.Errorf(codes.Aborted, "NodeStageVolume: failed to adapt partition %s: %v", device, err)
+		}
 	}
 
 	if err := CheckDeviceAvailable(device, req.VolumeId, targetPath); err != nil {
