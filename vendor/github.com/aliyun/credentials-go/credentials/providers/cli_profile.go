@@ -64,22 +64,28 @@ func NewCLIProfileCredentialsProviderBuilder() *CLIProfileCredentialsProviderBui
 }
 
 type profile struct {
-	Name            string `json:"name"`
-	Mode            string `json:"mode"`
-	AccessKeyID     string `json:"access_key_id"`
-	AccessKeySecret string `json:"access_key_secret"`
-	RegionID        string `json:"region_id"`
-	RoleArn         string `json:"ram_role_arn"`
-	RoleSessionName string `json:"ram_session_name"`
-	DurationSeconds int    `json:"expired_seconds"`
-	StsRegion       string `json:"sts_region"`
-	EnableVpc       bool   `json:"enable_vpc"`
-	SourceProfile   string `json:"source_profile"`
-	RoleName        string `json:"ram_role_name"`
-	OIDCTokenFile   string `json:"oidc_token_file"`
-	OIDCProviderARN string `json:"oidc_provider_arn"`
-	Policy          string `json:"policy"`
-	ExternalId      string `json:"external_id"`
+	Name              string `json:"name"`
+	Mode              string `json:"mode"`
+	AccessKeyID       string `json:"access_key_id"`
+	AccessKeySecret   string `json:"access_key_secret"`
+	SecurityToken     string `json:"sts_token"`
+	RegionID          string `json:"region_id"`
+	RoleArn           string `json:"ram_role_arn"`
+	RoleSessionName   string `json:"ram_session_name"`
+	DurationSeconds   int    `json:"expired_seconds"`
+	StsRegion         string `json:"sts_region"`
+	EnableVpc         bool   `json:"enable_vpc"`
+	SourceProfile     string `json:"source_profile"`
+	RoleName          string `json:"ram_role_name"`
+	OIDCTokenFile     string `json:"oidc_token_file"`
+	OIDCProviderARN   string `json:"oidc_provider_arn"`
+	Policy            string `json:"policy"`
+	ExternalId        string `json:"external_id"`
+	SignInUrl         string `json:"cloud_sso_sign_in_url"`
+	AccountId         string `json:"cloud_sso_account_id"`
+	AccessConfig      string `json:"cloud_sso_access_config"`
+	AccessToken       string `json:"access_token"`
+	AccessTokenExpire int64  `json:"cloud_sso_access_token_expire"`
 }
 
 type configuration struct {
@@ -134,6 +140,12 @@ func (provider *CLIProfileCredentialsProvider) getCredentialsProvider(conf *conf
 			WithAccessKeyId(p.AccessKeyID).
 			WithAccessKeySecret(p.AccessKeySecret).
 			Build()
+	case "StsToken":
+		credentialsProvider, err = NewStaticSTSCredentialsProviderBuilder().
+			WithAccessKeyId(p.AccessKeyID).
+			WithAccessKeySecret(p.AccessKeySecret).
+			WithSecurityToken(p.SecurityToken).
+			Build()
 	case "RamRoleArn":
 		previousProvider, err1 := NewStaticAKCredentialsProviderBuilder().
 			WithAccessKeyId(p.AccessKeyID).
@@ -181,6 +193,14 @@ func (provider *CLIProfileCredentialsProvider) getCredentialsProvider(conf *conf
 			WithEnableVpc(p.EnableVpc).
 			WithPolicy(p.Policy).
 			WithExternalId(p.ExternalId).
+			Build()
+	case "CloudSSO":
+		credentialsProvider, err = NewCloudSSOCredentialsProviderBuilder().
+			WithSignInUrl(p.SignInUrl).
+			WithAccountId(p.AccountId).
+			WithAccessConfig(p.AccessConfig).
+			WithAccessToken(p.AccessToken).
+			WithAccessTokenExpire(p.AccessTokenExpire).
 			Build()
 	default:
 		err = fmt.Errorf("unsupported profile mode '%s'", p.Mode)

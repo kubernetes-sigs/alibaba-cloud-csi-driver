@@ -55,7 +55,7 @@ github.com/aliyun/alibaba-cloud-sdk-go/services/dfs
 github.com/aliyun/alibaba-cloud-sdk-go/services/ecs
 github.com/aliyun/alibaba-cloud-sdk-go/services/nas
 github.com/aliyun/alibaba-cloud-sdk-go/services/sts
-# github.com/aliyun/credentials-go v1.4.5
+# github.com/aliyun/credentials-go v1.4.7
 ## explicit; go 1.14
 github.com/aliyun/credentials-go/credentials
 github.com/aliyun/credentials-go/credentials/internal/http

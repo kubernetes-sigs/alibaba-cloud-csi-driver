@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -71,6 +72,8 @@ func Do(req *Request) (res *Response, err error) {
 	var body io.Reader
 	if req.Method == "GET" {
 		body = strings.NewReader("")
+	} else if req.Body != nil {
+		body = bytes.NewReader(req.Body)
 	} else {
 		body = strings.NewReader(utils.GetURLFormedMap(req.Form))
 	}
