@@ -228,7 +228,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 }
 
 func newBatcher(fromNode bool) (waitstatus.StatusWaiter[ecs.Disk], batcher.Batcher[ecs.Disk]) {
-	client := desc.Disk{Client: GlobalConfigVar.EcsClient}
+	client := desc.Disk(GlobalConfigVar.EcsClient)
 	ctx := context.Background()
 	interval := 1 * time.Second
 	if fromNode {
@@ -236,7 +236,7 @@ func newBatcher(fromNode bool) (waitstatus.StatusWaiter[ecs.Disk], batcher.Batch
 	}
 	waiter := waitstatus.NewBatched(client, clock.RealClock{}, interval, 3*time.Second)
 	waiter.PollHook = func() desc.Client[ecs.Disk] {
-		return desc.Disk{Client: updateEcsClient(GlobalConfigVar.EcsClient)}
+		return desc.Disk(updateEcsClient(GlobalConfigVar.EcsClient))
 	}
 	go waiter.Run(ctx)
 
