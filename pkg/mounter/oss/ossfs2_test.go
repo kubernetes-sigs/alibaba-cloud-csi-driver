@@ -69,16 +69,19 @@ func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
 		{
 			"empty aksecret",
 			&Options{
-				AkID:     "test-ak",
-				AkSecret: "",
+				AccessKey: AccessKey{
+					AkID: "test-ak",
+				},
 			},
 			true,
 		},
 		{
 			"success - aksk",
 			&Options{
-				AkID:     "test-ak",
-				AkSecret: "test-ak-secret",
+				AccessKey: AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 			},
 			false,
 		},
@@ -88,6 +91,37 @@ func TestPrecheckAuthConfig_ossfs2(t *testing.T) {
 				SecretRef: "test-secret-ref",
 			},
 			false,
+		},
+		{
+			name: "token republish",
+			opts: &Options{
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				TokenSecret: TokenSecret{
+					AccessKeyId:     "akid",
+					AccessKeySecret: "aksecret",
+					SecurityToken:   "securitytoken",
+				},
+				FuseType: OssFs2Type,
+			},
+			wantErr: false,
+		},
+		{
+			name: "conflicts token",
+			opts: &Options{
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				TokenSecret: TokenSecret{
+					AccessKeyId:     "akid",
+					AccessKeySecret: "aksecret",
+					SecurityToken:   "securitytoken",
+				},
+				SecretRef: "non-empty",
+				FuseType:  OssFs2Type,
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -124,8 +158,10 @@ func TestMakeAuthConfig_ossfs2(t *testing.T) {
 		{
 			"aksk",
 			&Options{
-				AkID:     "test-ak",
-				AkSecret: "test-ak-secret",
+				AccessKey: AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 			},
 			&utils.AuthConfig{
 				Secrets: map[string]string{
@@ -180,6 +216,29 @@ func TestMakeAuthConfig_ossfs2(t *testing.T) {
 			},
 			false,
 		},
+		{
+			name: "OtherAuthType_TokenSecrets",
+			options: &Options{
+				AuthType: "",
+				Bucket:   "bucket",
+				TokenSecret: TokenSecret{
+					AccessKeyId:     "ak-id",
+					AccessKeySecret: "ak-secret",
+					Expiration:      "expiration",
+					SecurityToken:   "security-token",
+				},
+				FuseType: OssFs2Type,
+			},
+			wantCfg: &utils.AuthConfig{
+				AuthType: "",
+				Secrets: map[string]string{
+					utils.GetPasswdFileName(OssFs2Type) + "/" + KeyAccessKeyId:     "ak-id",
+					utils.GetPasswdFileName(OssFs2Type) + "/" + KeyAccessKeySecret: "ak-secret",
+					utils.GetPasswdFileName(OssFs2Type) + "/" + KeySecurityToken:   "security-token",
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -201,8 +260,10 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 		{
 			name: "ro",
 			opts: &Options{
-				AkID:     "test-ak",
-				AkSecret: "test-ak-secret",
+				AccessKey: AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 				Bucket:   "test-bucket",
 				Path:     "/",
 				URL:      "oss://test-bucket/",
@@ -218,8 +279,10 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 		{
 			name: "sigv4",
 			opts: &Options{
-				AkID:       "test-ak",
-				AkSecret:   "test-ak-secret",
+				AccessKey: AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 				Bucket:     "test-bucket",
 				Path:       "/",
 				URL:        "oss://test-bucket/",
@@ -236,8 +299,10 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 		{
 			name: "sigv4 with empty region",
 			opts: &Options{
-				AkID:       "test-ak",
-				AkSecret:   "test-ak-secret",
+				AccessKey: AccessKey{
+					AkID:     "test-ak",
+					AkSecret: "test-ak-secret",
+				},
 				Bucket:     "test-bucket",
 				Path:       "/",
 				URL:        "oss://test-bucket/",
@@ -373,6 +438,18 @@ func TestGetAuthOpttions_ossfs2(t *testing.T) {
 			wantOptions: []string{
 				"rrsa_endpoint=https://sts-vpc.cn-hangzhou.aliyuncs.com",
 			},
+		},
+		{
+			name: "token",
+			opts: &Options{
+				FuseType: "ossfs2",
+				TokenSecret: TokenSecret{
+					AccessKeyId:     "test-id",
+					AccessKeySecret: "test-secret",
+					SecurityToken:   "test-token",
+				},
+			},
+			wantOptions: nil,
 		},
 	}
 	for _, tt := range tests {

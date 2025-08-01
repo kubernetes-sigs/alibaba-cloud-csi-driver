@@ -48,6 +48,17 @@ const (
 	AuthTypePublic = "public"
 )
 
+type AccessKey struct {
+	AkID     string `json:"akId"`
+	AkSecret string `json:"akSecret"`
+}
+type TokenSecret struct {
+	AccessKeyId     string `json:"AccessKeyId"`
+	AccessKeySecret string `json:"AccessKeySecret"`
+	Expiration      string `json:"Expiration"`
+	SecurityToken   string `json:"SecurityToken"`
+}
+
 // Options contains options for target oss
 type Options struct {
 	DirectAssigned bool
@@ -60,9 +71,10 @@ type Options struct {
 
 	// authorization options
 	// accesskey
-	AkID      string `json:"akId"`
-	AkSecret  string `json:"akSecret"`
-	SecretRef string `json:"secretRef"`
+	AccessKey   `json:",inline"`
+	TokenSecret `json:",inline"`
+	SecretRef   string `json:"secretRef"`
+
 	// RRSA
 	RoleName           string `json:"roleName"` // also for STS
 	RoleArn            string `json:"roleArn"`

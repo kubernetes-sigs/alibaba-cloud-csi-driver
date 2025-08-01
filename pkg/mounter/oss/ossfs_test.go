@@ -81,11 +81,13 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 		{
 			name: "success with accessKey",
 			opts: &Options{
-				URL:      "1.1.1.1",
-				Bucket:   "aliyun",
-				Path:     "/path",
-				AkID:     "11111",
-				AkSecret: "22222",
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				AccessKey: AccessKey{
+					AkID:     "akid",
+					AkSecret: "aksecret",
+				},
 				FuseType: OssFsType,
 			},
 			wantErr: false,
@@ -108,8 +110,10 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 				Bucket:    "aliyun",
 				Path:      "/path",
 				SecretRef: "secret",
-				AkID:      "11111",
-				FuseType:  OssFsType,
+				AccessKey: AccessKey{
+					AkID: "akid",
+				},
+				FuseType: OssFsType,
 			},
 			wantErr: true,
 		},
@@ -127,11 +131,13 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 		{
 			name: "use assumeRole with non-RRSA authType",
 			opts: &Options{
-				URL:           "1.1.1.1",
-				Bucket:        "aliyun",
-				Path:          "/path",
-				SecretRef:     "secret",
-				AkID:          "11111",
+				URL:       "1.1.1.1",
+				Bucket:    "aliyun",
+				Path:      "/path",
+				SecretRef: "secret",
+				AccessKey: AccessKey{
+					AkID: "akid",
+				},
 				AssumeRoleArn: "test-assume-role-arn",
 				FuseType:      OssFsType,
 			},
@@ -193,6 +199,39 @@ func TestPrecheckAuthConfig_ossfs(t *testing.T) {
 				FuseType: OssFsType,
 			},
 			wantErr: false,
+		},
+		{
+			name: "token republish",
+			opts: &Options{
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				TokenSecret: TokenSecret{
+					AccessKeyId:     "akid",
+					AccessKeySecret: "aksecret",
+					Expiration:      "expiration",
+					SecurityToken:   "securitytoken",
+				},
+				FuseType: OssFsType,
+			},
+			wantErr: false,
+		},
+		{
+			name: "conflicts token",
+			opts: &Options{
+				URL:    "1.1.1.1",
+				Bucket: "aliyun",
+				Path:   "/path",
+				TokenSecret: TokenSecret{
+					AccessKeyId:     "akid",
+					AccessKeySecret: "aksecret",
+					Expiration:      "expiration",
+					SecurityToken:   "securitytoken",
+				},
+				SecretRef: "non-empty",
+				FuseType:  OssFsType,
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -284,14 +323,40 @@ func TestMakeAuthConfig_ossfs(t *testing.T) {
 			options: &Options{
 				AuthType: "",
 				Bucket:   "bucket",
-				AkID:     "ak-id",
-				AkSecret: "ak-secret",
+				AccessKey: AccessKey{
+					AkID:     "ak-id",
+					AkSecret: "ak-secret",
+				},
 				FuseType: OssFsType,
 			},
 			expectedConfig: &utils.AuthConfig{
 				AuthType: "",
 				Secrets: map[string]string{
 					utils.GetPasswdFileName(OssFsType): "bucket:ak-id:ak-secret",
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "OtherAuthType_TokenSecrets",
+			options: &Options{
+				AuthType: "",
+				Bucket:   "bucket",
+				TokenSecret: TokenSecret{
+					AccessKeyId:     "ak-id",
+					AccessKeySecret: "ak-secret",
+					Expiration:      "expiration",
+					SecurityToken:   "security-token",
+				},
+				FuseType: OssFsType,
+			},
+			expectedConfig: &utils.AuthConfig{
+				AuthType: "",
+				Secrets: map[string]string{
+					utils.GetPasswdFileName(OssFsType) + "/" + KeyAccessKeyId:     "ak-id",
+					utils.GetPasswdFileName(OssFsType) + "/" + KeyAccessKeySecret: "ak-secret",
+					utils.GetPasswdFileName(OssFsType) + "/" + KeySecurityToken:   "security-token",
+					utils.GetPasswdFileName(OssFsType) + "/" + KeyExpiration:      "expiration",
 				},
 			},
 			expectedError: nil,
@@ -324,6 +389,10 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			name: "Basic Options",
 			opts: &Options{
 				URL: "oss://bucket",
+				AccessKey: AccessKey{
+					AkID:     "ak-id",
+					AkSecret: "ak-secret",
+				},
 			},
 			expected: []string{
 				"url=oss://bucket",
@@ -335,6 +404,10 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			opts: &Options{
 				URL:      "oss://bucket",
 				ReadOnly: true,
+				AccessKey: AccessKey{
+					AkID:     "ak-id",
+					AkSecret: "ak-secret",
+				},
 			},
 			expected: []string{
 				"url=oss://bucket",
@@ -347,6 +420,10 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			opts: &Options{
 				URL:       "oss://bucket",
 				Encrypted: EncryptedTypeAes256,
+				AccessKey: AccessKey{
+					AkID:     "ak-id",
+					AkSecret: "ak-secret",
+				},
 			},
 			expected: []string{
 				"url=oss://bucket",
@@ -360,6 +437,10 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 				URL:       "oss://bucket",
 				Encrypted: EncryptedTypeKms,
 				KmsKeyId:  "1234",
+				AccessKey: AccessKey{
+					AkID:     "ak-id",
+					AkSecret: "ak-secret",
+				},
 			},
 			expected: []string{
 				"url=oss://bucket",
@@ -389,6 +470,10 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			opts: &Options{
 				URL:        "oss://bucket",
 				SigVersion: SigV4,
+				AccessKey: AccessKey{
+					AkID:     "ak-id",
+					AkSecret: "ak-secret",
+				},
 			},
 			region: "us-east-1",
 			expected: []string{
@@ -435,6 +520,21 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 		{
 			name: "DefaultAuthType",
 			opts: &Options{
+				URL:      "oss://bucket",
+				FuseType: "ossfs",
+				AccessKey: AccessKey{
+					AkID:     "ak-id",
+					AkSecret: "ak-secret",
+				},
+			},
+			expected: []string{
+				"url=oss://bucket",
+				"use_metrics",
+			},
+		},
+		{
+			name: "SecretRef-AuthType",
+			opts: &Options{
 				URL:       "oss://bucket",
 				SecretRef: "secret",
 				FuseType:  "ossfs",
@@ -442,6 +542,21 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			expected: []string{
 				"url=oss://bucket",
 				"passwd_file=/etc/ossfs/passwd-ossfs",
+				"use_session_token",
+				"use_metrics",
+			},
+		},
+		{
+			name: "TokenSecret-AuthType",
+			opts: &Options{
+				URL:      "oss://bucket",
+				FuseType: "ossfs",
+				TokenSecret: TokenSecret{
+					AccessKeyId: "akid",
+				},
+			},
+			expected: []string{
+				"url=oss://bucket",
 				"use_session_token",
 				"use_metrics",
 			},
@@ -532,6 +647,25 @@ func TestGetAuthOpttions_ossfs(t *testing.T) {
 			name: "aksk",
 			opts: &Options{
 				FuseType: "ossfs",
+				AccessKey: AccessKey{
+					AkID:     "test-akid",
+					AkSecret: "test-aksecret",
+				},
+			},
+		},
+		{
+			name: "token",
+			opts: &Options{
+				FuseType: "ossfs",
+				TokenSecret: TokenSecret{
+					AccessKeyId:     "test-akid",
+					AccessKeySecret: "test-aksecret",
+					Expiration:      "2023-01-01T00:00:00Z",
+					SecurityToken:   "test-token",
+				},
+			},
+			wantOptions: []string{
+				"use_session_token",
 			},
 		},
 	}

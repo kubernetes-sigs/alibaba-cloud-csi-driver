@@ -47,11 +47,17 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	options := req.Options
 
 	// prepare passwd file
-	passwdFile, err := utils.SaveOssSecretsToFile(req.Secrets)
+	passwdFile, tokenDir, credOpts, err := prepareCredentialFiles(req.Target, req.Secrets)
 	if err != nil {
-		return err
+		return fmt.Errorf("prepare credential files failed: %w", err)
 	}
-	options = append(options, "passwd_file="+passwdFile)
+	options = append(options, credOpts...)
+	if passwdFile != "" {
+		klog.V(4).InfoS("created ossfs passwd file", "path", passwdFile)
+	}
+	if tokenDir != "" {
+		klog.V(4).InfoS("created ossfs token directory", "dir", tokenDir)
+	}
 
 	args := mount.MakeMountArgs(req.Source, req.Target, "", options)
 	args = append(args, req.MountFlags...)
@@ -84,9 +90,9 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 			klog.InfoS("ossfs exited", "mountpoint", target, "pid", pid)
 		}
 		ossfsExited <- err
-		if err := os.Remove(passwdFile); err != nil {
-			klog.ErrorS(err, "Remove passwd file", "mountpoint", target, "path", passwdFile)
-		}
+		// Note: No need to clean up credential files since after rotation support,
+		// files are stored in fixed paths and won't generate multiple copies that
+		// could lead to files leakage.
 		close(ossfsExited)
 	}()
 
@@ -132,6 +138,19 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		}
 	}
 	return err
+}
+
+func (h *Driver) RotateToken(ctx context.Context, req *proxy.RotateTokenRequest) error {
+	// prepare passwd file
+	hashDir := utils.GetPasswdHashDir(req.Target)
+	rotated, err := rotateTokenFiles(hashDir, req.Secrets)
+	if err != nil {
+		return fmt.Errorf("rotate token files failed: %w", err)
+	}
+	if rotated {
+		klog.V(4).InfoS("rotate ossfs token files")
+	}
+	return nil
 }
 
 func (h *Driver) Init() {}

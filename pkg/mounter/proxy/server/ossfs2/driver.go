@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
@@ -48,18 +47,16 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	options := req.Options
 
 	// prepare passwd file
-	var passwdFile string
-	if passwd := req.Secrets[utils.GetPasswdFileName("ossfs2")]; passwd != "" {
-		tmpDir, err := os.MkdirTemp("", "ossfs2-")
-		if err != nil {
-			return err
-		}
-		passwdFile = filepath.Join(tmpDir, "passwd")
-		err = os.WriteFile(passwdFile, []byte(passwd), 0o600)
-		if err != nil {
-			return err
-		}
-		klog.V(4).InfoS("created ossfs2 configuration file", "path", passwdFile)
+	passwdFile, tokenDir, credOpts, err := prepareCredentialFiles(req.Target, req.Secrets)
+	if err != nil {
+		return fmt.Errorf("prepare credential files failed: %w", err)
+	}
+	options = append(options, credOpts...)
+	if passwdFile != "" {
+		klog.V(4).InfoS("created ossfs2 passwd file", "path", passwdFile)
+	}
+	if tokenDir != "" {
+		klog.V(4).InfoS("created ossfs2 token directory", "dir", tokenDir)
 	}
 
 	args := []string{"mount", req.Target}
@@ -77,7 +74,7 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		return fmt.Errorf("start ossfs2 failed: %w", err)
 	}
@@ -100,9 +97,9 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 			klog.InfoS("ossfs2 exited", "mountpoint", target, "pid", pid)
 		}
 		ossfsExited <- err
-		if err := os.Remove(passwdFile); err != nil {
-			klog.ErrorS(err, "Remove configuration file", "mountpoint", target, "path", passwdFile)
-		}
+		// Note: No need to clean up credential files since after rotation support,
+		// files are stored in fixed paths and won't generate multiple copies that
+		// could lead to files leakage.
 		close(ossfsExited)
 	}()
 
@@ -148,6 +145,19 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		}
 	}
 	return err
+}
+
+func (h *Driver) RotateToken(ctx context.Context, req *proxy.RotateTokenRequest) error {
+	// prepare passwd file
+	hashDir := utils.GetPasswdHashDir(req.Target)
+	rotated, err := rotateTokenFiles(hashDir, req.Secrets)
+	if err != nil {
+		return fmt.Errorf("rotate token files failed: %w", err)
+	}
+	if rotated {
+		klog.V(4).InfoS("rotate ossfs2 token files")
+	}
+	return nil
 }
 
 func (h *Driver) Init() {}

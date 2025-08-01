@@ -11,9 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
-	mounter "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
+	mounterutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
@@ -52,6 +53,10 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	return h.mounter.Mount(req.Source, req.Target, req.Fstype, options)
 }
 
+func (h *Driver) RotateToken(ctx context.Context, req *proxy.RotateTokenRequest) error {
+	return mounter.ErrNotImplemented("proxy-mounter", h.Name(), "rotateToken")
+}
+
 func (h *Driver) Init() {
 	go runCommandForever("aliyun-alinas-mount-watchdog")
 	go runCommandForever("aliyun-cpfs-mount-watchdog")
@@ -79,7 +84,7 @@ func addAutoFallbackNFSMountOptions(mountOptions []string) []string {
 	isEFC := false
 	isVSC := false
 	for _, options := range mountOptions {
-		for _, option := range mounter.SplitMountOptions(options) {
+		for _, option := range mounterutils.SplitMountOptions(options) {
 			if option == "" {
 				continue
 			}
