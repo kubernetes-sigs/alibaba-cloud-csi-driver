@@ -20,7 +20,7 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 	var fileUpdate bool
 	tokenKey := []string{oss.KeyAccessKeyId, oss.KeyAccessKeySecret, oss.KeySecurityToken, oss.KeyExpiration}
 	for _, key := range tokenKey {
-		val := secrets[filepath.Join(utils.GetPasswdFileName("ossfs"), key)]
+		val := secrets[key]
 		if val == "" {
 			err = fmt.Errorf("invalid authorization. %s is empty", key)
 			klog.Error(err)
@@ -44,13 +44,13 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 func prepareCredentialFiles(target string, secrets map[string]string) (file, dir string, options []string, err error) {
 	// fixed AKSK
 	hashDir := utils.GetPasswdHashDir(target)
-	err = os.MkdirAll(hashDir, 0o644)
-	if err != nil {
-		klog.Errorf("mkdirall hashdir failed %v", err)
-		return
-	}
 
 	if passwd := secrets[utils.GetPasswdFileName("ossfs")]; passwd != "" {
+		err = os.MkdirAll(hashDir, 0o644)
+		if err != nil {
+			klog.Errorf("mkdirall hashdir failed %v", err)
+			return
+		}
 		_, err = utils.WriteFileWithLock(filepath.Join(hashDir, utils.GetPasswdFileName("ossfs")), []byte(passwd), 0o600)
 		if err != nil {
 			return
@@ -61,21 +61,20 @@ func prepareCredentialFiles(target string, secrets map[string]string) (file, dir
 	}
 
 	// token
-	var token bool
-	token, err = rotateTokenFiles(hashDir, secrets)
-	if err != nil {
-		return
-	}
-	if token {
-		dir = hashDir
+	if token := secrets[oss.KeySecurityToken]; token != "" {
+		tokenDir := filepath.Join(hashDir, utils.GetPasswdFileName("ossfs"))
+		err = os.MkdirAll(tokenDir, 0o644)
+		if err != nil {
+			klog.Errorf("mkdirall tokenDir failed %v", err)
+			return
+		}
+		_, err = rotateTokenFiles(tokenDir, secrets)
+		if err != nil {
+			return
+		}
+		dir = tokenDir
 		options = append(options, "passwd_file="+dir)
 		return
-	}
-
-	// other authorizarion methods
-	err = os.Remove(hashDir)
-	if err != nil {
-		klog.Errorf("removeall hashdir failed %v", err)
 	}
 	return
 }

@@ -105,7 +105,6 @@ func (f *fuseOssfs2) MakeAuthConfig(o *Options, m metadata.MetadataProvider) (au
 		authCfg.RoleName = o.RoleName
 	case "":
 		// fixed AKSK
-		passwdFile := utils.GetPasswdFileName(f.Name())
 		if o.AkID != "" && o.AkSecret != "" {
 			authCfg.Secrets = map[string]string{
 				utils.GetPasswdFileName(f.Name()): fmt.Sprintf("--oss_access_key_id=%s\n--oss_access_key_secret=%s", o.AkID, o.AkSecret),
@@ -119,9 +118,9 @@ func (f *fuseOssfs2) MakeAuthConfig(o *Options, m metadata.MetadataProvider) (au
 		}
 		// token secret for RunD
 		authCfg.Secrets = map[string]string{
-			filepath.Join(passwdFile, KeyAccessKeyId):     o.AccessKeyId,
-			filepath.Join(passwdFile, KeyAccessKeySecret): o.AccessKeySecret,
-			filepath.Join(passwdFile, KeySecurityToken):   o.SecurityToken,
+			KeyAccessKeyId:     o.AccessKeyId,
+			KeyAccessKeySecret: o.AccessKeySecret,
+			KeySecurityToken:   o.SecurityToken,
 		}
 
 	default:

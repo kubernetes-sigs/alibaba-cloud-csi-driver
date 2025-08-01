@@ -39,10 +39,10 @@ func TestPrepareCredentialFiles(t *testing.T) {
 		{
 			name: "TokenSecretsExists",
 			secrets: map[string]string{
-				filepath.Join(OssfsPasswdFile, oss.KeyAccessKeyId):     "testAKID",
-				filepath.Join(OssfsPasswdFile, oss.KeyAccessKeySecret): "testAKSecret",
-				filepath.Join(OssfsPasswdFile, oss.KeyExpiration):      "testExpiration",
-				filepath.Join(OssfsPasswdFile, oss.KeySecurityToken):   "testSecurityToken",
+				oss.KeyAccessKeyId:     "testAKID",
+				oss.KeyAccessKeySecret: "testAKSecret",
+				oss.KeyExpiration:      "testExpiration",
+				oss.KeySecurityToken:   "testSecurityToken",
 			},
 			wantFile: false,
 			wantDir:  true,
@@ -73,10 +73,10 @@ func TestRotateTokenFiles(t *testing.T) {
 	assert.NoError(t, err)
 	// case 2: initialize token
 	secrets = map[string]string{
-		filepath.Join(OssfsPasswdFile, oss.KeyAccessKeyId):     "testAKID",
-		filepath.Join(OssfsPasswdFile, oss.KeyAccessKeySecret): "testAKSecret",
-		filepath.Join(OssfsPasswdFile, oss.KeyExpiration):      "testExpiration",
-		filepath.Join(OssfsPasswdFile, oss.KeySecurityToken):   "testSecurityToken",
+		oss.KeyAccessKeyId:     "testAKID",
+		oss.KeyAccessKeySecret: "testAKSecret",
+		oss.KeyExpiration:      "testExpiration",
+		oss.KeySecurityToken:   "testSecurityToken",
 	}
 	rotated, err = rotateTokenFiles("/tmp/token-files", secrets)
 	assert.Equal(t, true, rotated)
@@ -91,10 +91,10 @@ func TestRotateTokenFiles(t *testing.T) {
 	assert.Equal(t, "testSecurityToken", string(st))
 	// case 3: rotate token
 	secrets = map[string]string{
-		filepath.Join(OssfsPasswdFile, oss.KeyAccessKeyId):     "newAKID",
-		filepath.Join(OssfsPasswdFile, oss.KeyAccessKeySecret): "newAKSecret",
-		filepath.Join(OssfsPasswdFile, oss.KeyExpiration):      "newExpiration",
-		filepath.Join(OssfsPasswdFile, oss.KeySecurityToken):   "newSecurityToken",
+		oss.KeyAccessKeyId:     "newAKID",
+		oss.KeyAccessKeySecret: "newAKSecret",
+		oss.KeyExpiration:      "newExpiration",
+		oss.KeySecurityToken:   "newSecurityToken",
 	}
 	rotated, err = rotateTokenFiles("/tmp/token-files", secrets)
 	assert.Equal(t, true, rotated)
