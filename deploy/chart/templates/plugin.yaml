@@ -28,6 +28,12 @@ spec:
         app.kubernetes.io/name: csi-plugin
         nodepool: {{ $key }}
     spec:
+      {{- if $.Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- range $.Values.imagePullSecrets }}
+        - name: {{ . }}
+      {{- end }}
+      {{- end }}
       tolerations:
         - operator: Exists
       affinity:
