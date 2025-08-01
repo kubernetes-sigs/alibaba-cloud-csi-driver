@@ -1,4 +1,4 @@
-# Go rate limiter
+# Go rate limiter [![GoDoc][doc-img]][doc] [![Coverage Status][cov-img]][cov] ![test][test-img]
 
 This package provides a Golang implementation of the leaky-bucket rate limit algorithm.
 This implementation refills the bucket based on the time elapsed between
@@ -38,3 +38,21 @@ func main() {
     // 9 10ms
 }
 ```
+
+## FAQ:
+- What's the major diff v.s. https://pkg.go.dev/golang.org/x/time/rate? (based on #77)
+
+  This ratelimiter was meant to have a (1) simple API and (2) minimal overhead. For more complex use-cases [x/time/rate] is a great choice.  See [here][redit] for historical context, and [here][bench] for benchmarks (from 2016).
+
+- Why does example_test.go fail when I run it locally on Windows? (based on #80)
+
+  Windows has some known issues with timers precision. See golang/go#44343. We don't expect to work around it.
+
+[cov-img]: https://codecov.io/gh/uber-go/ratelimit/branch/master/graph/badge.svg?token=zhLeUjjrm2
+[cov]: https://codecov.io/gh/uber-go/ratelimit
+[doc-img]: https://pkg.go.dev/badge/go.uber.org/ratelimit
+[doc]: https://pkg.go.dev/go.uber.org/ratelimit
+[test-img]: https://github.com/uber-go/ratelimit/workflows/test/badge.svg
+[redit]: https://www.reddit.com/r/golang/comments/59k2bi/ubergoratelimit_a_golang_blocking_leakybucket/d99ob9q
+[x/time/rate]: https://pkg.go.dev/golang.org/x/time/rate
+[bench]: https://gist.github.com/prashantv/26016a7dbc6fc1ec52d8c2b6591f3582
