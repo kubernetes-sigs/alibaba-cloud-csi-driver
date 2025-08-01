@@ -90,6 +90,9 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 			klog.InfoS("ossfs exited", "mountpoint", target, "pid", pid)
 		}
 		ossfsExited <- err
+		// Note: No need to clean up credential files since after rotation support,
+		// files are stored in fixed paths and won't generate multiple copies that
+		// could lead to files leakage.
 		close(ossfsExited)
 	}()
 
@@ -98,16 +101,6 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 		case err := <-ossfsExited:
 			// TODO: collect ossfs outputs to return in error message
 			if err != nil {
-				if passwdFile != "" {
-					if errRemove := os.Remove(passwdFile); errRemove != nil {
-						klog.ErrorS(err, "Remove passwd file", "mountpoint", target, "path", passwdFile)
-					}
-				}
-				if tokenDir != "" {
-					if errRemove := os.RemoveAll(tokenDir); errRemove != nil {
-						klog.ErrorS(err, "Remove token directory", "mountpoint", target, "dir", tokenDir)
-					}
-				}
 				return false, fmt.Errorf("ossfs exited: %w", err)
 			}
 			return false, fmt.Errorf("ossfs exited")

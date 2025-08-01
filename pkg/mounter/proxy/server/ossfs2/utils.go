@@ -12,12 +12,12 @@ import (
 )
 
 // rotateTokenFiles rotates (or initializes) token files
-func rotateTokenFiles(dir string, secrets map[string]string) (rotatedFiles map[string]string, err error) {
+func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err error) {
 	if secrets == nil {
-		return nil, nil
+		return false, nil
 	}
-	// token
-	rotatedFiles = make(map[string]string)
+	// tokem
+	var fileUpdate bool
 	tokenKey := []string{oss.KeyAccessKeyId, oss.KeyAccessKeySecret, oss.KeySecurityToken}
 	for _, key := range tokenKey {
 		val := secrets[filepath.Join(utils.GetPasswdFileName("ossfs2"), key)]
@@ -26,12 +26,12 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotatedFiles map[s
 			klog.Error(err)
 			return
 		}
-		err = os.WriteFile(filepath.Join(dir, key), []byte(val), 0o600)
+		fileUpdate, err = utils.WriteFileWithLock(filepath.Join(dir, key), []byte(val), 0o600)
 		if err != nil {
-			klog.Errorf("writeFile %s failed %v", key, err)
+			klog.Errorf("WriteFileWithLock %s failed %v", key, err)
 			return
 		}
-		rotatedFiles[key] = filepath.Join(dir, key)
+		rotated = rotated || fileUpdate
 	}
 	return
 }
@@ -51,7 +51,7 @@ func prepareCredentialFiles(target string, secrets map[string]string) (file, dir
 	}
 
 	if passwd := secrets[utils.GetPasswdFileName("ossfs2")]; passwd != "" {
-		err = os.WriteFile(filepath.Join(hashDir, utils.GetPasswdFileName("ossfs2")), []byte(passwd), 0o600)
+		_, err = utils.WriteFileWithLock(filepath.Join(hashDir, utils.GetPasswdFileName("ossfs2")), []byte(passwd), 0o600)
 		if err != nil {
 			return
 		}
@@ -60,13 +60,16 @@ func prepareCredentialFiles(target string, secrets map[string]string) (file, dir
 	}
 
 	// token
-	tokenFiles, err := rotateTokenFiles(hashDir, secrets)
-	if len(tokenFiles) != 0 {
+	token, err := rotateTokenFiles(hashDir, secrets)
+	if err != nil {
+		return
+	}
+	if token {
 		dir = hashDir
 		options = append(options,
-			fmt.Sprintf("oss_sts_multi_conf_ak_file=%s", tokenFiles[oss.KeyAccessKeyId]),
-			fmt.Sprintf("oss_sts_multi_conf_sk_file=%s", tokenFiles[oss.KeyAccessKeySecret]),
-			fmt.Sprintf("oss_sts_multi_conf_token_file=%s", tokenFiles[oss.KeySecurityToken]),
+			fmt.Sprintf("oss_sts_multi_conf_ak_file=%s", filepath.Join(hashDir, oss.KeyAccessKeyId)),
+			fmt.Sprintf("oss_sts_multi_conf_sk_file=%s", filepath.Join(hashDir, oss.KeyAccessKeySecret)),
+			fmt.Sprintf("oss_sts_multi_conf_token_file=%s", filepath.Join(hashDir, oss.KeySecurityToken)),
 		)
 		return
 	}

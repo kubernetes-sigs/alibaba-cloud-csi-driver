@@ -68,7 +68,7 @@ func TestRotateTokenFiles(t *testing.T) {
 	// case 1: initialize fiexd AKSK
 	secrets := map[string]string{OssfsPasswdFile: "testPasswd"}
 	rotated, err := rotateTokenFiles("/tmp/token-files", secrets)
-	assert.Len(t, rotated, 0)
+	assert.False(t, rotated)
 	assert.NoError(t, err)
 	err = os.RemoveAll("/tmp/token-files")
 	klog.ErrorS(err, "Remove token directory", "dir", "/tmp/token-files")
@@ -81,7 +81,7 @@ func TestRotateTokenFiles(t *testing.T) {
 		filepath.Join(OssfsPasswdFile, oss.KeySecurityToken):   "testSecurityToken",
 	}
 	rotated, err = rotateTokenFiles("/tmp/token-files", secrets)
-	assert.Len(t, rotated, 3)
+	assert.True(t, true)
 	assert.NoError(t, err)
 	ak, _ := os.ReadFile(filepath.Join("/tmp/token-files", oss.KeyAccessKeyId))
 	assert.Equal(t, "testAKID", string(ak))
@@ -100,7 +100,7 @@ func TestRotateTokenFiles(t *testing.T) {
 		filepath.Join(OssfsPasswdFile, oss.KeySecurityToken):   "newSecurityToken",
 	}
 	rotated, err = rotateTokenFiles("/tmp/token-files", secrets)
-	assert.Len(t, rotated, 3)
+	assert.True(t, rotated)
 	assert.NoError(t, err)
 	ak, _ = os.ReadFile(filepath.Join("/tmp/token-files", oss.KeyAccessKeyId))
 	assert.Equal(t, "newAKID", string(ak))

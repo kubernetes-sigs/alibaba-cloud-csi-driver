@@ -11,13 +11,13 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 )
 
-
 // rotateTokenFiles rotates (or initializes) token files
 func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err error) {
 	if secrets == nil {
 		return false, nil
 	}
 	// token
+	var fileUpdate bool
 	tokenKey := []string{oss.KeyAccessKeyId, oss.KeyAccessKeySecret, oss.KeySecurityToken, oss.KeyExpiration}
 	for _, key := range tokenKey {
 		val := secrets[filepath.Join(utils.GetPasswdFileName("ossfs"), key)]
@@ -26,12 +26,12 @@ func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err 
 			klog.Error(err)
 			return
 		}
-		err = os.WriteFile(filepath.Join(dir, key), []byte(val), 0o600)
+		fileUpdate, err = utils.WriteFileWithLock(filepath.Join(dir, key), []byte(val), 0o600)
 		if err != nil {
-			klog.Errorf("writeFile %s failed %v", key, err)
+			klog.Errorf("WriteFileWithLock %s failed %v", key, err)
 			return
 		}
-		rotated = true
+		rotated = fileUpdate || rotated
 	}
 	return
 }
@@ -51,7 +51,7 @@ func prepareCredentialFiles(target string, secrets map[string]string) (file, dir
 	}
 
 	if passwd := secrets[utils.GetPasswdFileName("ossfs")]; passwd != "" {
-		err = os.WriteFile(filepath.Join(hashDir, utils.GetPasswdFileName("ossfs")), []byte(passwd), 0o600)
+		_, err = utils.WriteFileWithLock(filepath.Join(hashDir, utils.GetPasswdFileName("ossfs")), []byte(passwd), 0o600)
 		if err != nil {
 			return
 		}
