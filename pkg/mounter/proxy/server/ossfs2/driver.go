@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/oss"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
@@ -148,9 +150,18 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 }
 
 func (h *Driver) RotateToken(ctx context.Context, req *proxy.RotateTokenRequest) error {
+	// no need to rotate if there is no token in request
+	if req.Secrets == nil {
+		return nil
+	}
+	if token := req.Secrets[oss.KeySecurityToken]; token == "" {
+		return nil
+	}
+
 	// prepare passwd file
 	hashDir := utils.GetPasswdHashDir(req.Target)
-	rotated, err := rotateTokenFiles(hashDir, req.Secrets)
+	tokenDir := filepath.Join(hashDir, utils.GetPasswdFileName("ossfs2"))
+	rotated, err := rotateTokenFiles(tokenDir, req.Secrets)
 	if err != nil {
 		return fmt.Errorf("rotate token files failed: %w", err)
 	}

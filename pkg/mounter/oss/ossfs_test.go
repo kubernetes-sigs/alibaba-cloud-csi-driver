@@ -353,10 +353,10 @@ func TestMakeAuthConfig_ossfs(t *testing.T) {
 			expectedConfig: &utils.AuthConfig{
 				AuthType: "",
 				Secrets: map[string]string{
-					utils.GetPasswdFileName(OssFsType) + "/" + KeyAccessKeyId:     "ak-id",
-					utils.GetPasswdFileName(OssFsType) + "/" + KeyAccessKeySecret: "ak-secret",
-					utils.GetPasswdFileName(OssFsType) + "/" + KeySecurityToken:   "security-token",
-					utils.GetPasswdFileName(OssFsType) + "/" + KeyExpiration:      "expiration",
+					KeyAccessKeyId:     "ak-id",
+					KeyAccessKeySecret: "ak-secret",
+					KeySecurityToken:   "security-token",
+					KeyExpiration:      "expiration",
 				},
 			},
 			expectedError: nil,

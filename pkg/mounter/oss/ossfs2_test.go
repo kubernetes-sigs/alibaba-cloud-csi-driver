@@ -232,9 +232,9 @@ func TestMakeAuthConfig_ossfs2(t *testing.T) {
 			wantCfg: &utils.AuthConfig{
 				AuthType: "",
 				Secrets: map[string]string{
-					utils.GetPasswdFileName(OssFs2Type) + "/" + KeyAccessKeyId:     "ak-id",
-					utils.GetPasswdFileName(OssFs2Type) + "/" + KeyAccessKeySecret: "ak-secret",
-					utils.GetPasswdFileName(OssFs2Type) + "/" + KeySecurityToken:   "security-token",
+					KeyAccessKeyId:     "ak-id",
+					KeyAccessKeySecret: "ak-secret",
+					KeySecurityToken:   "security-token",
 				},
 			},
 			wantErr: false,

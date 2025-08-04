@@ -12,11 +12,8 @@ import (
 )
 
 // rotateTokenFiles rotates (or initializes) token files
+// This function assumes that token rotation is required when executed
 func rotateTokenFiles(dir string, secrets map[string]string) (rotated bool, err error) {
-	if secrets == nil {
-		return false, nil
-	}
-	// token
 	var fileUpdate bool
 	tokenKey := []string{oss.KeyAccessKeyId, oss.KeyAccessKeySecret, oss.KeySecurityToken, oss.KeyExpiration}
 	for _, key := range tokenKey {
