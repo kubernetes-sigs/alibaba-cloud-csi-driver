@@ -70,9 +70,17 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	opts := &oss.Options{
 		UseSharedPath: true,
 		Path:          "/",
-		AkID:          strings.TrimSpace(secrets[AkID]),
-		AkSecret:      strings.TrimSpace(secrets[AkSecret]),
-		MetricsTop:    defaultMetricsTop,
+		AccessKey: oss.AccessKey{
+			AkID:     strings.TrimSpace(secrets[AkID]),
+			AkSecret: strings.TrimSpace(secrets[AkSecret]),
+		},
+		TokenSecret: oss.TokenSecret{
+			AccessKeyId:     strings.TrimSpace(secrets[KeyAccessKeyId]),
+			AccessKeySecret: strings.TrimSpace(secrets[KeyAccessKeySecret]),
+			Expiration:      strings.TrimSpace(secrets[KeyExpiration]),
+			SecurityToken:   strings.TrimSpace(secrets[KeySecurityToken]),
+		},
+		MetricsTop: defaultMetricsTop,
 	}
 
 	var volumeAsSubpath bool
@@ -195,7 +203,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	switch opts.AuthType {
 	case "":
 		// try to get ak/sk from env
-		if opts.SecretRef == "" && (opts.AkID == "" || opts.AkSecret == "") {
+		if opts.SecretRef == "" && opts.SecurityToken == "" && (opts.AkID == "" || opts.AkSecret == "") {
 			ac := utils.GetEnvAK()
 			opts.AkID = ac.AccessKeyID
 			opts.AkSecret = ac.AccessKeySecret
@@ -427,5 +435,17 @@ func makeMountOptions(opt *oss.Options, fpm *oss.OSSFusePodManager, m metadata.M
 		return nil, err
 	}
 	mountOptions = append(mountOptions, ops...)
+	return
+}
+
+func needRotateToken(opt *oss.Options, secrets map[string]string) (needRotate bool) {
+	if len(secrets) == 0 {
+		return false
+	}
+	// TODO: Remove this check if when ossfs support rotate fixed AKSK.
+	ak := secrets[mounter.GetPasswdFileName(opt.FuseType)]
+	if ak == "" {
+		needRotate = true
+	}
 	return
 }

@@ -21,6 +21,10 @@ func NewProxyMounter(socketPath string, inner mountutils.Interface) Mounter {
 	}
 }
 
+func (m *ProxyMounter) Name() string {
+	return "proxy-mounter"
+}
+
 func (m *ProxyMounter) MountWithSecrets(source, target, fstype string, options []string, secrets map[string]string) error {
 	dclient := client.NewClient(m.socketPath)
 	resp, err := dclient.Mount(&proxy.MountRequest{
@@ -49,4 +53,21 @@ func (m *ProxyMounter) MountWithSecrets(source, target, fstype string, options [
 
 func (m *ProxyMounter) Mount(source string, target string, fstype string, options []string) error {
 	return m.MountWithSecrets(source, target, fstype, options, nil)
+}
+
+func (m *ProxyMounter) RotateToken(target, fstype string, secrets map[string]string) error {
+	dclient := client.NewClient(m.socketPath)
+	resp, err := dclient.RotateToken(&proxy.RotateTokenRequest{
+		Target:  target,
+		Fstype:  fstype,
+		Secrets: secrets,
+	})
+	if err != nil {
+		return fmt.Errorf("call mounter daemon: %w", err)
+	}
+	err = resp.ToError()
+	if err != nil {
+		return fmt.Errorf("failed to rotate token: %w", err)
+	}
+	return nil
 }

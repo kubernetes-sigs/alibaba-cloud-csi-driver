@@ -49,10 +49,6 @@ type nodeServer struct {
 }
 
 const (
-	// AkID is Ak ID
-	AkID = "akId"
-	// AkSecret is Ak Secret
-	AkSecret = "akSecret"
 	// OssFsType is the oss filesystem type
 	OssFsType = "ossfs"
 	// OssFs2Type is the ossfs2 filesystem type
@@ -62,6 +58,20 @@ const (
 	// defaultMetricsTop
 	defaultMetricsTop = "10"
 	ossfsExecPath     = "/usr/local/bin/ossfs"
+)
+
+// fixed accesskeys
+const (
+	AkID     = "akId"
+	AkSecret = "akSecret"
+)
+
+// token accesskeys
+const (
+	KeyAccessKeyId     = "AccessKeyId"
+	KeyAccessKeySecret = "AccessKeySecret"
+	KeyExpiration      = "Expiration"
+	KeySecurityToken   = "SecurityToken"
 )
 
 // for cases where fuseType does not affect like UnPublishVolume,
@@ -99,15 +109,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err := validateNodePublishVolumeRequest(req); err != nil {
 		return nil, err
 	}
-	// check if already mounted
-	notMnt, err := isNotMountPoint(ns.rawMounter, targetPath)
-	if err != nil {
-		return nil, err
-	}
-	if !notMnt {
-		klog.Infof("NodePublishVolume: %s already mounted", targetPath)
-		return &csi.NodePublishVolumeResponse{}, nil
-	}
+	attachPath := mounterutils.GetAttachPath(req.VolumeId)
 
 	// parse options
 	// ensure fuseType is not empty
@@ -168,6 +170,32 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		ossfsMounter = mounter.NewProxyMounter(socketPath, ns.rawMounter)
 	}
 
+	// check if already mounted for re-publish
+	notMnt, err := isNotMountPoint(ns.rawMounter, targetPath)
+	if err != nil {
+		return nil, err
+	}
+	if !notMnt {
+		klog.Infof("NodePublishVolume: %s already mounted", targetPath)
+		if !features.FunctionalMutableFeatureGate.Enabled(features.RundCSIProtocol3) && needRotateToken(opts, authCfg.Secrets) {
+			// mountPath is the target path for mounter
+			mountPath := attachPath
+			if ns.skipAttach {
+				mountPath = targetPath
+			}
+			err := ossfsMounter.RotateToken(mountPath, opts.FuseType, authCfg.Secrets)
+			if err != nil {
+				// if is mounter not supported, return unimplentederror to avoid retry
+				if mounter.IsNotImplementedErr(err) {
+					return nil, status.Error(codes.Unimplemented, err.Error())
+				}
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			klog.Infof("NodePublishVolume: %s already rotated token", targetPath)
+		}
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
+
 	// When work as csi-agent, directly mount on the target path.
 	if ns.skipAttach {
 		if opts.FuseType == OssFsType {
@@ -183,7 +211,6 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// When work as csi nodeserver, mount on the attach path under /run/fuse.ossfs and then perform the bind mount.
 	// check whether the attach path is mounted
-	attachPath := mounterutils.GetAttachPath(req.VolumeId)
 	notMnt, err = isNotMountPoint(ns.rawMounter, attachPath)
 	if err != nil {
 		return nil, err
