@@ -49,13 +49,13 @@ We provides some configuration presets. Select one of them:
 
 ```shell
 git clone https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver.git
-cd alibaba-cloud-csi-driver/deploy
-helm upgrade --install alibaba-cloud-csi-driver ./chart --values chart/values-ecs.yaml --namespace kube-system
+cd alibaba-cloud-csi-driver/deploy/charts
+helm upgrade --install alibaba-cloud-csi-driver ./alibaba-cloud-csi-driver --values chart/values-ecs.yaml --namespace kube-system
 # Or if deployed on non-ECS cluster, use values-nonecs.yaml
-helm upgrade --install alibaba-cloud-csi-driver ./chart --values chart/values-nonecs.yaml --namespace kube-system --set deploy.regionID=cn-hangzhou
+helm upgrade --install alibaba-cloud-csi-driver ./alibaba-cloud-csi-driver --values chart/values-nonecs.yaml --namespace kube-system --set deploy.regionID=cn-hangzhou
 ```
 
-Please review the [values file](../deploy/chart/values.yaml) before installing. Some important configurations are:
+Please review the [values file](../deploy/charts/alibaba-cloud-csi-driver/values.yaml) before installing. Some important configurations are:
 * deploy.regionID: used to select correct domain for image registry and OpenAPI endpoint. It is recommended to explicitly set this.
 * deploy.accessKey.enabled: if you are using instance RAM role, disable this.
 * csi.\<driver\>.enabled: enable or disable each driver.

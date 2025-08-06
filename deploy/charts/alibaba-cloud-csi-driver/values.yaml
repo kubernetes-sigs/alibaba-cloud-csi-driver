@@ -104,13 +104,13 @@ images:
   registryVPC: null
   controller:
     repo: acs/csi-plugin
-    tag: "v1.33.1-67e8986-aliyun"
+    tag: "v1.33.4-576836c-aliyun"
   plugin:
     repo: acs/csi-plugin
-    tag: "v1.33.1-67e8986-aliyun"
+    tag: "v1.33.4-576836c-aliyun"
   pluginInit:
     repo: acs/csi-plugin
-    tag: "v1.33.1-67e8986-aliyun-init"
+    tag: "v1.33.4-576836c-aliyun-init"
   localController:
     repo: acs/local-csi-driver
     tag: "v0.2.1"
