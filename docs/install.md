@@ -43,19 +43,20 @@ There are several methods to grant the driver RAM permissions:
 You can deploy the drivers using Helm.
 
 The default values mimic the config of the drivers in ACK cluster.
-We provides some configuration presets. Select one of them:
-* values-ecs.yaml: for deploy on self-built cluster on ECS.
-* values-nonecs.yaml: for deploy on non-ECS cluster. Disk driver is disabled. Region ID needs to be specified.
+If you are not deploying in ACK, we provides some configuration presets. Select one of them and copy it to your local to get started:
+* [values-ecs.yaml](../deploy/charts/alibaba-cloud-csi-driver/values-ecs.yaml): for deploy on self-built cluster on ECS.
+* [values-nonecs.yaml](../deploy/charts/alibaba-cloud-csi-driver/values-ecs.yaml): for deploy on non-ECS cluster. Disk driver is disabled. Region ID needs to be specified.
 
 ```shell
-git clone https://github.com/kubernetes-sigs/alibaba-cloud-csi-driver.git
-cd alibaba-cloud-csi-driver/deploy
-helm upgrade --install alibaba-cloud-csi-driver ./chart --values chart/values-ecs.yaml --namespace kube-system
+helm repo add alibaba-cloud-csi-driver https://kubernetes-sigs.github.io/alibaba-cloud-csi-driver
+helm repo update
+
+helm upgrade --install alibaba-cloud-csi-driver alibaba-cloud-csi-driver/alibaba-cloud-csi-driver --values values-ecs.yaml --namespace kube-system
 # Or if deployed on non-ECS cluster, use values-nonecs.yaml
-helm upgrade --install alibaba-cloud-csi-driver ./chart --values chart/values-nonecs.yaml --namespace kube-system --set deploy.regionID=cn-hangzhou
+helm upgrade --install alibaba-cloud-csi-driver alibaba-cloud-csi-driver/alibaba-cloud-csi-driver --values values-nonecs.yaml --namespace kube-system --set deploy.regionID=cn-hangzhou
 ```
 
-Please review the [values file](../deploy/chart/values.yaml) before installing. Some important configurations are:
+Please review the [values file](../deploy/charts/alibaba-cloud-csi-driver/values.yaml) before installing. Some important configurations are:
 * deploy.regionID: used to select correct domain for image registry and OpenAPI endpoint. It is recommended to explicitly set this.
 * deploy.accessKey.enabled: if you are using instance RAM role, disable this.
 * csi.\<driver\>.enabled: enable or disable each driver.

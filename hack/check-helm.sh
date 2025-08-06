@@ -3,7 +3,7 @@
 
 set -e
 
-cd deploy/chart
+cd deploy/charts/alibaba-cloud-csi-driver
 
 kubectl create -f ./crds
 
