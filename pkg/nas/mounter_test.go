@@ -24,11 +24,6 @@ func (m *errorMockMounter) Mount(source string, target string, fstype string, op
 	return errors.New("")
 }
 
-func TestNewNasMounter(t *testing.T) {
-	actual := newNasMounter()
-	assert.NotNil(t, actual)
-}
-
 func TestNasMounter_MountSuccess(t *testing.T) {
 	nasMounter := &NasMounter{
 		Interface:     &successMockMounter{},

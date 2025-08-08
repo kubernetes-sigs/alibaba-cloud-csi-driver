@@ -83,8 +83,6 @@ const (
 	fsckErrorsCorrected = 1
 	// fsckErrorsUncorrected tag
 	fsckErrorsUncorrected = 4
-	// socketPath is path of connector sock
-	socketPath = "/host/run/csi-tool/connector/connector.sock"
 
 	// GiB ...
 	GiB = 1024 * 1024 * 1024
@@ -528,32 +526,6 @@ func GetPvNameFormPodMnt(mntPath string) string {
 		return pvName
 	}
 	return ""
-}
-
-// ConnectorRun Run shell command with host connector
-// host connector is daemon running in host.
-func ConnectorRun(cmd ...string) (string, error) {
-	c, err := net.Dial("unix", socketPath)
-	if err != nil {
-		klog.Errorf("Oss connector Dial error: %s", err.Error())
-		return err.Error(), err
-	}
-	defer c.Close()
-
-	_, err = c.Write([]byte(strings.Join(cmd, "\x00")))
-	if err != nil {
-		klog.Errorf("Oss connector write error: %s", err.Error())
-		return err.Error(), err
-	}
-
-	buf := make([]byte, 2048)
-	n, _ := c.Read(buf[:])
-	response := string(buf[0:n])
-	if strings.HasPrefix(response, "Success") {
-		respstr := response[8:]
-		return respstr, nil
-	}
-	return response, errors.New("Exec command error:" + response)
 }
 
 // AppendJSONData append map data to json file.
