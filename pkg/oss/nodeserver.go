@@ -170,9 +170,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	// When work as csi-agent, directly mount on the target path.
 	if ns.skipAttach {
-		if opts.FuseType == OssFsType {
-			utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, OssFsType, "oss", opts.Bucket)
-		}
+		utils.WriteMetricsInfo(metricsPathPrefix, req, opts.MetricsTop, OssFsType, "oss", opts.Bucket)
 		err := ossfsMounter.MountWithSecrets(mountSource, targetPath, opts.FuseType, mountOptions, authCfg.Secrets)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())

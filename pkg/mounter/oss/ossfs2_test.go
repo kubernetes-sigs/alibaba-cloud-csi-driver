@@ -213,6 +213,7 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 				"oss_bucket=test-bucket",
 				"oss_bucket_prefix=/",
 				"ro=true",
+				"use_metrics=true",
 			},
 		},
 		{
@@ -230,6 +231,7 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 				"oss_endpoint=oss://test-bucket/",
 				"oss_bucket=test-bucket",
 				"oss_bucket_prefix=/",
+				"use_metrics=true",
 				"oss_region=test-region",
 			},
 		},
@@ -258,11 +260,30 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 				"oss_endpoint=oss://test-bucket/",
 				"oss_bucket=test-bucket",
 				"oss_bucket_prefix=/",
+				"use_metrics=true",
 				"oss_sts_multi_conf_ak_file=/etc/ossfs2/passwd-ossfs2/AccessKeyId",
 				"oss_sts_multi_conf_sk_file=/etc/ossfs2/passwd-ossfs2/AccessKeySecret",
 				"oss_sts_multi_conf_token_file=/etc/ossfs2/passwd-ossfs2/SecurityToken",
 			},
 			expectedError: false,
+		},
+		{
+			name: "metrics top",
+			opts: &Options{
+				AkID:       "test-ak",
+				AkSecret:   "test-ak-secret",
+				Bucket:     "test-bucket",
+				Path:       "/",
+				URL:        "oss://test-bucket/",
+				MetricsTop: "5",
+			},
+			expected: []string{
+				"oss_endpoint=oss://test-bucket/",
+				"oss_bucket=test-bucket",
+				"oss_bucket_prefix=/",
+				"use_metrics=true",
+				"metrics_top=5",
+			},
 		},
 	}
 	for _, tt := range tests {

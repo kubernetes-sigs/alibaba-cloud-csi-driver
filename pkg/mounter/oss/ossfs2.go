@@ -119,6 +119,12 @@ func (f *fuseOssfs2) MakeMountOptions(o *Options, m metadata.MetadataProvider) (
 		mountOptions = append(mountOptions, "ro=true")
 	}
 
+	// set use_metrics to enabled monitoring by default
+	mountOptions = append(mountOptions, "use_metrics=true")
+	if o.MetricsTop != "" {
+		mountOptions = append(mountOptions, fmt.Sprintf("metrics_top=%s", o.MetricsTop))
+	}
+
 	if o.SigVersion == SigV4 {
 		region, _ := m.Get(metadata.RegionID)
 		if region == "" {
