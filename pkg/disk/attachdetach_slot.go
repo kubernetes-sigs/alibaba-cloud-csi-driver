@@ -2,6 +2,7 @@ package disk
 
 import (
 	"context"
+	"errors"
 	"sync"
 )
 
@@ -73,7 +74,7 @@ func (s serialAD_DetachSlot) Acquire(ctx context.Context) error {
 	case s.slot <- struct{}{}:
 		return nil
 	case <-ctx.Done():
-		return ctx.Err()
+		return maybeWaitingAD(ctx.Err())
 	}
 }
 
@@ -85,7 +86,7 @@ func (s serialAD_AttachSlot) Acquire(ctx context.Context) error {
 	case s.slot <- struct{}{}:
 		return nil
 	case <-ctx.Done():
-		return ctx.Err()
+		return maybeWaitingAD(ctx.Err())
 	}
 }
 
@@ -120,7 +121,7 @@ func (s maxConcurrentSlot) Acquire(ctx context.Context) error {
 	case s.slots <- struct{}{}:
 		return nil
 	case <-ctx.Done():
-		return ctx.Err()
+		return maybeWaitingAD(ctx.Err())
 	}
 }
 
@@ -180,4 +181,21 @@ func NewSlots(detachConcurrency, attachConcurrency int) AttachDetachSlots {
 		}
 	}
 	return NewPerNodeSlots(makeSlot)
+}
+
+type waitingAD struct{}
+
+func (waitingAD) Error() string {
+	return "still waiting for other disk(s) to finish attach/detach"
+}
+
+func (waitingAD) Is(target error) bool {
+	return target == context.DeadlineExceeded
+}
+
+func maybeWaitingAD(err error) error {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return waitingAD{}
+	}
+	return err
 }
