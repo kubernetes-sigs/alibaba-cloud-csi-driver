@@ -33,10 +33,14 @@ const (
 	_vscId          = "vscId"
 	_networkType    = "networkType"
 	_path           = "path"
+	// custom volumeId key in VolumeContext()
+	_customVolumeId = "volumeId"
 
 	// prefix of node id
 	CommonNodeIDPrefix  = "common:"
 	LingjunNodeIDPrefix = "lingjun:"
+	// prefix of bmcpfsid
+	CPFSIDPrefix = "bmcpfs-"
 
 	// network types of CPFS mount targets
 	networkTypeVPC = "vpc"
