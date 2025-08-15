@@ -58,7 +58,7 @@ type nodeServer struct {
 	k8smounter   k8smount.Interface
 	podCGroup    *utils.PodCGroup
 	clientSet    *kubernetes.Clientset
-	ad           DiskAttachDetach
+	ad           DiskCloud
 	locks        *utils.VolumeLocks
 	common.GenericNodeServer
 }
@@ -220,7 +220,7 @@ func NewNodeServer(m metadata.MetadataProvider) csi.NodeServer {
 		k8smounter:   k8smount.NewWithoutSystemd(""),
 		podCGroup:    podCgroup,
 		clientSet:    GlobalConfigVar.ClientSet,
-		ad: DiskAttachDetach{
+		ad: DiskCloud{
 			waiter:  waiter,
 			batcher: batcher,
 			// if ADController is not enabled, we need serial attach to recognize old disk
