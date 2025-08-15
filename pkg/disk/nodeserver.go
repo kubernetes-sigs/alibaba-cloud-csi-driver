@@ -784,7 +784,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 			klog.Infof("NodeUnstageVolume: ADController is Disable, Detach Flag Set to false, PV %s", req.VolumeId)
 			return &csi.NodeUnstageVolumeResponse{}, nil
 		}
-		ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
+		ecsClient := GlobalConfigVar.EcsClient
 		err = ns.ad.detachDisk(ctx, ecsClient, req.VolumeId, ns.NodeID, true)
 		if err != nil {
 			klog.Errorf("NodeUnstageVolume: VolumeId: %s, Detach failed with error %v", req.VolumeId, err.Error())
@@ -813,7 +813,7 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		return node, err
 	}
 
-	c := updateEcsClient(GlobalConfigVar.EcsClient)
+	c := GlobalConfigVar.EcsClient
 	if maxVolumesNum == 0 {
 		maxVolumesNum, err = getVolumeCountFromOpenAPI(getNode, c, ns.metadata, utilsio.RealDevTmpFS{})
 	} else {

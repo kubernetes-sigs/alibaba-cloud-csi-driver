@@ -34,6 +34,21 @@ func (m *MockECSInterface) EXPECT() *MockECSInterfaceMockRecorder {
 	return m.recorder
 }
 
+// AttachDisk mocks base method.
+func (m *MockECSInterface) AttachDisk(request *ecs.AttachDiskRequest) (*ecs.AttachDiskResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AttachDisk", request)
+	ret0, _ := ret[0].(*ecs.AttachDiskResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AttachDisk indicates an expected call of AttachDisk.
+func (mr *MockECSInterfaceMockRecorder) AttachDisk(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AttachDisk", reflect.TypeOf((*MockECSInterface)(nil).AttachDisk), request)
+}
+
 // CreateDisk mocks base method.
 func (m *MockECSInterface) CreateDisk(request *ecs.CreateDiskRequest) (*ecs.CreateDiskResponse, error) {
 	m.ctrl.T.Helper()
@@ -47,6 +62,21 @@ func (m *MockECSInterface) CreateDisk(request *ecs.CreateDiskRequest) (*ecs.Crea
 func (mr *MockECSInterfaceMockRecorder) CreateDisk(request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDisk", reflect.TypeOf((*MockECSInterface)(nil).CreateDisk), request)
+}
+
+// CreateSnapshot mocks base method.
+func (m *MockECSInterface) CreateSnapshot(request *ecs.CreateSnapshotRequest) (*ecs.CreateSnapshotResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateSnapshot", request)
+	ret0, _ := ret[0].(*ecs.CreateSnapshotResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateSnapshot indicates an expected call of CreateSnapshot.
+func (mr *MockECSInterfaceMockRecorder) CreateSnapshot(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSnapshot", reflect.TypeOf((*MockECSInterface)(nil).CreateSnapshot), request)
 }
 
 // DeleteDisk mocks base method.
@@ -94,6 +124,21 @@ func (mr *MockECSInterfaceMockRecorder) DescribeDisks(request interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeDisks", reflect.TypeOf((*MockECSInterface)(nil).DescribeDisks), request)
 }
 
+// DescribeInstanceHistoryEvents mocks base method.
+func (m *MockECSInterface) DescribeInstanceHistoryEvents(request *ecs.DescribeInstanceHistoryEventsRequest) (*ecs.DescribeInstanceHistoryEventsResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DescribeInstanceHistoryEvents", request)
+	ret0, _ := ret[0].(*ecs.DescribeInstanceHistoryEventsResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DescribeInstanceHistoryEvents indicates an expected call of DescribeInstanceHistoryEvents.
+func (mr *MockECSInterfaceMockRecorder) DescribeInstanceHistoryEvents(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeInstanceHistoryEvents", reflect.TypeOf((*MockECSInterface)(nil).DescribeInstanceHistoryEvents), request)
+}
+
 // DescribeInstanceTypes mocks base method.
 func (m *MockECSInterface) DescribeInstanceTypes(request *ecs.DescribeInstanceTypesRequest) (*ecs.DescribeInstanceTypesResponse, error) {
 	m.ctrl.T.Helper()
@@ -137,6 +182,21 @@ func (m *MockECSInterface) DescribeSnapshots(request *ecs.DescribeSnapshotsReque
 func (mr *MockECSInterfaceMockRecorder) DescribeSnapshots(request interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DescribeSnapshots", reflect.TypeOf((*MockECSInterface)(nil).DescribeSnapshots), request)
+}
+
+// DetachDisk mocks base method.
+func (m *MockECSInterface) DetachDisk(request *ecs.DetachDiskRequest) (*ecs.DetachDiskResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DetachDisk", request)
+	ret0, _ := ret[0].(*ecs.DetachDiskResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DetachDisk indicates an expected call of DetachDisk.
+func (mr *MockECSInterfaceMockRecorder) DetachDisk(request interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DetachDisk", reflect.TypeOf((*MockECSInterface)(nil).DetachDisk), request)
 }
 
 // ResizeDisk mocks base method.

@@ -37,6 +37,7 @@ func (m *ManagedTokenCredential) reloadToken() error {
 		return err
 	}
 	m.tokens = tokens
+	klog.V(4).InfoS("reloaded managed token", "expireAt", m.tokens.Expiration)
 	m.expiration, err = time.Parse(time.RFC3339, m.tokens.Expiration)
 	if err != nil {
 		klog.Warningf("failed to parse token expiration: %s", m.tokens.Expiration)

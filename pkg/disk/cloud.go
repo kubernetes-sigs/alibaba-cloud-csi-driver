@@ -164,7 +164,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 	logger := klog.FromContext(ctx)
 	logger.V(2).Info("Starting Do AttachDisk", "instanceID", nodeID, "region", GlobalConfigVar.Region)
 
-	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
+	ecsClient := GlobalConfigVar.EcsClient
 	// Step 1: check disk status
 	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
@@ -339,7 +339,7 @@ func (ad *DiskAttachDetach) attachDisk(ctx context.Context, diskID, nodeID strin
 func (ad *DiskAttachDetach) attachMultiAttachDisk(ctx context.Context, diskID, nodeID string) (string, error) {
 	klog.Infof("AttachDisk: Starting Do AttachMultiAttachDisk: DiskId: %s, InstanceId: %s, Region: %v", diskID, nodeID, GlobalConfigVar.Region)
 
-	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
+	ecsClient := GlobalConfigVar.EcsClient
 	// Step 1: check disk status
 	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
@@ -383,7 +383,7 @@ func (ad *DiskAttachDetach) attachMultiAttachDisk(ctx context.Context, diskID, n
 	return "", nil
 }
 
-func (ad *DiskAttachDetach) detachMultiAttachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string) (isMultiAttach bool, err error) {
+func (ad *DiskAttachDetach) detachMultiAttachDisk(ctx context.Context, ecsClient cloud.ECSInterface, diskID, nodeID string) (isMultiAttach bool, err error) {
 	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
 		klog.Errorf("DetachMultiAttachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
@@ -420,7 +420,7 @@ func (ad *DiskAttachDetach) detachMultiAttachDisk(ctx context.Context, ecsClient
 	return true, nil
 }
 
-func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient *ecs.Client, diskID, nodeID string, fromNode bool) (err error) {
+func (ad *DiskAttachDetach) detachDisk(ctx context.Context, ecsClient cloud.ECSInterface, diskID, nodeID string, fromNode bool) (err error) {
 	disk, err := ad.findDiskByID(ctx, diskID)
 	if err != nil {
 		klog.Errorf("DetachDisk: Describe volume: %s from node: %s, with error: %s", diskID, nodeID, err.Error())
@@ -503,7 +503,7 @@ func getDiskDescribeRequest(diskIDs []string) *ecs.DescribeDisksRequest {
 	return describeDisksRequest
 }
 
-func getDisks(diskIDs []string, ecsClient *ecs.Client) []ecs.Disk {
+func getDisks(diskIDs []string, ecsClient cloud.ECSInterface) []ecs.Disk {
 	describeDisksRequest := getDiskDescribeRequest(diskIDs)
 	diskResponse, err := ecsClient.DescribeDisks(describeDisksRequest)
 	if err != nil {
@@ -514,7 +514,7 @@ func getDisks(diskIDs []string, ecsClient *ecs.Client) []ecs.Disk {
 }
 
 func tagDiskUserTags(diskID string, tags map[string]string) {
-	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
+	ecsClient := GlobalConfigVar.EcsClient
 	addTagsReq := ecs.CreateAddTagsRequest()
 	userTags := []ecs.AddTagsTag{
 		{
@@ -607,7 +607,7 @@ func (ad *DiskAttachDetach) findDiskByID(ctx context.Context, diskID string) (*e
 	return ad.batcher.Describe(ctx, diskID)
 }
 
-func findDiskByID(diskID string, ecsClient *ecs.Client) (*ecs.Disk, error) {
+func findDiskByID(diskID string, ecsClient cloud.ECSInterface) (*ecs.Disk, error) {
 	describeDisksRequest := ecs.CreateDescribeDisksRequest()
 	describeDisksRequest.RegionId = GlobalConfigVar.Region
 	describeDisksRequest.DiskIds = "[\"" + diskID + "\"]"
@@ -694,7 +694,7 @@ func findSnapshotGroup(name, id string) (snapshotGroup *ecs.SnapshotGroup, err e
 	}
 }
 
-func StopDiskOperationRetry(instanceId string, ecsClient *ecs.Client) bool {
+func StopDiskOperationRetry(instanceId string, ecsClient cloud.ECSInterface) bool {
 	eventMaps, err := DescribeDiskInstanceEvents(instanceId, ecsClient)
 	klog.Infof("StopDiskOperationRetry: resp eventMaps: %+v", eventMaps)
 	if err != nil {
@@ -713,7 +713,7 @@ func StopDiskOperationRetry(instanceId string, ecsClient *ecs.Client) bool {
 	return false
 }
 
-func DescribeDiskInstanceEvents(instanceId string, ecsClient *ecs.Client) (eventMaps map[string]string, err error) {
+func DescribeDiskInstanceEvents(instanceId string, ecsClient cloud.ECSInterface) (eventMaps map[string]string, err error) {
 	diher := ecs.CreateDescribeInstanceHistoryEventsRequest()
 	diher.RegionId = GlobalConfigVar.Region
 	diher.EventPublishTimeStart = time.Now().Add(-3 * time.Hour).UTC().Format(time.RFC3339)
@@ -747,7 +747,7 @@ type createSnapshotParams struct {
 	SnapshotTags    []ecs.CreateSnapshotTag
 }
 
-func requestAndCreateSnapshot(ecsClient *ecs.Client, params *createSnapshotParams) (*ecs.CreateSnapshotResponse, error) {
+func requestAndCreateSnapshot(ecsClient cloud.ECSInterface, params *createSnapshotParams) (*ecs.CreateSnapshotResponse, error) {
 	// init createSnapshotRequest and parameters
 	createSnapshotRequest := ecs.CreateCreateSnapshotRequest()
 	createSnapshotRequest.DiskId = params.SourceVolumeID

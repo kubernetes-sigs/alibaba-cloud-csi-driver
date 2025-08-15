@@ -30,6 +30,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
@@ -52,6 +53,7 @@ type controllerServer struct {
 	recorder       record.EventRecorder
 	ad             DiskAttachDetach
 	meta           metadata.MetadataProvider
+	ecs            cloud.ECSInterface
 	snapshotWaiter waitstatus.StatusWaiter[ecs.Snapshot]
 	common.GenericControllerServer
 }
@@ -84,21 +86,17 @@ func newSnapshotStatusWaiter() waitstatus.StatusWaiter[ecs.Snapshot] {
 		Client: GlobalConfigVar.EcsClient,
 	}
 	waiter := waitstatus.NewBatched(client, clock.RealClock{}, 1*time.Second, 3*time.Second)
-	waiter.PollHook = func() desc.Client[ecs.Snapshot] {
-		return desc.Snapshots{
-			Client: updateEcsClient(GlobalConfigVar.EcsClient),
-		}
-	}
 	go waiter.Run(context.Background())
 	return waiter
 }
 
 // NewControllerServer is to create controller server
-func NewControllerServer(csiCfg utils.Config, m metadata.MetadataProvider) csi.ControllerServer {
+func NewControllerServer(csiCfg utils.Config, ecs cloud.ECSInterface, m metadata.MetadataProvider) csi.ControllerServer {
 	waiter, batcher := newBatcher(false)
 	c := &controllerServer{
 		recorder: utils.NewEventRecorder(),
 		meta:     m,
+		ecs:      ecs,
 		ad: DiskAttachDetach{
 			waiter:  waiter,
 			batcher: batcher,
@@ -179,9 +177,7 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		isVirtualNode = node.Labels[common.NodeTypeLabelKey] == common.VirtualNodeType
 	}
 
-	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
-
-	diskID, attempt, err := createDisk(ecsClient, req.GetName(), snapshotID, diskVol, supportedTypes, selectedInstance, isVirtualNode)
+	diskID, attempt, err := createDisk(cs.ecs, req.GetName(), snapshotID, diskVol, supportedTypes, selectedInstance, isVirtualNode)
 	if err != nil {
 		if errors.Is(err, ErrParameterMismatch) {
 			return nil, status.Errorf(codes.AlreadyExists, "volume %s already created but %v", req.Name, err)
@@ -221,12 +217,10 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	klog.Infof("DeleteVolume: Starting deleting volume %s", req.VolumeId)
 
 	// For now the image get unconditionally deleted, but here retention policy can be checked
-	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
-
 	var disk *ecs.Disk
 	describeDisk := func() (*csi.DeleteVolumeResponse, error) {
 		var err error
-		disk, err = findDiskByID(req.VolumeId, ecsClient)
+		disk, err = findDiskByID(req.VolumeId, cs.ecs)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "DeleteVolume: find disk(%s) by id with error: %v", req.VolumeId, err)
 		}
@@ -257,7 +251,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 				// TODO: ECI does not support multi-attach?
 				return nil, status.Errorf(codes.Internal, "refuse to delete disk on serverless instance %s", disk.InstanceId)
 			}
-			err := cs.ad.detachDisk(ctx, ecsClient, req.VolumeId, disk.InstanceId, false)
+			err := cs.ad.detachDisk(ctx, cs.ecs, req.VolumeId, disk.InstanceId, false)
 			if err != nil {
 				newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
 				return nil, status.Errorf(codes.Internal, "DeleteVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, disk.InstanceId, newErrMsg)
@@ -274,13 +268,13 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 			}
 		}
 		klog.Infof("DeleteVolume: snapshot before delete configured")
-		err := snapshotBeforeDelete(disk, ecsClient)
+		err := snapshotBeforeDelete(disk, cs.ecs)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "DeleteVolume: failed to create snapshot before delete disk, err: %v", err)
 		}
 	}
 
-	_, err := deleteDisk(ctx, ecsClient, req.VolumeId)
+	_, err := deleteDisk(ctx, cs.ecs, req.VolumeId)
 	if err != nil {
 		newErrMsg := utils.FindSuggestionByErrorMessage(err.Error(), utils.DiskDelete)
 		return nil, status.Errorf(codes.Internal, "DeleteVolume: Delete disk with error: %s", newErrMsg)
@@ -291,8 +285,7 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 }
 
 func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
-	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
-	disk, err := findDiskByID(req.VolumeId, ecsClient)
+	disk, err := findDiskByID(req.VolumeId, cs.ecs)
 	if err != nil {
 		return nil, err
 	}
@@ -366,8 +359,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 // ControllerUnpublishVolume do detach
 func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	// Describe Disk Info
-	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
-	isMultiAttach, err := cs.ad.detachMultiAttachDisk(ctx, ecsClient, req.VolumeId, req.NodeId)
+	isMultiAttach, err := cs.ad.detachMultiAttachDisk(ctx, cs.ecs, req.VolumeId, req.NodeId)
 	if isMultiAttach && err != nil {
 		klog.Errorf("ControllerUnpublishVolume: detach multiAttach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
@@ -388,7 +380,7 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 	}
 
 	klog.Infof("ControllerUnpublishVolume: detach disk: %s from node: %s", req.VolumeId, req.NodeId)
-	err = cs.ad.detachDisk(ctx, ecsClient, req.VolumeId, req.NodeId, false)
+	err = cs.ad.detachDisk(ctx, cs.ecs, req.VolumeId, req.NodeId, false)
 	if err != nil {
 		klog.Errorf("ControllerUnpublishVolume: detach disk: %s from node: %s with error: %s", req.VolumeId, req.NodeId, err.Error())
 		return nil, err
@@ -496,8 +488,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	klog.Infof("CreateSnapshot:: Starting to create snapshot: %+v", req)
 	sourceVolumeID := strings.Trim(req.GetSourceVolumeId(), " ")
 
-	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
-	disks := getDisks([]string{sourceVolumeID}, ecsClient)
+	disks := getDisks([]string{sourceVolumeID}, cs.ecs)
 	if len(disks) == 0 {
 		return nil, status.Errorf(codes.Internal, "CreateSnapshot:: failed to get disk from sourceVolumeID: %v", sourceVolumeID)
 	} else if len(disks) != 1 {
@@ -507,7 +498,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	// init createSnapshotRequest and parameters
 	params.SourceVolumeID = sourceVolumeID
 	params.SnapshotName = req.Name
-	snapshotResponse, err := requestAndCreateSnapshot(ecsClient, params)
+	snapshotResponse, err := requestAndCreateSnapshot(cs.ecs, params)
 
 	if err != nil {
 		return nil, err
@@ -530,7 +521,7 @@ func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateS
 	}, nil
 }
 
-func snapshotBeforeDelete(disk *ecs.Disk, ecsClient *ecs.Client) error {
+func snapshotBeforeDelete(disk *ecs.Disk, ecsClient cloud.ECSInterface) error {
 	if !AllCategories[Category(disk.Category)].InstantAccessSnapshot {
 		klog.Infof("snapshotBeforeDelete: Instant Access snapshot required, but current disk.Category is: %s", disk.Category)
 		return nil
@@ -576,7 +567,6 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 	klog.Infof("DeleteSnapshot:: starting delete snapshot %s", snapshotID)
 
 	// Check Snapshot exist
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshot, err := findDiskSnapshotByID(req.SnapshotId)
 	if err != nil {
 		var aliErr *alicloudErr.ServerError
@@ -614,7 +604,6 @@ func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteS
 // ListSnapshots ...
 func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
 	klog.Infof("ListSnapshots:: called with args: %+v", req)
-	GlobalConfigVar.EcsClient = updateEcsClient(GlobalConfigVar.EcsClient)
 	snapshotID := req.GetSnapshotId()
 	if len(snapshotID) > 0 {
 		snapshot, err := findDiskSnapshotByID(snapshotID)
@@ -632,7 +621,7 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 		// We don't want to expose all snapshots of the current user, which may be too many.
 		return nil, status.Errorf(codes.InvalidArgument, "At least one of snapshot ID, volume ID, cluster ID must be specified")
 	}
-	snapshots, nextToken, err := listSnapshots(GlobalConfigVar.EcsClient,
+	snapshots, nextToken, err := listSnapshots(cs.ecs,
 		volumeID, GlobalConfigVar.ClusterID, req.GetStartingToken(), int(req.GetMaxEntries()))
 	if err != nil {
 		// pass through error with error code
@@ -646,12 +635,11 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 	klog.Infof("ControllerExpandVolume:: Starting expand disk with: %v", req)
 
 	// check resize conditions
-	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
 	volSizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	requestGB := int((volSizeBytes + 1024*1024*1024 - 1) / (1024 * 1024 * 1024))
 	diskID := req.VolumeId
 
-	disk, err := findDiskByID(diskID, ecsClient)
+	disk, err := findDiskByID(diskID, cs.ecs)
 	if err != nil {
 		klog.Errorf("ControllerExpandVolume:: find disk(%s) with error: %s", diskID, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
@@ -678,12 +666,12 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 		resizeDiskRequest.Type = "online"
 	}
 
-	response, err := resizeDisk(ctx, ecsClient, resizeDiskRequest)
+	response, err := resizeDisk(ctx, cs.ecs, resizeDiskRequest)
 	if err != nil {
 		klog.Errorf("ControllerExpandVolume:: resize got error: %s", err.Error())
 		return nil, status.Errorf(codes.Internal, "resize disk %s get error: %s", diskID, err.Error())
 	}
-	checkDisk, err := findDiskByID(disk.DiskId, ecsClient)
+	checkDisk, err := findDiskByID(disk.DiskId, cs.ecs)
 	if err != nil {
 		klog.Infof("ControllerExpandVolume:: find disk failed with error: %+v", err)
 		return nil, status.Errorf(codes.Internal, "ControllerExpandVolume:: find disk failed with error: %+v", err)
