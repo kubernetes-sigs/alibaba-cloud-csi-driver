@@ -1,6 +1,7 @@
 package ossfs
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
+	serverutils "github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/proxy/server"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/mounter/utils"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -57,9 +59,14 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	args = append(args, req.MountFlags...)
 	args = append(args, "-f")
 
+	var stderrBuf bytes.Buffer
+	sw := serverutils.NewSwitchableWriter(&stderrBuf)
 	cmd := exec.Command("ossfs", args...)
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stderr = sw
+	defer func() {
+		sw.SwitchTarget(os.Stderr)
+	}()
 
 	err = cmd.Start()
 	if err != nil {
@@ -79,7 +86,13 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 
 		err := cmd.Wait()
 		if err != nil {
-			klog.ErrorS(err, "ossfs exited with error", "mountpoint", target, "pid", pid)
+			stderrContent := stderrBuf.String()
+			if stderrContent != "" {
+				err = fmt.Errorf("%w, with stderr: %s", err, stderrContent)
+			}
+			klog.ErrorS(err, "ossfs exited with error",
+				"mountpoint", target,
+				"pid", pid)
 		} else {
 			klog.InfoS("ossfs exited", "mountpoint", target, "pid", pid)
 		}
@@ -93,7 +106,6 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	err = wait.PollUntilContextCancel(ctx, time.Second, true, func(ctx context.Context) (done bool, err error) {
 		select {
 		case err := <-ossfsExited:
-			// TODO: collect ossfs outputs to return in error message
 			if err != nil {
 				return false, fmt.Errorf("ossfs exited: %w", err)
 			}
