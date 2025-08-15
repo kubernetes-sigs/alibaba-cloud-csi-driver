@@ -5,16 +5,15 @@ import (
 	"strconv"
 
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/interfaces"
+	"golang.org/x/time/rate"
 	"k8s.io/klog/v2"
-
-	"go.uber.org/ratelimit"
 )
 
 const defaultQps = 2
 
 type NasClientFactory struct {
 	// ratelimiter only takes effect on v2 client
-	limiter ratelimit.Limiter
+	limiter *rate.Limiter
 }
 
 func NewNasClientFactory() *NasClientFactory {
@@ -30,7 +29,7 @@ func NewNasClientFactory() *NasClientFactory {
 		}
 	}
 	return &NasClientFactory{
-		limiter: ratelimit.New(qps),
+		limiter: rate.NewLimiter(rate.Limit(qps), 10),
 	}
 }
 
