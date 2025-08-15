@@ -645,12 +645,13 @@ func (d *driver) BindDriver(targetDriver string) error {
 }
 
 func (d *driver) GetPCIDeviceDriverType() string {
-	output, _ := exec.Command("lspci", "-s", d.deviceNumber, "-n").CombinedOutput()
+	p := filepath.Join(sysPrefix, "sys/bus", d.machineType.BusName(), "devices", d.deviceNumber, "device")
+	data, _ := os.ReadFile(p)
+	output := strings.TrimSpace(string(data))
 	klog.InfoS("GetDeviceDriverType: get driver type output", "deviceNumber", d.deviceNumber, "output", output)
 	// #define PCI_DEVICE_ID_VIRTIO_BLOCK 0x1001
 	// #define PCI_DEVICE_ID_ALIBABA_NVME 0×5004
-	// example output: "21:04.2 0000: 1ded:5004 (rev 02)\n"
-	if strings.Contains(strings.TrimSpace(string(output)), "1ded:1001") {
+	if output == "0x1001" {
 		return PCITypeVIRTIO
 	} else {
 		return PCITypeNVME
