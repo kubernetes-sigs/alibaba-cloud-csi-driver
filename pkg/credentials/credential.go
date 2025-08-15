@@ -42,6 +42,7 @@ func NewProvider() (alicred.CredentialsProvider, error) {
 	// try managed token credential
 	provider, err := NewManagedTokenProvider(clock.RealClock{}, GetManagedTokenPath())
 	if err == nil {
+		klog.V(2).Info("using managed token credential")
 		return provider, nil
 	}
 	if !errors.Is(err, os.ErrNotExist) {
