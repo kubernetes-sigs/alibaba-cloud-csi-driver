@@ -244,10 +244,6 @@ func (f *fuseOssfs) MakeMountOptions(o *Options, m metadata.MetadataProvider) (m
 		}
 	}
 
-	// set use_metrics to enabled monitoring by default
-	if features.FunctionalMutableFeatureGate.Enabled(features.UpdatedOssfsVersion) {
-		mountOptions = append(mountOptions, "use_metrics")
-	}
 	if o.MetricsTop != "" {
 		mountOptions = append(mountOptions, fmt.Sprintf("metrics_top=%s", o.MetricsTop))
 	}
@@ -300,6 +296,8 @@ func (f *fuseOssfs) getAuthOptions(o *Options, region string) (mountOptions []st
 
 const (
 	KeyDbgLevel      = "dbglevel"
+	KeyAllowOther    = "allow_other"
+	KeyUseMetrics    = "use_metrics"
 	KeyMime          = "mime"
 	KeyListObjectsV2 = "listobjectsv2"
 )
@@ -332,15 +330,16 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 		}
 	}
 
-	var allowOther bool
-	for _, option := range options {
-		if strings.Contains(option, "allow_other") {
-			allowOther = true
-			break
-		}
-	}
-	if !allowOther {
+	// set default allow_other
+	if _, ok := tm[KeyAllowOther]; !ok {
 		options = append(options, "allow_other")
+	}
+
+	// set use_metrics to enabled monitoring by default
+	if _, ok := tm[KeyUseMetrics]; !ok {
+		if features.FunctionalMutableFeatureGate.Enabled(features.UpdatedOssfsVersion) {
+			options = append(options, "use_metrics")
+		}
 	}
 
 	// set mime

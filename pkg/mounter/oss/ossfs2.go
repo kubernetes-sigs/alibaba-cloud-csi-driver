@@ -119,8 +119,6 @@ func (f *fuseOssfs2) MakeMountOptions(o *Options, m metadata.MetadataProvider) (
 		mountOptions = append(mountOptions, "ro=true")
 	}
 
-	// set use_metrics to enabled monitoring by default
-	mountOptions = append(mountOptions, "use_metrics=true")
 	if o.MetricsTop != "" {
 		mountOptions = append(mountOptions, fmt.Sprintf("metrics_top=%s", o.MetricsTop))
 	}
@@ -271,6 +269,11 @@ func (f *fuseOssfs2) AddDefaultMountOptions(options []string) []string {
 	// set default log dir
 	if _, ok := tm[KeyLogDir]; !ok {
 		options = append(options, "log_dir=/dev/stdout")
+	}
+
+	// set use_metrics to enabled monitoring by default
+	if _, ok := tm[KeyUseMetrics]; !ok {
+		options = append(options, "use_metrics=basic")
 	}
 
 	return options
