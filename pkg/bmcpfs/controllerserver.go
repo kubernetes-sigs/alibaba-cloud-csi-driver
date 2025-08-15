@@ -30,10 +30,13 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/bmcpfs/internal"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/nas/cloud"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 )
 
@@ -42,6 +45,7 @@ type controllerServer struct {
 	vscManager     *internal.PrimaryVscManagerWithCache
 	attachDetacher internal.CPFSAttachDetacher
 	nasClient      *nasclient.Client
+	k8sClient      kubernetes.Interface
 }
 
 func newControllerServer(region string) (*controllerServer, error) {
@@ -54,10 +58,15 @@ func newControllerServer(region string) (*controllerServer, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	cfg := options.MustGetRestConfig()
+	k8sclient := kubernetes.NewForConfigOrDie(cfg)
+
 	return &controllerServer{
 		vscManager:     internal.NewPrimaryVscManagerWithCache(efloClient),
 		attachDetacher: internal.NewCPFSAttachDetacher(nasClient),
 		nasClient:      nasClient,
+		k8sClient:      k8sclient,
 	}, nil
 }
 
@@ -84,11 +93,17 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 		}, nil
 	}
 
+	volumeId := req.VolumeId
+	// for support multi pvcpv with same bmcpfsid
+	if req.VolumeContext[_customVolumeId] != "" {
+		volumeId = req.VolumeContext[_customVolumeId]
+	}
+
 	// Get VscMountTarget of filesystem
 	mt := req.VolumeContext[_vscMountTarget]
 	if mt == "" {
 		var err error
-		mt, err = getMountTarget(cs.nasClient, req.VolumeId, networkTypeVSC)
+		mt, err = getMountTarget(cs.nasClient, volumeId, networkTypeVSC)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get VscMountTarget: %v", err)
 		}
@@ -106,7 +121,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	klog.Info("Use VSC MountTarget for lingjun node", "nodeId", req.NodeId, "vscId", vscId)
 
 	// Attach CPFS to VSC
-	err = cs.attachDetacher.Attach(ctx, req.VolumeId, vscId)
+	err = cs.attachDetacher.Attach(ctx, volumeId, vscId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
@@ -143,11 +158,24 @@ func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *
 		klog.InfoS("ControllerUnpublishVolume: skip detaching cpfs from vsc as vsc not found", "node", req.NodeId)
 		return &csi.ControllerUnpublishVolumeResponse{}, nil
 	}
-	err = cs.attachDetacher.Detach(ctx, req.VolumeId, vsc.VscID)
+	// Use volumeId as volumeName to get real volumeName from pv
+	volumeId := req.VolumeId
+	if !strings.HasPrefix(volumeId, CPFSIDPrefix) {
+		pv, err := cs.k8sClient.CoreV1().PersistentVolumes().Get(ctx, volumeId, metav1.GetOptions{})
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		if pv.Spec.CSI != nil && pv.Spec.CSI.VolumeAttributes[_customVolumeId] != "" {
+			klog.Infof("volumeId is not valid, use volumeName instead")
+			volumeId = pv.Spec.CSI.VolumeAttributes[_customVolumeId]
+		}
+	}
+
+	err = cs.attachDetacher.Detach(ctx, volumeId, vsc.VscID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	klog.InfoS("ControllerUnpublishVolume: detached cpfs from vsc", "node", req.NodeId, "filesystem", req.VolumeId)
+	klog.InfoS("ControllerUnpublishVolume: detached cpfs from vsc", "node", req.NodeId, "filesystem", volumeId)
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
