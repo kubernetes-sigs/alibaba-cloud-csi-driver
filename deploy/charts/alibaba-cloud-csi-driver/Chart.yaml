@@ -1,0 +1,7 @@
+name: alibaba-cloud-csi-driver
+apiVersion: v2
+version: 1.6.5
+appVersion: v1.6.5
+description: CSI Plugin for Kubernetes, Support Alibaba Cloud EBS/NAS/OSS/CPFS
+type: application
+keywords: [csi, alibaba]
