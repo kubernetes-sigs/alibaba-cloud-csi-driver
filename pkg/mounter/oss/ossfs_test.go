@@ -605,3 +605,24 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 		})
 	}
 }
+
+func TestTranslateMetricsModeToOption_ossfs(t *testing.T) {
+	fakeOssfs := &fuseOssfs{}
+	tests := []struct {
+		name string
+		mode string
+		want string
+	}{
+		{"default", "", "use_metrics"},
+		{"advanced", mounterutils.MetricsModeAdvanced, "use_metrics"},
+		{"disabled", mounterutils.MetricsModeDisabled, ""},
+		{"enabled", mounterutils.MetricsModeEnabled, "use_metrics"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := fakeOssfs.translateMetricsModeToOption(tt.mode)
+			assert.Equal(t, tt.want, actual)
+		})
+	}
+}

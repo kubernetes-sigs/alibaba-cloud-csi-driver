@@ -490,3 +490,24 @@ func TestBuildAuthSpec_ossfs2(t *testing.T) {
 	assert.Contains(t, "/var/run/secrets/ack.alibabacloud.com/rrsa-tokens", volumeMount.MountPath)
 	assert.Contains(t, "rrsa-oidc-token", volumeMount.Name)
 }
+
+func TestTranslateMetricsModeToOption_ossfs2(t *testing.T) {
+	fakeOssfs := &fuseOssfs2{}
+	tests := []struct {
+		name string
+		mode string
+		want string
+	}{
+		{"default", "", "use_metrics=basic"},
+		{"advanced", mounterutils.MetricsModeAdvanced, "use_metrics=advanced"},
+		{"disabled", mounterutils.MetricsModeDisabled, ""},
+		{"enabled", mounterutils.MetricsModeEnabled, "use_metrics=basic"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := fakeOssfs.translateMetricsModeToOption(tt.mode)
+			assert.Equal(t, tt.want, actual)
+		})
+	}
+}

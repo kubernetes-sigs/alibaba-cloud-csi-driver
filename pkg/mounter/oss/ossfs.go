@@ -343,7 +343,10 @@ func (f *fuseOssfs) AddDefaultMountOptions(options []string) []string {
 	// set use_metrics to enabled monitoring by default
 	if _, ok := tm[KeyUseMetrics]; !ok {
 		if features.FunctionalMutableFeatureGate.Enabled(features.UpdatedOssfsVersion) {
-			options = append(options, "use_metrics")
+			o := f.translateMetricsModeToOption(f.config.MetricsMode)
+			if o != "" {
+				options = append(options, o)
+			}
 		}
 	}
 
@@ -461,5 +464,14 @@ func (f *fuseOssfs) buildAuthSpec(c *mounterutils.FusePodContext, target string,
 			}
 			container.VolumeMounts = append(container.VolumeMounts, passwdVolumeMont)
 		}
+	}
+}
+
+func (f *fuseOssfs) translateMetricsModeToOption(mode string) string {
+	switch mode {
+	case mounterutils.MetricsModeDisabled:
+		return ""
+	default:
+		return "use_metrics"
 	}
 }

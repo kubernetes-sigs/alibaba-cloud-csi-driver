@@ -67,6 +67,15 @@ const (
 	DebugLevelDebug = "debug"
 )
 
+const (
+	// for ossfs 1.0
+	MetricsModeDisabled = "disabled"
+	MetricsModeEnabled  = "enabled"
+	// for ossfs 2.0
+	MetricsModeBasic    = "basic"
+	MetricsModeAdvanced = "advanced"
+)
+
 type FusePodContext struct {
 	context.Context
 	Namespace  string
@@ -87,6 +96,7 @@ type FuseContainerConfig struct {
 	Image       string
 	ImageTag    string
 	Dbglevel    string
+	MetricsMode string
 	Annotations map[string]string
 	Labels      map[string]string
 	Extra       map[string]string
@@ -160,6 +170,13 @@ func ExtractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 				break
 			}
 			config.Labels = labels
+		case "metrics-mode":
+			switch value {
+			case MetricsModeBasic, MetricsModeAdvanced, MetricsModeDisabled, MetricsModeEnabled:
+				config.MetricsMode = value
+			default:
+				invalid = true
+			}
 		default:
 			if config.Extra == nil {
 				config.Extra = make(map[string]string)
