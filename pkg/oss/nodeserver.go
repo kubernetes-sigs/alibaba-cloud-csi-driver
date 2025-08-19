@@ -59,8 +59,6 @@ const (
 	OssFs2Type = "ossfs2"
 	// metricsPathPrefix
 	metricsPathPrefix = "/host/var/run/ossfs/"
-	// defaultMetricsTop
-	defaultMetricsTop = "10"
 	ossfsExecPath     = "/usr/local/bin/ossfs"
 )
 

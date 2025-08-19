@@ -72,7 +72,6 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 		Path:          "/",
 		AkID:          strings.TrimSpace(secrets[AkID]),
 		AkSecret:      strings.TrimSpace(secrets[AkSecret]),
-		MetricsTop:    defaultMetricsTop,
 	}
 
 	var volumeAsSubpath bool
