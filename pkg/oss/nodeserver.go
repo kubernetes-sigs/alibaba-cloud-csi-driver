@@ -44,6 +44,7 @@ type nodeServer struct {
 	cnfsGetter      cnfsv1beta1.CNFSGetter
 	rawMounter      mountutils.Interface
 	fusePodManagers map[string]*oss.OSSFusePodManager
+	ossfsPaths      map[string]string
 	common.GenericNodeServer
 	skipAttach bool
 }
@@ -59,7 +60,8 @@ const (
 	OssFs2Type = "ossfs2"
 	// metricsPathPrefix
 	metricsPathPrefix = "/host/var/run/ossfs/"
-	ossfsExecPath     = "/usr/local/bin/ossfs"
+	// defaultMetricsTop
+	defaultMetricsTop = "10"
 )
 
 // for cases where fuseType does not affect like UnPublishVolume,
@@ -161,7 +163,7 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		ossfsMounter = mounter.NewOssCmdMounter(ossfsExecPath, req.VolumeId, ns.rawMounter)
+		ossfsMounter = mounter.NewOssCmdMounter(ns.ossfsPaths[opts.FuseType], req.VolumeId, ns.rawMounter)
 	} else {
 		ossfsMounter = mounter.NewProxyMounter(socketPath, ns.rawMounter)
 	}
