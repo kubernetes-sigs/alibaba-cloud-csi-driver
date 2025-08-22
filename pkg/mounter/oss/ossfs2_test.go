@@ -278,6 +278,7 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 				"oss_endpoint=oss://test-bucket/",
 				"oss_bucket=test-bucket",
 				"oss_bucket_prefix=/",
+				"use_metrics=true",
 				"metrics_top=5",
 			},
 		},
@@ -311,37 +312,37 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 		{
 			name:    "empty option, empty config",
 			options: []string{"others"},
-			want:    []string{"others", "log_level=info", "log_dir=/dev/stdout", "use_metrics=basic"},
+			want:    []string{"others", "log_level=info", "log_dir=/dev/stdout"},
 		},
 		{
 			name:    "set option",
-			options: []string{"others", "log_level=debug", "log_dir=/tmp/ossfs2", "others", "use_metrics=advanced"},
-			want:    []string{"others", "log_level=debug", "log_dir=/tmp/ossfs2", "others", "use_metrics=advanced"},
+			options: []string{"others", "log_level=debug", "log_dir=/tmp/ossfs2", "others", "use_metrics=true"},
+			want:    []string{"others", "log_level=debug", "log_dir=/tmp/ossfs2", "others", "use_metrics=true"},
 		},
 		{
 			name:     "set option, set config",
 			cfglevel: "info",
 			options:  []string{"others", "log_level=debug", "others"},
-			want:     []string{"others", "log_level=debug", "others", "log_dir=/dev/stdout", "use_metrics=basic"},
+			want:     []string{"others", "log_level=debug", "others", "log_dir=/dev/stdout"},
 		},
 		{
 			name:     "empty option, set config",
 			cfglevel: "debug",
 			options:  []string{"others"},
-			want:     []string{"others", "log_level=debug", "log_dir=/dev/stdout", "use_metrics=basic"},
+			want:     []string{"others", "log_level=debug", "log_dir=/dev/stdout"},
 		},
 		{
 			name:     "empty option, invalid config",
 			cfglevel: "invalid",
 			options:  []string{"others"},
-			want:     []string{"others", "log_level=info", "log_dir=/dev/stdout", "use_metrics=basic"},
+			want:     []string{"others", "log_level=info", "log_dir=/dev/stdout"},
 		},
 		{
 			name:        "default options",
 			cfglevel:    "",
 			options:     nil,
 			defaultOpts: "others,log_dir=/tmp/ossfs2",
-			want:        []string{"others", "log_dir=/tmp/ossfs2", "log_level=info", "use_metrics=basic"},
+			want:        []string{"others", "log_dir=/tmp/ossfs2", "log_level=info"},
 		},
 	}
 	for _, tt := range tests {
@@ -489,25 +490,4 @@ func TestBuildAuthSpec_ossfs2(t *testing.T) {
 	volumeMount = container.VolumeMounts[len(container.VolumeMounts)-1]
 	assert.Contains(t, "/var/run/secrets/ack.alibabacloud.com/rrsa-tokens", volumeMount.MountPath)
 	assert.Contains(t, "rrsa-oidc-token", volumeMount.Name)
-}
-
-func TestTranslateMetricsModeToOption_ossfs2(t *testing.T) {
-	fakeOssfs := &fuseOssfs2{}
-	tests := []struct {
-		name string
-		mode string
-		want string
-	}{
-		{"default", "", "use_metrics=basic"},
-		{"advanced", mounterutils.MetricsModeAdvanced, "use_metrics=advanced"},
-		{"disabled", mounterutils.MetricsModeDisabled, ""},
-		{"enabled", mounterutils.MetricsModeEnabled, "use_metrics=basic"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			actual := fakeOssfs.translateMetricsModeToOption(tt.mode)
-			assert.Equal(t, tt.want, actual)
-		})
-	}
 }

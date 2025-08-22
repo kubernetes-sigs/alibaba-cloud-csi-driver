@@ -374,6 +374,7 @@ func TestMakeMountOptions_ossfs(t *testing.T) {
 			region: "us-east-1",
 			expected: []string{
 				"url=oss://bucket",
+				"use_metrics",
 				"metrics_top=5",
 				"rrsa_endpoint=https://sts-vpc.us-east-1.aliyuncs.com",
 				"assume_role_arn=arn:acs:ram::123456789012:role/role-name",
@@ -602,27 +603,6 @@ func TestAddDefaultMountOptions_ossfs(t *testing.T) {
 			}
 			got := fakeOssfs.AddDefaultMountOptions(tt.options)
 			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestTranslateMetricsModeToOption_ossfs(t *testing.T) {
-	fakeOssfs := &fuseOssfs{}
-	tests := []struct {
-		name string
-		mode string
-		want string
-	}{
-		{"default", "", "use_metrics"},
-		{"advanced", mounterutils.MetricsModeAdvanced, "use_metrics"},
-		{"disabled", mounterutils.MetricsModeDisabled, ""},
-		{"enabled", mounterutils.MetricsModeEnabled, "use_metrics"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			actual := fakeOssfs.translateMetricsModeToOption(tt.mode)
-			assert.Equal(t, tt.want, actual)
 		})
 	}
 }

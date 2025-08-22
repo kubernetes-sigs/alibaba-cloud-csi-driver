@@ -68,12 +68,8 @@ const (
 )
 
 const (
-	// for ossfs 1.0
 	MetricsModeDisabled = "disabled"
 	MetricsModeEnabled  = "enabled"
-	// for ossfs 2.0
-	MetricsModeBasic    = "basic"
-	MetricsModeAdvanced = "advanced"
 )
 
 type FusePodContext struct {
@@ -172,7 +168,7 @@ func ExtractFuseContainerConfig(configmap *corev1.ConfigMap, name string) (confi
 			config.Labels = labels
 		case "metrics-mode":
 			switch value {
-			case MetricsModeBasic, MetricsModeAdvanced, MetricsModeDisabled, MetricsModeEnabled:
+			case MetricsModeDisabled, MetricsModeEnabled:
 				config.MetricsMode = value
 			default:
 				invalid = true

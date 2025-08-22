@@ -698,7 +698,6 @@ func TestMakeMountOptions(t *testing.T) {
 		"ro",
 		"url=1.1.1.1",
 		"use_sse=kmsid",
-		"use_metrics",
 		"sigv4",
 		"region=cn-beijing",
 	}
