@@ -61,7 +61,7 @@ func RunCSIServer(driverType, endpoint string, servers Servers) {
 	}
 
 	opts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(logGRPC, instrumentGRPC(driverType), earlyTimeout),
+		grpc.ChainUnaryInterceptor(instrumentGRPC(driverType), earlyTimeout),
 	}
 	server := grpc.NewServer(opts...)
 
@@ -71,15 +71,15 @@ func RunCSIServer(driverType, endpoint string, servers Servers) {
 	}
 	if servers.ControllerServer != nil {
 		metric.CsiGrpcExecTimeCollector.InitGRPC(csi.Controller_ServiceDesc, driverType)
-		csi.RegisterControllerServer(server, WrapControllerServerWithValidator(servers.ControllerServer))
+		csi.RegisterControllerServer(server, WrapControllerServer(servers.ControllerServer))
 	}
 	if servers.NodeServer != nil {
 		metric.CsiGrpcExecTimeCollector.InitGRPC(csi.Node_ServiceDesc, driverType)
-		csi.RegisterNodeServer(server, WrapNodeServerWithValidator(WrapNodeServerWithMetricRecorder(servers.NodeServer, driverType, clientset)))
+		csi.RegisterNodeServer(server, WrapNodeServer(WrapNodeServerWithMetricRecorder(servers.NodeServer, driverType, clientset)))
 	}
 	if servers.GroupControllerServer != nil {
 		metric.CsiGrpcExecTimeCollector.InitGRPC(csi.GroupController_ServiceDesc, driverType)
-		csi.RegisterGroupControllerServer(server, WrapGroupControllerServerWithValidator(servers.GroupControllerServer))
+		csi.RegisterGroupControllerServer(server, WrapGroupControllerServer(servers.GroupControllerServer))
 	}
 
 	klog.Infof("Listening for connections on address: %#v", listener.Addr())
