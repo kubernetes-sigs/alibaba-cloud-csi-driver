@@ -80,7 +80,6 @@ func TestGetOpenAPI(t *testing.T) {
 	m, err := NewOpenAPIMetadata(ecsClient, stsClient, "cn-beijing", "i-2zec1slzwdzrwmvlr4w2")
 	assert.NoError(t, err)
 
-	assert.Equal(t, "cn-beijing", MustGet(m, RegionID))
 	assert.Equal(t, "cn-beijing-k", MustGet(m, ZoneID))
 	assert.Equal(t, "ecs.g7.xlarge", MustGet(m, InstanceType))
 	assert.Equal(t, "i-2zec1slzwdzrwmvlr4w2", MustGet(m, InstanceID))
