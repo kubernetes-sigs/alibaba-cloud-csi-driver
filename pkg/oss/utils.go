@@ -173,7 +173,7 @@ func parseOptions(volOptions, secrets map[string]string, volCaps []*csi.VolumeCa
 	}
 
 	url := opts.URL
-	region := metadata.MustGet(m, metadata.RegionID)
+	region, _ := m.Get(metadata.RegionID)
 	if region != "" && utils.GetNetworkType() == "vpc" {
 		url, _ = setNetworkType(url, region)
 	}
