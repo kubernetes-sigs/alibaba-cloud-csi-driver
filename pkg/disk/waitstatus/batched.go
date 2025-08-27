@@ -31,8 +31,6 @@ type responseFeedback[T any] struct {
 
 type Batched[T any] struct {
 	ecsClient desc.Client[T]
-	// remove this once we have a ecsClient that can refresh its credentials
-	PollHook func() desc.Client[T]
 
 	feedback    chan responseFeedback[T]
 	requestChan chan *waitRequest[*T]
@@ -209,9 +207,6 @@ func (w *Batched[T]) poll(t time.Time, waitIDs []string) []string {
 	interval := t.Sub(t0)
 	go func() {
 		client := w.ecsClient
-		if w.PollHook != nil {
-			client = w.PollHook()
-		}
 		resp, err := client.Describe(thisBatch)
 		w.feedback <- responseFeedback[T]{
 			ids: thisBatch,

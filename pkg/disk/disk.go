@@ -237,7 +237,6 @@ func newBatcher(fromNode bool) (waitstatus.StatusWaiter[ecs.Disk], batcher.Batch
 	go waiter.Run(ctx)
 
 	b := batcher.NewLowLatency(client, clock.RealClock{}, 1*time.Second, 8)
-	b.PollHook = waiter.PollHook
 	go b.Run(ctx)
 
 	return waiter, b
