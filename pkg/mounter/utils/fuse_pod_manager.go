@@ -9,13 +9,12 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	apiserrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
+	informercorev1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	watchtools "k8s.io/client-go/tools/watch"
@@ -225,7 +224,7 @@ func (fpm *FusePodManager) labelsAndListOptionsFor(c *FusePodContext, target str
 	return labels, listOptions
 }
 
-func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool) (*corev1.Pod, error) {
+func (fpm *FusePodManager) Create(c *FusePodContext, target string) (*corev1.Pod, error) {
 	ctx, cancel := context.WithTimeout(c, fusePodManagerTimeout)
 	defer cancel()
 
@@ -309,10 +308,6 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool)
 	logger.V(2).Info("wait until pod is ready", "pod", fusePod.Name)
 	fieldSelector := fields.OneTermEqualSelector("metadata.name", fusePod.Name).String()
 	lw := &cache.ListWatch{
-		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			options.FieldSelector = fieldSelector
-			return podClient.List(ctx, options)
-		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 			options.FieldSelector = fieldSelector
 			return podClient.Watch(ctx, options)
@@ -333,74 +328,74 @@ func (fpm *FusePodManager) Create(c *FusePodContext, target string, atomic bool)
 		return pod.Status.Phase == corev1.PodRunning && isFusePodReady(pod), nil
 	})
 	if err != nil {
-		if atomic {
-			logger.V(1).Info("failed to wait for pod to be ready, deleting it", "pod", fusePod.Name)
-			deleteErr := podClient.Delete(context.Background(), fusePod.Name, metav1.DeleteOptions{})
-			if deleteErr != nil {
-				logger.Error(deleteErr, "delete fuse pod", "pod", fusePod.Name)
-			}
-		}
 		return nil, err
 	}
 	logger.V(2).Info("fuse pod is ready", "pod", fusePod.Name)
 	return fusePod, nil
 }
 
-func (fpm *FusePodManager) Delete(c *FusePodContext, target string) error {
+func (fpm *FusePodManager) Delete(c *FusePodContext) error {
 	ctx, cancel := context.WithTimeout(c, fusePodManagerTimeout)
 	defer cancel()
 
-	podClient := fpm.client.CoreV1().Pods(c.Namespace)
-	_, listOptions := fpm.labelsAndListOptionsFor(c, target)
+	logger := klog.FromContext(ctx).WithValues("namespace", c.Namespace)
 
-	logger := klog.Background().WithValues(
-		"target", target,
-		"node", c.NodeName,
-		"volumeId", c.VolumeId,
-		"namespace", c.Namespace,
-	)
-	if target != "" {
-		podList, err := podClient.List(ctx, listOptions)
-		if err != nil {
-			return err
-		}
-		if len(podList.Items) == 0 {
-			return nil
-		}
-		var errs []error
-		for _, pod := range podList.Items {
-			if pod.Annotations[FuseMountPathAnnoKey] == target {
-				logger.V(2).Info("deleting fuse pod", "pod", pod.Name)
-				err := podClient.Delete(ctx, pod.Name, metav1.DeleteOptions{})
-				errs = append(errs, err)
+	_, listOptions := fpm.labelsAndListOptionsFor(c, "")
+	informer := informercorev1.NewFilteredPodInformer(fpm.client, c.Namespace, 0, nil, func(options *metav1.ListOptions) {
+		options.FieldSelector = listOptions.FieldSelector
+		options.LabelSelector = listOptions.LabelSelector
+	})
+	deleteNotify := make(chan struct{}, 1)
+	deleteNotify <- struct{}{}
+	_, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: func(obj interface{}) {
+			select {
+			case deleteNotify <- struct{}{}:
+				logger.V(4).Info("pod deleted")
+			default:
+				logger.V(4).Info("pod deleted, already notified")
 			}
-		}
-		if len(errs) > 0 {
-			return utilerrors.NewAggregate(errs)
-		}
-	} else {
-		logger.V(2).Info("deleting fuse pods")
-		err := podClient.DeleteCollection(ctx, metav1.DeleteOptions{}, listOptions)
-		if err != nil {
-			return err
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to add event handler to pod informer: %w", err)
+	}
+	go informer.Run(ctx.Done())
+	synced := cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
+	if !synced {
+		return fmt.Errorf("failed to wait for caches to sync: %w", ctx.Err())
+	}
+
+	podClient := fpm.client.CoreV1().Pods(c.Namespace)
+	for _, obj := range informer.GetStore().List() {
+		pod := obj.(*corev1.Pod)
+		if pod.DeletionTimestamp == nil {
+			logger.V(2).Info("deleting fuse pod", "pod", klog.KObj(pod))
+			err := podClient.Delete(ctx, pod.Name, metav1.DeleteOptions{})
+			if err != nil {
+				if apiserrors.IsNotFound(err) {
+					continue
+				}
+				return fmt.Errorf("failed to delete pod %s: %w", pod.Name, err)
+			}
+		} else {
+			logger.V(2).Info("fuse pod already terminating", "pod", klog.KObj(pod))
 		}
 	}
 
-	return wait.PollUntilContextCancel(ctx, time.Second*2, true, func(ctx context.Context) (done bool, err error) {
-		podList, err := podClient.List(ctx, listOptions)
-		if err != nil {
-			return false, err
-		}
-		if target == "" {
-			return len(podList.Items) == 0, nil
-		}
-		for _, pod := range podList.Items {
-			if pod.Annotations[FuseMountPathAnnoKey] == target {
-				return false, nil
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("wait for pods deleted: %w", ctx.Err())
+		case <-deleteNotify:
+			n := len(informer.GetStore().ListKeys())
+			if n == 0 {
+				logger.V(2).Info("all pods deleted")
+				return nil
 			}
+			logger.V(2).Info("wait for pods deleted", "count", n)
 		}
-		return true, nil
-	})
+	}
 }
 
 func isFusePodReady(pod *corev1.Pod) bool {
