@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -74,7 +75,8 @@ func (h *Driver) Mount(ctx context.Context, req *proxy.MountRequest) error {
 	args = append(args, "-f")
 
 	var stderrBuf bytes.Buffer
-	sw := serverutils.NewSwitchableWriter(&stderrBuf)
+	multiWriter := io.MultiWriter(os.Stderr, &stderrBuf)
+	sw := serverutils.NewSwitchableWriter(multiWriter)
 	cmd := exec.Command("ossfs2", args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = sw
