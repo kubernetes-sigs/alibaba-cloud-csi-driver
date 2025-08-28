@@ -140,4 +140,4 @@ images:
     tag: "v1.91.7.ack.1-570be5f-aliyun"
   ossfs2:
     repo: acs/csi-ossfs2
-    tag: "v2.0.2.ack.1-a76655f-aliyun"
+    tag: "v2.0.2.ack.2-17bc12e-aliyun"
