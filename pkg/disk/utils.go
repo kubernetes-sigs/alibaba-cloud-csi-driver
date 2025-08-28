@@ -368,7 +368,7 @@ func iterZone(requirement *csi.TopologyRequirement) iter.Seq[string] {
 		for _, topo := range [][]*csi.Topology{requirement.Preferred, requirement.Requisite} {
 			for _, topology := range topo {
 				segs := topology.GetSegments()
-				for _, key := range []string{TopologyZoneKey, common.TopologyKeyZone} {
+				for _, key := range []string{TopologyZoneKey, v1.LabelTopologyZone} {
 					zone, exists := segs[key]
 					if exists && !yield(zone) {
 						return
@@ -930,9 +930,9 @@ func volumeCreate(attempt createAttempt, diskID string, volSizeBytes int64, volu
 	cateDesc := AllCategories[attempt.Category]
 	volumeContext[labelAppendPrefix+TopologyRegionKey] = GlobalConfigVar.Region
 	if cateDesc.Regional {
-		segments[common.TopologyKeyRegion] = GlobalConfigVar.Region
+		segments[RegionalDiskTopologyKey] = GlobalConfigVar.Region
 	} else {
-		segments[TopologyZoneKey] = zoneID
+		segments[ZonalDiskTopologyKey] = zoneID
 		volumeContext[labelAppendPrefix+TopologyZoneKey] = zoneID
 	}
 	if attempt.Instance != "" {

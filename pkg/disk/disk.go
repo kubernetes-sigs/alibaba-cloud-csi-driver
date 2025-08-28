@@ -34,6 +34,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/options"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/version"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
@@ -47,6 +48,13 @@ const (
 	TopologyKey       = "topology." + driverName
 	TopologyRegionKey = TopologyKey + "/region"
 	TopologyZoneKey   = TopologyKey + "/zone"
+)
+
+var (
+	// Depends on PrivateTopologyKey config
+	RegionalDiskTopologyKey = v1.LabelTopologyRegion
+	// TODO: currently always set to private topology key to be compactable with old csi-plugin and vk
+	ZonalDiskTopologyKey = TopologyZoneKey
 )
 
 // DISK the DISK object
@@ -79,6 +87,8 @@ type GlobalConfig struct {
 	SnapshotBeforeDelete bool
 	OmitFilesystemCheck  bool
 	DiskAllowAllType     bool
+	// Use topology.diskplugin.csi.alibabacloud.com prefix instead of topology.kubernetes.io as CSI topology key
+	PrivateTopologyKey bool
 }
 
 // define global variable
@@ -205,6 +215,7 @@ func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 		RequestBaseInfo:     map[string]string{"owner": "alibaba-cloud-csi-driver", "nodeName": nodeName},
 		OmitFilesystemCheck: csiCfg.GetBool("disable-fs-check", "DISABLE_FS_CHECK", false),
 		DiskAllowAllType:    csiCfg.GetBool("disk-allow-all-type", "DISK_ALLOW_ALL_TYPE", false),
+		PrivateTopologyKey:  csiCfg.GetBool("private-topology-key", "PRIVATE_TOPOLOGY_KEY", false),
 	}
 	if csiCfg.GetBool("disk-multi-tenant-enable", "DISK_MULTI_TENANT_ENABLE", false) {
 		panic("Disk multi tenant support has been removed. Please remove the related config")
@@ -213,6 +224,11 @@ func GlobalConfigSet(m metadata.MetadataProvider) utils.Config {
 		klog.Infof("AD-Controller is enabled, CSI Disk Plugin running in AD Controller mode.")
 	} else {
 		klog.Infof("AD-Controller is disabled, CSI Disk Plugin running in kubelet mode.")
+	}
+	if GlobalConfigVar.PrivateTopologyKey {
+		RegionalDiskTopologyKey = TopologyRegionKey
+	} else {
+		RegionalDiskTopologyKey = v1.LabelTopologyRegion
 	}
 	DefaultDeviceManager.EnableDiskPartition = csiCfg.GetBool("disk-partition-enable", "DISK_PARTITION_ENABLE", true)
 	klog.Infof("Starting with GlobalConfigVar: ADControllerEnable(%t), DiskTagEnable(%t), DiskBdfEnable(%t), MetricEnable(%t), DetachDisabled(%t), DetachBeforeDelete(%t), ClusterID(%s)",

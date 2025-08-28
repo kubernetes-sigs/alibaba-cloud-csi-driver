@@ -851,18 +851,20 @@ func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReque
 		klog.Info("NodeGetInfo: no need to update node")
 	}
 
+	segments := map[string]string{
+		common.ECSInstanceIDTopologyKey: metadata.MustGet(ns.metadata, metadata.InstanceID),
+		// TopologyZoneKey key is always defined for existing persistent volumes
+		TopologyZoneKey:         metadata.MustGet(ns.metadata, metadata.ZoneID),
+		RegionalDiskTopologyKey: metadata.MustGet(ns.metadata, metadata.RegionID),
+	}
+	if !GlobalConfigVar.PrivateTopologyKey {
+		segments[v1.LabelTopologyZone] = metadata.MustGet(ns.metadata, metadata.ZoneID)
+	}
+
 	return &csi.NodeGetInfoResponse{
-		NodeId:            ns.NodeID,
-		MaxVolumesPerNode: int64(maxVolumesNum),
-		// make sure that the driver works on this particular zone only
-		AccessibleTopology: &csi.Topology{
-			Segments: map[string]string{
-				common.ECSInstanceIDTopologyKey: metadata.MustGet(ns.metadata, metadata.InstanceID),
-				TopologyZoneKey:                 metadata.MustGet(ns.metadata, metadata.ZoneID),
-				common.TopologyKeyZone:          metadata.MustGet(ns.metadata, metadata.ZoneID),
-				common.TopologyKeyRegion:        metadata.MustGet(ns.metadata, metadata.RegionID),
-			},
-		},
+		NodeId:             ns.NodeID,
+		MaxVolumesPerNode:  int64(maxVolumesNum),
+		AccessibleTopology: &csi.Topology{Segments: segments},
 	}, nil
 }
 
