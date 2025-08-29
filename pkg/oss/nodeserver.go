@@ -60,8 +60,6 @@ const (
 	OssFs2Type = "ossfs2"
 	// metricsPathPrefix
 	metricsPathPrefix = "/host/var/run/ossfs/"
-	// defaultMetricsTop
-	defaultMetricsTop = "10"
 )
 
 // for cases where fuseType does not affect like UnPublishVolume,
