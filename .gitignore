@@ -1,6 +1,7 @@
 # binaries
 .idea
 .vscode/
+.qoder/
 .DS_Store
 diskplugin.csi.alibabacloud.com
 nasplugin.csi.alibabacloud.com
