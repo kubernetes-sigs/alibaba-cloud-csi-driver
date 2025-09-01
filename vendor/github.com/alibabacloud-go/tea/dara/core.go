@@ -34,6 +34,7 @@ type RuntimeOptions = util.RuntimeOptions
 type ExtendsParameters = util.ExtendsParameters
 
 var debugLog = debug.Init("dara")
+
 type HttpRequest interface {
 }
 
@@ -183,6 +184,39 @@ func Convert(in interface{}, out interface{}) error {
 	return err
 }
 
+// ConvertChan converts the source data to the target type and sends it to the specified channel.
+// @param src - source data
+// @param destChan - target channel
+// @return error - error during the conversion process
+func ConvertChan(src interface{}, destChan interface{}) error {
+	destChanValue := reflect.ValueOf(destChan)
+	if destChanValue.Kind() != reflect.Chan {
+		return fmt.Errorf("destChan must be a channel")
+	}
+
+	if destChanValue.Type().ChanDir() == reflect.SendDir {
+		return fmt.Errorf("destChan must be a receive or bidirectional channel")
+	}
+
+	elemType := destChanValue.Type().Elem()
+
+	destValue := reflect.New(elemType).Interface()
+
+	err := Convert(src, destValue)
+	if err != nil {
+		return err
+	}
+	destValueElem := reflect.ValueOf(destValue).Elem()
+
+	defer func() {
+		if r := recover(); r != nil {
+		}
+	}()
+
+	destChanValue.TrySend(destValueElem)
+	return nil
+}
+
 // Recover is used to format error
 func Recover(in interface{}) error {
 	if in == nil {
@@ -320,6 +354,131 @@ func DoRequest(request *Request, runtimeObject *RuntimeObject) (response *Respon
 		completedBytes = runtimeObject.Tracker.CompletedBytes
 	}
 	if err != nil {
+		event = utils.NewProgressEvent(utils.TransferFailedEvent, completedBytes, int64(contentlength), 0)
+		utils.PublishProgress(runtimeObject.Listener, event)
+		return
+	}
+
+	event = utils.NewProgressEvent(utils.TransferCompletedEvent, completedBytes, int64(contentlength), 0)
+	utils.PublishProgress(runtimeObject.Listener, event)
+
+	response = NewResponse(res)
+	fieldMap["{code}"] = strconv.Itoa(res.StatusCode)
+	fieldMap["{res_headers}"] = Stringify(res.Header)
+	debugLog("< HTTP/1.1 %s", res.Status)
+	for key, value := range res.Header {
+		debugLog("< %s: %s", key, strings.Join(value, ""))
+		if len(value) != 0 {
+			response.Headers[strings.ToLower(key)] = String(value[0])
+		}
+	}
+	return
+}
+
+func DoRequestWithCtx(ctx context.Context, request *Request, runtimeObject *RuntimeObject) (response *Response, err error) {
+	if runtimeObject == nil {
+		runtimeObject = &RuntimeObject{}
+	}
+	fieldMap := make(map[string]string)
+	utils.InitLogMsg(fieldMap)
+	defer func() {
+		if runtimeObject.Logger != nil {
+			runtimeObject.Logger.PrintLog(fieldMap, err)
+		}
+	}()
+	if request.Method == nil {
+		request.Method = String("GET")
+	}
+
+	if request.Protocol == nil {
+		request.Protocol = String("http")
+	} else {
+		request.Protocol = String(strings.ToLower(StringValue(request.Protocol)))
+	}
+
+	requestURL := ""
+	request.Domain = request.Headers["host"]
+	if request.Port != nil {
+		request.Domain = String(fmt.Sprintf("%s:%d", StringValue(request.Domain), IntValue(request.Port)))
+	}
+	requestURL = fmt.Sprintf("%s://%s%s", StringValue(request.Protocol), StringValue(request.Domain), StringValue(request.Pathname))
+	queryParams := request.Query
+	// sort QueryParams by key
+	q := url.Values{}
+	for key, value := range queryParams {
+		q.Add(key, StringValue(value))
+	}
+	querystring := q.Encode()
+	if len(querystring) > 0 {
+		if strings.Contains(requestURL, "?") {
+			requestURL = fmt.Sprintf("%s&%s", requestURL, querystring)
+		} else {
+			requestURL = fmt.Sprintf("%s?%s", requestURL, querystring)
+		}
+	}
+	debugLog("> %s %s", StringValue(request.Method), requestURL)
+
+	httpRequest, err := http.NewRequestWithContext(ctx, StringValue(request.Method), requestURL, request.Body)
+	if err != nil {
+		return
+	}
+	httpRequest.Host = StringValue(request.Domain)
+
+	var client HttpClient
+	if runtimeObject.HttpClient == nil {
+		client = getDaraClient(runtimeObject.getClientTag(StringValue(request.Domain)))
+	} else {
+		client = runtimeObject.HttpClient
+	}
+
+	trans, err := getHttpTransport(request, runtimeObject)
+	if err != nil {
+		return
+	}
+	if defaultClient, ok := client.(*daraClient); ok {
+		defaultClient.Lock()
+		if !defaultClient.ifInit || defaultClient.httpClient.Transport == nil {
+			defaultClient.httpClient.Transport = trans
+		}
+		defaultClient.httpClient.Timeout = time.Duration(IntValue(runtimeObject.ReadTimeout)) * time.Millisecond
+		defaultClient.ifInit = true
+		defaultClient.Unlock()
+	}
+
+	for key, value := range request.Headers {
+		if value == nil || key == "content-length" {
+			continue
+		} else if key == "host" {
+			httpRequest.Header["Host"] = []string{*value}
+			delete(httpRequest.Header, "host")
+		} else if key == "user-agent" {
+			httpRequest.Header["User-Agent"] = []string{*value}
+			delete(httpRequest.Header, "user-agent")
+		} else {
+			httpRequest.Header[key] = []string{*value}
+		}
+		debugLog("> %s: %s", key, StringValue(value))
+	}
+	contentlength, _ := strconv.Atoi(StringValue(request.Headers["content-length"]))
+	event := utils.NewProgressEvent(utils.TransferStartedEvent, 0, int64(contentlength), 0)
+	utils.PublishProgress(runtimeObject.Listener, event)
+
+	putMsgToMap(fieldMap, httpRequest)
+	startTime := time.Now()
+	fieldMap["{start_time}"] = startTime.Format("2006-01-02 15:04:05")
+	res, err := hookDo(client.Call)(httpRequest, trans)
+	fieldMap["{cost}"] = time.Since(startTime).String()
+	completedBytes := int64(0)
+	if runtimeObject.Tracker != nil {
+		completedBytes = runtimeObject.Tracker.CompletedBytes
+	}
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			err = TeaSDKError(ctx.Err())
+		default:
+		}
+
 		event = utils.NewProgressEvent(utils.TransferFailedEvent, completedBytes, int64(contentlength), 0)
 		utils.PublishProgress(runtimeObject.Listener, event)
 		return
