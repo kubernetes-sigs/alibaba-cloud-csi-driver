@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide provides comprehensive instructions for deploying and using BMCPFS through Helm charts in Kubernetes environments.
+This guide provides instructions for deploying and using BMCPFS through Helm charts in Kubernetes environments. BMCPFS supports **static provisioning only** - you must pre-create the Cloud Parallel File System in Alibaba Cloud before using it with Kubernetes.
 
 ## Features
 
@@ -21,10 +21,11 @@ This guide provides comprehensive instructions for deploying and using BMCPFS th
    - Lingjun infrastructure with VSC networking (recommended for optimal performance)
    - Standard VPC infrastructure (fallback support)
 4. **BMCPFS**: Pre-created Cloud Parallel File System in Alibaba Cloud, submit a ticket to enable bmcpfs openapi.
+5. **Lingjun Infrastructure**: Lingjun nodes must be initialized with BMCPFS before CSI driver usage
 
 ### Authentication Requirements
 
-- Proper IAM roles for accessing Alibaba Cloud APIs, and configure permissions to access NAS and EFLO services. The required permissions list is as follows, and the secret key with this permission needs to be associated with csi-provisioner.
+- Proper RAM roles for accessing Alibaba Cloud APIs, and configure permissions to access NAS and EFLO services. The required permissions list is as follows, and the secret key with this permission needs to be associated with csi-provisioner.
 
 ```json
 {
@@ -51,6 +52,7 @@ This guide provides comprehensive instructions for deploying and using BMCPFS th
     {
       "Effect": "Allow",
       "Action": [
+        "eflo:CreateVsc",
         "eflo:DescribeVsc",
         "eflo:ListVscs"
       ],
@@ -118,6 +120,20 @@ helm install bmcpfs-csi-driver \
 ### Step 3: Install cnfs-nas-daemon Component
 
 ```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cnfs-system
+spec:
+  finalizers:
+  - kubernetes
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cnfs-nas-daemon
+  namespace: cnfs-system
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -150,7 +166,7 @@ spec:
         - args:
             - '--socket=/run/cnfs/alinas-mounter.sock'
             - '--driver=alinas'
-          image: >
+          image: >-
             registry-us-west-1-vpc.ack.aliyuncs.com/acs/csi-alinas:v2.0-2a209ad-aliyun # Image address needs to be changed to current cluster region address
           imagePullPolicy: IfNotPresent
           name: mount-proxy
@@ -303,7 +319,7 @@ kubectl apply -f storageclass.yaml
 
 ### Static Volume Provisioning
 
-For pre-existing CPFS file systems, create a static PersistentVolume:
+BMCPFS only supports static provisioning. Create a PersistentVolume for your pre-existing CPFS file system:
 
 ```yaml
 apiVersion: v1
@@ -370,7 +386,7 @@ spec:
 
 ### Multi-Pod Shared Access
 
-BMCPFS supports ReadWriteMany, allowing multiple pods to access the same volume simultaneously:
+BMCPFS supports ReadWriteMany access mode, enabling multiple pods to simultaneously access the same volume:
 
 ```yaml
 apiVersion: apps/v1
@@ -399,60 +415,40 @@ spec:
             claimName: bmcpfs-static-pvc
 ```
 
-## Network Type Detection
+### Network Type Detection
 
-The BMCPFS driver automatically detects the appropriate network type based on node configuration:
+The BMCPFS driver automatically selects the optimal network type:
 
-### Lingjun Nodes
+### Lingjun Nodes (Bare Metal)
 - **Network Type**: VSC
-- **Performance**: Optimized for high-throughput, low-latency access
+- **Performance**: High-throughput, low-latency direct access
+- **Node ID Pattern**: Starts with `lingjun:`
 
-### Standard Nodes
+### Standard Nodes (ECS)
 - **Network Type**: VPC
-- **Compatibility**: Standard cloud infrastructure support
+- **Compatibility**: Standard cloud infrastructure
+- **Node ID Pattern**: Starts with `common:`
 
-## Mount Process Flow
+## Upgrade
 
-```mermaid
-flowchart TD
-    Start([Volume Mount Request]) --> CheckNode["Check Node ID Type"]
-    CheckNode --> |"Starts with 'lingjun:'"| LingjunFlow["Lingjun Node Flow"]
-    CheckNode --> |"Starts with 'common:'"| CommonFlow["Common Node Flow"]
-    
-    LingjunFlow --> GetVSC["Get Primary VSC"]
-    GetVSC --> CreateVSC{"VSC Exists?"}
-    CreateVSC --> |No| CreateNewVSC["Create Primary VSC"]
-    CreateVSC --> |Yes| UseVSC["Use Existing VSC"]
-    CreateNewVSC --> AttachCPFS["Attach CPFS to VSC"]
-    UseVSC --> AttachCPFS
-    AttachCPFS --> VSCMount["Mount with VSC Network"]
-    
-    CommonFlow --> VPCMount["Mount with VPC Network"]
-    
-    VSCMount --> MountProxy["Mount Proxy (Alinas)"]
-    VPCMount --> MountProxy
-    MountProxy --> FileSystem["Mounted File System"]
 ```
+# Backup current values
+helm get values bmcpfs-csi-driver -n kube-system > backup-values.yaml
 
-## Upgrade to New Version
-
-```bash
+# Upgrade to new version
 helm upgrade bmcpfs-csi-driver \
   ./deploy/charts/alibaba-cloud-csi-driver \
   -f backup-values.yaml \
   --namespace kube-system
-```
 
-## Verify Upgrade
-
-```bash
+# Verify upgrade
 kubectl rollout status deployment/csi-provisioner -n kube-system
 kubectl rollout status daemonset/csi-plugin -n kube-system
 ```
 
 ## Uninstall
 
-```bash
+```shell
 # First delete all PVCs
 kubectl delete pvc --all -A
 

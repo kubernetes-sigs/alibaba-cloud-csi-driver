@@ -21,10 +21,11 @@
    - 具有 VSC 网络的灵骏基础设施（推荐，获得最佳性能）
    - 标准 VPC 基础设施（备选支持）
 4. **CPFS 文件系统**：在阿里云中预创建的云并行文件系统, 提交工单开启 bmcpfs openapi.
+5. **灵骏节点**： 灵骏节点必须初始化过智算版 CPFS 文件系统， 否则无法使用 CSI 插件挂载
 
 ### 认证要求
 
-- 访问阿里云 API 的适当 IAM 角色， 并且为角色配置可以访问 NAS 和 EFLO 服务的权限， 所需权限列表如下, 拥有该权限的秘钥需要与 csi-provisioner 相关联。 
+- 访问阿里云 API 的适当 RAM 角色， 并且为角色配置可以访问 NAS 和 EFLO 服务的权限， 所需权限列表如下, 拥有该权限的秘钥需要与 csi-provisioner 相关联。 
 ```
 {
   "Version": "1",
@@ -50,6 +51,7 @@
     {
       "Effect": "Allow",
       "Action": [
+        "eflo:CreateVsc",
         "eflo:DescribeVsc",
         "eflo:ListVscs"
       ],
@@ -116,6 +118,20 @@ helm install bmcpfs-csi-driver \
 ### 步骤 3：安装cnfs-nas-daemon 组件
 
 ```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cnfs-system
+spec:
+  finalizers:
+  - kubernetes
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cnfs-nas-daemon
+  namespace: cnfs-system
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -372,28 +388,6 @@ BMCPFS 驱动程序根据节点配置自动检测适当的网络类型：
 - **网络类型**：VPC
 - **兼容性**：标准云基础设施支持
 
-## 挂载流程图
-
-```
-flowchart TD
-    Start([卷挂载请求]) --> CheckNode["检查节点 ID 类型"]
-    CheckNode --> |"以 'lingjun:' 开头"| LingjunFlow["灵骏节点流程"]
-    CheckNode --> |"以 'common:' 开头"| CommonFlow["普通节点流程"]
-    
-    LingjunFlow --> GetVSC["获取主 VSC"]
-    GetVSC --> CreateVSC{"VSC 是否存在？"}
-    CreateVSC --> |否| CreateNewVSC["创建主 VSC"]
-    CreateVSC --> |是| UseVSC["使用现有 VSC"]
-    CreateNewVSC --> AttachCPFS["将 CPFS 附加到 VSC"]
-    UseVSC --> AttachCPFS
-    AttachCPFS --> VSCMount["使用 VSC 网络挂载"]
-    
-    CommonFlow --> VPCMount["使用 VPC 网络挂载"]
-    
-    VSCMount --> MountProxy["挂载代理 (Alinas)"]
-    VPCMount --> MountProxy
-    MountProxy --> FileSystem["已挂载文件系统"]
-```
 
 # 升级到新版本
 ```shell
