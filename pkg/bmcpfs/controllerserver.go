@@ -108,6 +108,17 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	// Attach CPFS to VSC
 	err = cs.attachDetacher.Attach(ctx, req.VolumeId, vscId)
 	if err != nil {
+		if internal.IsAttachNotSupportedError(err) {
+			if req.VolumeContext[_vpcMountTarget] == "" {
+				return nil, status.Errorf(codes.InvalidArgument, "missing %q config in volume context as vsc mountpoint not supported", _vpcMountTarget)
+			}
+			return &csi.ControllerPublishVolumeResponse{
+				PublishContext: map[string]string{
+					_networkType:    networkTypeVPC,
+					_vpcMountTarget: req.VolumeContext[_vpcMountTarget],
+				},
+			}, nil
+		}
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
