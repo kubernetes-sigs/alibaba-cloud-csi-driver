@@ -143,4 +143,4 @@ images:
     tag: "v2.0.2.ack.1-a76655f-aliyun"
 
 # List of image pull secrets to use for pulling images.
-imagePullSecrets: [ "test" ]
+imagePullSecrets: [ ]
