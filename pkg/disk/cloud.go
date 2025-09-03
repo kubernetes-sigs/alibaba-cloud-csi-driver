@@ -151,10 +151,6 @@ func (ad *DiskAttachDetach) findDevice(ctx context.Context, diskID, serial strin
 		}
 		// continue and retry finding device
 	}
-	device, err = ad.dev.adaptDevicePartition(device)
-	if err != nil {
-		return "", fmt.Errorf("got device %s by diff, but adapt partition failed: %v", device, err)
-	}
 	return device, nil
 }
 
