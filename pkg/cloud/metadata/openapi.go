@@ -46,8 +46,6 @@ func NewOpenAPIMetadata(c cloud.ECSInterface, s cloud.STSInterface, regionId, in
 
 func (m *OpenAPIMetadata) Get(key MetadataKey) (string, error) {
 	switch key {
-	case RegionID:
-		return m.instance.RegionId, nil
 	case ZoneID:
 		return m.instance.ZoneId, nil
 	case InstanceID:
@@ -70,7 +68,7 @@ type OpenAPIFetcher struct {
 
 func (f *OpenAPIFetcher) FetchFor(key MetadataKey) (MetadataProvider, error) {
 	switch key {
-	case RegionID, InstanceID, ZoneID, InstanceType, AccountID:
+	case InstanceID, ZoneID, InstanceType, AccountID:
 	default:
 		return nil, ErrUnknownMetadataKey
 	}
