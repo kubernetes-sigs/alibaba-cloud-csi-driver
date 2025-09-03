@@ -141,3 +141,6 @@ images:
   ossfs2:
     repo: acs/csi-ossfs2
     tag: "v2.0.2.ack.2-17bc12e-aliyun"
+
+# List of image pull secrets to use for pulling images.
+imagePullSecrets: [ ]
