@@ -108,7 +108,7 @@ func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *cs
 	// Attach CPFS to VSC
 	err = cs.attachDetacher.Attach(ctx, req.VolumeId, vscId)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	// TODO: if the cached vscid is already deleted, try to recreate a new primary vsc for lingjun node
