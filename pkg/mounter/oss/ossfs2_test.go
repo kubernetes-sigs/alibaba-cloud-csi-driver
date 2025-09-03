@@ -264,6 +264,24 @@ func TestMakeMountOptions_ossfs2(t *testing.T) {
 			},
 			expectedError: false,
 		},
+		{
+			name: "metrics top",
+			opts: &Options{
+				AkID:       "test-ak",
+				AkSecret:   "test-ak-secret",
+				Bucket:     "test-bucket",
+				Path:       "/",
+				URL:        "oss://test-bucket/",
+				MetricsTop: "5",
+			},
+			expected: []string{
+				"oss_endpoint=oss://test-bucket/",
+				"oss_bucket=test-bucket",
+				"oss_bucket_prefix=/",
+				"use_metrics=true",
+				"metrics_top=5",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -298,8 +316,8 @@ func TestAddDefaultMountOptions_ossfs2(t *testing.T) {
 		},
 		{
 			name:    "set option",
-			options: []string{"others", "log_level=debug", "log_dir=/tmp/ossfs2", "others"},
-			want:    []string{"others", "log_level=debug", "log_dir=/tmp/ossfs2", "others"},
+			options: []string{"others", "log_level=debug", "log_dir=/tmp/ossfs2", "others", "use_metrics=true"},
+			want:    []string{"others", "log_level=debug", "log_dir=/tmp/ossfs2", "others", "use_metrics=true"},
 		},
 		{
 			name:     "set option, set config",
