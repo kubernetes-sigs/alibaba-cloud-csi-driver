@@ -27,8 +27,6 @@ type getRequest[T any] struct {
 
 type LowLatency[T any] struct {
 	ecsClient desc.Client[T]
-	// remove this once we have a ecsClient that can refresh its credentials
-	PollHook func() desc.Client[T]
 
 	requestChan chan *getRequest[*T]
 
@@ -150,10 +148,6 @@ func (w *LowLatency[T]) descBatch(logger logr.Logger, t time.Time, requests map[
 	}
 	if len(thisBatch) == 0 {
 		return
-	}
-
-	if w.PollHook != nil {
-		w.ecsClient = w.PollHook()
 	}
 
 	resp, err := w.ecsClient.Describe(thisBatch)

@@ -34,6 +34,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	aliyunep "github.com/aliyun/alibaba-cloud-sdk-go/sdk/endpoints"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
@@ -97,25 +99,19 @@ type InstanceTypeInfo struct {
 
 var ecsEndpointOnce sync.Once
 
-func newEcsClient(regionID string, ac utils.AccessControl) (ecsClient *ecs.Client) {
-	var err error
-	switch ac.UseMode {
-	case utils.AccessKey:
-		ecsClient, err = ecs.NewClientWithAccessKey(regionID, ac.AccessKeyID, ac.AccessKeySecret)
-	case utils.Credential:
-		ecsClient, err = ecs.NewClientWithOptions(regionID, ac.Config, ac.Credential)
-	default:
-		ecsClient, err = ecs.NewClientWithStsToken(regionID, ac.AccessKeyID, ac.AccessKeySecret, ac.StsToken)
-	}
+func newEcsClient(regionID string, cred credentials.CredentialsProvider) (ecsClient *ecs.Client) {
 	scheme := "HTTPS"
 	if os.Getenv("ALICLOUD_CLIENT_SCHEME") == "HTTP" {
 		scheme = "HTTP"
 	}
-	ecsClient.SetHTTPSInsecure(false)
-	ecsClient.GetConfig().WithScheme(scheme)
+	config := sdk.NewConfig().WithScheme(scheme).WithUserAgent(KubernetesAlicloudIdentity)
+
+	ecsClient, err := ecs.NewClientWithOptions(regionID, config, cred)
 	if err != nil {
 		return nil
 	}
+
+	ecsClient.SetHTTPSInsecure(false)
 
 	ecsEndpointOnce.Do(func() {
 		ep := os.Getenv("ECS_ENDPOINT")
@@ -148,17 +144,6 @@ func newEcsClient(regionID string, ac utils.AccessControl) (ecsClient *ecs.Clien
 		ecsClient.SetTransport(utilshttp.RoundTripperWithHeader(nil, header))
 	}
 	return
-}
-
-func updateEcsClient(client *ecs.Client) *ecs.Client {
-	ac := utils.GetAccessControl()
-	if ac.UseMode == utils.ManagedToken {
-		client = newEcsClient(GlobalConfigVar.Region, ac)
-	}
-	if client.Client.GetConfig() != nil {
-		client.Client.GetConfig().UserAgent = KubernetesAlicloudIdentity
-	}
-	return client
 }
 
 // IsFileExisting check file exist in volume driver
@@ -1015,7 +1000,7 @@ func staticVolumeCreate(req *csi.CreateVolumeRequest) (*csi.Volume, error) {
 		return nil, nil
 	}
 
-	ecsClient := updateEcsClient(GlobalConfigVar.EcsClient)
+	ecsClient := GlobalConfigVar.EcsClient
 	disk, err := findDiskByID(diskID, ecsClient)
 	if err != nil {
 		return nil, err

@@ -27,6 +27,7 @@ import (
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/metadata"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/cloud/throttle"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/common"
+	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/credentials"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/batcher"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/desc"
 	"github.com/kubernetes-sigs/alibaba-cloud-csi-driver/pkg/disk/waitstatus"
@@ -108,20 +109,18 @@ func NewDriver(m metadata.MetadataProvider, endpoint string, serviceType utils.S
 	}
 
 	// Init ECS Client
-	accessControl := utils.GetAccessControl()
-	client := newEcsClient(metadata.MustGet(m, metadata.RegionID), accessControl)
-	if accessControl.UseMode == utils.ManagedToken {
-		klog.Infof("Starting csi-plugin with sts.")
-	} else {
-		klog.Infof("Starting csi-plugin without sts.")
+	cred, err := credentials.NewProvider()
+	if err != nil {
+		klog.Fatalf("Error building credential: %s", err.Error())
 	}
+	client := newEcsClient(metadata.MustGet(m, metadata.RegionID), credentials.V1ProviderAdaptor(cred))
 	GlobalConfigVar.EcsClient = client
 
 	// Create GRPC servers
 	var servers common.Servers
 	servers.IdentityServer = NewIdentityServer()
 	if serviceType&utils.Controller != 0 {
-		servers.ControllerServer = NewControllerServer(csiCfg, m)
+		servers.ControllerServer = NewControllerServer(csiCfg, client, m)
 	}
 	if serviceType&utils.Node != 0 {
 		servers.NodeServer = NewNodeServer(m)
@@ -235,13 +234,9 @@ func newBatcher(fromNode bool) (waitstatus.StatusWaiter[ecs.Disk], batcher.Batch
 		interval = 2 * time.Second // We have many nodes, use longer interval to avoid throttling
 	}
 	waiter := waitstatus.NewBatched(client, clock.RealClock{}, interval, 3*time.Second)
-	waiter.PollHook = func() desc.Client[ecs.Disk] {
-		return desc.Disk{Client: updateEcsClient(GlobalConfigVar.EcsClient)}
-	}
 	go waiter.Run(ctx)
 
 	b := batcher.NewLowLatency(client, clock.RealClock{}, 1*time.Second, 8)
-	b.PollHook = waiter.PollHook
 	go b.Run(ctx)
 
 	return waiter, b
